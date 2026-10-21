@@ -1,0 +1,325 @@
+/* La hoja del día (Calendario › Día, 5 oct 2026): la Cabina v2 dentro del calendario.
+   Reglas (las de cabina/luz.module.css): el movimiento explica, no decora; lo que entra sube 6 px con un escalonado
+   corto; solo late lo vivo (el ahora); oro para el ahora y P1, lo demás neutro; titulares en la serif de Levy.
+   El ancho lo manda el CONTENEDOR del calendario (panel de 520 px, sección o teléfono), no la ventana. */
+@keyframes subir { from { opacity: 0; transform: translateY(6px); } }
+@keyframes respira { 0%, 100% { box-shadow: 0 0 0 0 rgba(var(--gold-rgb), .5); } 60% { box-shadow: 0 0 0 7px rgba(var(--gold-rgb), 0); } }
+@keyframes llenar { from { transform: scaleX(0); } }
+@keyframes trazo { from { stroke-dashoffset: 24; } to { stroke-dashoffset: 0; } }
+@keyframes aparecer { from { opacity: 0; } }
+
+.entra { animation: subir 560ms cubic-bezier(.16, 1, .3, 1) backwards; animation-delay: calc(var(--i, 0) * 45ms); }
+
+.dia { --linea: color-mix(in srgb, var(--foreground) 9%, transparent); --serif: ui-serif, 'New York', 'Iowan Old Style', Georgia, serif;
+  display: flex; flex-direction: column; gap: 14px; padding: 14px 26px 18px; border-bottom: 1px solid var(--linea); min-width: 0; color: var(--foreground); }
+
+/* Cabecera corta: el día en serif a la izquierda, el reloj con lo que pasa a la derecha. */
+.cabecera { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px 20px; flex-wrap: wrap; min-width: 0; }
+.ceja { margin: 0 0 2px; font-size: 11px; font-weight: 650; letter-spacing: 1.4px; text-transform: uppercase; color: var(--muted); }
+.ceja b { color: var(--gold-dark, var(--gold)); font-weight: 700; }
+:global(.dark) .ceja b { color: var(--gold-bright, var(--gold)); }
+.fecha { margin: 0; font-family: var(--serif); font-size: 34px; line-height: 1.05; font-weight: 600; letter-spacing: -.5px; }
+.fecha small { font-size: 19px; font-weight: 400; color: var(--muted); letter-spacing: 0; }
+.reloj { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; min-width: 0; max-width: 100%; text-align: right; }
+.reloj strong { font-family: var(--serif); font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1; }
+.reloj span { font-size: 12.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.reloj em { font-style: normal; font-weight: 600; color: var(--foreground); }
+
+/* El objetivo del día es el protagonista. */
+.objetivo { position: relative; overflow: hidden; padding: 11px 14px 13px; border-radius: 14px; border: 1px solid rgba(var(--brand-rgb), .22);
+  background: linear-gradient(135deg, rgba(var(--brand-rgb), .10), rgba(var(--brand-rgb), .02) 60%), var(--card); box-shadow: var(--shadow-xs, none); min-width: 0; }
+.objetivo[data-vacio] { border-style: dashed; background: transparent; }
+.objetivo > header { display: flex; align-items: center; gap: 8px; min-height: 24px; }
+.objetivo > header > span { font-size: 11px; font-weight: 650; letter-spacing: 1.4px; text-transform: uppercase; color: var(--brand, var(--primary)); }
+.objetivo > header em { padding: 1px 8px; border: 1px solid var(--linea); border-radius: 999px; font-size: 10.5px; font-style: normal; color: var(--muted); white-space: nowrap; }
+.objetivo > header em[data-estado=completed] { color: var(--success, var(--primary)); border-color: currentColor; }
+.objetivo h3 { margin: 0; font-family: var(--serif); font-size: 21px; line-height: 1.22; font-weight: 600; letter-spacing: -.2px; overflow-wrap: anywhere; }
+.exito { margin: 6px 0 0; font-size: 13px; line-height: 1.45; color: var(--muted); overflow-wrap: anywhere; }
+.objetivoVacio { margin: 6px 0 0; font-size: 14px; color: var(--muted); }
+.sirve { margin: 10px 0 0; padding-top: 9px; border-top: 1px solid var(--linea); font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.sirve b { color: var(--foreground); font-weight: 600; }
+
+.accion { margin-left: auto; display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-width: 28px; height: 28px; padding: 0 9px; border: 1px solid var(--linea); border-radius: 999px; background: transparent; color: var(--foreground); font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap; transition: background 140ms; }
+.accion:hover { background: var(--card-hover); }
+.accion[aria-pressed=true] { border-color: rgba(var(--brand-rgb), .4); color: var(--brand, var(--primary)); }
+.accion:disabled { opacity: .45; cursor: default; }
+.soloIcono { padding: 0; width: 28px; }
+.titulo .hechas + .accion, .titulo small + .accion { margin-left: auto; }
+
+/* Riel: la forma del día. */
+.riel { min-width: 0; }
+.rielPista { position: relative; height: 14px; }
+.rielPista::before { content: ''; position: absolute; left: 0; right: 0; top: 5px; height: 4px; border-radius: 2px; background: var(--linea); }
+.rielVivido { position: absolute; left: 0; top: 5px; height: 4px; border-radius: 2px; background: linear-gradient(90deg, rgba(var(--gold-rgb), .25), rgba(var(--gold-rgb), .6)); transform-origin: left; animation: llenar 900ms cubic-bezier(.16, 1, .3, 1) both; }
+.rielTramo { position: absolute; top: 3px; height: 8px; border-radius: 4px; background: var(--c); opacity: .85; }
+.rielTramo[data-pasado] { opacity: .3; }
+.rielAhora { position: absolute; top: 0; width: 14px; height: 14px; margin-left: -7px; border-radius: 7px; background: var(--gold); border: 2px solid var(--background); animation: respira 2.4s ease-in-out infinite; z-index: 1; }
+.riel:has(.rielAhora b) { padding-top: 13px; }
+.rielAhora b { position: absolute; left: 50%; bottom: calc(100% + 1px); transform: translateX(-50%); font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--gold-dark, var(--gold)); white-space: nowrap; }
+:global(.dark) .rielAhora b { color: var(--gold-bright, var(--gold)); }
+.rielHoras { display: flex; justify-content: space-between; margin-top: 4px; font-size: 10.5px; font-variant-numeric: tabular-nums; color: var(--muted); }
+
+/* Cuerpo: agenda y tareas, lado a lado cuando hay ancho. */
+.cuerpo { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: 'agenda'; align-items: start; gap: 14px 28px; min-width: 0; }
+.areaTareas { grid-area: tareas; }
+.areaAgenda { grid-area: agenda; }
+.columna { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.titulo { display: flex; align-items: center; gap: 8px; min-height: 28px; }
+.titulo h3 { margin: 0; font-size: 11px; font-weight: 650; letter-spacing: 1.4px; text-transform: uppercase; color: var(--muted); }
+.titulo small { font-size: 11px; font-variant-numeric: tabular-nums; color: var(--muted); }
+.titulo .hechas { color: var(--success, var(--primary)); }
+.vacio { margin: 0; font-size: 13px; color: var(--muted); }
+
+.pastillas { display: flex; flex-wrap: wrap; gap: 6px; }
+.pastilla { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 4px 10px; border: 1px solid var(--linea); border-radius: 999px; background: var(--surface); color: var(--foreground); font: inherit; font-size: 12px; cursor: pointer; }
+.pastilla i { flex: 0 0 7px; height: 7px; border-radius: 4px; background: var(--primary); }
+.pastilla span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Plegadas (el default): la primera en una línea y «+N»; un toque las abre todas. */
+.pastillas[data-plegadas] { flex-wrap: nowrap; }
+.pastillas[data-plegadas] .pastilla { flex: 0 1 auto; min-width: 0; }
+.pastillaMas { flex: 0 0 auto; display: inline-grid; place-items: center; min-width: 30px; height: 26px; padding: 0 8px; border: 1px solid var(--linea); border-radius: 999px; background: transparent;
+  color: var(--muted); font: inherit; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; cursor: pointer; transition: background 140ms, color 140ms; }
+.pastillaMas:hover { background: var(--card-hover); color: var(--foreground); }
+.pastillaMas svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+/* El bloque en curso: destacado, con su avance. */
+.enCurso { display: flex; flex-direction: column; gap: 4px; width: 100%; padding: 11px 13px 12px; border-radius: 12px; border: 1px solid rgba(var(--gold-rgb), .45);
+  background: linear-gradient(135deg, rgba(var(--gold-rgb), .14), rgba(var(--gold-rgb), .04)); color: var(--foreground); font: inherit; text-align: left; cursor: pointer; min-width: 0; }
+.enCursoCeja { font-size: 11px; font-variant-numeric: tabular-nums; color: var(--muted); }
+.enCursoCeja b { color: var(--gold-dark, var(--gold)); text-transform: uppercase; letter-spacing: 1.2px; font-size: 10.5px; }
+:global(.dark) .enCursoCeja b { color: var(--gold-bright, var(--gold)); }
+.enCurso strong { font-size: 15.5px; font-weight: 650; line-height: 1.3; overflow-wrap: anywhere; }
+.enCurso small { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.enCurso small em { font-style: normal; color: var(--foreground); }
+.barra { display: block; height: 4px; margin: 4px 0 2px; border-radius: 2px; background: rgba(var(--gold-rgb), .18); overflow: hidden; }
+.barra i { display: block; height: 100%; border-radius: 2px; background: var(--gold); transform-origin: left; animation: llenar 1000ms 200ms cubic-bezier(.16, 1, .3, 1) both; transition: width 600ms ease; }
+
+.plegados { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; padding: 6px 10px; border: 1px dashed var(--linea); border-radius: 9px; background: transparent; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; }
+.plegados:hover { color: var(--foreground); }
+
+/* Agenda compacta: hora · color · título · duración. */
+.agenda { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+.agenda button { display: grid; grid-template-columns: 42px 3px minmax(0, 1fr) auto; align-items: center; gap: 10px; width: 100%; min-height: 38px; padding: 5px 8px; border: 0; border-radius: 9px; background: transparent; color: var(--foreground); font: inherit; font-size: 13.5px; text-align: left; cursor: pointer; transition: background 140ms; }
+.agenda button:hover { background: var(--card-hover); }
+.agenda time { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--muted); }
+.agenda i { align-self: stretch; margin: 3px 0; border-radius: 2px; background: var(--c); }
+.agenda span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agenda small { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.agenda button[data-pasado] { opacity: .5; }
+.sigue { margin-left: 7px; padding: 1px 6px; border-radius: 999px; background: rgba(var(--brand-rgb), .1); color: var(--brand, var(--primary)); font-size: 10px; font-weight: 650; letter-spacing: .8px; text-transform: uppercase; }
+
+/* Tareas como tarjetas. Completar: la palomita se dibuja, el título se tacha y la tarjeta se pliega. */
+.tarjetas { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+.tarjeta { display: grid; grid-template-rows: 1fr; transition: grid-template-rows 380ms 520ms cubic-bezier(.4, 0, .2, 1), opacity 300ms 520ms ease, transform 300ms 520ms ease; }
+.tarjeta[data-hecha] { align-self: start; grid-template-rows: 0fr; opacity: 0; transform: scale(.97); }
+.tarjetaDentro { display: flex; align-items: flex-start; gap: 4px; min-height: 0; overflow: hidden; border-radius: 12px; border: 1px solid var(--linea); background: var(--card); box-shadow: var(--shadow-xs, none); transition: border-color 160ms, box-shadow 160ms, transform 160ms; }
+.tarjeta:hover .tarjetaDentro { border-color: color-mix(in srgb, var(--foreground) 16%, transparent); transform: translateY(-1px); }
+.tarjeta[data-prio='1'] .tarjetaDentro { border-color: rgba(var(--gold-rgb), .5); background: linear-gradient(135deg, rgba(var(--gold-rgb), .08), transparent 70%), var(--card); }
+.check { flex: 0 0 auto; display: grid; place-items: center; width: 40px; height: 44px; margin-left: 2px; border: 0; background: transparent; cursor: pointer; color: transparent; }
+.check::before { content: ''; grid-area: 1 / 1; width: 19px; height: 19px; border-radius: 50%; border: 1.6px solid color-mix(in srgb, var(--foreground) 35%, transparent); transition: background 200ms, border-color 200ms, transform 200ms; }
+.tarjeta[data-prio='1'] .check::before { border-color: var(--gold); }
+.check svg { grid-area: 1 / 1; width: 12px; height: 12px; z-index: 1; }
+.check:hover::before { border-color: var(--success, var(--primary)); }
+.check:hover:not(:disabled) { color: color-mix(in srgb, var(--success, var(--primary)) 60%, transparent); }
+.check:disabled { cursor: default; }
+.tarjeta[data-hecha] .check { color: #fff; }
+.tarjeta[data-hecha] .check::before { background: var(--success, var(--primary)); border-color: var(--success, var(--primary)); transform: scale(1.08); }
+.tarjeta[data-hecha] .check svg path { stroke-dasharray: 24; animation: trazo 320ms ease-out both; }
+.tarjetaCuerpo { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 5px; padding: 11px 12px 11px 0; border: 0; background: transparent; color: var(--foreground); font: inherit; text-align: left; cursor: pointer; }
+.tarjetaTitulo { font-size: 14px; font-weight: 600; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: break-word; transition: color 200ms; }
+.tarjeta[data-hecha] .tarjetaTitulo { color: var(--muted); text-decoration: line-through; }
+.meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 11.5px; color: var(--muted); }
+.meta time { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--foreground); }
+.prio { padding: 0 6px; border-radius: 999px; font-size: 10px; font-weight: 700; background: color-mix(in srgb, var(--foreground) 8%, transparent); }
+.prio[data-prio='1'] { background: rgba(var(--gold-rgb), .18); color: var(--gold-dark, var(--gold)); }
+:global(.dark) .prio[data-prio='1'] { color: var(--gold-bright, var(--gold)); }
+.mas { align-self: flex-start; padding: 4px 0; border: 0; background: transparent; color: var(--primary); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+.deshacer { display: flex; align-items: center; gap: 10px; margin: 2px 0 0; padding: 7px 10px; border-radius: 10px; font-size: 12.5px; background: rgba(var(--brand-rgb), .06); border: 1px solid rgba(var(--brand-rgb), .18); animation: aparecer 200ms ease-out both; }
+.deshacer span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.deshacer button { border: 0; background: transparent; color: var(--primary); font: inherit; font-weight: 650; cursor: pointer; }
+
+/* Angosto: el panel (520 px) y el teléfono. Consulta el contenedor del calendario (.root, container planning). */
+@container (max-width: 700px) {
+  .dia { padding: 12px 14px 16px; gap: 14px; }
+  .cuerpo { gap: 14px 16px; }
+  .fecha { font-size: 30px; }
+  .fecha small { font-size: 17px; }
+  .objetivo h3 { font-size: 19px; }
+  .agenda button { min-height: 42px; }
+}
+@container (max-width: 420px) {
+  .objetivo > header .accion { padding: 0; width: 28px; }
+  .objetivo > header .accion span { display: none; }
+  .cabecera { flex-direction: column; align-items: flex-start; }
+  .reloj { flex-direction: row; align-items: baseline; gap: 8px; text-align: left; }
+  .reloj strong { font-size: 18px; }
+  .tarjetas { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .entra, .rielVivido, .rielAhora, .barra i, .deshacer, .tarjeta[data-hecha] .check svg path, .estrella, .estrella svg, .chispas i, .cumplidoChip, .objetivo::after { animation: none !important; }
+  .chispas { display: none; }
+  .tarjeta, .tarjetaDentro, .check::before { transition: none !important; }
+}
+
+/* Piezas compartidas con 4 días, Semana y Mes (5 oct 2026): la etiqueta del calendario («Semana 2») y el estado del objetivo mayor. */
+.rotuloObj { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.etiquetaObj { white-space: nowrap; font-size: inherit; font-weight: 650; letter-spacing: inherit; color: var(--muted); }
+.objetivo > header em[data-estado=draft], .sirveEstado[data-estado=draft] { color: var(--gold-dark, var(--gold)); border-color: rgba(var(--gold-rgb), .45); background: rgba(var(--gold-rgb), .08); }
+:global(.dark) .objetivo > header em[data-estado=draft], :global(.dark) .sirveEstado[data-estado=draft] { color: var(--gold-bright, var(--gold)); }
+.sirveEstado { display: inline-block; margin-left: 8px; padding: 0 7px; border: 1px solid var(--linea); border-radius: 999px; font-size: 10.5px; font-style: normal; color: var(--muted); white-space: nowrap; vertical-align: 1px; }
+.sirveEstado[data-estado=completed] { color: var(--success, var(--primary)); border-color: currentColor; }
+
+/* La estrella del objetivo (5 oct 2026, «una animación satisfactoria al cumplirlo»): late una vez, se llena en morado de marca,
+   suelta ocho chispas y una luz cruza la tarjeta. El oro queda para el ahora. Al desmarcar vuelve quieta, sin fiesta. */
+@keyframes estrellaPop { 0% { transform: scale(.55) rotate(-18deg); } 45% { transform: scale(1.3) rotate(8deg); } 72% { transform: scale(.93) rotate(-2deg); } 100% { transform: none; } }
+@keyframes chispa { 0% { opacity: 1; transform: rotate(var(--a)) translateY(0) scale(1); } 100% { opacity: 0; transform: rotate(var(--a)) translateY(-24px) scale(.2); } }
+@keyframes barrido { from { transform: translateX(-100%); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
+.objetivoLinea { display: flex; align-items: flex-start; gap: 8px; margin-top: 4px; min-width: 0; }
+.objetivoLinea h3 { flex: 1 1 auto; min-width: 0; }
+.estrella { position: relative; flex: 0 0 auto; display: grid; place-items: center; width: 30px; height: 30px; margin: -2px 0 0 -5px; padding: 0; border: 0; border-radius: 50%;
+  background: transparent; color: color-mix(in srgb, var(--foreground) 38%, transparent); cursor: pointer; transition: color 180ms, background 180ms; }
+.estrella:hover { color: var(--brand, var(--primary)); background: rgba(var(--brand-rgb), .08); }
+.estrella svg { width: 21px; height: 21px; fill: transparent; stroke: currentColor; stroke-width: 1.7; stroke-linejoin: round; transition: fill 220ms; }
+.estrella[data-cumplido] { color: var(--brand, var(--primary)); }
+.estrella[data-cumplido] svg { fill: currentColor; }
+.estrella[data-recien] svg { animation: estrellaPop 560ms cubic-bezier(.16, 1, .3, 1) both; }
+.chispas { position: absolute; inset: 0; pointer-events: none; }
+.chispas i { position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px; border-radius: 2px; background: var(--brand, var(--primary)); animation: chispa 640ms 80ms cubic-bezier(.16, 1, .3, 1) both; }
+.chispas i:nth-child(even) { width: 3px; height: 3px; background: rgba(var(--brand-rgb), .6); animation-delay: 130ms; }
+.objetivo[data-cumplido] { border-color: rgba(var(--brand-rgb), .42); }
+.objetivo::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0; background: linear-gradient(100deg, transparent 30%, rgba(var(--brand-rgb), .16) 50%, transparent 70%); }
+.objetivo:has(.estrella[data-recien])::after { animation: barrido 900ms 120ms cubic-bezier(.16, 1, .3, 1) both; }
+.cumplidoChip { animation: aparecer 260ms 200ms ease-out both; }
+.objetivo > header em.cumplidoChip { color: var(--brand, var(--primary)); border-color: rgba(var(--brand-rgb), .4); background: rgba(var(--brand-rgb), .07); }
+.sutil { border-color: transparent; color: var(--muted); }
+.sutil:hover { color: var(--foreground); }
+
+/* Agenda que ya pasó entera: una sola línea, a un toque. */
+.agendaFin { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.agendaFin > button:first-child { flex: 1 1 auto; min-width: 0; display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 2px; border: 0; background: transparent;
+  color: var(--muted); font: inherit; font-size: 12px; text-align: left; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.agendaFin > button:first-child:hover { color: var(--foreground); }
+
+/* Agenda mini (5 oct 2026): el día en horas, en miniatura. Las horas a la izquierda; los bloques en su lugar; el ahora en oro. */
+/* El día entero (10 oct 2026): 05–22 siempre, sin caja con scroll propio (21 oct 2026, Daniel: «sigue sin funcionar el scroll
+   solo si agarro la scrollbar con el mouse en calendario»). La caja anidada con `overscroll-behavior: contain` se quedaba con la
+   rueda y el trackpad: si sus ~526 px cabían en su tope de 540 no tenía nada que desplazar y aun así no dejaba pasar el gesto al
+   scroll del panel; si sobraban unos píxeles, los recorría y se trababa en el borde. Solo arrastrar la barra del panel movía la
+   hoja. El teléfono ya lo había sufrido el 18 oct. Ahora el día entero va en el scroll del panel (o de la página) con cualquier puntero. */
+.miniCaja { position: relative; margin: 2px 0 0; }
+.mini { position: relative; margin: 8px 0 8px; padding-left: 32px; }
+.miniVivido { position: absolute; left: 32px; right: 0; top: 0; pointer-events: none; border-radius: 0 0 4px 4px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--foreground) 2%, transparent), color-mix(in srgb, var(--foreground) 4.5%, transparent)); }
+.miniBloques button[data-compromiso] { border-left-width: 4px; box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--c) 80%, transparent); }
+.miniHora { position: absolute; left: 0; right: 0; height: 0; border-top: 1px solid color-mix(in srgb, var(--foreground) 6%, transparent); }
+.miniHora time { position: absolute; left: 0; top: -5px; width: 24px; font-size: 9.5px; line-height: 1; font-variant-numeric: tabular-nums; color: var(--muted); text-align: right; }
+.miniBloques { position: absolute; inset: 0 0 0 32px; list-style: none; margin: 0; padding: 0; pointer-events: none; }
+.miniBloques li { position: absolute; padding: 0 0 0 2px; pointer-events: auto; }
+/* Ventana de disponibilidad (18 oct 2026): banda de fondo detrás de las tarjetas, con su nombre chiquito a la derecha. */
+.miniBanda { position: absolute; left: 32px; right: 0; display: block; padding: 0; border: 0; border-right: 2px solid color-mix(in srgb, var(--c) 45%, transparent);
+  border-radius: 4px; background: color-mix(in srgb, var(--c) 7%, transparent); cursor: pointer; font: inherit; text-align: right; }
+.miniBanda span { position: absolute; right: 6px; bottom: 3px; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 9.5px; letter-spacing: .02em; color: color-mix(in srgb, var(--c) 70%, var(--muted)); }
+.miniBanda:hover { background: color-mix(in srgb, var(--c) 11%, transparent); }
+/* El brief plegado en su llamada: un 📋 en la esquina de la tarjeta que abre el brief. */
+.miniBloques .miniBrief { position: absolute; top: 2px; right: 3px; z-index: 1; display: grid; place-items: center; width: 22px; height: 18px; padding: 0; border: 0; border-left: 0; border-radius: 4px; box-shadow: none; transform: none;
+  background: color-mix(in srgb, var(--background) 55%, transparent); font-size: 11px; line-height: 1; cursor: pointer; }
+.miniBloques .miniBrief:hover { background: color-mix(in srgb, var(--background) 85%, transparent); }
+.miniBloques button[data-con-brief] { padding-right: 28px; }
+.miniBloques button { display: flex; flex-direction: column; justify-content: flex-start; gap: 1px; width: 100%; height: 100%; padding: 3px 7px; overflow: hidden; border: 0; border-left: 3px solid var(--c);
+  border-radius: 5px; background: color-mix(in srgb, var(--c) 16%, transparent); color: var(--foreground); font: inherit; text-align: left; cursor: pointer; transition: background 140ms, transform 140ms; }
+.miniBloques button:hover { background: color-mix(in srgb, var(--c) 26%, transparent); }
+.miniBloques button[data-corto] { flex-direction: row; align-items: center; padding-top: 0; padding-bottom: 0; }
+.miniBloques button[data-corto] span { font-size: 11px; }
+.miniBloques span { min-width: 0; font-size: 11.5px; font-weight: 600; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.miniBloques time { font-size: 10px; font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
+.miniBloques button[data-pasado] { opacity: .45; }
+.miniBloques button[data-vivo] { box-shadow: 0 0 0 1px rgba(var(--gold-rgb), .55); background: color-mix(in srgb, var(--c) 22%, transparent); }
+/* El ahora (21 oct 2026, Daniel: «me gusta que incluyeras una linea horizontal sutil como esta en la vista diaria… la linea de abajo
+   de "tu dia"»): la misma línea que «Tu día» (hora en ámbar, trazo de 1 px que se desvanece a la derecha). AgendaMini le pone
+   la clase .lineaAhora de luz.module.css junto a esta (no `composes` entre archivos: el build de producción no lo lleva al HTML
+   del servidor). Aquí solo se coloca sobre la rejilla y la columna de la hora se ajusta a la de las horas (24 px + 8 = el borde de los bloques). */
+.mini > .miniAhora { position: absolute; left: 0; right: 0; z-index: 2; margin: 0; transform: translateY(-50%);
+  --ahora-col: 26px; --ahora-gap: 6px; font-size: 9.5px; line-height: 1; text-align: right; pointer-events: none; }
+/* Tareas junto a la agenda: en una columna, una tarjeta por fila. */
+.areaTareas .tarjetas { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+
+/* ——— La hoja del día compacta (5 oct 2026, 17:48): todo en una vista, sin scroll en el panel. ——— */
+.dia[data-compacta] { gap: 12px; padding-top: 12px; padding-bottom: 12px; }
+/* El objetivo: una línea. Superficie neutra, barra lateral de oro y estrella dorada (6 oct 2026, igual que Semana y Mes). */
+.objLinea { --oro-texto: color-mix(in srgb, var(--gold-dark) 74%, #000); display: flex; align-items: center; gap: 4px; min-width: 0; padding: 6px 12px 6px 12px; border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent); background: linear-gradient(90deg, rgba(var(--gold-rgb), .06), transparent 55%), var(--card); color: var(--foreground);
+  box-shadow: inset 4px 0 0 var(--gold), 0 1px 2px rgba(0, 0, 0, .04); transition: box-shadow 160ms; }
+.objLinea .estrella { width: 26px; height: 26px; margin: 0 0 0 4px; }
+.objLinea .estrella svg { width: 17px; height: 17px; }
+.objLinea .estrella:not([data-cumplido]) { color: var(--oro-texto); }
+:global(.dark) .objLinea .estrella:not([data-cumplido]) { color: var(--gold-bright, var(--gold)); }
+.objLinea .estrella:hover { color: var(--oro-texto); background: rgba(var(--gold-rgb), .14); }
+.objLinea .estrella[data-cumplido] { color: var(--primary); background: transparent; }
+.objLinea .chispas i { background: var(--primary); }
+.objLinea:has(.estrella[data-recien]) .objTitulo { animation: objCumplido 900ms cubic-bezier(.16, 1, .3, 1) both; }
+@keyframes objCumplido { 0% { letter-spacing: 0; } 30% { letter-spacing: .3px; text-shadow: 0 0 14px rgba(var(--gold-rgb), .5); } 100% { letter-spacing: 0; text-shadow: none; } }
+.objTitulo { flex: 1 1 auto; min-width: 0; padding: 2px 4px; border: 0; background: transparent; color: var(--foreground); font-family: var(--serif); font-size: 19px; font-weight: 650; line-height: 1.25;
+  letter-spacing: -.2px; text-align: left; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.objTitulo:hover { text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--foreground) 35%, transparent); text-underline-offset: 3px; }
+.objLinea[data-cumplido] .objTitulo { opacity: .75; }
+.objVacio { display: inline-flex; align-items: center; gap: 5px; align-self: flex-start; margin: 0; padding: 2px 0; border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 12.5px; cursor: pointer; }
+.objVacio:hover { color: var(--gold); }
+
+/* Tareas en una línea cada una. */
+.filas { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.fila { display: flex; align-items: center; min-width: 0; border-radius: 8px; transition: background 140ms, opacity 300ms 520ms; }
+.fila:hover { background: var(--card-hover); }
+.fila .check { width: 28px; height: 28px; margin: 0; }
+.fila .check::before { width: 15px; height: 15px; }
+.fila .check svg { width: 10px; height: 10px; }
+.fila[data-prio='1'] .check::before { border-color: var(--gold); }
+.fila[data-hecha] { opacity: .45; }
+.fila[data-hecha] .check { color: #fff; }
+.fila[data-hecha] .check::before { background: var(--success, var(--primary)); border-color: var(--success, var(--primary)); }
+.fila[data-hecha] .check svg path { stroke-dasharray: 24; animation: trazo 320ms ease-out both; }
+.fila[data-hecha] .filaTitulo { text-decoration: line-through; color: var(--muted); }
+.filaCuerpo { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 6px; padding: 4px 6px 4px 0; border: 0; background: transparent; color: var(--foreground); font: inherit; text-align: left; cursor: pointer; }
+.filaTitulo { flex: 1 1 auto; min-width: 0; font-size: 13px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.filaCuerpo time { font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--muted); }
+.fila[data-objetivo] .filaTitulo { font-weight: 650; }
+.fila[data-objetivo] { background: rgba(var(--gold-rgb), .08); }
+.fila[data-objetivo] .check::before { border-color: var(--gold); }
+
+/* El orden de Tareas (18 oct 2026): un chip que cicla Hora · Prioridad · Proyecto; la hora como chip con su duración; lo vencido con marca roja sutil. */
+.topTareas { gap: 6px; }
+.topTareas .mas { padding: 2px 0; }
+.orden { margin-left: auto; height: 24px; min-width: 0; padding: 0 8px; gap: 4px; border-color: transparent; background: color-mix(in srgb, var(--foreground) 6%, transparent); color: var(--muted); font-size: 11px; font-weight: 600; }
+.orden:hover { color: var(--foreground); }
+.orden + .accion { margin-left: 2px; }
+.grupoTareas { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.grupoTareas + .grupoTareas { margin-top: 6px; }
+.grupoTitulo { display: flex; align-items: center; gap: 6px; margin: 2px 0 1px 4px; font-size: 11px; font-weight: 650; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.grupoTitulo small { font-weight: 500; font-variant-numeric: tabular-nums; }
+.filaCuerpo .horaTarea { flex: none; padding: 1px 6px; border-radius: 6px; background: color-mix(in srgb, var(--foreground) 6%, transparent); color: var(--foreground); white-space: nowrap; }
+.horaTarea small { font-size: 10px; font-weight: 500; color: var(--muted); }
+.vencio { flex: none; font-size: 10.5px; font-weight: 600; white-space: nowrap; color: var(--error); }
+.fila[data-vencida] { box-shadow: inset 2px 0 0 color-mix(in srgb, var(--error) 70%, transparent); }
+.fila[data-vencida] .check::before { border-color: color-mix(in srgb, var(--error) 55%, transparent); }
+
+/* Lo mismo, en tres lugares: al pasar por el objetivo (línea, tarea o bloque) se iluminan los tres. */
+.dia:has([data-objetivo]:hover) .fila[data-objetivo] { background: rgba(var(--gold-rgb), .09); }
+.dia:has([data-objetivo]:hover) .objLinea { box-shadow: inset 4px 0 0 var(--gold), 0 0 0 2px rgba(var(--gold-rgb), .3); }
+.dia:has([data-objetivo]:hover) .miniBloques button[data-objetivo] { box-shadow: 0 0 0 1.5px var(--gold); }
+.miniBloques button[data-objetivo] { background: rgba(var(--gold-rgb), .16); }
+.miniBloques button[data-objetivo] span { color: var(--gold-dark, var(--gold)); }
+:global(.dark) .miniBloques button[data-objetivo] span { color: var(--gold-bright, var(--gold)); }
+.miniBloques button[data-hecha] { opacity: .5; }
+
+@container (max-width: 700px) { .dia[data-compacta] { padding-left: 12px; padding-right: 12px; } .objTitulo { font-size: 17px; } }
+@media (prefers-reduced-motion: reduce) { .objLinea .objTitulo, .fila[data-hecha] .check svg path { animation: none !important; } .fila { transition: none; } }
+
+.objBloque { display: flex; flex-direction: column; min-width: 0; }
+.objBloque > div:last-child > div { padding-top: 8px; }
+
+/* Día (6 oct 2026): «lo justo que debería estar haciendo» arriba; compacta para que todo quepa sin scroll en 520 px. */
+.enCursoDia { padding: 9px 12px 10px; gap: 3px; }
+.enCursoDia strong { font-size: 15px; }
+.enCurso[data-proximo] { background: transparent; border-color: var(--linea); }
+.enCurso[data-proximo] .enCursoCeja b { color: var(--muted); }

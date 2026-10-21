@@ -1,0 +1,10 @@
+# Edición cliente: artefactos generados por scripts/fetch-node.mjs y scripts/empaquetar-daemon.mjs (no van a git).
+/binaries/
+/resources/daemon/
+/resources/plantilla-cerebro/
+/resources/manos/
+/resources/next/
+
+# Iconos de la app (la raíz ignora *.png).
+!/icons/*.png
+/target-cliente/

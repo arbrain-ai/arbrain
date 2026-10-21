@@ -1,0 +1,10 @@
+.raiz { position: relative; display: inline-flex; vertical-align: middle; text-transform: none; letter-spacing: 0; }
+.boton { display: inline-grid; place-items: center; width: 20px; height: 20px; margin: -4px 0 -4px 2px; padding: 0; border: 0; border-radius: 10px; background: transparent; color: color-mix(in srgb, var(--muted) 70%, transparent); cursor: pointer; transition: color 160ms, background 160ms; }
+.boton:hover, .raiz[data-abierto] .boton { color: var(--foreground); background: color-mix(in srgb, var(--foreground) 7%, transparent); }
+.boton:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+@keyframes entra { from { opacity: 0; transform: translateY(3px); } }
+.globo { position: absolute; z-index: 30; top: calc(100% + 6px); left: -8px; width: min(256px, 72vw); padding: 9px 11px; border-radius: 10px; border: 1px solid var(--border); background: var(--card); box-shadow: 0 12px 28px -12px rgba(15, 23, 42, 0.35);
+  font-size: 12px; font-weight: 400; line-height: 1.5; text-align: left; color: var(--foreground); white-space: normal; animation: entra 160ms var(--ease-out-expo, cubic-bezier(0.16, 1, 0.3, 1)); }
+:global(.dark) .globo { background: #1c1c24; box-shadow: 0 12px 28px -10px rgba(0, 0, 0, 0.6); }
+.globo[data-reves] { left: auto; right: -8px; }
+@media (prefers-reduced-motion: reduce) { .globo { animation: none; } .boton { transition: none; } }

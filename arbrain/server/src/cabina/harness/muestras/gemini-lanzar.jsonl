@@ -1,0 +1,4 @@
+{"type": "init", "timestamp": "2026-10-06T20:30:22.305Z", "session_id": "aabbabab-bbab-baba-aaab-babbbbbababa", "model": "gemini-2.5-flash"}
+{"type": "message", "timestamp": "2026-10-06T20:30:22.305Z", "role": "user", "content": "Responde solo: hola uno"}
+{"type": "message", "timestamp": "2026-10-06T20:30:26.368Z", "role": "assistant", "content": "hola uno", "delta": true}
+{"type": "result", "timestamp": "2026-10-06T20:30:26.436Z", "status": "success", "stats": {"total_tokens": 13220, "input_tokens": 12964, "output_tokens": 2, "cached": 0, "input": 12964, "duration_ms": 4131, "tool_calls": 0, "models": {"gemini-3.5-flash": {"total_tokens": 13220, "input_tokens": 12964, "output_tokens": 2, "cached": 0, "input": 12964}}}}

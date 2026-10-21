@@ -1,0 +1,31 @@
+# Guardia de capas (distribución por GitHub, 21 oct 2026). En `main` del repo del autor no puede haber archivos de la
+# capa del alumno (CAPAS.json › alumno): si los hubiera, una actualización chocaría con la memoria de cada alumno.
+# Solo corre en `main`: la rama `mi-arbrain` de cada alumno sí versiona su capa.
+name: capas
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  capas:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ninguna ruta de la capa del alumno en main
+        run: |
+          python3 - <<'PY'
+          import json, subprocess, sys
+          capas = json.load(open("CAPAS.json", encoding="utf-8"))
+          semilla = capas["semilla"].rstrip("/") + "/"
+          pref = capas["alumno"]
+          def es_alumno(r):
+              return any(r.startswith(p) or r == p.rstrip("/") if p.endswith("/") else r == p for p in pref)
+          rutas = subprocess.run(["git", "ls-files"], capture_output=True, text=True, check=True).stdout.splitlines()
+          malas = [r for r in rutas if not r.startswith(semilla) and es_alumno(r)]
+          for r in malas:
+              print(f"::error file={r}::ruta de la capa del alumno versionada en main")
+          sys.exit(1 if malas else 0)
+          PY

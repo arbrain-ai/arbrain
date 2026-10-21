@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-permisos"
+description = "Centro de permisos de Ajustes: consultar el estado de los permisos de macOS (sin diálogos), abrir su panel exacto de Ajustes del Sistema y pedir uno solo cuando la persona lo pulsa."
+commands.allow = ["permisos_estado", "permisos_abrir", "permisos_pedir"]

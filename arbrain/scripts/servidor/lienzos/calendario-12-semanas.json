@@ -1,0 +1,21 @@
+{
+  "nombre": "Calendario de 12 semanas",
+  "regionId": "doce-semanas",
+  "theme": "claro",
+  "targetAspect": 1.6,
+  "spec": {
+    "title": "Calendario de 12 semanas",
+    "nodes": [
+      { "id": "meta", "role": "trigger", "title": "Meta de las 12 semanas", "caption": "Una cifra o un entregable. Si no se puede comprobar, aún no es meta." },
+      { "id": "m1", "role": "module", "title": "Mes 1 · Arranque", "items": ["Semana 1 · …", "Semana 2 · …", "Semana 3 · …", "Semana 4 · …"] },
+      { "id": "m2", "role": "module", "title": "Mes 2 · Tracción", "items": ["Semana 5 · …", "Semana 6 · …", "Semana 7 · …", "Semana 8 · …"] },
+      { "id": "m3", "role": "module", "title": "Mes 3 · Cierre", "items": ["Semana 9 · …", "Semana 10 · …", "Semana 11 · …", "Semana 12 · …"] },
+      { "id": "revision", "role": "callout", "index": 1, "title": "Revisión semanal", "caption": "Cada domingo: qué se cumplió, qué se mueve, qué se mata." },
+      { "id": "cierre", "role": "deliverable", "title": "¿Se cumplió la meta?", "caption": "Evidencia, no sensación. Lo que aprendiste arma las siguientes 12 semanas." }
+    ],
+    "edges": [
+      { "from": "meta", "to": "m1" }, { "from": "m1", "to": "m2" }, { "from": "m2", "to": "m3" }, { "from": "m3", "to": "cierre" },
+      { "from": "revision", "to": "m2", "kind": "agente", "label": "ajusta" }
+    ]
+  }
+}

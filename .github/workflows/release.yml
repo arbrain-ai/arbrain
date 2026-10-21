@@ -1,0 +1,492 @@
+# Arbrain (edición del alumno): build multiplataforma + smoke por sistema.
+# Fuente: arbrain/empaquetado/ci/workflows/release.yml del repo de Daniel. El generador lo copia a .github/workflows/
+# de la copia del alumno: no se edita en la copia, se regenera. Guía: arbrain/empaquetado/ci/README.md.
+#
+# - Windows y Linux se construyen aquí (no hay compilación cruzada razonable para Tauri). Mac se construye local en
+#   el Studio; el job de macOS existe pero va apagado por defecto (sus minutos cuestan 10x).
+# - Nunca publica nada: sin firma, artefactos del run y, solo si se pide, un release en BORRADOR.
+name: Arbrain · build y smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      sistemas:
+        description: 'Sistemas a construir'
+        type: choice
+        options: [windows-y-linux, windows, linux]
+        default: windows-y-linux
+      arm64:
+        description: 'Linux: también el .deb arm64 (runner ubuntu-22.04-arm, misma glibc que el de x64)'
+        type: choice
+        options: [si, no]
+        default: si
+      incluir_mac:
+        description: 'Construir también macOS (minutos x10; por defecto Mac se construye local)'
+        type: boolean
+        default: false
+      borrador:
+        description: 'Crear un release en BORRADOR con los instaladores (nunca se publica)'
+        type: boolean
+        default: false
+      # Vigía E2E (12 oct 2026, arbrain/server/scripts/ht/vigia_e2e.py): en vez de construir, baja los instaladores
+      # PUBLICADOS en la web del programa (input origen) con la sesión del alias QA (secreto ARBRAIN_QA_TOKEN_HASH, un enlace mágico de un
+      # solo uso que el vigía pone justo antes de disparar), comprueba sus huellas contra el SHA256SUMS publicado y
+      # corre el mismo smoke sobre ellos. Sin build: minutos de smoke, no de compilación.
+      modo:
+        description: 'construir (por defecto) o verificar-publicado (instaladores publicados en la web del programa, sin build)'
+        type: choice
+        options: [construir, verificar-publicado]
+        default: construir
+      huella_sumas:
+        description: 'verificar-publicado: sha256 del SHA256SUMS que vio el vigía (vacío = no se contrasta)'
+        type: string
+        default: ''
+      origen:
+        description: 'verificar-publicado: origen https de la web del programa (lo pasa el vigía)'
+        type: string
+        default: ''
+  push:
+    branches: ['release/**']
+
+permissions:
+  contents: read
+
+# Un solo run por rama: un push nuevo cancela el anterior y no se pagan minutos duplicados.
+concurrency:
+  group: arbrain-build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ARBRAIN_EDICION: cliente
+  NEXT_TELEMETRY_DISABLED: '1'
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: '0'
+  NODE_OPTIONS: --max-old-space-size=6144
+
+jobs:
+  matriz:
+    name: Elegir sistemas
+    if: (inputs.modo || 'construir') == 'construir'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      include: ${{ steps.m.outputs.include }}
+    steps:
+      - id: m
+        env:
+          SISTEMAS: ${{ inputs.sistemas || 'windows-y-linux' }}
+          MAC: ${{ inputs.incluir_mac && 'si' || 'no' }}
+          ARM: ${{ inputs.arm64 || 'si' }}
+        run: |
+          w='{"nombre":"windows","os":"windows-latest","triple":"x86_64-pc-windows-msvc","bundles":"nsis,msi"}'
+          # Linux solo .deb: linuxdeploy (AppImage) reescribe con patchelf el binario de Claude del SDK (Bun compilado) y lo
+          # deja inservible (segfault; el plugin gtk aborta con 134). Reproducido en Docker el 11 oct; ver ci/README.md.
+          l='{"nombre":"linux","os":"ubuntu-22.04","triple":"x86_64-unknown-linux-gnu","bundles":"deb"}'
+          # arm64 (13 oct 2026): antes la matriz no lo tenía y el .deb arm64 se armaba a mano. ubuntu-22.04-arm, como el
+          # x64 en 22.04, para que el .deb pida la misma glibc (2.35) y no excluya a Ubuntu 22.04 / Debian 12.
+          la='{"nombre":"linux-arm64","os":"ubuntu-22.04-arm","triple":"aarch64-unknown-linux-gnu","bundles":"deb"}'
+          m='{"nombre":"mac","os":"macos-14","triple":"aarch64-apple-darwin","bundles":"app,dmg"}'
+          case "$SISTEMAS" in windows) sel="$w";; linux) sel="$l";; *) sel="$w,$l";; esac
+          [ "$ARM" = si ] && [ "$SISTEMAS" != windows ] && sel="$sel,$la"
+          [ "$MAC" = "si" ] && sel="$sel,$m"
+          echo "include=[$sel]" >> "$GITHUB_OUTPUT"
+          echo "matriz: [$sel]"
+
+  build:
+    name: ${{ matrix.nombre }} · build + smoke
+    needs: matriz
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    # contents: write solo para el respaldo de abajo (release en BORRADOR del mismo repo privado cuando la cuota de
+    # artefactos está llena, 17 oct 2026). Nunca publica: `--draft` siempre.
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.matriz.outputs.include) }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Código
+        uses: actions/checkout@v4
+
+      # El generador solo copia este archivo a .github/workflows/; los smokes y la config de Tauri viajan si la
+      # allowlist incluye arbrain/empaquetado/ci/smoke/**, ci/tauri.sin-next.json y ci/podar-musl.mjs. Falla en segundos.
+      - name: La copia trae lo que usa este workflow
+        run: |
+          falta=0
+          for f in arbrain/empaquetado/ci/smoke/smoke-linux.sh arbrain/empaquetado/ci/smoke/smoke-windows.ps1 \
+                   arbrain/empaquetado/ci/tauri.sin-next.json arbrain/empaquetado/ci/podar-musl.mjs \
+                   arbrain/scripts/caos.sh arbrain/scripts/caos-cliente.mts \
+                   arbrain/scripts/empaquetar-manos-mac.mjs arbrain/server/manos-casa/Package.swift \
+                   arbrain/server/manos-windows/src/ManosWindows.cs arbrain/server/src/manos/adaptadores/windows-e2e.ts \
+                   arbrain/server/manos-windows/pruebas/ventana-persona.ps1 arbrain/server/manos-windows/pruebas/chat-prueba.ps1 \
+                   arbrain/package-lock.json arbrain/server/package-lock.json; do
+            [ -f "$f" ] || { echo "::error::falta $f en la copia (revisar la allowlist del generador)"; falta=1; }
+          done
+          exit $falta
+
+      - name: Node 22 (solo para construir; la app lleva el suyo)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            arbrain/package-lock.json
+            arbrain/server/package-lock.json
+
+      - name: Rust estable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.triple }}
+
+      # 0.1.2: ArbrainManos (Swift, swift-tools-version 6.0) se compila dentro del build de Mac. El Xcode por defecto de
+      # macos-14 puede ser 15.x (Swift 5.10): se elige el Xcode 16 más nuevo que traiga la imagen.
+      - name: Swift 6 (macOS, para ArbrainManos)
+        if: matrix.nombre == 'mac'
+        run: |
+          x=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -n1 || true)
+          [ -n "$x" ] && sudo xcode-select -s "$x/Contents/Developer"
+          swift --version
+
+      - name: Dependencias del sistema (Linux)
+        if: startsWith(matrix.nombre, 'linux')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf libssl-dev libxdo-dev \
+            libdbus-1-dev pkg-config build-essential file \
+            xvfb imagemagick x11-apps dbus-x11 libfuse2 xdg-utils
+
+      - name: npm ci (daemon)
+        working-directory: arbrain/server
+        run: npm ci --include=dev --no-audit --no-fund
+
+      - name: npm ci (web y CLI de Tauri)
+        working-directory: arbrain
+        run: npm ci --include=dev --no-audit --no-fund
+
+      # Lo mismo que viaja en la app (contrato §1): tsc con tsconfig.cliente + node_modules de producción de ESTE
+      # sistema; build-cliente.mjs comprueba que better-sqlite3 y el SDK cargan. Falla aquí antes de compilar Rust.
+      - name: Daemon del alumno (build:cliente, nativos de este sistema)
+        working-directory: arbrain/server
+        run: npm run build:cliente -- "$RUNNER_TEMP/daemon-prueba"
+
+      # Resiliencia (12 oct 2026): el daemon del alumno se mata y se cuelga a mitad de un envío; tiene que volver en
+      # < 60 s, la persona tiene que leer la verdad y el mensaje tiene que llegar UNA vez (arbrain/scripts/caos-cliente.mts).
+      # Lo de matar la app instalada (daemon y Next con -9) lo hace smoke-linux.sh más abajo.
+      - name: Caos del daemon (se cae, vuelve solo, el mensaje llega una vez)
+        if: runner.os == 'Linux'
+        run: |
+          mkdir -p smoke-salida
+          bash arbrain/scripts/caos.sh --copia "$GITHUB_WORKSPACE" --reporte smoke-salida/caos.json
+
+      # Node 22 oficial fijado con hash en scripts/node-embebido.json → src-tauri/binaries/arbrain-node-<triple>[.exe]
+      # (bundle.externalBin). prepare-tauri-resources lo vuelve a asegurar; este paso solo lo hace visible y falla temprano.
+      - name: Node embebido (sidecar ${{ matrix.triple }})
+        working-directory: arbrain
+        run: |
+          npm run desktop:node -- --triple "${{ matrix.triple }}"
+          ls -la src-tauri/binaries
+
+      # Next standalone ANTES de restaurar la caché de Rust: con src-tauri/target-cliente (~5 GB) presente, next build
+      # recorre esa carpeta y su worker muere por memoria (reproducido en Docker, 11 oct). Por eso el build de Tauri
+      # de abajo usa ci/tauri.sin-next.json: su beforeBuildCommand solo prepara recursos.
+      - name: Build de Next (standalone, edición cliente)
+        working-directory: arbrain
+        env:
+          NODE_ENV: production
+        run: npm run build
+
+      - name: Caché de Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: arbrain/src-tauri -> target-cliente
+          key: ${{ matrix.triple }}-cliente
+
+      # desktop:app:cliente (carril B): ARBRAIN_EDICION=cliente + CARGO_TARGET_DIR propio (src-tauri/target-cliente).
+      # prepare-tauri-resources copia el standalone, asegura el Node embebido, empaqueta el daemon con node_modules de
+      # producción para este SO y la plantilla del cerebro, todo DENTRO de este runner; al final revisa cada artefacto
+      # con paquete-seguro --estricto (sin .env, bases ni llaves) y falla si hay fugas.
+      - name: Build de Tauri, edición cliente, sin firma (${{ matrix.bundles }})
+        working-directory: arbrain
+        env:
+          ARBRAIN_TARGET_TRIPLE: ${{ matrix.triple }}
+        run: npm run desktop:app:cliente -- --bundles "${{ matrix.bundles }}" --config empaquetado/ci/tauri.sin-next.json
+
+      - name: Artefactos producidos
+        run: |
+          find arbrain/src-tauri/target-cliente/release/bundle -maxdepth 2 -type f \
+            \( -name '*.exe' -o -name '*.msi' -o -name '*.AppImage' -o -name '*.deb' -o -name '*.dmg' \) -exec ls -la {} \;
+          du -sh arbrain/src-tauri/resources/* 2>/dev/null || true
+
+      - name: Subir instaladores
+        id: subir
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: arbrain-${{ matrix.nombre }}-${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+          path: |
+            arbrain/src-tauri/target-cliente/release/bundle/nsis/*.exe
+            arbrain/src-tauri/target-cliente/release/bundle/msi/*.msi
+            arbrain/src-tauri/target-cliente/release/bundle/appimage/*.AppImage
+            arbrain/src-tauri/target-cliente/release/bundle/deb/*.deb
+            arbrain/src-tauri/target-cliente/release/bundle/dmg/*.dmg
+
+      # ── Smoke: instala/ejecuta el artefacto como un alumno sin Node, con perfil temporal, y captura la ventana ──
+      - name: Instaladores a un release en BORRADOR (la cuota de artefactos está llena)
+        if: steps.subir.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Los releases no cuentan contra la cuota de artefactos de Actions. Borrador por corrida: nunca se publica.
+          tag="ci-${{ github.run_id }}"
+          gh release view "$tag" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create "$tag" -R "$GITHUB_REPOSITORY" --draft --target "$GITHUB_SHA" --title "CI ${{ github.run_id }} (borrador, no publicar)" --notes "Instaladores de la corrida ${{ github.run_id }} ($GITHUB_SHA). Borrador: la cuota de artefactos estaba llena." || true
+          shopt -s nullglob
+          b=arbrain/src-tauri/target-cliente/release/bundle
+          archivos=($b/nsis/*.exe $b/msi/*.msi $b/deb/*.deb $b/dmg/*.dmg)
+          [ ${#archivos[@]} -gt 0 ] || { echo "no hay instaladores que subir"; exit 1; }
+          for f in "${archivos[@]}"; do sha256sum "$f"; done
+          for _ in 1 2 3; do gh release upload "$tag" -R "$GITHUB_REPOSITORY" --clobber "${archivos[@]}" && exit 0; sleep 10; done
+          exit 1
+      - name: Smoke Windows (instalador NSIS, sin Node)
+        if: matrix.nombre == 'windows' && !cancelled()
+        shell: pwsh
+        run: |
+          $inst = Get-ChildItem arbrain/src-tauri/target-cliente/release/bundle/nsis/*.exe | Select-Object -First 1
+          pwsh -NoProfile -File arbrain/empaquetado/ci/smoke/smoke-windows.ps1 -Artefacto $inst.FullName -Salida smoke-salida -OcultarNode
+
+      # 0.1.2: computer use del alumno en un Windows real. Corre desde la copia el mismo servidor MCP de manos con
+      # ARBRAIN_EDICION=cliente, el adaptador `windows` (ManosWindows se compila aquí con el csc de .NET Framework, como
+      # la primera vez en la máquina del alumno) y un daemon de JUGUETE en 127.0.0.1 con un pase aleatorio del propio
+      # proceso: sin secretos. Comprueba: solo las 7 herramientas del alumno; Calculadora y Bloc de notas; cmd/PowerShell
+      # negados; texto con forma de comando frenado; dominio nuevo con confirmación (rechazada); banca y red local
+      # negadas; ventana de la persona y su cursor intactos. Las capturas quedan en smoke-salida/computer-use (KB).
+      - name: Computer use Windows (edición cliente, daemon de juguete)
+        if: matrix.nombre == 'windows' && !cancelled()
+        shell: pwsh
+        timeout-minutes: 15
+        env:
+          MANOS_E2E_PNG_LOG: '0'
+        run: |
+          $dir = Join-Path $env:GITHUB_WORKSPACE 'smoke-salida\computer-use'
+          New-Item -ItemType Directory -Force $dir | Out-Null
+          $ps = '-NoProfile','-ExecutionPolicy','Bypass','-WindowStyle','Hidden','-File'
+          $pruebas = Join-Path $env:GITHUB_WORKSPACE 'arbrain\server\manos-windows\pruebas'
+          Start-Process powershell -ArgumentList ($ps + (Join-Path $pruebas 'chat-prueba.ps1') + '-Dir' + $dir)
+          Start-Sleep 3
+          Start-Process powershell -ArgumentList ($ps + (Join-Path $pruebas 'ventana-persona.ps1') + '-Dir' + $dir)
+          Start-Sleep 4
+          Set-Location arbrain/server
+          $log = Join-Path $dir 'e2e.log'
+          npx tsx src/manos/adaptadores/windows-e2e.ts $dir --cliente *> $log
+          $rc = $LASTEXITCODE
+          Get-Content $log
+          Get-Content $log | Select-String '^@@PASO@@' | ForEach-Object {
+            $p = ($_.Line -replace '^@@PASO@@', '') | ConvertFrom-Json
+            "$(if ($p.ok) { 'OK  ' } elseif ($p.obligatorio) { 'FALLA' } else { 'aviso' }) $($p.paso)" | Out-File -Append -Encoding utf8 $env:GITHUB_STEP_SUMMARY
+          }
+          exit $rc
+
+      - name: Pruebas del freno y del adaptador Windows (vitest)
+        if: matrix.nombre == 'windows' && !cancelled()
+        working-directory: arbrain/server
+        # La copia trae la marca arbrain/EDICION=cliente: estas pruebas fijan la edición que prueban (cliente o la
+        # original) y sin esto las de la instalación original corrían como cliente.
+        env:
+          ARBRAIN_EDICION: original
+        run: npx vitest run src/manos/adaptadores/windows.test.ts src/manos/freno.test.ts src/manos/seguridad-cliente.test.ts src/manos/rt3-computer-use.test.ts src/manos/rt5-ejecucion.test.ts
+
+      - name: Smoke Linux (AppImage bajo Xvfb, sin Node)
+        if: startsWith(matrix.nombre, 'linux') && contains(matrix.bundles, 'appimage')
+        env:
+          SMOKE_OCULTAR_NODE: '1'
+        run: |
+          app=$(find arbrain/src-tauri/target-cliente/release/bundle/appimage -maxdepth 1 -name '*.AppImage' | head -n1)
+          bash arbrain/empaquetado/ci/smoke/smoke-linux.sh "$app" smoke-salida/appimage
+
+      - name: Smoke Linux (.deb instalado, sin Node)
+        if: startsWith(matrix.nombre, 'linux') && !cancelled()
+        env:
+          SMOKE_OCULTAR_NODE: '1'
+        run: |
+          deb=$(find arbrain/src-tauri/target-cliente/release/bundle/deb -maxdepth 1 -name '*.deb' | head -n1)
+          bash arbrain/empaquetado/ci/smoke/smoke-linux.sh "$deb" smoke-salida/deb
+
+      - name: Subir capturas y logs del smoke
+        if: always() && matrix.nombre != 'mac'
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-${{ matrix.nombre }}-${{ github.sha }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: smoke-salida/
+
+  borrador:
+    name: Release en borrador
+    needs: build
+    if: github.event_name == 'workflow_dispatch' && inputs.borrador
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: arbrain-*-${{ github.sha }}
+          path: instaladores
+          merge-multiple: true
+      - name: Crear release en BORRADOR (nunca publicado)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          # El artefacto conserva las subcarpetas del bundle (nsis/, msi/, deb/): se suben los archivos, no las carpetas
+          # (run 38275240786: «read instaladores/nsis: is a directory»).
+          mapfile -t archivos < <(find instaladores -type f | sort)
+          printf '%s\n' "${archivos[@]}"
+          [ "${#archivos[@]}" -gt 0 ] || { echo "::error::no hay instaladores que subir"; exit 1; }
+          ( cd instaladores && find . -type f -exec sha256sum {} + | sed 's| \./.*/| |' ) > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+          tag="borrador-$(date -u +%Y%m%d-%H%M)-${GITHUB_SHA::7}"
+          gh release create "$tag" "${archivos[@]}" SHA256SUMS.txt --draft --target "$GITHUB_SHA" \
+            --title "Arbrain alumno ${tag} (borrador)" \
+            --notes "Build sin firma de ${GITHUB_SHA}. Borrador: no se publica desde CI."
+
+  # ── Modo verificar-publicado (vigía E2E): lo que el alumno baja de la web del programa, instalado y arrancado sin manos ──
+  publicado-bajar:
+    name: Publicado · bajar de la web y comprobar huellas
+    if: inputs.modo == 'verificar-publicado'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      version: ${{ steps.b.outputs.version }}
+      include: ${{ steps.b.outputs.include }}
+    steps:
+      - id: b
+        name: Sesión del alias QA, SHA256SUMS e instaladores publicados
+        env:
+          TOKEN_HASH: ${{ secrets.ARBRAIN_QA_TOKEN_HASH }}
+          ORIGEN: ${{ inputs.origen }}
+          HUELLA: ${{ inputs.huella_sumas }}
+          SISTEMAS: ${{ inputs.sistemas || 'windows-y-linux' }}
+          MAC: ${{ inputs.incluir_mac && 'si' || 'no' }}
+        run: |
+          set -euo pipefail
+          case "$ORIGEN" in https://*) ;; *) echo "::error::falta el input origen (https://…)"; exit 1 ;; esac
+          [ -n "$TOKEN_HASH" ] || { echo "::error::falta el secreto ARBRAIN_QA_TOKEN_HASH (lo pone el vigía justo antes de disparar)"; exit 1; }
+          echo "::add-mask::$TOKEN_HASH"
+          UA='Mozilla/5.0 (arbrain-vigia-e2e; github-actions)'
+          jar="$RUNNER_TEMP/sesion"; mkdir -p publicado
+          # Enlace mágico de un solo uso (vence en 1 h): /auth/callback lo canjea y deja la cookie de sesión.
+          r=$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' -A "$UA" -c "$jar" "$ORIGEN/auth/callback?token_hash=$TOKEN_HASH&type=magiclink&next=/descargas")
+          case "$r" in 30[27]\ "$ORIGEN/descargas") echo "sesión del alias QA abierta" ;;
+            *) echo "::error::el enlace del alias QA no abrió sesión: $r"; exit 1 ;; esac
+          c=$(curl -s -o publicado/SHA256SUMS -w '%{http_code}' -A "$UA" -b "$jar" "$ORIGEN/api/descargas/SHA256SUMS")
+          [ "$c" = 200 ] || { echo "::error::SHA256SUMS con sesión → $c (esperado 200)"; exit 1; }
+          c=$(curl -s -o /dev/null -w '%{http_code}' -A "$UA" "$ORIGEN/api/descargas/SHA256SUMS")
+          [ "$c" = 401 ] || { echo "::error::SHA256SUMS SIN sesión → $c (esperado 401)"; exit 1; }
+          cat publicado/SHA256SUMS
+          h=$(sha256sum publicado/SHA256SUMS | cut -d' ' -f1)
+          if [ -n "$HUELLA" ] && [ "$h" != "$HUELLA" ]; then
+            echo "::error::el SHA256SUMS que ve este runner ($h) no es el que vio el vigía ($HUELLA)"; exit 1; fi
+          v=$(sed -nE 's/^[0-9a-f]{64}[[:space:]]+\*?Arbrain_([0-9]+\.[0-9]+\.[0-9]+)_.*/\1/p' publicado/SHA256SUMS | sort -u)
+          [ "$(echo "$v" | grep -c .)" = 1 ] || { echo "::error::SHA256SUMS no trae una sola versión: $v"; exit 1; }
+          w="{\"nombre\":\"windows\",\"os\":\"windows-latest\",\"archivo\":\"Arbrain_${v}_x64-setup.exe\"}"
+          l="{\"nombre\":\"linux\",\"os\":\"ubuntu-22.04\",\"archivo\":\"Arbrain_${v}_amd64.deb\"}"
+          m="{\"nombre\":\"mac\",\"os\":\"macos-14\",\"archivo\":\"Arbrain_${v}_aarch64.dmg\"}"
+          case "$SISTEMAS" in windows) sel="$w" ;; linux) sel="$l" ;; *) sel="$w,$l" ;; esac
+          [ "$MAC" = si ] && sel="$sel,$m"
+          for f in $(echo "[$sel]" | jq -r '.[].archivo'); do
+            c=$(curl -s -o "publicado/$f" -w '%{http_code}' -A "$UA" -b "$jar" "$ORIGEN/api/descargas/$f")
+            [ "$c" = 200 ] || { echo "::error::$f con sesión → $c"; exit 1; }
+            esperado=$(awk -v f="$f" '$2==f || $2=="*"f {print $1}' publicado/SHA256SUMS)
+            real=$(sha256sum "publicado/$f" | cut -d' ' -f1)
+            [ -n "$esperado" ] && [ "$real" = "$esperado" ] || { echo "::error::$f: huella $real ≠ publicada ${esperado:-(no está en SHA256SUMS)}"; exit 1; }
+            echo "$f: $(du -h "publicado/$f" | cut -f1) · sha256 $real = publicada"
+          done
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "include=[$sel]" >> "$GITHUB_OUTPUT"
+      # Caché, no artefacto (15 oct 2026): 2-3 instaladores (~450-700 MB) por corrida agotaron la cuota de almacenamiento
+      # de artefactos de la cuenta y el upload falló aunque la descarga y las huellas estaban bien. La caché es otro
+      # depósito (10 GB por repo, desaloja la más vieja en vez de fallar) y el job publicado-limpiar la borra al final.
+      - uses: actions/cache/save@v4
+        with:
+          key: publicado-${{ github.run_id }}
+          path: publicado
+          enableCrossOsArchive: true
+
+  publicado-smoke:
+    name: Publicado · ${{ matrix.nombre }} · instalar y arrancar
+    needs: publicado-bajar
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.publicado-bajar.outputs.include) }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: arbrain/empaquetado/ci/smoke
+      - uses: actions/cache/restore@v4
+        with:
+          key: publicado-${{ github.run_id }}
+          path: publicado
+          enableCrossOsArchive: true
+          fail-on-cache-miss: true
+      - name: Huella del instalador en este runner = la publicada
+        env:
+          F: ${{ matrix.archivo }}
+        run: |
+          esperado=$(awk -v f="$F" '$2==f || $2=="*"f {print $1}' publicado/SHA256SUMS)
+          real=$( (sha256sum "publicado/$F" 2>/dev/null || shasum -a 256 "publicado/$F") | cut -d' ' -f1)
+          [ -n "$esperado" ] && [ "$real" = "$esperado" ] || { echo "::error::$F: $real ≠ ${esperado:-(sin huella)}"; exit 1; }
+          echo "$F = publicada ($real)"
+      - name: Smoke Windows (instalador publicado, sin Node)
+        if: matrix.nombre == 'windows'
+        shell: pwsh
+        run: pwsh -NoProfile -File arbrain/empaquetado/ci/smoke/smoke-windows.ps1 -Artefacto "publicado/${{ matrix.archivo }}" -Salida smoke-salida -OcultarNode
+      - name: Smoke Linux (.deb publicado, sin Node)
+        if: matrix.nombre == 'linux'
+        env:
+          SMOKE_OCULTAR_NODE: '1'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends xvfb imagemagick x11-apps dbus-x11 >/dev/null
+          bash arbrain/empaquetado/ci/smoke/smoke-linux.sh "publicado/${{ matrix.archivo }}" smoke-salida/deb
+      - name: Smoke macOS (.dmg publicado, sin Node)
+        if: matrix.nombre == 'mac'
+        run: bash arbrain/empaquetado/ci/smoke/smoke-mac.sh "publicado/${{ matrix.archivo }}" smoke-salida
+      - name: Subir capturas y logs del smoke
+        if: always()
+        # Sin cuota de artefactos el reporte no sube, pero el veredicto es la conclusión del smoke, no este paso.
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-publicado-${{ matrix.nombre }}-${{ github.run_id }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: smoke-salida/
+
+  publicado-limpiar:
+    name: Publicado · borrar la caché de instaladores de esta corrida
+    needs: [publicado-bajar, publicado-smoke]
+    if: always() && inputs.modo == 'verificar-publicado' && needs.publicado-bajar.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh cache delete "publicado-${{ github.run_id }}" -R "${{ github.repository }}" || echo "caché ya no estaba"

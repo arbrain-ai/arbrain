@@ -1,0 +1,226 @@
+# Humo de los instaladores PUBLICADOS de Arbrain (edición del alumno), sin build (13 oct 2026).
+# Fuente: arbrain/empaquetado/ci/workflows/smoke-instaladores.yml del repo fuente; el generador lo copia a
+# .github/workflows/ de la copia del alumno. Guía: docs/builds/smoke-instaladores-2026-10-13/.
+#
+# Baja de la web del programa los instaladores EXACTOS publicados (sesión del alias QA por un enlace mágico de un solo
+# uso: secreto ARBRAIN_QA_TOKEN_HASH, lo pone arbrain/server/scripts/ht/smoke_instaladores.py justo antes), comprueba
+# cada sha256 contra el SHA256SUMS publicado y contra la huella que vio el VPS, y en runners reales:
+#   1. smoke-*.{ps1,sh}: instala (NSIS /S · apt), sin Node, daemon /vivo y /health 401, Next, solo localhost, caos;
+#   2. recorrido-*: primer arranque entero con llaves falsas (llavero, Anthropic → OpenRouter), capturas, título, «no
+#      está en negro», cerrar la ventana, ninguna llave en texto plano en disco y desinstalar;
+#   3. artefactos: capturas, logs del daemon, recorrido.json, secretos.json y la duración de cada paso.
+# Nunca construye ni publica.
+name: Arbrain · humo de instaladores publicados
+
+on:
+  workflow_dispatch:
+    inputs:
+      huella_sumas:
+        description: 'sha256 del SHA256SUMS publicado (lo pasa smoke_instaladores.py desde el VPS)'
+        type: string
+        default: ''
+      origen:
+        description: 'origen https de la web del programa (lo pasa smoke_instaladores.py)'
+        type: string
+        default: ''
+      candidato_run:
+        description: 'en vez de lo publicado, los instaladores de un run de release.yml (candidato SIN publicar)'
+        type: string
+        default: 
+      sistemas:
+        description: 'qué probar'
+        type: choice
+        options: [todos, windows, linux]
+        default: todos
+      arm64:
+        description: 'incluir Linux arm64 (runner ubuntu-24.04-arm)'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  actions: read   # bajar los artefactos de un run candidato
+
+concurrency:
+  group: smoke-instaladores
+  cancel-in-progress: false
+
+jobs:
+  bajar:
+    name: Bajar lo publicado y comprobar huellas
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    outputs:
+      version: ${{ steps.b.outputs.version }}
+      include: ${{ steps.b.outputs.include }}
+    steps:
+      - id: b
+        name: Sesión del alias QA, SHA256SUMS e instaladores publicados
+        env:
+          TOKEN_HASH: ${{ secrets.ARBRAIN_QA_TOKEN_HASH }}
+          ORIGEN: ${{ inputs.origen }}
+          HUELLA: ${{ inputs.huella_sumas }}
+          SISTEMAS: ${{ inputs.sistemas }}
+          ARM: ${{ inputs.arm64 && 'si' || 'no' }}
+          CANDIDATO: ${{ inputs.candidato_run }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          t0=$SECONDS
+          mkdir -p publicado
+          if [ -n "$CANDIDATO" ]; then
+            # Candidato SIN publicar: los instaladores salen del run de release.yml; las huellas se calculan aquí.
+            [[ "$CANDIDATO" =~ ^[0-9]+$ ]] || { echo "::error::candidato_run inválido"; exit 1; }
+            gh run download "$CANDIDATO" -R "$GITHUB_REPOSITORY" -p 'arbrain-*' -D "$RUNNER_TEMP/cand"
+            find "$RUNNER_TEMP/cand" -type f \( -name 'Arbrain_*_x64-setup.exe' -o -name 'Arbrain_*_amd64.deb' -o -name 'Arbrain_*_arm64.deb' \) -exec cp {} publicado/ \;
+            (cd publicado && sha256sum Arbrain_* > SHA256SUMS)
+            cat publicado/SHA256SUMS
+            v=$(sed -nE 's/^[0-9a-f]{64}[[:space:]]+\*?Arbrain_([0-9]+\.[0-9]+\.[0-9]+)_.*/\1/p' publicado/SHA256SUMS | sort -u)
+            [ "$(echo "$v" | grep -c .)" = 1 ] || { echo "::error::el candidato no trae una sola versión: $v"; exit 1; }
+            w="{\"nombre\":\"windows\",\"os\":\"windows-latest\",\"archivo\":\"Arbrain_${v}_x64-setup.exe\"}"
+            l24="{\"nombre\":\"linux-x64-24.04\",\"os\":\"ubuntu-24.04\",\"archivo\":\"Arbrain_${v}_amd64.deb\"}"
+            l22="{\"nombre\":\"linux-x64-22.04\",\"os\":\"ubuntu-22.04\",\"archivo\":\"Arbrain_${v}_amd64.deb\"}"
+            la="{\"nombre\":\"linux-arm64-24.04\",\"os\":\"ubuntu-24.04-arm\",\"archivo\":\"Arbrain_${v}_arm64.deb\"}"
+            case "$SISTEMAS" in windows) sel="$w" ;; linux) sel="$l24,$l22" ;; *) sel="$w,$l24,$l22" ;; esac
+            # arm64 solo si el run candidato lo construyó (release.yml lo hace por defecto desde el 13 oct).
+            [ "$ARM" = si ] && [ "$SISTEMAS" != windows ] && [ -f "publicado/Arbrain_${v}_arm64.deb" ] && sel="$sel,$la"
+            { echo "### Candidato SIN publicar (run $CANDIDATO, v$v)"; echo; echo '```'; cat publicado/SHA256SUMS; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+            echo "version=$v" >> "$GITHUB_OUTPUT"; echo "include=[$sel]" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          case "$ORIGEN" in https://*) ;; *) echo "::error::origen inválido"; exit 1 ;; esac
+          [ -n "$TOKEN_HASH" ] || { echo "::error::falta el secreto ARBRAIN_QA_TOKEN_HASH (lo pone smoke_instaladores.py)"; exit 1; }
+          echo "::add-mask::$TOKEN_HASH"
+          UA='Mozilla/5.0 (arbrain-smoke-instaladores; github-actions)'
+          jar="$RUNNER_TEMP/sesion"
+          r=$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' -A "$UA" -c "$jar" "$ORIGEN/auth/callback?token_hash=$TOKEN_HASH&type=magiclink&next=/descargas")
+          case "$r" in 30[27]\ "$ORIGEN/descargas") echo "sesión del alias QA abierta" ;;
+            *) echo "::error::el enlace del alias QA no abrió sesión: $r"; exit 1 ;; esac
+          c=$(curl -s -o publicado/SHA256SUMS -w '%{http_code}' -A "$UA" -b "$jar" "$ORIGEN/api/descargas/SHA256SUMS")
+          [ "$c" = 200 ] || { echo "::error::SHA256SUMS con sesión → $c"; exit 1; }
+          c=$(curl -s -o /dev/null -w '%{http_code}' -A "$UA" "$ORIGEN/api/descargas/SHA256SUMS")
+          [ "$c" = 401 ] || { echo "::error::SHA256SUMS SIN sesión → $c (esperado 401)"; exit 1; }
+          cat publicado/SHA256SUMS
+          h=$(sha256sum publicado/SHA256SUMS | cut -d' ' -f1)
+          [ "$h" = "$HUELLA" ] || { echo "::error::el SHA256SUMS servido ($h) no es el del VPS ($HUELLA)"; exit 1; }
+          v=$(sed -nE 's/^[0-9a-f]{64}[[:space:]]+\*?Arbrain_([0-9]+\.[0-9]+\.[0-9]+)_.*/\1/p' publicado/SHA256SUMS | sort -u)
+          [ "$(echo "$v" | grep -c .)" = 1 ] || { echo "::error::SHA256SUMS no trae una sola versión: $v"; exit 1; }
+          w="{\"nombre\":\"windows\",\"os\":\"windows-latest\",\"archivo\":\"Arbrain_${v}_x64-setup.exe\"}"
+          l24="{\"nombre\":\"linux-x64-24.04\",\"os\":\"ubuntu-24.04\",\"archivo\":\"Arbrain_${v}_amd64.deb\"}"
+          l22="{\"nombre\":\"linux-x64-22.04\",\"os\":\"ubuntu-22.04\",\"archivo\":\"Arbrain_${v}_amd64.deb\"}"
+          la="{\"nombre\":\"linux-arm64-24.04\",\"os\":\"ubuntu-24.04-arm\",\"archivo\":\"Arbrain_${v}_arm64.deb\"}"
+          case "$SISTEMAS" in windows) sel="$w" ;; linux) sel="$l24,$l22" ;; *) sel="$w,$l24,$l22" ;; esac
+          [ "$ARM" = si ] && [ "$SISTEMAS" != windows ] && sel="$sel,$la"
+          echo "| archivo | tamaño | sha256 (= publicada) | segundos |" > tabla.md; echo "|---|---|---|---|" >> tabla.md
+          for f in $(echo "[$sel]" | jq -r '.[].archivo' | sort -u); do
+            t=$SECONDS
+            c=$(curl -s -o "publicado/$f" -w '%{http_code}' -A "$UA" -b "$jar" "$ORIGEN/api/descargas/$f")
+            [ "$c" = 200 ] || { echo "::error::$f con sesión → $c"; exit 1; }
+            esperado=$(awk -v f="$f" '$2==f || $2=="*"f {print $1}' publicado/SHA256SUMS)
+            real=$(sha256sum "publicado/$f" | cut -d' ' -f1)
+            [ -n "$esperado" ] && [ "$real" = "$esperado" ] || { echo "::error::$f: huella $real ≠ publicada ${esperado:-(no está)}"; exit 1; }
+            echo "$f: $(du -h "publicado/$f" | cut -f1) · sha256 $real = publicada"
+            echo "| $f | $(du -h "publicado/$f" | cut -f1) | \`${real:0:8}…${real: -7}\` | $((SECONDS - t)) |" >> tabla.md
+          done
+          { echo "### Lo publicado (v$v)"; echo; cat tabla.md; echo; echo "Bajada y huellas: $((SECONDS - t0)) s"; } >> "$GITHUB_STEP_SUMMARY"
+          echo "{\"bajar_y_huellas\": $((SECONDS - t0))}" > publicado/tiempos-bajar.json
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "include=[$sel]" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: publicado-${{ github.run_id }}
+          retention-days: 2
+          compression-level: 0
+          path: publicado/
+
+  probar:
+    name: ${{ matrix.nombre }} · instalar, primer arranque y desinstalar
+    needs: bajar
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.bajar.outputs.include) }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: arbrain/empaquetado/ci/smoke
+      - uses: actions/download-artifact@v4
+        with:
+          name: publicado-${{ github.run_id }}
+          path: publicado
+      - name: Huella del instalador en este runner = la publicada
+        env:
+          F: ${{ matrix.archivo }}
+        run: |
+          esperado=$(awk -v f="$F" '$2==f || $2=="*"f {print $1}' publicado/SHA256SUMS)
+          real=$( (sha256sum "publicado/$F" 2>/dev/null || shasum -a 256 "publicado/$F") | cut -d' ' -f1)
+          [ -n "$esperado" ] && [ "$real" = "$esperado" ] || { echo "::error::$F: $real ≠ ${esperado:-(sin huella)}"; exit 1; }
+          echo "$F = publicada ($real)"; mkdir -p salida; echo "$F $real" > salida/huella.txt
+
+      # ── Windows ──
+      - name: Windows · smoke (instalar con NSIS /S, sin Node, daemon y Next)
+        id: smoke_win
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $t = Get-Date
+          pwsh -NoProfile -File arbrain/empaquetado/ci/smoke/smoke-windows.ps1 -Artefacto "publicado/${{ matrix.archivo }}" -Salida salida/smoke -OcultarNode
+          $c = $LASTEXITCODE
+          "{`"smoke_instalar_y_arrancar`": $([math]::Round(((Get-Date) - $t).TotalSeconds, 1))}" | Set-Content salida/tiempos-smoke.json
+          exit $c
+      - name: Windows · recorrido (primer arranque, secretos, desinstalar)
+        if: runner.os == 'Windows' && always() && steps.smoke_win.outcome != 'skipped'
+        shell: pwsh
+        run: |
+          python -m pip install --quiet --disable-pip-version-check uiautomation pillow websocket-client
+          pwsh -NoProfile -File arbrain/empaquetado/ci/smoke/recorrido-windows.ps1 -Salida salida/recorrido
+
+      # ── Linux ──
+      - name: Linux · dependencias del escritorio de prueba
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends xvfb imagemagick x11-apps x11-utils dbus-x11 xdotool wmctrl openbox \
+            gnome-keyring libsecret-tools at-spi2-core gir1.2-atspi-2.0 python3-pyatspi python3-pil tesseract-ocr tesseract-ocr-spa >/dev/null
+      - name: Linux · smoke (apt install, sin Node, daemon, Next y caos)
+        id: smoke_lin
+        if: runner.os == 'Linux'
+        env:
+          SMOKE_OCULTAR_NODE: '1'
+        run: |
+          t=$SECONDS
+          bash arbrain/empaquetado/ci/smoke/smoke-linux.sh "publicado/${{ matrix.archivo }}" salida/smoke; c=$?
+          echo "{\"smoke_instalar_y_arrancar\": $((SECONDS - t))}" > salida/tiempos-smoke.json
+          exit $c
+      - name: Linux · recorrido (primer arranque, llavero, secretos, desinstalar)
+        if: runner.os == 'Linux' && always() && steps.smoke_lin.outcome != 'skipped'
+        run: bash arbrain/empaquetado/ci/smoke/recorrido-linux.sh "publicado/${{ matrix.archivo }}" salida/recorrido
+
+      - name: Resumen
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "### ${{ matrix.nombre }} · ${{ matrix.archivo }}"
+            for r in salida/smoke/reporte.txt salida/smoke/deb/reporte.txt; do [ -f "$r" ] && grep -E '^SMOKE (OK|FALLO)' "$r"; done
+            [ -f salida/recorrido/reporte.txt ] && grep -E '^RECORRIDO-' salida/recorrido/reporte.txt
+            if [ -f salida/recorrido/recorrido.json ]; then
+              echo; echo "| paso | resultado | s |"; echo "|---|---|---|"
+              python3 -c "import json;[print(f\"| {p['paso']} | {'ok' if p['ok'] else ('FALLO' if p['critico'] else 'aviso')} | {p['segundos']} |\") for p in json.load(open('salida/recorrido/recorrido.json'))['pasos']]" 2>/dev/null \
+                || python -c "import json;[print(f\"| {p['paso']} | {'ok' if p['ok'] else ('FALLO' if p['critico'] else 'aviso')} | {p['segundos']} |\") for p in json.load(open('salida/recorrido/recorrido.json', encoding='utf-8'))['pasos']]"
+            fi
+            for t in salida/tiempos-smoke.json salida/recorrido/tiempos.json; do [ -f "$t" ] && { echo; echo "\`$(basename "$t")\`: $(tr -d '\n' < "$t")"; }; done
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Subir capturas, logs y tiempos
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: humo-${{ matrix.nombre }}-${{ github.run_id }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: salida/

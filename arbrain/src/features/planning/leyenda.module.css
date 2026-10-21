@@ -1,0 +1,37 @@
+/* La leyenda de tu forma de trabajo (10 oct 2026). Chips sutiles: el color es un punto y las horas, un número; lo oculto
+   se apaga sin desaparecer, para que se pueda volver a encender. El menú de calendarios, a la derecha y discreto. */
+.leyenda { container-type: inline-size; display: flex; align-items: center; gap: 6px 10px; min-width: 0; margin: 0 0 8px; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; flex: 1 1 auto; }
+.chip { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 9px 0 8px; border: 0; border-radius: 999px; font: inherit; font-size: 11.5px; font-weight: 650;
+  color: var(--foreground); background: color-mix(in srgb, var(--c) 11%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 26%, transparent);
+  cursor: pointer; transition: background 140ms, box-shadow 140ms, opacity 140ms, color 140ms; }
+.chip:hover { background: color-mix(in srgb, var(--c) 18%, transparent); }
+.chip i { flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 2px color-mix(in srgb, var(--c) 22%, transparent); }
+.chip b { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--muted); }
+.chip[data-oculta] { background: transparent; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--foreground) 10%, transparent); color: var(--muted); }
+.chip[data-oculta] i { background: transparent; box-shadow: inset 0 0 0 1.5px var(--c); }
+.chip[data-oculta] span { text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--muted) 60%, transparent); }
+.chip:focus-visible, .menuBoton:focus-visible { outline: 2px solid var(--c, var(--primary)); outline-offset: 1px; }
+.corto { display: none; }
+@container (max-width: 640px) {
+  .largo { display: none; }
+  .corto { display: inline; }
+  .chip { height: 24px; gap: 5px; padding: 0 7px 0 7px; font-size: 11px; }
+}
+
+.menuWrap { position: relative; flex: 0 0 auto; }
+.menuBoton { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 8px 0 10px; border: 0; border-radius: 8px; background: transparent; color: var(--muted);
+  font: inherit; font-size: 11.5px; font-weight: 650; cursor: pointer; transition: background 140ms, color 140ms; }
+.menuBoton:hover, .menuBoton[aria-expanded='true'] { background: color-mix(in srgb, var(--foreground) 5%, transparent); color: var(--foreground); }
+.menuBoton small { padding: 0 5px; border-radius: 6px; font-size: 10px; font-variant-numeric: tabular-nums; background: rgba(var(--gold-rgb), .14); color: var(--foreground); }
+.menu { position: absolute; right: 0; top: calc(100% + 4px); z-index: 30; display: flex; flex-direction: column; gap: 1px; min-width: 210px; max-width: 280px; padding: 6px;
+  border-radius: 12px; background: var(--card); box-shadow: 0 0 0 1px color-mix(in srgb, var(--foreground) 9%, transparent), 0 14px 32px -12px rgba(0, 0, 0, .35); }
+.bloque { display: flex; flex-direction: column; gap: 1px; }
+.bloque + .bloque { margin-top: 4px; padding-top: 4px; border-top: 1px solid color-mix(in srgb, var(--foreground) 8%, transparent); }
+.menu .grupo { padding: 6px 8px; font-size: 10.5px; font-weight: 700; letter-spacing: 1.1px; text-transform: uppercase; color: var(--muted); }
+.bloque > label:not(.grupo) { padding-left: 14px; }
+.menu label { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; font-size: 12.5px; cursor: pointer; }
+.menu label:hover { background: color-mix(in srgb, var(--foreground) 4%, transparent); }
+.menu input { margin: 0; accent-color: var(--primary); }
+.menu i { flex: 0 0 auto; width: 9px; height: 9px; border-radius: 3px; }
+.menu span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

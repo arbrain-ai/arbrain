@@ -1,0 +1,73 @@
+# Modo servidor de Arbrain (edición del alumno) en Windows, Linux y macOS (21 oct 2026).
+# Fuente: arbrain/empaquetado/ci/workflows/modo-servidor.yml del repo fuente; el generador lo copia a
+# .github/workflows/ de la copia del alumno. En la copia no se edita: se regenera.
+#
+# Clona la copia, usa Node 22 y corre `npm run servidor` de verdad (instala, compila web y daemon, arranca) con
+# --sin-navegador y un puerto libre; espera a que la web (/api/version) y el daemon (/health) respondan y hace
+# `npm run servidor -- detener`. Lo orquesta arbrain/scripts/servidor/prueba-ci.mjs. Si falla, sube los logs.
+# No usa secretos ni llaves: el daemon arranca sin llaves de modelo.
+name: Arbrain · modo servidor
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['ci-**', 'release/**']
+    paths:
+      - 'arbrain/scripts/servidor.mjs'
+      - 'arbrain/scripts/servidor/**'
+      - 'arbrain/server/**'
+      - 'arbrain/src/**'
+      - 'arbrain/package.json'
+      - 'arbrain/package-lock.json'
+      - 'arbrain/next.config.ts'
+      - '.github/workflows/modo-servidor.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: modo-servidor-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  servidor:
+    name: servidor · ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            arbrain/package-lock.json
+            arbrain/server/package-lock.json
+
+      - name: La copia trae el modo servidor
+        shell: bash
+        run: |
+          test -f arbrain/EDICION
+          test -f arbrain/scripts/servidor.mjs
+          test -f arbrain/scripts/servidor/prueba-ci.mjs
+          node -e "const p=require('./arbrain/package.json'); if(!p.scripts||!p.scripts.servidor){console.error('falta npm run servidor');process.exit(1)}"
+
+      - name: Arrancar, esperar salud y detener
+        working-directory: arbrain
+        run: node scripts/servidor/prueba-ci.mjs --datos "${{ runner.temp }}/arbrain-datos" --plazo-min 35
+
+      - name: Logs del modo servidor
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-modo-servidor-${{ matrix.os }}
+          path: ${{ runner.temp }}/arbrain-datos/logs
+          if-no-files-found: warn
+          retention-days: 7

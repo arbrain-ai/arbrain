@@ -1,0 +1,66 @@
+'use client'
+/**
+ * Qué segmento del Taller está a la vista (Agentes, Rutinas, Memoria, Máquina), en una tienda y no en el
+ * estado local del Taller (5 oct 2026). Así `mostrar {vista:"servidores"}`, la ruta /servidores y los avisos que aterrizan
+ * con `?panel=taller&taller=servidores` cambian el segmento aunque el Taller ya esté abierto, y aunque viva en otra ventana
+ * (el pedido viaja por el canal entre ventanas). Se recuerda en `arbrain.panelDerecho.taller`, el mismo lugar de antes.
+ */
+import { create } from 'zustand'
+import { esEdicionCliente } from '@/lib/edicion'
+import { escuchar, publicar } from './ventanas'
+
+/**
+ * Cuatro pestañas desde el 5 oct 2026 (Daniel, 18:11: «el Taller es tu cerebro por dentro»), cada una responde una pregunta:
+ * Agentes (¿quién trabaja para mí?), Rutinas (¿qué corre solo y cómo le fue?), Memoria (¿qué sabe mi cerebro de mí?) y
+ * Máquina (¿está todo prendido?). `registro` ya no es pestaña: vive detrás de un enlace discreto en Máquina y Rutinas.
+ * Los ids viejos siguen llegando (avisos, rutas, Levy, lo guardado): `alias` los lleva a su pestaña nueva.
+ */
+export type SegmentoTaller = 'terminales' | 'rutinas' | 'memoria' | 'maquina' | 'registro'
+const TODOS: { id: SegmentoTaller; etiqueta: string; pregunta: string }[] = [
+  { id: 'terminales', etiqueta: 'Agentes', pregunta: '¿Quién está trabajando para mí ahora?' },
+  { id: 'rutinas', etiqueta: 'Rutinas', pregunta: '¿Qué corre solo y cómo le fue?' },
+  { id: 'memoria', etiqueta: 'Memoria', pregunta: '¿Qué sabe mi cerebro de mí?' },
+  { id: 'maquina', etiqueta: 'Máquina', pregunta: '¿Está todo prendido?' },
+]
+/** Edición cliente: Agentes y Memoria (Rutinas, Máquina y Registro leen servicios y bases del Studio de Daniel). */
+const CLIENTE = esEdicionCliente()
+export const SEGMENTOS_TALLER = CLIENTE ? TODOS.filter(t => t.id === 'terminales' || t.id === 'memoria') : TODOS
+const ALIAS: Record<string, SegmentoTaller> = { agentes: 'terminales', servidores: 'maquina', servicios: 'maquina', archivos: 'memoria' }
+/** El segmento al que lleva un id (nuevo o viejo); null si no es del Taller. */
+export function aSegmento(v: unknown): SegmentoTaller | null {
+  if (typeof v !== 'string') return null
+  const s = v === 'registro' || TODOS.some(t => t.id === v) ? v as SegmentoTaller : ALIAS[v] ?? null
+  if (s && CLIENTE && !SEGMENTOS_TALLER.some(t => t.id === s)) return 'terminales'
+  return s
+}
+export const esSegmentoTaller = (v: unknown): v is SegmentoTaller => aSegmento(v) != null
+
+const CLAVE = 'arbrain.panelDerecho'
+function leer(): SegmentoTaller {
+  try { return aSegmento(JSON.parse(localStorage.getItem(CLAVE) ?? '{}')?.taller) ?? 'terminales' } catch { return 'terminales' }
+}
+function recordar(v: SegmentoTaller) {
+  try { localStorage.setItem(CLAVE, JSON.stringify({ ...JSON.parse(localStorage.getItem(CLAVE) ?? '{}'), taller: v })) } catch { /* sin almacenamiento */ }
+}
+
+export const useSegmentoTaller = create<{ segmento: SegmentoTaller; cargado: boolean; cargar: () => void; elegir: (v: SegmentoTaller, avisar?: boolean) => void }>((set, get) => ({
+  segmento: 'terminales', cargado: false,
+  cargar: () => {
+    if (get().cargado || typeof window === 'undefined') return
+    set({ segmento: leer(), cargado: true })
+    escuchar(m => { const v = m.tipo === 'taller-segmento' ? aSegmento(m.segmento) : null; if (v) get().elegir(v, false) })
+  },
+  elegir: (v, avisar = false) => {
+    recordar(v)
+    set({ segmento: v })
+    if (avisar) publicar({ tipo: 'taller-segmento', segmento: v })
+  },
+}))
+
+/** Pone un segmento del Taller en esta ventana y en la que tenga el Taller. Un valor desconocido no hace nada. */
+export function pedirSegmentoTaller(v: string) {
+  const seg = aSegmento(v)
+  if (!seg) return
+  const st = useSegmentoTaller.getState()
+  st.cargar(); st.elegir(seg, true)
+}

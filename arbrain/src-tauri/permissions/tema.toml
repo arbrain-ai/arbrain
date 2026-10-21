@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-tema-nativo"
+description = "Titlebar nativa que sigue el tema que la persona elige dentro de la app (claro u oscuro)."
+commands.allow = ["tema_nativo"]

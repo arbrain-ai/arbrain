@@ -1,0 +1,255 @@
+/* La Semana en horas (9 oct 2026). La misma gramática de la hoja del Día y del Mes: superficie neutra, tinta del tema, el oro
+   de la marca solo donde importa (hoy, la ⭐, la línea de ahora) y el color de cada calendario como tinte, nunca como relleno
+   saturado. La rutina pesa menos que lo único: la jerarquía sale de quitar, no de añadir. */
+@keyframes subir { from { opacity: 0; transform: translateY(var(--mov-subida, 6px)); } }
+@keyframes latir { 0%, 100% { box-shadow: 0 0 0 0 rgba(var(--gold-rgb), .45); } 50% { box-shadow: 0 0 0 4px rgba(var(--gold-rgb), 0); } }
+
+.rejilla { --hora: 44px; --canal: 44px; --linea: color-mix(in srgb, var(--foreground) 8%, transparent); --linea-media: color-mix(in srgb, var(--foreground) 4%, transparent);
+  --serif: ui-serif, 'New York', 'Iowan Old Style', Georgia, serif; --tinta: #111; --oro-texto: color-mix(in srgb, var(--gold-dark) 74%, #000); --hoy-lavado: rgba(var(--gold-rgb), .045);
+  position: relative; min-width: 0; color: var(--foreground); user-select: none; -webkit-user-select: none; }
+:global(.dark) .rejilla { --oro-texto: var(--gold-bright, var(--gold)); --hoy-lavado: rgba(var(--gold-rgb), .05); }
+.rejilla[data-angosto] { --canal: 38px; }
+/* El alto de la hora (`--hora`) lo pone SemanaHoras en línea desde `altoHora` (Enfoque más alto, compacta más bajo, angosto un poco
+   menos): el título de cada bloque calcula sus líneas con el mismo número. */
+.rejilla[data-arrastrando] { cursor: grabbing; }
+
+.tabla { position: relative; min-width: 0; }
+.riel { overflow-x: auto; overflow-y: visible; scrollbar-width: none; overscroll-behavior-x: contain; }
+.riel::-webkit-scrollbar { display: none; }
+/* La cabecera pegajosa (ronda 3, 10 oct 2026, Daniel: «que se quede fijo o estático en la pantalla»): días y franja de día completo
+   pegados bajo la barra del calendario (`--plan-pegado`, su alto medido) mientras las horas pasan por debajo. Vive fuera del riel
+   porque un `overflow-x` le quitaría lo pegajoso; SemanaHoras le copia el `scrollLeft` del riel. */
+.rielCab { position: sticky; top: var(--plan-pegado, 0px); z-index: 8; overflow: hidden; background: var(--background); touch-action: pan-y;
+  box-shadow: 0 10px 14px -14px rgba(0, 0, 0, .55); }
+.rejilla[data-angosto]:not([data-desliza]) .riel { scroll-snap-type: x mandatory; }
+.rejilla[data-angosto][data-arrastrando] .riel { scroll-snap-type: none; }
+/* La ventana deslizante (10 oct 2026): el riel tiene colchón a cada lado. Ronda 2: el riel lo lleva el gesto (SemanaHoras), sin
+   snap del navegador; el dedo solo desplaza en vertical por su cuenta, para que el vertical gane y los días no se vayan solos. */
+.rejilla[data-desliza] .riel { overflow-y: hidden; overscroll-behavior-x: contain; touch-action: pan-y; }
+.rejilla[data-asentada] .cab { animation: none; }
+
+/* Arriba: la leyenda a la izquierda y, en angosto, cuántos días a la vista (3 · 4 · 7, 10 oct 2026). */
+.barra { display: flex; align-items: flex-start; gap: 8px; min-width: 0; }
+.barraIzq { flex: 1 1 auto; min-width: 0; }
+.diasVista { flex: 0 0 auto; display: inline-flex; padding: 2px; gap: 1px; margin-top: 1px; border-radius: 8px; background: color-mix(in srgb, var(--foreground) 5%, transparent); }
+.diasVista button { min-width: 24px; height: 22px; padding: 0 6px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font: inherit; font-size: 11px; font-weight: 700;
+  font-variant-numeric: tabular-nums; cursor: pointer; transition: background 140ms, color 140ms, box-shadow 140ms; }
+.diasVista button:hover { color: var(--foreground); }
+.diasVista button[aria-checked='true'] { background: var(--card); color: var(--foreground); box-shadow: 0 0 0 1px color-mix(in srgb, var(--foreground) 9%, transparent), 0 1px 2px rgba(0, 0, 0, .08); }
+
+/* Una rejilla CSS: canal de horas + un carril por día. En angosto cada día mide un tercio de lo visible y el resto se desliza. */
+.lienzo { display: grid; grid-template-columns: var(--canal) repeat(var(--dias), minmax(0, 1fr)); grid-template-rows: auto auto auto; min-width: 0; }
+/* Días completos siempre (10 oct 2026, Daniel: «nunca un día cortado a la mitad»): la columna mide px enteros (`--col`, la división
+   redondeada hacia abajo) y el riel mide justo N columnas; el sobrante (menos de un px por día) queda fuera, a la derecha. Así el
+   asiento del riel, que va en múltiplos de la columna, nunca deja asomar una franja del día de al lado. */
+.rejilla[data-angosto] .lienzo, .rejilla[data-desliza] .lienzo { grid-template-columns: var(--canal) repeat(var(--dias), var(--col)); width: max-content; }
+.rejilla[data-angosto] .riel, .rejilla[data-desliza] .riel, .rejilla[data-angosto] .rielCab, .rejilla[data-desliza] .rielCab { width: calc(var(--canal) + var(--col) * var(--por-vista, 3)); max-width: 100%; }
+.esquina { position: sticky; left: 0; z-index: 4; }
+/* Solo en angosto el canal y la esquina tapan los días que pasan por debajo; en siete columnas no hay nada que tapar. */
+.rejilla[data-angosto] .esquina, .rejilla[data-angosto] .canal, .rejilla[data-desliza] .esquina, .rejilla[data-desliza] .canal { background: var(--background); }
+/* Lo que pasa por debajo (la línea de ahora, el fantasma, los avisos de fuera del tramo) no se pinta encima del canal. */
+.rejilla[data-angosto] .canal, .rejilla[data-desliza] .canal { z-index: 6; }
+.rejilla[data-angosto] .esquina, .rejilla[data-desliza] .esquina { z-index: 7; }
+
+/* ——— Encabezado ——— */
+.cab { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 1px; min-width: 0; padding: 4px 2px 7px; border: 0; background: transparent;
+  color: var(--foreground); font: inherit; line-height: 1; cursor: pointer; border-radius: 10px 10px 0 0;
+  animation: subir var(--mov-entrada, 560ms) var(--mov-curva, cubic-bezier(.16, 1, .3, 1)) backwards; animation-delay: calc(var(--i, 0) * var(--mov-paso, 45ms)); transition: background 140ms; }
+.cab:hover { background: var(--card-hover, rgba(0, 0, 0, .03)); }
+.cab small { font-size: 10.5px; font-weight: 650; letter-spacing: .8px; text-transform: uppercase; color: var(--muted); }
+.cab b { font-family: var(--serif); font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; margin-top: 3px; letter-spacing: -.3px; }
+.cab[data-hoy] { background: linear-gradient(180deg, transparent, var(--hoy-lavado)); }
+.cab[data-hoy] b { color: var(--oro-texto); }
+/* Hoy: el número en oro con un trazo debajo; sin píldora, para que los siete encabezados midan lo mismo. */
+.cab[data-hoy] b::after { content: ''; display: block; width: 14px; height: 2px; margin: 4px auto 0; border-radius: 1px; background: var(--gold); }
+.cab:not([data-hoy]) b::after { content: ''; display: block; height: 2px; margin-top: 4px; }
+.cab[data-pasado] small, .cab[data-pasado] b { opacity: .5; }
+
+/* ——— La franja: ⭐ y día completo ——— */
+.franja { display: flex; flex-direction: column; gap: 3px; min-width: 0; padding: 0 3px 6px; border-bottom: 1px solid var(--linea); }
+.franja[data-hoy] { background: var(--hoy-lavado); }
+.franja[data-pasado] > * { opacity: .6; }
+.esquina.franja { border-bottom: 1px solid var(--linea); }
+.estrella { display: flex; align-items: flex-start; gap: 5px; min-width: 0; padding: 4px 6px 4px 6px; border-radius: 3px 7px 7px 3px; background: rgba(var(--gold-rgb), .09);
+  box-shadow: inset 2.5px 0 0 var(--gold); font-size: 11.5px; font-weight: 650; line-height: 1.25; color: var(--foreground); }
+.estrella > span { min-width: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-wrap: pretty; }
+.estrella svg { flex: 0 0 auto; width: 11px; height: 11px; margin-top: 1.5px; fill: transparent; stroke: var(--oro-texto); stroke-width: 2.2; stroke-linejoin: round; }
+.estrella[data-cumplido] svg { fill: var(--primary); stroke: var(--primary); }
+.estrella[data-cumplido] > span { color: var(--muted); }
+.marca { display: block; min-width: 0; padding: 2px 6px; border: 0; border-radius: 5px; background: var(--ev-bg); color: var(--ev-fg); box-shadow: inset 2px 0 0 var(--ev-ac);
+  font: inherit; font-size: 11px; font-weight: 600; line-height: 1.35; text-align: left; cursor: pointer; }
+.marca:disabled { cursor: default; }
+.marca span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Plegada (el default): una línea por día. Si hay más de una cosa, la primera y «+N»; un toque abre la franja entera. */
+.rielCab[data-plegada] .franja { padding-bottom: 5px; }
+.rielCab[data-plegada] .estrella > span { -webkit-line-clamp: 1; }
+.franjaLinea { display: flex; align-items: center; gap: 3px; min-width: 0; width: 100%; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.franjaLinea > :first-child { flex: 1 1 auto; min-width: 0; }
+.franjaLinea .estrella { align-items: center; }
+.franjaLinea .estrella > span { white-space: nowrap; text-overflow: ellipsis; display: block; }
+.mas { flex: 0 0 auto; padding: 1px 4px; border-radius: 4px; font-size: 10px; font-weight: 750; font-variant-numeric: tabular-nums; color: var(--muted);
+  background: color-mix(in srgb, var(--foreground) 7%, transparent); }
+.franjaLinea:hover .mas { color: var(--foreground); }
+/* La esquina de la franja: el chevrón que abre o pliega lo de día completo. */
+.esquina.franja { justify-content: flex-start; align-items: center; padding: 0 0 5px; }
+.plegar { display: grid; place-items: center; width: 24px; height: 22px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; transition: background 140ms, color 140ms; }
+.plegar:hover { background: var(--card-hover); color: var(--foreground); }
+.plegar svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; transform: rotate(180deg); transition: transform 260ms cubic-bezier(.16, 1, .3, 1); }
+.plegar[aria-expanded='false'] svg { transform: none; }
+
+/* ——— El canal de horas ——— */
+.canal { position: sticky; left: 0; z-index: 3; height: calc(var(--horas) * var(--hora)); }
+.canal span { position: absolute; right: 8px; transform: translateY(-50%); font-size: 10.5px; font-weight: 600; letter-spacing: .2px; color: var(--muted); font-variant-numeric: tabular-nums; opacity: .85; }
+.canal span[data-borde] { opacity: 0; }
+.ahoraHora { position: absolute; right: 3px; z-index: 2; transform: translateY(-50%); padding: 1px 4px; border-radius: 4px; font-size: 9.5px; font-weight: 750; font-variant-numeric: tabular-nums;
+  background: var(--gold); color: var(--tinta); }
+.rejilla[data-angosto] .canal span { right: 6px; font-size: 10px; }
+
+/* ——— Las columnas: una hora, una línea; la media hora, apenas. Cada columna aísla sus capas (19 oct 2026: la cascada apila
+   tarjetas sin pintarse encima del canal de horas). ——— */
+.columna { position: relative; isolation: isolate; height: calc(var(--horas) * var(--hora)); min-width: 0; border-left: 1px solid var(--linea);
+  background-image: linear-gradient(to bottom, var(--linea) 0 1px, transparent 1px), linear-gradient(to bottom, transparent calc(var(--hora) / 2), var(--linea-media) calc(var(--hora) / 2), var(--linea-media) calc(var(--hora) / 2 + 1px), transparent calc(var(--hora) / 2 + 1px));
+  background-size: 100% var(--hora); }
+.rejilla[data-angosto]:not([data-desliza]) .columna { scroll-snap-align: start; scroll-margin-left: var(--canal); }
+.columna[data-crea] { cursor: cell; }
+.columna[data-hoy] { background-color: var(--hoy-lavado); }
+.columna[data-pasado] { background-color: color-mix(in srgb, var(--foreground) 1.6%, transparent); }
+/* Lo ya vivido de hoy, sombreado: el día se lee de un vistazo. */
+.vivido { position: absolute; left: 0; right: 0; top: 0; pointer-events: none; background: linear-gradient(180deg, color-mix(in srgb, var(--foreground) 2%, transparent), color-mix(in srgb, var(--foreground) 4%, transparent)); }
+.ahora { position: absolute; left: -1px; right: 0; z-index: 30; height: 2px; margin-top: -1px; background: var(--gold); pointer-events: none; box-shadow: 0 0 10px rgba(var(--gold-rgb), .35); }
+.ahora::before { content: ''; position: absolute; left: -4px; top: -3.5px; width: 9px; height: 9px; border-radius: 50%; background: var(--gold); animation: latir 2.4s ease-in-out infinite; }
+
+/* ——— Los bloques: tinte del calendario, barra lateral del acento, título y hora. ——— */
+.bloque { position: absolute; z-index: 1; margin: 1px 0 0 2px; border-radius: 7px; background: var(--ev-bg); color: var(--ev-fg); overflow: hidden;
+  box-shadow: inset 3px 0 0 var(--ev-ac), 0 0 0 1px color-mix(in srgb, var(--ev-ac) 22%, transparent), 0 1px 2px rgba(0, 0, 0, .06);
+  transition: top 260ms cubic-bezier(.16, 1, .3, 1), height 260ms cubic-bezier(.16, 1, .3, 1), left 200ms, width 200ms, opacity 160ms, box-shadow 160ms; }
+.bloque:hover { z-index: 28; box-shadow: inset 3px 0 0 var(--ev-ac), 0 0 0 1px color-mix(in srgb, var(--ev-ac) 45%, transparent), 0 6px 16px -6px rgba(0, 0, 0, .28); }
+/* La rutina se repite cada día: tinte más tenue, sin sombra. Lo único se lleva la mirada. */
+.bloque[data-rutina] { background: color-mix(in srgb, var(--ev-bg) 78%, var(--background)); box-shadow: inset 2px 0 0 color-mix(in srgb, var(--ev-ac) 70%, transparent), 0 0 0 1px var(--linea); }
+.bloque[data-rutina] strong { font-weight: 600; }
+.bloque[data-tarea] { background: color-mix(in srgb, var(--foreground) 3%, var(--background)); color: var(--foreground); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--foreground) 14%, transparent); border-radius: 6px; }
+.bloque[data-tarea] .cuerpo::before { content: ''; flex: 0 0 auto; width: 7px; height: 7px; border-radius: 2px; border: 1.4px solid color-mix(in srgb, var(--brand) 70%, var(--foreground)); margin: 0 0 1px; }
+.bloque[data-tarea][data-p1] { box-shadow: inset 0 0 0 1px rgba(var(--gold-rgb), .55); background: rgba(var(--gold-rgb), .07); }
+.bloque[data-tarea][data-p1] .cuerpo::before { border-color: var(--gold); }
+.bloque[data-pasado] { opacity: .58; }
+.bloque[data-pasado]:hover { opacity: .9; }
+/* Con otras personas (invitados o Meet): borde sólido más grueso del color de su categoría. Lo que no se mueve solo. */
+.bloque[data-compromiso] { box-shadow: inset 4px 0 0 var(--ev-ac), inset 0 0 0 1.5px var(--ev-ac), 0 1px 3px rgba(0, 0, 0, .1); }
+.bloque[data-compromiso]:hover { box-shadow: inset 4px 0 0 var(--ev-ac), inset 0 0 0 1.5px var(--ev-ac), 0 6px 16px -6px rgba(0, 0, 0, .28); }
+.bloque[data-sigue-arriba] { border-top-left-radius: 2px; border-top-right-radius: 2px; }
+.bloque[data-sigue-abajo] { border-bottom-left-radius: 2px; border-bottom-right-radius: 2px; -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 10px), rgba(0, 0, 0, .35)); mask-image: linear-gradient(180deg, #000 calc(100% - 10px), rgba(0, 0, 0, .35)); }
+.bloque[data-origen] { opacity: .32; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ev-ac) 60%, transparent); }
+
+.cuerpo { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; width: 100%; height: 100%; min-width: 0; padding: 4px 6px 3px 8px; border: 0; background: transparent;
+  color: inherit; font: inherit; text-align: left; cursor: pointer; overflow: hidden; touch-action: manipulation; }
+.cuerpo[data-movible] { cursor: grab; }
+.rejilla[data-arrastrando] .cuerpo { cursor: grabbing; }
+/* El título envuelve en las líneas que caben (`--lineas`, de `lineasDeTitulo`), cortando con guion en español antes que a la mitad
+   de una sílaba; como Google, pero con guiones. Los altos de línea en px son los de METRICA en SemanaHoras. */
+.cuerpo strong { min-width: 0; max-width: 100%; font-size: 11.5px; font-weight: 650; line-height: 14px; letter-spacing: -.05px; display: -webkit-box; -webkit-line-clamp: var(--lineas, 2); -webkit-box-orient: vertical;
+  overflow: hidden; overflow-wrap: anywhere; word-break: normal; -webkit-hyphens: auto; hyphens: auto; hyphenate-limit-chars: 6 3 2; text-wrap: pretty; flex: 0 0 auto; }
+.cuerpo time { max-width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: 10px; font-weight: 600; line-height: 13px; font-variant-numeric: tabular-nums; color: var(--ev-meta, var(--muted)); white-space: nowrap; }
+.bloque[data-diminuto] .cuerpo > * { display: none; }
+/* En un solape estrecho la hora de término sobra: queda la de inicio entera. */
+.bloque[data-estrecho] .cuerpo time { text-overflow: clip; }
+.bloque[data-tarea] .cuerpo time { color: var(--muted); }
+.bloque[data-corto] .cuerpo { flex-direction: row; align-items: center; gap: 5px; padding-top: 0; padding-bottom: 0; }
+.linea { display: flex; align-items: baseline; gap: 5px; min-width: 0; width: 100%; }
+.linea strong { flex: 0 1 auto; -webkit-line-clamp: var(--lineas, 1); }
+.linea time { flex: 0 0 auto; }
+.borde { position: absolute; left: 0; right: 0; bottom: 0; height: 7px; cursor: ns-resize; touch-action: none; }
+.borde::after { content: ''; position: absolute; left: 50%; bottom: 2px; width: 16px; height: 2px; margin-left: -8px; border-radius: 1px; background: var(--ev-ac); opacity: 0; transition: opacity 140ms; }
+.bloque:hover .borde::after { opacity: .55; }
+
+/* El fantasma: dónde caerá. Borde punteado del oro y la hora en vivo. */
+.fantasma { position: absolute; left: 2px; right: 4px; z-index: 33; margin-top: 1px; border-radius: 7px; pointer-events: none; border: 1.5px dashed var(--gold); background: rgba(var(--gold-rgb), .1);
+  box-shadow: 0 10px 24px -10px rgba(0, 0, 0, .35); transition: top 70ms linear, height 70ms linear; }
+.fantasma[data-igual] { border-color: color-mix(in srgb, var(--muted) 60%, transparent); background: transparent; box-shadow: none; }
+.fantasma time { position: absolute; left: 6px; top: 3px; padding: 1px 5px; border-radius: 4px; font-size: 10px; font-weight: 750; font-variant-numeric: tabular-nums; background: var(--gold); color: var(--tinta); white-space: nowrap; }
+.fantasma[data-igual] time { display: none; }
+.fantasma time small { font-size: inherit; font-weight: 600; opacity: .72; }
+/* El bloque que se está dibujando: el tono de la marca, no el oro de mover. */
+.fantasma[data-nuevo] { border-style: solid; border-color: color-mix(in srgb, var(--primary) 70%, transparent); background: color-mix(in srgb, var(--primary) 14%, transparent); }
+.fantasma[data-nuevo] time { background: var(--primary); color: var(--primary-foreground, #fff); }
+.rejilla[data-creando] { cursor: ns-resize; }
+.rejilla[data-creando] .columna { cursor: ns-resize; }
+.cuerpo:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+
+/* Fuera del tramo: se cuenta arriba o abajo, no se pierde. */
+.fuera { position: absolute; left: 3px; right: 3px; z-index: 32; display: block; padding: 1px 6px; border: 0; border-radius: 5px; background: var(--card); color: var(--muted);
+  box-shadow: 0 0 0 1px var(--linea), 0 2px 6px -3px rgba(0, 0, 0, .2); font: inherit; font-size: 10px; font-weight: 650; font-variant-numeric: tabular-nums; line-height: 1.5; text-align: left;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.fuera:hover { color: var(--foreground); }
+.fuera[data-lado='antes'] { top: 2px; }
+.fuera[data-lado='despues'] { bottom: 2px; }
+
+/* Siete días en el panel: columnas de ~70 px. Encabezado y horas compactos, título de una línea con elipsis. */
+.rejilla[data-denso] { --canal: 34px; }
+.rejilla[data-denso] .cab small { font-size: 9.5px; letter-spacing: .4px; }
+.rejilla[data-denso] .cab b { font-size: 17px; }
+.rejilla[data-denso] .cuerpo { padding: 3px 4px 2px 6px; }
+.rejilla[data-denso] .cuerpo strong { font-size: 10.5px; line-height: 13px; letter-spacing: -.1px; }
+.rejilla[data-denso] .cuerpo time { font-size: 9.5px; line-height: 12px; }
+.rejilla[data-denso] .linea time { display: none; }
+.rejilla[data-denso] .estrella { padding: 3px 4px; font-size: 10.5px; }
+.rejilla[data-denso] .estrella > span { -webkit-line-clamp: 1; }
+.rejilla[data-denso] .marca { padding: 2px 4px; font-size: 10px; }
+.rejilla[data-denso] .fuera { padding: 1px 3px; font-size: 9.5px; }
+
+/* La zona horaria en la esquina (el engrane). */
+.zona { align-self: flex-end; margin: 0 auto 8px; font-size: 9px; font-weight: 650; letter-spacing: .2px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* ——— Siete días en el teléfono (ronda 2, 10 oct 2026): compacta. Bloques mínimos, sin hora; tocar un día lo abre. ——— */
+.rejilla[data-minimo] .cab b { font-size: 16px; }
+.rejilla[data-minimo] .cab small { font-size: 9.5px; letter-spacing: .4px; }
+.rejilla[data-minimo] .columna { cursor: pointer; }
+.rejilla[data-minimo] .franja { padding: 0 2px 4px; gap: 2px; }
+.rejilla[data-minimo] .estrella { justify-content: center; padding: 3px 0; border-radius: 4px; box-shadow: none; }
+.rejilla[data-minimo] .estrella > span { display: none; }
+.rejilla[data-minimo] .marca { height: 5px; padding: 0; border-radius: 3px; box-shadow: none; background: var(--ev-ac); }
+.rejilla[data-minimo] .marca span { display: none; }
+.rejilla[data-minimo] .bloque { margin-left: 1px; border-radius: 4px; box-shadow: inset 2px 0 0 var(--ev-ac); }
+.rejilla[data-minimo] .bloque[data-compromiso] { box-shadow: inset 2px 0 0 var(--ev-ac), inset 0 0 0 1px var(--ev-ac); }
+.rejilla[data-minimo] .cuerpo { padding: 2px 1px 1px 4px; cursor: pointer; }
+/* Siete en el teléfono (~50 px por día): el título también se lee, envuelto en varias líneas de letra pequeña. */
+.rejilla[data-minimo] .cuerpo strong { font-size: 10px; font-weight: 650; line-height: 12px; letter-spacing: -.15px; }
+.rejilla[data-denso] .ahoraHora { right: 1px; padding: 1px 2px; font-size: 8.5px; }
+.rejilla[data-minimo] .cuerpo time, .rejilla[data-minimo] .borde { display: none; }
+.rejilla[data-minimo] .bloque[data-corto] .cuerpo { padding-left: 4px; }
+.rejilla[data-minimo] .bloque[data-tarea] .cuerpo::before { display: none; }
+.rejilla[data-minimo] .fuera { font-size: 9px; padding: 0 2px; }
+
+/* ——— Semana de llamadas (19 oct 2026, Daniel: «¿por qué se ve tan amontonado mi día de hoy en la vista semanal??») ——— */
+/* La ventana de disponibilidad es fondo: una banda tenue con su nombre chiquito abajo a la derecha. No ocupa columna y deja crear
+   arrastrando encima (solo su nombre recibe el toque). */
+.banda { position: absolute; left: 0; right: 0; z-index: 0; pointer-events: none; border-right: 2px solid color-mix(in srgb, var(--ev-ac) 45%, transparent);
+  background: color-mix(in srgb, var(--ev-ac) 7%, transparent); }
+.banda button { position: absolute; right: 4px; bottom: 2px; max-width: calc(100% - 8px); padding: 0 2px; border: 0; background: transparent; pointer-events: auto; cursor: pointer;
+  font: inherit; font-size: 9.5px; font-weight: 600; letter-spacing: .02em; line-height: 1.3; color: color-mix(in srgb, var(--ev-ac) 70%, var(--muted));
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.banda button:hover { color: var(--foreground); }
+.rejilla[data-minimo] .banda button { display: none; }
+/* El brief plegado en su llamada: un 📋 en la esquina de la tarjeta. */
+.brief { position: absolute; top: 2px; right: 2px; z-index: 1; display: grid; place-items: center; width: 18px; height: 16px; padding: 0; border: 0; border-radius: 4px;
+  background: color-mix(in srgb, var(--background) 55%, transparent); font-size: 10px; line-height: 1; cursor: pointer; }
+.brief:hover { background: color-mix(in srgb, var(--background) 90%, transparent); }
+.bloque[data-con-brief] .cuerpo { padding-right: 20px; }
+/* En cascada (más solapes de los que caben a lo ancho legible): cada tarjeta encima de la anterior, con borde para separarlas. */
+.bloque[data-cascada][data-pasado] { opacity: 1; }
+.bloque[data-cascada][data-pasado] .cuerpo { opacity: .6; }
+.bloque[data-cascada] { box-shadow: inset 3px 0 0 var(--ev-ac), 0 0 0 1px var(--background), 0 1px 4px rgba(0, 0, 0, .14); }
+/* Tareas con hora sin duración: chip en el borde derecho (una casilla; varias juntas, su cuenta). */
+.chip { position: absolute; right: 2px; z-index: 31; display: grid; place-items: center; width: 15px; height: 15px; margin-top: 1px; padding: 0; border: 0; border-radius: 4px;
+  background: var(--card); color: var(--foreground); box-shadow: inset 0 0 0 1.4px color-mix(in srgb, var(--brand) 70%, var(--foreground)), 0 1px 3px rgba(0, 0, 0, .12);
+  font: inherit; font-size: 9px; font-weight: 750; font-variant-numeric: tabular-nums; line-height: 1; cursor: pointer; transition: transform 140ms; }
+.chip:hover { transform: scale(1.12); }
+.chip[data-varias] { width: auto; min-width: 15px; padding: 0 3px; }
+.chip[data-p1] { box-shadow: inset 0 0 0 1.4px var(--gold), 0 1px 3px rgba(0, 0, 0, .12); background: color-mix(in srgb, var(--gold) 12%, var(--card)); }
+.chip[data-pasado] { opacity: .55; }
+.rejilla[data-minimo] .chip { right: 1px; width: 9px; height: 9px; min-width: 9px; font-size: 0; padding: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cab { animation: none; }
+  .ahora::before { animation: none; }
+  .bloque, .fantasma { transition: none; }
+}

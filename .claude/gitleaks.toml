@@ -1,0 +1,82 @@
+title = "arbrain gitleaks config"
+
+[extend]
+useDefault = true
+
+# ─── Custom rules: providers that gitleaks default doesn't catch ──────────────
+
+[[rules]]
+id = "openrouter-api-key"
+description = "OpenRouter API Key (sk-or-v1-*)"
+regex = '''sk-or-v1-[a-fA-F0-9]{32,}'''
+keywords = ["sk-or-v1-"]
+
+[[rules]]
+id = "supabase-pat"
+description = "Supabase Personal Access Token (sbp_*)"
+regex = '''sbp_[a-fA-F0-9]{40,}'''
+keywords = ["sbp_"]
+
+[[rules]]
+id = "supabase-secret-key"
+description = "Supabase Secret Key (sb_secret_*)"
+regex = '''sb_secret_[A-Za-z0-9_-]{20,}'''
+keywords = ["sb_secret_"]
+
+# Note: sb_publishable_* keys are deliberately public (RLS-protected),
+# safe to embed in client code. No rule needed.
+
+[[rules]]
+id = "supabase-jwt-service-role"
+description = "Supabase service_role JWT (long enough to be real)"
+regex = '''eyJ[A-Za-z0-9_-]{20,}\.eyJ[A-Za-z0-9_-]{60,}\.[A-Za-z0-9_-]{20,}'''
+keywords = ["eyJ"]
+
+[[rules]]
+id = "polar-token"
+description = "Polar API token (polar_oat_/polar_pat_/polar_secret_)"
+regex = '''polar_(oat|pat|secret)_[A-Za-z0-9_-]{20,}'''
+keywords = ["polar_oat_", "polar_pat_", "polar_secret_"]
+
+[[rules]]
+id = "elevenlabs-key"
+description = "ElevenLabs API Key (sk_*)"
+regex = '''sk_[a-fA-F0-9]{40,}'''
+keywords = ["sk_"]
+
+[[rules]]
+id = "telegram-bot-token"
+description = "Telegram Bot Token"
+regex = '''[0-9]{8,12}:AA[A-Za-z0-9_-]{32,}'''
+keywords = [":AA"]
+
+[[rules]]
+id = "livekit-api-key"
+description = "LiveKit API Key"
+regex = '''APIKey[a-fA-F0-9]{16,}'''
+keywords = ["APIKey"]
+
+[[rules]]
+id = "anthropic-api-key"
+description = "Anthropic API Key"
+regex = '''sk-ant-(api|admin)\d{2}-[A-Za-z0-9_-]{40,}'''
+keywords = ["sk-ant-"]
+
+# ─── Allowlist: known-safe patterns and example/template files ────────────────
+
+[allowlist]
+description = "Safe patterns and example files"
+paths = [
+  '''\.gitleaks\.toml$''',
+  '''.*\.env\.example$''',
+  '''.*/\.env\.example$''',
+  '''.*\.env\.local\.example$''',
+]
+regexes = [
+  '''your_[a-z_]+''',
+  '''<REDACTED[^>]*>''',
+  '''eyJ\.\.\.''',
+  '''sk-or-v1-\.\.\.''',
+  '''APIKey<[^>]+>''',
+  '''placeholder''',
+]

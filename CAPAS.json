@@ -1,0 +1,44 @@
+{
+  "_porque": "Contrato de capas de Arbrain. Todo lo que no está en «alumno» lo regenera el autor en cada versión; «alumno» nunca viene en el repo del autor: nace de la semilla y vive en tu rama. Lo leen los prompts de instalación y actualización y la CI.",
+  "version": "0.2.0",
+  "semilla": "arbrain/cerebro/semilla",
+  "sembrar": "python3 arbrain/cerebro/sembrar.py",
+  "alumno": [
+    ".claude/memory/",
+    ".claude/plan/",
+    ".claude/now.md",
+    ".claude/diario/",
+    ".claude/daily/",
+    ".claude/knowledge/",
+    ".claude/settings.local.json",
+    "CLAUDE.local.md",
+    ".arbrain-sembrado.json",
+    "mi-negocio/"
+  ],
+  "alumno_skills": "toda carpeta de .claude/skills/ que no esté en skills_del_autor",
+  "skills_del_autor": [
+    "actualizar-arbrain",
+    "artificial-brain",
+    "autoresearch",
+    "canvas",
+    "edicion-por-voz",
+    "goal-compiler",
+    "habit-system",
+    "image-generation",
+    "knowledge-search",
+    "libro-os",
+    "memory-manager",
+    "os-audit",
+    "sistema-viable"
+  ],
+  "funciones": {
+    "modo_servidor": {
+      "comando": "npm run servidor",
+      "detener": "npm run servidor -- detener",
+      "carpeta": "arbrain"
+    },
+    "dictado_groq": true,
+    "calendario": true,
+    "lienzo": true
+  }
+}

@@ -1,0 +1,4 @@
+{"type": "init", "timestamp": "2026-10-06T20:30:32.601Z", "session_id": "aabbabab-bbab-baba-aaab-babbbbbababa", "model": "gemini-2.5-flash"}
+{"type": "message", "timestamp": "2026-10-06T20:30:32.602Z", "role": "user", "content": "¿Qué dijiste antes? Responde solo eso"}
+{"type": "message", "timestamp": "2026-10-06T20:31:11.840Z", "role": "assistant", "content": "hola uno", "delta": true}
+{"type": "result", "timestamp": "2026-10-06T20:31:11.878Z", "status": "success", "stats": {"total_tokens": 14633, "input_tokens": 14438, "output_tokens": 2, "cached": 12196, "input": 2242, "duration_ms": 39280, "tool_calls": 0, "models": {"gemini-3.5-flash": {"total_tokens": 14633, "input_tokens": 14438, "output_tokens": 2, "cached": 12196, "input": 2242}}}}

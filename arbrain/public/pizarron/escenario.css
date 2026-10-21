@@ -1,0 +1,128 @@
+/* El pizarrón · dos luces. Papel para enseñar, noche para sentir (regla de la pizarra Luminorphism).
+   Paleta: núcleo de marca → .claude/skills/diseno-de-marca/references/nucleo.md §2 (morado #8C27F1, oro #ff9101);
+   delta declarado: el papel usa el cream del lienzo (#faf6ef) y una tinta morada profunda para que el trazo se lea. */
+:root {
+  --serif: ui-serif, "New York", "Iowan Old Style", Palatino, Georgia, serif;
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+}
+body[data-luz="papel"] {
+  --papel: #f8f3ea; --papel-2: #efe7d8; --texto: #1c1526; --suave: rgba(28, 21, 38, .56); --tenue: rgba(28, 21, 38, .16);
+  --tinta: #4a1d8f; --morado: #8C27F1; --oro: #ff9101; --oro-tinta: #d97400; --grafito: #4f4e57; --hilo: #e08a00;
+  --velo: rgba(248, 243, 234, .78); --sombra: rgba(60, 30, 90, .10);
+}
+body[data-luz="noche"] {
+  --papel: #0b0a10; --papel-2: #13111b; --texto: #f4f1fa; --suave: rgba(244, 241, 250, .6); --tenue: rgba(244, 241, 250, .14);
+  --tinta: #c9a2ff; --morado: #a35bff; --oro: #ffac3d; --oro-tinta: #ff9101; --grafito: #b9b9c3; --hilo: #ffac3d;
+  --velo: rgba(11, 10, 16, .8); --sombra: rgba(0, 0, 0, .4);
+}
+* { box-sizing: border-box }
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--papel); color: var(--texto);
+  font-family: var(--sans); -webkit-font-smoothing: antialiased; transition: background-color .9s ease, color .9s ease;
+  user-select: none; -webkit-user-select: none; touch-action: none }
+#vista { position: fixed; inset: 0; overflow: hidden; cursor: grab }
+#vista.arrastrando { cursor: grabbing }
+body.lapiz #vista { cursor: crosshair }
+/* Grano de papel: ruido fijo en pantalla (no escala con la cámara) y una luz cálida desde arriba. */
+#grano { position: absolute; inset: 0; pointer-events: none; opacity: .5; mix-blend-mode: multiply;
+  background:
+    radial-gradient(120% 90% at 50% -10%, rgba(255, 196, 120, .16), transparent 60%),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .35  0 0 0 0 .28  0 0 0 0 .2  0 0 0 .09 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>") }
+body[data-luz="noche"] #grano { mix-blend-mode: screen; opacity: .35;
+  background: radial-gradient(90% 70% at 50% 0%, rgba(140, 39, 241, .16), transparent 65%),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .8  0 0 0 0 .7  0 0 0 0 1  0 0 0 .05 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>") }
+#mundo { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-origin: 0 0; will-change: transform }
+.capa-svg { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; pointer-events: none }
+#capa-notas { position: absolute; left: 0; top: 0; pointer-events: none }
+
+/* Elementos del territorio: sin marcos ni tarjetas; viven sobre el papel. */
+.el { position: absolute; transition: opacity .7s ease, filter .7s ease, transform .9s cubic-bezier(.2, .8, .2, 1) }
+.el.naciendo { opacity: 0; transform: translateY(14px) }
+.el.oculto { opacity: 0; pointer-events: none }
+.el.fondo { opacity: .1; filter: saturate(.4) }
+.el.apagado { opacity: .18; filter: grayscale(1) blur(.4px) }
+.el-objeto canvas { display: block; position: absolute; left: 0; top: 0 }
+.el-objeto .raiz { position: absolute; inset: 0 }
+.el-objeto .titulo-objeto { position: absolute; left: 0; bottom: 100%; margin-bottom: 6px; font: italic 500 17px/1.2 var(--serif); color: var(--suave); white-space: nowrap }
+.el-objeto .fallo { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 18px;
+  font: 500 14px/1.4 var(--sans); color: var(--suave); border: 1.5px dashed var(--tenue); border-radius: 14px }
+.el-texto { color: var(--texto); white-space: pre-wrap; text-wrap: balance; width: max-content }
+.el-texto.grande { font: 600 58px/1.04 var(--serif); letter-spacing: -.02em; max-width: 760px }
+.el-texto.titulo { font: italic 500 40px/1.1 var(--serif); letter-spacing: -.01em; max-width: 820px; color: var(--tinta) }
+.el-texto.nota { font: 450 19px/1.45 var(--sans); color: var(--suave); max-width: 420px }
+.el-texto.formula { font: italic 400 40px/1.2 var(--serif); letter-spacing: .01em }
+.el-texto sup { font-size: .6em; vertical-align: .9em; line-height: 0 }
+.el-texto sub { font-size: .6em; vertical-align: -.25em; line-height: 0 }
+.el-texto .c { display: inline; opacity: 0; filter: blur(3px); transition: opacity .38s ease, filter .5s ease, color 1.2s ease }
+.el-texto .c.v { opacity: 1; filter: none }
+.el-texto .c.fresca { color: var(--oro-tinta) }
+.el-texto em.oro { font-style: inherit; color: var(--oro-tinta) }
+.el-imagen img { display: block; width: 100%; height: auto; border-radius: 3px; box-shadow: 0 1px 0 var(--tenue), 0 18px 40px -24px var(--sombra) }
+body[data-luz="papel"] .el-imagen img { mix-blend-mode: multiply }
+.el-imagen .pie { margin-top: 8px; font: italic 400 16px/1.35 var(--serif); color: var(--suave) }
+
+/* Notas de tinta escritas por Levy (texto que se escribe solo). */
+.nota-tinta { position: absolute; font: italic 500 22px/1.25 var(--serif); color: var(--tinta); white-space: nowrap; transform-origin: 0 50% }
+.nota-tinta.oro { color: var(--oro-tinta) }
+.nota-tinta .c { opacity: 0; filter: blur(2px); transition: opacity .25s ease, filter .35s ease }
+.nota-tinta .c.v { opacity: 1; filter: none }
+
+/* Lápiz del alumno y su mutación a tinta. */
+#capa-lapiz path { fill: var(--grafito); opacity: .82; transition: fill 1.6s ease, opacity 1.6s ease }
+#capa-lapiz path.tinta { fill: var(--tinta); opacity: 1 }
+#capa-tinta path.trazo { fill: var(--tinta) }
+#capa-tinta path.trazo.oro { fill: var(--oro-tinta) }
+#capa-tinta path.fantasma { fill: var(--grafito); opacity: .55 }
+#capa-tinta .borrando { transition: opacity .6s ease; opacity: 0 }
+#capa-hilos path { fill: none; stroke: var(--hilo); stroke-width: 2.2; stroke-linecap: round; opacity: .85 }
+#capa-hilos circle { fill: var(--hilo) }
+
+/* El Halo: el cursor de Levy (Prisma Halo, el mismo de las manos). */
+#halo { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; z-index: 30; opacity: 0; transition: opacity .5s ease; will-change: transform }
+#halo.vivo { opacity: 1 }
+#halo svg { position: absolute; left: -4px; top: -3px; overflow: visible }
+#halo .cuerpo { transform-origin: 8px 6px; transition: transform .12s ease }
+#halo.dibuja .cuerpo { transform: scale(.88) rotate(-6deg) }
+#halo.respira .cuerpo { animation: respira 2.2s ease-in-out infinite }
+@keyframes respira { 50% { transform: scale(1.1) } }
+#halo .onda { position: absolute; left: -15px; top: -15px; width: 30px; height: 30px; border-radius: 50%; border: 2px solid #8C27F1; opacity: 0 }
+#halo.pulso .onda { animation: onda .7s ease-out }
+@keyframes onda { from { transform: scale(.4); opacity: .9 } to { transform: scale(2.2); opacity: 0 } }
+
+/* Subtítulo: una sola línea, la frase en curso; lo dicho en tinta, lo por decir tenue. */
+#subtitulo { position: absolute; left: 50%; bottom: 60px; transform: translateX(-50%); max-width: min(92%, 860px); z-index: 20;
+  font: 400 19px/1.38 var(--serif); text-align: center; color: var(--tenue); pointer-events: none; text-wrap: balance;
+  transition: opacity .4s ease; opacity: 0; padding: 6px 14px; border-radius: 12px }
+#subtitulo.vivo { opacity: 1 }
+#subtitulo b { font-weight: 400; color: var(--texto) }
+body.sin-subtitulos #subtitulo { display: none }
+
+/* El tiempo se detiene: todo se apaga menos lo que se pregunta. */
+#velo { position: absolute; inset: 0; background: var(--velo); opacity: 0; pointer-events: none; transition: opacity .7s ease; z-index: 5 }
+body.congelado #velo { opacity: 0 }
+#pregunta { position: absolute; left: 50%; top: 18px; transform: translateX(-50%); z-index: 25; width: min(92%, 640px);
+  text-align: center; pointer-events: auto }
+#pregunta .q { font: italic 500 26px/1.22 var(--serif); color: var(--texto); text-wrap: balance }
+#pregunta .q .c { opacity: 0; transition: opacity .25s ease } #pregunta .q .c.v { opacity: 1 }
+#pregunta .linea { width: 46px; height: 2px; background: var(--oro); margin: 10px auto 12px; border-radius: 2px }
+#pregunta .pista { font: 500 13px/1.3 var(--sans); color: var(--suave); letter-spacing: .02em }
+#pregunta .responder { display: flex; gap: 10px; justify-content: center; align-items: center; margin-top: 12px }
+#pregunta input { width: min(100%, 360px); border: 0; border-bottom: 1.5px solid var(--grafito); background: transparent; color: var(--grafito);
+  font: italic 500 24px/1.3 var(--serif); padding: 4px 6px; outline: none; text-align: center }
+#pregunta input::placeholder { color: var(--tenue) }
+#pregunta button { border: 1.5px solid var(--grafito); color: var(--grafito); background: transparent; border-radius: 999px;
+  font: 600 13px/1 var(--sans); padding: 9px 16px; cursor: pointer; letter-spacing: .02em }
+#pregunta button:hover { background: var(--grafito); color: var(--papel) }
+.alfiler { position: absolute; width: 0; height: 0; z-index: 26; pointer-events: auto; cursor: grab }
+.alfiler::before { content: ''; position: absolute; left: -11px; top: -11px; width: 22px; height: 22px; border-radius: 50%;
+  border: 2px solid var(--grafito); background: color-mix(in srgb, var(--grafito) 18%, transparent) }
+.alfiler::after { content: ''; position: absolute; left: -2.5px; top: -2.5px; width: 5px; height: 5px; border-radius: 50%; background: var(--grafito) }
+#aviso { position: absolute; right: 12px; top: 12px; z-index: 40; max-width: 320px; font: 500 12px/1.4 var(--sans); color: var(--suave);
+  background: var(--papel-2); border: 1px solid var(--tenue); border-radius: 10px; padding: 8px 10px }
+
+/* Tinta y notas de pasos anteriores: siguen ahí, en voz baja. */
+#capa-tinta path.quieta { opacity: .32; transition: opacity 1.2s ease }
+.nota-tinta.quieta { opacity: .22; transition: opacity 1.2s ease }
+#capa-tinta path.dormida { opacity: .07; transition: opacity 1.2s ease }
+.nota-tinta.dormida { opacity: .1; transition: opacity 1.2s ease }
+body.congelado #capa-tinta path.dormida { opacity: .04 }

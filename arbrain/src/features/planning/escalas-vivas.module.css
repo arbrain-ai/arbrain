@@ -1,0 +1,238 @@
+/* El hilo (4 días, Semana, Mes · 5 oct 2026, segunda pasada). El riel del Día es el átomo: apilado es una partitura, en miniatura es
+   un tejido. Tokens --mov-* de shared/movimiento (docs/lenguaje-de-movimiento.md), con respaldo para el banco aislado.
+   Reglas: el movimiento explica; solo late lo vivo (el ahora); oro para el ahora, lo que viene y P1; titulares en la serif de Levy.
+   El ancho lo manda el CONTENEDOR del calendario (panel de 520 px, sección o teléfono), no la ventana. */
+@keyframes llenar { from { transform: scaleX(0); } }
+@keyframes respira { 0%, 100% { box-shadow: 0 0 0 0 rgba(var(--gold-rgb), .5); } 60% { box-shadow: 0 0 0 6px rgba(var(--gold-rgb), 0); } }
+@keyframes desdeDerecha { from { opacity: 0; transform: translateX(26px); } }
+@keyframes desdeIzquierda { from { opacity: 0; transform: translateX(-26px); } }
+@keyframes acercar { from { opacity: 0; transform: scale(.965); } }
+@keyframes alejar { from { opacity: 0; transform: scale(1.03); } }
+@keyframes aparecer { from { opacity: 0; } }
+@keyframes pulso { 0% { transform: scale(1.45); color: var(--gold); } 100% { transform: scale(1); } }
+@keyframes tejer { from { transform: scaleX(0); opacity: 0; } }
+
+/* La escena: cambiar de periodo desliza (← →, swipe); cambiar de escala, si el navegador sabe transiciones de vista, hace crecer el riel
+   del día entre escalas (PlanningCalendar, `transicion`); si no, acerca o aleja. Solo entra lo nuevo: el cambio se siente inmediato. */
+.escena { flex: 0 0 auto; min-width: 0; transform-origin: 50% 0; }
+.escena[data-mov=der] { animation: desdeDerecha 340ms var(--mov-curva, cubic-bezier(.16, 1, .3, 1)) both; }
+.escena[data-mov=izq] { animation: desdeIzquierda 340ms var(--mov-curva, cubic-bezier(.16, 1, .3, 1)) both; }
+.escena[data-mov=acercar] { animation: acercar 380ms var(--mov-curva, cubic-bezier(.16, 1, .3, 1)) both; }
+.escena[data-mov=alejar] { animation: alejar 380ms var(--mov-curva, cubic-bezier(.16, 1, .3, 1)) both; }
+.escena[data-mov] :global([class*='entra']) { animation-duration: 420ms; animation-delay: calc(var(--i, 0) * 22ms); }
+
+.sinAuto { margin-left: 0 !important; }
+.resumen span { font-variant-numeric: tabular-nums; }
+.mesTitulo { text-transform: capitalize; }
+
+/* ── El medidor: lo vivido se llena, lo hecho sube, lo que viene tiene fecha. ── */
+.medidor { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.medidorBarra { position: relative; height: 8px; border-radius: 4px; background: color-mix(in srgb, var(--foreground) 8%, transparent); }
+.medidorBarra::after { content: ''; position: absolute; inset: 0; border-radius: 4px; pointer-events: none;
+  background: repeating-linear-gradient(90deg, transparent 0 calc(100% / var(--partes) - 2px), var(--card, var(--background)) calc(100% / var(--partes) - 2px) calc(100% / var(--partes))); }
+.medidorVivido { position: absolute; left: 0; top: 0; bottom: 0; width: calc(var(--f) * 100%); border-radius: 4px; background: linear-gradient(90deg, rgba(var(--brand-rgb), .55), rgba(var(--gold-rgb), .85));
+  transform-origin: left; animation: llenar var(--mov-llenado, 900ms) var(--mov-curva, cubic-bezier(.16, 1, .3, 1)) both; }
+.medidorAhora { position: absolute; z-index: 1; top: -3px; left: calc(var(--f) * 100%); width: 14px; height: 14px; margin-left: -7px; border-radius: 7px; background: var(--gold); border: 2px solid var(--card, var(--background)); animation: respira var(--mov-latido, 2.4s) ease-in-out infinite; }
+.medidorLinea { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.medidorHechas b { display: inline-block; color: var(--foreground); font-weight: 700; }
+.pulso { animation: pulso 700ms var(--mov-curva, cubic-bezier(.16, 1, .3, 1)) both; }
+.viene { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; width: 100%; margin-top: 2px; padding: 9px 2px 0; border: 0; border-top: 1px dashed var(--linea); background: transparent; color: var(--foreground); font: inherit; text-align: left; cursor: pointer; }
+.vieneCuando { padding: 2px 8px; border-radius: 999px; background: rgba(var(--gold-rgb), .16); color: var(--gold-dark, var(--gold)); font-size: 10.5px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; white-space: nowrap; }
+:global(.dark) .vieneCuando { color: var(--gold-bright, var(--gold)); }
+.vieneTitulo { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vieneTitulo i { flex: 0 0 8px; height: 8px; border-radius: 2px; transform: rotate(45deg); }
+.viene small { font-size: 11.5px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.viene:hover .vieneTitulo { text-decoration: underline; text-underline-offset: 3px; }
+
+/* ── La partitura: un riel por día sobre el mismo eje de horas. ── */
+.partitura { --g: 48px; --t: 30px; --alto: 32px; --cielo-noche: color-mix(in srgb, #24365e 13%, transparent); --cielo-alba: rgba(var(--gold-rgb), .10);
+  --cielo-dia: color-mix(in srgb, var(--foreground) 3%, transparent); --cielo-tarde: rgba(var(--gold-rgb), .09);
+  position: relative; display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 10px 12px 12px; border: 1px solid var(--linea); border-radius: 14px; background: var(--card, var(--surface)); user-select: none; }
+:global(.dark) .partitura { --cielo-noche: rgba(0, 0, 0, .38); --cielo-dia: color-mix(in srgb, var(--foreground) 6%, transparent); --cielo-alba: rgba(var(--gold-rgb), .12); --cielo-tarde: rgba(var(--gold-rgb), .14); }
+.partitura[data-alta] { --alto: 60px; }
+.eje { position: relative; height: 16px; margin: 0 var(--t) 0 var(--g); font-size: 10.5px; font-variant-numeric: tabular-nums; color: var(--muted); }
+.eje > * { position: absolute; left: calc(var(--p) * 100%); transform: translateX(-50%); white-space: nowrap; }
+.ejeAhora { z-index: 1; padding: 0 5px; border-radius: 6px; background: var(--gold); color: #1b1300; font-weight: 700; font-style: normal; }
+.ejeCursor { z-index: 2; padding: 0 5px; border-radius: 6px; background: var(--foreground); color: var(--background); font-style: normal; font-weight: 600; }
+.filas { position: relative; display: flex; flex-direction: column; gap: 3px; }
+.fila { display: grid; grid-template-columns: var(--g) minmax(0, 1fr) var(--t); align-items: center; height: var(--alto); min-width: 0; }
+.fila .pista { animation: tejer 620ms var(--mov-curva, cubic-bezier(.16, 1, .3, 1)) backwards; animation-delay: calc(120ms + var(--n, 0) * 55ms); transform-origin: left; }
+.filaDia { position: relative; display: flex; align-items: center; gap: 4px; height: 100%; padding: 0 6px 0 0; border: 0; background: transparent; color: var(--foreground); font: inherit; cursor: pointer; }
+.filaDia small { font-size: 10px; font-weight: 650; letter-spacing: .8px; text-transform: uppercase; color: var(--muted); }
+.filaDia b { font-family: var(--serif); font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.fila[data-hoy] .filaDia small, .fila[data-hoy] .filaDia b { color: var(--gold-dark, var(--gold)); }
+:global(.dark) .fila[data-hoy] .filaDia small, :global(.dark) .fila[data-hoy] .filaDia b { color: var(--gold-bright, var(--gold)); }
+.fila[data-pasado] .filaDia { opacity: .55; }
+.filaDia:hover b { text-decoration: underline; text-underline-offset: 3px; }
+.filaObjetivo { position: absolute; top: 4px; right: 5px; width: 5px; height: 5px; background: var(--gold); transform: rotate(45deg); }
+.pista { position: relative; height: calc(var(--alto) - 6px); border-radius: 7px; cursor: pointer; }
+.fila[data-hoy] .pista { box-shadow: inset 0 0 0 1px rgba(var(--gold-rgb), .45); }
+.vivido { position: absolute; left: 0; top: 0; bottom: 0; width: calc(var(--p) * 100%); border-radius: 7px 0 0 7px; background: linear-gradient(90deg, rgba(var(--gold-rgb), .05), rgba(var(--gold-rgb), .22)); pointer-events: none; }
+.todoDia { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; border-radius: 1px; background: var(--gold); opacity: .7; pointer-events: none; }
+.bloque { container: bloque / inline-size; position: absolute; top: 3px; bottom: 3px; display: flex; align-items: center; min-width: 3px; padding: 0 0 0 6px; overflow: hidden;
+  border: 0; border-left: 3px solid var(--ev-ac, var(--c)); border-radius: 4px; background: var(--ev-bg, color-mix(in srgb, var(--c) 30%, var(--card))); color: var(--ev-fg, var(--foreground)); font: inherit; text-align: left; cursor: pointer;
+  transition: opacity 180ms, transform 180ms, box-shadow 180ms; }
+.bloque span { display: none; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-weight: 600; line-height: 1.2; }
+@container bloque (min-width: 64px) { .bloque span { display: block; } .partitura[data-alta] .bloque span { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; } }
+.bloque:hover { transform: translateY(-1px); box-shadow: 0 2px 8px color-mix(in srgb, var(--c) 35%, transparent); z-index: 2; }
+.bloque[data-terminado] { opacity: .42; }
+/* Un periodo que ya pasó, visto a propósito: se lee, apenas atenuado. */
+.partitura[data-historia] .bloque[data-terminado] { opacity: .82; }
+.bloque[data-vivo] { box-shadow: 0 0 0 1.5px var(--gold); z-index: 1; }
+.bloque[data-sel] { box-shadow: 0 0 0 2px var(--foreground); z-index: 3; opacity: 1; }
+.filas[data-ritmo] .bloque { opacity: .15; }
+.filas[data-ritmo] .bloque[data-enciende] { opacity: 1; box-shadow: 0 0 0 1.5px var(--c), 0 0 12px color-mix(in srgb, var(--c) 45%, transparent); }
+.ahora { position: absolute; z-index: 4; top: 50%; left: calc(var(--p) * 100%); width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 6px; background: var(--gold); border: 2px solid var(--card, var(--background)); animation: respira var(--mov-latido, 2.4s) ease-in-out infinite; pointer-events: none; }
+.filaCola { display: flex; align-items: center; justify-content: flex-end; gap: 3px; font-size: 11px; font-weight: 650; color: var(--muted); font-variant-numeric: tabular-nums; }
+.filaCola i { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--brand, var(--primary)); }
+.lineaAhora, .lineaCursor { position: absolute; top: -2px; bottom: -2px; left: calc(var(--g) + (100% - var(--g) - var(--t)) * var(--p)); width: 0; pointer-events: none; }
+.lineaAhora { border-left: 1.5px dashed rgba(var(--gold-rgb), .75); }
+.lineaCursor { border-left: 1px solid color-mix(in srgb, var(--foreground) 55%, transparent); }
+
+/* La lectura bajo la partitura: lo que tocaste, o tu ritmo y tu hueco libre. */
+.lectura { display: flex; flex-direction: column; gap: 8px; min-height: 30px; }
+.lente { display: grid; grid-template-columns: 4px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 8px 8px 8px 0; border-radius: 12px; background: color-mix(in srgb, var(--c) 12%, transparent); animation: aparecer 200ms ease-out both; }
+.lente > i { align-self: stretch; border-radius: 0 3px 3px 0; background: var(--c); }
+.lenteCuerpo { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 0; border: 0; background: transparent; color: var(--foreground); font: inherit; text-align: left; cursor: pointer; }
+.lenteCuerpo small { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.lenteCuerpo strong { font-size: 14.5px; font-weight: 650; line-height: 1.3; overflow-wrap: anywhere; }
+.hueco { margin: 0; font-size: 12.5px; color: var(--muted); }
+.hueco b { color: var(--foreground); font-weight: 650; }
+.ritmo { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.ritmoRotulo { font-size: 10.5px; font-weight: 650; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); margin-right: 2px; }
+.ritmoChip { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; height: 28px; padding: 0 10px; border: 1px solid var(--linea); border-radius: 999px; background: transparent; color: var(--foreground); font: inherit; font-size: 12px; cursor: pointer; transition: border-color 150ms, background 150ms; }
+.ritmoChip i { flex: 0 0 7px; height: 7px; border-radius: 4px; background: var(--c); }
+.ritmoChip span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ritmoChip small { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ritmoChip[data-activo] { border-color: var(--c); background: color-mix(in srgb, var(--c) 12%, transparent); }
+
+/* ── Día por día (detalle): tareas siempre a la vista, la agenda del día que abras. ── */
+.dias { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; align-items: start; min-width: 0; }
+@container (min-width: 960px) { .dias[data-cuantos='4'] { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.diaHoja { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 8px 10px 10px; border: 1px solid var(--linea); border-radius: 14px; }
+.diaHoja[data-hoy] { border-color: rgba(var(--gold-rgb), .45); background: linear-gradient(160deg, rgba(var(--gold-rgb), .06), transparent 50%); }
+.diaHoja[data-pasado] { opacity: .8; }
+.diaHojaCabeza { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.diaCabeza { flex: 1 1 auto; display: flex; align-items: baseline; gap: 7px; min-width: 0; padding: 2px 0; border: 0; background: transparent; color: var(--foreground); font: inherit; text-align: left; cursor: pointer; }
+.diaNombre { font-size: 11px; font-weight: 650; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); }
+.diaNumero { font-family: var(--serif); font-size: 21px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
+.hoyMarca { padding: 1px 7px; border-radius: 999px; background: rgba(var(--gold-rgb), .18); color: var(--gold-dark, var(--gold)); font-size: 10px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; }
+:global(.dark) .hoyMarca { color: var(--gold-bright, var(--gold)); }
+.diaCuenta { margin-left: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.diaPliegue { flex: 0 0 auto; width: 14px; text-align: center; color: var(--muted); }
+.diaObjetivo { display: flex; align-items: baseline; gap: 7px; margin: 0; font-size: 12.5px; line-height: 1.35; color: var(--foreground); overflow-wrap: anywhere; }
+.diaObjetivo i { flex: 0 0 6px; height: 6px; background: var(--gold); transform: translateY(-1px) rotate(45deg); }
+.diaContenido { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.enCursoCompacto { padding: 9px 11px 10px; }
+.enCursoCompacto strong { font-size: 14px; }
+.agendaCompacta button { grid-template-columns: 40px 3px minmax(0, 1fr) auto; gap: 8px; min-height: 34px; padding: 4px 6px; font-size: 13px; }
+.agendaCompacta button > span { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.3; overflow-wrap: break-word; }
+.masBloques { align-self: flex-start; padding: 2px 6px; border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; }
+.masBloques:hover { color: var(--foreground); }
+.tareasDia { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
+.tareasDia :global([class*='tarjetaTitulo']) { font-size: 13.5px; }
+.libre { margin: 0; font-size: 12.5px; color: var(--muted); }
+
+/* ── El tejido del mes: cada día, su riel en miniatura; cada semana, su objetivo. ── */
+.tejido { display: flex; flex-direction: column; min-width: 0; border: 1px solid var(--linea); border-radius: 14px; overflow: hidden; background: var(--card, var(--surface)); }
+.tejidoCabeza { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); background: color-mix(in srgb, var(--foreground) 2.5%, transparent); }
+.tejidoCabeza span { padding: 7px 8px; font-size: 10.5px; font-weight: 650; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
+.tejidoCabeza span[data-finde] { opacity: .75; }
+.semanaTejida { border-top: 1px solid var(--linea); animation: aparecer 420ms ease-out backwards; animation-delay: calc(140ms + var(--n, 0) * 60ms); }
+.franja { display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0; padding: 6px 10px; border: 0; background: color-mix(in srgb, var(--foreground) 2%, transparent); color: var(--muted); font: inherit; font-size: 12px; text-align: left; cursor: pointer; transition: background 140ms, color 140ms; }
+.franja b { font-size: 11px; font-weight: 700; letter-spacing: .6px; font-variant-numeric: tabular-nums; }
+.franjaTitulo { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.franjaTitulo em { font-style: normal; opacity: .7; }
+.franjaIr { flex: 0 0 auto; opacity: 0; transition: opacity 140ms; }
+.franja:hover { color: var(--foreground); background: var(--card-hover); }
+.franja:hover .franjaIr { opacity: 1; }
+.semanaTejida[data-estado=actual] .franja { background: rgba(var(--gold-rgb), .09); color: var(--foreground); font-weight: 600; }
+.semanaTejida[data-estado=actual] .franja b { color: var(--gold-dark, var(--gold)); }
+:global(.dark) .semanaTejida[data-estado=actual] .franja b { color: var(--gold-bright, var(--gold)); }
+.semanaChip { flex: 0 0 auto; padding: 0 7px; border: 1px solid var(--linea); border-radius: 999px; font-size: 10px; font-style: normal; font-weight: 500; color: var(--muted); white-space: nowrap; }
+.semanaChip[data-estado=draft] { color: var(--gold-dark, var(--gold)); border-color: rgba(var(--gold-rgb), .45); }
+:global(.dark) .semanaChip[data-estado=draft] { color: var(--gold-bright, var(--gold)); }
+.semanaChip[data-estado=completed] { color: var(--success, var(--primary)); border-color: currentColor; }
+.semanaDias { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.punto { position: relative; display: flex; flex-direction: column; gap: 5px; min-width: 0; min-height: 86px; padding: 6px 7px 9px; border: 0; border-left: 1px solid var(--linea); background: transparent; color: var(--foreground); font: inherit; text-align: left; cursor: pointer; transition: background 120ms; }
+.punto:first-child { border-left: 0; }
+.punto:hover { background: var(--card-hover); }
+.punto[data-fuera] { background: color-mix(in srgb, var(--foreground) 2%, transparent); }
+.punto[data-fuera] .puntoNumero { color: var(--muted); opacity: .7; }
+.punto[data-sel] { box-shadow: inset 0 0 0 2px rgba(var(--brand-rgb), .55); background: rgba(var(--brand-rgb), .05); }
+.puntoNumero { display: inline-grid; place-items: center; align-self: flex-start; min-width: 24px; height: 24px; padding: 0 5px; border-radius: 12px; font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.punto[data-hoy] .puntoNumero { background: var(--gold); color: #1b1300; animation: respira var(--mov-latido, 2.4s) ease-in-out infinite; }
+.hilo { position: relative; display: block; height: 8px; border-radius: 3px; background: color-mix(in srgb, var(--foreground) 6%, transparent); }
+.hilo i { position: absolute; top: 0; bottom: 0; border-radius: 2px; background: var(--c); }
+.hilo i[data-rutina] { opacity: .55; }
+.punto[data-pasado] .hilo i { opacity: .28; }
+.semanaTejida .hilo { animation: tejer 520ms var(--mov-curva, cubic-bezier(.16, 1, .3, 1)) backwards; animation-delay: calc(220ms + var(--n, 0) * 60ms); transform-origin: left; }
+.hiloVivido { position: absolute; left: 0; top: -2px; bottom: -2px; width: calc(var(--p) * 100%); border-radius: 3px; background: rgba(var(--gold-rgb), .25); }
+.hilo b { position: absolute; top: 50%; left: calc(var(--p) * 100%); width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 4px; background: var(--gold); border: 1.5px solid var(--card, var(--background)); }
+.puntoHito { display: flex; align-items: flex-start; gap: 5px; min-width: 0; font-size: 11.5px; font-weight: 600; line-height: 1.25; }
+.puntoHito i { flex: 0 0 7px; height: 7px; margin-top: 3px; border-radius: 2px; background: var(--c); transform: rotate(45deg); }
+.puntoHito span { min-width: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: break-word; }
+.puntoHito small { color: var(--muted); font-weight: 600; }
+.punto[data-pasado] .puntoHito { opacity: .55; }
+.puntoTareas { display: inline-flex; align-items: center; gap: 4px; margin-top: auto; font-size: 11px; font-weight: 650; color: var(--muted); font-variant-numeric: tabular-nums; }
+.puntoTareas i { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--brand, var(--primary)); }
+.puntoTareas[data-p1] i { border-color: var(--gold); }
+.puntoLargo { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--c); opacity: .8; }
+
+/* Lo que no se repite: los hitos del mes, con su cuenta regresiva. */
+.hitos { display: flex; flex-direction: column; gap: 6px; }
+.hitos > header > button { margin-left: auto; }
+.hitos ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.hitos li button { display: grid; grid-template-columns: 82px 8px minmax(0, 1fr) auto; align-items: center; gap: 10px; width: 100%; min-height: 38px; padding: 5px 8px; border: 0; border-radius: 9px; background: transparent; color: var(--foreground); font: inherit; text-align: left; cursor: pointer; transition: background 140ms; }
+.hitos li button:hover { background: var(--card-hover); }
+.hitos li i { width: 8px; height: 8px; border-radius: 2px; background: var(--c); transform: rotate(45deg); }
+.hitoCuando { font-size: 11px; font-weight: 700; letter-spacing: .4px; color: var(--gold-dark, var(--gold)); white-space: nowrap; }
+:global(.dark) .hitoCuando { color: var(--gold-bright, var(--gold)); }
+.hitoTitulo { min-width: 0; font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hitos li small { font-size: 11.5px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.hitos li[data-pasado] { opacity: .5; }
+.hitos li[data-pasado] .hitoCuando { color: var(--muted); }
+
+/* El día elegido del mes: su lista completa. */
+.elegido { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px 14px; border: 1px solid var(--linea); border-radius: 14px; min-width: 0; animation: aparecer 220ms ease-out both; }
+.elegidoCabeza { display: flex; align-items: flex-end; gap: 10px; }
+.elegidoCabeza h3 { margin: 0; font-family: var(--serif); font-size: 24px; line-height: 1.05; font-weight: 600; }
+.elegidoCabeza h3 small { font-size: 15px; font-weight: 400; color: var(--muted); }
+.elegidoCabeza > button { margin-left: auto; }
+
+@container (max-width: 700px) {
+  .partitura { --g: 40px; --t: 22px; padding: 8px 8px 10px; }
+  .partitura[data-alta] { --alto: 52px; }
+  .filaDia b { font-size: 15px; }
+  .filaDia small { font-size: 9px; letter-spacing: .4px; }
+  .tejidoCabeza span { padding: 6px 0; text-align: center; letter-spacing: 0; }
+  .franja { padding: 6px 8px; }
+  .punto { min-height: 62px; padding: 5px 3px 8px; gap: 4px; align-items: stretch; }
+  .puntoNumero { align-self: center; min-width: 24px; height: 24px; padding: 0; font-size: 12.5px; }
+  .hilo { height: 6px; }
+  .puntoHito span, .puntoHito small { display: none; }
+  .puntoHito { justify-content: center; }
+  .puntoHito i { margin: 0; }
+  .puntoTareas { justify-content: center; font-size: 10px; }
+  .hitos li button { grid-template-columns: 70px 8px minmax(0, 1fr); }
+  .hitos li small { display: none; }
+  .diaHoja { padding: 8px 9px 10px; }
+}
+@container (max-width: 420px) {
+  .viene { grid-template-columns: auto minmax(0, 1fr); }
+  .viene small { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .escena, .escena[data-mov], .medidorVivido, .medidorAhora, .pulso, .fila .pista, .ahora, .lente, .semanaTejida, .semanaTejida .hilo, .punto[data-hoy] .puntoNumero, .elegido { animation: none !important; }
+  .bloque { transition: none; }
+}
+
+/* Semana compacta (5 oct 2026, 17:51): el objetivo de cada día, en oro, bajo su fila; ritmo y día por día a un toque. */
+.filaGrupo { display: flex; flex-direction: column; min-width: 0; }
+.filaObjTexto { display: block; margin: -1px 0 1px var(--g); padding: 0 2px; border: 0; background: transparent; color: var(--gold); font: inherit; font-size: 11px; font-weight: 600;
+  line-height: 1.3; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.filaObjTexto:hover { text-decoration: underline; text-underline-offset: 2px; }
+.filaObjTexto[data-pasado] { opacity: .55; }
+.verMas { display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; background: transparent; color: var(--muted); font: inherit; cursor: pointer; }
+.verMas:hover { color: var(--foreground); }

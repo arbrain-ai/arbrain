@@ -1,0 +1,36 @@
+/* Código en solo lectura (8 oct 2026). La caja de los bloques de código del chat (card, borde, cabecera en versalitas) con
+   números de línea y la mono de la casa. Sin edición: la pastilla «Solo lectura» lo dice. */
+.codigo { min-width: 0; border-radius: 12px; border: 1px solid var(--border); background: var(--card); overflow: hidden; }
+.barra { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; padding: 7px 10px 7px 14px; border-bottom: 1px solid var(--border); }
+.lenguaje { font: 600 10.5px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.dato { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.solo { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); font-size: 11px; font-weight: 600; color: var(--muted); }
+.acciones { display: inline-flex; gap: 4px; margin-left: auto; }
+.acciones button { display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 8px; border: 1px solid var(--border); border-radius: 7px; background: none; color: var(--muted); font-size: 11.5px; font-weight: 550; cursor: pointer; }
+.acciones button:hover { color: var(--foreground); border-color: rgba(var(--brand-rgb), 0.35); }
+.acciones button[aria-pressed='true'] { color: var(--brand); border-color: rgba(var(--brand-rgb), 0.35); }
+.acciones button:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.aviso { margin: 0; padding: 6px 14px; font-size: 12px; color: var(--muted); border-bottom: 1px solid var(--border); background: rgba(var(--gold-rgb), 0.07); }
+
+.cuerpo { min-width: 0; overflow-x: auto; }
+.lineas { display: table; min-width: 100%; padding: 10px 0; font: 12.5px/1.6 var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace); tab-size: 2; color: var(--foreground); }
+.linea { display: table-row; }
+.linea:hover { background: color-mix(in srgb, var(--foreground) 4%, transparent); }
+.n { display: table-cell; position: sticky; left: 0; width: calc(var(--digitos, 2) * 1ch + 22px); padding: 0 10px 0 12px; text-align: right; vertical-align: top; color: color-mix(in srgb, var(--muted) 70%, transparent);
+  background: var(--card); border-right: 1px solid var(--border); user-select: none; font-variant-numeric: tabular-nums; }
+.linea code { display: table-cell; padding: 0 16px 0 14px; font: inherit; background: none; white-space: pre; }
+.codigo[data-ajustar] .linea code { white-space: pre-wrap; word-break: break-word; }
+.codigo[data-ajustar] .lineas { width: 100%; table-layout: fixed; }
+
+/* El tema del chat (github-dark-dimmed) es para fondo oscuro; con tema claro, la paleta de GitHub claro para que se lea. */
+:global(html:not(.dark)) .lineas :global(:is(.hljs-keyword, .hljs-doctag, .hljs-template-tag, .hljs-type, .hljs-variable.language_)) { color: #cf222e; }
+:global(html:not(.dark)) .lineas :global(:is(.hljs-title, .hljs-title.class_, .hljs-title.function_)) { color: #8250df; }
+:global(html:not(.dark)) .lineas :global(:is(.hljs-attr, .hljs-attribute, .hljs-literal, .hljs-meta, .hljs-number, .hljs-operator, .hljs-variable, .hljs-selector-attr, .hljs-selector-class, .hljs-selector-id)) { color: #0550ae; }
+:global(html:not(.dark)) .lineas :global(:is(.hljs-regexp, .hljs-string, .hljs-meta .hljs-string)) { color: #0a3069; }
+:global(html:not(.dark)) .lineas :global(:is(.hljs-built_in, .hljs-symbol)) { color: #953800; }
+:global(html:not(.dark)) .lineas :global(:is(.hljs-comment, .hljs-code, .hljs-formula)) { color: #6e7781; }
+:global(html:not(.dark)) .lineas :global(:is(.hljs-name, .hljs-quote, .hljs-selector-tag, .hljs-selector-pseudo)) { color: #116329; }
+:global(html:not(.dark)) .lineas :global(:is(.hljs-subst, .hljs-params)) { color: #24292f; }
+:global(html:not(.dark)) .lineas :global(:is(.hljs-section)) { color: #0550ae; font-weight: 600; }
+:global(html:not(.dark)) .lineas :global(.hljs-addition) { color: #116329; background: #dafbe1; }
+:global(html:not(.dark)) .lineas :global(.hljs-deletion) { color: #82071e; background: #ffebe9; }

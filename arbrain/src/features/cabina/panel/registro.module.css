@@ -1,0 +1,39 @@
+/* Registro del Taller (5 oct 2026): el rastro de los agentes en la gramática del panel. Verde = terminó bien,
+   morado = algo empezó, rojo = falló, tenue = herramientas y ruido. Monoespaciada solo para la hora y los datos crudos. */
+.registro { --linea: color-mix(in srgb, var(--foreground) 9%, transparent); --mov-latido-rgb: 16, 185, 129; display: flex; flex-direction: column; gap: 6px; padding: 10px 10px 16px; min-width: 0; }
+.barra { display: flex; align-items: center; gap: 8px; padding: 4px 6px 0; font-size: 12px; color: var(--muted); }
+.vivo { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); opacity: .5; }
+.vivo[data-vivo] { background: var(--success); opacity: 1; }
+.estado { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.icono { display: grid; place-items: center; width: 28px; height: 28px; border: 0; border-radius: 7px; background: transparent; color: var(--muted); cursor: pointer; }
+.icono:hover { color: var(--foreground); background: var(--card-hover); }
+.filtros { display: flex; gap: 2px; padding: 3px; border-radius: 10px; background: rgba(var(--foreground-rgb, 0, 0, 0), .05); }
+:global(.dark) .filtros { background: rgba(255, 255, 255, .05); }
+.filtros button { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 5px; height: 28px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font: inherit; font-size: 12.5px; font-weight: 500; cursor: pointer; white-space: nowrap; }
+.filtros button[aria-selected=true] { background: var(--card); color: var(--foreground); box-shadow: 0 1px 2px rgba(0, 0, 0, .12); }
+.filtros small { font-size: 11px; color: var(--error, #e5484d); font-weight: 650; font-variant-numeric: tabular-nums; }
+.lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.evento { display: grid; grid-template-columns: 58px 3px minmax(0, 1fr) auto; align-items: start; gap: 9px; width: 100%; min-height: 40px; padding: 8px 6px; border: 0; border-radius: 9px; background: transparent; color: var(--foreground); font: inherit; text-align: left; cursor: pointer; }
+.evento:hover { background: rgba(var(--foreground-rgb, 0, 0, 0), .04); }
+.evento:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.evento time { font: 11.5px/18px ui-monospace, 'SF Mono', Menlo, monospace; color: var(--muted); }
+.evento i { align-self: stretch; border-radius: 2px; background: var(--linea); }
+li[data-tono=bien] .evento i { background: var(--success); }
+li[data-tono=vivo] .evento i { background: var(--brand, var(--primary)); }
+li[data-tono=falla] .evento i { background: var(--error, #e5484d); }
+.texto { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; min-width: 0; font-size: 13px; line-height: 1.4; }
+.texto b { font-weight: 600; }
+.texto small { font-size: 11px; color: var(--muted); }
+.texto span { flex-basis: 100%; min-width: 0; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+li[data-tono=tenue] .texto b { font-weight: 500; color: var(--muted); }
+li[data-tono=falla] .texto b { color: var(--error, #e5484d); }
+.hace { font-size: 11px; color: var(--muted); white-space: nowrap; line-height: 18px; }
+.crudo { margin: 0 6px 8px 70px; padding: 9px 11px; max-height: 260px; overflow: auto; border-radius: 8px; border: 1px solid var(--linea); background: var(--surface, var(--card));
+  font: 11px/1.5 ui-monospace, 'SF Mono', Menlo, monospace; color: var(--muted); white-space: pre-wrap; overflow-wrap: anywhere; }
+.vacio { margin: 18px 8px; font-size: 13.5px; color: var(--muted); }
+.vacio button { border: 0; background: transparent; color: var(--primary); font: inherit; font-weight: 600; cursor: pointer; }
+@container (max-width: 420px) {
+  .evento { grid-template-columns: 3px minmax(0, 1fr) auto; }
+  .evento time { display: none; }
+  .crudo { margin-left: 6px; }
+}

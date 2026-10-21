@@ -1,0 +1,108 @@
+/* Terminal inferior (⌘J). Oscura como el visor de agentes del panel derecho: el fondo es el de xterm. */
+.panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  min-height: 0;
+  background: #0d0d12;
+  border-top: 1px solid rgba(255, 255, 255, 0.09);
+  color: #d4d4d8;
+}
+.panel[hidden] { display: none; }
+.arrastrando { user-select: none; }
+.arrastrando * { pointer-events: none; }
+.arrastrando .divisor { pointer-events: auto; }
+
+/* Asa de 8 px a caballo del borde; la línea de marca solo aparece al pasar o arrastrar. */
+.divisor {
+  position: absolute;
+  left: 0; right: 0; top: -4px;
+  height: 8px;
+  z-index: 5;
+  cursor: row-resize;
+  touch-action: none;
+  outline: none;
+}
+.divisor span {
+  position: absolute;
+  left: 0; right: 0; top: 3px;
+  height: 2px;
+  background: transparent;
+  transition: background 0.12s;
+}
+.divisor:hover span, .divisor:focus-visible span, .arrastrando .divisor span { background: rgba(167, 139, 250, 0.7); }
+
+.barra {
+  display: flex;
+  align-items: stretch;
+  flex: none;
+  height: 34px;
+  padding: 0 6px 0 0;
+  background: #0a0a0f;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.pestanas {
+  display: flex;
+  align-items: stretch;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.pestanas::-webkit-scrollbar { display: none; }
+
+.pestana {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  max-width: 200px;
+  padding: 0 8px 0 12px;
+  font-size: 12px;
+  color: #8b8b95;
+  cursor: pointer;
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  border-top: 2px solid transparent;
+  user-select: none;
+}
+.pestana:hover { color: #d4d4d8; background: rgba(255, 255, 255, 0.03); }
+.pestana[data-activa] { color: #fafafa; background: #0d0d12; border-top-color: #a78bfa; }
+.titulo { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.cerrarPestana, .mas, .ocultar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.cerrarPestana { width: 18px; height: 18px; opacity: 0; color: #a1a1aa; }
+.pestana:hover .cerrarPestana, .pestana[data-activa] .cerrarPestana, .cerrarPestana:focus-visible { opacity: 1; }
+.cerrarPestana:hover { background: rgba(255, 255, 255, 0.1); color: #fafafa; }
+.mas, .ocultar { width: 28px; align-self: center; height: 24px; color: #a1a1aa; }
+.mas { margin-left: 4px; }
+.mas:hover, .ocultar:hover { background: rgba(255, 255, 255, 0.08); color: #fafafa; }
+.mas:disabled { opacity: 0.5; cursor: progress; }
+.atajo { align-self: center; margin: 0 6px; font-size: 11px; color: #52525b; letter-spacing: 0.02em; }
+
+.cuerpo { position: relative; flex: 1; min-height: 0; }
+.cuerpoPty { position: absolute; inset: 0; padding: 6px 0 4px 10px; }
+.cuerpoPty[hidden] { display: none; }
+.xterm { width: 100%; height: 100%; }
+.xterm :global(.xterm) { height: 100%; }
+.xterm :global(.xterm-viewport) { background-color: transparent !important; }
+
+.velo {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  margin: 0;
+  font-size: 12px;
+  color: #a1a1aa;
+  background: rgba(13, 13, 18, 0.88);
+  z-index: 3;
+}
+.enlace { border: 0; background: transparent; color: #a78bfa; text-decoration: underline; cursor: pointer; font-size: 12px; }

@@ -1,0 +1,43 @@
+/* Vista «pizarrón» (7 oct 2026). El escenario manda; el marco solo dice dónde vas y deja la voz a la mano. */
+.sesion { display: flex; flex-direction: column; gap: 8px; min-width: 0; height: 560px }
+.sesion[data-grande] { height: calc(100vh - 150px); min-height: 440px }
+.cabecera { display: flex; align-items: center; gap: 10px; min-width: 0 }
+.tema { display: flex; flex-direction: column; min-width: 0; flex: 1 }
+.tema b { font: 600 15px/1.25 ui-serif, 'New York', Georgia, serif; color: var(--foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.tema span { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.tema span[data-fase='prediciendo'], .tema span[data-fase='esperando-gesto'] { color: rgb(var(--gold-rgb)) }
+.herramientas { display: flex; gap: 2px; flex: none }
+.herramientas button { display: grid; place-items: center; min-width: 28px; height: 28px; padding: 0 6px; border: 0; border-radius: 7px; background: none; color: var(--muted); cursor: pointer; font-size: 12px; font-weight: 600 }
+.herramientas button:hover { background: var(--surface, rgba(127, 127, 127, .1)); color: var(--foreground) }
+.herramientas button[aria-pressed='true'] { background: rgba(var(--brand-rgb), .16); color: var(--foreground) }
+.vel { font-variant-numeric: tabular-nums }
+/* El marco manda el ancho; el iframe lo llena en absoluto (mismo cuidado que el documento HTML con el zoom de la app). */
+.escenario { position: relative; flex: 1; min-height: 0; width: 100%; overflow: hidden; border-radius: 12px; border: 1px solid var(--border); background: #f8f3ea; isolation: isolate }
+.escenario iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block }
+.mando { position: absolute; left: 10px; bottom: 10px; display: flex; align-items: center; gap: 8px; z-index: 2; pointer-events: none; max-width: calc(100% - 20px); flex-wrap: wrap }
+.mando > * { pointer-events: auto }
+.sesion[data-render] .mando, .sesion[data-render] .aviso { display: none }
+.play { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; border: 0; cursor: pointer; color: #fff;
+  background: radial-gradient(circle at 35% 30%, #b47cff, #7b1fe0 60%, #4b0f99); box-shadow: 0 6px 18px -6px rgba(91, 18, 184, .7) }
+.sigue { display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 12px; border-radius: 999px; border: 1px solid rgba(var(--gold-rgb), .5); background: rgba(255, 250, 240, .92); color: #7a4300; font-size: 12px; font-weight: 600; cursor: pointer }
+.espera { font: italic 500 13px/1.2 ui-serif, Georgia, serif; color: #6b4a1a; background: rgba(255, 250, 240, .85); padding: 5px 10px; border-radius: 999px }
+.reacciones { display: inline-flex; gap: 6px; opacity: .55; transition: opacity .2s }
+.reacciones:hover { opacity: 1 }
+.reacciones button { height: 26px; padding: 0 10px; border-radius: 999px; border: 1px solid rgba(60, 40, 90, .2); background: rgba(255, 252, 246, .9); color: #3b2a55; font-size: 11.5px; font-weight: 550; cursor: pointer }
+.aviso { position: absolute; right: 10px; bottom: 10px; max-width: 46%; margin: 0; padding: 6px 10px; border-radius: 8px; font-size: 11.5px; line-height: 1.35; color: #5a3d0c; background: rgba(255, 244, 222, .94); border: 1px solid rgba(var(--gold-rgb), .35); z-index: 2 }
+.error { position: absolute; inset: auto 10px 56px 10px; margin: 0; padding: 8px 10px; border-radius: 8px; font-size: 12.5px; color: #7a1d1d; background: rgba(255, 236, 236, .95); z-index: 2 }
+
+.casa { display: flex; flex-direction: column; gap: 22px; padding: 4px 2px 12px }
+.h { margin: 0 0 8px; font: 600 13px/1.2 var(--font-sans, system-ui); letter-spacing: .02em; color: var(--muted); text-transform: uppercase }
+.h small { font-weight: 500; margin-left: 4px }
+.nota, .vacio { margin: 0 0 10px; font-size: 13px; line-height: 1.45; color: var(--muted) }
+.lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px }
+.lista button { width: 100%; display: flex; flex-direction: column; gap: 2px; text-align: left; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--card); cursor: pointer }
+.lista button:hover { border-color: rgba(var(--brand-rgb), .4) }
+.lista b { font: 600 15px/1.3 ui-serif, 'New York', Georgia, serif; color: var(--foreground) }
+.lista span { font-size: 12px; color: var(--muted) }
+.biblioteca { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px }
+.biblioteca li { display: flex; flex-direction: column; gap: 3px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--card) }
+.biblioteca b { font-size: 13px; color: var(--foreground) }
+.biblioteca span { font-size: 12px; line-height: 1.4; color: var(--muted) }
+.biblioteca small { font-size: 11px; color: rgb(var(--gold-rgb)) }

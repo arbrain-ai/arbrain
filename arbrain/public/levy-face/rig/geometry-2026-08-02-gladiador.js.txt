@@ -1,0 +1,101 @@
+// geometry.js — LA TABLA DE MEDIDAS de LEVY.
+//
+// Generado por tools/measure.py sobre levy.png el 2026-08-02.
+// NO se edita a mano: si algo está mal, se corrige el medidor y se vuelve a medir.
+//
+// Todo en píxeles del arte (1080², origen arriba-izquierda), que es el espacio en
+// el que trabaja el shader. Procedencia de cada número:
+//
+//   dónde está cada rasgo  Vision (detector de rostros del sistema), confianza 1.00
+//   dónde empieza y acaba  clasificador de color en Lab dentro de esa ventana
+//   eje de simetría        correlación de la banda facial con su espejo, r=0.9262
+//   techo de mandíbula     barrido de aperturas sobre esta misma cara (tools/sweep-jaw.mjs)
+//
+//   L = ojo IZQUIERDO DE LA IMAGEN (el derecho del personaje), igual que en Trinity.
+
+export const GEO = {
+  name: 'levy',
+  art: 'levy.png',
+  axis: 538,
+
+  // --- ojos: apertura medida, no supuesta ---
+  //   levy: 28.0 px de apertura en el ojo izq · 28.0 px en el der
+  eyeL: { cx: 437.9, cy: 436.5, rx: 42.6,
+           top: 422.5, bot: 450.5,
+           corner: 436.1, crease: 404.0 },
+  eyeR: { cx: 637.0, cy: 436.5, rx: 42.5,
+           top: 422.5, bot: 450.5,
+           corner: 437.4, crease: 404.0 },
+
+  // --- mirada: amplitud del desplazamiento del iris, en px del arte ---
+  //   Es el 16.5 % de rx y el 13.7 % de la apertura — las razones de Trinity
+  //   aplicadas a ESTE ojo. uGaze es directamente a dónde va el iris en la
+  //   pantalla: +x a la derecha, +y hacia abajo (medido, no deducido).
+  gaze: { ampX: 7.02, ampY: 3.84 },
+  pupilL: { cx: 429.3, cy: 431.4 },
+  pupilR: { cx: 633.7, cy: 432.5 },
+
+  // --- boca: la fila del sello y el medio ancho entre comisuras ---
+  mouth: { y: 657.5, cx: 541.2, halfW: 67.7,
+            top: 626.9, bottom: 682.1,
+            // color de la cavidad: el quinto más oscuro del propio sello
+            cavity: [0.0529, 0.0194, 0.1061],
+            // recorrido de la mandíbula a apertura 1.0, en px del arte.
+            //
+            // Se ancla a la ESCALA DE LA CARA (distancia interpupilar), no al
+            // grosor del labio. Estaba anclado al alto de los labios y salió mal:
+            // Sensei tiene labios finos (45 px) y boca ancha (155 px), así que le
+            // tocaban 28 px de recorrido y su boca abierta se leía como una
+            // RANURA plana en vez de una cavidad — con el labio de arriba clavado,
+            // que es el gesto de títere. Lo detectó el crítico del gauntlet.
+            //
+            // El razonamiento correcto es anatómico: la mandíbula es un hueso que
+            // ROTA, y su recorrido en los labios va con el largo de la mandíbula,
+            // o sea con el tamaño de la cara. El grosor del labio no interviene.
+            // Referencia: 40 px en Trinity, cuya interpupilar mide 230.9 px.
+            // (alto de labios medido aquí: 55.2 px, solo de control)
+            jawTravel: 35.4 },
+
+  // --- iris: el radio del limbo. La pupila se dilata en proporción a ESTO ---
+  //   medido en un ojo; el otro no dio borde fiable
+  iris: { r: 25.0 },
+
+  // --- alas de la nariz: de aquí NACE el surco nasogeniano al sonreír ---
+  //   Vision (extremos del contorno de nariz)
+  nose: { xL: 492.3, xR: 574.3, y: 588.9 },
+
+  // --- cejas: el rig las mueve por lado y frunce el extremo interno ---
+  brow: { y: 400.5, xLo: 357.8, xHi: 725.2 },
+
+  // --- cabeza: pivote del cuello, parallax y por dónde sube el bolo al tragar ---
+  head: { cx: 541.9, cy: 428.2, rx: 232.3, ry: 342.3 },
+
+  // --- techo de apertura de mandíbula (lo calibra tools/sweep-jaw.mjs) ---
+  // Lo DECLARADO manda sobre lo derivado (ver anatomy.js).
+  anat: {
+    // Centro del iris para el warp de dilatacion de pupila. Se DECLARA aqui en
+    // vez de tocar pupilL/pupilR, que son la medida original de esta cara.
+    //
+    // Solo se corrige la Y: caia ~8 px por ENCIMA del iris real, asi que el
+    // warp radial empujaba el color desde un punto equivocado y descolocaba el
+    // destello especular. En X NO se toca: ahi el centroide lo contamina el
+    // color de alrededor y los radios de prueba se contradicen; corregir sobre
+    // evidencia ambigua es inventar (3 ago 2026).
+    irisL: [429.3, 440.7], irisR: [633.7, 442.8],
+    // La frontera arriba/abajo del shader es `LIP_Y + cupidLift + cupidBump`, y
+    // caía 7.2 px POR DEBAJO de la separación real entre labios: al abrir
+    // la boca partía el labio INFERIOR en vez de pasar entre los dos. Medido con
+    // tools/lips-check.py contra el arte de esta cara (3 ago 2026).
+    // OJO con cómo se calibró: la primera pasada puso la frontera en el MÍNIMO de
+    // luminancia del sello y se pasó al otro lado — se comía el labio superior.
+    // El mínimo es el centro de la SOMBRA, y la sombra la proyecta el labio de
+    // arriba HACIA ABAJO: el punto de contacto real está en su borde inferior,
+    // ~3 px más abajo. Ese +3 salió de barrer contra el RENDER con la boca
+    // abierta y la cerrada al lado como referencia del grosor real (3 ago 2026).
+    cupidLift: -3.31,
+  },
+
+  jaw: { knee: 0.485, ceil: 0.616 },
+};
+
+export default GEO;

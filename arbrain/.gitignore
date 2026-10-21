@@ -1,0 +1,70 @@
+# Dependencies
+/node_modules
+/.pnp
+.pnp.js
+yarn.lock
+# package-lock.json SÍ se versiona: sin él la copia del alumno no lo trae y `npm ci` (npm run servidor) falla (21 oct 2026).
+pnpm-lock.yaml
+
+# Testing
+/coverage
+
+# Next.js
+/.next/
+/out/
+*.rsc
+
+# Production
+/build
+/dist
+/src-tauri/target
+/motor/target
+/src-tauri/gen
+/src-tauri/resources/next/standalone
+
+# Misc
+.DS_Store
+*.pem
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Local env files
+.env*.local
+!.env.example
+
+# Vercel
+.vercel
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.sublime-project
+.sublime-workspace
+
+# OS
+Thumbs.db
+.AppleDouble
+.LSOverride
+
+# Claude Code
+.claude/skills/**/node_modules
+.claude/plugins
+*.mcp.json
+!example.mcp.json
+
+# Supabase
+supabase/.branches
+supabase/.temp
+!server/package-lock.json

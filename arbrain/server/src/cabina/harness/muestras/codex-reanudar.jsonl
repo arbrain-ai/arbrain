@@ -1,0 +1,5 @@
+{"type": "thread.started", "thread_id": "bbbabbaa-aaba-abab-baab-abbbbaababba"}
+{"type": "item.completed", "item": {"id": "item_0", "type": "error", "message": "Configured service tier `priority` is not advertised as supported for model `gpt-5.5` and will be omitted from requests."}}
+{"type": "turn.started"}
+{"type": "item.completed", "item": {"id": "item_1", "type": "agent_message", "text": "hola uno"}}
+{"type": "turn.completed", "usage": {"input_tokens": 32877, "cached_input_tokens": 17152, "cache_write_input_tokens": 0, "output_tokens": 12, "reasoning_output_tokens": 0}}

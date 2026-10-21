@@ -1,0 +1,31 @@
+.button {
+  position: relative; isolation: isolate; display: flex; align-items: center; gap: 9px;
+  width: 100%; min-height: 48px; margin-top: 8px; padding: 10px 12px; border-radius: 12px;
+  border: 1px solid var(--titanium-border); border-top-color: var(--titanium-border-top);
+  background: linear-gradient(180deg,var(--titanium-top),var(--titanium-mid) 52%,var(--titanium-bot));
+  box-shadow: var(--depth-rest-soft), inset 0 1px 0 var(--rim-light);
+  color: var(--foreground); cursor: pointer; text-align: left;
+  transition: box-shadow .25s ease, border-color .25s ease;
+}
+.button:hover { box-shadow: var(--depth-rest), 0 0 16px rgba(var(--primary-rgb),.12); }
+.button:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
+.button[aria-current] { border-color: rgba(var(--primary-rgb),.38); box-shadow: var(--depth-rest-soft), inset 0 1px 0 var(--rim-light), 0 0 18px rgba(var(--primary-rgb),.10); }
+.icon { display: flex; color: var(--brand-ink); }
+.name { font-size: 13px; font-weight: 600; }
+.providers { margin-left: auto; font-size: 10px; color: var(--muted); white-space: nowrap; }
+/* The mask confines the travelling light to the bezel, never across the label. */
+.sweep {
+  position: absolute; inset: -1px; padding: 2px; border-radius: inherit; overflow: hidden; pointer-events: none;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  animation: settle 1.8s ease-out forwards;
+}
+.sweep::before {
+  content: ''; position: absolute; inset: -300%;
+  background: conic-gradient(from 0deg, transparent 0deg, var(--brand) 70deg, #c99aff 110deg, transparent 150deg, transparent 180deg, var(--gold) 250deg, #ffcf7d 290deg, transparent 330deg);
+  animation: orbit 1.8s cubic-bezier(.2,.65,.25,1) both;
+}
+@keyframes orbit { from { transform: rotate(-100deg); } to { transform: rotate(620deg); } }
+@keyframes settle { 0% { opacity: .3; } 12%,75% { opacity: 1; } 100% { opacity: 0; } }
+@media(prefers-reduced-motion:reduce) { .button { transition:none; } .sweep { animation:none; opacity:.55; } .sweep::before { animation:none; } }

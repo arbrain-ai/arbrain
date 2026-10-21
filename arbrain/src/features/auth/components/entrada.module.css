@@ -1,0 +1,89 @@
+/* Entrar a Arbrain (5 oct 2026). Fases en features/auth/entrada.ts; vocabulario en shared/movimiento.
+   Oro para lo que está pasando ahora (la búsqueda); morado de marca para el botón; nada más se mueve. */
+
+.forma { display: flex; flex-direction: column; gap: 18px; }
+
+.campo { display: flex; flex-direction: column; gap: 8px; }
+.campo label { padding-left: 4px; font-size: 13px; font-weight: 500; letter-spacing: 0.01em; color: var(--muted); }
+.entrada { padding: 0.85rem 1.1rem; font-size: 14px; }
+.entrada::placeholder { color: color-mix(in srgb, var(--muted) 70%, transparent); }
+/* Mientras se busca, los campos quedan de solo lectura y se apagan un poco: siguen ahí, con lo escrito. */
+.forma[aria-busy] .entrada { opacity: 0.62; cursor: default; }
+.entrada[aria-invalid] { border-color: color-mix(in srgb, var(--error) 70%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--error) 14%, transparent); }
+
+.conBoton { position: relative; }
+.conBoton .entrada { padding-right: 2.75rem; }
+.ojo {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  display: grid; place-items: center; width: 32px; height: 32px; border-radius: 8px;
+  color: var(--muted); background: transparent; border: 0; cursor: pointer;
+  transition: color 160ms var(--mov-curva), background 160ms var(--mov-curva);
+}
+.ojo:hover { color: var(--foreground); background: color-mix(in srgb, var(--muted) 12%, transparent); }
+
+.nota { padding-left: 4px; font-size: 12px; color: var(--gold-dark); }
+
+.error {
+  margin: 0; padding: 11px 14px; border-radius: 12px; font-size: 13.5px; line-height: 1.45;
+  color: var(--error); background: color-mix(in srgb, var(--error) 9%, transparent);
+  border: 1px solid color-mix(in srgb, var(--error) 22%, transparent);
+}
+
+/* ── El botón ─────────────────────────────────────────────────────────────── */
+.envio { position: relative; margin-top: 4px; }
+.halo { position: absolute; inset: 0; border-radius: 0.75rem; pointer-events: none; }
+
+.boton {
+  position: relative; width: 100%; min-height: 50px; overflow: hidden;
+  padding: 0.9rem 1.5rem; font-size: 14px; letter-spacing: 0.02em;
+  transition: transform 140ms var(--mov-curva), background 200ms var(--mov-curva), box-shadow 200ms var(--mov-curva);
+}
+/* Pulsado: con el ratón (:active) o con Enter (data-pulsado), el botón se hunde y vuelve. */
+.boton:active, .boton[data-pulsado] { transform: translateY(1px) scale(0.985); transition-duration: 70ms; }
+.boton[aria-disabled] { cursor: progress; }
+.boton[aria-disabled]:hover { transform: none; }
+.boton[data-hecha] { background: var(--primary-hover); }
+
+.etiqueta { position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 8px; }
+.flecha { transition: transform 260ms var(--mov-curva); }
+.boton:hover .flecha { transform: translateX(3px); }
+.palomita { width: 15px; height: 15px; --mov-largo: 14; }
+
+/* La barra que busca: avanza rápido hasta ~70 % y después se arrastra, sin llegar, mientras no haya respuesta.
+   Al entrar se completa. Nunca finge el 100 % antes de tiempo. */
+.barra {
+  position: absolute; left: 0; bottom: 0; height: 3px; width: 100%;
+  background: linear-gradient(90deg, rgba(var(--gold-rgb), 0.55), var(--gold-bright));
+  box-shadow: 0 0 10px rgba(var(--gold-rgb), 0.6);
+  transform-origin: left center; transform: scaleX(0); opacity: 0;
+}
+.forma[data-fase='entrando'] .barra,
+.forma[data-fase='lenta'] .barra {
+  opacity: 1;
+  animation: buscar 1.4s var(--mov-curva) forwards, arrastrar 14s 1.4s cubic-bezier(0.2, 0.6, 0.4, 1) forwards;
+}
+.forma[data-fase='adentro'] .barra { opacity: 1; transform: scaleX(1); transition: transform 260ms var(--mov-curva); }
+@keyframes buscar { from { transform: scaleX(0); } to { transform: scaleX(0.7); } }
+@keyframes arrastrar { from { transform: scaleX(0.7); } to { transform: scaleX(0.94); } }
+
+.estado { min-height: 18px; margin: -6px 0 0; text-align: center; font-size: 12.5px; color: var(--muted); }
+
+.olvido { margin: 0; text-align: center; }
+.olvido a { font-size: 13px; color: color-mix(in srgb, var(--muted) 85%, transparent); transition: color 160ms var(--mov-curva); }
+.olvido a:hover { color: var(--foreground); }
+
+/* ── La tarjeta se retira hacia el chat ───────────────────────────────────── */
+.tarjeta { transition: opacity 420ms var(--mov-curva), transform 420ms var(--mov-curva); }
+/* No desaparece: con red lenta el chat puede tardar y una pantalla vacía parece un fallo. Se asienta y espera. */
+.tarjeta:has(form[data-fase='adentro']) { transition-delay: 300ms; opacity: 0.8; transform: translateY(-4px) scale(0.99); }
+
+@media (prefers-reduced-motion: reduce) {
+  .boton, .flecha, .tarjeta, .ojo { transition: none !important; }
+  .boton:active, .boton[data-pulsado] { transform: none; }
+  .forma[data-fase='entrando'] .barra, .forma[data-fase='lenta'] .barra { animation: none; transform: scaleX(0.7); }
+  .tarjeta:has(form[data-fase='adentro']) { opacity: 1; transform: none; }
+}
+
+/* ── Cabecera de la tarjeta ───────────────────────────────────────────────── */
+.marca { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: var(--foreground); }
+.marca i { width: 5px; height: 5px; border-radius: 999px; background: var(--gold); box-shadow: var(--glow-gold); }
