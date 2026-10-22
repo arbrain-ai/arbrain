@@ -4,7 +4,7 @@
 //!   1. Si `npm run servidor` ya corre (su control local responde), pide un pase y abre la web con sesión.
 //!   2. Si no, lo enciende desde `~/Arbrain` (el mismo `arbrain/scripts/servidor.mjs`, el mismo daemon) y enseña el
 //!      progreso mientras instala o compila. Cerrar la ventana no lo apaga: Levy y los recordatorios siguen vivos.
-//!   3. Si el servidor se va (por ejemplo, «jala los últimos cambios de Dani» lo reinicia), espera a que vuelva o lo
+//!   3. Si el servidor se va (por ejemplo, porque una actualización lo reinicia), espera a que vuelva o lo
 //!      vuelve a encender, y entra de nuevo.
 //!
 //! No es la app Tauri 0.1.x (`src-tauri/`): aquí no hay IPC de Tauri ni secretos; la web es la misma del navegador
@@ -26,6 +26,7 @@ use wry::{NewWindowResponse, PermissionKind, PermissionResponse, WebContext, Web
 
 enum Ev {
     Estado(String, String),
+    Apagado(String, String),
     Fallo(String, String, String),
     Abrir(String),
     #[allow(dead_code)] // solo hay menú en macOS
@@ -75,6 +76,16 @@ fn conectar(proxy: &EventLoopProxy<Ev>) -> Result<String, Fallo> {
             "",
         ));
     };
+    // Otro arranque en curso (por ejemplo «actualizar» lo reinició): se espera a ese en vez de encender otro.
+    let inicio = Instant::now();
+    while servidor::otro_arrancando(&cfg) && inicio.elapsed() < PLAZO_ARRANQUE {
+        let aviso = servidor::ultimo_aviso(&cfg.datos.join("logs").join("servidor.log")).unwrap_or_default();
+        let _ = proxy.send_event(Ev::Estado(ENCENDIENDO.into(), aviso));
+        sleep(Duration::from_secs(2));
+        if let Some(url) = servidor::pase(&cfg) {
+            return Ok(url);
+        }
+    }
     let _ = proxy.send_event(Ev::Estado(ENCENDIENDO.into(), "Preparando…".into()));
     let log = cfg.log();
     let mut hijo = servidor::arrancar(&cfg, &node, &path).map_err(|e| fallo("No pude encender Arbrain", e.to_string(), ""))?;
@@ -105,7 +116,7 @@ fn conectar(proxy: &EventLoopProxy<Ev>) -> Result<String, Fallo> {
                 servidor::ultimas_lineas(&log, 30).join("\n"),
             ));
         }
-        let linea = servidor::ultimas_lineas(&log, 1).pop().unwrap_or_default();
+        let linea = servidor::ultimo_aviso(&log).unwrap_or_else(|| "Preparando…".into());
         if linea != ultima {
             let _ = proxy.send_event(Ev::Estado(ENCENDIENDO.into(), linea.clone()));
             ultima = linea;
@@ -113,9 +124,10 @@ fn conectar(proxy: &EventLoopProxy<Ev>) -> Result<String, Fallo> {
     }
 }
 
-/// Con la web abierta: si el servidor deja de responder 3 veces seguidas, espera hasta un minuto a que vuelva solo
-/// (una actualización lo reinicia) y regresa para que `conectar` entre otra vez (o lo encienda).
-fn vigilar(proxy: &EventLoopProxy<Ev>) {
+/// Con la web abierta: si el servidor deja de responder 3 veces seguidas, avisa y espera a que vuelva. No lo
+/// enciende por su cuenta: «actualizar» lo apaga, integra el código nuevo y lo vuelve a encender; encenderlo a media
+/// actualización arrancaría el código viejo. La persona puede pulsar «Encender ahora».
+fn vigilar(proxy: &EventLoopProxy<Ev>, reintentar: &mpsc::Receiver<()>) {
     let mut fallos = 0;
     loop {
         sleep(Duration::from_secs(4));
@@ -128,15 +140,21 @@ fn vigilar(proxy: &EventLoopProxy<Ev>) {
         if fallos < 3 {
             continue;
         }
-        let _ = proxy.send_event(Ev::Estado(
-            "Reconectando con tu Arbrain…".into(),
-            "Se detuvo o se está actualizando. Lo espero un momento.".into(),
+        let _ = proxy.send_event(Ev::Apagado(
+            "Tu Arbrain está apagado".into(),
+            "Si se está actualizando, vuelve solo en cuanto termine.".into(),
         ));
-        let inicio = Instant::now();
-        while inicio.elapsed() < Duration::from_secs(60) && servidor::vivo(&cfg).is_none() {
-            sleep(Duration::from_secs(1));
+        while reintentar.try_recv().is_ok() {}
+        loop {
+            match reintentar.recv_timeout(Duration::from_secs(2)) {
+                Ok(()) => return,
+                Err(mpsc::RecvTimeoutError::Disconnected) => return,
+                Err(mpsc::RecvTimeoutError::Timeout) => {}
+            }
+            if servidor::vivo(&cfg).is_some() || servidor::otro_arrancando(&cfg) {
+                return;
+            }
         }
-        return;
     }
 }
 
@@ -145,7 +163,7 @@ fn vigia(proxy: EventLoopProxy<Ev>, reintentar: mpsc::Receiver<()>) {
         match conectar(&proxy) {
             Ok(url) => {
                 let _ = proxy.send_event(Ev::Abrir(url));
-                vigilar(&proxy);
+                vigilar(&proxy, &reintentar);
             }
             Err((titulo, detalle, registro)) => {
                 while reintentar.try_recv().is_ok() {}
@@ -266,6 +284,14 @@ fn main() {
                     let _ = webview.load_html(&pagina(&llamada));
                 } else {
                     let _ = webview.evaluate_script(&format!("window.estado && {llamada}"));
+                }
+            }
+            Event::UserEvent(Ev::Apagado(titulo, detalle)) => {
+                let llamada = format!("espera({},{})", js(&titulo), js(&detalle));
+                if en_web.swap(false, Ordering::SeqCst) {
+                    let _ = webview.load_html(&pagina(&llamada));
+                } else {
+                    let _ = webview.evaluate_script(&format!("window.espera && {llamada}"));
                 }
             }
             Event::UserEvent(Ev::Fallo(titulo, detalle, registro)) => {

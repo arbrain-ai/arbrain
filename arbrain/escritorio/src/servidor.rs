@@ -112,7 +112,8 @@ fn proceso(cfg: &Config) -> Option<Proceso> {
     Some(Proceso { puerto_control, token })
 }
 
-/// ¿Corre un supervisor con esta carpeta de datos? Devuelve el puerto de la web.
+/// ¿Corre un supervisor con esta carpeta de datos y su web ya contesta? Devuelve el puerto de la web. El control
+/// nace antes que la web: entrar solo con el control vivo daría una página de error.
 pub fn vivo(cfg: &Config) -> Option<u16> {
     let p = proceso(cfg)?;
     let (estado, cuerpo) = pedir(p.puerto_control, "GET", "/estado", &p.token, "")?;
@@ -120,11 +121,14 @@ pub fn vivo(cfg: &Config) -> Option<u16> {
         return None;
     }
     let j: Value = serde_json::from_str(&cuerpo).ok()?;
-    u16::try_from(j.get("puertoWeb")?.as_u64()?).ok()
+    let web = u16::try_from(j.get("puertoWeb")?.as_u64()?).ok()?;
+    let (estado_web, _) = pedir(web, "GET", "/api/version", "", "")?;
+    (estado_web == 200).then_some(web)
 }
 
 /// Pase de un solo uso (2 min) para entrar con sesión: la URL que abre `npm run servidor -- abrir`.
 pub fn pase(cfg: &Config) -> Option<String> {
+    vivo(cfg)?;
     let p = proceso(cfg)?;
     let (estado, cuerpo) = pedir(p.puerto_control, "POST", "/ticket", &p.token, "{}")?;
     if estado != 200 {
@@ -247,6 +251,79 @@ pub fn arrancar(cfg: &Config, node: &Path, path: &OsString) -> std::io::Result<C
     cmd.spawn()
 }
 
+/// ¿Hay otro `servidor.mjs` encendiéndose para esta carpeta de datos? (la terminal, «actualizar» o el arranque
+/// automático). Mientras instala y compila todavía no tiene control local, así que `vivo` no lo ve; encender otro
+/// encima correría dos `npm ci` en la misma carpeta. Órdenes cortas (estado, detener…) no cuentan.
+pub fn otro_arrancando(cfg: &Config) -> bool {
+    let arbrain = cfg.repo.join("arbrain");
+    procesos().iter().any(|(pid, linea)| {
+        es_arranque_nuestro(linea, &cfg.datos) && (linea.contains(&*cfg.servidor_mjs().to_string_lossy()) || misma_carpeta(*pid, &arbrain))
+    })
+}
+
+fn es_arranque_nuestro(linea: &str, datos: &Path) -> bool {
+    if !linea.contains("servidor.mjs") {
+        return false;
+    }
+    let partes: Vec<&str> = linea.split_whitespace().collect();
+    let Some(i) = partes.iter().position(|p| p.ends_with("servidor.mjs")) else { return false };
+    let resto = &partes[i + 1..];
+    let cortas = ["estado", "detener", "abrir", "contrasena", "cerrar-sesiones", "arranque-automatico"];
+    if resto.iter().any(|p| cortas.contains(p)) {
+        return false;
+    }
+    match resto.iter().position(|p| *p == "--datos") {
+        Some(j) => resto.get(j + 1).map(|d| Path::new(d.trim_matches('"')) == datos).unwrap_or(false),
+        None => env_no_vacio("ARBRAIN_SERVIDOR_DATOS").is_none() || datos == datos_por_defecto(),
+    }
+}
+
+/// ¿El proceso corre desde la carpeta `arbrain` de ESTA copia? (`npm run servidor` usa una ruta relativa). En Windows
+/// no se puede leer sin permisos de depuración: ahí basta la línea de órdenes (una sola persona por máquina).
+fn misma_carpeta(pid: u32, arbrain: &Path) -> bool {
+    let objetivo = fs::canonicalize(arbrain).unwrap_or_else(|_| arbrain.to_path_buf());
+    #[cfg(target_os = "macos")]
+    {
+        let Ok(o) = Command::new("/usr/sbin/lsof").args(["-a", "-p", &pid.to_string(), "-d", "cwd", "-Fn"]).stderr(Stdio::null()).output() else {
+            return false;
+        };
+        String::from_utf8_lossy(&o.stdout).lines().filter_map(|l| l.strip_prefix('n')).any(|d| fs::canonicalize(d).map(|d| d == objetivo).unwrap_or(false))
+    }
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        fs::read_link(format!("/proc/{pid}/cwd")).ok().and_then(|d| fs::canonicalize(d).ok()).map(|d| d == objetivo).unwrap_or(false)
+    }
+    #[cfg(windows)]
+    {
+        let _ = (pid, objetivo);
+        true
+    }
+}
+
+fn procesos() -> Vec<(u32, String)> {
+    #[cfg(unix)]
+    let r = Command::new("/bin/ps").args(["-axww", "-o", "pid=,command="]).stderr(Stdio::null()).output();
+    #[cfg(windows)]
+    let r = {
+        use std::os::windows::process::CommandExt;
+        Command::new("powershell.exe")
+            .args(["-NoProfile", "-NonInteractive", "-Command", "Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" | ForEach-Object { \"$($_.ProcessId) $($_.CommandLine)\" }"])
+            .creation_flags(0x0800_0000)
+            .stderr(Stdio::null())
+            .output()
+    };
+    let Ok(o) = r else { return vec![] };
+    String::from_utf8_lossy(&o.stdout)
+        .lines()
+        .filter_map(|l| {
+            let l = l.trim_start();
+            let (pid, resto) = l.split_once(' ')?;
+            Some((pid.parse().ok()?, resto.to_string()))
+        })
+        .filter(|(pid, _)| *pid != std::process::id())
+        .collect()
+}
+
 /// Últimas `n` líneas del registro, sin colores ni la marca de hora de servidor.mjs.
 pub fn ultimas_lineas(ruta: &Path, n: usize) -> Vec<String> {
     let Ok(mut f) = fs::File::open(ruta) else { return vec![] };
@@ -263,6 +340,19 @@ pub fn ultimas_lineas(ruta: &Path, n: usize) -> Vec<String> {
     let desde = lineas.len().saturating_sub(n);
     lineas.drain(..desde);
     lineas
+}
+
+/// El último aviso del propio supervisor («[arbrain hh:mm] Compilando…»), sin el ruido de npm.
+pub fn ultimo_aviso(ruta: &Path) -> Option<String> {
+    let Ok(mut f) = fs::File::open(ruta) else { return None };
+    let largo = f.metadata().map(|m| m.len()).unwrap_or(0);
+    let _ = f.seek(SeekFrom::Start(largo.saturating_sub(64 * 1024)));
+    let mut b = Vec::new();
+    let _ = f.read_to_end(&mut b);
+    String::from_utf8_lossy(&b).split(['\n', '\r']).rev().find(|l| l.contains("[arbrain ")).map(|l| {
+        let desde = l.find("[arbrain ").unwrap_or(0);
+        limpiar(&l[desde..])
+    })
 }
 
 fn limpiar(l: &str) -> String {
@@ -323,6 +413,15 @@ pub fn mostrar_archivo(ruta: &Path) {
 #[cfg(test)]
 mod pruebas {
     use super::*;
+
+    #[test]
+    fn reconoce_un_arranque_de_esta_carpeta() {
+        let d = Path::new("/u/datos");
+        assert!(es_arranque_nuestro("node /u/Arbrain/arbrain/scripts/servidor.mjs --sin-navegador --datos /u/datos", d));
+        assert!(!es_arranque_nuestro("node scripts/servidor.mjs estado", d));
+        assert!(!es_arranque_nuestro("node scripts/servidor.mjs --datos /tmp/otra --repo-original", d));
+        assert!(!es_arranque_nuestro("node scripts/otro.mjs", d));
+    }
 
     #[test]
     fn limpia_colores_y_marca() {

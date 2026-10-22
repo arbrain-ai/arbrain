@@ -20,7 +20,7 @@
     white-space: pre-wrap; -webkit-user-select: text; user-select: text; }
   .fallo pre.lleno { display: block; }
   .botones { display: none; gap: 10px; }
-  .fallo .botones { display: flex; }
+  .fallo .botones, .espera .botones { display: flex; }
   .fallo h1 { color: #f0a8b8; }
   button { font: inherit; font-size: 14px; border-radius: 9px; padding: 8px 16px; cursor: pointer; border: 1px solid #3a2f5c; background: #17132a; color: #e8e6f0; }
   button.principal { background: #7c3aed; border-color: #7c3aed; color: #fff; }
@@ -35,7 +35,7 @@
   <div id="tiempo"></div>
   <pre id="registro"></pre>
   <div class="botones">
-    <button class="principal" onclick="window.ipc.postMessage('reintentar')">Reintentar</button>
+    <button id="principal" class="principal" onclick="window.ipc.postMessage('reintentar')">Reintentar</button>
     <button onclick="window.ipc.postMessage('registro')">Ver el registro completo</button>
   </div>
 </main>
@@ -49,11 +49,18 @@
   }, 1000)
   window.estado = (titulo, detalle) => {
     $('caja').className = 'vivo'
+    $('principal').textContent = 'Reintentar'
     if ($('titulo').textContent !== titulo) desde = Date.now()
     $('titulo').textContent = titulo
     $('detalle').textContent = detalle || ''
   }
+  window.espera = (titulo, detalle) => {
+    window.estado(titulo, detalle)
+    $('caja').className = 'vivo espera'
+    $('principal').textContent = 'Encender ahora'
+  }
   window.fallo = (titulo, detalle, registro) => {
+    $('principal').textContent = 'Reintentar'
     $('caja').className = 'fallo'
     $('titulo').textContent = titulo
     $('detalle').textContent = detalle || ''
