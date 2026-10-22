@@ -90,6 +90,7 @@ Carga solo la skill que el pedido necesita y, dentro de ella, solo las referenci
 | Intención | Skill |
 |---|---|
 | Traer la versión nueva de Arbrain («jala los últimos cambios», «actualiza Arbrain») | `actualizar-arbrain` |
+| Instalar o abrir la app de escritorio («instala la app de Arbrain», «abre Arbrain») | `cd arbrain && node scripts/escritorio.mjs instalar` (verifica firma y huella y la abre; si dice «ya hay otra app «Arbrain»», pregunta antes de repetir con `--reemplazar-app-vieja`) |
 | Recordar, guardar o consultar memoria («recuerda esto», «qué sabes de») | `memory-manager` |
 | Buscar en lo aprendido de conversaciones pasadas («qué decidimos», «qué hablamos») | `knowledge-search` |
 | Hábitos, objetivos, tareas, agenda o diario | `habit-system` |

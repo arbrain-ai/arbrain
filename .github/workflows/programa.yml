@@ -73,7 +73,10 @@ jobs:
 
           $(cat "$RUNNER_TEMP"/salida/*.huella)" HEAD
           (cd "$RUNNER_TEMP/salida" && python -m http.server 8765 --bind 127.0.0.1 > /dev/null 2>&1 &)
-          sleep 2
+          # En Windows Python tarda más de 2 s en abrir el puerto (ci-escritorio, 22 oct: ECONNREFUSED y compiló):
+          # se espera a que sirva el paquete, hasta 60 s.
+          for _ in $(seq 1 60); do curl -fsI "http://127.0.0.1:8765/$(basename "$RUNNER_TEMP"/salida/*.tar.gz)" > /dev/null 2>&1 && break; sleep 1; done
+          curl -fsI "http://127.0.0.1:8765/$(basename "$RUNNER_TEMP"/salida/*.tar.gz)" > /dev/null || { echo "::error::el servidor local del paquete no respondió"; exit 1; }
           cd arbrain
           inicio=$(date +%s)
           HOME="$PRUEBA/home" USERPROFILE="$PRUEBA/home" ARBRAIN_PROGRAMA_BASE=http://127.0.0.1:8765 \

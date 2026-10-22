@@ -33,7 +33,8 @@ por paso. No le enseñes salidas técnicas, huellas ni rutas largas salvo que al
   Nunca generes ni uses credenciales de su suscripción de Claude: su sesión vive solo en su propio Claude Code.
 - **Instaladores oficiales, sin contraseñas.** Instalas lo que falte solo con los scripts de este repo y los
   instaladores oficiales que nombran (nodejs.org, claude.ai, winget, Apple). Nunca uses `sudo` ni escribas
-  contraseñas, y nunca apagues protecciones (cuarentena, SmartScreen, antivirus, firewall). Si el sistema muestra su
+  contraseñas, y nunca apagues protecciones (cuarentena, SmartScreen, antivirus, firewall). La única excepción la hace el
+  script del PASO 7: le quita el aviso solo a la app Arbrain que acaba de verificar con su firma. Si el sistema muestra su
   propia ventana de permiso (Windows «¿Quieres permitir…?», macOS «Instalar herramientas»), dile en una línea qué es y
   que la acepte.
 - **Lo que no es de Arbrain no se escribe sin su elección.** Su carpeta de trabajo anterior (Business OS, repo propio,
@@ -47,7 +48,8 @@ por paso. No le enseñes salidas técnicas, huellas ni rutas largas salvo que al
   repitas la pregunta.
 - **Sus preguntas, mínimas.** Solo hay tres momentos en que esperas a la persona: aceptar una ventana de permiso del
   sistema, iniciar sesión en su navegador (Claude o GitHub) y la pregunta de copiar o unificar (PASO 5, solo si ya
-  tenía una carpeta de trabajo). Todo lo demás lo decides tú con este guion.
+  tenía una carpeta de trabajo). Si ya tenía la app vieja de Arbrain, el PASO 7 pregunta antes de reemplazarla. Todo
+  lo demás lo decides tú con este guion.
 
 **Cómo correr los bloques.** Son de bash y sirven en macOS, Linux y Windows con Git Bash (la herramienta Bash de
 Claude Code). Desde el PASO 2, empieza cada comando con `. ~/.arbrain/entorno.sh &&` para ver lo recién instalado sin
@@ -235,13 +237,29 @@ Espera a que Arbrain esté listo, revisando cada 15 segundos hasta 15 minutos:
 
 Mientras tanto, dile en una línea qué está pasando (bajando, verificando, arrancando), con tus palabras: nunca le
 copies líneas del registro (por ejemplo `npm warn deprecated…`). Cuando diga «Corriendo», deja
-el arranque automático y ábrelo ya con su sesión:
+el arranque automático:
 
 ```bash
-. ~/.arbrain/entorno.sh && cd ~/Arbrain/arbrain && node scripts/servidor.mjs arranque-automatico activar >/dev/null && node scripts/servidor.mjs abrir
+. ~/.arbrain/entorno.sh && cd ~/Arbrain/arbrain && node scripts/servidor.mjs arranque-automatico activar >/dev/null; echo LISTO
 ```
 
 Si pasan 15 minutos o el registro dice `ERROR`, ve a «Si algo falla».
+
+Luego instala la app de escritorio de Arbrain y ábrela. Antes, dile en una línea: «Instalo la app Arbrain. Apple y
+Microsoft no la conocen porque el autor todavía no paga su certificado; compruebo que es la que él firmó y solo a ella
+le quito el aviso de tu sistema».
+
+```bash
+. ~/.arbrain/entorno.sh && cd ~/Arbrain/arbrain && node scripts/escritorio.mjs instalar
+```
+
+- Termina bien: se abre la ventana «Arbrain» ya con su sesión. Dile que desde hoy Arbrain se abre como cualquier app
+  (Mac: Launchpad o Spotlight, «Arbrain»; Windows: menú Inicio o el acceso del Escritorio; Linux: el menú de
+  aplicaciones) y que cerrar la ventana no lo apaga.
+- Dice «ya hay otra app «Arbrain»» (la app 0.1.x): pregúntale si la guardas en `~/Arbrain-respaldos` y pones la
+  nueva (sus datos no se tocan). Si dice que sí: `node scripts/escritorio.mjs instalar --reemplazar-app-vieja`.
+- Cualquier otro error (firma, descarga, huella): no insistas ni busques otra forma. Ábrelo en el navegador como antes
+  con `node scripts/servidor.mjs abrir` y anota el texto exacto para decírselo al cerrar.
 
 ## PASO 8 · Que Levy piense con su cuenta de Claude
 
@@ -273,7 +291,7 @@ Dale este resumen:
 
 ```text
 Arbrain instalado · versión <VERSION>
-Abre: <http://127.0.0.1:puerto> (ya se abrió en tu navegador; arranca solo al prender tu computadora)
+Abre: la app Arbrain (o <http://127.0.0.1:puerto> en tu navegador, si la app no se instaló); arranca sola al prender tu computadora
 Traje de antes: <copia / unificado / nada> · respaldo en <ruta o «no hizo falta»>
 Levy piensa con: <Mi Claude Code / OpenRouter / pendiente>
 Para actualizar: pega el mismo prompt de instalación, o abre Claude Code y di «actualiza mi Arbrain».
@@ -296,7 +314,8 @@ Luego ofrece, **en un solo mensaje y sin insistir**, lo opcional:
 - Arbrain no llega a «Corriendo»: enséñale las últimas 20 líneas de `~/.arbrain/arranque.log` y de
   `servidor.log` en la carpeta de registros que dice `node scripts/servidor.mjs estado`, y vuelve a intentar una vez
   con `node scripts/servidor.mjs detener` y el arranque del PASO 4.
-- El navegador no abre: `node scripts/servidor.mjs abrir` desde `~/Arbrain/arbrain`.
+- La app no abre: `node scripts/escritorio.mjs abrir` desde `~/Arbrain/arbrain`; si tampoco, el navegador con
+  `node scripts/servidor.mjs abrir`.
 - Claude Code en `~/Arbrain` no lo reconoce: revisa que `.claude/memory/MEMORY.md` tenga su contenido y que la sesión
   sea nueva.
 

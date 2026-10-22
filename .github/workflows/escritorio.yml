@@ -1,0 +1,124 @@
+# App de escritorio de Arbrain (22 oct 2026): construye la ventana nativa de arbrain/escritorio/ por plataforma y la
+# prueba de punta a punta en runners limpios. Fuente: arbrain/empaquetado/ci/workflows/escritorio.yml del repo fuente;
+# el generador lo copia a .github/workflows/ de la copia del alumno. En la copia no se edita: se regenera.
+#
+# build: `node arbrain/escritorio/empaquetar.mjs` → artefacto `escritorio-<plat>` con
+#        arbrain-escritorio-vX.Y.Z-<plat>.tar.gz y escritorio-<plat>.huella («escritorio <plat> <sha256> <bytes>», la
+#        línea que publicar-version.sh pone en el mensaje de la etiqueta firmada).
+# e2e (mismo job; Mac arm64, Windows y Linux): instala el paquete con scripts/escritorio.mjs (etiqueta de PRUEBA firmada con una llave efímera del runner),
+#        la app enciende sola el servidor, entra, se apaga el servidor y vuelve a entrar. Capturas y tiempos.
+# Sin secretos ni llaves de modelo. No publica nada: los binarios del release los adjunta el autor.
+name: Arbrain · app de escritorio
+
+on:
+  workflow_dispatch:
+    inputs:
+      e2e:
+        description: 'Probar de punta a punta (Mac, Windows y Linux)'
+        type: boolean
+        default: true
+  push:
+    # Sin filtro de rutas: publicar-version.sh espera esta corrida en cada release/vX.Y.Z, cambie o no la app.
+    branches: ['ci-**', 'release/**', 'v[0-9]*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: escritorio-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.plat }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 80
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      E2E: ${{ matrix.e2e && (github.event_name != 'workflow_dispatch' || inputs.e2e) }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-14, plat: darwin-arm64, objetivo: '', e2e: true }
+          - { os: macos-14, plat: darwin-x64, objetivo: x86_64-apple-darwin, e2e: false }
+          - { os: windows-latest, plat: win32-x64, objetivo: '', e2e: true }
+          - { os: ubuntu-22.04, plat: linux-x64, objetivo: '', e2e: true }
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            arbrain/package-lock.json
+            arbrain/server/package-lock.json
+
+      - name: Rust (objetivo cruzado si hace falta)
+        shell: bash
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update
+          rustup default stable
+          if [ -n "${{ matrix.objetivo }}" ]; then rustup target add "${{ matrix.objetivo }}"; fi
+          rustc --version
+
+      - name: Dependencias de WebKitGTK
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q libwebkit2gtk-4.1-dev libgtk-3-dev libsoup-3.0-dev
+
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: arbrain/escritorio -> target
+          key: ${{ matrix.plat }}
+
+      - name: Empaquetar
+        shell: bash
+        run: |
+          node arbrain/escritorio/empaquetar.mjs --version "$(tr -d '[:space:]' < VERSION)" ${{ matrix.objetivo && format('--objetivo {0}', matrix.objetivo) || '' }}
+          cat arbrain/escritorio/dist/*.huella >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: escritorio-${{ matrix.plat }}
+          path: |
+            arbrain/escritorio/dist/*.tar.gz
+            arbrain/escritorio/dist/*.huella
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Escritorio de Linux (Xvfb + WebKitGTK)
+        if: env.E2E == 'true' && runner.os == 'Linux'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q xvfb openbox imagemagick libwebkit2gtk-4.1-0 dbus-x11
+          Xvfb :99 -screen 0 1600x1000x24 &
+          sleep 2
+          DISPLAY=:99 openbox &
+          echo "DISPLAY=:99" >> "$GITHUB_ENV"
+
+      - name: Instalar, encender sola, reconectar
+        if: env.E2E == 'true'
+        shell: bash
+        working-directory: arbrain
+        run: |
+          D="$GITHUB_WORKSPACE/arbrain/escritorio/dist"
+          node escritorio/prueba-ci.mjs --paquete "$(ls "$D"/*.tar.gz)" --huella "$(ls "$D"/*.huella)" --salida "${{ runner.temp }}/e2e"
+
+      - name: Resumen
+        if: always() && env.E2E == 'true'
+        shell: bash
+        run: |
+          { echo "### e2e ${{ matrix.plat }}"; echo '```'; cat "${{ runner.temp }}/e2e/prueba.log" 2>/dev/null; cat "${{ runner.temp }}/e2e/tiempos.json" 2>/dev/null; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always() && env.E2E == 'true'
+        with:
+          name: e2e-escritorio-${{ matrix.plat }}
+          path: ${{ runner.temp }}/e2e
+          if-no-files-found: warn
+          retention-days: 14

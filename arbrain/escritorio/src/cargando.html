@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Arbrain</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body { margin: 0; height: 100%; background: #050508; color: #e8e6f0;
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; -webkit-user-select: none; user-select: none; }
+  main { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 0 32px; box-sizing: border-box; text-align: center; }
+  .logo img { width: 112px; height: 112px; border-radius: 24px; filter: drop-shadow(0 0 28px rgba(139, 92, 246, .35)); }
+  .vivo .logo img { animation: latido 2.4s ease-in-out infinite; }
+  @keyframes latido { 50% { transform: scale(1.04); filter: drop-shadow(0 0 40px rgba(139, 92, 246, .55)); } }
+  h1 { font-size: 20px; font-weight: 600; margin: 0; letter-spacing: .01em; }
+  #detalle { color: #9a96ab; max-width: 620px; min-height: 1.5em; margin: 0; overflow-wrap: anywhere; }
+  #tiempo { color: #6d6980; font-size: 13px; font-variant-numeric: tabular-nums; min-height: 1.2em; }
+  pre { display: none; text-align: left; max-width: 760px; max-height: 38vh; overflow: auto; margin: 0; padding: 14px 16px;
+    background: #0d0c14; border: 1px solid #241f36; border-radius: 10px; color: #c9c4da; font: 12px/1.45 ui-monospace, Menlo, Consolas, monospace;
+    white-space: pre-wrap; -webkit-user-select: text; user-select: text; }
+  .fallo pre.lleno { display: block; }
+  .botones { display: none; gap: 10px; }
+  .fallo .botones, .espera .botones { display: flex; }
+  .fallo h1 { color: #f0a8b8; }
+  button { font: inherit; font-size: 14px; border-radius: 9px; padding: 8px 16px; cursor: pointer; border: 1px solid #3a2f5c; background: #17132a; color: #e8e6f0; }
+  button.principal { background: #7c3aed; border-color: #7c3aed; color: #fff; }
+  button:hover { filter: brightness(1.15); }
+</style>
+</head>
+<body>
+<main id="caja" class="vivo">
+  <div class="logo"><img alt="" src="data:image/png;base64,@LOGO@"></div>
+  <h1 id="titulo">Encendiendo tu Arbrain…</h1>
+  <p id="detalle"></p>
+  <div id="tiempo"></div>
+  <pre id="registro"></pre>
+  <div class="botones">
+    <button id="principal" class="principal" onclick="window.ipc.postMessage('reintentar')">Reintentar</button>
+    <button onclick="window.ipc.postMessage('registro')">Ver el registro completo</button>
+  </div>
+</main>
+<script>
+  const $ = (id) => document.getElementById(id)
+  let desde = Date.now()
+  setInterval(() => {
+    if (!$('caja').classList.contains('vivo')) return
+    const s = Math.round((Date.now() - desde) / 1000)
+    $('tiempo').textContent = s < 8 ? '' : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+  }, 1000)
+  window.estado = (titulo, detalle) => {
+    $('caja').className = 'vivo'
+    $('principal').textContent = 'Reintentar'
+    if ($('titulo').textContent !== titulo) desde = Date.now()
+    $('titulo').textContent = titulo
+    $('detalle').textContent = detalle || ''
+  }
+  window.espera = (titulo, detalle) => {
+    window.estado(titulo, detalle)
+    $('caja').className = 'vivo espera'
+    $('principal').textContent = 'Encender ahora'
+  }
+  window.fallo = (titulo, detalle, registro) => {
+    $('principal').textContent = 'Reintentar'
+    $('caja').className = 'fallo'
+    $('titulo').textContent = titulo
+    $('detalle').textContent = detalle || ''
+    $('tiempo').textContent = ''
+    $('registro').textContent = registro || ''
+    $('registro').className = registro ? 'lleno' : ''
+    $('registro').scrollTop = 1e9
+  }
+  /*INICIAL*/
+</script>
+</body>
+</html>

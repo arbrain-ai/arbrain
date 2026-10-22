@@ -59,6 +59,11 @@ export interface ChatJobInput {
   despertador?: { id: string; texto: string; programadoPara: number; disparo: number; /** aviso del motor: terminó un subagente de `delegar` */ tipo?: 'subagente' }
 }
 
+/** «/compact», «/skill args»: una palabra tras «/» seguida de espacio o fin. Una ruta («/ruta/al/archivo») no cuenta. */
+export function esSlashCommand(message: string): boolean {
+  return /^\/[\w:-]+(\s|$)/.test(message.trim())
+}
+
 /** Complete chat work with no req/res dependency; the stored envelope can dispatch after restart. */
 export async function executeChatJob(journal: ChatJournal, turn: TurnRecord, emit: (event: unknown, snapshot?: unknown) => void, signal: AbortSignal): Promise<JobResult> {
   const input = turn.input as ChatJobInput
@@ -101,7 +106,10 @@ export async function executeChatJob(journal: ChatJournal, turn: TurnRecord, emi
   const documentPaths = imagePaths.filter(esDocumento)
   const nativeImagePaths = imagePaths.filter(file => !esDocumento(file))
   const attachmentText = (native ? documentPaths : imagePaths).map(buildAttachmentMessage).join('\n\n')
-  const prompt = (input.context ? `[Context: ${input.context}]\n\n` : '') + (attachmentText ? attachmentText + '\n\n' : '') + input.message
+  // Slash commands (19 oct 2026, «/compact» llegó como texto): el CLI solo despacha un comando si el prompt
+  // EMPIEZA con «/» y no trae sufijos. Sin [Context:], sin apertura y sin bloque Live. Ver docs/builds/compact-falla-2026-10-19.
+  const comando = esSlashCommand(input.message) && !input.imageUrl
+  const prompt = comando ? input.message.trim() : (input.context ? `[Context: ${input.context}]\n\n` : '') + (attachmentText ? attachmentText + '\n\n' : '') + input.message
   const snapshot = {
     text: '', thinking: '', status: 'running', error: null as string | null,
     tools: {} as Record<string, Record<string, unknown>>, items: {} as Record<string, Record<string, unknown>>,
@@ -202,7 +210,7 @@ export async function executeChatJob(journal: ChatJournal, turn: TurnRecord, emi
         }
       } catch { /* la apertura es ayuda, nunca bloquea el turno */ }
     }
-    const conApertura = prompt + apertura
+    const conApertura = comando ? prompt : prompt + apertura
     // Dos capas (4 oct 2026, solo Live): Jev clasifica en ~200 ms mientras Opus arranca; ver docs/builds/live-dos-capas-jev-2026-10-04.md.
     const dosCapas = !!live && !native && !spontaneous && !input.despertador && capaRapidaActiva()
     const veredicto: Promise<VeredictoLive | null> | undefined = dosCapas ? clasificarLive(input.message, { signal }) : undefined
@@ -219,7 +227,7 @@ export async function executeChatJob(journal: ChatJournal, turn: TurnRecord, emi
       const nuevo = esfuerzoParaOpus(await veredicto, claudeSelection.effort)
       if (nuevo) { logger.info({ turnId: turn.turnId, de: claudeSelection.effort, a: nuevo }, 'live: esfuerzo bajado por la capa rápida'); claudeSelection = { ...claudeSelection, effort: nuevo } }
     }
-    const livePrompt = live ? conApertura + '\n\n' + LIVE_CONTEXT + (dosCapas ? ' ' + LIVE_DOS_CAPAS_CONTEXT : '') + `\nSi workspace no aparece como herramienta nativa, usa tu herramienta de shell: python3 ${JSON.stringify(PROJECT_ROOT + '/arbrain/server/scripts/live/workspace.py')} ${JSON.stringify(capability!.file)} '<JSON de la operación>'. La capacidad es privada y solo dura este turno; no muestres su archivo ni su contenido a ${DUENO} ni a los artefactos. Si lo usas, empieza con {"action":"read"}.` : conApertura
+    const livePrompt = live && !comando ? conApertura + '\n\n' + LIVE_CONTEXT + (dosCapas ? ' ' + LIVE_DOS_CAPAS_CONTEXT : '') + `\nSi workspace no aparece como herramienta nativa, usa tu herramienta de shell: python3 ${JSON.stringify(PROJECT_ROOT + '/arbrain/server/scripts/live/workspace.py')} ${JSON.stringify(capability!.file)} '<JSON de la operación>'. La capacidad es privada y solo dura este turno; no muestres su archivo ni su contenido a ${DUENO} ni a los artefactos. Si lo usas, empieza con {"action":"read"}.` : conApertura
     // claude-in-chrome: un «sí» de Daniel convierte la acción detenida en permiso
     // corto para ese sitio. Lo registra el servidor con su mensaje, nunca Levy.
     if (!native && !spontaneous && !input.despertador) {

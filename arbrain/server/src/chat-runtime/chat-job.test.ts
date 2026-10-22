@@ -15,7 +15,12 @@ vi.mock('../db.js', () => ({ getSession: f.getSession, setSession: f.setSession,
 vi.mock('../media.js', () => ({ downloadFromUrl: f.download, esDocumento: (file: string) => file.endsWith('.pdf'), buildAttachmentMessage: (file: string) => file.endsWith('.pdf') ? `Read file ${file}` : `Read image ${file}`, validarAdjunto: (url: string) => url.startsWith('https://') ? null : 'invalid URL' }))
 vi.mock('../file-attach.js', () => ({ extractFileMarkers: f.markers, stageAttachment: f.stage }))
 vi.mock('../security.js', () => ({ validateUrl: (url: string) => url.startsWith('https://') ? null : 'invalid URL' }))
-import { executeChatJob, type ChatJobInput } from './chat-job.js'
+// Apertura y Live simulados: permiten verificar que un slash command llega sin prefijos ni sufijos.
+vi.mock('../cabina/llegado.js', () => ({ loQueLlego: async () => [], bloqueApertura: () => 'APERTURA-SINTETICA' }))
+vi.mock('../live/runtime.js', () => ({ liveToolbox: () => ({}), liveStore: () => ({ begin: () => {}, end: () => {} }) }))
+vi.mock('../live/capability.js', () => ({ registerLiveCapability: () => ({ file: '/tmp/cap.json', close: () => {} }) }))
+vi.mock('../live/capa-rapida.js', () => ({ acuseDe: () => null, capaRapidaActiva: () => false, capaRapidaEsfuerzoActiva: () => false, clasificarLive: async () => null, esfuerzoParaOpus: () => null, LIVE_DOS_CAPAS_CONTEXT: '' }))
+import { executeChatJob, esSlashCommand, type ChatJobInput } from './chat-job.js'
 import { JobRejected } from './supervisor.js'
 let db: Database.Database
 beforeEach(() => {
@@ -182,4 +187,34 @@ it('a late cancellation does not erase an already confirmed result',async()=>{
  f.events=[{type:'init',sessionId:'native-thread'},{type:'result',text:'Confirmed result',terminalReason:'completed'}]
  const result=await executeChatJob(t.journal,t.record,e=>{if((e as {type?:string}).type==='result')ac.abort()},ac.signal)
  expect(result.status).toBe('completed');expect(result.snapshot).toMatchObject({text:'Confirmed result'})
+})
+
+describe('slash commands llegan al CLI empezando con «/» (19 oct 2026, «/compact» llegó como texto)', () => {
+  const cron = '## Reporte diario (2026-10-19T11:31)\n☀️ Lunes 19 oct.'
+  const run = async (patch: Partial<ChatJobInput>) => {
+    const t = turn('default', patch)
+    f.events = [{ type: 'init', sessionId: 's' }, { type: 'result', text: 'ok' }]
+    await executeChatJob(t.journal, t.record, () => {}, new AbortController().signal)
+    return f.claude.mock.calls[0][0] as string
+  }
+  it('«/compact» con contexto de cron no vacío llega exacto, sin [Context:] ni apertura', async () => {
+    expect(await run({ message: '/compact', context: cron })).toBe('/compact')
+  })
+  it('«/alguna-skill args» con contexto de cron llega exacto y conserva sus argumentos', async () => {
+    expect(await run({ message: '  /alguna-skill revisa el lanzamiento  ', context: cron, clientContext: 'cliente' })).toBe('/alguna-skill revisa el lanzamiento')
+  })
+  it('un comando en modo Live no recibe el bloque LIVE_CONTEXT', async () => {
+    expect(await run({ message: '/compact', context: cron, liveWorkspace: true })).toBe('/compact')
+  })
+  it('un mensaje normal sigue recibiendo el contexto de cron y la apertura', async () => {
+    const prompt = await run({ message: 'hola Levy', context: cron })
+    expect(prompt.startsWith(`[Context: ${cron}]\n\nhola Levy`)).toBe(true)
+    expect(prompt).toContain('APERTURA-SINTETICA')
+  })
+  it('una ruta o un texto que no es comando no se trata como slash command', () => {
+    expect(esSlashCommand('/Users/usuario/archivo.md revisa')).toBe(false)
+    expect(esSlashCommand('hola /compact')).toBe(false)
+    expect(esSlashCommand('/compact')).toBe(true)
+    expect(esSlashCommand('/plugin:skill a b')).toBe(true)
+  })
 })
