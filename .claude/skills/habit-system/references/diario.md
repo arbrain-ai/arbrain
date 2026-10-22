@@ -78,10 +78,10 @@ foto → leer con zoom → texto literal a .claude/diario/ → extraer lo agenda
    `md5:xxxxxxxxxx`**). El texto literal vive SOLO ahí.
 4. **Extraer lo agendable**, cada cosa a su pluma:
    - **Objetivo del día →** bloque `#### <Día> NN` en `.claude/plan/objetivos.md` (formato en
-     `tiempo-y-calendario.md`). `now-snapshot.py` pinta el hito de Hoy desde ese archivo.
-   - **Horario del día →** si hay calendario conectado, mover los eventos existentes de hoy en vez de
-     crear duplicados (`gog calendar update`). Sin calendario, anotar las horas como líneas `* 10:00 …`
-     en el bloque del día.
+     `tiempo-y-calendario.md`). La vista Calendario pinta el hito de Hoy desde ese archivo.
+   - **Horario del día →** en el calendario local (`.claude/plan/calendario.json`, contrato en
+     `tiempo-y-calendario.md`) o en el que conectó el dueño: mover los eventos existentes de hoy en vez
+     de crear duplicados.
    - **Contexto de un bloque** (qué grabar, qué escribir, a quién llamar) → en la descripción del
      evento de hoy, o como nota `*` bajo el día. Si el diario no dice nada de un bloque, no tocarlo.
    - **Tareas, compras, pendientes →** a la casa de tareas del dueño (casillas o Todoist, ver
@@ -94,8 +94,10 @@ foto → leer con zoom → texto literal a .claude/diario/ → extraer lo agenda
    `habitos-y-ritual.md`). SOLO hábitos que el diario evidencia o el dueño confirmó: **un registro sin
    evidencia no existe; jamás inventarlo.** Un conflicto con una corrección manual posterior se
    reporta, nunca se fuerza.
-6. **Regenerar `now.md`** (`python3 arbrain/server/scripts/calendar/now-snapshot.py`) y **VERIFICAR**
-   que el objetivo aparezca en Hitos → Hoy. Una escritura sin verificación no cuenta.
+6. **VERIFICAR** releyendo `objetivos.md` y `calendario.json` (y enseñándolo con `mostrar`, vista
+   calendario del día) que el objetivo y los bloques quedaron. Si existe
+   `arbrain/server/scripts/calendar/now-snapshot.py`, regenerar `now.md` con él. Una escritura sin
+   verificación no cuenta.
 7. **Confirmar en UNA línea:** qué se transcribió, qué se movió, qué cayó a tareas y la adherencia de
    la noche (N de M cosas del plan cumplidas). **Chequeo de continuidad:** listar `.claude/diario/`;
    si falta la noche anterior (o la entrada arranca a media frase, señal de una hoja faltante),

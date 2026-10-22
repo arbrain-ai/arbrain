@@ -1,14 +1,15 @@
 # Planning: mes, semana, día y revisión
 
 Cuatro rituales con el mismo patrón: **reunir evidencia → proponer → esperar el «va» → escribir →
-regenerar `now.md` y verificar.** Ninguno escribe antes de la aprobación del dueño.
+verificar releyendo la fuente (y `mostrar` la vista calendario).** Ninguno escribe antes de la
+aprobación del dueño.
 
 ## Fuentes que se leen (en paralelo, las que existan)
 
 | Fuente | Cómo | Si falta |
 |---|---|---|
-| Objetivos vigentes | leer `.claude/plan/objetivos.md` (o `mc-event.py planning` con `objectives-read`) | archivo vacío = sin objetivos, decirlo |
-| Agenda | `now.md`; si hay calendario conectado, `gog calendar events` del período | «sin calendario conectado», no «agenda vacía» |
+| Objetivos vigentes | leer `.claude/plan/objetivos.md` | archivo vacío = sin objetivos, decirlo |
+| Agenda | `.claude/plan/calendario.json` del período; si hay calendario conectado, también `gog calendar events` | «no pude leer X», no «agenda vacía» |
 | Tareas | casillas de `objetivos.md` y sección `## Pendientes`; Todoist si está conectado | decir cuál faltó |
 | Hábitos | `habit_record.py` con `action:"range"` del período | sin registros = sin medición, no cero |
 | Diario | `ls .claude/diario/` y las entradas del período | huecos se nombran |

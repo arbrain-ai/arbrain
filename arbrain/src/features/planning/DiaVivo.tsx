@@ -8,7 +8,7 @@ import { taskDay } from '@/features/goals/model'
 import { shiftDay } from '@/features/sistema/calendar-days'
 import { useCivilClock, useHabitRecords } from '@/features/sistema/useHabitRecords'
 import { dayKey } from './model'
-import { bloquesDelDia, casillasDelDia, enCurso, ETIQUETA_OBJETIVO, eventoObjetivoDelDia, tareaObjetivo, tituloCumplido } from './dia-vivo'
+import { bloquesDelDia, casillasDelDia, enCurso, ETIQUETA_OBJETIVO, eventoObjetivoDelDia, objetivosDelDia, tareaObjetivo, tituloCumplido } from './dia-vivo'
 import { AgendaMini } from './AgendaMini'
 import { ordenarAgenda } from './agenda-llamadas'
 import { Leyenda, type ControlLeyenda } from './Leyenda'
@@ -89,7 +89,10 @@ export function DiaVivo({ goals, guardarObjetivo, onDescripcion, donde, leyenda,
   const ancla = useMemo(() => tareaObjetivo(snapshot?.tasks ?? [], snapshot?.completedTasks ?? [], dia, t => taskDay(t, zona)), [snapshot?.tasks, snapshot?.completedTasks, dia, zona])
   const registro = useMemo(() => goals.data ? objetivoDe(goals.data.goals, snapshot, 'day', dia) : null, [goals.data, snapshot, dia])
   const eventoObjetivo = useMemo(() => eventoObjetivoDelDia(eventos, snapshot?.sources ?? [], dia), [eventos, snapshot?.sources, dia])
-  const titulo = ancla ? sinEmoji(ancla.tarea.title) : registro?.titulo ?? null
+  // Todos los del día (v0.2.6): el primero sigue siendo el de la caja; los demás se listan debajo, no se pierden.
+  const todos = useMemo(() => objetivosDelDia({ dia, abiertas: snapshot?.tasks ?? [], completadas: snapshot?.completedTasks ?? [], diaDe: t => taskDay(t, zona), goals: goals.data?.goals, contexto: goals.data?.context }), [dia, snapshot?.tasks, snapshot?.completedTasks, zona, goals.data])
+  const titulo = ancla ? sinEmoji(ancla.tarea.title) : registro?.titulo ?? todos[0]?.titulo ?? null
+  const otros = useMemo(() => { const k = (s: string) => sinEmoji(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim(); return titulo ? todos.filter(o => k(o.titulo) !== k(titulo)) : [] }, [todos, titulo])
   const cumplido = ancla ? ancla.hecha : Boolean(registro) && ((eventoObjetivo ? tituloCumplido(eventoObjetivo.title) : false) || registro?.estado === 'completed' || habits.record(dia, HABITO_OBJETIVO)?.hecho === true)
   const puedeMarcar = Boolean(titulo) && (Boolean(ancla) || (eventoObjetivo?.editable && onObjetivo) || conHabito)
   // Sus casillas, en la misma fuente que da el título. La escritura toma siempre la versión más reciente (etag de Google).
@@ -136,11 +139,14 @@ export function DiaVivo({ goals, guardarObjetivo, onDescripcion, donde, leyenda,
     {/* El objetivo del día, hasta arriba y con la caja de la Semana: nace plegado; un toque abre sus casillas. */}
     <ObjetivoCaja rotulo={plegado && !plegado.objetivo ? (esHoy ? 'Hoy' : 'Día') : <>Objetivo del día{cumplido && titulo && <em> · cumplido</em>}</>}
       titulo={titulo} vacio={goals.error && !eventoObjetivo ? 'No se pudo leer el objetivo.' : 'Sin objetivo del día.'} leyendo={leyendoObjetivo}
-      cuenta={marcas.length ? { k: hechas0, n: marcas.length, clave: `dia-${dia}-${hechas0}` } : null}
+      cuenta={marcas.length ? { k: hechas0, n: marcas.length, clave: `dia-${dia}-${hechas0}` } : otros.length ? { k: (cumplido ? 1 : 0) + otros.filter(o => o.hecho).length, n: otros.length + 1, clave: `dia-obj-${dia}`, unidad: 'objetivos' } : null}
       plegada={plegado ? !plegado.objetivo : false} onPlegar={plegado ? () => plegado.alternar('objetivo') : undefined}>
       {titulo ? <>
         <Segmentos k={hechas0} n={marcas.length} i={1} />
         <Entregables texto={casillas?.texto ?? ''} guardar={guardarCasillas} i0={2} nombre="Casillas del objetivo del día" vacio="Sin casillas para hoy." />
+        {otros.length > 0 && <ul className={d.otrosObjetivos} aria-label="Más objetivos del día">
+          {otros.map(o => <li key={o.titulo} data-hecho={o.hecho || undefined}>{o.titulo}</li>)}
+        </ul>}
       </> : !leyendoObjetivo && <button className={d.objVacio} onClick={fijarObjetivo} disabled={!snapshot || ocupado}><Plus size={13} aria-hidden />Fijar el objetivo del día</button>}
     </ObjetivoCaja>
 

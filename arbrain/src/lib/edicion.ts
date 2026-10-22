@@ -84,6 +84,9 @@ export const APIS_CLIENTE = [
   // Dictado (21 oct 2026): con la llave de Groq del alumno, que vive solo en su daemon. La voz del servidor de Daniel
   // (`/api/chat/tts`) no existe en cliente: «Escuchar» usa la voz del dispositivo.
   '/api/chat/transcribe',
+  // Adjuntos del chat (v0.2.6, un fundador: «el servidor la rechazó (código 404…)»): subir y leer, en la carpeta de datos de
+  // la web y no en Supabase (lib/adjuntos-locales.ts). Ambas piden sesión.
+  '/api/storage/upload', '/api/storage/adjunto',
   // Panel y Taller sobre su daemon y su workspace.
   '/api/cabina/memoria', '/api/cabina/contexto', '/api/cabina/archivos', '/api/cabina/explorador',
   '/api/cabina/documento', '/api/cabina/archivero', '/api/cabina/panel', '/api/cabina/panel-ajustes',

@@ -64,7 +64,7 @@ import { deliveryOutcome } from './chat-runtime/delivery-outcome.js'
 import { compactDelivery } from './chat-runtime/delivery-compact.js'
 import { getCommandCatalog } from './chat-runtime/command-catalog.js'
 import { parseGoalCommand, goalView, formatGoal, GOAL_HELP, GOAL_NO_THREAD, interceptsGoal } from './chat-runtime/chat-goal.js'
-import { downloadFromUrl, buildAttachmentMessage, esDocumento } from './media.js'
+import { downloadFromUrl, buildAttachmentMessage, esDocumento, validarAdjunto } from './media.js'
 import { synthesizeSpeech } from './voice.js'
 import { getDb, getSession, setSession, clearSession, listTasks, getTask, updateTaskStatus, updateTaskAfterRun, saveQueryUsage, getUsageSummary, getCronSession, setCronSession, getChatOverrides, setChatOverrides } from './db.js'
 import { computeNextRun, runDueTasks, executeCronJob, CRON_TZ } from './scheduler.js'
@@ -2091,7 +2091,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
       if (imageUrl) {
         const urls = imageUrl.split('\n').filter((u: string) => u.startsWith('http'))
         for (const url of urls) {
-          const urlError = validateUrl(url)
+          const urlError = validarAdjunto(url)
           if (urlError) {
             logger.warn({ url: url.slice(0, 100), reason: urlError }, 'blocked image download')
             continue

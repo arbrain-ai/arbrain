@@ -34,11 +34,13 @@ al sistema.
 |---|---|---|
 | **Hito** | La referencia del mes, la semana o el día. Se juzga contra él. | `.claude/plan/objetivos.md` |
 | **Tarea** | Trabajo con estado (abierta o cerrada). | Casilla `- [ ]` en `objetivos.md`, o Todoist si el dueño lo conectó |
-| **Evento** | Tiempo comprometido a una hora. | Calendario conectado (vía `gog`, ver `arbrain/cerebro/manuales/`); sin calendario, línea con hora en el bloque del día |
+| **Evento** | Tiempo comprometido a una hora. | `.claude/plan/calendario.json`, el calendario local que pinta la sección Calendario del panel; o el calendario que conectó el dueño (`gog`, ver `arbrain/cerebro/manuales/`) |
 | **Hábito** | Lo que se repite y se mide por racha. | `.claude/plan/habitos.json` (vía `scripts/habit_record.py`) |
 
-Y una sola vista ambiental: **`.claude/now.md`**, que genera `now-snapshot.py` y Levy recibe en cada
-conversación. Nunca se edita a mano.
+Y una vista ambiental: **`.claude/now.md`**, que Levy recibe en cada conversación (lo genera
+`now-snapshot.py` donde existe; en esta edición no viaja y puede estar viejo: la verdad está en las
+fuentes). La vista viva es la sección **Calendario** del panel, que lee `objetivos.md`,
+`calendario.json` y `habitos.json`.
 
 > **El árbitro cuando dudes qué es algo (tarea, evento, hito o hábito) o si hace falta una
 > categoría nueva: `references/taxonomia.md`.** Ábrelo antes de crear un proyecto, una etiqueta
@@ -71,7 +73,8 @@ detecta por su cuenta se menciona y se conversa; no se anota sin permiso.
 
 1. **El sistema viene a ti.** Levy pregunta y registra; el dueño responde en 15 segundos.
 2. **La agenda manda.** Si un bloque está comprometido, no se le encima trabajo profundo.
-3. **Una acción por nivel.** Mes = hasta 3 objetivos, semana = 1 foco, día = 1 siguiente acción.
+3. **Pocos por nivel.** Mes = hasta 3 objetivos, semana = 1 foco, día = los objetivos que el dueño definió (hasta 3,
+   cada uno su casilla; nunca los juntes ni dejes solo uno) y 1 siguiente acción.
 4. **Las tareas alimentan objetivos.** Cada tarea recomendada conecta con el objetivo de la semana
    o del mes; si no conecta, decirlo.
 5. **Proteger el tiempo personal.** Familia, ejercicio y sueño no son «bloques disponibles».
@@ -82,19 +85,20 @@ detecta por su cuenta se menciona y se conversa; no se anota sin permiso.
 | Referencia | Cuándo leer |
 |---|---|
 | `references/diario.md` | **El pilar.** Foto o mención del diario: guard, transcripción literal, extracción a objetivos, tareas y hábitos, `now.md` verificado, confirmación en una línea. |
-| `references/tiempo-y-calendario.md` | «qué tengo hoy», «agéndame X», hitos mes/semana/día, `now.md`, la pluma de eventos (`gog`) y qué pasa sin calendario conectado. |
+| `references/tiempo-y-calendario.md` | «qué tengo hoy», «agéndame X», «pon mis objetivos de hoy en el calendario», «¿dónde está el calendario?», hitos mes/semana/día, el calendario local `calendario.json` y el conectado (`gog`). |
 | `references/planning.md` | «planea mi mes/semana», revisión semanal, «cómo me fue», planear el día. |
 | `references/habitos-y-ritual.md` | Marcar un hábito, racha, agregar o archivar hábitos, las dos preguntas del día. |
 | `references/taxonomia.md` | ¿Es tarea, evento, hito o hábito? ¿Proyecto o etiqueta? |
 | `references/automatizaciones-y-todoist.md` | Conectar Todoist (opcional), operar su API, «no aparece mi tarea». |
-| `references/arbrain-planificacion.md` | Qué ve el dueño en la app hoy y el registro estructurado de objetivos (`mc-event.py planning`). |
+| `references/arbrain-planificacion.md` | Qué ve el dueño en la app hoy y el registro estructurado de objetivos. |
 
 ## Reglas duras
 
-- **`now.md` jamás se edita a mano.** Es una proyección: se cambia la fuente y se regenera con
-  `python3 arbrain/server/scripts/calendar/now-snapshot.py`.
-- **Una pluma por objeto.** Hitos en `objetivos.md`, hábitos por `habit_record.py`, eventos por
-  `gog` (o el conector que conectó el dueño), tareas en su casa única (casillas o Todoist, nunca las dos para la misma tarea).
+- **`now.md` es una proyección:** se cambia la fuente, no `now.md`. Si existe
+  `arbrain/server/scripts/calendar/now-snapshot.py`, se regenera con él; si no (esta edición), no se corre.
+- **Una pluma por objeto.** Hitos en `objetivos.md`, hábitos por `habit_record.py`, eventos en
+  `calendario.json` (o el calendario que conectó el dueño, nunca los dos para el mismo evento), tareas
+  en su casa única (casillas, `calendario.json` con fecha o Todoist, nunca dos para la misma tarea).
 - **Aprobación antes de escribir planes.** Planear mes, semana o día muestra el plan y espera un
   «va». Leer antes de escribir; no duplicar.
 - **Nunca fabricar datos ni mezclar ventanas** (día ≠ semana ≠ mes). Si una fuente no responde,

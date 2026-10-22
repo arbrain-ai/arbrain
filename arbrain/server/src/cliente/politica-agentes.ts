@@ -49,6 +49,8 @@ export interface ContextoPolitica {
   protegidas: string[]
   /** Otras carpetas que se pueden LEER sin preguntar (adjuntos del chat, plantilla del cerebro). */
   lecturaExtra: string[]
+  /** Carpeta de los adjuntos del chat (UPLOADS_DIR): lo que se lee de ahí es contenido de afuera, con su nombre. */
+  adjuntos?: string
   /**
    * Carpetas que la persona abrió en Ajustes › Seguridad (una por una, con su clic): se leen sin preguntar y escribir en
    * ellas con las herramientas de archivos pide confirmación (fuera de ellas, escribir fuera del cerebro se niega).
@@ -102,10 +104,14 @@ export function contextoPolitica(over: Partial<ContextoPolitica> = {}, env: Node
   const config = realOMisma(DIR_ARBRAIN())
   const uploads = env.ARBRAIN_UPLOADS_DIR ? realOMisma(env.ARBRAIN_UPLOADS_DIR) : datos ? join(datos, 'uploads') : ''
   const plantilla = env.ARBRAIN_PLANTILLA_DIR ? realOMisma(env.ARBRAIN_PLANTILLA_DIR) : ''
+  // v0.2.6: la carpeta de datos de la web (`<datos>/web`: su base local de chat y los originales de los adjuntos) es
+  // hermana de la del daemon y tampoco es del agente. El modelo lee la COPIA del adjunto en uploads, nunca el original.
+  const web = env.ARBRAIN_ADJUNTOS_DIR ? realOMisma(dirname(env.ARBRAIN_ADJUNTOS_DIR)) : datos ? join(dirname(datos), 'web') : ''
   return {
     home, cwd: home, usuario: realOMisma(env.HOME || homedir()),
-    protegidas: [datos, config, carpetaAlternaMotor(env.ARBRAIN_MOTOR_SOCK)].filter(Boolean),
+    protegidas: [datos, config, web, carpetaAlternaMotor(env.ARBRAIN_MOTOR_SOCK)].filter(Boolean),
     lecturaExtra: [uploads, plantilla].filter(Boolean),
+    ...(uploads ? { adjuntos: uploads } : {}),
     abiertas: carpetasAbiertas().map(c => c.ruta),
     sandbox: false,
     ...over,
@@ -287,7 +293,7 @@ type Veredicto = { tipo: 'ok' } | { tipo: 'fuera'; ruta: string } | { tipo: 'abi
  *              guardia) y todo `.git` (carpeta o archivo puntero `gitdir:`; sus hooks y su config corren con git).
  *              Ni con clic: si la persona quiere cambiarlos, lo hace ella a mano, y entonces el daemon arranca sin los
  *              ganchos del proyecto hasta que vuelvan a coincidir con la plantilla (`hooks-proyecto.ts`).
- *   confirmar  el resto de `.claude/` salvo `memory/`, `knowledge/`, `daily/` y `diario/` (skills y sus scripts, agents,
+ *   confirmar  el resto de `.claude/` salvo `memory/`, `knowledge/`, `daily/`, `diario/` y `plan/` (skills y sus scripts, agents,
  *              commands, output-styles, plugins, referencias…), cualquier `.claude/` anidado, `CLAUDE.md`,
  *              `CLAUDE.local.md` y `AGENTS.md` en cualquier nivel, `.codex/`, `.gitattributes`, `.gitmodules`, la marca
  *              de siembra y `arbrain/**` salvo `arbrain/cerebro/**` (código de producto que el cerebro pudiera tener;
@@ -295,7 +301,9 @@ type Veredicto = { tipo: 'ok' } | { tipo: 'fuera'; ruta: string } | { tipo: 'abi
  * (`.mcp.json` ya se niega como archivo de secretos.) Compara sin mayúsculas: macOS no distingue `.CLAUDE` de `.claude`.
  */
 export type NivelProteccion = 'negar' | 'confirmar'
-const CLAUDE_LIBRE = /^\.claude\/(memory|knowledge|daily|diario)(\/|$)/
+// v0.2.6: `plan/` (objetivos.md, calendario.json, habitos.json) es capa del alumno, datos y no configuración del agente:
+// cada objetivo que Levy agendaba pedía un clic («cambia lo que el agente puede hacer») y con tres quedaba uno.
+const CLAUDE_LIBRE = /^\.claude\/(memory|knowledge|daily|diario|plan)(\/|$)/
 export function nivelProteccion(real: string, home: string): NivelProteccion | null {
   if (!dentroDe(real, home)) return null
   const rel = real.slice(home.length).replace(/^[\\/]+/, '').replace(/\\/g, '/').toLowerCase()
@@ -529,6 +537,11 @@ const INSTRUCCIONES_AJENAS = /^(readme|claude|agents|contributing|security|gemin
 function fuenteDeArchivo(real: string, ctx: ContextoPolitica): string | null {
   const marcada = ctx.procedencia?.de(real)
   if (marcada) return `una nota escrita tras leer contenido de afuera (${basename(real)}, de ${marcada})`
+  // v0.2.6: un adjunto del chat (imagen, PDF o texto que subió la persona) puede traer órdenes escritas dentro.
+  if (ctx.adjuntos && dentroDe(real, ctx.adjuntos)) {
+    const nombre = basename(real).replace(/^web-\d+-(chat-\d+-[0-9a-f]+-?)?/, '')
+    return `un adjunto del chat (${nombre && !nombre.startsWith('.') ? nombre : basename(real)})`
+  }
   if (/\.(pdf|eml|msg|mbox|html?|mhtml|docx?|xlsx?|pptx?|rtf|epub|odt)$/i.test(real)) return `un archivo ${real.split('.').pop()!.toUpperCase()} (${basename(real)})`
   if (partes(real).some(p => /^(downloads|descargas)$/i.test(p))) return `un archivo descargado (${basename(real)})`
   // Las carpetas que la persona abrió son suyas (salvo descargas y documentos, arriba); lo demás de fuera, externo.

@@ -50,7 +50,7 @@ export function nombreSeguro(nombre: string): string {
   const ext = extensionDe(nombre)
   const base = (nombre.replace(/\.[A-Za-z0-9]{1,5}$/, '') || 'documento')
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^A-Za-z0-9._-]+/g, '-').replace(/-+/g, '-').replace(/^[-.]+|[-.]+$/g, '')
+    .replace(/[^A-Za-z0-9._-]+/g, '-').replace(/-+/g, '-').replace(/\.{2,}/g, '.').replace(/^[-.]+|[-.]+$/g, '')
     .slice(0, 80) || 'documento'
   return ext ? `${base}.${ext}` : base
 }
@@ -78,9 +78,19 @@ export function urlPublicaDeStorage(url: string | undefined): string | undefined
   return url && STORAGE_PUBLICO ? url.replace(STORAGE_INTERNO, STORAGE_PUBLICO) : url
 }
 
+/**
+ * Adjunto local de la edición cliente (v0.2.6, lib/adjuntos-locales.ts): viaja con el origen de la app
+ * (`http://127.0.0.1:<puerto>/api/storage/adjunto/<nombre>`). Para pintarlo se usa la ruta relativa, así el historial
+ * sigue viéndose si cambia el puerto o se entra por otra dirección.
+ */
+const ADJUNTO_LOCAL = /^https?:\/\/[^/]+(\/api\/storage\/adjunto\/[^/?#]+)$/
+export function rutaVisibleDeAdjunto(url: string): string {
+  return ADJUNTO_LOCAL.exec(url)?.[1] ?? url
+}
+
 /** Separa la lista de adjuntos de un mensaje en imágenes y documentos. */
 export function separarAdjuntos(lista: string | undefined | null): { imagenes: string[]; documentos: string[] } {
-  const urls = (lista ?? '').split('\n').filter(u => u.startsWith('http')).map(u => urlPublicaDeStorage(u))
+  const urls = (lista ?? '').split('\n').filter(u => u.startsWith('http')).map(u => rutaVisibleDeAdjunto(urlPublicaDeStorage(u)))
   return { imagenes: urls.filter(u => !esUrlDeDocumento(u)), documentos: urls.filter(esUrlDeDocumento) }
 }
 

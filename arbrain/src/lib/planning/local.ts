@@ -154,6 +154,73 @@ export function diasDeSerie(regla: string, primerDia: string, desdeDia: string, 
   return out
 }
 
+// ── Lectura tolerante (v0.2.6) ───────────────────────────────────────────────────────────────────────────────────────
+//
+// Un fundador de la cohorte (v0.2.6): «no logré desplegar todos los objetivos del día en el calendario». Levy escribe este archivo
+// a mano y un evento con un detalle fuera del instructivo (sin `fin`, `fin` igual al inicio, día completo con hora, hora
+// sin zona, nombres en inglés) se descartaba en silencio. Al LEER se completa lo que falta con la intención evidente;
+// el archivo no se reescribe. Lo que aun así no se entiende se avisa en la vista (health `calendario-json`).
+
+const CON_ZONA = /(?:Z|[+-]\d{2}:?\d{2})$/i
+const SOLO_DIA = /^\d{4}-\d{2}-\d{2}$/
+const DURACION_POR_DEFECTO_MIN = 60
+
+function primero(o: Record<string, unknown>, ...claves: string[]): unknown {
+  for (const k of claves) if (o[k] !== undefined && o[k] !== null && o[k] !== '') return o[k]
+  return undefined
+}
+const tituloDe = (crudo: unknown, i: number) => {
+  const o = (crudo && typeof crudo === 'object' ? crudo : {}) as Record<string, unknown>
+  const t = primero(o, 'titulo', 'title', 'nombre', 'summary')
+  return typeof t === 'string' && t.trim() ? t.trim().slice(0, 80) : `evento ${i + 1}`
+}
+
+/** Un instante escrito a mano: con zona se respeta; sin zona es hora de pared de la zona del calendario. */
+function instanteLibre(v: string, zona: string): number {
+  const t = v.trim()
+  if (CON_ZONA.test(t)) return Date.parse(t)
+  const m = /^(\d{4}-\d{2}-\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?$/.exec(t)
+  if (m && esDia(m[1])) return instanteDePared(m[1], `${m[2]}:${m[3]}:${m[4] ?? '00'}`, zona).getTime()
+  return Number.NaN
+}
+
+/** El evento como lo entiende la vista, o null si no tiene un inicio que se pueda leer. */
+export function normalizarEvento(crudo: unknown, zona: string, i = 0): EventoLocal | null {
+  if (!crudo || typeof crudo !== 'object' || Array.isArray(crudo)) return null
+  const o = crudo as Record<string, unknown>
+  const inicioCrudo = primero(o, 'inicio', 'start', 'desde', 'fecha')
+  if (typeof inicioCrudo !== 'string' || !inicioCrudo.trim()) return null
+  const finCrudo = primero(o, 'fin', 'end', 'hasta')
+  const dia = (v: unknown) => typeof v === 'string' && esDia(v.trim().slice(0, 10)) ? v.trim().slice(0, 10) : null
+  const marcadoTodoElDia = primero(o, 'todoElDia', 'allDay', 'todo_el_dia') === true
+  const zonaEvento = typeof o.zona === 'string' && zonaValida(o.zona) ? o.zona : zona
+  const base = {
+    id: typeof o.id === 'string' && o.id.trim() ? o.id.trim() : `sin-id-${i + 1}-${etiquetaDe(JSON.stringify(o)).slice(0, 8)}`,
+    titulo: tituloDe(crudo, i),
+    ...(typeof primero(o, 'descripcion', 'description') === 'string' ? { descripcion: primero(o, 'descripcion', 'description') as string } : {}),
+    ...(typeof primero(o, 'lugar', 'location') === 'string' ? { lugar: primero(o, 'lugar', 'location') as string } : {}),
+    ...(typeof primero(o, 'repetir', 'rrule', 'recurrence') === 'string' ? { repetir: primero(o, 'repetir', 'rrule', 'recurrence') as string } : {}),
+    ...(Array.isArray(o.omitir) ? { omitir: (o.omitir as unknown[]).filter((x): x is string => typeof x === 'string') } : {}),
+    ...(zonaEvento !== zona ? { zona: zonaEvento } : {}),
+    ...(typeof o.actualizado === 'string' ? { actualizado: o.actualizado } : {}),
+  }
+  // Día completo: marcado, o un inicio que es solo fecha. Fin ausente o no posterior = ese mismo día.
+  if (marcadoTodoElDia || SOLO_DIA.test(inicioCrudo.trim())) {
+    const ini = dia(inicioCrudo)
+    if (!ini) return null
+    const f = dia(finCrudo)
+    return { ...base, inicio: ini, fin: f && f > ini ? f : sumarDia(ini, 1), todoElDia: true }
+  }
+  const tIni = instanteLibre(inicioCrudo, zonaEvento)
+  if (Number.isNaN(tIni)) return null
+  const tFin = typeof finCrudo === 'string' ? instanteLibre(finCrudo, zonaEvento) : Number.NaN
+  const durCruda = Number(primero(o, 'duracionMin', 'durationMinutes', 'duracion'))
+  const duracion = Number.isFinite(durCruda) && durCruda > 0 && durCruda <= 1440 ? durCruda : DURACION_POR_DEFECTO_MIN
+  const fin = !Number.isNaN(tFin) && tFin > tIni ? tFin : tIni + duracion * 60_000
+  const conservar = (crudoV: unknown, t: number) => typeof crudoV === 'string' && CON_ZONA.test(crudoV.trim()) && Date.parse(crudoV.trim()) === t ? crudoV.trim() : new Date(t).toISOString()
+  return { ...base, inicio: conservar(inicioCrudo, tIni), fin: conservar(finCrudo, fin), todoElDia: false }
+}
+
 // ── Registro → forma del calendario ──────────────────────────────────────────────────────────────────────────────────
 
 /** JSON con llaves ordenadas en todos los niveles: la huella de una operación no depende del orden de sus campos. */
@@ -231,7 +298,12 @@ export class PlumaLocal {
     if (Date.parse(hasta) <= Date.parse(desde)) throw err('Rango inválido.')
     if (Date.parse(hasta) - Date.parse(desde) > 65 * 86_400_000) throw err('La ventana de lectura no puede superar 65 días.')
     const d = this.leer(), zona = zonaValida(d.zona) ? d.zona : zonaDelSistema(), stamp = new Date().toISOString()
-    const events = d.eventos.flatMap(e => { try { return ocurrencias(e, zona, desde, hasta) } catch { return [] } })
+    const ilegibles: string[] = []
+    const events = d.eventos.flatMap((crudo, i) => {
+      const e = normalizarEvento(crudo, zona, i)
+      if (!e) { ilegibles.push(tituloDe(crudo, i)); return [] }
+      try { return ocurrencias(e, zona, desde, hasta) } catch { ilegibles.push(tituloDe(crudo, i)); return [] }
+    })
     const pendientes = d.tareas.filter(t => !t.hecha).map(t => tareaPlana(t, zona))
     const hechas = p.includeCompleted ? d.tareas.filter(t => t.hecha && t.hechaEn && Date.parse(t.hechaEn) >= Date.parse(desde) && Date.parse(t.hechaEn) < Date.parse(hasta)).map(t => tareaPlana(t, zona)) : []
     const ok = (id: string) => ({ id, state: 'fresh' as const, checkedAt: stamp })
@@ -240,7 +312,9 @@ export class PlumaLocal {
       events, tasks: pendientes, completedTasks: hechas,
       projects: [{ id: 'local', title: 'Mi plan', color: null }], sections: [],
       // `todoist` es la llave de «tareas» que usa la vista (mergeSnapshot, avisos): aquí son las tareas locales.
-      health: [ok('local'), ok(FUENTE_LOCAL.id), ok('todoist'), ok('projects'), ok('sections'), ...(p.includeCompleted ? [ok('completed')] : [])],
+      health: [ok('local'), ok(FUENTE_LOCAL.id), ok('todoist'), ok('projects'), ok('sections'), ...(p.includeCompleted ? [ok('completed')] : []),
+        // Un evento que ni la lectura tolerante entiende no desaparece en silencio: la vista lo dice con su título.
+        ...(ilegibles.length ? [{ id: 'calendario-json', state: 'error' as const, checkedAt: stamp, message: `${ilegibles.length === 1 ? 'Un evento' : `${ilegibles.length} eventos`} de calendario.json no se ${ilegibles.length === 1 ? 'pudo' : 'pudieron'} leer (sin fecha de inicio válida): ${ilegibles.slice(0, 5).map(t => `«${t}»`).join(', ')}${ilegibles.length > 5 ? '…' : ''}. Pídele a Levy que los corrija.` }] : [])],
       loadedAt: stamp, range: { from: desde, to: hasta },
     }
   }

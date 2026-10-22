@@ -1,5 +1,6 @@
 import { addDays, parseISO, startOfDay } from 'date-fns'
 import type { PlanEvent, PlanTask } from './types'
+import type { Goal } from '@/features/goals/model'
 import { TRAMO } from './semana-horas'
 
 /**
@@ -102,6 +103,33 @@ export function tareaObjetivo(abiertas: PlanTask[], completadas: PlanTask[], dia
   if (abierta) return { tarea: abierta, hecha: false }
   const hecha = completadas.find(t => marcada(t) && (diaDe(t) === dia || (t.completedAt ? dayKeyLocal(new Date(t.completedAt)) === dia : false)))
   return hecha ? { tarea: hecha, hecha: true } : null
+}
+
+/**
+ * Todos los objetivos del día (v0.2.6; un fundador definió 3 y el Día solo enseñaba 1). Un día puede tener varios:
+ * las tareas con la etiqueta `objetivo` de ese día, los objetivos de día del registro y las casillas `- [ ]` del bloque
+ * del día en `objetivos.md` (contexto heredado). Sin duplicados por título, en ese orden; el primero es el que ya
+ * pintaba la caja. Pura.
+ */
+export interface ObjetivoDelDia { titulo: string; hecho: boolean; origen: 'tarea' | 'plan' | 'casilla' }
+export function objetivosDelDia(i: {
+  dia: string; abiertas: PlanTask[]; completadas: PlanTask[]; diaDe: (t: PlanTask) => string | null
+  goals?: Goal[]; contexto?: { scope: string; start: string; text: string }[]
+}): ObjetivoDelDia[] {
+  const marcada = (t: PlanTask) => (t.labels ?? []).some(l => l.toLowerCase() === ETIQUETA_OBJETIVO)
+  const limpio = (s: string) => s.replace(/^[\p{Extended_Pictographic}\uFE0F\s]+/u, '').trim()
+  const clave = (s: string) => limpio(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ')
+  const out: ObjetivoDelDia[] = [], vistos = new Set<string>()
+  const poner = (titulo: string, hecho: boolean, origen: ObjetivoDelDia['origen']) => {
+    const k = clave(titulo)
+    if (!k || vistos.has(k)) return
+    vistos.add(k); out.push({ titulo: limpio(titulo), hecho, origen })
+  }
+  for (const t of [...i.abiertas].filter(t => marcada(t) && !t.completed && i.diaDe(t) === i.dia).sort((a, b) => a.priority - b.priority)) poner(t.title, false, 'tarea')
+  for (const t of i.completadas.filter(t => marcada(t) && (i.diaDe(t) === i.dia || (t.completedAt ? dayKeyLocal(new Date(t.completedAt)) === i.dia : false)))) poner(t.title, true, 'tarea')
+  for (const g of (i.goals ?? []).filter(g => g.scope === 'day' && g.start <= i.dia && g.end > i.dia)) poner(g.title, g.status === 'completed', 'plan')
+  for (const c of (i.contexto ?? []).filter(c => c.scope === 'day' && c.start === i.dia)) poner(c.text, false, 'casilla')
+  return out
 }
 
 /**

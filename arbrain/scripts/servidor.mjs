@@ -319,6 +319,8 @@ function lanzarDaemon() {
   const env = {
     ...entornoComun(),
     ARBRAIN_DATA_DIR: R.daemon,
+    // v0.2.6: adjuntos del chat que guarda la web (src/lib/adjuntos-locales.ts); el daemon los copia a sus uploads.
+    ARBRAIN_ADJUNTOS_DIR: join(R.web, 'adjuntos'),
     CLAUDECLAW_STORE_DIR: R.store,
     MC_SERVER_PORT: String(S.puertoDaemon),
     MISSION_CONTROL_ORIGIN: `http://${HOST}:${S.puertoWeb}`,

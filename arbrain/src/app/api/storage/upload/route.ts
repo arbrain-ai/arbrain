@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { TIPOS_DOCUMENTO, extensionDe, nombreSeguro, urlPublicaDeStorage } from '@/features/chat/lib/adjuntos'
+import { esEdicionCliente } from '@/lib/edicion'
+import { AdjuntoRechazado, RUTA_API_ADJUNTO, guardarAdjuntoLocal } from '@/lib/adjuntos-locales'
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
 // El cuerpo trae el archivo más el sobre multipart: se corta antes de leerlo, con un mensaje claro.
@@ -51,6 +53,19 @@ export async function POST(req: NextRequest) {
 
     if (file.size > MAX_FILE_SIZE) {
       return fallo(413, 'demasiado_grande', `${esDocumento ? 'El archivo' : 'La imagen'} pesa ${(file.size / 1048576).toFixed(1)} MB y el máximo es 10 MB`)
+    }
+
+    // Edición cliente (v0.2.6): sin Supabase. Se guarda en la carpeta de datos de la web y la URL es de esta misma app
+    // (solo responde con sesión); el daemon la copia de la carpeta sin salir a la red (lib/adjuntos-locales.ts).
+    if (esEdicionCliente()) {
+      try {
+        const nombre = guardarAdjuntoLocal({ nombre: file.name, bytes: new Uint8Array(await file.arrayBuffer()) })
+        return NextResponse.json({ url: `${req.nextUrl.origin}${RUTA_API_ADJUNTO}${nombre}` })
+      } catch (e) {
+        if (e instanceof AdjuntoRechazado) return fallo(e.status, e.code, e.message)
+        console.error('[storage/upload] Adjunto local falló:', e instanceof Error ? e.message : e)
+        return fallo(500, 'almacenamiento', 'No se pudo guardar el adjunto en la carpeta de datos de Arbrain')
+      }
     }
 
     const sello = `chat-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`

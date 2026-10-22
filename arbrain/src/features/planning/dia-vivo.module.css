@@ -323,3 +323,9 @@
 .enCursoDia strong { font-size: 15px; }
 .enCurso[data-proximo] { background: transparent; border-color: var(--linea); }
 .enCurso[data-proximo] .enCursoCeja b { color: var(--muted); }
+
+/* Más objetivos del día (v0.2.6): un día puede tener varios; el primero va en la caja y los demás aquí, sin perderse. */
+.otrosObjetivos { list-style: none; margin: 0.5rem 0 0; padding: 0; display: grid; gap: 0.25rem; }
+.otrosObjetivos li { position: relative; padding-left: 1rem; font-size: 0.875rem; line-height: 1.35; color: var(--foreground); }
+.otrosObjetivos li::before { content: ''; position: absolute; left: 0.25rem; top: 0.55em; width: 0.35rem; height: 0.35rem; border-radius: 999px; background: var(--brand, currentColor); opacity: 0.8; }
+.otrosObjetivos li[data-hecho] { color: var(--muted); text-decoration: line-through; }

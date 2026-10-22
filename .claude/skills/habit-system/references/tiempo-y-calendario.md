@@ -6,15 +6,20 @@ esta semana, agéndame X, muévelo, cancélalo, o hable de objetivos del mes, la
 ## La idea en una frase
 
 **Una sola pluma por objeto, varios espejos.** Los hitos viven en `.claude/plan/objetivos.md`; los
-eventos, en el calendario conectado (si existe); `now.md` es el espejo que Levy lee siempre.
+eventos y bloques, en el **calendario local** `.claude/plan/calendario.json` (el calendario de esta
+edición, siempre disponible) o en el calendario que el dueño haya conectado; `now.md` es el espejo que
+Levy lee siempre.
 
 ```
-LEER  (ambiental): objetivos.md + calendario + tareas ──► now-snapshot.py ──► .claude/now.md
-ESCRIBIR hitos:    Levy ──► objetivos.md (edición directa o mc-event.py planning)
-ESCRIBIR eventos:  Levy ──► gog calendar (o el conector que conectó el dueño) ──► su calendario
+LEER  (en vivo):  objetivos.md + calendario.json + habitos.json ──► sección Calendario del panel (Día, Semana, Mes)
+LEER  (ambiental): .claude/now.md (resumen que llega en cada turno)
+ESCRIBIR hitos:    Levy ──► objetivos.md (edición directa)
+ESCRIBIR eventos:  Levy ──► calendario.json (por defecto) · o el calendario que conectó el dueño (gog o su conector)
 ```
 
-**Regla dura:** `now.md` jamás se edita a mano. Si algo cambia, se escribe en la fuente y se regenera.
+**Esta edición no trae `now-snapshot.py` ni `mc-event.py`** (`arbrain/server/scripts/calendar/` no
+existe): no los corras ni digas que fallaron. La vista Calendario lee las fuentes en vivo; `now.md` se
+regenera solo donde exista ese script.
 
 ## Capa 1: `now.md` (lo que Levy ve siempre)
 
@@ -22,12 +27,10 @@ ESCRIBIR eventos:  Levy ──► gog calendar (o el conector que conectó el du
 conversación sin correr nada. Es breve a propósito: fecha y hora, Hitos (mes, semana, hoy), Hoy,
 Esta semana y Tareas. La profundidad se consulta a demanda.
 
-Se regenera al iniciar sesión (hook `session-start`) y a mano:
-
-```bash
-python3 arbrain/server/scripts/calendar/now-snapshot.py           # regenera
-python3 arbrain/server/scripts/calendar/now-snapshot.py --print   # y lo imprime
-```
+Donde existe `arbrain/server/scripts/calendar/now-snapshot.py`, se regenera con
+`python3 arbrain/server/scripts/calendar/now-snapshot.py`. En esta edición no viaja: `now.md` es un
+resumen que puede estar viejo, y la verdad está en `objetivos.md` y `calendario.json` (ábrelos antes de
+decir qué tiene hoy).
 
 Cada sección es best-effort: si una fuente no responde, esa sección sale vacía o con aviso y el
 resto se genera igual. **Vacío no significa «no hay nada»**: antes de decir «no tienes eventos»,
@@ -36,7 +39,7 @@ revisar la línea de estado del calendario en la cabecera.
 ## Capa 2: hitos en `objetivos.md` (la intención central)
 
 **Los objetivos NO son eventos.** Son intenciones y checklist, y viven en un markdown que es su
-fuente única. Formato exacto que lee `now-snapshot.py`:
+fuente única. Formato exacto que leen la vista Calendario y `now-snapshot.py`:
 
 ```markdown
 ## Octubre 2026
@@ -59,15 +62,17 @@ Reglas del parser (si no se respetan, el hito no aparece en `now.md`):
 - `#### <Día> NN`: cualquier abreviatura de día seguida del número del día.
 - Bajo el día: `- [ ]` y `- [x]` son el checklist de hoy; `* ` es nota o bloque.
 
-**Cómo se edita:** Levy lo edita directo (leer el archivo, editar el bloque, regenerar `now.md`).
+**Cómo se edita:** Levy lo edita directo (leer el archivo y editar el bloque).
 El dueño también puede abrirlo y escribir a mano. Existe además un registro estructurado opcional
 dentro del mismo archivo (con criterio de cumplimiento y estado borrador, acordado o cumplido); su
-contrato está en `arbrain-planificacion.md`. Si el registro tiene un objetivo para el período, ese
-manda en `now.md` sobre el texto libre.
+contrato está en `arbrain-planificacion.md`. En el Día, la vista muestra juntos (sin repetir títulos) los
+objetivos del registro, las casillas del bloque del día y las tareas con la etiqueta `objetivo`.
 
 **Buenas prácticas de hitos:**
 
-- UN hito por nivel, concreto y medible. No una lista.
+- Pocos por nivel, concretos y medibles: el mes y la semana, uno; el día, los que el dueño definió (hasta 3), **una
+  casilla `- [ ]` por objetivo**. Si te da tres, escribe los tres: nunca los fundas en uno ni reemplaces los que ya
+  están. La caja «Objetivo del día» del Calendario los muestra todos.
 - El hito del día sirve al de la semana; el de la semana, al del mes. Si Levy ve que el plan de hoy no
   empuja el de la semana, lo dice.
 - En días de viaje o de mucha carga, un solo bloque de producción, o ninguno. No agendar trabajo
@@ -76,7 +81,43 @@ manda en `now.md` sobre el texto libre.
 
 ## Capa 3: eventos y agenda
 
-### Con calendario conectado
+### El calendario local (por defecto en esta edición)
+
+`.claude/plan/calendario.json` es el calendario de Arbrain: lo pinta la sección **Calendario** del
+panel (botón «Calendario» arriba a la derecha del chat, o el «+» del panel › Calendario) en Día,
+Semana y Mes, junto con los objetivos de `objetivos.md` y los hábitos. No necesita cuenta ni red.
+**Cuando el dueño pide agendar, bloquear o «pon X en el calendario» y no conectó otro calendario, se
+escribe aquí.** El archivo trae su propio instructivo en `_como_se_usa`; el contrato:
+
+```json
+{ "id": "obj-2026-10-22-oferta", "titulo": "Escribir la oferta", "inicio": "2026-10-22T09:00:00-06:00",
+  "fin": "2026-10-22T10:00:00-06:00", "todoElDia": false, "descripcion": "Objetivo del día · [levy]" }
+{ "id": "obj-2026-10-22-gym", "titulo": "Gym", "inicio": "2026-10-22", "fin": "2026-10-23", "todoElDia": true }
+```
+
+- `id` único y estable (sirve para editarlo luego). Hora con su zona (`-06:00`); el desfase sale de la
+  zona del dueño PARA ESA FECHA. Día completo: solo fecha y `fin` = el día siguiente.
+- Repetición opcional en `repetir` (`FREQ=DAILY`, `FREQ=WEEKLY;BYDAY=MO,WE,FR`, `FREQ=MONTHLY`).
+- Una tarea con fecha (sin hora comprometida) va en `tareas[]`: `{ id, titulo, fecha: "2026-10-22", prioridad: 1-4, hecha: false }`.
+- Edita el JSON con cuidado (léelo, agrega al arreglo, no borres lo que no es tuyo ni toques
+  `recibos`) y vuelve a leerlo para comprobar que sigue siendo JSON válido. Si la vista no entiende un
+  evento, lo avisa con su título en el calendario: corrígelo.
+- Al terminar, enséñaselo: herramienta `mostrar` con `vista: "calendario"`, `alcance: "dia"` y la fecha
+  (con `fijar: true` si quiere tenerlo a la vista). No digas «listo» sin haber releído el archivo.
+
+**«Pon mis objetivos de hoy en el calendario»** (o «despliega el día»): lee el bloque `#### <Día> NN` de
+hoy en `objetivos.md`; cada casilla `- [ ]` es un objetivo (si aún no están, escríbelos primero ahí, uno por
+casilla). Las que traen hora van a esa hora; para las
+demás propón un horario realista (respeta lo que ya está en `calendario.json` y lo personal) y espera su
+«va»; con el «va» crea UN evento por objetivo (todos, no solo los que traían hora) con
+`descripcion: "Objetivo del día · [levy]"`. Un objetivo sin hora que el dueño no quiere bloquear va como
+tarea con `fecha` de hoy. Después `mostrar` el día y confirma en una línea cuántos quedaron.
+
+**«¿Dónde está el calendario?» / «¿cómo agrego aquí el calendario?»:** ábreselo tú con `mostrar`
+(`vista: "calendario"`, `fijar: true`) y dile que también está en el botón **Calendario** arriba a la
+derecha del chat y en el «+» del panel (⌘B abre y cierra el panel).
+
+### Con calendario conectado (opcional)
 
 Cómo se conecta (lo hace el dueño, Levy guía): `arbrain/cerebro/manuales/google-calendar-gmail.md`. La vía
 estándar es `gog`; si conectó el conector oficial de Claude o de ChatGPT, usa ese con las mismas reglas.
@@ -108,20 +149,17 @@ dueño antes. Opciones útiles de `create`: `--all-day`, `--location`, `--remind
 - **Leer antes de escribir:** revisar choques antes de crear.
 - **Zona horaria:** calcular el desfase correcto para la fecha del evento; no asumir.
 
-### Sin calendario conectado (estado por defecto de esta edición)
+### Si un conector no responde
 
-Si el dueño no ha conectado su calendario (la verificación de su manual no pasa), `now.md` muestra «Sin eventos
-agendados». Entonces:
-
-- La agenda del día vive en el bloque del día de `objetivos.md`, como líneas `* HH:MM <bloque>`.
-- Levy no inventa eventos ni dice «tu calendario está vacío»: dice que no hay calendario conectado.
-- Ofrécele conectarlo con `arbrain/cerebro/manuales/google-calendar-gmail.md`. Desde que lo conecte, la regla de la
-  pluma única aplica.
+Si el dueño conectó Google (gog o su conector) y no responde o pide un permiso, no te detengas ahí: dile
+qué falló y ofrécele dejarlo en su calendario local (`calendario.json`), que siempre está. Nunca escribas
+el mismo evento en los dos.
 
 ## La hora
 
-`now-snapshot.py` toma la hora real del sistema y la zona horaria configurada en la máquina del
-dueño. Si el dueño viaja, verificar la hora que muestra `now.md` antes de comprometer horas.
+La hora real es la del sistema (`date`) y la zona, la configurada en la máquina del dueño (o `zona` en
+`calendario.json`). `now.md` puede estar viejo: si el dueño viaja o la fecha no cuadra, verifica la hora
+antes de comprometer horas.
 
 ## Qué NO hace este motor
 

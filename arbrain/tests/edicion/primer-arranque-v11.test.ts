@@ -34,16 +34,19 @@ test('1 · los tres pedidos del primer mensaje son botones que envían ese texto
   assert.match(fuente('src/app/api/primer-arranque/route.ts'), /metadata: \{ source: FUENTE_BIENVENIDA \}/)
 })
 
-test('2 · el primer mensaje y la plantilla de Levy no prometen calendario ni video; computer use solo donde existe', () => {
+test('2 · el primer mensaje y la plantilla de Levy no prometen video; el calendario local sí existe; computer use solo donde existe', () => {
   const m = mensajeBienvenida(null)
   const sinLimite = m.split('\n').filter(l => !/versión próxima/.test(l)).join('\n')
-  assert.ok(!/calendario|agenda|video|computer use|pantalla/i.test(sinLimite), 'solo se nombran como límite')
-  assert.match(m, /Computer use[^\n]*calendario[^\n]*video[^\n]*versión próxima/)
+  assert.ok(!/agenda|video|computer use|pantalla/i.test(sinLimite), 'solo se nombran como límite')
+  // v0.2.6: el calendario local existe y se dice dónde abrirlo (un fundador no lo encontraba).
+  assert.match(m, /tu calendario[^\n]*botón «Calendario» arriba a la derecha/)
+  assert.match(m, /Computer use[^\n]*video[^\n]*versión próxima/)
   const c = plantillaClaude()
   assert.ok(!/edicion-por-voz/.test(c), 'la tabla de intenciones no ofrece editar video')
   assert.ok(!/agenda de hoy/.test(c))
   assert.match(c, /Promete solo lo que esta versión trae/)
-  assert.match(c, /\*\*no\*\* trae calendario conectado ni edición de\s+video/)
+  assert.match(c, /\*\*calendario local\*\*/)
+  assert.match(c, /\*\*no\*\* trae Google Calendar conectado de fábrica ni edición de video/)
   // 0.1.2: computer use sí en macOS y Windows (apagado en cada apertura); en Linux no.
   assert.match(c, /Linux \*\*no\*\* tiene computer use/)
   assert.match(c, /Nace apagado en cada apertura/)

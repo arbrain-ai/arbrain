@@ -137,14 +137,14 @@ export function validateUrl(url: string): string | null {
  * con regex y se esquiva con IP decimal (`2130706433`), hex (`0x7f000001`), octal, IPv6 (`[::1]`, `[::ffff:127.0.0.1]`),
  * userinfo (`https://a@127.0.0.1/`) o un dominio que RESUELVE a una IP privada (rebinding, `localtest.me`). Aquí se
  * RESUELVE el host y se rechaza si cualquier IP cae en una red interna. Lista de redes bloqueadas (net.BlockList):
- * loopback, privadas (RFC1918), link-local, CGNAT (100.64/10), «this-host» (0/8),
+ * loopback (y `::`, que en macOS y Linux conecta a loopback), privadas (RFC1918), link-local, CGNAT (100.64/10), «this-host» (0/8),
  * ULA IPv6 (fc00::/7), link-local IPv6 (fe80::/10) y TODO IPv4 mapeado en IPv6 (::ffff:0:0/96).
  */
 const REDES_BLOQUEADAS = (() => {
   const b = new BlockList()
   b.addSubnet('0.0.0.0', 8); b.addSubnet('10.0.0.0', 8); b.addSubnet('100.64.0.0', 10); b.addSubnet('127.0.0.0', 8)
   b.addSubnet('169.254.0.0', 16); b.addSubnet('172.16.0.0', 12); b.addSubnet('192.168.0.0', 16)
-  b.addAddress('::1', 'ipv6'); b.addSubnet('fc00::', 7, 'ipv6'); b.addSubnet('fe80::', 10, 'ipv6')
+  b.addAddress('::1', 'ipv6'); b.addAddress('::', 'ipv6'); b.addSubnet('fc00::', 7, 'ipv6'); b.addSubnet('fe80::', 10, 'ipv6')
   // Nota: NO se añade ::ffff:0:0/96 como regla (en net.BlockList mapearía TODA IPv4 y bloquearía internet entero);
   // las IPv4 mapeadas (`::ffff:127.0.0.1`) se extraen y se revisan como IPv4 en `esPrivada`.
   return b

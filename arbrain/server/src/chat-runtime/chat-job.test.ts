@@ -12,7 +12,7 @@ vi.mock('../codex-agent.js', () => ({
 }))
 vi.mock('../memory.js', () => ({ saveConversationTurn: f.memory }))
 vi.mock('../db.js', () => ({ getSession: f.getSession, setSession: f.setSession, saveQueryUsage: f.usage }))
-vi.mock('../media.js', () => ({ downloadFromUrl: f.download, esDocumento: (file: string) => file.endsWith('.pdf'), buildAttachmentMessage: (file: string) => file.endsWith('.pdf') ? `Read file ${file}` : `Read image ${file}` }))
+vi.mock('../media.js', () => ({ downloadFromUrl: f.download, esDocumento: (file: string) => file.endsWith('.pdf'), buildAttachmentMessage: (file: string) => file.endsWith('.pdf') ? `Read file ${file}` : `Read image ${file}`, validarAdjunto: (url: string) => url.startsWith('https://') ? null : 'invalid URL' }))
 vi.mock('../file-attach.js', () => ({ extractFileMarkers: f.markers, stageAttachment: f.stage }))
 vi.mock('../security.js', () => ({ validateUrl: (url: string) => url.startsWith('https://') ? null : 'invalid URL' }))
 import { executeChatJob, type ChatJobInput } from './chat-job.js'

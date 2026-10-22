@@ -10,7 +10,7 @@ describe('motivoUrlInterna: SSRF por DNS/IP, no por texto', () => {
     for (const u of [
       'https://a@127.0.0.1:3099/health', 'http://2130706433/', 'http://0x7f000001/',
       'http://[::ffff:127.0.0.1]/', 'http://[0:0:0:0:0:0:0:1]/', 'http://127.0.0.1/', 'http://localhost/',
-      'http://169.254.169.254/latest/meta-data/', 'http://10.0.0.5/', 'http://192.168.1.1/', 'http://[::1]/',
+      'http://169.254.169.254/latest/meta-data/', 'http://10.0.0.5/', 'http://192.168.1.1/', 'http://[::1]/', 'http://[::]/', 'http://[::]:5000/',
       'http://100.64.0.0/', 'http://0.0.0.0/',
     ]) expect(await motivoUrlInterna(u), u).toBeTruthy()
   })

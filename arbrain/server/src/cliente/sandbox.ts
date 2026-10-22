@@ -112,8 +112,9 @@ export const PERFILES_PRIVADOS = [
 ]
 
 /** Hijos conocidos de `.claude/` y de `arbrain/` que se protegen aunque todavía no existan. */
-const CLAUDE_CONOCIDOS = ['settings.json', 'settings.local.json', 'hooks', 'agents', 'commands', 'skills', 'output-styles', 'plugins', 'rules', 'references', 'plan', 'scripts', 'statusline', 'now.md', 'CLAUDE.md', 'AGENTS.md']
-const CLAUDE_LIBRES = new Set(['memory', 'knowledge', 'daily', 'diario'])
+const CLAUDE_CONOCIDOS = ['settings.json', 'settings.local.json', 'hooks', 'agents', 'commands', 'skills', 'output-styles', 'plugins', 'rules', 'references', 'scripts', 'statusline', 'now.md', 'CLAUDE.md', 'AGENTS.md']
+// v0.2.6: `plan/` es capa del alumno (objetivos, calendario y hábitos), igual que en la política (politica-agentes.ts).
+const CLAUDE_LIBRES = new Set(['memory', 'knowledge', 'daily', 'diario', 'plan'])
 const ARBRAIN_CONOCIDOS = ['server', 'src', 'scripts', 'extension', 'src-tauri', 'supabase', 'public', 'tests', 'docs', 'empaquetado', 'node_modules', 'package.json', 'EDICION']
 
 const hijos = (dir: string): string[] => { try { return readdirSync(dir) } catch { return [] } }
@@ -121,7 +122,7 @@ const hijos = (dir: string): string[] => { try { return readdirSync(dir) } catch
 /**
  * Lo que el Bash del sandbox no escribe dentro del cerebro (red team 2 C-1): todo lo que un hook o el CLI ejecuta o
  * carga como instrucciones. Seatbelt/bubblewrap trabajan con rutas (no con «todo salvo»): se listan los hijos de
- * `.claude/` salvo memory, knowledge, daily y diario (los que existen más los conocidos) y los de `arbrain/` salvo
+ * `.claude/` salvo memory, knowledge, daily, diario y plan (los que existen más los conocidos) y los de `arbrain/` salvo
  * `cerebro`, más CLAUDE.md, AGENTS.md, .mcp.json, .codex, .git y la marca de siembra. Lo nuevo que no esté en la lista
  * lo frena la política (en el sandbox solo corren lecturas y mkdir/touch revisados ruta por ruta).
  */

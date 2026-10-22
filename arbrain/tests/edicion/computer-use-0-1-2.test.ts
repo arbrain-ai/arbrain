@@ -97,7 +97,7 @@ test('permisos de Arbrain para operar la Mac: «Sin uso» en cliente (los pide A
 test('textos: bienvenida según el sistema; términos y privacidad nombran computer use (versión nueva)', () => {
   const con = mensajeBienvenida('Fulano', { computerUse: true })
   assert.match(con, /Computer use[^\n]*Ajustes › Esta computadora[^\n]*se apaga cada vez que cierras la app/)
-  assert.ok(!/Computer use[^\n]*llegan? en una versión próxima/.test(con.replace(/El calendario[^\n]*/, '')))
+  assert.ok(!/Computer use[^\n]*llegan? en una versión próxima/.test(con.replace(/(El calendario|La edición de video)[^\n]*/, '')))
   const sin = mensajeBienvenida('Fulano')
   assert.match(sin, /Computer use[^\n]*no está disponible en este sistema/)
   assert.notEqual(VERSION_TEXTOS, 'borrador-2026-10-11b', 'los textos cambiaron: se vuelven a aceptar')

@@ -32,8 +32,8 @@ export const FUENTE_BIENVENIDA = 'bienvenida'
 
 export function mensajeBienvenida(nombre?: string | null, opciones: { computerUse?: boolean } = {}): string {
   const computerUse = opciones.computerUse
-    ? '- Hoy trabajo con tus archivos, tu memoria y el lienzo, aquí en el chat. Computer use (que yo use tu pantalla y tus apps) viene apagado: lo enciendes en Ajustes › Esta computadora y se apaga cada vez que cierras la app. El calendario conectado y la edición de video llegan en una versión próxima.'
-    : '- Hoy trabajo con tus archivos, tu memoria y el lienzo, aquí en el chat. Computer use (que yo use tu pantalla y tus apps) no está disponible en este sistema; el calendario conectado y la edición de video llegan en una versión próxima.'
+    ? '- Hoy trabajo con tus archivos, tu memoria, el lienzo y tu calendario, aquí en el chat (el calendario lo abres con el botón «Calendario» arriba a la derecha, o pídemelo). Computer use (que yo use tu pantalla y tus apps) viene apagado: lo enciendes en Ajustes › Esta computadora y se apaga cada vez que cierras la app. La edición de video llega en una versión próxima.'
+    : '- Hoy trabajo con tus archivos, tu memoria, el lienzo y tu calendario, aquí en el chat (el calendario lo abres con el botón «Calendario» arriba a la derecha, o pídemelo). Computer use (que yo use tu pantalla y tus apps) no está disponible en este sistema; la edición de video llega en una versión próxima.'
   const hola = nombre?.trim() ? `Hola, ${nombreVisible(nombre)}. Soy Levy.` : 'Hola. Soy Levy.'
   return `${hola} Vivo en tu computadora y trabajo con tu cerebro: la carpeta donde guardamos lo que sabes, lo que decides y cómo trabajas. Hoy está casi vacía; se llena conversando.
 

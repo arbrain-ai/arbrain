@@ -23,10 +23,10 @@ test('sin variable la instalación es la de Daniel; con ARBRAIN_EDICION=cliente,
 })
 
 test('lista blanca: chat, panel, lienzo y seguridad sí; negocio de Daniel no', () => {
-  for (const r of ['/api/chat/stream', '/api/chat/sessions/abc/messages', '/api/canvas/pages', '/api/manos/interruptor', '/api/cabina/memoria', '/api/primer-arranque', '/api/confirmaciones', '/api/monitoreo/estado']) {
+  for (const r of ['/api/storage/upload', '/api/storage/adjunto/chat-1761100000000-a1b2c3.png', '/api/chat/stream', '/api/chat/sessions/abc/messages', '/api/canvas/pages', '/api/manos/interruptor', '/api/cabina/memoria', '/api/primer-arranque', '/api/confirmaciones', '/api/monitoreo/estado']) {
     assert.equal(apiPermitidaEnCliente(r), true, r)
   }
-  for (const r of ['/api/finanzas', '/api/analytics/polar', '/api/salud', '/api/equipo', '/api/biblioteca', '/api/canvas-x', '/api/cabina/masterclass', '/api/cabina/negocio', '/api/calendar/events', '/api/openclaw/event', '/api/chat/tts', '/api/storage/upload', '/api/actualizacion']) {
+  for (const r of ['/api/finanzas', '/api/analytics/polar', '/api/salud', '/api/equipo', '/api/biblioteca', '/api/canvas-x', '/api/cabina/masterclass', '/api/cabina/negocio', '/api/calendar/events', '/api/openclaw/event', '/api/chat/tts', '/api/storage', '/api/storage/otra', '/api/actualizacion']) {
     assert.equal(apiPermitidaEnCliente(r), false, r)
   }
   assert.equal(paginaPermitidaEnCliente('/chat'), true)

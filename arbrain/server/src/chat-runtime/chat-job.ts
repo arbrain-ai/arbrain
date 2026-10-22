@@ -25,9 +25,8 @@ function anotarDelegado(conversacion: string, contenido: unknown) {
 import { runCodexStream, isCodexAccount } from '../codex-agent.js'
 import { saveConversationTurn } from '../memory.js'
 import { getSession, setSession, saveQueryUsage } from '../db.js'
-import { downloadFromUrl, buildAttachmentMessage, esDocumento } from '../media.js'
+import { downloadFromUrl, buildAttachmentMessage, esDocumento, validarAdjunto } from '../media.js'
 import { extractFileMarkers, stageAttachment, type StagedAttachment } from '../file-attach.js'
-import { validateUrl } from '../security.js'
 import { takeSpontaneous } from './spontaneous.js'
 import type { ChatJournal, TurnRecord } from './journal.js'
 import { JobRejected, type JobResult } from './supervisor.js'
@@ -93,7 +92,7 @@ export async function executeChatJob(journal: ChatJournal, turn: TurnRecord, emi
 
   const imagePaths: string[] = []
   for (const url of input.imageUrl?.split('\n').filter(Boolean) ?? []) {
-    const error = validateUrl(url)
+    const error = validarAdjunto(url)
     if (error) throw new JobRejected(`Adjunto rechazado: ${error}`)
     try { imagePaths.push(await downloadFromUrl(url)) }
     catch { throw new JobRejected('No se pudo descargar un adjunto; el turno no se envió al motor.') }

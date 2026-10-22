@@ -4,6 +4,35 @@ Cada versión dice qué trae y qué tienes que hacer tú. Para actualizar, abre 
 «jala los últimos cambios». Las versiones siguen `MAYOR.MENOR.PARCHE`: un cambio en MENOR trae funciones
 nuevas; uno en PARCHE, arreglos.
 
+## v0.2.6 · 22 oct 2026 · Adjuntos y calendario
+
+**Qué trae**
+- **Ya puedes adjuntar imágenes, PDF y archivos de texto en el chat.** Antes salía «el servidor la rechazó (código
+  404: No disponible en esta edición)». Ahora el archivo se guarda en la carpeta de datos de Arbrain, en tu
+  computadora (no en un almacenamiento en la nube), y Levy lo recibe como siempre. Hasta 10 MB por archivo; se aceptan PNG, JPG,
+  GIF, WebP, PDF, TXT, MD, CSV, JSON y los documentos de Office. Arbrain revisa que el archivo sea lo que dice ser,
+  solo lo abre con tu sesión y trata lo que trae adentro como contenido de afuera: si un PDF o una imagen esconde
+  órdenes, Levy no las obedece y te pide confirmación antes de cualquier acción.
+- **Levy ya pone tus objetivos del día en tu calendario.** Cuando le pides «pon mis objetivos de hoy en el
+  calendario» o «agéndame…», escribe en tu calendario local (`.claude/plan/calendario.json`) en lugar de buscar un
+  Google Calendar que no está conectado. Te propone horarios para lo que no trae hora, espera tu «va» y te enseña el
+  día al terminar.
+- **Tu día admite varios objetivos.** Si defines tres objetivos para hoy, el Calendario los muestra los tres en la
+  caja «Objetivo del día» (antes enseñaba solo uno) y Levy escribe cada uno en su casilla, sin juntarlos ni
+  reemplazar los que ya estaban. Agendar ya no te pide un clic por cada objetivo: tu plan (`.claude/plan/`) es tuyo,
+  como tu memoria y tu diario. Si Levy acaba de leer algo de afuera, sigue pidiéndote confirmación.
+- **El calendario se encuentra a la primera.** Hay un botón **Calendario** arriba a la derecha del chat que lo abre en
+  el panel, en el día de hoy. También puedes pedírselo a Levy («ábreme el calendario»).
+- **Ningún evento desaparece en silencio.** Si a un evento escrito a mano le falta la hora de fin, tiene el fin igual
+  al inicio o usa otro formato de fecha, el calendario lo muestra igual con lo evidente (una hora, o el día completo).
+  Si de plano no lo entiende, te avisa con su título para que Levy lo corrija.
+- **Un cierre más de la descarga de imágenes.** La dirección IPv6 «no especificada» (`[::]`), que en macOS y Linux
+  conecta a tu propia computadora, ahora también se rechaza.
+
+**Qué tienes que hacer**
+- Actualiza como siempre («jala los últimos cambios») y vuelve a arrancar (`npm run servidor`).
+- Si antes le pediste a Levy poner algo en el calendario y no apareció, pídeselo otra vez.
+
 ## v0.2.5 · 22 oct 2026 · SSRF de verdad
 
 **Qué trae**
