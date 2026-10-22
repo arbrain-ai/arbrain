@@ -2,8 +2,8 @@
   "generador": "arbrain/empaquetado/generador",
   "origen": {
     "ref": "HEAD",
-    "commit": "f0a518360deb9e8dbac33b388b7c97a08aecbc11",
-    "fecha": "2026-10-22T14:48:02-06:00"
+    "commit": "f83706c02dd16e74f83f4167182772e4d557a82e",
+    "fecha": "2026-10-22T15:10:39-06:00"
   },
   "version": "0.2.7",
   "allowlist": {
@@ -1193,8 +1193,8 @@
       "origen": "arbrain/escritorio/src/cargando.html"
     },
     "arbrain/escritorio/src/main.rs": {
-      "sha256": "e5dc29e328bc8b7e3acd2deb8987d3e253c883a920a4ed03b9502f56c6426689",
-      "bytes": 17833,
+      "sha256": "b081654f8feb6b019f4d3430bca6061cf6fa760677b7234438bcd98aef741783",
+      "bytes": 17921,
       "modo": "644",
       "origen": "arbrain/escritorio/src/main.rs"
     },

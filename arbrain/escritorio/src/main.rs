@@ -196,23 +196,20 @@ fn main() {
     #[cfg(target_os = "macos")]
     let menu = menu::crear(proxy.clone());
 
-    let window = WindowBuilder::new()
+    let constructor = WindowBuilder::new()
         .with_title("Arbrain")
         .with_inner_size(LogicalSize::new(1360.0, 880.0))
-        .with_min_inner_size(LogicalSize::new(880.0, 600.0))
-        .build(&event_loop)
-        .expect("no pude crear la ventana");
+        .with_min_inner_size(LogicalSize::new(880.0, 600.0));
+    // Windows: ícono chico (barra de título) y grande (barra de tareas) desde el recurso del .exe, antes de crear la
+    // ventana; sin el grande, la barra de tareas pinta uno genérico.
     #[cfg(windows)]
-    {
-        use tao::platform::windows::{IconExtWindows, WindowExtWindows};
-        if let Ok(icono) = tao::window::Icon::from_resource(1, None) {
-            window.set_window_icon(Some(icono));
-        }
-        // La barra de tareas usa el ícono grande; sin él, Windows pinta uno genérico.
-        if let Ok(grande) = tao::window::Icon::from_resource(1, Some(tao::dpi::PhysicalSize::new(256, 256))) {
-            window.set_taskbar_icon(Some(grande));
-        }
-    }
+    let constructor = {
+        use tao::platform::windows::{IconExtWindows, WindowBuilderExtWindows};
+        let chico = tao::window::Icon::from_resource(1, None).ok();
+        let grande = tao::window::Icon::from_resource(1, Some(tao::dpi::PhysicalSize::new(256, 256))).ok();
+        constructor.with_window_icon(chico).with_taskbar_icon(grande)
+    };
+    let window = constructor.build(&event_loop).expect("no pude crear la ventana");
 
     let en_web = Arc::new(AtomicBool::new(false));
     let (tx_reintentar, rx_reintentar) = mpsc::channel::<()>();
