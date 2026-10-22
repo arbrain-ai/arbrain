@@ -4,6 +4,26 @@ Cada versión dice qué trae y qué tienes que hacer tú. Para actualizar, abre 
 «jala los últimos cambios». Las versiones siguen `MAYOR.MENOR.PARCHE`: un cambio en MENOR trae funciones
 nuevas; uno en PARCHE, arreglos.
 
+## v0.2.8 · 23 oct 2026 · Arbrain como app de escritorio
+
+**Qué trae**
+- **Arbrain ya es una app de escritorio.** Se abre desde el Launchpad o Spotlight en Mac, el menú Inicio o el acceso
+  del Escritorio en Windows, o el menú de aplicaciones en Linux. Enciende Arbrain sola si estaba apagado y te deja
+  adentro con tu sesión, sin contraseña ni navegador.
+- **Cerrar la ventana no apaga Arbrain:** Levy y tus recordatorios siguen vivos. Si Arbrain se está actualizando, la
+  ventana espera y vuelve a entrar sola cuando termina.
+- **La app viene verificada con la misma firma de la versión.** Apple y Microsoft todavía no la conocen (el autor no
+  paga aún su certificado), así que el instalador comprueba que es la que firmó el autor y solo a ella le quita el
+  aviso del sistema. No la bajes a mano desde la página: instálala con el prompt.
+- **Instalar deja la app abierta al final**, con el mismo prompt de siempre. Si la app no se puede instalar,
+  Arbrain se abre en tu navegador como antes.
+
+**Qué tienes que hacer**
+- Si ya tienes Arbrain: actualiza como siempre («actualiza mi Arbrain» o el prompt de instalación) y después dile a
+  Claude Code «instala la app de Arbrain». Desde esta versión, las siguientes actualizaciones la cambian solas.
+- Si tenías la app vieja de Arbrain (0.1.x), el instalador te pregunta antes de cambiarla y guarda la vieja en
+  `~/Arbrain-respaldos`. Tus datos no se tocan.
+
 ## v0.2.7 · 23 oct 2026 · Instalar y actualizar sin fricción
 
 **Qué trae**

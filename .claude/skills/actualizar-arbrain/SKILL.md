@@ -102,6 +102,9 @@ PASO 5 · Pasa los cambios a lo mío
 - Si algo sale mal a la mitad: git merge --abort y dime que todo quedó como antes.
 
 PASO 6 · Lo que cambia fuera del texto
+- Si esta misma skill cambió en la versión nueva (git diff --name-only ORIG_HEAD HEAD -- .claude/skills/actualizar-arbrain
+  no sale vacío), vuelve a leer completo .claude/skills/actualizar-arbrain/SKILL.md y sigue su PASO 6: viene de la
+  etiqueta que ya verificaste.
 - Semilla: python3 arbrain/cerebro/sembrar.py (solo agrega lo que me falte, nunca encima de lo mío). Si sembró algo,
   git add -A && git commit -m "Semilla de la versión <nueva>".
 - Arbrain en modo servidor: si CAPAS.json › funciones.modo_servidor existe, reinícialo en segundo plano para que use la
@@ -110,6 +113,14 @@ PASO 6 · Lo que cambia fuera del texto
   cd ~/Arbrain/arbrain && node scripts/servidor.mjs detener; nohup node scripts/servidor.mjs --sin-navegador > "$HOME/.arbrain/arranque.log" 2>&1 &
   Revisa cada 15 segundos, hasta 15 minutos, `node scripts/servidor.mjs estado | head -1` hasta que diga «Corriendo» y
   luego `node scripts/servidor.mjs abrir`. Si falla, enséñame las últimas 20 líneas de ~/.arbrain/arranque.log.
+- App de escritorio (desde v0.2.8), después de que `estado` diga «Corriendo»: corre
+  `cd ~/Arbrain/arbrain && node scripts/escritorio.mjs instalar --sin-abrir`. Si la versión trae otra app, la cambia
+  (verificada con la misma firma); si no, dice «ya está al día». Si era la primera vez (no existía
+  `~/.config/arbrain/escritorio.json`), ábrela con `node scripts/escritorio.mjs abrir` en lugar de
+  `servidor.mjs abrir` y dime que desde hoy Arbrain se abre como cualquier app. La ventana abierta espera mientras el
+  servidor está apagado y entra sola cuando vuelve: no hace falta cerrarla. Si dice «ya hay otra app «Arbrain»» (la
+  0.1.x), pregúntame si la guardas en ~/Arbrain-respaldos y pones la nueva; con mi sí, repite con
+  `--reemplazar-app-vieja`. Si falla de otra forma, sigue con el navegador y dímelo en una línea.
   Si nunca lo había usado, dime que el prompt de instalación lo deja corriendo.
 - Ganchos: si cambió .claude/settings.json o .claude/hooks/ ya los revisamos en el PASO 3b; recuérdame que corren
   desde la próxima sesión de Claude Code.

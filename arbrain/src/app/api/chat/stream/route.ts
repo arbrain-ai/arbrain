@@ -67,7 +67,10 @@ export async function POST(request: Request) {
     const crons = (recent ?? []).filter(
       (m) => (m.metadata as { source?: string } | null)?.source === 'cron',
     )
-    if (crons.length > 0) {
+    // Un slash command («/compact», «/skill args») debe llegar al CLI empezando con «/» (19 oct 2026):
+    // no se le arma contexto de crons. El daemon (chat-job.ts) lo garantiza igual; esto solo ahorra trabajo.
+    const esComando = typeof message === 'string' && /^\/[\w:-]+(\s|$)/.test(message.trim())
+    if (crons.length > 0 && !esComando) {
       const parts = crons.slice(0, 5).reverse().map((m) => {
         const md = m.metadata as { jobLabel?: string; jobId?: string } | null
         const label = md?.jobLabel ?? md?.jobId ?? 'Automatización'
