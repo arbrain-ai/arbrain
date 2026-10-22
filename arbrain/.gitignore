@@ -68,3 +68,5 @@ Thumbs.db
 supabase/.branches
 supabase/.temp
 !server/package-lock.json
+/escritorio/target
+/escritorio/dist
