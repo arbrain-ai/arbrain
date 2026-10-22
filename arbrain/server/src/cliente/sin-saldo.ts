@@ -26,7 +26,7 @@ export function esSinSaldo(texto: unknown): boolean {
 // Mismas reglas para la web (`export *` en src/features/primer-arranque/lib/sin-saldo.ts): sin imports en este archivo.
 
 /** 401/403 o el texto con que Anthropic, OpenRouter o el SDK dicen que la llave no sirve. */
-export const PATRON_LLAVE_INVALIDA = /api error:? *40[13]\b|\b(status|code|http)[ :=]*40[13]\b|failed to authenticate|authentication.?(error|failed)|invalid.{0,20}(api.?key|x-api-key|bearer|credential|auth)|unauthori[sz]ed|user not found|no auth credentials|permission_error|oauth_org_not_allowed|account_on_hold|api key.{0,20}(revoked|disabled|expired)/i
+export const PATRON_LLAVE_INVALIDA = /api error:? *40[13]\b|\b(status|code|http)[ :=]*40[13]\b|failed to authenticate|authentication.?(error|failed)|invalid.{0,20}(api.?key|x-api-key|bearer|credential|auth)|unauthori[sz]ed|user not found|no auth credentials|permission_error|oauth_org_not_allowed|account_on_hold|api key.{0,20}(revoked|disabled|expired)|not logged in|please run \/login/i
 
 /** Errores del SDK (`SDKAssistantMessageError`) que significan llave o cuenta. */
 const ERRORES_LLAVE = new Set(['authentication_failed', 'oauth_org_not_allowed', 'account_on_hold'])
@@ -57,6 +57,11 @@ export function mensajeFalloDeCuenta(tipo: FalloDeCuenta, proveedor: string | nu
   const donde = nombreProveedor(proveedor)
   const d = detalle.replace(/\s+/g, ' ').trim().slice(0, 300)
   const cola = d ? `\n\nDetalle técnico: ${d}` : ''
+  // Motor «Mi Claude Code» (cliente/suscripcion.ts): no hay llave que recargar ni pegar; la sesión es la de su terminal.
+  if (proveedor === 'suscripcion') {
+    if (tipo === 'sin_saldo') return `Tu plan de Claude no dejó responder a Levy (límite de uso o plan inactivo). Espera a que se reinicie tu límite o revisa tu plan en claude.ai; también puedes conectar una llave en Ajustes › Llaves.${cola}`
+    return `Tu Claude Code no tiene la sesión iniciada (o venció), por eso Levy no pudo responder. Abre una terminal, escribe \`claude\`, inicia sesión con tu cuenta y pulsa «Reintentar».${cola}`
+  }
   if (tipo === 'sin_saldo') {
     return `Tu cuenta de ${donde} se quedó sin crédito, por eso Levy no pudo responder. Recarga crédito en ${donde} y pulsa «Reintentar»; tu mensaje sigue aquí.${cola}`
   }

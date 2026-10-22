@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto'
 import path from 'node:path'
 import { DEFAULT_ACCOUNT_CONFIG_DIR } from '../config.js'
 import { esEdicionCliente } from '../edicion.js'
+import { motorSuscripcion } from '../cliente/suscripcion.js'
 import { dirClaudeAlternaO } from '../cuentas-alternas.js'
 
 class Mailbox<T> implements AsyncIterable<T> {
@@ -60,8 +61,10 @@ export type SpontaneousAdopter = (reply: ClaudeSpontaneousReply) => boolean
 /** «Solo suscripción» es regla de la instalación original (nunca cobrar API por accidente). En la edición cliente el
  * alumno trae su llave (API de Anthropic, OpenRouter o su sesión de Claude; contrato §4): cualquiera vale, y sin llave
  * el daemon ya respondió `falta_llave` antes de llegar aquí (11 oct 2026, hallado por la evidencia del .app). */
-export function requireClaudeSubscription(account: AccountInfo, cliente = esEdicionCliente()): void {
-  if (cliente) return
+export function requireClaudeSubscription(account: AccountInfo, cliente = esEdicionCliente(), suscripcion = motorSuscripcion()): void {
+  // Edición cliente con llave: la llave ES la vía. Con «Mi Claude Code» (cliente/suscripcion.ts) se exige, como en la
+  // instalación original, que la sesión sea de suscripción: nunca se cobra por API sin que la persona lo sepa.
+  if (cliente && !suscripcion) return
   if (account.apiProvider !== 'firstParty' || !account.subscriptionType || account.tokenSource === 'none' || (account.apiKeySource && account.apiKeySource !== 'none')) {
     throw new Error('La sesión no confirmó autenticación por suscripción Claude. No se envió ningún prompt.')
   }
@@ -118,7 +121,7 @@ export class ClaudeInteractiveSession {
     // (API de Anthropic u OpenRouter como ANTHROPIC_AUTH_TOKEN + ANTHROPIC_BASE_URL; contrato §4). Sin esto el chat del
     // alumno con OpenRouter respondía «Not logged in» (11 oct 2026, evidencia del .app).
     const cliente = esEdicionCliente()
-    if (!cliente) for (const key of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_BASE_URL', 'CLAUDE_CODE_USE_BEDROCK', 'CLAUDE_CODE_USE_VERTEX', 'CLAUDE_CODE_USE_FOUNDRY']) delete env[key]
+    if (!cliente || motorSuscripcion()) for (const key of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_BASE_URL', 'CLAUDE_CODE_USE_BEDROCK', 'CLAUDE_CODE_USE_VERTEX', 'CLAUDE_CODE_USE_FOUNDRY']) delete env[key]
     this.query = create({ prompt: this.input, options: { ...options, env } })
     this.initialization = this.query.accountInfo().then(info => requireClaudeSubscription(info, cliente))
     // Attach immediately; metadata failures must not create unhandled rejection.

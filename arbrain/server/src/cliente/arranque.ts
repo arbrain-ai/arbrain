@@ -15,6 +15,7 @@ import { isAbsolute, join, resolve } from 'node:path'
 import '../edicion.js'
 import { configurarProveedorClaude } from './proveedor.js'
 import { registrarHuellaSembrada } from './hooks-proyecto.js'
+import { leerMotorElegido, VIAS_DE_API } from './suscripcion.js'
 import { LLAVES_COFRE, fijarSecreto, guardarSecretos, leerLineaSincrona, parsearSecretos, secreto, vistaConLlaves } from './cofre.js'
 
 export { CONTRATO_DAEMON } from './contrato.js'
@@ -103,14 +104,27 @@ export function prepararEntornoCliente(env: NodeJS.ProcessEnv = process.env, lee
   if (!/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(env.MISSION_CONTROL_ORIGIN ?? '')) falta.push('MISSION_CONTROL_ORIGIN')
   if ((secreto('OPENCLAW_GATEWAY_TOKEN') ?? '').length < 16) falta.push('OPENCLAW_GATEWAY_TOKEN')
   if (falta.length) return { ok: false, falta }
-  // BYOK: con solo la llave de OpenRouter, el CLI de Claude va por OpenRouter (cliente/proveedor.ts). Se decide sobre
-  // una vista con las llaves; lo que no es llave (URL base, modelos) vuelve a `env`, las llaves se quedan en el cofre.
-  const vista = vistaConLlaves(env)
-  configurarProveedorClaude(vista)
-  for (const k of LLAVES_COFRE) fijarSecreto(k, vista[k])
-  for (const [k, v] of Object.entries(vista)) if (!(LLAVES_COFRE as readonly string[]).includes(k) && typeof v === 'string' && env[k] !== v) env[k] = v
-
   const data = resolve(env.ARBRAIN_DATA_DIR!)
+  // Motor del chat (cliente/suscripcion.ts): «Mi Claude Code» (la sesión de la persona) o una llave. Lo que diga el
+  // lanzador manda; si no, lo que eligió en Ajustes (archivo de su configuración).
+  const motorEnv = (env.ARBRAIN_MOTOR_CLAUDE ?? '').trim().toLowerCase()
+  const motor = motorEnv === 'suscripcion' || motorEnv === 'llave' ? motorEnv : leerMotorElegido(env.ARBRAIN_CONFIG_DIR || join(data, 'config'))
+  const suscripcion = motor === 'suscripcion'
+  if (suscripcion) {
+    env.ARBRAIN_MOTOR_CLAUDE = 'suscripcion'
+    // Nada de la vía de API en el entorno del daemon (las llaves ya están en el cofre y no se le pasan al CLI) y el CLI
+    // usa la carpeta de configuración por defecto de la persona: ahí vive su sesión. No se lee ningún token.
+    for (const k of VIAS_DE_API) delete env[k]
+  } else {
+    delete env.ARBRAIN_MOTOR_CLAUDE
+    // BYOK: con solo la llave de OpenRouter, el CLI de Claude va por OpenRouter (cliente/proveedor.ts). Se decide sobre
+    // una vista con las llaves; lo que no es llave (URL base, modelos) vuelve a `env`, las llaves se quedan en el cofre.
+    const vista = vistaConLlaves(env)
+    configurarProveedorClaude(vista)
+    for (const k of LLAVES_COFRE) fijarSecreto(k, vista[k])
+    for (const [k, v] of Object.entries(vista)) if (!(LLAVES_COFRE as readonly string[]).includes(k) && typeof v === 'string' && env[k] !== v) env[k] = v
+  }
+
   const home = env.ARBRAIN_HOME && isAbsolute(env.ARBRAIN_HOME) ? resolve(env.ARBRAIN_HOME) : join(data, 'workspace')
   env.ARBRAIN_DATA_DIR = data
   env.ARBRAIN_HOME = home
@@ -125,8 +139,9 @@ export function prepararEntornoCliente(env: NodeJS.ProcessEnv = process.env, lee
   // Red team 2 C-1: los ganchos recién sembrados son los aceptados (la huella vive en la configuración de la app).
   if (sembro) try { registrarHuellaSembrada(home) } catch (e) { process.stderr.write(`arranque: no se pudo registrar la huella de los ganchos: ${(e as Error).message}\n`) }
   defecto(env, 'ARBRAIN_UPLOADS_DIR', join(data, 'uploads'))
-  // El CLI de Claude del alumno vive aislado: ni lee hooks/skills de su ~/.claude ni mezcla sesiones.
-  defecto(env, 'CLAUDE_CONFIG_DIR', join(data, 'claude'))
+  // Con llave, el CLI de Claude del alumno vive aislado: ni lee hooks/skills de su ~/.claude ni mezcla sesiones. Con su
+  // suscripción usa la carpeta por defecto (donde inició sesión) y solo los ajustes del proyecto (fuentesDeAjustes).
+  if (!suscripcion) defecto(env, 'CLAUDE_CONFIG_DIR', join(data, 'claude'))
   defecto(env, 'MANOS_BITACORA_DIR', join(data, 'config', 'manos', 'bitacora'))
   defecto(env, 'MANOS_RECETAS_DIR', join(data, 'config', 'recetas'))
   defecto(env, 'MANOS_ENCARGOS_DIR', join(data, 'config', 'manos', 'encargos'))

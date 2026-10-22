@@ -61,7 +61,8 @@ const ALIAS = /^(default|opus|sonnet|haiku|opusplan|best)(\[1m\])?$/i
  *   claude-sonnet-4-5 · claude-sonnet-4-5-20250929 · claude-opus-5-5[1m] → anthropic/claude-sonnet-4.5 · … · anthropic/claude-opus-5.5
  */
 export function modeloParaProveedor(modelo: string | undefined, env: NodeJS.ProcessEnv = process.env): string | undefined {
-  if (!modelo || !esOpenRouter(env)) return modelo
+  // Con la suscripción (cliente/suscripcion.ts) los ids son los de Anthropic, nunca los de OpenRouter.
+  if (!modelo || !esOpenRouter(env) || env.ARBRAIN_MOTOR_CLAUDE === 'suscripcion') return modelo
   if (ALIAS.test(modelo) || modelo.includes('/')) return modelo
   const base = modelo.replace(/\[1m\]$/i, '').replace(/-\d{8}$/, '')
   if (!/^claude-/i.test(base)) return modelo

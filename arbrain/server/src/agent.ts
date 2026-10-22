@@ -11,6 +11,7 @@ import { MENSAJE_PAUSA, pausado, registrarEnCurso } from './cliente/pausa.js'
 import { modeloParaProveedor } from './cliente/proveedor.js'
 import { esEdicionCliente } from './edicion.js'
 import { entornoClaude } from './cliente/cofre.js'
+import { fuentesDeAjustes, motorSuscripcion } from './cliente/suscripcion.js'
 import { readEnvFile } from './env.js'
 import { configuredCronEnvironment } from './cron-account.js'
 import { query, type Query, type ModelInfo, type SessionMessage, type Options } from '@anthropic-ai/claude-agent-sdk'
@@ -22,7 +23,7 @@ import { logger } from './logger.js'
 import { opsLogger } from './ops-logger.js'
 import { claudeRuntimePool, type ClaudeTurnScope } from './chat-runtime/claude-pool.js'
 import { registrarTurno, type UsoLlamada } from './cabina/contexto.js'
-import { ClaudeExecutionUncertain, ClaudeSubmissionCancelled, type ClaudeBackgroundEvent } from './chat-runtime/claude-session.js'
+import { ClaudeExecutionUncertain, ClaudeSubmissionCancelled, requireClaudeSubscription, type ClaudeBackgroundEvent } from './chat-runtime/claude-session.js'
 import { validateClaudeSelection, claudeSelectionOptions, type ClaudeSelection } from './chat-runtime/claude-selection.js'
 import { CUENTA_ALTERNA_NO_DISPONIBLE, dirClaudeAlterna } from './cuentas-alternas.js'
 
@@ -146,7 +147,7 @@ export async function resolveDefaultModel(_sessionId?: string): Promise<string |
       prompt: '/status',
       options: {
         cwd: PROJECT_ROOT,
-        settingSources: ['project', 'user'],
+        settingSources: fuentesDeAjustes(['project', 'user']),
         permissionMode: 'acceptEdits',
         abortController: ac,
         // Edición cliente (red team 2 C-1): sesión de metadatos, sin ganchos del proyecto. Daniel: igual.
@@ -586,7 +587,7 @@ export async function* runAgentStream(
         // Load project CLAUDE.md + skills but NOT hooks.
         // Hooks (session-end, pre-compact, knowledge-compile) are for Claude Code IDE only.
         // ClaudeClaw is a daemon — hooks would spawn recursive agent sessions.
-        settingSources: ['project', 'user'],
+        settingSources: fuentesDeAjustes(['project', 'user']),
         // Edición cliente: + guardia destructiva programática (guardia-agentes.ts). Daniel: igual que siempre.
         hooks: conGuardia(conChrome ? chromeHooks(claveConversacion(durable!.scope), evento => opsLogger.log('browser_site', source, evento)) : {}, ev => logger.warn(ev, 'guardia de agentes')),
         extraArgs: conChrome ? { chrome: null } : { 'no-chrome': null },
@@ -707,6 +708,9 @@ export async function* runAgentStream(
     const pooled = durable && !durable.live && !adopted ? claudeRuntimePool.open(durable.scope, queryOptions, message, durable.onBackground, durable.freshSession) : undefined
     const stream = adopted ? undefined : pooled?.query ?? query({ prompt: message, options: queryOptions })
     releaseTurn = pooled?.release
+    // Motor «Mi Claude Code»: la sesión del pool ya confirma la suscripción antes de enviar; la vía directa corta el
+    // turno si el CLI no corre con la cuenta de Claude de la persona (nunca se cobra por API en silencio).
+    if (stream && !pooled && motorSuscripcion()) requireClaudeSubscription(await stream.accountInfo())
     if (frozenSelection && stream) {
       await validateClaudeSelection(PROJECT_ROOT, durable!.scope.account, frozenSelection, stream)
       if (ac.signal.aborted) throw new ClaudeSubmissionCancelled('Abortado antes de enviar.')
@@ -1359,7 +1363,7 @@ export async function runAgent(
         // `permissions.allow: ["Bash(file:*)"]` which gates curl/python/gog/etc
         // behind manual approval, dead-ending non-interactive jobs. Skills
         // still load through the project's symlinked .claude/skills.
-        settingSources: isCron ? ['project'] : ['project', 'user'],
+        settingSources: isCron ? ['project'] : fuentesDeAjustes(['project', 'user']),
         // Edición cliente: la guardia también corre en crons (AUDITORIA riesgo 2). Daniel: sin hooks, como siempre.
         hooks: conGuardia({}, ev => logger.warn(ev, 'guardia de agentes (cron)'), { origen: 'cron' }),
         // ClaudeClaw daemon runs headless on Mac Mini — no UI for approvals.
@@ -1536,7 +1540,7 @@ export async function getAvailableModels(sessionId?: string): Promise<ModelInfo[
       options: {
         cwd: PROJECT_ROOT,
         ...(sessionId && { resume: sessionId }),
-        settingSources: ['project', 'user'],
+        settingSources: fuentesDeAjustes(['project', 'user']),
         permissionMode: 'acceptEdits',
         abortController: ac,
         // Edición cliente (red team 2 C-1): sesión de metadatos, sin ganchos del proyecto. Daniel: igual.

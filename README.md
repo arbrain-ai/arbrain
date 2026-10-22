@@ -185,8 +185,15 @@ A mano: `git fetch dani --tags && git switch main && git merge --ff-only dani/ma
 Cada cuenta de Claude es **individual** y se usa en **tu propio Claude Code**, con tu sesión (Pro, Max o tu asiento
 de Team). Es la forma principal de trabajar con tu cerebro.
 
-El chat dentro de Arbrain usa **tu propia llave**: OpenRouter o una API key de Anthropic, que conectas en Ajustes.
-Arbrain nunca pide, guarda ni usa credenciales de tu suscripción, y no comparte cuentas entre personas
+El chat dentro de Arbrain también puede usar **tu Claude Code**: en Ajustes › Llaves (o en el primer arranque) elige
+«Mi Claude Code». Arbrain encuentra tu `claude` con la sesión que iniciaste en tu terminal y el chat corre a través de
+él, con tu plan. Si todavía no inicias sesión: abre una terminal, escribe `claude`, entra con tu cuenta y pulsa «Ya
+inicié sesión». Con este motor Arbrain no le pasa ninguna llave de API a Claude Code (aunque tengas
+`ANTHROPIC_API_KEY` en tu sistema), así que no se cobra aparte; las rutinas automáticas no corren con tu plan.
+
+Si no tienes Pro o Max, el chat usa **tu propia llave**: OpenRouter o una API key de Anthropic, que conectas en
+Ajustes. En ningún caso Arbrain pide, ve, guarda ni reenvía credenciales de tu suscripción: el inicio de sesión es el
+de Anthropic, en tu propio Claude Code, y no se comparten cuentas entre personas
 ([condiciones de Anthropic](https://code.claude.com/docs/en/legal-and-compliance)).
 
 ## Estructura de capas

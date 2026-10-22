@@ -279,3 +279,47 @@ export async function conectarOpenRouter(op: OpcionesConexion): Promise<Resultad
   cancelado() // el intento muere también en el servidor
   return { ok: false, code: 'vencido', error: 'Pasaron más de 10 minutos. Vuelve a pulsar «Conectar con OpenRouter».' }
 }
+
+// ── «Mi Claude Code»: el chat con tu suscripción Pro o Max (21 oct 2026) ───────────────────────────────────────────
+// Arbrain no pide, ve ni guarda ningún token: el daemon pregunta a tu `claude` si tiene sesión (`claude auth status`)
+// y, si eliges este motor, lanza ese Claude Code oficial con tu sesión. Ninguna llave de API llega al CLI.
+
+export interface EstadoSuscripcion {
+  instalado: boolean
+  sesion: boolean
+  metodo?: string
+  plan?: string
+  activo: boolean
+  code?: string
+  mensaje?: string
+}
+
+/** Instaladores oficiales de Claude Code (code.claude.com/docs/en/setup). */
+export const INSTALAR_CLAUDE = {
+  unix: 'curl -fsSL https://claude.ai/install.sh | bash',
+  windows: 'irm https://claude.ai/install.ps1 | iex',
+} as const
+
+/** «Max», «Pro», «Team»… para el texto; vacío si el CLI no lo dijo. */
+export function nombrePlan(plan: string | undefined): string {
+  if (!plan) return ''
+  return plan.charAt(0).toUpperCase() + plan.slice(1).toLowerCase()
+}
+
+export async function estadoSuscripcion(fresco = false): Promise<EstadoSuscripcion | null> {
+  try {
+    const r = await fetch(`/api/llaves/suscripcion${fresco ? '?fresco=1' : ''}`, { cache: 'no-store' })
+    if (!r.ok) return null // daemon anterior a esta versión o sin edición cliente: la tarjeta no aparece
+    const j = await r.json().catch(() => null) as EstadoSuscripcion | null
+    return j && typeof j.sesion === 'boolean' ? j : null
+  } catch { return null }
+}
+
+/** Elige el motor del chat y reinicia el daemon para aplicarlo. Devuelve el estado nuevo o lanza con el porqué. */
+export async function elegirMotor(motor: 'suscripcion' | 'llave'): Promise<void> {
+  const r = await fetch('/api/llaves/motor', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ motor }), cache: 'no-store' })
+  const j = await r.json().catch(() => ({})) as { error?: string }
+  if (!r.ok) throw new Error(j.error ?? 'No pude cambiar con qué habla Levy.')
+  await daemonReiniciar()
+  await esperarDaemon(30_000)
+}

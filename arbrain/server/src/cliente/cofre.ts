@@ -24,6 +24,7 @@
  */
 import { readSync } from 'node:fs'
 import { randomBytes, timingSafeEqual } from 'node:crypto'
+import { entornoSinApi, motorSuscripcion } from './suscripcion.js'
 
 /** Secretos que solo comparten la app, su web y el daemon. */
 export const SECRETOS_APP = ['OPENCLAW_GATEWAY_TOKEN', 'ARBRAIN_TOKEN_CONFIRMAR', 'ARBRAIN_PASE_AGENTE'] as const
@@ -163,6 +164,14 @@ export function entornoClaude(base: NodeJS.ProcessEnv = process.env, cliente = t
   for (const [k, v] of Object.entries(base)) if (typeof v === 'string') env[k] = v
   if (!cliente) return env
   for (const k of [...NUNCA_EN_ENTORNO, ...RUTAS_CREDENCIALES_AJENAS]) delete env[k]
+  if (motorSuscripcion(base)) {
+    // Motor «Mi Claude Code» (cliente/suscripcion.ts): ninguna llave ni vía de API llega al CLI (si heredara
+    // ANTHROPIC_API_KEY, Claude Code cobraría por API en vez de usar el plan). La sesión la resuelve el binario solo.
+    const limpio = entornoSinApi(env)
+    limpio.CLAUDE_CODE_SUBPROCESS_ENV_SCRUB = '1'
+    limpio.CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR = '1'
+    return limpio
+  }
   // Al CLI solo su vía: la API key de Anthropic, o la de OpenRouter como ANTHROPIC_AUTH_TOKEN (solo si el daemon eligió
   // OpenRouter; nunca un token de suscripción).
   const v = cofre.get('ANTHROPIC_API_KEY')

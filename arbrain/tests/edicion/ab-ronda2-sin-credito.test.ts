@@ -66,7 +66,7 @@ test('primer arranque: la prueba de la llave llega a todo el arranque', () => {
   // Lo que no existe no lleva palomita (secundaria #3 del A/B).
   assert.match(p, /<Resumen tono="neutro">Computer use no está disponible en este sistema/)
   // La bienvenida ya no promete «Claude con tu cuenta».
-  assert.match(p, /con tu propia cuenta de IA/)
+  assert.match(p, /con tu propia cuenta: tu Claude Code/)
   assert.ok(!/Hablas con Claude con tu propia cuenta/.test(p))
   const panel = fuente('src/features/primer-arranque/components/PanelLlaves.tsx')
   assert.match(panel, /useReprobarAlVolver\(app && listo && reprobarAlVolver\(prueba\), probar\)/)

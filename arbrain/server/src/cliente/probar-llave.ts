@@ -8,6 +8,8 @@ import { estadoLlaves, MENSAJE_FALTA_LLAVE, CODIGO_FALTA_LLAVE } from './llaves.
 import { entornoClaude } from './cofre.js'
 import { esEdicionCliente } from '../edicion.js'
 import { CODIGO_SIN_SALDO, esSinSaldo } from './sin-saldo.js'
+import { CODIGO_SIN_SESION, MENSAJE_SIN_SESION, motorSuscripcion } from './suscripcion.js'
+import { requireClaudeSubscription } from '../chat-runtime/claude-session.js'
 
 export interface ResultadoPrueba { ok: boolean; ms: number; code?: string; error?: string; modelo?: string; proveedor?: string | null }
 
@@ -25,6 +27,10 @@ export async function probarLlave(op: { cwd: string; timeoutMs?: number } ): Pro
   const proveedor = estadoLlaves().proveedor
   if (!proveedor) return { ok: false, ms: 0, code: CODIGO_FALTA_LLAVE, error: MENSAJE_FALTA_LLAVE, proveedor }
   const r = await probar(op, t0)
+  // Motor «Mi Claude Code»: sin llave de por medio, el fallo de credencial es la sesión de la terminal.
+  if (proveedor === 'suscripcion' && !r.ok && (r.code === 'llave_invalida' || r.code === 'otra_via')) {
+    return { ...r, code: r.code === 'otra_via' ? 'otra_via' : CODIGO_SIN_SESION, error: r.code === 'otra_via' ? r.error : MENSAJE_SIN_SESION, proveedor }
+  }
   return { ...r, proveedor }
 }
 
@@ -42,6 +48,12 @@ async function probar(op: { cwd: string; timeoutMs?: number }, t0: number): Prom
         env: { ...entornoClaude(process.env, esEdicionCliente()), CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1', CLAUDE_CODE_MAX_RETRIES: '0' },
       },
     })
+    if (motorSuscripcion()) {
+      try { requireClaudeSubscription(await q.accountInfo()) } catch {
+        ac.abort()
+        return { ok: false, ms: Date.now() - t0, code: 'otra_via', error: 'Tu Claude Code no está usando tu cuenta de Claude (usa una llave de API u otro proveedor). En la terminal escribe `claude auth login`, entra con tu cuenta Pro o Max y vuelve.' }
+      }
+    }
     for await (const m of q as AsyncIterable<Record<string, unknown>>) {
       if (m.type === 'system' && m.subtype === 'init' && typeof m.model === 'string') modelo = m.model
       if (m.type === 'result') {

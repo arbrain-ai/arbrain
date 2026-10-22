@@ -4,6 +4,26 @@ Cada versión dice qué trae y qué tienes que hacer tú. Para actualizar, abre 
 «jala los últimos cambios». Las versiones siguen `MAYOR.MENOR.PARCHE`: un cambio en MENOR trae funciones
 nuevas; uno en PARCHE, arreglos.
 
+## v0.2.1 · 21 oct 2026 · El chat con tu suscripción de Claude
+
+**Qué trae**
+- **«Mi Claude Code» en el chat.** Si pagas Claude Pro o Max, el chat de Arbrain corre a través de tu propio Claude
+  Code, con la sesión que iniciaste en tu terminal. Sin llaves y sin pagar aparte. Lo eliges en el primer arranque o
+  en Ajustes › Llaves («Usar mi Claude Code»); si Arbrain detecta tu sesión, es la opción recomendada.
+- **Arbrain no toca tu sesión.** No la pide, no la ve y no la guarda: solo pregunta a tu `claude` si tiene sesión
+  (`claude auth status`) y lo lanza tal cual lo publica Anthropic.
+- **Sin cobros por API por accidente.** Con este motor, Claude Code no recibe tu `ANTHROPIC_API_KEY` ni tu llave de
+  OpenRouter aunque estén en tu sistema o en el llavero, y cada conversación confirma que corre con tu plan antes de
+  enviar nada.
+- Tus ajustes personales de `~/.claude` (ganchos, permisos) no entran al chat de Arbrain; solo los de tu cerebro.
+
+**Qué tienes que hacer**
+- Actualiza como siempre («jala los últimos cambios») y vuelve a arrancar (`npm run servidor`).
+- Si tienes Pro o Max: abre una terminal, escribe `claude` e inicia sesión con tu cuenta (si no lo has hecho). Luego
+  en Arbrain, Ajustes › Llaves › «Usar mi Claude Code».
+- Las rutinas automáticas no corren con tu plan (es para tu uso directo). Si las quieres, deja también una llave y
+  elige «Usar una llave en su lugar».
+
 ## v0.2.0 · 21 oct 2026 · Arbrain por GitHub
 
 La primera versión de Arbrain como repositorio público con el código completo, en lugar de un archivo descargable.

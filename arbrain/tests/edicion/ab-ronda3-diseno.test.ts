@@ -17,7 +17,7 @@ test('1 · jerarquía: sin llave o sin crédito, seguir de largo es secundario; 
   assert.match(p, /className=\{`\$\{botonDiscreto \? 'btn-secondary' : 'btn-primary'\} min-h-11/)
   // Lo recomendado sigue primario: «Conectar con OpenRouter» sin llave y «Recargar» sin crédito.
   const panel = fuente('src/features/primer-arranque/components/PanelLlaves.tsx')
-  assert.match(panel, /<ConectarOpenRouter principal=\{!listo\}/)
+  assert.match(panel, /<ConectarOpenRouter principal=\{!listo && !sub\.estado\?\.sesion\}/)
   assert.match(panel, /className="btn-primary[^"]*" onClick=\{[^\n]*RECARGAR\[cobra\]/)
 })
 

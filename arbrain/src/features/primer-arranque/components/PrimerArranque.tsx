@@ -43,7 +43,7 @@ export function PrimerArranque() {
   const llavesListas = llaves.listo
   // La prueba de la llave vive aquí: el panel la llena y «Listo» la lee (y la repite).
   const pruebaLlave = usePruebaConexion()
-  const sinCredito = llavesListas && reprobarAlVolver(pruebaLlave.prueba)
+  const sinCredito = llavesListas && llaves.motor !== 'suscripcion' && reprobarAlVolver(pruebaLlave.prueba)
   const [sandbox, setSandbox] = useState<EstadoSandbox | null>(null)
   const [monitoreo, setMonitoreo] = useState(false)
   // ¿Este build tiene a dónde enviar el monitoreo? Sin destino (o sin respuesta del daemon) el paso no se muestra.
@@ -134,7 +134,7 @@ export function PrimerArranque() {
             <p className="mx-auto mt-2 max-w-[440px] text-[15px] leading-relaxed text-muted">Tu cerebro artificial. Vive en tu computadora, aprende cómo trabajas y te ayuda a decidir y a ejecutar.</p>
             <ul className="mx-auto mt-6 grid max-w-[460px] gap-2.5 text-left">
               <Punto icono={<HardDrive className="size-4" />} titulo="Es tuyo">Tu memoria, tus conversaciones y tus archivos se quedan en esta computadora.</Punto>
-              <Punto icono={<KeyRound className="size-4" />} titulo="Con tus llaves">Levy trabaja con tu propia cuenta de IA. Las llaves van al llavero del sistema.</Punto>
+              <Punto icono={<KeyRound className="size-4" />} titulo="Con tus llaves">Levy trabaja con tu propia cuenta: tu Claude Code (Pro o Max) o tu llave, que va al llavero del sistema.</Punto>
               <Punto icono={<ShieldCheck className="size-4" />} titulo="Bajo tu mando">Antes de enviar, pagar, borrar o publicar, Levy te pide un clic.</Punto>
             </ul>
             <label className="mx-auto mt-6 block max-w-[320px] text-left">
@@ -157,7 +157,7 @@ export function PrimerArranque() {
 
         {paso === 'llaves' && (
           <div>
-            <Encabezado refTitulo={titulo} titulo="Conecta a Levy con un modelo" sub="Un clic con tu cuenta de OpenRouter: inicias sesión en tu navegador y vuelves. Si prefieres pegar una llave, está en «Otras formas»." />
+            <Encabezado refTitulo={titulo} titulo="Conecta a Levy con un modelo" sub="Si ya pagas Claude Pro o Max, usa tu Claude Code. Si no, un clic con tu cuenta de OpenRouter; para pegar una llave, «Otras formas»." />
             <PanelLlaves onEstado={setLlaves} control={pruebaLlave} />
             {!llavesListas && <p className="mt-3 text-[12.5px] text-muted">Puedes seguir sin llave y ponerla después en Ajustes › Llaves; Levy no podrá responder hasta entonces.</p>}
           </div>
@@ -192,6 +192,7 @@ export function PrimerArranque() {
               <Resumen tono="ok">Aviso de privacidad, términos y licencia aceptados</Resumen>
               {!llavesListas ? <Resumen tono="alerta">Sin llave todavía: ponla en Ajustes › Llaves</Resumen>
                 : sinCredito ? <Resumen tono="alerta"><b className="font-semibold">Conectado, falta crédito.</b> Levy no podrá responder hasta que recargues.</Resumen>
+                : llaves.motor === 'suscripcion' ? <Resumen tono="ok">{pruebaLlave.prueba?.ok ? 'Levy conectado y probado con tu Claude Code' : 'Levy conectado con tu Claude Code (tu suscripción)'}</Resumen>
                 : <Resumen tono="ok">{pruebaLlave.prueba?.ok ? 'Levy conectado y probado con tu cuenta' : 'Levy conectado con tu llave'}</Resumen>}
               {cu.disponible
                 ? <Resumen tono="ok">{computerUse ? 'Computer use encendido por esta apertura; lo irreversible te pide tu clic' : 'Computer use apagado: lo enciendes en Ajustes › Esta computadora'}</Resumen>

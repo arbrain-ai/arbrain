@@ -5,7 +5,11 @@
  * error claro en vez de dejar que el CLI falle con un 401 críptico o busque credenciales ajenas.
  */
 import { esEdicionCliente } from '../edicion.js'
-import { proveedorClaude } from './proveedor.js'
+import { proveedorClaude, type ProveedorClaude } from './proveedor.js'
+import { motorSuscripcion } from './suscripcion.js'
+
+/** Quién atiende el chat: una llave (Anthropic u OpenRouter) o la suscripción de la persona en su Claude Code. */
+export type ProveedorChat = ProveedorClaude | 'suscripcion'
 import { vistaConLlaves } from './cofre.js'
 
 // A/B del primer arranque, ronda 2: «inicia sesión con Claude» ya no existe; el camino es «Conectar con OpenRouter».
@@ -16,10 +20,14 @@ const tiene = (env: NodeJS.ProcessEnv, k: string) => typeof env[k] === 'string' 
 
 /** Por defecto mira el entorno más las llaves del cofre (contrato v2: no viven en process.env). */
 export function estadoLlaves(env: NodeJS.ProcessEnv = vistaConLlaves()) {
-  const proveedor = proveedorClaude(env)
   const anthropic = tiene(env, 'ANTHROPIC_API_KEY')
+  const openrouter = tiene(env, 'OPENROUTER_API_KEY')
+  // Motor «Mi Claude Code» (cliente/suscripcion.ts): el chat corre con la sesión de la persona; sus llaves, si las
+  // tiene, se quedan sin usar. Si la sesión no existe, el CLI lo dice en el turno y el chat lo traduce.
+  if (motorSuscripcion(env)) return { anthropic, openrouter, chat: true, proveedor: 'suscripcion' as ProveedorChat }
+  const proveedor: ProveedorChat | null = proveedorClaude(env)
   // Con solo OpenRouter el chat también corre (cliente/proveedor.ts).
-  return { anthropic, openrouter: tiene(env, 'OPENROUTER_API_KEY'), chat: proveedor !== null, proveedor }
+  return { anthropic, openrouter, chat: proveedor !== null, proveedor }
 }
 
 /** ¿Hay que frenar un turno de Claude por falta de llave? Solo en la edición cliente; Daniel usa su login de siempre. */

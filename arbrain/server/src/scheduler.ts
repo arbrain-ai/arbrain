@@ -21,6 +21,7 @@ import { readEnvFile } from './env.js'
 import { esEdicionCliente } from './edicion.js'
 import { carpetaOriginal } from './dueno.js'
 import { faltaLlaveClaude, MENSAJE_FALTA_LLAVE } from './cliente/llaves.js'
+import { motorSuscripcion, MENSAJE_RUTINAS } from './cliente/suscripcion.js'
 import { MENSAJE_PAUSA, pausado } from './cliente/pausa.js'
 
 let schedulerInterval: ReturnType<typeof setInterval> | null = null
@@ -122,6 +123,8 @@ export async function executeCronJob(task: ScheduledTask, opts?: { manual?: bool
     // Edición cliente: ningún script de Daniel (python3/bash) aunque una tarea del alumno se llame igual.
     const rawScript = esEdicionCliente() ? undefined : RAW_SCRIPT_JOBS[task.id]
     if (!rawScript && faltaLlaveClaude()) throw new Error(MENSAJE_FALTA_LLAVE)
+    // Motor «Mi Claude Code»: el plan de la persona es para su uso directo; las rutinas en segundo plano no lo gastan.
+    if (!rawScript && motorSuscripcion()) throw new Error(MENSAJE_RUTINAS)
     if (esEdicionCliente() && pausado()) throw new Error(MENSAJE_PAUSA)
     if (rawScript) {
       // Script directo: sin capa de agente externa no hay OAuth/limits/timeout ajenos.

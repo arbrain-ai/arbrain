@@ -743,6 +743,29 @@ async function rutasCliente(req: IncomingMessage, res: ServerResponse, ruta: str
     sendJSON(res, 200, await probarLlave({ cwd: process.env.ARBRAIN_DATA_DIR || PROJECT_ROOT }))
     return true
   }
+  if (req.method === 'GET' && ruta === '/llaves/suscripcion') {
+    // Motor «Mi Claude Code» (cliente/suscripcion.ts): ¿hay `claude` con sesión de suscripción? Solo método y plan;
+    // ni correo ni token. `?fresco=1` = botón «Ya inicié sesión».
+    const { detectarSuscripcion } = await import('./cliente/suscripcion.js')
+    const fresco = /[?&]fresco=1\b/.test(req.url ?? '')
+    sendJSON(res, 200, await detectarSuscripcion({ fresco }))
+    return true
+  }
+  if (req.method === 'POST' && ruta === '/llaves/motor') {
+    // Elegir el motor del chat. Se aplica al reiniciar el daemon (la app lo reinicia al recibir `reiniciar: true`).
+    const { detectarSuscripcion, guardarMotorElegido } = await import('./cliente/suscripcion.js')
+    const motor = cuerpo.motor
+    if (motor !== 'suscripcion' && motor !== 'llave') { sendJSON(res, 400, { error: 'motor debe ser «suscripcion» o «llave»' }); return true }
+    if (motor === 'suscripcion') {
+      const d = await detectarSuscripcion({ fresco: true })
+      if (!d.sesion) { sendJSON(res, 409, { error: d.mensaje ?? 'Tu Claude Code no tiene sesión iniciada.', code: d.code ?? 'sin_sesion', estado: d }); return true }
+    }
+    const dir = process.env.ARBRAIN_CONFIG_DIR
+    if (!dir) { sendJSON(res, 500, { error: 'Falta la carpeta de configuración del daemon.' }); return true }
+    guardarMotorElegido(dir, motor)
+    sendJSON(res, 200, { ok: true, motor, reiniciar: true })
+    return true
+  }
   if (req.method === 'POST' && ruta === '/voz/probar') {
     // Ajustes › Voz (21 oct 2026): ¿la llave de Groq que entregó la app funciona? Solo la app (el pase no abre esta ruta).
     sendJSON(res, 200, await probarLlaveVoz(llaveVoz()))
@@ -949,7 +972,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     if (esEdicionCliente()) {
       let workspace = false
       try { workspace = statSync(PROJECT_ROOT).isDirectory() } catch { /* no existe */ }
-      sendJSON(res, 200, { ok: true, role: CLAUDECLAW_ROLE, pid: process.pid, edicion: 'cliente', contrato: CONTRATO_DAEMON, proveedor: estadoLlaves().proveedor, llaves: estadoLlaves(), voz: { groq: !!llaveVoz() }, workspace, sandbox: sandboxActivo() })
+      sendJSON(res, 200, { ok: true, role: CLAUDECLAW_ROLE, pid: process.pid, edicion: 'cliente', contrato: CONTRATO_DAEMON, proveedor: estadoLlaves().proveedor, motor: estadoLlaves().proveedor === 'suscripcion' ? 'suscripcion' : 'llave', llaves: estadoLlaves(), voz: { groq: !!llaveVoz() }, workspace, sandbox: sandboxActivo() })
       return
     }
     sendJSON(res, 200, { ok: true, role: CLAUDECLAW_ROLE, host: hostname(), pid: process.pid })
