@@ -108,7 +108,18 @@ Necesitas **Git**, **Node 22** o más nuevo, **Python 3** y, para el camino reco
 
 ### Camino 1 · Con Claude Code (recomendado)
 
-Abre Claude Code en tu carpeta personal y pega esto:
+Abre Claude Code en tu carpeta personal y pega esta línea:
+
+```text
+Instala Arbrain siguiendo https://github.com/arbrain-ai/arbrain/blob/main/INSTALAR.md
+```
+
+Tu Claude revisa tu equipo, respalda lo que ya tengas (la app 0.1.x, tu Business OS o tu propio repo) y lo trae a tu
+capa sin borrar nada, clona Arbrain, lo arranca y te guía con tu llave, tu voz, tu meta y tu primer hábito. El guion
+completo está en [`INSTALAR.md`](INSTALAR.md).
+
+<details>
+<summary>Alternativa: el prompt corto, pegado completo</summary>
 
 ```text
 Instala Arbrain, mi cerebro artificial, desde https://github.com/arbrain-ai/arbrain en ~/Arbrain.
@@ -131,6 +142,8 @@ cada comando, dime en una línea qué hace.
 7. Pregúntame mi meta del mes, de la semana y de hoy, y escríbelas en
    .claude/plan/objetivos.md.
 ```
+
+</details>
 
 ### Camino 2 · Manual
 
