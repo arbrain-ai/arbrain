@@ -6,14 +6,16 @@
  */
 import { esEdicionCliente } from '../edicion.js'
 import { proveedorClaude, type ProveedorClaude } from './proveedor.js'
-import { motorSuscripcion } from './suscripcion.js'
+import { conectarSuscripcionSiHay, motorSuscripcion } from './suscripcion.js'
 
 /** Quién atiende el chat: una llave (Anthropic u OpenRouter) o la suscripción de la persona en su Claude Code. */
 export type ProveedorChat = ProveedorClaude | 'suscripcion'
 import { vistaConLlaves } from './cofre.js'
+import { INICIO_FALTA_LLAVE } from './sin-saldo.js'
 
-// A/B del primer arranque, ronda 2: «inicia sesión con Claude» ya no existe; el camino es «Conectar con OpenRouter».
-export const MENSAJE_FALTA_LLAVE = 'Falta conectar tu cuenta de IA. Abre Ajustes › Llaves y pulsa «Conectar con OpenRouter» (o pega tu llave en «Otras formas»).'
+// Prueba en Windows del 22 oct 2026 (punto 11): sin llave ni sesión, el chat dice cómo conectarse, nunca un error crudo.
+// Empieza con `INICIO_FALTA_LLAVE` (cliente/sin-saldo.ts): la web lo reconoce y ofrece el atajo a Ajustes › Llaves.
+export const MENSAJE_FALTA_LLAVE = `${INICIO_FALTA_LLAVE} Abre Ajustes › Llaves: si pagas Claude Pro o Max, pulsa «Iniciar sesión con Claude»; si no, «Conectar con OpenRouter».`
 export const CODIGO_FALTA_LLAVE = 'falta_llave'
 
 const tiene = (env: NodeJS.ProcessEnv, k: string) => typeof env[k] === 'string' && env[k]!.trim().length > 0
@@ -33,4 +35,15 @@ export function estadoLlaves(env: NodeJS.ProcessEnv = vistaConLlaves()) {
 /** ¿Hay que frenar un turno de Claude por falta de llave? Solo en la edición cliente; Daniel usa su login de siempre. */
 export function faltaLlaveClaude(env: NodeJS.ProcessEnv = vistaConLlaves()): boolean {
   return esEdicionCliente(env) && !estadoLlaves(env).chat
+}
+
+/**
+ * Como `faltaLlaveClaude`, pero antes intenta conectar solo el Claude Code de la persona si ya tiene sesión (y nunca
+ * eligió «usar una llave»). Así, quien inició sesión en su terminal o con el botón no tiene que volver a Ajustes: su
+ * siguiente mensaje ya sale con su plan. Sin llave y sin sesión, sigue faltando y el chat lo dice claro.
+ */
+export async function faltaLlaveTrasConectar(): Promise<boolean> {
+  if (!faltaLlaveClaude()) return false
+  try { await conectarSuscripcionSiHay({ sinLlave: true, configDir: process.env.ARBRAIN_CONFIG_DIR }) } catch { /* sigue faltando */ }
+  return faltaLlaveClaude()
 }

@@ -17,8 +17,9 @@ describe('sin crédito', () => {
 })
 
 describe('aviso de llave faltante', () => {
-  it('apunta a «Conectar con OpenRouter» y no a una opción que ya no existe', () => {
-    expect(MENSAJE_FALTA_LLAVE).not.toMatch(/inicia sesión con Claude/i)
+  // 22 oct 2026: «Iniciar sesión con Claude» volvió como botón (login oficial del CLI de la persona, sin tokens en Arbrain).
+  it('apunta a Ajustes › Llaves con sus dos caminos', () => {
+    expect(MENSAJE_FALTA_LLAVE).toMatch(/Iniciar sesión con Claude/)
     expect(MENSAJE_FALTA_LLAVE).toMatch(/Conectar con OpenRouter/)
     expect(MENSAJE_FALTA_LLAVE).toMatch(/Ajustes › Llaves/)
   })

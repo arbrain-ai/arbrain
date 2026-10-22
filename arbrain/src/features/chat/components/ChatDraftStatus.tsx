@@ -66,7 +66,11 @@ export function ChatDraftStatus({ owner, account, conversationId, sendingTurnId,
       const selected = await refreshSelection(scopeFor(envelope))
       shownRef.current = { ...shownRef.current, [item.id]: { ...selected, conversationId: envelope.chatSessionId, ...(envelope.effort ? { effort: envelope.effort } : {}) } }
       setChoices(shownRef.current)
-    } catch (e) { setError(e instanceof Error ? e.message : 'No se pudieron consultar los ajustes.') }
+    } catch (e) {
+      // Sin llave ni sesión (22 oct 2026): el turno ya lo dice con su atajo a Ajustes › Llaves; aquí no se repite.
+      if ((e as { code?: unknown } | null)?.code === 'falta_llave') return
+      setError(e instanceof Error ? e.message : 'No se pudieron consultar los ajustes.')
+    }
     finally { previewing.current.delete(item.id); if (announce) setBusy(null) }
   }, [owner, scopeFor])
   useEffect(() => {

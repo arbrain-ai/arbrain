@@ -6,7 +6,8 @@
 #   2. Empaqueta el código fuente de la etiqueta (git archive), genera los SBOM CycloneDX de la web y del daemon a partir
 #      de sus package-lock (sin instalar nada) y SHA256SUMS.
 #   3. Atestigua procedencia (SLSA, Sigstore) del paquete y los SBOM, y adjunta todo al release de la versión. Si el
-#      release ya existe y es inmutable, solo deja la atestación (que vive aparte del release).
+#      release está en borrador (v0.2.7: ya trae el programa compilado por plataforma), lo publica; si ya existe y es
+#      inmutable, solo deja la atestación (que vive aparte del release).
 # Verificar: gh attestation verify arbrain-vX.Y.Z.tar.gz --repo arbrain-ai/arbrain
 name: procedencia
 on:
@@ -83,7 +84,13 @@ jobs:
           ETIQUETA: ${{ inputs.etiqueta || github.ref_name }}
         run: |
           set -euo pipefail
-          if gh release view "$ETIQUETA" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+          # v0.2.7: publicar-version.sh deja el release en BORRADOR con el programa ya compilado de cada plataforma antes
+          # de empujar la etiqueta. Aquí se le adjunta el código fuente y se publica (al publicarse queda inmutable).
+          borrador="$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=30" --jq "[.[] | select(.draft and .tag_name == \"$ETIQUETA\")][0].id // empty")"
+          if [ -n "$borrador" ]; then
+            gh release upload "$ETIQUETA" -R "$GITHUB_REPOSITORY" salida/*
+            gh release edit "$ETIQUETA" -R "$GITHUB_REPOSITORY" --draft=false --latest
+          elif gh release view "$ETIQUETA" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$ETIQUETA" -R "$GITHUB_REPOSITORY" salida/* \
               || echo "::warning::el release $ETIQUETA ya existe y es inmutable: la atestación queda, los archivos no se adjuntan"
           else

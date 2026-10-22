@@ -18,7 +18,7 @@ import { query, type Query, type ModelInfo, type SessionMessage, type Options } 
 import { readSessionMessages } from './chat-runtime/claude-transcript.js'
 import os from 'node:os'
 import path from 'node:path'
-import { PROJECT_ROOT, STORE_DIR, AGENT_TIMEOUT_MS, CHAT_STREAM_HARD_CAP_MS, DEFAULT_ACCOUNT_CONFIG_DIR } from './config.js'
+import { PROJECT_ROOT, STORE_DIR, AGENT_TIMEOUT_MS, CHAT_STREAM_HARD_CAP_MS, defaultAccountConfigDir } from './config.js'
 import { logger } from './logger.js'
 import { opsLogger } from './ops-logger.js'
 import { claudeRuntimePool, type ClaudeTurnScope } from './chat-runtime/claude-pool.js'
@@ -44,7 +44,7 @@ const accountConfigDirs = (): Record<string, string> => {
  *  (~/.claude). Lo usa el daemon para
  *  listar/leer transcripts del pool correcto por cuenta. */
 export function configDirForAccount(account?: string): string | undefined {
-  return account ? accountConfigDirs()[account] : DEFAULT_ACCOUNT_CONFIG_DIR
+  return account ? accountConfigDirs()[account] : defaultAccountConfigDir()
 }
 
 // Modelo — piezas separadas (fix del bug "/model → default", fase 2 paso 3):
@@ -446,7 +446,7 @@ export async function* runAgentStream(
   // apuntamos el CLI a su config dir (Keychain/OAuth aislados). Sin override, el
   // SDK usa el ~/.claude del daemon (Daniel). delete explícito = blindaje por si
   // el daemon heredara CLAUDE_CONFIG_DIR del entorno.
-  const accountConfigDir = account ? accountConfigDirs()[account] : DEFAULT_ACCOUNT_CONFIG_DIR
+  const accountConfigDir = account ? accountConfigDirs()[account] : defaultAccountConfigDir()
   // Edición cliente: la cuenta alterna no existe; nunca se cae a otra carpeta en silencio.
   if (account === 'bro' && !accountConfigDir) throw new Error(CUENTA_ALTERNA_NO_DISPONIBLE)
   // Edición cliente (contrato v2): llaves solo para el CLI y scrub para Bash/hooks/MCP (cliente/cofre.ts). Daniel: igual.

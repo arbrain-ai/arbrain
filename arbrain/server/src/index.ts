@@ -120,6 +120,8 @@ async function main(): Promise<void> {
     stopScheduler()
     clearInterval(decayInterval)
     releaseLock()
+    // Un «Iniciar sesión con Claude» a medias no queda huérfano escuchando en 127.0.0.1.
+    try { (await import('./cliente/suscripcion.js')).cancelarLoginClaude() } catch { /* nada que cerrar */ }
 
     logger.info('goodbye')
     process.exit(0)

@@ -3,7 +3,7 @@ import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { homedir } from 'node:os'
 import path from 'node:path'
-import { DEFAULT_ACCOUNT_CONFIG_DIR } from '../config.js'
+import { defaultAccountConfigDir } from '../config.js'
 import { randomUUID } from 'node:crypto'
 import { createRequire } from 'node:module'
 import { pathToFileURL } from 'node:url'
@@ -64,7 +64,7 @@ export async function readClaudeSettings(cwd: string, account: string): Promise<
   if (!['default', 'bro'].includes(account)) throw new Error('Unknown Claude account')
   const env = { ...process.env }
   if (account === 'bro') env.CLAUDE_CONFIG_DIR = dirClaudeAlternaO()
-  else if (DEFAULT_ACCOUNT_CONFIG_DIR) env.CLAUDE_CONFIG_DIR = DEFAULT_ACCOUNT_CONFIG_DIR
+  else if (defaultAccountConfigDir()) env.CLAUDE_CONFIG_DIR = defaultAccountConfigDir()
   else delete env.CLAUDE_CONFIG_DIR
   const code = `const {resolveSettings}=await import(process.argv[1]);const r=await resolveSettings({cwd:process.argv[2],settingSources:['project','user']});const summarize=(${summarizeClaudeSettings.toString()});console.log(JSON.stringify(summarize(r,process.env)));`
   const sdkUrl = pathToFileURL(createRequire(import.meta.url).resolve('@anthropic-ai/claude-agent-sdk')).href

@@ -9,5 +9,5 @@ export async function GET(request: Request) {
   const no = await soloAppCliente()
   if (no) return no
   const fresco = new URL(request.url).searchParams.get('fresco') === '1'
-  return alDaemon(`/llaves/suscripcion${fresco ? '?fresco=1' : ''}`, { plazoMs: 20_000 })
+  return alDaemon(`/llaves/suscripcion${fresco ? '?fresco=1' : ''}`, { plazoMs: 60_000 })
 }

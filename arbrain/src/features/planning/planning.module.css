@@ -160,7 +160,11 @@
 .diaInicial,.diaApilado { display:contents; }
 
 /* Barra angosta (una línea): Hoy · ‹ › · «octubre ▾» (abre el selector de vista) · + */
-.barra { position:relative; display:flex; align-items:center; gap:2px; padding:5px 8px; min-height:42px; border-bottom:1px solid var(--plan-line); }
+/* Nunca se corta (22 oct 2026, prueba de Windows: «Día/Semana/Mes se salen de la vista»; Segoe UI es más ancha, las barras de
+   desplazamiento ocupan lugar y el zoom de 125 % angosta la ventana). Si a la fecha no le quedan ~7rem, la escala, el «+» y el engrane
+   bajan a una segunda fila, pegados a la derecha; nada se encoge por debajo de su tamaño. */
+.barra { position:relative; flex-shrink:0; display:flex; flex-wrap:wrap; align-items:center; gap:2px; row-gap:4px; padding:5px 8px; min-height:42px; min-width:0; border-bottom:1px solid var(--plan-line); }
+.barra > * { flex-shrink:0; }
 .barra[data-ancho] { padding:6px 18px; }
 /* Pegada arriba (ronda 3, 10 oct 2026, Daniel: «que se quede fijo o estático en la pantalla»): la raíz es la que desplaza; la barra se
    queda y, debajo, los días de la Semana (`--plan-pegado`). Fondo opaco para que las horas pasen por debajo sin transparentarse. */
@@ -169,14 +173,15 @@
 /* Ya estás en hoy: el botón se apaga (sigue a un toque). La fecha de al lado dice cuál día es. */
 .barra .today[data-en-hoy] { color:var(--muted); border-color:transparent; background:transparent; }
 .barra .iconButton { width:28px; height:28px; border-radius:50%; }
-.vistaWrap { flex:1 1 0; min-width:0; display:flex; }
+.vistaWrap { flex:1 1 7rem; min-width:0; display:flex; }
+.barra > .vistaWrap { flex-shrink:1; }
 .vistaTitulo { display:inline-flex; align-items:center; gap:3px; max-width:100%; min-width:0; height:28px; padding:0 7px; border:0; border-radius:8px; background:transparent; color:var(--foreground); font:inherit; font-size:15px; font-weight:600; letter-spacing:-.2px; cursor:pointer; }
 .vistaTitulo:hover,.vistaTitulo[aria-expanded=true] { background:var(--card-hover); }
 .vistaTitulo span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .vistaTitulo span::first-letter { text-transform:uppercase; }
 .vistaTitulo svg { flex-shrink:0; color:var(--muted); }
 /* Escala: cuatro letras en una cápsula mínima. La activa, una pastilla tenue; nada de morado lleno. */
-.escala { flex:0 0 auto; display:flex; gap:1px; padding:2px; margin:0 2px; border-radius:999px; background:color-mix(in srgb,var(--foreground) 5%,transparent); }
+.escala { flex:0 0 auto; display:flex; gap:1px; padding:2px; margin:0 2px 0 auto; border-radius:999px; background:color-mix(in srgb,var(--foreground) 5%,transparent); }
 .escala button { width:24px; height:22px; padding:0; border:0; border-radius:999px; background:transparent; color:var(--muted); font:inherit; font-size:11px; font-weight:650; cursor:pointer; transition:background 160ms, color 160ms; }
 .escala button:hover { color:var(--foreground); }
 .escala button[aria-selected=true] { background:var(--surface-elevated,var(--surface)); color:var(--foreground); box-shadow:0 1px 2px #0000001f, 0 0 0 .5px var(--plan-line); }

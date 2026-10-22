@@ -77,7 +77,8 @@ export function refreshSelection(scope: SelectionScope): Promise<ChatIntent> {
   const promise = (async () => {
     const response = await fetch(`/api/chat/selection?${params}`, { signal: AbortSignal.timeout(25_000), cache: 'no-store' })
     const data = await response.json().catch(() => null)
-    if (!response.ok) throw new Error(data?.error ?? 'No se pudieron consultar los ajustes.')
+    // El código viaja con el error (22 oct 2026): `falta_llave` no es un borrador por confirmar, es «conecta tu modelo».
+    if (!response.ok) throw Object.assign(new Error(data?.error ?? 'No se pudieron consultar los ajustes.'), { code: typeof data?.code === 'string' ? data.code : undefined })
     const intent = validate(data?.intent, scope)
     if ((revisions.get(key) ?? 0) !== revision) throw new Error('Los ajustes cambiaron durante la consulta.')
     memory.set(key, intent)

@@ -9,6 +9,11 @@
  *   npm run servidor -- detener              apaga el servidor que esté corriendo
  *   npm run servidor -- contrasena [--nueva] muestra (o cambia) la contraseña para entrar desde otro navegador
  *   npm run servidor -- arranque-automatico activar|desactivar|estado
+ *   npm run servidor -- empaquetar --salida <carpeta>   (CI) arma el programa ya compilado de esta plataforma
+ *
+ * Programa ya compilado (v0.2.7): si la versión publicada trae el programa de esta plataforma, se baja, se verifica con
+ * la etiqueta firmada y se usa en vez de instalar dependencias y compilar (scripts/servidor/programa.mjs). Si no se puede,
+ * se compila como antes.
  *
  * Opciones: --datos <carpeta> · --puerto <n> · --cerebro <carpeta> · --sin-navegador · --compilar (fuerza compilar)
  *           · --repo-original (permite correrlo en el repo de Daniel, que no trae el marcador `arbrain/EDICION`).
@@ -34,6 +39,7 @@ import {
   PUERTO_WEB_POR_DEFECTO, puertoValido, RESERVADOS, rutasDe, secreto,
 } from './servidor/rutas.mjs'
 import { PRELUDIO_WEB } from './servidor/preludio-web.mjs'
+import { armarPaquete, programaYaCompilado } from './servidor/programa.mjs'
 
 const ARBRAIN = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const SERVER = join(ARBRAIN, 'server')
@@ -46,7 +52,7 @@ const HOST = '127.0.0.1'
 const argv = process.argv.slice(2)
 const opcion = (n) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : undefined }
 const bandera = (n) => argv.includes(n)
-const CON_VALOR = new Set(['--datos', '--puerto', '--cerebro'])
+const CON_VALOR = new Set(['--datos', '--puerto', '--cerebro', '--salida'])
 const posicionales = argv.filter((a, i) => !a.startsWith('--') && !CON_VALOR.has(argv[i - 1]))
 const orden = posicionales[0] ?? 'iniciar'
 
@@ -196,7 +202,7 @@ function huella(rutas) {
 function instalarEn(dir) {
   const orden = existsSync(join(dir, 'package-lock.json')) ? 'ci' : 'install'
   if (orden === 'install') registrar(`Aviso: ${dir} no trae package-lock.json; uso npm install.`)
-  return { orden, codigo: correrNpm([orden, '--include=dev', '--no-audit', '--no-fund'], dir) }
+  return { orden, codigo: correrNpm([orden, '--include=dev', '--no-audit', '--no-fund', '--loglevel=error'], dir) }
 }
 
 function instalarDependencias() {
@@ -260,11 +266,11 @@ function compilarDaemon(forzar) {
 
 // ── Procesos ──────────────────────────────────────────────────────────────────────────────────────────────────────
 
-/** PATH con el Node que corre esto primero (lo que el daemon lance como `node` usa el mismo). */
+/** PATH con el Node del programa primero (lo que el daemon lance como `node` usa el mismo) y luego el del sistema. */
 function conPath(env) {
   const clave = Object.keys(env).find((k) => k.toUpperCase() === 'PATH') ?? 'PATH'
   const o = { ...env }
-  o[clave] = [dirname(process.execPath), env[clave] ?? ''].filter(Boolean).join(delimiter)
+  o[clave] = [...new Set([dirname(S.node), dirname(process.execPath)])].concat(env[clave] ?? '').filter(Boolean).join(delimiter)
   return o
 }
 
@@ -276,7 +282,7 @@ function abrirLog(nombre) {
 
 function lanzarHijo(nombre, args, cwd, env, linea) {
   const log = abrirLog(`${nombre}.log`)
-  const hijo = spawn(process.execPath, args, { cwd, env, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true })
+  const hijo = spawn(S.node, args, { cwd, env, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true })
   const escribir = (c) => { try { appendFileSync(log, c) } catch { /* */ } }
   hijo.stdout.on('data', escribir)
   hijo.stderr.on('data', escribir)
@@ -291,6 +297,8 @@ const S = {
   daemon: null, web: null,
   puertoWeb: 0, puertoDaemon: 0, puertoControl: 0,
   secretos: null, contrasena: '', tokenCli: '', daemonDir: '', home: '',
+  // Node con el que corren daemon y web: el del programa ya compilado (su ABI) o, si se compiló aquí, este mismo.
+  node: process.execPath, webDir: STANDALONE,
   reinicios: { daemon: [], web: [] },
   ultimoError: null, reiniciando: false, pausado: { daemon: false, web: false },
   tickets: new Map(),
@@ -311,6 +319,11 @@ function entornoComun() {
   }
 }
 
+/** VERSION de la copia (la de la etiqueta vX.Y.Z); vacío si no existe. */
+function versionRepo() {
+  try { return readFileSync(join(REPO, 'VERSION'), 'utf8').trim() } catch { return '' }
+}
+
 function versionArbrain() {
   try { return String(JSON.parse(readFileSync(join(ARBRAIN, 'package.json'), 'utf8')).version ?? '') } catch { return '' }
 }
@@ -326,7 +339,7 @@ function lanzarDaemon() {
     MISSION_CONTROL_ORIGIN: `http://${HOST}:${S.puertoWeb}`,
     CLAUDECLAW_ROLE: 'full',
     CLAUDE_CONFIG_DIR: R.claude,
-    ARBRAIN_NODE_BINARY: process.execPath,
+    ARBRAIN_NODE_BINARY: S.node,
   }
   const linea = lineaSecretos({
     OPENCLAW_GATEWAY_TOKEN: S.secretos.daemon,
@@ -365,7 +378,7 @@ function lanzarWeb() {
     ARBRAIN_PASE_AGENTE: S.secretos.pase,
     ARBRAIN_MOTOR_TOKEN: S.secretos.motor,
   })
-  S.web = lanzarHijo('web', ['-e', PRELUDIO_WEB, 'server.js'], STANDALONE, env, linea)
+  S.web = lanzarHijo('web', ['-e', PRELUDIO_WEB, 'server.js'], S.webDir, env, linea)
   vigilar('web', S.web)
 }
 
@@ -394,7 +407,7 @@ function apagarHuerfano() {
   const pid = Number.parseInt((() => { try { return readFileSync(join(R.store, 'claudeclaw.pid'), 'utf8') } catch { return '' } })().trim(), 10)
   if (!Number.isInteger(pid) || pid <= 1 || pid === process.pid) return
   const cmd = spawnSync('ps', ['-o', 'command=', '-p', String(pid)], { encoding: 'utf8' }).stdout ?? ''
-  if (!cmd.includes(join(R.programa, 'daemon-'))) return
+  if (!cmd.includes(R.programa)) return
   registrar(`Daemon huérfano de una corrida anterior (pid ${pid}): se apaga.`)
   try { process.kill(pid, 'SIGTERM') } catch { return }
   const fin = Date.now() + 6000
@@ -572,9 +585,16 @@ async function iniciar() {
     return
   }
 
-  instalarDependencias()
-  await compilarWeb(bandera('--compilar'))
-  S.daemonDir = compilarDaemon(bandera('--compilar'))
+  const listo = bandera('--compilar') ? null : await programaYaCompilado({ repo: REPO, dirProgramas: R.programa, version: versionRepo(), avisar: registrar })
+  if (listo) {
+    S.webDir = listo.web
+    S.daemonDir = listo.daemon
+    S.node = listo.node
+  } else {
+    instalarDependencias()
+    await compilarWeb(bandera('--compilar'))
+    S.daemonDir = compilarDaemon(bandera('--compilar'))
+  }
   S.home = resolverCerebro()
   privada(S.home)
   // Igual que la app (`desktop_env::mark_client_edition`): la marca de edición vive en SU configuración, nunca en ~/.config/arbrain.
@@ -655,8 +675,22 @@ async function sembrarLienzos() {
   escribirPrivado(marca, JSON.stringify({ lienzos: hechos, actualizado: ahora() }, null, 1) + '\n')
 }
 
+/** CI: compila aquí y arma el paquete del programa ya compilado de esta plataforma (programa.yml). */
+async function empaquetar() {
+  const salida = resolve(opcion('--salida') ?? 'salida-programa')
+  const version = versionRepo()
+  if (!/^\d+\.\d+\.\d+$/.test(version)) fallar(`VERSION no es X.Y.Z: «${version}»`)
+  privada(DATOS); privada(R.logs)
+  instalarDependencias()
+  await compilarWeb(true)
+  const daemon = compilarDaemon(true)
+  mkdirSync(salida, { recursive: true })
+  await armarPaquete({ salida, version, web: STANDALONE, daemon, arbrain: ARBRAIN, registrar })
+}
+
 async function main() {
   if (orden === 'iniciar') return iniciar()
+  if (orden === 'empaquetar') return empaquetar()
   if (orden === 'abrir') {
     const ya = await vivo()
     if (ya) return abrirConSesion(ya)
@@ -721,7 +755,7 @@ async function main() {
     console.log(`[arbrain] Arranque automático: ${a.activo ? `activado (${a.ruta})` : 'desactivado'}`)
     return
   }
-  fallar(`Orden desconocida: ${orden}. Usa: iniciar, abrir, estado, detener, contrasena, cerrar-sesiones, arranque-automatico.`)
+  fallar(`Orden desconocida: ${orden}. Usa: iniciar, abrir, estado, detener, contrasena, cerrar-sesiones, arranque-automatico, empaquetar.`)
 }
 
 main().catch((e) => fallar(e?.stack ?? String(e)))

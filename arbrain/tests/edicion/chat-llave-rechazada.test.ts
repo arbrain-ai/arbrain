@@ -18,9 +18,10 @@ test('chat: el aviso del daemon por llave rechazada se reconoce; el de sin créd
   assert.ok(!esLlaveRechazada({ error: true, diagnostic: 'El turno murió del lado del agente: Failed to authenticate. API Error: 401' }), 'solo el aviso del daemon nuevo, no el texto crudo')
 })
 
+// 22 oct 2026 (prueba en Windows, punto 11): sin llave ni sesión también va al mismo aviso con atajo a Ajustes › Llaves.
 test('chat: solo en la edición cliente y después del caso «sin crédito»', () => {
   const chat = fuente('src/features/chat/components/ChatPanel.tsx')
-  assert.match(chat, /msg\.error && EDICION_CLIENTE && turnoSinCredito\(msg\) \? \([\s\S]*?\) : msg\.error && EDICION_CLIENTE && esLlaveRechazada\(msg\) \? \(\s*\/\/[^\n]*\n\s*<LlaveEnChat diagnostico=/)
+  assert.match(chat, /msg\.error && EDICION_CLIENTE && turnoSinCredito\(msg\) \? \([\s\S]*?\) : msg\.error && EDICION_CLIENTE && \(esLlaveRechazada\(msg\) \|\| esFaltaLlave\(msg\)\) \? \(\s*\/\/[^\n]*\n\s*<LlaveEnChat diagnostico=/)
   const c = fuente('src/features/primer-arranque/components/LlaveEnChat.tsx')
   assert.match(c, /useAjustes\.getState\(\)\.abrir\('llaves'\)/)
   assert.match(c, /Abrir Ajustes › Llaves/)

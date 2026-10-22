@@ -99,7 +99,7 @@ import { inicioDeChatNuevo, espacioVigente } from '@/features/modelo/modelo-inic
 import { useChatPrefsStore } from '../stores/chat-prefs-store'
 import { esEdicionCliente } from '@/lib/edicion'
 import { NOMBRE_SIN_DAR, PEDIDOS_BIENVENIDA, soloBienvenida } from '@/features/primer-arranque/textos/bienvenida'
-import { esLlaveRechazada, turnoSinCredito } from '@/features/primer-arranque/lib/sin-saldo'
+import { esFaltaLlave, esLlaveRechazada, turnoSinCredito } from '@/features/primer-arranque/lib/sin-saldo'
 import { LlaveEnChat } from '@/features/primer-arranque/components/LlaveEnChat'
 import { RecargaEnChat } from '@/features/primer-arranque/components/RecargaEnChat'
 
@@ -458,8 +458,8 @@ export const MessageBubble = memo(function MessageBubble({ msg, isFresh = false,
         {msg.error && EDICION_CLIENTE && turnoSinCredito(msg) ? (
           // A/B ronda 2: sin crédito no es un error crudo, es el paso de recarga (el mismo del primer arranque).
           <RecargaEnChat onReintentar={retryText && onRetry ? () => onRetry(retryText) : undefined} />
-        ) : msg.error && EDICION_CLIENTE && esLlaveRechazada(msg) ? (
-          // Humo 13 oct: llave rechazada (401/403) → qué pasó y cómo resolverlo, con el atajo a Ajustes › Llaves.
+        ) : msg.error && EDICION_CLIENTE && (esLlaveRechazada(msg) || esFaltaLlave(msg)) ? (
+          // Humo 13 oct y prueba en Windows 22 oct: llave rechazada, o ni llave ni sesión → qué falta y el atajo a Ajustes › Llaves.
           <LlaveEnChat diagnostico={msg.diagnostic ?? ''} onReintentar={retryText && onRetry ? () => onRetry(retryText) : undefined} />
         ) : msg.error ? (
           <div role="status" className="chat-falla">

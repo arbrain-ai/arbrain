@@ -51,7 +51,7 @@ if (existsSync(marcador)) { cpSync(marcador, join(DESTINO, 'EDICION')); console.
 
 // 3. Dependencias de producción para esta plataforma (sin scripts de desarrollo; better-sqlite3 baja su binario).
 const npm = win ? 'npm.cmd' : 'npm'
-correr(npm, ['ci', '--omit=dev', '--no-audit', '--no-fund'], DESTINO, { NODE_ENV: 'production' })
+correr(npm, ['ci', '--omit=dev', '--no-audit', '--no-fund', '--loglevel=error'], DESTINO, { NODE_ENV: 'production' })
 
 // 4. Verificación: carga lo nativo y no lleva secretos ni bases.
 correr(process.execPath, ['-e', "const D=require('better-sqlite3');new D(':memory:').prepare('select 1').get();require.resolve('@anthropic-ai/claude-agent-sdk');console.log('build:cliente: better-sqlite3 y SDK cargan')"], DESTINO)

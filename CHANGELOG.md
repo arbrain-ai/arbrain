@@ -4,6 +4,29 @@ Cada versión dice qué trae y qué tienes que hacer tú. Para actualizar, abre 
 «jala los últimos cambios». Las versiones siguen `MAYOR.MENOR.PARCHE`: un cambio en MENOR trae funciones
 nuevas; uno en PARCHE, arreglos.
 
+## v0.2.7 · 23 oct 2026 · Instalar y actualizar sin fricción
+
+**Qué trae**
+- **Instalar es pegar un solo prompt.** Claude Code instala lo que falte en tu computadora (Git, Node y Python) sin
+  pedirte comandos, sigue en la misma sesión sin que lo cierres y lo vuelvas a abrir, y verifica la firma de Arbrain
+  por dentro. Solo te toca aceptar el permiso del sistema si Windows o macOS lo piden.
+- **Arbrain ya no se compila en tu computadora.** Cada versión trae el programa listo para tu sistema (Mac, Windows o
+  Linux). Se baja y se verifica con la misma firma de la versión antes de usarse. Arrancar la primera vez pasa de
+  varios minutos a menos de uno, más lo que tarde la descarga. Si algo no cuadra, compila como antes.
+- **Actualizar es pegar el mismo prompt** (o decirle a Claude Code «actualiza mi Arbrain»): trae la versión nueva
+  verificada, la integra sin tocar lo tuyo y reinicia Arbrain con el programa nuevo, sin recompilar.
+- **Si ya tenías una carpeta de trabajo con Claude Code**, el instalador te pregunta una sola vez si quieres copiarla
+  a Arbrain (la original queda igual) o unificarla (Arbrain pasa a ser tu carpeta principal).
+- **Tu respaldo en tu propio GitHub privado**, ofrecido al final de la instalación en un paso.
+- **Si ya pagas Claude Pro o Max, Arbrain usa tu Claude Code solo, sin pedirte nada.** Si no has iniciado sesión, un
+  botón abre tu navegador para entrar.
+- **Sin cuenta conectada, Levy ya no da un error:** te dice cómo conectarte.
+- **El calendario vive en el panel** y sus botones Día, Semana y Mes ya no se cortan en pantallas angostas.
+- **Nuevo botón «Abrir carpeta» en Archivos**, que la abre en tu Explorador, Finder o gestor de archivos.
+
+**Qué tienes que hacer**
+- Nada distinto: pega el prompt de actualización. Desde esta versión, las siguientes ya llegan compiladas.
+
 ## v0.2.6 · 22 oct 2026 · Adjuntos y calendario
 
 **Qué trae**

@@ -39,7 +39,8 @@ test('2 · el primer mensaje y la plantilla de Levy no prometen video; el calend
   const sinLimite = m.split('\n').filter(l => !/versión próxima/.test(l)).join('\n')
   assert.ok(!/agenda|video|computer use|pantalla/i.test(sinLimite), 'solo se nombran como límite')
   // v0.2.6: el calendario local existe y se dice dónde abrirlo (un fundador no lo encontraba).
-  assert.match(m, /tu calendario[^\n]*botón «Calendario» arriba a la derecha/)
+  assert.match(m, /tu calendario[^\n]*el calendario vive en el panel de la derecha/)
+  assert.doesNotMatch(m, /botón «Calendario»/)
   assert.match(m, /Computer use[^\n]*video[^\n]*versión próxima/)
   const c = plantillaClaude()
   assert.ok(!/edicion-por-voz/.test(c), 'la tabla de intenciones no ofrece editar video')

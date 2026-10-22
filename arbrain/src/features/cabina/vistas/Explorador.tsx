@@ -8,6 +8,7 @@
  *  · Un clic abre la pestaña de VISTA PREVIA, que el siguiente clic reemplaza; doble clic (o Enter con ⌘) la deja fija.
  *  · Teclado de árbol: ↑ ↓ recorren, → abre o entra, ← cierra o sube, Enter abre, «/» o ⌘F busca, Esc limpia la búsqueda.
  *  · Lo abierto se recuerda por raíz en este dispositivo. «Ubicar» despliega hasta el archivo de la pestaña a la vista.
+ *  · «Abrir carpeta» (22 oct 2026): la carpeta a la vista en Explorer, Finder o xdg-open; solo en local (/api/cabina/explorador/abrir).
  *  · Opcional: sección del «+» que se apaga en Ajustes › Panel (para los clientes que no la quieran). Visible por defecto.
  * Seguridad en el servidor: /api/cabina/explorador (sin «..», sin node_modules/.git/.next ni credenciales) y, al abrir,
  * /api/cabina/documento con sus propias reglas. Modelo puro: features/cabina/explorador/arbol.ts y abrir.ts.
@@ -15,7 +16,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as TeclaReact } from 'react'
 import {
   ChevronRight, ChevronsDownUp, Crosshair, File, FileAudio, FileCode2, FileCog, FileImage, FileJson, FileText, FileType2, FileVideo,
-  Folder, FolderOpen, Globe, RefreshCw, Search, X,
+  Folder, FolderOpen, FolderOutput, Globe, RefreshCw, Search, X,
 } from 'lucide-react'
 import { mov, escalon, Cifra } from '@/shared/movimiento'
 import { releer, useFuente } from '../datos'
@@ -25,6 +26,7 @@ import { ventanaDe } from '../panel/pestanas-fuera'
 import { mostrarPanel } from '../panel/ventanas'
 import { absoluta, ancestros, claseDe, type Clase, type Entrada, type Resultado } from '../explorador/arbol'
 import { inputArchivo, planApertura } from '../explorador/abrir'
+import { carpetaDeFoco } from '../explorador/abrir-carpeta'
 import l from '../luz.module.css'
 import x from './explorador.module.css'
 
@@ -32,6 +34,22 @@ const URL_BASE = '/api/cabina/explorador'
 const urlDir = (dir: string) => `${URL_BASE}?dir=${encodeURIComponent(dir)}`
 const urlBuscar = (q: string) => `${URL_BASE}?buscar=${encodeURIComponent(q)}`
 const CLAVE_ABIERTAS = 'arbrain.explorador.abiertas'
+const URL_ABRIR = `${URL_BASE}/abrir`
+/** Cómo se llama el gestor de archivos aquí (solo para el texto: el servidor decide el comando). */
+function nombreGestor(): string {
+  const ua = typeof navigator === 'undefined' ? '' : navigator.userAgent
+  return /Windows/i.test(ua) ? 'el Explorador' : /Mac OS X|Macintosh/i.test(ua) ? 'el Finder' : 'el gestor de archivos'
+}
+
+/** Pide al servidor abrir `dir` (relativa a la raíz) en el gestor de archivos del sistema. Devuelve el error en una línea, o null. */
+async function abrirCarpeta(dir: string): Promise<string | null> {
+  try {
+    const r = await fetch(URL_ABRIR, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dir }) })
+    if (r.ok) return null
+    const j = await r.json().catch(() => null) as { error?: string } | null
+    return j?.error ?? `No se pudo abrir la carpeta (código ${r.status}).`
+  } catch { return 'No se pudo abrir la carpeta: el servidor no respondió.' }
+}
 
 interface Carpeta { raiz: { nombre: string; ruta: string }; total: number; deGit: boolean; aviso?: string; dir: string; abs: string; entradas: Entrada[] }
 /** `total` = cuántas coincidencias hay en todo el árbol (se pintan las más cercanas). */
@@ -132,6 +150,19 @@ export function VistaExplorador({ grande }: { grande?: boolean }) {
 
   const actualRel = raizRuta && actual?.startsWith(raizRuta + '/') ? actual.slice(raizRuta.length + 1) : null
 
+  // «Abrir carpeta» (22 oct 2026): la carpeta de la fila con el foco (o la del archivo), o la raíz.
+  const [avisoAbrir, setAvisoAbrir] = useState<{ texto: string; error?: boolean } | null>(null)
+  const carpetaVista = () => {
+    const tipo = foco ? arbol.current?.querySelector<HTMLElement>(`[data-fila="${CSS.escape(foco)}"]`)?.dataset.tipo : null
+    return carpetaDeFoco(foco, tipo === 'carpeta' || tipo === 'archivo' ? tipo : null)
+  }
+  const abrirEnSistema = async () => {
+    const dir = carpetaVista(), nombre = dir ? dir.split('/').pop() : raiz?.raiz.nombre
+    const error = await abrirCarpeta(dir)
+    setAvisoAbrir(error ? { texto: error, error: true } : { texto: `«${nombre}» abierta en ${nombreGestor()}.` })
+  }
+  useEffect(() => { if (!avisoAbrir) return; const t = setTimeout(() => setAvisoAbrir(null), avisoAbrir.error ? 8000 : 3500); return () => clearTimeout(t) }, [avisoAbrir])
+
   // «/» o ⌘F con el foco dentro del explorador: a buscar.
   const teclaRaiz = (e: TeclaReact<HTMLDivElement>) => {
     const enCampo = e.target instanceof HTMLInputElement
@@ -180,9 +211,16 @@ export function VistaExplorador({ grande }: { grande?: boolean }) {
           <button className={x.accion} onClick={() => { void releer(urlDir('')); for (const d of abiertas) void releer(urlDir(d)) }} title="Volver a leer el disco" aria-label="Recargar"><RefreshCw size={13} aria-hidden /></button>
         </span>
       </div>
-      <p className={x.total}>
-        {raiz ? <><b><Cifra valor={raiz.total} clave={`explorador-${raiz.raiz.ruta}`} formato={entero} /></b> {raiz.total === 1 ? 'archivo' : 'archivos'}{raiz.deGit ? ' · respeta .gitignore' : ''}</> : ' '}
-      </p>
+      <div className={x.totalFila}>
+        <p className={x.total}>
+          {raiz ? <><b><Cifra valor={raiz.total} clave={`explorador-${raiz.raiz.ruta}`} formato={entero} /></b> {raiz.total === 1 ? 'archivo' : 'archivos'}{raiz.deGit ? ' · respeta .gitignore' : ''}</> : ' '}
+        </p>
+        {/* En la fila de la cuenta y con su nombre: es la salida al Explorer o al Finder; en la cabecera no cabía en un panel angosto. */}
+        <button className={`${x.accion} ${x.accionTexto}`} onClick={() => void abrirEnSistema()} disabled={!raiz}
+          title={`Abrir en ${nombreGestor()} la carpeta que estás viendo (la de la fila elegida, o la raíz)`} aria-label="Abrir carpeta en el gestor de archivos">
+          <FolderOutput size={14} aria-hidden /><span>Abrir carpeta</span>
+        </button>
+      </div>
       <label className={x.buscador}>
         <Search size={14} aria-hidden />
         <input ref={buscador} value={consulta} onChange={e => setConsulta(e.target.value)} placeholder="Buscar por nombre" spellCheck={false} aria-label="Buscar archivos por nombre"
@@ -194,6 +232,7 @@ export function VistaExplorador({ grande }: { grande?: boolean }) {
         {consulta ? <button className={x.limpiar} onClick={() => { setConsulta(''); buscador.current?.focus() }} aria-label="Limpiar la búsqueda"><X size={13} aria-hidden /></button> : <kbd className={x.tecla}>/</kbd>}
       </label>
       {raiz?.aviso && <p className={`${l.aviso} ${mov.aparece}`}>{raiz.aviso}</p>}
+      {avisoAbrir && <p className={`${x.avisoAbrir} ${mov.aparece}`} data-error={avisoAbrir.error || undefined} role="status">{avisoAbrir.texto}</p>}
     </header>
 
     <div ref={arbol} className={x.arbol} role="tree" aria-label={`Archivos de ${raiz?.raiz.nombre ?? 'la raíz'}`}>

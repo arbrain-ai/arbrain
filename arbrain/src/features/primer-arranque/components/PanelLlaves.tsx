@@ -20,7 +20,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Check, ChevronDown, ExternalLink, Eye, EyeOff, KeyRound, Loader2, RefreshCw, ShieldCheck, Terminal, Trash2, TriangleAlert, Zap } from 'lucide-react'
 import {
-  abrirEnNavegador, AVISO_SIN_RESPUESTA_MS, conectarOpenRouter, elegirMotor, esperarDaemon, estadoSuscripcion, hayApp, INSTALAR_CLAUDE,
+  abrirEnNavegador, AVISO_SIN_RESPUESTA_MS, conectarOpenRouter, elegirMotor, esperarDaemon, estadoSuscripcion, hayApp, iniciarSesionClaude,
   llaveBorrar, llaveGuardar, llavesEstado, NOMBRE_ALMACEN, nombrePlan, PAUSA_REPROBAR_MS, probarConexion, quienCobra, RECARGAR,
   reprobarAlVolver, textoConectado, validarLlave, type EstadoLlaves, type EstadoSuscripcion, type NombreLlave, type PruebaLlave,
 } from '../lib/llaves'
@@ -114,7 +114,11 @@ export function useReprobarAlVolver(activo: boolean, probar: () => unknown) {
 
 export interface EstadoPanel { listo: boolean; cobra: 'openrouter' | 'anthropic'; motor?: 'suscripcion' | 'llave' }
 
-/** ¿Hay Claude Code con sesión de suscripción y cuál motor usa el chat? (GET /api/llaves/suscripcion) */
+/**
+ * ¿Hay Claude Code con sesión de suscripción y cuál motor usa el chat? (GET /api/llaves/suscripcion). 22 oct 2026: si
+ * la persona inicia sesión (con el botón o en su terminal) el panel lo nota solo: mientras el login de Arbrain espera,
+ * pregunta cada 3 s; y al volver a la ventana, pregunta de nuevo. Con sesión y sin llave, el daemon conecta solo.
+ */
 function useSuscripcion() {
   const [estado, setEstado] = useState<EstadoSuscripcion | null>(null)
   const [buscando, setBuscando] = useState(false)
@@ -123,7 +127,21 @@ function useSuscripcion() {
     try { setEstado(await estadoSuscripcion(fresco)) } finally { setBuscando(false) }
   }, [])
   useEffect(() => { void recargar() }, [recargar])
-  return { estado, buscando, recargar }
+  const esperando = estado?.login?.estado === 'esperando'
+  useEffect(() => {
+    if (!esperando) return
+    const t = setInterval(() => { void estadoSuscripcion(true).then(e => { if (e) setEstado(e) }) }, 3000)
+    return () => clearInterval(t)
+  }, [esperando])
+  const pendiente = !!estado && !estado.activo
+  useEffect(() => {
+    if (!pendiente || typeof window === 'undefined') return
+    const alVolver = () => { if (document.visibilityState !== 'hidden') void estadoSuscripcion(true).then(e => { if (e) setEstado(e) }) }
+    window.addEventListener('focus', alVolver)
+    document.addEventListener('visibilitychange', alVolver)
+    return () => { window.removeEventListener('focus', alVolver); document.removeEventListener('visibilitychange', alVolver) }
+  }, [pendiente])
+  return { estado, buscando, recargar, setEstado }
 }
 
 /**
@@ -170,7 +188,7 @@ export function PanelLlaves({ onEstado, compacto = false, control }: { onEstado?
         </p>
       )}
 
-      <MiClaudeCode sub={sub.estado} buscando={sub.buscando} onRecargar={sub.recargar} prueba={conSuscripcion ? prueba : null} probando={probando}
+      <MiClaudeCode sub={sub.estado} buscando={sub.buscando} onRecargar={sub.recargar} onLogin={(login) => sub.setEstado(e => e ? { ...e, login } : e)} prueba={conSuscripcion ? prueba : null} probando={probando}
         onProbar={probar} onCambio={() => { setPrueba(null); void sub.recargar(true).then(() => probar()) }} onError={setError} />
 
       {guardadas.length > 0 && (
@@ -245,23 +263,46 @@ export function PanelLlaves({ onEstado, compacto = false, control }: { onEstado?
 }
 
 /**
- * «Mi Claude Code» (21 oct 2026): si ya pagas Claude Pro o Max, Levy habla con TU Claude Code, con la sesión que
- * iniciaste en tu terminal. Arbrain no pide, ve ni guarda ningún token (el login es el de Anthropic, en tu terminal) y
- * no le pasa ninguna llave de API, así que no se cobra aparte. Con sesión detectada es la opción recomendada; sin ella,
- * los pasos para instalar e iniciar sesión, plegados para quien no tiene plan.
+ * «Mi Claude Code» (21 oct 2026): si ya pagas Claude Pro o Max, Levy habla con TU Claude Code, con tu sesión. Arbrain
+ * no pide, ve ni guarda ningún token y no le pasa ninguna llave de API, así que no se cobra aparte.
+ *
+ * 22 oct 2026 (prueba en Windows, puntos 10 y 12, Daniel: «sácame del medio»): con sesión y sin llave se conecta solo
+ * (lo hace el daemon al preguntar). Sin sesión, UN botón «Iniciar sesión con Claude» lanza el login oficial del CLI
+ * (y lo instala antes si falta); el regreso se detecta solo, sin recargar ni copiar nada. Lo que falta, en una línea.
  */
-function MiClaudeCode({ sub, buscando, onRecargar, prueba, probando, onProbar, onCambio, onError }: {
-  sub: EstadoSuscripcion | null; buscando: boolean; onRecargar: (fresco?: boolean) => Promise<void>
+function MiClaudeCode({ sub, buscando, onRecargar, onLogin, prueba, probando, onProbar, onCambio, onError }: {
+  sub: EstadoSuscripcion | null; buscando: boolean; onRecargar: (fresco?: boolean) => Promise<void>; onLogin: (l: NonNullable<EstadoSuscripcion['login']>) => void
   prueba: PruebaLlave | null; probando: boolean; onProbar: () => unknown; onCambio: () => void; onError: (m: string | null) => void
 }) {
   const [cambiando, setCambiando] = useState(false)
-  const [reintentado, setReintentado] = useState(false)
+  const [abriendo, setAbriendo] = useState(false)
+  const activoAntes = useRef(sub?.activo ?? false)
+  useEffect(() => {
+    // Conectado solo (al detectar la sesión o al volver del login): la prueba corre sola, como al elegirlo a mano.
+    if (sub?.activo && !activoAntes.current) onCambio()
+    activoAntes.current = sub?.activo ?? false
+  }, [sub?.activo, onCambio])
   if (!sub) return null // daemon sin esta función (versión anterior) o navegador sin app
   const plan = nombrePlan(sub.plan)
   const cambiar = async (motor: 'suscripcion' | 'llave') => {
     setCambiando(true); onError(null)
     try { await elegirMotor(motor); onCambio() } catch (e) { onError(e instanceof Error ? e.message : 'No pude cambiar con qué habla Levy.'); void onRecargar(true) } finally { setCambiando(false) }
   }
+  const entrar = async () => {
+    setAbriendo(true); onError(null)
+    try { onLogin(await iniciarSesionClaude()) } catch (e) { onError(e instanceof Error ? e.message : 'No pude abrir el inicio de sesión de Claude.') } finally { setAbriendo(false) }
+  }
+  const esperando = sub.login?.estado === 'esperando'
+  const botonEntrar = (principal: boolean) => (
+    <button type="button" className={`${principal ? 'btn-primary min-h-11 !px-5 text-[14.5px]' : 'btn-secondary !px-3 !py-2 text-[13px]'} justify-center`} onClick={() => void entrar()} disabled={abriendo || esperando}>
+      {abriendo || esperando ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Terminal className="size-4" aria-hidden />} {esperando ? 'Esperando tu inicio de sesión…' : 'Iniciar sesión con Claude'}
+    </button>
+  )
+  const revisar = (
+    <button type="button" className="min-h-10 rounded-lg px-3 text-[13px] text-muted hover:bg-foreground/[0.06] hover:text-foreground" onClick={() => void onRecargar(true)} disabled={buscando}>
+      {buscando ? 'Revisando…' : 'Revisar de nuevo'}
+    </button>
+  )
   const privacidad = <p className="mt-2 text-[12.5px] leading-relaxed text-muted">Arbrain no ve ni guarda tu sesión: la abre tu propio Claude Code. Tampoco le pasa llaves de API, aunque tengas <code className="font-mono">ANTHROPIC_API_KEY</code> en tu sistema: así usa tu plan y no te cobra aparte. Las rutinas automáticas no corren con tu plan.</p>
 
   if (sub.activo) {
@@ -270,15 +311,13 @@ function MiClaudeCode({ sub, buscando, onRecargar, prueba, probando, onProbar, o
         <h3 className="flex flex-wrap items-center gap-2 text-sm font-semibold text-foreground"><Terminal className="size-4 text-brand-ink" aria-hidden /> Mi Claude Code
           <span className="rounded-full bg-success/12 px-2 py-0.5 text-[11px] font-medium text-success">En uso</span></h3>
         <p className="mt-1 text-[13px] leading-relaxed text-foreground/90">Levy habla con tu Claude Code{plan ? ` y tu plan ${plan}` : ' y tu suscripción'}.</p>
-        {!sub.sesion && <Aviso tono="alerta" className="mt-3">{sub.mensaje ?? 'Tu Claude Code no tiene la sesión iniciada.'}</Aviso>}
+        {!sub.sesion && <Aviso tono="alerta" className="mt-3">{esperando ? sub.login?.mensaje : sub.mensaje ?? 'Tu Claude Code no tiene la sesión iniciada.'}</Aviso>}
         {privacidad}
         <div className="mt-3 flex flex-wrap gap-2">
           <button type="button" className="btn-secondary !px-3 !py-2 text-[13px]" onClick={() => void onProbar()} disabled={probando}>
             {probando ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Zap className="size-3.5" aria-hidden />} Probar conexión
           </button>
-          {!sub.sesion && <button type="button" className="btn-secondary !px-3 !py-2 text-[13px]" onClick={() => void onRecargar(true)} disabled={buscando}>
-            {buscando ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <RefreshCw className="size-3.5" aria-hidden />} Ya inicié sesión
-          </button>}
+          {!sub.sesion && botonEntrar(false)}
           <button type="button" className="min-h-10 rounded-lg px-3 text-[13px] text-muted hover:bg-foreground/[0.06] hover:text-foreground" onClick={() => void cambiar('llave')} disabled={cambiando}>
             {cambiando ? 'Cambiando…' : 'Usar una llave en su lugar'}
           </button>
@@ -292,6 +331,7 @@ function MiClaudeCode({ sub, buscando, onRecargar, prueba, probando, onProbar, o
   }
 
   if (sub.sesion) {
+    // Con sesión pero sin conectar: la persona eligió antes «usar una llave» (o ya tiene una). Un clic lo cambia.
     return (
       <section className="rounded-2xl border border-brand/40 bg-brand/[0.06] p-4" aria-label="Mi Claude Code">
         <h3 className="flex flex-wrap items-center gap-2 text-sm font-semibold text-foreground"><Terminal className="size-4 text-brand-ink" aria-hidden /> Usa tu Claude Code
@@ -305,31 +345,20 @@ function MiClaudeCode({ sub, buscando, onRecargar, prueba, probando, onProbar, o
     )
   }
 
+  // Sin sesión (o sin Claude Code): un botón y una línea de qué falta. Nada que copiar en una terminal.
+  const linea = esperando ? sub.login?.mensaje : sub.login?.estado === 'fallo' ? sub.login.mensaje : sub.mensaje
   return (
-    <details className="group rounded-2xl border border-border-subtle bg-surface/70">
-      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 text-[13.5px] font-medium text-foreground/90 [&::-webkit-details-marker]:hidden">
-        <span className="flex items-center gap-2"><Terminal className="size-4 text-brand-ink" aria-hidden /> ¿Ya pagas Claude Pro o Max? <span className="font-normal text-muted">Usa tu Claude Code</span></span>
-        <ChevronDown className="size-4 shrink-0 text-muted transition-transform group-open:rotate-180" aria-hidden />
-      </summary>
-      <div className="px-4 pb-4">
-        {sub.code === 'otra_via' && sub.mensaje && <Aviso tono="alerta" className="mb-3">{sub.mensaje}</Aviso>}
-        <ol className="space-y-2 text-[13px] leading-relaxed text-muted">
-          {!sub.instalado && (
-            <li className="flex gap-2"><span className="mt-px grid size-5 shrink-0 place-items-center rounded-full bg-brand/12 text-[11px] font-semibold text-brand-ink">1</span>
-              <span>Instala Claude Code. En la terminal (macOS o Linux): <code className="block select-all break-all rounded-lg bg-foreground/[0.06] px-2 py-1 font-mono text-[12px] text-foreground">{INSTALAR_CLAUDE.unix}</code>
-                En Windows (PowerShell): <code className="block select-all break-all rounded-lg bg-foreground/[0.06] px-2 py-1 font-mono text-[12px] text-foreground">{INSTALAR_CLAUDE.windows}</code></span></li>
-          )}
-          <li className="flex gap-2"><span className="mt-px grid size-5 shrink-0 place-items-center rounded-full bg-brand/12 text-[11px] font-semibold text-brand-ink">{sub.instalado ? 1 : 2}</span>
-            <span>Abre una terminal, escribe <code className="font-mono text-foreground">claude</code> e inicia sesión con tu cuenta de Claude (Pro o Max). El inicio de sesión es de Anthropic: Arbrain no lo ve.</span></li>
-          <li className="flex gap-2"><span className="mt-px grid size-5 shrink-0 place-items-center rounded-full bg-brand/12 text-[11px] font-semibold text-brand-ink">{sub.instalado ? 2 : 3}</span>
-            <span>Vuelve aquí y pulsa «Ya inicié sesión».</span></li>
-        </ol>
-        <button type="button" className="btn-secondary mt-3 min-h-10 !px-3 text-[13px]" onClick={() => { setReintentado(true); void onRecargar(true) }} disabled={buscando}>
-          {buscando ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <RefreshCw className="size-3.5" aria-hidden />} Ya inicié sesión
-        </button>
-        {reintentado && !buscando && sub.code && sub.code !== 'otra_via' && <p className="mt-2 text-[12.5px] text-muted" role="status">{sub.instalado ? 'Todavía no veo tu sesión.' : 'Todavía no encuentro Claude Code en esta computadora.'}</p>}
+    <section className="rounded-2xl border border-border-subtle bg-surface/70 p-4" aria-label="Mi Claude Code">
+      <h3 className="flex flex-wrap items-center gap-2 text-sm font-semibold text-foreground"><Terminal className="size-4 text-brand-ink" aria-hidden /> ¿Pagas Claude Pro o Max?
+        <span className="font-normal text-muted">Usa tu cuenta</span></h3>
+      {linea && <p className="mt-1 text-[13px] leading-relaxed text-foreground/90" role="status" data-suscripcion-code={sub.code}>{linea}</p>}
+      {!sub.instalado && !esperando && <p className="mt-1 text-[12.5px] text-muted">El botón instala Claude Code (el instalador oficial de Anthropic) y abre tu navegador para entrar.</p>}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        {botonEntrar(true)}
+        {revisar}
       </div>
-    </details>
+      {sub.codex?.sesion && <p className="mt-2 text-[12.5px] text-muted">También encontré Codex con tu cuenta de ChatGPT; Arbrain todavía no lo usa (llega cuando tenga la misma guardia que Claude).</p>}
+    </section>
   )
 }
 
@@ -470,7 +499,7 @@ const MENSAJE_PRUEBA: Record<string, string> = {
   saturado: 'Claude está saturado en este momento. Tu llave está bien; prueba en un minuto.',
   sin_red: 'No hay conexión a internet o algo la bloquea.',
   tiempo: 'Claude tardó demasiado en responder. Prueba de nuevo.',
-  sin_sesion: 'Tu Claude Code no tiene la sesión iniciada. Abre una terminal, escribe «claude», inicia sesión con tu cuenta y prueba de nuevo.',
+  sin_sesion: 'Tu Claude Code no tiene la sesión iniciada. Pulsa «Iniciar sesión con Claude» en Ajustes › Llaves, entra con tu cuenta en el navegador y prueba de nuevo.',
 }
 
 function ResultadoPrueba({ prueba, cobra, onReintentar, probando }: { prueba: PruebaLlave; cobra: 'openrouter' | 'anthropic'; onReintentar: () => void; probando: boolean }) {

@@ -4,8 +4,8 @@ description: >
   Traer la versión nueva de Arbrain a esta copia sin perder nada del dueño: respaldo, CHANGELOG explicado, main en
   avance rápido a la etiqueta FIRMADA y verificada, merge a su rama mi-arbrain, semilla nueva, reinicio del modo
   servidor y funciones nuevas. Usar ante
-  «jala los últimos cambios», «jala los últimos cambios de Dani», «actualiza Arbrain», «hay versión nueva?» o
-  «qué trae la nueva versión».
+  «actualiza mi Arbrain», «jala los últimos cambios», «jala los últimos cambios de Dani», «actualiza Arbrain», «hay
+  versión nueva?», «qué trae la nueva versión» o el prompt de instalación cuando Arbrain ya está instalado.
 ---
 
 # Actualizar Arbrain
@@ -13,8 +13,12 @@ description: >
 Procedimiento completo, en orden. La capa del dueño (CAPAS.json › alumno) nunca viene en el repo del autor, así que
 una actualización solo puede chocar con archivos del autor que el dueño editó.
 
-Objetivo: traer la versión nueva de Arbrain a la copia del dueño, sin perder nada suyo. Háblame en español simple y explícame cada paso
-en una línea antes de hacerlo.
+Objetivo: traer la versión nueva de Arbrain a la copia del dueño, sin perder nada suyo y sin pedirme comandos. Háblame
+en español simple, una línea por paso, sin salidas técnicas, huellas ni llaves salvo que algo falle.
+
+Cómo correr los comandos: empieza cada uno con `. ~/.arbrain/entorno.sh 2>/dev/null; PY=${PY:-python3};` (deja a la
+vista Node, Python y Claude Code recién instalados sin cerrar Claude Code; en Windows, `$PY` evita el alias falso de la
+Microsoft Store). Donde esta skill dice `python3`, usa `$PY`.
 
 REGLAS QUE NO SE ROMPEN
 - Nada mío se pierde: prohibido git reset --hard, git push --force, git clean, git rebase, git stash drop,
@@ -57,7 +61,7 @@ PASO 3 · Verifica la firma y luego mira qué trae el autor
   una llave de tu ancla (~/.config/arbrain/firmas-permitidas, fuera del repo), que nadie movió etiquetas que ya tenías
   y que no es un regreso a una versión vieja. Si tu copia es anterior a las firmas, crea el ancla desde lo que ya tienes
   instalado. Dime en una línea qué respondió.
-- ESTADO=AL_DIA: dime «Ya tienes lo último (versión X)» y salta al PASO 7.
+- ESTADO=AL_DIA: dime «Ya tienes lo último (versión X)» y salta al PASO 6 (por si Arbrain no está corriendo).
 - ESTADO=FALLA o ENTORNO (código 1 o 2): DETENTE. Muéstrame la línea «NO VERIFICADO…» o «NO SE PUDO VERIFICAR…», dime
   que no se cambió nada y que lo avise en el grupo con ese texto. No sigas por otro camino.
 - ESTADO=VERIFICADO: anota ETIQUETA (vX.Y.Z) y COMMIT. Desde aquí, todo se lee de esa etiqueta, nunca de dani/main.
@@ -100,10 +104,13 @@ PASO 5 · Pasa los cambios a lo mío
 PASO 6 · Lo que cambia fuera del texto
 - Semilla: python3 arbrain/cerebro/sembrar.py (solo agrega lo que me falte, nunca encima de lo mío). Si sembró algo,
   git add -A && git commit -m "Semilla de la versión <nueva>".
-- Arbrain en modo servidor: si CAPAS.json › funciones.modo_servidor existe y lo tengo corriendo
-  (cd ~/Arbrain/arbrain && npm run servidor -- estado), reinícialo para que use el código nuevo:
-  npm run servidor -- detener && npm run servidor. Al arrancar instala y recompila solo lo que cambió. Si nunca lo
-  había usado y ahora existe, ofréceme el PASO 8 del prompt de instalación.
+- Arbrain en modo servidor: si CAPAS.json › funciones.modo_servidor existe, reinícialo en segundo plano para que use la
+  versión nueva (desde v0.2.7 baja el programa ya compilado de esa versión, verificado con su firma, y no recompila; si
+  no puede, compila solo lo que cambió):
+  cd ~/Arbrain/arbrain && node scripts/servidor.mjs detener; nohup node scripts/servidor.mjs --sin-navegador > "$HOME/.arbrain/arranque.log" 2>&1 &
+  Revisa cada 15 segundos, hasta 15 minutos, `node scripts/servidor.mjs estado | head -1` hasta que diga «Corriendo» y
+  luego `node scripts/servidor.mjs abrir`. Si falla, enséñame las últimas 20 líneas de ~/.arbrain/arranque.log.
+  Si nunca lo había usado, dime que el prompt de instalación lo deja corriendo.
 - Ganchos: si cambió .claude/settings.json o .claude/hooks/ ya los revisamos en el PASO 3b; recuérdame que corren
   desde la próxima sesión de Claude Code.
 - Funciones nuevas: compara CAPAS.json › funciones con lo que tenía antes

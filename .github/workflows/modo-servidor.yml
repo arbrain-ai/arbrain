@@ -61,6 +61,23 @@ jobs:
           test -f arbrain/scripts/servidor/prueba-ci.mjs
           node -e "const p=require('./arbrain/package.json'); if(!p.scripts||!p.scripts.servidor){console.error('falta npm run servidor');process.exit(1)}"
 
+      # v0.2.7: Claude Code recién instalado con el instalador oficial y SIN refrescar el PATH de los pasos siguientes
+      # (lo que vive quien lo instala con Arbrain ya corriendo). prueba-ci.mjs exige que Arbrain lo encuentre igual.
+      - name: Instalar Claude Code (Windows, sin tocar el PATH)
+        if: runner.os == 'Windows'
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          irm https://claude.ai/install.ps1 | iex
+          if (Test-Path "$env:USERPROFILE\.local\bin\claude.exe") { "ARBRAIN_CI_CLAUDE=instalado" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV }
+      - name: Instalar Claude Code (macOS y Linux, sin tocar el PATH)
+        if: runner.os != 'Windows'
+        continue-on-error: true
+        shell: bash
+        run: |
+          curl -fsSL https://claude.ai/install.sh | bash
+          if [ -x "$HOME/.local/bin/claude" ]; then echo "ARBRAIN_CI_CLAUDE=instalado" >> "$GITHUB_ENV"; fi
+
       - name: Arrancar, esperar salud y detener
         working-directory: arbrain
         run: node scripts/servidor/prueba-ci.mjs --datos "${{ runner.temp }}/arbrain-datos" --plazo-min 35
@@ -70,6 +87,51 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: logs-modo-servidor-${{ matrix.os }}
+          path: ${{ runner.temp }}/arbrain-datos/logs
+          if-no-files-found: warn
+          retention-days: 7
+
+  # v0.2.7 (encargo de Daniel, 22 oct): el caso de la prueba en Windows. Arbrain ya corre y DESPUÉS se instala Claude Code
+  # como `claude.cmd` de npm en una carpeta con espacios, agregada solo al PATH del registro del usuario (el proceso de
+  # Arbrain no la hereda). /api/llaves/suscripcion tiene que encontrarlo igual (prueba-ci.mjs › recorridoSesion).
+  claude-despues-windows:
+    name: servidor · windows · Claude Code después y ruta con espacios
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+
+      - name: Arrancar, instalar Claude Code después (ruta con espacios) y comprobar que lo detecta
+        working-directory: arbrain
+        shell: pwsh
+        run: |
+          $script = Join-Path $env:RUNNER_TEMP 'instalar-despues.ps1'
+          @'
+          $dir = 'C:\Herramientas Arbrain\npm global'
+          New-Item -ItemType Directory -Force $dir | Out-Null
+          npm install -g --prefix "$dir" @anthropic-ai/claude-code --no-audit --no-fund
+          if (-not (Test-Path (Join-Path $dir 'claude.cmd'))) { throw 'no quedó claude.cmd' }
+          $p = [Environment]::GetEnvironmentVariable('Path', 'User')
+          [Environment]::SetEnvironmentVariable('Path', ($p.TrimEnd(';') + ';' + $dir).TrimStart(';'), 'User')
+          '@ | Set-Content -Encoding utf8 $script
+          if (Get-Command claude -ErrorAction SilentlyContinue) { throw 'el runner ya trae claude; la prueba no serviría' }
+          $env:ARBRAIN_CI_INSTALAR_DESPUES = "pwsh -NoProfile -ExecutionPolicy Bypass -File `"$script`""
+          node scripts/servidor/prueba-ci.mjs --datos "$env:RUNNER_TEMP\arbrain-datos" --plazo-min 35
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Logs
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: logs-claude-despues-windows
           path: ${{ runner.temp }}/arbrain-datos/logs
           if-no-files-found: warn
           retention-days: 7
