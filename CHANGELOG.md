@@ -4,6 +4,23 @@ Cada versión dice qué trae y qué tienes que hacer tú. Para actualizar, abre 
 «jala los últimos cambios». Las versiones siguen `MAYOR.MENOR.PARCHE`: un cambio en MENOR trae funciones
 nuevas; uno en PARCHE, arreglos.
 
+## v0.2.2 · 21 oct 2026 · Seguridad del modo servidor
+
+**Qué trae**
+- **Otra página de tu máquina ya no puede escribir en tu Arbrain.** En modo servidor, una página abierta en otro
+  puerto de `127.0.0.1` (un servidor de desarrollo, Jupyter, un HTML descargado servido con `python -m http.server`)
+  podía mandarle mensajes a Levy, crear lienzos o escribir en tu memoria con tu sesión, sin que hicieras clic. Ahora
+  toda escritura a `/api/` exige que venga de la misma dirección de Arbrain (`Origin` y `Sec-Fetch-Site`) y responde
+  403 si no.
+- **Nadie puede dejarte fuera quemando los intentos de contraseña.** La entrada con contraseña rechaza peticiones con
+  `Origin: null` (iframes con sandbox o archivos locales) antes de contar el intento.
+- **La contraseña ya no viaja en la URL.** En modo servidor, `/api/desktop/sesion?t=…` responde 404: se entra solo con
+  el formulario o con el pase de un solo uso, así la contraseña no queda en el historial del navegador.
+
+**Qué tienes que hacer**
+- Actualiza como siempre («jala los últimos cambios») y vuelve a arrancar (`npm run servidor`). No cambia nada de tu
+  uso diario.
+
 ## v0.2.1 · 21 oct 2026 · El chat con tu suscripción de Claude
 
 **Qué trae**

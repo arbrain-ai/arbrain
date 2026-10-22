@@ -56,6 +56,19 @@ export function crearFreno(maximo = 10, ventanaMs = 60_000) {
   }
 }
 
+/**
+ * ¿Puede este POST de `/api/desktop/entrar` intentar la contraseña? Sin Origin (curl, navegadores viejos) sí; con Origin,
+ * solo si su host es el de esta web. `Origin: null` (iframe con sandbox, `data:`, un HTML abierto como archivo) no
+ * (v0.2.2, Bajo 1): antes pasaba y cualquier página podía quemar los 10 intentos por minuto y dejar fuera a la persona.
+ * El formulario legítimo vive en /sin-sesion, que sirve `Referrer-Policy: strict-origin-when-cross-origin`, así que el
+ * navegador manda su Origin real y no `null`.
+ */
+export function origenDeEntrada(origen: string | null, host: string | null): boolean {
+  if (origen === null || origen === '') return true
+  if (origen === 'null') return false
+  try { return new URL(origen).host === host } catch { return false }
+}
+
 /** Comandos de la app de escritorio que el modo servidor atiende por HTTP (puente de features/primer-arranque/lib/llaves.ts). */
 export const COMANDOS_SERVIDOR = ['llaves_estado', 'llave_guardar', 'llave_borrar', 'daemon_estado', 'daemon_reiniciar'] as const
 export type ComandoServidor = (typeof COMANDOS_SERVIDOR)[number]

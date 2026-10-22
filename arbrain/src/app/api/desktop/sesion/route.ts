@@ -1,5 +1,6 @@
 import { DESKTOP_SESSION_COOKIE, isClientEdition, isDesktopSecret, isLocalHostname } from '@/lib/desktop-auth'
 import { destinoSeguro } from '@/features/auth/entrada'
+import { esModoServidor } from '@/lib/modo-servidor'
 
 // Entrada de la app de escritorio en la edición cliente (seguridad, 10 oct 2026; AUDITORIA I5).
 // La app abre `/api/desktop/sesion?t=<secreto>&a=<ruta>` en su primera carga: si el secreto por instalación coincide,
@@ -10,7 +11,9 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
-  if (!isClientEdition() || process.env.MISSION_CONTROL_DESKTOP_EMBED !== '1') return new Response(null, { status: 404 })
+  // Modo servidor (v0.2.2, Bajo 2): ahí el secreto es la contraseña de la persona y se entra por `/api/desktop/entrar`;
+  // aceptarla en la URL la dejaría en el historial del navegador. Solo la app de escritorio usa esta entrada.
+  if (!isClientEdition() || process.env.MISSION_CONTROL_DESKTOP_EMBED !== '1' || esModoServidor()) return new Response(null, { status: 404 })
   const url = new URL(request.url)
   const host = (request.headers.get('host') ?? '').replace(/:\d+$/, '').replace(/^\[|\]$/g, '')
   if (!isLocalHostname(host) || !isDesktopSecret(url.searchParams.get('t'))) {

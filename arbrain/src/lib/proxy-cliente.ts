@@ -73,9 +73,42 @@ export function hostDeLaApp(host: string | null): boolean {
   return /^(127\.0\.0\.1|localhost|\[::1\])(:\d{1,5})?$/i.test(host.trim())
 }
 
+const SIN_EFECTO = ['GET', 'HEAD', 'OPTIONS']
+
+/**
+ * Seguridad v0.2.2 (A2 de docs/builds/seguridad-v021-2026-10-21/REPORTE.md): CSRF entre puertos de 127.0.0.1. La cookie
+ * es SameSite=Strict, pero los puertos no separan sitios: una página en `127.0.0.1:8000` era «el mismo sitio» que la web
+ * en `127.0.0.1:4399` y su POST `text/plain` (sin preflight) llegaba con la cookie. Toda escritura de `/api/` sin Bearer
+ * exige que `Origin`, si viene, sea exactamente `protocolo//host` (también rechaza `null`) y que `Sec-Fetch-Site`, si
+ * viene, sea `same-origin` o `none`. Un Bearer no lo puede poner otra página sin preflight, y los procesos locales
+ * (daemon, supervisor) no mandan Origin ni Sec-Fetch-Site. Pura (probada en tests/servidor/origen-escritura.test.ts).
+ */
+export function escrituraDeOtroOrigen(metodo: string, ruta: string, cab: {
+  origin: string | null; secFetchSite: string | null; authorization: string | null; host: string | null
+}, protocolo: string): boolean {
+  if (!ruta.startsWith('/api/') || SIN_EFECTO.includes(metodo.toUpperCase())) return false
+  if (cab.authorization?.startsWith('Bearer ')) return false
+  const esperado = `${protocolo}//${cab.host ?? ''}`
+  if (cab.origin !== null && cab.origin !== esperado) return true
+  if (cab.secFetchSite !== null && cab.secFetchSite !== 'same-origin' && cab.secFetchSite !== 'none') return true
+  return false
+}
+
+/**
+ * Solo en modo servidor: ahí la cookie vive en el navegador de todos los días de la persona, donde corren otras páginas
+ * locales. En la app de escritorio la cookie vive en el almacén propio del webview de Tauri (las ventanas cargan
+ * `WebviewUrl::External(http://127.0.0.1:<puerto>/…)`, lib.rs `create_main_window` y ventanas.rs), al que ninguna página
+ * del navegador llega; su Origin ya sería el mismo, pero sin probarla con `desktop:install` no se le cambia nada.
+ */
 export function proxyCliente(request: NextRequest) {
   if (!hostDeLaApp(request.headers.get('host'))) return NextResponse.json({ error: 'Host no permitido.' }, { status: 421, headers: NOCACHE })
   const ruta = request.nextUrl.pathname
+  if (esModoServidor() && escrituraDeOtroOrigen(request.method, ruta, {
+    origin: request.headers.get('origin'),
+    secFetchSite: request.headers.get('sec-fetch-site'),
+    authorization: request.headers.get('authorization'),
+    host: request.headers.get('host'),
+  }, request.nextUrl.protocol)) return NextResponse.json({ error: 'Origen no autorizado.' }, { status: 403, headers: NOCACHE })
   const conSesion = isDesktopAuthBypassRequest(request) || bearerDelDaemon(ruta, request.headers.get('authorization'))
   const decision = decidirCliente(ruta, conSesion)
   if (decision.tipo === 'pasa') return NextResponse.next({ request })
