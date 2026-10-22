@@ -1,16 +1,16 @@
 {
   "generador": "arbrain/empaquetado/generador",
   "origen": {
-    "ref": "dff3ae84911f2a02feacf38b506c5b8ce373b76e",
-    "commit": "dff3ae84911f2a02feacf38b506c5b8ce373b76e",
-    "fecha": "2026-10-21T21:04:34-06:00"
+    "ref": "b7f7b0170131ca5c741b3db0172c00f7db802633",
+    "commit": "b7f7b0170131ca5c741b3db0172c00f7db802633",
+    "fecha": "2026-10-21T21:17:34-06:00"
   },
-  "version": "0.2.4",
+  "version": "0.2.5",
   "allowlist": {
     "ruta": "docs/builds/empaquetado-2026-10-11/allowlist.yaml",
     "sha256": "be6b2c198041827a1de230c2587eaa955b3e5f08f567af988e074ca5f80f312d"
   },
-  "conteo": 2376,
+  "conteo": 2377,
   "archivos": {
     ".agents/skills": {
       "enlace": "../.claude/skills",
@@ -635,14 +635,14 @@
       "origen": "allowlist:enlaces"
     },
     "CAPAS.json": {
-      "sha256": "3964dc7ae30759027b2c5686330206ac78f18dddec9d308367150dd0ed3d368c",
+      "sha256": "f158ac3587227397c356caab328f1dea41cc9691882c42c2ede7412622c18af8",
       "bytes": 1263,
       "modo": "644",
       "origen": "distribucion:CAPAS.json"
     },
     "CHANGELOG.md": {
-      "sha256": "b4ad4ad6769d7099f4fe31760e6d9f9d41ca90d84ccd2c6f6c9089feeed63911",
-      "bytes": 10195,
+      "sha256": "01f5d8beee7d88246e1ad5f3fa98f4fa6181c1533c1119938e8c904d4568375b",
+      "bytes": 11048,
       "modo": "644",
       "origen": "distribucion:CHANGELOG.md"
     },
@@ -683,7 +683,7 @@
       "origen": "plantilla:README.plantilla.md"
     },
     "VERSION": {
-      "sha256": "1725bfa6524c5265e7c171cf06568417d39b947fff49c242f03859479c82334b",
+      "sha256": "e959f750e92dbb7614ae28ac96f0a37272caed81d8bbb758791af7bfbb6106a0",
       "bytes": 6,
       "modo": "644",
       "origen": "distribucion:VERSION"
@@ -5495,8 +5495,8 @@
       "origen": "arbrain/server/src/mc-outbox.ts"
     },
     "arbrain/server/src/media.ts": {
-      "sha256": "d6eeace9022375d0c0f9da9dd9173ec4a3d92ba5907bbed8ba5edf9853518988",
-      "bytes": 5713,
+      "sha256": "81f77597733f0e72d3731c2bd52e806caffe141310051e2efb169ff427b5b95f",
+      "bytes": 6031,
       "modo": "644",
       "origen": "arbrain/server/src/media.ts"
     },
@@ -5657,8 +5657,8 @@
       "origen": "arbrain/server/src/security.test.ts"
     },
     "arbrain/server/src/security.ts": {
-      "sha256": "88a58a9c147d2f25f3d48e678f471387db58cf6eefc34414e9a3160ed740ec5c",
-      "bytes": 6755,
+      "sha256": "da6dc32ac73fd1b93e4e5f98f4da97b7dddefb1748b6a99d6b0989d9bd847031",
+      "bytes": 10102,
       "modo": "644",
       "origen": "arbrain/server/src/security.ts"
     },
@@ -5667,6 +5667,12 @@
       "bytes": 158802,
       "modo": "644",
       "origen": "arbrain/server/src/server.ts"
+    },
+    "arbrain/server/src/ssrf-media.test.ts": {
+      "sha256": "6711f0fb9ef447f872a601867f630a309b71d808fa197c5a004015c860a06c04",
+      "bytes": 1514,
+      "modo": "644",
+      "origen": "arbrain/server/src/ssrf-media.test.ts"
     },
     "arbrain/server/src/turno-techo.test.ts": {
       "sha256": "14142681f6be769d06f46cf8908664f3351ef2cdaf7810e43018036c4d52f688",

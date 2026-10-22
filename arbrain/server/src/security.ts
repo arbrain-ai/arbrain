@@ -8,6 +8,8 @@
 
 import { logger } from './logger.js'
 import { readEnvFile } from './env.js'
+import { lookup } from 'node:dns/promises'
+import { BlockList, isIP } from 'node:net'
 
 // ─── Input validation ────────────────────────────────────────────────────────
 
@@ -128,6 +130,56 @@ export function validateUrl(url: string): string | null {
   }
 
   return null // safe
+}
+
+/**
+ * SSRF de verdad (noche de seguridad 21→22 oct 2026, verificación de 6-AZUL): `validateUrl` compara el TEXTO de la URL
+ * con regex y se esquiva con IP decimal (`2130706433`), hex (`0x7f000001`), octal, IPv6 (`[::1]`, `[::ffff:127.0.0.1]`),
+ * userinfo (`https://a@127.0.0.1/`) o un dominio que RESUELVE a una IP privada (rebinding, `localtest.me`). Aquí se
+ * RESUELVE el host y se rechaza si cualquier IP cae en una red interna. Lista de redes bloqueadas (net.BlockList):
+ * loopback, privadas (RFC1918), link-local, CGNAT (100.64/10), «this-host» (0/8),
+ * ULA IPv6 (fc00::/7), link-local IPv6 (fe80::/10) y TODO IPv4 mapeado en IPv6 (::ffff:0:0/96).
+ */
+const REDES_BLOQUEADAS = (() => {
+  const b = new BlockList()
+  b.addSubnet('0.0.0.0', 8); b.addSubnet('10.0.0.0', 8); b.addSubnet('100.64.0.0', 10); b.addSubnet('127.0.0.0', 8)
+  b.addSubnet('169.254.0.0', 16); b.addSubnet('172.16.0.0', 12); b.addSubnet('192.168.0.0', 16)
+  b.addAddress('::1', 'ipv6'); b.addSubnet('fc00::', 7, 'ipv6'); b.addSubnet('fe80::', 10, 'ipv6')
+  // Nota: NO se añade ::ffff:0:0/96 como regla (en net.BlockList mapearía TODA IPv4 y bloquearía internet entero);
+  // las IPv4 mapeadas (`::ffff:127.0.0.1`) se extraen y se revisan como IPv4 en `esPrivada`.
+  return b
+})()
+
+/** ¿La URL es el storage local de confianza (alias de MC_SUPABASE_URL)? Esos sí son loopback a propósito. */
+export function esStorageConfiable(url: string): boolean {
+  return trustedStoragePrefixes().some(prefix => url.startsWith(prefix)) && !url.includes('..')
+}
+
+function esPrivada(ip: string, familia: number): boolean {
+  // IPv4 mapeada en IPv6 (`::ffff:127.0.0.1`, `::ffff:7f00:1`): se revisa el IPv4 subyacente.
+  const m = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i.exec(ip)
+  if (m) return REDES_BLOQUEADAS.check(m[1], 'ipv4')
+  return REDES_BLOQUEADAS.check(ip, familia === 6 ? 'ipv6' : 'ipv4')
+}
+
+/**
+ * Rechaza una URL cuyo host es, o resuelve a, una dirección interna (o que lleva usuario/contraseña). Devuelve el motivo
+ * o null. Asíncrono: resuelve DNS. La excepción del storage local se decide ANTES de llamar (esStorageConfiable).
+ * Residual conocido: queda una ventana TOCTOU de rebinding entre esta resolución y la de `fetch`; pinear la IP exigiría
+ * undici (sin API pública de lookup en el fetch global). Documentado en el RESUMEN; el listón sube de «texto» a «DNS».
+ */
+export async function motivoUrlInterna(url: string): Promise<string | null> {
+  let u: URL
+  try { u = new URL(url) } catch { return 'URL inválida' }
+  if (!['http:', 'https:'].includes(u.protocol)) return `protocolo ${u.protocol} no permitido`
+  if (u.username || u.password) return 'URL con usuario o contraseña no permitida'
+  const host = u.hostname.replace(/^\[|\]$/g, '')
+  const fam = isIP(host)
+  if (fam) return esPrivada(host, fam) ? `dirección interna no permitida (${host})` : null
+  let addrs: { address: string; family: number }[]
+  try { addrs = await lookup(host, { all: true }) } catch { return `no se pudo resolver el host (${host})` }
+  for (const { address, family } of addrs) if (esPrivada(address, family)) return `el host resuelve a una dirección interna (${host} → ${address})`
+  return addrs.length ? null : `no se pudo resolver el host (${host})`
 }
 
 export { MAX_DOWNLOAD_SIZE }

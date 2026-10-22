@@ -4,6 +4,19 @@ Cada versión dice qué trae y qué tienes que hacer tú. Para actualizar, abre 
 «jala los últimos cambios». Las versiones siguen `MAYOR.MENOR.PARCHE`: un cambio en MENOR trae funciones
 nuevas; uno en PARCHE, arreglos.
 
+## v0.2.5 · 22 oct 2026 · SSRF de verdad
+
+**Qué trae**
+- **Bajar una imagen desde una dirección ya no puede llegar a tu red interna por ningún truco.** La comprobación
+  anterior miraba el texto de la dirección y se esquivaba con una IP escrita en decimal, hexadecimal u octal, con
+  formas de IPv6, con usuario en la URL (`https://algo@127.0.0.1/`) o con un dominio que al resolverse apunta a una
+  dirección interna. Ahora Arbrain RESUELVE el nombre y rechaza cualquier dirección interna (loopback, redes privadas,
+  enlace local, rangos de operador y direcciones de metadatos de la nube), y no acepta direcciones con usuario o
+  contraseña. Se mantiene la excepción de tu almacenamiento local.
+
+**Qué tienes que hacer**
+- Actualiza como siempre («jala los últimos cambios») y vuelve a arrancar (`npm run servidor`). No cambia tu uso.
+
 ## v0.2.4 · 22 oct 2026 · Repaso a fondo del código abierto
 
 Esta versión endurece el propio código del repositorio, el que clonas y corre en tu máquina. No cambia tu uso diario.

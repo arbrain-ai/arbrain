@@ -2,7 +2,7 @@ import { writeFileSync, readdirSync, statSync, unlinkSync } from 'fs'
 import { join, extname, basename } from 'path'
 import { UPLOADS_DIR } from './config.js'
 import { logger } from './logger.js'
-import { validateUrl, MAX_DOWNLOAD_SIZE } from './security.js'
+import { validateUrl, motivoUrlInterna, esStorageConfiable, MAX_DOWNLOAD_SIZE } from './security.js'
 
 /**
  * Construye el mensaje para Claude cuando se envía una foto.
@@ -61,6 +61,11 @@ async function fetchValidado(url: string): Promise<Response> {
   for (let salto = 0; salto < 5; salto++) {
     const err = validateUrl(actual)
     if (err) throw new Error(err)
+    // Barrera real (no por texto): resolver el host y negar IPs internas; se salta solo el storage local de confianza.
+    if (!esStorageConfiable(actual)) {
+      const interna = await motivoUrlInterna(actual)
+      if (interna) throw new Error(`URL blocked: ${interna}`)
+    }
     const res = await fetch(actual, { redirect: 'manual' })
     if (res.status >= 300 && res.status < 400) {
       const loc = res.headers.get('location')
