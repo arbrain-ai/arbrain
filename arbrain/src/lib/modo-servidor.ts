@@ -8,8 +8,9 @@
  *   - Navegador: `NEXT_PUBLIC_ARBRAIN_MODO_SERVIDOR=1`, horneado al compilar con `npm run servidor`. La app de escritorio y
  *     la instalación de Daniel se compilan sin él: para ellas nada cambia.
  *
- * Sesión: la misma cookie de la app (`arbrain_escritorio` = `ARBRAIN_DESKTOP_SECRET`). En modo servidor ese secreto es
- * la contraseña de la persona (persistente en su carpeta de datos), así que la cookie dura 30 días en vez de la sesión.
+ * Sesión: la misma cookie de la app (`arbrain_escritorio`). En modo servidor `ARBRAIN_DESKTOP_SECRET` es la contraseña de
+ * la persona (persistente en su carpeta de datos) y la cookie, que dura 30 días, lleva un token DERIVADO de ella
+ * (`tokenSesionServidor` en desktop-auth.ts, M2 de la noche de seguridad 21→22 oct), nunca la contraseña.
  * Puro (sin node:*): lo importan rutas, la página de entrada y pruebas.
  */
 import { esEdicionCliente } from './edicion'

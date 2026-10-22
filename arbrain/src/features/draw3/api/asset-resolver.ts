@@ -63,9 +63,20 @@ export async function resolveImageSource(
           resolve(/*turbopackIgnore: true*/ repoRoot, cleaned),
           resolve(/*turbopackIgnore: true*/ cwd, cleaned),
         ]
+    // Contención (CodeQL js/path-injection, noche 21→22 oct): esta función sube a un bucket el archivo que nombre
+    // `source` (una op insertImage del lienzo). Nunca debe leer secretos ni salir por `..`: se niega cualquier ruta
+    // cuyo realpath toque una carpeta/archivo de credenciales, y solo se aceptan imágenes.
+    const { realpathSync } = await import('node:fs')
+    const SECRETO = /(^|\/)(\.(ssh|aws|gnupg|kube|docker|config|env[^/]*|git-credentials|netrc|npmrc)|id_(rsa|ed25519|ecdsa)|\.env(\.[^/]+)?|credentials\.json|\.claude(\.json)?|\.codex)(\/|$)/i
+    const IMAGEN = /\.(png|jpe?g|gif|webp|svg|avif|bmp|tiff?)$/i
     let path: string | null = null
     for (const c of candidates) {
-      if (existsSync(c)) { path = c; break }
+      if (!existsSync(c)) continue
+      let real: string
+      try { real = realpathSync(c) } catch { continue }
+      if (SECRETO.test(real)) throw new Error('Esa ruta no se puede leer (credenciales o configuración).')
+      if (!IMAGEN.test(real)) throw new Error('Solo se pueden insertar imágenes.')
+      path = real; break
     }
     if (!path) {
       throw new Error(`Image not found at any of: ${candidates.join(', ')}`)

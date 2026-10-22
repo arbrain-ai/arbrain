@@ -511,8 +511,11 @@ export function createTable(opts: {
   rows?: number; cols?: number
   createdBy?: 'human' | 'agent'
 }): TableElement {
-  const rows = opts.rows ?? 3
-  const cols = opts.cols ?? 3
+  // Tope de tamaño (CodeQL js/resource-exhaustion, noche 21→22 oct): una op con rows/cols enorme agotaría la memoria del
+  // proceso. 100×100 es más que de sobra para una tabla de lienzo.
+  const limite = (n: number | undefined, def: number) => Math.min(100, Math.max(1, Math.floor(Number(n) || def)))
+  const rows = limite(opts.rows, 3)
+  const cols = limite(opts.cols, 3)
   const cells = Array(rows).fill(0).map(() => Array(cols).fill(''))
   return {
     type: 'table',

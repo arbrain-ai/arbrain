@@ -66,9 +66,18 @@ const ALFABETO = 'abcdefghjkmnpqrstuvwxyz23456789'
  * (`abcd-efgh-…`, 39 caracteres, ~158 bits). Se genera la primera vez y vive en `acceso.json` (0600). Es también el
  * `ARBRAIN_DESKTOP_SECRET` de la web: la cookie de sesión es la misma que da la app de escritorio.
  */
-export function contrasenaNueva(bytes = randomBytes(32)) {
+export function contrasenaNueva() {
+  // Muestreo por rechazo: 256 no es múltiplo de 31 (longitud del alfabeto), así que `byte % 31` sesgaría los primeros
+  // caracteres. Se descartan los bytes >= al mayor múltiplo de 31 (CodeQL js/biased-cryptographic-random).
+  const tope = 256 - (256 % ALFABETO.length)
   let s = ''
-  for (let i = 0; i < 32; i++) s += ALFABETO[bytes[i] % ALFABETO.length]
+  while (s.length < 32) {
+    for (const b of randomBytes(64)) {
+      if (b >= tope) continue
+      s += ALFABETO[b % ALFABETO.length]
+      if (s.length === 32) break
+    }
+  }
   return s.match(/.{4}/g).join('-')
 }
 

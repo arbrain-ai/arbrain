@@ -165,6 +165,18 @@ function contrasena({ nueva = false } = {}) {
   escribirPrivado(R.acceso, JSON.stringify({ contrasena: c, creada: ahora() }, null, 1) + '\n')
   return c
 }
+/** Generación de las sesiones del navegador (M2): vive en acceso.json junto a la contraseña. */
+function generacionSesiones() {
+  const g = Number(leerJson(R.acceso)?.generacion)
+  return Number.isSafeInteger(g) && g >= 0 ? g : 0
+}
+function cerrarSesiones() {
+  const actual = leerJson(R.acceso)
+  if (typeof actual?.contrasena !== 'string' || actual.contrasena.length < 32) return null
+  const generacion = generacionSesiones() + 1
+  escribirPrivado(R.acceso, JSON.stringify({ ...actual, generacion, sesionesCerradas: ahora() }, null, 1) + '\n')
+  return generacion
+}
 const llavesGuardadas = () => { const j = leerJson(R.llaves); const o = {}; for (const k of LLAVES) if (typeof j?.[k] === 'string' && j[k]) o[k] = j[k]; return o }
 const guardarLlaves = (o) => escribirPrivado(R.llaves, JSON.stringify(o, null, 1) + '\n')
 
@@ -338,6 +350,9 @@ function lanzarWeb() {
     HOSTNAME: HOST,
     MISSION_CONTROL_DESKTOP_EMBED: '1',
     ARBRAIN_MODO_SERVIDOR: '1',
+    // M2 (seguridad noche 21 oct): la cookie es un token derivado de la contraseña y de esta generación; subirla
+    // (`cerrar-sesiones`) cierra todas las sesiones abiertas al reiniciar. No es secreta.
+    ARBRAIN_SESION_GENERACION: String(generacionSesiones()),
     ARBRAIN_SERVIDOR_CONTROL: `http://${HOST}:${S.puertoControl}`,
     NEXT_TELEMETRY_DISABLED: '1',
   }
@@ -672,6 +687,15 @@ async function main() {
     console.log('')
     return
   }
+  if (orden === 'cerrar-sesiones') {
+    privada(R.config)
+    const g = cerrarSesiones()
+    if (g === null) { console.log('[arbrain] Todavía no hay contraseña: no hay sesiones que cerrar.'); return }
+    const ya = await vivo()
+    console.log(`[arbrain] Listo: todas las sesiones del navegador quedan cerradas (generación ${g}).`)
+    console.log(ya ? '[arbrain] Reinicia para aplicarlo: npm run servidor -- detener && npm run servidor' : '[arbrain] Se aplica la próxima vez que arranques.')
+    return
+  }
   if (orden === 'arranque-automatico') {
     const sub = posicionales[1] ?? 'estado'
     const base = { plataforma: process.platform, home: homedir(), env: process.env }
@@ -695,7 +719,7 @@ async function main() {
     console.log(`[arbrain] Arranque automático: ${a.activo ? `activado (${a.ruta})` : 'desactivado'}`)
     return
   }
-  fallar(`Orden desconocida: ${orden}. Usa: iniciar, abrir, estado, detener, contrasena, arranque-automatico.`)
+  fallar(`Orden desconocida: ${orden}. Usa: iniciar, abrir, estado, detener, contrasena, cerrar-sesiones, arranque-automatico.`)
 }
 
 main().catch((e) => fallar(e?.stack ?? String(e)))

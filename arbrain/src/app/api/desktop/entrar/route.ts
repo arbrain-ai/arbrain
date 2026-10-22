@@ -1,11 +1,11 @@
-import { DESKTOP_SESSION_COOKIE, isClientEdition, isDesktopSecret, isLocalHostname } from '@/lib/desktop-auth'
+import { DESKTOP_SESSION_COOKIE, isClientEdition, isDesktopSecret, isLocalHostname, tokenSesionServidor } from '@/lib/desktop-auth'
 import { tokenDaemon } from '@/lib/daemon-local'
 import { cookieSesion, crearFreno, esModoServidor, origenDeEntrada, paseValido, urlControl } from '@/lib/modo-servidor'
 
 // Entrada por navegador del modo servidor (21 oct 2026; docs/builds/modo-servidor-2026-10-21/REPORTE.md).
 //   GET  ?pase=<64 hex>   el supervisor abre el navegador con un pase de un solo uso y 2 minutos; se canjea con él.
 //   POST contrasena=…     el formulario de /sin-sesion (otro navegador, otra pestaña, después de 30 días).
-// Las dos dejan la cookie de la app (`arbrain_escritorio`) por 30 días y saltan a /chat (página mínima, ver conSesion). Fuera del modo servidor: 404.
+// Las dos dejan la cookie de la app (`arbrain_escritorio`, el token derivado de la contraseña, nunca la contraseña: M2) por 30 días y saltan a /chat (página mínima, ver conSesion). Fuera del modo servidor: 404.
 // El proxy deja pasar /api/desktop/* sin sesión y ya exige Host de loopback (hostDeLaApp).
 
 export const runtime = 'nodejs'
@@ -28,7 +28,7 @@ const ir = (a: string, cookie?: string) =>
 // mínima de esta misma web hace el salto: ese segundo paso ya es del mismo sitio.
 const conSesion = () => new Response(
   '<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=/chat"><title>Arbrain</title><a href="/chat">Entrar a Arbrain</a>',
-  { status: 200, headers: { ...NOCACHE, 'Content-Type': 'text/html; charset=utf-8', 'Set-Cookie': cookieSesion(DESKTOP_SESSION_COOKIE, process.env.ARBRAIN_DESKTOP_SECRET!) } },
+  { status: 200, headers: { ...NOCACHE, 'Content-Type': 'text/html; charset=utf-8', 'Set-Cookie': cookieSesion(DESKTOP_SESSION_COOKIE, tokenSesionServidor()!) } },
 )
 
 export async function GET(request: Request) {

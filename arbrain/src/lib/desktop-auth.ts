@@ -1,6 +1,8 @@
 import type { NextRequest } from 'next/server'
 import { CORREO_LOCAL_CLIENTE, esEdicionCliente } from '@/lib/edicion'
 import { instalacion } from '@/config'
+import { esModoServidor } from '@/lib/modo-servidor'
+import { hmacSha256Hex } from '@/lib/sha256-puro'
 
 export const LOCAL_DESKTOP_USER_ID = '00000000-0000-4000-8000-000000000001'
 /** Correo de la persona dueña de esta instalación. En la edición cliente, uno genérico: nunca el de Daniel. */
@@ -55,6 +57,30 @@ export function isDesktopSecret(value: string | null | undefined, env: Record<st
   return secret.length >= 32 && typeof value === 'string' && sameSecret(value, secret)
 }
 
+/**
+ * Modo servidor (seguridad noche 21→22 oct 2026, M2 del reporte v0.2.1): antes la cookie ERA la contraseña, en claro, por
+ * 30 días y sin forma de cerrar las sesiones. Ahora es un token derivado: `s1.` + HMAC-SHA256(contraseña,
+ * «arbrain-sesion-servidor:<generación>»). Leer la cookie ya no da la contraseña; cambiar la contraseña o subir la
+ * generación (`npm run servidor -- cerrar-sesiones`) cierra todas las sesiones abiertas. La app de escritorio no cambia:
+ * su cookie sigue siendo el secreto por apertura, sin Max-Age.
+ */
+let derivada: { clave: string; token: string } | null = null
+export function tokenSesionServidor(env: Record<string, string | undefined> = process.env): string | null {
+  const secreto = env.ARBRAIN_DESKTOP_SECRET ?? ''
+  if (secreto.length < 32) return null
+  const generacion = /^\d{1,9}$/.test((env.ARBRAIN_SESION_GENERACION ?? '').trim()) ? (env.ARBRAIN_SESION_GENERACION ?? '').trim() : '0'
+  const clave = `${generacion}\0${secreto}`
+  if (derivada?.clave !== clave) derivada = { clave, token: `s1.${hmacSha256Hex(secreto, `arbrain-sesion-servidor:${generacion}`)}` }
+  return derivada.token
+}
+
+/** ¿Este valor de cookie abre sesión? Modo servidor: el token derivado. App de escritorio: el secreto por apertura. */
+export function esCookieDeSesion(value: string | null | undefined, env: Record<string, string | undefined> = process.env): boolean {
+  if (!esModoServidor(env)) return isDesktopSecret(value, env)
+  const token = tokenSesionServidor(env)
+  return !!token && typeof value === 'string' && sameSecret(value, token)
+}
+
 export function cookieFromHeader(header: string | null | undefined, name: string) {
   if (!header) return undefined
   for (const part of header.split(';')) {
@@ -76,7 +102,7 @@ function desktopCookie(request: Request | NextRequest) {
 export function isDesktopAuthBypassRequest(request: Request | NextRequest) {
   if (process.env.MISSION_CONTROL_DESKTOP_EMBED !== '1' || !isLocalHostname(hostnameFromRequest(request))) return false
   if (!isClientEdition()) return true
-  return isDesktopSecret(desktopCookie(request))
+  return esCookieDeSesion(desktopCookie(request))
 }
 
 export function isLocalDesktopUserId(userId: string | null | undefined) {

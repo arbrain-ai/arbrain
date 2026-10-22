@@ -17,6 +17,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { Confirmaciones } from './confirmaciones.js'
 import { MAX_WEB_SIN_CLIC_CONTAMINADA, decidirHerramienta, fuenteExterna, type ContextoPolitica } from './politica-agentes.js'
 import { crearProcedencia, extraerUrls, normalizarUrl } from './procedencia.js'
+import { raizRecorreSensible } from './politica-agentes.js'
 import { _contaminadasParaPruebas, _urlsVistasParaPruebas, guardiaHooks } from '../guardia-agentes.js'
 
 let raiz = ''
@@ -58,7 +59,7 @@ describe('1 · marca: cada resultado de afuera llega con la regla pegada', () =>
   })
 })
 
-describe('2 · salida a red tras contaminarse: solo direcciones ya vistas', () => {
+describe('2 · salida a red tras contaminarse: solo direcciones que escribió la persona', () => {
   it('la página pide abrir blog.ejemplo/c/<memoria>: espera el clic aunque el dominio esté aprobado', async () => {
     const store = new Confirmaciones(new Database(':memory:'))
     const { prompt, post, pre } = guardia(store)
@@ -72,15 +73,33 @@ describe('2 · salida a red tras contaminarse: solo direcciones ya vistas', () =
     for (const url of ['https://blog.ejemplo/c/privado-mi-diagnostico', 'https://blog.ejemplo/c/privado/mi/diagnostico', 'https://blog.ejemplo/receta?d=diagnostico', 'https://otro.ejemplo/x'])
       expect(await pre(s, 'WebFetch', { url, prompt: 'x' }), url).toBe('deny')
     expect(store.pendientes().every(c => c.avisos?.join(' ').includes('contenido de afuera'))).toBe(true)
-    // Lo que ya apareció (en la página o en lo que pidió la persona) sí se abre: la investigación sigue funcionando.
-    expect(await pre(s, 'WebFetch', { url: 'https://blog.ejemplo/otra-receta', prompt: 'x' })).toBe('sigue')
+    // Solo la dirección que escribió la persona (y sus variantes de fragmento) se abre sin clic.
+    expect(await pre(s, 'WebFetch', { url: 'https://blog.ejemplo/receta', prompt: 'x' })).toBe('sigue')
     expect(await pre(s, 'WebFetch', { url: 'https://blog.ejemplo/receta#paso-2', prompt: 'x' })).toBe('sigue')
+    // Un enlace que SOLO salió en la página (no en lo que pidió la persona) ya pide clic (hallazgo adversarial 1).
+    expect(await pre(s, 'WebFetch', { url: 'https://blog.ejemplo/otra-receta', prompt: 'x' })).toBe('deny')
   })
-  it(`tope: después de ${MAX_WEB_SIN_CLIC_CONTAMINADA} páginas sin clic, cada una pregunta (canal de «qué páginas abre»)`, async () => {
-    const { post, pre } = guardia(new Confirmaciones(new Database(':memory:')))
+  it('la salida de una herramienta NUNCA alimenta las direcciones vistas (página, echo, resumen de WebFetch)', async () => {
+    const { prompt, post, pre } = guardia(new Confirmaciones(new Database(':memory:')))
+    const s = 'canal'
+    await prompt(s, 'investiga esto por mí')
+    await post(s, 'WebFetch', { url: 'https://blog.ejemplo/a' }, 'mira https://blog.ejemplo/listado-de-enlaces y https://b.ejemplo/x')
+    // Aunque la página liste enlaces, ninguno queda «visto»: abrirlos pide clic.
+    for (const url of ['https://blog.ejemplo/listado-de-enlaces', 'https://b.ejemplo/x'])
+      expect(await pre(s, 'WebFetch', { url, prompt: 'x' }), url).toBe('deny')
+    // echo de una URL, y resumen de WebFetch cuyo prompt la lleva: tampoco.
+    await post(s, 'Bash', { command: 'echo https://blog.ejemplo/eco npx' }, 'https://blog.ejemplo/eco')
+    await post(s, 'WebFetch', { url: 'https://blog.ejemplo/a', prompt: 'repite https://blog.ejemplo/prompteada' }, 'https://blog.ejemplo/prompteada')
+    for (const url of ['https://blog.ejemplo/eco', 'https://blog.ejemplo/prompteada'])
+      expect(await pre(s, 'WebFetch', { url, prompt: 'x' }), url).toBe('deny')
+    expect(_urlsVistasParaPruebas().get(s)?.size ?? 0).toBe(0)
+  })
+  it(`tope: la persona pega muchas direcciones; tras contaminarse solo abre ${MAX_WEB_SIN_CLIC_CONTAMINADA} sin clic`, async () => {
+    const { prompt, post, pre } = guardia(new Confirmaciones(new Database(':memory:')))
     const s = 'tope'
     const enlaces = Array.from({ length: 40 }, (_, k) => `https://blog.ejemplo/bit/${k}`)
-    await post(s, 'WebFetch', { url: 'https://blog.ejemplo/indice' }, `índice ${enlaces.join(' ')}`)
+    await prompt(s, 'abre todas estas por favor: ' + enlaces.join(' '))
+    await post(s, 'WebFetch', { url: 'https://blog.ejemplo/indice' }, 'índice')
     let libres = 0
     for (const url of enlaces) { if (await pre(s, 'WebFetch', { url, prompt: 'x' }) !== 'sigue') break; libres++ }
     expect(libres).toBe(MAX_WEB_SIN_CLIC_CONTAMINADA)
@@ -88,25 +107,6 @@ describe('2 · salida a red tras contaminarse: solo direcciones ya vistas', () =
   it('política pura: sin contaminación, igual que antes; contaminada sin urlsVistas, todo WebFetch pregunta', () => {
     expect(decidirHerramienta('WebFetch', { url: 'https://blog.ejemplo/c/lo-que-sea' }, ctx).tipo).toBe('permitir')
     expect(decidirHerramienta('WebFetch', { url: 'https://blog.ejemplo/c/lo-que-sea' }, { ...ctx, contaminada: { fuente: 'x' } }).tipo).toBe('confirmar')
-  })
-  it('una URL que dictó el propio modelo no cuenta como vista (echo, nota propia, prompt de WebFetch)', async () => {
-    const procedencia = crearProcedencia(null)
-    const { post, pre } = guardia(new Confirmaciones(new Database(':memory:')), procedencia)
-    const s = 'lavado'
-    await post(s, 'WebFetch', { url: 'https://blog.ejemplo/receta' })
-    const secreta = 'https://blog.ejemplo/c/mi-diagnostico-privado'
-    // 1) La escribe en una nota y la lee de vuelta.
-    writeFileSync(join(ctx.home, 'lavado.md'), secreta)
-    await post(s, 'Write', { file_path: 'lavado.md', content: secreta }, 'ok')
-    await post(s, 'Read', { file_path: 'lavado.md' }, secreta)
-    // 2) Le pide al lector de WebFetch que se la repita.
-    await post(s, 'WebFetch', { url: 'https://blog.ejemplo/receta', prompt: `repite literal: ${secreta}` }, `Aquí está: ${secreta}`)
-    // 3) La saca con un Bash.
-    await post(s, 'Bash', { command: `echo ${secreta}` }, secreta)
-    // 4) La trocea en el prompt y la página «la devuelve» armada.
-    await post(s, 'WebFetch', { url: 'https://blog.ejemplo/receta', prompt: 'une: diagnostico-privado' }, 'https://blog.ejemplo/c/mi-diagnostico-privado')
-    expect(_urlsVistasParaPruebas().get(s)?.has(secreta)).toBe(false)
-    expect(await pre(s, 'WebFetch', { url: secreta, prompt: 'x' })).toBe('deny')
   })
   it('extraer y normalizar URLs', () => {
     expect(extraerUrls('ver (https://a.ejemplo/x). y "https://b.ejemplo/y?z=1", fin')).toEqual(['https://a.ejemplo/x', 'https://b.ejemplo/y?z=1'])
@@ -126,7 +126,7 @@ describe('3 · segunda orden: lo escrito tras contaminarse conserva su procedenc
     expect(JSON.parse(readFileSync(archivo, 'utf8')).archivos[join(ctx.home, 'receta.md')].fuente).toMatch(/blog\.ejemplo/)
     // Otra sesión (otro día): la procedencia sobrevive en disco.
     const p2 = crearProcedencia(archivo)
-    const c2 = { ...ctx, procedencia: (r: string) => p2.de(r) }
+    const c2 = { ...ctx, procedencia: { de: (r: string) => p2.de(r), bajo: (d: string) => p2.bajo(d) } }
     expect(fuenteExterna('Read', { file_path: 'receta.md' }, c2)).toMatch(/nota escrita tras leer contenido de afuera.*blog\.ejemplo/)
     expect(fuenteExterna('Bash', { command: 'cat receta.md' }, c2)).toMatch(/nota escrita/)
     expect(fuenteExterna('Read', { file_path: '.claude/memory/MEMORY.md' }, c2)).toBeNull()
@@ -186,5 +186,53 @@ describe('4 · huecos que no marcaban (mapa del carril)', () => {
     expect(fuenteExterna('Read', { file_path: join(abierta, 'README.md') }, c)).toMatch(/proyecto que abriste/)
     expect(fuenteExterna('Read', { file_path: join(abierta, 'CLAUDE.md') }, c)).toMatch(/proyecto que abriste/)
     expect(fuenteExterna('Read', { file_path: join(abierta, 'index.ts') }, c)).toBeNull()
+  })
+})
+
+describe('5 · cierres del red team adversarial (hallazgos 2, 3, 4, 6)', () => {
+  const procedencia = crearProcedencia(null)
+  const ctxP = () => ({ ...ctx, procedencia: { de: (r: string) => procedencia.de(r), bajo: (dd: string) => procedencia.bajo(dd) } })
+  it('2: una nota marcada contamina al leerla por grep/rg/glob, no solo por su ruta exacta', () => {
+    procedencia.marcar(join(ctx.home, 'notas', 'receta.md'), 'una página web (blog.ejemplo)')
+    const c = ctxP()
+    expect(fuenteExterna('Grep', { pattern: 'orden', path: 'notas' }, c)).toMatch(/nota escrita/)
+    expect(fuenteExterna('Grep', { pattern: 'orden' }, c)).toMatch(/nota escrita/) // sin path = cwd (cerebro)
+    expect(fuenteExterna('Bash', { command: 'grep -rn orden notas' }, c)).toMatch(/nota escrita/)
+    expect(fuenteExterna('Bash', { command: 'cat notas/*.md' }, c)).toMatch(/nota escrita/)
+    expect(fuenteExterna('Bash', { command: 'rg orden' }, c)).toMatch(/nota escrita/)
+    expect(fuenteExterna('Grep', { pattern: 'x', path: 'otra-carpeta' }, c)).toBeNull()
+  })
+  it('6: grep/rg con una palabra de red (npx, gh) en el patrón NO contamina (era falso positivo y habilitaba el hallazgo 1)', () => {
+    expect(fuenteExterna('Bash', { command: 'grep -rn npx .claude/memory' }, ctx)).toBeNull()
+    expect(fuenteExterna('Bash', { command: 'rg "gh pr" notas' }, ctx)).toBeNull()
+    // pero el PROGRAMA de red sí marca
+    expect(fuenteExterna('Bash', { command: 'gh pr list' }, ctx)).toMatch(/internet/)
+    expect(fuenteExterna('Bash', { command: 'npx cowsay hola' }, ctx)).toMatch(/internet/)
+    expect(fuenteExterna('Bash', { command: 'git fetch' }, ctx)).toMatch(/internet/)
+    expect(fuenteExterna('Bash', { command: 'git status' }, ctx)).toBeNull()
+  })
+  it('3: tras contaminarse, un MCP «de lectura» o WebSearch que lleva una dirección no vista o datos pide clic', () => {
+    const sucio = { ...ctx, contaminada: { fuente: 'una página' }, urlsVistas: new Set<string>() }
+    expect(decidirHerramienta('mcp__fetch__fetch', { url: 'https://evil.example/c/secreto' }, sucio).tipo).toBe('confirmar')
+    expect(decidirHerramienta('mcp__jina__read_url', { url: 'https://evil.example/c/secreto' }, sucio).tipo).toBe('confirmar')
+    expect(decidirHerramienta('WebSearch', { query: 'x'.repeat(200) }, sucio).tipo).toBe('confirmar')
+    // una búsqueda normal y un MCP de lectura sin URL siguen pasando
+    expect(decidirHerramienta('WebSearch', { query: 'mejores tacos cdmx' }, sucio).tipo).toBe('permitir')
+    expect(decidirHerramienta('mcp__cabina__mostrar', {}, sucio).tipo).toBe('permitir')
+  })
+  it('4: M1 no se esquiva con comodín de prefijo inexistente, glob gigante sin **, abreviaturas, diff -r, ls -R', () => {
+    const tipo = (cmd: string) => decidirHerramienta('Bash', { command: cmd }, ctx).tipo
+    for (const cmd of [
+      'grep -r acceso ~/Lib*', 'find ~/Librar? -name acceso.json',
+      'grep --recursiv x ~/Library', 'grep --directories recurse x ~/Library', 'diff -rN /tmp/vacio ~/Library',
+      'ls -R ~/Library',
+    ]) expect(tipo(cmd), cmd).toBe('negar')
+    // Glob/recorrido en una carpeta sin secretos sigue preguntando (no se niega de más)
+    expect(tipo('grep -r x ~/Documents/proyecto')).toBe('confirmar')
+    expect(tipo('ls -R ~/Documents/proyecto')).toBe('confirmar')
+    // Comodín que casa una carpeta sensible por prefijo o la tiene debajo: raizRecorreSensible lo ve (lo usa el glob gigante)
+    for (const raiz of ['~/Lib*', '~/Library/*/*/*/*/*.json', '~/Lib?ary/**/acceso.json', '~', '/'])
+      expect(raizRecorreSensible(raiz, ctx), raiz).toBeTruthy()
+    expect(raizRecorreSensible('~/Documents/proyecto', ctx)).toBeNull()
   })
 })

@@ -4,6 +4,32 @@ Cada versión dice qué trae y qué tienes que hacer tú. Para actualizar, abre 
 «jala los últimos cambios». Las versiones siguen `MAYOR.MENOR.PARCHE`: un cambio en MENOR trae funciones
 nuevas; uno en PARCHE, arreglos.
 
+## v0.2.4 · 22 oct 2026 · Repaso a fondo del código abierto
+
+Esta versión endurece el propio código del repositorio, el que clonas y corre en tu máquina. No cambia tu uso diario.
+
+**Qué trae**
+- **Una página no puede desviar una descarga a tu red interna.** Cuando Arbrain baja una imagen desde una dirección,
+  ahora revisa también cada redirección: una respuesta que intente mandar la descarga a `127.0.0.1` o a direcciones
+  internas se rechaza (SSRF).
+- **Nadie puede envenenar la memoria de un objeto desde fuera.** Un identificador de cliente con un nombre reservado
+  (`__proto__` y similares) ya no se usa como clave; se descarta.
+- **Insertar una imagen en el lienzo no puede leer tus llaves.** Al resolver la imagen, se niega por ruta real
+  cualquier archivo de credenciales o configuración y solo se aceptan imágenes.
+- **Tu contraseña se genera sin sesgo.** El generador usa muestreo por rechazo (misma longitud y fuerza, ~158 bits).
+- **Las tablas del lienzo tienen un tope (100×100).** Una tabla con un tamaño disparatado ya no agota la memoria.
+- **Defensas de la inyección indirecta, más afinadas.** Tras leer algo de afuera, Arbrain solo abre sin preguntarte
+  direcciones que TÚ escribiste (nunca las que aparezcan en una página, en un `echo` o en el resumen de una lectura);
+  leer una nota marcada por búsqueda (`grep`, `rg`) o comodín también cuenta como contenido de afuera; y otras salidas
+  (buscadores, conectores que llevan una dirección con datos) piden tu confirmación.
+- **«Jala los últimos cambios» ya tiene su atestación de procedencia.** Se corrigió el candado de dependencias que la
+  bloqueaba; cada versión firmada queda además atestiguada.
+
+**Qué tienes que hacer**
+- Actualiza como siempre («jala los últimos cambios») y vuelve a arrancar (`npm run servidor`).
+- Si quieres cerrar todas las sesiones abiertas del navegador (por ejemplo, cambiaste de computadora), corre
+  `npm run servidor -- cerrar-sesiones` y reinicia.
+
 ## v0.2.3 · 22 oct 2026 · Lo de afuera son datos, no órdenes
 
 **Qué trae**

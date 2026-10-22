@@ -167,32 +167,23 @@ const urlsVistas = new Map<string, Set<string>>()
 const webSinClic = new Map<string, number>()
 const MAX_URLS_SESION = 5000
 /**
- * `eco` = lo que el modelo mandó a la herramienta. Una URL de la respuesta que ya estaba en el eco (o un trozo largo de
- * ella) la pudo dictar el propio modelo («repite esta dirección», `echo`), así que no cuenta como vista.
+ * URLs que el modelo NO controla: las que escribió la PERSONA en su mensaje. Solo de ahí se alimenta la lista de
+ * «vistas» (red team adversarial de la noche, hallazgos 1 y 6). La salida de una herramienta (una página, un correo, un
+ * `echo`, el resumen de WebFetch cuyo prompt pone el modelo) es un canal que el modelo o el atacante controlan: nunca
+ * alimenta la lista. En una sesión contaminada, WebFetch sin clic solo abre direcciones que la persona escribió.
  */
-function verUrls(sesion: string | undefined, texto: string, eco = ''): void {
+function verUrls(sesion: string | undefined, texto: string): void {
   if (!sesion || !texto) return
   let set = urlsVistas.get(sesion)
   if (!set) {
     if (urlsVistas.size > 500) urlsVistas.delete(urlsVistas.keys().next().value as string)
     set = new Set(); urlsVistas.set(sesion, set)
   }
-  const ecoBajo = eco.toLowerCase()
   for (const u of extraerUrls(texto.slice(0, 400_000))) {
     const n = normalizarUrl(u)
-    if (!n || set.size >= MAX_URLS_SESION) continue
-    if (ecoBajo && dictadaPorElModelo(n, ecoBajo)) continue
-    set.add(n)
+    if (n && set.size < MAX_URLS_SESION) set.add(n)
   }
 }
-function dictadaPorElModelo(url: string, eco: string): boolean {
-  if (eco.includes(url.toLowerCase())) return true
-  let u: URL
-  try { u = new URL(url) } catch { return true }
-  const trozos = decodeURIComponent(`${u.pathname} ${u.search}`).toLowerCase().split(/[/?&=#+\s._~-]+/).filter(t => t.length >= 6)
-  return trozos.some(t => eco.includes(t))
-}
-const textoDe = (x: unknown): string => typeof x === 'string' ? x : (() => { try { return JSON.stringify(x) ?? '' } catch { return '' } })()
 /** Solo pruebas. */
 export function _urlsVistasParaPruebas(): Map<string, Set<string>> { return urlsVistas }
 
@@ -200,7 +191,6 @@ const ESCRITURA_ARCHIVOS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit'
 /** tool_use_id de los Bash que la persona aprobó (corren fuera del sandbox); su salida contamina. */
 const fueraDelSandboxPorId = new Set<string>()
 const FUENTE_APROBADO = 'la salida de un comando que aprobaste (corrió fuera del sandbox)'
-const esNotaPropia = (fuente: string) => fuente.startsWith('una nota escrita tras leer contenido de afuera')
 
 /** Hooks PreToolUse, PostToolUse y UserPromptSubmit de la guardia (sin efecto fuera de la edición cliente). */
 export function guardiaHooks(registrar: (evento: Record<string, unknown>) => void = () => {}, op: OpcionesGuardia = {}): { PreToolUse: HookCallbackMatcher[]; PostToolUse: HookCallbackMatcher[]; PostToolUseFailure: HookCallbackMatcher[]; UserPromptSubmit: HookCallbackMatcher[] } {
@@ -214,7 +204,7 @@ export function guardiaHooks(registrar: (evento: Record<string, unknown>) => voi
       contaminada: contaminadaDe(input.session_id),
       urlsVistas: (input.session_id && urlsVistas.get(input.session_id)) || new Set(),
       webSinClic: (input.session_id && webSinClic.get(input.session_id)) || 0,
-      procedencia: (real: string) => p.de(real),
+      procedencia: { de: (real: string) => p.de(real), bajo: (dir: string) => p.bajo(dir) },
     }
   }
   return {
@@ -258,14 +248,6 @@ export function guardiaHooks(registrar: (evento: Record<string, unknown>) => voi
         // Un comando que la persona aprobó corrió fuera del sandbox, quizá con red (gog, python, npm): su salida es de afuera.
         const externa = fuenteExterna(input.tool_name, input.tool_input, ctx)
         const fuente = externa ?? (aprobadoFuera ? FUENTE_APROBADO : null)
-        // URLs vistas: solo las que trae contenido de verdad de afuera (web, búsqueda, servicios, archivos de fuera), nunca
-        // lo que el modelo escribió (una nota de procedencia externa la escribió él; un Bash aprobado puede ser un echo).
-        if (externa && !esNotaPropia(externa)) {
-          const i = (input.tool_input && typeof input.tool_input === 'object' ? input.tool_input : {}) as Record<string, unknown>
-          if (input.tool_name === 'WebFetch' && typeof i.url === 'string') verUrls(input.session_id, i.url)
-          const { url: _abierta, ...dictado } = i
-          verUrls(input.session_id, textoDe(input.tool_response), textoDe(dictado))
-        }
         if (!fuente) return { continue: true }
         if (!contaminadaDe(input.session_id)) {
           marcarContaminada(input.session_id, fuente)

@@ -68,3 +68,14 @@ test('scriptsNpm: solo lo nuevo o cambiado, con el ciclo de instalación marcado
   assert.equal(s.find((x: { script: string }) => x.script === 'prepare')?.alInstalar, true)
   assert.deepEqual(scriptsNpm('no es json', '{"scripts":{"build":"tsc"}}').map((x: { script: string }) => x.script), ['build'])
 })
+
+test('cambios solo en .github: se listan como informativos y no piden OK (salida 0)', () => {
+  const { dir, git, escribir } = repo()
+  try {
+    escribir('README.md', 'a'); git('add', '-A'); git('commit', '-qm', 'v1'); git('tag', 'v1')
+    escribir('.github/workflows/ci.yml', 'on: push'); git('add', '-A'); git('commit', '-qm', 'v2')
+    const r = revisar('v1', 'HEAD', dir)
+    assert.equal(r.sensibles, false)
+    assert.match(texto(r), /Nada de lo que cambia se ejecuta solo[\s\S]*corren en GitHub, no en tu máquina/)
+  } finally { rmSync(dir, { recursive: true, force: true }) }
+})

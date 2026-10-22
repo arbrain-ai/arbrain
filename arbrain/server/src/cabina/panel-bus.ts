@@ -74,7 +74,11 @@ function escribirJson(archivo: string, dato: unknown) {
   writeFileSync(tmp, JSON.stringify(dato))
   renameSync(tmp, archivo)
 }
-const seguro = (id: string) => id.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64)
+// Rechaza nombres que contaminarían un objeto al usarlos como clave (`cmd.acuses[id] = …`): CodeQL
+// js/remote-property-injection (noche 21→22 oct). `seguro` ya limita a [A-Za-z0-9_-], pero `__proto__`/`constructor`/
+// `prototype` pasan ese filtro; aquí se vacían (y `!id` los rechaza donde la clave es obligatoria).
+const CLAVE_PELIGROSA = /^(__proto__|constructor|prototype)$/
+const seguro = (id: string) => { const s = id.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64); return CLAVE_PELIGROSA.test(s) ? '' : s }
 const archivoCmd = (id: string, dir = DIR_PANEL()) => path.join(dir, `cmd-${seguro(id)}.json`)
 const archivoCli = (id: string, dir = DIR_PANEL()) => path.join(dir, `cli-${seguro(id)}.json`)
 function archivos(prefijo: string, dir = DIR_PANEL()): string[] {
@@ -203,7 +207,7 @@ export function sincronizar(s: Sincronizacion, ahora = Date.now(), dir = DIR_PAN
   if (!id) throw new Error('clientId obligatorio.')
   const etiqueta = texto(s.etiqueta, 60) || 'Arbrain'
   const pestanas = limpiarPestanas(s.pestanas)
-  const escribio = Object.fromEntries(Object.entries(s.escribio && typeof s.escribio === 'object' ? s.escribio : {}).filter(([k, v]) => k && typeof v === 'string' && Number.isFinite(Date.parse(v))).slice(0, 30).map(([k, v]) => [idConversacion(texto(k, 120)), v as string]))
+  const escribio = Object.fromEntries(Object.entries(s.escribio && typeof s.escribio === 'object' ? s.escribio : {}).filter(([k, v]) => k && typeof v === 'string' && Number.isFinite(Date.parse(v))).slice(0, 30).map(([k, v]) => [idConversacion(texto(k, 120)), v as string]).filter(([k]) => k && !CLAVE_PELIGROSA.test(k)))
   const dispositivo = seguro(s.dispositivo ?? ''), conversacion = idConversacion(texto(s.conversacion, 120))
   const cliente: Cliente = {
     id, etiqueta, latido: new Date(ahora).toISOString(), pestanas, casa: { tareas: !!s.casa?.tareas, taller: !!s.casa?.taller }, activa: texto(s.activa, 120), ajustesRev: Number.isInteger(s.ajustesRev) && (s.ajustesRev as number) >= 0 ? s.ajustesRev : 0,

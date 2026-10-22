@@ -19,6 +19,8 @@ const MAX = 2000
 export interface Procedencia {
   marcar(real: string, fuente: string): void
   de(real: string): string | null
+  /** ¿Hay alguna nota marcada bajo esta carpeta (o igual a ella)? Para Grep/Glob/recorridos (hallazgo 2). */
+  bajo(dir: string): string | null
 }
 
 export function crearProcedencia(archivo: string | null): Procedencia {
@@ -52,6 +54,13 @@ export function crearProcedencia(archivo: string | null): Procedencia {
       guardar()
     },
     de(real) { return cargar().get(real)?.fuente ?? null },
+    bajo(dir) {
+      const m = cargar()
+      if (!m.size) return null
+      const pref = dir.endsWith('/') ? dir : dir + '/'
+      for (const [ruta, v] of m) if (ruta === dir || ruta.startsWith(pref)) return v.fuente
+      return null
+    },
   }
 }
 

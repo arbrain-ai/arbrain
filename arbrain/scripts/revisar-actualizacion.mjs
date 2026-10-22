@@ -22,7 +22,8 @@ export const CATEGORIAS = [
   { id: 'git', titulo: 'Configuración de git que ejecuta programas (filtros, submódulos, ganchos)', re: /(^|\/)\.git(attributes|modules)$|(^|\/)\.husky\/|(^|\/)\.githooks\// },
   { id: 'instalar', titulo: 'Lo que corre al instalar o arrancar (npm, supervisor, semilla, scripts)', re: /(^|\/)package\.json$|(^|\/)\.npmrc$|^arbrain\/scripts\/servidor(\.mjs|\/)|^arbrain\/cerebro\/sembrar\.py$|\.(sh|ps1|bat|cmd)$|(^|\/)(Makefile|justfile)$/ },
   { id: 'instrucciones', titulo: 'Instrucciones que el agente obedece (CLAUDE.md, AGENTS.md, skills, agentes, comandos)', re: /(^|\/)(CLAUDE|AGENTS)(\.local)?\.md$|(^|\/)\.claude\/(skills|agents|commands|output-styles|rules)\// },
-  { id: 'ci', titulo: 'Automatizaciones de GitHub', re: /^\.github\// },
+  // Corren en GitHub, no en tu máquina: se listan para que se vean, pero no piden tu OK.
+  { id: 'ci', titulo: 'Automatizaciones de GitHub (corren en GitHub, no en tu máquina)', re: /^\.github\//, informativa: true },
 ]
 
 /** Scripts de npm que corren solos al instalar (npm los ejecuta sin preguntar). */
@@ -69,15 +70,15 @@ export function revisar(desde, hasta, cwd = process.cwd()) {
     for (const s of scriptsNpm(leerEn(desde, x.antes ?? x.ruta, cwd), leerEn(hasta, x.ruta, cwd))) npm.push({ archivo: x.ruta, ...s })
   }
   const atributos = lista.filter(x => /(^|\/)\.gitattributes$/.test(x.ruta)).flatMap(x => atributosQueEjecutan(leerEn(hasta, x.ruta, cwd)).map(l => ({ archivo: x.ruta, linea: l })))
-  const sensibles = grupos.some(g => g.archivos.length) || npm.length > 0
+  const sensibles = grupos.some(g => !g.informativa && g.archivos.length) || npm.length > 0
   return { desde, hasta, total: lista.length, grupos: grupos.map(({ re, ...g }) => g), npm, atributos, sensibles }
 }
 
 export function texto(r) {
   const l = [`Revisión de la actualización ${r.desde} → ${r.hasta}: ${r.total} archivo(s) cambian.`]
-  if (!r.sensibles) { l.push('Nada de lo que cambia se ejecuta solo ni cambia las instrucciones del agente.'); return l.join('\n') }
-  l.push('Esto cambia cosas que corren en tu máquina o que el agente obedece. Revísalo antes de aceptar:')
-  for (const g of r.grupos) if (g.archivos.length) {
+  if (!r.sensibles) l.push('Nada de lo que cambia se ejecuta solo ni cambia las instrucciones del agente.')
+  else l.push('Esto cambia cosas que corren en tu máquina o que el agente obedece. Revísalo antes de aceptar:')
+  for (const g of r.grupos) if (g.archivos.length && (r.sensibles || g.informativa)) {
     l.push('', `• ${g.titulo}:`)
     for (const a of g.archivos.slice(0, 40)) l.push(`    ${{ A: 'nuevo', M: 'cambia', D: 'se borra', R: 'se mueve', C: 'se copia', T: 'cambia de tipo' }[a.estado] ?? a.estado}  ${a.antes ? `${a.antes} → ` : ''}${a.ruta}`)
     if (g.archivos.length > 40) l.push(`    … y ${g.archivos.length - 40} más`)

@@ -12,10 +12,17 @@ name: procedencia
 on:
   push:
     tags: ['v[0-9]+.[0-9]+.[0-9]+']
+  # Re-atestiguar una etiqueta ya publicada (por ejemplo, si la corrida del push falló) con el workflow de main.
+  workflow_dispatch:
+    inputs:
+      etiqueta:
+        description: 'Etiqueta vX.Y.Z ya publicada'
+        type: string
+        required: true
 permissions:
   contents: read
 concurrency:
-  group: procedencia-${{ github.ref }}
+  group: procedencia-${{ inputs.etiqueta || github.ref }}
   cancel-in-progress: false
 jobs:
   procedencia:
@@ -30,11 +37,13 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+          ref: ${{ inputs.etiqueta && format('refs/tags/{0}', inputs.etiqueta) || github.ref }}
       - name: Etiqueta firmada por una llave permitida
         env:
-          ETIQUETA: ${{ github.ref_name }}
+          ETIQUETA: ${{ inputs.etiqueta || github.ref_name }}
         run: |
           set -euo pipefail
+          [[ "$ETIQUETA" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::etiqueta inválida"; exit 1; }
           git fetch -q --force origin "refs/tags/$ETIQUETA:refs/tags/$ETIQUETA"
           [ "$(git cat-file -t "$ETIQUETA")" = tag ] || { echo "::error::$ETIQUETA no es anotada"; exit 1; }
           git -c gpg.format=ssh -c gpg.ssh.allowedSignersFile=.github/firmas-permitidas verify-tag "$ETIQUETA"
@@ -43,31 +52,35 @@ jobs:
       # compartida entra al paquete que se atestigua.
       - name: Código fuente, SBOM y huellas
         env:
-          ETIQUETA: ${{ github.ref_name }}
+          ETIQUETA: ${{ inputs.etiqueta || github.ref_name }}
         run: |
           set -euo pipefail
           mkdir -p salida
           git archive --format=tar.gz --prefix="arbrain-$ETIQUETA/" -o "salida/arbrain-$ETIQUETA.tar.gz" "$ETIQUETA"
-          (cd arbrain && npm sbom --package-lock-only --sbom-format cyclonedx --sbom-type application > "../salida/arbrain-$ETIQUETA-web.cdx.json")
-          (cd arbrain/server && npm sbom --package-lock-only --sbom-format cyclonedx --sbom-type application > "../../salida/arbrain-$ETIQUETA-daemon.cdx.json")
+          # npm sbom es estricto: si el lockfile trae una dependencia inválida (v0.2.3: @tiptap/core y pm 3.30.6 contra
+          # 3.31.4 pedidos), no hay SBOM de esa parte pero el código fuente se atestigua igual y queda el aviso.
+          sbom() {
+            if (cd "$1" && npm sbom --package-lock-only --sbom-format cyclonedx --sbom-type application) > "$2" 2> sbom.err; then return 0; fi
+            echo "::warning::sin SBOM de $1: $(grep -m3 'npm error' sbom.err | tr '\n' ' ')"; rm -f "$2"
+          }
+          sbom arbrain "salida/arbrain-$ETIQUETA-web.cdx.json"
+          sbom arbrain/server "salida/arbrain-$ETIQUETA-daemon.cdx.json"
           (cd salida && sha256sum * > SHA256SUMS)
           cat salida/SHA256SUMS
       - name: Atestación de procedencia
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
-          subject-path: |
-            salida/*.tar.gz
-            salida/*.cdx.json
-            salida/SHA256SUMS
+          subject-path: salida/*
       - name: Atestación del SBOM sobre el código fuente
+        if: hashFiles(format('salida/arbrain-{0}-web.cdx.json', inputs.etiqueta || github.ref_name)) != ''
         uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4.1.0
         with:
           subject-path: salida/*.tar.gz
-          sbom-path: salida/arbrain-${{ github.ref_name }}-web.cdx.json
+          sbom-path: salida/arbrain-${{ inputs.etiqueta || github.ref_name }}-web.cdx.json
       - name: Adjuntar al release
         env:
           GH_TOKEN: ${{ github.token }}
-          ETIQUETA: ${{ github.ref_name }}
+          ETIQUETA: ${{ inputs.etiqueta || github.ref_name }}
         run: |
           set -euo pipefail
           if gh release view "$ETIQUETA" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then

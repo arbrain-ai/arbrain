@@ -1,5 +1,5 @@
 import { cookies, headers } from 'next/headers'
-import { DESKTOP_SESSION_COOKIE, hostnameFromHostHeader, isClientEdition, isDesktopSecret, isLocalHostname } from '@/lib/desktop-auth'
+import { DESKTOP_SESSION_COOKIE, esCookieDeSesion, hostnameFromHostHeader, isClientEdition, isLocalHostname } from '@/lib/desktop-auth'
 
 export async function isDesktopAuthBypassFromHeaders() {
   const headerStore = await headers()
@@ -7,5 +7,5 @@ export async function isDesktopAuthBypassFromHeaders() {
   // Edición cliente (AUDITORIA I5): el Host se falsifica; vale solo la cookie del secreto por instalación.
   if (!isClientEdition()) return true
   const cookieStore = await cookies()
-  return isDesktopSecret(cookieStore.get(DESKTOP_SESSION_COOKIE)?.value)
+  return esCookieDeSesion(cookieStore.get(DESKTOP_SESSION_COOKIE)?.value)
 }

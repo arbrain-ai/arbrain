@@ -52,15 +52,36 @@ export function buildAttachmentMessage(localPath: string): string {
 }
 
 /**
+ * `fetch` que valida la URL en cada salto (SSRF): sigue hasta 5 redirecciones a mano, y cada `Location` pasa de nuevo
+ * por `validateUrl` (bloquea loopback, enlaces-locales y metadatos de la nube). Así una 302 no lleva la descarga a la
+ * red interna. CodeQL js/request-forgery (noche de seguridad 21→22 oct 2026).
+ */
+async function fetchValidado(url: string): Promise<Response> {
+  let actual = url
+  for (let salto = 0; salto < 5; salto++) {
+    const err = validateUrl(actual)
+    if (err) throw new Error(err)
+    const res = await fetch(actual, { redirect: 'manual' })
+    if (res.status >= 300 && res.status < 400) {
+      const loc = res.headers.get('location')
+      if (!loc) return res
+      actual = new URL(loc, actual).href
+      continue
+    }
+    return res
+  }
+  throw new Error('download blocked: too many redirects')
+}
+
+/**
  * Descarga una imagen desde una URL pública (ej: Supabase Storage) al directorio de uploads.
  * Retorna el path local del archivo descargado.
  */
 export async function downloadFromUrl(url: string): Promise<string> {
-  // Validate URL before downloading (SSRF protection)
-  const urlError = validateUrl(url)
-  if (urlError) throw new Error(urlError)
-
-  const res = await fetch(url)
+  // SSRF: validar la URL Y cada salto de redirección. Antes se validaba solo el texto de la URL y luego `fetch`
+  // seguía los 30x a donde dijera `Location` (127.0.0.1, 169.254…): un servidor público podía redirigir a la red
+  // interna. Ahora los saltos se siguen a mano, revalidando cada destino (CodeQL js/request-forgery, noche 21→22 oct).
+  const res = await fetchValidado(url)
   if (!res.ok) throw new Error(`download failed: ${res.status} ${res.statusText}`)
 
   // Check content-length before downloading body
