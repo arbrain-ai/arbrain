@@ -2,15 +2,15 @@
   "generador": "arbrain/empaquetado/generador",
   "origen": {
     "ref": "HEAD",
-    "commit": "f83706c02dd16e74f83f4167182772e4d557a82e",
-    "fecha": "2026-10-22T15:10:39-06:00"
+    "commit": "96e028daaa417d74f06fe5840425671a42a45549",
+    "fecha": "2026-10-22T15:43:13-06:00"
   },
   "version": "0.2.7",
   "allowlist": {
     "ruta": "docs/builds/empaquetado-2026-10-11/allowlist.yaml",
     "sha256": "bc576072d8baf0c729935c5ed196ddaccec0048bd26c9c425e2131165e98eef5"
   },
-  "conteo": 2407,
+  "conteo": 2408,
   "archivos": {
     ".agents/skills": {
       "enlace": "../.claude/skills",
@@ -1155,6 +1155,12 @@
       "bytes": 4757,
       "modo": "644",
       "origen": "arbrain/escritorio/empaquetar.mjs"
+    },
+    "arbrain/escritorio/iconos/128x128.png": {
+      "sha256": "ec64d345adf3eb838305be3cb7ae702c7d36adcde816349489ebf9859b295a36",
+      "bytes": 17067,
+      "modo": "644",
+      "origen": "arbrain/escritorio/iconos/128x128.png"
     },
     "arbrain/escritorio/iconos/icon.icns": {
       "sha256": "6810dc8269f815b57eefb8ab224efc147268cffffa988f8a49c4b068aa20e206",
