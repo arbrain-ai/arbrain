@@ -10,10 +10,10 @@
  *    mismo `git verify-tag` + huella que vive la persona.
  * 2. `scripts/escritorio.mjs instalar --archivo <paquete>`: instala y abre la app SIN servidor corriendo: la app tiene
  *    que encenderlo sola (primera vez: instala dependencias y compila).
- * 3. Espera «Corriendo», captura la pantalla, apaga el servidor (`servidor.mjs detener`, como al actualizar) y espera a
- *    que la app lo vuelva a encender y entre otra vez. Segunda captura. Tiempos en tiempos.json.
+ * 3. Espera «Corriendo» y captura. Después, como al actualizar: apaga el servidor, comprueba que la app espera sin
+ *    encenderlo, lo vuelve a encender en segundo plano y comprueba que la app entra sola. Capturas y tiempos.json.
  */
-import { spawnSync } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { appendFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -107,15 +107,20 @@ async function main() {
   captura('02-app-con-arbrain.png')
   if (!appViva()) throw new Error('la app se cerró')
 
-  // 4. Se apaga el servidor (como al actualizar): la app lo vuelve a encender y entra otra vez.
+  // 4. Como al actualizar: se apaga el servidor y la app espera SIN encenderlo (no arranca código a media
+  //    integración); el servidor vuelve en segundo plano, como lo hace la skill, y la app entra sola.
   di(correr(process.execPath, ['scripts/servidor.mjs', 'detener'], { cwd: ARBRAIN, permitirFallo: true }).stdout.trim())
+  await dormir(30_000)
+  captura('03-app-esperando.png')
+  if (!appViva()) throw new Error('la app se cerró al apagarse el servidor')
+  if (/Corriendo/.test(estado())) throw new Error('la app encendió el servidor sola durante la «actualización»')
   const t0 = seg()
-  await dormir(10_000)
-  if (!(await esperarCorriendo(8, 'reconexión'))) throw new Error('la app no volvió a encender el servidor en 8 min')
-  tiempos.reconexion_s = seg() - t0
-  await dormir(20_000)
-  captura('03-app-reconectada.png')
-  if (!appViva()) throw new Error('la app se cerró tras la reconexión')
+  spawn(process.execPath, ['scripts/servidor.mjs', '--sin-navegador'], { cwd: ARBRAIN, detached: true, stdio: 'ignore', windowsHide: true }).unref()
+  if (!(await esperarCorriendo(8, 'vuelta del servidor'))) throw new Error('el servidor no volvió en 8 min')
+  tiempos.vuelta_s = seg() - t0
+  await dormir(15_000)
+  captura('04-app-de-vuelta.png')
+  if (!appViva()) throw new Error('la app se cerró tras la vuelta del servidor')
   di('PRUEBA OK')
 }
 
