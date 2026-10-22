@@ -293,7 +293,7 @@ export async function POST(req: NextRequest) {
         body: preview || 'Tu respuesta esta lista',
         url: deepLinkUrl,
         tag,
-        icon: '/icon.svg',
+        icon: '/icon-192.png',
       })
       const invalidEndpoints: string[] = []
       await Promise.allSettled(

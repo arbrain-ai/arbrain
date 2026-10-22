@@ -134,7 +134,7 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     (async () => {
       const cache = await caches.open(CACHE_NAME)
-      await cache.addAll(['/icon.svg', '/manifest.json', '/levy.png']).catch(() => {})
+      await cache.addAll(['/icon-192.png', '/brand/arbrain-icono-mascara.png', '/manifest.json', '/levy.png']).catch(() => {})
       // Warm del shell de las rutas de arranque (best-effort: si no hay sesión
       // el server redirige a /login y isCacheableResponse lo descarta).
       const pages = await caches.open(PAGES_CACHE)
@@ -350,8 +350,8 @@ self.addEventListener('push', (event) => {
   const title = payload.title ?? 'Arbrain'
   const options = {
     body: payload.body ?? '',
-    icon: payload.icon ?? '/icon.svg',
-    badge: '/icon.svg',
+    icon: payload.icon ?? '/icon-192.png',
+    badge: '/brand/arbrain-icono-mascara.png',
     tag: payload.tag ?? 'mc-notification',
     data: { url: payload.url ?? '/', notificationId: payload.notificationId },
     requireInteraction: false,

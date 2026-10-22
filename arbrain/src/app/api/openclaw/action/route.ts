@@ -177,7 +177,7 @@ async function handleCreateTask(
               body: task.title,
               url: '/board',
               tag: `task-assigned-${task.id}`,
-              icon: '/icon.svg',
+              icon: '/icon-192.png',
             })
             await Promise.allSettled(
               subs.map((sub) =>

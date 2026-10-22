@@ -891,7 +891,7 @@ async function sendCronPush(
       body,
       url,
       tag: `cron-${jobId}`,
-      icon: '/icon.svg',
+      icon: '/icon-192.png',
     })
 
     const invalidEndpoints: string[] = []

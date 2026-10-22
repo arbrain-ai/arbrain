@@ -1,16 +1,16 @@
 {
   "generador": "arbrain/empaquetado/generador",
   "origen": {
-    "ref": "9c813fae489c1ee4621ce7f877d60b13d25d3cee",
-    "commit": "9c813fae489c1ee4621ce7f877d60b13d25d3cee",
-    "fecha": "2026-10-21T18:43:25-06:00"
+    "ref": "origin/main",
+    "commit": "67c4288f981b185114b71afeaaf676fc3cc486e2",
+    "fecha": "2026-10-21T19:08:48-06:00"
   },
   "version": "0.2.1",
   "allowlist": {
     "ruta": "docs/builds/empaquetado-2026-10-11/allowlist.yaml",
     "sha256": "be6b2c198041827a1de230c2587eaa955b3e5f08f567af988e074ca5f80f312d"
   },
-  "conteo": 2360,
+  "conteo": 2357,
   "archivos": {
     ".agents/skills": {
       "enlace": "../.claude/skills",
@@ -622,6 +622,12 @@
       "modo": "644",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/GUIA-INSTALACION.plantilla.md"
     },
+    "INSTALAR.md": {
+      "sha256": "0fa95a0b9dc257aa9f0c6213f29c2e88c922205ce8e8d884eadf6871ce5bea48",
+      "bytes": 20053,
+      "modo": "644",
+      "origen": "plantilla-g:arbrain/empaquetado/plantillas/INSTALAR.plantilla.md"
+    },
     "LICENSE": {
       "sha256": "14be6df28f6854783b97ed7d9b7f498687bfde50d1df19cd48f3f57f91d7a095",
       "bytes": 11346,
@@ -1222,41 +1228,17 @@
       "modo": "644",
       "origen": "arbrain/public/apple-touch-icon.png"
     },
-    "arbrain/public/brand/arbrain-logo-full.png": {
-      "sha256": "aaa4895fc744bef0262be2f09dc37a3f512a1b30f88bfcdd37f98670d48c95c4",
-      "bytes": 343113,
+    "arbrain/public/brand/arbrain-icono-aprobado.png": {
+      "sha256": "cb8391ce9ac2b673995ee92debca089df7878a7047a4d86389f69dcd28ef71db",
+      "bytes": 332876,
       "modo": "644",
-      "origen": "arbrain/public/brand/arbrain-logo-full.png"
+      "origen": "arbrain/public/brand/arbrain-icono-aprobado.png"
     },
-    "arbrain/public/brand/arbrain-logo-icon.png": {
-      "sha256": "01c6410f1d94647128d8521a929e0cde81c1f9b3e67d57a3b137dab3664cad18",
-      "bytes": 320928,
+    "arbrain/public/brand/arbrain-icono-mascara.png": {
+      "sha256": "0fca5b672e22f4f3f69ae636bbba313820b6e9fd60876f76fe1b34faca5d88da",
+      "bytes": 9331,
       "modo": "644",
-      "origen": "arbrain/public/brand/arbrain-logo-icon.png"
-    },
-    "arbrain/public/brand/arbrain-mark-black.png": {
-      "sha256": "87792a8bbbd4465e0aced9deab14b2b59a1f6b02455dd999faed7ee427b1144b",
-      "bytes": 231782,
-      "modo": "644",
-      "origen": "arbrain/public/brand/arbrain-mark-black.png"
-    },
-    "arbrain/public/brand/arbrain-mark-mask.png": {
-      "sha256": "3704cc8b18478d3afaa071e29127a6da068dcd66f5e8327e77dfd19d9156dbdf",
-      "bytes": 65945,
-      "modo": "644",
-      "origen": "arbrain/public/brand/arbrain-mark-mask.png"
-    },
-    "arbrain/public/brand/arbrain-mark.png": {
-      "sha256": "7a477a87463bab6f0c892d352f99926108ade6ffb8f21e462f2f20159cdd0fdb",
-      "bytes": 231192,
-      "modo": "644",
-      "origen": "arbrain/public/brand/arbrain-mark.png"
-    },
-    "arbrain/public/brand/arbrain-mark.svg": {
-      "sha256": "c136cf41dee07946ad3842c7ce614674fc39224476074c7e22671d81ea14fb12",
-      "bytes": 39807,
-      "modo": "644",
-      "origen": "arbrain/public/brand/arbrain-mark.svg"
+      "origen": "arbrain/public/brand/arbrain-icono-mascara.png"
     },
     "arbrain/public/conectoma/README.md": {
       "sha256": "3f4a20a2e1e4380df42661dfc9ca725d90535a3447109fe46366470d94a53e9a",
@@ -2825,8 +2807,8 @@
       "origen": "arbrain/public/splash.html"
     },
     "arbrain/public/sw.js": {
-      "sha256": "ebec1930696b095f07fdb445900b03f16583fc9fe7c5e1b3ebdf95ab4e831c4b",
-      "bytes": 20844,
+      "sha256": "0ac25bedf193d62e152de0ead673c5240d37923eb48ee85a111ae01880c1c137",
+      "bytes": 20911,
       "modo": "644",
       "origen": "arbrain/public/sw.js"
     },
@@ -3269,8 +3251,8 @@
       "origen": "arbrain/server/manos-casa/assets/icon.icns"
     },
     "arbrain/server/manos-casa/assets/logo.png": {
-      "sha256": "01c6410f1d94647128d8521a929e0cde81c1f9b3e67d57a3b137dab3664cad18",
-      "bytes": 320928,
+      "sha256": "cb8391ce9ac2b673995ee92debca089df7878a7047a4d86389f69dcd28ef71db",
+      "bytes": 332876,
       "modo": "644",
       "origen": "arbrain/server/manos-casa/assets/logo.png"
     },
@@ -6629,8 +6611,8 @@
       "origen": "arbrain/src/app/api/chat/commands/route.ts"
     },
     "arbrain/src/app/api/chat/complete/route.ts": {
-      "sha256": "5458aa3b9cea32f5079b4fab9855aec32ac473b8a783bc2fb0ae0d583c697be7",
-      "bytes": 18221,
+      "sha256": "5380ee5ec8ebd74e0bb85629b4e25dce044184a0f0d8bb9df8424249ddceb570",
+      "bytes": 18225,
       "modo": "644",
       "origen": "arbrain/src/app/api/chat/complete/route.ts"
     },
@@ -7073,8 +7055,8 @@
       "origen": "arbrain/src/app/api/notifications/prueba/route.ts"
     },
     "arbrain/src/app/api/notifications/send/route.ts": {
-      "sha256": "2f715343852e2c27c89653fc7b03515e4ffe7a4ff90876408f7e45683d831c3c",
-      "bytes": 6514,
+      "sha256": "402e2b86d4b8e2094c72f3ed4aa7ffc6aa3f558d4c3d93054a18953509a06e4e",
+      "bytes": 6518,
       "modo": "644",
       "origen": "arbrain/src/app/api/notifications/send/route.ts"
     },
@@ -7091,20 +7073,20 @@
       "origen": "arbrain/src/app/api/objectives/route.ts"
     },
     "arbrain/src/app/api/openclaw/action/route.ts": {
-      "sha256": "15c526fbbb450bc9ca6d624be81274afc417709e3a58fa5a7112ef2af5fac505",
-      "bytes": 12860,
+      "sha256": "14eefde824d5fdb86aaf8596d6cbee876efc048d3fe8dcb6fd555104252e4ff0",
+      "bytes": 12864,
       "modo": "644",
       "origen": "arbrain/src/app/api/openclaw/action/route.ts"
     },
     "arbrain/src/app/api/openclaw/event/route.ts": {
-      "sha256": "6083158ae00908d4693df88926e624a0ecd07c8a5cfb7786cfd17d00864c266b",
-      "bytes": 39533,
+      "sha256": "27c5341e4687be739988586d232aa4f1ebb63102e3e8d8dd527b58952c31be09",
+      "bytes": 39537,
       "modo": "644",
       "origen": "arbrain/src/app/api/openclaw/event/route.ts"
     },
     "arbrain/src/app/api/ops/daemon-health/route.ts": {
-      "sha256": "fe47b8c75d87e4a25c915f24086d686f436c2fcd9119a211a4fd6cacde83d966",
-      "bytes": 7225,
+      "sha256": "c9f1a7ae14d6ae7b5e3c1905e903cf613217c2bc0034dd1e3dd36fbb9545384b",
+      "bytes": 7229,
       "modo": "644",
       "origen": "arbrain/src/app/api/ops/daemon-health/route.ts"
     },
@@ -10877,8 +10859,8 @@
       "origen": "arbrain/src/features/notifications/lib/pushCliente.ts"
     },
     "arbrain/src/features/notifications/lib/pushServidor.ts": {
-      "sha256": "63a549ed56dd9d1211e85f901d6161d9f28784f888fe9ca6b6c8c323b6a40985",
-      "bytes": 8081,
+      "sha256": "dd2df8c9f3501db6950de01747622c4f4116bfad2457036a65482e9af52e6a3c",
+      "bytes": 8085,
       "modo": "644",
       "origen": "arbrain/src/features/notifications/lib/pushServidor.ts"
     },
@@ -12209,8 +12191,8 @@
       "origen": "arbrain/src/shared/components/_retirado-MobileTabBar.tsx.txt"
     },
     "arbrain/src/shared/components/icons/ArbrainMark.tsx": {
-      "sha256": "cd71952767e1cb3cdca60cef5e504b9961419029378be58cea096059ab1c1fba",
-      "bytes": 923,
+      "sha256": "db2f18dfd3bdbf05bd6c7c8e33b3ad3a421453b8f1565a968de0b244fa88404f",
+      "bytes": 995,
       "modo": "644",
       "origen": "arbrain/src/shared/components/icons/ArbrainMark.tsx"
     },

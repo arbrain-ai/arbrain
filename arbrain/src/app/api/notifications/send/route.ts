@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
       body: aviso.body,
       url: aviso.url,
       tag: tag ?? decision.source,
-      icon: '/icon.svg',
+      icon: '/icon-192.png',
     })
 
     let sent = 0

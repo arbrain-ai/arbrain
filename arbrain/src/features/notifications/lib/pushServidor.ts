@@ -76,7 +76,7 @@ export function payloadPrueba(nombre: string | null | undefined, ahora = new Dat
     url: '/settings?seccion=notificaciones',
     // tag único: dos pruebas seguidas no se tapan entre sí
     tag: `prueba-${ahora.getTime()}`,
-    icon: '/icon.svg',
+    icon: '/icon-192.png',
   }
 }
 

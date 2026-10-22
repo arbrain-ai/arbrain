@@ -69,7 +69,7 @@ async function pushToOwner(title: string, body: string): Promise<Array<{ host: s
   const { data: subs } = await subsQuery
   if (!subs?.length) return [{ host: 'none', error: 'no push_subscriptions' }]
 
-  const payloadStr = JSON.stringify({ title, body, url: '/chat?panel=taller&taller=servidores', tag: 'daemon-health', icon: '/icon.svg' })
+  const payloadStr = JSON.stringify({ title, body, url: '/chat?panel=taller&taller=servidores', tag: 'daemon-health', icon: '/icon-192.png' })
   const results: Array<{ host: string; statusCode?: number; error?: string }> = []
   const invalid: string[] = []
   await Promise.allSettled(
