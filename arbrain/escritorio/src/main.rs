@@ -104,16 +104,16 @@ fn conectar(proxy: &EventLoopProxy<Ev>) -> Result<String, Fallo> {
             return Err(fallo(
                 "Arbrain no pudo encenderse",
                 format!(
-                    "El servidor se detuvo ({salida}). Esto es lo último que escribió. Si no sabes qué hacer, abre Claude Code en tu carpeta Arbrain y pégaselo."
+                    "El servidor se detuvo ({salida}). Abajo, sus últimos avisos. Si no sabes qué hacer, abre Claude Code en tu carpeta Arbrain y dile «Arbrain no enciende, revisa el registro»."
                 ),
-                servidor::ultimas_lineas(&log, 30).join("\n"),
+                servidor::ultimos_avisos(&log, 12).join("\n"),
             ));
         }
         if inicio.elapsed() > PLAZO_ARRANQUE {
             return Err(fallo(
                 "Arbrain tarda demasiado en encender",
-                "Sigue trabajando en segundo plano. Reintenta en unos minutos o pégale este registro a Claude Code.",
-                servidor::ultimas_lineas(&log, 30).join("\n"),
+                "Sigue trabajando en segundo plano. Reintenta en unos minutos o abre Claude Code en tu carpeta Arbrain y dile «Arbrain no enciende, revisa el registro».",
+                servidor::ultimos_avisos(&log, 12).join("\n"),
             ));
         }
         let linea = servidor::ultimo_aviso(&log).unwrap_or_else(|| "Preparando…".into());
@@ -204,9 +204,13 @@ fn main() {
         .expect("no pude crear la ventana");
     #[cfg(windows)]
     {
-        use tao::platform::windows::IconExtWindows;
+        use tao::platform::windows::{IconExtWindows, WindowExtWindows};
         if let Ok(icono) = tao::window::Icon::from_resource(1, None) {
             window.set_window_icon(Some(icono));
+        }
+        // La barra de tareas usa el ícono grande; sin él, Windows pinta uno genérico.
+        if let Ok(grande) = tao::window::Icon::from_resource(1, Some(tao::dpi::PhysicalSize::new(256, 256))) {
+            window.set_taskbar_icon(Some(grande));
         }
     }
 

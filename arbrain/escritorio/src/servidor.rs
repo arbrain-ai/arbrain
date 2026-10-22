@@ -324,35 +324,27 @@ fn procesos() -> Vec<(u32, String)> {
         .collect()
 }
 
-/// Últimas `n` líneas del registro, sin colores ni la marca de hora de servidor.mjs.
-pub fn ultimas_lineas(ruta: &Path, n: usize) -> Vec<String> {
+/// Los últimos `n` avisos del propio supervisor («[arbrain hh:mm] Compilando…»). Nunca la salida cruda de npm ni de
+/// los compiladores: eso queda en el registro completo («Ver el registro completo»).
+pub fn ultimos_avisos(ruta: &Path, n: usize) -> Vec<String> {
     let Ok(mut f) = fs::File::open(ruta) else { return vec![] };
     let largo = f.metadata().map(|m| m.len()).unwrap_or(0);
-    let _ = f.seek(SeekFrom::Start(largo.saturating_sub(16 * 1024)));
+    let _ = f.seek(SeekFrom::Start(largo.saturating_sub(256 * 1024)));
     let mut b = Vec::new();
     let _ = f.read_to_end(&mut b);
     let texto = String::from_utf8_lossy(&b);
-    let mut lineas: Vec<String> = texto
+    let mut avisos: Vec<String> = texto
         .split(['\n', '\r'])
-        .map(limpiar)
+        .filter_map(|l| l.find("[arbrain ").map(|i| limpiar(&l[i..])))
         .filter(|l| !l.is_empty())
         .collect();
-    let desde = lineas.len().saturating_sub(n);
-    lineas.drain(..desde);
-    lineas
+    let desde = avisos.len().saturating_sub(n);
+    avisos.drain(..desde);
+    avisos
 }
 
-/// El último aviso del propio supervisor («[arbrain hh:mm] Compilando…»), sin el ruido de npm.
 pub fn ultimo_aviso(ruta: &Path) -> Option<String> {
-    let Ok(mut f) = fs::File::open(ruta) else { return None };
-    let largo = f.metadata().map(|m| m.len()).unwrap_or(0);
-    let _ = f.seek(SeekFrom::Start(largo.saturating_sub(64 * 1024)));
-    let mut b = Vec::new();
-    let _ = f.read_to_end(&mut b);
-    String::from_utf8_lossy(&b).split(['\n', '\r']).rev().find(|l| l.contains("[arbrain ")).map(|l| {
-        let desde = l.find("[arbrain ").unwrap_or(0);
-        limpiar(&l[desde..])
-    })
+    ultimos_avisos(ruta, 1).pop()
 }
 
 fn limpiar(l: &str) -> String {
@@ -421,6 +413,14 @@ mod pruebas {
         assert!(!es_arranque_nuestro("node scripts/servidor.mjs estado", d));
         assert!(!es_arranque_nuestro("node scripts/servidor.mjs --datos /tmp/otra --repo-original", d));
         assert!(!es_arranque_nuestro("node scripts/otro.mjs", d));
+    }
+
+    #[test]
+    fn solo_avisos_propios() {
+        let d = std::env::temp_dir().join(format!("arbrain-avisos-{}", std::process::id()));
+        fs::write(&d, "npm warn deprecated cron-parser@4.9.0: v4\n[arbrain 2:05:41 PM] Instalando dependencias\n> next build\n").unwrap();
+        assert_eq!(ultimos_avisos(&d, 5), vec!["Instalando dependencias".to_string()]);
+        let _ = fs::remove_file(&d);
     }
 
     #[test]

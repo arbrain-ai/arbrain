@@ -107,6 +107,22 @@ export function fechaViva(i: MostrarInput, hoy = hoyCivil()): MostrarInput {
 function leer(): Fijada[] {
   try { const v = JSON.parse(localStorage.getItem(CLAVE) ?? '[]'); return Array.isArray(v) ? sinDuplicadas(v.filter(f => f && typeof f.id === 'string' && f.input && !EN_TALLER.has(f.input.vista)).map(f => ({ ...f, input: fechaViva(alias(f.input)) }))) : [] } catch { return [] }
 }
+/**
+ * Edición cliente (22 oct 2026, prueba de Windows de Daniel: «el botón Calendario debe vivir dentro del panel»): el calendario ya no
+ * tiene botón en la cabecera del chat; es la primera pestaña del panel. Se siembra UNA vez por dispositivo (nuevo o de la v0.2.6):
+ * si luego la persona la cierra, se respeta y vuelve desde «+».
+ */
+const CLAVE_CALENDARIO_CLIENTE = 'arbrain.panelDerecho.calendarioCliente'
+export const ID_CALENDARIO_INICIAL = 'mano-calendario-inicio'
+/** ¿Toca sembrar el calendario? Solo en cliente, una vez, y si no hay ya una pestaña de calendario. Pura (para las pruebas). */
+export function siembraCalendario(fijadas: readonly Fijada[], cliente: boolean, yaSembrado: boolean): Fijada | null {
+  if (!cliente || yaSembrado || fijadas.some(f => alias(f.input).vista === 'calendario')) return null
+  return { id: ID_CALENDARIO_INICIAL, input: { vista: 'calendario', alcance: 'dia' }, en: Date.now() }
+}
+function marcarSembrado(): boolean {
+  try { if (localStorage.getItem(CLAVE_CALENDARIO_CLIENTE)) return true; localStorage.setItem(CLAVE_CALENDARIO_CLIENTE, '1'); return false } catch { return true }
+}
+
 function leerAcomodo(): unknown {
   try { return JSON.parse(localStorage.getItem(CLAVE_ACOMODO) ?? 'null') } catch { return null }
 }
@@ -208,11 +224,17 @@ export const usePanelFijadas = create<Estado>((set, get) => {
     cargado: false,
     cargar: () => {
       if (get().cargado) return
-      const fijadas = leer().filter(f => vistaPermitidaEnCliente(f.input.vista, CLIENTE)), crudo = leerAcomodo()
+      let fijadas = leer().filter(f => vistaPermitidaEnCliente(f.input.vista, CLIENTE))
+      const crudo = leerAcomodo()
+      const semilla = CLIENTE ? siembraCalendario(fijadas, CLIENTE, marcarSembrado()) : null
+      if (semilla) fijadas = [semilla, ...fijadas]
       const acomodo = normalizarAcomodo(crudo, fijadas.map(f => f.id))
       if (CLIENTE) acomodo.orden = acomodo.orden.filter(c => c !== TAREAS)
+      // El calendario sembrado va primero (tras las ancladas) y queda a la vista.
+      if (semilla) acomodo.orden = conAncladas([semilla.id, ...acomodo.orden.filter(c => c !== semilla.id)], acomodo.ancladas)
       const enVentana = normalizarEnVentana((crudo as { enVentana?: unknown } | null)?.enVentana, todasLasClaves(acomodo.orden, acomodo.taller))
-      set({ fijadas, ...acomodo, enVentana, cargado: true })
+      set({ fijadas, ...acomodo, enVentana, cargado: true, ...(semilla ? { activa: semilla.id } : {}) })
+      if (semilla) escribir(fijadas, acomodo.orden, acomodo.taller, acomodo.ancladas, enVentana)
       // Otra ventana fijó, soltó, movió o se llevó algo: aquí se ve igual.
       escuchar(m => {
         if (m.tipo !== 'fijadas') return

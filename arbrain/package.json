@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit",
     "test": "node scripts/pruebas-web.mjs",
     "servidor": "node scripts/servidor.mjs",
+    "escritorio": "node scripts/escritorio.mjs",
     "desktop:dev": "MISSION_CONTROL_DESKTOP_PORT=3000 node scripts/tauri.mjs dev",
     "desktop:build": "node scripts/tauri.mjs build --debug --no-bundle",
     "desktop:app": "node scripts/tauri.mjs build --bundles app --no-sign",

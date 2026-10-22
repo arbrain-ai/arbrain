@@ -74,7 +74,7 @@ import { validateInput, validateUrl, redactSecrets, MAX_DOWNLOAD_SIZE } from './
 import { opsLogger, type OpsEvent } from './ops-logger.js'
 import { computerUseDisponible, computerUseEncendido, estadoParaManos, marcarFuenteLocal, registrarVoz } from './manos/politica.js'
 import { esEdicionCliente } from './edicion.js'
-import { estadoLlaves, faltaLlaveClaude, MENSAJE_FALTA_LLAVE, CODIGO_FALTA_LLAVE } from './cliente/llaves.js'
+import { estadoLlaves, faltaLlaveClaude, faltaLlaveTrasConectar, MENSAJE_FALTA_LLAVE, CODIGO_FALTA_LLAVE } from './cliente/llaves.js'
 import { hostLocalValido, rutaCanonica, rutaSoloDaniel, MENSAJE_NO_DISPONIBLE } from './cliente/rutas.js'
 import { confirmacionesDelDaemon, iniciarConfirmaciones, pedidoManos } from './cliente/confirmaciones.js'
 import { secretoConfirmarValido } from './cliente/secreto.js'
@@ -745,10 +745,26 @@ async function rutasCliente(req: IncomingMessage, res: ServerResponse, ruta: str
   }
   if (req.method === 'GET' && ruta === '/llaves/suscripcion') {
     // Motor «Mi Claude Code» (cliente/suscripcion.ts): ¿hay `claude` con sesión de suscripción? Solo método y plan;
-    // ni correo ni token. `?fresco=1` = botón «Ya inicié sesión».
-    const { detectarSuscripcion } = await import('./cliente/suscripcion.js')
+    // ni correo ni token. `?fresco=1` = «Revisar de nuevo» o el regreso del inicio de sesión. 22 oct 2026 (prueba en
+    // Windows, «sácame del medio»): sin llave y con sesión, se conecta solo aquí mismo, sin preguntar ni reiniciar.
+    const { activarSuscripcionEnCaliente, detectarCodex, detectarSuscripcion, estadoLogin, leerMotorElegido } = await import('./cliente/suscripcion.js')
     const fresco = /[?&]fresco=1\b/.test(req.url ?? '')
-    sendJSON(res, 200, await detectarSuscripcion({ fresco }))
+    const configDir = process.env.ARBRAIN_CONFIG_DIR
+    const d = await detectarSuscripcion({ fresco })
+    let elegido = leerMotorElegido(configDir)
+    if (d.sesion && !d.activo && elegido !== 'llave' && activarSuscripcionEnCaliente(configDir, faltaLlaveClaude())) { d.activo = true; elegido = 'suscripcion' }
+    const codex = d.sesion ? undefined : await detectarCodex({ fresco }).catch(() => undefined)
+    sendJSON(res, 200, { ...d, elegido, login: estadoLogin(), ...(codex ? { codex } : {}) })
+    return true
+  }
+  if (req.method === 'POST' && ruta === '/llaves/suscripcion/login') {
+    // Botón «Iniciar sesión con Claude»: el login OFICIAL del CLI (instala Claude Code antes si falta). Arbrain no ve
+    // la página, el código ni el token; al terminar, si no hay llave, se conecta solo.
+    if (!secretoApp()) { sendJSON(res, 403, { error: 'Solo la app puede iniciar sesión.' }); return true }
+    const { conectarSuscripcionSiHay, iniciarSesionClaude } = await import('./cliente/suscripcion.js')
+    const configDir = process.env.ARBRAIN_CONFIG_DIR
+    const login = iniciarSesionClaude({ alTerminar: () => { void conectarSuscripcionSiHay({ sinLlave: faltaLlaveClaude(), configDir, fresco: true }).catch(() => {}) } })
+    sendJSON(res, login.estado === 'fallo' ? 409 : 202, { login })
     return true
   }
   if (req.method === 'POST' && ruta === '/llaves/motor') {
@@ -762,6 +778,9 @@ async function rutasCliente(req: IncomingMessage, res: ServerResponse, ruta: str
     }
     const dir = process.env.ARBRAIN_CONFIG_DIR
     if (!dir) { sendJSON(res, 500, { error: 'Falta la carpeta de configuración del daemon.' }); return true }
+    // Sin llave no hay vía de API que quitar: se aplica en caliente y la pantalla no reinicia el daemon.
+    const { activarSuscripcionEnCaliente } = await import('./cliente/suscripcion.js')
+    if (motor === 'suscripcion' && activarSuscripcionEnCaliente(dir, faltaLlaveClaude())) { sendJSON(res, 200, { ok: true, motor, reiniciar: false }); return true }
     guardarMotorElegido(dir, motor)
     sendJSON(res, 200, { ok: true, motor, reiniciar: true })
     return true
@@ -1183,6 +1202,9 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     const account = reqUrl.searchParams.get('account') ?? 'default'
     const conversationId = reqUrl.searchParams.get('session')?.trim() || null
     if (!owner?.trim() || !esCuentaChat(account)) { sendJSON(res, 400, { error: 'Selection requires an explicit owner and known account.' }); return }
+    // Prueba en Windows del 22 oct 2026 (punto 11): sin llave ni sesión, el catálogo de Claude no existe y esto decía
+    // «No se pudo confirmar el modelo Claude». Se dice lo que de verdad falta, con su código, y la web lo muestra.
+    if (esCuentaClaude(account) && await faltaLlaveTrasConectar()) { sendJSON(res, 409, { error: MENSAJE_FALTA_LLAVE, code: CODIGO_FALTA_LLAVE }); return }
     try {
       const intent = await captureChatIntent({ owner, account, conversationId }, readQueryControls,
         overrides => isCodexAccount(account) ? resolveCodexSelection(account, overrides as SessionOverrides) : resolveClaudeSelection(PROJECT_ROOT, account, overrides as SessionOverrides))
@@ -1603,7 +1625,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
       return
     }
     // BYOK (contrato §4): en la edición cliente, sin llave de Claude no se lanza el agente; error claro y se cierra.
-    if (esCuentaClaude(parsed['account']) && faltaLlaveClaude()) {
+    if (esCuentaClaude(parsed['account']) && await faltaLlaveTrasConectar()) {
       res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive', 'Access-Control-Allow-Origin': ALLOWED_ORIGIN, 'Access-Control-Allow-Headers': 'Content-Type, Authorization' })
       res.write(`data: ${JSON.stringify({ type: 'error', code: CODIGO_FALTA_LLAVE, message: MENSAJE_FALTA_LLAVE })}\n\n`)
       res.end()
@@ -2398,7 +2420,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
       return
     }
     message = validateInput(message, 'web-chat-legacy')
-    if (faltaLlaveClaude()) { sendJSON(res, 412, { error: MENSAJE_FALTA_LLAVE, code: CODIGO_FALTA_LLAVE }); return }
+    if (await faltaLlaveTrasConectar()) { sendJSON(res, 412, { error: MENSAJE_FALTA_LLAVE, code: CODIGO_FALTA_LLAVE }); return }
     registrarVoz(message)
 
     try {

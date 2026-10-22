@@ -19,6 +19,8 @@ pnpm-lock.yaml
 /dist
 /src-tauri/target
 /motor/target
+/escritorio/target
+/escritorio/dist
 /src-tauri/gen
 /src-tauri/resources/next/standalone
 
@@ -68,5 +70,3 @@ Thumbs.db
 supabase/.branches
 supabase/.temp
 !server/package-lock.json
-/escritorio/target
-/escritorio/dist

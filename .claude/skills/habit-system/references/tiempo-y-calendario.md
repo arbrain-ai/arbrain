@@ -84,7 +84,7 @@ objetivos del registro, las casillas del bloque del día y las tareas con la eti
 ### El calendario local (por defecto en esta edición)
 
 `.claude/plan/calendario.json` es el calendario de Arbrain: lo pinta la sección **Calendario** del
-panel (botón «Calendario» arriba a la derecha del chat, o el «+» del panel › Calendario) en Día,
+panel (su primera pestaña; si la cerró, el «+» del panel › Calendario) en Día,
 Semana y Mes, junto con los objetivos de `objetivos.md` y los hábitos. No necesita cuenta ni red.
 **Cuando el dueño pide agendar, bloquear o «pon X en el calendario» y no conectó otro calendario, se
 escribe aquí.** El archivo trae su propio instructivo en `_como_se_usa`; el contrato:

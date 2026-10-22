@@ -163,3 +163,126 @@ describe('el entorno sin vías de API', () => {
     expect(e).toEqual({ PATH: '/bin', HOME: '/h' })
   })
 })
+
+// ── Prueba en Windows del 22 oct 2026 (docs/builds/prueba-windows-2026-10-22, puntos 10, 11 y 12) ─────────────────
+import { EventEmitter } from 'node:events'
+import {
+  activarSuscripcionEnCaliente, cancelarLoginClaude, claudeDeEscritorio, comandoInstalarClaude, comandoParaEjecutar,
+  conectarSuscripcionSiHay, estadoLogin, iniciarLoginClaude, interpretarPathDelRegistro, MENSAJE_LENTO, MENSAJE_SIN_CLAUDE,
+  MENSAJE_SIN_SESION,
+} from './suscripcion.js'
+import { MENSAJE_FALTA_LLAVE } from './llaves.js'
+import { esFaltaLlave } from './sin-saldo.js'
+
+describe('detección fiable (Windows, PATH viejo, solo app de escritorio)', () => {
+  it('lee el PATH vigente del registro y expande %VARIABLES% (un CLI instalado después del daemon)', () => {
+    const salida = '\r\nHKEY_CURRENT_USER\\Environment\r\n    Path    REG_EXPAND_SZ    %USERPROFILE%\\.local\\bin;C:\\Herramientas;%NO_EXISTE%\\x;\r\n'
+    expect(interpretarPathDelRegistro(salida, { USERPROFILE: 'C:\\Users\\Usuario Ejemplo' })).toEqual(['C:\\Users\\Usuario Ejemplo\\.local\\bin', 'C:\\Herramientas'])
+    expect(interpretarPathDelRegistro('ERROR: no existe', {})).toEqual([])
+    const c = candidatosClaude({ PATH: 'C:\\Windows' }, 'win32', 'C:\\Users\\ana', ['D:\\nuevo'])
+    expect(c.some(p => p.startsWith('D:\\nuevo') || p.startsWith('D:/nuevo'))).toBe(true)
+  })
+  it('un claude.cmd en una ruta con espacios va entre comillas por shell; un .exe va directo, sin shell', () => {
+    expect(comandoParaEjecutar('C:\\Users\\Usuario Ejemplo\\AppData\\Roaming\\npm\\claude.cmd')).toEqual({ archivo: '"C:\\Users\\Usuario Ejemplo\\AppData\\Roaming\\npm\\claude.cmd"', shell: true })
+    expect(comandoParaEjecutar('C:\\Users\\ana\\.local\\bin\\claude.exe')).toEqual({ archivo: 'C:\\Users\\ana\\.local\\bin\\claude.exe', shell: false })
+  })
+  it('encuentra el Claude Code que trae la app de escritorio de Claude, el de versión más nueva', () => {
+    const home = tmp('desk-')
+    const raiz = join(home, 'Library', 'Application Support', 'Claude', 'claude-code')
+    for (const v of ['2.1.9', '2.1.304']) {
+      const d = join(raiz, v, 'abc123', 'claude.app', 'Contents', 'MacOS')
+      mkdirSync(d, { recursive: true }); writeFileSync(join(d, 'claude'), '')
+    }
+    expect(claudeDeEscritorio({}, 'darwin', home)).toBe(join(raiz, '2.1.304', 'abc123', 'claude.app', 'Contents', 'MacOS', 'claude'))
+    const appdata = tmp('appdata-')
+    mkdirSync(join(appdata, 'Claude', 'claude-code', '2.1.308'), { recursive: true }); writeFileSync(join(appdata, 'Claude', 'claude-code', '2.1.308', 'claude.exe'), '')
+    expect(claudeDeEscritorio({ APPDATA: appdata }, 'win32', 'C:\\nadie')).toBe(join(appdata, 'Claude', 'claude-code', '2.1.308', 'claude.exe'))
+    // Sin ningún otro `claude` (solo la app de escritorio, como en la PC de la prueba), buscarClaude cae a ese.
+    expect(buscarClaude({ PATH: '', APPDATA: appdata }, 'win32', tmp('vacio-'), [])).toBe(join(appdata, 'Claude', 'claude-code', '2.1.308', 'claude.exe'))
+  })
+  it('si `auth status` no contesta a tiempo (antivirus la primera vez) lo dice en una línea, sin «no veo tu sesión»', async () => {
+    const r = await detectarSuscripcion({ env: {}, ruta: '/x/claude', ejecutar: async () => ({ stdout: '', code: -1, lento: true }) })
+    expect(r).toMatchObject({ instalado: true, sesion: false, code: 'lento', mensaje: MENSAJE_LENTO })
+  })
+  it('cada aviso es UNA línea, sin comandos para copiar ni prompts', () => {
+    for (const m of [MENSAJE_SIN_SESION, MENSAJE_SIN_CLAUDE, MENSAJE_LENTO, MENSAJE_FALTA_LLAVE]) {
+      expect(m).not.toMatch(/\n|`/)
+      expect(m.length).toBeLessThan(220)
+    }
+  })
+  it('el instalador es el oficial, sin administrador', () => {
+    expect(comandoInstalarClaude('win32').args.join(' ')).toContain('irm https://claude.ai/install.ps1 | iex')
+    expect(comandoInstalarClaude('darwin').args.join(' ')).toContain('curl -fsSL https://claude.ai/install.sh | bash')
+  })
+})
+
+class ProcesoFalso extends EventEmitter { matado = false; kill() { this.matado = true; return true } }
+
+describe('«Iniciar sesión con Claude»: el login oficial del CLI, sin ver el token', () => {
+  afterEach(() => cancelarLoginClaude())
+  it('lanza `claude auth login --claudeai` sin llaves de API ni carpeta aislada, no lee su salida, y al terminar avisa', () => {
+    const vistos: Array<{ archivo: string; args: string[]; env: Record<string, string> }> = []
+    const proc = new ProcesoFalso()
+    let terminado = 0
+    const env = { PATH: '/usr/bin', ANTHROPIC_API_KEY: LLAVE, CLAUDE_CONFIG_DIR: '/aislada', CLAUDE_CODE_OAUTH_TOKEN: 'oat' } as NodeJS.ProcessEnv
+    const r = iniciarLoginClaude({ env, ruta: '/x/claude', alTerminar: () => { terminado++ }, lanzar: (archivo, args, e) => { vistos.push({ archivo, args, env: e }); return proc as never } })
+    expect(r).toMatchObject({ estado: 'esperando' })
+    expect(vistos[0].args).toEqual(['auth', 'login', '--claudeai'])
+    for (const k of ['ANTHROPIC_API_KEY', 'CLAUDE_CONFIG_DIR', 'CLAUDE_CODE_OAUTH_TOKEN']) expect(vistos[0].env).not.toHaveProperty(k)
+    // Uno a la vez: el segundo clic devuelve el mismo intento.
+    expect(iniciarLoginClaude({ env, ruta: '/x/claude', lanzar: () => { throw new Error('no debía lanzar otro') } })).toMatchObject({ estado: 'esperando' })
+    proc.emit('exit', 0)
+    expect(estadoLogin()).toMatchObject({ estado: 'listo' })
+    expect(terminado).toBe(1)
+  })
+  it('si el CLI sale con error, el estado dice qué hacer en una línea', () => {
+    const proc = new ProcesoFalso()
+    iniciarLoginClaude({ env: {}, ruta: '/x/claude', lanzar: () => proc as never })
+    proc.emit('exit', 1)
+    expect(estadoLogin()).toMatchObject({ estado: 'fallo' })
+    expect(estadoLogin()?.mensaje).not.toMatch(/\n|`/)
+  })
+  it('sin Claude Code no lanza nada', () => {
+    expect(iniciarLoginClaude({ env: {}, ruta: null, lanzar: () => { throw new Error('no') } })).toMatchObject({ estado: 'sin_claude' })
+  })
+})
+
+describe('conectar solo (sin llave y con sesión)', () => {
+  it('fija el motor en caliente, lo guarda y quita del proceso toda vía de API y la carpeta aislada', () => {
+    const dir = join(tmp('conf-'), 'config')
+    const env = { ARBRAIN_EDICION: 'cliente', CLAUDE_CONFIG_DIR: '/aislada', ANTHROPIC_BASE_URL: 'https://x' } as NodeJS.ProcessEnv
+    expect(activarSuscripcionEnCaliente(dir, true, env)).toBe(true)
+    expect(env.ARBRAIN_MOTOR_CLAUDE).toBe('suscripcion')
+    expect(env).not.toHaveProperty('CLAUDE_CONFIG_DIR')
+    expect(env).not.toHaveProperty('ANTHROPIC_BASE_URL')
+    expect(leerMotorElegido(dir)).toBe('suscripcion')
+    expect(motorSuscripcion(env)).toBe(true)
+  })
+  it('con llave no cambia nada en caliente (eso pide reiniciar) y fuera de la edición cliente tampoco', () => {
+    const env = { ARBRAIN_EDICION: 'cliente' } as NodeJS.ProcessEnv
+    expect(activarSuscripcionEnCaliente(undefined, false, env)).toBe(false)
+    expect(activarSuscripcionEnCaliente(undefined, true, {} as NodeJS.ProcessEnv)).toBe(false)
+  })
+  it('respeta a quien eligió «usar una llave» y no conecta sin sesión', async () => {
+    const dir = join(tmp('conf-'), 'config')
+    const conSesion = async () => ({ instalado: true, sesion: true, activo: false })
+    const sinSesion = async () => ({ instalado: true, sesion: false, activo: false })
+    expect(await conectarSuscripcionSiHay({ sinLlave: true, configDir: dir, env: { ARBRAIN_EDICION: 'cliente' }, detectar: sinSesion })).toBe(false)
+    guardarMotorElegido(dir, 'llave')
+    expect(await conectarSuscripcionSiHay({ sinLlave: true, configDir: dir, env: { ARBRAIN_EDICION: 'cliente' }, detectar: conSesion })).toBe(false)
+    const dir2 = join(tmp('conf-'), 'config')
+    const env = { ARBRAIN_EDICION: 'cliente' } as NodeJS.ProcessEnv
+    expect(await conectarSuscripcionSiHay({ sinLlave: true, configDir: dir2, env, detectar: conSesion })).toBe(true)
+    expect(env.ARBRAIN_MOTOR_CLAUDE).toBe('suscripcion')
+  })
+})
+
+describe('sin llave ni sesión el chat dice cómo conectarse (punto 11)', () => {
+  it('el aviso nombra los dos caminos y la web lo reconoce por su inicio', () => {
+    expect(MENSAJE_FALTA_LLAVE).toMatch(/Iniciar sesión con Claude/)
+    expect(MENSAJE_FALTA_LLAVE).toMatch(/Conectar con OpenRouter/)
+    expect(esFaltaLlave({ error: true, diagnostic: MENSAJE_FALTA_LLAVE })).toBe(true)
+    expect(esFaltaLlave({ error: false, diagnostic: MENSAJE_FALTA_LLAVE })).toBe(false)
+    expect(esFaltaLlave({ error: true, diagnostic: 'No se pudo confirmar el modelo Claude.' })).toBe(false)
+  })
+})

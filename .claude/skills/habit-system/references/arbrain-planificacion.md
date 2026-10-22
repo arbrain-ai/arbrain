@@ -3,8 +3,8 @@
 ## Qué ve el dueño en la app (esta edición)
 
 La operación es **conversacional**: el dueño le habla a Levy en el chat y Levy escribe en las plumas
-de esta skill. La app muestra chat, panel, lienzo, Taller y el **Calendario** (botón «Calendario»
-arriba a la derecha del chat, o el «+» del panel): Día, Semana y Mes con los objetivos de
+de esta skill. La app muestra chat, panel, lienzo, Taller y el **Calendario** (primera pestaña del
+panel de la derecha, o el «+» del panel › Calendario): Día, Semana y Mes con los objetivos de
 `objetivos.md`, los eventos y tareas de `calendario.json` y los hábitos de `habitos.json`, en vivo. El
 dueño también puede abrir esos archivos en el Explorador del panel. La vista es espejo de esas
 fuentes, no una base nueva: Levy escribe en las fuentes y la vista las pinta.

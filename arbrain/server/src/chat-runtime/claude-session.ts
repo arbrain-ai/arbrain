@@ -2,7 +2,7 @@ import { query, type Options, type Query, type SDKMessage, type SDKUserMessage, 
 import { homedir } from 'node:os'
 import { randomUUID } from 'node:crypto'
 import path from 'node:path'
-import { DEFAULT_ACCOUNT_CONFIG_DIR } from '../config.js'
+import { defaultAccountConfigDir } from '../config.js'
 import { esEdicionCliente } from '../edicion.js'
 import { motorSuscripcion } from '../cliente/suscripcion.js'
 import { dirClaudeAlternaO } from '../cuentas-alternas.js'
@@ -115,8 +115,8 @@ export class ClaudeInteractiveSession {
     const env = inheritEnvironment ? { ...process.env, ...options.env } : { ...options.env }
     // Even explicitly naming ~/.claude can select a different Keychain key.
     // The default account follows the CLI's default resolution, as production does.
-    if (scope.account === 'default' && !DEFAULT_ACCOUNT_CONFIG_DIR) delete env.CLAUDE_CONFIG_DIR
-    else env.CLAUDE_CONFIG_DIR = scope.account === 'default' ? DEFAULT_ACCOUNT_CONFIG_DIR! : dirClaudeAlternaO()
+    if (scope.account === 'default' && !defaultAccountConfigDir()) delete env.CLAUDE_CONFIG_DIR
+    else env.CLAUDE_CONFIG_DIR = scope.account === 'default' ? defaultAccountConfigDir()! : dirClaudeAlternaO()
     // Instalación original: solo suscripción, se quitan las vías de API. Edición cliente: la llave del alumno ES la vía
     // (API de Anthropic u OpenRouter como ANTHROPIC_AUTH_TOKEN + ANTHROPIC_BASE_URL; contrato §4). Sin esto el chat del
     // alumno con OpenRouter respondía «Not logged in» (11 oct 2026, evidencia del .app).

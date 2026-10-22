@@ -234,6 +234,44 @@ async function recorrido(puerto) {
   if (obj.status !== 200 || OBJETIVOS_EN_CASILLAS.some((t) => !delDia.includes(t))) return `objetivos del día: ${obj.status}, llegan ${JSON.stringify(delDia)} (se esperaban los 3)`
   log(`calendario: los ${OBJETIVOS_EN_CASILLAS.length} objetivos del día de objetivos.md llegan a la vista`)
   log(`calendario: los ${OBJETIVOS_DEL_DIA.length} objetivos del día escritos a mano se pintan y /calendar existe${calendario.status === 200 ? '' : ' (tras la bienvenida)'}`)
+  return await recorridoSesion(base, cookie)
+}
+
+/**
+ * v0.2.7 (prueba en Windows del 22 oct 2026, puntos 10 y 11). Sin llave ni sesión:
+ *   - `/api/llaves/suscripcion` encuentra el Claude Code recién instalado aunque el PATH de este proceso sea viejo (el
+ *     workflow lo instala en un paso anterior y no toca el PATH: `ARBRAIN_CI_CLAUDE=instalado`), responde a tiempo y
+ *     dice qué falta en UNA línea.
+ *   - el chat no da un error crudo: la selección responde `falta_llave` con el aviso de cómo conectarse, y el turno
+ *     también. Nunca «No se pudo confirmar el modelo».
+ */
+async function recorridoSesion(base, cookie) {
+  // v0.2.7 (encargo de Daniel, 22 oct): Claude Code instalado DESPUÉS de arrancar Arbrain. El workflow pasa el comando
+  // que lo instala (en Windows, `claude.cmd` de npm en una carpeta con espacios y solo en el PATH del registro).
+  const despues = process.env.ARBRAIN_CI_INSTALAR_DESPUES
+  if (despues) {
+    log('instalando Claude Code con Arbrain ya corriendo…')
+    const inst = spawnSync(despues, { shell: true, stdio: 'inherit' })
+    if (inst.status !== 0) return `falló instalar Claude Code con Arbrain corriendo (código ${inst.status})`
+  }
+  const t = Date.now()
+  const r = await fetch(`${base}/api/llaves/suscripcion?fresco=1`, { headers: { cookie }, signal: AbortSignal.timeout(90_000) })
+  const s = await r.json().catch(() => ({}))
+  if (r.status !== 200) return `/api/llaves/suscripcion respondió ${r.status}: ${JSON.stringify(s).slice(0, 200)}`
+  const instalado = process.env.ARBRAIN_CI_CLAUDE === 'instalado' || !!despues
+  if (s.sesion !== false || s.activo !== false) return `sin sesión, /api/llaves/suscripcion dijo sesion=${s.sesion} activo=${s.activo}`
+  if (instalado && (s.instalado !== true || s.code !== 'sin_sesion')) return `Claude Code recién instalado (PATH sin refrescar) no se detectó: ${JSON.stringify({ instalado: s.instalado, code: s.code, mensaje: s.mensaje })}`
+  if (!['sin_claude', 'sin_sesion'].includes(s.code)) return `código inesperado de la sesión: ${s.code} (${s.mensaje})`
+  if (typeof s.mensaje !== 'string' || !s.mensaje || /\n/.test(s.mensaje) || s.mensaje.length > 220 || /`/.test(s.mensaje)) return `el aviso de la sesión no es una línea clara sin comandos: ${JSON.stringify(s.mensaje)}`
+  log(`sesión: ${s.instalado ? 'Claude Code encontrado' : 'sin Claude Code'} en ${Date.now() - t} ms (${s.code}): «${s.mensaje}»`)
+
+  const sel = await fetch(`${base}/api/chat/selection?account=default`, { headers: { cookie } })
+  const j = await sel.json().catch(() => ({}))
+  if (sel.status !== 409 || j.code !== 'falta_llave' || !/^Levy todavía no está conectado a un modelo\./.test(j.error ?? '')) return `sin llave, la selección respondió ${sel.status} ${JSON.stringify(j).slice(0, 240)} (se esperaba 409 falta_llave)`
+  const turno = await fetch(`${base}/api/chat/stream`, { method: 'POST', headers: { cookie, 'Content-Type': 'application/json', Origin: base }, body: JSON.stringify({ message: '¿Quién eres?' }) })
+  const cuerpo = await turno.text()
+  if (!/falta_llave/.test(cuerpo) || /No se pudo confirmar el modelo/.test(cuerpo)) return `sin llave, «¿Quién eres?» respondió ${turno.status}: ${cuerpo.slice(0, 240)}`
+  log('chat sin llave: la selección y el turno dicen cómo conectarse (falta_llave), sin error crudo')
   return null
 }
 

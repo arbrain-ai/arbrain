@@ -22,7 +22,18 @@ const TODOS: { id: SegmentoTaller; etiqueta: string; pregunta: string }[] = [
   { id: 'memoria', etiqueta: 'Memoria', pregunta: '¿Qué sabe mi cerebro de mí?' },
   { id: 'maquina', etiqueta: 'Máquina', pregunta: '¿Está todo prendido?' },
 ]
-/** Edición cliente: Agentes y Memoria (Rutinas, Máquina y Registro leen servicios y bases del Studio de Daniel). */
+/**
+ * Edición cliente: Agentes y Memoria. Revisado el 22 oct 2026 (prueba de Windows de Daniel: «no veo Rutinas ni Máquina») y se
+ * quedan fuera porque hoy no funcionan en la copia del alumno:
+ *  · Rutinas lee `/api/planning/crons`, que en cliente está excluida a propósito (edicion.ts, APIS_CLIENTE_EXCLUIDAS) y cuyo
+ *    historial sale de `conversations` en Supabase, que el alumno no tiene. Mostrarla daría un 404 o una lista vacía con error.
+ *    Además, con la suscripción de Claude las rutinas automáticas no corren (cliente/suscripcion.ts, MENSAJE_RUTINAS).
+ *    Para abrirla en cliente hace falta una rama local de esa ruta: el `/schedule` del daemon del alumno y su historial en la base
+ *    local, en vez de Supabase.
+ *  · Máquina lee `/api/cabina/servidores` (fuera de APIS_CLIENTE) y pinta el Studio de Daniel: los servidores de sus miembros,
+ *    sus servicios launchd por área y la Casa. En la computadora del alumno no hay nada de eso que mostrar.
+ *  · Registro vive detrás de Máquina y Rutinas.
+ */
 const CLIENTE = esEdicionCliente()
 export const SEGMENTOS_TALLER = CLIENTE ? TODOS.filter(t => t.id === 'terminales' || t.id === 'memoria') : TODOS
 const ALIAS: Record<string, SegmentoTaller> = { agentes: 'terminales', servidores: 'maquina', servicios: 'maquina', archivos: 'memoria' }

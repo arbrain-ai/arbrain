@@ -292,6 +292,24 @@ export interface EstadoSuscripcion {
   activo: boolean
   code?: string
   mensaje?: string
+  /** Lo que eligió la persona (o se eligió solo al detectar su sesión); null si nunca se eligió. */
+  elegido?: 'suscripcion' | 'llave' | null
+  /** El inicio de sesión que lanzó Arbrain con el CLI oficial (22 oct 2026). */
+  login?: { estado: 'esperando' | 'listo' | 'fallo'; desde: string; mensaje?: string }
+  /** Codex con sesión de ChatGPT: solo informativo, todavía no corre en esta edición. */
+  codex?: { instalado: boolean; sesion: boolean }
+}
+
+/**
+ * «Iniciar sesión con Claude» (22 oct 2026): el daemon instala Claude Code si falta y lanza su login oficial; el
+ * navegador se abre solo. Devuelve el estado del intento o lanza con el porqué en una línea.
+ */
+export async function iniciarSesionClaude(): Promise<NonNullable<EstadoSuscripcion['login']>> {
+  const r = await fetch('/api/llaves/suscripcion/login', { method: 'POST', cache: 'no-store' })
+  const j = await r.json().catch(() => ({})) as { login?: EstadoSuscripcion['login']; error?: string }
+  if (!j.login) throw new Error(j.error ?? 'No pude abrir el inicio de sesión de Claude.')
+  if (j.login.estado === 'fallo') throw new Error(j.login.mensaje ?? 'No pude abrir el inicio de sesión de Claude.')
+  return j.login
 }
 
 /** Instaladores oficiales de Claude Code (code.claude.com/docs/en/setup). */
@@ -318,8 +336,10 @@ export async function estadoSuscripcion(fresco = false): Promise<EstadoSuscripci
 /** Elige el motor del chat y reinicia el daemon para aplicarlo. Devuelve el estado nuevo o lanza con el porqué. */
 export async function elegirMotor(motor: 'suscripcion' | 'llave'): Promise<void> {
   const r = await fetch('/api/llaves/motor', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ motor }), cache: 'no-store' })
-  const j = await r.json().catch(() => ({})) as { error?: string }
+  const j = await r.json().catch(() => ({})) as { error?: string; reiniciar?: boolean }
   if (!r.ok) throw new Error(j.error ?? 'No pude cambiar con qué habla Levy.')
+  // Sin llave el daemon lo aplica en caliente (`reiniciar: false`): no hay nada que reiniciar.
+  if (j.reiniciar === false) return
   await daemonReiniciar()
   await esperarDaemon(30_000)
 }

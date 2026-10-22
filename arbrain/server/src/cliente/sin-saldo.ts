@@ -44,6 +44,14 @@ export function clasificarFalloDeCuenta(f: { status?: unknown; error?: unknown; 
   return null
 }
 
+/** Inicio fijo del aviso de «falta conectar un modelo» (cliente/llaves.ts › MENSAJE_FALTA_LLAVE): la web lo reconoce. */
+export const INICIO_FALTA_LLAVE = 'Levy todavía no está conectado a un modelo.'
+
+/** ¿El turno no salió porque no hay llave ni sesión? Solo mira el aviso del daemon (diagnóstico de un error). */
+export function esFaltaLlave(msg: { error?: boolean; diagnostic?: string }): boolean {
+  return !!msg.error && typeof msg.diagnostic === 'string' && msg.diagnostic.startsWith(INICIO_FALTA_LLAVE)
+}
+
 /** Inicio fijo del aviso de llave rechazada: la web lo reconoce por aquí (no por el detalle del proveedor). */
 export const INICIO_LLAVE_RECHAZADA = 'Tu llave no funcionó:'
 
@@ -60,7 +68,7 @@ export function mensajeFalloDeCuenta(tipo: FalloDeCuenta, proveedor: string | nu
   // Motor «Mi Claude Code» (cliente/suscripcion.ts): no hay llave que recargar ni pegar; la sesión es la de su terminal.
   if (proveedor === 'suscripcion') {
     if (tipo === 'sin_saldo') return `Tu plan de Claude no dejó responder a Levy (límite de uso o plan inactivo). Espera a que se reinicie tu límite o revisa tu plan en claude.ai; también puedes conectar una llave en Ajustes › Llaves.${cola}`
-    return `Tu Claude Code no tiene la sesión iniciada (o venció), por eso Levy no pudo responder. Abre una terminal, escribe \`claude\`, inicia sesión con tu cuenta y pulsa «Reintentar».${cola}`
+    return `Tu Claude Code no tiene la sesión iniciada (o venció), por eso Levy no pudo responder. Abre Ajustes › Llaves, pulsa «Iniciar sesión con Claude», entra con tu cuenta en el navegador y pulsa «Reintentar».${cola}`
   }
   if (tipo === 'sin_saldo') {
     return `Tu cuenta de ${donde} se quedó sin crédito, por eso Levy no pudo responder. Recarga crédito en ${donde} y pulsa «Reintentar»; tu mensaje sigue aquí.${cola}`

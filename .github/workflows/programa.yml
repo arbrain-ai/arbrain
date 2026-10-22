@@ -1,0 +1,105 @@
+# Programa ya compilado de Arbrain por plataforma (22 oct 2026, prueba de Windows de Daniel: compilar tardaba demasiado).
+# Fuente: arbrain/empaquetado/ci/workflows/programa.yml del repo del autor; el generador lo copia a .github/workflows/.
+#
+# En cada plataforma: `npm run servidor -- empaquetar` compila web y daemon y arma
+# arbrain-programa-vX.Y.Z-<so>-<arq>.tar.gz con el Node fijado (scripts/node-embebido.json). Luego lo PRUEBA como lo
+# usará el alumno: firma una etiqueta local con una llave desechable que lleva la huella, sirve el archivo en 127.0.0.1
+# y corre la E2E del modo servidor (prueba-ci.mjs) en una copia limpia, que debe bajarlo, verificarlo y arrancar SIN
+# compilar. Sube el .tar.gz y su .huella como artefactos: publicar-version.sh los baja, pone las huellas en la etiqueta
+# firmada de verdad y los adjunta al release. No usa secretos ni cachés (nada de una caché compartida entra al paquete).
+name: Arbrain · programa ya compilado
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['ci-**', 'release/**']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: programa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  programa:
+    name: programa · ${{ matrix.plat }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-latest, plat: darwin-arm64 }
+          - { os: macos-15-intel, plat: darwin-x64 }
+          - { os: windows-latest, plat: win32-x64 }
+          - { os: ubuntu-latest, plat: linux-x64 }
+          - { os: ubuntu-24.04-arm, plat: linux-arm64 }
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      # Node 22 (ABI 127): el mismo del Node fijado que viaja en el paquete; los nativos del daemon se instalan para él.
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+
+      - name: Armar el paquete
+        working-directory: arbrain
+        shell: bash
+        run: |
+          set -euo pipefail
+          inicio=$(date +%s)
+          node scripts/servidor.mjs empaquetar --salida "$RUNNER_TEMP/salida" --datos "$RUNNER_TEMP/datos-empaquetar"
+          echo "Empaquetar tardó $(( $(date +%s) - inicio )) s" >> "$GITHUB_STEP_SUMMARY"
+          ls -la "$RUNNER_TEMP/salida"
+          test -f "$RUNNER_TEMP/salida/arbrain-programa-v$(cat ../VERSION)-${{ matrix.plat }}.tar.gz"
+
+      - name: Probarlo como el alumno (firma desechable, sin compilar)
+        shell: bash
+        run: |
+          set -euo pipefail
+          V="v$(cat VERSION)"
+          PRUEBA="$RUNNER_TEMP/prueba"; mkdir -p "$PRUEBA/home/.config/arbrain"
+          ssh-keygen -q -t ed25519 -N '' -C prueba -f "$PRUEBA/k"
+          echo "prueba namespaces=\"git\" $(cut -d' ' -f1,2 "$PRUEBA/k.pub")" > "$PRUEBA/home/.config/arbrain/firmas-permitidas"
+          git clone -q --no-local "$GITHUB_WORKSPACE" "$PRUEBA/copia"
+          cd "$PRUEBA/copia"
+          git -c user.name=ci -c user.email=ci@ci -c gpg.format=ssh -c user.signingkey="$PRUEBA/k" \
+            tag -s "$V" -m "Arbrain $V
+
+          $(cat "$RUNNER_TEMP"/salida/*.huella)" HEAD
+          (cd "$RUNNER_TEMP/salida" && python -m http.server 8765 --bind 127.0.0.1 > /dev/null 2>&1 &)
+          sleep 2
+          cd arbrain
+          inicio=$(date +%s)
+          HOME="$PRUEBA/home" USERPROFILE="$PRUEBA/home" ARBRAIN_PROGRAMA_BASE=http://127.0.0.1:8765 \
+            node scripts/servidor/prueba-ci.mjs --datos "$PRUEBA/datos" --plazo-min 15 | tee "$PRUEBA/salida.log"
+          grep -q "no hace falta compilar" "$PRUEBA/datos/logs/servidor.log" || { echo "::error::no usó el programa ya compilado"; tail -20 "$PRUEBA/datos/logs/servidor.log"; exit 1; }
+          test ! -d node_modules || { echo "::error::instaló dependencias aunque tenía el programa"; exit 1; }
+          echo "Instalación con el programa ya compilado (${{ matrix.plat }}): $(( $(date +%s) - inicio )) s hasta corriendo y E2E" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Subir el paquete
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: programa-${{ matrix.plat }}
+          path: |
+            ${{ runner.temp }}/salida/*.tar.gz
+            ${{ runner.temp }}/salida/*.huella
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+
+      - name: Logs
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: logs-programa-${{ matrix.plat }}
+          path: |
+            ${{ runner.temp }}/datos-empaquetar/logs
+            ${{ runner.temp }}/prueba/datos/logs
+          if-no-files-found: warn
+          retention-days: 7

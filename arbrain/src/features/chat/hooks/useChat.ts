@@ -1444,7 +1444,21 @@ export function useChat({ sessionId, onSave, onRestoreInput, isSessionActive, ac
         submittedIntent = { ...selected, conversationId: chatSessionId, ...(opts?.effort ? { effort: opts.effort } : {}) }
         const updated = await confirmQueuedChatSelection(queuedSubmission.id, profile!.id, submittedIntent)
         if (updated.status === 'cancelled' || submissionController.signal.aborted) { if (isCurrent()) setLoading(false); return }
-      } catch { submittedIntent = undefined }
+      } catch (error) {
+        submittedIntent = undefined
+        // Prueba en Windows del 22 oct 2026 (punto 11): sin llave ni sesión no hay ajustes que confirmar. No queda un
+        // borrador trabado con «No se pudo confirmar el modelo»: el turno dice cómo conectarse (Ajustes › Llaves) y el
+        // mensaje se puede reintentar al conectar.
+        if ((error as { code?: unknown } | null)?.code === 'falta_llave') {
+          await cancelQueuedChat(queuedSubmission.id).catch(() => {})
+          if (isCurrent()) pendingSubmissionRef.current = null
+          const aviso = error instanceof Error ? error.message : ''
+          setMessages(previous => previous.map(message => message.id === assistantId ? { ...message, content: '', diagnostic: aviso, error: true, streaming: false, status: null } : message))
+          if (isCurrent()) setLoading(false)
+          if (isCurrent()) pendingTurnRef.current = null
+          return
+        }
+      }
     }
 
     if (queuedSubmission && !submittedIntent && !trimmed.startsWith('/')) {

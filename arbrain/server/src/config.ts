@@ -33,9 +33,14 @@ export const CLAUDECLAW_ROLE: 'full' | 'chat' = env['CLAUDECLAW_ROLE'] === 'chat
 // cuenta (decisión 16 sep). En la MacBook el ~/.claude del CLI no tiene sesión:
 // CLAUDECLAW_DEFAULT_ACCOUNT=bro hace que 'default' use la carpeta de la cuenta alterna.
 // Edición cliente: el CLI del alumno usa su carpeta aislada (ARBRAIN_DATA_DIR/claude, la fija cliente/arranque.ts).
-export const DEFAULT_ACCOUNT_CONFIG_DIR: string | undefined =
-  esEdicionCliente() ? (process.env.CLAUDE_CONFIG_DIR || undefined)
-    : env['CLAUDECLAW_DEFAULT_ACCOUNT'] === 'bro' ? (dirClaudeAlterna() ?? undefined) : undefined
+// 22 oct 2026: en cliente se lee en cada uso, no al cargar. Al conectar «Mi Claude Code» en caliente
+// (cliente/suscripcion.ts › activarSuscripcionEnCaliente) se borra CLAUDE_CONFIG_DIR del proceso y el CLI debe pasar a
+// la carpeta por defecto de la persona, donde vive su sesión, sin reiniciar el daemon.
+const DEFAULT_ACCOUNT_CONFIG_DIR_ORIGINAL: string | undefined =
+  env['CLAUDECLAW_DEFAULT_ACCOUNT'] === 'bro' ? (dirClaudeAlterna() ?? undefined) : undefined
+export function defaultAccountConfigDir(): string | undefined {
+  return esEdicionCliente() ? (process.env.CLAUDE_CONFIG_DIR || undefined) : DEFAULT_ACCOUNT_CONFIG_DIR_ORIGINAL
+}
 
 // === DUEÑO ===
 // Identificador del dueño en scheduled_tasks.chat_id (clave interna de las rutinas).
