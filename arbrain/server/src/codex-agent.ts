@@ -23,6 +23,9 @@ import { CUENTA_ALTERNA_NO_DISPONIBLE, dirCodexAlterna } from './cuentas-alterna
 /** Edición cliente (AUDITORIA I4): Codex escribe solo en el workspace. La instalación de Daniel, acceso total como siempre. */
 const sandboxCodex = () => (esEdicionCliente() ? 'workspace-write' : 'danger-full-access') as 'workspace-write' | 'danger-full-access'
 
+/** Edición cliente: Codex no corre (no pasa por la guardia de los agentes). */
+export const MENSAJE_CODEX_CLIENTE = 'Codex no está disponible en esta edición: la guardia de Arbrain (tu confirmación, secretos negados, contenido de afuera tratado como datos) solo cubre a Claude.'
+
 /** Identificador del espacio en el chat (chat_sessions.account, body.account). */
 export const CODEX_ACCOUNT = 'codex'
 
@@ -184,6 +187,7 @@ export function codexRuntime(): CodexRuntimePool {
 /** Bifurca el hilo Codex de una conversación (menú «⋯ → Bifurcar», 1 oct 2026): devuelve el id del hilo nuevo,
  *  con toda la historia del original. Mismos parámetros de ejecución que un turno normal de esa cuenta. */
 export async function forkCodexThread(threadId: string, account: string): Promise<string> {
+  if (esEdicionCliente()) throw new Error(MENSAJE_CODEX_CLIENTE)
   const pool = codexRuntime()
   const model = codexCurrentModel(account)
   const runtimeModel = await pool.validateSelection(account, { model, effort: configEffort(codexHomeFor(account)) })
@@ -220,6 +224,9 @@ export async function* runCodexStream(
   selection?: CodexSelection,
   live?: LiveToolbox,
 ): AsyncGenerator<SSEEvent> {
+  // Seguridad noche 21 oct (carril 2): en la edición cliente Codex correría con `approvalPolicy: 'never'` y sin la guardia
+  // de Arbrain (confirmación humana, secretos negados, contenido de afuera = datos). Hasta que tenga su propia guardia, no corre.
+  if (esEdicionCliente()) { yield { type: 'error', message: MENSAJE_CODEX_CLIENTE }; return }
   const pool = codexRuntime()
   const home = codexHomeFor(account)
   const model = selection ? selection.model : codexCurrentModel(account, overrides?.model)

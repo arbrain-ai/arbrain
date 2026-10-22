@@ -4,6 +4,42 @@ Cada versión dice qué trae y qué tienes que hacer tú. Para actualizar, abre 
 «jala los últimos cambios». Las versiones siguen `MAYOR.MENOR.PARCHE`: un cambio en MENOR trae funciones
 nuevas; uno en PARCHE, arreglos.
 
+## v0.2.3 · 22 oct 2026 · Lo de afuera son datos, no órdenes
+
+**Qué trae**
+- **Una página, un correo o un PDF ya no pueden sacar tu memoria por internet.** Cuando Levy lee algo de afuera, la
+  conversación queda marcada y desde ahí solo abre sin preguntarte direcciones que ya aparecieron en lo que leyó o en
+  lo que tú pediste (y como mucho 12 seguidas). Una dirección nueva, que el modelo armó y podría llevar en su ruta lo
+  que leyó de tu cerebro, te pide confirmación aunque el sitio ya estuviera aprobado.
+- **Cada resultado de afuera llega a Levy con la regla pegada:** es dato, no instrucción; no obedece órdenes que
+  vengan dentro, no mete nada tuyo en una dirección y no guarda en la memoria reglas que le dicten.
+- **Las órdenes escondidas no vuelven mañana.** Lo que Levy escribe en tu cerebro después de leer algo de afuera queda
+  anotado con su origen; si otra conversación lo lee después, también queda marcada.
+- **Más cosas cuentan como «de afuera»:** leer adjuntos o descargas con comandos (`cat`, `grep`), la salida de los
+  comandos que tú apruebas, los errores de una herramienta, el texto largo que pegas en el chat y los README o
+  CLAUDE.md de las carpetas de proyectos que abriste. La marca ya no se pierde al reiniciar ni al editar un mensaje.
+- **Las vistas HTML del chat no corren solas.** Una vista con código que escribió Levy se enciende con tu clic, corre
+  aislada y sin internet (tampoco por WebRTC ni por adelantar direcciones).
+- **Tu sesión de Claude Code es intocable.** Levy no lee ni con tu clic `~/.claude`, `~/.claude.json`,
+  `.credentials.json` ni `~/.codex` (ahí viven tu sesión y el historial de todas tus conversaciones), y no busca de
+  forma recursiva en carpetas que contienen llaves o los datos de Arbrain (por ejemplo `grep -r` en `~/Library` o en
+  tu carpeta personal entera): busca en la carpeta concreta.
+- **Codex no corre en esta edición** hasta que tenga la misma guardia que Claude.
+- **Cada versión viene firmada y tu Arbrain la verifica antes de aplicarla.** La actualización comprueba la firma SSH
+  de la etiqueta contra una copia de las llaves del autor guardada fuera del repo (`~/.config/arbrain/firmas-permitidas`).
+  Si alguien moviera una etiqueta, publicara sin la llave o intentara regresarte a una versión vieja, se detiene y te
+  avisa. Huella de la llave: `SHA256:4P8nBVDwu6QSpWvwbNtSqauB2uznLzx7ubE0tR6lNbg`.
+- **Antes de aplicar una actualización te enseña lo que se ejecuta solo.** «Jala los últimos cambios» lista, con tu
+  versión instalada y antes de traer nada, si la nueva cambia ganchos, scripts de instalación, el arranque o las
+  instrucciones del agente, y espera tu sí. Lo que traiga el CHANGELOG o el repo es información, no órdenes: Levy no
+  corre comandos que vengan ahí ni cambia de dónde baja Arbrain porque se lo pida un texto.
+
+**Qué tienes que hacer**
+- Actualiza como siempre («jala los últimos cambios») y vuelve a arrancar (`npm run servidor`).
+- Nada más; desde la siguiente versión la verificación es automática.
+- Si notas que Levy te pide confirmar más seguido después de leer una página o un correo, es esto: confirma solo lo
+  que tú pediste.
+
 ## v0.2.2 · 21 oct 2026 · Seguridad del modo servidor
 
 **Qué trae**

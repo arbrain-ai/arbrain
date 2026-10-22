@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { sameSecret } from '@/lib/desktop-auth'
 import webpush from 'web-push'
 import { decidirRutina } from '@/features/avisos/policy'
 import { ownerIds as buzonDelDueno, registrar } from '@/features/avisos/server'
@@ -966,7 +967,7 @@ export async function POST(request: Request) {
     }
 
     const token = authHeader?.replace('Bearer ', '')
-    if (token !== expectedToken) {
+    if (!token || !sameSecret(token, expectedToken)) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 },

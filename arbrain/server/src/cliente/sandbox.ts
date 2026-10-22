@@ -78,7 +78,9 @@ export function _sandboxParaPruebas(p: { prueba?: boolean | null; fallo?: string
 /** Opciones `sandbox` del SDK para el contexto de la política. */
 export function opcionesSandbox(ctx: ContextoPolitica): NonNullable<Options['sandbox']> {
   const u = ctx.usuario
-  const llaves = ['.ssh', '.gnupg', '.aws', '.kube', '.docker', '.azure', '.password-store', '.config/gcloud', '.config/gh', '.netrc', '.git-credentials', 'Library/Keychains', 'Library/Cookies']
+  const llaves = ['.ssh', '.gnupg', '.aws', '.kube', '.docker', '.azure', '.password-store', '.config/gcloud', '.config/gh', '.netrc', '.git-credentials', 'Library/Keychains', 'Library/Cookies',
+    // M3 (seguridad noche 21 oct): sesión, historial y ajustes personales de Claude Code y Codex.
+    '.claude', '.claude.json', '.codex']
   // Muro de carpeta (12 oct 2026): perfiles de navegador, gestores de contraseñas, carteras, correo y mensajes. La
   // política ya los niega por secuencia de carpetas; aquí, la misma lista para el Bash dentro del sandbox.
   llaves.push(...PERFILES_PRIVADOS)

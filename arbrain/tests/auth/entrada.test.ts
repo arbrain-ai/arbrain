@@ -9,6 +9,10 @@ test('el destino solo acepta rutas propias; sin destino, el chat', () => {
   assert.equal(destinoSeguro('//evil.com'), '/chat')
   assert.equal(destinoSeguro('/\\evil.com'), '/chat')
   assert.equal(destinoSeguro('https://evil.com'), '/chat')
+  // El navegador quita tabs/saltos: `/\t/evil.com` sería `//evil.com` (auditoría 5-STUDIO, 21 oct 2026).
+  assert.equal(destinoSeguro('/\t/evil.com'), '/chat')
+  assert.equal(destinoSeguro('/\n/evil.com'), '/chat')
+  assert.equal(destinoSeguro('/chat?c=1#x'), '/chat?c=1#x')
 })
 
 test('credenciales malas: dice qué pasó en español y culpa a la contraseña', () => {

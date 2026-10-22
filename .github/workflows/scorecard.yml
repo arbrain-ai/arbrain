@@ -1,0 +1,36 @@
+# OpenSSF Scorecard (cadena de suministro, 21 oct 2026). Fuente: arbrain/empaquetado/ci/workflows/scorecard.yml del
+# repo del autor; el generador lo copia a .github/workflows/. Publica el puntaje en scorecard.dev y sube los hallazgos a
+# Code scanning. Solo lectura salvo los dos permisos que pide la acción.
+name: scorecard
+on:
+  branch_protection_rule:
+  schedule:
+    - cron: '17 9 * * 1'
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions: read-all
+jobs:
+  analisis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      security-events: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: ossf/scorecard-action@fa7117db83c52d787ae5a89f350999701505d78e # v2.5.0
+        with:
+          results_file: resultados.sarif
+          results_format: sarif
+          publish_results: true
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: scorecard-sarif
+          path: resultados.sarif
+          retention-days: 5
+      - uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          sarif_file: resultados.sarif

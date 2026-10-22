@@ -126,7 +126,7 @@ jobs:
           echo "{\"bajar_y_huellas\": $((SECONDS - t0))}" > publicado/tiempos-bajar.json
           echo "version=$v" >> "$GITHUB_OUTPUT"
           echo "include=[$sel]" >> "$GITHUB_OUTPUT"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: publicado-${{ github.run_id }}
           retention-days: 2
@@ -146,10 +146,11 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
+          persist-credentials: false
           sparse-checkout: arbrain/empaquetado/ci/smoke
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: publicado-${{ github.run_id }}
           path: publicado
@@ -218,7 +219,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Subir capturas, logs y tiempos
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: humo-${{ matrix.nombre }}-${{ github.run_id }}
           if-no-files-found: warn

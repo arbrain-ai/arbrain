@@ -589,7 +589,7 @@ export async function* runAgentStream(
         // ClaudeClaw is a daemon — hooks would spawn recursive agent sessions.
         settingSources: fuentesDeAjustes(['project', 'user']),
         // Edición cliente: + guardia destructiva programática (guardia-agentes.ts). Daniel: igual que siempre.
-        hooks: conGuardia(conChrome ? chromeHooks(claveConversacion(durable!.scope), evento => opsLogger.log('browser_site', source, evento)) : {}, ev => logger.warn(ev, 'guardia de agentes')),
+        hooks: conGuardia(conChrome ? chromeHooks(claveConversacion(durable!.scope), evento => opsLogger.log('browser_site', source, evento)) : {}, ev => logger.warn(ev, 'guardia de agentes'), resumeId && rewindAt ? { heredaDe: resumeId } : undefined),
         extraArgs: conChrome ? { chrome: null } : { 'no-chrome': null },
         // ClaudeClaw runs headless on Mac Mini — no UI to approve prompts.
         // Modo NORMAL: bypassPermissions skip all checks (safety net = el hook

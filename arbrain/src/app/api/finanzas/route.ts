@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { sameSecret } from '@/lib/desktop-auth'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { getUserRole } from '@/lib/auth-utils'
@@ -32,7 +33,8 @@ import { calcularV2 } from '@/features/finances/lib/agregados'
 async function isAuthorized(request: Request): Promise<boolean> {
   const authHeader = request.headers.get('authorization')
   const expectedToken = process.env.OPENCLAW_GATEWAY_TOKEN
-  if (expectedToken && authHeader?.replace('Bearer ', '') === expectedToken) {
+  const token = authHeader?.replace('Bearer ', '')
+  if (expectedToken && token && sameSecret(token, expectedToken)) {
     return true
   }
   const supabase = await createClient()

@@ -99,8 +99,12 @@ jobs:
     timeout-minutes: 90
     # contents: write solo para el respaldo de abajo (release en BORRADOR del mismo repo privado cuando la cuota de
     # artefactos está llena, 17 oct 2026). Nunca publica: `--draft` siempre.
+    # id-token + attestations (21 oct 2026): atestación de procedencia de cada instalador (Sigstore), verificable con
+    # `gh attestation verify <instalador> --repo arbrain-ai/arbrain`.
     permissions:
       contents: write
+      id-token: write
+      attestations: write
     strategy:
       fail-fast: false
       matrix:
@@ -110,7 +114,9 @@ jobs:
         shell: bash
     steps:
       - name: Código
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
 
       # El generador solo copia este archivo a .github/workflows/; los smokes y la config de Tauri viajan si la
       # allowlist incluye arbrain/empaquetado/ci/smoke/**, ci/tauri.sin-next.json y ci/podar-musl.mjs. Falla en segundos.
@@ -129,7 +135,7 @@ jobs:
           exit $falta
 
       - name: Node 22 (solo para construir; la app lleva el suyo)
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
           cache: npm
@@ -138,8 +144,10 @@ jobs:
             arbrain/server/package-lock.json
 
       - name: Rust estable
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # rama stable al 16 oct 2026
         with:
+          # Fijada por SHA ya no deduce la versión del nombre de la rama: se pide explícita.
+          toolchain: stable
           targets: ${{ matrix.triple }}
 
       # 0.1.2: ArbrainManos (Swift, swift-tools-version 6.0) se compila dentro del build de Mac. El Xcode por defecto de
@@ -201,7 +209,7 @@ jobs:
         run: npm run build
 
       - name: Caché de Rust
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: arbrain/src-tauri -> target-cliente
           key: ${{ matrix.triple }}-cliente
@@ -222,10 +230,22 @@ jobs:
             \( -name '*.exe' -o -name '*.msi' -o -name '*.AppImage' -o -name '*.deb' -o -name '*.dmg' \) -exec ls -la {} \;
           du -sh arbrain/src-tauri/resources/* 2>/dev/null || true
 
+      # Cachés (npm, Rust): este workflow solo lo disparan el administrador (workflow_dispatch) o un push a release/**,
+      # rama que solo él crea (ruleset ramas-release-solo-admin); ningún pull_request escribe en la caché que lee.
+      - name: Atestación de procedencia de los instaladores
+        continue-on-error: true
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            arbrain/src-tauri/target-cliente/release/bundle/nsis/*.exe
+            arbrain/src-tauri/target-cliente/release/bundle/msi/*.msi
+            arbrain/src-tauri/target-cliente/release/bundle/deb/*.deb
+            arbrain/src-tauri/target-cliente/release/bundle/dmg/*.dmg
+
       - name: Subir instaladores
         id: subir
         continue-on-error: true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: arbrain-${{ matrix.nombre }}-${{ github.sha }}
           if-no-files-found: error
@@ -321,7 +341,7 @@ jobs:
       - name: Subir capturas y logs del smoke
         if: always() && matrix.nombre != 'mac'
         continue-on-error: true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: smoke-${{ matrix.nombre }}-${{ github.sha }}
           if-no-files-found: warn
@@ -337,7 +357,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           pattern: arbrain-*-${{ github.sha }}
           path: instaladores
@@ -416,7 +436,7 @@ jobs:
       # Caché, no artefacto (15 oct 2026): 2-3 instaladores (~450-700 MB) por corrida agotaron la cuota de almacenamiento
       # de artefactos de la cuenta y el upload falló aunque la descarga y las huellas estaban bien. La caché es otro
       # depósito (10 GB por repo, desaloja la más vieja en vez de fallar) y el job publicado-limpiar la borra al final.
-      - uses: actions/cache/save@v4
+      - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           key: publicado-${{ github.run_id }}
           path: publicado
@@ -435,10 +455,11 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
+          persist-credentials: false
           sparse-checkout: arbrain/empaquetado/ci/smoke
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           key: publicado-${{ github.run_id }}
           path: publicado
@@ -471,7 +492,7 @@ jobs:
         if: always()
         # Sin cuota de artefactos el reporte no sube, pero el veredicto es la conclusión del smoke, no este paso.
         continue-on-error: true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: smoke-publicado-${{ matrix.nombre }}-${{ github.run_id }}
           if-no-files-found: warn

@@ -5,6 +5,7 @@ import { isEmailAllowed } from '@/lib/auth-config'
 import { isDesktopAuthBypassRequest } from '@/lib/desktop-auth'
 import { preferVerifiedClaims } from './claims-user'
 import { SERVER_SUPABASE_URL, AUTH_COOKIE_NAME } from './urls'
+import { escrituraEntreSitios } from '@/lib/guarda-sitio'
 
 // Hardcoded to work around Next.js 16 Turbopack env var inlining bug.
 // Publishable keys are designed to be public (RLS-protected); safe to embed.
@@ -19,6 +20,13 @@ export async function updateSession(request: NextRequest) {
   // Supabase — llamar getUser() antes de este check era un round-trip/overhead
   // potencial en CADA request del desktop. Mismo patrón que draw3-auth.ts.
   if (isDesktopAuthBypassRequest(request)) {
+    // El bypass no usa cookie: cualquier página abierta en el navegador podía mandar un POST simple a 127.0.0.1 y entraba
+    // como Daniel. El webview de la app siempre es same-origin (carril 5-STUDIO, 21 oct 2026).
+    if (escrituraEntreSitios(request.method, request.nextUrl.pathname, {
+      secFetchSite: request.headers.get('sec-fetch-site'),
+      authorization: request.headers.get('authorization'),
+      conCookieDeSesion: true,
+    })) return NextResponse.json({ error: 'Origen no autorizado.' }, { status: 403, headers: { 'Cache-Control': 'no-store' } })
     const isDesktopAuthRoute = request.nextUrl.pathname.startsWith('/login') ||
       request.nextUrl.pathname.startsWith('/signup')
     if (isDesktopAuthRoute) {
@@ -26,6 +34,12 @@ export async function updateSession(request: NextRequest) {
     }
     return supabaseResponse
   }
+
+  if (escrituraEntreSitios(request.method, request.nextUrl.pathname, {
+    secFetchSite: request.headers.get('sec-fetch-site'),
+    authorization: request.headers.get('authorization'),
+    conCookieDeSesion: hasSessionCookie(request),
+  })) return NextResponse.json({ error: 'Origen no autorizado.' }, { status: 403, headers: { 'Cache-Control': 'no-store' } })
 
   const supabase = createServerClient(
     SUPABASE_URL,

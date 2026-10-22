@@ -1,0 +1,80 @@
+# Procedencia de cada versión (cadena de suministro, 21 oct 2026). Fuente: arbrain/empaquetado/ci/workflows/procedencia.yml
+# del repo del autor; el generador lo copia a .github/workflows/.
+#
+# Al empujar una etiqueta vX.Y.Z (solo el administrador puede crearlas):
+#   1. Verifica que la etiqueta esté firmada por una llave de .github/firmas-permitidas de esa misma versión.
+#   2. Empaqueta el código fuente de la etiqueta (git archive), genera los SBOM CycloneDX de la web y del daemon a partir
+#      de sus package-lock (sin instalar nada) y SHA256SUMS.
+#   3. Atestigua procedencia (SLSA, Sigstore) del paquete y los SBOM, y adjunta todo al release de la versión. Si el
+#      release ya existe y es inmutable, solo deja la atestación (que vive aparte del release).
+# Verificar: gh attestation verify arbrain-vX.Y.Z.tar.gz --repo arbrain-ai/arbrain
+name: procedencia
+on:
+  push:
+    tags: ['v[0-9]+.[0-9]+.[0-9]+']
+permissions:
+  contents: read
+concurrency:
+  group: procedencia-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  procedencia:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Etiqueta firmada por una llave permitida
+        env:
+          ETIQUETA: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          git fetch -q --force origin "refs/tags/$ETIQUETA:refs/tags/$ETIQUETA"
+          [ "$(git cat-file -t "$ETIQUETA")" = tag ] || { echo "::error::$ETIQUETA no es anotada"; exit 1; }
+          git -c gpg.format=ssh -c gpg.ssh.allowedSignersFile=.github/firmas-permitidas verify-tag "$ETIQUETA"
+          [ "$(cat VERSION)" = "${ETIQUETA#v}" ] || { echo "::error::VERSION no coincide con $ETIQUETA"; exit 1; }
+      # Sin setup-node ni cachés: el npm del runner basta para `npm sbom --package-lock-only` y así nada de una caché
+      # compartida entra al paquete que se atestigua.
+      - name: Código fuente, SBOM y huellas
+        env:
+          ETIQUETA: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          mkdir -p salida
+          git archive --format=tar.gz --prefix="arbrain-$ETIQUETA/" -o "salida/arbrain-$ETIQUETA.tar.gz" "$ETIQUETA"
+          (cd arbrain && npm sbom --package-lock-only --sbom-format cyclonedx --sbom-type application > "../salida/arbrain-$ETIQUETA-web.cdx.json")
+          (cd arbrain/server && npm sbom --package-lock-only --sbom-format cyclonedx --sbom-type application > "../../salida/arbrain-$ETIQUETA-daemon.cdx.json")
+          (cd salida && sha256sum * > SHA256SUMS)
+          cat salida/SHA256SUMS
+      - name: Atestación de procedencia
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            salida/*.tar.gz
+            salida/*.cdx.json
+            salida/SHA256SUMS
+      - name: Atestación del SBOM sobre el código fuente
+        uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4.1.0
+        with:
+          subject-path: salida/*.tar.gz
+          sbom-path: salida/arbrain-${{ github.ref_name }}-web.cdx.json
+      - name: Adjuntar al release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ETIQUETA: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if gh release view "$ETIQUETA" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$ETIQUETA" -R "$GITHUB_REPOSITORY" salida/* \
+              || echo "::warning::el release $ETIQUETA ya existe y es inmutable: la atestación queda, los archivos no se adjuntan"
+          else
+            notas="$(awk -v t="## $ETIQUETA " 'index($0, t) == 1 { d = 1; next } d && /^## v/ { exit } d { print }' CHANGELOG.md)"
+            gh release create "$ETIQUETA" -R "$GITHUB_REPOSITORY" --verify-tag --title "Arbrain $ETIQUETA" \
+              --notes "${notas:-Arbrain $ETIQUETA}" salida/*
+          fi

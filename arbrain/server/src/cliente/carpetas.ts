@@ -44,7 +44,7 @@ const dentroDeExacto = (p: string, raiz: string) => p === raiz || p.startsWith(r
 /** En Windows las rutas no distinguen mayúsculas (`c:\users` = `C:\Users`). */
 const dentroDe = (p: string, raiz: string) => process.platform === 'win32' ? dentroDeExacto(p.toLowerCase(), raiz.toLowerCase()) : dentroDeExacto(p, raiz)
 const SISTEMA = ['/System', '/Library', '/etc', '/usr', '/bin', '/sbin', '/var', '/private', '/dev', '/proc', '/sys', '/boot', '/opt/homebrew', '/Applications', '/Volumes', '/root', '/snap']
-const DEL_USUARIO_PROHIBIDAS = ['Library', 'AppData', '.config', '.local', '.cache', '.npm', '.cargo', '.rustup', 'Applications']
+const DEL_USUARIO_PROHIBIDAS = ['Library', 'AppData', '.config', '.local', '.cache', '.npm', '.cargo', '.rustup', 'Applications', '.claude', '.codex']
 
 export interface ValidarOpciones {
   usuario?: string

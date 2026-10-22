@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { sameSecret } from '@/lib/desktop-auth'
 import { createServiceClient } from '@/lib/supabase/service'
 import webpush from 'web-push'
 import { z } from 'zod'
@@ -394,7 +395,7 @@ export async function POST(request: Request) {
     }
 
     const token = authHeader?.replace('Bearer ', '')
-    if (token !== expectedToken) {
+    if (!token || !sameSecret(token, expectedToken)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

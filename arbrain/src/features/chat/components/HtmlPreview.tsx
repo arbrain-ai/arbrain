@@ -6,6 +6,10 @@ import {
 } from 'lucide-react'
 import { ESTUDIO_INLINE } from '../lib/estudio-inline'
 import { sonda } from '../lib/tts-probe'
+import { esEdicionCliente } from '@/lib/edicion'
+import { blindarSrcDoc } from '../lib/html-blindado'
+
+const EDICION_CLIENTE = esEdicionCliente()
 
 // ─── HTML en vivo dentro del chat ────────────────────────────────────────────
 //
@@ -46,8 +50,9 @@ function injectEstudio(code: string): string {
 function buildSrcDoc(code: string): string {
   // Documento completo → tal cual. Fragmento → wrap con base oscura de la app
   // para que un snippet suelto no salga blanco-sobre-blanco.
-  if (/<html[\s>]|<!doctype/i.test(code)) return injectEstudio(code)
-  return `${FRAGMENT_WRAP_HEAD}${injectEstudio(code)}</body></html>`
+  const doc = /<html[\s>]|<!doctype/i.test(code) ? injectEstudio(code) : `${FRAGMENT_WRAP_HEAD}${injectEstudio(code)}</body></html>`
+  // Edición cliente (seguridad noche 21 oct): la vista no sale a la red ni por los canales que la CSP de la página no cubre.
+  return EDICION_CLIENTE ? blindarSrcDoc(doc) : doc
 }
 
 function useDebouncedSrcDoc(code: string) {
@@ -123,6 +128,9 @@ function FullscreenHtml({ srcDoc, onClose }: { srcDoc: string; onClose: () => vo
 export const HtmlPreview = memo(function HtmlPreview({ code }: { code: string }) {
   const srcDoc = useDebouncedSrcDoc(code)
   const [view, setView] = useState<'vista' | 'codigo'>('vista')
+  // Edición cliente (seguridad noche 21 oct, carril 2): una vista HTML es código que escribió el modelo, y el modelo pudo
+  // leer antes una página o un correo con órdenes escondidas. No corre sola: la persona la enciende con un clic.
+  const [encendida, setEncendida] = useState(!EDICION_CLIENTE)
   const [fullscreen, setFullscreen] = useState(false)
   const preRef = useRef<HTMLPreElement>(null)
 
@@ -174,7 +182,7 @@ export const HtmlPreview = memo(function HtmlPreview({ code }: { code: string })
           <CopyBtn code={code} />
           <div className="w-px h-3 bg-card-active mx-0.5 sm:mx-1 hidden sm:block" />
           <button
-            onClick={() => setFullscreen(true)}
+            onClick={() => { setEncendida(true); setFullscreen(true) }}
             disabled={!srcDoc}
             className="p-2.5 sm:p-1 rounded-lg hover:bg-card-active text-muted/70 hover:text-foreground/70 transition-colors active:scale-90 disabled:opacity-30"
             title="Pantalla completa"
@@ -185,7 +193,16 @@ export const HtmlPreview = memo(function HtmlPreview({ code }: { code: string })
       </div>
 
       {view === 'vista' ? (
-        srcDoc ? (
+        srcDoc && !encendida ? (
+          <button
+            onClick={() => setEncendida(true)}
+            className={`w-full ${IFRAME_H} bg-[#0d0d12] flex flex-col items-center justify-center gap-2 px-6 text-center text-muted/70 hover:text-muted transition-colors`}
+          >
+            <AppWindow size={20} className="text-violet-400/50" />
+            <span className="text-[12px] font-medium">Vista con código · toca para ejecutarla</span>
+            <span className="text-[11px] text-muted/60 max-w-sm">Ejecútala si tú la pediste. Corre aislada y sin internet; puedes ver su código antes con «Código».</span>
+          </button>
+        ) : srcDoc ? (
           near ? (
             <iframe
               srcDoc={srcDoc}

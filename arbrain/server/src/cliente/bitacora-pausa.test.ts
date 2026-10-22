@@ -34,7 +34,8 @@ afterAll(() => {
 describe('redacción: ninguna llave llega a la bitácora', () => {
   const muestras = [
     'curl -H "Authorization: Bearer sk-ant-api03-abcdefghijklmnop0123456789ABCDEFGH" https://api.anthropic.com',
-    'export OPENROUTER_API_KEY=sk-or-v1-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+    // Prefijo partido: el secret scanning de GitHub (push protection) toma la muestra sintética por una llave real.
+    'export OPENROUTER_API_KEY=sk-or-' + 'v1-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
     'git remote add o https://user:ghp_abcdefghijklmnopqrstuvwxyz0123456789@github.com/a/b',
     'stripe login --api-key sk_live_51Habcdefghijklmnop', 'aws configure set aws_access_key_id AKIAABCDEFGHIJKLMNOP',
     'echo eyJabcdefghijklmn.eyJ0123456789abcdef.abcdefghijklmnop',

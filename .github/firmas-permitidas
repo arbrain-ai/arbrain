@@ -1,0 +1,10 @@
+# Llaves que firman las etiquetas de versión de Arbrain (formato allowed_signers de OpenSSH, 21 oct 2026).
+# Fuente: arbrain/empaquetado/ci/github/firmas-permitidas del repo del autor; el generador la copia a .github/.
+#
+# Quien instala guarda una copia FUERA del repo (~/.config/arbrain/firmas-permitidas) y desde entonces cada
+# actualización se verifica contra ESA copia, no contra la que venga en el repo: alguien que lograra escribir en el
+# repo no puede cambiar de llave sin firmar el cambio con una de estas. Huellas (compáralas con las de arbrain.ai):
+#   publicación  SHA256:4P8nBVDwu6QSpWvwbNtSqauB2uznLzx7ubE0tR6lNbg
+#   reserva      SHA256:aUWS32K1l0qkStFPnCSMFmWu9QMQGCiZ6SwENG22Jy8  (fuera de línea; solo para rotar)
+arbrain-publicacion namespaces="git" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEVOP/md9wTb92dRUGuZ2GFH7In53mA3Zy56gcR+6dI0
+arbrain-reserva namespaces="git" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKd6vdy5oKLJyUtRdycXZYrFBvY58lOIkjPHg0UbiQN4

@@ -1,0 +1,23 @@
+# Dependabot (cadena de suministro, 21 oct 2026). Fuente: arbrain/empaquetado/ci/github/dependabot.yml del repo del
+# autor; el generador lo copia a .github/. Este repo se REGENERA en cada versión: los PRs de Dependabot no se fusionan
+# aquí, se portan al repo del autor y llegan en la versión siguiente. Las alertas y los arreglos de seguridad siguen
+# activos aunque las actualizaciones de versión de npm estén en 0.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      acciones:
+        patterns: ['*']
+  - package-ecosystem: npm
+    directories: [/arbrain, /arbrain/server]
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+  - package-ecosystem: cargo
+    directory: /arbrain/src-tauri
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0

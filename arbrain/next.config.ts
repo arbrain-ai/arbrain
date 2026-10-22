@@ -114,7 +114,8 @@ const nextConfig: NextConfig = {
         : [{ key: 'X-Frame-Options', value: 'SAMEORIGIN' }]),
       { key: 'X-Content-Type-Options', value: 'nosniff' },
       { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-      { key: 'X-DNS-Prefetch-Control', value: 'on' },
+      // Edición cliente (seguridad noche 21 oct): sin resolución anticipada de enlaces que un texto inyectado pudo armar.
+      { key: 'X-DNS-Prefetch-Control', value: EDICION_CLIENTE ? 'off' : 'on' },
       ...(EDICION_CLIENTE ? [{ key: 'Content-Security-Policy', value: CSP_CLIENTE }, { key: 'Permissions-Policy', value: 'camera=(), geolocation=(), payment=(), usb=()' }] : []),
       // Sin Supabase (edición cliente) no hay a qué precalentar la conexión.
       ...(process.env.NEXT_PUBLIC_SUPABASE_URL ? [{ key: 'Link', value: `<${process.env.NEXT_PUBLIC_SUPABASE_URL}>; rel=preconnect` }] : []),

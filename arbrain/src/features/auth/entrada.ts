@@ -14,7 +14,14 @@ export const LENTA_MS = 5000
 
 /** Solo rutas propias: `/algo`, nunca `//otro-sitio` ni una URL completa. Sin destino válido, el chat. */
 export function destinoSeguro(next: string | null | undefined): string {
-  return next && next.startsWith('/') && !next.startsWith('//') && !next.startsWith('/\\') ? next : '/chat'
+  if (!next || !next.startsWith('/') || next.startsWith('//') || next.startsWith('/\\')) return '/chat'
+  // Seguridad (21 oct 2026): el navegador quita tabs y saltos de línea, así que `/\t/evil.com` acababa en `//evil.com`.
+  // Se resuelve como lo haría el navegador y solo vale si sigue en el mismo origen.
+  try {
+    const base = 'https://arbrain.invalid'
+    const u = new URL(next, base)
+    return u.origin === base ? `${u.pathname}${u.search}${u.hash}` : '/chat'
+  } catch { return '/chat' }
 }
 
 /**
