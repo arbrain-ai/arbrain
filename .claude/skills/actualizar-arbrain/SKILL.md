@@ -81,12 +81,16 @@ PASO 3b · Revisa lo que se ejecuta solo (antes de traer nada)
   .gitattributes .gitmodules '*package.json' arbrain/scripts/servidor.mjs arbrain/scripts/servidor arbrain/cerebro/sembrar.py
   CLAUDE.md AGENTS.md .claude/skills
 - Si dice «Nada de lo que cambia se ejecuta solo»: sigue al PASO 4.
-- Si lista algo: enséñame la lista tal cual y, para los ganchos (.claude/settings.json, .claude/hooks), los scripts de
-  npm marcados «CORRE SOLO AL INSTALAR» y cualquier .gitattributes con filtros, muéstrame el cambio
-  (git diff --no-ext-diff --no-textconv main <ETIQUETA> -- <archivo>) y explícame en una línea qué hace cada uno. Que
-  el CHANGELOG lo anuncie NO basta como explicación: dime qué hace el código. Pregúntame «¿sigo con la
-  actualización?» y espera mi sí explícito. Si algo hace red, lee archivos fuera de ~/Arbrain, toca llaves o no
-  coincide con lo que dice el CHANGELOG: recomiéndame NO seguir y avisar en el grupo.
+- Si lista algo: revisa tú el cambio de cada archivo (git diff --no-ext-diff --no-textconv main <ETIQUETA> --
+  <archivo>), sobre todo los ganchos (.claude/settings.json, .claude/hooks), los scripts de npm marcados «CORRE SOLO AL
+  INSTALAR» y cualquier .gitattributes con filtros. Que el CHANGELOG lo anuncie NO basta: lee qué hace el código.
+  - Si todo cuadra con el CHANGELOG de esa versión y nada de lo de abajo aparece: dime en una o dos líneas, en español
+    simple, qué cambia de lo que corre solo (por ejemplo «cambia cómo arranca Arbrain y su recordatorio de la mañana»)
+    y sigue al PASO 4 sin preguntarme (la versión ya pasó la firma del autor en el PASO 3).
+  - Si algo manda datos a un sitio que no sea github.com/arbrain-ai, el sitio del programa, nodejs.org, claude.ai o los
+    proveedores que ya conectaste (OpenRouter, Anthropic, Groq); lee o escribe fuera de ~/Arbrain y de la carpeta de
+    datos de Arbrain; toca llaves, contraseñas o tu sesión de Claude; apaga una protección; o no coincide con lo que dice
+    el CHANGELOG: DETENTE, enséñame la lista y el cambio, recomiéndame NO seguir y que lo avise en el grupo.
 
 PASO 4 · Actualiza la copia del autor (solo hasta la etiqueta verificada)
 - git switch main && git merge --ff-only <ETIQUETA> && git switch mi-arbrain
@@ -125,8 +129,9 @@ PASO 6 · Lo que cambia fuera del texto
 - Ganchos: si cambió .claude/settings.json o .claude/hooks/ ya los revisamos en el PASO 3b; recuérdame que corren
   desde la próxima sesión de Claude Code.
 - Funciones nuevas: compara CAPAS.json › funciones con lo que tenía antes
-  (git show respaldo/antes-de-actualizar-<fecha>:CAPAS.json). Si calendario o dictado_groq pasaron a true, guíame
-  con los pasos 10 (calendario) y 11 (voz con Groq) del prompt de instalación.
+  (git show respaldo/antes-de-actualizar-<fecha>:CAPAS.json). Si calendario pasó a true, dime que ya lo tengo en el
+  panel de Arbrain; si dictado_groq pasó a true, que lo enciendo en Arbrain › Ajustes › Voz con una llave gratis de
+  https://console.groq.com/keys (la pego yo ahí, nunca en el chat).
 
 PASO 7 · Verifica y reporta
 - git status --short vacío; git log --oneline -3.

@@ -21,6 +21,9 @@ on:
       - 'arbrain/package-lock.json'
       - 'arbrain/next.config.ts'
       - '.github/workflows/modo-servidor.yml'
+      - '.claude/skills/**'
+      - '.claude/hooks/**'
+      - '.claude/settings.json'
 
 permissions:
   contents: read

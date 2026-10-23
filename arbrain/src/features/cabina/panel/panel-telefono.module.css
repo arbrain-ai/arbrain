@@ -14,3 +14,4 @@
 .flecha { color: var(--muted); flex-shrink: 0; }
 .vacio { margin: 0; font-size: 15px; color: var(--muted); line-height: 1.5; }
 .abrir h2 { margin: 0 0 8px; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+a.fila { text-decoration: none; padding: 0 12px; border: 1px solid rgba(var(--brand-rgb), .25); border-radius: 14px; background: rgba(var(--brand-rgb), .05); }

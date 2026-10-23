@@ -51,6 +51,8 @@ export const GROQ_API_KEY = env['GROQ_API_KEY'] ?? ''
 export const LEMONFOX_API_KEY = env['LEMONFOX_API_KEY'] ?? ''
 // TTS local con Kokoro (open source) — reemplaza a LemonFox. Server en el Mac.
 export const KOKORO_TTS_URL = env['KOKORO_TTS_URL'] ?? 'http://127.0.0.1:8880'
+// Token dedicado de voz-agentes (rotación 31 ago 2026): sin él, el servicio responde 401 y /tts quedaba en 502.
+export const VOZ_TOKEN = env['VOZ_TOKEN'] ?? ''
 
 // === SAAS FACTORY ANALYTICS ===
 export const SF_SUPABASE_URL = env['SF_SUPABASE_URL'] ?? ''

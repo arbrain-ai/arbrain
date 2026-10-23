@@ -31,7 +31,7 @@ test('las casillas viven en la misma fuente que el título: tarea, registro o ev
 
 test('Día: el objetivo va arriba con ObjetivoCaja, plegable, y tocarlo ya no abre «Crear tarea»', () => {
   const dia = fuente('DiaVivo.tsx'), semana = fuente('SemanaClara.tsx')
-  const caja = dia.indexOf('<ObjetivoCaja'), agenda = dia.indexOf('<AgendaMini'), habitos = dia.indexOf('<HabitosDia')
+  const caja = dia.indexOf('<ObjetivoCaja'), agenda = dia.indexOf('<AgendaMini'), habitos = dia.indexOf('<HabitosHoy')
   assert.ok(caja > 0 && caja < agenda && agenda < habitos, 'objetivo → agenda | tareas → hábitos')
   assert.match(dia, /plegada=\{plegado \? !plegado\.objetivo : false\} onPlegar=\{plegado \? \(\) => plegado\.alternar\('objetivo'\) : undefined\}/)
   assert.match(dia, /<Entregables texto=\{casillas\?\.texto \?\? ''\} guardar=\{guardarCasillas\}/)

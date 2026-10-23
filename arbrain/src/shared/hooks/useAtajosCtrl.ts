@@ -2,6 +2,7 @@
 import { useEffect } from 'react'
 import { accionCtrl, cedeAlCampo, EVENTO_SELECTOR_LIENZO, type CampoTexto } from '@/shared/navigation/atajos-ctrl'
 import { calendarioEn, cerrarPestanaActiva } from '@/features/cabina/panel/atajos-panel'
+import { pedirHabitos } from '@/features/planning/habitos-pedido'
 
 /** ¿Alguna pizarra lo tomó? Primero la que tiene el foco (o la de la sección); si nadie, la del panel que se vea. Se mide por
  *  `defaultPrevented`: la que lo toma llama a `preventDefault`. */
@@ -28,17 +29,20 @@ function campoConFoco(): CampoTexto | null {
     if (!sel?.rangeCount) return null
     const r = sel.getRangeAt(0)
     if (!r.collapsed) return { inicio: 0, fin: 1, largo: 1 }
-    // Lo que queda después del cursor hasta el final del campo.
-    const resto = document.createRange()
+    // Lo que hay antes del cursor (Ctrl+H borra hacia atrás) y lo que queda después hasta el final (Ctrl+D, hacia adelante).
+    const antes = document.createRange(), resto = document.createRange()
+    antes.selectNodeContents(el)
+    antes.setEnd(r.startContainer, r.startOffset)
     resto.selectNodeContents(el)
     resto.setStart(r.endContainer, r.endOffset)
-    return { inicio: 0, fin: 0, largo: resto.toString().length }
+    const inicio = antes.toString().length
+    return { inicio, fin: inicio, largo: inicio + resto.toString().length }
   }
   return null
 }
 
 /**
- * Ctrl+D/W/M (Calendario en Día, Semana, Mes), Ctrl+Q (cerrar la pestaña activa) y Ctrl+L (selector de lienzos). Reglas en `atajos-ctrl.ts`.
+ * Ctrl+D/W/M (Calendario en Día, Semana, Mes), Ctrl+H (Hábitos de hoy), Ctrl+Q (cerrar la pestaña activa) y Ctrl+L (selector de lienzos). Reglas en `atajos-ctrl.ts`.
  * En CAPTURA sobre `window` y cortando la propagación: ganan al chat, al panel y al lienzo, que leía Ctrl como ⌘
  * (Ctrl+D duplicaba y Ctrl+X cortaba). `soloCerrar`: una ventana aparte solo atiende Ctrl+Q (el Calendario es del panel).
  */
@@ -55,6 +59,7 @@ export function useAtajosCtrl({ soloCerrar = false }: { soloCerrar?: boolean } =
       e.stopImmediatePropagation()
       if (e.repeat) return
       if (accion.tipo === 'calendario') calendarioEn(accion.modo)
+      else if (accion.tipo === 'habitos') { calendarioEn('day'); pedirHabitos() }
       else if (accion.tipo === 'cerrar-pestana') cerrarPestanaActiva()
     }
     window.addEventListener('keydown', k, true)

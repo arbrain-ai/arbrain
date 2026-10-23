@@ -18,11 +18,15 @@ import { fileURLToPath } from 'node:url'
 import type Database from 'better-sqlite3'
 import { esEdicionCliente } from '../edicion.js'
 import { diaLocal } from './cohorte.js'
+import { adoptarLegado, existeCerebro, sembrarExpediente, urlExpediente, validarRemoto, type Siembra } from './expediente.js'
+import { escribirCamino, urlCamino, validarCamino, type Resultado as ResultadoCamino } from './camino.js'
 
 export const URL_POR_OMISION = 'https://arbrain.ai/api/progreso'
 const DIA_MS = 86_400_000
 /** Un envío automático por día: si el último salió bien hace menos de 20 h, el tic no manda otro. */
 const ESPERA_MS = 20 * 60 * 60_000
+/** El camino se trae cada mañana: el primer tic del día a partir de esta hora local (y siempre al conectar y al arrancar). */
+const HORA_MANANA = 5
 
 export interface ConfigProgreso {
   token: string
@@ -32,6 +36,13 @@ export interface ConfigProgreso {
   ultimoEnvio?: number
   ultimoIntento?: number
   ultimoResultado?: string
+  /** Expediente traído de arbrain.ai (22 oct 2026): cuándo salió bien y qué pasó la última vez. */
+  ultimoExpediente?: number
+  expedienteResultado?: string
+  /** Mi camino traído de arbrain.ai (22 oct 2026): el día local en que llegó y qué pasó la última vez. */
+  ultimoCamino?: number
+  caminoDia?: string
+  caminoResultado?: string
 }
 export interface Meta { presente: boolean; texto?: string }
 export interface Senal {
@@ -227,6 +238,8 @@ export class Progreso {
       manual: c?.manual && c.manual.semana === semanaIso(diaLocal(this.ahora())) ? c.manual : null,
       ultimo_envio: c?.ultimoEnvio ?? null,
       ultimo_resultado: c?.ultimoResultado ?? null,
+      expediente: { ultimo: c?.ultimoExpediente ?? null, resultado: c?.expedienteResultado ?? null },
+      camino: { ultimo: c?.ultimoCamino ?? null, resultado: c?.caminoResultado ?? null },
       vista_previa: this.senal(),
     }
   }
@@ -248,6 +261,80 @@ export class Progreso {
     const fresca = this.config() // pudo desconectarse mientras se enviaba
     if (fresca) this.guardar({ ...fresca, ultimoIntento: this.ahora(), ultimoResultado: resultado === 'enviado' ? 'enviado' : `${resultado}: ${detalle ?? ''}`.trim(), ...(resultado === 'enviado' ? { ultimoEnvio: this.ahora() } : {}) })
     return detalle ? { resultado, detalle } : { resultado }
+  }
+
+  /**
+   * Trae el expediente del alumno desde arbrain.ai y lo siembra en su memoria (expediente.ts). Mismas condiciones que
+   * enviar: edición cliente + token. Una vez al día salvo `forzar` (al conectar y al arrancar). Nunca lanza.
+   * Un 404 (arbrain.ai sin la ruta, o sin expediente) no es error: se anota y se reintenta al día siguiente.
+   */
+  async traerExpediente(forzar = false, fetcher: typeof fetch = fetch): Promise<{ resultado: 'no_cliente' | 'sin_conexion' | 'sin_cerebro' | 'pronto' | 'sembrado' | 'sin_expediente' | 'rechazado' | 'fallo'; detalle?: string; siembra?: Siembra }> {
+    if (!esEdicionCliente()) return { resultado: 'no_cliente' }
+    const raiz = this.raiz()
+    if (!existeCerebro(raiz)) return { resultado: 'sin_cerebro' }
+    const c = this.config()
+    if (!c) return { resultado: 'sin_conexion' }
+    if (!forzar && c.ultimoExpediente && this.ahora() - c.ultimoExpediente < ESPERA_MS) return { resultado: 'pronto' }
+    let out: Awaited<ReturnType<Progreso['traerExpediente']>> = { resultado: 'fallo' }
+    try {
+      const r = await fetcher(urlExpediente(c.url), { headers: { Authorization: `Bearer ${c.token}`, Accept: 'application/json' }, signal: AbortSignal.timeout(15_000) })
+      const j = await r.json().catch(() => null) as Record<string, unknown> | null
+      if (r.status === 401 || r.status === 403) out = { resultado: 'rechazado', detalle: typeof j?.error === 'string' ? j.error.slice(0, 200) : `HTTP ${r.status}` }
+      else if (r.status === 404) out = { resultado: 'sin_expediente' }
+      else if (!r.ok) out = { resultado: 'fallo', detalle: `HTTP ${r.status}` }
+      else {
+        const e = validarRemoto(j)
+        out = e ? { resultado: 'sembrado', siembra: sembrarExpediente(raiz, e) } : { resultado: 'sin_expediente' }
+      }
+    } catch (e) { out = { resultado: 'fallo', detalle: e instanceof Error ? e.message.slice(0, 200) : 'sin red' } }
+    const fresca = this.config()
+    if (fresca) {
+      const bien = out.resultado === 'sembrado' || out.resultado === 'sin_expediente'
+      const texto = out.siembra ? `sembrado: expediente ${out.siembra.expediente}, meta ${out.siembra.norte}` : `${out.resultado}${out.detalle ? `: ${out.detalle}` : ''}`
+      this.guardar({ ...fresca, expedienteResultado: texto, ...(bien ? { ultimoExpediente: this.ahora() } : {}) })
+    }
+    return out
+  }
+
+  /**
+   * Trae «mi camino» de arbrain.ai y lo escribe en `project/mi-camino.md` (camino.ts). Mismas condiciones que el
+   * expediente. Al conectar y al arrancar va forzado; si no, una vez por mañana (el primer tic del día desde las 5:00
+   * locales). Cualquier falla deja el archivo como estaba (lo último guardado); un 404 (arbrain.ai todavía sin la ruta)
+   * cuenta como intento del día para no insistir cada hora. Nunca lanza.
+   */
+  async traerCamino(forzar = false, fetcher: typeof fetch = fetch): Promise<{ resultado: 'no_cliente' | 'sin_conexion' | 'sin_cerebro' | 'pronto' | 'escrito' | 'sin_camino' | 'rechazado' | 'fallo'; detalle?: string; camino?: ResultadoCamino }> {
+    if (!esEdicionCliente()) return { resultado: 'no_cliente' }
+    const raiz = this.raiz()
+    if (!existeCerebro(raiz)) return { resultado: 'sin_cerebro' }
+    const c = this.config()
+    if (!c) return { resultado: 'sin_conexion' }
+    const ahora = this.ahora(), hoy = diaLocal(ahora)
+    if (!forzar && (c.caminoDia === hoy || new Date(ahora).getHours() < HORA_MANANA)) return { resultado: 'pronto' }
+    let out: Awaited<ReturnType<Progreso['traerCamino']>> = { resultado: 'fallo' }
+    try {
+      const r = await fetcher(urlCamino(c.url), { headers: { Authorization: `Bearer ${c.token}`, Accept: 'application/json' }, signal: AbortSignal.timeout(15_000) })
+      const j = await r.json().catch(() => null) as Record<string, unknown> | null
+      if (r.status === 401 || r.status === 403) out = { resultado: 'rechazado', detalle: typeof j?.error === 'string' ? j.error.slice(0, 200) : `HTTP ${r.status}` }
+      else if (r.status === 404) out = { resultado: 'sin_camino' }
+      else if (!r.ok) out = { resultado: 'fallo', detalle: `HTTP ${r.status}` }
+      else {
+        const camino = validarCamino(j, new URL(c.url).origin)
+        out = camino ? { resultado: 'escrito', camino: escribirCamino(raiz, camino, hoy).camino } : { resultado: 'fallo', detalle: 'respuesta sin el contrato v1' }
+      }
+    } catch (e) { out = { resultado: 'fallo', detalle: e instanceof Error ? e.message.slice(0, 200) : 'sin red' } }
+    const fresca = this.config()
+    if (fresca) {
+      const bien = out.resultado === 'escrito'
+      const texto = bien ? `escrito: ${out.camino}` : `${out.resultado}${out.detalle ? `: ${out.detalle}` : ''}`
+      this.guardar({ ...fresca, caminoResultado: texto, ...(bien || out.resultado === 'sin_camino' ? { caminoDia: hoy } : {}), ...(bien ? { ultimoCamino: ahora } : {}) })
+    }
+    return out
+  }
+
+  /** Al arrancar: adopta lo sembrado a mano con el prompt viejo (archivos fechados). Solo edición cliente. */
+  adoptar(): string[] {
+    if (!esEdicionCliente() || !existeCerebro(this.raiz())) return []
+    try { return adoptarLegado(this.raiz()) } catch { return [] }
   }
 }
 

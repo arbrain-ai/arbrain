@@ -4,6 +4,50 @@ Cada versión dice qué trae y qué tienes que hacer tú. Para actualizar, abre 
 «jala los últimos cambios». Las versiones siguen `MAYOR.MENOR.PARCHE`: un cambio en MENOR trae funciones
 nuevas; uno en PARCHE, arreglos.
 
+## v0.2.9 · 23 oct 2026 · Tu Levy te conoce y baja tu meta a tierra
+
+**Qué trae**
+- **Tu expediente llega solo a la memoria de tu Levy.** Si conectas tu cerebro con arbrain.ai (Ajustes › Privacidad ›
+  «Conectar con arbrain.ai»), Arbrain trae tu expediente al conectar, cada vez que arranca o se actualiza y una vez al
+  día, y lo guarda en tu memoria: `user/expediente.md` (tus respuestas, literales) y `project/meta-90-dias.md` (tu meta a
+  90 días, tu escalera, tus horas y tu nicho natural). Levy lee tu meta al empezar cada conversación y no te vuelve a
+  preguntar lo que ya contestaste. Si editas esos archivos a mano, ya no se reescriben. Solo baja tu expediente; no sube
+  nada nuevo.
+- **Tu Levy sabe en qué parte de tu camino vas.** Con la misma conexión llega también tu camino en el programa (en qué
+  día de 90, semana y etapa vas, tus cinco casillas, tu siguiente paso, el siguiente hito y tu lección) a
+  `project/mi-camino.md`: al conectar, al arrancar y cada mañana. Escríbele «buenos días», «¿qué sigo?» o «¿en qué voy?»
+  y te dice dónde vas («Día 3 de 90, semana 1: te falta la casilla 4»), tu siguiente paso concreto y te ofrece hacerlo
+  con él ahí mismo, como tu ritual o tus tres encargos. Conoce el mapa del programa: las 5 etapas, las 7 lecciones del
+  módulo 1, qué significa cada casilla y tus uno a uno. Si arbrain.ai no responde, usa lo último que guardó.
+- **Si ya sembraste tu expediente con el prompt «Levy, siembra mi cerebro»,** Arbrain lo adopta solo al arrancar.
+- **Nuevo ritual «bajar a tierra».** Escríbele a Levy «buenos días» o «bájame a tierra el mes, la semana o el día»: te
+  pregunta lo que falta, una cosa a la vez y con su recomendación, y nunca inventa datos. Primero el mes (tu meta en
+  número), luego la semana (de 3 a 5 resultados) y luego el día (tu objetivo y 3 tareas). Lo escribe en tu plan
+  (`.claude/plan/objetivos.md`), en tu calendario (el objetivo de hoy con sus 3 casillas en el Día) y en tus lienzos
+  «Mi plan» y «Calendario de 12 semanas».
+- **Levy recuerda tu industria como tu nicho natural:** cuando hablen de tu oferta o tus clientes, parte de lo que ya
+  conoces por dentro.
+- **Instalar empieza por lo que ya tienes.** El README y la guía preguntan primero «¿ya tienes Claude Code?» y, si no,
+  te mandan a la app de Claude (pestaña **Code**), sin terminal. Ya no piden instalar Git, Node ni Python antes.
+- **Actualizar ya no se detiene a preguntarte.** Tu Claude Code revisa lo que cambia, te lo cuenta en una línea y
+  sigue; solo se detiene si algo no cuadra con lo que dice la versión. Si tu copia es vieja, el prompt de instalación
+  termina la actualización con las instrucciones nuevas (y te deja la app de escritorio), sin otro prompt.
+- **Desinstalar o empezar desde cero, sin perder nada.** Pega «Desinstala Arbrain siguiendo …/INSTALAR.md»: guarda tu
+  Arbrain, tus conversaciones, tus llaves y la app en `~/Arbrain-respaldos` y apaga todo. Luego el prompt de
+  instalación lo deja como nuevo.
+- **Reinstalar con Arbrain todavía encendido ya no se queda en la versión vieja:** la instalación nueva apaga la
+  anterior y arranca la suya.
+- **El freno de seguridad y tu memoria corren siempre.** En Windows, los ganchos de Claude Code buscaban `python3`,
+  que suele ser un acceso falso de la Microsoft Store; ahora encuentran el Python real y escriben los acentos bien. En
+  una Mac con el Python que trae Apple, el freno de «enviar, borrar, pagar» fallaba al cargar y no frenaba; ya frena.
+
+**Qué tienes que hacer**
+- Actualiza con el prompt de instalación (o «actualiza mi Arbrain»). Si todavía no tienes la app de escritorio, usa
+  el prompt de instalación: termina la actualización y te la deja abierta.
+- Si eres del programa Cerebro Artificial: en arbrain.ai › tu perfil › «Conectar mi cerebro», genera tu token y pégalo
+  tú en Arbrain › Ajustes › Privacidad › «Conectar con arbrain.ai». Nunca lo pegues en el chat.
+- Mañana, al abrir Arbrain, escríbele «buenos días» (o «¿qué sigo?» cuando quieras).
+
 ## v0.2.8 · 23 oct 2026 · Arbrain como app de escritorio
 
 **Qué trae**

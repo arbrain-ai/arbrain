@@ -127,6 +127,8 @@ export function useReabrirEnChat() {
       if (toqueReciente(ultimoToque, Date.now())) return
       // Una llamada en Live sigue: reabrir no la corta.
       if (window.location.pathname === '/chat' && new URLSearchParams(window.location.search).get('tab') === 'live') return
+      // El ícono «Hábitos» de la pantalla de inicio (22 oct 2026) abre directo a sus casillas: reabrirlo no lo manda al chat.
+      if (window.location.pathname.startsWith('/telefono/habitos')) return
       abrirChatNuevo(url => router.push(url))
     }
     document.addEventListener('visibilitychange', alCambiar)

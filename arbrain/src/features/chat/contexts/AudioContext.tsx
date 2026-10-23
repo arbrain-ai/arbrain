@@ -80,6 +80,10 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       }
 
       elRef.current = el
+      // Acelerar sin subir el tono (22 oct 2026): el estándar y el prefijo de Safari/WKWebView.
+      const conPitch = el as HTMLAudioElement & { preservesPitch?: boolean; webkitPreservesPitch?: boolean }
+      conPitch.preservesPitch = true
+      conPitch.webkitPreservesPitch = true
       el.playbackRate = rateRef.current
 
       const onTime = () =>

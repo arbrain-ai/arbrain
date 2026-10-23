@@ -86,7 +86,8 @@ detecta por su cuenta se menciona y se conversa; no se anota sin permiso.
 |---|---|
 | `references/diario.md` | **El pilar.** Foto o mención del diario: guard, transcripción literal, extracción a objetivos, tareas y hábitos, `now.md` verificado, confirmación en una línea. |
 | `references/tiempo-y-calendario.md` | «qué tengo hoy», «agéndame X», «pon mis objetivos de hoy en el calendario», «¿dónde está el calendario?», hitos mes/semana/día, el calendario local `calendario.json` y el conectado (`gog`). |
-| `references/planning.md` | «planea mi mes/semana», revisión semanal, «cómo me fue», planear el día. |
+| skill `bajar-a-tierra` | «buenos días», «bájame a tierra el mes, la semana o el día», «llena mi plan»: el ritual mes → semana → día con su pluma (`plan.py`), el calendario y los lienzos. **Planear mes, semana o día se escribe con ella.** |
+| `references/planning.md` | Revisión semanal, «cómo me fue» y la evidencia para planear (qué reunir antes de proponer). |
 | `references/habitos-y-ritual.md` | Marcar un hábito, racha, agregar o archivar hábitos, las dos preguntas del día. |
 | `references/taxonomia.md` | ¿Es tarea, evento, hito o hábito? ¿Proyecto o etiqueta? |
 | `references/automatizaciones-y-todoist.md` | Conectar Todoist (opcional), operar su API, «no aparece mi tarea». |

@@ -905,8 +905,15 @@ async function rutasCliente(req: IncomingMessage, res: ServerResponse, ruta: str
     if (req.method === 'POST' && ruta === '/progreso/desconectar') { p.desconectar(); sendJSON(res, 200, p.resumen()); return true }
     if (req.method === 'POST' && (ruta === '/progreso/conectar' || ruta === '/progreso/ajustes' || ruta === '/progreso/enviar')) {
       if (!secretoApp()) { sendJSON(res, 403, { error: 'Solo la persona, desde la app, puede conectar o enviar.' }); return true }
-      if (ruta === '/progreso/enviar') { const r = await p.enviar(true); sendJSON(res, 200, { ...r, ...p.resumen() }); return true }
+      // «Enviar ahora» también trae el expediente (en paralelo: los dos plazos caben en el de la ruta).
+      if (ruta === '/progreso/enviar') { const [r, e, k] = await Promise.all([p.enviar(true), p.traerExpediente(true), p.traerCamino(true)]); sendJSON(res, 200, { ...r, expediente_ahora: e.resultado, camino_ahora: k.resultado, ...p.resumen() }); return true }
       const r = ruta === '/progreso/conectar' ? p.conectar(cuerpo.token, cuerpo.url, cuerpo.compartir_texto) : p.ajustes(cuerpo)
+      // Al conectar, su Levy trae su expediente en segundo plano (expediente.ts).
+      if (r.ok && ruta === '/progreso/conectar') {
+        void p.traerExpediente(true).then(e => logger.info({ resultado: e.resultado }, 'progreso: expediente al conectar'))
+        // Y dónde va en su camino del programa (camino.ts).
+        void p.traerCamino(true).then(k => logger.info({ resultado: k.resultado }, 'progreso: camino al conectar'))
+      }
       sendJSON(res, r.ok ? 200 : 400, r.ok ? p.resumen() : { error: r.error })
       return true
     }
@@ -2765,6 +2772,19 @@ export function startMCServer(): void {
     // Puente con arbrain.ai: el mismo reloj del daemon (sin crons). Sin token no sale nada; con token, una vez al día.
     const progreso = iniciarProgreso(getDb())
     const ticProgreso = () => { void progreso.enviar().then(r => { if (r.resultado !== 'sin_conexion' && r.resultado !== 'pronto') logger.info({ resultado: r.resultado }, 'progreso: envío diario') }) }
+    // El expediente del alumno en su memoria: adopta lo sembrado a mano y, con token, lo trae al arrancar (cada
+    // actualización reinicia el daemon) y una vez al día.
+    const adoptados = progreso.adoptar()
+    if (adoptados.length) logger.info({ adoptados }, 'progreso: expediente adoptado de la siembra manual')
+    let primeraVez = true
+    const ticExpediente = () => { const f = primeraVez; primeraVez = false; void progreso.traerExpediente(f).then(r => { if (!['no_cliente', 'sin_conexion', 'sin_cerebro', 'pronto'].includes(r.resultado)) logger.info({ resultado: r.resultado }, 'progreso: expediente') }) }
+    setTimeout(ticExpediente, 45_000).unref()
+    setInterval(ticExpediente, 60 * 60_000).unref()
+    // Mi camino en el programa (camino.ts): al arrancar y cada mañana; si arbrain.ai no responde, queda lo último guardado.
+    let primerCamino = true
+    const ticCamino = () => { const f = primerCamino; primerCamino = false; void progreso.traerCamino(f).then(r => { if (!['no_cliente', 'sin_conexion', 'sin_cerebro', 'pronto'].includes(r.resultado)) logger.info({ resultado: r.resultado }, 'progreso: camino') }) }
+    setTimeout(ticCamino, 50_000).unref()
+    setInterval(ticCamino, 60 * 60_000).unref()
     setTimeout(ticProgreso, 90_000).unref()
     setInterval(ticProgreso, 60 * 60_000).unref()
   }

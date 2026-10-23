@@ -1,5 +1,9 @@
 # Planning: mes, semana, día y revisión
 
+> **Escribir el plan** (mes en número, semana de 3 a 5 resultados, día con su objetivo y 3 tareas) va por la skill
+> `bajar-a-tierra` y su `scripts/plan.py`: es la pluma que leen el Calendario, los lienzos y el puente. Aquí queda
+> qué evidencia reunir y la revisión; cuando haya que escribir, sigue allá.
+
 Cuatro rituales con el mismo patrón: **reunir evidencia → proponer → esperar el «va» → escribir →
 verificar releyendo la fuente (y `mostrar` la vista calendario).** Ninguno escribe antes de la
 aprobación del dueño.

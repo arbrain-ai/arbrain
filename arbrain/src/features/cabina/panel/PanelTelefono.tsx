@@ -12,7 +12,8 @@
  */
 import { useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { ChevronRight, Hammer, Smartphone } from 'lucide-react'
+import Link from 'next/link'
+import { ChevronRight, Hammer, ListChecks, Smartphone } from 'lucide-react'
 import { useLayoutStore } from '@/shared/stores/layout-store'
 import { esTelefonoAhora } from '@/shared/hooks/useMediaQuery'
 import { usePanelFijadas } from './fijadas'
@@ -61,6 +62,12 @@ export function PanelTelefono() {
         <p>Las mismas pestañas que en tu escritorio. Lo que abras o cierres aquí, cambia allá.</p>
       </div>
     </header>
+    {/* Hábitos de hoy (22 oct 2026): un toque a las casillas. Desde ahí, «Agregar a inicio» deja su propio ícono. */}
+    <Link href="/telefono/habitos" className={s.fila} data-habitos-acceso>
+      <span className={s.icono}><ListChecks size={16} aria-hidden /></span>
+      <span className={s.nombre}>Hábitos de hoy</span>
+      <ChevronRight size={16} aria-hidden className={s.flecha} />
+    </Link>
     {claves.length ? <ul className={s.lista}>
       {claves.map(c => {
         const f = fijadas.find(x => x.id === c)

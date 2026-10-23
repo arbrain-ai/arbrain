@@ -1,0 +1,40 @@
+/* El periodo con premio (22 oct 2026): Luminorphism sobrio, la misma tinta y el oro de la caja del objetivo, sin iconos. */
+.periodo { --serif-p: var(--serif, ui-serif, 'New York', 'Iowan Old Style', Georgia, serif); --linea-p: color-mix(in srgb, var(--foreground) 9%, transparent);
+  --oro-p: var(--oro-texto, color-mix(in srgb, var(--gold-dark, var(--gold)) 74%, #000));
+  display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 12px 16px 13px; border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent); background: var(--card); color: var(--foreground); }
+:global(.dark) .periodo { --oro-p: var(--gold-bright, var(--gold)); }
+.entra { animation: subir var(--mov-entrada, 560ms) var(--mov-curva, cubic-bezier(.16, 1, .3, 1)) backwards; animation-delay: calc(var(--i, 0) * var(--mov-paso, 45ms)); }
+@keyframes subir { from { opacity: 0; transform: translateY(6px); } }
+
+.cabeza { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; min-width: 0; }
+.linea { margin: 0; min-width: 0; display: flex; align-items: baseline; flex-wrap: wrap; column-gap: 6px; font-family: var(--serif-p); line-height: 1.15; }
+.numero { font-size: 22px; font-weight: 650; letter-spacing: -.3px; color: var(--oro-p); font-variant-numeric: tabular-nums; }
+.de { font-size: 16px; font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums; }
+.punto { color: var(--muted); }
+.premio { font-size: 18px; font-weight: 600; letter-spacing: -.2px; }
+.faltan { flex: 0 0 auto; font-size: 11.5px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Un trazo por día: lo vivido en oro, hoy marcado, lo que falta en hueco. */
+.tira { display: flex; gap: 2px; min-width: 0; }
+.tira i { flex: 1 1 0; height: 5px; border-radius: 2px; background: color-mix(in srgb, var(--foreground) 9%, transparent); }
+.tira i[data-vivido] { background: color-mix(in srgb, var(--gold) 70%, transparent); }
+.tira i[data-hoy] { background: var(--gold); box-shadow: 0 0 0 1px color-mix(in srgb, var(--gold) 40%, transparent); }
+
+.antes { display: flex; align-items: baseline; gap: 10px; min-width: 0; padding-top: 9px; border-top: 1px solid var(--linea-p); }
+.rotulo { flex: 0 0 auto; font-size: 10.5px; font-weight: 700; letter-spacing: 1.3px; text-transform: uppercase; color: var(--muted); }
+.antes ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; min-width: 0; font-size: 13px; font-weight: 500; line-height: 1.35; }
+.antes li { position: relative; padding-left: 11px; }
+.antes li::before { content: ''; position: absolute; left: 0; top: .52em; width: 5px; height: 5px; border-radius: 50%; border: 1.3px solid var(--oro-p); }
+.viaje { margin: -3px 0 0; font-size: 11.5px; color: var(--muted); }
+.viaje em { font-style: normal; }
+
+@media (max-width: 640px) {
+  .periodo { padding: 11px 14px 12px; gap: 9px; }
+  .numero { font-size: 20px; }
+  .premio { font-size: 16px; }
+  .antes { flex-direction: column; gap: 6px; }
+  .antes ul { flex-direction: column; gap: 4px; font-size: 13.5px; }
+  .tira { gap: 1.5px; }
+}
+@media (prefers-reduced-motion: reduce) { .entra { animation: none; } }

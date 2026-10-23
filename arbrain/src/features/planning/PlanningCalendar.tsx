@@ -22,6 +22,7 @@ import { destinoAlSoltarToque, ejeDeRueda, ejeDeToque } from './carril-logica'
 import { Carril } from './Carril'
 import { conMarca } from './dia-vivo'
 import { SemanaClara } from './SemanaClara'
+import { PulsoHoy } from './useEncuadre'
 import { datosDeMovimiento, diasVisibles, inicioDeVentana, lunesDe, moverDias } from './semana-horas'
 import { rechazado, useAjustes } from './ajustes'
 import { Engrane } from './Engrane'
@@ -366,8 +367,11 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
   }, [paso])
   useEffect(() => { if (!notice) { setNoticeUndo(false); return } const t = setTimeout(() => setNotice(null), noticeUndo ? 8000 : 5000); return () => clearTimeout(t) }, [notice, noticeUndo])
 
+  // «Hoy» también lleva a la hora (22 oct 2026): el pulso hace que el Día y la Semana vuelvan a su encuadre con scroll suave.
+  const [pulsoHoy, setPulsoHoy] = useState(0)
   const goToday = useCallback(() => {
     const today = new Date()
+    setPulsoHoy(n => n + 1)
     initialDate.current = today
     if (modeRef.current !== 'day' && modeRef.current !== 'week') setMov(dayKey(today) < dayKey(anchorRef.current) ? 'izq' : dayKey(today) > dayKey(anchorRef.current) ? 'der' : null)
     // Ancla y ventana antes de mover FullCalendar: su `today()` hace flushSync y la Semana se alinearía con el ancla vieja.
@@ -781,12 +785,12 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
   // Lo que el engrane muestra como «días a la vista»: lo elegido o, si no, lo que se ve (sin fines de semana, 5 columnas son 7 días).
   const diasActual = ventanaSemana.n
 
-  return <div ref={raiz} className={styles.root} style={{ '--plan-pegado': `${altoBarra}px` } as CSSProperties} data-planning-calendar data-donde={donde} data-unificada={alcance ? '' : undefined} data-ventana={mode === 'week' ? `${ventanaSemana.inicio ?? '-'}:${ventanaSemana.n}` : undefined} tabIndex={donde === 'panel' ? -1 : undefined}>
+  return <PulsoHoy.Provider value={pulsoHoy}><div ref={raiz} className={styles.root} style={{ '--plan-pegado': `${altoBarra}px` } as CSSProperties} data-planning-calendar data-donde={donde} data-unificada={alcance ? '' : undefined} data-ventana={mode === 'week' ? `${ventanaSemana.inicio ?? '-'}:${ventanaSemana.n}` : undefined} tabIndex={donde === 'panel' ? -1 : undefined}>
     <h1 className={styles.srOnly}>Calendario</h1>
     {/* UNA fila (5 oct 2026, «los botones deben ser súper sutiles, que ocupen el menor espacio»): Hoy · ‹ › · fecha ▾ · D 4 S M · +.
         La fecha abre lo demás: ir a fecha, Año · Agenda · Rutinas, calendarios, panel de tareas, atajos y actualizar. */}
     <div ref={barraRef} className={styles.barra} data-ancho={compacto ? undefined : ''}>
-      <button className={styles.today} data-en-hoy={enHoy || undefined} onClick={goToday} title="Ir a hoy (T)">Hoy</button>
+      <button className={styles.today} data-en-hoy={enHoy || undefined} onClick={goToday} title="Ir a hoy y a la hora actual (T)">Hoy</button>
       <button className={styles.iconButton} aria-label="Período anterior" onClick={() => navigate(-1)}><ChevronLeft size={17} /></button><button className={styles.iconButton} aria-label="Período siguiente" onClick={() => navigate(1)}><ChevronRight size={17} /></button>
       <span data-more-menu className={styles.vistaWrap}>
         <button className={styles.vistaTitulo} aria-haspopup="menu" aria-expanded={moreOpen} aria-label={`${tituloBarra}: ir a fecha y más vistas (${vistaActual})`} onClick={() => setMoreOpen(v => !v)}><span>{tituloBarra}</span><ChevronDown size={13} aria-hidden /></button>
@@ -818,7 +822,7 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
       <button className={styles.textButton} onClick={() => { setSources(null); setProject(''); setPriority(0) }}>Restablecer</button>
     </div>}
     {esViva(mode) ? <div ref={escena} key={claveEscena} className={vivas.escena} data-mov={mov ?? undefined}>{mode === 'day' ? <Carril fecha={anchor} clave={dayKey} mover={addDays} onIr={irDia} etiqueta="Días: desliza para cambiar de día"
-      render={f => <DiaVivo fecha={f} {...comunes} rejilla={rejilla} onRejilla={alternarRejilla} onObjetivo={marcarObjetivo} guardarObjetivo={goalsLeidos.save} onDescripcion={escribirDescripcion} enfoque={ajustes.enfoque} plegado={plegado}
+      render={(f, central) => <DiaVivo fecha={f} central={central} {...comunes} rejilla={rejilla} onRejilla={alternarRejilla} onObjetivo={marcarObjetivo} guardarObjetivo={goalsLeidos.save} onDescripcion={escribirDescripcion} enfoque={ajustes.enfoque} plegado={plegado}
         onNueva={semilla => setSelection(semilla ?? { kind: 'task', allDay: true })} onReabrir={t => snapshot ? commit(mutationFor(t, snapshot.ownerId, {}, 'reopen')) : Promise.reject(new Error('Sin lectura'))}
         tareas={tareasDelDia(visibleTasks, dayKey(f), dayKey(new Date()), zonaPlan)} onDeshacer={() => void step('undo')} />} />
       : mode === 'month' ? <MesClaro fecha={fechaMes} goals={comunes.goals} snapshot={comunes.snapshot} cargando={loading} angosto={compacto} cuadricula={rejilla} enfoque={ajustes.enfoque} plegado={plegado}
@@ -889,5 +893,5 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
       onAviso={(texto, deshacer) => { setNotice(texto); setNoticeUndo(Boolean(deshacer)) }}
       // La hoja cierra guardando (puede tardar): si mientras tanto se abrió otra, no se cierra la nueva.
       onClose={() => setSelection(s => s === selection ? null : s)} />}
-  </div>
+  </div></PulsoHoy.Provider>
 }

@@ -232,7 +232,14 @@ async function compilarWeb(forzar) {
   registrar('Compilando la web (edición cliente, modo servidor). Tarda unos minutos la primera vez…')
   const env = { ...entornoLimpio(process.env), ARBRAIN_EDICION: 'cliente', ARBRAIN_MODO_SERVIDOR: '1', NODE_ENV: 'production', NEXT_TELEMETRY_DISABLED: '1' }
   const next = join(ARBRAIN, 'node_modules', 'next', 'dist', 'bin', 'next')
-  if (correr(process.execPath, [next, 'build', '--webpack'], ARBRAIN, env) !== 0) fallar('Falló la compilación de la web. El detalle está arriba.')
+  // Hasta 3 intentos: `next/font/google` baja las fuentes al compilar y a veces Google responde mal (22 oct 2026: tumbó
+  // 4 corridas de CI con «loader.js:122»). Un error real del código falla igual las tres veces.
+  for (let intento = 1; ; intento++) {
+    if (correr(process.execPath, [next, 'build', '--webpack'], ARBRAIN, env) === 0) break
+    if (intento >= 3) fallar('Falló la compilación de la web. El detalle está arriba.')
+    registrar(`La compilación de la web falló (intento ${intento} de 3; suele ser la descarga de fuentes). Reintento en 15 s…`)
+    await dormir(15_000)
+  }
   if (!existsSync(join(STANDALONE, 'server.js'))) fallar('La compilación no dejó .next/standalone/server.js (next.config.ts debe tener output: "standalone").')
   // Lo mismo que prepare-tauri-resources: estáticos y public junto al server.js; fuera .env y bases.
   cpSync(join(ARBRAIN, '.next', 'static'), join(STANDALONE, '.next', 'static'), { recursive: true })
@@ -579,10 +586,17 @@ async function iniciar() {
   privada(DATOS); privada(R.daemon); privada(R.config); privada(R.store); privada(R.claude); privada(R.web); privada(R.logs)
 
   const ya = await vivo()
-  if (ya) {
+  if (ya && ya.repo === REPO && ya.version === versionRepo()) {
     console.log(`[arbrain] Tu Arbrain ya está corriendo (pid ${ya.pid}).`)
     if (!bandera('--sin-navegador')) await abrirConSesion(ya)
     return
+  }
+  if (ya) {
+    // Otro Arbrain con esta carpeta de datos: de otra versión o de otra copia (una reinstalación con el anterior todavía
+    // encendido, 23 oct 2026). Sin esto la instalación nueva diría «Corriendo» con el programa viejo. Se apaga y sigue.
+    registrar(`Hay un Arbrain anterior corriendo (pid ${ya.pid}, versión ${ya.version || 'anterior a la 0.2.9'}): lo apago para arrancar el ${versionRepo() || 'de esta copia'}.`)
+    await pedir(ya.puertoControl, '/detener', { metodo: 'POST', token: ya.tokenCli, cuerpo: {} })
+    if (!(await esperar(async () => !(await vivo()), 20_000))) fallar('Hay un Arbrain anterior corriendo y no se apagó. Corre `npm run servidor -- detener` y vuelve a intentarlo.')
   }
 
   const listo = bandera('--compilar') ? null : await programaYaCompilado({ repo: REPO, dirProgramas: R.programa, version: versionRepo(), avisar: registrar })
@@ -610,7 +624,7 @@ async function iniciar() {
   if (primeraVez && process.stdout.isTTY) console.log(`\n  Tu contraseña de Arbrain (para entrar desde otro navegador): ${S.contrasena}\n  Guárdala; la vuelves a ver con: npm run servidor -- contrasena\n`)
   S.tokenCli = secreto()
   S.puertoControl = await servidorControl()
-  escribirPrivado(R.proceso, JSON.stringify({ pid: process.pid, puertoWeb: S.puertoWeb, puertoDaemon: S.puertoDaemon, puertoControl: S.puertoControl, tokenCli: S.tokenCli, inicio: ahora(), datos: DATOS }, null, 1) + '\n')
+  escribirPrivado(R.proceso, JSON.stringify({ pid: process.pid, puertoWeb: S.puertoWeb, puertoDaemon: S.puertoDaemon, puertoControl: S.puertoControl, tokenCli: S.tokenCli, inicio: ahora(), datos: DATOS, repo: REPO, version: versionRepo() }, null, 1) + '\n')
 
   for (const s of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(s, () => void apagarTodo(0))
   process.on('uncaughtException', (e) => { registrar(`Error inesperado del supervisor: ${e?.stack ?? e}`); void apagarTodo(1) })

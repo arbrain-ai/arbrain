@@ -99,6 +99,23 @@ function trustedStoragePrefixes(): string[] {
   return storageOriginAliases(base).map(origin => `${origin}/storage/v1/object/`)
 }
 
+/**
+ * El chat web abierto desde fuera del Studio (laptop o teléfono por el Funnel) sube los adjuntos y recibe la URL con el
+ * origen público (MISSION_CONTROL_ORIGIN, p. ej. https://<studio>.ts.net:10000). Ese host resuelve a una IP de la tailnet
+ * (100.64/10), que la barrera SSRF bloquea con razón. Como es el MISMO storage del Studio, se reescribe al origen local
+ * de MC_SUPABASE_URL antes de descargar (22 oct 2026: «No se pudo descargar un adjunto» desde la laptop). Solo la ruta
+ * de objetos de storage y solo ese origen exacto; cualquier otra URL queda igual y pasa por la barrera.
+ */
+export function storagePublicoALocal(url: string): string {
+  const env = readEnvFile(['MC_SUPABASE_URL', 'MISSION_CONTROL_ORIGIN'])
+  const local = (process.env.MC_SUPABASE_URL || env.MC_SUPABASE_URL || '').replace(/\/+$/, '')
+  const publico = (process.env.MISSION_CONTROL_ORIGIN || env.MISSION_CONTROL_ORIGIN || '').replace(/\/+$/, '')
+  if (!/^https?:\/\//i.test(local) || !/^https:\/\//i.test(publico)) return url
+  const prefijo = `${publico}/storage/v1/object/`
+  if (!url.startsWith(prefijo) || url.includes('..')) return url
+  return `${local}/storage/v1/object/${url.slice(prefijo.length)}`
+}
+
 /** `localhost`, `127.0.0.1` y `[::1]` son el mismo storage local: el .env dice
  *  `localhost:8000` y el upload del chat devuelve `127.0.0.1:8000` (1 oct 2026: cada
  *  envío con fotos fallaba con «Adjunto rechazado» y Daniel lo reenviaba). Solo se
