@@ -10,6 +10,7 @@ import { tareaObjetivo, tituloCumplido } from './dia-vivo'
 import { tareasDelPeriodo } from './plan-periodo'
 import { diasEntre, objetivoDe, porDia, rejillaDelMes, tareasPorDia } from './periodo-vivo'
 import { compromisosDelDia, entregablesDe, mismoTitulo } from './claridad'
+import { ContadorPeriodo } from './ContadorPeriodo'
 import { Entregables, ObjetivoCaja, Segmentos } from './ObjetivoCaja'
 import { esc, sinEmoji, useAhora } from './vivo-piezas'
 import { SemanaHoras, type MarcaDia } from './SemanaHoras'
@@ -156,11 +157,12 @@ export function SemanaClara({ goals, guardarObjetivo, fecha, ventana, onVentana,
         <Entregables texto={goal.success} guardar={guardarObjetivo ? success => guardarObjetivo({ ...goal, success }) : undefined} i0={2} nombre="Entregables de la semana" />
       </> : null}
     </ObjetivoCaja>
+    <ContadorPeriodo />
 
     {!enfoque && <div className={`${c.subtitulo} ${c.entra}`} style={esc(6)}><h3>{vista === 'horas' ? 'La semana en horas' : 'Cada día'}</h3></div>}
 
     {cargando && !snapshot ? <p className={c.leyendo}>Leyendo tu calendario…</p>
-      : vista === 'horas' ? <div className={c.entra} style={esc(7)}><SemanaHoras dias={onVentana ? undefined : dias} semana={semana} inicio={inicio} onVentana={onVentana} sinBarra={enfoque} hoy={hoy} ahora={ahora} bloques={bloques} todoElDia={todoElDia} estrellas={estrellas} onDia={onDia} donde={donde} barra={chips} amplia={enfoque}
+      : vista === 'horas' ? <div className={c.entra} style={esc(7)}><SemanaHoras listo={Boolean(snapshot) || !cargando} dias={onVentana ? undefined : dias} semana={semana} inicio={inicio} onVentana={onVentana} sinBarra={enfoque} hoy={hoy} ahora={ahora} bloques={bloques} todoElDia={todoElDia} estrellas={estrellas} onDia={onDia} donde={donde} barra={chips} amplia={enfoque}
         diasVista={diasVista} finDeSemana={finDeSemana} tramo={tramo} compacta={compacta} zona={etiquetaZona}
         todoElDiaAbierto={plegado?.todoElDia} onTodoElDia={plegado ? () => plegado.alternar('todoElDia') : undefined}
         onAbrir={onAbrir ? b => { const i = item(b); if (i) onAbrir(i) } : undefined}

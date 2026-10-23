@@ -18,6 +18,8 @@ interface Estado {
   manual: { semana: string; ofertas: number | null; conversaciones_venta: number | null } | null
   ultimo_envio: number | null
   ultimo_resultado: string | null
+  expediente?: { ultimo: number | null; resultado: string | null }
+  camino?: { ultimo: number | null; resultado: string | null }
   vista_previa: Record<string, unknown>
   resultado?: string
   detalle?: string
@@ -66,6 +68,7 @@ export function PanelConexionArbrain() {
         <Lista titulo="Qué se envía" items={SE_ENVIA} tono="si" />
         <Lista titulo="Qué nunca sale" items={NUNCA} tono="no" />
       </div>
+      <p className="text-[12.5px] leading-snug text-muted">De vuelta llegan solo tu expediente de arbrain.ai (tu meta y tus respuestas) y tu camino en el programa (en qué día y etapa vas, tus casillas y tu siguiente paso): se guardan en la memoria de tu Levy, en tu computadora, para que te conozca y te guíe sin preguntarte de nuevo. Si editas esos archivos a mano, ya no se reescriben.</p>
 
       {!conectado ? (
         <div className="space-y-3 rounded-2xl border border-border-subtle bg-surface/70 p-4">
@@ -93,6 +96,8 @@ export function PanelConexionArbrain() {
           <p className="text-[12.5px] text-muted">
             {estado!.ultimo_envio ? `Último envío: ${new Date(estado!.ultimo_envio).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' })}.` : 'Todavía no se ha enviado nada.'}
             {estado!.ultimo_resultado && estado!.ultimo_resultado !== 'enviado' ? ` Último intento: ${estado!.ultimo_resultado}` : ''}
+            {textoExpediente(estado!.expediente)}
+            {textoCamino(estado!.camino)}
           </p>
           <div className="flex items-center justify-between gap-4">
             <div className="min-w-0"><p className="text-[13px] font-semibold text-foreground">Compartir el texto de mis metas y el nombre de mis hábitos</p>
@@ -134,6 +139,21 @@ export function PanelConexionArbrain() {
       {error && <Aviso tono="alerta">{error}</Aviso>}
     </div>
   )
+}
+
+function textoExpediente(e: Estado['expediente']): string {
+  const r = e?.resultado ?? ''
+  if (r.startsWith('sembrado') && e?.ultimo) return ` Tu expediente llegó a tu memoria: ${new Date(e.ultimo).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' })}.`
+  if (r === 'sin_expediente') return ' Todavía no hay expediente en arbrain.ai para traer.'
+  return r ? ` Tu expediente no llegó: ${r}.` : ''
+}
+
+function textoCamino(e: Estado['camino']): string {
+  const r = e?.resultado ?? ''
+  if (r === 'escrito: editado_a_mano') return ' Editaste a mano tu camino (mi-camino.md): ya no se reescribe.'
+  if (r.startsWith('escrito') && e?.ultimo) return ` Tu camino llegó a tu memoria: ${new Date(e.ultimo).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' })}.`
+  if (r === 'sin_camino') return ' arbrain.ai todavía no tiene tu camino para traer.'
+  return r ? ` Tu camino no llegó (${r}); tu Levy usa el último que guardó.` : ''
 }
 
 function Lista({ titulo, items, tono }: { titulo: string; items: string[]; tono: 'si' | 'no' }) {

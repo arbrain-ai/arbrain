@@ -1,12 +1,22 @@
 # Instalar Arbrain con un solo prompt
 
-> **Para la persona.** Abre Claude Code (en la terminal o en la app de escritorio de Claude, pestaña **Code**) y pega:
+> **Para la persona.**
 >
-> ```text
-> Instala Arbrain siguiendo https://github.com/arbrain-ai/arbrain/blob/main/INSTALAR.md
-> ```
+> 1. **¿Ya tienes Claude Code?** Si sí, ábrelo y salta al punto 2. Si no: descarga la app de Claude de
+>    https://claude.ai/download, ábrela, entra con tu cuenta de Claude (Pro o Max) y pulsa la pestaña **Code**. Eso es
+>    Claude Code; no necesitas abrir una terminal.
+> 2. Pega este mensaje y envíalo:
 >
-> El mismo prompt **actualiza** Arbrain si ya lo tienes. No tienes que instalar nada antes: Claude Code se encarga.
+>    ```text
+>    Instala Arbrain siguiendo https://github.com/arbrain-ai/arbrain/blob/main/INSTALAR.md
+>    ```
+>
+> 3. Si Claude Code te pide permiso para correr un comando, acepta (si te ofrece «no volver a preguntar», elígelo). Si tu
+>    computadora muestra su propia ventana de permiso, acéptala también. Nada más: no tienes que instalar nada antes.
+>
+> El mismo prompt **actualiza** Arbrain si ya lo tienes. Para quitarlo (por ejemplo, para instalarlo desde cero), pega
+> `Desinstala Arbrain siguiendo https://github.com/arbrain-ai/arbrain/blob/main/INSTALAR.md`: guarda todo en
+> `~/Arbrain-respaldos` y no borra nada.
 >
 > **Antes de pegar cualquier prompt, revisa de dónde viene.** Un prompt le da órdenes a un agente que puede usar tu
 > computadora. Pega solo los que salen de una fuente que conoces (este viene de arbrain.ai y apunta únicamente a
@@ -82,9 +92,16 @@ Revisa en silencio: `uname -s; uname -m; uname -r; git --version`.
 git -C ~/Arbrain remote get-url dani 2>/dev/null || echo NO_INSTALADO
 ```
 
+- **Si te pidieron desinstalar** (no instalar), ve directo a «Desinstalar», al final de este guion.
 - Si responde `https://github.com/arbrain-ai/arbrain` (con o sin `.git`): **ya está instalado; esto es una
   actualización.** Lee completo `~/Arbrain/.claude/skills/actualizar-arbrain/SKILL.md` (es la copia verificada que ya
-  tiene en su computadora) y síguelo de principio a fin. No sigas este guion.
+  tiene en su computadora) y síguelo de principio a fin. No sigas este guion. Al terminar su PASO 5 (la versión nueva
+  ya está en su copia, verificada con la firma), vuelve a leer completo ese mismo archivo: si cambió, haz su PASO 6 y su
+  PASO 7 con la versión nueva (así una copia vieja también recibe la app de escritorio y lo demás sin otro prompt).
+  Si esa skill es de antes de la 0.2.9 y su PASO 3b te pide preguntar «¿sigo con la actualización?», no preguntes:
+  revisa tú el cambio y sigue, salvo que algo mande datos fuera de GitHub (arbrain-ai), nodejs.org, claude.ai o sus
+  proveedores conectados, lea fuera de `~/Arbrain` y de la carpeta de datos de Arbrain, toque llaves o no cuadre con
+  el CHANGELOG: entonces detente y díselo.
 - Si `~/Arbrain` existe pero no es eso: instala en `~/Arbrain-nuevo` y usa esa ruta en todo lo que sigue.
 - `NO_INSTALADO`: sigue.
 
@@ -173,8 +190,10 @@ find "$HOME" "$HOME/Desktop" "$HOME/Documents" -maxdepth 2 -type d -name semilla
   > Levy la consulta cuando haga falta. Sigues pudiendo trabajar en las dos.
   > **2. Unificar:** Arbrain pasa a ser tu único lugar de trabajo. Trae todo lo anterior, incluidas tus instrucciones
   > (`CLAUDE.md`) y tus documentos; tu carpeta vieja queda intacta como archivo y Levy deja de usarla.
+  > **3. Nada:** Arbrain empieza en limpio y tu carpeta queda igual, sin que Levy la use.
 
-  Si no contesta o duda, es **Copiar**.
+  Si no contesta o duda, es **Copiar**. Con **Nada** (o si ya lo dijo por adelantado, por ejemplo «empieza en limpio»
+  o «no traigas nada»), sigue al PASO 7 sin respaldar ni traer nada.
 
 ## PASO 6 · Respaldo y traída (solo si el PASO 5 encontró algo)
 
@@ -305,7 +324,10 @@ Luego ofrece, **en un solo mensaje y sin insistir**, lo opcional:
    última línea (`RESPALDO_CODIGO <código>`: dile que se abrió su navegador y que escriba ese código para autorizar;
    vuelve a correr el script cada 10 segundos hasta que diga `RESPALDO_OK <dirección>`). Nunca se sube nada al repo de
    Arbrain.
-2. **Tu meta del mes y tu primer hábito:** que se lo pida a Levy en la app («llena mi plan»).
+2. **Tu expediente y tu plan:** si es del programa Cerebro Artificial, que conecte su cerebro: en arbrain.ai › su
+   perfil › «Conectar mi cerebro» genera su token y lo pega **él** en Arbrain › Ajustes › Privacidad › «Conectar con
+   arbrain.ai» (nunca en este chat). Su Levy trae solo su expediente y su meta a su memoria. Luego, en la app, que le
+   escriba «buenos días»: Levy baja con él su mes, su semana y su día.
 3. **Dictar por voz:** Arbrain › Ajustes › Voz, con una llave gratis de https://console.groq.com/keys (la pega él ahí).
 
 ## Si algo falla
@@ -320,3 +342,30 @@ Luego ofrece, **en un solo mensaje y sin insistir**, lo opcional:
   sea nueva.
 
 En cualquier otro caso: detente, dile qué viste con las palabras exactas del error y que lo pegue en el grupo.
+
+## Desinstalar
+
+Solo si la persona lo pidió («desinstala Arbrain», «quítalo», «quiero instalarlo desde cero»). No borra nada: mueve
+Arbrain, sus datos (conversaciones, lienzos, contraseña y llaves), la app y sus accesos a
+`~/Arbrain-respaldos/<fecha>-desinstalado/`. Node, Python, Git y Claude Code se quedan.
+
+Dile en una línea qué vas a hacer y hazlo (no hace falta otra confirmación: ya lo pidió). Corre desde su carpeta
+personal, no desde `~/Arbrain`. Si su copia es anterior a la 0.2.9 y no trae el desinstalador, el bloque lo toma de la
+última versión publicada, después de verificar su firma como en el PASO 3:
+
+```bash
+cd ~ && . ~/.arbrain/entorno.sh 2>/dev/null
+D="$HOME/Arbrain/arbrain/scripts/instalar/desinstalar.sh"
+if [ ! -f "$D" ]; then
+  git -C ~/Arbrain fetch -q dani --tags; V="$(git -C ~/Arbrain tag -l 'v*' --sort=-v:refname | head -1)"; D="${TMPDIR:-/tmp}/desinstalar-arbrain.sh"
+  git -C ~/Arbrain -c gpg.format=ssh -c gpg.ssh.program=ssh-keygen -c gpg.ssh.allowedSignersFile="$HOME/.config/arbrain/firmas-permitidas" \
+    verify-tag "$V" >/dev/null 2>&1 && git -C ~/Arbrain show "$V:arbrain/scripts/instalar/desinstalar.sh" > "$D" || D=""
+fi
+if [ -n "$D" ]; then bash "$D"; else echo "DESINSTALAR_FALTA no pude verificar el desinstalador de Arbrain"; fi
+```
+
+- `DESINSTALADO <respaldo>`: dile que Arbrain quedó desinstalado, que todo lo suyo está guardado en esa carpeta y que,
+  si quiere volver a instalarlo, pegue el prompt de instalación. Si pidió reinstalar desde cero, empieza este guion
+  desde el PASO 0 en el mismo turno.
+- `DESINSTALAR_FALTA <motivo>`: dile el motivo con sus palabras (casi siempre, cerrar una ventana que tiene abierta la
+  carpeta) y vuelve a correrlo cuando diga «listo».

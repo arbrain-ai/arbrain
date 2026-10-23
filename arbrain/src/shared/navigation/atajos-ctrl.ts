@@ -12,7 +12,7 @@ import type { CalendarMode } from '@/features/planning/types'
  *    y Ctrl+Q es control de flujo. Robárselas rompería la terminal.
  * Lo puro vive aquí para probarlo con `node --test`; el escuchador está en `useAtajosCtrl`.
  */
-export type AccionCtrl = { tipo: 'calendario'; modo: CalendarMode } | { tipo: 'cerrar-pestana' } | { tipo: 'selector-lienzo' }
+export type AccionCtrl = { tipo: 'calendario'; modo: CalendarMode } | { tipo: 'cerrar-pestana' } | { tipo: 'selector-lienzo' } | { tipo: 'habitos' }
 
 /** Por `code` (la tecla física), no por `key`: así funciona igual con el teclado en español o en inglés.
  *  Ctrl+X quedó libre (5 oct 2026, 17:51): la vista de 4 días se retiró y Daniel pidió no reasignarla. */
@@ -23,6 +23,8 @@ const TECLAS: Record<string, AccionCtrl> = {
   KeyQ: { tipo: 'cerrar-pestana' },
   // 6 oct 2026: saltar de un lienzo a otro desde el mismo lienzo (el selector del título). Sin lienzo a la vista no hace nada.
   KeyL: { tipo: 'selector-lienzo' },
+  // 22 oct 2026 (monk mode hasta Monterrey): «Hábitos de hoy» al pie del Día, con el foco listo para 1 · 2 · 3.
+  KeyH: { tipo: 'habitos' },
 }
 
 /** Evento con que una pizarra a la vista toma Ctrl+L (lo despacha `useAtajosCtrl`). `detail.alguna`: segunda vuelta, cualquier pizarra visible. */
@@ -39,9 +41,12 @@ export function accionCtrl(e: TeclaCtrl): AccionCtrl | null {
 /** El campo de texto con el foco, reducido a lo que importa: ¿hay algo que Ctrl+D borraría? */
 export interface CampoTexto { inicio: number; fin: number; largo: number }
 
-/** ¿La tecla es del campo de texto y no del atajo? Solo Ctrl+D con selección o con texto delante del cursor. */
+/** ¿La tecla es del campo de texto y no del atajo? Ctrl+D con selección o con texto delante del cursor; Ctrl+H (borrar hacia
+ *  atrás en macOS) con selección o con texto detrás del cursor. Con el campo vacío o sin nada que borrar, gana el atajo. */
 export function cedeAlCampo(accion: AccionCtrl, campo: CampoTexto | null): boolean {
-  if (!campo || accion.tipo !== 'calendario' || accion.modo !== 'day') return false
+  if (!campo) return false
+  if (accion.tipo === 'habitos') return campo.inicio !== campo.fin || campo.inicio > 0
+  if (accion.tipo !== 'calendario' || accion.modo !== 'day') return false
   return campo.inicio !== campo.fin || campo.fin < campo.largo
 }
 
@@ -51,4 +56,5 @@ export const ATAJOS_CTRL: { teclas: string[]; accion: string }[] = [
   { teclas: ['Ctrl', 'M'], accion: 'Calendario en Mes, el de hoy' },
   { teclas: ['Ctrl', 'Q'], accion: 'Cerrar la pestaña activa del panel' },
   { teclas: ['Ctrl', 'L'], accion: 'Lienzo: cambiar de lienzo desde el mismo lienzo (recientes arriba; flechas y Enter)' },
+  { teclas: ['Ctrl', 'H'], accion: 'Hábitos de hoy: el Día del panel con el foco en las casillas; luego 1 · 2 · 3 marcan (en un campo con texto detrás del cursor, borra hacia atrás)' },
 ]

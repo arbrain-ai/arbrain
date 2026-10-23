@@ -1,0 +1,5 @@
+.pagina { min-height: 100%; padding: max(12px, env(safe-area-inset-top)) 14px max(24px, env(safe-area-inset-bottom)); max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+.cabeza { display: flex; align-items: center; gap: 6px; }
+.cabeza h1 { margin: 0; font-size: 17px; font-weight: 700; color: var(--foreground); }
+.volver { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px; color: var(--muted); }
+.volver:hover { background: var(--card-hover); color: var(--foreground); }

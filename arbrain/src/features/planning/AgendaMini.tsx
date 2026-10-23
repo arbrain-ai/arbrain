@@ -1,11 +1,13 @@
 'use client'
-import { useLayoutEffect, useRef, type CSSProperties } from 'react'
+import { useRef, type CSSProperties } from 'react'
 import { CalendarClock } from 'lucide-react'
 import { carriles, duracion, tramoDia, type Bloque } from './dia-vivo'
 import type { BloqueAgenda } from './agenda-llamadas'
 import { esCompromiso } from './categorias'
 import { esc, hora } from './vivo-piezas'
 import type { PlanEvent, PlanItem, PlanTask } from './types'
+import { encuadreDe } from './encuadre'
+import { useEncuadre } from './useEncuadre'
 import d from './dia-vivo.module.css'
 // La línea de ahora es la de «Tu día» (cabina/luz.module.css): se aplican las dos clases, no se copia el estilo.
 import luz from '@/features/cabina/luz.module.css'
@@ -20,17 +22,9 @@ const HORA_PX = 30
  * Desde el 10 oct 2026 («desde las cinco a las diez pm… el resto del día me gustaría tenerlo presente») muestra siempre el
  * día entero de 05:00 a 22:00 (más si algo cae fuera), lo vivido sombreado y la línea de ahora; al abrir hoy, baja al ahora.
  * Desde el 21 oct 2026 la agenda no tiene scroll propio (se tragaba la rueda) y la línea de ahora es la de «Tu día».
+ * Desde el 22 oct 2026 abre con el ahora a un tercio de lo visible y otro día en su primer evento o a las 5:30 (useEncuadre.ts).
  */
-/** El primer ancestro que de verdad se desplaza en vertical. */
-function desplazadorVertical(el: HTMLElement): HTMLElement | null {
-  for (let p = el.parentElement; p; p = p.parentElement) {
-    const o = getComputedStyle(p).overflowY
-    if ((o === 'auto' || o === 'scroll') && p.scrollHeight > p.clientHeight + 1) return p
-  }
-  return null
-}
-
-export function AgendaMini({ bloques, bandas = [], todoElDia, fecha, ahora, esHoy, pasado, color, cargando, rejilla, onRejilla, onAbrir, objetivo, todoElDiaAbierto, onTodoElDia }: {
+export function AgendaMini({ bloques, bandas = [], todoElDia, fecha, ahora, esHoy, pasado, color, cargando, rejilla, onRejilla, onAbrir, objetivo, todoElDiaAbierto, onTodoElDia, central = true }: {
   bloques: BloqueAgenda[]
   /** Ventanas de disponibilidad (18 oct 2026): una banda de fondo detrás de las tarjetas, no una columna. */
   bandas?: Bloque[]
@@ -45,6 +39,8 @@ export function AgendaMini({ bloques, bandas = [], todoElDia, fecha, ahora, esHo
   /** Lo de día completo plegado en una línea (la primera y «+N»); un toque lo abre. Sin `onTodoElDia`, siempre abierto. */
   todoElDiaAbierto?: boolean
   onTodoElDia?: () => void
+  /** La hoja de en medio del carril: solo ella encuadra el scroll (las vecinas también se pintan). */
+  central?: boolean
 }) {
   const base = new Date(fecha).setHours(0, 0, 0, 0)
   // Lo de día completo nace plegado en una línea (ronda 3, 10 oct 2026): el mismo estado que la franja de la Semana.
@@ -55,19 +51,15 @@ export function AgendaMini({ bloques, bandas = [], todoElDia, fecha, ahora, esHo
   const px = HORA_PX
   const y = (t: number) => ((t - base) / 60000 - desde) / 60 * px
   const alto = horasN * px
-  // Al abrir (o cambiar de día) hoy: si la línea de ahora queda bajo el borde del scroll que la contiene (el del panel o la
-  // página; la agenda ya no tiene scroll propio desde el 21 oct 2026), se baja lo justo para verla. Nunca se sube ni se toca
-  // si ya se ve: lo de arriba (objetivo, top 3) manda.
-  const lineaAhora = useRef<HTMLParagraphElement>(null)
+  // Al abrir, al llegar a otro día o con «Hoy»: hoy, el ahora a un tercio de lo visible; otro día, su primer evento o las 5:30.
+  // Lo pegajoso de arriba es la barra del calendario (`--plan-pegado`). Después, el scroll es de Daniel.
+  const mini = useRef<HTMLDivElement>(null)
   const dia = new Date(fecha).toDateString()
-  useLayoutEffect(() => {
-    const linea = lineaAhora.current
-    if (!linea || !esHoy) return
-    const scroller = desplazadorVertical(linea)
-    if (!scroller) return
-    const abajo = linea.getBoundingClientRect().bottom - scroller.getBoundingClientRect().bottom
-    if (abajo > 0) scroller.scrollTop += abajo + px * 2
-  }, [dia, esHoy]) // eslint-disable-line react-hooks/exhaustive-deps -- solo al llegar a otro día; luego el scroll es del dueño
+  useEncuadre({
+    ancla: mini, origen: desde, pxPorMinuto: px / 60, clave: central ? dia : null, listo: !cargando,
+    encuadre: () => encuadreDe(esHoy ? (ahora - base) / 60000 : null, bloques.map(b => (b.inicio - base) / 60000)),
+    tapa: () => mini.current ? parseFloat(getComputedStyle(mini.current).getPropertyValue('--plan-pegado')) || 0 : 0,
+  })
   const horas = Array.from({ length: horasN + 1 }, (_, i) => desde + i * 60)
   const lanes = carriles(objetivo ? [...bloques, { id: 'objetivo', titulo: '', inicio: objetivo.inicio, fin: objetivo.fin, color: null, evento: null as unknown as PlanEvent }] : bloques)
   const ahoraY = esHoy ? y(ahora) : null
@@ -90,7 +82,7 @@ export function AgendaMini({ bloques, bandas = [], todoElDia, fecha, ahora, esHo
     </div>}
     {!todos.length && <p className={d.vacio}>{cargando ? 'Leyendo tu calendario…' : `Nada agendado ${esHoy ? 'hoy' : 'este día'}.`}</p>}
     <div className={`${d.miniCaja} ${d.entra}`} style={esc(3)} data-hoy={esHoy || undefined}>
-      <div className={d.mini} style={{ height: alto } as CSSProperties} role="presentation">
+      <div ref={mini} className={d.mini} style={{ height: alto } as CSSProperties} role="presentation">
         {esHoy && ahoraY != null && ahoraY > 0 && <i className={d.miniVivido} style={{ height: Math.min(ahoraY, alto) }} aria-hidden />}
         {horas.map(m => <span key={m} className={d.miniHora} style={{ top: (m - desde) / 60 * px }}>
           <time hidden={ahoraY != null && Math.abs((m - desde) / 60 * px - ahoraY) < 12}>{String(Math.floor(m / 60) % 24).padStart(2, '0')}</time></span>)}
@@ -118,7 +110,7 @@ export function AgendaMini({ bloques, bandas = [], todoElDia, fecha, ahora, esHo
             </li>
           })()}
         </ol>
-        {ahoraY != null && ahoraY >= 0 && ahoraY <= alto && <p ref={lineaAhora} className={`${luz.lineaAhora} ${d.miniAhora}`} style={{ top: ahoraY }} aria-hidden>{hora(ahora)}</p>}
+        {ahoraY != null && ahoraY >= 0 && ahoraY <= alto && <p className={`${luz.lineaAhora} ${d.miniAhora}`} style={{ top: ahoraY }} aria-hidden>{hora(ahora)}</p>}
       </div>
     </div>
   </section>

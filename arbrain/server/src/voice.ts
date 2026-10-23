@@ -1,5 +1,5 @@
 import { readFileSync, renameSync, existsSync } from 'fs'
-import { GROQ_API_KEY, KOKORO_TTS_URL } from './config.js'
+import { GROQ_API_KEY, KOKORO_TTS_URL, VOZ_TOKEN } from './config.js'
 import { logger } from './logger.js'
 
 export function voiceCapabilities(): { stt: boolean; tts: boolean } {
@@ -57,7 +57,7 @@ export async function synthesizeSpeech(text: string, voice = 'levy', speed = 1.0
 
   const response = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...(VOZ_TOKEN ? { Authorization: `Bearer ${VOZ_TOKEN}` } : {}) },
     body: JSON.stringify({
       input: text,
       // voz-agentes (services/voz-agentes): levy | sensei | trinity. Kokoro (em_alex) murió con la poda.

@@ -27,6 +27,10 @@ import {
   type DatosSalud, type Dia, type HabitoCuerpo, type MetricaDef, type MetricaDia, type PactoFila, type Tendencia,
 } from '@/features/salud/modelo'
 import { ConectaReloj } from './ConectaReloj'
+import { instalacion } from '@/config'
+import { useAtomicos } from '@/features/sistema/useAtomicos'
+import { nombrePublico } from '@/lib/sistema/atomicos'
+import { useModoPresentacion } from '@/shared/stores/presentacion-store'
 import l from '../luz.module.css'
 import h from './salud.module.css'
 
@@ -221,7 +225,12 @@ function Habito({ r, i }: { r: HabitoCuerpo; i: number }) {
   </li>
 }
 function HabitosYCuerpo({ x, i }: { x: DatosSalud; i: number }) {
-  const filas = useMemo(() => x.habitos.map(hb => habitoVsCuerpo(hb, x.marcas, x.dias, x.hoy)), [x.habitos, x.marcas, x.dias, x.hoy])
+  // Privados (22 oct 2026): con su nombre neutro; en modo presentación, fuera (misma regla que «Hábitos de hoy»).
+  const atomicos = useAtomicos(), presentacion = useModoPresentacion()
+  const principio = (clave: string) => atomicos.data?.habitos[clave] ?? instalacion().habitosAtomicos?.habitos[clave]
+  const filas = useMemo(() => x.habitos.map((hb, k) => ({ ...hb, k, p: principio(hb.clave) })).filter(hb => !(presentacion.activo && hb.p?.privado))
+    .map(hb => habitoVsCuerpo({ clave: hb.clave, nombre: nombrePublico(hb.nombre, hb.p, hb.k + 1) }, x.marcas, x.dias, x.hoy)),
+  [x.habitos, x.marcas, x.dias, x.hoy, atomicos.data, presentacion.activo]) // eslint-disable-line react-hooks/exhaustive-deps
   return <Tarjeta i={i} ceja={<b>Tus hábitos y tu cuerpo</b>} extra={<Link className={l.enlace} href="/calendar?mode=day">Marcar en el Día</Link>}>
     {!filas.length ? <Hueco texto="Sin hábitos activos todavía. Cuando los marques en el Día, aquí ves si mueven tu noche." />
       : <ul className={h.habitos}>{filas.map((r, k) => <Habito key={r.clave} r={r} i={i + k} />)}</ul>}

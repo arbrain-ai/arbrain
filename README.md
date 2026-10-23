@@ -103,59 +103,48 @@ Levy usa tu computadora y la web por ti en macOS y Windows. Viene apagado y siem
 
 ## Instalar
 
-Necesitas **Git**, **Node 22** o más nuevo, **Python 3** y, para el camino recomendado,
-**[Claude Code](https://claude.com/claude-code)** con tu propia cuenta. Funciona en macOS, Windows y Linux.
+Funciona en macOS, Windows y Linux. **No tienes que instalar nada antes:** Claude Code se encarga de Git, Node y
+Python, sin pedirte comandos.
 
-### Camino 1 · Con Claude Code (recomendado)
+1. **¿Ya tienes Claude Code?** Si sí, ábrelo. Si no: descarga la app de Claude de
+   [claude.ai/download](https://claude.ai/download), entra con tu cuenta (Pro o Max) y abre la pestaña **Code**. No
+   necesitas una terminal.
+2. Pega este mensaje y envíalo:
 
-Abre Claude Code en tu carpeta personal y pega esta línea:
+   ```text
+   Instala Arbrain siguiendo https://github.com/arbrain-ai/arbrain/blob/main/INSTALAR.md
+   ```
 
-```text
-Instala Arbrain siguiendo https://github.com/arbrain-ai/arbrain/blob/main/INSTALAR.md
-```
+3. Acepta los permisos que te pida (los de Claude Code y, si aparece, la ventana de tu sistema). En unos minutos se
+   abre la app **Arbrain** con Levy listo.
 
-Tu Claude revisa tu equipo, respalda lo que ya tengas (la app 0.1.x, tu Business OS o tu propio repo) y lo trae a tu
-capa sin borrar nada, clona Arbrain, lo arranca y te guía con tu llave, tu voz, tu meta y tu primer hábito. El guion
-completo está en [`INSTALAR.md`](INSTALAR.md).
+Tu Claude Code verifica la firma de la versión, instala lo que falte, respalda lo que ya tengas (la app 0.1.x, tu
+Business OS o tu propio repo) y te pregunta una sola vez si lo copia o lo unifica, baja Arbrain ya compilado para tu
+sistema, deja la app de escritorio abierta y conecta a Levy con tu cuenta de Claude. El guion completo está en
+[`INSTALAR.md`](INSTALAR.md).
+
+> **Antes de pegar cualquier prompt, revisa de dónde viene.** Un prompt le da órdenes a un agente que puede usar tu
+> computadora. Este sale de arbrain.ai y apunta solo a `github.com/arbrain-ai/arbrain`. Si alguien te pasa uno
+> parecido con otra dirección, no lo pegues.
+
+**Desinstalar o empezar desde cero:** pega
+`Desinstala Arbrain siguiendo https://github.com/arbrain-ai/arbrain/blob/main/INSTALAR.md`. Guarda todo en
+`~/Arbrain-respaldos` (no borra nada); luego el prompt de instalación lo deja como nuevo.
 
 <details>
-<summary>Alternativa: el prompt corto, pegado completo</summary>
-
-```text
-Instala Arbrain, mi cerebro artificial, desde https://github.com/arbrain-ai/arbrain en ~/Arbrain.
-
-Reglas: no borres ni sobrescribas nada que ya exista (si algo choca, enséñamelo y
-pregúntame). Nunca me pidas, leas ni muestres llaves, tokens o contraseñas. Antes de
-cada comando, dime en una línea qué hace.
-
-1. Revisa que tenga git, Node 22 o más nuevo, npm y Python 3.
-   Si falta algo, dime cómo instalarlo y espera.
-2. Si ~/Arbrain no existe, clónalo:
-   git clone --origin dani https://github.com/arbrain-ai/arbrain.git ~/Arbrain
-   Si ya existe, no lo toques: dime qué hay y pregúntame qué hacer.
-3. En ~/Arbrain crea mi rama de trabajo: git switch -c mi-arbrain
-4. Siembra mi capa sin pisar nada: python3 arbrain/cerebro/sembrar.py
-   y guárdala con un commit en mi-arbrain.
-5. Arranca Arbrain: cd arbrain && npm run servidor
-   (la primera vez instala y compila; tarda unos minutos).
-6. Cuando abra el navegador, guíame para conectar mi llave del chat en Ajustes.
-7. Pregúntame mi meta del mes, de la semana y de hoy, y escríbelas en
-   .claude/plan/objetivos.md.
-```
-
-</details>
-
-### Camino 2 · Manual
+<summary>Para quien programa: a mano</summary>
 
 ```bash
 git clone --origin dani https://github.com/arbrain-ai/arbrain.git ~/Arbrain
 cd ~/Arbrain
 git switch -c mi-arbrain                # tu rama: aquí vive todo lo tuyo
 python3 arbrain/cerebro/sembrar.py      # siembra tu capa sin pisar nada
-cd arbrain && npm run servidor          # instala, compila y abre tu navegador
+cd arbrain && npm run servidor          # baja el programa ya compilado (o compila) y abre tu navegador
+node scripts/escritorio.mjs instalar    # la app de escritorio, verificada con la firma de la versión
 ```
 
-Arbrain queda en `http://127.0.0.1` (solo en tu computadora). Comandos útiles, desde `~/Arbrain/arbrain`:
+Necesitas Git 2.34+, Node 22+ y Python 3. Arbrain queda en `http://127.0.0.1` (solo en tu computadora). Comandos
+útiles, desde `~/Arbrain/arbrain`:
 
 | Comando | Qué hace |
 |---|---|
@@ -165,35 +154,31 @@ Arbrain queda en `http://127.0.0.1` (solo en tu computadora). Comandos útiles, 
 | `npm run servidor -- contrasena` | Muestra la contraseña para entrar desde otro navegador |
 | `npm run servidor -- arranque-automatico activar` | Lo arranca solo al encender la computadora |
 
-> El remoto se llama `dani` a propósito: es de donde llegan las versiones nuevas. Si quieres respaldar tu rama en tu
-> propio GitHub, agrega tu repositorio privado como `origin`.
+El remoto se llama `dani` a propósito: es de donde llegan las versiones nuevas. Tu respaldo en tu propio GitHub
+privado va como `origin` (el instalador te lo ofrece al final).
+
+</details>
 
 ## Actualizar
 
-Abre Claude Code en `~/Arbrain` y dile:
+Pega el mismo prompt de instalación, o abre Claude Code en `~/Arbrain` y dile **«actualiza mi Arbrain»**. Verifica
+la firma de la versión nueva, guarda tus cambios en una rama de respaldo, te explica en cinco líneas qué trae según el
+[`CHANGELOG.md`](CHANGELOG.md), la integra en `mi-arbrain` sin tocar tu capa y reinicia Arbrain y su app. Solo te
+pregunta si un archivo que editaste choca con uno del autor.
 
-> **«jala los últimos cambios»**
-
-La habilidad `actualizar-arbrain` respalda tu rama, te explica en cinco líneas qué trae la versión nueva según el
-[`CHANGELOG.md`](CHANGELOG.md), la integra en `mi-arbrain` sin tocar tu capa, siembra lo nuevo y reinicia Arbrain.
-Si un archivo que editaste choca con uno del autor, te enseña los dos lados y te pregunta.
-
-A mano: `git fetch dani --tags && git switch main && git merge --ff-only dani/main && git switch mi-arbrain && git merge main`.
-
-## Suscripción: tu cuenta de Claude
+## Tu cuenta de Claude
 
 Cada cuenta de Claude es **individual** y se usa en **tu propio Claude Code**, con tu sesión (Pro, Max o tu asiento
 de Team). Es la forma principal de trabajar con tu cerebro.
 
-El chat dentro de Arbrain también puede usar **tu Claude Code**: en Ajustes › Llaves (o en el primer arranque) elige
-«Mi Claude Code». Arbrain encuentra tu `claude` con la sesión que iniciaste en tu terminal y el chat corre a través de
-él, con tu plan. Si todavía no inicias sesión: abre una terminal, escribe `claude`, entra con tu cuenta y pulsa «Ya
-inicié sesión». Con este motor Arbrain no le pasa ninguna llave de API a Claude Code (aunque tengas
-`ANTHROPIC_API_KEY` en tu sistema), así que no se cobra aparte; las rutinas automáticas no corren con tu plan.
+El chat dentro de Arbrain usa **tu Claude Code** solo: si ya iniciaste sesión, Arbrain lo conecta sin pedirte nada. Si
+no, en Ajustes › Llaves basta el botón **«Iniciar sesión con Claude»**, que abre tu navegador en la página de
+Anthropic. Con este motor Arbrain no le pasa ninguna llave de API a Claude Code (aunque tengas `ANTHROPIC_API_KEY` en
+tu sistema), así que no se cobra aparte; las rutinas automáticas no corren con tu plan.
 
-Si no tienes Pro o Max, el chat usa **tu propia llave**: OpenRouter o una API key de Anthropic, que conectas en
-Ajustes. En ningún caso Arbrain pide, ve, guarda ni reenvía credenciales de tu suscripción: el inicio de sesión es el
-de Anthropic, en tu propio Claude Code, y no se comparten cuentas entre personas
+Si no tienes Pro o Max, el chat usa **tu propia llave**: OpenRouter («Conectar con OpenRouter», un clic) o una API key
+de Anthropic, en Ajustes. En ningún caso Arbrain pide, ve, guarda ni reenvía las credenciales de tu cuenta: el inicio
+de sesión es el de Anthropic, en tu propio Claude Code, y no se comparten cuentas entre personas
 ([condiciones de Anthropic](https://code.claude.com/docs/en/legal-and-compliance)).
 
 ## Estructura de capas

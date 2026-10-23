@@ -151,7 +151,8 @@ describe('arranque y CLI con «Mi Claude Code»', () => {
 
   it('el chat explica el fallo sin hablar de llaves ni de recargar', () => {
     const m = mensajeFalloDeCuenta('llave_invalida', 'suscripcion', 'Not logged in · Please run /login')
-    expect(m).toMatch(/escribe `claude`, inicia sesión/)
+    expect(m).toMatch(/pulsa «Iniciar sesión con Claude»/)
+    expect(m).not.toMatch(/escribe `claude`|abre una terminal/)
     expect(m).not.toMatch(/^Tu llave no funcionó/)
     expect(mensajeFalloDeCuenta('sin_saldo', 'suscripcion', '')).toMatch(/plan de Claude/)
   })

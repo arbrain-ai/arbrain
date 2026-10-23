@@ -1,5 +1,6 @@
 /**
- * Lectura por voz de un mensaje del chat, con la VOZ DEL DISPOSITIVO (Web Speech API),
+ * Lectura por voz de un mensaje del chat. Desde el 22 oct 2026 suena con la VOZ DEL SERVIDOR (audio por párrafo en un
+ * `<audio>`, ver voz-servidor.ts y hablaConAudio()) y cae a la VOZ DEL DISPOSITIVO (Web Speech API) si el servidor falla,
  * resaltado naranja de la palabra que suena, tap en un párrafo para saltar, y una barra
  * de control (⏮ ⏯ ⏭ · velocidad · ✕) como la del lector de libros.
  *
@@ -123,12 +124,25 @@ export function buildSpoken(text: string): { spoken: string; map: number[] } {
   return { spoken, map }
 }
 
+/**
+ * Regla del velocímetro (ver mideVelocidad()): `true` si una frase de `chars` caracteres
+ * hablada en `ms` a velocidad `rate` sonó demasiado lenta para ese rate (el motor lo ignoró),
+ * `false` si aceleró, `null` si la muestra no sirve para juzgar (frase corta, rate bajo).
+ * Medido el 22 oct 2026: a 1x van 14 caracteres/s (Chrome y WebKit); a 1.75x, 25 en Chrome
+ * y 42 en WebKit. El umbral 11 × rate (19.25 a 1.75x) queda entre los dos mundos.
+ */
+export function vozNoAcelera(chars: number, ms: number, rate: number): boolean | null {
+  if (chars < 40 || rate < 1.75 || ms < 1200) return null
+  return chars / (ms / 1000) < 11 * rate
+}
+
 import { calcularZonaLectura } from './zona-lectura'
 import { anclarElemento, deslizarScroll, escalaRect, fijarScroll } from './desplazar'
 import { sonda } from './tts-probe'
 import { URL_RE, filtrarBloques } from './lector-filtro'
 import { MARCA_PROPIO, SELECTOR_BLOQUES, tramosPropios, type NodoLector } from './lector-bloques'
 import { MemoriaLector, huellaDeTexto, resolverPosicion, type PosicionLector } from './lector-posicion'
+import { VozServidor, palabraEn, tiemposDePalabras } from './voz-servidor'
 
 type StateCb = (playing: boolean) => void
 
@@ -425,6 +439,9 @@ class ChatSpeechController {
     // JS NO se congela: medido el 23 sep, las frases siguieron encadenándose sin hueco con la
     // ventana tapada 16s. Re-arrancar igual cortaba la voz y repetía la frase cada vez que
     // cambiabas de app. Fuera de iOS solo se re-arranca si el motor de verdad se quedó mudo.
+    // Con la voz del servidor no hay nada que re-sincronizar: el `<audio>` sigue sonando oculto y el resaltado se pone al
+    // día en el siguiente frame.
+    if (this.enAudio) { this.hiddenAt = 0; return }
     const mudo = !this.synth?.speaking && this.now() - Math.max(this.ultimoBoundaryAt, this.uttStartedAt) > 2500
     if (this.playing && !this.paused && this.hiddenAt && fuera > 1200 && (isIOS || mudo)) {
       sonda.mark(`resync-tras-${(fuera / 1000).toFixed(0)}s-oculto`)
@@ -499,6 +516,7 @@ class ChatSpeechController {
     }
     this.idx = 0
     this.paused = false
+    this.voz.desbloquear() // dentro del clic: Safari y WKWebView dejan sonar después el audio que llega de la red
     if (isIOS && !this.warmed) {
       try {
         const w = new SpeechSynthesisUtterance(' ')
@@ -705,11 +723,17 @@ class ChatSpeechController {
     // utterance.voice y suena la voz del sistema (Contenido Hablado = Juan, la de Option+Esc),
     // idéntico al lector de libros. Antes caía a Paulina a la fuerza -> por eso el chat sonaba
     // distinto al libro en la misma máquina. NUNCA volver a forzar Paulina/otra aquí.
-    return (
+    const juan =
       pool.find((v) => /Juan/i.test(v.name) && enh(v)) ||
       pool.find((v) => /Juan/i.test(v.name)) ||
       null
-    )
+    if (!this.vozInvertida) return juan
+    // El velocímetro midió que con esta elección la voz no acelera (ver mideVelocidad()):
+    // se prueba la otra. Con Juan fijado se deja al sistema; sin voz fijada se fija una local
+    // es-MX con nombre (preferente la marcada por defecto), que es la que el sistema usaría.
+    if (juan) return null
+    const mx = pool.filter((v) => /es[-_]MX/i.test(v.lang) && !/super-compact/i.test(v.voiceURI))
+    return mx.find((v) => v.default) || mx[0] || pool.find((v) => v.default) || pool[0] || null
   }
 
   // Une fragmentos cuando el punto NO cierra frase: abreviaturas (p., pp., cap., Vol.,
@@ -897,11 +921,12 @@ class ChatSpeechController {
     } else deslizarScroll(hiloEl, hiloEl.scrollTop + paso, undefined, anclar)
   }
 
-  private speakBlock() {
+  private speakBlock(): void {
     if (!this.synth) return
     const el = this.blocks[this.idx]
     if (!el) return this.stop()
     this.revealBlock(el)
+    if (this.voz.disponible) return this.hablaConAudio(el)
 
     const sents = this.sentencesOf(el)
     // Consumir el arranque a mitad de bloque (si lo hay): lo setea speakFrom().
@@ -974,7 +999,7 @@ class ChatSpeechController {
         u.voice = v
         u.lang = v.lang
       } else u.lang = 'es-MX'
-      u.rate = RATES[this.rateIdx]
+      const pedida = (u.rate = RATES[this.rateIdx])
       // Palabras de la frase, en coordenadas del texto hablado. Sirven para los dos
       // caminos: el preciso (boundary) y el de reloj propio (cuando no hay boundary).
       const words: Array<{ from: number; to: number }> = []
@@ -1064,6 +1089,7 @@ class ChatSpeechController {
         // o encolaría frases del párrafo anterior sobre el nuevo (doble-speak). Mismo
         // guard de staleness que onboundary.
         if (seq !== this.uttSeq) return
+        this.mideVelocidad(spoken.length, this.uttStartedAt, pedida, !!v)
         this.calibra(spoken.length, this.uttStartedAt)
         this.uttSeq++ // invalida cualquier boundary pendiente de esta utterance
         this.clearClock()
@@ -1082,6 +1108,161 @@ class ChatSpeechController {
       this.armClock(seq, spoken, words, pintaPalabra, next)
     }
     next()
+  }
+
+  // ─── VOZ DEL SERVIDOR (22 oct 2026) ─────────────────────────────────────────
+  // Daniel: «la velocidad 1.75x NO funciona en la web desde mi laptop». El velocímetro de abajo (cambiar de voz si no
+  // acelera) no bastó: en su equipo ninguna voz del navegador obedece `rate`. Ahora el servidor genera el audio a 1x y
+  // el `<audio>` lo acelera con playbackRate + preservesPitch, igual en cualquier navegador. Cada párrafo se parte en
+  // tramos de pocas frases (el primero suena en ~1.5 s) y el siguiente se pide mientras suena el actual.
+  // Si el servidor falla, ese mismo tramo sigue con la voz del navegador y la sesión se queda en ella.
+  private voz = new VozServidor((texto) =>
+    fetch('/api/chat/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: texto, lector: true }),
+    }),
+  )
+  /** Hay un tramo sonando (o a punto) por la voz del servidor. */
+  private enAudio = false
+  private rafAudio = 0
+  private quitaAudio: (() => void) | null = null
+
+  private paraAudio() {
+    this.quitaAudio?.()
+    this.quitaAudio = null
+    if (this.rafAudio) cancelAnimationFrame(this.rafAudio)
+    this.rafAudio = 0
+    this.voz.parar()
+    this.enAudio = false
+  }
+
+  private hablaConAudio(el: HTMLElement): void {
+    const { spoken, map } = buildSpoken(el.textContent || '')
+    const words = palabrasDe(spoken)
+    const startAt = this.startOffset
+    this.startOffset = null
+    // Bloque que era puro ruido (un emoji, una URL): nada que decir.
+    if (!words.length) {
+      if (this.idx < this.blocks.length - 1) {
+        this.idx++
+        return this.speakBlock()
+      }
+      return this.stop()
+    }
+    // Palabra de arranque: la que contiene el offset pedido (tap, reanudar), o la primera.
+    let w0 = 0
+    if (startAt != null) {
+      const i = words.findIndex((w) => (map[w.to - 1] ?? -1) >= startAt)
+      w0 = i < 0 ? words.length - 1 : i
+    }
+    const tramos = tramosDeVoz(spoken, words)
+    const pinta = (i: number) => {
+      const w = words[i]
+      const from = map[w.from]
+      if (from == null) return
+      this.cursorOffset = from
+      this.guardaPunto()
+      const destino = el.isConnected || this.extracto ? el : this.relocate() ? this.blocks[this.idx] : null
+      if (destino) this.highlightWord(destino, from, (map[w.to - 1] ?? from) + 1)
+    }
+    pinta(w0)
+    this.emit()
+
+    const seq = ++this.uttSeq
+    const siguienteBloque = () => {
+      if (this.idx < this.blocks.length - 1) {
+        this.idx++
+        this.speakBlock()
+      } else this.stop()
+    }
+    const precargaDespues = (t: number) => {
+      const sig = tramos[t + 1]
+      if (sig) return this.voz.precargar(sig.texto)
+      const b = this.blocks[this.idx + 1]
+      if (b) {
+        const sp = buildSpoken(b.textContent || '').spoken
+        const t0 = tramosDeVoz(sp, palabrasDe(sp))[0]
+        if (t0) this.voz.precargar(t0.texto)
+      }
+    }
+    const falla = (motivo: string) => {
+      if (seq !== this.uttSeq) return
+      sonda.mark(`tts-audio-falla(${motivo})`)
+      console.warn('[lector] la voz del servidor falló; sigo con la del navegador:', motivo)
+      this.voz.disponible = false
+      this.paraAudio()
+      this.uttSeq++
+      this.startOffset = this.cursorOffset
+      if (this.playing && !this.paused && this.curId) this.speakBlock()
+    }
+
+    const suena = (t: number, desdePalabra: number) => {
+      const tramo = tramos[t]
+      if (!tramo) return siguienteBloque()
+      this.voz.cargar(tramo.texto).then((url) => {
+        if (seq !== this.uttSeq || !this.playing || this.paused) return
+        const a = this.voz.elemento()
+        if (!a) return falla('sin audio')
+        const onErr = () => falla(`elemento ${a.error?.code ?? ''}`)
+        a.addEventListener('error', onErr)
+        this.quitaAudio = () => a.removeEventListener('error', onErr)
+        const arranca = () => {
+          if (seq !== this.uttSeq) return
+          const sub = words.slice(tramo.desde, tramo.hasta)
+          const dur = Number.isFinite(a.duration) && a.duration > 0 ? a.duration : tramo.texto.length / 14
+          const tiempos = tiemposDePalabras(spoken, sub, dur)
+          const local = Math.max(0, desdePalabra - tramo.desde)
+          try { a.currentTime = local ? tiempos[local] : 0 } catch { /* el seek llega con los datos */ }
+          this.voz.velocidad(RATES[this.rateIdx])
+          let ultima = -1
+          const tick = () => {
+            if (seq !== this.uttSeq) return
+            const i = palabraEn(tiempos, a.currentTime)
+            if (i >= 0 && i !== ultima) {
+              ultima = i
+              pinta(tramo.desde + i)
+            }
+            this.rafAudio = requestAnimationFrame(tick)
+          }
+          const onEnd = () => {
+            if (seq !== this.uttSeq) return
+            this.quitaAudio?.()
+            this.quitaAudio = null
+            if (this.rafAudio) cancelAnimationFrame(this.rafAudio)
+            this.rafAudio = 0
+            suena(t + 1, tramo.hasta)
+          }
+          a.addEventListener('ended', onEnd)
+          this.quitaAudio = () => {
+            a.removeEventListener('error', onErr)
+            a.removeEventListener('ended', onEnd)
+          }
+          this.enAudio = true
+          a.play().then(
+            () => {
+              if (seq !== this.uttSeq) return
+              sonda.mark('tts-audio')
+              if (!this.rafAudio) this.rafAudio = requestAnimationFrame(tick)
+              precargaDespues(t)
+            },
+            (e: unknown) => {
+              const n = (e as { name?: string })?.name
+              if (n !== 'AbortError') falla(n || 'play')
+            },
+          )
+        }
+        if (a.src === url && a.readyState >= 1) arranca()
+        else {
+          a.addEventListener('loadedmetadata', arranca, { once: true })
+          a.src = url
+          a.load()
+        }
+      }, (e: unknown) => falla(e instanceof Error ? e.message : 'red'))
+    }
+
+    const t0 = Math.max(0, tramos.findIndex((tr) => w0 < tr.hasta))
+    suena(t0, w0)
   }
 
   /** speakFrom() lo usa para anclar la palabra exacta ANTES de que arranque la voz
@@ -1122,6 +1303,7 @@ class ChatSpeechController {
       this.cursorOffset = this.startOffset
       this.highlightAtOffset(el, this.startOffset)
     }
+    this.voz.desbloquear()
     this.cancelAndSpeak() // ya trae el debounce de 60ms para el cancel() async de WebKit
     this.emit()
   }
@@ -1162,6 +1344,56 @@ class ChatSpeechController {
   // resaltado huérfano o hacerlo empezar de cero.
   private ultimoBoundaryAt = 0
   private wordIdx = 0
+
+  // ─── VELOCÍMETRO (22 oct 2026) ──────────────────────────────────────────────
+  // Daniel: «¿por qué no acelera la velocidad en la laptop?». La barra decía 1.75x y la voz
+  // seguía a 1x. Medido el mismo día con el MISMO texto: Chrome (Juan mejorada y Google),
+  // WebKit de Playwright y el WebKit del sistema en un WKWebView sí aceleran a 1.75x
+  // (1.85x a 3x más rápido), así que `u.rate` se manda bien y el fallo depende de la voz que
+  // le toca a ese navegador en esa máquina. Por eso la velocidad ya no se da por hecha: se
+  // mide en cada frase terminada. A 1x el español va a 14-17 caracteres por segundo con
+  // cualquier voz; a 1.75x nunca bajó de 24. Dos frases seguidas por debajo de 11 × rate
+  // significan que el motor ignora la velocidad con esta voz, y se cambia de voz (fijada ↔
+  // la del sistema). Si con la otra tampoco acelera, se vuelve a la original y se deja
+  // constancia: el diagnóstico queda en localStorage 'chat-tts-velocidad' para leerlo.
+  private vozInvertida = (() => {
+    try { return window.localStorage.getItem('chat-tts-voz-invertida') === '1' } catch { return false }
+  })()
+  private lentasSeguidas = 0
+  private vozProbada = false
+  private velocimetroCallado = false
+
+  /** Compara la velocidad real de la frase con la pedida y corrige la voz si el motor la ignora. */
+  private mideVelocidad(chars: number, startedAt: number, rate: number, vozFijada: boolean) {
+    if (this.velocimetroCallado || !startedAt) return
+    const ms = this.now() - startedAt
+    const lenta = vozNoAcelera(chars, ms, rate)
+    if (lenta == null) return
+    if (!lenta) {
+      this.lentasSeguidas = 0
+      return
+    }
+    const cps = chars / (ms / 1000)
+    if (++this.lentasSeguidas < 2) return
+    this.lentasSeguidas = 0
+    const registro = {
+      fecha: new Date().toISOString(),
+      ua: typeof navigator !== 'undefined' ? navigator.userAgent : '',
+      rate,
+      cps: +cps.toFixed(1),
+      vozFijada,
+      accion: this.vozProbada ? 'sin-remedio' : 'cambia-voz',
+    }
+    sonda.mark(`tts-velocidad-ignorada(${rate}x,${registro.cps}cps,${vozFijada ? 'fijada' : 'sistema'})`)
+    console.warn('[lector] la voz no acelera', registro)
+    try { window.localStorage.setItem('chat-tts-velocidad', JSON.stringify(registro)) } catch { /* modo privado */ }
+    // Un solo intento por sesión: si la otra voz tampoco acelera, se regresa a la de antes
+    // y el velocímetro se calla (no hay a qué cambiar).
+    if (this.vozProbada) this.velocimetroCallado = true
+    this.vozProbada = true
+    this.vozInvertida = !this.vozInvertida
+    try { window.localStorage.setItem('chat-tts-voz-invertida', this.vozInvertida ? '1' : '0') } catch { /* modo privado */ }
+  }
 
   private static leeCps() {
     try {
@@ -1308,6 +1540,7 @@ class ChatSpeechController {
     if (!this.synth) return
     this.uttSeq++ // invalida boundary/onend de la utterance que se está cancelando
     this.clearClock()
+    this.paraAudio()
     this.synth.cancel()
     if (this.speakTimer) clearTimeout(this.speakTimer)
     this.speakTimer = setTimeout(() => {
@@ -1356,7 +1589,8 @@ class ChatSpeechController {
       this.speakFrom(this.idx, this.cursorOffset)
     } else {
       this.paused = true
-      this.synth.pause()
+      if (this.enAudio) this.paraAudio()
+      else this.synth.pause()
     }
     // En pausa NO se limpia el resaltado: el naranja se queda donde iba la voz. Ese es el
     // "estás aquí" (antes lo hacía el marco morado, que ya no existe).
@@ -1371,13 +1605,18 @@ class ChatSpeechController {
   cycleRate() {
     this.rateIdx = (this.rateIdx + 1) % RATES.length
     this.emit()
+    // Con la voz del servidor la velocidad es del reproductor: aplica en el acto, sin volver a hablar nada.
+    this.voz.velocidad(RATES[this.rateIdx])
+    if (this.enAudio) return
     // Solo re-arrancar si REALMENTE está sonando. En pausa, `playing` sigue true (no
     // refleja "está vocalizando"), así que sin el !this.paused el cambio de velocidad
     // reanudaba el audio a la fuerza y reiniciaba el párrafo. En pausa solo memorizamos
     // el nuevo rate (lo toma la próxima utterance).
     if (this.playing && !this.paused && this.curId) {
-      // re-arrancar el bloque actual con la nueva velocidad (el ancla no se toca)
-      this.cancelAndSpeak()
+      // La velocidad de una utterance queda fija al hablarla: para que aplique AL INSTANTE
+      // se corta y se re-habla con el nuevo rate DESDE LA PALABRA que sonaba (antes
+      // re-arrancaba el párrafo entero y cada toque de 1x a 1.75x lo rebobinaba tres veces).
+      this.speakFrom(this.idx, this.cursorOffset)
     }
   }
 
@@ -1390,6 +1629,7 @@ class ChatSpeechController {
     const i = RATES.indexOf(rate)
     if (i < 0 || i === this.rateIdx) return
     this.rateIdx = i
+    this.voz.velocidad(rate)
     this.emit()
   }
 
@@ -1408,6 +1648,7 @@ class ChatSpeechController {
       // Play reanuda ahí (pauseResume re-arranca porque la utterance ya se canceló).
       this.uttSeq++
       this.clearClock()
+      this.paraAudio()
       this.synth.cancel()
       if (this.speakTimer) {
         clearTimeout(this.speakTimer)
@@ -1454,6 +1695,7 @@ class ChatSpeechController {
     this.paused = false
     this.cursorOffset = 0
     this.startOffset = null
+    this.paraAudio()
     if (this.synth) this.synth.cancel()
     this.clearHighlight()
     this.clearClock()
@@ -1482,6 +1724,35 @@ class ChatSpeechController {
     this.indiceEspejo = new Map()
     this.emit()
   }
+}
+
+/** Palabras del texto hablado, en sus coordenadas. */
+function palabrasDe(spoken: string): Array<{ from: number; to: number }> {
+  const out: Array<{ from: number; to: number }> = []
+  const re = /\S+/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(spoken))) out.push({ from: m.index, to: m.index + m[0].length })
+  return out
+}
+
+/**
+ * Parte un párrafo hablado en tramos para la voz del servidor: frases enteras, cortando al pasar de ~160 caracteres en
+ * un fin de frase (o a los 320 en cualquier palabra). Tramos cortos = el primero suena antes y el siguiente se precarga
+ * mientras tanto. `desde`/`hasta` son índices de palabra; `texto`, lo que se le pide al servidor (también es la clave
+ * de la caché). Exportado para testearlo.
+ */
+export function tramosDeVoz(spoken: string, words: Array<{ from: number; to: number }>) {
+  const out: Array<{ desde: number; hasta: number; texto: string }> = []
+  let desde = 0
+  for (let i = 0; i < words.length; i++) {
+    const largo = words[i].to - words[desde].from
+    const finDeFrase = /[.!?…:;]["»”’)\]]*$/.test(spoken.slice(words[i].from, words[i].to))
+    if (i === words.length - 1 || (finDeFrase && largo >= 160) || largo >= 320) {
+      out.push({ desde, hasta: i + 1, texto: spoken.slice(words[desde].from, words[i].to).replace(/\s+/g, ' ') })
+      desde = i + 1
+    }
+  }
+  return out
 }
 
 /** Firma corta de un párrafo: estable entre renders, distinta entre mensajes. */

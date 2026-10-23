@@ -1,8 +1,10 @@
 'use client'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { estiloEvento } from '@/lib/calendar/contraste'
-import { CHIP_MIN, COLUMNA_COMPACTA, DIAS_VISTA, TRAMO, altoHora, columnaCercana, columnaEntera, columnasDe, escalaVisual, diaEnHoras, diasAuto, diasDelRiel, esArrastre, estirar, habil, hhmm, inicioDeVentana, instante, lineasDeTitulo, lugarEnColumna, repartir, lineasNecesarias, medianoche, minutoDelDia, primerDiaVisible, rangoCrear, ranura, reencuadrar, soltar, sumarDia, type Bloque, type DiasVista, type Pieza } from './semana-horas'
+import { CHIP_MIN, COLUMNA_COMPACTA, DIAS_VISTA, TRAMO, altoHora, columnaCercana, columnaEntera, columnasDe, escalaVisual, diaEnHoras, diasAuto, diasDelRiel, diasVisibles, esArrastre, estirar, habil, hhmm, inicioDeVentana, instante, lineasDeTitulo, lugarEnColumna, repartir, lineasNecesarias, medianoche, minutoDelDia, primerDiaVisible, rangoCrear, ranura, reencuadrar, soltar, sumarDia, type Bloque, type DiasVista, type Pieza } from './semana-horas'
 import { diasAlSoltarRiel, ejeDeRueda, ejeDeToque, FRENO_RUEDA, velocidad } from './carril-logica'
+import { encuadreDe } from './encuadre'
+import { useEncuadre } from './useEncuadre'
 import h from './semana-horas.module.css'
 
 /**
@@ -87,7 +89,7 @@ interface Gesto {
   minuto: number
 }
 
-export function SemanaHoras({ dias: diasFijos, semana, inicio, onVentana, sinBarra, hoy, ahora, bloques, todoElDia, estrellas, onMover, onEstirar, onCrear, onAbrir, onDia, tramo = TRAMO, donde = 'chat', barra, amplia, diasVista, finDeSemana = true, compacta, zona, todoElDiaAbierto, onTodoElDia }: {
+export function SemanaHoras({ dias: diasFijos, semana, inicio, onVentana, sinBarra, hoy, ahora, bloques, todoElDia, estrellas, onMover, onEstirar, onCrear, onAbrir, onDia, tramo = TRAMO, donde = 'chat', barra, amplia, diasVista, finDeSemana = true, compacta, zona, todoElDiaAbierto, onTodoElDia, listo = true }: {
   /** Semana fija (la vista del chat). Sin `onVentana` se pintan estos días. */
   dias?: string[]
   /** Ventana deslizante: un día de la semana a la que se llega (Hoy, el Mes, la URL) y el primer día visible, si ya se sabe. */
@@ -125,6 +127,8 @@ export function SemanaHoras({ dias: diasFijos, semana, inicio, onVentana, sinBar
   /** La franja de día completo abierta o plegada en una línea (el engrane la recuerda). Sin `onTodoElDia` (el chat), siempre abierta. */
   todoElDiaAbierto?: boolean
   onTodoElDia?: () => void
+  /** Ya hay lectura: el encuadre de la hora espera a que lo de arriba (objetivo, chips) ocupe su lugar. */
+  listo?: boolean
 }) {
   const raiz = useRef<HTMLDivElement>(null), riel = useRef<HTMLDivElement>(null), cabecera = useRef<HTMLDivElement>(null)
   const columnas = useRef<(HTMLDivElement | null)[]>([])
@@ -473,6 +477,18 @@ export function SemanaHoras({ dias: diasFijos, semana, inicio, onVentana, sinBar
   }
   const ahoraMin = minutoDelDia(ahora, hoy)
   const y = (minuto: number) => `calc(${(minuto - tramo.desde * 60) / 60} * var(--hora))`
+  // El encuadre vertical (22 oct 2026, useEncuadre.ts): al abrir, a medianoche o con «Hoy», si hoy se ve, el ahora a un tercio de lo
+  // visible; si no, la primera hora con eventos de los días a la vista o las 5:30. Solo en el calendario: en el chat el scroll es del hilo.
+  // Tapa arriba la cabecera pegajosa de días (y la barra, que es su `top`).
+  const canal = useRef<HTMLDivElement>(null)
+  useEncuadre({
+    ancla: canal, origen: tramo.desde * 60, pxPorMinuto: horaPx / 60, clave: desliza ? hoy : null, listo: listo && ancho > 0,
+    encuadre: () => {
+      const vis = objetivo ? diasVisibles(objetivo, porVista, finDeSemana) : dias
+      return encuadreDe(vis.includes(hoy) ? ahoraMin : null, vis.flatMap(d => porDia.get(d)?.piezas.map(p => p.desde) ?? []))
+    },
+    tapa: () => { const c = cabecera.current; return c ? (parseFloat(getComputedStyle(c).top) || 0) + c.offsetHeight : 0 },
+  })
   const estilo = { '--hora': `${horaPx}px`, '--horas': horas, '--dias': dias.length, '--ancho': `${ancho}px`, '--col': `${columnaEntera(ancho, canalPx, porVista)}px`, '--por-vista': porVista } as CSSProperties
   const metrica = minimo ? METRICA.minimo : denso ? METRICA.denso : METRICA.normal
   // La franja de día completo: plegada (una línea por día) solo si quien monta la recuerda; el chat la ve siempre abierta.
@@ -523,7 +539,7 @@ export function SemanaHoras({ dias: diasFijos, semana, inicio, onVentana, sinBar
       {/* El cuerpo: el canal de horas y una columna por día. `data-carril`: deslizar de lado recorre los días en el riel. */}
       <div ref={riel} className={h.riel} data-carril={angosto || desliza || undefined}>
         <div className={h.lienzo} role="row">
-          <div className={h.canal} aria-hidden>
+          <div ref={canal} className={h.canal} aria-hidden>
             {Array.from({ length: horas + 1 }, (_, k) => <span key={k} style={{ top: `calc(${k} * var(--hora))` }} data-borde={k === 0 || k === horas || undefined}>{String(tramo.desde + k).padStart(2, '0')}</span>)}
             {dias.includes(hoy) && ahoraMin >= tramo.desde * 60 && ahoraMin <= tramo.hasta * 60 && <time className={h.ahoraHora} style={{ top: y(ahoraMin) }}>{hhmm(ahoraMin)}</time>}
           </div>

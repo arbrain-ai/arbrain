@@ -32,6 +32,12 @@ export const INSTALACION: Instalacion = {
   // Sin espacios de cuenta extra: el chat del alumno usa su llave (el selector no se muestra en cliente).
   etiquetasCuentasChat: {},
   // Atajos de ejemplo para un catálogo de hábitos genérico; la persona los ajusta a los suyos.
+  // Sin temporada: la fila «Hábitos de hoy» no muestra cuadrícula ni cuenta regresiva hasta que la persona fije una.
+  temporadaHabitos: undefined,
+  // Sin periodo: el Calendario no muestra contador hasta que la persona fije uno.
+  periodo: undefined,
+  // La identidad y los principios de cada hábito los escribe la persona en la fila.
+  habitosAtomicos: { identidad: '', habitos: {} },
   atajosHabitos: {
     objetivo_dia: '1', dormir: '2', lectura: '3', luz_am: '4', ducha_fria: '5',
     entrenamiento: '6', sauna: '7', nsdr: '8', ducha_caliente: '9', cafe_90: '0', ayuno: '⇧1',

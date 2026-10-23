@@ -20,7 +20,7 @@ export const config = {
     // pizarron/: el escenario del pizarrón (HTML+JS+CSS estáticos, sin datos). Corre en un iframe aislado de origen
     // opaco que no lleva la cookie: sin esta excepción su JS caería en /login.
     // api/version: solo el id del build (sin datos); la app de escritorio lo consulta para recargar tras un deploy.
-    '/((?!api/version|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|sw.js|tts-lab.html|pizarron/|manifest.json|manifest-panel.json|manifest.webmanifest|manifesto|fonts|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|woff2)$).*)',
+    '/((?!api/version|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|sw.js|tts-lab.html|pizarron/|manifest.json|manifest-panel.json|manifest-habitos.json|manifest.webmanifest|manifesto|fonts|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|woff2)$).*)',
     // Adjuntos del chat (v0.2.6): terminan en .png/.jpg y la regla de arriba los dejaría fuera del proxy (Host, lista
     // blanca y sesión). La ruta vuelve a pedir sesión, pero no se depende de una sola capa.
     '/api/storage/adjunto/:path*',

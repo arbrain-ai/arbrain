@@ -16,6 +16,11 @@ class IntentContextTests(unittest.TestCase):
         cases = [
             ('volví del gym, ponme en contexto', 'Decisiones / memoria'),
             ('qué tengo hoy en el calendario', 'Agenda / tareas / objetivos'),
+            ('buenos días', 'Bajar a tierra (mes, semana, día)'),
+            ('bájame a tierra el mes', 'Bajar a tierra (mes, semana, día)'),
+            ('bájame a tierra la semana', 'Bajar a tierra (mes, semana, día)'),
+            ('¿qué sigo?', 'Mi camino en el programa'),
+            ('Levy, ¿en qué voy?', 'Mi camino en el programa'),
             ('subí el diario', 'Diario'),
             ('dibuja esto en el lienzo', 'Diagramas y lienzo'),
             ('arregla el árbol de archivos de mi cerebro artificial', 'Operación del sistema'),

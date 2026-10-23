@@ -8,6 +8,7 @@ import type { GoalSnapshot } from '@/features/goals/model'
 import { dayKey } from './model'
 import { diasEntre, objetivoDe, periodoDeEscala, rejillaDelMes } from './periodo-vivo'
 import { cuandoHito, diasHasta, entregablesDe, estadoSemana, faltanTexto, hitosDelRegistro, ROTULO_SEMANA, type HitoMes } from './claridad'
+import { ContadorPeriodo } from './ContadorPeriodo'
 import { ObjetivoCaja, Segmentos } from './ObjetivoCaja'
 import { esc, useAhora } from './vivo-piezas'
 import type { PlanningSnapshot } from './types'
@@ -94,6 +95,7 @@ export function MesClaro({ goals, fecha, snapshot, cargando, angosto, cuadricula
         {enMes && <b className={c.lineaAhora} style={{ left: `${vivido * 100}%` }} />}
       </div>
     </ObjetivoCaja>
+    <ContadorPeriodo />
 
     {!cuadricula && !enfoque && <div className={`${c.subtitulo} ${c.entra}`} style={esc(4)}><h3>El recorrido</h3></div>}
 

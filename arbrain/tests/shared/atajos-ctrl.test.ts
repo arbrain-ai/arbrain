@@ -42,7 +42,7 @@ test('las teclas sueltas del Calendario (D·4·S·M) no reaccionan a Ctrl+letra'
 
 test('la hoja de atajos y Configuración › Atajos los muestran', () => {
   const g = ATAJOS_SHELL.find(x => x.id === 'calendario-ctrl')!
-  assert.deepEqual(g.atajos.map(a => a.teclas.join('+')), ['Ctrl+D', 'Ctrl+W', 'Ctrl+M', 'Ctrl+Q', 'Ctrl+L'], 'Ctrl+X quedó libre')
+  assert.deepEqual(g.atajos.map(a => a.teclas.join('+')), ['Ctrl+D', 'Ctrl+W', 'Ctrl+M', 'Ctrl+Q', 'Ctrl+L', 'Ctrl+H'], 'Ctrl+X quedó libre')
   assert.ok(filtrarAtajos(ATAJOS_SHELL, 'cerrar la pestaña activa').some(x => x.id === 'calendario-ctrl'))
 })
 
@@ -52,4 +52,17 @@ test('Ctrl+L abre el selector de lienzos; con ⌘, ⌥ o ⇧ no; y nunca cede a 
   assert.equal(accionCtrl(ctrl('KeyL', { shiftKey: true })), null)
   assert.equal(accionCtrl(ctrl('KeyL', { altKey: true })), null)
   assert.equal(cedeAlCampo(accionCtrl(ctrl('KeyL'))!, { inicio: 2, fin: 4, largo: 9 }), false)
+})
+
+test('Ctrl+H abre Hábitos de hoy; cede al campo solo si borraría algo hacia atrás', () => {
+  const h = accionCtrl(ctrl('KeyH'))!
+  assert.deepEqual(h, { tipo: 'habitos' })
+  assert.equal(accionCtrl(ctrl('KeyH', { metaKey: true })), null, '⌘⌃H y ⌘H siguen siendo de la barra y de macOS')
+  assert.equal(accionCtrl(ctrl('KeyH', { shiftKey: true })), null)
+  assert.equal(cedeAlCampo(h, null), false)
+  assert.equal(cedeAlCampo(h, { inicio: 0, fin: 0, largo: 0 }), false, 'campo vacío: gana el atajo')
+  assert.equal(cedeAlCampo(h, { inicio: 0, fin: 0, largo: 7 }), false, 'cursor al inicio: no hay nada que borrar')
+  assert.equal(cedeAlCampo(h, { inicio: 3, fin: 3, largo: 7 }), true)
+  assert.equal(cedeAlCampo(h, { inicio: 1, fin: 4, largo: 7 }), true)
+  assert.equal(calendarAction({ key: 'h', ctrlKey: true, metaKey: false, altKey: false, shiftKey: false }), null)
 })

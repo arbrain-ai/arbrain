@@ -33,7 +33,7 @@ export const CALENDAR_SHORTCUTS: { teclas: string[]; accion: string }[] = [
   { teclas: ['D', 'S', 'M'], accion: 'Día · Semana · Mes (repetir la activa lleva a hoy)' },
   { teclas: ['←', '→'], accion: 'Semana: un día antes o después (también deslizando). Día y Mes: su periodo' },
   { teclas: ['Y', 'A', '7'], accion: 'Año · Agenda · Rutinas' },
-  { teclas: ['T', '.'], accion: 'Ir a hoy' },
+  { teclas: ['T', '.'], accion: 'Ir a hoy y a la hora actual' },
   { teclas: ['H'], accion: 'Hábitos del día: luego su número, flechas o espacio' },
   { teclas: ['E'], accion: 'Evento nuevo (también N)' },
   { teclas: ['R'], accion: 'Tarea nueva' },

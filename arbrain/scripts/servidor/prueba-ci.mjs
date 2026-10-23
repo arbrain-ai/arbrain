@@ -246,6 +246,8 @@ async function recorrido(puerto) {
  *     también. Nunca «No se pudo confirmar el modelo».
  */
 async function recorridoSesion(base, cookie) {
+  // A mano en una computadora con Claude Code ya con sesión (la del autor), lo «sin sesión» no aplica: se salta y se dice.
+  if (process.env.ARBRAIN_PRUEBA_CON_SESION === '1') { log('sesión: se salta lo «sin sesión» (ARBRAIN_PRUEBA_CON_SESION=1, esta computadora tiene sesión)'); return await recorridoExpediente(base, cookie) }
   // v0.2.7 (encargo de Daniel, 22 oct): Claude Code instalado DESPUÉS de arrancar Arbrain. El workflow pasa el comando
   // que lo instala (en Windows, `claude.cmd` de npm en una carpeta con espacios y solo en el PATH del registro).
   const despues = process.env.ARBRAIN_CI_INSTALAR_DESPUES
@@ -272,6 +274,178 @@ async function recorridoSesion(base, cookie) {
   const cuerpo = await turno.text()
   if (!/falta_llave/.test(cuerpo) || /No se pudo confirmar el modelo/.test(cuerpo)) return `sin llave, «¿Quién eres?» respondió ${turno.status}: ${cuerpo.slice(0, 240)}`
   log('chat sin llave: la selección y el turno dicen cómo conectarse (falta_llave), sin error crudo')
+  return await recorridoExpediente(base, cookie)
+}
+
+// ── Recorrido v0.2.9: el expediente en la memoria de su Levy y el ritual «bajar a tierra» ──────────────────────────────
+
+/**
+ * Daniel, 22 oct 18:31: «deberemos asegurarnos que su propio Levy lo tenga… que empiecen a bajar a tierra el mes, luego
+ * la semana y luego el día». Con un servidor FALSO del puente en 127.0.0.1 y un expediente inventado (nunca datos de un alumno):
+ *   - la semilla deja `project/meta-90-dias.md` pendiente; conectar el puente desde Ajustes trae el expediente y lo
+ *     siembra en `user/expediente.md` y `project/meta-90-dias.md` (meta, escalera y nicho) con su línea en el índice;
+ *     lo editado a mano no se reescribe.
+ *   - `plan.py` de la skill `bajar-a-tierra` lee la meta, respeta el mes escrito a mano (alto sin `--reemplazar`),
+ *     escribe mes, semana (3 resultados) y día (objetivo y 3 tareas), y la vista los recibe: objetivos en
+ *     `/api/planning/objectives` y el objetivo con sus 3 casillas como tarea `objetivo` en `/api/planning`.
+ *   - mi camino (día N de 90, etapa, casillas y siguiente paso) llega a `project/mi-camino.md` al conectar, lo editado a
+ *     mano no se reescribe y, si el puente no tiene la ruta (404), queda lo último guardado; `plan.py estado` lo lee.
+ *   - `plan.py lienzos` redibuja «Mi plan» y «Calendario de 12 semanas» por la API del lienzo (aquí con la sesión del
+ *     navegador a través de un puente local que pone la cookie; dentro de la app, con el pase del agente).
+ */
+const TOKEN_FALSO = `arb_${'e2eprueba'.repeat(5)}`
+const EXPEDIENTE_FALSO = {
+  v: 1, nombre: 'Prueba', actualizado: '2026-10-20T15:00:00Z', completo: true, porcentaje: 100,
+  respuestas: { quiero: 'Tiempo con mi familia', meta_monto: 900, moneda: 'USD', meta_fecha: '2027-01-20', suficiente: 600, libre: 800, absoluta: 990, horas: 10, activos: 'Quince años en mantenimiento de flotillas de reparto' },
+  markdown: '# Expediente de Prueba\n\n## Acto I · Tu vida\n\n### 1. ¿Qué quieres en tu vida?\nTiempo con mi familia\n',
+}
+// Mi camino (contrato v1 de camino.ts), inventado: nunca de un alumno real.
+const CAMINO_FALSO = {
+  v: 1, actualizado: '2026-10-28T13:00:00Z', nombre: 'Prueba', inicio: '2026-10-26', dia: 3, dias_total: 90, semana: 1, semanas_total: 12,
+  etapa: { n: 1, total: 5, nombre: 'Tu cerebro', semanas: 'Semanas 1 y 2' },
+  paso: { id: 'semana1', n: 9, total: 9, nombre: 'Tu Semana 1' },
+  casillas: [1, 2, 3].map((numero) => ({ numero, titulo: `Casilla ${numero}`, marcada: true }))
+    .concat([{ numero: 4, titulo: 'Tu ritual de la mañana y tres encargos reales hechos con tu Levy', marcada: false }, { numero: 5, titulo: 'Te presentaste en la comunidad', marcada: false }]),
+  siguiente_paso: { clave: 'casillas', texto: 'marca tu casilla 4', detalle: 'Tu ritual de la mañana y tres encargos reales.', href: '/programa/semana-1#casilla-4' },
+  siguiente_hito: { titulo: 'Diagnóstico uno a uno', fecha: '2026-10-31' },
+  leccion_actual: { curso: '1 · Instala tu cerebro artificial y primeros pasos', titulo: 'Tu primer hábito', n: 7, total: 7 },
+  meta: { monto: 900, moneda: 'USD', fecha: '2027-01-20' },
+}
+const RAIZ_COPIA = resolve(fileURLToPath(new URL('../../..', import.meta.url)))
+const PY = process.platform === 'win32' ? 'python' : 'python3'
+
+function escuchar(manejar) {
+  return new Promise((ok) => { const s = http.createServer(manejar); s.listen(0, HOST, () => ok(s)) })
+}
+
+async function recorridoExpediente(base, cookie) {
+  const norte = join(CEREBRO, '.claude', 'memory', 'project', 'meta-90-dias.md')
+  const expediente = join(CEREBRO, '.claude', 'memory', 'user', 'expediente.md')
+  if (!existsSync(norte) || !readFileSync(norte, 'utf8').startsWith('<!-- arbrain:expediente pendiente -->')) return 'la semilla no dejó project/meta-90-dias.md pendiente'
+  const camino = join(CEREBRO, '.claude', 'memory', 'project', 'mi-camino.md')
+  if (!existsSync(camino) || !readFileSync(camino, 'utf8').startsWith('<!-- arbrain:camino pendiente -->')) return 'la semilla no dejó project/mi-camino.md pendiente'
+  if (!readFileSync(join(RAIZ_COPIA, 'CLAUDE.md'), 'utf8').includes('@.claude/memory/project/mi-camino.md')) return 'CLAUDE.md no importa project/mi-camino.md'
+  let pedidos = 0, pedidosCamino = 0, caminoCaido = false
+  const falso = await escuchar((req, res) => {
+    const j = (st, o) => { res.writeHead(st, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(o)) }
+    if (req.method === 'GET' && req.url === '/api/progreso/expediente') { pedidos++; return req.headers.authorization === `Bearer ${TOKEN_FALSO}` ? j(200, EXPEDIENTE_FALSO) : j(401, { error: 'token' }) }
+    if (req.method === 'GET' && req.url === '/api/progreso/camino') {
+      pedidosCamino++
+      if (caminoCaido) return j(404, { error: 'no' })
+      return req.headers.authorization === `Bearer ${TOKEN_FALSO}` ? j(200, CAMINO_FALSO) : j(401, { error: 'token' })
+    }
+    if (req.method === 'POST' && req.url === '/api/progreso') { req.resume(); return j(200, { ok: true }) }
+    j(404, { error: 'no' })
+  })
+  try {
+    const urlPuente = `http://${HOST}:${falso.address().port}/api/progreso`
+    const progreso = (cuerpo) => fetch(`${base}/api/progreso`, cuerpo ? { method: 'POST', headers: { cookie, 'Content-Type': 'application/json', Origin: base }, body: JSON.stringify(cuerpo) } : { headers: { cookie } })
+    const c = await progreso({ accion: 'conectar', token: TOKEN_FALSO, url: urlPuente })
+    if (c.status !== 200) return `conectar el puente respondió ${c.status}: ${(await c.text()).slice(0, 200)}`
+    const fin = Date.now() + 20_000
+    while (Date.now() < fin && !(existsSync(norte) && readFileSync(norte, 'utf8').includes('900 USD al mes'))) await dormir(500)
+    const n = existsSync(norte) ? readFileSync(norte, 'utf8') : ''
+    if (!n.includes('900 USD al mes para el 2027-01-20')) return `al conectar, el expediente no llegó a meta-90-dias.md (pedidos al falso: ${pedidos}): ${n.slice(0, 200)}`
+    if (!n.includes('mantenimiento de flotillas') || !/nicho natural/i.test(n)) return 'meta-90-dias.md no trae el nicho natural (su industria)'
+    if (!existsSync(expediente) || !readFileSync(expediente, 'utf8').includes('# Expediente de Prueba')) return 'user/expediente.md no quedó con el expediente literal'
+    const indice = readFileSync(join(CEREBRO, '.claude', 'memory', 'MEMORY-indice.md'), 'utf8')
+    if (!indice.includes('`project/meta-90-dias.md`') || !indice.includes('`user/expediente.md`')) return 'el índice de memoria no anotó el expediente'
+    const r = await (await progreso()).json().catch(() => ({}))
+    if (!String(r.expediente?.resultado ?? '').startsWith('sembrado')) return `Ajustes no ve el expediente sembrado: ${JSON.stringify(r.expediente)}`
+    log(`expediente: al conectar llegó a la memoria (meta, escalera y nicho) con su línea en el índice (${pedidos} pedido(s))`)
+    // Lo editado a mano no se reescribe, ni con «Enviar ahora» (que también lo trae).
+    const editado = n.replace('900 USD', '700 USD')
+    writeFileSync(norte, editado)
+    const e = await progreso({ accion: 'enviar' })
+    const ej = await e.json().catch(() => ({}))
+    if (e.status !== 200 || ej.expediente_ahora !== 'sembrado') return `«Enviar ahora» no trajo el expediente: ${e.status} ${JSON.stringify(ej).slice(0, 200)}`
+    if (readFileSync(norte, 'utf8') !== editado) return 'el puente reescribió meta-90-dias.md editado a mano'
+    writeFileSync(norte, n)
+    log('expediente: lo editado a mano se respeta')
+
+    // Mi camino: llegó al conectar; lo editado a mano no se reescribe; si el puente no lo tiene, queda lo último.
+    const finC = Date.now() + 20_000
+    while (Date.now() < finC && !(existsSync(camino) && readFileSync(camino, 'utf8').includes('día 3 de 90'))) await dormir(500)
+    const k = existsSync(camino) ? readFileSync(camino, 'utf8') : ''
+    if (!k.includes('- **Dónde voy:** día 3 de 90 · semana 1 de 12 · etapa 1 de 5 «Tu cerebro»')) return `al conectar, el camino no llegó a mi-camino.md (pedidos al falso: ${pedidosCamino}): ${k.slice(0, 300)}`
+    if (!k.includes('Falta la 4: Tu ritual de la mañana') || !k.includes('**Mi siguiente paso:** marca tu casilla 4.') || !k.includes(`http://${HOST}:${falso.address().port}/programa/semana-1#casilla-4`)) return `mi-camino.md no trae la casilla que falta ni el siguiente paso: ${k.slice(0, 400)}`
+    if (!readFileSync(join(CEREBRO, '.claude', 'memory', 'MEMORY-indice.md'), 'utf8').includes('`project/mi-camino.md`')) return 'el índice de memoria no anotó mi camino'
+    const kEditado = k.replace('día 3 de 90', 'día 3 de 90 (voy atrasado)')
+    writeFileSync(camino, kEditado)
+    const e2 = await (await progreso({ accion: 'enviar' })).json().catch(() => ({}))
+    if (e2.camino_ahora !== 'escrito' || readFileSync(camino, 'utf8') !== kEditado) return `«Enviar ahora» reescribió mi-camino.md editado a mano (${e2.camino_ahora})`
+    writeFileSync(camino, k)
+    caminoCaido = true
+    const e3 = await (await progreso({ accion: 'enviar' })).json().catch(() => ({}))
+    if (e3.camino_ahora !== 'sin_camino' || readFileSync(camino, 'utf8') !== k) return `sin la ruta en el puente, mi-camino.md no quedó como estaba (${e3.camino_ahora})`
+    if (e3.camino?.resultado !== 'sin_camino') return `Ajustes no ve el resultado del camino: ${JSON.stringify(e3.camino)}`
+    log(`camino: al conectar llegó a la memoria (día, etapa, casillas y siguiente paso); lo editado a mano se respeta y sin la ruta queda lo último (${pedidosCamino} pedido(s))`)
+  } finally { falso.close() }
+
+  // El ritual: mes → semana → día con la pluma de la skill.
+  const plan = join(RAIZ_COPIA, '.claude', 'skills', 'bajar-a-tierra', 'scripts', 'plan.py')
+  const correr = (...args) => {
+    const r = spawnSync(PY, [plan, ...args], { encoding: 'utf8', timeout: 90_000, env: { ...process.env, ARBRAIN_PLAN_RAIZ: CEREBRO } })
+    let j = null; try { j = JSON.parse(r.stdout) } catch { /* */ }
+    return { codigo: r.status, j, err: (r.stderr ?? '').slice(-300) }
+  }
+  let x = correr('estado')
+  if (x.codigo !== 0 || !x.j?.meta_90?.presente || x.j.meta_90.fecha !== '2027-01-20' || !/flotillas/.test(x.j.meta_90.nicho ?? '')) return `plan.py estado no leyó la meta del expediente: ${JSON.stringify(x.j ?? x.err).slice(0, 300)}`
+  if (!x.j.camino?.presente || x.j.camino.inicio !== '2026-10-26' || JSON.stringify(x.j.camino.casillas_faltan) !== '[4,5]' || !/casilla 4/.test(x.j.camino.siguiente_paso ?? '')) return `plan.py estado no leyó mi camino: ${JSON.stringify(x.j.camino).slice(0, 300)}`
+  if (x.j.mes !== 'Tres clientes' || x.j.falta !== 'semana') return `plan.py estado: mes ${x.j.mes}, falta ${x.j.falta} (se esperaba el mes escrito a mano y que falte la semana)`
+  x = correr('mes', '--texto', '300 USD cobrados de mi primer cliente')
+  if (x.codigo !== 3 || !/Tres clientes/.test(x.j?.alto ?? '')) return `plan.py mes pisó el mes escrito a mano: ${JSON.stringify(x)}`
+  x = correr('mes', '--texto', '300 USD cobrados de mi primer cliente', '--reemplazar')
+  if (x.codigo !== 0) return `plan.py mes --reemplazar: ${JSON.stringify(x).slice(0, 300)}`
+  const RES = ['Oferta de diagnóstico escrita', '10 conversaciones con gerentes de flotilla', '2 diagnósticos agendados']
+  x = correr('semana', ...RES.flatMap((t) => ['--resultado', t]))
+  if (x.codigo !== 0) return `plan.py semana: ${JSON.stringify(x).slice(0, 300)}`
+  const TAREAS = ['Lista de 10 gerentes', 'Borrador de la oferta', 'Mensaje para 3 de ellos']
+  x = correr('dia', '--objetivo', 'Terminar la oferta de diagnóstico', ...TAREAS.flatMap((t) => ['--tarea', t]), '--hora', '09:00')
+  if (x.codigo !== 0 || x.j?.estado?.falta !== null) return `plan.py dia: ${JSON.stringify(x).slice(0, 300)}`
+  log('ritual: plan.py leyó la meta y el nicho, respetó el mes a mano y escribió mes, semana (3 resultados) y día (objetivo y 3 tareas)')
+
+  // La vista los recibe.
+  const obj = await (await fetch(`${base}/api/planning/objectives`, { headers: { cookie } })).json().catch(() => ({}))
+  const ctx = obj.context ?? []
+  const lunesHoy = (() => { const d = new Date(`${HOY}T12:00:00Z`); d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7)); return d.toISOString().slice(0, 10) })()
+  if (!ctx.some((c) => c.scope === 'month' && c.text === '300 USD cobrados de mi primer cliente')) return `la vista no recibe el mes: ${JSON.stringify(ctx).slice(0, 300)}`
+  if (!ctx.some((c) => c.scope === 'week' && c.text === RES.join(' · ') && (c.start === lunesHoy || c.start.slice(0, 7) !== lunesHoy.slice(0, 7)))) return `la vista no recibe la semana: ${JSON.stringify(ctx).slice(0, 400)}`
+  if (!ctx.some((c) => c.scope === 'day' && c.start === HOY && c.text === 'Terminar la oferta de diagnóstico')) return 'la vista no recibe el objetivo del día'
+  const desde = new Date(`${HOY}T00:00:00`).toISOString(), hasta = new Date(new Date(`${HOY}T00:00:00`).getTime() + 86_400_000).toISOString()
+  const snap = await (await fetch(`${base}/api/planning?from=${encodeURIComponent(desde)}&to=${encodeURIComponent(hasta)}`, { headers: { cookie } })).json().catch(() => ({}))
+  const tareas = [...(snap.tasks ?? []), ...(snap.completedTasks ?? [])]
+  const t = tareas.find((k) => k.title === 'Terminar la oferta de diagnóstico')
+  if (!t || !(t.labels ?? []).includes('objetivo') || TAREAS.some((k) => !String(t.description ?? '').includes(`- [ ] ${k}`))) return `el calendario no trae el objetivo con sus 3 casillas: ${JSON.stringify(t ?? Object.keys(snap)).slice(0, 300)}`
+  if (!(snap.events ?? []).some((e) => e.title === 'Terminar la oferta de diagnóstico')) return 'el bloque de las 09:00 no se pinta'
+  log('vista: mes, semana y día llegan a /api/planning/objectives; el objetivo con sus 3 casillas y su bloque a /api/planning')
+
+  // Los lienzos, por la API del lienzo (puente local que pone la sesión; dentro de la app va el pase del agente).
+  const puente = await escuchar(async (req, res) => {
+    let cuerpo = ''
+    for await (const c of req) cuerpo += c
+    const r = await fetch(`${base}${req.url}`, { method: req.method, headers: { cookie, Origin: base, 'Content-Type': 'application/json' }, body: req.method === 'GET' ? undefined : cuerpo })
+    res.writeHead(r.status, { 'Content-Type': 'application/json' }); res.end(await r.text())
+  })
+  try {
+    // Asíncrono: el puente vive en este mismo proceso y un spawnSync lo dejaría sin responder.
+    const r = await new Promise((ok) => {
+      const h = spawn(PY, [plan, 'lienzos'], { env: { ...process.env, ARBRAIN_PLAN_RAIZ: CEREBRO, MISSION_CONTROL_ORIGIN: `http://${HOST}:${puente.address().port}`, ARBRAIN_PASE_AGENTE: 'puente-de-prueba' } })
+      let stdout = '', stderr = ''
+      h.stdout.on('data', (c) => { stdout += c }); h.stderr.on('data', (c) => { stderr += c })
+      const t = setTimeout(() => h.kill(), 180_000)
+      h.on('close', () => { clearTimeout(t); ok({ stdout, stderr }) })
+    })
+    let j = null; try { j = JSON.parse(r.stdout) } catch { /* */ }
+    const l = j?.lienzos ?? {}
+    for (const nombre of ['Mi plan · mes, semana y día', 'Calendario de 12 semanas']) {
+      if (l[nombre]?.status !== 200 || l[nombre]?.ok === false) return `plan.py lienzos no redibujó «${nombre}»: ${JSON.stringify(j ?? r.stderr).slice(0, 400)}`
+      const pag = await (await fetch(`${base}/api/canvas/pages/${encodeURIComponent(l[nombre].paginaId)}`, { headers: { cookie } })).text()
+      const esperado = nombre.startsWith('Mi plan') ? '300 USD cobrados de mi primer cliente' : '900 USD al mes para el 2027-01-20'
+      if (!pag.includes(esperado)) return `el lienzo «${nombre}» no muestra «${esperado}»`
+    }
+    log('lienzos: «Mi plan» y «Calendario de 12 semanas» muestran el mes y la meta del expediente')
+  } finally { puente.close() }
   return null
 }
 

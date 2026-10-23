@@ -57,6 +57,25 @@ export interface Instalacion {
    * hábitos de esa persona.
    */
   atajosHabitos: Readonly<Record<string, string>>
+  /**
+   * Una temporada de hábitos (22 oct 2026, el monk mode de Daniel hasta Monterrey). Solo su nombre y `arranque`, el primer día
+   * que cuenta (la historia, las rachas y los porcentajes empiezan ahí; antes no se rellena nada). Inicio, cierre y premio los
+   * pone `periodo` (una sola fuente, Daniel 22 oct): sin `periodo` no hay temporada, ni cuadrícula ni cuenta regresiva.
+   */
+  temporadaHabitos?: { nombre: string; arranque: string }
+  /**
+   * El periodo con premio que se ve en el Calendario (Día, Semana y Mes, junto al objetivo): «Día N de total · premio» y lo
+   * que debe estar cumplido antes de cerrarlo (22 oct 2026, Daniel: «quiero ver alguna interfaz que diga… uno de 30 y tantos»).
+   * `desde` es el día 1 y `hasta` el día del cierre (ya fuera de la cuenta: `total` = días de `desde` a `hasta`): el día de SALIDA
+   * al premio, porque lo de `cumplir` es «antes de llegar». `viaje` son las fechas del premio; `firmado: false` las marca «por
+   * firmar». La temporada de hábitos lee de aquí su inicio, cierre y premio. Opcional: sin esto no se pinta nada.
+   */
+  periodo?: { desde: string; hasta: string; premio: string; viaje?: { desde: string; hasta: string; firmado: boolean }; cumplir: readonly string[] }
+  /**
+   * Lo que se propone la primera vez en la fila «Hábitos de hoy» (Atomic Habits): la identidad y, por hábito, la señal
+   * (hora sugerida) y su versión de 2 minutos. Se editan en la fila y se guardan aparte (`/api/sistema/atomicos`).
+   */
+  habitosAtomicos?: { identidad: string; habitos: Readonly<Record<string, { senal: string; dosMinutos: string; privado?: boolean; alias?: string }>> }
   /** Respaldo de GOG_KEYRING_PASSWORD si el entorno no lo trae (calendario por `gog`). '' = no hay. */
   gogKeyring: string
   /**

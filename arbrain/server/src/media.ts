@@ -3,7 +3,7 @@ import { join, extname, basename, dirname, sep } from 'path'
 import { UPLOADS_DIR } from './config.js'
 import { esEdicionCliente } from './edicion.js'
 import { logger } from './logger.js'
-import { validateUrl, motivoUrlInterna, esStorageConfiable, MAX_DOWNLOAD_SIZE } from './security.js'
+import { validateUrl, motivoUrlInterna, esStorageConfiable, storagePublicoALocal, MAX_DOWNLOAD_SIZE } from './security.js'
 
 /**
  * Construye el mensaje para Claude cuando se envía una foto.
@@ -141,6 +141,7 @@ async function fetchValidado(url: string): Promise<Response> {
  */
 export async function downloadFromUrl(url: string): Promise<string> {
   if (esAdjuntoLocal(url)) return copiarAdjuntoLocal(url)
+  url = storagePublicoALocal(url)
   // SSRF: validar la URL Y cada salto de redirección. Antes se validaba solo el texto de la URL y luego `fetch`
   // seguía los 30x a donde dijera `Location` (127.0.0.1, 169.254…): un servidor público podía redirigir a la red
   // interna. Ahora los saltos se siguen a mano, revalidando cada destino (CodeQL js/request-forgery, noche 21→22 oct).
