@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/capture-conversation.py\" --runtime claude",
+            "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/hooks/py.sh\" capture-conversation --runtime claude",
             "timeout": 10
           }
         ]
@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/capture-conversation.py\" --runtime claude",
+            "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/hooks/py.sh\" capture-conversation --runtime claude",
             "timeout": 10
           }
         ]
@@ -40,7 +40,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/memory-recall.py\"",
+            "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/hooks/py.sh\" memory-recall",
             "timeout": 5
           }
         ]
@@ -52,12 +52,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/candado-freno.py\"",
+            "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/hooks/py.sh\" candado-freno",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/candado-pantalla.py\"",
+            "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/hooks/py.sh\" candado-pantalla",
             "timeout": 10
           }
         ]
@@ -67,7 +67,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/candado-freno.py\"",
+            "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/hooks/py.sh\" candado-freno",
             "timeout": 10
           }
         ]
@@ -78,7 +78,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/capture-conversation.py\" --runtime claude",
+            "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/hooks/py.sh\" capture-conversation --runtime claude",
             "timeout": 10
           }
         ]

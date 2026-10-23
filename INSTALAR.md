@@ -33,9 +33,12 @@ https://github.com/arbrain-ai/arbrain en `~/Arbrain`, corriendo en su computador
 **sin pedirle comandos**: todo lo corres tú. Háblale en español simple, como a alguien que no programa, con una línea
 por paso. No le enseñes salidas técnicas, huellas ni rutas largas salvo que algo falle.
 
+**Si la persona pidió desinstalar** (no instalar), salta todos los pasos y sigue solo «Desinstalar», al final.
+
 ## Reglas que no se rompen
 
-- **Lo suyo no se borra ni se pisa.** Antes de tocar algo que ya existe, lo respaldas (PASO 6). Copias, no mueves.
+- **Lo suyo no se borra ni se pisa.** Antes de tocar algo que ya existe, lo respaldas (PASO 6). Copias, no mueves
+  (la única excepción es «Desinstalar», que mueve lo de Arbrain a `~/Arbrain-respaldos` si la persona lo pidió).
   Prohibido: `rm -rf` fuera de `~/.arbrain` y de carpetas temporales que tú creaste, `git reset --hard`,
   `git push --force`, `git clean`, `git stash drop`, y sobrescribir un archivo suyo sin enseñarle la diferencia.
 - **Llaves fuera de tu vista.** Nunca pidas, leas, escribas ni muestres contraseñas, llaves, tokens o códigos, ni el
@@ -92,7 +95,6 @@ Revisa en silencio: `uname -s; uname -m; uname -r; git --version`.
 git -C ~/Arbrain remote get-url dani 2>/dev/null || echo NO_INSTALADO
 ```
 
-- **Si te pidieron desinstalar** (no instalar), ve directo a «Desinstalar», al final de este guion.
 - Si responde `https://github.com/arbrain-ai/arbrain` (con o sin `.git`): **ya está instalado; esto es una
   actualización.** Lee completo `~/Arbrain/.claude/skills/actualizar-arbrain/SKILL.md` (es la copia verificada que ya
   tiene en su computadora) y síguelo de principio a fin. No sigas este guion. Al terminar su PASO 5 (la versión nueva

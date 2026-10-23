@@ -623,6 +623,13 @@ def lienzos(r: Path, hoy: dt.date, revisar: bool) -> dict:
 # ── CLI ──────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 def main(argv: list[str]) -> int:
+    # Windows imprime con la página de códigos de la consola (cp1252): «Mi plan · mes, semana y día» saldría roto para
+    # Levy y para quien lee el JSON (visto en la CI del 23 oct). Siempre UTF-8.
+    for flujo in (sys.stdout, sys.stderr):
+        try:
+            flujo.reconfigure(encoding="utf-8")
+        except (AttributeError, ValueError):
+            pass
     ap = argparse.ArgumentParser(prog="plan.py", description="Bajar a tierra: mes → semana → día.")
     ap.add_argument("--hoy", help="AAAA-MM-DD (por defecto, hoy en su zona)")
     ap.add_argument("--revisar", action="store_true", help="no escribe: dice qué haría")

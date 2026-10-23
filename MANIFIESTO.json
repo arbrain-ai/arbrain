@@ -1,16 +1,16 @@
 {
   "generador": "arbrain/empaquetado/generador",
   "origen": {
-    "ref": "fbeec8ca75efef793411b5002c97a8fb836621b3",
-    "commit": "fbeec8ca75efef793411b5002c97a8fb836621b3",
-    "fecha": "2026-10-22T21:12:35-06:00"
+    "ref": "1371213c5a7873251635ec26c0534328ee35ebf2",
+    "commit": "1371213c5a7873251635ec26c0534328ee35ebf2",
+    "fecha": "2026-10-22T21:31:18-06:00"
   },
   "version": "0.2.9",
   "allowlist": {
     "ruta": "docs/builds/empaquetado-2026-10-11/allowlist.yaml",
     "sha256": "bc576072d8baf0c729935c5ed196ddaccec0048bd26c9c425e2131165e98eef5"
   },
-  "conteo": 2441,
+  "conteo": 2442,
   "archivos": {
     ".agents/skills": {
       "enlace": "../.claude/skills",
@@ -88,6 +88,12 @@
       "modo": "644",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/claude/hooks/memory-recall.py"
     },
+    ".claude/hooks/py.sh": {
+      "sha256": "dda6cc5d274fedf4702207581aa884f26e04c3219b7b308fa3cd6ce92350ff6b",
+      "bytes": 2017,
+      "modo": "755",
+      "origen": "plantilla-g:arbrain/empaquetado/plantillas/claude/hooks/py.sh"
+    },
     ".claude/hooks/session-start.sh": {
       "sha256": "006dd61dfae270ffc1562fde724c29c2be1a84b078f42b573fed57f799dc33fa",
       "bytes": 659,
@@ -137,8 +143,8 @@
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/claude/references/principios-dirigir-modelos.md"
     },
     ".claude/settings.json": {
-      "sha256": "356a611acdc4121a589ff25f9ba543237751c2f578287fee5856e01fb19602e0",
-      "bytes": 2700,
+      "sha256": "69084069804d6fd57e8f3240a77f966a7875502baf96bf9f063a076f989cf311",
+      "bytes": 2686,
       "modo": "644",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/claude/settings.json"
     },
@@ -287,8 +293,8 @@
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/bajar-a-tierra/references/mi-camino.md"
     },
     ".claude/skills/bajar-a-tierra/scripts/plan.py": {
-      "sha256": "73e4ea7ef2ac2b341568b274dc2282396abb9b43566af5ab821e4b6e510ce53f",
-      "bytes": 35094,
+      "sha256": "e60657ab12d5c97dbeff48725b22e47f292224c6f55f6db7ef3d718b065430ed",
+      "bytes": 35466,
       "modo": "644",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/bajar-a-tierra/scripts/plan.py"
     },
@@ -677,8 +683,8 @@
       "origen": "distribucion:CAPAS.json"
     },
     "CHANGELOG.md": {
-      "sha256": "5d3c05f4819b76d4c3d2d94037678487e49b694006956d9b615190efa461f47e",
-      "bytes": 20583,
+      "sha256": "912a00a3044cbc25fff34f6b319efba928368b2d33fbc6d1e72f58f1d526acd0",
+      "bytes": 20867,
       "modo": "644",
       "origen": "distribucion:CHANGELOG.md"
     },
@@ -695,8 +701,8 @@
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/GUIA-INSTALACION.plantilla.md"
     },
     "INSTALAR.md": {
-      "sha256": "9c14f7bf49730359508597c3f5964cd5317ad90ccc15fc01b56297d5c9ebc23c",
-      "bytes": 23392,
+      "sha256": "b6f0516e5efb4ce3373cf85e84eb8f12c76ba34b198e991b35448d9bd1bcf304",
+      "bytes": 23522,
       "modo": "644",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/INSTALAR.plantilla.md"
     },
