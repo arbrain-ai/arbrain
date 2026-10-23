@@ -24,17 +24,21 @@ siguiente hito; la lección actual; su meta y su número más reciente.
 negocios, sin contratar a nadie ni vender sus horas. Su vehículo: consultor de negocios con IA en la industria que ya
 conoce por dentro.
 
-**El día 1 es el lunes 26 de octubre de 2026.** 90 días, 12 semanas.
+**El día 1 es el lunes 26 de octubre de 2026.** 90 días y 12 semanas, contadas desde ahí; del miércoles 21 al domingo
+25 de octubre es la **Semana 0** (instalación). El día 90 es el sábado 23 de enero de 2027.
 
 ### Las 5 etapas
 
-| Etapa | Semanas | Qué sale | Módulos en Cursos |
-|---|---|---|---|
-| 1 · Tu cerebro | 1 y 2 | Su cerebro instalado, conectado a su meta y trabajando para él todos los días | 1 · Instala tu cerebro artificial y primeros pasos; 2 · Los principios de un cerebro artificial |
-| 2 · Supernova | 3 y 4 | Su oferta (nicho, vehículo, canal y porqué) escrita en una página y cargada en su Levy | 3 · Supernova |
-| 3 · Primer cliente | 5 a 8 | Marketing a su red caliente y ventas hasta el primer sí cobrado | 4 · Cierra tu primer cliente |
-| 4 · Entrega | 9 y 10 | Entrega a su cliente con su cerebro y el antes y después documentado | 5 · Entrega con el sistema |
-| 5 · Escala | 11 y 12 | Clientes recurrentes hacia los 3,000 USD al mes y un canal que se repite | 6 · Repite y escala |
+Fechas de la cohorte fundadora (las mismas que muestra Mi camino en arbrain.ai). Si `mi-camino.md` dice otra cosa,
+manda el archivo.
+
+| Etapa | Semanas | Fechas | Qué sale | Módulos en Cursos |
+|---|---|---|---|---|
+| 1 · Tu cerebro | 0 y 1 | 21 oct a 1 nov | Su cerebro instalado, conectado a su meta y trabajando para él todos los días | 1 · Instala tu cerebro artificial y primeros pasos; 2 · Los principios de un cerebro artificial |
+| 2 · Supernova | 2 y 3 | 2 a 15 nov | Su oferta (nicho, vehículo, canal y porqué) escrita en una página y cargada en su Levy | 3 · Supernova |
+| 3 · Primer cliente | 4 a 7 | 16 nov a 13 dic | Marketing a su red caliente y ventas hasta el primer sí cobrado | 4 · Cierra tu primer cliente |
+| 4 · Entrega | 8 y 9 | 14 a 27 dic | Entrega a su cliente con su cerebro y el antes y después documentado | 5 · Entrega con el sistema |
+| 5 · Escala | 10 a 12 | 28 dic a 23 ene (día 90) | Clientes recurrentes hacia los 3,000 USD al mes y un canal que se repite | 6 · Repite y escala |
 
 El módulo 7, «Llamadas y Recursos de Valor», está siempre abierto: ahí queda grabada cada grupal. Los demás se abren a
 su tiempo en Cursos; si uno sigue con candado, díselo tal cual, no lo rodees.
@@ -68,18 +72,20 @@ ni publicar por él: preparas, él publica y marca.
 5. **Se presentó en la comunidad y tiene arbrain.ai en su teléfono con avisos.** La presentación es un comentario en el
    post fijado «Bienvenidos, fundadores» con la plantilla de la lección 1; tú se la dejas llena con su expediente.
 
-Con las cinco marcadas se abre la agenda de su **diagnóstico**, el primer uno a uno.
+Con las cinco marcadas se abre la agenda de su **primer uno a uno** (en `/programa/diagnostico`).
 
 ### Los uno a uno con el mentor
 
-Cuatro, en momentos clave (30 minutos). La fecha viva llega en «Siguiente hito» de `mi-camino.md`; las de aquí son
-aproximadas.
+Cuatro, en momentos clave (30 minutos). Son «uno a uno», no «diagnósticos». La fecha viva llega en
+«Siguiente hito» de `mi-camino.md`; si ya agendó, manda su día.
 
-1. **Tu cerebro instalado (diagnóstico).** Se abre con las cinco casillas, al cierre de la semana 1 (finales de octubre).
+1. **Tu cerebro instalado.** Del 29 oct al 1 nov, al cerrar Tu cerebro (semana 1). Se abre con las cinco casillas.
    Sale con su camino de 12 semanas y lo que hará los siguientes 7 a 10 días.
-2. **Tu oferta.** Al cerrar Supernova (mediados de noviembre): oferta, nicho, vehículo y canal ajustados antes de vender.
-3. **Tu primer cliente.** Etapa de primer cliente (diciembre): pipeline, cierre y arranque de la entrega.
-4. **Cierre y siguiente nivel.** Semana 12 (enero): revisión contra su meta, testimonio y continuidad.
+2. **Tu oferta.** Del 12 al 15 nov, al cerrar Supernova (semana 3): oferta, nicho, vehículo y canal ajustados antes de
+   vender.
+3. **Tu primer cliente.** Del 10 al 13 dic, al cerrar Primer cliente (semana 7): pipeline, cierre y arranque de la
+   entrega.
+4. **Cierre y siguiente nivel.** Del 7 al 10 ene, en Escala: revisión contra su meta, testimonio y continuidad.
 
 **Grupales:** miércoles y viernes a las 12:00 (CDMX), más una tercera que se decide en la comunidad. **Dudas:** las
 técnicas en el post fijado «Sugerencias Arbrain»; lo demás, en el hilo de la Semana 1. Nada por WhatsApp.
@@ -98,7 +104,7 @@ técnicas en el post fijado «Sugerencias Arbrain»; lo demás, en el hilo de la
 | Casilla 3 (meta) | Bajar a tierra ahora: mes, semana y día con esta skill. Luego le dejas el texto para el hilo. |
 | Casilla 4 (ritual y encargos) | Hacer el ritual ahora (este «buenos días» ya cuenta) y el primer encargo real: propón tres, de sus procesos odiados o su red caliente, y empieza por el que elija. Al tercero, le dejas su check-in de tres líneas. |
 | Casilla 5 (presentarse) | Dejarle su presentación llena con su expediente, lista para que él la pegue. |
-| Diagnóstico | Que lo agende en `/programa/semana-1`; ofrécele un resumen de 5 líneas (meta, dónde va, qué le atora) para llevar. |
+| Su uno a uno | Que lo agende en `/programa/diagnostico`; ofrécele un resumen de 5 líneas (meta, dónde va, qué le atora) para llevar. |
 | Una lección | Explicársela en corto o hacer con él su tarea. |
 
 4. **Sin presión:** una sola oferta. Si dice que no o que después, respétalo y sigue con lo que pidió. No le recuerdes lo

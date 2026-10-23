@@ -9,6 +9,7 @@ import { DesktopReloadShortcut } from '@/components/DesktopReloadShortcut'
 import { ReposoVentana } from '@/shared/movimiento/Reposo'
 import { ThemeProvider } from '@/shared/contexts/theme-context'
 import { AuthProvider } from '@/shared/contexts/auth-context'
+import { esEdicionCliente } from '@/lib/edicion'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -63,18 +64,22 @@ const themeInitScript = `
 })();
 `
 
+// Edición cliente (23 oct 2026, «Tu cerebro en el teléfono»): instalada en el celular se llama «Tu Arbrain» y lleva su
+// propio icono, para no confundirla con el «Agente Arbrain» del sitio del programa. La instalación original no cambia.
+const CLIENTE = esEdicionCliente()
+
 export const metadata: Metadata = {
   title: 'Arbrain',
   description: 'AI-powered business dashboard',
-  manifest: '/manifest.json',
+  manifest: CLIENTE ? '/manifest-cliente.json' : '/manifest.json',
   icons: {
     icon: '/icon-192.png',
-    apple: '/apple-touch-icon.png',
+    apple: CLIENTE ? '/tu-arbrain-apple.png' : '/apple-touch-icon.png',
   },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'Arbrain',
+    title: CLIENTE ? 'Tu Arbrain' : 'Arbrain',
   },
 }
 

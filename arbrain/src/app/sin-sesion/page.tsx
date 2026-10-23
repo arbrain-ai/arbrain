@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
+import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
+import { llegaPorTelefono } from '@/features/telefono/host-telefono'
 import { esEdicionCliente } from '@/lib/edicion'
 import { esModoServidor } from '@/lib/modo-servidor'
 
@@ -11,6 +13,7 @@ const ERRORES: Record<string, string> = {
   contrasena: 'Esa contraseña no coincide. Revísala con «npm run servidor -- contrasena».',
   espera: 'Demasiados intentos. Espera un minuto y vuelve a intentarlo.',
   pase: 'Ese enlace de entrada ya se usó o venció. Entra con tu contraseña o corre «npm run servidor -- abrir».',
+  codigo: 'Ese código no sirve (ya se usó o pasaron 10 minutos). Pide uno nuevo en tu computadora.',
 }
 
 /**
@@ -23,17 +26,29 @@ export default async function SinSesionPage({ searchParams }: { searchParams: Pr
   if (esModoServidor()) {
     const e = (await searchParams).e
     const error = typeof e === 'string' ? ERRORES[e] : undefined
+    const h = await headers()
+    // Teléfono (23 oct 2026): desde el celular no hay terminal; el código sale de Ajustes en la computadora.
+    const telefono = llegaPorTelefono(h.get('host'), h.get('x-forwarded-proto'))
     return (
       <main className="grid min-h-[100dvh] place-items-center bg-background px-6 text-foreground">
         <form method="post" action="/api/desktop/entrar" className="glass-panel-strong w-full max-w-md space-y-4 p-8">
           <h1 className="text-xl font-semibold tracking-tight">Entra a tu Arbrain</h1>
-          <p className="text-[14px] leading-relaxed text-muted">
-            Escribe tu contraseña. Si no la tienes a mano, en la terminal donde corre Arbrain escribe{' '}
-            <code className="rounded bg-surface px-1">npm run servidor -- contrasena</code>.
-          </p>
-          <label className="block text-[13px] font-medium" htmlFor="contrasena">Contraseña</label>
+          {telefono ? (
+            <p className="text-[14px] leading-relaxed text-muted" data-telefono="1">
+              Es tu Arbrain, servido por tu computadora. En ella abre Ajustes › Tu cerebro en el teléfono, pulsa
+              «Código para entrar» y escríbelo aquí. También sirve tu contraseña.
+            </p>
+          ) : (
+            <p className="text-[14px] leading-relaxed text-muted">
+              Escribe tu contraseña. Si no la tienes a mano, en la terminal donde corre Arbrain escribe{' '}
+              <code className="rounded bg-surface px-1">npm run servidor -- contrasena</code>.
+            </p>
+          )}
+          <label className="block text-[13px] font-medium" htmlFor="contrasena">{telefono ? 'Código o contraseña' : 'Contraseña'}</label>
           <input
-            id="contrasena" name="contrasena" type="password" required autoFocus autoComplete="current-password"
+            id="contrasena" name="contrasena" type={telefono ? 'text' : 'password'} required autoFocus
+            autoComplete={telefono ? 'one-time-code' : 'current-password'} autoCapitalize="none" autoCorrect="off" spellCheck={false}
+            placeholder={telefono ? 'abcd-efgh' : undefined}
             className="w-full rounded-xl border border-border-subtle bg-surface px-3 py-2 font-mono text-[14px]"
           />
           {error && <p role="alert" className="text-[13px] text-red-500">{error}</p>}

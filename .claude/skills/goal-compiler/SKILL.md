@@ -253,5 +253,7 @@ real, qué huecos quedan (por ejemplo, `grafo → orquestación`: hoy el ejecuto
 leyendo el spec) y el lazo de plasticidad (post-mortem → skill). Si lo creas, al cerrar cada hueco
 actualiza su `estado`: el mapa respira con el trabajo, no se pudre.
 
+**Orquestador one-shot:** cuando el encargo pide compilar Y ejecutar delegando a subagentes («de one shot», «delega», «orquesta»), el coordinador compila el spec y lo lleva hasta el reporte con fichas por nodo, worktrees, gates re-corridos por él e integración secuencial: leer `references/orquestador-one-shot.md`.
+
 ## Profundidad tecnica
 Para la mecanica fina de `/goal` (evaluador, exit codes de hooks), niveles de effort, combos con Auto mode, y la lista verificada de comandos nuevos de Claude Code: leer `references/goal-mechanics.md`.

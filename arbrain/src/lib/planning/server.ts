@@ -1,4 +1,5 @@
 import 'server-only'
+import { llegaPorTelefono } from '@/features/telefono/host-telefono'
 import { execFile } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { homedir, hostname } from 'node:os'
@@ -28,7 +29,9 @@ export function checkMutationOrigin(request: Request) {
   // 127.0.0.1. Compare against the actual HTTP Host, never a caller-supplied
   // forwarded-host. Cookies still authenticate the principal independently.
   const requestUrl = new URL(request.url)
-  const expected = `${requestUrl.protocol}//${request.headers.get('host') ?? requestUrl.host}`
+  // Teléfono (23 oct 2026): por `tailscale serve` el navegador habla HTTPS y la web recibe HTTP en 127.0.0.1.
+  const protocolo = llegaPorTelefono(request.headers.get('host'), request.headers.get('x-forwarded-proto')) ? 'https:' : requestUrl.protocol
+  const expected = `${protocolo}//${request.headers.get('host') ?? requestUrl.host}`
   if ((origin && origin !== expected) || request.headers.get('sec-fetch-site') === 'cross-site') {
     throw new ChatAccessError('Origen de escritura no autorizado.', 403)
   }

@@ -18,7 +18,7 @@ const ORIGEN = 'https://arbrain.ai'
 const REMOTO = {
   v: 1, actualizado: '2026-10-28T13:00:00Z', nombre: 'Prueba', inicio: '2026-10-26',
   dia: 3, dias_total: 90, semana: 1, semanas_total: 12,
-  etapa: { n: 1, total: 5, nombre: 'Tu cerebro', semanas: 'Semanas 1 y 2' },
+  etapa: { n: 1, total: 5, nombre: 'Tu cerebro', semanas: 'Semanas 0 y 1' },
   paso: { id: 'semana1', n: 9, total: 9, nombre: 'Tu Semana 1' },
   casillas: [
     { numero: 2, titulo: 'Tu cerebro instalado y sembrado', marcada: true },
@@ -65,7 +65,7 @@ describe('mi camino en la memoria de Levy', () => {
     const t = cuerpoCamino(validarCamino(REMOTO, ORIGEN)!, '2026-10-28')
     expect(t).toContain('traido: 2026-10-28')
     expect(t).toContain('inicio: 2026-10-26')
-    expect(t).toContain('- **Dónde voy:** día 3 de 90 · semana 1 de 12 · etapa 1 de 5 «Tu cerebro» (semanas 1 y 2) · paso 9 de 9 «Tu Semana 1».')
+    expect(t).toContain('- **Dónde voy:** día 3 de 90 · semana 1 de 12 · etapa 1 de 5 «Tu cerebro» (semanas 0 y 1) · paso 9 de 9 «Tu Semana 1».')
     expect(t).toContain('3 de 5 (hechas: 1, 2, 3)')
     expect(t).toContain('Falta la 4: Tu ritual de la mañana y tres encargos reales hechos con tu Levy.')
     expect(t).toContain('- **Mi siguiente paso:** marca tu casilla 4.')

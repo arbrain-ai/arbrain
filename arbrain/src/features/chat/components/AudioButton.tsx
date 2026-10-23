@@ -61,11 +61,19 @@ export function AudioButton({ messageId, selectionEnabled = false, label }: Audi
     } else chatSpeech.toggle(messageId, el)
   }
 
+  // El cursor llegó al botón: el primer tramo de la voz del servidor se pide ya (`say` tarda ~1.2 s en arrancar).
+  const anticipar = () => {
+    if (!chatSpeech || active) return
+    const el = document.querySelector<HTMLElement>(`[data-tts-content="${CSS.escape(messageId)}"]`)
+    if (el) chatSpeech.anticipar(el)
+  }
+
   return (
     <button
       type="button"
       aria-label={active ? `Detener ${label ?? 'lectura'}` : label ? `Escuchar ${label} o su selección` : 'Escuchar (voz del dispositivo)'}
       onPointerDown={selectionEnabled ? e => e.preventDefault() : undefined}
+      onPointerEnter={anticipar}
       onClick={handleClick}
       title={active ? 'Detener' : 'Escuchar (voz del dispositivo)'}
       className={`

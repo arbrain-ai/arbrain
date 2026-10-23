@@ -18,6 +18,34 @@ export interface AccionBitacora {
 }
 
 export interface EstadoPausa { pausado: boolean; desde: number | null }
+
+/** Modo de permisos de Levy (grupal 23 oct 2026). Mismos ids que `server/src/cliente/modo-permisos.ts`. */
+export type ModoPermisos = 'preguntar' | 'carpeta' | 'libre'
+export interface EstadoPermisosLevy { modo: ModoPermisos; modos: ModoPermisos[]; sandbox: boolean; sinFreno?: boolean; sinFrenoDesde?: number | null; frase?: string }
+
+/**
+ * «Quitar también el freno (bajo mi responsabilidad)» (23 oct 2026), dentro de «Sin preguntar». La frase y su
+ * normalización son las de `server/src/cliente/modo-permisos.ts` (el daemon la vuelve a validar; esto solo habilita el
+ * botón). El riesgo, en dos líneas, se muestra antes de activarlo.
+ */
+export const FRASE_SIN_FRENO = 'quito el freno bajo mi responsabilidad'
+export const normalizarFrase = (t: string): string =>
+  t.normalize('NFC').toLowerCase().replace(/[«»"“”'‘’]/g, '').replace(/\s+/g, ' ').trim().replace(/[.!]+$/, '').trim()
+export const fraseCoincide = (t: string, frase: string = FRASE_SIN_FRENO): boolean => normalizarFrase(t) === normalizarFrase(frase)
+export const RIESGO_SIN_FRENO: readonly [string, string] = [
+  'Levy podrá enviar correos y mensajes, borrar archivos y publicar (subir código, desplegar, postear) sin pedirte clic: un error suyo o una instrucción escondida en lo que lee puede salir de tu computadora antes de que lo veas.',
+  'Siguen bloqueados siempre: mover dinero, comprar, operar acciones o cripto y tocar tus llaves y secretos; y tras leer algo de afuera vuelve a preguntarte.',
+]
+export const NOMBRE_SIN_FRENO = 'Quitar también el freno (bajo mi responsabilidad)'
+/** Aviso que se ve mientras está activo (Ajustes y la píldora de toda la app). */
+export function avisoSinFreno(desde: number | null | undefined, ahora = Date.now()): string {
+  return `Freno quitado${desde ? ` desde ${horaDe(desde, ahora)}` : ''}: Levy envía, borra y publica sin pedirte clic.`
+}
+export const FICHAS_MODO: ReadonlyArray<{ modo: ModoPermisos; nombre: string; detalle: string; recomendado?: boolean }> = [
+  { modo: 'preguntar', nombre: 'Preguntar siempre', detalle: 'Te pide tu clic para casi todo lo que no sea leer y escribir notas dentro de tu cerebro. El más estricto.' },
+  { modo: 'carpeta', nombre: 'Automático en mi carpeta', recomendado: true, detalle: 'Dentro de tu cerebro y de tus carpetas agregadas trabaja sin preguntarte: lee, busca, crea y edita archivos, y ajusta sus instrucciones y skills. Te pregunta para todo lo que sale de ahí (comandos que instalan o usan internet, páginas nuevas, otras carpetas).' },
+  { modo: 'libre', nombre: 'Sin preguntar', detalle: 'Corre comandos, lee fuera de su carpeta, abre páginas y usa tus herramientas conectadas sin pedirte clic. Para cuando ya confías en lo que le encargas.' },
+]
 export interface CarpetaAbierta { ruta: string; abierta: number }
 
 export interface GastoOpenRouter {

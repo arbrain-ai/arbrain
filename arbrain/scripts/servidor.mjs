@@ -9,6 +9,7 @@
  *   npm run servidor -- detener              apaga el servidor que esté corriendo
  *   npm run servidor -- contrasena [--nueva] muestra (o cambia) la contraseña para entrar desde otro navegador
  *   npm run servidor -- arranque-automatico activar|desactivar|estado
+ *   npm run servidor -- telefono encender|apagar|estado|codigo   tu cerebro en el teléfono por tu Tailscale (scripts/servidor/telefono.mjs)
  *   npm run servidor -- empaquetar --salida <carpeta>   (CI) arma el programa ya compilado de esta plataforma
  *
  * Programa ya compilado (v0.2.7): si la versión publicada trae el programa de esta plataforma, se baja, se verifica con
@@ -40,6 +41,7 @@ import {
 } from './servidor/rutas.mjs'
 import { PRELUDIO_WEB } from './servidor/preludio-web.mjs'
 import { armarPaquete, programaYaCompilado } from './servidor/programa.mjs'
+import * as telefono from './servidor/telefono.mjs'
 
 const ARBRAIN = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const SERVER = join(ARBRAIN, 'server')
@@ -309,6 +311,7 @@ const S = {
   reinicios: { daemon: [], web: [] },
   ultimoError: null, reiniciando: false, pausado: { daemon: false, web: false },
   tickets: new Map(),
+  codigos: telefono.crearCodigos(),
 }
 
 function entornoComun() {
@@ -377,6 +380,8 @@ function lanzarWeb() {
     ARBRAIN_SESION_GENERACION: String(generacionSesiones()),
     ARBRAIN_SERVIDOR_CONTROL: `http://${HOST}:${S.puertoControl}`,
     NEXT_TELEMETRY_DISABLED: '1',
+    // Teléfono (23 oct 2026): el Host *.ts.net que publica `tailscale serve`, solo mientras esté encendido.
+    ...telefono.entornoWeb(R),
   }
   const linea = lineaSecretos({
     ARBRAIN_DESKTOP_SECRET: S.contrasena,
@@ -465,6 +470,20 @@ async function reiniciarDaemonAhora() {
   } finally { S.reiniciando = false }
 }
 
+/** Relanza solo la web (el teléfono cambió el Host permitido). En fila con los reinicios del daemon. */
+function reiniciarWeb() {
+  const ahora = async () => {
+    if (S.apagando) return
+    await apagarHijo('web')
+    S.reinicios.web = []
+    S.pausado.web = false
+    lanzarWeb()
+    await esperar(webSana, 90_000)
+  }
+  filaReinicio = filaReinicio.then(ahora, ahora)
+  return filaReinicio
+}
+
 async function apagarTodo(codigo = 0) {
   if (S.apagando) return
   S.apagando = true
@@ -521,6 +540,10 @@ function servidorControl() {
       }
       if (req.method === 'POST' && ruta === '/detener' && esCli) { responder(200, { ok: true }); setTimeout(() => apagarTodo(0), 50); return }
       if (req.method === 'GET' && ruta === '/estado') return responder(200, { pid: process.pid, puertoWeb: S.puertoWeb, daemon: daemonInfo(), web: { pid: S.web?.pid ?? null, pausado: S.pausado.web } })
+      if (ruta.startsWith('/telefono/')) {
+        const r = await telefono.atenderControl({ metodo: req.method, ruta, cuerpo, esWeb, esCli }, { R, puertoWeb: () => S.puertoWeb, reiniciarWeb, registrar, codigos: S.codigos })
+        if (r) return responder(r[0], r[1])
+      }
       if (!esWeb) return responder(403, { error: 'Solo la web.' })
       if (req.method === 'GET' && ruta === '/llaves') return responder(200, estadoLlaves(llavesGuardadas()))
       if (req.method === 'POST' && ruta === '/llaves/guardar') {
@@ -643,6 +666,7 @@ async function iniciar() {
     return apagarTodo(1)
   }
   try { await sembrarLienzos() } catch (e) { registrar(`Lienzos de inicio: ${e?.message ?? e}`) }
+  void telefono.alArrancar({ R, puertoWeb: S.puertoWeb, registrar }).catch((e) => registrar(`Teléfono: ${e?.message ?? e}`))
   const url = `http://${HOST}:${S.puertoWeb}`
   console.log(`
   Arbrain está corriendo en ${url}  (solo en esta computadora)
@@ -746,6 +770,11 @@ async function main() {
     console.log(ya ? '[arbrain] Reinicia para aplicarlo: npm run servidor -- detener && npm run servidor' : '[arbrain] Se aplica la próxima vez que arranques.')
     return
   }
+  if (orden === 'telefono') {
+    privada(R.config)
+    const guardado = () => { const n = Number.parseInt((() => { try { return readFileSync(join(R.config, 'puerto-web'), 'utf8') } catch { return '' } })().trim(), 10); return puertoValido(n) ? n : null }
+    return telefono.orden({ R, sub: posicionales[1], vivo, pedir, puertoGuardado: guardado })
+  }
   if (orden === 'arranque-automatico') {
     const sub = posicionales[1] ?? 'estado'
     const base = { plataforma: process.platform, home: homedir(), env: process.env }
@@ -769,7 +798,7 @@ async function main() {
     console.log(`[arbrain] Arranque automático: ${a.activo ? `activado (${a.ruta})` : 'desactivado'}`)
     return
   }
-  fallar(`Orden desconocida: ${orden}. Usa: iniciar, abrir, estado, detener, contrasena, cerrar-sesiones, arranque-automatico, empaquetar.`)
+  fallar(`Orden desconocida: ${orden}. Usa: iniciar, abrir, estado, detener, contrasena, cerrar-sesiones, arranque-automatico, telefono, empaquetar.`)
 }
 
 main().catch((e) => fallar(e?.stack ?? String(e)))

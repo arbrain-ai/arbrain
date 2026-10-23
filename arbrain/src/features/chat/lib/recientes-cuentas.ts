@@ -31,6 +31,7 @@ export const CUENTAS_RECIENTES: readonly CuentaReciente[] = [
   { id: 'grok', etiqueta: 'Grok 4.7', corta: 'Grok', texto: 'text-sky-300' },
   { id: 'mimo', etiqueta: 'MiMo-V2.6-Pro', corta: 'MiMo', texto: 'text-sky-300' },
   { id: 'glm', etiqueta: 'GLM-5.3', corta: 'GLM', texto: 'text-sky-300' },
+  { id: 'kimi', etiqueta: 'Kimi K3', corta: 'Kimi', texto: 'text-sky-300' },
 ]
 
 /** Cuenta de una conversación: NULL/ausente = Claude g00. */

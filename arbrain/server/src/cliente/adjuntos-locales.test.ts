@@ -94,7 +94,8 @@ describe('guardia de inyección', () => {
 describe('el plan del alumno es suyo (v0.2.6)', () => {
   // Cada objetivo que Levy agendaba pedía un clic «cambia lo que el agente puede hacer»; con tres quedaba uno.
   it('objetivos, calendario y hábitos se editan sin clic; la configuración del agente sigue protegida', () => {
-    const ctx = contextoPolitica({}, { ARBRAIN_HOME: home, ARBRAIN_DATA_DIR: datosDaemon, HOME: raiz } as NodeJS.ProcessEnv)
+    // Modo «Preguntar siempre» (el de v0.2.6); en «Automático en mi carpeta» las skills en Markdown se editan sin clic.
+    const ctx = contextoPolitica({ modo: 'preguntar' }, { ARBRAIN_HOME: home, ARBRAIN_DATA_DIR: datosDaemon, HOME: raiz } as NodeJS.ProcessEnv)
     for (const f of ['objetivos.md', 'calendario.json', 'habitos.json']) {
       expect(decidirHerramienta('Edit', { file_path: join(home, '.claude', 'plan', f), old_string: 'a', new_string: 'b' }, ctx).tipo, f).toBe('permitir')
     }

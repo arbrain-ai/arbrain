@@ -46,7 +46,7 @@ dia: 3
 ---
 # Mi camino en el programa (Prueba)
 
-- **Dónde voy:** día 3 de 90 · semana 1 de 12 · etapa 1 de 5 «Tu cerebro» (semanas 1 y 2).
+- **Dónde voy:** día 3 de 90 · semana 1 de 12 · etapa 1 de 5 «Tu cerebro» (semanas 0 y 1).
 - **Mis casillas de la semana 1:** 3 de 5 (hechas: 1, 2, 3).
   - Falta la 4: Tu ritual de la mañana y tres encargos reales hechos con tu Levy.
   - Falta la 5: Te presentaste en la comunidad.

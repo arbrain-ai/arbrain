@@ -34,9 +34,12 @@ export function urlControl(env: Env = process.env): string | null {
 
 export const DURACION_SESION_S = 30 * 24 * 60 * 60
 
-/** Cookie de sesión del modo servidor: HttpOnly, SameSite=Strict, 30 días, solo esta web (host-only). */
-export function cookieSesion(nombre: string, valor: string): string {
-  return `${nombre}=${encodeURIComponent(valor)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${DURACION_SESION_S}`
+/**
+ * Cookie de sesión del modo servidor: HttpOnly, SameSite=Strict, 30 días, solo esta web (host-only). `segura` (el
+ * teléfono por HTTPS de Tailscale, 23 oct 2026) agrega `Secure`: el navegador nunca la manda en claro.
+ */
+export function cookieSesion(nombre: string, valor: string, segura = false): string {
+  return `${nombre}=${encodeURIComponent(valor)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${DURACION_SESION_S}${segura ? '; Secure' : ''}`
 }
 
 /** Pase de un solo uso que da el supervisor al abrir el navegador: 64 hex. */
