@@ -37,9 +37,9 @@ nuevas; uno en PARCHE, arreglos.
   instalación lo deja como nuevo.
 - **Reinstalar con Arbrain todavía encendido ya no se queda en la versión vieja:** la instalación nueva apaga la
   anterior y arranca la suya.
-- **Windows: tu memoria y el freno de seguridad ya corren en cada mensaje.** Los ganchos de Claude Code buscaban
-  `python3`, que en Windows suele ser un acceso falso de la Microsoft Store; ahora encuentran el Python real y escriben
-  los acentos bien. En Mac y Linux no cambia nada.
+- **El freno de seguridad y tu memoria corren siempre.** En Windows, los ganchos de Claude Code buscaban `python3`,
+  que suele ser un acceso falso de la Microsoft Store; ahora encuentran el Python real y escriben los acentos bien. En
+  una Mac con el Python que trae Apple, el freno de «enviar, borrar, pagar» fallaba al cargar y no frenaba; ya frena.
 
 **Qué tienes que hacer**
 - Actualiza con el prompt de instalación (o «actualiza mi Arbrain»). Si todavía no tienes la app de escritorio, usa

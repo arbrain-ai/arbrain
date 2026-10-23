@@ -1,9 +1,9 @@
 {
   "generador": "arbrain/empaquetado/generador",
   "origen": {
-    "ref": "1371213c5a7873251635ec26c0534328ee35ebf2",
-    "commit": "1371213c5a7873251635ec26c0534328ee35ebf2",
-    "fecha": "2026-10-22T21:31:18-06:00"
+    "ref": "028aee2e8b8b67b59baaebb4c849872926994433",
+    "commit": "028aee2e8b8b67b59baaebb4c849872926994433",
+    "fecha": "2026-10-22T22:00:10-06:00"
   },
   "version": "0.2.9",
   "allowlist": {
@@ -35,20 +35,20 @@
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/claude/hooks/agenda-context.py"
     },
     ".claude/hooks/candado-freno.py": {
-      "sha256": "cb633d950cf24e67a936693cf5668d26a6521dd3003e07a376ac4fd9247b6fdc",
-      "bytes": 9583,
+      "sha256": "e04ec1600c444baf14af94e7781dc88a44ab59aae5eceaed8420c6649b413ac3",
+      "bytes": 9710,
       "modo": "755",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/claude/hooks/candado-freno.py"
     },
     ".claude/hooks/candado-pantalla.py": {
-      "sha256": "7a6b59a53cb56aa590bf9eec11cfe3f3060a1f0738d0c30a89abf30512f427fd",
-      "bytes": 3812,
+      "sha256": "4ae3382fee2ba4151f970558765f39b15831dfd79923db8ba3404f456b6c7eda",
+      "bytes": 3939,
       "modo": "755",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/claude/hooks/candado-pantalla.py"
     },
     ".claude/hooks/candados_comun.py": {
-      "sha256": "bd4729726a7eef266dc79445d4b055648ed1c89c8bd90006fc6b5ca6cb9f9db5",
-      "bytes": 8538,
+      "sha256": "5e05b3f8737cde82552d55473775123b3f9bc41a110178a14956dae7d7c78797",
+      "bytes": 8698,
       "modo": "644",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/claude/hooks/candados_comun.py"
     },
@@ -625,8 +625,8 @@
       "origen": "arbrain/empaquetado/ci/workflows/escritorio.yml"
     },
     ".github/workflows/modo-servidor.yml": {
-      "sha256": "9886128963eed4ca8911591666ca1b56741963358fb2b977c00c53637a4a3347",
-      "bytes": 5998,
+      "sha256": "c30619e47fd18fbc5202ff7e085550fdf9d93ff47b53652cb29dc4a4f724c83a",
+      "bytes": 6085,
       "modo": "644",
       "origen": "arbrain/empaquetado/ci/workflows/modo-servidor.yml"
     },
@@ -683,8 +683,8 @@
       "origen": "distribucion:CAPAS.json"
     },
     "CHANGELOG.md": {
-      "sha256": "912a00a3044cbc25fff34f6b319efba928368b2d33fbc6d1e72f58f1d526acd0",
-      "bytes": 20867,
+      "sha256": "9cb6b6208af50c796bcaec97ddd55f15d4612cc74467de4466f33b804ebde732",
+      "bytes": 20938,
       "modo": "644",
       "origen": "distribucion:CHANGELOG.md"
     },

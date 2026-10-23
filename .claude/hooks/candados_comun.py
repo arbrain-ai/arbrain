@@ -8,6 +8,9 @@ Contrato de salida:
   (o `additionalContext` para inyectar contexto). Salida 0.
 - Codex (`--runtime codex`): razón por stderr y salida 2, la vía estándar de los hooks de Codex.
 """
+# Anotaciones como texto: el python3 de Apple (3.9) no entiende `str | None` al cargar y el freno no corría (23 oct 2026).
+from __future__ import annotations
+
 import hashlib
 import json
 import os

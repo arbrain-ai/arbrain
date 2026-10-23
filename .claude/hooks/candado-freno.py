@@ -16,6 +16,8 @@ Cómo trae la cita cada vía:
 Para dejar pasar un script tuyo que ya tiene su propio freno (por ejemplo, una cola de aprobación),
 agrega su nombre de archivo a LISTA_BLANCA.
 """
+# Anotaciones como texto: el python3 de Apple (3.9) no entiende `str | None` (23 oct 2026).
+from __future__ import annotations
 import json
 import os
 import re

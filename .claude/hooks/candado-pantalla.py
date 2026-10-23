@@ -10,6 +10,8 @@ Traer al frente = `open` sin `-g` (incluye -a/-b), `osascript … activate|front
 Permite: un `open` suelto, `open -g` (segundo plano) aunque esté en bucle, y el texto que solo
 menciona esos comandos (grep, echo entre comillas).
 """
+# Anotaciones como texto: el python3 de Apple (3.9) no entiende `str | None` (23 oct 2026).
+from __future__ import annotations
 import os
 import re
 import sys
