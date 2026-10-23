@@ -40,3 +40,36 @@ export async function probarLlaveVoz(llave: string | undefined, transport: typeo
       : { ok: false, code: 'sin_red', error: 'No hay conexión con Groq.' }
   }
 }
+
+/**
+ * Leer las respuestas en voz alta en la edición cliente (v0.2.10; grupal del 23 oct: «la voz por defecto en Windows es
+ * fea»). Con la llave de LemonFox del alumno, `/tts` devuelve MP3 de LemonFox ya a la velocidad del lector (`speed` de
+ * LemonFox; el lector suena a 1x de su propio buffer, ver voz-servidor.ts). Sin llave, `null`: la web cae a la mejor voz
+ * del sistema (chat-speech.ts › currentVoice). Nunca devuelve la llave ni el cuerpo crudo del proveedor.
+ */
+export const VOZ_LEMONFOX = 'alex'
+const SPEECH = 'https://api.lemonfox.ai/v1/audio/speech'
+
+export type HablaLemonfox = { ok: true; audio: Buffer; tempo: number } | { ok: false; status: number; error: string }
+
+export async function hablarLemonfox(texto: string, tempo: number | undefined, llave: string | undefined, transport: typeof fetch = fetch): Promise<HablaLemonfox | null> {
+  if (!llave?.trim()) return null
+  const velocidad = typeof tempo === 'number' && Number.isFinite(tempo) ? Math.min(3, Math.max(0.5, tempo)) : 1
+  try {
+    const r = await transport(SPEECH, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${llave.trim()}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ input: texto, voice: VOZ_LEMONFOX, language: 'es', speed: velocidad, response_format: 'mp3' }),
+      signal: AbortSignal.timeout(45_000),
+    })
+    if (!r.ok) {
+      await r.body?.cancel().catch(() => {})
+      const error = r.status === 401 || r.status === 403 ? 'LemonFox no reconoce tu llave.' : r.status === 402 ? 'Tu cuenta de LemonFox no tiene saldo.' : r.status === 429 ? 'LemonFox está ocupado.' : `LemonFox respondió ${r.status}.`
+      return { ok: false, status: r.status === 429 ? 429 : 502, error }
+    }
+    return { ok: true, audio: Buffer.from(await r.arrayBuffer()), tempo: velocidad }
+  } catch (e) {
+    const nombre = (e as Error)?.name
+    return { ok: false, status: 503, error: nombre === 'TimeoutError' || nombre === 'AbortError' ? 'LemonFox tardó demasiado.' : 'No hay conexión con LemonFox.' }
+  }
+}

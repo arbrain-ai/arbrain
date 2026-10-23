@@ -32,11 +32,20 @@ import { hostDe, parsearUrl, senalExfiltracion } from './url.js'
 import { extraerUrls, normalizarUrl } from './procedencia.js'
 import { carpetasAbiertas } from './carpetas.js'
 import { destinoDeDinero, dineroEnTexto, MCP_DINERO, MENSAJE_DINERO } from './dinero.js'
+import { DONDE_CARPETAS, DONDE_PERMISOS, modoPermisos, NOMBRE_MODO, type ModoPermisos } from './modo-permisos.js'
+import { EXT_EJECUTABLE } from './hooks-proyecto.js'
 
 export type DecisionPolitica =
-  | { tipo: 'permitir' }
+  | { tipo: 'permitir'; porModo?: ModoPermisos }
   | { tipo: 'negar'; motivo: string }
-  | { tipo: 'confirmar'; categoria: CategoriaConfirmacion; resumen: string; literal: string; avisos: string[] }
+  | {
+    tipo: 'confirmar'; categoria: CategoriaConfirmacion; resumen: string; literal: string; avisos: string[]
+    /**
+     * Desde qué modo de permisos (`modo-permisos.ts`) esta confirmación corre sin clic: `carpeta` (también en `libre`)
+     * o `libre`. Sin campo: `libre` si la categoría es «otra»; el freno (enviar, borrar, publicar, pagar) nunca.
+     */
+    relajable?: 'carpeta' | 'libre'
+  }
 
 export interface ContextoPolitica {
   /** Cerebro del alumno (ARBRAIN_HOME), ya con realpath. Único lugar donde los agentes escriben. */
@@ -52,12 +61,17 @@ export interface ContextoPolitica {
   /** Carpeta de los adjuntos del chat (UPLOADS_DIR): lo que se lee de ahí es contenido de afuera, con su nombre. */
   adjuntos?: string
   /**
-   * Carpetas que la persona abrió en Ajustes › Seguridad (una por una, con su clic): se leen sin preguntar y escribir en
+   * Carpetas que la persona abrió en Ajustes › Permisos y seguridad (una por una, con su clic): se leen sin preguntar y escribir en
    * ellas con las herramientas de archivos pide confirmación (fuera de ellas, escribir fuera del cerebro se niega).
    */
   abiertas?: string[]
-  /** ¿Bash corre dentro del sandbox del sistema? Sin sandbox, todo Bash se confirma. */
+  /** ¿Bash corre dentro del sandbox del sistema? Sin sandbox, todo Bash se confirma (salvo el modo de permisos). */
   sandbox: boolean
+  /**
+   * Modo de permisos que eligió la persona (Ajustes › Permisos). Sin campo: «preguntar» (lo de siempre). Las rutinas
+   * lo fijan en «preguntar».
+   */
+  modo?: ModoPermisos
   /** Dominios que la persona aprobó para WebFetch en esta sesión (red team 2 M-5). Por defecto, los del daemon. */
   dominiosWeb?: Set<string>
   /**
@@ -114,6 +128,7 @@ export function contextoPolitica(over: Partial<ContextoPolitica> = {}, env: Node
     ...(uploads ? { adjuntos: uploads } : {}),
     abiertas: carpetasAbiertas().map(c => c.ruta),
     sandbox: false,
+    modo: modoPermisos(),
     ...over,
   }
 }
@@ -349,6 +364,9 @@ const confirmar = (categoria: CategoriaConfirmacion, resumen: string, literal: s
     ? { tipo: 'negar', motivo: `la acción es demasiado larga para que la persona la revise completa (${literal.length} caracteres, máximo ${LITERAL_MAX}); divídela en pasos más chicos` }
     : { tipo: 'confirmar', categoria, resumen, literal, avisos }
 
+/** Marca desde qué modo de permisos una confirmación corre sin clic (lo negado no cambia). */
+const relajar = (d: DecisionPolitica, nivel: 'carpeta' | 'libre'): DecisionPolitica => d.tipo === 'confirmar' ? { ...d, relajable: nivel } : d
+
 /** Herramientas integradas que no actúan fuera de la conversación (o cuyo efecto ya revisa otra regla). */
 const INOCUAS = new Set([
   'WebSearch', 'TodoWrite', 'Task', 'Agent', 'TaskCreate', 'TaskGet', 'TaskList', 'TaskUpdate', 'TaskStop', 'TaskOutput',
@@ -368,7 +386,29 @@ const esShell = (h: string) => h === 'Bash' || h === 'PowerShell' || h === 'Moni
 
 export function decidirHerramienta(herramienta: string, input: unknown, ctx: ContextoPolitica): DecisionPolitica {
   const d = decidirSinContexto(herramienta, input, ctx)
-  return ctx.contaminada ? endurecerContaminada(d, herramienta, input, ctx) : d
+  // Una conversación que leyó contenido de afuera no se relaja con ningún modo: lo de afuera puede estar dando órdenes.
+  return ctx.contaminada ? endurecerContaminada(d, herramienta, input, ctx) : aplicarModo(d, ctx)
+}
+
+/** Las categorías del freno: ningún modo las deja correr sin el clic de la persona. */
+const FRENO = new Set<CategoriaConfirmacion>(['enviar', 'borrar', 'publicar', 'pagar'])
+
+/**
+ * Modo de permisos (grupal 23 oct 2026): «carpeta» deja correr sin clic las confirmaciones marcadas `carpeta`; «libre»,
+ * todas las de categoría «otra». Lo negado sigue negado y el freno sigue pidiendo clic. En «preguntar», a lo que en
+ * «carpeta» correría solo se le suma un aviso para que la persona sepa dónde dejar de verlo.
+ */
+export function aplicarModo(d: DecisionPolitica, ctx: ContextoPolitica): DecisionPolitica {
+  if (d.tipo !== 'confirmar' || FRENO.has(d.categoria)) return d
+  const modo = ctx.modo ?? 'preguntar'
+  const nivel = d.relajable ?? 'libre'
+  if (modo === 'libre' || (modo === 'carpeta' && nivel === 'carpeta')) return { tipo: 'permitir', porModo: modo }
+  const sugerido = nivel === 'carpeta' ? 'carpeta' : 'libre'
+  if (modo === 'preguntar' || sugerido === 'libre') {
+    const aviso = `para que no te pregunte esto, en ${DONDE_PERMISOS} elige «${NOMBRE_MODO[sugerido]}»`
+    return d.avisos.includes(aviso) ? d : { ...d, avisos: [...d.avisos, aviso] }
+  }
+  return d
 }
 
 /** Páginas que una sesión contaminada abre sin clic (todas ya vistas); de ahí en adelante, cada una pregunta. */
@@ -596,12 +636,13 @@ function decidirSinContexto(herramienta: string, input: unknown, ctx: ContextoPo
     if (!v) return negar(`${herramienta} sin ruta`)
     const r = veredictoRuta(v, 'escribir', ctx)
     if (r.tipo === 'secreta') return negar(`${herramienta} sobre ${r.motivo}`)
-    if (r.tipo === 'fuera') return negar(`${herramienta} fuera de tu cerebro (${r.ruta}): los agentes solo escriben dentro de la carpeta de Arbrain y de las carpetas que la persona abrió en Ajustes › Seguridad`)
-    if (r.tipo === 'abierta') return confirmar('otra', `Escribir en una carpeta que abriste: ${r.ruta}`, `${herramienta} ${r.ruta}\n${JSON.stringify(i, null, 1)}`, ['escribe fuera de tu cerebro, en una carpeta que abriste'])
-    if (r.tipo === 'protegida' && r.nivel === 'negar') return negar(`${herramienta} sobre ${r.ruta}: los ajustes, los ganchos y git del cerebro los ejecuta Arbrain fuera del sandbox; el agente no los escribe (si la persona quiere cambiarlos, lo hace a mano)`)
+    if (r.tipo === 'fuera') return negar(`${herramienta} fuera de tu cerebro (${r.ruta}): los agentes solo escriben dentro de la carpeta de Arbrain y de las carpetas que la persona abrió. Si la persona quiere que trabajes ahí, guíala a abrir esa carpeta en ${DONDE_CARPETAS}`)
+    if (r.tipo === 'abierta') return relajar(confirmar('otra', `Escribir en una carpeta que abriste: ${r.ruta}`, `${herramienta} ${r.ruta}\n${JSON.stringify(i, null, 1)}`, ['escribe fuera de tu cerebro, en una carpeta que abriste']), 'carpeta')
+    if (r.tipo === 'protegida' && r.nivel === 'negar') return negar(`${herramienta} sobre ${r.ruta}: ${MOTIVO_AJUSTES}`)
     if (r.tipo === 'protegida') {
       // El literal es la entrada COMPLETA de la herramienta (sin recortes): es lo que de verdad se escribe.
-      return confirmar('otra', `Cambiar la configuración del agente: ${r.ruta}`, `${herramienta} ${r.ruta}\n${JSON.stringify(i, null, 1)}`, ['este archivo cambia lo que el agente puede hacer'])
+      const d = confirmar('otra', `Cambiar la configuración del agente: ${r.ruta}`, `${herramienta} ${r.ruta}\n${JSON.stringify(i, null, 1)}`, ['este archivo cambia lo que el agente puede hacer'])
+      return configuracionEnTexto(r.ruta, ctx.home) ? relajar(d, 'carpeta') : d
     }
     return { tipo: 'permitir' }
   }
@@ -871,7 +912,26 @@ function expandirComodin(patron: string, ctx: ContextoPolitica, cwd: string): st
   } catch { return null }
 }
 
-const MOTIVO_PROTEGIDA = (ruta: string) => `escribir en ${ruta}: los ajustes, los ganchos y git del cerebro los ejecuta Arbrain fuera del sandbox; el agente no los toca (si la persona quiere cambiarlos, lo hace a mano)`
+/**
+ * Por qué el agente nunca escribe sus ajustes ni sus ganchos (los ejecuta Arbrain fuera del sandbox) y a dónde guía a la
+ * persona: sus permisos se cambian en Ajustes, nunca los cambia el propio agente.
+ */
+const MOTIVO_AJUSTES = `los ajustes, los ganchos y git del cerebro los ejecuta Arbrain fuera del sandbox y ningún agente cambia sus propios permisos. Si la persona quiere que preguntes menos o que entres a otra carpeta, guíala a ${DONDE_PERMISOS} (modo de permisos y carpetas); si quiere editar ese archivo, lo hace ella a mano`
+
+/**
+ * Configuración del agente que es TEXTO (instrucciones y skills en Markdown dentro de `.claude/`, CLAUDE.md, AGENTS.md):
+ * en el modo «carpeta» se edita sin clic. Lo que se ejecuta (scripts, `.gitattributes`, `.gitmodules`, el código de
+ * `arbrain/`) sigue pidiendo clic salvo en «libre».
+ */
+function configuracionEnTexto(real: string, home: string): boolean {
+  const rel = real.slice(home.length).replace(/^[\\/]+/, '').replace(/\\/g, '/').toLowerCase()
+  if (EXT_EJECUTABLE.test(rel) || /\.json$/.test(rel)) return false
+  const nombre = rel.split('/').pop() ?? ''
+  if (['claude.md', 'claude.local.md', 'agents.md'].includes(nombre)) return true
+  return rel.startsWith('.claude/') && /\.(md|markdown|txt)$/.test(rel)
+}
+
+const MOTIVO_PROTEGIDA = (ruta: string) => `escribir en ${ruta}: ${MOTIVO_AJUSTES}`
 /** Texto crudo que nombra lo que se niega (para comandos que el analizador no entiende). */
 const TOCA_PROTEGIDA = /(^|[\s'"=:/])\.claude[\\/]+(hooks|settings(\.local)?\.json)\b|(^|[\s'"=:/])\.git([\\/]|\s|$|['"])/i
 
@@ -901,12 +961,14 @@ function decidirBash(i: Record<string, unknown>, ctx: ContextoPolitica): Decisio
   const cwds = [ctx.cwd]
   let soloLectura = true
   let motivoNoLectura = ''
+  // Modo «carpeta»: si lo único que no es lectura es crear carpetas o archivos dentro del cerebro, corre sin clic.
+  let soloEnSuCarpeta = true
   const noLectura = (motivo: string) => { if (soloLectura) motivoNoLectura = motivo; soloLectura = false }
 
   for (const c of a.comandos) {
     const r = revisarComando(c, ctx, cwds)
     if (r.tipo === 'negar') return negar(r.motivo)
-    if (r.clase.tipo === 'otro') noLectura(r.clase.motivo)
+    if (r.clase.tipo === 'otro') { noLectura(r.clase.motivo); soloEnSuCarpeta = false }
     else if (r.clase.tipo === 'escritura-local' && !ctx.sandbox) noLectura('crea archivos')
   }
   if (!soloLectura) {
@@ -920,9 +982,13 @@ function decidirBash(i: Record<string, unknown>, ctx: ContextoPolitica): Decisio
         if (v.tipo === 'protegida' && v.nivel === 'negar') return negar(MOTIVO_PROTEGIDA(t))
       }
     }
-    return pedir(motivoNoLectura)
+    const d = pedir(motivoNoLectura)
+    return soloEnSuCarpeta && !sinSandbox ? relajar(d, 'carpeta') : d
   }
-  if (!ctx.sandbox) return confirmar('otra', 'Ejecutar un comando de solo lectura (este sistema no tiene sandbox para Bash)', cmd, avisos)
+  if (!ctx.sandbox) {
+    const d = confirmar('otra', 'Ejecutar un comando de solo lectura (este sistema no tiene sandbox para Bash)', cmd, avisos)
+    return sinSandbox ? d : relajar(d, 'carpeta')
+  }
   if (sinSandbox) return pedir('pide correr fuera del sandbox')
   return { tipo: 'permitir' }
 }

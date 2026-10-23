@@ -12,7 +12,7 @@ describe('registro de modelos', () => {
     const r = ruta()
     expect(r).toMatchObject({ modelId: 'deepseek/deepseek-v4.1-flash', proveedorId: 'openrouter', motor: 'codex-app-server', cuenta: 'deepseek' })
     expect(r.codex?.applyPatchToolType).toBeNull()
-    expect(rutasApi().map(x => x.cuenta)).toEqual(['deepseek', 'gpt-luna', 'gpt-astra', 'gpt-sol', 'gemini', 'muse', 'grok', 'mimo', 'glm'])
+    expect(rutasApi().map(x => x.cuenta)).toEqual(['deepseek', 'gpt-luna', 'gpt-astra', 'gpt-sol', 'gemini', 'muse', 'grok', 'mimo', 'glm', 'kimi'])
   })
 
   it('solo hay dos motores', () => {
@@ -21,7 +21,7 @@ describe('registro de modelos', () => {
   })
 
   it('reconoce los espacios de siempre más los del registro', () => {
-    expect(cuentasChat()).toEqual(['default', 'bro', 'codex', 'yt', 'deepseek', 'gpt-luna', 'gpt-astra', 'gpt-sol', 'gemini', 'muse', 'grok', 'mimo', 'glm'])
+    expect(cuentasChat()).toEqual(['default', 'bro', 'codex', 'yt', 'deepseek', 'gpt-luna', 'gpt-astra', 'gpt-sol', 'gemini', 'muse', 'grok', 'mimo', 'glm', 'kimi'])
     expect(esCuentaChat('deepseek')).toBe(true)
     expect(esCuentaChat('otro')).toBe(false)
     expect(esCuentaApi('codex')).toBe(false)

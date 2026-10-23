@@ -3,8 +3,8 @@
  * Seguridad del alumno (12 oct 2026; docs/builds/seguridad-alumno-2026-10-12/AUDITORIA.md). Edición cliente.
  *
  *   FrenoGeneral       botón «Pausar todo» siempre a la mano y, en pausa, la franja «Levy está en pausa · Reanudar».
- *   SeccionSeguridad   Ajustes › Seguridad: el freno, «Lo que hizo Levy» (bitácora local), carpetas abiertas y el tope
- *                      de gasto.
+ *   SeccionSeguridad   Ajustes › Permisos y seguridad: el modo de permisos (grupal 23 oct 2026), las carpetas a las que
+ *                      el cerebro puede entrar, el freno, «Lo que hizo Levy» (bitácora local) y el tope de gasto.
  *   TopeDeGasto        texto y enlaces para poner un límite de crédito a la llave, y el gasto si el proveedor lo deja
  *                      ver (OpenRouter). Lo usan Ajustes › Llaves (y el primer arranque, que monta ese panel) y Seguridad.
  *
@@ -13,11 +13,11 @@
  */
 import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ExternalLink, FolderOpen, FolderPlus, Loader2, OctagonPause, Play, RefreshCw, ScrollText, Wallet, X } from 'lucide-react'
+import { ExternalLink, FolderOpen, FolderPlus, Loader2, OctagonPause, Play, RefreshCw, ScrollText, ShieldCheck, Wallet, X } from 'lucide-react'
 import { abrirEnNavegador } from '@/features/primer-arranque/lib/llaves'
 import {
-  ENLACES_TOPE, ETIQUETA_DECISION, horaDe, nombreHerramienta, resumenGasto,
-  type AccionBitacora, type CarpetaAbierta, type EstadoPausa, type RespuestaGasto,
+  ENLACES_TOPE, ETIQUETA_DECISION, FICHAS_MODO, horaDe, nombreHerramienta, resumenGasto,
+  type AccionBitacora, type CarpetaAbierta, type EstadoPausa, type EstadoPermisosLevy, type ModoPermisos, type RespuestaGasto,
 } from '../lib/seguridad'
 
 async function pedir<T>(url: string, init?: RequestInit): Promise<T> {
@@ -129,6 +129,45 @@ export function TopeDeGasto({ compacto = false }: { compacto?: boolean }) {
   )
 }
 
+/** Cuánto pregunta Levy antes de actuar. El freno (enviar, borrar, publicar, pagar) no depende del modo. */
+function ModoDePermisos() {
+  const [estado, setEstado] = useState<EstadoPermisosLevy | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [ocupado, setOcupado] = useState<ModoPermisos | null>(null)
+  useEffect(() => { void pedir<EstadoPermisosLevy>('/api/seguridad/permisos').then(setEstado).catch((e) => setError(e instanceof Error ? e.message : 'No se pudo leer.')) }, [])
+  const elegir = async (modo: ModoPermisos) => {
+    if (modo === estado?.modo) return
+    setOcupado(modo); setError(null)
+    try { setEstado(await pedir<EstadoPermisosLevy>('/api/seguridad/permisos', { method: 'POST', body: JSON.stringify({ modo }) })) }
+    catch (e) { setError(e instanceof Error ? e.message : 'No se pudo.') }
+    finally { setOcupado(null) }
+  }
+  return (
+    <Tarjeta titulo="Cuánto te pregunta Levy" icono={ShieldCheck}>
+      <div role="radiogroup" aria-label="Modo de permisos" className="space-y-2">
+        {FICHAS_MODO.map(f => {
+          const activo = estado?.modo === f.modo
+          return (
+            <button key={f.modo} type="button" role="radio" aria-checked={activo} disabled={!estado || !!ocupado} onClick={() => void elegir(f.modo)}
+              className={`flex w-full items-start gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors ${activo ? 'border-brand/60 bg-brand/10' : 'border-border-subtle hover:border-foreground/25'}`}>
+              <span aria-hidden className={`mt-1 grid size-3.5 shrink-0 place-items-center rounded-full border ${activo ? 'border-brand' : 'border-foreground/30'}`}>{activo && <span className="size-1.5 rounded-full bg-brand" />}</span>
+              <span className="min-w-0">
+                <span className="flex items-center gap-2 text-[13px] font-semibold text-foreground">{f.nombre}{f.recomendado && <span className="rounded-full bg-foreground/10 px-1.5 text-[10.5px] font-medium text-muted">recomendado</span>}{ocupado === f.modo && <Loader2 className="size-3 animate-spin" aria-hidden />}</span>
+                <span className="mt-0.5 block text-[12.5px] leading-relaxed text-muted">{f.detalle}</span>
+              </span>
+            </button>
+          )
+        })}
+      </div>
+      <p className="mt-3 text-[12.5px] leading-relaxed text-muted">
+        <b className="text-foreground/90">En cualquier modo</b>, enviar, borrar, publicar o pagar siempre te pide tu clic; tus llaves, contraseñas, navegadores y carteras nunca se tocan; y si Levy acaba de leer algo de internet, un correo o un archivo de afuera, vuelve a preguntarte antes de actuar. Las rutinas automáticas siempre preguntan. Levy no puede cambiar este ajuste: solo tú, aquí.
+      </p>
+      {estado && !estado.sandbox && estado.modo === 'libre' && <p className="mt-2 text-[12.5px] text-amber-300">En esta computadora los comandos de Levy no corren en una caja aislada: en «Sin preguntar» se ejecutan directamente.</p>}
+      {error && <p className="mt-2 text-[12.5px] text-red-300" role="alert">{error}</p>}
+    </Tarjeta>
+  )
+}
+
 function Carpetas() {
   const [carpetas, setCarpetas] = useState<CarpetaAbierta[] | null>(null)
   const [ruta, setRuta] = useState('')
@@ -144,16 +183,16 @@ function Carpetas() {
     finally { setOcupado(false) }
   }
   return (
-    <Tarjeta titulo="Carpetas abiertas para Levy" icono={FolderOpen}>
+    <Tarjeta titulo="Carpetas a las que tu cerebro puede entrar" icono={FolderOpen}>
       <p className="text-[13px] leading-relaxed text-muted">
-        Levy trabaja solo dentro de tu cerebro de Arbrain. Si necesita otra carpeta, ábresela aquí, una por una: podrá leerla sin preguntarte y te pedirá permiso para escribir en ella. Nunca entra a tus llaves, contraseñas, navegadores ni carteras, aunque abras su carpeta.
+        Levy trabaja dentro de tu cerebro de Arbrain. Si necesita otra carpeta (un proyecto, tus documentos de clientes), agrégala aquí, una por una: podrá leerla sin preguntarte y escribir en ella según el modo de arriba (en «Preguntar siempre» te pide permiso). Fuera de estas carpetas nunca escribe. Nunca entra a tus llaves, contraseñas, navegadores ni carteras, aunque agregues su carpeta.
       </p>
       <ul className="mt-3 space-y-1.5">
         {carpetas?.length === 0 && <li className="text-[12.5px] text-muted">Ninguna. Levy solo ve tu cerebro.</li>}
         {carpetas?.map(c => (
           <li key={c.ruta} className="flex items-center justify-between gap-2 rounded-lg bg-foreground/[0.04] px-3 py-2">
             <code className="min-w-0 truncate text-[12px] text-foreground/90" title={c.ruta}>{c.ruta}</code>
-            <button type="button" onClick={() => void mandar('cerrar', c.ruta)} disabled={ocupado} className="btn-secondary shrink-0 !px-2.5 !py-1 text-[12px]"><X className="size-3" aria-hidden /> Cerrar</button>
+            <button type="button" onClick={() => void mandar('cerrar', c.ruta)} disabled={ocupado} className="btn-secondary shrink-0 !px-2.5 !py-1 text-[12px]"><X className="size-3" aria-hidden /> Quitar</button>
           </li>
         ))}
       </ul>
@@ -165,7 +204,7 @@ function Carpetas() {
           <input type="checkbox" checked={seguro} onChange={(e) => setSeguro(e.target.checked)} className="mt-0.5" />
           <span>Entiendo que Levy podrá leer todo lo que hay en esta carpeta.</span>
         </label>
-        <button type="submit" disabled={!ruta.trim() || !seguro || ocupado} className="btn-secondary !px-3 !py-2 text-[13px]"><FolderPlus className="size-3.5" aria-hidden /> Abrir para Levy</button>
+        <button type="submit" disabled={!ruta.trim() || !seguro || ocupado} className="btn-secondary !px-3 !py-2 text-[13px]"><FolderPlus className="size-3.5" aria-hidden /> Agregar carpeta</button>
       </form>
       {error && <p className="mt-2 text-[12.5px] text-red-300" role="alert">{error}</p>}
     </Tarjeta>
@@ -200,7 +239,7 @@ function LoQueHizoLevy() {
                   <span className={`ml-auto ${tono[e.tono]}`}>{e.texto}</span>
                 </div>
                 <code className="mt-1 block whitespace-pre-wrap break-all text-[11.5px] leading-snug text-foreground/75">{a.que}</code>
-                {a.motivo && a.decision !== 'hecho' && <p className="mt-0.5 text-[11.5px] text-muted">{a.motivo}</p>}
+                {a.motivo && (a.decision !== 'hecho' || a.motivo.startsWith('sin preguntar')) && <p className="mt-0.5 text-[11.5px] text-muted">{a.motivo}</p>}
               </li>
             )
           })}
@@ -228,13 +267,14 @@ function Freno() {
   )
 }
 
-/** Ajustes › Seguridad. */
+/** Ajustes › Permisos y seguridad. */
 export function SeccionSeguridad() {
   return (
     <div className="space-y-4">
+      <ModoDePermisos />
+      <Carpetas />
       <Freno />
       <LoQueHizoLevy />
-      <Carpetas />
       <TopeDeGasto />
     </div>
   )

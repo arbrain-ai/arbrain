@@ -52,7 +52,7 @@ export async function transcribeAudio(filePath: string): Promise<string> {
  * Sintetiza texto a voz con Kokoro local (open source, corre en el Mac).
  * Endpoint OpenAI-compatible; voz em_alex (hombre, español). Retorna MP3.
  */
-export async function synthesizeSpeech(text: string, voice = 'levy', speed = 1.0): Promise<Buffer> {
+export async function synthesizeSpeech(text: string, voice = 'levy', speed = 1.0, tempo?: number): Promise<{ audio: Buffer; tempo: number }> {
   const url = `${KOKORO_TTS_URL}/v1/audio/speech`
 
   const response = await fetch(url, {
@@ -65,6 +65,8 @@ export async function synthesizeSpeech(text: string, voice = 'levy', speed = 1.0
       language: 'es',
       response_format: 'mp3',
       speed,
+      // Lector del chat (23 oct 2026): acelera el audio ya generado sin cambiar el tono (atempo en voz-agentes).
+      ...(tempo != null ? { tempo } : {}),
     }),
   })
 
@@ -75,5 +77,6 @@ export async function synthesizeSpeech(text: string, voice = 'levy', speed = 1.0
 
   const arrayBuffer = await response.arrayBuffer()
   logger.debug({ bytes: arrayBuffer.byteLength }, 'speech synthesized (voz-agentes)')
-  return Buffer.from(arrayBuffer)
+  // Un voz-agentes anterior al 23 oct no conoce `tempo` ni manda X-Tempo: el audio sale a 1x y el lector lo compensa.
+  return { audio: Buffer.from(arrayBuffer), tempo: Number(response.headers.get('x-tempo')) || 1 }
 }

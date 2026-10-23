@@ -31,7 +31,8 @@ const TODAS: ReadonlyArray<DefSeccion> = [
   // Voz del alumno (21 oct 2026): su llave de Groq (gratis) para dictar; «Escuchar» usa la voz del dispositivo.
   { id: 'voz', nombre: 'Voz', detalle: 'Dictar con tu llave de Groq (gratis)', ajustes: ['Llave de Groq', 'Groq', 'Dictar', 'Micrófono', 'Nota de voz', 'Transcribir', 'Escuchar'] },
   // Seguridad del alumno (12 oct 2026): freno general, bitácora, carpetas abiertas y tope de gasto.
-  { id: 'seguridad', nombre: 'Seguridad', detalle: 'Pausar todo, lo que hizo Levy, carpetas abiertas y tope de gasto', ajustes: ['Pausar todo', 'Reanudar', 'Lo que hizo Levy', 'Bitácora', 'Carpetas abiertas', 'Abrir carpeta', 'Tope de gasto', 'Límite de crédito', 'Gasto'] },
+  // Grupal 23 oct 2026: el modo de permisos y las carpetas van primero («demasiadas confirmaciones»).
+  { id: 'seguridad', nombre: 'Permisos y seguridad', detalle: 'Cuánto te pregunta Levy, a qué carpetas entra, pausar todo y tope de gasto', ajustes: ['Permisos', 'Modo de permisos', 'Preguntar siempre', 'Automático en mi carpeta', 'Sin preguntar', 'Confirmaciones', 'Carpetas a las que tu cerebro puede entrar', 'Carpetas abiertas', 'Abrir carpeta', 'Pausar todo', 'Reanudar', 'Lo que hizo Levy', 'Bitácora', 'Tope de gasto', 'Límite de crédito', 'Gasto'] },
   { id: 'privacidad', nombre: 'Privacidad', detalle: 'Monitoreo del programa y documentos legales', ajustes: ['Monitoreo de cohorte', 'Compartir mi avance', 'Qué se envía', 'Aviso de privacidad', 'Términos de uso', 'Licencia'] },
 ]
 
@@ -59,8 +60,8 @@ export const SECCIONES: ReadonlyArray<DefSeccion> = TODAS.filter((d) => GRUPOS.s
 
 export const SECCION_INICIAL: IdSeccion = CLIENTE ? 'llaves' : 'cuenta'
 
-/** Enlaces viejos que siguen vivos: `permisos` → Mac y sistema, `modelos` → Modelos, `notificaciones` → Notificaciones (id `avisos`). `labels` se fue al Board. */
-const ALIAS: Record<string, IdSeccion> = { notificaciones: 'avisos', permisos: 'mac', modelos: 'modelo', general: 'apariencia', teclado: 'atajos' }
+/** Enlaces viejos que siguen vivos: `permisos` → Mac y sistema (en la edición cliente, Permisos y seguridad), `modelos` → Modelos, `notificaciones` → Notificaciones (id `avisos`). `labels` se fue al Board. */
+const ALIAS: Record<string, IdSeccion> = { notificaciones: 'avisos', permisos: CLIENTE ? 'seguridad' : 'mac', modelos: 'modelo', general: 'apariencia', teclado: 'atajos' }
 
 export const defDe = (id: IdSeccion): DefSeccion => TODAS.find((s) => s.id === id)!
 

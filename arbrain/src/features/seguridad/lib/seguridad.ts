@@ -18,6 +18,15 @@ export interface AccionBitacora {
 }
 
 export interface EstadoPausa { pausado: boolean; desde: number | null }
+
+/** Modo de permisos de Levy (grupal 23 oct 2026). Mismos ids que `server/src/cliente/modo-permisos.ts`. */
+export type ModoPermisos = 'preguntar' | 'carpeta' | 'libre'
+export interface EstadoPermisosLevy { modo: ModoPermisos; modos: ModoPermisos[]; sandbox: boolean }
+export const FICHAS_MODO: ReadonlyArray<{ modo: ModoPermisos; nombre: string; detalle: string; recomendado?: boolean }> = [
+  { modo: 'preguntar', nombre: 'Preguntar siempre', detalle: 'Te pide tu clic para casi todo lo que no sea leer y escribir notas dentro de tu cerebro. El más estricto.' },
+  { modo: 'carpeta', nombre: 'Automático en mi carpeta', recomendado: true, detalle: 'Dentro de tu cerebro y de tus carpetas agregadas trabaja sin preguntarte: lee, busca, crea y edita archivos, y ajusta sus instrucciones y skills. Te pregunta para todo lo que sale de ahí (comandos que instalan o usan internet, páginas nuevas, otras carpetas).' },
+  { modo: 'libre', nombre: 'Sin preguntar', detalle: 'Corre comandos, lee fuera de su carpeta, abre páginas y usa tus herramientas conectadas sin pedirte clic. Para cuando ya confías en lo que le encargas.' },
+]
 export interface CarpetaAbierta { ruta: string; abierta: number }
 
 export interface GastoOpenRouter {

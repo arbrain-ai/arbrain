@@ -10,6 +10,11 @@ import { markdownHablable } from '@/features/chat/lib/lector-filtro'
 // 175/306: la voz `levy` de voz-agentes habla a 306 ppm (1.75x); el lector la pide a 1x.
 const LECTOR_SPEED = 175 / 306
 
+// Velocidades del lector (RATES de chat-speech.ts, hasta 3x; voz-agentes topa en TEMPO_MAX = 3): lo demás suena a 1x.
+function tempoLector(v: unknown): number {
+  return typeof v === 'number' && Number.isFinite(v) ? Math.min(3, Math.max(1, v)) : 1
+}
+
 // Fuentes, tablas y URLs sueltas no se oyen: la misma regla que el lector de la barra.
 function cleanTextForTts(text: string) {
   return markdownHablable(text)
@@ -42,14 +47,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden: Chat access requires owner or admin role' }, { status: 403 })
   }
 
-  const { text, lector } = await req.json() as { text?: string; lector?: boolean }
+  const { text, lector, velocidad } = await req.json() as { text?: string; lector?: boolean; velocidad?: number }
   if (!text?.trim()) {
     return NextResponse.json({ error: 'text is required' }, { status: 400 })
   }
 
   // Lector del chat (22 oct 2026): el texto ya viene HABLADO (buildSpoken en el cliente) y el resaltado se calcula
-  // sobre él, así que no se toca más que el espacio. Va a 1x: la voz `levy` hornea 1.75x (rate 306) y `speed` la
-  // devuelve a 175 ppm; el navegador acelera con playbackRate.
+  // sobre él, así que no se toca más que el espacio. La voz `levy` hornea 1.75x (rate 306) y `speed` la devuelve a
+  // 175 ppm (el 1x del lector). Desde el 23 oct la velocidad del lector también la pone el servidor (`tempo`, atempo
+  // sin cambiar el tono): el cliente reproduce por Web Audio, que no conserva el tono al acelerar.
   const clean = lector ? text.replace(/\s+/g, ' ').trim().slice(0, 5000) : cleanTextForTts(text)
   if (!clean) {
     return NextResponse.json({ error: 'text is empty after cleanup' }, { status: 400 })
@@ -61,7 +67,7 @@ export async function POST(req: NextRequest) {
       'Authorization': `Bearer ${CLAUDECLAW_TOKEN}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(lector ? { text: clean, voice: 'levy', speed: LECTOR_SPEED } : { text: clean }),
+    body: JSON.stringify(lector ? { text: clean, voice: 'levy', speed: LECTOR_SPEED, tempo: tempoLector(velocidad) } : { text: clean }),
   })
 
   if (!res.ok) {
@@ -73,6 +79,8 @@ export async function POST(req: NextRequest) {
   return new NextResponse(audio, {
     headers: {
       'Content-Type': 'audio/mpeg',
+      // Cuánto aceleró el servidor de verdad (un agent-server anterior no lo manda: el cliente lo toma como 1x).
+      ...(lector ? { 'X-Tempo': res.headers.get('x-tempo') ?? '1' } : {}),
       'Cache-Control': lector ? 'private, max-age=86400' : 'no-store',
     },
   })

@@ -446,6 +446,35 @@ async function recorridoExpediente(base, cookie) {
     }
     log('lienzos: «Mi plan» y «Calendario de 12 semanas» muestran el mes y la meta del expediente')
   } finally { puente.close() }
+  return await recorridoPermisos(base, cookie)
+}
+
+// ── Recorrido v0.2.10: modo de permisos y voz de las respuestas (grupal del 23 oct) ─────────────────────────────────────
+
+/**
+ * Por la web real, con la sesión: el modo nace «carpeta»; la persona lo cambia desde Ajustes (la web pone el secreto) a
+ * «libre» y de vuelta a «preguntar»; un modo inventado se rechaza; el cambio queda en «Lo que hizo Levy». Y «Escuchar»
+ * sin llave de LemonFox no se cuelga: `/api/chat/tts` responde rápido con error y la app cae a la voz del sistema.
+ */
+async function recorridoPermisos(base, cookie) {
+  const json = { cookie, 'Content-Type': 'application/json', Origin: base }
+  const leer = async () => { const r = await fetch(`${base}/api/seguridad/permisos`, { headers: { cookie } }); return { st: r.status, j: await r.json().catch(() => ({})) } }
+  const fijar = async (modo) => { const r = await fetch(`${base}/api/seguridad/permisos`, { method: 'POST', headers: json, body: JSON.stringify({ modo }) }); return { st: r.status, j: await r.json().catch(() => ({})) } }
+  let r = await leer()
+  if (r.st !== 200 || r.j.modo !== 'carpeta') return `permisos: el modo de fábrica respondió ${r.st} ${JSON.stringify(r.j).slice(0, 200)} (se esperaba «carpeta»)`
+  r = await fijar('libre')
+  if (r.st !== 200 || r.j.modo !== 'libre') return `permisos: cambiar a «Sin preguntar» respondió ${r.st} ${JSON.stringify(r.j).slice(0, 200)}`
+  if ((await leer()).j.modo !== 'libre') return 'permisos: el modo no quedó guardado'
+  if ((await fijar('todo')).st !== 400) return 'permisos: un modo inventado no se rechazó'
+  if ((await fijar('preguntar')).j.modo !== 'preguntar') return 'permisos: no se pudo volver a «Preguntar siempre»'
+  const bit = await (await fetch(`${base}/api/seguridad/bitacora?limite=20`, { headers: { cookie } })).json().catch(() => ({}))
+  if (!(bit.acciones ?? []).some((a) => /Permisos de Levy/.test(a.que ?? ''))) return 'permisos: el cambio no quedó en «Lo que hizo Levy»'
+  log('permisos: nace «Automático en mi carpeta», se cambia desde Ajustes y queda en «Lo que hizo Levy»')
+  const t0 = Date.now()
+  const tts = await fetch(`${base}/api/chat/tts`, { method: 'POST', headers: json, body: JSON.stringify({ text: 'Hola', lector: true, velocidad: 1 }) })
+  await tts.arrayBuffer().catch(() => {})
+  if (tts.ok || Date.now() - t0 > 15_000) return `voz: sin llave de LemonFox, /api/chat/tts respondió ${tts.status} en ${Date.now() - t0} ms (se esperaba un error rápido para caer a la voz del sistema)`
+  log(`voz: sin llave de LemonFox, «Escuchar» cae a la voz del sistema (${tts.status} en ${Date.now() - t0} ms)`)
   return null
 }
 

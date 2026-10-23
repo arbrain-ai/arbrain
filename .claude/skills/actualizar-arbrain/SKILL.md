@@ -72,6 +72,12 @@ PASO 3 · Verifica la firma y luego mira qué trae el autor
 - Revisa que el autor no toque mi capa: git diff --name-only main <ETIQUETA> y compáralo con CAPAS.json › alumno (las
   rutas dentro de arbrain/cerebro/semilla/ no cuentan: son la semilla). Si alguna ruta mía aparece: DETENTE y dime
   que lo avise en el grupo; no sigas.
+- Skills con el mismo nombre: compara git ls-tree -d --name-only <ETIQUETA> .claude/skills/ (las del autor nuevas),
+  git ls-tree -d --name-only HEAD .claude/skills/ (las mías) y git ls-tree -d --name-only main .claude/skills/ (las del
+  autor que ya tenía). Hay choque si una carpeta está en <ETIQUETA> y en HEAD pero NO en main. Por cada choque, antes del
+  PASO 4 (si no, git mezcla las dos skills en una sola carpeta): git mv .claude/skills/<nombre> .claude/skills/<nombre>-mia,
+  cambia la línea `name: <nombre>` por `name: <nombre>-mia` en su SKILL.md y
+  git add -A && git commit -m "Renombro mi skill <nombre> a <nombre>-mia". Dímelo en una línea.
 
 PASO 3b · Revisa lo que se ejecuta solo (antes de traer nada)
 - Con el script de MI versión instalada (mi-arbrain todavía es mi versión; no traes nada), corre:
@@ -101,8 +107,8 @@ PASO 5 · Pasa los cambios a lo mío
 - Si no hay conflictos: sigue al PASO 6.
 - Si hay conflictos (solo pueden estar en archivos del autor que yo edité): para cada archivo dime en dos líneas qué
   cambió el autor y qué había cambiado yo. Regla: se queda la estructura nueva del autor y se vuelven a poner mis líneas en
-  su lugar. Si se contradicen, pregúntame cuál quiero. Si una skill mía y una nueva del autor se llaman igual, renombra
-  la mía a <nombre>-mia. Al terminar: git add <archivos> && git commit --no-edit
+  su lugar. Si se contradicen, pregúntame cuál quiero. Si aun así una skill mía y una nueva del autor se llaman igual, renombra
+  la mía a <nombre>-mia (carpeta y `name:`) como en el PASO 3. Al terminar: git add <archivos> && git commit --no-edit
 - Si algo sale mal a la mitad: git merge --abort y dime que todo quedó como antes.
 
 PASO 6 · Lo que cambia fuera del texto

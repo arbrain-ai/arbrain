@@ -37,9 +37,11 @@ export const LLAVES_BYOK = ['ANTHROPIC_API_KEY', 'OPENROUTER_API_KEY'] as const
 /**
  * Llaves de voz del alumno (21 oct 2026, carril VOZ): la de Groq para dictar (Whisper). No habla con Claude ni decide
  * proveedor: vive aparte de las BYOK para que su sola presencia nunca cuente como «hay con qué hablar». Solo la usa
- * el propio daemon en `/live/transcribe` y `/voz/probar`; nunca llega al CLI ni a ningún hijo.
+ * el propio daemon en `/live/transcribe` y `/voz/probar`; nunca llega al CLI ni a ningún hijo. Desde v0.2.10 (grupal del
+ * 23 oct: «la voz por defecto en Windows es fea»), también la de LemonFox, opcional y de pago, con la que `/tts` lee las
+ * respuestas en voz alta.
  */
-export const LLAVES_VOZ = ['GROQ_API_KEY'] as const
+export const LLAVES_VOZ = ['GROQ_API_KEY', 'LEMONFOX_API_KEY'] as const
 /**
  * Lo que vive en el cofre: las llaves BYOK más `ANTHROPIC_AUTH_TOKEN`, que SOLO fija el propio daemon con la llave de
  * OpenRouter (cliente/proveedor.ts). Nunca se acepta desde fuera.
@@ -146,6 +148,12 @@ export function llavesByok(): Record<string, string> {
 /** La llave de Groq del alumno (dictado), si la app la entregó. Vacía cuenta como ausente. */
 export function llaveVoz(): string | undefined {
   const v = cofre.get('GROQ_API_KEY')?.trim()
+  return v ? v : undefined
+}
+
+/** La llave de LemonFox del alumno (leer las respuestas en voz alta), si la app la entregó. */
+export function llaveLemonfox(): string | undefined {
+  const v = cofre.get('LEMONFOX_API_KEY')?.trim()
   return v ? v : undefined
 }
 

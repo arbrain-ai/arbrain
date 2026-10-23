@@ -852,6 +852,21 @@ async function rutasCliente(req: IncomingMessage, res: ServerResponse, ruta: str
     sendJSON(res, 200, { acciones: b.ultimas(limite), pausa: estadoPausa() })
     return true
   }
+  // Modo de permisos (grupal 23 oct 2026): solo la persona, desde la app. Volver a «preguntar» (más estricto) no exige el
+  // secreto; aflojar sí (el agente nunca se da permisos a sí mismo).
+  if (ruta === '/permisos') {
+    const { esModo, fijarModoPermisos, modoPermisos, MODOS, NOMBRE_MODO } = await import('./cliente/modo-permisos.js')
+    if (req.method === 'GET') { sendJSON(res, 200, { modo: modoPermisos(), modos: MODOS, sandbox: sandboxActivo() }); return true }
+    if (req.method === 'POST') {
+      if (!esModo(cuerpo.modo)) { sendJSON(res, 400, { error: 'modo: «preguntar», «carpeta» o «libre».' }); return true }
+      if (cuerpo.modo !== 'preguntar' && !secretoApp()) { sendJSON(res, 403, { error: 'Solo la persona, desde la app, puede cambiar los permisos de Levy.' }); return true }
+      const antes = modoPermisos()
+      const modo = fijarModoPermisos(cuerpo.modo)
+      if (antes !== modo) bitacoraDelDaemon()?.anotar({ herramienta: 'Arbrain', que: `Permisos de Levy: «${NOMBRE_MODO[antes]}» → «${NOMBRE_MODO[modo]}»`, decision: 'confirmado' })
+      sendJSON(res, 200, { modo, modos: MODOS, sandbox: sandboxActivo() })
+      return true
+    }
+  }
   // Carpetas abiertas (punto 1): la persona abre carpetas extra una por una (con el secreto de la app); cerrar es libre.
   if (ruta === '/carpetas') {
     if (req.method === 'GET') { sendJSON(res, 200, { carpetas: carpetasAbiertas() }); return true }
@@ -1468,10 +1483,24 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     // voice: levy | sensei | trinity (voz-agentes). Lo usa SaaS Factory (/api/tts/generate) via el funnel.
     const voice = typeof parsed['voice'] === 'string' && parsed['voice'].trim() ? parsed['voice'].trim() : 'levy'
     const speed = typeof parsed['speed'] === 'number' ? parsed['speed'] : 1.0
+    // tempo: el lector del chat pide el audio ya acelerado (23 oct 2026); X-Tempo dice cuánto se aplicó de verdad.
+    const tempo = typeof parsed['tempo'] === 'number' && Number.isFinite(parsed['tempo']) ? parsed['tempo'] : undefined
+    // Edición cliente (v0.2.10): no hay voz-agentes. Con la llave de LemonFox del alumno, su voz; sin ella, 503 rápido y
+    // la web lee con la mejor voz del sistema.
+    if (esEdicionCliente()) {
+      const { hablarLemonfox } = await import('./cliente/voz.js')
+      const { llaveLemonfox } = await import('./cliente/cofre.js')
+      const r = await hablarLemonfox(text.slice(0, 5000), tempo, llaveLemonfox())
+      if (!r) { sendJSON(res, 503, { error: 'Sin voz de servidor: la app lee con la voz del sistema.', code: 'sin_voz_servidor' }); return }
+      if (!r.ok) { sendJSON(res, r.status, { error: r.error, code: 'voz_proveedor' }); return }
+      res.writeHead(200, { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store', 'X-Tempo': String(r.tempo), 'X-Voice-Provider': 'lemonfox' })
+      res.end(r.audio)
+      return
+    }
     try {
-      const mp3 = await synthesizeSpeech(text, voice, speed)
-      res.writeHead(200, { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store' })
-      res.end(mp3)
+      const { audio, tempo: aplicado } = await synthesizeSpeech(text, voice, speed, tempo)
+      res.writeHead(200, { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store', 'X-Tempo': String(aplicado) })
+      res.end(audio)
     } catch (err) {
       sendJSON(res, 502, { error: `TTS failed: ${String(err)}` })
     }
