@@ -3,8 +3,10 @@
  * Seguridad del alumno (12 oct 2026; docs/builds/seguridad-alumno-2026-10-12/AUDITORIA.md). Edición cliente.
  *
  *   FrenoGeneral       botón «Pausar todo» siempre a la mano y, en pausa, la franja «Levy está en pausa · Reanudar».
- *   SeccionSeguridad   Ajustes › Seguridad: el freno, «Lo que hizo Levy» (bitácora local), carpetas abiertas y el tope
- *                      de gasto.
+ *   SeccionSeguridad   Ajustes › Permisos y seguridad: el modo de permisos (grupal 23 oct 2026) con su interruptor
+ *                      «Quitar también el freno (bajo mi responsabilidad)», las carpetas a las que el cerebro puede
+ *                      entrar, el freno, «Lo que hizo Levy» (bitácora local) y el tope de gasto. Con el freno quitado,
+ *                      aviso arriba de la sección y una píldora junto a «Pausar todo» en toda la app (un clic lo devuelve).
  *   TopeDeGasto        texto y enlaces para poner un límite de crédito a la llave, y el gasto si el proveedor lo deja
  *                      ver (OpenRouter). Lo usan Ajustes › Llaves (y el primer arranque, que monta ese panel) y Seguridad.
  *
@@ -13,11 +15,11 @@
  */
 import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ExternalLink, FolderOpen, FolderPlus, Loader2, OctagonPause, Play, RefreshCw, ScrollText, Wallet, X } from 'lucide-react'
+import { ExternalLink, FolderOpen, FolderPlus, Loader2, OctagonPause, Play, RefreshCw, ScrollText, ShieldAlert, ShieldCheck, Wallet, X } from 'lucide-react'
 import { abrirEnNavegador } from '@/features/primer-arranque/lib/llaves'
 import {
-  ENLACES_TOPE, ETIQUETA_DECISION, horaDe, nombreHerramienta, resumenGasto,
-  type AccionBitacora, type CarpetaAbierta, type EstadoPausa, type RespuestaGasto,
+  avisoSinFreno, ENLACES_TOPE, ETIQUETA_DECISION, FICHAS_MODO, FRASE_SIN_FRENO, fraseCoincide, horaDe, NOMBRE_SIN_FRENO, nombreHerramienta, resumenGasto, RIESGO_SIN_FRENO,
+  type AccionBitacora, type CarpetaAbierta, type EstadoPausa, type EstadoPermisosLevy, type ModoPermisos, type RespuestaGasto,
 } from '../lib/seguridad'
 
 async function pedir<T>(url: string, init?: RequestInit): Promise<T> {
@@ -51,9 +53,20 @@ export function FrenoGeneral() {
   const [montado, setMontado] = useState(false)
   useEffect(() => setMontado(true), [])
   const { pausa, ocupado, error, fijar } = usePausa()
+  const sinFreno = useSinFrenoGlobal()
   if (!montado || !pausa) return null
   return createPortal(
-    pausa.pausado ? (
+    <>
+    {sinFreno.activo && !pausa.pausado && (
+      <div role="status" className="fixed bottom-12 right-3 z-[95] flex max-w-[min(26rem,calc(100vw-1.5rem))] items-center gap-2 rounded-full border border-amber-400/50 bg-amber-950/85 py-1 pl-3 pr-1 text-[12px] text-amber-50 shadow-md backdrop-blur-xl">
+        <ShieldAlert className="size-3.5 shrink-0" aria-hidden />
+        <span className="min-w-0 truncate" title={avisoSinFreno(sinFreno.desde)}>Freno quitado: envía, borra y publica sin preguntarte</span>
+        <button type="button" onClick={() => void sinFreno.devolver()} disabled={sinFreno.ocupado} className="btn-secondary shrink-0 !rounded-full !px-2.5 !py-0.5 text-[11.5px]">
+          {sinFreno.ocupado ? <Loader2 className="size-3 animate-spin" aria-hidden /> : null} Poner el freno
+        </button>
+      </div>
+    )}
+    {pausa.pausado ? (
       <div role="status" aria-live="polite" className="fixed left-1/2 top-14 z-[101] flex max-w-[min(40rem,calc(100vw-2rem))] -translate-x-1/2 items-center gap-3 rounded-xl border border-amber-400/40 bg-amber-950/80 px-4 py-2.5 text-[13px] text-amber-50 shadow-lg backdrop-blur-xl">
         <OctagonPause className="size-4 shrink-0" aria-hidden />
         <span className="min-w-0">Levy está en pausa: no corre ningún turno, rutina ni herramienta.{error ? ` ${error}` : ''}</span>
@@ -66,10 +79,35 @@ export function FrenoGeneral() {
         className="fixed bottom-3 right-3 z-[95] flex items-center gap-1.5 rounded-full border border-border-subtle bg-[var(--glass-bg)] px-3 py-1.5 text-[12px] font-medium text-foreground/80 shadow-md backdrop-blur-xl transition-colors hover:border-red-400/50 hover:text-red-300 focus-visible:outline-2 focus-visible:outline-brand">
         {ocupado ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <OctagonPause className="size-3.5" aria-hidden />} Pausar todo
       </button>
-    ),
+    )}
+    </>,
     document.body,
   )
 }
+
+/** Estado del freno quitado para la píldora de toda la app (se consulta cada 10 s y al volver a la ventana). */
+function useSinFrenoGlobal(cadaMs = 10_000) {
+  const [estado, setEstado] = useState<EstadoPermisosLevy | null>(null)
+  const [ocupado, setOcupado] = useState(false)
+  const leer = useCallback(async () => { try { setEstado(await pedir<EstadoPermisosLevy>('/api/seguridad/permisos')) } catch { /* daemon reiniciando */ } }, [])
+  useEffect(() => {
+    void leer()
+    const t = window.setInterval(() => { if (document.visibilityState === 'visible') void leer() }, cadaMs)
+    const alCambiar = () => void leer()
+    window.addEventListener(EVENTO_PERMISOS, alCambiar)
+    return () => { window.clearInterval(t); window.removeEventListener(EVENTO_PERMISOS, alCambiar) }
+  }, [leer, cadaMs])
+  const devolver = useCallback(async () => {
+    setOcupado(true)
+    try { setEstado(await pedir<EstadoPermisosLevy>('/api/seguridad/permisos', { method: 'POST', body: JSON.stringify({ sinFreno: false }) })); window.dispatchEvent(new Event(EVENTO_PERMISOS)) }
+    catch { /* se reintenta en la próxima lectura */ }
+    finally { setOcupado(false) }
+  }, [])
+  return { activo: !!estado?.sinFreno, desde: estado?.sinFrenoDesde ?? null, ocupado, devolver }
+}
+
+/** Avisa a las otras vistas (Ajustes, la píldora) que el modo o el freno cambiaron. */
+const EVENTO_PERMISOS = 'arbrain:permisos'
 
 function Tarjeta({ titulo, icono: Icono, children, accion }: { titulo: string; icono: typeof Wallet; children: React.ReactNode; accion?: React.ReactNode }) {
   return (
@@ -129,6 +167,119 @@ export function TopeDeGasto({ compacto = false }: { compacto?: boolean }) {
   )
 }
 
+/** Estado del modo de permisos, compartido por el aviso de arriba y la tarjeta del modo. */
+function usePermisos() {
+  const [estado, setEstado] = useState<EstadoPermisosLevy | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const leer = useCallback(async () => { try { setEstado(await pedir<EstadoPermisosLevy>('/api/seguridad/permisos')) } catch (e) { setError(e instanceof Error ? e.message : 'No se pudo leer.') } }, [])
+  useEffect(() => {
+    void leer()
+    const alCambiar = () => void leer()
+    window.addEventListener(EVENTO_PERMISOS, alCambiar)
+    return () => window.removeEventListener(EVENTO_PERMISOS, alCambiar)
+  }, [leer])
+  const mandar = useCallback(async (cuerpo: Record<string, unknown>) => {
+    setError(null)
+    try { setEstado(await pedir<EstadoPermisosLevy>('/api/seguridad/permisos', { method: 'POST', body: JSON.stringify(cuerpo) })); window.dispatchEvent(new Event(EVENTO_PERMISOS)); return true }
+    catch (e) { setError(e instanceof Error ? e.message : 'No se pudo.'); return false }
+  }, [])
+  return { estado, error, mandar }
+}
+type Permisos = ReturnType<typeof usePermisos>
+
+/** Aviso fijo arriba de Permisos y seguridad mientras el freno está quitado; un clic lo devuelve. */
+function AvisoSinFreno({ p }: { p: Permisos }) {
+  const [ocupado, setOcupado] = useState(false)
+  if (!p.estado?.sinFreno) return null
+  return (
+    <div role="alert" className="flex flex-wrap items-center gap-3 rounded-2xl border border-amber-400/50 bg-amber-950/40 px-4 py-3 text-[13px] text-amber-50">
+      <ShieldAlert className="size-4 shrink-0" aria-hidden />
+      <span className="min-w-0 flex-1">{avisoSinFreno(p.estado.sinFrenoDesde)} Dinero, valores y secretos siguen bloqueados.</span>
+      <button type="button" disabled={ocupado} onClick={async () => { setOcupado(true); await p.mandar({ sinFreno: false }); setOcupado(false) }} className="btn-secondary shrink-0 !px-3 !py-1.5 text-[12.5px]">
+        {ocupado && <Loader2 className="size-3.5 animate-spin" aria-hidden />} Volver a poner el freno
+      </button>
+    </div>
+  )
+}
+
+/**
+ * «Quitar también el freno (bajo mi responsabilidad)»: solo dentro de «Sin preguntar». Muestra el riesgo en dos líneas
+ * y pide escribir la frase exacta; el daemon la vuelve a validar. Apagarlo es un clic.
+ */
+function QuitarFreno({ p }: { p: Permisos }) {
+  const [abierto, setAbierto] = useState(false)
+  const [texto, setTexto] = useState('')
+  const [ocupado, setOcupado] = useState(false)
+  const e = p.estado
+  if (!e || e.modo !== 'libre') return null
+  const frase = e.frase || FRASE_SIN_FRENO
+  const activar = async () => { setOcupado(true); if (await p.mandar({ sinFreno: true, frase: texto })) { setTexto(''); setAbierto(false) } setOcupado(false) }
+  const apagar = async () => { setOcupado(true); await p.mandar({ sinFreno: false }); setOcupado(false) }
+  return (
+    <div className={`mt-3 rounded-xl border px-3 py-2.5 ${e.sinFreno ? 'border-amber-400/50 bg-amber-950/30' : 'border-border-subtle'}`}>
+      <div className="flex items-center justify-between gap-3">
+        <span className="flex items-center gap-2 text-[13px] font-semibold text-foreground"><ShieldAlert className={`size-4 ${e.sinFreno ? 'text-amber-300' : 'text-muted'}`} aria-hidden /> {NOMBRE_SIN_FRENO}</span>
+        {e.sinFreno ? (
+          <button type="button" role="switch" aria-checked="true" onClick={() => void apagar()} disabled={ocupado} className="btn-secondary shrink-0 !px-3 !py-1.5 text-[12.5px]">{ocupado && <Loader2 className="size-3.5 animate-spin" aria-hidden />} Apagar</button>
+        ) : (
+          <button type="button" role="switch" aria-checked="false" aria-expanded={abierto} onClick={() => setAbierto(a => !a)} className="btn-secondary shrink-0 !px-3 !py-1.5 text-[12.5px]">{abierto ? 'Cancelar' : 'Activar…'}</button>
+        )}
+      </div>
+      {e.sinFreno && <p className="mt-1.5 text-[12.5px] leading-relaxed text-amber-200">{avisoSinFreno(e.sinFrenoDesde)} Si cambias de modo se apaga solo.</p>}
+      {!e.sinFreno && !abierto && <p className="mt-1 text-[12.5px] leading-relaxed text-muted">Opcional. Enviar, borrar y publicar dejarían de pedirte clic. No lo recomendamos salvo que revises seguido «Lo que hizo Levy».</p>}
+      {!e.sinFreno && abierto && (
+        <form className="mt-2 space-y-2" onSubmit={(ev) => { ev.preventDefault(); if (fraseCoincide(texto, frase)) void activar() }}>
+          <div className="rounded-lg bg-red-950/30 px-3 py-2 text-[12.5px] leading-relaxed text-red-100">
+            <p>{RIESGO_SIN_FRENO[0]}</p>
+            <p className="mt-1">{RIESGO_SIN_FRENO[1]}</p>
+          </div>
+          <label className="block text-[12.5px] text-muted">Para activarlo escribe: <b className="select-all text-foreground/90">{frase}</b>
+            <input value={texto} onChange={(ev) => setTexto(ev.target.value)} className="input-field mt-1 min-h-10 w-full px-3 text-[13px]" spellCheck={false} autoComplete="off" aria-label="Frase de confirmación" />
+          </label>
+          <button type="submit" disabled={!fraseCoincide(texto, frase) || ocupado} className="btn-secondary !border-amber-400/50 !px-3 !py-2 text-[13px] text-amber-200">{ocupado && <Loader2 className="size-3.5 animate-spin" aria-hidden />} Quitar el freno bajo mi responsabilidad</button>
+        </form>
+      )}
+    </div>
+  )
+}
+
+/** Cuánto pregunta Levy antes de actuar. El freno (enviar, borrar, publicar, pagar) no depende del modo. */
+function ModoDePermisos({ p }: { p: Permisos }) {
+  const { estado, error } = p
+  const [ocupado, setOcupado] = useState<ModoPermisos | null>(null)
+  const elegir = async (modo: ModoPermisos) => {
+    if (modo === estado?.modo) return
+    setOcupado(modo)
+    await p.mandar({ modo })
+    setOcupado(null)
+  }
+  return (
+    <Tarjeta titulo="Cuánto te pregunta Levy" icono={ShieldCheck}>
+      <div role="radiogroup" aria-label="Modo de permisos" className="space-y-2">
+        {FICHAS_MODO.map(f => {
+          const activo = estado?.modo === f.modo
+          return (
+            <button key={f.modo} type="button" role="radio" aria-checked={activo} disabled={!estado || !!ocupado} onClick={() => void elegir(f.modo)}
+              className={`flex w-full items-start gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors ${activo ? 'border-brand/60 bg-brand/10' : 'border-border-subtle hover:border-foreground/25'}`}>
+              <span aria-hidden className={`mt-1 grid size-3.5 shrink-0 place-items-center rounded-full border ${activo ? 'border-brand' : 'border-foreground/30'}`}>{activo && <span className="size-1.5 rounded-full bg-brand" />}</span>
+              <span className="min-w-0">
+                <span className="flex items-center gap-2 text-[13px] font-semibold text-foreground">{f.nombre}{f.recomendado && <span className="rounded-full bg-foreground/10 px-1.5 text-[10.5px] font-medium text-muted">recomendado</span>}{ocupado === f.modo && <Loader2 className="size-3 animate-spin" aria-hidden />}</span>
+                <span className="mt-0.5 block text-[12.5px] leading-relaxed text-muted">{f.detalle}</span>
+              </span>
+            </button>
+          )
+        })}
+      </div>
+      <QuitarFreno p={p} />
+      <p className="mt-3 text-[12.5px] leading-relaxed text-muted">
+        <b className="text-foreground/90">En cualquier modo</b>, enviar, borrar, publicar o pagar te pide tu clic (salvo que dentro de «Sin preguntar» quites el freno: entonces enviar, borrar y publicar ya no); mover dinero, comprar y operar valores o cripto nunca se hace; tus llaves, contraseñas, navegadores y carteras nunca se tocan; y si Levy acaba de leer algo de internet, un correo o un archivo de afuera, vuelve a preguntarte antes de actuar. Las rutinas automáticas siempre preguntan. Levy no puede cambiar este ajuste: solo tú, aquí.
+      </p>
+      {estado && !estado.sandbox && estado.modo === 'libre' && <p className="mt-2 text-[12.5px] text-amber-300">En esta computadora los comandos de Levy no corren en una caja aislada: en «Sin preguntar» se ejecutan directamente.</p>}
+      {error && <p className="mt-2 text-[12.5px] text-red-300" role="alert">{error}</p>}
+    </Tarjeta>
+  )
+}
+
 function Carpetas() {
   const [carpetas, setCarpetas] = useState<CarpetaAbierta[] | null>(null)
   const [ruta, setRuta] = useState('')
@@ -144,16 +295,16 @@ function Carpetas() {
     finally { setOcupado(false) }
   }
   return (
-    <Tarjeta titulo="Carpetas abiertas para Levy" icono={FolderOpen}>
+    <Tarjeta titulo="Carpetas a las que tu cerebro puede entrar" icono={FolderOpen}>
       <p className="text-[13px] leading-relaxed text-muted">
-        Levy trabaja solo dentro de tu cerebro de Arbrain. Si necesita otra carpeta, ábresela aquí, una por una: podrá leerla sin preguntarte y te pedirá permiso para escribir en ella. Nunca entra a tus llaves, contraseñas, navegadores ni carteras, aunque abras su carpeta.
+        Levy trabaja dentro de tu cerebro de Arbrain. Si necesita otra carpeta (un proyecto, tus documentos de clientes), agrégala aquí, una por una: podrá leerla sin preguntarte y escribir en ella según el modo de arriba (en «Preguntar siempre» te pide permiso). Fuera de estas carpetas nunca escribe. Nunca entra a tus llaves, contraseñas, navegadores ni carteras, aunque agregues su carpeta.
       </p>
       <ul className="mt-3 space-y-1.5">
         {carpetas?.length === 0 && <li className="text-[12.5px] text-muted">Ninguna. Levy solo ve tu cerebro.</li>}
         {carpetas?.map(c => (
           <li key={c.ruta} className="flex items-center justify-between gap-2 rounded-lg bg-foreground/[0.04] px-3 py-2">
             <code className="min-w-0 truncate text-[12px] text-foreground/90" title={c.ruta}>{c.ruta}</code>
-            <button type="button" onClick={() => void mandar('cerrar', c.ruta)} disabled={ocupado} className="btn-secondary shrink-0 !px-2.5 !py-1 text-[12px]"><X className="size-3" aria-hidden /> Cerrar</button>
+            <button type="button" onClick={() => void mandar('cerrar', c.ruta)} disabled={ocupado} className="btn-secondary shrink-0 !px-2.5 !py-1 text-[12px]"><X className="size-3" aria-hidden /> Quitar</button>
           </li>
         ))}
       </ul>
@@ -165,7 +316,7 @@ function Carpetas() {
           <input type="checkbox" checked={seguro} onChange={(e) => setSeguro(e.target.checked)} className="mt-0.5" />
           <span>Entiendo que Levy podrá leer todo lo que hay en esta carpeta.</span>
         </label>
-        <button type="submit" disabled={!ruta.trim() || !seguro || ocupado} className="btn-secondary !px-3 !py-2 text-[13px]"><FolderPlus className="size-3.5" aria-hidden /> Abrir para Levy</button>
+        <button type="submit" disabled={!ruta.trim() || !seguro || ocupado} className="btn-secondary !px-3 !py-2 text-[13px]"><FolderPlus className="size-3.5" aria-hidden /> Agregar carpeta</button>
       </form>
       {error && <p className="mt-2 text-[12.5px] text-red-300" role="alert">{error}</p>}
     </Tarjeta>
@@ -200,7 +351,7 @@ function LoQueHizoLevy() {
                   <span className={`ml-auto ${tono[e.tono]}`}>{e.texto}</span>
                 </div>
                 <code className="mt-1 block whitespace-pre-wrap break-all text-[11.5px] leading-snug text-foreground/75">{a.que}</code>
-                {a.motivo && a.decision !== 'hecho' && <p className="mt-0.5 text-[11.5px] text-muted">{a.motivo}</p>}
+                {a.motivo && (a.decision !== 'hecho' || a.motivo.startsWith('sin preguntar')) && <p className="mt-0.5 text-[11.5px] text-muted">{a.motivo}</p>}
               </li>
             )
           })}
@@ -228,13 +379,16 @@ function Freno() {
   )
 }
 
-/** Ajustes › Seguridad. */
+/** Ajustes › Permisos y seguridad. */
 export function SeccionSeguridad() {
+  const p = usePermisos()
   return (
     <div className="space-y-4">
+      <AvisoSinFreno p={p} />
+      <ModoDePermisos p={p} />
+      <Carpetas />
       <Freno />
       <LoQueHizoLevy />
-      <Carpetas />
       <TopeDeGasto />
     </div>
   )

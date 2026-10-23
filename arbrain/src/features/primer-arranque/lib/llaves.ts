@@ -8,7 +8,7 @@
 
 import { ACCION_DE_COMANDO, esModoServidor } from '@/lib/modo-servidor'
 
-export type NombreLlave = 'ANTHROPIC_API_KEY' | 'OPENROUTER_API_KEY' | 'GROQ_API_KEY'
+export type NombreLlave = 'ANTHROPIC_API_KEY' | 'OPENROUTER_API_KEY' | 'GROQ_API_KEY' | 'LEMONFOX_API_KEY'
 
 export interface EstadoLlaves {
   llaves: Array<{ nombre: string; presente: boolean; vista: string | null }>
@@ -79,6 +79,19 @@ export function validarLlaveVoz(crudo: string): { ok: true } | { ok: false; erro
   if (v.startsWith('sk-or-') || v.startsWith('sk-ant-')) return { ok: false, error: 'Esa llave es para conversar (Ajustes › Llaves). Aquí va la de Groq, que empieza con «gsk_».' }
   return { ok: false, error: 'Las llaves de Groq empiezan con «gsk_». Revisa que la copiaste completa.' }
 }
+
+/** LemonFox (v0.2.10): voz para leer las respuestas. Su formato no tiene prefijo fijo: se descarta lo que es de otro. */
+export function validarLlaveLemonfox(crudo: string): { ok: true } | { ok: false; error: string } {
+  const v = limpiarLlave(crudo)
+  if (!v) return { ok: false, error: 'Pega tu llave de LemonFox para continuar.' }
+  if (/\s/.test(v)) return { ok: false, error: 'La llave no lleva espacios. Cópiala de nuevo, completa.' }
+  if (v.length > 4096) return { ok: false, error: 'Eso es demasiado largo para ser una llave.' }
+  if (/^(sk-or-|sk-ant-)/.test(v)) return { ok: false, error: 'Esa llave es para conversar (Ajustes › Llaves). Aquí va la de LemonFox.' }
+  if (v.startsWith('gsk_')) return { ok: false, error: 'Esa es la llave de Groq (para dictar). Aquí va la de LemonFox.' }
+  if (v.length < 16) return { ok: false, error: 'Esa llave se ve incompleta. Cópiala de nuevo desde LemonFox.' }
+  return { ok: true }
+}
+export const CONSOLA_LEMONFOX = 'https://www.lemonfox.ai/apis/keys'
 
 export interface PruebaVoz { ok: boolean; ms?: number; code?: string; error?: string }
 

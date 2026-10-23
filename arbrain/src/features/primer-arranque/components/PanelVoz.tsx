@@ -6,12 +6,13 @@
  * Dictar necesita una llave de Groq (gratis). Igual que las llaves del chat: va del campo al llavero del sistema por la
  * app (`llave_guardar`), el daemon la recibe por stdin al reiniciarse y la pantalla solo vuelve a ver si existe y su
  * vista enmascarada. «Probar» le pide al daemon que la use contra Groq (sin gastar audio).
- * «Escuchar» no necesita nada: lee con la voz del dispositivo.
+ * «Escuchar» no necesita nada: lee con la mejor voz en español del dispositivo. Con una llave de LemonFox (opcional, de
+ * pago; v0.2.10, grupal del 23 oct: «la voz por defecto en Windows es fea») lee con la voz de LemonFox.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Check, ExternalLink, Eye, EyeOff, KeyRound, Loader2, Mic, Volume2, Zap } from 'lucide-react'
 import {
-  abrirEnNavegador, CONSOLA_GROQ, esperarDaemon, EVENTO_LLAVE_VOZ, hayApp, llaveGuardar, llavesEstado, limpiarLlave, MARCA_DESDE_MIC, probarVoz, validarLlaveVoz,
+  abrirEnNavegador, CONSOLA_GROQ, CONSOLA_LEMONFOX, esperarDaemon, EVENTO_LLAVE_VOZ, hayApp, llaveGuardar, llavesEstado, limpiarLlave, MARCA_DESDE_MIC, probarVoz, validarLlaveLemonfox, validarLlaveVoz,
   type EstadoLlaves, type PruebaVoz,
 } from '../lib/llaves'
 import { Aviso, BotonQuitar, EstadoGuardada } from './PanelLlaves'
@@ -112,13 +113,64 @@ export function PanelVoz() {
         )}
       </section>
 
-      <p className="flex items-start gap-2 text-[12.5px] leading-relaxed text-muted">
-        <Volume2 className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-        <span>«Escuchar» una respuesta no necesita llave: la lee la voz de tu dispositivo.</span>
-      </p>
+      <VozDeRespuestas estado={estado} onEstado={setEstado} onError={setError} />
 
       {error && <Aviso tono="alerta">{error}</Aviso>}
     </div>
+  )
+}
+
+/** «Escuchar» una respuesta: la mejor voz del sistema, o LemonFox si la persona pega su llave (opcional, de pago). */
+function VozDeRespuestas({ estado, onEstado, onError }: { estado: EstadoLlaves | null; onEstado: (e: EstadoLlaves) => void; onError: (m: string | null) => void }) {
+  const llave = estado?.llaves.find(l => l.nombre === 'LEMONFOX_API_KEY')
+  const [valor, setValor] = useState('')
+  const [guardando, setGuardando] = useState(false)
+  const veredicto = valor ? validarLlaveLemonfox(valor) : null
+  // Una app anterior a v0.2.10 no conoce esta llave: su llavero no la lista y no se ofrece el campo.
+  const soportada = !!llave
+  const guardar = async () => {
+    if (!validarLlaveLemonfox(valor).ok) return
+    setGuardando(true); onError(null)
+    try { onEstado(await llaveGuardar('LEMONFOX_API_KEY', limpiarLlave(valor))); setValor('') }
+    catch (e) { onError(e instanceof Error ? e.message : 'No pude guardar la llave.') } finally { setGuardando(false) }
+  }
+  return (
+    <section className="rounded-2xl border border-border-subtle bg-surface/70 p-4" aria-label="Voz de las respuestas">
+      <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+        <Volume2 className="size-4 text-brand-ink" aria-hidden /> Voz de las respuestas
+      </h3>
+      <p className="mt-1 text-[13px] leading-relaxed text-muted">
+        «Escuchar» una respuesta no necesita llave: Arbrain elige la mejor voz en español de tu computadora (en Windows, si tienes una voz «Natural», la usa). Si quieres una voz más humana, pega tu llave de LemonFox (de pago, por uso).
+      </p>
+      {!soportada ? null : llave?.presente ? (
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+          <span className="text-[13.5px] font-medium text-foreground">Llave de LemonFox</span>
+          <span className="flex items-center gap-1.5">
+            <EstadoGuardada vista={llave.vista ?? null} />
+            <BotonQuitar nombre="LEMONFOX_API_KEY" onError={onError} onHecho={onEstado} />
+          </span>
+        </div>
+      ) : (
+        <form className="mt-3" onSubmit={(e) => { e.preventDefault(); void guardar() }}>
+          <label className="sr-only" htmlFor="llave-lemonfox">Llave de LemonFox</label>
+          <div className="flex gap-2">
+            <input id="llave-lemonfox" type="password" value={valor} onChange={(e) => setValor(e.target.value)} placeholder="Llave de LemonFox (opcional)"
+              autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} aria-invalid={veredicto?.ok === false}
+              className="input-field min-h-10 min-w-0 flex-1 px-3 font-mono text-[13px]" />
+            <button type="submit" className="btn-secondary min-h-10 shrink-0 !px-3 text-[13px]" disabled={!valor || guardando || veredicto?.ok === false}>
+              {guardando ? <Loader2 className="size-4 animate-spin" aria-hidden /> : 'Guardar'}
+            </button>
+          </div>
+          <p className="mt-1.5 text-[12px] text-muted" aria-live="polite">
+            {veredicto && !veredicto.ok ? <span className="text-error">{veredicto.error}</span> : (
+              <button type="button" className="inline-flex items-center gap-1 font-medium text-brand-ink underline-offset-2 hover:underline" onClick={() => void abrirEnNavegador(CONSOLA_LEMONFOX).catch(() => {})}>
+                Crear mi llave en LemonFox <ExternalLink className="size-3" aria-hidden />
+              </button>
+            )}
+          </p>
+        </form>
+      )}
+    </section>
   )
 }
 

@@ -1,6 +1,6 @@
 /**
  * Carpetas abiertas (seguridad del alumno, 12 oct 2026; AUDITORIA punto 1). Por defecto el agente del alumno trabaja
- * solo en su cerebro (ARBRAIN_HOME). La persona puede abrirle carpetas extra, UNA POR UNA, desde Ajustes › Seguridad,
+ * solo en su cerebro (ARBRAIN_HOME). La persona puede abrirle carpetas extra, UNA POR UNA, desde Ajustes › Permisos y seguridad,
  * con su clic (la ruta exige el secreto de la app: un agente nunca se abre carpetas) y las ve listadas ahí mismo.
  *
  * Qué da una carpeta abierta: leer y buscar dentro sin preguntar; escribir con las herramientas de archivos pide

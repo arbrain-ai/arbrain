@@ -27,7 +27,8 @@ test('pantalla y puente: ni la opción, ni el comando, ni el nombre del token', 
     assert.ok(!s.includes('CLAUDE_CODE_OAUTH_TOKEN'), r)
     assert.ok(!/claude setup-token'|Token de tu suscripción de Claude|placeholder: 'sk-ant-oat/.test(s), r)
   }
-  assert.match(fuente('src/features/primer-arranque/lib/llaves.ts'), /export type NombreLlave = 'ANTHROPIC_API_KEY' \| 'OPENROUTER_API_KEY' \| 'GROQ_API_KEY'\n/)
+  // v0.2.10: la de LemonFox (leer en voz alta) es la otra llave de voz; ninguna es un token de la suscripción.
+  assert.match(fuente('src/features/primer-arranque/lib/llaves.ts'), /export type NombreLlave = 'ANTHROPIC_API_KEY' \| 'OPENROUTER_API_KEY' \| 'GROQ_API_KEY' \| 'LEMONFOX_API_KEY'\n/)
 })
 
 test('app de escritorio: el llavero solo acepta dos llaves de chat (más la de voz) y el token nunca llega heredado al daemon', () => {

@@ -81,9 +81,9 @@ export const APIS_CLIENTE = [
   '/api/chat/active', '/api/chat/sessions', '/api/chat/complete', '/api/chat/commands', '/api/chat/model',
   '/api/chat/models', '/api/chat/modelos', '/api/chat/modelos-catalogo', '/api/chat/selection', '/api/chat/efforts',
   '/api/chat/limits', '/api/chat/title', '/api/chat/preferencia-motor', '/api/chat/despertadores',
-  // Dictado (21 oct 2026): con la llave de Groq del alumno, que vive solo en su daemon. La voz del servidor de Daniel
-  // (`/api/chat/tts`) no existe en cliente: «Escuchar» usa la voz del dispositivo.
-  '/api/chat/transcribe',
+  // Dictado (21 oct 2026): con la llave de Groq del alumno, que vive solo en su daemon. «Escuchar» (v0.2.10): con su
+  // llave de LemonFox, `/api/chat/tts` pide el audio a SU daemon; sin ella responde 503 y suena la mejor voz del sistema.
+  '/api/chat/transcribe', '/api/chat/tts',
   // Adjuntos del chat (v0.2.6, un fundador: «el servidor la rechazó (código 404…)»): subir y leer, en la carpeta de datos de
   // la web y no en Supabase (lib/adjuntos-locales.ts). Ambas piden sesión.
   '/api/storage/upload', '/api/storage/adjunto',

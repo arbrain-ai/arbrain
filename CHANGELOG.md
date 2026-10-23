@@ -4,6 +4,50 @@ Cada versión dice qué trae y qué tienes que hacer tú. Para actualizar, abre 
 «jala los últimos cambios». Las versiones siguen `MAYOR.MENOR.PARCHE`: un cambio en MENOR trae funciones
 nuevas; uno en PARCHE, arreglos.
 
+## v0.2.10 · 24 oct 2026 · Tú decides cuánto te pregunta Levy
+
+**Qué trae**
+- **Menos confirmaciones, y tú eliges cuántas.** Nuevo en Arbrain › Ajustes › **Permisos y seguridad**: «Cuánto te
+  pregunta Levy», con tres modos:
+  - **Preguntar siempre:** como hasta hoy.
+  - **Automático en mi carpeta** (el nuevo de fábrica): dentro de tu cerebro y de las carpetas que agregues, Levy lee,
+    busca, crea y edita archivos, y ajusta sus instrucciones y skills, sin pedirte clic. Te pregunta para lo que sale de
+    ahí (comandos que instalan o usan internet, páginas nuevas, otras carpetas). En Windows ya no te pide clic para cada
+    comando que solo lee.
+  - **Sin preguntar:** comandos, otras carpetas, páginas y tus herramientas conectadas corren sin clic.
+  En cualquier modo, **enviar, borrar, publicar o pagar siempre te pide tu clic**, tus llaves y contraseñas nunca se
+  tocan, y si Levy acaba de leer algo de internet, un correo o un archivo de afuera, vuelve a preguntarte antes de
+  actuar. Las rutinas automáticas siempre preguntan. Todo lo que Levy hace sin preguntar queda en «Lo que hizo Levy».
+- **Quitar también el freno, si tú lo decides.** Dentro de «Sin preguntar» hay un interruptor opcional, «Quitar
+  también el freno (bajo mi responsabilidad)»: enviar, borrar y publicar dejan de pedirte clic. Antes de activarlo ves
+  el riesgo y escribes la frase «quito el freno bajo mi responsabilidad». Mientras esté activo lo ves arriba de Permisos
+  y seguridad y junto a «Pausar todo» en toda la app; se apaga con un clic y se apaga solo si cambias de modo. Cuándo lo
+  activaste y lo apagaste queda en «Lo que hizo Levy». Aun así, mover dinero, comprar, operar acciones o cripto y tocar
+  tus llaves siguen bloqueados; tras leer algo de afuera vuelve a preguntarte, y las rutinas no lo usan.
+- **Más bloqueos de dinero y secretos, en todos los modos.** Levy tampoco opera valores: brokers, exchanges y
+  carteras (comprar, vender, órdenes, swaps, transferencias de cripto) quedan fuera, igual que los bancos y los pagos. Y
+  ninguna herramienta conectada recibe la ruta de un archivo secreto (por ejemplo, adjuntar tu `.env` a un correo).
+- **Carpetas a las que tu cerebro puede entrar.** En la misma sección agregas o quitas las carpetas donde Levy puede
+  trabajar (un proyecto, los documentos de tus clientes). Ya no hace falta abrir Claude Code para quitar nada.
+- **Levy te guía a cambiar sus permisos.** Si le dices «me preguntas demasiado», «lee mi carpeta de Documentos» o
+  «cambia tu configuración», te lleva en dos pasos a Ajustes. Él no puede cambiar sus propios permisos: solo tú.
+- **Una voz mejor para «Escuchar».** En Windows (y Linux), Arbrain elige la mejor voz en español de tu computadora: si
+  tienes una voz «Natural» de Microsoft, la usa, y ya no cae en una voz en inglés. Si quieres una voz más humana, pega
+  tu llave de LemonFox (opcional, de pago) en Ajustes › Voz › «Voz de las respuestas».
+- **Actualizar respeta tu Arbrain personalizado.** Si cambiaste marca, colores, skills o código, «actualiza mi Arbrain»
+  trae lo nuevo sin pisar lo tuyo (lo probamos con una copia personalizada de verdad). Si una skill tuya se llama igual
+  que una nueva del autor, la tuya se renombra a `<nombre>-mia` antes de fusionar, para que no se mezclen. Nuevo
+  manual: `arbrain/cerebro/manuales/cirujano-del-cerebro.md`, cómo modificar tu copia con una sesión aparte de Claude
+  Code sin romper las actualizaciones.
+- **Seguridad:** la web de Arbrain sube a Next 16.4.3 (corrige una falla crítica del optimizador de imágenes) y
+  DOMPurify a 3.4.17.
+
+**Qué tienes que hacer**
+- Actualiza con «actualiza mi Arbrain» (o el prompt de instalación).
+- Abre Ajustes › Permisos y seguridad y revisa el modo: viene en «Automático en mi carpeta». Si prefieres que te
+  pregunte todo, elige «Preguntar siempre».
+- Si Levy necesita otra carpeta, agrégala ahí mismo, en «Carpetas a las que tu cerebro puede entrar».
+
 ## v0.2.9 · 23 oct 2026 · Tu Levy te conoce y baja tu meta a tierra
 
 **Qué trae**

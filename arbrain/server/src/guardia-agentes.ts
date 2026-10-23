@@ -25,6 +25,7 @@ import { aprobarDominioWeb, fuenteExterna, efectoSinPreguntar, expandirRuta, mar
 import { extraerUrls, normalizarUrl, procedenciaDelDaemon, type Procedencia } from './cliente/procedencia.js'
 import { bitacoraDelDaemon, type DecisionBitacora } from './cliente/bitacora.js'
 import { MENSAJE_PAUSA, pausado } from './cliente/pausa.js'
+import { NOMBRE_MODO } from './cliente/modo-permisos.js'
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
@@ -33,6 +34,9 @@ export function motivoGuardia(herramienta: string, input: unknown, ctx: Contexto
   const d = decidirHerramienta(herramienta, input, ctx)
   return d.tipo === 'negar' ? d.motivo : null
 }
+
+/** Las rutinas corren sin la persona delante: no usan el modo de permisos (siempre «preguntar», nunca sin freno). */
+const modoDelOrigen = (op: OpcionesGuardia): Partial<ContextoPolitica> => op.origen === 'cron' ? { modo: 'preguntar', sinFreno: false } : {}
 
 /** Contexto de la política para este daemon (cerebro, carpetas protegidas, sandbox). */
 export function contextoGuardia(over: Partial<ContextoPolitica> = {}): ContextoPolitica {
@@ -201,6 +205,7 @@ export function guardiaHooks(registrar: (evento: Record<string, unknown>) => voi
     if (madre && input.session_id && input.session_id !== op.heredaDe && !contaminadaDe(input.session_id)) marcarContaminada(input.session_id, madre.fuente)
     return {
       ...(op.contexto ?? ((cwd?: string) => contextoGuardia(cwd ? { cwd } : {})))(input.cwd),
+      ...modoDelOrigen(op),
       contaminada: contaminadaDe(input.session_id),
       urlsVistas: (input.session_id && urlsVistas.get(input.session_id)) || new Set(),
       webSinClic: (input.session_id && webSinClic.get(input.session_id)) || 0,
@@ -273,7 +278,10 @@ export function guardiaHooks(registrar: (evento: Record<string, unknown>) => voi
         }
         if (d.tipo === 'permitir') {
           if (ctx.contaminada && input.tool_name === 'WebFetch') webSinClic.set(input.session_id, (webSinClic.get(input.session_id) ?? 0) + 1)
-          if (efectoSinPreguntar(input.tool_name, input.tool_input)) anotar(input.tool_name, input.tool_input, 'hecho', { origen: op.origen })
+          // Lo que corre sin clic por el modo de permisos se anota siempre, con el modo, para que la persona lo vea.
+          if (d.sinFreno) anotar(input.tool_name, input.tool_input, 'hecho', { origen: op.origen, motivo: `sin preguntar: freno quitado bajo tu responsabilidad (modo «${NOMBRE_MODO.libre}»)` })
+          else if (d.porModo) anotar(input.tool_name, input.tool_input, 'hecho', { origen: op.origen, motivo: `sin preguntar: modo «${NOMBRE_MODO[d.porModo]}»` })
+          else if (efectoSinPreguntar(input.tool_name, input.tool_input)) anotar(input.tool_name, input.tool_input, 'hecho', { origen: op.origen })
           return { continue: true }
         }
         const r = await confirmacionHumana(input.tool_name, input.tool_input, d, op, registrar, opciones?.signal)
@@ -314,7 +322,7 @@ export function permisosCliente(base: CanUseTool, registrar: (evento: Record<str
   return async (herramienta, input, opciones): Promise<PermissionResult | null> => {
     if (pausado()) return { behavior: 'deny', message: MENSAJE_PAUSA }
     if (herramienta === 'AskUserQuestion') return base(herramienta, input, opciones)
-    const ctx = (op.contexto ?? ((cwd?: string) => contextoGuardia(cwd ? { cwd } : {})))()
+    const ctx = { ...(op.contexto ?? ((cwd?: string) => contextoGuardia(cwd ? { cwd } : {})))(), ...modoDelOrigen(op) }
     const d = decidirHerramienta(herramienta, input, ctx)
     if (d.tipo === 'negar') { registrar({ herramienta, decision: 'negado', motivo: d.motivo, capa: 'canUseTool' }); return { behavior: 'deny', message: mensajeNegado(d.motivo) } }
     if (d.tipo === 'confirmar' && !tomarAprobada(opciones?.toolUseID)) {
