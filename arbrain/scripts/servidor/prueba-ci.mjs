@@ -472,9 +472,10 @@ async function recorridoPermisos(base, cookie) {
   log('permisos: nace «Automático en mi carpeta», se cambia desde Ajustes y queda en «Lo que hizo Levy»')
   const t0 = Date.now()
   const tts = await fetch(`${base}/api/chat/tts`, { method: 'POST', headers: json, body: JSON.stringify({ text: 'Hola', lector: true, velocidad: 1 }) })
-  await tts.arrayBuffer().catch(() => {})
-  if (tts.ok || Date.now() - t0 > 15_000) return `voz: sin llave de LemonFox, /api/chat/tts respondió ${tts.status} en ${Date.now() - t0} ms (se esperaba un error rápido para caer a la voz del sistema)`
-  log(`voz: sin llave de LemonFox, «Escuchar» cae a la voz del sistema (${tts.status} en ${Date.now() - t0} ms)`)
+  const jt = await tts.json().catch(() => ({}))
+  // 503 «sin_voz_servidor» lo dice SU daemon (la ruta existe en cliente y llega hasta él); 404 sería la ruta bloqueada.
+  if (tts.status !== 503 || jt.code !== 'sin_voz_servidor' || Date.now() - t0 > 15_000) return `voz: sin llave de LemonFox, /api/chat/tts respondió ${tts.status} ${JSON.stringify(jt).slice(0, 160)} en ${Date.now() - t0} ms (se esperaba 503 sin_voz_servidor, rápido)`
+  log(`voz: sin llave de LemonFox, el daemon responde «sin_voz_servidor» en ${Date.now() - t0} ms y «Escuchar» usa la voz del sistema`)
   return null
 }
 

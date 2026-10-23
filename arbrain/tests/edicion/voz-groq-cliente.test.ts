@@ -13,9 +13,11 @@ const GROQ = 'gsk_' + 'A1b2'.repeat(12)
 const fuente = (r: string) => readFileSync(new URL(`../../${r}`, import.meta.url), 'utf8')
 const audio = () => new Blob([new Uint8Array(2000)], { type: 'audio/webm' })
 
-test('lista blanca: dictado sí, voz del servidor de Daniel no; la prueba de la llave vive bajo /api/llaves', () => {
+test('lista blanca: dictado y «Escuchar» por su propio daemon; la prueba de la llave vive bajo /api/llaves', () => {
   assert.equal(apiPermitidaEnCliente('/api/chat/transcribe'), true)
-  assert.equal(apiPermitidaEnCliente('/api/chat/tts'), false)
+  // v0.2.10: «Escuchar» pide el audio a SU daemon (LemonFox con su llave; sin ella, 503 y voz del sistema).
+  assert.equal(apiPermitidaEnCliente('/api/chat/tts'), true)
+  assert.match(fuente('src/app/api/chat/tts/route.ts'), /if \(esEdicionCliente\(\)\) return ttsCliente\(req\)/)
   assert.equal(apiPermitidaEnCliente('/api/llaves/voz/probar'), true)
 })
 

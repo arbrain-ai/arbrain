@@ -3,6 +3,10 @@ import { createClient } from '@/lib/supabase/server'
 import { hasRole } from '@/lib/auth-utils'
 import { getClaudeclawUrl, CLAUDECLAW_TOKEN } from '@/lib/claudeclaw'
 import { markdownHablable } from '@/features/chat/lib/lector-filtro'
+import { requireChatPrincipal, chatAccessResponse } from '@/lib/chat-access'
+import { esEdicionCliente } from '@/lib/edicion'
+import { urlDaemonCliente } from '@/lib/claudeclaw'
+import { tokenDaemon } from '@/lib/daemon-local'
 
 // TTS = Kokoro local (open source) a traves de claudeclaw, reusando el mismo
 // tunel/CLAUDECLAW_URL que el chat. Funciona en desktop (localhost) y web (tunel).
@@ -34,7 +38,32 @@ function cleanTextForTts(text: string) {
     .slice(0, 5000)
 }
 
+/**
+ * Edición cliente (v0.2.10; grupal del 23 oct: «la voz por defecto en Windows es fea»): el audio lo hace SU daemon con su
+ * llave de LemonFox (cliente/voz.ts). Sin llave, el daemon responde 503 rápido y el lector usa la mejor voz del sistema.
+ */
+async function ttsCliente(req: NextRequest): Promise<Response> {
+  try { await requireChatPrincipal() } catch (error) { return chatAccessResponse(error) }
+  const { text, lector, velocidad } = await req.json().catch(() => ({})) as { text?: string; lector?: boolean; velocidad?: number }
+  const clean = typeof text === 'string' ? (lector ? text.replace(/\s+/g, ' ').trim().slice(0, 5000) : cleanTextForTts(text)) : ''
+  if (!clean) return NextResponse.json({ error: 'text is required' }, { status: 400 })
+  try {
+    const r = await fetch(`${urlDaemonCliente()}/tts`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${tokenDaemon()}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: clean, tempo: lector ? tempoLector(velocidad) : 1 }),
+      signal: AbortSignal.any([req.signal, AbortSignal.timeout(50_000)]),
+    })
+    if (!r.ok) return NextResponse.json(await r.json().catch(() => ({ error: `TTS ${r.status}` })), { status: r.status })
+    return new NextResponse(await r.arrayBuffer(), { headers: { 'Content-Type': 'audio/mpeg', 'X-Tempo': r.headers.get('x-tempo') ?? '1', 'Cache-Control': 'no-store' } })
+  } catch {
+    if (req.signal.aborted) return new NextResponse(null, { status: 499 })
+    return NextResponse.json({ error: 'Tu Arbrain no respondió.', code: 'sin_daemon' }, { status: 503 })
+  }
+}
+
 export async function POST(req: NextRequest) {
+  if (esEdicionCliente()) return ttsCliente(req)
   // En paralelo con la auth: la URL del daemon no depende de ella.
   const claudeclawUrl = getClaudeclawUrl()
   const supabase = await createClient()

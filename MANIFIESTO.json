@@ -1,9 +1,9 @@
 {
   "generador": "arbrain/empaquetado/generador",
   "origen": {
-    "ref": "c07e6687b21c2bdae5600a068f35ab4145ecab6d",
-    "commit": "c07e6687b21c2bdae5600a068f35ab4145ecab6d",
-    "fecha": "2026-10-23T15:39:30-06:00"
+    "ref": "331ac0c0c8cda082daec0c9de1f1fd99bf463d28",
+    "commit": "331ac0c0c8cda082daec0c9de1f1fd99bf463d28",
+    "fecha": "2026-10-23T15:48:46-06:00"
   },
   "version": "0.2.10",
   "allowlist": {
@@ -3161,8 +3161,8 @@
       "origen": "arbrain/scripts/servidor/programa.mjs"
     },
     "arbrain/scripts/servidor/prueba-ci.mjs": {
-      "sha256": "7449870f3a53667cbae311a113456a7a78aaf301933f35159b6c9b810aa04824",
-      "bytes": 37714,
+      "sha256": "d8c4c10821e258c173140e1ffb7cd710b1828b5d9b8e203c10566fac63bf15ae",
+      "bytes": 37933,
       "modo": "644",
       "origen": "arbrain/scripts/servidor/prueba-ci.mjs"
     },
@@ -7055,8 +7055,8 @@
       "origen": "arbrain/src/app/api/chat/tts-fast/route.ts"
     },
     "arbrain/src/app/api/chat/tts/route.ts": {
-      "sha256": "831f2e70b167b6f0fba0889286848e08278a59ae563513159677bcd3be537eed",
-      "bytes": 3720,
+      "sha256": "8400af83114611a2be6837af1c9c7eb98285925ab6e1d0d78540015148fdceba",
+      "bytes": 5605,
       "modo": "644",
       "origen": "arbrain/src/app/api/chat/tts/route.ts"
     },
@@ -12263,8 +12263,8 @@
       "origen": "arbrain/src/lib/draw3-auth.ts"
     },
     "arbrain/src/lib/edicion.ts": {
-      "sha256": "57fcc8acead4f248e04fd23d48d59b087b26efcd9b451afafac37fd8f2e87074",
-      "bytes": 8459,
+      "sha256": "ad7aa2c8028df221552d9d0fc0ebb220d795cdf6861f243596912631b052e536",
+      "bytes": 8514,
       "modo": "644",
       "origen": "arbrain/src/lib/edicion.ts"
     },
@@ -13691,8 +13691,8 @@
       "origen": "arbrain/tests/edicion/confirmacion-v3.test.ts"
     },
     "arbrain/tests/edicion/edicion.test.ts": {
-      "sha256": "c2d67be221060c075521fc6bf19907c1243ddf22293853167d1eb4be61373611",
-      "bytes": 11966,
+      "sha256": "aa5dba4ad53b82fae16d6ebf56fe228882d23280e5eeed033c445e248ad54360",
+      "bytes": 11949,
       "modo": "644",
       "origen": "arbrain/tests/edicion/edicion.test.ts"
     },
@@ -13745,8 +13745,8 @@
       "origen": "arbrain/tests/edicion/site-url.test.ts"
     },
     "arbrain/tests/edicion/voz-groq-cliente.test.ts": {
-      "sha256": "4f7cb471bd1f3e0fac90f529aec04d9830aeb69e6048e4589a8ba0663547e925",
-      "bytes": 5364,
+      "sha256": "1f674b755654f670820a07281e71b7d4c0e1680628c4077c8eed1a266195b1eb",
+      "bytes": 5587,
       "modo": "644",
       "origen": "arbrain/tests/edicion/voz-groq-cliente.test.ts"
     },
