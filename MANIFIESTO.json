@@ -1,9 +1,9 @@
 {
   "generador": "arbrain/empaquetado/generador",
   "origen": {
-    "ref": "e98b4711213057fb2d987d188041e00b86e0cef0",
-    "commit": "e98b4711213057fb2d987d188041e00b86e0cef0",
-    "fecha": "2026-10-24T14:53:28-06:00"
+    "ref": "cce40babff522dbd7da37f1cec9e3360bc20b850",
+    "commit": "cce40babff522dbd7da37f1cec9e3360bc20b850",
+    "fecha": "2026-10-24T15:41:19-06:00"
   },
   "version": "0.2.11",
   "allowlist": {
@@ -1391,8 +1391,8 @@
       "origen": "arbrain/motor/tests/token.rs"
     },
     "arbrain/next-env.d.ts": {
-      "sha256": "0f70629890b72a0a82e91972cc032c04b658b26c265373cb711cf576bfbf8fcc",
-      "bytes": 296,
+      "sha256": "1862ac4bbbc5192d4bf562161df66ea547ed3e67173100656ab606ae9797db2b",
+      "bytes": 288,
       "modo": "644",
       "origen": "arbrain/next-env.d.ts"
     },
