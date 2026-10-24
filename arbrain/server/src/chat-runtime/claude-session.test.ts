@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import type { query, SDKMessage, SDKUserMessage, Query, AccountInfo } from '@anthropic-ai/claude-agent-sdk'
-import { ClaudeInteractiveSession, ClaudeExecutionUncertain, ClaudeSubmissionCancelled, type ClaudeBackgroundEvent } from './claude-session.js'
+import { ClaudeInteractiveSession, confirmClaudeSubscription, subscriptionRetry, ClaudeExecutionUncertain, ClaudeSubmissionCancelled, type ClaudeBackgroundEvent } from './claude-session.js'
 import { dirClaudeAlterna } from '../cuentas-alternas.js'
 const a = '44444444-4444-4444-8444-444444444444', b = '88888888-8888-4888-8888-888888888888'
 const scope = { owner: 'owner', account: 'default', conversationId: 'chat' }
@@ -171,6 +171,7 @@ describe('persistent Claude subscription session', () => {
     session.close(); await session.drained
   })
   it('rejects API/unauthenticated backends before input and fixes account-specific environment', async () => {
+    subscriptionRetry.delayMs = 0
     for (const info of [{ apiProvider: 'firstParty' as const, tokenSource: 'none' }, { ...account, apiKeySource: 'ANTHROPIC_API_KEY' }, { ...account, apiProvider: 'bedrock' as const }]) {
       const f = fake(info), session = new ClaudeInteractiveSession(scope, { env: { ANTHROPIC_API_KEY: 'synthetic', ANTHROPIC_AUTH_TOKEN: 'synthetic', CLAUDE_CONFIG_DIR: '/wrong' } }, undefined, f.create)
       await expect(collect(session.turn(a, 'must not run'))).rejects.toThrow('suscripción')
@@ -179,6 +180,7 @@ describe('persistent Claude subscription session', () => {
       expect(env).not.toHaveProperty('ANTHROPIC_API_KEY'); expect(env).not.toHaveProperty('ANTHROPIC_AUTH_TOKEN'); expect(env).not.toHaveProperty('CLAUDE_CONFIG_DIR')
       session.close(); await session.drained
     }
+    subscriptionRetry.delayMs = 1500
     const f = fake(), bro = new ClaudeInteractiveSession({ ...scope, account: 'bro' }, { env: { CLAUDE_CONFIG_DIR: '/wrong' } }, undefined, f.create)
     expect(f.createMock.mock.calls[0][0].options!.env!.CLAUDE_CONFIG_DIR).toBe(dirClaudeAlterna())
     bro.close(); await bro.drained
@@ -257,5 +259,28 @@ describe('persistent Claude subscription session', () => {
     try { expect(session.hasBackgroundWork).toBe(false); expect(session.backgroundReplyOpen).toBe(false) }
     finally { vi.useRealTimers() }
     session.close(); await session.drained
+  })
+})
+
+describe('confirmClaudeSubscription', () => {
+  const ok = { apiProvider: 'firstParty', subscriptionType: 'max', tokenSource: 'claude.ai', apiKeySource: 'none' } as AccountInfo
+  const incompleta = { apiProvider: 'firstParty', tokenSource: 'none' } as AccountInfo
+
+  it('reintenta una lectura incompleta y pasa cuando llega completa', async () => {
+    const read = vi.fn().mockResolvedValueOnce(incompleta).mockResolvedValueOnce(ok)
+    await expect(confirmClaudeSubscription(read, true, true, 0)).resolves.toBeUndefined()
+    expect(read).toHaveBeenCalledTimes(2)
+  })
+
+  it('sin suscripción lanza el mismo error tras 3 reintentos', async () => {
+    const read = vi.fn().mockResolvedValue({ ...ok, apiKeySource: 'ANTHROPIC_API_KEY' })
+    await expect(confirmClaudeSubscription(read, true, true, 0)).rejects.toThrow('No se envió ningún prompt.')
+    expect(read).toHaveBeenCalledTimes(4)
+  })
+
+  it('no reintenta si ya confirma', async () => {
+    const read = vi.fn().mockResolvedValue(ok)
+    await confirmClaudeSubscription(read, true, true, 0)
+    expect(read).toHaveBeenCalledTimes(1)
   })
 })

@@ -88,6 +88,44 @@ WantedBy=default.target
 `
 }
 
+/** Nombre de la unidad de SISTEMA de la nube (servidor Linux sin pantalla; la instala `scripts/instalar/nube.sh`). */
+export const SERVICIO_NUBE = 'arbrain.service'
+
+/**
+ * systemd de SISTEMA para el servidor en la nube (23 oct 2026, modo espejo N3). A diferencia de la unidad de usuario,
+ * arranca con la máquina sin que nadie inicie sesión, corre como un usuario sin root (`User=`) y se levanta siempre que
+ * el proceso termine (`Restart=always`: en la nube se apaga con `systemctl stop arbrain`, no con `detener`). Endurecida
+ * con lo que no estorba al servidor: sin escalar privilegios, /usr y /etc de solo lectura, /tmp propio, umask 077.
+ */
+export function unidadSystemdSistema({ comando, path, usuario, home, dir }) {
+  const q = (a) => `"${String(a).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/%/g, '%%').replace(/\$/g, '$$$$')}"`
+  if (!/^[a-z_][a-z0-9_-]{0,31}$/.test(String(usuario))) throw new Error(`usuario no válido para systemd: ${usuario}`)
+  for (const r of [home, dir]) if (!String(r).startsWith('/') || /[\n\r%$]/.test(String(r))) throw new Error(`ruta no válida para systemd: ${r}`)
+  return `# Arbrain en tu nube (lo escribe arbrain/scripts/instalar/nube.sh; se reescribe en cada instalación).
+[Unit]
+Description=Arbrain (tu cerebro en la nube)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=${usuario}
+Group=${usuario}
+WorkingDirectory=${dir}
+ExecStart=${comando.map(q).join(' ')}
+Restart=always
+RestartSec=10
+Environment=${q(`HOME=${home}`)} ${q(`PATH=${path}`)} "LANG=C.UTF-8"
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=full
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target
+`
+}
+
 /** Windows: VBScript que lanza el servidor con la ventana oculta (`Run …, 0`). Comillas VBS = `""`. */
 export function unidadWindows({ comando }) {
   const linea = comando.map((a) => `"${String(a).replace(/"/g, '""')}"`).join(' ')

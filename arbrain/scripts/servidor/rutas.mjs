@@ -146,6 +146,9 @@ export const PROHIBIDAS = [
   // Propias del modo servidor: solo las fija el supervisor.
   'ARBRAIN_SERVIDOR_CONTROL', 'ARBRAIN_MODO_SERVIDOR', 'ARBRAIN_DATA_DIR', 'ARBRAIN_CONFIG_DIR', 'ARBRAIN_HOME',
   'ARBRAIN_MOTOR_SOCK', 'CLAUDECLAW_STORE_DIR', 'BUSINESS_OS_ROOT', 'MISSION_CONTROL_DESKTOP_EMBED', 'PORT', 'HOSTNAME',
+  // Modo espejo (beta): la cerca que el daemon consulta antes de cada rutina solo la fija el supervisor con el espejo
+  // encendido (espejo/supervisor.mjs › entornoDaemon). Heredada de la terminal, correría un script ajeno antes de cada rutina.
+  'ARBRAIN_ESPEJO_GUARDA',
 ]
 
 /** Entorno heredado sin lo prohibido (comparación sin mayúsculas: Windows no distingue). */

@@ -71,3 +71,15 @@
 .pie button:disabled { opacity: .5; cursor: default; }
 .pie button[aria-checked='true'] { color: var(--primary); font-weight: 600; }
 .pie svg { color: var(--muted); }
+
+/* La tarifa de recompra (24 oct 2026). */
+.tarifa { display: flex; flex-direction: column; gap: 6px; padding: 6px 8px 8px; }
+.tarifaRotulo { display: flex; flex-direction: column; gap: 1px; }
+.tarifaRotulo b { font-size: 13px; font-weight: 500; }
+.tarifaRotulo small, .tarifaEstado { font-size: 11px; color: var(--muted); }
+.tarifaCampos { display: flex; align-items: flex-end; gap: 6px; font-size: 11px; color: var(--muted); }
+.tarifaCampos label { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 0; }
+.tarifaCampos input, .tarifaCampos select { width: 100%; min-width: 0; height: 28px; padding: 0 7px; border: 1px solid var(--plan-line, color-mix(in srgb, var(--foreground) 12%, transparent)); border-radius: 7px;
+  background: var(--background); color: var(--foreground); font: inherit; font-size: 13px; font-variant-numeric: tabular-nums; color-scheme: light dark; }
+.tarifaCampos select { flex: 0 0 64px; width: 64px; }
+.tarifaCampos > span { padding-bottom: 7px; white-space: nowrap; }

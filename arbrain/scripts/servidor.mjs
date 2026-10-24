@@ -42,6 +42,8 @@ import {
 import { PRELUDIO_WEB } from './servidor/preludio-web.mjs'
 import { armarPaquete, programaYaCompilado } from './servidor/programa.mjs'
 import * as telefono from './servidor/telefono.mjs'
+// Modo espejo (beta, apagado por defecto): el rol del daemon sale de lider.json; la lógica vive en espejo/.
+import { arrancarCiclo as arrancarEspejo, entornoDaemon as entornoEspejo } from './espejo/supervisor.mjs'
 
 const ARBRAIN = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const SERVER = join(ARBRAIN, 'server')
@@ -347,7 +349,7 @@ function lanzarDaemon() {
     CLAUDECLAW_STORE_DIR: R.store,
     MC_SERVER_PORT: String(S.puertoDaemon),
     MISSION_CONTROL_ORIGIN: `http://${HOST}:${S.puertoWeb}`,
-    CLAUDECLAW_ROLE: 'full',
+    ...entornoEspejo(S.home), // { CLAUDECLAW_ROLE: 'full' } con el espejo apagado, como siempre
     CLAUDE_CONFIG_DIR: R.claude,
     ARBRAIN_NODE_BINARY: S.node,
   }
@@ -487,6 +489,7 @@ function reiniciarWeb() {
 async function apagarTodo(codigo = 0) {
   if (S.apagando) return
   S.apagando = true
+  S.espejo?.detener()
   registrar('Apagando Arbrain…')
   await Promise.all([apagarHijo('web'), apagarHijo('daemon')])
   try { if (leerJson(R.proceso)?.pid === process.pid) rmSync(R.proceso, { force: true }) } catch { /* */ }
@@ -667,6 +670,7 @@ async function iniciar() {
   }
   try { await sembrarLienzos() } catch (e) { registrar(`Lienzos de inicio: ${e?.message ?? e}`) }
   void telefono.alArrancar({ R, puertoWeb: S.puertoWeb, registrar }).catch((e) => registrar(`Teléfono: ${e?.message ?? e}`))
+  S.espejo = arrancarEspejo({ cerebro: S.home, registrar, alCambiarRol: () => void reiniciarDaemon() })
   const url = `http://${HOST}:${S.puertoWeb}`
   console.log(`
   Arbrain está corriendo en ${url}  (solo en esta computadora)

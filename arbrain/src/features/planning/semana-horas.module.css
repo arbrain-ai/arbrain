@@ -124,9 +124,15 @@
   box-shadow: inset 3px 0 0 var(--ev-ac), 0 0 0 1px color-mix(in srgb, var(--ev-ac) 22%, transparent), 0 1px 2px rgba(0, 0, 0, .06);
   transition: top 260ms cubic-bezier(.16, 1, .3, 1), height 260ms cubic-bezier(.16, 1, .3, 1), left 200ms, width 200ms, opacity 160ms, box-shadow 160ms; }
 .bloque:hover { z-index: 28; box-shadow: inset 3px 0 0 var(--ev-ac), 0 0 0 1px color-mix(in srgb, var(--ev-ac) 45%, transparent), 0 6px 16px -6px rgba(0, 0, 0, .28); }
-/* La rutina se repite cada día: tinte más tenue, sin sombra. Lo único se lleva la mirada. */
-.bloque[data-rutina] { background: color-mix(in srgb, var(--ev-bg) 78%, var(--background)); box-shadow: inset 2px 0 0 color-mix(in srgb, var(--ev-ac) 70%, transparent), 0 0 0 1px var(--linea); }
-.bloque[data-rutina] strong { font-weight: 600; }
+/* La rutina se repite casi a diario (rutinas.ts; la Perfect Week, 24 oct 2026): es el ritmo, no la noticia. Un lavado apenas
+   del color, tinta apagada, el acento como hilo y sin sombra; al pasar el cursor recupera su color. Lo único se lleva la mirada. */
+.bloque[data-rutina] { background: color-mix(in srgb, var(--ev-bg) 42%, var(--background)); color: color-mix(in srgb, var(--ev-fg) 58%, var(--muted));
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--ev-ac) 45%, transparent), 0 0 0 1px color-mix(in srgb, var(--foreground) 6%, transparent); }
+.bloque[data-rutina] strong { font-weight: 560; }
+.bloque[data-rutina] .cuerpo time { opacity: .8; }
+.bloque[data-rutina]:hover { background: var(--ev-bg); color: var(--ev-fg); }
+/* Lo único de la semana, encima del ritmo: su tinte entero y una sombra mínima que lo despega de la rejilla. */
+.bloque:not(:where([data-rutina], [data-tarea])) { box-shadow: inset 3px 0 0 var(--ev-ac), 0 0 0 1px color-mix(in srgb, var(--ev-ac) 28%, transparent), 0 2px 6px -3px rgba(0, 0, 0, .16); }
 .bloque[data-tarea] { background: color-mix(in srgb, var(--foreground) 3%, var(--background)); color: var(--foreground); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--foreground) 14%, transparent); border-radius: 6px; }
 .bloque[data-tarea] .cuerpo::before { content: ''; flex: 0 0 auto; width: 7px; height: 7px; border-radius: 2px; border: 1.4px solid color-mix(in srgb, var(--brand) 70%, var(--foreground)); margin: 0 0 1px; }
 .bloque[data-tarea][data-p1] { box-shadow: inset 0 0 0 1px rgba(var(--gold-rgb), .55); background: rgba(var(--gold-rgb), .07); }
@@ -136,6 +142,8 @@
 /* Con otras personas (invitados o Meet): borde sólido más grueso del color de su categoría. Lo que no se mueve solo. */
 .bloque[data-compromiso] { box-shadow: inset 4px 0 0 var(--ev-ac), inset 0 0 0 1.5px var(--ev-ac), 0 1px 3px rgba(0, 0, 0, .1); }
 .bloque[data-compromiso]:hover { box-shadow: inset 4px 0 0 var(--ev-ac), inset 0 0 0 1.5px var(--ev-ac), 0 6px 16px -6px rgba(0, 0, 0, .28); }
+/* Una rutina con otra persona (el gimnasio con alguien más) sigue siendo ritmo: el borde del compromiso, a media voz. */
+.bloque[data-rutina][data-compromiso] { box-shadow: inset 2px 0 0 color-mix(in srgb, var(--ev-ac) 55%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--ev-ac) 35%, transparent); }
 .bloque[data-sigue-arriba] { border-top-left-radius: 2px; border-top-right-radius: 2px; }
 .bloque[data-sigue-abajo] { border-bottom-left-radius: 2px; border-bottom-right-radius: 2px; -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 10px), rgba(0, 0, 0, .35)); mask-image: linear-gradient(180deg, #000 calc(100% - 10px), rgba(0, 0, 0, .35)); }
 .bloque[data-origen] { opacity: .32; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ev-ac) 60%, transparent); }
@@ -253,3 +261,22 @@
   .ahora::before { animation: none; }
   .bloque, .fantasma { transition: none; }
 }
+
+/* Dos columnas (24 oct 2026): la rejilla ocupa el alto de su columna y el tramo entero (5:00 a 22:00) cabe sin scroll; SemanaHoras
+   mide el riel y reparte su alto entre las horas. La cabecera ya no necesita pegarse: nada se desplaza debajo. */
+.rejilla[data-llenar] { height: 100%; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+.rejilla[data-llenar] .tabla { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
+.rejilla[data-llenar] .rielCab { position: relative; top: 0; }
+.rejilla[data-llenar] .riel { flex: 1 1 0; min-height: 0; overflow-y: hidden; }
+
+/* DRIP (24 oct 2026): la etiqueta de lo delegable y el candado de lo protegido, en la esquina de arriba a la derecha. */
+.dripTag { position: absolute; top: 3px; right: 3px; z-index: 2; display: inline-flex; align-items: center; height: 14px; padding: 0 5px; border-radius: 999px; pointer-events: none;
+  font-size: 8.5px; font-weight: 750; letter-spacing: .5px; text-transform: uppercase; line-height: 1; color: var(--ev-fg, var(--foreground));
+  background: color-mix(in srgb, var(--background) 72%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ev-ac, var(--muted)) 55%, transparent); }
+.dripTag[data-solo-icono] { padding: 0 4px; }
+.dripTag[data-tipo='delegado'] { text-transform: none; letter-spacing: .1px; }
+.dripTag[data-tipo='protegido'] { padding: 0; width: 15px; justify-content: center; background: color-mix(in srgb, var(--gold) 28%, var(--background)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 70%, transparent); }
+.dripTag svg { width: 9px; height: 9px; stroke: currentColor; stroke-width: 1.4; fill: none; }
+.dripTag svg rect { fill: currentColor; stroke: none; }
+.bloque[data-protegido] { box-shadow: inset 3px 0 0 var(--ev-ac), 0 0 0 1.5px color-mix(in srgb, var(--gold) 70%, transparent), 0 2px 6px -3px rgba(0, 0, 0, .16); }
+.bloque:where([data-delegable], [data-protegido]) .cuerpo strong { padding-right: 13px; }

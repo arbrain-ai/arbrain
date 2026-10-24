@@ -117,7 +117,9 @@ test('lo principal se pliega con un toque: cerrado por defecto, recordado y comp
   assert.deepEqual([a.abreObjetivo, a.abreTodoElDia], [true, false], 'se recuerda; lo inválido vuelve a plegado')
   assert.equal(ajustar(AJUSTES_BASE, { abreObjetivo: true }).abreObjetivo, true)
   // Semana y Mes pliegan el objetivo con la misma pieza; Semana y Día pliegan lo de día completo con el mismo estado.
-  for (const f of ['SemanaClara.tsx', 'MesClaro.tsx']) assert.match(fuente(f), /plegada=\{plegado \? !plegado\.objetivo : false\} onPlegar=\{plegado \? \(\) => plegado\.alternar\('objetivo'\)/, f)
+  for (const f of ['SemanaClara.tsx', 'MesClaro.tsx']) assert.match(fuente(f), /plegada=\{(\w+) \? !\1\.objetivo : false\} onPlegar=\{\1 \? \(\) => \1\.alternar\('objetivo'\)/, f)
+  // En dos columnas (24 oct 2026) el objetivo va abierto y sin toque de plegar: la variable es `plegado` salvo `dosColumnas`.
+  for (const f of ['SemanaClara.tsx', 'MesClaro.tsx', 'DiaVivo.tsx']) assert.match(fuente(f), /= dosColumnas \? undefined : plegado/, f)
   assert.match(fuente('SemanaClara.tsx'), /onTodoElDia=\{plegado \? \(\) => plegado\.alternar\('todoElDia'\)/)
   assert.match(fuente('DiaVivo.tsx'), /onTodoElDia=\{plegado \? \(\) => plegado\.alternar\('todoElDia'\)/)
   const cal = fuente('PlanningCalendar.tsx')

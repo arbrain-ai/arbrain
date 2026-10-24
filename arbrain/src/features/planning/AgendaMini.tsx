@@ -1,12 +1,13 @@
 'use client'
-import { useRef, type CSSProperties } from 'react'
-import { CalendarClock } from 'lucide-react'
+import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
+import { CalendarClock, Lock } from 'lucide-react'
 import { carriles, duracion, tramoDia, type Bloque } from './dia-vivo'
 import type { BloqueAgenda } from './agenda-llamadas'
 import { esCompromiso } from './categorias'
 import { esc, hora } from './vivo-piezas'
 import type { PlanEvent, PlanItem, PlanTask } from './types'
 import { encuadreDe } from './encuadre'
+import { useGobierno } from './gobierno'
 import { useEncuadre } from './useEncuadre'
 import d from './dia-vivo.module.css'
 // La línea de ahora es la de «Tu día» (cabina/luz.module.css): se aplican las dos clases, no se copia el estilo.
@@ -14,6 +15,8 @@ import luz from '@/features/cabina/luz.module.css'
 
 /** Alto de una hora (10 oct 2026): el día entero de 05 a 22 mide ~510 px y va en el scroll del panel o de la página. */
 const HORA_PX = 30
+/** Con `llenar`, la hora nunca baja de esto aunque la pantalla sea corta (la etiqueta y un bloque de 30 min siguen legibles). */
+const HORA_PX_MIN = 22
 /**
  * La agenda mini (5 oct 2026, Daniel: «la mitad de la pantalla con el día en horas, como una agenda miniatura súper fluida,
  * y la otra mitad con las tareas»). Una columna de horas, ajustada a lo que tiene el día, con los bloques en su lugar, los
@@ -24,7 +27,7 @@ const HORA_PX = 30
  * Desde el 21 oct 2026 la agenda no tiene scroll propio (se tragaba la rueda) y la línea de ahora es la de «Tu día».
  * Desde el 22 oct 2026 abre con el ahora a un tercio de lo visible y otro día en su primer evento o a las 5:30 (useEncuadre.ts).
  */
-export function AgendaMini({ bloques, bandas = [], todoElDia, fecha, ahora, esHoy, pasado, color, cargando, rejilla, onRejilla, onAbrir, objetivo, todoElDiaAbierto, onTodoElDia, central = true }: {
+export function AgendaMini({ bloques, bandas = [], todoElDia, fecha, ahora, esHoy, pasado, color, cargando, rejilla, onRejilla, onAbrir, objetivo, todoElDiaAbierto, onTodoElDia, central = true, llenar = false }: {
   bloques: BloqueAgenda[]
   /** Ventanas de disponibilidad (18 oct 2026): una banda de fondo detrás de las tarjetas, no una columna. */
   bandas?: Bloque[]
@@ -41,6 +44,8 @@ export function AgendaMini({ bloques, bandas = [], todoElDia, fecha, ahora, esHo
   onTodoElDia?: () => void
   /** La hoja de en medio del carril: solo ella encuadra el scroll (las vecinas también se pintan). */
   central?: boolean
+  /** Dos columnas (24 oct 2026): el día entero cabe en el alto que le dan, sin scroll; la hora mide lo que alcance. */
+  llenar?: boolean
 }) {
   const base = new Date(fecha).setHours(0, 0, 0, 0)
   // Lo de día completo nace plegado en una línea (ronda 3, 10 oct 2026): el mismo estado que la franja de la Semana.
@@ -48,7 +53,19 @@ export function AgendaMini({ bloques, bandas = [], todoElDia, fecha, ahora, esHo
   const todos = [...bloques, ...bandas, ...(objetivo ? [{ inicio: objetivo.inicio, fin: objetivo.fin }] : [])]
   const { desde, hasta } = tramoDia(todos, fecha)
   const horasN = (hasta - desde) / 60
-  const px = HORA_PX
+  // Llenar: el alto de la caja se mide y se reparte entre las horas del tramo (5:00 a 22:00 o lo que el día pida).
+  const caja = useRef<HTMLDivElement>(null)
+  const [altoCaja, setAltoCaja] = useState(0)
+  useLayoutEffect(() => {
+    const el = caja.current
+    if (!llenar || !el) { setAltoCaja(0); return }
+    const medir = () => setAltoCaja(el.clientHeight)
+    medir()
+    const o = new ResizeObserver(medir); o.observe(el)
+    return () => o.disconnect()
+  }, [llenar])
+  // 14 px: el margen de la rejilla y medio renglón para que la etiqueta de la última hora no se corte.
+  const px = llenar && altoCaja > 0 ? Math.max(HORA_PX_MIN, (altoCaja - 14) / horasN) : HORA_PX
   const y = (t: number) => ((t - base) / 60000 - desde) / 60 * px
   const alto = horasN * px
   // Al abrir, al llegar a otro día o con «Hoy»: hoy, el ahora a un tercio de lo visible; otro día, su primer evento o las 5:30.
@@ -63,6 +80,8 @@ export function AgendaMini({ bloques, bandas = [], todoElDia, fecha, ahora, esHo
   const horas = Array.from({ length: horasN + 1 }, (_, i) => desde + i * 60)
   const lanes = carriles(objetivo ? [...bloques, { id: 'objetivo', titulo: '', inicio: objetivo.inicio, fin: objetivo.fin, color: null, evento: null as unknown as PlanEvent }] : bloques)
   const ahoraY = esHoy ? y(ahora) : null
+  // DRIP (24 oct 2026): la etiqueta de lo delegable, de quién es y el candado de lo protegido.
+  const gobierno = useGobierno()
   const vivo = (inicio: number, fin: number) => esHoy && inicio <= ahora && ahora < fin
   const lugar = (inicio: number, fin: number, id: string) => {
     const top = y(inicio), h = Math.max(12, y(fin) - top - 1), l = lanes.get(id) ?? { col: 0, cols: 1 }
@@ -81,7 +100,7 @@ export function AgendaMini({ bloques, bandas = [], todoElDia, fecha, ahora, esHo
         aria-label={plegadas ? `Ver las ${todoElDia.length} de día completo` : 'Plegar lo de día completo'}>{plegadas ? `+${todoElDia.length - 1}` : <svg viewBox="0 0 12 12" aria-hidden><path d="M3 7.5 6 4.5 9 7.5" /></svg>}</button>}
     </div>}
     {!todos.length && <p className={d.vacio}>{cargando ? 'Leyendo tu calendario…' : `Nada agendado ${esHoy ? 'hoy' : 'este día'}.`}</p>}
-    <div className={`${d.miniCaja} ${d.entra}`} style={esc(3)} data-hoy={esHoy || undefined}>
+    <div ref={caja} className={`${d.miniCaja} ${d.entra}`} style={esc(3)} data-hoy={esHoy || undefined}>
       <div ref={mini} className={d.mini} style={{ height: alto } as CSSProperties} role="presentation">
         {esHoy && ahoraY != null && ahoraY > 0 && <i className={d.miniVivido} style={{ height: Math.min(ahoraY, alto) }} aria-hidden />}
         {horas.map(m => <span key={m} className={d.miniHora} style={{ top: (m - desde) / 60 * px }}>
@@ -92,10 +111,13 @@ export function AgendaMini({ bloques, bandas = [], todoElDia, fecha, ahora, esHo
         <ol className={d.miniBloques}>
           {bloques.map(b => {
             const c = lugar(b.inicio, b.fin, b.id), yaPaso = pasado || (esHoy && b.fin <= ahora)
-            return <li key={b.id} style={{ ...c.style, ['--c' as string]: b.color ?? 'var(--primary)' } as CSSProperties}>
+            const l = gobierno?.lectura(b.evento), tag = l && (l.protegido || l.delegable) ? (l.protegido ? 'protegido' : l.delegadoA ? 'delegado' : 'delegable') : null
+            return <li key={b.id} style={{ ...c.style, ['--c' as string]: b.color ?? 'var(--primary)' } as CSSProperties} data-drip={l?.cuadrante} data-protegido={l?.protegido || undefined}>
               <button onClick={() => onAbrir(b.evento)} data-pasado={yaPaso || undefined} data-compromiso={esCompromiso(b.evento) || undefined} data-vivo={vivo(b.inicio, b.fin) || undefined} data-corto={c.h < 26 || undefined}
-                title={`${hora(b.inicio)} – ${hora(b.fin)} · ${b.titulo}`} aria-label={`${hora(b.inicio)} a ${hora(b.fin)}, ${b.titulo}, ${duracion((b.fin - b.inicio) / 60000)}`} data-con-brief={b.brief ? '' : undefined}>
+                title={`${hora(b.inicio)} – ${hora(b.fin)} · ${b.titulo}`} aria-label={`${hora(b.inicio)} a ${hora(b.fin)}, ${b.titulo}, ${duracion((b.fin - b.inicio) / 60000)}`} data-con-brief={b.brief ? '' : undefined} data-con-tag={tag ?? undefined}>
                 <span>{b.corto ?? b.titulo}</span>{c.h >= 34 && <time>{hora(b.inicio)} – {hora(b.fin)}</time>}
+                {tag && <em className={d.dripTag} data-tipo={tag} title={tag === 'protegido' ? 'Protegido: nada nuevo entra encima' : tag === 'delegado' ? `De ${l!.delegadoA}` : 'Delegable: tócalo y «Delegar a Levy»'}>
+                  {tag === 'protegido' ? <Lock size={9} aria-label="protegido" /> : tag === 'delegado' ? `de ${l!.delegadoA}` : 'delegable'}</em>}
               </button>
               {b.brief && <button className={d.miniBrief} onClick={() => onAbrir(b.brief!.evento)} title={b.brief.titulo} aria-label={`Abrir ${b.brief.titulo}`}>📋</button>}
             </li>

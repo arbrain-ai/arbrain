@@ -9,3 +9,5 @@
 .hoja[data-lado='1'] { left: 100%; }
 /* La vecina llega ya puesta: la subida de entrada es para abrir el día, no para cada hoja que se asoma al deslizar. */
 .hoja[data-quieta] :global([class*='entra']) { animation: none !important; }
+/* Dos columnas (24 oct 2026): la hoja del día ocupa el alto completo para que su agenda quepa entera sin scroll. */
+:global([data-dos-columnas]) .marco, :global([data-dos-columnas]) .pista, :global([data-dos-columnas]) .hoja { height: 100%; }

@@ -23,6 +23,7 @@ import { carpetaOriginal } from './dueno.js'
 import { faltaLlaveClaude, MENSAJE_FALTA_LLAVE } from './cliente/llaves.js'
 import { motorSuscripcion, MENSAJE_RUTINAS } from './cliente/suscripcion.js'
 import { MENSAJE_PAUSA, pausado } from './cliente/pausa.js'
+import { cercaEspejo } from './cliente/espejo.js'
 
 let schedulerInterval: ReturnType<typeof setInterval> | null = null
 
@@ -126,6 +127,16 @@ export async function executeCronJob(task: ScheduledTask, opts?: { manual?: bool
     // Motor «Mi Claude Code»: el plan de la persona es para su uso directo; las rutinas en segundo plano no lo gastan.
     if (!rawScript && motorSuscripcion()) throw new Error(MENSAJE_RUTINAS)
     if (esEdicionCliente() && pausado()) throw new Error(MENSAJE_PAUSA)
+    // Modo espejo (beta): ¿esta máquina sigue mandando en origin, la llave tiene tope, ya salió hoy? Apagado = sin efecto.
+    if (!rawScript && esEdicionCliente()) {
+      const espejo = await cercaEspejo(task.id)
+      if (!espejo.correr && espejo.tipo === 'omitir') {
+        updateTaskAfterRun(task.id, espejo.motivo ?? '(omitida por el espejo)', nextRun)
+        opsLogger.log('cron_done', 'cron', { jobId: task.id, manual, omitida: espejo.codigo, folio: espejo.folio })
+        return
+      }
+      if (!espejo.correr) throw new Error(espejo.motivo ?? 'El espejo no dejó correr esta rutina.')
+    }
     if (rawScript) {
       // Script directo: sin capa de agente externa no hay OAuth/limits/timeout ajenos.
       const { stdout, stderr } = await execFileAsync(
@@ -310,8 +321,14 @@ export async function runDueTasks(): Promise<void> {
   try {
     const tasks = getDueTasks()
     if (tasks.length === 0) return
+    const enParalelo = esEdicionCliente()
 
     for (const task of tasks) {
+      if (enParalelo) {
+        // Sigue vencida para el próximo pase: ni se reclama mientras corre ni cuando no hay lugar.
+        if (enCurso.has(task.id)) continue
+        if (enCurso.size >= paraleloMax()) break
+      }
       const nowEpoch = Math.floor(Date.now() / 1000)
       const nextRun = computeNextRun(task.schedule)
 
@@ -351,12 +368,32 @@ export async function runDueTasks(): Promise<void> {
         continue
       }
 
-      await executeCronJob(task)
+      if (!enParalelo) { await ejecutar(task); continue }
+      // Edición cliente: la rutina corre aparte; el pase sigue con las demás (una rutina larga o que espera no detiene
+      // la fila). Al terminar, un pase nuevo recoge lo que se haya quedado esperando lugar.
+      enCurso.add(task.id)
+      void ejecutar(task).catch((err) => logger.error({ err, taskId: task.id }, 'scheduled task error')).finally(() => {
+        enCurso.delete(task.id)
+        setTimeout(() => { runDueTasks().catch((err) => logger.error({ err }, 'scheduler poll error')) }, 0).unref?.()
+      })
     }
   } finally {
     runDueTasksActive = false
   }
 }
+
+/**
+ * Fila del scheduler en la edición cliente (24 oct 2026, hallazgo del prototipo del modo espejo): antes cada rutina se
+ * esperaba entera antes de la siguiente, así que una que se quedaba esperando un clic (la de `now.md`) detenía a todas.
+ * Ahora corren aparte, hasta `ARBRAIN_RUTINAS_PARALELO` a la vez (2 por defecto, máximo 4); la misma rutina nunca dos
+ * veces a la vez. La instalación de Daniel sigue en fila, como siempre.
+ */
+const enCurso = new Set<string>()
+const paraleloMax = (): number => Math.min(Math.max(Math.floor(Number(process.env.ARBRAIN_RUTINAS_PARALELO) || 2), 1), 4)
+/** Solo pruebas: cómo se ejecuta cada rutina (por defecto, executeCronJob). */
+let ejecutar: (task: ScheduledTask) => Promise<void> = (task) => executeCronJob(task)
+export function _ejecutorParaPruebas(f: ((task: ScheduledTask) => Promise<void>) | null): void { ejecutar = f ?? ((task) => executeCronJob(task)) }
+export function _enCursoParaPruebas(): ReadonlySet<string> { return enCurso }
 
 /**
  * Scheduler de la edición cliente (empaquetado, 11 oct 2026; contrato §8). No siembra ni migra los crons de Daniel

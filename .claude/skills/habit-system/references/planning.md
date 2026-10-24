@@ -100,6 +100,9 @@ DÍAS:
 
 **Triggers:** «revisión semanal», «cómo me fue», «qué logré esta semana».
 
+El domingo, encima de esta revisión, corre el circuito de `gobierno-del-tiempo.md` (plan vs real, horas en Producir,
+horas recompradas, el asesino del tiempo si apareció y una sola propuesta).
+
 Reunir: foco y checklists de la semana en `objetivos.md`, tareas cerradas y abiertas, registros de
 hábitos del período y entradas del diario. La revisión NUNCA crea eventos ni tareas por su cuenta.
 

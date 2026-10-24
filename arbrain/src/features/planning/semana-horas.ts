@@ -36,6 +36,11 @@ export interface Bloque {
   brief?: Bloque
   /** Lo que dice la tarjeta (el nombre en una llamada); sin esto, `titulo`. */
   corto?: string
+  /** DRIP (24 oct 2026): el cuadrante, la etiqueta «delegable», de quién es ya y si está protegido. */
+  drip?: 'producir' | 'invertir' | 'reemplazar' | 'delegar'
+  delegable?: boolean
+  delegadoA?: string | null
+  protegido?: boolean
 }
 
 /** Lo que se pinta de un bloque en un día: minutos desde las 00:00, ya recortados al tramo. */

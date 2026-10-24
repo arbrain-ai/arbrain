@@ -157,6 +157,40 @@ export function resumen(fugas, tope = 20) {
   return lineas.join('\n')
 }
 
+const MARCADOR_PENDIENTE = /^<!-- arbrain:[\w-]+ pendiente -->$/
+const DATO_PERSONAL = [
+  { nombre: 'correo', re: /[\w.+-]+@[\w-]+\.[\w.-]+/ },
+  { nombre: 'teléfono', re: /\+?\d[\d\s().-]{7,}\d/ },
+]
+
+/** ¿Es un marcador legítimo? Primera línea `<!-- arbrain:<algo> pendiente -->` y sin correos ni teléfonos. Devuelve el motivo si no lo es. */
+export function motivoNoMarcador(texto) {
+  const primera = texto.replace(/^\uFEFF/, '').split(/\r?\n/, 1)[0].trim()
+  if (!MARCADOR_PENDIENTE.test(primera)) return 'sin marcador «<!-- arbrain:… pendiente -->» en la primera línea'
+  const dato = DATO_PERSONAL.find(d => d.re.test(texto))
+  return dato ? `lleva un ${dato.nombre}` : null
+}
+
+/**
+ * La memoria del alumno nace sin datos: solo índices (`MEMORY*.md`), README, `.gitkeep` y marcadores `pendiente`
+ * (los reescribe la sincronización con el sitio del programa). Cualquier otra cosa detiene el build.
+ */
+export function memoriaVacia(dir) {
+  if (!existsSync(dir)) throw new Error('[desktop] La plantilla no trae .claude/memory.')
+  const sobran = []
+  const recorrerMemoria = (d, rel) => {
+    for (const e of readdirSync(d, { withFileTypes: true })) {
+      const r = rel ? `${rel}/${e.name}` : e.name
+      if (e.isDirectory()) { recorrerMemoria(join(d, e.name), r); continue }
+      if (/^MEMORY[\w-]*\.md$/.test(r) || e.name === 'README.md' || e.name === '.gitkeep') continue
+      const motivo = e.name.endsWith('.md') ? motivoNoMarcador(readFileSync(join(d, e.name), 'utf8')) : 'no es un marcador'
+      if (motivo) sobran.push(`${r} (${motivo})`)
+    }
+  }
+  recorrerMemoria(dir, '')
+  if (sobran.length) throw new Error(`[desktop] La memoria de la plantilla no está vacía: ${sobran.join(', ')}`)
+}
+
 // Uso suelto: node scripts/paquete-seguro.mjs <carpeta> [--estricto]
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const objetivo = process.argv[2]

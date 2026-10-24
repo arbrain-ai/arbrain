@@ -36,7 +36,11 @@ import { DONDE_CARPETAS, DONDE_PERMISOS, estadoPermisos, LIBERA_SIN_FRENO, NOMBR
 import { EXT_EJECUTABLE } from './hooks-proyecto.js'
 
 export type DecisionPolitica =
-  | { tipo: 'permitir'; porModo?: ModoPermisos; /** Corrió sin clic porque la persona quitó el freno (enviar, borrar, publicar). */ sinFreno?: true }
+  | {
+    tipo: 'permitir'; porModo?: ModoPermisos; /** Corrió sin clic porque la persona quitó el freno (enviar, borrar, publicar). */ sinFreno?: true
+    /** Una rutina escribió un archivo que el propio cerebro genera (`now.md`, reportes): sin clic, anotado (`generadoPorRutina`). */
+    generado?: true
+  }
   | { tipo: 'negar'; motivo: string }
   | {
     tipo: 'confirmar'; categoria: CategoriaConfirmacion; resumen: string; literal: string; avisos: string[]
@@ -77,6 +81,11 @@ export interface ContextoPolitica {
    * sin clic enviar, borrar y publicar; nunca pagar, ni nada negado. Las rutinas lo fijan en false.
    */
   sinFreno?: boolean
+  /**
+   * La herramienta la pide una rutina (cron), sin la persona delante. Solo cambia una cosa: los archivos que el cerebro
+   * genera (`generadoPorRutina`) se escriben sin clic con las herramientas de archivos. Todo lo demás, igual.
+   */
+  rutina?: boolean
   /** Dominios que la persona aprobó para WebFetch en esta sesión (red team 2 M-5). Por defecto, los del daemon. */
   dominiosWeb?: Set<string>
   /**
@@ -324,6 +333,23 @@ export type NivelProteccion = 'negar' | 'confirmar'
 // v0.2.6: `plan/` (objetivos.md, calendario.json, habitos.json) es capa del alumno, datos y no configuración del agente:
 // cada objetivo que Levy agendaba pedía un clic («cambia lo que el agente puede hacer») y con tres quedaba uno.
 const CLAUDE_LIBRE = /^\.claude\/(memory|knowledge|daily|diario|plan)(\/|$)/
+/**
+ * Archivos que las rutinas del propio cerebro generan dentro de `.claude/` (24 oct 2026, hallazgo del prototipo del modo
+ * espejo): `now.md` y los reportes y briefs en Markdown (`reportes/**.md`, `briefs/**.md`; los mismos que el espejo deja
+ * solo al líder, `scripts/espejo/lib/viaja.mjs › SOLO_LIDER`). No son configuración del agente: ni skills, ni ganchos,
+ * ni ajustes. Antes, una rutina que escribía `now.md` pedía un clic que nadie daba y se quedaba esperando. Solo cuenta
+ * para rutinas y solo con las herramientas de archivos; un chat sigue preguntando, y una sesión contaminada también
+ * (`endurecerContaminada` vuelve a pedir clic para cualquier escritura en `.claude/`).
+ */
+const GENERADO_POR_RUTINA = /^\.claude\/(now\.md|(reportes|briefs)\/([^/]+\/)*[^/]+\.md)$/
+export function generadoPorRutina(real: string, home: string): boolean {
+  if (!dentroDe(real, home)) return false
+  const rel = real.slice(home.length).replace(/^[\\/]+/, '').replace(/\\/g, '/').toLowerCase()
+  if (!GENERADO_POR_RUTINA.test(rel)) return false
+  const ps = rel.split('/')
+  return !ps.slice(1).some(x => x === '.claude' || x === '.git' || x === 'hooks' || x === '..' || x.startsWith('settings'))
+}
+
 export function nivelProteccion(real: string, home: string): NivelProteccion | null {
   if (!dentroDe(real, home)) return null
   const rel = real.slice(home.length).replace(/^[\\/]+/, '').replace(/\\/g, '/').toLowerCase()
@@ -652,6 +678,8 @@ function decidirSinContexto(herramienta: string, input: unknown, ctx: ContextoPo
     if (r.tipo === 'abierta') return relajar(confirmar('otra', `Escribir en una carpeta que abriste: ${r.ruta}`, `${herramienta} ${r.ruta}\n${JSON.stringify(i, null, 1)}`, ['escribe fuera de tu cerebro, en una carpeta que abriste']), 'carpeta')
     if (r.tipo === 'protegida' && r.nivel === 'negar') return negar(`${herramienta} sobre ${r.ruta}: ${MOTIVO_AJUSTES}`)
     if (r.tipo === 'protegida') {
+      // Una rutina escribe lo que el cerebro genera (now.md, reportes): no es una acción externa ni configura al agente.
+      if (ctx.rutina && generadoPorRutina(r.ruta, ctx.home)) return { tipo: 'permitir', generado: true }
       // El literal es la entrada COMPLETA de la herramienta (sin recortes): es lo que de verdad se escribe.
       const d = confirmar('otra', `Cambiar la configuración del agente: ${r.ruta}`, `${herramienta} ${r.ruta}\n${JSON.stringify(i, null, 1)}`, ['este archivo cambia lo que el agente puede hacer'])
       return configuracionEnTexto(r.ruta, ctx.home) ? relajar(d, 'carpeta') : d

@@ -32,9 +32,10 @@ export const INSTALACION: Instalacion = {
   // Sin espacios de cuenta extra: el chat del alumno usa su llave (el selector no se muestra en cliente).
   etiquetasCuentasChat: {},
   // Atajos de ejemplo para un catálogo de hábitos genérico; la persona los ajusta a los suyos.
-  // Sin temporada: la fila «Hábitos de hoy» no muestra cuadrícula ni cuenta regresiva hasta que la persona fije una.
+  // Sin temporada de fábrica: la persona la arma con su Levy y vive en `<su cerebro>/.claude/plan/temporada.json`
+  // (`lib/planning/temporada-cli.ts`, `/api/planning/temporada`), que manda sobre estos dos. Mientras no exista, la franja
+  // del Calendario invita «Arma tu temporada con Levy» y «Hábitos de hoy» no muestra cuadrícula ni cuenta regresiva.
   temporadaHabitos: undefined,
-  // Sin periodo: el Calendario no muestra contador hasta que la persona fije uno.
   periodo: undefined,
   // La identidad y los principios de cada hábito los escribe la persona en la fila.
   habitosAtomicos: { identidad: '', habitos: {} },

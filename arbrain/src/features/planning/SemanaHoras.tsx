@@ -39,6 +39,8 @@ const ANGOSTO = 700
 const MANTENER_MS = 320
 /** El canal de horas en angosto (igual que `--canal` en el CSS): lo que queda es para los días. */
 const CANAL_ANGOSTO = 38
+/** Con `llenar`, la hora vive entre estos dos altos (px): legible en pantallas cortas, sin bloques gigantes en las altas. */
+const HORA_MIN_LLENAR = 26, HORA_MAX_LLENAR = 72
 const claveDias = (donde: string) => `arbrain:planning:semana-dias:${donde}`
 /** 3 · 4 · 7 días a la vez en angosto, por superficie (el chat); null = los que quepan. */
 function useDiasVista(donde: string): [DiasVista | null, (n: DiasVista) => void] {
@@ -89,7 +91,7 @@ interface Gesto {
   minuto: number
 }
 
-export function SemanaHoras({ dias: diasFijos, semana, inicio, onVentana, sinBarra, hoy, ahora, bloques, todoElDia, estrellas, onMover, onEstirar, onCrear, onAbrir, onDia, tramo = TRAMO, donde = 'chat', barra, amplia, diasVista, finDeSemana = true, compacta, zona, todoElDiaAbierto, onTodoElDia, listo = true }: {
+export function SemanaHoras({ dias: diasFijos, semana, inicio, onVentana, sinBarra, hoy, ahora, bloques, todoElDia, estrellas, onMover, onEstirar, onCrear, onAbrir, onDia, tramo = TRAMO, donde = 'chat', barra, amplia, diasVista, finDeSemana = true, compacta, zona, todoElDiaAbierto, onTodoElDia, listo = true, llenar = false }: {
   /** Semana fija (la vista del chat). Sin `onVentana` se pintan estos días. */
   dias?: string[]
   /** Ventana deslizante: un día de la semana a la que se llega (Hoy, el Mes, la URL) y el primer día visible, si ya se sabe. */
@@ -129,6 +131,8 @@ export function SemanaHoras({ dias: diasFijos, semana, inicio, onVentana, sinBar
   onTodoElDia?: () => void
   /** Ya hay lectura: el encuadre de la hora espera a que lo de arriba (objetivo, chips) ocupe su lugar. */
   listo?: boolean
+  /** Dos columnas (24 oct 2026): la rejilla toma el alto que le dan y la hora mide lo que alcance para que el tramo quepa sin scroll. */
+  llenar?: boolean
 }) {
   const raiz = useRef<HTMLDivElement>(null), riel = useRef<HTMLDivElement>(null), cabecera = useRef<HTMLDivElement>(null)
   const columnas = useRef<(HTMLDivElement | null)[]>([])
@@ -145,7 +149,18 @@ export function SemanaHoras({ dias: diasFijos, semana, inicio, onVentana, sinBar
   const denso = angosto && anchoColumna < COLUMNA_DENSA
   const minimo = angosto && anchoColumna < COLUMNA_COMPACTA
   const horas = tramo.hasta - tramo.desde
-  const horaPx = altoHora({ angosto, amplia, compacta })
+  // Llenar: el alto útil del riel se reparte entre las horas del tramo; nunca más bajo que una hora compacta ni más alto que Enfoque.
+  const [altoRiel, setAltoRiel] = useState(0)
+  useLayoutEffect(() => {
+    const el = riel.current
+    if (!llenar || !el) { setAltoRiel(0); return }
+    const medir = () => setAltoRiel(el.clientHeight)
+    medir()
+    const o = new ResizeObserver(medir); o.observe(el)
+    return () => o.disconnect()
+  }, [llenar])
+  const horaPx = llenar && altoRiel > 0 ? Math.min(HORA_MAX_LLENAR, Math.max(HORA_MIN_LLENAR, Math.floor((altoRiel - 10) / Math.max(1, tramo.hasta - tramo.desde))))
+    : altoHora({ angosto, amplia, compacta })
   // La ventana deslizante: `objetivo` es el primer día que debe verse; `base`, el centro del riel que está pintado.
   const desliza = Boolean(onVentana)
   // Cambió cuántas columnas caben (rotar, redimensionar, el engrane): la ventana se reencuadra sin perder hoy (`reencuadrar`).
@@ -496,7 +511,7 @@ export function SemanaHoras({ dias: diasFijos, semana, inicio, onVentana, sinBar
   const conFranja = dias.some(d => (todoElDia.get(d)?.length ?? 0) > 0 || estrellas?.get(d))
   const etiquetaGrid = `Semana en horas, de las ${hhmm(tramo.desde * 60)} a las ${hhmm(tramo.hasta * 60)}`
 
-  return <div ref={raiz} className={h.rejilla} style={estilo} data-angosto={angosto || undefined} data-desliza={desliza || undefined} data-asentada={asentada || undefined} data-denso={denso || undefined} data-minimo={minimo || undefined} data-compacta={compacta || undefined} data-amplia={amplia || undefined} data-arrastrando={gesto?.activo || undefined} data-creando={gesto?.activo && gesto.modo === 'crear' || undefined}>
+  return <div ref={raiz} className={h.rejilla} style={estilo} data-angosto={angosto || undefined} data-desliza={desliza || undefined} data-asentada={asentada || undefined} data-denso={denso || undefined} data-minimo={minimo || undefined} data-compacta={compacta || undefined} data-amplia={amplia || undefined} data-llenar={llenar || undefined} data-arrastrando={gesto?.activo || undefined} data-creando={gesto?.activo && gesto.modo === 'crear' || undefined}>
     {!sinBarra && (barra || (angosto && !controlado)) && <div className={h.barra}>
       <div className={h.barraIzq}>{barra}</div>
       {angosto && !controlado && <div className={h.diasVista} role="radiogroup" aria-label="Días a la vista">
@@ -573,6 +588,7 @@ export function SemanaHoras({ dias: diasFijos, semana, inicio, onVentana, sinBar
                 return <div key={b.id} className={`${h.bloque} ev-color`} data-corto={corto || undefined} data-diminuto={diminuto || undefined} data-tarea={b.tarea || undefined} data-rutina={b.rutina || undefined}
                   data-p1={b.prioridad || undefined} data-compromiso={b.compromiso || undefined} data-sigue-arriba={p.sigueArriba || undefined} data-sigue-abajo={p.sigueAbajo || undefined} data-origen={enGesto || undefined}
                   data-pasado={b.fin <= ahora || undefined} data-cascada={lugar.cascada || undefined} data-con-brief={b.brief ? '' : undefined}
+                  data-drip={b.drip} data-protegido={b.protegido || undefined} data-delegable={b.delegable || undefined}
                   style={{ ...estiloEvento(b.tarea ? null : b.color), top: y(p.desde), height: `calc(${dur / 60} * var(--hora) - 2px)`, '--lineas': Math.max(1, lineas),
                     ...(anchoColumna > 0 ? { left: `${lugar.left}px`, width: `${Math.max(8, lugar.width - separa)}px`, ...(lugar.cascada ? { zIndex: 1 + piezas.filter(o => o.desde < p.desde || (o.desde === p.desde && o.col < p.col)).length } : {}) }
                       : { left: `calc(${p.col} / ${p.cols} * 100%)`, width: `calc(${1 / p.cols} * 100% - ${separa}px)` }) } as CSSProperties}>
@@ -583,6 +599,11 @@ export function SemanaHoras({ dias: diasFijos, semana, inicio, onVentana, sinBar
                       : <><strong>{texto}</strong>{conHora && <time>{ini ? (horaCorta ? ini : `${ini} – ${fin}`) : `hasta ${fin}`}</time>}</>}
                   </button>
                   {/* El brief de la misma persona vive en la tarjeta de su llamada: un toque al 📋 lo abre. */}
+                  {/* DRIP (24 oct 2026): lo delegable lleva su etiqueta; lo de alguien más dice de quién; lo protegido, su candado. */}
+                  {!diminuto && !minimo && (b.protegido || b.delegable) && <span className={h.dripTag} data-tipo={b.protegido ? 'protegido' : b.delegadoA ? 'delegado' : 'delegable'} data-solo-icono={estrecho || corto || undefined}
+                    title={b.protegido ? 'Protegido: nada nuevo entra encima' : b.delegadoA ? `De ${b.delegadoA}` : 'Delegable: tócalo y «Delegar a Levy»'}>
+                    {b.protegido ? <svg viewBox="0 0 12 12" aria-hidden><rect x="2.5" y="5.2" width="7" height="5.3" rx="1.3" /><path d="M4.2 5.2V3.9a1.8 1.8 0 0 1 3.6 0v1.3" fill="none" /></svg>
+                      : <span>{b.delegadoA ? b.delegadoA : estrecho || corto ? 'D' : 'delegable'}</span>}</span>}
                   {b.brief && !minimo && onAbrir && <button className={h.brief} onPointerDown={e => e.stopPropagation()} onClick={() => onAbrir(b.brief!)} title={b.brief.titulo} aria-label={`Abrir ${b.brief.titulo}`}>📋</button>}
                   {b.movible && onEstirar && !p.sigueAbajo && dur >= 30 && <span className={h.borde} onPointerDown={e => tomar(e, p, 'estirar')} aria-hidden />}
                 </div> })}

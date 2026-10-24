@@ -15,6 +15,10 @@
 /* La escena: cambiar de periodo desliza (← →, swipe); cambiar de escala, si el navegador sabe transiciones de vista, hace crecer el riel
    del día entre escalas (PlanningCalendar, `transicion`); si no, acerca o aleja. Solo entra lo nuevo: el cambio se siente inmediato. */
 .escena { flex: 0 0 auto; min-width: 0; transform-origin: 50% 0; }
+/* Dos columnas (24 oct 2026): la escena toma el alto que deja la barra y se lo pasa a su vista; en el Mes es la columna izquierda. */
+:global([data-dos-columnas]) > .escena { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
+:global([data-dos-columnas=month]) > .escena { grid-area: izq; }
+:global([data-dos-columnas]) > .escena > * { flex: 1 1 0; min-height: 0; }
 .escena[data-mov=der] { animation: desdeDerecha 340ms var(--mov-curva, cubic-bezier(.16, 1, .3, 1)) both; }
 .escena[data-mov=izq] { animation: desdeIzquierda 340ms var(--mov-curva, cubic-bezier(.16, 1, .3, 1)) both; }
 .escena[data-mov=acercar] { animation: acercar 380ms var(--mov-curva, cubic-bezier(.16, 1, .3, 1)) both; }

@@ -295,7 +295,9 @@ const HEREDADAS_PROHIBIDAS: [&str; 28] = [
 /// el daemon las fijan.
 /// 0.1.2 (computer use en cliente): tampoco qué app de manos se abre, su socket, su token, el adaptador, el modo ni el
 /// binario de Windows, y nunca la plataforma «de prueba» que enciende computer use donde no existe.
-pub const POLITICA_V3: [&str; 16] = [
+/// Modo espejo (24 oct 2026): `ARBRAIN_ESPEJO_GUARDA` (la cerca que el daemon consulta antes de cada rutina) solo la fija el
+/// modo servidor con el espejo encendido; la app de escritorio nunca, y heredada correría un script ajeno.
+pub const POLITICA_V3: [&str; 17] = [
     "ARBRAIN_SANDBOX",
     "ANTHROPIC_BASE_URL",
     "ARBRAIN_PROVEEDOR_CLAUDE",
@@ -312,6 +314,7 @@ pub const POLITICA_V3: [&str; 16] = [
     "MANOS_WINDOWS_FUENTE",
     "MANOS_WINDOWS_CSC",
     "MANOS_WINDOWS_CACHE",
+    "ARBRAIN_ESPEJO_GUARDA",
 ];
 
 /// ArbrainManos.app que viaja dentro de la app del alumno en macOS (`Contents/Resources/manos/`, la arma
@@ -947,7 +950,7 @@ mod tests {
     #[test]
     fn politica_v3_nunca_heredada_ni_fijada_por_entorno_comun() {
         // Lo que cambia el sandbox, el proveedor o la cita de manos no sale del entorno de quien lanza la app.
-        for n in ["ARBRAIN_SANDBOX", "ANTHROPIC_BASE_URL", "ARBRAIN_PROVEEDOR_CLAUDE", "ARBRAIN_PLATAFORMA_PRUEBA", "MANOS_CASA_APP", "MANOS_CASA_SOCKET", "MANOS_WINDOWS_EXE"] {
+        for n in ["ARBRAIN_SANDBOX", "ANTHROPIC_BASE_URL", "ARBRAIN_PROVEEDOR_CLAUDE", "ARBRAIN_PLATAFORMA_PRUEBA", "MANOS_CASA_APP", "MANOS_CASA_SOCKET", "MANOS_WINDOWS_EXE", "ARBRAIN_ESPEJO_GUARDA"] {
             assert!(POLITICA_V3.contains(&n), "{} podría heredarse", n);
         }
         let r = Rutas::desde(Path::new("/tmp/arbrain-prueba"));

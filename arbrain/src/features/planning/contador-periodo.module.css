@@ -7,13 +7,19 @@
 .entra { animation: subir var(--mov-entrada, 560ms) var(--mov-curva, cubic-bezier(.16, 1, .3, 1)) backwards; animation-delay: calc(var(--i, 0) * var(--mov-paso, 45ms)); }
 @keyframes subir { from { opacity: 0; transform: translateY(6px); } }
 
-.cabeza { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; min-width: 0; }
-.linea { margin: 0; min-width: 0; display: flex; align-items: baseline; flex-wrap: wrap; column-gap: 6px; font-family: var(--serif-p); line-height: 1.15; }
+.cabeza { display: flex; align-items: baseline; justify-content: space-between; gap: 6px 14px; flex-wrap: wrap; min-width: 0; }
+.linea { margin: 0; min-width: 0; display: flex; align-items: baseline; flex-wrap: wrap; column-gap: 9px; font-family: var(--serif-p); line-height: 1.15; }
+.rotuloTemporada { align-self: center; font-family: var(--font-sans, inherit); font-size: 10.5px; font-weight: 700; letter-spacing: 1.3px; text-transform: uppercase; color: var(--muted); }
 .numero { font-size: 22px; font-weight: 650; letter-spacing: -.3px; color: var(--oro-p); font-variant-numeric: tabular-nums; }
 .de { font-size: 16px; font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums; }
-.punto { color: var(--muted); }
-.premio { font-size: 18px; font-weight: 600; letter-spacing: -.2px; }
-.faltan { flex: 0 0 auto; font-size: 11.5px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* El destino: hacia dónde va la temporada, con las fechas del viaje. */
+.destino { margin: 0; display: flex; align-items: baseline; gap: 6px; min-width: 0; font-family: var(--serif-p); line-height: 1.15; }
+.flecha { color: var(--oro-p); font-weight: 600; }
+.premio { font-size: 17px; font-weight: 600; letter-spacing: -.2px; }
+.fechas { font-family: var(--font-sans, inherit); font-size: 12px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fechas em { font-style: normal; font-weight: 500; }
+/* La meta de la temporada: la frase que la sostiene, sin caja. */
+.meta { margin: -3px 0 0; font-family: var(--serif-p); font-style: italic; font-size: 14.5px; line-height: 1.3; color: color-mix(in srgb, var(--foreground) 82%, var(--muted)); }
 
 /* Un trazo por día: lo vivido en oro, hoy marcado, lo que falta en hueco. */
 .tira { display: flex; gap: 2px; min-width: 0; }
@@ -26,8 +32,19 @@
 .antes ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; min-width: 0; font-size: 13px; font-weight: 500; line-height: 1.35; }
 .antes li { position: relative; padding-left: 11px; }
 .antes li::before { content: ''; position: absolute; left: 0; top: .52em; width: 5px; height: 5px; border-radius: 50%; border: 1.3px solid var(--oro-p); }
-.viaje { margin: -3px 0 0; font-size: 11.5px; color: var(--muted); }
-.viaje em { font-style: normal; }
+/* La meta en la línea del contador (franja delgada), separada por un punto. */
+.metaEnLinea { font-style: italic; font-size: 14px; color: color-mix(in srgb, var(--foreground) 80%, var(--muted)); min-width: 0; }
+.metaEnLinea::before { content: '·'; font-style: normal; color: var(--muted); margin-right: 9px; }
+
+/* La franja delgada (dos columnas, 24 oct 2026): la temporada arriba de todo, la misma pieza con menos aire. */
+.periodo[data-delgada] { gap: 7px; padding: 10px 15px 11px; }
+.periodo[data-delgada] .numero { font-size: 18px; }
+.periodo[data-delgada] .de { font-size: 13.5px; }
+.periodo[data-delgada] .premio { font-size: 15px; }
+.periodo[data-delgada] .meta { font-size: 13.5px; margin-top: -2px; }
+.periodo[data-delgada] .tira i { height: 4px; }
+.periodo[data-delgada] .antes { gap: 8px; padding-top: 7px; }
+.periodo[data-delgada] .antes ul { font-size: 12.5px; gap: 3px 12px; }
 
 @media (max-width: 640px) {
   .periodo { padding: 11px 14px 12px; gap: 9px; }
@@ -38,3 +55,25 @@
   .tira { gap: 1.5px; }
 }
 @media (prefers-reduced-motion: reduce) { .entra { animation: none; } }
+
+/* Los tres números (24 oct 2026, fase 2): «Día N de 29» a la izquierda; Producir y recompradas a la derecha, separados por una
+   línea fina. El destino baja a la fila de «Antes del cierre» para dejarles la primera. */
+.numeros { margin: 0; display: flex; align-items: stretch; flex-wrap: wrap; row-gap: 6px; }
+.numeros > div { display: flex; flex-direction: column-reverse; justify-content: flex-end; gap: 2px; padding-left: 14px; margin-left: 14px; border-left: 1px solid var(--linea-p); }
+.numeros > div:first-child { margin-left: 0; }
+.numeros dd { margin: 0; font-family: var(--serif-p); font-size: 21px; font-weight: 650; letter-spacing: -.3px; line-height: 1.05; font-variant-numeric: tabular-nums; color: var(--foreground); white-space: nowrap; }
+.numeros dd small { font-family: var(--font-sans, inherit); font-size: 12.5px; font-weight: 600; letter-spacing: 0; color: var(--muted); }
+.numeros dt { display: flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+.numeros dt i { width: 7px; height: 7px; border-radius: 2px; background: var(--c); }
+.fija { border: 0; padding: 0; background: none; font: inherit; color: var(--foreground); text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--foreground) 35%, transparent); cursor: pointer; }
+.periodo[data-delgada] .numeros dd { font-size: 18px; }
+.periodo[data-con-numeros] .antes .destino { flex: 0 0 auto; margin-right: 6px; }
+.periodo[data-con-numeros] .antes .premio { font-size: 14px; }
+.periodo[data-sin-temporada] .numero { color: var(--muted); }
+.srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@media (max-width: 640px) {
+  .numeros { width: 100%; }
+  .numeros > div { flex: 1 1 0; }
+  .numeros > div:first-child { border-left: 0; padding-left: 0; }
+  .periodo[data-con-numeros] .antes .destino { margin-right: 0; }
+}

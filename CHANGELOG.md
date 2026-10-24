@@ -4,6 +4,58 @@ Cada versión dice qué trae y qué tienes que hacer tú. Para actualizar, abre 
 «jala los últimos cambios». Las versiones siguen `MAYOR.MENOR.PARCHE`: un cambio en MENOR trae funciones
 nuevas; uno en PARCHE, arreglos.
 
+## v0.2.11 · 24 oct 2026 · Tu calendario gobierna tu tiempo
+
+**Qué trae**
+- **Todo a la vista en pantalla ancha.** En una pantalla grande, Día, Semana y Mes se ven en dos columnas y sin hacer
+  scroll: lo importante a la izquierda (tu temporada, el objetivo, el ahora, tus tareas y hábitos) y el calendario a la
+  derecha. En el teléfono o una ventana angosta, todo sigue en el orden de siempre.
+- **De la temporada al día, en cascada.** Tu calendario baja en cuatro escalones: temporada → mes → semana → día. Cada
+  uno tiene un objetivo y un solo contador: la temporada dice «Día N de X», el mes «Semana N de M», la semana cuántos
+  entregables llevas y el día tus 3 casillas. El Mes muestra solo lo que no se mueve (fases, hitos, viajes, llamadas
+  importantes), sin tus rutinas diarias; la Semana las muestra atenuadas para que resalte lo único de esa semana.
+- **Cada bloque con su color DRIP.** Levy clasifica cada evento en Producir, Invertir, Reemplazar o Delegar (de *Buy
+  Back Your Time*) y lo colorea. Si no le atinó, lo corriges con un toque y lo recuerda para toda la serie. Lo que se
+  puede sacar de tu agenda aparece con la etiqueta «delegable».
+- **La revisión del domingo, en una pantalla.** Plan contra lo real de tu semana, horas en Producir, horas recompradas,
+  qué asesino del tiempo apareció y **una sola propuesta** para la semana que viene, que apruebas con un toque (y se
+  puede deshacer). Se abre sola los domingos y, cualquier día, con «Revisión del domingo» en el Calendario.
+- **Tres números y nada más.** Arriba de todo: el día de tu temporada, tus horas en Producir esta semana y tus horas
+  recompradas. Lo que no se ha medido se ve como «—», nunca como un cero inventado. Si fijas tu tarifa de recompra (lo
+  que te paga tu negocio al año ÷ 8,000), las horas recompradas también te dicen cuánto valen.
+- **Un toque cada mañana.** Levy te propone el día según tu semana y tu objetivo; lo confirmas o lo corriges con un
+  toque.
+- **Tu Levy te guía a armar tu temporada.** Tu Arbrain nace sin temporada: la franja de arriba te invita, «Arma tu
+  temporada con Levy». Dile «armemos mi temporada» y te hace las preguntas (meta, premio, fechas que no se mueven, qué
+  tiene que estar cumplido) y después te ayuda a bajarla al mes, a tu semana perfecta y a tu día. Al guardarla ves «Día N
+  de X» en la franja y la cuadrícula de la temporada en «Hábitos de hoy».
+- **Modo espejo (beta, viene apagado).** Tu cerebro puede vivir en dos máquinas: tu compu y un servidor en la nube a tu
+  nombre, que sigue corriendo tus rutinas con la compu apagada. Las dos comparten tu memoria y tu plan por tu GitHub
+  privado; una sola manda (la eliges tú, por ejemplo «que la nube mande») y la otra es ventana. Nadie toma el mando
+  solo: si la que manda deja de dar señales, la otra te avisa y te pregunta. Viene **apagado**: si no lo enciendes, tu
+  Arbrain funciona exactamente igual que antes.
+- **Tus llaves nunca viajan.** Lo que parece una llave o una contraseña no se sube a tu GitHub; se queda en su máquina
+  y te avisa. Si las dos máquinas cambian lo mismo, no se pierde nada: queda tu versión y la otra al lado, con el
+  nombre de la máquina y la fecha.
+- **Rutinas de la nube con tope de gasto.** En el servidor, tus rutinas corren con una llave de OpenRouter que tiene
+  tope de gasto (nunca con tu suscripción de Claude); sin tope no corren y te lo dicen. Cada envío sale una sola vez,
+  aunque las dos máquinas estén prendidas.
+- **Tu cerebro en la nube, instalado por Claude.** Con la guía «Tu cerebro en la nube» (`INSTALAR-NUBE.md`) rentas el
+  servidor, pegas un prompt en Claude Code y él lo deja listo y protegido: arranca solo, se levanta si se cae, entra
+  solo con tu llave y no abre nada a internet.
+- **Tus rutinas ya no se atoran.** Una rutina que actualiza tu «Ahora» (`now.md`) o deja un reporte ya no se queda
+  esperando un clic que nadie da. Si una rutina intenta algo que sí necesita tu permiso, no se queda esperando: la
+  acción no se hace, te queda pendiente en Arbrain y la rutina sigue con lo demás. Y una rutina lenta ya no detiene a
+  las otras. Enviar, borrar, publicar y pagar te siguen pidiendo tu clic como siempre, y tus llaves siguen intocables.
+
+**Qué tienes que hacer**
+- Actualiza con «actualiza mi Arbrain» (o el prompt de instalación).
+- Dile a tu Levy «armemos mi temporada». Si ya sabes tu ingreso anual, pídele también que fije tu tarifa de recompra
+  (o fíjala tú en el engrane del Calendario › DRIP).
+- El domingo, abre la revisión y aprueba (o no) la propuesta de la semana.
+- Para probar el modo espejo (beta, opcional): sigue los pasos de «Tu cerebro en la nube» (`INSTALAR-NUBE.md`) y agrega
+  al prompt «Enciende el modo espejo: que la nube mande». Si no lo haces, no cambia nada.
+
 ## v0.2.10 · 24 oct 2026 · Tú decides cuánto te pregunta Levy
 
 **Qué trae**

@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { Filter, Keyboard, PanelRightOpen, RefreshCw, Settings } from 'lucide-react'
 import { SEMANAS_MES, type Ajustes } from './ajustes'
-import { CATEGORIAS } from './categorias'
+import { CUADRANTES, type Cuadrante, type Tarifa } from './drip'
 import { ListaCalendarios, type ControlLeyenda } from './Leyenda'
 import { DIAS_VISTA, type DiasVista } from './semana-horas'
 import e from './engrane.module.css'
@@ -21,11 +21,20 @@ export interface AccionesEngrane {
   actualizando: boolean
 }
 
-export function Engrane({ ajustes, poner, diasActual, leyenda, acciones }: {
+/** DRIP en el engrane (24 oct 2026): qué cuadrantes se ven y la tarifa de recompra (Buyback Rate, en el almacén del servidor). */
+export interface DripEngrane {
+  ocultas: ReadonlySet<Cuadrante>; alternar: (c: Cuadrante) => void
+  tarifa: Tarifa | null
+  /** La tarifa es la de la persona (no la de la instalación). */
+  propia: boolean
+  poner: (monto: number | null, moneda?: string) => Promise<unknown>
+}
+
+export function Engrane({ ajustes, poner, diasActual, leyenda, drip, acciones }: {
   ajustes: Ajustes; poner: (c: Partial<Ajustes>) => void
   /** Los días que se ven ahora (con «Auto», los que caben). */
   diasActual: number
-  leyenda: ControlLeyenda; acciones: AccionesEngrane
+  leyenda: ControlLeyenda; drip?: DripEngrane; acciones: AccionesEngrane
 }) {
   const [abierto, setAbierto] = useState(false)
   const raiz = useRef<HTMLSpanElement>(null)
@@ -67,9 +76,11 @@ export function Engrane({ ajustes, poner, diasActual, leyenda, acciones }: {
         <Interruptor etiqueta="Zona horaria" ayuda="En la esquina de las horas" valor={ajustes.zona} onCambio={v => poner({ zona: v })} />
       </Seccion>
       {leyenda.calendarios && leyenda.alternarCalendario && <Seccion titulo="Calendarios"><div className={e.calendarios}><ListaCalendarios calendarios={leyenda.calendarios} alternar={leyenda.alternarCalendario} poner={leyenda.ponerCalendarios} /></div></Seccion>}
-      <Seccion titulo="Categorías">
-        <div className={e.categorias}>{CATEGORIAS.map(c => { const oculta = leyenda.ocultas.has(c.id)
-          return <button key={c.id} aria-pressed={!oculta} data-oculta={oculta || undefined} style={{ '--c': c.color } as CSSProperties} onClick={() => leyenda.alternar(c.id)}><i aria-hidden />{c.corto}</button> })}</div>
+      {/* DRIP (24 oct 2026): reemplaza las categorías como color. Cuadrantes a la vista y la tarifa de recompra. */}
+      <Seccion titulo="DRIP">
+        {drip && <div className={e.categorias}>{CUADRANTES.map(c => { const oculta = drip.ocultas.has(c.id)
+          return <button key={c.id} aria-pressed={!oculta} data-oculta={oculta || undefined} style={{ '--c': c.color } as CSSProperties} onClick={() => drip.alternar(c.id)} title={c.lema}><i aria-hidden />{c.nombre}</button> })}</div>}
+        {drip && <TarifaRecompra drip={drip} />}
         <Interruptor etiqueta="Eventos rechazados" ayuda="Los que rechazaste en Google" valor={ajustes.rechazados} onCambio={v => poner({ rechazados: v })} />
       </Seccion>
       <div className={e.pie}>
@@ -97,4 +108,33 @@ function Interruptor({ etiqueta, ayuda, valor, onCambio }: { etiqueta: string; a
   return <button className={e.interruptor} role="switch" aria-checked={valor} onClick={() => onCambio(!valor)}>
     <span><b>{etiqueta}</b>{ayuda && <small>{ayuda}</small>}</span><i aria-hidden />
   </button>
+}
+
+/**
+ * La tarifa de recompra (Buyback Rate, *Buy Back Your Time* p. 63): lo que te paga tu empresa al año ÷ 8,000 = lo que vale una hora
+ * que le compras a alguien más. Se escribe en el almacén DRIP del servidor (el mismo que lee el Levy de la persona). Vacía, el
+ * calendario dice solo horas recompradas y «fija tu tarifa».
+ */
+function TarifaRecompra({ drip }: { drip: DripEngrane }) {
+  const [anual, setAnual] = useState('')
+  const [hora, setHora] = useState(drip.tarifa ? String(drip.tarifa.monto) : '')
+  const [moneda, setMoneda] = useState(drip.tarifa?.moneda ?? 'USD')
+  const [estado, setEstado] = useState<'quieto' | 'guardando' | 'guardado' | 'error'>('quieto')
+  useEffect(() => { setHora(drip.tarifa ? String(drip.tarifa.monto) : ''); setMoneda(drip.tarifa?.moneda ?? 'USD') }, [drip.tarifa])
+  const guardar = async (monto: number | null, mon = moneda) => {
+    setEstado('guardando')
+    try { await drip.poner(monto, mon); setEstado('guardado') } catch { setEstado('error') }
+  }
+  const desdeAnual = (v: string) => { setAnual(v); const n = Number(v.replace(/[^\d.]/g, '')); if (n > 0) setHora(String(Math.round(n / 8000 * 100) / 100)) }
+  const confirmar = () => { const n = Number(hora); if (!hora.trim()) void guardar(null); else if (n > 0) void guardar(n) }
+  return <div className={e.tarifa}>
+    <span className={e.tarifaRotulo}><b>Tarifa de recompra</b><small>Lo que te paga tu empresa al año ÷ 8,000{drip.tarifa && !drip.propia ? ' · la de tu instalación' : ''}</small></span>
+    <span className={e.tarifaCampos}>
+      <label><small>Al año</small><input inputMode="decimal" placeholder="200000" value={anual} onChange={ev => desdeAnual(ev.target.value)} onBlur={confirmar} onKeyDown={ev => { if (ev.key === 'Enter') confirmar() }} aria-label="Lo que te paga tu empresa al año" /></label>
+      <span aria-hidden>÷ 8,000 =</span>
+      <label><small>Por hora</small><input inputMode="decimal" placeholder="—" value={hora} onChange={ev => setHora(ev.target.value.replace(/[^\d.]/g, ''))} onBlur={confirmar} onKeyDown={ev => { if (ev.key === 'Enter') confirmar() }} aria-label="Tarifa de recompra por hora" /></label>
+      <select aria-label="Moneda" value={moneda} onChange={ev => { setMoneda(ev.target.value); if (Number(hora) > 0) void guardar(Number(hora), ev.target.value) }}>{['USD', 'MXN', 'EUR', 'COP', 'ARS', 'CLP'].map(m => <option key={m}>{m}</option>)}</select>
+    </span>
+    <small className={e.tarifaEstado} role="status">{estado === 'guardando' ? 'Guardando…' : estado === 'guardado' ? 'Guardada.' : estado === 'error' ? 'No se guardó. Reintenta.' : ''}</small>
+  </div>
 }

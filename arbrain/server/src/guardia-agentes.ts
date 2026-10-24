@@ -36,7 +36,7 @@ export function motivoGuardia(herramienta: string, input: unknown, ctx: Contexto
 }
 
 /** Las rutinas corren sin la persona delante: no usan el modo de permisos (siempre «preguntar», nunca sin freno). */
-const modoDelOrigen = (op: OpcionesGuardia): Partial<ContextoPolitica> => op.origen === 'cron' ? { modo: 'preguntar', sinFreno: false } : {}
+const modoDelOrigen = (op: OpcionesGuardia): Partial<ContextoPolitica> => op.origen === 'cron' ? { modo: 'preguntar', sinFreno: false, rutina: true } : {}
 
 /** Contexto de la política para este daemon (cerebro, carpetas protegidas, sandbox). */
 export function contextoGuardia(over: Partial<ContextoPolitica> = {}): ContextoPolitica {
@@ -48,7 +48,11 @@ export interface OpcionesGuardia {
   confirmaciones?: () => Confirmaciones | null
   /** ¿La app puede aprobar? (hay secreto de confirmar). Por defecto, el del daemon. */
   hayQuienConfirme?: () => boolean
-  /** Cuánto espera el turno el clic humano antes de negar (ms). */
+  /**
+   * Cuánto espera el turno el clic humano antes de negar (ms). Chat: `ARBRAIN_CONFIRMAR_ESPERA_S` (90 s). Rutina: no
+   * espera (`ARBRAIN_CONFIRMAR_ESPERA_RUTINA_S`, 0 por defecto): la confirmación queda pendiente y visible en la app,
+   * la acción no se ejecuta y la rutina sigue con lo demás.
+   */
   esperaMs?: number
   origen?: 'agente' | 'cron'
   /** Contexto de la política (pruebas). Por defecto, el del daemon con la carpeta del turno. */
@@ -63,6 +67,12 @@ export interface OpcionesGuardia {
 }
 
 const ESPERA_MS = () => (Number(process.env.ARBRAIN_CONFIRMAR_ESPERA_S) || 90) * 1000
+/**
+ * Rutinas (24 oct 2026, hallazgo del prototipo del modo espejo): sin nadie delante, esperar el clic solo retenía la
+ * rutina (y, detrás de ella, la fila del scheduler). Por defecto no espera nada; con la variable, hasta 120 s.
+ */
+const ESPERA_RUTINA_MS = () => Math.min(Math.max(Number(process.env.ARBRAIN_CONFIRMAR_ESPERA_RUTINA_S) || 0, 0), 120) * 1000
+const esperaDe = (op: OpcionesGuardia): number => op.esperaMs ?? (op.origen === 'cron' ? ESPERA_RUTINA_MS() : ESPERA_MS())
 
 type Decision = SyncHookJSONOutput
 const negarHook = (razon: string): Decision => ({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: razon } })
@@ -101,11 +111,12 @@ async function confirmacionHumana(herramienta: string, input: unknown, d: Extrac
   if (store.consumir(huella)) { registrar({ herramienta, decision: 'permitido', motivo: 'confirmación humana', categoria: d.categoria }); anotar(herramienta, input, 'confirmado', { origen }); return { ok: true } }
   const c = store.pedir({ origen, categoria: d.categoria, resumen: d.resumen, detalle: d.literal.slice(0, 2000), literal: d.literal, avisos: d.avisos, herramienta, huella, creadaPor: 'guardia' })
   registrar({ herramienta, decision: 'esperando', confirmacion: c.id, categoria: d.categoria })
-  const estado = await store.esperar(c.id, op.esperaMs ?? ESPERA_MS(), 500, signal)
+  const estado = await store.esperar(c.id, esperaDe(op), 500, signal)
   if (estado === 'permitida' && store.consumir(huella)) { registrar({ herramienta, decision: 'permitido', confirmacion: c.id }); anotar(herramienta, input, 'confirmado', { confirmacion: c.id, origen }); return { ok: true } }
   registrar({ herramienta, decision: 'negado', confirmacion: c.id, estado })
   anotar(herramienta, input, estado === 'rechazada' ? 'rechazado' : estado === 'pendiente' ? 'sin_respuesta' : 'vencido', { confirmacion: c.id, motivo: d.resumen, origen })
   if (estado === 'rechazada') return { ok: false, razon: `La persona RECHAZÓ esta acción en Arbrain (${d.resumen}). No se ejecutó. No la repitas ni busques otra vía; pregúntale qué prefiere.` }
+  if (estado === 'pendiente' && origen === 'cron') return { ok: false, razon: `Esta rutina corre sin la persona delante: esta acción (${d.resumen}) necesita su confirmación y quedó pendiente en Arbrain (${c.id}). No se ejecutó. No la reintentes en esta corrida ni busques otra vía: termina lo demás y di en tu resultado qué quedó sin hacer y por qué.` }
   if (estado === 'pendiente') return { ok: false, razon: `Esta acción (${d.resumen}) espera la confirmación de la persona en Arbrain (pendiente ${c.id}). No se ejecutó. Avísale que tiene una confirmación pendiente y, cuando la apruebe, repite exactamente la misma acción.` }
   return { ok: false, razon: `La confirmación de esta acción venció sin respuesta (${d.resumen}). No se ejecutó.` }
 }
@@ -264,7 +275,7 @@ export function guardiaHooks(registrar: (evento: Record<string, unknown>) => voi
     }],
     PreToolUse: [{
       // El hook puede esperar el clic humano (I8): margen sobre la espera.
-      timeout: Math.ceil((op.esperaMs ?? ESPERA_MS()) / 1000) + 60,
+      timeout: Math.ceil(esperaDe(op) / 1000) + 60,
       hooks: [async (input: HookInput, _id, opciones): Promise<SyncHookJSONOutput> => {
         if (input.hook_event_name !== 'PreToolUse') return { continue: true }
         // «Pausar todo»: mientras dure, ninguna herramienta corre (lo que sobreviva al aborto no actúa).
@@ -279,7 +290,8 @@ export function guardiaHooks(registrar: (evento: Record<string, unknown>) => voi
         if (d.tipo === 'permitir') {
           if (ctx.contaminada && input.tool_name === 'WebFetch') webSinClic.set(input.session_id, (webSinClic.get(input.session_id) ?? 0) + 1)
           // Lo que corre sin clic por el modo de permisos se anota siempre, con el modo, para que la persona lo vea.
-          if (d.sinFreno) anotar(input.tool_name, input.tool_input, 'hecho', { origen: op.origen, motivo: `sin preguntar: freno quitado bajo tu responsabilidad (modo «${NOMBRE_MODO.libre}»)` })
+          if (d.generado) anotar(input.tool_name, input.tool_input, 'hecho', { origen: op.origen, motivo: 'rutina: archivo que genera tu cerebro (now.md, reportes)' })
+          else if (d.sinFreno) anotar(input.tool_name, input.tool_input, 'hecho', { origen: op.origen, motivo: `sin preguntar: freno quitado bajo tu responsabilidad (modo «${NOMBRE_MODO.libre}»)` })
           else if (d.porModo) anotar(input.tool_name, input.tool_input, 'hecho', { origen: op.origen, motivo: `sin preguntar: modo «${NOMBRE_MODO[d.porModo]}»` })
           else if (efectoSinPreguntar(input.tool_name, input.tool_input)) anotar(input.tool_name, input.tool_input, 'hecho', { origen: op.origen })
           return { continue: true }
