@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { entornoClaude, guardarSecretos, llaveVoz, NUNCA_EN_ENTORNO, parsearSecretos, rutaSoloApp, vaciarCofreParaPruebas, vistaConLlaves } from './cofre.js'
 import { estadoLlaves } from './llaves.js'
-import { proveedoresVoz, probarLlaveVoz } from './voz.js'
+import { hablarLemonfox, proveedoresVoz, probarLlaveVoz, VOZ_LEMONFOX } from './voz.js'
 import { transcribe } from '../live/transcribe.js'
 
 const GROQ = 'gsk_' + 'p'.repeat(40)
@@ -17,7 +17,8 @@ afterEach(() => { vaciarCofreParaPruebas(); if (edicionPrevia === undefined) del
 
 describe('cofre: llave de Groq', () => {
   it('stdin la acepta; nunca queda en el entorno del daemon ni en el del CLI de Claude', () => {
-    expect(parsearSecretos(JSON.stringify({ GROQ_API_KEY: ` ${GROQ} `, LEMONFOX_API_KEY: 'x' }))).toEqual({ GROQ_API_KEY: GROQ })
+    // v0.2.10: la de LemonFox (leer en voz alta) también entra; cualquier otra llave se ignora.
+    expect(parsearSecretos(JSON.stringify({ GROQ_API_KEY: ` ${GROQ} `, LEMONFOX_API_KEY: 'lf_x', ELEVENLABS_API_KEY: 'x' }))).toEqual({ GROQ_API_KEY: GROQ, LEMONFOX_API_KEY: 'lf_x' })
     const env = { ARBRAIN_EDICION: 'cliente', GROQ_API_KEY: 'heredada' } as NodeJS.ProcessEnv
     guardarSecretos(env, { GROQ_API_KEY: GROQ })
     expect(llaveVoz()).toBe(GROQ)
@@ -86,5 +87,29 @@ describe('probar la llave de Groq', () => {
     let llamado = false
     expect(await probarLlaveVoz(undefined, (async () => { llamado = true; return new Response('') }) as unknown as typeof fetch)).toMatchObject({ ok: false, code: 'falta_llave' })
     expect(llamado).toBe(false)
+  })
+})
+
+describe('leer en voz alta con LemonFox (v0.2.10)', () => {
+  const LF = 'lf_prueba_0123456789abcdef'
+  it('manda la velocidad del lector como speed, en español, y devuelve el MP3 con el tempo aplicado', async () => {
+    let cuerpo: Record<string, unknown> = {}
+    let auth = ''
+    const t = (async (_u: string, init: RequestInit) => { cuerpo = JSON.parse(String(init.body)); auth = String((init.headers as Record<string, string>).Authorization); return new Response(new Uint8Array([1, 2, 3]), { status: 200 }) }) as unknown as typeof fetch
+    const r = await hablarLemonfox('Hola', 2, LF, t)
+    expect(r).toMatchObject({ ok: true, tempo: 2 })
+    expect(r && r.ok && r.audio.length).toBe(3)
+    expect(cuerpo).toMatchObject({ input: 'Hola', voice: VOZ_LEMONFOX, language: 'es', speed: 2, response_format: 'mp3' })
+    expect(auth).toBe(`Bearer ${LF}`)
+    expect(await hablarLemonfox('Hola', 9, LF, t)).toMatchObject({ ok: true, tempo: 3 })
+  })
+  it('sin llave no llama a nadie (la web usa la voz del sistema); errores sin la llave ni el cuerpo del proveedor', async () => {
+    let llamado = false
+    expect(await hablarLemonfox('Hola', 1, undefined, (async () => { llamado = true; return new Response('') }) as unknown as typeof fetch)).toBeNull()
+    expect(llamado).toBe(false)
+    const r = await hablarLemonfox('Hola', 1, LF, (async () => new Response('{"secreto":"no sale"}', { status: 401 })) as unknown as typeof fetch)
+    expect(r).toMatchObject({ ok: false, status: 502 })
+    expect(JSON.stringify(r)).not.toContain(LF)
+    expect(JSON.stringify(r)).not.toContain('no sale')
   })
 })

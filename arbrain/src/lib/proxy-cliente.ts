@@ -21,6 +21,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { isDesktopAuthBypassRequest, sameSecret } from '@/lib/desktop-auth'
 import { apiPermitidaEnCliente, paginaPermitidaEnCliente } from '@/lib/edicion'
 import { esModoServidor } from '@/lib/modo-servidor'
+import { llegaPorTelefono } from '@/features/telefono/host-telefono'
 
 const SIN_SESION_API = ['/api/desktop', '/api/chat/complete', '/api/llaves/openrouter/callback']
 const NO_DISPONIBLE = 'No disponible en esta edición.'
@@ -101,14 +102,17 @@ export function escrituraDeOtroOrigen(metodo: string, ruta: string, cab: {
  * del navegador llega; su Origin ya sería el mismo, pero sin probarla con `desktop:install` no se le cambia nada.
  */
 export function proxyCliente(request: NextRequest) {
-  if (!hostDeLaApp(request.headers.get('host'))) return NextResponse.json({ error: 'Host no permitido.' }, { status: 421, headers: NOCACHE })
+  // Teléfono (23 oct 2026): además del loopback, el Host *.ts.net de esta máquina, solo encendido y solo por HTTPS de
+  // `tailscale serve` (features/telefono/host-telefono.ts). Apagado, ese Host recibe 421 como cualquier otro.
+  const telefono = llegaPorTelefono(request.headers.get('host'), request.headers.get('x-forwarded-proto'))
+  if (!telefono && !hostDeLaApp(request.headers.get('host'))) return NextResponse.json({ error: 'Host no permitido.' }, { status: 421, headers: NOCACHE })
   const ruta = request.nextUrl.pathname
   if (esModoServidor() && escrituraDeOtroOrigen(request.method, ruta, {
     origin: request.headers.get('origin'),
     secFetchSite: request.headers.get('sec-fetch-site'),
     authorization: request.headers.get('authorization'),
     host: request.headers.get('host'),
-  }, request.nextUrl.protocol)) return NextResponse.json({ error: 'Origen no autorizado.' }, { status: 403, headers: NOCACHE })
+  }, telefono ? 'https:' : request.nextUrl.protocol)) return NextResponse.json({ error: 'Origen no autorizado.' }, { status: 403, headers: NOCACHE })
   const conSesion = isDesktopAuthBypassRequest(request) || bearerDelDaemon(ruta, request.headers.get('authorization'))
   const decision = decidirCliente(ruta, conSesion)
   if (decision.tipo === 'pasa') return NextResponse.next({ request })

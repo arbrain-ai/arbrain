@@ -36,7 +36,8 @@ describe('carpetas abiertas', () => {
     expect(decidirHerramienta('Write', { file_path: join(proyecto, 'x.md'), content: 'x' }, base).tipo).toBe('negar')
     expect(abrirCarpeta('~/Documents/tienda', op).ok).toBe(true)
     expect(carpetasAbiertas().map(c => c.ruta)).toEqual([proyecto])
-    const ctx = contextoPolitica({ sandbox: true }, { HOME: usuario, ARBRAIN_HOME: home, ARBRAIN_DATA_DIR: datos, ARBRAIN_CONFIG_DIR: join(datos, 'config') })
+    // Modo «Preguntar siempre»; en «Automático en mi carpeta» escribir en una carpeta abierta no pide clic (modo-permisos.test.ts).
+    const ctx = contextoPolitica({ sandbox: true, modo: 'preguntar' }, { HOME: usuario, ARBRAIN_HOME: home, ARBRAIN_DATA_DIR: datos, ARBRAIN_CONFIG_DIR: join(datos, 'config') })
     expect(ctx.abiertas).toEqual([proyecto])
     expect(decidirHerramienta('Read', { file_path: join(proyecto, 'README.md') }, ctx).tipo).toBe('permitir')
     expect(decidirHerramienta('Bash', { command: `cat ${proyecto}/README.md` }, ctx).tipo).toBe('permitir')

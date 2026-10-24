@@ -96,6 +96,8 @@ export const REGISTRO: Registro = {
     rutaOpenRouter('grok-4.7', 'Grok 4.7', 'x-ai/grok-4.7', 'grok', 500_000),
     rutaOpenRouter('mimo-v2.6-pro', 'MiMo-V2.6-Pro', 'xiaomi/mimo-v2.6-pro', 'mimo', 1_050_000),
     rutaOpenRouter('glm-5.3', 'GLM-5.3', 'z-ai/glm-5.3', 'glm', 1_048_576),
+    // 23 oct 2026: Kimi K3 (Moonshot). K3.1 Pro se anunció hoy y aún no está en OpenRouter; al aparecer, cambiar modelId.
+    rutaOpenRouter('kimi-k3', 'Kimi K3', 'moonshotai/kimi-k3', 'kimi', 1_048_576),
   ],
 }
 

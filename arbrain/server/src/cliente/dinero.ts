@@ -39,6 +39,14 @@ export const DOMINIOS_DINERO_TOTAL = [
   'bitfinex.com', 'bitstamp.net', 'huobi.com', 'htx.com', 'gate.io', 'mexc.com', 'bitget.com', 'buenbit.com', 'lemon.me', 'ripio.com', 'mercadobitcoin.com.br',
   'metamask.io', 'phantom.app', 'trustwallet.com', 'exodus.com', 'ledger.com', 'trezor.io', 'blockchain.com', 'uniswap.org', 'app.uniswap.org',
   'pancakeswap.finance', 'opensea.io',
+  // Casas de bolsa, brokers, derivados y mercados de predicción (operar valores, 23 oct 2026: ni con el freno quitado)
+  'alpaca.markets', 'tradier.com', 'webull.com', 'tastytrade.com', 'tastyworks.com', 'oanda.com', 'etoro.com', 'degiro.com', 'degiro.es',
+  'degiro.nl', 'plus500.com', 'ig.com', 'tradestation.com', 'firstrade.com', 'ibkr.com', 'trading212.com', 'xtb.com', 'saxotrader.com',
+  'thinkorswim.com', 'merrilledge.com', 'public.com', 'stash.com', 'acorns.com', 'wealthfront.com', 'betterment.com', 'm1.com',
+  'hapi.trade', 'flink.com.mx', 'bursanet.com.mx', 'metatrader4.com', 'metatrader5.com', 'polymarket.com', 'kalshi.com',
+  // Cripto: más exchanges, DeFi y puentes
+  'bingx.com', 'deribit.com', 'bitmex.com', 'hyperliquid.xyz', 'app.hyperliquid.xyz', 'dydx.exchange', 'dydx.trade', 'gmx.io', '1inch.io',
+  'jup.ag', 'raydium.io', 'curve.fi', 'aave.com', 'lido.fi', 'compound.finance', 'pump.fun', 'sushi.com', 'balancer.fi', 'stargate.finance',
   // Impuestos y fisco
   'sat.gob.mx', 'irs.gov', 'agenciatributaria.gob.es', 'agenciatributaria.es', 'afip.gob.ar', 'arca.gob.ar', 'sii.cl', 'dian.gov.co', 'sunat.gob.pe',
   'receita.fazenda.gov.br', 'hmrc.gov.uk', 'cra-arc.gc.ca', 'imss.gob.mx', 'infonavit.org.mx',
@@ -102,3 +110,27 @@ export const MCP_DINERO = /^(stripe|paypal|mercado[-_]?pago|mercadopago|polar|le
 
 export const MENSAJE_DINERO = (donde: string) =>
   `Arbrain no maneja dinero en esta versión: ${donde} es banca, pagos, cobros, impuestos o criptomonedas. Ni con permiso: la persona lo hace ella misma, directo en el sitio o en la app de su banco`
+
+/**
+ * Operar valores (23 oct 2026, con el interruptor «Quitar también el freno»): comprar, vender u operar acciones,
+ * derivados o cripto queda fuera, en cualquier modo. Servidores MCP de brokers, exchanges y cadenas: toda acción que no
+ * sea de lectura; y en CUALQUIER servidor, acciones cuyo nombre es operar (comprar, vender, orden, swap, stake…).
+ */
+export const MCP_VALORES = /^(alpaca|robinhood|ibkr|interactive[-_]?brokers|schwab|etrade|e[-_]trade|tradier|webull|tastytrade|tastyworks|oanda|metatrader|mt[45]|etoro|degiro|trading212|tradestation|broker|brokerage|trading|trader|stocks?|forex|crypto|cripto|defi|dex|hyperliquid|dydx|polymarket|kalshi|uniswap|jupiter|solana|ethereum|evm|web3|onchain|metamask|phantom|ledger|trezor|wallet|gbm|bitso|binance|coinbase|kraken|bybit|okx|kucoin)(?:$|[-_])/i
+/** Nombres de acción que son operar valores o mover fondos, en cualquier servidor (sin «order» suelto ni «margin»: CSS). */
+const ACCION_VALORES = /(?:^|_)(?:buy|sell|comprar|vender|trade|trading|stake|unstake|withdraw|deposit|retirar|depositar|leverage|liquidate|mint|short_sell|swap_tokens?|swap_assets|execute_swap|token_swap|bridge_tokens?|bridge_assets|(?:place|submit|create|market|limit|cancel|modify|replace)_orders?|(?:open|close)_positions?|send_(?:crypto|tokens?|eth|sol|btc|usdc|usdt))(?:_|$)/i
+
+/** ¿Esta herramienta MCP opera valores o mueve fondos? Devuelve el motivo para `MENSAJE_DINERO`, o null. Pura. */
+export function valoresEnMcp(servidor: string, accion: string, deLectura: boolean): string | null {
+  if (deLectura) return null
+  const a = accion.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase()
+  if (MCP_VALORES.test(servidor)) return `el servidor ${servidor} (operar valores o cripto)`
+  if (ACCION_VALORES.test(a)) return `${servidor} · ${accion} (comprar, vender u operar valores, o mover fondos)`
+  return null
+}
+
+/** Programas de línea de comandos que mueven fondos de una cartera o envían órdenes. Pura. */
+const BASH_VALORES = /\b(?:solana\s+(?:transfer|pay)|spl-token\s+(?:transfer|mint)|cast\s+(?:send|publish)|bitcoin-cli\b[^|;&]*\bsend\w*|electrum\b[^|;&]*\b(?:payto|broadcast)|lncli\s+(?:sendpayment|payinvoice|sendcoins)|near\s+send|sui\s+client\s+(?:transfer|pay)|aptos\s+account\s+transfer|ccxt\b|freqtrade\b[^|;&]*\btrade\b)/i
+export function valoresEnBash(cmd: string): string | null {
+  return BASH_VALORES.test(cmd) ? 'el comando (mover fondos de una cartera u operar valores)' : null
+}

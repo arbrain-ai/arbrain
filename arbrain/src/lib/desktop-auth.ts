@@ -3,6 +3,7 @@ import { CORREO_LOCAL_CLIENTE, esEdicionCliente } from '@/lib/edicion'
 import { instalacion } from '@/config'
 import { esModoServidor } from '@/lib/modo-servidor'
 import { hmacSha256Hex } from '@/lib/sha256-puro'
+import { llegaPorTelefono } from '@/features/telefono/host-telefono'
 
 export const LOCAL_DESKTOP_USER_ID = '00000000-0000-4000-8000-000000000001'
 /** Correo de la persona dueña de esta instalación. En la edición cliente, uno genérico: nunca el de Daniel. */
@@ -100,7 +101,8 @@ function desktopCookie(request: Request | NextRequest) {
  * además se exige la cookie con el secreto por instalación. En la instalación de Daniel el criterio no cambia.
  */
 export function isDesktopAuthBypassRequest(request: Request | NextRequest) {
-  if (process.env.MISSION_CONTROL_DESKTOP_EMBED !== '1' || !isLocalHostname(hostnameFromRequest(request))) return false
+  const porTelefono = isClientEdition() && llegaPorTelefono(request.headers.get('host'), request.headers.get('x-forwarded-proto'))
+  if (process.env.MISSION_CONTROL_DESKTOP_EMBED !== '1' || (!porTelefono && !isLocalHostname(hostnameFromRequest(request)))) return false
   if (!isClientEdition()) return true
   return esCookieDeSesion(desktopCookie(request))
 }

@@ -17,7 +17,7 @@
  *   {
  *     "v": 1, "actualizado": "2026-10-28T13:00:00Z", "nombre": "…",
  *     "inicio": "2026-10-26", "dia": 3, "dias_total": 90, "semana": 1, "semanas_total": 12,
- *     "etapa": { "n": 1, "total": 5, "nombre": "Tu cerebro", "semanas": "Semanas 1 y 2" },
+ *     "etapa": { "n": 1, "total": 5, "nombre": "Tu cerebro", "semanas": "Semanas 0 y 1" },
  *     "paso": { "id": "semana1", "n": 9, "total": 9, "nombre": "Tu Semana 1" },
  *     "casillas": [{ "numero": 1, "titulo": "…", "marcada": true, "verificada": false, "nota": null }],
  *     "siguiente_paso": { "clave": "casillas", "texto": "marca tu casilla 4", "detalle": "…", "href": "/programa/semana-1#casilla-4" },

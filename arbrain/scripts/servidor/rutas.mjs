@@ -87,7 +87,7 @@ export function puertoValido(p) {
 }
 
 /** Llaves que el modo servidor guarda y entrega al daemon por stdin. Nunca tokens de suscripción de claude.ai. */
-export const LLAVES = ['ANTHROPIC_API_KEY', 'OPENROUTER_API_KEY', 'GROQ_API_KEY']
+export const LLAVES = ['ANTHROPIC_API_KEY', 'OPENROUTER_API_KEY', 'GROQ_API_KEY', 'LEMONFOX_API_KEY']
 
 export function limpiarLlave(v) {
   return String(v ?? '').trim().replace(/^['"`]+|['"`]+$/g, '').trim()
@@ -103,6 +103,7 @@ export function errorDeLlave(nombre, valor) {
   if (nombre === 'OPENROUTER_API_KEY' && !v.startsWith('sk-or-')) return 'Las llaves de OpenRouter empiezan con «sk-or-».'
   if (nombre === 'ANTHROPIC_API_KEY' && !v.startsWith('sk-ant-')) return 'Las llaves de Anthropic empiezan con «sk-ant-».'
   if (nombre === 'GROQ_API_KEY' && !v.startsWith('gsk_')) return 'Las llaves de Groq empiezan con «gsk_».'
+  if (nombre === 'LEMONFOX_API_KEY' && (/^(sk-or-|sk-ant-|gsk_)/.test(v) || v.length < 16)) return 'Esa no parece una llave de LemonFox.'
   return null
 }
 
@@ -135,7 +136,7 @@ export function lineaSecretos(pares) {
 export const PROHIBIDAS = [
   'ARBRAIN_PASE_AGENTE', 'ARBRAIN_MOTOR_TOKEN', 'ARBRAIN_MOTOR_SECRETOS', 'NODE_OPTIONS', 'LEVY_CHROME',
   'ARBRAIN_DESKTOP_SECRET', 'ARBRAIN_SECRETOS', 'ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN',
-  'CLAUDE_CODE_OAUTH_REFRESH_TOKEN', 'CLAUDE_SECURESTORAGE_CONFIG_DIR', 'OPENROUTER_API_KEY', 'GROQ_API_KEY',
+  'CLAUDE_CODE_OAUTH_REFRESH_TOKEN', 'CLAUDE_SECURESTORAGE_CONFIG_DIR', 'OPENROUTER_API_KEY', 'GROQ_API_KEY', 'LEMONFOX_API_KEY',
   'ANTHROPIC_AUTH_TOKEN', 'OPENCLAW_GATEWAY_TOKEN', 'ARBRAIN_DAEMON_TOKEN', 'ARBRAIN_TOKEN_CONFIRMAR', 'ARBRAIN_WEB_URL',
   'ARBRAIN_COHORTE_URL', 'ARBRAIN_PERFIL', 'MC_SERVER_PORT', 'MISSION_CONTROL_ORIGIN', 'MISSION_CONTROL_URL',
   'CLAUDECLAW_ROLE', 'CLAUDECLAW_URL', 'CLAUDECLAW_URL_PINNED', 'CLAUDE_CONFIG_DIR', 'GOG_KEYRING_PASSWORD',

@@ -30,8 +30,37 @@ const isIOS =
   (/iP(hone|ad|od)/.test(navigator.userAgent) ||
     (navigator.platform === 'MacIntel' && (navigator as unknown as { maxTouchPoints: number }).maxTouchPoints > 1))
 const isChrome = typeof navigator !== 'undefined' && /Chrome/.test(navigator.userAgent)
+const esApple = isIOS || (typeof navigator !== 'undefined' && /Mac OS X|Macintosh/.test(navigator.userAgent))
 
-const RATES = [1, 1.25, 1.5, 1.75, 2]
+/**
+ * La mejor voz en español que expone el sistema, fuera de Apple (v0.2.10). Orden: neuronales/naturales (Edge y WebView2
+ * exponen voces «Microsoft … Online (Natural)»; Chrome, «Google español de Estados Unidos») > mejoradas > el resto, y
+ * dentro de cada nivel es-MX > es-US/es-419 > otras de Latinoamérica > es-ES. Ninguna en español: null (el caller fija
+ * `lang = 'es-MX'` y el sistema decide). Pura, para probarla sin navegador.
+ */
+export function mejorVozEspanol<V extends { name: string; lang: string; localService?: boolean; default?: boolean }>(voces: readonly V[]): V | null {
+  const es = voces.filter((v) => /^es([-_]|$)/i.test(v.lang))
+  if (!es.length) return null
+  const calidad = (v: V) => /(natural|neural|online|wavenet|enhanced|mejorad|premium)/i.test(v.name) ? 0 : /google/i.test(v.name) ? 1 : 2
+  const region = (v: V) => { const l = v.lang.toLowerCase().replace('_', '-'); return l === 'es-mx' ? 0 : l === 'es-us' || l === 'es-419' ? 1 : l === 'es-es' ? 3 : 2 }
+  return [...es].sort((a, b) => calidad(a) - calidad(b) || region(a) - region(b) || Number(!!b.default) - Number(!!a.default))[0]
+}
+
+// Velocidad REAL (la hornea el servidor, atempo sin cambiar el tono). Hasta 3x desde el 23 oct 2026: Daniel, «sigo sin
+// escuchar la velocidad rápida; esto funcionaba por meses». Por meses la app leyó con la voz de WebKit, cuyo `rate` no es
+// lineal: «1.75x» sonaba a 42 car/s, 3x de los 14 car/s de 1x (medido el 22 oct, ver vozNoAcelera). El 2x real del
+// servidor son ~30 car/s: correcto, pero más lento que lo que su oído conocía como «rápido».
+const RATES = [1, 1.5, 2, 2.5, 3]
+/** Índice de la velocidad de RATES más cercana; en empate, la más rápida (una posición guardada a 1.75 vuelve a 2). */
+export function indiceDeVelocidad(rate: number): number {
+  if (!Number.isFinite(rate)) return -1
+  let mejor = 0
+  for (let i = 1; i < RATES.length; i++) if (Math.abs(RATES[i] - rate) <= Math.abs(RATES[mejor] - rate)) mejor = i
+  return mejor
+}
+// Tramos de voz del servidor que se piden por adelantado (también de los párrafos siguientes). Con uno solo, un párrafo
+// corto se acababa antes de que llegara el siguiente (~1.2 s de `say`) y quedaba un hueco.
+const PRECARGA = 3
 
 // ---- Texto HABLADO vs texto VISIBLE ----
 // La voz no debe verbalizar lo que no es prosa: un emoji suena como "marca de verificación",
@@ -142,7 +171,7 @@ import { sonda } from './tts-probe'
 import { URL_RE, filtrarBloques } from './lector-filtro'
 import { MARCA_PROPIO, SELECTOR_BLOQUES, tramosPropios, type NodoLector } from './lector-bloques'
 import { MemoriaLector, huellaDeTexto, resolverPosicion, type PosicionLector } from './lector-posicion'
-import { VozServidor, palabraEn, tiemposDePalabras } from './voz-servidor'
+import { VozServidor, palabraEn, tiemposDelAudio } from './voz-servidor'
 
 type StateCb = (playing: boolean) => void
 
@@ -317,7 +346,7 @@ class ChatSpeechController {
       firmas: this.firma,
       longitudes: this.blocks.map((b) => (b.textContent || '').length),
     })
-    const ri = RATES.indexOf(g.rate)
+    const ri = indiceDeVelocidad(g.rate)
     if (ri >= 0) this.rateIdx = ri
     this.idx = r.idx
     this.cursorOffset = r.offset
@@ -441,7 +470,7 @@ class ChatSpeechController {
     // cambiabas de app. Fuera de iOS solo se re-arranca si el motor de verdad se quedó mudo.
     // Con la voz del servidor no hay nada que re-sincronizar: el `<audio>` sigue sonando oculto y el resaltado se pone al
     // día en el siguiente frame.
-    if (this.enAudio) { this.hiddenAt = 0; return }
+    if (this.enAudio) { this.voz.reanudar(); this.hiddenAt = 0; return }
     const mudo = !this.synth?.speaking && this.now() - Math.max(this.ultimoBoundaryAt, this.uttStartedAt) > 2500
     if (this.playing && !this.paused && this.hiddenAt && fuera > 1200 && (isIOS || mudo)) {
       sonda.mark(`resync-tras-${(fuera / 1000).toFixed(0)}s-oculto`)
@@ -516,7 +545,8 @@ class ChatSpeechController {
     }
     this.idx = 0
     this.paused = false
-    this.voz.desbloquear() // dentro del clic: Safari y WKWebView dejan sonar después el audio que llega de la red
+    this.voz.reintentar() // un fallo de la lectura anterior no condena a esta a la voz del navegador
+    this.voz.desbloquear() // dentro del clic: Chrome y Safari solo dejan sonar Web Audio si arranca en un gesto
     if (isIOS && !this.warmed) {
       try {
         const w = new SpeechSynthesisUtterance(' ')
@@ -546,25 +576,7 @@ class ChatSpeechController {
         for (const n of nodos) span.appendChild(n)
       }
     }
-    const cands = Array.from(
-      this.container.querySelectorAll(`${SELECTOR_BLOQUES},span[${MARCA_PROPIO}]`),
-    ) as HTMLElement[]
-    const set = new Set(cands)
-    const hojas = cands.filter((el) => {
-      if (!el.innerText.trim()) return false
-      for (const d of Array.from(el.querySelectorAll(SELECTOR_BLOQUES)))
-        if (set.has(d as HTMLElement)) return false
-      return true
-    })
-    // Fuentes del final, tablas y párrafos que solo eran una URL no se oyen ni cuentan
-    // en el total: regla única en lector-filtro.ts. Siguen visibles en pantalla.
-    this.blocks = filtrarBloques(
-      hojas.map((el) => ({
-        texto: el.innerText,
-        enTabla: !!el.closest('table'),
-        esEncabezado: /^H[1-4]$/.test(el.tagName),
-      })),
-    ).map((i) => hojas[i])
+    this.blocks = bloquesLegibles(this.container)
     this.clearTaps()
     this.blocks.forEach((el, i) => {
       el.style.cursor = 'pointer'
@@ -727,6 +739,9 @@ class ChatSpeechController {
       pool.find((v) => /Juan/i.test(v.name) && enh(v)) ||
       pool.find((v) => /Juan/i.test(v.name)) ||
       null
+    // Fuera de Apple (Windows, Linux, Android: grupal del 23 oct 2026, «la voz por defecto en Windows es fea») el
+    // default del sistema suele ser una voz robótica o ni siquiera en español: se elige la mejor en español.
+    if (!juan && !esApple && !this.vozInvertida) return mejorVozEspanol(es)
     if (!this.vozInvertida) return juan
     // El velocímetro midió que con esta elección la voz no acelera (ver mideVelocidad()):
     // se prueba la otra. Con Juan fijado se deja al sistema; sin voz fijada se fija una local
@@ -1110,27 +1125,28 @@ class ChatSpeechController {
     next()
   }
 
-  // ─── VOZ DEL SERVIDOR (22 oct 2026) ─────────────────────────────────────────
+  // ─── VOZ DEL SERVIDOR (22 oct 2026; Web Audio desde el 23 oct) ──────────────
   // Daniel: «la velocidad 1.75x NO funciona en la web desde mi laptop». El velocímetro de abajo (cambiar de voz si no
-  // acelera) no bastó: en su equipo ninguna voz del navegador obedece `rate`. Ahora el servidor genera el audio a 1x y
-  // el `<audio>` lo acelera con playbackRate + preservesPitch, igual en cualquier navegador. Cada párrafo se parte en
-  // tramos de pocas frases (el primero suena en ~1.5 s) y el siguiente se pide mientras suena el actual.
-  // Si el servidor falla, ese mismo tramo sigue con la voz del navegador y la sesión se queda en ella.
-  private voz = new VozServidor((texto) =>
+  // acelera) no bastó: en su equipo ninguna voz del navegador obedece `rate`. Ahora el servidor genera cada tramo ya a la
+  // velocidad pedida (atempo, mismo tono) y aquí suena por Web Audio, que encadena tramos sin el arranque de ~0.4 s del
+  // `<audio>` en WKWebView (23 oct: «siento lento el lector y no lo escucho a x2»; ver voz-servidor.ts). Cada párrafo se
+  // parte en tramos de pocas frases y se precargan los PRECARGA siguientes, aunque sean de otros párrafos.
+  // Si el servidor falla, ese mismo tramo sigue con la voz del navegador hasta la próxima lectura.
+  private voz = new VozServidor((texto, velocidad) =>
     fetch('/api/chat/tts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: texto, lector: true }),
+      body: JSON.stringify({ text: texto, lector: true, velocidad }),
     }),
   )
   /** Hay un tramo sonando (o a punto) por la voz del servidor. */
   private enAudio = false
   private rafAudio = 0
-  private quitaAudio: (() => void) | null = null
+  /** Cambio de velocidad a media lectura: pide el tramo actual a la nueva velocidad y lo releva en la palabra que suena. */
+  private relevoVelocidad: (() => void) | null = null
 
   private paraAudio() {
-    this.quitaAudio?.()
-    this.quitaAudio = null
+    this.relevoVelocidad = null
     if (this.rafAudio) cancelAnimationFrame(this.rafAudio)
     this.rafAudio = 0
     this.voz.parar()
@@ -1170,20 +1186,28 @@ class ChatSpeechController {
     this.emit()
 
     const seq = ++this.uttSeq
+    // Lo que suena ahora: tramo y palabra (índices de este párrafo). `turno` cambia con cada fuente que arranca o
+    // termina: un relevo de velocidad que llega tarde (el tramo ya acabó) no debe volver atrás.
+    let actual = { t: -1, palabra: w0 }
+    let turno = 0
+    // Tramo pedido que aún no suena (arranque, siguiente o relevo): un cambio de velocidad lo vuelve a pedir.
+    let espera: { t: number; desde: number | null } | null = null
     const siguienteBloque = () => {
       if (this.idx < this.blocks.length - 1) {
         this.idx++
         this.speakBlock()
       } else this.stop()
     }
-    const precargaDespues = (t: number) => {
-      const sig = tramos[t + 1]
-      if (sig) return this.voz.precargar(sig.texto)
-      const b = this.blocks[this.idx + 1]
-      if (b) {
-        const sp = buildSpoken(b.textContent || '').spoken
-        const t0 = tramosDeVoz(sp, palabrasDe(sp))[0]
-        if (t0) this.voz.precargar(t0.texto)
+    const precarga = (t: number) => {
+      const v = RATES[this.rateIdx]
+      let n = 0
+      for (let k = t + 1; k < tramos.length && n < PRECARGA; k++, n++) this.voz.precargar(tramos[k].texto, v)
+      for (let b = this.idx + 1; b < this.blocks.length && n < PRECARGA; b++) {
+        const sp = buildSpoken(this.blocks[b].textContent || '').spoken
+        for (const tr of tramosDeVoz(sp, palabrasDe(sp))) {
+          if (n++ >= PRECARGA) break
+          this.voz.precargar(tr.texto, v)
+        }
       }
     }
     const falla = (motivo: string) => {
@@ -1197,68 +1221,65 @@ class ChatSpeechController {
       if (this.playing && !this.paused && this.curId) this.speakBlock()
     }
 
-    const suena = (t: number, desdePalabra: number) => {
+    // `desde`: palabra del párrafo donde arrancar; `null` = la que suena en el momento de arrancar (relevo).
+    const suena = (t: number, desde: number | null) => {
       const tramo = tramos[t]
       if (!tramo) return siguienteBloque()
-      this.voz.cargar(tramo.texto).then((url) => {
+      const v = RATES[this.rateIdx]
+      const miTurno = turno
+      espera = { t, desde }
+      this.voz.cargar(tramo.texto, v).then((audio) => {
         if (seq !== this.uttSeq || !this.playing || this.paused) return
-        const a = this.voz.elemento()
-        if (!a) return falla('sin audio')
-        const onErr = () => falla(`elemento ${a.error?.code ?? ''}`)
-        a.addEventListener('error', onErr)
-        this.quitaAudio = () => a.removeEventListener('error', onErr)
-        const arranca = () => {
-          if (seq !== this.uttSeq) return
-          const sub = words.slice(tramo.desde, tramo.hasta)
-          const dur = Number.isFinite(a.duration) && a.duration > 0 ? a.duration : tramo.texto.length / 14
-          const tiempos = tiemposDePalabras(spoken, sub, dur)
-          const local = Math.max(0, desdePalabra - tramo.desde)
-          try { a.currentTime = local ? tiempos[local] : 0 } catch { /* el seek llega con los datos */ }
-          this.voz.velocidad(RATES[this.rateIdx])
-          let ultima = -1
-          const tick = () => {
+        // Otro arranque ganó (el tramo terminó antes del relevo) o la velocidad volvió a cambiar (ya viene otro).
+        if (miTurno !== turno || v !== RATES[this.rateIdx]) return
+        turno++
+        espera = null
+        const sub = words.slice(tramo.desde, tramo.hasta)
+        // Inicio de cada palabra anclado a los silencios del audio real (ver tiemposDelAudio): el reparto por caracteres
+        // a ciegas dejaba el resaltado hasta media frase detrás o delante de la voz.
+        const tiempos = tiemposDelAudio(spoken, sub, audio.buffer.getChannelData(0), audio.buffer.sampleRate)
+        const local = Math.min(sub.length - 1, Math.max(0, (desde ?? actual.palabra) - tramo.desde))
+        actual = { t, palabra: tramo.desde + local }
+        if (this.rafAudio) cancelAnimationFrame(this.rafAudio)
+        this.rafAudio = 0
+        try {
+          this.voz.sonar(audio, local ? tiempos[local] : 0, () => {
             if (seq !== this.uttSeq) return
-            const i = palabraEn(tiempos, a.currentTime)
-            if (i >= 0 && i !== ultima) {
-              ultima = i
-              pinta(tramo.desde + i)
-            }
-            this.rafAudio = requestAnimationFrame(tick)
-          }
-          const onEnd = () => {
-            if (seq !== this.uttSeq) return
-            this.quitaAudio?.()
-            this.quitaAudio = null
             if (this.rafAudio) cancelAnimationFrame(this.rafAudio)
             this.rafAudio = 0
+            turno++
             suena(t + 1, tramo.hasta)
-          }
-          a.addEventListener('ended', onEnd)
-          this.quitaAudio = () => {
-            a.removeEventListener('error', onErr)
-            a.removeEventListener('ended', onEnd)
-          }
-          this.enAudio = true
-          a.play().then(
-            () => {
-              if (seq !== this.uttSeq) return
-              sonda.mark('tts-audio')
-              if (!this.rafAudio) this.rafAudio = requestAnimationFrame(tick)
-              precargaDespues(t)
-            },
-            (e: unknown) => {
-              const n = (e as { name?: string })?.name
-              if (n !== 'AbortError') falla(n || 'play')
-            },
-          )
+          }, v)
+        } catch (e) {
+          return falla(e instanceof Error ? e.message : 'web audio')
         }
-        if (a.src === url && a.readyState >= 1) arranca()
-        else {
-          a.addEventListener('loadedmetadata', arranca, { once: true })
-          a.src = url
-          a.load()
+        this.enAudio = true
+        sonda.mark(audio.tempo === v ? 'tts-audio' : `tts-audio-sin-tempo(${audio.tempo}≠${v})`)
+        let ultima = -1
+        const tick = () => {
+          if (seq !== this.uttSeq) return
+          const i = palabraEn(tiempos, this.voz.posicion())
+          if (i >= 0 && i !== ultima) {
+            ultima = i
+            actual.palabra = tramo.desde + i
+            pinta(actual.palabra)
+          }
+          this.rafAudio = requestAnimationFrame(tick)
         }
+        this.rafAudio = requestAnimationFrame(tick)
+        precarga(t)
+        // Sin gesto, Chrome deja el contexto suspendido y no suena nada: mejor la voz del navegador que el silencio.
+        const turnoAqui = turno
+        setTimeout(() => {
+          if (seq === this.uttSeq && turno === turnoAqui && this.playing && !this.paused && !this.voz.corriendo())
+            falla('contexto suspendido')
+        }, 2500)
       }, (e: unknown) => falla(e instanceof Error ? e.message : 'red'))
+    }
+    this.relevoVelocidad = () => {
+      // Lo que se esperaba se pide de nuevo a la velocidad nueva; si ya suena, el tramo actual se releva en su palabra.
+      if (espera) suena(espera.t, espera.desde)
+      else if (actual.t >= 0) suena(actual.t, null)
     }
 
     const t0 = Math.max(0, tramos.findIndex((tr) => w0 < tr.hasta))
@@ -1605,9 +1626,12 @@ class ChatSpeechController {
   cycleRate() {
     this.rateIdx = (this.rateIdx + 1) % RATES.length
     this.emit()
-    // Con la voz del servidor la velocidad es del reproductor: aplica en el acto, sin volver a hablar nada.
-    this.voz.velocidad(RATES[this.rateIdx])
-    if (this.enAudio) return
+    // Con la voz del servidor el tramo actual sigue sonando hasta que llega a la velocidad nueva (~1 s) y se releva en
+    // la palabra que suena: sin silencio ni volver al inicio del párrafo.
+    if (this.relevoVelocidad) {
+      this.relevoVelocidad()
+      return
+    }
     // Solo re-arrancar si REALMENTE está sonando. En pausa, `playing` sigue true (no
     // refleja "está vocalizando"), así que sin el !this.paused el cambio de velocidad
     // reanudaba el audio a la fuerza y reiniciaba el párrafo. En pausa solo memorizamos
@@ -1620,16 +1644,27 @@ class ChatSpeechController {
     }
   }
 
+  /** El cursor está sobre el botón del lector de `el`: pide ya el primer tramo a la velocidad actual (sin tocar nada
+   *  más). El clic que llega ~0.3–1 s después lo encuentra en caché o en vuelo; sin esto el primer audio tardaba 1.5 s. */
+  anticipar(el: HTMLElement) {
+    if (!this.voz.disponible || this.curId) return
+    const b = bloquesLegibles(el)[0]
+    if (!b) return
+    const sp = buildSpoken(b.textContent || '').spoken
+    const t0 = tramosDeVoz(sp, palabrasDe(sp))[0]
+    if (t0) this.voz.precargar(t0.texto, RATES[this.rateIdx])
+  }
+
   /** Un toque en el texto original (lo reenvía el puente de una lectura externa): leer desde esa palabra. */
   saltarA(bloque: number, offset = 0) {
     if (this.puente) this.jumpTo(bloque, offset)
   }
   /** Velocidad (una de RATES) que se quiere desde el arranque; la ignora si no es válida. */
   fijarVelocidad(rate: number) {
-    const i = RATES.indexOf(rate)
+    const i = indiceDeVelocidad(rate)
     if (i < 0 || i === this.rateIdx) return
     this.rateIdx = i
-    this.voz.velocidad(rate)
+    this.relevoVelocidad?.()
     this.emit()
   }
 
@@ -1724,6 +1759,26 @@ class ChatSpeechController {
     this.indiceEspejo = new Map()
     this.emit()
   }
+}
+
+/** Bloques hoja que se leen, en orden. Fuentes del final, tablas y párrafos que solo eran una URL no se oyen ni
+ *  cuentan en el total: regla única en lector-filtro.ts. Siguen visibles en pantalla. */
+function bloquesLegibles(container: HTMLElement): HTMLElement[] {
+  const cands = Array.from(container.querySelectorAll(`${SELECTOR_BLOQUES},span[${MARCA_PROPIO}]`)) as HTMLElement[]
+  const set = new Set(cands)
+  const hojas = cands.filter((el) => {
+    if (!el.innerText.trim()) return false
+    for (const d of Array.from(el.querySelectorAll(SELECTOR_BLOQUES)))
+      if (set.has(d as HTMLElement)) return false
+    return true
+  })
+  return filtrarBloques(
+    hojas.map((el) => ({
+      texto: el.innerText,
+      enTabla: !!el.closest('table'),
+      esEncabezado: /^H[1-4]$/.test(el.tagName),
+    })),
+  ).map((i) => hojas[i])
 }
 
 /** Palabras del texto hablado, en sus coordenadas. */

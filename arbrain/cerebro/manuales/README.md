@@ -34,6 +34,7 @@ Responde estas tres preguntas sin preguntarle al dueño lo que puedes comprobar 
 | Todoist | [todoist.md](todoist.md) | sí | sí | sí |
 | Que Levy use el navegador o la computadora (computer use) | [computer-use.md](computer-use.md) | navegador y escritorio (también la app Arbrain) | navegador y escritorio (también la app Arbrain) | navegador; escritorio solo con piezas de la comunidad |
 | Modo monje opcional (rutina, hábitos, lo que hay que dejar) | [modo-monje.md](modo-monje.md) | sí | sí | sí |
+| Cambiar su Arbrain (marca, colores, skills, código) sin perder las actualizaciones: el «cirujano del cerebro» | [cirujano-del-cerebro.md](cirujano-del-cerebro.md) | sí | sí | sí |
 
 **Qué funciona en cada herramienta:**
 

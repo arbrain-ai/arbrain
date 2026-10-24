@@ -4,7 +4,7 @@
  * Cada modelo por OpenRouter vive en el suyo (`~/.codex-<espacio>`): su hilo no se mezcla con otro modelo.
  * Módulo puro: lo usan las rutas del servidor (acceso, borradores sin conexión) y el store del cliente.
  */
-export const ESPACIOS_API = ['deepseek', 'gpt-luna', 'gpt-astra', 'gpt-sol', 'gemini', 'muse', 'grok', 'mimo', 'glm'] as const
+export const ESPACIOS_API = ['deepseek', 'gpt-luna', 'gpt-astra', 'gpt-sol', 'gemini', 'muse', 'grok', 'mimo', 'glm', 'kimi'] as const
 export const ESPACIOS_NO_DEFAULT = ['bro', 'codex', 'yt', ...ESPACIOS_API] as const
 export const ESPACIOS_CHAT = ['default', ...ESPACIOS_NO_DEFAULT] as const
 
