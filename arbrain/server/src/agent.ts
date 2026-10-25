@@ -2,6 +2,7 @@ import type { LiveToolbox } from './live/tools.js'
 import { getCommandCatalog } from './chat-runtime/command-catalog.js'
 import { cabinaMcpConfig, manosMcpConfig } from './cabina/config.js'
 import { computerUseDisponible } from './manos/politica.js'
+import { conNarracion, decirConSFlow } from './cliente/voz-sflow.js'
 import { chromeHooks, claveConversacion, configurarBitacora } from './cabina/chrome-guard.js'
 import { conGuardia, opcionesSesionCliente, permisosCliente, sinGanchosCliente } from './guardia-agentes.js'
 import { esFalloDeSandbox, marcarSandboxFallido } from './cliente/sandbox.js'
@@ -589,7 +590,8 @@ export async function* runAgentStream(
         // ClaudeClaw is a daemon — hooks would spawn recursive agent sessions.
         settingSources: fuentesDeAjustes(['project', 'user']),
         // Edición cliente: + guardia destructiva programática (guardia-agentes.ts). Daniel: igual que siempre.
-        hooks: conGuardia(conChrome ? chromeHooks(claveConversacion(durable!.scope), evento => opsLogger.log('browser_site', source, evento)) : {}, ev => logger.warn(ev, 'guardia de agentes'), resumeId && rewindAt ? { heredaDe: resumeId } : undefined),
+        // conNarracion: con «Voz con SFlow» y el modo demo encendidos, SFlow narra antes de cada acción (cliente/voz-sflow.ts).
+        hooks: conGuardia(conNarracion(conChrome ? chromeHooks(claveConversacion(durable!.scope), evento => opsLogger.log('browser_site', source, evento)) : {}, !!durable && !denyTools && !durable.live), ev => logger.warn(ev, 'guardia de agentes'), resumeId && rewindAt ? { heredaDe: resumeId } : undefined),
         extraArgs: conChrome ? { chrome: null } : { 'no-chrome': null },
         // ClaudeClaw runs headless on Mac Mini — no UI to approve prompts.
         // Modo NORMAL: bypassPermissions skip all checks (safety net = el hook
@@ -1220,6 +1222,8 @@ export async function* runAgentStream(
         }, stream as unknown as Parameters<typeof registrarTurno>[1])
 
         const terminalReason = e['terminal_reason'] as string | undefined
+        // Al terminar un turno del chat, SFlow dice el bloque 🔊 de la respuesta (cliente/voz-sflow.ts).
+        if (durable && !denyTools && !durable.live) decirConSFlow(streamSessionId)
         yield { type: 'result', text: resultText, terminalReason }
       }
     }
