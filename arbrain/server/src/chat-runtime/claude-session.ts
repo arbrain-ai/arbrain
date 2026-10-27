@@ -6,6 +6,7 @@ import { defaultAccountConfigDir } from '../config.js'
 import { esEdicionCliente } from '../edicion.js'
 import { motorSuscripcion } from '../cliente/suscripcion.js'
 import { dirClaudeAlternaO } from '../cuentas-alternas.js'
+import { logger } from '../logger.js'
 
 class Mailbox<T> implements AsyncIterable<T> {
   private values: T[] = []
@@ -70,6 +71,33 @@ export function requireClaudeSubscription(account: AccountInfo, cliente = esEdic
   }
 }
 
+export const SUBSCRIPTION_RETRY_ATTEMPTS = 3
+/** Espera entre lecturas; mutable solo para que los tests no esperen de verdad. */
+export const subscriptionRetry = { delayMs: 1500 }
+
+/** El accountInfo puede llegar incompleto un instante (el CLI refresca su token OAuth o recién arranca; 24 oct 2026,
+ * «Reintentar» falló y un minuto después andaba). Se relee hasta 3 veces con espera; la regla NO se relaja: si sigue sin
+ * suscripción, el mismo error sale y no se envía ningún prompt. El log lleva solo campos de diagnóstico, sin secretos. */
+export async function confirmClaudeSubscription(
+  readInfo: () => Promise<AccountInfo>,
+  cliente = esEdicionCliente(),
+  suscripcion = motorSuscripcion(),
+  delayMs = subscriptionRetry.delayMs,
+): Promise<void> {
+  for (let retry = 0; ; retry++) {
+    const info = await readInfo()
+    try { return requireClaudeSubscription(info, cliente, suscripcion) } catch (error) {
+      if (retry >= SUBSCRIPTION_RETRY_ATTEMPTS) throw error
+      logger.warn({
+        retry: retry + 1, of: SUBSCRIPTION_RETRY_ATTEMPTS,
+        apiProvider: info.apiProvider, subscriptionType: info.subscriptionType,
+        tokenSource: info.tokenSource, apiKeySource: info.apiKeySource,
+      }, 'suscripción Claude no confirmada: se relee la cuenta')
+      await new Promise(resolve => setTimeout(resolve, delayMs))
+    }
+  }
+}
+
 /** One long-lived SDK process, one explicit foreground turn at a time. The
  * supervisor owns queued work; this adapter never silently coalesces user sends.
  * Idle/background messages have a separate sink instead of contaminating the
@@ -123,7 +151,7 @@ export class ClaudeInteractiveSession {
     const cliente = esEdicionCliente()
     if (!cliente || motorSuscripcion()) for (const key of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_BASE_URL', 'CLAUDE_CODE_USE_BEDROCK', 'CLAUDE_CODE_USE_VERTEX', 'CLAUDE_CODE_USE_FOUNDRY']) delete env[key]
     this.query = create({ prompt: this.input, options: { ...options, env } })
-    this.initialization = this.query.accountInfo().then(info => requireClaudeSubscription(info, cliente))
+    this.initialization = confirmClaudeSubscription(() => this.query.accountInfo(), cliente)
     // Attach immediately; metadata failures must not create unhandled rejection.
     void this.initialization.catch(error => this.fail(error instanceof Error ? error : new Error('Claude initialization failed')))
     this.drained = this.read()

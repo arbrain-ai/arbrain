@@ -46,3 +46,16 @@ export function temporadaDeHabitos(t: { nombre: string; arranque: string } | und
   if (!t || !p) return null
   return { nombre: t.nombre, arranque: t.arranque, desde: p.desde, hasta: p.hasta, premio: p.premio }
 }
+
+/**
+ * La franja de la temporada (24 oct 2026, cascada Temporada → Mes → Semana → Día): UN contador, la tira y nada más que cuente.
+ * «Monk mode · Día N de 29 → Monterrey · 24–29 nov · Darles resultados a mis clientes»; antes del día 1, «Empieza en N días».
+ * Sin «Faltan N días»: la tira ya lo dice.
+ */
+export interface Franja { rotulo: string | null; contador: string; destino: string; porFirmar: boolean; meta: string | null }
+export function franjaDeTemporada(hoy: string, p: { desde: string; hasta: string; premio: string; meta?: string; viaje?: { desde: string; hasta: string; firmado: boolean } },
+  nombre?: string | null): Franja {
+  const d = diaDelPeriodo(hoy, p)
+  return { rotulo: nombre?.trim() || null, contador: textoPeriodo(d), destino: p.viaje ? `${p.premio} · ${rangoCorto(p.viaje.desde, p.viaje.hasta)}` : p.premio,
+    porFirmar: Boolean(p.viaje && !p.viaje.firmado), meta: p.meta?.trim() || null }
+}

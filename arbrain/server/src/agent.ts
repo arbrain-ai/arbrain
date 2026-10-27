@@ -23,7 +23,7 @@ import { logger } from './logger.js'
 import { opsLogger } from './ops-logger.js'
 import { claudeRuntimePool, type ClaudeTurnScope } from './chat-runtime/claude-pool.js'
 import { registrarTurno, type UsoLlamada } from './cabina/contexto.js'
-import { ClaudeExecutionUncertain, ClaudeSubmissionCancelled, requireClaudeSubscription, type ClaudeBackgroundEvent } from './chat-runtime/claude-session.js'
+import { ClaudeExecutionUncertain, ClaudeSubmissionCancelled, confirmClaudeSubscription, type ClaudeBackgroundEvent } from './chat-runtime/claude-session.js'
 import { validateClaudeSelection, claudeSelectionOptions, type ClaudeSelection } from './chat-runtime/claude-selection.js'
 import { CUENTA_ALTERNA_NO_DISPONIBLE, dirClaudeAlterna } from './cuentas-alternas.js'
 
@@ -710,7 +710,7 @@ export async function* runAgentStream(
     releaseTurn = pooled?.release
     // Motor «Mi Claude Code»: la sesión del pool ya confirma la suscripción antes de enviar; la vía directa corta el
     // turno si el CLI no corre con la cuenta de Claude de la persona (nunca se cobra por API en silencio).
-    if (stream && !pooled && motorSuscripcion()) requireClaudeSubscription(await stream.accountInfo())
+    if (stream && !pooled && motorSuscripcion()) await confirmClaudeSubscription(() => stream.accountInfo())
     if (frozenSelection && stream) {
       await validateClaudeSelection(PROJECT_ROOT, durable!.scope.account, frozenSelection, stream)
       if (ac.signal.aborted) throw new ClaudeSubmissionCancelled('Abortado antes de enviar.')

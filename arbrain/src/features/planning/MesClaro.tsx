@@ -3,13 +3,13 @@ import { useMemo, type CSSProperties } from 'react'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Check, ChevronRight } from 'lucide-react'
-import { Cifra, mov } from '@/shared/movimiento'
-import type { GoalSnapshot } from '@/features/goals/model'
+import { mov } from '@/shared/movimiento'
+import type { Goal, GoalSnapshot } from '@/features/goals/model'
 import { dayKey } from './model'
 import { diasEntre, objetivoDe, periodoDeEscala, rejillaDelMes } from './periodo-vivo'
-import { cuandoHito, diasHasta, entregablesDe, estadoSemana, faltanTexto, hitosDelRegistro, ROTULO_SEMANA, type HitoMes } from './claridad'
+import { cuandoHito, diasHasta, entregablesDe, estadoSemana, hitosDelRegistro, ROTULO_SEMANA, type HitoMes } from './claridad'
 import { ContadorPeriodo } from './ContadorPeriodo'
-import { ObjetivoCaja, Segmentos } from './ObjetivoCaja'
+import { Entregables, ObjetivoCaja, Segmentos } from './ObjetivoCaja'
 import { esc, useAhora } from './vivo-piezas'
 import type { PlanningSnapshot } from './types'
 import type { Plegado } from './SemanaClara'
@@ -30,7 +30,7 @@ function rango(a: string, b: string) {
   return x.getMonth() === y.getMonth() ? `${format(x, 'd')} – ${format(y, 'd')}` : `${quita(format(x, 'd MMM', { locale: es }))} – ${quita(format(y, 'd MMM', { locale: es }))}`
 }
 
-export function MesClaro({ goals, fecha, snapshot, cargando, angosto, cuadricula, onSemana, enfoque = false, plegado }: {
+export function MesClaro({ goals, fecha, snapshot, cargando, angosto, cuadricula, onSemana, enfoque = false, plegado, dosColumnas = false, guardarObjetivo }: {
   goals: { data: GoalSnapshot | null; error: string | null }
   fecha: Date; snapshot: PlanningSnapshot | null; cargando: boolean; angosto: boolean
   /** La cuadrícula clásica (FullCalendar) en lugar del recorrido: aquí solo queda el objetivo. */
@@ -40,6 +40,11 @@ export function MesClaro({ goals, fecha, snapshot, cargando, angosto, cuadricula
   enfoque?: boolean
   /** El objetivo del mes nace plegado en una línea (con «Semana N de M»); un toque abre la cuenta regresiva y la línea del mes. */
   plegado?: Plegado
+  /** Pantalla completa (24 oct 2026): esta hoja es la columna izquierda (temporada, objetivo abierto con sus criterios e hitos,
+   *  recorrido) y la cuadrícula del mes va a la derecha (PlanningCalendar la pone ahí). */
+  dosColumnas?: boolean
+  /** Marcar un criterio del mes escribe en el registro de objetivos (useGoals.save), como los entregables de la Semana. */
+  guardarObjetivo?: (g: Goal) => Promise<unknown>
 }) {
   const ahora = useAhora(), hoy = dayKey(new Date(ahora))
   const { desde, hasta } = useMemo(() => periodoDeEscala('month', fecha), [fecha])
@@ -73,20 +78,21 @@ export function MesClaro({ goals, fecha, snapshot, cargando, angosto, cuadricula
   const vivido = enMes ? pos(hoy) + (new Date(ahora).getHours() / 24) / total : hoy >= hasta ? 1 : 0
 
 
-  return <section className={c.vista} data-angosto={angosto || undefined} aria-label={`Mes de ${format(parseISO(desde), 'MMMM yyyy', { locale: es })}`}>
-    <ObjetivoCaja rotulo={plegado && !plegado.objetivo ? 'Mes' : <>Objetivo de {format(parseISO(desde), 'MMMM', { locale: es })}{goal?.status === 'draft' && <em> · en planificación</em>}</>}
+  const pliega = dosColumnas ? undefined : plegado
+  const criterios = dosColumnas && goal ? entregablesDe(goal.success).items : []
+  return <section className={c.vista} data-angosto={angosto || undefined} data-dos-columnas={dosColumnas || undefined} aria-label={`Mes de ${format(parseISO(desde), 'MMMM yyyy', { locale: es })}`}>
+    {dosColumnas && <ContadorPeriodo delgada i={0} />}
+    <ObjetivoCaja rotulo={pliega && !pliega.objetivo ? 'Mes' : <>Objetivo de {format(parseISO(desde), 'MMMM', { locale: es })}{goal?.status === 'draft' && <em> · en planificación</em>}</>}
       titulo={objetivo?.titulo ?? null} vacio="Sin objetivo para este mes." leyendo={!goals.data && !goals.error}
       marca={actual >= 0 ? `Semana ${actual + 1} de ${semanas.length}` : null}
-      plegada={plegado ? !plegado.objetivo : false} onPlegar={plegado ? () => plegado.alternar('objetivo') : undefined}>
-      <div className={c.cuentaAtras}>
-        {faltan > 0 ? <span className={c.faltanNumero}><Cifra valor={faltan} clave={`faltan-${meta.dia}-${hoy}`} formato={x => String(Math.round(x))} /><small>{faltan === 1 ? 'día' : 'días'}</small></span>
-          : <span className={c.faltanNumero} data-hoy><small>{faltanTexto(faltan)}</small></span>}
-        <span className={c.faltanTexto}>
-          <b>{faltan > 1 ? `Faltan ${faltan} días para` : faltan === 1 ? 'Mañana:' : faltan === 0 ? 'Hoy:' : 'Ya pasó:'} {meta.hito ? <span className={c.rombo}>◆</span> : null}{meta.titulo}</b>
-          <small>{meta.hito ? `${corto(meta.hito.dia)}${meta.hito.hasta ? ` al ${corto(meta.hito.hasta)}` : ''}` : corto(meta.dia)}
-            {' · '}{sinCerrar ? `${sinCerrar} ${sinCerrar === 1 ? 'semana' : 'semanas'} sin cerrar` : 'ninguna semana atrasada'}</small>
-        </span>
-      </div>
+      plegada={pliega ? !pliega.objetivo : false} onPlegar={pliega ? () => pliega.alternar('objetivo') : undefined}>
+      {/* La línea del próximo hito (24 oct 2026, cascada): el contador del Mes es «Semana N de M»; aquí no va un número grande. */}
+      <p className={c.proximoHito}>
+        <span className={c.proximoRotulo}>{meta.hito ? 'Próximo hito' : 'Al cierre'}</span>
+        <b>{meta.hito ? <span className={c.rombo}>◆</span> : null}{meta.titulo}</b>
+        <small>{faltan === 0 ? 'hoy' : faltan === 1 ? 'mañana' : faltan < 0 ? 'ya pasó' : meta.hito ? `${corto(meta.hito.dia)}${meta.hito.hasta ? ` al ${corto(meta.hito.hasta)}` : ''}` : corto(meta.dia)}
+          {' · '}{sinCerrar ? `${sinCerrar} ${sinCerrar === 1 ? 'semana' : 'semanas'} sin cerrar` : 'ninguna semana atrasada'}</small>
+      </p>
       <div className={c.lineaMes} aria-hidden>
         <i className={`${c.lineaVivida} ${mov.llena}`} style={{ width: `${vivido * 100}%` }} />
         {hitos.map(h => h.hasta && h.hasta !== h.dia
@@ -94,8 +100,10 @@ export function MesClaro({ goals, fecha, snapshot, cargando, angosto, cuadricula
           : <span key={h.dia + h.titulo} className={c.lineaHito} style={{ left: `${(pos(h.dia) + 0.5 / total) * 100}%` }}>◆</span>)}
         {enMes && <b className={c.lineaAhora} style={{ left: `${vivido * 100}%` }} />}
       </div>
+      {/* Los criterios del mes (dos columnas): las mismas casillas que la Semana, leídas del «cómo se comprueba» del registro. */}
+      {criterios.length > 0 && <Entregables texto={goal!.success} guardar={guardarObjetivo ? success => guardarObjetivo({ ...goal!, success }) : undefined} i0={3} nombre="Criterios del mes" />}
     </ObjetivoCaja>
-    <ContadorPeriodo />
+    {!dosColumnas && <ContadorPeriodo />}
 
     {!cuadricula && !enfoque && <div className={`${c.subtitulo} ${c.entra}`} style={esc(4)}><h3>El recorrido</h3></div>}
 

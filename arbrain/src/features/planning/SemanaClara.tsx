@@ -16,7 +16,10 @@ import { esc, sinEmoji, useAhora } from './vivo-piezas'
 import { SemanaHoras, type MarcaDia } from './SemanaHoras'
 import { diasDesde, diasVisibles, esFinDeSemana, lunesDe, medianoche, medianocheSiguiente, semanaDeMayoria, sumarDia, TRAMO, type Bloque, type DiasVista } from './semana-horas'
 import { esCompromiso } from './categorias'
+import { rutinasDiarias } from './rutinas'
 import { Leyenda, type ControlLeyenda } from './Leyenda'
+import { LeyendaDrip, useGobierno } from './gobierno'
+import { esDelegable, type LecturaDrip } from './drip'
 import type { PlanEvent, PlanItem, PlanTask, PlanningSnapshot } from './types'
 import c from './claridad.module.css'
 
@@ -72,13 +75,19 @@ export function SelectorVista({ vista, onVista }: { vista: VistaSemana; onVista:
 }
 
 /** Los bloques con hora de la semana: eventos visibles y tareas con hora. Lo de día completo va a la franja. */
-export function bloquesDeSemana(eventos: PlanEvent[], tareas: PlanTask[], visible: (e: PlanEvent) => boolean, color: (e: PlanEvent) => string | null): Bloque[] {
+export function bloquesDeSemana(eventos: PlanEvent[], tareas: PlanTask[], visible: (e: PlanEvent) => boolean, color: (e: PlanEvent) => string | null,
+  /** DRIP (24 oct 2026): la etiqueta «delegable», de quién es y si está protegido. Sin esto (la vista del chat), nada cambia. */
+  drip?: (e: PlanEvent) => LecturaDrip): Bloque[] {
+  // La Perfect Week (24 oct 2026): rutina es lo que se repite casi a diario (rutinas.ts), no cualquier serie; la clase semanal resalta.
+  const rutinas = rutinasDiarias(eventos, iso => dayKey(parseISO(iso)))
   return [
     ...eventos.filter(e => !e.allDay && visible(e)).map(e => ({ id: e.id, titulo: sinEmoji(e.title || '(sin título)'), inicio: Date.parse(e.start), fin: Date.parse(e.end), color: color(e), movible: e.editable,
-      rutina: Boolean(e.recurringEventId), compromiso: esCompromiso(e) })),
+      rutina: rutinas.has(e.id), compromiso: esCompromiso(e), ...(drip ? marcaDrip(drip(e)) : {}) })),
     ...tareas.filter(t => t.due && hasTime(t.due) && !t.completed).map(t => { const ini = Date.parse(t.due!); return { id: t.id, titulo: sinEmoji(t.title), inicio: ini, fin: ini + (t.durationMinutes ?? 30) * 60_000, color: null, movible: true, tarea: true, prioridad: t.priority === 1, ...(t.durationMinutes ? {} : { sinDuracion: true }) } }),
   ]
 }
+/** Lo que DRIP le pone a un bloque de la rejilla: su cuadrante, la etiqueta de delegable, de quién es y si está protegido. */
+export const marcaDrip = (l: LecturaDrip) => ({ drip: l.cuadrante, delegable: esDelegable(l.cuadrante), delegadoA: l.delegadoA, protegido: l.protegido })
 /** Lo de día completo, por día civil (un viaje de tres días aparece en sus tres columnas). */
 export function todoElDiaDeSemana(dias: string[], eventos: PlanEvent[], visible: (e: PlanEvent) => boolean, color: (e: PlanEvent) => string | null, abrir?: (e: PlanEvent) => void) {
   const mapa = new Map<string, MarcaDia[]>(dias.map(d => [d, []]))
@@ -90,7 +99,7 @@ export function todoElDiaDeSemana(dias: string[], eventos: PlanEvent[], visible:
 }
 
 export function SemanaClara({ goals, guardarObjetivo, fecha, ventana, onVentana, snapshot, eventos, visible, color, tareas, zona, cargando, donde = 'seccion', leyenda, onDia, onAbrir, onMover, onEstirar, onCrear,
-  vista = 'horas', enfoque = false, diasVista = null, finDeSemana = true, tramo = TRAMO, compacta = false, etiquetaZona = null, plegado }: {
+  vista = 'horas', enfoque = false, diasVista = null, finDeSemana = true, tramo = TRAMO, compacta = false, etiquetaZona = null, plegado, dosColumnas = false }: {
   goals: { data: GoalSnapshot | null; error: string | null }
   /** El primer día visible y cuántos se ven (null hasta que la rejilla se mida: entonces manda la semana de `fecha`). */
   ventana?: { inicio: string | null; n: number }
@@ -116,6 +125,9 @@ export function SemanaClara({ goals, guardarObjetivo, fecha, ventana, onVentana,
   tramo?: { desde: number; hasta: number }; compacta?: boolean; etiquetaZona?: string | null
   /** Lo principal plegado en una línea (el objetivo y lo de día completo); un toque lo abre. Sin esto, todo abierto (el chat). */
   plegado?: Plegado
+  /** Pantalla completa (24 oct 2026): a la izquierda la temporada, el foco abierto con sus entregables y la lista de cada día; a la
+   *  derecha la semana en horas a alto completo (7 columnas, de 5:00 a 22:00, sin scroll). Horas · Agenda dejan de ser excluyentes. */
+  dosColumnas?: boolean
 }) {
   const ahora = useAhora(), hoy = dayKey(new Date(ahora))
   const semana = dayKey(fecha)
@@ -138,41 +150,42 @@ export function SemanaClara({ goals, guardarObjetivo, fecha, ventana, onVentana,
   const objetivos = useMemo(() => new Map(diasRiel.map(x => [x, goals.data ? objetivoDelDia(goals.data.goals, snapshot, x, zona) : null])), [goals.data, snapshot, diasRiel, zona])
 
   const porId = useMemo(() => new Map<string, PlanItem>([...eventos, ...tareas].map(i => [i.id, i])), [eventos, tareas])
-  const bloques = useMemo(() => bloquesDeSemana(eventos, tareas, visible, color), [eventos, tareas, visible, color])
+  const gobierno = useGobierno()
+  const bloques = useMemo(() => bloquesDeSemana(eventos, tareas, visible, color, gobierno?.lectura), [eventos, tareas, visible, color, gobierno?.lectura])
   const todoElDia = useMemo(() => todoElDiaDeSemana(diasRiel, eventos, visible, color, onAbrir), [diasRiel, eventos, visible, color, onAbrir])
   const estrellas = useMemo(() => new Map([...objetivos].map(([d, o]) => [d, o ? { titulo: o.titulo, cumplido: o.cumplido } : null])), [objetivos])
   const item = (b: Bloque) => porId.get(b.id)
   // Enfoque (10 oct 2026, Daniel): se van los chips de categorías y el subtítulo; quedan el objetivo, los botones y la rejilla.
-  const chips = leyenda && !enfoque ? <Leyenda ctl={leyenda} eventos={eventos} desde={medianoche(visibles[0])} hasta={medianocheSiguiente(visibles[visibles.length - 1])} periodo="semana" /> : null
+  // DRIP (24 oct 2026): la leyenda es la matriz; en ancho vive en la barra del calendario y aquí no se repite.
+  const chips = leyenda && !enfoque ? gobierno ? (gobierno.leyendaEnBarra ? null : <LeyendaDrip />)
+    : <Leyenda ctl={leyenda} eventos={eventos} desde={medianoche(visibles[0])} hasta={medianocheSiguiente(visibles[visibles.length - 1])} periodo="semana" /> : null
 
 
-  return <section className={c.vista} aria-label={`Semana del ${format(parseISO(desde), "d 'de' MMMM", { locale: es })}`}>
+  const pliega = dosColumnas ? undefined : plegado
+  const etiqueta = `Semana del ${format(parseISO(desde), "d 'de' MMMM", { locale: es })}`
+  const objetivoCaja = <>
     {/* El objetivo nace plegado en una línea (ronda 3): un toque lo abre con sus entregables. */}
-    <ObjetivoCaja rotulo={plegado && !plegado.objetivo ? <>Semana{n > 0 && <b> · S{n}</b>}</> : <>Objetivo de la semana{n > 0 && <b> · S{n}</b>}{goal?.status === 'draft' && <em> · en planificación</em>}{goal?.status === 'completed' && <em> · cumplido</em>}</>}
+    <ObjetivoCaja rotulo={pliega && !pliega.objetivo ? <>Semana{n > 0 && <b> · S{n}</b>}</> : <>Objetivo de la semana{n > 0 && <b> · S{n}</b>}{goal?.status === 'draft' && <em> · en planificación</em>}{goal?.status === 'completed' && <em> · cumplido</em>}</>}
       titulo={objetivo?.titulo ?? null} vacio="Sin objetivo para esta semana." leyendo={!goals.data && !goals.error}
       cuenta={entregables.length ? { k: hechos, n: entregables.length, clave: `sem-${goal!.id}-${hechos}` } : null}
-      plegada={plegado ? !plegado.objetivo : false} onPlegar={plegado ? () => plegado.alternar('objetivo') : undefined}>
+      plegada={pliega ? !pliega.objetivo : false} onPlegar={pliega ? () => pliega.alternar('objetivo') : undefined}>
       {goal ? <>
         <Segmentos k={hechos} n={entregables.length} i={1} />
         <Entregables texto={goal.success} guardar={guardarObjetivo ? success => guardarObjetivo({ ...goal, success }) : undefined} i0={2} nombre="Entregables de la semana" />
       </> : null}
     </ObjetivoCaja>
-    <ContadorPeriodo />
-
-    {!enfoque && <div className={`${c.subtitulo} ${c.entra}`} style={esc(6)}><h3>{vista === 'horas' ? 'La semana en horas' : 'Cada día'}</h3></div>}
-
-    {cargando && !snapshot ? <p className={c.leyendo}>Leyendo tu calendario…</p>
-      : vista === 'horas' ? <div className={c.entra} style={esc(7)}><SemanaHoras listo={Boolean(snapshot) || !cargando} dias={onVentana ? undefined : dias} semana={semana} inicio={inicio} onVentana={onVentana} sinBarra={enfoque} hoy={hoy} ahora={ahora} bloques={bloques} todoElDia={todoElDia} estrellas={estrellas} onDia={onDia} donde={donde} barra={chips} amplia={enfoque}
-        diasVista={diasVista} finDeSemana={finDeSemana} tramo={tramo} compacta={compacta} zona={etiquetaZona}
+  </>
+  const horasRejilla = (llenar: boolean) => <SemanaHoras listo={Boolean(snapshot) || !cargando} dias={onVentana ? undefined : dias} semana={semana} inicio={inicio} onVentana={onVentana} sinBarra={enfoque} hoy={hoy} ahora={ahora} bloques={bloques} todoElDia={todoElDia} estrellas={estrellas} onDia={onDia} donde={donde} barra={chips} amplia={enfoque}
+        diasVista={llenar ? 7 : diasVista} finDeSemana={finDeSemana} tramo={tramo} compacta={compacta} zona={etiquetaZona} llenar={llenar}
         todoElDiaAbierto={plegado?.todoElDia} onTodoElDia={plegado ? () => plegado.alternar('todoElDia') : undefined}
         onAbrir={onAbrir ? b => { const i = item(b); if (i) onAbrir(i) } : undefined}
         onMover={onMover ? (b, inicio, fin) => { const i = item(b); if (i) onMover(i, inicio, fin) } : undefined}
         onEstirar={onEstirar ? (b, fin) => { const i = item(b); if (i) onEstirar(i, fin) } : undefined}
-        onCrear={onCrear} /></div>
-      : <>{chips}<ol className={c.dias}>{dias.filter(d => finDeSemana || !esFinDeSemana(d)).map((dia, i) => {
+        onCrear={onCrear} />
+  const listaDias = (desdeI: number) => <ol className={c.dias}>{dias.filter(d => finDeSemana || !esFinDeSemana(d)).map((dia, i) => {
         const f = parseISO(dia), od = objetivos.get(dia) ?? null, esHoy = dia === hoy, pasado = dia < hoy
         const { lista, resto } = compromisosDelDia(agenda.get(dia)!, porDiaTareas.get(dia) ?? [], 2, t => !!od && mismoTitulo(t, od.titulo))
-        return <li key={dia} className={c.entra} style={esc(7 + i)}>
+        return <li key={dia} className={c.entra} style={esc(desdeI + i)}>
           <button className={c.dia} data-hoy={esHoy || undefined} data-pasado={pasado || undefined} onClick={() => onDia(dia)}
             aria-label={`Abrir el ${format(f, "EEEE d", { locale: es })}${od ? `: ${od.titulo}` : ''}`}>
             <span className={c.fecha}><small>{quita(format(f, 'EEE', { locale: es }))}</small><b>{format(f, 'd')}</b>{esHoy && <em>Hoy</em>}</span>
@@ -186,6 +199,30 @@ export function SemanaClara({ goals, guardarObjetivo, fecha, ventana, onVentana,
             <ChevronRight size={14} aria-hidden className={c.ir} />
           </button>
         </li>
-      })}</ol></>}
+      })}</ol>
+
+  // Pantalla completa (24 oct 2026, Daniel: «en la semana podemos hacer lo mismo: el calendario más angosto, tipo a la mitad de la
+  // pantalla, a la mitad derecha, y lo importante al lado izquierdo»).
+  if (dosColumnas) return <section className={c.vista} data-dos-columnas aria-label={etiqueta}>
+    <div className={c.izquierda}>
+      <ContadorPeriodo delgada i={0} />
+      {objetivoCaja}
+      <div className={`${c.subtitulo} ${c.entra}`} style={esc(6)}><h3>Cada día</h3></div>
+      {cargando && !snapshot ? <p className={c.leyendo}>Leyendo tu calendario…</p> : listaDias(7)}
+    </div>
+    <div className={`${c.derecha} ${c.entra}`} style={esc(4)}>
+      {cargando && !snapshot ? <p className={c.leyendo}>Leyendo tu calendario…</p> : horasRejilla(true)}
+    </div>
+  </section>
+
+  return <section className={c.vista} aria-label={etiqueta}>
+    {objetivoCaja}
+    <ContadorPeriodo />
+
+    {!enfoque && <div className={`${c.subtitulo} ${c.entra}`} style={esc(6)}><h3>{vista === 'horas' ? 'La semana en horas' : 'Cada día'}</h3></div>}
+
+    {cargando && !snapshot ? <p className={c.leyendo}>Leyendo tu calendario…</p>
+      : vista === 'horas' ? <div className={c.entra} style={esc(7)}>{horasRejilla(false)}</div>
+      : <>{chips}{listaDias(7)}</>}
   </section>
 }

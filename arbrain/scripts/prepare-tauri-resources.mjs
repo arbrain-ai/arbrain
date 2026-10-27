@@ -1,7 +1,7 @@
 import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { cwd } from 'node:process'
-import { buscarFugas, envDelRepo, esEdicionCliente, limpiarSecretos, resumen, secretosDe } from './paquete-seguro.mjs'
+import { buscarFugas, envDelRepo, esEdicionCliente, limpiarSecretos, memoriaVacia, resumen, secretosDe } from './paquete-seguro.mjs'
 
 const root = cwd()
 const standaloneSource = join(root, '.next', 'standalone')
@@ -124,21 +124,6 @@ function prepararPlantilla() {
   const { fugas } = buscarFugas(destino, { secretos })
   if (fugas.length) throw new Error(`[desktop] La plantilla del cerebro lleva ${fugas.length} secreto(s):\n${resumen(fugas)}`)
   console.log(`[desktop] Edición cliente: plantilla del cerebro desde ${origen}`)
-}
-
-/** La memoria del alumno nace vacía: solo índices (`MEMORY*.md`), README y `.gitkeep`. Cualquier otra cosa detiene el build. */
-function memoriaVacia(dir) {
-  if (!existsSync(dir)) throw new Error('[desktop] La plantilla no trae .claude/memory.')
-  const sobran = []
-  const recorrer = (d, rel) => {
-    for (const e of readdirSync(d, { withFileTypes: true })) {
-      const r = rel ? `${rel}/${e.name}` : e.name
-      if (e.isDirectory()) recorrer(join(d, e.name), r)
-      else if (!(/^MEMORY[\w-]*\.md$/.test(r) || e.name === 'README.md' || e.name === '.gitkeep')) sobran.push(r)
-    }
-  }
-  recorrer(dir, '')
-  if (sobran.length) throw new Error(`[desktop] La memoria de la plantilla no está vacía: ${sobran.join(', ')}`)
 }
 
 // Edición cliente (empaquetado alumno, 11 oct 2026): además de la web viajan el Node embebido, el daemon y la

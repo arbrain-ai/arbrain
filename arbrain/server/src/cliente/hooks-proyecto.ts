@@ -16,10 +16,20 @@
  *      se registra. Si el cerebro no tiene ganchos, no hay nada que verificar.
  *
  * Sin plantilla ni huella guardada (instalación anterior a esta versión), la primera huella se acepta y se guarda.
+ *
+ * Versión firmada (27 oct 2026, reporte de un fundador): desde la v0.2 el cerebro es la copia de GitHub y se actualiza con
+ * `git pull`; la plantilla del modo servidor (`arbrain/cerebro/semilla`) no trae ganchos y la huella solo se guardaba al
+ * sembrar, así que la primera versión que cambió los ganchos (v0.2.9, py.sh) dejó a esos cerebros sin ganchos en cada
+ * sesión. Ahora, si la huella no está aceptada pero cada archivo que la forma es idéntico al de la última etiqueta `v*`
+ * alcanzable desde HEAD y esa etiqueta verifica contra el ancla de firmas de la persona
+ * (`~/.config/arbrain/firmas-permitidas`, la misma de INSTALAR, actualizar-arbrain y el programa ya compilado), la huella
+ * se acepta y se guarda.
  * Instalación de Daniel: nada de esto corre.
  */
+import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { DIR_ARBRAIN } from '../edicion.js'
 
@@ -140,26 +150,73 @@ function archivosDe(dir: string, raiz = dir, out: string[] = []): string[] {
   return out
 }
 
+/** Rutas absolutas que forman la huella de `raiz`, en el orden en que se mezclan (settings.json primero), o `null` sin ganchos. */
+export function rutasDeLaHuella(raiz: string): string[] | null {
+  const ajustes = join(raiz, '.claude', 'settings.json')
+  const settings = leerJson(ajustes)
+  const { comandos, archivos } = archivosDeHooks(raiz, settings)
+  if (!comandos.length) return null
+  const todos = new Set([...archivosDe(join(raiz, '.claude', 'hooks')), ...archivos])
+  todos.delete(ajustes)
+  return [ajustes, ...[...todos].sort()]
+}
+
 /**
  * Huella de lo que los ganchos de `raiz` ejecutarían: settings.json, todo `.claude/hooks/**` y cada archivo que
  * `archivosDeHooks` encuentra (contenido o «ausente»). `null` si no hay ganchos (nada que verificar).
  */
 export function huellaHooks(raiz: string): string | null {
-  const ajustes = join(raiz, '.claude', 'settings.json')
-  const settings = leerJson(ajustes)
-  const { comandos, archivos } = archivosDeHooks(raiz, settings)
-  if (!comandos.length) return null
+  const rutas = rutasDeLaHuella(raiz)
+  if (!rutas) return null
   const h = createHash('sha256')
-  const meter = (ruta: string) => {
+  for (const ruta of rutas) {
     const rel = relative(raiz, ruta).replace(/\\/g, '/')
     h.update(`\0${rel}\0`)
     try { h.update(readFileSync(ruta)) } catch { h.update('\0ausente\0') }
   }
-  meter(ajustes)
-  const todos = new Set([...archivosDe(join(raiz, '.claude', 'hooks')), ...archivos])
-  for (const a of [...todos].sort()) if (a !== ajustes) meter(a)
   return h.digest('hex')
 }
+
+const git = (repo: string, args: string[]) => spawnSync('git', args, { cwd: repo, encoding: 'utf8', timeout: 15_000, windowsHide: true })
+
+/** ssh-keygen para `verify-tag`: en Windows, el de Git (el de System32 puede ser viejo). Mismo criterio que programa.mjs. */
+function sshKeygen(repo: string): string {
+  if (process.platform !== 'win32') return 'ssh-keygen'
+  const exec = git(repo, ['--exec-path']).stdout?.trim()
+  const candidato = exec ? join(exec, '..', '..', '..', 'usr', 'bin', 'ssh-keygen.exe') : ''
+  return candidato && existsSync(candidato) ? candidato : 'ssh-keygen'
+}
+
+/**
+ * ¿Los ganchos de `raiz` son exactamente los de una versión firmada? Última etiqueta `v*` alcanzable desde HEAD, anotada
+ * y firmada por una llave del ancla de la persona; cada archivo de la huella presente en disco existe en la etiqueta, y
+ * ninguno (presente o ausente) difiere de ella (`git diff`, que respeta los finales de línea de Windows).
+ * Devuelve la etiqueta o el motivo por el que no.
+ */
+export function ganchosDeVersionFirmada(raiz: string, env: NodeJS.ProcessEnv = process.env): { etiqueta?: string; motivo?: string } {
+  const ancla = env.ARBRAIN_FIRMAS_PERMITIDAS || join(homedir(), '.config', 'arbrain', 'firmas-permitidas')
+  if (!existsSync(ancla)) return { motivo: 'no hay ancla de firmas en ~/.config/arbrain' }
+  const rutas = rutasDeLaHuella(raiz)
+  if (!rutas) return { motivo: 'sin ganchos' }
+  const rels = rutas.map(r => relative(raiz, r).replace(/\\/g, '/'))
+  if (rels.some(r => r === '..' || r.startsWith('../') || isAbsolute(r))) return { motivo: 'un gancho apunta fuera del cerebro' }
+  const d = git(raiz, ['describe', '--tags', '--abbrev=0', '--match', 'v[0-9]*', 'HEAD'])
+  const etiqueta = d.status === 0 ? (d.stdout ?? '').trim() : ''
+  if (!etiqueta) return { motivo: 'la copia no tiene etiquetas de versión (o no es un repositorio git)' }
+  if (git(raiz, ['cat-file', '-t', etiqueta]).stdout?.trim() !== 'tag') return { motivo: `${etiqueta} no es una etiqueta anotada` }
+  const v = git(raiz, ['-c', 'gpg.format=ssh', '-c', `gpg.ssh.program=${sshKeygen(raiz)}`, '-c', `gpg.ssh.allowedSignersFile=${ancla}`, 'verify-tag', etiqueta])
+  if (v.status !== 0) return { motivo: `la firma de ${etiqueta} no verifica` }
+  const lista = git(raiz, ['ls-tree', '-r', '--name-only', etiqueta, '--', ...rels])
+  if (lista.status !== 0) return { motivo: `no se pudo leer la versión ${etiqueta}` }
+  const enEtiqueta = new Set((lista.stdout ?? '').split('\n').map(l => l.trim()).filter(Boolean))
+  const sueltos = rels.filter((r, i) => existsSync(rutas[i]) && !enEtiqueta.has(r))
+  if (sueltos.length) return { motivo: `archivos que la versión ${etiqueta} no trae: ${sueltos.slice(0, 3).join(', ')}` }
+  if (git(raiz, ['diff', '--quiet', etiqueta, '--', ...rels]).status !== 0) return { motivo: `los ganchos difieren de la versión ${etiqueta}` }
+  return { etiqueta }
+}
+
+/** Huellas que ya no coincidieron con una versión firmada: no se vuelve a correr git en cada turno. */
+const sinVersionFirmada = new Set<string>()
 
 const RUTA_ACEPTADAS = () => join(DIR_ARBRAIN(), 'hooks-aceptados.json')
 
@@ -206,8 +263,16 @@ export function verificarHooksProyecto(env: NodeJS.ProcessEnv = process.env): Ve
     return { ok: true, huella, motivo: 'primera huella aceptada (sin plantilla ni huella guardada)' }
   }
   if (aceptadas.has(huella)) return { ok: true, huella }
+  if (!sinVersionFirmada.has(huella)) {
+    const firmada = ganchosDeVersionFirmada(home, env)
+    if (firmada.etiqueta) {
+      try { aceptarHuella(huella) } catch { /* sin carpeta de configuración: igual vale en este arranque */ }
+      return { ok: true, huella, motivo: `ganchos idénticos a la versión firmada ${firmada.etiqueta}: huella aceptada` }
+    }
+    sinVersionFirmada.add(huella)
+  }
   return { ok: false, huella, motivo: 'los ganchos del cerebro (o lo que ejecutan) no coinciden con los de la plantilla: la sesión arranca sin ganchos del proyecto' }
 }
 
 /** Solo pruebas. */
-export function _vaciarCacheHooksParaPruebas(): void { cachePlantilla.clear() }
+export function _vaciarCacheHooksParaPruebas(): void { cachePlantilla.clear(); sinVersionFirmada.clear() }

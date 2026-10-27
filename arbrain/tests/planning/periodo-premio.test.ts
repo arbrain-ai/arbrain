@@ -36,9 +36,11 @@ test('las fechas del viaje se leen cortas', () => {
 test('el periodo vive en un solo lugar y nunca nombra el hábito privado', () => {
   const p = INSTALACION.periodo!
   assert.equal(diaDelPeriodo(p.desde, p).total, 29)
-  assert.equal(p.hasta, '2026-11-20', 'cierra el día de salida, no al volver')
-  assert.equal(rangoCorto(p.viaje!.desde, p.viaje!.hasta), '20–25 nov')
-  assert.equal(p.viaje!.firmado, false)
+  assert.equal(p.desde, '2026-10-26', 'Día 1: lunes 26 oct, junto con la cohorte')
+  assert.equal(p.hasta, '2026-11-24', 'cierra el día de salida, no al volver')
+  assert.equal(rangoCorto(p.viaje!.desde, p.viaje!.hasta), '24–29 nov')
+  assert.equal(p.viaje!.firmado, true)
+  assert.equal(p.meta, 'Darles resultados a mis clientes')
   assert.equal(p.premio, 'Monterrey')
   assert.equal(p.cumplir.length, 3)
   assert.ok(!/\bm[o]ta\b/i.test(JSON.stringify(p)), 'sin la sustancia de su diario')
@@ -52,7 +54,19 @@ test('la temporada de hábitos no tiene fecha propia: cierre y premio salen del 
   assert.equal(temporada.hasta, INSTALACION.periodo!.hasta)
   assert.equal(temporada.desde, INSTALACION.periodo!.desde)
   assert.equal(temporada.premio, INSTALACION.periodo!.premio)
-  assert.equal(temporada.arranque, '2026-10-23')
+  assert.equal(temporada.arranque, '2026-10-26')
   assert.equal(temporadaDeHabitos(t, undefined), null, 'sin periodo no hay temporada')
   assert.equal(temporadaDeHabitos(undefined, INSTALACION.periodo), null)
+})
+
+test('la franja de la temporada: un contador, el destino con su viaje y la meta; sin «Faltan»', async () => {
+  const { franjaDeTemporada } = await import('../../src/features/planning/periodo-premio')
+  const P = { desde: '2026-10-26', hasta: '2026-11-24', premio: 'Monterrey', meta: 'Darles resultados a mis clientes', viaje: { desde: '2026-11-24', hasta: '2026-11-29', firmado: true } }
+  assert.deepEqual(franjaDeTemporada('2026-10-24', P, 'Monk mode'), { rotulo: 'Monk mode', contador: 'Empieza en 2 días', destino: 'Monterrey · 24–29 nov', porFirmar: false, meta: 'Darles resultados a mis clientes' })
+  assert.equal(franjaDeTemporada('2026-10-25', P).contador, 'Empieza mañana')
+  assert.equal(franjaDeTemporada('2026-10-26', P).contador, 'Día 1 de 29')
+  assert.equal(franjaDeTemporada('2026-11-23', P).contador, 'Día 29 de 29')
+  assert.equal(franjaDeTemporada('2026-11-24', P).contador, 'Hoy se cierra')
+  assert.equal(franjaDeTemporada('2026-10-26', { ...P, meta: undefined, viaje: undefined }, null).destino, 'Monterrey')
+  for (const hoy of ['2026-10-24', '2026-10-26', '2026-11-10']) assert.doesNotMatch(Object.values(franjaDeTemporada(hoy, P, 'Monk mode')).join(' '), /[Ff]altan?/)
 })

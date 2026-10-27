@@ -33,6 +33,13 @@ python3 $P lienzos                      # redibuja «Mi plan» y «Calendario de
 - `lienzos` solo corre dentro de la app Arbrain. Si dice `sin_app` o `no_existe`, dilo tal cual; no recrees un lienzo
   que el dueño borró sin que te lo pida.
 
+## Antes del mes: la temporada y la semana perfecta
+
+Si la app aún no tiene temporada (sin franja ni «Día N» en el Calendario) o el dueño pide «arma mi semana», «semana
+perfecta» o «temporada», empieza por `habit-system` › `references/gobierno-del-tiempo.md`: ahí están las preguntas en
+orden para su temporada de 8 a 12 semanas (meta, premio y criterios), cómo se fija el periodo, su semana perfecta como
+ritmo y la revisión del domingo. Este ritual sigue después con el mes, la semana y el día.
+
 ## Las fuentes (lee antes de preguntar)
 
 1. `python3 $P estado`: lo que ya está escrito.

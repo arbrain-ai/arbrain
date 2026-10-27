@@ -93,7 +93,7 @@ test('bug de la captura (09:00): con mar 13 – lun 19 a la vista, el título y 
 test('un solo engrane: sin botones sueltos de Enfoque, Horas/Agenda ni 3 · 4 · 7 en el calendario, y el Mes sin el botón de cuadrícula', () => {
   const clara = fuente('SemanaClara.tsx'), mes = fuente('MesClaro.tsx'), cal = fuente('PlanningCalendar.tsx')
   assert.doesNotMatch(clara, /<SelectorVista|c\.enfoque|setEnfoque/)
-  assert.match(clara, /diasVista=\{diasVista\}/, 'los días los manda el engrane: la rejilla no pinta su selector')
+  assert.match(clara, /diasVista=\{(llenar \? 7 : )?diasVista\}/, 'los días los manda el engrane (en dos columnas, siempre 7): la rejilla no pinta su selector')
   assert.doesNotMatch(mes, /LayoutGrid|onRejilla/)
   assert.match(cal, /<Engrane /)
   assert.doesNotMatch(cal, /Calendarios y tareas/, 'los ajustes salieron del menú del título')

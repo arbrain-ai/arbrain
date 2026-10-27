@@ -31,13 +31,15 @@ const escribiendo = (t: EventTarget | null) => !!(t as HTMLElement | null)?.clos
  * Escribe siempre por la misma pluma (`onSave` = commit del calendario → /api/planning → mc-event.py planning). Las ediciones
  * no las guarda la hoja: las declara al guardián (`auto`, autoguardado.ts), que las pinta al instante y las escribe aunque la hoja se cierre.
  */
-export function PlanEditor({ selection, snapshot, saving, unresolved, auto, onClose, onSave, onRetry, onUndo, onAbrir, onConversar, onAviso }: {
+export function PlanEditor({ selection, snapshot, saving, unresolved, auto, onClose, onSave, onRetry, onUndo, onAbrir, onConversar, onAviso, drip }: {
   selection: EditorSelection; snapshot: PlanningSnapshot; saving: boolean; unresolved: boolean
   /** El guardián del autoguardado: vive en la pantalla, no en la hoja, y sobrevive a que la hoja se cierre o se desmonte. */
   auto: Autoguardado
   onClose: () => void; onSave: (mutation: PlanMutation) => Promise<MutationResult>; onRetry: () => Promise<unknown>
   onUndo?: () => Promise<unknown> | void; onAbrir?: (selection: EditorSelection) => void
   onConversar?: (borrador: string) => void; onAviso?: (texto: string, deshacer?: boolean) => void
+  /** DRIP del evento (24 oct 2026, HojaDrip): su cuadrante con un toque para corregirlo, «Delegar a Levy» y proteger. Lo pone el calendario. */
+  drip?: ReactNode
 }) {
   const inicial = selection.item
   // El elemento VIVO (con la capa optimista del guardián): tras cada guardado trae su etag nuevo; deshacer lo cambia por fuera.
@@ -310,6 +312,8 @@ export function PlanEditor({ selection, snapshot, saving, unresolved, auto, onCl
           </span> : recurring && <span className={`${styles.chip} ${styles.chipFijo}`} title="Los cambios aplican solo a esta ocurrencia"><Repeat2 size={14} aria-hidden /><span>Solo esta ocurrencia</span></span>}
         </>}
       </div>
+
+      {!isNew && draft.kind === 'event' && drip}
 
       {draft.kind === 'event' && <div className={styles.filas}>
         {item?.kind === 'event' && item.meetUrl && <a className={styles.meet} href={item.meetUrl} target="_blank" rel="noreferrer"><Video size={16} aria-hidden /><span><b>Unirse con Google Meet</b><small>{item.meetUrl.replace(/^https?:\/\//, '')}</small></span></a>}

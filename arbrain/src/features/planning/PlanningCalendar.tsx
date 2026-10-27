@@ -45,8 +45,15 @@ import styles from './planning.module.css'
 import { esEdicionCliente } from '@/lib/edicion'
 import vivas from './escalas-vivas.module.css'
 import { EVENTO_IR_CALENDARIO } from './eventos'
-import { categoriaDe, DEF } from './categorias'
+import { categoriaDe, DEF, esCompromiso } from './categorias'
+import { fueraDelMes } from './rutinas'
 import { useOcultas, type ControlLeyenda } from './Leyenda'
+import { conDelegado, conProtegido, DRIP, fotoDe, horasRecompradas, horasUnion, leerDrip, type BloqueDrip, type Cuadrante, type LecturaDrip, type Propuesta } from './drip'
+import { GobiernoCtx, LeyendaDrip, useOcultosDrip, type Gobierno } from './gobierno'
+import { useDrip } from './useDrip'
+import { HojaDrip } from './HojaDrip'
+import { Domingo } from './Domingo'
+import { CalendarCheck2, Lock } from 'lucide-react'
 
 const PLUGINS = [dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]
 const LOCALES = [esLocale]
@@ -74,6 +81,10 @@ function zonaCorta(): string {
  *  (Hoy · ‹ › · «octubre ▾», que abre el selector de vista), mes con chips de color y «+N» (tocar un día abre su lista
  *  abajo), semana y 4 días con encabezado apilado. El CSS usa el mismo corte (@container planning). */
 const ANGOSTO = 700
+/** Pantalla completa (24 oct 2026, Daniel: «en pantalla completa tengo todo el espacio para que todo quepa sin hacer scroll»):
+ *  desde este ancho útil del calendario (y con alto para que quepa), Día, Semana y Mes van en dos columnas a alto completo:
+ *  lo importante a la izquierda, el calendario a la derecha. Por debajo, el orden de siempre (teléfono, panel, ventana angosta). */
+const DOS_COLUMNAS = { ancho: 1400, alto: 640 }
 /** Evento de ventana con `{ fecha, modo }`: lleva el calendario de la sección a esa fecha y vista (lo emite Expandir del panel). */
 export { EVENTO_IR_CALENDARIO }
 const DIAS_INICIAL = ['D', 'L', 'M', 'M', 'J', 'V', 'S']
@@ -122,6 +133,7 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
   }, [])
   const angosto = () => (raiz.current?.clientWidth ?? window.innerWidth) < ANGOSTO
   const [compacto, setCompacto] = useState(false)
+  const [dosColumnas, setDosColumnas] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)
   // Mes angosto: el día tocado, cuya lista completa se abre debajo (null = ninguno, la cuadrícula ocupa todo).
   const [diaMes, setDiaMes] = useState<Date | null>(null)
@@ -217,8 +229,17 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
   const [ocultas, alternarCategoria] = useOcultas()
   const categoriaEvento = useCallback((e: PlanEvent) => categoriaDe(e, sourceMap.get(e.sourceId)?.title ?? e.calendarId).categoria, [sourceMap])
   const porCalendario = useCallback((e: PlanEvent) => enabled.has(e.sourceId) && !sourceMap.get(e.sourceId)?.objective && (ajustes.rechazados || !rechazado(e)), [enabled, sourceMap, ajustes.rechazados])
-  const eventoVisible = useCallback((e: PlanEvent) => porCalendario(e) && !ocultas.has(categoriaEvento(e)), [porCalendario, ocultas, categoriaEvento])
-  const colorEvento = useCallback((e: PlanEvent) => DEF[categoriaEvento(e)].color, [categoriaEvento])
+  // DRIP (24 oct 2026, Daniel: «cada evento se clasifica SOLO por DRIP… y se colorea»): la ÚNICA clasificación y el color de cada
+  // evento en Día, Semana y Mes. Levy lo infiere (drip.ts) y la persona lo corrige con un toque (almacén DRIP, useDrip). La categoría
+  // de antes (Crear/Vender/…) queda solo como red de la inferencia y en la vista del chat.
+  const drip = useDrip()
+  const [ocultosDrip, alternarDrip] = useOcultosDrip()
+  const lecturas = useMemo(() => { const m = new Map<string, LecturaDrip>()
+    for (const e of presentedEvents) m.set(e.id, leerDrip(e, sourceMap.get(e.sourceId)?.title ?? e.calendarId, drip.doc))
+    return m }, [presentedEvents, sourceMap, drip.doc])
+  const lecturaDe = useCallback((e: PlanEvent) => lecturas.get(e.id) ?? leerDrip(e, sourceMap.get(e.sourceId)?.title ?? e.calendarId, drip.doc), [lecturas, sourceMap, drip.doc])
+  const eventoVisible = useCallback((e: PlanEvent) => porCalendario(e) && !ocultosDrip.has(lecturaDe(e).cuadrante), [porCalendario, ocultosDrip, lecturaDe])
+  const colorEvento = useCallback((e: PlanEvent) => DRIP[lecturaDe(e).cuadrante].color, [lecturaDe])
   const leyenda = useMemo<ControlLeyenda>(() => ({ categoria: categoriaEvento, ocultas, alternar: alternarCategoria, porCalendario,
     calendarios: snapshot?.sources.filter(s => !s.objective).map(s => ({ id: s.id, titulo: s.title, color: s.color, activo: enabled.has(s.id) })),
     alternarCalendario: id => { const next = new Set(enabled); if (next.has(id)) next.delete(id); else next.add(id); setSources([...next]) },
@@ -226,26 +247,33 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
   [categoriaEvento, ocultas, alternarCategoria, porCalendario, snapshot?.sources, enabled])
   // Las vistas reciben la leyenda sin su menú de calendarios: los calendarios viven en el engrane.
   const leyendaVista = useMemo<ControlLeyenda>(() => ({ ...leyenda, calendarios: undefined, alternarCalendario: undefined, ponerCalendarios: undefined }), [leyenda])
+  // El Mes es el Preloaded Year (24 oct 2026, cascada): solo piedras grandes. Las rutinas diarias (rutinas.ts, por frecuencia en
+  // todo lo leído), las ventanas de disponibilidad y el brief plegado en su llamada no entran a su cuadrícula; la Semana pinta
+  // las rutinas atenuadas y el Día, todo entero.
+  const fueraMes = useMemo(() => fueraDelMes(presentedEvents, iso => dayKey(parseISO(iso))), [presentedEvents])
   const eventInputs = useMemo<EventInput[]>(() => [
-    ...presentedEvents.filter(eventoVisible).map(e => ({
+    ...presentedEvents.filter(eventoVisible).filter(e => mode !== 'month' || !fueraMes.has(e.id)).map(e => ({
       id: e.id, title: e.title, start: e.start, end: e.end, allDay: e.allDay, editable: e.editable && !saving && !pending,
-      classNames: [styles.calendarEvent], extendedProps: { kind: 'event', recurring: Boolean(e.recurringEventId), source: sourceMap.get(e.sourceId)?.title, color: colorEvento(e) },
+      classNames: [styles.calendarEvent], extendedProps: { kind: 'event', recurring: Boolean(e.recurringEventId), source: sourceMap.get(e.sourceId)?.title, color: colorEvento(e), drip: lecturaDe(e).cuadrante, protegido: lecturaDe(e).protegido,
+        // El peso en la celda del Mes: lo de día completo, luego lo que es con otras personas o una clase, luego lo demás.
+        peso: e.allDay ? 0 : esCompromiso(e) || categoriaEvento(e) === 'ensenar' ? 1 : 2 },
     })),
     ...visibleTasks.filter(t => t.due && !t.completed && !(alcanceDeModo(mode) && !hasTime(t.due))).map(t => ({ id: t.id, title: t.title, start: t.due!, end: taskEnd(t)?.toISOString(),
       allDay: !hasTime(t.due), editable: !saving && !pending, classNames: t.priority === 1 ? [styles.calendarTask, styles.calendarTaskP1] : [styles.calendarTask], extendedProps: { kind: 'task', recurring: t.recurring } })),
-  ], [presentedEvents, eventoVisible, colorEvento, sourceMap, visibleTasks, saving, pending, mode])
+  ], [presentedEvents, eventoVisible, colorEvento, categoriaEvento, sourceMap, visibleTasks, saving, pending, mode, fueraMes, lecturaDe])
   const railTasks = useMemo(() => visibleTasks.filter(t => t.due ? parseISO(t.due).getTime() < Date.parse(range.to) : showUnscheduled)
     .sort((a, b) => Number(!a.due) - Number(!b.due) || a.priority - b.priority || (a.due ?? 'z').localeCompare(b.due ?? 'z')), [visibleTasks, range.to, showUnscheduled])
   // El Mes elige Recorrido o Cuadrícula en el engrane; el Día conserva su toque para la rejilla.
   const rejilla = mode === 'month' ? ajustes.mesVista === 'cuadricula' : Boolean(rejillas[mode])
   // La Semana trae su propia rejilla de horas (9 oct 2026, SemanaHoras.tsx): la de FullCalendar queda plegada siempre en esa escala.
   // El Día tampoco (18 oct 2026, Daniel vio dos rejillas en «Lun 19 oct»): su agenda es la única rejilla y solo lleva eventos.
-  const rejillaOculta = esViva(mode) && (mode === 'week' || mode === 'day' || !rejilla)
+  // En dos columnas el Mes lleva su cuadrícula a la derecha siempre; el recorrido queda a la izquierda.
+  const rejillaOculta = esViva(mode) && (mode === 'week' || mode === 'day' || !(rejilla || dosColumnas))
   useEffect(() => {
     if (rejillaOculta) return
     const t = setTimeout(() => calendar.current?.getApi().updateSize(), 30)
     return () => clearTimeout(t)
-  }, [mode, rejillaOculta])
+  }, [mode, rejillaOculta, dosColumnas])
   function alternarRejilla() {
     const siguiente = !rejilla
     setRejillas(r => ({ ...r, [mode]: siguiente }))
@@ -366,6 +394,77 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
     return cadena.current
   }, [paso])
   useEffect(() => { if (!notice) { setNoticeUndo(false); return } const t = setTimeout(() => setNotice(null), noticeUndo ? 8000 : 5000); return () => clearTimeout(t) }, [notice, noticeUndo])
+
+  // ── El gobierno del tiempo (24 oct 2026, fase 2): DRIP, los tres números, la foto del plan, el domingo y la mañana. ──────────
+  /** Todo lo leído con hora, ya clasificado: los calendarios encendidos, sin mirar los cuadrantes ocultos (la medición no se esconde). */
+  const bloquesDrip = useMemo<BloqueDrip[]>(() => presentedEvents.filter(e => !e.allDay && porCalendario(e)).map(e => { const l = lecturaDe(e)
+    return { id: e.id, titulo: e.title, inicio: Date.parse(e.start), fin: Date.parse(e.end), cuadrante: l.cuadrante, delegadoA: l.delegadoA, protegido: l.protegido,
+      editable: e.editable, conOtros: Boolean(e.meetUrl) || (e.attendees ?? []).some(a => !a.self), serie: e.recurringEventId } }), [presentedEvents, porCalendario, lecturaDe])
+  const lunesHoy = lunesDe(dayKey(new Date())) // eslint-disable-line react-hooks/exhaustive-deps -- `tick` repinta cada minuto
+  /** ¿La lectura cubre la semana entera [lunes, lunes+7)? Sin eso, sus números son «—». */
+  const cubre = useCallback((lunes: string) => Boolean(snapshot) && Date.parse(snapshot!.range.from) <= parseISO(lunes).getTime() && Date.parse(snapshot!.range.to) >= addDays(parseISO(lunes), 7).getTime(), [snapshot])
+  // Los TRES números de la franja: Día N de la temporada (ContadorPeriodo), horas en Producir esta semana y horas recompradas.
+  const numeros = useMemo(() => {
+    const l = parseISO(lunesHoy).getTime(), f = addDays(parseISO(lunesHoy), 7).getTime(), leida = cubre(lunesHoy)
+    const hayMedicion = Boolean(drip.doc && Object.keys(drip.doc.delegados).length) || bloquesDrip.some(b => b.delegadoA)
+    return { producir: leida ? horasUnion(bloquesDrip.filter(b => b.cuadrante === 'producir'), l, f) : null,
+      recompradas: leida && drip.doc ? horasRecompradas(bloquesDrip, l, f, hayMedicion) : null, tarifa: drip.doc?.tarifa ?? null }
+  }, [lunesHoy, cubre, bloquesDrip, drip.doc])
+  /** El evento vivo (la última lectura con la capa optimista): proteger y delegar escriben sobre su etag de ahora. */
+  const eventoVivo = useCallback((e: PlanEvent) => presentedEvents.find(x => x.id === e.id) ?? e, [presentedEvents])
+  const titular = (t: string) => t.replace(/^[\p{Extended_Pictographic}️‍\s]+/u, '').trim()
+  const escribirDescripcionEvento = useCallback((e: PlanEvent, description: string) => snapshot ? commit(mutationFor(e, snapshot.ownerId, { ...eventData(e), description })) : Promise.reject(new Error('Sin lectura')), [snapshot, commit])
+  const proteger = useCallback(async (e0: PlanEvent, si: boolean) => {
+    const e = eventoVivo(e0)
+    await escribirDescripcionEvento(e, conProtegido(e.description, si))
+    setNotice(si ? `«${titular(e.title)}» quedó protegido.` : `«${titular(e.title)}» ya no está protegido.`); setNoticeUndo(true)
+  }, [eventoVivo, escribirDescripcionEvento])
+  const corregir = useCallback(async (e: PlanEvent, c: Cuadrante | null) => {
+    await drip.cambiar({ accion: 'corregir', claves: lecturaDe(e).claves, titulo: e.title, cuadrante: c })
+    setNotice(c ? `«${titular(e.title)}» es ${DRIP[c].nombre}. Levy lo recordará.` : `«${titular(e.title)}» vuelve a lo que infiere Levy.`)
+  }, [drip, lecturaDe])
+  const delegar = useCallback(async (e0: PlanEvent, activo: boolean) => {
+    const e = eventoVivo(e0)
+    await drip.cambiar({ accion: 'delegar', claves: lecturaDe(e).claves, titulo: e.title, a: 'Levy', activo })
+    // Recuperar también quita la marca `[delegado: …]` de la descripción, si la tenía (por la pluma, con ⌘Z).
+    if (!activo && /\[delegado/i.test(e.description) && e.editable) await escribirDescripcionEvento(e, conDelegado(e.description, null))
+    setNotice(activo ? `«${titular(e.title)}» es de Levy${onConversar ? ': el encargo quedó en el chat' : ''}.` : `«${titular(e.title)}» vuelve a ser tuyo.`)
+  }, [drip, lecturaDe, eventoVivo, escribirDescripcionEvento, onConversar])
+  // La foto del plan (la referencia del domingo): la primera vez que se lee una semana entera, se guarda lo que había.
+  const fotos = useRef(new Map<string, Promise<import('./drip').FotoSemana | null>>())
+  const tomarFoto = useCallback((lunes: string) => {
+    const doc = drip.doc
+    if (!doc) return Promise.resolve(null)
+    if (doc.fotos[lunes]) return Promise.resolve(doc.fotos[lunes])
+    if (!cubre(lunes) || (!goalsLeidos.data && !goalsLeidos.error)) return Promise.resolve(null)
+    const enCurso = fotos.current.get(lunes)
+    if (enCurso) return enCurso
+    const l = parseISO(lunes).getTime(), f = addDays(parseISO(lunes), 7).getTime()
+    const g = goalsLeidos.data?.goals.find(x => x.scope === 'week' && x.start === lunes)
+    const p = drip.cambiar({ accion: 'foto', foto: fotoDe(lunes, bloquesDrip, l, f, g?.title ?? null, g ? g.success.split('\n').filter(x => /^\s*[-*]\s*\[( |x|X)\]/.test(x)).length : 0) })
+      .then(d => d.fotos[lunes] ?? null).catch(() => { fotos.current.delete(lunes); return null })
+    fotos.current.set(lunes, p)
+    return p
+  }, [drip, cubre, goalsLeidos.data, goalsLeidos.error, bloquesDrip])
+  useEffect(() => { if (drip.doc && !drip.doc.fotos[lunesHoy]) void tomarFoto(lunesHoy) }, [drip.doc, lunesHoy, tomarFoto])
+  // El domingo: abierto por defecto los domingos (una vez por domingo, en la sección); a un toque desde el pie de cada escala.
+  const [domingo, setDomingo] = useState<string | null>(null)
+  useEffect(() => {
+    if (donde !== 'seccion' || new Date().getDay() !== 0) return
+    const k = `arbrain:planning:domingo-abierto:${dayKey(new Date())}`
+    try { if (localStorage.getItem(k)) return; localStorage.setItem(k, '1') } catch { return }
+    setDomingo(lunesDe(dayKey(new Date())))
+  }, [donde, tick])
+  const aplicarPropuesta = useCallback(async (p: Propuesta) => {
+    const e = presentedEvents.find(x => x.id === p.bloque.id)
+    if (!e) throw new Error('Ese bloque ya no está en tu calendario.')
+    await escribirDescripcionEvento(e, p.tipo === 'proteger' ? conProtegido(e.description, true) : conDelegado(e.description, 'Levy'))
+  }, [presentedEvents, escribirDescripcionEvento])
+  const gobierno = useMemo<Gobierno>(() => ({ lectura: lecturaDe, ocultas: ocultosDrip, alternar: alternarDrip, numeros, doc: drip.doc, corregir, delegar,
+    proteger: snapshot ? proteger : null, abrirDomingo: () => setDomingo(lunesDe(dayKey(anchorRef.current))),
+    ponerTarifa: (monto, moneda) => drip.cambiar({ accion: 'tarifa', monto, moneda }),
+    aceptarManana: dia => drip.cambiar({ accion: 'manana', dia, aceptada: true }), conversar: onConversar, leyendaEnBarra: !compacto }),
+  [lecturaDe, ocultosDrip, alternarDrip, numeros, drip, corregir, delegar, snapshot, proteger, onConversar, compacto])
 
   // «Hoy» también lleva a la hora (22 oct 2026): el pulso hace que el Día y la Semana vuelvan a su encuadre con scroll suave.
   const [pulsoHoy, setPulsoHoy] = useState(0)
@@ -655,7 +754,10 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
   useLayoutEffect(() => {
     const element = raiz.current
     if (!element) return
-    const read = () => setCompacto(element.clientWidth < ANGOSTO)
+    const read = () => {
+      setCompacto(element.clientWidth < ANGOSTO)
+      setDosColumnas(donde === 'seccion' && element.clientWidth >= DOS_COLUMNAS.ancho && element.clientHeight >= DOS_COLUMNAS.alto)
+    }
     read()
     const observer = new ResizeObserver(read)
     observer.observe(element)
@@ -785,7 +887,7 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
   // Lo que el engrane muestra como «días a la vista»: lo elegido o, si no, lo que se ve (sin fines de semana, 5 columnas son 7 días).
   const diasActual = ventanaSemana.n
 
-  return <PulsoHoy.Provider value={pulsoHoy}><div ref={raiz} className={styles.root} style={{ '--plan-pegado': `${altoBarra}px` } as CSSProperties} data-planning-calendar data-donde={donde} data-unificada={alcance ? '' : undefined} data-ventana={mode === 'week' ? `${ventanaSemana.inicio ?? '-'}:${ventanaSemana.n}` : undefined} tabIndex={donde === 'panel' ? -1 : undefined}>
+  return <PulsoHoy.Provider value={pulsoHoy}><GobiernoCtx.Provider value={gobierno}><div ref={raiz} className={styles.root} style={{ '--plan-pegado': `${altoBarra}px` } as CSSProperties} data-planning-calendar data-donde={donde} data-dos-columnas={dosColumnas ? mode : undefined} data-unificada={alcance ? '' : undefined} data-ventana={mode === 'week' ? `${ventanaSemana.inicio ?? '-'}:${ventanaSemana.n}` : undefined} tabIndex={donde === 'panel' ? -1 : undefined}>
     <h1 className={styles.srOnly}>Calendario</h1>
     {/* UNA fila (5 oct 2026, «los botones deben ser súper sutiles, que ocupen el menor espacio»): Hoy · ‹ › · fecha ▾ · D 4 S M · +.
         La fecha abre lo demás: ir a fecha, Año · Agenda · Rutinas, calendarios, panel de tareas, atajos y actualizar. */}
@@ -801,11 +903,13 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
           <div className={styles.vistaLista} role="group" aria-label="Más vistas">{MODES.filter(m => !esViva(m.id)).map(m => <button role="menuitemradio" aria-checked={mode === m.id} key={m.id} onClick={() => { escala(m.id); setMoreOpen(false) }}>{m.label}{mode === m.id ? <Check size={14} aria-hidden /> : <kbd aria-hidden>{TECLA[m.id]}</kbd>}</button>)}</div>
         </div>}
       </span>
+      {/* La leyenda DRIP (24 oct 2026): en ancho vive en la barra, una sola para Día, Semana y Mes; en angosto, dentro de cada escala. */}
+      {!compacto && esViva(mode) && <span className={styles.leyendaBarra}><LeyendaDrip enBarra /></span>}
       <div className={styles.escala} role="tablist" aria-label="Escala del calendario">{VIVAS.map(m => { const def = MODES.find(x => x.id === m)!
         return <button key={m} role="tab" aria-label={def.label} aria-selected={mode === m} aria-keyshortcuts={TECLA[m]} title={mode === m ? `${def.label}: ir a hoy` : `${def.label} (${TECLA[m]})`} onClick={() => accionDeEscala(mode, m) === 'hoy' ? goToday() : escala(m)}>{LETRA[m]}</button> })}</div>
       {mode !== 'crons' && <button className={styles.iconButton} aria-label="Evento nuevo" title="Nuevo (N)" disabled={!snapshot} onClick={() => setSelection({ start: new Date() })}><Plus size={17} /></button>}
       {/* Un solo engrane (10 oct 2026), la misma hoja en Día, Semana y Mes: días, Enfoque, cómo se ve cada escala, horas, calendarios, categorías. */}
-      <Engrane ajustes={ajustes} poner={poner} diasActual={diasActual} leyenda={leyenda} acciones={{
+      <Engrane ajustes={ajustes} poner={poner} diasActual={diasActual} leyenda={leyenda} drip={{ ocultas: ocultosDrip, alternar: alternarDrip, tarifa: drip.doc?.tarifa ?? null, propia: drip.doc?.tarifaPropia ?? false, poner: (m, mon) => drip.cambiar({ accion: 'tarifa', monto: m, moneda: mon }) }} acciones={{
         onFiltros: mode !== 'crons' ? () => setFilterOpen(v => !v) : undefined,
         tareas: !compacto && !isOwnSurface(mode) ? { abierto: tasksOpen, alternar: () => setTasksOpen(v => !v) } : undefined,
         onAtajos: !compacto ? () => setHelpOpen(true) : undefined,
@@ -822,13 +926,13 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
       <button className={styles.textButton} onClick={() => { setSources(null); setProject(''); setPriority(0) }}>Restablecer</button>
     </div>}
     {esViva(mode) ? <div ref={escena} key={claveEscena} className={vivas.escena} data-mov={mov ?? undefined}>{mode === 'day' ? <Carril fecha={anchor} clave={dayKey} mover={addDays} onIr={irDia} etiqueta="Días: desliza para cambiar de día"
-      render={(f, central) => <DiaVivo fecha={f} central={central} {...comunes} rejilla={rejilla} onRejilla={alternarRejilla} onObjetivo={marcarObjetivo} guardarObjetivo={goalsLeidos.save} onDescripcion={escribirDescripcion} enfoque={ajustes.enfoque} plegado={plegado}
+      render={(f, central) => <DiaVivo fecha={f} central={central} {...comunes} rejilla={rejilla} onRejilla={alternarRejilla} onObjetivo={marcarObjetivo} guardarObjetivo={goalsLeidos.save} onDescripcion={escribirDescripcion} enfoque={ajustes.enfoque} plegado={plegado} dosColumnas={dosColumnas}
         onNueva={semilla => setSelection(semilla ?? { kind: 'task', allDay: true })} onReabrir={t => snapshot ? commit(mutationFor(t, snapshot.ownerId, {}, 'reopen')) : Promise.reject(new Error('Sin lectura'))}
         tareas={tareasDelDia(visibleTasks, dayKey(f), dayKey(new Date()), zonaPlan)} onDeshacer={() => void step('undo')} />} />
-      : mode === 'month' ? <MesClaro fecha={fechaMes} goals={comunes.goals} snapshot={comunes.snapshot} cargando={loading} angosto={compacto} cuadricula={rejilla} enfoque={ajustes.enfoque} plegado={plegado}
+      : mode === 'month' ? <MesClaro fecha={fechaMes} goals={comunes.goals} snapshot={comunes.snapshot} cargando={loading} angosto={compacto} cuadricula={rejilla && !dosColumnas} enfoque={ajustes.enfoque} plegado={plegado} dosColumnas={dosColumnas} guardarObjetivo={goalsLeidos.save}
         onConversar={onConversar} onSemana={lunes => transicion(() => aplicarVista(lunes, 'week'))} />
       : <SemanaClara fecha={anchor} ventana={ventanaSemana} onVentana={onVentana} {...comunes} guardarObjetivo={goalsLeidos.save} tareas={visibleTasks} zona={zonaPlan}
-        vista={ajustes.vistaSemana} enfoque={ajustes.enfoque} plegado={plegado} diasVista={ajustes.dias} finDeSemana={ajustes.finDeSemana} tramo={tramoSemana} compacta={ajustes.densidad === 'compacta'} etiquetaZona={ajustes.zona ? zonaCorta() : null}
+        vista={ajustes.vistaSemana} enfoque={ajustes.enfoque} plegado={plegado} dosColumnas={dosColumnas} diasVista={ajustes.dias} finDeSemana={ajustes.finDeSemana} tramo={tramoSemana} compacta={ajustes.densidad === 'compacta'} etiquetaZona={ajustes.zona ? zonaCorta() : null}
         onMover={snapshot && !pending ? (item, inicio, fin) => void moverEnRejilla(item, inicio, fin) : undefined}
         onEstirar={snapshot && !pending ? (item, fin) => { const ini = item.kind === 'event' ? parseISO(item.start) : item.due ? parseISO(item.due) : null; if (ini) void moverEnRejilla(item, ini, fin) } : undefined}
         onCrear={snapshot && !pending ? crearEnRejilla : undefined}
@@ -850,17 +954,20 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
           nowIndicator allDaySlot={!compacto || eventInputs.some(e => e.allDay && Date.parse(String(e.start)) < Date.parse(range.to) && Date.parse(String(e.end ?? e.start)) > Date.parse(range.from))} allDayText="Sin hora" slotMinTime="00:00:00" slotMaxTime="24:00:00" scrollTime="06:00:00" scrollTimeReset={false}
           nowIndicatorContent={arg => arg.isAxis ? <span className={styles.nowTime}>{format(arg.date, 'HH:mm')}</span> : null}
           slotDuration="00:30:00" snapDuration="00:15:00" slotLabelFormat={compacto ? { hour: 'numeric', hour12: false } : { hour: 'numeric', minute: '2-digit', hour12: false }} eventTimeFormat={{ hour: 'numeric', minute: '2-digit', hour12: false }}
-          events={eventInputs} datesSet={onDates} dayMaxEvents={compacto ? true : 3} eventDisplay={compacto ? 'block' : 'auto'} fixedWeekCount={!compacto} moreLinkContent={arg => `+${arg.num}`} moreLinkClick={arg => { if (compacto) setDiaMes(arg.date); else return 'popover' }} dateClick={arg => { if (compacto && esMesFC(arg.view.type)) setDiaMes(arg.date) }} eventMinHeight={0} eventShortHeight={32} selectMinDistance={6} expandRows stickyHeaderDates weekends={mode !== 'month' || ajustes.finDeSemana}
+          events={eventInputs} datesSet={onDates} dayMaxEvents={compacto ? true : 3} eventOrder={esMesFC(vistaMes) && mode === 'month' ? 'peso,start,-duration,title' : 'start,-duration,allDay,title'} eventDisplay={compacto ? 'block' : 'auto'} fixedWeekCount={!compacto && !dosColumnas} moreLinkContent={arg => `+${arg.num}`} moreLinkClick={arg => { if (compacto) setDiaMes(arg.date); else return 'popover' }} dateClick={arg => { if (compacto && esMesFC(arg.view.type)) setDiaMes(arg.date) }} eventMinHeight={0} eventShortHeight={32} selectMinDistance={6} expandRows stickyHeaderDates weekends={mode !== 'month' || ajustes.finDeSemana}
           selectable={Boolean(snapshot) && !pending && !saving} selectMirror editable={Boolean(snapshot) && !pending && !saving} droppable={!pending && !saving}
           select={arg => { if (compacto && esMesFC(arg.view.type)) { setDiaMes(arg.start); calendar.current?.getApi().unselect(); return } setSelection({ start: arg.start, end: arg.end, allDay: arg.allDay, freshRange: true }); calendar.current?.getApi().unselect() }}
           eventClick={arg => { const item = items.get(arg.event.id); if (item) setSelection({ item }) }}
           eventDrop={arg => { const { id, start, end, allDay } = arg.event; arg.revert(); if (start) void reprogram(id, start, end, allDay) }}
           eventResize={arg => { const { id, start, end, allDay } = arg.event; arg.revert(); if (start) void reprogram(id, start, end, allDay) }}
           eventReceive={arg => { const { id, start, end, allDay } = arg.event; arg.revert(); if (start) void reprogram(id, start, end, allDay) }}
-          eventDidMount={arg => { arg.el.title = arg.event.title; arg.el.dataset.planningId = arg.event.id; arg.el.setAttribute('aria-label', arg.event.title); const color = arg.event.extendedProps.color; if (arg.event.extendedProps.kind === 'event') { const c = typeof color === 'string' && /^#[0-9a-f]{6}$/i.test(color) ? color : null; if (c) arg.el.style.setProperty('--plan-event-color', c); for (const [k, v] of Object.entries(estiloEvento(c))) arg.el.style.setProperty(k, v); arg.el.classList.add('ev-color') } }}
+          eventDidMount={arg => { arg.el.title = arg.event.title; if (arg.event.extendedProps.peso !== undefined) arg.el.dataset.peso = String(arg.event.extendedProps.peso); arg.el.dataset.planningId = arg.event.id; arg.el.setAttribute('aria-label', arg.event.title); const color = arg.event.extendedProps.color; if (arg.event.extendedProps.kind === 'event') { const c = typeof color === 'string' && /^#[0-9a-f]{6}$/i.test(color) ? color : null; if (c) arg.el.style.setProperty('--plan-event-color', c); for (const [k, v] of Object.entries(estiloEvento(c))) arg.el.style.setProperty(k, v); arg.el.classList.add('ev-color') } }}
           eventContent={arg => {
             // Mes angosto: chip de una línea, solo el título (el color ya dice el calendario); la hora y el resto, en la lista del día.
             if (compacto && esMesFC(arg.view.type)) return <span className={styles.chip}>{arg.event.title}</span>
+            // Mes en dos columnas (24 oct 2026, Preloaded Year): cada piedra en UNA línea, solo su título (la hora vive en la Semana y
+            // en el detalle; el título entero, al pasar el cursor). Caben las del día sin «+N» de más.
+            if (dosColumnas && esMesFC(arg.view.type)) return <span className={styles.piedra}><span>{arg.event.title}</span>{arg.event.extendedProps.protegido && <Lock size={9} aria-label="protegido" />}</span>
             const minutes = arg.event.start && arg.event.end ? (arg.event.end.getTime() - arg.event.start.getTime()) / 60_000 : 60
             const compact = !arg.event.allDay && minutes <= 30 && !arg.view.type.startsWith('list') && arg.view.type !== 'rollingAgenda'
             return <div className={`${styles.eventContent} ${compact ? styles.eventCompact : ''}`}><div className={styles.eventMeta}>{arg.event.extendedProps.kind === 'task' ? <Circle size={10} /> : null}{arg.timeText && <span>{arg.timeText}</span>}{arg.event.extendedProps.recurring && <Repeat2 size={10} />}</div><strong>{arg.event.title}</strong></div>
@@ -887,11 +994,17 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
         <footer><span>{railTasks.length} en esta selección</span><span>{timeZone.split('/').at(-1)?.replaceAll('_', ' ')}</span></footer>
       </aside>}
     </div>
-    {accesos.length > 0 && <nav className={styles.accesos} aria-label="Reporte de este periodo">{accesos.map(a => <button key={a.id} data-acceso={a.id} onClick={() => void irAcceso(a)}>{a.id === 'reporte' ? <Newspaper size={14} aria-hidden /> : <ScrollText size={14} aria-hidden />}<span>{a.etiqueta}</span></button>)}</nav>}
+    {(accesos.length > 0 || esViva(mode)) && <nav className={styles.accesos} aria-label="Reporte de este periodo">{accesos.map(a => <button key={a.id} data-acceso={a.id} onClick={() => void irAcceso(a)}>{a.id === 'reporte' ? <Newspaper size={14} aria-hidden /> : <ScrollText size={14} aria-hidden />}<span>{a.etiqueta}</span></button>)}
+      {/* La revisión del domingo (24 oct 2026): plan contra real de la semana, como el circuito; abierta sola los domingos. */}
+      {esViva(mode) && <button data-acceso="domingo" onClick={() => setDomingo(lunesDe(dayKey(mode === 'week' ? parseISO(inicioVisible) : anchor)))}><CalendarCheck2 size={14} aria-hidden /><span>Revisión del domingo</span></button>}</nav>}
+    {domingo && <Domingo lunes={domingo} bloques={bloquesDrip} goals={goalsLeidos.data} snapshot={snapshot ?? null} doc={drip.doc} ahora={Date.now()} tomarFoto={tomarFoto} pluma={Boolean(snapshot)}
+      rutinasPlegadas={(() => { const l = parseISO(domingo).getTime(), f = addDays(parseISO(domingo), 7).getTime(); return presentedEvents.filter(e => fueraMes.has(e.id) && Date.parse(e.start) >= l && Date.parse(e.start) < f).length })()}
+      aplicar={aplicarPropuesta} deshacer={() => void step('undo')} onCerrar={() => setDomingo(null)} onLunes={d => setDomingo(x => x ? dayKey(addDays(parseISO(x), d)) : x)} />}
     {selection && snapshot && <PlanEditor key={selection.item?.id ?? `new:${selection.start?.getTime() ?? 'capture'}:${selection.end?.getTime() ?? ''}`} selection={selection} snapshot={snapshot} saving={saving} unresolved={Boolean(pending) && !saving && !(pending?.action === 'update' && pending.externalId === selection.item?.externalId)} auto={auto}
       onSave={commit} onRetry={() => pending ? mutate(pending) : Promise.resolve()} onUndo={() => step('undo')} onAbrir={setSelection} onConversar={onConversar}
       onAviso={(texto, deshacer) => { setNotice(texto); setNoticeUndo(Boolean(deshacer)) }}
+      drip={selection.item?.kind === 'event' && !sourceMap.get(selection.item.sourceId)?.objective ? <HojaDrip evento={selection.item} onListo={() => setSelection(null)} /> : undefined}
       // La hoja cierra guardando (puede tardar): si mientras tanto se abrió otra, no se cierra la nueva.
       onClose={() => setSelection(s => s === selection ? null : s)} />}
-  </div></PulsoHoy.Provider>
+  </div></GobiernoCtx.Provider></PulsoHoy.Provider>
 }

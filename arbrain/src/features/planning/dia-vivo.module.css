@@ -329,3 +329,25 @@
 .otrosObjetivos li { position: relative; padding-left: 1rem; font-size: 0.875rem; line-height: 1.35; color: var(--foreground); }
 .otrosObjetivos li::before { content: ''; position: absolute; left: 0.25rem; top: 0.55em; width: 0.35rem; height: 0.35rem; border-radius: 999px; background: var(--brand, currentColor); opacity: 0.8; }
 .otrosObjetivos li[data-hecho] { color: var(--muted); text-decoration: line-through; }
+
+/* Pantalla completa en dos columnas (24 oct 2026, Daniel: «en pantalla completa tengo todo el espacio para que todo quepa sin hacer
+   scroll»): a la izquierda lo importante, a la derecha la agenda del día entera (5:00 a 22:00) a alto completo. Si lo de la izquierda
+   crece más que la pantalla (muchas tareas abiertas), solo esa columna se desplaza; la agenda nunca. */
+.dia[data-dos-columnas] { height: 100%; min-height: 0; box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0 32px; padding: 14px 26px; border-bottom: 0; }
+.izquierda { display: flex; flex-direction: column; gap: 14px; min-width: 0; min-height: 0; overflow-y: auto; scrollbar-width: thin; padding-right: 2px; }
+.derecha { display: flex; flex-direction: column; gap: 10px; min-width: 0; min-height: 0; }
+.derecha > .cuerpo { flex: 1 1 0; min-height: 0; grid-template-rows: minmax(0, 1fr); }
+.derecha .areaAgenda { height: 100%; min-height: 0; }
+.derecha .areaAgenda > .miniCaja { flex: 1 1 0; min-height: 0; }
+.derecha .mini { margin: 6px 0 0; }
+
+/* DRIP en la agenda del día (24 oct 2026): la etiqueta de lo delegable y el candado de lo protegido, a la derecha del bloque. */
+.dripTag { position: absolute; top: 3px; right: 4px; display: inline-flex; align-items: center; gap: 3px; height: 15px; padding: 0 6px; border-radius: 999px; font-style: normal;
+  font-size: 9px; font-weight: 750; letter-spacing: .5px; text-transform: uppercase; line-height: 1; color: var(--foreground); pointer-events: none;
+  background: color-mix(in srgb, var(--background) 70%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 60%, transparent); }
+.dripTag[data-tipo='delegado'] { text-transform: none; letter-spacing: .1px; }
+.dripTag[data-tipo='protegido'] { padding: 0 4px; background: color-mix(in srgb, var(--gold) 26%, var(--background)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 70%, transparent); }
+.miniBloques li[data-protegido] > button { box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--gold) 70%, transparent); }
+.miniBloques button[data-con-tag] { padding-right: 84px; }
+.miniBloques button[data-con-tag='protegido'] { padding-right: 30px; }

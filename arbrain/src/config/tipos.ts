@@ -69,8 +69,18 @@ export interface Instalacion {
    * `desde` es el día 1 y `hasta` el día del cierre (ya fuera de la cuenta: `total` = días de `desde` a `hasta`): el día de SALIDA
    * al premio, porque lo de `cumplir` es «antes de llegar». `viaje` son las fechas del premio; `firmado: false` las marca «por
    * firmar». La temporada de hábitos lee de aquí su inicio, cierre y premio. Opcional: sin esto no se pinta nada.
+   *
+   * `meta` (24 oct 2026, Daniel: «darles resultados a mis clientes»): el objetivo de la temporada en una línea, el escalón de arriba
+   * de la cascada Temporada → Mes → Semana → Día. Opcional; sin ella la franja solo dice el premio.
    */
-  periodo?: { desde: string; hasta: string; premio: string; viaje?: { desde: string; hasta: string; firmado: boolean }; cumplir: readonly string[] }
+  periodo?: { desde: string; hasta: string; premio: string; meta?: string; viaje?: { desde: string; hasta: string; firmado: boolean }; cumplir: readonly string[] }
+  /**
+   * La tarifa de recompra de la instalación (24 oct 2026, *Buy Back Your Time* p. 63: lo que te paga tu empresa al año ÷ 8,000,
+   * por hora). Es el punto de partida: la persona la fija o la cambia en el engrane del calendario y esa manda (almacén DRIP,
+   * `lib/planning/drip-store.ts`). Opcional: sin esto y sin la propia, el calendario muestra solo horas recompradas y un
+   * «fija tu tarifa». La edición del alumno nace sin ella.
+   */
+  recompra?: { tarifa: number; moneda: string }
   /**
    * Lo que se propone la primera vez en la fila «Hábitos de hoy» (Atomic Habits): la identidad y, por hábito, la señal
    * (hora sugerida) y su versión de 2 minutos. Se editan en la fila y se guardan aparte (`/api/sistema/atomicos`).

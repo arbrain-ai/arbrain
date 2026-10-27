@@ -13,6 +13,7 @@ import { siguienteMarca, type Marca } from './habitos-dia'
 import { casillaDeTecla, cuentaRegresiva, diasTira, estadoCelda, noSeRompe, porcentajeSemana, rachaActual, semanaDeHoy, semanasTemporada, textoRacha } from './habitos-hoy'
 import { EVENTO_HABITOS, tomarPedidoHabitos } from './habitos-pedido'
 import { temporadaDeHabitos, type TemporadaHabitos } from './periodo-premio'
+import { useTemporada } from './useTemporada'
 import s from './habitos-hoy.module.css'
 
 /**
@@ -21,7 +22,7 @@ import s from './habitos-hoy.module.css'
  *
  * - Tres casillas grandes de un toque (tocar otra vez desmarca), con racha y «nunca falles dos veces».
  * - Atomic Habits sin texto de más: la identidad en una línea editable, la señal (hora) y la versión de 2 minutos de cada uno.
- * - Historia: la tira de 30 días por hábito y, a un toque, la cuadrícula de la temporada (instalacion().temporadaHabitos, con cierre y premio de `periodo`) con la
+ * - Historia: la tira de 30 días por hábito y, a un toque, la cuadrícula de la temporada (`useTemporada`: nombre y arranque, con cierre y premio de `periodo`) con la
  *   cuenta regresiva y el porcentaje de cada semana. Antes del `arranque` no hay historia: no se rellena nada.
  * - Privados (22 oct 2026, 17:41): un hábito privado se pinta con su nombre neutro y el real solo con un toque en el candado o al
  *   pasar el cursor por él; en modo presentación no se pinta en ningún lado (tampoco cuenta en los porcentajes visibles).
@@ -30,14 +31,17 @@ import s from './habitos-hoy.module.css'
  * Misma pluma de siempre (useHabitRecords → /api/sistema). `especial` deja que la hoja del día conecte una casilla con otro dato
  * (el objetivo del día: tarea, ✓ en Google y hábito a la vez).
  */
-export function HabitosHoy({ dia, today, habits, donde, especial = {}, i = 6 }: {
+export function HabitosHoy({ dia, today, habits, donde, especial = {}, i = 6, temporadaArriba = false }: {
   dia: string; today: string; habits: ReturnType<typeof useHabitRecords>
   /** 'panel' | 'seccion' | 'telefono': quién atiende el teclado. */
   donde: string
   especial?: Record<string, { hecho: boolean; onToggle?: () => void }>
   i?: number
+  /** La franja de la temporada ya está arriba (el Día del calendario, 24 oct 2026): sin segunda línea «Día N de 29 · faltan…». */
+  temporadaArriba?: boolean
 }) {
-  const temporada = temporadaDeHabitos(instalacion().temporadaHabitos, instalacion().periodo), inicio = temporada?.arranque ?? null
+  const vigente = useTemporada()
+  const temporada = temporadaDeHabitos(vigente?.temporadaHabitos, vigente?.periodo), inicio = temporada?.arranque ?? null
   const propuesta = instalacion().habitosAtomicos
   const atomicos = useAtomicos()
   const presentacion = useModoPresentacion()
@@ -149,7 +153,7 @@ export function HabitosHoy({ dia, today, habits, donde, especial = {}, i = 6 }: 
     </header>
 
     <Identidad texto={atomicos.data?.identidad ?? propuesta?.identidad ?? ''} guardar={t => atomicos.guardar({ identidad: t })} />
-    {cuenta && <p className={s.temporada}><Trophy size={12} aria-hidden /><span>{temporada!.nombre} · {cuenta.texto}</span>
+    {cuenta && !temporadaArriba && <p className={s.temporada}><Trophy size={12} aria-hidden /><span>{temporada!.nombre} · {cuenta.texto}</span>
       {pctSemana && <span className={s.pct} title={`${pctSemana.hechos} de ${pctSemana.posibles} casillas esta semana`}>Semana {pctSemana.pct}%</span>}</p>}
 
     {!habits.data ? <p className={s.vacio}>{habits.loading ? 'Leyendo tus hábitos…' : habits.error ?? 'No se pudieron leer los hábitos.'}</p>

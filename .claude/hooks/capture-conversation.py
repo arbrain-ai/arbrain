@@ -1,15 +1,50 @@
 #!/usr/bin/env python3
 """Local, model-free capture. No tools/reasoning, no publication, one file per session/day."""
-import argparse,fcntl,hashlib,json,os,re,socket,sys,tempfile
+import argparse,contextlib,hashlib,json,os,re,socket,sys,tempfile,time
 from pathlib import Path
 from datetime import datetime,timezone
 from zoneinfo import ZoneInfo
+try:import fcntl
+except ImportError:fcntl=None  # Windows: no existe (reporte de un fundador, 26 oct 2026); se usa msvcrt
 ROOT=Path(__file__).resolve().parents[2]
+@contextlib.contextmanager
+def candado(ruta):
+ # Exclusivo entre procesos en macOS/Linux (flock) y Windows (msvcrt.locking sobre el primer byte).
+ with ruta.open('a+b') as f:
+  if fcntl:
+   fcntl.flock(f,fcntl.LOCK_EX)
+   yield;return
+  import msvcrt
+  f.seek(0)
+  while True:
+   try:msvcrt.locking(f.fileno(),msvcrt.LK_NBLCK,1);break
+   except OSError:time.sleep(0.05)
+  try:yield
+  finally:
+   f.seek(0)
+   try:msvcrt.locking(f.fileno(),msvcrt.LK_UNLCK,1)
+   except OSError:pass
+def edicion(root=ROOT):
+ e=os.environ.get('ARBRAIN_EDICION','').strip().lower()
+ if e:return e
+ try:
+  for l in (root/'arbrain/EDICION').read_text(encoding='utf-8').splitlines():
+   if l.strip() and not l.lstrip().startswith('#'):return l.strip().lower()
+ except OSError:pass
+ return ''
+def zona(root=ROOT):
+ # ARBRAIN_TZ manda; la edición cliente usa la zona del equipo (p. ej. un fundador en Madrid); la de Daniel, Ciudad de México.
+ # Sin base de zonas (Windows sin tzdata), la del equipo: nunca tumba la captura.
+ nombre=os.environ.get('ARBRAIN_TZ') or (None if edicion(root)=='cliente' else 'America/Mexico_City')
+ if nombre:
+  try:return ZoneInfo(nombre)
+  except Exception:pass
+ return None
 def atomic(path,text):
  path.parent.mkdir(parents=True,exist_ok=True)
  fd,tmp=tempfile.mkstemp(dir=path.parent,prefix='.capture-')
  try:
-  with os.fdopen(fd,'w') as f:f.write(text);f.flush();os.fsync(f.fileno())
+  with os.fdopen(fd,'w',encoding='utf-8') as f:f.write(text);f.flush();os.fsync(f.fileno())
   os.replace(tmp,path)
  finally:
   if os.path.exists(tmp):os.unlink(tmp)
@@ -41,19 +76,18 @@ def record(entry,runtime):
  if not text:return None
  stamp=entry.get('timestamp')
  if not isinstance(stamp,str):return None
- day=datetime.fromisoformat(stamp.replace('Z','+00:00')).astimezone(ZoneInfo('America/Mexico_City')).date().isoformat()
+ day=datetime.fromisoformat(stamp.replace('Z','+00:00')).astimezone(zona()).date().isoformat()
  digest=hashlib.sha256((str(identifier)+stamp+role+text).encode()).hexdigest()
  return {'id':digest,'at':stamp,'day':day,'role':role,'text':text}
 def capture(transcript,session,runtime,root=ROOT):
  sid=hashlib.sha256(session.encode()).hexdigest()[:20]
  hostfile=root/'.claude/hooks/.host-slug'
- host=hostfile.read_text().strip() if hostfile.exists() else socket.gethostname().split('.')[0]
+ host=hostfile.read_text(encoding='utf-8').strip() if hostfile.exists() else socket.gethostname().split('.')[0]
  host=re.sub('[^a-z0-9-]','-',host.lower())[:24]
  base=root/'arbrain/server/store/conversation-capture';base.mkdir(parents=True,exist_ok=True)
  path=base/f'{host}.{runtime}.{sid}.json'
- with (base/f'{host}.{runtime}.{sid}.lock').open('a') as lock:
-  fcntl.flock(lock,fcntl.LOCK_EX)
-  state=json.loads(path.read_text()) if path.exists() else {'session':session,'runtime':runtime,'host':host,'offset':0,'messages':[]}
+ with candado(base/f'{host}.{runtime}.{sid}.lock'):
+  state=json.loads(path.read_text(encoding='utf-8')) if path.exists() else {'session':session,'runtime':runtime,'host':host,'offset':0,'messages':[]}
   st=transcript.stat()
   if state.get('inode')!=st.st_ino or st.st_size<state['offset']:state['offset']=0
   known={m['id'] for m in state['messages']};added=0
@@ -79,11 +113,17 @@ def capture(transcript,session,runtime,root=ROOT):
     if len(text)>2000:excerpt+='\n[Extracto: texto completo en el registro por id.]'
     sections.append(f"### {m['role']} · {m['at']} · {m['id']}\n\n{excerpt}\n")
    rendered=head+'\n'.join(sections)
-   if not out.exists() or out.read_text()!=rendered:atomic(out,rendered)
+   if not out.exists() or out.read_text(encoding='utf-8')!=rendered:atomic(out,rendered)
   return {'added':added,'messages':len(known),'runtime':runtime,'session_hash':sid}
+def chat_de_la_app_cliente():
+ # Instalación de Daniel: el chat del daemon no pasa por aquí (scan-conversations.py lo recoge aparte). En la edición
+ # cliente no hay otro camino: sin esto, lo que se habla en la app de Arbrain nunca llegaba a .claude/daily. Las rutinas
+ # (CLAUDECLAW_SOURCE=cron) no son conversación y siguen fuera.
+ return edicion()=='cliente' and os.environ.get('CLAUDECLAW_SOURCE')!='cron'
 def main():
  p=argparse.ArgumentParser();p.add_argument('--runtime',choices=['codex','claude'],required=True);args=p.parse_args()
- if os.environ.get('CLAUDE_INVOKED_BY') or os.environ.get('CLAUDECLAW_DAEMON'):return
+ if os.environ.get('CLAUDE_INVOKED_BY'):return
+ if os.environ.get('CLAUDECLAW_DAEMON') and not chat_de_la_app_cliente():return
  data=json.load(sys.stdin)
  if not data.get('transcript_path') or not data.get('session_id'):return
  cwd=Path(data.get('cwd',ROOT)).resolve()

@@ -10,6 +10,7 @@ import { usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { LOCAL_DESKTOP_EMAIL, LOCAL_DESKTOP_USER_ID } from '@/lib/desktop-auth'
 import { isDesktopRuntime, isLocalhostRuntime } from '@/lib/local-first'
+import { preguntarSesionLocal } from '@/lib/sesion-local'
 import type { Session, User } from '@supabase/supabase-js'
 import type { Profile, UserRole } from '@/types/database'
 import { instalacion } from '@/config'
@@ -75,7 +76,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Un navegador normal en loopback contra un servidor con el bypass desktop
   // (ensayo local / canary sin Tauri) pinta la misma sesión sintética que el
   // desktop; el servidor decide (404 fuera del bypass) y entonces sigue Supabase.
-  const [localBypass, setLocalBypass] = useState<boolean | null>(() => (isDesktopRuntime() || !isLocalhostRuntime()) ? false : null)
+  // Edición cliente: también fuera de loopback (modo servidor por el teléfono); ver lib/sesion-local.ts.
+  const [localBypass, setLocalBypass] = useState<boolean | null>(() => preguntarSesionLocal({
+    escritorio: isDesktopRuntime(), loopback: isLocalhostRuntime(), edicionCliente: esEdicionCliente(),
+  }) ? null : false)
   useEffect(() => {
     if (localBypass !== null) return
     let mounted = true

@@ -35,6 +35,12 @@ por paso. No le enseñes salidas técnicas, huellas ni rutas largas salvo que al
 
 **Si la persona pidió desinstalar** (no instalar), salta todos los pasos y sigue solo «Desinstalar», al final.
 
+**Si esto va en un servidor** (su nube): si la persona dice que lo instalas en su servidor, su VPS o «mi nube», o si
+estás en un Linux sin pantalla (`uname -s` es `Linux`, `$DISPLAY` y `$WAYLAND_DISPLAY` vacíos y existe
+`/run/systemd/system`), no sigas este guion: lee literal
+`curl -fsSL https://raw.githubusercontent.com/arbrain-ai/arbrain/main/INSTALAR-NUBE.md` y sigue su parte «Para Claude».
+En su computadora (Mac, Windows o Linux con pantalla) todo sigue igual.
+
 ## Reglas que no se rompen
 
 - **Lo suyo no se borra ni se pisa.** Antes de tocar algo que ya existe, lo respaldas (PASO 6). Copias, no mueves

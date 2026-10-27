@@ -1,6 +1,7 @@
 'use client'
 import { useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { esPantallaDeEntrada } from '@/lib/sesion-local'
 
 // La PWA sirve el HTML cacheado al instante (sw.js), así que una sesión vencida o de otra
 // base (29 sep 2026: Mission Control pasó de la nube al Studio) no pasa por el proxy que
@@ -19,7 +20,7 @@ export function AuthExpiryGuard() {
       if (response.status === 401 && !redirecting) {
         const url = new URL(typeof args[0] === 'string' ? args[0] : args[0] instanceof URL ? args[0].href : args[0].url, window.location.href)
         const path = window.location.pathname
-        if (url.origin === window.location.origin && url.pathname.startsWith('/api/') && !path.startsWith('/login')) {
+        if (url.origin === window.location.origin && url.pathname.startsWith('/api/') && !esPantallaDeEntrada(path)) {
           const { data } = await createClient().auth.getUser().catch(() => ({ data: { user: null } }))
           if (!data.user && !redirecting) {
             redirecting = true
