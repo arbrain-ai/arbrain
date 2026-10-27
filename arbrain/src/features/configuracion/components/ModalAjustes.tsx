@@ -12,6 +12,7 @@ import { SeccionAtajos } from './SeccionAtajos'
 import { SeccionPanel } from './SeccionPanel'
 import { PanelLlaves } from '@/features/primer-arranque/components/PanelLlaves'
 import { PanelVoz } from '@/features/primer-arranque/components/PanelVoz'
+import { TarjetaVozSFlow } from './TarjetaVozSFlow'
 import { SeccionPrivacidad } from '@/features/primer-arranque/components/SeccionPrivacidad'
 import { SeccionSeguridad } from '@/features/seguridad/components/Seguridad'
 import { SeccionClientes, SeccionEmbudo, SeccionEquipo, SeccionNorte, SeccionOferta } from './SeccionesNegocio'
@@ -209,7 +210,7 @@ function Ventana({ seccion, enLista }: { seccion: IdSeccion; enLista: boolean })
                 {seccion === 'panel' && <SeccionPanel />}
                 {seccion === 'atajos' && <SeccionAtajos />}
                 {seccion === 'llaves' && <PanelLlaves />}
-                {seccion === 'voz' && <PanelVoz />}
+                {seccion === 'voz' && <><PanelVoz /><TarjetaVozSFlow /></>}
                 {seccion === 'privacidad' && <SeccionPrivacidad />}
                 {seccion === 'seguridad' && <SeccionSeguridad />}
                 {seccion === 'telefono' && <SeccionTelefono />}

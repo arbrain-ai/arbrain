@@ -88,6 +88,7 @@ import { llaveVoz, paseAgenteValido, rutaSoloApp } from './cliente/cofre.js'
 import { CONTRATO_DAEMON } from './cliente/contrato.js'
 // v3: la web muestra si el Bash de los agentes corre en sandbox (sin él, todo comando pide confirmación).
 import { sandboxActivo } from './cliente/sandbox.js'
+import { estadoVozSFlow, fijarVozSFlow } from './cliente/voz-sflow.js'
 import { motivoFsRechazo } from './fs-acceso.js'
 import { extractFileMarkers, uploadToStorage, type StagedAttachment } from './file-attach.js'
 import { esCuentaApi, esCuentaChat, motorApiEncendido, registroPublico } from './modelos/registro.js'
@@ -784,6 +785,16 @@ async function rutasCliente(req: IncomingMessage, res: ServerResponse, ruta: str
     guardarMotorElegido(dir, motor)
     sendJSON(res, 200, { ok: true, motor, reiniciar: true })
     return true
+  }
+  if (ruta === '/voz-sflow') {
+    // «Voz con SFlow» (Ajustes › Voz). Solo la app (el pase no abre esta ruta); encender lleva el secreto de la app.
+    if (req.method === 'GET') { sendJSON(res, 200, estadoVozSFlow()); return true }
+    if (req.method === 'POST') {
+      if (typeof cuerpo.encendido !== 'boolean') { sendJSON(res, 400, { error: 'encendido (boolean) requerido.' }); return true }
+      if (cuerpo.encendido && !secretoApp()) { sendJSON(res, 403, { error: 'Solo la persona, desde la app, puede encender la voz con SFlow.' }); return true }
+      sendJSON(res, 200, fijarVozSFlow(cuerpo.encendido))
+      return true
+    }
   }
   if (req.method === 'POST' && ruta === '/voz/probar') {
     // Ajustes › Voz (21 oct 2026): ¿la llave de Groq que entregó la app funciona? Solo la app (el pase no abre esta ruta).
