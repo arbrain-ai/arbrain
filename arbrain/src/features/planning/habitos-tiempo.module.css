@@ -1,0 +1,151 @@
+/* La vista H. 25 oct 2026: UNA tabla, días como filas y hábitos como columnas. 28 oct 2026 (rediseño, Salud como referente): arriba
+   el héroe del monk mode (Día N de 30, trayecto rumbo a Monterrey, anillo de hoy), una tarjeta por hábito y la tabla. Gramática del
+   lenguaje unificado (docs/builds/diseno-unificado-2026-10-27/LENGUAJE.md): casi todo neutro; el ámbar solo como luz del AHORA (hoy
+   en el trayecto y en la tabla); el verde es dato (cumplido / lleno). Los `--l-*` solo existen en Unificado; en Actual manda el
+   respaldo de cada `var()`. Se lee en 390 px. */
+.vista { --linea-t: var(--l-borde, color-mix(in srgb, var(--foreground) 8%, transparent));
+  --placa: var(--l-placa, var(--card)); --tinta: var(--l-tinta-1, var(--foreground)); --tinta-2: var(--l-tinta-2, var(--muted)); --tinta-3: var(--l-tinta-3, var(--muted));
+  --hecho: var(--l-verde-4, var(--success, #10b981)); --hecho-tinta: var(--l-tinta-verde, var(--success, #10b981));
+  --ahora-rgb: var(--l-ambar-rgb, var(--gold-rgb)); --ahora: rgb(var(--ahora-rgb));
+  container-type: inline-size; height: 100%; overflow-y: auto; scrollbar-width: thin; display: flex; flex-direction: column; gap: 14px;
+  padding: 20px 22px 32px; outline: none; }
+.vista > * { flex: none; width: 100%; max-width: 760px; margin-inline: auto; }
+
+/* ── Héroe: el monk mode ── */
+.heroe { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px 18px; align-items: center;
+  padding: 18px 18px 16px 20px; border-radius: var(--l-radio-contenedor, 18px); border: 1px solid var(--linea-t);
+  background: radial-gradient(120% 120% at 0% 0%, rgba(var(--l-velo-morado-rgb, var(--brand-rgb)), 0.07), transparent 58%), var(--placa);
+  box-shadow: var(--l-sombra-placa, 0 1px 0 rgba(var(--l-sombra-rgb, 15, 23, 42), 0.03)); overflow: hidden; }
+:global(.dark) .heroe { background: radial-gradient(120% 120% at 0% 0%, rgba(var(--l-velo-morado-rgb, var(--brand-rgb)), 0.12), transparent 60%), var(--placa); }
+.heroeTexto { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ceja { margin: 0; font-size: 11px; font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tinta-2); }
+.ceja b { font-weight: 650; color: var(--tinta); }
+.palabra { margin: 2px 0 0; font-size: 34px; line-height: 1.05; font-weight: 600; letter-spacing: -0.02em; color: var(--tinta); font-variant-numeric: tabular-nums; }
+.palabra b { font-weight: 700; }
+.palabra span { color: var(--tinta-3); font-weight: 500; }
+.rumbo { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; margin: 2px 0 0; font-size: 13px; line-height: 1.45; color: var(--tinta-2); }
+.rumbo b { color: var(--tinta); font-weight: 600; }
+.rumbo > span + span::before { content: '·'; margin-right: 12px; color: var(--tinta-3); }
+.meta { flex-basis: 100%; font-style: italic; }
+.rumbo > .meta::before { content: none; }
+
+.anillo { position: relative; width: 74px; height: 74px; display: grid; place-items: center; }
+.anillo svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.anilloPista { fill: none; stroke: var(--linea-t); stroke-width: 6; }
+.anilloAvance { fill: none; stroke: var(--tinta-2); stroke-width: 6; stroke-linecap: round; transition: stroke-dasharray 520ms var(--l-curva-salida, cubic-bezier(.16, 1, .3, 1)); }
+.anillo[data-completo] .anilloAvance { stroke: var(--hecho); }
+.anillo > span { position: relative; display: flex; flex-direction: column; align-items: center; font-size: 13px; line-height: 1; color: var(--tinta-2); font-variant-numeric: tabular-nums; }
+.anilloCifra { display: inline-flex; align-items: baseline; white-space: nowrap; }
+.anillo b { font-size: 22px; font-weight: 650; color: var(--tinta); }
+.anillo small { margin-top: 3px; font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--tinta-3); }
+
+/* El trayecto: un tramo por día. Vivido lleno = dato verde; parcial = verde a medias; sin registro = hueco con borde; hoy = la luz
+   del ahora; el futuro = camino punteado (se ve por recorrer, no vacío). Al final, la bandera del premio. */
+.trayecto { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; min-width: 0; }
+.trayecto ol { flex: 1; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 3px; margin: 0; padding: 0; list-style: none; min-width: 0; }
+.trayecto li { height: 10px; border-radius: 3px; background: color-mix(in srgb, var(--tinta) 6%, transparent); }
+.trayecto li[data-tramo='lleno'] { background: var(--hecho); }
+.trayecto li[data-tramo='parcial'] { background: color-mix(in srgb, var(--hecho) 45%, transparent); }
+.trayecto li[data-tramo='vacio'] { background: transparent; box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--l-tinta-rojo, var(--error, #ef4444)) 45%, transparent); }
+.trayecto li[data-tramo='hoy'] { height: 16px; background: rgba(var(--ahora-rgb), .9); box-shadow: 0 0 0 2px rgba(var(--ahora-rgb), .22); }
+.trayecto li[data-tramo='lleno']:has(+ li[data-tramo='futuro']):not(:first-child) { box-shadow: 0 0 0 2px color-mix(in srgb, var(--hecho) 25%, transparent); }
+.trayecto li[data-tramo='futuro'] { background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--tinta) 16%, transparent) 0 3px, transparent 3px 6px);
+  height: 4px; border-radius: 2px; }
+.trayecto li[data-tramo='fuera'] { opacity: .4; }
+.destino { flex: none; display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px 3px 7px; border-radius: 999px; font-size: 11.5px; font-weight: 600;
+  color: var(--tinta); border: 1px solid var(--linea-t); background: var(--l-superficie, transparent); white-space: nowrap; }
+
+/* ── Una tarjeta por hábito ── */
+.habitos { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; margin-block: 0; padding: 0; list-style: none; }
+.habito { position: relative; display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 13px 14px 14px; border-radius: var(--l-radio-tarjeta, 14px);
+  border: 1px solid var(--linea-t); background: var(--placa); box-shadow: var(--l-sombra-placa, none); overflow: hidden; }
+.habito > p { margin: 0; }
+.habitoNombre { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 13px; font-weight: 600; color: var(--tinta); }
+.habitoNombre > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.habitoNombre kbd { flex: none; display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 5px; font-size: 10.5px; font-weight: 600; line-height: 1; font-family: inherit;
+  color: var(--tinta-2); border: 1px solid var(--linea-t); background: var(--l-superficie, transparent); }
+.habito[data-hoy='hecho'] .habitoNombre kbd { color: var(--l-gris-16, #fff); border-color: transparent; background: var(--hecho); }
+.racha { display: flex; align-items: baseline; gap: 6px; color: var(--tinta-3); }
+.racha svg { align-self: center; flex: none; }
+.racha b { font-size: 28px; line-height: 1; font-weight: 650; letter-spacing: -.02em; color: var(--tinta); font-variant-numeric: tabular-nums; }
+.racha span { font-size: 12px; }
+.racha[data-viva] svg { color: var(--ahora); }
+.habitoPie { display: flex; justify-content: space-between; gap: 8px; font-size: 11.5px; color: var(--tinta-3); font-variant-numeric: tabular-nums; }
+.habitoPie b { color: var(--tinta-2); font-weight: 600; }
+.barra { display: block; height: 4px; border-radius: 2px; background: color-mix(in srgb, var(--tinta) 7%, transparent); overflow: hidden; }
+.barra i { display: block; height: 100%; border-radius: inherit; background: var(--hecho); transition: width 520ms var(--l-curva-salida, cubic-bezier(.16, 1, .3, 1)); }
+
+/* ── La tabla ── */
+.tabla { border-collapse: separate; border-spacing: 0; table-layout: fixed; border: 1px solid var(--linea-t); border-radius: var(--l-radio-tarjeta, 14px); background: var(--placa); overflow: clip;
+  box-shadow: var(--l-sombra-placa, none); }
+.tabla thead th { position: sticky; top: -20px; z-index: 1; padding: 11px 4px 9px; background: var(--placa); border-bottom: 1px solid var(--linea-t);
+  font-size: 11.5px; font-weight: 600; line-height: 1.25; color: var(--tinta); text-align: center; vertical-align: bottom; overflow-wrap: anywhere; }
+.tabla thead th > span { justify-content: center; max-width: 100%; }
+.tabla td, .tabla tbody th { padding: 3px 4px; text-align: center; border-top: 1px solid color-mix(in srgb, var(--tinta) 4%, transparent); }
+.tabla tbody tr:first-child > * { border-top: 0; }
+/* Cada semana empieza con una línea más marcada; el fin de semana, el día en tinta tenue. */
+.tabla tbody tr[data-lunes] > * { border-top: 1px solid var(--linea-t); }
+.colDia { width: 86px; }
+.tabla tbody th.colDia { padding-left: 14px; text-align: left; font-size: 12px; font-weight: 500; color: var(--tinta); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tabla tbody tr[data-finde] th.colDia { color: var(--tinta-3); }
+.colDia small { font-size: 10.5px; color: var(--tinta-3); font-weight: 400; }
+.colTotal { width: 56px; }
+.tabla td.colTotal { padding-right: 14px; font-size: 11.5px; color: var(--tinta-3); text-align: right; font-variant-numeric: tabular-nums; }
+.tabla td.colTotal[data-lleno] { color: var(--hecho-tinta); font-weight: 650; }
+
+/* Hoy: la fila se eleva (placa más clara, línea del ahora a la izquierda y la pastilla «hoy»). */
+.tabla tr[data-hoy] > * { background: rgba(var(--ahora-rgb), 0.07); }
+:global(.dark) .tabla tr[data-hoy] > * { background: rgba(var(--ahora-rgb), 0.09); }
+.tabla tr[data-hoy] th.colDia { font-weight: 650; box-shadow: inset 3px 0 0 var(--ahora); }
+.hoyPastilla { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 999px; font-style: normal; font-size: 9.5px; font-weight: 650; line-height: 1.5; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--tinta); background: rgba(var(--ahora-rgb), .22); vertical-align: 1px; }
+/* El futuro no es hueco: camino por recorrer, a media tinta. */
+.tabla tr[data-futuro] th.colDia { color: var(--tinta-3); }
+.tabla tr[data-cierre] > * { border-bottom: 0; }
+.tabla tr[data-cierre] th.colDia { color: var(--tinta); font-weight: 600; }
+.meta2 { display: inline-flex; align-items: center; gap: 4px; color: var(--tinta); }
+
+.celda { display: inline-grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: var(--l-radio-control, 9px); cursor: pointer;
+  color: var(--l-gris-16, #fff); background: transparent; box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--tinta) 14%, transparent);
+  transition: background 240ms var(--l-curva-salida, ease), box-shadow 240ms var(--l-curva-salida, ease), translate 240ms var(--l-curva-aterriza, ease); }
+.celda:focus-visible { outline: 2px solid var(--l-foco, var(--primary)); outline-offset: 2px; }
+.celda:not(:disabled):hover { translate: 0 -1px; box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--tinta) 32%, transparent); }
+.celda[data-estado=hecho] { background: var(--hecho); box-shadow: inset 0 -1px 0 rgba(var(--l-sombra-rgb, 0, 0, 0), .12); }
+.celda[data-estado=fallado] { color: var(--tinta); background: color-mix(in srgb, var(--tinta) 10%, transparent); box-shadow: none; }
+/* Sin registrar en un día ya vivido: la única falla del objetivo, apenas teñida. */
+.celda[data-estado=vacio]:not([data-hoy]) { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--l-tinta-rojo, var(--error, #ef4444)) 45%, transparent); }
+.celda[data-estado=vacio][data-hoy] { box-shadow: inset 0 0 0 1.5px rgba(var(--ahora-rgb), .85), 0 0 0 3px rgba(var(--ahora-rgb), .12); }
+.celda[data-estado=futuro], .celda[data-estado=fuera] { cursor: default; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tinta) 8%, transparent);
+  background: color-mix(in srgb, var(--tinta) 2.5%, transparent); }
+.celda[data-estado=futuro] { box-shadow: none; outline: 1px dashed color-mix(in srgb, var(--tinta) 16%, transparent); outline-offset: -1px; }
+.porVenir { width: 4px; height: 4px; border-radius: 2px; background: color-mix(in srgb, var(--tinta) 20%, transparent); }
+.celda:disabled[data-hoy] { cursor: default; }
+@media (prefers-reduced-motion: reduce) { .celda, .anilloAvance, .barra i { transition: none; } }
+
+.pie { margin: 0; font-size: 12.5px; color: var(--tinta-2); font-variant-numeric: tabular-nums; }
+.pie b { color: var(--tinta); font-weight: 650; }
+.vacio { margin: 0; font-size: 13px; color: var(--tinta-2); }
+.aviso { display: flex; align-items: center; gap: 10px; margin: 0; padding: 6px 10px; border-radius: 8px; font-size: 12.5px; background: rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.1); border: 1px solid var(--l-borde-ambar, rgba(var(--gold-rgb), .3)); }
+.aviso button { margin-left: auto; border: 0; background: transparent; color: var(--l-tinta-morado, var(--primary)); font: inherit; font-weight: 650; cursor: pointer; }
+.srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Teléfono y panel angosto: el héroe se apila, columnas compactas, celdas aún al tamaño del dedo. */
+@container (max-width: 520px) {
+  .vista { padding: 12px 10px 22px; gap: 12px; }
+  .heroe { padding: 14px 14px 13px 16px; gap: 12px; }
+  .palabra { font-size: 28px; }
+  .anillo { width: 62px; height: 62px; }
+  .anillo b { font-size: 18px; }
+  .habitos { grid-template-columns: 1fr; gap: 8px; }
+  .habito { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 10px; padding: 11px 12px; }
+  .habitoPie { grid-column: 1 / -1; }
+  .barra { grid-column: 1 / -1; }
+  .racha b { font-size: 20px; }
+  .tabla thead th { top: -12px; font-size: 10.5px; padding: 8px 2px 6px; }
+  .colDia { width: 64px; }
+  .tabla tbody th.colDia { padding-left: 8px; font-size: 11.5px; }
+  .hoyPastilla { display: none; }
+  .colTotal { width: 42px; }
+  .tabla td.colTotal { padding-right: 8px; }
+  .tabla td { padding: 2px; }
+}

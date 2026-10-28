@@ -6,6 +6,17 @@
  * lo reemplaza por `instalacion.plantilla.ts` (genérico, sin datos de nadie). El código lo lee de aquí y nunca
  * escribe esos datos a mano.
  */
+/** Un campo de fondo: `tipo` decide su forma (trabajo = campo tenue; comida = riel al borde, para que se lean juntos). */
+export interface CampoFondo {
+  clave: string
+  titulo: string
+  tipo: 'trabajo' | 'comida'
+  /** Días ISO (1 = lunes … 7 = domingo). Vacío = todos. */
+  dias: readonly number[]
+  /** Franjas «HH:MM» de inicio y fin, en la hora local. */
+  franjas: readonly (readonly [string, string])[]
+}
+
 export interface Instalacion {
   /** Correo de la persona dueña (sesión sintética del escritorio, buzón de avisos, remitente VAPID). */
   correoDueno: string
@@ -23,6 +34,15 @@ export interface Instalacion {
   idPerfilSecundario: string
   /** Calendario de Google del objetivo del día. '' si no hay. */
   calendarioObjetivoId: string
+  /** Calendario de Google de la rutina (bloques recurrentes que la agenda pliega). '' = se reconoce por frecuencia. */
+  calendarioRutinaId: string
+  /**
+   * Campos de fondo del calendario (28 oct 2026, `planning/campos-fondo.ts`): franjas que se pintan detrás de los eventos sin ser
+   * eventos (la ventana de comida del ayuno, el trabajo profundo). [] = ninguno.
+   */
+  camposFondo: readonly CampoFondo[]
+  /** Claves de hábitos que Metas y el Hoy del teléfono nunca pintan (`planning/habitos-hoy.ts › seMuestra`). */
+  habitosFueraDelCalendario: readonly string[]
   /** Raíz del repo cuando no llega por variable (`BUSINESS_OS_ROOT`/`ARBRAIN_HOME`). '' = sin respaldo. */
   raizRepoRespaldo: string
   /** Biblioteca personal de libros (PDF). '' = no existe. */

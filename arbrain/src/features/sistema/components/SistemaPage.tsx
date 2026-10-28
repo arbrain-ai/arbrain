@@ -6,6 +6,8 @@ import { useInteligencia } from '../hooks/useInteligencia'
 import { Heatmap } from './Heatmap'
 import { Inteligencia } from './Inteligencia'
 import { SECCION_LABEL, SECCION_ORDER, type Seccion } from '../types'
+import { NombreHabito } from '../NombreHabito'
+import { esHabitoPrivado } from '../privacidad-habitos'
 
 const GOLD = '#ff9101'
 
@@ -69,8 +71,8 @@ export function SistemaPage() {
                                 className="flex h-6 w-6 flex-none items-center justify-center rounded-full border text-sm"
                                 style={{ borderColor: done ? GOLD : 'rgba(255,255,255,0.25)', background: done ? GOLD : 'transparent', color: done ? '#09090b' : 'transparent' }}
                               >✓</span>
-                              <span className="text-lg">{h.icono}</span>
-                              <span className={done ? 'text-zinc-100' : 'text-zinc-300'}>{h.nombre}</span>
+                              <span className="text-lg">{esHabitoPrivado(h.clave) ? null : h.icono}</span>
+                              <NombreHabito clave={h.clave} nombre={h.nombre} tocable={false} className={done ? 'text-zinc-100' : 'text-zinc-300'} />
                             </button>
                           )
                         })}

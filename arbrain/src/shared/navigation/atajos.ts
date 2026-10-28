@@ -36,6 +36,7 @@ export const ATAJOS_SHELL: GrupoAtajos[] = [
       { teclas: ['['], accion: 'Mostrar u ocultar la barra de conversaciones' },
       { teclas: ['T'], accion: 'Tema claro u oscuro (fuera de un campo de texto)' },
       { teclas: ['⌘', '⌥', 'T'], accion: 'Tema claro u oscuro (también dentro de un campo)' },
+      { teclas: ['⇧', 'T'], accion: 'Estilo actual o unificado (fuera de un campo de texto)' },
       { teclas: ['?'], accion: 'Ver los atajos' },
       { teclas: ['⌘', '⌥', 'S'], accion: 'Ver u ocultar los atajos' },
       { teclas: ['⌘', ','], accion: 'Abrir o cerrar Ajustes' },

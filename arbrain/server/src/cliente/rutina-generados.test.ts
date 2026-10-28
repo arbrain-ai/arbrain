@@ -81,7 +81,8 @@ describe('(a) una rutina escribe now.md sin clic', () => {
     expect(out.permissionDecision).toBe('deny')
     expect(out.permissionDecisionReason).toMatch(/sin la persona delante.*quedó pendiente.*No la reintentes/)
     expect(store.pendientes()).toHaveLength(1)
-    expect(store.pendientes()[0]).toMatchObject({ origen: 'cron', estado: 'pendiente' })
+    // Cola de aprobaciones (ronda 2): sin nadie que la espere, queda en la cola de la persona (no vence, no corre).
+    expect(store.pendientes()[0]).toMatchObject({ origen: 'cron', estado: 'en_cola' })
   })
 
   it('canUseTool de la rutina tampoco espera ni pregunta por now.md', async () => {

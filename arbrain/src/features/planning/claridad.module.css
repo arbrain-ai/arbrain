@@ -2,26 +2,26 @@
    el movimiento del lenguaje común (docs/lenguaje-de-movimiento.md). El objetivo: superficie neutra, tinta del tema y el oro de la marca solo en acentos (barra lateral, estrella, cuenta); igual en Día, Semana y Mes. */
 @keyframes subir { from { opacity: 0; transform: translateY(var(--mov-subida, 6px)); } }
 
-.vista { --linea: color-mix(in srgb, var(--foreground) 9%, transparent); --serif: ui-serif, 'New York', 'Iowan Old Style', Georgia, serif; --tinta: #111; --oro-texto: color-mix(in srgb, var(--gold-dark) 74%, #000);
+.vista { --linea: color-mix(in srgb, var(--foreground) 9%, transparent); --serif: ui-serif, 'New York', 'Iowan Old Style', Georgia, serif; --tinta: var(--l-gris-2, #111); --oro-texto: color-mix(in srgb, var(--l-tinta-ambar, var(--gold-dark)) 74%, var(--l-gris-0, #000));
   display: flex; flex-direction: column; gap: 12px; padding: 14px 26px 18px; min-width: 0; color: var(--foreground); }
 .entra { animation: subir var(--mov-entrada, 560ms) var(--mov-curva, cubic-bezier(.16, 1, .3, 1)) backwards; animation-delay: calc(var(--i, 0) * var(--mov-paso, 45ms)); }
 
 /* ——— El objetivo: superficie neutra con barra lateral de oro (el color es acento, no relleno) ——— */
 .objetivo { position: relative; display: flex; flex-direction: column; min-width: 0; border-radius: 14px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
-  background: linear-gradient(90deg, rgba(var(--gold-rgb), .06), transparent 55%), var(--card); box-shadow: inset 4px 0 0 var(--gold), 0 1px 2px rgba(0, 0, 0, .04); }
+  background: linear-gradient(90deg, rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.06), transparent 55%), var(--card); box-shadow: inset 4px 0 0 var(--l-halo-ambar, var(--gold)), 0 1px 2px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.04); }
 .caja { padding: 13px 16px 14px 20px; color: var(--foreground); }
 .caja header { display: flex; align-items: center; gap: 8px; min-height: 20px; }
 .rotulo { flex: 1 1 auto; min-width: 0; font-size: 10.5px; font-weight: 700; letter-spacing: 1.3px; text-transform: uppercase; color: var(--muted);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rotulo b { color: var(--oro-texto); }
-:global(.dark) .rotulo b { color: var(--gold-bright, var(--gold)); }
+:global(.dark) .rotulo b { color: var(--l-ceja-ambar, var(--gold-bright, var(--gold))); }
 .rotulo em { font-style: normal; font-weight: 600; letter-spacing: .6px; text-transform: none; }
 .cuenta { flex: 0 0 auto; font-size: 12px; font-weight: 700; color: var(--oro-texto); font-variant-numeric: tabular-nums; }
-:global(.dark) .cuenta, :global(.dark) .estrellaDia svg { color: var(--gold-bright, var(--gold)); }
+:global(.dark) .cuenta, :global(.dark) .estrellaDia svg { color: var(--l-tinta-ambar, var(--gold-bright, var(--gold))); }
 :global(.dark) .estrellaDia svg { stroke: var(--gold-bright, var(--gold)); }
 .caja h2 { margin: 3px 0 0; font-family: var(--serif); font-size: 20px; font-weight: 650; line-height: 1.22; letter-spacing: -.25px; color: var(--foreground); text-wrap: balance; }
 .cajaVacia { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
-.objetivo[data-vacio] { box-shadow: inset 4px 0 0 rgba(var(--gold-rgb), .45); }
+.objetivo[data-vacio] { box-shadow: inset 4px 0 0 rgba(var(--l-halo-ambar-rgb, var(--gold-rgb)), 0.45); }
 /* Plegable (ronda 3, 10 oct 2026): nace en una línea (rótulo · título · cuenta · chevrón) y se abre con un toque. El alto se anima
    con filas de rejilla (0fr ↔ 1fr), sin medir nada; el título de la línea se desvanece cuando el grande entra. */
 .cabeza { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 22px; margin: 0; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
@@ -56,10 +56,10 @@
   font: inherit; font-size: 13.5px; line-height: 1.35; text-align: left; cursor: pointer; transition: background 140ms; }
 .entregables button:hover:not(:disabled) { background: rgba(var(--gold-rgb), .1); }
 .entregables button:disabled { cursor: default; }
-.casilla { flex: 0 0 auto; display: grid; place-items: center; width: 17px; height: 17px; margin-top: 1px; border-radius: 5px; border: 1.6px solid color-mix(in srgb, var(--gold) 75%, var(--foreground));
+.casilla { flex: 0 0 auto; display: grid; place-items: center; width: 17px; height: 17px; margin-top: 1px; border-radius: 5px; border: 1.6px solid color-mix(in srgb, var(--l-borde-ambar, var(--gold)) 75%, var(--foreground));
   color: var(--tinta); transition: background 180ms, border-color 180ms; }
 .casilla svg { width: 11px; height: 11px; }
-.entregables button[data-hecha] .casilla { background: var(--gold); border-color: var(--gold); }
+.entregables button[data-hecha] .casilla { background: var(--gold); border-color: var(--l-borde-ambar, var(--gold)); }
 .entregables button:not([data-hecha]) .casilla svg { visibility: hidden; }
 .entregableTexto { min-width: 0; transition: color 200ms; }
 .entregables button[data-hecha] .entregableTexto { color: var(--muted); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--muted) 60%, transparent); }
@@ -69,18 +69,18 @@
 .agregarVacio { padding-left: 6px; font-size: 13px; color: var(--muted); }
 .agregar button { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px 3px 6px; border: 0; border-radius: 8px; background: transparent; color: var(--muted);
   font: inherit; font-size: 12.5px; cursor: pointer; transition: background 140ms, color 140ms; }
-.agregar button:hover { color: var(--gold); background: rgba(var(--gold-rgb), .1); }
-.agregar form { display: flex; align-items: center; gap: 9px; flex: 1 1 100%; min-width: 0; padding: 3px 6px; border-radius: 8px; background: rgba(var(--gold-rgb), .07); }
+.agregar button:hover { color: var(--l-tinta-ambar, var(--gold)); background: rgba(var(--gold-rgb), .1); }
+.agregar form { display: flex; align-items: center; gap: 9px; flex: 1 1 100%; min-width: 0; padding: 3px 6px; border-radius: 8px; background: rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.07); }
 .agregar form .casilla { opacity: .55; }
 .agregar input { flex: 1 1 auto; min-width: 0; padding: 0; border: 0; outline: 0; background: transparent; color: var(--foreground); font: inherit; font-size: 13.5px; line-height: 1.35; }
 .agregar input::placeholder { color: var(--muted); }
-.fallo { margin: 0; font-size: 12px; color: var(--danger, #d14343); }
+.fallo { margin: 0; font-size: 12px; color: var(--danger, var(--l-tinta-rojo, #d14343)); }
 
 /* ——— Subtítulos ——— */
 .subtitulo { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
 .subtitulo h3 { flex: 1 1 auto; margin: 0; font-size: 11px; font-weight: 650; letter-spacing: 1.4px; text-transform: uppercase; color: var(--muted); }
 .icono { display: grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 7px; background: transparent; color: var(--muted); cursor: pointer; transition: background 140ms, color 140ms; }
-.icono:hover, .icono[aria-pressed='true'] { background: var(--card-hover, rgba(0, 0, 0, .05)); color: var(--foreground); }
+.icono:hover, .icono[aria-pressed='true'] { background: var(--card-hover, rgba(var(--l-sombra-rgb, 0, 0, 0), 0.05)); color: var(--foreground); }
 .leyendo { margin: 0; font-size: 13px; color: var(--muted); }
 /* Horas · Agenda (9 oct 2026): dos palabras en una píldora, la elegida con superficie; el resto en tinta tenue. */
 .selector { flex: 0 0 auto; display: inline-flex; padding: 2px; gap: 1px; border-radius: 8px; background: color-mix(in srgb, var(--foreground) 5%, transparent); }
@@ -90,14 +90,14 @@
   font: inherit; font-size: 11px; font-weight: 650; letter-spacing: .2px; cursor: pointer; transition: background 140ms, color 140ms, box-shadow 140ms; }
 .enfoque:hover { color: var(--foreground); }
 .enfoque[aria-pressed='true'] { background: rgba(var(--gold-rgb), .16); color: var(--foreground); box-shadow: inset 0 0 0 1px rgba(var(--gold-rgb), .4); }
-.selector button[aria-selected='true'] { background: var(--card); color: var(--foreground); box-shadow: 0 0 0 1px color-mix(in srgb, var(--foreground) 9%, transparent), 0 1px 2px rgba(0, 0, 0, .08); }
+.selector button[aria-selected='true'] { background: var(--card); color: var(--foreground); box-shadow: 0 0 0 1px color-mix(in srgb, var(--foreground) 9%, transparent), 0 1px 2px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.08); }
 
 /* ——— Semana: una fila por día ——— */
 .dias { list-style: none; margin: -4px 0 0; padding: 0; display: flex; flex-direction: column; }
 .dias > li + li .dia { border-top: 1px solid var(--linea); }
 .dia { display: grid; grid-template-columns: 44px minmax(0, 1fr) 16px; align-items: start; gap: 10px; width: 100%; padding: 6px 6px 7px 2px; border: 0; border-radius: 0;
   background: transparent; color: var(--foreground); font: inherit; text-align: left; cursor: pointer; transition: background 140ms; }
-.dia:hover { background: var(--card-hover, rgba(0, 0, 0, .03)); border-radius: 10px; }
+.dia:hover { background: var(--card-hover, rgba(var(--l-sombra-rgb, 0, 0, 0), 0.03)); border-radius: 10px; }
 .dia:hover + *, .dias > li:hover + li .dia { border-top-color: transparent; }
 .fecha { display: flex; flex-direction: column; align-items: center; gap: 0; padding-top: 1px; line-height: 1; }
 .fecha small { font-size: 10.5px; font-weight: 650; letter-spacing: .8px; text-transform: uppercase; color: var(--muted); }
@@ -111,8 +111,8 @@
 .dia:hover .ir, .dia:focus-visible .ir, .semana:hover .ir, .semana:focus-visible .ir { opacity: 1; transform: translateX(2px); }
 
 /* La ⭐ del día: el objetivo del Día con su barra de oro, a la medida de su texto. */
-.estrellaDia { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 3px 9px 3px 7px; border-radius: 4px 7px 7px 4px; background: rgba(var(--gold-rgb), .08); color: var(--foreground);
-  box-shadow: inset 3px 0 0 var(--gold); font-size: 13.5px; font-weight: 650; line-height: 1.3; }
+.estrellaDia { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 3px 9px 3px 7px; border-radius: 4px 7px 7px 4px; background: rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.08); color: var(--foreground);
+  box-shadow: inset 3px 0 0 var(--l-halo-ambar, var(--gold)); font-size: 13.5px; font-weight: 650; line-height: 1.3; }
 .estrellaDia > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .estrellaDia svg { flex: 0 0 auto; width: 13px; height: 13px; fill: transparent; stroke: var(--oro-texto); stroke-width: 2; stroke-linejoin: round; }
 .estrellaDia[data-cumplido] svg { fill: var(--primary); stroke: var(--primary); }
@@ -131,15 +131,15 @@
 .proximoRotulo { font-size: 10.5px; font-weight: 700; letter-spacing: 1.3px; text-transform: uppercase; color: var(--muted); }
 .proximoHito b { font-family: var(--serif); font-size: 16px; font-weight: 600; letter-spacing: -.15px; line-height: 1.25; }
 .proximoHito small { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.rombo { color: var(--gold-dark, var(--gold)); margin-right: 4px; font-size: .9em; }
-:global(.dark) .rombo { color: var(--gold-bright, var(--gold)); }
+.rombo { color: var(--l-tinta-ambar, var(--gold-dark, var(--gold))); margin-right: 4px; font-size: .9em; }
+:global(.dark) .rombo { color: var(--l-tinta-ambar, var(--gold-bright, var(--gold))); }
 
 .lineaMes { position: relative; height: 14px; margin: 4px 0 0; }
 .lineaMes::before { content: ''; position: absolute; left: 0; right: 0; top: 6px; height: 3px; border-radius: 2px; background: color-mix(in srgb, var(--foreground) 10%, transparent); }
 .lineaVivida { position: absolute; left: 0; top: 6px; height: 3px; border-radius: 2px; background: linear-gradient(90deg, rgba(var(--gold-rgb), .45), var(--gold)); }
-.lineaVentana { position: absolute; top: 4px; height: 7px; border-radius: 4px; background: rgba(var(--gold-rgb), .28); border: 1px solid rgba(var(--gold-rgb), .7); }
-.lineaHito { position: absolute; top: -2px; transform: translateX(-50%); font-size: 13px; line-height: 1; color: var(--gold-dark, var(--gold)); text-shadow: 0 0 0 var(--card); z-index: 1; }
-:global(.dark) .lineaHito { color: var(--gold-bright, var(--gold)); }
+.lineaVentana { position: absolute; top: 4px; height: 7px; border-radius: 4px; background: rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.28); border: 1px solid var(--l-borde-ambar, rgba(var(--gold-rgb), .7)); }
+.lineaHito { position: absolute; top: -2px; transform: translateX(-50%); font-size: 13px; line-height: 1; color: var(--l-tinta-ambar, var(--gold-dark, var(--gold))); text-shadow: 0 0 0 var(--card); z-index: 1; }
+:global(.dark) .lineaHito { color: var(--l-tinta-ambar, var(--gold-bright, var(--gold))); }
 .lineaAhora { position: absolute; top: 3px; width: 9px; height: 9px; margin-left: -4.5px; border-radius: 50%; background: var(--foreground); border: 2px solid var(--card); z-index: 2; }
 
 /* ——— Mes: el recorrido S1…S5 ——— */
@@ -151,9 +151,9 @@
 .recorrido > li[data-tramo]::before { background: var(--primary); }
 .semana { display: grid; grid-template-columns: 28px minmax(0, 1fr) 16px; align-items: start; gap: 8px; width: 100%; padding: 7px 6px 9px 0; border: 0; border-radius: 10px;
   background: transparent; color: var(--foreground); font: inherit; text-align: left; cursor: pointer; transition: background 140ms; }
-.semana:hover { background: var(--card-hover, rgba(0, 0, 0, .03)); }
+.semana:hover { background: var(--card-hover, rgba(var(--l-sombra-rgb, 0, 0, 0), 0.03)); }
 .nodo { position: relative; z-index: 1; display: grid; place-items: center; justify-self: center; width: 16px; height: 16px; margin-top: 2px; border-radius: 50%;
-  border: 2px solid color-mix(in srgb, var(--foreground) 22%, transparent); background: var(--background); color: #fff; }
+  border: 2px solid color-mix(in srgb, var(--foreground) 22%, transparent); background: var(--background); color: var(--l-gris-16, #fff); }
 [data-estado='hecha'] .nodo { background: var(--primary); border-color: var(--primary); }
 [data-estado='en-curso'] .nodo { border-color: var(--gold); background: var(--gold); box-shadow: inset 0 0 0 3px var(--background); }
 [data-estado='sin-cerrar'] .nodo { border-style: dashed; border-color: var(--muted); }
@@ -162,8 +162,8 @@
 .semanaCeja b { font-size: 11px; font-weight: 750; letter-spacing: .8px; color: var(--foreground); }
 .semanaCeja > span { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .estado { margin-left: auto; padding: 1px 7px; border-radius: 999px; font-style: normal; font-size: 10.5px; font-weight: 650; white-space: nowrap; border: 1px solid var(--linea); color: var(--muted); }
-.estado[data-estado='hecha'] { color: var(--primary); border-color: rgba(var(--primary-rgb, 104, 58, 204), .35); background: rgba(var(--primary-rgb, 104, 58, 204), .07); }
-:global(.dark) .estado[data-estado='hecha'] { color: color-mix(in srgb, var(--primary) 70%, #fff); }
+.estado[data-estado='hecha'] { color: var(--l-tinta-morado, var(--primary)); border-color: rgba(var(--primary-rgb, 104, 58, 204), .35); background: rgba(var(--primary-rgb, 104, 58, 204), .07); }
+:global(.dark) .estado[data-estado='hecha'] { color: color-mix(in srgb, var(--l-tinta-morado, var(--primary)) 70%, var(--l-gris-16, #fff)); }
 .estado[data-estado='en-curso'] { color: var(--tinta); background: var(--gold); border-color: var(--gold); }
 .estado[data-estado='sin-cerrar'] { border-style: dashed; }
 .semanaTitulo { font-family: var(--serif); font-size: 15.5px; font-weight: 600; line-height: 1.28; letter-spacing: -.1px; text-wrap: pretty; }
@@ -173,7 +173,7 @@
 [data-estado='en-curso'] .semana:hover { background: rgba(var(--gold-rgb), .1); }
 .semana .segmentos { max-width: 240px; margin-top: 3px; }
 .hitos { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 2px; }
-.hito { display: inline-flex; align-items: baseline; gap: 0; padding: 2px 8px 2px 7px; border-radius: 6px; border: 1px solid rgba(var(--gold-rgb), .5); background: rgba(var(--gold-rgb), .08);
+.hito { display: inline-flex; align-items: baseline; gap: 0; padding: 2px 8px 2px 7px; border-radius: 6px; border: 1px solid var(--l-borde-ambar, rgba(var(--gold-rgb), .5)); background: rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.08);
   font-size: 12px; font-weight: 600; line-height: 1.3; }
 .hito small { margin-left: 6px; font-size: 11px; font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums; }
 .semana[data-fuera] .semanaCeja > span { opacity: .8; }
@@ -196,3 +196,75 @@ section.vista[data-dos-columnas]:has(> .izquierda) { display: grid; grid-templat
 .derecha > * { flex: 1 1 0; min-height: 0; }
 /* El Mes: la columna izquierda se desplaza sola si el recorrido crece; el objetivo va abierto y la temporada arriba. */
 .vista[data-dos-columnas]:not(:has(> .izquierda)) { overflow-y: auto; scrollbar-width: thin; padding-top: 14px; padding-bottom: 14px; }
+
+/* La Semana llena (25 oct 2026, Daniel: «muchos bordes blancos horizontales debajo y arriba del calendario»): la franja de una línea
+   y la rejilla con todo lo que queda, sin aire de más arriba ni abajo. En pantalla completa la rejilla toma el alto y hace su scroll. */
+.vista[data-llena] { gap: 8px; padding-top: 0; padding-bottom: 8px; }
+.vista[data-dos-columnas][data-llena] { display: flex; flex-direction: column; overflow: hidden; padding-left: 18px; padding-right: 18px; }
+.rejillaLlena { min-width: 0; }
+.vista[data-dos-columnas] > .rejillaLlena { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
+.vista[data-dos-columnas] > .rejillaLlena > * { flex: 1 1 0; min-height: 0; }
+
+/* ——— El Mes de piedras grandes (25 oct 2026). Ancho: solo la franja del objetivo (el mes va debajo, planning.module.css).
+   Recorrido: lista por semanas con «S2 · fase», el objetivo de la semana, barras de varios días, marcas y el ritmo en puntos.
+   Limpiar el ruido (25 oct 2026): solo lo que pide actuar lleva color (`data-atencion`: bronce accion, morado viaje); lo demás,
+   neutro. La semana actual, borde y ceja dorados sutiles; las pasadas, tenues. ——— */
+.vista[data-mes-piedras] { gap: 10px; padding-top: 4px; }
+.vista[data-mes-piedras][data-dos-columnas] { flex: none; height: auto; overflow: visible; padding: 0 26px; }
+.borrador { font-style: normal; font-weight: 600; letter-spacing: 0; text-transform: none; }
+.mesLista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.mesSemana { display: flex; flex-direction: column; gap: 8px; padding: 12px 12px 10px; border-radius: 14px; border: 1px solid var(--linea); background: var(--card); }
+.mesSemana[data-actual] { border-color: color-mix(in srgb, var(--l-borde-ambar, var(--gold)) 40%, var(--linea)); box-shadow: 0 0 0 1px var(--l-borde-ambar, rgba(var(--gold-rgb), .08)); }
+.mesSemana[data-actual] .mesS { background: rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.16); color: var(--oro-texto); }
+:global(.dark) .mesSemana[data-actual] .mesS { color: var(--l-tinta-ambar, var(--gold-bright, var(--gold))); }
+.mesSemana[data-pasada] { opacity: .55; }
+.mesSemana { scroll-margin-top: calc(var(--plan-pegado, 0px) + 10px); }
+.mesSemana[data-pasada] { gap: 0; padding-top: 6px; padding-bottom: 6px; }
+.mesCejaFila { display: flex; min-width: 0; }
+/* La ceja lleva a la Semana (25 oct 2026): botón de ancho completo, con flecha y fondo al pasar, y anillo con teclado. */
+.mesCeja { flex: 1; display: flex; align-items: baseline; gap: 8px; min-width: 0; margin: -4px -6px; padding: 4px 6px; border: 0; border-radius: 8px;
+  background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; transition: background-color .15s ease; }
+.mesCeja:disabled { cursor: default; }
+.mesCeja:not(:disabled):hover { background: color-mix(in srgb, var(--foreground) 6%, transparent); }
+.mesCeja:focus-visible { outline: 2px solid var(--purple, var(--l-morado-6, #8c27f1)); outline-offset: 1px; }
+.mesIr { flex: none; align-self: center; margin-left: auto; color: var(--muted); opacity: .45; transition: opacity .15s ease, transform .15s ease; }
+.mesCeja:not(:disabled):hover .mesIr, .mesCeja:focus-visible .mesIr { opacity: 1; transform: translateX(2px); }
+.mesCeja:disabled .mesIr { display: none; }
+.mesSemana[data-pasada]:hover { opacity: .85; }
+.mesS { flex: none; padding: 1px 6px; border-radius: 5px; background: color-mix(in srgb, var(--foreground) 7%, transparent); font-size: 11px; font-weight: 600; letter-spacing: .2px; color: var(--muted); white-space: nowrap; }
+.mesS b { font-weight: 750; letter-spacing: .4px; color: var(--foreground); }
+.mesSemana[data-actual] .mesS b { color: inherit; }
+.mesRango { flex: none; font-size: 11.5px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+.mesTitulo { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--serif); font-size: 14px; }
+.mesCintas { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px 0; }
+.mesCinta { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 1px 7px; border-radius: 4px; font-size: 11px; font-weight: 600; line-height: 16px;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--foreground) 16%, transparent); color: color-mix(in srgb, var(--foreground) 68%, var(--muted)); }
+.mesCinta[data-atencion] { background: color-mix(in srgb, var(--c) 13%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 45%, transparent); color: var(--foreground); font-weight: 700; }
+/* El tramo que sigue de la semana anterior: la misma barra sin repetir el título. */
+.mesCinta[data-tramo] { position: relative; height: 6px; padding: 0; align-self: center; }
+.mesOculto { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.mesCinta[data-sigue-antes] { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.mesCinta[data-sigue-despues] { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.mesMarcas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.mesMarcas li { display: flex; align-items: baseline; gap: 8px; min-width: 0; padding: 3px 8px; border-radius: 6px; font-size: 12.5px; font-weight: 600;
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--foreground) 30%, transparent); color: color-mix(in srgb, var(--foreground) 78%, var(--muted)); }
+.mesMarcas li[data-atencion] { background: color-mix(in srgb, var(--c) 12%, transparent); box-shadow: inset 3px 0 0 var(--c); color: var(--foreground); font-weight: 700; }
+.mesMarcaTitulo { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mesMarcas small { flex: none; margin-left: auto; font-size: 11px; font-weight: 600; color: var(--muted); }
+.mesRitmo { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
+.mesDia { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 4px 0 3px; border: 0; border-radius: 8px; background: none; color: var(--foreground); font: inherit; cursor: pointer; }
+.mesDia:hover { background: color-mix(in srgb, var(--foreground) 5%, transparent); }
+.mesDia small { font-size: 9.5px; font-weight: 700; color: var(--muted); }
+.mesDia b { display: grid; place-items: center; min-width: 22px; height: 22px; border-radius: 11px; font-size: 12.5px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.mesDia[data-hoy] b { background: var(--purple, var(--l-morado-6, #8c27f1)); color: var(--l-gris-16, #fff); }
+.mesDia[data-pasado] { opacity: .5; }
+.mesDia[data-fuera] b { color: var(--muted); font-weight: 500; }
+.mesPuntos { display: flex; gap: 2px; height: 5px; }
+.mesPuntos i { width: 5px; height: 5px; border-radius: 50%; background: color-mix(in srgb, var(--foreground) 28%, transparent); }
+.mesPuntos i[data-atencion] { background: var(--c); }
+.mesDia:focus-visible { outline: 2px solid var(--ring, var(--foreground)); outline-offset: 1px; }
+/* Angosto: el objetivo de la semana baja a su propia línea (la etiqueta «S2 · fase» y el rango no lo ahogan). */
+.vista[data-angosto] .mesCeja { flex-wrap: wrap; row-gap: 2px; }
+.vista[data-angosto] .mesTitulo { order: 3; flex: 1 1 100%; white-space: normal; }
+
+:global(html[data-estilo='unificado']) .dia[data-pasado] .fecha, :global(html[data-estilo='unificado']) .dia[data-pasado] .compromiso, :global(html[data-estilo='unificado']) .dia[data-pasado] .mas, :global(html[data-estilo='unificado']) .mesDia[data-pasado] { opacity: 0.72; }

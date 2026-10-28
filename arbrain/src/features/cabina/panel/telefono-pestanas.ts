@@ -15,10 +15,10 @@ import { esTelefonoAhora, useIsMobile } from '@/shared/hooks/useMediaQuery'
 import { usePanelFijadas, clavesDe } from './fijadas'
 import { TAREAS } from './pestanas-fuera'
 import { nombreDeClave } from './nombre-pestana'
-import { esReapertura, vistaTelefono, type VistaTelefono } from './telefono-logica'
+import { esReapertura, seQuedaAlReabrir, vistaTelefono, type VistaTelefono } from './telefono-logica'
 import { esMensajeDeToque, rutaDeToque, toqueReciente, type MensajeSW } from '@/features/notifications/lib/toque-aviso'
 
-export { LARGA_MS, LARGA_MOVIMIENTO, esMantenido, vistaTelefono, type VistaTelefono } from './telefono-logica'
+export { LARGA_MS, LARGA_MOVIMIENTO, esMantenido, esSeccionCompleta, vistaTelefono, type VistaTelefono } from './telefono-logica'
 
 /** Un teléfono de verdad: angosto y táctil. Una ventana angosta del escritorio no reabre en el chat. */
 const esTelefono = esTelefonoAhora
@@ -127,8 +127,8 @@ export function useReabrirEnChat() {
       if (toqueReciente(ultimoToque, Date.now())) return
       // Una llamada en Live sigue: reabrir no la corta.
       if (window.location.pathname === '/chat' && new URLSearchParams(window.location.search).get('tab') === 'live') return
-      // El ícono «Hábitos» de la pantalla de inicio (22 oct 2026) abre directo a sus casillas: reabrirlo no lo manda al chat.
-      if (window.location.pathname.startsWith('/telefono/habitos')) return
+      // El ícono «Hábitos» (22 oct 2026) y Perro y Casa (26 oct 2026): se entra a propósito; reabrir no los manda al chat.
+      if (seQuedaAlReabrir(window.location.pathname)) return
       abrirChatNuevo(url => router.push(url))
     }
     document.addEventListener('visibilitychange', alCambiar)

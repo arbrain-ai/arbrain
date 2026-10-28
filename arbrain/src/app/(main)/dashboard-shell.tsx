@@ -27,7 +27,7 @@ import { esEdicionCliente } from '@/lib/edicion'
 const EDICION_CLIENTE = esEdicionCliente()
 import { PanelDerechoShell, recordarSegmentoTaller } from '@/features/cabina/panel/PanelDerecho'
 import { FilaPestanas } from '@/features/cabina/panel/FilaPestanas'
-import { useReabrirEnChat, useVistaTelefono } from '@/features/cabina/panel/telefono-pestanas'
+import { esSeccionCompleta, useReabrirEnChat, useVistaTelefono } from '@/features/cabina/panel/telefono-pestanas'
 import { abrirCasa } from '@/features/cabina/panel/Secciones'
 import { TerminalInferior } from '@/features/cabina/terminal/TerminalInferior'
 import { LLAVE_PARTE_MEMORIA } from '@/features/cabina/panel/MemoriaTaller'
@@ -49,6 +49,11 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const enPestana = useVistaTelefono().vista.tipo === 'pestana'
   // Teléfono (10 oct 2026): reabrir la app tras un rato fuera es abrirla; lo primero, el chat con una conversación nueva.
   useReabrirEnChat()
+  // Teléfono (26 oct 2026, Daniel con el enlace de /perro: «Me reenvía aquí wtf»): entrar a Perro o a Casa es verlas a
+  // pantalla completa; una pestaña del panel que se quedó abierta no las tapa. El robot de la cabecera regresa al chat.
+  useEffect(() => {
+    if (isMobile && esSeccionCompleta(pathname)) useLayoutStore.getState().setPanelDerecho(false)
+  }, [isMobile, pathname])
   // Escritorio (4 oct 2026): una sola barra lateral, la de conversaciones, con su visibilidad guardada
   // en este equipo. Se hidrata antes del primer pintado para que no parpadee entre el estado inicial y el guardado.
   const verConversaciones = useBarras((s) => s.conversaciones)

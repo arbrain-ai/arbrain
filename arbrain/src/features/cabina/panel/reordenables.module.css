@@ -13,6 +13,6 @@
 .manija:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
 @media (hover: none) { .manija { opacity: 0.55; } }
 .lista[data-arrastrando] { user-select: none; }
-.item[data-arrastrada] { box-shadow: 0 18px 40px -18px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(var(--gold-rgb), 0.35); background: var(--card); }
+.item[data-arrastrada] { box-shadow: 0 18px 40px -18px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.55), 0 0 0 1px var(--l-borde-ambar, rgba(var(--gold-rgb), 0.35)); background: var(--card); }
 .aviso { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) { .manija { transition: none; } }

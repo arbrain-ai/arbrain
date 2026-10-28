@@ -8,19 +8,18 @@ import { taskDay } from '@/features/goals/model'
 import { shiftDay } from '@/features/sistema/calendar-days'
 import { useCivilClock, useHabitRecords } from '@/features/sistema/useHabitRecords'
 import { dayKey } from './model'
-import { bloquesDelDia, casillasDelDia, enCurso, ETIQUETA_OBJETIVO, eventoObjetivoDelDia, objetivosDelDia, tareaObjetivo, tituloCumplido } from './dia-vivo'
+import { bloquesDelDia, casillasDelDia, ETIQUETA_OBJETIVO, eventoObjetivoDelDia, objetivosDelDia, tareaObjetivo, tituloCumplido } from './dia-vivo'
 import { AgendaMini } from './AgendaMini'
 import { ordenarAgenda } from './agenda-llamadas'
 import { Leyenda, type ControlLeyenda } from './Leyenda'
 import { LeyendaDrip, useGobierno } from './gobierno'
-import { ToqueManana } from './ToqueManana'
+import { FranjaPlan } from './FranjaPlan'
 import { objetivoDe } from './periodo-vivo'
 import { HabitosHoy } from './HabitosHoy'
 import { VENTANA_RACHA } from './habitos-dia'
-import { AvisoHecha, FilaTarea, proyectosDe, sinEmoji, TarjetaAhora, useAhora, useCompletar } from './vivo-piezas'
+import { AvisoHecha, FilaTarea, proyectosDe, sinEmoji, useAhora, useCompletar } from './vivo-piezas'
 import { entregablesDe } from './claridad'
-import { ContadorPeriodo } from './ContadorPeriodo'
-import { Entregables, ObjetivoCaja, Segmentos } from './ObjetivoCaja'
+import { Entregables, Segmentos } from './ObjetivoCaja'
 import type { EditorSelection } from './PlanEditor'
 import type { PlanEvent, PlanItem, PlanTask, PlanningSnapshot } from './types'
 import type { Plegado } from './SemanaClara'
@@ -82,7 +81,6 @@ export function DiaVivo({ goals, guardarObjetivo, onDescripcion, donde, leyenda,
   dosColumnas?: boolean
 }) {
   /** El objetivo se pliega solo en el orden de siempre; en dos columnas va abierto y sin toque de plegar. */
-  const pliegaObjetivo = dosColumnas ? undefined : plegado
   const ahora = useAhora()
   const dia = dayKey(fecha), hoy = dayKey(new Date(ahora)), esHoy = dia === hoy, pasado = dia < hoy
   const zona = Intl.DateTimeFormat().resolvedOptions().timeZone
@@ -139,7 +137,6 @@ export function DiaVivo({ goals, guardarObjetivo, onDescripcion, donde, leyenda,
   const fijarObjetivo = () => onNueva({ kind: 'task', allDay: true, start: startOfDay(fecha), titulo: '', prioridad: 1, etiquetas: [ETIQUETA_OBJETIVO] })
   const leyendoObjetivo = !goals.data && !goals.error && !ancla && !eventoObjetivo
 
-  const { actual, sigue } = esHoy ? enCurso(agenda.bloques, ahora) : {}
   // Plegadas por defecto (18 oct 2026, Daniel: «top 3 tareas priority hasta arriba colapsadas… si quiero ver más pues un botón»).
   const [todas, alternarTodas] = usePreferencia('arbrain.dia.tareas-todas')
   const proyectos = useMemo(() => proyectosDe(snapshot), [snapshot])
@@ -153,25 +150,16 @@ export function DiaVivo({ goals, guardarObjetivo, onDescripcion, donde, leyenda,
   const hechasHoy = esHoy ? (snapshot?.completedTasks ?? []).filter(t => t.completedAt && dayKey(new Date(t.completedAt)) === dia).length : 0
 
   /* Las piezas, una vez; el orden lo decide el ancho (abajo). */
-  const objetivoCaja = <>
-    {/* El objetivo del día, hasta arriba y con la caja de la Semana: nace plegado; un toque abre sus casillas. */}
-    <ObjetivoCaja rotulo={pliegaObjetivo && !pliegaObjetivo.objetivo ? (esHoy ? 'Hoy' : 'Día') : <>Objetivo del día{cumplido && titulo && <em> · cumplido</em>}</>}
-      titulo={titulo} vacio={goals.error && !eventoObjetivo ? 'No se pudo leer el objetivo.' : 'Sin objetivo del día.'} leyendo={leyendoObjetivo}
-      /* Un solo contador por escala (24 oct 2026): el del Día es «k de 3» de Hábitos; aquí el avance lo dicen los segmentos. */
-      cuenta={null}
-      plegada={pliegaObjetivo ? !pliegaObjetivo.objetivo : false} onPlegar={pliegaObjetivo ? () => pliegaObjetivo.alternar('objetivo') : undefined}>
-      {titulo ? <>
-        <Segmentos k={hechas0} n={marcas.length} i={1} />
-        <Entregables texto={casillas?.texto ?? ''} guardar={guardarCasillas} i0={2} nombre="Casillas del objetivo del día" vacio="Sin casillas para hoy." />
-        {otros.length > 0 && <ul className={d.otrosObjetivos} aria-label="Más objetivos del día">
-          {otros.map(o => <li key={o.titulo} data-hecho={o.hecho || undefined}>{o.titulo}</li>)}
-        </ul>}
-      </> : !leyendoObjetivo && <button className={d.objVacio} onClick={fijarObjetivo} disabled={!snapshot || ocupado}><Plus size={13} aria-hidden />Fijar el objetivo del día</button>}
-    </ObjetivoCaja>
-  </>
+  // Lo que abre el objetivo del día (25 oct 2026, un solo esqueleto con Semana y Mes): sus casillas y, sin objetivo, fijar uno.
+  const objetivoDetalle = titulo ? <>
+      <Segmentos k={hechas0} n={marcas.length} i={1} />
+      <Entregables texto={casillas?.texto ?? ''} guardar={guardarCasillas} i0={2} nombre="Casillas del objetivo del día" vacio="Sin casillas para hoy." />
+      {otros.length > 0 && <ul className={d.otrosObjetivos} aria-label="Más objetivos del día">
+        {otros.map(o => <li key={o.titulo} data-hecho={o.hecho || undefined}>{o.titulo}</li>)}
+      </ul>}
+    </> : !leyendoObjetivo && <button className={d.objVacio} onClick={fijarObjetivo} disabled={!snapshot || ocupado}><Plus size={13} aria-hidden />Fijar el objetivo del día</button>
   const ahoraYTareas = <>
-    {/* Arriba, lo justo que debería estar haciendo: el bloque en curso o, si no hay, el siguiente. */}
-    {esHoy && (actual || sigue) && <TarjetaAhora actual={actual} sigue={sigue} ahora={ahora} onAbrir={onAbrir} className={d.enCursoDia} />}
+    {/* Sin tarjeta «Ahora/Luego» (25 oct 2026, pedido del dueño: la línea ámbar de la hora en la agenda ya le da el compás). */}
 
     {/* Las tareas, arriba de la agenda (18 oct 2026): el top 3 plegado; «Ver todas» abre la lista con su orden (Hora · Prioridad · Proyecto). */}
     <section className={`${d.columna} ${d.topTareas}`} aria-label={abierta ? 'Tareas' : 'Top 3 tareas'} data-abierta={abierta || undefined}>
@@ -199,44 +187,46 @@ export function DiaVivo({ goals, guardarObjetivo, onDescripcion, donde, leyenda,
     {leyenda && !enfoque && (gobierno ? !gobierno.leyendaEnBarra && <div className={d.entra} style={{ ['--i' as string]: 1 }}><LeyendaDrip /></div>
       : <div className={d.entra} style={{ ['--i' as string]: 1 }}><Leyenda ctl={leyenda} eventos={eventos} desde={startOfDay(fecha).getTime()} hasta={addDays(startOfDay(fecha), 1).getTime()} periodo="día" /></div>)}
   </>
-  // Un toque cada mañana (24 oct 2026): solo hoy, antes de las 12 y hasta que se acepta.
-  const manana = esHoy && central ? <ToqueManana dia={dia} bloques={agenda.bloques} objetivoFijado={Boolean(titulo)} ahora={ahora} /> : null
+  // «Acepto mi día» se fue (25 oct 2026, Daniel: «en teoría ya lo acepté desde antes»): el día se da por aceptado. Proteger el bloque
+  // de Producir sigue en su hoja (HojaDrip), un toque sobre el bloque.
   const agendaMini = <div className={d.cuerpo}>
       <AgendaMini central={central} llenar={dosColumnas} bloques={agenda.bloques} bandas={agenda.bandas} todoElDia={todoElDia} fecha={fecha} ahora={ahora} esHoy={esHoy} pasado={pasado} color={color} cargando={cargando && !snapshot}
         rejilla={rejilla} onAbrir={onAbrir}
         todoElDiaAbierto={plegado?.todoElDia} onTodoElDia={plegado ? () => plegado.alternar('todoElDia') : undefined} />
     </div>
   const habitos = <>
-    {/* Hábitos de hoy (22 oct 2026, monk mode hasta Monterrey): tres casillas grandes hasta abajo, con racha e historia.
+    {/* Hábitos de hoy, en mínimo (25 oct 2026): una línea por hábito con casilla y racha; su historia vive en la vista H.
         La casilla del objetivo es el mismo dato que la caja de arriba: tarea, ✓ en Google y hábito `objetivo_dia`. */}
-    <HabitosHoy dia={dia} donde={donde} habits={habits} today={today} i={6} temporadaArriba
+    <HabitosHoy dia={dia} donde={donde} habits={habits} today={today} i={6} minimo
       especial={conHabito ? { [HABITO_OBJETIVO]: { hecho: objetivoHecho, onToggle: alternarObjetivo } } : undefined} />
   </>
   const etiqueta = `Día ${format(fecha, "EEEE d 'de' MMMM", { locale: es })}`
 
-  // Pantalla completa (24 oct 2026, Daniel: «lo importante al lado izquierdo» y el calendario a la mitad derecha, sin scroll):
-  // la temporada como franja delgada arriba, el objetivo abierto, el ahora, las tareas y los hábitos; a la derecha, la agenda entera.
+  // La franja (25 oct 2026, Daniel: «la UI actual me quita la mitad de la pantalla»): «Hoy · objetivo │ hábitos» en UNA línea
+  // arriba; el detalle (el objetivo con sus subobjetivos y los hábitos en mínimo) se abre con un toque. La temporada vive en la vista H.
+  const franja = <FranjaPlan rotulo={<>{esHoy ? 'Hoy' : 'Día'}{cumplido && titulo && <em> · cumplido</em>}</>} titulo={titulo}
+    vacio={leyendoObjetivo ? 'Leyendo el objetivo…' : goals.error && !eventoObjetivo ? 'No se pudo leer el objetivo.' : 'Sin objetivo del día.'}
+    detalle={objetivoDetalle} />
+
+  // Pantalla completa (24 oct 2026, «lo importante al lado izquierdo» y la agenda a la derecha, sin scroll); la franja va encima de las
+  // dos columnas (25 oct 2026).
   if (dosColumnas) return <section className={d.dia} data-compacta data-dos-columnas aria-label={etiqueta}>
+    <div className={d.franjaArriba}>{franja}</div>
     <div className={d.izquierda}>
-      <ContadorPeriodo delgada i={0} />
-      {manana}
-      {objetivoCaja}
       {ahoraYTareas}
-      {habitos}
     </div>
     <div className={d.derecha}>
       {chips}
       {agendaMini}
     </div>
+    <div className={d.pieHabitos}>{habitos}</div>
   </section>
 
   return <section className={d.dia} data-compacta aria-label={etiqueta}>
-    {manana}
-    {objetivoCaja}
-    <ContadorPeriodo />
+    {franja}
     {ahoraYTareas}
     {chips}
     {agendaMini}
-    {habitos}
+    <div className={d.pieHabitos}>{habitos}</div>
   </section>
 }

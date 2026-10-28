@@ -2,12 +2,12 @@
    de la marca solo donde importa (hoy, la ⭐, la línea de ahora) y el color de cada calendario como tinte, nunca como relleno
    saturado. La rutina pesa menos que lo único: la jerarquía sale de quitar, no de añadir. */
 @keyframes subir { from { opacity: 0; transform: translateY(var(--mov-subida, 6px)); } }
-@keyframes latir { 0%, 100% { box-shadow: 0 0 0 0 rgba(var(--gold-rgb), .45); } 50% { box-shadow: 0 0 0 4px rgba(var(--gold-rgb), 0); } }
+@keyframes latir { 0%, 100% { box-shadow: 0 0 0 0 rgba(var(--l-halo-ambar-rgb, var(--gold-rgb)), 0.45); } 50% { box-shadow: 0 0 0 4px var(--l-borde-ambar, rgba(var(--gold-rgb), 0)); } }
 
 .rejilla { --hora: 44px; --canal: 44px; --linea: color-mix(in srgb, var(--foreground) 8%, transparent); --linea-media: color-mix(in srgb, var(--foreground) 4%, transparent);
-  --serif: ui-serif, 'New York', 'Iowan Old Style', Georgia, serif; --tinta: #111; --oro-texto: color-mix(in srgb, var(--gold-dark) 74%, #000); --hoy-lavado: rgba(var(--gold-rgb), .045);
+  --serif: ui-serif, 'New York', 'Iowan Old Style', Georgia, serif; --tinta: var(--l-gris-2, #111); --oro-texto: color-mix(in srgb, var(--l-tinta-ambar, var(--gold-dark)) 74%, var(--l-gris-0, #000)); --hoy-lavado: rgba(var(--gold-rgb), .045);
   position: relative; min-width: 0; color: var(--foreground); user-select: none; -webkit-user-select: none; }
-:global(.dark) .rejilla { --oro-texto: var(--gold-bright, var(--gold)); --hoy-lavado: rgba(var(--gold-rgb), .05); }
+:global(.dark) .rejilla { --oro-texto: var(--l-tinta-ambar, var(--gold-bright, var(--gold))); --hoy-lavado: rgba(var(--gold-rgb), .05); }
 .rejilla[data-angosto] { --canal: 38px; }
 /* El alto de la hora (`--hora`) lo pone SemanaHoras en línea desde `altoHora` (Enfoque más alto, compacta más bajo, angosto un poco
    menos): el título de cada bloque calcula sus líneas con el mismo número. */
@@ -20,7 +20,7 @@
    pegados bajo la barra del calendario (`--plan-pegado`, su alto medido) mientras las horas pasan por debajo. Vive fuera del riel
    porque un `overflow-x` le quitaría lo pegajoso; SemanaHoras le copia el `scrollLeft` del riel. */
 .rielCab { position: sticky; top: var(--plan-pegado, 0px); z-index: 8; overflow: hidden; background: var(--background); touch-action: pan-y;
-  box-shadow: 0 10px 14px -14px rgba(0, 0, 0, .55); }
+  box-shadow: 0 10px 14px -14px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.55); }
 .rejilla[data-angosto]:not([data-desliza]) .riel { scroll-snap-type: x mandatory; }
 .rejilla[data-angosto][data-arrastrando] .riel { scroll-snap-type: none; }
 /* La ventana deslizante (10 oct 2026): el riel tiene colchón a cada lado. Ronda 2: el riel lo lleva el gesto (SemanaHoras), sin
@@ -35,7 +35,7 @@
 .diasVista button { min-width: 24px; height: 22px; padding: 0 6px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font: inherit; font-size: 11px; font-weight: 700;
   font-variant-numeric: tabular-nums; cursor: pointer; transition: background 140ms, color 140ms, box-shadow 140ms; }
 .diasVista button:hover { color: var(--foreground); }
-.diasVista button[aria-checked='true'] { background: var(--card); color: var(--foreground); box-shadow: 0 0 0 1px color-mix(in srgb, var(--foreground) 9%, transparent), 0 1px 2px rgba(0, 0, 0, .08); }
+.diasVista button[aria-checked='true'] { background: var(--card); color: var(--foreground); box-shadow: 0 0 0 1px color-mix(in srgb, var(--foreground) 9%, transparent), 0 1px 2px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.08); }
 
 /* Una rejilla CSS: canal de horas + un carril por día. En angosto cada día mide un tercio de lo visible y el resto se desliza. */
 .lienzo { display: grid; grid-template-columns: var(--canal) repeat(var(--dias), minmax(0, 1fr)); grid-template-rows: auto auto auto; min-width: 0; }
@@ -55,23 +55,26 @@
 .cab { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 1px; min-width: 0; padding: 4px 2px 7px; border: 0; background: transparent;
   color: var(--foreground); font: inherit; line-height: 1; cursor: pointer; border-radius: 10px 10px 0 0;
   animation: subir var(--mov-entrada, 560ms) var(--mov-curva, cubic-bezier(.16, 1, .3, 1)) backwards; animation-delay: calc(var(--i, 0) * var(--mov-paso, 45ms)); transition: background 140ms; }
-.cab:hover { background: var(--card-hover, rgba(0, 0, 0, .03)); }
+.cab:hover { background: var(--card-hover, rgba(var(--l-sombra-rgb, 0, 0, 0), 0.03)); }
 .cab small { font-size: 10.5px; font-weight: 650; letter-spacing: .8px; text-transform: uppercase; color: var(--muted); }
 .cab b { font-family: var(--serif); font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; margin-top: 3px; letter-spacing: -.3px; }
-.cab[data-hoy] { background: linear-gradient(180deg, transparent, var(--hoy-lavado)); }
+/* Foco (25 oct 2026, Daniel: «la semana se ve gris, no enfoca a nada»): hoy es la única columna encendida, una hoja clara con sus
+   cantos de arriba abajo, y lo ya vivido se hunde. Sin más ámbar: el oro queda en el número de hoy y en la línea del ahora. */
+.rejilla { --hoy-canto: color-mix(in srgb, var(--foreground) 15%, transparent); }
+.cab[data-hoy] { background: var(--card); box-shadow: inset 1px 0 0 var(--hoy-canto), inset -1px 0 0 var(--hoy-canto), inset 0 1px 0 var(--hoy-canto); }
 .cab[data-hoy] b { color: var(--oro-texto); }
 /* Hoy: el número en oro con un trazo debajo; sin píldora, para que los siete encabezados midan lo mismo. */
 .cab[data-hoy] b::after { content: ''; display: block; width: 14px; height: 2px; margin: 4px auto 0; border-radius: 1px; background: var(--gold); }
 .cab:not([data-hoy]) b::after { content: ''; display: block; height: 2px; margin-top: 4px; }
-.cab[data-pasado] small, .cab[data-pasado] b { opacity: .5; }
+.cab[data-pasado] small, .cab[data-pasado] b { opacity: .42; }
 
 /* ——— La franja: ⭐ y día completo ——— */
 .franja { display: flex; flex-direction: column; gap: 3px; min-width: 0; padding: 0 3px 6px; border-bottom: 1px solid var(--linea); }
-.franja[data-hoy] { background: var(--hoy-lavado); }
+.franja[data-hoy] { background: var(--card); box-shadow: inset 1px 0 0 var(--hoy-canto), inset -1px 0 0 var(--hoy-canto); }
 .franja[data-pasado] > * { opacity: .6; }
 .esquina.franja { border-bottom: 1px solid var(--linea); }
-.estrella { display: flex; align-items: flex-start; gap: 5px; min-width: 0; padding: 4px 6px 4px 6px; border-radius: 3px 7px 7px 3px; background: rgba(var(--gold-rgb), .09);
-  box-shadow: inset 2.5px 0 0 var(--gold); font-size: 11.5px; font-weight: 650; line-height: 1.25; color: var(--foreground); }
+.estrella { display: flex; align-items: flex-start; gap: 5px; min-width: 0; padding: 4px 6px 4px 6px; border-radius: 3px 7px 7px 3px; background: rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.09);
+  box-shadow: inset 2.5px 0 0 var(--l-halo-ambar, var(--gold)); font-size: 11.5px; font-weight: 650; line-height: 1.25; color: var(--foreground); }
 .estrella > span { min-width: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-wrap: pretty; }
 .estrella svg { flex: 0 0 auto; width: 11px; height: 11px; margin-top: 1.5px; fill: transparent; stroke: var(--oro-texto); stroke-width: 2.2; stroke-linejoin: round; }
 .estrella[data-cumplido] svg { fill: var(--primary); stroke: var(--primary); }
@@ -82,6 +85,16 @@
 .marca span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Plegada (el default): una línea por día. Si hay más de una cosa, la primera y «+N»; un toque abre la franja entera. */
 .rielCab[data-plegada] .franja { padding-bottom: 5px; }
+/* Lo de varios días (25 oct 2026): una barra por evento que cruza sus columnas, debajo de lo de un día. Compacta: una línea. */
+.barras { grid-column: 2 / -1; display: grid; grid-template-columns: repeat(var(--dias), minmax(0, 1fr)); grid-auto-flow: row dense; gap: 2px 0; min-width: 0; padding: 3px 0 6px; border-bottom: 1px solid var(--linea); }
+.barrasEsquina { border-bottom: 1px solid var(--linea); }
+.lienzo:has(.barras) .franja { border-bottom-color: transparent; padding-bottom: 0; }
+.barra { display: block; min-width: 0; margin: 0 3px; padding: 2px 7px; border: 0; border-radius: 5px; background: var(--ev-bg); color: var(--ev-fg); box-shadow: inset 2px 0 0 var(--ev-ac);
+  font: inherit; font-size: 11px; font-weight: 600; line-height: 1.35; text-align: left; cursor: pointer; }
+.barra:disabled { cursor: default; }
+.barra span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.barra[data-sigue-antes] { margin-left: 0; border-top-left-radius: 0; border-bottom-left-radius: 0; box-shadow: none; }
+.barra[data-sigue-despues] { margin-right: 0; border-top-right-radius: 0; border-bottom-right-radius: 0; }
 .rielCab[data-plegada] .estrella > span { -webkit-line-clamp: 1; }
 .franjaLinea { display: flex; align-items: center; gap: 3px; min-width: 0; width: 100%; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .franjaLinea > :first-child { flex: 1 1 auto; min-width: 0; }
@@ -112,18 +125,18 @@
   background-size: 100% var(--hora); }
 .rejilla[data-angosto]:not([data-desliza]) .columna { scroll-snap-align: start; scroll-margin-left: var(--canal); }
 .columna[data-crea] { cursor: cell; }
-.columna[data-hoy] { background-color: var(--hoy-lavado); }
-.columna[data-pasado] { background-color: color-mix(in srgb, var(--foreground) 1.6%, transparent); }
+.columna[data-hoy] { background-color: var(--card); box-shadow: inset 1px 0 0 var(--hoy-canto), inset -1px 0 0 var(--hoy-canto); }
+.columna[data-pasado] { background-color: color-mix(in srgb, var(--foreground) 3.5%, transparent); }
 /* Lo ya vivido de hoy, sombreado: el día se lee de un vistazo. */
 .vivido { position: absolute; left: 0; right: 0; top: 0; pointer-events: none; background: linear-gradient(180deg, color-mix(in srgb, var(--foreground) 2%, transparent), color-mix(in srgb, var(--foreground) 4%, transparent)); }
-.ahora { position: absolute; left: -1px; right: 0; z-index: 30; height: 2px; margin-top: -1px; background: var(--gold); pointer-events: none; box-shadow: 0 0 10px rgba(var(--gold-rgb), .35); }
+.ahora { position: absolute; left: -1px; right: 0; z-index: 30; height: 2px; margin-top: -1px; background: var(--gold); pointer-events: none; box-shadow: 0 0 10px rgba(var(--l-halo-ambar-rgb, var(--gold-rgb)), 0.35); }
 .ahora::before { content: ''; position: absolute; left: -4px; top: -3.5px; width: 9px; height: 9px; border-radius: 50%; background: var(--gold); animation: latir 2.4s ease-in-out infinite; }
 
 /* ——— Los bloques: tinte del calendario, barra lateral del acento, título y hora. ——— */
 .bloque { position: absolute; z-index: 1; margin: 1px 0 0 2px; border-radius: 7px; background: var(--ev-bg); color: var(--ev-fg); overflow: hidden;
-  box-shadow: inset 3px 0 0 var(--ev-ac), 0 0 0 1px color-mix(in srgb, var(--ev-ac) 22%, transparent), 0 1px 2px rgba(0, 0, 0, .06);
+  box-shadow: inset 3px 0 0 var(--ev-ac), 0 0 0 1px color-mix(in srgb, var(--ev-ac) 22%, transparent), 0 1px 2px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.06);
   transition: top 260ms cubic-bezier(.16, 1, .3, 1), height 260ms cubic-bezier(.16, 1, .3, 1), left 200ms, width 200ms, opacity 160ms, box-shadow 160ms; }
-.bloque:hover { z-index: 28; box-shadow: inset 3px 0 0 var(--ev-ac), 0 0 0 1px color-mix(in srgb, var(--ev-ac) 45%, transparent), 0 6px 16px -6px rgba(0, 0, 0, .28); }
+.bloque:hover { z-index: 28; box-shadow: inset 3px 0 0 var(--ev-ac), 0 0 0 1px color-mix(in srgb, var(--ev-ac) 45%, transparent), 0 6px 16px -6px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.28); }
 /* La rutina se repite casi a diario (rutinas.ts; la Perfect Week, 24 oct 2026): es el ritmo, no la noticia. Un lavado apenas
    del color, tinta apagada, el acento como hilo y sin sombra; al pasar el cursor recupera su color. Lo único se lleva la mirada. */
 .bloque[data-rutina] { background: color-mix(in srgb, var(--ev-bg) 42%, var(--background)); color: color-mix(in srgb, var(--ev-fg) 58%, var(--muted));
@@ -132,20 +145,20 @@
 .bloque[data-rutina] .cuerpo time { opacity: .8; }
 .bloque[data-rutina]:hover { background: var(--ev-bg); color: var(--ev-fg); }
 /* Lo único de la semana, encima del ritmo: su tinte entero y una sombra mínima que lo despega de la rejilla. */
-.bloque:not(:where([data-rutina], [data-tarea])) { box-shadow: inset 3px 0 0 var(--ev-ac), 0 0 0 1px color-mix(in srgb, var(--ev-ac) 28%, transparent), 0 2px 6px -3px rgba(0, 0, 0, .16); }
+.bloque:not(:where([data-rutina], [data-tarea])) { box-shadow: inset 3px 0 0 var(--ev-ac), 0 0 0 1px color-mix(in srgb, var(--ev-ac) 28%, transparent), 0 2px 6px -3px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.16); }
 .bloque[data-tarea] { background: color-mix(in srgb, var(--foreground) 3%, var(--background)); color: var(--foreground); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--foreground) 14%, transparent); border-radius: 6px; }
-.bloque[data-tarea] .cuerpo::before { content: ''; flex: 0 0 auto; width: 7px; height: 7px; border-radius: 2px; border: 1.4px solid color-mix(in srgb, var(--brand) 70%, var(--foreground)); margin: 0 0 1px; }
-.bloque[data-tarea][data-p1] { box-shadow: inset 0 0 0 1px rgba(var(--gold-rgb), .55); background: rgba(var(--gold-rgb), .07); }
-.bloque[data-tarea][data-p1] .cuerpo::before { border-color: var(--gold); }
+.bloque[data-tarea] .cuerpo::before { content: ''; flex: 0 0 auto; width: 7px; height: 7px; border-radius: 2px; border: 1.4px solid color-mix(in srgb, var(--l-borde-morado, var(--brand)) 70%, var(--foreground)); margin: 0 0 1px; }
+.bloque[data-tarea][data-p1] { box-shadow: inset 0 0 0 1px var(--l-borde-ambar, rgba(var(--gold-rgb), .55)); background: rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.07); }
+.bloque[data-tarea][data-p1] .cuerpo::before { border-color: var(--l-borde-ambar, var(--gold)); }
 .bloque[data-pasado] { opacity: .58; }
 .bloque[data-pasado]:hover { opacity: .9; }
 /* Con otras personas (invitados o Meet): borde sólido más grueso del color de su categoría. Lo que no se mueve solo. */
-.bloque[data-compromiso] { box-shadow: inset 4px 0 0 var(--ev-ac), inset 0 0 0 1.5px var(--ev-ac), 0 1px 3px rgba(0, 0, 0, .1); }
-.bloque[data-compromiso]:hover { box-shadow: inset 4px 0 0 var(--ev-ac), inset 0 0 0 1.5px var(--ev-ac), 0 6px 16px -6px rgba(0, 0, 0, .28); }
+.bloque[data-compromiso] { box-shadow: inset 4px 0 0 var(--ev-ac), inset 0 0 0 1.5px var(--ev-ac), 0 1px 3px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.1); }
+.bloque[data-compromiso]:hover { box-shadow: inset 4px 0 0 var(--ev-ac), inset 0 0 0 1.5px var(--ev-ac), 0 6px 16px -6px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.28); }
 /* Una rutina con otra persona (el gimnasio con alguien más) sigue siendo ritmo: el borde del compromiso, a media voz. */
 .bloque[data-rutina][data-compromiso] { box-shadow: inset 2px 0 0 color-mix(in srgb, var(--ev-ac) 55%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--ev-ac) 35%, transparent); }
 .bloque[data-sigue-arriba] { border-top-left-radius: 2px; border-top-right-radius: 2px; }
-.bloque[data-sigue-abajo] { border-bottom-left-radius: 2px; border-bottom-right-radius: 2px; -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 10px), rgba(0, 0, 0, .35)); mask-image: linear-gradient(180deg, #000 calc(100% - 10px), rgba(0, 0, 0, .35)); }
+.bloque[data-sigue-abajo] { border-bottom-left-radius: 2px; border-bottom-right-radius: 2px; -webkit-mask-image: linear-gradient(180deg, var(--l-gris-0, #000) calc(100% - 10px), rgba(var(--l-sombra-rgb, 0, 0, 0), 0.35)); mask-image: linear-gradient(180deg, var(--l-gris-0, #000) calc(100% - 10px), rgba(var(--l-sombra-rgb, 0, 0, 0), 0.35)); }
 .bloque[data-origen] { opacity: .32; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ev-ac) 60%, transparent); }
 
 .cuerpo { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; width: 100%; height: 100%; min-width: 0; padding: 4px 6px 3px 8px; border: 0; background: transparent;
@@ -170,22 +183,22 @@
 .bloque:hover .borde::after { opacity: .55; }
 
 /* El fantasma: dónde caerá. Borde punteado del oro y la hora en vivo. */
-.fantasma { position: absolute; left: 2px; right: 4px; z-index: 33; margin-top: 1px; border-radius: 7px; pointer-events: none; border: 1.5px dashed var(--gold); background: rgba(var(--gold-rgb), .1);
-  box-shadow: 0 10px 24px -10px rgba(0, 0, 0, .35); transition: top 70ms linear, height 70ms linear; }
+.fantasma { position: absolute; left: 2px; right: 4px; z-index: 33; margin-top: 1px; border-radius: 7px; pointer-events: none; border: 1.5px dashed var(--l-borde-ambar, var(--gold)); background: rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.1);
+  box-shadow: 0 10px 24px -10px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.35); transition: top 70ms linear, height 70ms linear; }
 .fantasma[data-igual] { border-color: color-mix(in srgb, var(--muted) 60%, transparent); background: transparent; box-shadow: none; }
 .fantasma time { position: absolute; left: 6px; top: 3px; padding: 1px 5px; border-radius: 4px; font-size: 10px; font-weight: 750; font-variant-numeric: tabular-nums; background: var(--gold); color: var(--tinta); white-space: nowrap; }
 .fantasma[data-igual] time { display: none; }
 .fantasma time small { font-size: inherit; font-weight: 600; opacity: .72; }
 /* El bloque que se está dibujando: el tono de la marca, no el oro de mover. */
-.fantasma[data-nuevo] { border-style: solid; border-color: color-mix(in srgb, var(--primary) 70%, transparent); background: color-mix(in srgb, var(--primary) 14%, transparent); }
-.fantasma[data-nuevo] time { background: var(--primary); color: var(--primary-foreground, #fff); }
+.fantasma[data-nuevo] { border-style: solid; border-color: var(--l-borde-morado, color-mix(in srgb, var(--primary) 70%, transparent)); background: rgba(var(--l-velo-morado-rgb, var(--brand-rgb)), 0.14); }
+.fantasma[data-nuevo] time { background: var(--primary); color: var(--primary-foreground, var(--l-gris-16, #fff)); }
 .rejilla[data-creando] { cursor: ns-resize; }
 .rejilla[data-creando] .columna { cursor: ns-resize; }
 .cuerpo:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 
 /* Fuera del tramo: se cuenta arriba o abajo, no se pierde. */
 .fuera { position: absolute; left: 3px; right: 3px; z-index: 32; display: block; padding: 1px 6px; border: 0; border-radius: 5px; background: var(--card); color: var(--muted);
-  box-shadow: 0 0 0 1px var(--linea), 0 2px 6px -3px rgba(0, 0, 0, .2); font: inherit; font-size: 10px; font-weight: 650; font-variant-numeric: tabular-nums; line-height: 1.5; text-align: left;
+  box-shadow: 0 0 0 1px var(--linea), 0 2px 6px -3px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.2); font: inherit; font-size: 10px; font-weight: 650; font-variant-numeric: tabular-nums; line-height: 1.5; text-align: left;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
 .fuera:hover { color: var(--foreground); }
 .fuera[data-lado='antes'] { top: 2px; }
@@ -216,6 +229,8 @@
 .rejilla[data-minimo] .estrella > span { display: none; }
 .rejilla[data-minimo] .marca { height: 5px; padding: 0; border-radius: 3px; box-shadow: none; background: var(--ev-ac); }
 .rejilla[data-minimo] .marca span { display: none; }
+.rejilla[data-minimo] .barra { height: 5px; padding: 0; border-radius: 3px; box-shadow: none; background: var(--ev-ac); }
+.rejilla[data-minimo] .barra span { display: none; }
 .rejilla[data-minimo] .bloque { margin-left: 1px; border-radius: 4px; box-shadow: inset 2px 0 0 var(--ev-ac); }
 .rejilla[data-minimo] .bloque[data-compromiso] { box-shadow: inset 2px 0 0 var(--ev-ac), inset 0 0 0 1px var(--ev-ac); }
 .rejilla[data-minimo] .cuerpo { padding: 2px 1px 1px 4px; cursor: pointer; }
@@ -242,17 +257,13 @@
   background: color-mix(in srgb, var(--background) 55%, transparent); font-size: 10px; line-height: 1; cursor: pointer; }
 .brief:hover { background: color-mix(in srgb, var(--background) 90%, transparent); }
 .bloque[data-con-brief] .cuerpo { padding-right: 20px; }
-/* En cascada (más solapes de los que caben a lo ancho legible): cada tarjeta encima de la anterior, con borde para separarlas. */
-.bloque[data-cascada][data-pasado] { opacity: 1; }
-.bloque[data-cascada][data-pasado] .cuerpo { opacity: .6; }
-.bloque[data-cascada] { box-shadow: inset 3px 0 0 var(--ev-ac), 0 0 0 1px var(--background), 0 1px 4px rgba(0, 0, 0, .14); }
 /* Tareas con hora sin duración: chip en el borde derecho (una casilla; varias juntas, su cuenta). */
 .chip { position: absolute; right: 2px; z-index: 31; display: grid; place-items: center; width: 15px; height: 15px; margin-top: 1px; padding: 0; border: 0; border-radius: 4px;
-  background: var(--card); color: var(--foreground); box-shadow: inset 0 0 0 1.4px color-mix(in srgb, var(--brand) 70%, var(--foreground)), 0 1px 3px rgba(0, 0, 0, .12);
+  background: var(--card); color: var(--foreground); box-shadow: inset 0 0 0 1.4px color-mix(in srgb, var(--l-borde-morado, var(--brand)) 70%, var(--foreground)), 0 1px 3px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.12);
   font: inherit; font-size: 9px; font-weight: 750; font-variant-numeric: tabular-nums; line-height: 1; cursor: pointer; transition: transform 140ms; }
 .chip:hover { transform: scale(1.12); }
 .chip[data-varias] { width: auto; min-width: 15px; padding: 0 3px; }
-.chip[data-p1] { box-shadow: inset 0 0 0 1.4px var(--gold), 0 1px 3px rgba(0, 0, 0, .12); background: color-mix(in srgb, var(--gold) 12%, var(--card)); }
+.chip[data-p1] { box-shadow: inset 0 0 0 1.4px var(--l-borde-ambar, var(--gold)), 0 1px 3px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.12); background: color-mix(in srgb, var(--gold) 12%, var(--card)); }
 .chip[data-pasado] { opacity: .55; }
 .rejilla[data-minimo] .chip { right: 1px; width: 9px; height: 9px; min-width: 9px; font-size: 0; padding: 0; }
 
@@ -267,7 +278,7 @@
 .rejilla[data-llenar] { height: 100%; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
 .rejilla[data-llenar] .tabla { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
 .rejilla[data-llenar] .rielCab { position: relative; top: 0; }
-.rejilla[data-llenar] .riel { flex: 1 1 0; min-height: 0; overflow-y: hidden; }
+.rejilla[data-llenar] .riel { flex: 1 1 0; min-height: 0; overflow-y: auto; scrollbar-width: thin; }
 
 /* DRIP (24 oct 2026): la etiqueta de lo delegable y el candado de lo protegido, en la esquina de arriba a la derecha. */
 .dripTag { position: absolute; top: 3px; right: 3px; z-index: 2; display: inline-flex; align-items: center; height: 14px; padding: 0 5px; border-radius: 999px; pointer-events: none;
@@ -275,8 +286,103 @@
   background: color-mix(in srgb, var(--background) 72%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ev-ac, var(--muted)) 55%, transparent); }
 .dripTag[data-solo-icono] { padding: 0 4px; }
 .dripTag[data-tipo='delegado'] { text-transform: none; letter-spacing: .1px; }
-.dripTag[data-tipo='protegido'] { padding: 0; width: 15px; justify-content: center; background: color-mix(in srgb, var(--gold) 28%, var(--background)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 70%, transparent); }
+.dripTag[data-tipo='protegido'] { padding: 0; width: 15px; justify-content: center; background: color-mix(in srgb, var(--gold) 28%, var(--background)); box-shadow: inset 0 0 0 1px var(--l-borde-ambar, color-mix(in srgb, var(--gold) 70%, transparent)); }
 .dripTag svg { width: 9px; height: 9px; stroke: currentColor; stroke-width: 1.4; fill: none; }
 .dripTag svg rect { fill: currentColor; stroke: none; }
-.bloque[data-protegido] { box-shadow: inset 3px 0 0 var(--ev-ac), 0 0 0 1.5px color-mix(in srgb, var(--gold) 70%, transparent), 0 2px 6px -3px rgba(0, 0, 0, .16); }
+.bloque[data-protegido] { box-shadow: inset 3px 0 0 var(--ev-ac), 0 0 0 1.5px var(--l-borde-ambar, color-mix(in srgb, var(--gold) 70%, transparent)), 0 2px 6px -3px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.16); }
 .bloque:where([data-delegable], [data-protegido]) .cuerpo strong { padding-right: 13px; }
+/* La Semana Perfecta (25 oct 2026): el ritmo ideal en fantasma detrás de la semana real. Tenue, sin titanio ni brillo: un velo del
+   color de su cuadrante y una orilla punteada; lo real lo tapa. Limpiar el ruido (25 oct, tarde): aún más tenue, que no compita. Nunca recibe el puntero (el arrastre para crear pasa a través). */
+.perfecta { position: absolute; left: 2px; right: 2px; z-index: 0; pointer-events: none; border-radius: 6px; overflow: hidden;
+  background: color-mix(in srgb, var(--c) 3%, transparent); border: 1px dashed color-mix(in srgb, var(--c) 18%, transparent); }
+.perfecta span { position: absolute; left: 5px; top: 2px; right: 4px; font-size: 9.5px; font-weight: 500; letter-spacing: .02em; line-height: 1.25;
+  color: color-mix(in srgb, var(--c) 35%, var(--muted)); opacity: .5; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rejilla[data-minimo] .perfecta span { display: none; }
+
+/* ══ Campos de fondo (28 oct 2026): trabajo profundo y ventana de comida, detrás de todo y sin tapar el arrastre ══════════════
+   Trabajo = un campo tenue en bronce de Producir con su filo izquierdo; comida = un riel verde al borde derecho de la columna.
+   Formas distintas para que se lean juntos cuando se enciman (13:00–17:00). Un espejo, no una alarma: nada rojo. */
+.campo { position: absolute; z-index: 0; pointer-events: none; }
+.campo[data-tipo='trabajo'] { left: 0; right: 0; background: color-mix(in srgb, var(--l-ambar-6, #b06a1c) 6%, transparent);
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--l-ambar-6, #b06a1c) 38%, transparent); }
+.campo[data-tipo='comida'] { right: 0; width: 3px; border-radius: 2px; background: color-mix(in srgb, var(--l-verde-6, #2f8f5b) 55%, transparent); }
+.campo span { position: absolute; left: 6px; bottom: 2px; right: 6px; font-size: 9.5px; font-weight: 600; letter-spacing: .02em; line-height: 1.25;
+  color: color-mix(in srgb, var(--l-ambar-6, #b06a1c) 60%, var(--muted)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.campo[data-tipo='comida'] span { left: auto; right: 6px; top: 2px; bottom: auto; color: color-mix(in srgb, var(--l-verde-6, #2f8f5b) 75%, var(--muted)); }
+.rejilla[data-minimo] .campo span { display: none; }
+
+/* ══ Riel (25 oct 2026, Daniel: «siento más limpia la de riel»; elegida entre cuatro direcciones, rama cal-direcciones) ═════════
+   Tarjeta neutra con el riel DRIP de 3 px a la izquierda y su letra abajo a la derecha; el ahora es lo único ámbar con luz;
+   el pasado se atenúa; el título no se parte. Los tonos del riel son los de drip.ts (Producir en bronce para no competir con el
+   ahora; Invertir más claro en oscuro). Cuelga de `.rejilla` para ganarle al tinte de la Semana sin `!important`. */
+.rejilla .bloque { --drip: var(--l-gris-10, #7c8594); margin-left: 1px; border-radius: 6px; background: var(--card); color: var(--foreground); transition: box-shadow 160ms, opacity 160ms;
+  box-shadow: inset 3px 0 0 var(--drip), inset 0 0 0 1px color-mix(in srgb, var(--foreground) 11%, transparent), 0 1px 2px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.06); }
+.rejilla .bloque[data-drip='producir'] { --drip: var(--l-ambar-6, #b06a1c); }
+.rejilla .bloque[data-drip='invertir'] { --drip: var(--l-morado-6, #8c27f1); }
+.rejilla .bloque[data-drip='reemplazar'] { --drip: var(--l-rojo-6, #b23a4a); }
+:global(.dark) .rejilla .bloque[data-drip='invertir'] { --drip: var(--l-morado-5, #a66bff); }
+:global(.dark) .rejilla .bloque { background: var(--l-gris-5, #1c1c22); box-shadow: inset 3px 0 0 var(--drip), inset 0 0 0 1px rgba(var(--l-luz-rgb, 255, 255, 255), 0.07), 0 1px 2px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.4); }
+.rejilla .bloque:hover { background: var(--card); color: var(--foreground); box-shadow: inset 3px 0 0 var(--drip), inset 0 0 0 1px color-mix(in srgb, var(--foreground) 22%, transparent), 0 6px 14px -8px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.3); }
+:global(.dark) .rejilla .bloque:hover { background: var(--l-gris-5, #1c1c22); }
+.rejilla .cuerpo { padding-left: 10px; }
+.rejilla .cuerpo strong { -webkit-hyphens: manual; hyphens: manual; overflow-wrap: normal; word-break: normal; font-weight: 600; letter-spacing: -.1px; }
+.rejilla .cuerpo time { font-weight: 700; letter-spacing: 0; color: var(--muted); }
+.rejilla .bloque[data-letra]:not([data-corto])::after { content: attr(data-letra); position: absolute; right: 6px; bottom: 4px; font-size: 9px; font-weight: 750;
+  line-height: 1; letter-spacing: .4px; color: var(--drip); pointer-events: none; }
+.rejilla .bloque:is([data-delegable], [data-protegido])::after { display: none; }
+.rejilla .bloque[data-rutina] { background: transparent; color: var(--muted);
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--drip) 55%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--foreground) 8%, transparent); }
+.rejilla .bloque[data-rutina] strong { font-weight: 550; }
+.rejilla .bloque[data-pasado] { opacity: .42; }
+.rejilla .bloque[data-pasado]:hover { opacity: .85; }
+.rejilla .bloque[data-ahora] { z-index: 27; background: color-mix(in srgb, var(--gold) 7%, var(--card));
+  box-shadow: inset 3px 0 0 var(--drip), inset 0 0 0 1px var(--l-borde-ambar, rgba(var(--gold-rgb), .75)), 0 0 0 3px var(--l-borde-ambar, rgba(var(--gold-rgb), .14)), 0 6px 16px -8px rgba(var(--l-halo-ambar-rgb, var(--gold-rgb)), 0.5); }
+/* «Ahora» es el anillo ámbar; el riel y la letra siguen siendo su DRIP (25 oct 2026, GYM en curso salía bronce). */
+/* La etiqueta DRIP abajo a la derecha (no pisa el título). */
+.rejilla .bloque:not([data-corto]) .dripTag { top: auto; bottom: 3px; }
+.rejilla .bloque:where([data-delegable], [data-protegido]):not([data-corto]) .cuerpo strong { padding-right: 0; }
+
+/* ——— Secciones (26 oct 2026): color de la barra lateral e icono chico; el tinte sigue siendo el de DRIP. ——— */
+.bloque[data-seccion=gym] { --sec: var(--l-rojo-6, #b23a4a); }
+.bloque[data-seccion=clase] { --sec: var(--l-morado-6, #8c27f1); }
+.bloque[data-seccion=unoauno] { --sec: var(--l-azul-5, #2f7fd1); }
+.bloque[data-seccion=trabajo] { --sec: var(--l-gris-10, #5b6472); }
+.bloque[data-seccion=personal] { --sec: var(--l-gris-11, #a3acb9); }
+.bloque[data-seccion] { box-shadow: inset 3px 0 0 var(--sec), 0 0 0 1px color-mix(in srgb, var(--foreground) 7%, transparent); }
+.bloque[data-seccion]:hover { box-shadow: inset 3px 0 0 var(--sec), 0 0 0 1px color-mix(in srgb, var(--sec) 40%, transparent), 0 6px 16px -6px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.28); }
+.bloque[data-seccion][data-ahora] { box-shadow: inset 3px 0 0 var(--sec), 0 0 0 1.5px var(--gold); }
+.icoSeccion { position: absolute; top: 4px; right: 5px; width: 11px; height: 11px; fill: none; stroke: var(--sec); stroke-width: 1.3; stroke-linejoin: round; stroke-linecap: round; opacity: .8; pointer-events: none; }
+.bloque[data-seccion=gym] .icoSeccion, .bloque[data-seccion=clase] .icoSeccion, .bloque[data-seccion=unoauno] .icoSeccion, .bloque[data-seccion=trabajo] .icoSeccion { fill: var(--sec); fill-opacity: .25; }
+.bloque[data-diminuto] .icoSeccion { display: none; }
+
+/* ——— Color por categoría (26 oct 2026, Daniel: «el calendario muestra el color real por categoría; solo en el hover me muestra su DRIP»).
+   La sección manda en barra, icono y tinte; el DRIP (letra y etiqueta) aparece como chip solo al pasar el ratón. Sin sección: gris. ——— */
+.rejilla .bloque:not([data-seccion]) { --sec: var(--l-gris-10, #7c8594); }
+.rejilla .bloque { --dripc: var(--l-gris-10, #7c8594); background: color-mix(in srgb, var(--sec) 12%, var(--card));
+  box-shadow: inset 3px 0 0 var(--sec), inset 0 0 0 1px color-mix(in srgb, var(--sec) 24%, transparent), 0 1px 2px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.06); }
+.rejilla .bloque[data-drip='producir'] { --dripc: var(--l-ambar-6, #b06a1c); }
+.rejilla .bloque[data-drip='invertir'] { --dripc: var(--l-morado-6, #8c27f1); }
+.rejilla .bloque[data-drip='reemplazar'] { --dripc: var(--l-rojo-6, #b23a4a); }
+:global(.dark) .rejilla .bloque[data-drip='invertir'] { --dripc: var(--l-morado-5, #a66bff); }
+:global(.dark) .rejilla .bloque { background: color-mix(in srgb, var(--sec) 18%, var(--l-gris-5, #1c1c22));
+  box-shadow: inset 3px 0 0 var(--sec), inset 0 0 0 1px color-mix(in srgb, var(--sec) 30%, transparent), 0 1px 2px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.4); }
+.rejilla .bloque:hover, :global(.dark) .rejilla .bloque:hover { background: color-mix(in srgb, var(--sec) 18%, var(--card));
+  box-shadow: inset 3px 0 0 var(--sec), inset 0 0 0 1px color-mix(in srgb, var(--sec) 50%, transparent), 0 6px 14px -8px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.3); }
+:global(.dark) .rejilla .bloque:hover { background: color-mix(in srgb, var(--sec) 26%, var(--l-gris-5, #1c1c22)); }
+.rejilla .bloque[data-rutina] { background: color-mix(in srgb, var(--sec) 6%, transparent); box-shadow: inset 3px 0 0 color-mix(in srgb, var(--sec) 60%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--sec) 14%, transparent); }
+.rejilla .bloque[data-ahora] { background: color-mix(in srgb, var(--gold) 7%, color-mix(in srgb, var(--sec) 12%, var(--card)));
+  box-shadow: inset 3px 0 0 var(--sec), inset 0 0 0 1px var(--l-borde-ambar, rgba(var(--gold-rgb), .75)), 0 0 0 3px var(--l-borde-ambar, rgba(var(--gold-rgb), .14)), 0 6px 16px -8px rgba(var(--l-halo-ambar-rgb, var(--gold-rgb)), 0.5); }
+.rejilla .bloque[data-seccion] .icoSeccion { opacity: .9; }
+/* Chip DRIP: invisible por defecto, aparece al pasar el ratón con el nombre del cuadrante en su color. */
+.rejilla .bloque[data-letra]:not([data-corto])::after { content: attr(data-drip-nombre); right: 5px; bottom: 3px; padding: 2px 6px 3px; border-radius: 999px; font-size: 9px; letter-spacing: .2px;
+  color: var(--dripc); background: color-mix(in srgb, var(--dripc) 14%, var(--card)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dripc) 70%, transparent);
+  opacity: 0; transition: opacity 140ms; }
+.rejilla .bloque[data-letra]:not([data-corto]):hover::after { opacity: 1; }
+.rejilla .dripTag { opacity: 0; transition: opacity 140ms; }
+.rejilla .bloque:hover .dripTag { opacity: 1; }
+
+/* Lenguaje unificado (27 oct 2026): el oro queda en la línea del ahora y el trazo bajo el número de hoy; el número va en
+   tinta fuerte. Lo ya vivido se atenúa sin bajar de AA. */
+:global(html[data-estilo='unificado']) .rejilla { --oro-texto: var(--l-tinta-1); }
+:global(html[data-estilo='unificado']) .cab[data-pasado] small, :global(html[data-estilo='unificado']) .cab[data-pasado] b { opacity: 0.72; }
+:global(html[data-estilo='unificado']) .bloque[data-pasado], :global(html[data-estilo='unificado']) .rejilla .bloque[data-pasado], :global(html[data-estilo='unificado']) .chip[data-pasado], :global(html[data-estilo='unificado']) .franja[data-pasado] > * { opacity: 0.72; }

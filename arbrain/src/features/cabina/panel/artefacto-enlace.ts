@@ -8,7 +8,7 @@
 import type { MostrarInput, Vista } from '../model'
 import { codificarVista, decodificarVista } from './compartido-puro'
 
-export const VISTAS = ['calendario', 'objetivos', 'centro', 'lienzo', 'reporte', 'negocio', 'trabajos', 'finanzas', 'contenido', 'rutinas', 'servidores', 'memoria', 'equipo', 'documento', 'diario', 'salud', 'pizarron', 'masterclass', 'explorador', 'cohorte'] as const satisfies readonly Vista[]
+export const VISTAS = ['calendario', 'objetivos', 'centro', 'lienzo', 'reporte', 'negocio', 'trabajos', 'finanzas', 'contenido', 'rutinas', 'servidores', 'memoria', 'equipo', 'documento', 'diario', 'salud', 'pizarron', 'masterclass', 'explorador', 'cohorte', 'casa', 'perro', 'historia'] as const satisfies readonly Vista[]
 
 const limpia = (i: MostrarInput) => {
   const { fijar: _f, soltar: _s, guardar: _g, pestana: _p, ...resto } = i as MostrarInput & Record<string, unknown>

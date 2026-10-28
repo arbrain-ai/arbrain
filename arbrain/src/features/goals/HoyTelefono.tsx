@@ -6,12 +6,14 @@ import type {usePlanning} from '@/features/planning/usePlanning'
 import type {PlanTask} from '@/features/planning/types'
 import {shiftDay} from '@/features/sistema/calendar-days'
 import {HabitFeedback,type HabitController} from '@/features/todotask/Habits'
-import {habitDisplayName} from '@/features/sistema/habit-presentation'
+import {habitDisplayName,realHabitName} from '@/features/sistema/habit-presentation'
+import {NombreHabito} from '@/features/sistema/NombreHabito'
 import {TodotaskTabs} from '@/features/todotask/TodotaskTabs'
 import {useReporteDiario} from './useReporteDiario'
 import {focusFor,dayAgenda,habitProgress,type Focus} from './hoy-model'
 import {type Goal,type Horizon,horizonLabels,periodTitle,labelDate} from './model'
 import s from './hoy-telefono.module.css'
+import {seMuestra} from '@/features/planning/habitos-hoy'
 
 // Hoy en el teléfono (25 sep 2026). Mismos datos y plumas que el Hoy de escritorio
 // (GoalsWorkspace calcula todo y pasa aquí); cambia la jerarquía: la semana arriba,
@@ -44,7 +46,8 @@ export function HoyTelefono({date,today,now,timeZone,goals,goalsLoading,planning
  const shown=ahead.slice(0,4)
  const reporte=useReporteDiario(isToday)
  const fmt=(iso:string)=>new Date(iso).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone})
- const list=habits.data?.habitos??[]
+ // Lo que el calendario nunca pinta (habitos-hoy.ts, FUERA_DEL_CALENDARIO, regla dura de Daniel) tampoco aparece en el teléfono.
+ const list=(habits.data?.habitos??[]).filter(h=>seMuestra(h.clave))
  const progress=habitProgress(list.map(h=>habits.record(today,h.clave)?.hecho))
  const task=next?.task??null
  const block=!task?ahead.find(r=>r.state==='now'||r.state==='next')?.event:null
@@ -111,7 +114,7 @@ export function HoyTelefono({date,today,now,timeZone,goals,goalsLoading,planning
     {!habits.data?<p className={s.muted}>{habits.loading?'Cargando…':'Hábitos no disponibles.'}</p>:<div className={s.habits}>{list.map(h=>{
      const state=habits.record(today,h.clave)?.hecho,label=habitDisplayName(h,today)
      return <button key={h.clave} className={s.habit} data-state={state===true?'done':state===false?'missed':'empty'} aria-pressed={state===true} aria-label={`${label}: ${state===true?'cumplido':state===false?'no cumplido':'sin registro'}`} onClick={()=>habits.toggle(today,h.clave)}>
-      <span className={s.tick}>{state===true?<Check size={14} strokeWidth={3}/>:state===false?'×':null}</span><span>{label}</span>
+      <span className={s.tick}>{state===true?<Check size={14} strokeWidth={3}/>:state===false?'×':null}</span><NombreHabito clave={h.clave} nombre={realHabitName(h,today)} tocable={false}/>
      </button>})}</div>}
     <div className={s.feedback}><HabitFeedback habits={habits}/></div>
    </section>}

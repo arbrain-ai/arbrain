@@ -8,6 +8,7 @@ import { useHabitRecords } from '@/features/sistema/useHabitRecords'
 import { ASESINOS, comparar, CUADRANTES, DRIP, formatoDinero, formatoHorasDrip, horasRecompradas, proponer, type BloqueDrip, type Cuadrante, type FotoSemana, type Propuesta } from './drip'
 import { entregablesDe } from './claridad'
 import type { DocDripVista } from './useDrip'
+import type { LecturaInterrupciones } from './interrupciones'
 import type { PlanningSnapshot } from './types'
 import s from './domingo.module.css'
 
@@ -26,7 +27,7 @@ const sinEmoji = (t: string) => t.replace(/^[\p{Extended_Pictographic}️‍\s]+
  * La referencia es la FOTO del plan (drip.ts › FotoSemana): lo que había en el calendario la primera vez que se leyó la semana. Sin
  * foto, se toma al abrir y se dice (la comparación de esa semana empieza ahí). Sin medición, «—»; nada de ceros inventados.
  */
-export function Domingo({ lunes, bloques, goals, snapshot, doc, ahora, tomarFoto, rutinasPlegadas, aplicar, deshacer, onCerrar, onLunes, pluma }: {
+export function Domingo({ lunes, bloques, goals, snapshot, doc, ahora, tomarFoto, rutinasPlegadas, aplicar, deshacer, onCerrar, onLunes, pluma, ponerTarifa }: {
   lunes: string
   /** Todo lo leído con hora, clasificado (los calendarios encendidos; sin mirar los cuadrantes ocultos). */
   bloques: BloqueDrip[]
@@ -44,6 +45,8 @@ export function Domingo({ lunes, bloques, goals, snapshot, doc, ahora, tomarFoto
   onLunes: (delta: number) => void
   /** Sin pluma (solo lectura), la propuesta se ve pero no se aplica. */
   pluma: boolean
+  /** Fijar la tasa de recompra desde la misma pantalla (almacén DRIP). Sin esto, solo se lee. */
+  ponerTarifa?: (monto: number | null, moneda?: string) => Promise<unknown>
 }) {
   const desde = parseISO(lunes).getTime(), hasta = addDays(parseISO(lunes), 7).getTime(), corte = Math.min(hasta, ahora)
   const domingo = format(addDays(parseISO(lunes), 6), 'yyyy-MM-dd')
@@ -86,6 +89,16 @@ export function Domingo({ lunes, bloques, goals, snapshot, doc, ahora, tomarFoto
   const dominante = c.dominante ? ASESINOS.find(a => a.id === c.dominante!.id) ?? null : null
   /** La foto se tomó después del lunes: el plan cuenta desde ahí. */
   const tarde = c.desdePlan > desde + 12 * 3_600_000, sinTramo = c.desdePlan >= corte
+
+  // Los avisos que pidieron tu decisión en la semana (interrupciones.ts): la fuente honesta, o «sin medir».
+  const [interrup, setInterrup] = useState<LecturaInterrupciones | null>(null)
+  useEffect(() => {
+    let vivo = true; setInterrup(null)
+    const q = new URLSearchParams({ desde: new Date(desde).toISOString(), hasta: new Date(Math.max(corte, desde + 60_000)).toISOString() })
+    fetch(`/api/planning/interrupciones?${q}`, { cache: 'no-store', signal: AbortSignal.timeout(20_000) }).then(r => r.ok ? r.json() : Promise.reject())
+      .then((b: LecturaInterrupciones) => { if (vivo) setInterrup(b) }).catch(() => { if (vivo) setInterrup({ medido: false, motivo: 'No pude leer los avisos.' }) })
+    return () => { vivo = false }
+  }, [desde, corte])
 
   // ATENUADOR: lo que se pliega y lo que se protege.
   const protegidos = enSemana.filter(b => b.protegido).length
@@ -143,9 +156,15 @@ export function Domingo({ lunes, bloques, goals, snapshot, doc, ahora, tomarFoto
         {/* 2 · COMPARADOR */}
         <li className={s.etapa} data-etapa="comparador" style={{ '--i': 1 } as CSSProperties}>
           <h3><b>2</b>Comparador<small>real contra la referencia</small></h3>
-          <div className={s.grande}>
+          {/* Los tres números del domingo (25 oct 2026, firmado): Producir, interrupciones en R/D y la tasa de recompra. Sin medición, «sin medir». */}
+          <div className={s.grande} data-tres>
             <p className={s.cifra} style={{ '--c': DRIP.producir.color } as CSSProperties}><span>{formatoHorasDrip(leido ? c.semana.producir : null)}</span><small>de Producir en tu calendario{c.plan && !tarde ? ` de ${formatoHorasDrip(c.plan.producir)} planeadas` : ''}</small></p>
-            <p className={s.cifra}><span>{formatoHorasDrip(recompradas)}</span><small>recompradas{dinero ? ` · ${dinero}` : recompradas !== null && !doc?.tarifa ? ' · fija tu tarifa' : ''}</small></p>
+            <p className={s.cifra} title={interrup?.medido ? 'Avisos de tus rutinas que pidieron tu decisión, clasificados por DRIP. Las preguntas dentro del chat aún no se miden.' : undefined}>
+              {interrup === null ? <><span>…</span><small>interrupciones</small></>
+                : interrup.medido ? <><span>{interrup.rd}</span><small>{interrup.rd === 1 ? 'interrupción' : 'interrupciones'} en Reemplazar o Delegar · de {interrup.total} {interrup.total === 1 ? 'aviso que pidió' : 'avisos que pidieron'} tu decisión{interrup.ejemplos[0] ? ` (p. ej. «${interrup.ejemplos[0]}»)` : ''}. Las del chat: sin medir</small></>
+                : <><span className={s.sinMedir}>sin medir</span><small>interrupciones en Reemplazar o Delegar · {interrup.motivo}</small></>}
+            </p>
+            <TasaRecompra doc={doc} poner={ponerTarifa} recompradas={recompradas} dinero={dinero} />
           </div>
           {/* El desvío, no dos barras iguales: solo lo que se movió entre plan y real (crítico A/B, ronda 1). */}
           {tarde && <p className={s.desde}>{sinTramo ? 'Plan contra real empieza con la próxima foto (el lunes).' : `Plan contra real desde el ${dia(c.desdePlan)}, ${hm(c.desdePlan)}`}</p>}
@@ -185,5 +204,31 @@ export function Domingo({ lunes, bloques, goals, snapshot, doc, ahora, tomarFoto
       </ol>
       <p className={s.lazo} aria-hidden><span>la semana que viene, Levy vuelve a leer</span></p>
     </div>
+  </div>
+}
+
+/**
+ * La tasa de recompra en la revisión (Buyback Rate, cap. 2, p. 63): lo que te paga tu negocio al año ÷ 8,000. Campo editable, nace
+ * vacío: Levy no la inventa (si la calcula, el ingreso sale de una fuente viva y se guarda con tu sí). Debajo, las horas recompradas.
+ */
+function TasaRecompra({ doc, poner, recompradas, dinero }: { doc: DocDripVista | null; poner?: (monto: number | null, moneda?: string) => Promise<unknown>; recompradas: number | null; dinero: string | null }) {
+  const [valor, setValor] = useState(doc?.tarifa ? String(doc.tarifa.monto) : '')
+  const [estado, setEstado] = useState<'quieto' | 'guardando' | 'error'>('quieto')
+  useEffect(() => { setValor(doc?.tarifa ? String(doc.tarifa.monto) : '') }, [doc?.tarifa])
+  const moneda = doc?.tarifa?.moneda ?? 'USD'
+  const confirmar = async () => {
+    if (!poner) return
+    const n = Number(valor)
+    if (valor.trim() === (doc?.tarifa ? String(doc.tarifa.monto) : '')) return
+    if (valor.trim() && !(n > 0)) return
+    setEstado('guardando')
+    try { await poner(valor.trim() ? n : null, moneda); setEstado('quieto') } catch { setEstado('error') }
+  }
+  return <div className={s.cifra} data-tasa>
+    {poner ? <label className={s.tasa}><span className={s.tasaSigno} aria-hidden>$</span>
+      <input inputMode="decimal" placeholder="—" value={valor} onChange={ev => setValor(ev.target.value.replace(/[^\d.]/g, ''))} onBlur={() => void confirmar()} onKeyDown={ev => { if (ev.key === 'Enter') (ev.target as HTMLInputElement).blur() }}
+        aria-label="Tasa de recompra por hora" /></label>
+      : <span>{doc?.tarifa ? formatoDinero(doc.tarifa.monto, moneda) : '—'}</span>}
+    <small>{moneda}/h tasa de recompra (al año ÷ 8,000){doc?.tarifa && !doc.tarifaPropia ? ' · la de tu instalación' : ''}{!doc?.tarifa ? ' · sin fijar' : ''} · {formatoHorasDrip(recompradas)} recompradas{dinero ? ` = ${dinero}` : ''}{estado === 'guardando' ? ' · guardando…' : estado === 'error' ? ' · no se guardó' : ''}</small>
   </div>
 }

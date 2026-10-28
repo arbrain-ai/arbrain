@@ -7,7 +7,8 @@ import {mutationFor} from '@/features/planning/model'
 import {civilMidnight,isCivilDate,shiftDay} from '@/features/sistema/calendar-days'
 import {useCivilClock,useHabitRecords} from '@/features/sistema/useHabitRecords'
 import {HabitKeys,HabitFeedback} from '@/features/todotask/Habits'
-import {habitDisplayName} from '@/features/sistema/habit-presentation'
+import {habitDisplayName,realHabitName} from '@/features/sistema/habit-presentation'
+import {NombreHabito} from '@/features/sistema/NombreHabito'
 import {HABIT_SHORTCUTS} from '@/features/sistema/habit-shortcuts'
 import {TodotaskTabs} from '@/features/todotask/TodotaskTabs'
 import {nextAction} from '@/features/todotask/model'
@@ -15,6 +16,7 @@ import {useAskLevy} from '@/shared/hooks/useAskLevy'
 import {useGoals} from './useGoals'
 import {ReporteDiario} from './ReporteDiario'
 import {HoyTelefono} from './HoyTelefono'
+import {seMuestra} from '@/features/planning/habitos-hoy'
 import {focusFor} from './hoy-model'
 import {Agenda} from '@/features/cabina/vistas/Dia'
 import {porDia} from '@/features/cabina/vistas/agenda'
@@ -96,7 +98,7 @@ export function GoalsWorkspace({donde='seccion',inicio,onCambio}:{donde?:'seccio
      <section className={styles.schedule}><div className={styles.heading}><h2>{scope==='day'?'Agenda':'Pendientes · Todoist'}</h2><Link href={scope==='day'?`/calendar?date=${date}&mode=day`:'/todotask?view=list'}>{scope==='day'?'Calendario':'Lista'} <ArrowUpRight size={12}/></Link></div>
       {scope==='day'?<>{eventosDia.length?<Agenda eventos={eventosDia} dia={date} hoy={today} ahora={now.getTime()}/>:<p className={styles.empty}>{planning.loading?'Cargando…':'Nada agendado.'}</p>}</>:<>{tasks.slice(tp*6,tp*6+6).map(t=><Link key={t.id} className={styles.task} href="/todotask?view=list"><time>{labelDate(taskDay(t,timeZone)!,{day:'numeric',month:'short'})}</time><span title={t.title}>{t.title}</span></Link>)}{!tasks.length&&<p className={styles.empty}>{planning.loading?'Cargando…':snapshot?.health.find(h=>h.id==='todoist')?.state!=='fresh'?'Todoist no se pudo actualizar.':'Sin pendientes con fecha en este período.'}</p>}<Pager page={tp} count={Math.ceil(tasks.length/6)} onChange={setTaskPage}/></>}
      </section>
-     {isToday&&<section className={styles.habits} aria-label="Hábitos de hoy"><div className={styles.heading}><h2>Hábitos</h2><Link href="/todotask?view=habits"><ArrowUpRight size={12}/><span className={styles.srOnly}>Ver historial de hábitos</span></Link></div>{!habits.data?<p className={styles.empty}>{habits.loading?'Cargando…':'No disponibles.'}</p>:habits.data.habitos.map(h=>{const state=habits.record(today,h.clave)?.hecho,label=habitDisplayName(h,today);return <button key={h.clave} className={styles.habit} aria-label={`${label}: ${state===true?'Cumplido':state===false?'No cumplido':'Sin registro'}`} aria-pressed={state===true} data-state={state===true?'done':state===false?'missed':'empty'} onClick={()=>habits.toggle(today,h.clave)} title={label}><span className={styles.check}>{state===true?<Check size={10}/>:state===false?'×':<Minus size={8}/>}</span><span>{label}</span><kbd>{HABIT_SHORTCUTS[h.clave]}</kbd></button>})}<HabitFeedback habits={habits}/></section>}
+     {isToday&&<section className={styles.habits} aria-label="Hábitos de hoy"><div className={styles.heading}><h2>Hábitos</h2><Link href="/todotask?view=habits"><ArrowUpRight size={12}/><span className={styles.srOnly}>Ver historial de hábitos</span></Link></div>{!habits.data?<p className={styles.empty}>{habits.loading?'Cargando…':'No disponibles.'}</p>:habits.data.habitos.filter(h=>seMuestra(h.clave)).map(h=>{const state=habits.record(today,h.clave)?.hecho,label=habitDisplayName(h,today);return <button key={h.clave} className={styles.habit} aria-label={`${label}: ${state===true?'Cumplido':state===false?'No cumplido':'Sin registro'}`} aria-pressed={state===true} data-state={state===true?'done':state===false?'missed':'empty'} onClick={()=>habits.toggle(today,h.clave)} title={label}><span className={styles.check}>{state===true?<Check size={10}/>:state===false?'×':<Minus size={8}/>}</span><NombreHabito clave={h.clave} nombre={realHabitName(h,today)} tocable={false}/><kbd>{HABIT_SHORTCUTS[h.clave]}</kbd></button>})}<HabitFeedback habits={habits}/></section>}
     </aside>
    </div>
   </div>

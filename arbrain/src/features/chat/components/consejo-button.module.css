@@ -10,20 +10,20 @@
 .button:hover { box-shadow: var(--depth-rest), 0 0 16px rgba(var(--primary-rgb),.12); }
 .button:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
 .button[aria-current] { border-color: rgba(var(--primary-rgb),.38); box-shadow: var(--depth-rest-soft), inset 0 1px 0 var(--rim-light), 0 0 18px rgba(var(--primary-rgb),.10); }
-.icon { display: flex; color: var(--brand-ink); }
+.icon { display: flex; color: var(--l-tinta-morado, var(--brand-ink)); }
 .name { font-size: 13px; font-weight: 600; }
 .providers { margin-left: auto; font-size: 10px; color: var(--muted); white-space: nowrap; }
 /* The mask confines the travelling light to the bezel, never across the label. */
 .sweep {
   position: absolute; inset: -1px; padding: 2px; border-radius: inherit; overflow: hidden; pointer-events: none;
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask: linear-gradient(var(--l-gris-16, #fff) 0 0) content-box, linear-gradient(var(--l-gris-16, #fff) 0 0);
+  mask: linear-gradient(var(--l-gris-16, #fff) 0 0) content-box, linear-gradient(var(--l-gris-16, #fff) 0 0);
   -webkit-mask-composite: xor; mask-composite: exclude;
   animation: settle 1.8s ease-out forwards;
 }
 .sweep::before {
   content: ''; position: absolute; inset: -300%;
-  background: conic-gradient(from 0deg, transparent 0deg, var(--brand) 70deg, #c99aff 110deg, transparent 150deg, transparent 180deg, var(--gold) 250deg, #ffcf7d 290deg, transparent 330deg);
+  background: conic-gradient(from 0deg, transparent 0deg, var(--brand) 70deg, var(--l-morado-3, #c99aff) 110deg, transparent 150deg, transparent 180deg, var(--gold) 250deg, var(--l-ambar-2, #ffcf7d) 290deg, transparent 330deg);
   animation: orbit 1.8s cubic-bezier(.2,.65,.25,1) both;
 }
 @keyframes orbit { from { transform: rotate(-100deg); } to { transform: rotate(620deg); } }

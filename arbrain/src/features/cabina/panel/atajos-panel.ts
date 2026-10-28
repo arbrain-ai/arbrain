@@ -8,7 +8,7 @@ import { pestanaActiva, PRINCIPAL, tiraDe, todasLasClaves } from './pestanas-fue
 import { mostrarPanel } from './ventanas'
 
 /** La pestaña recuerda día, semana o mes; 4 días cuenta como semana (igual que `ALCANCE_DE` en Secciones). */
-const ALCANCE: Record<CalendarMode, Alcance> = { day: 'dia', fourDays: 'semana', week: 'semana', agenda: 'semana', month: 'mes', year: 'mes', crons: 'semana' }
+const ALCANCE: Record<CalendarMode, Alcance> = { day: 'dia', fourDays: 'semana', week: 'semana', agenda: 'semana', month: 'mes', year: 'mes', crons: 'semana', habits: 'dia' }
 
 /** Ctrl+D/X/W/M: la pestaña Calendario (la abre si no está, y el panel si está cerrado), a la vista y en hoy con esa escala. */
 export function calendarioEn(modo: CalendarMode) {

@@ -1,26 +1,46 @@
+import type { PasoCronologia } from './rastro'
+import type { MetaTurno } from './meta'
 import type { ChatMessage, ToolCall, ToolOutput, UsageMeta, QuestionPrompt, AgentTask, FileAttachmentMeta } from '../hooks/useChat'
 
 export interface DurableSnapshot {
   text?: string; thinking?: string; status?: string; error?: string | null
-  tools?: Record<string, { name?: string; input?: string; result?: string; error?: boolean; durationMs?: number; status?: string }>
+  /** `orden`: índice en que arrancó la herramienta (el JSONB reordena las llaves); `inicio`: ms de su tool_start. */
+  tools?: Record<string, { name?: string; input?: string; result?: string; error?: boolean; durationMs?: number; status?: string; orden?: number; inicio?: number }>
   items?: Record<string, Record<string, unknown>>
+  /** Pensamiento (offsets sobre `thinking`) y herramientas en el orden en que corrieron (desde el 25 oct 2026). */
+  cronologia?: PasoCronologia[]
   usage?: UsageMeta | null
   questions?: Record<string, Omit<QuestionPrompt, 'status'>>
   tasks?: Record<string, AgentTask>
   toolSummaries?: string[]; suggestions?: string[]; fileAttachments?: FileAttachmentMeta[]
   persistenceWarnings?: string[]; artifactErrors?: string[]
   branch?: { parentThreadId: string; beforeTurnId: string; threadId: string } | null
+  /** La meta de Claude en el turno (27 oct 2026): revisiones y vueltas plegadas (lib/meta). */
+  goal?: MetaTurno | null
+}
+
+/**
+ * Las herramientas en el orden en que corrieron. Con `orden` (turnos desde el 25 oct 2026) se ordena por él; sin él
+ * se conservan las llaves como vienen (turnos viejos: no se reconstruyen). Orden estable: los que no lo traen quedan
+ * después, en su orden de llaves.
+ */
+export function herramientasEnOrden(tools: DurableSnapshot['tools']): [string, NonNullable<DurableSnapshot['tools']>[string]][] {
+  const lista = Object.entries(tools ?? {})
+  if (!lista.some(([, t]) => typeof t?.orden === 'number')) return lista
+  return lista.map((e, i) => ({ e, i, o: typeof e[1]?.orden === 'number' ? e[1].orden : Infinity }))
+    .sort((a, b) => a.o - b.o || a.i - b.i).map(x => x.e)
 }
 
 export function snapshotMessage(state: DurableSnapshot): Partial<ChatMessage> {
   const toolCalls: ToolCall[] = [], toolInputs: Record<string, string> = {}, toolOutputs: Record<string, ToolOutput> = {}
-  for (const [toolId, tool] of Object.entries(state.tools ?? {})) {
+  for (const [toolId, tool] of herramientasEnOrden(state.tools)) {
     toolCalls.push({ toolId, toolName: tool.name ?? 'Herramienta', status: tool.status === 'completed' ? 'done' : 'running' })
     if (tool.input) toolInputs[toolId] = tool.input
     if (tool.result !== undefined) toolOutputs[toolId] = { content: tool.result, isError: tool.error, durationMs: tool.durationMs }
   }
   return {
     content: state.text ?? '', thinking: state.thinking || undefined,
+    ...(state.cronologia?.length ? { cronologia: state.cronologia } : {}),
     toolCalls, toolInputs, toolOutputs, usage: state.usage ?? undefined,
     tasks: Object.values(state.tasks ?? {}), toolSummaries: state.toolSummaries ?? [],
     questionPrompts: Object.values(state.questions ?? {}).map(question => ({ ...question, status: 'pending' })),
@@ -31,6 +51,7 @@ export function snapshotMessage(state: DurableSnapshot): Partial<ChatMessage> {
     terminalStatus: state.status, diagnostic: state.error ?? undefined,
     persistenceWarnings: state.persistenceWarnings,
     branch: state.branch ?? undefined,
+    ...(state.goal ? { meta: state.goal } : {}),
   }
 }
 

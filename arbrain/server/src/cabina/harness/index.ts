@@ -36,6 +36,8 @@ export interface Turno {
   entradas: string[]
   /** Levy pidió detener el paso en este turno. */
   detenido?: boolean
+  /** La última herramienta y lo que tocó: el tablero lo dice en humano («Corriendo las pruebas»). */
+  paso?: { herramienta: string; detalle?: string }
 }
 /** `acuses`: id de cada mensaje en vivo → si el pastor lo entregó al CLI. */
 export interface Bitacora { sesion?: string; turnos: Turno[]; acuses: Record<string, boolean> }
@@ -84,7 +86,10 @@ export function aplicarLinea(b: Bitacora, linea: string, ad: Adaptador, estado: 
     if (t.mensajes.length > 40) t.mensajes.splice(0, t.mensajes.length - 40)
   }
   estado.delta = !!(e.texto && e.delta)
-  if (e.herramienta) { t.herramientas.push(e.herramienta); if (t.herramientas.length > 40) t.herramientas.shift() }
+  if (e.herramienta) {
+    t.herramientas.push(e.herramienta); if (t.herramientas.length > 40) t.herramientas.shift()
+    t.paso = { herramienta: e.herramienta, ...(e.detalle ? { detalle: e.detalle } : {}) }
+  }
   if (e.final) t.final = e.final
   if (e.error) t.error = e.error
   if (e.tokens) t.tokens += e.tokens

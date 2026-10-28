@@ -29,6 +29,9 @@ import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import { readEnvFile } from '../env.js'
 import type { Harness } from '../motor/lector.js'
+import { extraerDoD } from './juez.js'
+import { estadoTablero, pasoEnHumano, type Hechos } from './tablero.js'
+import { notaAutoria } from './autoria.js'
 import { adaptador, aplicarLinea, bitacoraVacia, NOMBRES, respuestaDe, tokensDe, type Adaptador, type Bitacora } from './harness/index.js'
 import { calcularTopes, cwdPermitido, herramientaLegible, leerRegistro, mutarRegistroAsync, olvidarFoto, permisosDefault, preludioSkills, tachar, type Conversacion, type Mensaje, type Seguimiento, type Subagente, type SubagenteOrigen, type Terminal } from './cuerpo.js'
 
@@ -240,7 +243,7 @@ export async function bitacora(sub: Pick<Subagente, 'id' | 'harness'>): Promise<
   } finally { await f.close() }
 }
 
-export interface Estado { b: Bitacora; corriendo: boolean; detenido: boolean; turno: Bitacora['turnos'][number] | undefined; terminado: boolean; finMs: number | null; error: string | null; sesion: string | undefined; tokens: number | null }
+export interface Estado { b: Bitacora; mtime: number; corriendo: boolean; detenido: boolean; turno: Bitacora['turnos'][number] | undefined; terminado: boolean; finMs: number | null; error: string | null; sesion: string | undefined; tokens: number | null }
 /** Estado del subagente: corriendo, o terminado (con su fin: marca de salida o, si lo mataron, la última escritura). */
 export async function estadoDe(sub: Subagente): Promise<Estado> {
   const { b, mtime } = await bitacora(sub)
@@ -254,7 +257,7 @@ export async function estadoDe(sub: Subagente): Promise<Estado> {
     : muerto ? 'el proceso terminó sin cerrar su turno (lo mataron o se cayó)'
     : turno!.error ? turno!.error
     : codigo ? `el CLI salió con código ${codigo}${respuestaDe(turno) ? '' : ' sin respuesta'}` : null
-  return { b, corriendo, turno, terminado, detenido, finMs: terminado ? (turno!.salida?.en || mtime || null) : null, error, sesion: sub.sesion ?? b.sesion, tokens: tokensDe(b) }
+  return { b, mtime, corriendo, turno, terminado, detenido, finMs: terminado ? (turno!.salida?.en || mtime || null) : null, error, sesion: sub.sesion ?? b.sesion, tokens: tokensDe(b) }
 }
 
 /** La última pregunta con la que cerró su respuesta, si la hay (la respuesta termina en «?»). */
@@ -300,7 +303,8 @@ export async function delegarSinPantalla(p: PedidoDelegar): Promise<Subagente> {
   const sesion = ad.sesionPropia ? randomUUID() : undefined
   const permisos = permisosDefault()
   const skills = preludioSkills(p.cwd)
-  const encargo = p.encargo + (skills?.texto ?? '') + NOTA_SIN_PANTALLA
+  const encargo = p.encargo + (skills?.texto ?? '') + notaAutoria(p.nombre) + NOTA_SIN_PANTALLA
+  const dod = extraerDoD(p.encargo)
   let sub: Subagente | null = null
   // id, registro y proceso bajo el mismo candado: dos delegar a la vez no comparten id ni bitácora
   await mutarRegistroAsync(async l => {
@@ -311,6 +315,8 @@ export async function delegarSinPantalla(p: PedidoDelegar): Promise<Subagente> {
       id, nombre: p.nombre.slice(0, 80), harness: ad.nombre, encargo: p.encargo.slice(0, 2000), cwd: p.cwd, creado: new Date().toISOString(), modo: 'sin-pantalla', pid, turno: 1, permisos,
       entrega: 'entregado', entregaNota: 'el encargo viajó como argumento del CLI (sin pantalla)', bitacora: rutaBitacora(id).replace(homedir(), '~'),
       ...(skills ? { aviso: skills.aviso } : {}), ...(sesion ? { sesion } : {}), ...(modelo ? { modelo } : {}), ...(p.avisarA ? { avisarA: p.avisarA } : {}),
+      // La DoD completa, para el juez (el encargo se recorta a 2,000 caracteres y la DoD suele ir al final).
+      ...(dod ? { dod } : {}),
     }
     return [...l, sub]
   })
@@ -460,15 +466,33 @@ export async function terminalesSinPantalla(registro: Subagente[], lineas: numbe
       mensajes, titulo: null, ...(e?.error ? { error: tachar(e.error) } : {}),
     }
     const herr = ultimo?.herramientas.at(-1)
+    const medido = e ? estadoTablero(hechosDe(sub, e, e.turno ? e.corriendo : await estaVivo(sub.pid)), Date.now()) : undefined
+    const paso = ultimo?.paso ? tachar(pasoEnHumano(ultimo.paso.herramienta, ultimo.paso.detalle)) : undefined
+    const tablero = medido ? { ...medido, ...(paso ? { paso } : {}), ...(ultimo?.inicio ? { desde: ultimo.inicio } : {}) } : undefined
     return {
       id: sub.id, pid: sub.pid, titulo: tachar(sub.nombre), cwd: sub.cwd.replace(homedir(), '~'), proc: sub.harness,
       estado: e?.corriendo ? 'trabajando' : 'esperando', origen: 'sin-pantalla', soloLectura: true,
       actividad: e?.corriendo ? `turno ${ultimo?.n ?? 1}${herr ? ` · ${herramientaLegible(herr)}` : ''}` : null,
       ultimaAccion: herr ? herramientaLegible(herr) : null,
       ultimas: tachar(respuesta).split('\n').map(x => x.trimEnd()).filter(Boolean).slice(-lineas),
-      conversacion, subagente: sub,
+      conversacion, subagente: sub, ...(tablero ? { tablero } : {}),
     }
   }))
+}
+
+/** Los hechos medidos de un subagente sin pantalla para el tablero (tablero.ts decide la columna). */
+export function hechosDe(sub: Subagente, e: Estado, procesoVivo: boolean): Hechos {
+  const respuesta = respuestaDe(e.turno)
+  // Detenido y su proceso salió con error (28 oct 2026, «Pizarrón» en «Te espera» 21 días: Levy detuvo un `sleep`, el
+  // CLI cerró con `error_during_execution`, código 1). Un proceso que terminó con error no espera a nadie: es «falló».
+  const codigo = e.turno?.salida?.codigo
+  const errorDetenido = e.detenido && e.terminado && codigo ? `Lo detuvieron y su proceso salió con código ${codigo}` : null
+  return {
+    hayTurno: !!e.turno, cerroTurno: !!e.turno?.salida, procesoVivo, ultimaEscritura: e.mtime || null, creado: Date.parse(sub.creado) || 0,
+    error: e.error ? tachar(e.error) : errorDetenido, detenido: e.detenido,
+    pregunta: sub.pregunta?.texto ?? (e.terminado && !e.error ? preguntaDeRespuesta(respuesta) : null),
+    entregaFallo: sub.entrega === 'falló',
+  }
 }
 
 /** Actividad viva para la app (7 oct 2026): lo que haría su terminal, leído de la bitácora desde `desde`. */

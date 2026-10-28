@@ -222,6 +222,15 @@ export function faltaAcelerar(velocidad: number, tempo: number): number {
 const WAV_MUDO = 'data:audio/wav;base64,UklGRiYAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQIAAAAAAA=='
 // Holgura del vigía del final de un tramo: si `onended` no llegó medio segundo después de la duración, se da por terminado.
 const HOLGURA_FIN_S = 0.5
+// Reposo del contexto (24 oct 2026, Daniel: «el TTS + lector amarillo sigue sin funcionar tan smooth, ahora mismo no lo
+// escucho»). Un AudioContext que queda «corriendo» sin fuentes no suena, pero el proceso de audio de WebKit le sigue
+// pidiendo muestras cada 2.7 ms. Con la ventana oculta, WebKit congela la página y ese hilo se queda sin respuesta: en la
+// app del Studio, de 15:44 a 16:56, 250–950 «skipping cycle due to overload» por minuto en com.apple.WebKit.GPU, justo
+// entre ocultar y volver a mostrar la ventana (también 14:13, 14:15 y 14:18–14:21). Reproducido en un WKWebView nativo
+// con 6 min oculto: contexto corriendo 4,154 ciclos saltados, contexto suspendido 1. Con audio sonando, 0. Por eso el
+// contexto se suspende al quedar sin fuente y se reanuda al sonar (resume() también reabre la salida en el dispositivo
+// por defecto de ese momento).
+const REPOSO_MS = 1500
 
 type ConAudioSession = Navigator & { audioSession?: { type: string } }
 
@@ -232,6 +241,7 @@ export class VozServidor {
   // Segundo del contexto en que sonaría el instante 0 del buffer: posicion() sale de ahí.
   private origen = 0
   private vigia: ReturnType<typeof setTimeout> | null = null
+  private reposo: ReturnType<typeof setTimeout> | null = null
   // Respaldo cuando el servidor no aceleró (X-Tempo menor que lo pedido): `<audio>` con preservesPitch, liberado en el gesto.
   private elemento: HTMLAudioElement | null = null
   private enElemento = false
@@ -272,6 +282,7 @@ export class VozServidor {
     }
     const ctx = this.contexto()
     if (!ctx) return
+    this.soltarReposo()
     if (ctx.state !== 'running') ctx.resume().catch(() => {})
     try {
       // Un sample mudo dentro del gesto: el desbloqueo que exige iOS viejo.
@@ -284,7 +295,7 @@ export class VozServidor {
 
   /** Vuelta del background: iOS deja el contexto «interrupted» y no lo reanuda solo. */
   reanudar() {
-    if (this.ctx && this.ctx.state !== 'running') this.ctx.resume().catch(() => {})
+    if (this.ctx && this.fuente && this.ctx.state !== 'running') this.ctx.resume().catch(() => {})
   }
 
   /** Audio del texto a esa velocidad. Comparte la petición en vuelo y guarda los últimos en memoria. */
@@ -338,6 +349,7 @@ export class VozServidor {
     const falta = faltaAcelerar(velocidad, audio.tempo)
     if (falta > 1 && audio.mp3 && this.elemento) return this.sonarEnElemento(audio, desde, alTerminar, falta)
     if (falta > 1) console.warn(`[lector] el servidor aceleró ${audio.tempo}x de ${velocidad}x y no hay <audio> de respaldo: suena a ${audio.tempo}x`)
+    this.soltarReposo()
     if (ctx.state !== 'running') ctx.resume().catch(() => {})
     const f = ctx.createBufferSource()
     f.buffer = audio.buffer
@@ -401,6 +413,23 @@ export class VozServidor {
     this.vigia = null
   }
 
+  private soltarReposo() {
+    if (this.reposo) clearTimeout(this.reposo)
+    this.reposo = null
+  }
+
+  /** Sin fuente durante REPOSO_MS (pausa, fin de la lectura, cambio de mensaje): el contexto se suspende. */
+  private programarReposo() {
+    this.soltarReposo()
+    const ctx = this.ctx
+    if (!ctx || typeof ctx.suspend !== 'function') return
+    this.reposo = setTimeout(() => {
+      this.reposo = null
+      if (this.fuente || this.enElemento || ctx.state !== 'running') return
+      ctx.suspend().catch(() => {})
+    }, REPOSO_MS)
+  }
+
   /** Segundo del buffer que se oye ahora (descuenta la latencia de salida para que el resaltado no se adelante). */
   posicion(): number {
     if (this.enElemento && this.elemento) return this.elemento.currentTime
@@ -429,6 +458,7 @@ export class VozServidor {
     }
     if (this.urlElemento) URL.revokeObjectURL(this.urlElemento)
     this.urlElemento = null
+    this.programarReposo()
     const f = this.fuente
     this.fuente = null
     if (!f) return

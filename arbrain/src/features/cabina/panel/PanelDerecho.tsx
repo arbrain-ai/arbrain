@@ -64,6 +64,7 @@ import { DetalleInterna } from './InternaDetalle'
 import { useConversacionActiva } from '../conversaciones'
 import { IconoTipo, NOMBRE_TIPO, estadoTerminal, tipoTerminal } from './Tipo'
 import s from './panel.module.css'
+import { HistoriaTaller } from '@/features/historia/Historia'
 import w from './taller.module.css'
 
 const CLAVE = 'arbrain.panelDerecho'
@@ -687,11 +688,13 @@ export function TallerPanel() {
     {!enDetalle && <PulsoTaller data={data} onIr={elegir} />}
     <SegmentosTaller vista={vista} elegir={elegir} data={data} segmentos={SEGMENTOS_TALLER} />
     {vista === 'memoria' ? <MemoriaTaller />
+      // Historia (28 oct 2026): la del dueño arriba y el historial de git como VS Code debajo (historia/Historia.tsx, HistoriaTaller).
+      : vista === 'historia' ? <div className={w.vista}><HistoriaTaller /></div>
       // Rutinas, la vista viva (10 oct 2026): una sola vista con «cómo van» y «qué rinde» juntas; lo programado del Studio, al fondo.
       : vista === 'rutinas' ? <div className={w.rutinas}><VistaRutinasViva fondo={data && <div className={w.vista}><ProgramadosStudio lista={data.servicios} /><p className={w.nota}><button className={w.enlace} onClick={() => elegir('registro')}>Registro de turnos y errores</button></p></div>} /></div>
       : vista === 'maquina' ? <MaquinaTaller data={data} onRegistro={() => elegir('registro')} />
       // El registro ya no es pestaña (5 oct 2026): sus errores se ven donde ocurren; el rastro fino queda detrás de un enlace.
-      : vista === 'registro' ? <><div className={w.registroVolver}><button className={w.enlace} onClick={() => elegir('maquina')}>← Volver a Máquina</button></div><Registro /></>
+      : vista === 'registro' ? <><div className={w.registroVolver}><button className={w.enlace} onClick={() => elegir('maquina')}>← Volver a Computadora</button></div><Registro /></>
       : !data ? <Cargando error={lectura.error} />
       : detalle != null ? <DetalleTerminal id={detalle} onVolver={() => setDetalle(null)} /> : interna != null ? <DetalleInterna id={interna} onVolver={() => setInterna(null)} /> : <AgentesTaller data={data} onAbrir={setDetalle} onAbrirInterna={setInterna} />}
     {(vista === 'terminales' || vista === 'maquina') && detalle == null && <Pie leidoEn={lectura.leidoEn} error={lectura.error} data={data} />}

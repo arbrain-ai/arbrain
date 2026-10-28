@@ -3,7 +3,7 @@
    corto; solo late lo vivo (el ahora); oro para el ahora y P1, lo demás neutro; titulares en la serif de Levy.
    El ancho lo manda el CONTENEDOR del calendario (panel de 520 px, sección o teléfono), no la ventana. */
 @keyframes subir { from { opacity: 0; transform: translateY(6px); } }
-@keyframes respira { 0%, 100% { box-shadow: 0 0 0 0 rgba(var(--gold-rgb), .5); } 60% { box-shadow: 0 0 0 7px rgba(var(--gold-rgb), 0); } }
+@keyframes respira { 0%, 100% { box-shadow: 0 0 0 0 rgba(var(--l-halo-ambar-rgb, var(--gold-rgb)), 0.5); } 60% { box-shadow: 0 0 0 7px var(--l-borde-ambar, rgba(var(--gold-rgb), 0)); } }
 @keyframes llenar { from { transform: scaleX(0); } }
 @keyframes trazo { from { stroke-dashoffset: 24; } to { stroke-dashoffset: 0; } }
 @keyframes aparecer { from { opacity: 0; } }
@@ -16,8 +16,8 @@
 /* Cabecera corta: el día en serif a la izquierda, el reloj con lo que pasa a la derecha. */
 .cabecera { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px 20px; flex-wrap: wrap; min-width: 0; }
 .ceja { margin: 0 0 2px; font-size: 11px; font-weight: 650; letter-spacing: 1.4px; text-transform: uppercase; color: var(--muted); }
-.ceja b { color: var(--gold-dark, var(--gold)); font-weight: 700; }
-:global(.dark) .ceja b { color: var(--gold-bright, var(--gold)); }
+.ceja b { color: var(--l-ceja-ambar, var(--gold-dark, var(--gold))); font-weight: 700; }
+:global(.dark) .ceja b { color: var(--l-ceja-ambar, var(--gold-bright, var(--gold))); }
 .fecha { margin: 0; font-family: var(--serif); font-size: 34px; line-height: 1.05; font-weight: 600; letter-spacing: -.5px; }
 .fecha small { font-size: 19px; font-weight: 400; color: var(--muted); letter-spacing: 0; }
 .reloj { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; min-width: 0; max-width: 100%; text-align: right; }
@@ -26,13 +26,13 @@
 .reloj em { font-style: normal; font-weight: 600; color: var(--foreground); }
 
 /* El objetivo del día es el protagonista. */
-.objetivo { position: relative; overflow: hidden; padding: 11px 14px 13px; border-radius: 14px; border: 1px solid rgba(var(--brand-rgb), .22);
-  background: linear-gradient(135deg, rgba(var(--brand-rgb), .10), rgba(var(--brand-rgb), .02) 60%), var(--card); box-shadow: var(--shadow-xs, none); min-width: 0; }
+.objetivo { position: relative; overflow: hidden; padding: 11px 14px 13px; border-radius: 14px; border: 1px solid var(--l-borde-morado, rgba(var(--brand-rgb), .22));
+  background: linear-gradient(135deg, rgba(var(--l-velo-morado-rgb, var(--brand-rgb)), 0.1), rgba(var(--l-velo-morado-rgb, var(--brand-rgb)), 0.02) 60%), var(--card); box-shadow: var(--shadow-xs, none); min-width: 0; }
 .objetivo[data-vacio] { border-style: dashed; background: transparent; }
 .objetivo > header { display: flex; align-items: center; gap: 8px; min-height: 24px; }
-.objetivo > header > span { font-size: 11px; font-weight: 650; letter-spacing: 1.4px; text-transform: uppercase; color: var(--brand, var(--primary)); }
+.objetivo > header > span { font-size: 11px; font-weight: 650; letter-spacing: 1.4px; text-transform: uppercase; color: var(--l-ceja-morado, var(--brand, var(--primary))); }
 .objetivo > header em { padding: 1px 8px; border: 1px solid var(--linea); border-radius: 999px; font-size: 10.5px; font-style: normal; color: var(--muted); white-space: nowrap; }
-.objetivo > header em[data-estado=completed] { color: var(--success, var(--primary)); border-color: currentColor; }
+.objetivo > header em[data-estado=completed] { color: var(--success, var(--l-tinta-morado, var(--primary))); border-color: currentColor; }
 .objetivo h3 { margin: 0; font-family: var(--serif); font-size: 21px; line-height: 1.22; font-weight: 600; letter-spacing: -.2px; overflow-wrap: anywhere; }
 .exito { margin: 6px 0 0; font-size: 13px; line-height: 1.45; color: var(--muted); overflow-wrap: anywhere; }
 .objetivoVacio { margin: 6px 0 0; font-size: 14px; color: var(--muted); }
@@ -41,7 +41,7 @@
 
 .accion { margin-left: auto; display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-width: 28px; height: 28px; padding: 0 9px; border: 1px solid var(--linea); border-radius: 999px; background: transparent; color: var(--foreground); font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap; transition: background 140ms; }
 .accion:hover { background: var(--card-hover); }
-.accion[aria-pressed=true] { border-color: rgba(var(--brand-rgb), .4); color: var(--brand, var(--primary)); }
+.accion[aria-pressed=true] { border-color: rgba(var(--brand-rgb), .4); color: var(--l-tinta-morado, var(--brand, var(--primary))); }
 .accion:disabled { opacity: .45; cursor: default; }
 .soloIcono { padding: 0; width: 28px; }
 .titulo .hechas + .accion, .titulo small + .accion { margin-left: auto; }
@@ -50,13 +50,13 @@
 .riel { min-width: 0; }
 .rielPista { position: relative; height: 14px; }
 .rielPista::before { content: ''; position: absolute; left: 0; right: 0; top: 5px; height: 4px; border-radius: 2px; background: var(--linea); }
-.rielVivido { position: absolute; left: 0; top: 5px; height: 4px; border-radius: 2px; background: linear-gradient(90deg, rgba(var(--gold-rgb), .25), rgba(var(--gold-rgb), .6)); transform-origin: left; animation: llenar 900ms cubic-bezier(.16, 1, .3, 1) both; }
+.rielVivido { position: absolute; left: 0; top: 5px; height: 4px; border-radius: 2px; background: linear-gradient(90deg, rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.25), rgba(var(--gold-rgb), .6)); transform-origin: left; animation: llenar 900ms cubic-bezier(.16, 1, .3, 1) both; }
 .rielTramo { position: absolute; top: 3px; height: 8px; border-radius: 4px; background: var(--c); opacity: .85; }
 .rielTramo[data-pasado] { opacity: .3; }
 .rielAhora { position: absolute; top: 0; width: 14px; height: 14px; margin-left: -7px; border-radius: 7px; background: var(--gold); border: 2px solid var(--background); animation: respira 2.4s ease-in-out infinite; z-index: 1; }
 .riel:has(.rielAhora b) { padding-top: 13px; }
-.rielAhora b { position: absolute; left: 50%; bottom: calc(100% + 1px); transform: translateX(-50%); font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--gold-dark, var(--gold)); white-space: nowrap; }
-:global(.dark) .rielAhora b { color: var(--gold-bright, var(--gold)); }
+.rielAhora b { position: absolute; left: 50%; bottom: calc(100% + 1px); transform: translateX(-50%); font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--l-tinta-ambar, var(--gold-dark, var(--gold))); white-space: nowrap; }
+:global(.dark) .rielAhora b { color: var(--l-tinta-ambar, var(--gold-bright, var(--gold))); }
 .rielHoras { display: flex; justify-content: space-between; margin-top: 4px; font-size: 10.5px; font-variant-numeric: tabular-nums; color: var(--muted); }
 
 /* Cuerpo: agenda y tareas, lado a lado cuando hay ancho. */
@@ -67,7 +67,7 @@
 .titulo { display: flex; align-items: center; gap: 8px; min-height: 28px; }
 .titulo h3 { margin: 0; font-size: 11px; font-weight: 650; letter-spacing: 1.4px; text-transform: uppercase; color: var(--muted); }
 .titulo small { font-size: 11px; font-variant-numeric: tabular-nums; color: var(--muted); }
-.titulo .hechas { color: var(--success, var(--primary)); }
+.titulo .hechas { color: var(--success, var(--l-tinta-morado, var(--primary))); }
 .vacio { margin: 0; font-size: 13px; color: var(--muted); }
 
 .pastillas { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -83,15 +83,17 @@
 .pastillaMas svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
 /* El bloque en curso: destacado, con su avance. */
-.enCurso { display: flex; flex-direction: column; gap: 4px; width: 100%; padding: 11px 13px 12px; border-radius: 12px; border: 1px solid rgba(var(--gold-rgb), .45);
-  background: linear-gradient(135deg, rgba(var(--gold-rgb), .14), rgba(var(--gold-rgb), .04)); color: var(--foreground); font: inherit; text-align: left; cursor: pointer; min-width: 0; }
+.enCurso { display: flex; flex-direction: column; gap: 4px; width: 100%; padding: 11px 13px 12px; border-radius: 12px; border: 1px solid var(--l-borde-ambar, rgba(var(--gold-rgb), .45));
+  background: linear-gradient(135deg, rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.14), rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.04)); color: var(--foreground); font: inherit; text-align: left; cursor: pointer; min-width: 0;
+  box-shadow: inset 4px 0 0 var(--c, var(--l-halo-ambar, var(--gold))); padding-left: 16px; }
+/* El ámbar dice «ahora»; el riel de la izquierda, su DRIP (25 oct 2026: el color del evento es siempre su cuadrante). */
 .enCursoCeja { font-size: 11px; font-variant-numeric: tabular-nums; color: var(--muted); }
-.enCursoCeja b { color: var(--gold-dark, var(--gold)); text-transform: uppercase; letter-spacing: 1.2px; font-size: 10.5px; }
-:global(.dark) .enCursoCeja b { color: var(--gold-bright, var(--gold)); }
+.enCursoCeja b { color: var(--l-ceja-ambar, var(--gold-dark, var(--gold))); text-transform: uppercase; letter-spacing: 1.2px; font-size: 10.5px; }
+:global(.dark) .enCursoCeja b { color: var(--l-ceja-ambar, var(--gold-bright, var(--gold))); }
 .enCurso strong { font-size: 15.5px; font-weight: 650; line-height: 1.3; overflow-wrap: anywhere; }
 .enCurso small { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
 .enCurso small em { font-style: normal; color: var(--foreground); }
-.barra { display: block; height: 4px; margin: 4px 0 2px; border-radius: 2px; background: rgba(var(--gold-rgb), .18); overflow: hidden; }
+.barra { display: block; height: 4px; margin: 4px 0 2px; border-radius: 2px; background: rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.18); overflow: hidden; }
 .barra i { display: block; height: 100%; border-radius: 2px; background: var(--gold); transform-origin: left; animation: llenar 1000ms 200ms cubic-bezier(.16, 1, .3, 1) both; transition: width 600ms ease; }
 
 .plegados { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; padding: 6px 10px; border: 1px dashed var(--linea); border-radius: 9px; background: transparent; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; }
@@ -106,7 +108,7 @@
 .agenda span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .agenda small { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .agenda button[data-pasado] { opacity: .5; }
-.sigue { margin-left: 7px; padding: 1px 6px; border-radius: 999px; background: rgba(var(--brand-rgb), .1); color: var(--brand, var(--primary)); font-size: 10px; font-weight: 650; letter-spacing: .8px; text-transform: uppercase; }
+.sigue { margin-left: 7px; padding: 1px 6px; border-radius: 999px; background: rgba(var(--l-velo-morado-rgb, var(--brand-rgb)), 0.1); color: var(--l-ceja-morado, var(--brand, var(--primary))); font-size: 10px; font-weight: 650; letter-spacing: .8px; text-transform: uppercase; }
 
 /* Tareas como tarjetas. Completar: la palomita se dibuja, el título se tacha y la tarjeta se pliega. */
 .tarjetas { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
@@ -114,16 +116,16 @@
 .tarjeta[data-hecha] { align-self: start; grid-template-rows: 0fr; opacity: 0; transform: scale(.97); }
 .tarjetaDentro { display: flex; align-items: flex-start; gap: 4px; min-height: 0; overflow: hidden; border-radius: 12px; border: 1px solid var(--linea); background: var(--card); box-shadow: var(--shadow-xs, none); transition: border-color 160ms, box-shadow 160ms, transform 160ms; }
 .tarjeta:hover .tarjetaDentro { border-color: color-mix(in srgb, var(--foreground) 16%, transparent); transform: translateY(-1px); }
-.tarjeta[data-prio='1'] .tarjetaDentro { border-color: rgba(var(--gold-rgb), .5); background: linear-gradient(135deg, rgba(var(--gold-rgb), .08), transparent 70%), var(--card); }
+.tarjeta[data-prio='1'] .tarjetaDentro { border-color: var(--l-borde-ambar, rgba(var(--gold-rgb), .5)); background: linear-gradient(135deg, rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.08), transparent 70%), var(--card); }
 .check { flex: 0 0 auto; display: grid; place-items: center; width: 40px; height: 44px; margin-left: 2px; border: 0; background: transparent; cursor: pointer; color: transparent; }
 .check::before { content: ''; grid-area: 1 / 1; width: 19px; height: 19px; border-radius: 50%; border: 1.6px solid color-mix(in srgb, var(--foreground) 35%, transparent); transition: background 200ms, border-color 200ms, transform 200ms; }
-.tarjeta[data-prio='1'] .check::before { border-color: var(--gold); }
+.tarjeta[data-prio='1'] .check::before { border-color: var(--l-borde-ambar, var(--gold)); }
 .check svg { grid-area: 1 / 1; width: 12px; height: 12px; z-index: 1; }
 .check:hover::before { border-color: var(--success, var(--primary)); }
-.check:hover:not(:disabled) { color: color-mix(in srgb, var(--success, var(--primary)) 60%, transparent); }
+.check:hover:not(:disabled) { color: color-mix(in srgb, var(--success, var(--l-tinta-morado, var(--primary))) 60%, transparent); }
 .check:disabled { cursor: default; }
-.tarjeta[data-hecha] .check { color: #fff; }
-.tarjeta[data-hecha] .check::before { background: var(--success, var(--primary)); border-color: var(--success, var(--primary)); transform: scale(1.08); }
+.tarjeta[data-hecha] .check { color: var(--l-gris-16, #fff); }
+.tarjeta[data-hecha] .check::before { background: var(--success, var(--primary)); border-color: var(--success, var(--l-borde-morado, var(--primary))); transform: scale(1.08); }
 .tarjeta[data-hecha] .check svg path { stroke-dasharray: 24; animation: trazo 320ms ease-out both; }
 .tarjetaCuerpo { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 5px; padding: 11px 12px 11px 0; border: 0; background: transparent; color: var(--foreground); font: inherit; text-align: left; cursor: pointer; }
 .tarjetaTitulo { font-size: 14px; font-weight: 600; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: break-word; transition: color 200ms; }
@@ -131,12 +133,12 @@
 .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 11.5px; color: var(--muted); }
 .meta time { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--foreground); }
 .prio { padding: 0 6px; border-radius: 999px; font-size: 10px; font-weight: 700; background: color-mix(in srgb, var(--foreground) 8%, transparent); }
-.prio[data-prio='1'] { background: rgba(var(--gold-rgb), .18); color: var(--gold-dark, var(--gold)); }
-:global(.dark) .prio[data-prio='1'] { color: var(--gold-bright, var(--gold)); }
-.mas { align-self: flex-start; padding: 4px 0; border: 0; background: transparent; color: var(--primary); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
-.deshacer { display: flex; align-items: center; gap: 10px; margin: 2px 0 0; padding: 7px 10px; border-radius: 10px; font-size: 12.5px; background: rgba(var(--brand-rgb), .06); border: 1px solid rgba(var(--brand-rgb), .18); animation: aparecer 200ms ease-out both; }
+.prio[data-prio='1'] { background: rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.18); color: var(--l-tinta-ambar, var(--gold-dark, var(--gold))); }
+:global(.dark) .prio[data-prio='1'] { color: var(--l-tinta-ambar, var(--gold-bright, var(--gold))); }
+.mas { align-self: flex-start; padding: 4px 0; border: 0; background: transparent; color: var(--l-tinta-morado, var(--primary)); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+.deshacer { display: flex; align-items: center; gap: 10px; margin: 2px 0 0; padding: 7px 10px; border-radius: 10px; font-size: 12.5px; background: rgba(var(--l-velo-morado-rgb, var(--brand-rgb)), 0.06); border: 1px solid var(--l-borde-morado, rgba(var(--brand-rgb), .18)); animation: aparecer 200ms ease-out both; }
 .deshacer span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.deshacer button { border: 0; background: transparent; color: var(--primary); font: inherit; font-weight: 650; cursor: pointer; }
+.deshacer button { border: 0; background: transparent; color: var(--l-tinta-morado, var(--primary)); font: inherit; font-weight: 650; cursor: pointer; }
 
 /* Angosto: el panel (520 px) y el teléfono. Consulta el contenedor del calendario (.root, container planning). */
 @container (max-width: 700px) {
@@ -165,10 +167,10 @@
 /* Piezas compartidas con 4 días, Semana y Mes (5 oct 2026): la etiqueta del calendario («Semana 2») y el estado del objetivo mayor. */
 .rotuloObj { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .etiquetaObj { white-space: nowrap; font-size: inherit; font-weight: 650; letter-spacing: inherit; color: var(--muted); }
-.objetivo > header em[data-estado=draft], .sirveEstado[data-estado=draft] { color: var(--gold-dark, var(--gold)); border-color: rgba(var(--gold-rgb), .45); background: rgba(var(--gold-rgb), .08); }
-:global(.dark) .objetivo > header em[data-estado=draft], :global(.dark) .sirveEstado[data-estado=draft] { color: var(--gold-bright, var(--gold)); }
+.objetivo > header em[data-estado=draft], .sirveEstado[data-estado=draft] { color: var(--l-tinta-ambar, var(--gold-dark, var(--gold))); border-color: rgba(var(--gold-rgb), .45); background: rgba(var(--gold-rgb), .08); }
+:global(.dark) .objetivo > header em[data-estado=draft], :global(.dark) .sirveEstado[data-estado=draft] { color: var(--l-tinta-ambar, var(--gold-bright, var(--gold))); }
 .sirveEstado { display: inline-block; margin-left: 8px; padding: 0 7px; border: 1px solid var(--linea); border-radius: 999px; font-size: 10.5px; font-style: normal; color: var(--muted); white-space: nowrap; vertical-align: 1px; }
-.sirveEstado[data-estado=completed] { color: var(--success, var(--primary)); border-color: currentColor; }
+.sirveEstado[data-estado=completed] { color: var(--success, var(--l-tinta-morado, var(--primary))); border-color: currentColor; }
 
 /* La estrella del objetivo (5 oct 2026, «una animación satisfactoria al cumplirlo»): late una vez, se llena en morado de marca,
    suelta ocho chispas y una luz cruza la tarjeta. El oro queda para el ahora. Al desmarcar vuelve quieta, sin fiesta. */
@@ -179,19 +181,19 @@
 .objetivoLinea h3 { flex: 1 1 auto; min-width: 0; }
 .estrella { position: relative; flex: 0 0 auto; display: grid; place-items: center; width: 30px; height: 30px; margin: -2px 0 0 -5px; padding: 0; border: 0; border-radius: 50%;
   background: transparent; color: color-mix(in srgb, var(--foreground) 38%, transparent); cursor: pointer; transition: color 180ms, background 180ms; }
-.estrella:hover { color: var(--brand, var(--primary)); background: rgba(var(--brand-rgb), .08); }
+.estrella:hover { color: var(--l-tinta-morado, var(--brand, var(--primary))); background: rgba(var(--brand-rgb), .08); }
 .estrella svg { width: 21px; height: 21px; fill: transparent; stroke: currentColor; stroke-width: 1.7; stroke-linejoin: round; transition: fill 220ms; }
-.estrella[data-cumplido] { color: var(--brand, var(--primary)); }
+.estrella[data-cumplido] { color: var(--l-tinta-morado, var(--brand, var(--primary))); }
 .estrella[data-cumplido] svg { fill: currentColor; }
 .estrella[data-recien] svg { animation: estrellaPop 560ms cubic-bezier(.16, 1, .3, 1) both; }
 .chispas { position: absolute; inset: 0; pointer-events: none; }
 .chispas i { position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px; border-radius: 2px; background: var(--brand, var(--primary)); animation: chispa 640ms 80ms cubic-bezier(.16, 1, .3, 1) both; }
 .chispas i:nth-child(even) { width: 3px; height: 3px; background: rgba(var(--brand-rgb), .6); animation-delay: 130ms; }
-.objetivo[data-cumplido] { border-color: rgba(var(--brand-rgb), .42); }
-.objetivo::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0; background: linear-gradient(100deg, transparent 30%, rgba(var(--brand-rgb), .16) 50%, transparent 70%); }
+.objetivo[data-cumplido] { border-color: var(--l-borde-morado, rgba(var(--brand-rgb), .42)); }
+.objetivo::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0; background: linear-gradient(100deg, transparent 30%, rgba(var(--l-velo-morado-rgb, var(--brand-rgb)), 0.16) 50%, transparent 70%); }
 .objetivo:has(.estrella[data-recien])::after { animation: barrido 900ms 120ms cubic-bezier(.16, 1, .3, 1) both; }
 .cumplidoChip { animation: aparecer 260ms 200ms ease-out both; }
-.objetivo > header em.cumplidoChip { color: var(--brand, var(--primary)); border-color: rgba(var(--brand-rgb), .4); background: rgba(var(--brand-rgb), .07); }
+.objetivo > header em.cumplidoChip { color: var(--l-tinta-morado, var(--brand, var(--primary))); border-color: var(--l-borde-morado, rgba(var(--brand-rgb), .4)); background: rgba(var(--l-velo-morado-rgb, var(--brand-rgb)), 0.07); }
 .sutil { border-color: transparent; color: var(--muted); }
 .sutil:hover { color: var(--foreground); }
 
@@ -216,6 +218,16 @@
 .miniHora time { position: absolute; left: 0; top: -5px; width: 24px; font-size: 9.5px; line-height: 1; font-variant-numeric: tabular-nums; color: var(--muted); text-align: right; }
 .miniBloques { position: absolute; inset: 0 0 0 32px; list-style: none; margin: 0; padding: 0; pointer-events: none; }
 .miniBloques li { position: absolute; padding: 0 0 0 2px; pointer-events: auto; }
+/* Campos de fondo (28 oct 2026, campos-fondo.ts): trabajo profundo tenue con su filo y la ventana de comida como riel verde al
+   borde. Van debajo de las bandas y de las tarjetas; un espejo del día, nunca alarma. */
+.miniCampo { position: absolute; z-index: 0; pointer-events: none; }
+.miniCampo[data-tipo='trabajo'] { left: 32px; right: 0; border-radius: 4px; background: color-mix(in srgb, var(--l-ambar-6, #b06a1c) 6%, transparent);
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--l-ambar-6, #b06a1c) 40%, transparent); }
+.miniCampo[data-tipo='comida'] { right: 0; width: 3px; border-radius: 2px; background: color-mix(in srgb, var(--l-verde-6, #2f8f5b) 55%, transparent); }
+.miniCampo span { position: absolute; left: 8px; bottom: 2px; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 9.5px; font-weight: 600; letter-spacing: .02em; color: color-mix(in srgb, var(--l-ambar-6, #b06a1c) 60%, var(--muted)); }
+.miniCampo[data-tipo='comida'] span { left: auto; right: 7px; top: 2px; bottom: auto; color: color-mix(in srgb, var(--l-verde-6, #2f8f5b) 75%, var(--muted)); }
+.camposResumen { margin-left: 8px; font-size: 11px; font-weight: 500; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 /* Ventana de disponibilidad (18 oct 2026): banda de fondo detrás de las tarjetas, con su nombre chiquito a la derecha. */
 .miniBanda { position: absolute; left: 32px; right: 0; display: block; padding: 0; border: 0; border-right: 2px solid color-mix(in srgb, var(--c) 45%, transparent);
   border-radius: 4px; background: color-mix(in srgb, var(--c) 7%, transparent); cursor: pointer; font: inherit; text-align: right; }
@@ -240,32 +252,36 @@
    de "tu dia"»): la misma línea que «Tu día» (hora en ámbar, trazo de 1 px que se desvanece a la derecha). AgendaMini le pone
    la clase .lineaAhora de luz.module.css junto a esta (no `composes` entre archivos: el build de producción no lo lleva al HTML
    del servidor). Aquí solo se coloca sobre la rejilla y la columna de la hora se ajusta a la de las horas (24 px + 8 = el borde de los bloques). */
-.mini > .miniAhora { position: absolute; left: 0; right: 0; z-index: 2; margin: 0; transform: translateY(-50%);
+/* 28 oct 2026 (Daniel, 08:02: «la línea no cruza el bloque Trabajo fuerte»): ENCIMA de los eventos. El bloque en curso sube a
+   z-index 3 (`li:has(> button[data-vivo])`) y tapaba la línea, que estaba en 2; ahora va en 6 (sobre bloques, brief y etiqueta) y su
+   trazo es entero, sin desvanecerse, para que se vea en todo el ancho. Mismo valor en Actual y Unificado. */
+.mini > .miniAhora { position: absolute; left: 0; right: 0; z-index: 6; margin: 0; transform: translateY(-50%);
   --ahora-col: 26px; --ahora-gap: 6px; font-size: 9.5px; line-height: 1; text-align: right; pointer-events: none; }
+.mini > .miniAhora::after { height: 1.5px; background: var(--gold); box-shadow: 0 0 6px rgba(var(--l-halo-ambar-rgb, var(--gold-rgb)), 0.35); }
 /* Tareas junto a la agenda: en una columna, una tarjeta por fila. */
 .areaTareas .tarjetas { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
 
 /* ——— La hoja del día compacta (5 oct 2026, 17:48): todo en una vista, sin scroll en el panel. ——— */
 .dia[data-compacta] { gap: 12px; padding-top: 12px; padding-bottom: 12px; }
 /* El objetivo: una línea. Superficie neutra, barra lateral de oro y estrella dorada (6 oct 2026, igual que Semana y Mes). */
-.objLinea { --oro-texto: color-mix(in srgb, var(--gold-dark) 74%, #000); display: flex; align-items: center; gap: 4px; min-width: 0; padding: 6px 12px 6px 12px; border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent); background: linear-gradient(90deg, rgba(var(--gold-rgb), .06), transparent 55%), var(--card); color: var(--foreground);
-  box-shadow: inset 4px 0 0 var(--gold), 0 1px 2px rgba(0, 0, 0, .04); transition: box-shadow 160ms; }
+.objLinea { --oro-texto: color-mix(in srgb, var(--l-tinta-ambar, var(--gold-dark)) 74%, var(--l-gris-0, #000)); display: flex; align-items: center; gap: 4px; min-width: 0; padding: 6px 12px 6px 12px; border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent); background: linear-gradient(90deg, rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.06), transparent 55%), var(--card); color: var(--foreground);
+  box-shadow: inset 4px 0 0 var(--l-halo-ambar, var(--gold)), 0 1px 2px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.04); transition: box-shadow 160ms; }
 .objLinea .estrella { width: 26px; height: 26px; margin: 0 0 0 4px; }
 .objLinea .estrella svg { width: 17px; height: 17px; }
 .objLinea .estrella:not([data-cumplido]) { color: var(--oro-texto); }
-:global(.dark) .objLinea .estrella:not([data-cumplido]) { color: var(--gold-bright, var(--gold)); }
+:global(.dark) .objLinea .estrella:not([data-cumplido]) { color: var(--l-tinta-ambar, var(--gold-bright, var(--gold))); }
 .objLinea .estrella:hover { color: var(--oro-texto); background: rgba(var(--gold-rgb), .14); }
-.objLinea .estrella[data-cumplido] { color: var(--primary); background: transparent; }
+.objLinea .estrella[data-cumplido] { color: var(--l-tinta-morado, var(--primary)); background: transparent; }
 .objLinea .chispas i { background: var(--primary); }
 .objLinea:has(.estrella[data-recien]) .objTitulo { animation: objCumplido 900ms cubic-bezier(.16, 1, .3, 1) both; }
-@keyframes objCumplido { 0% { letter-spacing: 0; } 30% { letter-spacing: .3px; text-shadow: 0 0 14px rgba(var(--gold-rgb), .5); } 100% { letter-spacing: 0; text-shadow: none; } }
+@keyframes objCumplido { 0% { letter-spacing: 0; } 30% { letter-spacing: .3px; text-shadow: 0 0 14px rgba(var(--l-halo-ambar-rgb, var(--gold-rgb)), 0.5); } 100% { letter-spacing: 0; text-shadow: none; } }
 .objTitulo { flex: 1 1 auto; min-width: 0; padding: 2px 4px; border: 0; background: transparent; color: var(--foreground); font-family: var(--serif); font-size: 19px; font-weight: 650; line-height: 1.25;
   letter-spacing: -.2px; text-align: left; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .objTitulo:hover { text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--foreground) 35%, transparent); text-underline-offset: 3px; }
 .objLinea[data-cumplido] .objTitulo { opacity: .75; }
 .objVacio { display: inline-flex; align-items: center; gap: 5px; align-self: flex-start; margin: 0; padding: 2px 0; border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 12.5px; cursor: pointer; }
-.objVacio:hover { color: var(--gold); }
+.objVacio:hover { color: var(--l-tinta-ambar, var(--gold)); }
 
 /* Tareas en una línea cada una. */
 .filas { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
@@ -274,18 +290,18 @@
 .fila .check { width: 28px; height: 28px; margin: 0; }
 .fila .check::before { width: 15px; height: 15px; }
 .fila .check svg { width: 10px; height: 10px; }
-.fila[data-prio='1'] .check::before { border-color: var(--gold); }
+.fila[data-prio='1'] .check::before { border-color: var(--l-borde-ambar, var(--gold)); }
 .fila[data-hecha] { opacity: .45; }
-.fila[data-hecha] .check { color: #fff; }
-.fila[data-hecha] .check::before { background: var(--success, var(--primary)); border-color: var(--success, var(--primary)); }
+.fila[data-hecha] .check { color: var(--l-gris-16, #fff); }
+.fila[data-hecha] .check::before { background: var(--success, var(--primary)); border-color: var(--success, var(--l-borde-morado, var(--primary))); }
 .fila[data-hecha] .check svg path { stroke-dasharray: 24; animation: trazo 320ms ease-out both; }
 .fila[data-hecha] .filaTitulo { text-decoration: line-through; color: var(--muted); }
 .filaCuerpo { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 6px; padding: 4px 6px 4px 0; border: 0; background: transparent; color: var(--foreground); font: inherit; text-align: left; cursor: pointer; }
 .filaTitulo { flex: 1 1 auto; min-width: 0; font-size: 13px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .filaCuerpo time { font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--muted); }
 .fila[data-objetivo] .filaTitulo { font-weight: 650; }
-.fila[data-objetivo] { background: rgba(var(--gold-rgb), .08); }
-.fila[data-objetivo] .check::before { border-color: var(--gold); }
+.fila[data-objetivo] { background: rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.08); }
+.fila[data-objetivo] .check::before { border-color: var(--l-borde-ambar, var(--gold)); }
 
 /* El orden de Tareas (18 oct 2026): un chip que cicla Hora · Prioridad · Proyecto; la hora como chip con su duración; lo vencido con marca roja sutil. */
 .topTareas { gap: 6px; }
@@ -307,9 +323,9 @@
 .dia:has([data-objetivo]:hover) .fila[data-objetivo] { background: rgba(var(--gold-rgb), .09); }
 .dia:has([data-objetivo]:hover) .objLinea { box-shadow: inset 4px 0 0 var(--gold), 0 0 0 2px rgba(var(--gold-rgb), .3); }
 .dia:has([data-objetivo]:hover) .miniBloques button[data-objetivo] { box-shadow: 0 0 0 1.5px var(--gold); }
-.miniBloques button[data-objetivo] { background: rgba(var(--gold-rgb), .16); }
-.miniBloques button[data-objetivo] span { color: var(--gold-dark, var(--gold)); }
-:global(.dark) .miniBloques button[data-objetivo] span { color: var(--gold-bright, var(--gold)); }
+.miniBloques button[data-objetivo] { background: rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.16); }
+.miniBloques button[data-objetivo] span { color: var(--l-tinta-ambar, var(--gold-dark, var(--gold))); }
+:global(.dark) .miniBloques button[data-objetivo] span { color: var(--l-tinta-ambar, var(--gold-bright, var(--gold))); }
 .miniBloques button[data-hecha] { opacity: .5; }
 
 @container (max-width: 700px) { .dia[data-compacta] { padding-left: 12px; padding-right: 12px; } .objTitulo { font-size: 17px; } }
@@ -347,7 +363,50 @@
   font-size: 9px; font-weight: 750; letter-spacing: .5px; text-transform: uppercase; line-height: 1; color: var(--foreground); pointer-events: none;
   background: color-mix(in srgb, var(--background) 70%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 60%, transparent); }
 .dripTag[data-tipo='delegado'] { text-transform: none; letter-spacing: .1px; }
-.dripTag[data-tipo='protegido'] { padding: 0 4px; background: color-mix(in srgb, var(--gold) 26%, var(--background)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 70%, transparent); }
-.miniBloques li[data-protegido] > button { box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--gold) 70%, transparent); }
+.dripTag[data-tipo='protegido'] { padding: 0 4px; background: color-mix(in srgb, var(--gold) 26%, var(--background)); box-shadow: inset 0 0 0 1px var(--l-borde-ambar, color-mix(in srgb, var(--gold) 70%, transparent)); }
+.miniBloques li[data-protegido] > button { box-shadow: 0 0 0 1.5px var(--l-borde-ambar, color-mix(in srgb, var(--gold) 70%, transparent)); }
 .miniBloques button[data-con-tag] { padding-right: 84px; }
 .miniBloques button[data-con-tag='protegido'] { padding-right: 30px; }
+
+/* La franja del plan arriba (25 oct 2026, Daniel: «muchos bordes blancos horizontales»): una línea que cruza las dos columnas, y menos
+   aire arriba y abajo para que la agenda se quede con el alto. */
+.dia { padding-top: 0; }
+.dia[data-dos-columnas] { grid-template-rows: auto minmax(0, 1fr) auto; gap: 10px 32px; padding: 0 18px 8px; }
+.franjaArriba { grid-column: 1 / -1; min-width: 0; }
+
+/* ══ Riel en la agenda del Día (25 oct 2026; misma dirección que la Semana, semana-horas.module.css): tarjeta neutra, riel DRIP
+   y su letra, el ahora en ámbar (`data-vivo`), el pasado atenuado. `li` lleva el cuadrante (`data-drip`, `data-letra`). */
+.areaAgenda .miniBloques li { --drip: var(--l-gris-10, #7c8594); }
+.areaAgenda .miniBloques li[data-drip='producir'] { --drip: var(--l-ambar-6, #b06a1c); }
+.areaAgenda .miniBloques li[data-drip='invertir'] { --drip: var(--l-morado-6, #8c27f1); }
+.areaAgenda .miniBloques li[data-drip='reemplazar'] { --drip: var(--l-rojo-6, #b23a4a); }
+:global(.dark) .areaAgenda .miniBloques li[data-drip='invertir'] { --drip: var(--l-morado-5, #a66bff); }
+.areaAgenda .miniBloques button, .areaAgenda .miniBloques button:hover { position: relative; border: 0; padding-left: 10px; border-radius: 6px; background: var(--card); color: var(--foreground);
+  transition: box-shadow 160ms, opacity 160ms; box-shadow: inset 3px 0 0 var(--drip), inset 0 0 0 1px color-mix(in srgb, var(--foreground) 11%, transparent), 0 1px 2px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.06); }
+:global(.dark) .areaAgenda .miniBloques button { background: var(--l-gris-5, #1c1c22); box-shadow: inset 3px 0 0 var(--drip), inset 0 0 0 1px rgba(var(--l-luz-rgb, 255, 255, 255), 0.07); }
+.areaAgenda .miniBloques span { font-weight: 600; }
+.areaAgenda .miniBloques time { font-weight: 700; }
+.areaAgenda .miniBloques li[data-letra] > button:not([data-corto])::after { content: attr(data-letra); position: absolute; right: 7px; bottom: 5px; font-size: 9px; font-weight: 750; color: var(--drip); }
+.areaAgenda .miniBloques button[data-pasado] { opacity: .42; }
+.areaAgenda .miniBloques li:has(> button[data-vivo]) { z-index: 3; }
+.areaAgenda .miniBloques button[data-vivo] { background: color-mix(in srgb, var(--gold) 7%, var(--card));
+  box-shadow: inset 3px 0 0 var(--drip), inset 0 0 0 1px rgba(var(--gold-rgb), .75), 0 0 0 3px rgba(var(--gold-rgb), .14), 0 6px 16px -8px rgba(var(--gold-rgb), .5); }
+/* «Ahora» es el anillo ámbar; el riel sigue siendo su DRIP (25 oct 2026, GYM en curso salía bronce). */
+
+/* Hábitos de hoy al pie del Día (26 oct 2026, Daniel): «N de 3» con los puntitos de racha, ya no en la franja de arriba. */
+.pieHabitos { grid-column: 1 / -1; min-width: 0; padding-top: 6px; border-top: 1px solid color-mix(in srgb, var(--foreground) 8%, transparent); }
+
+/* ——— Secciones en la agenda del Día (26 oct 2026): el riel por sección y un icono chico, sin rellenos fuertes. DRIP sigue en la letra. ——— */
+.miniBloques li[data-seccion=gym] { --sec: var(--l-rojo-6, #b23a4a); }
+.miniBloques li[data-seccion=clase] { --sec: var(--l-morado-6, #8c27f1); }
+.miniBloques li[data-seccion=unoauno] { --sec: var(--l-azul-5, #2f7fd1); }
+.miniBloques li[data-seccion=trabajo] { --sec: var(--l-ambar-5, #a8733a); }
+.miniBloques li[data-seccion=personal] { --sec: var(--l-gris-10, #7c8594); }
+.areaAgenda .miniBloques li[data-seccion] button, .areaAgenda .miniBloques li[data-seccion] button:hover { box-shadow: inset 3px 0 0 var(--sec), inset 0 0 0 1px color-mix(in srgb, var(--foreground) 11%, transparent), 0 1px 2px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.06); }
+:global(.dark) .areaAgenda .miniBloques li[data-seccion] button { box-shadow: inset 3px 0 0 var(--sec), inset 0 0 0 1px rgba(var(--l-luz-rgb, 255, 255, 255), 0.07); }
+.areaAgenda .miniBloques li[data-seccion] button[data-vivo] { box-shadow: inset 3px 0 0 var(--sec), inset 0 0 0 1px rgba(var(--gold-rgb), .75), 0 0 0 3px rgba(var(--gold-rgb), .14), 0 6px 16px -8px rgba(var(--gold-rgb), .5); }
+.icoSeccion { flex: none; width: 11px; height: 11px; margin-right: 4px; fill: none; stroke: var(--sec); stroke-width: 1.3; stroke-linejoin: round; stroke-linecap: round; opacity: .85; }
+.miniBloques li[data-seccion] button:not([data-corto]) .icoSeccion { position: absolute; top: 4px; right: 5px; margin: 0; }
+
+/* Lenguaje unificado (27 oct 2026): lo ya vivido se atenúa sin bajar de AA. */
+:global(html[data-estilo='unificado']) .agenda button[data-pasado], :global(html[data-estilo='unificado']) .miniBloques button[data-pasado], :global(html[data-estilo='unificado']) .areaAgenda .miniBloques button[data-pasado] { opacity: 0.72; }

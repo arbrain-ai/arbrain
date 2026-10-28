@@ -2,12 +2,12 @@
    no se mide» (lenguaje de movimiento de Arbrain); el oro es solo el ahora. El ancho lo manda el contenedor. */
 
 .tarjeta {
-  --gana: #10b981; --pierde: #ef4444;
-  --gana-tinta: #047857; --pierde-tinta: #dc2626;
+  --gana: var(--l-verde-4, #10b981); --pierde: var(--l-rojo-4, #ef4444);
+  --gana-tinta: var(--l-tinta-verde-oscura, #047857); --pierde-tinta: var(--l-tinta-rojo, #dc2626);
   position: relative; min-width: 0; padding: 14px 14px 12px; border-radius: 16px; border: 1px solid var(--border); background: var(--card);
-  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.03), 0 10px 22px -20px rgba(15, 23, 42, 0.4);
+  box-shadow: 0 1px 0 rgba(var(--l-sombra-rgb, 15, 23, 42), 0.03), 0 10px 22px -20px rgba(var(--l-sombra-rgb, 15, 23, 42), 0.4);
 }
-:global(.dark) .tarjeta { --gana: #34d399; --pierde: #f87171; --gana-tinta: #6ee7b7; --pierde-tinta: #fca5a5; background: rgba(255, 255, 255, 0.03); box-shadow: none; }
+:global(.dark) .tarjeta { --gana: var(--l-verde-3, #34d399); --pierde: var(--l-rojo-3, #f87171); --gana-tinta: var(--l-tinta-verde-clara, #6ee7b7); --pierde-tinta: var(--l-tinta-rojo-clara, #fca5a5); background: rgba(var(--l-luz-rgb, 255, 255, 255), 0.03); box-shadow: none; }
 
 .cabeza { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; margin-bottom: 8px; }
 .titulo { margin: 0; font-size: 11px; font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
@@ -26,7 +26,7 @@
 .vacio { margin: 0; display: grid; place-items: center; height: 100%; padding: 0 14px; text-align: center; font-size: 13px; line-height: 1.5; color: var(--muted); font-style: italic; }
 
 .rejilla { stroke: var(--border-subtle); stroke-width: 1; shape-rendering: crispEdges; }
-:global(.dark) .rejilla { stroke: rgba(255, 255, 255, 0.07); }
+:global(.dark) .rejilla { stroke: rgba(var(--l-luz-rgb, 255, 255, 255), 0.07); }
 .rejilla[data-cero] { stroke: color-mix(in srgb, var(--foreground) 22%, transparent); }
 .tick { fill: var(--muted); font-size: 10.5px; font-variant-numeric: tabular-nums; }
 .nota { fill: var(--muted); font-size: 10.5px; font-style: italic; }
@@ -96,7 +96,7 @@
 html[data-reposo] .hoy { animation-play-state: paused; }
 
 .sugiere { margin: 8px 0 0; font-size: 12px; color: var(--muted); }
-.sugiere button { padding: 0; border: 0; background: none; font: inherit; font-weight: 600; color: var(--brand-ink, var(--brand)); cursor: pointer; }
+.sugiere button { padding: 0; border: 0; background: none; font: inherit; font-weight: 600; color: var(--l-tinta-morado, var(--brand-ink, var(--brand))); cursor: pointer; }
 .sugiere button:hover { text-decoration: underline; text-underline-offset: 3px; }
 .leyendaNota { font-style: italic; }
 .sugiere { line-height: 1.5; }

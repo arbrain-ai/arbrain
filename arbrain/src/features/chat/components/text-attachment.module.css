@@ -2,15 +2,15 @@
 .card { display:flex; align-items:center; width:280px; max-width:100%; min-width:0; border:1px solid var(--border); border-radius:14px; background:var(--card); color:var(--foreground); overflow:hidden; }
 .card:hover { border-color:color-mix(in srgb,var(--primary) 45%,var(--border)); }
 .open { display:flex; flex:1; align-items:center; gap:12px; min-width:0; padding:13px; text-align:left; cursor:pointer; }
-.icon { display:grid; place-items:center; width:38px; height:44px; flex-shrink:0; border-radius:9px; background:color-mix(in srgb,var(--primary) 9%,transparent); color:var(--primary); }
+.icon { display:grid; place-items:center; width:38px; height:44px; flex-shrink:0; border-radius:9px; background:rgba(var(--l-velo-morado-rgb, var(--brand-rgb)), 0.09); color:var(--l-tinta-morado, var(--primary)); }
 .info { display:flex; flex-direction:column; gap:4px; min-width:0; }
 .info strong { font-size:13px; font-weight:550; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .info small { font-size:11px; color:var(--muted); white-space:nowrap; }
 .remove { align-self:stretch; display:grid; place-items:center; min-width:40px; cursor:pointer; color:var(--muted); }
 .remove:hover { color:var(--foreground); background:var(--card-hover); }
-.dialog { position:fixed; inset:0; margin:auto; width:min(860px,calc(100vw - 40px)); height:min(800px,calc(100dvh - 64px)); max-width:none; max-height:none; border:1px solid var(--border); border-radius:20px; padding:0; background:var(--background); color:var(--foreground); box-shadow:0 24px 100px #0007; overflow:hidden; }
+.dialog { position:fixed; inset:0; margin:auto; width:min(860px,calc(100vw - 40px)); height:min(800px,calc(100dvh - 64px)); max-width:none; max-height:none; border:1px solid var(--border); border-radius:20px; padding:0; background:var(--background); color:var(--foreground); box-shadow:0 24px 100px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.467); overflow:hidden; }
 .dialog[open] { display:flex; flex-direction:column; }
-.dialog::backdrop { background:#0008; backdrop-filter:blur(5px); }
+.dialog::backdrop { background:rgba(var(--l-sombra-rgb, 0, 0, 0), 0.533); backdrop-filter:blur(5px); }
 .header { display:flex; align-items:center; gap:10px; padding:14px 18px; border-bottom:1px solid var(--border); flex-shrink:0; }
 .header h2 { font-size:15px; font-weight:600; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .dialog button { min-height:40px; min-width:40px; display:inline-flex; align-items:center; justify-content:center; gap:7px; border-radius:8px; cursor:pointer; }
@@ -24,7 +24,7 @@
 .error { padding:10px 18px; color:var(--error); font-size:13px; }
 .footer { display:flex; justify-content:flex-end; gap:12px; padding:10px 18px; border-top:1px solid var(--border); font-size:13px; }
 .footer button { padding:0 12px; }
-.footer button:last-child { background:var(--primary); color:white; }
+.footer button:last-child { background:var(--primary); color:var(--l-gris-16, white); }
 @media(max-width:767px) {
   .dialog { width:100%; height:100dvh; border:0; border-radius:0; padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom); }
   .header { padding:10px 12px; }

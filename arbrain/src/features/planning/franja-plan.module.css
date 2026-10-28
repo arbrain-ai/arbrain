@@ -1,0 +1,47 @@
+/* El objetivo de cada escala (25 oct 2026): el mismo esqueleto en Día, Semana y Mes. Una línea de 42 px con el riel dorado de la casa
+   (el de la caja del objetivo de siempre) y la escala en dorado; al abrir, el título entero y su detalle debajo, con su propio scroll. */
+.franja { --serif-f: ui-serif, 'New York', 'Iowan Old Style', Georgia, serif; --oro-f: color-mix(in srgb, var(--gold-dark, var(--gold)) 74%, var(--l-gris-0, #000));
+  flex: none; display: flex; flex-direction: column; min-width: 0; container-type: inline-size; margin: 2px 0 8px; border-radius: 12px; overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
+  background: linear-gradient(90deg, rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.09), transparent 62%), var(--card);
+  box-shadow: inset 4px 0 0 var(--l-halo-ambar, var(--gold)), 0 1px 2px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.04); }
+:global(.dark) .franja { --oro-f: var(--gold-bright, var(--gold)); background: linear-gradient(90deg, rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.11), transparent 62%), var(--card); }
+.franja[data-vacio] { box-shadow: inset 4px 0 0 rgba(var(--l-halo-ambar-rgb, var(--gold-rgb)), 0.45), 0 1px 2px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.04); }
+.linea { display: flex; align-items: center; gap: 4px; min-height: 42px; min-width: 0; padding: 0 6px 0 16px; }
+.resumen { flex: 1 1 auto; display: flex; align-items: center; gap: 0; min-width: 0; min-height: 42px; padding: 0; border: 0; background: none; font: inherit; color: var(--foreground); text-align: left; }
+button.resumen { cursor: pointer; }
+.seg { display: inline-flex; align-items: center; gap: 9px; min-width: 0; white-space: nowrap; }
+.seg[data-objetivo] { flex: 0 1 auto; overflow: hidden; }
+.seg[data-habitos] { flex: none; }
+.sep { flex: none; width: 1px; height: 16px; margin: 0 12px 0 10px; background: color-mix(in srgb, var(--foreground) 12%, transparent); }
+.rotulo { flex: none; font-size: 10.5px; font-weight: 750; letter-spacing: 1.2px; text-transform: uppercase; color: var(--oro-f); }
+.rotulo b { color: var(--oro-f); font-weight: 750; }
+.rotulo em { font-style: normal; font-weight: 600; letter-spacing: .3px; text-transform: none; color: var(--muted); }
+.titulo { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-family: var(--serif-f); font-size: 15.5px; font-weight: 650; line-height: 1.25; letter-spacing: -.15px; color: var(--foreground); }
+.vacio { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 12.5px; color: var(--muted); }
+/* Abierta, o sin nada que abrir: el título se lee entero (envuelve en vez de cortarse). */
+.franja[data-abierta] .seg[data-objetivo], .franja[data-sin-detalle] .seg[data-objetivo] { white-space: normal; align-items: baseline; padding: 11px 0; }
+.franja[data-abierta] .titulo { font-size: 18px; text-wrap: balance; }
+.franja[data-sin-detalle] .titulo { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; text-wrap: pretty; }
+.cuenta { flex: none; margin-left: 10px; font-size: 12px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cuenta b { color: var(--oro-f); font-weight: 750; }
+.contador { flex: none; font-family: var(--serif-f); font-size: 14px; font-weight: 600; color: var(--oro-f); }
+.casilla { flex: none; display: grid; place-items: center; width: 20px; height: 20px; padding: 0; border-radius: 6px; cursor: pointer; color: var(--background);
+  border: 1.5px solid color-mix(in srgb, var(--foreground) 26%, transparent); background: transparent; transition: background 140ms, border-color 140ms; }
+.casilla:hover { border-color: color-mix(in srgb, var(--foreground) 50%, transparent); }
+.casilla[data-hecho] { background: var(--foreground); border-color: var(--foreground); }
+.casilla:focus-visible, .resumen:focus-visible, .chevron:focus-visible { outline: 2px solid var(--ring, var(--foreground)); outline-offset: 2px; border-radius: 6px; }
+.chevron { flex: none; display: grid; place-items: center; width: 28px; height: 28px; margin-left: 6px; padding: 0; border: 0; border-radius: 50%; background: none; color: var(--oro-f); cursor: pointer; }
+.chevron:hover { background: rgba(var(--gold-rgb), .12); }
+.chevron svg { transition: transform 180ms; }
+.franja[data-abierta] .chevron svg { transform: rotate(180deg); }
+.detalle { display: flex; flex-direction: column; gap: 12px; max-height: 55dvh; overflow-y: auto; scrollbar-width: thin; padding: 2px 16px 14px; }
+
+/* Angosto (panel y teléfono). */
+@container (max-width: 640px) {
+  .linea { padding-left: 14px; }
+  .sep { margin: 0 8px 0 7px; }
+  .titulo { font-size: 14.5px; }
+  .franja[data-abierta] .titulo { font-size: 16px; }
+  .detalle { padding: 2px 12px 12px 14px; }
+}

@@ -34,7 +34,7 @@ function skeleton(record: unknown): unknown {
   return Object.fromEntries(Object.entries(record as Record<string, unknown>).map(([key, entry]) => {
     if (!entry || typeof entry !== 'object') return [key, entry]
     const kept: Record<string, unknown> = {}
-    for (const field of ['id', 'name', 'type', 'status', 'error', 'durationMs']) {
+    for (const field of ['id', 'name', 'type', 'status', 'error', 'durationMs', 'orden']) {
       const v = (entry as Record<string, unknown>)[field]
       if (v !== undefined && (typeof v !== 'string' || v.length <= 512)) kept[field] = v
     }

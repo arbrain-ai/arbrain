@@ -18,7 +18,7 @@
 .plegar:focus-visible, .verTejido:focus-visible, .habito:focus-visible, .punto:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .verTejido { margin-left: auto; height: 26px; padding: 0 10px; border: 1px solid var(--linea-h); border-radius: 999px; background: transparent; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap; }
 .verTejido:hover { color: var(--foreground); background: var(--card-hover); }
-.verTejido[aria-pressed=true] { color: var(--brand, var(--primary)); border-color: rgba(var(--brand-rgb), .4); }
+.verTejido[aria-pressed=true] { color: var(--l-tinta-morado, var(--brand, var(--primary))); border-color: rgba(var(--brand-rgb), .4); }
 
 /* El medidor sube con cada marca (y se llena una vez al llegar). */
 .medidor { height: 3px; border-radius: 2px; background: var(--linea-h); overflow: hidden; }
@@ -32,12 +32,12 @@
 .habito:hover { border-color: color-mix(in srgb, var(--foreground) 18%, transparent); }
 .habito:active { transform: scale(.97); }
 .marca { flex: 0 0 auto; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; border: 1.6px solid color-mix(in srgb, var(--foreground) 32%, transparent);
-  color: #fff; font-size: 13px; line-height: 1; transition: background 200ms, border-color 200ms, transform 200ms var(--mov-curva, ease); }
+  color: var(--l-gris-16, #fff); font-size: 13px; line-height: 1; transition: background 200ms, border-color 200ms, transform 200ms var(--mov-curva, ease); }
 .marca svg { width: 12px; height: 12px; }
 .habito[data-estado=hecho] { border-color: color-mix(in srgb, var(--hecho) 35%, var(--linea-h)); background: color-mix(in srgb, var(--hecho) 7%, var(--card)); }
 .habito[data-estado=hecho] .marca { background: var(--hecho); border-color: var(--hecho); }
 .habito[data-estado=hecho] .nombre { color: var(--muted); }
-.habito[data-estado=fallado] .marca { color: var(--error, #e5484d); border-color: color-mix(in srgb, var(--error, #e5484d) 55%, transparent); }
+.habito[data-estado=fallado] .marca { color: var(--error, var(--l-tinta-rojo, #e5484d)); border-color: color-mix(in srgb, var(--error, var(--l-rojo-4, #e5484d)) 55%, transparent); }
 .nombre { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.3; }
 .racha { flex: 0 0 auto; font-size: 11px; font-variant-numeric: tabular-nums; color: var(--muted); }
 .habito[data-estado=hecho] .racha { color: var(--hecho); }
@@ -48,10 +48,10 @@
 
 .vacio { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
 .aviso, .deshacer { display: flex; align-items: center; gap: 10px; margin: 8px 0 0; padding: 7px 10px; border-radius: 10px; font-size: 12.5px; animation: aparecer 200ms ease-out both; }
-.aviso { background: rgba(var(--gold-rgb), .1); border: 1px solid rgba(var(--gold-rgb), .3); }
-.deshacer { background: rgba(var(--brand-rgb), .06); border: 1px solid rgba(var(--brand-rgb), .18); }
+.aviso { background: rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.1); border: 1px solid var(--l-borde-ambar, rgba(var(--gold-rgb), .3)); }
+.deshacer { background: rgba(var(--l-velo-morado-rgb, var(--brand-rgb)), 0.06); border: 1px solid var(--l-borde-morado, rgba(var(--brand-rgb), .18)); }
 .aviso span, .deshacer span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.aviso button, .deshacer button { border: 0; background: transparent; color: var(--primary); font: inherit; font-weight: 650; cursor: pointer; }
+.aviso button, .deshacer button { border: 0; background: transparent; color: var(--l-tinta-morado, var(--primary)); font: inherit; font-weight: 650; cursor: pointer; }
 
 /* Tejido de cuatro semanas: una fila por hábito, un punto por día. Los lunes marcan el compás. */
 .tejido { display: flex; flex-direction: column; gap: 3px; padding-top: 2px; min-width: 0; max-width: 760px; }
@@ -62,13 +62,13 @@
   background: color-mix(in srgb, var(--foreground) 7%, transparent); transition: background 160ms, transform 120ms; }
 .punto:hover { transform: scale(1.15); }
 .punto[data-estado=hecho] { background: var(--hecho); }
-.punto[data-estado=fallado] { background: color-mix(in srgb, var(--error, #e5484d) 45%, transparent); }
-.punto[data-hoy] { box-shadow: 0 0 0 1.5px var(--background), 0 0 0 3px rgba(var(--gold-rgb), .7); }
+.punto[data-estado=fallado] { background: color-mix(in srgb, var(--error, var(--l-rojo-4, #e5484d)) 45%, transparent); }
+.punto[data-hoy] { box-shadow: 0 0 0 1.5px var(--background), 0 0 0 3px var(--l-borde-ambar, rgba(var(--gold-rgb), .7)); }
 .leyenda { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin: 6px 0 0; font-size: 11px; color: var(--muted); }
 .leyenda span { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-left: 6px; background: color-mix(in srgb, var(--foreground) 7%, transparent); }
 .leyenda span:first-child { margin-left: 0; }
 .leyenda span[data-estado=hecho] { background: var(--hecho); }
-.leyenda span[data-estado=fallado] { background: color-mix(in srgb, var(--error, #e5484d) 45%, transparent); }
+.leyenda span[data-estado=fallado] { background: color-mix(in srgb, var(--error, var(--l-rojo-4, #e5484d)) 45%, transparent); }
 
 @container (max-width: 340px) {
   .tejidoFila { grid-template-columns: 64px repeat(28, minmax(0, 1fr)); gap: 1px; }
@@ -94,10 +94,10 @@
 .fila:disabled { cursor: default; }
 .fila .marca { flex: 0 0 auto; width: 14px; height: 14px; border-width: 1.4px; }
 .fila .marca svg { width: 9px; height: 9px; }
-.fila[data-estado=hecho] .marca { background: var(--hecho); border-color: var(--hecho); color: #fff; }
+.fila[data-estado=hecho] .marca { background: var(--hecho); border-color: var(--hecho); color: var(--l-gris-16, #fff); }
 .fila[data-estado=hecho] .nombre { color: var(--muted); }
 .fila .racha { margin-left: auto; font-size: 10.5px; }
 .subLinea { font-size: 11px; color: var(--muted); }
-.estrellaMini { flex: 0 0 auto; display: grid; place-items: center; width: 14px; height: 14px; color: var(--gold); }
+.estrellaMini { flex: 0 0 auto; display: grid; place-items: center; width: 14px; height: 14px; color: var(--l-tinta-ambar, var(--gold)); }
 .estrellaMini svg { width: 13px; height: 13px; fill: transparent; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; }
 .fila[data-estado=hecho] .estrellaMini svg { fill: currentColor; }

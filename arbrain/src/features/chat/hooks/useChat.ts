@@ -10,6 +10,8 @@ import { esStatusTransitorio, reintentosVencidos, REVISION_COLA_MS } from '../li
 import { useChatSettings } from './useChatSettings'
 import { isNonDefaultAccount, type ChatAccount } from '../stores/account-store'
 import { restoreTurnPair, snapshotMessage, type DurableSnapshot } from '../lib/durable-recovery'
+import type { MetaTurno } from '../lib/meta'
+import { anotarHerramienta, anotarPensamiento, type PasoCronologia } from '../lib/rastro'
 import { offlineEnvelope, type ChatIntent } from '../lib/offline-envelope'
 import { effortLabel } from '../lib/effort-labels'
 import { cachedSelection, refreshSelection, invalidateSelection, selectionIsStale, selectionRevision, SELECTION_CHANGED } from '../lib/selection-cache'
@@ -180,6 +182,7 @@ export interface ChatMessage {
   toolSummaries?: string[]                 // resúmenes display-friendly de batches de tools (SDK 0.3.179+)
   questionPrompts?: QuestionPrompt[]       // preguntas interactivas (AskUserQuestion) del turno
   thinking?: string                        // bloque thinking acumulado durante streaming
+  cronologia?: PasoCronologia[]            // pensamiento (offsets sobre `thinking`) y herramientas en el orden real
   status?: string | null                   // 'requesting' | 'compacting' | etc — null cuando termina
   fila?: FilaTurno | null                  // con status 'en_fila_turno': qué tiene delante (avisos, mensajes, pregunta)
   usage?: UsageMeta
@@ -192,6 +195,8 @@ export interface ChatMessage {
   branch?: { parentThreadId: string; beforeTurnId: string; threadId: string }
   /** Lo que Daniel escribió con este turno vivo, pintado dentro de su actividad (lib/inyecciones). */
   inyectados?: NotaInyectada[]
+  /** La meta (`/goal`) de Claude en este turno: revisiones y vueltas, plegadas bajo la respuesta (lib/meta). */
+  meta?: MetaTurno | null
 }
 
 // SSE event types from ClaudeClaw
@@ -210,6 +215,8 @@ type SSEEvent =
   | { type: 'compact'; tokensBefore?: number; tokensAfter?: number }
   | { type: 'usage'; costUsd: number; inputTokens: number; outputTokens: number; durationMs: number; numTurns: number; model?: string; contextUsed?: number; contextTotal?: number; effort?: string; engine?: 'claude' | 'codex' }
   | { type: 'result'; text: string; terminalReason?: string }
+  // La meta de Claude (27 oct 2026): tras una revisión, el texto que sigue es de su vuelta (lib/meta).
+  | { type: 'goal'; meta: MetaTurno }
   | { type: 'file_attachment'; url: string; filename: string; mimeType: string }
   | { type: 'model_changed'; model: string | null; display?: string; resolved?: string | null }
   | { type: 'model_downgraded'; from: string; to: string; refusal?: boolean; category?: string | null }
@@ -535,6 +542,8 @@ export function useChat({ sessionId, onSave, onRestoreInput, isSessionActive, ac
     let accumulatedText = ''
     let accumulatedThinking = ''
     let thinkingVisible = false
+    // Razonamiento y herramientas en el orden en que llegan (lib/rastro · lineaDeTiempo).
+    let cronologia: PasoCronologia[] = []
     const toolInputs: Record<string, string> = {}
     const toolOutputs: Record<string, ToolOutput> = {}
     let latestTodos: TodoItem[] | undefined
@@ -551,6 +560,7 @@ export function useChat({ sessionId, onSave, onRestoreInput, isSessionActive, ac
     let sawResult = false
     let sawError = false
     let durable = false
+    let metaTurno: MetaTurno | null = null
 
     // Merge del estado local de preguntas con las respuestas registradas por
     // answerQuestion (ver questionStatusRef arriba).
@@ -568,9 +578,10 @@ export function useChat({ sessionId, onSave, onRestoreInput, isSessionActive, ac
       const text = accumulatedText
       const thinking = thinkingVisible ? accumulatedThinking : undefined
       const inputs = Object.keys(toolInputs).length ? { ...toolInputs } : undefined
+      const meta = metaTurno ? { ...metaTurno, vueltas: metaTurno.vueltas.map(v => ({ ...v })) } : undefined
       setMessages((prev) =>
         prev.map((m) =>
-          m.id === assistantId ? { ...m, content: text, thinking, toolInputs: inputs } : m
+          m.id === assistantId ? { ...m, content: text, thinking, toolInputs: inputs, cronologia: cronologia.slice(), ...(meta ? { meta } : {}) } : m
         )
       )
     }
@@ -643,6 +654,11 @@ export function useChat({ sessionId, onSave, onRestoreInput, isSessionActive, ac
             setMessages(prev => prev.map(message => message.id === assistantId ? { ...message, branch: { parentThreadId: event.parentThreadId, beforeTurnId: event.beforeTurnId, threadId: event.threadId } } : message))
             break
 
+          case 'goal':
+            metaTurno = { ...event.meta, vueltas: event.meta.vueltas.map(v => ({ ...v })) }
+            if (!pendingFlush) { pendingFlush = true; rafId = requestAnimationFrame(flushText) }
+            break
+
           case 'resume_snapshot': {
             // The snapshot state already contains every event up to its cursor.
             if (ctx.turnId && typeof event.cursor === 'number') appliedCursorRef.current.set(ctx.turnId, Math.max(appliedCursorRef.current.get(ctx.turnId) ?? 0, event.cursor))
@@ -650,6 +666,7 @@ export function useChat({ sessionId, onSave, onRestoreInput, isSessionActive, ac
             accumulatedText = restored.content ?? ''
             accumulatedThinking = restored.thinking ?? ''
             thinkingVisible = !!restored.thinking
+            cronologia = restored.cronologia ? restored.cronologia.map(p => ({ ...p })) : []
             Object.assign(toolInputs, restored.toolInputs)
             Object.assign(toolOutputs, restored.toolOutputs)
             toolCalls = restored.toolCalls ?? []
@@ -658,6 +675,7 @@ export function useChat({ sessionId, onSave, onRestoreInput, isSessionActive, ac
             toolSummaries = restored.toolSummaries ?? []
             fileAttachments = restored.fileAttachments ?? []
             usageMeta = restored.usage
+            metaTurno = restored.meta ? { ...restored.meta, vueltas: restored.meta.vueltas.map(v => ({ ...v })) } : null
             turnSuggestions = event.state.suggestions ?? []
             setSuggestions(turnSuggestions)
             const finished = ['completed', 'failed', 'interrupted'].includes(event.turnStatus)
@@ -699,13 +717,17 @@ export function useChat({ sessionId, onSave, onRestoreInput, isSessionActive, ac
               ? { ...message, questionPrompts, streaming: false, terminalStatus: 'uncertain', diagnostic: event.message, status: 'uncertain' } : message))
             break
 
-          case 'text_delta':
-            accumulatedText += event.text
+          case 'text_delta': {
+            // Tras una revisión de la meta, el texto es de su vuelta: la respuesta principal queda arriba, intacta.
+            const vuelta = metaTurno?.vueltas.at(-1)
+            if (vuelta) vuelta.texto += event.text
+            else accumulatedText += event.text
             if (!pendingFlush) {
               pendingFlush = true
               rafId = requestAnimationFrame(flushText)
             }
             break
+          }
 
           case 'thinking_start':
             thinkingVisible = true
@@ -716,6 +738,7 @@ export function useChat({ sessionId, onSave, onRestoreInput, isSessionActive, ac
 
           case 'thinking_delta':
             thinkingVisible = true
+            anotarPensamiento(cronologia, accumulatedThinking.length, event.text.length)
             accumulatedThinking += event.text
             if (!pendingFlush) {
               pendingFlush = true
@@ -729,9 +752,10 @@ export function useChat({ sessionId, onSave, onRestoreInput, isSessionActive, ac
           case 'tool_start':
             if (verboDe(event.toolName) === 'abrir') marcarAbrirVivo(event.toolId)
             toolCalls = [...toolCalls, { toolId: event.toolId, toolName: event.toolName, status: 'running' }]
+            anotarHerramienta(cronologia, event.toolId)
             setMessages((prev) =>
               prev.map((m) =>
-                m.id === assistantId ? { ...m, toolCalls: [...toolCalls] } : m
+                m.id === assistantId ? { ...m, toolCalls: [...toolCalls], cronologia: cronologia.slice() } : m
               )
             )
             break
@@ -966,12 +990,14 @@ export function useChat({ sessionId, onSave, onRestoreInput, isSessionActive, ac
                       compact: compactMeta,
                       toolCalls: [...toolCalls],
                       thinking: finalThinking,
+                      cronologia: cronologia.length ? cronologia.slice() : m.cronologia,
                       toolInputs: finalInputs,
                       toolOutputs: finalOutputs,
                       todos: latestTodos,
                       tasks: agentTasks.length ? [...agentTasks] : undefined,
                       toolSummaries: toolSummaries.length ? [...toolSummaries] : undefined,
                       questionPrompts: questionPrompts.length ? withQuestionOverrides(questionPrompts) : undefined,
+                      ...(metaTurno ? { meta: metaTurno } : {}),
                       status: null,
                     }
                   : m

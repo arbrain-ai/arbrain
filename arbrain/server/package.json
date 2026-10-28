@@ -11,7 +11,8 @@
     "setup": "tsx scripts/setup.ts",
     "status": "tsx scripts/status.ts",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "herramientas:tamano": "tsx scripts/tamano-herramientas.ts"
   },
   "engines": {
     "node": ">=20"

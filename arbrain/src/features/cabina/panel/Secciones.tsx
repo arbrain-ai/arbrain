@@ -13,9 +13,10 @@
  *  · Expandir     vive en la cabecera de la vista (AbrirCompleto, Cabina.tsx): lleva a la sección de la barra izquierda
  *                 en la misma fecha, página o zona. Sacarla a su propia ventana sigue con ⌘⌥B o arrastrando la pestaña.
  */
+import { useAccesosCasa } from '@/shared/components/AccesosCasa'
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent as TeclaReact, type PointerEvent as PunteroReact } from 'react'
 import { createPortal } from 'react-dom'
-import { ArrowLeft, Bookmark, FolderPlus, GripVertical, Hammer, ListChecks, Plus, SlidersHorizontal, X } from 'lucide-react'
+import { ArrowLeft, Bookmark, FolderPlus, GripVertical, Hammer, ListChecks, Plus, Shapes, SlidersHorizontal, X } from 'lucide-react'
 import { ICONO } from '../Cabina'
 import { hoyCivil, NOMBRE, type Alcance, type MostrarInput, type Vista } from '../model'
 import { useTituloConversacion } from '../conversaciones'
@@ -45,13 +46,15 @@ import p from './secciones.module.css'
 // El calendario (FullCalendar) y la pizarra (motor del lienzo) solo cargan al abrir su pestaña (6 oct 2026): este
 // archivo lo importa el layout de toda la app y los arrastraba a cada ruta aunque nadie abriera esas pestañas.
 const PlanningCalendar = dynamic(() => import('@/features/planning/PlanningCalendar').then(m => m.PlanningCalendar), { ssr: false })
+const VistaPerro = dynamic(() => import('@/features/perro/VistaPerro').then(m => m.VistaPerro), { ssr: false })
 const PizarraEmbebida = dynamic(() => import('../vistas/PizarraEmbebida').then(m => m.PizarraEmbebida), { ssr: false })
 
 /** Ancho del menú «+» en px CSS (el mismo de `.menu` en secciones.module.css). */
 const ANCHO_MENU = 340
 
 export function IconoVista({ vista, size = 14 }: { vista: Vista; size?: number }) {
-  const Icono = ICONO[vista]
+  // Segunda capa (27 oct 2026): si una vista desconocida se cuela, la pestaña lleva un ícono genérico y la app sigue en pie.
+  const Icono = ICONO[vista] ?? Shapes
   return <Icono size={size} aria-hidden />
 }
 
@@ -72,10 +75,13 @@ const OPCIONES: Opcion[] = [
   { vista: 'salud', nota: 'Tu cuerpo hoy desde el reloj, contra tu propio normal' },
   { vista: 'contenido', nota: 'Videos del mes contra la meta' },
   { vista: 'finanzas', nota: 'Lo que entra (Polar), lo registrado y runway' },
+  // La historia de tu cerebro (27 oct 2026) salió del «+» el 28 oct: vive en Taller › Historia.
   // Explorador de archivos (8 oct 2026, Daniel: «principalmente por control»). Visible por defecto; quien no lo quiera lo apaga en Ajustes › Panel.
   { vista: 'explorador', nota: 'El árbol del repo: abre cualquier archivo en solo lectura' },
   // El «+» queda solo con negocio y vida (5 oct 2026, Daniel 18:11): Rutinas, Memoria y Servidores viven en el Taller.
-  { casa: 'taller', nota: 'Tu cerebro por dentro: agentes, rutinas, memoria y máquina' },
+  // Casa salió de aquí el 27 oct 2026 (Daniel: «porque esta este de casa arriba… todo bien organizado»): su único hogar en el
+  // «+» es «Entorno físico», al pie, junto con Perro.
+  { casa: 'taller', nota: 'Tu cerebro por dentro: agentes, historia, rutinas, memoria y máquina' },
 ]
 const idOpcion = (o: Opcion) => 'casa' in o ? o.casa : o.vista
 // Las ids del «+» son las de SECCIONES_MENU (menu-orden.ts); un test vigila que no se separen de las del servidor.
@@ -200,8 +206,29 @@ export function OpcionesPanel({ grande, onElegido }: { grande?: boolean; onElegi
       <SlidersHorizontal size={12} aria-hidden /> Ajustes del panel
     </button>
     <Guardadas onElegido={listo} />
-    {!grande && <p className={p.menuPie}>O pídeselo a Levy: «muéstrame el lienzo de Claridad en el panel».</p>}
+    <EntornoFisico onElegido={listo} />
+    {!grande && <p className={p.menuPie}>O pídeselo a Levy: «ábreme el perro en el panel».</p>}
   </div>
+}
+
+/**
+ * «Entorno físico» (27 oct 2026, Daniel: «ese botón pudiera estar dentro de un panel, hasta abajo tipo "entorno-físico"»).
+ * Hasta abajo del «+», en escritorio y teléfono: Perro y Casa. Desde la tarde del 27 se abren como pestañas del panel
+ * (Daniel: «todo esto puede abrirse en los paneles de la derecha??»); «Expandir» dentro de cada una lleva a /perro o /casa.
+ */
+function EntornoFisico({ onElegido }: { onElegido: () => void }) {
+  const { visibles } = useAccesosCasa()
+  const fijadas = usePanelFijadas(st => st.fijadas)
+  if (!visibles.length) return null
+  return <section className={p.guardadas} aria-label="Entorno físico" data-entorno-fisico>
+    <p className={p.menuCeja}>Entorno físico</p>
+    {visibles.map(({ vista, label, nota, icon: Icono }) => <div key={vista} className={p.menuFilaCaja} data-entorno={vista}>
+      <button role="menuitem" className={p.menuFila} onClick={() => { abrirSeccion({ vista }); onElegido() }} title={`Abrir ${label} en el panel`}>
+        <span className={p.menuIcono}><Icono size={16} aria-hidden /></span>
+        <span className={p.menuTexto}><b>{label}{fijadas.some(f => f.input.vista === vista) && <i className={p.yaAbierta}>abierta</i>}</b><small>{nota}</small></span>
+      </button>
+    </div>)}
+  </section>
 }
 
 /** «Guardadas»: el archivero (lo comparten la app y Levy). Un clic la reabre como pestaña. */
@@ -268,10 +295,12 @@ function ElegirLienzo({ onVolver, onElegir }: { onVolver: () => void; onElegir: 
   </>
 }
 
-/** El cuerpo de la pestaña Calendario o Lienzo; null para las demás vistas (pintan su vista del chat). */
+/** El cuerpo de la pestaña Calendario, Lienzo o Perro; null para las demás vistas (pintan su vista del chat). */
 export function CuerpoSeccion({ f }: { f: Fijada }) {
   const actualizar = usePanelFijadas(st => st.actualizar)
   const router = useRouter(), ask = useAskLevy()
+  // Perro (27 oct 2026): el mando completo a lo alto de la pestaña, con el STOP fijo abajo fuera del scroll.
+  if (f.input.vista === 'perro') return <div className={`${p.seccionLlena} ${p.editor}`}><VistaPerro llena /></div>
   // Lienzo (4 oct 2026): el editor completo de la sección, no solo mirar. Sus atajos, solo con el foco dentro.
   if (f.input.vista === 'lienzo' && f.input.paginaId) return <div className={`${p.seccionLlena} ${p.editor}`}>
     <PizarraEmbebida paginaId={f.input.paginaId} zona={f.input.zona} soloConFoco
@@ -303,4 +332,4 @@ export function alExpandir(f: Fijada) {
   if (f.input.vista === 'calendario' || f.input.vista === 'objetivos') window.dispatchEvent(new CustomEvent(EVENTO_IR_CALENDARIO, { detail: { fecha: f.input.fecha ?? hoyCivil(), modo: MODO_DE[f.input.alcance ?? 'semana'] } }))
 }
 
-export const esSeccion = (f: Fijada) => f.input.vista === 'calendario' || f.input.vista === 'objetivos' || (f.input.vista === 'lienzo' && !!f.input.paginaId)
+export const esSeccion = (f: Fijada) => f.input.vista === 'perro' || f.input.vista === 'calendario' || f.input.vista === 'objetivos' || (f.input.vista === 'lienzo' && !!f.input.paginaId)

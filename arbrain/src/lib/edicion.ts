@@ -81,6 +81,9 @@ export const APIS_CLIENTE = [
   '/api/chat/active', '/api/chat/sessions', '/api/chat/complete', '/api/chat/commands', '/api/chat/model',
   '/api/chat/models', '/api/chat/modelos', '/api/chat/modelos-catalogo', '/api/chat/selection', '/api/chat/efforts',
   '/api/chat/limits', '/api/chat/title', '/api/chat/preferencia-motor', '/api/chat/despertadores',
+  // Ver y deshacer (v0.2.13): «Deshacer desde aquí» y Rehacer sobre el checkpoint de archivos de SU daemon; y los botones
+  // de la meta (/goal) del hilo. La prueba real en modo alumno del 28 oct los encontró en 404.
+  '/api/chat/deshacer', '/api/chat/meta',
   // Dictado (21 oct 2026): con la llave de Groq del alumno, que vive solo en su daemon. «Escuchar» (v0.2.10): con su
   // llave de LemonFox, `/api/chat/tts` pide el audio a SU daemon; sin ella responde 503 y suena la mejor voz del sistema.
   '/api/chat/transcribe', '/api/chat/tts',
@@ -102,6 +105,8 @@ export const APIS_CLIENTE = [
   // Seguridad y primer arranque.
   '/api/manos', '/api/desktop', '/api/local-first/desktop-session', '/api/version', '/api/primer-arranque',
   '/api/confirmaciones', '/api/monitoreo', '/api/local-image', '/api/llaves',
+  // Botón Play (v0.2.13): las reglas de «Permitir siempre», visibles y revocables en Ajustes › Permisos y seguridad.
+  '/api/permisos',
   // Conectar con arbrain.ai (puente de seguimiento, 21 oct 2026): opcional, con token del alumno.
   '/api/progreso',
   // Seguridad del alumno (12 oct 2026): «Lo que hizo Levy», «Pausar todo», carpetas abiertas y tope de gasto.

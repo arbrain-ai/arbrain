@@ -27,7 +27,7 @@ test('el engrane guarda sus ajustes y no confía en lo guardado', () => {
   assert.deepEqual(leerAjustes(null), AJUSTES_BASE)
   assert.equal(AJUSTES_BASE.desde, 5); assert.equal(AJUSTES_BASE.hasta, 22)
   assert.equal(AJUSTES_BASE.rechazados, false, 'los rechazados no se ven por defecto')
-  const guardado = JSON.stringify({ ...AJUSTES_BASE, v: 2, dias: 7, vistaSemana: 'agenda', enfoque: true, finDeSemana: false, densidad: 'compacta', mesVista: 'cuadricula', mesSemanas: 4, zona: true })
+  const guardado = JSON.stringify({ ...AJUSTES_BASE, v: 3, dias: 7, vistaSemana: 'agenda', enfoque: true, finDeSemana: false, densidad: 'compacta', mesVista: 'cuadricula', mesSemanas: 4, zona: true })
   const a = leerAjustes(guardado)
   assert.deepEqual([a.dias, a.vistaSemana, a.enfoque, a.finDeSemana, a.densidad, a.mesVista, a.mesSemanas, a.zona], [7, 'agenda', true, false, 'compacta', 'cuadricula', 4, true])
   // Basura: cada campo inválido vuelve a su base sin tumbar los demás.
@@ -117,12 +117,14 @@ test('atajos D · S · M: repetir la tecla de la escala activa lleva a hoy, igua
   assert.doesNotMatch(cal, /case 'mode': e\.preventDefault\(\); escala\(action\.mode\); break/, 'la tecla ya no ignora la escala activa')
 })
 
-test('ronda 3: el objetivo sin globo de Levy, el Mes dice «Semana k de n» y hoy se marca en oro en el Mes', () => {
+test('ronda 3: el objetivo sin globo de Levy, y hoy se marca en morado en el Mes (sin oro)', () => {
   const caja = fuente('ObjetivoCaja.tsx'), mes = fuente('MesClaro.tsx'), semana = fuente('SemanaClara.tsx')
   assert.doesNotMatch(caja, /MessageCircle|onConversar/, 'la tarjeta del objetivo ya no lleva el globo')
   assert.doesNotMatch(semana + mes, /onConversar=\{onConversar \? conversar/, 'ni Semana ni Mes se lo pasan')
-  assert.match(mes, /marca=\{actual >= 0 \? `Semana \$\{actual \+ 1\} de \$\{semanas\.length\}` : null\}/)
   assert.doesNotMatch(mes, /unidad: 'semanas'/, '«1 de 5 semanas» se fue')
+  // El Mes de piedras grandes (25 oct 2026, «no me gusta que todo el color se hizo amarillo»): en la cuadrícula hoy es un círculo
+  // morado en su número, sin relleno de oro (el ámbar sólido es solo del ahora); la lista angosta marca hoy igual.
   const css = readFileSync(new URL('../../src/features/planning/planning.module.css', import.meta.url), 'utf8')
-  assert.match(css, /\.fc-daygrid-day\.fc-day-today\) \{ background:linear-gradient\(180deg, rgba\(var\(--gold-rgb\)/)
+  assert.match(css, /\[data-mes-piedras\] :global\(\.fc-daygrid-day\.fc-day-today\) \{ background:transparent !important/)
+  assert.match(css, /\[data-mes-piedras\] :global\(\.fc-daygrid-day\.fc-day-today \.fc-daygrid-day-number\) \{[^}]*background:var\(--purple/)
 })

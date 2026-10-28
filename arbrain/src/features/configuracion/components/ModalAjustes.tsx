@@ -6,7 +6,7 @@ import { SeccionModelo } from '@/features/modelo/SeccionModelo'
 import { useAjustes } from '@/shared/stores/ajustes-store'
 import { useIsMobile } from '@/shared/hooks/useMediaQuery'
 import { buscarAjustes, defDe, type IdSeccion } from '../secciones'
-import { SeccionApariencia, SeccionAvisos, SeccionCuenta, SeccionMac } from './Secciones'
+import { SeccionApariencia, SeccionAvisos, SeccionCuenta, SeccionEstilo, SeccionMac } from './Secciones'
 import { SeccionTelefono } from '@/features/telefono/SeccionTelefono'
 import { SeccionAtajos } from './SeccionAtajos'
 import { SeccionPanel } from './SeccionPanel'
@@ -202,7 +202,7 @@ function Ventana({ seccion, enLista }: { seccion: IdSeccion; enLista: boolean })
                 {seccion === 'oferta' && <SeccionOferta />}
                 {seccion === 'embudo' && <SeccionEmbudo />}
                 {seccion === 'modelo' && <SeccionModelo />}
-                {seccion === 'apariencia' && <SeccionApariencia />}
+                {seccion === 'apariencia' && <><SeccionApariencia /><SeccionEstilo /></>}
                 {seccion === 'cuenta' && <SeccionCuenta />}
                 {seccion === 'avisos' && <SeccionAvisos />}
                 {seccion === 'mac' && <SeccionMac />}

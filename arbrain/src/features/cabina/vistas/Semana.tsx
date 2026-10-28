@@ -86,7 +86,7 @@ export function VistaSemana({ data, ancla, grande }: { data: PlanningSnapshot; a
       <SelectorVista vista={vista} onVista={setVista} />
     </div>
     {meta && <div className={`${l.todoElDia} ${l.entra}`} style={escalon(1)}><span className={l.pastilla} title={meta.titulo}><i aria-hidden /><span>{meta.titulo}</span></span></div>}
-    {aviso && <p className={l.entra} role="alert" style={{ margin: '8px 0 0', fontSize: 12.5, color: 'var(--danger, #d14343)' }}>{aviso.texto}
+    {aviso && <p className={l.entra} role="alert" style={{ margin: '8px 0 0', fontSize: 12.5, color: 'var(--l-tinta-rojo, var(--danger, #d14343))' }}>{aviso.texto}
       {aviso.reintentar && <> <button type="button" onClick={() => { const r = aviso.reintentar!; setAviso(null); r() }} style={{ border: 0, background: 'none', color: 'inherit', font: 'inherit', fontWeight: 700, textDecoration: 'underline', cursor: 'pointer' }}>Reintentar</button></>}</p>}
     {vista === 'horas'
       ? <div className={l.entra} style={{ ...escalon(2), marginTop: 10 }}>

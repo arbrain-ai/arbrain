@@ -55,7 +55,7 @@ describe('Cabina en la edición cliente', () => {
   it('ninguna descripción ni esquema nombra el negocio de la instalación original', async () => {
     const t = await cargar('cliente')
     const visibles = t.cabinaToolsVisibles()
-    expect(visibles.map(x => x.name)).toEqual(['mostrar', 'archivero', 'panel', 'abrir', 'despertador'])
+    expect(visibles.map(x => x.name)).toEqual(['mostrar', 'archivero', 'panel', 'abrir', 'despertador', 'ayuda'])
     for (const h of [...visibles, ...t.cabinaDynamicTools()]) {
       const texto = JSON.stringify(h)
       expect(texto, h.name).not.toMatch(PROHIBIDO)
@@ -64,6 +64,11 @@ describe('Cabina en la edición cliente', () => {
     process.env.ARBRAIN_DUENO = 'alumna de prueba'
     for (const h of t.cabinaToolsCliente()) expect(JSON.stringify(h)).not.toMatch(PROHIBIDO)
     expect(t.textosCabinaCliente('alumna de prueba').mostrar).toContain('Muestra a alumna de prueba')
+    // Dieta de contexto (27 oct 2026): la ayuda a demanda tampoco nombra el negocio, para ningún tema ni para el índice.
+    for (const tema of [undefined, 'mostrar', 'calendario', 'documento', 'panel', 'archivero', 'abrir', 'despertador', 'zona', 'cohorte', 'delegar']) {
+      const r = await t.ejecutarCabina('ayuda', tema ? { tema } : {})
+      expect(r.text, String(tema)).not.toMatch(PROHIBIDO)
+    }
   })
 
   it('las vistas y destinos ofrecidos son los de la web del alumno; los demás no se aceptan', async () => {

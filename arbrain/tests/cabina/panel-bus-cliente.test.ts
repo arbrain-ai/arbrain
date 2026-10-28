@@ -65,7 +65,7 @@ test('el cliente aplica soltar, guardar y fijar sobre el panel real, sin importa
   // Servidores vive en el Taller (5 oct 2026): fijarla abre Taller › Servidores, sin pestaña propia
   const antes = st().fijadas.length
   const srv = aplicar({ id: 'c-srv', accion: 'fijar', input: { vista: 'servidores', fijar: true } as never })
-  assert.equal(srv.ok, true); assert.deepEqual(srv.abiertas, ['Taller · Máquina'])
+  assert.equal(srv.ok, true); assert.deepEqual(srv.abiertas, ['Taller · Computadora'])
   assert.equal(st().taller, true); assert.equal(st().activa, 'taller'); assert.equal(st().fijadas.length, antes)
   const { useSegmentoTaller } = await import('../../src/features/cabina/panel/taller-segmento')
   assert.equal(useSegmentoTaller.getState().segmento, 'maquina')

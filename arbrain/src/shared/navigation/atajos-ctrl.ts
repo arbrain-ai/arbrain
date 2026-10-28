@@ -23,7 +23,7 @@ const TECLAS: Record<string, AccionCtrl> = {
   KeyQ: { tipo: 'cerrar-pestana' },
   // 6 oct 2026: saltar de un lienzo a otro desde el mismo lienzo (el selector del título). Sin lienzo a la vista no hace nada.
   KeyL: { tipo: 'selector-lienzo' },
-  // 22 oct 2026 (monk mode hasta Monterrey): «Hábitos de hoy» al pie del Día, con el foco listo para 1 · 2 · 3.
+  // 22 oct 2026 (monk mode hasta Monterrey); desde el 25 oct, la vista Hábitos del calendario (hábitos a través del tiempo).
   KeyH: { tipo: 'habitos' },
 }
 
@@ -56,5 +56,5 @@ export const ATAJOS_CTRL: { teclas: string[]; accion: string }[] = [
   { teclas: ['Ctrl', 'M'], accion: 'Calendario en Mes, el de hoy' },
   { teclas: ['Ctrl', 'Q'], accion: 'Cerrar la pestaña activa del panel' },
   { teclas: ['Ctrl', 'L'], accion: 'Lienzo: cambiar de lienzo desde el mismo lienzo (recientes arriba; flechas y Enter)' },
-  { teclas: ['Ctrl', 'H'], accion: 'Hábitos de hoy: el Día del panel con el foco en las casillas; luego 1 · 2 · 3 marcan (en un campo con texto detrás del cursor, borra hacia atrás)' },
+  { teclas: ['Ctrl', 'H'], accion: 'Hábitos a través del tiempo: el Calendario del panel en su vista H, con el foco en hoy (en un campo con texto detrás del cursor, borra hacia atrás)' },
 ]

@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { Filter, Keyboard, PanelRightOpen, RefreshCw, Settings } from 'lucide-react'
+import { useModoPresentacion } from '@/shared/stores/presentacion-store'
 import { SEMANAS_MES, type Ajustes } from './ajustes'
 import { CUADRANTES, type Cuadrante, type Tarifa } from './drip'
 import { ListaCalendarios, type ControlLeyenda } from './Leyenda'
@@ -28,15 +29,20 @@ export interface DripEngrane {
   /** La tarifa es la de la persona (no la de la instalación). */
   propia: boolean
   poner: (monto: number | null, moneda?: string) => Promise<unknown>
+  /** Bloques de la Semana Perfecta guardada (0 = sin diseñar). */
+  bloquesPerfectos: number
 }
 
-export function Engrane({ ajustes, poner, diasActual, leyenda, drip, acciones }: {
+export function Engrane({ ajustes, poner, diasActual, leyenda, drip, matriz, acciones }: {
   ajustes: Ajustes; poner: (c: Partial<Ajustes>) => void
   /** Los días que se ven ahora (con «Auto», los que caben). */
   diasActual: number
   leyenda: ControlLeyenda; drip?: DripEngrane; acciones: AccionesEngrane
+  /** La matriz DRIP (te paga / paga poco) que antes vivía en la barra. */
+  matriz?: ReactNode
 }) {
   const [abierto, setAbierto] = useState(false)
+  const presentacion = useModoPresentacion()
   const raiz = useRef<HTMLSpanElement>(null)
   useEffect(() => {
     if (!abierto) return
@@ -60,6 +66,9 @@ export function Engrane({ ajustes, poner, diasActual, leyenda, drip, acciones }:
         </Fila>
         <Interruptor etiqueta="Enfoque" ayuda="Sin categorías ni subtítulos; las horas más altas" valor={ajustes.enfoque} onCambio={v => poner({ enfoque: v })} />
         <Interruptor etiqueta="Fines de semana" valor={ajustes.finDeSemana} onCambio={v => poner({ finDeSemana: v })} />
+        {/* Pantalla compartida (25 oct 2026, pedido del dueño): Arbrain no sabe cuándo se graba o se comparte, así que es un interruptor
+            de este equipo (el mismo modo presentación de «Hábitos de hoy»). Prendido, un hábito privado se ve como «Hábito privado». */}
+        <Interruptor etiqueta="Pantalla compartida" ayuda="Al grabar o compartir: los hábitos privados se ven como «Hábito privado»" valor={presentacion.activo} onCambio={v => { if (v !== presentacion.activo) presentacion.alternar() }} />
         <Fila etiqueta="Semana"><Segmentos valor={ajustes.vistaSemana} opciones={[{ v: 'horas', t: 'Horas' }, { v: 'agenda', t: 'Agenda' }]} onCambio={v => poner({ vistaSemana: v })} nombre="Ver la semana como" /></Fila>
         <Fila etiqueta="Mes"><Segmentos valor={ajustes.mesVista} opciones={[{ v: 'recorrido', t: 'Recorrido' }, { v: 'cuadricula', t: 'Cuadrícula' }]} onCambio={v => poner({ mesVista: v })} nombre="Ver el mes como" /></Fila>
         {ajustes.mesVista === 'cuadricula' && <Fila etiqueta="Semanas del mes"><Segmentos valor={ajustes.mesSemanas} opciones={SEMANAS_MES.map(n => ({ v: n, t: n ? String(n) : 'Mes' }))} onCambio={n => poner({ mesSemanas: n })} nombre="Semanas a la vista" /></Fila>}
@@ -76,11 +85,15 @@ export function Engrane({ ajustes, poner, diasActual, leyenda, drip, acciones }:
         <Interruptor etiqueta="Zona horaria" ayuda="En la esquina de las horas" valor={ajustes.zona} onCambio={v => poner({ zona: v })} />
       </Seccion>
       {leyenda.calendarios && leyenda.alternarCalendario && <Seccion titulo="Calendarios"><div className={e.calendarios}><ListaCalendarios calendarios={leyenda.calendarios} alternar={leyenda.alternarCalendario} poner={leyenda.ponerCalendarios} /></div></Seccion>}
-      {/* DRIP (24 oct 2026): reemplaza las categorías como color. Cuadrantes a la vista y la tarifa de recompra. */}
+      {/* DRIP (24 oct 2026): reemplaza las categorías como color. Cuadrantes a la vista y la tarifa de recompra.
+          La matriz vive aquí desde el 25 oct 2026 (pedido del dueño: «la matriz va dentro del botón de config»): la barra queda en Hoy · ‹ › ·
+          fecha · D S M · + · engrane. Sin gobierno (la vista del chat), las cuatro pastillas de antes. */}
       <Seccion titulo="DRIP">
-        {drip && <div className={e.categorias}>{CUADRANTES.map(c => { const oculta = drip.ocultas.has(c.id)
-          return <button key={c.id} aria-pressed={!oculta} data-oculta={oculta || undefined} style={{ '--c': c.color } as CSSProperties} onClick={() => drip.alternar(c.id)} title={c.lema}><i aria-hidden />{c.nombre}</button> })}</div>}
+        {drip && (matriz ?? <div className={e.categorias}>{CUADRANTES.map(c => { const oculta = drip.ocultas.has(c.id)
+          return <button key={c.id} aria-pressed={!oculta} data-oculta={oculta || undefined} style={{ '--c': c.color } as CSSProperties} onClick={() => drip.alternar(c.id)} title={c.lema}><i aria-hidden />{c.nombre}</button> })}</div>)}
         {drip && <TarifaRecompra drip={drip} />}
+        {drip && <Interruptor etiqueta="Semana perfecta" ayuda={drip.bloquesPerfectos ? `${drip.bloquesPerfectos} bloques en fantasma detrás de tu semana` : 'Sin diseñar: dile a Levy «armemos mi semana perfecta»'} valor={ajustes.semanaPerfecta} onCambio={v => poner({ semanaPerfecta: v })} />}
+        <Interruptor etiqueta="Rutina a futuro" ayuda="Día y Semana: lo que falta de tu rutina. Lo que ya pasó y tus compromisos se ven siempre" valor={ajustes.rutinaFutura} onCambio={v => poner({ rutinaFutura: v })} />
         <Interruptor etiqueta="Eventos rechazados" ayuda="Los que rechazaste en Google" valor={ajustes.rechazados} onCambio={v => poner({ rechazados: v })} />
       </Seccion>
       <div className={e.pie}>

@@ -4,7 +4,8 @@
  * ver… que sea bonito, como el Calendario y la vista Salud»). La sala de máquinas responde en 3 segundos a
  * «¿qué está trabajando para mí y hay algo roto?»:
  *
- *  · Pulso      una frase arriba: cuántos agentes trabajan y, si algo pide atención, qué (falla, huérfanos, pregunta).
+ *  · Pulso      una frase arriba: cuántos agentes trabajan y, si algo pide atención, qué (pregunta, programas sin uso);
+ *               una rutina o un servicio que falló es aviso, no peligro: una línea neutra con «Ver» (ronda 4, 27 oct 2026).
  *               Cada parte lleva a su pestaña. Solo late cuando algo trabaja.
  *  · Agentes    solo lo vivo, por conversación, con su nombre humano y su avance. Lo terminado y las terminales crudas,
  *               en pliegues discretos. Fuera el contador del motor.
@@ -16,24 +17,22 @@
  * El movimiento es el de la casa (shared/movimiento): entra escalonado una vez, las cifras cuentan una vez, solo late lo vivo,
  * lo que se apaga se pliega.
  */
-import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  AppWindow, ArrowUpRight, AudioLines, Bot, BrainCircuit, Check, ChevronRight, CircleAlert, Database, Hand, HeartPulse,
-  House, LayoutGrid, Loader2, Plus, Power, Repeat, ScrollText, Server, Sparkles, SquareTerminal, Waypoints, type LucideIcon,
+  AppWindow, ArrowUpRight, AudioLines, Bot, BrainCircuit, Check, GitBranch, ChevronRight, CircleAlert, CircleX, Database, Hand, HeartPulse,
+  House, Info, LayoutGrid, Loader2, Plus, Power, Repeat, ScrollText, Server, Sparkles, SquareTerminal, Waypoints, type LucideIcon,
 } from 'lucide-react'
 import { Cifra, escalon, mov } from '@/shared/movimiento'
 import { releer, useFuente } from '../datos'
 import type { CronSnapshot } from '@/features/planning/types'
 import { estado as estadoRutina } from '@/features/rutinas/model'
 import { urlRutinas } from '../vistas/Rutinas'
-import { useAbrirConversacion, useConversacionActiva, useTituloConversacion } from '../conversaciones'
-import { agruparInternas, separarProcesos, type GrupoInternas } from '../internas-por-conversacion'
-import { agenteTerminado, partirTerminales, resumenTerminal } from '../terminados'
-import { esperaALevy, esProceso, lineaLimpia, preguntaAlgo, type TareaInterna } from '../trabajos-modelo'
-import { abrirEnNavegador, accionLegible, agrupar, esAgente, hace, nombreTerminal, servicioCorto, urlPanel, type AreaServicio, type Proceso, type Servicio, type Terminal, type Trabajos } from './datos'
-import { FilaInterna } from './InternaDetalle'
-import { LineaConsumo } from './GastoAgente'
+import { useAbrirConversacion, useTituloConversacion } from '../conversaciones'
+import { lineaLimpia } from '../trabajos-modelo'
+import { abrirEnNavegador, accionLegible, esAgente, nombreTerminal, servicioCorto, urlPanel, type AreaServicio, type Proceso, type Servicio, type Terminal, type Trabajos } from './datos'
+import { TableroAgentes, useDatosTaller } from './TableroAgentes'
+import { armarTablero, cuentas, totalTablero } from '../tablero-modelo'
 import { IconoTipo, estadoTerminal, tipoTerminal } from './Tipo'
 import type { SegmentoTaller } from './taller-segmento'
 import { VistaServidores } from '../vistas/Servidores'
@@ -43,10 +42,11 @@ import { useOrdenTaller } from './orden-taller'
 import { arrastrarFila } from './arrastre-lista'
 import s from './panel.module.css'
 import w from './taller.module.css'
+import tb from './tablero.module.css'
 import { capital, NOMBRE_DUENO } from '@/config'
 
 // ── Íconos de las pestañas y de las áreas ──
-export const ICONO_SEGMENTO: Record<SegmentoTaller, LucideIcon> = { terminales: Bot, rutinas: Repeat, memoria: BrainCircuit, maquina: Server, registro: ScrollText }
+export const ICONO_SEGMENTO: Record<SegmentoTaller, LucideIcon> = { terminales: Bot, historia: GitBranch, rutinas: Repeat, memoria: BrainCircuit, maquina: Server, registro: ScrollText }
 const ICONO_AREA: Record<AreaServicio, LucideIcon> = { Levy: Sparkles, Arbrain: LayoutGrid, Casa: House, Voz: AudioLines, Salud: HeartPulse, 'Túneles': Waypoints, Datos: Database, Manos: Hand, Apps: AppWindow }
 const ORDEN_AREAS: AreaServicio[] = ['Levy', 'Arbrain', 'Casa', 'Voz', 'Salud', 'Túneles', 'Datos', 'Manos', 'Apps']
 const QUE_AREA: Record<AreaServicio, string> = {
@@ -55,19 +55,16 @@ const QUE_AREA: Record<AreaServicio, string> = {
 }
 
 // ── Cuentas del Taller (una sola regla para el pulso y las pestañas) ──
-export interface CuentasTaller { trabajando: number; procesos: number; preguntan: number; huerfanos: number; fallas: number; fallasMenores: number; servicios: number; rutinasFallidas: number }
+export interface CuentasTaller { trabajando: number; procesos: number; preguntan: number; espera: number; huerfanos: number; fallas: number; fallasMenores: number; servicios: number; rutinasFallidas: number }
 export function cuentasTaller(d: Trabajos | undefined, rutinas?: CronSnapshot): CuentasTaller | null {
   if (!d) return null
-  const vivos = d.terminales.filter(t => !agenteTerminado(t))
-  // `trabajando` cuenta solo agentes (sesiones y subagentes); los comandos en segundo plano van aparte (14 oct 2026).
-  const internasVivas = d.internas?.filter(x => x.estado === 'trabajando') ?? []
-  const procesos = internasVivas.filter(esProceso).length
-  const trabajando = vivos.filter(t => esAgente(t) && t.estado === 'trabajando').length + internasVivas.length - procesos
-  const preguntan = vivos.filter(t => preguntaAlgo(t) && !esperaALevy(t)).length
+  // Ronda 3 (crítico ciego, 27 oct): agentes, procesos y «te pregunta» salen de la MISMA cuenta que el tablero
+  // (`cuentas(armarTablero)`): el encabezado no puede decir 2 donde la lista dice 5.
+  const c = cuentas(armarTablero(d))
   const procs = d.procesos ?? []
   const fallas = d.servicios.filter(x => x.estado === 'falló')
   return {
-    trabajando, procesos, preguntan, huerfanos: procs.filter(p => p.clase === 'huerfano').length,
+    trabajando: c.trabajando, procesos: c.procesos, preguntan: c.preguntan, espera: c.espera, huerfanos: procs.filter(p => p.clase === 'huerfano').length,
     fallas: fallas.filter(x => !x.menor).length, fallasMenores: fallas.filter(x => x.menor).length,
     servicios: d.servicios.filter(x => x.estado === 'corriendo').length,
     rutinasFallidas: rutinasFallidas(rutinas),
@@ -80,47 +77,50 @@ export function rutinasFallidas(d: CronSnapshot | undefined) {
   return (d?.jobs ?? []).filter(j => estadoRutina(j, d?.runs ?? []).tono === 'error').length
 }
 
-export function PulsoTaller({ data, onIr }: { data: Trabajos | undefined; onIr: (v: SegmentoTaller) => void }) {
+export function PulsoTaller({ data: real, onIr }: { data: Trabajos | undefined; onIr: (v: SegmentoTaller) => void }) {
   const rutinas = useFuente<CronSnapshot>(urlRutinas()).data
+  const { datos: data } = useDatosTaller(real)
   const n = cuentasTaller(data, rutinas)
   if (!n) return <div className={w.pulso} data-tono="cargando" aria-busy="true"><span className={w.pulsoLuz} /><div><p className={w.pulsoTitular}>Mirando el Studio…</p></div></div>
-  const alertas: { texto: string; ir: SegmentoTaller; tono: 'falla' | 'atencion' | 'oro' }[] = []
-  if (n.fallas) alertas.push({ texto: `${n.fallas} ${n.fallas === 1 ? 'servicio con falla' : 'servicios con falla'}`, ir: 'maquina', tono: 'falla' })
-  if (n.rutinasFallidas) alertas.push({ texto: `${n.rutinasFallidas} ${n.rutinasFallidas === 1 ? 'rutina falló' : 'rutinas fallaron'}`, ir: 'rutinas', tono: 'falla' })
-  if (n.preguntan) alertas.push({ texto: `${n.preguntan} ${n.preguntan === 1 ? 'agente te pregunta' : 'agentes te preguntan'}`, ir: 'terminales', tono: 'oro' })
-  if (n.huerfanos) alertas.push({ texto: `${n.huerfanos} ${n.huerfanos === 1 ? 'huérfano encendido' : 'huérfanos encendidos'}`, ir: 'maquina', tono: 'atencion' })
-  if (n.fallasMenores) alertas.push({ texto: `${n.fallasMenores} ${n.fallasMenores === 1 ? 'aviso menor' : 'avisos menores'}`, ir: 'maquina', tono: 'atencion' })
-  const tono = n.fallas || n.rutinasFallidas ? 'falla' : alertas.length ? 'atencion' : 'ok'
-  return <div className={`${w.pulso} ${mov.entra}`} style={escalon(0)} data-tono={tono} role="status">
-    <span className={`${w.pulsoLuz}${n.trabajando + n.procesos ? ` ${mov.late}` : ''}`} data-vivo={n.trabajando + n.procesos > 0 || undefined} aria-hidden />
+  // Ronda 4 (crítico ciego, 27 oct): una rutina o un servicio que falló no es peligro, es aviso. Una sola línea neutra
+  // con ícono y «Ver», sin rojo. Arriba solo va lo que te toca: cuántos trabajan y cuántos te esperan.
+  const avisos: { texto: string; ir: SegmentoTaller }[] = []
+  if (n.rutinasFallidas) avisos.push({ texto: `${n.rutinasFallidas} ${n.rutinasFallidas === 1 ? 'rutina' : 'rutinas'}`, ir: 'rutinas' })
+  if (n.fallas) avisos.push({ texto: `${n.fallas} ${n.fallas === 1 ? 'servicio' : 'servicios'}`, ir: 'maquina' })
+  if (n.huerfanos) avisos.push({ texto: `${n.huerfanos} ${n.huerfanos === 1 ? 'programa abierto sin usar' : 'programas abiertos sin usar'}`, ir: 'maquina' })
+  if (n.fallasMenores) avisos.push({ texto: `${n.fallasMenores} ${n.fallasMenores === 1 ? 'aviso menor' : 'avisos menores'}`, ir: 'maquina' })
+  const lista = avisos.map(a => a.texto)
+  const enFrase = lista.length > 1 ? `${lista.slice(0, -1).join(', ')} y ${lista.at(-1)}` : lista[0]
+  return <div className={`${w.pulso} ${tb.pulsoSobrio} ${mov.entra}`} style={escalon(0)} data-tono="ok" role="status">
+    {/* 28 oct 2026: «regresa al morado… el icono estático». La luz morada no late; solo respiran los renglones. */}
+    <span className={`${w.pulsoLuz} ${tb.luzSobria}`} data-vivo={n.trabajando > 0 || undefined} aria-hidden />
     <div className={w.pulsoTexto}>
       <p className={w.pulsoTitular}>
         {n.trabajando
-          ? <button type="button" className={w.pulsoIr} onClick={() => onIr('terminales')} title="Ver quién trabaja · Taller › Agentes"><Cifra valor={n.trabajando} clave="taller-trabajando" formato={x => String(Math.round(x))} /> {n.trabajando === 1 ? 'agente trabajando' : 'agentes trabajando'} para ti{n.procesos > 0 && <> · {cuantosProcesos(n.procesos)}</>}</button>
-          : n.procesos ? `${cuantosProcesos(n.procesos)} en segundo plano` : 'Nadie trabaja ahora'}
+          ? <button type="button" className={w.pulsoIr} onClick={() => onIr('terminales')} title="Ver quién trabaja · Taller › Agentes"><Cifra valor={n.trabajando} clave="taller-trabajando" formato={x => String(Math.round(x))} /> {n.trabajando === 1 ? 'agente trabajando' : 'agentes trabajando'} para ti</button>
+          : 'Nadie trabaja ahora'}
       </p>
-      <p className={w.pulsoLinea}>
-        {alertas.length
-          ? alertas.map((a, i) => <button key={a.texto} className={w.alerta} data-tono={a.tono} onClick={() => onIr(a.ir)} style={escalon(i + 1)}><i aria-hidden />{a.texto}</button>)
-          : <span className={w.enOrden}><Check size={13} aria-hidden />Todo en orden · {n.servicios} servicios corriendo</span>}
+      <p className={tb.pulsoNotas}>
+        {n.espera
+          ? <button type="button" className={tb.pulsoNota} onClick={() => onIr('terminales')} title="Ver qué te toca · Taller › Agentes">{n.espera} {n.espera === 1 ? 'te espera' : 'te esperan'}</button>
+          : !avisos.length && <span><Check size={13} aria-hidden />Todo en orden · {n.servicios} servicios corriendo</span>}
       </p>
+      {avisos.length > 0 && <p className={tb.pulsoFalla}><Info size={13} aria-hidden />Para revisar: {enFrase} · <button type="button" onClick={() => onIr(avisos[0].ir)}>Ver</button></p>}
     </div>
   </div>
 }
 
-const cuantosProcesos = (n: number) => `${n} ${n === 1 ? 'proceso' : 'procesos'}`
-const cuantosAgentes = (n: number) => `${n} ${n === 1 ? 'agente' : 'agentes'}`
-
 // ── Pestañas con ícono ──
 export function SegmentosTaller({ vista, elegir, data, segmentos: base }: { vista: SegmentoTaller; elegir: (v: SegmentoTaller) => void; data: Trabajos | undefined; segmentos: { id: SegmentoTaller; etiqueta: string; pregunta: string }[] }) {
-  const n = cuentasTaller(data, useFuente<CronSnapshot>(urlRutinas()).data)
+  const n = cuentasTaller(useDatosTaller(data).datos, useFuente<CronSnapshot>(urlRutinas()).data)
   // Las pestañas también se acomodan (15 oct 2026): arrastrar una pestaña o Alt + ←/→ con el foco en ella.
   const { orden, mover } = useOrdenTaller('pestanas', base.map(t => t.id))
   const segmentos = orden.map(id => base.find(t => t.id === id)!).filter(Boolean)
   const fila = useRef<HTMLDivElement>(null)
   // Solo cuenta lo que trabaja: cuántos puertos o servicios hay no le dice nada al dueño (los puntos sí: algo pide atención).
   const cuenta = (id: SegmentoTaller) => !n ? null : id === 'terminales' ? n.trabajando || null : null
-  const alerta = (id: SegmentoTaller) => !n ? undefined : id === 'maquina' && n.fallas ? 'falla' : id === 'rutinas' && n.rutinasFallidas ? 'falla' : id === 'maquina' && (n.huerfanos || n.fallasMenores) ? 'atencion' : id === 'terminales' && n.preguntan ? 'oro' : undefined
+  // Ronda 4: sin puntos rojos por una rutina o un servicio (eso es aviso, vive en el pulso). Solo «Agentes» lleva punto, y solo si algo te espera.
+  const alerta = (id: SegmentoTaller) => !n ? undefined : id === 'terminales' && n.espera ? 'oro' : undefined
   const enfocarSel = (e: React.KeyboardEvent) => requestAnimationFrame(() => (e.currentTarget as HTMLElement | null)?.querySelector<HTMLElement>('[aria-selected="true"]')?.focus())
   // ← → (y Inicio/Fin) con el foco en las pestañas: el patrón de una lista de pestañas, en la hoja de atajos. Con Alt, la mueve.
   const teclas = (e: React.KeyboardEvent) => {
@@ -150,45 +150,30 @@ export function SegmentosTaller({ vista, elegir, data, segmentos: base }: { vist
   </div>
 }
 
-// ── Agentes: solo lo vivo, por conversación ──
-const ESTADO = { trabajando: 'Trabajando', esperando: 'Terminó', terminal: 'Lista' } as const
-const harness = (t: Terminal) => { const h = (t.subagente?.harness ?? t.proc).toLowerCase(); return h === 'claude' ? 'Claude' : h === 'codex' ? 'Codex' : h }
+// ── Agentes: un solo tablero ──
+const harness = (t: Terminal) => t.proc.toLowerCase() === 'claude' ? 'Claude' : t.proc.toLowerCase() === 'codex' ? 'Codex' : t.proc
 
-export function AgentesTaller({ data, onAbrir, onAbrirInterna }: { data: Trabajos; onAbrir: (id: number) => void; onAbrirInterna: (id: string) => void }) {
-  const activaId = useConversacionActiva()
-  const { vivos, terminados } = partirTerminales(data.terminales)
-  const { tuyas } = agrupar(vivos)
-  const sesiones = tuyas.filter(esAgente), shells = tuyas.filter(t => !esAgente(t))
-  const { grupos } = agruparInternas(data.internas ?? [], { activaId, agentes: data.terminales.filter(t => t.subagente) })
-  // Lo vivo arriba, por conversación; lo terminado de todas, en un solo pliegue abajo.
-  const vivosPorConversacion = grupos.filter(g => g.corriendo.length + g.agentes.length > 0)
-  const agentesTerminados = grupos.flatMap(g => g.agentesTerminados)
-  const internasTerminadas = grupos.flatMap(g => g.terminadas)
-  const tusTerminados = terminados.filter(t => !t.subagente)
-  const nTerminados = agentesTerminados.length + internasTerminadas.length + tusTerminados.length
-  let i = 1
+/**
+ * Ronda 3 (crítico ciego, 27 oct): un solo diseño. Las tarjetas por conversación, «Abiertas por ti» y el pliegue
+ * «Terminados hoy» (otra forma y otra cuenta: «Hecho 5» junto a «Terminados hoy 82») se retiraron; todo lo que es un
+ * agente vive en el tablero con la misma cuenta que el encabezado. Aquí solo quedan las terminales de comandos (no son
+ * agentes), plegadas.
+ */
+export function AgentesTaller({ data: real, onAbrir, onAbrirInterna }: { data: Trabajos; onAbrir: (id: number) => void; onAbrirInterna: (id: string) => void }) {
+  const { datos, demo } = useDatosTaller(real)
+  const data = datos ?? real
+  const shells = data.terminales.filter(t => !esAgente(t) && !t.subagente)
+  const hay = totalTablero(armarTablero(data)) > 0
   return <div className={w.vista}>
     <div className={w.cabecera}>
       <h3 className={w.ceja}>Trabajando para ti</h3>
       <NuevoAgente />
     </div>
-    {!vivosPorConversacion.length && !sesiones.length && <div className={`${w.calma} ${mov.entra}`} style={escalon(1)}>
+    <TableroAgentes data={data} onAbrir={onAbrir} onAbrirInterna={onAbrirInterna} demo={demo} />
+    {!hay && <div className={`${w.calma} ${mov.entra}`} style={escalon(1)}>
       <Bot size={22} aria-hidden />
-      <p><b>Nadie trabaja ahora.</b> Cuando Levy lance un agente, lo verás aquí con su conversación y su avance.</p>
+      <p><b>Nadie trabaja ahora.</b> Cuando Levy lance un agente, lo verás aquí con su avance.</p>
     </div>}
-    {vivosPorConversacion.map(g => <ConversacionViva key={g.conversacion || 'sin'} g={g} i={i++} onAbrir={onAbrir} onAbrirInterna={onAbrirInterna} />)}
-    {sesiones.length > 0 && <section className={`${w.tarjeta} ${mov.entra}`} style={escalon(i++)} aria-label="Abiertas por ti">
-      <div className={w.tarjetaCabeza}><span className={w.tarjetaTitulo}>Abiertas por ti</span><span className={w.tarjetaCuenta}>{sesiones.length}</span></div>
-      <div className={s.lista}>{sesiones.map(t => <FilaTerminal key={t.id} t={t} onAbrir={onAbrir} />)}</div>
-    </section>}
-    {nTerminados > 0 && <details className={w.pliegue}>
-      <summary><ChevronRight size={12} aria-hidden />Terminados hoy<small>{nTerminados}</small></summary>
-      <div className={s.lista}>
-        {agentesTerminados.map(t => <FilaTerminal key={`a${t.id}`} t={t} onAbrir={onAbrir} resumen={resumenTerminal(t)} />)}
-        {tusTerminados.map(t => <FilaTerminal key={t.id} t={t} onAbrir={onAbrir} resumen={resumenTerminal(t)} />)}
-        {internasTerminadas.map(t => <FilaInterna key={t.id} t={t} onAbrir={onAbrirInterna} />)}
-      </div>
-    </details>}
     {shells.length > 0 && <details className={w.pliegue}>
       <summary><ChevronRight size={12} aria-hidden /><SquareTerminal size={12} aria-hidden />Terminales<small>{shells.length}</small></summary>
       <div className={s.lista}>{shells.map(t => <FilaTerminal key={t.id} t={t} onAbrir={onAbrir} />)}</div>
@@ -196,53 +181,16 @@ export function AgentesTaller({ data, onAbrir, onAbrirInterna }: { data: Trabajo
   </div>
 }
 
-function ConversacionViva({ g, i, onAbrir, onAbrirInterna }: { g: GrupoInternas; i: number; onAbrir: (id: number) => void; onAbrirInterna: (id: string) => void }) {
-  const tituloVivo = useTituloConversacion(g.conversacion)
-  const titulo = g.conversacion ? tituloVivo : 'Sin conversación'
-  const abrir = useAbrirConversacion()
-  const { agentes, procesosDe, sueltos, procesos } = separarProcesos(g.corriendo)
-  const nAgentes = agentes.length + g.agentes.length
-  const cuenta = [nAgentes ? cuantosAgentes(nAgentes) : null, procesos ? cuantosProcesos(procesos) : null].filter(Boolean).join(' · ')
-  return <section className={`${w.tarjeta} ${mov.entra}`} style={escalon(i)} data-activa={g.activa || undefined} aria-label={titulo}>
-    <div className={w.tarjetaCabeza}>
-      {g.conversacion && !g.activa
-        ? <button className={w.tarjetaTituloBoton} onClick={() => abrir(g.conversacion)} title={`Abrir «${titulo}» en el chat`}>{titulo}</button>
-        : <span className={w.tarjetaTitulo} title={titulo}>{titulo}</span>}
-      <span className={w.tarjetaCuenta}>{cuenta}</span>
-    </div>
-    <div className={s.lista}>
-      {g.agentes.map(t => <FilaTerminal key={`a${t.id}`} t={t} onAbrir={onAbrir} />)}
-      {agentes.map(t => <Fragment key={t.id}>
-        <FilaInterna t={t} onAbrir={onAbrirInterna} />
-        <ProcesosDe lista={procesosDe.get(t.id)} onAbrir={onAbrirInterna} />
-      </Fragment>)}
-      <ProcesosDe lista={sueltos} onAbrir={onAbrirInterna} deLevy={agentes.length + g.agentes.length > 0} />
-    </div>
-  </section>
-}
-
-/** Los comandos en segundo plano de un agente, plegados bajo él: se ven como procesos, no como otros agentes.
- *  `deLevy`: los que no cuelgan de un agente visible (los lanzó Levy en el chat, o su agente ya no se ve). */
-function ProcesosDe({ lista, onAbrir, deLevy }: { lista: TareaInterna[] | undefined; onAbrir: (id: string) => void; deLevy?: boolean }) {
-  if (!lista?.length) return null
-  return <details className={`${w.pliegue} ${w.procesos}`}>
-    <summary><ChevronRight size={12} aria-hidden />{cuantosProcesos(lista.length)} en segundo plano{deLevy && <small>de Levy</small>}</summary>
-    <div className={s.lista}>{lista.map(t => <FilaInterna key={t.id} t={t} onAbrir={onAbrir} />)}</div>
-  </details>
-}
-
-function FilaTerminal({ t, onAbrir, resumen }: { t: Terminal; onAbrir: (id: number) => void; resumen?: string }) {
-  const linea = resumen ?? (t.estado === 'trabajando' ? (lineaLimpia(t.actividad) ?? lineaLimpia(accionLegible(t.ultimaAccion))) : lineaLimpia(accionLegible(t.ultimaAccion)) ?? (t.estado === 'terminal' ? t.ultimas.at(-1) ?? null : null))
+function FilaTerminal({ t, onAbrir }: { t: Terminal; onAbrir: (id: number) => void }) {
+  const linea = lineaLimpia(accionLegible(t.ultimaAccion)) ?? (t.estado === 'terminal' ? t.ultimas.at(-1) ?? null : null)
   return (
     <button className={s.fila} data-estado={t.estado} onClick={() => onAbrir(t.id)} title="Ver su terminal">
       <span className={s.marca}><IconoTipo tipo={tipoTerminal(t)} estado={estadoTerminal(t)} /></span>
       <span className={s.filaTexto}>
         <span className={s.filaNombre}>{nombreTerminal(t)}</span>
-        <span className={s.filaMeta}>{t.subagente ? `Empezó ${hace(t.subagente.creado)}` : harness(t)} · {t.cwd.split('/').filter(Boolean).at(-1) ?? t.cwd}</span>
-        {esAgente(t) && <LineaConsumo t={t} />}
+        <span className={s.filaMeta}>{harness(t)} · {t.cwd.split('/').filter(Boolean).at(-1) ?? t.cwd}</span>
         {linea && <span className={s.filaMono}>{linea}</span>}
       </span>
-      <span className={s.filaEstado} data-tono={esperaALevy(t) ? undefined : preguntaAlgo(t) ? 'oro' : t.estado === 'esperando' ? 'tenue' : undefined}>{esperaALevy(t) ? 'Con Levy' : preguntaAlgo(t) ? 'Espera' : ESTADO[t.estado]}</span>
       <ChevronRight size={14} className={s.flecha} aria-hidden />
     </button>
   )

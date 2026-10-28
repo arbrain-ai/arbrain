@@ -31,7 +31,7 @@ const escribiendo = (t: EventTarget | null) => !!(t as HTMLElement | null)?.clos
  * Escribe siempre por la misma pluma (`onSave` = commit del calendario → /api/planning → mc-event.py planning). Las ediciones
  * no las guarda la hoja: las declara al guardián (`auto`, autoguardado.ts), que las pinta al instante y las escribe aunque la hoja se cierre.
  */
-export function PlanEditor({ selection, snapshot, saving, unresolved, auto, onClose, onSave, onRetry, onUndo, onAbrir, onConversar, onAviso, drip }: {
+export function PlanEditor({ selection, snapshot, saving, unresolved, auto, onClose, onSave, onRetry, onUndo, onAbrir, onConversar, onAviso, drip, acento }: {
   selection: EditorSelection; snapshot: PlanningSnapshot; saving: boolean; unresolved: boolean
   /** El guardián del autoguardado: vive en la pantalla, no en la hoja, y sobrevive a que la hoja se cierre o se desmonte. */
   auto: Autoguardado
@@ -40,6 +40,11 @@ export function PlanEditor({ selection, snapshot, saving, unresolved, auto, onCl
   onConversar?: (borrador: string) => void; onAviso?: (texto: string, deshacer?: boolean) => void
   /** DRIP del evento (24 oct 2026, HojaDrip): su cuadrante con un toque para corregirlo, «Delegar a Levy» y proteger. Lo pone el calendario. */
   drip?: ReactNode
+  /**
+   * El color del evento en el calendario (25 oct 2026, Daniel: «el color del bloque, del riel, de la barra lateral del detalle y del
+   * cuadrante marcado es SIEMPRE el de su DRIP»): lo pone el calendario (`colorEvento`). El calendario de origen ya no colorea la hoja.
+   */
+  acento?: string | null
 }) {
   const inicial = selection.item
   // El elemento VIVO (con la capa optimista del guardián): tras cada guardado trae su etag nuevo; deshacer lo cambia por fuera.
@@ -233,17 +238,17 @@ export function PlanEditor({ selection, snapshot, saving, unresolved, auto, onCl
   const padre = item?.kind === 'task' && item.parentId ? snapshot.tasks.find(t => t.externalId === item.parentId) : undefined
   const tipoLabel = draft.kind === 'task' ? 'Tarea' : 'Evento'
   const origen = draft.kind === 'task' ? (proyecto?.title ?? 'Bandeja de entrada') : (source?.title ?? 'Calendario')
-  const colorFuente = draft.kind === 'event' && source?.color && /^#[0-9a-f]{6}$/i.test(source.color) ? source.color : undefined
+  const colorEvento = draft.kind === 'event' && acento && /^#[0-9a-f]{6}$/i.test(acento) ? acento : undefined
 
   return <div className={styles.capa}><section ref={panel} className={styles.hoja} role="dialog" aria-modal="false" aria-labelledby="plan-editor-heading" tabIndex={-1} data-kind={draft.kind} data-completando={completando || undefined}
-    style={colorFuente ? { ['--hoja-acento' as string]: colorFuente } : undefined} onKeyDown={teclas}>
+    style={colorEvento ? { ['--hoja-acento' as string]: colorEvento } : undefined} onKeyDown={teclas}>
     <div className={styles.asa} aria-hidden />
     <header className={styles.barra}>
       {isNew ? <div className={styles.tipo} role="group" aria-label="Tipo">
         <button type="button" aria-pressed={draft.kind === 'event'} onClick={() => patch({ kind: 'event', time: draft.time || format(proximaMediaHora(new Date()), 'HH:mm'), day: draft.day || format(new Date(), 'yyyy-MM-dd'), minutes: 60 })}><CalendarDays size={14} aria-hidden /> Evento</button>
         <button type="button" aria-pressed={draft.kind === 'task'} onClick={() => patch({ kind: 'task', minutes: 30 })}><Circle size={14} aria-hidden /> Tarea</button>
       </div> : <span className={styles.ruta}>
-        <i className={styles.punto} aria-hidden />{tipoLabel}<span aria-hidden>·</span><b>{origen}</b>
+        <i className={styles.punto} aria-hidden />{tipoLabel}<span aria-hidden>·</span>{draft.kind === 'event' ? <span className={styles.origenNeutro}>{origen}</span> : <b>{origen}</b>}
       </span>}
       <span className={styles.estado} role="status" aria-live="polite" data-fase={guardado.fase}>
         {guardado.fase === 'pendiente' || guardado.fase === 'guardando' ? <><Loader2 size={12} className={styles.gira} aria-hidden /> Guardando…</>
@@ -300,12 +305,13 @@ export function PlanEditor({ selection, snapshot, saving, unresolved, auto, onCl
           </span>
           {recurring && <span className={`${styles.chip} ${styles.chipFijo}`} title="La regla de repetición se edita en Todoist"><Repeat2 size={14} aria-hidden /><span>{item?.kind === 'task' ? item.recurrenceText ?? 'Se repite' : 'Se repite'}</span></span>}
         </> : <>
-          <span className={styles.ancla}>
-            <button type="button" className={styles.chip} aria-label={`Calendario: ${source?.title ?? 'sin elegir'}`} aria-expanded={pop === 'calendario'} disabled={bloqueado || !isNew} onClick={() => setPop(pop === 'calendario' ? null : 'calendario')}>
-              <i className={styles.puntoFuente} style={source?.color ? { background: source.color } : undefined} aria-hidden /><span>{source?.title ?? 'Calendario'}</span></button>
-            {pop === 'calendario' && <SelectorLista opciones={snapshot.sources.filter(s => s.editable && !s.objective).map(s => ({ id: s.id, titulo: s.title, detalle: s.account, color: s.color }))} actual={draft.sourceId}
-              onPick={id => { patch({ sourceId: id }); setPop(null) }} />}
-          </span>
+          {/* El calendario de origen es texto neutro, sin color propio: el color del evento es su DRIP. Solo al crear se elige. */}
+          {isNew ? <span className={styles.ancla}>
+            <button type="button" className={styles.chip} aria-label={`Calendario: ${source?.title ?? 'sin elegir'}`} aria-expanded={pop === 'calendario'} disabled={bloqueado} onClick={() => setPop(pop === 'calendario' ? null : 'calendario')}>
+              <CalendarDays size={14} aria-hidden /><span>{source?.title ?? 'Calendario'}</span></button>
+            {pop === 'calendario' && <SelectorLista opciones={snapshot.sources.filter(s => s.editable && !s.objective).map(s => ({ id: s.id, titulo: s.title, detalle: s.account }))} actual={draft.sourceId}
+              icono={<CalendarDays size={14} aria-hidden />} onPick={id => { patch({ sourceId: id }); setPop(null) }} />}
+          </span> : <span className={styles.calendarioOrigen} title="Calendario de origen">{source?.title ?? 'Calendario'}</span>}
           {isNew ? <span className={styles.ancla}>
             <button type="button" className={styles.chip} aria-expanded={pop === 'repetir'} onClick={() => setPop(pop === 'repetir' ? null : 'repetir')}><Repeat2 size={14} aria-hidden /><span>{REPETIR.find(r => r.v === draft.repeat)?.label}</span></button>
             {pop === 'repetir' && <div className={styles.pop} role="menu">{REPETIR.map(r => <button key={r.v} type="button" role="menuitemradio" aria-checked={draft.repeat === r.v} onClick={() => { patch({ repeat: r.v }); setPop(null) }}>{r.label}</button>)}</div>}

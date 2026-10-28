@@ -76,6 +76,7 @@ async function main(argv: string[]) {
       for (const [k, c] of Object.entries(doc.correcciones)) console.log(`  corrección  ${DRIP[c.cuadrante].nombre.padEnd(10)} ${c.titulo || k}  (${c.por})`)
       for (const [k, x] of Object.entries(doc.delegados)) console.log(`  delegado    a ${x.a.padEnd(8)} ${x.titulo || k}  desde ${x.desde.slice(0, 10)}`)
       console.log(`Fotos del plan: ${Object.keys(doc.fotos).sort().join(', ') || 'ninguna'}`)
+      console.log(`Semana perfecta: ${doc.semana ? `${doc.semana.bloques.length} bloques (semana-perfecta-cli.ts ver)` : 'sin diseñar'}`)
       return
     }
     case 'inferir': {
@@ -110,4 +111,4 @@ async function main(argv: string[]) {
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main(process.argv.slice(2)).catch(e => { console.error(e instanceof Error ? e.message : e); process.exitCode = 1 })
 }
-export { main as correrCliDrip }
+export { main as correrCliDrip, leer as leerDocDrip, guardar as guardarDocDrip, RAIZ as RAIZ_CEREBRO }

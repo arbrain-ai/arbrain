@@ -1,11 +1,20 @@
 'use client'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { estiloEvento } from '@/lib/calendar/contraste'
-import { CHIP_MIN, COLUMNA_COMPACTA, DIAS_VISTA, TRAMO, altoHora, columnaCercana, columnaEntera, columnasDe, escalaVisual, diaEnHoras, diasAuto, diasDelRiel, diasVisibles, esArrastre, estirar, habil, hhmm, inicioDeVentana, instante, lineasDeTitulo, lugarEnColumna, repartir, lineasNecesarias, medianoche, minutoDelDia, primerDiaVisible, rangoCrear, ranura, reencuadrar, soltar, sumarDia, type Bloque, type DiasVista, type Pieza } from './semana-horas'
+import { CHIP_MIN, COLUMNA_COMPACTA, columnasDeBarra, DIAS_VISTA, TRAMO, altoHora, columnaCercana, columnaEntera, columnasDe, escalaVisual, diaEnHoras, diasAuto, diasDelRiel, diasVisibles, esArrastre, estirar, habil, hhmm, inicioDeVentana, instante, lineasDeTitulo, lugarEnColumna, repartir, lineasNecesarias, medianoche, minutoDelDia, primerDiaVisible, rangoCrear, ranura, reencuadrar, soltar, sumarDia, type Bloque, type DiasVista, type Pieza } from './semana-horas'
 import { diasAlSoltarRiel, ejeDeRueda, ejeDeToque, FRENO_RUEDA, velocidad } from './carril-logica'
 import { encuadreDe } from './encuadre'
 import { useEncuadre } from './useEncuadre'
+import { DRIP } from './drip'
+import { SECCION } from './secciones'
+import { fantasmasAntesDe, hhmm as hhmmP, type SemanaPerfecta } from './semana-perfecta'
+import { franjasDelDia, rango, resumenCampo } from './campos-fondo'
+import { instalacion } from '@/config'
+import type { CampoFondo } from '@/config/tipos'
 import h from './semana-horas.module.css'
+
+/** Los campos de fondo de esta instalación (28 oct 2026): comida y trabajo profundo. */
+const CAMPOS_FONDO = instalacion().camposFondo
 
 /**
  * La rejilla de la Semana (9 oct 2026). Siete columnas del tramo de horas (TRAMO) con los bloques a la escala de
@@ -33,6 +42,8 @@ import h from './semana-horas.module.css'
  * (`lineasDeTitulo`), también en siete columnas. La franja de día completo nace plegada en una línea y se abre con un toque.
  */
 export interface MarcaDia { id: string; titulo: string; color: string | null; abrir?: () => void }
+/** Lo de varios días: UNA barra de `desde` a `hasta` (días civiles, inclusive), aunque se salga de lo visible. */
+export interface BarraDia extends MarcaDia { desde: string; hasta: string }
 export interface EstrellaDia { titulo: string; cumplido: boolean }
 
 const ANGOSTO = 700
@@ -91,7 +102,7 @@ interface Gesto {
   minuto: number
 }
 
-export function SemanaHoras({ dias: diasFijos, semana, inicio, onVentana, sinBarra, hoy, ahora, bloques, todoElDia, estrellas, onMover, onEstirar, onCrear, onAbrir, onDia, tramo = TRAMO, donde = 'chat', barra, amplia, diasVista, finDeSemana = true, compacta, zona, todoElDiaAbierto, onTodoElDia, listo = true, llenar = false }: {
+export function SemanaHoras({ dias: diasFijos, semana, inicio, onVentana, sinBarra, hoy, ahora, bloques, todoElDia, barras = [], estrellas, onMover, onEstirar, onCrear, onAbrir, onDia, tramo = TRAMO, donde = 'chat', barra, amplia, diasVista, finDeSemana = true, compacta, zona, todoElDiaAbierto, onTodoElDia, listo = true, llenar = false, perfecta = null, corteRutina = null, campos = CAMPOS_FONDO }: {
   /** Semana fija (la vista del chat). Sin `onVentana` se pintan estos días. */
   dias?: string[]
   /** Ventana deslizante: un día de la semana a la que se llega (Hoy, el Mes, la URL) y el primer día visible, si ya se sabe. */
@@ -104,6 +115,7 @@ export function SemanaHoras({ dias: diasFijos, semana, inicio, onVentana, sinBar
   hoy: string; ahora: number
   bloques: Bloque[]
   todoElDia: Map<string, MarcaDia[]>
+  barras?: BarraDia[]
   estrellas?: Map<string, EstrellaDia | null>
   /** Soltar en otro hueco u otro día. Quien monta la rejilla escribe y avisa si el proveedor no confirma. */
   onMover?: (b: Bloque, inicio: Date, fin: Date) => void
@@ -133,6 +145,12 @@ export function SemanaHoras({ dias: diasFijos, semana, inicio, onVentana, sinBar
   listo?: boolean
   /** Dos columnas (24 oct 2026): la rejilla toma el alto que le dan y la hora mide lo que alcance para que el tramo quepa sin scroll. */
   llenar?: boolean
+  /** La Semana Perfecta (semana-perfecta.ts): sus bloques en fantasma, detrás de todo, sin tapar el arrastre. null = no se pinta. */
+  perfecta?: SemanaPerfecta | null
+  /** Campos de fondo (campos-fondo.ts): franjas detrás de todo, sin ser eventos. Por defecto, los de la instalación. */
+  campos?: readonly CampoFondo[] | null
+  /** Los fantasmas solo hasta aquí (epoch ms): la rutina a futuro no se pinta (26 oct 2026). null = todos. */
+  corteRutina?: number | null
 }) {
   const raiz = useRef<HTMLDivElement>(null), riel = useRef<HTMLDivElement>(null), cabecera = useRef<HTMLDivElement>(null)
   const columnas = useRef<(HTMLDivElement | null)[]>([])
@@ -509,6 +527,8 @@ export function SemanaHoras({ dias: diasFijos, semana, inicio, onVentana, sinBar
   // La franja de día completo: plegada (una línea por día) solo si quien monta la recuerda; el chat la ve siempre abierta.
   const plegada = Boolean(onTodoElDia) && !todoElDiaAbierto
   const conFranja = dias.some(d => (todoElDia.get(d)?.length ?? 0) > 0 || estrellas?.get(d))
+  // Las barras de varios días, recortadas a lo visible: columna de inicio y de fin (1-based) y si siguen fuera.
+  const tramos = barras.flatMap(b => { const c = columnasDeBarra(dias, b.desde, b.hasta); return c ? [{ ...b, ...c }] : [] })
   const etiquetaGrid = `Semana en horas, de las ${hhmm(tramo.desde * 60)} a las ${hhmm(tramo.hasta * 60)}`
 
   return <div ref={raiz} className={h.rejilla} style={estilo} data-angosto={angosto || undefined} data-desliza={desliza || undefined} data-asentada={asentada || undefined} data-denso={denso || undefined} data-minimo={minimo || undefined} data-compacta={compacta || undefined} data-amplia={amplia || undefined} data-llenar={llenar || undefined} data-arrastrando={gesto?.activo || undefined} data-creando={gesto?.activo && gesto.modo === 'crear' || undefined}>
@@ -548,6 +568,12 @@ export function SemanaHoras({ dias: diasFijos, semana, inicio, onVentana, sinBar
                   {marcas.map(m => <button key={m.id} className={`${h.marca} ev-color`} style={estiloEvento(m.color) as CSSProperties} title={m.titulo} onClick={m.abrir} disabled={!m.abrir}><span>{m.titulo}</span></button>)}
                 </>}
             </div> })}
+          {/* Lo de varios días (25 oct 2026): una barra por evento que cruza sus días, nunca repetida en cada columna. */}
+          {tramos.length > 0 && <>
+            <div className={`${h.esquina} ${h.barrasEsquina}`} aria-hidden />
+            <div className={h.barras}>{tramos.map(b => <button key={b.id} className={`${h.barra} ev-color`} style={{ ...estiloEvento(b.color), gridColumn: `${b.a} / ${b.z}` } as CSSProperties}
+              data-sigue-antes={b.antes || undefined} data-sigue-despues={b.despues || undefined} title={b.titulo} onClick={b.abrir} disabled={!b.abrir}><span>{b.titulo}</span></button>)}</div>
+          </>}
         </div>
       </div>
 
@@ -565,6 +591,31 @@ export function SemanaHoras({ dias: diasFijos, semana, inicio, onVentana, sinBar
               {esHoy && ahoraMin > tramo.desde * 60 && <i className={h.vivido} style={{ height: y(Math.min(ahoraMin, tramo.hasta * 60)) }} aria-hidden />}
               {antes.length > 0 && <button className={h.fuera} data-lado="antes" onClick={() => onDia?.(d)} title={antes.map(b => `${hhmm(minutoDelDia(b.inicio, d))} ${b.titulo}`).join('\n')}>
                 ↑ {minimo ? antes.length : antes.length === 1 ? `${hhmm(minutoDelDia(antes[0].inicio, d))} ${antes[0].titulo}` : `${antes.length} antes de las ${tramo.desde}`}</button>}
+              {/* Campos de fondo (28 oct 2026): trabajo profundo como campo tenue y la ventana de comida como riel al borde. Nunca tapan:
+                  lo real va encima y, si una llamada pisa el trabajo profundo, su etiqueta lo dice («7 h · 1 h con llamadas»). */}
+              {(() => {
+                const franjas = franjasDelDia(campos, d)
+                if (!franjas.length) return null
+                const llamadas = piezas.filter(p => p.bloque.compromiso).map(p => ({ desde: p.desde, hasta: p.hasta }))
+                const resumen = resumenCampo(franjas, 'profundo', llamadas)
+                const etiquetada = new Set<string>()
+                return franjas.filter(f => f.hasta > tramo.desde * 60 && f.desde < tramo.hasta * 60).map((f, k) => {
+                  const a = Math.max(f.desde, tramo.desde * 60), z = Math.min(f.hasta, tramo.hasta * 60)
+                  // El nombre una vez por campo y por día, en su primera franja que no tape una tarjeta.
+                  const libre = !minimo && !etiquetada.has(f.clave) && !piezas.some(p => p.desde < a + 22 && p.hasta > a)
+                  if (libre) etiquetada.add(f.clave)
+                  const texto = f.clave === 'profundo' && resumen ? resumen.texto : `${f.titulo} · ${rango(f)}`
+                  return <div key={`c${k}`} className={h.campo} data-tipo={f.tipo} data-campo={f.clave} style={{ top: y(a), height: `calc(${(z - a) / 60} * var(--hora) - 1px)` }}
+                    title={`${f.titulo} · ${rango(f)}${f.clave === 'profundo' && resumen?.tapado ? ` · ${texto.split(' · ').slice(1).join(' · ')}` : ''}`} aria-hidden>
+                    {libre && <span>{f.tipo === 'comida' ? 'Comida' : texto}</span>}</div>
+                })
+              })()}
+              {/* La Semana Perfecta (25 oct 2026): el ritmo ideal en fantasma, debajo de las bandas y de las tarjetas. Lo real tapa lo ideal. */}
+              {fantasmasAntesDe(perfecta, d, corteRutina).filter(f => f.hasta > tramo.desde * 60 && f.desde < tramo.hasta * 60).map((f, k) => { const a = Math.max(f.desde, tramo.desde * 60), z = Math.min(f.hasta, tramo.hasta * 60)
+                return <div key={`p${k}`} className={h.perfecta} data-c={f.cuadrante} style={{ '--c': DRIP[f.cuadrante].color, top: y(a), height: `calc(${(z - a) / 60} * var(--hora) - 1px)` } as CSSProperties}
+                  title={`Semana perfecta · ${hhmmP(f.desde)}–${hhmmP(f.hasta)} · ${f.titulo} (${DRIP[f.cuadrante].nombre})`} aria-hidden>
+                  {/* El nombre solo donde nada real lo tapa (las tarjetas son translúcidas: dos textos encimados no se leen). */}
+                  {!minimo && !piezas.some(p => p.desde < a + 20 && p.hasta > a) && <span>{f.titulo}</span>}</div> })}
               {/* Ventanas de disponibilidad: banda de fondo detrás de las tarjetas (no ocupa columna ni tapa el arrastre para crear). */}
               {bandas.map(p => <div key={p.bloque.id} className={`${h.banda} ev-color`} style={{ ...estiloEvento(p.bloque.color), top: y(p.desde), height: `calc(${(p.hasta - p.desde) / 60} * var(--hora) - 1px)` } as CSSProperties}>
                 <button onClick={() => onAbrir?.(p.bloque)} title={`${hhmm(p.desde)} – ${hhmm(p.hasta)} · ${p.bloque.titulo}`} aria-label={`Ventana de ${hhmm(p.desde)} a ${hhmm(p.hasta)}, ${p.bloque.titulo}`}>{minimo ? '' : p.bloque.titulo}</button>
@@ -572,26 +623,24 @@ export function SemanaHoras({ dias: diasFijos, semana, inicio, onVentana, sinBar
               {piezas.map(p => { const b = p.bloque, enGesto = gesto?.activo && gesto.bloque.id === b.id, dur = p.hasta - p.desde, corto = dur <= 35
                 const ini = b.inicio < medianoche(d) ? null : hhmm(minutoDelDia(b.inicio, d)), fin = hhmm(minutoDelDia(b.fin, d))
                 // El título manda (ronda 3): envuelve en las líneas que caben; en un bloque estrecho la hora entra solo si deja dos líneas.
-                // Ancho mínimo legible (19 oct 2026): lado a lado mientras quepa; si no, en cascada. Con chips a su altura, el borde es de ellos.
-                const util = anchoColumna - (p.resguardo && !minimo ? CHIP_RESERVA : 0), lugar = lugarEnColumna(p.col, p.cols, util, minimo ? 0 : undefined)
+                // Encimados lado a lado (25 oct 2026, Riel). Con chips a su altura, el borde es de ellos.
+                const util = anchoColumna - (p.resguardo && !minimo ? CHIP_RESERVA : 0), lugar = lugarEnColumna(p.col, p.cols, util)
                 const separa = p.cols > 1 ? 3 : minimo ? 2 : 6, texto = b.corto ?? b.titulo
                 const anchoBloque = anchoColumna > 0 ? lugar.width : anchoColumna / p.cols, estrecho = anchoBloque < BLOQUE_ESTRECHO
                 const alto = dur / 60 * horaPx - 2
-                // En cascada, el título de una tarjeta tapada se queda en lo que se ve antes de la que entra encima.
-                const tapa = lugar.cascada ? Math.min(...piezas.filter(o => o.col > p.col && o.desde > p.desde && o.desde < p.hasta).map(o => o.desde)) : Infinity
-                const altoTitulo = Number.isFinite(tapa) ? Math.min(alto, Math.max((tapa - p.desde) / 60 * horaPx - 2, metrica.linea + metrica.relleno + 1)) : alto
-                const { lineas, conHora } = lineasDeTitulo(altoTitulo - (corto ? 2 : metrica.relleno), metrica.linea, corto ? 0 : metrica.hora,
+                const { lineas, conHora } = lineasDeTitulo(alto - (corto ? 2 : metrica.relleno), metrica.linea, corto ? 0 : metrica.hora,
                   lineasNecesarias(texto, anchoBloque - metrica.lados - (b.brief ? BRIEF_PX : 0), metrica.letra))
                 // Lo corto (≤ 35 min) siempre dice al menos el principio del título; solo un bloque de unos minutos queda en puro color.
                 const diminuto = corto ? alto < 9 : lineas === 0
                 const horaCorta = (p.cols > 1 && angosto) || denso || estrecho
                 return <div key={b.id} className={`${h.bloque} ev-color`} data-corto={corto || undefined} data-diminuto={diminuto || undefined} data-tarea={b.tarea || undefined} data-rutina={b.rutina || undefined}
-                  data-p1={b.prioridad || undefined} data-compromiso={b.compromiso || undefined} data-sigue-arriba={p.sigueArriba || undefined} data-sigue-abajo={p.sigueAbajo || undefined} data-origen={enGesto || undefined}
-                  data-pasado={b.fin <= ahora || undefined} data-cascada={lugar.cascada || undefined} data-con-brief={b.brief ? '' : undefined}
-                  data-drip={b.drip} data-protegido={b.protegido || undefined} data-delegable={b.delegable || undefined}
+                  data-seccion={b.seccion} data-innegociable={b.innegociable || undefined} data-p1={b.prioridad || undefined} data-compromiso={b.compromiso || undefined} data-sigue-arriba={p.sigueArriba || undefined} data-sigue-abajo={p.sigueAbajo || undefined} data-origen={enGesto || undefined}
+                  data-pasado={b.fin <= ahora || undefined} data-con-brief={b.brief ? '' : undefined}
+                  data-drip={b.drip} data-letra={b.drip ? DRIP[b.drip].letra : undefined} data-drip-nombre={b.drip ? DRIP[b.drip].nombre : undefined} data-ahora={b.inicio <= ahora && ahora < b.fin || undefined} data-protegido={b.protegido || undefined} data-delegable={b.delegable || undefined}
                   style={{ ...estiloEvento(b.tarea ? null : b.color), top: y(p.desde), height: `calc(${dur / 60} * var(--hora) - 2px)`, '--lineas': Math.max(1, lineas),
-                    ...(anchoColumna > 0 ? { left: `${lugar.left}px`, width: `${Math.max(8, lugar.width - separa)}px`, ...(lugar.cascada ? { zIndex: 1 + piezas.filter(o => o.desde < p.desde || (o.desde === p.desde && o.col < p.col)).length } : {}) }
+                    ...(anchoColumna > 0 ? { left: `${lugar.left}px`, width: `${Math.max(8, lugar.width - separa)}px` }
                       : { left: `calc(${p.col} / ${p.cols} * 100%)`, width: `calc(${1 / p.cols} * 100% - ${separa}px)` }) } as CSSProperties}>
+                  {b.seccion && !diminuto && <svg className={h.icoSeccion} viewBox="0 0 16 16" aria-hidden><path d={SECCION[b.seccion].icono} /></svg>}
                   <button className={h.cuerpo} data-planning-id={b.id} data-movible={b.movible && onMover && !minimo ? '' : undefined}
                     onPointerDown={e => tomar(e, p, 'mover')} onClick={() => { if (minimo) onDia?.(d); else if (Date.now() - recienSoltado.current > 250) onAbrir?.(b) }} onKeyDown={e => teclaBloque(e, p)}
                     aria-label={`${b.titulo}${b.brief ? ' (con brief)' : ''}, ${ini ?? 'desde antes'} a ${fin}${b.movible && onMover ? '. Arrastra para moverlo; Opción y flechas lo mueven.' : ''}`}>

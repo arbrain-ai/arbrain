@@ -58,6 +58,7 @@ export function ColumnaConversaciones({ onElegir, tactil = false }: Props) {
             <History className={tactil ? 'size-[18px]' : 'size-4'} aria-hidden />
           </button>
         </div>
+        {/* Perro y Casa viven en «Entorno físico», al pie del «+» del panel (27 oct 2026): un solo lugar, sin duplicar. */}
         {/* Buscar se quitó (2 oct 2026, el dueño: «ni la uso; si ocupo buscar algo te pregunto a ti por el chat»). */}
       </div>
 

@@ -10,7 +10,10 @@ import re, sys
 from pathlib import Path
 # MEMORY.md se importa SIEMPRE -> techo duro chico. El índice no se importa (lo sirve el hook
 # memory-recall por triggers), pero se acota igual para que la rotación a MEMORY-archivo.md siga viva.
-MEM_MAX, IDX_MAX, CLA_MAX, ENTRY_MAX, WARN = 6000, 90000, 9000, 400, 0.85
+# CLAUDE.md es el contrato de Arbrain: llega y se actualiza con cada versión, no lo engorda tu memoria. Su techo cubre
+# el contrato publicado con holgura (la prueba arbrain/empaquetado/generador/pruebas/memory-budget.test.mjs lo cuida);
+# antes era 9,000 y marcaba en rojo un CLAUDE.md que el alumno no puede recortar sin pelear con cada actualización.
+MEM_MAX, IDX_MAX, CLA_MAX, ENTRY_MAX, WARN = 6000, 90000, 18000, 400, 0.85
 mem = Path('.claude/memory/MEMORY.md').read_text()
 idx = Path('.claude/memory/MEMORY-indice.md').read_text()
 usr = Path('.claude/memory/MEMORY-user.md').read_text()

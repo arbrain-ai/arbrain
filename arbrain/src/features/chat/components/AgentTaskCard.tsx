@@ -1,6 +1,6 @@
 'use client'
 import { useRef, useState } from 'react'
-import { Loader2, Check, ChevronDown, ChevronRight, GitBranch, SquareTerminal, Workflow, CircleDot, X, Square } from 'lucide-react'
+import { Check, ChevronDown, ChevronRight, GitBranch, SquareTerminal, Workflow, CircleDot, X, Square } from 'lucide-react'
 import type { AgentTask } from '../hooks/useChat'
 import { useFuente } from '@/features/cabina/datos'
 import { urlPanel } from '@/features/cabina/panel/datos'
@@ -75,7 +75,8 @@ function FilaTarea({ task }: { task: AgentTask }) {
   )
 }
 
-export function AgentTaskCards({ tasks }: { tasks: AgentTask[] }) {
+/** `soloVivas`: el turno sigue en curso y las terminadas esperan en su rastro plegado (25 oct 2026). */
+export function AgentTaskCards({ tasks, soloVivas = false }: { tasks: AgentTask[]; soloVivas?: boolean }) {
   const [abierto, setAbierto] = useState(false)
   // Cuándo vio este componente nacer cada tarea (para no creerle a una lectura del panel
   // anterior a ella; ver reconciliarConPanel).
@@ -90,18 +91,20 @@ export function AgentTaskCards({ tasks }: { tasks: AgentTask[] }) {
   const todas = reconciliarConPanel(tasks, lectura.data?.internas, lectura.leidoEn, (id) => vistas.current.get(id) ?? ahora)
 
   const vivas = todas.filter(esViva)
-  const hechas = todas.filter((t) => !esViva(t))
+  const hechas = soloVivas ? [] : todas.filter((t) => !esViva(t))
+  if (soloVivas && !vivas.length) return null
   const fallaron = hechas.filter((t) => faseDeTarea(t) === 'fallo').length
   // Al abrir el chip, lo que falló va primero: es lo único que pide mirar.
   const lista = abierto ? [...hechas.filter((t) => faseDeTarea(t) === 'fallo'), ...hechas.filter((t) => faseDeTarea(t) !== 'fallo')] : []
 
   return (
     // aria-hidden: chrome del turno — iOS Speak Screen solo debe leer la respuesta
-    <div aria-hidden className="flex flex-wrap items-center gap-x-1.5 my-1.5 max-md:my-0">
+    <div aria-hidden className="flex flex-wrap items-center gap-x-1.5 my-1.5 max-md:my-0" data-tts-exclude>
       {vivas.length > 0 && (
         <button type="button" onClick={abrirTallerDelPanel} title="Verlos en el Taller" className={BOTON}>
+          {/* 28 oct 2026: la pastilla morada de antes, con punto quieto en vez del giro. */}
           <span className={`${PASTILLA} bg-brand/10 border-brand/25 text-brand-ink group-hover:border-brand/45`}>
-            <Loader2 size={10} className="animate-spin motion-reduce:animate-none shrink-0" />
+            <span className="size-1.5 rounded-full bg-brand shrink-0" aria-hidden />
             {textoVivas(vivas)}
             <ChevronRight size={10} className="shrink-0" />
           </span>

@@ -1136,7 +1136,7 @@ function EventQuickViewCard({
           <div className="flex items-start gap-4">
             <span
               className="mt-2 size-3 rounded-sm"
-              style={{ backgroundColor: event.color ?? '#8b5cf6' }}
+              style={{ backgroundColor: event.color ?? 'var(--l-morado-5, #8b5cf6)' }}
             />
             <div className="min-w-0 flex-1">
               <h2 className="break-words text-xl font-semibold leading-tight text-foreground">

@@ -116,7 +116,7 @@ function Lector({ archivo, volver }: { archivo: ArchivoMemoria; volver: () => vo
 // ───────────────────────── B · la ventana ─────────────────────────
 
 const COLOR: Record<Segmento['id'], string> = {
-  proveedor: 'var(--muted)', memoria: 'rgb(var(--gold-rgb))', skills: 'var(--info, #6aa5ff)', mcp: '#a78bfa',
+  proveedor: 'var(--muted)', memoria: 'rgb(var(--gold-rgb))', skills: 'var(--l-tinta-azul, var(--info, #6aa5ff))', mcp: 'var(--l-tinta-morado, #a78bfa)',
   historial: 'var(--success)', reserva: 'transparent', libre: 'transparent',
 }
 

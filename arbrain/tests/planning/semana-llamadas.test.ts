@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { BLOQUE_MIN, diaEnHoras, lugarEnColumna, repartir, type Bloque } from '../../src/features/planning/semana-horas'
+import { diaEnHoras, lugarEnColumna, repartir, type Bloque } from '../../src/features/planning/semana-horas'
 
 // Lun 19 oct 2026 en la Semana (Daniel 19 oct: «¿por qué se ve tan amontonado mi día de hoy en la vista semanal??»).
 const D = '2026-10-19'
@@ -51,12 +51,8 @@ test('las tareas nunca entran al reparto de llamadas', () => {
   assert.deepEqual(r.tarjetas.map(t => t.id), ['x', 'y'])
 })
 
-test('lado a lado mientras quepa legible; si no, cascada con el último al ancho mínimo', () => {
-  assert.deepEqual(lugarEnColumna(1, 2, 200), { left: 100, width: 100, cascada: false })
-  const a = lugarEnColumna(0, 2, 96), z = lugarEnColumna(1, 2, 96)
-  assert.equal(a.cascada, true)
-  assert.equal(a.width, 96, 'el primero a todo lo ancho')
-  assert.equal(z.width, BLOQUE_MIN)
-  assert.equal(z.left + z.width, 96)
-  for (let col = 0; col < 4; col++) assert.ok(lugarEnColumna(col, 4, 120).width >= BLOQUE_MIN)
+test('los encimados van siempre lado a lado, a partes iguales (Riel, 25 oct)', () => {
+  assert.deepEqual(lugarEnColumna(1, 2, 200), { left: 100, width: 100 })
+  assert.deepEqual(lugarEnColumna(1, 2, 96), { left: 48, width: 48 })
+  assert.deepEqual(lugarEnColumna(0, 1, 120), { left: 0, width: 120 })
 })

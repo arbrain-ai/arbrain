@@ -3,6 +3,7 @@ import { isDesktopAuthBypassFromHeaders } from '@/lib/desktop-auth-server'
 import { createClient } from '@/lib/supabase/server'
 import { esEdicionCliente } from '@/lib/edicion'
 import { faltaPrimerArranque } from '@/features/primer-arranque/lib/estado'
+import { RastroDeError } from '@/components/RastroDeError'
 import { DashboardShell } from './dashboard-shell'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -21,5 +22,5 @@ export default async function DashboardLayout({ children }: { children: React.Re
     if (falta) redirect('/bienvenida')
   }
 
-  return <DashboardShell>{children}</DashboardShell>
+  return <RastroDeError><DashboardShell>{children}</DashboardShell></RastroDeError>
 }

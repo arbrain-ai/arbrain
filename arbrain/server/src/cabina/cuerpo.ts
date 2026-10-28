@@ -24,6 +24,8 @@
  *    CLI esté en su caja (pasa los diálogos de arranque), confirma que llegó y reintenta.
  *  - La salida que sale al chat pasa por `tachar()`: nada que parezca secreto.
  */
+import type { Juicio } from './juez.js'
+import type { EstadoTablero } from './tablero.js'
 import { DUENO, DUENO_M } from '../dueno.js'
 import { readEnvFile } from '../env.js'
 import Database from 'better-sqlite3'
@@ -42,6 +44,7 @@ import { internas as leerInternas, type TareaInterna } from './internos.js'
 import { apagar, procesos as leerProcesos, type Proceso } from './procesos.js'
 import { ES_DEL_NEGOCIO, explicar, ficha, type AreaServicio } from './servicios-legibles.js'
 import { DIR_ARBRAIN, esEdicionCliente } from '../edicion.js'
+import { notaAutoria } from './autoria.js'
 
 const run = promisify(execFile)
 const GATE = join(homedir(), 'Developer/software/sfterm/scripts/gate.py')
@@ -104,7 +107,11 @@ export interface Subagente { avisarA?: SubagenteOrigen; avisadoHasta?: number; a
   bitacora?: string
   interactivo?: number
   /** ISO: Levy detuvo el paso en curso (`detener`); el turno que cierre después no es una falla ni se avisa. */
-  detenidoEn?: string }
+  detenidoEn?: string
+  /** Definición de Terminado extraída del encargo completo al delegar (27 oct 2026), para el juez separado. */
+  dod?: string
+  /** Veredicto del juez separado sobre su último turno terminado (juez.ts). */
+  juicio?: Juicio }
 
 /*
  * El registro es un JSON que escriben DOS procesos: el MCP de la Cabina (delegar, retomar, cerrar) y el
@@ -283,12 +290,12 @@ export async function delegar(p: { nombre: string; harness: Subagente['harness']
   const sesion = p.harness === 'claude' ? randomUUID() : undefined
   const permisos = permisosDefault()
   const skills = preludioSkills(p.cwd)
-  const { id, pid } = await motor.spawn({ cwd: p.cwd, command: comando(p.harness, modelo, p.encargo + (skills?.texto ?? ''), sesion, permisos) })
+  const { id, pid } = await motor.spawn({ cwd: p.cwd, command: comando(p.harness, modelo, p.encargo + (skills?.texto ?? '') + notaAutoria(p.nombre), sesion, permisos) })
   // Registro ANTES de entregar: si la entrega tropieza, retomar y cerrar siguen siendo de Levy (#11).
   const sub: Subagente = { id, nombre: p.nombre.slice(0, 80), harness: p.harness, encargo: p.encargo.slice(0, 2000), cwd: p.cwd, creado: new Date().toISOString(), motor: true, pid, permisos, entrega: 'pendiente', ...(skills ? { aviso: skills.aviso } : {}), ...(sesion ? { sesion } : {}), ...(modelo ? { modelo } : {}), ...(p.avisarA ? { avisarA: p.avisarA } : {}) }
   await mutarRegistro(l => [...l, sub])
   olvidarFoto()
-  return terminarEntrega(sub, entregarPorMotor({ ...sub, encargo: p.encargo + (skills?.texto ?? '') }))
+  return terminarEntrega(sub, entregarPorMotor({ ...sub, encargo: p.encargo + (skills?.texto ?? '') + notaAutoria(p.nombre) }))
 }
 
 async function delegarPorGate(p: { nombre: string; harness: Subagente['harness']; encargo: string; cwd: string }, modelo: string | null, registro: Subagente[]): Promise<Subagente> {
@@ -298,7 +305,7 @@ async function delegarPorGate(p: { nombre: string; harness: Subagente['harness']
   const sub: Subagente = { id, nombre: p.nombre.slice(0, 80), harness: p.harness, encargo: p.encargo.slice(0, 2000), cwd: p.cwd, creado: new Date().toISOString(), permisos, entrega: 'pendiente', ...(skills ? { aviso: skills.aviso } : {}), ...(modelo ? { modelo } : {}) }
   await mutarRegistro(l => [...l, sub])
   olvidarFoto()
-  return terminarEntrega(sub, entregarPorGate({ ...sub, encargo: p.encargo + (skills?.texto ?? '') }))
+  return terminarEntrega(sub, entregarPorGate({ ...sub, encargo: p.encargo + (skills?.texto ?? '') + notaAutoria(p.nombre) }))
 }
 
 /** Espera la entrega hasta `ESPERA_ENTREGA_MS`; si tarda más, sigue sola en segundo plano
@@ -614,7 +621,9 @@ export interface Mensaje { rol: 'user' | 'assistant'; texto: string; herramienta
 /** `ctxVentana` (2 oct 2026): la ventana con la que se calculó `ctxPct`, la misma regla que la barra de estado de SFTerm («15 % de 1M»). */
 export interface Conversacion { harness: Harness; modelo: string | null; /** Esfuerzo que registra el transcript del CLI (2 oct 2026); null si no lo dice. */ esfuerzo: string | null; ctxPct: number | null; ctxVentana: number | null; turno: 'trabajando' | 'terminado' | null; pregunta: boolean; tokens: number | null; mensajes: Mensaje[]; titulo: string | null; error?: string }
 interface TermGate { id: number; title: string; cwd: string; proc: string; visible: boolean; focused: boolean }
-export interface Terminal { id: number; titulo: string; cwd: string; proc: string; estado: Estado; actividad: string | null; ultimaAccion: string | null; ultimas: string[]; pid?: number; origen?: 'motor' | 'sfterm-ptyd' | 'sin-pantalla'; soloLectura?: boolean; conversacion?: Conversacion; subagente?: Omit<Subagente, 'encargo'> & { encargo: string } }
+export interface Terminal { id: number; titulo: string; cwd: string; proc: string; estado: Estado; actividad: string | null; ultimaAccion: string | null; ultimas: string[]; pid?: number; origen?: 'motor' | 'sfterm-ptyd' | 'sin-pantalla'; soloLectura?: boolean; conversacion?: Conversacion; subagente?: Omit<Subagente, 'encargo'> & { encargo: string }
+  /** Columna del tablero con su latido medido (tablero.ts); hoy solo los subagentes sin pantalla. */
+  tablero?: EstadoTablero }
 export interface Servidor { puerto: number; proceso: string; nombre: string }
 /** `nombre`/`area` en palabras de dueño; con falla, `explicacion` en español llano, `menor` si su app sí corre y `detalle` = la última línea de su log. */
 export interface Servicio { label: string; pid: number | null; estado: 'corriendo' | 'programado' | 'falló'; codigo: number | null; nombre?: string; area?: AreaServicio; explicacion?: string; menor?: boolean; detalle?: string }

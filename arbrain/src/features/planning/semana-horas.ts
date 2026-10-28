@@ -8,6 +8,24 @@ import { eventData, taskData } from './model'
 import type { PlanItem } from './types'
 import { ordenarAgenda } from './agenda-llamadas'
 
+/**
+ * Lo de día completo en la Semana (25 oct 2026, Daniel: «termina de limpiar el ruido»): lo de varios días (uno a uno, demo day,
+ * viajes) es UNA barra que cruza sus días, nunca una copia por columna. Primer y último día civil (inclusive) de algo de día completo.
+ */
+export function tramoDeTodoElDia(e: { start: string; end: string }): [string, string] {
+  const a = e.start.slice(0, 10), fin = new Date(`${e.end.slice(0, 10)}T12:00:00Z`)
+  fin.setUTCDate(fin.getUTCDate() - 1)
+  const z = fin.toISOString().slice(0, 10)
+  return [a, z < a ? a : z]
+}
+export const esDeVariosDias = (e: { start: string; end: string }) => { const [a, z] = tramoDeTodoElDia(e); return z > a }
+/** Dónde cae una barra en los días a la vista: columnas de rejilla (1-based, fin exclusivo) y si sigue fuera. null = no se ve. */
+export function columnasDeBarra(dias: readonly string[], desde: string, hasta: string): { a: number; z: number; antes: boolean; despues: boolean } | null {
+  if (!dias.length || hasta < dias[0] || desde > dias[dias.length - 1]) return null
+  const a = Math.max(0, dias.findIndex(d => d >= desde)), z = dias.reduce((k, d, i) => d <= hasta ? i : k, -1)
+  return { a: a + 1, z: z + 2, antes: desde < dias[0], despues: hasta > dias[dias.length - 1] }
+}
+
 /** El tramo de horas visible de la agenda. Cambiarlo aquí cambia las tres superficies. */
 export const TRAMO = { desde: 5, hasta: 22 } as const
 /** Paso del arrastre y del clic para crear, en minutos. */
@@ -41,6 +59,10 @@ export interface Bloque {
   delegable?: boolean
   delegadoA?: string | null
   protegido?: boolean
+  /** Sección de la agenda (secciones.ts, 26 oct 2026): color de la barra lateral e icono chico. */
+  seccion?: 'gym' | 'clase' | 'unoauno' | 'trabajo' | 'personal'
+  /** Marcado «no negociable» en la descripción del evento. */
+  innegociable?: boolean
 }
 
 /** Lo que se pinta de un bloque en un día: minutos desde las 00:00, ya recortados al tramo. */
@@ -143,18 +165,14 @@ export function diaEnHoras(bloques: Bloque[], dia: string, tramo: { desde: numbe
 }
 
 /**
- * Dónde va un bloque dentro de su columna (19 oct 2026): lado a lado mientras cada uno mida al menos `minimo` px; si el grupo no
- * cabe así, en cascada como Google (cada uno sangrado y encima del anterior, el último con el ancho mínimo legible), nunca columnas
- * de dos letras. `ancho` es lo útil de la columna en px. Devuelve px desde el borde izquierdo y el ancho.
+ * Dónde va un bloque dentro de su columna: los encimados siempre lado a lado, a partes iguales (25 oct 2026, dirección Riel;
+ * antes, en cascada como Google cuando no cabían a 64 px). El título no se parte: si no cabe, se acorta con su elipsis.
+ * `ancho` es lo útil de la columna en px. Devuelve px desde el borde izquierdo y el ancho.
  */
-export const BLOQUE_MIN = 64
-export function lugarEnColumna(col: number, cols: number, ancho: number, minimo = BLOQUE_MIN): { left: number; width: number; cascada: boolean } {
-  if (cols <= 1 || ancho <= 0) return { left: 0, width: Math.max(0, ancho), cascada: false }
+export function lugarEnColumna(col: number, cols: number, ancho: number): { left: number; width: number } {
+  if (cols <= 1 || ancho <= 0) return { left: 0, width: Math.max(0, ancho) }
   const parte = ancho / cols
-  if (parte >= minimo || ancho <= minimo) return { left: col * parte, width: parte, cascada: false }
-  // Como Google: el primero a todo lo ancho y cada siguiente sangrado hasta el borde derecho; el último mide `minimo`.
-  const paso = (ancho - minimo) / (cols - 1)
-  return { left: col * paso, width: ancho - col * paso, cascada: true }
+  return { left: col * parte, width: parte }
 }
 
 /**

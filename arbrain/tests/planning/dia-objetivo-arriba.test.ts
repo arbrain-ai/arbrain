@@ -29,11 +29,22 @@ test('las casillas viven en la misma fuente que el título: tarea, registro o ev
   assert.equal(casillasDelDia(null, null, null), null)
 })
 
-test('Día: el objetivo va arriba con ObjetivoCaja, plegable, y tocarlo ya no abre «Crear tarea»', () => {
+test('Día: el objetivo va arriba en la franja del objetivo, plegable, y tocarlo ya no abre «Crear tarea»', () => {
   const dia = fuente('DiaVivo.tsx'), semana = fuente('SemanaClara.tsx')
-  const caja = dia.indexOf('<ObjetivoCaja'), agenda = dia.indexOf('<AgendaMini'), habitos = dia.indexOf('<HabitosHoy')
-  assert.ok(caja > 0 && caja < agenda && agenda < habitos, 'objetivo → agenda | tareas → hábitos')
-  assert.match(dia, /plegada=\{(\w+) \? !\1\.objetivo : false\} onPlegar=\{\1 \? \(\) => \1\.alternar\('objetivo'\) : undefined\}/)
+  // 25 oct 2026: la franja va hasta arriba y su detalle lleva el objetivo y los hábitos en mínimo (una sola vez); la temporada
+  // vive solo en la vista H (08:10) y «Acepto mi día» se fue.
+  // 26 oct 2026: los hábitos (N de 3 con puntitos de racha) bajaron al pie del Día; el detalle lleva solo el objetivo.
+  assert.match(dia, /detalle=\{objetivoDetalle\}/)
+  assert.ok(dia.indexOf('{agendaMini}') < dia.indexOf('<div className={d.pieHabitos}>{habitos}</div>'), 'agenda → hábitos al pie')
+  // Un solo esqueleto (25 oct 2026, 08:54): Día, Semana y Mes abren su objetivo en FranjaPlan, ya sin la caja amarilla adentro.
+  for (const f of [dia, semana, fuente('MesClaro.tsx')]) { assert.match(f, /<FranjaPlan /); assert.doesNotMatch(f, /<ObjetivoCaja /) }
+  // El toggle solo existe si hay algo que abrir (Daniel: «el toggle no muestra nada»): la Semana sin entregables no lo pinta.
+  assert.match(fuente('FranjaPlan.tsx'), /\{conDetalle && <button className=\{s\.chevron\}/)
+  assert.match(semana, /detalle=\{goal && entregables\.length > 0 && /)
+  assert.doesNotMatch(dia + semana, /ContadorPeriodo|ToqueManana/)
+  assert.match(dia, /<HabitosHoy [^>]*\bminimo\b/)
+  assert.ok(dia.indexOf('{franja}') < dia.indexOf('{agendaMini}'), 'franja → agenda')
+  assert.equal(dia.match(/<HabitosHoy /g)?.length, 1, 'los hábitos salen una vez')
   assert.match(dia, /<Entregables texto=\{casillas\?\.texto \?\? ''\} guardar=\{guardarCasillas\}/)
   assert.doesNotMatch(dia, /objLinea|abrirObjetivo|titulo: titulo \?\? ''/, 'sin la línea de abajo ni el atajo a la hoja de tarea')
   assert.match(dia, /: !leyendoObjetivo && <button className=\{d\.objVacio\} onClick=\{fijarObjetivo\}/, 'solo el vacío ofrece fijar uno')

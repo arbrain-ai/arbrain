@@ -9,7 +9,7 @@
 import type { ChatMessage } from '@/features/chat/hooks/useChat'
 import { DUENO, NOMBRE_SEGUNDA, SEGUNDA } from '@/config'
 
-export type Vista = 'calendario' | 'objetivos' | 'centro' | 'lienzo' | 'reporte' | 'negocio' | 'trabajos' | 'finanzas' | 'contenido' | 'rutinas' | 'servidores' | 'memoria' | 'equipo' | 'documento' | 'diario' | 'salud' | 'pizarron' | 'masterclass' | 'explorador' | 'cohorte'
+export type Vista = 'calendario' | 'objetivos' | 'centro' | 'lienzo' | 'reporte' | 'negocio' | 'trabajos' | 'finanzas' | 'contenido' | 'rutinas' | 'servidores' | 'memoria' | 'equipo' | 'documento' | 'diario' | 'salud' | 'pizarron' | 'masterclass' | 'explorador' | 'cohorte' | 'casa' | 'perro' | 'historia'
 export type SeccionNegocio = 'avatar' | 'oferta' | 'embudo' | 'sistema'
 export type Destino = 'calendario' | 'objetivos' | 'hoy' | 'centro' | 'contenido' | 'lienzo' | 'rutinas' | 'finanzas' | 'sfcal' | 'sfmap' | 'reporte' | 'negocio' | 'trabajos'
 export type Alcance = 'dia' | 'semana' | 'mes'
@@ -34,14 +34,22 @@ export interface MostrarInput { vista: Vista; alcance?: Alcance; fecha?: string;
   /** Levy la guardó en el archivero (3 oct 2026): con fijar, la pestaña queda marcada como guardada y no se cierra sola. */
   guardar?: boolean
   /** Vista diario (5 oct 2026): el reporte del dueño (por defecto) o el de la socia. */
-  quien?: Quien }
+  quien?: Quien
+  /** Vista casa (27 oct 2026): «tu-casa» abre la casa 3D en «Tu casa» dentro de la pestaña; con `repetir`, la repetición del recorrido. */
+  modo?: 'tu-casa'; repetir?: boolean }
 export interface AbrirInput { destino: Destino; alcance?: Alcance; fecha?: string; paginaId?: string; zona?: string; motivo?: string }
 
 export type Invocacion =
   | { toolId: string; verbo: 'mostrar'; input: MostrarInput | null; status: 'running' | 'done'; error?: string }
   | { toolId: string; verbo: 'abrir'; input: AbrirInput | null; status: 'running' | 'done'; error?: string }
 
-const VISTAS: readonly Vista[] = ['calendario', 'objetivos', 'centro', 'lienzo', 'reporte', 'negocio', 'trabajos', 'finanzas', 'contenido', 'rutinas', 'servidores', 'memoria', 'equipo', 'documento', 'diario', 'salud', 'pizarron', 'masterclass', 'explorador', 'cohorte']
+const VISTAS: readonly Vista[] = ['calendario', 'objetivos', 'centro', 'lienzo', 'reporte', 'negocio', 'trabajos', 'finanzas', 'contenido', 'rutinas', 'servidores', 'memoria', 'equipo', 'documento', 'diario', 'salud', 'pizarron', 'masterclass', 'explorador', 'cohorte', 'casa', 'perro', 'historia']
+/**
+ * ¿Este build sabe pintar esa vista? (27 oct 2026) Una pestaña fijada con `vista: 'historia'` (nacida en una rama en obra y
+ * sincronizada a todos los dispositivos) tumbó la app entera: ICONO['historia'] era undefined (React #130). Lo que entra al
+ * panel desde fuera (almacén, otras ventanas, el servidor, el bus) pasa por aquí; lo desconocido se ignora, no truena.
+ */
+export const esVistaConocida = (v: unknown): v is Vista => (VISTAS as readonly unknown[]).includes(v)
 const SECCIONES: readonly SeccionNegocio[] = ['avatar', 'oferta', 'embudo', 'sistema']
 const DESTINOS: readonly Destino[] = ['calendario', 'objetivos', 'hoy', 'centro', 'contenido', 'lienzo', 'rutinas', 'finanzas', 'sfcal', 'sfmap', 'reporte', 'negocio', 'trabajos']
 const ALCANCES: readonly Alcance[] = ['dia', 'semana', 'mes']
@@ -73,6 +81,7 @@ export function parseMostrar(raw: string | undefined): MostrarInput | null {
     versiones: o.vista === 'documento' && Array.isArray(o.versiones) ? (o.versiones.filter((x): x is string => typeof x === 'string' && !!x.trim()).slice(0, 6).map(x => x.trim().slice(0, 1000))) : undefined,
     tiempo: o.vista === 'documento' && typeof o.tiempo === 'number' && Number.isFinite(o.tiempo) && o.tiempo >= 0 ? o.tiempo : undefined,
     quien: o.vista === 'diario' && (o.quien === DUENO() || o.quien === SEGUNDA()) ? o.quien : undefined,
+    modo: o.vista === 'casa' && o.modo === 'tu-casa' ? 'tu-casa' : undefined, repetir: o.vista === 'casa' && o.repetir === true || undefined,
     soltar: o.soltar === true || undefined, pestana: o.soltar === true ? str(o.pestana, 120)?.trim() || undefined : undefined, guardar: o.guardar === true || undefined }
   if (input.vista === 'documento' && !input.ruta) return null
   return input.vista === 'lienzo' && !input.paginaId ? null : input
@@ -113,6 +122,16 @@ export function invocacionesDe(msg: Pick<ChatMessage, 'toolCalls' | 'toolInputs'
     else out.push({ toolId: t.toolId, verbo, input: parseAbrir(raw), status: t.status, error })
   }
   return out
+}
+
+/**
+ * La tarjeta de Trabajos en el chat es para cuando el dueño la pide, no el eco de una delegación (27 oct 2026, captura de
+ * las 18:17: «demasiado texto… eso se ve en prima de tool usage»). Si el turno delegó, la delegación ya es una línea del
+ * razonamiento con clic al Taller; `mostrar trabajos` en ese turno no pinta tarjeta (fijada en el panel sí se respeta).
+ */
+export function sinEcoDeDelegar(msg: Pick<ChatMessage, 'toolCalls'>, invs: Invocacion[]): Invocacion[] {
+  const delego = (msg.toolCalls ?? []).some(t => /(?:^|__|_)cabina(?:__|_)delegar$|^(Agent|Task)$/.test(t.toolName))
+  return delego ? invs.filter(i => !(i.verbo === 'mostrar' && i.input?.vista === 'trabajos' && !i.input.fijar)) : invs
 }
 
 // ── Fechas civiles en America/Mexico_City (sin horario de verano desde 2022) ──
@@ -159,7 +178,7 @@ export function tituloPeriodo(a: Alcance, anchor: string) {
 const HORIZON: Record<Alcance, 'day' | 'week' | 'month'> = { dia: 'day', semana: 'week', mes: 'month' }
 
 /** Ruta web de la superficie completa. Las apps nativas caen a su sección web. */
-export function rutaDe(d: { destino: Destino | Vista; alcance?: Alcance; fecha?: string; paginaId?: string; zona?: string }): string {
+export function rutaDe(d: { destino: Destino | Vista; alcance?: Alcance; fecha?: string; paginaId?: string; zona?: string; modo?: string; repetir?: boolean }): string {
   const q = (p: Record<string, string | undefined>) => { const s = new URLSearchParams(Object.entries(p).filter(([, v]) => v) as [string, string][]).toString(); return s ? `?${s}` : '' }
   switch (d.destino) {
     case 'calendario': case 'sfcal': return '/calendar' + q({ date: d.fecha, mode: d.alcance ? HORIZON[d.alcance] : undefined })
@@ -177,6 +196,10 @@ export function rutaDe(d: { destino: Destino | Vista; alcance?: Alcance; fecha?:
     case 'salud': return '/salud'
     case 'masterclass': return '/masterclass'
     case 'cohorte': return '/cohorte'
+    case 'casa': return '/casa' + q({ modo: d.modo, repetir: d.repetir ? '1' : undefined })
+    case 'perro': return '/perro'
+    // La historia de tu cerebro (27 oct 2026) vive en Taller › Historia desde el 28 oct: /historia redirige ahí.
+    case 'historia': return '/chat?panel=taller&taller=historia'
     case 'finanzas': return '/finanzas'
     case 'reporte': return '/api/cabina/reporte/abrir'
     case 'negocio': return '/segundo-cerebro'
@@ -195,14 +218,14 @@ export function rutaDe(d: { destino: Destino | Vista; alcance?: Alcance; fecha?:
  */
 export function seccionDe(i: Pick<MostrarInput, 'vista' | 'alcance' | 'fecha' | 'paginaId' | 'zona'>): string | null {
   // Rutinas, Memoria y Servidores viven en el Taller (5 oct 2026): no tienen sección propia a la cual expandir.
-  if (i.vista === 'documento' || i.vista === 'trabajos' || i.vista === 'servidores' || i.vista === 'rutinas' || i.vista === 'memoria' || i.vista === 'diario' || i.vista === 'pizarron' || i.vista === 'explorador') return null
+  if (i.vista === 'documento' || i.vista === 'trabajos' || i.vista === 'servidores' || i.vista === 'rutinas' || i.vista === 'memoria' || i.vista === 'historia' || i.vista === 'diario' || i.vista === 'pizarron' || i.vista === 'explorador') return null
   return rutaDe({ destino: i.vista, alcance: i.alcance, fecha: i.fecha, paginaId: i.paginaId, zona: i.zona })
 }
 
 export const NOMBRE: Record<Destino | Vista, string> = {
   calendario: 'Calendario', objetivos: 'Objetivos', hoy: 'Hoy', centro: 'Command Center', contenido: 'Contenido',
   lienzo: 'Lienzo', rutinas: 'Rutinas', finanzas: 'Finanzas', sfcal: 'Calendario', sfmap: 'Lienzo',
-  reporte: 'Lo que llegó', negocio: 'Tu negocio', trabajos: 'Trabajos en el Studio', servidores: 'Servidores', memoria: 'Memoria', equipo: 'Equipo', documento: 'Documento', diario: 'Reporte diario', salud: 'Salud', pizarron: 'Pizarrón', masterclass: 'Masterclass', explorador: 'Archivos', cohorte: 'Cohorte',
+  reporte: 'Lo que llegó', negocio: 'Tu negocio', trabajos: 'Trabajos en el Studio', servidores: 'Servidores', memoria: 'Memoria', equipo: 'Equipo', documento: 'Documento', diario: 'Reporte diario', salud: 'Salud', pizarron: 'Pizarrón', masterclass: 'Masterclass', explorador: 'Archivos', cohorte: 'Cohorte', casa: 'Casa', perro: 'Perro', historia: 'Historia',
 }
 
 /** Nombre de un documento: el título que le dio Levy o el nombre del archivo. */
@@ -219,12 +242,15 @@ export function resumen(i: MostrarInput): string {
   if (i.vista === 'finanzas') return i.titulo ?? 'Finanzas · últimos 30 días'
   if (i.vista === 'contenido') return i.titulo ?? 'Contenido · YouTube'
   if (i.vista === 'rutinas') return i.titulo ?? 'Rutinas · lo que corre solo'
-  if (i.vista === 'servidores') return i.titulo ?? 'Máquina · ¿está todo prendido?'
+  if (i.vista === 'servidores') return i.titulo ?? 'Computadora · ¿está todo prendido?'
   if (i.vista === 'memoria') return i.titulo ?? 'Memoria · lo que tu cerebro sabe de ti'
   if (i.vista === 'equipo') return i.titulo ?? 'Equipo · quién lleva qué'
   if (i.vista === 'salud') return i.titulo ?? 'Salud · cómo está tu cuerpo hoy'
   if (i.vista === 'masterclass') return i.titulo ?? 'Masterclass · sábado 17 de octubre'
   if (i.vista === 'cohorte') return i.titulo ?? 'Cohorte · la venta y la entrega en vivo'
+  if (i.vista === 'casa') return i.titulo ?? 'Casa · el perro y los dispositivos'
+  if (i.vista === 'perro') return i.titulo ?? 'Perro · cámara, mapa y STOP'
+  if (i.vista === 'historia') return i.titulo ?? 'Historia · lo que cambió en tu cerebro'
   if (i.vista === 'documento') return nombreDocumento(i)
   if (i.vista === 'explorador') return i.titulo ?? 'Archivos · el árbol del repo'
   if (i.vista === 'pizarron') return i.titulo ? `Pizarrón · ${i.titulo}` : 'Pizarrón · sesiones y biblioteca'

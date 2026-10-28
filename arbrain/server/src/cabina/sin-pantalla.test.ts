@@ -79,6 +79,8 @@ describe('delegar sin pantalla: proceso desacoplado de punta a punta (CLI falso)
     const bit = readFileSync(sp.rutaBitacora(sub.id), 'utf8')
     expect(bit.match(/"arbrain":"salida","codigo":0/g)).toHaveLength(3)
     expect(bit).toContain('"session_id":"s-falsa-1"')
+    // contrato de autoría: el encargo le pide al agente firmar sus commits con el trailer del encargo
+    expect(bit).toContain('Subagente: prueba')
 
     // vista trabajos: tarjeta desde la bitácora, sin motor
     const [t] = await sp.terminalesSinPantalla([reg], 4)
@@ -262,5 +264,16 @@ describe('aviso: terminar = el proceso sale', () => {
     expect(entregados).toEqual([900001])
     expect(avisos).toEqual([])
     expect(anotados).toEqual([{ tokens: 99 }, { avisadoHasta: T0 }])
+  })
+})
+
+describe('hechosDe: detenido y cerrado con error (28 oct 2026, el Pizarrón en «Te espera» 21 días)', () => {
+  const sub = { id: 900013, creado: '2026-10-07T13:37:06.316Z' } as unknown as Subagente
+  const turno = (codigo: number) => ({ n: 1, inicio: 0, mensajes: [], final: '', salida: { codigo, detenido: true, en: 1 } })
+  const estado = (codigo: number) => ({ b: {}, mtime: 1, corriendo: false, detenido: true, turno: turno(codigo), terminado: true, finMs: 1, error: null, sesion: undefined, tokens: null }) as never
+  it('el código de salida distinto de cero se reporta como error aunque lo hayan detenido', async () => {
+    const { hechosDe } = await import('./sin-pantalla.js')
+    expect(hechosDe(sub, estado(1), false)).toMatchObject({ detenido: true, error: 'Lo detuvieron y su proceso salió con código 1' })
+    expect(hechosDe(sub, estado(0), false)).toMatchObject({ detenido: true, error: null })
   })
 })

@@ -4,17 +4,28 @@
  * un documento aparte: `app_config` (clave `habitos_atomicos:<dueño>`) en la instalación original y
  * `.claude/plan/habitos-atomicos.json` en la edición cliente. Lo que no se ha editado sale de la propuesta de la instalación.
  */
-/** El nombre neutro de un hábito privado sin alias propio. `posicion` empieza en 1. */
-export const aliasPorDefecto = (posicion: number) => `🔒 Hábito ${posicion}`
-/** El nombre que se pinta: el real, o el alias si el hábito es privado y no se está revelando. */
-export function nombrePublico(nombre: string, p: PrincipioHabito | undefined, posicion: number, revelado = false): string {
+/**
+ * Privado (28 oct 2026, 07:15, Daniel, antes de compartir pantalla con la cohorte: «por nada del mundo quiero que mis alumnos vean»
+ * el nombre del tercero): un hábito privado se ve con nombre neutro EN TODOS LADOS y por defecto, no solo en modo presentación. Su
+ * nombre real aparece solo al tocarlo o al dejar el cursor encima (`NombreHabito`). El dato guardado no cambia. Esto
+ * reemplaza la regla del 25 oct («en su app cada hábito se ve con su nombre real»).
+ * 28 oct 07:59, Daniel: «🔒 Privado» despierta curiosidad; se llama «Hábito 3», sin candado. El alias viejo «Privado» cuenta como vacío.
+ */
+export const NOMBRE_PRIVADO = 'Hábito 3'
+/** El nombre neutro de un hábito privado sin alias propio. */
+export const aliasPorDefecto = (_posicion?: number) => NOMBRE_PRIVADO
+/** El nombre que se pinta: el real, o el alias («Hábito 3» si no tiene) si el hábito es privado y no se está revelando. */
+export function nombrePublico(nombre: string, p: PrincipioHabito | undefined, _posicion?: number, revelado = false): string {
   if (!p?.privado || revelado) return nombre
-  return p.alias?.trim() || aliasPorDefecto(posicion)
+  const alias = p.alias?.trim().replace(/^🔒\s*/u, '')
+  return alias && !/^privado$/iu.test(alias) ? alias : NOMBRE_PRIVADO
 }
+/** Igual que `nombrePublico`, para quien no sabe la posición. `_compartiendo` queda por compatibilidad: ya no cambia nada. */
+export const nombreEnPantalla = (nombre: string, p: PrincipioHabito | undefined, _compartiendo?: boolean) => nombrePublico(nombre, p)
 export interface PrincipioHabito {
   senal: string; dosMinutos: string
-  /** Privado (22 oct 2026, Daniel comparte pantalla con la cohorte): se muestra con `alias` y su nombre real solo con un toque o
-   *  al pasar el cursor; en modo presentación no se muestra. `alias` vacío = «🔒 Hábito N» (N = su lugar en la fila). */
+  /** Privado (22 oct 2026, Daniel comparte pantalla con la cohorte; por defecto desde el 28 oct): se muestra con `alias` y su
+   *  nombre real solo con un toque o al pasar el cursor. `alias` vacío = «Hábito 3». */
   privado?: boolean; alias?: string
 }
 export interface Atomicos { identidad: string; habitos: Record<string, PrincipioHabito>; actualizado: string | null }

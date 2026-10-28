@@ -1,6 +1,6 @@
 'use client'
 
-import { Clock, Moon, Sun } from 'lucide-react'
+import { Clock, Moon, Sparkles, Sun } from 'lucide-react'
 import { useTheme } from '@/shared/contexts/theme-context'
 
 const iconByTheme = {
@@ -33,6 +33,25 @@ export function ThemeToggle({ compact = false, binary = false, ghost = false }: 
     >
       <Icon className="size-[18px] md:size-[15px]" />
       {!compact && <span>{label}</span>}
+    </button>
+  )
+}
+
+/** Estilo de la interfaz (27 oct 2026): el de hoy o el lenguaje unificado. También con ⇧T. */
+export function EstiloToggle() {
+  const { estilo, toggleEstilo } = useTheme()
+  const unificado = estilo === 'unificado'
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={unificado}
+      onClick={toggleEstilo}
+      className="nav-item w-full"
+      title="Estilo de la interfaz · ⇧T"
+    >
+      <Sparkles className="size-[18px] md:size-[15px]" />
+      <span>{unificado ? 'Unificado' : 'Actual'}</span>
     </button>
   )
 }

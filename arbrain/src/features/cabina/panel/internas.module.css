@@ -4,7 +4,7 @@
 /* ── Fila ── */
 .nombre { font-size: 14px; line-height: 1.35; font-weight: 500; color: var(--foreground); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 .actividad { font-size: 12.5px; line-height: 1.35; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.actividad[data-vivo] { color: var(--brand-ink); }
+.actividad[data-vivo] { color: var(--l-tinta-morado, var(--brand-ink)); }
 .datos { display: flex; flex-wrap: wrap; gap: 1px 12px; font-size: 11.5px; line-height: 1.4; color: var(--muted); font-variant-numeric: tabular-nums; }
 .datos > span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 .datos svg { opacity: 0.7; flex-shrink: 0; }
@@ -20,18 +20,18 @@
 .origen { margin: 0 20px 12px; font-size: 12.5px; line-height: 1.45; color: var(--muted); }
 .origen button { display: inline; max-width: 100%; padding: 0; border: 0; background: transparent; font: inherit; color: var(--foreground); text-align: left; cursor: pointer; text-decoration: underline; text-decoration-color: rgba(var(--foreground-rgb), 0.25); text-underline-offset: 2px; }
 .origen button:hover { text-decoration-color: currentColor; }
-.ahora { display: flex; align-items: center; gap: 8px; margin: 0 20px 12px; padding: 8px 10px; border-radius: 10px; background: rgba(var(--brand-rgb), 0.07); font-size: 13px; line-height: 1.4; color: var(--foreground); }
+.ahora { display: flex; align-items: center; gap: 8px; margin: 0 20px 12px; padding: 8px 10px; border-radius: 10px; background: rgba(var(--l-velo-morado-rgb, var(--brand-rgb)), 0.07); font-size: 13px; line-height: 1.4; color: var(--foreground); }
 .bloque { margin: 0 20px 14px; }
 .bloque h4 { margin: 0 0 6px; font-size: 11px; font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
 .dicho { display: flex; flex-direction: column; gap: 8px; }
-.dicho > div { max-height: 9.5em; overflow: auto; padding-left: 10px; border-left: 2px solid rgba(var(--brand-rgb), 0.22); font-size: 13.5px; line-height: 1.5; color: var(--foreground); }
-.dicho > div:last-child { border-left-color: var(--brand); }
+.dicho > div { max-height: 9.5em; overflow: auto; padding-left: 10px; border-left: 2px solid var(--l-borde-morado, rgba(var(--brand-rgb), 0.22)); font-size: 13.5px; line-height: 1.5; color: var(--foreground); }
+.dicho > div:last-child { border-left-color: var(--l-borde-morado, var(--brand)); }
 .dicho :global(.chat-serif), .resultado :global(.chat-serif) { font-family: inherit; font-size: inherit; line-height: inherit; }
 .dicho :global(.markdown-message) > :first-child, .resultado :global(.markdown-message) > :first-child { margin-top: 0; }
 .dicho :global(.markdown-message) > :last-child, .resultado :global(.markdown-message) > :last-child { margin-bottom: 0; }
 .resultado { max-height: 42vh; overflow: auto; padding: 10px 12px; border-radius: 10px; background: rgba(var(--foreground-rgb), 0.04); font-size: 13.5px; line-height: 1.5; color: var(--foreground); }
-:global(.dark) .resultado { background: rgba(255, 255, 255, 0.05); }
-.aviso { margin: 0 20px 12px; padding: 8px 10px; border-radius: 8px; font-size: 12.5px; line-height: 1.4; color: var(--foreground); background: rgba(var(--gold-rgb), 0.1); border: 1px solid rgba(var(--gold-rgb), 0.25); }
+:global(.dark) .resultado { background: rgba(var(--l-luz-rgb, 255, 255, 255), 0.05); }
+.aviso { margin: 0 20px 12px; padding: 8px 10px; border-radius: 8px; font-size: 12.5px; line-height: 1.4; color: var(--foreground); background: rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.1); border: 1px solid var(--l-borde-ambar, rgba(var(--gold-rgb), 0.25)); }
 .aviso[data-falla] { background: color-mix(in srgb, var(--error) 8%, transparent); border-color: color-mix(in srgb, var(--error) 28%, transparent); }
 
 .plegado { margin: 0 20px 10px; font-size: 12.5px; color: var(--muted); }

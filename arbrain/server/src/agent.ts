@@ -3,13 +3,16 @@ import { getCommandCatalog } from './chat-runtime/command-catalog.js'
 import { cabinaMcpConfig, manosMcpConfig } from './cabina/config.js'
 import { computerUseDisponible } from './manos/politica.js'
 import { chromeHooks, claveConversacion, configurarBitacora } from './cabina/chrome-guard.js'
+import { conViaUnica, herramientasProhibidasChat, marcarTurno } from './cabina/una-sola-via.js'
 import { conGuardia, opcionesSesionCliente, permisosCliente, sinGanchosCliente } from './guardia-agentes.js'
 import { esFalloDeSandbox, marcarSandboxFallido } from './cliente/sandbox.js'
 import { estadoLlaves, faltaLlaveClaude, MENSAJE_FALTA_LLAVE } from './cliente/llaves.js'
 import { clasificarFalloDeCuenta, mensajeFalloDeCuenta, type FalloDeCuenta } from './cliente/sin-saldo.js'
 import { MENSAJE_PAUSA, pausado, registrarEnCurso } from './cliente/pausa.js'
 import { modeloParaProveedor } from './cliente/proveedor.js'
+import { SeguidorMeta, EstadoMetas, estadoMetas, leerRevision, comandoMetaNativo, type VistaMeta } from './chat-runtime/meta-claude.js'
 import { esEdicionCliente } from './edicion.js'
+import { modoPermisosSdk } from './cliente/permisos-sdk.js'
 import { entornoClaude } from './cliente/cofre.js'
 import { fuentesDeAjustes, motorSuscripcion } from './cliente/suscripcion.js'
 import { readEnvFile } from './env.js'
@@ -22,10 +25,15 @@ import { PROJECT_ROOT, STORE_DIR, AGENT_TIMEOUT_MS, CHAT_STREAM_HARD_CAP_MS, def
 import { logger } from './logger.js'
 import { opsLogger } from './ops-logger.js'
 import { claudeRuntimePool, type ClaudeTurnScope } from './chat-runtime/claude-pool.js'
+import { opcionesCheckpoint } from './chat-runtime/deshacer.js'
 import { registrarTurno, type UsoLlamada } from './cabina/contexto.js'
 import { ClaudeExecutionUncertain, ClaudeSubmissionCancelled, confirmClaudeSubscription, type ClaudeBackgroundEvent } from './chat-runtime/claude-session.js'
 import { validateClaudeSelection, claudeSelectionOptions, type ClaudeSelection } from './chat-runtime/claude-selection.js'
 import { CUENTA_ALTERNA_NO_DISPONIBLE, dirClaudeAlterna } from './cuentas-alternas.js'
+
+/** Cola de aprobaciones (edición cliente): la conversación del turno, para que lo no contestado vuelva ahí. */
+const colaDe = (durable?: { scope: { owner: string; account: string; conversationId: string } }) =>
+  durable ? { conversacion: { owner: durable.scope.owner, account: durable.scope.account, conversationId: durable.scope.conversationId } } : {}
 
 export type { Query, ModelInfo }
 
@@ -246,6 +254,9 @@ export type SSEEvent =
   | { type: 'compact'; tokensBefore?: number; tokensAfter?: number }
   | { type: 'usage'; accounting?: { estimatedCostUsd: number; cumulativeEstimatedCostUsd: number; inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheWriteTokens: number; scope: string; kind: string; billing: 'subscription' }; costUsd: number; inputTokens: number; outputTokens: number; durationMs: number; numTurns: number; model?: string; contextUsed?: number; contextTotal?: number; /** Esfuerzo con que corrió el turno; ausente si el motor no lo confirma (2 oct 2026). */ effort?: string; /** Motor que corrió el turno: 'claude' o 'codex' (2 oct 2026). */ engine?: 'claude' | 'codex' }
   | { type: 'result'; text: string; terminalReason?: string }
+  // La meta (`/goal`) de Claude dentro del turno (27 oct 2026): cada revisión del evaluador y el estado al cerrar.
+  // El texto que llega DESPUÉS de una revisión es de su vuelta, no de la respuesta (ver chat-runtime/meta-claude.ts).
+  | { type: 'goal'; meta: VistaMeta }
   | { type: 'model_changed'; model: string | null; display?: string; resolved?: string | null }
   // Downgrade de modelo detectado en el turno: el modelo que PEDISTE (ej. Fable 5)
   // no fue el que RESPONDIÓ (ej. Opus 4.8). Causa típica: refusal fallback — Fable
@@ -553,6 +564,15 @@ export async function* runAgentStream(
     return { type: 'error' as const, message: mensajeFalloDeCuenta(f.tipo, proveedor, f.detalle) }
   }
   const textoFalloCuenta = (texto: string): FalloDeCuenta | null => (esEdicionCliente() ? clasificarFalloDeCuenta({ texto }) : null)
+  // La meta (`/goal`) de Claude, solo en turnos del chat (27 oct 2026, chat-runtime/meta-claude.ts). Que Daniel
+  // escriba devuelve a «en curso» una meta frenada por repetición; su pausa se respeta hasta que la reanude.
+  const claveMeta = durable && !denyTools ? EstadoMetas.clave(durable.scope) : null
+  const comandoMeta = claveMeta ? comandoMetaNativo(message) : null
+  if (claveMeta && !durable?.adopted) estadoMetas.alEscribirPersona(claveMeta)
+  if (claveMeta && comandoMeta) estadoMetas.poner(claveMeta, comandoMeta.accion === 'quitar' ? 'quitada' : 'en_curso', comandoMeta.accion === 'fijar' ? comandoMeta.condicion : undefined)
+  const seguidorMeta = new SeguidorMeta(() => !!claveMeta && estadoMetas.pausada(claveMeta), (claveMeta && estadoMetas.get(claveMeta)?.condicion) || '')
+  let metaInterrumpida = false
+  let topeMetaCli = false
   try {
   while (true) {
    try {
@@ -569,6 +589,10 @@ export async function* runAgentStream(
     // síntesis ni crons. El guardián de sitios sensibles va como hook PreToolUse,
     // que sí corre con bypassPermissions. LEVY_CHROME=0 lo apaga sin tocar código.
     const conChrome = !!durable && !denyTools && chromeHabilitado()
+    // Una sola vía (27 oct 2026): el gancho de la sesión lee si ESTE turno puede usar Workflow (mensaje con ultracode).
+    const claveViaUnica = !denyTools ? (durable ? claveConversacion(durable.scope) : `${source}:${resumeId ?? 'nuevo'}`) : null
+    if (claveViaUnica) marcarTurno(claveViaUnica, message, ultracodeEnabled)
+    const modoSdk = modoPermisosSdk({ cliente: esEdicionCliente(), denyTools: !!denyTools, live: !!durable?.live })
     const queryOptions: Options = {
         cwd: PROJECT_ROOT,
         // Cabina: las manos de Levy sobre la interfaz de Arbrain (vistas vivas y
@@ -589,7 +613,7 @@ export async function* runAgentStream(
         // ClaudeClaw is a daemon — hooks would spawn recursive agent sessions.
         settingSources: fuentesDeAjustes(['project', 'user']),
         // Edición cliente: + guardia destructiva programática (guardia-agentes.ts). Daniel: igual que siempre.
-        hooks: conGuardia(conChrome ? chromeHooks(claveConversacion(durable!.scope), evento => opsLogger.log('browser_site', source, evento)) : {}, ev => logger.warn(ev, 'guardia de agentes'), resumeId && rewindAt ? { heredaDe: resumeId } : undefined),
+        hooks: conViaUnica(conGuardia(conChrome ? chromeHooks(claveConversacion(durable!.scope), evento => opsLogger.log('browser_site', source, evento)) : {}, ev => logger.warn(ev, 'guardia de agentes'), { clasificador: modoSdk.clasificador, ...(resumeId && rewindAt ? { heredaDe: resumeId } : {}), ...colaDe(durable) }), claveViaUnica),
         extraArgs: conChrome ? { chrome: null } : { 'no-chrome': null },
         // ClaudeClaw runs headless on Mac Mini — no UI to approve prompts.
         // Modo NORMAL: bypassPermissions skip all checks (safety net = el hook
@@ -602,8 +626,10 @@ export async function* runAgentStream(
         // shadows this callback in bypassPermissions; other authorized tools
         // retain the existing allow decision in the callback below.
         // Edición cliente (AUDITORIA I4): nunca bypass; la instalación de Daniel no cambia.
-        permissionMode: denyTools || durable?.live || esEdicionCliente() ? 'default' : 'bypassPermissions',
-        allowDangerouslySkipPermissions: denyTools || esEdicionCliente() ? false : true,
+        // Botón Play (27 oct 2026): edición cliente en `auto` (clasificador del SDK para lo rutinario; la tarjeta del hilo
+        // para lo demás). Daniel, como firmó: bypass. Ver cliente/permisos-sdk.ts.
+        permissionMode: modoSdk.permissionMode,
+        allowDangerouslySkipPermissions: modoSdk.allowDangerouslySkipPermissions,
         canUseTool: denyTools
           ? async (_toolName, _input) => ({
               behavior: 'deny' as const,
@@ -639,7 +665,7 @@ export async function* runAgentStream(
                 })
               }
               return { behavior: 'allow' as const, updatedInput: input }
-            }, ev => logger.warn(ev, 'guardia de agentes (canUseTool)')),
+            }, ev => logger.warn(ev, 'guardia de agentes (canUseTool)'), { clasificador: modoSdk.clasificador, ...colaDe(durable) }),
         disallowedTools: denyTools
           ? [
               'Bash', 'BashOutput', 'KillShell', 'KillBash',
@@ -649,16 +675,14 @@ export async function* runAgentStream(
               'Skill', 'SlashCommand', 'ExitPlanMode',
               'mcp__*',
             ]
-          : [
-              // Chat vivo (3 oct 2026): los crons nativos de sesión no son durables (mueren con el proceso y el
-              // corredor se retira a los 30 min). Levy usa mcp__cabina__despertador, que sí sobrevive.
-              ...(durable ? ['CronCreate', 'CronDelete', 'CronList', 'ScheduleWakeup'] : []),
-              'mcp__claude_ai_Google_Calendar__*',
-              'mcp__claude_ai_Gmail__*',
-              'mcp__claude_ai_Google_Drive__*',
-            ],
+          // Chat: crons de sesión y MCPs con popup fuera, y una sola vía para subagentes (Agent/Task fuera; Workflow
+          // solo con ultracode, por el gancho de abajo). Ver cabina/una-sola-via.ts.
+          : herramientasProhibidasChat({ durable: !!durable }),
         abortController: ac,
         includePartialMessages: true,
+        // «Deshacer desde aquí» (27 oct 2026, chat-runtime/deshacer.ts): copia de cada archivo antes de editarlo, solo
+        // en turnos del chat. ARBRAIN_CHECKPOINTS=0 lo apaga.
+        ...(durable && !denyTools && opcionesCheckpoint()),
         env: queryEnv,
         // Frozen model IDs already preserve the selected context qualifier.
         // Do not globally opt every accepted model into a different variant.
@@ -726,6 +750,12 @@ export async function* runAgentStream(
 
     // Expose Query object to caller for interrupt/setModel/etc.
     if (stream) onQuery?.(stream)
+    // Freno de la meta: corta la vuelta que el CLI acaba de abrir. No es el Stop de Daniel (no aborta `ac`): el turno
+    // cierra como completado y la meta sigue viva en el CLI para su siguiente mensaje.
+    const interrumpirVuelta = () => {
+      const p = adopted ? adopted.interrupt() : (pooled?.query ?? stream)?.interrupt()
+      void p?.catch(() => {})
+    }
 
     // Merge del stream del SDK con la cola lateral: mientras una tool está
     // bloqueada (pregunta interactiva pendiente) el SDK no emite NADA, pero los
@@ -748,6 +778,24 @@ export async function* runAgentStream(
       const e = value as Record<string, unknown>
       // Ya se cortó por la cuenta: se sigue drenando (abandonar el generador del SDK tumba el daemon) sin emitir nada.
       if (falloCuenta) continue
+      if (claveMeta) {
+        // Revisión «no se cumple» del evaluador: abre una vuelta. Al repetirse sin acción nueva (o con la meta en
+        // pausa) se frena aquí, porque el CLI no tiene pausa y su propio tope llega tarde.
+        const revision = leerRevision(e)
+        if (revision) {
+          const frenar = seguidorMeta.revision(revision)
+          yield { type: 'goal', meta: seguidorMeta.vista(frenar ? 'esperando' : 'en_curso') }
+          if (frenar && !metaInterrumpida) {
+            metaInterrumpida = true
+            logger.info({ conversationId: durable!.scope.conversationId, por: seguidorMeta.frenadaPor }, 'meta frenada: espera a la persona')
+            interrumpirVuelta()
+          }
+          continue
+        }
+        // Algunas versiones del SDK anuncian el cierre de la meta (null = cumplida o limpiada) y la pausa del CLI.
+        if (e['type'] === 'active_goal' && e['value'] === null && seguidorMeta.activa) seguidorMeta.cumplida()
+        if (e['type'] === 'system' && (e['subtype'] === 'informational' || e['subtype'] === 'notification') && /Goal paused|goal checks kept/i.test(JSON.stringify(e))) topeMetaCli = true
+      }
       if (esEdicionCliente() && e['type'] === 'system' && e['subtype'] === 'api_retry') {
         const tipo = clasificarFalloDeCuenta({ status: e['error_status'], error: e['error'] })
         if (tipo) {
@@ -1019,6 +1067,7 @@ export async function* runAgentStream(
             toolStartTime = Date.now()
             toolStartTimes.set(toolId, toolStartTime)
             opsLogger.log('tool_start', source, { toolName, toolId }, streamSessionId)
+            seguidorMeta.herramienta()
             yield { type: 'tool_start', toolName, toolId }
           }
           if (block?.['type'] === 'thinking') {
@@ -1055,6 +1104,7 @@ export async function* runAgentStream(
           if (deltaType === 'text_delta' && !inTool && !inThinking) {
             const text = delta['text'] as string
             resultText += text
+            seguidorMeta.texto(text)
             yield { type: 'text_delta', text }
           }
 
@@ -1114,7 +1164,8 @@ export async function* runAgentStream(
         const isErrorResult = e['is_error'] === true
         const sdkErrors = Array.isArray(e['errors']) ? (e['errors'] as unknown[]).map(String) : []
 
-        if (isErrorResult || (subtype && subtype !== 'success')) {
+        // La vuelta que cortó el freno de la meta no es un turno muerto.
+        if ((isErrorResult || (subtype && subtype !== 'success')) && !(metaInterrumpida && subtype === 'error_during_execution')) {
           // Sólo MARCAMOS y salimos de este `if`: ni emitimos el result vacío (que
           // el cliente pinta como burbuja en blanco y da el turno por bueno) ni
           // rompemos el for-await. Abandonar el generador del SDK es fatal: el SDK
@@ -1219,7 +1270,22 @@ export async function* runAgentStream(
           primera: primeraLlamada, ultima: ultimaLlamada,
         }, stream as unknown as Parameters<typeof registrarTurno>[1])
 
-        const terminalReason = e['terminal_reason'] as string | undefined
+        let terminalReason = e['terminal_reason'] as string | undefined
+        if (claveMeta && (seguidorMeta.activa || comandoMeta)) {
+          // Cierre de la meta en este turno. Terminó solo, sin freno ni tope del CLI, tras revisiones = la última pasó.
+          let estado: VistaMeta['estado']
+          if (comandoMeta?.accion === 'quitar' && !seguidorMeta.activa) estado = 'quitada'
+          else {
+            if (!metaInterrumpida && !topeMetaCli && (!terminalReason || terminalReason === 'completed')) seguidorMeta.cumplida()
+            estado = seguidorMeta.estadoFinal()
+          }
+          const vista = seguidorMeta.vista(estado, true)
+          estadoMetas.poner(claveMeta, estado, vista.condicion)
+          yield { type: 'goal', meta: vista }
+          // La respuesta del turno es la principal; las vueltas viajan plegadas en `goal`.
+          if (seguidorMeta.activa) resultText = seguidorMeta.respuesta() || resultText
+          if (metaInterrumpida && (terminalReason === 'aborted_streaming' || terminalReason === 'interrupted')) terminalReason = 'completed'
+        }
         yield { type: 'result', text: resultText, terminalReason }
       }
     }

@@ -122,7 +122,7 @@ export function CommandPalette({ comandos, selectedIndex, onSelect, onClose }: P
                   }`}
                 >
                   {/* Icon bubble */}
-                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${iconClass}`}>
+                  <div data-icono-comando className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${iconClass}`}>
                     <Icon size={15} strokeWidth={1.75} />
                   </div>
 

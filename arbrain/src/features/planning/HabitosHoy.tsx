@@ -1,6 +1,6 @@
 'use client'
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent as TeclaReact } from 'react'
-import { CalendarRange, Eye, EyeOff, Flame, Lock, Pencil, Trophy } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent as TeclaReact, type PointerEvent as PunteroReact } from 'react'
+import { CalendarRange, Eye, EyeOff, Flame, Pencil, Trophy } from 'lucide-react'
 import { mov, escalon } from '@/shared/movimiento'
 import { instalacion } from '@/config'
 import { shiftDay } from '@/features/sistema/calendar-days'
@@ -8,7 +8,8 @@ import { isHabitTypingTarget } from '@/features/sistema/habit-shortcuts'
 import type { useHabitRecords } from '@/features/sistema/useHabitRecords'
 import { useAtomicos } from '@/features/sistema/useAtomicos'
 import { useModoPresentacion } from '@/shared/stores/presentacion-store'
-import { nombrePublico, type PrincipioHabito } from '@/lib/sistema/atomicos'
+import { NOMBRE_PRIVADO, nombreEnPantalla, type PrincipioHabito } from '@/lib/sistema/atomicos'
+import { NombreHabito } from '@/features/sistema/NombreHabito'
 import { siguienteMarca, type Marca } from './habitos-dia'
 import { casillaDeTecla, cuentaRegresiva, diasTira, estadoCelda, noSeRompe, porcentajeSemana, rachaActual, semanaDeHoy, semanasTemporada, textoRacha } from './habitos-hoy'
 import { EVENTO_HABITOS, tomarPedidoHabitos } from './habitos-pedido'
@@ -24,14 +25,18 @@ import s from './habitos-hoy.module.css'
  * - Atomic Habits sin texto de más: la identidad en una línea editable, la señal (hora) y la versión de 2 minutos de cada uno.
  * - Historia: la tira de 30 días por hábito y, a un toque, la cuadrícula de la temporada (`useTemporada`: nombre y arranque, con cierre y premio de `periodo`) con la
  *   cuenta regresiva y el porcentaje de cada semana. Antes del `arranque` no hay historia: no se rellena nada.
- * - Privados (22 oct 2026, 17:41): un hábito privado se pinta con su nombre neutro y el real solo con un toque en el candado o al
- *   pasar el cursor por él; en modo presentación no se pinta en ningún lado (tampoco cuenta en los porcentajes visibles).
+ * - Privados (25 oct 2026, 08:54, Daniel: «son 3… 0/3 debería ver al abrir el tercer hábito»): en su app todos se ven con su nombre y
+ *   cuentan en el x/3; un privado se ve como «Hábito 3» (sin candado desde el 28 oct, 07:59: «despierta curiosidad»), sigue
+ *   contando y su nombre real asoma solo al dejar el cursor encima del nombre o con un toque largo (el toque corto marca).
  * - Teclado: Ctrl+H (en toda la app) o H (en el calendario) traen el foco aquí; 1, 2, 3 marcan la casilla de ese lugar.
+ *
+ * - Mínimo (25 oct 2026, Daniel: «los hábitos aún más minimalista»): en el desplegable del Día, una línea por hábito con casilla y
+ *   racha; sin identidad, principios ni tira. La historia vive en la vista H (HabitosTiempo), que también se queda con Ctrl+H y H.
  *
  * Misma pluma de siempre (useHabitRecords → /api/sistema). `especial` deja que la hoja del día conecte una casilla con otro dato
  * (el objetivo del día: tarea, ✓ en Google y hábito a la vez).
  */
-export function HabitosHoy({ dia, today, habits, donde, especial = {}, i = 6, temporadaArriba = false }: {
+export function HabitosHoy({ dia, today, habits, donde, especial = {}, i = 6, temporadaArriba = false, minimo = false }: {
   dia: string; today: string; habits: ReturnType<typeof useHabitRecords>
   /** 'panel' | 'seccion' | 'telefono': quién atiende el teclado. */
   donde: string
@@ -39,6 +44,8 @@ export function HabitosHoy({ dia, today, habits, donde, especial = {}, i = 6, te
   i?: number
   /** La franja de la temporada ya está arriba (el Día del calendario, 24 oct 2026): sin segunda línea «Día N de 29 · faltan…». */
   temporadaArriba?: boolean
+  /** Una línea por hábito (casilla, nombre, racha), sin el resto. No atiende Ctrl+H ni H: son de la vista Hábitos. */
+  minimo?: boolean
 }) {
   const vigente = useTemporada()
   const temporada = temporadaDeHabitos(vigente?.temporadaHabitos, vigente?.periodo), inicio = temporada?.arranque ?? null
@@ -53,16 +60,25 @@ export function HabitosHoy({ dia, today, habits, donde, especial = {}, i = 6, te
   const [ultimo, setUltimo] = useState<{ nombre: string; hecho: boolean | null } | null>(null)
   useEffect(() => { if (!recien) return; const t = setTimeout(() => setRecien(null), 900); return () => clearTimeout(t) }, [recien])
   useEffect(() => { if (!ultimo) return; const t = setTimeout(() => setUltimo(null), 6000); return () => clearTimeout(t) }, [ultimo])
-  // Un toque deja el nombre real 4 s (fijo aunque el cursor salga); pasar el cursor lo muestra mientras está encima.
-  const fijo = useRef<string | null>(null)
+  // Un toque largo deja el nombre real 4 s (fijo aunque el cursor salga); dejar el cursor encima lo muestra mientras está ahí.
+  // Pasar de largo no lo destapa (450 ms de intención, como `NombreHabito`); el toque corto sigue marcando la casilla.
+  const fijo = useRef<string | null>(null), espera = useRef<ReturnType<typeof setTimeout> | null>(null), largo = useRef(false)
   useEffect(() => { if (!revelado) return; const t = setTimeout(() => { fijo.current = null; setRevelado(null) }, 4000); return () => clearTimeout(t) }, [revelado])
+  useEffect(() => () => { if (espera.current) clearTimeout(espera.current) }, [])
+  const soltar = () => { if (espera.current) clearTimeout(espera.current); espera.current = null }
+  const revelar = (x: Fila) => ({
+    onPointerEnter: (e: PunteroReact) => { if (e.pointerType !== 'mouse' || presentacion.activo) return; soltar(); espera.current = setTimeout(() => setRevelado(x.clave), 450) },
+    onPointerLeave: (e: PunteroReact) => { soltar(); if (e.pointerType === 'mouse' && fijo.current !== x.clave) setRevelado(v => v === x.clave ? null : v) },
+    onPointerDown: (e: PunteroReact) => { if (e.pointerType === 'mouse') return; soltar(); largo.current = false
+      espera.current = setTimeout(() => { largo.current = true; fijo.current = x.clave; setRevelado(x.clave) }, 500) },
+    onPointerUp: soltar, onPointerCancel: soltar,
+  })
 
   // Lo que se lee del principio de cada hábito: lo guardado o, mientras llega (o si falla), la propuesta de la instalación.
   // Así un privado nunca asoma su nombre real en el primer pintado.
   const principio = (clave: string): PrincipioHabito | undefined => atomicos.data?.habitos[clave] ?? propuesta?.habitos[clave]
-  const todos = useMemo(() => habits.data?.habitos ?? [], [habits.data])
-  const lista = todos.map((x, n) => ({ ...x, posicion: n + 1, p: principio(x.clave) })).filter(x => !(presentacion.activo && x.p?.privado))
-  const nombre = (x: Fila, ver = false) => nombrePublico(x.nombre, x.p, x.posicion, ver || revelado === x.clave)
+  const lista = (habits.data?.habitos ?? []).map((x, n) => ({ ...x, posicion: n + 1, p: principio(x.clave) }))
+  const nombre = (x: Fila) => revelado === x.clave ? x.nombre : nombreEnPantalla(x.nombre, x.p)
 
   const leido = useMemo(() => new Map((habits.data?.records ?? []).map(r => [`${r.fecha}|${r.habito_clave}`, r.hecho])), [habits.data])
   const marca = (fecha: string, clave: string): Marca => {
@@ -77,16 +93,16 @@ export function HabitosHoy({ dia, today, habits, donde, especial = {}, i = 6, te
   }
   // Ctrl+H: el pedido llega antes o después de que esta fila exista (el Calendario del panel puede estar montándose).
   useEffect(() => {
-    if (donde !== 'panel' && donde !== 'telefono') return
+    if (minimo || (donde !== 'panel' && donde !== 'telefono')) return
     const oir = () => { if (tomarPedidoHabitos()) requestAnimationFrame(enfocar) }
     if (habits.data) oir()
     window.addEventListener(EVENTO_HABITOS, oir)
     return () => window.removeEventListener(EVENTO_HABITOS, oir)
-  }, [donde, !!habits.data]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [donde, minimo, !!habits.data]) // eslint-disable-line react-hooks/exhaustive-deps
   // `H` dentro del calendario (sección o panel, cada uno con su foco) y, en el teléfono, 1·2·3 en toda la pantalla.
   useEffect(() => {
     const tecla = (e: KeyboardEvent) => {
-      if (e.metaKey || e.ctrlKey || e.altKey || e.isComposing || isHabitTypingTarget(e.target)) return
+      if (minimo || e.metaKey || e.ctrlKey || e.altKey || e.isComposing || isHabitTypingTarget(e.target)) return
       const target = e.target instanceof Element ? e.target : null
       if (donde === 'telefono') {
         if (raiz.current?.contains(target)) return
@@ -137,6 +153,40 @@ export function HabitosHoy({ dia, today, habits, donde, especial = {}, i = 6, te
   const fechaLarga = (f: string) => new Date(`${f}T12:00:00`).toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })
   const estadoTexto = (m: Marca) => m === true ? 'cumplido' : m === false ? 'no cumplido' : 'sin registro'
 
+  if (minimo) return <section ref={raiz} className={`${s.hoy} ${mov.entra}`} style={escalon(i)} aria-label={esHoy ? 'Hábitos de hoy' : 'Hábitos de ese día'}
+    data-habitos data-minimo data-donde={donde} data-completo={(lista.length > 0 && hechos === lista.length) || undefined} tabIndex={-1} onKeyDown={teclaFila}>
+    <header className={s.cabeza}>
+      <h3>{esHoy ? 'Hábitos de hoy' : 'Hábitos de ese día'}</h3>
+      {habits.data && <span className={s.cuenta}><b>{hechos}</b> de {lista.length}</span>}
+    </header>
+    {!habits.data ? <p className={s.vacio}>{habits.loading ? 'Leyendo tus hábitos…' : habits.error ?? 'No se pudieron leer los hábitos.'}</p>
+      : !lista.length ? <p className={s.vacio}>Aún no tienes hábitos activos.</p>
+      : <ul className={s.lineas} role="group" aria-label={`Hábitos: ${hechos} de ${lista.length} cumplidos`}>
+        {lista.map((x, n) => {
+          const m = marca(dia, x.clave), hecho = m === true, r = rachaActual(f => marca(f, x.clave), dia, inicio)
+          const critico = esHoy && noSeRompe(f => marca(f, x.clave), dia, inicio), ver = nombre(x)
+          return <li key={x.clave} className={s.linea} data-estado={hecho ? 'hecho' : m === false && !especial[x.clave] ? 'fallado' : 'vacio'} data-critico={critico || undefined}>
+            <button className={s.tocarLinea} data-casilla={x.clave} data-estado={hecho ? 'hecho' : 'vacio'} aria-pressed={hecho} onClick={() => alternar(x)}
+              aria-label={`${ver}: ${estadoTexto(m)}${r ? `, racha de ${textoRacha(r)}` : ''}. Tecla ${n + 1}`}>
+              {/* La casilla del objetivo llega como cumplido sí/no: «no» ahí es «aún no», no un registro de fallo. */}
+              <span className={s.marcaMini} aria-hidden>{hecho ? <svg viewBox="0 0 12 12" className={recien === x.clave ? mov.palomita : undefined}><path d="M2.5 6.2 5 8.6l4.6-5.2" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg> : m === false && !especial[x.clave] ? '×' : null}</span>
+              <NombreHabito clave={x.clave} nombre={x.nombre} p={x.p} tocable={false} className={s.nombreMini} />
+            </button>
+            <span className={s.puntosRacha} aria-hidden>{diasTira(dia, 7).map(f => <i key={f} data-estado={estadoCelda(marca(f, x.clave), f, today, inicio)} />)}</span>
+            <span className={s.rachaMini}>{critico ? <span className={s.noSeRompe}>no se rompe</span> : r > 0 ? <><Flame size={11} aria-hidden />{r}</> : null}</span>
+            <kbd className={s.tecla} aria-hidden>{n + 1}</kbd>
+          </li>
+        })}
+      </ul>}
+    {(habits.error && habits.data) || (habits.pending.length > 0 && !habits.saving) ? <p className={s.aviso} role="status">
+      <span>{habits.error ?? 'Hay una marca sin confirmar.'}</span>
+      {habits.pending.length > 0 && !habits.saving && <button onClick={() => void habits.retry()}>Reintentar</button>}
+    </p> : ultimo && habits.canUndo ? <p className={s.deshacer} role="status">
+        <span>{ultimo.hecho ? 'Marcado' : 'Sin marca'}: «{ultimo.nombre}»</span>
+        <button onClick={() => { habits.undoLast(); setUltimo(null) }}>Deshacer</button>
+      </p> : null}
+  </section>
+
   return <section ref={raiz} className={`${s.hoy} ${mov.entra}`} style={escalon(i)} aria-label={esHoy ? 'Hábitos de hoy' : 'Hábitos de ese día'}
     data-habitos data-habitos-hoy data-donde={donde} data-completo={(lista.length > 0 && hechos === lista.length) || undefined} tabIndex={-1} onKeyDown={teclaFila}>
     <header className={s.cabeza}>
@@ -146,7 +196,7 @@ export function HabitosHoy({ dia, today, habits, donde, especial = {}, i = 6, te
         {temporada && <button className={s.accion} onClick={() => setVerTemporada(v => !v)} aria-pressed={verTemporada} title={`Toda la temporada: ${temporada.nombre}`}>
           <CalendarRange size={13} aria-hidden /><span>{temporada.nombre}</span></button>}
         <button className={s.accion} data-solo-icono onClick={() => presentacion.alternar()} aria-pressed={presentacion.activo}
-          title={presentacion.activo ? 'Modo presentación: los privados no se muestran. Toca para salir' : 'Modo presentación: oculta los hábitos privados'}
+          title={presentacion.activo ? 'Pantalla compartida: el cursor no destapa nombres, solo un toque largo. Toca para salir' : 'Pantalla compartida: que el cursor no destape nombres'}
           aria-label={presentacion.activo ? 'Salir del modo presentación' : 'Modo presentación'}>{presentacion.activo ? <EyeOff size={13} aria-hidden /> : <Eye size={13} aria-hidden />}</button>
         <button className={s.accion} data-solo-icono onClick={() => setAjustar(v => !v)} aria-pressed={ajustar} title="Ajustar señal, versión de 2 minutos y privacidad" aria-label="Ajustar los hábitos"><Pencil size={13} aria-hidden /></button>
       </div>
@@ -157,7 +207,7 @@ export function HabitosHoy({ dia, today, habits, donde, especial = {}, i = 6, te
       {pctSemana && <span className={s.pct} title={`${pctSemana.hechos} de ${pctSemana.posibles} casillas esta semana`}>Semana {pctSemana.pct}%</span>}</p>}
 
     {!habits.data ? <p className={s.vacio}>{habits.loading ? 'Leyendo tus hábitos…' : habits.error ?? 'No se pudieron leer los hábitos.'}</p>
-      : !lista.length ? <p className={s.vacio}>{presentacion.activo && todos.length ? 'Modo presentación: tus hábitos privados no se muestran.' : 'Aún no tienes hábitos activos.'}</p>
+      : !lista.length ? <p className={s.vacio}>Aún no tienes hábitos activos.</p>
       : <>
         <div className={s.casillas} role="group" aria-label={`Hábitos: ${hechos} de ${lista.length} cumplidos`}>
           {lista.map((x, n) => {
@@ -165,14 +215,13 @@ export function HabitosHoy({ dia, today, habits, donde, especial = {}, i = 6, te
             const critico = esHoy && noSeRompe(f => marca(f, x.clave), dia, inicio)
             const ver = nombre(x), privado = !!x.p?.privado
             return <div key={x.clave} className={s.casilla} data-estado={hecho ? 'hecho' : m === false ? 'fallado' : 'vacio'} data-critico={critico || undefined} data-privado={privado || undefined}>
-              <button className={s.tocar} data-casilla={x.clave} data-estado={hecho ? 'hecho' : 'vacio'} aria-pressed={hecho} onClick={() => alternar(x)}
-                aria-label={`${privado ? nombre(x, false) : ver}: ${estadoTexto(m)}${r ? `, racha de ${textoRacha(r)}` : ''}. Tecla ${n + 1}`}>
+              <button className={s.tocar} data-casilla={x.clave} data-estado={hecho ? 'hecho' : 'vacio'} aria-pressed={hecho}
+                onClick={() => { if (largo.current) { largo.current = false; return } alternar(x) }} {...(privado ? revelar(x) : {})}
+                onContextMenu={privado ? e => e.preventDefault() : undefined}
+                aria-label={`${ver}: ${estadoTexto(m)}${r ? `, racha de ${textoRacha(r)}` : ''}. Tecla ${n + 1}`}>
                 <span className={s.marca} aria-hidden>{hecho ? <svg viewBox="0 0 12 12" className={recien === x.clave ? mov.palomita : undefined}><path d="M2.5 6.2 5 8.6l4.6-5.2" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" /></svg> : m === false ? '×' : null}</span>
-                {/* El candado ya está al lado: el nombre neutro va sin el suyo. */}
-                <span className={s.nombre}>{privado ? ver.replace(/^🔒\s*/u, '') : ver}</span>
+                <span className={s.nombre}>{ver}</span>
               </button>
-              {privado && <button className={s.candado} onClick={() => { fijo.current = x.clave; setRevelado(x.clave) }} onPointerEnter={e => e.pointerType === 'mouse' && setRevelado(x.clave)}
-                onPointerLeave={e => e.pointerType === 'mouse' && fijo.current !== x.clave && setRevelado(v => v === x.clave ? null : v)} aria-label="Ver el nombre real" title="Privado: toca para ver su nombre"><Lock size={11} aria-hidden /></button>}
               {ajustar ? <AjustesHabito clave={x.clave} p={x.p} posicion={x.posicion} guardar={atomicos.guardar} />
                 : (!privado || revelado === x.clave) && (x.p?.senal || x.p?.dosMinutos) ? <p className={s.principios}>
                   {x.p?.senal && <span className={s.senal}>{x.p.senal}</span>}
@@ -191,7 +240,7 @@ export function HabitosHoy({ dia, today, habits, donde, especial = {}, i = 6, te
         {/* La tira: los últimos 30 días de cada hábito, hoy a la derecha. Tocar un día ya vivido corrige su registro. */}
         <div className={s.tira} role="table" aria-label="Los últimos 30 días">
           {lista.map(x => <div key={x.clave} className={s.tiraFila} role="row">
-            <span className={s.tiraNombre} role="rowheader">{nombre(x)}</span>
+            <span className={s.tiraNombre} role="rowheader"><NombreHabito clave={x.clave} nombre={x.nombre} p={x.p} /></span>
             <span className={s.tiraDias}>{tira.map(f => {
               const e = estadoCelda(marca(f, x.clave), f, today, inicio)
               return <button key={f} role="cell" className={s.celda} data-estado={e} data-hoy={f === today || undefined} disabled={e === 'fuera' || e === 'futuro'}
@@ -237,7 +286,7 @@ function AjustesHabito({ clave, p, posicion, guardar }: { clave: string; p?: Pri
     {campo('senal', 'Señal', 'Hora y momento')}
     {campo('dosMinutos', '2 min', 'La versión mínima')}
     <label className={s.ajusteCheck}><input type="checkbox" checked={!!p?.privado} onChange={e => guardar({ clave, privado: e.target.checked })} /><span>Privado</span></label>
-    {p?.privado && campo('alias', 'Se ve como', `🔒 Hábito ${posicion}`)}
+    {p?.privado && campo('alias', 'Se ve como', NOMBRE_PRIVADO)}
   </div>
 }
 

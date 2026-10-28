@@ -524,7 +524,7 @@ function CronQuickViewCard({
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
           <div className="flex items-start gap-3">
-            <span className="mt-1.5 size-3 shrink-0 rounded-sm" style={{ backgroundColor: event.color ?? '#10b981' }} />
+            <span className="mt-1.5 size-3 shrink-0 rounded-sm" style={{ backgroundColor: event.color ?? 'var(--l-verde-4, #10b981)' }} />
             <div className="min-w-0 flex-1">
               <h2 className="break-words text-lg font-semibold leading-tight">{cronDisplayName(jobId)}</h2>
               <p className="mt-1 text-sm text-foreground/75">

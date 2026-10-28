@@ -2,6 +2,7 @@ import type { NextConfig } from 'next'
 import { INSTALACION } from './src/config/instalacion'
 import { aplicarMarcador } from './src/lib/edicion'
 import { CSP_CALLBACK, RUTA_CALLBACK } from './src/features/primer-arranque/lib/openrouter-pkce'
+import { guardiaDev } from './src/config/guardia-dev'
 
 // Edición cliente (empaquetado del alumno, 11 oct 2026; docs/builds/empaquetado-2026-10-11/MAPA-WEB.md): se decide al
 // construir con `ARBRAIN_EDICION=cliente` y se hornea para el navegador. Sin la variable, el build de siempre.
@@ -48,6 +49,11 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_ARBRAIN_EDICION: EDICION_CLIENTE ? 'cliente' : '',
     NEXT_PUBLIC_ARBRAIN_MODO_SERVIDOR: EDICION_CLIENTE && process.env.ARBRAIN_MODO_SERVIDOR === '1' ? '1' : '',
   },
+  // Protección contra desfase de versiones (27 oct 2026): la app aplica los deploys «en reposo», así que una ventana con
+  // el JS anterior seguía navegando contra el build nuevo y el RSC le pedía componentes que su JS no tiene (React #130,
+  // «Esta pantalla tuvo un problema» en todas las rutas, dos veces el mismo día tras un deploy). Con deploymentId, Next
+  // compara el build del cliente con el del servidor en cada navegación y, si no coinciden, recarga la página completa.
+  deploymentId: ARBRAIN_BUILD,
   allowedDevOrigins: ["127.0.0.1"],
   devIndicators: false,
   output: 'standalone',
@@ -152,4 +158,8 @@ const nextConfig: NextConfig = {
   },
 }
 
-export default nextConfig
+// Forma de función (28 oct 2026) solo para conocer la fase: `next dev` en copias de agentes pasa por scripts/dev-agente.mjs.
+export default function config(fase: string): NextConfig {
+  guardiaDev(fase)
+  return nextConfig
+}

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { casillaDeTecla, cuentaRegresiva, diasTira, estadoCelda, noSeRompe, porcentajeSemana, rachaActual, semanasTemporada, semanaDeHoy, textoRacha } from '../../src/features/planning/habitos-hoy'
+import { casillaDeTecla, FUERA_DEL_CALENDARIO, seMuestra, cuentaRegresiva, diasTira, estadoCelda, noSeRompe, porcentajeSemana, rachaActual, semanasTemporada, semanaDeHoy, textoRacha } from '../../src/features/planning/habitos-hoy'
 import { tomarPedidoHabitos, pedirHabitos } from '../../src/features/planning/habitos-pedido'
 import { aliasPorDefecto, aplicarCambio, conPropuesta, nombrePublico } from '../../src/lib/sistema/atomicos'
 
@@ -82,9 +82,12 @@ test('el pedido de Ctrl+H se toma una sola vez y caduca', () => {
   assert.equal(tomarPedidoHabitos(10_000), false)
 })
 
-test('privados: nombre neutro por lugar o el que se elija; el real solo al revelar', () => {
-  assert.equal(aliasPorDefecto(3), '🔒 Hábito 3')
-  assert.equal(nombrePublico('Real', { senal: '', dosMinutos: '', privado: true }, 3), '🔒 Hábito 3')
+test('privados: «Hábito 3» o el nombre que se elija; el real solo al revelar', () => {
+  // 28 oct 07:59, Daniel: «🔒 Privado» despierta curiosidad; «Hábito 3», sin candado. El alias viejo «Privado» cuenta como vacío.
+  assert.equal(aliasPorDefecto(3), 'Hábito 3')
+  assert.equal(nombrePublico('Real', { senal: '', dosMinutos: '', privado: true }, 3), 'Hábito 3')
+  assert.equal(nombrePublico('Real', { senal: '', dosMinutos: '', privado: true, alias: 'Privado' }, 3), 'Hábito 3')
+  assert.equal(nombrePublico('Real', { senal: '', dosMinutos: '', privado: true, alias: '🔒 Hábito 3' }, 3), 'Hábito 3', 'sin candado en el nombre')
   assert.equal(nombrePublico('Real', { senal: '', dosMinutos: '', privado: true, alias: 'Noche limpia' }, 3), 'Noche limpia')
   assert.equal(nombrePublico('Real', { senal: '', dosMinutos: '', privado: true }, 3, true), 'Real')
   assert.equal(nombrePublico('Real', undefined, 3), 'Real')
@@ -110,4 +113,10 @@ test('los cambios se validan: texto corto, clave limpia, privado sí o no', () =
   assert.equal(typeof aplicarCambio(base, {}), 'string')
   const largo = aplicarCambio(base, { identidad: 'a'.repeat(500) })
   assert.ok(typeof largo !== 'string' && largo.identidad.length === 140)
+})
+
+// Desde el 25 oct 2026 el calendario (franja, Día, vista H) sí lo pinta; seMuestra queda solo para Metas y el Hoy del teléfono.
+test('lo que la instalación declara fuera del calendario queda fuera de Metas y del Hoy del teléfono', () => {
+  for (const clave of FUERA_DEL_CALENDARIO) assert.equal(seMuestra(clave), false, clave)
+  assert.equal(seMuestra('dormir'), true)
 })

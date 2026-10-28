@@ -1,7 +1,8 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { Check, X, Minus, Undo2 } from 'lucide-react'
-import { habitDisplayName } from '@/features/sistema/habit-presentation'
+import { habitDisplayName, realHabitName } from '@/features/sistema/habit-presentation'
+import { NombreHabito } from '@/features/sistema/NombreHabito'
 import { HABIT_SHORTCUTS, habitKey, isHabitTypingTarget } from '@/features/sistema/habit-shortcuts'
 import { shiftDay } from '@/features/sistema/calendar-days'
 import type { useHabitRecords } from '@/features/sistema/useHabitRecords'
@@ -41,7 +42,7 @@ export function HabitStrip({ habits, today }: { habits:HabitController; today:st
         const displayName = habitDisplayName(h,today)
         return <button key={h.clave} className={styles.habitChip} data-state={state === true ? 'done' : state === false ? 'missed' : 'empty'}
           aria-label={`${displayName}: ${label(state)}`} aria-pressed={state === true} onClick={() => habits.toggle(today,h.clave)}>
-          <span className={styles.check}><Mark state={state}/></span><span>{displayName}</span><kbd>{HABIT_SHORTCUTS[h.clave]}</kbd>
+          <span className={styles.check}><Mark state={state}/></span><NombreHabito clave={h.clave} nombre={realHabitName(h,today)} tocable={false}/><kbd>{HABIT_SHORTCUTS[h.clave]}</kbd>
         </button>
       })}</div>}
     <HabitFeedback habits={habits}/>
@@ -88,9 +89,9 @@ export function HabitGrid({ habits, from, to, today }: { habits:HabitController;
     {from<=today&&to>=today&&<p className={styles.shortcutHint}>Las teclas junto a cada hábito marcan hoy. Para otra fecha, selecciona su casilla.</p>}
     <div ref={scroll} className={styles.habitGridScroll}><table className={styles.habitGrid}>
       <thead><tr><th>Hábito</th>{days.map(day=><th key={day} data-today={day===today}><span>{new Date(`${day}T12:00:00`).toLocaleDateString('es-MX',{weekday:'narrow'})}</span>{Number(day.slice(-2))}</th>)}</tr></thead>
-      <tbody>{catalog.map(h=><tr key={h.clave} data-inactive={!h.activo}><th><span>{h.nombre}</span>{!h.activo && <small>Inactivo · historia conservada</small>}{h.activo && <kbd>{HABIT_SHORTCUTS[h.clave]}</kbd>}</th>{days.map(day=>{
+      <tbody>{catalog.map(h=><tr key={h.clave} data-inactive={!h.activo}><th><NombreHabito clave={h.clave} nombre={h.nombre}/>{!h.activo && <small>Inactivo · historia conservada</small>}{h.activo && <kbd>{HABIT_SHORTCUTS[h.clave]}</kbd>}</th>{days.map(day=>{
         const state=habits.record(day,h.clave)?.hecho
-        return <td key={day} data-today={day===today} data-future={day>today}><button disabled={day>today} data-state={state===true?'done':state===false?'missed':'empty'} aria-label={`${h.nombre}, ${day}: ${day>today?'Día futuro':label(state)}`} onClick={()=>setCell({date:day,clave:h.clave})}>{day<=today&&<Mark state={state}/>}</button></td>
+        return <td key={day} data-today={day===today} data-future={day>today}><button disabled={day>today} data-state={state===true?'done':state===false?'missed':'empty'} aria-label={`${habitDisplayName(h,day)}, ${day}: ${day>today?'Día futuro':label(state)}`} onClick={()=>setCell({date:day,clave:h.clave})}>{day<=today&&<Mark state={state}/>}</button></td>
       })}</tr>)}</tbody>
     </table></div>
     {!habits.loading && !catalog.length && <p className={styles.muted}>No se pudo cargar el catálogo.</p>}
@@ -100,7 +101,7 @@ export function HabitGrid({ habits, from, to, today }: { habits:HabitController;
     })()}</div>}
     <HabitFeedback habits={habits}/>
     {cell && <div className={styles.backdrop} onClick={()=>setCell(null)}><div ref={dialog} className={styles.cellDialog} role="dialog" aria-modal="true" aria-label="Registro de hábito" onClick={e=>e.stopPropagation()}>
-      <div className={styles.sectionHeading}><h2>{catalog.find(h=>h.clave===cell.clave)?.nombre}</h2><button aria-label="Cerrar registro" onClick={()=>setCell(null)}><X size={18}/></button></div>
+      <div className={styles.sectionHeading}><h2>{(()=>{const h=catalog.find(h=>h.clave===cell.clave);return h?<NombreHabito clave={h.clave} nombre={h.nombre}/>:null})()}</h2><button aria-label="Cerrar registro" onClick={()=>setCell(null)}><X size={18}/></button></div>
       <p>{new Date(`${cell.date}T12:00:00`).toLocaleDateString('es-MX',{dateStyle:'full'})}</p>
       <strong>{label(selected?.hecho)}</strong>
       <p className={styles.muted}>{selected?.source === 'legacy' ? 'Registro histórico · procedencia no disponible' : selected ? `Origen: ${selected.source}` : 'Aún no hay una observación de este día.'}</p>

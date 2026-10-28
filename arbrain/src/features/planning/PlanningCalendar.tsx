@@ -36,6 +36,7 @@ import { PlanEditor, type EditorSelection } from './PlanEditor'
 import { useAutoguardado } from './autoguardado'
 import { CronsView } from './CronsView'
 import { YearView } from './YearView'
+import { HabitosTiempo } from './HabitosTiempo'
 import { useYearEvents } from './useYearEvents'
 import { inverseFor, UndoHistory } from './undo'
 import { CALENDAR_SHORTCUTS, calendarAction } from './shortcuts'
@@ -46,9 +47,9 @@ import { esEdicionCliente } from '@/lib/edicion'
 import vivas from './escalas-vivas.module.css'
 import { EVENTO_IR_CALENDARIO } from './eventos'
 import { categoriaDe, DEF, esCompromiso } from './categorias'
-import { fueraDelMes } from './rutinas'
+import { fueraDelMes, rutinaDeAgenda, rutinaOculta } from './rutinas'
 import { useOcultas, type ControlLeyenda } from './Leyenda'
-import { conDelegado, conProtegido, DRIP, fotoDe, horasRecompradas, horasUnion, leerDrip, type BloqueDrip, type Cuadrante, type LecturaDrip, type Propuesta } from './drip'
+import { atencionDe, colorDePiedra, conDelegado, conProtegido, DRIP, esFase, esMecanicaAlumno, fotoDe, marcasEnViajes, piedraDe, semanaDelPrograma, semanasDelPrograma, horasRecompradas, horasUnion, leerDrip, type BloqueDrip, type Cuadrante, type LecturaDrip, type Propuesta } from './drip'
 import { GobiernoCtx, LeyendaDrip, useOcultosDrip, type Gobierno } from './gobierno'
 import { useDrip } from './useDrip'
 import { HojaDrip } from './HojaDrip'
@@ -89,14 +90,18 @@ const DOS_COLUMNAS = { ancho: 1400, alto: 640 }
 export { EVENTO_IR_CALENDARIO }
 const DIAS_INICIAL = ['D', 'L', 'M', 'M', 'J', 'V', 'S']
 /** La cuadrícula del Mes: la de calendario o la de N semanas. */
+/** Los chips del Mes van sin el emoji del título: el punto DRIP ya los distingue y así no compiten con las piedras. */
+const sinEmojiInicial = (t: string) => t.replace(/^\s*(?:[\p{Extended_Pictographic}\u200d\ufe0f]+\s*)+/u, '') || t
 const esMesFC = (tipo: string) => tipo === 'dayGridMonth' || tipo.startsWith('semanas')
 /** Escalas vivas (5 oct 2026): Día, 4 días, Semana y Mes se leen como hojas; la rejilla de FullCalendar queda plegada, a un toque. */
 const VIVAS: readonly CalendarMode[] = ['day', 'week', 'month']
 const esViva = (m: CalendarMode) => VIVAS.includes(m)
 /** La tecla de cada pestaña (shortcuts.ts): D · 4 · S · M, y Y · A · 7. */
-const TECLA: Record<CalendarMode, string> = { day: 'D', fourDays: '4', week: 'S', month: 'M', year: 'Y', agenda: 'A', crons: '7' }
+const TECLA: Record<CalendarMode, string> = { day: 'D', fourDays: '4', week: 'S', month: 'M', year: 'Y', agenda: 'A', crons: '7', habits: 'H' }
 /** El selector de escala de la barra (5 oct 2026, «botones súper sutiles»): una letra por escala; el nombre, en la etiqueta y el título. */
-const LETRA: Partial<Record<CalendarMode, string>> = { day: 'D', week: 'S', month: 'M' }
+const LETRA: Partial<Record<CalendarMode, string>> = { day: 'D', week: 'S', month: 'M', habits: 'H' }
+/** El selector: las tres hojas vivas y, cuarta, Hábitos (25 oct 2026), que es superficie propia (como Año), no hoja del riel. */
+const ESCALAS_BARRA: readonly CalendarMode[] = [...VIVAS, 'habits']
 /** Clave de la rejilla por escala y superficie. La del Día conserva su nombre del 5 oct (`rejilla-dia`). */
 const claveRejilla = (m: CalendarMode, donde: string) => `arbrain:planning:rejilla-${m === 'day' ? 'dia' : m}:${donde}`
 
@@ -224,7 +229,7 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
   const sourceMap = useMemo(() => new Map(snapshot?.sources.map(s => [s.id, s]) ?? []), [snapshot?.sources])
   const items = useMemo(() => new Map<string, PlanItem>([...(snapshot?.events ?? []), ...(snapshot?.tasks ?? [])].map(i => [i.id, i])), [snapshot?.events, snapshot?.tasks])
   const yearEvents = useYearEvents(anchor.getFullYear(), mode === 'year' ? snapshot?.ownerId : undefined)
-  const yearVisible = useMemo(() => yearEvents.events.filter(e => enabled.has(e.sourceId) && !sourceMap.get(e.sourceId)?.objective), [yearEvents.events, enabled, sourceMap])
+  const yearVisible = useMemo(() => yearEvents.events.filter(e => enabled.has(e.sourceId) && !sourceMap.get(e.sourceId)?.objective && !esMecanicaAlumno(e)), [yearEvents.events, enabled, sourceMap])
   // Colores por tipo de trabajo (10 oct 2026, categorias.ts): cada evento se pinta por su categoría, no por su calendario.
   const [ocultas, alternarCategoria] = useOcultas()
   const categoriaEvento = useCallback((e: PlanEvent) => categoriaDe(e, sourceMap.get(e.sourceId)?.title ?? e.calendarId).categoria, [sourceMap])
@@ -238,8 +243,10 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
     for (const e of presentedEvents) m.set(e.id, leerDrip(e, sourceMap.get(e.sourceId)?.title ?? e.calendarId, drip.doc))
     return m }, [presentedEvents, sourceMap, drip.doc])
   const lecturaDe = useCallback((e: PlanEvent) => lecturas.get(e.id) ?? leerDrip(e, sourceMap.get(e.sourceId)?.title ?? e.calendarId, drip.doc), [lecturas, sourceMap, drip.doc])
-  const eventoVisible = useCallback((e: PlanEvent) => porCalendario(e) && !ocultosDrip.has(lecturaDe(e).cuadrante), [porCalendario, ocultosDrip, lecturaDe])
-  const colorEvento = useCallback((e: PlanEvent) => DRIP[lecturaDe(e).cuadrante].color, [lecturaDe])
+  // La mecánica del programa para los alumnos («🔓 Abre … en el classroom») no se pinta en ninguna vista de Daniel (drip.ts).
+  const eventoVisible = useCallback((e: PlanEvent) => porCalendario(e) && !esMecanicaAlumno(e) && !ocultosDrip.has(lecturaDe(e).cuadrante), [porCalendario, ocultosDrip, lecturaDe])
+  // Los hitos del programa (fases, aperturas, demo day, uno a uno) se pintan neutros en todas las escalas (drip.ts `colorDePiedra`).
+  const colorEvento = useCallback((e: PlanEvent) => colorDePiedra(e, lecturaDe(e).cuadrante), [lecturaDe])
   const leyenda = useMemo<ControlLeyenda>(() => ({ categoria: categoriaEvento, ocultas, alternar: alternarCategoria, porCalendario,
     calendarios: snapshot?.sources.filter(s => !s.objective).map(s => ({ id: s.id, titulo: s.title, color: s.color, activo: enabled.has(s.id) })),
     alternarCalendario: id => { const next = new Set(enabled); if (next.has(id)) next.delete(id); else next.add(id); setSources([...next]) },
@@ -251,29 +258,48 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
   // todo lo leído), las ventanas de disponibilidad y el brief plegado en su llamada no entran a su cuadrícula; la Semana pinta
   // las rutinas atenuadas y el Día, todo entero.
   const fueraMes = useMemo(() => fueraDelMes(presentedEvents, iso => dayKey(parseISO(iso))), [presentedEvents])
+  // El Mes en lista por semanas (angosto) y los números de semana del programa (S0…S11), leídos de las propias fases.
+  const eventosMes = useMemo(() => presentedEvents.filter(eventoVisible).filter(e => !fueraMes.has(e.id)).map(e => { const piedra = piedraDe(e, lecturaDe(e).cuadrante); return { evento: e, piedra, color: colorEvento(e), atencion: atencionDe(e, piedra) } }), [presentedEvents, eventoVisible, fueraMes, lecturaDe, colorEvento])
+  const programa = useMemo(() => semanasDelPrograma(presentedEvents), [presentedEvents])
+  // La cuadrícula del Mes (25 oct 2026, Daniel: «las clases son eventos que no quiero ver», «quiero simplicidad»): solo lo de día
+  // completo (fases, hitos, viajes, uno a uno), sin clases, bloques con hora ni tareas. Lo que cae dentro de un viaje (la reunión
+  // del 28 en Monterrey) es una marca en su día, no otra cinta apilada.
+  const marcasMes = useMemo(() => marcasEnViajes(presentedEvents.filter(eventoVisible)), [presentedEvents, eventoVisible])
+  const marcasPorDia = useMemo(() => { const m = new Map<string, PlanEvent[]>()
+    for (const e of presentedEvents) { const d = marcasMes.get(e.id); if (d) m.set(d, [...(m.get(d) ?? []), e]) }
+    return m }, [presentedEvents, marcasMes])
+  // La Semana y el Día no repiten la fase en cada columna: vive solo en el Mes.
+  // La rutina a futuro no se pinta en Semana ni Día (26 oct 2026, Daniel: «la veo al pasado, justo lo que hice, no lo que espero
+  // hacer»): lo que ya empezó sí; los compromisos y lo único, siempre (rutinas.ts). `tick` la recorta cada minuto.
+  const rutina = useMemo(() => rutinaDeAgenda(presentedEvents, iso => dayKey(parseISO(iso))), [presentedEvents])
+  const ahoraMinuto = useMemo(() => Date.now(), [tick]) // eslint-disable-line react-hooks/exhaustive-deps -- `tick` repinta cada minuto
+  const visibleSemanaDia = useCallback((e: PlanEvent) => eventoVisible(e) && !esFase(e) && !rutinaOculta(e, rutina, ahoraMinuto, ajustes.rutinaFutura),
+    [eventoVisible, rutina, ahoraMinuto, ajustes.rutinaFutura])
   const eventInputs = useMemo<EventInput[]>(() => [
-    ...presentedEvents.filter(eventoVisible).filter(e => mode !== 'month' || !fueraMes.has(e.id)).map(e => ({
+    ...presentedEvents.filter(eventoVisible).filter(e => mode !== 'month' || (e.allDay && !fueraMes.has(e.id) && (compacto || !marcasMes.has(e.id)))).filter(e => mode === 'month' || !esFase(e)).map(e => ({
       id: e.id, title: e.title, start: e.start, end: e.end, allDay: e.allDay, editable: e.editable && !saving && !pending,
-      classNames: [styles.calendarEvent], extendedProps: { kind: 'event', recurring: Boolean(e.recurringEventId), source: sourceMap.get(e.sourceId)?.title, color: colorEvento(e), drip: lecturaDe(e).cuadrante, protegido: lecturaDe(e).protegido,
+      classNames: [styles.calendarEvent], extendedProps: { kind: 'event', recurring: Boolean(e.recurringEventId), source: sourceMap.get(e.sourceId)?.title, color: colorEvento(e), drip: lecturaDe(e).cuadrante, piedra: piedraDe(e, lecturaDe(e).cuadrante), protegido: lecturaDe(e).protegido,
         // El peso en la celda del Mes: lo de día completo, luego lo que es con otras personas o una clase, luego lo demás.
         peso: e.allDay ? 0 : esCompromiso(e) || categoriaEvento(e) === 'ensenar' ? 1 : 2 },
     })),
-    ...visibleTasks.filter(t => t.due && !t.completed && !(alcanceDeModo(mode) && !hasTime(t.due))).map(t => ({ id: t.id, title: t.title, start: t.due!, end: taskEnd(t)?.toISOString(),
+    ...visibleTasks.filter(t => mode !== 'month' && t.due && !t.completed && !(alcanceDeModo(mode) && !hasTime(t.due))).map(t => ({ id: t.id, title: t.title, start: t.due!, end: taskEnd(t)?.toISOString(),
       allDay: !hasTime(t.due), editable: !saving && !pending, classNames: t.priority === 1 ? [styles.calendarTask, styles.calendarTaskP1] : [styles.calendarTask], extendedProps: { kind: 'task', recurring: t.recurring } })),
-  ], [presentedEvents, eventoVisible, colorEvento, categoriaEvento, sourceMap, visibleTasks, saving, pending, mode, fueraMes, lecturaDe])
+  ], [presentedEvents, eventoVisible, colorEvento, categoriaEvento, sourceMap, visibleTasks, saving, pending, mode, fueraMes, marcasMes, compacto, lecturaDe])
   const railTasks = useMemo(() => visibleTasks.filter(t => t.due ? parseISO(t.due).getTime() < Date.parse(range.to) : showUnscheduled)
     .sort((a, b) => Number(!a.due) - Number(!b.due) || a.priority - b.priority || (a.due ?? 'z').localeCompare(b.due ?? 'z')), [visibleTasks, range.to, showUnscheduled])
   // El Mes elige Recorrido o Cuadrícula en el engrane; el Día conserva su toque para la rejilla.
   const rejilla = mode === 'month' ? ajustes.mesVista === 'cuadricula' : Boolean(rejillas[mode])
   // La Semana trae su propia rejilla de horas (9 oct 2026, SemanaHoras.tsx): la de FullCalendar queda plegada siempre en esa escala.
   // El Día tampoco (18 oct 2026, Daniel vio dos rejillas en «Lun 19 oct»): su agenda es la única rejilla y solo lleva eventos.
-  // En dos columnas el Mes lleva su cuadrícula a la derecha siempre; el recorrido queda a la izquierda.
-  const rejillaOculta = esViva(mode) && (mode === 'week' || mode === 'day' || !(rejilla || dosColumnas))
+  // El Mes abre en Recorrido en todas las pantallas (25 oct 2026, Daniel: «el recorrido es el default»); la cuadrícula, solo si se
+  // elige en el engrane. Sin cuadrícula, el Mes no usa el acomodo de dos columnas: el recorrido es la única columna.
+  const rejillaOculta = esViva(mode) && (mode === 'week' || mode === 'day' || !rejilla)
+  const dosColumnasVista = dosColumnas && !(mode === 'month' && !rejilla)
   useEffect(() => {
     if (rejillaOculta) return
     const t = setTimeout(() => calendar.current?.getApi().updateSize(), 30)
     return () => clearTimeout(t)
-  }, [mode, rejillaOculta, dosColumnas])
+  }, [mode, rejillaOculta, dosColumnasVista])
   function alternarRejilla() {
     const siguiente = !rejilla
     setRejillas(r => ({ ...r, [mode]: siguiente }))
@@ -463,8 +489,8 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
   const gobierno = useMemo<Gobierno>(() => ({ lectura: lecturaDe, ocultas: ocultosDrip, alternar: alternarDrip, numeros, doc: drip.doc, corregir, delegar,
     proteger: snapshot ? proteger : null, abrirDomingo: () => setDomingo(lunesDe(dayKey(anchorRef.current))),
     ponerTarifa: (monto, moneda) => drip.cambiar({ accion: 'tarifa', monto, moneda }),
-    aceptarManana: dia => drip.cambiar({ accion: 'manana', dia, aceptada: true }), conversar: onConversar, leyendaEnBarra: !compacto }),
-  [lecturaDe, ocultosDrip, alternarDrip, numeros, drip, corregir, delegar, snapshot, proteger, onConversar, compacto])
+    aceptarManana: dia => drip.cambiar({ accion: 'manana', dia, aceptada: true }), conversar: onConversar, leyendaEnBarra: true }),
+  [lecturaDe, ocultosDrip, alternarDrip, numeros, drip, corregir, delegar, snapshot, proteger, onConversar])
 
   // «Hoy» también lleva a la hora (22 oct 2026): el pulso hace que el Día y la Semana vuelvan a su encuadre con scroll suave.
   const [pulsoHoy, setPulsoHoy] = useState(0)
@@ -574,7 +600,7 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
     const requested = MODES.find(m => m.id === requestedMode && m.id !== 'crons')
     setMov(requested && !enTransicion.current ? movimientoEntre(modeRef.current, requested.id) : null)
     if (requested?.calendar) { setMode(requested.id); modeRef.current=requested.id; calendar.current?.getApi().changeView(vistaFC(requested.id) ?? requested.calendar, target) }
-    else if (requested?.id === 'year') { setMode('year'); modeRef.current = 'year' }
+    else if (requested?.id === 'year' || requested?.id === 'habits') { setMode(requested.id); modeRef.current = requested.id }
     else calendar.current?.getApi().gotoDate(target)
     setAnchor(target)
   }, [realinear, vistaFC])
@@ -808,6 +834,8 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
   function navigate(delta: number) {
     // La Semana desliza su riel siete días (la ventana sigue siendo de 3 · 4 · 7); la lectura la sigue sola.
     if (mode === 'week') { deslizarSemana(7 * Math.sign(delta)); return }
+    // Hábitos es la historia entera de una vez: no hay periodo anterior ni siguiente.
+    if (mode === 'habits') return
     // En el Día no hay escena que entre: el carril desliza la hoja (Carril.tsx).
     if (mode !== 'day') setMov(delta > 0 ? 'der' : 'izq')
     if (mode === 'year') { const next = addYears(anchor, delta); initialDate.current = next; setAnchor(next); return }
@@ -851,7 +879,7 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
   const titulo = mode === 'crons' ? `${format(parseISO(range.from), "d MMM", { locale: es })} – ${format(new Date(Date.parse(range.to)-1), "d MMM yyyy", { locale: es })}` : tituloAngosto(mode, mode === 'month' ? fechaMes : anchor, range)
   const vistaActual = MODES.find(m => m.id === mode)?.label ?? ''
   // Lo que las cuatro hojas vivas reciben igual: mismas plumas (commit con ⌘Z), mismos filtros, mismo editor.
-  const comunes = { goals: { data: goalsLeidos.data, error: goalsLeidos.error }, snapshot: snapshot ?? null, eventos: presentedEvents, visible: eventoVisible, color: colorEvento,
+  const comunes = { goals: { data: goalsLeidos.data, error: goalsLeidos.error }, snapshot: snapshot ?? null, eventos: presentedEvents, visible: visibleSemanaDia, color: colorEvento,
     // Completar no espera a nadie (5 oct 2026): la fila de escrituras las serializa y un envío sin confirmar se reenvía solo.
     cargando: loading, ocupado: !snapshot, todoistCaido: Boolean(snapshot) && snapshot!.health.find(h => h.id === 'todoist')?.state !== 'fresh',
     onModo: undefined, onConversar, donde, leyenda: leyendaVista,
@@ -883,11 +911,11 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
   const hoyClave = dayKey(new Date())
   const enHoy = mode === 'week' ? visibles.includes(hoyClave)
     : Date.now() >= Date.parse(range.from) && Date.now() < Date.parse(range.to) && mode !== 'year' && mode !== 'crons'
-  const tituloBarra = mode === 'week' ? tituloVentana(visibles[0], visibles.length, undefined, visibles.at(-1)) : compacto || mode === 'crons' || mode === 'year' || mode === 'month' ? titulo : mode === 'day' ? format(anchor, "EEEE d 'de' MMMM", { locale: es }) : title
+  const tituloBarra = mode === 'week' ? tituloVentana(visibles[0], visibles.length, undefined, visibles.at(-1)) : mode === 'habits' ? 'Hábitos' : compacto || mode === 'crons' || mode === 'year' || mode === 'month' ? titulo : mode === 'day' ? format(anchor, "EEEE d 'de' MMMM", { locale: es }) : title
   // Lo que el engrane muestra como «días a la vista»: lo elegido o, si no, lo que se ve (sin fines de semana, 5 columnas son 7 días).
   const diasActual = ventanaSemana.n
 
-  return <PulsoHoy.Provider value={pulsoHoy}><GobiernoCtx.Provider value={gobierno}><div ref={raiz} className={styles.root} style={{ '--plan-pegado': `${altoBarra}px` } as CSSProperties} data-planning-calendar data-donde={donde} data-dos-columnas={dosColumnas ? mode : undefined} data-unificada={alcance ? '' : undefined} data-ventana={mode === 'week' ? `${ventanaSemana.inicio ?? '-'}:${ventanaSemana.n}` : undefined} tabIndex={donde === 'panel' ? -1 : undefined}>
+  return <PulsoHoy.Provider value={pulsoHoy}><GobiernoCtx.Provider value={gobierno}><div ref={raiz} className={styles.root} style={{ '--plan-pegado': `${altoBarra}px` } as CSSProperties} data-planning-calendar data-donde={donde} data-dos-columnas={dosColumnasVista ? mode : undefined} data-mes-piedras={mode === 'month' && !compacto ? '' : undefined} data-unificada={alcance ? '' : undefined} data-ventana={mode === 'week' ? `${ventanaSemana.inicio ?? '-'}:${ventanaSemana.n}` : undefined} tabIndex={donde === 'panel' ? -1 : undefined}>
     <h1 className={styles.srOnly}>Calendario</h1>
     {/* UNA fila (5 oct 2026, «los botones deben ser súper sutiles, que ocupen el menor espacio»): Hoy · ‹ › · fecha ▾ · D 4 S M · +.
         La fecha abre lo demás: ir a fecha, Año · Agenda · Rutinas, calendarios, panel de tareas, atajos y actualizar. */}
@@ -900,16 +928,14 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
           <div className={styles.vistaPie} data-arriba>
             <label>Ir a fecha<input aria-label="Ir a fecha" type="date" value={dayKey(anchor)} onChange={e => { irAFecha(e.target.value); setMoreOpen(false) }} /></label>
           </div>
-          <div className={styles.vistaLista} role="group" aria-label="Más vistas">{MODES.filter(m => !esViva(m.id)).map(m => <button role="menuitemradio" aria-checked={mode === m.id} key={m.id} onClick={() => { escala(m.id); setMoreOpen(false) }}>{m.label}{mode === m.id ? <Check size={14} aria-hidden /> : <kbd aria-hidden>{TECLA[m.id]}</kbd>}</button>)}</div>
+          <div className={styles.vistaLista} role="group" aria-label="Más vistas">{MODES.filter(m => !ESCALAS_BARRA.includes(m.id)).map(m => <button role="menuitemradio" aria-checked={mode === m.id} key={m.id} onClick={() => { escala(m.id); setMoreOpen(false) }}>{m.label}{mode === m.id ? <Check size={14} aria-hidden /> : <kbd aria-hidden>{TECLA[m.id]}</kbd>}</button>)}</div>
         </div>}
       </span>
-      {/* La leyenda DRIP (24 oct 2026): en ancho vive en la barra, una sola para Día, Semana y Mes; en angosto, dentro de cada escala. */}
-      {!compacto && esViva(mode) && <span className={styles.leyendaBarra}><LeyendaDrip enBarra /></span>}
-      <div className={styles.escala} role="tablist" aria-label="Escala del calendario">{VIVAS.map(m => { const def = MODES.find(x => x.id === m)!
+      <div className={styles.escala} role="tablist" aria-label="Escala del calendario">{ESCALAS_BARRA.map(m => { const def = MODES.find(x => x.id === m)!
         return <button key={m} role="tab" aria-label={def.label} aria-selected={mode === m} aria-keyshortcuts={TECLA[m]} title={mode === m ? `${def.label}: ir a hoy` : `${def.label} (${TECLA[m]})`} onClick={() => accionDeEscala(mode, m) === 'hoy' ? goToday() : escala(m)}>{LETRA[m]}</button> })}</div>
       {mode !== 'crons' && <button className={styles.iconButton} aria-label="Evento nuevo" title="Nuevo (N)" disabled={!snapshot} onClick={() => setSelection({ start: new Date() })}><Plus size={17} /></button>}
       {/* Un solo engrane (10 oct 2026), la misma hoja en Día, Semana y Mes: días, Enfoque, cómo se ve cada escala, horas, calendarios, categorías. */}
-      <Engrane ajustes={ajustes} poner={poner} diasActual={diasActual} leyenda={leyenda} drip={{ ocultas: ocultosDrip, alternar: alternarDrip, tarifa: drip.doc?.tarifa ?? null, propia: drip.doc?.tarifaPropia ?? false, poner: (m, mon) => drip.cambiar({ accion: 'tarifa', monto: m, moneda: mon }) }} acciones={{
+      <Engrane ajustes={ajustes} poner={poner} diasActual={diasActual} leyenda={leyenda} matriz={<LeyendaDrip enBarra />} drip={{ ocultas: ocultosDrip, alternar: alternarDrip, tarifa: drip.doc?.tarifa ?? null, propia: drip.doc?.tarifaPropia ?? false, bloquesPerfectos: drip.doc?.semana?.bloques.length ?? 0, poner: (m, mon) => drip.cambiar({ accion: 'tarifa', monto: m, moneda: mon }) }} acciones={{
         onFiltros: mode !== 'crons' ? () => setFilterOpen(v => !v) : undefined,
         tareas: !compacto && !isOwnSurface(mode) ? { abierto: tasksOpen, alternar: () => setTasksOpen(v => !v) } : undefined,
         onAtajos: !compacto ? () => setHelpOpen(true) : undefined,
@@ -929,10 +955,10 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
       render={(f, central) => <DiaVivo fecha={f} central={central} {...comunes} rejilla={rejilla} onRejilla={alternarRejilla} onObjetivo={marcarObjetivo} guardarObjetivo={goalsLeidos.save} onDescripcion={escribirDescripcion} enfoque={ajustes.enfoque} plegado={plegado} dosColumnas={dosColumnas}
         onNueva={semilla => setSelection(semilla ?? { kind: 'task', allDay: true })} onReabrir={t => snapshot ? commit(mutationFor(t, snapshot.ownerId, {}, 'reopen')) : Promise.reject(new Error('Sin lectura'))}
         tareas={tareasDelDia(visibleTasks, dayKey(f), dayKey(new Date()), zonaPlan)} onDeshacer={() => void step('undo')} />} />
-      : mode === 'month' ? <MesClaro fecha={fechaMes} goals={comunes.goals} snapshot={comunes.snapshot} cargando={loading} angosto={compacto} cuadricula={rejilla && !dosColumnas} enfoque={ajustes.enfoque} plegado={plegado} dosColumnas={dosColumnas} guardarObjetivo={goalsLeidos.save}
+      : mode === 'month' ? <MesClaro fecha={fechaMes} eventos={eventosMes} programa={programa} onDia={dia => transicion(() => aplicarVista(dia, 'day'))} goals={comunes.goals} snapshot={comunes.snapshot} cargando={loading} angosto={compacto} cuadricula={rejilla} enfoque={ajustes.enfoque} plegado={plegado} dosColumnas={dosColumnasVista} guardarObjetivo={goalsLeidos.save}
         onConversar={onConversar} onSemana={lunes => transicion(() => aplicarVista(lunes, 'week'))} />
       : <SemanaClara fecha={anchor} ventana={ventanaSemana} onVentana={onVentana} {...comunes} guardarObjetivo={goalsLeidos.save} tareas={visibleTasks} zona={zonaPlan}
-        vista={ajustes.vistaSemana} enfoque={ajustes.enfoque} plegado={plegado} dosColumnas={dosColumnas} diasVista={ajustes.dias} finDeSemana={ajustes.finDeSemana} tramo={tramoSemana} compacta={ajustes.densidad === 'compacta'} etiquetaZona={ajustes.zona ? zonaCorta() : null}
+        vista={ajustes.vistaSemana} enfoque={ajustes.enfoque} plegado={plegado} dosColumnas={dosColumnas} diasVista={ajustes.dias} finDeSemana={ajustes.finDeSemana} tramo={tramoSemana} compacta={ajustes.densidad === 'compacta'} etiquetaZona={ajustes.zona ? zonaCorta() : null} semanaPerfecta={ajustes.semanaPerfecta} corteRutina={ajustes.rutinaFutura ? null : ahoraMinuto}
         onMover={snapshot && !pending ? (item, inicio, fin) => void moverEnRejilla(item, inicio, fin) : undefined}
         onEstirar={snapshot && !pending ? (item, fin) => { const ini = item.kind === 'event' ? parseISO(item.start) : item.due ? parseISO(item.due) : null; if (ini) void moverEnRejilla(item, ini, fin) } : undefined}
         onCrear={snapshot && !pending ? crearEnRejilla : undefined}
@@ -946,28 +972,31 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
       : <button className={styles.notice} onClick={() => setNotice(null)}><Check size={14} /> {notice}</button>)}
     <div className={styles.workspace} data-oculta={rejillaOculta || undefined} inert={rejillaOculta || undefined}>
       <main ref={calendarPane} className={styles.calendarPane} data-mode={mode} data-lista={compacto && diaMes ? '' : undefined}>
-        <div ref={calendarGeometry} className={styles.calendarGeometry}>{mode === 'crons' ? <CronsView range={range} onRangeChange={changeCronRange} calendarRef={calendar} reloadKey={cronReload}/> : mode === 'year' ? <YearView year={anchor.getFullYear()} events={yearVisible} today={dayKey(new Date())} loading={yearEvents.loading} failed={yearEvents.failed} onPick={pickDay} onRetry={() => void yearEvents.reload()} /> : <FullCalendar ref={calendar} plugins={PLUGINS} locale={esLocale} locales={LOCALES} initialDate={initialDate.current} initialView={vistaFC(mode) ?? 'timeGridWeek'}
+        <div ref={calendarGeometry} className={styles.calendarGeometry}>{mode === 'habits' ? <HabitosTiempo donde={donde} /> : mode === 'crons' ? <CronsView range={range} onRangeChange={changeCronRange} calendarRef={calendar} reloadKey={cronReload}/> : mode === 'year' ? <YearView year={anchor.getFullYear()} events={yearVisible} today={dayKey(new Date())} loading={yearEvents.loading} failed={yearEvents.failed} onPick={pickDay} onRetry={() => void yearEvents.reload()} /> : <FullCalendar ref={calendar} plugins={PLUGINS} locale={esLocale} locales={LOCALES} initialDate={initialDate.current} initialView={vistaFC(mode) ?? 'timeGridWeek'}
           views={VIEWS} headerToolbar={false} height="100%" timeZone="local" firstDay={1}
           dayHeaderContent={arg => esMesFC(arg.view.type) ? compacto ? <span className={styles.diaInicial}>{DIAS_INICIAL[arg.dow]}</span> : <span>{arg.text}</span> : compacto ? <span className={styles.diaApilado}><small>{format(arg.date, 'EEE', { locale: es }).replace('.', '')}</small><strong>{format(arg.date, 'd')}</strong></span> : <span>{format(arg.date, 'EEE', { locale: es })} {!esMesFC(arg.view.type) && <strong>{format(arg.date, 'd')}</strong>}</span>}
-          dayCellContent={arg => compacto && esMesFC(arg.view.type) ? <span className={styles.celdaMes}><b>{arg.date.getDate()}</b></span> : arg.dayNumberText}
+          dayCellContent={arg => { if (compacto && esMesFC(arg.view.type)) return <span className={styles.celdaMes}><b>{arg.date.getDate()}</b></span>
+            const marcas = mode === 'month' && esMesFC(arg.view.type) ? marcasPorDia.get(dayKey(arg.date)) : undefined
+            return marcas ? <>{marcas.map(e => <span key={e.id} className={styles.marcaDia} title={e.title} onClick={ev => { ev.preventDefault(); ev.stopPropagation(); setSelection({ item: e }) }}>{e.title}</span>)}<span>{arg.dayNumberText}</span></> : arg.dayNumberText }}
+          weekNumbers={mode === 'month' && dosColumnas && Boolean(programa)} weekNumberContent={arg => semanaDelPrograma(dayKey(arg.date), programa) ?? ''}
           dayCellClassNames={arg => esMesFC(arg.view.type) && diaMes && dayKey(arg.date) === dayKey(diaMes) ? [styles.diaElegido] : []}
           nowIndicator allDaySlot={!compacto || eventInputs.some(e => e.allDay && Date.parse(String(e.start)) < Date.parse(range.to) && Date.parse(String(e.end ?? e.start)) > Date.parse(range.from))} allDayText="Sin hora" slotMinTime="00:00:00" slotMaxTime="24:00:00" scrollTime="06:00:00" scrollTimeReset={false}
           nowIndicatorContent={arg => arg.isAxis ? <span className={styles.nowTime}>{format(arg.date, 'HH:mm')}</span> : null}
           slotDuration="00:30:00" snapDuration="00:15:00" slotLabelFormat={compacto ? { hour: 'numeric', hour12: false } : { hour: 'numeric', minute: '2-digit', hour12: false }} eventTimeFormat={{ hour: 'numeric', minute: '2-digit', hour12: false }}
-          events={eventInputs} datesSet={onDates} dayMaxEvents={compacto ? true : 3} eventOrder={esMesFC(vistaMes) && mode === 'month' ? 'peso,start,-duration,title' : 'start,-duration,allDay,title'} eventDisplay={compacto ? 'block' : 'auto'} fixedWeekCount={!compacto && !dosColumnas} moreLinkContent={arg => `+${arg.num}`} moreLinkClick={arg => { if (compacto) setDiaMes(arg.date); else return 'popover' }} dateClick={arg => { if (compacto && esMesFC(arg.view.type)) setDiaMes(arg.date) }} eventMinHeight={0} eventShortHeight={32} selectMinDistance={6} expandRows stickyHeaderDates weekends={mode !== 'month' || ajustes.finDeSemana}
+          events={eventInputs} datesSet={onDates} dayMaxEvents={compacto || (dosColumnas && mode === 'month') ? true : 3} eventOrder={esMesFC(vistaMes) && mode === 'month' ? 'peso,start,-duration,title' : 'start,-duration,allDay,title'} eventDisplay={compacto ? 'block' : 'auto'} fixedWeekCount={!compacto && !dosColumnas} moreLinkContent={arg => `+${arg.num}`} moreLinkClick={arg => { if (compacto) setDiaMes(arg.date); else return 'popover' }} dateClick={arg => { if (compacto && esMesFC(arg.view.type)) setDiaMes(arg.date) }} eventMinHeight={0} eventShortHeight={32} selectMinDistance={6} expandRows stickyHeaderDates weekends={mode !== 'month' || ajustes.finDeSemana}
           selectable={Boolean(snapshot) && !pending && !saving} selectMirror editable={Boolean(snapshot) && !pending && !saving} droppable={!pending && !saving}
           select={arg => { if (compacto && esMesFC(arg.view.type)) { setDiaMes(arg.start); calendar.current?.getApi().unselect(); return } setSelection({ start: arg.start, end: arg.end, allDay: arg.allDay, freshRange: true }); calendar.current?.getApi().unselect() }}
           eventClick={arg => { const item = items.get(arg.event.id); if (item) setSelection({ item }) }}
           eventDrop={arg => { const { id, start, end, allDay } = arg.event; arg.revert(); if (start) void reprogram(id, start, end, allDay) }}
           eventResize={arg => { const { id, start, end, allDay } = arg.event; arg.revert(); if (start) void reprogram(id, start, end, allDay) }}
           eventReceive={arg => { const { id, start, end, allDay } = arg.event; arg.revert(); if (start) void reprogram(id, start, end, allDay) }}
-          eventDidMount={arg => { arg.el.title = arg.event.title; if (arg.event.extendedProps.peso !== undefined) arg.el.dataset.peso = String(arg.event.extendedProps.peso); arg.el.dataset.planningId = arg.event.id; arg.el.setAttribute('aria-label', arg.event.title); const color = arg.event.extendedProps.color; if (arg.event.extendedProps.kind === 'event') { const c = typeof color === 'string' && /^#[0-9a-f]{6}$/i.test(color) ? color : null; if (c) arg.el.style.setProperty('--plan-event-color', c); for (const [k, v] of Object.entries(estiloEvento(c))) arg.el.style.setProperty(k, v); arg.el.classList.add('ev-color') } }}
+          eventDidMount={arg => { arg.el.title = arg.event.title; if (arg.event.extendedProps.peso !== undefined) arg.el.dataset.peso = String(arg.event.extendedProps.peso); if (arg.event.extendedProps.piedra) arg.el.dataset.piedra = String(arg.event.extendedProps.piedra); arg.el.dataset.planningId = arg.event.id; arg.el.setAttribute('aria-label', arg.event.title); const color = arg.event.extendedProps.color; if (arg.event.extendedProps.kind === 'event') { const c = typeof color === 'string' && /^#[0-9a-f]{6}$/i.test(color) ? color : null; if (c) arg.el.style.setProperty('--plan-event-color', c); for (const [k, v] of Object.entries(estiloEvento(c))) arg.el.style.setProperty(k, v); arg.el.classList.add('ev-color') } }}
           eventContent={arg => {
             // Mes angosto: chip de una línea, solo el título (el color ya dice el calendario); la hora y el resto, en la lista del día.
             if (compacto && esMesFC(arg.view.type)) return <span className={styles.chip}>{arg.event.title}</span>
-            // Mes en dos columnas (24 oct 2026, Preloaded Year): cada piedra en UNA línea, solo su título (la hora vive en la Semana y
+            // Cuadrícula del Mes, ancha o no (24 oct 2026, Preloaded Year; 25 oct, también la del engrane): cada piedra en UNA línea, solo su título (la hora vive en la Semana y
             // en el detalle; el título entero, al pasar el cursor). Caben las del día sin «+N» de más.
-            if (dosColumnas && esMesFC(arg.view.type)) return <span className={styles.piedra}><span>{arg.event.title}</span>{arg.event.extendedProps.protegido && <Lock size={9} aria-label="protegido" />}</span>
+            if (mode === 'month' && esMesFC(arg.view.type)) return <span className={styles.piedra}>{!arg.event.allDay && arg.timeText && <time>{arg.timeText}</time>}<span>{arg.event.allDay ? arg.event.title : sinEmojiInicial(arg.event.title)}</span>{arg.event.extendedProps.protegido && <Lock size={9} aria-label="protegido" />}</span>
             const minutes = arg.event.start && arg.event.end ? (arg.event.end.getTime() - arg.event.start.getTime()) / 60_000 : 60
             const compact = !arg.event.allDay && minutes <= 30 && !arg.view.type.startsWith('list') && arg.view.type !== 'rollingAgenda'
             return <div className={`${styles.eventContent} ${compact ? styles.eventCompact : ''}`}><div className={styles.eventMeta}>{arg.event.extendedProps.kind === 'task' ? <Circle size={10} /> : null}{arg.timeText && <span>{arg.timeText}</span>}{arg.event.extendedProps.recurring && <Repeat2 size={10} />}</div><strong>{arg.event.title}</strong></div>
@@ -997,13 +1026,14 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
     {(accesos.length > 0 || esViva(mode)) && <nav className={styles.accesos} aria-label="Reporte de este periodo">{accesos.map(a => <button key={a.id} data-acceso={a.id} onClick={() => void irAcceso(a)}>{a.id === 'reporte' ? <Newspaper size={14} aria-hidden /> : <ScrollText size={14} aria-hidden />}<span>{a.etiqueta}</span></button>)}
       {/* La revisión del domingo (24 oct 2026): plan contra real de la semana, como el circuito; abierta sola los domingos. */}
       {esViva(mode) && <button data-acceso="domingo" onClick={() => setDomingo(lunesDe(dayKey(mode === 'week' ? parseISO(inicioVisible) : anchor)))}><CalendarCheck2 size={14} aria-hidden /><span>Revisión del domingo</span></button>}</nav>}
-    {domingo && <Domingo lunes={domingo} bloques={bloquesDrip} goals={goalsLeidos.data} snapshot={snapshot ?? null} doc={drip.doc} ahora={Date.now()} tomarFoto={tomarFoto} pluma={Boolean(snapshot)}
+    {domingo && <Domingo lunes={domingo} bloques={bloquesDrip} goals={goalsLeidos.data} snapshot={snapshot ?? null} doc={drip.doc} ahora={Date.now()} tomarFoto={tomarFoto} pluma={Boolean(snapshot)} ponerTarifa={(m, mon) => drip.cambiar({ accion: 'tarifa', monto: m, moneda: mon })}
       rutinasPlegadas={(() => { const l = parseISO(domingo).getTime(), f = addDays(parseISO(domingo), 7).getTime(); return presentedEvents.filter(e => fueraMes.has(e.id) && Date.parse(e.start) >= l && Date.parse(e.start) < f).length })()}
       aplicar={aplicarPropuesta} deshacer={() => void step('undo')} onCerrar={() => setDomingo(null)} onLunes={d => setDomingo(x => x ? dayKey(addDays(parseISO(x), d)) : x)} />}
     {selection && snapshot && <PlanEditor key={selection.item?.id ?? `new:${selection.start?.getTime() ?? 'capture'}:${selection.end?.getTime() ?? ''}`} selection={selection} snapshot={snapshot} saving={saving} unresolved={Boolean(pending) && !saving && !(pending?.action === 'update' && pending.externalId === selection.item?.externalId)} auto={auto}
       onSave={commit} onRetry={() => pending ? mutate(pending) : Promise.resolve()} onUndo={() => step('undo')} onAbrir={setSelection} onConversar={onConversar}
       onAviso={(texto, deshacer) => { setNotice(texto); setNoticeUndo(Boolean(deshacer)) }}
       drip={selection.item?.kind === 'event' && !sourceMap.get(selection.item.sourceId)?.objective ? <HojaDrip evento={selection.item} onListo={() => setSelection(null)} /> : undefined}
+      acento={selection.item?.kind === 'event' ? colorEvento(selection.item) : null}
       // La hoja cierra guardando (puede tardar): si mientras tanto se abrió otra, no se cierra la nueva.
       onClose={() => setSelection(s => s === selection ? null : s)} />}
   </div></GobiernoCtx.Provider></PulsoHoy.Provider>

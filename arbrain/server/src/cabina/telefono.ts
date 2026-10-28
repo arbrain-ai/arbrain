@@ -20,7 +20,7 @@ export function rutaTelefono(raw: Record<string, unknown>): string {
   return `/telefono?abrir=${codificarVista(v as VistaGuardada)}`
 }
 
-const NOMBRE: Record<string, string> = { calendario: 'Calendario', objetivos: 'Objetivos', lienzo: 'Lienzo', documento: 'Documento', negocio: 'Tu negocio', finanzas: 'Finanzas', centro: 'Finanzas', salud: 'Salud', masterclass: 'Masterclass', cohorte: 'Cohorte', reporte: 'Lo que llegó', diario: 'Reporte del día', contenido: 'Contenido', pizarron: 'Pizarrón', equipo: 'Equipo', trabajos: 'Taller', explorador: 'Archivos' }
+const NOMBRE: Record<string, string> = { calendario: 'Calendario', objetivos: 'Objetivos', lienzo: 'Lienzo', documento: 'Documento', negocio: 'Tu negocio', finanzas: 'Finanzas', centro: 'Finanzas', salud: 'Salud', masterclass: 'Masterclass', cohorte: 'Cohorte', reporte: 'Lo que llegó', diario: 'Reporte del día', contenido: 'Contenido', pizarron: 'Pizarrón', equipo: 'Equipo', trabajos: 'Taller', explorador: 'Archivos', casa: 'Casa', perro: 'Perro' }
 
 /** El nombre que ve Daniel en el aviso: el título que puso Levy o el de la vista (un documento, su archivo). */
 export function nombreVista(raw: Record<string, unknown>): string {

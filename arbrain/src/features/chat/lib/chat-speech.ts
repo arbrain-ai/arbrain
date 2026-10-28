@@ -900,6 +900,30 @@ class ChatSpeechController {
     this.ancla?.()
     this.ancla = null
   }
+  /**
+   * ¿El lector lleva el scroll? (25 oct 2026, Daniel: «cuando llego hasta abajo me regresa al mismo punto… no fue
+   * hasta que lo cerré que sí me permitió»). Con una lectura activa, cada párrafo nuevo y cada cambio de alto del hilo
+   * (el composer, la fila «Esperando a su agente») devolvían el scroll al párrafo leído, aun en pausa. Ahora el gesto
+   * de Daniel sobre el hilo (rueda, dedo, tecla, clic) suelta el seguimiento; se retoma solo con un gesto al lector
+   * (play, anterior/siguiente, tocar un párrafo) o cuando él mismo vuelve a dejar el párrafo leído a la vista.
+   */
+  private sigue = true
+  private gestos: { hilo: HTMLElement; quitar: () => void } | null = null
+  private vigilarGestos(hilo: HTMLElement) {
+    if (this.gestos?.hilo === hilo) return
+    this.dejarDeVigilar()
+    const soltar = () => {
+      this.sigue = false
+      this.soltarAncla()
+    }
+    const eventos = ['wheel', 'touchmove', 'keydown', 'pointerdown'] as const
+    for (const ev of eventos) hilo.addEventListener(ev, soltar, { passive: true })
+    this.gestos = { hilo, quitar: () => { for (const ev of eventos) hilo.removeEventListener(ev, soltar) } }
+  }
+  private dejarDeVigilar() {
+    this.gestos?.quitar()
+    this.gestos = null
+  }
   private revealBlock(el: HTMLElement) {
     if (this.puente) {
       const i = this.indiceEspejo.get(el)
@@ -910,6 +934,7 @@ class ChatSpeechController {
     if (!el.isConnected) return
     const hiloEl = el.closest<HTMLElement>('[data-arbrain-scroll="chat"]')
     if (!hiloEl) return
+    this.vigilarGestos(hiloEl)
     const h = hiloEl.getBoundingClientRect()
     // Composer y barra se miden AHORA: el composer cambia de alto mientras se escribe.
     const composer = document.querySelector<HTMLElement>('[data-chat-composer]')?.getBoundingClientRect()
@@ -923,7 +948,13 @@ class ChatSpeechController {
     // El párrafo que se lee queda anclado donde se ve: si lo de arriba cambia de alto, no se va (ver desplazar.ts).
     this.soltarAncla()
     const anclar = () => { if (this.blocks[this.idx] === el) this.ancla = anclarElemento(hiloEl, el) }
-    if (dentro || Math.abs(delta) < 1) return anclar()
+    const aLaVista = dentro || Math.abs(delta) < 1
+    if (!this.sigue) {
+      // Daniel movió el hilo: no se le regresa. Si él mismo dejó el párrafo leído a la vista, se vuelve a seguir.
+      if (!aLaVista) return
+      this.sigue = true
+    }
+    if (aLaVista) return anclar()
     // La zona se calcula con rects (px en pantalla); el scroll va en px de layout. Con el zoom de la app no son lo
     // mismo (1.4 px de rect por px de scroll): sin convertir, cada seguimiento se pasaba de largo.
     const paso = delta / escalaRect(hiloEl)
@@ -1599,6 +1630,7 @@ class ChatSpeechController {
     if (!this.synth || !this.curId) return
     if (this.paused) {
       this.paused = false
+      this.sigue = true // play es gesto al lector: vuelve a llevar el scroll
       if (!this.playing) {
         this.playing = true
         this.stateCb?.(true)
@@ -1672,11 +1704,13 @@ class ChatSpeechController {
   // la palabra exacta bajo el dedo (charOffset, calculado en collectBlocks()).
   private jumpTo(i: number, charOffset = 0) {
     if (!this.blocks.length || !this.synth) return
+    this.sigue = true
     this.speakFrom(i, charOffset)
   }
 
   private jump(i: number) {
     if (!this.blocks.length || !this.synth) return
+    this.sigue = true
     this.idx = Math.max(0, Math.min(this.blocks.length - 1, i))
     if (this.paused) {
       // Navegar entre párrafos SIN reproducir: el ancla naranja se muda al párrafo nuevo.
@@ -1716,8 +1750,9 @@ class ChatSpeechController {
   /** `olvidar` (por defecto sí): parar es gesto explícito o fin de lectura, la próxima empieza de cero. */
   /** Recoloca el bloque activo en la zona visible (p. ej. el composer cambió de alto). */
   reajustar() {
+    // En pausa no se recoloca nada: Daniel está leyendo o moviéndose por el hilo, no siguiendo la voz.
     const el = this.blocks[this.idx]
-    if (el && this.getState().active) this.revealBlock(el)
+    if (el && this.getState().active && !this.paused && this.sigue) this.revealBlock(el)
   }
 
   stop(olvidar = true) {
@@ -1746,6 +1781,8 @@ class ChatSpeechController {
     this.clearTaps()
     this.detachKeys()
     this.soltarAncla()
+    this.dejarDeVigilar()
+    this.sigue = true
     if (typeof document !== 'undefined')
       document.removeEventListener('visibilitychange', this.onVisibility)
     this.soltarPantalla()

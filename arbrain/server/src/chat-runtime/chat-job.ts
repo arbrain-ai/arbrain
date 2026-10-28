@@ -1,4 +1,5 @@
 import { DUENO, DUENO_M } from '../dueno.js'
+import type { VistaMeta } from './meta-claude.js'
 import { etiquetaDespertador } from './despertadores.js'
 import { readEnvFile } from '../env.js'
 import { esEdicionCliente } from '../edicion.js'
@@ -113,17 +114,25 @@ export async function executeChatJob(journal: ChatJournal, turn: TurnRecord, emi
   const snapshot = {
     text: '', thinking: '', status: 'running', error: null as string | null,
     tools: {} as Record<string, Record<string, unknown>>, items: {} as Record<string, Record<string, unknown>>,
+    // Pensamiento (offsets sobre `thinking`) y herramientas en el orden en que llegaron: el toggle «Razonamiento» del
+    // chat los intercala (web: lib/rastro · lineaDeTiempo). Barato: no duplica texto.
+    cronologia: [] as Array<{ tipo: 'pensamiento'; desde: number; hasta: number } | { tipo: 'herramienta'; toolId: string }>,
     usage: null as Record<string, unknown> | null,
     questions: {} as Record<string, unknown>, tasks: {} as Record<string, unknown>,
     toolSummaries: [] as string[], suggestions: [] as string[], fileAttachments: [] as unknown[], artifactErrors: [] as string[],
     persistenceWarnings: [] as string[],
     branch: null as { parentThreadId: string; beforeTurnId: string; threadId: string } | null,
+    // La meta de Claude en este turno (27 oct 2026): revisiones, estado y vueltas plegadas. null = el turno no la tocó.
+    goal: null as VistaMeta | null,
   }
   let events = 0, sawResult = false, confirmedFailure = false, confirmedInterrupt = false, uncertain = false
   const tareaCtx = { conversationId: turn.conversationId, turnId: turn.turnId }
   const setWaiting = (waiting: boolean) => {
     try { journal.transition(turn, waiting ? 'waiting' : 'running') } catch (error) { logger.warn({ err: error, turnId: turn.turnId, waiting }, 'chat: no se pudo marcar la espera de respuesta') }
   }
+  let ordenHerramienta = 0
+  // Una herramienta que llega sin `tool_start` (eventos fuera de orden) también recibe su lugar en la secuencia.
+  const herramienta = (toolId: string) => snapshot.tools[toolId] ??= { orden: ordenHerramienta++ }
   const consume = (event: SSEEvent) => {
     // Subagentes internos y comandos en segundo plano al panel (una sola lista de lo que trabaja).
     if (event.type.startsWith('task_') || event.type === 'tool_result') observarEvento(tareaCtx, event as unknown as Record<string, unknown>)
@@ -140,13 +149,31 @@ export async function executeChatJob(journal: ChatJournal, turn: TurnRecord, emi
       // subsequent messages to a truncated child if that submission fails.
       setSession(sessionKey, event.threadId)
     }
-    else if (event.type === 'text_delta') snapshot.text += event.text
-    else if (event.type === 'thinking_delta') snapshot.thinking += event.text
-    else if (event.type === 'tool_start') snapshot.tools[event.toolId] = { name: event.toolName, input: '', status: 'running' }
+    else if (event.type === 'text_delta') {
+      // Tras una revisión de la meta, el texto es de su vuelta: la respuesta principal no se ensucia.
+      const vuelta = snapshot.goal?.vueltas.at(-1)
+      if (vuelta) vuelta.texto += event.text
+      else snapshot.text += event.text
+    }
+    else if (event.type === 'goal') snapshot.goal = structuredClone(event.meta)
+    else if (event.type === 'thinking_delta') {
+      const desde = snapshot.thinking.length, ultimo = snapshot.cronologia.at(-1)
+      if (event.text.length) {
+        if (ultimo?.tipo === 'pensamiento' && ultimo.hasta === desde) ultimo.hasta = desde + event.text.length
+        else snapshot.cronologia.push({ tipo: 'pensamiento', desde, hasta: desde + event.text.length })
+      }
+      snapshot.thinking += event.text
+    }
+    // `orden` (25 oct 2026): runtimeSnapshot.tools es un objeto JSONB por toolId y Postgres reordena sus llaves; sin
+    // este índice, una sesión recargada pintaba las herramientas en orden alfabético de id, no en el que corrieron.
+    else if (event.type === 'tool_start') {
+      snapshot.tools[event.toolId] = { ...(snapshot.tools[event.toolId] ?? {}), name: event.toolName, input: '', status: 'running', orden: snapshot.tools[event.toolId]?.orden ?? ordenHerramienta++, inicio: Date.now() }
+      if (!snapshot.cronologia.some(p => p.tipo === 'herramienta' && p.toolId === event.toolId)) snapshot.cronologia.push({ tipo: 'herramienta', toolId: event.toolId })
+    }
     else if (event.type === 'tool_input_delta') {
-      const tool = snapshot.tools[event.toolId] ??= { input: '' }; tool.input = String(tool.input ?? '') + event.partial
-    } else if (event.type === 'tool_result') Object.assign(snapshot.tools[event.toolId] ??= {}, { result: event.content, error: event.isError, durationMs: event.durationMs })
-    else if (event.type === 'tool_done') Object.assign(snapshot.tools[event.toolId] ??= {}, { status: 'completed' })
+      const tool = herramienta(event.toolId); tool.input = String(tool.input ?? '') + event.partial
+    } else if (event.type === 'tool_result') Object.assign(herramienta(event.toolId), { result: event.content, error: event.isError, durationMs: event.durationMs })
+    else if (event.type === 'tool_done') Object.assign(herramienta(event.toolId), { status: 'completed' })
     else if (event.type === 'usage') snapshot.usage = { ...event }
     else if (event.type === 'ask_user_question') {
       snapshot.questions[event.requestId] = event

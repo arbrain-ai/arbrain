@@ -15,47 +15,37 @@
  * («Rechazar»), Escape rechaza, y «Permitir» exige un clic deliberado de ratón o trackpad: se habilita tras un instante
  * y ni el teclado ni un `click()` sintético aprueban.
  */
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { AlertTriangle, CreditCard, Loader2, Send, ShieldAlert, Terminal, Trash2, Upload } from 'lucide-react'
-import { avisoSinSandbox, avisosDe, esClicHumano, etiquetaOrigen, literalVisible, ordenarPendientes, type Confirmacion, type EstadoSandbox } from '../lib/confirmacion'
+import { avisoSinSandbox, avisosDe, esClicHumano, etiquetaOrigen, literalVisible, vaEnElHilo, type Confirmacion, type EstadoSandbox } from '../lib/confirmacion'
+import { olvidar, usePendientes } from '../lib/pendientes'
+// La cola (ronda 2) trae la tarjeta del hilo y su CSS: se carga aparte, así este diálogo sigue ligero.
+const ContadorCola = lazy(() => import('./ColaDeAprobaciones').then(m => ({ default: m.ContadorCola })))
 
 export type { Confirmacion } from '../lib/confirmacion'
 export { ordenarPendientes } from '../lib/confirmacion'
 
 const VERBO: Record<Confirmacion['categoria'], string> = { enviar: 'enviar', pagar: 'pagar', borrar: 'borrar', publicar: 'publicar', otra: 'hacer algo que necesita tu permiso' }
 const ICONO = { enviar: Send, pagar: CreditCard, borrar: Trash2, publicar: Upload, otra: ShieldAlert } as const
-const SONDEO_MS = 1500
 const ARMADO_MS = 700
 const VISTO_SIN_SANDBOX = 'arbrain.aviso-sin-sandbox.visto'
 
 export function ConfirmacionesHumanas() {
-  const [pendientes, setPendientes] = useState<Confirmacion[]>([])
-  const [sandbox, setSandbox] = useState<EstadoSandbox | null>(null)
+  // Botón Play (27 oct 2026): un solo sondeo compartido con la tarjeta del hilo. Lo que pidió Levy en la conversación
+  // se contesta en el hilo mientras haya un turno vivo a la vista; este diálogo queda de respaldo (rutinas, manos, o
+  // un pedido sin hilo en pantalla). «Córrelo tú» solo vive en el hilo (necesita su terminal).
+  const { pendientes, sandbox, hilosVivos } = usePendientes()
   const [montado, setMontado] = useState(false)
   useEffect(() => setMontado(true), [])
-
-  const leer = useCallback(async () => {
-    try {
-      const r = await fetch('/api/confirmaciones', { cache: 'no-store' })
-      if (!r.ok) return
-      const j = await r.json() as { pendientes?: Confirmacion[]; sandbox?: EstadoSandbox }
-      setPendientes(ordenarPendientes(Array.isArray(j.pendientes) ? j.pendientes : []))
-      if (j.sandbox && typeof j.sandbox.disponible === 'boolean') setSandbox(j.sandbox)
-    } catch { /* el daemon se está reiniciando: se reintenta en el siguiente ciclo */ }
-  }, [])
-
-  useEffect(() => {
-    void leer()
-    const t = window.setInterval(() => { if (document.visibilityState === 'visible') void leer() }, SONDEO_MS)
-    const alVolver = () => { if (document.visibilityState === 'visible') void leer() }
-    document.addEventListener('visibilitychange', alVolver)
-    return () => { window.clearInterval(t); document.removeEventListener('visibilitychange', alVolver) }
-  }, [leer])
-
-  const actual = pendientes[0]
-  if (!montado || !actual) return null
-  return createPortal(<DialogoConfirmacion key={actual.id} c={actual} sandbox={sandbox} restantes={pendientes.length - 1} alResolver={() => { setPendientes(p => p.filter(x => x.id !== actual.id)); void leer() }} />, document.body)
+  const aqui = pendientes.filter(c => c.estado === 'pendiente' && c.tipo !== 'manos' && !(hilosVivos > 0 && vaEnElHilo(c)))
+  const actual = aqui[0]
+  // Cola de aprobaciones (ronda 2): lo que nadie contestó a tiempo vive en el contador y su panel, no en este diálogo.
+  if (!montado) return null
+  return <>
+    <Suspense fallback={null}><ContadorCola /></Suspense>
+    {actual && createPortal(<DialogoConfirmacion key={actual.id} c={actual} sandbox={sandbox} restantes={aqui.length - 1} alResolver={() => olvidar(actual.id)} />, document.body)}
+  </>
 }
 
 /** La primera vez que aparece un comando de terminal sin sandbox, el aviso va completo; después, en una línea. */
@@ -149,7 +139,7 @@ export function DialogoConfirmacion({ c, sandbox, restantes, alResolver }: { c: 
         )}
 
         <p className="mt-3 text-[12px] text-muted">
-          {c.herramienta ? <>Herramienta: <span className="font-mono">{c.herramienta}</span> · </> : null}Si no decides, se rechaza sola en {vence}.{restantes > 0 ? ` Hay ${restantes} más esperando.` : ''}
+          {c.herramienta ? <>Herramienta: <span className="font-mono">{c.herramienta}</span> · </> : null}{c.origen === 'manos' ? `Si no decides, se rechaza sola en ${vence}.` : 'Si no decides ahora, queda en tu cola: nada pasa sin tu clic.'}{restantes > 0 ? ` Hay ${restantes} más esperando.` : ''}
         </p>
         {error && <p role="alert" className="mt-2 text-[12.5px] text-error">{error}</p>}
         <div className="mt-4 flex flex-wrap justify-end gap-2">

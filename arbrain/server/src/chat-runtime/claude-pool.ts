@@ -98,6 +98,12 @@ export class ClaudeRuntimePool {
     })()
     return { query, events, get session() { return current() }, release }
   }
+  /** «Deshacer desde aquí»: el Query del proceso vivo de la conversación si está libre y es de esa sesión nativa. */
+  rebobinador(scope: Pick<ClaudeTurnScope, 'owner' | 'account' | 'conversationId'>, sesion: string): Pick<Query, 'rewindFiles'> | undefined {
+    const entry = this.entries.get(JSON.stringify([scope.owner, scope.account, scope.conversationId]))
+    if (!entry || entry.session.closed || entry.reserved || entry.session.busy || entry.session.hasBackgroundWork) return undefined
+    return entry.session.sessionId === sesion ? entry.session.query : undefined
+  }
   invalidate(scope: Pick<ClaudeTurnScope, 'owner' | 'account' | 'conversationId'>): void {
     const key = JSON.stringify([scope.owner, scope.account, scope.conversationId])
     const entry = this.entries.get(key)

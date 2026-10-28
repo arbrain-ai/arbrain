@@ -5,7 +5,7 @@
   padding: calc(8px + env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 8px max(12px, env(safe-area-inset-left));
   min-height: 52px;
 }
-.icono { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: rgba(var(--brand-rgb), 0.10); color: rgb(var(--brand-rgb)); flex-shrink: 0; }
+.icono { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: rgba(var(--l-velo-morado-rgb, var(--brand-rgb)), 0.1); color: rgb(var(--brand-rgb)); flex-shrink: 0; }
 .titulo { flex: 1; min-width: 0; margin: 0; font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .accion { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 10px; border-radius: 9px; border: 1px solid var(--border); background: transparent; color: var(--foreground); font-size: 13px; font-weight: 550; cursor: pointer; flex-shrink: 0; }
 .accion:active { background: rgba(var(--foreground-rgb), 0.06); }

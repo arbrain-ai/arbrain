@@ -1,0 +1,45 @@
+/* La meta (`/goal`) en el chat (27 oct 2026). Misma familia que el rastro: tinta apagada, sin cajas ni colores nuevos.
+   Las vueltas del evaluador van PLEGADAS bajo la respuesta; el chip vive encima del compositor. */
+.vueltas { margin: 6px 0 2px; min-width: 0; font-family: var(--font-sans); }
+.abrir {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 100%; min-height: 28px; padding: 3px 8px 3px 0; border: 0;
+  border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; text-align: left;
+  font: 500 12px/18px var(--font-sans); -webkit-tap-highlight-color: transparent;
+}
+@media (hover: hover) { .abrir:hover { color: rgba(var(--foreground-rgb), 0.85); } }
+.abrir:focus-visible { outline: 2px solid rgba(var(--primary-rgb), 0.7); outline-offset: 1px; }
+@media (pointer: coarse) { .abrir { min-height: 38px; } }
+.abrirTexto { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.flecha { flex: none; width: 13px; height: 13px; transition: transform 0.15s ease; }
+.abrir[aria-expanded='true'] .flecha { transform: rotate(90deg); }
+.icono { flex: none; width: 13px; height: 13px; opacity: 0.8; }
+.cuerpo { margin: 2px 0 6px 5px; padding: 2px 0 2px 12px; border-left: 1px solid var(--border); min-width: 0; display: grid; gap: 8px; }
+.condicion { margin: 0; font: 400 12px/1.5 var(--font-sans); color: var(--muted); overflow-wrap: anywhere; }
+.vuelta { min-width: 0; }
+.motivo { margin: 0 0 2px; font: italic 400 11.5px/1.45 var(--font-sans); color: var(--muted); overflow-wrap: anywhere; }
+.texto { margin: 0; font: 400 13px/1.55 var(--font-sans); color: rgba(var(--foreground-rgb), 0.78); white-space: pre-wrap; overflow-wrap: anywhere; }
+.nota { margin: 0; font: italic 400 11.5px/1.45 var(--font-sans); color: var(--muted); }
+
+/* Chip de la meta activa, encima del compositor. */
+.chip {
+  display: flex; align-items: center; gap: 8px; min-width: 0; margin: 0 0 8px; padding: 5px 6px 5px 12px;
+  border: 1px solid var(--border); border-radius: 999px; background: var(--card); color: var(--muted);
+  font: 500 12.5px/18px var(--font-sans);
+}
+.chipMeta { flex: none; color: rgba(var(--foreground-rgb), 0.82); }
+.chipCondicion { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: rgba(var(--foreground-rgb), 0.82); }
+.estado { flex: none; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.punto { width: 7px; height: 7px; border-radius: 50%; background: rgba(var(--foreground-rgb), 0.35); }
+.estado[data-estado='en_curso'] .punto { background: rgb(var(--primary-rgb)); }
+.estado[data-estado='esperando'] .punto { background: rgba(var(--primary-rgb), 0.45); }
+.estado[data-estado='cumplida'] .punto { background: var(--success, var(--l-verde-4, #3fb27f)); }
+.acciones { flex: none; display: inline-flex; gap: 2px; }
+.boton {
+  display: inline-flex; align-items: center; gap: 4px; min-height: 26px; padding: 2px 9px; border: 0; border-radius: 999px;
+  background: transparent; color: var(--muted); font: 500 12px/18px var(--font-sans); cursor: pointer;
+}
+@media (hover: hover) { .boton:hover { background: rgba(var(--foreground-rgb), 0.07); color: rgba(var(--foreground-rgb), 0.9); } }
+.boton:focus-visible { outline: 2px solid rgba(var(--primary-rgb), 0.7); outline-offset: 1px; }
+.boton:disabled { opacity: 0.5; cursor: default; }
+@media (pointer: coarse) { .boton { min-height: 34px; } }
+@media (max-width: 520px) { .chipMeta { display: none; } }

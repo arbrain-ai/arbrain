@@ -107,7 +107,14 @@ Se arma una vez y se reusa. Preguntas:
 4. «¿Qué tareas odias pero tienes que hacer? Las juntamos en un solo bloque» (p. 173–174).
 5. «¿A qué hora cierras el día y te desconectas?» (p. 174).
 
-Escribe: eventos que se repiten (`repetir` en `calendario.json`, o `--rrule` en el calendario conectado). Deja holgura
+Escribe dos cosas distintas:
+
+- **La plantilla (lo ideal)**, que la Semana pinta como bloques fantasma tenues detrás de la semana real (engrane ›
+  DRIP › «Semana perfecta»). Vive en el almacén DRIP del cerebro (`.claude/plan/drip.json`, campo `semana`). Desde
+  `arbrain/`: `npx tsx src/lib/planning/semana-perfecta-cli.ts agregar lun-vie 07:00-09:00 "Trabajo fuerte" producir`,
+  `… ver`, `… quitar <n>`, `… vaciar` (sin cuadrante, Levy lo infiere).
+- **Las series (lo agendado)**: eventos que se repiten (`repetir` en `calendario.json`, o `--rrule` en el calendario
+  conectado), solo para lo que el dueño quiere ver como evento. Deja holgura
 entre bloques: una semana apretada se rompe el martes. «No va a salir perfecta; en dos o tres semanas la ajustamos»
 (p. 178).
 
@@ -130,10 +137,11 @@ su diario esa mañana, el pipeline de `diario.md` hace de sensor y el toque es s
 Sobre la revisión de `planning.md`, Levy junta en un solo mensaje (y la app en una sola pantalla):
 
 1. **Plan vs real:** lo que se planeó y lo que tiene evidencia.
-2. **Horas en Producir** de la semana.
-3. **Horas recompradas** (y su valor, si ya tiene tarifa).
-4. **El asesino del tiempo** que apareció, si hubo uno.
-5. **Una sola propuesta** para la semana que viene, que se aprueba con un toque y se puede deshacer.
+2. **Los tres números del domingo:** horas en Producir; interrupciones en Reemplazar o Delegar (avisos que pidieron
+   decisión; si la instalación no los registra, la pantalla dice «sin medir», nunca cero); y la tasa de recompra, que se
+   edita ahí mismo, con las horas recompradas debajo.
+3. **El asesino del tiempo** que apareció, si hubo uno.
+4. **Una sola propuesta** para la semana que viene, que se aprueba con un toque y se puede deshacer.
 
 Pregunta opcional del libro (p. 283–284): «Del 1 al 10: salud, pasatiempos, espiritualidad, amigos, amor, finanzas,
 misión. ¿Cuáles dos van primero en tu semana que viene?».
@@ -227,6 +235,24 @@ Las definiciones son del libro (p. 77–85); la señal en la agenda es una lectu
 - La propuesta del domingo se aplica solo con su toque o su sí, y se puede deshacer.
 - **Tareas:** solo las que el dueño pide (dictadas, de su diario o «anótalo»), en su casa única (ver `SKILL.md`).
 - Lo personal (familia, ejercicio, sueño) no son bloques disponibles: son compromisos.
+
+## Los diez principios en la era de agentes
+
+Con agentes, el trabajo ejecutado es casi gratis; lo escaso es la **atención** del dueño y sus decisiones. Cada
+principio del libro se traduce a esa moneda. «—» = vive en la conducta de Levy, sin pantalla propia.
+
+| Principio (libro) | Qué es | Cómo lo aplica Levy | Dónde se ve |
+|---|---|---|---|
+| **Tasa de recompra** (cap. 2, p. 63) | Lo que te paga tu negocio al año ÷ 8,000. | Solo se fija con un dato real y el sí del dueño; sin ella, «—». | Revisión del domingo (campo) y engrane › DRIP. |
+| **…y su versión de atención** (nuestro) | Lo que cuesta es cada decisión que un agente te sube. Una regla firmada recompra cientos. | Cuenta las interrupciones en Reemplazar/Delegar y propone la regla que las elimina: «¿requiere tu presencia o solo tu permiso?». Escalera de autoridad: borrador → con tu va → publica y avisa → publica solo bajo regla firmada. | Domingo, segundo número. |
+| **1:3:1** (cap. 9, p. 183–189) | 1 problema, 3 opciones, 1 recomendación. | Ningún agente le lleva al dueño una pregunta abierta. | — |
+| **Definición de Terminado** (cap. 9, p. 183–189) | Qué cuenta como hecho; para lo grande: hechos, sentimientos, funcionalidad. | Ningún encargo sale sin escribir cómo se verifica hoy. | — |
+| **Método Videocámara → skill** (cap. 7, p. 149–150) | Grabar la tarea mientras se hace y se explica. | Lo que el dueño repite se vuelve skill tras la segunda vez: lo hace una vez en voz alta y Levy lo escribe. | Domingo › Actuador. |
+| **Semana Perfecta** (cap. 8, p. 173–179) | Una semana tipo, por energía, lo importante primero. | Se diseña una vez (`semana-perfecta-cli.ts`) y se ajusta en 2–3 semanas. | Semana: bloques fantasma; interruptor en el engrane. |
+| **Año Precargado** (cap. 14, p. 259–267) | Las piedras grandes antes que las piedritas; prueba de estrés. | Escribe premios, viajes y lanzamientos como eventos de día completo; moverlos pide «¿es un sí, sin duda?». | Mes: caja «Año precargado» (premio, viaje y lanzamiento primero). |
+| **Escalera de reemplazo** (cap. 5) | Soltar en orden: administración → entrega → marketing → ventas → liderazgo, pasando la propiedad del resultado. | Ubica cada propuesta de delegar en su peldaño; Levy cubre primero administración. | — |
+| **Línea del Dolor** (cap. 1) | Donde crecer empieza a doler: vender, sabotear o estancarse. | La lee como señal de recomprar, con evidencia de agenda, nunca como diagnóstico de ánimo. | — |
+| **Los 5 asesinos** (cap. 3, p. 77–85) | Staller, Speed Demon, Supervisor, Saver, Self-Medicator. | Señal de agenda, uno por semana (sección de arriba). Con agentes renacen el Supervisor (revisar cada borrador) y el Speed Demon (lanzar agentes sin decir qué decisión te devuelven). | Domingo › Atenuador. |
 
 ## Lo que es del libro y lo que es nuestro
 

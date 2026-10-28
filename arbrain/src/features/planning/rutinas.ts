@@ -1,4 +1,6 @@
+import { esNoNegociable } from './secciones'
 import { ordenarAgenda } from './agenda-llamadas'
+import { instalacion } from '@/config'
 /**
  * Rutinas diarias (24 oct 2026, cascada Temporada → Mes → Semana → Día, *Buy Back Your Time*): el Mes es el Preloaded Year y
  * solo lleva piedras grandes; la Semana es la Perfect Week y pinta las rutinas atenuadas. Lógica pura, sin React
@@ -103,4 +105,63 @@ export function fueraDelMes(eventos: readonly EventoRutina[], diaDe?: (iso: stri
   for (const b of bandas) fuera.add(b.id)
   for (const b of bloques) if (b.brief) fuera.add(b.brief.id)
   return fuera
+}
+
+/*
+ * La rutina no se ve a futuro (26 oct 2026, 06:28, Daniel: «no quiero ver mi rutina a futuro, ya me la sé! la veo al pasado justo lo
+ * que hice, no lo que espero hacer… quita calendario a futuro, quiero ver a Daniel»). Día y Semana: lo que ya empezó se ve (es lo que
+ * hizo); lo que no ha empezado y es rutina, no. Los compromisos (grupales, clases, diagnósticos, eventos con invitados o Meet), lo
+ * único que crearon Daniel o Levy y lo de día completo se ven siempre. Un interruptor del engrane («Rutina a futuro») la devuelve.
+ *
+ * Regla: rutina = evento con hora, de una serie (recurrente), sin invitados ni Meet, del calendario de la rutina (Trabajo Duro).
+ * Una ocurrencia renombrada de la serie («🧹 Preparar la grupal» dentro de «Trabajo fuerte») es única: se ve. Si en lo leído no hay
+ * nada del calendario de la rutina (otra instalación), vale la marca por frecuencia de siempre (`rutinasDiarias`), con las mismas
+ * condiciones. Los bloques fantasma de la Semana Perfecta siguen el mismo corte (`yaEmpezo`). Pruebas: tests/planning/rutina-futura.test.ts.
+ */
+
+/** El calendario de la rutina de esta instalación (`config/instalacion.ts`); '' = sin calendario propio, vale la frecuencia. */
+export const CALENDARIO_RUTINA = instalacion().calendarioRutinaId
+
+export interface EventoAgenda extends EventoRutina {
+  calendarId: string
+  description?: string | null
+  meetUrl?: string | null
+  attendees?: { self: boolean }[]
+}
+
+/** Con otras personas: invitados que no son uno o videollamada. Lo mismo que `esCompromiso` (categorias.ts), sin su dependencia. */
+const conOtros = (e: EventoAgenda) => Boolean(e.meetUrl) || (e.attendees ?? []).some(a => !a.self)
+
+/** Los ids de la rutina en lo leído (conviene pasar más que lo visible: la serie se mide entera). */
+export function rutinaDeAgenda(eventos: readonly EventoAgenda[], diaDe?: (iso: string) => string, calendario: string = CALENDARIO_RUTINA): Set<string> {
+  // Lo marcado «no negociable» (secciones.ts) nunca es rutina oculta: despertar y gym se ven siempre.
+  const puede = (e: EventoAgenda) => !e.allDay && Boolean(e.recurringEventId) && !conOtros(e) && !esNoNegociable(e)
+  const ids = new Set<string>()
+  if (!eventos.some(e => e.calendarId === calendario)) {
+    const diarias = rutinasDiarias(eventos, diaDe)
+    for (const e of eventos) if (puede(e) && diarias.has(e.id)) ids.add(e.id)
+    return ids
+  }
+  const propios = eventos.filter(e => e.calendarId === calendario && puede(e))
+  const cuenta = new Map<string, Map<string, number>>()
+  for (const e of propios) {
+    const s = e.recurringEventId!, t = tituloBase(e.title)
+    if (!cuenta.has(s)) cuenta.set(s, new Map())
+    cuenta.get(s)!.set(t, (cuenta.get(s)!.get(t) ?? 0) + 1)
+  }
+  for (const e of propios) {
+    const titulos = cuenta.get(e.recurringEventId!)!, mio = titulos.get(tituloBase(e.title)) ?? 0
+    // Renombrada: su título es minoría en una serie con otro título más común.
+    if ([...titulos.values()].some(n => n > mio)) continue
+    ids.add(e.id)
+  }
+  return ids
+}
+
+/** Ya empezó (epoch ms): lo de antes de «ahora» se ve siempre. */
+export const yaEmpezo = (inicio: number, ahora: number) => inicio < ahora
+
+/** ¿Se oculta este evento? Rutina que todavía no empieza, salvo que se pida verla. */
+export function rutinaOculta(e: { id: string; start: string }, rutina: ReadonlySet<string>, ahora: number, mostrar = false): boolean {
+  return !mostrar && rutina.has(e.id) && !yaEmpezo(Date.parse(e.start), ahora)
 }

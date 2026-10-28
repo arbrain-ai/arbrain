@@ -1,5 +1,6 @@
-import { categoriaDe, type Categoria } from './categorias'
+import { categoriaDe, esCompromiso, type Categoria } from './categorias'
 import { tituloBase } from './rutinas'
+import { aplicarCambioSemana, normalizarSemana, type SemanaPerfecta } from './semana-perfecta'
 
 /**
  * DRIP (24 oct 2026, Daniel: «cada evento se clasifica SOLO por DRIP (Producir / Invertir / Reemplazar / Delegar; Levy lo infiere,
@@ -41,13 +42,15 @@ export interface DefCuadrante {
 }
 
 /**
- * Los cuatro, en el orden de la leyenda. Producir es el oro de la marca (el único foco de luz); Invertir, el morado de la marca;
- * Reemplazar, el verde de «te paga» (el mismo de Vender); Delegar, un gris pizarra que se lee como «esto no es tuyo».
+ * Los cuatro, en el orden de la leyenda. Producir es un bronce de riel, sin relleno (25 oct, Daniel: «no me gusta que todo el color se
+ * hizo amarillo»; el ámbar sólido queda solo para el ahora); Invertir, el morado de la marca;
+ * Reemplazar, un granate sobrio (25 oct, Daniel: «ponlo rojo, es algo que quiero quitar»; no el rojo alarma del semáforo);
+ * Delegar, un gris pizarra que se lee como «esto no es tuyo».
  */
 export const CUADRANTES: readonly DefCuadrante[] = [
-  { id: 'producir', nombre: 'Producir', letra: 'P', color: '#ff9101', paga: true, enciende: true, lema: 'Te paga y te enciende: aquí quieres vivir' },
+  { id: 'producir', nombre: 'Producir', letra: 'P', color: '#a8733a', paga: true, enciende: true, lema: 'Te paga y te enciende: aquí quieres vivir' },
   { id: 'invertir', nombre: 'Invertir', letra: 'I', color: '#8c27f1', paga: false, enciende: true, lema: 'Te enciende y paga después: siempre algo aquí' },
-  { id: 'reemplazar', nombre: 'Reemplazar', letra: 'R', color: '#1f9d63', paga: true, enciende: false, lema: 'Te paga pero te drena: que lo haga alguien con tu método' },
+  { id: 'reemplazar', nombre: 'Reemplazar', letra: 'R', color: '#b23a4a', paga: true, enciende: false, lema: 'Te paga pero te drena: que lo haga alguien con tu método' },
   { id: 'delegar', nombre: 'Delegar', letra: 'D', color: '#7c8594', paga: false, enciende: false, lema: 'Ni te paga ni te enciende: sácalo de tu agenda' },
 ]
 export const DRIP: Record<Cuadrante, DefCuadrante> = Object.fromEntries(CUADRANTES.map(c => [c.id, c])) as Record<Cuadrante, DefCuadrante>
@@ -136,6 +139,118 @@ export function inferirDrip(e: EventoDrip, calendario?: string | null): Inferenc
   return { cuadrante: POR_CATEGORIA[cat.categoria], origen: 'categoria', porque: `por su categoría (${cat.categoria})` }
 }
 
+/* ── Las piedras del calendario (hitos neutros, viajes, chips) ──────────────────────────────────────────────────────────────── */
+
+/**
+ * Hitos del programa (25 oct 2026, Daniel: «no me gusta que todo el color se hizo amarillo»). Las fases, aperturas, demo days y
+ * ventanas de uno a uno de día completo marcan el MAPA, no son trabajo: se pintan neutros (gris pizarra fino, sin relleno) en Semana,
+ * Día y Mes y no cuentan horas DRIP (son de día completo; `bloquesDrip` solo suma bloques con hora). Las clases y grupales con hora
+ * siguen en Producir; los viajes y premios (Monterrey) son Invertir, en morado.
+ */
+export const COLOR_HITO = '#64748b'
+const RE_HITO = palabras('fase \\d+|abre|apertura|demo day|uno a uno|1 ?a ?1|ventana|kickoff|arranca|empieza|cierre de (?:la )?(?:etapa|fase|cohorte)|semana \\d+|S\\d+(?:\\s*[–-]\\s*\\d+)?')
+const RE_VIAJE = palabras('premio|monterrey|viaje|vuelo|vacaciones|retiro')
+const EMOJI_VIAJE = /^\s*(?:🏆|🏔|⛰|🏕|✈|🧳)/u
+export const esViaje = (e: Pick<EventoDrip, 'title'>) => EMOJI_VIAJE.test(e.title ?? '') || RE_VIAJE.test(e.title ?? '')
+/** Un hito del programa: de día completo, con forma de fase o marca, y que no sea un viaje. */
+export function esHitoPrograma(e: Pick<EventoDrip, 'title' | 'allDay'>): boolean {
+  return Boolean(e.allDay) && !esViaje(e) && RE_HITO.test((e.title ?? '').replace(/^\s*✓\s*/, ''))
+}
+
+/** Cómo se dibuja un evento en el Mes: cinta neutra (hito), marca de viaje, bloque de día completo o chip de una línea. */
+export type Piedra = 'hito' | 'viaje' | 'dia' | 'chip'
+export function piedraDe(e: Pick<EventoDrip, 'title' | 'allDay'>, cuadrante: Cuadrante): Piedra {
+  if (!e.allDay) return 'chip'
+  if (esHitoPrograma(e)) return 'hito'
+  return esViaje(e) || cuadrante === 'invertir' ? 'viaje' : 'dia'
+}
+/**
+ * Una fase del programa (25 oct 2026, Daniel: «no sé ni pa qué sirve, es molesto»): vive solo en el Mes. La Semana y el Día no
+ * repiten «Fase 1 · Tu cerebro…» en cada columna; los demás hitos, viajes y reuniones de día completo siguen ahí.
+ */
+const RE_FASE = palabras('fase \\d+')
+export const esFase = (e: Pick<EventoDrip, 'title' | 'allDay'>) => esHitoPrograma(e) && RE_FASE.test(e.title ?? '')
+
+/** El nombre corto de una fase para la ceja de su semana: «🌟 Fase 2 · Supernova, tu oferta (S2–3)» → «Supernova». */
+export function nombreDeFase(titulo: string): string {
+  const resto = titulo.replace(/^[^·]*fase \d+\s*·\s*/iu, '').replace(/\s*\(S\d[^)]*\)\s*$/, '')
+  return (resto.split(/[,:;]/)[0] ?? resto).trim() || titulo.trim()
+}
+
+/**
+ * La mecánica del programa para los alumnos (25 oct 2026, Daniel: «veo repetido "Abre Primer cliente en el classroom"»):
+ * «🔓 Abre Supernova en el classroom (día 14)» abre el módulo a la cohorte. Vive en Google para los alumnos, pero no pide nada a
+ * Daniel: no se pinta en ninguna vista de su calendario (Día, Semana, Mes, Año ni la Cabina). Regla, no borrado.
+ */
+const RE_MECANICA = palabras('(?:abre|apertura de|se abre) .+ (?:en|del) (?:el )?classroom')
+export function esMecanicaAlumno(e: Pick<EventoDrip, 'title' | 'allDay'>): boolean {
+  const t = e.title ?? ''
+  return Boolean(e.allDay) && (/^\s*🔓/u.test(t) || RE_MECANICA.test(t))
+}
+
+/**
+ * Lo que pide a Daniel actuar (25 oct 2026, Daniel: «no hay colores que guíen la atención ni la vista»). En el Recorrido del Mes
+ * solo esto lleva color: `accion` (uno a uno y llamadas clave con otra persona, en bronce) y `viaje` (Monterrey y lo que pasa
+ * dentro, en morado). Las fases, el demo day, las clases y videollamadas que se repiten y lo demás quedan neutros (null).
+ */
+export type Atencion = 'accion' | 'viaje' | null
+const RE_UNO_A_UNO = palabras('uno a uno|1 ?a ?1|1-1')
+const RE_CLASE = palabras('clase|nivel \\d+|videollamada de comunidad|grupal|masterclass|taller|workshop')
+export function atencionDe(e: Pick<EventoDrip, 'title' | 'allDay'> & { recurringEventId?: string | null; meetUrl?: string | null; attendees?: { self: boolean }[] }, piedra: Piedra): Atencion {
+  if (piedra === 'viaje') return 'viaje'
+  const t = e.title ?? ''
+  if (RE_UNO_A_UNO.test(t) && !esFase(e)) return 'accion'
+  if (!e.allDay && !e.recurringEventId && esCompromiso(e) && !RE_CLASE.test(t)) return 'accion'
+  return null
+}
+
+/**
+ * Lo que va DENTRO de un viaje en la cuadrícula del Mes (25 oct 2026, «Monterrey se ve UNA vez»): un evento de día completo más
+ * corto que cae entero en un viaje (la reunión del 28 en Monterrey) no se apila como otra cinta; queda como marca en su día.
+ * Devuelve id → día civil (YYYY-MM-DD) de la marca.
+ */
+export function marcasEnViajes(eventos: readonly Pick<EventoDrip, 'id' | 'title' | 'start' | 'end' | 'allDay'>[]): Map<string, string> {
+  const dia = (iso: string) => iso.slice(0, 10)
+  const viajes = eventos.filter(e => e.allDay && esViaje(e))
+  const marcas = new Map<string, string>()
+  for (const e of eventos) {
+    if (!e.allDay || esHitoPrograma(e)) continue
+    const a = dia(e.start), b = dia(e.end)
+    if (viajes.some(v => v.id !== e.id && dia(v.start) <= a && b <= dia(v.end) && (dia(v.start) < a || b < dia(v.end)))) marcas.set(e.id, a)
+  }
+  return marcas
+}
+
+/** El color con que se pinta: los hitos, neutros; lo demás, su cuadrante. */
+export const colorDePiedra = (e: Pick<EventoDrip, 'title' | 'allDay'>, cuadrante: Cuadrante) => esHitoPrograma(e) ? COLOR_HITO : DRIP[cuadrante].color
+
+/**
+ * La semana del programa (S0, S1… S11) de cada lunes, leída de las fases mismas: «Fase 2 · Supernova, tu oferta (S2–3)» que empieza
+ * el lun 2 nov dice que esa semana es la S2. Sin fases con marca, null (el alumno sin programa no ve números inventados).
+ */
+export function semanasDelPrograma(eventos: readonly Pick<EventoDrip, 'title' | 'start' | 'allDay'>[]): { lunes0: number; ultima: number } | null {
+  const votos = new Map<number, number>(); let ultima = -1
+  for (const e of eventos) {
+    if (!e.allDay) continue
+    const m = /\(S(\d{1,2})(?:\s*[–-]\s*S?(\d{1,2}))?\)/.exec(e.title ?? '')
+    if (!m) continue
+    const a = Number(m[1]), b = m[2] ? Number(m[2]) : a
+    const d = new Date(`${e.start.slice(0, 10)}T12:00:00`)
+    const lunes = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7)) - a * 7 * 864e5
+    votos.set(lunes, (votos.get(lunes) ?? 0) + 1); ultima = Math.max(ultima, b)
+  }
+  if (!votos.size) return null
+  const [lunes0] = [...votos.entries()].sort((x, y) => y[1] - x[1] || x[0] - y[0])[0]
+  return { lunes0, ultima }
+}
+/** «S3» para el lunes dado (YYYY-MM-DD), o null fuera del programa. */
+export function semanaDelPrograma(lunes: string, prog: { lunes0: number; ultima: number } | null): string | null {
+  if (!prog) return null
+  const [y, m, d] = lunes.slice(0, 10).split('-').map(Number)
+  const n = Math.round((Date.UTC(y, m - 1, d) - prog.lunes0) / (7 * 864e5))
+  return n >= 0 && n <= prog.ultima ? `S${n}` : null
+}
+
 /* ── El almacén (corrección, tarifa, foto del plan, mañanas aceptadas) ─────────────────────────────────────────────────── */
 
 /**
@@ -179,9 +294,11 @@ export interface DocDrip {
   fotos: Record<string, FotoSemana>
   /** Mañanas aceptadas con un toque: día → cuándo (ISO). */
   mananas: Record<string, string>
+  /** La Semana Perfecta (cap. 8): la plantilla que se pinta en fantasma detrás de la semana real. null = sin diseñar. */
+  semana: SemanaPerfecta | null
 }
 
-export const DOC_VACIO: DocDrip = { version: 1, actualizado: '1970-01-01T00:00:00.000Z', correcciones: {}, delegados: {}, tarifa: null, fotos: {}, mananas: {} }
+export const DOC_VACIO: DocDrip = { version: 1, actualizado: '1970-01-01T00:00:00.000Z', correcciones: {}, delegados: {}, tarifa: null, fotos: {}, mananas: {}, semana: null }
 /** Cuántas fotos de semana y mañanas se guardan (lo viejo se poda solo). */
 export const FOTOS_MAX = 12, MANANAS_MAX = 45
 
@@ -204,7 +321,7 @@ export function normalizarDoc(crudo: unknown): DocDrip {
   for (const [k, v] of Object.entries(obj(d.fotos))) { const f = leerFoto(v); if (f && f.lunes === k) fotos[k] = f }
   const mananas: Record<string, string> = {}
   for (const [k, v] of Object.entries(obj(d.mananas))) if (esFecha(k) && esIso(v)) mananas[k] = v
-  return { version: 1, actualizado: esIso(d.actualizado) ? d.actualizado : DOC_VACIO.actualizado, correcciones, delegados, tarifa, fotos, mananas }
+  return { version: 1, actualizado: esIso(d.actualizado) ? d.actualizado : DOC_VACIO.actualizado, correcciones, delegados, tarifa, fotos, mananas, semana: normalizarSemana(d.semana) }
 }
 
 function leerFoto(v: unknown): FotoSemana | null {
@@ -224,6 +341,8 @@ export type CambioDrip =
   | { accion: 'tarifa'; monto: number | null; moneda?: string }
   | { accion: 'foto'; foto: FotoSemana }
   | { accion: 'manana'; dia: string; aceptada: boolean }
+  /** La Semana Perfecta: `cambio` es un `CambioSemana` (semana-perfecta.ts): agregar, quitar, reemplazar o vaciar. */
+  | { accion: 'semana'; cambio: unknown }
 
 /** Aplica un cambio y devuelve el documento nuevo, o un texto con el error (400). Puro: `ahora` entra de fuera. */
 export function aplicarCambioDrip(doc: DocDrip, cambio: unknown, ahora = new Date().toISOString()): DocDrip | string {
@@ -264,7 +383,13 @@ export function aplicarCambioDrip(doc: DocDrip, cambio: unknown, ahora = new Dat
       for (const k of Object.keys(n.mananas).sort().slice(0, -MANANAS_MAX)) delete n.mananas[k]
       return n
     }
-    default: return 'Acción inválida: corregir, delegar, tarifa, foto o manana.'
+    case 'semana': {
+      const semana = aplicarCambioSemana(doc.semana, c.cambio, ahora)
+      if (typeof semana === 'string') return semana
+      n.semana = semana
+      return n
+    }
+    default: return 'Acción inválida: corregir, delegar, tarifa, foto, manana o semana.'
   }
 }
 

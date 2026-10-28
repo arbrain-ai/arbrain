@@ -49,6 +49,8 @@ export interface Senal {
   v: 1
   instalado: true
   version_app: string | null
+  /** Versión del cerebro publicada (v0.2.x, archivo VERSION de la copia). `version_app` es la del cascarón de escritorio. */
+  version_cerebro: string | null
   fecha: string
   semana: string
   metas: { mes: Meta; semana: Meta; dia: Meta }
@@ -93,6 +95,24 @@ function versionApp(): string | null {
   for (const rel of ['../../../package.json', '../../../../package.json']) {
     const p = leerJson<{ name?: string; version?: string }>(join(dirname(fileURLToPath(import.meta.url)), rel))
     if (p?.name === 'arbrain' && typeof p.version === 'string') return p.version
+  }
+  return null
+}
+
+/**
+ * Versión del cerebro (27 oct 2026): la que publica `publicar-version.sh` (v0.2.x). `version_app` dice la del cascarón
+ * (0.1.3 en todos), así que no servía para saber quién está atrasado. En la copia del alumno el archivo es `VERSION` en
+ * la raíz (ARBRAIN_HOME); en el repo original, `arbrain/empaquetado/distribucion/VERSION`. Semver o null.
+ */
+export function versionCerebro(raiz: string = raizCerebro()): string | null {
+  const bases = [raiz, join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..')].filter(Boolean)
+  for (const base of bases) {
+    for (const rel of ['VERSION', 'arbrain/empaquetado/distribucion/VERSION']) {
+      try {
+        const v = readFileSync(join(base, rel), 'utf8').trim()
+        if (/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]{1,20})?$/.test(v)) return v
+      } catch { /* no está aquí */ }
+    }
   }
   return null
 }
@@ -218,7 +238,7 @@ export class Progreso {
     const manual = cfg?.manual && cfg.manual.semana === semanaIso(hoy) ? cfg.manual : null
 
     return {
-      v: 1, instalado: true, version_app: versionApp(), fecha: hoy, semana: semanaIso(hoy),
+      v: 1, instalado: true, version_app: versionApp(), version_cerebro: versionCerebro(raiz), fecha: hoy, semana: semanaIso(hoy),
       metas: { mes: meta(metas.mes), semana: meta(metas.semana), dia: meta(metas.dia) },
       habitos_activos: activos.length, habitos,
       conversaciones_7d: conversaciones,

@@ -116,16 +116,19 @@ test('un párrafo corto es un solo tramo con el texto tal cual', () => {
 
 // ─── VozServidor con Web Audio (23 oct 2026) ─────────────────────────────────
 // Node no trae Web Audio: un contexto falso basta para probar la caché por velocidad, X-Tempo y la posición.
-async function conWebAudioFalso(fn: (reloj: { t: number }, fuentes: Array<{ rate: number; desde: number }>) => unknown) {
+async function conWebAudioFalso(fn: (reloj: { t: number }, fuentes: Array<{ rate: number; desde: number }>, ctxs: Array<{ state: string }>) => unknown) {
   const reloj = { t: 10 }
+  const ctxs: Array<{ state: string }> = []
   const fuentes: Array<{ rate: number; desde: number }> = []
   class Ctx {
     state = 'running'
+    constructor() { ctxs.push(this) }
+    suspend() { this.state = 'suspended'; return Promise.resolve() }
     sampleRate = 48000
     baseLatency = 0
     destination = {}
     get currentTime() { return reloj.t }
-    resume() { return Promise.resolve() }
+    resume() { this.state = 'running'; return Promise.resolve() }
     createBuffer() { return { duration: 0 } }
     decodeAudioData(datos: ArrayBuffer) { return Promise.resolve({ duration: datos.byteLength }) }
     createBufferSource() {
@@ -137,7 +140,7 @@ async function conWebAudioFalso(fn: (reloj: { t: number }, fuentes: Array<{ rate
   const g = globalThis as unknown as { window?: unknown }
   const antes = g.window
   g.window = { AudioContext: Ctx }
-  try { await fn(reloj, fuentes) } finally { g.window = antes }
+  try { await fn(reloj, fuentes, ctxs) } finally { g.window = antes }
 }
 
 test('la caché distingue velocidad y lee X-Tempo; la petición en vuelo se comparte', async () => {
@@ -258,5 +261,24 @@ test('si el servidor no aceleró, el tramo suena en <audio> con preservesPitch a
     } finally {
       g.Audio = antes
     }
+  })
+})
+
+test('sin fuente, el contexto se suspende (la ventana oculta no deja al audio de WebKit sin muestras) y vuelve al sonar', async () => {
+  await conWebAudioFalso(async (_reloj, fuentes, ctxs) => {
+    const voz = new VozServidor(async () => new Response(null))
+    const audio = { buffer: { duration: 5 } as AudioBuffer, tempo: 1 }
+    voz.sonar(audio, 0, () => {})
+    voz.parar() // pausa
+    voz.sonar(audio, 1, () => {}) // reanudar antes del reposo: no se suspende a media lectura
+    await new Promise((ok) => setTimeout(ok, 1700))
+    assert.equal(ctxs[0].state, 'running')
+    voz.parar()
+    await new Promise((ok) => setTimeout(ok, 1700))
+    assert.equal(ctxs[0].state, 'suspended')
+    voz.sonar(audio, 2, () => {})
+    assert.equal(ctxs[0].state, 'running')
+    assert.equal(fuentes.length, 3)
+    voz.parar()
   })
 })

@@ -6,9 +6,10 @@
  */
 import { useEffect } from 'react'
 import { codigoDeError, MENSAJE_ERROR, PaginaError } from '@/components/PaginaError'
+import { recargarSiHayVersionNueva, reportarErrorDePantalla } from '@/lib/desfase-version'
 
 export default function ErrorGlobal({ error }: { error: Error & { digest?: string }; reset: () => void }) {
-  useEffect(() => { console.error('[arbrain] error global', error) }, [error])
+  useEffect(() => { console.error('[arbrain] error global', error); reportarErrorDePantalla(error, 'global'); void recargarSiHayVersionNueva() }, [error])
   return (
     <html lang="es">
       <body style={{ margin: 0 }}>

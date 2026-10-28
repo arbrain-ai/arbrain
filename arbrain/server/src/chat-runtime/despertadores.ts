@@ -17,7 +17,8 @@ import type { ChatJobInput } from './chat-job.js'
 export interface DespertadorScope { owner: string; account: string; conversationId: string }
 export type EstadoDespertador = 'pendiente' | 'hecho' | 'cancelado' | 'frenado'
 /** `subagente`: aviso del motor cuando un subagente lanzado con `delegar` desde esta conversación termina. */
-export type TipoDespertador = 'despertador' | 'subagente'
+/** `confirmacion`: la persona decidió algo de su cola de aprobaciones (edición cliente, cliente/cola.ts). */
+export type TipoDespertador = 'despertador' | 'subagente' | 'confirmacion'
 export interface Despertador extends DespertadorScope {
   id: string
   texto: string
@@ -141,7 +142,7 @@ export class Despertadores {
     for (const value of [scope.owner, scope.account, scope.conversationId]) if (typeof value !== 'string' || !value.trim()) throw new DespertadorInvalido('Falta la conversación del aviso.')
     const limpio = texto.trim().slice(0, 6000)
     if (!limpio) throw new DespertadorInvalido('El aviso necesita texto.')
-    const id = `${tipo === 'subagente' ? 's' : 'd'}-${randomUUID().slice(0, 8)}`
+    const id = `${tipo === 'subagente' ? 's' : tipo === 'confirmacion' ? 'c' : 'd'}-${randomUUID().slice(0, 8)}`
     const ahora = this.clock()
     this.db.prepare(`INSERT INTO chat_despertadores (id, owner, account, conversation_id, texto, due_at, estado, creado_at, tipo) VALUES (?, ?, ?, ?, ?, ?, 'pendiente', ?, ?)`)
       .run(id, scope.owner, scope.account, scope.conversationId, limpio, ahora, ahora, tipo)
@@ -186,7 +187,11 @@ export class Despertadores {
       const tarde = ahora - actual.dueAt > TOPES.retrasoAvisoMs
       const hora = new Date(actual.dueAt - 6 * 3600_000).toISOString().slice(11, 16)
       const disparo = actual.disparos + 1
-      const message = actual.tipo === 'subagente' ? [
+      const message = actual.tipo === 'confirmacion' ? [
+        `[Aviso de Arbrain ${actual.id} · tu cola de aprobaciones: la persona decidió algo que te quedó pendiente${tarde ? ' · llega TARDE: el servidor no estaba disponible' : ''}]`,
+        `${DUENO_M} no escribió este mensaje: lo escribe Arbrain con su decisión.`,
+        actual.texto,
+      ].join('\n') : actual.tipo === 'subagente' ? [
         `[Aviso del motor ${actual.id} · un subagente que lanzaste desde esta conversación ${/DETENIDO EN UN DIÁLOGO|PREGUNTA PARA TI|pregunta para ti/.test(actual.texto) ? 'te pregunta algo' : 'terminó'}${tarde ? ' · llega TARDE: el servidor no estaba disponible' : ''}]`,
         `${DUENO_M} no escribió este mensaje. Si te pregunta algo y puedes decidirlo, contéstale con retomar; si necesitas a ${DUENO}, pregúntaselo en breve aquí. Si terminó, revisa lo que entregó, decide el siguiente paso y cuéntaselo a ${DUENO} en breve.`,
         actual.texto,
@@ -226,13 +231,13 @@ function decode(row: Record<string, unknown>): Despertador {
     restantes: row.restantes == null ? null : Number(row.restantes), disparos: Number(row.disparos), estado: row.estado as EstadoDespertador,
     motivo: row.motivo == null ? null : String(row.motivo), creadoAt: Number(row.creado_at),
     ultimoDisparoAt: row.ultimo_disparo_at == null ? null : Number(row.ultimo_disparo_at), ultimoTurnId: row.ultimo_turn_id == null ? null : String(row.ultimo_turn_id),
-    tipo: row.tipo === 'subagente' ? 'subagente' : 'despertador',
+    tipo: row.tipo === 'subagente' ? 'subagente' : row.tipo === 'confirmacion' ? 'confirmacion' : 'despertador',
   }
 }
 
 /** Etiqueta del chip en la web: el texto del despertador, o solo la cabecera del aviso de un subagente. */
 export function etiquetaDespertador(d: { texto: string; tipo?: string }): string {
-  return d.tipo === 'subagente' ? d.texto.split('\n')[0].slice(0, 160) : d.texto
+  return d.tipo === 'subagente' || d.tipo === 'confirmacion' ? d.texto.split('\n')[0].slice(0, 160) : d.texto
 }
 
 /** Una línea legible por despertador (para la herramienta de Levy). */

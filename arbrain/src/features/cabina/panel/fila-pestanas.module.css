@@ -1,8 +1,10 @@
 /* La segunda fila del teléfono (6 oct 2026): 40 px bajo la cabecera, mismo color sólido que ella. Las pestañas se desplazan
    en horizontal si no caben; el «+» queda fijo al final, fuera de lo que se desplaza. */
 .tira { display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0; height: 100%; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; overscroll-behavior-x: contain; touch-action: pan-x; -webkit-overflow-scrolling: touch;
-  /* Lo que no cabe se desvanece contra el «+» en vez de cortarse en seco. */
-  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 18px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 18px), transparent); }
+  /* Lo que no cabe se desvanece contra el «+» en vez de cortarse en seco: un desvanecido ancho (se lee como «hay más», no
+     como una palabra mutilada) y aire al final para que la última pestaña, desplazada, quede entera antes del «+». */
+  padding-right: 28px; scroll-padding-right: 28px;
+  -webkit-mask-image: linear-gradient(to right, var(--l-gris-0, #000) calc(100% - 44px), transparent calc(100% - 4px)); mask-image: linear-gradient(to right, var(--l-gris-0, #000) calc(100% - 44px), transparent calc(100% - 4px)); }
 .tira::-webkit-scrollbar { display: none; }
 /* Mantener presionado no debe abrir el menú de iOS (copiar, compartir) ni seleccionar el nombre. */
 .pestana {
@@ -34,7 +36,16 @@
    apartan con un deslizamiento corto hacia donde caería; la levantada sigue al dedo sin retraso. */
 .tira[data-arrastrando] { touch-action: none; }
 .tira[data-arrastrando] > .envoltura { transition: transform 160ms cubic-bezier(.2, .8, .2, 1), opacity 160ms; opacity: .6; }
-.tira > .envoltura[data-levantada] { z-index: 1; opacity: 1; transition: none; border-radius: 10px; background: var(--surface-elevated); box-shadow: 0 0 0 1.5px rgba(var(--brand-rgb), .75), 0 2px 8px rgba(0, 0, 0, .3); }
+.tira > .envoltura[data-levantada] { z-index: 1; opacity: 1; transition: none; border-radius: 10px; background: var(--surface-elevated); box-shadow: 0 0 0 1.5px var(--l-borde-morado, rgba(var(--brand-rgb), .75)), 0 2px 8px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.3); }
 .envoltura[data-levantada] > .pestana { color: var(--foreground); }
 
 @media (prefers-reduced-motion: reduce) { .pestana { transition: none; } .tira[data-arrastrando] > .envoltura { transition: none; } }
+
+/* Teléfono angosto (27 oct 2026, crítica ronda 4: «Taller» se leía como «T»): las pestañas se compactan (menos aire y las
+   no elegidas con su nombre acotado) para que quepan enteras antes del «+»; si aun así no caben, se desplazan y la última
+   se desvanece. */
+@media (max-width: 480px) {
+  .tira { gap: 2px; }
+  .pestana { padding: 0 9px; gap: 5px; }
+  .pestana:not([aria-selected='true']) { max-width: 128px; }
+}

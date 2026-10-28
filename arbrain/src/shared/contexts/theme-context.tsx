@@ -4,6 +4,8 @@ import { CLAVE_TEMA, CLAVE_TEMA_HASTA, finDelTramo, temaAhora, temaGuardadoVigen
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 
 export type ThemeMode = 'light' | 'dark' | 'auto'
+/** Estilo de la interfaz (27 oct 2026): el de hoy o el lenguaje unificado nacido del botón de enviar. Eje aparte del tema. */
+export type Estilo = 'actual' | 'unificado'
 
 interface ThemeContextValue {
   theme: ThemeMode
@@ -11,6 +13,9 @@ interface ThemeContextValue {
   setTheme: (theme: ThemeMode) => void
   cycleTheme: () => void
   toggleTheme: () => void
+  estilo: Estilo
+  setEstilo: (estilo: Estilo) => void
+  toggleEstilo: () => void
 }
 
 const STORAGE_KEY = CLAVE_TEMA
@@ -79,7 +84,89 @@ function syncNativeTitlebarTheme(resolved: 'light' | 'dark'): void {
   try { void invoke('tema_nativo', { tema: resolved }).catch(respaldo) } catch (err) { respaldo(err) }
 }
 
-function applyTheme(theme: ThemeMode): 'light' | 'dark' {
+// ── Un solo tema para todas las ventanas (25 oct 2026, Daniel: «el atajo "t" debería aplicar el cambio de tema a toda
+// la app aun si está en 2 pantallas»). La verdad es localStorage (CLAVE_TEMA); la ventana que cambia el tema lo
+// anuncia y las demás lo aplican al instante, sin recargar. Tres vías porque ninguna llega sola a todas: el evento
+// `storage` (otras pestañas del navegador), BroadcastChannel (mismo origen, incluso con storage aislado) y, en el
+// escritorio, un evento de Tauri (ventanas nativas `vista-ventana-N`, que pueden vivir en otro proceso web).
+const CANAL_TEMA = 'arbrain-tema'
+const yoTema = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : String(Math.random())
+type AvisoTema = { theme: ThemeMode; de: string }
+let canalTema: BroadcastChannel | null = null
+
+function esTema(v: unknown): v is ThemeMode { return v === 'light' || v === 'dark' || v === 'auto' }
+
+// ── Estilo (27 oct 2026, Daniel: probar el lenguaje unificado sin perder el de hoy). Misma vía que el tema: localStorage
+// es la verdad, el aviso viaja por el canal propio y por `storage`. No caduca: lo que elige se queda hasta que lo cambie.
+export const CLAVE_ESTILO = 'arbrain-estilo'
+const CANAL_ESTILO = 'arbrain-estilo'
+let canalEstilo: BroadcastChannel | null = null
+function leerEstilo(): Estilo {
+  try { return window.localStorage.getItem(CLAVE_ESTILO) === 'unificado' ? 'unificado' : 'actual' } catch { return 'actual' }
+}
+function aplicarEstilo(estilo: Estilo): void {
+  if (typeof document === 'undefined') return
+  if (estilo === 'unificado') document.documentElement.dataset.estilo = 'unificado'
+  else delete document.documentElement.dataset.estilo
+}
+function anunciarEstilo(estilo: Estilo): void {
+  try {
+    if (!canalEstilo && 'BroadcastChannel' in window) canalEstilo = new BroadcastChannel(CANAL_ESTILO)
+    canalEstilo?.postMessage({ estilo, de: yoTema })
+  } catch { /* canal cerrado */ }
+  if (isDesktopRuntime()) void import('@tauri-apps/api/event').then(({ emit }) => emit(CANAL_ESTILO, { estilo, de: yoTema })).catch(() => {})
+}
+function escucharEstilo(alCambiar: (estilo: Estilo) => void): () => void {
+  const recibir = (a: unknown) => {
+    const aviso = a as { estilo?: unknown; de?: string } | null
+    if (aviso && aviso.de !== yoTema && (aviso.estilo === 'actual' || aviso.estilo === 'unificado')) alCambiar(aviso.estilo)
+  }
+  const bc = 'BroadcastChannel' in window ? new BroadcastChannel(CANAL_ESTILO) : null
+  if (bc) bc.onmessage = e => recibir(e.data)
+  const alGuardar = (e: StorageEvent) => { if (e.key === CLAVE_ESTILO) alCambiar(e.newValue === 'unificado' ? 'unificado' : 'actual') }
+  window.addEventListener('storage', alGuardar)
+  let soltarTauri: (() => void) | null = null
+  let vivo = true
+  if (isDesktopRuntime()) {
+    void import('@tauri-apps/api/event')
+      .then(({ listen }) => listen(CANAL_ESTILO, e => recibir(e.payload)))
+      .then(u => { if (vivo) soltarTauri = u; else u() })
+      .catch(() => {})
+  }
+  return () => { vivo = false; bc?.close(); window.removeEventListener('storage', alGuardar); soltarTauri?.() }
+}
+
+function anunciarTema(theme: ThemeMode): void {
+  if (typeof window === 'undefined') return
+  const aviso: AvisoTema = { theme, de: yoTema }
+  try {
+    if (!canalTema && 'BroadcastChannel' in window) canalTema = new BroadcastChannel(CANAL_TEMA)
+    canalTema?.postMessage(aviso)
+  } catch { /* canal cerrado */ }
+  if (isDesktopRuntime()) void import('@tauri-apps/api/event').then(({ emit }) => emit(CANAL_TEMA, aviso)).catch(() => {})
+}
+
+function escucharTema(alCambiar: (theme: ThemeMode) => void): () => void {
+  const recibir = (a: unknown) => {
+    const aviso = a as Partial<AvisoTema> | null
+    if (aviso && aviso.de !== yoTema && esTema(aviso.theme)) alCambiar(aviso.theme)
+  }
+  const bc = 'BroadcastChannel' in window ? new BroadcastChannel(CANAL_TEMA) : null
+  if (bc) bc.onmessage = e => recibir(e.data)
+  const alGuardar = (e: StorageEvent) => { if (e.key === STORAGE_KEY && esTema(e.newValue)) alCambiar(e.newValue) }
+  window.addEventListener('storage', alGuardar)
+  let soltarTauri: (() => void) | null = null
+  let vivo = true
+  if (isDesktopRuntime()) {
+    void import('@tauri-apps/api/event')
+      .then(({ listen }) => listen<AvisoTema>(CANAL_TEMA, e => recibir(e.payload)))
+      .then(u => { if (vivo) soltarTauri = u; else u() })
+      .catch(() => {})
+  }
+  return () => { vivo = false; bc?.close(); window.removeEventListener('storage', alGuardar); soltarTauri?.() }
+}
+
+function applyTheme(theme: ThemeMode, nativo = true): 'light' | 'dark' {
   if (typeof document === 'undefined') return 'dark'
   const resolved = theme === 'auto' ? getAutoTheme() : theme
   const root = document.documentElement
@@ -88,7 +175,8 @@ function applyTheme(theme: ThemeMode): 'light' | 'dark' {
   root.dataset.theme = resolved
   root.style.colorScheme = resolved
   document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.setAttribute('content', COLOR_BARRA[resolved]))
-  syncNativeTitlebarTheme(resolved)
+  // La barra nativa de TODAS las ventanas la fija quien cambió el tema (tema_nativo); las que solo reciben el aviso no repiten.
+  if (nativo) syncNativeTitlebarTheme(resolved)
 
   return resolved
 }
@@ -96,6 +184,22 @@ function applyTheme(theme: ThemeMode): 'light' | 'dark' {
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<ThemeMode>('auto')
   const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('dark')
+  const [estilo, setEstiloState] = useState<Estilo>('actual')
+
+  useEffect(() => {
+    const e = leerEstilo()
+    setEstiloState(e)
+    aplicarEstilo(e)
+    return escucharEstilo(siguiente => { setEstiloState(siguiente); aplicarEstilo(siguiente) })
+  }, [])
+
+  const setEstilo = useCallback((siguiente: Estilo) => {
+    try { window.localStorage.setItem(CLAVE_ESTILO, siguiente) } catch { /* sin storage: vale para esta sesión */ }
+    setEstiloState(siguiente)
+    aplicarEstilo(siguiente)
+    anunciarEstilo(siguiente)
+  }, [])
+  const toggleEstilo = useCallback(() => setEstilo(estilo === 'unificado' ? 'actual' : 'unificado'), [estilo, setEstilo])
 
   useEffect(() => {
     const nextTheme = leerGuardado()
@@ -125,7 +229,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     guardar(nextTheme)
     setThemeState(nextTheme)
     setResolvedTheme(applyTheme(nextTheme))
+    anunciarTema(nextTheme)
   }, [])
+
+  // Otra ventana cambió el tema: se aplica aquí igual (ya quedó guardado en el storage compartido).
+  useEffect(() => escucharTema((nextTheme) => {
+    setThemeState(nextTheme)
+    setResolvedTheme(applyTheme(nextTheme, false))
+  }), [])
 
   const cycleTheme = useCallback(() => {
     const nextTheme: ThemeMode = theme === 'auto' ? 'light' : theme === 'light' ? 'dark' : 'auto'
@@ -148,6 +259,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       const target = document.activeElement as HTMLElement | null
       const editing = target?.isContentEditable || target?.closest('input,textarea,select,[role="textbox"]')
       const plainT = e.code === 'KeyT' && !e.metaKey && !e.ctrlKey && !e.altKey && !editing && !e.isComposing
+      // ⇧T (27 oct 2026): alterna el estilo (actual ↔ unificado); T sola sigue alternando claro/oscuro.
+      if (plainT && e.shiftKey) {
+        e.preventDefault()
+        if (!e.repeat) toggleEstilo()
+        return
+      }
       if (((e.metaKey || e.ctrlKey) && e.altKey && e.code === 'KeyT') || plainT) {
         e.preventDefault()
         if (!e.repeat) toggleTheme()
@@ -155,11 +272,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [toggleTheme])
+  }, [toggleTheme, toggleEstilo])
 
   const value = useMemo(
-    () => ({ theme, resolvedTheme, setTheme, cycleTheme, toggleTheme }),
-    [cycleTheme, resolvedTheme, setTheme, theme, toggleTheme]
+    () => ({ theme, resolvedTheme, setTheme, cycleTheme, toggleTheme, estilo, setEstilo, toggleEstilo }),
+    [cycleTheme, resolvedTheme, setTheme, theme, toggleTheme, estilo, setEstilo, toggleEstilo]
   )
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>

@@ -15,12 +15,15 @@ import { escuchar, publicar } from './ventanas'
  * Máquina (¿está todo prendido?). `registro` ya no es pestaña: vive detrás de un enlace discreto en Máquina y Rutinas.
  * Los ids viejos siguen llegando (avisos, rutas, Levy, lo guardado): `alias` los lleva a su pestaña nueva.
  */
-export type SegmentoTaller = 'terminales' | 'rutinas' | 'memoria' | 'maquina' | 'registro'
+export type SegmentoTaller = 'terminales' | 'historia' | 'rutinas' | 'memoria' | 'maquina' | 'registro'
 const TODOS: { id: SegmentoTaller; etiqueta: string; pregunta: string }[] = [
   { id: 'terminales', etiqueta: 'Agentes', pregunta: '¿Quién está trabajando para mí ahora?' },
+  // Historia (28 oct 2026, Daniel: «cómo podemos obtener lo mejor de ambos mundos con vistas en el taller… así como VS Code, con
+  // ramas y todo»): dejó de ser pestaña suelta del panel; arriba lo del dueño, debajo el historial de git para aprenderlo.
+  { id: 'historia', etiqueta: 'Historia', pregunta: '¿Qué cambió en mi cerebro y quién lo hizo?' },
   { id: 'rutinas', etiqueta: 'Rutinas', pregunta: '¿Qué corre solo y cómo le fue?' },
   { id: 'memoria', etiqueta: 'Memoria', pregunta: '¿Qué sabe mi cerebro de mí?' },
-  { id: 'maquina', etiqueta: 'Máquina', pregunta: '¿Está todo prendido?' },
+  { id: 'maquina', etiqueta: 'Computadora', pregunta: '¿Está todo prendido?' },
 ]
 /**
  * Edición cliente: Agentes y Memoria. Revisado el 22 oct 2026 (prueba de Windows de Daniel: «no veo Rutinas ni Máquina») y se
@@ -33,6 +36,7 @@ const TODOS: { id: SegmentoTaller; etiqueta: string; pregunta: string }[] = [
  *  · Máquina lee `/api/cabina/servidores` (fuera de APIS_CLIENTE) y pinta el Studio de Daniel: los servidores de sus miembros,
  *    sus servicios launchd por área y la Casa. En la computadora del alumno no hay nada de eso que mostrar.
  *  · Registro vive detrás de Máquina y Rutinas.
+ *  · Historia lee el repo del Studio con git (`/api/historia` responde 404 en cliente).
  */
 const CLIENTE = esEdicionCliente()
 export const SEGMENTOS_TALLER = CLIENTE ? TODOS.filter(t => t.id === 'terminales' || t.id === 'memoria') : TODOS

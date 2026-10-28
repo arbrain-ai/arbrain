@@ -16,7 +16,7 @@
  */
 import { create } from 'zustand'
 import { esEdicionCliente, vistaPermitidaEnCliente } from '@/lib/edicion'
-import { hoyCivil, rangoCalendario, type MostrarInput } from '../model'
+import { esVistaConocida, hoyCivil, rangoCalendario, type MostrarInput } from '../model'
 import { coincide, coincideVista, mismaRuta } from './bus-puro'
 import { useMemo } from 'react'
 import { cerrarVentanas, enlazarFijadas, escuchar, publicar } from './ventanas'
@@ -55,7 +55,8 @@ export type PestanaPanel = 'tareas' | 'taller' | (string & {})
 /** Vistas que ya no son pestaña propia: pedirlas abre el Taller en su pestaña (y una fijada vieja se suelta al cargar). */
 
 const CLIENTE = esEdicionCliente()
-export const EN_TALLER = new Map<string, string>([['servidores', 'maquina'], ['rutinas', 'rutinas'], ['memoria', 'memoria']])
+// Historia (28 oct 2026) también: una pestaña «historia» fijada antes se suelta al cargar y pedirla abre Taller › Historia.
+export const EN_TALLER = new Map<string, string>([['servidores', 'maquina'], ['rutinas', 'rutinas'], ['memoria', 'memoria'], ['historia', 'historia']])
 
 const CLAVE = 'arbrain.panelDerecho.fijadas'
 const CLAVE_ACOMODO = 'arbrain.panelDerecho.acomodo'
@@ -224,7 +225,7 @@ export const usePanelFijadas = create<Estado>((set, get) => {
     cargado: false,
     cargar: () => {
       if (get().cargado) return
-      let fijadas = leer().filter(f => vistaPermitidaEnCliente(f.input.vista, CLIENTE))
+      let fijadas = leer().filter(f => esVistaConocida(f.input?.vista) && vistaPermitidaEnCliente(f.input.vista, CLIENTE))
       const crudo = leerAcomodo()
       const semilla = CLIENTE ? siembraCalendario(fijadas, CLIENTE, marcarSembrado()) : null
       if (semilla) fijadas = [semilla, ...fijadas]
@@ -238,7 +239,7 @@ export const usePanelFijadas = create<Estado>((set, get) => {
       // Otra ventana fijó, soltó, movió o se llevó algo: aquí se ve igual.
       escuchar(m => {
         if (m.tipo !== 'fijadas') return
-        const fijadas = sinDuplicadas(m.fijadas)
+        const fijadas = sinDuplicadas(m.fijadas.filter(f => esVistaConocida(f?.input?.vista)))
         const acomodo = normalizarAcomodo(m.orden ? { orden: m.orden, taller: m.taller, ancladas: m.ancladas ?? get().ancladas } : { orden: get().orden, taller: get().taller, ancladas: get().ancladas }, fijadas.map(f => f.id))
         const enVentana = m.enVentana ? normalizarEnVentana(m.enVentana, todasLasClaves(acomodo.orden, acomodo.taller)) : get().enVentana
         // La pestaña que otra ventana trajo al frente solo cambia ESTA ventana si vive aquí.
@@ -254,7 +255,7 @@ export const usePanelFijadas = create<Estado>((set, get) => {
       const seg = EN_TALLER.get(entrada.vista)
       if (seg) { pedirSegmentoTaller(seg); get().abrirCasa(TALLER); return TALLER }
       // Edición cliente: lo que no existe en esta edición no se abre (Levy pudo pedir una vista del negocio de Daniel).
-      if (!vistaPermitidaEnCliente(entrada.vista, CLIENTE)) return ''
+      if (!esVistaConocida(entrada.vista) || !vistaPermitidaEnCliente(entrada.vista, CLIENTE)) return ''
       const input = alias(entrada)
       const clave = claveDe(input)
       // Un documento abierto con ruta relativa y pedido con la absoluta (o ~/) es la misma pestaña: se enfoca, no se duplica.
@@ -326,7 +327,7 @@ export const usePanelFijadas = create<Estado>((set, get) => {
     },
     aplicarRemoto: (e) => {
       get().cargar()
-      const fijadas = sinDuplicadas(e.fijadas.filter(f => f && typeof f.id === 'string' && f.input && typeof f.input.vista === 'string' && !EN_TALLER.has(f.input.vista) && vistaPermitidaEnCliente(f.input.vista, CLIENTE))
+      const fijadas = sinDuplicadas(e.fijadas.filter(f => f && typeof f.id === 'string' && f.input && esVistaConocida(f.input.vista) && !EN_TALLER.has(f.input.vista) && vistaPermitidaEnCliente(f.input.vista, CLIENTE))
         .map(f => ({ ...f, input: fechaViva(alias(f.input)) })))
       const acomodo = normalizarAcomodo({ orden: e.orden, taller: e.taller, ancladas: e.ancladas }, fijadas.map(f => f.id))
       if (CLIENTE) acomodo.orden = acomodo.orden.filter(c => c !== TAREAS)

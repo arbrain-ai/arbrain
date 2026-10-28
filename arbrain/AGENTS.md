@@ -17,5 +17,7 @@ Desde `arbrain/` (no correr `desktop:*` ni `next build` mientras la app o el dev
 - Rust del shell: `cd src-tauri && cargo check --locked`.
 - Lint: no hay ESLint ni script `lint` configurado; el typecheck es el filtro.
 - Build web: `npm run build` (`next build --webpack`); build de escritorio solo con `desktop:install`.
+- Guardia del Studio (25 oct 2026): con menos de 15 GB libres, o con src-tauri fuera del checkout designado (`$HOME/Developer/artificial-brain/arbrain`), `desktop:*`, `npm run build` y `cargo` abortan (código 75). Las compilaciones pesadas esperan su turno (semáforo) y se congelan si `com.levy.vigia-disco` pausa. Ver `scripts/compilacion-pesada.mjs`.
+- Memoria del Studio (28 oct 2026): el semáforo detiene un build si un proceso pasa de 12 GB (código 137, queda en la bitácora). En una copia de agente, `npm run dev` (`scripts/dev-agente.mjs`) toma el mismo semáforo, corre con heap de 4 GB y tope de 8 GB, y se apaga tras 15 min sin uso; para capturas, `npm run dev -- --capturas <comando>` (recibe `ARBRAIN_DEV_URL`). `next dev` crudo en una copia de agente lo niega `next.config.ts`. Buscar con `rg`, nunca `grep -r` sobre el repo.
 
 Estado 10 oct 2026: types verde (0 errores); `src-tauri` cargo check verde (9 oct); tests 933/933 (los tests de masterclass validan el contrato del archivo real, no su estado vivo); build web no corrido (pisaría `.next`).

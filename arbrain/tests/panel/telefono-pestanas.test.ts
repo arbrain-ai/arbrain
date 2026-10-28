@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { esMantenido, esReapertura, LARGA_MOVIMIENTO, LARGA_MS, REAPERTURA_MS, vistaTelefono } from '../../src/features/cabina/panel/telefono-logica'
+import { esMantenido, esReapertura, esSeccionCompleta, LARGA_MOVIMIENTO, LARGA_MS, REAPERTURA_MS, seQuedaAlReabrir, vistaTelefono } from '../../src/features/cabina/panel/telefono-logica'
 import { nombreDeClave } from '../../src/features/cabina/panel/nombre-pestana'
 import type { Fijada } from '../../src/features/cabina/panel/fijadas'
 
@@ -39,4 +39,13 @@ test('el nombre del centro de la cabecera: el de la pestaña', () => {
   assert.equal(nombreDeClave('taller', fijadas), 'Taller')
   assert.equal(nombreDeClave('vista-1', fijadas), 'Calendario')
   assert.equal(nombreDeClave('vista-9', fijadas), 'Pestaña')
+})
+
+test('reabrir no saca de Perro, Casa ni Hábitos (26 oct 2026: «Me reenvía aquí»)', () => {
+  for (const r of ['/perro', '/casa', '/telefono/habitos', '/perro/x']) assert.equal(seQuedaAlReabrir(r), true, r)
+  for (const r of ['/chat', '/calendar', '/perrogato', '/salud']) assert.equal(seQuedaAlReabrir(r), false, r)
+  assert.equal(esSeccionCompleta('/perro'), true)
+  assert.equal(esSeccionCompleta('/casa'), true)
+  assert.equal(esSeccionCompleta('/chat'), false)
+  assert.equal(esSeccionCompleta(null), false)
 })

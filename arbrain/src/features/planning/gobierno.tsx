@@ -33,7 +33,7 @@ export interface Gobierno {
   ponerTarifa: (monto: number | null, moneda?: string) => Promise<unknown>
   /** El toque de la mañana: el día queda aceptado (almacén DRIP, `mananas`). */
   aceptarManana: (dia: string) => Promise<unknown>
-  /** En ancho la leyenda vive en la barra del calendario; las escalas no la repiten. */
+  /** La leyenda vive en el engrane del calendario (25 oct 2026); las escalas no la repiten. */
   leyendaEnBarra: boolean
   /** Deja un encargo en el chat (sin ejecutar nada). */
   conversar?: (borrador: string) => void

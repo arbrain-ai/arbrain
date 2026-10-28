@@ -17,8 +17,8 @@ test('cada ventana recuerda su zoom aparte de la principal', () => {
   assert.notEqual(claveZoomVentana('1'), 'mc-ui-zoom')
   assert.notEqual(claveZoomVentana('1'), claveZoomVentana('2'))
 })
-test('el Taller son cuatro pestañas y los ids viejos llegan a su lugar (5 oct 2026, 18:11)', () => {
-  assert.deepEqual(SEGMENTOS_TALLER.map(t => t.etiqueta), ['Agentes', 'Rutinas', 'Memoria', 'Máquina'])
+test('el Taller son cinco pestañas (Historia desde el 28 oct 2026) y los ids viejos llegan a su lugar (5 oct 2026, 18:11)', () => {
+  assert.deepEqual(SEGMENTOS_TALLER.map(t => t.etiqueta), ['Agentes', 'Historia', 'Rutinas', 'Memoria', 'Computadora'])
   assert.ok(SEGMENTOS_TALLER.every(t => t.pregunta.endsWith('?')))
   assert.equal(aSegmento('servidores'), 'maquina'); assert.equal(aSegmento('servicios'), 'maquina')
   assert.equal(aSegmento('archivos'), 'memoria'); assert.equal(aSegmento('rutinas'), 'rutinas')

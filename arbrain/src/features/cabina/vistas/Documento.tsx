@@ -13,7 +13,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Check, Code2, Eye, FileText, GitCompare, Pencil, RotateCcw, X } from 'lucide-react'
+import { Check, Code2, Eye, FileText, GitCompare, Maximize2, Pencil, RotateCcw, X } from 'lucide-react'
 import { useTheme } from '@/shared/contexts/theme-context'
 import { MarkdownMessage } from '@/features/chat/components/MarkdownMessage'
 import { MermaidDiagram, useIsTouchDevice, useZoom } from '@/features/chat/components/MermaidDiagram'
@@ -141,10 +141,79 @@ function MarcoHtml({ clave, url, titulo, grande }: { clave: string; url: string;
     }
     window.addEventListener('message', al); return () => window.removeEventListener('message', al)
   }, [rueda, tecla, pinza])
-  return <div ref={caja} className={d.htmlMarco} data-grande={grande || undefined}>
+  const pantalla = usePantallaCompleta(caja, marco, enviar)
+  return <div ref={caja} className={d.htmlMarco} data-grande={grande || undefined} data-pantalla={pantalla.activa || undefined} data-pantalla-marco={pantalla.activa || undefined}>
     <iframe ref={marco} className={d.html} data-lector src={`${url}?tema=${inicial.current}`} sandbox="allow-scripts" title={titulo}
-      onLoad={() => { enviar({ tipo: 'arbrain-tema', tema }); enviar({ tipo: 'arbrain-zoom', zoom }) }} />
+      onLoad={() => { enviar({ tipo: 'arbrain-tema', tema }); enviar({ tipo: 'arbrain-zoom', zoom }); enviar({ tipo: 'arbrain-pantalla', on: pantalla.activa }) }} />
+    {pantalla.activa
+      ? <button type="button" className={d.salirPantalla} onClick={pantalla.salir} aria-label="Salir de pantalla completa"><X size={18} aria-hidden /></button>
+      : <button type="button" className={d.pantallaBtn} onClick={pantalla.entrar} title="Pantalla completa (gira el teléfono para verlo horizontal)"><Maximize2 size={14} aria-hidden /><span>Pantalla completa</span></button>}
   </div>
+}
+
+/** Pantalla completa del HTML (28 oct 2026: «un botón para expandir todo viendo horizontal para poder
+ *  estudiarla bien»). Fullscreen API donde exista (escritorio, Android); en el iPhone no hay API para un div, así que el
+ *  marco se fija a todo el viewport por CSS, encima de la barra de la app. Girar el teléfono solo cambia el viewport y el
+ *  documento se re-escala. Dentro, el script inyectado (tema-html.ts) pasa láminas con toque y swipe. El iframe no se
+ *  remonta: el deck conserva la lámina en la que iba. */
+function usePantallaCompleta(caja: React.RefObject<HTMLDivElement | null>, marco: React.RefObject<HTMLIFrameElement | null>, enviar: (m: object) => void) {
+  const [activa, setActiva] = useState(false)
+  const nativa = useRef(false)
+  type ConWebkit = HTMLElement & { webkitRequestFullscreen?: () => Promise<void> | void }
+  type DocWebkit = Document & { webkitFullscreenElement?: Element | null; webkitExitFullscreen?: () => void }
+  const entrar = () => {
+    setActiva(true)
+    const el = caja.current as ConWebkit | null
+    nativa.current = false
+    try {
+      if (el?.requestFullscreen) { nativa.current = true; el.requestFullscreen().catch(() => { nativa.current = false }) }
+      else if (el?.webkitRequestFullscreen) { nativa.current = true; el.webkitRequestFullscreen() }
+    } catch { nativa.current = false }
+  }
+  const salir = () => {
+    setActiva(false)
+    const doc = document as DocWebkit
+    if (doc.fullscreenElement) doc.exitFullscreen().catch(() => {})
+    else if (doc.webkitFullscreenElement) doc.webkitExitFullscreen?.()
+  }
+  useEffect(() => {
+    enviar({ tipo: 'arbrain-pantalla', on: activa })
+    if (!activa) return
+    marco.current?.focus()
+    const previo = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    // Sin API nativa (iPhone): el resto de la app se oculta (sus barras no pintan encima aunque tengan su propio z-index) y
+    // los ancestros que harían de caja del `fixed` (transform, filter, contain) se neutralizan mientras dure.
+    document.documentElement.dataset.pantallaDoc = ''
+    const neutralizados: { el: HTMLElement; css: string }[] = []
+    for (let el = caja.current?.parentElement; el && el !== document.body; el = el.parentElement) {
+      const c = getComputedStyle(el)
+      if (c.transform !== 'none' || c.filter !== 'none' || c.backdropFilter !== 'none' || /transform|filter/.test(c.willChange) || /paint|layout|strict|content/.test(c.contain)) {
+        neutralizados.push({ el, css: el.style.cssText })
+        el.style.setProperty('transform', 'none', 'important'); el.style.setProperty('filter', 'none', 'important'); el.style.setProperty('backdrop-filter', 'none', 'important')
+        el.style.setProperty('will-change', 'auto', 'important'); el.style.setProperty('contain', 'none', 'important')
+      }
+    }
+    const doc = document as DocWebkit
+    // Si el sistema sale del fullscreen nativo (Esc, gesto), el modo se apaga con él.
+    const cambio = () => { if (nativa.current && !doc.fullscreenElement && !doc.webkitFullscreenElement) { nativa.current = false; setActiva(false) } }
+    const tecla = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') salir()
+      else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); enviar({ tipo: 'arbrain-nav', paso: e.key === 'ArrowRight' ? 1 : -1 }) }
+    }
+    const mensaje = (e: MessageEvent) => { if (e.source === marco.current?.contentWindow && e.data?.tipo === 'arbrain-salir') salir() }
+    document.addEventListener('fullscreenchange', cambio); document.addEventListener('webkitfullscreenchange', cambio)
+    window.addEventListener('keydown', tecla); window.addEventListener('message', mensaje)
+    return () => {
+      document.body.style.overflow = previo
+      delete document.documentElement.dataset.pantallaDoc
+      for (const { el, css } of neutralizados) el.style.cssText = css
+      document.removeEventListener('fullscreenchange', cambio); document.removeEventListener('webkitfullscreenchange', cambio)
+      window.removeEventListener('keydown', tecla); window.removeEventListener('message', mensaje)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activa])
+  return { activa, entrar, salir }
 }
 
 /** Texto plano en párrafos (los separa una línea en blanco), cada uno con sus saltos: así «Escuchar» los lee y salta de uno a otro. */

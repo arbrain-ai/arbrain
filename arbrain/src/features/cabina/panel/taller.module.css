@@ -17,11 +17,11 @@
 .pulso {
   position: relative; display: flex; align-items: flex-start; gap: 12px; margin-top: 12px; padding: 14px 16px 13px 16px;
   border-radius: 16px; border: 1px solid var(--border); overflow: hidden;
-  background: radial-gradient(120% 110% at 0% 0%, rgba(var(--brand-rgb), 0.09), transparent 62%), var(--card);
-  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.03), 0 12px 26px -22px rgba(15, 23, 42, 0.45);
+  background: radial-gradient(120% 110% at 0% 0%, rgba(var(--l-velo-morado-rgb, var(--brand-rgb)), 0.09), transparent 62%), var(--card);
+  box-shadow: 0 1px 0 rgba(var(--l-sombra-rgb, 15, 23, 42), 0.03), 0 12px 26px -22px rgba(var(--l-sombra-rgb, 15, 23, 42), 0.45);
 }
 .taller > .pulso { width: calc(100% - 28px); }
-:global(.dark) .pulso { background: radial-gradient(120% 110% at 0% 0%, rgba(var(--brand-rgb), 0.16), transparent 64%), rgba(255, 255, 255, 0.03); box-shadow: none; }
+:global(.dark) .pulso { background: radial-gradient(120% 110% at 0% 0%, rgba(var(--l-velo-morado-rgb, var(--brand-rgb)), 0.16), transparent 64%), rgba(var(--l-luz-rgb, 255, 255, 255), 0.03); box-shadow: none; }
 .pulso::before { content: ''; position: absolute; left: 0; top: 14px; bottom: 14px; width: 3px; border-radius: 0 3px 3px 0; background: var(--tono, color-mix(in srgb, var(--success) 70%, transparent)); }
 .pulso[data-tono='atencion'] { --tono: var(--atencion); }
 .pulso[data-tono='falla'] { --tono: var(--falla); border-color: color-mix(in srgb, var(--falla) 30%, var(--border)); }
@@ -55,16 +55,16 @@
 /* ── Pestañas con ícono ── */
 .segmentos { display: flex; gap: 2px; margin-top: 10px; padding: 3px; border-radius: 12px; background: rgba(var(--foreground-rgb), 0.05); }
 .taller > .segmentos { width: calc(100% - 28px); }
-:global(.dark) .segmentos { background: rgba(255, 255, 255, 0.05); }
+:global(.dark) .segmentos { background: rgba(var(--l-luz-rgb, 255, 255, 255), 0.05); }
 .segmento {
   flex: 1 1 auto; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 5px; height: 32px; padding: 0 7px;
   border: 0; border-radius: 9px; background: transparent; color: var(--muted); font: inherit; font-size: 12.5px; font-weight: 550; cursor: pointer; white-space: nowrap;
   transition: color 140ms, background 160ms;
 }
 .segmento:hover { color: var(--foreground); }
-.segmento[aria-selected='true'] { background: var(--card); color: var(--foreground); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12); }
-:global(.dark) .segmento[aria-selected='true'] { background: rgba(255, 255, 255, 0.09); }
-.segmento[aria-selected='true'] .segIcono { color: var(--brand-ink); }
+.segmento[aria-selected='true'] { background: var(--card); color: var(--foreground); box-shadow: 0 1px 2px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.12); }
+:global(.dark) .segmento[aria-selected='true'] { background: rgba(var(--l-luz-rgb, 255, 255, 255), 0.09); }
+.segmento[aria-selected='true'] .segIcono { color: var(--l-tinta-morado, var(--brand-ink)); }
 .segmento:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
 .segIcono { position: relative; display: inline-grid; place-items: center; flex: none; transition: color 160ms; }
 .segAlerta { position: absolute; top: -3px; right: -4px; width: 7px; height: 7px; border-radius: 4px; box-shadow: 0 0 0 2px var(--surface); }
@@ -88,9 +88,9 @@
 
 .tarjeta {
   min-width: 0; padding: 10px 6px 6px; border-radius: 14px; border: 1px solid var(--border); background: var(--card);
-  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.03), 0 10px 22px -20px rgba(15, 23, 42, 0.4);
+  box-shadow: 0 1px 0 rgba(var(--l-sombra-rgb, 15, 23, 42), 0.03), 0 10px 22px -20px rgba(var(--l-sombra-rgb, 15, 23, 42), 0.4);
 }
-:global(.dark) .tarjeta { background: rgba(255, 255, 255, 0.03); box-shadow: none; }
+:global(.dark) .tarjeta { background: rgba(var(--l-luz-rgb, 255, 255, 255), 0.03); box-shadow: none; }
 .tarjeta[data-activa] { border-color: rgba(var(--brand-rgb), 0.35); }
 .tarjetaCabeza { display: flex; align-items: center; gap: 8px; min-height: 26px; padding: 0 8px 4px 10px; flex-wrap: wrap; }
 .tarjetaTitulo, .tarjetaTituloBoton { flex: 1 1 auto; min-width: 0; font-size: 13.5px; font-weight: 620; line-height: 1.3; color: var(--foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -99,13 +99,13 @@
 .tarjetaTituloBoton:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
 .tarjetaCuenta { flex: none; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 
-.areaIcono { flex: none; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 8px; color: var(--brand-ink); background: rgba(var(--brand-rgb), 0.09); }
-:global(.dark) .areaIcono { background: rgba(var(--brand-rgb), 0.16); }
+.areaIcono { flex: none; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 8px; color: var(--l-tinta-morado, var(--brand-ink)); background: rgba(var(--l-velo-morado-rgb, var(--brand-rgb)), 0.09); }
+:global(.dark) .areaIcono { background: rgba(var(--l-velo-morado-rgb, var(--brand-rgb)), 0.16); }
 .areaIcono[data-tono='atencion'] { color: color-mix(in srgb, var(--atencion) 85%, var(--foreground)); background: color-mix(in srgb, var(--atencion) 14%, transparent); }
 .areaIcono[data-tono='falla'] { color: var(--falla); background: color-mix(in srgb, var(--falla) 12%, transparent); }
 
 .calma { display: flex; align-items: flex-start; gap: 12px; padding: 18px 16px; border-radius: 14px; border: 1px dashed var(--border); color: var(--muted); }
-.calma svg { flex: none; color: rgba(var(--brand-rgb), 0.6); margin-top: 1px; }
+.calma svg { flex: none; color: var(--l-tinta-morado, rgba(var(--brand-rgb), 0.6)); margin-top: 1px; }
 .calma p { margin: 0; font-size: 13.5px; line-height: 1.5; }
 .calma b { color: var(--foreground); font-weight: 600; }
 
@@ -130,7 +130,7 @@
 /* «Nuevo agente», discreto a la derecha de la ceja. */
 .nuevo {
   display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 11px; border-radius: 999px; font: inherit; font-size: 12.5px; font-weight: 600;
-  border: 1px solid rgba(var(--brand-rgb), 0.28); background: rgba(var(--brand-rgb), 0.06); color: var(--brand-ink); cursor: pointer; transition: background 140ms, border-color 140ms;
+  border: 1px solid var(--l-borde-morado, rgba(var(--brand-rgb), 0.28)); background: rgba(var(--l-velo-morado-rgb, var(--brand-rgb)), 0.06); color: var(--l-tinta-morado, var(--brand-ink)); cursor: pointer; transition: background 140ms, border-color 140ms;
 }
 .nuevo:hover { background: rgba(var(--brand-rgb), 0.12); border-color: rgba(var(--brand-rgb), 0.45); }
 .nuevo:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
@@ -154,7 +154,7 @@
 .procTexto { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .procNombre { display: flex; align-items: center; gap: 6px; font-size: 13.5px; font-weight: 550; line-height: 1.3; color: var(--foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .procQue { font-size: 12px; line-height: 1.35; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.publico { flex: none; padding: 0 6px; border-radius: 999px; font-style: normal; font-size: 10px; font-weight: 650; letter-spacing: 0.04em; text-transform: uppercase; line-height: 16px; color: var(--brand-ink); background: rgba(var(--brand-rgb), 0.1); }
+.publico { flex: none; padding: 0 6px; border-radius: 999px; font-style: normal; font-size: 10px; font-weight: 650; letter-spacing: 0.04em; text-transform: uppercase; line-height: 16px; color: var(--l-ceja-morado, var(--brand-ink)); background: rgba(var(--l-velo-morado-rgb, var(--brand-rgb)), 0.1); }
 .puerto { flex: none; font: 11.5px/1 ui-monospace, 'SF Mono', Menlo, monospace; color: var(--muted); font-variant-numeric: tabular-nums; }
 .procFlecha { flex: none; color: var(--muted); opacity: 0.6; transition: opacity 120ms, transform 160ms var(--mov-curva); }
 .proc:hover .procFlecha { opacity: 1; transform: translate(1px, -1px); }
@@ -185,7 +185,7 @@ button.chip:hover { border-color: rgba(var(--brand-rgb), 0.4); background: rgba(
 
 /* Huérfanos: ámbar, con su razón y «Apagar» que se confirma ahí mismo (sin diálogos del navegador). */
 .huerfanos { border-color: color-mix(in srgb, var(--atencion) 35%, var(--border)); background: linear-gradient(180deg, color-mix(in srgb, var(--atencion) 6%, var(--card)), var(--card) 70%); }
-:global(.dark) .huerfanos { background: linear-gradient(180deg, color-mix(in srgb, var(--atencion) 9%, transparent), rgba(255, 255, 255, 0.03) 70%); }
+:global(.dark) .huerfanos { background: linear-gradient(180deg, color-mix(in srgb, var(--atencion) 9%, transparent), rgba(var(--l-luz-rgb, 255, 255, 255), 0.03) 70%); }
 .huerfanosNota { margin: 0 10px 4px; font-size: 12px; line-height: 1.45; color: var(--muted); }
 .huerfano { padding-bottom: 4px; }
 .huerfano + .huerfano, :global(.mov-pliega) + :global(.mov-pliega) .huerfano { border-top: 1px solid var(--linea); }
@@ -201,7 +201,7 @@ button.chip:hover { border-color: rgba(var(--brand-rgb), 0.4); background: rgba(
 .confirmar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 2px 8px 6px; padding: 8px 10px; border-radius: 10px; font-size: 13px; background: color-mix(in srgb, var(--atencion) 10%, transparent); }
 .confirmar > span { flex: 1 1 auto; min-width: 0; font-weight: 550; }
 .confirmarFila { flex: none; display: inline-flex; gap: 4px; }
-.confirmarSi { height: 26px; padding: 0 11px; border-radius: 999px; border: 0; background: var(--falla); color: white; font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; }
+.confirmarSi { height: 26px; padding: 0 11px; border-radius: 999px; border: 0; background: var(--falla); color: var(--l-gris-16, white); font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; }
 .confirmarSi:hover { filter: brightness(1.06); }
 .confirmarNo { height: 26px; padding: 0 9px; border-radius: 999px; border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; }
 .confirmarNo:hover { color: var(--foreground); }
@@ -217,8 +217,8 @@ button.chip:hover { border-color: rgba(var(--brand-rgb), 0.4); background: rgba(
 /* ── Servicios ── */
 .falla { border-color: color-mix(in srgb, var(--falla) 38%, var(--border)); background: linear-gradient(180deg, color-mix(in srgb, var(--falla) 6%, var(--card)), var(--card) 75%); padding-bottom: 10px; }
 .falla[data-menor] { border-color: color-mix(in srgb, var(--atencion) 38%, var(--border)); background: linear-gradient(180deg, color-mix(in srgb, var(--atencion) 6%, var(--card)), var(--card) 75%); }
-:global(.dark) .falla { background: linear-gradient(180deg, color-mix(in srgb, var(--falla) 10%, transparent), rgba(255, 255, 255, 0.03) 75%); }
-:global(.dark) .falla[data-menor] { background: linear-gradient(180deg, color-mix(in srgb, var(--atencion) 10%, transparent), rgba(255, 255, 255, 0.03) 75%); }
+:global(.dark) .falla { background: linear-gradient(180deg, color-mix(in srgb, var(--falla) 10%, transparent), rgba(var(--l-luz-rgb, 255, 255, 255), 0.03) 75%); }
+:global(.dark) .falla[data-menor] { background: linear-gradient(180deg, color-mix(in srgb, var(--atencion) 10%, transparent), rgba(var(--l-luz-rgb, 255, 255, 255), 0.03) 75%); }
 .fallaEtiqueta { flex: none; font-size: 11.5px; font-weight: 600; color: var(--falla); }
 .falla[data-menor] .fallaEtiqueta { color: color-mix(in srgb, var(--atencion) 80%, var(--foreground)); }
 .explicacion { margin: 2px 10px 0 42px; max-width: 64ch; font-size: 13.5px; line-height: 1.5; color: var(--foreground); }
@@ -258,9 +258,9 @@ button.chip:hover { border-color: rgba(var(--brand-rgb), 0.4); background: rgba(
 /* ── Memoria: el cerebro que crece ── */
 .cerebro {
   position: relative; padding: 16px 16px 14px; border-radius: 16px; border: 1px solid var(--border); overflow: hidden;
-  background: radial-gradient(130% 120% at 100% 0%, rgba(var(--brand-rgb), 0.12), transparent 60%), var(--card);
+  background: radial-gradient(130% 120% at 100% 0%, rgba(var(--l-velo-morado-rgb, var(--brand-rgb)), 0.12), transparent 60%), var(--card);
 }
-:global(.dark) .cerebro { background: radial-gradient(130% 120% at 100% 0%, rgba(var(--brand-rgb), 0.2), transparent 62%), rgba(255, 255, 255, 0.03); }
+:global(.dark) .cerebro { background: radial-gradient(130% 120% at 100% 0%, rgba(var(--l-velo-morado-rgb, var(--brand-rgb)), 0.2), transparent 62%), rgba(var(--l-luz-rgb, 255, 255, 255), 0.03); }
 .cerebroTitular { margin: 0 0 10px; font-family: var(--serif-ui); font-size: 19px; line-height: 1.25; font-weight: 600; color: var(--foreground); }
 .cerebroCifras { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .cerebroCifra {
@@ -268,12 +268,12 @@ button.chip:hover { border-color: rgba(var(--brand-rgb), 0.4); background: rgba(
   background: rgba(var(--foreground-rgb), 0.03); color: var(--muted); font: inherit; font-size: 12.5px; text-align: left; cursor: pointer;
   transition: border-color 140ms, background 140ms; animation: mov-subir var(--mov-entrada) var(--mov-curva) backwards; animation-delay: calc(var(--i, 0) * var(--mov-paso));
 }
-:global(.dark) .cerebroCifra { background: rgba(255, 255, 255, 0.04); }
+:global(.dark) .cerebroCifra { background: rgba(var(--l-luz-rgb, 255, 255, 255), 0.04); }
 .cerebroCifra:hover { border-color: rgba(var(--brand-rgb), 0.3); }
 .cerebroCifra[aria-pressed='true'] { border-color: rgba(var(--brand-rgb), 0.45); background: rgba(var(--brand-rgb), 0.07); }
 .cerebroCifra:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
 .cerebroNumero { font-size: 26px; line-height: 1.05; font-weight: 650; letter-spacing: -0.02em; color: var(--foreground); }
-.cerebroCifra small { font-size: 11px; font-weight: 600; color: var(--brand-ink); }
+.cerebroCifra small { font-size: 11px; font-weight: 600; color: var(--l-tinta-morado, var(--brand-ink)); }
 @media (prefers-reduced-motion: reduce) { .cerebroCifra { animation: none; } }
 @container (max-width: 420px) { .cerebroNumero { font-size: 22px; } .cerebroCifra { padding: 8px 9px; } }
 
@@ -284,7 +284,7 @@ button.chip:hover { border-color: rgba(var(--brand-rgb), 0.4); background: rgba(
 }
 .partes button:hover { color: var(--foreground); }
 .partes button[aria-selected='true'] { color: var(--foreground); border-color: rgba(var(--brand-rgb), 0.45); background: rgba(var(--brand-rgb), 0.07); }
-.partes button[aria-selected='true'] svg { color: var(--brand-ink); }
+.partes button[aria-selected='true'] svg { color: var(--l-tinta-morado, var(--brand-ink)); }
 .partes button:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
 .incrustada { min-width: 0; }
 
@@ -293,10 +293,10 @@ button.chip:hover { border-color: rgba(var(--brand-rgb), 0.4); background: rgba(
   display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 12px 12px 14px; border-radius: 14px; border: 1px solid var(--border);
   background: var(--card); color: inherit; font: inherit; text-align: left; cursor: pointer; transition: border-color 140ms, transform 200ms var(--mov-curva);
 }
-:global(.dark) .instruccion { background: rgba(255, 255, 255, 0.03); }
+:global(.dark) .instruccion { background: rgba(var(--l-luz-rgb, 255, 255, 255), 0.03); }
 .instruccion:hover { border-color: rgba(var(--brand-rgb), 0.4); }
 .instruccion:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
-.instruccionNumero { flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 9px; font-family: var(--serif-ui); font-size: 15px; font-weight: 600; color: var(--brand-ink); background: rgba(var(--brand-rgb), 0.1); }
+.instruccionNumero { flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 9px; font-family: var(--serif-ui); font-size: 15px; font-weight: 600; color: var(--l-tinta-morado, var(--brand-ink)); background: rgba(var(--l-velo-morado-rgb, var(--brand-rgb)), 0.1); }
 .instruccionTexto { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .instruccionTexto b { font-size: 14px; font-weight: 620; color: var(--foreground); }
 .instruccionTexto span { font-size: 12.5px; line-height: 1.4; color: var(--muted); }
@@ -309,7 +309,7 @@ button.chip:hover { border-color: rgba(var(--brand-rgb), 0.4); background: rgba(
 .lectorTitulo { margin: 8px 0 0; font-family: var(--serif-ui); font-size: 22px; line-height: 1.2; font-weight: 600; color: var(--foreground); }
 .lectorMeta { margin: 0; font-size: 11.5px; color: var(--muted); }
 .lectorTexto { margin-top: 6px; padding: 14px 16px; border-radius: 14px; border: 1px solid var(--border); background: var(--card); }
-:global(.dark) .lectorTexto { background: rgba(255, 255, 255, 0.03); }
+:global(.dark) .lectorTexto { background: rgba(var(--l-luz-rgb, 255, 255, 255), 0.03); }
 .registroVolver { display: flex; align-items: center; gap: 8px; padding: 10px 14px 0; }
 /* Rutinas: la vista viva (10 oct 2026, features/rutinas/RutinasViva.tsx), con el aire del Taller. */
 .rutinas { min-width: 0; padding: 12px 14px 0; }
@@ -318,3 +318,16 @@ button.chip:hover { border-color: rgba(var(--brand-rgb), 0.4); background: rgba(
 /* Procesos de un agente (14 oct 2026): plegados bajo su fila, sangrados para que no parezcan otro agente. */
 .procesos { margin: -2px 0 2px 34px; }
 .procesos > summary { padding: 4px 8px; font-size: 12px; }
+
+/* Lenguaje unificado (27 oct 2026): el segmento elegido es la tecla apagada del botón de enviar (tapa de titanio, canto de luz
+   arriba, sombra de contacto). Sin morado: lo elegido se nota por el relieve, no por el color. */
+:global(html[data-estilo='unificado']) .segmento[aria-selected='true'] { background: var(--l-tecla-cara); color: var(--l-tecla-tinta); box-shadow: var(--l-tecla-sombra), 0 0 0 1px var(--l-tecla-canto); }
+
+/* Lenguaje unificado (27 oct 2026): una sola alarma por pantalla. Los avisos del héroe son chips neutros con su punto de
+   color (rojo = falla, ámbar = atención); la tarjeta no se enmarca de rojo. */
+:global(html[data-estilo='unificado']) .alerta { border-color: var(--l-borde-fuerte); background: transparent; }
+:global(html[data-estilo='unificado']) .alerta:hover { background: rgba(var(--l-velo-morado-rgb), 0.08); }
+:global(html[data-estilo='unificado']) .pulso[data-tono='falla'] { border-color: var(--l-borde-fuerte); }
+:global(html[data-estilo='unificado']) .huerfanos { border-color: var(--l-borde-fuerte); background: var(--l-placa); }
+:global(html[data-estilo='unificado']) .nuevo { color: var(--l-tinta-1); border-color: var(--l-borde-fuerte); background: transparent; }
+:global(html[data-estilo='unificado']) .nuevo:hover { background: rgba(var(--l-velo-morado-rgb), 0.08); border-color: var(--l-borde-fuerte); }

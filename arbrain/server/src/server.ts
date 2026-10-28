@@ -43,6 +43,8 @@ import { forkConversation, forkClaudeEnHijo, copiarAjustes, ForkRejected } from 
 import { nativeAwareControlAccess } from './chat-runtime/native-control-proof.js'
 import { readClaudeInventory, readCodexInventory, renderRuntimeInventory, type InventoryKind } from './chat-runtime/runtime-inventory.js'
 import { claudeRuntimePool } from './chat-runtime/claude-pool.js'
+import { deshacerDesde, rehacer, abrirConSdk } from './chat-runtime/deshacer.js'
+import { entornoClaude } from './cliente/cofre.js'
 import { changeChatControls, effortControlPatch, ultracodeControlPatch } from './chat-runtime/chat-controls.js'
 import { hostname } from 'node:os'
 import { readFileSync, readdirSync, statSync, existsSync, openSync, readSync, closeSync, realpathSync } from 'fs'
@@ -64,8 +66,9 @@ import { deliveryOutcome } from './chat-runtime/delivery-outcome.js'
 import { compactDelivery } from './chat-runtime/delivery-compact.js'
 import { getCommandCatalog } from './chat-runtime/command-catalog.js'
 import { parseGoalCommand, goalView, formatGoal, GOAL_HELP, GOAL_NO_THREAD, interceptsGoal } from './chat-runtime/chat-goal.js'
+import { comandoMetaLocal, EstadoMetas, estadoMetas, textoComandoLocal } from './chat-runtime/meta-claude.js'
 import { downloadFromUrl, buildAttachmentMessage, esDocumento, validarAdjunto } from './media.js'
-import { synthesizeSpeech } from './voice.js'
+import { synthesizeSpeech, synthesizeLector, LECTOR_SPEED } from './voice.js'
 import { getDb, getSession, setSession, clearSession, listTasks, getTask, updateTaskStatus, updateTaskAfterRun, saveQueryUsage, getUsageSummary, getCronSession, setCronSession, getChatOverrides, setChatOverrides } from './db.js'
 import { computeNextRun, runDueTasks, executeCronJob, CRON_TZ } from './scheduler.js'
 import { saveConversationTurn } from './memory.js'
@@ -77,6 +80,10 @@ import { esEdicionCliente } from './edicion.js'
 import { estadoLlaves, faltaLlaveClaude, faltaLlaveTrasConectar, MENSAJE_FALTA_LLAVE, CODIGO_FALTA_LLAVE } from './cliente/llaves.js'
 import { hostLocalValido, rutaCanonica, rutaSoloDaniel, MENSAJE_NO_DISPONIBLE } from './cliente/rutas.js'
 import { confirmacionesDelDaemon, iniciarConfirmaciones, pedidoManos } from './cliente/confirmaciones.js'
+import { avisarTelefono, retomarEnConversacion } from './cliente/cola.js'
+import { marcarContaminada } from './guardia-agentes.js'
+import { listarReglas, resolverTarjeta, revocarRegla } from './cliente/tarjeta.js'
+import { motor as motorPty } from './motor/cliente.js'
 import { secretoConfirmarValido } from './cliente/secreto.js'
 import { cohorteDelDaemon, iniciarCohorte } from './cliente/cohorte.js'
 import { iniciarProgreso, progresoDelDaemon } from './cliente/progreso.js'
@@ -790,14 +797,23 @@ async function rutasCliente(req: IncomingMessage, res: ServerResponse, ruta: str
     sendJSON(res, 200, await probarLlaveVoz(llaveVoz()))
     return true
   }
+  if (ruta === '/permisos/reglas' || ruta === '/permisos/reglas/quitar') {
+    // «Siempre este patrón»: visibles y revocables en Ajustes › Permisos. Solo la app (un agente no se quita ni se pone reglas).
+    if (!secretoApp()) { sendJSON(res, 403, { error: 'Solo la app puede ver o quitar reglas.' }); return true }
+    if (req.method === 'GET' && ruta === '/permisos/reglas') { sendJSON(res, 200, listarReglas()); return true }
+    if (req.method === 'POST' && ruta === '/permisos/reglas/quitar') { const r = revocarRegla(cuerpo.id); sendJSON(res, r.status, r.ok ? { ok: true, ...listarReglas() } : { error: r.error }); return true }
+    sendJSON(res, 404, { error: 'Ruta desconocida.' })
+    return true
+  }
   if (ruta === '/confirmaciones' || ruta.startsWith('/confirmaciones/')) {
     const store = confirmacionesDelDaemon()
     if (!store) { sendJSON(res, 503, { error: 'Confirmaciones no iniciadas.' }); return true }
-    if (req.method === 'GET' && ruta === '/confirmaciones') { sendJSON(res, 200, { pendientes: store.pendientes(), sandbox: sandboxActivo() }); return true }
+    if (req.method === 'GET' && ruta === '/confirmaciones') { sendJSON(res, 200, { pendientes: store.pendientes(), terminadas: store.terminadas(), sandbox: sandboxActivo() }); return true }
     if (req.method === 'POST' && ruta === '/confirmaciones/resolver') {
       if (!secretoApp()) { sendJSON(res, 403, { error: 'Solo la app puede resolver una confirmación.' }); return true }
-      const r = store.resolver(String(cuerpo.id ?? ''), cuerpo.decision)
-      sendJSON(res, r.ok ? 200 : r.status, r.ok ? r.confirmacion : { error: r.error })
+      // Botón Play: comentario, «Siempre este patrón» y «Córrelo tú» (cliente/tarjeta.ts).
+      const r = await resolverTarjeta(store, cuerpo, () => ({ motor: motorPty, cwd: process.env.ARBRAIN_HOME || PROJECT_ROOT, registrar: e => logger.info(e, 'córrelo tú') }))
+      sendJSON(res, r.ok ? 200 : r.status, r.ok ? { ...r.confirmacion, ...(r.regla ? { regla: r.regla } : {}) } : { error: r.error })
       return true
     }
     if (req.method === 'POST' && (ruta === '/confirmaciones/pedir' || ruta === '/confirmaciones/consumir') && (!computerUseDisponible() || (esEdicionCliente() && !computerUseEncendido()))) {
@@ -1146,6 +1162,14 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
         const r = await actividadSinPantalla(id, desde, typeof parsed.turno === 'number' ? Math.max(0, Math.floor(parsed.turno)) : 0)
         sendJSON(res, r ? 200 : 404, r ?? { error: 'Ese agente no corre sin pantalla.' }); return
       }
+      // Tablero de agentes (27 oct 2026): Detener y Responder desde el Taller, por la misma vía que usa Levy.
+      if (parsed.que === 'detener' || parsed.que === 'responder') {
+        const { pedidoTablero, accionTablero } = await import('./cabina/acciones-tablero.js')
+        const pedido = pedidoTablero(parsed)
+        if ('error' in pedido) { sendJSON(res, 400, { error: pedido.error }); return }
+        const r = await accionTablero(pedido)
+        sendJSON(res, r.ok ? 200 : r.status, r.ok ? r : { error: r.error }); return
+      }
       if (parsed.que === 'trabajos') { const { trabajos } = await import('./cabina/cuerpo.js'); sendJSON(res, 200, await trabajos(typeof parsed.lineas === 'number' ? Math.min(Math.max(parsed.lineas, 2), 30) : 6)); return }
       sendJSON(res, 400, { error: 'Vista desconocida.' })
     } catch (error) { sendJSON(res, 503, { error: error instanceof Error ? error.message : 'No se pudo leer la vista.' }) }
@@ -1324,6 +1348,21 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
   // pasar por /chat/stream (2 oct 2026). Por el stream el cambio se perdía en
   // silencio si había un turno en curso; este camino no depende de turnos.
   // Body: { session, account, ownerId, verifiedConversation, effort? | ultracode? }.
+  // La meta de Claude desde el chip del chat (27 oct 2026): pausar/reanudar/quitar sin teclear comandos. El freno lee
+  // este estado en vivo, así que pausar corta las vueltas aun con el turno en curso. Quitar pausa ya y el chat manda
+  // `/goal clear` al CLI cuando el turno termina (meta-claude.ts). La Next route ya verificó la conversación.
+  if ((req.method === 'POST' || req.method === 'GET') && reqPath === '/chat/meta') {
+    const fuente = req.method === 'GET' ? Object.fromEntries(reqUrl.searchParams) as Record<string, unknown> : parsed
+    const session = typeof fuente.session === 'string' ? fuente.session.trim() : ''
+    const owner = typeof fuente.ownerId === 'string' ? fuente.ownerId.trim() : ''
+    if (!session || !owner) { sendJSON(res, 400, { error: 'Falta la conversación.' }); return }
+    const clave = EstadoMetas.clave({ owner, account: typeof fuente.account === 'string' && fuente.account ? fuente.account : 'default', conversationId: session })
+    if (req.method === 'GET') { sendJSON(res, 200, { meta: estadoMetas.get(clave) }); return }
+    const accion = parsed.accion
+    if (accion !== 'pausar' && accion !== 'reanudar' && accion !== 'quitar') { sendJSON(res, 400, { error: 'accion debe ser pausar, reanudar o quitar.' }); return }
+    sendJSON(res, 200, { meta: estadoMetas.poner(clave, accion === 'reanudar' ? 'en_curso' : 'pausada') })
+    return
+  }
   if (req.method === 'POST' && reqPath === '/efforts') {
     const session = typeof parsed.session === 'string' ? parsed.session.trim() : ''
     const account = typeof parsed.account === 'string' && parsed.account ? parsed.account : 'default'
@@ -1516,9 +1555,21 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
       res.end(r.audio)
       return
     }
+    // Lector del chat (24 oct 2026): el sintetizador caliente arranca en ~0.2 s en vez de los ~1.2 s de un `say` nuevo.
+    // Si falla, voz-agentes como antes (X-Voice-Engine dice cuál sonó).
+    if (tempo != null && voice === 'levy' && Math.abs(speed - LECTOR_SPEED) < 0.01 && process.platform === 'darwin') {
+      try {
+        const { audio, tempo: aplicado } = await synthesizeLector(text.slice(0, 5000), tempo)
+        res.writeHead(200, { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store', 'X-Tempo': String(aplicado), 'X-Voice-Engine': 'sayd' })
+        res.end(audio)
+        return
+      } catch (err) {
+        logger.warn({ reason: String(err).slice(0, 200) }, 'lector: sayd falló, voz-agentes')
+      }
+    }
     try {
       const { audio, tempo: aplicado } = await synthesizeSpeech(text, voice, speed, tempo)
-      res.writeHead(200, { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store', 'X-Tempo': String(aplicado) })
+      res.writeHead(200, { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store', 'X-Tempo': String(aplicado), 'X-Voice-Engine': 'voz-agentes' })
       res.end(audio)
     } catch (err) {
       sendJSON(res, 502, { error: `TTS failed: ${String(err)}` })
@@ -1594,6 +1645,43 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     } catch (error) {
       if (error instanceof ForkRejected) sendJSON(res, error.status, { error: error.message })
       else sendJSON(res, 500, { error: error instanceof Error ? error.message : 'No se pudo bifurcar la conversación' })
+    }
+    return
+  }
+
+  // «Deshacer desde aquí» (27 oct 2026, chat-runtime/deshacer.ts): vista previa (dryRun) o restauración de los archivos
+  // a como estaban antes del turno, y «Rehacer» desde el respaldo que se tomó al deshacer. La web ya verificó dueño.
+  if (req.method === 'POST' && (req.url === '/chat/deshacer' || req.url === '/chat/rehacer')) {
+    const { ownerId, account, chatSessionId, turnId, respaldoId, dryRun } = parsed as Record<string, unknown>
+    if ([ownerId, account, chatSessionId].some(v => typeof v !== 'string' || !v)) { sendJSON(res, 400, { error: 'ownerId, account y chatSessionId son obligatorios' }); return }
+    const scope = { owner: ownerId as string, account: account as string, conversationId: chatSessionId as string }
+    const dirRespaldos = join(STORE_DIR, 'deshacer')
+    if (req.url === '/chat/rehacer') {
+      if (typeof respaldoId !== 'string') { sendJSON(res, 400, { error: 'respaldoId es obligatorio' }); return }
+      try { sendJSON(res, 200, rehacer(dirRespaldos, respaldoId, scope)) } catch (error) { sendJSON(res, 500, { ok: false, error: error instanceof Error ? error.message : 'No se pudo rehacer' }) }
+      return
+    }
+    if (typeof turnId !== 'string' || !turnId) { sendJSON(res, 400, { error: 'turnId es obligatorio' }); return }
+    const journal = getDurableChat().journal
+    try {
+      const vista = await deshacerDesde({
+        turno: id => journal.get(id),
+        ocupada: s => ['queued', 'dispatching', 'running', 'waiting', 'uncertain'].includes(journal.latest(s.owner, s.account, s.conversationId)?.status ?? ''),
+        vivo: (s, sesion) => claudeRuntimePool.rebobinador(s, sesion),
+        abrir: (sesion, acct) => {
+          const envRebobinar = entornoClaude(process.env, esEdicionCliente())
+          const dir = configDirForAccount(acct === 'default' ? undefined : acct)
+          if (dir) envRebobinar.CLAUDE_CONFIG_DIR = dir
+          else delete envRebobinar.CLAUDE_CONFIG_DIR
+          return abrirConSdk(sesion, { cwd: PROJECT_ROOT, env: envRebobinar })
+        },
+        dirRespaldos,
+      }, { ...scope, turnId }, { dryRun: dryRun !== false })
+      if (dryRun === false && vista.ok) logger.info({ turnId, archivos: vista.archivos.length, respaldoId: vista.respaldoId }, 'deshacer: archivos restaurados')
+      sendJSON(res, 200, vista)
+    } catch (error) {
+      logger.warn({ err: error, turnId }, 'deshacer: falló')
+      sendJSON(res, 500, { ok: false, archivos: [], inserciones: 0, borrados: 0, motivo: 'sdk', error: error instanceof Error ? error.message : 'No se pudo deshacer' })
     }
     return
   }
@@ -1899,7 +1987,16 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
       '/mcp': () => buildRuntimeInventoryText('mcp', parsed.ownerId, chatSessionId, parsed.account),
       '/usage': buildUsageText,
     }
-    const localBuilder = localCommandBuilders[message] ?? (interceptsGoal(message, isCodexAccount(typeof parsed.account === 'string' ? parsed.account : undefined)) ? () => buildGoalCommand(message, parsed.ownerId, chatSessionId ?? undefined, parsed.account) : undefined)
+    const codexChat = isCodexAccount(typeof parsed.account === 'string' ? parsed.account : undefined)
+    // `/goal pausar|reanudar` en Claude (27 oct 2026): el CLI no los tiene; los resuelve el freno de Arbrain (meta-claude.ts).
+    const metaLocal = !codexChat ? comandoMetaLocal(message) : null
+    const localBuilder = localCommandBuilders[message]
+      ?? (interceptsGoal(message, codexChat) ? () => buildGoalCommand(message, parsed.ownerId, chatSessionId ?? undefined, parsed.account) : undefined)
+      ?? (metaLocal ? () => {
+        if (typeof parsed.ownerId !== 'string' || !chatSessionId) return GOAL_NO_THREAD
+        const clave = EstadoMetas.clave({ owner: parsed.ownerId, account: typeof parsed.account === 'string' ? parsed.account : 'default', conversationId: chatSessionId })
+        return textoComandoLocal(metaLocal, estadoMetas.poner(clave, metaLocal === 'pausar' ? 'pausada' : 'en_curso'))
+      } : undefined)
     if (localBuilder) {
       res.writeHead(200, {
         'Content-Type': 'text/event-stream',
@@ -2807,8 +2904,25 @@ export function startMCServer(): void {
     marcarFuenteLocal()
     // Seguridad del alumno (12 oct 2026): el registro de actividad no guarda llaves; el literal completo vive solo en la
     // tabla de confirmaciones (la persona tiene que verlo entero para aprobarlo).
-    iniciarConfirmaciones(getDb(), (tipo, c) => opsLogger.log(tipo === 'pendiente' ? 'confirmacion_pendiente' : 'confirmacion_resuelta', 'system', {
-      ...c, resumen: redactar(c.resumen), ...(c.detalle ? { detalle: redactar(c.detalle) } : {}), ...(c.literal ? { literal: redactar(c.literal) } : {}),
+    iniciarConfirmaciones(getDb(), (tipo, c) => {
+      opsLogger.log(tipo === 'resuelta' ? 'confirmacion_resuelta' : 'confirmacion_pendiente', 'system', {
+        ...c, resumen: redactar(c.resumen), ...(c.detalle ? { detalle: redactar(c.detalle) } : {}), ...(c.literal ? { literal: redactar(c.literal) } : {}),
+      })
+      // Cola de aprobaciones (ronda 2): lo que entra a la cola avisa al teléfono si la instalación tiene avisos.
+      if (tipo === 'cola') {
+        // La app local de la persona (su origen), con el token del daemon: el mismo camino que la campana.
+        void avisarTelefono(c, { token: MC_TOKEN, url: ALLOWED_ORIGIN })
+          .then(r => { if (r !== 'repetido') logger.info({ confirmacion: c.id, resultado: r }, 'cola: aviso al teléfono') })
+      }
+    }).alRetomar(retomarEnConversacion({
+      // Al decidir algo de la cola, el agente se entera en SU conversación: aviso que vence ya (mismo camino que un
+      // despertador; el pulso de 2 s lo dispara y retoma la sesión).
+      avisar: (scope, texto) => {
+        if (!despertadores) throw new Error('despertadores sin iniciar')
+        despertadores.avisar(scope, texto, 'confirmacion')
+      },
+      marcarContaminada,
+      registrar: e => logger.info(e, 'cola de aprobaciones'),
     }))
     iniciarBitacora(getDb())
     // «Pausar todo»: además de abortar los turnos vivos, cierra las sesiones del pool (nada sigue en segundo plano).

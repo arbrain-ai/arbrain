@@ -17,11 +17,24 @@ export interface Subagente { id: number; nombre: string; harness: string; encarg
   /** ISO: Levy no la atendió a tiempo (o su conversación ya no existe) y subió a Daniel. */
   escalado?: string
   escaladoPor?: string
-  rescatado?: string }
+  rescatado?: string
+  /** Veredicto del juez separado sobre su último turno (agent-server `cabina/juez.ts`, 27 oct 2026). */
+  juicio?: Juicio }
+export type Veredicto = 'cumple' | 'no-cumple' | 'no-verificable' | 'sin-dod'
+export interface Juicio { veredicto: Veredicto; razon: string; en: string; turno?: number; modelo?: string }
+/** Columna del tablero con su latido medido (agent-server `cabina/tablero.ts`): proceso vivo y última escritura. */
+export type Columna = 'trabajando' | 'te-espera' | 'listo' | 'falló' | 'murió'
+export interface EstadoTablero {
+  columna: Columna; motivo: string; latido: { ultimaEscritura: number | null; procesoVivo: boolean; edadMs: number | null; umbralMs: number }
+  /** Su último paso en humano («Corriendo las pruebas»), de su última herramienta; el servidor viejo no lo manda. */
+  paso?: string
+  /** ms epoch en que empezó su turno actual. */
+  desde?: number
+}
 export interface Mensaje { rol: 'user' | 'assistant'; texto: string; herramientas: string[] }
 export interface Conversacion { harness: string; modelo: string | null; esfuerzo?: string | null; ctxPct: number | null; ctxVentana?: number | null; turno: 'trabajando' | 'terminado' | null; pregunta: boolean; tokens: number | null; mensajes: Mensaje[]; titulo: string | null; error?: string }
 export type EstadoTerminal = 'trabajando' | 'esperando' | 'terminal'
-export interface Terminal { id: number; pid?: number; titulo: string; cwd: string; proc: string; estado: EstadoTerminal; actividad: string | null; ultimaAccion: string | null; ultimas: string[]; origen?: 'motor' | 'sfterm-ptyd' | 'sin-pantalla'; soloLectura?: boolean; conversacion?: Conversacion; subagente?: Subagente }
+export interface Terminal { id: number; pid?: number; titulo: string; cwd: string; proc: string; estado: EstadoTerminal; actividad: string | null; ultimaAccion: string | null; ultimas: string[]; origen?: 'motor' | 'sfterm-ptyd' | 'sin-pantalla'; soloLectura?: boolean; conversacion?: Conversacion; subagente?: Subagente; tablero?: EstadoTablero }
 export interface Servidor { puerto: number; proceso: string; nombre: string }
 export type AreaServicio = 'Casa' | 'Voz' | 'Salud' | 'Arbrain' | 'Levy' | 'Túneles' | 'Datos' | 'Manos' | 'Apps'
 /** `nombre`/`area` en palabras de dueño (5 oct 2026); con falla, `explicacion` en español llano, `menor` = su app sí corre, `detalle` = última línea del log. */

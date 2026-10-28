@@ -54,6 +54,8 @@ const themeInitScript = `
     document.documentElement.classList.toggle('dark', resolved === 'dark');
     document.documentElement.dataset.theme = resolved;
     document.documentElement.style.colorScheme = resolved;
+    // Estilo de la interfaz (27 oct 2026): 'unificado' prende el lenguaje nacido del botón de enviar; sin valor, el actual.
+    if (window.localStorage.getItem('arbrain-estilo') === 'unificado') document.documentElement.dataset.estilo = 'unificado';
     // Barra de estado de la PWA y de Safari: el tema resuelto, no el esquema del sistema (COLOR_BARRA en theme-context).
     document.querySelectorAll('meta[name="theme-color"]').forEach(function (m) { m.setAttribute('content', resolved === 'dark' ? '#09090b' : '#fafafa'); });
   } catch {

@@ -505,7 +505,7 @@ function ReaderFrame({ src }: { src: string }) {
 function DocView({ file }: { file: LibFile }) {
   const url = `/api/biblioteca/file?path=${encodeURIComponent(file.rel)}`
   return (
-    <div className="relative flex-1 min-h-0 bg-[#14111a]">
+    <div className="relative flex-1 min-h-0 bg-[var(--l-gris-3,#14111a)]">
       {file.ext === 'epub' ? (
         <EpubReader url={url} />
       ) : (

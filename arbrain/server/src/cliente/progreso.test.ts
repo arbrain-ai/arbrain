@@ -7,7 +7,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, statSync, existsSync, readFileSy
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import Database from 'better-sqlite3'
-import { Progreso, metasVigentes, semanaIso, urlValida, URL_POR_OMISION } from './progreso.js'
+import { Progreso, metasVigentes, semanaIso, urlValida, versionCerebro, URL_POR_OMISION } from './progreso.js'
 import { Cohorte } from './cohorte.js'
 
 const tmp = (p: string) => mkdtempSync(join(tmpdir(), p))
@@ -55,6 +55,21 @@ describe('puente de seguimiento', () => {
     const md = '## octubre 2026\n**Mes:** Lanzar\n### Semana 19-25\n**Foco:** Cerrar 2\n#### miércoles 21\n- [ ] Grabar video\n'
     expect(metasVigentes(md, '2026-10-21')).toEqual({ mes: 'Lanzar', semana: 'Cerrar 2', dia: 'Grabar video' })
     expect(metasVigentes(md, '2026-11-02')).toEqual({ mes: null, semana: null, dia: null })
+  })
+
+  it('versión del cerebro: VERSION de la copia del alumno, sin romper version_app', () => {
+    const raiz = cerebro()
+    writeFileSync(join(raiz, 'VERSION'), '0.2.13\n')
+    expect(versionCerebro(raiz)).toBe('0.2.13')
+    const s = new Progreso(db(), tmp('datos-'), () => raiz, () => AHORA).senal()
+    expect(s.version_cerebro).toBe('0.2.13')
+    expect(s).toHaveProperty('version_app')
+    // Sin VERSION válido en el cerebro cae al del repo donde corre el código: VERSION en la raíz de la copia del alumno o
+    // distribucion/VERSION en el original. Basura no pasa.
+    const otra = cerebro()
+    writeFileSync(join(otra, 'VERSION'), '<script>\n')
+    const delRepo = ['../../../../VERSION', '../../../empaquetado/distribucion/VERSION'].map(r => new URL(r, import.meta.url)).find(u => existsSync(u))!
+    expect(versionCerebro(otra)).toBe(readFileSync(delRepo, 'utf8').trim())
   })
 
   it('apagado por defecto; la señal solo trae conteos y el texto solo con permiso', async () => {

@@ -41,6 +41,8 @@ describe('claude', () => {
   })
   it('herramientas y error de modelo', () => {
     expect(leer('claude', turno('claude-herramienta')).turnos[0]).toMatchObject({ herramientas: ['Write'], final: 'listo' })
+    // el último paso guarda lo que tocó, para decirlo en humano en el tablero
+    expect(leer('claude', turno('claude-herramienta')).turnos[0].paso).toEqual({ herramienta: 'Write', detalle: '/private/tmp/dsp-muestras/nota.txt' })
     expect(leer('claude', turno('claude-error', 1)).turnos[0].error).toMatch(/issue with the selected model/)
   })
 })

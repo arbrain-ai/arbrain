@@ -10,12 +10,13 @@ import { tareaObjetivo, tituloCumplido } from './dia-vivo'
 import { tareasDelPeriodo } from './plan-periodo'
 import { diasEntre, objetivoDe, porDia, rejillaDelMes, tareasPorDia } from './periodo-vivo'
 import { compromisosDelDia, entregablesDe, mismoTitulo } from './claridad'
-import { ContadorPeriodo } from './ContadorPeriodo'
-import { Entregables, ObjetivoCaja, Segmentos } from './ObjetivoCaja'
+import { FranjaPlan } from './FranjaPlan'
+import { Entregables, Segmentos } from './ObjetivoCaja'
 import { esc, sinEmoji, useAhora } from './vivo-piezas'
-import { SemanaHoras, type MarcaDia } from './SemanaHoras'
-import { diasDesde, diasVisibles, esFinDeSemana, lunesDe, medianoche, medianocheSiguiente, semanaDeMayoria, sumarDia, TRAMO, type Bloque, type DiasVista } from './semana-horas'
+import { SemanaHoras, type BarraDia, type MarcaDia } from './SemanaHoras'
+import { diasDesde, esDeVariosDias, tramoDeTodoElDia, diasVisibles, esFinDeSemana, lunesDe, medianoche, medianocheSiguiente, semanaDeMayoria, sumarDia, TRAMO, type Bloque, type DiasVista } from './semana-horas'
 import { esCompromiso } from './categorias'
+import { esNoNegociable, seccionDe } from './secciones'
 import { rutinasDiarias } from './rutinas'
 import { Leyenda, type ControlLeyenda } from './Leyenda'
 import { LeyendaDrip, useGobierno } from './gobierno'
@@ -82,24 +83,36 @@ export function bloquesDeSemana(eventos: PlanEvent[], tareas: PlanTask[], visibl
   const rutinas = rutinasDiarias(eventos, iso => dayKey(parseISO(iso)))
   return [
     ...eventos.filter(e => !e.allDay && visible(e)).map(e => ({ id: e.id, titulo: sinEmoji(e.title || '(sin título)'), inicio: Date.parse(e.start), fin: Date.parse(e.end), color: color(e), movible: e.editable,
-      rutina: rutinas.has(e.id), compromiso: esCompromiso(e), ...(drip ? marcaDrip(drip(e)) : {}) })),
+      rutina: rutinas.has(e.id), compromiso: esCompromiso(e), seccion: seccionDe(e) ?? undefined, innegociable: esNoNegociable(e) || undefined, ...(drip ? marcaDrip(drip(e)) : {}) })),
     ...tareas.filter(t => t.due && hasTime(t.due) && !t.completed).map(t => { const ini = Date.parse(t.due!); return { id: t.id, titulo: sinEmoji(t.title), inicio: ini, fin: ini + (t.durationMinutes ?? 30) * 60_000, color: null, movible: true, tarea: true, prioridad: t.priority === 1, ...(t.durationMinutes ? {} : { sinDuracion: true }) } }),
   ]
 }
 /** Lo que DRIP le pone a un bloque de la rejilla: su cuadrante, la etiqueta de delegable, de quién es y si está protegido. */
 export const marcaDrip = (l: LecturaDrip) => ({ drip: l.cuadrante, delegable: esDelegable(l.cuadrante), delegadoA: l.delegadoA, protegido: l.protegido })
-/** Lo de día completo, por día civil (un viaje de tres días aparece en sus tres columnas). */
+/**
+ * Lo de día completo de UN día, por día civil. Lo de varios días (uno a uno, demo day, viajes) no se repite en cada columna
+ * (25 oct 2026, Daniel: «termina de limpiar el ruido»): es una sola barra que cruza sus días (`barrasDeSemana`).
+ */
 export function todoElDiaDeSemana(dias: string[], eventos: PlanEvent[], visible: (e: PlanEvent) => boolean, color: (e: PlanEvent) => string | null, abrir?: (e: PlanEvent) => void) {
   const mapa = new Map<string, MarcaDia[]>(dias.map(d => [d, []]))
   for (const e of eventos) {
-    if (!e.allDay || !visible(e)) continue
+    if (!e.allDay || !visible(e) || esDeVariosDias(e)) continue
     for (const d of dias) if (e.start.slice(0, 10) <= d && d < e.end.slice(0, 10)) mapa.get(d)!.push({ id: e.id, titulo: sinEmoji(e.title || '(sin título)'), color: color(e), abrir: abrir ? () => abrir(e) : undefined })
   }
   return mapa
 }
 
+/** Lo de varios días que toca los días a la vista: una barra por evento, de su primer a su último día (inclusive). */
+export function barrasDeSemana(dias: string[], eventos: PlanEvent[], visible: (e: PlanEvent) => boolean, color: (e: PlanEvent) => string | null, abrir?: (e: PlanEvent) => void): BarraDia[] {
+  if (!dias.length) return []
+  const primero = dias[0], ultimo = dias[dias.length - 1]
+  return eventos.filter(e => e.allDay && visible(e) && esDeVariosDias(e)).map(e => ({ e, t: tramoDeTodoElDia(e) })).filter(({ t }) => t[0] <= ultimo && t[1] >= primero)
+    .sort((x, y) => x.t[0].localeCompare(y.t[0]) || y.t[1].localeCompare(x.t[1]))
+    .map(({ e, t }) => ({ id: e.id, titulo: sinEmoji(e.title || '(sin título)'), color: color(e), desde: t[0], hasta: t[1], abrir: abrir ? () => abrir(e) : undefined }))
+}
+
 export function SemanaClara({ goals, guardarObjetivo, fecha, ventana, onVentana, snapshot, eventos, visible, color, tareas, zona, cargando, donde = 'seccion', leyenda, onDia, onAbrir, onMover, onEstirar, onCrear,
-  vista = 'horas', enfoque = false, diasVista = null, finDeSemana = true, tramo = TRAMO, compacta = false, etiquetaZona = null, plegado, dosColumnas = false }: {
+  vista = 'horas', enfoque = false, diasVista = null, finDeSemana = true, tramo = TRAMO, compacta = false, etiquetaZona = null, plegado, dosColumnas = false, semanaPerfecta = false, corteRutina = null }: {
   goals: { data: GoalSnapshot | null; error: string | null }
   /** El primer día visible y cuántos se ven (null hasta que la rejilla se mida: entonces manda la semana de `fecha`). */
   ventana?: { inicio: string | null; n: number }
@@ -128,6 +141,10 @@ export function SemanaClara({ goals, guardarObjetivo, fecha, ventana, onVentana,
   /** Pantalla completa (24 oct 2026): a la izquierda la temporada, el foco abierto con sus entregables y la lista de cada día; a la
    *  derecha la semana en horas a alto completo (7 columnas, de 5:00 a 22:00, sin scroll). Horas · Agenda dejan de ser excluyentes. */
   dosColumnas?: boolean
+  /** La Semana Perfecta en fantasma detrás de los bloques (engrane › DRIP). La plantilla sale del almacén DRIP (useGobierno). */
+  semanaPerfecta?: boolean
+  /** La rutina a futuro no se pinta (26 oct 2026): los fantasmas de la Semana Perfecta solo hasta este instante. null = todos. */
+  corteRutina?: number | null
 }) {
   const ahora = useAhora(), hoy = dayKey(new Date(ahora))
   const semana = dayKey(fecha)
@@ -153,6 +170,7 @@ export function SemanaClara({ goals, guardarObjetivo, fecha, ventana, onVentana,
   const gobierno = useGobierno()
   const bloques = useMemo(() => bloquesDeSemana(eventos, tareas, visible, color, gobierno?.lectura), [eventos, tareas, visible, color, gobierno?.lectura])
   const todoElDia = useMemo(() => todoElDiaDeSemana(diasRiel, eventos, visible, color, onAbrir), [diasRiel, eventos, visible, color, onAbrir])
+  const barras = useMemo(() => barrasDeSemana(diasRiel, eventos, visible, color, onAbrir), [diasRiel, eventos, visible, color, onAbrir])
   const estrellas = useMemo(() => new Map([...objetivos].map(([d, o]) => [d, o ? { titulo: o.titulo, cumplido: o.cumplido } : null])), [objetivos])
   const item = (b: Bloque) => porId.get(b.id)
   // Enfoque (10 oct 2026, Daniel): se van los chips de categorías y el subtítulo; quedan el objetivo, los botones y la rejilla.
@@ -161,27 +179,24 @@ export function SemanaClara({ goals, guardarObjetivo, fecha, ventana, onVentana,
     : <Leyenda ctl={leyenda} eventos={eventos} desde={medianoche(visibles[0])} hasta={medianocheSiguiente(visibles[visibles.length - 1])} periodo="semana" /> : null
 
 
-  const pliega = dosColumnas ? undefined : plegado
   const etiqueta = `Semana del ${format(parseISO(desde), "d 'de' MMMM", { locale: es })}`
-  const objetivoCaja = <>
-    {/* El objetivo nace plegado en una línea (ronda 3): un toque lo abre con sus entregables. */}
-    <ObjetivoCaja rotulo={pliega && !pliega.objetivo ? <>Semana{n > 0 && <b> · S{n}</b>}</> : <>Objetivo de la semana{n > 0 && <b> · S{n}</b>}{goal?.status === 'draft' && <em> · en planificación</em>}{goal?.status === 'completed' && <em> · cumplido</em>}</>}
-      titulo={objetivo?.titulo ?? null} vacio="Sin objetivo para esta semana." leyendo={!goals.data && !goals.error}
-      cuenta={entregables.length ? { k: hechos, n: entregables.length, clave: `sem-${goal!.id}-${hechos}` } : null}
-      plegada={pliega ? !pliega.objetivo : false} onPlegar={pliega ? () => pliega.alternar('objetivo') : undefined}>
-      {goal ? <>
-        <Segmentos k={hechos} n={entregables.length} i={1} />
-        <Entregables texto={goal.success} guardar={guardarObjetivo ? success => guardarObjetivo({ ...goal, success }) : undefined} i0={2} nombre="Entregables de la semana" />
-      </> : null}
-    </ObjetivoCaja>
-  </>
-  const horasRejilla = (llenar: boolean) => <SemanaHoras listo={Boolean(snapshot) || !cargando} dias={onVentana ? undefined : dias} semana={semana} inicio={inicio} onVentana={onVentana} sinBarra={enfoque} hoy={hoy} ahora={ahora} bloques={bloques} todoElDia={todoElDia} estrellas={estrellas} onDia={onDia} donde={donde} barra={chips} amplia={enfoque}
+  // La franja (25 oct 2026, Daniel: «la UI actual me quita la mitad de la pantalla del calendario»): en UNA línea; desde las 08:10
+  // solo el objetivo de la semana (sin hábitos ni temporada: los hábitos van en el Día, la temporada en la vista H) y, al abrirla,
+  // el objetivo con sus entregables.
+  const franja = <FranjaPlan rotulo={<>Semana{n > 0 && <b> · S{n}</b>}{goal?.status === 'draft' && <em> · en planificación</em>}{goal?.status === 'completed' && <em> · cumplido</em>}</>}
+    titulo={objetivo?.titulo ?? null} vacio={!goals.data && !goals.error ? 'Leyendo el objetivo…' : 'Sin objetivo para esta semana.'}
+    cuenta={entregables.length ? { k: hechos, n: entregables.length } : null}
+    detalle={goal && entregables.length > 0 && <>
+      <Segmentos k={hechos} n={entregables.length} i={1} />
+      <Entregables texto={goal.success} guardar={guardarObjetivo ? success => guardarObjetivo({ ...goal, success }) : undefined} i0={2} nombre="Entregables de la semana" />
+    </>} />
+  const horasRejilla = (llenar: boolean) => <SemanaHoras listo={Boolean(snapshot) || !cargando} dias={onVentana ? undefined : dias} semana={semana} inicio={inicio} onVentana={onVentana} sinBarra={enfoque} hoy={hoy} ahora={ahora} bloques={bloques} todoElDia={todoElDia} barras={barras} estrellas={estrellas} onDia={onDia} donde={donde} barra={chips} amplia={enfoque}
         diasVista={llenar ? 7 : diasVista} finDeSemana={finDeSemana} tramo={tramo} compacta={compacta} zona={etiquetaZona} llenar={llenar}
         todoElDiaAbierto={plegado?.todoElDia} onTodoElDia={plegado ? () => plegado.alternar('todoElDia') : undefined}
         onAbrir={onAbrir ? b => { const i = item(b); if (i) onAbrir(i) } : undefined}
         onMover={onMover ? (b, inicio, fin) => { const i = item(b); if (i) onMover(i, inicio, fin) } : undefined}
         onEstirar={onEstirar ? (b, fin) => { const i = item(b); if (i) onEstirar(i, fin) } : undefined}
-        onCrear={onCrear} />
+        onCrear={onCrear} perfecta={semanaPerfecta ? gobierno?.doc?.semana ?? null : null} corteRutina={corteRutina} />
   const listaDias = (desdeI: number) => <ol className={c.dias}>{dias.filter(d => finDeSemana || !esFinDeSemana(d)).map((dia, i) => {
         const f = parseISO(dia), od = objetivos.get(dia) ?? null, esHoy = dia === hoy, pasado = dia < hoy
         const { lista, resto } = compromisosDelDia(agenda.get(dia)!, porDiaTareas.get(dia) ?? [], 2, t => !!od && mismoTitulo(t, od.titulo))
@@ -201,28 +216,20 @@ export function SemanaClara({ goals, guardarObjetivo, fecha, ventana, onVentana,
         </li>
       })}</ol>
 
-  // Pantalla completa (24 oct 2026, Daniel: «en la semana podemos hacer lo mismo: el calendario más angosto, tipo a la mitad de la
-  // pantalla, a la mitad derecha, y lo importante al lado izquierdo»).
-  if (dosColumnas) return <section className={c.vista} data-dos-columnas aria-label={etiqueta}>
-    <div className={c.izquierda}>
-      <ContadorPeriodo delgada i={0} />
-      {objetivoCaja}
-      <div className={`${c.subtitulo} ${c.entra}`} style={esc(6)}><h3>Cada día</h3></div>
-      {cargando && !snapshot ? <p className={c.leyendo}>Leyendo tu calendario…</p> : listaDias(7)}
-    </div>
-    <div className={`${c.derecha} ${c.entra}`} style={esc(4)}>
+  // Pantalla completa (25 oct 2026, Daniel: «me quita la mitad de la pantalla del calendario»): la franja arriba y la rejilla con
+  // todo el ancho y todo el alto que queda; la rejilla hace su propio scroll. Sustituye las dos columnas del 24 oct.
+  if (dosColumnas && vista === 'horas') return <section className={c.vista} data-dos-columnas data-llena aria-label={etiqueta}>
+    {franja}
+    <div className={c.rejillaLlena}>
       {cargando && !snapshot ? <p className={c.leyendo}>Leyendo tu calendario…</p> : horasRejilla(true)}
     </div>
   </section>
 
-  return <section className={c.vista} aria-label={etiqueta}>
-    {objetivoCaja}
-    <ContadorPeriodo />
-
-    {!enfoque && <div className={`${c.subtitulo} ${c.entra}`} style={esc(6)}><h3>{vista === 'horas' ? 'La semana en horas' : 'Cada día'}</h3></div>}
+  return <section className={c.vista} data-llena={vista === 'horas' || undefined} aria-label={etiqueta}>
+    {franja}
 
     {cargando && !snapshot ? <p className={c.leyendo}>Leyendo tu calendario…</p>
-      : vista === 'horas' ? <div className={c.entra} style={esc(7)}>{horasRejilla(false)}</div>
-      : <>{chips}{listaDias(7)}</>}
+      : vista === 'horas' ? <div className={`${c.rejillaLlena} ${c.entra}`} style={esc(2)}>{horasRejilla(false)}</div>
+      : <>{chips}{listaDias(3)}</>}
   </section>
 }

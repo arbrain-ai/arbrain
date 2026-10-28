@@ -42,7 +42,7 @@ function campoConFoco(): CampoTexto | null {
 }
 
 /**
- * Ctrl+D/W/M (Calendario en Día, Semana, Mes), Ctrl+H (Hábitos de hoy), Ctrl+Q (cerrar la pestaña activa) y Ctrl+L (selector de lienzos). Reglas en `atajos-ctrl.ts`.
+ * Ctrl+D/W/M (Calendario en Día, Semana, Mes), Ctrl+H (la vista Hábitos), Ctrl+Q (cerrar la pestaña activa) y Ctrl+L (selector de lienzos). Reglas en `atajos-ctrl.ts`.
  * En CAPTURA sobre `window` y cortando la propagación: ganan al chat, al panel y al lienzo, que leía Ctrl como ⌘
  * (Ctrl+D duplicaba y Ctrl+X cortaba). `soloCerrar`: una ventana aparte solo atiende Ctrl+Q (el Calendario es del panel).
  */
@@ -59,7 +59,7 @@ export function useAtajosCtrl({ soloCerrar = false }: { soloCerrar?: boolean } =
       e.stopImmediatePropagation()
       if (e.repeat) return
       if (accion.tipo === 'calendario') calendarioEn(accion.modo)
-      else if (accion.tipo === 'habitos') { calendarioEn('day'); pedirHabitos() }
+      else if (accion.tipo === 'habitos') { calendarioEn('habits'); pedirHabitos() }
       else if (accion.tipo === 'cerrar-pestana') cerrarPestanaActiva()
     }
     window.addEventListener('keydown', k, true)

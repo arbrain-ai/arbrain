@@ -1,0 +1,111 @@
+# Ganchos del cerebro en Windows (27 oct 2026). Fuente: arbrain/empaquetado/ci/workflows/ganchos-windows.yml del repo
+# fuente; el generador lo copia a .github/workflows/ de la copia del alumno. En la copia no se edita: se regenera.
+#
+# Origen: un fundador en Windows (v0.2.9) no guardaba conversaciones porque capture-conversation.py importaba fcntl y,
+# detrás, ZoneInfo necesitaba tzdata. Aquí el gancho corre de verdad como lo corre Claude Code en Windows: por
+# `sh .claude/hooks/py.sh` en Git Bash, con un Python de python.org (sin tzdata), en la copia del alumno
+# (arbrain/EDICION = cliente). Comprueba que deja .claude/daily con los acentos bien, que dos capturas a la vez no se
+# pisan (msvcrt.locking) y que el chat de la app (CLAUDECLAW_DAEMON) también se guarda. Minutos: uno.
+name: Arbrain · ganchos en Windows
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['ci-**', 'release/**']
+    paths:
+      - '.claude/hooks/**'
+      - '.claude/settings.json'
+      - '.github/workflows/ganchos-windows.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ganchos-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  captura:
+    name: captura de conversaciones · windows
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.12'
+
+      - name: El terreno es el de un alumno en Windows
+        shell: bash
+        run: |
+          grep -qx cliente <(grep -v '^#' arbrain/EDICION | sed '/^\s*$/d')
+          python - <<'PY'
+          import importlib.util, sys
+          from zoneinfo import ZoneInfo
+          print('python', sys.version.split()[0], 'fcntl:', importlib.util.find_spec('fcntl') is not None)
+          assert importlib.util.find_spec('fcntl') is None, 'este runner trae fcntl: la prueba no serviría'
+          try:
+              ZoneInfo('America/Mexico_City'); print('zonas: hay base')
+          except Exception as e:
+              print('zonas: sin base (como el Python de un alumno):', type(e).__name__)
+          PY
+
+      - name: Pruebas unitarias del gancho (si viajan en la copia)
+        shell: bash
+        run: |
+          if [ -f .claude/hooks/tests/test_capture_conversation_windows.py ]; then
+            python -m unittest -v .claude/hooks/tests/test_capture_conversation_windows.py
+          else
+            echo "la copia no trae las pruebas unitarias; sigue la prueba de punta a punta"
+          fi
+
+      - name: Punta a punta por py.sh (como Claude Code en Windows)
+        shell: bash
+        env:
+          CLAUDE_PROJECT_DIR: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          raiz=$(pwd -W 2>/dev/null || pwd)
+          t="$RUNNER_TEMP/sesion.jsonl"
+          python - "$t" <<'PY'
+          import json, sys
+          lineas = [
+            {'type': 'user', 'uuid': 'u1', 'timestamp': '2026-10-27T10:00:00Z',
+             'message': {'role': 'user', 'content': [{'type': 'text', 'text': '¿Qué hago hoy? Revisión de cotización, señal ñandú'}]}},
+            {'type': 'assistant', 'uuid': 'a1', 'timestamp': '2026-10-27T10:00:05Z',
+             'message': {'role': 'assistant', 'content': [{'type': 'text', 'text': 'Hoy: llamar a tu cliente, año fiscal y acentos áéíóú'}]}},
+          ]
+          with open(sys.argv[1], 'w', encoding='utf-8', newline='\n') as f:
+              for l in lineas: f.write(json.dumps(l, ensure_ascii=False) + '\n')
+          PY
+          entrada() { printf '{"session_id":"%s","transcript_path":%s,"cwd":%s}' "$1" \
+            "$(python -c 'import json,sys;print(json.dumps(sys.argv[1]))' "$(cygpath -w "$t")")" \
+            "$(python -c 'import json,sys;print(json.dumps(sys.argv[1]))' "$raiz")"; }
+
+          # 1. Una captura normal (PreCompact / SessionEnd).
+          entrada sesion-ci | sh .claude/hooks/py.sh capture-conversation --runtime claude
+          # 2. Dos a la vez sobre la misma sesión: el candado de msvcrt no deja que se pisen.
+          for i in 1 2 3 4; do entrada sesion-ci | sh .claude/hooks/py.sh capture-conversation --runtime claude & done; wait
+          # 3. El chat de la app de Arbrain (el daemon pone CLAUDECLAW_DAEMON): en la edición cliente también se guarda.
+          entrada sesion-app | CLAUDECLAW_DAEMON=1 sh .claude/hooks/py.sh capture-conversation --runtime claude
+          # 4. Una rutina (CLAUDECLAW_SOURCE=cron) no es conversación: no se guarda.
+          entrada sesion-cron | CLAUDECLAW_DAEMON=1 CLAUDECLAW_SOURCE=cron sh .claude/hooks/py.sh capture-conversation --runtime claude
+
+          python - <<'PY'
+          import glob, hashlib, json
+          def sid(s): return hashlib.sha256(s.encode()).hexdigest()[:20]
+          for sesion, esperado in [('sesion-ci', 1), ('sesion-app', 1), ('sesion-cron', 0)]:
+              diarios = glob.glob(f'.claude/daily/*.claude-{sid(sesion)}.md')
+              print(sesion, '->', diarios)  # ASCII: la consola de Windows es cp1252
+              assert len(diarios) == esperado, (sesion, diarios)
+              if not esperado: continue
+              texto = open(diarios[0], encoding='utf-8').read()
+              assert 'señal ñandú' in texto and 'áéíóú' in texto, texto
+              assert texto.count('### ') == 2, f'mensajes duplicados o perdidos: {texto.count("### ")}'
+              registro = glob.glob(f'arbrain/server/store/conversation-capture/*.claude.{sid(sesion)}.json')
+              assert len(registro) == 1 and len(json.load(open(registro[0], encoding='utf-8'))['messages']) == 2, registro
+          print('SMOKE ganchos-windows: OK (captura, concurrencia, chat de la app, rutina fuera, UTF-8)')
+          PY

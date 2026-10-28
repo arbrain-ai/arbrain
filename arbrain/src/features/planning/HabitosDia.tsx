@@ -3,11 +3,13 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type Keyboard
 import { ChevronDown } from 'lucide-react'
 import { mov, escalon } from '@/shared/movimiento'
 import { shiftDay } from '@/features/sistema/calendar-days'
-import { habitDisplayName, habitSubtitle } from '@/features/sistema/habit-presentation'
+import { habitDisplayName, habitSubtitle, realHabitName } from '@/features/sistema/habit-presentation'
+import { NombreHabito } from '@/features/sistema/NombreHabito'
 import { HABIT_SHORTCUTS, habitKey, isHabitTypingTarget } from '@/features/sistema/habit-shortcuts'
 import type { useHabitRecords } from '@/features/sistema/useHabitRecords'
 import { avanceHabitos, diasTejido, moverFoco, racha, rotuloRacha, siguienteMarca, VENTANA_RACHA, type Marca } from './habitos-dia'
 import h from './habitos-dia.module.css'
+import { seMuestra } from './habitos-hoy'
 
 /**
  * Los hábitos en la hoja del día (5 oct 2026). Antes solo se marcaban en /todotask/hoy; Daniel firmó «un solo lugar por
@@ -35,7 +37,7 @@ export function HabitosDia({ dia, donde, i = 4, habits, today, ocultar = [], com
   const [tejido, setTejido] = useState(false)
   const [recien, setRecien] = useState<string | null>(null)
   const [ultimo, setUltimo] = useState<{ nombre: string; hecho: boolean | null } | null>(null)
-  const lista = useMemo(() => (habits.data?.habitos ?? []).filter(x => !ocultar.includes(x.clave)), [habits.data, ocultar.join()]) // eslint-disable-line react-hooks/exhaustive-deps
+  const lista = useMemo(() => (habits.data?.habitos ?? []).filter(x => seMuestra(x.clave) && !ocultar.includes(x.clave)), [habits.data, ocultar.join()]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { setAbierto(null); setTejido(false) }, [dia])
   useEffect(() => { if (!recien) return; const t = setTimeout(() => setRecien(null), 900); return () => clearTimeout(t) }, [recien])
   useEffect(() => { if (!ultimo) return; const t = setTimeout(() => setUltimo(null), 6000); return () => clearTimeout(t) }, [ultimo])
@@ -109,7 +111,7 @@ export function HabitosDia({ dia, donde, i = 4, habits, today, ocultar = [], com
             return <button key={x.clave} className={h.fila} data-clave={x.clave} data-estado={estado} aria-pressed={m === true} onClick={() => alternar(x.clave, nombre)} title={sub ?? undefined}
               aria-label={`${nombre}: ${m === true ? 'cumplido' : m === false ? 'no cumplido' : 'sin registro'}${r ? `, racha de ${r.replace(' d', ' días')}` : ''}`}>
               <span className={h.marca} aria-hidden>{m === true ? <svg viewBox="0 0 12 12" className={recien === x.clave ? mov.palomita : undefined}><path d="M2.5 6.2 5 8.6l4.6-5.2" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" /></svg> : m === false ? '×' : null}</span>
-              <span className={h.nombre}>{nombre}{sub && <small className={h.subLinea}> · {sub}</small>}</span>
+              <span className={h.nombre}><NombreHabito clave={x.clave} nombre={realHabitName(x, dia)} tocable={false} />{sub && <small className={h.subLinea}> · {sub}</small>}</span>
               {r && <span className={h.racha}>{r}</span>}
             </button>
           })}
@@ -144,7 +146,7 @@ export function HabitosDia({ dia, donde, i = 4, habits, today, ocultar = [], com
               data-hecha={m === true || undefined} aria-pressed={m === true} onClick={() => alternar(x.clave, nombre)}
               aria-label={`${nombre}: ${m === true ? 'cumplido' : m === false ? 'no cumplido' : 'sin registro'}${r ? `, racha de ${r.replace(' d', ' días')}` : ''}${tecla ? `. Tecla ${tecla}` : ''}`}>
               <span className={h.marca} aria-hidden>{m === true ? <svg viewBox="0 0 12 12" className={recien === x.clave ? mov.palomita : undefined}><path d="M2.5 6.2 5 8.6l4.6-5.2" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" /></svg> : m === false ? '×' : null}</span>
-              <span className={h.nombre}>{nombre}{habitSubtitle(x.clave) && <small className={h.sub}>{habitSubtitle(x.clave)}</small>}</span>
+              <span className={h.nombre}><NombreHabito clave={x.clave} nombre={realHabitName(x, dia)} tocable={false} />{habitSubtitle(x.clave) && <small className={h.sub}>{habitSubtitle(x.clave)}</small>}</span>
               {r && <span className={h.racha} title={`Racha de ${r.replace(' d', ' días')}`}>{r}</span>}
               {tecla && <kbd className={h.tecla} aria-hidden>{tecla}</kbd>}
             </button>

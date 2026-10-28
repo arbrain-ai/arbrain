@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
+import { sinLenguaje } from '../diseno/sin-lenguaje'
 import { bloquesDelDia } from '../../src/features/planning/dia-vivo'
 import { esVentana, nombreDeBrief, nombreDeLlamada, ordenarAgenda } from '../../src/features/planning/agenda-llamadas'
 import type { PlanEvent } from '../../src/features/planning/types'
@@ -54,7 +55,7 @@ test('un brief de otra persona o a otra hora no se pliega', () => {
 })
 
 test('la agenda del Día no es una caja con scroll propio con ningún puntero (Daniel 18 oct: «desde el móvil no puedo bajar»; 21 oct: «sigue sin funcionar el scroll solo si agarro la scrollbar»)', () => {
-  const css = readFileSync(new URL('../../src/features/planning/dia-vivo.module.css', import.meta.url), 'utf8')
+  const css = sinLenguaje(readFileSync(new URL('../../src/features/planning/dia-vivo.module.css', import.meta.url), 'utf8'))
   const caja = css.match(/\.miniCaja \{([^}]*)\}/g) ?? []
   assert.ok(caja.length > 0, 'existe la regla .miniCaja')
   // Una caja anidada con overflow y overscroll-behavior: contain se queda con la rueda aunque no tenga nada que desplazar.
@@ -66,12 +67,17 @@ test('la agenda del Día no es una caja con scroll propio con ningún puntero (D
 })
 
 test('la línea de ahora del Día es la de «Tu día» (compuesta, no copiada)', () => {
-  const css = readFileSync(new URL('../../src/features/planning/dia-vivo.module.css', import.meta.url), 'utf8')
+  const css = sinLenguaje(readFileSync(new URL('../../src/features/planning/dia-vivo.module.css', import.meta.url), 'utf8'))
   assert.match(css, /\.mini > \.miniAhora \{ position: absolute;/)
-  assert.doesNotMatch(css, /\.miniAhora[^{]*\{[^}]*(border-top|background)/, 'sin trazo propio: el trazo es el de lineaAhora')
+  assert.doesNotMatch(css, /\.miniAhora \{[^}]*(border-top|background)/, 'la caja no pinta: el trazo es el ::after de lineaAhora')
+  // 28 oct 08:02, Daniel: la línea quedaba detrás del bloque en curso. Va ENCIMA de los eventos y entera en todo el ancho.
+  const z = Number(/\.mini > \.miniAhora \{[^}]*z-index: (\d+)/.exec(css)?.[1])
+  const zBloque = Math.max(...[...css.matchAll(/\.miniBloques li[^{]*\{[^}]*z-index: (\d+)/g)].map(m => Number(m[1])))
+  assert.ok(z > zBloque, `la línea (${z}) sobre el bloque en curso (${zBloque})`)
+  assert.match(css, /\.mini > \.miniAhora::after \{[^}]*background: var\(--gold\)/, 'trazo entero, sin desvanecerse')
   const tsx = readFileSync(new URL('../../src/features/planning/AgendaMini.tsx', import.meta.url), 'utf8')
   assert.match(tsx, /import luz from '@\/features\/cabina\/luz\.module\.css'/)
   assert.match(tsx, /className=\{`\$\{luz\.lineaAhora\} \$\{d\.miniAhora\}`\}/)
-  const luz = readFileSync(new URL('../../src/features/cabina/luz.module.css', import.meta.url), 'utf8')
+  const luz = sinLenguaje(readFileSync(new URL('../../src/features/cabina/luz.module.css', import.meta.url), 'utf8'))
   assert.match(luz, /\.lineaAhora::after \{[^}]*linear-gradient\(90deg, var\(--gold\), rgba\(var\(--gold-rgb\), 0\)\)/)
 })

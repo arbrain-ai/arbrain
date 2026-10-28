@@ -15,9 +15,9 @@ import { Component, createContext, startTransition, useCallback, useContext, use
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { AlertTriangle, ArrowUpRight, BookOpen, Bookmark, BookmarkCheck, CalendarDays, Clapperboard, Gauge, Inbox, Loader2, Maximize2, Target, TerminalSquare, Wallet, Shapes, X, Navigation, ChevronRight, Pin, PinOff, FileText, Repeat, Server, BrainCircuit, Network, Sun, Activity, Presentation, GraduationCap, FolderTree, UsersRound } from 'lucide-react'
+import { AlertTriangle, ArrowUpRight, BookOpen, Bookmark, BookmarkCheck, CalendarDays, Clapperboard, Gauge, Inbox, Loader2, Maximize2, Target, TerminalSquare, Wallet, Shapes, X, Navigation, ChevronRight, Pin, PinOff, FileText, Repeat, Server, BrainCircuit, Network, Sun, Activity, Presentation, GraduationCap, FolderTree, UsersRound, House, Dog, History } from 'lucide-react'
 import type { ChatMessage } from '@/features/chat/hooks/useChat'
-import { type Invocacion, type MostrarInput, type AbrirInput, invocacionesDe, rutaDe, seccionDe, resumen, NOMBRE, abrirEsVivo, abrirEjecutado, hoyCivil, tituloPeriodo, nombreDocumento } from './model'
+import { type Invocacion, type MostrarInput, type AbrirInput, invocacionesDe, sinEcoDeDelegar, rutaDe, seccionDe, resumen, NOMBRE, abrirEsVivo, abrirEjecutado, hoyCivil, tituloPeriodo, nombreDocumento } from './model'
 import { lecturaEnCache } from './datos'
 import { VistaCalendario, urlCalendario, resumenCalendario } from './vistas/Calendario'
 import { VistaObjetivos, URL_OBJETIVOS, resumenObjetivos } from './vistas/Objetivos'
@@ -39,6 +39,11 @@ import { VistaSalud, URL_SALUD, resumenSalud } from './vistas/Salud'
 import { VistaMasterclass } from './vistas/Masterclass'
 import { VistaExplorador } from './vistas/Explorador'
 import { VistaCohorte, URL_COHORTE, resumenCohorte } from './vistas/Cohorte'
+import { VistaCasa, URL_CASA, resumenCasa } from '@/features/casa/PanelCasa'
+import { VistaHistoria, URL_HISTORIA, resumenHistoria } from '@/features/historia/Historia'
+import type { Historia as DatosHistoria } from '@/features/historia/modelo'
+import dynamic from 'next/dynamic'
+import type { EstadoCasa } from '@/features/casa/contrato'
 import type { DatosCohorte } from '@/features/cohorte/modelo'
 import { resumenMasterclass, URL_MASTERCLASS, type LecturaMasterclass } from '@/features/masterclass/modelo'
 import { VistaPizarron } from '@/features/pizarron/VistaPizarron'
@@ -55,6 +60,9 @@ import { PRINCIPAL } from './panel/pestanas-fuera'
 import { useRecientesStore } from '../chat/stores/recientes-store'
 import s from './cabina.module.css'
 import l from './luz.module.css'
+
+// El perro (cámara, 3D) solo carga al pedirse: Cabina viaja en el layout de toda la app.
+const VistaPerro = dynamic(() => import('@/features/perro/VistaPerro').then(m => m.VistaPerro), { ssr: false })
 
 /** Cuántas vistas del hilo quedan vivas (las más recientes). */
 export const VISTAS_ACTIVAS = 3
@@ -80,7 +88,7 @@ export function CabinaProvider({ messages, children, sinOptimizar }: { messages:
   return <CabinaCtx.Provider value={value}>{children}</CabinaCtx.Provider>
 }
 
-export const ICONO = { calendario: CalendarDays, objetivos: Target, centro: Gauge, lienzo: Shapes, reporte: Inbox, negocio: BookOpen, trabajos: TerminalSquare, finanzas: Wallet, contenido: Clapperboard, rutinas: Repeat, servidores: Server, memoria: BrainCircuit, equipo: Network, documento: FileText, diario: Sun, salud: Activity, pizarron: Presentation, masterclass: GraduationCap, explorador: FolderTree, cohorte: UsersRound }
+export const ICONO = { calendario: CalendarDays, objetivos: Target, centro: Gauge, lienzo: Shapes, reporte: Inbox, negocio: BookOpen, trabajos: TerminalSquare, finanzas: Wallet, contenido: Clapperboard, rutinas: Repeat, servidores: Server, memoria: BrainCircuit, equipo: Network, documento: FileText, diario: Sun, salud: Activity, pizarron: Presentation, masterclass: GraduationCap, explorador: FolderTree, cohorte: UsersRound, casa: House, perro: Dog, historia: History }
 
 /** Una vista que falla se queda en SU tarjeta: nunca tumba el hilo. */
 class Aislada extends Component<{ children: ReactNode }, { error: string | null }> {
@@ -116,6 +124,12 @@ function CuerpoVista({ input, grande }: { input: MostrarInput; grande?: boolean 
     case 'masterclass': return <VistaMasterclass grande={grande} />
     // Cohorte (18 oct 2026): la venta y la entrega de la cohorte fundadora, en vivo de Polar y de la comunidad.
     case 'cohorte': return <VistaCohorte grande={grande} />
+    // Casa (26 oct 2026): el perro y los dispositivos de la casa; la puerta a la casa 3D (/casa).
+    case 'casa': return <VistaCasa grande={grande} modo={input.modo} repetir={input.repetir} />
+    // Perro (27 oct 2026): el mando de /perro a lo ancho de la tarjeta; en el panel lo pinta CuerpoSeccion a lo alto de la pestaña.
+    case 'perro': return <VistaPerro />
+    // La historia de tu cerebro (27 oct 2026): qué cambió, quién y cuándo; carriles de agentes; volver con un clic.
+    case 'historia': return <VistaHistoria grande={grande} />
     // Explorador de archivos (8 oct 2026): el árbol del repo; un clic abre el archivo en su pestaña de documento.
     case 'explorador': return <VistaExplorador grande={grande} />
     // El pizarrón (7 oct 2026): con paginaId, una sesión donde Levy enseña; sin él, la casa (sesiones y biblioteca).
@@ -140,6 +154,8 @@ function datoCache(input: MostrarInput): string | null {
   if (input.vista === 'salud') return resumenSalud(lecturaEnCache<DatosSalud>(URL_SALUD))
   if (input.vista === 'masterclass') return resumenMasterclass(lecturaEnCache<LecturaMasterclass>(URL_MASTERCLASS))
   if (input.vista === 'cohorte') return resumenCohorte(lecturaEnCache<DatosCohorte>(URL_COHORTE))
+  if (input.vista === 'casa') return resumenCasa(lecturaEnCache<EstadoCasa>(URL_CASA) ?? null)
+  if (input.vista === 'historia') return resumenHistoria(lecturaEnCache<DatosHistoria>(URL_HISTORIA))
   if (input.vista === 'diario') return resumenDiario(lecturaEnCache<DatosDueno | DatosSegunda>(urlDiario(input.quien, f)))
   return null
 }
@@ -155,7 +171,7 @@ export function titulo(input: MostrarInput) {
 
 /** Las vistas v2 traen su propio encabezado editorial (la fecha, la meta, la cifra):
  *  la cabecera de la tarjeta solo dice de dónde viene, sin repetir el título. */
-const conHeroe = (i: MostrarInput) => ['calendario', 'objetivos', 'centro', 'finanzas', 'contenido', 'rutinas', 'servidores', 'memoria', 'equipo', 'diario', 'salud', 'masterclass', 'explorador', 'cohorte'].includes(i.vista)
+const conHeroe = (i: MostrarInput) => ['calendario', 'objetivos', 'centro', 'finanzas', 'contenido', 'rutinas', 'servidores', 'memoria', 'equipo', 'diario', 'salud', 'masterclass', 'explorador', 'cohorte', 'casa', 'perro', 'historia'].includes(i.vista)
 
 /** Monta el cuerpo solo mientras el marco está cerca del viewport (callback ref:
  *  se re-engancha cuando una vista colapsada se reactiva y aparece su nodo). */
@@ -286,7 +302,7 @@ export function LineaEnPanel({ inv, input, vivo }: { inv: Extract<Invocacion, { 
 }
 
 /** Lo técnico vive en el Taller: la línea del hilo lo nombra y lo abre (al nacer en un turno vivo, solo). */
-const TALLER_PESTANA: Partial<Record<string, string>> = { servidores: 'Máquina', rutinas: 'Rutinas', memoria: 'Memoria' }
+const TALLER_PESTANA: Partial<Record<string, string>> = { servidores: 'Computadora', rutinas: 'Rutinas', memoria: 'Memoria', historia: 'Historia' }
 function LineaTaller({ inv, input, vivo }: { inv: Extract<Invocacion, { verbo: 'mostrar' }>; input: MostrarInput; vivo: boolean }) {
   const fijar = usePanelFijadas(st => st.fijar)
   const abrir = useCallback(() => { mostrarPanel(fijar(inv.toolId, input)); useLayoutStore.getState().setPanelDerecho(true) }, [fijar, inv.toolId, input])
@@ -295,7 +311,7 @@ function LineaTaller({ inv, input, vivo }: { inv: Extract<Invocacion, { verbo: '
     fijadasVivas.add(inv.toolId); abrir()
   }, [vivo, inv.status, inv.toolId, abrir])
   const Icono = ICONO[input.vista], dato = datoCache(input)
-  const pestana = TALLER_PESTANA[input.vista] ?? 'Máquina'
+  const pestana = TALLER_PESTANA[input.vista] ?? 'Computadora'
   return <button className={s.enPanel} data-cabina-vista={input.vista} data-cabina-estado="en-taller" onClick={abrir} aria-label={`Ver en el Taller: ${pestana}`}>
     <span className={s.colapsadaIcono}><Icono size={14} aria-hidden /></span>
     <span className={s.colapsadaTexto}><span>{input.titulo ?? resumen(input)}</span>{dato && <small>{dato}</small>}</span>
@@ -403,7 +419,7 @@ function Llevar({ inv, streaming }: { inv: Extract<Invocacion, { verbo: 'abrir' 
 
 /** Todas las invocaciones de la cabina de un mensaje de Levy. */
 export function CabinaDelMensaje({ msg }: { msg: ChatMessage }) {
-  const invs = useMemo(() => invocacionesDe(msg), [msg])
+  const invs = useMemo(() => sinEcoDeDelegar(msg, invocacionesDe(msg)), [msg])
   if (!invs.length) return null
   return <div className={s.cabina}>
     {invs.map(inv => inv.verbo === 'mostrar'

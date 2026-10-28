@@ -3,13 +3,13 @@
    Reglas: el movimiento explica; solo late lo vivo (el ahora); oro para el ahora, lo que viene y P1; titulares en la serif de Levy.
    El ancho lo manda el CONTENEDOR del calendario (panel de 520 px, sección o teléfono), no la ventana. */
 @keyframes llenar { from { transform: scaleX(0); } }
-@keyframes respira { 0%, 100% { box-shadow: 0 0 0 0 rgba(var(--gold-rgb), .5); } 60% { box-shadow: 0 0 0 6px rgba(var(--gold-rgb), 0); } }
+@keyframes respira { 0%, 100% { box-shadow: 0 0 0 0 rgba(var(--l-halo-ambar-rgb, var(--gold-rgb)), 0.5); } 60% { box-shadow: 0 0 0 6px var(--l-borde-ambar, rgba(var(--gold-rgb), 0)); } }
 @keyframes desdeDerecha { from { opacity: 0; transform: translateX(26px); } }
 @keyframes desdeIzquierda { from { opacity: 0; transform: translateX(-26px); } }
 @keyframes acercar { from { opacity: 0; transform: scale(.965); } }
 @keyframes alejar { from { opacity: 0; transform: scale(1.03); } }
 @keyframes aparecer { from { opacity: 0; } }
-@keyframes pulso { 0% { transform: scale(1.45); color: var(--gold); } 100% { transform: scale(1); } }
+@keyframes pulso { 0% { transform: scale(1.45); color: var(--l-tinta-ambar, var(--gold)); } 100% { transform: scale(1); } }
 @keyframes tejer { from { transform: scaleX(0); opacity: 0; } }
 
 /* La escena: cambiar de periodo desliza (← →, swipe); cambiar de escala, si el navegador sabe transiciones de vista, hace crecer el riel
@@ -19,6 +19,9 @@
 :global([data-dos-columnas]) > .escena { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
 :global([data-dos-columnas=month]) > .escena { grid-area: izq; }
 :global([data-dos-columnas]) > .escena > * { flex: 1 1 0; min-height: 0; }
+/* El Mes de piedras grandes (25 oct 2026): la escena es solo la franja del objetivo; toma su alto y deja el resto al mes. */
+:global([data-dos-columnas=month]) > .escena { flex: none; }
+:global([data-dos-columnas=month]) > .escena > * { flex: none; }
 .escena[data-mov=der] { animation: desdeDerecha 340ms var(--mov-curva, cubic-bezier(.16, 1, .3, 1)) both; }
 .escena[data-mov=izq] { animation: desdeIzquierda 340ms var(--mov-curva, cubic-bezier(.16, 1, .3, 1)) both; }
 .escena[data-mov=acercar] { animation: acercar 380ms var(--mov-curva, cubic-bezier(.16, 1, .3, 1)) both; }
@@ -41,22 +44,22 @@
 .medidorHechas b { display: inline-block; color: var(--foreground); font-weight: 700; }
 .pulso { animation: pulso 700ms var(--mov-curva, cubic-bezier(.16, 1, .3, 1)) both; }
 .viene { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; width: 100%; margin-top: 2px; padding: 9px 2px 0; border: 0; border-top: 1px dashed var(--linea); background: transparent; color: var(--foreground); font: inherit; text-align: left; cursor: pointer; }
-.vieneCuando { padding: 2px 8px; border-radius: 999px; background: rgba(var(--gold-rgb), .16); color: var(--gold-dark, var(--gold)); font-size: 10.5px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; white-space: nowrap; }
-:global(.dark) .vieneCuando { color: var(--gold-bright, var(--gold)); }
+.vieneCuando { padding: 2px 8px; border-radius: 999px; background: rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.16); color: var(--l-ceja-ambar, var(--gold-dark, var(--gold))); font-size: 10.5px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; white-space: nowrap; }
+:global(.dark) .vieneCuando { color: var(--l-ceja-ambar, var(--gold-bright, var(--gold))); }
 .vieneTitulo { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vieneTitulo i { flex: 0 0 8px; height: 8px; border-radius: 2px; transform: rotate(45deg); }
 .viene small { font-size: 11.5px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .viene:hover .vieneTitulo { text-decoration: underline; text-underline-offset: 3px; }
 
 /* ── La partitura: un riel por día sobre el mismo eje de horas. ── */
-.partitura { --g: 48px; --t: 30px; --alto: 32px; --cielo-noche: color-mix(in srgb, #24365e 13%, transparent); --cielo-alba: rgba(var(--gold-rgb), .10);
+.partitura { --g: 48px; --t: 30px; --alto: 32px; --cielo-noche: color-mix(in srgb, var(--l-azul-8, #24365e) 13%, transparent); --cielo-alba: rgba(var(--gold-rgb), .10);
   --cielo-dia: color-mix(in srgb, var(--foreground) 3%, transparent); --cielo-tarde: rgba(var(--gold-rgb), .09);
   position: relative; display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 10px 12px 12px; border: 1px solid var(--linea); border-radius: 14px; background: var(--card, var(--surface)); user-select: none; }
-:global(.dark) .partitura { --cielo-noche: rgba(0, 0, 0, .38); --cielo-dia: color-mix(in srgb, var(--foreground) 6%, transparent); --cielo-alba: rgba(var(--gold-rgb), .12); --cielo-tarde: rgba(var(--gold-rgb), .14); }
+:global(.dark) .partitura { --cielo-noche: rgba(var(--l-sombra-rgb, 0, 0, 0), 0.38); --cielo-dia: color-mix(in srgb, var(--foreground) 6%, transparent); --cielo-alba: rgba(var(--gold-rgb), .12); --cielo-tarde: rgba(var(--gold-rgb), .14); }
 .partitura[data-alta] { --alto: 60px; }
 .eje { position: relative; height: 16px; margin: 0 var(--t) 0 var(--g); font-size: 10.5px; font-variant-numeric: tabular-nums; color: var(--muted); }
 .eje > * { position: absolute; left: calc(var(--p) * 100%); transform: translateX(-50%); white-space: nowrap; }
-.ejeAhora { z-index: 1; padding: 0 5px; border-radius: 6px; background: var(--gold); color: #1b1300; font-weight: 700; font-style: normal; }
+.ejeAhora { z-index: 1; padding: 0 5px; border-radius: 6px; background: var(--gold); color: var(--l-gris-3, #1b1300); font-weight: 700; font-style: normal; }
 .ejeCursor { z-index: 2; padding: 0 5px; border-radius: 6px; background: var(--foreground); color: var(--background); font-style: normal; font-weight: 600; }
 .filas { position: relative; display: flex; flex-direction: column; gap: 3px; }
 .fila { display: grid; grid-template-columns: var(--g) minmax(0, 1fr) var(--t); align-items: center; height: var(--alto); min-width: 0; }
@@ -64,14 +67,14 @@
 .filaDia { position: relative; display: flex; align-items: center; gap: 4px; height: 100%; padding: 0 6px 0 0; border: 0; background: transparent; color: var(--foreground); font: inherit; cursor: pointer; }
 .filaDia small { font-size: 10px; font-weight: 650; letter-spacing: .8px; text-transform: uppercase; color: var(--muted); }
 .filaDia b { font-family: var(--serif); font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.fila[data-hoy] .filaDia small, .fila[data-hoy] .filaDia b { color: var(--gold-dark, var(--gold)); }
-:global(.dark) .fila[data-hoy] .filaDia small, :global(.dark) .fila[data-hoy] .filaDia b { color: var(--gold-bright, var(--gold)); }
+.fila[data-hoy] .filaDia small, .fila[data-hoy] .filaDia b { color: var(--l-tinta-ambar, var(--gold-dark, var(--gold))); }
+:global(.dark) .fila[data-hoy] .filaDia small, :global(.dark) .fila[data-hoy] .filaDia b { color: var(--l-tinta-ambar, var(--gold-bright, var(--gold))); }
 .fila[data-pasado] .filaDia { opacity: .55; }
 .filaDia:hover b { text-decoration: underline; text-underline-offset: 3px; }
 .filaObjetivo { position: absolute; top: 4px; right: 5px; width: 5px; height: 5px; background: var(--gold); transform: rotate(45deg); }
 .pista { position: relative; height: calc(var(--alto) - 6px); border-radius: 7px; cursor: pointer; }
-.fila[data-hoy] .pista { box-shadow: inset 0 0 0 1px rgba(var(--gold-rgb), .45); }
-.vivido { position: absolute; left: 0; top: 0; bottom: 0; width: calc(var(--p) * 100%); border-radius: 7px 0 0 7px; background: linear-gradient(90deg, rgba(var(--gold-rgb), .05), rgba(var(--gold-rgb), .22)); pointer-events: none; }
+.fila[data-hoy] .pista { box-shadow: inset 0 0 0 1px var(--l-borde-ambar, rgba(var(--gold-rgb), .45)); }
+.vivido { position: absolute; left: 0; top: 0; bottom: 0; width: calc(var(--p) * 100%); border-radius: 7px 0 0 7px; background: linear-gradient(90deg, rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.05), rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.22)); pointer-events: none; }
 .todoDia { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; border-radius: 1px; background: var(--gold); opacity: .7; pointer-events: none; }
 .bloque { container: bloque / inline-size; position: absolute; top: 3px; bottom: 3px; display: flex; align-items: center; min-width: 3px; padding: 0 0 0 6px; overflow: hidden;
   border: 0; border-left: 3px solid var(--ev-ac, var(--c)); border-radius: 4px; background: var(--ev-bg, color-mix(in srgb, var(--c) 30%, var(--card))); color: var(--ev-fg, var(--foreground)); font: inherit; text-align: left; cursor: pointer;
@@ -88,9 +91,9 @@
 .filas[data-ritmo] .bloque[data-enciende] { opacity: 1; box-shadow: 0 0 0 1.5px var(--c), 0 0 12px color-mix(in srgb, var(--c) 45%, transparent); }
 .ahora { position: absolute; z-index: 4; top: 50%; left: calc(var(--p) * 100%); width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 6px; background: var(--gold); border: 2px solid var(--card, var(--background)); animation: respira var(--mov-latido, 2.4s) ease-in-out infinite; pointer-events: none; }
 .filaCola { display: flex; align-items: center; justify-content: flex-end; gap: 3px; font-size: 11px; font-weight: 650; color: var(--muted); font-variant-numeric: tabular-nums; }
-.filaCola i { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--brand, var(--primary)); }
+.filaCola i { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--l-borde-morado, var(--brand, var(--primary))); }
 .lineaAhora, .lineaCursor { position: absolute; top: -2px; bottom: -2px; left: calc(var(--g) + (100% - var(--g) - var(--t)) * var(--p)); width: 0; pointer-events: none; }
-.lineaAhora { border-left: 1.5px dashed rgba(var(--gold-rgb), .75); }
+.lineaAhora { border-left: 1.5px dashed var(--l-borde-ambar, rgba(var(--gold-rgb), .75)); }
 .lineaCursor { border-left: 1px solid color-mix(in srgb, var(--foreground) 55%, transparent); }
 
 /* La lectura bajo la partitura: lo que tocaste, o tu ritmo y tu hueco libre. */
@@ -114,14 +117,14 @@
 .dias { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; align-items: start; min-width: 0; }
 @container (min-width: 960px) { .dias[data-cuantos='4'] { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 .diaHoja { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 8px 10px 10px; border: 1px solid var(--linea); border-radius: 14px; }
-.diaHoja[data-hoy] { border-color: rgba(var(--gold-rgb), .45); background: linear-gradient(160deg, rgba(var(--gold-rgb), .06), transparent 50%); }
+.diaHoja[data-hoy] { border-color: var(--l-borde-ambar, rgba(var(--gold-rgb), .45)); background: linear-gradient(160deg, rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.06), transparent 50%); }
 .diaHoja[data-pasado] { opacity: .8; }
 .diaHojaCabeza { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .diaCabeza { flex: 1 1 auto; display: flex; align-items: baseline; gap: 7px; min-width: 0; padding: 2px 0; border: 0; background: transparent; color: var(--foreground); font: inherit; text-align: left; cursor: pointer; }
 .diaNombre { font-size: 11px; font-weight: 650; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); }
 .diaNumero { font-family: var(--serif); font-size: 21px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
-.hoyMarca { padding: 1px 7px; border-radius: 999px; background: rgba(var(--gold-rgb), .18); color: var(--gold-dark, var(--gold)); font-size: 10px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; }
-:global(.dark) .hoyMarca { color: var(--gold-bright, var(--gold)); }
+.hoyMarca { padding: 1px 7px; border-radius: 999px; background: rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.18); color: var(--l-ceja-ambar, var(--gold-dark, var(--gold))); font-size: 10px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; }
+:global(.dark) .hoyMarca { color: var(--l-ceja-ambar, var(--gold-bright, var(--gold))); }
 .diaCuenta { margin-left: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .diaPliegue { flex: 0 0 auto; width: 14px; text-align: center; color: var(--muted); }
 .diaObjetivo { display: flex; align-items: baseline; gap: 7px; margin: 0; font-size: 12.5px; line-height: 1.35; color: var(--foreground); overflow-wrap: anywhere; }
@@ -151,27 +154,27 @@
 .franja:hover { color: var(--foreground); background: var(--card-hover); }
 .franja:hover .franjaIr { opacity: 1; }
 .semanaTejida[data-estado=actual] .franja { background: rgba(var(--gold-rgb), .09); color: var(--foreground); font-weight: 600; }
-.semanaTejida[data-estado=actual] .franja b { color: var(--gold-dark, var(--gold)); }
-:global(.dark) .semanaTejida[data-estado=actual] .franja b { color: var(--gold-bright, var(--gold)); }
+.semanaTejida[data-estado=actual] .franja b { color: var(--l-tinta-ambar, var(--gold-dark, var(--gold))); }
+:global(.dark) .semanaTejida[data-estado=actual] .franja b { color: var(--l-tinta-ambar, var(--gold-bright, var(--gold))); }
 .semanaChip { flex: 0 0 auto; padding: 0 7px; border: 1px solid var(--linea); border-radius: 999px; font-size: 10px; font-style: normal; font-weight: 500; color: var(--muted); white-space: nowrap; }
-.semanaChip[data-estado=draft] { color: var(--gold-dark, var(--gold)); border-color: rgba(var(--gold-rgb), .45); }
-:global(.dark) .semanaChip[data-estado=draft] { color: var(--gold-bright, var(--gold)); }
-.semanaChip[data-estado=completed] { color: var(--success, var(--primary)); border-color: currentColor; }
+.semanaChip[data-estado=draft] { color: var(--l-tinta-ambar, var(--gold-dark, var(--gold))); border-color: rgba(var(--gold-rgb), .45); }
+:global(.dark) .semanaChip[data-estado=draft] { color: var(--l-tinta-ambar, var(--gold-bright, var(--gold))); }
+.semanaChip[data-estado=completed] { color: var(--success, var(--l-tinta-morado, var(--primary))); border-color: currentColor; }
 .semanaDias { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
 .punto { position: relative; display: flex; flex-direction: column; gap: 5px; min-width: 0; min-height: 86px; padding: 6px 7px 9px; border: 0; border-left: 1px solid var(--linea); background: transparent; color: var(--foreground); font: inherit; text-align: left; cursor: pointer; transition: background 120ms; }
 .punto:first-child { border-left: 0; }
 .punto:hover { background: var(--card-hover); }
 .punto[data-fuera] { background: color-mix(in srgb, var(--foreground) 2%, transparent); }
 .punto[data-fuera] .puntoNumero { color: var(--muted); opacity: .7; }
-.punto[data-sel] { box-shadow: inset 0 0 0 2px rgba(var(--brand-rgb), .55); background: rgba(var(--brand-rgb), .05); }
+.punto[data-sel] { box-shadow: inset 0 0 0 2px var(--l-borde-morado, rgba(var(--brand-rgb), .55)); background: rgba(var(--l-velo-morado-rgb, var(--brand-rgb)), 0.05); }
 .puntoNumero { display: inline-grid; place-items: center; align-self: flex-start; min-width: 24px; height: 24px; padding: 0 5px; border-radius: 12px; font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.punto[data-hoy] .puntoNumero { background: var(--gold); color: #1b1300; animation: respira var(--mov-latido, 2.4s) ease-in-out infinite; }
+.punto[data-hoy] .puntoNumero { background: var(--gold); color: var(--l-gris-3, #1b1300); animation: respira var(--mov-latido, 2.4s) ease-in-out infinite; }
 .hilo { position: relative; display: block; height: 8px; border-radius: 3px; background: color-mix(in srgb, var(--foreground) 6%, transparent); }
 .hilo i { position: absolute; top: 0; bottom: 0; border-radius: 2px; background: var(--c); }
 .hilo i[data-rutina] { opacity: .55; }
 .punto[data-pasado] .hilo i { opacity: .28; }
 .semanaTejida .hilo { animation: tejer 520ms var(--mov-curva, cubic-bezier(.16, 1, .3, 1)) backwards; animation-delay: calc(220ms + var(--n, 0) * 60ms); transform-origin: left; }
-.hiloVivido { position: absolute; left: 0; top: -2px; bottom: -2px; width: calc(var(--p) * 100%); border-radius: 3px; background: rgba(var(--gold-rgb), .25); }
+.hiloVivido { position: absolute; left: 0; top: -2px; bottom: -2px; width: calc(var(--p) * 100%); border-radius: 3px; background: rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.25); }
 .hilo b { position: absolute; top: 50%; left: calc(var(--p) * 100%); width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 4px; background: var(--gold); border: 1.5px solid var(--card, var(--background)); }
 .puntoHito { display: flex; align-items: flex-start; gap: 5px; min-width: 0; font-size: 11.5px; font-weight: 600; line-height: 1.25; }
 .puntoHito i { flex: 0 0 7px; height: 7px; margin-top: 3px; border-radius: 2px; background: var(--c); transform: rotate(45deg); }
@@ -179,8 +182,8 @@
 .puntoHito small { color: var(--muted); font-weight: 600; }
 .punto[data-pasado] .puntoHito { opacity: .55; }
 .puntoTareas { display: inline-flex; align-items: center; gap: 4px; margin-top: auto; font-size: 11px; font-weight: 650; color: var(--muted); font-variant-numeric: tabular-nums; }
-.puntoTareas i { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--brand, var(--primary)); }
-.puntoTareas[data-p1] i { border-color: var(--gold); }
+.puntoTareas i { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--l-borde-morado, var(--brand, var(--primary))); }
+.puntoTareas[data-p1] i { border-color: var(--l-borde-ambar, var(--gold)); }
 .puntoLargo { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--c); opacity: .8; }
 
 /* Lo que no se repite: los hitos del mes, con su cuenta regresiva. */
@@ -190,8 +193,8 @@
 .hitos li button { display: grid; grid-template-columns: 82px 8px minmax(0, 1fr) auto; align-items: center; gap: 10px; width: 100%; min-height: 38px; padding: 5px 8px; border: 0; border-radius: 9px; background: transparent; color: var(--foreground); font: inherit; text-align: left; cursor: pointer; transition: background 140ms; }
 .hitos li button:hover { background: var(--card-hover); }
 .hitos li i { width: 8px; height: 8px; border-radius: 2px; background: var(--c); transform: rotate(45deg); }
-.hitoCuando { font-size: 11px; font-weight: 700; letter-spacing: .4px; color: var(--gold-dark, var(--gold)); white-space: nowrap; }
-:global(.dark) .hitoCuando { color: var(--gold-bright, var(--gold)); }
+.hitoCuando { font-size: 11px; font-weight: 700; letter-spacing: .4px; color: var(--l-tinta-ambar, var(--gold-dark, var(--gold))); white-space: nowrap; }
+:global(.dark) .hitoCuando { color: var(--l-tinta-ambar, var(--gold-bright, var(--gold))); }
 .hitoTitulo { min-width: 0; font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hitos li small { font-size: 11.5px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .hitos li[data-pasado] { opacity: .5; }
@@ -234,9 +237,11 @@
 
 /* Semana compacta (5 oct 2026, 17:51): el objetivo de cada día, en oro, bajo su fila; ritmo y día por día a un toque. */
 .filaGrupo { display: flex; flex-direction: column; min-width: 0; }
-.filaObjTexto { display: block; margin: -1px 0 1px var(--g); padding: 0 2px; border: 0; background: transparent; color: var(--gold); font: inherit; font-size: 11px; font-weight: 600;
+.filaObjTexto { display: block; margin: -1px 0 1px var(--g); padding: 0 2px; border: 0; background: transparent; color: var(--l-tinta-ambar, var(--gold)); font: inherit; font-size: 11px; font-weight: 600;
   line-height: 1.3; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
 .filaObjTexto:hover { text-decoration: underline; text-underline-offset: 2px; }
 .filaObjTexto[data-pasado] { opacity: .55; }
 .verMas { display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; background: transparent; color: var(--muted); font: inherit; cursor: pointer; }
 .verMas:hover { color: var(--foreground); }
+
+:global(html[data-estilo='unificado']) .fila[data-pasado] .filaDia, :global(html[data-estilo='unificado']) .hitos li[data-pasado], :global(html[data-estilo='unificado']) .filaObjTexto[data-pasado], :global(html[data-estilo='unificado']) .punto[data-pasado] .puntoHito { opacity: 0.72; }

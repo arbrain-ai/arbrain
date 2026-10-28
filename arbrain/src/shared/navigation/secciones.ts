@@ -1,5 +1,5 @@
 import {
-  LayoutGrid, Bot, Youtube, Brain, CalendarDays, Wallet, Repeat, Shapes, BrainCircuit, Network, Activity, GraduationCap, UsersRound,
+  LayoutGrid, Bot, Youtube, Brain, CalendarDays, Wallet, Repeat, Shapes, BrainCircuit, Network, Activity, GraduationCap, UsersRound, Dog, House,
   type LucideIcon,
 } from 'lucide-react'
 import { ArbrainMark } from '@/shared/components/icons/ArbrainMark'
@@ -41,6 +41,10 @@ const SECCIONES: readonly Seccion[] = [
   { href: '/masterclass', label: 'Masterclass', icon: GraduationCap },
   // Cohorte (18 oct 2026): la venta y la entrega de la cohorte fundadora del Cerebro Artificial, en vivo. Sin atajo.
   { href: '/cohorte', label: 'Cohorte', icon: UsersRound },
+  // Perro (26 oct 2026): el Go2 Pro de Daniel, primero para el teléfono: cámara, mapa del LiDAR, lugares, voz y STOP. Sin atajo.
+  { href: '/perro', label: 'Perro', icon: Dog },
+  // Casa (26 oct 2026): la casa en 3D desde el LiDAR del perro, con el perro y los dispositivos dentro. Sin atajo.
+  { href: '/casa', label: 'Casa', icon: House },
 ]
 
 const BOARD: Seccion = { href: '/board', label: 'Tablero', icon: LayoutGrid }

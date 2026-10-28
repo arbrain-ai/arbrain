@@ -28,5 +28,15 @@ export function vistaTelefono(abierto: boolean, claves: string[], activa: string
 export const REAPERTURA_MS = 2 * 60_000
 export const esReapertura = (ocultaDesde: number | null, ahora: number) => ocultaDesde !== null && ahora - ocultaDesde >= REAPERTURA_MS
 
+/**
+ * Rutas a las que se entra a propósito y que reabrir NO manda al chat: el ícono «Hábitos» (22 oct 2026) y las secciones
+ * de la casa física (26 oct 2026, Daniel con el enlace de /perro en el iPhone: «Me reenvía aquí wtf»). Volver de WhatsApp
+ * o de la cámara tras unos minutos lo regresaba al chat con el perro todavía caminando.
+ */
+export const RUTAS_DESTINO = ['/telefono/habitos', '/perro', '/casa'] as const
+export const seQuedaAlReabrir = (ruta: string) => RUTAS_DESTINO.some(r => ruta === r || ruta.startsWith(r + '/'))
+/** Las secciones que en el teléfono abren a pantalla completa, sin una pestaña del panel encima. */
+export const esSeccionCompleta = (ruta: string | null | undefined) => !!ruta && (ruta === '/perro' || ruta === '/casa' || ruta.startsWith('/perro/') || ruta.startsWith('/casa/'))
+
 /** ¿Cuenta como «mantener presionado»? Quieto (sin pasar el límite de movimiento) y desde hace `LARGA_MS`. */
 export const esMantenido = (ms: number, dx: number, dy: number) => ms >= LARGA_MS && Math.hypot(dx, dy) <= LARGA_MOVIMIENTO

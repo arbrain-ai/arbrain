@@ -8,6 +8,8 @@ export const MODES = [
   { id: 'year', label: 'Año', calendar: null },
   { id: 'agenda', label: 'Agenda', calendar: 'rollingAgenda' },
   { id: 'crons', label: 'Rutinas', calendar: null },
+  // La cuarta escala (25 oct 2026, Daniel: «con Ctrl+H accedo a ella y es la de hábitos a través del tiempo»): superficie propia.
+  { id: 'habits', label: 'Hábitos', calendar: null },
 ] as const
 
 export function localInput(date: Date) { return format(date, "yyyy-MM-dd'T'HH:mm") }
@@ -69,7 +71,7 @@ export function mergeSnapshot(previous: PlanningSnapshot | null, next: PlanningS
 }
 
 /** Vistas que no son de FullCalendar (Año y Rutinas pintan su propia superficie). */
-export const isOwnSurface = (mode: string) => mode === 'year' || mode === 'crons'
+export const isOwnSurface = (mode: string) => mode === 'year' || mode === 'crons' || mode === 'habits'
 
 /** 4 días se retiró (5 oct 2026, 17:51): Daniel planea por Día, Semana y Mes. Lo que llegue con 4 días (URL, preferencias,
  *  órdenes viejas) cae en Semana. El tipo lo conserva solo como legado de entrada. */

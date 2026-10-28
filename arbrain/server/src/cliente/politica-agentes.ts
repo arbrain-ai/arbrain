@@ -34,14 +34,24 @@ import { carpetasAbiertas } from './carpetas.js'
 import { destinoDeDinero, dineroEnTexto, MCP_DINERO, MENSAJE_DINERO, valoresEnBash, valoresEnMcp } from './dinero.js'
 import { DONDE_CARPETAS, DONDE_PERMISOS, estadoPermisos, LIBERA_SIN_FRENO, NOMBRE_MODO, type ModoPermisos } from './modo-permisos.js'
 import { EXT_EJECUTABLE } from './hooks-proyecto.js'
+import { reglaQueAplica, reglasSiempre, type ReglaSiempre } from './reglas-siempre.js'
 
 export type DecisionPolitica =
   | {
     tipo: 'permitir'; porModo?: ModoPermisos; /** Corrió sin clic porque la persona quitó el freno (enviar, borrar, publicar). */ sinFreno?: true
     /** Una rutina escribió un archivo que el propio cerebro genera (`now.md`, reportes): sin clic, anotado (`generadoPorRutina`). */
     generado?: true
+    /** Corrió sin tarjeta porque la persona guardó «Siempre este patrón» (`reglas-siempre.ts`): el patrón. */
+    porRegla?: string
   }
-  | { tipo: 'negar'; motivo: string }
+  | {
+    tipo: 'negar'; motivo: string
+    /**
+     * Botón Play, «Córrelo tú» (27 oct 2026): el agente no lo puede correr (sudo, iniciar sesión), pero la persona sí,
+     * con sus manos, en una terminal visible. Solo lo marca la política; ofrecerlo es de la guardia del chat.
+     */
+    manos?: true
+  }
   | {
     tipo: 'confirmar'; categoria: CategoriaConfirmacion; resumen: string; literal: string; avisos: string[]
     /**
@@ -104,6 +114,8 @@ export interface ContextoPolitica {
   webSinClic?: number
   /** Procedencia de archivos del cerebro escritos tras leer contenido de afuera (`procedencia.ts`): de(ruta) y bajo(carpeta). */
   procedencia?: { de: (real: string) => string | null; bajo: (dir: string) => string | null }
+  /** «Siempre este patrón» que guardó la persona (`reglas-siempre.ts`). Por defecto, las del disco. */
+  reglas?: readonly ReglaSiempre[]
 }
 
 const realOMisma = (p: string): string => { try { return realpathSync.native(p) } catch { return resolve(p) } }
@@ -143,6 +155,7 @@ export function contextoPolitica(over: Partial<ContextoPolitica> = {}, env: Node
     abiertas: carpetasAbiertas().map(c => c.ruta),
     sandbox: false,
     ...((e) => ({ modo: e.modo, sinFreno: e.sinFreno }))(estadoPermisos()),
+    reglas: reglasSiempre(),
     ...over,
   }
 }
@@ -418,7 +431,7 @@ const esShell = (h: string) => h === 'Bash' || h === 'PowerShell' || h === 'Moni
 export function decidirHerramienta(herramienta: string, input: unknown, ctx: ContextoPolitica): DecisionPolitica {
   const d = decidirSinContexto(herramienta, input, ctx)
   // Una conversación que leyó contenido de afuera no se relaja con ningún modo: lo de afuera puede estar dando órdenes.
-  return ctx.contaminada ? endurecerContaminada(d, herramienta, input, ctx) : aplicarModo(d, ctx)
+  return ctx.contaminada ? endurecerContaminada(d, herramienta, input, ctx) : aplicarModo(d, ctx, herramienta, input)
 }
 
 /** Las categorías del freno: ningún modo las deja correr sin el clic de la persona (salvo el freno quitado, abajo). */
@@ -432,13 +445,18 @@ const LIBERABLE_SIN_FRENO = new Set<CategoriaConfirmacion>(LIBERA_SIN_FRENO)
  * lo haya quitado (`sinFreno`): entonces enviar, borrar y publicar corren sin clic; pagar, nunca. En «preguntar», a lo que en
  * «carpeta» correría solo se le suma un aviso para que la persona sepa dónde dejar de verlo.
  */
-export function aplicarModo(d: DecisionPolitica, ctx: ContextoPolitica): DecisionPolitica {
+export function aplicarModo(d: DecisionPolitica, ctx: ContextoPolitica, herramienta?: string, input?: unknown): DecisionPolitica {
   if (d.tipo !== 'confirmar') return d
   const modo = ctx.modo ?? 'preguntar'
   // Freno quitado bajo la responsabilidad de la persona: solo en «Sin preguntar» y solo enviar, borrar y publicar.
   if (FRENO.has(d.categoria)) return modo === 'libre' && ctx.sinFreno === true && LIBERABLE_SIN_FRENO.has(d.categoria) ? { tipo: 'permitir', porModo: 'libre', sinFreno: true } : d
   const nivel = d.relajable ?? 'libre'
   if (modo === 'libre' || (modo === 'carpeta' && nivel === 'carpeta')) return { tipo: 'permitir', porModo: modo }
+  // «Siempre este patrón» (botón Play): nunca en rutinas; solo cambia «confirmar» de categoría «otra» por «permitir».
+  if (herramienta && !ctx.rutina) {
+    const regla = reglaQueAplica(ctx.reglas, herramienta, input)
+    if (regla) return { tipo: 'permitir', porRegla: regla.patron }
+  }
   const sugerido = nivel === 'carpeta' ? 'carpeta' : 'libre'
   if (modo === 'preguntar' || sugerido === 'libre') {
     const aviso = `para que no te pregunte esto, en ${DONDE_PERMISOS} elige «${NOMBRE_MODO[sugerido]}»`
@@ -1007,12 +1025,40 @@ const MOTIVO_PROTEGIDA = (ruta: string) => `escribir en ${ruta}: ${MOTIVO_AJUSTE
 /** Texto crudo que nombra lo que se niega (para comandos que el analizador no entiende). */
 const TOCA_PROTEGIDA = /(^|[\s'"=:/])\.claude[\\/]+(hooks|settings(\.local)?\.json)\b|(^|[\s'"=:/])\.git([\\/]|\s|$|['"])/i
 
+/** Iniciar sesión en un servicio: abre el navegador o pide la contraseña; lo hace la persona (dinero, nunca: stripe). */
+const LOGIN = /^\s*(?:gh\s+auth|gcloud\s+auth|npm|pnpm|yarn|vercel|netlify|firebase|supabase|railway|wrangler|heroku|fly|flyctl|docker|az|claude(?:\s+auth)?|codex)\s+login\b/
+const SUDO = /^\s*sudo\s+([^-\s][\s\S]*)$/
+
+/**
+ * «Córrelo tú» (botón Play, 27 oct 2026): lo que el agente no puede correr porque necesita las manos de la persona
+ * (`sudo` con su contraseña, iniciar sesión). Sigue negado para el agente; la guardia del chat le ofrece a la persona
+ * correrlo ella misma en una terminal visible. Solo si lo de adentro no se negaría por otra razón ni es del freno, y si
+ * es un solo comando (lo que viera la persona es lo único que corre).
+ */
+function necesitaManos(cmd: string, i: Record<string, unknown>, ctx: ContextoPolitica): DecisionPolitica | null {
+  const a = analizarShell(cmd, ctx.usuario)
+  if (!a.ok || a.comandos.length !== 1) return null
+  if (LOGIN.test(cmd)) {
+    if (dineroEnTexto(cmd)) return null
+    return { tipo: 'negar', motivo: 'iniciar sesión en un servicio necesita tus manos (abre el navegador o pide tu contraseña)', manos: true }
+  }
+  const s = SUDO.exec(cmd)
+  if (!s) return null
+  const interior = s[1].trim()
+  if (/^sudo\b/.test(interior)) return null
+  const d = decidirBash({ ...i, command: interior, dangerouslyDisableSandbox: true }, { ...ctx, modo: 'preguntar', sinFreno: false, reglas: [] })
+  if (d.tipo === 'negar' || (d.tipo === 'confirmar' && FRENO.has(d.categoria))) return null
+  return { tipo: 'negar', motivo: 'sudo pide tu contraseña de administrador: el agente no la tiene ni debe tenerla', manos: true }
+}
+
 function decidirBash(i: Record<string, unknown>, ctx: ContextoPolitica): DecisionPolitica {
   const cmd = typeof i.command === 'string' ? i.command : ''
   if (!cmd.trim()) return negar('comando vacío')
   if (cmd.length > LITERAL_MAX) return negar('comando demasiado largo para que la persona lo revise; divídelo en pasos')
   const m = motivoSecretoEnTexto(cmd, ctx)
   if (m) return negar(m)
+  const manos = necesitaManos(cmd, i, ctx)
+  if (manos) return manos
   for (const p of DESTRUCTIVOS) if (p.re.test(cmd)) return negar(p.motivo)
   const dinero = dineroEnTexto(cmd)
   if (dinero) return negar(MENSAJE_DINERO(dinero))

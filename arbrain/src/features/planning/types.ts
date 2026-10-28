@@ -1,4 +1,4 @@
-export type CalendarMode = 'day' | 'fourDays' | 'week' | 'month' | 'year' | 'agenda' | 'crons'
+export type CalendarMode = 'day' | 'fourDays' | 'week' | 'month' | 'year' | 'agenda' | 'crons' | 'habits'
 
 export interface CalendarSource {
   id: string

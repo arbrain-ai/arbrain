@@ -5,7 +5,7 @@ import { LevyFace } from './LevyFace'
 import { Retrato } from '@/shared/components/Retrato'
 import type { LiveChatController } from '@/features/live/controller'
 import { useEffect, useLayoutEffect, useRef, useState, KeyboardEvent, useCallback, memo, startTransition, useMemo, type ReactNode } from 'react'
-import { Plus, ArrowUp, AlertCircle, Copy, Check, Clock, ChevronDown, ImageIcon, X, Wrench, ShieldAlert, Pencil, GitBranch, FileText, AlarmClock, BellRing, Sparkles, Mic } from 'lucide-react'
+import { Plus, ArrowUp, AlertCircle, Copy, Check, Clock, ChevronDown, ImageIcon, X, ShieldAlert, Pencil, GitBranch, FileText, AlarmClock, BellRing, Sparkles, Mic } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useLayoutStore } from '@/shared/stores/layout-store'
 import { tocaLeerAhora } from '@/shared/lib/reposo'
@@ -21,6 +21,7 @@ import { ErrorImagen, LIMITE_SUBIDA_BYTES, formatoBytes, mensajeFallosSubida, su
 import { esTelefonoAhora } from '@/shared/hooks/useMediaQuery'
 import { ACCEPT_DOCUMENTOS, esDocumentoAceptado, esUrlDeDocumento, mensajePorDefecto, nombreDesdeUrl, separarAdjuntos, urlPublicaDeStorage } from '../lib/adjuntos'
 import composerUI from './composer-ui.module.css'
+import botonEnviar from './boton-enviar.module.css'
 import {resizeComposer} from '../lib/composer-size'
 import {useComposerDraft} from '../hooks/useComposerDraft'
 import {composerDraftKey,composerDrafts} from '../lib/composer-drafts'
@@ -31,8 +32,7 @@ import { saveChatView, getChatView, dropChatView } from '../stores/chat-view-cac
 import { ChatSessions } from './ChatSessions'
 import { useRecientesStore, recientes } from '../stores/recientes-store'
 import dynamic from 'next/dynamic'
-import { ImageLightbox, ThinkingBlock, stripThinking } from './MarkdownMessage'
-import { detalleFila, etiquetaFila } from '../lib/fila-turno'
+import { ImageLightbox, stripThinking } from './MarkdownMessage'
 import { devolverAlComposer } from '../lib/fila-edicion'
 import { ImagenRapida, useMetaImagen } from '@/shared/components/ImagenRapida'
 import { esStorageOptimizable } from '@/lib/imagenes/variantes'
@@ -67,7 +67,12 @@ import { esEspacioClaude } from '@/shared/lib/espacios-chat'
 import { EffortSlider, stopLabel, type EffortStop } from './EffortSlider'
 import { CompactSeparator } from './CompactSeparator'
 import { DateSeparator } from './DateSeparator'
-import { ToolCallCards } from './ToolCallCard'
+import { NotasInyectadas } from './ToolCallCard'
+import { LineaFija, Razonamiento } from './RastroTurno'
+import { CambiosTurno } from './CambiosTurno'
+import { ChipMeta, VueltasMeta } from './MetaTurno'
+import { metaVigente, type EstadoMeta } from '../lib/meta'
+import { separarRazonamiento } from '../lib/rastro'
 import { CabinaDelMensaje, CabinaProvider } from '@/features/cabina/Cabina'
 import { esHerramientaCabina } from '@/features/cabina/model'
 import { chatArrancaNuevo } from '@/features/cabina/panel/telefono-pestanas'
@@ -81,15 +86,13 @@ import { EVENTO_CAMBIO_SESION, type CambioSesion } from '../lib/cambios-sesion'
 import { fueAMano, olvidarAMano } from '../lib/no-leida-a-mano'
 import { botonDelComposer, destinoDelEnvio, detenerArmado, GRACIA_DETENER_MS, repiteTurnoEnCurso } from '../lib/envio-chat'
 import { ColaMensajes } from './ColaMensajes'
-import { AgentTaskCards } from './AgentTaskCard'
 import { QuestionCards } from './QuestionCard'
-import { TodoListWidget } from './TodoListWidget'
+import { TarjetasDelTurno } from './TarjetaComando'
+import { ColaDelHilo } from '@/features/permisos/components/ColaDeAprobaciones'
 import { HabitChecklist } from '@/features/sistema/components/HabitChecklist'
 import { localDate } from '@/features/sistema/types'
 import { ContextoChip, ContextoDetalle } from './ContextoChip'
 import { contextoDeConversacion, detalleTurno } from '../lib/contexto-conversacion'
-import { etiquetaTrabajo, inicioTurno } from '../lib/duracion-turno'
-import { RelojTurno } from './RelojTurno'
 import { AudioProvider } from '../contexts/AudioContext'
 import { modelDisplayName } from '../stores/model-store'
 import { useAccountStore, toChatAccount, CHAT_TABS, bannerCuenta, type ChatTab } from '../stores/account-store'
@@ -294,7 +297,8 @@ export const MessageBubble = memo(function MessageBubble({ msg, isFresh = false,
   const cmdArgs = cmdMatch ? msg.content.trim().slice(cmdMatch.name.length).trim() : ''
   const isCommand = !!cmdMatch && !isLongText(msg.content) && !decodeTextAttachments(msg.content).files.length
 
-  const trabajo = isUser ? null : etiquetaTrabajo(msg)
+  // El razonamiento fundido en `content` (sesiones CLI recargadas) va al rastro; aquí solo la respuesta.
+  const respuesta = isUser ? '' : separarRazonamiento(msg).respuesta
   const time = msg.timestamp.toLocaleTimeString('es-MX', {
     hour: '2-digit',
     minute: '2-digit',
@@ -394,50 +398,11 @@ export const MessageBubble = memo(function MessageBubble({ msg, isFresh = false,
           </div>
         )}
 
-        {/* Live thinking block (colapsado por default). El toggle aparece desde
-            status:'requesting' — actividad visible sin esperar el primer token. */}
-        {/* Cuánto tardó (8 oct 2026): reloj vivo mientras trabaja y «Trabajó 4 min 12 s» al terminar, en esta
-            misma línea de actividad. Un turno terminado sin razonamiento también la pinta si pasó de 10 s. */}
-        {(msg.streaming || msg.thinking !== undefined || !!trabajo) && (
-          <ThinkingBlock text={msg.thinking ?? ''} streaming={msg.streaming} waiting={msg.questionPrompts?.some(q => q.status === 'pending') || (msg.streaming && connection !== 'online') || (msg.status === 'en_fila_turno' && !msg.content)}
-            tiempo={msg.streaming && msg.status !== 'en_fila_turno' && msg.status !== 'esperando_tareas' ? <RelojTurno inicio={inicioTurno(msg)} /> : undefined}
-            // «Pregunta pendiente» solo con una pregunta abierta de verdad (5 oct: un turno en fila la decía sin haberla).
-            detail={msg.questionPrompts?.some(q => q.status === 'pending') ? 'Hay una pregunta pendiente de tu respuesta.'
-              : msg.status === 'en_fila_turno' && !msg.content ? detalleFila(msg.fila)
-              : !msg.streaming ? detalleTurno(msg.usage) ?? undefined : undefined}
-            label={msg.streaming ? (connection === 'offline' ? 'Sin conexión · Levy sigue trabajando en el servidor'
-              : connection === 'reconnecting' ? 'Reconectando con el servidor'
-              : msg.questionPrompts?.some(q => q.status === 'pending') ? 'Esperando tu respuesta'
-              : msg.status === 'compacting' ? 'Organizando contexto'
-              : msg.status === 'esperando_tareas' && !msg.content ? 'En fila · sale cuando terminen las tareas de Levy'
-              : msg.status === 'en_fila_turno' && !msg.content ? etiquetaFila(msg.fila)
-              : msg.toolCalls?.some(tool => tool.status === 'running') ? 'Usando herramientas'
-              : msg.content ? 'Escribiendo respuesta' : undefined) : trabajo ?? undefined} />
-        )}
-
-        {/* Live TODO list — plan por fases de Levy (TodoWrite) */}
-        {msg.todos && msg.todos.length > 0 && (
-          <TodoListWidget todos={msg.todos} />
-        )}
-
-        {/* Subagentes/workflows en background — cards vivas (agent-view) */}
-        {msg.tasks && msg.tasks.length > 0 && (
-          <AgentTaskCards tasks={msg.tasks} />
-        )}
-
-        {/* Tool call cards (shown above response text) — pills tocables que
-            expanden nombre completo + input + output de cada tool */}
-        {((msg.toolCalls && msg.toolCalls.some(t => !esHerramientaCabina(t.toolName) && !HERRAMIENTAS_INTERNAS.has(t.toolName))) || !!msg.inyectados?.length) && (
-          <ToolCallCards tools={(msg.toolCalls ?? []).filter(t => !esHerramientaCabina(t.toolName) && !HERRAMIENTAS_INTERNAS.has(t.toolName))} inputs={msg.toolInputs} outputs={msg.toolOutputs} notas={msg.inyectados} />
-        )}
-
-        {/* Resumen display-friendly del batch de tools (SDK 0.3.179+) */}
-        {msg.toolSummaries && msg.toolSummaries.length > 0 && (
-          <p aria-hidden className="flex items-start gap-1.5 text-[10px] text-muted/70 italic mb-1 leading-snug">
-            <Wrench size={10} className="shrink-0 mt-px text-muted/50" aria-hidden />
-            <span>{msg.toolSummaries.join(' · ')}</span>
-          </p>
-        )}
+        {/* «Razonamiento» (25 oct 2026, pedido del dueño): toggle simple ARRIBA de la respuesta, plegado. Al abrirlo, el razonamiento
+            y las herramientas intercalados en orden real; mientras trabaja, su renglón es la línea viva + reloj. */}
+        <Razonamiento msg={msg} connection={connection} />
+        {/* Lo que el dueño escribió con el turno vivo es conversación, no auditoría: queda a la vista. */}
+        {!msg.streaming && <NotasInyectadas notas={msg.inyectados} />}
 
         {/* La Cabina: las vistas nacen cuando Levy usa la herramienta, ANTES de
             redactar; por eso van arriba de su texto y su pregunta de cierre queda al final. */}
@@ -446,14 +411,21 @@ export const MessageBubble = memo(function MessageBubble({ msg, isFresh = false,
         {msg.metadata?.jobId === 'evening-reflection' ? (
           <HabitChecklist date={localDate(msg.timestamp)} />
         ) : msg.metadata?.reporteVivo && !msg.metadata.reporteConTexto && msg.toolCalls?.length ? null /* reportes de antes del 10 oct: viven en su vista (arriba); su texto largo queda para el push y el historial */
-        : msg.content && !(msg.error && msg.diagnostic && msg.content.trim() === msg.diagnostic.trim()) ? (
+        : respuesta && !(msg.error && msg.diagnostic && respuesta.trim() === msg.diagnostic.trim()) ? (
           // Cursor ▍ pegado al final del texto mientras streamea (feel Claude) —
           // se inyecta en el markdown para quedar inline en el último nodo.
-          // data-tts-content: el botón Escuchar lee ESTE DOM con la voz del dispositivo.
+          // data-tts-content: el botón Escuchar lee ESTE DOM con la voz del dispositivo. Sin el razonamiento
+          // fundido de las sesiones CLI (<!--thinking-->): ese va al rastro plegado.
           <div data-tts-content={msg.id}>
-            <MarkdownMessage content={msg.streaming ? msg.content + ' ▍' : msg.content} streaming={!!msg.streaming} ancho />
+            <MarkdownMessage content={msg.streaming ? respuesta + ' ▍' : respuesta} streaming={!!msg.streaming} ancho />
           </div>
         ) : null}
+
+        {/* La meta (27 oct 2026): las revisiones del `/goal` van plegadas DEBAJO de la respuesta; nunca la entierran. */}
+        <VueltasMeta meta={msg.meta} streaming={!!msg.streaming} />
+
+        {/* Ver y deshacer (27 oct 2026): el turno que cambió archivos CIERRA con una fila «Levy cambió 2 memorias y 1 skill · Ver cambios». */}
+        {!msg.streaming && <CambiosTurno msg={msg} />}
 
         {msg.error && EDICION_CLIENTE && turnoSinCredito(msg) ? (
           // A/B ronda 2: sin crédito no es un error crudo, es el paso de recarga (el mismo del primer arranque).
@@ -478,6 +450,9 @@ export const MessageBubble = memo(function MessageBubble({ msg, isFresh = false,
         {msg.branch && (
           <p className="mt-2 flex items-center gap-1.5 text-[12px] italic text-muted/70"><GitBranch size={12} className="shrink-0" aria-hidden />Continuación desde un mensaje editado. El historial anterior se conserva.</p>
         )}
+
+        {/* Botón Play (27 oct 2026, edición cliente): lo que Levy necesita que apruebes, en el hilo del turno vivo. */}
+        {EDICION_CLIENTE && msg.streaming && <TarjetasDelTurno />}
 
         {/* Pregunta interactiva (AskUserQuestion): botones tocables */}
         {msg.questionPrompts && msg.questionPrompts.length > 0 && onAnswerQuestion && (
@@ -523,7 +498,7 @@ export const MessageBubble = memo(function MessageBubble({ msg, isFresh = false,
 
         {/* Footer: acciones + usage + hora — hover en desktop, visible en móvil.
             Solo cuando el turno terminó (Claude no muestra chrome durante stream). */}
-        {!msg.streaming && msg.content && (
+        {!msg.streaming && respuesta && (
           // Footer accionable NO va aria-hidden: los botones (Escuchar/Copiar/Lector)
           // deben ser alcanzables por VoiceOver — así Daniel puede abrir el lector
           // con el screen reader activo. El ruido no accionable (usage + hora) sí se
@@ -537,7 +512,7 @@ export const MessageBubble = memo(function MessageBubble({ msg, isFresh = false,
             {/* Solo la hora (2 oct 2026): el contexto de la conversación vive en la barra de escribir y el
                 desglose de ESTE turno (entrada, salida, duración, costo) aparece al pasar el cursor. */}
             <div aria-hidden className="flex items-center gap-1.5 ml-1">
-              <p data-hora-turno title={detalleTurno(msg.usage) ?? undefined} className="text-[10px] text-muted/70 cursor-default">{time}</p>
+              <p data-hora-turno title={detalleTurno(msg.usage) ?? undefined} className="text-[10px] text-muted/70 cursor-default whitespace-nowrap">{time}</p>
             </div>
           </div>
         )}
@@ -554,6 +529,8 @@ export const MessageBubble = memo(function MessageBubble({ msg, isFresh = false,
     && p.toolInputs === n.toolInputs
     && p.toolOutputs === n.toolOutputs
     && p.thinking === n.thinking
+    && p.cronologia === n.cronologia
+    && p.meta === n.meta
     && p.todos === n.todos
     && p.tasks === n.tasks
     && p.toolSummaries === n.toolSummaries
@@ -563,6 +540,8 @@ export const MessageBubble = memo(function MessageBubble({ msg, isFresh = false,
     && p.metadata?.startedAt === n.metadata?.startedAt
     && p.downgrade === n.downgrade
     && p.compact === n.compact
+    && p.fila === n.fila
+    && prev.connection === next.connection
     && prev.retryText === next.retryText
 })
 
@@ -651,8 +630,6 @@ function saludoPorHora(d = new Date()) {
   return h < 5 ? 'Buenas noches' : h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches'
 }
 
-/** Plomería del agente que no le dice nada al dueño («ToolSearch» carga esquemas). */
-const HERRAMIENTAS_INTERNAS = new Set(['ToolSearch'])
 // Documento: se lee a memoria (mismo motivo que las imágenes) y se valida el peso; no se transforma.
 async function prepararDocumento(file: File): Promise<File> {
   const nombre = file.name || 'documento'
@@ -2809,6 +2786,42 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
   const handleSendRef = useRef<(text?: string, opts?: { desdeCola?: boolean; imagenes?: string[]; context?: string }) => void>(() => {})
   handleSendRef.current = handleSend
 
+  // La meta (`/goal`) de la conversación (27 oct 2026, Goal UX). El hilo dice qué meta hay (turnos con `meta` y comandos
+  // `/goal`); el daemon dice si Daniel la pausó. Claude: pausar/reanudar van directo al daemon (frenan aun con el turno
+  // vivo) y quitar además manda `/goal clear` al CLI por la fila. Codex: sus comandos nativos de siempre.
+  const metaClaude = !account || account === 'default' || account === 'bro'
+  const sesionMeta = activeSession && !activeSession.pendingCreation ? activeSession.id : null
+  const [metaServidor, setMetaServidor] = useState<{ sesion: string; estado: EstadoMeta; condicion?: string } | null>(null)
+  const [metaAccionando, setMetaAccionando] = useState(false)
+  const turnoEnCursoMeta = loading || despachando
+  useEffect(() => {
+    if (!sesionMeta || !metaClaude || turnoEnCursoMeta) return
+    let vivo = true
+    fetch(`/api/chat/meta?${new URLSearchParams({ session: sesionMeta, account: account ?? 'default' })}`)
+      .then(r => r.ok ? r.json() : null)
+      .then((d: { meta?: { estado?: EstadoMeta; condicion?: string } | null } | null) => {
+        if (!vivo) return
+        setMetaServidor(d?.meta?.estado === 'pausada' ? { sesion: sesionMeta, estado: 'pausada', condicion: d.meta.condicion } : null)
+      }).catch(() => {})
+    return () => { vivo = false }
+  }, [sesionMeta, metaClaude, account, turnoEnCursoMeta, messages.length])
+  const metaDelHilo = useMemo(() => metaVigente(messages, metaServidor?.sesion === sesionMeta ? metaServidor : null), [messages, metaServidor, sesionMeta])
+  const accionMeta = async (accion: 'pausar' | 'reanudar' | 'quitar') => {
+    if (!sesionMeta) return
+    if (!metaClaude) { handleSendRef.current(accion === 'pausar' ? '/goal pause' : accion === 'reanudar' ? '/goal resume' : '/goal clear'); return }
+    setMetaAccionando(true)
+    try {
+      const r = await fetch('/api/chat/meta', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ session: sesionMeta, account: account ?? 'default', accion }) })
+      if (!r.ok) throw new Error((await r.json().catch(() => null))?.error || 'No se pudo cambiar la meta.')
+      if (accion === 'quitar') {
+        setMetaServidor({ sesion: sesionMeta, estado: 'quitada' })
+        // El CLI es el dueño de la meta: `/goal clear` la borra de verdad. Con Levy trabajando entra a la fila y sale al terminar.
+        handleSendRef.current('/goal clear')
+      } else setMetaServidor(accion === 'pausar' ? { sesion: sesionMeta, estado: 'pausada' } : null)
+    } catch (e) { showChatError(e instanceof Error ? e.message : 'No se pudo cambiar la meta.') }
+    finally { setMetaAccionando(false) }
+  }
+
   // La fila sale sola cuando el turno termina EN ESTA conversación. No sale si tú
   // detuviste a Levy (queda en pausa, a la vista) ni si el turno falló. Cambiar
   // de conversación libera el stream pero no es «terminar»: tampoco dispara.
@@ -3283,6 +3296,7 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
 
         {/* TTS reads data-tts-content only; composer controls remain accessible. */}
         <DespertadoresAviso conversationId={activeSession?.id} account={activeSession?.account ?? account} refrescar={loading} />
+        {EDICION_CLIENTE && <ColaDelHilo conversationId={activeSession?.id} />}
         <ChatDraftStatus key={JSON.stringify([profile?.id, account, activeSession?.id])} owner={profile?.id} account={account} conversationId={activeSession?.id} sendingTurnId={loading ? messages.findLast(message => message.role === 'assistant' && message.streaming)?.metadata?.turnId : null} onAccepted={(id, destinationAccount) => { void resumeStream(id, destinationAccount) }} />
         <div data-tts-exclude data-chat-composer className="chat-input-toolbar shrink-0" data-vacio={(messages.length === 0 && !loading && !loadingSession && !liveMode) || undefined}>
           <div className="px-3 pt-2 pb-3 md:px-4 md:pt-2.5 md:pb-3">
@@ -3369,6 +3383,12 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
                   </button>
                 </div>
               )}
+
+              {/* Línea de estado fija (25 oct 2026): qué hace Levy · N pasos · tiempo, cuando su turno quedó fuera de la vista. */}
+              <LineaFija msg={messages[messages.length - 1]} connection={connection} />
+
+              {/* La meta activa (27 oct 2026): texto, estado y Pausar/Quitar sin teclear `/goal`. */}
+              <ChipMeta meta={metaDelHilo} ocupado={metaAccionando} onPausar={() => void accionMeta('pausar')} onReanudar={() => void accionMeta('reanudar')} onQuitar={() => void accionMeta('quitar')} />
 
               <ColaMensajes items={cola.items} pausada={cola.pausada} trabajando={loading}
                 onEditar={editarDeFila} onQuitar={cola.quitar} onEnviarYa={enviarFilaYa} />
@@ -3491,7 +3511,7 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
                     title="Tap: pausar · Mantén presionado: descartar el turno"
                     aria-label="Detener respuesta. Tap para pausar, mantén presionado para descartar el turno."
                     data-armado={detenerListo || undefined}
-                    className={`msg-stop-btn relative shrink-0 !w-11 !h-11 md:!w-8 md:!h-8 active:scale-90 flex items-center justify-center transition-opacity ${detenerListo ? '' : 'opacity-40'} ${holdingStop ? 'msg-stop-holding' : ''}`}
+                    className={`${botonEnviar.enviar} ${botonEnviar.detener} ${detenerListo ? '' : 'opacity-40'} ${holdingStop ? botonEnviar.sosteniendo : ''}`}
                   >
                     {holdingStop && (
                       <svg className="msg-stop-ring" viewBox="0 0 36 36" aria-hidden>
@@ -3517,11 +3537,11 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
                     }}
                     onClick={() => handleSend()}
                     disabled={!composerDraft.ready || loadingSession}
-                    aria-label={loading ? 'Enviar: entra a la fila y sale cuando Levy termine' : 'Enviar mensaje'}
-                    title={loading ? 'Enviar: sale cuando Levy termine (Enter)' : undefined}
-                    className="msg-send-btn shrink-0 !w-11 !h-11 md:!w-8 md:!h-8 active:scale-90 disabled:opacity-40"
+                    aria-label="Enviar"
+                    title={loading ? 'Enviar: sale cuando Levy termine (Enter)' : 'Enviar (Enter)'}
+                    className={botonEnviar.enviar}
                   >
-                    <ArrowUp size={17} strokeWidth={2.5} className="md:w-[15px] md:h-[15px]" />
+                    <ArrowUp strokeWidth={2.5} aria-hidden />
                   </button>
                 ) : EDICION_CLIENTE && llaveVoz !== true ? (
                   // Edición cliente sin llave de Groq (21 oct 2026): el micrófono lleva a Ajustes › Voz, que explica cómo

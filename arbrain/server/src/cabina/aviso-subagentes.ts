@@ -21,6 +21,7 @@
  * aunque el motor esté apagado, y al terminar un turno con mensajes en cola, la cola se entrega en vez de avisar.
  */
 import { DUENO, DUENO_M } from '../dueno.js'
+import { VEREDICTO_EN_PALABRAS, extraerDoD, juezActivo, juzgar, type Juicio } from './juez.js'
 import { anotar, estadoDe, leerRegistro, preguntaPendiente, rescatarHuerfanos, dialogoAbierto, tachar, type PreguntaAbierta, type Subagente, type SubagenteOrigen } from './cuerpo.js'
 
 export interface Observacion {
@@ -38,6 +39,8 @@ export interface Observacion {
   /** Sin pantalla: por qué terminó, en palabras (salió con código N), y tokens medidos de su bitácora. */
   motivo?: string
   tokens?: number | null
+  /** Sin pantalla: número del turno observado (el juez lo anota con su veredicto). */
+  turno?: number
 }
 
 /** ¿Lo vigila este aviso? Los del motor (PTY) y los sin pantalla (proceso propio). */
@@ -145,6 +148,19 @@ export interface PuertoAviso {
   origenExiste?(origen: SubagenteOrigen): boolean
   /** Sube la pregunta a Daniel (campana). Sin puerto, solo queda la marca en el registro («Espera tu decisión»). */
   escalar?(sub: Subagente, texto: string): Promise<void> | void
+  /** Juez separado (27 oct 2026): veredicto del turno que terminó contra su Definición de Terminado. null = sin juez. */
+  juzgar?(sub: Subagente, obs: Observacion): Promise<Juicio | null>
+}
+
+/** ¿Este aviso es el cierre de un turno que el juez debe revisar? (terminó bien, sin pregunta abierta). */
+export const pideJuicio = (obs: Observacion) => obs.vivo && !obs.trabajando && !obs.error && !obs.pregunta && !!obs.ultimaRespuesta
+
+/** La línea del veredicto para el aviso a Levy. */
+export function lineaJuicio(j: Juicio): string {
+  const v = VEREDICTO_EN_PALABRAS[j.veredicto].toUpperCase()
+  if (j.veredicto === 'sin-dod') return `Juez separado: SIN DoD · el encargo no traía Definición de Terminado; verifícalo tú antes de reportarlo como hecho.`
+  const siguiente = j.veredicto === 'cumple' ? 'Puedes reportarlo con su evidencia.' : j.veredicto === 'no-cumple' ? 'No lo reportes como hecho: retomar con lo que falta.' : 'Pídele la evidencia (comando y salida) con retomar antes de reportarlo.'
+  return `Juez separado (${j.modelo ?? 'otro modelo'}, sin el contexto del agente): ${v} · ${j.razon} ${siguiente}`
 }
 
 /** Una pasada: devuelve cuántos avisos dejó. El aviso se escribe ANTES de marcar el registro: si
@@ -171,8 +187,10 @@ export async function revisarSubagentes(p: PuertoAviso, ahora = Date.now()): Pro
     if (!sub.avisarA) continue
     const d = decidirAviso(sub, obs, ahora)
     if (!d.avisar) continue
-    p.avisar(sub.avisarA, d.texto)
-    await p.anotar(sub, d.cambio)
+    // El juez nunca bloquea el cierre: si falla o tarda, el aviso sale sin veredicto.
+    const juicio = p.juzgar && pideJuicio(obs) ? await p.juzgar(sub, obs).catch(() => null) : null
+    p.avisar(sub.avisarA, juicio ? `${d.texto}\n${lineaJuicio(juicio)}` : d.texto)
+    await p.anotar(sub, juicio ? { ...d.cambio, juicio } : d.cambio)
     n++
   }
   return n
@@ -199,6 +217,12 @@ export async function puertoMotor(avisar: PuertoAviso['avisar'], extra: Pick<Pue
       return (await leerRegistro()).filter(s => vigilable(s) && (s.modo === 'sin-pantalla' || !!terms))
     },
     entregarCola: async sub => (await import('./sin-pantalla.js')).entregarCola(sub.id),
+    // Juez separado: la DoD guardada al delegar, la del encargo o la del primer turno de su bitácora (encargo completo).
+    ...(juezActivo() ? { juzgar: async (sub: Subagente, obs: Observacion) => {
+      let dod = sub.dod ?? extraerDoD(sub.encargo)
+      if (!dod && sub.modo === 'sin-pantalla') dod = extraerDoD((await (await import('./sin-pantalla.js')).bitacora(sub)).b.turnos[0]?.texto)
+      return juzgar({ dod, informe: tachar(obs.ultimaRespuesta ?? ''), ...(obs.turno != null ? { turno: obs.turno } : {}) })
+    } } : {}),
     observar: async sub => {
       if (sub.modo === 'sin-pantalla') return (await import('./sin-pantalla.js')).observarSinPantalla(sub)
       const t = terms?.find(x => x.id === sub.id)

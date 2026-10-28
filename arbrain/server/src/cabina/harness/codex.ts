@@ -11,6 +11,13 @@ import { esEdicionCliente } from '../../edicion.js'
 const permisos = (p: Permisos) => p === 'bypass' ? ['--dangerously-bypass-approvals-and-sandbox'] : ['-c', 'sandbox_mode="workspace-write"']
 const modelo = (m: string | null) => m ? ['-m', m] : []
 
+/** Comando o primer archivo tocado de un item de Codex, para el «último paso en humano» del tablero. */
+function detalleCodex(it: Record<string, unknown>): { detalle?: string } {
+  const cambios = Array.isArray(it.changes) ? it.changes.map(obj) : []
+  const d = str(it.command) ?? str(cambios[0]?.path) ?? str(it.query)
+  return d ? { detalle: d.slice(0, 300) } : {}
+}
+
 /** El error de la API llega como JSON dentro de `message`: se saca la frase legible. */
 export function mensajeDeError(v: unknown): string {
   const m = str(v) ?? ''
@@ -30,7 +37,7 @@ function leerRpc(d: Record<string, unknown>): Evento | null {
       if (it.type === 'agentMessage') { const t = str(it.text)?.trim(); return t ? { texto: t } : null }
       if (it.type === 'mcpToolCall') return { herramienta: str(it.tool) ?? 'mcp' }
       const h = HERRAMIENTA_RPC[String(it.type)]
-      return h ? { herramienta: h } : null
+      return h ? { herramienta: h, ...detalleCodex(it) } : null
     }
     case 'turn/completed': {
       const t = obj(p.turn)
@@ -62,7 +69,7 @@ export const codex: Adaptador = {
       if (it.type === 'agent_message') { const t = str(it.text)?.trim(); return t ? { texto: t } : null }
       if (it.type === 'mcp_tool_call') return { herramienta: str(it.tool) ?? 'mcp' }
       const h = HERRAMIENTA[String(it.type)]
-      return h ? { herramienta: h } : null
+      return h ? { herramienta: h, ...detalleCodex(it) } : null
     }
     if (d.type === 'error') return { error: mensajeDeError(d.message) }
     if (d.type === 'turn.failed') return { fin: true, error: mensajeDeError(obj(d.error).message) }

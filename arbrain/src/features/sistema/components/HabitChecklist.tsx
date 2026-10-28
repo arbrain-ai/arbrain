@@ -10,6 +10,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { type Seccion, SECCION_LABEL, SECCION_ORDER, localDate } from '../types'
 import { useHabitRecords } from '../useHabitRecords'
+import { NombreHabito } from '../NombreHabito'
+import { esHabitoPrivado } from '../privacidad-habitos'
 
 interface HabitRow {
   clave: string
@@ -112,7 +114,7 @@ export function HabitChecklist({ date }: { date?: string }) {
                     ✓
                   </span>
                   <span className={`text-sm ${checked ? 'text-muted line-through' : 'text-foreground'}`}>
-                    {h.icono ? `${h.icono} ` : ''}{h.nombre}
+                    {h.icono && !esHabitoPrivado(h.clave) ? `${h.icono} ` : ''}<NombreHabito clave={h.clave} nombre={h.nombre} tocable={false} />
                   </span>
                 </button>
               )

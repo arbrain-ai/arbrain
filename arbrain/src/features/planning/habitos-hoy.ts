@@ -1,3 +1,4 @@
+import { instalacion } from '@/config'
 import { shiftDay } from '@/features/sistema/calendar-days'
 import type { Marca } from './habitos-dia'
 
@@ -95,3 +96,10 @@ export function casillaDeTecla(e: Pick<KeyboardEvent, 'code' | 'key' | 'ctrlKey'
   const i = Number(m[1]) - 1
   return i < total ? i : null
 }
+
+/**
+ * Hábitos que el calendario NUNCA pinta (24 oct 2026, regla dura del dueño; la lista vive en `config/instalacion.ts`): ni en «Hábitos de hoy», ni en la hoja del Día, ni en
+ * Metas, ni en el teléfono; tampoco con el candado de privado. Se excluyen por clave, explícitamente, antes de cualquier otro filtro.
+ */
+export const FUERA_DEL_CALENDARIO: ReadonlySet<string> = new Set(instalacion().habitosFueraDelCalendario)
+export const seMuestra = (clave: string) => !FUERA_DEL_CALENDARIO.has(clave)

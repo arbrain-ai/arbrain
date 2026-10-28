@@ -24,6 +24,8 @@ export interface Evento {
   /** Respuesta final del turno, cuando el CLI la da aparte (claude/qwen `result`). */
   final?: string
   herramienta?: string
+  /** Lo que la herramienta toca (comando, archivo, patrón o URL), recortado: para el «último paso en humano» del tablero. */
+  detalle?: string
   /** Error del turno (API, modelo, límite). Las advertencias no cuentan. */
   error?: string
   /** Tokens que suma ESTE evento (el adaptador decide qué evento los trae para no contar doble). */

@@ -23,7 +23,12 @@ export function leerEstiloClaude(linea: string, tokensDe: (usage: Record<string,
     const herramienta = bloques.find(b => b.type === 'tool_use')
     const e: Evento = {}
     if (texto) e.texto = texto
-    if (herramienta) e.herramienta = str(herramienta.name) ?? 'herramienta'
+    if (herramienta) {
+      e.herramienta = str(herramienta.name) ?? 'herramienta'
+      const i = obj(herramienta.input)
+      const detalle = str(i.command) ?? str(i.file_path) ?? str(i.notebook_path) ?? str(i.path) ?? str(i.pattern) ?? str(i.url) ?? str(i.query)
+      if (detalle) e.detalle = detalle.slice(0, 300)
+    }
     // claude marca con `error` el mensaje sintético de un fallo (modelo inexistente, límite, API)
     if (typeof d.error === 'string' && d.error) e.error = texto || d.error
     return Object.keys(e).length ? e : null

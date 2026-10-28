@@ -14,6 +14,7 @@
  * secretos los pone ese servidor (reanudar y abrir carpetas llevan el de confirmar), nunca el navegador.
  */
 import { useCallback, useEffect, useState } from 'react'
+import { ReglasSiempre } from '@/features/permisos/components/ReglasSiempre'
 import { createPortal } from 'react-dom'
 import { ExternalLink, FolderOpen, FolderPlus, Loader2, OctagonPause, Play, RefreshCw, ScrollText, ShieldAlert, ShieldCheck, Wallet, X } from 'lucide-react'
 import { abrirEnNavegador } from '@/features/primer-arranque/lib/llaves'
@@ -272,7 +273,7 @@ function ModoDePermisos({ p }: { p: Permisos }) {
       </div>
       <QuitarFreno p={p} />
       <p className="mt-3 text-[12.5px] leading-relaxed text-muted">
-        <b className="text-foreground/90">En cualquier modo</b>, enviar, borrar, publicar o pagar te pide tu clic (salvo que dentro de «Sin preguntar» quites el freno: entonces enviar, borrar y publicar ya no); mover dinero, comprar y operar valores o cripto nunca se hace; tus llaves, contraseñas, navegadores y carteras nunca se tocan; y si Levy acaba de leer algo de internet, un correo o un archivo de afuera, vuelve a preguntarte antes de actuar. Las rutinas automáticas siempre preguntan. Levy no puede cambiar este ajuste: solo tú, aquí.
+        <b className="text-foreground/90">En cualquier modo</b>, enviar, borrar, publicar o pagar te pide tu clic (salvo que dentro de «Sin preguntar» quites el freno: entonces enviar, borrar y publicar ya no); mover dinero, comprar y operar valores o cripto nunca se hace; tus llaves, contraseñas, navegadores y carteras nunca se tocan; y si Levy acaba de leer algo de internet, un correo o un archivo de afuera, vuelve a preguntarte antes de actuar. Las rutinas automáticas nunca actúan sin ti: solas solo escriben sus reportes y el resumen de tu día; lo que necesite tu clic queda pendiente en la app y la rutina sigue con lo demás. Levy no puede cambiar este ajuste: solo tú, aquí.
       </p>
       {estado && !estado.sandbox && estado.modo === 'libre' && <p className="mt-2 text-[12.5px] text-amber-300">En esta computadora los comandos de Levy no corren en una caja aislada: en «Sin preguntar» se ejecutan directamente.</p>}
       {error && <p className="mt-2 text-[12.5px] text-red-300" role="alert">{error}</p>}
@@ -386,6 +387,7 @@ export function SeccionSeguridad() {
     <div className="space-y-4">
       <AvisoSinFreno p={p} />
       <ModoDePermisos p={p} />
+      <ReglasSiempre />
       <Carpetas />
       <Freno />
       <LoQueHizoLevy />

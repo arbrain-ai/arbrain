@@ -9,7 +9,7 @@ import Link from 'next/link'
 import { ArrowRight, CalendarDays, Camera, Loader2, Mail, Shield } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { updateAvatar, updateProfile } from '@/actions/auth'
-import { ThemeToggle } from '@/shared/components/ThemeToggle'
+import { EstiloToggle, ThemeToggle } from '@/shared/components/ThemeToggle'
 import { CentroPermisos } from '@/features/permisos/components/CentroPermisos'
 import { TarjetaComputerUse } from '@/features/permisos/components/ComputerUse'
 import { esEdicionCliente } from '@/lib/edicion'
@@ -35,6 +35,17 @@ export function SeccionApariencia() {
       titulo="Tema"
       detalle="Oscuro, claro o el del sistema. También con el botón de la luna al pie de la barra lateral o la tecla T."
       accion={<div className="w-36 shrink-0"><ThemeToggle /></div>}
+    />
+  )
+}
+
+/** El lenguaje unificado (27 oct 2026) vive detrás de este interruptor para compararlo con el de hoy sin perderlo. */
+export function SeccionEstilo() {
+  return (
+    <Tarjeta
+      titulo="Estilo"
+      detalle="Actual: el de hoy. Unificado: un solo lenguaje nacido del botón de enviar (neutros, una sola luz ámbar, morado legible). También con ⇧T."
+      accion={<div className="w-36 shrink-0"><EstiloToggle /></div>}
     />
   )
 }

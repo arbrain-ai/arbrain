@@ -117,7 +117,7 @@ function FullscreenHtml({ srcDoc, onClose }: { srcDoc: string; onClose: () => vo
         srcDoc={srcDoc}
         sandbox="allow-scripts"
         title="Vista HTML"
-        className="flex-1 w-full border-0 bg-[#0d0d12]"
+        className="flex-1 w-full border-0 bg-[var(--l-gris-2,#0d0d12)]"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       />
     </div>,
@@ -196,7 +196,7 @@ export const HtmlPreview = memo(function HtmlPreview({ code }: { code: string })
         srcDoc && !encendida ? (
           <button
             onClick={() => setEncendida(true)}
-            className={`w-full ${IFRAME_H} bg-[#0d0d12] flex flex-col items-center justify-center gap-2 px-6 text-center text-muted/70 hover:text-muted transition-colors`}
+            className={`w-full ${IFRAME_H} bg-[var(--l-gris-2,#0d0d12)] flex flex-col items-center justify-center gap-2 px-6 text-center text-muted/70 hover:text-muted transition-colors`}
           >
             <AppWindow size={20} className="text-violet-400/50" />
             <span className="text-[12px] font-medium">Vista con código · toca para ejecutarla</span>
@@ -208,14 +208,14 @@ export const HtmlPreview = memo(function HtmlPreview({ code }: { code: string })
               srcDoc={srcDoc}
               sandbox="allow-scripts"
               title="Vista HTML"
-              className={`w-full ${IFRAME_H} border-0 bg-[#0d0d12]`}
+              className={`w-full ${IFRAME_H} border-0 bg-[var(--l-gris-2,#0d0d12)]`}
             />
           ) : (
             // Póster fuera de pantalla: mismo alto (sin salto) + hint de "vista en
             // pausa". Al acercarte por scroll, la IO monta el iframe de nuevo.
             <button
               onClick={() => setNear(true)}
-              className={`w-full ${IFRAME_H} bg-[#0d0d12] flex flex-col items-center justify-center gap-2 text-muted/60 hover:text-muted/80 transition-colors`}
+              className={`w-full ${IFRAME_H} bg-[var(--l-gris-2,#0d0d12)] flex flex-col items-center justify-center gap-2 text-muted/60 hover:text-muted/80 transition-colors`}
             >
               <AppWindow size={20} className="text-violet-400/40" />
               <span className="text-[11px]">Vista en pausa · toca o acércate para verla</span>

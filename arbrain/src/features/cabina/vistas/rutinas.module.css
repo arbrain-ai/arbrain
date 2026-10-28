@@ -9,8 +9,8 @@
 .fila { display: flex; align-items: flex-start; gap: 10px; min-width: 0; padding: 8px 0; border-top: 1px solid var(--border); }
 .fila:first-child { border-top: 0; }
 .marca { flex: none; display: grid; place-items: center; width: 18px; height: 18px; margin-top: 1px; border-radius: 999px; font-size: 10px; background: color-mix(in srgb, var(--foreground) 10%, transparent); color: var(--muted); }
-.fila[data-tono=ok] .marca { background: var(--success); color: #fff; }
-.fila[data-tono=error] .marca { background: var(--error); color: #fff; }
+.fila[data-tono=ok] .marca { background: var(--success); color: var(--l-gris-16, #fff); }
+.fila[data-tono=error] .marca { background: var(--error); color: var(--l-gris-16, #fff); }
 .texto { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .texto strong { font-size: 13.5px; font-weight: 620; line-height: 1.3; overflow-wrap: anywhere; }
 .texto small { font-size: 12px; line-height: 1.35; color: var(--muted); overflow-wrap: anywhere; }

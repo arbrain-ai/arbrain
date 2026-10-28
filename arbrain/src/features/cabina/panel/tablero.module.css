@@ -1,0 +1,209 @@
+/* Tablero de agentes por estado (27 oct 2026; ronda 2 con el crítico ciego). Archivo propio: no toca los .module.css
+ * que migra diseno-unificado. Tokens del lenguaje unificado (--l-*) con respaldo a los de hoy: sin
+ * html[data-estilo='unificado'] pinta con las variables de globals.css.
+ *
+ * Color solo donde significa algo: morado claro = estado/identidad (con forma: anillo, palomita, X, punteado), rojo solo
+ * en «falló», ámbar solo en la acción principal («Responder» cuando un agente te espera). Sin verde: «listo» y «cumple»
+ * se leen por su forma. El texto se queda en las tintas (contraste AA en claro y oscuro). */
+.tablero, .pulsoSobrio, .pildora {
+  --morado: var(--l-tinta-morado, var(--brand));
+  --rojo: var(--l-tinta-rojo, var(--error));
+  /* Rojo de peligro suave para TEXTO («No cumple»): el --error puro no llega a AA sobre blanco. */
+  --rojo-texto: color-mix(in srgb, var(--rojo) 80%, var(--l-gris-0, black));
+  --ambar: var(--l-tinta-ambar, var(--gold));
+  --tinta-1: var(--l-tinta-1, var(--foreground));
+  --tinta-2: var(--l-tinta-2, var(--muted));
+  --tinta-3: var(--l-tinta-3, var(--muted));
+  --borde: var(--l-borde, var(--border));
+  --placa-hover: var(--l-placa-hover, rgba(var(--foreground-rgb), 0.05));
+  --curva: var(--l-curva-aterriza, cubic-bezier(0.2, 0.8, 0.2, 1));
+  --dur: var(--l-dur-respuesta, 160ms);
+}
+:global(.dark) .tablero, :global(.dark) .pulsoSobrio, :global(.dark) .pildora { --morado: var(--l-tinta-morado, color-mix(in srgb, var(--brand) 62%, var(--l-gris-16, white))); --rojo-texto: color-mix(in srgb, var(--rojo) 72%, var(--l-gris-16, white)); }
+
+.tablero { display: flex; flex-direction: column; gap: 12px; margin-bottom: 14px; }
+
+/* ── Ahora / Hecho ── */
+.vistas { display: inline-flex; align-self: flex-start; gap: 2px; padding: 2px; border-radius: var(--l-radio-control, 9px); border: 1px solid var(--borde); }
+.vista {
+  display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 11px; border: 0; border-radius: calc(var(--l-radio-control, 9px) - 2px);
+  background: transparent; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--tinta-2); cursor: pointer; transition: background var(--dur) var(--curva), color var(--dur) var(--curva);
+}
+.vista small { font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--tinta-3); }
+.vista:hover { color: var(--tinta-1); }
+.vista[aria-selected='true'] { color: var(--tinta-1); background: var(--l-placa, rgba(var(--foreground-rgb), 0.07)); }
+.vista[aria-selected='true'] small { color: var(--morado); }
+.vista:focus-visible { outline: 2px solid var(--morado); outline-offset: 1px; }
+
+/* ── Grupos y renglones ── */
+.grupo { display: flex; flex-direction: column; gap: 4px; }
+.grupoCabeza { display: flex; align-items: baseline; gap: 7px; margin: 0; padding: 0 2px; font-size: 11px; font-weight: 650; letter-spacing: 0.06em; text-transform: uppercase; color: var(--tinta-2); }
+.grupoCabeza small { font-size: 11px; font-weight: 600; letter-spacing: 0; font-variant-numeric: tabular-nums; color: var(--tinta-3); }
+/* Ronda 4: sin rojo en las cabezas. «Te espera» lleva su cuenta en ámbar (es lo único que te toca). */
+.grupo[data-grupo='te-espera'] .grupoCabeza small { color: color-mix(in srgb, var(--ambar) 70%, var(--tinta-1)); }
+
+.lista { display: flex; flex-direction: column; border: 1px solid var(--borde); border-radius: var(--l-radio-tarjeta, 12px); background: var(--l-superficie, var(--card)); }
+.renglon { position: relative; border-top: 1px solid var(--borde); }
+.renglon:first-child { border-top: 0; }
+.renglon:first-child, .renglon:first-child .principal { border-top-left-radius: inherit; border-top-right-radius: inherit; }
+
+.fila { display: flex; align-items: center; gap: 6px; padding-right: 6px; min-height: 46px; }
+.principal {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 7px 4px 7px 12px; border: 0; background: transparent; font: inherit; text-align: left; color: inherit; cursor: pointer;
+  border-radius: var(--l-radio-control, 9px); transition: background var(--dur) var(--curva);
+}
+.principal:hover { background: var(--placa-hover); }
+.principal:focus-visible { outline: 2px solid var(--morado); outline-offset: -2px; }
+.marca { flex: none; width: 16px; height: 16px; display: grid; place-items: center; }
+.forma { color: var(--tinta-2); }
+[data-columna='te-espera'] .forma { color: var(--morado); }
+[data-columna='falló'] .forma { color: var(--tinta-1); }
+[data-columna='murió'] .forma { color: var(--tinta-2); }
+/* En «Hecho» la forma es el veredicto: palomita neutra, X roja suave, reloj y punteado grises. */
+.forma[data-veredicto='cumple'] { color: var(--tinta-1); }
+.forma[data-veredicto='no-cumple'] { color: var(--tinta-1); }  /* «le faltó algo» no es peligro: neutro, la forma (X) y el ícono lo dicen */
+.forma[data-veredicto='no-verificable'], .forma[data-veredicto='sin-dod'], .forma[data-veredicto='pendiente'] { color: var(--tinta-3); }
+/* «Trabajando» en los renglones del Taller: el agente que respira en ámbar claro (AgenteRespira, 28 oct 2026). Solo ahí. */
+
+.textos { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.nombre { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; font-weight: 600; line-height: 1.3; color: var(--tinta-1); }
+.paso { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; line-height: 1.35; color: var(--tinta-2); }
+.sinSenal { color: var(--tinta-1); }
+.tiempo { flex: none; min-width: 42px; text-align: right; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--tinta-3); }
+
+/* «Hecho»: veredicto con forma y lo que entregó. */
+.entrega { min-width: 0; display: flex; align-items: center; gap: 6px; overflow: hidden; white-space: nowrap; }
+.insignia { flex: none; display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: var(--tinta-1); }
+.insignia[data-veredicto='no-cumple'] { color: var(--tinta-1); }
+.insignia svg { flex: none; color: var(--tinta-2); }
+.insignia[data-veredicto='pendiente'], .insignia[data-veredicto='sin-dod'], .insignia[data-veredicto='no-verificable'] { font-weight: 550; color: var(--tinta-2); }
+.pieza {
+  flex: none; display: inline-flex; align-items: center; gap: 4px; max-width: 220px; height: 20px; padding: 0 6px; border-radius: var(--l-radio-chip, 6px);
+  border: 1px solid var(--borde); background: transparent; font: inherit; font-size: 11.5px; color: var(--tinta-1); text-decoration: none; cursor: pointer; overflow: hidden;
+}
+.piezaTexto { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pieza svg { flex: none; color: var(--tinta-2); }
+.pieza:hover { background: var(--placa-hover); }
+.pieza:focus-visible { outline: 2px solid var(--morado); outline-offset: 1px; }
+.copiar { display: none; }
+.pieza:hover .copiar, .pieza:focus-visible .copiar { display: block; }
+
+/* ── Acciones: una visible según estado, lo demás en «⋯» ── */
+/* «Responder»: la acción principal. Estilo actual: ámbar de marca con tinta oscura. Unificado: la tecla encendida de enviar
+   (cara ámbar 3→5 con tinta ámbar 8, AA en claro y oscuro); nunca --l-tinta-ambar, que ahí es un neutro y no un relleno. */
+.responderAmbar {
+  flex: none; height: 28px; padding: 0 12px; border-radius: var(--l-radio-control, 8px); border: 0; font: inherit; font-size: 12.5px; font-weight: 650; cursor: pointer;
+  background: var(--gold); color: var(--l-ambar-8, #1a1205); transition: transform var(--l-dur-presion, 90ms) var(--curva), filter var(--dur);
+}
+:global(html[data-estilo='unificado']) .responderAmbar {
+  background: linear-gradient(180deg, var(--l-ambar-3), var(--l-ambar-5)); color: var(--l-ambar-8);
+  box-shadow: inset 0 1px 0 rgba(var(--l-ambar-1-rgb), 0.55), 0 0 0 1px rgba(var(--l-ambar-5-rgb), 0.6), 0 3px 8px -4px rgba(var(--l-ambar-4-rgb), 0.55);
+}
+.responderAmbar:hover { filter: brightness(1.05); }
+.responderAmbar:active { transform: scale(0.97); }
+.responderAmbar:focus-visible { outline: 2px solid var(--tinta-1); outline-offset: 2px; }
+.accionSuave {
+  flex: none; height: 28px; padding: 0 11px; border-radius: var(--l-radio-control, 8px); border: 1px solid var(--borde); background: transparent;
+  font: inherit; font-size: 12.5px; font-weight: 600; color: var(--tinta-1); cursor: pointer; white-space: nowrap; transition: background var(--dur) var(--curva);
+}
+.accionSuave:hover, .accionSuave[aria-expanded='true'] { background: var(--placa-hover); }
+.accionSuave:focus-visible { outline: 2px solid var(--morado); outline-offset: 1px; }
+.accionesDetalle { justify-content: flex-start; margin: 0; padding: 0 12px 10px 38px; }
+.menuCaja { position: relative; flex: none; }
+.mas { width: 28px; height: 28px; display: grid; place-items: center; border: 0; border-radius: var(--l-radio-control, 8px); background: transparent; color: var(--tinta-2); cursor: pointer; }
+.mas:hover, .mas[aria-expanded='true'] { background: var(--placa-hover); color: var(--tinta-1); }
+.mas:focus-visible { outline: 2px solid var(--morado); outline-offset: 0; }
+.menu {
+  position: absolute; z-index: 20; top: calc(100% + 4px); right: 0; min-width: 196px; display: flex; flex-direction: column; padding: 4px;
+  border-radius: var(--l-radio-tarjeta, 10px); border: 1px solid var(--l-borde-fuerte, var(--border)); background: var(--l-superficie, var(--card)); box-shadow: 0 10px 30px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.18);
+}
+.menuItem { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 9px; border: 0; border-radius: 7px; background: transparent; font: inherit; font-size: 12.5px; color: var(--tinta-1); text-align: left; cursor: pointer; }
+.menuItem svg { color: var(--tinta-2); }
+.menuItem:hover, .menuItem:focus-visible { background: var(--placa-hover); outline: none; }
+.menuItem[data-peligro] svg { color: var(--rojo); }
+
+/* ── Detalle, responder y detener (dentro del renglón) ── */
+.detalle { display: grid; gap: 3px; margin: 0; padding: 2px 14px 10px 38px; font-size: 12px; }
+.detalle div { display: flex; gap: 8px; min-width: 0; }
+.detalle dt { flex: none; width: 54px; color: var(--tinta-3); }
+.detalle dd { margin: 0; min-width: 0; color: var(--tinta-1); overflow-wrap: anywhere; }
+.acciones { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; margin-top: 6px; }
+.boton, .botonFuerte, .botonPeligro {
+  display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px; border-radius: var(--l-radio-control, 8px); font-size: 12px; font-weight: 550; cursor: pointer;
+  border: 1px solid var(--borde); background: transparent; color: var(--tinta-1);
+}
+.boton:hover { background: var(--placa-hover); }
+.botonFuerte { background: var(--tinta-1); color: var(--background); border-color: var(--tinta-1); }
+.botonPeligro { border-color: color-mix(in srgb, var(--rojo) 55%, transparent); background: color-mix(in srgb, var(--rojo) 12%, transparent); }
+.boton:focus-visible, .botonFuerte:focus-visible, .botonPeligro:focus-visible { outline: 2px solid var(--morado); outline-offset: 1px; }
+.boton:disabled, .botonFuerte:disabled, .botonPeligro:disabled { opacity: 0.55; cursor: default; }
+.responder { display: flex; flex-direction: column; gap: 5px; padding: 0 10px 10px 38px; }
+.responder label { font-size: 11.5px; font-weight: 600; color: var(--tinta-2); }
+.responder textarea {
+  width: 100%; resize: vertical; min-height: 52px; padding: 7px 9px; border-radius: var(--l-radio-control, 8px); font: inherit; font-size: 13px; color: var(--tinta-1);
+  background: var(--background); border: 1px solid var(--borde);
+}
+.responder textarea:focus-visible { outline: 2px solid var(--morado); outline-offset: 0; }
+.confirma { display: flex; flex-direction: column; gap: 2px; margin: 0 10px 10px 38px; padding: 8px 9px; border-radius: var(--l-radio-control, 8px); font-size: 12.5px; color: var(--tinta-1); border: 1px solid var(--borde); }
+
+.nota { margin: 0; padding: 0 12px 8px 38px; font-size: 12px; color: var(--tinta-2); }
+.nota[data-error] { color: var(--tinta-1); }
+.nota[data-error]::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 6px; border-radius: 50%; background: var(--rojo); vertical-align: middle; }
+
+/* «Más actividad» (ronda 4): una sola fila plegada con lo que no es trabajo para ti ahora. Adentro, subgrupos discretos. */
+.pliegue { display: flex; flex-direction: column; gap: 10px; }
+.pliegue > summary {
+  display: flex; align-items: center; gap: 7px; height: 36px; padding: 0 12px; list-style: none; cursor: pointer; border-radius: var(--l-radio-tarjeta, 12px);
+  border: 1px solid var(--borde); font-size: 13px; font-weight: 600; color: var(--tinta-2); transition: background var(--dur) var(--curva), color var(--dur) var(--curva);
+}
+.pliegue > summary:hover { background: var(--placa-hover); }
+.subgrupo { display: flex; flex-direction: column; gap: 4px; }
+.subgrupoCabeza { display: flex; align-items: baseline; gap: 7px; margin: 0; padding: 0 2px; font-size: 12px; font-weight: 600; color: var(--tinta-2); }
+.subgrupoCabeza small { font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--tinta-3); }
+.pliegue > summary::-webkit-details-marker { display: none; }
+.pliegue > summary svg { align-self: center; transition: transform var(--dur) var(--curva); }
+.pliegue[open] > summary svg { transform: rotate(90deg); }
+.pliegue > summary small { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--tinta-3); }
+.pliegue > summary:hover { color: var(--tinta-1); }
+.pliegue > summary:focus-visible { outline: 2px solid var(--morado); outline-offset: 1px; }
+
+.vacio { margin: 0; padding: 10px 2px; font-size: 13px; color: var(--tinta-2); }
+.honesto { margin: 0; padding: 0 2px; font-size: 11.5px; line-height: 1.4; color: var(--tinta-3); }
+.demo { margin: 0; padding: 7px 10px; border-radius: var(--l-radio-control, 8px); font-size: 12px; font-weight: 550; color: var(--tinta-1); border: 1px dashed var(--borde); }
+
+@container (max-width: 440px) {
+  .tiempo { min-width: 34px; font-size: 11.5px; }
+  .pieza { max-width: 170px; }
+  .detalle, .responder, .nota, .accionesDetalle { padding-left: 12px; }
+  .confirma { margin-left: 12px; }
+}
+
+/* ── Píldora del encabezado del chat: el resumen por estado junto a «N agentes trabajando» ── */
+.pildora { display: inline-flex; align-items: center; gap: 6px; }
+.pildoraParte { --estado: var(--tinta-3); display: inline-flex; align-items: center; gap: 5px; }
+.pildoraParte[data-parte='listo'] { --estado: var(--morado); }
+.pildoraParte[data-parte='sin-terminar'] { --estado: var(--tinta-2); }
+.pildoraParte + .pildoraParte::before { content: '·'; margin-right: 1px; color: var(--tinta-3); }
+span + .pildora::before { content: '·'; margin-right: 1px; color: var(--tinta-3); }
+.punto { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; background: var(--estado); }
+.pildoraParte[data-parte='sin-terminar'] .punto { background: transparent; box-shadow: inset 0 0 0 1.5px var(--tinta-2); }
+
+/* ── Pulso del Taller, sobrio (ronda 2): sin rojo ni ámbar sobre «N trabajando»; las fallas, en su línea ── */
+.pulsoSobrio.pulsoSobrio { border-color: var(--borde); }
+.pulsoSobrio.pulsoSobrio::before { background: color-mix(in srgb, var(--morado) 55%, transparent); }
+.luzSobria.luzSobria { background: transparent; box-shadow: inset 0 0 0 2.5px var(--morado); }
+.luzSobria.luzSobria[data-vivo] { background: var(--morado); box-shadow: 0 0 0 4px color-mix(in srgb, var(--morado) 16%, transparent); }
+.pulsoNotas { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 0; margin: 6px 0 0; font-size: 12.5px; color: var(--tinta-2); }
+.pulsoNota { padding: 1px 3px; margin: 0 -3px; border: 0; border-radius: 5px; background: transparent; font: inherit; color: inherit; cursor: pointer; }
+.pulsoNota:hover { color: var(--tinta-1); background: var(--placa-hover); }
+.pulsoNota:focus-visible { outline: 2px solid var(--morado); outline-offset: 1px; }
+.pulsoNotas > * + *::before { content: '·'; margin: 0 7px 0 4px; color: var(--tinta-3); }
+.pulsoNotas svg { margin-right: 5px; vertical-align: -2px; color: var(--morado); }
+.pulsoFallas { display: flex; flex-direction: column; gap: 2px; margin: 7px 0 0; }
+.pulsoFalla { display: block; margin: 0; line-height: 1.5; font-size: 12.5px; font-weight: 550; color: var(--tinta-1); }
+.pulsoFalla svg { display: inline-block; vertical-align: -2px; margin-right: 6px; color: var(--tinta-2); }
+.pulsoFalla button { white-space: nowrap; }  /* «Ver» nunca se parte, la frase ajusta con texto normal */
+.pulsoFalla { font-weight: 450; color: var(--tinta-2); }
+.pulsoFalla button { padding: 1px 4px; border: 0; border-radius: 5px; background: transparent; font: inherit; font-weight: 600; color: var(--tinta-1); text-decoration: underline; text-underline-offset: 2px; text-decoration-color: color-mix(in srgb, var(--tinta-1) 35%, transparent); cursor: pointer; }
+.pulsoFalla button:hover { background: var(--placa-hover); }
+.pulsoFalla button:focus-visible { outline: 2px solid var(--morado); outline-offset: 1px; }

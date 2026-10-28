@@ -15,17 +15,17 @@
 @container (max-width: 470px) { .nivel[data-nivel="2"]::before { display: none; } }
 
 .nodo { min-width: 0; display: flex; flex-direction: column; gap: 10px; padding: 12px 13px; border-radius: 14px; border: 1px solid var(--border); background: color-mix(in srgb, var(--card) 92%, var(--background)); }
-.nodo[data-arriba] { border-color: rgba(var(--gold-rgb), 0.45); box-shadow: 0 0 0 4px rgba(var(--gold-rgb), 0.06); }
+.nodo[data-arriba] { border-color: var(--l-borde-ambar, rgba(var(--gold-rgb), 0.45)); box-shadow: 0 0 0 4px var(--l-borde-ambar, rgba(var(--gold-rgb), 0.06)); }
 .nodo[data-vacante] { border-style: dashed; background: transparent; }
 .cabeza { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .quien { min-width: 0; flex: 1; }
 .quien h3 { margin: 0; font-size: 16px; line-height: 1.2; font-weight: 650; color: var(--foreground); }
 .nodo[data-arriba] .quien h3 { font-size: 19px; }
-.rol { margin: 2px 0 0; font-size: 11.5px; font-weight: 650; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gold-dark); }
+.rol { margin: 2px 0 0; font-size: 11.5px; font-weight: 650; letter-spacing: 0.06em; text-transform: uppercase; color: var(--l-ceja-ambar, var(--gold-dark)); }
 .nodo[data-vacante] .rol { color: var(--muted); }
 
 .foto { flex: none; width: 46px; height: 46px; border-radius: 999px; object-fit: cover; box-shadow: 0 0 0 1px var(--border); background: var(--card); }
-.foto[data-grande] { width: 64px; height: 64px; box-shadow: 0 0 0 2px rgba(var(--gold-rgb), 0.55); }
+.foto[data-grande] { width: 64px; height: 64px; box-shadow: 0 0 0 2px var(--l-borde-ambar, rgba(var(--gold-rgb), 0.55)); }
 .foto[data-vacia] { display: grid; place-items: center; font-size: 18px; font-weight: 600; color: var(--muted); background: transparent; box-shadow: none; border: 1.5px dashed color-mix(in srgb, var(--muted) 60%, transparent); }
 
 .movimiento { display: flex; align-items: center; gap: 6px; margin: 4px 0 0; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -38,14 +38,14 @@
 .bloques h4 { margin: 0 0 4px; font-size: 11px; font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
 .bloques ul, .agente ul { margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 3px; font-size: 13px; line-height: 1.4; color: var(--foreground); }
 .campana { margin: 6px 0 0; font-size: 12px; color: var(--muted); }
-.campana b { color: var(--gold-dark); font-weight: 600; }
+.campana b { color: var(--l-tinta-ambar, var(--gold-dark)); font-weight: 600; }
 .nota { margin: 0; font-size: 13px; line-height: 1.45; color: var(--muted); }
 
 .cejaAgentes { margin-top: 8px; }
 .agentes { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr)); }
-.agente { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px; border-radius: 14px; border: 1px solid rgba(var(--brand-rgb), 0.22); background: rgba(var(--brand-rgb), 0.04); }
-.agente .foto { width: 52px; height: 52px; box-shadow: 0 0 0 2px rgba(var(--brand-rgb), 0.45); }
-.agente .rol { color: var(--brand); }
+.agente { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px; border-radius: 14px; border: 1px solid var(--l-borde-morado, rgba(var(--brand-rgb), 0.22)); background: rgba(var(--l-velo-morado-rgb, var(--brand-rgb)), 0.04); }
+.agente .foto { width: 52px; height: 52px; box-shadow: 0 0 0 2px var(--l-borde-morado, rgba(var(--brand-rgb), 0.45)); }
+.agente .rol { color: var(--l-tinta-morado, var(--brand)); }
 .agente ul { font-size: 12.5px; margin-top: 4px; }
 .recibe { margin: 6px 0 0; font-size: 12.5px; line-height: 1.4; color: var(--muted); }
 .recibe b { color: var(--foreground); font-weight: 600; }

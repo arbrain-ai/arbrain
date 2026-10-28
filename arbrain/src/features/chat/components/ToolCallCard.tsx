@@ -1,8 +1,14 @@
 'use client'
 import { useState } from 'react'
-import { Bot, Loader2, Check, Wrench, ChevronDown, ChevronUp, X, AlertTriangle, Clock } from 'lucide-react'
+import { Bot, Loader2, Check, Wrench, ChevronRight, X, AlertTriangle, Clock } from 'lucide-react'
 import type { ToolCall, ToolOutput } from '../hooks/useChat'
-import { ETIQUETA_ESTADO, ubicarNotas, type NotaInyectada } from '../lib/inyecciones'
+import { ETIQUETA_ESTADO, type NotaInyectada } from '../lib/inyecciones'
+import type { GrupoRastro, LlamadaRastro } from '../lib/rastro'
+import { imagenLeida, localImageThumbUrl, localImageUrl } from '@/lib/local-image-path'
+import { ImageLightbox } from '@/shared/components/ImageLightbox'
+import h from './herramientas.module.css'
+import { edicionDe } from '../lib/diff-edicion'
+import { CuerpoDiff } from './DiffEdicion'
 
 const TOOL_LABELS: Record<string, string> = {
   Read: 'Leyendo archivo',
@@ -18,9 +24,6 @@ const TOOL_LABELS: Record<string, string> = {
   TodoWrite: 'Actualizando TODOs',
 }
 
-/** Herramientas de la Cabina que mueven subagentes del motor: delegar, retomar, cerrar (y Agent nativo). */
-const esDeAgente = (toolName: string) => /^mcp__cabina__(delegar|retomar|cerrar)$/.test(toolName) || toolName === 'Agent'
-
 function getToolLabel(toolName: string): string {
   // Handle MCP tools like mcp__supabase__execute_sql
   if (toolName.startsWith('mcp__')) {
@@ -28,58 +31,6 @@ function getToolLabel(toolName: string): string {
     return parts.length >= 3 ? `${parts[1]}: ${parts.slice(2).join(' ')}` : toolName
   }
   return TOOL_LABELS[toolName] ?? toolName
-}
-
-// Parse partial JSON defensively. The model emits incremental JSON via input_json_delta
-// so by the time we want to render a preview, the JSON is almost always incomplete
-// (e.g. `{"command": "npm inst`). We try to extract the most useful field for each tool.
-function previewToolInput(toolName: string, partial: string | undefined): string | null {
-  if (!partial) return null
-  // Try parse as-is first (sometimes the model emits closing braces fast enough)
-  let obj: Record<string, unknown> | null = null
-  try { obj = JSON.parse(partial) } catch { /* ignore */ }
-
-  // Heuristic: extract first string-quoted value for the field we care about
-  const extractField = (field: string): string | null => {
-    // Match: "field": "value-so-far  (handles unclosed quote)
-    const re = new RegExp(`"${field}"\\s*:\\s*"([^"]*)`, 's')
-    const m = partial.match(re)
-    return m?.[1] ?? null
-  }
-
-  const trim = (s: string, max: number) => s.length > max ? s.slice(0, max) + '…' : s
-
-  if (toolName === 'Bash') {
-    const cmd = (obj?.command as string | undefined) ?? extractField('command')
-    return cmd ? trim(cmd, 80) : null
-  }
-  if (toolName === 'Read') {
-    const fp = (obj?.file_path as string | undefined) ?? extractField('file_path')
-    return fp ? fp.split('/').slice(-2).join('/') : null
-  }
-  if (toolName === 'Write' || toolName === 'Edit') {
-    const fp = (obj?.file_path as string | undefined) ?? extractField('file_path')
-    return fp ? fp.split('/').slice(-2).join('/') : null
-  }
-  if (toolName === 'Grep') {
-    const pat = (obj?.pattern as string | undefined) ?? extractField('pattern')
-    return pat ? trim(pat, 60) : null
-  }
-  if (toolName === 'Glob') {
-    const pat = (obj?.pattern as string | undefined) ?? extractField('pattern')
-    return pat ? trim(pat, 60) : null
-  }
-  if (toolName === 'WebFetch' || toolName === 'WebSearch') {
-    const q = (obj?.url as string | undefined) ?? (obj?.query as string | undefined)
-      ?? extractField('url') ?? extractField('query')
-    return q ? trim(q, 60) : null
-  }
-  if (toolName.startsWith('mcp__')) {
-    // Generic: first string field we find
-    const firstStringMatch = partial.match(/"([^"]+)"\s*:\s*"([^"]{1,80})/)
-    return firstStringMatch ? trim(firstStringMatch[2], 60) : null
-  }
-  return null
 }
 
 // "850ms" · "3.2s" · "1m 12s"
@@ -115,12 +66,40 @@ function parseInputFields(partial: string | undefined): Array<[string, string]> 
   }
 }
 
-interface Props {
-  tools: ToolCall[]
-  inputs?: Record<string, string>
-  outputs?: Record<string, ToolOutput>
-  /** Lo que Daniel escribió con el turno vivo (7 oct 2026): va entre las pills, tras la herramienta en curso. */
-  notas?: NotaInyectada[]
+/**
+ * Imágenes que leyó Levy (26 oct 2026, «sutil, elegante, eficiente»). El resultado llega como «[imagen]» (el servidor
+ * no manda base64 al chat): la imagen se pide por /api/local-image con la ruta del input. En la fila, una miniatura de
+ * caja fija (no mueve el layout) y diferida; en el detalle, la imagen a ancho contenido con clic al visor. Si la imagen
+ * ya no existe (un /tmp limpiado), la miniatura desaparece y el detalle vuelve al texto.
+ */
+const THUMB_ALTO = 28
+function MiniaturaLeida({ ruta }: { ruta: string }) {
+  const [falla, setFalla] = useState(false)
+  if (falla) return null
+  return (
+    <img src={localImageThumbUrl(ruta, THUMB_ALTO * 3)} alt="" aria-hidden loading="lazy" decoding="async" draggable={false}
+      width={THUMB_ALTO * 1.5} height={THUMB_ALTO} onError={() => setFalla(true)} className={h.miniatura} />
+  )
+}
+
+/** Miniaturas de las llamadas de un renglón (máx. 3), solo de lecturas que no fallaron. */
+function MiniaturasDe({ llamadas }: { llamadas: LlamadaRastro[] }) {
+  const rutas = llamadas.filter(l => l.estado !== 'error').map(l => imagenLeida(l.tool.toolName, l.input)).filter((r): r is string => !!r)
+  if (!rutas.length) return null
+  return <span className={h.miniaturas}>{[...new Set(rutas)].slice(0, 3).map(r => <MiniaturaLeida key={r} ruta={r} />)}</span>
+}
+
+function ImagenLeida({ ruta, onFalla }: { ruta: string; onFalla: () => void }) {
+  const [abierta, setAbierta] = useState(false)
+  const nombre = ruta.split('/').pop() ?? 'imagen'
+  return (
+    <>
+      <button type="button" onClick={() => setAbierta(true)} title="Ver en grande" className={h.imagenLeida}>
+        <img src={localImageUrl(ruta)} alt={nombre} loading="lazy" decoding="async" draggable={false} onError={onFalla} />
+      </button>
+      {abierta && <ImageLightbox src={localImageUrl(ruta, true)} alt={nombre} onClose={() => setAbierta(false)} />}
+    </>
+  )
 }
 
 /** Mensaje de Daniel dentro de la actividad del turno, con su estado: enviando… / entrando… / leído. */
@@ -151,6 +130,12 @@ function ToolDetailCard({ tool, input, output, onClose }: {
   const fields = parseInputFields(input)
   const kindLabel = output?.kind ? (KIND_LABELS[output.kind] ?? output.kind) : null
   const failed = output?.isError || !!kindLabel
+  const [imagenFalla, setImagenFalla] = useState(false)
+  const imagen = !failed && !imagenFalla && output?.content?.includes('[imagen]') ? imagenLeida(tool.toolName, input) : null
+  const textoAparte = imagen ? output?.content?.replace(/\[imagen\]/g, '').trim() : null
+  // Ver y deshacer (27 oct 2026): un Edit/Write/MultiEdit enseña qué cambió (diff legible); el input crudo queda a un clic.
+  const edicion = edicionDe(tool, input, failed)
+  const [crudo, setCrudo] = useState(false)
 
   return (
     <div className="w-full rounded-xl border border-border bg-card p-3 my-1 text-left animate-in fade-in duration-150">
@@ -159,65 +144,78 @@ function ToolDetailCard({ tool, input, output, onClose }: {
         {tool.status === 'running' ? (
           <Loader2 size={12} className="animate-spin shrink-0 text-foreground/70" />
         ) : failed ? (
-          <AlertTriangle size={12} className="shrink-0 text-red-400" />
+          <AlertTriangle size={12} className="shrink-0 text-red-600 dark:text-red-400" />
         ) : (
           <Check size={12} className="shrink-0 text-gold-dark dark:text-gold-bright" />
         )}
         <span className="text-[12px] font-medium text-foreground/90">{getToolLabel(tool.toolName)}</span>
-        <code className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/5 border border-border-subtle text-muted break-all">
+        <code className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-black/[0.04] border border-black/10 text-slate-600 dark:bg-white/5 dark:border-border-subtle dark:text-muted break-all">
           {tool.toolName}
         </code>
         {kindLabel && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-400/10 border border-amber-400/20 text-amber-400/90">
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-400/10 border border-amber-400/20 text-amber-700 dark:text-amber-400/90">
             {kindLabel}
           </span>
         )}
         {output?.durationMs != null && (
-          <span className="inline-flex items-center gap-1 text-[10px] text-muted/80">
+          <span className="inline-flex items-center gap-1 text-[10px] text-slate-600 dark:text-muted/80">
             <Clock size={9} className="shrink-0" />
             {formatDuration(output.durationMs)}
           </span>
         )}
         <button
           onClick={onClose}
-          className="ml-auto shrink-0 p-1 rounded-md text-muted hover:text-foreground/80 hover:bg-white/5 transition-colors"
+          className="ml-auto shrink-0 p-1 rounded-md text-muted hover:text-foreground/80 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
         >
           <X size={12} />
         </button>
       </div>
 
+      {edicion && <div className="mt-2.5">
+        <CuerpoDiff e={edicion} />
+        {(fields || input) && <button type="button" onClick={() => setCrudo(c => !c)} aria-expanded={crudo}
+          className="text-[11px] text-slate-500 dark:text-muted/70 hover:text-foreground/80 transition-colors">
+          {crudo ? 'Ocultar el input crudo' : 'Ver el input crudo'}
+        </button>}
+      </div>}
+
       {/* Input */}
-      {(fields || input) && (
+      {(fields || input) && (!edicion || crudo) && (
         <div className="mt-2.5">
-          <p className="text-[9px] uppercase tracking-wider text-muted/60 mb-1">Input</p>
+          <p className="text-[9px] uppercase tracking-wider text-slate-500 dark:text-muted/60 mb-1">Input</p>
           {fields ? (
-            <div className="space-y-1.5 max-h-52 overflow-y-auto rounded-lg bg-black/25 border border-border-subtle p-2">
+            <div className="space-y-1.5 max-h-52 overflow-y-auto rounded-lg bg-slate-50 border border-black/10 p-2 dark:bg-black/25 dark:border-border-subtle">
               {fields.map(([key, value]) => (
                 <div key={key}>
-                  <span className="text-[10px] font-mono text-primary/80">{key}</span>
-                  <pre className="text-[11px] font-mono whitespace-pre-wrap break-all text-foreground/80 leading-relaxed">{value}</pre>
+                  <span className="text-[10px] font-mono text-primary dark:text-primary/80">{key}</span>
+                  <pre className="text-[11px] font-mono whitespace-pre-wrap break-all text-slate-800 dark:text-foreground/80 leading-relaxed">{value}</pre>
                 </div>
               ))}
             </div>
           ) : (
-            <pre className="text-[11px] font-mono whitespace-pre-wrap break-all text-foreground/80 leading-relaxed max-h-52 overflow-y-auto rounded-lg bg-black/25 border border-border-subtle p-2">{input}</pre>
+            <pre className="text-[11px] font-mono whitespace-pre-wrap break-all text-slate-800 dark:text-foreground/80 leading-relaxed max-h-52 overflow-y-auto rounded-lg bg-slate-50 border border-black/10 p-2 dark:bg-black/25 dark:border-border-subtle">{input}</pre>
           )}
         </div>
       )}
 
       {/* Output */}
       <div className="mt-2.5">
-        <p className="text-[9px] uppercase tracking-wider text-muted/60 mb-1">
+        <p className="text-[9px] uppercase tracking-wider text-slate-500 dark:text-muted/60 mb-1">
           Output{output?.isError ? ' · error' : ''}
         </p>
-        {output?.content ? (
+        {imagen ? (
+          <>
+            <ImagenLeida ruta={imagen} onFalla={() => setImagenFalla(true)} />
+            {textoAparte && <pre className="mt-1.5 text-[11px] font-mono whitespace-pre-wrap break-all leading-relaxed max-h-40 overflow-y-auto rounded-lg p-2 border bg-slate-50 border-black/10 text-slate-800 dark:bg-black/25 dark:border-border-subtle dark:text-foreground/80">{textoAparte}</pre>}
+          </>
+        ) : output?.content ? (
           <pre className={`text-[11px] font-mono whitespace-pre-wrap break-all leading-relaxed max-h-64 overflow-y-auto rounded-lg p-2 border ${
             output.isError
-              ? 'bg-red-950/20 border-red-500/25 text-red-300/90'
-              : 'bg-black/25 border-border-subtle text-foreground/80'
+              ? 'bg-red-50 border-red-200 text-red-800 dark:bg-red-950/20 dark:border-red-500/25 dark:text-red-300/90'
+              : 'bg-slate-50 border-black/10 text-slate-800 dark:bg-black/25 dark:border-border-subtle dark:text-foreground/80'
           }`}>{output.content}</pre>
         ) : (
-          <p className="text-[10px] text-muted/60 italic">
+          <p className="text-[10px] text-slate-500 dark:text-muted/60 italic">
             {tool.status === 'running' ? 'Esperando output…' : 'Sin output capturado (turno previo a la actualización o tool sin salida).'}
           </p>
         )}
@@ -226,95 +224,98 @@ function ToolDetailCard({ tool, input, output, onClose }: {
   )
 }
 
-// Turnos pesados (research con 8-10 tools) colapsan las pills terminadas en un
-// chip "N herramientas" expandible — las que CORREN siguen visibles (feedback
-// vivo), y la respuesta no queda empujada por un muro de pills.
-const COLLAPSE_AT = 6
-
-export function ToolCallCards({ tools, inputs, outputs, notas }: Props) {
-  const [expanded, setExpanded] = useState(false)
-  // Detalle abierto (una tool a la vez). Tocar la pill lo abre/cierra.
-  const [openToolId, setOpenToolId] = useState<string | null>(null)
-  if (!tools.length && !notas?.length) return null
-
-  const shouldCollapse = tools.length > COLLAPSE_AT && !expanded
-  const visible = shouldCollapse ? tools.filter((t) => t.status === 'running') : tools
-  const hiddenCount = tools.length - visible.length
-  const { tras, alFinal } = ubicarNotas(notas, visible.map(t => t.toolId))
+/**
+ * Herramientas del turno agrupadas por intención (25 oct 2026, «rastro plegado»): llamadas consecutivas del mismo
+ * propósito son UN renglón en español («Revisó el calendario · 5 comandos ›») con el punto verde/gris/rojo y el
+ * destello de siempre. Al abrir el grupo se listan sus llamadas; cada llamada abre su ToolDetailCard intacto.
+ * Un grupo de una sola llamada abre el detalle directo. La lógica (agrupar, etiquetas) vive en lib/rastro.
+ */
+export function GruposHerramientas({ grupos, soloUno }: {
+  grupos: GrupoRastro[]
+  /** Rastro vivo plegado: solo el grupo en curso (o el último), sin el resto del muro. */
+  soloUno?: boolean
+}) {
+  const [abiertos, setAbiertos] = useState<ReadonlySet<string>>(new Set())
+  const [detalle, setDetalle] = useState<string | null>(null)
+  if (!grupos.length) return null
+  if (soloUno) {
+    // Rastro vivo plegado: la línea viva ya dice la intención; aquí va la llamada en curso, concreta (su archivo o su
+    // comando) con el destello. Entre herramientas (pensando), el último grupo en pasado da el contexto.
+    const enCurso = grupos.find(g => g.estado === 'corriendo')
+    const l = enCurso?.llamadas.find(x => x.estado === 'corriendo')
+    if (!enCurso || !l) return <GruposHerramientas grupos={grupos.slice(-1)} />
+    // Un agente en curso ya lo dicen la línea viva y la mención «N agentes trabajando ›»: sin renglón repetido.
+    if (enCurso.agente) return null
+    const abierta = detalle === l.tool.toolId
+    return (
+      <ul className={h.bandeja} data-herramientas>
+        <li data-grupo={enCurso.clave}>
+          <button type="button" onClick={() => setDetalle(abierta ? null : l.tool.toolId)} aria-expanded={abierta} data-estado="corriendo" className={h.paso}>
+            {enCurso.agente ? <Bot className={h.icono} aria-label="Agente trabajando" /> : <span className={h.punto} aria-hidden />}
+            <span className={h.accion}>{l.especifica ? l.etiqueta : l.unidad}</span>
+            <MiniaturasDe llamadas={[l]} />
+            {l.detalle && <span className={h.detalle}>{l.detalle}</span>}
+          </button>
+          {abierta && <ToolDetailCard tool={l.tool} input={l.input} output={l.output} onClose={() => setDetalle(null)} />}
+        </li>
+      </ul>
+    )
+  }
+  const alternar = (id: string) => setAbiertos(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n })
 
   return (
-    // aria-hidden: chrome del turno — iOS Speak Screen solo debe leer la respuesta
-    <div aria-hidden className="flex flex-wrap gap-1.5 my-1.5">
-      {shouldCollapse && hiddenCount > 0 && (
-        <button
-          onClick={() => setExpanded(true)}
-          className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-card border border-border-subtle text-muted hover:text-foreground/75 hover:border-border transition-colors"
-          aria-expanded={false}
-        >
-          <Check size={10} className="shrink-0" />
-          {hiddenCount} herramientas
-          <ChevronDown size={10} className="shrink-0" />
-        </button>
-      )}
-      {visible.map((tool) => {
-        const preview = previewToolInput(tool.toolName, inputs?.[tool.toolId])
-        const isOpen = openToolId === tool.toolId
-        const failed = outputs?.[tool.toolId]?.isError
+    <ul className={h.bandeja} data-herramientas>
+      {grupos.map((g) => {
+        const uno = g.llamadas.length === 1
+        const abierto = uno ? detalle === g.llamadas[0].tool.toolId : abiertos.has(g.id)
         return (
-          // Fragment con key: la card de detalle (w-full) rompe a su propia línea
-          // justo debajo de la pill tocada — el flex-wrap hace el resto.
-          <span key={tool.toolId} className="contents">
-            <button
-              onClick={() => setOpenToolId(isOpen ? null : tool.toolId)}
-              className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium transition-all duration-300 max-w-full cursor-pointer active:scale-[0.97]
-                ${isOpen
-                  ? 'bg-card border border-primary/50 text-foreground/90'
-                  : tool.status === 'running'
-                    ? 'bg-card border border-border text-foreground/75'
-                    : 'bg-card border border-border-subtle text-muted hover:text-foreground/75 hover:border-border'
-                }`}
-            >
-              {tool.status === 'running' && esDeAgente(tool.toolName) ? (
-                <Bot size={11} className="animate-pulse shrink-0" aria-label="Agente trabajando" />
-              ) : tool.status === 'running' ? (
-                <Loader2 size={10} className="animate-spin shrink-0" />
-              ) : failed ? (
-                <AlertTriangle size={10} className="shrink-0 text-red-400/90" />
-              ) : esDeAgente(tool.toolName) ? (
-                <Bot size={11} className="shrink-0" aria-label="Agente" />
-              ) : (
-                <Check size={10} className="shrink-0" />
-              )}
-              <span className="truncate">
-                {getToolLabel(tool.toolName)}
-                {preview && <span className="text-muted/80 font-mono ml-1.5">{preview}</span>}
-              </span>
+          <li key={g.id} data-grupo={g.clave}>
+            <button type="button" onClick={() => uno ? setDetalle(abierto ? null : g.llamadas[0].tool.toolId) : alternar(g.id)}
+              aria-expanded={abierto} data-estado={g.estado} className={h.paso}>
+              {g.agente
+                ? <Bot className={h.icono} aria-label={g.estado === 'corriendo' ? 'Agente trabajando' : 'Agente'} />
+                : <span className={h.punto} aria-hidden />}
+              <span className={`${h.accion} ${h.accionLarga}`}>{g.etiqueta}</span>
+              <MiniaturasDe llamadas={g.llamadas} />
+              {g.cuenta
+                ? <span className={h.cuenta}>· {g.cuenta}</span>
+                : g.llamadas[0].detalle && <span className={h.detalle}>{g.llamadas[0].detalle}</span>}
+              {g.estado === 'error' && <AlertTriangle className={h.icono} data-falla aria-label="Falló" />}
+              {!uno && <ChevronRight aria-hidden className={`${h.icono} ${h.flecha}`} />}
             </button>
-            {isOpen && (
-              <ToolDetailCard
-                tool={tool}
-                input={inputs?.[tool.toolId]}
-                output={outputs?.[tool.toolId]}
-                onClose={() => setOpenToolId(null)}
-              />
+            {uno && abierto && <ToolDetailCard tool={g.llamadas[0].tool} input={g.llamadas[0].input} output={g.llamadas[0].output} onClose={() => setDetalle(null)} />}
+            {!uno && abierto && (
+              <ul className={h.llamadas}>
+                {g.llamadas.map((l) => {
+                  const abiertaLlamada = detalle === l.tool.toolId
+                  return (
+                    <li key={l.tool.toolId}>
+                      <button type="button" onClick={() => setDetalle(abiertaLlamada ? null : l.tool.toolId)} aria-expanded={abiertaLlamada}
+                        data-estado={l.estado} className={`${h.paso} ${h.pasoLlamada}`}>
+                        <span className={h.punto} aria-hidden />
+                        {/* Dentro del grupo la intención ya está dicha: cada llamada dice qué es o lo suyo propio. */}
+                        <span className={h.accion}>{l.especifica ? l.etiqueta : l.unidad}</span>
+                        <MiniaturasDe llamadas={[l]} />
+                        {l.detalle && <span className={h.detalle}>{l.detalle}</span>}
+                        {l.estado === 'error' && <AlertTriangle className={h.icono} data-falla aria-label="Falló" />}
+                      </button>
+                      {abiertaLlamada && <ToolDetailCard tool={l.tool} input={l.input} output={l.output} onClose={() => setDetalle(null)} />}
+                    </li>
+                  )
+                })}
+              </ul>
             )}
-            {tras.get(tool.toolId)?.map(nota => <NotaInyectadaChip key={nota.id} nota={nota} />)}
-          </span>
+          </li>
         )
       })}
-      {alFinal.map(nota => <NotaInyectadaChip key={nota.id} nota={nota} />)}
-      {expanded && tools.length > COLLAPSE_AT && (
-        <button
-          onClick={() => setExpanded(false)}
-          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] text-muted/70 hover:text-muted transition-colors"
-          aria-expanded={true}
-        >
-          <ChevronUp size={10} className="shrink-0" />
-          ocultar
-        </button>
-      )}
-    </div>
+    </ul>
   )
+}
+
+/** Lo que Daniel escribió con el turno vivo, en orden y fuera del rastro plegado: es conversación, no auditoría. */
+export function NotasInyectadas({ notas }: { notas?: NotaInyectada[] }) {
+  if (!notas?.length) return null
+  return <div className="flex flex-col">{notas.map(nota => <NotaInyectadaChip key={nota.id} nota={nota} />)}</div>
 }
 
 export function StreamingIndicator() {

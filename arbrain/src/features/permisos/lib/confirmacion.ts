@@ -11,7 +11,11 @@ export type CategoriaConfirmacion = 'enviar' | 'pagar' | 'borrar' | 'publicar' |
 
 export interface Confirmacion {
   id: string
-  estado: 'pendiente' | 'permitida' | 'rechazada' | 'vencida' | 'usada'
+  /**
+   * `corriendo`/`corrida`: solo «Córrelo tú» (botón Play, 27 oct 2026). `en_cola` (ronda 2): nadie la espera; Levy siguió
+   * con lo demás y, cuando la persona decide, el daemon se lo dice en su conversación. Nunca se ejecuta sola.
+   */
+  estado: 'pendiente' | 'en_cola' | 'permitida' | 'rechazada' | 'vencida' | 'usada' | 'corriendo' | 'corrida'
   categoria: CategoriaConfirmacion
   origen: 'agente' | 'manos' | 'cron'
   resumen: string
@@ -26,6 +30,80 @@ export interface Confirmacion {
   creada: number
   expira: number
   resuelta?: number
+  /** Botón Play: `permiso` = Una vez · Siempre este patrón · No; `manos` = «Córrelo tú». Daemon viejo: sin campo. */
+  tipo?: 'permiso' | 'manos'
+  /** Qué hará, en palabras de todos los días (la calcula el daemon). */
+  frase?: string
+  /** Lo que guardaría «Siempre este patrón». Sin campo: no se ofrece (el freno nunca). */
+  patron?: string
+  comentario?: string
+  alcance?: 'una' | 'siempre'
+  /** «Córrelo tú»: terminal del motor donde corre y, al terminar, su salida. */
+  terminal?: number
+  salida?: string
+  codigo?: number
+  sesion?: string
+  /** Conversación de la app que la pidió: su cola se pinta en ese hilo. */
+  conversacion?: string
+  /** Desde cuándo está en la cola. */
+  enColaDesde?: number
+  /** «Siempre este patrón» dicho en humano (el patrón literal va en el detalle). */
+  patronFrase?: string
+  /** Acciones del freno: el botón del sí dice la consecuencia («Borrar 14 archivos»). */
+  botonSi?: string
+}
+
+/** Pendientes que la persona tiene que ver: las que esperan su clic, las de su cola y las de «Córrelo tú» corriendo. */
+export function vivasParaLaPersona(lista: Confirmacion[], ahora = Date.now()): Confirmacion[] {
+  return lista.filter(c => (c.estado === 'pendiente' || c.estado === 'en_cola' || c.estado === 'corriendo') && c.expira > ahora).sort((a, b) => a.creada - b.creada)
+}
+
+/**
+ * La cola de aprobaciones (ronda 2): lo que nadie está esperando. Con `conversacion`, solo la de ese hilo. Incluye las
+ * «Córrelo tú» que la persona echó a correr desde la cola (su terminal se ve ahí mismo).
+ */
+export function enLaCola(lista: Confirmacion[], conversacion?: string | null): Confirmacion[] {
+  return lista.filter(c => (c.estado === 'en_cola' || (c.estado === 'corriendo' && !!c.enColaDesde)) && (conversacion === undefined || c.conversacion === conversacion))
+}
+
+/** «Desde las 10:42» (hoy) o «desde ayer a las 18:05» / «desde el 24 oct»: explícito, nunca un «9 min» suelto. */
+export function desdeCuando(t: number, ahora = Date.now()): string {
+  const d = new Date(t), hoy = new Date(ahora)
+  const hora = d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false })
+  const mismoDia = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
+  if (mismoDia(d, hoy)) return `desde las ${hora}`
+  const ayer = new Date(ahora - 86_400_000)
+  if (mismoDia(d, ayer)) return `desde ayer a las ${hora}`
+  return `desde el ${d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }).replace('.', '')}`
+}
+
+/**
+ * «Córrelo tú» terminó (ronda 3): lo que pasó en una frase, para el estado «Listo» de la tarjeta. Usa el código de salida
+ * y la última línea útil de la salida (sin códigos de color, sin líneas de contraseña). Nunca inventa: sin código, lo dice.
+ */
+export function ultimaLineaUtil(salida?: string): string | null {
+  if (!salida) return null
+  const limpia = salida.replace(/\x1b\[[0-9;?]*[ -/]*[@-~]/g, '').replace(/\r/g, '')
+  const lineas = limpia.split('\n').map(l => l.trim()).filter(l => l && !/password|contraseña|^\[…\]$/i.test(l))
+  const u = lineas.at(-1)
+  if (!u) return null
+  return u.length > 90 ? `${u.slice(0, 89)}…` : u
+}
+
+export function resumenCorrida(c: Pick<Confirmacion, 'codigo' | 'salida'>): { ok: boolean | null; titulo: string; frase: string } {
+  const u = ultimaLineaUtil(c.salida)
+  if (c.codigo === 0) return { ok: true, titulo: 'Listo: terminó bien', frase: u ? `La última línea dice «${u}». Levy ya lo sabe y sigue.` : 'Levy ya lo sabe y sigue.' }
+  if (typeof c.codigo === 'number') return { ok: false, titulo: 'Terminó con un error', frase: `${u ? `La última línea dice «${u}». ` : ''}Levy ya vio lo que salió y te dice qué sigue.` }
+  return { ok: null, titulo: 'Terminó', frase: 'Se lo pasé a Levy con lo que salió en la terminal.' }
+}
+
+/** ¿Va en el hilo del chat? Lo que pidió Levy en la conversación (no rutinas ni manos de computer use). */
+export const vaEnElHilo = (c: Pick<Confirmacion, 'origen' | 'creadaPor'>) => c.origen === 'agente' && c.creadaPor !== 'peticion'
+
+/** Cuerpo para resolver desde la tarjeta. El comentario es opcional y se recorta igual que en el daemon. */
+export function cuerpoDecision(id: string, decision: 'permitir' | 'rechazar' | 'correr', op: { alcance?: 'una' | 'siempre'; comentario?: string } = {}) {
+  const comentario = (op.comentario ?? '').replace(/\s+/g, ' ').trim().slice(0, 500)
+  return { id, decision, ...(decision === 'permitir' ? { alcance: op.alcance === 'siempre' ? 'siempre' : 'una' } : {}), ...(comentario ? { comentario } : {}) }
 }
 
 /** Pendientes vigentes, la más vieja primero. */
@@ -119,4 +197,32 @@ export function avisoSinSandbox(s: EstadoSandbox): string {
       ? `En este Linux no hay sandbox para la terminal${s.faltan?.length ? ` (falta ${s.faltan.join(' y ')}: sudo apt install bubblewrap socat)` : ''}`
       : 'En este equipo el sandbox de la terminal está apagado'
   return `${donde}: cada comando que Levy quiera correr, incluso solo para leer, te pedirá un clic. Lee el comando antes de permitirlo.`
+}
+
+/**
+ * «Córrelo tú» con contraseña (ronda 4): una frase cálida, antes de la terminal, de qué va a pasar y por qué se pide
+ * la contraseña. `equipo` es «Tu Mac» o «Tu computadora» (lo decide quien pinta, según el navegador).
+ *   sudo installer … + «Con tu contraseña de administrador: instalar el controlador de la impresora (DymoConnect.pkg)»
+ *   → «Tu Mac pide tu contraseña para instalar el controlador de la impresora. Escríbela en el recuadro negro de abajo y
+ *     presiona Enter; Levy no la ve.»
+ * Iniciar sesión (`gh auth login`…): «Este programa te pide iniciar sesión…». Sin literal: null.
+ */
+export function fraseManos(c: Pick<Confirmacion, 'literal' | 'frase' | 'resumen'>, equipo = 'Tu computadora'): string | null {
+  const lit = (c.literal ?? '').trim()
+  if (!lit) return null
+  if (/^(?:\S+=\S+\s+)*sudo\b/.test(lit)) {
+    const accion = (c.frase ?? '')
+      .replace(/^con tu contraseña(?: de administrador)?\s*[:,]?\s*/i, '')
+      .replace(/\s*\([^)]*\)\s*$/, '')
+      .replace(/[.\s]+$/, '')
+      .trim()
+    const para = accion ? ` para ${accion.replace(/^./, ch => ch.toLocaleLowerCase('es-MX'))}` : ''
+    return `${equipo} pide tu contraseña${para}. Escríbela en el recuadro negro de abajo y presiona Enter; Levy no la ve.`
+  }
+  return 'Este programa te pide iniciar sesión. Escribe lo que te pida en el recuadro negro de abajo y presiona Enter; Levy no lo ve.'
+}
+
+/** El literal en piezas que no se parten a media palabra: cada argumento es una pieza; los espacios, donde se corta. */
+export function piezasLiteral(texto: string): string[] {
+  return texto.split(/(\s+)/).filter(p => p.length > 0)
 }

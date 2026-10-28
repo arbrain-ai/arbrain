@@ -8,9 +8,9 @@
 .acciones { display: inline-flex; gap: 4px; margin-left: auto; }
 .acciones button { display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 8px; border: 1px solid var(--border); border-radius: 7px; background: none; color: var(--muted); font-size: 11.5px; font-weight: 550; cursor: pointer; }
 .acciones button:hover { color: var(--foreground); border-color: rgba(var(--brand-rgb), 0.35); }
-.acciones button[aria-pressed='true'] { color: var(--brand); border-color: rgba(var(--brand-rgb), 0.35); }
+.acciones button[aria-pressed='true'] { color: var(--l-tinta-morado, var(--brand)); border-color: rgba(var(--brand-rgb), 0.35); }
 .acciones button:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
-.aviso { margin: 0; padding: 6px 14px; font-size: 12px; color: var(--muted); border-bottom: 1px solid var(--border); background: rgba(var(--gold-rgb), 0.07); }
+.aviso { margin: 0; padding: 6px 14px; font-size: 12px; color: var(--muted); border-bottom: 1px solid var(--border); background: rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.07); }
 
 .cuerpo { min-width: 0; overflow-x: auto; }
 .lineas { display: table; min-width: 100%; padding: 10px 0; font: 12.5px/1.6 var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace); tab-size: 2; color: var(--foreground); }
@@ -23,14 +23,14 @@
 .codigo[data-ajustar] .lineas { width: 100%; table-layout: fixed; }
 
 /* El tema del chat (github-dark-dimmed) es para fondo oscuro; con tema claro, la paleta de GitHub claro para que se lea. */
-:global(html:not(.dark)) .lineas :global(:is(.hljs-keyword, .hljs-doctag, .hljs-template-tag, .hljs-type, .hljs-variable.language_)) { color: #cf222e; }
-:global(html:not(.dark)) .lineas :global(:is(.hljs-title, .hljs-title.class_, .hljs-title.function_)) { color: #8250df; }
-:global(html:not(.dark)) .lineas :global(:is(.hljs-attr, .hljs-attribute, .hljs-literal, .hljs-meta, .hljs-number, .hljs-operator, .hljs-variable, .hljs-selector-attr, .hljs-selector-class, .hljs-selector-id)) { color: #0550ae; }
-:global(html:not(.dark)) .lineas :global(:is(.hljs-regexp, .hljs-string, .hljs-meta .hljs-string)) { color: #0a3069; }
-:global(html:not(.dark)) .lineas :global(:is(.hljs-built_in, .hljs-symbol)) { color: #953800; }
-:global(html:not(.dark)) .lineas :global(:is(.hljs-comment, .hljs-code, .hljs-formula)) { color: #6e7781; }
-:global(html:not(.dark)) .lineas :global(:is(.hljs-name, .hljs-quote, .hljs-selector-tag, .hljs-selector-pseudo)) { color: #116329; }
-:global(html:not(.dark)) .lineas :global(:is(.hljs-subst, .hljs-params)) { color: #24292f; }
-:global(html:not(.dark)) .lineas :global(:is(.hljs-section)) { color: #0550ae; font-weight: 600; }
-:global(html:not(.dark)) .lineas :global(.hljs-addition) { color: #116329; background: #dafbe1; }
-:global(html:not(.dark)) .lineas :global(.hljs-deletion) { color: #82071e; background: #ffebe9; }
+:global(html:not(.dark)) .lineas :global(:is(.hljs-keyword, .hljs-doctag, .hljs-template-tag, .hljs-type, .hljs-variable.language_)) { color: var(--l-tinta-rojo, #cf222e); }
+:global(html:not(.dark)) .lineas :global(:is(.hljs-title, .hljs-title.class_, .hljs-title.function_)) { color: var(--l-tinta-morado, #8250df); }
+:global(html:not(.dark)) .lineas :global(:is(.hljs-attr, .hljs-attribute, .hljs-literal, .hljs-meta, .hljs-number, .hljs-operator, .hljs-variable, .hljs-selector-attr, .hljs-selector-class, .hljs-selector-id)) { color: var(--l-tinta-azul-oscura, #0550ae); }
+:global(html:not(.dark)) .lineas :global(:is(.hljs-regexp, .hljs-string, .hljs-meta .hljs-string)) { color: var(--l-tinta-azul-oscura, #0a3069); }
+:global(html:not(.dark)) .lineas :global(:is(.hljs-built_in, .hljs-symbol)) { color: var(--l-tinta-ambar-oscura, #953800); }
+:global(html:not(.dark)) .lineas :global(:is(.hljs-comment, .hljs-code, .hljs-formula)) { color: var(--l-gris-10, #6e7781); }
+:global(html:not(.dark)) .lineas :global(:is(.hljs-name, .hljs-quote, .hljs-selector-tag, .hljs-selector-pseudo)) { color: var(--l-tinta-verde-oscura, #116329); }
+:global(html:not(.dark)) .lineas :global(:is(.hljs-subst, .hljs-params)) { color: var(--l-gris-6, #24292f); }
+:global(html:not(.dark)) .lineas :global(:is(.hljs-section)) { color: var(--l-tinta-azul-oscura, #0550ae); font-weight: 600; }
+:global(html:not(.dark)) .lineas :global(.hljs-addition) { color: var(--l-tinta-verde-oscura, #116329); background: var(--l-verde-0, #dafbe1); }
+:global(html:not(.dark)) .lineas :global(.hljs-deletion) { color: var(--l-tinta-rojo-oscura, #82071e); background: var(--l-rojo-0, #ffebe9); }

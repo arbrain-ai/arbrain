@@ -6,6 +6,7 @@
  */
 import type { PlanningSnapshot, PlanEvent, PlanTask, PlanMutation } from '@/features/planning/types'
 import { mutationFor } from '@/features/planning/model'
+import { esFase, esMecanicaAlumno } from '@/features/planning/drip'
 import { refrescarCabina } from '../datos'
 import { TZ, sumarDias } from '../model'
 
@@ -29,6 +30,8 @@ export function porDia(snap: PlanningSnapshot | undefined) {
   const fuentes = new Map(snap.sources.map(f => [f.id, f]))
   const push = (d: string, it: Item) => { const l = mapa.get(d) ?? []; l.push(it); mapa.set(d, l) }
   for (const e of snap.events as PlanEvent[]) {
+    // «🔓 Abre … en el classroom» es para los alumnos: no se pinta en el calendario de Daniel (drip.ts `esMecanicaAlumno`).
+    if (esMecanicaAlumno(e)) continue
     const f = fuentes.get(e.sourceId)
     const base = { id: e.id, titulo: e.title || '(sin título)', color: f?.color ?? 'var(--brand)', objetivo: !!f?.objective, url: e.url, recurrente: !!e.recurringEventId }
     if (e.allDay && f?.objective && sumarDias(e.start.slice(0, 10), 1) < e.end.slice(0, 10)) {
@@ -38,6 +41,8 @@ export function porDia(snap: PlanningSnapshot | undefined) {
     if (e.allDay && sumarDias(e.start.slice(0, 10), 1) < e.end.slice(0, 10)) {
       tramos.push({ id: e.id, titulo: e.title, desde: e.start.slice(0, 10), hasta: e.end.slice(0, 10), color: f?.color ?? 'var(--brand)' })
     }
+    // Las fases del programa viven solo como tramo (el Mes): el Día y la Semana no las repiten en cada celda (25 oct 2026).
+    if (esFase(e)) continue
     if (e.allDay) {
       for (let d = e.start.slice(0, 10); d < e.end.slice(0, 10); d = sumarDias(d, 1)) push(d, { ...base, orden: -1, peso: f?.objective ? 0 : 1 })
       continue

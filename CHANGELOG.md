@@ -4,6 +4,46 @@ Cada versión dice qué trae y qué tienes que hacer tú. Para actualizar, abre 
 «jala los últimos cambios». Las versiones siguen `MAYOR.MENOR.PARCHE`: un cambio en MENOR trae funciones
 nuevas; uno en PARCHE, arreglos.
 
+## v0.2.13 · 28 oct 2026 · Levy te pregunta menos y puedes deshacer lo que cambió
+
+**Qué trae**
+- **Las preguntas de Levy llegan dentro de la conversación.** Cuando Levy necesita tu permiso para un comando, aparece
+  una tarjeta en el mismo hilo: arriba, en una frase, qué quiere hacer; el comando exacto, a un clic. Eliges **Una vez**,
+  **Permitir siempre** o **No**. Si dices que no, puedes escribir por qué y Levy lo lee y sigue por otro camino.
+- **Te pregunta menos.** Lo rutinario (por ejemplo, consultar la versión de una herramienta) lo puede resolver solo, y
+  si eliges «Permitir siempre», ese tipo de comando ya no te pregunta. Esas reglas se ven en Ajustes › Permisos y
+  seguridad › «Comandos que ya no te preguntan», donde las quitas con un clic. Lo que cuida tu seguridad no cambia: lo
+  de fuera de tu carpeta se sigue negando, y enviar, borrar, publicar o pagar siempre te pide tu clic.
+- **Si no estabas, la pregunta te espera.** Si Levy te pregunta algo y no contestas, no lo hace: sigue con lo demás y
+  la pregunta queda en «Mientras no estabas». Cuando vuelves y decides, Levy retoma esa parte solo.
+- **Lo que necesita tus manos.** Cuando algo pide tu contraseña de administrador o iniciar sesión, Levy no lo intenta:
+  en la app de escritorio te ofrece correrlo tú en una terminal ahí mismo, y Levy solo ve lo que salga. Si abres
+  Arbrain desde el navegador (`npm run servidor`), te pide que lo corras en tu propia Terminal.
+- **Ves lo que Levy cambió y lo puedes deshacer.** Cada respuesta en la que Levy tocó tus archivos termina con una línea
+  como «Levy cambió 1 memoria · Ver cambios». Ahí ves cada cambio en palabras, y con **Deshacer desde aquí** tus
+  archivos vuelven a como estaban antes de ese mensaje. Si te arrepientes, **Rehacer** los devuelve. Lo que se cambió
+  con comandos no se deshace; el aviso te lo dice antes.
+- **La respuesta primero.** En el chat ves primero lo que Levy te responde; los pasos que dio quedan plegados en
+  «Razonamiento», en el orden en que pasaron. Las imágenes que Levy lee también se ven ahí.
+- **Una meta ya no entierra la respuesta.** Si le pones a Levy una meta con `/goal`, su respuesta ya no queda debajo de
+  vueltas repetidas: cuando las vueltas no avanzan, se detiene y te lo dice.
+- **Tus agentes, por estado.** En el Taller, los trabajos que Levy delega se agrupan en Te espera, Trabajando y Listo,
+  cada uno con su último paso dicho en español y un solo botón según su estado: Responder, Detener o Retomar.
+- **Tus hábitos en una tabla.** En el Calendario, la vista Hábitos (tecla H) es una sola tabla de días por hábitos que
+  llenas con un toque.
+- **Tu semana ideal detrás de la real.** Pídele a Levy que arme tu Semana Perfecta y la Semana la
+  pinta tenue detrás de tus eventos (se enciende en el engrane › DRIP). El Mes trae la caja «Año precargado» para tus
+  piedras grandes (premios, viajes, lanzamientos), y la revisión del domingo suma cuántas veces te interrumpieron por
+  algo que se podía delegar.
+- **Levy carga menos texto en cada mensaje.** Sus instrucciones de herramientas pesan menos de un tercio que antes y lo
+  largo lo consulta solo cuando le hace falta: te responde con más contexto libre para lo tuyo.
+- **Arreglos.** Tras actualizar, una pestaña que quedó abierta ya no truena la app; el lector en voz ya no te regresa
+  el texto mientras te mueves por la conversación; y el Día ya no te pide «Acepto mi día» cada mañana.
+
+**Qué tienes que hacer**
+- Actualiza con «actualiza mi Arbrain». No tienes que configurar nada: la próxima vez que Levy necesite tu permiso,
+  verás la tarjeta en la conversación.
+
 ## v0.2.12 · 27 oct 2026 · Arreglos que reportaron los fundadores
 
 Esta versión trae también todo lo de v0.2.11 (abajo), que no salió por separado.

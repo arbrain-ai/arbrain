@@ -82,7 +82,9 @@ test('daemon: el scheduler solo consulta la cerca si el supervisor pasó ARBRAIN
 })
 
 test('INSTALAR: en la compu de la persona el guion no cambia; el desvío es solo para un servidor Linux sin pantalla', () => {
-  const instalar = fuente('empaquetado/plantillas/INSTALAR.plantilla.md')
+  // En este repo, la plantilla; en la copia del alumno, el INSTALAR.md ya generado de la raíz.
+  const plantilla = join(ARBRAIN, 'empaquetado', 'plantillas', 'INSTALAR.plantilla.md')
+  const instalar = readFileSync(existsSync(plantilla) ? plantilla : join(ARBRAIN, '..', 'INSTALAR.md'), 'utf8')
   const menciones = instalar.split('\n').filter((l) => /NUBE|espejo|servidor Linux|mi nube/i.test(l))
   // Un solo párrafo nuevo, el del servidor, condicionado a Linux sin pantalla (o a que la persona lo diga).
   const parrafo = instalar.slice(instalar.indexOf('**Si esto va en un servidor**'), instalar.indexOf('## Reglas que no se rompen'))

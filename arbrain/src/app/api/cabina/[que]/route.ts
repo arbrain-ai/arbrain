@@ -1,4 +1,4 @@
-import { planningOwner, planningError } from '@/lib/planning/server'
+import { planningOwner, planningError, checkMutationOrigin } from '@/lib/planning/server'
 import { getSchedulerUrl, CLAUDECLAW_TOKEN } from '@/lib/claudeclaw'
 
 // Vistas del Studio (goal 2): «negocio» (libro del negocio con fechas reales de
@@ -40,6 +40,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ que
   try {
     await planningOwner()
     const { que } = await params
+    // Tablero de agentes (27 oct 2026): Detener y Responder a un subagente de Levy. El agent-server re-verifica que sea
+    // suyo y siga abierto, y usa la misma vía que Levy (detener / retomar).
+    if (que === 'detener' || que === 'responder') {
+      checkMutationOrigin(request)
+      const { agente, texto } = await request.json().catch(() => ({})) as { agente?: unknown; texto?: unknown }
+      if (typeof agente !== 'number' || !Number.isInteger(agente) || agente <= 0) return Response.json({ error: 'Falta el agente.' }, { status: 400 })
+      if (que === 'responder' && (typeof texto !== 'string' || !texto.trim() || texto.length > 4000)) return Response.json({ error: 'Escribe el mensaje (máximo 4,000 caracteres).' }, { status: 400 })
+      const res = await fetch(`${await getSchedulerUrl()}/cabina`, {
+        method: 'POST', headers: { Authorization: `Bearer ${CLAUDECLAW_TOKEN}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ que, agente, ...(que === 'responder' ? { texto } : {}) }), signal: AbortSignal.timeout(45_000), cache: 'no-store',
+      })
+      const body = await res.json().catch(() => ({ error: 'El Studio no respondió.' }))
+      return Response.json(body, { status: res.status, headers: { 'Cache-Control': 'no-store' } })
+    }
     if (que !== 'apagar') return Response.json({ error: 'Acción desconocida.' }, { status: 404 })
     const { firma } = await request.json().catch(() => ({})) as { firma?: unknown }
     if (typeof firma !== 'string' || !/^\d+:\d+$/.test(firma)) return Response.json({ error: 'Falta la firma del proceso.' }, { status: 400 })

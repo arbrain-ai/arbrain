@@ -22,8 +22,16 @@ const EXT_MIME: Record<string, string> = {
 }
 // Edición cliente: solo imágenes del workspace del alumno.
 const REPO_ROOT = () => esEdicionCliente() ? raizWorkspace() : process.env.ARBRAIN_REPO_ROOT || join(homedir(), 'Developer', 'artificial-brain')
-const ALLOWED_ROOTS = () => esEdicionCliente() ? [raizWorkspace()] : (process.env.LOCAL_IMAGE_ROOTS?.split(':').filter(Boolean) ?? [join(homedir(), 'Developer')])
-const DENY_SEGMENTS = new Set(['.ssh', '.aws', '.gnupg', '.kube', '.docker', '.git', 'node_modules'])
+// 26 oct 2026: $HOME y /tmp (no solo ~/Developer) para que el chat enseñe las imágenes que Levy lee con Read
+// (capturas en /tmp, fotos en ~/Pictures). Siguen valiendo solo extensiones de imagen y la lista negra de abajo.
+const ALLOWED_ROOTS = () => esEdicionCliente() ? [raizWorkspace()] : (process.env.LOCAL_IMAGE_ROOTS?.split(':').filter(Boolean) ?? [homedir(), '/tmp'])
+const DENY_SEGMENTS = new Set(['.ssh', '.aws', '.gnupg', '.kube', '.docker', '.git', 'node_modules', 'Keychains'])
+// Carpetas ocultas: fuera, salvo las del cerebro (adjuntos y artefactos de Levy viven en .claude/).
+const DOT_OK = new Set(['.claude', '.codex', '.agents'])
+const oculta = (s: string) => s.startsWith('.') && !DOT_OK.has(s)
+// Miniatura pedida con `w` (lado mayor, px): acotada para que nadie pida un reescalado gigante.
+const THUMB_MIN = 16
+const THUMB_MAX = 1600
 const MAX_BYTES = 40 * 1024 * 1024
 const REDUCE_OVER = 1024 * 1024 // 1 MB
 const REDUCED_WIDTH = 1600
@@ -58,7 +66,7 @@ export async function GET(req: NextRequest) {
   const roots = await Promise.all(ALLOWED_ROOTS().map((r) => realpath(r).catch(() => null)))
   if (!roots.some((r) => r && underRoot(real, r))) return fail(403, 'fuera de la lista blanca')
   const segs = real.split(sep)
-  if (segs.some((s) => DENY_SEGMENTS.has(s)) || basename(real).startsWith('.env')) return fail(403, 'ruta no permitida')
+  if (segs.slice(0, -1).some((s) => DENY_SEGMENTS.has(s) || oculta(s)) || basename(real).startsWith('.')) return fail(403, 'ruta no permitida')
   if (!EXT_MIME[extname(real).toLowerCase()]) return fail(415, 'solo imágenes')
 
   const st = await stat(real).catch(() => null)
@@ -67,8 +75,10 @@ export async function GET(req: NextRequest) {
 
   const full = req.nextUrl.searchParams.get('full') === '1'
   const canReduce = ext !== '.svg' && ext !== '.gif'
-  const reduce = !full && canReduce && st.size > REDUCE_OVER
-  const etag = `"${createHash('sha1').update(`${real}:${st.mtimeMs}:${st.size}:${reduce}`).digest('hex')}"`
+  const wRaw = Number(req.nextUrl.searchParams.get('w'))
+  const thumb = !full && canReduce && Number.isFinite(wRaw) && wRaw > 0 ? Math.min(Math.max(Math.round(wRaw), THUMB_MIN), THUMB_MAX) : 0
+  const reduce = !full && canReduce && (thumb > 0 || st.size > REDUCE_OVER)
+  const etag = `"${createHash('sha1').update(`${real}:${st.mtimeMs}:${st.size}:${reduce}:${thumb}`).digest('hex')}"`
   const headers: Record<string, string> = {
     ETag: etag,
     'Cache-Control': 'private, max-age=3600',
@@ -84,8 +94,8 @@ export async function GET(req: NextRequest) {
     if (reduce) {
       body = await sharp(real, { failOn: 'none' })
         .rotate()
-        .resize({ width: REDUCED_WIDTH, withoutEnlargement: true })
-        .webp({ quality: 82 })
+        .resize(thumb ? { width: thumb, height: thumb, fit: 'inside', withoutEnlargement: true } : { width: REDUCED_WIDTH, withoutEnlargement: true })
+        .webp({ quality: thumb ? 74 : 82 })
         .toBuffer()
       type = 'image/webp'
     } else {
