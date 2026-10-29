@@ -35,11 +35,12 @@ export function PanelVoz() {
   const [error, setError] = useState<string | null>(null)
   const [prueba, setPrueba] = useState<PruebaVoz | null>(null)
   const [probando, setProbando] = useState(false)
-  const [desdeMic, setDesdeMic] = useState(false)
+  // De dónde llegó: el micrófono sin llave ('1') o el aviso del lector con LemonFox ('lector').
+  const [desdeMic, setDesdeMic] = useState<string | null>(null)
   const enCurso = useRef(false)
 
   useEffect(() => {
-    try { if (sessionStorage.getItem(MARCA_DESDE_MIC)) { setDesdeMic(true); sessionStorage.removeItem(MARCA_DESDE_MIC) } } catch { /* sin storage */ }
+    try { const m = sessionStorage.getItem(MARCA_DESDE_MIC); if (m) { setDesdeMic(m); sessionStorage.removeItem(MARCA_DESDE_MIC) } } catch { /* sin storage */ }
     if (!app) return
     llavesEstado().then(setEstado).catch(e => setError(e instanceof Error ? e.message : 'No pude leer el llavero.'))
   }, [app])
@@ -70,14 +71,16 @@ export function PanelVoz() {
   return (
     <div className="space-y-4">
       {desdeMic && !guardada && (
-        <Aviso tono="info">Para dictar con el micrófono falta tu llave de Groq. Es gratis y toma un minuto: créala, pégala aquí y vuelve al chat.</Aviso>
+        <Aviso tono="info">{desdeMic === 'lector'
+          ? 'Para que el resaltado siga la voz palabra por palabra falta tu llave de Groq. Es gratis y toma un minuto: créala, pégala aquí y vuelve al chat.'
+          : 'Para dictar con el micrófono falta tu llave de Groq. Es gratis y toma un minuto: créala, pégala aquí y vuelve al chat.'}</Aviso>
       )}
 
       <section className={`rounded-2xl border p-4 ${guardada ? 'border-border-subtle bg-surface/70' : 'border-brand/40 bg-brand/[0.06]'}`} aria-label="Voz, llave de Groq">
         <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
           <Mic className="size-4 text-brand-ink" aria-hidden /> Voz · llave de Groq <span className="rounded-full bg-success/12 px-2 py-0.5 text-[11px] font-medium text-success">gratis</span>
         </h3>
-        <p className="mt-1 text-[13px] leading-relaxed text-muted">Con ella dictas tus mensajes desde el micrófono del chat. Groq convierte tu voz en texto; Arbrain solo usa la llave para eso y la guarda en el llavero de tu sistema, nunca en un archivo.</p>
+        <p className="mt-1 text-[13px] leading-relaxed text-muted">Con ella dictas tus mensajes desde el micrófono del chat y, si escuchas las respuestas con LemonFox, el resaltado sigue la voz palabra por palabra. Groq convierte la voz en texto; Arbrain solo usa la llave para eso y la guarda en el llavero de tu sistema, nunca en un archivo.</p>
 
         {guardada ? (
           <div className="mt-3 space-y-2">

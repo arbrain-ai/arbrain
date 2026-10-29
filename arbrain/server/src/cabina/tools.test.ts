@@ -46,7 +46,7 @@ describe('cabina', () => {
     expect(((await handle({ id: 2, method: 'tools/list' })) as { result: { tools: unknown[] } }).result.tools).toHaveLength(CABINA_TOOLS.length)
     expect(await handle({ id: 3, method: 'tools/call', params: { name: 'mostrar', arguments: { vista: 'centro' } } })).toMatchObject({ result: { isError: false } })
     expect(await handle({ method: 'notifications/initialized' })).toBeNull()
-    expect(cabinaDynamicTools().map(t => t.name)).toEqual(['cabina_mostrar', 'cabina_pizarron', 'cabina_archivero', 'cabina_panel', 'cabina_abrir', 'cabina_atender', 'cabina_delegar', 'cabina_retomar', 'cabina_detener', 'cabina_interactivo', 'cabina_cerrar', 'cabina_ayuda'])
+    expect(cabinaDynamicTools().map(t => t.name)).toEqual(['cabina_mostrar', 'cabina_archivero', 'cabina_panel', 'cabina_abrir', 'cabina_atender', 'cabina_delegar', 'cabina_retomar', 'cabina_detener', 'cabina_interactivo', 'cabina_cerrar', 'cabina_ayuda'])
   })
   it('la vista vive en el chat; fijar es opcional y explícito (panel-claridad)', () => {
     expect(parseMostrar({ vista: 'calendario' }).fijar).toBeUndefined()

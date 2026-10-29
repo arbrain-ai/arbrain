@@ -20,7 +20,7 @@ const LISTA = [
   'arbrain/src/features/cabina/Cabina.tsx', 'arbrain/src/features/cabina/vistas/Explorador.tsx', 'arbrain/src/features/cabina/vistas/explorador.module.css',
   'arbrain/src/features/cabina/explorador/arbol.ts', 'arbrain/src/app/layout.tsx', 'arbrain/package.json', 'arbrain/next.config.ts', 'arbrain/node_modules/react/index.js',
   'docs/business-os/MAPA-FUENTES-DE-VERDAD.md', 'docs/business-os/lanzamiento-ht-15-oct/masterclass/masterclass-17-oct.json', 'docs/builds/vista-masterclass-2026-10-07.md',
-  'docs/builds/vista-masterclass-2026-10-07/ancho-claro.png', 'docs/pizarron/OFICIO.md', 'docs/Árbol de decisiones.md',
+  'docs/builds/vista-masterclass-2026-10-07/ancho-claro.png', 'docs/Árbol de decisiones.md',
   'biblioteca/pergaminos/mapa/index.html', 'biblioteca/libros/corazon-empresa.pdf', 'contenido/youtube/2026-10/video-ht/final.mp4', 'contenido/youtube/2026-10/video-ht/voz.m4a',
   'entorno-fisico/Brewfile', 'ops/deploy.sh', 'ops/config.toml',
 ].filter(visible)

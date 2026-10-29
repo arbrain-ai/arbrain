@@ -283,7 +283,7 @@ export async function estado({ R, puertoWeb, bin = binarioTailscale() }) {
 }
 
 /** Enciende: revisa Tailscale, publica la web SOLO en la red privada (`serve`, nunca `funnel`) y guarda el estado. */
-export async function encender({ R, puertoWeb, bin = binarioTailscale(), registrar = () => {} }) {
+export async function encender({ R, puertoWeb, bin = binarioTailscale(), registrar = (_mensaje) => {} }) {
   if (!bin) return { estado: 'falta-tailscale', paso: pasoDe('falta-tailscale') }
   const ts = await leerTailscale(bin)
   if (ts.estado === 'falta-sesion') {
@@ -311,7 +311,7 @@ export async function encender({ R, puertoWeb, bin = binarioTailscale(), registr
 }
 
 /** Apaga: quita SOLO la publicación que apunta a esta web y marca el teléfono apagado (la web vuelve a rechazar ese Host). */
-export async function apagar({ R, puertoWeb, bin = binarioTailscale(), registrar = () => {} }) {
+export async function apagar({ R, puertoWeb, bin = binarioTailscale(), registrar = (_mensaje) => {} }) {
   const antes = leerEstado(R)
   guardarEstado(R, { encendido: false, apagado: new Date().toISOString(), ...(antes.host ? { hostAnterior: antes.host } : {}) })
   if (!bin) return { estado: 'apagado' }
@@ -328,27 +328,44 @@ export async function apagar({ R, puertoWeb, bin = binarioTailscale(), registrar
   return { estado: 'apagado' }
 }
 
-/** Al arrancar el supervisor: si el teléfono estaba encendido y cambió el puerto de la web, se vuelve a apuntar. */
-export async function alArrancar({ R, puertoWeb, bin = binarioTailscale(), registrar = () => {} }) {
+/**
+ * Al arrancar el supervisor con el teléfono encendido: que Tailscale siga apuntando a ESTA web. Tras encender la
+ * computadora, Tailscale y Arbrain arrancan a la vez y Tailscale puede tardar en conectarse (Windows: al iniciar
+ * sesión): se le espera hasta `intentos × pausaMs` (3 min por omisión) en vez de rendirse al primer intento. Si la
+ * publicación no apunta a esta web (cambió el puerto o se perdió), se vuelve a publicar en el mismo puerto HTTPS si
+ * está libre, o en el primero libre (sin pisar lo que la persona publique). Devuelve null (nada que hacer), true o false.
+ */
+export async function alArrancar({ R, puertoWeb, bin = binarioTailscale(), registrar = (_mensaje) => {}, intentos = 18, pausaMs = 10_000, dormir = (ms) => new Promise((r) => setTimeout(r, ms)) }) {
   const e = leerEstado(R)
   if (!e.encendido || !bin) return null
-  if (e.puertoWeb === puertoWeb) return null
-  registrar(`Teléfono: la web cambió de puerto (${e.puertoWeb} → ${puertoWeb}); reapunto Tailscale.`)
-  const ts = await leerTailscale(bin)
-  if (ts.estado !== 'listo' || ts.host !== e.host) return null
+  let ts = await leerTailscale(bin)
+  for (let i = 1; i < intentos && ts.estado !== 'listo'; i++) {
+    await dormir(pausaMs)
+    ts = await leerTailscale(bin)
+  }
+  if (ts.estado !== 'listo') { registrar(`Teléfono: Tailscale no se conectó (${ts.estado}); el teléfono vuelve cuando lo conectes y pulses «Encender».`); return false }
+  if (ts.host !== e.host) { registrar(`Teléfono: esta máquina ahora se llama ${ts.host} en Tailscale (antes ${e.host}); vuelve a encenderlo.`); return false }
   const man = await leerServe(bin, ts.host)
+  if (puertoNuestro(man, puertoWeb)) {
+    if (e.puertoWeb !== puertoWeb) guardarEstado(R, { ...e, puertoWeb })
+    return null
+  }
   const viejo = puertoNuestro(man, e.puertoWeb)
-  const p = viejo ?? e.puertoHttps
+  const ocupado = (p) => man.some((h) => h.puerto === p && h.ruta === '/')
+  const p = viejo ?? (ocupado(e.puertoHttps) ? puertoLibreHttps(man) : e.puertoHttps)
+  if (!p) { registrar('Teléfono: los puertos HTTPS de tu Tailscale publican otra cosa; vuelve a encenderlo.'); return false }
+  registrar(`Teléfono: Tailscale no apuntaba a esta web (127.0.0.1:${puertoWeb}); lo vuelvo a publicar en ${urlTelefono(ts.host, p)}.`)
   const r = await publicar(bin, p, puertoWeb)
-  if (r.codigo === 0 && !r.cortado) guardarEstado(R, { ...e, puertoWeb })
-  return r.codigo === 0
+  if (r.codigo !== 0 || r.cortado) { registrar(`Teléfono: Tailscale no aceptó volver a publicar: ${r.salida.trim().slice(0, 200)}`); return false }
+  guardarEstado(R, { ...e, puertoWeb, puertoHttps: p })
+  return true
 }
 
 // ── Control del supervisor (la web pregunta y actúa por aquí) ───────────────────────────────────────────────────
 
 /**
- * Rutas `/telefono/*` del control local de servidor.mjs. `ctx`: { R, puertoWeb, reiniciarWeb, registrar, codigos }.
- * La web llega con el token del daemon (esWeb) y el CLI con el suyo (esCli). Devuelve [status, json] o null.
+ * Rutas `/telefono/*` del control local de servidor.mjs. `ctx`: { R, puertoWeb, reiniciarWeb, registrar, codigos,
+ * asegurarArranque? }. La web llega con el token del daemon (esWeb) y el CLI con el suyo (esCli). Devuelve [status, json] o null.
  */
 export async function atenderControl({ metodo, ruta, cuerpo, esWeb, esCli }, ctx) {
   const base = { R: ctx.R, puertoWeb: ctx.puertoWeb(), registrar: ctx.registrar, bin: ctx.bin ?? binarioTailscale() }
@@ -356,6 +373,8 @@ export async function atenderControl({ metodo, ruta, cuerpo, esWeb, esCli }, ctx
   if (metodo === 'POST' && (ruta === '/telefono/encender' || ruta === '/telefono/apagar')) {
     const antes = JSON.stringify(entornoWeb(ctx.R))
     const r = ruta === '/telefono/encender' ? await encender(base) : await apagar(base)
+    // Encendido = tiene que sobrevivir a un reinicio de la computadora (servidor.mjs › asegurarArranque).
+    if (r.estado === 'encendido' && ctx.asegurarArranque) r.arranque = ctx.asegurarArranque()
     const cambia = JSON.stringify(entornoWeb(ctx.R)) !== antes
     // La web se relanza con el Host nuevo (o sin él). Se responde antes: quien pidió esto es, a veces, la propia web.
     if (cambia) setTimeout(() => { void ctx.reiniciarWeb() }, 300)
@@ -382,14 +401,16 @@ function imprimir(r, { cuenta } = {}) {
     if (r.enlace) linea(`Enlace: ${r.enlace}`)
     if (r.detalle) linea(`Detalle: ${r.detalle}`)
   }
+  if (r.arranque?.nuevo) linea('Activé el arranque automático: Arbrain vuelve solo cuando reinicies la computadora, y tu teléfono con él.')
+  else if (r.arranque && !r.arranque.activo) linea('Ojo: el arranque automático está apagado; si reinicias, el teléfono se queda sin Arbrain. Actívalo: npm run servidor -- arranque-automatico activar')
   if (cuenta) linea(cuenta)
   // Última línea para quien lo lee por guion (TELEFONO.md): estado y, si hay, la dirección o el enlace.
   console.log(`TELEFONO_${r.estado.toUpperCase().replace(/-/g, '_')}${r.url ? ` ${r.url}` : r.enlace ? ` ${r.enlace}` : ''}`)
 }
 
 /**
- * `npm run servidor -- telefono <sub>`. `ctx`: { R, sub, vivo, pedir, puertoGuardado }. Si el supervisor corre, la
- * orden pasa por su control (así reinicia la web); si no, se hace aquí y la web lo toma al arrancar.
+ * `npm run servidor -- telefono <sub>`. `ctx`: { R, sub, vivo, pedir, puertoGuardado, asegurarArranque? }. Si el
+ * supervisor corre, la orden pasa por su control (así reinicia la web); si no, se hace aquí y la web lo toma al arrancar.
  */
 export async function orden(ctx) {
   const sub = ctx.sub ?? 'estado'
@@ -418,5 +439,6 @@ export async function orden(ctx) {
   if (!puertoWeb) { console.log('[arbrain] Arranca Arbrain una vez (npm run servidor) antes de encender el teléfono.'); console.log('TELEFONO_SIN_SERVIDOR'); return }
   const base = { R: ctx.R, puertoWeb, registrar: (m) => console.log(`[arbrain] ${m}`) }
   const r = sub === 'encender' ? await encender(base) : sub === 'apagar' ? await apagar(base) : await estado(base)
+  if (sub === 'encender' && r.estado === 'encendido' && ctx.asegurarArranque) r.arranque = ctx.asegurarArranque()
   imprimir(r, { cuenta: ya && sub !== 'estado' ? 'Reinicia Arbrain para aplicarlo: npm run servidor -- detener && npm run servidor' : !ya && sub === 'encender' ? 'Arbrain no está corriendo: se aplica cuando arranque.' : undefined })
 }

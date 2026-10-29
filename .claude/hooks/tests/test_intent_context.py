@@ -29,6 +29,8 @@ class IntentContextTests(unittest.TestCase):
             ('hazme una imagen para el post', 'Imágenes'),
             ('lee este libro conmigo', 'Leer un libro o curso'),
             ('mejora la skill de agenda', 'Mejorar una skill'),
+            ('crea una skill de mi seguimiento de cobros', 'Crear una skill'),
+            ('documenta este proceso para la próxima', 'Crear una skill'),
             ('veamos mi negocio como sistema viable', 'Sistema viable'),
             ('audita el sistema', 'Auditoría'),
         ]

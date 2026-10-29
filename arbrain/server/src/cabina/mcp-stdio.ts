@@ -24,7 +24,7 @@ export async function handle(msg: Msg): Promise<Record<string, unknown> | null> 
   if (method === 'tools/list') return { id, result: { tools: cabinaToolsVisibles() } }
   if (method === 'tools/call') {
     const r = await ejecutarCabina(String(params?.name ?? ''), params?.arguments)
-    // El pizarrón devuelve también imágenes (la foto del trazo de Daniel): Levy las VE.
+    // Una herramienta puede devolver también imágenes: Levy las VE.
     return { id, result: { content: [{ type: 'text', text: r.text }, ...(r.imagenes ?? []).map(i => ({ type: 'image', data: i.data, mimeType: i.mimeType }))], isError: !!r.error } }
   }
   return { id, error: { code: -32601, message: `Método no soportado: ${method}` } }

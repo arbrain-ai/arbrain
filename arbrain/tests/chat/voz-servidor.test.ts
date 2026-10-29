@@ -1,6 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { VozServidor, faltaAcelerar, palabraEn, silenciosDe, tiemposDePalabras, tiemposDelAudio } from '../../src/features/chat/lib/voz-servidor'
+import { VozServidor, posicionAudible } from '../../src/features/chat/lib/voz-servidor'
+import { silenciosDe, tiemposDePalabras, tiemposDelAudio } from '../../src/features/chat/lib/tiempos-estimados'
+import { leerMarcas, palabraEn, tiemposDeMarcas, type MarcaPalabra } from '../../src/features/chat/lib/marcas-voz'
 import { indiceDeVelocidad, tramosDeVoz } from '../../src/features/chat/lib/chat-speech'
 
 function palabras(s: string) {
@@ -86,7 +88,7 @@ test('tiemposDelAudio tolera una coma sin pausa y un audio sin silencios', () =>
   for (let i = 1; i < t2.length; i++) assert.ok(t2[i] > t2[i - 1] && t2[i] < 2)
 })
 
-test('palabraEn devuelve la última palabra que ya empezó', () => {
+test('palabraEn devuelve la última palabra que ya empezó (en empate, la última de ellas)', () => {
   const t = [0.05, 0.4, 0.9, 1.5]
   assert.equal(palabraEn(t, 0), 0)
   assert.equal(palabraEn(t, 0.39), 0)
@@ -94,6 +96,7 @@ test('palabraEn devuelve la última palabra que ya empezó', () => {
   assert.equal(palabraEn(t, 1.2), 2)
   assert.equal(palabraEn(t, 99), 3)
   assert.equal(palabraEn([], 1), -1)
+  assert.equal(palabraEn([0, 0.5, 0.5, 1], 0.6), 2) // «—» sin marca comparte tiempo con la siguiente: se salta
 })
 
 test('tramosDeVoz corta en fin de frase pasados ~160 caracteres y cubre todas las palabras sin solaparse', () => {
@@ -124,6 +127,7 @@ async function conWebAudioFalso(fn: (reloj: { t: number }, fuentes: Array<{ rate
     state = 'running'
     constructor() { ctxs.push(this) }
     suspend() { this.state = 'suspended'; return Promise.resolve() }
+    close() { this.state = 'closed'; return Promise.resolve() }
     sampleRate = 48000
     baseLatency = 0
     destination = {}
@@ -181,14 +185,6 @@ test('un fallo no condena la lectura siguiente: reintentar() vuelve al servidor'
   })
 })
 
-test('faltaAcelerar: lo que el servidor no aceleró, nada si ya llegó', () => {
-  assert.equal(faltaAcelerar(2, 2), 1)
-  assert.equal(faltaAcelerar(2, 1), 2)
-  assert.equal(faltaAcelerar(3, 1.5), 2)
-  assert.equal(faltaAcelerar(1, 1), 1)
-  assert.equal(faltaAcelerar(2, 0), 2)
-})
-
 test('las velocidades llegan a 3x y una posición guardada con la escala vieja cae en la vecina rápida', () => {
   assert.equal(indiceDeVelocidad(1), 0)
   assert.equal(indiceDeVelocidad(2), 2)
@@ -202,7 +198,7 @@ test('si onended no llega, el vigía termina el tramo una sola vez al pasar su d
   await conWebAudioFalso(async (reloj) => {
     const voz = new VozServidor(async () => new Response(null))
     let fines = 0
-    const audio = { buffer: { duration: 0.2 } as AudioBuffer, tempo: 1 }
+    const audio = { buffer: { duration: 0.2 } as AudioBuffer, tempo: 1, marcas: null }
     voz.sonar(audio, 0, () => fines++)
     reloj.t += 0.3 // el contexto avanzó más que el tramo y onended nunca llegó
     await new Promise((ok) => setTimeout(ok, 900))
@@ -215,59 +211,17 @@ test('el vigía no corta un tramo cuyo contexto se detuvo: vuelve a mirar', asyn
   await conWebAudioFalso(async () => {
     const voz = new VozServidor(async () => new Response(null))
     let fines = 0
-    voz.sonar({ buffer: { duration: 0.2 } as AudioBuffer, tempo: 1 }, 0, () => fines++)
+    voz.sonar({ buffer: { duration: 0.2 } as AudioBuffer, tempo: 1, marcas: null }, 0, () => fines++)
     await new Promise((ok) => setTimeout(ok, 900)) // reloj del contexto quieto (suspendido)
     assert.equal(fines, 0)
     voz.parar()
   })
 })
 
-test('si el servidor no aceleró, el tramo suena en <audio> con preservesPitch a la velocidad que falta, no a 1x', async () => {
-  await conWebAudioFalso(async (_reloj, fuentes) => {
-    const elementos: Array<Record<string, unknown>> = []
-    class AudioFalso {
-      src = ''; muted = false; paused = true; currentTime = 0; playbackRate = 1; defaultPlaybackRate = 1; preload = ''
-      preservesPitch = false; webkitPreservesPitch = false; onended: (() => void) | null = null
-      constructor() { elementos.push(this as unknown as Record<string, unknown>) }
-      play() { this.paused = false; return Promise.resolve() }
-      pause() { this.paused = true }
-      removeAttribute() { this.src = '' }
-      load() {}
-    }
-    const g = globalThis as unknown as { Audio?: unknown }
-    const antes = g.Audio
-    g.Audio = AudioFalso
-    try {
-      const voz = new VozServidor(async () => new Response(new Uint8Array(8), { headers: { 'content-type': 'audio/mpeg' } }))
-      voz.desbloquear() // dentro del gesto: crea y libera el <audio> (y suena el sample mudo de Web Audio)
-      const mudas = fuentes.length
-      const viejo = await voz.cargar('x', 2) // X-Tempo ausente: el servidor dejó 1x
-      assert.ok(viejo.mp3)
-      let fines = 0
-      voz.sonar(viejo, 0, () => fines++, 2)
-      await new Promise((ok) => setTimeout(ok, 0))
-      const el = elementos[0] as unknown as AudioFalso
-      assert.equal(el.playbackRate, 2)
-      assert.equal(el.preservesPitch, true)
-      assert.equal(el.webkitPreservesPitch, true)
-      assert.match(el.src, /^blob:.*#t=0\.00$/)
-      assert.equal(fuentes.length, mudas) // Web Audio no suena (sería 1x o ardilla)
-      assert.equal(voz.corriendo(), true)
-      el.onended?.()
-      assert.equal(fines, 1)
-      // Si el servidor sí aceleró, no hay copia de bytes ni <audio>: Web Audio a ritmo 1.
-      const bueno = await new VozServidor(async () => new Response(new Uint8Array(8), { headers: { 'content-type': 'audio/mpeg', 'x-tempo': '2' } })).cargar('x', 2)
-      assert.equal(bueno.mp3, undefined)
-    } finally {
-      g.Audio = antes
-    }
-  })
-})
-
 test('sin fuente, el contexto se suspende (la ventana oculta no deja al audio de WebKit sin muestras) y vuelve al sonar', async () => {
   await conWebAudioFalso(async (_reloj, fuentes, ctxs) => {
     const voz = new VozServidor(async () => new Response(null))
-    const audio = { buffer: { duration: 5 } as AudioBuffer, tempo: 1 }
+    const audio = { buffer: { duration: 5 } as AudioBuffer, tempo: 1, marcas: null }
     voz.sonar(audio, 0, () => {})
     voz.parar() // pausa
     voz.sonar(audio, 1, () => {}) // reanudar antes del reposo: no se suspende a media lectura
@@ -279,6 +233,91 @@ test('sin fuente, el contexto se suspende (la ventana oculta no deja al audio de
     voz.sonar(audio, 2, () => {})
     assert.equal(ctxs[0].state, 'running')
     assert.equal(fuentes.length, 3)
+    voz.parar()
+  })
+})
+
+// ─── Marcas exactas (29 oct 2026) ─────────────────────────────────────────────
+// Con la forma que dan las marcas reales de AVSpeechSynthesizer con Juan (Enhanced), medidas en el Studio el 29 oct:
+// «SaaS» lo parte en dos marcas («Saa» y «S»), «—» no tiene marca, la puntuación va pegada a la palabra.
+const TEXTO = 'Mira, el 80/20 de 3.000 USD — sin humo. SaaS Factory listo.'
+const MARCAS: MarcaPalabra[] = [
+  [0, 5, 0], [6, 2, 1346.8], [9, 5, 1555.8], [15, 2, 3692.2], [18, 5, 3854.7], [24, 3, 4400.1],
+  [30, 3, 5150], [34, 5, 5698.4], [40, 3, 6500], [43, 1, 7300.3], [45, 7, 7834.4], [53, 6, 8900],
+]
+
+test('tiemposDeMarcas: cada palabra en el instante de su marca; sin marca toma la siguiente; dos marcas, la primera', () => {
+  const t = tiemposDeMarcas(TEXTO, MARCAS)!
+  const ws = [...TEXTO.matchAll(/\S+/g)].map((m) => m[0])
+  assert.equal(t.length, ws.length)
+  const en = (w: string) => t[ws.indexOf(w)]
+  const cerca = (a: number, b: number) => assert.ok(Math.abs(a - b) < 1e-9, `${a} ≠ ${b}`)
+  cerca(en('Mira,'), 0)
+  cerca(en('80/20'), 1.5558)
+  cerca(en('—'), 5.15) // no se pronuncia: comparte instante con «sin» y el resaltado lo salta
+  cerca(en('sin'), 5.15)
+  cerca(en('SaaS'), 6.5) // la segunda marca («S», 7.3003 s) cae dentro de la misma palabra y no la mueve
+  cerca(en('Factory'), 7.8344)
+  for (let i = 1; i < t.length; i++) assert.ok(t[i] >= t[i - 1])
+  // La palabra que suena en cada instante, con el reloj exacto.
+  assert.equal(ws[palabraEn(t, 5.2)], 'sin')
+  assert.equal(ws[palabraEn(t, 7.4)], 'SaaS')
+  assert.equal(ws[palabraEn(t, 99)], 'listo.')
+})
+
+test('tiemposDeMarcas: marcas desordenadas o en espacios no rompen el orden; sin marcas útiles es null', () => {
+  const t = tiemposDeMarcas('uno dos tres', [[8, 4, 900], [0, 3, 0], [3, 5, 400]])!
+  assert.deepEqual(t, [0, 0.4, 0.9]) // la de «dos» arranca en el espacio y lo toca
+  assert.equal(tiemposDeMarcas('uno dos', []), null)
+  assert.equal(tiemposDeMarcas('uno dos', [[20, 2, 5]]), null)
+  // Cola sin marca (no debería pasar): se queda en la última, nunca en infinito.
+  assert.deepEqual(tiemposDeMarcas('uno dos', [[0, 3, 100]]), [0.1, 0.1])
+})
+
+test('leerMarcas solo acepta la tabla de ESTE texto', () => {
+  const cab = JSON.stringify({ v: 1, n: 7, m: [[0, 3, 0], [4, 3, 300]] })
+  assert.deepEqual(leerMarcas(cab, 'uno dos'), [[0, 3, 0], [4, 3, 300]])
+  assert.equal(leerMarcas(cab, 'uno  dos'), null) // otro largo: la tabla no es de este texto
+  assert.equal(leerMarcas(null, 'uno dos'), null)
+  assert.equal(leerMarcas('{roto', 'uno dos'), null)
+  assert.equal(leerMarcas(JSON.stringify({ v: 2, n: 7, m: [[0, 3, 0]] }), 'uno dos'), null)
+  assert.equal(leerMarcas(JSON.stringify({ v: 1, n: 7, m: [[0, 3, -1]] }), 'uno dos'), null)
+})
+
+test('cargar() trae las marcas de X-Marcas; sin cabecera (LemonFox, agent-server viejo) son null', async () => {
+  await conWebAudioFalso(async () => {
+    const tabla = JSON.stringify({ v: 1, n: 7, m: [[0, 3, 0], [4, 3, 250.5]] })
+    const con = new VozServidor(async () => new Response(new Uint8Array(4), { headers: { 'content-type': 'audio/wav', 'x-tempo': '2', 'x-marcas': tabla } }))
+    assert.deepEqual((await con.cargar('uno dos', 2)).marcas, [[0, 3, 0], [4, 3, 250.5]])
+    const sin = new VozServidor(async () => new Response(new Uint8Array(4), { headers: { 'content-type': 'audio/mpeg' } }))
+    assert.equal((await sin.cargar('uno dos', 2)).marcas, null)
+  })
+})
+
+test('el reloj descuenta las dos latencias (búfer del contexto + salida) y es negativo antes de llegar a la bocina', () => {
+  assert.ok(Math.abs(posicionAudible(10.5, 10, 0.01, 0.149) - 0.341) < 1e-9) // audífonos Bluetooth en WebKit
+  assert.ok(Math.abs(posicionAudible(10.5, 10) - 0.5) < 1e-9)
+  assert.ok(posicionAudible(10.05, 10, 0.01, 0.149) < 0)
+  assert.ok(Math.abs(posicionAudible(10.5, 10, Number.NaN, undefined) - 0.5) < 1e-9)
+})
+
+test('reloj congelado: reabrir() suspende y reanuda el MISMO contexto; reabrir(true) lo cierra y el siguiente sonar() abre otro', async () => {
+  await conWebAudioFalso(async (reloj, fuentes, ctxs) => {
+    const voz = new VozServidor(async () => new Response(null))
+    const audio = { buffer: { duration: 5 } as AudioBuffer, tempo: 1, marcas: null }
+    voz.sonar(audio, 0, () => {})
+    assert.equal(voz.reloj(), 10)
+    reloj.t += 0 // WebKit tras cambiar la salida: running y el reloj quieto
+    voz.reabrir()
+    await new Promise((ok) => setTimeout(ok, 0))
+    assert.equal(ctxs.length, 1)
+    assert.equal(ctxs[0].state, 'running') // suspendido y reanudado: la misma muestra sigue
+    voz.reabrir(true)
+    assert.equal(ctxs[0].state, 'closed')
+    assert.equal(voz.reloj(), null) // la fuente vieja ya no cuenta
+    voz.sonar(audio, 2, () => {})
+    assert.equal(ctxs.length, 2)
+    assert.deepEqual(fuentes[fuentes.length - 1], { rate: 1, desde: 2 })
     voz.parar()
   })
 })

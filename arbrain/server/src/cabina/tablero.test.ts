@@ -40,7 +40,7 @@ describe('tablero: columna por hechos medidos', () => {
     expect(col({ cerroTurno: true, procesoVivo: false, detenido: true }).motivo).toMatch(/un mensaje lo reanuda/)
   })
 
-  it('detenido y cerrado con error es «falló», no «te espera» (28 oct: el Pizarrón 21 días con Responder)', () => {
+  it('detenido y cerrado con error es «falló», no «te espera» (28 oct: un encargo 21 días con Responder)', () => {
     expect(col({ cerroTurno: true, procesoVivo: false, detenido: true, error: 'Lo detuvieron y su proceso salió con código 1' }))
       .toMatchObject({ columna: 'falló', motivo: 'Lo detuvieron y su proceso salió con código 1' })
     // detenido sin error (salió con código 0): sigue esperando un mensaje que lo reanude

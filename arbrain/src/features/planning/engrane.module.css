@@ -83,3 +83,30 @@
   background: var(--background); color: var(--foreground); font: inherit; font-size: 13px; font-variant-numeric: tabular-nums; color-scheme: light dark; }
 .tarifaCampos select { flex: 0 0 64px; width: 64px; }
 .tarifaCampos > span { padding-bottom: 7px; white-space: nowrap; }
+
+/* Zonas de mi vida (28 oct 2026): una fila por zona, con su color (--c, el de su categoría), su interruptor y sus horas. */
+.zonas { display: flex; flex-direction: column; gap: 2px; }
+.zona { display: flex; flex-direction: column; gap: 4px; padding: 6px 8px; border-radius: 8px; }
+.zona:hover { background: var(--card-hover); }
+.zonaCabeza { display: flex; align-items: center; gap: 8px; }
+.zonaColor { flex: 0 0 auto; display: inline-grid; place-items: center; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 6px; cursor: pointer;
+  background: color-mix(in srgb, var(--c) 14%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 40%, transparent); }
+.zonaColor i { width: 10px; height: 10px; border-radius: 3px; background: var(--c); }
+.zonaColor:focus-visible, .zonaPaleta button:focus-visible, .zonaFranja input:focus-visible, .zonasRestablecer:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.zonaNombre { flex: 1 1 auto; display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.zonaNombre b { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.zonaNombre small { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.interruptor[data-solo] { width: auto; min-height: 0; padding: 4px 0; background: transparent; }
+.zonaHoras { display: flex; flex-wrap: wrap; gap: 4px 10px; padding-left: 30px; }
+.zonaFranja { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
+.zonaFranja input { width: 52px; padding: 2px 4px; text-align: center; border: 1px solid var(--plan-line, color-mix(in srgb, var(--foreground) 12%, transparent)); border-radius: 6px;
+  background: var(--background); color: var(--foreground); font: inherit; font-size: 12px; font-variant-numeric: tabular-nums; color-scheme: light dark; }
+.zona[data-apagada] .zonaColor, .zona[data-apagada] .zonaNombre, .zona[data-apagada] .zonaHoras { opacity: .45; }
+.zonaPaleta { display: flex; flex-wrap: wrap; gap: 4px; padding-left: 30px; }
+.zonaPaleta button { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 8px 0 7px; border: 0; border-radius: 999px; font: inherit; font-size: 11.5px; font-weight: 600;
+  color: var(--foreground); background: color-mix(in srgb, var(--c) 10%, transparent); cursor: pointer; }
+.zonaPaleta button[aria-checked='true'] { box-shadow: inset 0 0 0 1.5px var(--c); }
+.zonaPaleta i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+.zonasAviso { padding: 2px 8px; font-size: 11px; color: var(--muted); }
+.zonasRestablecer { align-self: flex-start; margin: 2px 8px 0; padding: 4px 0; border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 12px; text-decoration: underline; cursor: pointer; }
+.zonasRestablecer:hover { color: var(--foreground); }

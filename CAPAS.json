@@ -1,6 +1,6 @@
 {
   "_porque": "Contrato de capas de Arbrain. Todo lo que no está en «alumno» lo regenera el autor en cada versión; «alumno» nunca viene en el repo del autor: nace de la semilla y vive en tu rama. Lo leen los prompts de instalación y actualización y la CI.",
-  "version": "0.2.13",
+  "version": "0.2.14",
   "semilla": "arbrain/cerebro/semilla",
   "sembrar": "python3 arbrain/cerebro/sembrar.py",
   "alumno": [
@@ -13,7 +13,8 @@
     ".claude/settings.local.json",
     "CLAUDE.local.md",
     ".arbrain-sembrado.json",
-    "mi-negocio/"
+    "mi-negocio/",
+    "mi-marca/"
   ],
   "alumno_skills": "toda carpeta de .claude/skills/ que no esté en skills_del_autor",
   "skills_del_autor": [
@@ -30,7 +31,8 @@
     "libro-os",
     "memory-manager",
     "os-audit",
-    "sistema-viable"
+    "sistema-viable",
+    "skill-creator"
   ],
   "funciones": {
     "modo_servidor": {

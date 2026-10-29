@@ -506,7 +506,7 @@ export const VistaFijada = memo(function VistaFijada({ f, oculta = false }: { f:
   return <div ref={raiz} className={s.cuerpo} data-vista role="tabpanel" data-fijada={f.id} style={oculta ? { display: 'none' } : undefined} aria-hidden={oculta || undefined} inert={oculta || undefined}>
     {f.input.enfoque && <p className={s.enfoque}>{f.input.enfoque}</p>}
     {/* Calendario y Lienzo son secciones vivas (2 oct 2026): se navegan dentro de la pestaña. */}
-    {esSeccion(f) ? <CuerpoSeccion key={nacimiento.current.gen} f={f} /> : <div className={s.fijadaCuerpo}>{f.input.vista === 'documento' ? <><EscucharDocumento f={f} /><Cuerpo key={f.id + f.en} input={f.input} grande /></> : <ZoomDoc clave={`vista:${f.input.vista}`}><Cuerpo key={f.input.vista === 'pizarron' ? `${f.id}|${f.input.paginaId ?? ''}` : f.id + f.en} input={f.input} grande /></ZoomDoc>}</div>}
+    {esSeccion(f) ? <CuerpoSeccion key={nacimiento.current.gen} f={f} /> : <div className={s.fijadaCuerpo}>{f.input.vista === 'documento' ? <><EscucharDocumento f={f} /><Cuerpo key={f.id + f.en} input={f.input} grande /></> : <ZoomDoc clave={`vista:${f.input.vista}`}><Cuerpo key={f.id + f.en} input={f.input} grande /></ZoomDoc>}</div>}
   </div>
 })
 

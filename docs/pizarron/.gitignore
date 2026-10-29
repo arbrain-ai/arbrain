@@ -1,4 +1,0 @@
-# La voz se regenera del texto (y pesa); los PNG originales de las láminas quedan fuera como en los pergaminos (va el JPG).
-sesiones/*/voz/
-sesiones/*/imagenes/*.png
-sesiones/*/.leido

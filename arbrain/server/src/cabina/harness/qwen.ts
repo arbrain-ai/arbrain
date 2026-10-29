@@ -10,16 +10,18 @@ import { leerEstiloClaude, posicional } from './claude.js'
 import { esEdicionCliente } from '../../edicion.js'
 
 const modelo = (m: string | null) => m ? ['-m', m] : []
-const permisos = (bypass: boolean) => bypass ? ['--yolo'] : []
+const permisos = (bypass: boolean, perfil?: string) => perfil === 'lectura' ? ['--approval-mode', 'plan'] : bypass ? ['--yolo'] : []
 
 export const qwen: Adaptador = {
   nombre: 'qwen',
   binario: 'qwen',
   modeloDefault: env => env('CABINA_MODELO_QWEN') || 'qwen/qwen3-coder',
   modeloOk: m => modeloSimple(m) || modeloRuta(m),
+  recibeEsfuerzo: false,
   sesionPropia: false,
-  lanzar: p => ['--auth-type', 'openai', '-p', posicional(p.encargo), '-o', 'stream-json', ...modelo(p.modelo), ...permisos(p.permisos === 'bypass')],
-  reanudar: p => ['--auth-type', 'openai', '-r', p.sesion, '-p', posicional(p.texto), '-o', 'stream-json', ...modelo(p.modelo), ...permisos(p.permisos === 'bypass')],
+  perfiles: ['total', 'lectura'],
+  lanzar: p => ['--auth-type', 'openai', '-p', posicional(p.encargo), '-o', 'stream-json', ...modelo(p.modelo), ...permisos(p.permisos === 'bypass', p.perfil)],
+  reanudar: p => ['--auth-type', 'openai', '-r', p.sesion, '-p', posicional(p.texto), '-o', 'stream-json', ...modelo(p.modelo), ...permisos(p.permisos === 'bypass', p.perfil)],
   leerEvento: l => leerEstiloClaude(l, u => num(u.total_tokens) || num(u.input_tokens) + num(u.output_tokens)),
   entorno: {
     OPENAI_API_KEY: { fuentes: ['CABINA_QWEN_API_KEY', 'OPENROUTER_API_KEY'] },

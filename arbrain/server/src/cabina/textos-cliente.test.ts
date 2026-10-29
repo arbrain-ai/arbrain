@@ -87,13 +87,11 @@ describe('Cabina en la edición cliente', () => {
     expect(r.text).not.toMatch(PROHIBIDO)
   })
 
-  it('el pizarrón y la campana no se listan ni se ejecutan, con un texto limpio', async () => {
+  it('la campana no se lista ni se ejecuta, con un texto limpio', async () => {
     const t = await cargar('cliente')
-    for (const n of ['pizarron', 'atender']) {
-      const r = await t.ejecutarCabina(n, { accion: 'abrir', tema: 'x', todos: true })
-      expect(r.error).toBe(true)
-      expect(r.text).not.toMatch(PROHIBIDO)
-    }
+    const r = await t.ejecutarCabina('atender', { todos: true })
+    expect(r.error).toBe(true)
+    expect(r.text).not.toMatch(PROHIBIDO)
   })
 
   it('panel secciones: solo Calendario, Lienzo, Archivos y Taller; nombrar otra es error y la lista no enseña las ocultas', async () => {
@@ -120,7 +118,7 @@ describe('Cabina en la instalación original', () => {
   it('cabinaToolsVisibles es CABINA_TOOLS tal cual: mismo texto, mismos esquemas', async () => {
     const t = await cargar('original')
     expect(t.cabinaToolsVisibles()).toEqual([...t.CABINA_TOOLS])
-    expect(t.cabinaToolsVisibles().map(x => x.name)).toContain('pizarron')
+    expect(t.cabinaToolsVisibles().map(x => x.name)).toContain('atender')
     expect(t.parseMostrar({ vista: 'finanzas' }).vista).toBe('finanzas')
     expect(t.parseAbrir({ destino: 'calendario' }).destino).toBe('calendario')
     expect(t.DESPERTADOR_DESCRIPTION).toBe(t.textoDespertador((await import('../dueno.js')).DUENO))

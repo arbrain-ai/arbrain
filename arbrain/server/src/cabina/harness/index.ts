@@ -13,6 +13,7 @@ import { qwen } from './qwen.js'
 import { json, num, str, type Adaptador } from './tipos.js'
 
 export type { Adaptador, Evento, Permisos } from './tipos.js'
+export { coherencia, type Coherencia } from './coherencia.js'
 
 export const ADAPTADORES: Record<string, Adaptador> = { claude, codex, opencode, gemini, qwen }
 export const NOMBRES = Object.keys(ADAPTADORES)
@@ -38,6 +39,10 @@ export interface Turno {
   detenido?: boolean
   /** La última herramienta y lo que tocó: el tablero lo dice en humano («Corriendo las pruebas»). */
   paso?: { herramienta: string; detalle?: string }
+  /** Lo que Levy PIDIÓ para este turno (marca de inicio): modelo y esfuerzo; null = el default del CLI. */
+  pedido?: { modelo: string | null; esfuerzo: string | null }
+  /** Lo que el CLI REPORTÓ que corre en este turno (init, thread/started, respuesta de thread/resume). */
+  efectivo?: { modelo?: string; esfuerzo?: string }
 }
 /** `acuses`: id de cada mensaje en vivo → si el pastor lo entregó al CLI. */
 export interface Bitacora { sesion?: string; turnos: Turno[]; acuses: Record<string, boolean> }
@@ -52,7 +57,8 @@ export function aplicarLinea(b: Bitacora, linea: string, ad: Adaptador, estado: 
   const marca = json(linea)
   if (marca && typeof marca.arbrain === 'string') {
     if (marca.arbrain === 'inicio') {
-      b.turnos.push({ n: b.turnos.length + 1, inicio: num(marca.en), texto: str(marca.texto) ?? '', mensajes: [], herramientas: [], tokens: 0, finCli: false, entradas: [] })
+      const pedido = 'modelo' in marca || 'esfuerzo' in marca ? { pedido: { modelo: str(marca.modelo) ?? null, esfuerzo: str(marca.esfuerzo) ?? null } } : {}
+      b.turnos.push({ n: b.turnos.length + 1, inicio: num(marca.en), texto: str(marca.texto) ?? '', mensajes: [], herramientas: [], tokens: 0, finCli: false, entradas: [], ...pedido })
       estado.delta = false
     } else if (marca.arbrain === 'salida') {
       const t = b.turnos.at(-1)
@@ -68,6 +74,9 @@ export function aplicarLinea(b: Bitacora, linea: string, ad: Adaptador, estado: 
     } else if (marca.arbrain === 'sesion') {
       const s = str(marca.id)
       if (s && !b.sesion) b.sesion = s
+      // el pastor de codex anota lo que respondió thread/start|resume (resume no emite thread/started)
+      const t = b.turnos.at(-1)
+      if (t) anotarEfectivo(t, str(marca.modelo), str(marca.esfuerzo))
     } else if (marca.arbrain === 'error') {
       const t = b.turnos.at(-1)
       if (t) t.error = str(marca.mensaje) ?? 'error del pastor'
@@ -90,6 +99,7 @@ export function aplicarLinea(b: Bitacora, linea: string, ad: Adaptador, estado: 
     t.herramientas.push(e.herramienta); if (t.herramientas.length > 40) t.herramientas.shift()
     t.paso = { herramienta: e.herramienta, ...(e.detalle ? { detalle: e.detalle } : {}) }
   }
+  if (e.modelo || e.esfuerzo) anotarEfectivo(t, e.modelo, e.esfuerzo)
   if (e.final) t.final = e.final
   if (e.error) t.error = e.error
   if (e.tokens) t.tokens += e.tokens
@@ -99,6 +109,11 @@ export function aplicarLinea(b: Bitacora, linea: string, ad: Adaptador, estado: 
   return b
 }
 
+function anotarEfectivo(t: Turno, modelo: string | undefined, esfuerzo: string | undefined) {
+  if (!modelo && !esfuerzo) return
+  t.efectivo = { ...t.efectivo, ...(modelo ? { modelo } : {}), ...(esfuerzo ? { esfuerzo } : {}) }
+}
+
 export function leerBitacora(texto: string, ad: Adaptador): Bitacora {
   const b = bitacoraVacia(), estado = {}
   for (const l of texto.split('\n')) if (l.trim()) aplicarLinea(b, l, ad, estado)
@@ -106,3 +121,11 @@ export function leerBitacora(texto: string, ad: Adaptador): Bitacora {
 }
 
 export const tokensDe = (b: Bitacora): number | null => b.turnos.some(t => t.tokens) ? b.turnos.reduce((a, t) => a + t.tokens, 0) : null
+
+/** Los defaults de modelo de cada CLI, leídos de los adaptadores (una sola fuente; la ayuda y la respuesta los citan). */
+export function defaultsDelegar(env: (k: string) => string | undefined = () => undefined): { harness: string; modelo: string | null; variable: string; desdeEnv: boolean }[] {
+  return Object.values(ADAPTADORES).map(a => {
+    const variable = `CABINA_MODELO_${a.nombre.toUpperCase()}`
+    return { harness: a.nombre, modelo: a.modeloDefault(env), variable, desdeEnv: !!env(variable) }
+  })
+}

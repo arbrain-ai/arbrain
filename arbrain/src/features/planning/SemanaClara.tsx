@@ -1,5 +1,5 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { ChevronRight } from 'lucide-react'
@@ -20,7 +20,7 @@ import { esNoNegociable, seccionDe } from './secciones'
 import { rutinasDiarias } from './rutinas'
 import { Leyenda, type ControlLeyenda } from './Leyenda'
 import { LeyendaDrip, useGobierno } from './gobierno'
-import { esDelegable, type LecturaDrip } from './drip'
+import { esDelegable, semanaDelPrograma, semanasDelPrograma, type LecturaDrip } from './drip'
 import type { PlanEvent, PlanItem, PlanTask, PlanningSnapshot } from './types'
 import c from './claridad.module.css'
 
@@ -163,7 +163,11 @@ export function SemanaClara({ goals, guardarObjetivo, fecha, ventana, onVentana,
   const objetivo = useMemo(() => goals.data ? objetivoDe(goals.data.goals, snapshot, 'week', desde) : null, [goals.data, snapshot, desde])
   const entregables = goal ? entregablesDe(goal.success).items : []
   const hechos = entregables.filter(e => e.hecho).length
-  const n = numeroDeSemana(desde)
+  // La semana del PROGRAMA (28 oct 2026, Daniel: «la etiqueta S5 contradice el plan»): sale de las fases del calendario, la misma
+  // que pinta el Mes (S0 = 19–25 oct, S1 = 26 oct, firmado el 24 oct). Antes era la semana del mes (`numeroDeSemana`): el 26 oct
+  // caía en la quinta de octubre. Sin programa, sin número.
+  const programa = useMemo(() => semanasDelPrograma(eventos), [eventos])
+  const s = semanaDelPrograma(desde, programa)
   const objetivos = useMemo(() => new Map(diasRiel.map(x => [x, goals.data ? objetivoDelDia(goals.data.goals, snapshot, x, zona) : null])), [goals.data, snapshot, diasRiel, zona])
 
   const porId = useMemo(() => new Map<string, PlanItem>([...eventos, ...tareas].map(i => [i.id, i])), [eventos, tareas])
@@ -183,13 +187,27 @@ export function SemanaClara({ goals, guardarObjetivo, fecha, ventana, onVentana,
   // La franja (25 oct 2026, Daniel: «la UI actual me quita la mitad de la pantalla del calendario»): en UNA línea; desde las 08:10
   // solo el objetivo de la semana (sin hábitos ni temporada: los hábitos van en el Día, la temporada en la vista H) y, al abrirla,
   // el objetivo con sus entregables.
-  const franja = <FranjaPlan rotulo={<>Semana{n > 0 && <b> · S{n}</b>}{goal?.status === 'draft' && <em> · en planificación</em>}{goal?.status === 'completed' && <em> · cumplido</em>}</>}
+  const franja = <FranjaPlan rotulo={<>Semana{s && <b> · {s}</b>}{goal?.status === 'draft' && <em> · en planificación</em>}{goal?.status === 'completed' && <em> · cumplido</em>}</>}
     titulo={objetivo?.titulo ?? null} vacio={!goals.data && !goals.error ? 'Leyendo el objetivo…' : 'Sin objetivo para esta semana.'}
     cuenta={entregables.length ? { k: hechos, n: entregables.length } : null}
     detalle={goal && entregables.length > 0 && <>
       <Segmentos k={hechos} n={entregables.length} i={1} />
       <Entregables texto={goal.success} guardar={guardarObjetivo ? success => guardarObjetivo({ ...goal, success }) : undefined} i0={2} nombre="Entregables de la semana" />
     </>} />
+  // El objetivo fijo arriba (28 oct 2026, Daniel: «debe quedarse FIJO arriba al hacer scroll, justo debajo de la barra… junto con la
+  // cabecera de días»): la franja se pega bajo la barra (`--plan-pegado`) y la cabecera de días de SemanaHoras, bajo la franja
+  // (`--franja-alto`, su alto medido: plegada es una línea, abierta la lista).
+  const pegada = useRef<HTMLDivElement>(null)
+  const [altoFranja, setAltoFranja] = useState(0)
+  useLayoutEffect(() => {
+    const el = pegada.current
+    if (!el) return
+    const medir = () => setAltoFranja(el.offsetHeight)
+    medir()
+    const o = new ResizeObserver(medir); o.observe(el)
+    return () => o.disconnect()
+  }, [vista, dosColumnas])
+  const franjaPegada = <div ref={pegada} className={c.franjaPegada} data-franja-pegada>{franja}</div>
   const horasRejilla = (llenar: boolean) => <SemanaHoras listo={Boolean(snapshot) || !cargando} dias={onVentana ? undefined : dias} semana={semana} inicio={inicio} onVentana={onVentana} sinBarra={enfoque} hoy={hoy} ahora={ahora} bloques={bloques} todoElDia={todoElDia} barras={barras} estrellas={estrellas} onDia={onDia} donde={donde} barra={chips} amplia={enfoque}
         diasVista={llenar ? 7 : diasVista} finDeSemana={finDeSemana} tramo={tramo} compacta={compacta} zona={etiquetaZona} llenar={llenar}
         todoElDiaAbierto={plegado?.todoElDia} onTodoElDia={plegado ? () => plegado.alternar('todoElDia') : undefined}
@@ -225,8 +243,8 @@ export function SemanaClara({ goals, guardarObjetivo, fecha, ventana, onVentana,
     </div>
   </section>
 
-  return <section className={c.vista} data-llena={vista === 'horas' || undefined} aria-label={etiqueta}>
-    {franja}
+  return <section className={c.vista} data-llena={vista === 'horas' || undefined} aria-label={etiqueta} style={vista === 'horas' ? { '--franja-alto': `${altoFranja}px` } as CSSProperties : undefined}>
+    {vista === 'horas' ? franjaPegada : franja}
 
     {cargando && !snapshot ? <p className={c.leyendo}>Leyendo tu calendario…</p>
       : vista === 'horas' ? <div className={`${c.rejillaLlena} ${c.entra}`} style={esc(2)}>{horasRejilla(false)}</div>

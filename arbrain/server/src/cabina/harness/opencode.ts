@@ -6,6 +6,8 @@
  */
 import { json, modeloRuta, num, obj, str, type Adaptador, type Evento } from './tipos.js'
 import { posicional } from './claude.js'
+/** Perfil lectura (29 oct 2026): su agente «plan» no edita, y sin `--auto` lo demás se niega solo. */
+const auto = (p: { permisos: string; perfil?: string }) => p.perfil === 'lectura' ? ['--agent', 'plan'] : p.permisos === 'bypass' ? ['--auto'] : []
 
 const modelo = (m: string | null) => m ? ['-m', m] : []
 
@@ -15,9 +17,11 @@ export const opencode: Adaptador = {
   // DeepSeek por OpenRouter (decisión del 2 oct): un default fuera de Anthropic a propósito.
   modeloDefault: env => env('CABINA_MODELO_OPENCODE') || 'openrouter/~deepseek/deepseek-v4-flash-latest',
   modeloOk: modeloRuta,
+  recibeEsfuerzo: false,
   sesionPropia: false,
-  lanzar: p => ['run', '--format', 'json', ...modelo(p.modelo), ...(p.permisos === 'bypass' ? ['--auto'] : []), posicional(p.encargo)],
-  reanudar: p => ['run', '--format', 'json', '-s', p.sesion, ...modelo(p.modelo), ...(p.permisos === 'bypass' ? ['--auto'] : []), posicional(p.texto)],
+  perfiles: ['total', 'lectura'],
+  lanzar: p => ['run', '--format', 'json', ...modelo(p.modelo), ...auto(p), posicional(p.encargo)],
+  reanudar: p => ['run', '--format', 'json', '-s', p.sesion, ...modelo(p.modelo), ...auto(p), posicional(p.texto)],
   leerEvento: l => {
     const d = json(l)
     if (!d) return null

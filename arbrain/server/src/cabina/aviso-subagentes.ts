@@ -41,6 +41,8 @@ export interface Observacion {
   tokens?: number | null
   /** Sin pantalla: número del turno observado (el juez lo anota con su veredicto). */
   turno?: number
+  /** Sin pantalla: «pediste max · corre medium» si el CLI reportó otra cosa que lo pedido. */
+  desajuste?: string | null
 }
 
 /** ¿Lo vigila este aviso? Los del motor (PTY) y los sin pantalla (proceso propio). */
@@ -189,7 +191,9 @@ export async function revisarSubagentes(p: PuertoAviso, ahora = Date.now()): Pro
     if (!d.avisar) continue
     // El juez nunca bloquea el cierre: si falla o tarda, el aviso sale sin veredicto.
     const juicio = p.juzgar && pideJuicio(obs) ? await p.juzgar(sub, obs).catch(() => null) : null
-    p.avisar(sub.avisarA, juicio ? `${d.texto}\n${lineaJuicio(juicio)}` : d.texto)
+    // Lo que corrió no es lo pedido (29 oct 2026): Levy lo sabe al cerrar el turno, no solo si mira el Taller.
+    const desajuste = obs.desajuste ? `\nOjo: ${obs.desajuste} (lo reportó su CLI).` : ''
+    p.avisar(sub.avisarA, (juicio ? `${d.texto}\n${lineaJuicio(juicio)}` : d.texto) + desajuste)
     await p.anotar(sub, juicio ? { ...d.cambio, juicio } : d.cambio)
     n++
   }
@@ -219,7 +223,9 @@ export async function puertoMotor(avisar: PuertoAviso['avisar'], extra: Pick<Pue
     entregarCola: async sub => (await import('./sin-pantalla.js')).entregarCola(sub.id),
     // Juez separado: la DoD guardada al delegar, la del encargo o la del primer turno de su bitácora (encargo completo).
     ...(juezActivo() ? { juzgar: async (sub: Subagente, obs: Observacion) => {
-      let dod = sub.dod ?? extraerDoD(sub.encargo)
+      // Con plan versionado (plan.ts), la DoD sale del archivo en su commit aprobado: la que Daniel dejó, no la que se recuerde.
+      let dod = sub.plan ? extraerDoD(await (await import('./plan.js')).textoAprobado(sub.plan)) : null
+      dod ??= sub.dod ?? extraerDoD(sub.encargo)
       if (!dod && sub.modo === 'sin-pantalla') dod = extraerDoD((await (await import('./sin-pantalla.js')).bitacora(sub)).b.turnos[0]?.texto)
       return juzgar({ dod, informe: tachar(obs.ultimaRespuesta ?? ''), ...(obs.turno != null ? { turno: obs.turno } : {}) })
     } } : {}),

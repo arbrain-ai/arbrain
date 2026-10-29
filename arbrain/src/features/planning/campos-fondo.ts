@@ -8,10 +8,17 @@ import type { CampoFondo } from '@/config/tipos'
  *   · El trabajo profundo, mínimo 8 horas diarias de lunes a viernes, «no negociables», con el calendario como «un espejo y no
  *     una meta incumplida»: franjas 06:00–09:00, 13:00–15:00 y 15:30–18:30.
  * Un campo nunca tapa: va detrás de todo. Si una llamada cae encima, la llamada gana y el campo lo dice («7 h · 1 h con
- * llamadas»), sin rojo ni alarma: describe el día, no lo juzga. Las franjas viven en `config/instalacion.ts` (`camposFondo`).
+ * llamadas»), sin rojo ni alarma: describe el día, no lo juzga. Las franjas de fábrica viven en `config/instalacion.ts` (`camposFondo`).
+ *
+ * Zonas de mi vida (28 oct 2026, 08:09, Daniel: «las zonas, en lugar de verlas en el calendario, ponlas por colores… que el color
+ * de fondo dicte la zona»): cada zona se tiñe con el color de su categoría, sin texto encima (su nombre, al pasar el cursor), y
+ * cada persona las enciende o apaga en el engrane (`zonas.ts`). El sueño cruza la medianoche: «21:00»–«05:30» se parte en la
+ * noche de su día y la madrugada del siguiente.
  */
 
-export interface FranjaFondo { clave: string; titulo: string; tipo: CampoFondo['tipo']; desde: number; hasta: number }
+export interface FranjaFondo { clave: string; titulo: string; categoria: CampoFondo['categoria']; forma: CampoFondo['forma']; desde: number; hasta: number
+  /** Las horas de la zona como se configuraron («6:00–9:00, 13:00–15:00», «21:00–5:30»): lo que dice al pasar el cursor. */
+  horario: string }
 
 /** «06:00» → 360. Lo inválido es null. */
 export function minutos(hhmm: string): number | null {
@@ -24,17 +31,28 @@ export function minutos(hhmm: string): number | null {
 /** Día ISO (1 = lunes … 7 = domingo) de un `YYYY-MM-DD`, sin zona. */
 export const diaIso = (dia: string) => { const d = new Date(`${dia}T12:00:00Z`).getUTCDay(); return d === 0 ? 7 : d }
 
-/** Las franjas de fondo de un día (`YYYY-MM-DD`), en orden. Lo mal escrito en la configuración se ignora, no truena. */
+/** El día anterior de un `YYYY-MM-DD`, sin zona. */
+const ayer = (dia: string) => new Date(Date.parse(`${dia}T12:00:00Z`) - 86_400_000).toISOString().slice(0, 10)
+
+/**
+ * Las franjas de fondo de un día (`YYYY-MM-DD`), en orden. Lo mal escrito en la configuración se ignora, no truena. Una franja que
+ * cruza la medianoche pone su noche en el día en que empieza y su madrugada en el siguiente (los `dias` son los de su noche).
+ */
 export function franjasDelDia(campos: readonly CampoFondo[] | null | undefined, dia: string): FranjaFondo[] {
   if (!campos?.length) return []
-  const d = diaIso(dia)
+  const d = diaIso(dia), anterior = diaIso(ayer(dia))
   const out: FranjaFondo[] = []
   for (const c of campos) {
-    if (c.dias?.length && !c.dias.includes(d)) continue
+    const hoy = !c.dias?.length || c.dias.includes(d), deAnoche = !c.dias?.length || c.dias.includes(anterior)
+    const validas = c.franjas.map(([a, b]) => [minutos(a), minutos(b)] as const).filter((x): x is readonly [number, number] => x[0] != null && x[1] != null && x[0] !== x[1])
+    const horario = validas.map(([desde, hasta]) => rango({ desde, hasta })).join(', ')
+    const pon = (desde: number, hasta: number) => { if (hasta > desde) out.push({ clave: c.clave, titulo: c.titulo, categoria: c.categoria, forma: c.forma, desde, hasta, horario }) }
     for (const [a, b] of c.franjas) {
       const desde = minutos(a), hasta = minutos(b)
-      if (desde == null || hasta == null || hasta <= desde) continue
-      out.push({ clave: c.clave, titulo: c.titulo, tipo: c.tipo, desde, hasta })
+      if (desde == null || hasta == null || hasta === desde) continue
+      if (hasta > desde) { if (hoy) pon(desde, hasta); continue }
+      if (hoy) pon(desde, 1440)
+      if (deAnoche) pon(0, hasta)
     }
   }
   return out.sort((x, y) => x.desde - y.desde || x.hasta - y.hasta)
@@ -70,6 +88,12 @@ export function resumenCampo(franjas: readonly FranjaFondo[], clave: string, lla
 
 /** «9:00–17:00». */
 export const rango = (f: Pick<FranjaFondo, 'desde' | 'hasta'>) => {
-  const t = (m: number) => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`
+  const t = (m: number) => `${Math.floor(m / 60) % 24}:${String(m % 60).padStart(2, '0')}`
   return `${t(f.desde)}–${t(f.hasta)}`
+}
+
+/** Lo que dice una zona al pasar el cursor: su nombre, sus horas y, si es el trabajo profundo, su espejo del día. */
+export function tituloZona(f: FranjaFondo, resumen?: { texto: string } | null): string {
+  const espejo = resumen && f.clave === 'profundo' ? resumen.texto.split(' · ').slice(1).join(' · ') : ''
+  return [f.titulo, f.horario, espejo].filter(Boolean).join(' · ')
 }

@@ -115,6 +115,8 @@ export const APIS_CLIENTE = [
   '/api/salud/chat',
   // Tu cerebro en el teléfono (23 oct 2026): estado, encender/apagar y códigos de entrada (scripts/servidor/telefono.mjs).
   '/api/telefono',
+  // Mi marca (29 oct 2026): colores, logo y nombre del dueño desde `mi-marca/` (lib/mi-marca.ts).
+  '/api/mi-marca',
 ] as const
 
 function coincidePrefijo(ruta: string, prefijo: string) {

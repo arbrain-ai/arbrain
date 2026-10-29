@@ -5,6 +5,7 @@ import { useModoPresentacion } from '@/shared/stores/presentacion-store'
 import { SEMANAS_MES, type Ajustes } from './ajustes'
 import { CUADRANTES, type Cuadrante, type Tarifa } from './drip'
 import { ListaCalendarios, type ControlLeyenda } from './Leyenda'
+import { ZonasDeMiVida } from './ZonasDeMiVida'
 import { DIAS_VISTA, type DiasVista } from './semana-horas'
 import e from './engrane.module.css'
 
@@ -84,6 +85,9 @@ export function Engrane({ ajustes, poner, diasActual, leyenda, drip, matriz, acc
         <Fila etiqueta="Densidad"><Segmentos valor={ajustes.densidad} opciones={[{ v: 'comoda', t: 'Cómoda' }, { v: 'compacta', t: 'Compacta' }]} onCambio={v => poner({ densidad: v })} nombre="Densidad" /></Fila>
         <Interruptor etiqueta="Zona horaria" ayuda="En la esquina de las horas" valor={ajustes.zona} onCambio={v => poner({ zona: v })} />
       </Seccion>
+      {/* Zonas de mi vida (28 oct 2026, pedido del dueño: «en algún panel en la config activar y desactivar ciertas zonas de mi vida»): el fondo
+          de Día y Semana. Cada zona con su interruptor, sus horas y su color (el de una categoría). Se guarda por persona (useZonas). */}
+      <ZonasDeMiVida />
       {leyenda.calendarios && leyenda.alternarCalendario && <Seccion titulo="Calendarios"><div className={e.calendarios}><ListaCalendarios calendarios={leyenda.calendarios} alternar={leyenda.alternarCalendario} poner={leyenda.ponerCalendarios} /></div></Seccion>}
       {/* DRIP (24 oct 2026): reemplaza las categorías como color. Cuadrantes a la vista y la tarifa de recompra.
           La matriz vive aquí desde el 25 oct 2026 (pedido del dueño: «la matriz va dentro del botón de config»): la barra queda en Hoy · ‹ › ·

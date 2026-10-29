@@ -44,8 +44,8 @@ R="$T/repo"; mkdir -p "$R/arbrain/scripts" "$R/.claude/skills/del-autor" "$R/.cl
   && echo 1 > arbrain/scripts/a.mjs && echo s > .claude/skills/del-autor/SKILL.md && echo m > .claude/memory/MEMORY.md \
   && git add -A && git commit -qm base && git tag -a v0.0.1 -m v )
 check "copia igual a la etiqueta" "$(fuera_de_capa "$R" v0.0.1)" ""
-( cd "$R" && echo yo >> .claude/memory/MEMORY.md && mkdir -p .claude/skills/mia mi-negocio .claude/hooks/tmp && echo x > .claude/skills/mia/SKILL.md \
-  && echo n > mi-negocio/plan.md && echo laptop > .claude/hooks/.host-slug && echo '{}' > .claude/hooks/tmp/flush-state.json && git add -A && git commit -qm capa )
+( cd "$R" && echo yo >> .claude/memory/MEMORY.md && mkdir -p .claude/skills/mia mi-negocio mi-marca .claude/hooks/tmp && echo x > .claude/skills/mia/SKILL.md \
+  && echo n > mi-negocio/plan.md && echo 'html:root{--primary:red}' > mi-marca/tema.css && echo laptop > .claude/hooks/.host-slug && echo '{}' > .claude/hooks/tmp/flush-state.json && git add -A && git commit -qm capa )
 check "capa, skill propia e identidad no cuentan" "$(fuera_de_capa "$R" v0.0.1)" ""
 ( cd "$R" && echo 2 >> .claude/skills/del-autor/SKILL.md && git commit -qam skill )
 check "skill del autor cambiada sí cuenta" "$(fuera_de_capa "$R" v0.0.1)" ".claude/skills/del-autor/SKILL.md"
