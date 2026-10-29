@@ -31,6 +31,7 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { DIR_ARBRAIN, esEdicionCliente } from '../edicion.js'
+import { nombraAccion } from './cubre.js'
 
 // ---------- 1. Interruptor ----------
 
@@ -54,7 +55,18 @@ let interruptorMemoria: Interruptor | null = null
 /** Lo que la persona escribió en el chat, solo en memoria del daemon. */
 let vozMemoria: Voz[] = []
 /** Lo último que el daemon le dijo a este proceso de manos. */
-let remoto: { encendido: boolean; voz: Voz[] } | null = null
+let remoto: { encendido: boolean; voz: Voz[]; modo: ModoManos; propios?: string[] } | null = null
+/**
+ * Modo de permisos que ven las manos (0.2.15): en Autónomo el freno solo aplica su red mínima y la cita sale del chat;
+ * en los demás, lo de siempre (cita que nombre la acción + clic I8). Instalación de Daniel: `original` (sin cambio).
+ */
+export type ModoManos = 'original' | 'preguntar' | 'carpeta' | 'autonomo'
+/** Quien sabe el modo en el daemon lo registra aquí (server.ts al arrancar); el proceso de manos lo recibe por `/manos/estado`. */
+let modoLocal: () => ModoManos = () => 'preguntar'
+export function registrarModoManos(f: () => ModoManos): void { modoLocal = f }
+/** A13 (0.2.15): el teléfono y el correo que la persona guardó en Ajustes (daemon: `modo-permisos.ts › datosPropios`). */
+let propiosLocal: () => string[] = () => []
+export function registrarDatosPropios(f: () => string[]): void { propiosLocal = f }
 /** Alteraciones del archivo del interruptor que se ignoraron (para la bitácora del daemon). */
 let alteraciones = 0
 
@@ -83,6 +95,9 @@ export function leerInterruptor(): Interruptor | null {
   if (!computerUseDisponible()) return null
   if (!fuenteLocal) return remoto ? { encendido: remoto.encendido, por: 'daemon' } : null
   const archivo = leerArchivoInterruptor()
+  // A11 (0.2.15): en Autónomo, computer use queda como la persona lo dejó entre aperturas (el archivo lo escribió la ruta
+  // de la app con su secreto). En los demás modos sigue naciendo apagado en cada apertura (red team 3 M-7).
+  if (interruptorMemoria === null && archivo?.encendido && modoLocal() === 'autonomo') interruptorMemoria = { ...archivo, por: 'autonomo' }
   const vigente = interruptorMemoria?.encendido === true
   if (archivo && archivo.encendido !== vigente) {
     if (!archivo.encendido) interruptorMemoria = archivo          // apagar por archivo: dirección segura, se acepta
@@ -179,11 +194,62 @@ export function verificarCita(cita: unknown): boolean {
 
 export const MENSAJE_CITA_FALSA = 'La cita no coincide con nada que la persona haya escrito en el chat en las últimas horas. Una confirmación solo vale si son sus palabras textuales (cópialas tal cual de su mensaje); si no te lo pidió, pregúntale.'
 
+/** Lo que la persona escribió hace poco (normalizado, lo más reciente al final). Daemon: su memoria; manos: lo que le dio el daemon. */
+export function vozReciente(ahora = Date.now()): string[] {
+  if (!esEdicionCliente()) return []
+  return leerVoz().filter(v => ahora - v.t < VENTANA_MS()).map(v => v.texto)
+}
+
+/**
+ * A5 (0.2.15): la cita sale del chat, no se le pide a la persona. La frase suya más reciente (12+ caracteres) que nombra
+ * la acción de esta categoría (`cubre.ts`), o null. El modelo no la copia ni la inventa: la toma el freno.
+ */
+export function citaDelChat(categoria: string | undefined, ahora = Date.now()): string | null {
+  if (!esEdicionCliente()) return null
+  const voces = vozReciente(ahora)
+  for (let i = voces.length - 1; i >= 0; i--) {
+    const v = voces[i]
+    if (v.length >= 12 && (!categoria || nombraAccion(categoria, v))) return v
+  }
+  return null
+}
+
+/** El modo de permisos que rige a las manos en este proceso. */
+export function modoManos(): ModoManos {
+  if (!esEdicionCliente()) return 'original'
+  if (fuenteLocal) return modoLocal()
+  return remoto?.modo ?? 'preguntar'
+}
+export const manosAutonomas = (): boolean => modoManos() === 'autonomo'
+
 // ---------- 4. Manos pregunta al daemon (M1) ----------
 
 /** Lo que el daemon le da al proceso de manos (`GET /manos/estado`, pase de agente). */
-export function estadoParaManos(ahora = Date.now()): { encendido: boolean; voz: Voz[] } {
-  return { encendido: computerUseEncendido(), voz: leerVoz().filter(v => ahora - v.t < VENTANA_MS()) }
+export function estadoParaManos(ahora = Date.now()): { encendido: boolean; voz: Voz[]; modo: ModoManos; propios: string[] } {
+  return { encendido: computerUseEncendido(), voz: leerVoz().filter(v => ahora - v.t < VENTANA_MS()), modo: modoManos(), propios: datosPropios() }
+}
+
+/** A13: teléfono y correo propios de la persona. Fuera de la edición cliente, ninguno (la instalación de Daniel no cambia). */
+export function datosPropios(): string[] {
+  if (!esEdicionCliente()) return []
+  if (fuenteLocal) { try { return propiosLocal() } catch { return [] } }
+  return remoto?.propios ?? []
+}
+
+/**
+ * A13: ¿todos los teléfonos y correos de este texto son de la persona (Ajustes › «Tus datos»)? Teléfonos por sus últimos
+ * 10 dígitos (8 si alguno es más corto), correos tal cual. Sin teléfonos ni correos, o sin datos propios: false.
+ */
+export function esDatoPropio(texto: string, propios: readonly string[] = datosPropios()): boolean {
+  if (!propios.length) return false
+  const t = texto.toLowerCase()
+  const correos = t.match(/[\w.+-]+@[\w-]+\.[\w.-]+/g) ?? []
+  const telefonos = (t.match(/\+?\d[\d ()-]{7,}\d/g) ?? []).map(x => x.replace(/\D/g, '')).filter(x => x.length >= 8)
+  if (!correos.length && !telefonos.length) return false
+  const misTel = propios.map(p => p.replace(/\D/g, '')).filter(p => !p.includes('@') && p.length >= 8)
+  const misCorreos = propios.filter(p => p.includes('@')).map(p => p.toLowerCase())
+  const mismoTel = (a: string, b: string) => { const n = Math.min(10, a.length, b.length); return n >= 8 && a.slice(-n) === b.slice(-n) }
+  return correos.every(c => misCorreos.includes(c)) && telefonos.every(d => misTel.some(m => mismoTel(d, m)))
 }
 
 /**
@@ -197,17 +263,22 @@ export async function refrescarDesdeDaemon(op: { fetcher?: typeof fetch; plazoMs
     if (!puerto || !token) throw new Error('sin daemon')
     const r = await (op.fetcher ?? fetch)(`http://127.0.0.1:${puerto}/manos/estado`, { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(op.plazoMs ?? 3000) })
     if (!r.ok) throw new Error(`HTTP ${r.status}`)
-    const j = await r.json() as { encendido?: unknown; voz?: unknown }
+    const j = await r.json() as { encendido?: unknown; voz?: unknown; modo?: unknown; propios?: unknown }
     const voz = Array.isArray(j.voz) ? (j.voz as Voz[]).filter(v => v && typeof v.t === 'number' && typeof v.texto === 'string').slice(-MAX_MENSAJES) : []
-    remoto = { encendido: j.encendido === true, voz }
-  } catch { remoto = { encendido: false, voz: [] } }
+    // Un modo que no se reconoce cae al más estricto: la red de las manos nunca se abre por un dato raro.
+    const modo: ModoManos = j.modo === 'autonomo' || j.modo === 'carpeta' || j.modo === 'preguntar' ? j.modo : 'preguntar'
+    const propios = Array.isArray(j.propios) ? j.propios.filter((x): x is string => typeof x === 'string' && x.length <= 120).slice(0, 2) : []
+    remoto = { encendido: j.encendido === true, voz, modo, propios }
+  } catch { remoto = { encendido: false, voz: [], modo: 'preguntar' } }
 }
 
 /** Solo pruebas. */
-export function _politicaParaPruebas(p: { fuenteLocal?: boolean } = {}): void {
+export function _politicaParaPruebas(p: { fuenteLocal?: boolean; modo?: ModoManos; propios?: string[] } = {}): void {
   fuenteLocal = !!p.fuenteLocal
   interruptorMemoria = null   // como marcarFuenteLocal(): el archivo no enciende al arrancar (M-7)
   vozMemoria = []
   remoto = null
   alteraciones = 0
+  modoLocal = () => p.modo ?? 'preguntar'
+  propiosLocal = () => p.propios ?? []
 }

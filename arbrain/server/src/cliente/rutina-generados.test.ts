@@ -21,7 +21,7 @@ let raiz = '', usuario = '', home = '', datos = ''
 const previo = { edicion: process.env.ARBRAIN_EDICION, config: process.env.ARBRAIN_CONFIG_DIR }
 const ctx = (over: Partial<ContextoPolitica> = {}): ContextoPolitica =>
   ({ home, cwd: home, usuario, protegidas: [datos], lecturaExtra: [], abiertas: [], sandbox: false, modo: 'preguntar', ...over })
-const rutina = (over: Partial<ContextoPolitica> = {}) => ctx({ rutina: true, sinFreno: false, ...over })
+const rutina = (over: Partial<ContextoPolitica> = {}) => ctx({ rutina: true, ...over })
 const tipo = (h: string, input: unknown, c: ContextoPolitica) => decidirHerramienta(h, input, c).tipo
 
 beforeAll(() => {

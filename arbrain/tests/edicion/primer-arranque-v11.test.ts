@@ -79,9 +79,10 @@ test('3 · errores del splash: qué pasó y qué hacer, con el texto técnico in
 })
 
 test('4 · el paso de monitoreo solo aparece si el build tiene a dónde enviar', () => {
-  assert.deepEqual(pasosVisibles(false), ['bienvenida', 'legal', 'llaves', 'donde', 'listo'])
-  assert.deepEqual(pasosVisibles(true), ['bienvenida', 'legal', 'llaves', 'monitoreo', 'donde', 'listo'])
-  assert.deepEqual(pasosVisibles(true, true), [...PASOS], 'con computer use (macOS y Windows, 0.1.2) también su paso')
+  // 0.2.15: el paso de autonomía siempre está (computer use vive dentro, solo donde existe).
+  assert.deepEqual(pasosVisibles(false), ['bienvenida', 'legal', 'llaves', 'autonomia', 'donde', 'listo'])
+  assert.deepEqual(pasosVisibles(true), ['bienvenida', 'legal', 'llaves', 'autonomia', 'monitoreo', 'donde', 'listo'])
+  assert.deepEqual(pasosVisibles(true, true), [...PASOS], 'con computer use (macOS y Windows, 0.1.2) la lista no cambia')
   const c = fuente('src/features/primer-arranque/components/PrimerArranque.tsx')
   assert.match(c, /endpoint_configurado === true/)
   assert.match(c, /paso === 'monitoreo' && conMonitoreo\) await fijarConsentimiento/)

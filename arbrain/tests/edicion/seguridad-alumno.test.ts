@@ -57,28 +57,25 @@ test('la UI monta el freno y la sección, y el panel de llaves muestra el tope (
   assert.match(fuente('src/features/configuracion/secciones.ts'), /secciones: \['llaves', 'voz', 'telefono', 'seguridad', 'privacidad', 'apariencia'\]/)
 })
 
-// «Quitar también el freno (bajo mi responsabilidad)» (23 oct 2026), dentro de «Sin preguntar».
-test('freno quitado: la frase de la web es la del daemon y se normaliza igual; el riesgo cabe en dos líneas', async () => {
+// 0.2.15: «Quitar también el freno» (23 oct 2026) se retiró; lo reemplaza el nivel «Autónomo» con consentimiento. Lo que
+// esas pruebas cuidaban (la web no inventa lo que valida el daemon; aflojar lleva el secreto) sigue en autonomia-0-2-15.test.ts.
+test('autónomo: la web no trae frase ni «Sin preguntar»; los nombres de los niveles son los del daemon', async () => {
   const web = await import('../../src/features/seguridad/lib/seguridad')
   const daemon = fuente('server/src/cliente/modo-permisos.ts')
-  assert.match(daemon, new RegExp(`FRASE_SIN_FRENO = '${web.FRASE_SIN_FRENO}'`))
-  assert.ok(web.fraseCoincide('  Quito el freno bajo mi responsabilidad. '))
-  assert.ok(!web.fraseCoincide('quito el freno'))
-  assert.equal(web.RIESGO_SIN_FRENO.length, 2)
-  assert.match(web.RIESGO_SIN_FRENO[1], /dinero/)
-  assert.match(web.avisoSinFreno(null), /Freno quitado/)
+  assert.ok(!('FRASE_SIN_FRENO' in web))
+  assert.deepEqual(web.FICHAS_MODO.map(f => f.modo), ['autonomo', 'carpeta', 'preguntar'])
+  for (const f of web.FICHAS_MODO) assert.match(daemon, new RegExp(`${f.modo}: '${f.nombre}'`), f.modo)
+  assert.match(web.RED_MINIMA, /dinero/i)
 })
 
-test('freno quitado: la ruta exige la app; quitarlo lleva el secreto y la frase, devolverlo no', () => {
+test('autónomo: la ruta exige la app; aflojar lleva el secreto; retirar y decidir después, no', () => {
   assert.ok(apiPermitidaEnCliente('/api/seguridad/permisos'))
   const r = fuente('src/app/api/seguridad/permisos/route.ts')
   assert.match(r, /soloAppCliente\(request, true\)/)
-  assert.match(r, /confirmar: body\.sinFreno/)
-  assert.match(r, /sinFreno: false/)
+  assert.match(r, /confirmar: body\.modo !== 'preguntar'/)
+  assert.match(r, /retirar: true, via/)
+  assert.ok(!/sinFreno/.test(r))
   const ui = fuente('src/features/seguridad/components/Seguridad.tsx')
-  assert.match(ui, /RIESGO_SIN_FRENO\[0\]/)
-  assert.match(ui, /RIESGO_SIN_FRENO\[1\]/)
-  assert.match(ui, /e\.modo !== 'libre'/, 'el interruptor solo aparece en «Sin preguntar»')
-  assert.match(ui, /<AvisoSinFreno/, 'aviso arriba de la sección')
-  assert.match(ui, /Poner el freno/, 'píldora en toda la app con un clic para devolverlo')
+  assert.match(ui, /ConsentimientoAutonomia/)
+  assert.match(ui, /Retirar mi consentimiento/)
 })

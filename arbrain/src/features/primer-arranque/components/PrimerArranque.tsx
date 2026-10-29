@@ -2,15 +2,17 @@
 /**
  * Primer arranque de Arbrain para alumnos (11 oct 2026; SPEC del empaquetado › MISIÓN 1-6).
  *
- * Hasta seis pasos, en este orden: bienvenida → aviso de privacidad, términos y licencia → tus llaves → computer use →
- * monitoreo de cohorte → listo (entra al chat con el primer mensaje de Levy). Computer use (0.1.2, 17 oct 2026; revierte
- * DECISIONES #11) solo pregunta en macOS y Windows; viene en «Dejarlo apagado» y, aunque lo enciendas, se apaga cada vez
- * que cierras la app. En Linux el paso no aparece y el resumen lo dice. Referentes: el primer arranque de Claude
+ * Hasta seis pasos, en este orden: bienvenida → aviso de privacidad, términos y licencia → tus llaves → autonomía →
+ * monitoreo de cohorte → listo (entra al chat con el primer mensaje de Levy). Referentes: el primer arranque de Claude
  * Desktop y el de Raycast: una idea por pantalla, lo seguro es el botón principal, todo se puede cambiar en Ajustes.
  * Lo decidido en cada paso se guarda al continuar; volver atrás no pierde nada. v1.1 (12 oct): el paso de monitoreo
  * solo aparece si este build tiene a dónde enviar (`pasosVisibles`); el de llaves es «Conectar con OpenRouter».
  * A/B ronda 2: la prueba de la llave es de todo el arranque. Sin crédito, el botón dice «Continuar sin crédito» y
  * «Listo» lo marca en ámbar con «Recargar en OpenRouter» ahí mismo (y prueba de nuevo al volver a la ventana).
+ * 0.2.15 (29 oct 2026, docs/builds/autonomia-alumno-2026-10-29): el paso «autonomía» decide en una pantalla cuánto
+ * pregunta Levy. «Autónomo» aparece marcado (recomendado) con sus dos casillas vacías (clickwrap): sin las dos,
+ * «Continuar» no avanza. El texto, su versión y su huella vienen del daemon y vuelven a él al aceptar. Computer use
+ * (0.1.2: macOS y Windows) es una casilla dentro de ese paso; en Linux no aparece.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, ArrowRight, Check, HardDrive, KeyRound, Loader2, MousePointerClick, ShieldCheck, Sparkles } from 'lucide-react'
@@ -23,6 +25,8 @@ import { fijarConsentimiento, PanelMonitoreo } from './PanelMonitoreo'
 import { VERSION_TEXTOS } from '../textos/legales'
 import { avisoSinSandbox, type EstadoSandbox } from '@/features/permisos/lib/confirmacion'
 import { explicacionComputerUse } from '@/features/permisos/lib/disponibilidad'
+import { CASILLAS_VACIAS, ConsentimientoAutonomia, listoParaAceptar, type Casillas } from '@/features/seguridad/components/ConsentimientoAutonomia'
+import { consentimientoVigente, cuerpoAceptacion, FICHAS_MODO, NOMBRE_MODO, type EstadoPermisosLevy, type ModoPermisos } from '@/features/seguridad/lib/seguridad'
 import { ETIQUETA, pasosVisibles, type Paso } from '../lib/pasos'
 import { reprobarAlVolver } from '../lib/llaves'
 
@@ -36,9 +40,21 @@ async function post(cuerpo: Record<string, unknown>) {
   return j
 }
 
+/** Modo de demostración (capturas, `?demo=autonomia`): sin daemon, con un texto de ejemplo y el paso de autonomía abierto. */
+function demoDesdeUrl(): { paso: Paso; permisos: EstadoPermisosLevy } | null {
+  if (typeof window === 'undefined') return null
+  const q = new URLSearchParams(window.location.search)
+  if (q.get('demo') !== 'autonomia') return null
+  return {
+    paso: 'autonomia',
+    permisos: { modo: 'carpeta', modos: ['preguntar', 'carpeta', 'autonomo'], sandbox: q.get('sandbox') !== 'no', texto: { version: 'autonomia-v1-borrador-2026-10-29', sha256: 'demo', titulo: 'Qué significa el modo autónomo', aviso: 'Borrador pendiente de revisión legal. Puede cambiar antes de la versión final; si cambia, te lo volveremos a pedir.', casillas: ['He leído esto y entiendo que en modo autónomo mi cerebro actúa sin pedirme un clic en cada paso.', 'Acepto que soy responsable de lo que le pido y de lo que hace en mi nombre.'], cuerpo: 'Arbrain es un programa de código abierto que corre en tu computadora.\n\n## 1. Qué hace en modo autónomo\nEn modo autónomo tu cerebro hace lo que le pides sin pedirte un clic en cada paso.' } },
+  }
+}
+
 export function PrimerArranque() {
-  const [paso, setPaso] = useState<Paso>('bienvenida')
-  const [estado, setEstado] = useState<Estado | null>(null)
+  const demo = useMemo(() => demoDesdeUrl(), [])
+  const [paso, setPaso] = useState<Paso>(demo?.paso ?? 'bienvenida')
+  const [estado, setEstado] = useState<Estado | null>(demo ? { aceptado: null, nombre: null, completado: null } : null)
   const [nombre, setNombre] = useState('')
   const [acepto, setAcepto] = useState(false)
   const [llaves, setLlaves] = useState<EstadoPanel>({ listo: false, cobra: 'openrouter' })
@@ -46,20 +62,25 @@ export function PrimerArranque() {
   // La prueba de la llave vive aquí: el panel la llena y «Listo» la lee (y la repite).
   const pruebaLlave = usePruebaConexion()
   const sinCredito = llavesListas && llaves.motor !== 'suscripcion' && reprobarAlVolver(pruebaLlave.prueba)
-  const [sandbox, setSandbox] = useState<EstadoSandbox | null>(null)
+  const [sandbox, setSandbox] = useState<EstadoSandbox | null>(demo ? { disponible: demo.permisos.sandbox, sistema: demo.permisos.sandbox ? 'macos' : 'windows' } : null)
   // ¿Esta instalación vive en el servidor de la persona (nube.sh)? Cambia el paso «Dónde vive» y los textos de «es tuyo».
   const [enServidor, setEnServidor] = useState(false)
   const [monitoreo, setMonitoreo] = useState(false)
   // ¿Este build tiene a dónde enviar el monitoreo? Sin destino (o sin respuesta del daemon) el paso no se muestra.
   const [conMonitoreo, setConMonitoreo] = useState(false)
-  // Computer use: ¿existe en este sistema (macOS y Windows)? Sin respuesta, el paso no se muestra (lado seguro).
-  const [cu, setCu] = useState<{ disponible: boolean; plataforma: string }>({ disponible: false, plataforma: '' })
+  // Computer use: ¿existe en este sistema (macOS y Windows)? Sin respuesta, la casilla no se muestra (lado seguro).
+  const [cu, setCu] = useState<{ disponible: boolean; plataforma: string }>(demo ? { disponible: true, plataforma: demo.permisos.sandbox ? 'darwin' : 'win32' } : { disponible: false, plataforma: '' })
   const [computerUse, setComputerUse] = useState(false)
+  // Autonomía (0.2.15): el nivel elegido (Autónomo marcado por defecto) y las dos casillas, que nacen vacías.
+  const [permisos, setPermisos] = useState<EstadoPermisosLevy | null>(demo?.permisos ?? null)
+  const [modo, setModo] = useState<ModoPermisos>('autonomo')
+  const [casillas, setCasillas] = useState<Casillas>(CASILLAS_VACIAS)
   const [ocupado, setOcupado] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const titulo = useRef<HTMLHeadingElement>(null)
 
   useEffect(() => {
+    if (demo) return
     fetch('/api/primer-arranque', { cache: 'no-store' }).then(r => r.json()).then((j: { estado?: Estado; error?: string; sandbox?: EstadoSandbox; servidor?: boolean }) => {
       if (j.error) { setError(j.error); return }
       setEnServidor(j.servidor === true)
@@ -76,7 +97,12 @@ export function PrimerArranque() {
         if (j?.encendido === true) setComputerUse(true)
       })
       .catch(() => setCu({ disponible: false, plataforma: '' }))
-  }, [])
+    // El texto del modo Autónomo, su versión y su huella: del daemon, nunca de la app. Si ya había un nivel (el texto cambió
+    // y la bienvenida vuelve a aparecer), se propone el que tenía.
+    fetch('/api/seguridad/permisos', { cache: 'no-store' }).then(r => r.ok ? r.json() : null)
+      .then((j: EstadoPermisosLevy | null) => { if (j?.texto) { setPermisos(j); if (j.modo && j.modo !== 'carpeta') setModo(j.modo) } })
+      .catch(() => setPermisos(null))
+  }, [demo])
 
   useReprobarAlVolver(paso === 'listo' && sinCredito, pruebaLlave.probar)
 
@@ -87,15 +113,26 @@ export function PrimerArranque() {
   const i = Math.max(0, PASOS.indexOf(paso))
   const ir = (p: Paso) => { setError(null); setPaso(p) }
   const atras = () => i > 0 && ir(PASOS[i - 1])
+  const vigente = !!permisos && consentimientoVigente(permisos)
 
   const continuar = useCallback(async () => {
     setOcupado(true); setError(null)
     try {
       if (paso === 'bienvenida') { if (nombre.trim() !== (estado?.nombre ?? '')) await post({ accion: 'nombre', nombre }) }
       if (paso === 'legal') await post({ accion: 'aceptar', version: VERSION_TEXTOS })
-      if (paso === 'computer' && cu.disponible) {
-        const r = await fetch('/api/manos/interruptor', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ encendido: computerUse }) })
-        if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error ?? 'No pude guardar computer use.')
+      if (paso === 'autonomia') {
+        // El nivel va al daemon con el secreto de la app (la ruta lo pone). Autónomo lleva la versión y la huella del texto
+        // que la persona leyó; si el daemon tiene otro texto, responde 409 y se vuelve a cargar.
+        const cuerpo = modo === 'autonomo' && !vigente ? (permisos?.texto ? cuerpoAceptacion(permisos.texto, 'bienvenida') : null) : { modo, via: 'bienvenida' }
+        if (!cuerpo) throw new Error('No pude leer el texto del modo Autónomo de tu Arbrain. Cierra y vuelve a abrir la app, o elige otro nivel.')
+        if (!demo) {
+          const r = await fetch('/api/seguridad/permisos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cuerpo) })
+          if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error ?? 'No pude guardar tu nivel de permisos.')
+          if (cu.disponible) {
+            const c = await fetch('/api/manos/interruptor', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ encendido: computerUse }) })
+            if (!c.ok) throw new Error((await c.json().catch(() => ({}))).error ?? 'No pude guardar computer use.')
+          }
+        }
       }
       if (paso === 'monitoreo' && conMonitoreo) await fijarConsentimiento(monitoreo)
       if (paso === 'listo') {
@@ -106,13 +143,14 @@ export function PrimerArranque() {
       }
       ir(PASOS[i + 1])
     } catch (e) { setError(e instanceof Error ? e.message : 'No pude guardar. Reintenta.') } finally { setOcupado(false) }
-  }, [paso, nombre, estado?.nombre, computerUse, cu.disponible, monitoreo, conMonitoreo, i, PASOS])
+  }, [paso, nombre, estado?.nombre, computerUse, cu.disponible, monitoreo, conMonitoreo, i, PASOS, modo, permisos, vigente, demo])
 
-  const puedeSeguir = paso === 'legal' ? acepto : true
+  const puedeSeguir = paso === 'legal' ? acepto : paso === 'autonomia' ? (modo !== 'autonomo' || vigente || (listoParaAceptar(casillas) && !!permisos?.texto)) : true
   // A/B ronda 3: la salida que no se recomienda no pesa igual que la recomendada. Sin llave, el primario es «Conectar con
   // OpenRouter»; sin crédito, «Recargar». Entonces seguir de largo es secundario.
   const botonDiscreto = (paso === 'llaves' && (!llavesListas || sinCredito)) || (paso === 'listo' && sinCredito)
-  const textoBoton = paso === 'bienvenida' ? 'Empezar' : paso === 'legal' ? 'Aceptar y continuar' : paso === 'llaves' && !llavesListas ? 'Continuar sin llave' : paso === 'llaves' && sinCredito ? 'Continuar sin crédito' : paso === 'listo' ? 'Hablar con Levy' : 'Continuar'
+  const textoBoton = paso === 'bienvenida' ? 'Empezar' : paso === 'legal' ? 'Aceptar y continuar' : paso === 'llaves' && !llavesListas ? 'Continuar sin llave' : paso === 'llaves' && sinCredito ? 'Continuar sin crédito' : paso === 'autonomia' && modo === 'autonomo' ? 'Empezar en modo autónomo' : paso === 'listo' ? 'Hablar con Levy' : 'Continuar'
+  const nombreModo = NOMBRE_MODO[modo]
 
   return (
     <div className="relative flex min-h-[100dvh] w-full flex-col items-center justify-center overflow-y-auto bg-background px-4 pb-10 pt-[max(env(safe-area-inset-top),2.5rem)] text-foreground">
@@ -140,7 +178,7 @@ export function PrimerArranque() {
             <ul className="mx-auto mt-6 grid max-w-[460px] gap-2.5 text-left">
               <Punto icono={<HardDrive className="size-4" />} titulo="Es tuyo">Tu memoria, tus conversaciones y tus archivos se quedan en {enServidor ? 'tu servidor, rentado a tu nombre' : 'esta computadora'}.</Punto>
               <Punto icono={<KeyRound className="size-4" />} titulo="Con tus llaves">Levy trabaja con tu propia cuenta: tu Claude Code (Pro o Max) o tu llave, que va al llavero del sistema.</Punto>
-              <Punto icono={<ShieldCheck className="size-4" />} titulo="Bajo tu mando">Antes de enviar, pagar, borrar o publicar, Levy te pide un clic.</Punto>
+              <Punto icono={<ShieldCheck className="size-4" />} titulo="Bajo tu mando">Tú eliges cuánto te pregunta: desde un clic para todo hasta el modo Autónomo con una red mínima. Pausar todo siempre está a un clic.</Punto>
             </ul>
             <label className="mx-auto mt-6 block max-w-[320px] text-left">
               <span className="text-[13px] font-medium text-foreground/90">¿Cómo te llamo? <span className="font-normal text-muted">(opcional)</span></span>
@@ -168,16 +206,33 @@ export function PrimerArranque() {
           </div>
         )}
 
-        {paso === 'computer' && (
-          <div>
-            <Encabezado refTitulo={titulo} titulo="¿Levy puede usar tu computadora?" sub={explicacionComputerUse(cu.plataforma)} />
-            <div role="radiogroup" aria-label="Computer use" className="grid gap-2.5">
-              <Opcion activa={!computerUse} onElegir={() => setComputerUse(false)} titulo="Dejarlo apagado" etiqueta="Recomendado"
-                detalle="Levy trabaja con tus archivos, tus comandos y en el chat. Lo enciendes cuando lo necesites." />
-              <Opcion activa={computerUse} onElegir={() => setComputerUse(true)} titulo="Encenderlo ahora" icono={<MousePointerClick className="size-4" />}
-                detalle="Solo por esta apertura de Arbrain: al cerrarla se apaga. Lo irreversible siempre te pide tu clic." />
+        {paso === 'autonomia' && (
+          <div data-paso-autonomia>
+            <Encabezado refTitulo={titulo} titulo="¿Cómo quieres que trabaje tu cerebro?" sub="Lo recomendado va primero. Lo cambias cuando quieras en Ajustes › Permisos y seguridad." />
+            <div role="radiogroup" aria-label="Nivel de permisos" className="grid gap-2.5">
+              {FICHAS_MODO.map(f => (
+                <div key={f.modo}>
+                  <Opcion activa={modo === f.modo} onElegir={() => setModo(f.modo)} titulo={f.nombre} etiqueta={f.recomendado ? 'Recomendado' : undefined} icono={f.modo === 'autonomo' ? <Sparkles className="size-4" /> : undefined} detalle={f.detalle} />
+                  {f.modo === 'autonomo' && modo === 'autonomo' && (
+                    permisos?.texto
+                      ? (vigente
+                        ? <p className="mt-2 rounded-xl border border-brand/30 bg-brand/[0.05] px-3 py-2 text-[12.5px] text-muted">Ya aceptaste este texto (versión {permisos.consentimiento?.version}). Continuar lo deja en Autónomo.</p>
+                        : <div className="mt-2 rounded-xl border border-brand/30 bg-brand/[0.05] p-3"><ConsentimientoAutonomia texto={permisos.texto} marcadas={casillas} onMarcadas={setCasillas} deshabilitado={ocupado} /></div>)
+                      : <p className="mt-2 text-[12.5px] text-amber-300">No pude leer el texto del modo Autónomo de tu Arbrain. Elige otro nivel o cierra y vuelve a abrir la app.</p>
+                  )}
+                </div>
+              ))}
             </div>
-            <p className="mt-3 text-[12.5px] text-muted">Lo enciendes y lo apagas cuando quieras en Ajustes › Esta computadora.</p>
+            {cu.disponible && (
+              <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-2xl border border-border-subtle bg-surface/70 p-3.5">
+                <input type="checkbox" checked={computerUse} onChange={e => setComputerUse(e.target.checked)} className="mt-0.5 size-4 shrink-0 accent-[var(--brand)]" />
+                <span className="min-w-0">
+                  <span className="flex items-center gap-2 text-[13.5px] font-semibold text-foreground/90"><MousePointerClick className="size-4" aria-hidden /> Que también use tu pantalla (computer use)</span>
+                  <span className="mt-0.5 block text-[12.5px] leading-snug text-muted">{explicacionComputerUse(cu.plataforma, modo === 'autonomo')}</span>
+                </span>
+              </label>
+            )}
+            {sandbox && !sandbox.disponible && modo === 'autonomo' && <p className="mt-3 text-[12.5px] leading-snug text-amber-700 dark:text-amber-300">En Windows no hay caja de arena: Autónomo corre comandos directo en tu computadora.</p>}
           </div>
         )}
 
@@ -208,18 +263,19 @@ export function PrimerArranque() {
                 : sinCredito ? <Resumen tono="alerta"><b className="font-semibold">Conectado, falta crédito.</b> Levy no podrá responder hasta que recargues.</Resumen>
                 : llaves.motor === 'suscripcion' ? <Resumen tono="ok">{pruebaLlave.prueba?.ok ? 'Levy conectado y probado con tu Claude Code' : 'Levy conectado con tu Claude Code (tu suscripción)'}</Resumen>
                 : <Resumen tono="ok">{pruebaLlave.prueba?.ok ? 'Levy conectado y probado con tu cuenta' : 'Levy conectado con tu llave'}</Resumen>}
+              <Resumen tono="ok">{modo === 'autonomo' ? 'Modo Autónomo: Levy actúa sin pedirte clic, salvo dinero, secretos, borrados grandes y envíos a muchos' : modo === 'carpeta' ? 'Automático en mi carpeta: Levy pregunta antes de lo que sale de tu computadora' : 'Preguntar siempre: Levy te pide un clic para casi todo'}</Resumen>
               {cu.disponible
-                ? <Resumen tono="ok">{computerUse ? 'Computer use encendido por esta apertura; lo irreversible te pide tu clic' : 'Computer use apagado: lo enciendes en Ajustes › Esta computadora'}</Resumen>
+                ? <Resumen tono="ok">{computerUse ? (modo === 'autonomo' ? 'Computer use encendido; en Autónomo queda como lo dejes' : 'Computer use encendido por esta apertura; lo irreversible te pide tu clic') : 'Computer use apagado: lo enciendes en Ajustes › Esta computadora'}</Resumen>
                 : <Resumen tono="neutro">Computer use no está disponible en este sistema; Levy trabaja con tus archivos y en el chat</Resumen>}
               {conMonitoreo && <Resumen tono="ok">{monitoreo ? 'Compartes tu avance (solo cifras)' : 'Monitoreo apagado: no sale nada'}</Resumen>}
-              {sandbox && !sandbox.disponible && <Resumen tono="neutro">Terminal sin sandbox en este equipo: cada comando te pedirá un clic</Resumen>}
+              {sandbox && !sandbox.disponible && modo !== 'autonomo' && <Resumen tono="neutro">Terminal sin sandbox en este equipo: cada comando te pedirá un clic</Resumen>}
             </ul>
             {sinCredito && (
               <div className="mx-auto max-w-[420px]">
                 <PasoRecarga cobra={llaves.cobra} onReintentar={() => void pruebaLlave.probar()} probando={pruebaLlave.probando} className="mt-4" />
               </div>
             )}
-            {sandbox && !sandbox.disponible && <Aviso tono="info" className="mx-auto mt-4 max-w-[420px] text-left">{avisoSinSandbox(sandbox)}</Aviso>}
+            {sandbox && !sandbox.disponible && modo !== 'autonomo' && <Aviso tono="info" className="mx-auto mt-4 max-w-[420px] text-left">{avisoSinSandbox(sandbox)}</Aviso>}
           </div>
         )}
 
@@ -231,10 +287,11 @@ export function PrimerArranque() {
               <ArrowLeft className="size-4" aria-hidden /> Atrás
             </button>
           )}
-          <button type="button" onClick={() => void continuar()} disabled={!puedeSeguir || ocupado || (!estado && !error)} className={`${botonDiscreto ? 'btn-secondary' : 'btn-primary'} min-h-11 min-w-[180px] !px-6 text-[15px]`}>
+          <button type="button" onClick={() => void continuar()} disabled={!puedeSeguir || ocupado || (!estado && !error)} title={paso === 'autonomia' && modo === 'autonomo' && !puedeSeguir ? 'Marca las dos casillas para empezar en modo autónomo' : undefined} className={`${botonDiscreto ? 'btn-secondary' : 'btn-primary'} min-h-11 min-w-[180px] !px-6 text-[15px]`}>
             {ocupado ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <>{textoBoton} <ArrowRight className="size-4" aria-hidden /></>}
           </button>
         </div>
+        {paso === 'autonomia' && <p className="mt-3 text-center text-[12px] text-muted">{modo === 'autonomo' && !vigente ? `Continuar se activa con las dos casillas marcadas. ` : ''}Elegiste «{nombreModo}».</p>}
       </main>
       <p className="relative mt-5 text-center text-[12px] text-muted">Paso {i + 1} de {PASOS.length} · Todo esto se puede cambiar después en Ajustes</p>
     </div>

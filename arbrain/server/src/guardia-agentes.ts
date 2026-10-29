@@ -21,7 +21,7 @@ import { haySecretoConfirmar } from './cliente/secreto.js'
 import { contextoPolitica, decidirHerramienta, type ContextoPolitica, type DecisionPolitica } from './cliente/politica-agentes.js'
 import { opcionesSandbox, sandboxActivo } from './cliente/sandbox.js'
 import { verificarHooksProyecto, type VerificacionHooks } from './cliente/hooks-proyecto.js'
-import { aprobarDominioWeb, fuenteExterna, efectoSinPreguntar, expandirRuta, marcaContenidoExterno, rutaReal } from './cliente/politica-agentes.js'
+import { aprobarDominioWeb, fuenteExterna, fuenteLigera, efectoSinPreguntar, expandirRuta, marcaContenidoExterno, rutaReal } from './cliente/politica-agentes.js'
 import { extraerUrls, normalizarUrl, procedenciaDelDaemon, type Procedencia } from './cliente/procedencia.js'
 import { bitacoraDelDaemon, type DecisionBitacora } from './cliente/bitacora.js'
 import { MENSAJE_PAUSA, pausado } from './cliente/pausa.js'
@@ -38,8 +38,12 @@ export function motivoGuardia(herramienta: string, input: unknown, ctx: Contexto
   return d.tipo === 'negar' ? d.motivo : null
 }
 
-/** Las rutinas corren sin la persona delante: no usan el modo de permisos (siempre «preguntar», nunca sin freno). */
-const modoDelOrigen = (op: OpcionesGuardia): Partial<ContextoPolitica> => op.origen === 'cron' ? { modo: 'preguntar', sinFreno: false, rutina: true } : {}
+/**
+ * Las rutinas corren sin la persona delante. Heredan «autonomo» (decisión 5, 29 oct 2026: la política deja como borrador
+ * todo envío a terceros); en los demás modos corren en «preguntar», como siempre.
+ */
+const modoDelOrigen = (op: OpcionesGuardia, ctx: Pick<ContextoPolitica, 'modo'>): Partial<ContextoPolitica> =>
+  op.origen === 'cron' ? { modo: ctx.modo === 'autonomo' ? 'autonomo' : 'preguntar', rutina: true } : {}
 
 /** Contexto de la política para este daemon (cerebro, carpetas protegidas, sandbox). */
 export function contextoGuardia(over: Partial<ContextoPolitica> = {}): ContextoPolitica {
@@ -168,6 +172,8 @@ async function confirmacionHumana(herramienta: string, input: unknown, d: Extrac
   anotar(herramienta, input, estado === 'rechazada' ? 'rechazado' : estado === 'pendiente' ? 'sin_respuesta' : 'vencido', { confirmacion: c.id, motivo: d.resumen, origen })
   if (estado === 'rechazada' && comentario) return { ok: false, razon: `La persona RECHAZÓ esta acción en Arbrain (${d.resumen}) y te dejó este comentario: «${comentario}». No se ejecutó. No la repitas ni busques otra vía; sigue lo que te dijo.` }
   if (estado === 'rechazada') return { ok: false, razon: `La persona RECHAZÓ esta acción en Arbrain (${d.resumen}). No se ejecutó. No la repitas ni busques otra vía; pregúntale qué prefiere.` }
+  // Autónomo en rutinas (decisión 5): el envío queda como borrador en «Mientras no estabas»; la persona lo manda con un clic.
+  if (estado === 'pendiente' && d.regla === 'borrador') return { ok: false, razon: `Esta rutina corre en modo Autónomo pero lo que sale a terceros no se envía solo: quedó como BORRADOR en «Mientras no estabas» de Arbrain (${c.id}), listo para que la persona lo mande con un clic. No lo reintentes ni busques otra vía: termina lo demás y di en tu resultado qué quedó como borrador.` }
   if (estado === 'pendiente' && origen === 'cron') return { ok: false, razon: `Esta rutina corre sin la persona delante: esta acción (${d.resumen}) necesita su confirmación y quedó pendiente en su cola de aprobaciones de Arbrain (${c.id}). No se ejecutó. No la reintentes en esta corrida ni busques otra vía: termina lo demás y di en tu resultado qué quedó esperando su aprobación. Si la aprueba, la siguiente corrida podrá hacer exactamente esa acción.` }
   if (estado === 'pendiente') return { ok: false, razon: `Esta acción (${d.resumen}) espera la confirmación de la persona: no contestó todavía y quedó en su cola de aprobaciones de Arbrain (${c.id}). No se ejecutó. No la reintentes ahora ni busques otra vía: sigue con todo lo que NO dependa de ella y, al final, dile en una línea qué quedó esperando su aprobación. ${op.conversacion ? 'Cuando decida, Arbrain te escribe en esta conversación para que la hagas.' : 'Cuando la apruebe, repite exactamente la misma acción.'}` }
   return { ok: false, razon: `La confirmación de esta acción venció sin respuesta (${d.resumen}). No se ejecutó.` }
@@ -261,6 +267,20 @@ export const contaminadaDe = (sesion: string | undefined) => { cargarContaminada
 export function _contaminadasParaPruebas(): Map<string, { fuente: string; desde: number }> { return contaminadas }
 
 /**
+ * Marca ligera (0.2.15, A1 y A2): sesiones que leyeron la pantalla (manos) o una nota propia escrita tras leer afuera.
+ * Solo en memoria: no endurece nada; alimenta la R6 de Autónomo (`ContextoPolitica.leyoPantalla`).
+ */
+const pantalla = new Map<string, string>()
+export function marcarPantalla(sesion: string | undefined, fuente: string): void {
+  if (!sesion || pantalla.has(sesion)) return
+  if (pantalla.size > 500) pantalla.delete(pantalla.keys().next().value as string)
+  pantalla.set(sesion, fuente)
+}
+export const leyoPantalla = (sesion: string | undefined): boolean => !!sesion && pantalla.has(sesion)
+/** Solo pruebas. */
+export function _pantallaParaPruebas(): Map<string, string> { return pantalla }
+
+/**
  * Seguridad noche 21 oct (carril 2): por sesión, las URLs que ya aparecieron (lo que pidió la persona y lo que devolvieron
  * las herramientas) y cuántas páginas abrió sin clic desde que se contaminó. En memoria, como las contaminadas.
  */
@@ -300,10 +320,12 @@ export function guardiaHooks(registrar: (evento: Record<string, unknown>) => voi
     const p = procedencia()
     const madre = op.heredaDe ? contaminadaDe(op.heredaDe) : null
     if (madre && input.session_id && input.session_id !== op.heredaDe && !contaminadaDe(input.session_id)) marcarContaminada(input.session_id, madre.fuente)
+    const base = (op.contexto ?? ((cwd?: string) => contextoGuardia(cwd ? { cwd } : {})))(input.cwd)
     return {
-      ...(op.contexto ?? ((cwd?: string) => contextoGuardia(cwd ? { cwd } : {})))(input.cwd),
-      ...modoDelOrigen(op),
+      ...base,
+      ...modoDelOrigen(op, base),
       contaminada: contaminadaDe(input.session_id),
+      leyoPantalla: leyoPantalla(input.session_id) || (!!op.heredaDe && leyoPantalla(op.heredaDe)),
       urlsVistas: (input.session_id && urlsVistas.get(input.session_id)) || new Set(),
       webSinClic: (input.session_id && webSinClic.get(input.session_id)) || 0,
       procedencia: { de: (real: string) => p.de(real), bajo: (dir: string) => p.bajo(dir) },
@@ -352,7 +374,12 @@ export function guardiaHooks(registrar: (evento: Record<string, unknown>) => voi
         // Un comando que la persona aprobó corrió fuera del sandbox, quizá con red (gog, python, npm): su salida es de afuera.
         const externa = fuenteExterna(input.tool_name, input.tool_input, ctx)
         const fuente = externa ?? (aprobadoFuera ? FUENTE_APROBADO : null)
-        if (!fuente) return nota ? { continue: true, hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: notaComentario(nota) } } : { continue: true }
+        if (!fuente) {
+          // A1/A2 (0.2.15): la pantalla y las notas propias dejan la marca ligera (solo para la R6), no la de contaminada.
+          const ligera = fuenteLigera(input.tool_name, input.tool_input, ctx)
+          if (ligera && !leyoPantalla(input.session_id)) { marcarPantalla(input.session_id, ligera); registrar({ evento: 'sesion_leyo_pantalla', herramienta: input.tool_name, fuente: ligera }) }
+          return nota ? { continue: true, hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: notaComentario(nota) } } : { continue: true }
+        }
         if (!contaminadaDe(input.session_id)) {
           marcarContaminada(input.session_id, fuente)
           registrar({ evento: 'sesion_contaminada', herramienta: input.tool_name, fuente })
@@ -385,13 +412,13 @@ export function guardiaHooks(registrar: (evento: Record<string, unknown>) => voi
           if (ctx.contaminada && input.tool_name === 'WebFetch') webSinClic.set(input.session_id, (webSinClic.get(input.session_id) ?? 0) + 1)
           // Lo que corre sin clic por el modo de permisos se anota siempre, con el modo, para que la persona lo vea.
           if (d.generado) anotar(input.tool_name, input.tool_input, 'hecho', { origen: op.origen, motivo: 'rutina: archivo que genera tu cerebro (now.md, reportes)' })
-          else if (d.sinFreno) anotar(input.tool_name, input.tool_input, 'hecho', { origen: op.origen, motivo: `sin preguntar: freno quitado bajo tu responsabilidad (modo «${NOMBRE_MODO.libre}»)` })
           else if (d.porModo) anotar(input.tool_name, input.tool_input, 'hecho', { origen: op.origen, motivo: `sin preguntar: modo «${NOMBRE_MODO[d.porModo]}»` })
           else if (d.porRegla) anotar(input.tool_name, input.tool_input, 'hecho', { origen: op.origen, motivo: `sin preguntar: tu regla «Siempre este patrón» (${d.porRegla})` })
           else if (efectoSinPreguntar(input.tool_name, input.tool_input)) anotar(input.tool_name, input.tool_input, 'hecho', { origen: op.origen })
           // Modo automático: lo que la política permite se aprueba aquí, sin pasar por el clasificador (que solo
           // añadiría espera y negativas a lo que la persona ya dejó correr). Lo interactivo sigue su camino.
-          if (op.clasificador && !INTERACTIVAS.has(input.tool_name)) return { hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'allow', permissionDecisionReason: d.porRegla ? `Regla de la persona: ${d.porRegla}` : 'Política de Arbrain.' } }
+          // Autónomo (0.2.15): lo mismo, de forma explícita, para que el SDK en `default` no pregunte nada.
+          if ((op.clasificador || ctx.modo === 'autonomo') && !INTERACTIVAS.has(input.tool_name)) return { hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'allow', permissionDecisionReason: d.porRegla ? `Regla de la persona: ${d.porRegla}` : ctx.modo === 'autonomo' ? 'Modo Autónomo de Arbrain.' : 'Política de Arbrain.' } }
           return { continue: true }
         }
         // Modo automático: lo rutinario que la política mandaría a confirmar lo decide el clasificador del SDK; si no
@@ -438,7 +465,8 @@ export function permisosCliente(base: CanUseTool, registrar: (evento: Record<str
   return async (herramienta, input, opciones): Promise<PermissionResult | null> => {
     if (pausado()) return { behavior: 'deny', message: MENSAJE_PAUSA }
     if (herramienta === 'AskUserQuestion') return base(herramienta, input, opciones)
-    const ctx = { ...(op.contexto ?? ((cwd?: string) => contextoGuardia(cwd ? { cwd } : {})))(), ...modoDelOrigen(op) }
+    const base0 = (op.contexto ?? ((cwd?: string) => contextoGuardia(cwd ? { cwd } : {})))()
+    const ctx = { ...base0, ...modoDelOrigen(op, base0) }
     const d = decidirHerramienta(herramienta, input, ctx)
     if (d.tipo === 'negar') { registrar({ herramienta, decision: 'negado', motivo: d.motivo, capa: 'canUseTool' }); return { behavior: 'deny', message: mensajeNegado(d.motivo) } }
     if (d.tipo === 'confirmar' && !tomarAprobada(opciones?.toolUseID)) {
@@ -475,8 +503,9 @@ export function opcionesSesionCliente(settings?: Record<string, unknown>, op: { 
     const clave = v.huella ?? v.motivo ?? 'sin-huella'
     if (!avisadas.has(clave)) { avisadas.add(clave); (op.registrar ?? ((e) => process.stderr.write(`guardia: ${JSON.stringify(e)}\n`)))({ evento: 'ganchos_del_proyecto_apagados', motivo: v.motivo, huella: v.huella }) }
   }
-  // La huella y el estado del sandbox viajan en `env`: si cambian, el pool reabre la sesión con las opciones nuevas.
-  const env = { ...((settings?.env as Record<string, string> | undefined) ?? {}), ARBRAIN_HOOKS_HUELLA: (v.huella ?? 'ninguna').slice(0, 16), ARBRAIN_SANDBOX_ESTADO: ctx.sandbox ? 'activo' : 'sin' }
+  // La huella, el estado del sandbox y el modo de permisos viajan en `env`: si cambian, el pool reabre la sesión con las
+  // opciones nuevas (el modo decide `permissionMode` y, en los ganchos del proyecto, si `candado-freno` se hace a un lado).
+  const env = { ...((settings?.env as Record<string, string> | undefined) ?? {}), ARBRAIN_HOOKS_HUELLA: (v.huella ?? 'ninguna').slice(0, 16), ARBRAIN_SANDBOX_ESTADO: ctx.sandbox ? 'activo' : 'sin', ARBRAIN_MODO_PERMISOS: ctx.modo ?? 'preguntar' }
   return {
     ...(ctx.sandbox ? { sandbox: opcionesSandbox(ctx) } : {}),
     settings: { ...(settings ?? {}), disableAllHooks: !v.ok, env } as Options['settings'],

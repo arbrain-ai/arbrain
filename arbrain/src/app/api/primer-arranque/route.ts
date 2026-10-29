@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { NOCACHE, soloAppCliente } from '@/lib/daemon-local'
+import { alDaemon, NOCACHE, soloAppCliente } from '@/lib/daemon-local'
 import { createServiceClient } from '@/lib/supabase/service'
 import { LOCAL_DESKTOP_USER_ID } from '@/lib/desktop-auth'
 import { faltaPrimerArranque, guardarPrimerArranque, leerPrimerArranque } from '@/features/primer-arranque/lib/estado'
@@ -53,7 +53,10 @@ export async function POST(request: Request) {
         const ahora = new Date().toISOString()
         const s = await db.from('chat_sessions').insert({ id: sesion, title: 'Bienvenida', profile_id: LOCAL_DESKTOP_USER_ID, account: null, last_message_at: ahora, is_favorite: false, archived_at: null })
         if (s.error) throw new Error(s.error.message)
-        const m = await db.from('chat_messages').insert({ session_id: sesion, role: 'assistant', content: mensajeBienvenida(estado.nombre, { computerUse: computerUseDisponible(true, plataformaServidor(process.env, process.platform)), servidor: process.env.ARBRAIN_SERVIDOR_NUBE === '1' }), created_at: ahora, metadata: { source: FUENTE_BIENVENIDA } })
+        // El nivel que eligió en el paso de autonomía (0.2.15): lo dice el daemon; sin respuesta, el mensaje de siempre.
+        let modo: 'preguntar' | 'carpeta' | 'autonomo' | undefined
+        try { const r = await alDaemon('/permisos', { plazoMs: 2_000 }); if (r.ok) { const j = await r.json() as { modo?: unknown }; if (j.modo === 'preguntar' || j.modo === 'carpeta' || j.modo === 'autonomo') modo = j.modo } } catch { /* sin daemon: sin nivel */ }
+        const m = await db.from('chat_messages').insert({ session_id: sesion, role: 'assistant', content: mensajeBienvenida(estado.nombre, { computerUse: computerUseDisponible(true, plataformaServidor(process.env, process.platform)), servidor: process.env.ARBRAIN_SERVIDOR_NUBE === '1', ...(modo ? { modo } : {}) }), created_at: ahora, metadata: { source: FUENTE_BIENVENIDA } })
         if (m.error) throw new Error(m.error.message)
       }
       return Response.json({ estado: guardarPrimerArranque({ completado: new Date().toISOString(), sesionBienvenida: sesion }), sesion }, { headers: NOCACHE })

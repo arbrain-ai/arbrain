@@ -58,17 +58,17 @@ test('la ruta del interruptor: en Linux encender es 403 sin hablar con el daemon
   assert.match(ruta, /fijarComputerUse\(body\.encendido\)/)
 })
 
-test('primer arranque: el paso de computer use solo donde existe, apagado por defecto', () => {
-  assert.deepEqual([...PASOS], ['bienvenida', 'legal', 'llaves', 'computer', 'monitoreo', 'donde', 'listo'])
-  assert.deepEqual(pasosVisibles(false, false), ['bienvenida', 'legal', 'llaves', 'donde', 'listo'])
-  assert.deepEqual(pasosVisibles(false, true), ['bienvenida', 'legal', 'llaves', 'computer', 'donde', 'listo'])
-  assert.deepEqual(pasosVisibles(false), ['bienvenida', 'legal', 'llaves', 'donde', 'listo'], 'sin respuesta: sin el paso')
+test('primer arranque: computer use vive dentro del paso de autonomía (0.2.15), solo donde existe, apagado por defecto', () => {
+  assert.deepEqual([...PASOS], ['bienvenida', 'legal', 'llaves', 'autonomia', 'monitoreo', 'donde', 'listo'])
+  assert.deepEqual(pasosVisibles(false, false), ['bienvenida', 'legal', 'llaves', 'autonomia', 'donde', 'listo'])
+  assert.deepEqual(pasosVisibles(false, true), ['bienvenida', 'legal', 'llaves', 'autonomia', 'donde', 'listo'])
+  assert.deepEqual(pasosVisibles(false), ['bienvenida', 'legal', 'llaves', 'autonomia', 'donde', 'listo'], 'el paso de autonomía siempre está')
   const c = fuente('src/features/primer-arranque/components/PrimerArranque.tsx')
   assert.match(c, /pasosVisibles\(conMonitoreo, cu\.disponible\)/)
   assert.match(c, /disponible: j\?\.disponible === true/)
   assert.match(c, /const \[computerUse, setComputerUse\] = useState\(false\)/, 'nace apagado')
-  assert.match(c, /titulo="Dejarlo apagado" etiqueta="Recomendado"/)
-  assert.match(c, /paso === 'computer' && cu\.disponible\)/)
+  assert.match(c, /\{cu\.disponible && \(/, 'la casilla de computer use solo donde existe')
+  assert.match(c, /Que también use tu pantalla \(computer use\)/)
   assert.match(c, /no está disponible en este sistema/)
 })
 
@@ -97,6 +97,7 @@ test('permisos de Arbrain para operar la Mac: «Sin uso» en cliente (los pide A
 test('textos: bienvenida según el sistema; términos y privacidad nombran computer use (versión nueva)', () => {
   const con = mensajeBienvenida('Fulano', { computerUse: true })
   assert.match(con, /Computer use[^\n]*Ajustes › Esta computadora[^\n]*se apaga cada vez que cierras la app/)
+  assert.match(mensajeBienvenida('Fulano', { computerUse: true, modo: 'autonomo' }), /Computer use[^\n]*en modo Autónomo queda como lo dejes/)
   assert.ok(!/Computer use[^\n]*llegan? en una versión próxima/.test(con.replace(/(El calendario|La edición de video)[^\n]*/, '')))
   const sin = mensajeBienvenida('Fulano')
   assert.match(sin, /Computer use[^\n]*no está disponible en este sistema/)
