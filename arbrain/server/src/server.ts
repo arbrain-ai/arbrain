@@ -75,7 +75,9 @@ import { saveConversationTurn } from './memory.js'
 import { logger } from './logger.js'
 import { validateInput, validateUrl, redactSecrets, MAX_DOWNLOAD_SIZE } from './security.js'
 import { opsLogger, type OpsEvent } from './ops-logger.js'
-import { computerUseDisponible, computerUseEncendido, estadoParaManos, marcarFuenteLocal, registrarVoz } from './manos/politica.js'
+import { computerUseDisponible, computerUseEncendido, estadoParaManos, marcarFuenteLocal, registrarDatosPropios, registrarModoManos, registrarVoz } from './manos/politica.js'
+import { datosPropios, modoPermisos } from './cliente/modo-permisos.js'
+import { avisarSistema } from './cliente/aviso-sistema.js'
 import { esEdicionCliente } from './edicion.js'
 import { estadoLlaves, faltaLlaveClaude, faltaLlaveTrasConectar, MENSAJE_FALTA_LLAVE, CODIGO_FALTA_LLAVE } from './cliente/llaves.js'
 import { hostLocalValido, rutaCanonica, rutaSoloDaniel, MENSAJE_NO_DISPONIBLE } from './cliente/rutas.js'
@@ -822,6 +824,15 @@ async function rutasCliente(req: IncomingMessage, res: ServerResponse, ruta: str
       sendJSON(res, 403, { error: computerUseDisponible() ? 'Computer use está apagado.' : 'Computer use no está disponible en este sistema.', code: computerUseDisponible() ? 'apagado' : 'no_disponible' })
       return true
     }
+    if (req.method === 'POST' && ruta === '/confirmaciones/encolar') {
+      // A3 (0.2.15): el proceso de manos dejó de esperar su pendiente; pasa a la cola de la persona («Mientras no
+      // estabas») en vez de vencer. Solo la propia pendiente de manos; con el pase basta (no aprueba nada).
+      const id = typeof cuerpo.id === 'string' && /^cf_[0-9a-f]{12}$/.test(cuerpo.id) ? cuerpo.id : null
+      const c = id ? store.get(id) : null
+      if (!c || c.origen !== 'manos') { sendJSON(res, 404, { error: 'No existe esa confirmación de manos.' }); return true }
+      sendJSON(res, 200, store.encolar(id!) ?? c)
+      return true
+    }
     if (req.method === 'POST' && (ruta === '/confirmaciones/pedir' || ruta === '/confirmaciones/consumir')) {
       // Contrato v3 (red team C2): por HTTP solo llega la acción estructurada de manos; el daemon calcula el literal
       // que ve la persona y la huella (espacio `manos:`). Un resumen, detalle, origen o huella del que pide se ignora.
@@ -868,36 +879,52 @@ async function rutasCliente(req: IncomingMessage, res: ServerResponse, ruta: str
     sendJSON(res, 200, { acciones: b.ultimas(limite), pausa: estadoPausa() })
     return true
   }
-  // Modo de permisos (grupal 23 oct 2026): solo la persona, desde la app. Volver a «preguntar» (más estricto) no exige el
-  // secreto; aflojar sí (el agente nunca se da permisos a sí mismo).
-  // «Quitar también el freno» (23 oct 2026): `{ sinFreno: true, frase }` exige el secreto, el modo «Sin preguntar» y la
-  // frase exacta (validada aquí, no solo en la UI); `{ sinFreno: false }` lo devuelve con un clic, sin secreto. Cambiar a
-  // otro modo lo apaga solo. Cada activación y desactivación queda con fecha en «Lo que hizo Levy».
+  // Modo de permisos (grupal 23 oct 2026; Autónomo con consentimiento, 0.2.15, 29 oct 2026): solo la persona, desde la
+  // app. Volver a «preguntar» o retirar el consentimiento (más estricto) no exige el secreto; aflojar sí (el agente nunca
+  // se da permisos a sí mismo). «autonomo» exige además la aceptación del texto empaquetado (`acepto: { version, sha256 }`
+  // con la versión y la huella que la app recibió en el GET) o un consentimiento vigente ya guardado. Cada aceptación,
+  // retiro y cambio queda con fecha en `permisos.json` (historialModo, sin poda) y en «Lo que hizo Levy».
   if (ruta === '/permisos') {
-    const { cambiarModoPermisos, esModo, estadoPermisos, fijarSinFreno, FRASE_SIN_FRENO, MODOS, NOMBRE_MODO } = await import('./cliente/modo-permisos.js')
-    const respuesta = () => { const e = estadoPermisos(); return { modo: e.modo, modos: MODOS, sandbox: sandboxActivo(), sinFreno: e.sinFreno, sinFrenoDesde: e.sinFrenoDesde, frase: FRASE_SIN_FRENO } }
-    const anotarFreno = (activo: boolean, motivo: string) => bitacoraDelDaemon()?.anotar({
-      herramienta: 'Arbrain', decision: 'confirmado', motivo,
-      que: activo
-        ? `Freno quitado bajo tu responsabilidad (modo «${NOMBRE_MODO.libre}»): enviar, borrar y publicar ya no piden tu clic. Dinero, valores y secretos siguen bloqueados`
-        : 'Freno de vuelta: enviar, borrar y publicar vuelven a pedir tu clic',
-    })
+    const { cambiarModoPermisos, cerrarMigracion, esModo, estadoPermisos, guardarMisDatos, MODOS, NOMBRE_MODO, retirarConsentimiento } = await import('./cliente/modo-permisos.js')
+    const { textoAutonomia } = await import('./cliente/consentimiento-autonomia.js')
+    const { avisosPermisos } = await import('./cliente/avisos-permisos.js')
+    const respuesta = () => {
+      const e = estadoPermisos()
+      return { modo: e.modo, modos: MODOS, sandbox: sandboxActivo(), consentimiento: e.consentimiento, reaceptar: e.reaceptar, migracion: e.migracion, historialModo: e.historialModo.slice(-20), texto: textoAutonomia(), avisos: avisosPermisos(), misDatos: e.misDatos }
+    }
+    const anotar = (que: string, motivo?: string) => bitacoraDelDaemon()?.anotar({ herramienta: 'Arbrain', decision: 'confirmado', que, ...(motivo ? { motivo } : {}) })
     if (req.method === 'GET') { sendJSON(res, 200, respuesta()); return true }
-    if (req.method === 'POST' && typeof cuerpo.sinFreno === 'boolean') {
-      if (cuerpo.sinFreno && !secretoApp()) { sendJSON(res, 403, { error: 'Solo la persona, desde la app, puede quitar el freno.' }); return true }
-      const r = fijarSinFreno(cuerpo.sinFreno, { frase: cuerpo.frase })
-      if (!r.ok) { sendJSON(res, r.status, { error: r.error }); return true }
-      if (r.cambio) anotarFreno(r.estado.sinFreno, r.estado.sinFreno ? 'la persona escribió la frase de confirmación' : 'lo apagó la persona')
+    if (req.method === 'POST' && cuerpo.retirar === true) {
+      const antes = estadoPermisos()
+      const r = retirarConsentimiento({ via: cuerpo.via })
+      if (r.ok && r.cambio) anotar(`Consentimiento del modo «${NOMBRE_MODO.autonomo}» retirado (${antes.consentimiento ? `texto ${antes.consentimiento.version}` : 'sin texto guardado'}): Levy queda en «${NOMBRE_MODO.carpeta}»`)
+      sendJSON(res, r.ok ? 200 : r.status, r.ok ? respuesta() : { error: r.error })
+      return true
+    }
+    if (req.method === 'POST' && cuerpo.misDatos !== undefined) {
+      // A13: un destino «propio» deja pasar envíos sin tarjeta R6; solo la persona desde la app lo guarda, nunca un agente.
+      if (!secretoApp()) { sendJSON(res, 403, { error: 'Solo la persona, desde la app, puede guardar sus datos.' }); return true }
+      const r = guardarMisDatos(cuerpo.misDatos)
+      if (!r.ok) { sendJSON(res, 400, { error: r.error }); return true }
+      anotar(`Tus datos para mandarte mensajes: ${r.estado.misDatos.telefono ? 'teléfono guardado' : 'sin teléfono'}, ${r.estado.misDatos.correo ? 'correo guardado' : 'sin correo'}`)
+      sendJSON(res, 200, respuesta())
+      return true
+    }
+    if (req.method === 'POST' && cuerpo.decidirDespues === true) {
+      cerrarMigracion()
       sendJSON(res, 200, respuesta())
       return true
     }
     if (req.method === 'POST') {
-      if (!esModo(cuerpo.modo)) { sendJSON(res, 400, { error: 'modo: «preguntar», «carpeta» o «libre».' }); return true }
+      if (!esModo(cuerpo.modo)) { sendJSON(res, 400, { error: 'modo: «preguntar», «carpeta» o «autonomo».' }); return true }
       if (cuerpo.modo !== 'preguntar' && !secretoApp()) { sendJSON(res, 403, { error: 'Solo la persona, desde la app, puede cambiar los permisos de Levy.' }); return true }
-      const antes = estadoPermisos().modo
-      const { estado, frenoApagado } = cambiarModoPermisos(cuerpo.modo)
-      if (antes !== estado.modo) bitacoraDelDaemon()?.anotar({ herramienta: 'Arbrain', que: `Permisos de Levy: «${NOMBRE_MODO[antes]}» → «${NOMBRE_MODO[estado.modo]}»`, decision: 'confirmado' })
-      if (frenoApagado) anotarFreno(false, `se apagó solo: el modo cambió a «${NOMBRE_MODO[estado.modo]}»`)
+      const antes = estadoPermisos()
+      const acepto = cuerpo.acepto && typeof cuerpo.acepto === 'object' ? cuerpo.acepto as Record<string, unknown> : null
+      const r = cambiarModoPermisos(cuerpo.modo, { via: cuerpo.via, ...(acepto ? { acepto: { version: acepto.version, sha256: acepto.sha256, app: cuerpo.app, so: process.platform } } : {}) })
+      if (!r.ok) { sendJSON(res, r.status, { error: r.error, code: r.code, texto: textoAutonomia() }); return true }
+      const e = r.estado
+      if (acepto && e.consentimiento && e.modo === 'autonomo') anotar(`Modo «${NOMBRE_MODO.autonomo}» aceptado (texto ${e.consentimiento.version}, huella ${e.consentimiento.sha256.slice(0, 12)}…, Arbrain ${e.consentimiento.app || '?'}, ${e.consentimiento.so}, por ${e.consentimiento.via}): Levy actúa sin pedir clic salvo la red mínima (dinero, secretos, su gobierno, borrados masivos, envíos masivos y destinos no pedidos tras leer afuera)`)
+      else if (antes.modo !== e.modo) anotar(`Permisos de Levy: «${NOMBRE_MODO[antes.modo]}» → «${NOMBRE_MODO[e.modo]}»${typeof cuerpo.via === 'string' ? ` (desde ${cuerpo.via})` : ''}`)
       sendJSON(res, 200, respuesta())
       return true
     }
@@ -2926,12 +2953,21 @@ export function startMCServer(): void {
     // I8 y cohorte (contrato §6-§7): viven en la base del daemon. La UI se entera por /ops/stream además del sondeo.
     // M1: el daemon es la fuente del interruptor de computer use y de la voz (manos le pregunta por /manos/estado).
     marcarFuenteLocal()
+    // 0.2.15: y del modo de permisos que rige a las manos (Autónomo = solo la red mínima; la cita sale del chat).
+    registrarModoManos(() => modoPermisos())
+    // A13: y del teléfono y el correo que la persona guardó como suyos (mandarse algo a sí misma no frena).
+    registrarDatosPropios(() => datosPropios())
     // Seguridad del alumno (12 oct 2026): el registro de actividad no guarda llaves; el literal completo vive solo en la
     // tabla de confirmaciones (la persona tiene que verlo entero para aprobarlo).
     iniciarConfirmaciones(getDb(), (tipo, c) => {
       opsLogger.log(tipo === 'resuelta' ? 'confirmacion_resuelta' : 'confirmacion_pendiente', 'system', {
         ...c, resumen: redactar(c.resumen), ...(c.detalle ? { detalle: redactar(c.detalle) } : {}), ...(c.literal ? { literal: redactar(c.literal) } : {}),
       })
+      // A6 (0.2.15): una pendiente nueva avisa con una notificación del sistema (llega aunque Arbrain esté tapada).
+      if (tipo === 'pendiente') {
+        const r = avisarSistema(c.id, 'Levy espera tu clic', `${(c.frase || c.resumen).replace(/\s+/g, ' ').slice(0, 160)}. Si no decides, queda en tu cola.`)
+        if (r === 'enviado') logger.info({ confirmacion: c.id }, 'pendiente: aviso del sistema')
+      }
       // Cola de aprobaciones (ronda 2): lo que entra a la cola avisa al teléfono si la instalación tiene avisos.
       if (tipo === 'cola') {
         // La app local de la persona (su origen), con el token del daemon: el mismo camino que la campana.

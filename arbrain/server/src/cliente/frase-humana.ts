@@ -155,6 +155,11 @@ const SI_FRENO: Record<string, string> = { enviar: 'Sí, enviarlo', publicar: 'S
  * ciego: el ámbar sobre un borrado contradecía la regla de color). Pura.
  */
 export function botonConsecuencia(categoria: string, herramienta: string | undefined, literal: string | undefined): string {
+  // A8 (0.2.15): abrir una página dice «Abrir web.whatsapp.com», no «Sí, enviarlo» (lo que vio un fundador en la tarjeta de navegar).
+  if (/navegar|WebFetch|web_abrir|web_navegar/.test(herramienta ?? '') && literal) {
+    const host = /https?:\/\/([^/\s"'\]\\]+)/.exec(literal)?.[1]
+    if (host) return `Abrir ${host.toLowerCase().replace(/^www\./, '')}`
+  }
   if (categoria === 'borrar' && herramienta === 'Bash' && literal) {
     const a = analizarShell(literal.trim(), '')
     if (a.ok) {

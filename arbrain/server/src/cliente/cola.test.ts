@@ -68,11 +68,13 @@ describe('vencer = queda en la cola, nunca = sí', () => {
     expect(store.pendientes()).toHaveLength(0)
   })
 
-  it('manos de computer use (otro proceso, su propio clic) sigue venciendo como antes', () => {
+  it('manos de computer use (otro proceso) también pasa a la cola (A3, 0.2.15): su clic tardío vale para el reintento', () => {
     const { store, pasar } = montar()
     const c = store.pedir({ origen: 'manos', categoria: 'otra', resumen: 'clic', huella: 'manos:x', creadaPor: 'peticion' })
     pasar(VIDA_PENDIENTE_MS + 1)
-    expect(store.get(c.id)?.estado).toBe('vencida')
+    expect(store.get(c.id)?.estado).toBe('en_cola')
+    expect(store.resolver(c.id, 'permitir').ok).toBe(true)
+    expect(store.consumir('manos:x')).toBe(true)
   })
 
   it('la guardia: sin respuesta a tiempo, no ejecuta, la deja en la cola y le dice al agente que siga con lo demás', async () => {

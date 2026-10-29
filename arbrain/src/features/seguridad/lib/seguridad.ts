@@ -19,33 +19,56 @@ export interface AccionBitacora {
 
 export interface EstadoPausa { pausado: boolean; desde: number | null }
 
-/** Modo de permisos de Levy (grupal 23 oct 2026). Mismos ids que `server/src/cliente/modo-permisos.ts`. */
-export type ModoPermisos = 'preguntar' | 'carpeta' | 'libre'
-export interface EstadoPermisosLevy { modo: ModoPermisos; modos: ModoPermisos[]; sandbox: boolean; sinFreno?: boolean; sinFrenoDesde?: number | null; frase?: string }
-
-/**
- * «Quitar también el freno (bajo mi responsabilidad)» (23 oct 2026), dentro de «Sin preguntar». La frase y su
- * normalización son las de `server/src/cliente/modo-permisos.ts` (el daemon la vuelve a validar; esto solo habilita el
- * botón). El riesgo, en dos líneas, se muestra antes de activarlo.
- */
-export const FRASE_SIN_FRENO = 'quito el freno bajo mi responsabilidad'
-export const normalizarFrase = (t: string): string =>
-  t.normalize('NFC').toLowerCase().replace(/[«»"“”'‘’]/g, '').replace(/\s+/g, ' ').trim().replace(/[.!]+$/, '').trim()
-export const fraseCoincide = (t: string, frase: string = FRASE_SIN_FRENO): boolean => normalizarFrase(t) === normalizarFrase(frase)
-export const RIESGO_SIN_FRENO: readonly [string, string] = [
-  'Levy podrá enviar correos y mensajes, borrar archivos y publicar (subir código, desplegar, postear) sin pedirte clic: un error suyo o una instrucción escondida en lo que lee puede salir de tu computadora antes de que lo veas.',
-  'Siguen bloqueados siempre: mover dinero, comprar, operar acciones o cripto y tocar tus llaves y secretos; y tras leer algo de afuera vuelve a preguntarte.',
-]
-export const NOMBRE_SIN_FRENO = 'Quitar también el freno (bajo mi responsabilidad)'
-/** Aviso que se ve mientras está activo (Ajustes y la píldora de toda la app). */
-export function avisoSinFreno(desde: number | null | undefined, ahora = Date.now()): string {
-  return `Freno quitado${desde ? ` desde ${horaDe(desde, ahora)}` : ''}: Levy envía, borra y publica sin pedirte clic.`
+/** Modo de permisos de Levy (grupal 23 oct 2026; Autónomo 0.2.15). Mismos ids que `server/src/cliente/modo-permisos.ts`. */
+export type ModoPermisos = 'preguntar' | 'carpeta' | 'autonomo'
+export type ViaConsentimiento = 'bienvenida' | 'ajustes' | 'pildora' | 'pausa' | 'migracion' | 'version'
+/** Lo que la persona aceptó, tal como lo guardó el daemon (fecha, versión y huella del texto, app, sistema, por dónde). */
+export interface Consentimiento { ts: number; version: string; sha256: string; app: string; so: string; via: string }
+/** El texto del modo Autónomo que empaqueta el daemon: la app lo muestra tal cual y devuelve versión y huella al aceptar. */
+export interface TextoAutonomia { version: string; sha256: string; titulo: string; cuerpo: string; casillas: string[]; aviso: string }
+export interface AvisoPermisos { id: string; texto: string; como: string }
+export interface EntradaHistorialModo { ts: number; accion: string; modo: ModoPermisos; via?: string; motivo?: string; texto?: { version: string; sha256: string } }
+export interface EstadoPermisosLevy {
+  modo: ModoPermisos
+  modos: ModoPermisos[]
+  sandbox: boolean
+  consentimiento?: Consentimiento | null
+  /** El consentimiento guardado es de otra versión del texto: Autónomo no aplica hasta aceptar la nueva. */
+  reaceptar?: boolean
+  /** Venía de «Sin preguntar» o del freno quitado (versiones anteriores): se ofrece Autónomo una vez. */
+  migracion?: 'libre' | 'sinFreno' | null
+  historialModo?: EntradaHistorialModo[]
+  texto?: TextoAutonomia
+  avisos?: AvisoPermisos[]
+  /** A13 (0.2.15): su teléfono y su correo; mandarse algo a sí misma no cuenta como «transmitir datos». */
+  misDatos?: { telefono: string; correo: string }
 }
+
+export const NOMBRE_MODO: Record<ModoPermisos, string> = { preguntar: 'Preguntar siempre', carpeta: 'Automático en mi carpeta', autonomo: 'Autónomo' }
+
+/** Lo que ni Autónomo deja pasar, en una línea (para la píldora, Ajustes y «Pausar todo»). */
+export const RED_MINIMA = 'Dinero, tus secretos, sus propios permisos y los borrados grandes se niegan solos; mandar a muchas personas, o a alguien que no nombraste, te lo enseña antes.'
+
 export const FICHAS_MODO: ReadonlyArray<{ modo: ModoPermisos; nombre: string; detalle: string; recomendado?: boolean }> = [
-  { modo: 'preguntar', nombre: 'Preguntar siempre', detalle: 'Te pide tu clic para casi todo lo que no sea leer y escribir notas dentro de tu cerebro. El más estricto.' },
-  { modo: 'carpeta', nombre: 'Automático en mi carpeta', recomendado: true, detalle: 'Dentro de tu cerebro y de tus carpetas agregadas trabaja sin preguntarte: lee, busca, crea y edita archivos, y ajusta sus instrucciones y skills. Te pregunta para todo lo que sale de ahí (comandos que instalan o usan internet, páginas nuevas, otras carpetas).' },
-  { modo: 'libre', nombre: 'Sin preguntar', detalle: 'Corre comandos, lee fuera de su carpeta, abre páginas y usa tus herramientas conectadas sin pedirte clic. Para cuando ya confías en lo que le encargas.' },
+  { modo: 'autonomo', nombre: 'Autónomo', recomendado: true, detalle: 'Hace lo que le pides sin pedirte un clic en cada paso. Nunca toca tu dinero ni tus contraseñas, no borra en masa y te enseña antes de mandar algo a muchas personas o a alguien que no nombraste.' },
+  { modo: 'carpeta', nombre: 'Automático en mi carpeta', detalle: 'Trabaja solo dentro de tu cerebro y de tus carpetas agregadas: lee, busca, crea y edita archivos, y ajusta sus instrucciones y skills. Te pregunta antes de lo que sale de tu computadora: comandos que instalan o usan internet, páginas nuevas, enviar, borrar y publicar.' },
+  { modo: 'preguntar', nombre: 'Preguntar siempre', detalle: 'Te pide tu clic para casi todo lo que no sea leer y escribir notas dentro de tu cerebro. Ideal para tus primeros días.' },
 ]
+
+/** Aviso que se ve mientras Autónomo está activo (Ajustes, la píldora y «Pausar todo»). */
+export function avisoAutonomo(desde: number | null | undefined, ahora = Date.now()): string {
+  return `Modo Autónomo${desde ? ` desde ${horaDe(desde, ahora)}` : ''}: Levy actúa sin preguntarte, salvo la red mínima.`
+}
+
+/** ¿El consentimiento guardado vale para el texto que empaqueta esta versión? Si no, hay que volver a aceptar. */
+export function consentimientoVigente(e: Pick<EstadoPermisosLevy, 'consentimiento' | 'texto'>): boolean {
+  return !!e.consentimiento && !!e.texto && e.consentimiento.version === e.texto.version && e.consentimiento.sha256 === e.texto.sha256
+}
+
+/** Lo que se manda al daemon para aceptar Autónomo: la versión y la huella que vinieron en el GET; la app no las inventa. */
+export function cuerpoAceptacion(texto: TextoAutonomia, via: ViaConsentimiento): { modo: 'autonomo'; acepto: { version: string; sha256: string }; via: ViaConsentimiento } {
+  return { modo: 'autonomo', acepto: { version: texto.version, sha256: texto.sha256 }, via }
+}
 export interface CarpetaAbierta { ruta: string; abierta: number }
 
 export interface GastoOpenRouter {

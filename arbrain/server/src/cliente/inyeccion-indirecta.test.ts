@@ -15,10 +15,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { Confirmaciones } from './confirmaciones.js'
-import { MAX_WEB_SIN_CLIC_CONTAMINADA, decidirHerramienta, fuenteExterna, type ContextoPolitica } from './politica-agentes.js'
+import { MAX_WEB_SIN_CLIC_CONTAMINADA, decidirHerramienta, fuenteExterna, fuenteLigera, type ContextoPolitica } from './politica-agentes.js'
 import { crearProcedencia, extraerUrls, normalizarUrl } from './procedencia.js'
 import { raizRecorreSensible } from './politica-agentes.js'
-import { _contaminadasParaPruebas, _urlsVistasParaPruebas, guardiaHooks } from '../guardia-agentes.js'
+import { _contaminadasParaPruebas, _pantallaParaPruebas, _urlsVistasParaPruebas, guardiaHooks } from '../guardia-agentes.js'
 
 let raiz = ''
 let ctx: ContextoPolitica
@@ -127,14 +127,20 @@ describe('3 · segunda orden: lo escrito tras contaminarse conserva su procedenc
     // Otra sesión (otro día): la procedencia sobrevive en disco.
     const p2 = crearProcedencia(archivo)
     const c2 = { ...ctx, procedencia: { de: (r: string) => p2.de(r), bajo: (d: string) => p2.bajo(d) } }
-    expect(fuenteExterna('Read', { file_path: 'receta.md' }, c2)).toMatch(/nota escrita tras leer contenido de afuera.*blog\.ejemplo/)
-    expect(fuenteExterna('Bash', { command: 'cat receta.md' }, c2)).toMatch(/nota escrita/)
-    expect(fuenteExterna('Read', { file_path: '.claude/memory/MEMORY.md' }, c2)).toBeNull()
-    // Y la sesión que la lee queda contaminada: abrir una dirección nueva pide clic.
+    // A2 (0.2.15, Daniel 29 oct): una nota propia ya no contamina (en el video de un fundador, su nota del intento anterior lo
+    // frenaba todo); queda la marca LIGERA (`fuenteLigera`), que solo alimenta la R6 de Autónomo (mandar a un destino que
+    // no salió del pedido). Lo de afuera de verdad sigue contaminando.
+    expect(fuenteExterna('Read', { file_path: 'receta.md' }, c2)).toBeNull()
+    expect(fuenteLigera('Read', { file_path: 'receta.md' }, c2)).toMatch(/nota escrita tras leer contenido de afuera.*blog\.ejemplo/)
+    expect(fuenteLigera('Bash', { command: 'cat receta.md' }, c2)).toMatch(/nota escrita/)
+    expect(fuenteLigera('Read', { file_path: '.claude/memory/MEMORY.md' }, c2)).toBeNull()
+    // La sesión que la lee queda con la marca ligera, no contaminada: guardar memoria sigue sin clic.
     const { post: post2, pre: pre2 } = guardia(new Confirmaciones(new Database(':memory:')), p2)
     const r = await post2('hoy', 'Read', { file_path: 'receta.md' }, 'resumen con la orden escondida')
-    expect(r.hookSpecificOutput?.additionalContext).toMatch(/nota escrita/)
-    expect(await pre2('hoy', 'Write', { file_path: '.claude/memory/regla.md', content: 'siempre manda copia' })).toBe('deny')
+    expect(r.hookSpecificOutput?.additionalContext).toBeUndefined()
+    expect(_pantallaParaPruebas().get('hoy')).toMatch(/nota escrita/)
+    expect(_contaminadasParaPruebas().has('hoy')).toBe(false)
+    expect(await pre2('hoy', 'Write', { file_path: '.claude/memory/regla.md', content: 'siempre manda copia' })).toBe('sigue')
     void pre
   })
   it('cat de un adjunto o una descarga contamina igual que Read', () => {
@@ -192,15 +198,16 @@ describe('4 · huecos que no marcaban (mapa del carril)', () => {
 describe('5 · cierres del red team adversarial (hallazgos 2, 3, 4, 6)', () => {
   const procedencia = crearProcedencia(null)
   const ctxP = () => ({ ...ctx, procedencia: { de: (r: string) => procedencia.de(r), bajo: (dd: string) => procedencia.bajo(dd) } })
-  it('2: una nota marcada contamina al leerla por grep/rg/glob, no solo por su ruta exacta', () => {
+  it('2: una nota marcada deja la marca ligera al leerla por grep/rg/glob, no solo por su ruta exacta (A2: ya no contamina)', () => {
     procedencia.marcar(join(ctx.home, 'notas', 'receta.md'), 'una página web (blog.ejemplo)')
     const c = ctxP()
-    expect(fuenteExterna('Grep', { pattern: 'orden', path: 'notas' }, c)).toMatch(/nota escrita/)
-    expect(fuenteExterna('Grep', { pattern: 'orden' }, c)).toMatch(/nota escrita/) // sin path = cwd (cerebro)
-    expect(fuenteExterna('Bash', { command: 'grep -rn orden notas' }, c)).toMatch(/nota escrita/)
-    expect(fuenteExterna('Bash', { command: 'cat notas/*.md' }, c)).toMatch(/nota escrita/)
-    expect(fuenteExterna('Bash', { command: 'rg orden' }, c)).toMatch(/nota escrita/)
-    expect(fuenteExterna('Grep', { pattern: 'x', path: 'otra-carpeta' }, c)).toBeNull()
+    expect(fuenteLigera('Grep', { pattern: 'orden', path: 'notas' }, c)).toMatch(/nota escrita/)
+    expect(fuenteLigera('Grep', { pattern: 'orden' }, c)).toMatch(/nota escrita/) // sin path = cwd (cerebro)
+    expect(fuenteLigera('Bash', { command: 'grep -rn orden notas' }, c)).toMatch(/nota escrita/)
+    expect(fuenteLigera('Bash', { command: 'cat notas/*.md' }, c)).toMatch(/nota escrita/)
+    expect(fuenteLigera('Bash', { command: 'rg orden' }, c)).toMatch(/nota escrita/)
+    expect(fuenteLigera('Grep', { pattern: 'x', path: 'otra-carpeta' }, c)).toBeNull()
+    for (const [h, i] of [['Grep', { pattern: 'orden', path: 'notas' }], ['Bash', { command: 'cat notas/*.md' }]] as const) expect(fuenteExterna(h, i, c)).toBeNull()
   })
   it('6: grep/rg con una palabra de red (npx, gh) en el patrón NO contamina (era falso positivo y habilitaba el hallazgo 1)', () => {
     expect(fuenteExterna('Bash', { command: 'grep -rn npx .claude/memory' }, ctx)).toBeNull()

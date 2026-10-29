@@ -39,7 +39,7 @@ export const COMPUTER_USE_NO_INCLUIDO = 'Computer use no está disponible en Lin
  * saber antes de encenderlo: qué hace, que se apaga en cada apertura, que lo irreversible pide su clic y qué permisos
  * pide su sistema.
  */
-export function explicacionComputerUse(plataforma: string): string {
+export function explicacionComputerUse(plataforma: string, autonomo = false): string {
   const permisos = plataforma === 'darwin'
     ? 'La primera vez, macOS te pide dos permisos para «ArbrainManos»: Accesibilidad y Grabación de pantalla.'
     : plataforma === 'win32'
@@ -47,8 +47,12 @@ export function explicacionComputerUse(plataforma: string): string {
       : ''
   return [
     'Deja que Levy mire tu pantalla, haga clic y escriba en tus apps, sin mover tu ratón ni tu teclado.',
-    'Viene apagado y se apaga cada vez que cierras Arbrain: lo enciendes en cada apertura, cuando lo necesites.',
-    'Antes de enviar, pagar, borrar o publicar se detiene y te pide tu clic. No lo uses con tu banco, pagos, impuestos ni cripto.',
+    autonomo
+      ? 'En modo Autónomo queda como lo dejes entre aperturas; en los demás niveles se apaga cada vez que cierras Arbrain.'
+      : 'Viene apagado y se apaga cada vez que cierras Arbrain: lo enciendes en cada apertura, cuando lo necesites.',
+    autonomo
+      ? 'Hace lo que le pediste en el chat sin pedirte clic; lo que no pediste te lo enseña antes. Nunca con tu banco, pagos, impuestos ni cripto.'
+      : 'Antes de enviar, pagar, borrar o publicar se detiene y te pide tu clic. No lo uses con tu banco, pagos, impuestos ni cripto.',
     permisos,
   ].filter(Boolean).join(' ')
 }

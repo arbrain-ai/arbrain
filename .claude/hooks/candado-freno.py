@@ -200,6 +200,10 @@ def evaluar_mcp(payload: dict) -> str | None:
 
 
 def evaluar(payload: dict) -> str | None:
+    # Modo Autónomo (0.2.15): la red mínima vive en la guardia del daemon (TypeScript) y la cita sale del chat;
+    # este candado se hace a un lado para no pedir de nuevo lo que la persona ya pidió. El daemon pone la variable.
+    if os.environ.get('ARBRAIN_MODO_PERMISOS') == 'autonomo':
+        return None
     tool = str(payload.get('tool_name') or '')
     if tool.startswith('mcp__'):
         return evaluar_mcp(payload)

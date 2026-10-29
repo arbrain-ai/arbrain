@@ -1,21 +1,24 @@
 /**
- * Modo de permisos (grupal del 23 oct 2026): «Preguntar siempre», «Automático en mi carpeta» y «Sin preguntar». Lo que
- * ningún modo afloja: el freno (enviar, borrar, publicar, pagar), los secretos, escribir fuera del cerebro y de las
- * carpetas abiertas, los ajustes y ganchos del cerebro, y una conversación que leyó contenido de afuera.
+ * Modo de permisos (grupal del 23 oct 2026): «Preguntar siempre», «Automático en mi carpeta» y, desde 0.2.15,
+ * «Autónomo» (con consentimiento; su red mínima vive en `autonomo.test.ts`). Lo que «preguntar» y «carpeta» no
+ * aflojan: el freno (enviar, borrar, publicar, pagar), los secretos, escribir fuera del cerebro y de las carpetas
+ * abiertas, los ajustes y ganchos del cerebro, y una conversación que leyó contenido de afuera.
  */
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { aplicarModo, contextoPolitica, decidirHerramienta, type ContextoPolitica } from './politica-agentes.js'
-import { fijarModoPermisos, modoPermisos, MODO_POR_DEFECTO } from './modo-permisos.js'
+import { cambiarModoPermisos, fijarModoPermisos, modoPermisos, MODO_POR_DEFECTO, MODO_RECOMENDADO } from './modo-permisos.js'
+import { HUELLA_AUTONOMIA, VERSION_AUTONOMIA } from './consentimiento-autonomia.js'
 import { permisosCliente } from '../guardia-agentes.js'
 
 let raiz = '', usuario = '', home = '', datos = '', abierta = '', fuera = ''
 const previo = { config: process.env.ARBRAIN_CONFIG_DIR, edicion: process.env.ARBRAIN_EDICION }
 const ctxDe = (modo: ContextoPolitica['modo'], over: Partial<ContextoPolitica> = {}): ContextoPolitica =>
-  ({ home, cwd: home, usuario, protegidas: [datos], lecturaExtra: [], abiertas: [abierta], sandbox: false, modo, ...over })
+  ({ home, cwd: home, usuario, protegidas: [datos], lecturaExtra: [], abiertas: [abierta], sandbox: false, modo, voz: ['envíame el reporte a ana@cliente.test'], ...over })
 const tipo = (h: string, input: unknown, ctx: ContextoPolitica) => decidirHerramienta(h, input, ctx).tipo
+const ACEPTO = { version: VERSION_AUTONOMIA, sha256: HUELLA_AUTONOMIA }
 
 beforeAll(() => {
   raiz = realpathSync(mkdtempSync(join(tmpdir(), 'arbrain-modo-')))
@@ -31,21 +34,23 @@ afterAll(() => {
 })
 
 describe('el modo vive en la carpeta de la app', () => {
-  it('por defecto «carpeta»; se guarda y se lee; un valor raro vuelve al defecto', () => {
+  it('por defecto «carpeta» (recomendado en la bienvenida: «autonomo»); se guarda y se lee; un valor raro vuelve al defecto', () => {
     expect(MODO_POR_DEFECTO).toBe('carpeta')
+    expect(MODO_RECOMENDADO).toBe('autonomo')
     expect(modoPermisos()).toBe('carpeta')
-    expect(fijarModoPermisos('libre')).toBe('libre')
-    expect(contextoPolitica({}, { HOME: usuario, ARBRAIN_HOME: home, ARBRAIN_DATA_DIR: datos, ARBRAIN_CONFIG_DIR: join(datos, 'config') }).modo).toBe('libre')
+    expect(cambiarModoPermisos('autonomo', { acepto: ACEPTO, via: 'ajustes' }).ok).toBe(true)
+    expect(modoPermisos()).toBe('autonomo')
+    expect(contextoPolitica({}, { HOME: usuario, ARBRAIN_HOME: home, ARBRAIN_DATA_DIR: datos, ARBRAIN_CONFIG_DIR: join(datos, 'config') }).modo).toBe('autonomo')
     writeFileSync(join(datos, 'config', 'permisos.json'), '{"modo":"todo"}')
     expect(modoPermisos()).toBe('carpeta')
     fijarModoPermisos('preguntar')
     expect(modoPermisos()).toBe('preguntar')
   })
   it('el agente no puede escribir el archivo del modo, ni con clic, en ningún modo', () => {
-    for (const modo of ['preguntar', 'carpeta', 'libre'] as const) {
+    for (const modo of ['preguntar', 'carpeta', 'autonomo'] as const) {
       const ctx = ctxDe(modo, { protegidas: [datos, join(datos, 'config')] })
-      expect(tipo('Write', { file_path: join(datos, 'config', 'permisos.json'), content: '{"modo":"libre"}' }, ctx), modo).toBe('negar')
-      expect(tipo('Bash', { command: `echo '{"modo":"libre"}' > ${join(datos, 'config', 'permisos.json')}` }, ctx), modo).toBe('negar')
+      expect(tipo('Write', { file_path: join(datos, 'config', 'permisos.json'), content: '{"modo":"autonomo"}' }, ctx), modo).toBe('negar')
+      expect(tipo('Bash', { command: `echo '{"modo":"autonomo"}' > ${join(datos, 'config', 'permisos.json')}` }, ctx), modo).toBe('negar')
     }
   })
 })
@@ -63,10 +68,10 @@ describe('Automático en mi carpeta', () => {
     expect(tipo('Edit', { file_path: join(home, '.claude', 'skills', 'ventas', 'SKILL.md'), old_string: 'a', new_string: 'b' }, ctxDe('carpeta'))).toBe('permitir')
     expect(tipo('Write', { file_path: join(home, 'CLAUDE.md'), content: 'x' }, ctxDe('carpeta'))).toBe('permitir')
   })
-  it('lo que sale de su carpeta o ejecuta código sigue preguntando, con la pista de dónde cambiarlo', () => {
+  it('lo que sale de su carpeta o ejecuta código sigue preguntando, con la pista de dónde cambiarlo (Autónomo)', () => {
     const leerFuera = decidirHerramienta('Read', { file_path: join(fuera, 'b.md') }, ctxDe('carpeta'))
     expect(leerFuera.tipo).toBe('confirmar')
-    if (leerFuera.tipo === 'confirmar') expect(leerFuera.avisos.join(' ')).toMatch(/Ajustes › Permisos y seguridad.*Sin preguntar/)
+    if (leerFuera.tipo === 'confirmar') expect(leerFuera.avisos.join(' ')).toMatch(/Ajustes › Permisos y seguridad.*Autónomo/)
     expect(tipo('Bash', { command: 'npm install left-pad' }, ctxDe('carpeta'))).toBe('confirmar')
     expect(tipo('Bash', { command: 'python3 script.py' }, ctxDe('carpeta'))).toBe('confirmar')
     expect(tipo('Write', { file_path: join(home, '.claude', 'skills', 'ventas', 'correr.py'), content: 'x' }, ctxDe('carpeta'))).toBe('confirmar')
@@ -80,19 +85,20 @@ describe('Automático en mi carpeta', () => {
   })
 })
 
-describe('Sin preguntar', () => {
-  it('comandos, leer fuera, páginas nuevas y código propio corren sin clic', () => {
+describe('Autónomo', () => {
+  it('comandos, leer fuera, páginas nuevas, código propio y lo que la persona pidió corren sin clic', () => {
     for (const [h, input] of [
       ['Bash', { command: 'npm install left-pad' }], ['Bash', { command: 'python3 script.py' }], ['Read', { file_path: join(fuera, 'b.md') }],
       ['Write', { file_path: join(home, 'arbrain', 'src', 'app', 'page.tsx'), content: 'x' }], ['mcp__todoist__update_task', { id: 1 }],
-    ] as const) expect(tipo(h, input, ctxDe('libre', { dominiosWeb: new Set() })), `${h} ${JSON.stringify(input)}`).toBe('permitir')
-    expect(tipo('WebFetch', { url: 'https://ejemplo-nuevo.com/x' }, ctxDe('libre', { dominiosWeb: new Set() }))).toBe('permitir')
+      ['mcp__gmail__send_email', { to: 'ana@cliente.test' }], ['Bash', { command: 'rm notas/a.md' }],
+    ] as const) expect(tipo(h, input, ctxDe('autonomo', { dominiosWeb: new Set() })), `${h} ${JSON.stringify(input)}`).toBe('permitir')
+    expect(tipo('WebFetch', { url: 'https://ejemplo-nuevo.com/x' }, ctxDe('autonomo', { dominiosWeb: new Set() }))).toBe('permitir')
   })
 })
 
-describe('lo que ningún modo afloja', () => {
-  const modos = ['preguntar', 'carpeta', 'libre'] as const
-  it('el freno: enviar, borrar y publicar siempre piden clic; pagar se niega', () => {
+describe('lo que «preguntar» y «carpeta» no aflojan', () => {
+  const modos = ['preguntar', 'carpeta'] as const
+  it('el freno: enviar, borrar y publicar siempre piden clic; pagar se niega (también en Autónomo)', () => {
     for (const modo of modos) {
       const ctx = ctxDe(modo)
       expect(tipo('Bash', { command: 'rm notas/a.md' }, ctx), modo).toBe('confirmar')
@@ -100,11 +106,11 @@ describe('lo que ningún modo afloja', () => {
       expect(tipo('Bash', { command: 'curl -X POST https://api.ejemplo.com -d x=1' }, ctx), modo).toBe('confirmar')
       expect(tipo('mcp__gmail__send_email', { to: 'a@b.c' }, ctx), modo).toBe('confirmar')
       expect(tipo('mcp__todoist__delete_task', { id: 1 }, ctx), modo).toBe('confirmar')
-      expect(tipo('mcp__stripe__create_payment', { amount: 1 }, ctx), modo).toBe('negar')
     }
+    for (const modo of [...modos, 'autonomo'] as const) expect(tipo('mcp__stripe__create_payment', { amount: 1 }, ctxDe(modo)), modo).toBe('negar')
   })
-  it('secretos, escribir fuera de sus carpetas, ajustes, ganchos y git: negados', () => {
-    for (const modo of modos) {
+  it('secretos, escribir fuera de sus carpetas, ajustes, ganchos y git: negados en los tres modos', () => {
+    for (const modo of [...modos, 'autonomo'] as const) {
       const ctx = ctxDe(modo)
       expect(tipo('Read', { file_path: join(usuario, '.ssh', 'id_ed25519') }, ctx), modo).toBe('negar')
       expect(tipo('Write', { file_path: join(fuera, 'x.md'), content: 'x' }, ctx), modo).toBe('negar')
@@ -114,34 +120,39 @@ describe('lo que ningún modo afloja', () => {
     }
   })
   it('el motivo de negar ajustes y carpetas guía a la persona a Ajustes', () => {
-    const a = decidirHerramienta('Write', { file_path: join(home, '.claude', 'settings.json'), content: '{}' }, ctxDe('libre'))
-    const b = decidirHerramienta('Write', { file_path: join(fuera, 'x.md'), content: 'x' }, ctxDe('libre'))
+    const a = decidirHerramienta('Write', { file_path: join(home, '.claude', 'settings.json'), content: '{}' }, ctxDe('autonomo'))
+    const b = decidirHerramienta('Write', { file_path: join(fuera, 'x.md'), content: 'x' }, ctxDe('autonomo'))
     expect(a.tipo === 'negar' && a.motivo).toMatch(/ningún agente cambia sus propios permisos.*Ajustes › Permisos y seguridad/)
     expect(b.tipo === 'negar' && b.motivo).toMatch(/Carpetas a las que tu cerebro puede entrar/)
   })
-  it('una conversación que leyó contenido de afuera vuelve a preguntar, aun en «Sin preguntar»', () => {
-    const sucia = ctxDe('libre', { contaminada: { fuente: 'una página web' }, dominiosWeb: new Set() })
-    expect(tipo('Bash', { command: 'python3 script.py' }, sucia)).toBe('confirmar')
-    expect(tipo('Read', { file_path: join(fuera, 'b.md') }, sucia)).toBe('confirmar')
+  it('una conversación que leyó contenido de afuera DE VERDAD vuelve a preguntar en «carpeta»; la pantalla y las notas propias no', () => {
+    const sucia = ctxDe('carpeta', { contaminada: { fuente: 'una página web' }, dominiosWeb: new Set() })
+    expect(tipo('Bash', { command: 'mkdir exfil' }, sucia)).toBe('confirmar')
     expect(tipo('Write', { file_path: join(home, '.claude', 'skills', 'ventas', 'SKILL.md'), content: 'x' }, ctxDe('carpeta', { contaminada: { fuente: 'correo' } }))).toBe('confirmar')
+    const pantalla = ctxDe('carpeta', { leyoPantalla: true })
+    expect(tipo('Bash', { command: 'mkdir exfil' }, pantalla)).toBe('permitir')
+    expect(tipo('Write', { file_path: join(home, '.claude', 'skills', 'ventas', 'SKILL.md'), content: 'x' }, pantalla)).toBe('permitir')
+    // Y las manos no cuentan como «un servicio de afuera» aunque la conversación esté contaminada por otra cosa.
+    expect(tipo('mcp__manos__observar', { app: 'chrome' }, sucia)).toBe('permitir')
+    expect(tipo('mcp__manos__actuar', { app: 'chrome', accion: 'click', ref: 'e1' }, sucia)).toBe('permitir')
   })
   it('aplicarModo nunca convierte un negar ni una categoría del freno', () => {
-    expect(aplicarModo({ tipo: 'negar', motivo: 'x' }, ctxDe('libre'))).toEqual({ tipo: 'negar', motivo: 'x' })
+    expect(aplicarModo({ tipo: 'negar', motivo: 'x' }, ctxDe('carpeta'))).toEqual({ tipo: 'negar', motivo: 'x' })
     for (const categoria of ['enviar', 'borrar', 'publicar', 'pagar'] as const) {
-      expect(aplicarModo({ tipo: 'confirmar', categoria, resumen: 'r', literal: 'l', avisos: [], relajable: 'carpeta' }, ctxDe('libre')).tipo).toBe('confirmar')
+      expect(aplicarModo({ tipo: 'confirmar', categoria, resumen: 'r', literal: 'l', avisos: [], relajable: 'carpeta' }, ctxDe('carpeta')).tipo).toBe('confirmar')
     }
   })
 })
 
-describe('las rutinas no usan el modo', () => {
-  it('permisosCliente con origen cron conserva «preguntar» aunque la persona eligió «Sin preguntar»', async () => {
+describe('las rutinas', () => {
+  it('con origen cron conservan «preguntar» fuera de Autónomo; en Autónomo lo heredan (ver autonomo.test.ts)', async () => {
     process.env.ARBRAIN_EDICION = 'cliente'
     const base = async () => ({ behavior: 'allow' as const, updatedInput: {} })
-    const contexto = () => ctxDe('libre')
+    const contexto = () => ctxDe('carpeta')
     const chat = permisosCliente(base, () => {}, { contexto, origen: 'agente', confirmaciones: () => null, hayQuienConfirme: () => false })
     const cron = permisosCliente(base, () => {}, { contexto, origen: 'cron', confirmaciones: () => null, hayQuienConfirme: () => false })
     const o = { signal: new AbortController().signal, toolUseID: 't1' } as Parameters<typeof chat>[2]
-    expect((await chat('Bash', { command: 'python3 script.py' }, o))?.behavior).toBe('allow')
-    expect((await cron('Bash', { command: 'python3 script.py' }, o))?.behavior).toBe('deny')
+    expect((await chat('Bash', { command: 'ls notas' }, o))?.behavior).toBe('allow')
+    expect((await cron('Bash', { command: 'ls notas' }, o))?.behavior).toBe('deny')
   })
 })

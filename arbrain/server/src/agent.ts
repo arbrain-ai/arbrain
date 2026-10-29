@@ -13,6 +13,7 @@ import { modeloParaProveedor } from './cliente/proveedor.js'
 import { SeguidorMeta, EstadoMetas, estadoMetas, leerRevision, comandoMetaNativo, type VistaMeta } from './chat-runtime/meta-claude.js'
 import { esEdicionCliente } from './edicion.js'
 import { modoPermisosSdk } from './cliente/permisos-sdk.js'
+import { esAutonomo } from './cliente/modo-permisos.js'
 import { entornoClaude } from './cliente/cofre.js'
 import { fuentesDeAjustes, motorSuscripcion } from './cliente/suscripcion.js'
 import { readEnvFile } from './env.js'
@@ -592,7 +593,8 @@ export async function* runAgentStream(
     // Una sola vía (27 oct 2026): el gancho de la sesión lee si ESTE turno puede usar Workflow (mensaje con ultracode).
     const claveViaUnica = !denyTools ? (durable ? claveConversacion(durable.scope) : `${source}:${resumeId ?? 'nuevo'}`) : null
     if (claveViaUnica) marcarTurno(claveViaUnica, message, ultracodeEnabled)
-    const modoSdk = modoPermisosSdk({ cliente: esEdicionCliente(), denyTools: !!denyTools, live: !!durable?.live })
+    // Autónomo (0.2.15): el SDK en `default` sin clasificador; la guardia aprueba de forma explícita lo que la red mínima deja.
+    const modoSdk = modoPermisosSdk({ cliente: esEdicionCliente(), denyTools: !!denyTools, live: !!durable?.live, autonomo: esEdicionCliente() && esAutonomo() })
     const queryOptions: Options = {
         cwd: PROJECT_ROOT,
         // Cabina: las manos de Levy sobre la interfaz de Arbrain (vistas vivas y

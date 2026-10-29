@@ -1,81 +1,128 @@
 /**
- * Modo de permisos del agente (grupal del 23 oct 2026: «demasiadas confirmaciones»; los alumnos terminaban saltándose
- * Arbrain con Claude Code para que dejara de preguntar). La persona lo elige en Ajustes › Permisos, con su clic (la
- * ruta exige el secreto de la app: un agente nunca cambia sus propios permisos).
+ * Modo de permisos del agente (grupal del 23 oct 2026: «demasiadas confirmaciones»; 0.2.15, 29 oct 2026: «Autónomo con
+ * consentimiento», docs/builds/autonomia-alumno-2026-10-29/SPEC.md). La persona lo elige en la bienvenida o en Ajustes ›
+ * Permisos y seguridad, con su clic (la ruta exige el secreto de la app: un agente nunca cambia sus propios permisos).
  *
  *   preguntar  como hasta v0.2.9: todo lo que no es seguro por construcción pide su clic.
- *   carpeta    «Automático en mi carpeta» (por defecto): dentro de su cerebro y de las carpetas que abrió, Levy trabaja
- *              sin preguntar (comandos de solo lectura aunque el sistema no tenga sandbox, crear carpetas y archivos,
- *              escribir en sus carpetas abiertas, editar sus instrucciones y skills en Markdown). Fuera de ahí, pregunta.
- *   libre      «Sin preguntar»: todo lo que no es el freno ni un secreto corre sin clic (comandos, leer fuera de su
- *              carpeta, páginas nuevas, herramientas conectadas).
+ *   carpeta    «Automático en mi carpeta»: dentro de su cerebro y de las carpetas que abrió, Levy trabaja sin preguntar
+ *              (comandos de solo lectura aunque el sistema no tenga sandbox, crear carpetas y archivos, escribir en sus
+ *              carpetas abiertas, editar sus instrucciones y skills en Markdown). Fuera de ahí, pregunta.
+ *   autonomo   «Autónomo» (recomendado, 0.2.15): hace lo que la persona le pide sin pedirle un clic en cada paso. Solo
+ *              queda la red mínima, que NIEGA sin preguntar (dinero, secretos, su propio gobierno, borrados masivos) o
+ *              enseña una tarjeta (envíos masivos; salida a un destino que no salió del pedido tras leer afuera). Exige el
+ *              consentimiento de la persona sobre el texto de `consentimiento-autonomia.ts`, con versión y huella.
  *
- * Lo que NINGÚN modo cambia: el freno (enviar, borrar, publicar y pagar siempre piden su clic, salvo el interruptor de
- * abajo para los tres primeros; el dinero se niega), los
- * secretos y la carpeta de datos de la app (negados), escribir fuera del cerebro y de las carpetas abiertas (negado), los
- * ajustes y ganchos del cerebro y `.git` (negados), y una conversación que ya leyó contenido de afuera vuelve a pedir
- * clic para todo lo que tiene efecto (`endurecerContaminada`). Las rutinas (crons) no usan el modo: corren sin la
- * persona delante y conservan «preguntar».
+ * Lo que NINGÚN modo cambia: el dinero (negado), los secretos y la carpeta de datos de la app (negados), escribir fuera
+ * del cerebro y de las carpetas abiertas (negado), los ajustes y ganchos del cerebro y `.git` (negados).
  *
- * «Quitar también el freno (bajo mi responsabilidad)» (Daniel, 23 oct 2026, 16:40: «deberíamos tener un modo de
- * dangerously skip permissions bajo la recomendación del usuario»): interruptor opcional DENTRO de «Sin preguntar».
- * Solo se activa si la persona escribe `FRASE_SIN_FRENO` (se valida aquí, en el servidor, no solo en la UI) y con el
- * secreto de la app; libera ÚNICAMENTE enviar, borrar y publicar. Mover dinero, operar valores o cripto y los secretos
- * siguen negados; una conversación contaminada sigue preguntando; las rutinas no lo usan. Si el modo deja de ser
- * «libre», se apaga solo. Cada activación y desactivación queda con fecha en «Lo que hizo Levy» (la bitácora del
- * daemon, que la ruta escribe) y en `historialFreno` de este mismo archivo (no se poda con la bitácora).
+ * Versiones anteriores (0.2.9 a 0.2.14) tenían «libre» («Sin preguntar») y, dentro, «Quitar también el freno» con una
+ * frase. Los dos se retiran: `libre` y el freno quitado se leen como «carpeta» y quedan marcados en `migracion` para que
+ * la app ofrezca el nivel Autónomo con su consentimiento. Nadie sube de nivel sin su clic sobre el texto nuevo.
  *
  * Vive en `<ARBRAIN_CONFIG_DIR>/permisos.json` (carpeta protegida de la app). Instalación de Daniel: no se usa.
  */
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { DIR_ARBRAIN } from '../edicion.js'
+import { aceptacionCoincide, VERSION_AUTONOMIA } from './consentimiento-autonomia.js'
 
-export type ModoPermisos = 'preguntar' | 'carpeta' | 'libre'
-export const MODOS: readonly ModoPermisos[] = ['preguntar', 'carpeta', 'libre']
+export type ModoPermisos = 'preguntar' | 'carpeta' | 'autonomo'
+export const MODOS: readonly ModoPermisos[] = ['preguntar', 'carpeta', 'autonomo']
 export const MODO_POR_DEFECTO: ModoPermisos = 'carpeta'
+/** El que la bienvenida propone marcado (decisión 2, 29 oct 2026): recomendado, pero sin casillas marcadas. */
+export const MODO_RECOMENDADO: ModoPermisos = 'autonomo'
 export const esModo = (v: unknown): v is ModoPermisos => typeof v === 'string' && (MODOS as readonly string[]).includes(v)
 
 /** Nombre que ve la persona en Ajustes (y que el agente usa para guiarla). */
 export const NOMBRE_MODO: Record<ModoPermisos, string> = {
   preguntar: 'Preguntar siempre',
   carpeta: 'Automático en mi carpeta',
-  libre: 'Sin preguntar',
+  autonomo: 'Autónomo',
 }
 
 /** Dónde se cambia, en las palabras de la app. */
 export const DONDE_PERMISOS = 'Ajustes › Permisos y seguridad'
 export const DONDE_CARPETAS = 'Ajustes › Permisos y seguridad › Carpetas a las que tu cerebro puede entrar'
 
-/** La frase que la persona escribe para quitar el freno. La UI la muestra; el servidor la exige. */
-export const FRASE_SIN_FRENO = 'quito el freno bajo mi responsabilidad'
-/** Mayúsculas, espacios de más, comillas y el punto final no cuentan; las palabras sí, completas y en orden. */
-export const normalizarFrase = (t: string): string =>
-  t.normalize('NFC').toLowerCase().replace(/[«»"“”'‘’]/g, '').replace(/\s+/g, ' ').trim().replace(/[.!]+$/, '').trim()
-export const fraseSinFrenoValida = (t: unknown): boolean => typeof t === 'string' && t.length <= 200 && normalizarFrase(t) === FRASE_SIN_FRENO
-/** Lo que el freno quitado deja correr sin clic. Pagar no está: el dinero se niega siempre. */
-export const LIBERA_SIN_FRENO = ['enviar', 'borrar', 'publicar'] as const
+/** Por dónde llegó una aceptación o un cambio (queda en el registro). */
+export type ViaConsentimiento = 'bienvenida' | 'ajustes' | 'pildora' | 'pausa' | 'migracion' | 'version' | 'api'
+export const esVia = (v: unknown): v is ViaConsentimiento => typeof v === 'string' && ['bienvenida', 'ajustes', 'pildora', 'pausa', 'migracion', 'version', 'api'].includes(v)
 
-export interface EntradaHistorialFreno { ts: number; accion: 'activado' | 'desactivado'; motivo: string }
+/** Consentimiento vigente: lo que la persona aceptó, con la versión y la huella del texto que leyó. */
+export interface Consentimiento { ts: number; version: string; sha256: string; app: string; so: string; via: ViaConsentimiento }
+
+export type AccionHistorial = 'aceptado' | 'retirado' | 'cambio_de_modo' | 'migracion' | 'version_nueva'
+export interface EntradaHistorialModo {
+  ts: number; accion: AccionHistorial; modo: ModoPermisos
+  texto?: { version: string; sha256: string }; app?: string; so?: string; via?: ViaConsentimiento; motivo?: string
+}
+
 export interface EstadoPermisos {
   modo: ModoPermisos
-  /** El freno quitado solo vale en «libre»: en cualquier otro modo es false aunque el archivo diga otra cosa. */
-  sinFreno: boolean
-  sinFrenoDesde: number | null
-  historialFreno: EntradaHistorialFreno[]
+  /** Consentimiento del modo Autónomo tal como se guardó (puede ser de una versión anterior del texto: ver `reaceptar`). */
+  consentimiento: Consentimiento | null
+  /** El consentimiento guardado es de otra versión del texto: Autónomo no aplica hasta que acepte la nueva. */
+  reaceptar: boolean
+  /** Archivo de una versión anterior con «Sin preguntar» o el freno quitado: la app ofrece Autónomo una vez. */
+  migracion: 'libre' | 'sinFreno' | null
+  /** No se poda: es la prueba de cada aceptación, retiro y cambio. */
+  historialModo: EntradaHistorialModo[]
+  /** A13 (0.2.15): el teléfono y el correo de la persona, para que mandarse algo a sí misma no cuente como «transmitir datos». */
+  misDatos: MisDatos
 }
-const MAX_HISTORIAL = 50
+/** Lo guarda la persona en Ajustes (solo la app: un agente no se pone destinos propios). Vacío = sin dato. */
+export interface MisDatos { telefono: string; correo: string }
+const SIN_DATOS = (): MisDatos => ({ telefono: '', correo: '' })
+const MAX_HISTORIAL = 200
 
 const archivo = () => join(DIR_ARBRAIN(), 'permisos.json')
 let cache: { ruta: string; mtime: number; estado: EstadoPermisos } | null = null
-const DEFECTO = (): EstadoPermisos => ({ modo: MODO_POR_DEFECTO, sinFreno: false, sinFrenoDesde: null, historialFreno: [] })
+const DEFECTO = (): EstadoPermisos => ({ modo: MODO_POR_DEFECTO, consentimiento: null, reaceptar: false, migracion: null, historialModo: [], misDatos: SIN_DATOS() })
 
-function leerHistorial(v: unknown): EntradaHistorialFreno[] {
-  if (!Array.isArray(v)) return []
-  return v.filter((e): e is EntradaHistorialFreno => !!e && typeof e === 'object' && typeof (e as EntradaHistorialFreno).ts === 'number'
-    && ((e as EntradaHistorialFreno).accion === 'activado' || (e as EntradaHistorialFreno).accion === 'desactivado'))
-    .map(e => ({ ts: e.ts, accion: e.accion, motivo: String(e.motivo ?? '').slice(0, 200) })).slice(-MAX_HISTORIAL)
+const texto = (v: unknown, max = 60) => typeof v === 'string' ? v.slice(0, max) : ''
+
+function leerConsentimiento(v: unknown): Consentimiento | null {
+  if (!v || typeof v !== 'object') return null
+  const c = v as Record<string, unknown>
+  if (typeof c.ts !== 'number' || typeof c.version !== 'string' || typeof c.sha256 !== 'string') return null
+  return { ts: c.ts, version: c.version.slice(0, 80), sha256: c.sha256.slice(0, 64), app: texto(c.app), so: texto(c.so), via: esVia(c.via) ? c.via : 'api' }
 }
+
+function leerHistorial(v: unknown, viejo: unknown): EntradaHistorialModo[] {
+  const out: EntradaHistorialModo[] = []
+  // `historialFreno` de las versiones anteriores (activado/desactivado del freno quitado): se conserva como historia.
+  if (Array.isArray(viejo)) for (const e of viejo) {
+    if (!e || typeof e !== 'object' || typeof (e as { ts?: unknown }).ts !== 'number') continue
+    const h = e as { ts: number; accion?: unknown; motivo?: unknown }
+    out.push({ ts: h.ts, accion: 'cambio_de_modo', modo: 'carpeta', motivo: `freno quitado (versión anterior): ${texto(h.accion, 20)}${h.motivo ? `, ${texto(h.motivo, 200)}` : ''}` })
+  }
+  if (Array.isArray(v)) for (const e of v) {
+    if (!e || typeof e !== 'object') continue
+    const h = e as Record<string, unknown>
+    if (typeof h.ts !== 'number' || !esModo(h.modo) || typeof h.accion !== 'string') continue
+    const t = h.texto && typeof h.texto === 'object' ? h.texto as Record<string, unknown> : null
+    out.push({
+      ts: h.ts, accion: h.accion as AccionHistorial, modo: h.modo,
+      ...(t && typeof t.version === 'string' && typeof t.sha256 === 'string' ? { texto: { version: t.version.slice(0, 80), sha256: t.sha256.slice(0, 64) } } : {}),
+      ...(h.app ? { app: texto(h.app) } : {}), ...(h.so ? { so: texto(h.so) } : {}), ...(esVia(h.via) ? { via: h.via } : {}), ...(h.motivo ? { motivo: texto(h.motivo, 200) } : {}),
+    })
+  }
+  return out.sort((a, b) => a.ts - b.ts).slice(-MAX_HISTORIAL)
+}
+
+const TELEFONO = /^\+?\d{8,15}$/
+const CORREO = /^[\w.+-]+@[\w-]+(\.[\w-]+)+$/
+/** Normaliza y valida; lo que no parece teléfono o correo se descarta (vacío). */
+export function normalizarMisDatos(v: unknown): MisDatos | null {
+  if (!v || typeof v !== 'object') return null
+  const d = v as Record<string, unknown>
+  const tel = typeof d.telefono === 'string' ? d.telefono.trim().replace(/[\s().-]/g, '') : ''
+  const correo = typeof d.correo === 'string' ? d.correo.trim().toLowerCase() : ''
+  if (tel && !TELEFONO.test(tel)) return null
+  if (correo && (!CORREO.test(correo) || correo.length > 120)) return null
+  return { telefono: tel, correo }
+}
+function leerMisDatos(v: unknown): MisDatos { return normalizarMisDatos(v) ?? SIN_DATOS() }
 
 export function estadoPermisos(): EstadoPermisos {
   try {
@@ -83,61 +130,117 @@ export function estadoPermisos(): EstadoPermisos {
     if (!existsSync(p)) return DEFECTO()
     const mtime = statSync(p).mtimeMs
     if (cache && cache.ruta === p && cache.mtime === mtime) return cache.estado
-    const j = JSON.parse(readFileSync(p, 'utf8')) as { modo?: unknown; sinFreno?: unknown; historialFreno?: unknown }
-    const modo = esModo(j.modo) ? j.modo : MODO_POR_DEFECTO
-    const desde = j.sinFreno && typeof j.sinFreno === 'object' && typeof (j.sinFreno as { desde?: unknown }).desde === 'number' ? (j.sinFreno as { desde: number }).desde : null
-    const sinFreno = modo === 'libre' && desde !== null
-    const estado: EstadoPermisos = { modo, sinFreno, sinFrenoDesde: sinFreno ? desde : null, historialFreno: leerHistorial(j.historialFreno) }
+    const j = JSON.parse(readFileSync(p, 'utf8')) as Record<string, unknown>
+    const consentimiento = leerConsentimiento(j.consentimiento)
+    // Versiones anteriores: «libre» (con o sin el freno quitado) baja a «carpeta» y queda marcado para la migración.
+    const sinFrenoViejo = !!j.sinFreno && typeof j.sinFreno === 'object' && typeof (j.sinFreno as { desde?: unknown }).desde === 'number'
+    const migracion: EstadoPermisos['migracion'] = j.migracion === 'libre' || j.migracion === 'sinFreno' ? j.migracion : j.modo === 'libre' ? (sinFrenoViejo ? 'sinFreno' : 'libre') : null
+    let modo: ModoPermisos = esModo(j.modo) ? j.modo : MODO_POR_DEFECTO
+    let reaceptar = false
+    if (modo === 'autonomo') {
+      // Autónomo solo vale con el consentimiento del texto empaquetado; otra versión (o ninguno) lo baja a «carpeta».
+      if (!consentimiento) modo = 'carpeta'
+      else if (!aceptacionCoincide(consentimiento.version, consentimiento.sha256)) { modo = 'carpeta'; reaceptar = true }
+    }
+    const estado: EstadoPermisos = { modo, consentimiento, reaceptar, migracion, historialModo: leerHistorial(j.historialModo, j.historialFreno), misDatos: leerMisDatos(j.misDatos) }
     cache = { ruta: p, mtime, estado }
     return estado
   } catch { return DEFECTO() }
 }
 
 export const modoPermisos = (): ModoPermisos => estadoPermisos().modo
+export const esAutonomo = (): boolean => modoPermisos() === 'autonomo'
 
-function escribir(e: EstadoPermisos, ahora: number): void {
+interface Guardado { modo: ModoPermisos; consentimiento: Consentimiento | null; migracion: EstadoPermisos['migracion']; historialModo: EntradaHistorialModo[]; misDatos?: MisDatos }
+
+function escribir(e: Guardado, ahora: number): void {
   const p = archivo()
+  // Cambiar de modo o retirar el consentimiento no borra «mis datos»: se conservan salvo que se escriban a propósito.
+  const mis = e.misDatos ?? estadoPermisos().misDatos
   mkdirSync(dirname(p), { recursive: true, mode: 0o700 })
-  const cuerpo = { modo: e.modo, cambiado: ahora, ...(e.sinFreno && e.sinFrenoDesde !== null ? { sinFreno: { desde: e.sinFrenoDesde } } : {}), historialFreno: e.historialFreno.slice(-MAX_HISTORIAL) }
+  const cuerpo = {
+    modo: e.modo, cambiado: ahora,
+    ...(e.consentimiento ? { consentimiento: e.consentimiento } : {}),
+    ...(e.migracion ? { migracion: e.migracion } : {}),
+    historialModo: e.historialModo.slice(-MAX_HISTORIAL),
+    ...(mis.telefono || mis.correo ? { misDatos: mis } : {}),
+  }
   writeFileSync(p, JSON.stringify(cuerpo, null, 1) + '\n', { mode: 0o600 })
   cache = null
 }
 
-/**
- * Cambia el modo. Si el freno estaba quitado y el modo deja de ser «libre», se apaga solo (y queda en el historial).
- * `frenoApagado` le dice a la ruta que lo anote en la bitácora.
- */
-export function cambiarModoPermisos(modo: ModoPermisos, ahora = Date.now()): { estado: EstadoPermisos; frenoApagado: boolean } {
-  const antes = estadoPermisos()
-  const frenoApagado = antes.sinFreno && modo !== 'libre'
-  const historialFreno = frenoApagado
-    ? [...antes.historialFreno, { ts: ahora, accion: 'desactivado' as const, motivo: `el modo cambió a «${NOMBRE_MODO[modo]}»` }]
-    : antes.historialFreno
-  escribir({ modo, sinFreno: modo === 'libre' && antes.sinFreno, sinFrenoDesde: modo === 'libre' ? antes.sinFrenoDesde : null, historialFreno }, ahora)
-  return { estado: estadoPermisos(), frenoApagado }
+const actual = (): Guardado => { const e = estadoPermisos(); return { modo: e.modo, consentimiento: e.consentimiento, migracion: e.migracion, historialModo: e.historialModo, misDatos: e.misDatos } }
+
+/** A13: guarda el teléfono y el correo de la persona (Ajustes). Lo llama la ruta del daemon con el secreto de la app. */
+export function guardarMisDatos(v: unknown, ahora = Date.now()): { ok: true; estado: EstadoPermisos } | { ok: false; error: string } {
+  const d = normalizarMisDatos(v)
+  if (!d) return { ok: false, error: 'Escribe tu teléfono con lada (8 a 15 dígitos) y un correo válido, o déjalos vacíos.' }
+  escribir({ ...actual(), misDatos: d }, ahora)
+  return { ok: true, estado: estadoPermisos() }
 }
 
-export function fijarModoPermisos(modo: ModoPermisos, ahora = Date.now()): ModoPermisos {
-  return cambiarModoPermisos(modo, ahora).estado.modo
-}
+/** Los datos propios para las manos: teléfono y correo no vacíos. */
+export const datosPropios = (): string[] => { const m = estadoPermisos().misDatos; return [m.telefono, m.correo].filter(Boolean) }
 
-export type ResultadoSinFreno = { ok: true; estado: EstadoPermisos; cambio: boolean } | { ok: false; status: number; error: string }
+export type ResultadoModo = { ok: true; estado: EstadoPermisos; cambio: boolean } | { ok: false; status: number; error: string; code?: 'consentimiento' | 'version' }
+
+export interface Aceptacion { version: unknown; sha256: unknown; app?: unknown; so?: unknown; via?: unknown }
 
 /**
- * Quita o devuelve el freno. Quitarlo exige el modo «Sin preguntar» y la frase exacta; devolverlo, nada (es más
- * estricto, un clic). `cambio` = false si ya estaba así (no se anota dos veces).
+ * Cambia el modo. A «autonomo» solo con un consentimiento vigente (el guardado, si es del texto empaquetado) o con una
+ * aceptación nueva que coincida con ese texto (`acepto`); si no, 409 con `code` para que la app muestre el texto. Pasar a
+ * «carpeta» o «preguntar» conserva el consentimiento guardado (volver a Autónomo después es un clic) salvo que se retire.
  */
-export function fijarSinFreno(activar: boolean, op: { frase?: unknown; ahora?: number } = {}): ResultadoSinFreno {
+export function cambiarModoPermisos(modo: ModoPermisos, op: { acepto?: Aceptacion; via?: unknown; ahora?: number } = {}): ResultadoModo {
   const ahora = op.ahora ?? Date.now()
-  const antes = estadoPermisos()
-  if (!activar) {
-    if (!antes.sinFreno) return { ok: true, estado: antes, cambio: false }
-    escribir({ ...antes, sinFreno: false, sinFrenoDesde: null, historialFreno: [...antes.historialFreno, { ts: ahora, accion: 'desactivado', motivo: 'lo apagó la persona' }] }, ahora)
-    return { ok: true, estado: estadoPermisos(), cambio: true }
+  const antes = actual()
+  const via: ViaConsentimiento = esVia(op.via) ? op.via : 'api'
+  let consentimiento = antes.consentimiento
+  const historial = [...antes.historialModo]
+  if (modo === 'autonomo') {
+    const vigente = consentimiento && aceptacionCoincide(consentimiento.version, consentimiento.sha256)
+    if (op.acepto) {
+      if (!aceptacionCoincide(op.acepto.version, op.acepto.sha256)) return { ok: false, status: 409, code: 'version', error: `El texto que aceptaste no es el de esta versión de Arbrain (${VERSION_AUTONOMIA}). Recarga y vuelve a leerlo.` }
+      consentimiento = { ts: ahora, version: String(op.acepto.version), sha256: String(op.acepto.sha256), app: texto(op.acepto.app), so: texto(op.acepto.so), via }
+      historial.push({ ts: ahora, accion: 'aceptado', modo, texto: { version: consentimiento.version, sha256: consentimiento.sha256 }, app: consentimiento.app, so: consentimiento.so, via })
+    } else if (!vigente) {
+      return { ok: false, status: 409, code: 'consentimiento', error: 'El modo Autónomo necesita que leas y aceptes su texto (dos casillas). Ábrelo en Ajustes › Permisos y seguridad.' }
+    }
   }
-  if (antes.modo !== 'libre') return { ok: false, status: 409, error: `Quitar el freno solo existe dentro de «${NOMBRE_MODO.libre}». Elige ese modo primero.` }
-  if (!fraseSinFrenoValida(op.frase)) return { ok: false, status: 400, error: `Para quitar el freno escribe exactamente: «${FRASE_SIN_FRENO}».` }
-  if (antes.sinFreno) return { ok: true, estado: antes, cambio: false }
-  escribir({ ...antes, sinFreno: true, sinFrenoDesde: ahora, historialFreno: [...antes.historialFreno, { ts: ahora, accion: 'activado', motivo: 'la persona escribió la frase de confirmación' }] }, ahora)
+  if (antes.modo === modo && !op.acepto) return { ok: true, estado: estadoPermisos(), cambio: false }
+  if (antes.modo !== modo && !(modo === 'autonomo' && op.acepto)) historial.push({ ts: ahora, accion: 'cambio_de_modo', modo, via, motivo: `de «${NOMBRE_MODO[antes.modo]}» a «${NOMBRE_MODO[modo]}»` })
+  // Elegir un nivel ya es decidir sobre la migración de la versión anterior.
+  escribir({ modo, consentimiento, migracion: null, historialModo: historial }, ahora)
   return { ok: true, estado: estadoPermisos(), cambio: true }
+}
+
+/** Atajo para pruebas y para quien no necesita el resultado completo. Lanza si Autónomo no tiene consentimiento. */
+export function fijarModoPermisos(modo: ModoPermisos, ahora = Date.now()): ModoPermisos {
+  const r = cambiarModoPermisos(modo, { ahora })
+  if (!r.ok) throw new Error(r.error)
+  return r.estado.modo
+}
+
+/** Retirar el consentimiento: baja a «carpeta», borra la aceptación y lo anota. Más estricto: no exige el secreto. */
+export function retirarConsentimiento(op: { via?: unknown; ahora?: number } = {}): ResultadoModo {
+  const ahora = op.ahora ?? Date.now()
+  const antes = actual()
+  if (!antes.consentimiento && antes.modo !== 'autonomo') return { ok: true, estado: estadoPermisos(), cambio: false }
+  const via: ViaConsentimiento = esVia(op.via) ? op.via : 'api'
+  escribir({ modo: 'carpeta', consentimiento: null, migracion: null, historialModo: [...antes.historialModo, { ts: ahora, accion: 'retirado', modo: 'carpeta', via, ...(antes.consentimiento ? { texto: { version: antes.consentimiento.version, sha256: antes.consentimiento.sha256 } } : {}) }] }, ahora)
+  return { ok: true, estado: estadoPermisos(), cambio: true }
+}
+
+/**
+ * La persona vio la oferta de migración (o el aviso de que el texto cambió) y decidió después: queda en «carpeta» y no
+ * se le vuelve a preguntar. Si el consentimiento era de otra versión, se retira (sigue en el historial).
+ */
+export function cerrarMigracion(ahora = Date.now()): EstadoPermisos {
+  const e = estadoPermisos()
+  if (!e.migracion && !e.reaceptar) return e
+  const entrada: EntradaHistorialModo = e.reaceptar
+    ? { ts: ahora, accion: 'version_nueva', modo: 'carpeta', motivo: `el texto cambió a ${VERSION_AUTONOMIA} y la persona decidió después: queda en «Automático en mi carpeta»`, ...(e.consentimiento ? { texto: { version: e.consentimiento.version, sha256: e.consentimiento.sha256 } } : {}) }
+    : { ts: ahora, accion: 'migracion', modo: 'carpeta', motivo: 'la persona decidió después: queda en «Automático en mi carpeta»' }
+  escribir({ modo: 'carpeta', consentimiento: e.reaceptar ? null : e.consentimiento, migracion: null, historialModo: [...e.historialModo, entrada] }, ahora)
+  return estadoPermisos()
 }

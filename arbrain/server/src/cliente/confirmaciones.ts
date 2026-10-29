@@ -120,8 +120,12 @@ export const VIDA_COLA_MS = 7 * 24 * 60 * 60_000
  */
 export const VIDA_APROBACION_COLA_MS = 30 * 60_000
 export const VIDA_APROBACION_COLA_RUTINA_MS = 24 * 60 * 60_000
-/** Orígenes que pasan a la cola en vez de vencer (manos de computer use espera su propio clic y vence como antes). */
-const ORIGENES_COLA = `('agente','cron')`
+/**
+ * Orígenes que pasan a la cola en vez de vencer. A3 (0.2.15): también las de manos de computer use; antes vencían a los
+ * 90 s mientras la interfaz prometía 10 min, y un clic tardío ya no servía. Ahora el clic de la cola vale para el
+ * reintento de la misma acción (huella estable, A4).
+ */
+const ORIGENES_COLA = `('agente','cron','manos')`
 
 export const huellaDe = (...partes: unknown[]) => createHash('sha256').update(JSON.stringify(partes)).digest('hex').slice(0, 32)
 

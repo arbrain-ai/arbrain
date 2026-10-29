@@ -7,11 +7,16 @@
  * demás (rutinas, computer use, o un pedido de Levy sin hilo a la vista) sigue en el diálogo global.
  *
  * Modo de demostración (`activarDemo`): la página de capturas inyecta confirmaciones de ejemplo y nada se sondea.
+ *
+ * A6 (0.2.15): el sondeo sigue aunque la pestaña esté oculta (más lento) y, si llega una pendiente nueva mientras la
+ * ventana no está a la vista, se avisa con una notificación del navegador (si la persona la permitió); el daemon manda
+ * además la del sistema. Antes solo se buscaban pendientes con la ventana visible y, tapada por WhatsApp, nadie las veía.
  */
 import { useSyncExternalStore } from 'react'
 import { vivasParaLaPersona, type Confirmacion, type EstadoSandbox } from './confirmacion'
 
 const SONDEO_MS = 1500
+const SONDEO_OCULTO_MS = 5000
 
 /** `terminadas` (ronda 3): «Córrelo tú» que acaba de terminar, para que su tarjeta quede en «Listo» en vez de esfumarse. */
 interface Estado { pendientes: Confirmacion[]; terminadas: Confirmacion[]; sandbox: EstadoSandbox | null; hilosVivos: number; demo: boolean }
@@ -28,16 +33,42 @@ export async function leerPendientes(): Promise<void> {
     if (!r.ok) return
     const j = await r.json() as { pendientes?: Confirmacion[]; terminadas?: Confirmacion[]; sandbox?: EstadoSandbox }
     const terminadas = (Array.isArray(j.terminadas) ? j.terminadas : []).filter(c => c.estado === 'corrida' && !descartadas().has(c.id))
-    emitir({ pendientes: vivasParaLaPersona(Array.isArray(j.pendientes) ? j.pendientes : []), terminadas, ...(j.sandbox && typeof j.sandbox.disponible === 'boolean' ? { sandbox: j.sandbox } : {}) })
+    const vivas = vivasParaLaPersona(Array.isArray(j.pendientes) ? j.pendientes : [])
+    avisarSiTapada(vivas)
+    emitir({ pendientes: vivas, terminadas, ...(j.sandbox && typeof j.sandbox.disponible === 'boolean' ? { sandbox: j.sandbox } : {}) })
   } catch { /* el daemon se está reiniciando: se reintenta en el siguiente ciclo */ }
 }
 
-const alVolver = () => { if (document.visibilityState === 'visible') void leerPendientes() }
+/** Pendientes que ya se avisaron (una notificación por pendiente, solo mientras la ventana no está a la vista). */
+const avisadas = new Set<string>()
+export function avisarSiTapada(vivas: Confirmacion[], visible = typeof document !== 'undefined' && document.visibilityState === 'visible'): string[] {
+  const nuevas = vivas.filter(c => c.estado === 'pendiente' && !avisadas.has(c.id))
+  for (const c of nuevas) avisadas.add(c.id)
+  if (visible || !nuevas.length) return []
+  if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+    for (const c of nuevas) { try { new Notification('Levy espera tu clic', { body: (c.frase || c.resumen).slice(0, 160), tag: `arbrain-pendiente-${c.id}` }) } catch { /* sin notificaciones del navegador: el daemon manda la del sistema */ } }
+  }
+  if (avisadas.size > 500) avisadas.clear()
+  return nuevas.map(c => c.id)
+}
+
+let ultimoSondeo = 0
+const tic = () => {
+  const visible = document.visibilityState === 'visible'
+  const cada = visible ? SONDEO_MS : SONDEO_OCULTO_MS
+  if (Date.now() - ultimoSondeo < cada - 50) return
+  ultimoSondeo = Date.now()
+  void leerPendientes()
+}
+const alVolver = () => { if (document.visibilityState === 'visible') { ultimoSondeo = Date.now(); void leerPendientes() } }
 function arrancar() {
   if (timer !== null || typeof window === 'undefined') return
+  ultimoSondeo = Date.now()
   void leerPendientes()
-  timer = window.setInterval(alVolver, SONDEO_MS)
+  timer = window.setInterval(tic, SONDEO_MS)
   document.addEventListener('visibilitychange', alVolver)
+  // Pedir permiso de notificaciones una vez, cuando ya hay interacción (los navegadores lo exigen); en Tauri puede no existir.
+  try { if (typeof Notification !== 'undefined' && Notification.permission === 'default') window.addEventListener('pointerdown', () => { void Notification.requestPermission().catch(() => {}) }, { once: true }) } catch { /* sin Notification */ }
 }
 function parar() {
   if (timer === null) return

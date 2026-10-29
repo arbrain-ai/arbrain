@@ -49,8 +49,10 @@ export function FichaCola({ c, abierta: abiertaInicial = false }: { c: Confirmac
   const fin = listo ? resumenCorrida(c) : null
   const Icono = listo ? (fin?.ok === false ? CircleAlert : Check) : corriendo ? Loader2 : manos ? Hand : peligro ? ShieldAlert : Terminal
   const cuando = c.enColaDesde ? desdeCuando(c.enColaDesde) : null
+  // Autónomo en rutinas (0.2.15, decisión 5): lo que una rutina quiso enviar o publicar sin la persona delante es un borrador.
+  const borrador = c.origen === 'cron' && (c.categoria === 'enviar' || c.categoria === 'publicar')
   const linea = listo ? fin!.titulo : corriendo ? 'Corriendo en tu terminal' : (c.frase || c.resumen)
-  const sub = listo ? (c.frase || c.resumen) : corriendo ? 'Escribe en el recuadro negro de abajo' : `${manos ? 'Necesita tus manos' : peligro ? 'Siempre pide tu clic' : 'Un comando'}${cuando ? ` · ${cuando}` : ''}`
+  const sub = listo ? (c.frase || c.resumen) : corriendo ? 'Escribe en el recuadro negro de abajo' : `${borrador ? 'Borrador de tu rutina: sale solo con tu clic' : manos ? 'Necesita tus manos' : peligro ? 'Siempre pide tu clic' : 'Un comando'}${cuando ? ` · ${cuando}` : ''}`
   const rapida = !manos && !peligro && !listo && !corriendo
   return (
     <article className={s.ficha} data-abierta={abierta ? 'si' : undefined} data-peligro={peligro ? 'si' : undefined} data-fin={listo ? (fin?.ok === false ? 'error' : 'ok') : undefined}>

@@ -17,6 +17,24 @@ export function parsearUrl(url: string): URL | null {
 /** Host sin `www.` ni punto final, en minúsculas. */
 export const hostDe = (u: URL) => u.hostname.toLowerCase().replace(/^www\./, '').replace(/\.$/, '')
 
+/** Etiquetas DNS que no nombran a nadie («web», «www», «app», «com», «mx»…). */
+const ETIQUETAS_GENERICAS = new Set(['www', 'web', 'app', 'apps', 'mail', 'login', 'auth', 'api', 'docs', 'help', 'support', 'accounts', 'account', 'static', 'cdn', 'com', 'net', 'org', 'info', 'edu', 'gov', 'gob', 'site', 'online', 'shop', 'store', 'blog', 'news', 'home', 'portal', 'secure', 'my'])
+/**
+ * A5 (0.2.15): ¿la persona nombró este sitio en el chat? Una etiqueta del host de 4+ letras que no sea genérica
+ * («whatsapp» en web.whatsapp.com, «skool» en skool.com) dentro de uno de sus mensajes recientes (ya normalizados).
+ * Así «envíame un WhatsApp» aprueba abrir web.whatsapp.com sin el clic de «sitio nuevo», y una conversación contaminada
+ * no toma esa misma dirección por «una dirección que no apareció en lo que pediste». Pura.
+ */
+const SUFIJOS = new Set(['com', 'co', 'org', 'net', 'gob', 'gov', 'edu', 'ac', 'or', 'ne'])
+export function hostNombradoEnVoz(h: string, voz: readonly string[]): boolean {
+  // Sin el sufijo público («.test», «.mx», «.com.mx»): un correo «@cliente.test» en el chat no nombra a evil.test.
+  const partes = h.toLowerCase().split('.')
+  partes.pop()
+  if (partes.length > 1 && SUFIJOS.has(partes[partes.length - 1])) partes.pop()
+  const etiquetas = partes.filter(e => e.length >= 4 && !ETIQUETAS_GENERICAS.has(e) && !/^\d+$/.test(e))
+  return etiquetas.some(e => voz.some(v => v.includes(e)))
+}
+
 const decodificar = (s: string) => { try { return decodeURIComponent(s) } catch { return s } }
 const mezcla = (s: string) => /\d/.test(s) && /[A-Za-z]/.test(s)
 
