@@ -143,7 +143,7 @@ test('toque con la app abierta en otro chat: avisa y cambia de conversación sin
 test('toque: nunca navega un iframe; elige la ventana de primer nivel (la enfocada primero)', async () => {
   const url = '/chat?session=b-otra'
   const hechos = await tocarNotificacion(url, [
-    { url: 'https://arbrain.test/pizarron/escenario.html', frameType: 'nested', focused: true },
+    { url: 'https://arbrain.test/embebido/escenario.html', frameType: 'nested', focused: true },
     { url: 'https://otro.test/chat', frameType: 'top-level' },
     { url: 'https://arbrain.test/calendar', frameType: 'top-level' },
     { url: 'https://arbrain.test/chat', frameType: 'top-level', focused: true },

@@ -39,14 +39,14 @@ imprimen): `MC_SERVER_PORT`, `MISSION_CONTROL_ORIGIN`, `ARBRAIN_PASE_AGENTE` (Be
 | Sección | Qué hace | Referencia |
 |---|---|---|
 | Chat | Hablar con Levy; conversaciones recientes; adjuntos; preguntas que Levy te hace | [references/chat.md](references/chat.md) |
-| Lienzo | Pizarrón infinito: diagramas compilados por Levy y dibujo a mano | [references/canvas-diagram/index.md](references/canvas-diagram/index.md) y [../canvas/SKILL.md](../canvas/SKILL.md) |
+| Lienzo | Lienzo infinito: diagramas compilados por Levy y dibujo a mano | [references/canvas-diagram/index.md](references/canvas-diagram/index.md) y [../canvas/SKILL.md](../canvas/SKILL.md) |
 | Panel derecho | Pestañas «+»: Lienzo, Explorador (archivos del cerebro) y Taller (terminal donde haya motor) | Este archivo |
 | Memoria | Lo que Levy sabe de ti, en `.claude/memory/` | Skill `memory-manager` |
 | Ajustes | Apariencia, Modelos, Atajos, Panel, Esta computadora, Llaves, Privacidad y monitoreo, Cuenta | Este archivo |
 | Datos locales | Qué tablas guarda la app y dónde | [references/schema.md](references/schema.md) |
 
 Lo que **no** existe en esta edición (no lo prometas ni lo busques): tablero de tareas, calendario, hábitos,
-notificaciones push, campana de avisos, feed de actividad, voz y modo Live, Consejo, biblioteca, pizarrón,
+notificaciones push, campana de avisos, feed de actividad, voz y modo Live, Consejo, biblioteca,
 paneles de negocio. Si el dueño lo pide, dilo claro y ofrece la alternativa que sí existe (una nota en memoria,
 un lienzo, un despertador en la conversación).
 

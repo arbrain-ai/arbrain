@@ -11,13 +11,12 @@ import { useGobierno } from './gobierno'
 import { useEncuadre } from './useEncuadre'
 import d from './dia-vivo.module.css'
 import { esNoNegociable, SECCION, seccionDe } from './secciones'
-import { franjasDelDia, rango, resumenCampo } from './campos-fondo'
-import { instalacion } from '@/config'
+import { franjasDelDia, rango, resumenCampo, tituloZona } from './campos-fondo'
+import { DEF } from './categorias'
+import { useZonas } from './useZonas'
 // La línea de ahora es la de «Tu día» (cabina/luz.module.css): se aplican las dos clases, no se copia el estilo.
 import luz from '@/features/cabina/luz.module.css'
 
-/** Los campos de fondo de esta instalación (28 oct 2026, campos-fondo.ts): trabajo profundo y ventana de comida. */
-const CAMPOS_FONDO = instalacion().camposFondo
 /** Alto de una hora (10 oct 2026): el día entero de 05 a 22 mide ~510 px y va en el scroll del panel o de la página. */
 const HORA_PX = 30
 /** Con `llenar`, la hora nunca baja de esto aunque la pantalla sea corta (la etiqueta y un bloque de 30 min siguen legibles). */
@@ -52,6 +51,8 @@ export function AgendaMini({ bloques, bandas = [], todoElDia, fecha, ahora, esHo
   /** Dos columnas (24 oct 2026): el día entero cabe en el alto que le dan, sin scroll; la hora mide lo que alcance. */
   llenar?: boolean
 }) {
+  // Zonas de mi vida (28 oct 2026): las encendidas de la persona (useZonas), detrás de todo.
+  const zonas = useZonas()
   const base = new Date(fecha).setHours(0, 0, 0, 0)
   // Lo de día completo nace plegado en una línea (ronda 3, 10 oct 2026): el mismo estado que la franja de la Semana.
   const plegadas = Boolean(onTodoElDia) && !todoElDiaAbierto && todoElDia.length > 1
@@ -87,7 +88,7 @@ export function AgendaMini({ bloques, bandas = [], todoElDia, fecha, ahora, esHo
   const ahoraY = esHoy ? y(ahora) : null
   // Campos de fondo: detrás de todo; si una llamada pisa el trabajo profundo, la llamada gana y la etiqueta lo dice.
   const diaClave = `${new Date(base).getFullYear()}-${String(new Date(base).getMonth() + 1).padStart(2, '0')}-${String(new Date(base).getDate()).padStart(2, '0')}`
-  const franjas = franjasDelDia(CAMPOS_FONDO, diaClave)
+  const franjas = franjasDelDia(zonas.encendidas, diaClave)
   const llamadas = bloques.filter(b => esCompromiso(b.evento)).map(b => ({ desde: (b.inicio - base) / 60000, hasta: (b.fin - base) / 60000 }))
   const profundo = resumenCampo(franjas, 'profundo', llamadas)
   // DRIP (24 oct 2026): la etiqueta de lo delegable, de quién es y el candado de lo protegido.
@@ -101,7 +102,7 @@ export function AgendaMini({ bloques, bandas = [], todoElDia, fecha, ahora, esHo
   return <section className={`${d.columna} ${d.areaAgenda}`} aria-label="Agenda">
     <header className={`${d.titulo} ${d.entra}`} style={esc(2)}><h3>Agenda</h3>{bloques.length > 0 && <small>{bloques.length}</small>}
       {/* El espejo del día (28 oct 2026): cuánto trabajo profundo deja libre la agenda y la ventana de comida, en una línea. */}
-      {franjas.length > 0 && <span className={d.camposResumen} data-campos>{[profundo?.texto, ...franjas.filter(f => f.tipo === 'comida').slice(0, 1).map(f => `Comida ${rango(f)}`)].filter(Boolean).join(' · ')}</span>}
+      {franjas.length > 0 && <span className={d.camposResumen} data-campos>{[profundo?.texto, ...franjas.filter(f => f.clave === 'comida').slice(0, 1).map(f => `Comida ${rango(f)}`)].filter(Boolean).join(' · ')}</span>}
       {onRejilla && <button className={`${d.accion} ${d.soloIcono} ${d.sutil}`} onClick={onRejilla} aria-pressed={rejilla} aria-label={rejilla ? 'Plegar la rejilla de horas' : 'Ver en horas'}
         title={rejilla ? 'Plegar la rejilla de horas' : 'Rejilla completa (arrastrar y crear)'}><CalendarClock size={13} aria-hidden /></button>}
     </header>
@@ -117,10 +118,10 @@ export function AgendaMini({ bloques, bandas = [], todoElDia, fecha, ahora, esHo
         {esHoy && ahoraY != null && ahoraY > 0 && <i className={d.miniVivido} style={{ height: Math.min(ahoraY, alto) }} aria-hidden />}
         {horas.map(m => <span key={m} className={d.miniHora} style={{ top: (m - desde) / 60 * px }}>
           <time hidden={ahoraY != null && Math.abs((m - desde) / 60 * px - ahoraY) < 12}>{String(Math.floor(m / 60) % 24).padStart(2, '0')}</time></span>)}
-        {franjas.map((f, k) => { const top = y(base + f.desde * 60000), h = y(base + f.hasta * 60000) - top
-          const primera = franjas.findIndex(x => x.clave === f.clave) === k
-          return <div key={`campo${k}`} className={d.miniCampo} data-tipo={f.tipo} data-campo={f.clave} style={{ top, height: h }} aria-hidden title={`${f.titulo} · ${rango(f)}`}>
-            {primera && <span>{f.tipo === 'comida' ? `Comida ${rango(f)}` : profundo?.texto ?? f.titulo}</span>}</div> })}
+        {/* Zonas de mi vida: tinte del color de su categoría, sin texto; su nombre y sus horas, al pasar el cursor. Fuera del tramo, nada. */}
+        {franjas.filter(f => f.hasta > desde && f.desde < hasta).map((f, k) => { const top = y(base + Math.max(f.desde, desde) * 60000), h = y(base + Math.min(f.hasta, hasta) * 60000) - top
+          return <div key={`campo${k}`} className={d.miniCampo} data-forma={f.forma} data-campo={f.clave} data-categoria={f.categoria}
+            style={{ top, height: h, ['--c' as string]: DEF[f.categoria].color } as CSSProperties} aria-hidden title={tituloZona(f, profundo)} /> })}
         {bandas.map(b => { const top = y(b.inicio), h = Math.max(12, y(b.fin) - top)
           return <button key={b.id} className={d.miniBanda} style={{ top, height: h, ['--c' as string]: b.color ?? 'var(--primary)' } as CSSProperties} onClick={() => onAbrir(b.evento)}
             title={`${hora(b.inicio)} – ${hora(b.fin)} · ${b.titulo}`} aria-label={`Ventana de ${hora(b.inicio)} a ${hora(b.fin)}, ${b.titulo}`}><span>{b.titulo.replace(/^[^\p{L}\p{N}]+/u, '')}</span></button> })}

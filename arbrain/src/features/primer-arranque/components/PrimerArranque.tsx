@@ -16,6 +16,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, ArrowRight, Check, HardDrive, KeyRound, Loader2, MousePointerClick, ShieldCheck, Sparkles } from 'lucide-react'
 import { Retrato } from '@/shared/components/Retrato'
 import { DocumentosLegales } from './DocumentosLegales'
+import { PanelCaminos } from './PanelCaminos'
+import { caminoActual } from '../lib/caminos'
 import { Aviso, PanelLlaves, PasoRecarga, usePruebaConexion, useReprobarAlVolver, type EstadoPanel } from './PanelLlaves'
 import { fijarConsentimiento, PanelMonitoreo } from './PanelMonitoreo'
 import { VERSION_TEXTOS } from '../textos/legales'
@@ -45,6 +47,8 @@ export function PrimerArranque() {
   const pruebaLlave = usePruebaConexion()
   const sinCredito = llavesListas && llaves.motor !== 'suscripcion' && reprobarAlVolver(pruebaLlave.prueba)
   const [sandbox, setSandbox] = useState<EstadoSandbox | null>(null)
+  // ¿Esta instalación vive en el servidor de la persona (nube.sh)? Cambia el paso «Dónde vive» y los textos de «es tuyo».
+  const [enServidor, setEnServidor] = useState(false)
   const [monitoreo, setMonitoreo] = useState(false)
   // ¿Este build tiene a dónde enviar el monitoreo? Sin destino (o sin respuesta del daemon) el paso no se muestra.
   const [conMonitoreo, setConMonitoreo] = useState(false)
@@ -56,8 +60,9 @@ export function PrimerArranque() {
   const titulo = useRef<HTMLHeadingElement>(null)
 
   useEffect(() => {
-    fetch('/api/primer-arranque', { cache: 'no-store' }).then(r => r.json()).then((j: { estado?: Estado; error?: string; sandbox?: EstadoSandbox }) => {
+    fetch('/api/primer-arranque', { cache: 'no-store' }).then(r => r.json()).then((j: { estado?: Estado; error?: string; sandbox?: EstadoSandbox; servidor?: boolean }) => {
       if (j.error) { setError(j.error); return }
+      setEnServidor(j.servidor === true)
       if (j.estado) { setEstado(j.estado); setNombre(j.estado.nombre ?? ''); setAcepto(j.estado.aceptado?.version === VERSION_TEXTOS) }
       // Contrato v3 §6.1: sin sandbox (Windows, Linux sin bubblewrap) cada comando de terminal pide clic; se avisa al final.
       if (j.sandbox && typeof j.sandbox.disponible === 'boolean') setSandbox(j.sandbox)
@@ -131,9 +136,9 @@ export function PrimerArranque() {
               <Retrato agente="levy" size={96} prioridad className="relative size-24 rounded-full object-cover ring-2 ring-brand/40" alt="Levy" />
             </div>
             <h1 ref={titulo} tabIndex={-1} className="font-sans text-[26px] font-semibold tracking-tight outline-none sm:text-[30px]">Bienvenido a Arbrain</h1>
-            <p className="mx-auto mt-2 max-w-[440px] text-[15px] leading-relaxed text-muted">Tu cerebro artificial. Vive en tu computadora, aprende cómo trabajas y te ayuda a decidir y a ejecutar.</p>
+            <p className="mx-auto mt-2 max-w-[440px] text-[15px] leading-relaxed text-muted">Tu cerebro artificial. Vive en {enServidor ? 'tu servidor' : 'tu computadora'}, aprende cómo trabajas y te ayuda a decidir y a ejecutar.</p>
             <ul className="mx-auto mt-6 grid max-w-[460px] gap-2.5 text-left">
-              <Punto icono={<HardDrive className="size-4" />} titulo="Es tuyo">Tu memoria, tus conversaciones y tus archivos se quedan en esta computadora.</Punto>
+              <Punto icono={<HardDrive className="size-4" />} titulo="Es tuyo">Tu memoria, tus conversaciones y tus archivos se quedan en {enServidor ? 'tu servidor, rentado a tu nombre' : 'esta computadora'}.</Punto>
               <Punto icono={<KeyRound className="size-4" />} titulo="Con tus llaves">Levy trabaja con tu propia cuenta: tu Claude Code (Pro o Max) o tu llave, que va al llavero del sistema.</Punto>
               <Punto icono={<ShieldCheck className="size-4" />} titulo="Bajo tu mando">Antes de enviar, pagar, borrar o publicar, Levy te pide un clic.</Punto>
             </ul>
@@ -180,6 +185,15 @@ export function PrimerArranque() {
           <div>
             <Encabezado refTitulo={titulo} titulo="Tu avance en el programa" sub="Si quieres, Arbrain le comparte a tu programa cifras de tu avance para acompañarte. Viene apagado." />
             <PanelMonitoreo pendiente={monitoreo} onPendiente={setMonitoreo} />
+          </div>
+        )}
+
+        {paso === 'donde' && (
+          <div>
+            <Encabezado refTitulo={titulo} titulo="¿Dónde vive tu Arbrain?" sub={enServidor
+              ? 'Tu Arbrain vive en tu servidor: lo abres desde cualquier navegador o tu teléfono con Tailscale, aunque tu computadora esté apagada. Estos son los tres caminos; cambiar o sumar otro es pegar un prompt en Claude Code.'
+              : 'Tu Arbrain vive en esta computadora. Estos son los tres caminos; cambiar o sumar tu servidor es pegar un prompt en Claude Code.'} />
+            <PanelCaminos actual={caminoActual(enServidor)} />
           </div>
         )}
 

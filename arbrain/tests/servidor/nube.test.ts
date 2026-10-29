@@ -23,6 +23,7 @@ test('nube: unidad de sistema con usuario sin root, arranque al boot y reinicio 
   assert.match(u, /^WorkingDirectory=\/home\/arbrain\/Arbrain\/arbrain$/m)
   assert.match(u, /^ExecStart=".*\/node" ".*\/servidor\.mjs" "iniciar" "--sin-navegador" "--datos" "\/home\/arbrain\/\.local\/share\/ai\.arbrain\.servidor"$/m)
   assert.match(u, /^Environment="HOME=\/home\/arbrain" "PATH=/m)
+  assert.match(u, /^Environment=.* "ARBRAIN_SERVIDOR_NUBE=1"$/m, 'el daemon sabe que vive en un servidor sin pantalla (login de Claude por terminal)')
   assert.doesNotMatch(u, /--puerto|0\.0\.0\.0/, 'la nube escucha donde siempre: 127.0.0.1')
   assert.throws(() => unidadSystemdSistema({ comando, path: '/usr/bin', usuario: 'root; rm', home: '/home/x', dir: '/x' }), /usuario no válido/)
   assert.throws(() => unidadSystemdSistema({ comando, path: '/usr/bin', usuario: 'arbrain', home: 'relativa', dir: '/x' }), /ruta no válida/)

@@ -19,7 +19,7 @@
 /* La cabecera pegajosa (ronda 3, 10 oct 2026, Daniel: «que se quede fijo o estático en la pantalla»): días y franja de día completo
    pegados bajo la barra del calendario (`--plan-pegado`, su alto medido) mientras las horas pasan por debajo. Vive fuera del riel
    porque un `overflow-x` le quitaría lo pegajoso; SemanaHoras le copia el `scrollLeft` del riel. */
-.rielCab { position: sticky; top: var(--plan-pegado, 0px); z-index: 8; overflow: hidden; background: var(--background); touch-action: pan-y;
+.rielCab { position: sticky; top: calc(var(--plan-pegado, 0px) + var(--franja-alto, 0px)); z-index: 8; overflow: hidden; background: var(--background); touch-action: pan-y;
   box-shadow: 0 10px 14px -14px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.55); }
 .rejilla[data-angosto]:not([data-desliza]) .riel { scroll-snap-type: x mandatory; }
 .rejilla[data-angosto][data-arrastrando] .riel { scroll-snap-type: none; }
@@ -58,19 +58,20 @@
 .cab:hover { background: var(--card-hover, rgba(var(--l-sombra-rgb, 0, 0, 0), 0.03)); }
 .cab small { font-size: 10.5px; font-weight: 650; letter-spacing: .8px; text-transform: uppercase; color: var(--muted); }
 .cab b { font-family: var(--serif); font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; margin-top: 3px; letter-spacing: -.3px; }
-/* Foco (25 oct 2026, Daniel: «la semana se ve gris, no enfoca a nada»): hoy es la única columna encendida, una hoja clara con sus
-   cantos de arriba abajo, y lo ya vivido se hunde. Sin más ámbar: el oro queda en el número de hoy y en la línea del ahora. */
-.rejilla { --hoy-canto: color-mix(in srgb, var(--foreground) 15%, transparent); }
-.cab[data-hoy] { background: var(--card); box-shadow: inset 1px 0 0 var(--hoy-canto), inset -1px 0 0 var(--hoy-canto), inset 0 1px 0 var(--hoy-canto); }
-.cab[data-hoy] b { color: var(--oro-texto); }
-/* Hoy: el número en oro con un trazo debajo; sin píldora, para que los siete encabezados midan lo mismo. */
-.cab[data-hoy] b::after { content: ''; display: block; width: 14px; height: 2px; margin: 4px auto 0; border-radius: 1px; background: var(--gold); }
-.cab:not([data-hoy]) b::after { content: ''; display: block; height: 2px; margin-top: 4px; }
+/* Hoy (28 oct 2026, Daniel: la columna de hoy en la cabecera se veía como «un corte raro», una tarjeta blanca recortada que no se
+   integraba con lo de día completo ni con la cuadrícula). Como Google Calendar, Fantastical y Notion Calendar: la cabecera no lleva
+   caja; hoy se dice con el número dentro de un círculo de oro y el día de la semana en oro. La columna lleva un lavado apenas
+   perceptible, continuo de arriba abajo y sin cantos, así nada se corta donde empieza lo de día completo. */
+.cab[data-hoy] small { color: var(--oro-texto); }
+.cab b { display: grid; place-items: center; min-width: 32px; height: 32px; padding: 0 4px; border-radius: 999px; box-sizing: border-box; }
+.cab[data-hoy] b { background: var(--gold); color: var(--l-gris-1, #09090b); }
+.cab[data-hoy]:hover { background: transparent; }
+.cab[data-hoy]:hover b { box-shadow: 0 0 0 3px rgba(var(--gold-rgb), .18); }
 .cab[data-pasado] small, .cab[data-pasado] b { opacity: .42; }
 
 /* ——— La franja: ⭐ y día completo ——— */
 .franja { display: flex; flex-direction: column; gap: 3px; min-width: 0; padding: 0 3px 6px; border-bottom: 1px solid var(--linea); }
-.franja[data-hoy] { background: var(--card); box-shadow: inset 1px 0 0 var(--hoy-canto), inset -1px 0 0 var(--hoy-canto); }
+.franja[data-hoy] { background: transparent; }
 .franja[data-pasado] > * { opacity: .6; }
 .esquina.franja { border-bottom: 1px solid var(--linea); }
 .estrella { display: flex; align-items: flex-start; gap: 5px; min-width: 0; padding: 4px 6px 4px 6px; border-radius: 3px 7px 7px 3px; background: rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.09);
@@ -125,7 +126,7 @@
   background-size: 100% var(--hora); }
 .rejilla[data-angosto]:not([data-desliza]) .columna { scroll-snap-align: start; scroll-margin-left: var(--canal); }
 .columna[data-crea] { cursor: cell; }
-.columna[data-hoy] { background-color: var(--card); box-shadow: inset 1px 0 0 var(--hoy-canto), inset -1px 0 0 var(--hoy-canto); }
+.columna[data-hoy] { background-color: var(--hoy-lavado); }
 .columna[data-pasado] { background-color: color-mix(in srgb, var(--foreground) 3.5%, transparent); }
 /* Lo ya vivido de hoy, sombreado: el día se lee de un vistazo. */
 .vivido { position: absolute; left: 0; right: 0; top: 0; pointer-events: none; background: linear-gradient(180deg, color-mix(in srgb, var(--foreground) 2%, transparent), color-mix(in srgb, var(--foreground) 4%, transparent)); }
@@ -299,17 +300,17 @@
   color: color-mix(in srgb, var(--c) 35%, var(--muted)); opacity: .5; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rejilla[data-minimo] .perfecta span { display: none; }
 
-/* ══ Campos de fondo (28 oct 2026): trabajo profundo y ventana de comida, detrás de todo y sin tapar el arrastre ══════════════
-   Trabajo = un campo tenue en bronce de Producir con su filo izquierdo; comida = un riel verde al borde derecho de la columna.
-   Formas distintas para que se lean juntos cuando se enciman (13:00–17:00). Un espejo, no una alarma: nada rojo. */
-.campo { position: absolute; z-index: 0; pointer-events: none; }
-.campo[data-tipo='trabajo'] { left: 0; right: 0; background: color-mix(in srgb, var(--l-ambar-6, #b06a1c) 6%, transparent);
-  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--l-ambar-6, #b06a1c) 38%, transparent); }
-.campo[data-tipo='comida'] { right: 0; width: 3px; border-radius: 2px; background: color-mix(in srgb, var(--l-verde-6, #2f8f5b) 55%, transparent); }
-.campo span { position: absolute; left: 6px; bottom: 2px; right: 6px; font-size: 9.5px; font-weight: 600; letter-spacing: .02em; line-height: 1.25;
-  color: color-mix(in srgb, var(--l-ambar-6, #b06a1c) 60%, var(--muted)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.campo[data-tipo='comida'] span { left: auto; right: 6px; top: 2px; bottom: auto; color: color-mix(in srgb, var(--l-verde-6, #2f8f5b) 75%, var(--muted)); }
-.rejilla[data-minimo] .campo span { display: none; }
+/* ══ Zonas de mi vida (28 oct 2026): un tinte de fondo por zona con el color de su categoría (--c, categorias.ts), detrás de todo ═══
+   Sin texto: su nombre y sus horas, al pasar el cursor (title). Bloque = tinte de la columna con un filo izquierdo apenas marcado;
+   ventana (la comida, que se encima con el gym y el trabajo profundo) = riel del mismo color al borde derecho. Un espejo, no una
+   alarma. Reciben el cursor solo para decir su nombre: el clic y el arrastre siguen siendo del hueco (SemanaHoras › enHueco). */
+.campo { position: absolute; z-index: 0; --t: 7%; }
+:global(.dark) .campo { --t: 9%; }
+.campo[data-forma='bloque'] { left: 0; right: 0; background: color-mix(in srgb, var(--c) var(--t), transparent);
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--c) 30%, transparent); }
+.campo[data-categoria='vida'] { --t: 9%; }
+:global(.dark) .campo[data-categoria='vida'] { --t: 12%; }
+.campo[data-forma='ventana'] { right: 0; width: 3px; border-radius: 2px; background: color-mix(in srgb, var(--c) 55%, transparent); }
 
 /* ══ Riel (25 oct 2026, Daniel: «siento más limpia la de riel»; elegida entre cuatro direcciones, rama cal-direcciones) ═════════
    Tarjeta neutra con el riel DRIP de 3 px a la izquierda y su letra abajo a la derecha; el ahora es lo único ámbar con luz;

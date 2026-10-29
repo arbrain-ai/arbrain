@@ -4,7 +4,7 @@
 .aviso { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0; padding: 7px 10px; border-radius: 8px; font-size: 12.5px; line-height: 1.4; color: var(--foreground); background: rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.1); border: 1px solid var(--l-borde-ambar, rgba(var(--gold-rgb), 0.25)); }
 .codigo { display: flex; align-items: center; gap: 8px; margin: 8px 0; font-size: 13.5px; color: var(--muted); }
 
-.barra { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 28px; }
+.barra { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 28px; padding-right: 40px; } /* la esquina es del botón flotante de «Escuchar» */
 .conmutador { display: inline-flex; padding: 2px; border-radius: 9px; background: var(--surface, rgba(var(--l-sombra-rgb, 127, 127, 127), 0.08)); border: 1px solid var(--border); }
 .conmutador button { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 10px; border: 0; border-radius: 7px; background: none; color: var(--muted); font-size: 12px; font-weight: 550; cursor: pointer; }
 .conmutador button[aria-selected='true'] { background: var(--card); color: var(--foreground); box-shadow: 0 1px 2px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.12); }
@@ -44,17 +44,21 @@
    le da la ventana sin zoom (623 px): ~170 px cortados a la derecha. Chrome headless a zoom 1 no lo ve. El iframe se
    des-zoomea a un zoom efectivo de 1: su ancho en % sigue siendo el del marco y el documento ve su ancho verdadero. */
 .html { position: absolute; inset: 0; display: block; width: 100%; height: 100%; max-width: 100%; border: 0; background: transparent; zoom: calc(1 / var(--ui-zoom, 1)); }
-/* Pantalla completa (28 oct 2026): el marco a todo el viewport, negro, respetando el notch en horizontal. En el iPhone no hay
-   Fullscreen API para un div: el `fixed` + z-index lo pone encima de la barra de la app (PWA) y de los flotantes. */
-.htmlMarco[data-pantalla] { position: fixed; inset: 0; z-index: 2147483600; width: 100vw; max-width: none; height: 100vh; height: 100dvh; min-height: 0; border: 0; border-radius: 0; background: var(--l-gris-0, #000); touch-action: manipulation;
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+/* Pantalla completa (28 oct 2026; 29 oct tras el iPhone real). Sin Fullscreen API (iPhone) el marco se fija al viewport
+   VISIBLE que mide el hook (--pantalla-w/h, se recalcula al girar), encima de la barra de la app y del chat. Solo se respetan
+   los lados del notch: arriba y abajo el deck 16:9 llega al borde para encajar al máximo. */
+.htmlMarco[data-pantalla] { position: fixed; inset: 0 auto auto 0; z-index: 2147483600; width: var(--pantalla-w, 100vw); max-width: none; height: var(--pantalla-h, 100dvh); min-height: 0;
+  margin: 0; border: 0; border-radius: 0; background: var(--l-gris-0, #000); touch-action: manipulation; padding: 0 env(safe-area-inset-right) 0 env(safe-area-inset-left); box-sizing: border-box; }
 .htmlMarco[data-pantalla] .html { position: relative; inset: auto; }
 .pantallaBtn { position: absolute; right: 10px; bottom: 10px; z-index: 2; display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; border: 1px solid rgba(var(--l-luz-rgb, 255, 255, 255), 0.18); border-radius: 999px;
   background: rgba(var(--l-sombra-rgb, 0, 0, 0), 0.72); color: var(--l-gris-16, #fff); font-size: 12.5px; font-weight: 500; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); cursor: pointer; opacity: 0.85; transition: opacity 0.15s; }
 .pantallaBtn:hover { opacity: 1; }
-.salirPantalla { position: absolute; top: max(8px, env(safe-area-inset-top)); right: max(8px, env(safe-area-inset-right)); z-index: 2; display: grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: 999px;
-  background: rgba(var(--l-sombra-rgb, 0, 0, 0), 0.45); color: rgba(var(--l-luz-rgb, 255, 255, 255), 0.75); opacity: 0.55; cursor: pointer; }
-.salirPantalla:hover, .salirPantalla:focus-visible { opacity: 1; }
+/* La X de salir (29 oct 2026: «cuando quise salir no vi ningún botón»): fija arriba a la derecha, fuera del notch, de 44 px
+   y con contraste alto sobre cualquier lámina. Un toque arriba del deck la hace latir para que se encuentre. */
+.salirPantalla { position: fixed; top: max(10px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); z-index: 2147483647; display: grid; place-items: center;
+  width: 44px; height: 44px; padding: 0; border: 1.5px solid rgba(var(--l-luz-rgb, 255, 255, 255), 0.85); border-radius: 999px; background: rgba(var(--l-sombra-rgb, 0, 0, 0), 0.68); color: var(--l-gris-16, #fff);
+  box-shadow: 0 2px 12px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.55); cursor: pointer; visibility: visible; -webkit-tap-highlight-color: transparent; transition: transform 0.18s ease, background 0.18s ease; }
+.salirPantalla:hover, .salirPantalla:focus-visible, .salirPantalla[data-llamada] { background: rgba(var(--l-sombra-rgb, 0, 0, 0), 0.9); transform: scale(1.12); }
 .lienzo { overflow: auto; }
 
 .editor { display: flex; flex-direction: column; gap: 8px; }

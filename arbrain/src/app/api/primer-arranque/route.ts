@@ -20,7 +20,8 @@ export async function GET() {
   try {
     const estado = leerPrimerArranque()
     // `sandbox` (contrato v3 §6.1): el resumen final avisa si cada comando de terminal pedirá un clic en este equipo.
-    return Response.json({ estado, falta: faltaPrimerArranque(estado), versionTextos: VERSION_TEXTOS, sandbox: estadoSandbox() }, { headers: NOCACHE })
+    // `servidor` (29 oct 2026): la unidad de systemd de nube.sh marca que esta instalación vive en el servidor de la persona.
+    return Response.json({ estado, falta: faltaPrimerArranque(estado), versionTextos: VERSION_TEXTOS, sandbox: estadoSandbox(), servidor: process.env.ARBRAIN_SERVIDOR_NUBE === '1' }, { headers: NOCACHE })
   } catch (e) {
     return Response.json({ error: e instanceof Error ? e.message : 'No pude leer el estado.' }, { status: 503, headers: NOCACHE })
   }
@@ -52,7 +53,7 @@ export async function POST(request: Request) {
         const ahora = new Date().toISOString()
         const s = await db.from('chat_sessions').insert({ id: sesion, title: 'Bienvenida', profile_id: LOCAL_DESKTOP_USER_ID, account: null, last_message_at: ahora, is_favorite: false, archived_at: null })
         if (s.error) throw new Error(s.error.message)
-        const m = await db.from('chat_messages').insert({ session_id: sesion, role: 'assistant', content: mensajeBienvenida(estado.nombre, { computerUse: computerUseDisponible(true, plataformaServidor(process.env, process.platform)) }), created_at: ahora, metadata: { source: FUENTE_BIENVENIDA } })
+        const m = await db.from('chat_messages').insert({ session_id: sesion, role: 'assistant', content: mensajeBienvenida(estado.nombre, { computerUse: computerUseDisponible(true, plataformaServidor(process.env, process.platform)), servidor: process.env.ARBRAIN_SERVIDOR_NUBE === '1' }), created_at: ahora, metadata: { source: FUENTE_BIENVENIDA } })
         if (m.error) throw new Error(m.error.message)
       }
       return Response.json({ estado: guardarPrimerArranque({ completado: new Date().toISOString(), sesionBienvenida: sesion }), sesion }, { headers: NOCACHE })

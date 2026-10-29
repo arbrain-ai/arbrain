@@ -13,7 +13,7 @@ const lum = (hex: string) => {
 }
 const contraste = (a: string, b: string) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05) }
 
-test('el agente que respira vive SOLO en los renglones «Trabajando» del Taller; el resto, punto morado quieto', () => {
+test('el agente que respira vive SOLO en los renglones «Trabajando» del Taller; el resto quieto salvo el punto amarillo de la píldora', () => {
   // 28 oct 07:54, Daniel: «Lo único que quería de cambio eran los subagentes trabajando, justo en la sección "Trabajando para ti"».
   assert.match(leer('src/features/cabina/panel/TableroAgentes.tsx'), /<AgenteRespira tam=\{12\} late=\{laten\(f, ahora\)\} \/>/)
   for (const rel of ['src/features/cabina/panel/Taller.tsx', 'src/features/cabina/panel/AgentesTrabajando.tsx',
@@ -23,8 +23,9 @@ test('el agente que respira vive SOLO en los renglones «Trabajando» del Taller
   assert.match(leer('src/features/cabina/panel/Taller.tsx'), /tb\.luzSobria\}`\} data-vivo=\{n\.trabajando > 0/)
   assert.match(leer('src/features/cabina/panel/AgentesTrabajando.tsx'), /puntoVivo/)
   const panel = leer('src/features/cabina/panel/panel.module.css')
-  assert.match(panel, /\.puntoVivo \{ background: var\(--l-tinta-morado/)
-  assert.doesNotMatch(panel, /puntoVivo[^{]*\{[^}]*animation/)
+  // 28 oct, Daniel: «este era amarillo»: la píldora junto a Levy vuelve al punto amarillo que late de antes de hoy.
+  assert.match(panel, /\.puntoVivo \{ background: var\(--amarillo\); animation: puntoVivo 1\.4s/)
+  assert.match(panel, /prefers-reduced-motion: reduce\) \{ \.puntoVivo \{ animation: none; \} \}/)
   const herr = leer('src/features/chat/components/herramientas.module.css')
   assert.match(herr, /\.puntoEstado\[data-estado='corriendo'\] \{ background: rgb\(var\(--primary-rgb\)\); \}/)
   assert.doesNotMatch(herr, /\.puntoEstado\[data-estado='corriendo'\]\s*\{[^}]*animation/)

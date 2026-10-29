@@ -48,7 +48,7 @@ export function SeccionPanel() {
       <section className="solid-card overflow-hidden" data-donde-abre-levy>
         <div className="border-b border-border-subtle px-4 py-3 sm:px-5">
           <h3 className="text-sm font-semibold text-foreground/90">Dónde abre Levy</h3>
-          <p className="mt-0.5 text-xs leading-snug text-muted">Lo que Levy abre (documentos, videos, vistas, el pizarrón) cae en esa ventana. Si no existe, cae en el panel principal. La otra conserva lo tuyo, como el Día y el Taller.</p>
+          <p className="mt-0.5 text-xs leading-snug text-muted">Lo que Levy abre (documentos, videos, vistas) cae en esa ventana. Si no existe, cae en el panel principal. La otra conserva lo tuyo, como el Día y el Taller.</p>
         </div>
         <div role="radiogroup" aria-label="Dónde abre Levy" className="grid gap-2 p-3 sm:grid-cols-3 sm:p-4">
           {OPCIONES_DONDE.map(o => {

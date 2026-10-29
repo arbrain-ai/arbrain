@@ -2,19 +2,59 @@
 
 > **Para la persona.**
 >
-> 1. **¿Ya tienes Claude Code?** Si sí, ábrelo y salta al punto 2. Si no: descarga la app de Claude de
->    https://claude.ai/download, ábrela, entra con tu cuenta de Claude (Pro o Max) y pulsa la pestaña **Code**. Eso es
->    Claude Code; no necesitas abrir una terminal.
-> 2. Pega este mensaje y envíalo:
+> **¿Ya tienes Claude Code?** Si no: descarga la app de Claude de https://claude.ai/download, ábrela, entra con tu
+> cuenta de Claude (Pro o Max) y pulsa la pestaña **Code**. Eso es Claude Code; no necesitas abrir una terminal. Si
+> Claude Code te pide permiso para correr un comando, acepta (si te ofrece «no volver a preguntar», elígelo); si tu
+> computadora muestra su propia ventana de permiso, acéptala también.
 >
->    ```text
->    Instala Arbrain siguiendo https://github.com/arbrain-ai/arbrain/blob/main/INSTALAR.md
->    ```
+> **Elige dónde vive tu Arbrain.** Si dudas, el 1; sumar o cambiar de camino después es pegar otro prompt. Si pegas el
+> prompt del 1 sin decidir, Claude te pregunta una sola vez. El 2 y el 3 están en beta: funcionan, pero todavía no se
+> prueban en un servidor real de un alumno.
 >
-> 3. Si Claude Code te pide permiso para correr un comando, acepta (si te ofrece «no volver a preguntar», elígelo). Si tu
->    computadora muestra su propia ventana de permiso, acéptala también. Nada más: no tienes que instalar nada antes.
+> **1 · En tu computadora.** Arbrain vive en tu Mac, Windows o Linux. Levy usa tus apps y la voz de tu sistema;
+> funciona mientras tu computadora esté prendida.
 >
-> El mismo prompt **actualiza** Arbrain si ya lo tienes. Para quitarlo (por ejemplo, para instalarlo desde cero), pega
+> 1. Abre Claude Code (la app de Claude, pestaña Code) con tu cuenta Pro o Max.
+> 2. Pega el prompt de abajo y acepta los permisos que te pida.
+> 3. Espera de 5 a 15 minutos: la app Arbrain se abre sola, ya con tu cuenta.
+>
+> ```text
+> Instala Arbrain siguiendo https://github.com/arbrain-ai/arbrain/blob/main/INSTALAR.md
+> ```
+>
+> **2 · Solo en tu servidor (beta).** Arbrain vive en un servidor tuyo en la nube, prendido siempre. Entras desde el navegador
+> de cualquier computadora o desde tu teléfono por tu red privada de Tailscale, aunque tu computadora esté apagada.
+>
+> 1. Renta un servidor con Ubuntu 24.04 (recomendado: Hostinger KVM 2; revisa el precio el día que compres) y, al
+>    crearlo, pega la llave SSH de tu computadora. Plan, precio y por qué: `INSTALAR-NUBE.md`.
+> 2. Pega el prompt en Claude Code de tu computadora, con la dirección de tu servidor. Si ya tienes Claude Code dentro
+>    del servidor, pega ahí solo la primera línea.
+> 3. Entra a Tailscale con el enlace que te da Claude, con la misma cuenta de tu teléfono.
+> 4. Abre una terminal una sola vez: entras con tu cuenta de Claude (para el chat), pegas tu llave de OpenRouter con
+>    tope (para las rutinas) y recibes tu código para entrar. Nada de eso pasa por el chat.
+> 5. En tu teléfono o en otra computadora con Tailscale, abre la dirección que termina en .ts.net, escribe el código y
+>    agrégala a tu pantalla de inicio.
+>
+> ```text
+> Instala Arbrain solo en mi servidor siguiendo https://github.com/arbrain-ai/arbrain/blob/main/INSTALAR.md
+> Mi servidor: root@IP-DE-TU-SERVIDOR
+> ```
+>
+> **3 · Los dos (espejo, beta).** Arbrain en tu computadora y en tu servidor, con la misma memoria y el mismo plan por
+> tu GitHub privado. Una sola máquina corre las rutinas: la eliges tú.
+>
+> 1. Renta el servidor como en «Solo en tu servidor» (paso 1).
+> 2. Pega el prompt en Claude Code de tu computadora, con la dirección de tu servidor y la máquina que manda.
+> 3. Acepta lo que te pida: tu respaldo privado en GitHub, Tailscale y tu llave de OpenRouter con tope.
+> 4. Listo: tu computadora y tu servidor se ponen al día cada 5 minutos.
+>
+> ```text
+> Instala Arbrain en mi computadora y en mi servidor, en modo espejo, siguiendo https://github.com/arbrain-ai/arbrain/blob/main/INSTALAR.md
+> Mi servidor: root@IP-DE-TU-SERVIDOR
+> Que mande: mi servidor
+> ```
+>
+> El prompt del 1 también **actualiza** Arbrain si ya lo tienes. Para quitarlo (por ejemplo, para instalarlo desde cero), pega
 > `Desinstala Arbrain siguiendo https://github.com/arbrain-ai/arbrain/blob/main/INSTALAR.md`: guarda todo en
 > `~/Arbrain-respaldos` y no borra nada.
 >
@@ -29,17 +69,45 @@
 ---
 
 Eres el instalador de Arbrain, el cerebro artificial de la persona que te habla. Lo dejas instalado desde
-https://github.com/arbrain-ai/arbrain en `~/Arbrain`, corriendo en su computadora, sin perder nada de lo que ya tenga y
-**sin pedirle comandos**: todo lo corres tú. Háblale en español simple, como a alguien que no programa, con una línea
-por paso. No le enseñes salidas técnicas, huellas ni rutas largas salvo que algo falle.
+https://github.com/arbrain-ai/arbrain en `~/Arbrain` (en su computadora, en su servidor o en los dos), sin perder nada
+de lo que ya tenga y **sin pedirle comandos**: todo lo corres tú. Háblale en español simple, como a alguien que no
+programa, con una línea por paso. No le enseñes salidas técnicas, huellas ni rutas largas salvo que algo falle.
 
 **Si la persona pidió desinstalar** (no instalar), salta todos los pasos y sigue solo «Desinstalar», al final.
 
-**Si esto va en un servidor** (su nube): si la persona dice que lo instalas en su servidor, su VPS o «mi nube», o si
-estás en un Linux sin pantalla (`uname -s` es `Linux`, `$DISPLAY` y `$WAYLAND_DISPLAY` vacíos y existe
-`/run/systemd/system`), no sigas este guion: lee literal
-`curl -fsSL https://raw.githubusercontent.com/arbrain-ai/arbrain/main/INSTALAR-NUBE.md` y sigue su parte «Para Claude».
-En su computadora (Mac, Windows o Linux con pantalla) todo sigue igual.
+## Antes de todo · ¿Dónde vive su Arbrain? (una sola pregunta)
+
+Hay tres caminos: **1, en su computadora** (este guion); **2, solo en su servidor** (sin computadora detrás); **3, los
+dos en espejo**. Decide en este orden y pregunta solo si nada lo resuelve:
+
+1. **Ya lo dijo.** «Solo en mi servidor», «en mi servidor», «mi VPS», «mi nube» (sin hablar de espejo) → 2. «Espejo»,
+   «en mi computadora y en mi servidor», «los dos» → 3. «En mi computadora» → 1.
+2. **Estás en un Linux sin pantalla** (`uname -s` es `Linux`, `$DISPLAY` y `$WAYLAND_DISPLAY` vacíos y existe
+   `/run/systemd/system`): estás dentro de su servidor → 2 (o 3 si lo dijo).
+3. **Ya tiene Arbrain en esta computadora** (`git -C ~/Arbrain remote get-url dani` responde
+   `https://github.com/arbrain-ai/arbrain`) y no habló de servidor → 1: es una actualización, no preguntes.
+4. **Si nada de eso**, pregúntale una sola vez, así:
+
+   > ¿Dónde quieres tu Arbrain?
+   > **1. En tu computadora** (recomendado para empezar): usa tus apps y tu voz; funciona con tu computadora prendida.
+   > **2. Solo en tu servidor (beta):** prendido siempre; entras desde el navegador o tu teléfono, con la computadora apagada.
+   > Necesitas un servidor rentado (recomendado: Hostinger KVM 2, unos US$9 al mes).
+   > **3. Los dos (espejo, beta):** la misma memoria y el mismo plan en tu computadora y en tu servidor.
+   > El 2 y el 3 están en beta: todavía no se prueban en un servidor real.
+
+   Si no contesta o duda, es **1**.
+
+Según el camino:
+
+- **1:** sigue este guion desde el PASO 0.
+- **2:** necesitas la dirección de su servidor (`root@<IP>`) si no estás dentro de él. Si no la dio, pídesela; si
+  todavía no tiene servidor, dale en tres líneas el plan recomendado de la parte «Para la persona» de `INSTALAR-NUBE.md`
+  (con «revisa el precio el día que compres») y espera su dirección. Luego lee literal
+  `curl -fsSL https://raw.githubusercontent.com/arbrain-ai/arbrain/main/INSTALAR-NUBE.md` y sigue su parte «Para
+  Claude» con `MODO=solo`. No sigas este guion.
+- **3:** sigue este guion completo en su computadora; en el PASO 9, el respaldo en GitHub (opción 1) ya no es opcional:
+  el espejo vive de él. Al terminar, lee literal `INSTALAR-NUBE.md` como en el 2 y sigue su parte «Para Claude» con
+  `MODO=espejo`, usando la máquina que dijo que manda («Que mande: …»).
 
 ## Reglas que no se rompen
 
@@ -65,9 +133,9 @@ En su computadora (Mac, Windows o Linux con pantalla) todo sigue igual.
   `https://github.com/arbrain-ai/arbrain`.
 - **Respuestas por adelantado.** Si la persona ya te dio respuestas (por ejemplo, al final de su mensaje), úsalas y no
   repitas la pregunta.
-- **Sus preguntas, mínimas.** Solo hay tres momentos en que esperas a la persona: aceptar una ventana de permiso del
-  sistema, iniciar sesión en su navegador (Claude o GitHub) y la pregunta de copiar o unificar (PASO 5, solo si ya
-  tenía una carpeta de trabajo). Si ya tenía la app vieja de Arbrain, el PASO 7 pregunta antes de reemplazarla. Todo
+- **Sus preguntas, mínimas.** Solo hay cuatro momentos en que esperas a la persona: la pregunta de dónde vive su
+  Arbrain (solo si no lo dijo), aceptar una ventana de permiso del sistema, iniciar sesión en su navegador (Claude o
+  GitHub) y la pregunta de copiar o unificar (PASO 5, solo si ya tenía una carpeta de trabajo). Si ya tenía la app vieja de Arbrain, el PASO 7 pregunta antes de reemplazarla. Todo
   lo demás lo decides tú con este guion.
 
 **Cómo correr los bloques.** Son de bash y sirven en macOS, Linux y Windows con Git Bash (la herramienta Bash de

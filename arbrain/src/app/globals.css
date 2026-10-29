@@ -2199,12 +2199,8 @@ nextjs-portal,
 .cerebro-md hr { border: none; border-top: 1px solid var(--border); margin: 1em 0; }
 .cerebro-md strong { color: var(--foreground); }
 
-/* Lectura por voz del chat (voz del dispositivo): resaltado naranja de la palabra que
-   suena, igual que el lector de libros. Es el ÚNICO marcador de la lectura: marca dónde
-   va la voz, y como se ancla en la primera palabra al entrar a un párrafo, también marca
-   dónde empieza el párrafo. Antes había además un marco morado alrededor del párrafo en
-   pausa; sobraba (el naranja ya dice las dos cosas) y se borró el 15 jul 2026. */
-::highlight(chat-word) { background: rgba(var(--l-ambar-4-rgb, 255, 145, 1), 0.65); color: var(--l-gris-3, #1a1208); }
+/* Lectura por voz del chat: el resaltado de la palabra que suena ya no es ::highlight(chat-word) sino UNA caja que se
+   mueve (src/features/chat/lib/resaltado.ts, 29 oct 2026: la Highlight API dejaba rastro en WebKit). Mismo tono. */
 
 /* ── Dial de esfuerzo (EffortSlider, 7 sep 2026) ─────────────────────────────
    Matriz de celdas que se enciende de "más rápido" a "más inteligente" hasta el
@@ -2300,3 +2296,4 @@ html[data-enfoque] [data-shell-main] [data-cabecera-chat] { display: none !impor
    no pinta, así ninguna barra con su propio z-index queda encima del marco fijo. Vive aquí: CSS Modules exige selectores puros. */
 html[data-pantalla-doc] body * { visibility: hidden; }
 html[data-pantalla-doc] [data-pantalla-marco], html[data-pantalla-doc] [data-pantalla-marco] * { visibility: visible; }
+html[data-pantalla-doc], html[data-pantalla-doc] body { background: var(--l-gris-0, #000) !important; overflow: hidden !important; overscroll-behavior: none; }

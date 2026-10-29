@@ -7,6 +7,32 @@ tienes que leerlas, él las sigue solo.
 **Lo único que necesitas:** una computadora con macOS, Windows o Linux, internet y tu cuenta de Claude (Pro o Max).
 Si no tienes Pro o Max, Levy también puede pensar con OpenRouter (se conecta con un clic dentro de Arbrain).
 
+## Elige dónde vive tu Arbrain
+
+1. **En tu computadora** (si dudas, este): usa tus apps y tu voz; funciona con tu computadora prendida. Son los tres
+   pasos de abajo.
+2. **Solo en tu servidor (beta):** un servidor tuyo en la nube, prendido siempre; entras desde el navegador de cualquier
+   computadora o desde tu teléfono por tu red privada de Tailscale, con tu computadora apagada. Recomendado: Hostinger
+   KVM 2 (revisa el precio el día que compres). En Claude Code de tu computadora, con la IP de tu servidor:
+
+   ```text
+   Instala Arbrain solo en mi servidor siguiendo https://github.com/arbrain-ai/arbrain/blob/main/INSTALAR.md
+   Mi servidor: root@IP-DE-TU-SERVIDOR
+   ```
+
+3. **Los dos (espejo, beta):** la misma memoria y el mismo plan en tu computadora y en tu servidor:
+
+   ```text
+   Instala Arbrain en mi computadora y en mi servidor, en modo espejo, siguiendo https://github.com/arbrain-ai/arbrain/blob/main/INSTALAR.md
+   Mi servidor: root@IP-DE-TU-SERVIDOR
+   Que mande: mi servidor
+   ```
+
+Los caminos 2 y 3 están en beta: funcionan, pero todavía no se prueban en un servidor real. Su paso a paso (rentar
+el servidor, Tailscale, tu cuenta de Claude para el chat y tu llave con tope para las rutinas, qué cambia frente a tu
+computadora) está en [`INSTALAR-NUBE.md`](INSTALAR-NUBE.md). Arbrain
+también te lo muestra en su primer arranque, con «Copiar» en cada prompt.
+
 ## Los tres pasos
 
 1. **¿Ya tienes Claude Code?** Si sí, ábrelo. Si no: descarga la app de Claude de

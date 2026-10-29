@@ -4,6 +4,52 @@ Cada versión dice qué trae y qué tienes que hacer tú. Para actualizar, abre 
 «jala los últimos cambios». Las versiones siguen `MAYOR.MENOR.PARCHE`: un cambio en MENOR trae funciones
 nuevas; uno en PARCHE, arreglos.
 
+## v0.2.14 · 29 oct 2026 · Tu marca, tu primera skill y un lector que sigue la voz
+
+**Qué trae**
+- **Arbrain con tu marca.** Tus colores, tu logo y el nombre de tu negocio viven en tu carpeta `mi-marca/`. Pídeselo a
+  Levy («cambia mis colores a verde», «pon este logo», «que se llame Acme») y lo ves al recargar la ventana. Como está
+  en tu parte, actualizar ya no choca con tus colores y Arbrain sigue usando el programa ya compilado de cada versión.
+- **Tu primera skill, de un proceso tuyo.** Dile a Levy «crea una skill» y convierte tu proceso más odiado en una receta:
+  te hace como mucho cinco preguntas y la deja en tu carpeta con tu prefijo (`mi-…`), lista para usarse.
+- **Dos guías para tu Levy.** `docs/PERSONALIZAR.md` dice dónde va cada cosa tuya para que nada choque al actualizar, y
+  `docs/ACTUALIZAR-EXPLICADO.md` explica qué pasa cuando actualizas (tus dos líneas, qué hacer si tocaste algo de
+  Arbrain y cómo vuelves atrás). No tienes que leerlas: Levy las consulta cuando le preguntas.
+- **El resaltado sigue la voz palabra por palabra.** Si escuchas las respuestas con LemonFox y tienes tu llave gratis de
+  Groq en Ajustes › Voz (la misma con la que dictas), el resaltado ya no se estima: sigue la voz exacto, también a 1.5x
+  y 3x, y es una sola caja que se mueve sin dejar rastro. Sin esa llave, Arbrain te lo dice una sola vez y todo sigue
+  como antes.
+- **Tu cerebro en el teléfono vuelve solo.** Al encenderlo, Arbrain queda listo para arrancar cuando prendas o reinicies
+  tu computadora, y espera a que Tailscale se conecte. Antes, tras un reinicio, el teléfono se quedaba sin conexión.
+- **Las zonas de tu día, de color.** En el Calendario, engrane › «Zonas de mi vida»: tu mañana, el trabajo profundo, el
+  gym, la comida, la rutina de noche y el sueño se pintan de fondo en el Día y la Semana. Ajustas sus horas y su color.
+- **Calendario más claro.** El objetivo de la semana queda fijo arriba aunque bajes, hoy se marca en dorado y en el Mes
+  cada semana muestra su objetivo con un resumen que abres cuando quieres.
+- **Tus agentes, por conversación.** En el Taller, los trabajos que Levy delega se agrupan por la conversación de la que
+  salieron, con un resumen de una línea y su línea de tiempo. Puedes plegar cada grupo.
+- **Presentaciones en el teléfono.** Una presentación abierta en el teléfono llena la pantalla, se acomoda al girarlo y
+  siempre tiene una X clara para salir.
+- **Sale el pizarrón.** Para aprender algo, pídeselo a Levy en el chat: te lo explica en texto y lo puedes escuchar.
+- **Tres caminos para instalar, con una sola pregunta.** Al pegar el prompt de instalación, Claude te pregunta una vez
+  dónde quieres tu Arbrain: **en tu computadora**, **solo en tu servidor (beta)** o **en los dos (espejo, beta)**. Si ya
+  lo dijiste en el prompt, no pregunta. Los dos caminos con servidor están en beta: funcionan, pero todavía no se
+  prueban en un servidor real de un alumno.
+- **Solo en tu servidor (beta).** Arbrain vive en un servidor tuyo en la nube, prendido siempre, y lo abres desde el
+  navegador de cualquier computadora o desde tu teléfono por tu red privada de Tailscale, aunque tu computadora esté
+  apagada. Nada queda abierto a internet. El chat usa tu cuenta de Claude; las rutinas que corren solas van por tu
+  llave de OpenRouter con tope de gasto. Tu cuenta, tu llave y tu código para entrar se hacen en una sola terminal
+  tuya; nada de eso pasa por el chat. Plan recomendado y por qué: `INSTALAR-NUBE.md`.
+- **El paso a paso en tu primer arranque.** Arbrain te muestra los tres caminos con sus pasos y sus prompts, con
+  «Copiar», y te marca dónde estás.
+
+**Qué tienes que hacer**
+- Actualiza con «actualiza mi Arbrain».
+- Si ya usas tu cerebro en el teléfono, después de actualizar dile a Levy «revisa que mi teléfono vuelva solo al
+  reiniciar»: deja activado el arranque automático.
+- Si cambiaste colores en el código de Arbrain antes de esta versión, pídele a Levy que los pase a `mi-marca/`.
+- Si quieres probar tu servidor (beta), renta uno y pega en Claude Code el prompt de «Solo en tu servidor» de
+  `INSTALAR.md`.
+
 ## v0.2.13 · 28 oct 2026 · Levy te pregunta menos y puedes deshacer lo que cambió
 
 **Qué trae**

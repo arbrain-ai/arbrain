@@ -67,8 +67,7 @@ const OPCIONES: Opcion[] = [
   { vista: 'cohorte', nota: 'Cupos, cobros, llamadas y la Semana 1 de cada fundador' },
   { vista: 'lienzo', nota: 'Tus mapas y pizarras' },
   { vista: 'negocio', nota: 'Avatar, oferta, embudo y sistema' },
-  // Pizarrón y Masterclass salen del «+» (11 oct 2026, Daniel): el Pizarrón «no es tan buena experiencia»; la Masterclass vive en
-  // Guardadas, abajo. Las dos vistas siguen existiendo: Levy las abre con `pizarron` y `mostrar {vista:'masterclass'}`.
+  // Masterclass sale del «+» (11 oct 2026): vive en Guardadas, abajo; Levy la abre con `mostrar {vista:'masterclass'}`.
   { vista: 'reporte', nota: 'Avisos y reportes de los crons' },
   { vista: 'centro', nota: 'Abre Finanzas · Lo que entra' },
   { vista: 'equipo', nota: 'Organigrama: qué le llega a cada quien y su último movimiento' },

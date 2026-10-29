@@ -8,6 +8,16 @@
 #        [--espejo [--rol lider --cita "<palabras de la persona>" | --rol ventana]]
 #   bash arbrain/scripts/instalar/nube.sh estado
 #   bash arbrain/scripts/instalar/nube.sh llave            (la persona pega su llave de OpenRouter CON tope; no se ve)
+#   bash arbrain/scripts/instalar/nube.sh claude           (la persona entra con su cuenta de Claude para el CHAT)
+#   bash arbrain/scripts/instalar/nube.sh telefono         (publica la web SOLO en su red de Tailscale: `serve`, nunca funnel)
+#   bash arbrain/scripts/instalar/nube.sh codigo           (código de un solo uso para entrar; sale solo en SU terminal)
+#   bash arbrain/scripts/instalar/nube.sh conectar         (claude + llave + código, en una sola terminal de la persona)
+#
+# «Solo en tu servidor» (29 oct 2026; guía INSTALAR-NUBE.md): la misma instalación, sin computadora detrás. La persona
+# entra desde el navegador de cualquier computadora o su teléfono por su Tailscale. El chat que ella escribe usa su
+# cuenta de Claude (login oficial de Claude Code en el servidor: nunca `setup-token`); las rutinas que corren solas van
+# por su llave de OpenRouter con tope (Haiku 5.5; server/src/cliente/rutinas-llave.ts). Lo que exige su terminal (login
+# de Claude, llave, código) nunca pasa por la salida de quien corre este script: va a /dev/tty.
 #
 # Qué deja (cada paso mira antes de cambiar: una segunda corrida dice cambios=0 y no reinicia nada):
 #   1. Paquetes que falten: git, curl, python3, ufw, unattended-upgrades, openssh-server, bubblewrap.
@@ -105,7 +115,7 @@ fuera_de_capa() {
   git -C "$repo" diff --name-only "$v" HEAD -- 2>/dev/null | while IFS= read -r f; do
     case "$f" in
       .claude/memory/*|.claude/plan/*|.claude/now.md|.claude/diario/*|.claude/daily/*|.claude/knowledge/*) continue ;;
-      .claude/settings.local.json|CLAUDE.local.md|.arbrain-sembrado.json|mi-negocio/*) continue ;;
+      .claude/settings.local.json|CLAUDE.local.md|.arbrain-sembrado.json|mi-negocio/*|mi-marca/*) continue ;;
       # Lo que el modo espejo sube del cerebro (la lista CEREBRO de arbrain/scripts/espejo/lib/viaja.mjs; nube.test.sh
       # comprueba que sigan iguales): es de la persona, no código de Arbrain.
       arbrain/cerebro/meta/*|arbrain/cerebro/sentidos/*|arbrain/cerebro/memoria/*|arbrain/cerebro/manos/*|arbrain/cerebro/dolor/*) continue ;;
@@ -433,10 +443,20 @@ orden_estado() {
   ssh="$(sshd -T 2>/dev/null | grep -qi '^passwordauthentication no' && echo solo-llave || echo acepta-contrasenas)"
   apt="$(apt-config dump 2>/dev/null | grep -q 'APT::Periodic::Unattended-Upgrade "1"' && echo si || echo no)"
   ts="$(estado_tailscale)"; llave="$(estado_llave)"
+  # El chat: su cuenta de Claude (motor «Mi Claude Code» con sesión), su llave de OpenRouter, o nada todavía.
+  local chat tel s
+  s="$(sesion_claude)"
+  case "$(motor_elegido):$s" in
+    suscripcion:si*) chat="claude:${s#si }" ;;
+    suscripcion:*) chat=claude-sin-sesion ;;
+    *) case "${llave:-falta}" in falta) chat=falta ;; *) chat=openrouter ;; esac ;;
+  esac
+  tel="$(como_u '. ~/.arbrain/entorno.sh 2>/dev/null; cd ~/Arbrain/arbrain 2>/dev/null && node scripts/servidor.mjs telefono estado 2>/dev/null' </dev/null | grep '^TELEFONO_' | tail -1)"
+  case "$tel" in "TELEFONO_ENCENDIDO "*) tel="${tel#TELEFONO_ENCENDIDO }" ;; *) tel=apagado ;; esac
   e="$(estado_servidor)"
-  printf '· Arbrain: %s\n· firewall=%s ssh=%s actualizaciones=%s tailscale=%s llave=%s\n' "${e:-sin copia}" "$fw" "$ssh" "$apt" "$ts" "${llave:-falta}"
+  printf '· Arbrain: %s\n· firewall=%s ssh=%s actualizaciones=%s tailscale=%s llave=%s chat=%s tailnet=%s\n' "${e:-sin copia}" "$fw" "$ssh" "$apt" "$ts" "${llave:-falta}" "$chat" "$tel"
   case "$e" in
-    *Corriendo*) printf 'NUBE_ESTADO servicio=%s web=http://127.0.0.1:%s firewall=%s ssh=%s actualizaciones=%s tailscale=%s llave=%s\n' "$srv" "$(puerto_web)" "$fw" "$ssh" "$apt" "$ts" "${llave:-falta}" ;;
+    *Corriendo*) printf 'NUBE_ESTADO servicio=%s web=http://127.0.0.1:%s firewall=%s ssh=%s actualizaciones=%s tailscale=%s llave=%s chat=%s tailnet=%s\n' "$srv" "$(puerto_web)" "$fw" "$ssh" "$apt" "$ts" "${llave:-falta}" "$chat" "$tel" ;;
     *) printf 'NUBE_ESPERA Arbrain todavía no responde (servicio %s); la primera vez baja o compila el programa: vuelve a revisar en 15 s. Registro: journalctl -u arbrain -n 30\n' "$srv"; exit 3 ;;
   esac
 }
@@ -469,6 +489,112 @@ orden_llave() {
       printf '%s\n' "$salida" | grep '^NUBE_LLAVE_OK' ;;
     *) printf '%s\n' "$salida" | grep '^NUBE_LLAVE_FALTA' || echo "NUBE_LLAVE_FALTA no pude guardar la llave"; exit 4 ;;
   esac
+}
+
+# ── Lo que hace la persona en SU terminal (29 oct 2026): nada de esto sale por stdout ──────────────────────────────────
+
+# ¿Hay una terminal de verdad? (`[ -r /dev/tty ]` mira permisos; abrirla es lo que falla sin terminal.)
+hay_terminal() { { : < /dev/tty; } 2>/dev/null; }
+# Como el usuario de Arbrain, con la terminal de la persona (entra y sale por /dev/tty, nunca por quien lanzó esto).
+como_u_tty() {
+  runuser -u "$U" -- env -i HOME="$(HOME_U)" USER="$U" LOGNAME="$U" SHELL=/bin/bash LANG=C.UTF-8 TERM="${TERM:-xterm-256color}" \
+    PATH=/usr/local/bin:/usr/bin:/bin bash -c "$1" < /dev/tty > /dev/tty 2>&1
+}
+# Vuelve a correr la orden como root si hace falta (con sudo sin contraseña).
+a_root() {
+  [ "$(id -u)" = 0 ] && return 0
+  sudo -n true 2>/dev/null && exec sudo -n NUBE_USUARIO="$U" bash "$0" "$@"
+  falta "necesito root (o sudo sin contraseña) en tu servidor para «$1»"
+}
+DATOS_U() { printf '%s/.local/share/ai.arbrain.servidor' "$(HOME_U)"; }
+CONFIG_U() { printf '%s/daemon/config' "$(DATOS_U)"; }
+
+# `claude auth status --json` del usuario de Arbrain → «si <plan>» o «no». Solo método y plan, nunca correo ni organización.
+LEER_SESION_PY='import json,sys
+try: d=json.load(sys.stdin)
+except Exception: d={}
+ok=d.get("loggedIn") is True and d.get("apiProvider") in (None,"firstParty") and bool(d.get("subscriptionType"))
+print("si "+str(d.get("subscriptionType")) if ok else "no")'
+sesion_claude() {
+  como_u '. ~/.arbrain/entorno.sh 2>/dev/null; claude auth status --json 2>/dev/null' </dev/null | python3 -c "$LEER_SESION_PY" 2>/dev/null || echo no
+}
+LEER_MOTOR_PY='import json,sys
+try: print(json.load(open(sys.argv[1])).get("motor") or "-")
+except Exception: print("-")'
+motor_elegido() { python3 -c "$LEER_MOTOR_PY" "$(CONFIG_U)/motor-claude.json" 2>/dev/null || echo -; }
+
+esperar_corriendo() { # <segundos>
+  local t=0
+  while [ "$t" -lt "$1" ]; do estado_servidor | grep -q Corriendo && return 0; sleep 3; t=$((t + 3)); done
+  return 1
+}
+
+# El chat con SU cuenta de Claude: el login OFICIAL de Claude Code (`claude auth login`) en su terminal. Claude Code
+# muestra un enlace; ella entra en el navegador de su teléfono o su compu y, si le muestra un código, lo pega en esa
+# terminal (code.claude.com/docs/en/authentication). Claude Code guarda la sesión en ~/.claude/.credentials.json (0600)
+# del usuario de Arbrain; este script no la lee. Luego fija el motor «Mi Claude Code» y reinicia el servicio.
+orden_claude() {
+  a_root claude
+  hay_terminal || { echo "NUBE_CLAUDE_FALTA necesito tu terminal: corre esto tú (ssh -t a tu servidor), no Claude"; exit 4; }
+  como_u '. ~/.arbrain/entorno.sh 2>/dev/null; command -v claude' </dev/null >/dev/null || { echo "NUBE_CLAUDE_FALTA no encuentro Claude Code en tu servidor; vuelve a correr la instalación"; exit 4; }
+  if [ "$(sesion_claude)" = no ]; then
+    printf '\nEntra con tu cuenta de Claude (Pro o Max) para que el chat de tu Arbrain use tu plan.\n' > /dev/tty
+    printf 'Claude Code te muestra un enlace: ábrelo en tu teléfono o tu compu, entra y autoriza; si te muestra un\n' > /dev/tty
+    printf 'código, pégalo aquí. Las rutinas automáticas no usan tu plan: van por tu llave de OpenRouter con tope.\n\n' > /dev/tty
+    como_u_tty '. ~/.arbrain/entorno.sh 2>/dev/null; CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 claude auth login --claudeai' || true
+  fi
+  local s; s="$(sesion_claude)"
+  case "$s" in si*) ;; *) echo "NUBE_CLAUDE_FALTA no quedó la sesión de tu cuenta de Claude (¿se cerró o venció el enlace?); vuelve a correr: nube.sh claude"; exit 4 ;; esac
+  if [ "$(motor_elegido)" != suscripcion ]; then
+    printf '{"motor":"suscripcion","elegido":"%s"}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" | como_u "umask 077; mkdir -p '$(CONFIG_U)' && cat > '$(CONFIG_U)/motor-claude.json'"
+    systemctl restart "$SERVICIO" 2>/dev/null || true
+  fi
+  echo "NUBE_CLAUDE_OK plan=${s#si }"
+}
+
+# La web SOLO dentro de su red de Tailscale (`tailscale serve` hacia 127.0.0.1; nunca funnel ni puertos abiertos). El
+# usuario de Arbrain queda como operador de Tailscale para publicar sin root. La última línea es la de TELEFONO.md.
+orden_telefono() {
+  a_root telefono
+  command -v tailscale >/dev/null 2>&1 || falta "Tailscale no está instalado; vuelve a correr la instalación"
+  tailscale set --operator="$U" >/dev/null 2>&1 || true
+  esperar_corriendo 90 || { echo "TELEFONO_SIN_SERVIDOR"; exit 3; }
+  local out
+  out="$(como_u '. ~/.arbrain/entorno.sh 2>/dev/null; cd ~/Arbrain/arbrain && node scripts/servidor.mjs telefono encender' </dev/null 2>&1)"
+  printf '%s\n' "$out" | grep -v '^TELEFONO_' | sed 's/^\[arbrain\] /· /'
+  printf '%s\n' "$out" | grep '^TELEFONO_' | tail -1
+}
+
+# Código de un solo uso (10 minutos) para entrar desde el navegador: se escribe SOLO en la terminal de la persona.
+orden_codigo() {
+  a_root codigo
+  hay_terminal || { echo "NUBE_CODIGO_FALTA necesito tu terminal: corre esto tú (ssh -t a tu servidor), no Claude"; exit 4; }
+  esperar_corriendo 90 || { echo "NUBE_CODIGO_FALTA Arbrain no está corriendo (revisa: nube.sh estado)"; exit 3; }
+  local out url
+  out="$(como_u '. ~/.arbrain/entorno.sh 2>/dev/null; cd ~/Arbrain/arbrain && node scripts/servidor.mjs telefono codigo' </dev/null 2>/dev/null | tail -1)"
+  url="$(como_u '. ~/.arbrain/entorno.sh 2>/dev/null; cd ~/Arbrain/arbrain && node scripts/servidor.mjs telefono estado' </dev/null 2>/dev/null | sed -n 's/^TELEFONO_ENCENDIDO //p' | tail -1)"
+  case "$out" in
+    "TELEFONO_CODIGO "*)
+      printf '\n  Abre %s en tu teléfono o tu compu (con Tailscale encendido)\n  y escribe este código (un solo uso, 10 minutos):  %s\n\n' "${url:-la dirección .ts.net de tu servidor}" "${out#TELEFONO_CODIGO }" > /dev/tty
+      out=""; echo "NUBE_CODIGO_OK ${url:-sin-telefono}" ;;
+    *) echo "NUBE_CODIGO_FALTA no pude pedir el código ($out)"; exit 4 ;;
+  esac
+}
+
+# Lo que solo ella puede hacer, en UNA terminal: su cuenta de Claude (chat), su llave con tope (rutinas) y su código.
+orden_conectar() {
+  a_root conectar
+  hay_terminal || { echo "NUBE_CONECTAR_FALTA necesito tu terminal: corre esto tú (ssh -t a tu servidor), no Claude"; exit 4; }
+  local r c l k
+  printf '\n1/3 · ¿Pagas Claude Pro o Max y quieres que el chat use tu cuenta? [S/n] ' > /dev/tty
+  IFS= read -r r < /dev/tty || r=n
+  case "$r" in n|N|no|NO) c=saltado ;; *) c="$(bash "$0" claude 2>&1 | tail -1)" ;; esac
+  printf '\n2/3 · Tu llave de OpenRouter con tope, para las rutinas (Enter vacío para hacerlo después).\n' > /dev/tty
+  printf '      Créala en https://openrouter.ai/settings/keys con «Credit limit» (por ejemplo 10).\n' > /dev/tty
+  l="$(bash "$0" llave 2>&1 | tail -1)"
+  printf '\n3/3 · Tu código para entrar desde el navegador.\n' > /dev/tty
+  k="$(bash "$0" codigo 2>&1 | tail -1)"
+  printf 'NUBE_CONECTAR claude=%s llave=%s codigo=%s\n' "${c%% *}" "${l%% *}" "${k%% *}"
 }
 
 orden_instalar() {
@@ -506,7 +632,7 @@ orden_instalar() {
 [ "${NUBE_SOLO_FUNCIONES:-}" = 1 ] && return 0 2>/dev/null
 
 ORDEN=instalar; MI_ARBRAIN=""; CON_ESPEJO=0; ESPEJO_ROL=""; ESPEJO_CITA=""
-case "${1:-}" in instalar|estado|llave) ORDEN="$1"; shift ;; esac
+case "${1:-}" in instalar|estado|llave|claude|telefono|codigo|conectar) ORDEN="$1"; shift ;; esac
 if [ "$ORDEN" = instalar ]; then
   ARGS=("$@")
   while [ $# -gt 0 ]; do
@@ -526,5 +652,9 @@ if [ "$ORDEN" = instalar ]; then
   [ "$ESPEJO_ROL" != lider ] || [ "${#ESPEJO_CITA}" -ge 3 ] || falta "para que esta nube mande necesito las palabras de la persona: --cita \"<lo que dijo, por ejemplo: que la nube mande>\". Nadie se autopromueve"
   orden_instalar ${ARGS[@]+"${ARGS[@]}"}
 elif [ "$ORDEN" = estado ]; then orden_estado
+elif [ "$ORDEN" = claude ]; then orden_claude
+elif [ "$ORDEN" = telefono ]; then orden_telefono
+elif [ "$ORDEN" = codigo ]; then orden_codigo
+elif [ "$ORDEN" = conectar ]; then orden_conectar
 else orden_llave "$@"
 fi

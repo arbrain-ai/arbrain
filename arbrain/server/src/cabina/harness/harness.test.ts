@@ -2,7 +2,9 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { ADAPTADORES, adaptador, leerBitacora, respuestaDe, tokensDe } from './index.js'
+import { ADAPTADORES, adaptador, coherencia, leerBitacora, respuestaDe, tokensDe } from './index.js'
+import { mismoModelo } from './coherencia.js'
+import { esfuerzoSiguiente } from './tipos.js'
 
 /** Muestras REALES grabadas el 6 oct 2026 en /tmp con cada CLI (claude 2.1.285, codex 0.154.0, opencode 1.18.27,
  *  gemini 0.56.0, qwen 0.22.0). Solo se recortaron las listas largas del `init` de claude/qwen. */
@@ -30,6 +32,15 @@ describe('claude', () => {
       .toEqual(['-p', '--output-format', 'stream-json', '--verbose', '--resume', 'u-1', '--permission-mode', 'acceptEdits', 'y?'])
     expect(a.sesionPropia).toBe(true)
   })
+  it('esfuerzo viaja como --effort en lanzar, reanudar y vivo (29 oct 2026)', () => {
+    expect(a.lanzar({ encargo: 'hola', modelo: 'claude-opus-5-5', esfuerzo: 'max', cwd: '/tmp/x', permisos: 'bypass', sesion: 'u-1' }))
+      .toEqual(['-p', '--output-format', 'stream-json', '--verbose', '--session-id', 'u-1', '--model', 'claude-opus-5-5', '--effort', 'max', '--permission-mode', 'bypassPermissions', 'hola'])
+    expect(a.reanudar({ sesion: 'u-1', texto: 'y?', modelo: null, esfuerzo: 'high', cwd: '/tmp/x', permisos: 'bypass' }))
+      .toContain('--effort')
+    expect(a.vivo!.argv({ reanudar: false, modelo: null, esfuerzo: 'xhigh', permisos: 'bypass', cwd: '/tmp/x' }).join(' ')).toContain('--effort xhigh')
+    expect(a.lanzar({ encargo: 'hola', modelo: null, cwd: '/tmp/x', permisos: 'bypass' })).not.toContain('--effort')
+    expect(a.modeloDefault(() => undefined)).toBe('claude-opus-5-5')
+  })
   it('lee sesión, respuesta y tokens de dos turnos reales', () => {
     const b = leer('claude', turno('claude-lanzar'), turno('claude-reanudar'))
     expect(b.sesion).toBe('abaababb-aabb-baab-bbaa-bbaaabbaabaa')
@@ -49,6 +60,11 @@ describe('claude', () => {
 
 describe('codex', () => {
   const a = ADAPTADORES.codex
+  it('esfuerzo como model_reasoning_effort, tal cual llega (el catálogo ya decidió); el respaldo baja max a xhigh', () => {
+    expect(a.lanzar({ encargo: 'x', modelo: null, esfuerzo: 'max', cwd: '/tmp/x', permisos: 'bypass' }).join(' ')).toContain('model_reasoning_effort="max"')
+    expect(a.esfuerzoCli!('max')).toBe('xhigh')
+    expect(a.esfuerzoCli!('high')).toBe('high')
+  })
   it('argv de exec y exec resume', () => {
     expect(a.lanzar({ encargo: 'hola', modelo: 'gpt-5.5', cwd: '/tmp/x', permisos: 'bypass' }))
       .toEqual(['exec', '--json', '--skip-git-repo-check', '-m', 'gpt-5.5', '--dangerously-bypass-approvals-and-sandbox', 'hola'])
@@ -163,5 +179,88 @@ describe('entrada en vivo (ajuste de Levy, 6 oct): muestras reales del pastor', 
     expect(b.turnos[0]).toMatchObject({ detenido: true, salida: { detenido: true } })
     expect(b.turnos[0].error).toBeUndefined()
     expect(respuestaDe(b.turnos[1])).toBe('python3 -c "import time; time.sleep(90)"')
+  })
+})
+
+/*
+ * Coherencia (29 oct 2026, brecha 1 del benchmark de orquestación): lo que se pide, lo que viaja al CLI y lo que el CLI
+ * dice que corre. Antes, codex en vivo (el default) perdía el esfuerzo sin aviso y el Taller pintaba lo pedido.
+ */
+describe('coherencia: pedido = RPC = leído', () => {
+  /** La muestra real con la marca de inicio que hoy escribe lanzarTurno (modelo y esfuerzo pedidos). */
+  const conPedido = (n: string, pedido: { modelo: string | null; esfuerzo: string | null }) => {
+    const m = muestra(n), marca = `"modelo": ${JSON.stringify(pedido.modelo)}, "esfuerzo": ${JSON.stringify(pedido.esfuerzo)}`
+    // las muestras del pastor ya traen su marca de inicio; las de un solo turno son stdout crudo
+    return m.startsWith('{"arbrain": "inicio",') ? m.replace(/^\{"arbrain": "inicio",/, `{"arbrain": "inicio", ${marca},`) : `{"arbrain": "inicio", "en": 1, "texto": "encargo", ${marca}}\n${m}`
+  }
+
+  it('codex en vivo manda el esfuerzo al hilo (config, para que lo reporte) y al turno (turn/start.effort)', () => {
+    const rpc = ADAPTADORES.codex.vivo!.rpc!({ reanudar: false, modelo: 'gpt-5.5', esfuerzo: 'medium', permisos: 'bypass', cwd: '/tmp/x' })
+    expect(rpc.hiloParams).toEqual({ cwd: '/tmp/x', approvalPolicy: 'never', sandbox: 'danger-full-access', model: 'gpt-5.5', config: { model_reasoning_effort: 'medium' } })
+    expect(rpc.turno).toEqual({ effort: 'medium' })
+    // el valor llega ya resuelto contra el catálogo: max viaja como max al hilo y al turno
+    const max = ADAPTADORES.codex.vivo!.rpc!({ reanudar: true, modelo: null, esfuerzo: 'max', permisos: 'auto', cwd: '/tmp/x' })
+    expect(max.turno).toEqual({ effort: 'max' })
+    expect(max.hiloParams.config).toEqual({ model_reasoning_effort: 'max' })
+    // sin esfuerzo pedido no se inventa uno
+    expect(ADAPTADORES.codex.vivo!.rpc!({ reanudar: false, modelo: null, permisos: 'bypass', cwd: '/tmp/x' }).turno).toBeUndefined()
+  })
+
+  it('muestra codex-appserver-vivo: pedido medium = RPC medium = thread/started medium', () => {
+    const pedido = { modelo: 'gpt-5.5', esfuerzo: 'medium' }
+    const rpc = ADAPTADORES.codex.vivo!.rpc!({ reanudar: false, ...pedido, permisos: 'bypass', cwd: '/tmp/x' })
+    const b = leerBitacora(conPedido('codex-appserver-vivo', pedido), ADAPTADORES.codex)
+    const t = b.turnos[0]
+    expect(t.pedido).toEqual(pedido)
+    expect(t.efectivo).toEqual({ modelo: 'gpt-5.5', esfuerzo: 'medium' })
+    expect(rpc.turno!.effort).toBe(t.pedido!.esfuerzo)
+    expect(t.efectivo!.esfuerzo).toBe(rpc.turno!.effort)
+    expect(coherencia(t.pedido!, t.efectivo)).toMatchObject({ desajuste: null, esfuerzo: { estado: 'coincide' }, modelo: { estado: 'coincide' } })
+  })
+
+  it('el bug de antes se ve en ámbar: pedir max y que el CLI reporte medium', () => {
+    const b = leerBitacora(conPedido('codex-appserver-vivo', { modelo: null, esfuerzo: 'max' }), ADAPTADORES.codex)
+    const c = coherencia(b.turnos[0].pedido!, b.turnos[0].efectivo)
+    expect(c.desajuste).toBe('pediste max · corre medium')
+    expect(c.modelo.estado).toBe('default')
+  })
+
+  it('el pastor anota lo que responde thread/resume (que no emite thread/started)', () => {
+    const b = leerBitacora('{"arbrain":"inicio","en":1,"texto":"y?","modelo":null,"esfuerzo":"low"}\n{"arbrain":"sesion","id":"th-1","modelo":"gpt-5.6-luna","esfuerzo":"low"}\n', ADAPTADORES.codex)
+    expect(b.turnos[0].efectivo).toEqual({ modelo: 'gpt-5.6-luna', esfuerzo: 'low' })
+  })
+
+  it('claude: el modelo sale de system/init; el esfuerzo no lo reporta y queda «sin medir»', () => {
+    const b = leerBitacora(conPedido('claude-reanudar', { modelo: 'claude-opus-5-5', esfuerzo: 'max' }), ADAPTADORES.claude)
+    expect(b.turnos[0].efectivo).toEqual({ modelo: 'claude-opus-5-5' })
+    const c = coherencia(b.turnos[0].pedido!, b.turnos[0].efectivo)
+    expect(c).toMatchObject({ desajuste: null, modelo: { estado: 'coincide' }, esfuerzo: { estado: 'sin-medir', pedido: 'max', efectivo: null } })
+    // pedir Opus y que arranque Sonnet sí es desajuste
+    const otra = leerBitacora(conPedido('claude-lanzar', { modelo: 'claude-opus-5-5', esfuerzo: null }), ADAPTADORES.claude)
+    expect(coherencia(otra.turnos[0].pedido!, otra.turnos[0].efectivo).desajuste).toBe('pediste el modelo claude-opus-5-5 · corre claude-sonnet-5-5')
+  })
+
+  it('bitácoras viejas (sin pedido en la marca) no inventan un pedido', () => {
+    expect(leer('claude', turno('claude-lanzar')).turnos[0].pedido).toBeUndefined()
+  })
+
+  it('mismoModelo: alias de familia y calificador de contexto', () => {
+    expect(mismoModelo('opus', 'claude-opus-5-5')).toBe(true)
+    expect(mismoModelo('claude-fable-5-1[1m]', 'claude-fable-5-1')).toBe(true)
+    expect(mismoModelo('opus', 'claude-sonnet-5-5')).toBe(false)
+    expect(mismoModelo('claude-opus-5-5', 'claude-opus-5-1')).toBe(false)
+  })
+
+  it('interactivo recibe el esfuerzo (brecha 4): claude --effort, codex model_reasoning_effort', () => {
+    expect(ADAPTADORES.claude.interactivo('u-1', 'claude-opus-5-5', 'high')).toEqual(expect.arrayContaining(['--effort', 'high']))
+    expect(ADAPTADORES.codex.interactivo('th-1', null, 'xhigh').join(' ')).toContain('model_reasoning_effort="xhigh"')
+    expect(ADAPTADORES.claude.interactivo('u-1', null)).not.toContain('--effort')
+  })
+
+  it('esfuerzoSiguiente: un nivel arriba, sin pasar el techo', () => {
+    expect(esfuerzoSiguiente('medium')).toBe('high')
+    expect(esfuerzoSiguiente(null)).toBe('high')
+    expect(esfuerzoSiguiente('max')).toBeNull()
+    expect(esfuerzoSiguiente('xhigh', 'xhigh')).toBeNull()
   })
 })

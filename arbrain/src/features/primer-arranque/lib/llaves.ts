@@ -107,7 +107,8 @@ export async function probarVoz(): Promise<PruebaVoz> {
 
 /** Aviso entre pantallas: la llave de voz cambió (el micrófono del chat vuelve a mirar el llavero). */
 export const EVENTO_LLAVE_VOZ = 'arbrain:llave-voz'
-/** El micrófono del chat deja esta marca al llevar a la persona a Ajustes › Voz: el panel la saluda con el porqué. */
+/** El micrófono del chat ('1') o el aviso del lector con LemonFox ('lector') dejan esta marca al llevar a la persona a
+ * Ajustes › Voz: el panel la saluda con el porqué. */
 export const MARCA_DESDE_MIC = 'arbrain:voz-desde-mic'
 
 // ── Puente con la app de escritorio ──────────────────────────────────────────────────────────────────────────────

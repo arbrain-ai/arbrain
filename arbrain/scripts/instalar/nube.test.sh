@@ -44,8 +44,8 @@ R="$T/repo"; mkdir -p "$R/arbrain/scripts" "$R/.claude/skills/del-autor" "$R/.cl
   && echo 1 > arbrain/scripts/a.mjs && echo s > .claude/skills/del-autor/SKILL.md && echo m > .claude/memory/MEMORY.md \
   && git add -A && git commit -qm base && git tag -a v0.0.1 -m v )
 check "copia igual a la etiqueta" "$(fuera_de_capa "$R" v0.0.1)" ""
-( cd "$R" && echo yo >> .claude/memory/MEMORY.md && mkdir -p .claude/skills/mia mi-negocio .claude/hooks/tmp && echo x > .claude/skills/mia/SKILL.md \
-  && echo n > mi-negocio/plan.md && echo laptop > .claude/hooks/.host-slug && echo '{}' > .claude/hooks/tmp/flush-state.json && git add -A && git commit -qm capa )
+( cd "$R" && echo yo >> .claude/memory/MEMORY.md && mkdir -p .claude/skills/mia mi-negocio mi-marca .claude/hooks/tmp && echo x > .claude/skills/mia/SKILL.md \
+  && echo n > mi-negocio/plan.md && echo 'html:root{--primary:red}' > mi-marca/tema.css && echo laptop > .claude/hooks/.host-slug && echo '{}' > .claude/hooks/tmp/flush-state.json && git add -A && git commit -qm capa )
 check "capa, skill propia e identidad no cuentan" "$(fuera_de_capa "$R" v0.0.1)" ""
 ( cd "$R" && echo 2 >> .claude/skills/del-autor/SKILL.md && git commit -qam skill )
 check "skill del autor cambiada sí cuenta" "$(fuera_de_capa "$R" v0.0.1)" ".claude/skills/del-autor/SKILL.md"
@@ -90,6 +90,27 @@ check "--rol lider sin --espejo se niega" "$R2" "NUBE_FALTA --rol lider va con -
 check "nube.sh ejecutable" "$([ -x "$AQUI/nube.sh" ] && echo si)" si
 check "sintaxis de nube.sh" "$(bash -n "$AQUI/nube.sh" && echo si)" si
 check "sintaxis de nube-prueba.sh" "$(bash -n "$AQUI/nube-prueba.sh" && echo si)" si
+check "sintaxis de nube-solo-prueba.sh" "$(bash -n "$AQUI/nube-solo-prueba.sh" && echo si)" si
+
+# 9. Solo en tu servidor (29 oct): la sesión de Claude se lee sin datos de la cuenta y lo de la persona exige su terminal
+check "sesión de suscripción → plan" "$(echo '{"loggedIn":true,"authMethod":"claude.ai","apiProvider":"firstParty","subscriptionType":"max","email":"a@b.c"}' | python3 -c "$LEER_SESION_PY")" "si max"
+check "sesión por API no cuenta como su cuenta" "$(echo '{"loggedIn":true,"authMethod":"api_key","apiProvider":"firstParty"}' | python3 -c "$LEER_SESION_PY")" "no"
+check "sin sesión" "$(echo '{"loggedIn":false}' | python3 -c "$LEER_SESION_PY")" "no"
+check "salida ilegible" "$(echo 'no es json' | python3 -c "$LEER_SESION_PY")" "no"
+check "nunca imprime el correo" "$(echo '{"loggedIn":true,"apiProvider":"firstParty","subscriptionType":"pro","email":"a@b.c"}' | python3 -c "$LEER_SESION_PY" | grep -c '@')" 0
+mkdir -p "$T/cfg" && echo '{"motor":"suscripcion"}' > "$T/cfg/motor-claude.json"
+check "motor elegido" "$(python3 -c "$LEER_MOTOR_PY" "$T/cfg/motor-claude.json")" suscripcion
+check "motor sin archivo" "$(python3 -c "$LEER_MOTOR_PY" "$T/cfg/no-existe.json")" "-"
+check "sin terminal no hay terminal" "$(hay_terminal < /dev/null 2>/dev/null && echo si || echo no)" "$(setsid true 2>/dev/null; { : < /dev/tty; } 2>/dev/null && echo si || echo no)"
+cuerpo() { awk -v f="$1() {" 'index($0, f) == 1 {p = 1} p {print} p && /^}$/ {exit}' "$AQUI/nube.sh"; }
+check "cuerpo de una orden se lee" "$(cuerpo orden_claude | head -1)" "orden_claude() {"
+for o in claude telefono codigo conectar; do
+  check "nube.sh conoce «$o»" "$(grep -c "^elif \[ \"\$ORDEN\" = $o \]; then orden_$o$" "$AQUI/nube.sh")" 1
+done
+for o in claude codigo conectar; do
+  check "nube.sh $o escribe en /dev/tty y se niega sin terminal" "$(cuerpo "orden_$o" | grep -c 'hay_terminal ||')" 1
+done
+check "nube.sh telefono usa serve, nunca funnel" "$(cuerpo orden_telefono | grep -c funnel)" 0
 
 rm -rf "$T"
 [ "$fail" = 0 ] && echo "nube.test.sh: todo verde" || echo "nube.test.sh: HAY FALLAS"

@@ -43,8 +43,6 @@ export interface Fijada {
  */
 export function guardable(f: Pick<Fijada, 'id' | 'input' | 'guardada'>): boolean {
   if (f.guardada || f.input.vista === 'documento') return true
-  // Una sesión del pizarrón (7 oct 2026) se guarda como favorita la haya abierto Levy o Daniel desde la casa del pizarrón.
-  if (f.input.vista === 'pizarron' && !!f.input.paginaId) return true
   if (f.id.startsWith('mano-')) return false
   return f.input.vista === 'reporte' || (f.input.vista === 'lienzo' && !!f.input.paginaId)
 }

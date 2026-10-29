@@ -9,7 +9,7 @@
  * superficies decide por su cuenta qué es un agente o en qué estado está.
  */
 
-export interface Subagente { id: number; nombre: string; harness: string; encargo: string; cwd: string; creado: string; modelo?: string; tokens?: number | null; permisos?: 'bypass' | 'auto' | 'acceptEdits'; entrega?: 'entregado' | 'pendiente' | 'falló'; entregaNota?: string
+export interface Subagente { id: number; nombre: string; harness: string; encargo: string; cwd: string; creado: string; modelo?: string; /** Esfuerzo PEDIDO (lo medido va en `Conversacion.coherencia`). */ esfuerzo?: string; tokens?: number | null; permisos?: 'bypass' | 'auto' | 'acceptEdits'; entrega?: 'entregado' | 'pendiente' | 'falló'; entregaNota?: string
   /** Conversación del chat desde la que Levy lo lanzó (3 oct 2026); null o ausente = «Sin conversación». */
   origen?: string | null
   /** Pregunta abierta que vio el servidor (caja con «?», AskUserQuestion o permiso, 5 oct 2026): primero la atiende Levy. */
@@ -19,7 +19,25 @@ export interface Subagente { id: number; nombre: string; harness: string; encarg
   escaladoPor?: string
   rescatado?: string
   /** Veredicto del juez separado sobre su último turno (agent-server `cabina/juez.ts`, 27 oct 2026). */
-  juicio?: Juicio }
+  juicio?: Juicio
+  /** De dónde salieron modelo y esfuerzo y contra qué se validaron (agent-server `cabina/catalogo-delegar.ts`). */
+  eleccion?: string
+  /** Su propio worktree con su rama, o la carpeta pedida (agent-server `cabina/aislamiento.ts`, 29 oct 2026). */
+  aislamiento?: 'worktree' | 'carpeta'
+  rama?: string
+  /** Perfil de permisos (agent-server `cabina/perfiles.ts`, 29 oct 2026): total, codigo o lectura. Sin campo = total. */
+  perfil?: 'total' | 'codigo' | 'lectura'
+  /** El CLI no acepta la guardia: corre sin lista negra. */
+  sinGuardia?: boolean
+  /** Plan versionado del que salió (agent-server `cabina/plan.ts`): ruta en el repo y commit aprobado. */
+  plan?: { ruta: string; commit: string | null } }
+/** Plan de encargo por correr (agent-server `cabina/plan.ts`, 29 oct 2026). */
+export interface PlanPendiente { ruta: string; abs: string; nombre: string; harness: string; perfil: 'total' | 'codigo' | 'lectura'; propuesto: string | null; resumen: string }
+/** Lo pedido contra lo que el CLI reportó que corre (agent-server `cabina/harness/coherencia.ts`, 29 oct 2026). */
+export interface ValorCoherencia { pedido: string | null; efectivo: string | null; estado: 'coincide' | 'distinto' | 'sin-medir' | 'default' }
+export interface Coherencia { modelo: ValorCoherencia; esfuerzo: ValorCoherencia; desajuste: string | null }
+/** Lo que cambió en su rama desde main (lo guardado y lo que aún no guarda). */
+export interface CambiosRama { rama: string; mas: number; menos: number; archivos: number }
 export type Veredicto = 'cumple' | 'no-cumple' | 'no-verificable' | 'sin-dod'
 export interface Juicio { veredicto: Veredicto; razon: string; en: string; turno?: number; modelo?: string }
 /** Columna del tablero con su latido medido (agent-server `cabina/tablero.ts`): proceso vivo y última escritura. */
@@ -32,9 +50,9 @@ export interface EstadoTablero {
   desde?: number
 }
 export interface Mensaje { rol: 'user' | 'assistant'; texto: string; herramientas: string[] }
-export interface Conversacion { harness: string; modelo: string | null; esfuerzo?: string | null; ctxPct: number | null; ctxVentana?: number | null; turno: 'trabajando' | 'terminado' | null; pregunta: boolean; tokens: number | null; mensajes: Mensaje[]; titulo: string | null; error?: string }
+export interface Conversacion { harness: string; modelo: string | null; esfuerzo?: string | null; coherencia?: Coherencia; ctxPct: number | null; ctxVentana?: number | null; turno: 'trabajando' | 'terminado' | null; pregunta: boolean; tokens: number | null; mensajes: Mensaje[]; titulo: string | null; error?: string }
 export type EstadoTerminal = 'trabajando' | 'esperando' | 'terminal'
-export interface Terminal { id: number; pid?: number; titulo: string; cwd: string; proc: string; estado: EstadoTerminal; actividad: string | null; ultimaAccion: string | null; ultimas: string[]; origen?: 'motor' | 'sfterm-ptyd' | 'sin-pantalla'; soloLectura?: boolean; conversacion?: Conversacion; subagente?: Subagente; tablero?: EstadoTablero }
+export interface Terminal { id: number; pid?: number; titulo: string; cwd: string; proc: string; estado: EstadoTerminal; actividad: string | null; ultimaAccion: string | null; ultimas: string[]; origen?: 'motor' | 'sfterm-ptyd' | 'sin-pantalla'; soloLectura?: boolean; conversacion?: Conversacion; subagente?: Subagente; tablero?: EstadoTablero; cambios?: CambiosRama }
 export interface Servidor { puerto: number; proceso: string; nombre: string }
 export type AreaServicio = 'Casa' | 'Voz' | 'Salud' | 'Arbrain' | 'Levy' | 'Túneles' | 'Datos' | 'Manos' | 'Apps'
 /** `nombre`/`area` en palabras de dueño (5 oct 2026); con falla, `explicacion` en español llano, `menor` = su app sí corre, `detalle` = última línea del log. */
@@ -63,7 +81,7 @@ export interface TareaInterna {
 /** Proceso = un comando en segundo plano (14 oct 2026, Daniel: «muchos son procesos de la terminal… debería decir X agentes
  *  y Y procesos»). No conversa ni gasta tokens: se cuenta aparte y se muestra bajo el agente que lo lanzó. */
 export const esProceso = (t: Pick<TareaInterna, 'tipo'>) => t.tipo === 'comando'
-export interface Trabajos { fuente?: 'motor' | 'sfterm-gate' | 'ninguna'; sfterm: boolean; motor?: Motor; topes?: Topes; internas?: TareaInterna[]; terminales: Terminal[]; servidores: Servidor[]; servicios: Servicio[]; procesos?: Proceso[]; leidoEn: string; error?: string }
+export interface Trabajos { fuente?: 'motor' | 'sfterm-gate' | 'ninguna'; sfterm: boolean; motor?: Motor; topes?: Topes; internas?: TareaInterna[]; terminales: Terminal[]; servidores: Servidor[]; servicios: Servicio[]; procesos?: Proceso[]; planes?: PlanPendiente[]; leidoEn: string; error?: string }
 /** Lo que el daemon lee de la transcripción de un subagente (`DetalleSubagente` en `arbrain/server/src/cabina/internos.ts`). */
 export interface DetalleSubagente {
   encargo?: string; modelo?: string; contexto?: number

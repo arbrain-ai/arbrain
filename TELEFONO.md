@@ -12,13 +12,17 @@
 > computadora. Lo único que haces tú: instalar Tailscale (gratis) en la computadora y en el teléfono e iniciar sesión
 > con la misma cuenta. No es el «Agente Arbrain» de arbrain.ai: esa es otra app; la tuya se llama **«Tu Arbrain»**.
 >
-> **Límite honesto:** funciona mientras tu computadora esté prendida, con internet y con Arbrain corriendo.
+> **Límite honesto:** funciona mientras tu computadora esté prendida, con internet y con Arbrain corriendo. Si lo
+> quieres con la computadora apagada, tu Arbrain puede vivir en tu servidor: `INSTALAR-NUBE.md` («Solo en tu servidor»).
 
 ---
 
 Eres el guía de la persona para poner su Arbrain en su teléfono. Su Arbrain ya corre en esta computadora (modo
 servidor, solo en `127.0.0.1`). Lo vas a publicar **solo dentro de su red privada de Tailscale** con la orden
 `telefono` de Arbrain, que usa `tailscale serve`. Háblale en español simple, una línea por paso, sin salidas técnicas.
+
+Si esta máquina es **su servidor** (existe `/etc/systemd/system/arbrain.service`), no sigas este guion: sigue el N6 y el
+N8 de `INSTALAR-NUBE.md` (`nube.sh telefono`, y el código para entrar sale en su terminal con `nube.sh codigo`).
 
 ## Reglas que no se rompen
 
@@ -45,6 +49,13 @@ Si su Arbrain vive en otra carpeta (por ejemplo `~/Arbrain-nuevo`), usa esa.
 - La primera línea no dice «Corriendo»: arráncalo en segundo plano y espera hasta 5 minutos a que diga «Corriendo»:
   `nohup node scripts/servidor.mjs --sin-navegador > "$HOME/.arbrain/arranque.log" 2>&1 &`
 - La última línea empieza con `TELEFONO_`: sigue al PASO 2 con esa línea.
+
+Arbrain tiene que volver solo cuando la persona apague o reinicie la computadora; si no, el teléfono se queda sin a
+quién preguntar. Desde la 0.2.14 `telefono encender` lo deja activado; en versiones anteriores, actívalo tú:
+
+```bash
+. ~/.arbrain/entorno.sh 2>/dev/null; cd ~/Arbrain/arbrain && node scripts/servidor.mjs estado | grep 'Arranque' | grep -q activado || node scripts/servidor.mjs arranque-automatico activar | tail -1
+```
 
 ## PASO 2 · Enciéndelo y resuelve lo que falte
 
@@ -104,10 +115,27 @@ Si el teléfono dice que no encuentra la página: Tailscale del teléfono está 
 ```text
 Tu cerebro en el teléfono: encendido · <dirección>
 Solo entra quien esté en tu red de Tailscale y además tenga tu código o tu contraseña. Nada quedó abierto a internet.
-Funciona mientras tu computadora esté prendida y con Arbrain corriendo (te conviene dejar activado su arranque automático).
+Funciona mientras tu computadora esté prendida. Arbrain arranca solo al encenderla, y tu teléfono vuelve con él.
 Para apagarlo: «Apaga mi cerebro en el teléfono», o Ajustes › Tu cerebro en el teléfono › Apagar.
 ```
 
 Si pide **apagarlo**: `node scripts/servidor.mjs telefono apagar | tail -1` debe decir `TELEFONO_APAGADO`.
 Si pide que deje de funcionar en un teléfono perdido: además, que quite ese equipo en
 https://login.tailscale.com/admin/machines y corre `node scripts/servidor.mjs cerrar-sesiones` (luego reinicia Arbrain).
+
+## Si después de apagar o reiniciar la computadora el teléfono no conecta
+
+Corre, en orden, y detente en el primero que lo arregle:
+
+```bash
+. ~/.arbrain/entorno.sh 2>/dev/null; cd ~/Arbrain/arbrain && node scripts/servidor.mjs estado; node scripts/servidor.mjs telefono estado | tail -2
+```
+
+1. `No está corriendo`: arráncalo (`nohup node scripts/servidor.mjs --sin-navegador > "$HOME/.arbrain/arranque.log" 2>&1 &`)
+   y activa el arranque automático (bloque del PASO 1).
+2. `Arranque automático: desactivado`: actívalo (bloque del PASO 1). Si la persona movió la carpeta de Arbrain,
+   actívalo de nuevo desde la carpeta nueva: el arranque apunta a la ruta donde se activó.
+3. `TELEFONO_APAGADO_TAILSCALE` o `TELEFONO_FALTA_SESION`: que abra Tailscale en la computadora y pulse «Connect»
+   (o «Log in» con la misma cuenta del teléfono). En Windows, que en el menú de Tailscale deje marcado «Run unattended»
+   para que se conecte sin esperar a que abra la app.
+4. `TELEFONO_DESFASADO` u otra: vuelve al PASO 2.

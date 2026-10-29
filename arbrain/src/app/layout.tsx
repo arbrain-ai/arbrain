@@ -10,6 +10,7 @@ import { ReposoVentana } from '@/shared/movimiento/Reposo'
 import { ThemeProvider } from '@/shared/contexts/theme-context'
 import { AuthProvider } from '@/shared/contexts/auth-context'
 import { esEdicionCliente } from '@/lib/edicion'
+import { MiMarca } from '@/components/MiMarca'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -124,6 +125,9 @@ export default function RootLayout({
           type="font/woff2"
           crossOrigin="anonymous"
         />
+        {/* Mi marca (lib/mi-marca.ts): `mi-marca/tema.css` del dueño, servido en tiempo de ejecución y DESPUÉS de las
+            hojas del autor, así que sus variables ganan sin recompilar ni editar globals.css. */}
+        {CLIENTE && <link rel="stylesheet" href="/api/mi-marca/tema" />}
       </head>
       <body className="font-sans antialiased" suppressHydrationWarning>
         <ThemeProvider>
@@ -133,6 +137,7 @@ export default function RootLayout({
             <AuthExpiryGuard />
             <DesktopReloadShortcut />
             <ReposoVentana />
+            {CLIENTE && <MiMarca />}
           </AuthProvider>
         </ThemeProvider>
       </body>

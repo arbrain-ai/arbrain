@@ -109,6 +109,9 @@ PASO 5 · Pasa los cambios a lo mío
   cambió el autor y qué había cambiado yo. Regla: se queda la estructura nueva del autor y se vuelven a poner mis líneas en
   su lugar. Si se contradicen, pregúntame cuál quiero. Si aun así una skill mía y una nueva del autor se llaman igual, renombra
   la mía a <nombre>-mia (carpeta y `name:`) como en el PASO 3. Al terminar: git add <archivos> && git commit --no-edit
+- Si el conflicto es por colores, logo o nombre que puse en archivos del autor (globals.css, layout.tsx, public/): quédate
+  con el renglón del autor y pasa mi valor a mi-marca/ (tema.css, logo, marca.json; docs/PERSONALIZAR.md). Así no
+  vuelve a chocar y Arbrain vuelve a usar el programa ya compilado.
 - Si algo sale mal a la mitad: git merge --abort y dime que todo quedó como antes.
 
 PASO 6 · Lo que cambia fuera del texto

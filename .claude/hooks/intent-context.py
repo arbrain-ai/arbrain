@@ -48,6 +48,8 @@ ROUTES = [
      ['.claude/skills/libro-os/SKILL.md']),
     ('Meta ambiciosa a plan', ['compila esta meta', 'goal', 'spec verificable', 'convierte esto en un plan'],
      ['.claude/skills/goal-compiler/SKILL.md']),
+    ('Crear una skill', ['crea una skill', 'hazme una skill', 'nueva skill', 'convierte esto en una skill', 'documenta este proceso', 'guarda como lo hicimos', 'ya lo hicimos dos veces', 'mi proceso mas odiado', 'skill creator'],
+     ['.claude/skills/skill-creator/SKILL.md']),
     ('Mejorar una skill', ['mejora el skill', 'mejora la skill', 'autoresearch', 'corre evals'],
      ['.claude/skills/autoresearch/SKILL.md']),
     ('Sistema viable', ['sistema viable', 'stafford beer', 'vsm', 'mi negocio como sistema'],

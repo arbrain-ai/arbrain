@@ -8,13 +8,14 @@ import { useEncuadre } from './useEncuadre'
 import { DRIP } from './drip'
 import { SECCION } from './secciones'
 import { fantasmasAntesDe, hhmm as hhmmP, type SemanaPerfecta } from './semana-perfecta'
-import { franjasDelDia, rango, resumenCampo } from './campos-fondo'
-import { instalacion } from '@/config'
+import { franjasDelDia, resumenCampo, tituloZona } from './campos-fondo'
+import { DEF } from './categorias'
+import { useZonas } from './useZonas'
 import type { CampoFondo } from '@/config/tipos'
 import h from './semana-horas.module.css'
 
-/** Los campos de fondo de esta instalación (28 oct 2026): comida y trabajo profundo. */
-const CAMPOS_FONDO = instalacion().camposFondo
+/** Un gesto que empieza en el hueco de la columna o sobre una zona de fondo (que solo está para decir su nombre al pasar). */
+const enHueco = (e: { target: EventTarget; currentTarget: EventTarget }) => e.target === e.currentTarget || (e.target as HTMLElement).dataset?.campo !== undefined
 
 /**
  * La rejilla de la Semana (9 oct 2026). Siete columnas del tramo de horas (TRAMO) con los bloques a la escala de
@@ -102,7 +103,7 @@ interface Gesto {
   minuto: number
 }
 
-export function SemanaHoras({ dias: diasFijos, semana, inicio, onVentana, sinBarra, hoy, ahora, bloques, todoElDia, barras = [], estrellas, onMover, onEstirar, onCrear, onAbrir, onDia, tramo = TRAMO, donde = 'chat', barra, amplia, diasVista, finDeSemana = true, compacta, zona, todoElDiaAbierto, onTodoElDia, listo = true, llenar = false, perfecta = null, corteRutina = null, campos = CAMPOS_FONDO }: {
+export function SemanaHoras({ dias: diasFijos, semana, inicio, onVentana, sinBarra, hoy, ahora, bloques, todoElDia, barras = [], estrellas, onMover, onEstirar, onCrear, onAbrir, onDia, tramo = TRAMO, donde = 'chat', barra, amplia, diasVista, finDeSemana = true, compacta, zona, todoElDiaAbierto, onTodoElDia, listo = true, llenar = false, perfecta = null, corteRutina = null, campos: camposFijos }: {
   /** Semana fija (la vista del chat). Sin `onVentana` se pintan estos días. */
   dias?: string[]
   /** Ventana deslizante: un día de la semana a la que se llega (Hoy, el Mes, la URL) y el primer día visible, si ya se sabe. */
@@ -147,11 +148,13 @@ export function SemanaHoras({ dias: diasFijos, semana, inicio, onVentana, sinBar
   llenar?: boolean
   /** La Semana Perfecta (semana-perfecta.ts): sus bloques en fantasma, detrás de todo, sin tapar el arrastre. null = no se pinta. */
   perfecta?: SemanaPerfecta | null
-  /** Campos de fondo (campos-fondo.ts): franjas detrás de todo, sin ser eventos. Por defecto, los de la instalación. */
+  /** Zonas de fondo (campos-fondo.ts): franjas detrás de todo, sin ser eventos. Por defecto, las encendidas de la persona (useZonas). */
   campos?: readonly CampoFondo[] | null
   /** Los fantasmas solo hasta aquí (epoch ms): la rutina a futuro no se pinta (26 oct 2026). null = todos. */
   corteRutina?: number | null
 }) {
+  const zonas = useZonas()
+  const campos = camposFijos === undefined ? zonas.encendidas : camposFijos
   const raiz = useRef<HTMLDivElement>(null), riel = useRef<HTMLDivElement>(null), cabecera = useRef<HTMLDivElement>(null)
   const columnas = useRef<(HTMLDivElement | null)[]>([])
   const [ancho, setAncho] = useState(0)
@@ -467,7 +470,7 @@ export function SemanaHoras({ dias: diasFijos, semana, inicio, onVentana, sinBar
 
   /** Clic sostenido en un hueco: empieza a dibujar un bloque nuevo (con el dedo, tras mantener presionado). Un clic suelto no crea. */
   function empezarCrear(e: ReactPointerEvent, dia: string) {
-    if (!onCrear || minimo || e.button !== 0 || e.target !== e.currentTarget || gestoRef.current) return
+    if (!onCrear || minimo || e.button !== 0 || !enHueco(e) || gestoRef.current) return
     const p = bajo(e.clientX, e.clientY)
     const g: Gesto = { modo: 'crear', bloque: NUEVO, diaOrigen: dia, agarre: p.minuto, x0: e.clientX, y0: e.clientY, activo: false, esDedo: e.pointerType === 'touch', dia, minuto: p.minuto }
     gestoRef.current = g; setGesto(g)
@@ -504,7 +507,7 @@ export function SemanaHoras({ dias: diasFijos, semana, inicio, onVentana, sinBar
 
   /** Doble clic en un hueco: el editor en esa media hora (la convención de las apps de calendario), sin fantasma previo. */
   const crearEn = (e: ReactMouseEvent, dia: string) => {
-    if (!onCrear || minimo || Date.now() - recienSoltado.current < 250 || e.target !== e.currentTarget) return
+    if (!onCrear || minimo || Date.now() - recienSoltado.current < 250 || !enHueco(e)) return
     const p = bajo(e.clientX, e.clientY), r = ranura(dia, p.minuto, tramo)
     onCrear(r.inicio, r.fin)
   }
@@ -591,23 +594,19 @@ export function SemanaHoras({ dias: diasFijos, semana, inicio, onVentana, sinBar
               {esHoy && ahoraMin > tramo.desde * 60 && <i className={h.vivido} style={{ height: y(Math.min(ahoraMin, tramo.hasta * 60)) }} aria-hidden />}
               {antes.length > 0 && <button className={h.fuera} data-lado="antes" onClick={() => onDia?.(d)} title={antes.map(b => `${hhmm(minutoDelDia(b.inicio, d))} ${b.titulo}`).join('\n')}>
                 ↑ {minimo ? antes.length : antes.length === 1 ? `${hhmm(minutoDelDia(antes[0].inicio, d))} ${antes[0].titulo}` : `${antes.length} antes de las ${tramo.desde}`}</button>}
-              {/* Campos de fondo (28 oct 2026): trabajo profundo como campo tenue y la ventana de comida como riel al borde. Nunca tapan:
-                  lo real va encima y, si una llamada pisa el trabajo profundo, su etiqueta lo dice («7 h · 1 h con llamadas»). */}
+              {/* Zonas de mi vida (28 oct 2026): cada zona tiñe el fondo con el color de su categoría, sin texto; su nombre y sus horas,
+                  al pasar el cursor. Las ventanas (la comida) son un riel al borde para leerse junto a la zona que pisan. Nunca tapan: lo
+                  real va encima y, si una llamada pisa el trabajo profundo, su título lo dice («7 h · 1 h con llamadas»). */}
               {(() => {
                 const franjas = franjasDelDia(campos, d)
                 if (!franjas.length) return null
                 const llamadas = piezas.filter(p => p.bloque.compromiso).map(p => ({ desde: p.desde, hasta: p.hasta }))
                 const resumen = resumenCampo(franjas, 'profundo', llamadas)
-                const etiquetada = new Set<string>()
                 return franjas.filter(f => f.hasta > tramo.desde * 60 && f.desde < tramo.hasta * 60).map((f, k) => {
                   const a = Math.max(f.desde, tramo.desde * 60), z = Math.min(f.hasta, tramo.hasta * 60)
-                  // El nombre una vez por campo y por día, en su primera franja que no tape una tarjeta.
-                  const libre = !minimo && !etiquetada.has(f.clave) && !piezas.some(p => p.desde < a + 22 && p.hasta > a)
-                  if (libre) etiquetada.add(f.clave)
-                  const texto = f.clave === 'profundo' && resumen ? resumen.texto : `${f.titulo} · ${rango(f)}`
-                  return <div key={`c${k}`} className={h.campo} data-tipo={f.tipo} data-campo={f.clave} style={{ top: y(a), height: `calc(${(z - a) / 60} * var(--hora) - 1px)` }}
-                    title={`${f.titulo} · ${rango(f)}${f.clave === 'profundo' && resumen?.tapado ? ` · ${texto.split(' · ').slice(1).join(' · ')}` : ''}`} aria-hidden>
-                    {libre && <span>{f.tipo === 'comida' ? 'Comida' : texto}</span>}</div>
+                  return <div key={`c${k}`} className={h.campo} data-forma={f.forma} data-campo={f.clave} data-categoria={f.categoria}
+                    style={{ '--c': DEF[f.categoria].color, top: y(a), height: `calc(${(z - a) / 60} * var(--hora) - 1px)` } as CSSProperties}
+                    title={tituloZona(f, resumen)} aria-hidden />
                 })
               })()}
               {/* La Semana Perfecta (25 oct 2026): el ritmo ideal en fantasma, debajo de las bandas y de las tarjetas. Lo real tapa lo ideal. */}

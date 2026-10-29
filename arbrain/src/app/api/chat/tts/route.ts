@@ -41,6 +41,7 @@ function cleanTextForTts(text: string) {
 /**
  * Edición cliente (v0.2.10; grupal del 23 oct: «la voz por defecto en Windows es fea»): el audio lo hace SU daemon con su
  * llave de LemonFox (cliente/voz.ts). Sin llave, el daemon responde 503 rápido y el lector usa la mejor voz del sistema.
+ * Desde el 29 oct, con su llave de Groq, el lector recibe además las marcas exactas de cada palabra (X-Marcas).
  */
 async function ttsCliente(req: NextRequest): Promise<Response> {
   try { await requireChatPrincipal() } catch (error) { return chatAccessResponse(error) }
@@ -51,11 +52,21 @@ async function ttsCliente(req: NextRequest): Promise<Response> {
     const r = await fetch(`${urlDaemonCliente()}/tts`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${tokenDaemon()}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: clean, tempo: lector ? tempoLector(velocidad) : 1 }),
+      // `marcas`: el lector pide también cuándo suena cada palabra (con la llave de Groq del alumno; cliente/marcas-groq.ts).
+      body: JSON.stringify({ text: clean, tempo: lector ? tempoLector(velocidad) : 1, ...(lector ? { marcas: true } : {}) }),
       signal: AbortSignal.any([req.signal, AbortSignal.timeout(50_000)]),
     })
     if (!r.ok) return NextResponse.json(await r.json().catch(() => ({ error: `TTS ${r.status}` })), { status: r.status })
-    return new NextResponse(await r.arrayBuffer(), { headers: { 'Content-Type': 'audio/mpeg', 'X-Tempo': r.headers.get('x-tempo') ?? '1', 'Cache-Control': 'no-store' } })
+    // Con marcas el daemon manda WAV y `X-Marcas`; sin llave de Groq, `X-Marcas-Falta` (el lector se lo dice una vez al alumno).
+    const marcas = lector ? r.headers.get('x-marcas') : null
+    const falta = lector ? r.headers.get('x-marcas-falta') : null
+    return new NextResponse(await r.arrayBuffer(), {
+      headers: {
+        'Content-Type': r.headers.get('content-type') || 'audio/mpeg', 'X-Tempo': r.headers.get('x-tempo') ?? '1', 'Cache-Control': 'no-store',
+        ...(marcas ? { 'X-Marcas': marcas } : {}),
+        ...(falta ? { 'X-Marcas-Falta': falta } : {}),
+      },
+    })
   } catch {
     if (req.signal.aborted) return new NextResponse(null, { status: 499 })
     return NextResponse.json({ error: 'Tu Arbrain no respondió.', code: 'sin_daemon' }, { status: 503 })
@@ -84,7 +95,8 @@ export async function POST(req: NextRequest) {
   // Lector del chat (22 oct 2026): el texto ya viene HABLADO (buildSpoken en el cliente) y el resaltado se calcula
   // sobre él, así que no se toca más que el espacio. La voz `levy` hornea 1.75x (rate 306) y `speed` la devuelve a
   // 175 ppm (el 1x del lector). Desde el 23 oct la velocidad del lector también la pone el servidor (`tempo`, atempo
-  // sin cambiar el tono): el cliente reproduce por Web Audio, que no conserva el tono al acelerar.
+  // sin cambiar el tono): el cliente reproduce por Web Audio, que no conserva el tono al acelerar. Desde el 29 oct el
+  // servidor manda WAV y `X-Marcas` (instante exacto de cada palabra en ese audio): pasan tal cual.
   const clean = lector ? text.replace(/\s+/g, ' ').trim().slice(0, 5000) : cleanTextForTts(text)
   if (!clean) {
     return NextResponse.json({ error: 'text is empty after cleanup' }, { status: 400 })
@@ -105,11 +117,14 @@ export async function POST(req: NextRequest) {
   }
 
   const audio = await res.arrayBuffer()
+  const marcas = lector ? res.headers.get('x-marcas') : null
   return new NextResponse(audio, {
     headers: {
-      'Content-Type': 'audio/mpeg',
+      'Content-Type': res.headers.get('content-type') || 'audio/mpeg',
       // Cuánto aceleró el servidor de verdad (un agent-server anterior no lo manda: el cliente lo toma como 1x).
       ...(lector ? { 'X-Tempo': res.headers.get('x-tempo') ?? '1' } : {}),
+      // Sin marcas (voz-agentes, agent-server anterior al 29 oct): el cliente usa su respaldo (tiempos-estimados.ts).
+      ...(marcas ? { 'X-Marcas': marcas } : {}),
       'Cache-Control': lector ? 'private, max-age=86400' : 'no-store',
     },
   })
