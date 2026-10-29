@@ -30,19 +30,23 @@ export function nombreVisible(nombre?: string | null): string {
 /** Marca del mensaje de bienvenida en `chat_messages.metadata.source`: el chat pinta los botones solo bajo él. */
 export const FUENTE_BIENVENIDA = 'bienvenida'
 
-export function mensajeBienvenida(nombre?: string | null, opciones: { computerUse?: boolean } = {}): string {
+/** Línea de «dónde vivo» del primer mensaje. En el servidor (29 oct 2026) no hay apps ni voz del sistema que usar. */
+export const VIVO_EN_SERVIDOR = 'Vivo en tu servidor, prendido siempre: me abres desde el navegador de cualquier computadora o desde tu teléfono con Tailscale, aunque tu computadora esté apagada.'
+
+export function mensajeBienvenida(nombre?: string | null, opciones: { computerUse?: boolean; servidor?: boolean } = {}): string {
   const computerUse = opciones.computerUse
     ? '- Hoy trabajo con tus archivos, tu memoria, el lienzo y tu calendario, aquí en el chat (el calendario vive en el panel de la derecha: ábrelo con el botón del panel arriba a la derecha, o pídemelo). Computer use (que yo use tu pantalla y tus apps) viene apagado: lo enciendes en Ajustes › Esta computadora y se apaga cada vez que cierras la app. La edición de video llega en una versión próxima.'
     : '- Hoy trabajo con tus archivos, tu memoria, el lienzo y tu calendario, aquí en el chat (el calendario vive en el panel de la derecha: ábrelo con el botón del panel arriba a la derecha, o pídemelo). Computer use (que yo use tu pantalla y tus apps) no está disponible en este sistema; la edición de video llega en una versión próxima.'
   const hola = nombre?.trim() ? `Hola, ${nombreVisible(nombre)}. Soy Levy.` : 'Hola. Soy Levy.'
-  return `${hola} Vivo en tu computadora y trabajo con tu cerebro: la carpeta donde guardamos lo que sabes, lo que decides y cómo trabajas. Hoy está casi vacía; se llena conversando.
+  const vivo = opciones.servidor ? `${VIVO_EN_SERVIDOR} Trabajo con tu cerebro` : 'Vivo en tu computadora y trabajo con tu cerebro'
+  return `${hola} ${vivo}: la carpeta donde guardamos lo que sabes, lo que decides y cómo trabajas. Hoy está casi vacía; se llena conversando.
 
 **Para empezar, toca uno de los botones de abajo o escríbeme lo tuyo.**
 
 **Lo que conviene saber:**
 - Antes de enviar, pagar, borrar o publicar algo te pido confirmación con un clic. Sin tu clic, no pasa.
 ${computerUse}
-- Tus llaves están en el llavero de tu sistema. Cámbialas en Ajustes › Llaves.
+${opciones.servidor ? '- Tus llaves viven en tu servidor, en un archivo que solo lee Arbrain; nunca viajan a GitHub.' : '- Tus llaves están en el llavero de tu sistema. Cámbialas en Ajustes › Llaves.'}
 - Tus conversaciones se quedan aquí. El monitoreo del programa solo envía cifras si lo activas, y se decide en Ajustes › Privacidad.
 
 ¿Por dónde empezamos?`

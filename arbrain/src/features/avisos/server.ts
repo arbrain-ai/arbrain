@@ -7,7 +7,9 @@ import type { Decision } from './policy'
 // 20260925_avisos.sql y policy.ts.
 
 type Service = ReturnType<typeof createServiceClient>
-export interface AvisoInput { title: string; body?: string | null; url?: string | null }
+/** `clave` = la etiqueta del emisor (el `tag` del push). Con ella el emisor cierra su aviso cuando la causa se
+ * resolvió (POST /api/avisos/resolver, 29 oct 2026). */
+export interface AvisoInput { title: string; body?: string | null; url?: string | null; clave?: string | null }
 
 /** Buzón del dueño (4 oct 2026). La socia también es `owner` (mismos permisos), pero lo que
  * no trae destinatario —rutinas, agenda, salud del servidor, sesiones huérfanas— es de
@@ -35,9 +37,13 @@ export async function registrar(supabase: Service, decision: Decision, aviso: Av
       return !error
     }
     if (!userIds.length || decision.kind === 'sistema') return false
-    const { error } = await supabase.from('avisos').insert(userIds.map(user_id => ({
-      user_id, kind: decision.kind, source: decision.source, title, body, url, pushed: decision.entrega === 'push',
-    })))
+    const clave = aviso.clave?.trim().slice(0, 200) || null
+    const filas = userIds.map(user_id => ({
+      user_id, kind: decision.kind, source: decision.source, title, body, url, pushed: decision.entrega === 'push', ...(clave ? { clave } : {}),
+    }))
+    let { error } = await supabase.from('avisos').insert(filas)
+    // Una base sin la migración 20261029 no conoce `clave`: el aviso entra igual, sin ella (nunca se pierde un aviso).
+    if (error && clave && /clave/.test(error.message)) ({ error } = await supabase.from('avisos').insert(filas.map(({ clave: _c, ...f }) => f)))
     if (error) console.error('[avisos] avisos insert failed:', error.message)
     return !error
   } catch (err) {

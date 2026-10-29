@@ -1163,11 +1163,19 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
         sendJSON(res, r ? 200 : 404, r ?? { error: 'Ese agente no corre sin pantalla.' }); return
       }
       // Tablero de agentes (27 oct 2026): Detener y Responder desde el Taller, por la misma vía que usa Levy.
-      if (parsed.que === 'detener' || parsed.que === 'responder') {
+      if (parsed.que === 'detener' || parsed.que === 'responder' || parsed.que === 'comentarios' || parsed.que === 'correr-plan' || parsed.que === 'descartar-plan') {
         const { pedidoTablero, accionTablero } = await import('./cabina/acciones-tablero.js')
         const pedido = pedidoTablero(parsed)
         if ('error' in pedido) { sendJSON(res, 400, { error: pedido.error }); return }
         const r = await accionTablero(pedido)
+        sendJSON(res, r.ok ? 200 : r.status, r.ok ? r : { error: r.error }); return
+      }
+      // Guardián de disco del VPS (29 oct 2026): el vigía de seguridad pide un subagente de limpieza al ≥ 90 %.
+      if (parsed.que === 'guardian-disco') {
+        const { pedidoGuardian, lanzarGuardian } = await import('./cabina/guardian-disco.js')
+        const pedido = pedidoGuardian(parsed)
+        if ('error' in pedido) { sendJSON(res, 400, { error: pedido.error }); return }
+        const r = await lanzarGuardian(pedido)
         sendJSON(res, r.ok ? 200 : r.status, r.ok ? r : { error: r.error }); return
       }
       if (parsed.que === 'trabajos') { const { trabajos } = await import('./cabina/cuerpo.js'); sendJSON(res, 200, await trabajos(typeof parsed.lineas === 'number' ? Math.min(Math.max(parsed.lineas, 2), 30) : 6)); return }
@@ -1546,21 +1554,37 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     // Edición cliente (v0.2.10): no hay voz-agentes. Con la llave de LemonFox del alumno, su voz; sin ella, 503 rápido y
     // la web lee con la mejor voz del sistema.
     if (esEdicionCliente()) {
+      // Desde el 29 oct, el lector (`marcas: true`) recibe también las marcas exactas de cada palabra si el alumno tiene
+      // su llave de Groq (cliente/marcas-groq.ts); `X-Marcas-Falta` dice por qué no vinieron.
       const { hablarLemonfox } = await import('./cliente/voz.js')
       const { llaveLemonfox } = await import('./cliente/cofre.js')
-      const r = await hablarLemonfox(text.slice(0, 5000), tempo, llaveLemonfox())
+      const leido = text.slice(0, 5000)
+      const r = await hablarLemonfox(leido, tempo, llaveLemonfox(), fetch, { marcas: parsed['marcas'] === true, llaveGroq: llaveVoz() })
       if (!r) { sendJSON(res, 503, { error: 'Sin voz de servidor: la app lee con la voz del sistema.', code: 'sin_voz_servidor' }); return }
       if (!r.ok) { sendJSON(res, r.status, { error: r.error, code: 'voz_proveedor' }); return }
-      res.writeHead(200, { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store', 'X-Tempo': String(r.tempo), 'X-Voice-Provider': 'lemonfox' })
+      const tabla = r.marcas ? JSON.stringify({ v: 1, n: leido.length, m: r.marcas }) : ''
+      res.writeHead(200, {
+        'Content-Type': r.tipo, 'Cache-Control': 'no-store', 'X-Tempo': String(r.tempo), 'X-Voice-Provider': 'lemonfox',
+        ...(tabla && tabla.length <= 8_000 ? { 'X-Marcas': tabla } : {}),
+        ...(r.sinMarcas ? { 'X-Marcas-Falta': r.sinMarcas } : {}),
+      })
       res.end(r.audio)
       return
     }
     // Lector del chat (24 oct 2026): el sintetizador caliente arranca en ~0.2 s en vez de los ~1.2 s de un `say` nuevo.
-    // Si falla, voz-agentes como antes (X-Voice-Engine dice cuál sonó).
+    // Desde el 29 oct trae las marcas exactas de cada palabra (X-Marcas, ver synthesizeLector). Si falla, voz-agentes
+    // como antes, sin marcas (X-Voice-Engine dice cuál sonó).
     if (tempo != null && voice === 'levy' && Math.abs(speed - LECTOR_SPEED) < 0.01 && process.platform === 'darwin') {
       try {
-        const { audio, tempo: aplicado } = await synthesizeLector(text.slice(0, 5000), tempo)
-        res.writeHead(200, { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store', 'X-Tempo': String(aplicado), 'X-Voice-Engine': 'sayd' })
+        const leido = text.slice(0, 5000)
+        const { audio, tipo, tempo: aplicado, marcas } = await synthesizeLector(leido, tempo)
+        // Un tramo del lector (≤ 320 caracteres) da ~1 KB; un texto enorme se queda sin marcas antes que pasar el límite
+        // de cabeceras (16 KB) del proxy.
+        const tabla = JSON.stringify({ v: 1, n: leido.length, m: marcas })
+        res.writeHead(200, {
+          'Content-Type': tipo, 'Cache-Control': 'no-store', 'X-Tempo': String(aplicado), 'X-Voice-Engine': 'sayd',
+          ...(tabla.length <= 8_000 ? { 'X-Marcas': tabla } : {}),
+        })
         res.end(audio)
         return
       } catch (err) {

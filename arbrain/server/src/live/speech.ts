@@ -10,7 +10,9 @@ export class SpeechFrames{
   while(this.bytes.length>=12){const length=this.bytes.readUInt32LE(4);if(length>2_000_000)throw new Error('Invalid voice frame');if(this.bytes.length<12+length)break;frames.push({id:this.bytes.readUInt32LE(0),rate:this.bytes.readUInt32LE(8),data:this.bytes.subarray(12,12+length)});this.bytes=this.bytes.subarray(12+length)}return frames
  }
 }
-type Job={controller:ReadableStreamDefaultController<Uint8Array>;ready:(rate:number)=>void;reject:(error:Error)=>void;started:boolean;bytes:number;cleanup:()=>void}
+/** Marca de palabra de la MISMA síntesis que el audio (sayd con `marcas`): rango en el texto (UTF-16) y muestra de inicio. */
+export type MarcaVoz={desde:number;largo:number;muestra:number}
+type Job={controller:ReadableStreamDefaultController<Uint8Array>;ready:(rate:number)=>void;reject:(error:Error)=>void;started:boolean;bytes:number;cleanup:()=>void;marca?:(m:MarcaVoz)=>void}
 export class WarmSpeech{
  private child:ChildProcessWithoutNullStreams|null=null
  private starting:Promise<void>|null=null
@@ -29,6 +31,8 @@ export class WarmSpeech{
    child.stdout.on('data',(chunk:Buffer)=>{
     try{for(const frame of frames.push(chunk)){
      const job=this.jobs.get(frame.id);if(!job)continue
+     // rate 1 = marca de palabra (12 bytes); solo llegan si la petición las pidió.
+     if(frame.rate===1){if(frame.data.length===12)job.marca?.({desde:frame.data.readUInt32LE(0),largo:frame.data.readUInt32LE(4),muestra:frame.data.readUInt32LE(8)});continue}
      if(!frame.data.length){if(!job.started)job.reject(new Error('La voz no produjo audio.'));job.controller.close();job.cleanup();this.jobs.delete(frame.id);continue}
      if(!frame.rate)throw new Error(frame.data.toString('utf8').slice(0,200))
      if(frame.rate<8000||frame.rate>96000)throw new Error('Frecuencia de voz inválida.')
@@ -42,7 +46,7 @@ export class WarmSpeech{
   return this.starting
  }
  private fail(error:Error){const child=this.child;this.child=null;child?.kill();for(const job of this.jobs.values()){job.reject(error);try{job.controller.error(error)}catch{}job.cleanup()}this.jobs.clear()}
- async stream(text:string,speed:number,signal:AbortSignal){
+ async stream(text:string,speed:number,signal:AbortSignal,marca?:(m:MarcaVoz)=>void){
   await this.start();signal.throwIfAborted()
   if(this.jobs.size>=8)throw new Error('El servicio de voz está ocupado.')
   const child=this.child!;const id=++this.sequence
@@ -53,9 +57,9 @@ export class WarmSpeech{
   const timer=setTimeout(abort,30000)
   const body=new ReadableStream<Uint8Array>({start(c){controller=c},cancel(){abort()}})
   const cleanup=()=>{clearTimeout(timer);signal.removeEventListener('abort',abort)}
-  this.jobs.set(id,{controller,ready,reject,started:false,bytes:0,cleanup});signal.addEventListener('abort',abort,{once:true})
+  this.jobs.set(id,{controller,ready,reject,started:false,bytes:0,cleanup,marca});signal.addEventListener('abort',abort,{once:true})
   if(signal.aborted)abort()
-  else child.stdin.write(JSON.stringify({id,text,rate:0.5+(speed-1)*(0.115/0.75)})+'\n')
+  else child.stdin.write(JSON.stringify({id,text,rate:0.5+(speed-1)*(0.115/0.75),...(marca?{marcas:true}:{})})+'\n')
   return {body,sampleRate:await rate}
  }
  close(){this.fail(new Error('Voz cerrada.'))}

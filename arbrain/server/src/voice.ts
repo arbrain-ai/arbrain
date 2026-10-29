@@ -87,17 +87,26 @@ export async function synthesizeSpeech(text: string, voice = 'levy', speed = 1.0
 export const LECTOR_SPEED = 175 / 306
 const TEMPO_MAX = 3
 
+/** Audio del lector y CUÁNDO suena cada palabra en ese mismo audio: `[desde, largo, ms]` (rango UTF-16 del texto). */
+export interface AudioLector { audio: Buffer; tipo: 'audio/wav'; tempo: number; marcas: Array<[number, number, number]> }
+
 /**
- * Lector del chat con el sintetizador CALIENTE (24 oct 2026, Daniel: «el TTS + lector amarillo sigue sin funcionar tan
- * smooth»). voz-agentes lanza un `say` nuevo por tramo y cada uno carga Juan (Enhanced) desde cero: 0.95 s fijos aunque
- * el tramo sea «Claro.» (medido: 1.15–1.35 s por tramo en /tts). El `sayd` de la voz en vivo ya tiene la voz cargada
- * (AVSpeechSynthesizer); a rate 0.5 da el mismo audio que `say -r 175` (ver 67a86033), así que el resaltado anclado a
- * los silencios no cambia. Aquí solo se codifica a MP3 con el mismo formato que voz-agentes (CBR 96k, sin Xing ni ID3)
- * y la misma aceleración (atempo, sin cambiar el tono).
+ * Lector del chat con el sintetizador CALIENTE (24 oct 2026: `sayd`, AVSpeechSynthesizer con Juan Enhanced ya cargado,
+ * arranca en ~0.2 s contra ~1.2 s de un `say` nuevo) y, desde el 29 oct, con las MARCAS EXACTAS de cada palabra.
+ *
+ * Daniel (29 oct): «si solo es preciso 95% del tiempo hay desfases que me cortan la concentración». El resaltado ya no
+ * se estima: el mismo `write` de AVSpeechSynthesizer que produce el audio entrega la muestra donde empieza cada palabra
+ * (sayd.swift). Rate 0.5 = 175 ppm, el 1x del lector; la velocidad la pone `atempo` (sin cambiar el tono), que estira el
+ * tiempo de forma lineal: la marca se divide por el tempo (medido contra el audio con scripts/qa/lector-marcas).
+ *
+ * Sale WAV PCM de 16 bits, no MP3: el MP3 sin cabecera Xing mete un relleno de arranque (~50 ms a 22 kHz) que cada
+ * decodificador recorta o no a su manera, y el reloj del cliente quedaría corrido lo que dure ese relleno. En WAV la
+ * muestra N del archivo es la muestra N que suena.
  */
-export async function synthesizeLector(text: string, tempo: number): Promise<{ audio: Buffer; tempo: number }> {
+export async function synthesizeLector(text: string, tempo: number): Promise<AudioLector> {
   const aplicado = Math.min(TEMPO_MAX, Math.max(1, Number.isFinite(tempo) ? tempo : 1))
-  const { body, sampleRate } = await warmSpeech().stream(text, 1, AbortSignal.timeout(20_000))
+  const crudas: Array<{ desde: number; largo: number; muestra: number }> = []
+  const { body, sampleRate } = await warmSpeech().stream(text, 1, AbortSignal.timeout(20_000), (m) => crudas.push(m))
   const partes: Buffer[] = []
   const reader = body.getReader()
   for (;;) {
@@ -107,10 +116,32 @@ export async function synthesizeLector(text: string, tempo: number): Promise<{ a
   }
   const pcm = Buffer.concat(partes)
   if (!pcm.length) throw new Error('La voz no produjo audio.')
-  const args = ['-y', '-loglevel', 'error', '-f', 's16le', '-ar', String(sampleRate), '-ac', '1', '-i', 'pipe:0']
-  if (Math.abs(aplicado - 1) > 0.01) args.push('-filter:a', `atempo=${aplicado}`)
-  args.push('-codec:a', 'libmp3lame', '-b:a', '96k', '-write_xing', '0', '-id3v2_version', '0', '-f', 'mp3', 'pipe:1')
-  const audio = await new Promise<Buffer>((ok, mal) => {
+  const salida = Math.abs(aplicado - 1) > 0.01 ? await atempo(pcm, sampleRate, aplicado) : pcm
+  return { audio: wavPcm16(salida, sampleRate), tipo: 'audio/wav', tempo: aplicado, marcas: marcasEnMs(crudas, sampleRate, aplicado) }
+}
+
+/** Marcas en milisegundos del audio ENTREGADO (ya acelerado), en orden y sin repetir. Pura, para el test. */
+export function marcasEnMs(crudas: Array<{ desde: number; largo: number; muestra: number }>, sampleRate: number, tempo: number): Array<[number, number, number]> {
+  if (!(sampleRate > 0) || !(tempo > 0)) return []
+  return [...crudas]
+    .sort((a, b) => a.muestra - b.muestra || a.desde - b.desde)
+    .map((m): [number, number, number] => [m.desde, m.largo, Math.round((m.muestra / sampleRate / tempo) * 10_000) / 10])
+}
+
+/** Cabecera WAV (PCM 16 bits mono) con los tamaños exactos. */
+export function wavPcm16(pcm: Buffer, sampleRate: number): Buffer {
+  const h = Buffer.alloc(44)
+  h.write('RIFF', 0); h.writeUInt32LE(36 + pcm.length, 4); h.write('WAVE', 8)
+  h.write('fmt ', 12); h.writeUInt32LE(16, 16); h.writeUInt16LE(1, 20); h.writeUInt16LE(1, 22)
+  h.writeUInt32LE(sampleRate, 24); h.writeUInt32LE(sampleRate * 2, 28); h.writeUInt16LE(2, 32); h.writeUInt16LE(16, 34)
+  h.write('data', 36); h.writeUInt32LE(pcm.length, 40)
+  return Buffer.concat([h, pcm])
+}
+
+/** `atempo` de ffmpeg sobre PCM crudo (s16le mono): mismo tono, `tempo` veces más rápido. */
+function atempo(pcm: Buffer, sampleRate: number, tempo: number): Promise<Buffer> {
+  const args = ['-y', '-loglevel', 'error', '-f', 's16le', '-ar', String(sampleRate), '-ac', '1', '-i', 'pipe:0', '-filter:a', `atempo=${tempo}`, '-f', 's16le', '-ac', '1', 'pipe:1']
+  return new Promise<Buffer>((ok, mal) => {
     const ff = spawn(existsSync('/opt/homebrew/bin/ffmpeg') ? '/opt/homebrew/bin/ffmpeg' : 'ffmpeg', args, { stdio: ['pipe', 'pipe', 'pipe'] })
     const out: Buffer[] = []
     let err = ''
@@ -126,5 +157,4 @@ export async function synthesizeLector(text: string, tempo: number): Promise<{ a
     ff.stdin.on('error', () => {})
     ff.stdin.end(pcm)
   })
-  return { audio, tempo: aplicado }
 }

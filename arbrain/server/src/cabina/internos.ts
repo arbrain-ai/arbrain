@@ -30,7 +30,7 @@ export interface TareaInterna {
   /** Lo que hace AHORA, tal como lo anuncia el SDK («Running Run typecheck»). Va aparte del título:
    *  `descripcion` es la tarea con la que se lanzó y no se reescribe (2 oct 2026). */
   actividad?: string
-  /** Id del modelo (p. ej. `claude-sonnet-5-5`) leído de la transcripción del subagente; sin transcripción, sin dato. */
+  /** Id del modelo leído de la transcripción del subagente; sin transcripción, sin dato. */
   modelo?: string
   /** Tokens en contexto en su última llamada (transcripción); se calcula al leer, no se guarda. */
   contexto?: number

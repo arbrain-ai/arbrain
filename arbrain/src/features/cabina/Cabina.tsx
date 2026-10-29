@@ -15,7 +15,7 @@ import { Component, createContext, startTransition, useCallback, useContext, use
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { AlertTriangle, ArrowUpRight, BookOpen, Bookmark, BookmarkCheck, CalendarDays, Clapperboard, Gauge, Inbox, Loader2, Maximize2, Target, TerminalSquare, Wallet, Shapes, X, Navigation, ChevronRight, Pin, PinOff, FileText, Repeat, Server, BrainCircuit, Network, Sun, Activity, Presentation, GraduationCap, FolderTree, UsersRound, House, Dog, History } from 'lucide-react'
+import { AlertTriangle, ArrowUpRight, BookOpen, Bookmark, BookmarkCheck, CalendarDays, Clapperboard, Gauge, Inbox, Loader2, Maximize2, Target, TerminalSquare, Wallet, Shapes, X, Navigation, ChevronRight, Pin, PinOff, FileText, Repeat, Server, BrainCircuit, Network, Sun, Activity, GraduationCap, FolderTree, UsersRound, House, Dog, History } from 'lucide-react'
 import type { ChatMessage } from '@/features/chat/hooks/useChat'
 import { type Invocacion, type MostrarInput, type AbrirInput, invocacionesDe, sinEcoDeDelegar, rutaDe, seccionDe, resumen, NOMBRE, abrirEsVivo, abrirEjecutado, hoyCivil, tituloPeriodo, nombreDocumento } from './model'
 import { lecturaEnCache } from './datos'
@@ -46,7 +46,6 @@ import dynamic from 'next/dynamic'
 import type { EstadoCasa } from '@/features/casa/contrato'
 import type { DatosCohorte } from '@/features/cohorte/modelo'
 import { resumenMasterclass, URL_MASTERCLASS, type LecturaMasterclass } from '@/features/masterclass/modelo'
-import { VistaPizarron } from '@/features/pizarron/VistaPizarron'
 import type { DatosSalud } from '@/features/salud/modelo'
 import { VistaDiario, urlDiario, resumenDiario, type DatosDueno, type DatosSegunda } from './vistas/Diario'
 import { useIsMobile } from '@/shared/hooks/useMediaQuery'
@@ -88,7 +87,7 @@ export function CabinaProvider({ messages, children, sinOptimizar }: { messages:
   return <CabinaCtx.Provider value={value}>{children}</CabinaCtx.Provider>
 }
 
-export const ICONO = { calendario: CalendarDays, objetivos: Target, centro: Gauge, lienzo: Shapes, reporte: Inbox, negocio: BookOpen, trabajos: TerminalSquare, finanzas: Wallet, contenido: Clapperboard, rutinas: Repeat, servidores: Server, memoria: BrainCircuit, equipo: Network, documento: FileText, diario: Sun, salud: Activity, pizarron: Presentation, masterclass: GraduationCap, explorador: FolderTree, cohorte: UsersRound, casa: House, perro: Dog, historia: History }
+export const ICONO = { calendario: CalendarDays, objetivos: Target, centro: Gauge, lienzo: Shapes, reporte: Inbox, negocio: BookOpen, trabajos: TerminalSquare, finanzas: Wallet, contenido: Clapperboard, rutinas: Repeat, servidores: Server, memoria: BrainCircuit, equipo: Network, documento: FileText, diario: Sun, salud: Activity, masterclass: GraduationCap, explorador: FolderTree, cohorte: UsersRound, casa: House, perro: Dog, historia: History }
 
 /** Una vista que falla se queda en SU tarjeta: nunca tumba el hilo. */
 class Aislada extends Component<{ children: ReactNode }, { error: string | null }> {
@@ -132,8 +131,6 @@ function CuerpoVista({ input, grande }: { input: MostrarInput; grande?: boolean 
     case 'historia': return <VistaHistoria grande={grande} />
     // Explorador de archivos (8 oct 2026): el árbol del repo; un clic abre el archivo en su pestaña de documento.
     case 'explorador': return <VistaExplorador grande={grande} />
-    // El pizarrón (7 oct 2026): con paginaId, una sesión donde Levy enseña; sin él, la casa (sesiones y biblioteca).
-    case 'pizarron': return <VistaPizarron sesion={input.paginaId} grande={grande} />
   }
 }
 

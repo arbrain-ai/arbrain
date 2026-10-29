@@ -24,6 +24,7 @@ import {
   type Area, type ArchivoDiff, type Bloque, type Carril, type DiffCambio, type Evento, type Hecho, type Historia, type Linea, type Lugar, type PreviaVolver, type Quien, type Tira,
 } from './modelo'
 import { GrafoGit } from './GrafoGit'
+import { useCarrilPedido } from './carril-pedido'
 import h from './historia.module.css'
 
 export const URL_HISTORIA = '/api/historia'
@@ -415,7 +416,10 @@ export function RecorridoTrabajo({ c, ahora }: { c: Carril; ahora: number }) {
 
 function TrabajoFila({ c, i, ahora, sel, onSel }: { c: Carril; i: number; ahora: number; sel: boolean; onSel: () => void }) {
   const desde = c.salio ?? c.ultimo?.cuando
-  return <li className={`${h.trabajo} ${mov.entra}`} style={escalon(i)} data-estado={c.estado} data-sel={sel || undefined}>
+  // «Ver cambios» del Taller: el carril pedido se trae a la vista
+  const fila = useRef<HTMLLIElement>(null)
+  useEffect(() => { if (sel) fila.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }) }, [sel])
+  return <li ref={fila} className={`${h.trabajo} ${mov.entra}`} style={escalon(i)} data-estado={c.estado} data-sel={sel || undefined}>
     <button className={h.trabajoBoton} aria-expanded={sel} onClick={onSel}>
       <span className={h.trabajoIcono} data-estado={c.estado} title={NOMBRE_ESTADO[c.estado]}><IconoEstado e={c.estado} /></span>
       <span className={h.trabajoTexto}>
@@ -441,12 +445,21 @@ function Trabajos({ x, ahora, sel, onSel }: { x: Carriles | undefined; ahora: nu
   const [verResto, setVerResto] = useState(false)
   const [verIncorporados, setVerIncorporados] = useState(false)
   const [abierto, setAbierto] = useState(false)
+  const [desplegadoPara, setDesplegadoPara] = useState<string | null>(null)
   if (!x) return <Cargando texto="Leyendo los trabajos en curso" />
   // Los más activos primero: el que guardó hace menos.
   const enCurso = x.carriles.filter(c => c.estado === 'trabajando').sort((a, b) => Date.parse(b.ultimo?.cuando ?? '0') - Date.parse(a.ultimo?.cuando ?? '0'))
   const listos = x.carriles.filter(c => c.estado === 'listo')
   const incorporados = x.carriles.filter(c => c.estado === 'en-main')
   const resto = x.carriles.filter(c => c.estado === 'esperando' || c.estado === 'quieto')
+  // El carril que pidió «Ver cambios» se ve aunque esté plegado o sin empezar (un worktree recién nacido aún no trabaja)
+  const elegido = sel ? x.carriles.find(c => c.rama === sel) : undefined
+  const suelto = elegido && resto.includes(elegido) ? elegido : null
+  // una vez por elección (patrón «ajustar estado al cambiar una prop»): después, plegar vuelve a ser de quien mira
+  if (sel !== desplegadoPara) {
+    setDesplegadoPara(sel)
+    if (elegido) { setAbierto(true); if (incorporados.includes(elegido)) setVerIncorporados(true); if (enCurso.indexOf(elegido) >= ACTIVOS) setVerResto(true) }
+  }
   const fila = (c: Carril, i: number) => <TrabajoFila key={c.rama} c={c} i={i} ahora={ahora} sel={sel === c.rama} onSel={() => onSel(sel === c.rama ? null : c.rama)} />
   const pedir = () => redactar(`Incorpora a mi cerebro principal ${listos.length === 1 ? 'el trabajo' : 'los trabajos'} ${listos.map(c => `«${c.nombre}»`).join(', ')}. Antes revisa que no choquen entre sí y dime qué trae cada uno.`)
   const avisos = [...new Set(x.avisos)]
@@ -459,6 +472,7 @@ function Trabajos({ x, ahora, sel, onSel }: { x: Carriles | undefined; ahora: nu
     </button>
     <p className={h.trabajosCuenta} data-cuenta>{cuenta}</p>
     <div className={h.trabajosCuerpo}>
+      {suelto && <section data-pedido><p className={h.subtitulo}>El trabajo que pediste ver</p><ol className={h.trabajoLista}>{fila(suelto, 0)}</ol></section>}
       {listos.length > 0 && <section className={h.listos} data-listos>
         <header><p className={h.listosTitulo}><Check size={13} aria-hidden /> Te toca: {listos.length === 1 ? '1 trabajo listo' : `${listos.length} trabajos listos`}</p>
           <p className={h.listosNota}>Terminaron y esperan que los incorpores a tu cerebro principal.</p>
@@ -695,6 +709,9 @@ export function HistoriaTaller() {
   const [pestana, setPestana] = useState<'trabajos' | 'linea' | 'hecho'>('trabajos')
   const [sel, setSel] = useState<string | null>(null)
   const [volver, setVolver] = useState<{ sha: string; rutas?: string[] } | null>(null)
+  // «Ver cambios» desde el renglón de un agente: abre «en palabras › Trabajos» con su carril elegido
+  const pedido = useCarrilPedido()
+  useEffect(() => { if (pedido.rama) { setPalabras(true); setPestana('trabajos'); setSel(pedido.rama) } }, [pedido.rama, pedido.n])
   const x = lect.data
   const onVolver = (sha: string, rutas?: string[]) => setVolver({ sha, rutas })
   return <div className={h.historia} data-taller-historia>

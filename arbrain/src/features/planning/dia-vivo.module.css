@@ -218,15 +218,15 @@
 .miniHora time { position: absolute; left: 0; top: -5px; width: 24px; font-size: 9.5px; line-height: 1; font-variant-numeric: tabular-nums; color: var(--muted); text-align: right; }
 .miniBloques { position: absolute; inset: 0 0 0 32px; list-style: none; margin: 0; padding: 0; pointer-events: none; }
 .miniBloques li { position: absolute; padding: 0 0 0 2px; pointer-events: auto; }
-/* Campos de fondo (28 oct 2026, campos-fondo.ts): trabajo profundo tenue con su filo y la ventana de comida como riel verde al
-   borde. Van debajo de las bandas y de las tarjetas; un espejo del día, nunca alarma. */
-.miniCampo { position: absolute; z-index: 0; pointer-events: none; }
-.miniCampo[data-tipo='trabajo'] { left: 32px; right: 0; border-radius: 4px; background: color-mix(in srgb, var(--l-ambar-6, #b06a1c) 6%, transparent);
-  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--l-ambar-6, #b06a1c) 40%, transparent); }
-.miniCampo[data-tipo='comida'] { right: 0; width: 3px; border-radius: 2px; background: color-mix(in srgb, var(--l-verde-6, #2f8f5b) 55%, transparent); }
-.miniCampo span { position: absolute; left: 8px; bottom: 2px; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font-size: 9.5px; font-weight: 600; letter-spacing: .02em; color: color-mix(in srgb, var(--l-ambar-6, #b06a1c) 60%, var(--muted)); }
-.miniCampo[data-tipo='comida'] span { left: auto; right: 7px; top: 2px; bottom: auto; color: color-mix(in srgb, var(--l-verde-6, #2f8f5b) 75%, var(--muted)); }
+/* Zonas de mi vida (28 oct 2026, campos-fondo.ts): el mismo tinte por categoría que la Semana (semana-horas.module.css › .campo),
+   sin texto: el nombre, al pasar el cursor. Bloque = tinte con filo; ventana (la comida) = riel al borde. Debajo de bandas y tarjetas. */
+.miniCampo { position: absolute; z-index: 0; --t: 7%; }
+:global(.dark) .miniCampo { --t: 9%; }
+.miniCampo[data-forma='bloque'] { left: 32px; right: 0; border-radius: 4px; background: color-mix(in srgb, var(--c) var(--t), transparent);
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--c) 30%, transparent); }
+.miniCampo[data-categoria='vida'] { --t: 9%; }
+:global(.dark) .miniCampo[data-categoria='vida'] { --t: 12%; }
+.miniCampo[data-forma='ventana'] { right: 0; width: 3px; border-radius: 2px; background: color-mix(in srgb, var(--c) 55%, transparent); }
 .camposResumen { margin-left: 8px; font-size: 11px; font-weight: 500; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 /* Ventana de disponibilidad (18 oct 2026): banda de fondo detrás de las tarjetas, con su nombre chiquito a la derecha. */
 .miniBanda { position: absolute; left: 32px; right: 0; display: block; padding: 0; border: 0; border-right: 2px solid color-mix(in srgb, var(--c) 45%, transparent);

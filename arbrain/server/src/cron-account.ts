@@ -4,6 +4,7 @@ import { readEnvFile } from './env.js'
 import { esEdicionCliente } from './edicion.js'
 import { dirClaudeAlternaO } from './cuentas-alternas.js'
 import { entornoClaude } from './cliente/cofre.js'
+import { entornoRutinaConLlave, rutinasConLlaveTope } from './cliente/rutinas-llave.js'
 
 /** Cron identity is explicit and never borrowed from a chat/session lookup. */
 export function cronEnvironment(account: string, base: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
@@ -25,6 +26,7 @@ export function cronEnvironment(account: string, base: NodeJS.ProcessEnv = proce
 export function configuredCronEnvironment():NodeJS.ProcessEnv {
   // Edición cliente (empaquetado, 11 oct 2026): las tareas del alumno usan SU llave (BYOK) y su carpeta aislada del CLI;
   // no hay cuentas 'default'/'bro' de Daniel ni llavero que borrar.
-  if(esEdicionCliente())return{...entornoClaude(process.env),CLAUDECLAW_DAEMON:'1',CLAUDECLAW_SOURCE:'cron',CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC:'1'}
+  // Con el chat en su suscripción, la rutina va por su llave de OpenRouter CON TOPE (cliente/rutinas-llave.ts), nunca por el plan.
+  if(esEdicionCliente())return{...(rutinasConLlaveTope()?entornoRutinaConLlave(process.env):entornoClaude(process.env)),CLAUDECLAW_DAEMON:'1',CLAUDECLAW_SOURCE:'cron',CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC:'1'}
   return cronEnvironment(readEnvFile(['CLAUDECLAW_CRON_ACCOUNT']).CLAUDECLAW_CRON_ACCOUNT??'default')
 }

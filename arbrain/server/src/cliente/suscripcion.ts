@@ -266,6 +266,15 @@ export function vaciarCacheSuscripcion(): void { cache = null }
 export interface EstadoLogin { estado: 'esperando' | 'listo' | 'fallo'; desde: string; mensaje?: string }
 export const MENSAJE_LOGIN_ESPERANDO = 'Se abrió tu navegador: entra con tu cuenta de Claude y autoriza. Arbrain lo detecta solo al volver.'
 export const MENSAJE_LOGIN_FALLO = 'El inicio de sesión no terminó (se cerró o venció). Pulsa «Iniciar sesión con Claude» otra vez.'
+/**
+ * En tu servidor (29 oct 2026, «solo en tu servidor»): ahí no hay navegador que abrir ni regreso a 127.0.0.1, así que el
+ * botón no sirve. La sesión se inicia con el login oficial en una terminal (`nube.sh claude`): Claude Code muestra el
+ * enlace, la persona entra en el navegador de su teléfono o su compu y pega el código en esa terminal
+ * (code.claude.com/docs/en/authentication: «Paste code here if prompted»). Arbrain no ve el código ni el token.
+ */
+export const MENSAJE_LOGIN_SERVIDOR = 'Tu Arbrain vive en tu servidor: la sesión de Claude se inicia desde una terminal. Pídele a tu Claude Code «conecta mi cuenta de Claude en mi servidor»: te da un comando, entras con tu cuenta y pegas el código ahí.'
+/** ¿Este daemon corre en el servidor de la persona (unidad de systemd de nube.sh)? */
+export const enServidorNube = (env: NodeJS.ProcessEnv = process.env): boolean => (env.ARBRAIN_SERVIDOR_NUBE ?? '').trim() === '1'
 const PLAZO_LOGIN_MS = 10 * 60_000
 
 type Lanzar = (archivo: string, args: string[], env: Record<string, string>) => ChildProcess
@@ -342,6 +351,7 @@ export function instalarClaude(op: { env?: NodeJS.ProcessEnv; plataforma?: NodeJ
 export function iniciarSesionClaude(op: { env?: NodeJS.ProcessEnv; alTerminar?: () => void } = {}): EstadoLogin {
   if (login?.estado.estado === 'esperando') return login.estado
   const env = op.env ?? process.env
+  if (enServidorNube(env)) return { estado: 'fallo', desde: new Date().toISOString(), mensaje: MENSAJE_LOGIN_SERVIDOR }
   const ruta = buscarClaude(env)
   if (ruta) {
     const r = iniciarLoginClaude({ env, ruta, alTerminar: op.alTerminar })

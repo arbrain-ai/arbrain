@@ -1,7 +1,7 @@
 /**
  * Qué viaja por el espejo y qué nunca (DISENO cerebro-24-7 §2.1). Puro: solo rutas relativas a la raíz del cerebro.
  *
- *   Viaja      la capa del alumno de CAPAS.json (memoria, plan, now.md, diario, daily, knowledge, mi-negocio…), sus
+ *   Viaja      la capa del alumno de CAPAS.json (memoria, plan, now.md, diario, daily, knowledge, mi-negocio, mi-marca…), sus
  *              skills propias y las carpetas del cerebro (meta, sentidos, memoria, manos, dolor) más los archivos del
  *              espejo (lider.json, maquinas/, latidos/, enviados/, espejo.json).
  *   Nunca      llaves, .env, OAuth, sesiones, bases de datos, store/, identidad de la máquina (.host-slug,
@@ -22,11 +22,12 @@ export const ENVIADOS_DIR = 'arbrain/cerebro/enviados'
 /** Capa del alumno si la copia no trae CAPAS.json (la de la v0.2.9). `.claude/settings.local.json` es de la máquina. */
 const CAPA_ALUMNO = [
   '.claude/memory/', '.claude/plan/', '.claude/now.md', '.claude/diario/', '.claude/daily/', '.claude/knowledge/',
-  'CLAUDE.local.md', '.arbrain-sembrado.json', 'mi-negocio/',
+  'CLAUDE.local.md', '.arbrain-sembrado.json', 'mi-negocio/', 'mi-marca/',
 ]
 const SKILLS_DEL_AUTOR = [
   'actualizar-arbrain', 'artificial-brain', 'autoresearch', 'bajar-a-tierra', 'canvas', 'edicion-por-voz', 'goal-compiler',
   'habit-system', 'image-generation', 'knowledge-search', 'libro-os', 'memory-manager', 'os-audit', 'sistema-viable',
+  'skill-creator',
 ]
 const CEREBRO = [
   'arbrain/cerebro/meta/', 'arbrain/cerebro/sentidos/', 'arbrain/cerebro/memoria/', 'arbrain/cerebro/manos/',

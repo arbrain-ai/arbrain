@@ -32,7 +32,11 @@ import type { Harness } from '../motor/lector.js'
 import { extraerDoD } from './juez.js'
 import { estadoTablero, pasoEnHumano, type Hechos } from './tablero.js'
 import { notaAutoria } from './autoria.js'
-import { adaptador, aplicarLinea, bitacoraVacia, NOMBRES, respuestaDe, tokensDe, type Adaptador, type Bitacora } from './harness/index.js'
+import { adaptador, aplicarLinea, bitacoraVacia, coherencia, NOMBRES, respuestaDe, tokensDe, type Adaptador, type Bitacora, type Coherencia } from './harness/index.js'
+import { resolverEleccion } from './catalogo-delegar.js'
+import { cambiosDeRama, prepararAislamiento, type Aislamiento, type CambiosRama, type PuertoAislamiento } from './aislamiento.js'
+import { worktreeDe } from './procesos.js'
+import { PERFIL_DEFAULT, esPerfil, type Perfil } from './perfiles.js'
 import { calcularTopes, cwdPermitido, herramientaLegible, leerRegistro, mutarRegistroAsync, olvidarFoto, permisosDefault, preludioSkills, tachar, type Conversacion, type Mensaje, type Seguimiento, type Subagente, type SubagenteOrigen, type Terminal } from './cuerpo.js'
 
 const run = promisify(execFile)
@@ -93,14 +97,14 @@ const q = (s: string) => /^[\w@%+=:,./-]+$/.test(s) ? s : `'${s.replace(/'/g, `'
  * llama-cli) y las credenciales que declara el adaptador leídas del .env en el momento por `con-entorno.sh`: el
  * secreto nunca queda escrito en el comando.
  */
-export function comandoInteractivo(ad: Adaptador, bin: string, sesion: string, modelo: string | null, archivo: Record<string, string> = envFile(), o: { rutaEnv?: string; script?: string } = {}): string {
+export function comandoInteractivo(ad: Adaptador, bin: string, sesion: string, modelo: string | null, archivo: Record<string, string> = envFile(), o: { rutaEnv?: string; script?: string; esfuerzo?: string | null } = {}): string {
   const deArchivo: string[] = [], fijos: string[] = []
   for (const [destino, d] of Object.entries(ad.entorno ?? {})) {
     const fuente = (d.fuentes ?? []).find(f => archivo[f])
     if (fuente) deArchivo.push(`${destino}=${fuente}`)
     else if (d.valor) fijos.push(`${destino}=${d.valor}`)
   }
-  const cli = [bin, ...ad.interactivo(sesion, modelo)]
+  const cli = [bin, ...ad.interactivo(sesion, modelo, o.esfuerzo ?? null)]
   const argv = deArchivo.length ? [o.script ?? CON_ENTORNO(), o.rutaEnv ?? ENV_FILE(), ...deArchivo, '--', ...(fijos.length ? ['env', ...fijos] : []), ...cli]
     : fijos.length ? ['env', ...fijos, ...cli] : cli
   return argv.map(q).join(' ')
@@ -111,7 +115,24 @@ export function comandoInteractivo(ad: Adaptador, bin: string, sesion: string, m
 const ENVOLTURA = `"$@"; c=$?; printf '{"arbrain":"salida","codigo":%d,"en":%s000}\\n' "$c" "$(date +%s)"; exit $c`
 export const MARCA_PROCESO = 'arbrain-subagente'
 
-export interface Turnar { id: number; harness: string; cwd: string; modelo: string | null; permisos: Subagente['permisos']; sesion?: string; texto: string; reanudar: boolean }
+export interface Turnar { id: number; harness: string; cwd: string; modelo: string | null; esfuerzo?: string | null; /** El que recibe el CLI (catalogo-delegar.ts); sin él, el equivalente del adaptador. */ esfuerzoCli?: string | null; permisos: Subagente['permisos']; /** Perfil de permisos (perfiles.ts); sin campo, total. */ perfil?: Perfil; sesion?: string; texto: string; reanudar: boolean }
+
+/** El esfuerzo que recibe el CLI: el que validó el catálogo o, en registros viejos y sin catálogo, el equivalente del adaptador. */
+export function esfuerzoParaCli(ad: Adaptador, pedido: string | null | undefined, cli?: string | null): string | null {
+  if (!pedido) return null
+  return cli ?? (ad.esfuerzoCli ? ad.esfuerzoCli(pedido) : pedido)
+}
+
+/** La guardia de perfil (`guardia-perfil.ts`) como comando de shell para el gancho PreToolUse del CLI. En dist corre el .js
+ *  con el node del agent-server; desde las fuentes (tsx), el .ts con los mismos argumentos de node (el cargador de tsx). */
+export function comandoGuardia(perfil: Perfil, raiz: string, bitacora: string, url: string = import.meta.url): string {
+  const ts = url.endsWith('.ts')
+  const entrada = fileURLToPath(new URL(ts ? './guardia-perfil.ts' : './guardia-perfil.js', url))
+  return [process.execPath, ...(ts ? process.execArgv : []), entrada, perfil, raiz, bitacora].map(q).join(' ')
+}
+
+/** ¿Este turno corre con pastor (entrada en vivo)? Con guardia, solo si el CLI la respeta en vivo (codex no). */
+export const conPastor = (ad: Adaptador) => !!ad.vivo && entradaViva() && (!ad.guardia || !!ad.guardiaEnVivo)
 
 /** Lanza un turno como proceso desacoplado. Devuelve el pid de la envoltura (= su grupo de procesos). */
 export async function lanzarTurno(t: Turnar): Promise<number> {
@@ -125,9 +146,15 @@ export async function lanzarTurno(t: Turnar): Promise<number> {
   if (t.reanudar && !t.sesion) throw new Error('Para reanudar hace falta la sesión del subagente.')
   mkdirSync(dirBitacoras(), { recursive: true })
   const ruta = rutaBitacora(t.id)
-  appendFileSync(ruta, JSON.stringify({ arbrain: 'inicio', en: Date.now(), texto: t.texto.slice(0, 4000), reanudar: t.reanudar, ...(ad.vivo && entradaViva() ? { vivo: true } : {}) }) + '\n')
-  if (ad.vivo && entradaViva()) return lanzarConPastor(t, ad, ad.vivo, bin, permisos)
-  const argv = t.reanudar ? ad.reanudar({ sesion: t.sesion!, texto: t.texto, modelo: t.modelo, cwd: t.cwd, permisos }) : ad.lanzar({ encargo: t.texto, modelo: t.modelo, cwd: t.cwd, permisos, ...(t.sesion ? { sesion: t.sesion } : {}) })
+  // lo PEDIDO viaja en la marca de inicio de cada turno: el Taller lo compara con lo que el CLI reporte (coherencia.ts)
+  const esfuerzo = esfuerzoParaCli(ad, t.esfuerzo, t.esfuerzoCli)
+  // Perfil (29 oct 2026): la guardia va en TODO turno de un CLI que la acepta, también en «total»: la lista negra no se apaga.
+  const perfil = t.perfil ?? PERFIL_DEFAULT
+  const pt = { perfil, ...(ad.guardia ? { guardia: comandoGuardia(perfil, t.cwd, ruta) } : {}) }
+  const vivo = conPastor(ad)
+  appendFileSync(ruta, JSON.stringify({ arbrain: 'inicio', en: Date.now(), texto: t.texto.slice(0, 4000), reanudar: t.reanudar, modelo: t.modelo, esfuerzo: t.esfuerzo ?? null, perfil, ...(vivo ? { vivo: true } : {}) }) + '\n')
+  if (vivo) return lanzarConPastor(t, ad, ad.vivo!, bin, permisos, pt)
+  const argv = t.reanudar ? ad.reanudar({ sesion: t.sesion!, texto: t.texto, modelo: t.modelo, esfuerzo, cwd: t.cwd, permisos, ...pt }) : ad.lanzar({ encargo: t.texto, modelo: t.modelo, esfuerzo, cwd: t.cwd, permisos, ...pt, ...(t.sesion ? { sesion: t.sesion } : {}) })
   const out = openSync(ruta, 'a'), err = openSync(ruta.replace(/\.jsonl$/, '.err'), 'a')
   try {
     const hijo = spawn('/bin/sh', ['-c', ENVOLTURA, MARCA_PROCESO, bin, ...argv], { cwd: t.cwd, env: entornoPara(ad), detached: true, stdio: ['ignore', out, err] })
@@ -148,8 +175,8 @@ export const rutaFifo = (id: number) => join(dirBitacoras(), `${id}.in`)
 const dirEntradas = (id: number) => join(dirBitacoras(), `${id}.entradas`)
 export const PASTOR = () => join(dirname(fileURLToPath(import.meta.url)), '../../scripts/subagentes/pastor.mjs')
 
-async function lanzarConPastor(t: Turnar, ad: Adaptador, vivo: NonNullable<Adaptador['vivo']>, bin: string, permisos: NonNullable<Subagente['permisos']>): Promise<number> {
-  const pv = { sesion: t.sesion, reanudar: t.reanudar, modelo: t.modelo, permisos, cwd: t.cwd }
+async function lanzarConPastor(t: Turnar, ad: Adaptador, vivo: NonNullable<Adaptador['vivo']>, bin: string, permisos: NonNullable<Subagente['permisos']>, pt: { perfil: Perfil; guardia?: string }): Promise<number> {
+  const pv = { sesion: t.sesion, reanudar: t.reanudar, modelo: t.modelo, esfuerzo: esfuerzoParaCli(ad, t.esfuerzo, t.esfuerzoCli), permisos, cwd: t.cwd, ...pt }
   const ruta = rutaBitacora(t.id)
   const rpc = vivo.rpc?.(pv)
   const config = {
@@ -182,7 +209,8 @@ function escribirFifo(id: number, linea: object): boolean {
  * quien llama lo encola para entregarlo al salir.
  */
 export async function entregarEnVivo(sub: Subagente, texto: string, esperaMs = 6000): Promise<boolean> {
-  if (!adaptador(sub.harness)?.vivo || !(await bitacora(sub)).b.turnos.at(-1)) return false
+  const ad = adaptador(sub.harness)
+  if (!ad || !conPastor(ad) || !(await bitacora(sub)).b.turnos.at(-1)) return false
   const id = randomUUID().slice(0, 8)
   mkdirSync(dirEntradas(sub.id), { recursive: true })
   const archivo = join(dirEntradas(sub.id), `${id}.json`)
@@ -285,24 +313,42 @@ async function vivosParaTope(registro: Subagente[]): Promise<Set<number>> {
  *  su espera a background, respondió «esperando…» y el turno cerró con el trabajo a medias). */
 export const NOTA_SIN_PANTALLA = '\n\n[Modo de trabajo] Corres sin pantalla: tu turno termina cuando respondes y tu proceso sale. No dejes nada en segundo plano ni esperes notificaciones o despertadores; haz cada espera en primer plano y responde solo cuando el encargo esté hecho (o con la pregunta concreta que te bloquea).'
 
-export interface PedidoDelegar { nombre: string; harness: string; encargo: string; cwd: string; modelo?: string; avisarA?: SubagenteOrigen }
+export interface PedidoDelegar { nombre: string; harness: string; encargo: string; cwd: string; modelo?: string; esfuerzo?: string; aislamiento?: Aislamiento; avisarA?: SubagenteOrigen; /** total (default), codigo o lectura: perfiles.ts. */ perfil?: Perfil; /** Plan versionado del que sale el encargo (plan.ts). */ plan?: { ruta: string; commit: string | null } }
 
-export async function delegarSinPantalla(p: PedidoDelegar): Promise<Subagente> {
+/** El perfil pedido, validado contra lo que el CLI sabe cumplir. */
+export function perfilPara(ad: Adaptador, pedido: unknown): Perfil {
+  if (pedido == null || pedido === '') return PERFIL_DEFAULT
+  if (!esPerfil(pedido)) throw new Error(`Perfil desconocido «${String(pedido)}» (hay: total, codigo, lectura).`)
+  const puede = ad.perfiles ?? [PERFIL_DEFAULT]
+  if (!puede.includes(pedido)) throw new Error(`El perfil «${pedido}» necesita un CLI que lo cumpla (${ad.nombre} solo: ${puede.join(', ')}). Usa claude o codex.`)
+  return pedido
+}
+
+/** Modelo y esfuerzo validados contra el catálogo vivo (catalogo-delegar.ts). */
+const elegir = (ad: Adaptador, pedido: { modelo?: string | null; esfuerzo?: string | null }) => {
+  const archivo = envFile()
+  return resolverEleccion(ad, pedido, k => leerVar(k, archivo))
+}
+
+export async function delegarSinPantalla(p: PedidoDelegar, o: { aislar?: PuertoAislamiento } = {}): Promise<Subagente> {
   const ad = adaptador(p.harness)
   if (!ad) throw new Error(`Harness no registrado (hay: ${NOMBRES.join(', ')}).`)
   if (!cwdPermitido(p.cwd)) throw new Error('Directorio no permitido para un subagente (solo /tmp o ~/Developer).')
-  const archivo = envFile()
-  const modelo = p.modelo ?? ad.modeloDefault(k => leerVar(k, archivo))
-  if (modelo && !ad.modeloOk(modelo)) throw new Error(`Modelo inválido para ${ad.nombre}${ad.nombre === 'opencode' ? ' (usa proveedor/modelo, p. ej. openrouter/~deepseek/deepseek-v4-flash-latest)' : ''}.`)
+  const perfil = perfilPara(ad, p.perfil)
+  const eleccion = await elegir(ad, { modelo: p.modelo, esfuerzo: p.esfuerzo })
+  const modelo = eleccion.modelo
   if (!(await resolverBinario(ad.binario))) throw new Error(`El CLI «${ad.binario}» no está instalado en el Studio.`)
   const registro = await leerRegistro()
   const topes = calcularTopes(registro, await vivosParaTope(registro))
   if (topes.paralelo.vivos >= topes.paralelo.max) throw new Error(`Tope de subagentes en paralelo alcanzado (${topes.paralelo.vivos}/${topes.paralelo.max}). Cierra uno antes de lanzar otro.`)
   if (topes.tokens.hoy >= topes.tokens.max) throw new Error(`Tope de tokens del día alcanzado (${topes.tokens.hoy.toLocaleString('es-MX')}/${topes.tokens.max.toLocaleString('es-MX')}).`)
-  mkdirSync(p.cwd, { recursive: true })
+  // el worktree nace solo si el lanzamiento pasó validación y topes: un rechazo no deja copias
+  const aislado = await prepararAislamiento({ nombre: p.nombre, cwd: p.cwd, ...(p.aislamiento ? { aislamiento: p.aislamiento } : {}) }, o.aislar)
+  const cwd = aislado.cwd
+  mkdirSync(cwd, { recursive: true })
   const sesion = ad.sesionPropia ? randomUUID() : undefined
   const permisos = permisosDefault()
-  const skills = preludioSkills(p.cwd)
+  const skills = preludioSkills(cwd)
   const encargo = p.encargo + (skills?.texto ?? '') + notaAutoria(p.nombre) + NOTA_SIN_PANTALLA
   const dod = extraerDoD(p.encargo)
   let sub: Subagente | null = null
@@ -310,11 +356,13 @@ export async function delegarSinPantalla(p: PedidoDelegar): Promise<Subagente> {
   await mutarRegistroAsync(async l => {
     const id = siguienteId(l)
     if (existsSync(rutaBitacora(id))) throw new Error(`Ya existe la bitácora ${rutaBitacora(id)}; no la piso.`)
-    const pid = await lanzarTurno({ id, harness: ad.nombre, cwd: p.cwd, modelo, permisos, sesion, texto: encargo, reanudar: false })
+    const pid = await lanzarTurno({ id, harness: ad.nombre, cwd, modelo, esfuerzo: eleccion.esfuerzo, esfuerzoCli: eleccion.esfuerzoCli, permisos, perfil, sesion, texto: encargo, reanudar: false })
     sub = {
-      id, nombre: p.nombre.slice(0, 80), harness: ad.nombre, encargo: p.encargo.slice(0, 2000), cwd: p.cwd, creado: new Date().toISOString(), modo: 'sin-pantalla', pid, turno: 1, permisos,
+      id, nombre: p.nombre.slice(0, 80), harness: ad.nombre, encargo: p.encargo.slice(0, 2000), cwd, creado: new Date().toISOString(), modo: 'sin-pantalla', pid, turno: 1, permisos,
       entrega: 'entregado', entregaNota: 'el encargo viajó como argumento del CLI (sin pantalla)', bitacora: rutaBitacora(id).replace(homedir(), '~'),
-      ...(skills ? { aviso: skills.aviso } : {}), ...(sesion ? { sesion } : {}), ...(modelo ? { modelo } : {}), ...(p.avisarA ? { avisarA: p.avisarA } : {}),
+      perfil, ...(ad.guardia ? {} : { sinGuardia: true }), ...(p.plan ? { plan: p.plan } : {}),
+      ...(skills ? { aviso: skills.aviso } : {}), ...(sesion ? { sesion } : {}), ...(modelo ? { modelo } : {}), ...(eleccion.esfuerzo ? { esfuerzo: eleccion.esfuerzo, ...(eleccion.esfuerzoCli ? { esfuerzoCli: eleccion.esfuerzoCli } : {}) } : {}), ...(p.avisarA ? { avisarA: p.avisarA } : {}),
+      eleccion: eleccion.resumen, aislamiento: aislado.aislamiento, ...(aislado.rama ? { rama: aislado.rama } : {}),
       // La DoD completa, para el juez (el encargo se recorta a 2,000 caracteres y la DoD suele ir al final).
       ...(dod ? { dod } : {}),
     }
@@ -324,14 +372,25 @@ export async function delegarSinPantalla(p: PedidoDelegar): Promise<Subagente> {
   return sub!
 }
 
-/** Un turno más con la misma sesión, o a la cola si sigue trabajando (lo entrega el vigía al salir). */
-export async function retomarSinPantalla(id: number, texto: string): Promise<Seguimiento> {
-  let r: Seguimiento = { encolado: false, confirmado: false }
+export interface CambioTurno { modelo?: string; esfuerzo?: string }
+
+/**
+ * Un turno más con la misma sesión, o a la cola si sigue trabajando (lo entrega el vigía al salir). `cambio` (29 oct
+ * 2026, brecha 4): otro modelo o esfuerzo desde ESTE turno, validados igual que en delegar; el caso típico es un
+ * subagente que falló en medium y se reintenta en high sin perder su contexto.
+ */
+export async function retomarSinPantalla(id: number, texto: string, cambio: CambioTurno = {}): Promise<Seguimiento & { eleccion?: string }> {
+  let r: Seguimiento & { eleccion?: string } = { encolado: false, confirmado: false }
+  const cambia = !!(cambio.modelo || cambio.esfuerzo)
   await mutarRegistroAsync(async l => {
     const sub = [...l].reverse().find(s => s.id === id && !s.cerrado && esSinPantalla(s))
     if (!sub) throw new Error('Ese subagente no es de Levy o ya se cerró.')
     if (sub.interactivo && await terminalViva(sub.interactivo)) throw new Error(`${DUENO_M} tiene abierta la sesión de este subagente a mano (terminal ${sub.interactivo}); no le escribo encima. Ciérrala o pídele que conteste ahí.`)
+    const ad = adaptador(sub.harness)
+    const eleccion = cambia && ad ? await elegir(ad, { modelo: cambio.modelo ?? sub.modelo ?? null, esfuerzo: cambio.esfuerzo ?? sub.esfuerzo ?? null }) : null
     const e = await estadoDe(sub)
+    // el modelo y el esfuerzo se fijan al arrancar el turno: a mitad del paso no se cambian
+    if (eleccion && e.corriendo) throw new Error('Sigue trabajando: el cambio de modelo o esfuerzo aplica desde un turno nuevo. Espera a que termine o detenlo, y retómalo con el cambio.')
     // Entrada en vivo: el mensaje entra al turno en curso (lo toma al terminar el paso, como en la terminal).
     if (e.corriendo && entradaViva() && await entregarEnVivo(sub, texto)) { r = { encolado: false, confirmado: true, enVivo: true }; return null }
     if (e.corriendo) {
@@ -340,9 +399,12 @@ export async function retomarSinPantalla(id: number, texto: string): Promise<Seg
     }
     const sesion = e.sesion
     if (!sesion) throw new Error('El subagente todavía no reportó su sesión (¿su CLI falló al arrancar?). Mira su bitácora con mostrar trabajos.')
-    const pid = await lanzarTurno({ id, harness: sub.harness, cwd: sub.cwd, modelo: sub.modelo ?? null, permisos: sub.permisos, sesion, texto, reanudar: true })
-    r = { encolado: false, confirmado: true }
-    return l.map(s => s === sub ? { ...s, pid, sesion, turno: (s.turno ?? 1) + 1, pregunta: undefined, escalado: undefined, escaladoPor: undefined } : s)
+    const modelo = eleccion ? eleccion.modelo : sub.modelo ?? null, esfuerzo = eleccion ? eleccion.esfuerzo : sub.esfuerzo ?? null
+    const esfuerzoCli = eleccion ? eleccion.esfuerzoCli : sub.esfuerzoCli ?? null
+    const pid = await lanzarTurno({ id, harness: sub.harness, cwd: sub.cwd, modelo, esfuerzo, esfuerzoCli, permisos: sub.permisos, perfil: sub.perfil, sesion, texto, reanudar: true })
+    r = { encolado: false, confirmado: true, ...(eleccion ? { eleccion: eleccion.resumen } : {}) }
+    const nuevo = eleccion ? { modelo: modelo ?? undefined, esfuerzo: esfuerzo ?? undefined, esfuerzoCli: esfuerzoCli ?? undefined, eleccion: eleccion.resumen } : {}
+    return l.map(s => s === sub ? { ...s, ...nuevo, pid, sesion, turno: (s.turno ?? 1) + 1, pregunta: undefined, escalado: undefined, escaladoPor: undefined } : s)
   })
   olvidarFoto()
   return r
@@ -387,7 +449,7 @@ export async function entregarCola(id: number): Promise<boolean> {
     if (!sub?.cola?.length) return null
     const e = await estadoDe(sub)
     if (e.corriendo || !e.sesion) return null
-    const pid = await lanzarTurno({ id, harness: sub.harness, cwd: sub.cwd, modelo: sub.modelo ?? null, permisos: sub.permisos, sesion: e.sesion, texto: sub.cola.join('\n\n'), reanudar: true })
+    const pid = await lanzarTurno({ id, harness: sub.harness, cwd: sub.cwd, modelo: sub.modelo ?? null, esfuerzo: sub.esfuerzo ?? null, esfuerzoCli: sub.esfuerzoCli ?? null, permisos: sub.permisos, perfil: sub.perfil, sesion: e.sesion, texto: sub.cola.join('\n\n'), reanudar: true })
     lanzado = true
     return l.map(s => s === sub ? { ...s, pid, sesion: e.sesion, turno: (s.turno ?? 1) + 1, cola: [] } : s)
   })
@@ -419,7 +481,7 @@ export async function abrirInteractivo(id: number): Promise<{ terminal: number; 
   if (!e.sesion) throw new Error('El subagente no reportó su sesión; no hay qué abrir.')
   const bin = await resolverBinario(ad.binario)
   if (!bin) throw new Error(`El CLI «${ad.binario}» no está instalado en el Studio.`)
-  const comando = comandoInteractivo(ad, bin, e.sesion, sub.modelo ?? null)
+  const comando = comandoInteractivo(ad, bin, e.sesion, sub.modelo ?? null, envFile(), { esfuerzo: esfuerzoParaCli(ad, sub.esfuerzo, sub.esfuerzoCli) })
   const { motor } = await import('../motor/cliente.js')
   const { id: terminal } = await motor.spawn({ cwd: sub.cwd, command: comando })
   await mutarRegistroAsync(async l => l.map(s => s.id === id && !s.cerrado ? { ...s, interactivo: terminal } : s))
@@ -431,6 +493,8 @@ export async function abrirInteractivo(id: number): Promise<{ terminal: number; 
 export interface ObservacionSinPantalla {
   vivo: true; trabajando: boolean; ultimaActividad: number | null; ultimaRespuesta: string | null; pregunta: string | null
   error: string | null; motivo: string; tokens: number | null; sesion?: string; turno: number
+  /** «pediste max · corre medium»: lo que el CLI reportó no es lo que se pidió (va en el aviso al terminar). */
+  desajuste?: string | null
 }
 export async function observarSinPantalla(sub: Subagente): Promise<ObservacionSinPantalla> {
   const e = await estadoDe(sub)
@@ -443,7 +507,20 @@ export async function observarSinPantalla(sub: Subagente): Promise<ObservacionSi
   return {
     vivo: true, trabajando: e.corriendo, ultimaActividad: e.finMs, ultimaRespuesta: e.terminado ? (respuesta || (e.error ? `(sin respuesta: ${e.error})` : null)) : null,
     pregunta: e.terminado && !e.error ? preguntaDeRespuesta(respuesta) : null, error: e.error, motivo, tokens: e.tokens, turno: e.turno?.n ?? 0, ...(e.sesion ? { sesion: e.sesion } : {}),
+    desajuste: coherenciaDe(sub, e.turno).desajuste,
   }
+}
+
+/** Lo pedido (marca de inicio del turno; bitácoras viejas: el registro) contra lo que el CLI reportó en ese turno. */
+export function coherenciaDe(sub: Pick<Subagente, 'modelo' | 'esfuerzo'>, turno: Bitacora['turnos'][number] | undefined): Coherencia {
+  return coherencia(turno?.pedido ?? { modelo: sub.modelo ?? null, esfuerzo: sub.esfuerzo ?? null }, turno?.efectivo)
+}
+
+/** Sus cambios desde main si trabaja en un worktree (la rama del registro o la que tenga su carpeta). */
+async function cambiosDe(sub: Subagente): Promise<CambiosRama | null> {
+  const wt = worktreeDe(sub.cwd.replace(/^~(?=\/)/, homedir()))
+  if (!wt || !existsSync(wt.raiz)) return null
+  return cambiosDeRama(wt.raiz, sub.rama).catch(() => null)
 }
 
 /** Las tarjetas de la vista «trabajos» para los subagentes sin pantalla: la conversación sale de su bitácora. */
@@ -460,8 +537,10 @@ export async function terminalesSinPantalla(registro: Subagente[], lineas: numbe
       return out
     }).slice(-6)
     const respuesta = respuestaDe(ultimo)
+    // Lo que se pinta como medido sale del CLI; lo pedido va aparte, en `coherencia` (nunca un pedido pintado como medido)
+    const coh = coherenciaDe(sub, ultimo)
     const conversacion: Conversacion = {
-      harness: sub.harness as Harness, modelo: sub.modelo ?? null, esfuerzo: null, ctxPct: null, ctxVentana: null,
+      harness: sub.harness as Harness, modelo: coh.modelo.efectivo ?? sub.modelo ?? null, esfuerzo: coh.esfuerzo.efectivo, coherencia: coh, ctxPct: null, ctxVentana: null,
       turno: e?.corriendo ? 'trabajando' : ultimo ? 'terminado' : null, pregunta: !!(e?.terminado && preguntaDeRespuesta(respuesta)), tokens: e?.tokens ?? null,
       mensajes, titulo: null, ...(e?.error ? { error: tachar(e.error) } : {}),
     }
@@ -469,13 +548,14 @@ export async function terminalesSinPantalla(registro: Subagente[], lineas: numbe
     const medido = e ? estadoTablero(hechosDe(sub, e, e.turno ? e.corriendo : await estaVivo(sub.pid)), Date.now()) : undefined
     const paso = ultimo?.paso ? tachar(pasoEnHumano(ultimo.paso.herramienta, ultimo.paso.detalle)) : undefined
     const tablero = medido ? { ...medido, ...(paso ? { paso } : {}), ...(ultimo?.inicio ? { desde: ultimo.inicio } : {}) } : undefined
+    const cambios = await cambiosDe(sub)
     return {
       id: sub.id, pid: sub.pid, titulo: tachar(sub.nombre), cwd: sub.cwd.replace(homedir(), '~'), proc: sub.harness,
       estado: e?.corriendo ? 'trabajando' : 'esperando', origen: 'sin-pantalla', soloLectura: true,
       actividad: e?.corriendo ? `turno ${ultimo?.n ?? 1}${herr ? ` · ${herramientaLegible(herr)}` : ''}` : null,
       ultimaAccion: herr ? herramientaLegible(herr) : null,
       ultimas: tachar(respuesta).split('\n').map(x => x.trimEnd()).filter(Boolean).slice(-lineas),
-      conversacion, subagente: sub, ...(tablero ? { tablero } : {}),
+      conversacion, subagente: sub, ...(tablero ? { tablero } : {}), ...(cambios ? { cambios } : {}),
     }
   }))
 }
@@ -483,7 +563,7 @@ export async function terminalesSinPantalla(registro: Subagente[], lineas: numbe
 /** Los hechos medidos de un subagente sin pantalla para el tablero (tablero.ts decide la columna). */
 export function hechosDe(sub: Subagente, e: Estado, procesoVivo: boolean): Hechos {
   const respuesta = respuestaDe(e.turno)
-  // Detenido y su proceso salió con error (28 oct 2026, «Pizarrón» en «Te espera» 21 días: Levy detuvo un `sleep`, el
+  // Detenido y su proceso salió con error (28 oct 2026, un encargo en «Te espera» 21 días: Levy detuvo un `sleep`, el
   // CLI cerró con `error_during_execution`, código 1). Un proceso que terminó con error no espera a nadie: es «falló».
   const codigo = e.turno?.salida?.codigo
   const errorDetenido = e.detenido && e.terminado && codigo ? `Lo detuvieron y su proceso salió con código ${codigo}` : null

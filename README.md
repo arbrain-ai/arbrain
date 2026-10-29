@@ -166,6 +166,9 @@ la firma de la versión nueva, guarda tus cambios en una rama de respaldo, te ex
 [`CHANGELOG.md`](CHANGELOG.md), la integra en `mi-arbrain` sin tocar tu capa y reinicia Arbrain y su app. Solo te
 pregunta si un archivo que editaste choca con uno del autor.
 
+Cómo funciona por dentro (capas, respaldo, firma y qué pasa si cambiaste algo del autor):
+[`docs/ACTUALIZAR-EXPLICADO.md`](docs/ACTUALIZAR-EXPLICADO.md).
+
 ## Tu cuenta de Claude
 
 Cada cuenta de Claude es **individual** y se usa en **tu propio Claude Code**, con tu sesión (Pro, Max o tu asiento
@@ -188,7 +191,7 @@ en tu rama.
 
 | Capa | Rutas | Quién la cambia |
 |---|---|---|
-| **Tuya** | `.claude/memory/`, `.claude/plan/` (objetivos, calendario, hábitos), `.claude/now.md`, `.claude/diario/`, `.claude/daily/`, `.claude/knowledge/`, tus skills en `.claude/skills/`, `CLAUDE.local.md`, `mi-negocio/` | Tú y tu Levy, en `mi-arbrain` |
+| **Tuya** | `.claude/memory/`, `.claude/plan/` (objetivos, calendario, hábitos), `.claude/now.md`, `.claude/diario/`, `.claude/daily/`, `.claude/knowledge/`, tus skills en `.claude/skills/`, `CLAUDE.local.md`, `mi-negocio/`, `mi-marca/` (colores, logo y nombre) | Tú y tu Levy, en `mi-arbrain` |
 | **Del autor** | `CLAUDE.md`, las skills que vienen con Arbrain, los ganchos, `arbrain/` (el código) y la semilla | Cada versión, en `main` |
 
 ```text
@@ -209,6 +212,8 @@ en tu rama.
 
 Si quieres que tu Levy sepa o haga algo distinto, escríbelo en tu memoria (`.claude/memory/MEMORY.md`) o en una skill
 tuya, no en `CLAUDE.md`: así las actualizaciones nunca chocan con lo tuyo.
+Para tus colores, tu logo o tu nombre, usa `mi-marca/`, no el código. Todos los lugares para extender sin editar están
+en [docs/PERSONALIZAR.md](docs/PERSONALIZAR.md).
 
 ## Seguridad por defecto
 

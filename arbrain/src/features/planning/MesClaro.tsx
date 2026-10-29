@@ -1,8 +1,8 @@
 'use client'
-import { useEffect, useMemo, useRef, type CSSProperties } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { addDays, format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { ChevronRight } from 'lucide-react'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 import type { Goal, GoalSnapshot } from '@/features/goals/model'
 import { dayKey } from './model'
 import { objetivoDe, periodoDeEscala, rejillaDelMes } from './periodo-vivo'
@@ -11,6 +11,7 @@ import { DRIP, esFase, nombreDeFase, semanaDelPrograma, type Atencion, type Pied
 import { Entregables, Segmentos } from './ObjetivoCaja'
 import { FranjaPlan } from './FranjaPlan'
 import { useAhora } from './vivo-piezas'
+import { resumenSemana } from './mes-resumen'
 import type { PlanEvent, PlanningSnapshot } from './types'
 import type { Plegado } from './SemanaClara'
 import c from './claridad.module.css'
@@ -37,6 +38,10 @@ import c from './claridad.module.css'
  *   - lo de varios días es UNA barra que cruza sus días; si sigue en la semana siguiente, allá queda solo el tramo, sin título;
  *   - solo lo que pide actuar lleva color (`atencionDe`): uno a uno y llamadas clave en bronce, Monterrey y lo de adentro en
  *     morado; lo demás, neutro. La semana actual lleva el borde dorado; las pasadas, tenues.
+ *
+ * Sin nombres (28 oct 2026, Daniel: «no debe listar cada diagnóstico con nombre de persona; eso es de la semana»): cada semana es su
+ * objetivo y, plegable, UNA línea de resumen («7 uno a uno · demo day», mes-resumen.ts) con la tira de sus días. La semana actual
+ * nace abierta; las demás, plegadas. El detalle con nombres y horas vive en la Semana (la ceja lleva ahí).
  */
 export interface EventoMes { evento: PlanEvent; piedra: Piedra; color: string; atencion?: Atencion }
 
@@ -97,7 +102,8 @@ export function MesClaro({ goals, fecha, snapshot, cargando, angosto, cuadricula
       // Marcas: lo de un día y las llamadas clave (con otra persona, sin serie); el resto de lo que tiene hora es ritmo.
       const marcas = resto.filter(x => x.piedra === 'chip' ? x.atencion === 'accion' : x.dias[0] === x.dias[1]).sort((a, b) => a.evento.start.localeCompare(b.evento.start))
       const ritmo = dias.map(d => ({ dia: d, chips: de.filter(x => x.piedra === 'chip' && x.dias[0] === d) }))
-      return { n: i + 1, lunes, domingo, dias, s: semanaDelPrograma(lunes, programa), fase: fase ? nombreDeFase(fase.evento.title) : null, titulo: o?.titulo ?? null, barras, marcas, ritmo }
+      const resumen = resumenSemana([...barras.map(x => ({ titulo: x.evento.title, variosDias: true })), ...marcas.map(x => ({ titulo: x.evento.title, variosDias: false }))])
+      return { n: i + 1, lunes, domingo, dias, s: semanaDelPrograma(lunes, programa), fase: fase ? nombreDeFase(fase.evento.title) : null, titulo: o?.titulo ?? null, resumen, ritmo }
     })
   }, [fecha, goals.data, snapshot, eventos, programa])
 
@@ -111,6 +117,9 @@ export function MesClaro({ goals, fecha, snapshot, cargando, angosto, cuadricula
     if (actual.previousElementSibling) actual.scrollIntoView({ block: 'start' })
   }, [semanas])
 
+  // Qué semanas están abiertas: la actual nace abierta (28 oct 2026); un toque abre o pliega cualquiera.
+  const [abiertas, setAbiertas] = useState<ReadonlySet<string>>(() => new Set([dayKey(addDays(parseISO(hoy), -((parseISO(hoy).getDay() + 6) % 7)))]))
+  const alternarSemana = (lunes: string) => setAbiertas(a => { const n = new Set(a); if (n.has(lunes)) n.delete(lunes); else n.add(lunes); return n })
   const criterios = goal ? entregablesDe(goal.success).items : []
   const franja = <FranjaPlan clave="arbrain.calendario.franja-mes-abierta"
     rotulo={<>Mes<b> · {mes}</b>{goal?.status === 'draft' && <em> · en planificación</em>}</>}
@@ -125,8 +134,8 @@ export function MesClaro({ goals, fecha, snapshot, cargando, angosto, cuadricula
     {franja}
     {dosColumnas || cuadricula ? null : <ol ref={lista} className={c.mesLista} aria-label="Semanas del mes">{semanas.map(w => {
       const pasada = w.domingo < hoy, actual = w.lunes <= hoy && hoy <= w.domingo
-      const col = (d: string) => Math.max(0, Math.min(6, Math.round((Date.parse(d) - Date.parse(w.lunes)) / 864e5)))
-      return <li key={w.lunes} className={c.mesSemana} data-pasada={pasada || undefined} data-actual={actual || undefined}>
+      const abierta = abiertas.has(w.lunes)
+      return <li key={w.lunes} className={c.mesSemana} data-pasada={pasada || undefined} data-actual={actual || undefined} data-abierta={abierta || undefined}>
         <header className={c.mesCejaFila}>
           <button type="button" className={c.mesCeja} onClick={onSemana ? () => onSemana(w.lunes) : undefined} disabled={!onSemana}
             aria-label={`Abrir la semana${w.s ? ` ${w.s}` : ''}${w.fase ? ` (${w.fase})` : ''} del ${rango(w.lunes, w.domingo)}${w.titulo ? `: ${w.titulo}` : ''}`}>
@@ -135,17 +144,11 @@ export function MesClaro({ goals, fecha, snapshot, cargando, angosto, cuadricula
             {w.titulo && <span className={c.mesTitulo}>{w.titulo}</span>}
             <ChevronRight size={14} className={c.mesIr} aria-hidden />
           </button>
+          {!pasada && <button type="button" className={c.mesPlegar} onClick={() => alternarSemana(w.lunes)} aria-expanded={abierta}
+            aria-label={abierta ? 'Plegar la semana' : `Ver el resumen de la semana${w.resumen ? `: ${w.resumen}` : ''}`}><ChevronDown size={14} aria-hidden /></button>}
         </header>
-        {pasada ? null : <>
-        {w.barras.length > 0 && <div className={c.mesCintas}>{w.barras.map(x => {
-          const a = col(x.dias[0] < w.lunes ? w.lunes : x.dias[0]), b = col(x.dias[1] > w.domingo ? w.domingo : x.dias[1])
-          return <span key={x.evento.id} className={c.mesCinta} title={`${sinEmoji(x.evento.title)} · ${rango(x.dias[0], x.dias[1])}`} data-atencion={x.atencion ?? undefined} data-tramo={!x.primera || undefined}
-            data-sigue-antes={x.dias[0] < w.lunes || undefined} data-sigue-despues={x.dias[1] > w.domingo || undefined}
-            style={{ gridColumn: `${a + 1} / ${b + 2}`, '--c': colorAtencion(x.atencion) } as CSSProperties}>{x.primera ? sinEmoji(x.evento.title) : <span className={c.mesOculto}>{sinEmoji(x.evento.title)} (sigue)</span>}</span>
-        })}</div>}
-        {w.marcas.length > 0 && <ul className={c.mesMarcas}>{w.marcas.map(x => <li key={x.evento.id} data-atencion={x.atencion ?? undefined} style={{ '--c': colorAtencion(x.atencion) } as CSSProperties}>
-          <span className={c.mesMarcaTitulo}>{sinEmoji(x.evento.title)}</span>
-          <small>{quita(format(parseISO(x.dias[0]), 'EEE d', { locale: es }))}{x.evento.allDay ? '' : ` · ${format(parseISO(x.evento.start), 'HH:mm')}`}</small></li>)}</ul>}
+        {pasada || !abierta ? null : <>
+        {w.resumen && <p className={c.mesResumen} data-resumen>{w.resumen}</p>}
         <div className={c.mesRitmo} role="group" aria-label={`Días de la semana del ${rango(w.lunes, w.domingo)}`}>{w.ritmo.map(d => {
           const fuera = d.dia < desde || d.dia >= hasta
           return <button key={d.dia} className={c.mesDia} onClick={onDia ? () => onDia(d.dia) : undefined} data-hoy={d.dia === hoy || undefined} data-pasado={d.dia < hoy || undefined} data-fuera={fuera || undefined}

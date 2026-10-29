@@ -7,7 +7,7 @@
  *
  * Solo `Sec-Fetch-Site` (lo pone el navegador y una página no lo puede falsear): detrás del Funnel Next ve `http:` y
  * comparar Origin con Host negaría todo. Se aplica solo si la petición lleva la cookie de sesión; lo que va con bearer
- * (daemon, agentes) o sin cookie (el iframe opaco del pizarrón) sigue igual.
+ * (daemon, agentes) o sin cookie (un iframe opaco) sigue igual.
  */
 const SIN_EFECTO = ['GET', 'HEAD', 'OPTIONS']
 

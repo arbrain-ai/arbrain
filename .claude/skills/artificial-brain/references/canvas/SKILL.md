@@ -8,7 +8,7 @@ metadata:
 
 # Lienzo
 
-El lienzo es el pizarrón infinito de Arbrain: la sección `/lienzo` de la app y la pestaña Lienzo del panel. Levy
+El lienzo es la superficie infinita de Arbrain: la sección `/lienzo` de la app y la pestaña Lienzo del panel. Levy
 dibuja declarando QUÉ hay y CÓMO se relaciona; el compilador de la app decide DÓNDE va cada cosa.
 
 > **La regla de una línea: tú no calculas ni una coordenada.** Si te encuentras escribiendo `x: 5470`, estás

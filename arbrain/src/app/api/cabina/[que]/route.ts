@@ -44,12 +44,29 @@ export async function POST(request: Request, { params }: { params: Promise<{ que
     // suyo y siga abierto, y usa la misma vía que Levy (detener / retomar).
     if (que === 'detener' || que === 'responder') {
       checkMutationOrigin(request)
-      const { agente, texto } = await request.json().catch(() => ({})) as { agente?: unknown; texto?: unknown }
+      const { agente, texto, esfuerzo } = await request.json().catch(() => ({})) as { agente?: unknown; texto?: unknown; esfuerzo?: unknown }
       if (typeof agente !== 'number' || !Number.isInteger(agente) || agente <= 0) return Response.json({ error: 'Falta el agente.' }, { status: 400 })
       if (que === 'responder' && (typeof texto !== 'string' || !texto.trim() || texto.length > 4000)) return Response.json({ error: 'Escribe el mensaje (máximo 4,000 caracteres).' }, { status: 400 })
       const res = await fetch(`${await getSchedulerUrl()}/cabina`, {
         method: 'POST', headers: { Authorization: `Bearer ${CLAUDECLAW_TOKEN}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ que, agente, ...(que === 'responder' ? { texto } : {}) }), signal: AbortSignal.timeout(45_000), cache: 'no-store',
+        // esfuerzo («Reintentar con más esfuerzo»): el agent-server lo valida contra su lista y el catálogo vivo
+        body: JSON.stringify({ que, agente, ...(que === 'responder' ? { texto, ...(typeof esfuerzo === 'string' ? { esfuerzo: esfuerzo.slice(0, 20) } : {}) } : {}) }), signal: AbortSignal.timeout(45_000), cache: 'no-store',
+      })
+      const body = await res.json().catch(() => ({ error: 'El Studio no respondió.' }))
+      return Response.json(body, { status: res.status, headers: { 'Cache-Control': 'no-store' } })
+    }
+    // Comentarios en lote sobre el entregable (29 oct 2026) y planes versionados (correr o descartar): el agent-server valida
+    // forma, topes y ruta (acciones-tablero.ts); aquí solo se acota el tamaño y se pasa tal cual.
+    if (que === 'comentarios' || que === 'correr-plan' || que === 'descartar-plan') {
+      checkMutationOrigin(request)
+      const crudo = await request.text()
+      if (crudo.length > 64_000) return Response.json({ error: 'Demasiado grande.' }, { status: 413 })
+      const cuerpo = (() => { try { return JSON.parse(crudo) as Record<string, unknown> } catch { return null } })()
+      if (!cuerpo || typeof cuerpo !== 'object') return Response.json({ error: 'Se espera JSON.' }, { status: 400 })
+      const res = await fetch(`${await getSchedulerUrl()}/cabina`, {
+        method: 'POST', headers: { Authorization: `Bearer ${CLAUDECLAW_TOKEN}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(que === 'comentarios' ? { que, agente: cuerpo.agente, comentarios: cuerpo.comentarios } : { que, ruta: cuerpo.ruta }),
+        signal: AbortSignal.timeout(60_000), cache: 'no-store',
       })
       const body = await res.json().catch(() => ({ error: 'El Studio no respondió.' }))
       return Response.json(body, { status: res.status, headers: { 'Cache-Control': 'no-store' } })

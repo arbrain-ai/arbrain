@@ -22,6 +22,7 @@ import { esEdicionCliente } from './edicion.js'
 import { carpetaOriginal } from './dueno.js'
 import { faltaLlaveClaude, MENSAJE_FALTA_LLAVE } from './cliente/llaves.js'
 import { motorSuscripcion, MENSAJE_RUTINAS } from './cliente/suscripcion.js'
+import { rutinasConLlaveTope } from './cliente/rutinas-llave.js'
 import { MENSAJE_PAUSA, pausado } from './cliente/pausa.js'
 import { cercaEspejo } from './cliente/espejo.js'
 
@@ -125,7 +126,8 @@ export async function executeCronJob(task: ScheduledTask, opts?: { manual?: bool
     const rawScript = esEdicionCliente() ? undefined : RAW_SCRIPT_JOBS[task.id]
     if (!rawScript && faltaLlaveClaude()) throw new Error(MENSAJE_FALTA_LLAVE)
     // Motor «Mi Claude Code»: el plan de la persona es para su uso directo; las rutinas en segundo plano no lo gastan.
-    if (!rawScript && motorSuscripcion()) throw new Error(MENSAJE_RUTINAS)
+    // Salvo que haya una llave de OpenRouter con tope verificado (`nube.sh llave`): entonces la rutina va por ella.
+    if (!rawScript && motorSuscripcion() && !rutinasConLlaveTope()) throw new Error(MENSAJE_RUTINAS)
     if (esEdicionCliente() && pausado()) throw new Error(MENSAJE_PAUSA)
     // Modo espejo (beta): ¿esta máquina sigue mandando en origin, la llave tiene tope, ya salió hoy? Apagado = sin efecto.
     if (!rawScript && esEdicionCliente()) {

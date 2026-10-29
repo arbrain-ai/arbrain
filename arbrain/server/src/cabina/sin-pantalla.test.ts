@@ -112,6 +112,32 @@ describe('delegar sin pantalla: proceso desacoplado de punta a punta (CLI falso)
     await cerrar(f.id)
   }, 30_000)
 
+  it('retomar sube el esfuerzo desde el turno nuevo (brecha 4): queda en la bitácora y en el registro', async () => {
+    const sp = await import('./sin-pantalla.js')
+    const { leerRegistro, cerrar } = await import('./cuerpo.js')
+    ADAPTADORES.falsoesf = { ...ADAPTADORES.falso, nombre: 'falsoesf', recibeEsfuerzo: true }
+    try {
+      const sub = await sp.delegarSinPantalla({ nombre: 'esfuerzo', harness: 'falsoesf', encargo: 'uno', cwd, esfuerzo: 'medium' })
+      expect(sub).toMatchObject({ esfuerzo: 'medium', aislamiento: 'carpeta' })
+      expect(sub.eleccion).toContain('esfuerzo medium (pedido)')
+      expect(await esperar(async () => !(await sp.observarSinPantalla(sub)).trabajando)).toBe(true)
+      // a un CLI que no recibe esfuerzo no se le puede subir
+      await expect(sp.retomarSinPantalla(sub.id, 'dos', { esfuerzo: 'turbo' })).rejects.toThrow(/Esfuerzo inválido/)
+      const r = await sp.retomarSinPantalla(sub.id, 'dos', { esfuerzo: 'high' })
+      expect(r).toMatchObject({ encolado: false, confirmado: true })
+      expect(r.eleccion).toContain('esfuerzo high (pedido)')
+      const reg = (await leerRegistro()).find(s => s.id === sub.id)!
+      expect(reg).toMatchObject({ esfuerzo: 'high', turno: 2 })
+      expect(await esperar(async () => !(await sp.observarSinPantalla((await leerRegistro()).find(s => s.id === sub.id)!)).trabajando)).toBe(true)
+      const inicios = readFileSync(sp.rutaBitacora(sub.id), 'utf8').split('\n').filter(l => l.includes('"arbrain":"inicio"')).map(l => JSON.parse(l).esfuerzo)
+      expect(inicios).toEqual(['medium', 'high'])
+      // el CLI falso no reporta esfuerzo: el Taller lo dice «pedido, sin medir», nunca como medido
+      const [t] = await sp.terminalesSinPantalla([(await leerRegistro()).find(s => s.id === sub.id)!], 4)
+      expect(t.conversacion).toMatchObject({ esfuerzo: null, coherencia: { esfuerzo: { pedido: 'high', efectivo: null, estado: 'sin-medir' }, desajuste: null } })
+      await cerrar(sub.id)
+    } finally { delete ADAPTADORES.falsoesf }
+  }, 30_000)
+
   it('rechaza harness sin adaptador, cwd fuera de lo permitido y modelo inválido', async () => {
     const sp = await import('./sin-pantalla.js')
     await expect(sp.delegarSinPantalla({ nombre: 'x', harness: 'bash', encargo: 'y', cwd })).rejects.toThrow(/Harness no registrado/)
@@ -267,7 +293,7 @@ describe('aviso: terminar = el proceso sale', () => {
   })
 })
 
-describe('hechosDe: detenido y cerrado con error (28 oct 2026, el Pizarrón en «Te espera» 21 días)', () => {
+describe('hechosDe: detenido y cerrado con error (28 oct 2026, un encargo en «Te espera» 21 días)', () => {
   const sub = { id: 900013, creado: '2026-10-07T13:37:06.316Z' } as unknown as Subagente
   const turno = (codigo: number) => ({ n: 1, inicio: 0, mensajes: [], final: '', salida: { codigo, detenido: true, en: 1 } })
   const estado = (codigo: number) => ({ b: {}, mtime: 1, corriendo: false, detenido: true, turno: turno(codigo), terminado: true, finMs: 1, error: null, sesion: undefined, tokens: null }) as never

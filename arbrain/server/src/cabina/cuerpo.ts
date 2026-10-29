@@ -41,7 +41,10 @@ import { motor, motorSock, type TermDetail } from '../motor/cliente.js'
 import { harnessDe, leer, type Harness } from '../motor/lector.js'
 import { ctxWindowFor } from '../motor/sfterm/msgs.js'
 import { internas as leerInternas, type TareaInterna } from './internos.js'
-import { apagar, procesos as leerProcesos, type Proceso } from './procesos.js'
+import { apagar, procesos as leerProcesos, worktreeDe, type Proceso } from './procesos.js'
+import { adaptador } from './harness/index.js'
+import type { Coherencia } from './harness/coherencia.js'
+import type { CambiosRama } from './aislamiento.js'
 import { ES_DEL_NEGOCIO, explicar, ficha, type AreaServicio } from './servicios-legibles.js'
 import { DIR_ARBRAIN, esEdicionCliente } from '../edicion.js'
 import { notaAutoria } from './autoria.js'
@@ -88,7 +91,7 @@ export function tachar(texto: string): string {
 export interface SubagenteOrigen { owner: string; account: string; conversationId: string }
 /** Pregunta abierta del subagente (5 oct 2026): la ve primero Levy; a Daniel solo sube si Levy no la atiende. */
 export interface PreguntaAbierta { texto: string; tipo: 'dialogo' | 'pregunta'; firma: string; desde: number }
-export interface Subagente { avisarA?: SubagenteOrigen; avisadoHasta?: number; avisadoFin?: string; fin?: string; id: number; nombre: string; harness: string; encargo: string; cwd: string; creado: string; modelo?: string; cerrado?: string; motor?: boolean; pid?: number; sesion?: string; tokens?: number | null; permisos?: Permisos; entrega?: 'entregado' | 'pendiente' | 'falló'; entregaNota?: string; espera?: string; aviso?: string
+export interface Subagente { /** Perfil de permisos (29 oct 2026, perfiles.ts); sin campo = total. */ perfil?: import('./perfiles.js').Perfil; /** El CLI no acepta la guardia: corre sin lista negra (gemini, qwen, opencode en total). */ sinGuardia?: boolean; /** Plan versionado del que salió el encargo (plan.ts): ruta en el repo y commit aprobado. */ plan?: { ruta: string; commit: string | null }; avisarA?: SubagenteOrigen; avisadoHasta?: number; avisadoFin?: string; fin?: string; id: number; nombre: string; harness: string; encargo: string; cwd: string; creado: string; modelo?: string; esfuerzo?: string; cerrado?: string; motor?: boolean; pid?: number; sesion?: string; tokens?: number | null; permisos?: Permisos; entrega?: 'entregado' | 'pendiente' | 'falló'; entregaNota?: string; espera?: string; aviso?: string
   /** Conversación del chat desde la que Levy lo lanzó (3 oct 2026); null = no se pudo saber. */
   origen?: string | null
   pregunta?: PreguntaAbierta
@@ -111,7 +114,14 @@ export interface Subagente { avisarA?: SubagenteOrigen; avisadoHasta?: number; a
   /** Definición de Terminado extraída del encargo completo al delegar (27 oct 2026), para el juez separado. */
   dod?: string
   /** Veredicto del juez separado sobre su último turno terminado (juez.ts). */
-  juicio?: Juicio }
+  juicio?: Juicio
+  /** De dónde salieron modelo y esfuerzo y contra qué se validaron (29 oct 2026, catalogo-delegar.ts). */
+  eleccion?: string
+  /** Dónde trabaja (aislamiento.ts): su propio worktree (con su rama) o la carpeta pedida. */
+  aislamiento?: 'worktree' | 'carpeta'
+  rama?: string
+  /** El esfuerzo que recibió su CLI, si difiere del pedido (catalogo-delegar.ts: codex sin max en su catálogo → xhigh). */
+  esfuerzoCli?: string }
 
 /*
  * El registro es un JSON que escriben DOS procesos: el MCP de la Cabina (delegar, retomar, cerrar) y el
@@ -198,9 +208,6 @@ export function cwdPermitido(cwd: string): boolean {
   const r = resolve(cwd) + '/'
   return PERMITIDOS.some(p => r.startsWith(p)) && !r.includes('/.ssh/') && !r.includes('/.gnupg/')
 }
-// Subagentes sueltos corren en Sonnet 5.5 (regla de la casa, fijada en settings).
-const MODELO_DEFAULT: Record<string, string | null> = { claude: 'claude-sonnet-5-5', codex: null }
-const MODELO_OK = /^[a-z0-9][a-z0-9.\-]{2,60}$/
 const sq = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`
 
 export type Permisos = 'bypass' | 'auto' | 'acceptEdits'
@@ -264,7 +271,7 @@ export function calcularTopes(registro: Subagente[], vivos: Set<number>): Topes 
   }
 }
 
-export async function delegar(p: { nombre: string; harness: Subagente['harness']; encargo: string; cwd: string; modelo?: string; avisarA?: SubagenteOrigen }): Promise<Subagente> {
+export async function delegar(p: import('./sin-pantalla.js').PedidoDelegar): Promise<Subagente> {
   // Desde el 6 oct el camino es sin pantalla; CABINA_DELEGAR_MODO=pantalla vuelve a este (RESPALDO: se retira en
   // otro commit cuando el nuevo lleve días sin tropiezos).
   // Red team A1: en la edición cliente no se lanzan subagentes (ni por la Cabina ni por otra vía).
@@ -273,8 +280,10 @@ export async function delegar(p: { nombre: string; harness: Subagente['harness']
   if (sp.modoDelegar() === 'sin-pantalla') return sp.delegarSinPantalla(p)
   if (!(HARNESS_PERMITIDOS as readonly string[]).includes(p.harness)) throw new Error(`Harness no permitido para lanzar desde el chat (solo ${HARNESS_PERMITIDOS.join(', ')}).`)
   if (!cwdPermitido(p.cwd)) throw new Error('Directorio no permitido para un subagente (solo /tmp o ~/Developer).')
-  const modelo = p.modelo ?? MODELO_DEFAULT[p.harness]
-  if (modelo && !MODELO_OK.test(modelo)) throw new Error('Modelo inválido.')
+  // Una sola fuente del default (29 oct 2026): el adaptador del CLI, el mismo que usa el camino sin pantalla.
+  const ad = adaptador(p.harness)
+  const modelo = p.modelo ?? ad?.modeloDefault(k => process.env[k]) ?? null
+  if (modelo && !ad?.modeloOk(modelo)) throw new Error('Modelo inválido.')
   const registro = await leerRegistro()
   if (!(await hayMotor())) {
     // Bancos de prueba: jamás caer al SFTerm real de Daniel si el motor aislado no está.
@@ -553,9 +562,10 @@ export async function enviarSeguimiento(texto: string, p: PuertoSeguimiento, o: 
   return { encolado, confirmado: false }
 }
 
-export async function retomar(id: number, texto: string): Promise<Seguimiento> {
+export async function retomar(id: number, texto: string, cambio: { modelo?: string; esfuerzo?: string } = {}): Promise<Seguimiento & { eleccion?: string }> {
   const sub = await propio(id)
-  if (sub.modo === 'sin-pantalla') return (await import('./sin-pantalla.js')).retomarSinPantalla(id, texto)
+  if (sub.modo === 'sin-pantalla') return (await import('./sin-pantalla.js')).retomarSinPantalla(id, texto, cambio)
+  if (cambio.modelo || cambio.esfuerzo) throw new Error('Este subagente corre en el motor de pantalla: no cambia de modelo ni de esfuerzo al retomar. Lánzalo de nuevo con delegar.')
   if (!sub.motor) { await gate('send', { id, text: texto.slice(0, 4000), ready: true }, 60_000); return { encolado: false, confirmado: true } }
   const termino = async () => {
     const t = (await motor.info()).terms.find(x => x.id === id)
@@ -594,7 +604,8 @@ export async function cerrar(id: number): Promise<void> {
   // Su worktree no sobrevive al subagente (disco lleno 3 oct 2026: ~60 copias que nadie quitaba).
   // wt.sh solo lo quita si está limpio y ya en main; si no, el janitor lo rescata a las 72 h.
   const wt = join(dirname(fileURLToPath(import.meta.url)), '../../scripts/worktrees/wt.sh')
-  execFile('/bin/bash', [wt, 'cerrar', sub.cwd, '--si-limpio'], { timeout: 120_000 }, () => { /* mejor esfuerzo */ })
+  // la raíz del worktree, no su subcarpeta (con aislamiento el cwd puede ser wt-x/arbrain y wt.sh exige la raíz)
+  execFile('/bin/bash', [wt, 'cerrar', worktreeDe(sub.cwd)?.raiz ?? sub.cwd, '--si-limpio'], { timeout: 120_000 }, () => { /* mejor esfuerzo */ })
 }
 
 // ── Lectura para la vista «trabajos» ──
@@ -619,11 +630,13 @@ export function estadoDe(proc: string, pantalla: string): Estado {
 
 export interface Mensaje { rol: 'user' | 'assistant'; texto: string; herramientas: string[] }
 /** `ctxVentana` (2 oct 2026): la ventana con la que se calculó `ctxPct`, la misma regla que la barra de estado de SFTerm («15 % de 1M»). */
-export interface Conversacion { harness: Harness; modelo: string | null; /** Esfuerzo que registra el transcript del CLI (2 oct 2026); null si no lo dice. */ esfuerzo: string | null; ctxPct: number | null; ctxVentana: number | null; turno: 'trabajando' | 'terminado' | null; pregunta: boolean; tokens: number | null; mensajes: Mensaje[]; titulo: string | null; error?: string }
+export interface Conversacion { harness: Harness; modelo: string | null; /** Esfuerzo que registra el transcript del CLI (2 oct 2026); null si no lo dice. */ esfuerzo: string | null; /** Subagentes sin pantalla: lo pedido contra lo que el CLI reportó (29 oct 2026). */ coherencia?: Coherencia; ctxPct: number | null; ctxVentana: number | null; turno: 'trabajando' | 'terminado' | null; pregunta: boolean; tokens: number | null; mensajes: Mensaje[]; titulo: string | null; error?: string }
 interface TermGate { id: number; title: string; cwd: string; proc: string; visible: boolean; focused: boolean }
 export interface Terminal { id: number; titulo: string; cwd: string; proc: string; estado: Estado; actividad: string | null; ultimaAccion: string | null; ultimas: string[]; pid?: number; origen?: 'motor' | 'sfterm-ptyd' | 'sin-pantalla'; soloLectura?: boolean; conversacion?: Conversacion; subagente?: Omit<Subagente, 'encargo'> & { encargo: string }
   /** Columna del tablero con su latido medido (tablero.ts); hoy solo los subagentes sin pantalla. */
-  tablero?: EstadoTablero }
+  tablero?: EstadoTablero
+  /** Lo que cambió en su rama desde main, si trabaja en un worktree (aislamiento.ts). */
+  cambios?: CambiosRama }
 export interface Servidor { puerto: number; proceso: string; nombre: string }
 /** `nombre`/`area` en palabras de dueño; con falla, `explicacion` en español llano, `menor` si su app sí corre y `detalle` = la última línea de su log. */
 export interface Servicio { label: string; pid: number | null; estado: 'corriendo' | 'programado' | 'falló'; codigo: number | null; nombre?: string; area?: AreaServicio; explicacion?: string; menor?: boolean; detalle?: string }
@@ -745,7 +758,7 @@ export async function apagarHuerfano(firma: string) {
 
 /** Una sola lista de lo que trabaja para Daniel: terminales (motor o, de respaldo, el gate de
  *  SFTerm) + `internas` (subagentes y comandos en segundo plano de los turnos de Levy). */
-export interface Trabajos { fuente: 'motor' | 'sfterm-gate' | 'ninguna'; sfterm: boolean; internas: TareaInterna[]; motor?: MotorResumen; topes?: Topes; permitidos: { harness: readonly string[]; carpetas: string[] }; terminales: Terminal[]; servidores: Servidor[]; servicios: Servicio[]; procesos?: Proceso[]; leidoEn: string; error?: string }
+export interface Trabajos { fuente: 'motor' | 'sfterm-gate' | 'ninguna'; sfterm: boolean; internas: TareaInterna[]; motor?: MotorResumen; topes?: Topes; permitidos: { harness: readonly string[]; carpetas: string[] }; terminales: Terminal[]; servidores: Servidor[]; servicios: Servicio[]; procesos?: Proceso[]; /** Planes de encargo por correr (plan.ts): el dueño los edita y los corre desde el Taller. */ planes?: import('./plan.js').PlanPendiente[]; leidoEn: string; error?: string }
 
 // ── De qué conversación salió cada subagente (3 oct 2026, Daniel: «no sé de qué conversación viene») ──
 // El MCP de la cabina corre sin saber en qué conversación está (su config es JSON fijo para no romper el pool).
@@ -976,9 +989,11 @@ async function leerTrabajos(lineas: number): Promise<Trabajos> {
   const permitidos = await harnessPermitidos().catch(() => HARNESS_PERMITIDOS)
   // Procesos con dueño (5 oct 2026): el registro completo (también los cerrados) dice de qué agente era cada worktree.
   const [srv, svc, int, procs] = await Promise.all([servidoresVivos(), serviciosVivos(), leerInternas().catch(() => [] as TareaInterna[]), leerProcesos({ subagentes: subRefs(registro), terminales: termRefs(terminales) }).catch(() => undefined)])
+  // Planes por correr (29 oct 2026): los de docs/planes que ningún subagente usó todavía. Solo en la instalación original.
+  const planes = esEdicionCliente() ? [] : await import('./plan.js').then(m => m.planesPendientes(new Set(registro.map(s => s.plan?.ruta).filter((r): r is string => !!r)))).catch(() => [])
   return {
     fuente, sfterm: fuente !== 'ninguna', internas: int.map(t => ({ ...t, descripcion: tachar(t.descripcion), ...(t.actividad ? { actividad: tachar(t.actividad) } : {}), ...(t.resumen ? { resumen: tachar(t.resumen).slice(0, 300) } : {}), ...(t.resultado ? { resultado: undefined } : {}) })), ...(resumen ? { motor: resumen } : {}), ...(topes ? { topes } : {}),
     permitidos: { harness: permitidos, carpetas: ['/tmp', '~/Developer'] },
-    terminales, servidores: srv, servicios: svc, ...(procs ? { procesos: procs } : {}), leidoEn: new Date().toISOString(), ...(error ? { error } : {}),
+    terminales, servidores: srv, servicios: svc, ...(procs ? { procesos: procs } : {}), ...(planes.length ? { planes } : {}), leidoEn: new Date().toISOString(), ...(error ? { error } : {}),
   }
 }

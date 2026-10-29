@@ -202,6 +202,10 @@ section.vista[data-dos-columnas]:has(> .izquierda) { display: grid; grid-templat
 .vista[data-llena] { gap: 8px; padding-top: 0; padding-bottom: 8px; }
 .vista[data-dos-columnas][data-llena] { display: flex; flex-direction: column; overflow: hidden; padding-left: 18px; padding-right: 18px; }
 .rejillaLlena { min-width: 0; }
+/* El objetivo de la semana, fijo bajo la barra al hacer scroll (28 oct 2026); la cabecera de días se pega debajo (--franja-alto).
+   Fondo opaco y el margen de la franja por dentro, para que las horas pasen por debajo sin asomarse. */
+.franjaPegada { position: sticky; top: var(--plan-pegado, 0px); z-index: 9; background: var(--background); padding: 2px 0 6px; }
+.franjaPegada > * { margin-top: 0; margin-bottom: 0; }
 .vista[data-dos-columnas] > .rejillaLlena { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
 .vista[data-dos-columnas] > .rejillaLlena > * { flex: 1 1 0; min-height: 0; }
 
@@ -268,3 +272,12 @@ section.vista[data-dos-columnas]:has(> .izquierda) { display: grid; grid-templat
 .vista[data-angosto] .mesTitulo { order: 3; flex: 1 1 100%; white-space: normal; }
 
 :global(html[data-estilo='unificado']) .dia[data-pasado] .fecha, :global(html[data-estilo='unificado']) .dia[data-pasado] .compromiso, :global(html[data-estilo='unificado']) .dia[data-pasado] .mas, :global(html[data-estilo='unificado']) .mesDia[data-pasado] { opacity: 0.72; }
+
+/* El Mes sin nombres (28 oct 2026): cada semana es su objetivo y, plegable, una línea de resumen con la tira de sus días. */
+.mesPlegar { flex: none; display: grid; place-items: center; width: 26px; height: 26px; margin: -3px -4px -3px 4px; padding: 0; border: 0; border-radius: 50%;
+  background: none; color: var(--muted); cursor: pointer; }
+.mesPlegar:hover { background: var(--card-hover); color: var(--foreground); }
+.mesPlegar:focus-visible { outline: 2px solid var(--ring, var(--foreground)); outline-offset: 1px; }
+.mesPlegar svg { transition: transform 180ms; }
+.mesSemana[data-abierta] .mesPlegar svg { transform: rotate(180deg); }
+.mesResumen { margin: 0; font-size: 12.5px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }

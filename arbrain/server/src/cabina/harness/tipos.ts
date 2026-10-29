@@ -11,9 +11,24 @@
  */
 
 export type Permisos = 'bypass' | 'auto' | 'acceptEdits'
+/** Perfil de permisos por subagente (29 oct 2026, `../perfiles.ts`): total = bypass + lista negra. */
+export type { Perfil } from '../perfiles.js'
+import type { Perfil } from '../perfiles.js'
+/** Lo que el adaptador recibe para aplicar el perfil: cuál es y, si el CLI acepta ganchos, el comando de la guardia. */
+export interface PerfilTurno { perfil?: Perfil; /** Comando de shell del gancho PreToolUse (`guardia-perfil.ts`). */ guardia?: string }
 
-export interface PedidoLanzar { encargo: string; modelo: string | null; cwd: string; permisos: Permisos; /** id que Levy fija de antemano (solo si `sesionPropia`). */ sesion?: string }
-export interface PedidoReanudar { sesion: string; texto: string; modelo: string | null; cwd: string; permisos: Permisos }
+/** Niveles de `claude --effort` (2.1.285), de menos a más. Codex los recibe como model_reasoning_effort (max → xhigh).
+ *  Es el respaldo de forma: antes de lanzar, `catalogo-delegar.ts` valida contra el catálogo vivo de cada motor. */
+export const ESFUERZOS = ['low', 'medium', 'high', 'xhigh', 'max'] as const
+export type EsfuerzoSub = typeof ESFUERZOS[number]
+/** El nivel siguiente (para «Reintentar con más esfuerzo»); null si ya es el techo o no es un nivel conocido. */
+export const esfuerzoSiguiente = (e: string | null | undefined, techo: string = 'max'): string | null => {
+  const i = e ? (ESFUERZOS as readonly string[]).indexOf(e) : (ESFUERZOS as readonly string[]).indexOf('medium')
+  const tope = (ESFUERZOS as readonly string[]).indexOf(techo)
+  return i < 0 || i >= tope ? null : ESFUERZOS[i + 1]
+}
+export interface PedidoLanzar extends PerfilTurno { encargo: string; modelo: string | null; esfuerzo?: string | null; cwd: string; permisos: Permisos; /** id que Levy fija de antemano (solo si `sesionPropia`). */ sesion?: string }
+export interface PedidoReanudar extends PerfilTurno { sesion: string; texto: string; modelo: string | null; esfuerzo?: string | null; cwd: string; permisos: Permisos }
 
 /** Lo que interesa de una línea de stdout. Una línea puede no traer nada (null). */
 export interface Evento {
@@ -32,6 +47,10 @@ export interface Evento {
   tokens?: number
   /** El CLI declaró terminado el turno (la verdad sigue siendo que el proceso sale). */
   fin?: boolean
+  /** Lo que el CLI dice que CORRE (29 oct 2026): claude `system/init.model`; codex `thread/started.model` y
+   *  `.reasoningEffort`. Sin esto, el Taller dice «pedido, sin medir»: nunca pinta lo pedido como medido. */
+  modelo?: string
+  esfuerzo?: string
 }
 
 export interface Adaptador {
@@ -42,6 +61,19 @@ export interface Adaptador {
   modeloDefault(env: Entorno): string | null
   /** Valida el nombre del modelo (argv sin shell, pero igual se acota). */
   modeloOk(modelo: string): boolean
+  /** El CLI recibe el esfuerzo desde delegar (claude --effort, codex model_reasoning_effort). */
+  recibeEsfuerzo?: boolean
+  /** El esfuerzo tal como lo recibe el CLI (codex no tiene `max`: su techo es xhigh). Sin esto, el mismo valor. */
+  esfuerzoCli?(e: string): string
+  /** Perfiles que este CLI sabe cumplir (sin campo: solo «total», sin guardia). */
+  perfiles?: readonly Perfil[]
+  /** El CLI corre la guardia de perfil como gancho PreToolUse (claude por `--settings`, codex por `-c hooks`). */
+  guardia?: boolean
+  /** La guardia también aplica con entrada en vivo. Codex no: su app-server no deja confiar un gancho de sesión, así que
+   *  con guardia corre por `codex exec` (retomar encola y entrega al salir, como con CABINA_ENTRADA_VIVA=0). */
+  guardiaEnVivo?: boolean
+  /** Catálogo vivo del chat que valida modelo y esfuerzo de este CLI (`/models?account=<cuenta>`); sin él, solo forma. */
+  cuentaCatalogo?: string
   /** El CLI acepta un id de sesión elegido por nosotros al lanzar. */
   sesionPropia: boolean
   lanzar(p: PedidoLanzar): string[]
@@ -54,10 +86,10 @@ export interface Adaptador {
    *  sin perder la sesión. Lo opera `scripts/subagentes/pastor.mjs`. Sin esto, retomar encola y entrega al salir. */
   vivo?: Vivo
   /** Argumentos (sin el binario) para abrir la sesión a mano en una terminal del motor (interactivo). */
-  interactivo(sesion: string, modelo: string | null): string[]
+  interactivo(sesion: string, modelo: string | null, esfuerzo?: string | null): string[]
 }
 
-export interface PedidoVivo { sesion?: string; reanudar: boolean; modelo: string | null; permisos: Permisos; cwd: string }
+export interface PedidoVivo extends PerfilTurno { sesion?: string; reanudar: boolean; modelo: string | null; esfuerzo?: string | null; permisos: Permisos; cwd: string }
 export interface Vivo {
   protocolo: 'claude-stream' | 'codex-appserver'
   /** argv del CLI en modo de entrada en vivo (sin el encargo: lo pasa el pastor por stdin). */
@@ -69,7 +101,8 @@ export interface Vivo {
 /** Lectura de variables: proceso primero, luego arbrain/server/.env. */
 export type Entorno = (clave: string) => string | undefined
 
-const MODELO_SIMPLE = /^[a-z0-9][a-z0-9.\-]{1,80}$/i
+/** Un id con su calificador de contexto (`<id>[1m]`) también vale: así lo publica el catálogo. */
+const MODELO_SIMPLE = /^[a-z0-9][a-z0-9.\-]{1,80}(\[[a-z0-9]{1,8}\])?$/i
 /** proveedor/modelo (OpenRouter usa ~ y : en algunos ids). */
 const MODELO_RUTA = /^[a-z0-9][a-z0-9._\-]*(\/[~a-z0-9][a-z0-9._~:\-]*){1,3}$/i
 export const modeloSimple = (m: string) => MODELO_SIMPLE.test(m)

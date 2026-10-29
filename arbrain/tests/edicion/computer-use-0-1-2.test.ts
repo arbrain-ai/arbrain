@@ -59,10 +59,10 @@ test('la ruta del interruptor: en Linux encender es 403 sin hablar con el daemon
 })
 
 test('primer arranque: el paso de computer use solo donde existe, apagado por defecto', () => {
-  assert.deepEqual([...PASOS], ['bienvenida', 'legal', 'llaves', 'computer', 'monitoreo', 'listo'])
-  assert.deepEqual(pasosVisibles(false, false), ['bienvenida', 'legal', 'llaves', 'listo'])
-  assert.deepEqual(pasosVisibles(false, true), ['bienvenida', 'legal', 'llaves', 'computer', 'listo'])
-  assert.deepEqual(pasosVisibles(false), ['bienvenida', 'legal', 'llaves', 'listo'], 'sin respuesta: sin el paso')
+  assert.deepEqual([...PASOS], ['bienvenida', 'legal', 'llaves', 'computer', 'monitoreo', 'donde', 'listo'])
+  assert.deepEqual(pasosVisibles(false, false), ['bienvenida', 'legal', 'llaves', 'donde', 'listo'])
+  assert.deepEqual(pasosVisibles(false, true), ['bienvenida', 'legal', 'llaves', 'computer', 'donde', 'listo'])
+  assert.deepEqual(pasosVisibles(false), ['bienvenida', 'legal', 'llaves', 'donde', 'listo'], 'sin respuesta: sin el paso')
   const c = fuente('src/features/primer-arranque/components/PrimerArranque.tsx')
   assert.match(c, /pasosVisibles\(conMonitoreo, cu\.disponible\)/)
   assert.match(c, /disponible: j\?\.disponible === true/)

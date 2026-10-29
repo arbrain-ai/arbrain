@@ -115,7 +115,7 @@ WorkingDirectory=${dir}
 ExecStart=${comando.map(q).join(' ')}
 Restart=always
 RestartSec=10
-Environment=${q(`HOME=${home}`)} ${q(`PATH=${path}`)} "LANG=C.UTF-8"
+Environment=${q(`HOME=${home}`)} ${q(`PATH=${path}`)} "LANG=C.UTF-8" "ARBRAIN_SERVIDOR_NUBE=1"
 UMask=0077
 NoNewPrivileges=yes
 ProtectSystem=full

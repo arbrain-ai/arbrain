@@ -85,7 +85,9 @@ function codex() {
     escribir({ method: 'initialized', params: {} })
     const r = c.codex.hilo ? await rpc('thread/resume', { threadId: c.codex.hilo, ...c.codex.hiloParams }) : await rpc('thread/start', c.codex.hiloParams)
     hilo = r.thread.id
-    anota({ arbrain: 'sesion', id: hilo })
+    // lo que el app-server dice que corre: thread/resume no emite thread/started, así que se anota de su respuesta
+    const modelo = r.model ?? r.thread.model, esfuerzo = r.reasoningEffort ?? r.thread.reasoningEffort
+    anota({ arbrain: 'sesion', id: hilo, ...(typeof modelo === 'string' ? { modelo } : {}), ...(typeof esfuerzo === 'string' ? { esfuerzo } : {}) })
     await iniciarTurno(c.texto)
   })().catch(e => { anota({ arbrain: 'error', mensaje: String(e?.message ?? e) }); ocupado = false; cerrarEntrada() })
   return {

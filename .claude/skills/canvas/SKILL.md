@@ -3,7 +3,7 @@ name: canvas
 description: Use when the owner asks for a diagram, map, blueprint, flow, journey, system map, conectoma-style graph, or anything drawn on the whiteboard ("dibuja", "haz un mapa de", "diagrama esto", "arma el blueprint", "ponlo en el canvas"), or when touching the whiteboard code in arbrain/src/features/canvas. Canvas v4 compiles semantics into geometry — the agent declares WHAT, never WHERE.
 ---
 
-# Canvas — el pizarrón de Arbrain (v4)
+# Canvas — el lienzo de Arbrain (v4)
 
 > **La regla de una línea: TÚ NO CALCULAS NI UNA COORDENADA.**
 > Declaras qué hay y qué se conecta con qué. El compilador mide el texto de

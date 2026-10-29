@@ -16,7 +16,8 @@ en la terminal es más cómodo, y tu Levy de la app no se distrae.
 
 ## Para Levy: cuándo usar este manual
 
-Cuando el dueño diga «quiero cambiarle el nombre/los colores a Arbrain», «quiero mi propia skill», «quiero modificar
+Cuando el dueño diga «quiero cambiarle el nombre/los colores a Arbrain» (eso va en `mi-marca/`, ver
+`docs/PERSONALIZAR.md`), «quiero mi propia skill», «quiero modificar
 el código», «cirujano del cerebro» o pregunte si personalizar le impide actualizar. Explícale lo de abajo en palabras
 simples y, si quiere, dale el texto del paso 1 para abrir al cirujano.
 
@@ -48,9 +49,11 @@ simples y, si quiere, dale el texto del paso 1 para abrir al cirujano.
      una regla que quieras en los dos lados va en tu memoria (`.claude/memory/MEMORY.md`), que se carga en ambos.
    - `.claude/skills/<tu-prefijo>-…/`: tus skills propias.
    - `mi-negocio/`: tus documentos, procesos, clientes y material.
+   - `mi-marca/`: tus colores (`tema.css`), tu logo y tu nombre (`marca.json`). Arbrain los lee al abrir, sin
+     compilar. Para la marca, este es el único lugar: no edites `globals.css` ni `layout.tsx`.
    - `.claude/memory/`, `.claude/plan/` y tu diario: tu memoria y tu plan.
-5. **Si tienes que editar algo del autor, cambia lo mínimo.** Cambiar el nombre de la app, un color o una línea de
-   código está bien. Reescribir un archivo entero o moverlo de lugar hace que cada actualización choque ahí. Cuanto
+5. **Si tienes que editar algo del autor, cambia lo mínimo.** Cambiar una línea de código está bien (la marca, no:
+   esa va en `mi-marca/`). Reescribir un archivo entero o moverlo de lugar hace que cada actualización choque ahí. Cuanto
    más pequeño el cambio, más fácil se junta con lo nuevo.
 6. **Uno a la vez en cada archivo, y nada de actualizar a media cirugía.** Levy y el cirujano comparten la carpeta: no
    les pidas que cambien el mismo archivo al mismo tiempo, y pide «actualiza mi Arbrain» cuando el cirujano ya haya
@@ -82,11 +85,11 @@ Si algo de la actualización o de un cambio del cirujano no te gusta:
 
 ## Paso 5. Por qué la primera vez tarda más
 
-Cuando tu copia trae cambios en el código de la app (por ejemplo los colores o el nombre en `arbrain/src/`), Arbrain
+Cuando tu copia trae cambios en el código de la app (por ejemplo una pantalla nueva en `arbrain/src/`), Arbrain
 ya no puede usar el programa listo que publica el autor para cada versión, porque ese programa no lleva tus cambios.
 Entonces **compila tu propia versión** en tu computadora. La primera vez después de cada actualización tarda unos
-minutos más; después arranca normal. Las skills, `CLAUDE.local.md`, tu memoria y `mi-negocio/` no son código de la
-app: cambiarlos no hace que compile.
+minutos más; después arranca normal. Las skills, `CLAUDE.local.md`, tu memoria, `mi-negocio/` y `mi-marca/` no son
+código de la app: cambiarlos no hace que compile. Por eso tus colores, tu logo y tu nombre van en `mi-marca/`.
 
 ## Verificación
 

@@ -8,6 +8,8 @@ import { json, modeloSimple, num, obj, str, type Adaptador, type Evento, type Pe
 import { posicional } from './claude.js'
 
 const permisos = (p: Permisos) => ['--approval-mode', p === 'bypass' ? 'yolo' : 'auto_edit']
+/** Perfil lectura (29 oct 2026): `--approval-mode plan` es su modo de solo lectura. Sin ganchos: no hay perfil código. */
+const modo = (p: { permisos: Permisos; perfil?: string }) => p.perfil === 'lectura' ? ['--approval-mode', 'plan'] : permisos(p.permisos)
 const modelo = (m: string | null) => m ? ['-m', m] : []
 
 export const gemini: Adaptador = {
@@ -15,9 +17,11 @@ export const gemini: Adaptador = {
   binario: 'gemini',
   modeloDefault: env => env('CABINA_MODELO_GEMINI') || 'gemini-2.5-flash',
   modeloOk: modeloSimple,
+  recibeEsfuerzo: false,
   sesionPropia: true,
-  lanzar: p => ['-p', posicional(p.encargo), '-o', 'stream-json', '--skip-trust', ...(p.sesion ? ['--session-id', p.sesion] : []), ...modelo(p.modelo), ...permisos(p.permisos)],
-  reanudar: p => ['-r', p.sesion, '-p', posicional(p.texto), '-o', 'stream-json', '--skip-trust', ...modelo(p.modelo), ...permisos(p.permisos)],
+  perfiles: ['total', 'lectura'],
+  lanzar: p => ['-p', posicional(p.encargo), '-o', 'stream-json', '--skip-trust', ...(p.sesion ? ['--session-id', p.sesion] : []), ...modelo(p.modelo), ...modo(p)],
+  reanudar: p => ['-r', p.sesion, '-p', posicional(p.texto), '-o', 'stream-json', '--skip-trust', ...modelo(p.modelo), ...modo(p)],
   leerEvento: l => {
     const d = json(l)
     if (!d) return null

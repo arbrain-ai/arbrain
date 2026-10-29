@@ -2,7 +2,7 @@
 /**
  * La píldora junto a «Levy» en el encabezado del chat (4 oct 2026; simplificada el 5 oct, Daniel: «súper simple»).
  *   · Cuenta SOLO lo que trabaja para ESTA conversación (`cuentas` del tablero, la misma del Taller): los agentes que Levy lanzó desde ella y las
- *     tareas internas de sus turnos. Punto morado estático mientras alguno trabaja (28 oct, Daniel: el agente que se mueve «distrae»). Clic: Taller › Agentes.
+ *     tareas internas de sus turnos. Punto amarillo que late mientras alguno trabaja (28 oct, Daniel: «este era amarillo»). Clic: Taller › Agentes.
  *   · «· N te espera» con punto azul si algo pide la decisión de Daniel (pendientes.ts). Clic: Tareas.
  * Reemplaza la fila de píldoras que vivía sobre el cuerpo del panel. Misma fuente que el panel (`urlPanel`, una sola
  * lectura compartida por URL en datos.ts), cero fuentes nuevas. Sin nada que decir no pinta nada.

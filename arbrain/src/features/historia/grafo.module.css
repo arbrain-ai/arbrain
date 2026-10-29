@@ -13,9 +13,8 @@
 }
 :global(.dark) .grafo { --mas: var(--l-verde-3, #34d399); --menos: #f87171; --g0: #60a5fa; --g1: #fb923c; --g2: #34d399; --g3: #c084fc; --g4: #fbbf24; --g5: #22d3ee; --g6: #f472b6; --g7: #a3e635; }
 
-.cab { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding-top: 6px; border-top: 1px solid color-mix(in srgb, var(--t1) 9%, transparent); }
-.titulo { margin: 8px 0 0; font-size: 11px; font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; color: var(--t2); }
-.titulo span { color: var(--t1); }
+.cab { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding-top: 14px; border-top: 1px solid color-mix(in srgb, var(--t1) 9%, transparent); }
+.titulo { margin: 0; font-size: 14px; font-weight: 650; color: var(--t1); }
 .cuenta { margin: 0; font-size: 11.5px; color: var(--t3); font-variant-numeric: tabular-nums; }
 
 .leyenda { display: flex; flex-direction: column; gap: 6px; }
@@ -28,41 +27,67 @@
 
 .lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .commit { min-width: 0; }
-.fila { width: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto auto; align-items: center; gap: 10px; height: 30px; padding: 0 6px 0 0;
-  border: 0; border-radius: 6px; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+/* 29 oct 2026 (Daniel: «no me interesa ver tanta data. No veo el título completo»): el renglón es grafo, título hasta dos líneas
+   y hora. El alto lo pone el título; el grafo se estira a todo el renglón para que las líneas no se corten. La columna +/− vuelve
+   solo con su lente. Lo demás (archivos, autor, mensaje de git) vive al abrirlo. */
+.fila { width: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr) 84px; align-items: center; gap: 10px; min-height: 30px; padding: 0 6px 0 0;
+  border: 0; border-radius: 6px; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; overflow: hidden; }
+.grafo[data-lente='cifras'] .fila { grid-template-columns: auto minmax(0, 1fr) 150px 84px; }
 .fila:hover { background: color-mix(in srgb, var(--t1) 4%, transparent); }
 .fila:focus-visible { outline: 2px solid var(--l-foco, color-mix(in srgb, var(--g3) 60%, transparent)); outline-offset: -2px; }
 .commit[data-abierto] > .fila { background: color-mix(in srgb, var(--t1) 6%, transparent); }
-.carriles { display: block; flex-shrink: 0; overflow: visible; }
+.carriles { position: relative; align-self: stretch; flex-shrink: 0; }
+.carriles svg { position: absolute; inset: 0; display: block; overflow: visible; }
 .carriles path { fill: none; stroke-width: 2; stroke-linecap: round; }
-.carriles circle { stroke-width: 2; fill: var(--background, #fff); }
-.carriles circle[data-merge] { fill: currentColor; }
+.punto { position: absolute; top: 50%; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; border: 2px solid currentColor; background: var(--background, #fff); box-sizing: border-box; }
+.punto[data-merge] { width: 10px; height: 10px; margin: -5px 0 0 -5px; background: currentColor; }
 .carriles [data-g='0'] { stroke: var(--g0); color: var(--g0); } .carriles [data-g='1'] { stroke: var(--g1); color: var(--g1); }
 .carriles [data-g='2'] { stroke: var(--g2); color: var(--g2); } .carriles [data-g='3'] { stroke: var(--g3); color: var(--g3); }
 .carriles [data-g='4'] { stroke: var(--g4); color: var(--g4); } .carriles [data-g='5'] { stroke: var(--g5); color: var(--g5); }
 .carriles [data-g='6'] { stroke: var(--g6); color: var(--g6); } .carriles [data-g='7'] { stroke: var(--g7); color: var(--g7); }
 
-.mensaje { display: flex; align-items: center; gap: 5px; min-width: 0; font-size: 12.5px; }
-.asunto { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.iconoMerge { flex-shrink: 0; color: var(--t3); }
-.ref { display: inline-flex; align-items: center; gap: 3px; flex-shrink: 0; max-width: 140px; padding: 0 6px; border-radius: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font: 600 10.5px/17px ui-monospace, 'SF Mono', Menlo, monospace; color: var(--t2); border: 1px solid var(--borde); }
+/* Las lentes (29 oct 2026): lo que nombra la pieza elegida se ilumina; lo demás se atenúa. */
+.carriles path, .punto, .ref, .mensaje, .cuando { transition: opacity 160ms ease, stroke-width 160ms ease, transform 160ms ease; }
+.carriles path[data-luz='no'], .punto[data-luz='no'], .ref[data-luz='no'] { opacity: 0.16; }
+.carriles path[data-luz='si'] { stroke-width: 3.5; }
+.punto[data-luz='si'] { transform: scale(1.35); box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 22%, transparent); }
+.ref[data-luz='si'] { color: var(--t1); border-color: color-mix(in srgb, var(--t1) 55%, transparent); }
+.commit[data-luz='no'] .mensaje, .commit[data-luz='no'] .cuando { opacity: 0.4; }
+@media (prefers-reduced-motion: reduce) { .carriles path, .punto, .ref, .mensaje, .cuando { transition: none; } }
+
+.mensaje { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; margin: 6px 0; min-width: 0;
+  font-size: 12.5px; line-height: 1.4; overflow-wrap: anywhere; }
+.mensaje > span { display: block; }
+.mensaje > span > * { margin-right: 6px; vertical-align: -1px; }
+.iconoMerge { display: inline; color: var(--t3); }
+/* Etiquetas en línea con el título: como mucho 150 px cada una (el nombre largo se corta con elipsis y sale completo al pasar). */
+.ref { display: inline-flex; align-items: center; gap: 3px; max-width: 150px; padding: 0 6px; border-radius: 5px; overflow: hidden; white-space: nowrap;
+  font: 600 10.5px/16px ui-monospace, 'SF Mono', Menlo, monospace; color: var(--t2); border: 1px solid var(--borde); vertical-align: 0; }
+.ref svg { flex-shrink: 0; }
+.refNombre { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .ref[data-tipo='main'] { color: var(--t1); border-color: color-mix(in srgb, var(--t1) 40%, transparent); background: color-mix(in srgb, var(--t1) 6%, transparent); }
 .ref[data-tipo='worktree'] { border-style: dashed; }
 .cifras { display: inline-flex; align-items: baseline; gap: 5px; font: 600 11px/1 ui-monospace, 'SF Mono', Menlo, monospace; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .cifras ins { color: var(--mas); text-decoration: none; }
 .cifras del { color: var(--menos); text-decoration: none; }
 .cifras small { font: 500 11px/1 var(--font-sans, inherit); color: var(--t3); }
-.autor, .cuando { font-size: 11.5px; color: var(--t3); white-space: nowrap; }
+.fila > .cifras { min-width: 0; overflow: hidden; }
+.fila > .cifras ins { min-width: 5ch; text-align: right; }
+.fila > .cifras del { min-width: 4ch; }
+.fila > .cifras small { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.cuando { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 11.5px; color: var(--t3); white-space: nowrap; text-align: right; }
 @container (max-width: 560px) {
-  .fila { grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 8px; }
-  .autor { display: none; }
+  .fila { gap: 8px; grid-template-columns: auto minmax(0, 1fr) 80px; }
+  .grafo[data-lente='cifras'] .fila { grid-template-columns: auto minmax(0, 1fr) 84px 80px; }
   .cifras small { display: none; }
-  .ref { max-width: 96px; }
+  .ref { max-width: 110px; }
 }
 
 .detalle { display: flex; flex-direction: column; gap: 6px; margin: 2px 0 10px; padding: 8px 10px 10px; border-radius: 8px; border: 1px solid var(--borde); }
 .huella { margin: 0; font-size: 11.5px; color: var(--t3); }
+.huella .cifras { vertical-align: 0; }
+.original { margin: 0; }
+.original code { white-space: normal; overflow-wrap: anywhere; }
 .huella code, .detalle code { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 11px; color: var(--t2); margin-right: 3px; }
 .archivos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
 .archivo { width: 100%; display: grid; grid-template-columns: 16px minmax(0, 1fr) auto auto; align-items: center; gap: 8px; padding: 4px 6px; border: 0; border-radius: 5px;
@@ -90,6 +115,14 @@
 
 .hueco { margin: 0; padding: 8px 10px; font-size: 12px; color: var(--t2); font-style: italic; }
 .nota { font-size: 11.5px; color: var(--t3); padding: 4px 6px; }
+.pie { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.sincronias { margin-left: auto; padding: 4px 0; border: 0; background: none; color: var(--t3); font: inherit; font-size: 11.5px; cursor: pointer; }
+.sincronias:hover { color: var(--t1); }
 .mas { align-self: flex-start; display: inline-flex; align-items: center; gap: 4px; padding: 4px 0; border: 0; background: none; color: var(--t2); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
 .mas:hover { color: var(--t1); }
 .mas svg[data-girado] { transform: rotate(90deg); }
+
+/* Comentar líneas del diff (29 oct 2026): el botón vive en la línea «qué significa»; cada línea se toca para comentarla. */
+.comentar { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; height: 22px; padding: 0 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--card); color: var(--foreground); font-size: 11px; font-weight: 550; cursor: pointer; }
+.comentar[aria-pressed='true'] { border-color: rgba(var(--brand-rgb), 0.45); color: var(--brand); }
+.comentar:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
