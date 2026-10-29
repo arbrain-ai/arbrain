@@ -47,7 +47,11 @@ export async function confirmacionHumana(p: { categoria: CategoriaConfirmacion; 
     }
     if (estado === 'permitida' && (await llamar('/confirmaciones/consumir', accion)).ok === true) return { ok: true }
     if (estado === 'rechazada') return { ok: false, detalle: `CONFIRMACIÓN HUMANA: la persona RECHAZÓ «${p.resumen}» en Arbrain. No se ejecutó nada; no lo repitas ni busques otra vía.` }
-    if (estado === 'pendiente') return { ok: false, detalle: `CONFIRMACIÓN HUMANA: «${p.resumen}» espera el clic de la persona en Arbrain (pendiente ${id}). No se ejecutó nada. Avísale y, cuando la apruebe, repite exactamente la misma acción.` }
+    // A3 (0.2.15): nadie contestó a tiempo. La pendiente pasa a la cola (no vence); si la ruta no existe (daemon viejo), sigue pendiente.
+    if (estado === 'pendiente') { try { await llamar('/confirmaciones/encolar', { id }) } catch { /* sin cola: queda pendiente */ } }
+    // A3 (0.2.15): sin respuesta a tiempo no vence: queda en la cola de la persona («Mientras no estabas»); su clic de
+    // después vale para repetir exactamente la misma acción (misma app, elemento, texto y teclas).
+    if (estado === 'pendiente') return { ok: false, detalle: `CONFIRMACIÓN HUMANA: «${p.resumen}» espera el clic de la persona en Arbrain (quedó en su cola, ${id}). No se ejecutó nada. Sigue con lo que no dependa de esto y dile en una línea que la espera; cuando la apruebe, repite exactamente la misma acción (mismo elemento, texto y teclas), aunque hayas vuelto a observar.` }
     return { ok: false, detalle: `CONFIRMACIÓN HUMANA: la confirmación de «${p.resumen}» venció. No se ejecutó nada.` }
   } catch {
     return { ok: false, detalle: 'CONFIRMACIÓN HUMANA: no se pudo hablar con Arbrain para pedir el permiso de la persona. No se ejecutó nada.' }

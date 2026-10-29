@@ -1,16 +1,16 @@
 {
   "generador": "arbrain/empaquetado/generador",
   "origen": {
-    "ref": "e553aea5e4ee7c4c46fee408a0b68af6612459af",
-    "commit": "e553aea5e4ee7c4c46fee408a0b68af6612459af",
-    "fecha": "2026-10-29T13:43:10-06:00"
+    "ref": "ae468b91f48702d9d72412126ee43b7d46f542ff",
+    "commit": "ae468b91f48702d9d72412126ee43b7d46f542ff",
+    "fecha": "2026-10-29T16:08:02-06:00"
   },
-  "version": "0.2.14",
+  "version": "0.2.15",
   "allowlist": {
     "ruta": "docs/builds/empaquetado-2026-10-11/allowlist.yaml",
     "sha256": "8ddd33e0333da4ca78bd51b4adf0a670c796259c6a0980d55c49aaa9d16eb4b5"
   },
-  "conteo": 2690,
+  "conteo": 2697,
   "archivos": {
     ".agents/skills": {
       "enlace": "../.claude/skills",
@@ -35,8 +35,8 @@
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/claude/hooks/agenda-context.py"
     },
     ".claude/hooks/candado-freno.py": {
-      "sha256": "e04ec1600c444baf14af94e7781dc88a44ab59aae5eceaed8420c6649b413ac3",
-      "bytes": 9710,
+      "sha256": "131c3478d9d6d2ab8b7944614ef87e645b792e77dbe18df85586c1e3ce882ff9",
+      "bytes": 10023,
       "modo": "755",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/claude/hooks/candado-freno.py"
     },
@@ -89,8 +89,8 @@
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/claude/hooks/memory-recall.py"
     },
     ".claude/hooks/py.sh": {
-      "sha256": "dda6cc5d274fedf4702207581aa884f26e04c3219b7b308fa3cd6ce92350ff6b",
-      "bytes": 2017,
+      "sha256": "9890746bdd381082af7f8af95765e5080ec75354cb853376818bee0b109bd730",
+      "bytes": 2618,
       "modo": "755",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/claude/hooks/py.sh"
     },
@@ -725,14 +725,14 @@
       "origen": "allowlist:enlaces"
     },
     "CAPAS.json": {
-      "sha256": "b5d869821d9e617e695864f55442dc1a7cdf0e4e4c8762115a1febb35a9021c4",
+      "sha256": "12f3f1ed283638804cb5c6945799632e8625720548c879a1ae7ae5a418d2477d",
       "bytes": 1324,
       "modo": "644",
       "origen": "distribucion:CAPAS.json"
     },
     "CHANGELOG.md": {
-      "sha256": "4425033772afd96d485a89ad60fa60f7cdebef19edad2b5e11d56b0df0cf63dd",
-      "bytes": 40452,
+      "sha256": "086c8abf36e1083fa6467b61c08e2d20a1a224795ec869aa947691386a38c904",
+      "bytes": 43706,
       "modo": "644",
       "origen": "distribucion:CHANGELOG.md"
     },
@@ -785,7 +785,7 @@
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/TELEFONO.plantilla.md"
     },
     "VERSION": {
-      "sha256": "26e6ebd4b069ddb03df79ec9a299ee4a39c60bf8d34a2b6a3ff059d4f2e21b88",
+      "sha256": "83d303e6b26d4650921ff1388729c76bb1397419877ffcf30cb403e2a5501421",
       "bytes": 7,
       "modo": "644",
       "origen": "distribucion:VERSION"
@@ -3395,8 +3395,8 @@
       "origen": "arbrain/scripts/servidor/programa.mjs"
     },
     "arbrain/scripts/servidor/prueba-ci.mjs": {
-      "sha256": "ec51561c753cb24d245bdec4d4d32e0220651369fa8cddba2919a82bbb1382fb",
-      "bytes": 41504,
+      "sha256": "e821be279ff27c0e7d7cc3e1e4424357d32929fcb34e71a8b8e27b53ab0400a2",
+      "bytes": 42028,
       "modo": "644",
       "origen": "arbrain/scripts/servidor/prueba-ci.mjs"
     },
@@ -3467,8 +3467,8 @@
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/arbrain/server/.env.example"
     },
     "arbrain/server/.gitignore": {
-      "sha256": "c4f60ff49277a9e67c30c155d1931cb8475a06fb60d67e35ee85eff1cd95c669",
-      "bytes": 63,
+      "sha256": "16f9bbe9442020db27d146e4dc166fa94569cc991f6b01106690da645e5f2c37",
+      "bytes": 77,
       "modo": "644",
       "origen": "arbrain/server/.gitignore"
     },
@@ -3797,8 +3797,8 @@
       "origen": "plantilla:servidores.json"
     },
     "arbrain/server/src/agent.ts": {
-      "sha256": "7b1b3de743f9e49ba9e412a0ee6de0daf71996e36201c48242f72ab2f962d92b",
-      "bytes": 89128,
+      "sha256": "0bfe827de26188769ad2f873ed99b0e996fedc95f1afdad043c9e10c4bdca0fb",
+      "bytes": 89362,
       "modo": "644",
       "origen": "arbrain/server/src/agent.ts"
     },
@@ -4966,6 +4966,30 @@
       "modo": "644",
       "origen": "arbrain/server/src/cliente/arranque.ts"
     },
+    "arbrain/server/src/cliente/autonomo.test.ts": {
+      "sha256": "625af59a9ce485d528b63e58981cae4a252fff42193c00804501ab374f23f445",
+      "bytes": 33914,
+      "modo": "644",
+      "origen": "arbrain/server/src/cliente/autonomo.test.ts"
+    },
+    "arbrain/server/src/cliente/aviso-sistema.test.ts": {
+      "sha256": "f6322726c8192aa92ddb5a910379c89806b13644d51b6d23b847afd2ea16ab2f",
+      "bytes": 2415,
+      "modo": "644",
+      "origen": "arbrain/server/src/cliente/aviso-sistema.test.ts"
+    },
+    "arbrain/server/src/cliente/aviso-sistema.ts": {
+      "sha256": "8e984b768c5c397e790a43299c5f82a156e8d2d3409ae5e9172da0007b531469",
+      "bytes": 4049,
+      "modo": "644",
+      "origen": "arbrain/server/src/cliente/aviso-sistema.ts"
+    },
+    "arbrain/server/src/cliente/avisos-permisos.ts": {
+      "sha256": "1e000bad6e8da7164b90085496fa673b754053d76fce7abed156f035349ee2f9",
+      "bytes": 3403,
+      "modo": "644",
+      "origen": "arbrain/server/src/cliente/avisos-permisos.ts"
+    },
     "arbrain/server/src/cliente/bitacora-pausa.test.ts": {
       "sha256": "0c1ef177770e248d44854324ddc42ae16b4b1b3a95b2ba56282b389c9235f223",
       "bytes": 8451,
@@ -5009,8 +5033,8 @@
       "origen": "arbrain/server/src/cliente/carpetas.ts"
     },
     "arbrain/server/src/cliente/cliente.test.ts": {
-      "sha256": "824a96f6569acb13af7bca69d357ebf3d460ae1724e289fae88c75f984564158",
-      "bytes": 17161,
+      "sha256": "e8c91374e85d938c0916ba1bfc335e4c401ddeebffd2a57c14be004d17dc3b5b",
+      "bytes": 17350,
       "modo": "644",
       "origen": "arbrain/server/src/cliente/cliente.test.ts"
     },
@@ -5033,8 +5057,8 @@
       "origen": "arbrain/server/src/cliente/cohorte.ts"
     },
     "arbrain/server/src/cliente/cola.test.ts": {
-      "sha256": "83cfd9c0b7636480a2a18c62cab5e9770f462af035554e601a883e5f6c6db966",
-      "bytes": 15623,
+      "sha256": "dadee0a0b0f418eff80fd5507df2698271ff627206c4e1452b1d10ddd1bb188d",
+      "bytes": 15765,
       "modo": "644",
       "origen": "arbrain/server/src/cliente/cola.test.ts"
     },
@@ -5045,10 +5069,16 @@
       "origen": "arbrain/server/src/cliente/cola.ts"
     },
     "arbrain/server/src/cliente/confirmaciones.ts": {
-      "sha256": "a25b2b65c03a30fcc0ee1309f840d2e99b29f3f4d0e74919554f432f59292f7d",
-      "bytes": 30024,
+      "sha256": "b60fae915a390090695b4c0e587ce6d22cbb38329e4ea2306a5df8a588466699",
+      "bytes": 30217,
       "modo": "644",
       "origen": "arbrain/server/src/cliente/confirmaciones.ts"
+    },
+    "arbrain/server/src/cliente/consentimiento-autonomia.ts": {
+      "sha256": "fcfe2426d680370bdf42fc50cddf11757214e7b28a4bf50bd682377721fee8c2",
+      "bytes": 6704,
+      "modo": "644",
+      "origen": "arbrain/server/src/cliente/consentimiento-autonomia.ts"
     },
     "arbrain/server/src/cliente/contaminada.test.ts": {
       "sha256": "7b9bc61930bec0072421f4d8938c115b6837774059002b4064000dcbc7e860ab",
@@ -5105,16 +5135,10 @@
       "origen": "arbrain/server/src/cliente/fallo-de-cuenta.test.ts"
     },
     "arbrain/server/src/cliente/frase-humana.ts": {
-      "sha256": "79f9ac8e4ff16c4ade2ed7f6cf3db2d12cfe38d3aec1d158b0f97a2054e135b1",
-      "bytes": 10159,
+      "sha256": "61b5850fdb1a9b0d2b2dc59fa577a17d6e49c5bc327b363f3c8fccd7ae51a86f",
+      "bytes": 10527,
       "modo": "644",
       "origen": "arbrain/server/src/cliente/frase-humana.ts"
-    },
-    "arbrain/server/src/cliente/freno-quitado.test.ts": {
-      "sha256": "93ec05e0eb40c8ff91a5ac9503429dbd860897def02a3413ac1c6970e3a1736e",
-      "bytes": 15055,
-      "modo": "644",
-      "origen": "arbrain/server/src/cliente/freno-quitado.test.ts"
     },
     "arbrain/server/src/cliente/gasto.test.ts": {
       "sha256": "a5a62574869382b71ae1c8c4fbe739cb022a400873cd21ddf31cc645b7a7485f",
@@ -5147,8 +5171,8 @@
       "origen": "arbrain/server/src/cliente/hooks-version-firmada.test.ts"
     },
     "arbrain/server/src/cliente/inyeccion-indirecta.test.ts": {
-      "sha256": "b2f2c21648d1ba4b0d9feb99f7939c3bb1ec730be836a63e62ca8dfb3a5587c3",
-      "bytes": 19527,
+      "sha256": "79facd43f52df7544ebe2f29c8d1dcc196e7523a7bc4842508511f31930a6582",
+      "bytes": 20296,
       "modo": "644",
       "origen": "arbrain/server/src/cliente/inyeccion-indirecta.test.ts"
     },
@@ -5171,14 +5195,14 @@
       "origen": "arbrain/server/src/cliente/marcas-groq.ts"
     },
     "arbrain/server/src/cliente/modo-permisos.test.ts": {
-      "sha256": "3dc465f4b4aae43edc5f40c52163783b5e07d2ffd3b7206986bc35a3564059f5",
-      "bytes": 10678,
+      "sha256": "e28cbc4c9996d76ee807a3518806325d8cdfd4af687729db9601114770842b41",
+      "bytes": 12003,
       "modo": "644",
       "origen": "arbrain/server/src/cliente/modo-permisos.test.ts"
     },
     "arbrain/server/src/cliente/modo-permisos.ts": {
-      "sha256": "6fdd3059dff7537a32a7b9172cb90115fd436e4bdbbf9f013d1741b5a292989d",
-      "bytes": 9282,
+      "sha256": "d96c4b9b98992ebcba136df969df16663e0e83edadd5f5920526162863846da9",
+      "bytes": 16499,
       "modo": "644",
       "origen": "arbrain/server/src/cliente/modo-permisos.ts"
     },
@@ -5189,14 +5213,14 @@
       "origen": "arbrain/server/src/cliente/pausa.ts"
     },
     "arbrain/server/src/cliente/permisos-sdk.ts": {
-      "sha256": "c9efc947e511268c5e86abb2d604838a662ae68791dbfdbb550d8fcff0b17be3",
-      "bytes": 1442,
+      "sha256": "f2c907b44ba20ce1e55737731bab9c5a4188e22b1ffc747e0d100047dcd20554",
+      "bytes": 2337,
       "modo": "644",
       "origen": "arbrain/server/src/cliente/permisos-sdk.ts"
     },
     "arbrain/server/src/cliente/politica-agentes.ts": {
-      "sha256": "4d8f45865d0a09a77d90f4329dc0b0cecc24fddda0c0aee19abc69cbb1a84fd0",
-      "bytes": 84857,
+      "sha256": "739280a660210868e156e1e6aefbf9d79b394500915fcd010f1aead2a0d30b28",
+      "bytes": 98708,
       "modo": "644",
       "origen": "arbrain/server/src/cliente/politica-agentes.ts"
     },
@@ -5261,8 +5285,8 @@
       "origen": "arbrain/server/src/cliente/red-team-noche.test.ts"
     },
     "arbrain/server/src/cliente/red-team.test.ts": {
-      "sha256": "b3f2ac9bc35e1c2c0bbcbf07dd9f7b1fac848f6c02f8d75382c3473e553b7d96",
-      "bytes": 28659,
+      "sha256": "2b37671afe3bddabdf64f650214296954ace1c1dcb9ba140c601f78fd698f53e",
+      "bytes": 29854,
       "modo": "644",
       "origen": "arbrain/server/src/cliente/red-team.test.ts"
     },
@@ -5279,8 +5303,8 @@
       "origen": "arbrain/server/src/cliente/rutas.ts"
     },
     "arbrain/server/src/cliente/rutina-generados.test.ts": {
-      "sha256": "a3384720d1c8cd580d8199916bc4fd73844ec4aa87d5393e44aecb33eeb98635",
-      "bytes": 10019,
+      "sha256": "c7b862a861952b0b488f93b0ff061809436c14736a3246dd2632b7424849d944",
+      "bytes": 10002,
       "modo": "644",
       "origen": "arbrain/server/src/cliente/rutina-generados.test.ts"
     },
@@ -5351,8 +5375,8 @@
       "origen": "arbrain/server/src/cliente/tarjeta.ts"
     },
     "arbrain/server/src/cliente/url.ts": {
-      "sha256": "68dd12a58da8607a35289cfd72f8817111d464b11a25477507d2fc2baf976ffd",
-      "bytes": 2015,
+      "sha256": "9344fa010eeec76267d8eb28746ae743a9418ca0d49148f0ca18a18869e26105",
+      "bytes": 3482,
       "modo": "644",
       "origen": "arbrain/server/src/cliente/url.ts"
     },
@@ -5693,8 +5717,8 @@
       "origen": "arbrain/server/src/guardia-agentes.test.ts"
     },
     "arbrain/server/src/guardia-agentes.ts": {
-      "sha256": "c299c5129c9470f7be83219a57055e10b37c05b1e3f0bc4fb2777504619126c2",
-      "bytes": 37488,
+      "sha256": "5f65b3c8f3d94ff722ae2d1964d9add8fd5c897f384c7f16d73ff605d7b64082",
+      "bytes": 39661,
       "modo": "644",
       "origen": "arbrain/server/src/guardia-agentes.ts"
     },
@@ -5849,8 +5873,8 @@
       "origen": "arbrain/server/src/manos/adaptadores/mac-e2e-cliente.ts"
     },
     "arbrain/server/src/manos/adaptadores/windows-e2e.ts": {
-      "sha256": "6ac6f921163c01ef1b5cfbf1f62042338d71f68ee12d84ebef4ece0f8d3e2c5b",
-      "bytes": 35648,
+      "sha256": "45bc90978eb4d82b1c39149c13e9875b18cd0c379cc9ef20f18fe18e530056a5",
+      "bytes": 35874,
       "modo": "644",
       "origen": "arbrain/server/src/manos/adaptadores/windows-e2e.ts"
     },
@@ -5865,6 +5889,12 @@
       "bytes": 12799,
       "modo": "644",
       "origen": "arbrain/server/src/manos/adaptadores/windows.ts"
+    },
+    "arbrain/server/src/manos/autonomo-manos.test.ts": {
+      "sha256": "c4856c4a7c18b376a40d7f02631260a89c2a307fe6ef72db222e6232d459d6c6",
+      "bytes": 18306,
+      "modo": "644",
+      "origen": "arbrain/server/src/manos/autonomo-manos.test.ts"
     },
     "arbrain/server/src/manos/bitacora.ts": {
       "sha256": "a74aa92c9b3ddf0fde03bb6ddeb997d310c728ed3dc8cdebcefedae470bddf09",
@@ -5897,8 +5927,8 @@
       "origen": "arbrain/server/src/manos/concurrencia.ts"
     },
     "arbrain/server/src/manos/confirmacion-humana.ts": {
-      "sha256": "10152ece2d3ac6b44cdb0f0d9620071acc46a1321b7ab7b7dc4b50fe1714fdd1",
-      "bytes": 4425,
+      "sha256": "580de2504fec9ab0e8776933ddfaebb970da412e721df1e7347a56548f0263eb",
+      "bytes": 5057,
       "modo": "644",
       "origen": "arbrain/server/src/manos/confirmacion-humana.ts"
     },
@@ -6005,8 +6035,8 @@
       "origen": "arbrain/server/src/manos/freno.test.ts"
     },
     "arbrain/server/src/manos/freno.ts": {
-      "sha256": "0fdfb1fd35507c8c0e4ea7596619b43019470a292738137217689c80d3690e27",
-      "bytes": 31348,
+      "sha256": "fedc8d774cb1dbb01b8bb3df20e4473c51016d6b33c69b8240e7c5d190128069",
+      "bytes": 38094,
       "modo": "644",
       "origen": "arbrain/server/src/manos/freno.ts"
     },
@@ -6023,8 +6053,8 @@
       "origen": "arbrain/server/src/manos/i8-todas.test.ts"
     },
     "arbrain/server/src/manos/juicio-url.ts": {
-      "sha256": "15d825a834ef26aa0e5b062239500953e9d1e482290357145be093413784fd00",
-      "bytes": 11675,
+      "sha256": "96390570569cb6b26e22e1554cf7b386a54c73d2b9a7d872268c3923c0b95a74",
+      "bytes": 13006,
       "modo": "644",
       "origen": "arbrain/server/src/manos/juicio-url.ts"
     },
@@ -6077,8 +6107,8 @@
       "origen": "arbrain/server/src/manos/mcp-cliente.ts"
     },
     "arbrain/server/src/manos/mcp-stdio.ts": {
-      "sha256": "690e4200921ce13b30fd379b892606934d4c974706dc766facec98d15c66f5ed",
-      "bytes": 14537,
+      "sha256": "61dd37487078e3d0e13b9497f9f37c2453940f18bc4c61616aa4a0581bb84b49",
+      "bytes": 15422,
       "modo": "644",
       "origen": "arbrain/server/src/manos/mcp-stdio.ts"
     },
@@ -6107,8 +6137,8 @@
       "origen": "arbrain/server/src/manos/noche-a.ts"
     },
     "arbrain/server/src/manos/politica.ts": {
-      "sha256": "25eb78ac60b6c00a9768c80e3d97000f6401ce068c5eff4e0ed3b2271027d155",
-      "bytes": 12533,
+      "sha256": "072d7b40e5999b09f12b9db6a457145a1f768d8b413a96ef89ce1e55a6875bdd",
+      "bytes": 17087,
       "modo": "644",
       "origen": "arbrain/server/src/manos/politica.ts"
     },
@@ -6407,8 +6437,8 @@
       "origen": "arbrain/server/src/security.ts"
     },
     "arbrain/server/src/server.ts": {
-      "sha256": "ea8ddebb118179240bfe1dfcf0f6ab9a479af50f95b18e6b8de4d4a34020b8c9",
-      "bytes": 177158,
+      "sha256": "2075608576ca573e968c35228fe4bcd81e93e7f36c4921868b938f63aad93933",
+      "bytes": 180305,
       "modo": "644",
       "origen": "arbrain/server/src/server.ts"
     },
@@ -8063,8 +8093,8 @@
       "origen": "arbrain/src/app/api/planning/zonas/route.ts"
     },
     "arbrain/src/app/api/primer-arranque/route.ts": {
-      "sha256": "d9f75e927b3d23f57679fe058d0024afb584ab11ba7296c5d77ac9562bf7b32d",
-      "bytes": 4237,
+      "sha256": "411e9aec4dc5993e26e5b046c3bf309276815e7ee81388627a49f51542374926",
+      "bytes": 4731,
       "modo": "644",
       "origen": "arbrain/src/app/api/primer-arranque/route.ts"
     },
@@ -8129,8 +8159,8 @@
       "origen": "arbrain/src/app/api/seguridad/pausa/route.ts"
     },
     "arbrain/src/app/api/seguridad/permisos/route.ts": {
-      "sha256": "417be91c0635678a91cb8ba5cae5044c3e8d4f88305d2c5b8fec3c2ecc6ac741",
-      "bytes": 1788,
+      "sha256": "d4270eaf691c445c5793122a281e8bb196091dc355011236009e0f8606af3b7d",
+      "bytes": 2854,
       "modo": "644",
       "origen": "arbrain/src/app/api/seguridad/permisos/route.ts"
     },
@@ -12161,8 +12191,8 @@
       "origen": "arbrain/src/features/permisos/components/CentroPermisos.tsx"
     },
     "arbrain/src/features/permisos/components/ColaDeAprobaciones.tsx": {
-      "sha256": "17463cf843116da971088f3fb76c193b8e3811d49f53264b76740ad6f9a130a3",
-      "bytes": 14002,
+      "sha256": "a45cba6ef8013bf0925224971b7b976c080301afac14c1e3bb5638ca444c3449",
+      "bytes": 14291,
       "modo": "644",
       "origen": "arbrain/src/features/permisos/components/ColaDeAprobaciones.tsx"
     },
@@ -12173,8 +12203,8 @@
       "origen": "arbrain/src/features/permisos/components/ComputerUse.tsx"
     },
     "arbrain/src/features/permisos/components/ConfirmacionesHumanas.tsx": {
-      "sha256": "ad19eca0e9a5e237f3a5b6e3fa5ec839f88c5ba2c11752992a0170510a1464eb",
-      "bytes": 10598,
+      "sha256": "b9f319f27a1269e0c7efe14e511a18b69c2c7ba85109d3c061b6b269a9264865",
+      "bytes": 11128,
       "modo": "644",
       "origen": "arbrain/src/features/permisos/components/ConfirmacionesHumanas.tsx"
     },
@@ -12203,14 +12233,14 @@
       "origen": "arbrain/src/features/permisos/lib/confirmacion.ts"
     },
     "arbrain/src/features/permisos/lib/disponibilidad.ts": {
-      "sha256": "cfd0040d1389bf5d89c1a06b9fc373d4c12588fc2ccb868e3149dcea95e6f4eb",
-      "bytes": 3914,
+      "sha256": "f0684fa0fa87d6844f4f4dcf1eb5c0ca1b1e52b06b9db292b523fed0be310ce6",
+      "bytes": 4241,
       "modo": "644",
       "origen": "arbrain/src/features/permisos/lib/disponibilidad.ts"
     },
     "arbrain/src/features/permisos/lib/pendientes.ts": {
-      "sha256": "e8d7b1ef7cd40e7302c6ce4e0a821032723092abb7e64ba53c7963bd895ea530",
-      "bytes": 5120,
+      "sha256": "4a8a5288a4d860e9291904d551b1898979bc2178577a9ead43d32a1a16fbf18a",
+      "bytes": 7145,
       "modo": "644",
       "origen": "arbrain/src/features/permisos/lib/pendientes.ts"
     },
@@ -12809,8 +12839,8 @@
       "origen": "arbrain/src/features/primer-arranque/components/PanelVoz.tsx"
     },
     "arbrain/src/features/primer-arranque/components/PrimerArranque.tsx": {
-      "sha256": "40d0cf798edccc5cc1fd0e46d1c7202bc6c01455fdfbd741ab15b2b22253395f",
-      "bytes": 21035,
+      "sha256": "587ecf3ef665ad257c708cc4aeb9de8055e5cee7b1b4d656d35a0b4c0dc01cfa",
+      "bytes": 27594,
       "modo": "644",
       "origen": "arbrain/src/features/primer-arranque/components/PrimerArranque.tsx"
     },
@@ -12851,8 +12881,8 @@
       "origen": "arbrain/src/features/primer-arranque/lib/openrouter-pkce.ts"
     },
     "arbrain/src/features/primer-arranque/lib/pasos.ts": {
-      "sha256": "7e12c670b58962c4f4c102dc6ca51a98f64056f100e34015b42716e542471330",
-      "bytes": 1597,
+      "sha256": "51450d417a5b70312f497e0521cb423883969078a37e5651ef64db1aab134938",
+      "bytes": 1825,
       "modo": "644",
       "origen": "arbrain/src/features/primer-arranque/lib/pasos.ts"
     },
@@ -12863,14 +12893,14 @@
       "origen": "arbrain/src/features/primer-arranque/lib/sin-saldo.ts"
     },
     "arbrain/src/features/primer-arranque/textos/bienvenida.ts": {
-      "sha256": "f45ce68af383b60a43e8b0860f947b17124f5f0919a95d9b1803fb826c0c6441",
-      "bytes": 4612,
+      "sha256": "6a5cc5ea1a8b36c60e8f27e623d8c065b342e581efd7fedc750ee9eefc04f1b7",
+      "bytes": 5616,
       "modo": "644",
       "origen": "arbrain/src/features/primer-arranque/textos/bienvenida.ts"
     },
     "arbrain/src/features/primer-arranque/textos/legales.ts": {
-      "sha256": "9137736895f93333c2a4c539ecac126f2b8413e95fcfa6c617655c4761a79c5a",
-      "bytes": 7073,
+      "sha256": "0fe539788f14ff18fae7cefb4d7dd8a2eb45737ec11bc7dd2752cb61fd11ca9d",
+      "bytes": 8424,
       "modo": "644",
       "origen": "arbrain/src/features/primer-arranque/textos/legales.ts"
     },
@@ -12964,15 +12994,21 @@
       "modo": "644",
       "origen": "arbrain/src/features/search/hooks/useSearch.ts"
     },
+    "arbrain/src/features/seguridad/components/ConsentimientoAutonomia.tsx": {
+      "sha256": "ce170ebc9ba047c85091209726af5e15267704c418518bfee901a6e25c11a7bf",
+      "bytes": 3447,
+      "modo": "644",
+      "origen": "arbrain/src/features/seguridad/components/ConsentimientoAutonomia.tsx"
+    },
     "arbrain/src/features/seguridad/components/Seguridad.tsx": {
-      "sha256": "0cb00271953595753c32a74cdc8cbf3b814ceaad5f6b92361c68d3f53d87da74",
-      "bytes": 26978,
+      "sha256": "6fdf3182a51a17eb2ed9da27dd7e2880b3561b322ae320f1ca33a439b073ceda",
+      "bytes": 34002,
       "modo": "644",
       "origen": "arbrain/src/features/seguridad/components/Seguridad.tsx"
     },
     "arbrain/src/features/seguridad/lib/seguridad.ts": {
-      "sha256": "d5a2237542fe29ea5f1c76da3a5ac63c553077a661e463198fecb7bc29cad2fc",
-      "bytes": 7009,
+      "sha256": "bee28d709af18b89eaaeedd4f034cf25cf25b5e3cfd5ca314b88cc865789fa5b",
+      "bytes": 8439,
       "modo": "644",
       "origen": "arbrain/src/features/seguridad/lib/seguridad.ts"
     },
@@ -14962,6 +14998,12 @@
       "modo": "644",
       "origen": "arbrain/tests/edicion/ab-ronda3-diseno.test.ts"
     },
+    "arbrain/tests/edicion/autonomia-0-2-15.test.ts": {
+      "sha256": "465d6800d0d2225c2e94000af1a8e032992d5ee0ad413e7ca4070045c2ab2c77",
+      "bytes": 11608,
+      "modo": "644",
+      "origen": "arbrain/tests/edicion/autonomia-0-2-15.test.ts"
+    },
     "arbrain/tests/edicion/base-local.test.ts": {
       "sha256": "3617c337e00c182fbbeb49e762b38781c6a4f13badf249e2919cdb1936001d82",
       "bytes": 14043,
@@ -14993,8 +15035,8 @@
       "origen": "arbrain/tests/edicion/cola.test.ts"
     },
     "arbrain/tests/edicion/computer-use-0-1-2.test.ts": {
-      "sha256": "9da417cdd5d3f4875ef2f388956f8ebf2ce8f45ef0593cbe4c7339f2eb940aaa",
-      "bytes": 8022,
+      "sha256": "eb46553162cb568c0910bbdc5ead83d9f6222effac8fa2782b36d133d0e61838",
+      "bytes": 8266,
       "modo": "644",
       "origen": "arbrain/tests/edicion/computer-use-0-1-2.test.ts"
     },
@@ -15047,14 +15089,14 @@
       "origen": "arbrain/tests/edicion/play-ronda4.test.ts"
     },
     "arbrain/tests/edicion/primer-arranque-v11.test.ts": {
-      "sha256": "e5e5129f51327c053b6c3fe5cbe42f299df141dda74af473661434ab107f25be",
-      "bytes": 6934,
+      "sha256": "70933b306eab2c7b23252f6f8b05bbfbdf9b3c6e35c5fbd8babdec6db01e95e2",
+      "bytes": 7058,
       "modo": "644",
       "origen": "arbrain/tests/edicion/primer-arranque-v11.test.ts"
     },
     "arbrain/tests/edicion/seguridad-alumno.test.ts": {
-      "sha256": "54211e365c5b36c528aefc93dc9a48c7b9900bbfa7db4452e5136311923bae19",
-      "bytes": 5655,
+      "sha256": "f9320a5bb106ebf595640ef43008e1717aa168b6b2e8b598feb5573597e77019",
+      "bytes": 5526,
       "modo": "644",
       "origen": "arbrain/tests/edicion/seguridad-alumno.test.ts"
     },

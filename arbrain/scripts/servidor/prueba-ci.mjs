@@ -449,29 +449,32 @@ async function recorridoExpediente(base, cookie) {
   return await recorridoPermisos(base, cookie)
 }
 
-// ── Recorrido v0.2.10: modo de permisos y voz de las respuestas (grupal del 23 oct) ─────────────────────────────────────
+// ── Recorrido v0.2.10: modo de permisos y voz de las respuestas (grupal del 23 oct); 0.2.15: modo Autónomo ─────────────
 
 /**
- * Por la web real, con la sesión: el modo nace «carpeta»; la persona lo cambia desde Ajustes (la web pone el secreto) a
- * «libre» y de vuelta a «preguntar»; un modo inventado se rechaza; el cambio queda en «Lo que hizo Levy». Y «Escuchar»
- * sin llave de LemonFox no se cuelga: `/api/chat/tts` responde rápido con error y la app cae a la voz del sistema.
+ * Por la web real, con la sesión: el modo nace «carpeta»; la persona lo cambia desde Ajustes (la web pone el secreto);
+ * un modo inventado y el viejo «libre» se rechazan; el cambio queda en «Lo que hizo Levy». Después, el modo Autónomo con
+ * su consentimiento (0.2.15). Y «Escuchar» sin llave de LemonFox no se cuelga: `/api/chat/tts` responde rápido con
+ * error y la app cae a la voz del sistema.
  */
 async function recorridoPermisos(base, cookie) {
   const json = { cookie, 'Content-Type': 'application/json', Origin: base }
   const leer = async () => { const r = await fetch(`${base}/api/seguridad/permisos`, { headers: { cookie } }); return { st: r.status, j: await r.json().catch(() => ({})) } }
-  const fijar = async (modo) => { const r = await fetch(`${base}/api/seguridad/permisos`, { method: 'POST', headers: json, body: JSON.stringify({ modo }) }); return { st: r.status, j: await r.json().catch(() => ({})) } }
+  const mandar = async (cuerpo) => { const r = await fetch(`${base}/api/seguridad/permisos`, { method: 'POST', headers: json, body: JSON.stringify(cuerpo) }); return { st: r.status, j: await r.json().catch(() => ({})) } }
+  const fijar = (modo) => mandar({ modo, via: 'ajustes' })
   let r = await leer()
   if (r.st !== 200 || r.j.modo !== 'carpeta') return `permisos: el modo de fábrica respondió ${r.st} ${JSON.stringify(r.j).slice(0, 200)} (se esperaba «carpeta»)`
-  r = await fijar('libre')
-  if (r.st !== 200 || r.j.modo !== 'libre') return `permisos: cambiar a «Sin preguntar» respondió ${r.st} ${JSON.stringify(r.j).slice(0, 200)}`
-  if ((await leer()).j.modo !== 'libre') return 'permisos: el modo no quedó guardado'
+  r = await fijar('preguntar')
+  if (r.st !== 200 || r.j.modo !== 'preguntar') return `permisos: cambiar a «Preguntar siempre» respondió ${r.st} ${JSON.stringify(r.j).slice(0, 200)}`
+  if ((await leer()).j.modo !== 'preguntar') return 'permisos: el modo no quedó guardado'
   if ((await fijar('todo')).st !== 400) return 'permisos: un modo inventado no se rechazó'
-  if ((await fijar('preguntar')).j.modo !== 'preguntar') return 'permisos: no se pudo volver a «Preguntar siempre»'
+  if ((await fijar('libre')).st !== 400) return 'permisos: el modo viejo «libre» (Sin preguntar) no se rechazó'
+  if ((await fijar('carpeta')).j.modo !== 'carpeta') return 'permisos: no se pudo volver a «Automático en mi carpeta»'
   const bit = await (await fetch(`${base}/api/seguridad/bitacora?limite=20`, { headers: { cookie } })).json().catch(() => ({}))
   if (!(bit.acciones ?? []).some((a) => /Permisos de Levy/.test(a.que ?? ''))) return 'permisos: el cambio no quedó en «Lo que hizo Levy»'
-  log('permisos: nace «Automático en mi carpeta», se cambia desde Ajustes y queda en «Lo que hizo Levy»')
-  const sinFreno = await recorridoSinFreno(base, json, leer, fijar)
-  if (sinFreno) return sinFreno
+  log('permisos: nace «Automático en mi carpeta», se cambia desde Ajustes, rechaza modos inventados y queda en «Lo que hizo Levy»')
+  const autonomo = await recorridoAutonomo(base, cookie, leer, mandar, fijar)
+  if (autonomo) return autonomo
   const t0 = Date.now()
   const tts = await fetch(`${base}/api/chat/tts`, { method: 'POST', headers: json, body: JSON.stringify({ text: 'Hola', lector: true, velocidad: 1 }) })
   const jt = await tts.json().catch(() => ({}))
@@ -481,36 +484,36 @@ async function recorridoPermisos(base, cookie) {
   return null
 }
 
-// ── Recorrido v0.2.10: «Quitar también el freno (bajo mi responsabilidad)» dentro de «Sin preguntar» (23 oct) ──────────
+// ── Recorrido 0.2.15: modo Autónomo con consentimiento versionado (reemplaza «Sin preguntar» y el freno quitado) ──────
 
 /**
- * Por la web real: fuera de «Sin preguntar» no se puede (409); con otra frase, 400; con la exacta (validada por el
- * daemon) se activa y se ve con su hora; cambiar de modo lo apaga solo y volver a «Sin preguntar» no lo revive; se
- * apaga con un clic; activación y desactivaciones quedan en «Lo que hizo Levy». Termina en «Preguntar siempre».
+ * Por la web real: el GET trae el texto con su versión y su huella; Autónomo sin aceptar responde 409 «consentimiento»;
+ * con una huella que no es la del texto, 409 «version»; con la versión y la huella del GET se activa y guarda el
+ * consentimiento; «Volver a preguntar» (píldora) lo conserva; retirarlo vuelve a «carpeta» y lo borra. Aceptación,
+ * vuelta y retiro quedan en «Lo que hizo Levy». Termina en «Preguntar siempre».
  */
-async function recorridoSinFreno(base, json, leer, fijar) {
-  const FRASE = 'quito el freno bajo mi responsabilidad'
-  const freno = async (cuerpo) => { const r = await fetch(`${base}/api/seguridad/permisos`, { method: 'POST', headers: json, body: JSON.stringify(cuerpo) }); return { st: r.status, j: await r.json().catch(() => ({})) } }
+async function recorridoAutonomo(base, cookie, leer, mandar, fijar) {
   let r = await leer()
-  if (r.j.sinFreno !== false || r.j.frase !== FRASE) return `freno: el estado de fábrica no trae sinFreno=false y la frase (${JSON.stringify(r.j).slice(0, 200)})`
-  if ((r = await freno({ sinFreno: true, frase: FRASE })).st !== 409) return `freno: fuera de «Sin preguntar» respondió ${r.st} (se esperaba 409)`
-  if ((await fijar('libre')).j.modo !== 'libre') return 'freno: no se pudo pasar a «Sin preguntar»'
-  if ((r = await freno({ sinFreno: true, frase: 'sí, quítalo' })).st !== 400 || (await leer()).j.sinFreno !== false) return `freno: una frase equivocada respondió ${r.st} o lo activó`
-  if ((r = await freno({ sinFreno: true })).st !== 400) return `freno: sin frase respondió ${r.st} (se esperaba 400)`
-  r = await freno({ sinFreno: true, frase: '  Quito el freno bajo mi responsabilidad. ' })
-  if (r.st !== 200 || r.j.sinFreno !== true || typeof r.j.sinFrenoDesde !== 'number') return `freno: con la frase respondió ${r.st} ${JSON.stringify(r.j).slice(0, 200)}`
-  if ((await leer()).j.sinFreno !== true) return 'freno: no quedó guardado'
-  if ((r = await fijar('carpeta')).j.sinFreno !== false) return `freno: cambiar a «Automático en mi carpeta» no lo apagó (${JSON.stringify(r.j).slice(0, 200)})`
-  if ((r = await fijar('libre')).j.sinFreno !== false) return 'freno: volver a «Sin preguntar» lo revivió'
-  if ((await freno({ sinFreno: true, frase: FRASE })).j.sinFreno !== true) return 'freno: no se pudo volver a activar'
-  if ((r = await freno({ sinFreno: false })).st !== 200 || r.j.sinFreno !== false) return `freno: apagarlo con un clic respondió ${r.st} ${JSON.stringify(r.j).slice(0, 200)}`
-  if ((await fijar('preguntar')).j.modo !== 'preguntar') return 'freno: no se pudo volver a «Preguntar siempre»'
-  const bit = await (await fetch(`${base}/api/seguridad/bitacora?limite=50`, { headers: { cookie: json.cookie } })).json().catch(() => ({}))
-  const ques = (bit.acciones ?? []).map((a) => `${a.que ?? ''} · ${a.motivo ?? ''}`)
-  const quitados = ques.filter((q) => /^Freno quitado bajo tu responsabilidad/.test(q)).length
-  const devueltos = ques.filter((q) => /^Freno de vuelta/.test(q))
-  if (quitados !== 2 || devueltos.length !== 2 || !devueltos.some((q) => /se apagó solo/.test(q)) || !devueltos.some((q) => /lo apagó la persona/.test(q))) return `freno: «Lo que hizo Levy» no tiene las 2 activaciones y las 2 desactivaciones (${quitados} y ${devueltos.length})`
-  log('freno: solo en «Sin preguntar», exige la frase exacta en el daemon, se apaga solo al cambiar de modo y con un clic, y queda en «Lo que hizo Levy»')
+  const t = r.j.texto
+  if (!t || typeof t.version !== 'string' || typeof t.sha256 !== 'string' || typeof t.cuerpo !== 'string' || !Array.isArray(t.casillas)) return `autónomo: el GET no trae el texto con versión, huella, cuerpo y casillas (${JSON.stringify(r.j).slice(0, 200)})`
+  if (!Array.isArray(r.j.modos) || !r.j.modos.includes('autonomo') || r.j.modos.includes('libre')) return `autónomo: los modos no son los de 0.2.15 (${JSON.stringify(r.j.modos)})`
+  if ((r = await fijar('autonomo')).st !== 409 || r.j.code !== 'consentimiento') return `autónomo: sin aceptar respondió ${r.st} ${JSON.stringify(r.j).slice(0, 160)} (se esperaba 409 consentimiento)`
+  if ((r = await mandar({ modo: 'autonomo', via: 'ajustes', acepto: { version: t.version, sha256: '0'.repeat(64) } })).st !== 409 || r.j.code !== 'version') return `autónomo: con otra huella respondió ${r.st} ${JSON.stringify(r.j).slice(0, 160)} (se esperaba 409 version)`
+  if ((await leer()).j.modo !== 'carpeta') return 'autónomo: un intento rechazado cambió el modo'
+  r = await mandar({ modo: 'autonomo', via: 'ajustes', acepto: { version: t.version, sha256: t.sha256 } })
+  if (r.st !== 200 || r.j.modo !== 'autonomo' || r.j.consentimiento?.version !== t.version || r.j.consentimiento?.sha256 !== t.sha256) return `autónomo: aceptar respondió ${r.st} ${JSON.stringify(r.j).slice(0, 200)}`
+  if ((await leer()).j.modo !== 'autonomo') return 'autónomo: no quedó guardado'
+  if ((r = await mandar({ modo: 'carpeta', via: 'pildora' })).j.modo !== 'carpeta' || !r.j.consentimiento) return `autónomo: «Volver a preguntar» no volvió a «carpeta» o borró el consentimiento (${JSON.stringify(r.j).slice(0, 200)})`
+  if ((r = await fijar('autonomo')).st !== 200 || r.j.modo !== 'autonomo') return `autónomo: con el consentimiento vigente no volvió sin aceptar otra vez (${r.st})`
+  if ((r = await mandar({ retirar: true, via: 'ajustes' })).st !== 200 || r.j.modo !== 'carpeta' || r.j.consentimiento) return `autónomo: retirar respondió ${r.st} ${JSON.stringify(r.j).slice(0, 200)}`
+  if ((r = await fijar('autonomo')).st !== 409) return `autónomo: tras retirar, volvió sin aceptar (${r.st})`
+  if ((await fijar('preguntar')).j.modo !== 'preguntar') return 'autónomo: no se pudo volver a «Preguntar siempre»'
+  const bit = await (await fetch(`${base}/api/seguridad/bitacora?limite=50`, { headers: { cookie } })).json().catch(() => ({}))
+  const ques = (bit.acciones ?? []).map((a) => a.que ?? '')
+  if (!ques.some((q) => /aceptado \(texto /.test(q))) return 'autónomo: la aceptación no quedó en «Lo que hizo Levy»'
+  if (!ques.some((q) => /Consentimiento del modo .+ retirado/.test(q))) return 'autónomo: el retiro no quedó en «Lo que hizo Levy»'
+  if (!ques.some((q) => /Permisos de Levy: .+ \(desde pildora\)/.test(q))) return 'autónomo: la vuelta desde la píldora no quedó en «Lo que hizo Levy»'
+  log(`autónomo: pide el texto ${t.version} con sus dos casillas, rechaza otra huella, se activa, vuelve en un clic, se retira y queda en «Lo que hizo Levy»`)
   return null
 }
 

@@ -21,24 +21,25 @@
  * del turno, comodines expandidos contra el disco y `realpath` del ancestro que exista (un enlace simbólico dentro del
  * cerebro que apunta a `~/.ssh` cuenta como `~/.ssh`). Pura salvo por lecturas del disco (realpath, glob).
  */
-import { computerUseDisponible } from '../manos/politica.js'
+import { computerUseDisponible, vozReciente } from '../manos/politica.js'
+import { nombraAccion } from '../manos/cubre.js'
 import { existsSync, globSync, realpathSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path'
 import { DIR_ARBRAIN } from '../edicion.js'
 import { analizarShell, type ComandoSimple } from './shell.js'
 import { accionIrreversible, type CategoriaConfirmacion } from './confirmaciones.js'
-import { hostDe, parsearUrl, senalExfiltracion } from './url.js'
+import { hostDe, hostNombradoEnVoz, parsearUrl, senalExfiltracion } from './url.js'
 import { extraerUrls, normalizarUrl } from './procedencia.js'
 import { carpetasAbiertas } from './carpetas.js'
 import { destinoDeDinero, dineroEnTexto, MCP_DINERO, MENSAJE_DINERO, valoresEnBash, valoresEnMcp } from './dinero.js'
-import { DONDE_CARPETAS, DONDE_PERMISOS, estadoPermisos, LIBERA_SIN_FRENO, NOMBRE_MODO, type ModoPermisos } from './modo-permisos.js'
+import { DONDE_CARPETAS, DONDE_PERMISOS, estadoPermisos, NOMBRE_MODO, type ModoPermisos } from './modo-permisos.js'
 import { EXT_EJECUTABLE } from './hooks-proyecto.js'
 import { reglaQueAplica, reglasSiempre, type ReglaSiempre } from './reglas-siempre.js'
 
 export type DecisionPolitica =
   | {
-    tipo: 'permitir'; porModo?: ModoPermisos; /** Corrió sin clic porque la persona quitó el freno (enviar, borrar, publicar). */ sinFreno?: true
+    tipo: 'permitir'; porModo?: ModoPermisos
     /** Una rutina escribió un archivo que el propio cerebro genera (`now.md`, reportes): sin clic, anotado (`generadoPorRutina`). */
     generado?: true
     /** Corrió sin tarjeta porque la persona guardó «Siempre este patrón» (`reglas-siempre.ts`): el patrón. */
@@ -55,10 +56,17 @@ export type DecisionPolitica =
   | {
     tipo: 'confirmar'; categoria: CategoriaConfirmacion; resumen: string; literal: string; avisos: string[]
     /**
-     * Desde qué modo de permisos (`modo-permisos.ts`) esta confirmación corre sin clic: `carpeta` (también en `libre`)
-     * o `libre`. Sin campo: `libre` si la categoría es «otra»; el freno (enviar, borrar, publicar, pagar) nunca.
+     * Desde qué modo de permisos (`modo-permisos.ts`) esta confirmación corre sin clic: `carpeta` (también en
+     * `autonomo`) o solo `autonomo`. Sin campo: `autonomo` si la categoría es «otra»; el freno (enviar, borrar,
+     * publicar, pagar) solo en Autónomo y según su red mínima.
      */
-    relajable?: 'carpeta' | 'libre'
+    relajable?: 'carpeta' | 'autonomo'
+    /**
+     * Modo Autónomo (0.2.15): por qué esta tarjeta sigue existiendo. `R5` envío masivo; `R6` salida a un destino que no
+     * salió del pedido tras leer afuera; `pedido` la persona no pidió esta acción en el chat; `borrador` una rutina
+     * quiso enviar o publicar y queda como borrador en «Mientras no estabas».
+     */
+    regla?: 'R5' | 'R6' | 'pedido' | 'borrador'
   }
 
 export interface ContextoPolitica {
@@ -83,14 +91,21 @@ export interface ContextoPolitica {
   sandbox: boolean
   /**
    * Modo de permisos que eligió la persona (Ajustes › Permisos). Sin campo: «preguntar» (lo de siempre). Las rutinas
-   * lo fijan en «preguntar».
+   * heredan «autonomo» (con sus borradores) y en los demás modos corren en «preguntar».
    */
   modo?: ModoPermisos
   /**
-   * «Quitar también el freno (bajo mi responsabilidad)» (`modo-permisos.ts`): solo cuenta con `modo` «libre». Deja correr
-   * sin clic enviar, borrar y publicar; nunca pagar, ni nada negado. Las rutinas lo fijan en false.
+   * Lo que la persona escribió en el chat en los últimos minutos (normalizado, `manos/politica.ts › vozReciente`). En
+   * Autónomo decide si un envío, una publicación o un borrado «salió de su pedido» (`cubiertoPorLaPersona`) y si un
+   * destino (correo, teléfono) lo nombró ella. Por defecto, la voz del daemon.
    */
-  sinFreno?: boolean
+  voz?: readonly string[]
+  /**
+   * Marca ligera (0.2.15, A1): la sesión leyó la pantalla (manos `observar`/`verificar`) o una nota que Levy escribió
+   * tras leer afuera. No endurece nada por sí sola; solo alimenta la R6 de Autónomo (mandar a un destino que no salió
+   * del pedido). Lo de afuera de verdad (web, correo, PDF, descargas, adjuntos) va en `contaminada`.
+   */
+  leyoPantalla?: boolean
   /**
    * La herramienta la pide una rutina (cron), sin la persona delante. Solo cambia una cosa: los archivos que el cerebro
    * genera (`generadoPorRutina`) se escriben sin clic con las herramientas de archivos. Todo lo demás, igual.
@@ -154,7 +169,8 @@ export function contextoPolitica(over: Partial<ContextoPolitica> = {}, env: Node
     ...(uploads ? { adjuntos: uploads } : {}),
     abiertas: carpetasAbiertas().map(c => c.ruta),
     sandbox: false,
-    ...((e) => ({ modo: e.modo, sinFreno: e.sinFreno }))(estadoPermisos()),
+    modo: estadoPermisos().modo,
+    voz: vozReciente(),
     reglas: reglasSiempre(),
     ...over,
   }
@@ -408,8 +424,14 @@ const confirmar = (categoria: CategoriaConfirmacion, resumen: string, literal: s
     ? { tipo: 'negar', motivo: `la acción es demasiado larga para que la persona la revise completa (${literal.length} caracteres, máximo ${LITERAL_MAX}); divídela en pasos más chicos` }
     : { tipo: 'confirmar', categoria, resumen, literal, avisos }
 
+/** Una tarjeta de la red mínima de Autónomo, con la regla que la sostiene. */
+const tarjeta = (categoria: CategoriaConfirmacion, resumen: string, literal: string, avisos: string[], regla: 'R5' | 'R6' | 'pedido' | 'borrador'): DecisionPolitica => {
+  const d = confirmar(categoria, resumen, literal, avisos)
+  return d.tipo === 'confirmar' ? { ...d, regla } : d
+}
+
 /** Marca desde qué modo de permisos una confirmación corre sin clic (lo negado no cambia). */
-const relajar = (d: DecisionPolitica, nivel: 'carpeta' | 'libre'): DecisionPolitica => d.tipo === 'confirmar' ? { ...d, relajable: nivel } : d
+const relajar = (d: DecisionPolitica, nivel: 'carpeta' | 'autonomo'): DecisionPolitica => d.tipo === 'confirmar' ? { ...d, relajable: nivel } : d
 
 /** Herramientas integradas que no actúan fuera de la conversación (o cuyo efecto ya revisa otra regla). */
 const INOCUAS = new Set([
@@ -430,39 +452,204 @@ const esShell = (h: string) => h === 'Bash' || h === 'PowerShell' || h === 'Moni
 
 export function decidirHerramienta(herramienta: string, input: unknown, ctx: ContextoPolitica): DecisionPolitica {
   const d = decidirSinContexto(herramienta, input, ctx)
-  // Una conversación que leyó contenido de afuera no se relaja con ningún modo: lo de afuera puede estar dando órdenes.
+  // Autónomo (0.2.15): la red mínima decide; la marca de contaminada solo alimenta su R6.
+  if (ctx.modo === 'autonomo') return aplicarAutonomo(d, herramienta, input, ctx)
+  // Una conversación que leyó contenido de afuera DE VERDAD no se relaja con «carpeta»: lo de afuera puede estar dando
+  // órdenes. Las manos y las notas propias no cuentan (A1 y A2: van en `leyoPantalla`, que aquí no endurece nada).
   return ctx.contaminada ? endurecerContaminada(d, herramienta, input, ctx) : aplicarModo(d, ctx, herramienta, input)
 }
 
-/** Las categorías del freno: ningún modo las deja correr sin el clic de la persona (salvo el freno quitado, abajo). */
+/** Las categorías del freno: en «preguntar» y «carpeta» siempre piden el clic de la persona. */
 const FRENO = new Set<CategoriaConfirmacion>(['enviar', 'borrar', 'publicar', 'pagar'])
-/** Lo único que «Quitar también el freno» deja correr sin clic. Pagar nunca (y el dinero ya se niega antes). */
-const LIBERABLE_SIN_FRENO = new Set<CategoriaConfirmacion>(LIBERA_SIN_FRENO)
 
 /**
- * Modo de permisos (grupal 23 oct 2026): «carpeta» deja correr sin clic las confirmaciones marcadas `carpeta`; «libre»,
- * todas las de categoría «otra». Lo negado sigue negado y el freno sigue pidiendo clic, salvo que en «libre» la persona
- * lo haya quitado (`sinFreno`): entonces enviar, borrar y publicar corren sin clic; pagar, nunca. En «preguntar», a lo que en
- * «carpeta» correría solo se le suma un aviso para que la persona sepa dónde dejar de verlo.
+ * Modo de permisos (grupal 23 oct 2026): «carpeta» deja correr sin clic las confirmaciones marcadas `carpeta`. Lo negado
+ * sigue negado y el freno sigue pidiendo clic. En «preguntar», a lo que en «carpeta» correría solo se le suma un aviso
+ * para que la persona sepa dónde dejar de verlo; a lo que solo corre en Autónomo, el aviso de ese nivel.
  */
 export function aplicarModo(d: DecisionPolitica, ctx: ContextoPolitica, herramienta?: string, input?: unknown): DecisionPolitica {
   if (d.tipo !== 'confirmar') return d
   const modo = ctx.modo ?? 'preguntar'
-  // Freno quitado bajo la responsabilidad de la persona: solo en «Sin preguntar» y solo enviar, borrar y publicar.
-  if (FRENO.has(d.categoria)) return modo === 'libre' && ctx.sinFreno === true && LIBERABLE_SIN_FRENO.has(d.categoria) ? { tipo: 'permitir', porModo: 'libre', sinFreno: true } : d
-  const nivel = d.relajable ?? 'libre'
-  if (modo === 'libre' || (modo === 'carpeta' && nivel === 'carpeta')) return { tipo: 'permitir', porModo: modo }
+  if (FRENO.has(d.categoria)) return d
+  const nivel = d.relajable ?? 'autonomo'
+  if (modo === 'carpeta' && nivel === 'carpeta') return { tipo: 'permitir', porModo: modo }
   // «Siempre este patrón» (botón Play): nunca en rutinas; solo cambia «confirmar» de categoría «otra» por «permitir».
   if (herramienta && !ctx.rutina) {
     const regla = reglaQueAplica(ctx.reglas, herramienta, input)
     if (regla) return { tipo: 'permitir', porRegla: regla.patron }
   }
-  const sugerido = nivel === 'carpeta' ? 'carpeta' : 'libre'
-  if (modo === 'preguntar' || sugerido === 'libre') {
+  const sugerido = nivel === 'carpeta' ? 'carpeta' : 'autonomo'
+  if (modo === 'preguntar' || sugerido === 'autonomo') {
     const aviso = `para que no te pregunte esto, en ${DONDE_PERMISOS} elige «${NOMBRE_MODO[sugerido]}»`
     return d.avisos.includes(aviso) ? d : { ...d, avisos: [...d.avisos, aviso] }
   }
   return d
+}
+
+// ---------- Modo Autónomo: la red mínima (0.2.15, 29 oct 2026; SPEC §3.2) ----------
+
+/** Tope de la R4: borrar más archivos que esto en un paso se niega (el agente lo explica y la persona lo hace ella). */
+export const MAX_BORRADO_AUTONOMO = 20
+/** Tope de la R5: el mismo mensaje a más de estas personas enseña una tarjeta con a quién y qué. */
+export const MAX_DESTINATARIOS_AUTONOMO = 3
+
+const CUBRE_CATEGORIA: Record<string, string> = { enviar: 'enviar', publicar: 'publicar', borrar: 'borrar', pagar: 'pagar' }
+/** ¿La persona pidió esta acción en el chat hace poco? Una frase suya de 12+ caracteres que nombre el verbo. */
+export function cubiertoPorLaPersona(categoria: CategoriaConfirmacion, voz: readonly string[] | undefined): boolean {
+  const c = CUBRE_CATEGORIA[categoria]
+  if (!c) return true
+  return (voz ?? []).some(v => v.length >= 12 && nombraAccion(c, v))
+}
+
+const CAMPOS_DESTINO = /^(to|recipients?|destinatarios?|destinos?|cc|bcc|emails?|correos?|phones?|telefonos?|numbers?|numeros?|chat_ids?|user_ids?|users?|members?|participants?|addresses?|handles?)$/i
+const CAMPOS_MASIVOS = /(^|_)(group|grupo|channel|canal|broadcast|difusion|list|lista|audience|everyone|community|comunidad|all|todos|segment|segmento)(_|$)/i
+const CORREO = /[\w.+-]+@[\w-]+\.[\w.-]+/g
+const TELEFONO = /\+?\d[\d ()-]{7,}\d/g
+
+/** Destinos (correos y teléfonos) y cuántos destinatarios declara el input de una herramienta. Recorre hasta 5 niveles. */
+export function destinosDe(input: unknown): { destinos: string[]; cuantos: number; masivo: string | null } {
+  const destinos = new Set<string>()
+  let cuantos = 0
+  let masivo: string | null = null
+  const ver = (v: unknown, clave: string, nivel: number) => {
+    if (nivel > 5 || destinos.size > 200) return
+    if (Array.isArray(v)) {
+      // Una lista de destinatarios cuenta por su largo; sus elementos ya no vuelven a contar (sí se leen sus correos y teléfonos).
+      const cuenta = CAMPOS_DESTINO.test(clave)
+      if (cuenta) cuantos += v.length
+      for (const x of v) ver(x, cuenta ? '' : clave, nivel + 1)
+      return
+    }
+    if (v && typeof v === 'object') { for (const [k, x] of Object.entries(v)) ver(x, k, nivel + 1); return }
+    if (typeof v === 'string') {
+      for (const m of v.match(CORREO) ?? []) destinos.add(m.toLowerCase())
+      for (const m of v.match(TELEFONO) ?? []) { const d = m.replace(/\D/g, ''); if (d.length >= 8) destinos.add(d) }
+      if (CAMPOS_DESTINO.test(clave)) cuantos += v.split(/[,;\n]+/).filter(x => x.trim()).length
+      if (CAMPOS_MASIVOS.test(clave) && v.trim()) masivo = masivo ?? clave
+      return
+    }
+    if (typeof v === 'boolean' && v && CAMPOS_MASIVOS.test(clave)) masivo = masivo ?? clave
+  }
+  ver(input, '', 0)
+  return { destinos: [...destinos], cuantos, masivo }
+}
+
+/** ¿Este destino (correo o teléfono) lo escribió la persona en el chat? Teléfonos: por sus últimos 7 dígitos. */
+export function destinoEnVoz(destino: string, voz: readonly string[] | undefined): boolean {
+  const v = voz ?? []
+  if (destino.includes('@')) return v.some(t => t.includes(destino))
+  const d = destino.replace(/\D/g, '')
+  if (d.length < 7) return false
+  const cola = d.slice(-7)
+  return v.some(t => t.replace(/\D/g, '').includes(cola))
+}
+
+const RM_RECURSIVO = (args: string[]) => args.some(w => w === '--recursive' || /^-[a-zA-Z]*[rR][a-zA-Z]*$/.test(w))
+
+/**
+ * R4: borrado masivo con Bash. Devuelve el motivo para negar o null. `rm -r` de la carpeta del cerebro entera, de una
+ * carpeta abierta entera o de algo fuera de ellas; `find -delete` y `del /s`/`rd /s` (no se acotan); más de
+ * `MAX_BORRADO_AUTONOMO` archivos en un paso. (`rm -rf`, `git clean -f`, vaciar papelera y push forzado ya se niegan
+ * antes, en `DESTRUCTIVOS`.)
+ */
+export function borradoMasivo(cmd: string, ctx: ContextoPolitica): string | null {
+  if (/\bfind\b[^|;&]*\s-delete\b/.test(cmd)) return 'borrar con find -delete no se puede acotar: borra archivo por archivo o pídele a la persona que lo haga'
+  if (/(?:^|[;&|]\s*)(?:del|erase|rd|rmdir)\s+\/[sq]/i.test(cmd)) return 'borrado recursivo del Explorador (del /s, rd /s)'
+  const a = analizarShell(cmd, ctx.usuario)
+  if (!a.ok) return /\brm\s+-[a-zA-Z]*[rR]/.test(cmd) ? 'rm -r dentro de un comando que no se puede verificar entero' : null
+  const cwds = [ctx.cwd]
+  const raices = [ctx.home, ...(ctx.abiertas ?? [])]
+  for (const c of a.comandos) {
+    const argv = c.argv.map(w => w.texto)
+    const base = basename(argv[0] ?? '')
+    if (base === 'cd' && argv[1]) { cwds.push(rutaReal(expandirRuta(argv[1], ctx, cwds[cwds.length - 1]))); continue }
+    if (!['rm', 'unlink', 'trash', 'shred', 'rmdir'].includes(base)) continue
+    const args = argv.slice(1)
+    const rutas = args.filter(w => !w.startsWith('-'))
+    const recursivo = base === 'rm' && RM_RECURSIVO(args)
+    let total = 0
+    for (const r of rutas) {
+      if (/\$/.test(r)) return `rm con una ruta que no se puede verificar (${r})`
+      const cwd = cwds[cwds.length - 1]
+      const lista = expandirComodin(r, ctx, cwd)
+      if (lista === null) return `borrar «${r}» alcanza demasiados archivos (más de 500)`
+      total += lista.length
+      for (const ruta of lista) {
+        const real = rutaReal(expandirRuta(ruta, ctx, cwd))
+        const raiz = raices.find(x => dentroDe(real, x))
+        if (!raiz) return `borrar fuera de tu cerebro y de tus carpetas abiertas (${real})`
+        if (recursivo && real === raiz) return `rm -r de ${real === ctx.home ? 'la carpeta entera de tu cerebro' : `una carpeta abierta entera (${real})`}`
+      }
+    }
+    if (total > MAX_BORRADO_AUTONOMO) return `borrar ${total} archivos en un paso (tope ${MAX_BORRADO_AUTONOMO}): hazlo por partes o que lo haga la persona`
+    if (recursivo) {
+      for (const r of rutas) {
+        const cwd = cwds[cwds.length - 1]
+        for (const ruta of expandirComodin(r, ctx, cwd) ?? []) {
+          const real = rutaReal(expandirRuta(ruta, ctx, cwd))
+          let n = 0
+          try { n = globSync(join(real, '**', '*')).length } catch { n = 0 }
+          if (n > MAX_BORRADO_AUTONOMO) return `rm -r de ${real} borra ${n} archivos (tope ${MAX_BORRADO_AUTONOMO}): hazlo por partes o que lo haga la persona`
+        }
+      }
+    }
+  }
+  return null
+}
+
+/**
+ * La red mínima del modo Autónomo. Lo negado sigue negado (R1 dinero, R2 secretos, R3 su propio gobierno, lo
+ * destructivo). De lo que en otros modos se confirma:
+ *   - pagar: negar (R1);
+ *   - borrar: negar si es masivo (R4); si no, corre;
+ *   - enviar y publicar: corren si la persona lo pidió en el chat (`cubiertoPorLaPersona`); a más de 3 personas, a un
+ *     grupo o a una lista, tarjeta (R5); a un destino que no salió del pedido tras leer afuera o la pantalla, tarjeta
+ *     (R6); sin pedido, tarjeta («pedido»). En rutinas, todo envío queda como borrador (tarjeta en la cola);
+ *   - todo lo demás («otra»): corre. Con la conversación contaminada, solo la R6 (direcciones no vistas, datos
+ *     codificados) sube a tarjeta; nada más se endurece.
+ */
+export function aplicarAutonomo(d: DecisionPolitica, herramienta: string, input: unknown, ctx: ContextoPolitica): DecisionPolitica {
+  if (d.tipo === 'negar') return d
+  const i = (input && typeof input === 'object' ? input : {}) as Record<string, unknown>
+  const leyoAfuera = !!ctx.contaminada || !!ctx.leyoPantalla
+  const egreso = leyoAfuera ? egresoContaminado(i, ctx) : null
+  const avisoR6 = `${ctx.contaminada ? avisoContaminada(ctx.contaminada.fuente) : 'esta conversación leyó la pantalla o una nota escrita tras leer afuera'}: confirma solo si TÚ lo pediste`
+  // R6 sobre cualquier cosa que corra o se confirme: una dirección que no apareció en lo que pidió ni leyó, o datos
+  // codificados, hacia afuera (`curl -T`, un MCP con una URL, las manos navegando a un sitio que nadie nombró).
+  if (egreso) return tarjeta('enviar', `Usar ${herramienta} con una dirección o datos que pueden salir, tras leer afuera`, `${herramienta} ${JSON.stringify(i)}`, [avisoR6, egreso], 'R6')
+  if (d.tipo === 'permitir') {
+    if (ctx.contaminada && herramienta === 'WebFetch') {
+      const url = normalizarUrl(typeof i.url === 'string' ? i.url.trim() : '')
+      const u = typeof i.url === 'string' ? parsearUrl(i.url.trim()) : null
+      const nombrada = !!u && !!ctx.voz?.length && hostNombradoEnVoz(hostDe(u), ctx.voz) && !u.search && !u.hash && u.pathname.length <= 32
+      if ((!url || !ctx.urlsVistas?.has(url)) && !nombrada) return tarjeta('enviar', 'Abrir una dirección que no apareció en lo que leíste ni en lo que pediste', `WebFetch ${JSON.stringify(i)}`, [avisoR6, 'una dirección nueva puede llevarse en su ruta datos de esta conversación'], 'R6')
+    }
+    return d
+  }
+  // d.tipo === 'confirmar'
+  const c: Extract<DecisionPolitica, { tipo: 'confirmar' }> = d
+  if (d.categoria === 'pagar') return negar(MENSAJE_DINERO(herramienta))
+  const permitido: DecisionPolitica = { tipo: 'permitir', porModo: 'autonomo' }
+  if (d.categoria === 'borrar') {
+    if (herramienta === 'Bash') { const m = borradoMasivo(String(i.command ?? ''), ctx); if (m) return negar(`borrado masivo: ${m}`) }
+    else if (herramienta.startsWith('mcp__')) { const n = Math.max(...Object.values(i).map(v => Array.isArray(v) ? v.length : 0), 0); if (n > MAX_BORRADO_AUTONOMO) return negar(`borrado masivo: ${n} elementos en un paso (tope ${MAX_BORRADO_AUTONOMO})`) }
+    return permitido
+  }
+  if (d.categoria === 'enviar' || d.categoria === 'publicar') {
+    const { destinos, cuantos, masivo } = destinosDe(input)
+    const etiqueta = (regla: 'R5' | 'R6' | 'pedido' | 'borrador', aviso: string, resumen = c.resumen): DecisionPolitica => ({ ...c, resumen, avisos: [aviso, ...c.avisos.filter(a => !a.startsWith('para que no te pregunte'))], regla })
+    // Rutinas: lo que sale a terceros queda como borrador, listo para un clic en «Mientras no estabas».
+    if (ctx.rutina) return etiqueta('borrador', 'borrador de tu rutina: no se envió; sale con tu clic', `Borrador de tu rutina: ${c.resumen}`)
+    if (masivo || cuantos > MAX_DESTINATARIOS_AUTONOMO || destinos.length > MAX_DESTINATARIOS_AUTONOMO) return etiqueta('R5', `envío masivo (${masivo ? `a ${masivo}` : `${Math.max(cuantos, destinos.length)} destinatarios`}): revisa a quién y qué antes de que salga`)
+    const noPedidos = leyoAfuera ? destinos.filter(x => !destinoEnVoz(x, ctx.voz)) : []
+    if (noPedidos.length) return etiqueta('R6', `${avisoR6}; el destino ${noPedidos[0]} no salió de tu mensaje`)
+    // Datos a internet por Bash (curl POST): rutinario en trabajo técnico; solo tras leer afuera exige que la persona lo pida.
+    const tecnico = herramienta === 'Bash' && /\b(curl|wget|Invoke-(?:WebRequest|RestMethod))\b/i.test(String(i.command ?? ''))
+    if (tecnico && !leyoAfuera) return permitido
+    if (!cubiertoPorLaPersona(d.categoria, ctx.voz)) return etiqueta('pedido', `no encontré en tus mensajes recientes que pidieras ${d.categoria}: confirma solo si es lo que quieres`)
+    return permitido
+  }
+  return permitido
 }
 
 /** Páginas que una sesión contaminada abre sin clic (todas ya vistas); de ahí en adelante, cada una pregunta. */
@@ -490,7 +677,10 @@ function egresoContaminado(i: Record<string, unknown>, ctx: ContextoPolitica): s
     for (const texto of textos) for (const url of extraerUrls(texto, 40)) {
       const n = normalizarUrl(url)
       const u = parsearUrl(url)
-      if (!n || !ctx.urlsVistas?.has(n)) return `lleva una dirección${u ? ` (${hostDe(u)})` : ''} que no apareció en lo que leíste ni pediste`
+      // A5 (0.2.15): la portada de un sitio que la persona nombró («abre WhatsApp» → web.whatsapp.com), sin query ni
+      // fragmento ni ruta larga, no se lleva nada: no es «una dirección que no apareció en lo que pediste».
+      const nombrada = !!u && !!ctx.voz?.length && hostNombradoEnVoz(hostDe(u), ctx.voz) && !u.search && !u.hash && u.pathname.length <= 32
+      if ((!n || !ctx.urlsVistas?.has(n)) && !nombrada) return `lleva una dirección${u ? ` (${hostDe(u)})` : ''} que no apareció en lo que leíste ni pediste`
       const senal = senalExfiltracion(url)
       if (senal) return senal
     }
@@ -548,7 +738,9 @@ function endurecerContaminada(d: DecisionPolitica, herramienta: string, input: u
   if (INOCUAS.has(herramienta) && !egreso) return d
   if (herramienta.startsWith('mcp__')) {
     const [, servidor = '', ...resto] = herramienta.split('__')
-    if ((servidor === 'cabina' || servidor === 'live' || mcpDeLectura(resto.join('__'))) && !egreso) return d
+    // A1 (0.2.15): las manos traen su propio freno y no son «un servicio de afuera»; solo su egreso (una dirección que
+    // no viste) sube a tarjeta.
+    if ((servidor === 'cabina' || servidor === 'live' || servidor === 'manos' || mcpDeLectura(resto.join('__'))) && !egreso) return d
   }
   if (egreso) return confirmar('enviar', `Usar ${herramienta} con una dirección o datos que pueden salir, tras leer contenido de afuera`, literal, [aviso, egreso])
   if (INOCUAS.has(herramienta)) return d
@@ -577,18 +769,11 @@ export function fuenteExterna(herramienta: string, input: unknown, ctx: Contexto
   if (herramienta === 'WebSearch') return 'resultados de búsqueda en internet'
   if (herramienta.startsWith('mcp__')) {
     const servidor = herramienta.split('__')[1] ?? ''
-    if (servidor === 'cabina' || servidor === 'live') return null
+    // A1 (0.2.15): lo que ven las manos es «leyó pantalla» (`fuenteLigera`), no contenido de afuera que endurezca todo.
+    if (servidor === 'cabina' || servidor === 'live' || servidor === 'manos') return null
     return /mail|gmail|outlook|correo|inbox|imap/i.test(herramienta) ? `correo (${servidor})` : `un servicio conectado (${servidor})`
   }
   if (LECTURA.has(herramienta)) {
-    // Grep/Glob recorren una carpeta: si hay una nota de procedencia externa bajo ella, la traen (hallazgo adversarial 2).
-    // Sin `path`, Grep y Glob recorren la carpeta del turno.
-    if ((herramienta === 'Grep' || herramienta === 'Glob') && ctx.procedencia) {
-      const raiz = typeof i.path === 'string' && i.path ? i.path : (herramienta === 'Glob' && typeof i.pattern === 'string' ? (i.pattern.split(/[*?[{]/)[0] || ctx.cwd) : ctx.cwd)
-      const dir = rutaReal(expandirRuta(raiz, ctx))
-      const f = ctx.procedencia.bajo(dir)
-      if (f) return `una nota escrita tras leer contenido de afuera (bajo ${basename(dir) || dir}, de ${f})`
-    }
     const v = CAMPOS_RUTA.map(c => i[c]).find(x => typeof x === 'string' && x) as string | undefined
     if (!v) return null
     return fuenteDeArchivo(rutaReal(expandirRuta(v, ctx)), ctx)
@@ -602,17 +787,8 @@ export function fuenteExterna(herramienta: string, input: unknown, ctx: Contexto
       // Hallazgo 6: la salida de red solo cuenta por el PROGRAMA (argv[0]), no por una palabra suelta del comando
       // (`grep npx notas` leía notas, no la red). git solo con fetch/pull/clone.
       if (base === 'git' ? c.argv.slice(1).some(w => /^(fetch|pull|clone)$/.test(w.texto)) : PROGRAMAS_RED.test(base)) return 'la salida de un comando con internet'
-      // Hallazgo 2: un recorrido (grep -r, rg, find, cat glob) sobre una carpeta que tiene una nota de procedencia externa
-      // trae esa nota aunque no se nombre el archivo. La raíz: sus posicionales, o la carpeta del turno si no hay.
-      if (esRecursivo(base, c.argv.slice(1).map(w => w.texto)) || base === 'grep' || base === 'rg' || base === 'cat') {
-        const raices = rutasRecursivas(base, c.argv.slice(1).map(w => w.texto))
-        for (const r of (raices.length ? raices : ['.'])) {
-          const dir = rutaReal(expandirRuta((r.split(/[*?[{]/)[0] || '.'), ctx))
-          const f = ctx.procedencia?.bajo(dir)
-          if (f) return `una nota escrita tras leer contenido de afuera (bajo ${basename(dir) || dir}, de ${f})`
-        }
-      }
-      // `cat`/`grep` de un adjunto, una descarga o una nota marcada: lo mismo que Read. Solo palabras que parecen ruta y existen.
+      // `cat`/`grep` de un adjunto o una descarga: lo mismo que Read. Solo palabras que parecen ruta y existen. (Las notas
+      // propias marcadas por procedencia van en `fuenteLigera`, hallazgo 2 acotado a la R6.)
       for (const w of [...c.argv.slice(1).map(x => x.texto), ...c.redirecciones.filter(r => r.op === '<').map(r => r.destino)]) {
         if (w.startsWith('-') || (!/[\\/.]/.test(w))) continue
         const real = rutaReal(expandirRuta(w, ctx))
@@ -627,10 +803,49 @@ export function fuenteExterna(herramienta: string, input: unknown, ctx: Contexto
 
 const INSTRUCCIONES_AJENAS = /^(readme|claude|agents|contributing|security|gemini|copilot-instructions)(\.[\w.-]+)?$|^\.(cursorrules|windsurfrules|clinerules)$|\.mdc$/i
 
-/** ¿Leer este archivo mete contenido de afuera? (Read, Grep, Bash). */
+/**
+ * Marca ligera (0.2.15, A1 y A2): ¿el resultado de esta herramienta trae la pantalla (manos `observar`/`verificar`) o una
+ * nota que Levy escribió tras leer afuera? No endurece la conversación (en el video de un fundador, su propia nota del
+ * intento anterior lo frenaba todo); solo alimenta la R6 de Autónomo. Devuelve la fuente o null.
+ */
+export function fuenteLigera(herramienta: string, input: unknown, ctx: ContextoPolitica): string | null {
+  if (/^mcp__manos__(observar|verificar|ventanas|apps)$/.test(herramienta)) return 'la pantalla (manos)'
+  const i = (input && typeof input === 'object' ? input : {}) as Record<string, unknown>
+  if (LECTURA.has(herramienta) && ctx.procedencia) {
+    if (herramienta === 'Grep' || herramienta === 'Glob') {
+      const raiz = typeof i.path === 'string' && i.path ? i.path : (herramienta === 'Glob' && typeof i.pattern === 'string' ? (i.pattern.split(/[*?[{]/)[0] || ctx.cwd) : ctx.cwd)
+      const f = ctx.procedencia.bajo(rutaReal(expandirRuta(raiz, ctx)))
+      if (f) return `una nota escrita tras leer contenido de afuera (de ${f})`
+    }
+    const v = CAMPOS_RUTA.map(c => i[c]).find(x => typeof x === 'string' && x) as string | undefined
+    const marcada = v ? ctx.procedencia.de(rutaReal(expandirRuta(v, ctx))) : null
+    if (marcada) return `una nota escrita tras leer contenido de afuera (de ${marcada})`
+  }
+  if (herramienta === 'Bash' && typeof i.command === 'string' && ctx.procedencia) {
+    const a = analizarShell(i.command, ctx.usuario)
+    if (!a.ok) return null
+    for (const c of a.comandos) {
+      const base = basename(c.argv[0]?.texto ?? '')
+      if (esRecursivo(base, c.argv.slice(1).map(w => w.texto)) || base === 'grep' || base === 'rg' || base === 'cat') {
+        const raices = rutasRecursivas(base, c.argv.slice(1).map(w => w.texto))
+        for (const r of (raices.length ? raices : ['.'])) {
+          const f = ctx.procedencia.bajo(rutaReal(expandirRuta((r.split(/[*?[{]/)[0] || '.'), ctx)))
+          if (f) return `una nota escrita tras leer contenido de afuera (de ${f})`
+        }
+      }
+      for (const w of [...c.argv.slice(1).map(x => x.texto), ...c.redirecciones.filter(r => r.op === '<').map(r => r.destino)]) {
+        if (w.startsWith('-') || (!/[\\/.]/.test(w))) continue
+        const real = rutaReal(expandirRuta(w, ctx))
+        const f = existsSync(real) ? ctx.procedencia.de(real) : null
+        if (f) return `una nota escrita tras leer contenido de afuera (de ${f})`
+      }
+    }
+  }
+  return null
+}
+
+/** ¿Leer este archivo mete contenido de afuera? (Read, Grep, Bash). Las notas propias marcadas van en `fuenteLigera`. */
 function fuenteDeArchivo(real: string, ctx: ContextoPolitica): string | null {
-  const marcada = ctx.procedencia?.de(real)
-  if (marcada) return `una nota escrita tras leer contenido de afuera (${basename(real)}, de ${marcada})`
   // v0.2.6: un adjunto del chat (imagen, PDF o texto que subió la persona) puede traer órdenes escritas dentro.
   if (ctx.adjuntos && dentroDe(real, ctx.adjuntos)) {
     const nombre = basename(real).replace(/^web-\d+-(chat-\d+-[0-9a-f]+-?)?/, '')
@@ -1046,7 +1261,7 @@ function necesitaManos(cmd: string, i: Record<string, unknown>, ctx: ContextoPol
   if (!s) return null
   const interior = s[1].trim()
   if (/^sudo\b/.test(interior)) return null
-  const d = decidirBash({ ...i, command: interior, dangerouslyDisableSandbox: true }, { ...ctx, modo: 'preguntar', sinFreno: false, reglas: [] })
+  const d = decidirBash({ ...i, command: interior, dangerouslyDisableSandbox: true }, { ...ctx, modo: 'preguntar', reglas: [] })
   if (d.tipo === 'negar' || (d.tipo === 'confirmar' && FRENO.has(d.categoria))) return null
   return { tipo: 'negar', motivo: 'sudo pide tu contraseña de administrador: el agente no la tiene ni debe tenerla', manos: true }
 }

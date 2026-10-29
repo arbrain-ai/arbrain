@@ -11,7 +11,10 @@
 
 // «b» (11 oct 2026, noche): la v1 sale sin computer use (DECISIONES #11); los términos ya no lo ofrecen.
 // 17 oct 2026 (0.1.2): computer use vuelve en macOS y Windows; los términos dicen cómo funciona y quién responde.
-export const VERSION_TEXTOS = 'borrador-2026-10-17'
+// 29 oct 2026 (0.2.15): la licencia dice lo que es (Apache-2.0, código abierto: antes decía «no es una venta del código…
+// no puedes redistribuirlo», que contradecía el LICENSE.txt empaquetado) y los términos nombran los tres niveles de
+// permisos. El modo Autónomo tiene su propio texto y su propia aceptación (server/src/cliente/consentimiento-autonomia.ts).
+export const VERSION_TEXTOS = 'borrador-2026-10-29'
 export const AVISO_BORRADOR = 'Borrador pendiente de revisión legal. Puede cambiar antes de la versión final.'
 
 export interface DocumentoLegal { id: 'privacidad' | 'terminos' | 'licencia'; titulo: string; resumen: string; cuerpo: string }
@@ -65,9 +68,9 @@ Arbrain es software que se instala y corre en tu computadora. Te permite trabaja
 Usas tus propias llaves (Anthropic, OpenRouter u otras). Eres responsable de su costo, de guardarlas y de cumplir los términos de cada proveedor. Si usas una suscripción personal en lugar de una llave de API, revisa que los términos de ese proveedor lo permitan.
 
 ## Agentes y computer use
-Los agentes actúan en tu computadora. Antes de enviar, pagar, borrar o publicar, Arbrain te pide confirmar con un clic. Tú decides qué autorizas y eres responsable de ello.
+Los agentes actúan en tu computadora. Tú eliges cuánto te preguntan antes de actuar: «Preguntar siempre», «Automático en mi carpeta» (te pide confirmar con un clic antes de enviar, pagar, borrar o publicar y antes de lo que sale de tu computadora) o «Autónomo», que actúa sin pedirte un clic en cada paso y que aceptas aparte, con su propio texto, sus dos casillas y un registro que puedes retirar. En cualquier nivel, Arbrain no mueve dinero ni entra a tu banco, no toca tus llaves ni contraseñas y no borra en masa. Tú decides qué autorizas y eres responsable de ello.
 
-Computer use (que un agente mire tu pantalla, haga clic y escriba en tus apps) existe en macOS y Windows, no en Linux. Viene apagado y se apaga cada vez que cierras la app; solo tú lo enciendes, desde la app. Mientras está encendido, el agente toma capturas de tu pantalla que se envían al proveedor del modelo que elegiste. No lo uses con tu banco, pagos, impuestos ni cripto: Arbrain bloquea esos sitios, pero ningún bloqueo es perfecto.
+Computer use (que un agente mire tu pantalla, haga clic y escriba en tus apps) existe en macOS y Windows, no en Linux. Viene apagado y se apaga cada vez que cierras la app (en «Autónomo» queda como lo dejaste); solo tú lo enciendes, desde la app. Mientras está encendido, el agente toma capturas de tu pantalla que se envían al proveedor del modelo que elegiste. No lo uses con tu banco, pagos, impuestos ni cripto: Arbrain bloquea esos sitios, pero ningún bloqueo es perfecto.
 
 ## Usos prohibidos
 No uses Arbrain para enviar spam, extraer datos contra los términos de terceros, acceder sin autorización a sistemas o cuentas, ni vigilar a otras personas.
@@ -88,23 +91,23 @@ Estos términos se rigen por las leyes de México. [COMPLETAR: jurisdicción]. I
 export const LICENCIA: DocumentoLegal = {
   id: 'licencia',
   titulo: 'Licencia',
-  resumen: 'Puedes usarlo y modificarlo para tu negocio; la marca Arbrain no se revende.',
+  resumen: 'Código abierto bajo Apache-2.0: úsalo, modifícalo y compártelo. La marca Arbrain no va incluida.',
   cuerpo: `## Lo que recibes
-Una licencia de uso no exclusiva e intransferible de Arbrain para tu negocio. No es una venta del código.
+Arbrain es software de código abierto bajo la licencia Apache License 2.0 (el archivo LICENSE.txt que viaja con la app). Recibes el código y el derecho a usarlo, copiarlo, modificarlo y distribuirlo, también con fines comerciales, en los términos de esa licencia.
 
 ## Lo que puedes hacer
 - Usar Arbrain en tus computadoras para tu propio trabajo y el de tu negocio.
-- Modificarlo y adaptarlo a tu forma de trabajar.
+- Modificarlo, adaptarlo y redistribuirlo, con o sin cambios, conservando los avisos de copyright y de licencia y señalando lo que cambiaste.
 
-## Lo que no puedes hacer
-- Revenderlo, sublicenciarlo o distribuirlo como producto propio, con o sin la marca Arbrain.
-- Quitar los avisos de autoría o de marca.
+## Lo que la licencia no incluye
+- La marca Arbrain, el nombre Levy y los logotipos no se licencian: no presentes una copia modificada como si fuera Arbrain ni uses la marca para tu producto sin permiso.
+- El Acompañamiento Arbrain es un servicio aparte, con sus propios términos; la licencia del código no lo cubre.
 
 ## Marca
 Arbrain es una marca [COMPLETAR: titular y estado del registro ante el IMPI].
 
-## Terminación
-Si incumples esta licencia, termina tu derecho de uso. Lo que guardaste en tu computadora sigue siendo tuyo.`,
+## Sin garantía
+Como dice la Apache-2.0 (secciones 7 y 8), el software se entrega «tal cual», sin garantías, y los autores no responden por daños derivados de su uso. Lo que guardaste en tu computadora es tuyo.`,
 }
 
 export const DOCUMENTOS_LEGALES: readonly DocumentoLegal[] = [PRIVACIDAD, TERMINOS, LICENCIA]

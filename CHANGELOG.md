@@ -4,6 +4,44 @@ Cada versión dice qué trae y qué tienes que hacer tú. Para actualizar, abre 
 «jala los últimos cambios». Las versiones siguen `MAYOR.MENOR.PARCHE`: un cambio en MENOR trae funciones
 nuevas; uno en PARCHE, arreglos.
 
+## v0.2.15 · 29 oct 2026 · Modo Autónomo: Levy hace lo que le pides sin pedirte un clic en cada paso
+
+**Qué trae**
+- **Modo Autónomo.** En la bienvenida (y en Ajustes › Permisos y seguridad) eliges cuánto te pregunta Levy: **Autónomo**
+  (recomendado), **Automático en mi carpeta** o **Preguntar siempre**. En Autónomo, Levy hace lo que le pides sin
+  pedirte un clic en cada paso: abre páginas, usa tus apps, escribe y envía lo que le pediste en el chat. Lo aceptas
+  leyendo un texto y marcando dos casillas; queda registrado con fecha y versión, lo ves en Ajustes y lo retiras cuando
+  quieras. Volver a que te pregunte está a un clic: en Ajustes, en la píldora «Autónomo» o en «Pausar todo».
+- **La red mínima.** Ni en Autónomo Levy toca tu dinero (bancos, pagos, exchanges, impuestos), ni tus llaves y
+  contraseñas, ni sus propios permisos, ni borra en masa. Mandar lo mismo a más de tres personas, a un grupo o a una
+  lista te lo enseña antes; y si después de leer una página, un correo o tu pantalla quiere mandar algo a alguien que
+  tú no nombraste, también te pregunta.
+- **Tus datos para mandarte mensajes.** En Ajustes guardas tu número y tu correo: cuando le pides a Levy que te mande
+  algo a ti, ya no te pregunta.
+- **Las rutinas en Autónomo dejan borradores.** Lo que una rutina quiera enviar o publicar sin ti delante queda en
+  «Mientras no estabas», listo para salir con tu clic.
+- **Menos clics, en cualquier modo.** Levy toma tu pedido de lo que ya escribiste: ya no te pide que repitas tu
+  mensaje. Un sitio que nombraste («mándame un WhatsApp») ya no te pide el clic de «sitio nuevo». Usar tu pantalla o
+  una nota que Levy escribió antes ya no hace que todo lo demás te pregunte.
+- **Las preguntas no caducan.** Si no contestas a tiempo, la pregunta de Levy (también las de computer use) pasa a tu
+  cola en vez de vencer, y tu clic de después sirve para que la haga. Si Arbrain está tapada, te llega un aviso del
+  sistema. Escape cierra el diálogo sin rechazar, y el botón dice lo que hace («Abrir web.whatsapp.com»).
+- **Computer use en Autónomo queda como lo dejes** entre aperturas (en los otros modos sigue naciendo apagado).
+- **Windows sin Python.** Si falta Python, Ajustes › Permisos y seguridad te lo dice (los ganchos de memoria y diario
+  no corren; la guardia sí).
+- **Licencia.** El texto de «Licencia» del primer arranque ya dice lo que es: Apache-2.0, código abierto. Al actualizar,
+  la app te pide aceptar los textos otra vez.
+
+**Lo que todavía es borrador o falta probar**
+- **El texto que aceptas para el modo Autónomo es un borrador.** Cuando quede su versión final, la app te lo enseña otra
+  vez y te pide aceptarlo de nuevo; tu modo no cambia mientras tanto.
+- **Windows real.** El modo Autónomo se probó en Mac y en simulación de Windows. En una computadora con Windows falta
+  probar que Levy pulse Enter en WhatsApp Web; si no se envía solo, envíalo tú y avísanos en el grupo.
+
+**Qué tienes que hacer**
+- Actualiza con «actualiza mi Arbrain». Al abrirla, elige tu nivel una vez. Si tenías «Sin preguntar» o el freno
+  quitado, Arbrain te ofrece Autónomo con su texto; si no decides, quedas en «Automático en mi carpeta».
+
 ## v0.2.14 · 29 oct 2026 · Tu marca, tu primera skill y un lector que sigue la voz
 
 **Qué trae**

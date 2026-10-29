@@ -172,8 +172,11 @@ describe('confirmación humana (I8, contrato §6)', () => {
     expect(s.consumir('otra')).toBe(false)
     expect(s.consumir('h')).toBe(true)
     expect(s.consumir('h')).toBe(false)
+    // A3 (0.2.15): una de manos sin respuesta pasa a la cola (antes vencía); una semana después, vence.
     const b = s.pedir({ origen: 'manos', categoria: 'enviar', resumen: 'enviar', huella: 'h2' })
     ahora += 11 * 60_000
+    expect(s.get(b.id)?.estado).toBe('en_cola')
+    ahora += 8 * 24 * 60 * 60_000
     expect(s.get(b.id)?.estado).toBe('vencida')
     expect(s.pendientes()).toHaveLength(0)
   })

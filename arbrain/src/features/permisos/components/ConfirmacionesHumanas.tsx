@@ -12,8 +12,11 @@
  * «Rutina», «Manos»). El `resumen` es solo el título.
  *
  * Diseño «nativo»: modal centrado, una pendiente a la vez (la más vieja primero), el botón seguro con el foco
- * («Rechazar»), Escape rechaza, y «Permitir» exige un clic deliberado de ratón o trackpad: se habilita tras un instante
- * y ni el teclado ni un `click()` sintético aprueban.
+ * («Rechazar»), y «Permitir» exige un clic deliberado de ratón o trackpad: se habilita tras un instante y ni el teclado
+ * ni un `click()` sintético aprueban. 0.2.15 (A7): Escape cierra el diálogo sin decidir (la pendiente sigue en la cola;
+ * antes rechazaba desde cualquier lugar de la app). (A3): nada vence en 10 minutos; lo que no contestas queda en tu
+ * cola, también lo de computer use. (A8): el botón del sí dice la consecuencia que calculó el daemon («Abrir
+ * web.whatsapp.com», «Borrar 3 archivos»), no «Sí, enviarlo» para abrir una página.
  */
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -37,14 +40,16 @@ export function ConfirmacionesHumanas() {
   // un pedido sin hilo en pantalla). «Córrelo tú» solo vive en el hilo (necesita su terminal).
   const { pendientes, sandbox, hilosVivos } = usePendientes()
   const [montado, setMontado] = useState(false)
+  // A7: lo que la persona cerró con Escape no se vuelve a abrir solo; sigue en su cola (contador y panel).
+  const [cerradas, setCerradas] = useState<ReadonlySet<string>>(() => new Set())
   useEffect(() => setMontado(true), [])
-  const aqui = pendientes.filter(c => c.estado === 'pendiente' && c.tipo !== 'manos' && !(hilosVivos > 0 && vaEnElHilo(c)))
+  const aqui = pendientes.filter(c => c.estado === 'pendiente' && c.tipo !== 'manos' && !cerradas.has(c.id) && !(hilosVivos > 0 && vaEnElHilo(c)))
   const actual = aqui[0]
   // Cola de aprobaciones (ronda 2): lo que nadie contestó a tiempo vive en el contador y su panel, no en este diálogo.
   if (!montado) return null
   return <>
     <Suspense fallback={null}><ContadorCola /></Suspense>
-    {actual && createPortal(<DialogoConfirmacion key={actual.id} c={actual} sandbox={sandbox} restantes={aqui.length - 1} alResolver={() => olvidar(actual.id)} />, document.body)}
+    {actual && createPortal(<DialogoConfirmacion key={actual.id} c={actual} sandbox={sandbox} restantes={aqui.length - 1} alResolver={() => olvidar(actual.id)} alCerrar={() => setCerradas(s => new Set([...s, actual.id]))} />, document.body)}
   </>
 }
 
@@ -60,11 +65,10 @@ function useAvisoSinSandbox(aplica: boolean): 'primera' | 'resumida' | null {
   return modo
 }
 
-export function DialogoConfirmacion({ c, sandbox, restantes, alResolver }: { c: Confirmacion; sandbox: EstadoSandbox | null; restantes: number; alResolver: () => void }) {
+export function DialogoConfirmacion({ c, sandbox, restantes, alResolver, alCerrar }: { c: Confirmacion; sandbox: EstadoSandbox | null; restantes: number; alResolver: () => void; alCerrar?: () => void }) {
   const [armado, setArmado] = useState(false)
   const [ocupado, setOcupado] = useState<'permitir' | 'rechazar' | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [ahora, setAhora] = useState(() => Date.now())
   const rechazarRef = useRef<HTMLButtonElement>(null)
   const Icono = c.herramienta === 'Bash' ? Terminal : (ICONO[c.categoria] ?? ShieldAlert)
   const origen = etiquetaOrigen(c)
@@ -73,7 +77,6 @@ export function DialogoConfirmacion({ c, sandbox, restantes, alResolver }: { c: 
   const sinSandbox = useAvisoSinSandbox(!!sandbox && !sandbox.disponible && c.herramienta === 'Bash')
 
   useEffect(() => { const t = window.setTimeout(() => setArmado(true), ARMADO_MS); rechazarRef.current?.focus(); return () => window.clearTimeout(t) }, [])
-  useEffect(() => { const t = window.setInterval(() => setAhora(Date.now()), 1000); return () => window.clearInterval(t) }, [])
 
   const resolver = useCallback(async (decision: 'permitir' | 'rechazar') => {
     setOcupado(decision); setError(null)
@@ -84,14 +87,13 @@ export function DialogoConfirmacion({ c, sandbox, restantes, alResolver }: { c: 
     } catch (e) { setError(e instanceof Error ? e.message : 'No pude enviar tu decisión.'); setOcupado(null) }
   }, [c.id, alResolver])
 
+  // A7 (0.2.15): Escape cierra el diálogo; la pendiente no se rechaza (sigue en la cola). Antes, un Escape en cualquier
+  // lugar de la app era un «No» que el agente leía como rechazo.
   useEffect(() => {
-    const teclas = (e: KeyboardEvent) => { if (e.key === 'Escape' && !ocupado) { e.preventDefault(); e.stopPropagation(); void resolver('rechazar') } }
+    const teclas = (e: KeyboardEvent) => { if (e.key === 'Escape' && !ocupado) { e.preventDefault(); e.stopPropagation(); (alCerrar ?? alResolver)() } }
     window.addEventListener('keydown', teclas, true)
     return () => window.removeEventListener('keydown', teclas, true)
-  }, [resolver, ocupado])
-
-  const segundos = Math.max(0, Math.round((c.expira - ahora) / 1000))
-  const vence = segundos < 120 ? `${segundos} s` : `${Math.round(segundos / 60)} min`
+  }, [ocupado, alCerrar, alResolver])
 
   return (
     <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/55 p-4 backdrop-blur-[3px]" role="presentation">
@@ -139,7 +141,7 @@ export function DialogoConfirmacion({ c, sandbox, restantes, alResolver }: { c: 
         )}
 
         <p className="mt-3 text-[12px] text-muted">
-          {c.herramienta ? <>Herramienta: <span className="font-mono">{c.herramienta}</span> · </> : null}{c.origen === 'manos' ? `Si no decides, se rechaza sola en ${vence}.` : 'Si no decides ahora, queda en tu cola: nada pasa sin tu clic.'}{restantes > 0 ? ` Hay ${restantes} más esperando.` : ''}
+          {c.herramienta ? <>Herramienta: <span className="font-mono">{c.herramienta}</span> · </> : null}Si no decides ahora, queda en tu cola: nada pasa sin tu clic. Escape cierra sin decidir.{restantes > 0 ? ` Hay ${restantes} más esperando.` : ''}
         </p>
         {error && <p role="alert" className="mt-2 text-[12.5px] text-error">{error}</p>}
         <div className="mt-4 flex flex-wrap justify-end gap-2">
@@ -148,7 +150,7 @@ export function DialogoConfirmacion({ c, sandbox, restantes, alResolver }: { c: 
           </button>
           <button type="button" disabled={!armado || !!ocupado} onClick={(e) => { if (!esClicHumano({ detail: e.detail, isTrusted: e.nativeEvent.isTrusted })) return; void resolver('permitir') }} className="btn-primary min-h-11 !px-4"
             title="Solo con un clic: el teclado no aprueba acciones">
-            {ocupado === 'permitir' ? <Loader2 className="size-4 animate-spin" aria-hidden /> : 'Permitir esta acción'}
+            {ocupado === 'permitir' ? <Loader2 className="size-4 animate-spin" aria-hidden /> : (c.botonSi || 'Permitir esta acción')}
           </button>
         </div>
       </div>

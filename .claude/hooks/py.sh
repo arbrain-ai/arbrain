@@ -5,7 +5,9 @@
 # Microsoft Store (no corre nada) y un Python instalado después de abrir Claude Code no está en su PATH: sin esto, el
 # recuerdo de memoria y el freno de «enviar, borrar, pagar» no corrían. Aquí se busca el Python real (python3, python,
 # el lanzador `py` o el de winget para el usuario) y se fuerza UTF-8 para que los acentos no salgan rotos.
-# Solo corre los ganchos de esta lista, siempre de esta carpeta. Sin Python, se omite sin tronar (como session-start.sh).
+# Solo corre los ganchos de esta lista, siempre de esta carpeta. Sin Python, se omite sin tronar (como session-start.sh),
+# pero AVISA (0.2.15, A10): deja `.claude/hooks/tmp/sin-python.json` (Arbrain lo lee y lo muestra en Ajustes › Permisos
+# y seguridad) y lo dice por stderr. Antes salía con 0 en silencio y nadie sabía que memoria, diario y candado no corrían.
 raiz="${CLAUDE_PROJECT_DIR:-$(pwd)}"
 nombre="$1"
 [ $# -gt 0 ] && shift
@@ -36,4 +38,7 @@ if [ -n "${LOCALAPPDATA:-}" ] && command -v cygpath >/dev/null 2>&1; then
     if [ -x "$p" ] && sirve "$p"; then exec "$p" "$gancho" "$@"; fi
   done
 fi
+mkdir -p "$raiz/.claude/hooks/tmp" 2>/dev/null
+printf '{"t":%s000,"gancho":"%s"}\n' "$(date +%s)" "$nombre" > "$raiz/.claude/hooks/tmp/sin-python.json" 2>/dev/null
+echo "Arbrain: no encontré Python 3.8 o más nuevo, así que el gancho «$nombre» no corrió. Instala Python (python.org, marca «Add python.exe to PATH») y vuelve a abrir Arbrain." >&2
 exit 0

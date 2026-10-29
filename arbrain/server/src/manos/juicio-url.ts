@@ -24,9 +24,9 @@
 import { esEdicionCliente } from '../edicion.js'
 import { confirmacionHumana, categoriaDe } from './confirmacion-humana.js'
 import { URL_CON_EFECTO } from './navegador.js'
-import { verificarCita } from './politica.js'
+import { citaDelChat, modoManos, verificarCita, vozReciente, type ModoManos } from './politica.js'
 import { citaCubre } from './cubre.js'
-import { hostDe as host, parsearUrl as parsear, senalExfiltracion } from '../cliente/url.js'
+import { hostDe as host, hostNombradoEnVoz, parsearUrl as parsear, senalExfiltracion } from '../cliente/url.js'
 import { sitioSensible } from '../cabina/chrome-guard.js'
 
 /**
@@ -98,8 +98,13 @@ function hostLocal(h: string): boolean {
   return /(^|[.-])(127|10|0)[.-]\d{1,3}[.-]\d{1,3}[.-]\d{1,3}([.-]|$)|(^|[.-])192[.-]168[.-]\d{1,3}[.-]\d{1,3}([.-]|$)|(^|[.-])172[.-](1[6-9]|2\d|3[01])[.-]\d{1,3}[.-]\d{1,3}([.-]|$)|(^|[.-])169[.-]254[.-]/.test(h)
 }
 
+/** A5 (0.2.15): ¿la persona nombró este sitio en el chat? (`cliente/url.ts › hostNombradoEnVoz`, con la voz del daemon). */
+export function hostNombradoPorLaPersona(h: string, voz: readonly string[] = vozReciente()): boolean {
+  return hostNombradoEnVoz(h, voz)
+}
+
 /** Juicio de la edición cliente para una URL ya parseada (sin tocar nada). */
-function juzgarUrlCliente(url: string): JuicioUrl {
+function juzgarUrlCliente(url: string, modo: ModoManos = modoManos()): JuicioUrl {
   const u = parsear(url)
   if (!u) return { tipo: 'negar', categoria: 'url_invalida', motivo: `«${url.slice(0, 80)}» no es una URL` }
   if (!/^https?:$/.test(u.protocol)) return { tipo: 'negar', categoria: 'esquema', motivo: `el esquema ${u.protocol} no se abre (solo http y https)` }
@@ -110,6 +115,9 @@ function juzgarUrlCliente(url: string): JuicioUrl {
   const d = dominioProtegido(url)
   if (d) return { tipo: 'negar', categoria: 'dominio_protegido', motivo: `${d} es banca, pagos, impuestos o criptomonedas: Arbrain no navega ahí` }
   if (URL_CON_EFECTO.test(url)) return { tipo: 'cita_y_clic', categoria: 'url_con_efecto', motivo: `abrir ${url} hace algo (salir, borrar, pagar, publicar o enviar)` }
+  // Autónomo (0.2.15): las páginas nuevas no preguntan. En los demás modos, un sitio que la persona nombró en el chat
+  // cuenta como aprobado (A5); el resto pide su clic con la URL completa.
+  if (!aprobados.has(h) && (modo === 'autonomo' || hostNombradoPorLaPersona(h))) aprobados.add(h)
   if (!aprobados.has(h)) return { tipo: 'clic', categoria: 'dominio_nuevo', motivo: `abrir ${h}, un sitio que no aprobaste en esta sesión` }
   const s = senalExfiltracion(url)
   if (s) return { tipo: 'clic', categoria: 'posible_exfiltracion', motivo: `${s} hacia ${h}` }
@@ -127,8 +135,8 @@ export type JuicioUrl =
   | { tipo: 'clic'; categoria: string; motivo: string }
 
 /** Juicio puro de una navegación (sin tocar nada). */
-export function juzgarUrl(url: string, herramienta: HerramientaNavegar, cliente = esEdicionCliente()): JuicioUrl {
-  if (cliente) return juzgarUrlCliente(url)
+export function juzgarUrl(url: string, herramienta: HerramientaNavegar, cliente = esEdicionCliente(), modo?: ModoManos): JuicioUrl {
+  if (cliente) return juzgarUrlCliente(url, modo)
   if (herramienta !== 'navegar') return { tipo: 'pasa' } // instalación original: las web no cambian
   if (URL_CON_EFECTO.test(url)) return { tipo: 'cita_y_clic', categoria: 'url_con_efecto', motivo: `abrir ${url} hace algo (salir, borrar, pagar, publicar o enviar)` }
   return { tipo: 'pasa' }
@@ -145,9 +153,13 @@ export async function frenarNavegacion(url: string, herramienta: HerramientaNave
     return { ok: true }
   }
   if (j.tipo === 'negar') return { ok: false, categoria: j.categoria, texto: `FRENO (${j.categoria}): ${j.motivo}. No se abrió nada; no busques otra vía. Pídele a la persona que lo haga ella misma.` }
+  const autonomo = esEdicionCliente() && modoManos() === 'autonomo'
   if (j.tipo === 'cita_y_clic') {
-    const cita = typeof confirmacion === 'string' && confirmacion.trim().length >= 8 && verificarCita(confirmacion) && citaCubre('url_con_efecto', confirmacion)
-    if (!cita) return { ok: false, categoria: j.categoria, texto: `FRENO (url_con_efecto): ${j.motivo}. Pide el pedido explícito de la persona y repite con confirmacion = su cita textual.` }
+    // La cita del modelo (validada) o, en cliente, la que la persona ya escribió en el chat (A5).
+    const cita = (typeof confirmacion === 'string' && confirmacion.trim().length >= 8 && verificarCita(confirmacion) && citaCubre('url_con_efecto', confirmacion)) || (esEdicionCliente() && !!citaDelChat('url_con_efecto'))
+    // Autónomo: con el pedido de la persona corre solo; sin él, tarjeta (I8) en vez de rebotar al modelo.
+    if (cita && autonomo) { const u = parsear(url); if (u) { aprobados.add(host(u)); gastado.set(host(u), 0) } return { ok: true } }
+    if (!cita && !autonomo) return { ok: false, categoria: j.categoria, texto: `FRENO (url_con_efecto): ${j.motivo}. ${esEdicionCliente() ? 'Dile a la persona en una línea qué quieres abrir y espera su respuesta en el chat (sus palabras cuentan solas como cita).' : 'Pide el pedido explícito de la persona y repite con confirmacion = su cita textual.'}` }
   }
   const humana = await confirmacionHumana({
     categoria: categoriaDe(j.categoria, j.motivo), resumen: `${herramienta}: ${j.motivo}`.slice(0, 280),
