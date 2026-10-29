@@ -1,5 +1,5 @@
 /**
- * Quién es este cliente del bus del panel (8 oct 2026). Un pedido de Levy (`mostrar`, `pizarron`) va SOLO al cliente que tiene abierta la
+ * Quién es este cliente del bus del panel (8 oct 2026). Un pedido de Levy (`mostrar`) va SOLO al cliente que tiene abierta la
  * conversación que lo pidió, o al último donde Daniel escribió en ella; nunca a «cualquier cliente conectado». Para que el Studio lo
  * sepa, cada cliente reporta en su latido:
  *  - `dispositivo`: un id estable de esta app instalada o de este perfil de navegador (localStorage), para que la cola de pedidos

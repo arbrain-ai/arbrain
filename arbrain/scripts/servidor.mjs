@@ -517,6 +517,35 @@ function daemonInfo() {
  * 127.0.0.1:<al azar>. Dos credenciales: la web usa el token del daemon (lo recibe por stdin, nunca está en disco) y
  * el CLI el `tokenCli` de servidor.json (carpeta de configuración, 0600, negada a los agentes). Solo JSON.
  */
+/** Escribe y registra la unidad de arranque automático de ESTA copia y ESTA carpeta de datos (arranque-auto.mjs). */
+function activarArranque(simular = false) {
+  const comando = auto.comandoArranque({ node: process.execPath, script: fileURLToPath(import.meta.url), datos: DATOS })
+  const path = [dirname(process.execPath), ...(process.platform === 'darwin' ? ['/opt/homebrew/bin', '/usr/local/bin'] : []), '/usr/bin', '/bin', '/usr/sbin', '/sbin'].join(WIN ? ';' : ':')
+  privada(R.logs)
+  return auto.activar({ plataforma: process.platform, home: homedir(), env: process.env, comando, path, log: join(R.logs, 'servidor.log'), simular })
+}
+
+/**
+ * Teléfono encendido = Arbrain tiene que volver solo tras apagar o reiniciar la computadora (29 oct 2026, un alumno en
+ * Windows: el teléfono «se desconecta» en cada reinicio porque nada vuelve a encender el servidor). Si el arranque automático está
+ * apagado, se activa (unidad del usuario, sin administrador). Solo con la carpeta de datos de siempre: las pruebas y
+ * las instalaciones paralelas usan otra y nunca tocan el arranque de la máquina.
+ */
+function asegurarArranque() {
+  const base = { plataforma: process.platform, home: homedir(), env: process.env }
+  if (auto.estado(base).activo) return { activo: true, nuevo: false }
+  if (process.env.ARBRAIN_SERVIDOR_DATOS?.trim() || DATOS !== resolve(dirDatosPorDefecto(process.platform, process.env, homedir()))) return { activo: false, nuevo: false }
+  try {
+    const r = activarArranque()
+    for (const n of r.notas) registrar(`Arranque automático: ${n}`)
+    registrar(`Teléfono: activé el arranque automático (${r.ruta}) para que Arbrain vuelva solo tras un reinicio.`)
+    return { activo: true, nuevo: true }
+  } catch (e) {
+    registrar(`Teléfono: no pude activar el arranque automático: ${e?.message ?? e}`)
+    return { activo: false, nuevo: false }
+  }
+}
+
 function servidorControl() {
   const srv = http.createServer(async (req, res) => {
     const responder = (status, j) => { res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(j)) }
@@ -544,7 +573,7 @@ function servidorControl() {
       if (req.method === 'POST' && ruta === '/detener' && esCli) { responder(200, { ok: true }); setTimeout(() => apagarTodo(0), 50); return }
       if (req.method === 'GET' && ruta === '/estado') return responder(200, { pid: process.pid, puertoWeb: S.puertoWeb, daemon: daemonInfo(), web: { pid: S.web?.pid ?? null, pausado: S.pausado.web } })
       if (ruta.startsWith('/telefono/')) {
-        const r = await telefono.atenderControl({ metodo: req.method, ruta, cuerpo, esWeb, esCli }, { R, puertoWeb: () => S.puertoWeb, reiniciarWeb, registrar, codigos: S.codigos })
+        const r = await telefono.atenderControl({ metodo: req.method, ruta, cuerpo, esWeb, esCli }, { R, puertoWeb: () => S.puertoWeb, reiniciarWeb, registrar, codigos: S.codigos, asegurarArranque })
         if (r) return responder(r[0], r[1])
       }
       if (!esWeb) return responder(403, { error: 'Solo la web.' })
@@ -777,16 +806,13 @@ async function main() {
   if (orden === 'telefono') {
     privada(R.config)
     const guardado = () => { const n = Number.parseInt((() => { try { return readFileSync(join(R.config, 'puerto-web'), 'utf8') } catch { return '' } })().trim(), 10); return puertoValido(n) ? n : null }
-    return telefono.orden({ R, sub: posicionales[1], vivo, pedir, puertoGuardado: guardado })
+    return telefono.orden({ R, sub: posicionales[1], vivo, pedir, puertoGuardado: guardado, asegurarArranque })
   }
   if (orden === 'arranque-automatico') {
     const sub = posicionales[1] ?? 'estado'
     const base = { plataforma: process.platform, home: homedir(), env: process.env }
     if (sub === 'activar' || sub === 'simular') {
-      const comando = auto.comandoArranque({ node: process.execPath, script: fileURLToPath(import.meta.url), datos: DATOS })
-      const path = [dirname(process.execPath), ...(process.platform === 'darwin' ? ['/opt/homebrew/bin', '/usr/local/bin'] : []), '/usr/bin', '/bin', '/usr/sbin', '/sbin'].join(WIN ? ';' : ':')
-      privada(R.logs)
-      const r = auto.activar({ ...base, comando, path, log: join(R.logs, 'servidor.log'), simular: sub === 'simular' })
+      const r = activarArranque(sub === 'simular')
       if (sub === 'simular') { console.log(`# ${r.ruta}\n${r.texto}`); return }
       console.log(`[arbrain] Arranque automático activado: ${r.ruta}`)
       for (const n of r.notas) console.log(`[arbrain] ${n}`)

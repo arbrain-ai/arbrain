@@ -24,7 +24,7 @@
  * Las cinco columnas del spec siguen en el modelo (y «murió» se sigue detectando); solo cambia cómo se nombran. El
  * detalle técnico (código de salida, modelo, latido) vive tras «Ver detalles».
  */
-import { esAgente, esProceso, preguntaAlgo, esperaALevy, ultimaRespuesta, type Columna, type EstadoTablero, type Juicio, type TareaInterna, type Terminal, type Trabajos, type Veredicto } from './trabajos-modelo'
+import { esAgente, esProceso, preguntaAlgo, esperaALevy, ultimaRespuesta, type CambiosRama, type Coherencia, type Columna, type EstadoTablero, type Juicio, type TareaInterna, type Terminal, type Trabajos, type Veredicto } from './trabajos-modelo'
 import { agenteTerminado, resumenInterna, resumenTerminal, unaLinea } from './terminados'
 import { actividadLegible, tituloLegible } from './internas-lectura'
 
@@ -113,7 +113,18 @@ export interface FilaTablero {
   conLevy: boolean
   /** Corta un paso en curso: solo si su proceso trabaja. */
   puedeDetener: boolean
+  /** Lo pedido contra lo que su CLI reportó que corre (solo encargos sin pantalla). */
+  coherencia: Coherencia | null
+  /** Lo que cambió en su rama desde main, si trabaja en un worktree. */
+  cambios: CambiosRama | null
+  /** Perfil de permisos (29 oct 2026); null en lo que no es encargo. */
+  perfil?: 'total' | 'codigo' | 'lectura' | null
+  /** El encargo salió de un plan versionado: su ruta y el commit aprobado. */
+  plan?: { ruta: string; commit: string | null } | null
 }
+
+/** El perfil en palabras para el detalle del renglón. */
+export const PERFIL_EN_PALABRAS = { total: 'Total: sin preguntas, con la lista negra encima', codigo: 'Código: escribe solo en su carpeta', lectura: 'Lectura: no escribe fuera de /tmp ni publica' } as const
 
 const MAYUS = (x: string) => x.charAt(0).toUpperCase() + x.slice(1)
 /** Respaldo para el servidor viejo: su `ultimaAccion` viene en pasado («corrió un comando», «editó src/a.ts»). */
@@ -177,12 +188,15 @@ export function filaDe(t: Terminal): FilaTablero {
   const desde = t.tablero?.desde ?? (Date.parse(s.creado) || Date.now())
   return {
     id: t.id, tipo: 'encargo', nombre: s.nombre, columna, motivo: t.tablero?.motivo ?? (columna === 'trabajando' ? 'Trabajando' : columna === 'te-espera' ? 'Te pregunta algo' : columna === 'falló' ? t.conversacion?.error ?? 'Falló' : 'Terminó su turno'),
-    harness: s.harness, modelo: s.modelo ?? t.conversacion?.modelo ?? null, creado: s.creado, origen: s.origen ?? null, cwd: t.cwd,
+    // el modelo que corre (lo reportó el CLI) manda sobre el pedido; si no lo reportó, el pedido
+    harness: s.harness, modelo: t.conversacion?.coherencia?.modelo.efectivo ?? s.modelo ?? t.conversacion?.modelo ?? null, creado: s.creado, origen: s.origen ?? null, cwd: t.cwd,
     paso: pasoDe(t, columna, conLevy),
     linea: unaLinea(ultimaRespuesta(t)?.texto) ?? unaLinea(t.ultimas.at(-1)) ?? null,
     latido: t.tablero?.latido ?? null, desde, fin: t.tablero?.latido.ultimaEscritura ?? desde, juicio: s.juicio ?? null,
     entregables: columna === 'listo' ? entregablesDe(textoFinal) : [], conLevy,
     puedeDetener: t.origen === 'sin-pantalla' && (t.estado === 'trabajando' || !!t.tablero?.latido.procesoVivo) && columna !== 'listo' && columna !== 'falló',
+    coherencia: t.conversacion?.coherencia ?? null, cambios: t.cambios ?? null,
+    perfil: s.perfil ?? 'total', plan: s.plan ?? null,
   }
 }
 
@@ -195,7 +209,7 @@ export function filaDeSesion(t: Terminal): FilaTablero {
     harness: t.proc, modelo: t.conversacion?.modelo ?? null, creado: new Date(desde).toISOString(), origen: null, cwd: t.cwd,
     paso: columna === 'trabajando' ? pasoDesdeAccion(t.ultimaAccion) ?? 'Trabajando' : columna === 'te-espera' ? unaLinea(ultimaRespuesta(t)?.texto) ?? 'Te hizo una pregunta' : resumenTerminal(t),
     linea: unaLinea(ultimaRespuesta(t)?.texto) ?? null, latido: t.tablero?.latido ?? null, desde, fin: t.tablero?.latido.ultimaEscritura ?? desde,
-    juicio: null, entregables: [], conLevy: false, puedeDetener: false,
+    juicio: null, entregables: [], conLevy: false, puedeDetener: false, coherencia: null, cambios: t.cambios ?? null,
   }
 }
 
@@ -214,7 +228,7 @@ export function filaDeInterna(x: TareaInterna): FilaTablero {
     harness: 'claude', modelo: x.modelo ?? null, creado: new Date(desde).toISOString(), origen: x.conversacion || null, cwd: '',
     paso: columna === 'trabajando' ? (act ? MAYUS(act) : 'Trabajando') : cerro,
     linea: null, latido: null, desde, fin: Date.parse(x.fin ?? x.actualizado) || desde,
-    juicio: null, entregables: [], conLevy: false, puedeDetener: false,
+    juicio: null, entregables: [], conLevy: false, puedeDetener: false, coherencia: null, cambios: null,
   }
 }
 
@@ -231,7 +245,7 @@ export interface Tablero extends Record<Columna, FilaTablero[]> {
 const abierta = (c: Columna) => c === 'te-espera' || c === 'trabajando'
 /**
  * Abierta Y con vida: su proceso sigue (latido del servidor) o es de pantalla sin latido medido. Lo abierto sin proceso
- * y sin señal en 24 h no es «te espera»: es historia (28 oct 2026, Daniel: «Pizarrón… con 21 d» en Te espera; el
+ * y sin señal en 24 h no es «te espera»: es historia (28 oct 2026, Daniel vio un encargo con 21 d en Te espera; el
  * servidor lo dejaba en `te-espera` 21 días después de que su proceso terminó). Va a «Anteriores», en «Más actividad».
  */
 const sigueViva = (f: FilaTablero) => abierta(f.columna) && (f.latido == null || f.latido.procesoVivo)
@@ -348,6 +362,45 @@ export function tiempoDe(f: Pick<FilaTablero, 'columna' | 'desde' | 'fin'>, ahor
   return { texto: t, titulo: `Hace ${t}` }
 }
 
+// ── Modelo, esfuerzo y cambios del agente (29 oct 2026, benchmark de orquestación: brechas 1, 4 y 5) ──
+
+/** El esfuerzo en palabras del detalle: lo medido se dice como medido; lo pedido sin medir, como pedido. Nunca al revés. */
+export function esfuerzoEnPalabras(c: Coherencia | null): string | null {
+  const e = c?.esfuerzo
+  if (!e) return null
+  if (e.estado === 'coincide') return `esfuerzo ${e.efectivo}`
+  if (e.estado === 'distinto') return `esfuerzo ${e.efectivo} (pediste ${e.pedido})`
+  if (e.estado === 'sin-medir') return `esfuerzo ${e.pedido} (pedido, sin medir)`
+  return e.efectivo ? `esfuerzo ${e.efectivo} (el de su configuración)` : null
+}
+
+const NIVELES = ['low', 'medium', 'high', 'xhigh', 'max'] as const
+/** «Reintentar con más esfuerzo»: un nivel arriba de lo que corrió (o se pidió). null si el CLI no recibe esfuerzo o ya está en su techo. */
+export function esfuerzoReintento(f: Pick<FilaTablero, 'harness' | 'coherencia'>): string | null {
+  if (f.harness !== 'claude' && f.harness !== 'codex') return null
+  const actual = f.coherencia?.esfuerzo.efectivo ?? f.coherencia?.esfuerzo.pedido ?? null
+  // codex no tiene max: su techo es xhigh
+  const techo = f.harness === 'codex' ? 'xhigh' : 'max'
+  const i = actual ? (NIVELES as readonly string[]).indexOf(actual) : 1
+  if (i < 0 || i >= NIVELES.indexOf(techo)) return null
+  return NIVELES[i + 1]
+}
+
+/** «+120 −8 en 4 archivos»; sin cambios aún, lo dice. */
+export function cambiosEnPalabras(c: CambiosRama): string {
+  if (!c.archivos) return 'Sin cambios todavía'
+  return `+${c.mas.toLocaleString('es-MX')} −${c.menos.toLocaleString('es-MX')} en ${c.archivos} ${c.archivos === 1 ? 'archivo' : 'archivos'}`
+}
+
+/** Conversaciones del demo (29 oct): tres conversaciones y algo sin conversación, para ver los grupos. Títulos en
+ *  `DEMO_TITULOS`; el demo nunca le pide un título a la API. */
+const DEMO_ORIGEN: Record<number, string | undefined> = {
+  900063: 'demo-cohorte', 900041: 'demo-cohorte', 900055: 'demo-cohorte', 900074: 'demo-cohorte',
+  900052: 'demo-taller', 900054: 'demo-taller', 900085: 'demo-taller', 900107: 'demo-taller',
+  900096: 'demo-masterclass', 900097: 'demo-masterclass', 900129: 'demo-masterclass',
+}
+export const DEMO_TITULOS: Record<string, string> = { 'demo-cohorte': 'Plan de la semana 1 de la cohorte', 'demo-taller': 'Rediseño del Taller', 'demo-masterclass': 'Página de la masterclass' }
+
 /** Datos de ejemplo SOLO para el modo de demostración explícito (`?demo-tablero=1`, capturas). Nunca se mezclan con datos reales. */
 export function demoTablero(ahora = Date.now()): Trabajos {
   const hace = (min: number) => new Date(ahora - min * 60_000).toISOString()
@@ -355,15 +408,27 @@ export function demoTablero(ahora = Date.now()): Trabajos {
   const t = (id: number, nombre: string, estado: Terminal['estado'], tablero: EstadoTablero, extra: Partial<NonNullable<Terminal['subagente']>> = {}, dijo = '', creadoMin = id % 100): Terminal => ({
     id, titulo: nombre, cwd: `~/Developer/wt-${id}`, proc: 'claude', estado, actividad: null, ultimaAccion: null, ultimas: [], origen: 'sin-pantalla', soloLectura: true, tablero,
     conversacion: { harness: 'claude', modelo: 'claude-opus-5-5', ctxPct: null, turno: estado === 'trabajando' ? 'trabajando' : 'terminado', pregunta: false, tokens: null, titulo: null, mensajes: dijo ? [{ rol: 'assistant', texto: dijo, herramientas: [] }] : [] },
-    subagente: { id, nombre, harness: 'claude', encargo: 'Ejemplo', cwd: `~/Developer/wt-${id}`, creado: hace(creadoMin), modelo: 'claude-opus-5-5', origen: 'demo', ...extra },
+    subagente: { id, nombre, harness: 'claude', encargo: 'Ejemplo', cwd: `~/Developer/wt-${id}`, creado: hace(creadoMin), modelo: 'claude-opus-5-5', origen: DEMO_ORIGEN[id], ...extra },
   })
   const interna = (id: string, descripcion: string, estado: TareaInterna['estado'], minDesde: number, minFin: number | null, extra: Partial<TareaInterna> = {}): TareaInterna => ({
-    id, tipo: 'subagente', descripcion, estado, desde: hace(minDesde), actualizado: hace(minFin ?? 0), ...(minFin != null ? { fin: hace(minFin) } : {}), conversacion: 'demo', turno: 'demo', ...extra,
+    id, tipo: 'subagente', descripcion, estado, desde: hace(minDesde), actualizado: hace(minFin ?? 0), ...(minFin != null ? { fin: hace(minFin) } : {}), conversacion: 'demo-cohorte', turno: 'demo', ...extra,
   })
   const trabajando = (id: number, nombre: string, paso: string, minEscritura: number, minDesde: number) =>
     t(id, nombre, 'trabajando', { columna: 'trabajando', motivo: 'Trabajando', latido: lat(minEscritura, true), paso, desde: ahora - minDesde * 60_000 }, {}, '', minDesde)
+  const coh = (pedido: string | null, efectivo: string | null, modelo = 'claude-opus-5-5'): Coherencia => ({
+    modelo: { pedido: modelo, efectivo: modelo, estado: 'coincide' },
+    esfuerzo: { pedido, efectivo, estado: !pedido ? 'default' : !efectivo ? 'sin-medir' : pedido === efectivo ? 'coincide' : 'distinto' },
+    desajuste: pedido && efectivo && pedido !== efectivo ? `pediste ${pedido} · corre ${efectivo}` : null,
+  })
+  // Un renglón en ámbar (pidió max, su CLI corre medium) y uno con sus cambios: lo que enseñan las capturas del 29 oct.
+  const con = (x: Terminal, extra: Partial<Terminal>, conv: Partial<NonNullable<Terminal['conversacion']>> = {}): Terminal => ({ ...x, ...extra, conversacion: { ...x.conversacion!, ...conv } })
   return {
     fuente: 'motor', sfterm: false, servidores: [], servicios: [], leidoEn: new Date(ahora).toISOString(),
+    // Planes por correr (29 oct 2026): la captura los abre en el documento; el archivo de ejemplo vive en /tmp.
+    planes: [
+      { ruta: 'docs/planes/2026-10-29-auditar-los-cobros-de-la-cohorte.md', abs: '/tmp/warp-ideas-demo/docs/planes/2026-10-29-auditar-los-cobros-de-la-cohorte.md', nombre: 'auditar los cobros de la cohorte', harness: 'claude', perfil: 'lectura', propuesto: hace(12), resumen: 'Cruza Polar con arbrain-ht-db y dime quién pagó, quién debe y quién tiene acceso sin pago.' },
+      { ruta: 'docs/planes/2026-10-29-pagina-de-la-siguiente-cohorte.md', abs: '/tmp/warp-ideas-demo/docs/planes/2026-10-29-pagina-de-la-siguiente-cohorte.md', nombre: 'página de la siguiente cohorte', harness: 'codex', perfil: 'codigo', propuesto: hace(48), resumen: 'Arma la página de espera de la siguiente cohorte con el copy del dueño, sin publicarla.' },
+    ],
     internas: [
       interna('demo-i1', 'revisar los avisos del Studio', 'trabajando', 3, null, { ultimaHerramienta: 'Read' }),
       interna('demo-p1', 'probar el servidor', 'trabajando', 2, null, { tipo: 'comando' }),
@@ -376,15 +441,16 @@ export function demoTablero(ahora = Date.now()): Trabajos {
     terminales: [
       t(900063, 'borrador del correo de bienvenida', 'esperando', { columna: 'te-espera', motivo: 'Terminó con una pregunta', latido: lat(6, false) }, { escalado: hace(2) }, '¿Lo firmo con tu nombre o como el equipo de Arbrain?', 14),
       trabajando(900041, 'revisar el calendario de la cohorte', 'Leyendo plan-semana-1.md', 0.4, 9),
-      trabajando(900052, 'migrar las memorias viejas', 'Editando MEMORY-indice.md', 1, 23),
+      ((x: Terminal) => con(x, { proc: 'codex', subagente: { ...x.subagente!, harness: 'codex', modelo: 'gpt-5.6-terra', esfuerzo: 'max', rama: 'migrar-las-memorias-viejas' }, cambios: { rama: 'migrar-las-memorias-viejas', mas: 214, menos: 37, archivos: 6 } },
+        { harness: 'codex', modelo: 'gpt-5.6-terra', esfuerzo: 'medium', coherencia: coh('max', 'medium', 'gpt-5.6-terra') }))(trabajando(900052, 'migrar las memorias viejas', 'Editando MEMORY-indice.md', 1, 23)),
       trabajando(900053, 'probar el servidor', 'Corriendo las pruebas', 0.2, 4),
       trabajando(900054, 'capturas del tablero', 'Tomando capturas', 1.2, 17),
-      trabajando(900055, 'ficha de cada fundador', 'Buscando en el código', 9, 41),
-      t(900107, 'armar la app de escritorio', 'esperando', { columna: 'falló', motivo: 'npm test salió con código 1', latido: lat(18, false) }, {}, '3 pruebas fallan en tests/escritorio.', 30),
+      ((x: Terminal) => con(x, { subagente: { ...x.subagente!, perfil: 'lectura' } }))(trabajando(900055, 'ficha de cada fundador', 'Buscando en el código', 9, 41)),
+      con(t(900107, 'armar la app de escritorio', 'esperando', { columna: 'falló', motivo: 'npm test salió con código 1', latido: lat(18, false) }, { esfuerzo: 'medium', rama: 'armar-la-app-de-escritorio' }, '3 pruebas fallan en tests/escritorio.', 30), { cambios: { rama: 'armar-la-app-de-escritorio', mas: 88, menos: 12, archivos: 3 } }, { coherencia: coh('medium', null) }),
       t(900118, 'casa 3D', 'esperando', { columna: 'murió', motivo: 'Se detuvo sin terminar su turno (se cerró o se cayó)', latido: lat(95, false) }, {}, '', 120),
-      t(900074, 'dejar las pruebas del servidor pasando', 'esperando', { columna: 'listo', motivo: 'Terminó su turno', latido: lat(12, false) }, { juicio: { veredicto: 'cumple', razon: 'Muestra npm test con 0 fallos y el commit.', en: hace(11), modelo: 'claude-sonnet-5-5' } }, 'Listo: 1,214 pruebas pasan. Quedó en el commit 3f2a1c9.', 40),
+      t(900074, 'dejar las pruebas del servidor pasando', 'esperando', { columna: 'listo', motivo: 'Terminó su turno', latido: lat(12, false) }, { perfil: 'codigo', plan: { ruta: 'docs/planes/2026-10-29-dejar-las-pruebas-del-servidor-pasando.md', commit: '3f2a1c9e' }, juicio: { veredicto: 'cumple', razon: 'Muestra npm test con 0 fallos y el commit.', en: hace(11), modelo: 'claude-sonnet-5-5' } }, 'Listo: 1,214 pruebas pasan. Quedó en el commit 3f2a1c9.', 40),
       t(900085, 'capturas del panel', 'esperando', { columna: 'listo', motivo: 'Terminó su turno', latido: lat(25, false) }, { juicio: { veredicto: 'no-cumple', razon: 'Faltan las capturas a 520 px que pide la definición de terminado.', en: hace(24), modelo: 'claude-sonnet-5-5' } }, 'Tomé las capturas a 1280 en claro y oscuro: docs/builds/capturas/taller-claro-1280.png', 55),
-      t(900096, 'investigar precios de la competencia', 'esperando', { columna: 'listo', motivo: 'Terminó su turno', latido: lat(40, false) }, { juicio: { veredicto: 'sin-dod', razon: 'El encargo no dice cuándo está terminado.', en: hace(39) } }, 'Encontré tres referentes; el resumen está en docs/competencia/precios.md', 70),
+      t(900096, 'investigar precios de la competencia', 'esperando', { columna: 'listo', motivo: 'Terminó su turno', latido: lat(40, false) }, { juicio: { veredicto: 'sin-dod', razon: 'El encargo no dice cuándo está terminado.', en: hace(39) } }, 'Encontré tres referentes; el resumen está en /tmp/warp-ideas-demo/docs/entregas/precios-competencia.md', 70),
       // Falló hace tres días: no se queda en «Ahora»; va a «Anteriores».
       t(900129, 'importar el CSV de Polar', 'esperando', { columna: 'falló', motivo: 'la llave de la API venció', latido: lat(4320, false) }, {}, '', 4330),
       t(900097, 'página de la masterclass', 'esperando', { columna: 'listo', motivo: 'Terminó su turno', latido: lat(3, false) }, {}, 'Dejé la vista previa en https://vista-previa.example/masterclass', 20),

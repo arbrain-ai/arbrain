@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
     // queda en la bitácora y nunca llega al teléfono ni a la campana. Todo lo demás
     // deja fila en `avisos` (la campana) antes del push. Ver features/avisos/policy.ts.
     const decision = decidir({ kind, source: source ?? tag, quiet })
-    const aviso = { title: title ?? 'Arbrain', body: msgBody ?? '', url: url ?? '/' }
+    const aviso = { title: title ?? 'Arbrain', body: msgBody ?? '', url: url ?? '/', clave: typeof tag === 'string' ? tag : null }
     if (decision.entrega === 'bitacora') {
       const recorded = await registrar(supabase, decision, aviso, [])
       return NextResponse.json({ sent: 0, entrega: 'bitacora', recorded })

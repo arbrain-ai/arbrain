@@ -3,20 +3,25 @@ import { useState, useEffect, useCallback, useLayoutEffect, useRef } from 'react
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Bell, BellOff, Bot, CalendarDays, Wallet, User, TriangleAlert, Sparkles, X, Check } from 'lucide-react'
+import { Bell, BellOff, X, ChevronDown, ArrowUpRight, Check } from 'lucide-react'
 import { formatDistanceToNowStrict } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useIsMobile } from '@/shared/hooks/useMediaQuery'
 import { usePushSubscription } from '../hooks/usePushSubscription'
-import type { AvisoKind } from '@/features/avisos/policy'
+import type { AccionAviso, AvisoVista } from '@/features/avisos/bandeja'
 import { zoomUI } from '@/shared/lib/zoom-ui'
+import c from './campana.module.css'
 
-// La campana (25 sep 2026). Lee `avisos` por /api/avisos: solo lo que le importa
-// al dueño (un agente terminó o necesita permiso, agenda, dinero, una persona, el
-// servidor se detuvo). La telemetría va a la bitácora y nunca aparece aquí. La
-// tabla `notifications` (herencia OpenClaw) nunca tuvo emisor y ya no se lee.
+// La campana (25 sep 2026; decisiones, no reportes, 29 oct). Lee /api/avisos ya agrupado (features/avisos/bandeja.ts):
+// «Urgente» solo si es riesgo real (y entonces encima de todo: rara vez hay y no se entierra bajo decisiones), «Te toca
+// decidir» con su conteo (el número de la campana) y «Para saber» plegado. Cada aviso dice quién/qué en una línea, la decisión en una frase y trae sus botones. «Publicar» y
+// «Descartar» son el toque de /decidir (POST /api/avisos/accion): nada se publica sin ese toque. Lo que se resolvió
+// solo (decisión tomada, grabación encontrada, alerta repetida) ya no llega. La telemetría vive en la bitácora.
 
-interface Aviso { id: string; created_at: string; kind: AvisoKind; title: string; body: string | null; url: string | null; read_at: string | null }
+interface Bandeja { decidir: AvisoVista[]; urgente: AvisoVista[]; saber: AvisoVista[]; pendientes: number }
+const VACIA: Bandeja = { decidir: [], urgente: [], saber: [], pendientes: 0 }
+/** Decisiones a la vista antes de «Ver más»: lo urgente no queda enterrado bajo una fila larga. */
+const A_LA_VISTA = 3
 
 interface NotificationBellProps {
   compact?: boolean
@@ -28,24 +33,22 @@ interface NotificationBellProps {
 const PANEL_W = 360 // layout px
 const GAP = 8 // visual px entre botón y panel
 
-const KIND: Record<AvisoKind, { icon: typeof Bell; label: string; tone: string }> = {
-  agente: { icon: Bot, label: 'Agente', tone: 'text-primary bg-primary/12' },
-  agenda: { icon: CalendarDays, label: 'Agenda', tone: 'text-gold bg-gold/12' },
-  dinero: { icon: Wallet, label: 'Dinero', tone: 'text-success bg-success/12' },
-  persona: { icon: User, label: 'Persona', tone: 'text-sky-400 bg-sky-400/12' },
-  alerta: { icon: TriangleAlert, label: 'Servidor', tone: 'text-error bg-error/12' },
-  otro: { icon: Sparkles, label: 'Aviso', tone: 'text-muted bg-card-hover' },
-}
-
 function ago(iso: string) {
   const text = formatDistanceToNowStrict(new Date(iso), { locale: es })
   return `hace ${text.replace(' segundos', ' s').replace(' minutos', ' min').replace(' minuto', ' min').replace(' horas', ' h').replace(' hora', ' h')}`
 }
 
 export function NotificationBell({ compact = true, placement = 'bottom', ghost = false }: NotificationBellProps) {
-  const [avisos, setAvisos] = useState<Aviso[]>([])
-  const [unread, setUnread] = useState(0)
+  const [bandeja, setBandeja] = useState<Bandeja>(VACIA)
   const [failed, setFailed] = useState(false)
+  const [cargado, setCargado] = useState(false)
+  // Por aviso: el botón en curso, lo que salió mal y lo que ya se tocó (sale de la lista con un respiro).
+  const [enCurso, setEnCurso] = useState<Record<string, AccionAviso['tipo']>>({})
+  const [errores, setErrores] = useState<Record<string, string>>({})
+  const [hechos, setHechos] = useState<Record<string, string>>({})
+  const [abiertos, setAbiertos] = useState<Set<string>>(new Set())
+  const [verSaber, setVerSaber] = useState(false)
+  const [verTodas, setVerTodas] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
   const isMobile = useIsMobile()
   const router = useRouter()
@@ -59,11 +62,11 @@ export function NotificationBell({ compact = true, placement = 'bottom', ghost =
     try {
       const res = await fetch('/api/avisos', { cache: 'no-store' })
       if (!res.ok) throw new Error(String(res.status))
-      const data = await res.json() as { avisos: Aviso[]; unread: number }
-      setAvisos(data.avisos)
-      setUnread(data.unread)
+      const data = await res.json() as Bandeja
+      setBandeja({ decidir: data.decidir ?? [], urgente: data.urgente ?? [], saber: data.saber ?? [], pendientes: data.pendientes ?? 0 })
       setFailed(false)
     } catch { setFailed(true) }
+    finally { setCargado(true) }
   }, [])
 
   // Sin canal realtime: se lee al abrir la app, al volver a ella, al abrir el panel
@@ -89,7 +92,8 @@ export function NotificationBell({ compact = true, placement = 'bottom', ghost =
   useEffect(() => { if (isOpen) void fetchAvisos() }, [isOpen, fetchAvisos])
   // La campana vive en la barra lateral: el botón del menú del teléfono muestra un punto
   // con lo que se lee aquí (una sola lectura, nunca dos canales).
-  useEffect(() => { window.dispatchEvent(new CustomEvent('avisos:sin-leer', { detail: unread })) }, [unread])
+  const pendientes = Math.max(0, bandeja.decidir.filter(a => !hechos[a.id]).length)
+  useEffect(() => { window.dispatchEvent(new CustomEvent('avisos:sin-leer', { detail: pendientes })) }, [pendientes])
 
   // Posiciona el panel anclado al botón (solo escritorio; en el teléfono es una hoja
   // inferior). Gotcha (mismo que el DragOverlay del board): el UI tiene CSS `zoom` en
@@ -147,17 +151,49 @@ export function NotificationBell({ compact = true, placement = 'bottom', ghost =
     }
   }, [isOpen])
 
-  const markRead = async (ids?: string[]) => {
-    const now = new Date().toISOString()
-    setAvisos((prev) => prev.map((a) => (!ids || ids.includes(a.id)) && !a.read_at ? { ...a, read_at: now } : a))
-    setUnread((n) => ids ? Math.max(0, n - avisos.filter((a) => ids.includes(a.id) && !a.read_at).length) : 0)
-    await fetch('/api/avisos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ids ? { ids } : {}) }).catch(() => undefined)
+  // Lo informativo cuenta como visto al abrir la campana (now.md y la píldora del chat leen `read_at`); lo que pide
+  // decisión o es urgente sigue hasta su botón o hasta que su causa se resuelva.
+  useEffect(() => {
+    if (!isOpen) return
+    const ids = bandeja.saber.filter(a => !a.read_at).map(a => a.id)
+    if (!ids.length) return
+    void fetch('/api/avisos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids }) }).catch(() => undefined)
+  }, [isOpen, bandeja.saber])
+
+  const quitar = (id: string) => setTimeout(() => {
+    setBandeja(b => ({ ...b, decidir: b.decidir.filter(a => a.id !== id), urgente: b.urgente.filter(a => a.id !== id) }))
+    setHechos(h => { const n = { ...h }; delete n[id]; return n })
+  }, 1100)
+
+  const tocar = async (a: AvisoVista, accion: 'publicar' | 'descartar' | 'duda' | 'visto') => {
+    if (enCurso[a.id]) return
+    setEnCurso(e => ({ ...e, [a.id]: accion }))
+    setErrores(e => { const n = { ...e }; delete n[a.id]; return n })
+    try {
+      const res = await fetch('/api/avisos/accion', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: a.id, accion }) })
+      const data = await res.json().catch(() => ({})) as { ok?: boolean; motivo?: string; mensaje?: string; error?: string }
+      if (data.ok) {
+        // El recap se publica al momento; la respuesta de la comunidad sale en la siguiente vuelta de ht-pipeline.
+        const publicado = a.source === 'ht-grupales' ? 'Publicado. La cohorte ya lo ve.' : 'Publicado. Sale en la siguiente vuelta.'
+        setHechos(h => ({ ...h, [a.id]: accion === 'publicar' ? publicado : accion === 'descartar' ? 'Descartado. No se publica.' : accion === 'duda' ? 'Tu duda sube a revisión. No se publica.' : 'Listo' }))
+        quitar(a.id)
+      } else if (data.motivo === 'ya-respondida') {
+        setHechos(h => ({ ...h, [a.id]: 'Ya estaba respondida' }))
+        quitar(a.id)
+      } else {
+        setErrores(e => ({ ...e, [a.id]: data.mensaje ?? data.error ?? 'No se pudo. Intenta de nuevo.' }))
+      }
+    } catch {
+      setErrores(e => ({ ...e, [a.id]: 'Sin conexión. No se publicó nada.' }))
+    } finally {
+      setEnCurso(e => { const n = { ...e }; delete n[a.id]; return n })
+    }
   }
 
-  const openAviso = (a: Aviso) => {
-    if (!a.read_at) void markRead([a.id])
+  const irA = (url: string) => {
     setIsOpen(false)
-    if (a.url && a.url.startsWith('/')) router.push(a.url)
+    if (url.startsWith('/')) router.push(url)
+    else window.open(url, '_blank', 'noopener,noreferrer')
   }
 
   const handlePushToggle = () => {
@@ -165,46 +201,118 @@ export function NotificationBell({ compact = true, placement = 'bottom', ghost =
     else if (pushStatus === 'unsubscribed') subscribe()
   }
 
-  const nuevos = avisos.filter((a) => !a.read_at)
-  const antes = avisos.filter((a) => a.read_at)
-
-  const row = (a: Aviso) => {
-    const k = KIND[a.kind] ?? KIND.otro
-    const Icon = k.icon
+  const boton = (a: AvisoVista, x: AccionAviso, principal: boolean) => {
+    const ocupado = enCurso[a.id] === x.tipo
+    const base = `inline-flex min-h-9 items-center gap-1.5 rounded-[10px] px-3 text-[13px] transition-colors disabled:opacity-40 md:min-h-8 md:text-[12px]`
+    const clase = principal
+      ? `l-tecla ${base} border border-border bg-card font-semibold text-foreground hover:bg-card-hover`
+      : `${base} font-medium text-muted hover:bg-foreground/[0.06] hover:text-foreground`
+    if (x.tipo === 'abrir') {
+      const externo = !x.url.startsWith('/')
+      return (
+        <button key={`${x.tipo}-${x.etiqueta}`} type="button" className={clase} onClick={() => irA(x.url)}>
+          {x.etiqueta}{externo && <ArrowUpRight size={13} aria-hidden="true" />}
+        </button>
+      )
+    }
+    if (x.tipo === 'borrador') {
+      const abierto = abiertos.has(a.id)
+      return (
+        <button key={`${x.tipo}-${x.etiqueta}`} type="button" className={clase} aria-expanded={abierto}
+          onClick={(e) => {
+            const li = e.currentTarget.closest('li')
+            setAbiertos(s => { const n = new Set(s); if (n.has(a.id)) n.delete(a.id); else n.add(a.id); return n })
+            // Lo que se va a publicar se lee completo: la tarjeta abierta entra a la vista sobre el pie.
+            if (!abierto) requestAnimationFrame(() => li?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
+          }}>
+          {abierto ? 'Ocultar borrador' : x.etiqueta}
+        </button>
+      )
+    }
+    const tipo = x.tipo
     return (
-      <button key={a.id} type="button" onClick={() => openAviso(a)}
-        className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-card-hover active:bg-card-hover">
-        <span className={`mt-0.5 grid size-9 shrink-0 place-items-center rounded-full ${k.tone}`} aria-hidden="true"><Icon size={17} /></span>
-        <span className="min-w-0 flex-1">
-          <span className="flex items-baseline gap-2">
-            <span className={`min-w-0 flex-1 truncate text-[14px] md:text-[13px] ${a.read_at ? 'font-medium text-foreground/80' : 'font-semibold text-foreground'}`}>{a.title}</span>
-            <span className="shrink-0 text-[11px] text-muted">{ago(a.created_at)}</span>
-          </span>
-          {a.body && <span className="mt-0.5 line-clamp-2 block text-[13px] leading-snug text-muted md:text-[12px]">{a.body}</span>}
-          <span className="sr-only">{k.label}{a.read_at ? '' : ', sin leer'}</span>
-        </span>
-        {!a.read_at && <span className="mt-2 size-2 shrink-0 rounded-full bg-primary" aria-hidden="true" />}
+      <button key={`${tipo}-${x.etiqueta}`} type="button" className={clase} disabled={!!enCurso[a.id]} onClick={() => void tocar(a, tipo)}>
+        {ocupado && <span className="size-3 animate-spin rounded-full border border-border-accent border-t-foreground/70" aria-hidden="true" />}
+        {x.etiqueta}
       </button>
     )
   }
+
+  const tarjeta = (a: AvisoVista, urgente = false) => {
+    const hecho = hechos[a.id]
+    const principal = a.acciones.find(x => x.tipo === 'publicar') ?? a.acciones.find(x => x.tipo === 'abrir')
+    return (
+      <li key={a.id} className={`${c.tarjeta} border-b border-border-subtle px-4 py-3 last:border-b-0`} data-saliendo={hecho ? '' : undefined}>
+        <div className="flex items-start gap-2.5">
+          {urgente && <span className={c.puntoUrgente} aria-hidden="true" />}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline gap-2">
+              <p className="min-w-0 flex-1 truncate text-[14px] font-semibold text-foreground md:text-[13px]" title={a.titulo}>{a.titulo}</p>
+              <span className="shrink-0 text-[11px] tabular-nums text-muted">{ago(a.created_at)}</span>
+            </div>
+            {hecho ? (
+              <p className="mt-1 flex items-center gap-1.5 text-[13px] text-foreground md:text-[12px]"><Check size={14} aria-hidden="true" />{hecho}</p>
+            ) : (
+              <>
+                {a.frase && <p className="mt-0.5 text-[13px] leading-snug text-foreground/85 md:text-[12.5px]">{a.frase}</p>}
+                {a.cita && !abiertos.has(a.id) && <p className="mt-0.5 truncate text-[12.5px] text-muted md:text-[12px]">«{a.cita}»</p>}
+                {abiertos.has(a.id) && (
+                  <div className="mt-2 space-y-2 text-[13px] leading-relaxed md:text-[12.5px]">
+                    {a.cita && <div><p className="text-[11px] font-medium text-muted">Escribió</p><p className={`${c.borrador} pl-2.5 text-foreground/85`}>{a.cita}</p></div>}
+                    {a.borrador && <div><p className="text-[11px] font-medium text-muted">Levy respondería</p><p className={`${c.borrador} pl-2.5 text-foreground`}>{a.borrador}</p></div>}
+                    {a.url && !a.acciones.some(x => x.tipo === 'abrir' && x.etiqueta === 'Editar') && <button type="button" onClick={() => irA(a.url!)} className="inline-flex items-center gap-1 text-[12px] font-medium text-muted hover:text-foreground">Editar antes de publicar <ArrowUpRight size={12} aria-hidden="true" /></button>}
+                  </div>
+                )}
+                {a.acciones.length > 0 && (
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    {a.acciones.map(x => boton(a, x, x === principal))}
+                  </div>
+                )}
+                {errores[a.id] && <p className="mt-1.5 text-[12px] text-foreground" role="alert">{errores[a.id]}</p>}
+              </>
+            )}
+          </div>
+        </div>
+      </li>
+    )
+  }
+
+  const filaSaber = (a: AvisoVista) => {
+    const destino = a.acciones.find((x): x is Extract<AccionAviso, { tipo: 'abrir' }> => x.tipo === 'abrir')
+    const contenido = (
+      <>
+        <span className="flex items-baseline gap-2">
+          <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground/85 md:text-[12.5px]">{a.titulo}</span>
+          <span className="shrink-0 text-[11px] tabular-nums text-muted">{ago(a.created_at)}</span>
+        </span>
+        {a.frase && <span className="block truncate text-[12.5px] text-muted md:text-[12px]">{a.frase}</span>}
+      </>
+    )
+    return (
+      <li key={a.id}>
+        {destino
+          ? <button type="button" onClick={() => irA(destino.url)} className="block w-full px-4 py-2 text-left transition-colors hover:bg-foreground/[0.05]">{contenido}</button>
+          : <div className="px-4 py-2">{contenido}</div>}
+      </li>
+    )
+  }
+
+  const { decidir, urgente, saber } = bandeja
+  const calma = !decidir.length && !urgente.length
+  const ceja = 'flex items-center gap-2 px-4 pb-1.5 pt-3.5 text-[11px] font-semibold uppercase tracking-wider text-muted'
 
   const content = (
     <>
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border-subtle px-4 py-3">
         <h3 className="text-[15px] font-semibold text-foreground md:text-sm">Avisos</h3>
         <div className="flex items-center gap-1">
-          {unread > 0 && (
-            <button onClick={() => void markRead()} className="flex min-h-9 items-center gap-1 rounded-lg px-2 text-[13px] text-primary md:text-xs">
-              <Check size={14} />Marcar leídos
-            </button>
-          )}
           {pushStatus !== 'unsupported' && pushStatus !== 'loading' && (
             <button
               onClick={handlePushToggle}
               disabled={pushLoading || pushStatus === 'denied'}
               title={pushStatus === 'denied' ? 'Bloqueado: permítelo en los ajustes del navegador' : pushStatus === 'subscribed' ? 'Silenciar este dispositivo' : 'Recibir avisos en este dispositivo'}
               aria-label={pushStatus === 'subscribed' ? 'Silenciar avisos en este dispositivo' : 'Recibir avisos en este dispositivo'}
-              className={`grid size-9 place-items-center rounded-lg transition-colors disabled:opacity-40 ${pushStatus === 'subscribed' ? 'text-primary' : 'text-muted'}`}
+              className={`grid size-9 place-items-center rounded-lg transition-colors disabled:opacity-40 ${pushStatus === 'subscribed' ? 'text-foreground' : 'text-muted'}`}
             >
               {pushLoading ? <span className="size-3 animate-spin rounded-full border border-border-accent border-t-foreground/70" />
                 : pushStatus === 'subscribed' ? <Bell size={16} /> : <BellOff size={16} />}
@@ -216,28 +324,53 @@ export function NotificationBell({ compact = true, placement = 'bottom', ghost =
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-        {failed && !avisos.length ? (
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-1">
+        {failed && !cargado ? (
           <p className="px-4 py-8 text-center text-[13px] text-muted">No se pudieron leer los avisos. Se reintenta solo.</p>
-        ) : avisos.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">
-            <span className="grid size-11 place-items-center rounded-full bg-primary/10 text-primary"><Bell size={20} /></span>
-            <p className="text-[15px] font-semibold text-foreground">Todo en calma</p>
-            <p className="max-w-[18rem] text-[13px] leading-relaxed text-muted">Aquí solo llega lo que te importa: un agente que terminó o necesita permiso, tu agenda, tu dinero, una persona o tu servidor detenido.</p>
-          </div>
         ) : (
           <>
-            {nuevos.length > 0 && <p className="px-4 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wider text-muted">Nuevos</p>}
-            {nuevos.map(row)}
-            {antes.length > 0 && <p className="px-4 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wider text-muted">Antes</p>}
-            {antes.map(row)}
+            {urgente.length > 0 && (
+              <section aria-label="Urgente">
+                <h4 className={ceja}>Urgente</h4>
+                <ul>{urgente.map(a => tarjeta(a, true))}</ul>
+              </section>
+            )}
+            {decidir.length > 0 && (
+              <section aria-label="Te toca decidir">
+                <h4 className={ceja}><span className={c.puntoDecidir} aria-hidden="true" />Te toca decidir<span className="tabular-nums text-foreground">{pendientes}</span></h4>
+                <ul>{(verTodas ? decidir : decidir.slice(0, A_LA_VISTA)).map(a => tarjeta(a))}</ul>
+                {decidir.length > A_LA_VISTA && (
+                  <button type="button" onClick={() => setVerTodas(v => !v)} aria-expanded={verTodas}
+                    className="flex w-full items-center gap-1.5 px-4 py-2.5 text-left text-[13px] font-medium text-muted hover:text-foreground md:text-[12px]">
+                    {verTodas ? 'Ver menos' : `Ver las ${decidir.length - A_LA_VISTA} restantes`}
+                    <ChevronDown size={14} className={`transition-transform ${verTodas ? 'rotate-180' : ''}`} aria-hidden="true" />
+                  </button>
+                )}
+              </section>
+            )}
+            {calma && cargado && (
+              <div className="flex flex-col items-center gap-1.5 px-6 pb-6 pt-8 text-center">
+                <p className="text-[15px] font-semibold text-foreground">Nada te espera</p>
+                <p className="max-w-[18rem] text-[13px] leading-relaxed text-muted">Aquí llega solo lo que pide tu toque. Lo demás queda en «Para saber».</p>
+              </div>
+            )}
+            {saber.length > 0 && (
+              <section aria-label="Para saber" className={calma ? '' : 'mt-1 border-t border-border-subtle'}>
+                <button type="button" onClick={() => setVerSaber(v => !v)} aria-expanded={verSaber}
+                  className={`${ceja} w-full pb-3 text-left hover:text-foreground`}>
+                  Para saber<span className="tabular-nums">{saber.length}</span>
+                  <ChevronDown size={14} className={`ml-auto transition-transform ${verSaber ? 'rotate-180' : ''}`} aria-hidden="true" />
+                </button>
+                {verSaber && <ul className="pb-2">{saber.map(filaSaber)}</ul>}
+              </section>
+            )}
           </>
         )}
       </div>
 
-      <div className="shrink-0 border-t border-border-subtle px-4 py-3 text-[12px] leading-snug text-muted md:text-[11px]">
-        Lo que corre solo y su último resultado vive en{' '}
-        <Link href="/rutinas" onClick={() => setIsOpen(false)} className="font-semibold text-primary">Rutinas</Link>. Los detalles técnicos los revisa Levy.
+      <div className="shrink-0 border-t border-border-subtle px-4 py-2.5 text-[12px] leading-snug text-muted md:text-[11px]">
+        Lo que corre solo vive en{' '}
+        <Link href="/rutinas" onClick={() => setIsOpen(false)} className="font-semibold text-foreground">Rutinas</Link>. Lo técnico lo revisa Levy.
       </div>
     </>
   )
@@ -289,22 +422,22 @@ export function NotificationBell({ compact = true, placement = 'bottom', ghost =
         onClick={() => setIsOpen((v) => !v)}
         className={compact ? `${ghost ? 'icon-btn-ghost' : 'icon-btn'} size-10 relative` : 'nav-item w-full text-sm md:text-xs'}
         title="Avisos"
-        aria-label={unread ? `Avisos, ${unread} sin leer` : 'Avisos'}
+        aria-label={pendientes ? `Avisos, ${pendientes} ${pendientes === 1 ? 'decisión pendiente' : 'decisiones pendientes'}` : 'Avisos'}
         aria-haspopup="dialog"
         aria-expanded={isOpen}
       >
         <Bell className="size-[18px] md:size-[15px]" />
-        {compact && unread > 0 && (
+        {compact && pendientes > 0 && (
           <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-white">
-            {unread > 9 ? '9+' : unread}
+            {pendientes > 9 ? '9+' : pendientes}
           </span>
         )}
         {!compact && (
           <>
             <span>Avisos</span>
-            {unread > 0 && (
+            {pendientes > 0 && (
               <span className="ml-auto rounded-full bg-primary/12 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-primary">
-                {unread > 9 ? '9+' : unread}
+                {pendientes > 9 ? '9+' : pendientes}
               </span>
             )}
           </>

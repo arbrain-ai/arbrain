@@ -105,7 +105,7 @@ fuera_de_capa() {
   git -C "$repo" diff --name-only "$v" HEAD -- 2>/dev/null | while IFS= read -r f; do
     case "$f" in
       .claude/memory/*|.claude/plan/*|.claude/now.md|.claude/diario/*|.claude/daily/*|.claude/knowledge/*) continue ;;
-      .claude/settings.local.json|CLAUDE.local.md|.arbrain-sembrado.json|mi-negocio/*) continue ;;
+      .claude/settings.local.json|CLAUDE.local.md|.arbrain-sembrado.json|mi-negocio/*|mi-marca/*) continue ;;
       # Lo que el modo espejo sube del cerebro (la lista CEREBRO de arbrain/scripts/espejo/lib/viaja.mjs; nube.test.sh
       # comprueba que sigan iguales): es de la persona, no código de Arbrain.
       arbrain/cerebro/meta/*|arbrain/cerebro/sentidos/*|arbrain/cerebro/memoria/*|arbrain/cerebro/manos/*|arbrain/cerebro/dolor/*) continue ;;

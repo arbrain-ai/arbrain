@@ -23,7 +23,8 @@ import { apiPermitidaEnCliente, paginaPermitidaEnCliente } from '@/lib/edicion'
 import { esModoServidor } from '@/lib/modo-servidor'
 import { llegaPorTelefono } from '@/features/telefono/host-telefono'
 
-const SIN_SESION_API = ['/api/desktop', '/api/chat/complete', '/api/llaves/openrouter/callback']
+// `/api/mi-marca`: colores, logo y nombre del dueño (lib/mi-marca.ts), sin datos; la pantalla de entrada también los lleva.
+const SIN_SESION_API = ['/api/desktop', '/api/chat/complete', '/api/llaves/openrouter/callback', '/api/mi-marca']
 const NO_DISPONIBLE = 'No disponible en esta edición.'
 const NOCACHE = { 'Cache-Control': 'no-store' }
 

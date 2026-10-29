@@ -22,7 +22,7 @@ const ANT = 'sk-' + 'ant-api03-' + 'b2'.repeat(20)
 const capas = cargarCapas('/no/existe')
 
 test('viaja: capa del alumno sí, código no, secretos nunca', () => {
-  for (const p of ['.claude/memory/MEMORY.md', '.claude/plan/objetivos.md', '.claude/now.md', '.claude/daily/2026-10-23.nube.md', 'mi-negocio/clientes.md', '.claude/skills/mi-skill/SKILL.md', 'arbrain/cerebro/meta/diez-clientes.md', 'arbrain/cerebro/lider.json', 'arbrain/cerebro/enviados/nube-1.jsonl'])
+  for (const p of ['.claude/memory/MEMORY.md', '.claude/plan/objetivos.md', '.claude/now.md', '.claude/daily/2026-10-23.nube.md', 'mi-negocio/clientes.md', 'mi-marca/tema.css', '.claude/skills/mi-skill/SKILL.md', 'arbrain/cerebro/meta/diez-clientes.md', 'arbrain/cerebro/lider.json', 'arbrain/cerebro/enviados/nube-1.jsonl'])
     assert.equal(viaja(p, capas), true, p)
   for (const p of ['arbrain/src/app/page.tsx', 'arbrain/scripts/servidor.mjs', '.claude/skills/canvas/SKILL.md', 'CLAUDE.md', '.claude/settings.local.json', '.claude/memory/.env', '.claude/memory/llaves.json', '.claude/plan/google-token.json', 'mi-negocio/oauth-cliente.json', 'mi-negocio/store/x', '.claude/memory/a.db', '.arbrain-espejo/maquina.json', 'mi-negocio/.host-slug', '.claude/knowledge/compile-state.json', '../fuera.md'])
     assert.equal(viaja(p, capas), false, p)

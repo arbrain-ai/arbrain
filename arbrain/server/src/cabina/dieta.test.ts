@@ -53,7 +53,7 @@ describe('dieta de contexto de la Cabina', () => {
     expect((await t.ejecutarCabina('ayuda', { tema: 'cohorte' })).text).toMatch(/Entrega/)
     expect((await t.ejecutarCabina('ayuda', { tema: 'documento' })).text).toMatch(/entrega\.json/)
     expect((await t.ejecutarCabina('ayuda', { tema: 'delegar' })).text).toMatch(/wt\.sh nuevo/)
-    expect((await t.ejecutarCabina('ayuda', { tema: 'campos_delegar' })).text).toMatch(/claude-sonnet-5-5/)
+    expect((await t.ejecutarCabina('ayuda', { tema: 'campos_delegar' })).text).toMatch(/claude-opus-5-5/)
     expect((await t.ejecutarCabina('ayuda', { tema: 'mostrar' })).text).toMatch(/servidores \(/)
     expect((await t.ejecutarCabina('ayuda', { tema: 'nada-de-esto' })).text).toMatch(/No hay ayuda para «nada-de-esto»/)
   })

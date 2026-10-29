@@ -65,6 +65,18 @@ test('fuente: si la copia cambió el código de la app (confirmado o suelto), no
   assert.equal(P.fuenteIgualALaEtiqueta(r.repo, 'v0.2.7', ['arbrain/src']), false, 'commit propio')
 })
 
+test('fuente: mi-marca/ (colores, logo, nombre) no es código: el programa ya compilado sigue sirviendo', () => {
+  const r = repoFirmado()
+  r.etiquetar('buena')
+  mkdirSync(join(r.repo, 'mi-marca'), { recursive: true })
+  writeFileSync(join(r.repo, 'mi-marca', 'tema.css'), 'html:root:not(.dark) { --primary: #0E7C66; }\n')
+  writeFileSync(join(r.repo, 'mi-marca', 'marca.json'), '{ "nombre": "Acme" }\n')
+  assert.equal(P.fuenteIgualALaEtiqueta(r.repo, 'v0.2.7'), true, 'suelto, con las rutas reales del programa')
+  r.g('add', '-A'); r.g('commit', '-qm', 'mi marca')
+  assert.equal(P.fuenteIgualALaEtiqueta(r.repo, 'v0.2.7'), true, 'confirmado en su rama')
+  assert.ok(!P.RUTAS_PROGRAMA.some((x: string) => 'mi-marca/tema.css'.startsWith(x)))
+})
+
 test('programaYaCompilado: sin firma válida o con huella que no cuadra devuelve null (se compila)', async () => {
   const r = repoFirmado()
   const avisos: string[] = []

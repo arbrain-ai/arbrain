@@ -55,7 +55,7 @@ git init -q -b mi-arbrain "$S"
 mkdir -p "$S/arbrain/scripts/espejo" && cp -R "$AQUI/lib" "$AQUI/espejo.mjs" "$AQUI/supervisor.mjs" "$S/arbrain/scripts/espejo/"   # el motor, sin sus pruebas
 echo cliente > "$S/arbrain/EDICION"
 printf '# Mi cerebro\n' > "$S/CLAUDE.md"
-printf '{"alumno":[".claude/memory/",".claude/plan/",".claude/now.md",".claude/diario/",".claude/daily/",".claude/knowledge/",".claude/settings.local.json","CLAUDE.local.md",".arbrain-sembrado.json","mi-negocio/"],"skills_del_autor":["canvas"]}\n' > "$S/CAPAS.json"
+printf '{"alumno":[".claude/memory/",".claude/plan/",".claude/now.md",".claude/diario/",".claude/daily/",".claude/knowledge/",".claude/settings.local.json","CLAUDE.local.md",".arbrain-sembrado.json","mi-negocio/","mi-marca/"],"skills_del_autor":["canvas"]}\n' > "$S/CAPAS.json"
 printf '.env\n.env.*\n!.env.example\n*.pem\n*.key\nstore/\n*.db\nlogs/\n*.log\n.claude/settings.local.json\nnode_modules/\n' > "$S/.gitignore"
 printf '# Memoria\n' > "$S/.claude/memory/MEMORY.md"
 printf '# Objetivos\n\nMeta: 10 clientes\n\nSemana: cerrar la ventana\n' > "$S/.claude/plan/objetivos.md"

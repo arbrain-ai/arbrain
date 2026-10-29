@@ -9,7 +9,7 @@
 import type { ChatMessage } from '@/features/chat/hooks/useChat'
 import { DUENO, NOMBRE_SEGUNDA, SEGUNDA } from '@/config'
 
-export type Vista = 'calendario' | 'objetivos' | 'centro' | 'lienzo' | 'reporte' | 'negocio' | 'trabajos' | 'finanzas' | 'contenido' | 'rutinas' | 'servidores' | 'memoria' | 'equipo' | 'documento' | 'diario' | 'salud' | 'pizarron' | 'masterclass' | 'explorador' | 'cohorte' | 'casa' | 'perro' | 'historia'
+export type Vista = 'calendario' | 'objetivos' | 'centro' | 'lienzo' | 'reporte' | 'negocio' | 'trabajos' | 'finanzas' | 'contenido' | 'rutinas' | 'servidores' | 'memoria' | 'equipo' | 'documento' | 'diario' | 'salud' | 'masterclass' | 'explorador' | 'cohorte' | 'casa' | 'perro' | 'historia'
 export type SeccionNegocio = 'avatar' | 'oferta' | 'embudo' | 'sistema'
 export type Destino = 'calendario' | 'objetivos' | 'hoy' | 'centro' | 'contenido' | 'lienzo' | 'rutinas' | 'finanzas' | 'sfcal' | 'sfmap' | 'reporte' | 'negocio' | 'trabajos'
 export type Alcance = 'dia' | 'semana' | 'mes'
@@ -43,7 +43,7 @@ export type Invocacion =
   | { toolId: string; verbo: 'mostrar'; input: MostrarInput | null; status: 'running' | 'done'; error?: string }
   | { toolId: string; verbo: 'abrir'; input: AbrirInput | null; status: 'running' | 'done'; error?: string }
 
-const VISTAS: readonly Vista[] = ['calendario', 'objetivos', 'centro', 'lienzo', 'reporte', 'negocio', 'trabajos', 'finanzas', 'contenido', 'rutinas', 'servidores', 'memoria', 'equipo', 'documento', 'diario', 'salud', 'pizarron', 'masterclass', 'explorador', 'cohorte', 'casa', 'perro', 'historia']
+const VISTAS: readonly Vista[] = ['calendario', 'objetivos', 'centro', 'lienzo', 'reporte', 'negocio', 'trabajos', 'finanzas', 'contenido', 'rutinas', 'servidores', 'memoria', 'equipo', 'documento', 'diario', 'salud', 'masterclass', 'explorador', 'cohorte', 'casa', 'perro', 'historia']
 /**
  * ¿Este build sabe pintar esa vista? (27 oct 2026) Una pestaña fijada con `vista: 'historia'` (nacida en una rama en obra y
  * sincronizada a todos los dispositivos) tumbó la app entera: ICONO['historia'] era undefined (React #130). Lo que entra al
@@ -61,7 +61,7 @@ export function verboDe(toolName: string): 'mostrar' | 'abrir' | null {
   const m = /(?:^|__|_)cabina(?:__|_)(mostrar|abrir)$/.exec(toolName)
   return m ? (m[1] as 'mostrar' | 'abrir') : null
 }
-export const esHerramientaCabina = (toolName: string) => verboDe(toolName) !== null || esPizarron(toolName)
+export const esHerramientaCabina = (toolName: string) => verboDe(toolName) !== null
 
 function parseJson(raw: string | undefined): Record<string, unknown> | null {
   if (!raw) return null
@@ -91,29 +91,10 @@ export function parseAbrir(raw: string | undefined): AbrirInput | null {
   return { destino: o.destino as Destino, alcance: alcance(o.alcance), fecha: fecha(o.fecha), paginaId: pagina(o.paginaId), zona: str(o.zona, 120), motivo: str(o.motivo, 200) }
 }
 
-/** `pizarron {accion:"abrir"}` (7 oct 2026) se pinta como un `mostrar` fijado: la pestaña nace en la ventana que muestra ESTA
- *  conversación (no por el bus, que llegaría a todas las ventanas). El id de la sesión viene en la respuesta de la herramienta. */
-const esPizarron = (toolName: string) => /(?:^|__|_)cabina(?:__|_)pizarron$/.test(toolName)
-function pizarronComoVista(raw: string | undefined, salida: string | undefined): MostrarInput | null {
-  const o = parseJson(raw)
-  if (!o || o.accion !== 'abrir') return null
-  const id = /sesion="([a-z0-9][a-z0-9-]{2,90})"/.exec(salida ?? '')?.[1] ?? (typeof o.sesion === 'string' && PAGE.test(o.sesion) ? o.sesion : null)
-  if (!id) return null
-  const tema = /· «([^»]{1,120})»/.exec(salida ?? '')?.[1] ?? (typeof o.tema === 'string' ? o.tema.slice(0, 120) : undefined)
-  return { vista: 'pizarron', paginaId: id, ...(tema ? { titulo: tema } : {}), fijar: true }
-}
-
 /** Invocaciones de la cabina de un mensaje, en el orden en que Levy las hizo. */
 export function invocacionesDe(msg: Pick<ChatMessage, 'toolCalls' | 'toolInputs' | 'toolOutputs'>): Invocacion[] {
   const out: Invocacion[] = []
   for (const t of msg.toolCalls ?? []) {
-    if (esPizarron(t.toolName)) {
-      const o = parseJson(msg.toolInputs?.[t.toolId])
-      if (o?.accion !== 'abrir') continue
-      const output = msg.toolOutputs?.[t.toolId]
-      out.push({ toolId: t.toolId, verbo: 'mostrar', input: output && !output.isError ? pizarronComoVista(msg.toolInputs?.[t.toolId], output.content) : null, status: t.status, error: output?.isError ? output.content.slice(0, 240) : undefined })
-      continue
-    }
     const verbo = verboDe(t.toolName); if (!verbo) continue
     const output = msg.toolOutputs?.[t.toolId]
     const error = output?.isError ? output.content.slice(0, 240) : undefined
@@ -205,7 +186,6 @@ export function rutaDe(d: { destino: Destino | Vista; alcance?: Alcance; fecha?:
     case 'negocio': return '/segundo-cerebro'
     case 'documento': return '/segundo-cerebro'
     case 'diario': return '/chat'
-    case 'pizarron': return '/chat'
     // El explorador de archivos (8 oct 2026) vive solo en el panel.
     case 'explorador': return '/chat'
   }
@@ -218,14 +198,14 @@ export function rutaDe(d: { destino: Destino | Vista; alcance?: Alcance; fecha?:
  */
 export function seccionDe(i: Pick<MostrarInput, 'vista' | 'alcance' | 'fecha' | 'paginaId' | 'zona'>): string | null {
   // Rutinas, Memoria y Servidores viven en el Taller (5 oct 2026): no tienen sección propia a la cual expandir.
-  if (i.vista === 'documento' || i.vista === 'trabajos' || i.vista === 'servidores' || i.vista === 'rutinas' || i.vista === 'memoria' || i.vista === 'historia' || i.vista === 'diario' || i.vista === 'pizarron' || i.vista === 'explorador') return null
+  if (i.vista === 'documento' || i.vista === 'trabajos' || i.vista === 'servidores' || i.vista === 'rutinas' || i.vista === 'memoria' || i.vista === 'historia' || i.vista === 'diario' || i.vista === 'explorador') return null
   return rutaDe({ destino: i.vista, alcance: i.alcance, fecha: i.fecha, paginaId: i.paginaId, zona: i.zona })
 }
 
 export const NOMBRE: Record<Destino | Vista, string> = {
   calendario: 'Calendario', objetivos: 'Objetivos', hoy: 'Hoy', centro: 'Command Center', contenido: 'Contenido',
   lienzo: 'Lienzo', rutinas: 'Rutinas', finanzas: 'Finanzas', sfcal: 'Calendario', sfmap: 'Lienzo',
-  reporte: 'Lo que llegó', negocio: 'Tu negocio', trabajos: 'Trabajos en el Studio', servidores: 'Servidores', memoria: 'Memoria', equipo: 'Equipo', documento: 'Documento', diario: 'Reporte diario', salud: 'Salud', pizarron: 'Pizarrón', masterclass: 'Masterclass', explorador: 'Archivos', cohorte: 'Cohorte', casa: 'Casa', perro: 'Perro', historia: 'Historia',
+  reporte: 'Lo que llegó', negocio: 'Tu negocio', trabajos: 'Trabajos en el Studio', servidores: 'Servidores', memoria: 'Memoria', equipo: 'Equipo', documento: 'Documento', diario: 'Reporte diario', salud: 'Salud', masterclass: 'Masterclass', explorador: 'Archivos', cohorte: 'Cohorte', casa: 'Casa', perro: 'Perro', historia: 'Historia',
 }
 
 /** Nombre de un documento: el título que le dio Levy o el nombre del archivo. */
@@ -253,7 +233,6 @@ export function resumen(i: MostrarInput): string {
   if (i.vista === 'historia') return i.titulo ?? 'Historia · lo que cambió en tu cerebro'
   if (i.vista === 'documento') return nombreDocumento(i)
   if (i.vista === 'explorador') return i.titulo ?? 'Archivos · el árbol del repo'
-  if (i.vista === 'pizarron') return i.titulo ? `Pizarrón · ${i.titulo}` : 'Pizarrón · sesiones y biblioteca'
   if (i.vista === 'diario') return i.titulo ?? `${i.quien === SEGUNDA() ? `Reporte de ${NOMBRE_SEGUNDA()}` : 'Reporte diario'} · ${tituloPeriodo('dia', f)}`
   return 'Command Center · el negocio hoy'
 }

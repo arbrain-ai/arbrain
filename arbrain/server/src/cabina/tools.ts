@@ -14,6 +14,8 @@
  * por stdio del runtime de Claude y las dynamicTools del runtime de Codex.
  */
 
+import { ESFUERZOS } from './harness/tipos.js'
+import { PERFILES, PERFIL_EN_PALABRAS, esPerfil } from './perfiles.js'
 import { DUENO, DUENO_M, PERSONAS, PERSONA_DUENO, REPO_TXT, SEGUNDA, SITIOS_VIGILADOS, dueno } from '../dueno.js'
 import { validarDocumento } from './documento.js'
 import { ayudaDeCliente, ayudaOriginal } from './ayuda.js'
@@ -23,7 +25,7 @@ import { describir, guardar as guardarEnArchivero, leer as leerArchivero, limpia
 import { anotarBitacora, clientesVivos, describirPanel, emitir, esperarAcuses, esperarAjustes, informe } from './panel-bus.js'
 import { aplicar as aplicarAjustes, describir as describirAjustesTodas, DONDES, idDeSeccion, leer as leerAjustes, NOMBRES as NOMBRES_SECCION, NOMBRES_DONDE, SECCIONES } from './panel-ajustes.js'
 
-export const VISTAS = ['calendario', 'objetivos', 'centro', 'lienzo', 'reporte', 'negocio', 'trabajos', 'finanzas', 'contenido', 'rutinas', 'servidores', 'memoria', 'equipo', 'documento', 'diario', 'salud', 'pizarron', 'masterclass', 'explorador', 'cohorte', 'casa', 'perro', 'historia'] as const
+export const VISTAS = ['calendario', 'objetivos', 'centro', 'lienzo', 'reporte', 'negocio', 'trabajos', 'finanzas', 'contenido', 'rutinas', 'servidores', 'memoria', 'equipo', 'documento', 'diario', 'salud', 'masterclass', 'explorador', 'cohorte', 'casa', 'perro', 'historia'] as const
 export const QUIENES = PERSONAS
 export const SECCIONES_NEGOCIO = ['avatar', 'oferta', 'embudo', 'sistema'] as const
 export const DESTINOS = ['calendario', 'objetivos', 'hoy', 'centro', 'contenido', 'lienzo', 'rutinas', 'finanzas', 'sfcal', 'sfmap'] as const
@@ -52,11 +54,10 @@ export interface AbrirInput { destino: Destino; alcance?: Alcance; fecha?: strin
 // Dieta de contexto (27 oct 2026): estas descripciones viajan en CADA turno. Dicen qué hace la herramienta y cuándo usarla;
 // el detalle (qué pinta cada vista, campos finos, reglas largas) vive en ./ayuda.ts y lo devuelve `ayuda {tema}`.
 // Sin fechas fijas: se vencen solas. Sensor: dieta.test.ts (tope TOPE_CABINA).
-export const MOSTRAR_DESCRIPTION = `Muestra a ${DUENO}, dentro del chat, una vista viva con sus datos reales (la app lee la fuente; tú no ves sus cifras: no las afirmes sin consultarlas). Aparece ARRIBA de tu texto: di «arriba» y deja tu pregunta al final. Úsala si ver el dato ahorra explicación, una o dos por turno; no escribe nada. lienzo pide paginaId (zona encuadra); documento pide ruta (.md, .txt, .html, .pdf, imagen, audio, video o carpeta; nunca código). fijar, soltar, guardar y telefono solo si lo pide; si responden «NO confirmado», no afirmes que quedó. Para enseñar usa pizarron. Qué pinta cada vista y sus campos: ayuda {tema:"<vista>"}.`
-export const PIZARRON_DESCRIPTION = `Pizarrón: enseña conversando en una pestaña del panel con tu voz, objetos vivos y predicciones de ${DUENO}. Úsalo ante «enséñame», «explícame», «quiero entender», de cualquier tema; no para cifras ni mapas (eso es mostrar). Flujo: abrir {tema} (devuelve el OFICIO: léelo entero la primera vez) → pasos {sesion, pasos} → al llegar «✎ Pizarrón», leer {sesion} → al cerrar, escribir. objeto fabrica un objeto vivo (busca antes en biblioteca); imagen tarda 20-60 s. En el chat escribe poco. Campos: ayuda {tema:"campos_pizarron"}.`
+export const MOSTRAR_DESCRIPTION = `Muestra a ${DUENO}, dentro del chat, una vista viva con sus datos reales (la app lee la fuente; tú no ves sus cifras: no las afirmes sin consultarlas). Aparece ARRIBA de tu texto: di «arriba» y deja tu pregunta al final. Úsala si ver el dato ahorra explicación, una o dos por turno; no escribe nada. lienzo pide paginaId (zona encuadra); documento pide ruta (.md, .txt, .html, .pdf, imagen, audio, video o carpeta; nunca código). fijar, soltar, guardar y telefono solo si lo pide; si responden «NO confirmado», no afirmes que quedó. Para enseñar, conversa en el chat en texto plano. Qué pinta cada vista y sus campos: ayuda {tema:"<vista>"}.`
 export const ATENDER_DESCRIPTION = `Marca como leídos avisos de la campana que ${DUENO} ya vio o ya conversaron (ids de «LO QUE LLEGÓ» o la vista reporte). todos:true solo si él lo pide. No borra nada.`
-export const DELEGAR_DESCRIPTION = `Lanza un subagente en el Studio, proceso propio sin pantalla ni permisos que aprobar (bypass; sobrevive a reinicios): claude, codex, opencode, gemini o qwen. El encargo va acotado y con su Definición de Terminado (qué es hecho y cómo se verifica hoy). Al salir te despierta aquí; su pregunta es tuya (retomar) y si sube a ${DUENO}, en 1:3:1. Si edita código, su cwd sale de «${REPO_TXT}/arbrain/server/scripts/worktrees/wt.sh nuevo <nombre>». Confirma antes si escribe fuera de /tmp o toca algo de ${DUENO}. Con tope de paralelo o tokens alcanzado, cierra uno o pregunta. Detalle: ayuda {tema:"delegar"}.`
-export const RETOMAR_DESCRIPTION = `Mensaje de seguimiento a un subagente tuyo (agenteId): si terminó, abre otro turno en su sesión; si trabaja, claude y codex lo toman al acabar el paso y los demás al salir. Sus preguntas son tuyas; si necesitas a ${DUENO}, 1:3:1. Para cortar, detener.`
+export const DELEGAR_DESCRIPTION = `Lanza un subagente en el Studio, proceso propio sin pantalla ni permisos que aprobar (bypass; sobrevive a reinicios): claude, codex, opencode, gemini o qwen. El encargo va acotado y con su Definición de Terminado (qué es hecho y cómo se verifica hoy). Al salir te despierta aquí; su pregunta es tuya (retomar) y si sube a ${DUENO}, en 1:3:1. Código del repo: delegar le crea su worktree (aislamiento; default dentro de ${REPO_TXT}). Confirma antes si escribe fuera de /tmp o toca algo de ${DUENO}. Con tope de paralelo o tokens alcanzado, cierra uno o pregunta. Detalle: ayuda {tema:"delegar"}.`
+export const RETOMAR_DESCRIPTION = `Mensaje de seguimiento a un subagente tuyo (agenteId): si terminó, abre otro turno en su sesión; si trabaja, claude lo toma al acabar el paso y los demás al salir. modelo/esfuerzo cambian desde ese turno. Sus preguntas son tuyas; si necesitas a ${DUENO}, 1:3:1. Para cortar, detener.`
 export const DETENER_DESCRIPTION = `Corta el paso en curso de un subagente tuyo sin cerrarlo ni perder su sesión; retomar lo reanuda. Descarta y te devuelve los mensajes en cola. Para terminar del todo usa cerrar.`
 export const INTERACTIVO_DESCRIPTION = `Abre la sesión de un subagente tuyo (si no está trabajando) en una terminal del motor para que ${DUENO} entre a mano desde el Taller. Solo si lo pide. Devuelve la terminal.`
 export const CERRAR_DESCRIPTION = `Cierra un subagente tuyo cuando terminó o ${DUENO} lo pide: libera su lugar y registra sus tokens. Su conversación queda en disco. Nunca cierra terminales de ${DUENO}.`
@@ -180,7 +181,7 @@ export function parseAbrir(raw: unknown): AbrirInput {
   return input
 }
 
-const LABEL: Record<string, string> = { pizarron: 'pizarrón', diario: 'reporte diario', documento: 'documento', reporte: 'reporte',  negocio: 'negocio', trabajos: 'trabajos', calendario: 'calendario', objetivos: 'objetivos', hoy: 'hoy', centro: 'finanzas · lo que entra', contenido: 'contenido', lienzo: 'lienzo', rutinas: 'rutinas', finanzas: 'finanzas', servidores: 'servidores', memoria: 'memoria y contexto', equipo: 'equipo', salud: 'salud', masterclass: 'masterclass', explorador: 'archivos', cohorte: 'cohorte', casa: 'casa', perro: 'perro', sfcal: 'calendario', sfmap: 'lienzo' }
+const LABEL: Record<string, string> = { diario: 'reporte diario', documento: 'documento', reporte: 'reporte',  negocio: 'negocio', trabajos: 'trabajos', calendario: 'calendario', objetivos: 'objetivos', hoy: 'hoy', centro: 'finanzas · lo que entra', contenido: 'contenido', lienzo: 'lienzo', rutinas: 'rutinas', finanzas: 'finanzas', servidores: 'servidores', memoria: 'memoria y contexto', equipo: 'equipo', salud: 'salud', masterclass: 'masterclass', explorador: 'archivos', cohorte: 'cohorte', casa: 'casa', perro: 'perro', sfcal: 'calendario', sfmap: 'lienzo' }
 const ALC: Record<Alcance, string> = { dia: 'día', semana: 'semana', mes: 'mes' }
 
 /** Ejecuta un verbo de la cabina. Solo valida y confirma: la vista la monta el cliente. */
@@ -219,6 +220,8 @@ const B = { type: 'boolean' } as const
 const N = { type: 'number' } as const
 const LISTA = { type: 'array', items: S } as const
 const AGENTE = { type: 'integer' } as const
+/** Los niveles de la casa; el catálogo vivo de cada modelo decide al lanzar cuáles acepta (catalogo-delegar.ts). */
+const ESFUERZO = { type: 'string', enum: [...ESFUERZOS] } as const
 const alcanceSchema = { type: 'string', enum: [...ALCANCES] }
 const fechaSchema = { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' }
 const paginaSchema = S
@@ -241,11 +244,6 @@ export const CABINA_TOOLS = [
     agenteId: AGENTE, modo: { type: 'string', enum: ['tu-casa'] }, repetir: B, fijar: B, zona: S, ruta: S, compararCon: S,
     versiones: LISTA, tiempo: N, soltar: B, pestana: S, guardar: B, telefono: B,
   }, ['vista'] as const, true) },
-  // Pizarrón: abierto a más campos (los de objeto, imagen y escribir vienen en el OFICIO que devuelve abrir y en ayuda).
-  { name: 'pizarron', description: PIZARRON_DESCRIPTION, inputSchema: { type: 'object', required: ['accion'], properties: {
-    accion: { type: 'string', enum: ['abrir', 'pasos', 'objeto', 'imagen', 'leer', 'escribir', 'biblioteca'] },
-    sesion: S, tema: S, documento: S, pasos: { type: 'array', items: { type: 'object' } }, id: S, codigo: S, prompt: S,
-  } } },
   { name: 'archivero', description: ARCHIVERO_DESCRIPTION, inputSchema: obj({
     accion: { type: 'string', enum: ['listar', 'abrir', 'sacar'] }, id: S,
   }, ['accion'] as const) },
@@ -262,9 +260,10 @@ export const CABINA_TOOLS = [
   }, ['accion'] as const) },
   { name: 'atender', description: ATENDER_DESCRIPTION, inputSchema: obj({ ids: LISTA, todos: B }) },
   { name: 'delegar', description: DELEGAR_DESCRIPTION, inputSchema: obj({
-    nombre: S, harness: { type: 'string', enum: ['claude', 'codex', 'opencode', 'gemini', 'qwen'] }, encargo: { type: 'string', maxLength: 2000 }, cwd: S, modelo: S,
-  }, ['nombre', 'harness', 'encargo', 'cwd'] as const, true) },
-  { name: 'retomar', description: RETOMAR_DESCRIPTION, inputSchema: obj({ agenteId: AGENTE, texto: { type: 'string', maxLength: 4000 } }, ['agenteId', 'texto'] as const) },
+    nombre: S, harness: { type: 'string', enum: ['claude', 'codex', 'opencode', 'gemini', 'qwen'] }, encargo: { type: 'string', maxLength: 2000 }, cwd: S, modelo: S, esfuerzo: ESFUERZO, aislamiento: { type: 'string', enum: ['worktree', 'carpeta'] },
+    perfil: { type: 'string', enum: [...PERFILES] }, plan: { anyOf: [{ type: 'boolean' }, { type: 'string' }] },
+  }, [] as const, true) },
+  { name: 'retomar', description: RETOMAR_DESCRIPTION, inputSchema: obj({ agenteId: AGENTE, texto: { type: 'string', maxLength: 4000 }, modelo: S, esfuerzo: ESFUERZO }, ['agenteId', 'texto'] as const) },
   { name: 'detener', description: DETENER_DESCRIPTION, inputSchema: obj({ agenteId: AGENTE }, ['agenteId'] as const) },
   { name: 'interactivo', description: INTERACTIVO_DESCRIPTION, inputSchema: obj({ agenteId: AGENTE }, ['agenteId'] as const) },
   { name: 'cerrar', description: CERRAR_DESCRIPTION, inputSchema: obj({ agenteId: AGENTE }, ['agenteId'] as const) },
@@ -276,7 +275,6 @@ export async function ejecutarCabina(tool: string, raw: unknown): Promise<{ text
   // Red team A1: en la edición cliente no hay subagentes (procesos de CLI aparte, fuera de la guardia y de I8).
   if (esEdicionCliente() && CABINA_SUBAGENTES.has(tool)) return { text: MENSAJE_SIN_SUBAGENTES, error: true }
   // Carril T: la campana (avisos de la instalación original) no existe en cliente.
-  // Carril U: el pizarrón tampoco existe en cliente.
   if (esEdicionCliente() && CABINA_SOLO_ORIGINAL.has(tool)) return { text: motivoSoloOriginal(tool), error: true }
   if (tool === 'mostrar') return mostrarConEfecto(raw)
   if (tool === 'abrir') return callCabina(tool, raw)
@@ -285,7 +283,6 @@ export async function ejecutarCabina(tool: string, raw: unknown): Promise<{ text
   const o = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
   try {
     if (tool === 'despertador') return await despertador(o)
-    if (tool === 'pizarron') return await pizarronTool(o)
     if (tool === 'archivero') return archivero(o)
     if (tool === 'panel') return await panel(o)
     if (tool === 'atender') {
@@ -295,18 +292,34 @@ export async function ejecutarCabina(tool: string, raw: unknown): Promise<{ text
     }
     const { delegar, retomar, cerrar, harnessPermitidos } = await import('./cuerpo.js')
     if (tool === 'delegar') {
+      const origen = (() => { try { return scopeDeCabina() } catch { return undefined } })()
+      // Plan versionado (29 oct 2026, plan.ts): una ruta lo corre (la versión que Daniel dejó, ya commiteada como aprobada).
+      if (typeof o.plan === 'string' && o.plan.trim()) {
+        const { correrPlan } = await import('./plan.js')
+        const { sub, plan } = await correrPlan(o.plan.trim(), origen ? { avisarA: origen } : {})
+        return { text: `Plan ${plan.ruta} aprobado${plan.commit ? ` (commit ${plan.commit.slice(0, 8)})` : ` sin commit: ${plan.aviso ?? 'git no respondió'}`} y lanzado: agenteId ${sub.id} (${sub.harness}, perfil ${PERFIL_EN_PALABRAS[sub.perfil ?? 'total']}, ${sub.cwd}). El juez lo juzgará contra la Definición de Terminado de ese commit. Muéstralo con mostrar {vista:"trabajos", agenteId:${sub.id}}.` }
+      }
       const permitidos = await harnessPermitidos()
       const harness = typeof o.harness === 'string' && permitidos.includes(o.harness) ? o.harness : null
       if (!harness || typeof o.encargo !== 'string' || !o.encargo.trim() || typeof o.cwd !== 'string' || typeof o.nombre !== 'string') throw new Error(`delegar necesita nombre, harness (${permitidos.join('|')}), encargo y cwd.`)
-      const origen = (() => { try { return scopeDeCabina() } catch { return undefined } })()
-      const sub = await delegar({ nombre: o.nombre, harness, encargo: o.encargo, cwd: o.cwd, modelo: typeof o.modelo === 'string' && o.modelo ? o.modelo : undefined, ...(origen ? { avisarA: origen } : {}) })
+      const aislamiento = o.aislamiento === 'worktree' || o.aislamiento === 'carpeta' ? o.aislamiento : undefined
+      if (o.perfil != null && !esPerfil(o.perfil)) throw new Error(`perfil: ${PERFILES.join(', ')}.`)
+      const perfil = esPerfil(o.perfil) ? o.perfil : undefined
+      // plan: true → se escribe y commitea el plan, y NO se lanza: Daniel lo edita y lo corre (o te da el «va»).
+      if (o.plan === true) {
+        const { proponerPlan, origenATexto } = await import('./plan.js')
+        const p = await proponerPlan({ nombre: o.nombre, harness, encargo: o.encargo, cwd: o.cwd, ...(perfil ? { perfil } : {}), ...(typeof o.modelo === 'string' && o.modelo ? { modelo: o.modelo } : {}), ...(typeof o.esfuerzo === 'string' && o.esfuerzo ? { esfuerzo: o.esfuerzo } : {}), ...(aislamiento ? { aislamiento } : {}), ...(origen ? { avisar: origenATexto(origen) } : {}) })
+        return { text: `Plan escrito en ${p.ruta}${p.commit ? ` (commit ${p.commit.slice(0, 8)})` : ` sin commit: ${p.aviso ?? 'git no respondió'}`}. No lancé nada: espera el «va» de ${DUENO}. Lo ve en Taller › Agentes › «Planes por correr», puede editarlo ahí y correrlo con un botón; si te da el «va» aquí, córrelo con delegar {plan:"${p.ruta}"}. Para enseñárselo: mostrar {vista:"documento", ruta:"${p.ruta}"}.` }
+      }
+      const sub = await delegar({ nombre: o.nombre, harness, encargo: o.encargo, cwd: o.cwd, modelo: typeof o.modelo === 'string' && o.modelo ? o.modelo : undefined, ...(typeof o.esfuerzo === 'string' && o.esfuerzo ? { esfuerzo: o.esfuerzo } : {}), ...(aislamiento ? { aislamiento } : {}), ...(perfil ? { perfil } : {}), ...(origen ? { avisarA: origen } : {}) })
       const entrega = sub.entrega === 'entregado' ? 'El encargo ya le llegó.' : sub.entrega === 'falló' ? `El encargo NO se confirmó (${sub.entregaNota}); el subagente es tuyo: entrégalo con retomar.` : `El CLI sigue arrancando; la entrega se reintenta sola (${sub.entregaNota ?? 'en curso'}). Si en un minuto no trabaja, usa retomar.`
-      if (sub.modo === 'sin-pantalla') return { text: `Subagente «${sub.nombre}» lanzado sin pantalla (proceso propio, sobrevive a reinicios): agenteId ${sub.id} (${sub.harness}${sub.modelo ? ` · ${sub.modelo}` : ''}, permisos ${sub.permisos === 'bypass' ? 'bypassPermissions' : sub.permisos}, ${sub.cwd}). El encargo ya le llegó como argumento del CLI. ${sub.aviso ? `Aviso: ${sub.aviso}. ` : ''}Muéstralo con mostrar {vista:"trabajos", agenteId:${sub.id}}. ${origen ? 'Cuando su proceso salga (terminó, falló o hizo una pregunta), el servidor te despierta en ESTA conversación con su última respuesta: no necesitas despertador ni vigía para eso. ' : ''}Para seguir la conversación usa retomar; ciérralo con cerrar cuando termine.` }
+      const donde = sub.aislamiento === 'worktree' ? ` Trabaja en su worktree ${sub.cwd} (rama ${sub.rama}); al cerrarlo, wt.sh lo quita si ya está en main.` : ''
+      if (sub.modo === 'sin-pantalla') return { text: `Subagente «${sub.nombre}» lanzado sin pantalla (proceso propio, sobrevive a reinicios): agenteId ${sub.id} (${sub.harness}, permisos ${sub.permisos === 'bypass' ? 'bypassPermissions' : sub.permisos}, perfil ${PERFIL_EN_PALABRAS[sub.perfil ?? 'total']}${sub.sinGuardia ? `; ojo: ${sub.harness} no acepta la guardia, corre SIN lista negra` : ''}, ${sub.cwd}). ${sub.eleccion ? `Corre con ${sub.eleccion}; si el CLI reporta otra cosa, el Taller lo marca en ámbar y te lo digo al terminar.` : ''}${donde} El encargo ya le llegó como argumento del CLI. ${sub.aviso ? `Aviso: ${sub.aviso}. ` : ''}Muéstralo con mostrar {vista:"trabajos", agenteId:${sub.id}}. ${origen ? 'Cuando su proceso salga (terminó, falló o hizo una pregunta), el servidor te despierta en ESTA conversación con su última respuesta: no necesitas despertador ni vigía para eso. ' : ''}Para seguir la conversación usa retomar; ciérralo con cerrar cuando termine.` }
       return { text: `Subagente «${sub.nombre}» lanzado en ${sub.motor ? 'el motor de Arbrain' : 'SFTerm (motor apagado: respaldo por el gate)'}: agenteId ${sub.id} (${sub.harness}${sub.modelo ? ` · ${sub.modelo}` : ''}, permisos ${sub.permisos === 'bypass' ? 'bypassPermissions' : sub.permisos}, ${sub.cwd}). ${entrega} ${sub.aviso ? `Aviso: ${sub.aviso}. ` : ''}${sub.espera ? `Dejó una pregunta abierta, es tuya (no de ${DUENO}): «${sub.espera}»; respóndela con retomar. ` : ''}Muéstralo con mostrar {vista:"trabajos", agenteId:${sub.id}}. ${origen && sub.motor ? 'Cuando termine (quieto tras responder, o si su proceso muere), el servidor te despierta en ESTA conversación con su última respuesta: no necesitas despertador ni vigía para eso. ' : ''}Ciérralo con cerrar cuando termine.` }
     }
     const id = Number(o.agenteId)
     if (!Number.isInteger(id)) throw new Error('agenteId inválido.')
-    if (tool === 'retomar') { if (typeof o.texto !== 'string' || !o.texto.trim()) throw new Error('retomar necesita texto.'); const r = await retomar(id, o.texto); if (r.eligio) return { text: r.confirmado ? `Opción ${r.eligio} elegida en el diálogo del subagente ${id}; ya siguió.` : `Marqué la opción ${r.eligio} en el diálogo del subagente ${id}, pero el diálogo sigue en pantalla: míralo con mostrar trabajos.` }; if (r.enVivo) return { text: `Mensaje entregado EN VIVO al subagente ${id}: entró a su turno en curso y lo toma en cuanto termine el paso que está haciendo (no lo interrumpe). Te aviso cuando su proceso salga.` }; return { text: r.confirmado ? (r.encolado ? `Mensaje encolado en el subagente ${id}: seguía en medio de un paso y lo tomará al terminar (quedó en su cola).` : `Mensaje entregado al subagente ${id}.`) : `Mensaje enviado al subagente ${id}${r.encolado ? ' (seguía trabajando)' : ''}, pero no pude confirmar que quedara en su cola: míralo con mostrar trabajos antes de repetirlo.` } }
+    if (tool === 'retomar') { if (typeof o.texto !== 'string' || !o.texto.trim()) throw new Error('retomar necesita texto.'); const cambio = { ...(typeof o.modelo === 'string' && o.modelo ? { modelo: o.modelo } : {}), ...(typeof o.esfuerzo === 'string' && o.esfuerzo ? { esfuerzo: o.esfuerzo } : {}) }; const r = await retomar(id, o.texto, cambio); const conCambio = r.eleccion ? ` Desde este turno: ${r.eleccion}.` : ''; if (r.eligio) return { text: r.confirmado ? `Opción ${r.eligio} elegida en el diálogo del subagente ${id}; ya siguió.` : `Marqué la opción ${r.eligio} en el diálogo del subagente ${id}, pero el diálogo sigue en pantalla: míralo con mostrar trabajos.` }; if (r.enVivo) return { text: `Mensaje entregado EN VIVO al subagente ${id}: entró a su turno en curso y lo toma en cuanto termine el paso que está haciendo (no lo interrumpe). Te aviso cuando su proceso salga.` }; return { text: r.confirmado ? (r.encolado ? `Mensaje encolado en el subagente ${id}: seguía en medio de un paso y lo tomará al terminar (quedó en su cola).` : `Mensaje entregado al subagente ${id}.${conCambio}`) : `Mensaje enviado al subagente ${id}${r.encolado ? ' (seguía trabajando)' : ''}, pero no pude confirmar que quedara en su cola: míralo con mostrar trabajos antes de repetirlo.` } }
     if (tool === 'detener') {
       const { detenerSubagente } = await import('./sin-pantalla.js')
       const r = await detenerSubagente(id)
@@ -320,38 +333,6 @@ export async function ejecutarCabina(tool: string, raw: unknown): Promise<{ text
   } catch (error) {
     return { text: error instanceof Error ? error.message : 'No se pudo ejecutar.', error: true }
   }
-}
-
-/**
- * `pizarron` (7 oct 2026): enseñar conversando. abrir fija la pestaña con acuse de la app (como mostrar fijar); lo demás
- * escribe la sesión en el repo y la app la reproduce. Detalle en pizarron.ts y docs/pizarron/OFICIO.md.
- */
-async function pizarronTool(o: Record<string, unknown>): Promise<{ text: string; error?: boolean; imagenes?: { data: string; mimeType: string }[] }> {
-  const pz = await import('./pizarron.js')
-  const conversacion = (() => { try { return scopeDeCabina().conversationId } catch { return undefined } })()
-  switch (o.accion) {
-    case 'abrir': {
-      const { sesion, nueva } = pz.abrirSesion(o, conversacion)
-      // La pestaña nace en la ventana que muestra ESTA conversación (la app lee esta respuesta), no por el bus: el bus
-      // llegaría a todas las ventanas de Daniel. Si no la tiene abierta, la sesión espera: sus pasos suenan al abrirla.
-      const panel = `La pestaña «Pizarrón» se abre sola en la ventana donde ${DUENO} tiene esta conversación; con panel list puedes verificar que está. Si no la tiene a la vista, los pasos esperan y suenan cuando la abra (también desde «+ › Pizarrón»).`
-      const vistos = sesion.pasos.length ? ` Ya tiene ${sesion.pasos.length} pasos (${pz.resumenPasos(sesion.pasos)}): sigue desde ahí.` : ''
-      return { text: [`Sesión ${nueva ? 'nueva' : 'retomada'}: sesion="${sesion.id}" · «${sesion.tema}»${sesion.documento ? ` · documento ${sesion.documento}` : ''}.${vistos}`, panel, '', '── LO QUE YA DOMINA ──', pz.mapaDelAlumno(sesion.alumno, sesion.tema), '', '── BIBLIOTECA ──', pz.describirBiblioteca(), '', '── OFICIO ──', pz.oficio()].join('\n') }
-    }
-    case 'pasos': {
-      const r = pz.agregarPasos(String(o.sesion ?? ''), o.pasos)
-      return { text: `Guardé ${r.nuevos.length} paso(s) en «${r.sesion.tema}»: ${pz.resumenPasos(r.nuevos)}. Empiezan a sonar en su panel en ~1 s (si ya sonaba algo, al terminar). Voz nueva en cola: ~${r.segundos} s: es tu tiempo para preparar lo siguiente (objeto, imagen) sin que se note.${r.avisos.length ? `\nAvisos:\n- ${r.avisos.join('\n- ')}` : ''}` }
-    }
-    case 'objeto': {
-      const r = pz.guardarObjeto(o)
-      return { text: `Objeto «${r.ficha.id}» ${r.nuevo ? 'nuevo en' : 'actualizado en'} la biblioteca; el ensayo en seco pasó. Declaró params ${Object.keys(r.ficha.params ?? {}).join(', ') || '—'}; asas ${r.ficha.asas?.join(', ') || '—'}; anclas ${r.ficha.anclas?.join(', ') || '—'}; métodos ${r.ficha.metodos?.join(', ') || '—'}. Úsalo en un paso: {id:"…", tipo:"objeto", objeto:"${r.ficha.id}"}.${r.avisos.length ? `\nAvisos:\n- ${r.avisos.join('\n- ')}` : ''}` }
-    }
-    case 'imagen': return { text: await pz.generarImagen(o) }
-    case 'leer': { const r = pz.leerAlumno(String(o.sesion ?? ''), { todo: o.todo === true }); return { text: r.text, ...(r.imagenes.length ? { imagenes: r.imagenes } : {}) } }
-    case 'escribir': return { text: pz.escribirDeVuelta(o) }
-    case 'biblioteca': return { text: pz.describirBiblioteca(typeof o.buscar === 'string' ? o.buscar : undefined) }
-  }
-  throw new Error('accion: abrir, pasos, objeto, imagen, leer, escribir o biblioteca.')
 }
 
 /**
@@ -495,14 +476,10 @@ export function cabinaDynamicTools() {
 export function cabinaToolsVisibles(): Array<(typeof CABINA_TOOLS)[number]> {
   return esEdicionCliente() ? cabinaToolsCliente() : [...CABINA_TOOLS]
 }
-/**
- * Herramientas que solo existen en la instalación original: `atender` marca avisos de su campana (carril T) y `pizarron`
- * enseña en una pestaña que la web del alumno no tiene en la v1 (carril U; MAPA-WEB › Pizarrón).
- */
-export const CABINA_SOLO_ORIGINAL = new Set(['atender', 'pizarron'])
+/** Herramientas que solo existen en la instalación original: `atender` marca avisos de su campana (carril T). */
+export const CABINA_SOLO_ORIGINAL = new Set(['atender'])
 /** Por qué una herramienta de CABINA_SOLO_ORIGINAL no corre en cliente. */
-export const motivoSoloOriginal = (tool: string) => tool === 'pizarron' ? SIN_PIZARRON_CLIENTE : SIN_CAMPANA_CLIENTE
-export const SIN_PIZARRON_CLIENTE = 'El pizarrón no está disponible en esta edición de Arbrain. Explica en el chat y, si ayuda, dibuja en el lienzo o enseña un documento.'
+export const motivoSoloOriginal = (_tool: string) => SIN_CAMPANA_CLIENTE
 
 /**
  * Textos de la Cabina en la edición cliente (carril U, 11 oct 2026): describen SOLO lo que existe en la app del alumno

@@ -87,7 +87,10 @@ test('cabecera fija: la barra y los días se quedan arriba al hacer scroll', () 
   assert.ok(cab > 0 && riel > cab, 'la cabecera va antes del riel y fuera de él')
   assert.ok(semana.slice(cab, riel).includes('role="columnheader"'), 'los encabezados de día están en la cabecera')
   assert.match(semana, /c\.scrollLeft = r\.scrollLeft/)
-  assert.match(css, /\.rielCab \{ position: sticky; top: var\(--plan-pegado, 0px\)/)
+  // Bajo la barra y, en la Semana, bajo el objetivo fijo (28 oct 2026: `--franja-alto`, medido en SemanaClara).
+  assert.match(css, /\.rielCab \{ position: sticky; top: calc\(var\(--plan-pegado, 0px\) \+ var\(--franja-alto, 0px\)\)/)
+  assert.match(fuente('SemanaClara.tsx'), /'--franja-alto': `\$\{altoFranja\}px`/)
+  assert.match(fuente('claridad.module.css'), /\.franjaPegada \{ position: sticky; top: var\(--plan-pegado, 0px\)/)
   // La barra del calendario, pegada; su alto medido alimenta `--plan-pegado`.
   assert.match(pcss, /\.root\[data-unificada\] > \.barra \{ position:sticky; top:0/)
   assert.match(cal, /'--plan-pegado': `\$\{altoBarra\}px`/)

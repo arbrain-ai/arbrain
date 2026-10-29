@@ -27,7 +27,7 @@ export const NOMBRES: Record<Seccion, string> = { calendario: 'Calendario', tare
 
 /**
  * «Dónde abre Levy» (7 oct 2026, Daniel: «as default siempre me abrirás todo en la ventana de la izquierda… en el derecho suelo
- * tener el Día y el Taller de agentes»). Qué ventana de Arbrain recibe lo que Levy abre (`mostrar`, `pizarron`): la que esté a
+ * tener el Día y el Taller de agentes»). Qué ventana de Arbrain recibe lo que Levy abre con `mostrar`: la que esté a
  * la izquierda de la pantalla según su posición real (por defecto), la de la derecha, o siempre el panel principal. La app
  * resuelve «izquierda/derecha» midiendo sus ventanas; si la elegida no existe, cae en el panel principal.
  */

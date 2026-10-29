@@ -9,6 +9,7 @@ import { join } from 'node:path'
 import {
   apagar, binarioTailscale, codigoNuevo, crearCodigos, encender, entornoWeb, estado, fallaServe, guardarEstado, hostValido,
   interpretarStatus, leerEstado, manejadoresServe, normalizarCodigo, puertoLibreHttps, puertoNuestro, urlTelefono, atenderControl,
+  alArrancar,
 } from '../../scripts/servidor/telefono.mjs'
 import { esHostTelefono, hostTelefono, llegaPorTelefono } from '../../src/features/telefono/host-telefono'
 import { pareceCodigo } from '../../src/features/telefono/codigo'
@@ -176,6 +177,63 @@ test('estado guardado: lo ilegible o ajeno cuenta como apagado', () => {
   assert.deepEqual(entornoWeb(R), {})
   writeFileSync(join(R.config, 'telefono.json'), '{roto')
   assert.equal(leerEstado(R).encendido, false)
+})
+
+// Un alumno en Windows 11 (29 oct 2026): «cada vez que apago o reinicio mi PC… se desconecta». Al encender la computadora
+// Tailscale y Arbrain arrancan a la vez; el teléfono tiene que volver solo.
+
+test('reinicio: espera a que Tailscale se conecte y vuelve a apuntar a la web nueva', async () => {
+  const { R, bin, registro } = entorno({ ARBRAIN_TAILSCALE_FALSO_ESTADO: 'Stopped' })
+  guardarEstado(R, { encendido: true, host: HOST, puertoHttps: 443, puertoWeb: 4310 })
+  let esperas = 0
+  // Tailscale se conecta en el tercer intento (antes, alArrancar se rendía al primero y el teléfono quedaba muerto).
+  const dormir = async () => { if (++esperas === 2) process.env.ARBRAIN_TAILSCALE_FALSO_ESTADO = 'Running' }
+  assert.equal(await alArrancar({ R, puertoWeb: 4311, bin, dormir, pausaMs: 0 }), true)
+  assert.equal(esperas, 2)
+  assert.ok(registro().some((a) => a.join(' ') === 'serve --bg --yes --https=443 http://127.0.0.1:4311'), JSON.stringify(registro()))
+  assert.equal(leerEstado(R).puertoWeb, 4311)
+  assert.equal((await estado({ R, puertoWeb: 4311, bin })).estado, 'encendido')
+})
+
+test('reinicio: si la publicación se perdió con el mismo puerto, la vuelve a poner; si sigue, no toca nada', async () => {
+  const { R, bin, registro } = entorno()
+  guardarEstado(R, { encendido: true, host: HOST, puertoHttps: 443, puertoWeb: 4310 })
+  assert.equal(await alArrancar({ R, puertoWeb: 4310, bin, pausaMs: 0 }), true)
+  assert.equal((await estado({ R, puertoWeb: 4310, bin })).estado, 'encendido')
+  const publicaciones = () => registro().filter((a) => a[0] === 'serve' && a[1] === '--bg').length
+  const antes = publicaciones()
+  assert.equal(await alArrancar({ R, puertoWeb: 4310, bin, pausaMs: 0 }), null)
+  assert.equal(publicaciones(), antes)
+})
+
+test('reinicio: Tailscale nunca se conecta → se rinde tras sus intentos sin publicar; apagado → no hace nada', async () => {
+  const { R, bin, registro } = entorno({ ARBRAIN_TAILSCALE_FALSO_ESTADO: 'Stopped' })
+  assert.equal(await alArrancar({ R, puertoWeb: 4310, bin, pausaMs: 0 }), null)
+  guardarEstado(R, { encendido: true, host: HOST, puertoHttps: 443, puertoWeb: 4310 })
+  let esperas = 0
+  const notas: string[] = []
+  assert.equal(await alArrancar({ R, puertoWeb: 4310, bin, intentos: 3, dormir: async () => { esperas++ }, registrar: (m: string) => notas.push(m) }), false)
+  assert.equal(esperas, 2)
+  assert.ok(!registro().some((a) => a[0] === 'serve' && a[1] === '--bg'))
+  assert.match(notas.join('\n'), /no se conectó/)
+})
+
+test('encender asegura el arranque automático (el teléfono sobrevive al reinicio); apagar no lo toca', async () => {
+  const { R, bin } = entorno()
+  let llamadas = 0
+  const ctx = { R, puertoWeb: () => 4310, reiniciarWeb: async () => {}, registrar: () => {}, codigos: crearCodigos(), bin,
+    asegurarArranque: () => { llamadas++; return { activo: true, nuevo: true } } }
+  const [, j] = (await atenderControl({ metodo: 'POST', ruta: '/telefono/encender', cuerpo: {}, esWeb: true, esCli: false }, ctx))!
+  assert.equal(j.estado, 'encendido')
+  assert.deepEqual(j.arranque, { activo: true, nuevo: true })
+  await atenderControl({ metodo: 'POST', ruta: '/telefono/apagar', cuerpo: {}, esWeb: true, esCli: false }, ctx)
+  assert.equal(llamadas, 1)
+  // Sin Tailscale listo no se activa nada.
+  const otro = entorno({ ARBRAIN_TAILSCALE_FALSO_ESTADO: 'NeedsLogin' })
+  const [, k] = (await atenderControl({ metodo: 'POST', ruta: '/telefono/encender', cuerpo: {}, esWeb: true, esCli: false }, { ...ctx, R: otro.R, bin: otro.bin }))!
+  assert.equal(k.estado, 'falta-sesion')
+  assert.equal(llamadas, 1)
+  await new Promise((r) => setTimeout(r, 400))
 })
 
 // ── Web ────────────────────────────────────────────────────────────────────────────────────────────────────────

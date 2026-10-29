@@ -21,5 +21,5 @@ test('lecturas, rutas que no son /api, bearer y peticiones sin cookie: pasan', (
   assert.equal(escrituraEntreSitios('GET', '/api/chat', cab('cross-site')), false)
   assert.equal(escrituraEntreSitios('POST', '/login', cab('cross-site')), false)
   assert.equal(escrituraEntreSitios('POST', '/api/openclaw/event', cab('cross-site', { authorization: 'Bearer x' })), false)
-  assert.equal(escrituraEntreSitios('POST', '/api/pizarron/x', cab('cross-site', { conCookieDeSesion: false })), false)
+  assert.equal(escrituraEntreSitios('POST', '/api/canvas/x', cab('cross-site', { conCookieDeSesion: false })), false)
 })

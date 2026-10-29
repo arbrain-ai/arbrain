@@ -31,7 +31,10 @@ test('el recorrido abre en la semana actual, compacta las pasadas y su ceja llev
   assert.match(mes, /querySelector<HTMLElement>\('\[data-actual\]'\)/)
   assert.match(mes, /scrollIntoView\(\{ block: 'start' \}\)/)
   assert.match(mes, /<button type="button" className=\{c\.mesCeja\} onClick=\{onSemana \? \(\) => onSemana\(w\.lunes\)/)
-  assert.match(mes, /\{pasada \? null : <>/, 'las semanas pasadas quedan en su ceja')
+  assert.match(mes, /\{pasada \|\| !abierta \? null : <>/, 'las semanas pasadas quedan en su ceja; las demás se pliegan (28 oct 2026)')
+  // Sin nombres de personas en el Mes: el resumen de la semana, no la lista de marcas.
+  assert.doesNotMatch(mes, /className=\{c\.mesMarcas\}/)
+  assert.match(mes, /resumenSemana\(/)
   const css = fuente('claridad.module.css')
   assert.match(css, /\.mesCeja:focus-visible \{/)
   assert.match(css, /\.mesCeja \{[^}]*cursor: pointer/)

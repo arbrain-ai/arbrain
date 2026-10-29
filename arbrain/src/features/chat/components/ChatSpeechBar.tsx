@@ -1,7 +1,10 @@
 'use client'
-import { useSyncExternalStore } from 'react'
+import { useEffect, useSyncExternalStore } from 'react'
 import { SkipBack, SkipForward, Play, Pause, X, Zap } from 'lucide-react'
 import { chatSpeech, type SpeechState } from '../lib/chat-speech'
+import { avisoGroqMostrado, avisoGroqVisible, cerrarAvisoGroq, suscribirAvisoGroq } from '../lib/aviso-groq-lector'
+import { MARCA_DESDE_MIC } from '@/features/primer-arranque/lib/llaves'
+import { useAjustes } from '@/shared/stores/ajustes-store'
 import {
   AudioBarFrame,
   BTN_CERRAR,
@@ -32,6 +35,12 @@ export function ChatSpeechBar() {
     () => (chatSpeech ? chatSpeech.getState() : INACTIVE),
     () => INACTIVE,
   )
+
+  const avisoGroq = useSyncExternalStore(suscribirAvisoGroq, avisoGroqVisible, () => false)
+  // El aviso de Groq se dice una vez: queda anotado cuando esta barra lo pinta y se va al cerrar el lector.
+  const pintaAviso = avisoGroq && state.active && !state.id?.startsWith('doc:')
+  useEffect(() => { if (pintaAviso) avisoGroqMostrado() }, [pintaAviso])
+  useEffect(() => { if (!state.active) cerrarAvisoGroq() }, [state.active])
 
   // Un documento del panel lleva sus controles en su propia pestaña (lo que vive en el panel no se pinta otra vez en el chat).
   if (!chatSpeech || !state.active || state.id?.startsWith('doc:')) return null
@@ -105,7 +114,32 @@ export function ChatSpeechBar() {
          con ella el JS que mueve el resaltado. La voz sigue, el naranja se queda. Se
          avisa para que no parezca que el lector se rompió. */
       aviso={
-        !state.paused && !state.despierto && tactil() ? (
+        // LemonFox sin llave de Groq (29 oct 2026): una vez, cómo hacer que el resaltado siga la voz exacto. Mismo camino
+        // que el micrófono sin llave: la marca de sesión hace que Ajustes › Voz salude con el porqué.
+        avisoGroq ? (
+          <div className="chat-prose flex flex-wrap items-center justify-center gap-x-3 gap-y-1 px-4 pb-2.5 text-center" role="status">
+            <p className="text-[11px] leading-snug text-muted">
+              Con una llave gratis de Groq, el resaltado sigue la voz palabra por palabra. Créala en console.groq.com/keys
+              y pégala en Arbrain › Ajustes › Voz (nunca en el chat).
+            </p>
+            <span className="flex gap-2">
+              <button
+                type="button"
+                className="text-[11px] font-medium text-brand-ink hover:underline"
+                onClick={() => {
+                  try { sessionStorage.setItem(MARCA_DESDE_MIC, 'lector') } catch { /* sin storage */ }
+                  cerrarAvisoGroq()
+                  useAjustes.getState().abrir('voz')
+                }}
+              >
+                Abrir Ajustes › Voz
+              </button>
+              <button type="button" className="text-[11px] text-muted hover:text-foreground/75" onClick={cerrarAvisoGroq}>
+                Ahora no
+              </button>
+            </span>
+          </div>
+        ) : !state.paused && !state.despierto && tactil() ? (
           <div className="chat-prose px-4 pb-2.5 text-center">
             <p className="text-[10px] text-amber-500/80 leading-snug">
               No pude mantener la pantalla encendida (¿Modo de Bajo Consumo?). Si se apaga,

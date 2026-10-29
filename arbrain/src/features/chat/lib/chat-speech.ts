@@ -1,28 +1,22 @@
 /**
- * Lectura por voz de un mensaje del chat. Desde el 22 oct 2026 suena con la VOZ DEL SERVIDOR (audio por párrafo en un
- * `<audio>`, ver voz-servidor.ts y hablaConAudio()) y cae a la VOZ DEL DISPOSITIVO (Web Speech API) si el servidor falla,
- * resaltado naranja de la palabra que suena, tap en un párrafo para saltar, y una barra
- * de control (⏮ ⏯ ⏭ · velocidad · ✕) como la del lector de libros.
+ * Lectura por voz de un mensaje del chat: barra (⏮ ⏯ ⏭ · velocidad · ✕), tap en un párrafo para leer desde esa palabra,
+ * y UN resaltado ámbar en la palabra que suena. Un solo mensaje lee a la vez (singleton).
  *
- * Es el mismo motor del lector (make-estudio) portado a TS y recortado al 80/20. Un solo
- * mensaje lee a la vez (singleton): iniciar otro detiene el anterior.
+ * DOS VOCES, UNA REGLA: el resaltado solo se mueve con una marca REAL de la voz, nunca con una estimación.
+ *   · Voz del servidor (la de siempre en la instalación de Daniel; ver voz-servidor.ts y hablaConAudio()): audio por
+ *     tramos con la tabla exacta palabra → instante de la MISMA síntesis (marcas-voz.ts). Un reloj (lo que sale por la
+ *     bocina, latencia incluida) y en cada fotograma la palabra de ese instante. Voces que no dan marcas (LemonFox, un
+ *     agent-server viejo): respaldo de tiempos-estimados.ts, documentado ahí.
+ *   · Voz del dispositivo (Web Speech API), solo si no hay voz de servidor (edición cliente sin llave, servidor caído):
+ *     el resaltado lo mueven los `boundary` que emite el propio motor. Si una plataforma no los emite, el resaltado se
+ *     queda en la primera palabra de la frase que suena: mejor quieto que adivinando (29 oct 2026, Daniel: «si solo es
+ *     preciso 95% del tiempo hay desfases que me cortan la concentración»).
  *
- * RESALTADO: el naranja es el ÚNICO marcador. Se ancla en la primera palabra al entrar a un
- * párrafo (sin esperar a la voz) y de ahí lo mueven los eventos `boundary`. Sobrevive a la
- * pausa y a la navegación: ese es el "estás aquí". No depende de que lleguen boundaries — si
- * el motor de voz no los emite, el ancla igual marca dónde va la lectura.
+ * El resaltado es un solo elemento que se mueve (resaltado.ts): no deja rastro y sobrevive a la pausa (el «estás aquí»).
  *
- * VOZ — medido el 15 jul 2026, NO asumir lo contrario:
- *   · WebKit (Safari, iPhone/iPad, app de escritorio Tauri/WKWebView) expone SOLO DOS voces
- *     en español: Paulina (es-MX, default) y Mónica (es-ES). "Juan (mejorada)" NO aparece,
- *     aunque esté instalada en el sistema y `say -v` la liste.
- *   · Chrome expone 181 voces, "Juan (mejorada)" incluida.
- *   Consecuencia: currentVoice() encuentra a Juan en Chrome y no en WebKit, así que el chat
- *   suena con Juan en Chrome y con Paulina en el iPhone y en la app de escritorio. El
- *   comentario viejo aquí afirmaba que WebKit resolvía "Juan mejorada" solo con no fijar
- *   utterance.voice; es FALSO (la default de WebKit es Paulina). Si algún día se quiere una
- *   sola voz en todas las superficies, hay que elegirla explícitamente, no confiar en el
- *   default del sistema. El lector de libros resuelve esto con un selector de voz.
+ * VOZ DEL DISPOSITIVO — medido el 15 jul 2026, NO asumir lo contrario: WebKit (Safari, iPhone/iPad, WKWebView) expone
+ * solo Paulina (es-MX) y Mónica (es-ES); «Juan (mejorada)» no aparece aunque `say -v` la liste. Chrome expone 181 voces,
+ * Juan incluida. currentVoice() fija a Juan si aparece; si no, deja la del sistema (Apple) o elige la mejor en español.
  */
 
 const isIOS =
@@ -48,8 +42,8 @@ export function mejorVozEspanol<V extends { name: string; lang: string; localSer
 
 // Velocidad REAL (la hornea el servidor, atempo sin cambiar el tono). Hasta 3x desde el 23 oct 2026: Daniel, «sigo sin
 // escuchar la velocidad rápida; esto funcionaba por meses». Por meses la app leyó con la voz de WebKit, cuyo `rate` no es
-// lineal: «1.75x» sonaba a 42 car/s, 3x de los 14 car/s de 1x (medido el 22 oct, ver vozNoAcelera). El 2x real del
-// servidor son ~30 car/s: correcto, pero más lento que lo que su oído conocía como «rápido».
+// lineal: «1.75x» sonaba a 42 car/s, 3x de los 14 car/s de 1x (medido el 22 oct). El 2x real del servidor son ~30 car/s:
+// correcto, pero más lento que lo que su oído conocía como «rápido».
 const RATES = [1, 1.5, 2, 2.5, 3]
 /** Índice de la velocidad de RATES más cercana; en empate, la más rápida (una posición guardada a 1.75 vuelve a 2). */
 export function indiceDeVelocidad(rate: number): number {
@@ -153,25 +147,16 @@ export function buildSpoken(text: string): { spoken: string; map: number[] } {
   return { spoken, map }
 }
 
-/**
- * Regla del velocímetro (ver mideVelocidad()): `true` si una frase de `chars` caracteres
- * hablada en `ms` a velocidad `rate` sonó demasiado lenta para ese rate (el motor lo ignoró),
- * `false` si aceleró, `null` si la muestra no sirve para juzgar (frase corta, rate bajo).
- * Medido el 22 oct 2026: a 1x van 14 caracteres/s (Chrome y WebKit); a 1.75x, 25 en Chrome
- * y 42 en WebKit. El umbral 11 × rate (19.25 a 1.75x) queda entre los dos mundos.
- */
-export function vozNoAcelera(chars: number, ms: number, rate: number): boolean | null {
-  if (chars < 40 || rate < 1.75 || ms < 1200) return null
-  return chars / (ms / 1000) < 11 * rate
-}
-
 import { calcularZonaLectura } from './zona-lectura'
 import { anclarElemento, deslizarScroll, escalaRect, fijarScroll } from './desplazar'
 import { sonda } from './tts-probe'
 import { URL_RE, filtrarBloques } from './lector-filtro'
 import { MARCA_PROPIO, SELECTOR_BLOQUES, tramosPropios, type NodoLector } from './lector-bloques'
 import { MemoriaLector, huellaDeTexto, resolverPosicion, type PosicionLector } from './lector-posicion'
-import { VozServidor, palabraEn, tiemposDelAudio } from './voz-servidor'
+import { VozServidor } from './voz-servidor'
+import { palabraEn, tiemposDeMarcas } from './marcas-voz'
+import { tiemposDelAudio } from './tiempos-estimados'
+import { ResaltadoUnico } from './resaltado'
 
 type StateCb = (playing: boolean) => void
 
@@ -468,8 +453,8 @@ class ChatSpeechController {
     // JS NO se congela: medido el 23 sep, las frases siguieron encadenándose sin hueco con la
     // ventana tapada 16s. Re-arrancar igual cortaba la voz y repetía la frase cada vez que
     // cambiabas de app. Fuera de iOS solo se re-arranca si el motor de verdad se quedó mudo.
-    // Con la voz del servidor no hay nada que re-sincronizar: el `<audio>` sigue sonando oculto y el resaltado se pone al
-    // día en el siguiente frame.
+    // Con la voz del servidor no hay nada que re-sincronizar: Web Audio sigue sonando oculto y el resaltado se pone al
+    // día en el siguiente frame (lo da el reloj del audio, no un evento que se haya perdido).
     if (this.enAudio) { this.voz.reanudar(); this.hiddenAt = 0; return }
     const mudo = !this.synth?.speaking && this.now() - Math.max(this.ultimoBoundaryAt, this.uttStartedAt) > 2500
     if (this.playing && !this.paused && this.hiddenAt && fuera > 1200 && (isIOS || mudo)) {
@@ -741,14 +726,8 @@ class ChatSpeechController {
       null
     // Fuera de Apple (Windows, Linux, Android: grupal del 23 oct 2026, «la voz por defecto en Windows es fea») el
     // default del sistema suele ser una voz robótica o ni siquiera en español: se elige la mejor en español.
-    if (!juan && !esApple && !this.vozInvertida) return mejorVozEspanol(es)
-    if (!this.vozInvertida) return juan
-    // El velocímetro midió que con esta elección la voz no acelera (ver mideVelocidad()):
-    // se prueba la otra. Con Juan fijado se deja al sistema; sin voz fijada se fija una local
-    // es-MX con nombre (preferente la marcada por defecto), que es la que el sistema usaría.
-    if (juan) return null
-    const mx = pool.filter((v) => /es[-_]MX/i.test(v.lang) && !/super-compact/i.test(v.voiceURI))
-    return mx.find((v) => v.default) || mx[0] || pool.find((v) => v.default) || pool[0] || null
+    if (!juan && !esApple) return mejorVozEspanol(es)
+    return juan
   }
 
   // Une fragmentos cuando el punto NO cierra frase: abreviaturas (p., pp., cap., Vol.,
@@ -788,62 +767,25 @@ class ChatSpeechController {
     return out.filter((s) => s.text.length)
   }
 
-  // UNA sola Highlight persistente, registrada una vez. Resaltar = clear()+add() una
-  // sola range; limpiar = clear(). Evita el bug de iOS donde delete/set de la Highlight
-  // API no repinta y deja el naranja pegado en párrafos que ya pasaron.
-  // Pintado coalescido por frame (ver pintaPalabra): cuando el hilo se destraba y
-  // llegan boundaries en ráfaga, solo se pinta el último.
+  // UN solo resaltado (resaltado.ts): una caja que se mueve a la palabra que suena y se quita al cerrar. El pintado de
+  // la voz del dispositivo se coalesce por frame (ver pintaPalabra en speakBlock): si llegan boundaries en ráfaga, solo
+  // se pinta el último.
   private rafPintar = 0
   private pendienteDePintar: { el: HTMLElement; from: number; to: number } | null = null
+  private resaltado = new ResaltadoUnico()
 
-  private wordHL: Highlight | null = null
-  private ensureHL(): Highlight | null {
-    const H = (window as unknown as { Highlight?: typeof Highlight }).Highlight
-    const reg = (CSS as unknown as { highlights?: HighlightRegistry }).highlights
-    if (!H || !reg) return null
-    if (!this.wordHL) {
-      this.wordHL = new H()
-      reg.set('chat-word', this.wordHL)
-    }
-    return this.wordHL
-  }
   private highlightWord(el: HTMLElement, start: number, end: number) {
     if (this.puente) {
       const i = this.indiceEspejo.get(el)
       if (i != null) this.puente.pintar(i, start, end)
       return
     }
-    const hl = this.ensureHL()
-    if (!hl) return
-    try {
-      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
-      let node: Node | null
-      let off = 0
-      const range = document.createRange()
-      let s = false
-      let e = false
-      while ((node = walker.nextNode())) {
-        const len = node.textContent?.length || 0
-        if (!s && off + len > start) {
-          range.setStart(node, start - off)
-          s = true
-        }
-        if (s && off + len >= end) {
-          range.setEnd(node, Math.min(end - off, len))
-          e = true
-          break
-        }
-        off += len
-      }
-      if (s && e) {
-        hl.clear()
-        hl.add(range)
-      }
-    } catch { /* cosmético */ }
+    if (this.extracto && !el.isConnected) return // extracto desprendido (una selección): no hay dónde pintar
+    this.resaltado.pintar(el, start, end)
   }
   private clearHighlight() {
     this.cancelaPintadoPendiente()
-    this.wordHL?.clear()
+    this.resaltado.limpiar()
     this.puente?.limpiar()
   }
 
@@ -1030,14 +972,11 @@ class ChatSpeechController {
       // Cursor al iniciar la frase (piso mínimo si no llegan boundaries en esta plataforma).
       this.cursorOffset = s.start + sliceStart
 
-      // Secuencia por utterance: iOS a veces dispara eventos `boundary` TARDE
-      // (después del onend), lo que re-pintaba la última palabra y dejaba el
-      // resaltado pegado al final de cada párrafo. Con este guard, un boundary
-      // de una utterance ya terminada se ignora.
+      // Secuencia por utterance: iOS a veces dispara `boundary` TARDE (después del onend) y re-pintaba la última
+      // palabra al final de cada párrafo. Un evento de una utterance ya terminada se ignora.
       const seq = ++this.uttSeq
       const { spoken, map } = buildSpoken(sentText)
-      // Frase que era puro ruido (un bullet con solo un emoji, una URL suelta): no hay
-      // nada que decir. Sin esto la voz se quedaba muda un turno con el ancla parada.
+      // Frase que era puro ruido (un bullet con solo un emoji, una URL suelta): no hay nada que decir.
       if (!spoken.trim()) return next()
       const u = new SpeechSynthesisUtterance(spoken)
       const v = this.currentVoice()
@@ -1045,36 +984,18 @@ class ChatSpeechController {
         u.voice = v
         u.lang = v.lang
       } else u.lang = 'es-MX'
-      const pedida = (u.rate = RATES[this.rateIdx])
-      // Palabras de la frase, en coordenadas del texto hablado. Sirven para los dos
-      // caminos: el preciso (boundary) y el de reloj propio (cuando no hay boundary).
-      const words: Array<{ from: number; to: number }> = []
-      const wre = /\S+/g
-      let wm: RegExpExecArray | null
-      while ((wm = wre.exec(spoken))) words.push({ from: wm.index, to: wm.index + wm[0].length })
+      u.rate = RATES[this.rateIdx]
+      const primera = /\S+/.exec(spoken)
 
-      // `real` = la posición viene de la PLATAFORMA (boundary), no de la estimación del
-      // reloj. Solo entonces se mueve `cursorOffset`, que es de donde reanuda la pausa.
-      // El reloj estima ~14 chars/seg: si va adelantado y pausas ahí, al reanudar se
-      // saltaba texto (audio y resaltado nunca volvían a coincidir). El reloj pinta —
-      // para que se vea por dónde va— pero NO opina sobre dónde reanudar; el piso de
-      // `cursorOffset` es el inicio de la frase, que como mucho repite, nunca se salta.
-      // El PINTADO se coalesce por frame; la POSICIÓN se actualiza al instante.
-      //
-      // Cuando el hilo principal se traba, los boundaries no se pierden: se ENCOLAN, y
-      // al destrabarse llegan todos juntos. Pintarlos uno por uno hacía dos daños a la
-      // vez: el naranja se arrastraba por las palabras viejas en vez de saltar a la
-      // actual (se veía como si la voz fuera "adelantada"), y cada uno pagaba un
-      // TreeWalker + Range + Highlight justo cuando el hilo estaba peor. Ahora solo se
-      // pinta el ÚLTIMO de cada frame: el resaltado se pone al día de un salto y el
-      // trabajo cae a uno por frame. `cursorOffset` sí se mueve con cada boundary real,
-      // porque de ahí depende reanudar la pausa en la palabra exacta.
-      const pintaPalabra = (w: { from: number; to: number }, real = false) => {
+      // La posición (de donde reanuda la pausa) se mueve con cada marca real; el PINTADO se coalesce por frame: si el
+      // hilo se trabó y los boundaries llegan en ráfaga, el resaltado salta a la palabra actual en vez de arrastrarse.
+      const pintaPalabra = (w: { from: number; to: number }) => {
         const vFrom = map[w.from]
         if (vFrom == null) return
         const from = s.start + sliceStart + vFrom
         const to = s.start + sliceStart + (map[w.to - 1] ?? vFrom) + 1
-        if (real) { this.cursorOffset = from; this.guardaPunto() }
+        this.cursorOffset = from
+        this.guardaPunto()
         this.pendienteDePintar = { el, from, to }
         if (this.rafPintar) return
         this.rafPintar = requestAnimationFrame(() => {
@@ -1089,80 +1010,50 @@ class ChatSpeechController {
       }
 
       u.onboundary = (ev) => {
-        if (seq !== this.uttSeq) return // boundary tardío de una utterance vieja
+        if (seq !== this.uttSeq) return
         if (ev.name && ev.name !== 'word') return
-        if (sonda.activa) {
-          // `elapsedTime` lo estampa el MOTOR (tiempo de audio). Comparado con el tiempo
-          // real medido aquí, dice cuánto tardó el evento en ser ATENDIDO por el hilo.
-          // En /tts-lab.html, aislado, esto da -0.01s constante en el mismo iPhone.
-          const real = (this.now() - this.uttStart) / 1000
-          const rep = ev.elapsedTime > real * 20 + 5 ? ev.elapsedTime / 1000 : ev.elapsedTime
-          const d = real - rep
-          if (d > 0.5) sonda.mark(`tts-drift(+${d.toFixed(1)}s)`)
-        }
-        // Señal fresca de la plataforma: ella manda y el reloj de respaldo se calla.
-        // Además se guarda EN QUÉ PALABRA va, para que si los boundaries se mueren a
-        // media frase el reloj retome desde aquí (antes el reloj se apagaba para
-        // siempre al primer boundary: si luego dejaban de llegar, el resaltado se
-        // quedaba clavado mientras la voz seguía).
         this.ultimoBoundaryAt = this.now()
-        if (!this.boundaryOk) {
-          this.boundaryOk = true
-          try { window.localStorage.setItem('chat-tts-boundary', '1') } catch { /* modo privado */ }
-        }
-        // charIndex viene en coordenadas del texto HABLADO -> traducir a VISIBLE con el
-        // mapa antes de resaltar (si no, el saneado desplazaría el resaltado).
+        // charIndex viene en coordenadas del texto HABLADO: el mapa lo lleva al VISIBLE.
         const m = /\S+/.exec(spoken.slice(ev.charIndex))
         if (!m) return
         const desde = ev.charIndex + m.index
-        const idx = words.findIndex((w) => w.from >= desde)
-        if (idx >= 0) this.wordIdx = idx + 1
-        pintaPalabra({ from: desde, to: desde + m[0].length }, true)
+        pintaPalabra({ from: desde, to: desde + m[0].length })
       }
-      // La voz arrancó DE VERDAD. Antes el reloj corría desde speak(), y WebKit tarda
-      // 200-600ms en empezar a sonar: el naranja avanzaba 1-2 palabras sin audio y luego
-      // brincaba hacia atrás con el primer boundary (medido el 23 sep en WKWebView).
+      // La frase empezó a SONAR: su primera palabra es la que suena (WebKit tarda 200–600 ms entre speak() y el audio).
       u.onstart = () => {
         if (seq !== this.uttSeq) return
         this.uttStartedAt = this.now()
-        if (sliceStart === 0 && words[0] && this.wordIdx === 0) {
-          pintaPalabra(words[0])
-          this.wordIdx = 1
-        }
+        if (primera) pintaPalabra({ from: primera.index, to: primera.index + primera[0].length })
       }
       u.onend = () => {
-        // Utterance vieja (cancelada por jump/cycleRate mientras sonaba): NO avanzar,
-        // o encolaría frases del párrafo anterior sobre el nuevo (doble-speak). Mismo
-        // guard de staleness que onboundary.
+        // Utterance vieja (cancelada por un salto o un cambio de velocidad): no avanzar, o hablaría dos veces.
         if (seq !== this.uttSeq) return
-        this.mideVelocidad(spoken.length, this.uttStartedAt, pedida, !!v)
-        this.calibra(spoken.length, this.uttStartedAt)
-        this.uttSeq++ // invalida cualquier boundary pendiente de esta utterance
-        this.clearClock()
+        this.uttSeq++
+        this.soltarDestrabe()
         next()
       }
       u.onerror = () => {
-        if (seq !== this.uttSeq) return // error de una utterance ya cancelada: ignorar
+        if (seq !== this.uttSeq) return
         this.uttSeq++
-        this.clearClock()
+        this.soltarDestrabe()
         next()
       }
       sonda.mark('tts-speak')
       this.uttStartedAt = 0
+      this.ultimoBoundaryAt = 0
       this.synth!.speak(u)
       this.uttStart = this.now() // referencia del keepalive de Chrome (ver play())
-      this.armClock(seq, spoken, words, pintaPalabra, next)
+      this.armarDestrabe(seq, next)
     }
     next()
   }
 
-  // ─── VOZ DEL SERVIDOR (22 oct 2026; Web Audio desde el 23 oct) ──────────────
-  // Daniel: «la velocidad 1.75x NO funciona en la web desde mi laptop». El velocímetro de abajo (cambiar de voz si no
-  // acelera) no bastó: en su equipo ninguna voz del navegador obedece `rate`. Ahora el servidor genera cada tramo ya a la
-  // velocidad pedida (atempo, mismo tono) y aquí suena por Web Audio, que encadena tramos sin el arranque de ~0.4 s del
-  // `<audio>` en WKWebView (23 oct: «siento lento el lector y no lo escucho a x2»; ver voz-servidor.ts). Cada párrafo se
-  // parte en tramos de pocas frases y se precargan los PRECARGA siguientes, aunque sean de otros párrafos.
-  // Si el servidor falla, ese mismo tramo sigue con la voz del navegador hasta la próxima lectura.
+  // ─── VOZ DEL SERVIDOR (22 oct 2026; Web Audio desde el 23 oct; marcas exactas desde el 29 oct) ──────────────
+  // El servidor genera cada tramo ya a la velocidad pedida (atempo, mismo tono) con la tabla exacta de cuándo empieza
+  // cada palabra en ESE audio (ver voz-servidor.ts y marcas-voz.ts). Aquí hay un solo reloj, voz.posicion() (lo que sale
+  // por la bocina ahora), y en cada fotograma el resaltado va a la palabra de ese instante. Cada párrafo se parte en
+  // tramos de pocas frases y se precargan los PRECARGA siguientes, aunque sean de otros párrafos. Si el servidor falla,
+  // ese mismo tramo sigue con la voz del navegador hasta la próxima lectura.
   private voz = new VozServidor((texto, velocidad) =>
     fetch('/api/chat/tts', {
       method: 'POST',
@@ -1175,6 +1066,10 @@ class ChatSpeechController {
   private rafAudio = 0
   /** Cambio de velocidad a media lectura: pide el tramo actual a la nueva velocidad y lo releva en la palabra que suena. */
   private relevoVelocidad: (() => void) | null = null
+  /** Duración de un cuadro de pantalla (s), medida entre fotogramas del reloj: lo que tarda en verse lo que se pinta. */
+  private cuadro = 1 / 60
+  /** Lo que suena ahora por la voz del servidor (lo lee el arnés de scripts/qa/lector-marcas para medir). */
+  private sonando: { el: HTMLElement; texto: string; velocidad: number; palabras: Array<[number, number]>; tiempos: number[]; exactas: boolean } | null = null
 
   private paraAudio() {
     this.relevoVelocidad = null
@@ -1182,6 +1077,7 @@ class ChatSpeechController {
     this.rafAudio = 0
     this.voz.parar()
     this.enAudio = false
+    this.sonando = null
   }
 
   private hablaConAudio(el: HTMLElement): void {
@@ -1204,14 +1100,22 @@ class ChatSpeechController {
       w0 = i < 0 ? words.length - 1 : i
     }
     const tramos = tramosDeVoz(spoken, words)
+    // Offsets VISIBLES de cada palabra hablada (lo que se pinta).
+    const visibles = words.map((w): [number, number] => {
+      const from = map[w.from] ?? 0
+      return [from, (map[w.to - 1] ?? from) + 1]
+    })
+    let bloque = el
     const pinta = (i: number) => {
-      const w = words[i]
-      const from = map[w.from]
-      if (from == null) return
+      const [from, to] = visibles[i]
       this.cursorOffset = from
       this.guardaPunto()
-      const destino = el.isConnected || this.extracto ? el : this.relocate() ? this.blocks[this.idx] : null
-      if (destino) this.highlightWord(destino, from, (map[w.to - 1] ?? from) + 1)
+      if (!bloque.isConnected && !this.extracto) {
+        if (!this.relocate()) return
+        bloque = this.blocks[this.idx]
+        if (this.sonando) this.sonando.el = bloque
+      }
+      this.highlightWord(bloque, from, to)
     }
     pinta(w0)
     this.emit()
@@ -1221,6 +1125,8 @@ class ChatSpeechController {
     // termina: un relevo de velocidad que llega tarde (el tramo ya acabó) no debe volver atrás.
     let actual = { t: -1, palabra: w0 }
     let turno = 0
+    // Rescates seguidos del reloj del audio (ver el vigía en tick): vuelve a 0 en cuanto el reloj avanza.
+    let rescates = 0
     // Tramo pedido que aún no suena (arranque, siguiente o relevo): un cambio de velocidad lo vuelve a pedir.
     let espera: { t: number; desde: number | null } | null = null
     const siguienteBloque = () => {
@@ -1266,9 +1172,10 @@ class ChatSpeechController {
         turno++
         espera = null
         const sub = words.slice(tramo.desde, tramo.hasta)
-        // Inicio de cada palabra anclado a los silencios del audio real (ver tiemposDelAudio): el reparto por caracteres
-        // a ciegas dejaba el resaltado hasta media frase detrás o delante de la voz.
-        const tiempos = tiemposDelAudio(spoken, sub, audio.buffer.getChannelData(0), audio.buffer.sampleRate)
+        // Instante de cada palabra en ESTE audio: las marcas de la síntesis. Solo una voz sin marcas usa el respaldo.
+        const exactos = audio.marcas ? tiemposDeMarcas(tramo.texto, audio.marcas) : null
+        const exactas = !!exactos && exactos.length === sub.length
+        const tiempos = exactas ? exactos! : tiemposDelAudio(spoken, sub, audio.buffer.getChannelData(0), audio.buffer.sampleRate)
         const local = Math.min(sub.length - 1, Math.max(0, (desde ?? actual.palabra) - tramo.desde))
         actual = { t, palabra: tramo.desde + local }
         if (this.rafAudio) cancelAnimationFrame(this.rafAudio)
@@ -1280,16 +1187,48 @@ class ChatSpeechController {
             this.rafAudio = 0
             turno++
             suena(t + 1, tramo.hasta)
-          }, v)
+          })
         } catch (e) {
           return falla(e instanceof Error ? e.message : 'web audio')
         }
         this.enAudio = true
-        sonda.mark(audio.tempo === v ? 'tts-audio' : `tts-audio-sin-tempo(${audio.tempo}≠${v})`)
+        this.sonando = { el: bloque, texto: tramo.texto, velocidad: v, palabras: visibles.slice(tramo.desde, tramo.hasta), tiempos, exactas }
+        sonda.mark(`${exactas ? 'tts-audio' : 'tts-audio-sin-marcas'}${audio.tempo === v ? '' : `(${audio.tempo}≠${v})`}`)
+        // EL reloj: en cada fotograma, la palabra que sonará cuando ESTE fotograma llegue a la pantalla: voz.posicion()
+        // (lo que sale por la bocina ahora) más un cuadro, lo que tarda en verse lo que se pinta en este rAF. Medido en el
+        // WKWebView (scripts/qa/lector-marcas): sin ese cuadro el ámbar llegaba ~20 ms tarde a cada palabra. Mientras el
+        // arranque del tramo todavía no sale por la bocina (la latencia de salida), se queda lo pintado: ni vuelve a la
+        // palabra anterior ni se adelanta.
         let ultima = -1
-        const tick = () => {
+        let previo = 0
+        // Vigía del reloj del audio (ver VozServidor.reabrir): quieto 1.5 s sonando → reabrir la salida; otros 1.5 s →
+        // contexto nuevo desde la palabra que sonaba; si tampoco, la voz del navegador. La lectura nunca se queda atorada.
+        let relojVisto = -1
+        let relojDesde = 0
+        const tick = (ahora?: number) => {
           if (seq !== this.uttSeq) return
-          const i = palabraEn(tiempos, this.voz.posicion())
+          if (ahora && previo) this.cuadro = Math.min(0.034, Math.max(0.008, this.cuadro * 0.9 + ((ahora - previo) / 1000) * 0.1))
+          if (ahora) previo = ahora
+          const r = this.voz.reloj()
+          const ya = this.now()
+          if (r == null) { /* sin fuente: nada que vigilar */ }
+          else if (r !== relojVisto) {
+            if (relojVisto >= 0) rescates = 0 // avanzó de verdad (la primera lectura de un tramo no cuenta)
+            relojVisto = r
+            relojDesde = ya
+          } else if (this.voz.corriendo() && ya - relojDesde > 1500) {
+            relojDesde = ya
+            rescates++
+            sonda.mark(`tts-reloj-quieto(${rescates})`)
+            if (rescates === 1) this.voz.reabrir()
+            else if (rescates === 2) {
+              this.voz.reabrir(true)
+              turno++
+              return suena(t, actual.palabra)
+            } else return falla('reloj de audio detenido')
+          }
+          const pos = this.voz.posicion() + this.cuadro
+          const i = pos < tiempos[local] ? -1 : palabraEn(tiempos, pos)
           if (i >= 0 && i !== ultima) {
             ultima = i
             actual.palabra = tramo.desde + i
@@ -1297,7 +1236,7 @@ class ChatSpeechController {
           }
           this.rafAudio = requestAnimationFrame(tick)
         }
-        this.rafAudio = requestAnimationFrame(tick)
+        tick()
         precarga(t)
         // Sin gesto, Chrome deja el contexto suspendido y no suena nada: mejor la voz del navegador que el silencio.
         const turnoAqui = turno
@@ -1360,220 +1299,53 @@ class ChatSpeechController {
     this.emit()
   }
 
-  // ---- El reloj propio ----
-  // Los eventos de la Web Speech API NO son confiables y cada superficie se porta distinto
-  // (medido el 15 jul 2026 con el mismo mensaje y el mismo build):
-  //   · Chrome (web/Vercel): boundary y onend perfectos -> resaltado fluido.
-  //   · App de escritorio (Tauri/WKWebView): la voz suena pero NO llegan boundaries y onend
-  //     tampoco -> el resaltado se quedaba clavado en la primera palabra y la lectura se
-  //     atoraba al terminar la frase, sin avanzar nunca.
-  //   · iPhone/iPad: avanzan bien (los eventos llegan).
-  // ACTUALIZADO el 23 sep 2026 (macOS 27, WKWebView aislado): boundary y onend SÍ llegan en
-  // la app de escritorio, un boundary por palabra. Por eso `boundaryOk` aprende en caliente
-  // si la plataforma los emite: si sí, el reloj solo rescata silencios reales; si no, pinta.
-  // La lectura no puede depender de a quién le da la gana emitir eventos. Este reloj es el
-  // piso común: si los boundaries llegan, manda la plataforma (preciso) y el reloj no pinta
-  // nada; si no llegan, el reloj mueve el resaltado y destraba la lectura. Misma conducta
-  // en las tres superficies, que es justo lo que faltaba.
-  private clockWord: ReturnType<typeof setInterval> | null = null
-  private clockEnd: ReturnType<typeof setTimeout> | null = null
+  // ---- Voz del dispositivo: señales y destrabe ----
+  // Los eventos de la Web Speech API no son confiables en todas las superficies (medido el 15 jul y el 23 sep 2026):
+  // Chrome emite boundary y onend perfectos; el WKWebView de la app y el iPhone también desde macOS 27; algún motor no
+  // los emite. El resaltado de esta voz solo se mueve con `boundary` (ver speakBlock). Lo único que se vigila aquí es
+  // que la lectura no se TRABE si `onend` nunca llega: eso es avanzar, no adivinar dónde va la voz.
+  private destrabe: ReturnType<typeof setInterval> | null = null
   private uttStart = 0
-  // Cuándo empezó a SONAR la frase actual (onstart), no cuándo se pidió. 0 = aún no suena.
+  // Cuándo empezó a SONAR la frase actual (onstart) y la última marca real de la plataforma. 0 = aún no.
   private uttStartedAt = 0
-  // Esta plataforma emite boundaries. Se recuerda entre aperturas: sin eso, la PRIMERA
-  // frase de cada sesión todavía dejaba al reloj pintar sin audio.
-  private boundaryOk = (() => {
-    try { return window.localStorage.getItem('chat-tts-boundary') === '1' } catch { return false }
-  })()
-  // Velocidad REAL de la voz, en caracteres por segundo a rate 1, calibrada con cada frase
-  // terminada. El 14 fijo de antes era la mitad de lo real: medido el 23 sep, WKWebView a
-  // 1.5x habla a 31-36 chars/s (≈22 a rate 1). Con la estimación a la mitad, el vigilante
-  // creía colgadas frases que seguían sonando y el reloj pintaba a otro ritmo que la voz.
-  private cpsBase = ChatSpeechController.leeCps()
-  // Última señal REAL de la plataforma y en qué palabra iba. Son el ancla del
-  // reloj de respaldo: mientras lleguen boundaries manda la plataforma; si se
-  // callan a media frase, el reloj retoma DESDE AQUÍ en vez de dejar el
-  // resaltado huérfano o hacerlo empezar de cero.
   private ultimoBoundaryAt = 0
-  private wordIdx = 0
 
-  // ─── VELOCÍMETRO (22 oct 2026) ──────────────────────────────────────────────
-  // Daniel: «¿por qué no acelera la velocidad en la laptop?». La barra decía 1.75x y la voz
-  // seguía a 1x. Medido el mismo día con el MISMO texto: Chrome (Juan mejorada y Google),
-  // WebKit de Playwright y el WebKit del sistema en un WKWebView sí aceleran a 1.75x
-  // (1.85x a 3x más rápido), así que `u.rate` se manda bien y el fallo depende de la voz que
-  // le toca a ese navegador en esa máquina. Por eso la velocidad ya no se da por hecha: se
-  // mide en cada frase terminada. A 1x el español va a 14-17 caracteres por segundo con
-  // cualquier voz; a 1.75x nunca bajó de 24. Dos frases seguidas por debajo de 11 × rate
-  // significan que el motor ignora la velocidad con esta voz, y se cambia de voz (fijada ↔
-  // la del sistema). Si con la otra tampoco acelera, se vuelve a la original y se deja
-  // constancia: el diagnóstico queda en localStorage 'chat-tts-velocidad' para leerlo.
-  private vozInvertida = (() => {
-    try { return window.localStorage.getItem('chat-tts-voz-invertida') === '1' } catch { return false }
-  })()
-  private lentasSeguidas = 0
-  private vozProbada = false
-  private velocimetroCallado = false
-
-  /** Compara la velocidad real de la frase con la pedida y corrige la voz si el motor la ignora. */
-  private mideVelocidad(chars: number, startedAt: number, rate: number, vozFijada: boolean) {
-    if (this.velocimetroCallado || !startedAt) return
-    const ms = this.now() - startedAt
-    const lenta = vozNoAcelera(chars, ms, rate)
-    if (lenta == null) return
-    if (!lenta) {
-      this.lentasSeguidas = 0
-      return
-    }
-    const cps = chars / (ms / 1000)
-    if (++this.lentasSeguidas < 2) return
-    this.lentasSeguidas = 0
-    const registro = {
-      fecha: new Date().toISOString(),
-      ua: typeof navigator !== 'undefined' ? navigator.userAgent : '',
-      rate,
-      cps: +cps.toFixed(1),
-      vozFijada,
-      accion: this.vozProbada ? 'sin-remedio' : 'cambia-voz',
-    }
-    sonda.mark(`tts-velocidad-ignorada(${rate}x,${registro.cps}cps,${vozFijada ? 'fijada' : 'sistema'})`)
-    console.warn('[lector] la voz no acelera', registro)
-    try { window.localStorage.setItem('chat-tts-velocidad', JSON.stringify(registro)) } catch { /* modo privado */ }
-    // Un solo intento por sesión: si la otra voz tampoco acelera, se regresa a la de antes
-    // y el velocímetro se calla (no hay a qué cambiar).
-    if (this.vozProbada) this.velocimetroCallado = true
-    this.vozProbada = true
-    this.vozInvertida = !this.vozInvertida
-    try { window.localStorage.setItem('chat-tts-voz-invertida', this.vozInvertida ? '1' : '0') } catch { /* modo privado */ }
+  private soltarDestrabe() {
+    if (this.destrabe) clearInterval(this.destrabe)
+    this.destrabe = null
   }
 
-  private static leeCps() {
-    try {
-      const v = Number(window.localStorage.getItem('chat-tts-cps'))
-      if (v >= 8 && v <= 40) return v
-    } catch { /* modo privado */ }
-    return 16
-  }
-
-  /** Aprende la velocidad real con una frase recién terminada (solo frases con peso:
-   *  las cortas las domina la latencia de arranque y falsearían la media). */
-  private calibra(chars: number, startedAt: number) {
-    if (!startedAt || chars < 25) return
-    const ms = this.now() - startedAt
-    if (ms < 800) return
-    const muestra = chars / (ms / 1000) / RATES[this.rateIdx]
-    if (!(muestra >= 6 && muestra <= 50)) return
-    this.cpsBase = Math.min(40, Math.max(8, this.cpsBase * 0.7 + muestra * 0.3))
-    try { window.localStorage.setItem('chat-tts-cps', this.cpsBase.toFixed(1)) } catch { /* modo privado */ }
-  }
-
-  private clearClock() {
-    if (this.clockWord) {
-      clearInterval(this.clockWord)
-      this.clockWord = null
-    }
-    if (this.clockEnd) {
-      clearTimeout(this.clockEnd)
-      this.clockEnd = null
-    }
-  }
-
-  /** Duración hablada estimada (ms), con la velocidad calibrada de ESTA voz (ver calibra()). */
-  private estimateMs(text: string) {
-    return Math.max(600, (text.length / (this.cpsBase * RATES[this.rateIdx])) * 1000)
-  }
-
-  private armClock(
-    seq: number,
-    spoken: string,
-    words: Array<{ from: number; to: number }>,
-    pinta: (w: { from: number; to: number }) => void,
-    next: () => void,
-  ) {
-    this.clearClock()
-    this.ultimoBoundaryAt = 0
-    this.wordIdx = 0
-    const total = this.estimateMs(spoken)
-
-    // 1) Reloj de respaldo, ahora RELEVABLE en los dos sentidos.
-    //
-    // Antes era de una sola vía: al primer boundary se apagaba PARA SIEMPRE en esa
-    // frase. Si la plataforma dejaba de emitir a media frase —el hilo se traba, o el
-    // WebView deja de mandarlos— el resaltado se quedaba clavado mientras la voz
-    // seguía, y nadie lo rescataba hasta la frase siguiente. Ese es literalmente el
-    // "el naranja se queda y la voz se adelanta".
-    //
-    // Ahora el reloj no se apaga: se CALLA mientras la plataforma dé señales frescas
-    // (< 1.2s desde el último boundary) y retoma solo si se quedan mudas, arrancando
-    // desde la última palabra REAL conocida (this.wordIdx, que el boundary mantiene
-    // al día). La plataforma sigue mandando cuando habla; el reloj deja de ser un
-    // sustituto ciego y pasa a ser una red debajo.
-    //
-    // Y no arranca hasta que la voz SUENA (onstart; si la plataforma no lo emite, 500ms
-    // después de pedirla). Donde hay boundaries, el silencio que lo despierta es largo
-    // (1.5s o 4 palabras): entre frases y en las comas el motor calla un momento, y el
-    // reloj rellenando ese hueco es lo que hacía brincar el naranja adelante y atrás.
-    const porPalabra = Math.max(90, total / Math.max(words.length, 1))
+  /**
+   * Si la frase terminó y nadie avisó (`onend` perdido): el motor dice que ya no habla durante 1.5 s → siguiente frase.
+   * Si dice que habla pero está mudo (sin ninguna señal en 10 s, o 30 s en una plataforma que no emite boundaries): se
+   * cancela y se sigue. `cancel()` es ASÍNCRONO en WebKit: la frase siguiente espera un respiro o la cancelación
+   * pendiente se la lleva entera (ver cancelAndSpeak). El techo viejo de 20 s en silencio era el «se queda pausado».
+   */
+  private armarDestrabe(seq: number, next: () => void) {
+    this.soltarDestrabe()
     const pedida = this.now()
-    this.clockWord = setInterval(() => {
-      if (seq !== this.uttSeq || this.paused) return
-      const suena = this.uttStartedAt || (this.now() - pedida > 500 ? pedida + 500 : 0)
-      if (!suena) return
-      if (this.boundaryOk || this.ultimoBoundaryAt) {
-        const silencio = this.boundaryOk ? Math.max(1500, porPalabra * 4) : 1200
-        if (this.now() - Math.max(this.ultimoBoundaryAt, suena) < silencio) return
+    let callado = 0
+    this.destrabe = setInterval(() => {
+      if (seq !== this.uttSeq) return this.soltarDestrabe()
+      if (this.paused || !this.synth) return
+      const ahora = this.now()
+      if (!this.synth.speaking && !this.synth.pending) {
+        if (!callado) callado = ahora
+        if (ahora - callado < 1500) return
+      } else {
+        callado = 0
+        const senal = Math.max(this.ultimoBoundaryAt, this.uttStartedAt, pedida)
+        if (ahora - senal < (this.ultimoBoundaryAt ? 10_000 : 30_000)) return
+        this.synth.cancel()
       }
-      if (this.wordIdx >= words.length) return
-      pinta(words[this.wordIdx++])
-    }, porPalabra)
-
-    // 2) Destrabe — vigila el final de la frase cuando `onend` nunca llega.
-    // Solo avanza si la voz YA no está sonando: así nunca corta audio vivo, solo cubre el
-    // caso "terminó y nadie avisó". Si sigue hablando, se vuelve a asomar más tarde.
-    //
-    // EL TECHO era `total*3 + 5000`: para una frase normal, VEINTE SEGUNDOS de silencio
-    // antes de rendirse. Ese es el "se queda pausado como 20 segundos y luego sigue" del
-    // reporte. Existe para el caso en que el motor dice `speaking = true` cuando ya se
-    // calló, y ahí el único recurso es esperar y rendirse — pero esperar el triple de lo
-    // que dura la frase es una eternidad para quien está escuchando. Un margen fijo y
-    // generoso (el doble de la frase, con piso de 4s y techo de 9s) cubre una voz lenta
-    // sin dejar al usuario mirando una pantalla muda medio minuto.
-    const inicio = this.now()
-    const techoColgada = Math.min(9000, Math.max(4000, total * 2))
-    const vigila = (espera: number) => {
-      this.clockEnd = setTimeout(() => {
-        if (seq !== this.uttSeq) return // ya avanzó por onend: nada que hacer
-        if (this.paused) return vigila(600)
-        // Con boundaries, "colgada" es MUDA: dice que habla pero no da señal en 5s. El
-        // criterio viejo (tiempo contra estimación) cortó a media palabra una frase VIVA
-        // que deletreaba una ruta: 7s reales contra 3s estimados (medido el 23 sep).
-        const ultimaSenal = Math.max(this.ultimoBoundaryAt, this.uttStartedAt, inicio)
-        const colgada = this.boundaryOk
-          ? this.now() - ultimaSenal > 5000
-          : this.now() - inicio > total + techoColgada
-        if (this.synth?.speaking && !colgada) return vigila(600)
-        this.uttSeq++
-        this.clearClock()
-        if (colgada) {
-          // Colgada de verdad: hay que CANCELAR antes de seguir. Y `cancel()` es
-          // ASÍNCRONO en WebKit — hablar en el mismo tick hace que la cancelación
-          // pendiente se lleve por delante la frase recién encolada, que se pierde
-          // entera (sin audio y sin boundary) mientras el resaltado ya avanzó. Es
-          // exactamente el "el lector saltó y la voz se quedó atrás". El resto del
-          // motor pasa por el respiro de cancelAndSpeak() por esta razón; este camino
-          // era el único que llamaba cancel()+speak() en la misma pila.
-          this.synth?.cancel()
-          if (this.speakTimer) clearTimeout(this.speakTimer)
-          this.speakTimer = setTimeout(() => {
-            this.speakTimer = null
-            if (this.playing && !this.paused && this.curId) next()
-          }, 60)
-          return
-        }
-        next()
-      }, espera)
-    }
-    vigila(total + 900)
+      this.uttSeq++
+      this.soltarDestrabe()
+      if (this.speakTimer) clearTimeout(this.speakTimer)
+      this.speakTimer = setTimeout(() => {
+        this.speakTimer = null
+        if (this.playing && !this.paused && this.curId) next()
+      }, 60)
+    }, 300)
   }
 
   private now() {
@@ -1591,7 +1363,7 @@ class ChatSpeechController {
   private cancelAndSpeak() {
     if (!this.synth) return
     this.uttSeq++ // invalida boundary/onend de la utterance que se está cancelando
-    this.clearClock()
+    this.soltarDestrabe()
     this.paraAudio()
     this.synth.cancel()
     if (this.speakTimer) clearTimeout(this.speakTimer)
@@ -1716,7 +1488,7 @@ class ChatSpeechController {
       // Navegar entre párrafos SIN reproducir: el ancla naranja se muda al párrafo nuevo.
       // Play reanuda ahí (pauseResume re-arranca porque la utterance ya se canceló).
       this.uttSeq++
-      this.clearClock()
+      this.soltarDestrabe()
       this.paraAudio()
       this.synth.cancel()
       if (this.speakTimer) {
@@ -1768,7 +1540,7 @@ class ChatSpeechController {
     this.paraAudio()
     if (this.synth) this.synth.cancel()
     this.clearHighlight()
-    this.clearClock()
+    this.soltarDestrabe()
     this.uttSeq++
     if (this.speakTimer) {
       clearTimeout(this.speakTimer)

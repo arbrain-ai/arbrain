@@ -6,14 +6,21 @@
  * lo reemplaza por `instalacion.plantilla.ts` (genérico, sin datos de nadie). El código lo lee de aquí y nunca
  * escribe esos datos a mano.
  */
-/** Un campo de fondo: `tipo` decide su forma (trabajo = campo tenue; comida = riel al borde, para que se lean juntos). */
+/** Las cinco categorías del calendario (`features/planning/categorias.ts`), repetidas aquí para no importar la app desde la config. */
+export type CategoriaCampo = 'crear' | 'vender' | 'ensenar' | 'construir' | 'vida'
+
+/**
+ * Una zona de tu vida, pintada como campo de fondo del calendario (28 oct 2026). Su color es el de su `categoria`; `forma` decide
+ * cómo se pinta: `bloque` tiñe la columna, `ventana` es un riel al borde (la comida se encima con el gym y el trabajo profundo).
+ */
 export interface CampoFondo {
   clave: string
   titulo: string
-  tipo: 'trabajo' | 'comida'
-  /** Días ISO (1 = lunes … 7 = domingo). Vacío = todos. */
+  categoria: CategoriaCampo
+  forma: 'bloque' | 'ventana'
+  /** Días ISO (1 = lunes … 7 = domingo). Vacío = todos. Una franja que cruza la medianoche es del día en que empieza. */
   dias: readonly number[]
-  /** Franjas «HH:MM» de inicio y fin, en la hora local. */
+  /** Franjas «HH:MM» de inicio y fin, en la hora local. Si el fin es menor que el inicio, cruza la medianoche («21:00»–«05:30»). */
   franjas: readonly (readonly [string, string])[]
 }
 
@@ -38,7 +45,8 @@ export interface Instalacion {
   calendarioRutinaId: string
   /**
    * Campos de fondo del calendario (28 oct 2026, `planning/campos-fondo.ts`): franjas que se pintan detrás de los eventos sin ser
-   * eventos (la ventana de comida del ayuno, el trabajo profundo). [] = ninguno.
+   * eventos: las zonas de tu vida (trabajo profundo, gym, comida, noche, sueño). Son los valores de fábrica: cada persona las
+   * enciende, apaga, recolorea y mueve en el engrane del calendario (`planning/zonas.ts`, guardado por persona). [] = ninguna.
    */
   camposFondo: readonly CampoFondo[]
   /** Claves de hábitos que Metas y el Hoy del teléfono nunca pintan (`planning/habitos-hoy.ts › seMuestra`). */

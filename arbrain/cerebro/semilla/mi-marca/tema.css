@@ -1,0 +1,50 @@
+/* =============================================================================
+   MI MARCA · tus colores para Arbrain
+   =============================================================================
+   Esta carpeta (mi-marca/) es tuya: ninguna actualización la toca y Arbrain la
+   lee al abrir, sin compilar nada. Aquí cambias colores, logo y nombre; nunca en
+   arbrain/src/ (eso es del autor y chocaría al actualizar).
+
+   - Colores: este archivo. Lo más fácil: pídele a Levy «pon mis colores» con
+     tu color. A mano: en la línea que quieras, quita los signos de comentario
+     que envuelven la --variable (la descripción de al lado se queda), pon tu
+     color y recarga Arbrain (Cmd+R o Ctrl+R).
+   - Logo (opcional): pon aquí logo.svg, logo.png o logo.webp (cuadrado, fondo
+     transparente). Es el icono de la pestaña.
+   - Nombre (opcional): crea marca.json con  { "nombre": "Tu negocio" }  y la
+     pestaña o la ventana dirá ese nombre en vez de «Arbrain».
+
+   Cómo funciona: Arbrain carga este archivo después de sus propios estilos, así
+   que lo que pongas aquí gana. Usa los dos bloques tal cual (claro y oscuro);
+   cada --variable que no pongas se queda con el color del autor. Las que llevan
+   «-rgb» son el mismo color en números (rojo, verde, azul) para transparencias:
+   si cambias un color, cambia también su «-rgb».
+
+   Guía completa: docs/PERSONALIZAR.md
+   ============================================================================= */
+
+/* ── Modo claro ─────────────────────────────────────────────────────────────── */
+html:root:not(.dark) {
+  /* --primary: #683ACC; */  /* color principal: botones, selección, enlaces */
+  /* --primary-rgb: 104, 58, 204; */
+  /* --primary-hover: #5A32B3; */  /* el principal al pasar el ratón */
+  /* --brand: #8C27F1; */  /* acento de la conversación (enviar, foco) */
+  /* --brand-rgb: 140, 39, 241; */
+  /* --brand-ink: #8C27F1; */  /* texto en color de marca */
+  /* --gold: #ff9101; */  /* el acento cálido (un solo foco por pantalla) */
+  /* --background: #f4f4f5; */  /* fondo de la app */
+  /* --card: #ffffff; */  /* tarjetas */
+}
+
+/* ── Modo oscuro ────────────────────────────────────────────────────────────── */
+html.dark:root {
+  /* --primary: #8B5CF6; */
+  /* --primary-rgb: 139, 92, 246; */
+  /* --primary-hover: #A78BFA; */
+  /* --brand: #8C27F1; */
+  /* --brand-rgb: 140, 39, 241; */
+  /* --brand-ink: #A968F7; */  /* más claro que en modo claro, para que se lea */
+  /* --gold: #ff9101; */
+  /* --background: #09090b; */
+  /* --card: #16161c; */
+}

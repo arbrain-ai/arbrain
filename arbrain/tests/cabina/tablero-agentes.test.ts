@@ -160,7 +160,7 @@ test('los grupos solo muestran lo abierto o lo de las últimas 24 h; lo viejo va
     term(1, { estado: 'esperando', tablero: tab('falló', false, 21 * 24 * 60) }),   // falló hace 21 días
     term(2, { estado: 'esperando', tablero: tab('falló', false, 30) }),             // falló hace 30 min
     term(3, { estado: 'esperando', tablero: tab('listo', false, 25 * 60) }),        // listo hace 25 h
-    // 28 oct (Daniel: «Pizarrón… con 21 d» en Te espera): abierto sin proceso ni señal en 24 h ya no te espera.
+    // 28 oct (Daniel vio un encargo con 21 d en Te espera): abierto sin proceso ni señal en 24 h ya no te espera.
     term(4, { estado: 'esperando', tablero: tab('te-espera', false, 21 * 24 * 60) }), // pregunta de hace 21 días, proceso muerto
     term(5, { estado: 'esperando', tablero: tab('te-espera', true, 3 * 24 * 60) }),   // pregunta de hace 3 días, proceso vivo: sigue
     term(6, { estado: 'esperando', tablero: tab('listo', false, 21 * 60) }),          // listo hace 21 h: sigue en «Listo»
@@ -216,4 +216,48 @@ test('cada veredicto dice qué te toca', () => {
 test('un comando terminado no repite su título en la segunda línea', () => {
   const t = armarTablero(datos([], [interna('c1', 'completada', 3, { tipo: 'comando', descripcion: 'Back up 0.4 m to make room' })]), undefined, T)
   assert.equal(t.comandosHechos[0].paso, 'Terminó')
+})
+
+// ── Modelo, esfuerzo y cambios (29 oct 2026, benchmark de orquestación) ──
+import { cambiosEnPalabras, esfuerzoEnPalabras, esfuerzoReintento } from '../../src/features/cabina/tablero-modelo'
+import type { Coherencia } from '../../src/features/cabina/trabajos-modelo'
+
+const coh = (pedido: string | null, efectivo: string | null, estado: Coherencia['esfuerzo']['estado'], desajuste: string | null = null): Coherencia =>
+  ({ modelo: { pedido: 'gpt-5.6-terra', efectivo: 'gpt-5.6-terra', estado: 'coincide' }, esfuerzo: { pedido, efectivo, estado }, desajuste })
+
+test('el renglón lleva lo que corre (medido) y el desajuste en ámbar; lo pedido sin medir nunca se pinta como medido', () => {
+  const conv = { harness: 'codex', modelo: 'gpt-5.6-terra', esfuerzo: 'medium', ctxPct: null, turno: 'trabajando' as const, pregunta: false, tokens: null, titulo: null, mensajes: [], coherencia: coh('max', 'medium', 'distinto', 'pediste max · corre medium') }
+  const f = filaDe(term(10, { proc: 'codex', conversacion: conv, cambios: { rama: 'x', mas: 3, menos: 1, archivos: 2 }, subagente: { id: 10, nombre: 'a', harness: 'codex', encargo: 'e', cwd: '/tmp', creado: new Date(T).toISOString(), modelo: 'gpt-5.5', esfuerzo: 'max' } }))
+  assert.equal(f.modelo, 'gpt-5.6-terra')
+  assert.equal(f.coherencia?.desajuste, 'pediste max · corre medium')
+  assert.deepEqual(f.cambios, { rama: 'x', mas: 3, menos: 1, archivos: 2 })
+  assert.equal(esfuerzoEnPalabras(f.coherencia), 'esfuerzo medium (pediste max)')
+  assert.equal(esfuerzoEnPalabras(coh('max', null, 'sin-medir')), 'esfuerzo max (pedido, sin medir)')
+  assert.equal(esfuerzoEnPalabras(coh('high', 'high', 'coincide')), 'esfuerzo high')
+  assert.equal(esfuerzoEnPalabras(coh(null, 'medium', 'default')), 'esfuerzo medium (el de su configuración)')
+  assert.equal(esfuerzoEnPalabras(coh(null, null, 'default')), null)
+  // sin datos nuevos del servidor, el renglón no inventa coherencia ni cambios
+  assert.equal(filaDe(term(11)).coherencia, null)
+  assert.equal(filaDe(term(11)).cambios, null)
+})
+
+test('Reintentar con más esfuerzo: un nivel arriba de lo que corrió, con el techo de cada CLI', () => {
+  assert.equal(esfuerzoReintento({ harness: 'claude', coherencia: coh('medium', null, 'sin-medir') }), 'high')
+  assert.equal(esfuerzoReintento({ harness: 'codex', coherencia: coh('max', 'medium', 'distinto') }), 'high')
+  assert.equal(esfuerzoReintento({ harness: 'codex', coherencia: coh(null, 'xhigh', 'default') }), null)
+  assert.equal(esfuerzoReintento({ harness: 'claude', coherencia: coh('max', null, 'sin-medir') }), null)
+  assert.equal(esfuerzoReintento({ harness: 'claude', coherencia: null }), 'high')
+  assert.equal(esfuerzoReintento({ harness: 'opencode', coherencia: null }), null)
+})
+
+test('cambios en palabras', () => {
+  assert.equal(cambiosEnPalabras({ rama: 'x', mas: 1214, menos: 8, archivos: 4 }), '+1,214 −8 en 4 archivos')
+  assert.equal(cambiosEnPalabras({ rama: 'x', mas: 1, menos: 0, archivos: 1 }), '+1 −0 en 1 archivo')
+  assert.equal(cambiosEnPalabras({ rama: 'x', mas: 0, menos: 0, archivos: 0 }), 'Sin cambios todavía')
+})
+
+test('la demo trae un renglón en ámbar y uno con «Ver cambios» (capturas del 29 oct)', () => {
+  const filas = demoTablero(T).terminales.map(filaDe)
+  assert.ok(filas.some(f => f.coherencia?.desajuste === 'pediste max · corre medium'))
+  assert.ok(filas.some(f => f.cambios && f.columna === 'falló'))
 })

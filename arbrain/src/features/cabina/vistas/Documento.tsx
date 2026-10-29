@@ -13,7 +13,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Check, Code2, Eye, FileText, GitCompare, Maximize2, Pencil, RotateCcw, X } from 'lucide-react'
+import { Check, Code2, Eye, FileText, GitCompare, Maximize2, MessageSquarePlus, Pencil, RotateCcw, X } from 'lucide-react'
 import { useTheme } from '@/shared/contexts/theme-context'
 import { MarkdownMessage } from '@/features/chat/components/MarkdownMessage'
 import { MermaidDiagram, useIsTouchDevice, useZoom } from '@/features/chat/components/MermaidDiagram'
@@ -32,6 +32,9 @@ import { VisorEntrega, type Entrega } from './visor/VisorEntrega'
 import { Galeria, type ImagenItem } from './visor/Galeria'
 import { Codigo } from './visor/Codigo'
 import d from './documento.module.css'
+import { Bandeja, Redactor, useAgentesAbiertos, type Objetivo } from '../documento/ComentariosEntregable'
+import { lineaDeCita, useComentarios, type AgenteAbierto } from '../documento/comentarios'
+import cc from '../documento/comentarios.module.css'
 import { capital, instalacion, NOMBRE_DUENO } from '@/config'
 
 interface Doc {
@@ -96,6 +99,31 @@ function CuerpoTexto({ data, input, url, destino, actual, setModo, editando, set
   editando: { texto: string; base: string } | null; setEditando: (e: { texto: string; base: string } | null) => void
 }) {
   const texto = data.texto ?? ''
+  // Comentar el entregable (29 oct 2026): se toca un párrafo, se escribe, y el lote se manda junto al agente.
+  const [comentando, setComentando] = useState(false)
+  const [objetivo, setObjetivo] = useState<Objetivo | null>(null)
+  const demo = useDemoComentarios()
+  const mios = useComentarios().filter(x => x.ruta === input.ruta)
+  // la lista de agentes solo se lee mientras se comenta o hay comentarios por mandar
+  const agentes = useAgentesAbiertos(demo ?? (comentando || mios.length ? undefined : SIN_AGENTES))
+  const cuerpo = useRef<HTMLDivElement>(null)
+  const tocar = (e: React.MouseEvent) => {
+    if (!comentando) return
+    const el = (e.target as HTMLElement).closest('p, li, h1, h2, h3, h4, blockquote, pre, td')
+    if (!el || !cuerpo.current?.contains(el) || el.closest('[data-redactor], [data-bandeja-comentarios]')) return
+    const cita = (el.textContent ?? '').trim()
+    if (!cita) return
+    setObjetivo({ ruta: input.ruta!, cita, ...(lineaDeCita(texto, cita) ? { linea: lineaDeCita(texto, cita) } : {}) })
+  }
+  // los párrafos ya comentados se marcan (misma cita al inicio)
+  useEffect(() => {
+    const raiz = cuerpo.current
+    if (!raiz) return
+    raiz.querySelectorAll('[data-comentado]').forEach(x => x.removeAttribute('data-comentado'))
+    if (!comentando && !mios.length) return
+    const blo = Array.from(raiz.querySelectorAll('p, li, h1, h2, h3, h4, blockquote, pre, td'))
+    for (const m of mios) { const c = (m.cita ?? '').replace(/\s+/g, ' ').trim().slice(0, 60); const el = c && blo.find(b => (b.textContent ?? '').replace(/\s+/g, ' ').trim().startsWith(c)); if (el) el.setAttribute('data-comentado', '') }
+  })
   const opciones: { modo: Modo; nombre: string; Icono: typeof Eye }[] = [
     ...(destino ? [{ modo: 'previa' as const, nombre: 'Así se verá', Icono: Eye }] : []),
     { modo: 'texto', nombre: 'Texto', Icono: FileText },
@@ -107,13 +135,18 @@ function CuerpoTexto({ data, input, url, destino, actual, setModo, editando, set
         {opciones.map(o => <button key={o.modo} role="tab" aria-selected={actual === o.modo} onClick={() => setModo(o.modo)}><o.Icono size={13} aria-hidden />{o.nombre}</button>)}
       </div>}
       {destino && actual === 'previa' && !editando && <span className={d.destino}>{DESTINOS[destino].nombre} · borrador, no publicado</span>}
-      {data.editable && !editando && <button className={d.editar} onClick={() => setEditando({ texto, base: data.hash! })}><Pencil size={13} aria-hidden />Editar</button>}
+      {/* «Comentar» a la izquierda de «Editar»: la esquina la ocupa el botón flotante de «Escuchar» */}
+      {!editando && actual !== 'previa' && <button className={d.editar} aria-pressed={comentando} data-comentar onClick={() => { setComentando(!comentando); setObjetivo(null) }}
+        title="Toca un párrafo para comentarlo; los comentarios se mandan juntos al agente"><MessageSquarePlus size={13} aria-hidden />{comentando ? 'Listo' : 'Comentar'}</button>}
+      {data.editable && !editando && <button className={d.editar} style={actual !== 'previa' ? { marginLeft: 0 } : undefined} onClick={() => setEditando({ texto, base: data.hash! })}><Pencil size={13} aria-hidden />Editar</button>}
     </div>
+    {comentando && !objetivo && <p className={d.meta}><span>Toca el párrafo que quieres comentar.</span></p>}
     {editando ? <Editor ruta={input.ruta!} url={url} inicial={editando} enDisco={data.hash!} onSalir={() => setEditando(null)} />
       : actual === 'previa' && destino ? <Previa destino={destino} doc={data} />
       : actual === 'cambios' ? <Cambios doc={data} />
-      : data.tipo === 'txt' ? <Txt texto={texto} />
-      : <Markdown texto={texto} />}
+      : <div ref={cuerpo} className={comentando ? cc.comentable : undefined} onClick={tocar}>{data.tipo === 'txt' ? <Txt texto={texto} /> : <Markdown texto={texto} />}</div>}
+    {objetivo && <Redactor objetivo={objetivo} agentes={agentes} onCerrar={() => setObjetivo(null)} />}
+    {!editando && <Bandeja agentes={agentes} solo={x => x.ruta === input.ruta} demo={!!demo} />}
   </div>
 }
 
@@ -128,7 +161,6 @@ function MarcoHtml({ clave, url, titulo, grande }: { clave: string; url: string;
   const { zoom, rueda, tecla, pinza } = useZoomPestana(clave, caja)
   const enviar = (m: object) => marco.current?.contentWindow?.postMessage(m, '*')
   useEffect(() => { enviar({ tipo: 'arbrain-tema', tema }) }, [tema])
-  useEffect(() => { enviar({ tipo: 'arbrain-zoom', zoom }) }, [zoom])
   // La rueda y las teclas ⌘ dentro del iframe aislado no llegan aquí: el script inyectado las reenvía.
   useEffect(() => {
     const al = (e: MessageEvent) => {
@@ -141,79 +173,154 @@ function MarcoHtml({ clave, url, titulo, grande }: { clave: string; url: string;
     }
     window.addEventListener('message', al); return () => window.removeEventListener('message', al)
   }, [rueda, tecla, pinza])
-  const pantalla = usePantallaCompleta(caja, marco, enviar)
-  return <div ref={caja} className={d.htmlMarco} data-grande={grande || undefined} data-pantalla={pantalla.activa || undefined} data-pantalla-marco={pantalla.activa || undefined}>
-    <iframe ref={marco} className={d.html} data-lector src={`${url}?tema=${inicial.current}`} sandbox="allow-scripts" title={titulo}
-      onLoad={() => { enviar({ tipo: 'arbrain-tema', tema }); enviar({ tipo: 'arbrain-zoom', zoom }); enviar({ tipo: 'arbrain-pantalla', on: pantalla.activa }) }} />
-    {pantalla.activa
-      ? <button type="button" className={d.salirPantalla} onClick={pantalla.salir} aria-label="Salir de pantalla completa"><X size={18} aria-hidden /></button>
-      : <button type="button" className={d.pantallaBtn} onClick={pantalla.entrar} title="Pantalla completa (gira el teléfono para verlo horizontal)"><Maximize2 size={14} aria-hidden /><span>Pantalla completa</span></button>}
-  </div>
+  const pantalla = usePantallaCompleta(caja, marco, enviar, zoom)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!pantalla.activa) enviar({ tipo: 'arbrain-zoom', zoom }) }, [zoom])
+  // Cada cambio de tamaño del marco (girar el teléfono, entrar o salir de pantalla completa) se le avisa al documento: en
+  // el iPhone el iframe no siempre recibe su propio `resize` al girar y el deck se quedaba con la escala de la vertical.
+  useEffect(() => {
+    const el = caja.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => enviar({ tipo: 'arbrain-medida' }))
+    ro.observe(el); return () => ro.disconnect()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  const salida = <button type="button" className={d.salirPantalla} onClick={pantalla.salir} aria-label="Salir de pantalla completa" title="Salir (desliza hacia abajo o doble toque arriba)"
+    data-pantalla-marco data-llamada={pantalla.llamada || undefined}><X size={22} strokeWidth={2.5} aria-hidden /></button>
+  return <>
+    <div ref={caja} className={d.htmlMarco} data-grande={grande || undefined} data-pantalla={pantalla.activa || undefined} data-pantalla-marco={pantalla.activa || undefined}>
+      <iframe ref={marco} className={d.html} data-lector src={`${url}?tema=${inicial.current}`} sandbox="allow-scripts" title={titulo}
+        onLoad={() => { enviar({ tipo: 'arbrain-tema', tema }); enviar({ tipo: 'arbrain-zoom', zoom: pantalla.activa ? 1 : zoom }); enviar({ tipo: 'arbrain-pantalla', on: pantalla.activa }) }} />
+      {!pantalla.activa && <button type="button" className={d.pantallaBtn} onClick={pantalla.entrar} title="Pantalla completa (o gira el teléfono)"><Maximize2 size={14} aria-hidden /><span>Pantalla completa</span></button>}
+      {pantalla.activa && pantalla.nativa && salida}
+    </div>
+    {/* Sin API nativa (iPhone) la X vive en <body>, fuera de cualquier ancestro que la recorte: nunca queda atrapado. */}
+    {pantalla.activa && !pantalla.nativa && createPortal(salida, document.body)}
+  </>
 }
 
-/** Pantalla completa del HTML (28 oct 2026: «un botón para expandir todo viendo horizontal para poder
- *  estudiarla bien»). Fullscreen API donde exista (escritorio, Android); en el iPhone no hay API para un div, así que el
- *  marco se fija a todo el viewport por CSS, encima de la barra de la app. Girar el teléfono solo cambia el viewport y el
- *  documento se re-escala. Dentro, el script inyectado (tema-html.ts) pasa láminas con toque y swipe. El iframe no se
- *  remonta: el deck conserva la lámina en la que iba. */
-function usePantallaCompleta(caja: React.RefObject<HTMLDivElement | null>, marco: React.RefObject<HTMLIFrameElement | null>, enviar: (m: object) => void) {
+type ConWebkit = HTMLElement & { webkitRequestFullscreen?: () => Promise<void> | void }
+type DocWebkit = Document & { webkitFullscreenElement?: Element | null; webkitExitFullscreen?: () => void }
+const TACTIL = '(pointer: coarse)'
+
+/** ¿Este ancestro sería la caja de un `position: fixed` descendiente? En WebKit lo son transform/translate/rotate/scale,
+ *  perspective, filter, backdrop-filter, will-change de esos, contain de layout o paint y `container-type` (29 oct 2026:
+ *  `.fijadaCuerpo` del panel es `container-type: inline-size` y por eso el marco quedaba bajo la barra de la app). */
+function encierraFixed(c: CSSStyleDeclaration) {
+  const v = (k: string) => c.getPropertyValue(k)
+  const algo = (k: string) => { const x = v(k); return !!x && x !== 'none' }
+  return algo('transform') || algo('translate') || algo('rotate') || algo('scale') || algo('perspective') || algo('filter') || algo('backdrop-filter')
+    || algo('-webkit-backdrop-filter') || /transform|filter|perspective|translate|rotate|scale|contain/.test(v('will-change'))
+    || /paint|layout|strict|content|size/.test(v('contain')) || (!!v('container-type') && v('container-type') !== 'normal') || /auto|hidden/.test(v('content-visibility'))
+}
+const LIBRE: [string, string][] = [['transform', 'none'], ['translate', 'none'], ['rotate', 'none'], ['scale', 'none'], ['perspective', 'none'], ['filter', 'none'],
+  ['backdrop-filter', 'none'], ['-webkit-backdrop-filter', 'none'], ['will-change', 'auto'], ['contain', 'none'], ['container-type', 'normal'], ['content-visibility', 'visible']]
+
+/** Pantalla completa del HTML (28 oct 2026: «un botón para expandir todo viendo horizontal para poder estudiarla bien»;
+ *  29 oct, tras probarlo en el iPhone: «no ocupa bien los márgenes de la pantalla horizontal, no se adaptó cuando cambié
+ *  de vertical a horizontal, y cuando quise salir no vi ningún botón»).
+ *  - Fullscreen API donde exista (escritorio, Android). En el iPhone no hay API para un div: el marco se fija al viewport
+ *    VISIBLE medido (visualViewport) por CSS, encima de la barra de la app y del chat, y se vuelve a medir al girar.
+ *  - Girar el teléfono a horizontal con un deck a la vista entra solo.
+ *  - Salir: X fija arriba a la derecha (en <body>, fuera de todo recorte), deslizar hacia abajo, doble toque arriba, Escape.
+ *  - El iframe no se remonta: el deck conserva la lámina en la que iba. */
+function usePantallaCompleta(caja: React.RefObject<HTMLDivElement | null>, marco: React.RefObject<HTMLIFrameElement | null>, enviar: (m: object) => void, zoom: number) {
   const [activa, setActiva] = useState(false)
-  const nativa = useRef(false)
-  type ConWebkit = HTMLElement & { webkitRequestFullscreen?: () => Promise<void> | void }
-  type DocWebkit = Document & { webkitFullscreenElement?: Element | null; webkitExitFullscreen?: () => void }
+  const [nativa, setNativa] = useState(false)
+  const [llamada, setLlamada] = useState(false)
+  const cabe = useRef(false)
   const entrar = () => {
-    setActiva(true)
     const el = caja.current as ConWebkit | null
-    nativa.current = false
+    let api = false
     try {
-      if (el?.requestFullscreen) { nativa.current = true; el.requestFullscreen().catch(() => { nativa.current = false }) }
-      else if (el?.webkitRequestFullscreen) { nativa.current = true; el.webkitRequestFullscreen() }
-    } catch { nativa.current = false }
+      if (el?.requestFullscreen) { api = true; el.requestFullscreen().catch(() => setNativa(false)) }
+      else if (el?.webkitRequestFullscreen) { api = true; el.webkitRequestFullscreen() }
+    } catch { api = false }
+    setNativa(api); setActiva(true)
   }
   const salir = () => {
-    setActiva(false)
+    setActiva(false); setNativa(false)
     const doc = document as DocWebkit
     if (doc.fullscreenElement) doc.exitFullscreen().catch(() => {})
     else if (doc.webkitFullscreenElement) doc.webkitExitFullscreen?.()
   }
+  // El documento dice si cabe en su ventana (un deck) o se desplaza (un texto largo): solo un deck entra solo al girar.
+  useEffect(() => {
+    const al = (e: MessageEvent) => { if (e.source === marco.current?.contentWindow && e.data?.tipo === 'arbrain-cabe') cabe.current = !!e.data.cabe }
+    window.addEventListener('message', al); return () => window.removeEventListener('message', al)
+  }, [marco])
+  useEffect(() => {
+    if (activa || !window.matchMedia(TACTIL).matches) return
+    const horizontal = window.matchMedia('(orientation: landscape)')
+    const girar = () => {
+      const el = caja.current
+      if (!horizontal.matches || !cabe.current || !el || !el.getClientRects().length || el.closest('[inert]')) return
+      entrar()
+    }
+    horizontal.addEventListener('change', girar); return () => horizontal.removeEventListener('change', girar)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activa])
   useEffect(() => {
     enviar({ tipo: 'arbrain-pantalla', on: activa })
+    // Dentro, el deck a su tamaño natural: el zoom de la pestaña (pinza) no lo encoge.
+    enviar({ tipo: 'arbrain-zoom', zoom: activa ? 1 : zoom })
     if (!activa) return
     marco.current?.focus()
-    const previo = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    // Sin API nativa (iPhone): el resto de la app se oculta (sus barras no pintan encima aunque tengan su propio z-index) y
-    // los ancestros que harían de caja del `fixed` (transform, filter, contain) se neutralizan mientras dure.
-    document.documentElement.dataset.pantallaDoc = ''
-    const neutralizados: { el: HTMLElement; css: string }[] = []
-    for (let el = caja.current?.parentElement; el && el !== document.body; el = el.parentElement) {
-      const c = getComputedStyle(el)
-      if (c.transform !== 'none' || c.filter !== 'none' || c.backdropFilter !== 'none' || /transform|filter/.test(c.willChange) || /paint|layout|strict|content/.test(c.contain)) {
-        neutralizados.push({ el, css: el.style.cssText })
-        el.style.setProperty('transform', 'none', 'important'); el.style.setProperty('filter', 'none', 'important'); el.style.setProperty('backdrop-filter', 'none', 'important')
-        el.style.setProperty('will-change', 'auto', 'important'); el.style.setProperty('contain', 'none', 'important')
+    const raiz = document.documentElement
+    raiz.dataset.pantallaDoc = ''
+    // Ancestros que harían de caja del `fixed`: se liberan mientras dure, y otra vez tras cada giro (React pudo repintarlos).
+    const originales = new Map<HTMLElement, string>()
+    const liberar = () => {
+      for (let el = caja.current?.parentElement; el && el !== document.body; el = el.parentElement) {
+        if (!originales.has(el) && !encierraFixed(getComputedStyle(el))) continue
+        if (!originales.has(el)) originales.set(el, el.style.cssText)
+        for (const [k, v] of LIBRE) el.style.setProperty(k, v, 'important')
       }
     }
+    let cuadro = 0
+    const medir = () => {
+      cancelAnimationFrame(cuadro)
+      cuadro = requestAnimationFrame(() => {
+        liberar()
+        const vv = window.visualViewport
+        raiz.style.setProperty('--pantalla-w', `${Math.round(vv?.width ?? window.innerWidth)}px`)
+        raiz.style.setProperty('--pantalla-h', `${Math.round(vv?.height ?? window.innerHeight)}px`)
+        if (window.scrollX || window.scrollY) window.scrollTo(0, 0)
+        enviar({ tipo: 'arbrain-medida' })
+      })
+    }
+    medir()
+    // iOS termina de acomodar el viewport unos cuadros después de `orientationchange`: se vuelve a medir.
+    const tardes: number[] = []
+    const girado = () => { medir(); for (const ms of [120, 350, 700]) tardes.push(window.setTimeout(medir, ms)) }
     const doc = document as DocWebkit
     // Si el sistema sale del fullscreen nativo (Esc, gesto), el modo se apaga con él.
-    const cambio = () => { if (nativa.current && !doc.fullscreenElement && !doc.webkitFullscreenElement) { nativa.current = false; setActiva(false) } }
+    const cambio = () => { if (nativa && !doc.fullscreenElement && !doc.webkitFullscreenElement) salir() }
     const tecla = (e: KeyboardEvent) => {
       if (e.key === 'Escape') salir()
       else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); enviar({ tipo: 'arbrain-nav', paso: e.key === 'ArrowRight' ? 1 : -1 }) }
     }
-    const mensaje = (e: MessageEvent) => { if (e.source === marco.current?.contentWindow && e.data?.tipo === 'arbrain-salir') salir() }
+    let apagar = 0
+    const mensaje = (e: MessageEvent) => {
+      if (e.source !== marco.current?.contentWindow) return
+      if (e.data?.tipo === 'arbrain-salir') salir()
+      else if (e.data?.tipo === 'arbrain-toque-arriba') { setLlamada(true); clearTimeout(apagar); apagar = window.setTimeout(() => setLlamada(false), 900) }
+    }
+    window.addEventListener('resize', medir); window.addEventListener('orientationchange', girado); window.visualViewport?.addEventListener('resize', medir)
     document.addEventListener('fullscreenchange', cambio); document.addEventListener('webkitfullscreenchange', cambio)
     window.addEventListener('keydown', tecla); window.addEventListener('message', mensaje)
     return () => {
-      document.body.style.overflow = previo
-      delete document.documentElement.dataset.pantallaDoc
-      for (const { el, css } of neutralizados) el.style.cssText = css
+      cancelAnimationFrame(cuadro); tardes.forEach(clearTimeout); clearTimeout(apagar)
+      delete raiz.dataset.pantallaDoc
+      raiz.style.removeProperty('--pantalla-w'); raiz.style.removeProperty('--pantalla-h')
+      for (const [el, css] of originales) el.style.cssText = css
+      window.removeEventListener('resize', medir); window.removeEventListener('orientationchange', girado); window.visualViewport?.removeEventListener('resize', medir)
       document.removeEventListener('fullscreenchange', cambio); document.removeEventListener('webkitfullscreenchange', cambio)
       window.removeEventListener('keydown', tecla); window.removeEventListener('message', mensaje)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activa])
-  return { activa, entrar, salir }
+  return { activa, nativa, llamada, entrar, salir }
 }
 
 /** Texto plano en párrafos (los separa una línea en blanco), cada uno con sus saltos: así «Escuchar» los lee y salta de uno a otro. */
@@ -374,4 +481,16 @@ function PreviaFeed({ doc }: { doc: Doc }) {
       <div className={d.sfcPie}><span>👍 Like</span><span>💬 0 comments</span><span>🔖 Guardar</span></div>
     </article>
   </div>
+}
+
+const SIN_AGENTES: AgenteAbierto[] = []
+
+/** `?demo-comentarios=1`: un agente de ejemplo dueño del documento abierto, SOLO para capturas (el envío no sale). */
+function useDemoComentarios(): AgenteAbierto[] | undefined {
+  const [demo, setDemo] = useState<AgenteAbierto[] | undefined>(undefined)
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search)
+    if (q.get('demo-comentarios') === '1') setDemo([{ id: 900321, nombre: q.get('demo-agente') ?? 'escribir el reporte de Warp', cwd: q.get('demo-cwd') ?? '~/Developer' }])
+  }, [])
+  return demo
 }
