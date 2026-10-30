@@ -22,5 +22,7 @@ export const config = {
     // Adjuntos del chat (v0.2.6): terminan en .png/.jpg y la regla de arriba los dejaría fuera del proxy (Host, lista
     // blanca y sesión). La ruta vuelve a pedir sesión, pero no se depende de una sola capa.
     '/api/storage/adjunto/:path*',
+    // Archivos del chat (T6): el nombre al final (`propuesta.png`) también lo sacaría del proxy y de su regla de Host.
+    '/api/chat/archivo/:path*',
   ],
 }

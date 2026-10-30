@@ -158,3 +158,27 @@ export function entornoLimpio(env) {
   for (const [k, v] of Object.entries(env)) if (v !== undefined && !fuera.has(k.toUpperCase())) o[k] = v
   return o
 }
+
+/**
+ * Carpetas donde suele vivir `git.exe` en Windows cuando no está en el PATH (29 oct 2026, soporte de un fundador): la app
+ * de escritorio, el arranque automático (VBS) y PowerShell heredan el PATH de Windows, no el de Git Bash. Si Git se
+ * instaló «solo para Git Bash», ahí no hay `git`: la firma del programa ya compilado no se puede verificar y el
+ * supervisor caía a compilar aquí o a una `.next/standalone` vieja. Orden: el de 64 bits, el de 32 y el del usuario.
+ */
+export function carpetasGitWindows(env) {
+  const de = (k) => Object.entries(env).find(([n]) => n.toUpperCase() === k.toUpperCase())?.[1]?.trim()
+  const bases = [de('ProgramFiles') || 'C:\\Program Files', de('ProgramW6432'), de('ProgramFiles(x86)'), de('LOCALAPPDATA') && `${de('LOCALAPPDATA')}\\Programs`]
+  return [...new Set(bases.filter(Boolean).map((b) => `${b}\\Git\\cmd`))]
+}
+
+/**
+ * ¿Se reutiliza lo ya compilado aquí (`.next/standalone` o `daemon-<huella>`)? Solo si la marca dice la MISMA huella.
+ * Sin git la huella es `sin-git-<versión>`: antes era «sin-git» a secas y se reutilizaba cualquier compilación vieja
+ * para siempre, aunque la copia ya fuera de otra versión (otra web según quién encendía el servidor).
+ */
+export function reutilizarCompilado({ hay, forzar, huella, marca }) {
+  return !!hay && !forzar && !!huella && marca?.huella === huella
+}
+
+/** Huella cuando git no responde: depende de la versión de la copia, así una actualización sí recompila. */
+export const huellaSinGit = (version) => `sin-git-${String(version || 'desconocida').replace(/[^0-9A-Za-z.-]/g, '')}`

@@ -9,7 +9,7 @@ import strip from 'strip-markdown'
 import { createServiceClient } from '@/lib/supabase/service'
 import { openClawEventSchema, CODING_TOOLS } from '@/types/openclaw'
 import type { OpenClawEvent } from '@/types/openclaw'
-import { SEGUNDA_EMAIL, SEGUNDA_REPORTES_SESION, JOB_REPORTE_SEGUNDA, REPORTES_VIVOS, elegirFavorita, fechaDelReporte, invocacionDiario, invocacionVista, vistaDelReporte } from '@/shared/constants/reporte-vivo'
+import { SEGUNDA_EMAIL, SEGUNDA_REPORTES_SESION, JOB_CIERRE_SEGUNDA, JOB_REPORTE_SEGUNDA, REPORTES_VIVOS, elegirFavorita, fechaDelReporte, invocacionDiario, invocacionVista, vistaDelReporte } from '@/shared/constants/reporte-vivo'
 import { declaracionDecision, destinoDeRutina, documentoDelResultado, fuenteInformacion, hiloDeRutina, RUTINAS_HILOS_VERSION, type HiloRutina } from '@/shared/constants/rutinas-hilos'
 import { instalacion } from '@/config'
 import { DUENO, NOMBRE_SEGUNDA, SEGUNDA } from '@/config'
@@ -637,7 +637,8 @@ async function handleCronEvent(
   const hilo = hiloDeRutina(event.prompt ?? 'cron')
   const aHilo = !!hilo && hasOutput && !hasError
   // El reporte de la socia (5 oct 2026) llega a SU hilo «Reportes» como vista viva; su push ya lo mandó el script.
-  if (event.prompt === JOB_REPORTE_SEGUNDA) {
+  // Su cierre del día (29 oct 2026, 20:30) llega igual, como texto: ahí mismo contesta su ⭐.
+  if (event.prompt === JOB_REPORTE_SEGUNDA || event.prompt === JOB_CIERRE_SEGUNDA) {
     if (hasOutput && !hasError) await entregarReporteSegunda(supabase, event, output)
     return
   }
@@ -755,10 +756,13 @@ async function entregarReporteSegunda(supabase: ReturnType<typeof createServiceC
     if (error && error.code !== '23505') throw new EntregaError(`chat_sessions (${NOMBRE_SEGUNDA()}): ${error.message}`)
   }
   const texto = output.split(/\n\[push\]/)[0].trim()
+  const cierre = event.prompt === JOB_CIERRE_SEGUNDA
   const { error } = await supabase.from('chat_messages').insert({
     session_id: SEGUNDA_REPORTES_SESION, role: 'assistant', content: texto,
-    metadata: { source: 'cron', jobId: JOB_REPORTE_SEGUNDA, jobLabel: 'Tu reporte', isError: false, runId: event.runId, reporteVivo: SEGUNDA(),
-      ...invocacionDiario(event.runId, SEGUNDA(), fechaDelReporte(event.originalAt ?? now)) },
+    metadata: cierre
+      ? { source: 'cron', jobId: JOB_CIERRE_SEGUNDA, jobLabel: 'Cierre del día', isError: false, runId: event.runId }
+      : { source: 'cron', jobId: JOB_REPORTE_SEGUNDA, jobLabel: 'Tu reporte', isError: false, runId: event.runId, reporteVivo: SEGUNDA(),
+          ...invocacionDiario(event.runId, SEGUNDA(), fechaDelReporte(event.originalAt ?? now)) },
   })
   if (error) throw new EntregaError(`chat_messages (${NOMBRE_SEGUNDA()}): ${error.message}`)
   await supabase.from('chat_sessions').update({ updated_at: now }).eq('id', SEGUNDA_REPORTES_SESION)

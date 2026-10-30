@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { isDesktopAuthBypassFromHeaders } from '@/lib/desktop-auth-server'
 import { createClient } from '@/lib/supabase/server'
 import { esEdicionCliente } from '@/lib/edicion'
-import { faltaPrimerArranque } from '@/features/primer-arranque/lib/estado'
+import { irABienvenida } from '@/features/primer-arranque/lib/estado'
 import { RastroDeError } from '@/components/RastroDeError'
 import { DashboardShell } from './dashboard-shell'
 
@@ -17,9 +17,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   // Edición cliente: hasta terminar el primer arranque (o si cambiaron los textos legales), la app abre en la bienvenida.
   if (esEdicionCliente()) {
-    let falta = true
-    try { falta = faltaPrimerArranque() } catch { /* sin carpeta de datos: la bienvenida lo explica */ }
-    if (falta) redirect('/bienvenida')
+    // Sin carpeta de datos, la bienvenida lo explica; con el estado ilegible, no se manda ahí (irABienvenida).
+    if (irABienvenida()) redirect('/bienvenida')
   }
 
   return <RastroDeError><DashboardShell>{children}</DashboardShell></RastroDeError>

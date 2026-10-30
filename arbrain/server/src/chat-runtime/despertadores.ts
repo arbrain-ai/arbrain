@@ -1,4 +1,5 @@
 import { DUENO, DUENO_M } from '../dueno.js'
+import { diaCivil, instanteDeHoraCivil, zonaDueno, ZONA_ORIGINAL } from '../zona.js'
 import type Database from 'better-sqlite3'
 import { randomUUID } from 'node:crypto'
 import type { ChatJournal } from './journal.js'
@@ -45,29 +46,43 @@ export const TOPES = {
   retrasoAvisoMs: 2 * 60_000,
 }
 
-/** México dejó el horario de verano en 2022: America/Mexico_City es UTC-6 todo el año. */
-const OFFSET_MX = '-06:00'
 
 export class DespertadorInvalido extends Error {}
 
 export interface CrearDespertador { texto: string; enMinutos?: number; aLas?: string; cadaMinutos?: number; veces?: number }
 
-/** Resuelve «a las 14:05» (hoy o mañana, hora de México) o un ISO con zona. */
-export function resolverHora(aLas: string, ahora: number): number {
+/**
+ * Resuelve «a las 14:05» (hoy o mañana, en la zona del dueño: instalación original, México; alumno, la suya desde el 29 oct 2026) o
+ * un ISO con zona. `zona` es para pruebas.
+ */
+export function resolverHora(aLas: string, ahora: number, zona: string = zonaDueno()): number {
   const hhmm = /^(\d{1,2}):(\d{2})$/.exec(aLas.trim())
   if (hhmm) {
     const h = Number(hhmm[1]), m = Number(hhmm[2])
-    if (h > 23 || m > 59) throw new DespertadorInvalido('Hora inválida; usa HH:MM (24 h, hora de México).')
-    const hoy = new Date(ahora - 6 * 3600_000).toISOString().slice(0, 10)
-    let t = Date.parse(`${hoy}T${hhmm[1].padStart(2, '0')}:${hhmm[2]}:00${OFFSET_MX}`)
-    if (t <= ahora) t += 24 * 3600_000
+    if (h > 23 || m > 59) throw new DespertadorInvalido('Hora inválida; usa HH:MM (24 h, tu hora local).')
+    const hoy = diaCivil(ahora, zona)
+    let t = instanteDeHoraCivil(hoy, h, m, zona)
+    if (t <= ahora) {
+      const manana = new Date(`${hoy}T12:00:00Z`); manana.setUTCDate(manana.getUTCDate() + 1)
+      t = instanteDeHoraCivil(manana.toISOString().slice(0, 10), h, m, zona)
+    }
     return t
   }
-  if (!/[zZ]|[+-]\d{2}:?\d{2}$/.test(aLas.trim())) throw new DespertadorInvalido('aLas debe ser HH:MM (hora de México) o un ISO con zona, p. ej. 2026-10-03T14:05:00-06:00.')
+  if (!/[zZ]|[+-]\d{2}:?\d{2}$/.test(aLas.trim())) throw new DespertadorInvalido('aLas debe ser HH:MM (tu hora local) o un ISO con zona, p. ej. 2026-10-03T14:05:00-06:00.')
   const t = Date.parse(aLas.trim())
   if (!Number.isFinite(t)) throw new DespertadorInvalido('No entendí la fecha de aLas.')
   return t
 }
+
+/** «AAAA-MM-DD HH:MM» de un instante en la zona dada (reloj de 24 h). */
+export function fechaHoraCivil(t: number, zona: string): string {
+  const p = new Intl.DateTimeFormat('en-CA', { timeZone: zona, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(t)
+  const v = (k: string) => p.find(x => x.type === k)!.value
+  return `${v('year')}-${v('month')}-${v('day')} ${v('hour')}:${v('minute')}`
+}
+
+/** Cómo se nombra la zona en el aviso del despertador: instalación original, «hora de México» como siempre; alumno, su zona. */
+export const etiquetaZona = (zona: string) => zona === ZONA_ORIGINAL ? 'hora de México' : `hora local, ${zona}`
 
 export class Despertadores {
   constructor(private db: Database.Database, private clock: () => number = Date.now) {
@@ -185,7 +200,7 @@ export class Despertadores {
       const previo = journal.latest(actual.owner, actual.account, actual.conversationId)?.input as ChatJobInput | undefined
       const turnId = randomUUID()
       const tarde = ahora - actual.dueAt > TOPES.retrasoAvisoMs
-      const hora = new Date(actual.dueAt - 6 * 3600_000).toISOString().slice(11, 16)
+      const zona = zonaDueno(), hora = fechaHoraCivil(actual.dueAt, zona).slice(11, 16)
       const disparo = actual.disparos + 1
       const message = actual.tipo === 'confirmacion' ? [
         `[Aviso de Arbrain ${actual.id} · tu cola de aprobaciones: la persona decidió algo que te quedó pendiente${tarde ? ' · llega TARDE: el servidor no estaba disponible' : ''}]`,
@@ -196,7 +211,7 @@ export class Despertadores {
         `${DUENO_M} no escribió este mensaje. Si te pregunta algo y puedes decidirlo, contéstale con retomar; si necesitas a ${DUENO}, pregúntaselo en breve aquí. Si terminó, revisa lo que entregó, decide el siguiente paso y cuéntaselo a ${DUENO} en breve.`,
         actual.texto,
       ].join('\n') : [
-        `[Despertador ${actual.id}${actual.cadaMs ? ` · recurrente, disparo ${disparo}${actual.restantes ? ` de ${actual.disparos + actual.restantes}` : ''}` : ''} · programado para las ${hora} (hora de México)${tarde ? ' · llega TARDE: el servidor no estaba disponible a esa hora' : ''}]`,
+        `[Despertador ${actual.id}${actual.cadaMs ? ` · recurrente, disparo ${disparo}${actual.restantes ? ` de ${actual.disparos + actual.restantes}` : ''}` : ''} · programado para las ${hora} (${etiquetaZona(zona)})${tarde ? ' · llega TARDE: el servidor no estaba disponible a esa hora' : ''}]`,
         `Lo programaste tú en esta conversación. ${DUENO_M} no escribió este mensaje. Lo que te pediste hacer al despertar:`,
         actual.texto,
       ].join('\n')
@@ -242,7 +257,7 @@ export function etiquetaDespertador(d: { texto: string; tipo?: string }): string
 
 /** Una línea legible por despertador (para la herramienta de Levy). */
 export function describirDespertador(d: Despertador, ahora = Date.now()): string {
-  const hora = new Date(d.dueAt - 6 * 3600_000).toISOString().replace('T', ' ').slice(0, 16)
+  const hora = fechaHoraCivil(d.dueAt, zonaDueno())
   const falta = Math.round((d.dueAt - ahora) / 60_000)
   const cuando = d.estado === 'pendiente' ? `${hora} (${falta <= 0 ? 'ya' : `en ${falta} min`})` : d.estado
   return `${d.id} · ${cuando}${d.cadaMs ? ` · cada ${Math.round(d.cadaMs / 60_000)} min, quedan ${d.restantes}` : ''} · «${d.texto.length > 120 ? d.texto.slice(0, 119) + '…' : d.texto}»${d.motivo && d.estado !== 'cancelado' ? ` · ${d.motivo}` : ''}`

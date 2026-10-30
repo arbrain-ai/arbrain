@@ -138,7 +138,11 @@ describe('rutas solo de Daniel (contrato §8)', () => {
     expect(rutaSoloDaniel('GET', '/analytics/sales', {})).toBe(true)
     expect(rutaSoloDaniel('POST', '/planning', {})).toBe(true)
     expect(rutaSoloDaniel('POST', '/cabina', { que: 'salud' })).toBe(true)
-    expect(rutaSoloDaniel('POST', '/cabina', { que: 'trabajos' })).toBe(true)
+    // Taller › Agentes (29 oct 2026): trabajos y salida responden en cliente con SUS subagentes (trabajos-cliente.ts).
+    expect(rutaSoloDaniel('POST', '/cabina', { que: 'trabajos' })).toBe(false)
+    expect(rutaSoloDaniel('POST', '/cabina', { que: 'salida' })).toBe(false)
+    // Lo que lanza o toca subagentes de `delegar` (procesos aparte, red team A1) sigue fuera.
+    for (const que of ['actividad', 'detener', 'responder', 'comentarios', 'correr-plan', 'descartar-plan', 'guardian-disco', 'apagar']) expect(rutaSoloDaniel('POST', '/cabina', { que })).toBe(true)
     expect(rutaSoloDaniel('POST', '/cabina', { que: 'panel' })).toBe(false)
     expect(rutaSoloDaniel('POST', '/cabina', { que: 'memoria' })).toBe(false)
     expect(rutaSoloDaniel('POST', '/chat/stream', {})).toBe(false)

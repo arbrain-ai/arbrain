@@ -1,7 +1,11 @@
-/** Civil dates stay independent of the server timezone and DST-length days. */
-export const HABIT_TIMEZONE = 'America/Mexico_City'
+import { zonaDueno } from '@/shared/lib/zona-dueno'
 
-export function civilToday(timeZone = HABIT_TIMEZONE, now = new Date()): string {
+/**
+ * Civil dates stay independent of DST-length days. The zone is the owner's (shared/lib/zona-dueno.ts): the original install's
+ * install keeps America/Mexico_City; a student's install uses their own (29 oct 2026, T7). Stored habit keys are civil
+ * dates (AAAA-MM-DD) and never carry a zone, so existing records keep their meaning.
+ */
+export function civilToday(timeZone = zonaDueno(), now = new Date()): string {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone, year: 'numeric', month: '2-digit', day: '2-digit',
   }).formatToParts(now)
@@ -22,7 +26,7 @@ export function shiftDay(date: string, days: number): string {
   return d.toISOString().slice(0, 10)
 }
 
-export function civilMidnight(date: string, timeZone = HABIT_TIMEZONE): Date {
+export function civilMidnight(date: string, timeZone = zonaDueno()): Date {
   if (!isCivilDate(date)) throw new Error('Fecha inválida.')
   const target = Date.parse(`${date}T00:00:00Z`)
   let value = target
@@ -39,7 +43,7 @@ export function civilMidnight(date: string, timeZone = HABIT_TIMEZONE): Date {
 }
 
 export function habitRange(params: URLSearchParams, now = new Date()) {
-  const timeZone = params.get('timeZone') ?? HABIT_TIMEZONE
+  const timeZone = params.get('timeZone') ?? zonaDueno()
   const today = civilToday(timeZone, now) // Intl validates IANA timezone.
   const date = params.get('date') ?? today
   const days = Number(params.get('days') ?? '1')

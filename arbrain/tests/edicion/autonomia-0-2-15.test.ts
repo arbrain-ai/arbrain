@@ -143,7 +143,7 @@ test('la bienvenida de Levy y computer use dicen el nivel elegido', () => {
   assert.match(fuente('src/app/api/primer-arranque/route.ts'), /alDaemon\('\/permisos', \{ plazoMs: 2_000 \}\)/)
 })
 
-test('CHANGELOG: la 0.2.15 está arriba, con el texto legal como borrador y Windows por probar, y la 0.2.14 sigue', () => {
+test('CHANGELOG: la 0.2.15 sigue (bajo las versiones nuevas), con el texto legal como borrador y Windows por probar, y la 0.2.14 sigue', () => {
   const c = fuente('empaquetado/distribucion/CHANGELOG.md')
   const v15 = c.slice(c.indexOf('## v0.2.15'), c.indexOf('## v0.2.14'))
   assert.ok(c.indexOf('## v0.2.15') < c.indexOf('## v0.2.14'))
@@ -153,5 +153,6 @@ test('CHANGELOG: la 0.2.15 está arriba, con el texto legal como borrador y Wind
   assert.match(v15, /es un borrador/)
   assert.match(v15, /Windows real/)
   assert.match(c, /Tu primera skill/)
-  assert.equal(fuente('empaquetado/distribucion/VERSION').trim(), '0.2.15')
+  // Desde la 0.2.16, VERSION ya no es 0.2.15: la entrada de la 0.2.15 se queda debajo de la nueva.
+  assert.ok(c.indexOf('## v0.2.16') < c.indexOf('## v0.2.15'))
 })

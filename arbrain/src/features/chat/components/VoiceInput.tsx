@@ -3,6 +3,8 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { Mic, Square, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { asegurarPermiso } from '@/features/permisos/lib/permisos'
+import { isDesktopRuntime } from '@/lib/local-first/runtime'
+import { formatoGrabacion, mensajeFalloMicrofono, mensajeFalloTranscripcion, plataformaDe, SIN_PERMISO_MAC, tipoDeGrabacion } from '../lib/voz-sistema'
 
 type RecordState = 'idle' | 'recording' | 'processing' | 'error'
 
@@ -28,23 +30,35 @@ export function VoiceInput({ onVoiceNote, disabled, soloTexto, etiqueta, onEstad
   const chunksRef = useRef<BlobPart[]>([])
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  // Qué falló, en una línea con el camino de SU sistema (29 oct 2026, un fundador en Windows: el botón se ponía rojo dos
+  // segundos y volvía sin decir nada). Se queda hasta el siguiente intento o 9 s.
+  const [aviso, setAviso] = useState<string | null>(null)
+  const avisoTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const fallar = useCallback((mensaje: string) => {
+    setState('error')
+    setAviso(mensaje)
+    if (avisoTimer.current) clearTimeout(avisoTimer.current)
+    avisoTimer.current = setTimeout(() => { setState('idle'); setSeconds(0); setAviso(null) }, 9000)
+  }, [])
+  useEffect(() => () => { if (avisoTimer.current) clearTimeout(avisoTimer.current) }, [])
 
   const stopTimer = () => {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
   }
 
   const startRecording = useCallback(async () => {
+    if (avisoTimer.current) clearTimeout(avisoTimer.current)
+    setAviso(null)
     try {
       // Justo a tiempo: el permiso de micrófono se pide al pulsar grabar, no al abrir la app.
-      if (!(await asegurarPermiso('microfono'))) throw new Error('Micrófono sin permiso')
+      if (!(await asegurarPermiso('microfono'))) throw new Error(SIN_PERMISO_MAC)
+      if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') throw new Error('Sin MediaRecorder o mediaDevices')
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       streamRef.current = stream
 
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-          ? 'audio/webm;codecs=opus'
-          : 'audio/webm',
-      })
+      // WebView2, Chrome y Edge graban webm/opus; Safari, mp4. Sin ninguno conocido, el navegador elige el suyo.
+      const mimeType = formatoGrabacion((t) => MediaRecorder.isTypeSupported(t))
+      const mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream)
       mediaRecorderRef.current = mediaRecorder
       chunksRef.current = []
 
@@ -57,11 +71,12 @@ export function VoiceInput({ onVoiceNote, disabled, soloTexto, etiqueta, onEstad
       setSeconds(0)
 
       timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000)
-    } catch {
-      setState('error')
-      setTimeout(() => setState('idle'), 2000)
+    } catch (error) {
+      streamRef.current?.getTracks().forEach((t) => t.stop())
+      streamRef.current = null
+      fallar(mensajeFalloMicrofono(error, plataformaDe(navigator.userAgent), isDesktopRuntime()))
     }
-  }, [])
+  }, [fallar])
 
   const sendRecording = useCallback(async () => {
     stopTimer()
@@ -80,7 +95,9 @@ export function VoiceInput({ onVoiceNote, disabled, soloTexto, etiqueta, onEstad
     streamRef.current?.getTracks().forEach((t) => t.stop())
     streamRef.current = null
 
-    const blob = new Blob(chunksRef.current, { type: 'audio/webm' })
+    // El tipo que de verdad grabó (el servidor elige la extensión por él).
+    const grabado = tipoDeGrabacion(recorder.mimeType)
+    const blob = new Blob(chunksRef.current, { type: grabado.tipo })
     chunksRef.current = []
 
     if (blob.size < 1000) {
@@ -94,10 +111,10 @@ export function VoiceInput({ onVoiceNote, disabled, soloTexto, etiqueta, onEstad
       let audioUrl = ''
       if (!soloTexto) {
         const supabase = createClient()
-        const fileName = `voice-${Date.now()}.webm`
+        const fileName = `voice-${Date.now()}.${grabado.nombre.split('.').pop()}`
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('chat-audio')
-          .upload(fileName, blob, { contentType: 'audio/webm', upsert: false })
+          .upload(fileName, blob, { contentType: grabado.tipo, upsert: false })
 
         if (uploadError) throw uploadError
 
@@ -109,13 +126,14 @@ export function VoiceInput({ onVoiceNote, disabled, soloTexto, etiqueta, onEstad
 
       // 2. Transcribe via Groq Whisper
       const form = new FormData()
-      form.append('audio', blob, 'recording.webm')
+      form.append('audio', blob, grabado.nombre)
       const res = await fetch('/api/chat/transcribe', { method: 'POST', body: form })
 
       if (!res.ok) {
-        const fallo = await res.json().catch(() => null) as { code?: string } | null
+        const fallo = await res.json().catch(() => null) as { code?: string; error?: string } | null
         if (onSinConfigurar && fallo?.code === 'stt_not_configured') { setState('idle'); setSeconds(0); onSinConfigurar(); return }
-        throw new Error('STT failed')
+        fallar(mensajeFalloTranscripcion(res.status, fallo))
+        return
       }
       const { text } = await res.json() as { text?: string }
 
@@ -125,10 +143,9 @@ export function VoiceInput({ onVoiceNote, disabled, soloTexto, etiqueta, onEstad
       setSeconds(0)
       onVoiceNote(transcription, audioUrl)
     } catch {
-      setState('error')
-      setTimeout(() => { setState('idle'); setSeconds(0) }, 2000)
+      fallar('No se pudo transcribir. Revisa tu conexión y vuelve a intentarlo.')
     }
-  }, [onVoiceNote, soloTexto, onSinConfigurar])
+  }, [onVoiceNote, soloTexto, onSinConfigurar, fallar])
 
   const handleClick = useCallback(() => {
     if (state === 'idle' || state === 'error') {
@@ -170,10 +187,17 @@ export function VoiceInput({ onVoiceNote, disabled, soloTexto, etiqueta, onEstad
   }
 
   return (
+    <span className="relative inline-flex shrink-0">
+    {aviso && (
+      <span role="alert" className="absolute bottom-full right-0 z-30 mb-2 w-72 max-w-[80vw] rounded-xl border border-border-subtle bg-card px-3 py-2 text-left text-[12px] leading-snug text-foreground/85 shadow-lg">
+        {aviso}
+      </span>
+    )}
     <button
       onClick={handleClick}
       disabled={disabled || state === 'processing'}
-      title={state === 'processing' ? 'Procesando…' : state === 'error' ? 'Error de micrófono' : etiqueta ?? (soloTexto ? 'Dictar' : 'Grabar nota de voz')}
+      aria-label={aviso ?? undefined}
+      title={state === 'processing' ? 'Procesando…' : state === 'error' ? aviso ?? 'Error de micrófono' : etiqueta ?? (soloTexto ? 'Dictar' : 'Grabar nota de voz')}
       className={`
         shrink-0 w-11 h-11 md:w-8 md:h-8 rounded-xl flex items-center justify-center transition-all
         disabled:opacity-50 disabled:cursor-not-allowed
@@ -190,5 +214,6 @@ export function VoiceInput({ onVoiceNote, disabled, soloTexto, etiqueta, onEstad
         : <Mic size={16} className="md:w-[13px] md:h-[13px]" />
       }
     </button>
+    </span>
   )
 }

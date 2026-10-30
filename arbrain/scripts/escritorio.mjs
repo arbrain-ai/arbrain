@@ -21,18 +21,24 @@
  * Y `~/.config/arbrain/escritorio.json` con la carpeta de Arbrain, el Node y el PATH de esta terminal (una app abierta
  * desde el Dock o el menú Inicio no hereda el PATH: sin él no encontraría `node` ni el `claude` de la persona).
  *
+ * App 0.1.x junto a la nueva (29 oct 2026): `instalar` y `estado` buscan otra app «Arbrain» (la Tauri, que abre una
+ * ventana en blanco). Sin --reemplazar-app-vieja solo avisan; con él, en Mac la cierran y la guardan en
+ * ~/Arbrain-respaldos (nunca se borra). En Windows se indica desinstalarla desde Configuración.
+ * `abrir` enfoca la ventana si la app ya está abierta en vez de crear otra.
+ *
  * Salidas: 0 listo · 2 argumentos · 3 hay otra app «Arbrain» (la 0.1.x) y falta --reemplazar-app-vieja · 4 no se
  * pudo verificar o bajar (se sigue con el navegador) · 1 otro error.
  * Opciones de prueba: --archivo <tar.gz> (no baja; la huella sigue saliendo de la etiqueta), --destino <carpeta>,
  * ARBRAIN_ESCRITORIO_BASE (otra dirección de descarga; la huella también sale de la etiqueta).
  */
-import { spawn, spawnSync } from 'node:child_process'
+import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { accessSync, constants, copyFileSync, cpSync, createReadStream, createWriteStream, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { dirDatosPorDefecto } from './servidor/rutas.mjs'
+import { abrirOEnfocarApp, avisoAppVieja, buscarAppsViejas, nombreRespaldo, patronProcesoBundle } from './servidor/ventanas.mjs'
 
 const ARBRAIN = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const REPO = resolve(ARBRAIN, '..')
@@ -230,10 +236,29 @@ function instalarLinux(armado) {
 }
 
 function abrirApp(ruta) {
-  const [cmd, args] = MAC ? ['/usr/bin/open', [ruta]] : [ruta, []]
-  const h = spawn(cmd, args, { detached: true, stdio: 'ignore', windowsHide: false, cwd: dirname(ruta) })
-  h.on('error', (e) => di(`No pude abrir la app: ${e.message}`))
-  h.unref()
+  const r = abrirOEnfocarApp(ruta, { plataforma: SO, avisar: di })
+  if (r === 'enfocada') di('Arbrain ya estaba abierto: lo traje al frente.')
+  if (r === 'ya-abierta') di('Arbrain ya está abierto en su ventana.')
+}
+
+/**
+ * ¿Sigue la app 0.1.x junto a la nueva? Sin --reemplazar-app-vieja, avisa. Con él (Mac): la cierra y la guarda en
+ * ~/Arbrain-respaldos; nada se borra. `appNueva` excluye la recién instalada. `estado` solo avisa.
+ */
+function revisarAppsViejas(appNueva, retirar = bandera('--reemplazar-app-vieja')) {
+  const viejas = buscarAppsViejas({ plataforma: SO, home: HOME, env: process.env, appNueva })
+  if (!viejas.length) return
+  if (!MAC || !retirar) { di(`Aviso: ${avisoAppVieja(viejas, SO)}`); return }
+  for (const v of viejas) {
+    spawnSync('/usr/bin/pkill', ['-f', patronProcesoBundle(v.ruta)])
+    const r = join(respaldo(), nombreRespaldo(v.ruta))
+    try {
+      mover(v.ruta, r)
+      di(`La app anterior (${v.id || 'sin id'}) estaba en ${v.ruta}: la cerré y quedó guardada en ${r} (sus datos no se tocan).`)
+    } catch (e) {
+      di(`No pude mover la app anterior de ${v.ruta} (${e.message}). Arrástrala a la Papelera desde el Finder.`)
+    }
+  }
 }
 
 // ── Órdenes ──────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -247,6 +272,7 @@ async function instalar() {
   if (yaEsta && !bandera('--forzar')) {
     di(`La app ya está al día en ${cfg.app}.`)
     guardarConfig(cfg.app, h)
+    revisarAppsViejas(cfg.app)
     if (!bandera('--sin-abrir')) abrirApp(cfg.app)
     return
   }
@@ -269,6 +295,7 @@ async function instalar() {
     const app = MAC ? instalarMac(join(trabajo, 'armado')) : WIN ? instalarWindows(join(trabajo, 'armado')) : instalarLinux(join(trabajo, 'armado'))
     guardarConfig(app, h)
     di(`Instalada: ${app}`)
+    revisarAppsViejas(app)
     if (!bandera('--sin-abrir')) { abrirApp(app); di('Abrí Arbrain.') }
   } finally {
     rmSync(trabajo, { recursive: true, force: true })
@@ -302,6 +329,7 @@ async function main() {
   }
   if (orden === 'estado') {
     const cfg = leerJson(CONFIG)
+    revisarAppsViejas(cfg?.app ?? null, false)
     if (!cfg?.app || !existsSync(cfg.app)) { di('No instalada.'); return }
     let firmada = null
     try { firmada = huellaFirmada(version()) } catch (e) { di(`No pude leer la huella firmada: ${e.message}`) }

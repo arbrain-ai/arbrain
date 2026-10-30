@@ -351,10 +351,14 @@ le quito el aviso de tu sistema».
 - Termina bien: se abre la ventana «Arbrain» ya con su sesión. Dile que desde hoy Arbrain se abre como cualquier app
   (Mac: Launchpad o Spotlight, «Arbrain»; Windows: menú Inicio o el acceso del Escritorio; Linux: el menú de
   aplicaciones) y que cerrar la ventana no lo apaga.
-- Dice «ya hay otra app «Arbrain»» (la app 0.1.x): pregúntale si la guardas en `~/Arbrain-respaldos` y pones la
-  nueva (sus datos no se tocan). Si dice que sí: `node scripts/escritorio.mjs instalar --reemplazar-app-vieja`.
+- Dice «ya hay otra app «Arbrain»» (la app 0.1.x, la que abre una ventana en blanco): pregúntale si la guardas en
+  `~/Arbrain-respaldos` y pones la nueva (no se borra y sus datos no se tocan). Si dice que sí:
+  `node scripts/escritorio.mjs instalar --reemplazar-app-vieja`. En Windows dile cómo desinstalarla desde
+  Configuración › Aplicaciones, como indica el aviso.
 - Cualquier otro error (firma, descarga, huella): no insistas ni busques otra forma. Ábrelo en el navegador como antes
-  con `node scripts/servidor.mjs abrir` y anota el texto exacto para decírselo al cerrar.
+  con `node scripts/servidor.mjs abrir --navegador` y anota el texto exacto para decírselo al cerrar.
+- Desde aquí, para abrir Arbrain usa solo `node scripts/servidor.mjs abrir`: con la app instalada abre o trae al frente
+  la app; sin ella, el navegador. Nunca abras las dos.
 
 ## PASO 8 · Que Levy piense con su cuenta de Claude
 
@@ -413,7 +417,7 @@ Luego ofrece, **en un solo mensaje y sin insistir**, lo opcional:
   `servidor.log` en la carpeta de registros que dice `node scripts/servidor.mjs estado`, y vuelve a intentar una vez
   con `node scripts/servidor.mjs detener` y el arranque del PASO 4.
 - La app no abre: `node scripts/escritorio.mjs abrir` desde `~/Arbrain/arbrain`; si tampoco, el navegador con
-  `node scripts/servidor.mjs abrir`.
+  `node scripts/servidor.mjs abrir --navegador`.
 - Claude Code en `~/Arbrain` no lo reconoce: revisa que `.claude/memory/MEMORY.md` tenga su contenido y que la sesión
   sea nueva.
 

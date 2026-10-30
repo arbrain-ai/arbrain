@@ -6,6 +6,7 @@
  * (internet, archivos, borrar) en palabras de todos los días; cero jerga sin traducir. Pura.
  */
 import { analizarShell } from './shell.js'
+import { familiaDe, valeTrasAfuera, type FamiliaRegla } from './reglas-siempre.js'
 
 type Traductor = (args: string[]) => string | null
 
@@ -130,11 +131,37 @@ export function fraseHumana(herramienta: string | undefined, literal: string | u
 
 const minuscula = (t: string) => t.charAt(0).toLowerCase() + t.slice(1)
 
+const FAMILIAS_FRASE = new Set(['Bash', 'PowerShell', 'MCP', 'Escribir', 'WebFetch'])
+const familiaFrase = (h: string | undefined): FamiliaRegla => FAMILIAS_FRASE.has(h ?? '') ? h as FamiliaRegla : familiaDe(h) ?? 'Bash'
+
+const CARPETAS_MEMORIA: Record<string, string> = {
+  memory: 'Permitir siempre guardar en tu memoria',
+  knowledge: 'Permitir siempre guardar en tu conocimiento',
+  daily: 'Permitir siempre escribir en tu diario',
+  diario: 'Permitir siempre escribir en tu diario',
+  plan: 'Permitir siempre cambiar tu plan',
+}
+
 /**
  * «Siempre este patrón» dicho para la persona (ronda 2: «Siempre `npm test *`» era jerga). El patrón literal se sigue
  * viendo en la tarjeta (en un detalle) y en Ajustes; el botón dice la frase. Las reglas valen en todas tus carpetas.
+ * `herramienta`: la de la tarjeta (`Write`, `mcp__x__y`) o la familia de la regla (`Escribir`); sin ella, un comando.
  */
-export function frasePatron(patron: string): string {
+export function frasePatron(patron: string, herramienta?: string): string {
+  const familia = familiaFrase(herramienta)
+  if (familia === 'Escribir') {
+    const m = /^\.claude\/(memory|knowledge|daily|diario|plan)\/\*\*$/.exec(patron)
+    if (m) return CARPETAS_MEMORIA[m[1]]
+    const s = /^\.claude\/skills\/([^/]+)\/\*\*$/.exec(patron)
+    if (s) return `Permitir siempre cambiar la habilidad «${s[1]}»`
+    const carpeta = patron.replace(/\/\*\*$/, '').split('/').filter(Boolean).pop() ?? patron
+    return `Permitir siempre escribir en la carpeta «${carpeta}»`
+  }
+  if (familia === 'WebFetch') return `Permitir siempre leer páginas de ${patron}`
+  if (familia === 'MCP') {
+    const [, servidor = '', ...accion] = patron.split('__')
+    return `Permitir siempre «${accion.join('__').replace(/[_-]+/g, ' ')}» de ${servidor}`
+  }
   const p = patron.trim().split(/[ \t]+/)
   const comodin = p[p.length - 1] === '*'
   if (!comodin) return 'Permitir siempre este mismo comando'
@@ -146,6 +173,17 @@ export function frasePatron(patron: string): string {
   }
   const f = fraseSimple([programa, sub])
   return f ? `Permitir siempre: ${minuscula(f.replace(/ \(usa internet\)$/, ''))}` : `Permitir siempre «${programa} ${sub}»`
+}
+
+/**
+ * Lo que la tarjeta dice junto a «Permitir siempre» cuando la regla vale también tras leer afuera (la de tu memoria,
+ * `valeTrasAfuera`): que la persona sepa lo que elige. null si no hace falta decir nada.
+ */
+export function avisoPatron(patron: string, herramienta?: string): string | null {
+  const familia = familiaFrase(herramienta)
+  return valeTrasAfuera({ herramienta: familia, patron })
+    ? 'Esta regla vale también cuando Levy acaba de leer algo de afuera (una página, un correo, WhatsApp): lo que guarde en tu memoria vuelve en cada conversación. Elígela solo si confías en lo que está guardando; la quitas en Ajustes › Permisos y seguridad.'
+    : null
 }
 
 const SI_FRENO: Record<string, string> = { enviar: 'Sí, enviarlo', publicar: 'Sí, publicarlo', pagar: 'Sí, pagar', borrar: 'Sí, borrar' }

@@ -29,11 +29,11 @@ afterEach(() => { for (const k of Object.keys(process.env)) if (!(k in previo)) 
 const MAIL: ContextoAccion = { app: 'Mail', bundle: 'com.apple.mail', elemento: { rol: 'AXButton', titulo: 'Enviar' } }
 
 describe('rt5-4 (Bajo): la cita no distingue una orden de su prohibición', () => {
-  it('control (aguantó): «Hola Levy» real no cubre enviar; una cita corta tampoco', () => {
+  it('control (aguantó): «Hola Levy» real no cubre enviar; una cita corta que nombra el envío sí (0.2.16)', () => {
     registrarVoz('Hola Levy, ayúdame con el escritorio')
     expect(citaCubre('enviar', 'Hola Levy, ayúdame con el escritorio', true)).toBe(false) // no nombra el envío
     registrarVoz('envíalo ya')
-    expect(frenar({ accion: 'click', ref: 'e1', confirmacion: 'envíalo ya' }, MAIL).pasa).toBe(false) // < 12
+    expect(frenar({ accion: 'click', ref: 'e1', confirmacion: 'envíalo ya' }, MAIL).pasa).toBe(true) // sin mínimo de 12 desde 0.2.16
   })
 
   it('EXPLOIT: una PROHIBICIÓN de enviar no debería autorizar el envío', () => {

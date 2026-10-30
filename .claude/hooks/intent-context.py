@@ -108,7 +108,7 @@ def find(query, root=ROOT):
             continue
         score = len(tokens & set(norm(p.parent.name + ' ' + header).split()))
         if score:
-            found.append((score, str(p.relative_to(root))))
+            found.append((score, p.relative_to(root).as_posix()))  # Windows: rutas con «/» como en el resto
     for filename in ['MEMORY.md', 'MEMORY-indice.md', 'MEMORY-archivo.md']:
         p = root / '.claude/memory' / filename
         try:

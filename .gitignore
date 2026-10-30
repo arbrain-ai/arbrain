@@ -31,6 +31,9 @@ arbrain/src-tauri/binaries/
 *.pfx
 .npmrc
 
+# Generados por Arbrain: se rehacen solos cada pocos minutos (versionarlos ensucia git y choca en el espejo)
+.claude/now.md
+
 # Datos locales del alumno
 store/
 *.db

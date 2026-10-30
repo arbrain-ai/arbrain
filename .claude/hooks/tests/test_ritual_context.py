@@ -1,15 +1,16 @@
 import importlib.util
 import tempfile
 import unittest
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[3]
 SPEC = importlib.util.spec_from_file_location('agenda_context', ROOT / '.claude/hooks/agenda-context.py')
 M = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(M)
-TZ = ZoneInfo('America/Mexico_City')
+# Desfase fijo, no ZoneInfo: la prueba viaja a la copia del alumno y en Windows sin tzdata no hay base de zonas.
+# El ritual solo mira la hora y la fecha de `now`; la zona concreta no cambia lo que se prueba.
+TZ = timezone(timedelta(hours=-6))
 
 
 def at(day, hour, minute=0):

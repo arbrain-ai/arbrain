@@ -74,7 +74,7 @@ impl Config {
         self.datos.join("logs").join("escritorio.log")
     }
 
-    fn proceso(&self) -> PathBuf {
+    pub fn proceso(&self) -> PathBuf {
         self.datos.join("daemon").join("config").join("servidor.json")
     }
 }
@@ -115,32 +115,54 @@ fn proceso(cfg: &Config) -> Option<Proceso> {
 /// ¿Corre un supervisor con esta carpeta de datos y su web ya contesta? Devuelve el puerto de la web. El control
 /// nace antes que la web: entrar solo con el control vivo daría una página de error.
 pub fn vivo(cfg: &Config) -> Option<u16> {
-    let p = proceso(cfg)?;
-    let (estado, cuerpo) = pedir(p.puerto_control, "GET", "/estado", &p.token, "")?;
+    vivo_o_motivo(cfg).ok()
+}
+
+/// Como `vivo`, pero dice en qué paso se cayó (soporte 29 oct 2026: la app se quedaba en «Encendiendo tu Arbrain…» sin
+/// decir por qué; el motivo va a escritorio.log).
+pub fn vivo_o_motivo(cfg: &Config) -> Result<u16, String> {
+    let p = proceso(cfg).ok_or_else(|| format!("no hay servidor.json válido en {}", cfg.proceso().display()))?;
+    let (estado, cuerpo) = pedir(p.puerto_control, "GET", "/estado", &p.token, "").ok_or_else(|| format!("el control (127.0.0.1:{}) no contestó", p.puerto_control))?;
     if estado != 200 {
-        return None;
+        return Err(format!("el control contestó {estado} a /estado"));
     }
-    let j: Value = serde_json::from_str(&cuerpo).ok()?;
-    let web = u16::try_from(j.get("puertoWeb")?.as_u64()?).ok()?;
-    let (estado_web, _) = pedir(web, "GET", "/api/version", "", "")?;
-    (estado_web == 200).then_some(web)
+    let j: Value = serde_json::from_str(&cuerpo).map_err(|_| "el control contestó /estado sin JSON".to_string())?;
+    let web = j.get("puertoWeb").and_then(Value::as_u64).and_then(|w| u16::try_from(w).ok()).ok_or("el control no dijo el puerto de la web")?;
+    let (estado_web, _) = pedir(web, "GET", "/api/version", "", "").ok_or_else(|| format!("la web (127.0.0.1:{web}) no contestó /api/version"))?;
+    if estado_web != 200 {
+        return Err(format!("la web contestó {estado_web} a /api/version"));
+    }
+    Ok(web)
 }
 
 /// Pase de un solo uso (2 min) para entrar con sesión: la URL que abre `npm run servidor -- abrir`.
 pub fn pase(cfg: &Config) -> Option<String> {
-    vivo(cfg)?;
-    let p = proceso(cfg)?;
-    let (estado, cuerpo) = pedir(p.puerto_control, "POST", "/ticket", &p.token, "{}")?;
+    pase_o_motivo(cfg).ok()
+}
+
+pub fn pase_o_motivo(cfg: &Config) -> Result<String, String> {
+    vivo_o_motivo(cfg)?;
+    let p = proceso(cfg).ok_or("servidor.json desapareció")?;
+    let (estado, cuerpo) = pedir(p.puerto_control, "POST", "/ticket", &p.token, "{}").ok_or("el control no contestó /ticket")?;
     if estado != 200 {
-        return None;
+        return Err(format!("el control contestó {estado} a /ticket"));
     }
-    let j: Value = serde_json::from_str(&cuerpo).ok()?;
-    let ticket = j.get("ticket")?.as_str()?;
-    let puerto = j.get("puertoWeb")?.as_u64()?;
+    let j: Value = serde_json::from_str(&cuerpo).map_err(|_| "el control contestó /ticket sin JSON".to_string())?;
+    let ticket = j.get("ticket").and_then(Value::as_str).ok_or("/ticket sin pase")?;
+    let puerto = j.get("puertoWeb").and_then(Value::as_u64).ok_or("/ticket sin puerto")?;
     if !ticket.chars().all(|c| c.is_ascii_alphanumeric()) {
-        return None;
+        return Err("el pase trae caracteres raros".into());
     }
-    Some(format!("http://127.0.0.1:{puerto}/api/desktop/entrar?pase={ticket}"))
+    Ok(format!("http://127.0.0.1:{puerto}/api/desktop/entrar?pase={ticket}"))
+}
+
+/// Anota una línea en escritorio.log (lo que la persona manda a soporte con «Ver el registro completo»).
+pub fn anotar(cfg: &Config, linea: &str) {
+    let log = cfg.log();
+    let _ = fs::create_dir_all(log.parent().unwrap_or(Path::new(".")));
+    if let Ok(mut f) = fs::OpenOptions::new().create(true).append(true).open(&log) {
+        let _ = writeln!(f, "[escritorio] {linea}");
+    }
 }
 
 // ── Encender ──────────────────────────────────────────────────────────────────────────────────────────────────
@@ -265,17 +287,50 @@ fn es_arranque_nuestro(linea: &str, datos: &Path) -> bool {
     if !linea.contains("servidor.mjs") {
         return false;
     }
-    let partes: Vec<&str> = linea.split_whitespace().collect();
+    // Windows entrega la línea con comillas («"C:\Users\Fulano de Tal\…\servidor.mjs" "--datos" "…"»): partirla por espacios
+    // dejaba la comilla pegada al nombre y rompía las rutas con espacios, y el arranque automático no contaba.
+    let partes = partir_linea(linea);
     let Some(i) = partes.iter().position(|p| p.ends_with("servidor.mjs")) else { return false };
     let resto = &partes[i + 1..];
-    let cortas = ["estado", "detener", "abrir", "contrasena", "cerrar-sesiones", "arranque-automatico"];
-    if resto.iter().any(|p| cortas.contains(p)) {
+    let cortas = ["estado", "detener", "abrir", "contrasena", "cerrar-sesiones", "arranque-automatico", "telefono"];
+    if resto.iter().any(|p| cortas.contains(&p.as_str())) {
         return false;
     }
-    match resto.iter().position(|p| *p == "--datos") {
-        Some(j) => resto.get(j + 1).map(|d| Path::new(d.trim_matches('"')) == datos).unwrap_or(false),
+    match resto.iter().position(|p| p == "--datos") {
+        Some(j) => resto.get(j + 1).map(|d| Path::new(d) == datos).unwrap_or(false),
         None => env_no_vacio("ARBRAIN_SERVIDOR_DATOS").is_none() || datos == datos_por_defecto(),
     }
+}
+
+/// Parte una línea de órdenes como lo hace Windows con las comillas dobles: lo que está entre comillas es una sola parte
+/// (con sus espacios) y las comillas no quedan en el resultado.
+fn partir_linea(linea: &str) -> Vec<String> {
+    let mut partes = Vec::new();
+    let mut actual = String::new();
+    let mut dentro = false;
+    let mut hay = false;
+    for c in linea.chars() {
+        match c {
+            '"' => {
+                dentro = !dentro;
+                hay = true;
+            }
+            c if c.is_whitespace() && !dentro => {
+                if hay {
+                    partes.push(std::mem::take(&mut actual));
+                    hay = false;
+                }
+            }
+            c => {
+                actual.push(c);
+                hay = true;
+            }
+        }
+    }
+    if hay {
+        partes.push(actual);
+    }
+    partes
 }
 
 /// ¿El proceso corre desde la carpeta `arbrain` de ESTA copia? (`npm run servidor` usa una ruta relativa). En Windows
@@ -413,6 +468,26 @@ mod pruebas {
         assert!(!es_arranque_nuestro("node scripts/servidor.mjs estado", d));
         assert!(!es_arranque_nuestro("node scripts/servidor.mjs --datos /tmp/otra --repo-original", d));
         assert!(!es_arranque_nuestro("node scripts/otro.mjs", d));
+    }
+
+    #[test]
+    fn reconoce_el_arranque_automatico_de_windows_con_espacios() {
+        let d = Path::new(r"C:\Users\Fulano de Tal\AppData\Roaming\ai.arbrain.servidor");
+        let vbs = r#""C:\Program Files\nodejs\node.exe" "D:\MiArbrain\arbrain\scripts\servidor.mjs" "iniciar" "--sin-navegador" "--datos" "C:\Users\Fulano de Tal\AppData\Roaming\ai.arbrain.servidor""#;
+        assert!(es_arranque_nuestro(vbs, d));
+        assert!(!es_arranque_nuestro(&vbs.replace("Fulano de Tal", "Otra Persona"), d));
+        let corta = r#""C:\Program Files\nodejs\node.exe" "D:\MiArbrain\arbrain\scripts\servidor.mjs" telefono estado"#;
+        assert!(!es_arranque_nuestro(corta, d));
+        assert_eq!(partir_linea(r#"a "b c"  d"#), vec!["a", "b c", "d"]);
+        assert_eq!(partir_linea(r#"x """#), vec!["x", ""]);
+    }
+
+    #[test]
+    fn sin_servidor_el_motivo_lo_dice() {
+        let datos = std::env::temp_dir().join(format!("arbrain-motivo-{}", std::process::id()));
+        let cfg = Config { repo: datos.clone(), datos: datos.clone(), node: None, path: vec![] };
+        let m = pase_o_motivo(&cfg).unwrap_err();
+        assert!(m.contains("servidor.json"), "{m}");
     }
 
     #[test]

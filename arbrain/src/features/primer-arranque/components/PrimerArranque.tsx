@@ -153,147 +153,151 @@ export function PrimerArranque() {
   const nombreModo = NOMBRE_MODO[modo]
 
   return (
-    <div className="relative flex min-h-[100dvh] w-full flex-col items-center justify-center overflow-y-auto bg-background px-4 pb-10 pt-[max(env(safe-area-inset-top),2.5rem)] text-foreground">
+    // Alto fijo con scroll propio (29 oct 2026, un fundador con pantalla de 1280×720 no llegaba al botón): html y body
+    // tienen overflow:hidden, así que un min-h crecía por debajo de la ventana sin barra. Por dentro, min-h-full centra
+    // la tarjeta cuando cabe y la deja empezar arriba cuando no.
+    <div data-bienvenida-scroll className="relative h-[100dvh] w-full overflow-y-auto overscroll-contain bg-background text-foreground">
       {/* Luz de marca detrás de la tarjeta (Luminorphism): un halo violeta suave, sin ruido. */}
       <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-[radial-gradient(60%_60%_at_50%_0%,rgba(var(--brand-rgb),0.22),transparent_70%)]" />
+      <div className="relative flex min-h-full w-full flex-col items-center justify-center px-4 pb-10 pt-[max(env(safe-area-inset-top),2.5rem)]">
+        <nav aria-label="Pasos del primer arranque" className="relative mb-6 flex items-center gap-1.5">
+          {PASOS.map((p, k) => (
+            <span key={p} title={ETIQUETA[p]} aria-current={p === paso ? 'step' : undefined}
+              className={`h-1.5 rounded-full transition-all duration-300 ${k < i ? 'w-5 bg-brand/70' : p === paso ? 'w-8 bg-brand' : 'w-5 bg-foreground/15'}`}>
+              <span className="sr-only">{`Paso ${k + 1} de ${PASOS.length}: ${ETIQUETA[p]}${k < i ? ' (hecho)' : ''}`}</span>
+            </span>
+          ))}
+        </nav>
 
-      <nav aria-label="Pasos del primer arranque" className="relative mb-6 flex items-center gap-1.5">
-        {PASOS.map((p, k) => (
-          <span key={p} title={ETIQUETA[p]} aria-current={p === paso ? 'step' : undefined}
-            className={`h-1.5 rounded-full transition-all duration-300 ${k < i ? 'w-5 bg-brand/70' : p === paso ? 'w-8 bg-brand' : 'w-5 bg-foreground/15'}`}>
-            <span className="sr-only">{`Paso ${k + 1} de ${PASOS.length}: ${ETIQUETA[p]}${k < i ? ' (hecho)' : ''}`}</span>
-          </span>
-        ))}
-      </nav>
-
-      <main className="glass-panel-strong relative w-full max-w-[600px] p-6 sm:p-8">
-        {paso === 'bienvenida' && (
-          <div className="text-center">
-            <div className="relative mx-auto mb-5 size-24">
-              <div aria-hidden className="absolute inset-0 rounded-full bg-brand/30 blur-2xl" />
-              <Retrato agente="levy" size={96} prioridad className="relative size-24 rounded-full object-cover ring-2 ring-brand/40" alt="Levy" />
-            </div>
-            <h1 ref={titulo} tabIndex={-1} className="font-sans text-[26px] font-semibold tracking-tight outline-none sm:text-[30px]">Bienvenido a Arbrain</h1>
-            <p className="mx-auto mt-2 max-w-[440px] text-[15px] leading-relaxed text-muted">Tu cerebro artificial. Vive en {enServidor ? 'tu servidor' : 'tu computadora'}, aprende cómo trabajas y te ayuda a decidir y a ejecutar.</p>
-            <ul className="mx-auto mt-6 grid max-w-[460px] gap-2.5 text-left">
-              <Punto icono={<HardDrive className="size-4" />} titulo="Es tuyo">Tu memoria, tus conversaciones y tus archivos se quedan en {enServidor ? 'tu servidor, rentado a tu nombre' : 'esta computadora'}.</Punto>
-              <Punto icono={<KeyRound className="size-4" />} titulo="Con tus llaves">Levy trabaja con tu propia cuenta: tu Claude Code (Pro o Max) o tu llave, que va al llavero del sistema.</Punto>
-              <Punto icono={<ShieldCheck className="size-4" />} titulo="Bajo tu mando">Tú eliges cuánto te pregunta: desde un clic para todo hasta el modo Autónomo con una red mínima. Pausar todo siempre está a un clic.</Punto>
-            </ul>
-            <label className="mx-auto mt-6 block max-w-[320px] text-left">
-              <span className="text-[13px] font-medium text-foreground/90">¿Cómo te llamo? <span className="font-normal text-muted">(opcional)</span></span>
-              <input value={nombre} onChange={e => setNombre(e.target.value)} maxLength={60} autoComplete="given-name" placeholder="Tu nombre" className="input-field mt-1.5 min-h-11" onKeyDown={e => { if (e.key === 'Enter') void continuar() }} />
-            </label>
-          </div>
-        )}
-
-        {paso === 'legal' && (
-          <div>
-            <Encabezado refTitulo={titulo} titulo="Antes de empezar" sub="Léelos con calma. Arbrain corre en tu computadora y tus datos son tuyos." />
-            <DocumentosLegales />
-            <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-2xl border border-border-subtle bg-surface/70 p-4">
-              <input type="checkbox" checked={acepto} onChange={e => setAcepto(e.target.checked)} className="mt-0.5 size-4 shrink-0 accent-[var(--brand)]" />
-              <span className="text-[13.5px] leading-relaxed text-foreground/90">Leí y acepto el aviso de privacidad, los términos de uso y la licencia de Arbrain.</span>
-            </label>
-          </div>
-        )}
-
-        {paso === 'llaves' && (
-          <div>
-            <Encabezado refTitulo={titulo} titulo="Conecta a Levy con un modelo" sub="Si ya pagas Claude Pro o Max, usa tu Claude Code. Si no, un clic con tu cuenta de OpenRouter; para pegar una llave, «Otras formas»." />
-            <PanelLlaves onEstado={setLlaves} control={pruebaLlave} />
-            {!llavesListas && <p className="mt-3 text-[12.5px] text-muted">Puedes seguir sin llave y ponerla después en Ajustes › Llaves; Levy no podrá responder hasta entonces.</p>}
-          </div>
-        )}
-
-        {paso === 'autonomia' && (
-          <div data-paso-autonomia>
-            <Encabezado refTitulo={titulo} titulo="¿Cómo quieres que trabaje tu cerebro?" sub="Lo recomendado va primero. Lo cambias cuando quieras en Ajustes › Permisos y seguridad." />
-            <div role="radiogroup" aria-label="Nivel de permisos" className="grid gap-2.5">
-              {FICHAS_MODO.map(f => (
-                <div key={f.modo}>
-                  <Opcion activa={modo === f.modo} onElegir={() => setModo(f.modo)} titulo={f.nombre} etiqueta={f.recomendado ? 'Recomendado' : undefined} icono={f.modo === 'autonomo' ? <Sparkles className="size-4" /> : undefined} detalle={f.detalle} />
-                  {f.modo === 'autonomo' && modo === 'autonomo' && (
-                    permisos?.texto
-                      ? (vigente
-                        ? <p className="mt-2 rounded-xl border border-brand/30 bg-brand/[0.05] px-3 py-2 text-[12.5px] text-muted">Ya aceptaste este texto (versión {permisos.consentimiento?.version}). Continuar lo deja en Autónomo.</p>
-                        : <div className="mt-2 rounded-xl border border-brand/30 bg-brand/[0.05] p-3"><ConsentimientoAutonomia texto={permisos.texto} marcadas={casillas} onMarcadas={setCasillas} deshabilitado={ocupado} /></div>)
-                      : <p className="mt-2 text-[12.5px] text-amber-300">No pude leer el texto del modo Autónomo de tu Arbrain. Elige otro nivel o cierra y vuelve a abrir la app.</p>
-                  )}
-                </div>
-              ))}
-            </div>
-            {cu.disponible && (
-              <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-2xl border border-border-subtle bg-surface/70 p-3.5">
-                <input type="checkbox" checked={computerUse} onChange={e => setComputerUse(e.target.checked)} className="mt-0.5 size-4 shrink-0 accent-[var(--brand)]" />
-                <span className="min-w-0">
-                  <span className="flex items-center gap-2 text-[13.5px] font-semibold text-foreground/90"><MousePointerClick className="size-4" aria-hidden /> Que también use tu pantalla (computer use)</span>
-                  <span className="mt-0.5 block text-[12.5px] leading-snug text-muted">{explicacionComputerUse(cu.plataforma, modo === 'autonomo')}</span>
-                </span>
-              </label>
-            )}
-            {sandbox && !sandbox.disponible && modo === 'autonomo' && <p className="mt-3 text-[12.5px] leading-snug text-amber-700 dark:text-amber-300">En Windows no hay caja de arena: Autónomo corre comandos directo en tu computadora.</p>}
-          </div>
-        )}
-
-        {paso === 'monitoreo' && (
-          <div>
-            <Encabezado refTitulo={titulo} titulo="Tu avance en el programa" sub="Si quieres, Arbrain le comparte a tu programa cifras de tu avance para acompañarte. Viene apagado." />
-            <PanelMonitoreo pendiente={monitoreo} onPendiente={setMonitoreo} />
-          </div>
-        )}
-
-        {paso === 'donde' && (
-          <div>
-            <Encabezado refTitulo={titulo} titulo="¿Dónde vive tu Arbrain?" sub={enServidor
-              ? 'Tu Arbrain vive en tu servidor: lo abres desde cualquier navegador o tu teléfono con Tailscale, aunque tu computadora esté apagada. Estos son los tres caminos; cambiar o sumar otro es pegar un prompt en Claude Code.'
-              : 'Tu Arbrain vive en esta computadora. Estos son los tres caminos; cambiar o sumar tu servidor es pegar un prompt en Claude Code.'} />
-            <PanelCaminos actual={caminoActual(enServidor)} />
-          </div>
-        )}
-
-        {paso === 'listo' && (
-          <div className="text-center">
-            <div className="mx-auto mb-4 grid size-14 place-items-center rounded-full bg-brand/15 text-brand-ink"><Sparkles className="size-6" aria-hidden /></div>
-            <h1 ref={titulo} tabIndex={-1} className="text-[24px] font-semibold tracking-tight outline-none">Todo listo{nombre.trim() ? `, ${nombre.trim().split(/\s+/)[0]}` : ''}</h1>
-            <p className="mx-auto mt-2 max-w-[420px] text-[14.5px] leading-relaxed text-muted">Levy ya te está esperando con tu primera conversación.</p>
-            <ul className="mx-auto mt-6 grid max-w-[400px] gap-2 text-left text-[13.5px]">
-              <Resumen tono="ok">Aviso de privacidad, términos y licencia aceptados</Resumen>
-              {!llavesListas ? <Resumen tono="alerta">Sin llave todavía: ponla en Ajustes › Llaves</Resumen>
-                : sinCredito ? <Resumen tono="alerta"><b className="font-semibold">Conectado, falta crédito.</b> Levy no podrá responder hasta que recargues.</Resumen>
-                : llaves.motor === 'suscripcion' ? <Resumen tono="ok">{pruebaLlave.prueba?.ok ? 'Levy conectado y probado con tu Claude Code' : 'Levy conectado con tu Claude Code (tu suscripción)'}</Resumen>
-                : <Resumen tono="ok">{pruebaLlave.prueba?.ok ? 'Levy conectado y probado con tu cuenta' : 'Levy conectado con tu llave'}</Resumen>}
-              <Resumen tono="ok">{modo === 'autonomo' ? 'Modo Autónomo: Levy actúa sin pedirte clic, salvo dinero, secretos, borrados grandes y envíos a muchos' : modo === 'carpeta' ? 'Automático en mi carpeta: Levy pregunta antes de lo que sale de tu computadora' : 'Preguntar siempre: Levy te pide un clic para casi todo'}</Resumen>
-              {cu.disponible
-                ? <Resumen tono="ok">{computerUse ? (modo === 'autonomo' ? 'Computer use encendido; en Autónomo queda como lo dejes' : 'Computer use encendido por esta apertura; lo irreversible te pide tu clic') : 'Computer use apagado: lo enciendes en Ajustes › Esta computadora'}</Resumen>
-                : <Resumen tono="neutro">Computer use no está disponible en este sistema; Levy trabaja con tus archivos y en el chat</Resumen>}
-              {conMonitoreo && <Resumen tono="ok">{monitoreo ? 'Compartes tu avance (solo cifras)' : 'Monitoreo apagado: no sale nada'}</Resumen>}
-              {sandbox && !sandbox.disponible && modo !== 'autonomo' && <Resumen tono="neutro">Terminal sin sandbox en este equipo: cada comando te pedirá un clic</Resumen>}
-            </ul>
-            {sinCredito && (
-              <div className="mx-auto max-w-[420px]">
-                <PasoRecarga cobra={llaves.cobra} onReintentar={() => void pruebaLlave.probar()} probando={pruebaLlave.probando} className="mt-4" />
+        <main className="glass-panel-strong relative w-full max-w-[600px] p-6 sm:p-8">
+          {paso === 'bienvenida' && (
+            <div className="text-center">
+              <div className="relative mx-auto mb-5 size-24">
+                <div aria-hidden className="absolute inset-0 rounded-full bg-brand/30 blur-2xl" />
+                <Retrato agente="levy" size={96} prioridad className="relative size-24 rounded-full object-cover ring-2 ring-brand/40" alt="Levy" />
               </div>
-            )}
-            {sandbox && !sandbox.disponible && modo !== 'autonomo' && <Aviso tono="info" className="mx-auto mt-4 max-w-[420px] text-left">{avisoSinSandbox(sandbox)}</Aviso>}
-          </div>
-        )}
-
-        {error && <Aviso tono="alerta" className="mt-5">{error}</Aviso>}
-
-        <div className={`mt-7 flex items-center gap-3 ${paso === 'bienvenida' || paso === 'listo' ? 'justify-center' : 'justify-between'}`}>
-          {paso !== 'bienvenida' && paso !== 'listo' && (
-            <button type="button" onClick={atras} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm text-muted hover:bg-foreground/[0.06] hover:text-foreground focus-visible:outline-2 focus-visible:outline-brand">
-              <ArrowLeft className="size-4" aria-hidden /> Atrás
-            </button>
+              <h1 ref={titulo} tabIndex={-1} className="font-sans text-[26px] font-semibold tracking-tight outline-none sm:text-[30px]">Bienvenido a Arbrain</h1>
+              <p className="mx-auto mt-2 max-w-[440px] text-[15px] leading-relaxed text-muted">Tu cerebro artificial. Vive en {enServidor ? 'tu servidor' : 'tu computadora'}, aprende cómo trabajas y te ayuda a decidir y a ejecutar.</p>
+              <ul className="mx-auto mt-6 grid max-w-[460px] gap-2.5 text-left">
+                <Punto icono={<HardDrive className="size-4" />} titulo="Es tuyo">Tu memoria, tus conversaciones y tus archivos se quedan en {enServidor ? 'tu servidor, rentado a tu nombre' : 'esta computadora'}.</Punto>
+                <Punto icono={<KeyRound className="size-4" />} titulo="Con tus llaves">Levy trabaja con tu propia cuenta: tu Claude Code (Pro o Max) o tu llave, que va al llavero del sistema.</Punto>
+                <Punto icono={<ShieldCheck className="size-4" />} titulo="Bajo tu mando">Tú eliges cuánto te pregunta: desde un clic para todo hasta el modo Autónomo con una red mínima. Pausar todo siempre está a un clic.</Punto>
+              </ul>
+              <label className="mx-auto mt-6 block max-w-[320px] text-left">
+                <span className="text-[13px] font-medium text-foreground/90">¿Cómo te llamo? <span className="font-normal text-muted">(opcional)</span></span>
+                <input value={nombre} onChange={e => setNombre(e.target.value)} maxLength={60} autoComplete="given-name" placeholder="Tu nombre" className="input-field mt-1.5 min-h-11" onKeyDown={e => { if (e.key === 'Enter') void continuar() }} />
+              </label>
+            </div>
           )}
-          <button type="button" onClick={() => void continuar()} disabled={!puedeSeguir || ocupado || (!estado && !error)} title={paso === 'autonomia' && modo === 'autonomo' && !puedeSeguir ? 'Marca las dos casillas para empezar en modo autónomo' : undefined} className={`${botonDiscreto ? 'btn-secondary' : 'btn-primary'} min-h-11 min-w-[180px] !px-6 text-[15px]`}>
-            {ocupado ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <>{textoBoton} <ArrowRight className="size-4" aria-hidden /></>}
-          </button>
-        </div>
-        {paso === 'autonomia' && <p className="mt-3 text-center text-[12px] text-muted">{modo === 'autonomo' && !vigente ? `Continuar se activa con las dos casillas marcadas. ` : ''}Elegiste «{nombreModo}».</p>}
-      </main>
-      <p className="relative mt-5 text-center text-[12px] text-muted">Paso {i + 1} de {PASOS.length} · Todo esto se puede cambiar después en Ajustes</p>
+
+          {paso === 'legal' && (
+            <div>
+              <Encabezado refTitulo={titulo} titulo="Antes de empezar" sub="Léelos con calma. Arbrain corre en tu computadora y tus datos son tuyos." />
+              <DocumentosLegales />
+              <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-2xl border border-border-subtle bg-surface/70 p-4">
+                <input type="checkbox" checked={acepto} onChange={e => setAcepto(e.target.checked)} className="mt-0.5 size-4 shrink-0 accent-[var(--brand)]" />
+                <span className="text-[13.5px] leading-relaxed text-foreground/90">Leí y acepto el aviso de privacidad, los términos de uso y la licencia de Arbrain.</span>
+              </label>
+            </div>
+          )}
+
+          {paso === 'llaves' && (
+            <div>
+              <Encabezado refTitulo={titulo} titulo="Conecta a Levy con un modelo" sub="Si ya pagas Claude Pro o Max, usa tu Claude Code. Si no, un clic con tu cuenta de OpenRouter; para pegar una llave, «Otras formas»." />
+              <PanelLlaves onEstado={setLlaves} control={pruebaLlave} />
+              {!llavesListas && <p className="mt-3 text-[12.5px] text-muted">Puedes seguir sin llave y ponerla después en Ajustes › Llaves; Levy no podrá responder hasta entonces.</p>}
+            </div>
+          )}
+
+          {paso === 'autonomia' && (
+            <div data-paso-autonomia>
+              <Encabezado refTitulo={titulo} titulo="¿Cómo quieres que trabaje tu cerebro?" sub="Lo recomendado va primero. Lo cambias cuando quieras en Ajustes › Permisos y seguridad." />
+              <div role="radiogroup" aria-label="Nivel de permisos" className="grid gap-2.5">
+                {FICHAS_MODO.map(f => (
+                  <div key={f.modo}>
+                    <Opcion activa={modo === f.modo} onElegir={() => setModo(f.modo)} titulo={f.nombre} etiqueta={f.recomendado ? 'Recomendado' : undefined} icono={f.modo === 'autonomo' ? <Sparkles className="size-4" /> : undefined} detalle={f.detalle} />
+                    {f.modo === 'autonomo' && modo === 'autonomo' && (
+                      permisos?.texto
+                        ? (vigente
+                          ? <p className="mt-2 rounded-xl border border-brand/30 bg-brand/[0.05] px-3 py-2 text-[12.5px] text-muted">Ya aceptaste este texto (versión {permisos.consentimiento?.version}). Continuar lo deja en Autónomo.</p>
+                          : <div className="mt-2 rounded-xl border border-brand/30 bg-brand/[0.05] p-3"><ConsentimientoAutonomia texto={permisos.texto} marcadas={casillas} onMarcadas={setCasillas} deshabilitado={ocupado} /></div>)
+                        : <p className="mt-2 text-[12.5px] text-amber-300">No pude leer el texto del modo Autónomo de tu Arbrain. Elige otro nivel o cierra y vuelve a abrir la app.</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {cu.disponible && (
+                <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-2xl border border-border-subtle bg-surface/70 p-3.5">
+                  <input type="checkbox" checked={computerUse} onChange={e => setComputerUse(e.target.checked)} className="mt-0.5 size-4 shrink-0 accent-[var(--brand)]" />
+                  <span className="min-w-0">
+                    <span className="flex items-center gap-2 text-[13.5px] font-semibold text-foreground/90"><MousePointerClick className="size-4" aria-hidden /> Que también use tu pantalla (computer use)</span>
+                    <span className="mt-0.5 block text-[12.5px] leading-snug text-muted">{explicacionComputerUse(cu.plataforma, modo === 'autonomo')}</span>
+                  </span>
+                </label>
+              )}
+              {sandbox && !sandbox.disponible && modo === 'autonomo' && <p className="mt-3 text-[12.5px] leading-snug text-amber-700 dark:text-amber-300">En Windows no hay caja de arena: Autónomo corre comandos directo en tu computadora.</p>}
+            </div>
+          )}
+
+          {paso === 'monitoreo' && (
+            <div>
+              <Encabezado refTitulo={titulo} titulo="Tu avance en el programa" sub="Si quieres, Arbrain le comparte a tu programa cifras de tu avance para acompañarte. Viene apagado." />
+              <PanelMonitoreo pendiente={monitoreo} onPendiente={setMonitoreo} />
+            </div>
+          )}
+
+          {paso === 'donde' && (
+            <div>
+              <Encabezado refTitulo={titulo} titulo="¿Dónde vive tu Arbrain?" sub={enServidor
+                ? 'Tu Arbrain vive en tu servidor: lo abres desde cualquier navegador o tu teléfono con Tailscale, aunque tu computadora esté apagada. Estos son los tres caminos; cambiar o sumar otro es pegar un prompt en Claude Code.'
+                : 'Tu Arbrain vive en esta computadora. Estos son los tres caminos; cambiar o sumar tu servidor es pegar un prompt en Claude Code.'} />
+              <PanelCaminos actual={caminoActual(enServidor)} />
+            </div>
+          )}
+
+          {paso === 'listo' && (
+            <div className="text-center">
+              <div className="mx-auto mb-4 grid size-14 place-items-center rounded-full bg-brand/15 text-brand-ink"><Sparkles className="size-6" aria-hidden /></div>
+              <h1 ref={titulo} tabIndex={-1} className="text-[24px] font-semibold tracking-tight outline-none">Todo listo{nombre.trim() ? `, ${nombre.trim().split(/\s+/)[0]}` : ''}</h1>
+              <p className="mx-auto mt-2 max-w-[420px] text-[14.5px] leading-relaxed text-muted">Levy ya te está esperando con tu primera conversación.</p>
+              <ul className="mx-auto mt-6 grid max-w-[400px] gap-2 text-left text-[13.5px]">
+                <Resumen tono="ok">Aviso de privacidad, términos y licencia aceptados</Resumen>
+                {!llavesListas ? <Resumen tono="alerta">Sin llave todavía: ponla en Ajustes › Llaves</Resumen>
+                  : sinCredito ? <Resumen tono="alerta"><b className="font-semibold">Conectado, falta crédito.</b> Levy no podrá responder hasta que recargues.</Resumen>
+                  : llaves.motor === 'suscripcion' ? <Resumen tono="ok">{pruebaLlave.prueba?.ok ? 'Levy conectado y probado con tu Claude Code' : 'Levy conectado con tu Claude Code (tu suscripción)'}</Resumen>
+                  : <Resumen tono="ok">{pruebaLlave.prueba?.ok ? 'Levy conectado y probado con tu cuenta' : 'Levy conectado con tu llave'}</Resumen>}
+                <Resumen tono="ok">{modo === 'autonomo' ? 'Modo Autónomo: Levy actúa sin pedirte clic, salvo dinero, secretos, borrados grandes y envíos a muchos' : modo === 'carpeta' ? 'Automático en mi carpeta: Levy pregunta antes de lo que sale de tu computadora' : 'Preguntar siempre: Levy te pide un clic para casi todo'}</Resumen>
+                {cu.disponible
+                  ? <Resumen tono="ok">{computerUse ? (modo === 'autonomo' ? 'Computer use encendido; en Autónomo queda como lo dejes' : 'Computer use encendido por esta apertura; lo irreversible te pide tu clic') : 'Computer use apagado: lo enciendes en Ajustes › Esta computadora'}</Resumen>
+                  : <Resumen tono="neutro">Computer use no está disponible en este sistema; Levy trabaja con tus archivos y en el chat</Resumen>}
+                {conMonitoreo && <Resumen tono="ok">{monitoreo ? 'Compartes tu avance (solo cifras)' : 'Monitoreo apagado: no sale nada'}</Resumen>}
+                {sandbox && !sandbox.disponible && modo !== 'autonomo' && <Resumen tono="neutro">Terminal sin sandbox en este equipo: cada comando te pedirá un clic</Resumen>}
+              </ul>
+              {sinCredito && (
+                <div className="mx-auto max-w-[420px]">
+                  <PasoRecarga cobra={llaves.cobra} onReintentar={() => void pruebaLlave.probar()} probando={pruebaLlave.probando} className="mt-4" />
+                </div>
+              )}
+              {sandbox && !sandbox.disponible && modo !== 'autonomo' && <Aviso tono="info" className="mx-auto mt-4 max-w-[420px] text-left">{avisoSinSandbox(sandbox)}</Aviso>}
+            </div>
+          )}
+
+          {error && <Aviso tono="alerta" className="mt-5">{error}</Aviso>}
+
+          <div className={`mt-7 flex items-center gap-3 ${paso === 'bienvenida' || paso === 'listo' ? 'justify-center' : 'justify-between'}`}>
+            {paso !== 'bienvenida' && paso !== 'listo' && (
+              <button type="button" onClick={atras} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm text-muted hover:bg-foreground/[0.06] hover:text-foreground focus-visible:outline-2 focus-visible:outline-brand">
+                <ArrowLeft className="size-4" aria-hidden /> Atrás
+              </button>
+            )}
+            <button type="button" onClick={() => void continuar()} disabled={!puedeSeguir || ocupado || (!estado && !error)} title={paso === 'autonomia' && modo === 'autonomo' && !puedeSeguir ? 'Marca las dos casillas para empezar en modo autónomo' : undefined} className={`${botonDiscreto ? 'btn-secondary' : 'btn-primary'} min-h-11 min-w-[180px] !px-6 text-[15px]`}>
+              {ocupado ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <>{textoBoton} <ArrowRight className="size-4" aria-hidden /></>}
+            </button>
+          </div>
+          {paso === 'autonomia' && <p className="mt-3 text-center text-[12px] text-muted">{modo === 'autonomo' && !vigente ? `Continuar se activa con las dos casillas marcadas. ` : ''}Elegiste «{nombreModo}».</p>}
+        </main>
+        <p className="relative mt-5 text-center text-[12px] text-muted">Paso {i + 1} de {PASOS.length} · Todo esto se puede cambiar después en Ajustes</p>
+      </div>
     </div>
   )
 }

@@ -40,6 +40,23 @@ const HOST = '127.0.0.1'
 const t0 = Date.now()
 const seg = () => `${Math.round((Date.now() - t0) / 1000)} s`
 const log = (m) => console.log(`[prueba-ci ${seg()}] ${m}`)
+
+// Windows (rc4 y rc5 de la 0.2.16, y el «fetch failed» suelto de la 0.2.14 y la 0.2.15): tras unos segundos sin pedir
+// nada, una lectura puede caer con «fetch failed» porque el socket keep-alive que reutiliza ya lo cerró el servidor. Una
+// lectura (GET/HEAD) que cae así ANTES de recibir respuesta se repite UNA vez con conexión nueva, y queda en el log con
+// su causa: no esconde una caída de verdad (el segundo intento falla igual y la prueba se detiene).
+const fetchOriginal = globalThis.fetch
+globalThis.fetch = async (url, opciones = {}) => {
+  try {
+    return await fetchOriginal(url, opciones)
+  } catch (e) {
+    const metodo = String(opciones?.method ?? 'GET').toUpperCase()
+    const causa = e?.cause?.code ?? e?.cause?.message ?? ''
+    if (!(e instanceof TypeError) || !/fetch failed/.test(e.message) || !['GET', 'HEAD'].includes(metodo)) throw e
+    log(`aviso: ${metodo} ${String(url).replace(/^https?:\/\/[^/]+/, '')} cayó antes de responder (${causa || 'sin causa'}); repito una vez con conexión nueva`)
+    return fetchOriginal(url, opciones) // el socket roto ya se descartó: este intento abre uno nuevo
+  }
+}
 const dormir = (ms) => new Promise((r) => setTimeout(r, ms))
 
 function puertoLibre() {
@@ -234,7 +251,33 @@ async function recorrido(puerto) {
   if (obj.status !== 200 || OBJETIVOS_EN_CASILLAS.some((t) => !delDia.includes(t))) return `objetivos del día: ${obj.status}, llegan ${JSON.stringify(delDia)} (se esperaban los 3)`
   log(`calendario: los ${OBJETIVOS_EN_CASILLAS.length} objetivos del día de objetivos.md llegan a la vista`)
   log(`calendario: los ${OBJETIVOS_DEL_DIA.length} objetivos del día escritos a mano se pintan y /calendar existe${calendario.status === 200 ? '' : ' (tras la bienvenida)'}`)
+  const taller = await recorridoTaller(base, cookie)
+  if (taller) return taller
   return await recorridoSesion(base, cookie)
+}
+
+/**
+ * 0.2.16 (fundador en Windows, 29 oct 2026: «Taller › Agentes muestra "El Studio no respondió · No disponible en esta
+ * edición"»). Sin llave: la fuente de Taller › Agentes responde 200 desde el daemon del alumno (no el 404 del proxy),
+ * con SUS subagentes (ninguno en una instalación nueva) y sin nada del Studio; la salida de un subagente la contesta
+ * su daemon (404 «no está en el registro», no «No disponible en esta edición»).
+ */
+async function recorridoTaller(base, cookie) {
+  const r = await fetch(`${base}/api/cabina/trabajos?lineas=6`, { headers: { cookie } })
+  const texto = await r.text()
+  let j = {}
+  try { j = JSON.parse(texto) } catch { /* se reporta abajo */ }
+  if (r.status !== 200) return `Taller › Agentes: /api/cabina/trabajos respondió ${r.status} (${texto.slice(0, 200)}), se esperaba 200`
+  if (!Array.isArray(j.internas) || !Array.isArray(j.terminales)) return `Taller › Agentes: /api/cabina/trabajos no trae internas y terminales: ${texto.slice(0, 200)}`
+  if (j.terminales.length || (j.servidores ?? []).length || (j.servicios ?? []).length) return `Taller › Agentes: el daemon del alumno devolvió terminales, servidores o servicios (son del Studio): ${texto.slice(0, 200)}`
+  if (/Studio/i.test(texto)) return `Taller › Agentes: la respuesta nombra el Studio: ${texto.slice(0, 200)}`
+  const sinSesion = await fetch(`${base}/api/cabina/trabajos?lineas=6`, { redirect: 'manual' })
+  if (sinSesion.status === 200) return 'Taller › Agentes: /api/cabina/trabajos respondió 200 sin sesión'
+  const salida = await fetch(`${base}/api/cabina/salida?tarea=no-existe&lineas=5`, { headers: { cookie } })
+  const sj = await salida.json().catch(() => ({}))
+  if (salida.status === 200 || /disponible en esta edici/i.test(String(sj.error ?? ''))) return `Taller › Agentes: /api/cabina/salida respondió ${salida.status} ${JSON.stringify(sj).slice(0, 160)} (se esperaba la respuesta del daemon: tarea no registrada)`
+  log(`Taller › Agentes: /api/cabina/trabajos 200 desde el daemon del alumno (${j.internas.length} subagentes), sin sesión ${sinSesion.status}, salida contestada por el daemon (${salida.status})`)
+  return null
 }
 
 /**
@@ -481,7 +524,42 @@ async function recorridoPermisos(base, cookie) {
   // 503 «sin_voz_servidor» lo dice SU daemon (la ruta existe en cliente y llega hasta él); 404 sería la ruta bloqueada.
   if (tts.status !== 503 || jt.code !== 'sin_voz_servidor' || Date.now() - t0 > 15_000) return `voz: sin llave de LemonFox, /api/chat/tts respondió ${tts.status} ${JSON.stringify(jt).slice(0, 160)} en ${Date.now() - t0} ms (se esperaba 503 sin_voz_servidor, rápido)`
   log(`voz: sin llave de LemonFox, el daemon responde «sin_voz_servidor» en ${Date.now() - t0} ms y «Escuchar» usa la voz del sistema`)
+  const dictado = await recorridoDictado(base, cookie)
+  if (dictado) return dictado
+  vocesDelSistema()
   return null
+}
+
+/**
+ * Dictado (29 oct 2026, un fundador en Windows): lo que graba WebView2 (webm/opus) llega por la web a SU daemon y, sin llave
+ * de Groq, la respuesta es «falta la llave» (503 stt_not_configured, la pantalla lleva a Ajustes › Voz), nunca un error
+ * de formato (415/422) ni la ruta bloqueada (404). No usa micrófono: unos bytes con la cabecera EBML de un webm.
+ */
+async function recorridoDictado(base, cookie) {
+  const form = new FormData()
+  form.set('audio', new Blob([new Uint8Array([0x1a, 0x45, 0xdf, 0xa3, 0x9f, 0x42, 0x86, 0x81, 0x01, ...new Array(2048).fill(0)])], { type: 'audio/webm;codecs=opus' }), 'grabacion.webm')
+  const t0 = Date.now()
+  const r = await fetch(`${base}/api/chat/transcribe`, { method: 'POST', headers: { cookie, Origin: base }, body: form })
+  const j = await r.json().catch(() => ({}))
+  if (r.status !== 503 || j.code !== 'stt_not_configured') return `dictado: sin llave de Groq, /api/chat/transcribe con webm/opus respondió ${r.status} ${JSON.stringify(j).slice(0, 160)} (se esperaba 503 stt_not_configured)`
+  log(`dictado: webm/opus llega a su daemon y, sin llave de Groq, responde «stt_not_configured» en ${Date.now() - t0} ms (la pantalla lleva a Ajustes › Voz)`)
+  return null
+}
+
+/**
+ * Voces del sistema en Windows: el respaldo de «Escuchar» sin LemonFox es speechSynthesis de WebView2, que habla con
+ * las voces SAPI del sistema. System.Speech lista esas mismas. Solo informa (el runner no es la computadora del alumno):
+ * cuántas hay y si alguna es en español; si PowerShell no puede, lo dice en una línea.
+ */
+function vocesDelSistema() {
+  if (process.platform !== 'win32') return
+  const ps = spawnSync('powershell', ['-NoProfile', '-NonInteractive', '-Command',
+    'Add-Type -AssemblyName System.Speech; (New-Object System.Speech.Synthesis.SpeechSynthesizer).GetInstalledVoices() | ForEach-Object { $_.VoiceInfo.Culture.Name + \'|\' + $_.VoiceInfo.Name }'],
+  { encoding: 'utf8', timeout: 60_000 })
+  if (ps.status !== 0) { log(`voces de Windows: PowerShell System.Speech no respondió (${ps.status ?? ps.error?.message}); «Escuchar» queda con la voz por defecto de WebView2`); return }
+  const voces = (ps.stdout ?? '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+  const es = voces.filter((l) => /^es-/i.test(l))
+  log(`voces de Windows (System.Speech): ${voces.length} (${voces.slice(0, 6).join(', ')})${es.length ? ` · en español: ${es.length}` : ' · ninguna en español: Ajustes › Voz le dice al alumno cómo agregarla'}`)
 }
 
 // ── Recorrido 0.2.15: modo Autónomo con consentimiento versionado (reemplaza «Sin preguntar» y el freno quitado) ──────

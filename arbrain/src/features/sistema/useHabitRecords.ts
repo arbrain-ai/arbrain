@@ -1,6 +1,7 @@
 'use client'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { civilToday, HABIT_TIMEZONE } from './calendar-days'
+import { civilToday } from './calendar-days'
+import { zonaDueno } from '@/shared/lib/zona-dueno'
 import type { Habito, Reflexion } from './types'
 
 export interface HabitDefinition extends Habito { activo: boolean; created_at: string }
@@ -18,7 +19,7 @@ interface HabitCommand {
 }
 const storageKey = (owner: string) => `arbrain:habits:pending:${owner}`
 
-export function useCivilClock(timeZone = HABIT_TIMEZONE) {
+export function useCivilClock(timeZone = zonaDueno()) {
   const [now, setNow] = useState(() => new Date())
   useEffect(() => {
     const tick = () => setNow(new Date())
@@ -57,7 +58,7 @@ export function useHabitRecords(range: { date: string; from: string; to: string;
   const refresh = useCallback(async () => {
     if (busy.current) return
     const sequence = ++readSeq.current, version = epoch.current
-    const requested = { ...rangeRef.current, timeZone: rangeRef.current.timeZone ?? HABIT_TIMEZONE }
+    const requested = { ...rangeRef.current, timeZone: rangeRef.current.timeZone ?? zonaDueno() }
     try {
       const response = await fetch(`/api/sistema?${new URLSearchParams(requested)}`, { cache:'no-store', signal:AbortSignal.timeout(25_000) })
       const result = await response.json()
@@ -137,7 +138,7 @@ export function useHabitRecords(range: { date: string; from: string; to: string;
   const mark = useCallback((date: string, clave: string, hecho: boolean | null, source: 'manual' | 'keyboard' = 'manual', remember = true) => {
     if (!actual.current || failed.current && queue.current.length) return
     if (remember) setUndo({ date, clave, hecho:record(date, clave)?.hecho ?? null })
-    queue.current.push({ owner:actual.current.owner, date, clave, hecho, source, requestId:crypto.randomUUID(), timeZone:rangeRef.current.timeZone ?? HABIT_TIMEZONE })
+    queue.current.push({ owner:actual.current.owner, date, clave, hecho, source, requestId:crypto.randomUUID(), timeZone:rangeRef.current.timeZone ?? zonaDueno() })
     persist(); void run()
   }, [persist, record, run])
   const toggle = useCallback((date: string, clave: string, source: 'manual' | 'keyboard' = 'manual') => mark(date, clave, record(date, clave)?.hecho === true ? null : true, source), [mark, record])

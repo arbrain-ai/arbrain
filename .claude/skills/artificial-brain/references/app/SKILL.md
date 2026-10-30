@@ -40,7 +40,7 @@ imprimen): `MC_SERVER_PORT`, `MISSION_CONTROL_ORIGIN`, `ARBRAIN_PASE_AGENTE` (Be
 |---|---|---|
 | Chat | Hablar con Levy; conversaciones recientes; adjuntos; preguntas que Levy te hace | [references/chat.md](references/chat.md) |
 | Lienzo | Lienzo infinito: diagramas compilados por Levy y dibujo a mano | [references/canvas-diagram/index.md](references/canvas-diagram/index.md) y [../canvas/SKILL.md](../canvas/SKILL.md) |
-| Panel derecho | Pestañas «+»: Lienzo, Explorador (archivos del cerebro) y Taller (terminal donde haya motor) | Este archivo |
+| Panel derecho | Pestañas «+»: Lienzo, Explorador (archivos del cerebro) y Taller (Agentes, Rutinas y Memoria) | Este archivo |
 | Memoria | Lo que Levy sabe de ti, en `.claude/memory/` | Skill `memory-manager` |
 | Ajustes | Apariencia, Modelos, Atajos, Panel, Esta computadora, Llaves, Privacidad y monitoreo, Cuenta | Este archivo |
 | Datos locales | Qué tablas guarda la app y dónde | [references/schema.md](references/schema.md) |
@@ -60,14 +60,15 @@ un lienzo, un despertador en la conversación).
 
 ## Rutinas programadas
 
-El daemon tiene un programador, pero en esta edición nace vacío: solo corre lo que el dueño cree. Para ver lo
-que hay:
+El daemon tiene un programador, pero en esta edición nace vacío: solo corre lo que el dueño cree. Él las ve y las
+maneja en **Taller › Rutinas** (crear, pausar, reanudar, probar y borrar). Para ver lo que hay:
 
 ```bash
 curl -s "http://127.0.0.1:$MC_SERVER_PORT/schedule" -H "Authorization: Bearer $ARBRAIN_PASE_AGENTE"
 ```
 
-Con tu pase solo puedes **ver** las rutinas: pausarlas, reanudarlas o correrlas lo hace el dueño desde la app.
+Con tu pase puedes **ver** las rutinas y **proponer** una nueva (`POST /schedule`, nace en pausa): cómo, en
+`arbrain/cerebro/manuales/rutinas.md`. Activarlas, pausarlas, correrlas o borrarlas lo hace el dueño desde la app.
 Tampoco puedes leer sus conversaciones, su uso ni sus pendientes por el daemon: tu conversación ya
 está en tu contexto. Para algo que solo toca esta conversación, usa `despertador`.
 

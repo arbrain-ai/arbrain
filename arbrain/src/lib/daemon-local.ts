@@ -41,8 +41,16 @@ export async function alDaemon(ruta: string, init: RequestInit & { confirmar?: b
     if (!c) return Response.json({ error: 'Esta copia de Arbrain no puede aprobar acciones (falta el secreto de la app).' }, { status: 503, headers: NOCACHE })
     headers.set('X-Arbrain-Confirmar', c)
   }
+  // Una lectura que cae por la red ANTES de recibir respuesta (en Windows, el socket keep-alive que el daemon ya cerró)
+  // se repite una vez: en la CI de Windows de la 0.2.16 ese «fetch failed» salía tras unos segundos sin peticiones.
+  // Solo GET/HEAD: lo que escribe nunca se repite solo.
+  const lectura = ['GET', 'HEAD'].includes(String(init.method ?? 'GET').toUpperCase())
+  const pedir = () => fetch(`${urlDaemonCliente()}${ruta}`, { ...init, headers, cache: 'no-store', signal: AbortSignal.timeout(init.plazoMs ?? 8_000) })
   try {
-    const r = await fetch(`${urlDaemonCliente()}${ruta}`, { ...init, headers, cache: 'no-store', signal: AbortSignal.timeout(init.plazoMs ?? 8_000) })
+    const r = await pedir().catch((e: unknown) => {
+      if (lectura && e instanceof TypeError && /fetch failed/.test(e.message)) return pedir()
+      throw e
+    })
     const texto = await r.text()
     return new Response(texto || '{}', { status: r.status, headers: { 'Content-Type': r.headers.get('content-type') ?? 'application/json', ...NOCACHE } })
   } catch {
