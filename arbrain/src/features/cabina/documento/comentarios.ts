@@ -78,6 +78,31 @@ export function envioDe(cs: ComentarioPendiente[]): { ruta: string; linea?: numb
 /** «Mandar 4 comentarios a «armar la app»». */
 export const textoBoton = (n: number, nombre?: string) => `Mandar ${n} ${n === 1 ? 'comentario' : 'comentarios'}${nombre ? ` a «${nombre}»` : ''}`
 
+// ── Edición cliente (30 oct 2026): el lote va a SU chat con Levy, como borrador ──
+/** Evento que recibe el chat abierto para dejar un borrador en su caja (ChatPanel). Nunca envía. */
+export const EVENTO_BORRADOR_CHAT = 'arbrain:chat-borrador'
+
+/**
+ * El lote como UN mensaje para Levy: cada comentario con su archivo, línea y lo citado. En la edición cliente no hay
+ * agentes abiertos en terminales: el dueño revisa el borrador en su chat y lo manda él.
+ */
+export function mensajeParaLevy(cs: ComentarioPendiente[]): string {
+  const items = envioDe(cs).map((c, i) => `${i + 1}. \`${c.ruta}${c.linea ? `:${c.linea}` : ''}\`${c.cita ? ` · «${c.cita.replace(/\s+/g, ' ').trim().slice(0, 200)}»` : ''}\n   ${c.texto}`)
+  return `${cs.length === 1 ? 'Un comentario' : `${cs.length} comentarios`} sobre lo que me entregaste. Aplícalos en una sola pasada y dime qué cambiaste:\n\n${items.join('\n')}`
+}
+
+/** «Mandar 3 comentarios a Levy» (cliente). */
+export const textoBotonLevy = (n: number) => `Mandar ${n} ${n === 1 ? 'comentario' : 'comentarios'} a Levy`
+
+/** Deja el lote en el chat: si ya está abierto, por el evento; si no, abre `/chat?draft=`. Quita los pendientes. */
+export function comentariosAlChat(cs: ComentarioPendiente[], ir: (url: string) => void): string {
+  const texto = mensajeParaLevy(cs)
+  if (globalThis.location?.pathname === '/chat') globalThis.dispatchEvent?.(new CustomEvent(EVENTO_BORRADOR_CHAT, { detail: texto }))
+  else ir(`/chat?draft=${encodeURIComponent(texto)}`)
+  comentarios.quitarVarios(cs.map(c => c.id))
+  return 'Quedaron en tu chat con Levy como borrador: revísalos y mándalos.'
+}
+
 // ── Almacén (localStorage, compartido entre vistas) ──
 const CLAVE = 'arbrain.comentariosEntregable'
 let lista: ComentarioPendiente[] | null = null

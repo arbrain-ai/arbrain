@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TITULO_DEL_DECK</title>
+<link rel="stylesheet" href="estilo.css">
+<link rel="stylesheet" href="tema.css">
+<style>
+/* Estilos propios de este deck (lo que no es tema ni motor). Demo: borra y escribe los tuyos. */
+.centro{display:flex;flex-direction:column;justify-content:center;height:100%;gap:36px}
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center;height:100%}
+.cifra{font-family:var(--letra-titulo);font-size:220px;line-height:1;color:var(--acento)}
+.l2 canvas.enactivo{left:860px;top:150px;width:940px;height:760px}
+</style>
+</head>
+<body>
+<main id="escena">
+
+<!-- 0 · Portada. Una frase que se queda. -->
+<section class="lamina" data-titulo="Portada">
+  <div class="centro">
+    <div class="kicker">Demo · motor de presentaciones</div>
+    <h1>Una idea por lámina.<br><span class="acento">Que se entienda sola.</span></h1>
+  </div>
+  <aside class="notas"><p>Bienvenida. Di en una frase qué se llevan hoy.</p></aside>
+</section>
+
+<!-- 1 · Builds: cada clic revela una parte de la idea, al ritmo en que la dices. -->
+<section class="lamina" data-titulo="La idea se arma por clics">
+  <div class="centro">
+    <h2 data-p="1">Primero, el problema.</h2>
+    <p class="grande" data-p="2">Luego, por qué importa: el costo de no resolverlo.</p>
+    <p class="grande acento" data-p="3">Al final, la salida, cuando ya la están esperando.</p>
+  </div>
+  <aside class="notas">
+    <p data-p="0">Lámina vacía a propósito: crea expectativa.</p>
+    <p data-p="1">Nombra el problema con sus palabras.</p>
+    <p data-p="2">Cuenta qué cuesta.</p>
+    <p data-p="3">Revela la salida y haz una pausa.</p>
+  </aside>
+</section>
+
+<!-- 2 · Enactivo 2D. Test de la tapa: sin texto, ¿se entiende que muchas piezas sueltas se vuelven una sola fuerza?
+     Test del después: quien lo vio puede explicar por qué alinear vale más que sumar. -->
+<section class="lamina l2" data-titulo="Alinear vale más que sumar" data-pasos="2">
+  <div class="duo" style="grid-template-columns:640px 1fr">
+    <div>
+      <div class="kicker">Enactivo</div>
+      <h2 style="margin-top:24px">Cien esfuerzos sueltos <span data-p="1" class="acento">o uno solo.</span></h2>
+      <p class="grande" data-p="2" style="margin-top:28px">La misma energía, otra dirección.</p>
+    </div>
+  </div>
+  <canvas class="enactivo" data-enactivo="alinear"></canvas>
+  <aside class="notas">
+    <p data-p="0">Míralas: se mueven mucho y no llegan a ningún lado.</p>
+    <p data-p="1">Ahora les doy una dirección. Nada más cambió.</p>
+    <p data-p="2">Eso es lo que hace un buen sistema.</p>
+  </aside>
+</section>
+
+<!-- 3 · Cierre: el número o la acción que se llevan. -->
+<section class="lamina" data-titulo="Cierre">
+  <div class="centro">
+    <div class="kicker" data-p="1">Tu siguiente paso</div>
+    <div class="cifra" data-p="1">1</div>
+    <h2 data-p="2">Una sola acción, hoy.</h2>
+  </div>
+  <aside class="notas"><p data-p="1">Pide una sola acción concreta.</p><p data-p="2">Cierra y abre preguntas.</p></aside>
+</section>
+
+<div id="avance"></div>
+<div id="cara"></div>
+</main>
+<div id="notas-panel"></div>
+<div id="ayuda">→ / clic: siguiente · ← : atrás · F: pantalla completa · P: presentador · N: notas · D: zona de la cara</div>
+
+<script src="enactivos.js"></script>
+<script src="motor.js"></script>
+</body>
+</html>

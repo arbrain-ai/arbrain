@@ -11,6 +11,8 @@ import { puedeRegistrar } from './rueda-vigia'
  * Una línea JSON por atasco. Antirrebote también aquí: varias ventanas abiertas no suman más de un registro cada 30 s.
  */
 export const ARCHIVO_LOG_RUEDA = 'hilo-rueda.jsonl'
+/** Edición cliente (30 oct 2026): el hilo que no se pintó o quedó vacío no tiene bitácora en Supabase; va a este archivo. */
+export const ARCHIVO_LOG_HILO = 'hilo-errores.jsonl'
 
 export function dirLogs(env: NodeJS.ProcessEnv = process.env): string {
   return esEdicionCliente(env) ? path.join(dirDatosWeb(env), 'logs') : path.join(homedir(), 'Library', 'Logs', 'Arbrain')
@@ -20,6 +22,16 @@ export function dirLogs(env: NodeJS.ProcessEnv = process.env): string {
 export function lineaLogRueda(r: { sesion?: string | null; detalle?: unknown }, ahora: Date, equipo: string): string {
   const linea = JSON.stringify({ en: ahora.toISOString(), sesion: r.sesion ?? null, equipo: equipo.slice(0, 200), detalle: r.detalle ?? null })
   return (linea.length > 8000 ? JSON.stringify({ en: ahora.toISOString(), sesion: r.sesion ?? null, recortado: linea.slice(0, 7800) }) : linea) + '\n'
+}
+
+/** Una línea en `hilo-errores.jsonl` (solo edición cliente). Telemetría: nunca falla la petición. */
+export async function escribirLogHilo(r: { tipo: string; title: string; body: string; sesion?: string | null }): Promise<void> {
+  try {
+    const dir = dirLogs()
+    await mkdir(dir, { recursive: true })
+    const linea = JSON.stringify({ en: new Date().toISOString(), tipo: r.tipo, sesion: r.sesion ?? null, titulo: r.title.slice(0, 300), cuerpo: r.body.slice(0, 6000) })
+    await appendFile(path.join(dir, ARCHIVO_LOG_HILO), linea + '\n')
+  } catch { /* telemetría */ }
 }
 
 let ultimo = 0

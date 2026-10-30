@@ -191,8 +191,8 @@ async function main() {
     const r = await pedir(puerto, ic.src)
     if (r.status !== 200 || r.bytes.subarray(1, 4).toString() !== 'PNG') return fallar(`icono ${ic.src}: ${r.status}`)
   }
-  const apple = await pedir(puerto, '/tu-arbrain-apple.png')
-  if (apple.status !== 200 || !chat.texto.includes('tu-arbrain-apple.png') || !chat.texto.includes('Tu Arbrain')) return fallar('el icono y el título de iPhone («Tu Arbrain») no están en la página.')
+  const apple = await pedir(puerto, '/apple-touch-icon.png')
+  if (apple.status !== 200 || !chat.texto.includes('apple-touch-icon.png') || !chat.texto.includes('Tu Arbrain')) return fallar('el icono de la marca y el título de iPhone («Tu Arbrain») no están en la página.')
   const sw = await pedir(puerto, '/sw.js')
   if (sw.status !== 200 || !/javascript/.test(String(sw.headers['content-type'])) || !sw.texto.includes("addEventListener('fetch'") || !sw.texto.includes('CACHE_NAME')) return fallar(`sw.js: ${sw.status} ${sw.headers['content-type']}`)
   ok(`PWA: manifest-cliente.json («${m.name}», ${m.icons.length} iconos PNG, standalone, /chat), icono de iPhone y sw.js (${sw.headers['content-type']}) por ${TS}`)

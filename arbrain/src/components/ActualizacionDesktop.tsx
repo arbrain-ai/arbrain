@@ -286,7 +286,7 @@ export function ActualizacionDesktop() {
 
   if (!lista) return null
   return (
-    <div className="fixed bottom-3 left-3 z-[60]" data-evita-pausa>
+    <div className="fixed bottom-3 left-3 z-[60]">
       <button
         type="button"
         disabled={aplicando}

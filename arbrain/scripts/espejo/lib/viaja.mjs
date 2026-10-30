@@ -37,6 +37,13 @@ const CEREBRO = [
 
 /** Archivos que solo escribe el líder: el resto los recibe («esto lo genera tu cerebro en la nube»). */
 export const SOLO_LIDER = ['.claude/now.md', '.claude/reportes/', '.claude/briefs/', 'arbrain/cerebro/reportes/']
+/**
+ * Lo que Arbrain genera solo y el .gitignore de la copia deja fuera de git (0.2.16: `now.md` se rehace cada 20 min y
+ * versionarlo ensuciaba `git status` de todos). Con el espejo encendido sí viaja (30 oct 2026, e2e de la 0.2.17: la
+ * ventana, que no corre rutinas, se quedaba sin agenda): el que manda lo empieza a versionar a la fuerza en su rama y
+ * desde ahí viaja como cualquier archivo del líder. Fuera del espejo sigue ignorado.
+ */
+export const GENERADOS_QUE_VIAJAN = ['.claude/now.md']
 
 /** Nunca viajan, estén donde estén (aunque caigan dentro de una carpeta que sí viaja). */
 export const NUNCA = [

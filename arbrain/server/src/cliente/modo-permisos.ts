@@ -45,8 +45,8 @@ export const DONDE_PERMISOS = 'Ajustes › Permisos y seguridad'
 export const DONDE_CARPETAS = 'Ajustes › Permisos y seguridad › Carpetas a las que tu cerebro puede entrar'
 
 /** Por dónde llegó una aceptación o un cambio (queda en el registro). */
-export type ViaConsentimiento = 'bienvenida' | 'ajustes' | 'pildora' | 'pausa' | 'migracion' | 'version' | 'api'
-export const esVia = (v: unknown): v is ViaConsentimiento => typeof v === 'string' && ['bienvenida', 'ajustes', 'pildora', 'pausa', 'migracion', 'version', 'api'].includes(v)
+export type ViaConsentimiento = 'bienvenida' | 'ajustes' | 'pildora' | 'pausa' | 'migracion' | 'version' | 'modelo' | 'api'
+export const esVia = (v: unknown): v is ViaConsentimiento => typeof v === 'string' && ['bienvenida', 'ajustes', 'pildora', 'pausa', 'migracion', 'version', 'modelo', 'api'].includes(v)
 
 /** Consentimiento vigente: lo que la persona aceptó, con la versión y la huella del texto que leyó. */
 export interface Consentimiento { ts: number; version: string; sha256: string; app: string; so: string; via: ViaConsentimiento }

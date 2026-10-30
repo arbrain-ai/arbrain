@@ -138,6 +138,9 @@ export const APIS_CLIENTE = [
   // Computadora (T16, 29 oct 2026): Taller › Computadora sobre SU daemon (lib/computadora-cliente.ts): memoria, disco,
   // procesador, reposo y cerrar apps. Distinta de `/api/cabina/servidores` (el Studio de Daniel), que sigue fuera.
   '/api/computadora',
+  // «Esta pantalla tuvo un problema» y el hilo del chat que no se pintó (30 oct 2026): la línea va a SU carpeta de datos
+  // (`<datos web>/logs`, rueda-log.ts › dirLogs), no a Supabase. Sin ellas, sus caídas no dejaban rastro para diagnosticarlas.
+  '/api/error-pantalla', '/api/chat/hilo-error',
 ] as const
 
 function coincidePrefijo(ruta: string, prefijo: string) {

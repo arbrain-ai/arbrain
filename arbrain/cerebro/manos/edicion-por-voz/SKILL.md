@@ -7,10 +7,10 @@ description: Edita un video hablando con tu agente, sin abrir un editor. «Edita
 
 El dueño habla; el agente edita. Nadie abre un editor de video. La edición es **datos** (`edicion.json`), un solo `render.py` la convierte en video y cada pulido es una revisión nueva que conserva la anterior.
 
-**Prueba de punta a punta (una sola orden, imprime las rutas de todo):**
+**Prueba de punta a punta (una sola orden desde la carpeta de esta skill, como los demás comandos; imprime las rutas de todo):**
 
 ```
-python3 cerebro-artificial/estandar/manos/edicion-por-voz/scripts/prueba_e2e.py
+python3 scripts/prueba_e2e.py
 ```
 
 Usa una grabación sintética, la API de transcripción que haya en el entorno (o un respaldo declarado) y deja todo bajo `/tmp/edicion-por-voz-prueba/`. En Windows o Linux, o sin la voz `say` de macOS: `--fuente mi-video.mp4`.

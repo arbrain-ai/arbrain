@@ -27,7 +27,7 @@ import { spawn, spawnSync } from 'node:child_process'
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs'
 import { randomBytes } from 'node:crypto'
 import http from 'node:http'
-import { homedir, tmpdir } from 'node:os'
+import { homedir, tmpdir, userInfo } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { revisar as revisarCambios, texto as textoRevision } from './revisar-actualizacion.mjs'
@@ -350,6 +350,20 @@ function escribirResultado(o, id = ID_PEDIDO) {
   renameSync(tmp, RESULTADO)
 }
 
+/**
+ * ¿Este Arbrain lo lleva la unidad de sistema de nube.sh (su servidor, «solo en tu servidor» o la nube del espejo)?
+ * Ahí systemd lo vuelve a levantar solo (`Restart=always`): el reinicio solo lo apaga y espera. Arrancar otro aparte lo
+ * dejaba fuera de la unidad (sin su entorno ni sus protecciones) y systemd reintentando cada 10 s contra él (30 oct 2026,
+ * VPS real). Se reconoce por la variable que pone la unidad o, desde una terminal SSH, por la unidad con este usuario.
+ */
+export function bajoUnidadNube({ plataforma = process.platform, env = process.env, usuario = userInfo().username, leer = (r) => readFileSync(r, 'utf8') } = {}) {
+  if (plataforma !== 'linux') return false
+  if ((env.ARBRAIN_SERVIDOR_NUBE ?? '').trim() === '1') return true
+  let unidad = ''
+  try { unidad = leer('/etc/systemd/system/arbrain.service') } catch { return false }
+  return /ARBRAIN_SERVIDOR_NUBE=1/.test(unidad) && new RegExp(`^User=${usuario.replace(/[^\w-]/g, '')}$`, 'm').test(unidad)
+}
+
 /** El trabajo del proceso aparte: espera el turno, reinicia el servidor y pone al día la app. */
 async function reiniciador(argv) {
   const op = Object.fromEntries(argv.map(a => /^--([\w-]+)=(.*)$/.exec(a)).filter(Boolean).map(m => [m[1], m[2]]))
@@ -375,7 +389,9 @@ async function reiniciador(argv) {
       spawnSync(process.execPath, [servidor, 'detener'], { cwd: ARBRAIN, stdio: 'inherit', windowsHide: true, timeout: 60_000 })
       ya = null
     }
-    if (!ya) {
+    if (!ya && bajoUnidadNube()) {
+      log(`tu servidor arranca Arbrain ${version} solo (systemd, arbrain.service); espero a que responda`)
+    } else if (!ya) {
       log(`arranco Arbrain ${version} (si no hay programa ya compilado para esta versión, se compila: unos minutos)`)
       const fd = openSync(LOG_REINICIO, 'a')
       const h = spawn(process.execPath, [servidor, '--sin-navegador'], { cwd: ARBRAIN, detached: true, stdio: ['ignore', fd, fd], windowsHide: true })
@@ -391,7 +407,8 @@ async function reiniciador(argv) {
     if (!vivo || vivo.version !== version) throw new Error(`Arbrain no quedó corriendo en la versión ${version} en 45 minutos (mira ${LOG_REINICIO})`)
     log(`Corriendo (pid ${vivo.pid}) en la versión ${version}`)
     let app = 'sin-cambio'
-    if (process.env.ARBRAIN_ACTUALIZAR_SIN_APP !== '1') {
+    // En su servidor no hay pantalla: la app de escritorio no aplica (la persona entra por el navegador o el teléfono).
+    if (process.env.ARBRAIN_ACTUALIZAR_SIN_APP !== '1' && !bajoUnidadNube()) {
       const primera = !existsSync(join(homedir(), '.config', 'arbrain', 'escritorio.json'))
       const esc = join(ARBRAIN, 'scripts', 'escritorio.mjs')
       if (existsSync(esc)) {
@@ -534,7 +551,12 @@ async function ordenAplicar(pedida) {
  * aquí lo cubre el .gitignore. Sin esto `git status` nunca queda limpio y el espejo chocaría por ellos.
  */
 const GENERADOS = ['.claude/now.md']
+/** Con el espejo encendido (`activar` escribe .arbrain-espejo/maquina.json) `now.md` viaja del que manda por git: se queda. */
+export function espejoEncendido(repo = REPO) {
+  try { return JSON.parse(readFileSync(join(repo, '.arbrain-espejo', 'maquina.json'), 'utf8')).activo === true } catch { return false }
+}
 function dejarDeVersionarGenerados() {
+  if (espejoEncendido()) return 0
   const ignora = (r) => git(['check-ignore', '-q', '--no-index', '--', r], { ok: false }).status === 0
   const sacar = GENERADOS.filter(r => git(['ls-files', '--error-unmatch', '--', r], { ok: false }).status === 0 && ignora(r))
   if (!sacar.length) return 0

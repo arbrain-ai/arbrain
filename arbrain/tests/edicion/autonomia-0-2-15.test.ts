@@ -1,6 +1,6 @@
 // Modo Autónomo con consentimiento (0.2.15, 29 oct 2026; docs/builds/autonomia-alumno-2026-10-29/SPEC.md), parte web:
 // la bienvenida decide el nivel en un paso (Autónomo marcado, casillas vacías), Ajustes ofrece los tres niveles con el
-// texto y el retiro, la píldora «Autónomo · Volver a preguntar» y «Pausar todo» regresan a «carpeta», la ruta manda al
+// texto y el retiro, el menú del modelo (antes la píldora «Autónomo · Volver a preguntar») y «Pausar todo» regresan a «carpeta», la ruta manda al
 // daemon la versión y la huella que recibió (nunca las inventa), y el diálogo de confirmación cierra con Escape sin
 // rechazar. La licencia dice Apache-2.0 y los textos legales cambian de versión.
 import { test } from 'node:test'
@@ -78,10 +78,10 @@ test('la ruta: aflojar lleva el secreto; aceptar manda versión y huella; retira
   assert.ok(!/sinFreno|frase/.test(r))
 })
 
-test('Ajustes, la píldora y «Pausar todo» vuelven a «carpeta» en un clic y lo registran por su vía; el consentimiento se retira', () => {
+test('Ajustes, el menú del modelo y la franja de pausa vuelven a «carpeta» en un clic y lo registran por su vía; el consentimiento se retira', () => {
   const ui = fuente('src/features/seguridad/components/Seguridad.tsx')
-  assert.match(ui, /data-pildora-autonomo/)
-  assert.match(ui, /volver\('pildora'\)/)
+  // 30 oct 2026: la píldora flotante se fue; Autónomo/Preguntar viven en el menú del modelo (tests/seguridad/permisos-en-modelo.test.ts).
+  assert.ok(!/data-pildora-autonomo/.test(ui))
   assert.match(ui, /volver\('pausa'\)/)
   assert.match(ui, /Volver a que me pregunte/)
   assert.match(ui, /mandar\(\{ modo: 'carpeta', via: 'ajustes' \}\)/)

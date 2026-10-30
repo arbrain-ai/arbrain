@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Presentador</title>
+<style>
+*{box-sizing:border-box;margin:0}
+body{background:#0d0d11;color:#e9e6df;font:18px/1.5 system-ui,sans-serif;height:100vh;display:grid;grid-template-columns:1.25fr 1fr;grid-template-rows:auto 1fr auto;gap:16px;padding:18px}
+header{grid-column:1/3;display:flex;justify-content:space-between;align-items:baseline}
+#tit{font-size:24px;font-weight:600}#pos{color:#9a958a;margin-left:12px}
+#reloj{font:600 34px ui-monospace,Menlo,monospace}#crono{font:600 34px ui-monospace,Menlo,monospace;color:#f2a03d;margin-left:22px}
+.marco{position:relative;width:100%;aspect-ratio:16/9;background:#000;border-radius:10px;overflow:hidden;border:1px solid #2a2a33}
+.marco iframe{position:absolute;left:0;top:0;width:1920px;height:1080px;border:0;transform-origin:0 0;pointer-events:none}
+#izq{display:flex;flex-direction:column;gap:12px}#der{display:flex;flex-direction:column;gap:12px;min-height:0}
+.eti{font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:#9a958a}
+#notas{flex:1;overflow:auto;font-size:26px;line-height:1.45;background:#15151b;border-radius:10px;padding:20px 24px}
+#notas p{margin:0 0 14px;opacity:.38}#notas p.ahora{opacity:1;color:#fff}#notas p.dicho{opacity:.6}
+footer{grid-column:1/3;display:flex;gap:12px;align-items:center}
+button{background:#22222b;color:#eee;border:1px solid #33333d;border-radius:8px;padding:10px 18px;font-size:17px;cursor:pointer}
+#aviso{color:#e0484d;margin-left:auto}
+</style>
+</head>
+<body>
+<header><div><span id="tit">Esperando al deck…</span><span id="pos"></span></div><div><span id="reloj">--:--</span><span id="crono">00:00</span></div></header>
+<div id="izq"><div class="eti">Ahora</div><div class="marco" id="m1"><iframe id="f1" src="index.html?mini"></iframe></div>
+  <div class="eti" id="sig-eti">Sigue</div><div class="marco" id="m2" style="width:62%"><iframe id="f2" src="index.html?mini"></iframe></div></div>
+<div id="der"><div class="eti">Notas de este clic</div><div id="notas"></div></div>
+<footer><button id="b-ant">← Atrás</button><button id="b-sig">Siguiente →</button><button id="b-cero">Reiniciar reloj</button>
+  <span id="aviso"></span></footer>
+<script>
+(function(){
+"use strict";
+var deck=window.opener||null,bc=null,t0=null,est=null;
+try{bc=new BroadcastChannel("presentaciones-"+location.pathname.replace(/presentador\.html$/,"index.html"))}catch(e){}
+function manda(cmd){var m={tipo:"pres-orden",cmd:cmd};try{deck&&!deck.closed&&deck.postMessage(m,"*")}catch(e){}try{bc&&bc.postMessage(m)}catch(e){}
+  if(t0==null&&cmd==="sig")t0=Date.now()}
+function escala(){["m1","m2"].forEach(function(id){var m=document.getElementById(id),f=m.querySelector("iframe");f.style.transform="scale("+(m.clientWidth/1920)+")"})}
+addEventListener("resize",escala);setTimeout(escala,50);
+function miniIr(f,i,p){try{f.contentWindow.postMessage({tipo:"pres-ir",i:i,paso:p},"*")}catch(e){}}
+function recibe(d){if(!d||d.tipo!=="pres-estado")return;est=d;
+  document.getElementById("tit").textContent=d.titulo||("Lámina "+d.i);
+  document.getElementById("pos").textContent=d.i+" / "+(d.total-1)+" · paso "+d.paso+" de "+d.pasos;
+  var n=document.getElementById("notas");n.innerHTML=d.notas||"<p class='ahora'>(sin notas)</p>";
+  [].forEach.call(n.querySelectorAll("p"),function(p){var a=p.dataset.p!=null?+p.dataset.p:0;p.className=a===d.paso?"ahora":a<d.paso?"dicho":""});
+  var cur=n.querySelector("p.ahora");if(cur)cur.scrollIntoView({block:"center",behavior:"smooth"});
+  miniIr(document.getElementById("f1"),d.i,d.paso);
+  var ultimo=d.paso>=d.pasos;
+  document.getElementById("sig-eti").textContent=ultimo?(d.sig?"Sigue: "+d.sig:"Última lámina"):"Sigue: el clic "+(d.paso+1);
+  miniIr(document.getElementById("f2"),ultimo?d.i+1:d.i,ultimo?0:d.paso+1);
+  if(t0==null&&(d.i>0||d.paso>0))t0=Date.now()}
+addEventListener("message",function(e){if(e.data&&e.data.tipo==="pres-estado"){deck=e.source||deck;recibe(e.data)}});
+if(bc)bc.onmessage=function(m){recibe(m.data)};
+document.getElementById("b-ant").onclick=function(){manda("ant")};
+document.getElementById("b-sig").onclick=function(){manda("sig")};
+document.getElementById("b-cero").onclick=function(){t0=Date.now()};
+addEventListener("keydown",function(e){var k=e.key;if(k==="ArrowRight"||k===" "||k==="PageDown"){e.preventDefault();manda("sig")}else if(k==="ArrowLeft"||k==="PageUp"){e.preventDefault();manda("ant")}});
+function dos(n){return(n<10?"0":"")+n}
+setInterval(function(){var d=new Date();document.getElementById("reloj").textContent=dos(d.getHours())+":"+dos(d.getMinutes());
+  var s=t0?Math.floor((Date.now()-t0)/1000):0;document.getElementById("crono").textContent=dos(Math.floor(s/60))+":"+dos(s%60);
+  document.getElementById("aviso").textContent=deck||est?"":"Abre este panel con la tecla P desde el deck."},500);
+setTimeout(function(){manda("hola")},300);
+})();
+</script>
+</body>
+</html>

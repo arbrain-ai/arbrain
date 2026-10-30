@@ -136,6 +136,8 @@ function CuerpoTexto({ data, input, url, destino, actual, setModo, editando, set
       </div>}
       {destino && actual === 'previa' && !editando && <span className={d.destino}>{DESTINOS[destino].nombre} · borrador, no publicado</span>}
       {/* «Comentar» a la izquierda de «Editar»: la esquina la ocupa el botón flotante de «Escuchar» */}
+      {/* Edición cliente (30 oct 2026): los comentarios no van a agentes en terminales (no los tiene); la bandeja los deja
+          como borrador en su chat con Levy (ComentariosEntregable › Bandeja). */}
       {!editando && actual !== 'previa' && <button className={d.editar} aria-pressed={comentando} data-comentar onClick={() => { setComentando(!comentando); setObjetivo(null) }}
         title="Toca un párrafo para comentarlo; los comentarios se mandan juntos al agente"><MessageSquarePlus size={13} aria-hidden />{comentando ? 'Listo' : 'Comentar'}</button>}
       {data.editable && !editando && <button className={d.editar} style={actual !== 'previa' ? { marginLeft: 0 } : undefined} onClick={() => setEditando({ texto, base: data.hash! })}><Pencil size={13} aria-hidden />Editar</button>}
