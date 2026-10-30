@@ -13,11 +13,11 @@
  * el que sirve `/cabina`, y un reinicio del agent-server no debe borrar lo que pasó hoy.
  * Una tarea «trabajando» cuyo proceso dueño ya no existe se muestra como detenida.
  */
-import { DIR_ARBRAIN } from '../edicion.js'
+import { DIR_ARBRAIN, esEdicionCliente } from '../edicion.js'
 import { readFileSync } from 'node:fs'
 import { access, mkdir, readdir, readFile, realpath, open, stat, writeFile, rename } from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
-import { basename, dirname, join } from 'node:path'
+import { basename, dirname, join, sep } from 'node:path'
 import { cierresRecientes, type Cierres } from './internos-cierre.js'
 import { carpetasClaude } from '../cuentas-alternas.js'
 
@@ -284,8 +284,8 @@ const permitida = (real: string) => raicesPermitidas().some(r => real.startsWith
 async function buscarTranscripcion(id: string): Promise<string | null> {
   if (!ID_SEGURO.test(id)) return null
   const slugs = new Set([process.cwd(), dirname(process.cwd())].map(p => p.replace(/[^A-Za-z0-9]/g, '-')))
-  for (const raiz of carpetasClaude().slice(0, 2)) for (const slug of slugs) {
-    const proyecto = join(homedir(), raiz, 'projects', slug)
+  for (const raiz of dirsClaude()) for (const slug of slugs) {
+    const proyecto = join(raiz, 'projects', slug)
     for (const s of await readdir(proyecto, { withFileTypes: true }).catch(() => [])) {
       if (!s.isDirectory()) continue
       const f = join(proyecto, s.name, 'subagents', `agent-${id}.jsonl`)
@@ -416,8 +416,19 @@ export async function cerrarLoNotificado(l: TareaInterna[], leer: (desdeMs: numb
 
 /** Raíces donde el CLI deja salidas de tareas; nada fuera de ellas se lee. */
 function raicesPermitidas(): string[] {
+  // `sep` y no '/': en Windows `realpath` devuelve `C:\\...` y una raíz con '/' al final no casaba con nada.
+  return [tmpdir(), '/tmp', '/private/tmp', '/private/var/folders', ...dirsClaude()].map(r => r.endsWith(sep) || r.endsWith('/') ? r : r + sep)
+}
+
+/**
+ * Carpetas del CLI donde viven las transcripciones: `~/.claude` (y la cuenta alterna) y, en la edición cliente, la
+ * `CLAUDE_CONFIG_DIR` propia de la app del alumno (ahí escribe su CLI; 29 oct 2026, Taller › Agentes en cliente).
+ */
+function dirsClaude(): string[] {
   const h = homedir()
-  return [tmpdir(), '/tmp', '/private/tmp', '/private/var/folders', ...carpetasClaude().slice(0, 2).map(c => join(h, c))].map(r => r.endsWith('/') ? r : r + '/')
+  const propias = carpetasClaude().slice(0, 2).map(c => join(h, c))
+  const config = esEdicionCliente() ? process.env.CLAUDE_CONFIG_DIR : undefined
+  return config ? [...new Set([config, ...propias])] : propias
 }
 
 /** Para pruebas: olvida lo aprendido de las transcripciones. */

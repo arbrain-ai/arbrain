@@ -15,6 +15,7 @@ import { hoyCivil, sumarDias } from '../model'
 import { sinEmoji, diaDe } from '../vistas/agenda'
 import { abrirEnNavegador, hace } from './datos'
 import s from './panel.module.css'
+import { zonaDueno } from '@/shared/lib/zona-dueno'
 
 interface Detalle {
   id: string; titulo: string; descripcion: string; prioridad: number; fecha: string | null; recurrente: boolean; repite: string | null
@@ -26,7 +27,7 @@ const PRIORIDAD: Record<number, string> = { 1: 'Urgente', 2: 'Alta', 3: 'Media',
 const diaCivil = (f: string) => f.includes('T') ? diaDe.format(new Date(f)) : f.slice(0, 10)
 function fechaLegible(f: string | null, hoy: string) {
   if (!f) return 'Sin fecha'
-  const d = diaCivil(f), hora = f.includes('T') ? ` · ${new Date(f).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Mexico_City' })}` : ''
+  const d = diaCivil(f), hora = f.includes('T') ? ` · ${new Date(f).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: zonaDueno() })}` : ''
   if (d === hoy) return `Hoy${hora}`
   if (d === sumarDias(hoy, 1)) return `Mañana${hora}`
   const txt = new Date(d + 'T12:00:00').toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' })

@@ -9,13 +9,27 @@ import { ChatAccessError } from '@/lib/chat-access-policy'
 import { getSchedulerUrl, CLAUDECLAW_TOKEN } from '@/lib/claudeclaw'
 import { dirConfigArbrain, raizWorkspace } from '@/lib/rutas-instalacion'
 import { esEdicionCliente } from '@/lib/edicion'
-import { NOMBRE_DUENO } from '@/config'
+import { instalacion, NOMBRE_DUENO, SEGUNDA } from '@/config'
 import { PlumaLocal } from './local'
 
 export async function planningOwner() {
   const principal = await requireChatPrincipal()
   if (!principal.personalOwner) throw new ChatAccessError(`Este calendario personal requiere acceso de ${NOMBRE_DUENO()}.`, 403)
   return principal.id
+}
+
+/**
+ * Quién mira el calendario y con qué perfil (29 oct 2026, Daniel: «quiero que ella pueda tener su propio calendario
+ * sincronizado con Google calendar»). El dueño, su vista de siempre (sin perfil). La segunda persona, su perfil: la
+ * pluma lee solo sus calendarios (mc-event.py › PERFILES) y nunca el Todoist ni la agenda de trabajo del dueño. El
+ * perfil sale de la sesión; el que mande el navegador se ignora.
+ */
+export async function planningViewer(): Promise<{ ownerId: string; perfil?: string }> {
+  const principal = await requireChatPrincipal()
+  if (principal.personalOwner) return { ownerId: principal.id }
+  const segunda = instalacion().idPerfilSecundario
+  if (!esEdicionCliente() && principal.owner && segunda && principal.id === segunda) return { ownerId: principal.id, perfil: SEGUNDA() }
+  throw new ChatAccessError(`Este calendario personal requiere acceso de ${NOMBRE_DUENO()}.`, 403)
 }
 
 export function planningError(error: unknown) {

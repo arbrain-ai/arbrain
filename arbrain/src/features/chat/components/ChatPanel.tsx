@@ -47,6 +47,7 @@ const MarkdownMessage = dynamic(
   { ssr: false }
 )
 import { AudioButton } from './AudioButton'
+import { ofreceResumen } from '../lib/resumen-hablado'
 import { ChatSpeechBar } from './ChatSpeechBar'
 import { chatSpeech } from '../lib/chat-speech'
 import { LectorPosicion } from './LectorPosicion'
@@ -54,6 +55,7 @@ import { TtsProbeOverlay } from './TtsProbeOverlay'
 import { VoiceInput } from './VoiceInput'
 import { useLlaveVoz } from '../lib/voz-cliente'
 import { MARCA_DESDE_MIC } from '@/features/primer-arranque/lib/llaves'
+import { BotonReintentar } from './BotonReintentar'
 import { useAjustes } from '@/shared/stores/ajustes-store'
 import { WaveformPlayer } from './WaveformPlayer'
 import { GlobalAudioBar } from './GlobalAudioBar'
@@ -508,6 +510,8 @@ export const MessageBubble = memo(function MessageBubble({ msg, isFresh = false,
                 en content (<!--thinking-->). Copiar/escuchar/leer NO debe arrastrarlo. */}
             {/* «Escuchar» con la voz del dispositivo (Web Speech): sin llave, también en la edición cliente (21 oct 2026). */}
             <AudioButton messageId={msg.id} />
+            {/* «Escuchar resumen» (29 oct 2026, cohorte): solo en respuestas largas; regla en resumen-hablado.ts. */}
+            {ofreceResumen(respuesta) && <AudioButton messageId={msg.id} resumen />}
             <CopyBtn text={stripThinking(msg.content)} />
             {/* Solo la hora (2 oct 2026): el contexto de la conversación vive en la barra de escribir y el
                 desglose de ESTE turno (entrada, salida, duración, costo) aparece al pasar el cursor. */}
@@ -3128,6 +3132,8 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
           <div role="status" data-connection={connection} className="shrink-0 flex items-center justify-center gap-1.5 px-4 py-1.5 bg-amber-500/10 border-b border-amber-500/20 text-[11px] text-amber-200">
             <span className={`w-1.5 h-1.5 rounded-full ${connection === 'offline' ? 'bg-amber-400' : 'bg-amber-300 motion-safe:animate-pulse'}`} />
             <span>{connection === 'offline' ? 'Sin conexión · lo enviado sigue trabajando en el servidor' : 'Reconectando con el servidor…'}{account !== 'default' && <span className="text-amber-200/70"> · {account}</span>}</span>
+            {/* «Reintentar» (29 oct 2026): enciende el motor si no responde y recarga; uno sano nunca se reinicia. */}
+            <BotonReintentar className="ml-2 border-amber-300/40 text-amber-100 hover:bg-amber-500/20" />
           </div>
         )}
         {/* Espacio yt (6 sep 2026): mismo motor Codex, la segunda cuenta de OpenAI. */}

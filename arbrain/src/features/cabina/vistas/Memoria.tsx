@@ -22,6 +22,7 @@ import {
   CAPAS_MEMORIA, capas, diferidas, estimar, filtrar, fmtPct, fmtTokens, pct,
   type Anatomia, type ArchivoMemoria, type Capa, type FotoMemoria, type Segmento,
 } from './contexto-capas'
+import { zonaDueno } from '@/shared/lib/zona-dueno'
 
 export const URL_MEMORIA = '/api/cabina/memoria'
 export const urlContexto = (conversacion?: string | null, medir?: boolean) =>
@@ -30,8 +31,8 @@ export const urlContexto = (conversacion?: string | null, medir?: boolean) =>
 type Pestana = 'memoria' | 'ventana'
 const LLAVE = 'arbrain:memoria:pestana'
 
-const fecha = (iso: string | null) => iso ? new Date(iso).toLocaleDateString('es-MX', { timeZone: 'America/Mexico_City', day: 'numeric', month: 'short', year: '2-digit' }) : 'sin commit'
-const hora = (iso: string) => new Date(iso).toLocaleString('es-MX', { timeZone: 'America/Mexico_City', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+const fecha = (iso: string | null) => iso ? new Date(iso).toLocaleDateString('es-MX', { timeZone: zonaDueno(), day: 'numeric', month: 'short', year: '2-digit' }) : 'sin commit'
+const hora = (iso: string) => new Date(iso).toLocaleString('es-MX', { timeZone: zonaDueno(), day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 const miles = (n: number) => n.toLocaleString('es-MX')
 
 /** Deja un texto en la caja del chat sin enviarlo (Daniel termina la corrección con sus palabras). */

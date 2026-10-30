@@ -45,6 +45,7 @@ import t from './tablero.module.css'
 import { AgenteRespira } from './AgenteRespira'
 import { pedirSegmentoTaller } from './taller-segmento'
 import { pedirCarrilHistoria } from '@/features/historia/carril-pedido'
+import { sinRespuestaDelServidor } from '@/lib/edicion'
 
 const modelo = (f: FilaTablero) => {
   // «claude-opus-5-5» → «Opus 5.5»; los ids de otros proveedores se dejan como los publica su CLI
@@ -89,7 +90,7 @@ function useAhora(ms = 15_000) {
 async function accion(que: 'detener' | 'responder', agente: number, texto?: string, esfuerzo?: string): Promise<string> {
   const r = await fetch(`/api/cabina/${que}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ agente, ...(texto ? { texto } : {}), ...(esfuerzo ? { esfuerzo } : {}) }), signal: AbortSignal.timeout(50_000) })
   const b = await r.json().catch(() => ({})) as { texto?: string; error?: string }
-  if (!r.ok) throw new Error(b.error ?? 'El Studio no respondió.')
+  if (!r.ok) throw new Error(b.error ?? sinRespuestaDelServidor())
   void releer(urlPanel(false))
   return b.texto ?? 'Hecho.'
 }
@@ -365,7 +366,7 @@ function PlanesPorCorrer({ planes, demo }: { planes: PlanPendiente[]; demo: bool
     try {
       const r = await fetch(`/api/cabina/${que}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ruta: p.ruta }), signal: AbortSignal.timeout(60_000) })
       const b = await r.json().catch(() => ({})) as { texto?: string; error?: string }
-      if (!r.ok) throw new Error(b.error ?? 'El Studio no respondió.')
+      if (!r.ok) throw new Error(b.error ?? sinRespuestaDelServidor())
       setNota(n => ({ ...n, [p.ruta]: { texto: b.texto ?? 'Hecho.' } })); void releer(urlPanel(false))
     } catch (e) { setNota(n => ({ ...n, [p.ruta]: { texto: e instanceof Error ? e.message : 'No se pudo.', error: true } })) } finally { setOcupado(null); setDescartar(null) }
   }

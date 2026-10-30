@@ -18,8 +18,8 @@ ESCRIBIR eventos:  Levy ──► calendario.json (por defecto) · o el calendar
 ```
 
 **Esta edición no trae `now-snapshot.py` ni `mc-event.py`** (`arbrain/server/scripts/calendar/` no
-existe): no los corras ni digas que fallaron. La vista Calendario lee las fuentes en vivo; `now.md` se
-regenera solo donde exista ese script.
+existe): no los corras ni digas que fallaron. La vista Calendario lee las fuentes en vivo; `now.md` lo
+regenera Arbrain solo (al arrancar, cada 20 minutos y segundos después de que cambie `.claude/plan/`).
 
 ## Capa 1: `now.md` (lo que Levy ve siempre)
 

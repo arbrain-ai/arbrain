@@ -26,6 +26,8 @@ async function leer() {
   try {
     const r = await fetch('/api/planning/zonas', { cache: 'no-store', signal: AbortSignal.timeout(30_000) })
     const b = await r.json()
+    // Sin acceso (29 oct 2026: la segunda persona en su propio calendario): las zonas de fábrica son las del dueño, no las suyas.
+    if (r.status === 403) return poner({ doc: null, zonas: [], encendidas: [], error: null })
     if (!r.ok) throw new Error(b.error ?? 'No se pudieron leer tus zonas.')
     poner(desde(normalizarZonas(b)))
   } catch (e) { poner({ ...estado, error: e instanceof Error ? e.message : 'No se pudieron leer tus zonas.' }) }

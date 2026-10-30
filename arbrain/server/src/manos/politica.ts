@@ -31,7 +31,7 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { DIR_ARBRAIN, esEdicionCliente } from '../edicion.js'
-import { nombraAccion } from './cubre.js'
+import { CITA_MIN_CLIENTE, nombraAccion } from './cubre.js'
 
 // ---------- 1. Interruptor ----------
 
@@ -201,7 +201,7 @@ export function vozReciente(ahora = Date.now()): string[] {
 }
 
 /**
- * A5 (0.2.15): la cita sale del chat, no se le pide a la persona. La frase suya más reciente (12+ caracteres) que nombra
+ * A5 (0.2.15): la cita sale del chat, no se le pide a la persona. La frase suya más reciente (de cualquier largo desde 0.2.16) que nombra
  * la acción de esta categoría (`cubre.ts`), o null. El modelo no la copia ni la inventa: la toma el freno.
  */
 export function citaDelChat(categoria: string | undefined, ahora = Date.now()): string | null {
@@ -209,7 +209,7 @@ export function citaDelChat(categoria: string | undefined, ahora = Date.now()): 
   const voces = vozReciente(ahora)
   for (let i = voces.length - 1; i >= 0; i--) {
     const v = voces[i]
-    if (v.length >= 12 && (!categoria || nombraAccion(categoria, v))) return v
+    if (v.trim().length >= CITA_MIN_CLIENTE && (!categoria || nombraAccion(categoria, v))) return v
   }
   return null
 }

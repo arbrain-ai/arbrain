@@ -83,7 +83,7 @@ export function PanelConexionArbrain() {
               <input type="url" value={url} onChange={e => setUrl(e.target.value)} className="mt-1 block w-full rounded-lg border border-border-subtle bg-background px-3 py-2 font-mono text-[12.5px] text-foreground" />
             </label>
           )}
-          <button type="button" disabled={ocupado || !token.trim()} onClick={() => accion({ accion: 'conectar', token: token.trim(), url: url.trim() || undefined }, () => { setToken(''); return 'Conectado. Toca «Enviar ahora» para probar.' })}
+          <button type="button" disabled={ocupado || !token.trim()} onClick={() => accion({ accion: 'conectar', token: token.trim(), url: url.trim() || undefined }, () => { setToken(''); return 'Conectado. Toca «Enviar ahora» para probar y traer tu expediente a tu memoria.' })}
             className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-primary px-4 text-[13px] font-medium text-white disabled:opacity-50">
             {ocupado && <Loader2 className="size-3.5 animate-spin" aria-hidden />} Conectar
           </button>
@@ -120,6 +120,7 @@ export function PanelConexionArbrain() {
             <button type="button" disabled={ocupado} onClick={() => accion({ accion: 'desconectar' }, () => 'Desconectado. Ya no sale nada.')}
               className="min-h-10 rounded-lg border border-border-subtle px-4 text-[13px] hover:bg-foreground/[0.04] disabled:opacity-50">Desconectar</button>
           </div>
+          <p className="text-[12px] text-muted">«Enviar ahora» manda tu avance y, de paso, vuelve a traer de arbrain.ai tu expediente (tu meta a 90 días) y tu camino en el programa a la memoria de tu Levy. Si editaste esos archivos a mano, no se tocan. También llega solo al conectar, al abrir Arbrain y una vez al día.</p>
         </div>
       )}
 

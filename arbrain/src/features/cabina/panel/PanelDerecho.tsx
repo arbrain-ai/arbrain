@@ -35,6 +35,8 @@ import { MemoriaTaller } from './MemoriaTaller'
 import { EscucharDocumento } from './EscucharDocumento'
 import { ActividadViva } from './ActividadViva'
 import { VistaRutinasViva } from '@/features/rutinas/RutinasViva'
+import { RutinasCliente } from '@/features/rutinas/RutinasCliente'
+import { ComputadoraCliente } from '@/features/computadora/ComputadoraCliente'
 import { useAtenderPedidos, useGuardado } from './archivero'
 import { useAtenderPanel } from './bus'
 import { atenderVentana, coordinarPrincipal, devolverAlPanel, llevarA, puedeDesprender, sacarAVentanaNueva, seguirLlegadas, useHueco, useVentanas } from './ventanas'
@@ -66,6 +68,8 @@ import { IconoTipo, NOMBRE_TIPO, estadoTerminal, tipoTerminal } from './Tipo'
 import s from './panel.module.css'
 import { HistoriaTaller } from '@/features/historia/Historia'
 import w from './taller.module.css'
+import { esEdicionCliente, sinRespuestaDelServidor } from '@/lib/edicion'
+import { zonaDueno } from '@/shared/lib/zona-dueno'
 
 const CLAVE = 'arbrain.panelDerecho'
 const MIN = 320, CHAT_MIN = 520
@@ -558,14 +562,14 @@ export function Tareas() {
 
       {/* Los agentes viven en la píldora junto a «Levy» y en el Taller (5 oct 2026): aquí no se repiten. */}
       <TareasTodoist todoist={todoist} onConversar={ask} />
-      {trabajos.error && <p className={s.nota}>El Studio no respondió: {trabajos.error}.</p>}
+      {trabajos.error && <p className={s.nota}>{sinRespuestaDelServidor().replace(/\.$/, '')}: {trabajos.error}.</p>}
     </>}
   </div></div>
 }
 
 function Resumen({ decidir, tuyas, hechas }: { decidir: number; tuyas: number; hechas: number }) {
   const partes = [decidir && `${decidir} ${decidir === 1 ? 'espera' : 'esperan'} tu decisión`, tuyas && `${tuyas} tuyas hoy`, hechas && `${hechas} ${hechas === 1 ? 'hecha' : 'hechas'}`].filter(Boolean)
-  const fecha = new Date().toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'America/Mexico_City' })
+  const fecha = new Date().toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', timeZone: zonaDueno() })
   return <div className={s.resumen}><h2>{fecha.charAt(0).toUpperCase() + fecha.slice(1)}</h2>{partes.length > 0 && <p>{partes.join(' · ')}</p>}</div>
 }
 
@@ -605,15 +609,17 @@ const primeraLinea = (t: string | null) => t ? t.replace(/[#*_`>]/g, '').split('
 
 function Cargando({ error }: { error?: string }) {
   return <div className={s.cargando} aria-busy={!error}>
-    {error ? <><b>El Studio no respondió</b><span>{error}</span></> : <><span className={s.brillo} /><span className={s.brillo} /><span className={s.brillo} /></>}
+    {error ? <><b>{sinRespuestaDelServidor().replace(/\.$/, '')}</b><span>{error}</span></> : <><span className={s.brillo} /><span className={s.brillo} /><span className={s.brillo} /></>}
   </div>
 }
 
 function Pie({ leidoEn, error, data }: { leidoEn?: number; error?: string; data?: Trabajos }) {
-  const respaldo = data && data.fuente && data.fuente !== 'motor'
+  // Edición cliente (29 oct 2026): no hay motor ni Studio; la fuente es su propia Arbrain.
+  const cliente = esEdicionCliente()
+  const respaldo = !cliente && data && data.fuente && data.fuente !== 'motor'
   return <footer className={s.pie}>
     <span className={s.vivo} data-error={error ? '' : undefined} data-respaldo={respaldo || undefined} aria-hidden />
-    <span>{error ? 'Sin conexión con el Studio' : leidoEn ? `En vivo · ${data ? fuenteEnPalabras(data) : 'Studio'} · leído ${hace(leidoEn)}` : 'Leyendo…'}</span>
+    <span>{error ? (cliente ? 'Sin conexión con tu Arbrain' : 'Sin conexión con el Studio') : leidoEn ? `En vivo · ${data ? fuenteEnPalabras(data, cliente) : cliente ? 'tu Arbrain' : 'Studio'} · leído ${hace(leidoEn)}` : 'Leyendo…'}</span>
   </footer>
 }
 
@@ -691,12 +697,16 @@ export function TallerPanel() {
       // Historia (28 oct 2026): la del dueño arriba y el historial de git como VS Code debajo (historia/Historia.tsx, HistoriaTaller).
       : vista === 'historia' ? <div className={w.vista}><HistoriaTaller /></div>
       // Rutinas, la vista viva (10 oct 2026): una sola vista con «cómo van» y «qué rinde» juntas; lo programado del Studio, al fondo.
+      // Edición cliente (T8, 29 oct 2026): las rutinas de SU daemon, con crear, pausar y borrar (features/rutinas/RutinasCliente.tsx).
+      : vista === 'rutinas' && esEdicionCliente() ? <RutinasCliente />
       : vista === 'rutinas' ? <div className={w.rutinas}><VistaRutinasViva fondo={data && <div className={w.vista}><ProgramadosStudio lista={data.servicios} /><p className={w.nota}><button className={w.enlace} onClick={() => elegir('registro')}>Registro de turnos y errores</button></p></div>} /></div>
+      // Edición cliente (T16, 29 oct 2026): SU computadora (memoria, disco, reposo, cerrar apps), no el Studio de Daniel.
+      : vista === 'maquina' && esEdicionCliente() ? <ComputadoraCliente />
       : vista === 'maquina' ? <MaquinaTaller data={data} onRegistro={() => elegir('registro')} />
       // El registro ya no es pestaña (5 oct 2026): sus errores se ven donde ocurren; el rastro fino queda detrás de un enlace.
       : vista === 'registro' ? <><div className={w.registroVolver}><button className={w.enlace} onClick={() => elegir('maquina')}>← Volver a Computadora</button></div><Registro /></>
       : !data ? <Cargando error={lectura.error} />
       : detalle != null ? <DetalleTerminal id={detalle} onVolver={() => setDetalle(null)} /> : interna != null ? <DetalleInterna id={interna} onVolver={() => setInterna(null)} /> : <AgentesTaller data={data} onAbrir={setDetalle} onAbrirInterna={setInterna} />}
-    {(vista === 'terminales' || vista === 'maquina') && detalle == null && <Pie leidoEn={lectura.leidoEn} error={lectura.error} data={data} />}
+    {(vista === 'terminales' || (vista === 'maquina' && !esEdicionCliente())) && detalle == null && <Pie leidoEn={lectura.leidoEn} error={lectura.error} data={data} />}
   </div>
 }

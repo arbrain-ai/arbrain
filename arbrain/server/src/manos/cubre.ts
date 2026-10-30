@@ -44,8 +44,12 @@ export function nombraAccion(categoria: string, cita: unknown): boolean {
 /** Negación justo antes del verbo («no», «nunca», «ni», «sin», «no le», «don't»…), hasta dos palabras en medio. */
 const NEGACION = /(?:^|[^\p{L}])(no|nunca|jamas|ni|sin|tampoco|evita|dont|don't|do not|never|not)\s+(?:[\p{L}']+\s+){0,2}$/iu
 
-/** Largo mínimo de una cita en la edición cliente (antes 8: «Hola Levy» bastaba). */
-export const CITA_MIN_CLIENTE = 12
+/**
+ * Largo mínimo de una cita en la edición cliente. Fue 8 y luego 12 (contra «Hola Levy»); desde 0.2.16 basta una frase
+ * no vacía: lo que protege es que nombre la acción sin negarla (`nombraAccion`) y que sea texto real del chat. Un
+ * «mándalo» o «envíalo» de la persona vale (Windows, fundador: «sin frases de 12 caracteres»).
+ */
+export const CITA_MIN_CLIENTE = 1
 
 /**
  * ¿La cita nombra la acción de esta categoría? En la instalación de Daniel no cambia nada (true) salvo en la web, que

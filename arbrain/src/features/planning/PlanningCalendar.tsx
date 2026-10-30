@@ -852,7 +852,9 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
     else calendar.current?.getApi().gotoDate(date)
   }
   // Edición cliente (21 oct 2026): sin «Reporte diario/mensual» ni «Plan del mes» (son crons y documentos de la instalación original).
-  const accesos = EDICION_CLIENTE ? [] : accesosDe(mode).filter(a => a.id !== 'plan' || onAbrirDocumento)
+  // Calendario de otra persona (29 oct 2026): solo sus calendarios; los reportes, el plan y el Todoist son del dueño.
+  const ajeno = Boolean(snapshot?.perfil)
+  const accesos = EDICION_CLIENTE || ajeno ? [] : accesosDe(mode).filter(a => a.id !== 'plan' || onAbrirDocumento)
   const navegar = (url: string) => onNavegar ? onNavegar(url) : window.location.assign(url)
   const alcance = alcanceDeModo(mode)
   const zonaPlan = timeZone
@@ -881,7 +883,7 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
   // Lo que las cuatro hojas vivas reciben igual: mismas plumas (commit con ⌘Z), mismos filtros, mismo editor.
   const comunes = { goals: { data: goalsLeidos.data, error: goalsLeidos.error }, snapshot: snapshot ?? null, eventos: presentedEvents, visible: visibleSemanaDia, color: colorEvento,
     // Completar no espera a nadie (5 oct 2026): la fila de escrituras las serializa y un envío sin confirmar se reenvía solo.
-    cargando: loading, ocupado: !snapshot, todoistCaido: Boolean(snapshot) && snapshot!.health.find(h => h.id === 'todoist')?.state !== 'fresh',
+    cargando: loading, ocupado: !snapshot, todoistCaido: !ajeno && Boolean(snapshot) && snapshot!.health.find(h => h.id === 'todoist')?.state !== 'fresh',
     onModo: undefined, onConversar, donde, leyenda: leyendaVista,
     onAbrir: (item: PlanItem) => setSelection({ item }), onCompletar: (t: PlanTask) => snapshot ? commit(mutationFor(t, snapshot.ownerId, {}, 'complete')) : Promise.reject(new Error('Sin lectura')),
     onNueva: () => setSelection({ kind: 'task', allDay: true }), onObjetivo: (ev: PlanEvent, cumplido: boolean) => marcarObjetivo(ev, cumplido) }
@@ -963,7 +965,7 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
         onEstirar={snapshot && !pending ? (item, fin) => { const ini = item.kind === 'event' ? parseISO(item.start) : item.due ? parseISO(item.due) : null; if (ini) void moverEnRejilla(item, ini, fin) } : undefined}
         onCrear={snapshot && !pending ? crearEnRejilla : undefined}
         onDia={dia => transicion(() => aplicarVista(dia, 'day'))} />}</div>
-    : alcance && <PlanPeriodo alcance={alcance} fecha={dayKey(anchor)} tareas={tareasPeriodo} snapshot={snapshot ?? null} cargando={loading} ocupado={!snapshot} todoistCaido={Boolean(snapshot) && snapshot!.health.find(h => h.id === 'todoist')?.state !== 'fresh'}
+    : alcance && !ajeno && <PlanPeriodo alcance={alcance} fecha={dayKey(anchor)} tareas={tareasPeriodo} snapshot={snapshot ?? null} cargando={loading} ocupado={!snapshot} todoistCaido={Boolean(snapshot) && snapshot!.health.find(h => h.id === 'todoist')?.state !== 'fresh'}
       modo={mode} onModo={undefined} onConversar={onConversar}
       onAbrirTarea={t => setSelection({ item: t })} onCompletar={t => snapshot && void commit(mutationFor(t, snapshot.ownerId, {}, 'complete')).catch(() => {})} onNueva={() => setSelection({ kind: 'task', allDay: true })} />}
     {!isOwnSurface(mode) && (error || (pending && !saving) || snapshot?.health.some(h => h.state !== 'fresh')) && <div className={styles.banner} role="status"><span>{error ?? (pending ? 'Hay un envío pendiente de confirmar. Su borrador está guardado.' : (snapshot?.health.find(h => h.id === 'calendario-json' && h.state !== 'fresh')?.message ?? 'Algunas fuentes no respondieron. Se conserva la última lectura disponible.'))}</span>{pending && <button disabled={saving} onClick={() => void mutate(pending).catch(() => {})}>Reintentar envío</button>}{!pending && <button onClick={() => void refresh()}>Reintentar lectura</button>}</div>}
@@ -1023,10 +1025,10 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
         <footer><span>{railTasks.length} en esta selección</span><span>{timeZone.split('/').at(-1)?.replaceAll('_', ' ')}</span></footer>
       </aside>}
     </div>
-    {(accesos.length > 0 || esViva(mode)) && <nav className={styles.accesos} aria-label="Reporte de este periodo">{accesos.map(a => <button key={a.id} data-acceso={a.id} onClick={() => void irAcceso(a)}>{a.id === 'reporte' ? <Newspaper size={14} aria-hidden /> : <ScrollText size={14} aria-hidden />}<span>{a.etiqueta}</span></button>)}
+    {(accesos.length > 0 || (esViva(mode) && !ajeno)) && <nav className={styles.accesos} aria-label="Reporte de este periodo">{accesos.map(a => <button key={a.id} data-acceso={a.id} onClick={() => void irAcceso(a)}>{a.id === 'reporte' ? <Newspaper size={14} aria-hidden /> : <ScrollText size={14} aria-hidden />}<span>{a.etiqueta}</span></button>)}
       {/* La revisión del domingo (24 oct 2026): plan contra real de la semana, como el circuito; abierta sola los domingos. */}
-      {esViva(mode) && <button data-acceso="domingo" onClick={() => setDomingo(lunesDe(dayKey(mode === 'week' ? parseISO(inicioVisible) : anchor)))}><CalendarCheck2 size={14} aria-hidden /><span>Revisión del domingo</span></button>}</nav>}
-    {domingo && <Domingo lunes={domingo} bloques={bloquesDrip} goals={goalsLeidos.data} snapshot={snapshot ?? null} doc={drip.doc} ahora={Date.now()} tomarFoto={tomarFoto} pluma={Boolean(snapshot)} ponerTarifa={(m, mon) => drip.cambiar({ accion: 'tarifa', monto: m, moneda: mon })}
+      {esViva(mode) && !ajeno && <button data-acceso="domingo" onClick={() => setDomingo(lunesDe(dayKey(mode === 'week' ? parseISO(inicioVisible) : anchor)))}><CalendarCheck2 size={14} aria-hidden /><span>Revisión del domingo</span></button>}</nav>}
+    {domingo && !ajeno && <Domingo lunes={domingo} bloques={bloquesDrip} goals={goalsLeidos.data} snapshot={snapshot ?? null} doc={drip.doc} ahora={Date.now()} tomarFoto={tomarFoto} pluma={Boolean(snapshot)} ponerTarifa={(m, mon) => drip.cambiar({ accion: 'tarifa', monto: m, moneda: mon })}
       rutinasPlegadas={(() => { const l = parseISO(domingo).getTime(), f = addDays(parseISO(domingo), 7).getTime(); return presentedEvents.filter(e => fueraMes.has(e.id) && Date.parse(e.start) >= l && Date.parse(e.start) < f).length })()}
       aplicar={aplicarPropuesta} deshacer={() => void step('undo')} onCerrar={() => setDomingo(null)} onLunes={d => setDomingo(x => x ? dayKey(addDays(parseISO(x), d)) : x)} />}
     {selection && snapshot && <PlanEditor key={selection.item?.id ?? `new:${selection.start?.getTime() ?? 'capture'}:${selection.end?.getTime() ?? ''}`} selection={selection} snapshot={snapshot} saving={saving} unresolved={Boolean(pending) && !saving && !(pending?.action === 'update' && pending.externalId === selection.item?.externalId)} auto={auto}

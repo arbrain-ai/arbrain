@@ -13,18 +13,20 @@ import os from 'os'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { logger } from './logger.js'
-import { ALLOWED_CHAT_ID } from './config.js'
+import { ALLOWED_CHAT_ID, PROJECT_ROOT } from './config.js'
 import { mcCronResult } from './mc-client.js'
 import { opsLogger } from './ops-logger.js'
 import { autoCommitCronChanges } from './autoCommit.js'
 import { readEnvFile } from './env.js'
 import { esEdicionCliente } from './edicion.js'
+import { zonaDueno } from './zona.js'
 import { carpetaOriginal } from './dueno.js'
 import { faltaLlaveClaude, MENSAJE_FALTA_LLAVE } from './cliente/llaves.js'
 import { motorSuscripcion, MENSAJE_RUTINAS } from './cliente/suscripcion.js'
 import { rutinasConLlaveTope } from './cliente/rutinas-llave.js'
 import { MENSAJE_PAUSA, pausado } from './cliente/pausa.js'
 import { cercaEspejo } from './cliente/espejo.js'
+import { iniciarNowAlumno, type RelojNow } from './cliente/now-alumno.js'
 
 let schedulerInterval: ReturnType<typeof setInterval> | null = null
 
@@ -96,7 +98,8 @@ const execFileAsync = promisify(execFile)
 // response de /schedule para proyectar ocurrencias identicas en el Cron Lens.
 // Nota: el daemon NO carga .env en process.env (ver env.ts), usar readEnvFile.
 // Edición cliente: la zona del sistema del alumno (puede no estar en México).
-export const CRON_TZ = process.env.CRON_TZ || readEnvFile(['CRON_TZ']).CRON_TZ || (esEdicionCliente() ? Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC' : 'America/Mexico_City')
+// Zona del dueño (zona.ts): instalación original, México; alumno, ARBRAIN_TZ o la del sistema. CRON_TZ explícita sigue mandando.
+export const CRON_TZ = process.env.CRON_TZ || readEnvFile(['CRON_TZ']).CRON_TZ || zonaDueno()
 
 export function computeNextRun(cronExpression: string): number {
   const interval = parseExpression(cronExpression, { tz: CRON_TZ })
@@ -406,8 +409,15 @@ export function initSchedulerCliente(): void {
   schedulerInterval = setInterval(() => {
     runDueTasks().catch((err) => logger.error({ err }, 'scheduler poll error'))
   }, 60_000)
+  // `now.md` del alumno (29 oct 2026): lo escribe la máquina que corre las rutinas (la líder del espejo), al arrancar,
+  // cada 20 minutos y cuando cambia su plan. Sin modelo ni llave: lee sus archivos y ya (cliente/now-alumno.ts).
+  relojNow?.detener()
+  relojNow = iniciarNowAlumno(PROJECT_ROOT, {
+    registrar: (resultado, motivo) => { if (resultado === 'escrito' || resultado === 'editado_a_mano' || motivo.includes('fallo')) logger.info({ resultado, motivo }, 'now.md del alumno') },
+  })
   logger.info('scheduler (edición cliente) started: solo tareas del alumno')
 }
+let relojNow: RelojNow | null = null
 
 /** Catálogo de crons de Daniel (migraciones v2…v75 y siembra): vive aparte, en src/daniel/, para que la copia del
  * alumno no lo lleve incrustado (datos, rutas y correos suyos). Se importa con un especificador variable: en la copia
@@ -436,6 +446,8 @@ export function initScheduler(): void {
 
 export function stopScheduler(): void {
   detenido = true
+  relojNow?.detener()
+  relojNow = null
   if (schedulerInterval) {
     clearInterval(schedulerInterval)
     schedulerInterval = null

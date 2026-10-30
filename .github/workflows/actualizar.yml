@@ -1,0 +1,80 @@
+# «Actualiza mi Arbrain» de punta a punta en Windows, macOS y Linux (29 oct 2026).
+# Fuente: arbrain/empaquetado/ci/workflows/actualizar.yml del repo fuente; el generador lo copia a .github/workflows/ de
+# la copia del alumno. En la copia no se edita: se regenera.
+#
+# Desde una versión publicada de verdad (v0.2.13 y v0.2.15, con su etiqueta firmada en github.com/arbrain-ai/arbrain):
+# la copia de ESTE commit se firma como v0.2.16 con una llave de prueba generada en el job, el alumno salta a ella con
+# la skill vieja + el PASO 6 nuevo, y después a una v0.2.17 de prueba en un solo paso (`actualizar.mjs revisar` +
+# `aplicar`) desde un turno falso que muere con todo su árbol. Comprueba versión, memoria, skill, marca, git status,
+# rama de respaldo y que el servidor corre la versión nueva. Lo orquesta arbrain/empaquetado/ci/smoke/actualizar-ci.mjs.
+# No usa secretos ni la llave de publicación; nada se publica.
+name: Arbrain · actualizar en un paso
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['ci-**', 'release/**']
+    paths:
+      - 'arbrain/scripts/actualizar.mjs'
+      - 'arbrain/scripts/revisar-actualizacion.mjs'
+      - 'arbrain/scripts/servidor.mjs'
+      - 'arbrain/scripts/servidor/**'
+      - 'arbrain/scripts/escritorio.mjs'
+      - 'arbrain/cerebro/sembrar.py'
+      - 'arbrain/empaquetado/ci/smoke/actualizar-ci.mjs'
+      - '.claude/skills/actualizar-arbrain/**'
+      - '.github/workflows/actualizar.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: actualizar-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  actualizar:
+    name: actualizar · ${{ matrix.os }} · desde ${{ matrix.desde }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+        desde: [v0.2.13, v0.2.15]
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          path: candidato
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.12'
+
+      # Lo que deja Git para Windows con su instalador por defecto (checkout con CRLF, commit con LF).
+      - name: git como en la computadora del alumno
+        shell: bash
+        run: |
+          git config --global user.name "Arbrain CI"
+          git config --global user.email "ci@arbrain.invalid"
+          if [ "$RUNNER_OS" = Windows ]; then git config --global core.autocrlf true; fi
+          git --version
+
+      - name: Actualizar desde ${{ matrix.desde }}
+        run: node candidato/arbrain/empaquetado/ci/smoke/actualizar-ci.mjs --desde ${{ matrix.desde }} --candidato candidato --trabajo "${{ runner.temp }}/act"
+
+      - name: Evidencia y logs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: actualizar-${{ matrix.os }}-${{ matrix.desde }}
+          path: ${{ runner.temp }}/act/evidencia
+          if-no-files-found: warn
+          retention-days: 7

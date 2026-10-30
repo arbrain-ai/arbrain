@@ -5,7 +5,10 @@
 # detrás, ZoneInfo necesitaba tzdata. Aquí el gancho corre de verdad como lo corre Claude Code en Windows: por
 # `sh .claude/hooks/py.sh` en Git Bash, con un Python de python.org (sin tzdata), en la copia del alumno
 # (arbrain/EDICION = cliente). Comprueba que deja .claude/daily con los acentos bien, que dos capturas a la vez no se
-# pisan (msvcrt.locking) y que el chat de la app (CLAUDECLAW_DAEMON) también se guarda. Minutos: uno.
+# pisan (msvcrt.locking) y que el chat de la app (CLAUDECLAW_DAEMON) también se guarda.
+# Desde el 29 oct, además: cada gancho de .claude/settings.json corre con su comando exacto y una entrada mínima
+# (ci/smoke/ganchos_settings.py), también con ARBRAIN_TZ y sin base de zonas; lo que el alumno corre a mano sin py.sh
+# (selftest del recuerdo, ritual, presupuesto de memoria) y las pruebas de las skills con Python. Minutos: dos.
 name: Arbrain · ganchos en Windows
 
 on:
@@ -15,6 +18,15 @@ on:
     paths:
       - '.claude/hooks/**'
       - '.claude/settings.json'
+      - '.claude/skills/goal-compiler/**'
+      - '.claude/skills/os-audit/**'
+      - '.claude/skills/bajar-a-tierra/**'
+      - '.claude/skills/skill-creator/**'
+      - '.claude/skills/habit-system/scripts/**'
+      - 'arbrain/EDICION'
+      - 'arbrain/cerebro/sembrar.py'
+      - 'arbrain/cerebro/semilla/**'
+      - 'arbrain/empaquetado/ci/smoke/ganchos_settings.py'
       - '.github/workflows/ganchos-windows.yml'
 
 permissions:
@@ -53,14 +65,12 @@ jobs:
               print('zonas: sin base (como el Python de un alumno):', type(e).__name__)
           PY
 
-      - name: Pruebas unitarias del gancho (si viajan en la copia)
+      - name: Pruebas unitarias de los ganchos (las que viajan en la copia)
         shell: bash
         run: |
-          if [ -f .claude/hooks/tests/test_capture_conversation_windows.py ]; then
-            python -m unittest -v .claude/hooks/tests/test_capture_conversation_windows.py
-          else
-            echo "la copia no trae las pruebas unitarias; sigue la prueba de punta a punta"
-          fi
+          # Todas las de .claude/hooks/tests: captura sin fcntl, cada gancho sin fcntl ni base de zonas
+          # (test_ganchos_sin_fcntl), zona del equipo en cliente, ritual y rutas por intención.
+          python -m unittest discover -v -s .claude/hooks/tests
 
       - name: Punta a punta por py.sh (como Claude Code en Windows)
         shell: bash
@@ -109,3 +119,43 @@ jobs:
               assert len(registro) == 1 and len(json.load(open(registro[0], encoding='utf-8'))['messages']) == 2, registro
           print('SMOKE ganchos-windows: OK (captura, concurrencia, chat de la app, rutina fuera, UTF-8)')
           PY
+
+      - name: Sembrar el cerebro del alumno (como la instalación)
+        shell: bash
+        run: python arbrain/cerebro/sembrar.py
+
+      - name: Cada gancho del settings.json, con entrada mínima, sin traceback
+        shell: bash
+        run: |
+          set -euo pipefail
+          # El comando exacto de settings.json por `bash -c` (Git Bash, como Claude Code en Windows), con la entrada
+          # JSON de su evento y con `{}`: falla con un traceback o un código distinto de 0 y 2.
+          python arbrain/empaquetado/ci/smoke/ganchos_settings.py
+          # Un alumno fuera de México que fija su zona, en un Python sin base de zonas: tampoco truena.
+          ARBRAIN_TZ=Europe/Madrid python arbrain/empaquetado/ci/smoke/ganchos_settings.py
+
+      - name: Lo que el alumno corre a mano en Windows (sin py.sh ni UTF-8 forzado)
+        shell: bash
+        env:
+          CLAUDE_PROJECT_DIR: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          revisa() { local out; out=$("$@" 2>&1) || { echo "$out"; echo "FALLO: $*"; exit 1; }
+            if grep -q Traceback <<<"$out"; then echo "$out"; echo "TRACEBACK: $*"; exit 1; fi; echo "ok: $*"; }
+          # La consola de un paso de Actions es un tubo con cp1252: lo mismo que truena en la PC del alumno.
+          revisa python .claude/hooks/memory-recall.py --selftest
+          revisa env ARBRAIN_TZ=Europe/Madrid python .claude/hooks/agenda-context.py --ritual-hecho
+          revisa python .claude/hooks/agenda-context.py
+          revisa sh .claude/hooks/py.sh agenda-context --ritual-hecho
+          revisa sh .claude/hooks/memory-budget.sh
+          revisa python .claude/skills/os-audit/scripts/os_audit.py --help
+          revisa python .claude/skills/goal-compiler/scripts/grafo2plan.py --help
+
+      - name: Pruebas de las skills con scripts de Python
+        shell: bash
+        run: |
+          set -euo pipefail
+          # `discover -s`: una ruta con `.claude/` no sirve de nombre de módulo para `python -m unittest <archivo>`.
+          python -m unittest discover -v -s .claude/skills/goal-compiler/scripts -p 'test_*.py'
+          python -m unittest discover -v -s .claude/skills/bajar-a-tierra/tests
+          python -m unittest discover -v -s .claude/skills/skill-creator/tests
