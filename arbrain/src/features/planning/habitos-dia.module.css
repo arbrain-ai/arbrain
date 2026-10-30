@@ -1,0 +1,103 @@
+/* Hábitos en la hoja del día (5 oct 2026). Mismo idioma que dia-vivo.module.css: rótulos en versalitas tenues, tarjetas
+   de 12 px de radio, verde de «hecho» (el mismo de las tareas), oro solo para lo vivo. La racha es un número tenue,
+   nunca una llama. El ancho lo manda el contenedor del calendario (panel de 520 px, sección o teléfono). */
+@keyframes aparecer { from { opacity: 0; } }
+
+.banda { --linea-h: var(--linea, color-mix(in srgb, var(--foreground) 9%, transparent)); --hecho: var(--success, var(--primary));
+  display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+
+.cabeza { display: flex; align-items: center; gap: 8px; min-height: 28px; }
+.plegar { display: inline-flex; align-items: center; gap: 8px; min-width: 0; padding: 2px 4px 2px 0; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; border-radius: 6px; }
+.plegar h3 { margin: 0; font-size: 11px; font-weight: 650; letter-spacing: 1.4px; text-transform: uppercase; color: var(--muted); }
+.cuenta { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.cuenta b { color: var(--foreground); font-weight: 650; }
+.banda[data-completo] .cuenta { color: var(--hecho); font-weight: 600; }
+.sello { width: 12px; height: 12px; }
+.chevron { color: var(--muted); transition: transform 200ms var(--mov-curva, ease); }
+.plegar[aria-expanded=false] .chevron { transform: rotate(-90deg); }
+.plegar:focus-visible, .verTejido:focus-visible, .habito:focus-visible, .punto:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.verTejido { margin-left: auto; height: 26px; padding: 0 10px; border: 1px solid var(--linea-h); border-radius: 999px; background: transparent; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap; }
+.verTejido:hover { color: var(--foreground); background: var(--card-hover); }
+.verTejido[aria-pressed=true] { color: var(--l-tinta-morado, var(--brand, var(--primary))); border-color: rgba(var(--brand-rgb), .4); }
+
+/* El medidor sube con cada marca (y se llena una vez al llegar). */
+.medidor { height: 3px; border-radius: 2px; background: var(--linea-h); overflow: hidden; }
+.medidor i { display: block; height: 100%; border-radius: 2px; background: var(--hecho); transition: width 520ms var(--mov-curva, ease); }
+
+/* Hábitos como píldoras de ancho natural que fluyen: densas, sin cortar nombres, a cualquier ancho. */
+.rejilla { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 2px; }
+.habito { flex: 0 1 auto; display: inline-flex; align-items: center; gap: 8px; max-width: 100%; min-width: 0; min-height: 34px; padding: 4px 12px 4px 6px; border: 1px solid var(--linea-h); border-radius: 999px;
+  background: var(--card); color: var(--foreground); font: inherit; font-size: 13px; text-align: left; cursor: pointer;
+  transition: border-color 160ms, background 200ms, transform 120ms; }
+.habito:hover { border-color: color-mix(in srgb, var(--foreground) 18%, transparent); }
+.habito:active { transform: scale(.97); }
+.marca { flex: 0 0 auto; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; border: 1.6px solid color-mix(in srgb, var(--foreground) 32%, transparent);
+  color: var(--l-gris-16, #fff); font-size: 13px; line-height: 1; transition: background 200ms, border-color 200ms, transform 200ms var(--mov-curva, ease); }
+.marca svg { width: 12px; height: 12px; }
+.habito[data-estado=hecho] { border-color: color-mix(in srgb, var(--hecho) 35%, var(--linea-h)); background: color-mix(in srgb, var(--hecho) 7%, var(--card)); }
+.habito[data-estado=hecho] .marca { background: var(--hecho); border-color: var(--hecho); }
+.habito[data-estado=hecho] .nombre { color: var(--muted); }
+.habito[data-estado=fallado] .marca { color: var(--error, var(--l-tinta-rojo, #e5484d)); border-color: color-mix(in srgb, var(--error, var(--l-rojo-4, #e5484d)) 55%, transparent); }
+.nombre { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.3; }
+.racha { flex: 0 0 auto; font-size: 11px; font-variant-numeric: tabular-nums; color: var(--muted); }
+.habito[data-estado=hecho] .racha { color: var(--hecho); }
+.tecla { flex: 0 0 auto; min-width: 16px; padding: 0 3px; border: 1px solid var(--linea-h); border-radius: 4px; font: 10px/16px ui-monospace, 'SF Mono', Menlo, monospace; text-align: center; color: var(--muted); display: none; }
+/* La tecla de cada hábito aparece solo en modo teclado (H, Tab): con el ratón no ocupa lugar. */
+.rejilla:has(:focus-visible) .tecla { display: inline-block; opacity: .8; }
+@media (pointer: coarse) { .rejilla:has(:focus-visible) .tecla { display: none; } .habito { min-height: 42px; padding-right: 14px; } }
+
+.vacio { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
+.aviso, .deshacer { display: flex; align-items: center; gap: 10px; margin: 8px 0 0; padding: 7px 10px; border-radius: 10px; font-size: 12.5px; animation: aparecer 200ms ease-out both; }
+.aviso { background: rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.1); border: 1px solid var(--l-borde-ambar, rgba(var(--gold-rgb), .3)); }
+.deshacer { background: rgba(var(--l-velo-morado-rgb, var(--brand-rgb)), 0.06); border: 1px solid var(--l-borde-morado, rgba(var(--brand-rgb), .18)); }
+.aviso span, .deshacer span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.aviso button, .deshacer button { border: 0; background: transparent; color: var(--l-tinta-morado, var(--primary)); font: inherit; font-weight: 650; cursor: pointer; }
+
+/* Tejido de cuatro semanas: una fila por hábito, un punto por día. Los lunes marcan el compás. */
+.tejido { display: flex; flex-direction: column; gap: 3px; padding-top: 2px; min-width: 0; max-width: 760px; }
+.tejidoFila { display: grid; grid-template-columns: minmax(78px, 132px) repeat(28, minmax(0, 1fr)); align-items: center; gap: 2px; }
+.tejidoNombre { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 6px; }
+.tejidoDia { font-size: 9.5px; color: var(--muted); text-align: center; font-variant-numeric: tabular-nums; }
+.punto { aspect-ratio: 1; width: 100%; max-width: 16px; justify-self: center; padding: 0; border: 0; border-radius: 4px; cursor: pointer;
+  background: color-mix(in srgb, var(--foreground) 7%, transparent); transition: background 160ms, transform 120ms; }
+.punto:hover { transform: scale(1.15); }
+.punto[data-estado=hecho] { background: var(--hecho); }
+.punto[data-estado=fallado] { background: color-mix(in srgb, var(--error, var(--l-rojo-4, #e5484d)) 45%, transparent); }
+.punto[data-hoy] { box-shadow: 0 0 0 1.5px var(--background), 0 0 0 3px var(--l-borde-ambar, rgba(var(--gold-rgb), .7)); }
+.leyenda { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin: 6px 0 0; font-size: 11px; color: var(--muted); }
+.leyenda span { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-left: 6px; background: color-mix(in srgb, var(--foreground) 7%, transparent); }
+.leyenda span:first-child { margin-left: 0; }
+.leyenda span[data-estado=hecho] { background: var(--hecho); }
+.leyenda span[data-estado=fallado] { background: color-mix(in srgb, var(--error, var(--l-rojo-4, #e5484d)) 45%, transparent); }
+
+@container (max-width: 340px) {
+  .tejidoFila { grid-template-columns: 64px repeat(28, minmax(0, 1fr)); gap: 1px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .habito, .marca, .medidor i, .punto, .chevron { transition: none !important; }
+  .aviso, .deshacer { animation: none !important; }
+}
+
+/* Hábito compuesto (rutina matutina, 5 oct 2026): lo que agrupa, en una línea tenue debajo del nombre. */
+.sub { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10.5px; line-height: 1.25; color: var(--muted); }
+
+/* Compacta (5 oct 2026, 17:48): una fila pequeñita por hábito, al fondo de la hoja del día. */
+.compacta { display: flex; flex-direction: column; gap: 2px; min-width: 0; --linea-h: var(--linea, color-mix(in srgb, var(--foreground) 9%, transparent)); --hecho: var(--success, var(--primary)); }
+.compactaCabeza { display: flex; align-items: center; gap: 8px; min-height: 22px; }
+.compactaCabeza h3 { margin: 0; font-size: 10.5px; font-weight: 650; letter-spacing: 1.3px; text-transform: uppercase; color: var(--muted); }
+.compactaCabeza .verTejido { margin-left: auto; }
+.filas { display: flex; flex-direction: column; }
+.fila { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 24px; padding: 2px 4px; border: 0; border-radius: 6px; background: transparent; color: var(--foreground);
+  font: inherit; font-size: 12.5px; text-align: left; cursor: pointer; transition: background 120ms; }
+.fila:hover { background: var(--card-hover); }
+.fila:disabled { cursor: default; }
+.fila .marca { flex: 0 0 auto; width: 14px; height: 14px; border-width: 1.4px; }
+.fila .marca svg { width: 9px; height: 9px; }
+.fila[data-estado=hecho] .marca { background: var(--hecho); border-color: var(--hecho); color: var(--l-gris-16, #fff); }
+.fila[data-estado=hecho] .nombre { color: var(--muted); }
+.fila .racha { margin-left: auto; font-size: 10.5px; }
+.subLinea { font-size: 11px; color: var(--muted); }
+.estrellaMini { flex: 0 0 auto; display: grid; place-items: center; width: 14px; height: 14px; color: var(--l-tinta-ambar, var(--gold)); }
+.estrellaMini svg { width: 13px; height: 13px; fill: transparent; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; }
+.fila[data-estado=hecho] .estrellaMini svg { fill: currentColor; }

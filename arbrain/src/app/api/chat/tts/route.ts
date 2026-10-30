@@ -1,0 +1,131 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
+import { hasRole } from '@/lib/auth-utils'
+import { getClaudeclawUrl, CLAUDECLAW_TOKEN } from '@/lib/claudeclaw'
+import { markdownHablable } from '@/features/chat/lib/lector-filtro'
+import { requireChatPrincipal, chatAccessResponse } from '@/lib/chat-access'
+import { esEdicionCliente } from '@/lib/edicion'
+import { urlDaemonCliente } from '@/lib/claudeclaw'
+import { tokenDaemon } from '@/lib/daemon-local'
+
+// TTS = Kokoro local (open source) a traves de claudeclaw, reusando el mismo
+// tunel/CLAUDECLAW_URL que el chat. Funciona en desktop (localhost) y web (tunel).
+
+// 175/306: la voz `levy` de voz-agentes habla a 306 ppm (1.75x); el lector la pide a 1x.
+const LECTOR_SPEED = 175 / 306
+
+// Velocidades del lector (RATES de chat-speech.ts, hasta 3x; voz-agentes topa en TEMPO_MAX = 3): lo demás suena a 1x.
+function tempoLector(v: unknown): number {
+  return typeof v === 'number' && Number.isFinite(v) ? Math.min(3, Math.max(1, v)) : 1
+}
+
+// Fuentes, tablas y URLs sueltas no se oyen: la misma regla que el lector de la barra.
+function cleanTextForTts(text: string) {
+  return markdownHablable(text)
+    .replace(/```[\s\S]*?```/g, 'código')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/[*_]{1,3}([^*_]+)[*_]{1,3}/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 5000)
+}
+
+/**
+ * Edición cliente (v0.2.10; grupal del 23 oct: «la voz por defecto en Windows es fea»): el audio lo hace SU daemon con su
+ * llave de LemonFox (cliente/voz.ts). Sin llave, el daemon responde 503 rápido y el lector usa la mejor voz del sistema.
+ * Desde el 29 oct, con su llave de Groq, el lector recibe además las marcas exactas de cada palabra (X-Marcas).
+ */
+async function ttsCliente(req: NextRequest): Promise<Response> {
+  try { await requireChatPrincipal() } catch (error) { return chatAccessResponse(error) }
+  const { text, lector, velocidad } = await req.json().catch(() => ({})) as { text?: string; lector?: boolean; velocidad?: number }
+  const clean = typeof text === 'string' ? (lector ? text.replace(/\s+/g, ' ').trim().slice(0, 5000) : cleanTextForTts(text)) : ''
+  if (!clean) return NextResponse.json({ error: 'text is required' }, { status: 400 })
+  try {
+    const r = await fetch(`${urlDaemonCliente()}/tts`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${tokenDaemon()}`, 'Content-Type': 'application/json' },
+      // `marcas`: el lector pide también cuándo suena cada palabra (con la llave de Groq del alumno; cliente/marcas-groq.ts).
+      body: JSON.stringify({ text: clean, tempo: lector ? tempoLector(velocidad) : 1, ...(lector ? { marcas: true } : {}) }),
+      signal: AbortSignal.any([req.signal, AbortSignal.timeout(50_000)]),
+    })
+    if (!r.ok) return NextResponse.json(await r.json().catch(() => ({ error: `TTS ${r.status}` })), { status: r.status })
+    // Con marcas el daemon manda WAV y `X-Marcas`; sin llave de Groq, `X-Marcas-Falta` (el lector se lo dice una vez al alumno).
+    const marcas = lector ? r.headers.get('x-marcas') : null
+    const falta = lector ? r.headers.get('x-marcas-falta') : null
+    return new NextResponse(await r.arrayBuffer(), {
+      headers: {
+        'Content-Type': r.headers.get('content-type') || 'audio/mpeg', 'X-Tempo': r.headers.get('x-tempo') ?? '1', 'Cache-Control': 'no-store',
+        ...(marcas ? { 'X-Marcas': marcas } : {}),
+        ...(falta ? { 'X-Marcas-Falta': falta } : {}),
+      },
+    })
+  } catch {
+    if (req.signal.aborted) return new NextResponse(null, { status: 499 })
+    return NextResponse.json({ error: 'Tu Arbrain no respondió.', code: 'sin_daemon' }, { status: 503 })
+  }
+}
+
+export async function POST(req: NextRequest) {
+  if (esEdicionCliente()) return ttsCliente(req)
+  // En paralelo con la auth: la URL del daemon no depende de ella.
+  const claudeclawUrl = getClaudeclawUrl()
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  if (!(await hasRole(user.id, 'owner', 'admin'))) {
+    return NextResponse.json({ error: 'Forbidden: Chat access requires owner or admin role' }, { status: 403 })
+  }
+
+  const { text, lector, velocidad } = await req.json() as { text?: string; lector?: boolean; velocidad?: number }
+  if (!text?.trim()) {
+    return NextResponse.json({ error: 'text is required' }, { status: 400 })
+  }
+
+  // Lector del chat (22 oct 2026): el texto ya viene HABLADO (buildSpoken en el cliente) y el resaltado se calcula
+  // sobre él, así que no se toca más que el espacio. La voz `levy` hornea 1.75x (rate 306) y `speed` la devuelve a
+  // 175 ppm (el 1x del lector). Desde el 23 oct la velocidad del lector también la pone el servidor (`tempo`, atempo
+  // sin cambiar el tono): el cliente reproduce por Web Audio, que no conserva el tono al acelerar. Desde el 29 oct el
+  // servidor manda WAV y `X-Marcas` (instante exacto de cada palabra en ese audio): pasan tal cual.
+  const clean = lector ? text.replace(/\s+/g, ' ').trim().slice(0, 5000) : cleanTextForTts(text)
+  if (!clean) {
+    return NextResponse.json({ error: 'text is empty after cleanup' }, { status: 400 })
+  }
+
+  const res = await fetch(`${await claudeclawUrl}/tts`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${CLAUDECLAW_TOKEN}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(lector ? { text: clean, voice: 'levy', speed: LECTOR_SPEED, tempo: tempoLector(velocidad) } : { text: clean }),
+  })
+
+  if (!res.ok) {
+    const body = await res.text()
+    return NextResponse.json({ error: `TTS error ${res.status}: ${body}` }, { status: res.status })
+  }
+
+  const audio = await res.arrayBuffer()
+  const marcas = lector ? res.headers.get('x-marcas') : null
+  return new NextResponse(audio, {
+    headers: {
+      'Content-Type': res.headers.get('content-type') || 'audio/mpeg',
+      // Cuánto aceleró el servidor de verdad (un agent-server anterior no lo manda: el cliente lo toma como 1x).
+      ...(lector ? { 'X-Tempo': res.headers.get('x-tempo') ?? '1' } : {}),
+      // Sin marcas (voz-agentes, agent-server anterior al 29 oct): el cliente usa su respaldo (tiempos-estimados.ts).
+      ...(marcas ? { 'X-Marcas': marcas } : {}),
+      'Cache-Control': lector ? 'private, max-age=86400' : 'no-store',
+    },
+  })
+}

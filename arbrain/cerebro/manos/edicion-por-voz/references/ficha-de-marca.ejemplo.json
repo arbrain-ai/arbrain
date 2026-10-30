@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "marca": { "nombre": "Mi marca" },
+  "paleta": {
+    "fondo": "#101418",
+    "texto": "#FFFFFF",
+    "primario": "#2F80ED",
+    "acento": "#F2C94C"
+  },
+  "logo": null,
+  "tipografia": {
+    "subtitulos": null,
+    "nota": "null usa una fuente en negrita del sistema. Puedes poner la ruta de un .ttf/.otf."
+  },
+  "tono": {
+    "voz": "directo y cálido",
+    "audiencia": "dueños de negocios pequeños"
+  },
+  "referentes": [
+    { "titulo": "Video que me gusta 1", "url_o_ruta": "https://ejemplo.com/video-1", "por_que": "ritmo parejo y cortes limpios" },
+    { "titulo": "Video que me gusta 2", "url_o_ruta": "https://ejemplo.com/video-2", "por_que": "subtítulos solo en lo importante" }
+  ],
+  "preferencias": {
+    "ritmo": "medio",
+    "subtitulos": "frases_clave",
+    "formato_principal": "horizontal"
+  },
+  "privacidad": {
+    "proveedor_confirmado": null,
+    "confirmado_en": null
+  }
+}

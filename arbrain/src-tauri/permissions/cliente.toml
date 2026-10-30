@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-cliente"
+description = "Edición cliente: estado visible y autocuración (salud_app, salud_reintentar), estado y reinicio del daemon que viaja con la app, y las llaves BYOK del alumno en el llavero del sistema (solo tres nombres; la web nunca recibe el valor completo), y abrir enlaces https sin pasar la URL por los argumentos de un proceso (red team OAuth, M2). Solo se concede en tiempo de ejecución al origen exacto del servidor local de la edición cliente."
+commands.allow = ["daemon_estado", "daemon_reiniciar", "salud_app", "salud_reintentar", "llaves_estado", "llave_guardar", "llave_leer", "llave_borrar", "abrir_enlace"]

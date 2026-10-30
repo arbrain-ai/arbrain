@@ -1,0 +1,159 @@
+/* La revisión del domingo (24 oct 2026): UNA pantalla con la forma del circuito cibernético, para enseñarlo con ella.
+   Cuatro etapas unidas por un hilo por el que corre un pulso (lo único que se mueve) y el lazo de regreso abajo. Sin scroll en
+   1920×1080; en el teléfono las etapas se apilan y el hilo baja. */
+.capa { position: fixed; inset: 0; z-index: 70; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--background) 72%, transparent); backdrop-filter: blur(10px) saturate(1.1);
+  animation: aparece 260ms ease-out; container-type: inline-size; container-name: domingo; }
+@keyframes aparece { from { opacity: 0; } }
+.pantalla { --serif-d: var(--serif, ui-serif, 'New York', 'Iowan Old Style', Georgia, serif); --linea-d: color-mix(in srgb, var(--foreground) 9%, transparent);
+  --oro-d: var(--oro-texto, color-mix(in srgb, var(--gold-dark, var(--gold)) 74%, var(--l-gris-0, #000)));
+  position: relative; flex: 0 1 auto; width: min(1640px, calc(100% - 36px)); max-height: calc(100% - 36px); display: flex; flex-direction: column; gap: 18px; padding: 24px 28px 20px; min-height: 0; overflow: auto;
+  border-radius: 20px; background: var(--card); border: 1px solid var(--linea-d); box-shadow: 0 30px 80px -30px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.45); color: var(--foreground); font-size: 13px; }
+:global(.dark) .pantalla { --oro-d: var(--gold-bright, var(--gold)); }
+
+.cabeza { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.titulo { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.ceja { margin: 0; font-size: 10.5px; font-weight: 750; letter-spacing: 1.5px; text-transform: uppercase; color: var(--oro-d); }
+.titulo h2 { margin: 0; display: flex; align-items: center; gap: 4px; font-family: var(--serif-d); font-size: 26px; font-weight: 600; letter-spacing: -.4px; line-height: 1.15; }
+.flecha { display: grid; place-items: center; width: 28px; height: 28px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; }
+.flecha:hover { background: color-mix(in srgb, var(--foreground) 6%, transparent); color: var(--foreground); }
+.objetivo { margin: 0; display: flex; gap: 8px; align-items: baseline; font-family: var(--serif-d); font-style: italic; font-size: 15px; color: color-mix(in srgb, var(--foreground) 82%, var(--muted)); }
+.objetivo span { font-family: var(--font-sans, inherit); font-style: normal; font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); }
+.cerrar { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border: 0; border-radius: 10px; background: color-mix(in srgb, var(--foreground) 5%, transparent); color: var(--foreground); cursor: pointer; }
+.cerrar:hover { background: color-mix(in srgb, var(--foreground) 10%, transparent); }
+
+/* El circuito: cuatro etapas y el hilo entre ellas. */
+.circuito { list-style: none; margin: 0; padding: 0; flex: 0 1 auto; min-height: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 34px; }
+.etapa { position: relative; display: flex; flex-direction: column; gap: 12px; min-width: 0; min-height: 0; padding: 16px 16px 14px; border-radius: 16px;
+  background: color-mix(in srgb, var(--foreground) 2.2%, var(--card)); border: 1px solid var(--linea-d);
+  animation: sube 520ms cubic-bezier(.16, 1, .3, 1) backwards; animation-delay: calc(var(--i, 0) * 70ms); }
+@keyframes sube { from { opacity: 0; transform: translateY(8px); } }
+.etapa[data-etapa='actuador'] { border-color: var(--l-borde-ambar, color-mix(in srgb, var(--gold) 40%, transparent)); background: linear-gradient(170deg, color-mix(in srgb, var(--gold) 7%, var(--card)), var(--card) 60%); }
+/* El hilo: de una etapa a la siguiente, con la punta de flecha y un pulso que corre (el sensor alimenta al comparador…). */
+.etapa:not(:last-child)::after { content: ''; position: absolute; top: 34px; right: -34px; width: 34px; height: 2px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--foreground) 22%, transparent), color-mix(in srgb, var(--foreground) 22%, transparent)); }
+.etapa:not(:last-child)::before { content: ''; position: absolute; top: 30px; right: -34px; width: 0; height: 0; border-left: 7px solid color-mix(in srgb, var(--foreground) 35%, transparent);
+  border-top: 5px solid transparent; border-bottom: 5px solid transparent; transform: translateX(1px); z-index: 1; }
+.etapa:not(:last-child) h3::after { content: ''; position: absolute; top: 31px; right: -30px; width: 8px; height: 8px; border-radius: 50%; background: var(--gold);
+  box-shadow: 0 0 10px rgba(var(--l-halo-ambar-rgb, var(--gold-rgb)), 0.7); animation: pulso 2.8s cubic-bezier(.6, 0, .4, 1) infinite; animation-delay: calc(var(--i, 0) * .7s); opacity: 0; }
+@keyframes pulso { 0% { transform: translateX(0); opacity: 0; } 12% { opacity: 1; } 40% { transform: translateX(22px); opacity: 0; } 100% { opacity: 0; transform: translateX(22px); } }
+.etapa h3 { margin: 0; display: flex; align-items: baseline; gap: 8px; font-size: 11px; font-weight: 750; letter-spacing: 1.4px; text-transform: uppercase; }
+.etapa h3 b { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 6px; font-size: 11px; letter-spacing: 0; color: var(--background); background: var(--foreground); }
+.etapa[data-etapa='actuador'] h3 b { background: var(--gold); color: var(--l-gris-3, #1a1206); }
+.etapa h3 small { font-size: 11px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--muted); }
+
+/* Sensor. */
+.lecturas { margin: 0; display: flex; flex-direction: column; }
+.lecturas div { display: flex; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--linea-d); }
+.lecturas div:last-child { border-bottom: 0; }
+.lecturas dt { color: var(--muted); font-size: 12.5px; }
+.lecturas dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+.desde { margin: 0; font-size: 11.5px; color: var(--muted); }
+.foto { margin: auto 0 0; padding: 10px 11px; border-radius: 10px; font-size: 12px; line-height: 1.45; color: color-mix(in srgb, var(--foreground) 80%, var(--muted)); background: color-mix(in srgb, var(--foreground) 4%, transparent); }
+.foto[data-estado='nueva'] { background: color-mix(in srgb, var(--gold) 10%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 30%, transparent); }
+
+/* Comparador. */
+.grande { display: flex; flex-direction: column; gap: 10px; }
+.cifra { margin: 0; display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; }
+.cifra span { font-family: var(--serif-d); font-size: 34px; font-weight: 650; letter-spacing: -.6px; line-height: 1; font-variant-numeric: tabular-nums; }
+.cifra[style] span { color: var(--oro-d); }
+.cifra small { font-size: 12.5px; color: var(--muted); }
+.barras { display: flex; flex-direction: column; gap: 7px; }
+.barra { display: grid; grid-template-columns: 34px 1fr; align-items: center; gap: 8px; font-size: 11px; font-weight: 650; color: var(--muted); }
+.tira { display: flex; height: 12px; border-radius: 4px; overflow: hidden; background: color-mix(in srgb, var(--foreground) 5%, transparent); }
+.tira i { display: block; height: 100%; background: var(--c); min-width: 2px; }
+.tira i + i { box-shadow: inset 1px 0 0 var(--card); }
+.tira em { font-size: 10px; font-style: normal; padding-left: 6px; line-height: 12px; }
+.claves { list-style: none; margin: 2px 0 0 42px; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 3px 12px; }
+.claves li { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--muted); }
+.claves li i { width: 7px; height: 7px; border-radius: 2px; background: var(--c); }
+.claves li b { margin-left: auto; color: var(--foreground); font-weight: 600; font-variant-numeric: tabular-nums; }
+.diferencias { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.diferencias li { display: flex; align-items: baseline; gap: 7px; min-width: 0; font-size: 12.5px; }
+.diferencias li span { flex: none; font-size: 9.5px; font-weight: 750; letter-spacing: .8px; text-transform: uppercase; padding: 1px 6px; border-radius: 5px; color: var(--muted); background: color-mix(in srgb, var(--foreground) 6%, transparent); }
+.diferencias li small { margin-left: auto; flex: none; color: var(--muted); font-size: 11px; }
+
+/* Atenuador. */
+.subrotulo { margin: 2px 0 0; font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); }
+.asesinos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.asesinos li { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 6px 9px; border-radius: 8px; color: color-mix(in srgb, var(--foreground) 45%, var(--muted)); }
+.asesinos li b { font-weight: 600; font-size: 12.5px; }
+.asesinos li small { font-size: 10.5px; font-style: italic; }
+.asesinos li[data-visto] { color: var(--foreground); background: color-mix(in srgb, var(--foreground) 4%, transparent); }
+.asesinos li[data-dominante] { background: rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.13); box-shadow: inset 3px 0 0 var(--l-halo-ambar, var(--gold)); }
+.senal { margin: 0; font-size: 13px; line-height: 1.45; font-family: var(--serif-d); }
+.senal small { display: block; margin-top: 3px; font-family: var(--font-sans, inherit); font-size: 11px; color: var(--muted); }
+.pliegue { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.pliegue li { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }
+.pliegue li b { color: var(--foreground); font-variant-numeric: tabular-nums; }
+
+/* Actuador. */
+.propuesta { display: flex; flex-direction: column; gap: 10px; }
+.verbo { margin: 0; display: flex; align-items: flex-start; gap: 8px; font-family: var(--serif-d); font-size: 20px; font-weight: 600; line-height: 1.2; letter-spacing: -.2px; }
+.verbo svg { flex: none; margin-top: 4px; color: var(--oro-d); }
+.bloque { margin: 0; display: grid; grid-template-columns: auto 1fr; column-gap: 8px; align-items: center; padding: 9px 11px; border-radius: 10px;
+  background: color-mix(in srgb, var(--c) 12%, transparent); box-shadow: inset 3px 0 0 var(--c); }
+.bloque i { grid-row: 1 / span 2; width: 8px; height: 8px; border-radius: 2px; background: var(--c); }
+.bloque span { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bloque small { color: var(--muted); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.porque { margin: 0; font-size: 12.5px; line-height: 1.45; color: color-mix(in srgb, var(--foreground) 78%, var(--muted)); }
+.aplicar { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 40px; border: 0; border-radius: 11px; font: inherit; font-size: 14px; font-weight: 750; cursor: pointer;
+  color: var(--l-gris-3, #1a1206); background: var(--gold); box-shadow: 0 10px 24px -12px rgba(var(--l-halo-ambar-rgb, var(--gold-rgb)), 0.9); transition: transform 120ms; }
+.aplicar:hover { transform: translateY(-1px); }
+.aplicar:disabled { opacity: .55; cursor: default; transform: none; }
+.hecho { margin: 0; display: flex; align-items: center; gap: 7px; font-weight: 650; }
+.hecho svg { color: var(--oro-d); }
+.hecho button { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 10px; border: 0; border-radius: 8px; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+  color: var(--foreground); background: color-mix(in srgb, var(--foreground) 7%, transparent); }
+.nota { margin: 0; font-size: 11.5px; line-height: 1.45; color: var(--muted); }
+.error { margin: 0; font-size: 12px; border-left: 2px solid var(--gold); padding-left: 8px; }
+
+/* El lazo: del actuador de vuelta al sensor. */
+.lazo { position: relative; margin: -4px 12% 0; height: 22px; border: 2px solid color-mix(in srgb, var(--foreground) 14%, transparent); border-top: 0; border-radius: 0 0 16px 16px; }
+.lazo span { position: absolute; left: 50%; bottom: -9px; transform: translateX(-50%); padding: 0 10px; background: var(--card); font-size: 11px; font-style: italic; font-family: var(--serif-d); color: var(--muted); white-space: nowrap; }
+.lazo::before { content: ''; position: absolute; left: -6px; top: -2px; border-bottom: 7px solid color-mix(in srgb, var(--foreground) 30%, transparent); border-left: 5px solid transparent; border-right: 5px solid transparent; }
+
+@container domingo (max-width: 1100px) {
+  .circuito { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+  .etapa:not(:last-child)::after, .etapa:not(:last-child)::before, .etapa:not(:last-child) h3::after { display: none; }
+  .lazo { display: none; }
+}
+@container domingo (max-width: 640px) {
+  .capa { align-items: stretch; }
+  .pantalla { width: 100%; max-height: 100%; border-radius: 0; padding: 16px 14px 20px; }
+  .titulo h2 { font-size: 21px; }
+  .circuito { grid-template-columns: 1fr; gap: 22px; flex: none; }
+  .etapa:not(:last-child)::after { display: block; top: auto; bottom: -22px; right: auto; left: 26px; width: 2px; height: 22px; }
+  .etapa:not(:last-child)::before { display: block; top: auto; bottom: -24px; right: auto; left: 22px; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 7px solid color-mix(in srgb, var(--foreground) 35%, transparent); border-bottom: 0; transform: none; }
+  .cifra span { font-size: 28px; }
+}
+@media (prefers-reduced-motion: reduce) { .capa, .etapa { animation: none; } .etapa:not(:last-child) h3::after { display: none; } }
+
+/* Ronda 1 del crítico: menos números. El sensor es una frase; el comparador, solo el desvío; el atenuador, solo el asesino que apareció. */
+.leido { margin: 0; font-family: var(--serif-d); font-size: 16px; line-height: 1.5; }
+.leido b { font-family: var(--font-sans, inherit); font-size: 14px; font-weight: 650; }
+.desvios { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.desvios li { display: grid; grid-template-columns: 82px 1fr 52px; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+.desvios li i { position: relative; height: 10px; border-radius: 3px; background: color-mix(in srgb, var(--foreground) 5%, transparent); }
+.desvios li i::after { content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: calc(var(--w) / 2); border-radius: 3px; background: var(--c); }
+.desvios li[data-signo='-'] i::after { left: auto; right: 50%; opacity: .55; }
+.desvios li b { text-align: right; color: var(--foreground); font-variant-numeric: tabular-nums; }
+.igual { margin: 0; font-size: 13px; color: color-mix(in srgb, var(--foreground) 78%, var(--muted)); }
+.cinco { display: inline-flex; gap: 4px; margin-left: 8px; vertical-align: middle; }
+.cinco i { width: 7px; height: 7px; border-radius: 50%; background: color-mix(in srgb, var(--foreground) 14%, transparent); }
+.cinco i[data-on] { background: var(--gold); box-shadow: 0 0 6px color-mix(in srgb, var(--gold) 70%, transparent); }
+.asesino { margin: 0; display: flex; align-items: baseline; gap: 8px; font-family: var(--serif-d); font-size: 20px; }
+.asesino small { font-size: 12px; font-style: italic; color: var(--muted); }
+.pliegaLinea { margin: auto 0 0; font-size: 12px; color: var(--muted); line-height: 1.45; }
+@container domingo (max-width: 640px) {
+  .etapa[data-etapa='actuador'] { order: -1; }
+  .etapa[data-etapa='actuador']::after, .etapa[data-etapa='actuador']::before { display: none !important; }
+}
+/* Tres números (25 oct 2026): Producir, interrupciones en R/D y la tasa de recompra; un poco más bajos para caber en la etapa. */
+.grande[data-tres] { gap: 8px; }
+.grande[data-tres] .cifra span, .grande[data-tres] .tasa input { font-size: 28px; }
+.sinMedir { font-family: inherit !important; font-size: 18px !important; font-weight: 650; color: var(--muted); letter-spacing: 0 !important; }
+.tasa { display: inline-flex; align-items: baseline; gap: 2px; }
+.tasaSigno { font-family: var(--serif-d); font-size: 22px; color: var(--muted); }
+.tasa input { width: 4.2ch; padding: 0 2px; border: 0; border-bottom: 1px dashed color-mix(in srgb, var(--foreground) 25%, transparent); background: transparent; color: var(--foreground);
+  font-family: var(--serif-d); font-weight: 650; letter-spacing: -.6px; line-height: 1; font-variant-numeric: tabular-nums; outline: none; }
+.tasa input:focus { border-bottom-color: color-mix(in srgb, var(--foreground) 55%, transparent); }

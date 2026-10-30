@@ -1,0 +1,40 @@
+{
+  "contrato": "docs/builds/empaquetado-2026-10-11/CONTRATO-DAEMON.md",
+  "comando": "npm run build:cliente -- <destino>",
+  "extras": [
+    "src/modelos/catalogos",
+    "manos-windows/src"
+  ],
+  "excluir_de_la_copia": [
+    "src/daniel/**",
+    ".env*",
+    "store/**",
+    "logs/**",
+    "launchd/**",
+    "services/**",
+    "manos-casa/**",
+    "ml/**",
+    "scripts/**",
+    "lib/**",
+    "servidores.json"
+  ],
+  "conservar_en_la_copia": [
+    "AGENTS.md",
+    "empaquetado.json",
+    "package-lock.json",
+    "package.json",
+    "scripts/build-cliente.mjs",
+    "scripts/subagentes/**",
+    "tests/**",
+    "tsconfig.cliente.json",
+    "tsconfig.json",
+    "vitest.config.ts"
+  ],
+  "notas": {
+    "extras": "Lo que el daemon lee FUERA de dist en tiempo de ejecución (relativo a la carpeta del daemon). build:cliente lo copia tal cual.",
+    "src/daniel": "Crons, prompts e identidades de Daniel. El núcleo no lo importa estáticamente: scheduler.ts lo carga con especificador variable fuera de la edición cliente y consejo/identidades.ts lee su JSON si existe. La copia del alumno compila y pasa sus pruebas sin esta carpeta.",
+    "manos-windows/src": "Fuentes C# de las manos de Windows: adaptadores/windows.ts las compila la primera vez con el csc de Windows si el instalador no trae ManosWindows.exe (MANOS_WINDOWS_EXE). Plan: docs/builds/manos-windows-2026-10-17/EMPAQUETADO.md.",
+    "scripts/subagentes": "pastor.mjs y con-entorno.sh: los usa delegar sin pantalla (cabina/sin-pantalla.ts) en tiempo de ejecución; sin datos de nadie.",
+    "manos-casa": "No va en el daemon: en macOS la app del alumno lleva ArbrainManos.app aparte (src-tauri/resources/manos, armada por arbrain/scripts/empaquetar-manos-mac.mjs con bundle id ai.arbrain.manos.cliente). El adaptador casa la encuentra en <recursos>/manos y la app de escritorio la pasa como MANOS_CASA_APP."
+  }
+}

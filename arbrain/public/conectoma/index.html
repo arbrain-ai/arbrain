@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>Conectoma</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header id="hdr">
+    <div class="kicker">Conectoma</div>
+    <h1 id="titulo">…</h1>
+    <p class="sub" id="subtitulo"></p>
+    <div id="stats"></div>
+    <div id="leyenda"></div>
+  </header>
+
+  <div id="viewport">
+    <div id="camera">
+      <svg id="edges" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div id="nodes"></div>
+    </div>
+    <aside id="ficha" hidden>
+      <button id="fclose" aria-label="Cerrar">✕</button>
+      <div class="finner">
+        <div class="fkicker"></div>
+        <h2></h2>
+        <div class="chips"></div>
+        <p class="fresumen"></p>
+        <div class="ftechlabel">detalle técnico</div>
+        <p class="fdesc"></p>
+        <div class="frows"></div>
+      </div>
+    </aside>
+  </div>
+
+  <div id="indexView" hidden></div>
+
+  <script src="dagre.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

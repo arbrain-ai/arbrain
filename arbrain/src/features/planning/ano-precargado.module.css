@@ -1,0 +1,16 @@
+/* El Año Precargado en el Mes (25 oct 2026). Base limpia (estilo Salud): sin titanio ni brillo; el tipo se dice con una palabra. */
+.caja { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--foreground) 8%, transparent);
+  background: color-mix(in srgb, var(--foreground) 2%, transparent); }
+.rotulo { margin: 0; display: flex; align-items: baseline; gap: 8px; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.rotulo small { font-size: 11px; font-weight: 500; letter-spacing: 0; text-transform: none; }
+.nota { margin: 0; font-size: 12.5px; color: var(--muted); line-height: 1.45; }
+.lista, .piedras { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.lista li { display: grid; grid-template-columns: 84px 1fr; column-gap: 10px; align-items: baseline; }
+.lista li b { font-size: 13.5px; font-weight: 600; line-height: 1.3; }
+.lista li small { grid-column: 2; font-size: 11.5px; color: var(--muted); }
+.tipo { font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.lista li[data-tipo='premio'] .tipo { color: var(--oro-d, var(--l-tinta-ambar-oscura, #c77400)); }
+.piedras { padding-top: 6px; border-top: 1px solid color-mix(in srgb, var(--foreground) 6%, transparent); }
+.piedras li { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; color: var(--muted); }
+.piedras li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.piedras li small { flex: none; font-size: 11px; }

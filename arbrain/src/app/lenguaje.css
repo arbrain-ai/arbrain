@@ -1,0 +1,343 @@
+/* =============================================================================
+   LENGUAJE UNIFICADO · tokens únicos de Arbrain (27 oct 2026)
+   Nace del botón de enviar del chat (boton-enviar.module.css): una tecla de titanio que se enciende desde dentro
+   cuando hay algo que hacer. Gramática completa y tabla por componente: docs/builds/diseno-unificado-2026-10-27/LENGUAJE.md.
+
+   Vive SOLO con html[data-estilo='unificado'] (atajo ⇧T o Ajustes › Estilo). Sin ese atributo ningún token --l-*
+   existe y cada componente pinta el respaldo congelado de su `var(--l-…, literal)`: el estilo actual queda intacto.
+
+   Jerarquía de color:
+     neutros  la base limpia de Salud: casi todo es gris, la jerarquía la dan el tamaño, el peso y el aire.
+     ámbar    acción principal o atención. Una pieza por pantalla (en el chat, la tecla de enviar).
+     morado   identidad o estado (Levy, lo activo, el foco, «trabajando»). Siempre claro y AA sobre negro.
+     rojo     solo peligro o STOP.
+     verde/azul/rosa  colores de dato (gráficas, semáforos); nunca decoración.
+   ============================================================================= */
+
+html[data-estilo='unificado'] {
+  /* ── Rampas (absolutas; los respaldos de cada componente se ajustan al paso más cercano) ── */
+  --l-gris-0: #000000; --l-gris-1: #09090b; --l-gris-2: #0f0f12; --l-gris-3: #131318; --l-gris-4: #16161c;
+  --l-gris-5: #1c1c22; --l-gris-6: #24242b; --l-gris-7: #2e2e36; --l-gris-8: #3f3f46; --l-gris-9: #52525b;
+  --l-gris-10: #71717a; --l-gris-11: #a1a1aa; --l-gris-12: #d4d4d8; --l-gris-13: #e4e4e7; --l-gris-14: #f4f4f5;
+  --l-gris-15: #fafafa; --l-gris-16: #ffffff;
+  --l-morado-0: #f6f0ff; --l-morado-1: #ece0ff; --l-morado-2: #dcc6ff; --l-morado-3: #c7a6ff; --l-morado-4: #b388ff;
+  --l-morado-5: #a06bfa; --l-morado-6: #8c27f1; --l-morado-7: #7419d1; --l-morado-8: #5c14a6; --l-morado-9: #3f0e73;
+  --l-morado-10: #250844;
+  --l-ambar-0: #fff6e8; --l-ambar-1: #ffe3bd; --l-ambar-2: #ffc980; --l-ambar-3: #ffac3d; --l-ambar-4: #ff9101;
+  --l-ambar-5: #cc7301; --l-ambar-6: #a35c00; --l-ambar-7: #6b3c00; --l-ambar-8: #2a1700;
+  --l-rojo-0: #fef2f2; --l-rojo-1: #fecaca; --l-rojo-2: #fca5a5; --l-rojo-3: #f87171; --l-rojo-4: #ef4444;
+  --l-rojo-5: #dc2626; --l-rojo-6: #b91c1c; --l-rojo-7: #7f1d1d; --l-rojo-8: #2a0e0e;
+  --l-verde-0: #ecfdf5; --l-verde-1: #a7f3d0; --l-verde-2: #6ee7b7; --l-verde-3: #34d399; --l-verde-4: #10b981;
+  --l-verde-5: #059669; --l-verde-6: #047857; --l-verde-7: #064e3b; --l-verde-8: #022c22;
+  --l-azul-0: #f0f9ff; --l-azul-1: #bae6fd; --l-azul-2: #7dd3fc; --l-azul-3: #38bdf8; --l-azul-4: #0ea5e9;
+  --l-azul-5: #0284c7; --l-azul-6: #0369a1; --l-azul-7: #0c4a6e; --l-azul-8: #082f49;
+  --l-rosa-0: #fdf2f8; --l-rosa-1: #fbcfe8; --l-rosa-2: #f9a8d4; --l-rosa-3: #f472b6; --l-rosa-4: #ec4899;
+  --l-rosa-5: #db2777; --l-rosa-6: #be185d; --l-rosa-7: #831843; --l-rosa-8: #500724;
+
+  /* ── Rampas en canales RGB (para los colores translúcidos: el alfa del componente se conserva) ── */
+  --l-morado-0-rgb: 246, 240, 255; --l-morado-1-rgb: 236, 224, 255; --l-morado-2-rgb: 220, 198, 255; --l-morado-3-rgb: 199, 166, 255; --l-morado-4-rgb: 179, 136, 255; --l-morado-5-rgb: 160, 107, 250; --l-morado-6-rgb: 140, 39, 241; --l-morado-7-rgb: 116, 25, 209; --l-morado-8-rgb: 92, 20, 166; --l-morado-9-rgb: 63, 14, 115; --l-morado-10-rgb: 37, 8, 68;
+  --l-ambar-0-rgb: 255, 246, 232; --l-ambar-1-rgb: 255, 227, 189; --l-ambar-2-rgb: 255, 201, 128; --l-ambar-3-rgb: 255, 172, 61; --l-ambar-4-rgb: 255, 145, 1; --l-ambar-5-rgb: 204, 115, 1; --l-ambar-6-rgb: 163, 92, 0; --l-ambar-7-rgb: 107, 60, 0; --l-ambar-8-rgb: 42, 23, 0;
+  --l-rojo-0-rgb: 254, 242, 242; --l-rojo-1-rgb: 254, 202, 202; --l-rojo-2-rgb: 252, 165, 165; --l-rojo-3-rgb: 248, 113, 113; --l-rojo-4-rgb: 239, 68, 68; --l-rojo-5-rgb: 220, 38, 38; --l-rojo-6-rgb: 185, 28, 28; --l-rojo-7-rgb: 127, 29, 29; --l-rojo-8-rgb: 42, 14, 14;
+  --l-verde-0-rgb: 236, 253, 245; --l-verde-1-rgb: 167, 243, 208; --l-verde-2-rgb: 110, 231, 183; --l-verde-3-rgb: 52, 211, 153; --l-verde-4-rgb: 16, 185, 129; --l-verde-5-rgb: 5, 150, 105; --l-verde-6-rgb: 4, 120, 87; --l-verde-7-rgb: 6, 78, 59; --l-verde-8-rgb: 2, 44, 34;
+  --l-azul-0-rgb: 240, 249, 255; --l-azul-1-rgb: 186, 230, 253; --l-azul-2-rgb: 125, 211, 252; --l-azul-3-rgb: 56, 189, 248; --l-azul-4-rgb: 14, 165, 233; --l-azul-5-rgb: 2, 132, 199; --l-azul-6-rgb: 3, 105, 161; --l-azul-7-rgb: 12, 74, 110; --l-azul-8-rgb: 8, 47, 73;
+  --l-rosa-0-rgb: 253, 242, 248; --l-rosa-1-rgb: 251, 207, 232; --l-rosa-2-rgb: 249, 168, 212; --l-rosa-3-rgb: 244, 114, 182; --l-rosa-4-rgb: 236, 72, 153; --l-rosa-5-rgb: 219, 39, 119; --l-rosa-6-rgb: 190, 24, 93; --l-rosa-7-rgb: 131, 24, 67; --l-rosa-8-rgb: 80, 7, 36;
+
+  /* ── Forma y movimiento (los del botón de enviar) ── */
+  --l-radio-chip: 6px; --l-radio-control: 10px; --l-radio-tarjeta: 14px; --l-radio-contenedor: 20px;
+  --l-curva-aterriza: cubic-bezier(0.34, 1.32, 0.64, 1);  /* hover y regreso: llega con un rebote mínimo */
+  --l-curva-anticipa: cubic-bezier(0.5, 0, 0.75, 0);      /* presionar: acelera hacia abajo, se siente la tecla */
+  --l-curva-salida: cubic-bezier(0.16, 1, 0.3, 1);        /* luz y aparición: rápida al inicio, se posa */
+  --l-dur-presion: 110ms; --l-dur-respuesta: 240ms; --l-dur-encendido: 520ms; --l-retardo-encendido: 90ms;
+  --l-sube: -1px; --l-hunde: 1px; --l-escala-presion: 0.975;
+
+  /* ── Constantes de la tecla ── */
+  --l-luz-rgb: 255, 255, 255;
+  --l-sombra-rgb: 0, 0, 0;
+  --l-ambar-rgb: 255, 145, 1;
+  --l-ambar-vivo-rgb: 255, 172, 61;
+  --l-rojo-rgb: 239, 68, 68;
+  --l-verde-rgb: 16, 185, 129;
+  --l-azul-rgb: 14, 165, 233;
+  --l-rosa-rgb: 236, 72, 153;
+  --l-halo-morado-rgb: 0, 0, 0; --l-halo-ambar-rgb: 0, 0, 0;
+  --l-halo-morado: transparent; --l-halo-ambar: transparent;
+
+  /* ── Tintas fijas por luz (no siguen al tema): texto que el original pintó claro vive sobre algo oscuro y viceversa ── */
+  --l-tinta-morado-clara: #c7a6ff; --l-tinta-morado-oscura: #7419d1;
+  --l-tinta-rojo-clara: #fca5a5;   --l-tinta-rojo-oscura: #b91c1c;
+  --l-tinta-verde-clara: #6ee7b7;  --l-tinta-verde-oscura: #047857;
+  --l-tinta-azul-clara: #7dd3fc;   --l-tinta-azul-oscura: #0369a1;
+  --l-tinta-rosa-clara: #f9a8d4;   --l-tinta-rosa-oscura: #be185d;
+  /* El ámbar no es color de texto: es la luz de la acción principal. El texto que era ámbar pasa a neutro fuerte y la señal
+     la da el punto, la línea o la tecla que lo acompaña. */
+  --l-tinta-ambar-clara: #f4f4f5;  --l-tinta-ambar-oscura: #18181b;
+}
+
+/* ── Claro ── */
+html[data-estilo='unificado']:not(.dark) {
+  --l-fondo: #f4f4f5; --l-superficie: #fafafa; --l-placa: #ffffff; --l-placa-hover: #f8f8f9;
+  --l-borde: rgba(15, 17, 21, 0.09); --l-borde-fuerte: rgba(15, 17, 21, 0.16);
+  --l-tinta-1: #0f1115; --l-tinta-2: #52525b; --l-tinta-3: #71717a;
+  --l-identidad: #8c27f1; --l-identidad-rgb: 140, 39, 241; --l-morado-rgb: 140, 39, 241;
+  --l-tinta-morado: #7419d1;   /* 7.5:1 sobre blanco */
+  --l-tinta-ambar: #18181b;    /* el ámbar no es tinta: neutro fuerte (ver arriba) */
+  --l-tinta-rojo: #b91c1c; --l-tinta-verde: #047857; --l-tinta-azul: #0369a1; --l-tinta-rosa: #be185d; --l-tinta-gris: #52525b;
+  --l-borde-morado: var(--l-borde); --l-borde-ambar: var(--l-borde);
+  --l-ceja-morado: var(--l-tinta-2); --l-ceja-ambar: var(--l-tinta-2);   /* versalitas en gris, como en Salud */
+  --l-velo-morado-rgb: 15, 17, 21; --l-velo-ambar-rgb: 15, 17, 21;
+  --l-foco: rgba(140, 39, 241, 0.55);
+  --l-sombra-placa: 0 1px 2px rgba(15, 17, 21, 0.05);
+  /* Tecla apagada (la tapa de titanio del botón de enviar sin luz): controles que importan pero no son LA acción. */
+  --l-tecla-cara: linear-gradient(180deg, #ffffff, #f6f6f8);
+  --l-tecla-canto: rgba(15, 17, 21, 0.10);
+  --l-tecla-sombra: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 1px 1px rgba(0, 0, 0, 0.10), 0 3px 6px -3px rgba(0, 0, 0, 0.22);
+  --l-tecla-tinta: #0f1115;
+  --l-sombra-flotante: 0 1px 2px rgba(15, 17, 21, 0.06), 0 12px 32px -8px rgba(15, 17, 21, 0.16);
+}
+
+/* ── Oscuro ── */
+html.dark[data-estilo='unificado'] {
+  --l-fondo: #09090b; --l-superficie: #0f0f12; --l-placa: #141418; --l-placa-hover: #1a1a1f;
+  --l-borde: rgba(255, 255, 255, 0.08); --l-borde-fuerte: rgba(255, 255, 255, 0.14);
+  --l-tinta-1: #f4f4f5; --l-tinta-2: #a1a1aa; --l-tinta-3: #8a8a94;
+  /* Relleno sólido con texto blanco encima: morado profundo (blanco 5.7:1). Velos y anillos translúcidos: morado claro. */
+  --l-identidad: #7c3aed; --l-identidad-rgb: 167, 139, 250; --l-morado-rgb: 167, 139, 250;
+  --l-tinta-morado: #b388ff;   /* 6.8:1 sobre la placa; el morado de marca puro daba 3.2:1 */
+  --l-tinta-ambar: #f4f4f5; --l-tinta-rojo: #f87171; --l-tinta-verde: #34d399; --l-tinta-azul: #7dd3fc;
+  --l-tinta-rosa: #f9a8d4; --l-tinta-gris: #a1a1aa;
+  --l-borde-morado: var(--l-borde); --l-borde-ambar: var(--l-borde);
+  --l-ceja-morado: var(--l-tinta-2); --l-ceja-ambar: var(--l-tinta-2);
+  --l-velo-morado-rgb: 190, 190, 205; --l-velo-ambar-rgb: 190, 190, 205;
+  --l-foco: rgba(179, 136, 255, 0.6);
+  --l-sombra-placa: none;
+  --l-tecla-cara: linear-gradient(180deg, #2c2c34, #222228);
+  --l-tecla-canto: rgba(255, 255, 255, 0.09);
+  --l-tecla-sombra: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 1px 1px rgba(0, 0, 0, 0.6), 0 4px 9px -4px rgba(0, 0, 0, 0.7);
+  --l-tecla-tinta: #f4f4f5;
+  /* El morado translúcido (estado, selección) usa el morado claro: nunca morado oscuro sobre negro. */
+  --brand-rgb: 179, 136, 255;
+  --l-sombra-flotante: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 18px 48px -12px rgba(0, 0, 0, 0.7);
+}
+
+/* ── El sistema actual (globals.css) habla el lenguaje nuevo: sus tokens apuntan a los roles. ── */
+html[data-estilo='unificado'] {
+  --background: var(--l-fondo); --surface: var(--l-superficie); --surface-elevated: var(--l-placa-hover);
+  --card: var(--l-placa); --card-hover: var(--l-placa-hover); --card-active: var(--l-placa-hover);
+  --foreground: var(--l-tinta-1); --muted: var(--l-tinta-2);
+  --primary: var(--l-identidad); --primary-rgb: var(--l-identidad-rgb); --accent-purple: var(--l-tinta-morado);
+  --neon-purple: var(--l-identidad); --brand-ink: var(--l-tinta-morado);
+  --border-accent: var(--l-borde); --border-subtle: var(--l-borde);
+  --glass-border: var(--l-borde); --glass-border-strong: var(--l-borde-fuerte); --glass-glow: transparent;
+  --shadow-xs: var(--l-sombra-placa); --shadow-sm: var(--l-sombra-placa);
+  --shadow-md: var(--l-sombra-flotante); --shadow-lg: var(--l-sombra-flotante);
+  --depth-rest: var(--l-sombra-placa); --depth-rest-soft: var(--l-sombra-placa);
+  --depth-hover: var(--l-sombra-flotante); --depth-anchor: var(--l-sombra-flotante);
+  --glow-purple: none; --glow-purple-strong: none; --glow-gold: none; --glow-gold-strong: none;
+}
+html[data-estilo='unificado']:not(.dark) { --border: #e4e4e7; --border-default: #e4e4e7; --error: var(--l-tinta-rojo); /* #ef4444 daba 3.8:1 en claro */ }
+html.dark[data-estilo='unificado'] { --border: #26262c; --border-default: #26262c; }
+
+/* ── Gramática de interacción (débil a propósito: :where no suma especificidad; cualquier componente la puede afinar) ──
+   Lo que toda la app hereda del botón de enviar es el MOVIMIENTO y el foco, no el material: la tecla iluminada se
+   reserva para la acción principal. */
+html[data-estilo='unificado'] :where(button, [role='button'], [role='tab'], a[href]) {
+  transition-property: color, background-color, border-color, box-shadow, opacity, translate, scale;
+  transition-duration: var(--l-dur-respuesta);
+  transition-timing-function: var(--l-curva-salida);
+}
+html[data-estilo='unificado'] :where(button:not(:disabled), [role='button'], [role='tab']):active {
+  scale: 0.97;
+  transition-duration: var(--l-dur-presion);
+  transition-timing-function: var(--l-curva-anticipa);
+}
+html[data-estilo='unificado'] :where(button, [role='button'], [role='tab'], a[href]):focus-visible {
+  outline: 2px solid var(--l-foco);
+  outline-offset: 2px;
+}
+/* Material «tecla» listo para usar: .l-tecla (apagada) y .l-tecla-ambar (la acción principal, una por pantalla). */
+html[data-estilo='unificado'] .l-tecla {
+  background: var(--l-tecla-cara); color: var(--l-tecla-tinta);
+  border: 1px solid var(--l-tecla-canto); box-shadow: var(--l-tecla-sombra);
+  transition: translate var(--l-dur-respuesta) var(--l-curva-aterriza), box-shadow var(--l-dur-respuesta) var(--l-curva-salida);
+}
+@media (hover: hover) { html[data-estilo='unificado'] .l-tecla:not(:disabled):hover { translate: 0 var(--l-sube); } }
+html[data-estilo='unificado'] .l-tecla:not(:disabled):active { translate: 0 var(--l-hunde); scale: var(--l-escala-presion); transition-duration: var(--l-dur-presion); transition-timing-function: var(--l-curva-anticipa); }
+
+/* Filas elegidas con anillo de marca en Tailwind (Ajustes): el anillo pasa a borde neutro fuerte. */
+html[data-estilo='unificado'] [class~="shadow-[inset_0_0_0_1px_rgba(var(--brand-rgb),0.22)]"] { box-shadow: inset 0 0 0 1px var(--l-borde-fuerte); }
+
+/* Botón primario deshabilitado: tapa apagada neutra, nunca un lila lavado con texto blanco. */
+html[data-estilo='unificado'] .btn-primary:disabled { background: var(--l-tecla-cara); color: var(--l-tinta-3); border-color: var(--l-tecla-canto); box-shadow: none; opacity: 1; }
+
+/* Iconos de comandos de la paleta: un solo tono neutro; el color no decora (morado solo en la fila elegida). */
+html[data-estilo='unificado'] [data-icono-comando] { background: rgba(var(--l-velo-morado-rgb), 0.1); color: var(--l-tinta-2); }
+html[data-estilo='unificado'] [aria-selected='true'] [data-icono-comando] { background: rgba(var(--l-identidad-rgb), 0.16); color: var(--l-tinta-morado); }
+
+/* La paleta de comandos abre hacia arriba: en claro, su sombra es la flotante del sistema (no una mancha negra). */
+html[data-estilo='unificado']:not(.dark) [class~="shadow-[0_-4px_6px_-2px_rgba(0,0,0,0.35),0_-16px_48px_rgba(0,0,0,0.75)]"] {
+  box-shadow: 0 -1px 2px rgba(15, 17, 21, 0.06), 0 -12px 32px -10px rgba(15, 17, 21, 0.18);
+}
+
+html[data-estilo='unificado'] ::selection { background: rgba(var(--l-identidad-rgb), 0.28); }
+@media (prefers-reduced-motion: reduce) {
+  html[data-estilo='unificado'] :where(button, [role='button'], [role='tab']):active { scale: none; }
+}
+
+/* ── utilidades de color (generado por scripts/diseno/clases-tailwind.mjs; no editar a mano) ── */
+@layer utilities {
+  :where(html[data-estilo='unificado']) [class~="text-accent-purple"],
+  :where(html[data-estilo='unificado']) [class~="text-brand"],
+  :where(html[data-estilo='unificado']) [class~="text-brand-ink"],
+  :where(html[data-estilo='unificado']) [class~="text-brand-ink/90"],
+  :where(html[data-estilo='unificado']) [class~="text-fuchsia-400"],
+  :where(html[data-estilo='unificado']) [class~="text-indigo-400"],
+  :where(html[data-estilo='unificado']) [class~="text-primary"],
+  :where(html[data-estilo='unificado']) [class~="text-primary/70"],
+  :where(html[data-estilo='unificado']) [class~="text-purple-700"],
+  :where(html[data-estilo='unificado']) [class~="text-violet-300"],
+  :where(html[data-estilo='unificado']) [class~="text-violet-300/50"],
+  :where(html[data-estilo='unificado']) [class~="text-violet-400"],
+  :where(html[data-estilo='unificado']) [class~="text-violet-400/40"],
+  :where(html[data-estilo='unificado']) [class~="text-violet-400/50"],
+  :where(html[data-estilo='unificado']) [class~="text-violet-400/60"],
+  :where(html[data-estilo='unificado']) [class~="text-violet-400/70"] { color: var(--l-tinta-morado); text-decoration-color: currentColor; }
+  :where(html[data-estilo='unificado']) [class~="text-amber-200"],
+  :where(html[data-estilo='unificado']) [class~="text-amber-200/70"],
+  :where(html[data-estilo='unificado']) [class~="text-amber-300"],
+  :where(html[data-estilo='unificado']) [class~="text-amber-400"],
+  :where(html[data-estilo='unificado']) [class~="text-amber-400/60"],
+  :where(html[data-estilo='unificado']) [class~="text-amber-400/70"],
+  :where(html[data-estilo='unificado']) [class~="text-amber-50"],
+  :where(html[data-estilo='unificado']) [class~="text-amber-500"],
+  :where(html[data-estilo='unificado']) [class~="text-amber-500/80"],
+  :where(html[data-estilo='unificado']) [class~="text-amber-500/90"],
+  :where(html[data-estilo='unificado']) [class~="text-amber-600"],
+  :where(html[data-estilo='unificado']) [class~="text-amber-700"],
+  :where(html[data-estilo='unificado']) [class~="text-gold"],
+  :where(html[data-estilo='unificado']) [class~="text-gold-dark"],
+  :where(html[data-estilo='unificado']) [class~="text-gold/90"],
+  :where(html[data-estilo='unificado']) [class~="text-orange-300"],
+  :where(html[data-estilo='unificado']) [class~="text-orange-400"],
+  :where(html[data-estilo='unificado']) [class~="text-orange-600"],
+  :where(html[data-estilo='unificado']) [class~="text-orange-700"],
+  :where(html[data-estilo='unificado']) [class~="text-yellow-400"],
+  :where(html[data-estilo='unificado']) [class~="text-yellow-400/80"] { color: var(--l-tinta-ambar); text-decoration-color: currentColor; }
+  :where(html[data-estilo='unificado']) [class~="text-blue-300"],
+  :where(html[data-estilo='unificado']) [class~="text-blue-400"],
+  :where(html[data-estilo='unificado']) [class~="text-blue-400/50"],
+  :where(html[data-estilo='unificado']) [class~="text-blue-400/80"],
+  :where(html[data-estilo='unificado']) [class~="text-blue-700"],
+  :where(html[data-estilo='unificado']) [class~="text-cyan-200"],
+  :where(html[data-estilo='unificado']) [class~="text-cyan-300"],
+  :where(html[data-estilo='unificado']) [class~="text-cyan-400"],
+  :where(html[data-estilo='unificado']) [class~="text-cyan-700"],
+  :where(html[data-estilo='unificado']) [class~="text-sky-300"],
+  :where(html[data-estilo='unificado']) [class~="text-sky-400"] { color: var(--l-tinta-azul); text-decoration-color: currentColor; }
+  :where(html[data-estilo='unificado']) [class~="text-emerald-200"],
+  :where(html[data-estilo='unificado']) [class~="text-emerald-300"],
+  :where(html[data-estilo='unificado']) [class~="text-emerald-400"],
+  :where(html[data-estilo='unificado']) [class~="text-emerald-400/60"],
+  :where(html[data-estilo='unificado']) [class~="text-emerald-400/80"],
+  :where(html[data-estilo='unificado']) [class~="text-emerald-700"],
+  :where(html[data-estilo='unificado']) [class~="text-green-400"],
+  :where(html[data-estilo='unificado']) [class~="text-green-700"],
+  :where(html[data-estilo='unificado']) [class~="text-lime-400"],
+  :where(html[data-estilo='unificado']) [class~="text-success"],
+  :where(html[data-estilo='unificado']) [class~="text-teal-400"] { color: var(--l-tinta-verde); text-decoration-color: currentColor; }
+  :where(html[data-estilo='unificado']) [class~="text-error"],
+  :where(html[data-estilo='unificado']) [class~="text-error/60"],
+  :where(html[data-estilo='unificado']) [class~="text-red-100"],
+  :where(html[data-estilo='unificado']) [class~="text-red-200"],
+  :where(html[data-estilo='unificado']) [class~="text-red-200/50"],
+  :where(html[data-estilo='unificado']) [class~="text-red-300"],
+  :where(html[data-estilo='unificado']) [class~="text-red-300/80"],
+  :where(html[data-estilo='unificado']) [class~="text-red-400"],
+  :where(html[data-estilo='unificado']) [class~="text-red-400/50"],
+  :where(html[data-estilo='unificado']) [class~="text-red-400/60"],
+  :where(html[data-estilo='unificado']) [class~="text-red-400/70"],
+  :where(html[data-estilo='unificado']) [class~="text-red-400/80"],
+  :where(html[data-estilo='unificado']) [class~="text-red-400/85"],
+  :where(html[data-estilo='unificado']) [class~="text-red-500"],
+  :where(html[data-estilo='unificado']) [class~="text-red-600"],
+  :where(html[data-estilo='unificado']) [class~="text-red-700"],
+  :where(html[data-estilo='unificado']) [class~="text-red-800"],
+  :where(html[data-estilo='unificado']) [class~="text-rose-300"],
+  :where(html[data-estilo='unificado']) [class~="text-rose-400"] { color: var(--l-tinta-rojo); text-decoration-color: currentColor; }
+  :where(html[data-estilo='unificado']) [class~="border-accent-purple/40"],
+  :where(html[data-estilo='unificado']) [class~="border-brand"],
+  :where(html[data-estilo='unificado']) [class~="border-brand/20"],
+  :where(html[data-estilo='unificado']) [class~="border-brand/25"],
+  :where(html[data-estilo='unificado']) [class~="border-brand/30"],
+  :where(html[data-estilo='unificado']) [class~="border-brand/35"],
+  :where(html[data-estilo='unificado']) [class~="border-brand/40"],
+  :where(html[data-estilo='unificado']) [class~="border-brand/50"],
+  :where(html[data-estilo='unificado']) [class~="border-brand/60"],
+  :where(html[data-estilo='unificado']) [class~="border-primary"],
+  :where(html[data-estilo='unificado']) [class~="border-primary/15"],
+  :where(html[data-estilo='unificado']) [class~="border-primary/20"],
+  :where(html[data-estilo='unificado']) [class~="border-primary/25"],
+  :where(html[data-estilo='unificado']) [class~="border-primary/30"],
+  :where(html[data-estilo='unificado']) [class~="border-primary/40"],
+  :where(html[data-estilo='unificado']) [class~="border-primary/50"],
+  :where(html[data-estilo='unificado']) [class~="border-primary/60"],
+  :where(html[data-estilo='unificado']) [class~="border-purple-400/30"],
+  :where(html[data-estilo='unificado']) [class~="border-t-brand"],
+  :where(html[data-estilo='unificado']) [class~="border-violet-400/20"],
+  :where(html[data-estilo='unificado']) [class~="border-violet-400/40"],
+  :where(html[data-estilo='unificado']) [class~="border-violet-500/30"],
+  :where(html[data-estilo='unificado']) [class~="border-violet-500/40"],
+  :where(html[data-estilo='unificado']) [class~="outline-brand"] { border-color: var(--l-borde-morado); outline-color: var(--l-borde-morado); }
+  :where(html[data-estilo='unificado']) [class~="border-amber-400/20"],
+  :where(html[data-estilo='unificado']) [class~="border-amber-400/25"],
+  :where(html[data-estilo='unificado']) [class~="border-amber-400/30"],
+  :where(html[data-estilo='unificado']) [class~="border-amber-400/40"],
+  :where(html[data-estilo='unificado']) [class~="border-amber-400/50"],
+  :where(html[data-estilo='unificado']) [class~="border-amber-500/20"],
+  :where(html[data-estilo='unificado']) [class~="border-amber-500/25"],
+  :where(html[data-estilo='unificado']) [class~="border-amber-500/30"],
+  :where(html[data-estilo='unificado']) [class~="border-gold"],
+  :where(html[data-estilo='unificado']) [class~="border-gold/20"],
+  :where(html[data-estilo='unificado']) [class~="border-gold/25"],
+  :where(html[data-estilo='unificado']) [class~="border-gold/30"],
+  :where(html[data-estilo='unificado']) [class~="border-gold/40"],
+  :where(html[data-estilo='unificado']) [class~="border-gold/70"],
+  :where(html[data-estilo='unificado']) [class~="border-orange-500/30"],
+  :where(html[data-estilo='unificado']) [class~="border-orange-500/40"] { border-color: var(--l-borde-ambar); outline-color: var(--l-borde-ambar); }
+  :where(html[data-estilo='unificado']) [class~="ring-brand/30"],
+  :where(html[data-estilo='unificado']) [class~="ring-brand/40"],
+  :where(html[data-estilo='unificado']) [class~="ring-violet-500/30"] { --tw-ring-color: var(--l-borde-morado); }
+  :where(html[data-estilo='unificado']) [class~="bg-accent-purple/10"],
+  :where(html[data-estilo='unificado']) [class~="bg-brand/10"],
+  :where(html[data-estilo='unificado']) [class~="bg-primary/10"],
+  :where(html[data-estilo='unificado']) [class~="bg-violet-500/10"] { background-color: rgba(var(--l-velo-morado-rgb), 0.10); }
+  :where(html[data-estilo='unificado']) [class~="bg-amber-400/10"],
+  :where(html[data-estilo='unificado']) [class~="bg-amber-500/10"],
+  :where(html[data-estilo='unificado']) [class~="bg-gold/10"],
+  :where(html[data-estilo='unificado']) [class~="bg-orange-500/10"],
+  :where(html[data-estilo='unificado']) [class~="bg-yellow-400/10"],
+  :where(html[data-estilo='unificado']) [class~="bg-yellow-500/10"] { background-color: rgba(var(--l-velo-ambar-rgb), 0.10); }
+  :where(html[data-estilo='unificado']) [class~="bg-amber-500/12"],
+  :where(html[data-estilo='unificado']) [class~="bg-gold/12"] { background-color: rgba(var(--l-velo-ambar-rgb), 0.12); }
+  :where(html[data-estilo='unificado']) [class~="bg-amber-500/15"],
+  :where(html[data-estilo='unificado']) [class~="bg-gold/15"],
+  :where(html[data-estilo='unificado']) [class~="bg-orange-500/15"],
+  :where(html[data-estilo='unificado']) [class~="bg-yellow-500/15"] { background-color: rgba(var(--l-velo-ambar-rgb), 0.15); }
+  :where(html[data-estilo='unificado']) [class~="bg-amber-500/20"],
+  :where(html[data-estilo='unificado']) [class~="bg-orange-500/20"],
+  :where(html[data-estilo='unificado']) [class~="bg-yellow-500/20"] { background-color: rgba(var(--l-velo-ambar-rgb), 0.20); }
+  :where(html[data-estilo='unificado']) [class~="bg-brand/12"],
+  :where(html[data-estilo='unificado']) [class~="bg-primary/12"] { background-color: rgba(var(--l-velo-morado-rgb), 0.12); }
+  :where(html[data-estilo='unificado']) [class~="bg-brand/15"],
+  :where(html[data-estilo='unificado']) [class~="bg-fuchsia-500/15"],
+  :where(html[data-estilo='unificado']) [class~="bg-indigo-500/15"],
+  :where(html[data-estilo='unificado']) [class~="bg-primary/15"],
+  :where(html[data-estilo='unificado']) [class~="bg-purple-500/15"],
+  :where(html[data-estilo='unificado']) [class~="bg-violet-500/15"] { background-color: rgba(var(--l-velo-morado-rgb), 0.15); }
+  :where(html[data-estilo='unificado']) [class~="bg-brand/20"],
+  :where(html[data-estilo='unificado']) [class~="bg-primary/20"],
+  :where(html[data-estilo='unificado']) [class~="bg-violet-500/20"] { background-color: rgba(var(--l-velo-morado-rgb), 0.20); }
+  :where(html[data-estilo='unificado']) [class~="bg-brand/25"] { background-color: rgba(var(--l-velo-morado-rgb), 0.25); }
+  :where(html[data-estilo='unificado']) [class~="bg-brand/8"] { background-color: rgba(var(--l-velo-morado-rgb), 0.08); }
+  :where(html[data-estilo='unificado']) [class~="bg-primary/5"] { background-color: rgba(var(--l-velo-morado-rgb), 0.05); }
+}
+/* ── fin de utilidades generadas ── */

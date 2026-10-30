@@ -1,0 +1,6 @@
+/* «Hábito 3» (28 oct 2026): sin candado, en la tinta de siempre; revelado, el nombre real en cursiva tenue. */
+.privado { display: inline-flex; align-items: center; gap: 4px; min-width: 0; cursor: default; }
+.privado[role='button'] { cursor: pointer; }
+.privado > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.privado[data-visto] > span { font-style: italic; }
+.privado:focus-visible { outline: 2px solid var(--l-foco, currentColor); outline-offset: 2px; border-radius: 4px; }

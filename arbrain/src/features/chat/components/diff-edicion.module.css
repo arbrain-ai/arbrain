@@ -1,0 +1,164 @@
+/* Ver y deshacer (27 oct 2026; rondas 2 y 3 tras el crítico ciego). La fila que cierra el turno, los archivos que cambió y el
+   diálogo de deshacer. Neutro; verde suave en lo que entró y gris tachado en lo que salió (el rojo es solo peligro). El único ámbar sólido es la confirmación
+   del diálogo, igual a la de «Volver» de la vista historia. Tokens del lenguaje unificado (--l-*) con respaldo a los de hoy. */
+.cambios, .velo {
+  --t1: var(--l-tinta-1, var(--foreground)); --t2: var(--l-tinta-2, var(--muted)); --t3: var(--l-tinta-3, var(--muted));
+  --placa: var(--l-placa, var(--card)); --borde: var(--l-borde, var(--border)); --linea: color-mix(in srgb, var(--t1) 9%, transparent);
+  --ambar-rgb: var(--l-ambar-rgb, var(--gold-rgb, 255, 145, 1));
+  --verde: var(--l-tinta-verde, #1f7a52); --verde-rgb: var(--l-verde-rgb, 63, 178, 127);
+  --rojo: var(--l-tinta-rojo, #b4373c); --rojo-rgb: var(--l-rojo-rgb, 224, 72, 77);
+  --curva: var(--l-curva-aterriza, cubic-bezier(0.34, 1.3, 0.64, 1)); --dur: var(--l-dur-respuesta, 180ms);
+}
+:global(.dark) .cambios, :global(.dark) .velo { --verde: var(--l-tinta-verde, #6fcf9f); --rojo: var(--l-tinta-rojo, #ef8a8d); }
+
+/* ── La fila del turno ── */
+.cambios { margin: 10px 0 2px; min-width: 0; font-family: var(--font-sans); }
+.fila {
+  display: inline-flex; align-items: center; gap: 7px; max-width: 100%; min-width: 0; min-height: 30px; padding: 4px 10px 4px 9px;
+  border: 1px solid var(--borde); border-radius: var(--l-radio-control, 10px); background: var(--placa); color: var(--t1); cursor: pointer; text-align: left;
+  font: 500 13px/18px var(--font-sans); -webkit-tap-highlight-color: transparent;
+  transition: border-color 200ms, background 200ms;
+}
+@media (hover: hover) { .fila:hover { border-color: var(--l-borde-fuerte, color-mix(in srgb, var(--t1) 22%, transparent)); background: var(--l-placa-hover, color-mix(in srgb, var(--t1) 4%, var(--placa))); } }
+.fila:focus-visible, .secundario:focus-visible, .primario:focus-visible, .edicionFila:focus-visible, .enlace:focus-visible, .historia:focus-visible, .cerrar:focus-visible {
+  outline: 2px solid var(--l-foco, rgba(var(--primary-rgb), 0.6)); outline-offset: 2px;
+}
+@media (pointer: coarse) { .fila, .edicionFila { min-height: 40px; } }
+.icono { flex: none; width: 14px; height: 14px; color: var(--t2); }
+.texto { min-width: 0; overflow-wrap: anywhere; }
+.verCambios { flex: none; color: var(--t2); }
+.flecha { flex: none; width: 13px; height: 13px; color: var(--t2); transition: transform 0.15s ease; }
+[aria-expanded='true'] > .flecha { transform: rotate(90deg); }
+
+/* Ronda 3: la fila no lleva «+10 −3»; la frase ya dice cuánto cambió y el rojo queda para el peligro. */
+.fila[data-deshecho] .texto { color: var(--t2); }
+
+.cuerpo { margin: 6px 0 4px 6px; padding: 2px 0 2px 12px; border-left: 1px solid var(--borde); display: grid; gap: 2px; min-width: 0; animation: entra var(--dur) ease-out; }
+.lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; min-width: 0; }
+.lista > li { min-width: 0; }
+.edicionFila {
+  display: flex; align-items: center; gap: 9px; width: 100%; min-width: 0; min-height: 32px; padding: 5px 8px 5px 6px;
+  border: 0; border-radius: 8px; background: transparent; color: inherit; text-align: left; cursor: pointer;
+}
+@media (hover: hover) { .edicionFila:hover { background: color-mix(in srgb, var(--t1) 4%, transparent); } }
+.edicionFila[aria-expanded='true'] { background: color-mix(in srgb, var(--t1) 5%, transparent); }
+.frase { flex: 1; min-width: 0; font: 500 13.5px/19px var(--font-sans); color: var(--t1); overflow-wrap: anywhere; }
+.frase::first-letter { text-transform: uppercase; }
+.edicionFila[data-fallo] .frase { color: var(--t2); }
+/* El archivo que ya volvió a como estaba: la frase tachada y apagada, y a la derecha «Deshecho». */
+.edicionCab { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.edicionCab > .edicionFila { flex: 1; }
+li[data-deshecho] .edicionFila { opacity: 0.62; }
+li[data-deshecho] .frase { color: var(--t2); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--t3) 75%, transparent); text-decoration-thickness: 1px; }
+/* «Deshecho» es estado, no botón: texto apagado con su ícono, sin marco ni pastilla. */
+.marcaDeshecho { flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 0 2px; font: 500 12px/1.5 var(--font-sans); color: var(--t3); animation: entra var(--dur) ease-out; }
+.soloLector { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@media (max-width: 560px) { li[data-deshecho] .flecha { display: none; } }
+
+/* ── El diff abierto ── */
+.diff {
+  margin: 4px 0 10px; border: 1px solid var(--borde); border-radius: var(--l-radio-tarjeta, 12px); background: var(--placa);
+  overflow: hidden; min-width: 0; animation: entra var(--dur) ease-out;
+}
+.diffPie { padding: 4px 12px 8px; border-top: 1px solid var(--linea); }
+.aviso { margin: 0; padding: 8px 12px 0; font: 400 12.5px/1.5 var(--font-sans); color: var(--t2); }
+
+/* Código: líneas monoespaciadas con su signo. */
+/* El alto es un número entero de renglones (1.6em cada uno + el respiro de arriba): el corte nunca cae a media línea, y la
+   barra de desplazamiento queda a la vista para decir que hay más. */
+.lineas { margin: 0; padding: 6px 0; max-height: calc(1.6em * 21 + 6px); overflow: auto; scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--t1) 28%, transparent) transparent; font: 400 12px/1.6 var(--font-mono); letter-spacing: -0.01em; }
+.linea { display: grid; grid-template-columns: 22px 1fr; min-width: 0; padding-right: 10px; }
+.signo { text-align: center; color: var(--t3); user-select: none; }
+.contenido { white-space: pre-wrap; overflow-wrap: anywhere; color: color-mix(in srgb, var(--t1) 85%, transparent); }
+.linea[data-tipo='agregada'] { background: rgba(var(--verde-rgb), 0.11); }
+.linea[data-tipo='agregada'] .signo { color: var(--verde); }
+/* Lo que salió no es peligro: neutro y tachado, nunca rosado. */
+.linea[data-tipo='quitada'] { background: color-mix(in srgb, var(--t1) 5%, transparent); }
+.linea[data-tipo='quitada'] .signo { color: var(--t2); }
+.linea[data-tipo='quitada'] .contenido { color: var(--t2); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--t3) 70%, transparent); }
+/* Código, plegado: primero la frase en humano; el monoespaciado solo tras «Ver el código». */
+.fraseCodigo { margin: 0; padding: 10px 12px 2px; font: 400 14px/1.6 var(--font-sans); color: var(--t1); overflow-wrap: anywhere; }
+.fraseCodigo + .enlace { margin: 0 12px 8px; }
+.fraseCodigo ~ .lineas { border-top: 1px solid var(--linea); }
+.pliegue { padding: 2px 10px 2px 22px; color: var(--t3); font: 400 11.5px/1.6 var(--font-sans); }
+
+/* Prosa: por frase. Antes, tachada y apagada; ahora, normal. Dentro, solo palabras completas. */
+.prosa { padding: 10px 12px 8px; max-height: 30rem; overflow: auto; display: grid; gap: 6px; font: 400 14px/1.6 var(--font-sans); color: var(--t1); }
+.prosa + .prosa { border-top: 1px dashed var(--linea); }
+.prosa p { margin: 0; overflow-wrap: anywhere; }
+.fraseIgual { color: var(--t2); }
+.frasePliegue { color: var(--t3); font-size: 12px; }
+.fraseCambio { display: grid; gap: 4px; }
+.antes, .ahora { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 8px; align-items: baseline; padding: 6px 10px 6px 0; border-radius: 8px; }
+.antes { background: color-mix(in srgb, var(--t1) 4%, transparent); }
+.ahora { background: rgba(var(--verde-rgb), 0.07); }
+.antes > div, .ahora > div { display: grid; gap: 2px; min-width: 0; }
+.etiqueta { padding-left: 10px; font: 600 10.5px/1.6 var(--font-sans); letter-spacing: 0.06em; text-transform: uppercase; color: var(--t3); }
+.antes p { color: var(--t2); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--t3) 70%, transparent); }
+.antes del { text-decoration: line-through; text-decoration-color: var(--t2); text-decoration-thickness: 1.5px; color: var(--t1); background: color-mix(in srgb, var(--t1) 9%, transparent); border-radius: 3px; padding: 0 1px; box-decoration-break: clone; }
+.ahora ins { text-decoration: none; color: var(--t1); background: rgba(var(--verde-rgb), 0.22); border-radius: 3px; padding: 0 1px; box-decoration-break: clone; font-weight: 550; }
+
+/* «Ver ubicación» y enlaces de texto. */
+.ubicacion { display: grid; gap: 4px; min-width: 0; }
+.ubicacion ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.ubicacion code { font: 400 11.5px/1.5 var(--font-mono); color: var(--t2); overflow-wrap: anywhere; }
+.enlace { justify-self: start; padding: 2px 0; border: 0; background: none; color: var(--t2); font: 500 12px/1.5 var(--font-sans); cursor: pointer; text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--t2) 40%, transparent); text-underline-offset: 3px; }
+.enlace:hover { color: var(--t1); }
+
+/* ── Pie: deshacer, estado y la historia ── */
+.pie { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 6px 0 2px; }
+.historia { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; padding: 4px 2px; border: 0; background: transparent; cursor: pointer; color: var(--t2); font: 500 12.5px/18px var(--font-sans); text-decoration: none; border-radius: 6px; }
+.historia:hover { color: var(--t1); text-decoration: underline; text-underline-offset: 3px; }
+.ayuda { font: 400 12px/1.45 var(--font-sans); color: var(--t2); }
+.estado { display: inline-flex; align-items: center; gap: 6px; font: 500 12.5px/1.45 var(--font-sans); color: var(--t1); }
+.estado svg { color: var(--verde); }
+.error { font: 400 12.5px/1.45 var(--font-sans); color: var(--rojo); }
+
+/* Botones: los mismos de la vista historia (secundario neutro, primario ámbar sólido). */
+.secundario, .primario {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 6px 12px; border-radius: var(--l-radio-control, 10px);
+  font: 600 12.5px/18px var(--font-sans); cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: transform var(--l-dur-presion, 110ms) var(--l-curva-anticipa, ease-in), background 200ms, border-color 200ms, opacity 200ms;
+}
+.secundario { border: 1px solid var(--borde); background: var(--placa); color: var(--t1); }
+.secundario:hover:not(:disabled) { border-color: var(--l-borde-fuerte, color-mix(in srgb, var(--t1) 22%, transparent)); background: var(--l-placa-hover, color-mix(in srgb, var(--t1) 4%, var(--placa))); }
+.primario { border: 1px solid rgba(var(--ambar-rgb), 0.9); background: rgb(var(--ambar-rgb)); color: var(--l-gris-3, #1f1200); }
+.primario:hover:not(:disabled) { background: rgba(var(--ambar-rgb), 0.88); }
+.secundario:active:not(:disabled), .primario:active:not(:disabled) { transform: translateY(var(--l-hunde, 1px)) scale(var(--l-escala-presion, 0.975)); }
+.secundario:disabled, .primario:disabled { opacity: 0.5; cursor: default; }
+@media (pointer: coarse) { .secundario, .primario { min-height: 40px; } }
+@keyframes gira { to { transform: rotate(360deg); } }
+.gira { animation: gira 0.9s linear infinite; }
+
+/* ── Diálogo de deshacer: la forma del de «Volver» de la historia ── */
+.velo { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 16px; background: rgba(var(--l-sombra-rgb, 9, 9, 11), 0.45); backdrop-filter: blur(3px); animation: aparece 220ms ease-out; }
+.dialogo {
+  width: min(520px, 100%); max-height: min(88vh, 760px); display: flex; flex-direction: column; border-radius: var(--l-radio-contenedor, 18px);
+  border: 1px solid var(--borde); background: var(--placa); color: var(--t1); font-family: var(--font-sans);
+  box-shadow: var(--l-sombra-flotante, 0 1px 2px rgba(var(--l-sombra-rgb, 15, 17, 21), 0.06), 0 18px 48px -12px rgba(var(--l-sombra-rgb, 15, 17, 21), 0.35)); animation: llega 320ms var(--curva);
+}
+.dialogoCab { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 16px 18px 10px; }
+.ceja { margin: 0; font-size: 11px; font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; color: var(--t2); }
+.titulo { margin: 4px 0 0; font-family: var(--serif-ui, ui-serif, Georgia, serif); font-size: 21px; line-height: 1.25; font-weight: 600; }
+.cerrar { flex-shrink: 0; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--borde); background: transparent; color: var(--t2); cursor: pointer; }
+.cerrar:hover:not(:disabled) { color: var(--t1); }
+.dialogoCuerpo { flex: 1; min-height: 0; overflow-y: auto; padding: 0 18px 14px; display: flex; flex-direction: column; gap: 10px; }
+.explica { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--t1); }
+.archivos { list-style: none; margin: 0; padding: 0; border: 1px solid var(--borde); border-radius: var(--l-radio-tarjeta, 12px); }
+.archivos > li { padding: 9px 12px; min-width: 0; }
+.archivos > li + li { border-top: 1px solid var(--linea); }
+.archivoLugar { display: block; font: 500 13.5px/19px var(--font-sans); overflow-wrap: anywhere; }
+.archivoLugar::first-letter { text-transform: uppercase; }
+.nota { margin: 0; font-size: 12px; line-height: 1.5; color: var(--t2); }
+.dialogoPie { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; padding: 12px 18px 14px; border-top: 1px solid var(--linea); }
+
+@keyframes entra { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+@keyframes aparece { from { opacity: 0; } }
+@keyframes llega { from { opacity: 0; transform: translateY(8px) scale(0.98); } }
+@media (prefers-reduced-motion: reduce) { .diff, .dialogo, .velo, .cuerpo { animation: none; } .flecha { transition: none; } }
+
+/* Ronda 4: el diálogo recibe el foco al abrir sin anillo (no compite con el ámbar); los botones lo muestran solo con
+   teclado (:focus-visible, arriba). A lo angosto el código abierto es más bajo y el pie del turno queda a la vista. */
+.dialogo:focus, .dialogo:focus-visible { outline: none; }
+.codigoCaja { min-width: 0; }
+@media (max-width: 560px) { .lineas { max-height: calc(1.6em * 12 + 6px); } }

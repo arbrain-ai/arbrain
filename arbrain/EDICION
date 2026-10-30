@@ -1,0 +1,5 @@
+# Edición de esta copia de Arbrain. La leen el daemon (arbrain/server/src/edicion.ts), la web
+# (arbrain/src/lib/edicion.ts y next.config.ts) y la app de escritorio (arbrain/src-tauri/build.rs).
+# «cliente»: computer use solo en macOS y Windows y apagado en cada apertura, el freno pide tu confirmación, sin permisos totales.
+# Una variable ARBRAIN_EDICION explícita manda sobre este archivo.
+cliente

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Arbrain usa el micrófono solo cuando tú lo activas, para que hables con Levy y dictes notas de voz.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Arbrain usa la cámara solo cuando la enciendes en Live, y adjunta un cuadro al enviar cada mensaje para que Levy te vea. No graba ni guarda video.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Arbrain usa el reconocimiento de voz para escuchar «Oye Levy» y transcribir lo que dices.</string>
+</dict>
+</plist>

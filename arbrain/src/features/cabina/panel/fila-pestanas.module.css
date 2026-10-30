@@ -1,0 +1,51 @@
+/* La segunda fila del teléfono (6 oct 2026): 40 px bajo la cabecera, mismo color sólido que ella. Las pestañas se desplazan
+   en horizontal si no caben; el «+» queda fijo al final, fuera de lo que se desplaza. */
+.tira { display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0; height: 100%; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; overscroll-behavior-x: contain; touch-action: pan-x; -webkit-overflow-scrolling: touch;
+  /* Lo que no cabe se desvanece contra el «+» en vez de cortarse en seco: un desvanecido ancho (se lee como «hay más», no
+     como una palabra mutilada) y aire al final para que la última pestaña, desplazada, quede entera antes del «+». */
+  padding-right: 28px; scroll-padding-right: 28px;
+  -webkit-mask-image: linear-gradient(to right, var(--l-gris-0, #000) calc(100% - 44px), transparent calc(100% - 4px)); mask-image: linear-gradient(to right, var(--l-gris-0, #000) calc(100% - 44px), transparent calc(100% - 4px)); }
+.tira::-webkit-scrollbar { display: none; }
+/* Mantener presionado no debe abrir el menú de iOS (copiar, compartir) ni seleccionar el nombre. */
+.pestana {
+  display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border: 0; border-radius: 10px; flex-shrink: 0; max-width: 180px;
+  background: transparent; color: var(--muted); font-size: 13px; font-weight: 500; white-space: nowrap; cursor: pointer;
+  -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
+  transition: background 120ms, color 120ms;
+}
+.pestana > span { overflow: hidden; text-overflow: ellipsis; }
+.pestana:active { background: rgba(var(--foreground-rgb), 0.06); }
+.pestana[aria-selected='true'] { color: var(--foreground); background: rgba(var(--brand-rgb), 0.12); font-weight: 600; }
+.pestana:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+/* Anclada: solo su ícono, como en el escritorio. */
+.pestana[data-anclada] { padding: 0 10px; gap: 0; }
+.pestana[data-anclada] > span { display: none; }
+
+/* La × sutil de la pestaña a la vista (6 oct 2026): dentro de su píldora, a la derecha; zona de toque de 28 px. */
+.envoltura { position: relative; display: inline-flex; align-items: center; flex-shrink: 0; }
+.envoltura[data-con-x] > .pestana { padding-right: 30px; }
+.cerrar { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; width: 24px; height: 24px; border: 0; border-radius: 7px; background: transparent; color: var(--muted); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.cerrar:active { background: rgba(var(--foreground-rgb), 0.10); color: var(--foreground); }
+
+/* El «+» es el de MenuSecciones (su botón lleva su propia clase); aquí solo se le da tamaño de dedo. */
+.mas { display: flex; align-items: center; flex-shrink: 0; }
+.mas > button { margin: 0; width: 32px; height: 32px; border-radius: 10px; }
+.menu { -webkit-touch-callout: none; }
+
+/* Mantener presionado (10 oct 2026, estilo iOS): la pestaña se levanta (crece un poco y flota con sombra) y las vecinas se
+   apartan con un deslizamiento corto hacia donde caería; la levantada sigue al dedo sin retraso. */
+.tira[data-arrastrando] { touch-action: none; }
+.tira[data-arrastrando] > .envoltura { transition: transform 160ms cubic-bezier(.2, .8, .2, 1), opacity 160ms; opacity: .6; }
+.tira > .envoltura[data-levantada] { z-index: 1; opacity: 1; transition: none; border-radius: 10px; background: var(--surface-elevated); box-shadow: 0 0 0 1.5px var(--l-borde-morado, rgba(var(--brand-rgb), .75)), 0 2px 8px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.3); }
+.envoltura[data-levantada] > .pestana { color: var(--foreground); }
+
+@media (prefers-reduced-motion: reduce) { .pestana { transition: none; } .tira[data-arrastrando] > .envoltura { transition: none; } }
+
+/* Teléfono angosto (27 oct 2026, crítica ronda 4: «Taller» se leía como «T»): las pestañas se compactan (menos aire y las
+   no elegidas con su nombre acotado) para que quepan enteras antes del «+»; si aun así no caben, se desplazan y la última
+   se desvanece. */
+@media (max-width: 480px) {
+  .tira { gap: 2px; }
+  .pestana { padding: 0 9px; gap: 5px; }
+  .pestana:not([aria-selected='true']) { max-width: 128px; }
+}

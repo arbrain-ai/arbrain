@@ -1,0 +1,539 @@
+/* Panel derecho · diseño v2. Tokens de la app (claro/oscuro); morado y oro solo
+   como acento. Referentes: el panel de Claude Desktop/Codex para la columna y
+   Things 3 / Linear para la lista de tareas (filas de una línea, aire, sin cajas). */
+
+/* ── Columna de escritorio ── */
+.lateral {
+  position: relative; flex-shrink: 0; min-width: 320px; max-width: calc(100% - 580px);
+  display: flex; flex-direction: column; height: 100%; overflow: hidden;
+  background: var(--surface); border-left: 1px solid var(--border);
+  animation: entra 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+:global(.dark) .lateral { background: color-mix(in srgb, var(--surface) 92%, var(--l-gris-0, black)); }
+@keyframes entra { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: none; } }
+
+/* El divisor: 1px visible, 10px de agarre. Se ilumina al acercarse. */
+.divisor { position: absolute; left: -5px; top: 0; bottom: 0; width: 10px; z-index: 20; cursor: col-resize; touch-action: none; outline: none; }
+.divisor::after { content: ''; position: absolute; left: 4px; top: 0; bottom: 0; width: 2px; background: transparent; transition: background 140ms; }
+.divisor:hover::after, .divisor:focus-visible::after, .lateral[data-arrastrando] .divisor::after { background: rgba(var(--brand-rgb), 0.55); }
+:global(html).redimensionando, :global(html).redimensionando * { cursor: col-resize !important; user-select: none !important; }
+:global(html).redimensionando iframe { pointer-events: none; }
+
+/* ── Pestaña a pantalla completa del teléfono (6 oct 2026) ──
+   Cubre justo lo que queda bajo la cabecera y la fila de pestañas (el padre es el cuerpo del shell, `relative`); el chat sigue
+   montado debajo. Sin hoja, sin asa, sin velo. */
+.pestanaTelefono {
+  position: absolute; inset: 0; z-index: 30; display: flex; flex-direction: column; min-height: 0; min-width: 0;
+  background: var(--surface); padding-bottom: env(safe-area-inset-bottom); animation: aparece 160ms ease-out;
+}
+:global(.keyboard-open) .pestanaTelefono, .pestanaTelefono[data-hasta-el-borde] { padding-bottom: 0; }
+@keyframes aparece { from { opacity: 0; } to { opacity: 1; } }
+
+.contenido { display: flex; flex-direction: column; min-height: 0; min-width: 0; max-width: 100%; flex: 1; }
+
+/* ── Cabecera: pestañas ── */
+.cabecera { display: flex; align-items: center; gap: 4px; padding: 8px 8px 8px 10px; border-bottom: 1px solid var(--border); min-height: 64px; flex-shrink: 0; }
+.pestanas { display: flex; align-items: center; gap: 2px; min-width: 0; flex: 1; overflow-x: auto; scrollbar-width: none; }
+.pestanas::-webkit-scrollbar { display: none; }
+.pestana {
+  display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border-radius: 8px; border: 0;
+  background: transparent; color: var(--muted); font-size: 13px; font-weight: 500; white-space: nowrap; cursor: pointer;
+  transition: background 120ms, color 120ms; flex-shrink: 0; max-width: 160px;
+}
+.pestana > span { overflow: hidden; text-overflow: ellipsis; }
+.pestana:hover { color: var(--foreground); background: rgba(var(--foreground-rgb), 0.05); }
+.pestana[aria-selected='true'] { color: var(--foreground); background: rgba(var(--brand-rgb), 0.1); }
+.pestana:focus-visible, .icono:focus-visible, .fila:focus-visible, .tareaBoton:focus-visible, .check:focus-visible, .segmento:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.pestanaTaller { font-size: 12.5px; }
+/* En el teléfono el ícono basta (5 oct 2026): el ancho es para las pestañas que Daniel abre. */
+@media (max-width: 480px) { .pestanaTaller { padding: 0 8px; } .pestanaTaller > span { display: none; } }
+.fijada { position: relative; display: inline-flex; align-items: center; flex-shrink: 0; }
+/* Solo la activa reserva lugar para su ×; las demás quedan del ancho de su nombre (antes cada pestaña con Guardar
+   dejaba un hueco fijo de 44 px; Guardar ahora vive en la cabecera de la vista). Al pasar el mouse, × aparece ENCIMA
+   del final del nombre, con un desvanecido del color del panel, como Chrome. */
+.fijada .pestana { padding-right: 10px; }
+.fijada[data-activa] .pestana { padding-right: 24px; }
+/* ×: aparece al pasar el mouse, y siempre en la activa, como Chrome (3 oct 2026). */
+.accionesPestana { position: absolute; right: 4px; display: inline-flex; align-items: center; gap: 2px; }
+/* El fondo del desvanecido es el de la pestaña bajo el mouse: el del panel más el 5 % de hover de `.pestana`. */
+.fijada { --fondo-pestana: color-mix(in srgb, var(--surface) 95%, rgb(var(--foreground-rgb))); }
+:global(.dark) .fijada { --fondo-pestana: color-mix(in srgb, color-mix(in srgb, var(--surface) 92%, var(--l-gris-0, black)) 95%, rgb(var(--foreground-rgb))); }
+.fijada:not([data-activa]) .accionesPestana { right: 0; padding: 0 4px 0 14px; height: 30px; border-radius: 0 8px 8px 0; pointer-events: none; }
+.fijada:not([data-activa]):hover .accionesPestana, .fijada:not([data-activa]):focus-within .accionesPestana {
+  pointer-events: auto; background: linear-gradient(to right, transparent, var(--fondo-pestana) 12px);
+}
+.soltar { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 5px; border: 0; background: transparent; color: var(--muted); cursor: pointer; opacity: 0; transition: opacity 120ms, background 120ms; }
+.fijada:hover .soltar, .fijada[data-activa] .soltar, .soltar:focus-visible { opacity: 1; }
+/* Reordenar arrastrando: las vecinas se apartan con una animación corta mientras dura el gesto. */
+/* Resorte suave (RESORTE_CSS en arrastre-geom.ts: un test vigila que sea el mismo texto); el cubic-bezier es el respaldo. */
+:global(html[data-arrastrando-pestana]) .pestanas > [data-clave] { transition: transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1); transition: transform 200ms linear(0, 0.041, 0.139, 0.265, 0.396, 0.523, 0.635, 0.732, 0.81, 0.873, 0.92, 0.955, 0.98, 0.996, 1.006, 1.012, 1.015, 1.015, 1.014, 1.013, 1); }
+:global(html[data-arrastrando-pestana]) .pestanas .soltar { opacity: 0; }
+/* Sin pestañas: las opciones del «+» en grande. */
+.vacioPanel { padding: 28px 16px 16px; max-width: 460px; margin: 0 auto; width: 100%; }
+.vacioPanel h2 { margin: 0 0 4px 10px; font-size: 17px; font-weight: 650; }
+.vacioPanel > p { margin: 0 0 14px 10px; font-size: 13px; color: var(--muted); line-height: 1.45; }
+.soltar:hover { background: rgba(var(--foreground-rgb), 0.08); color: var(--foreground); }
+.icono { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; border: 0; background: transparent; color: var(--muted); cursor: pointer; flex-shrink: 0; transition: background 120ms, color 120ms; }
+.icono:hover { background: rgba(var(--foreground-rgb), 0.06); color: var(--foreground); }
+
+/* ── Cuerpo ── */
+.cuerpo { flex: 1; min-height: 0; min-width: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; padding: 4px 0 0; display: flex; flex-direction: column; }
+/* Una vista de pestaña ya no tiene cabecera propia (5 oct 2026): su contenido arranca bajo las pestañas. */
+.cuerpo[data-vista] { padding-top: 0; }
+.cuerpo[data-vista] > .fijadaCuerpo:first-child { padding-top: 12px; }
+/* Cero scroll horizontal en el panel (Daniel, 3 oct 2026): todo se ajusta a su ancho, nada se corta. El texto se
+   envuelve; el código y los bloques preformateados también (una ruta larga o un dibujo ASCII imponían su ancho y la
+   tarjeta de Tu negocio crecía 130 px fuera del panel); las tablas reparten el ancho en vez de desplazarse. */
+.cuerpo :global(:where(*)) { min-width: 0; }
+.cuerpo :global(:where(p, li, h1, h2, h3, h4, summary, blockquote)) { overflow-wrap: anywhere; }
+.cuerpo :global(:where(code)) { overflow-wrap: anywhere; word-break: break-word; }
+.cuerpo :global(:where(pre)) { white-space: pre-wrap; overflow-wrap: anywhere; max-width: 100%; }
+.cuerpo :global(:where(pre) code) { white-space: inherit; }
+.cuerpo :global(:where(table)) { width: 100%; max-width: 100%; table-layout: fixed; }
+.cuerpo :global(:where(th, td)) { overflow-wrap: anywhere; }
+.cuerpo :global(:where(img, video, svg, iframe, canvas)) { max-width: 100%; }
+.cuerpo :global(.overflow-x-auto) { overflow-x: visible; }
+
+.resumen { padding: 18px 20px 6px; }
+.resumen h2 { margin: 0; font-family: var(--serif-ui, ui-serif, 'New York', Georgia, serif); font-size: 22px; font-weight: 500; letter-spacing: -0.01em; color: var(--foreground); }
+.resumen p { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
+
+.seccion, .plegada { padding: 10px 10px 2px; }
+.seccionTitulo {
+  /* Ceja de la página v2 (ui-noche): versalitas, una sola gramática en secciones, vistas y panel. */
+  display: flex; align-items: center; gap: 6px; margin: 0 0 2px; padding: 6px 10px; font-size: 11px; font-weight: 650;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); list-style: none; cursor: default;
+}
+.seccionTitulo small { font-size: 11px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--muted); opacity: 0.75; font-variant-numeric: tabular-nums; }
+.seccion[data-tono='oro'] > .seccionTitulo { color: var(--l-tinta-ambar, var(--gold-dark)); }
+:global(.dark) .seccion[data-tono='oro'] > .seccionTitulo { color: var(--l-tinta-ambar, var(--gold-bright)); }
+.plegada > summary { cursor: pointer; border-radius: 8px; }
+.plegada > summary::-webkit-details-marker { display: none; }
+.plegada > summary:hover { color: var(--foreground); }
+.chevron { transition: transform 160ms; margin-left: -2px; }
+.plegada[open] .chevron { transform: rotate(90deg); }
+.lista { display: flex; flex-direction: column; }
+
+/* Una tarea: marca · texto · dueño. Una línea, la segunda solo si dice algo. */
+.tarea { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 8px 0 10px; border-radius: 10px; transition: background 120ms; }
+.tarea[data-tocable]:hover { background: rgba(var(--foreground-rgb), 0.04); }
+:global(.dark) .tarea[data-tocable]:hover { background: rgba(var(--l-luz-rgb, 255, 255, 255), 0.04); }
+.tarea[data-hecha] .filaNombre { color: var(--muted); text-decoration: line-through; text-decoration-color: rgba(var(--foreground-rgb), 0.25); }
+.marca { display: grid; place-items: center; width: 18px; flex-shrink: 0; align-self: flex-start; margin-top: 13px; }
+.tareaBoton { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; padding: 8px 0; border: 0; background: transparent; color: inherit; text-align: left; font: inherit; cursor: inherit; border-radius: 6px; }
+.tarea[data-tocable] .tareaBoton { cursor: pointer; }
+.filaTexto { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.filaNombre { font-size: 14px; line-height: 1.35; color: var(--foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* En la lista de tareas el título respira a dos renglones antes de cortarse. */
+.tarea .filaNombre { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.filaLinea { font-size: 12.5px; line-height: 1.35; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.filaLinea[data-tono='oro'] { color: var(--l-tinta-ambar, var(--gold-dark)); }
+:global(.dark) .filaLinea[data-tono='oro'] { color: var(--l-tinta-ambar, var(--gold-bright)); }
+.filaLado { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; flex-shrink: 0; }
+.dueno { font-size: 11px; font-weight: 600; line-height: 1; padding: 3px 7px; border-radius: 999px; color: var(--muted); background: rgba(var(--foreground-rgb), 0.06); white-space: nowrap; }
+:global(.dark) .dueno { background: rgba(var(--l-luz-rgb, 255, 255, 255), 0.07); }
+.dueno[data-dueno='levy'] { color: var(--l-tinta-morado, var(--brand-ink)); background: rgba(var(--brand-rgb), 0.1); }
+.dueno[data-dueno='agente'] { color: var(--foreground); }
+.cuando { font-size: 11px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.flecha { color: var(--muted); opacity: 0.55; flex-shrink: 0; }
+.flechaVacia { width: 14px; flex-shrink: 0; }
+.accionFila { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 9px; border-radius: 7px; border: 1px solid var(--border); background: var(--card); color: var(--muted); font-size: 12px; cursor: pointer; flex-shrink: 0; opacity: 0; transition: opacity 120ms, color 120ms; }
+.tarea:hover .accionFila, .accionFila:focus-visible { opacity: 1; }
+.accionFila:hover { color: var(--foreground); border-color: rgba(var(--brand-rgb), 0.3); }
+@media (hover: none) { .accionFila { opacity: 1; } }
+
+/* Marcas: círculo de Todoist (color por prioridad), punto de estado, campana. */
+.check { width: 17px; height: 17px; border-radius: 50%; border: 1.5px solid rgba(var(--foreground-rgb), 0.35); background: transparent; cursor: pointer; padding: 0; transition: border-color 120ms, background 120ms; }
+:global(.dark) .check { border-color: rgba(var(--l-luz-rgb, 255, 255, 255), 0.35); }
+/* priority de PlanTask: 1 = urgente (p1) … 4 = normal (planning.py invierte la escala de la API). */
+.check[data-prioridad='1'] { border-color: var(--l-rojo-4, #e5484d); } .check[data-prioridad='2'] { border-color: var(--l-borde-ambar, var(--gold)); } .check[data-prioridad='3'] { border-color: var(--l-azul-5, #3b82f6); }
+.check:hover { background: rgba(var(--brand-rgb), 0.12); }
+.check:disabled { opacity: 0.4; cursor: default; }
+.checkHecho { display: grid; place-items: center; width: 17px; height: 17px; border-radius: 50%; background: rgba(var(--brand-rgb), 0.75); color: var(--l-gris-16, white); }
+.marcaAviso { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 6px; color: var(--l-tinta-ambar, var(--gold-dark)); background: rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.14); }
+:global(.dark) .marcaAviso { color: var(--l-tinta-ambar, var(--gold-bright)); }
+.punto { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); opacity: 0.6; flex-shrink: 0; }
+.punto[data-estado='trabajando'] { background: var(--brand); opacity: 1; box-shadow: 0 0 0 0 rgba(var(--brand-rgb), 0.5); animation: late 1.8s ease-out infinite; }
+.punto[data-estado='esperando'] { background: var(--gold); opacity: 1; }
+/* Marca (1 oct): morado = trabaja, oro = espera o pregunta; el verde solo dice salud (servidores, conexión). */
+.punto[data-estado='pregunta'] { background: var(--gold); opacity: 1; box-shadow: 0 0 0 2px rgba(var(--gold-rgb), 0.28); }
+.punto[data-estado='vivo'] { background: var(--success); opacity: 0.9; }
+.punto[data-estado='falla'] { background: var(--error); opacity: 1; }
+.punto[data-estado='quieto'] { background: transparent; border: 1.5px solid var(--muted); opacity: 0.5; }
+@keyframes late { 0% { box-shadow: 0 0 0 0 rgba(var(--l-halo-morado-rgb, var(--brand-rgb)), 0.45); } 70% { box-shadow: 0 0 0 6px var(--l-borde-morado, rgba(var(--brand-rgb), 0)); } 100% { box-shadow: 0 0 0 0 rgba(var(--l-halo-morado-rgb, var(--brand-rgb)), 0); } }
+@media (prefers-reduced-motion: reduce) { .punto[data-estado='trabajando'], .lateral, .pestanaTelefono { animation: none; } }
+
+.calma { margin: 24px 20px; font-size: 14px; color: var(--muted); line-height: 1.5; }
+.aviso { margin: 8px 16px; padding: 8px 10px; border-radius: 8px; font-size: 12.5px; line-height: 1.4; color: var(--foreground); background: rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.1); border: 1px solid var(--l-borde-ambar, rgba(var(--gold-rgb), 0.25)); }
+.nota { margin: 10px 20px 8px; font-size: 12px; line-height: 1.45; color: var(--muted); }
+.vacio { margin: 4px 10px 8px; font-size: 13px; color: var(--muted); }
+.enlace { display: inline-flex; align-items: center; gap: 2px; border: 0; background: transparent; padding: 0; color: var(--l-tinta-morado, var(--brand-ink)); font-size: 12px; font-weight: 550; cursor: pointer; }
+.enlace:hover { text-decoration: underline; }
+.mas { align-self: flex-start; margin: 2px 0 4px 38px; border: 0; background: transparent; color: var(--l-tinta-morado, var(--brand-ink)); font-size: 12.5px; font-weight: 550; cursor: pointer; padding: 4px 0; }
+
+.pie { margin-top: auto; display: flex; align-items: center; gap: 7px; padding: 10px 20px 12px; font-size: 11.5px; color: var(--muted); flex-shrink: 0; }
+.vivo { width: 6px; height: 6px; border-radius: 50%; background: var(--success); }
+.vivo[data-error], .vivo[data-respaldo] { background: var(--gold); }
+
+.cargando { display: flex; flex-direction: column; gap: 10px; padding: 24px 20px; font-size: 13px; color: var(--muted); }
+.cargando b { color: var(--foreground); font-weight: 600; }
+.brillo { height: 38px; border-radius: 10px; background: linear-gradient(90deg, rgba(var(--foreground-rgb), 0.04), rgba(var(--foreground-rgb), 0.08), rgba(var(--foreground-rgb), 0.04)); background-size: 200% 100%; animation: brillo 1.4s ease-in-out infinite; }
+@keyframes brillo { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+
+/* ── Vista fijada y detalles ── */
+.fijadaCabecera { display: flex; align-items: center; gap: 8px; padding: 10px 12px 6px 10px; }
+.fijadaAcciones { margin-left: auto; display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+.detalleTitulo { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.detalleTitulo b { font-size: 15px; font-weight: 600; color: var(--foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.detalleTitulo span { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.enfoque { margin: 2px 20px 8px; padding-left: 10px; border-left: 2px solid var(--l-borde-ambar, rgba(var(--gold-rgb), 0.6)); font-family: var(--serif-ui, ui-serif, 'New York', Georgia, serif); font-size: 15px; font-style: italic; line-height: 1.45; color: var(--foreground); opacity: 0.88; }
+.fijadaCuerpo { padding: 4px 16px 16px; container-type: inline-size; min-width: 0; max-width: 100%; }
+
+.detalle { display: flex; flex-direction: column; min-height: 0; }
+.ficha { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px 16px; margin: 6px 20px 10px; }
+.ficha div { min-width: 0; }
+.ficha dt { font-size: 11px; color: var(--muted); margin-bottom: 2px; }
+.ficha dd { margin: 0; font-size: 13px; color: var(--foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.encargo { margin: 0 20px 10px; font-size: 13.5px; line-height: 1.5; color: var(--foreground); }
+.ultima { margin: 0 20px 10px; font-size: 13px; line-height: 1.45; color: var(--foreground); }
+.ultima span { display: block; font-size: 11px; color: var(--muted); margin-bottom: 2px; }
+.terminal {
+  margin: 0 16px; padding: 12px 14px; max-height: min(52vh, 560px); overflow: auto; border-radius: 12px;
+  background: var(--l-gris-2, #0d0d12); color: var(--l-gris-12, #d4d4d8); border: 1px solid rgba(var(--l-luz-rgb, 255, 255, 255), 0.06);
+  font: 12px/1.55 ui-monospace, 'SF Mono', Menlo, monospace; white-space: pre-wrap; word-break: break-word;
+}
+.lectura { padding: 4px 20px 8px; font-size: 14px; }
+
+/* ── Taller ── */
+.segmentos { display: flex; gap: 2px; margin: 10px 14px 4px; padding: 3px; border-radius: 10px; background: rgba(var(--foreground-rgb), 0.05); }
+:global(.dark) .segmentos { background: rgba(var(--l-luz-rgb, 255, 255, 255), 0.05); }
+.segmento { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 5px; height: 28px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font-size: 12.5px; font-weight: 500; cursor: pointer; white-space: nowrap; }
+.segmento small { font-size: 11px; opacity: 0.7; font-variant-numeric: tabular-nums; }
+.segmento[aria-selected='true'] { background: var(--card); color: var(--foreground); box-shadow: 0 1px 2px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.12); }
+
+.fila {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 40px; padding: 7px 8px 7px 10px;
+  border: 0; border-radius: 10px; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; transition: background 120ms;
+}
+.fila .marca { margin-top: 0; align-self: center; }
+.fila:hover:not([data-estatica]) { background: rgba(var(--foreground-rgb), 0.04); }
+:global(.dark) .fila:hover:not([data-estatica]) { background: rgba(var(--l-luz-rgb, 255, 255, 255), 0.04); }
+.fila[data-estatica] { cursor: default; }
+.filaMeta { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.filaMono { font: 11.5px/1.4 ui-monospace, 'SF Mono', Menlo, monospace; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.filaEstado { font-size: 12px; color: var(--muted); white-space: nowrap; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.filaEstado[data-falla] { color: var(--error); }
+.puerto { font: 12.5px ui-monospace, 'SF Mono', Menlo, monospace; color: var(--muted); flex-shrink: 0; }
+.iconoArchivo { color: var(--muted); }
+.buscar { margin: 10px 16px 2px; height: 34px; padding: 0 12px; border-radius: 9px; border: 1px solid var(--border); background: var(--card); color: var(--foreground); font-size: 13px; outline: none; }
+.buscar:focus { border-color: rgba(var(--brand-rgb), 0.45); }
+
+/* Con puntero fino la acción de la fila aparece ENCIMA del lado derecho al pasar el cursor:
+   invisible no debe ocupar sitio (si no, la columna de dueños pierde su borde común). */
+@media (hover: hover) {
+  .tarea { position: relative; }
+  .tarea .accionFila { position: absolute; right: 30px; top: 50%; transform: translateY(-50%); box-shadow: 0 0 0 6px var(--surface); }
+}
+
+/* ── panel-claridad (1 oct): terminal viva, «Nuevo agente» ── */
+
+.detalle[data-viva] { flex: 1; min-height: 0; }
+.vivaMeta { margin: -2px 20px 8px 50px; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.encargoPlegado { margin: 0 20px 8px 50px; font-size: 12.5px; color: var(--muted); }
+.encargoPlegado summary { cursor: pointer; width: fit-content; }
+.encargoPlegado summary:hover { color: var(--foreground); }
+.encargoPlegado p { margin: 6px 0 0; color: var(--foreground); line-height: 1.5; max-height: 160px; overflow: auto; white-space: pre-wrap; }
+.vivaMarco { position: relative; flex: 1; min-height: 280px; margin: 0 12px; border-radius: 12px; overflow: hidden; background: var(--l-gris-2, #0d0d12); border: 1px solid rgba(var(--l-luz-rgb, 255, 255, 255), 0.06); }
+.viva { position: absolute; inset: 8px 4px 8px 10px; }
+.viva :global(.xterm-viewport) { background: transparent !important; }
+.vivaVelo { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; margin: 0; font-size: 12.5px; color: var(--l-gris-11, #a1a1aa); background: var(--l-gris-2, #0d0d12); text-align: center; padding: 20px; }
+.sinPantalla { list-style: none; margin: 4px 20px 8px 50px; padding: 0; display: flex; flex-direction: column; gap: 10px; max-height: 55vh; overflow: auto; }
+.sinPantalla li { font-size: 13px; line-height: 1.5; }
+.sinPantalla li b { display: block; font-size: 11.5px; font-weight: 600; color: var(--muted); text-transform: capitalize; }
+.sinPantalla li p { margin: 2px 0 0; white-space: pre-wrap; color: var(--foreground); }
+.sinPantalla li[data-rol='user'] p { color: var(--muted); }
+.sinPantalla li span { display: block; margin-top: 2px; font-size: 11.5px; color: var(--muted); }
+.vivaPie { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 8px 20px 12px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+
+.nuevoFila { display: flex; align-items: center; gap: 10px; margin: 10px 16px 2px; flex-wrap: wrap; }
+.nuevo {
+  display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 9px;
+  border: 1px solid var(--l-borde-morado, rgba(var(--brand-rgb), 0.35)); background: rgba(var(--l-velo-morado-rgb, var(--brand-rgb)), 0.08); color: var(--l-tinta-morado, var(--brand-ink));
+  font-size: 13px; font-weight: 600; cursor: pointer; transition: background 120ms, border-color 120ms;
+}
+.nuevo:hover { background: rgba(var(--brand-rgb), 0.14); border-color: rgba(var(--brand-rgb), 0.5); }
+.nuevo:focus-visible, .nuevoEnviar:focus-visible, .nuevoCancelar:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.nuevoListo { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); }
+.nuevoCaja { display: flex; flex-direction: column; gap: 6px; margin: 10px 16px 4px; padding: 12px; border-radius: 12px; border: 1px solid var(--l-borde-morado, rgba(var(--brand-rgb), 0.3)); background: var(--card); }
+.nuevoCaja label { font-size: 13px; font-weight: 600; color: var(--foreground); }
+.nuevoCaja textarea { resize: vertical; min-height: 70px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--foreground); font: inherit; font-size: 13.5px; line-height: 1.45; outline: none; }
+.nuevoCaja textarea:focus { border-color: rgba(var(--brand-rgb), 0.5); }
+.nuevoCaja p { margin: 0; font-size: 12px; color: var(--muted); }
+.nuevoAcciones { display: flex; justify-content: flex-end; gap: 6px; margin-top: 2px; }
+.nuevoCancelar { height: 30px; padding: 0 12px; border-radius: 8px; border: 0; background: transparent; color: var(--muted); font-size: 13px; cursor: pointer; }
+.nuevoCancelar:hover { color: var(--foreground); }
+.nuevoEnviar { height: 30px; padding: 0 14px; border-radius: 8px; border: 0; background: var(--brand); color: var(--l-gris-16, white); font-size: 13px; font-weight: 600; cursor: pointer; }
+.nuevoEnviar:disabled { opacity: 0.45; cursor: default; }
+
+/* ── Detalle de una tarea de Todoist (Fase 2) ── */
+.tareaAcciones { display: flex; gap: 8px; margin: 2px 20px 6px 50px; }
+.tareaCompletar { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 14px; border-radius: 9px; border: 0; background: var(--brand); color: var(--l-gris-16, white); font-size: 13px; font-weight: 600; cursor: pointer; }
+.tareaCompletar:disabled { opacity: 0.5; cursor: default; }
+.tareaCompletar:focus-visible, .opciones button:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.tareaBloque { margin: 8px 20px 6px 50px; }
+.tareaBloque h4 { margin: 0 0 6px; font-size: 11px; font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.opciones { display: flex; flex-wrap: wrap; gap: 6px; }
+.opciones button { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 11px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--foreground); font-size: 12.5px; cursor: pointer; transition: border-color 120ms, background 120ms; }
+.opciones button:hover:not(:disabled) { border-color: rgba(var(--brand-rgb), 0.4); }
+.opciones button[data-activa] { border-color: rgba(var(--brand-rgb), 0.6); background: rgba(var(--brand-rgb), 0.1); font-weight: 600; }
+.opciones button:disabled { opacity: 0.55; cursor: default; }
+.opciones button i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); opacity: 0.5; }
+.opciones button[data-prioridad='1'] i { background: var(--l-rojo-4, #e5484d); opacity: 1; } .opciones button[data-prioridad='2'] i { background: var(--gold); opacity: 1; } .opciones button[data-prioridad='3'] i { background: var(--l-azul-5, #3b82f6); opacity: 1; }
+.fechaInput { height: 30px; padding: 0 8px; border-radius: 8px; border: 1px solid var(--l-borde-morado, rgba(var(--brand-rgb), 0.45)); background: var(--card); color: var(--foreground); font: inherit; font-size: 12.5px; color-scheme: light dark; }
+.guardando { display: block; margin-top: 4px; font-size: 11.5px; color: var(--muted); }
+.lecturaCorta { font-size: 13.5px; line-height: 1.5; color: var(--foreground); }
+.etiquetas { display: flex; flex-wrap: wrap; gap: 5px; }
+.etiquetas span { font-size: 12px; padding: 3px 8px; border-radius: 999px; background: rgba(var(--foreground-rgb), 0.06); color: var(--foreground); }
+.subtareas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.subtareas li { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--foreground); }
+.subtareas li[data-hecha] { color: var(--muted); text-decoration: line-through; }
+.checkVacio { width: 15px; height: 15px; border-radius: 50%; border: 1.5px solid rgba(var(--foreground-rgb), 0.35); flex-shrink: 0; }
+.subtareas .checkHecho { width: 15px; height: 15px; flex-shrink: 0; }
+.comentario { display: flex; gap: 8px; margin: 0 0 8px; font-size: 13px; color: var(--foreground); }
+.comentario > svg { margin-top: 4px; color: var(--muted); flex-shrink: 0; }
+.comentario small { display: block; font-size: 11px; color: var(--muted); }
+
+/* Crítico ciego (1 oct): lo que pregunta un agente es lo más urgente; se lee completo hasta tres renglones. */
+.seccion[data-tono='oro'] .filaLinea[data-tono='oro'] { white-space: normal; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+
+/* ── Qué es cada cosa (1 oct, 10:03): un ícono por tipo, el punto de estado en la esquina ── */
+.tipo { position: relative; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 7px; flex-shrink: 0; color: var(--muted); background: rgba(var(--foreground-rgb), 0.06); }
+:global(.dark) .tipo { background: rgba(var(--l-luz-rgb, 255, 255, 255), 0.06); }
+.tipo[data-tipo='levy'] { color: var(--l-tinta-morado, var(--brand-ink)); background: rgba(var(--brand-rgb), 0.12); }
+.tipo[data-tipo='interno'] { color: var(--l-tinta-morado, var(--brand-ink)); background: rgba(var(--l-velo-morado-rgb, var(--brand-rgb)), 0.07); }
+.tipo[data-tipo='workflow'] { color: var(--l-tinta-morado, var(--brand-ink)); background: rgba(var(--l-velo-morado-rgb, var(--brand-rgb)), 0.07); }
+.tipo[data-tipo='servidor'] { color: var(--success); background: rgba(var(--foreground-rgb), 0.05); }
+/* 6 oct 2026 (Daniel): amarillo mientras trabaja, morado cuando terminó; el mismo amarillo de «1 agente trabajando». */
+.tipo[data-estado='trabajando'] { color: var(--l-tinta-ambar-oscura, #a16207); background: rgba(var(--l-ambar-3-rgb, 234, 179, 8), 0.16); }
+:global(.dark) .tipo[data-estado='trabajando'] { color: var(--l-tinta-ambar, #facc15); background: rgba(var(--l-ambar-2-rgb, 250, 204, 21), 0.14); }
+.tipo[data-estado='trabajando'] > .punto { background: var(--l-ambar-3, #eab308); }
+.tipo[data-estado='termino'] { color: var(--l-tinta-morado, var(--brand-ink)); background: rgba(var(--brand-rgb), 0.12); }
+.tipo[data-grande] { width: 32px; height: 32px; border-radius: 9px; }
+.tipo > .punto { position: absolute; right: -2px; bottom: -2px; width: 8px; height: 8px; box-shadow: 0 0 0 2px var(--surface); }
+.tipo > .punto[data-estado='trabajando'] { animation: none; }
+.marca:has(> .tipo) { width: 24px; margin-top: 9px; }
+.fila .marca:has(> .tipo) { margin-top: 0; }
+
+/* ── Ventana aparte (segunda pantalla, 5 oct 2026): otra tira de pestañas, a ventana completa ── */
+.ventana { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--surface); color: var(--foreground); }
+:global(.dark) .ventana { background: color-mix(in srgb, var(--surface) 92%, var(--l-gris-0, black)); }
+.ventanaTitulo { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; padding-left: 4px; color: var(--muted); }
+.ventanaTitulo b { color: var(--foreground); font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.icono[data-error] { color: var(--l-tinta-ambar, var(--gold, var(--l-tinta-ambar, #d4a017))); }
+
+/* ── Arrastrar una pestaña (1 oct 2026): sacarla a su ventana o devolverla al panel ── */
+.pestanas .pestana[data-arrastrable], .pestana[data-arrastrable] { cursor: grab; }
+.pestana[data-arrastrada] { opacity: 0.35; }
+/* La pestaña tomada deja su ranura en la tira (CapCut): contorno con el ancho real, que se desliza al lugar donde caerá. */
+:global(html[data-arrastrando-pestana]) .pestana[data-arrastrada] {
+  opacity: 1; background: rgba(var(--l-velo-morado-rgb, var(--brand-rgb)), 0.07); outline: 1.5px dashed var(--l-borde-morado, rgba(var(--brand-rgb), 0.6)); outline-offset: -1.5px; animation: ranuraAbre 200ms ease-out;
+}
+:global(html[data-arrastrando-pestana]) .pestana[data-arrastrada] > * { visibility: hidden; }
+/* El fantasma sigue al cursor; sin recibir el puntero, para no estorbar a lo que haya debajo. Al salir del panel (o de la
+   ventana) cambia de cara: eso avisa «aquí se abre en su propia ventana» / «aquí se devuelve». */
+.fantasma { position: fixed; left: 0; top: 0; z-index: 2147483000; pointer-events: none; will-change: transform; }
+.fantasma > * {
+  display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 8px; max-width: 220px;
+  background: var(--surface); color: var(--foreground); border: 1px solid var(--l-borde-morado, rgba(var(--brand-rgb), 0.35)); font-size: 13px; font-weight: 500; white-space: nowrap;
+  box-shadow: 0 14px 30px -14px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.55); cursor: grabbing; transition: transform 120ms, border-color 120ms, box-shadow 120ms;
+  transform: scale(1.04); animation: levantaPestana 140ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+/* Atrapada por el imán: se alinea con su ranura y lo dice con el borde. */
+.fantasma[data-iman] > * { border-color: var(--l-borde-morado, var(--brand)); box-shadow: 0 16px 34px -14px rgba(var(--l-halo-morado-rgb, var(--brand-rgb)), 0.5); }
+.fantasma[data-fuera] > * { transform: scale(1.06); border-color: var(--l-borde-morado, var(--brand)); box-shadow: 0 18px 38px -14px rgba(var(--l-halo-morado-rgb, var(--brand-rgb)), 0.55); }
+.errorVentana {
+  position: absolute; top: 60px; right: 8px; z-index: 30; max-width: 280px; margin: 0; padding: 8px 10px; border-radius: 10px;
+  background: var(--surface); border: 1px solid var(--border); box-shadow: 0 12px 30px -18px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.6); font-size: 12px; line-height: 1.4;
+}
+
+/* Daniel (10:13): «Terminó» tenue; «Espera» en oro solo si pregunta. Lo terminado de los turnos, plegado. */
+.filaEstado[data-tono='tenue'] { opacity: 0.6; }
+.filaEstado[data-tono='oro'] { color: var(--l-tinta-ambar, var(--gold-dark)); font-weight: 600; }
+:global(.dark) .filaEstado[data-tono='oro'] { color: var(--l-tinta-ambar, var(--gold-bright)); }
+.punto[data-estado='termino'] { background: var(--muted); opacity: 0.45; }
+.terminadas > summary { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-radius: 8px; font-size: 12.5px; color: var(--muted); cursor: pointer; list-style: none; }
+.terminadas > summary::-webkit-details-marker { display: none; }
+.terminadas > summary:hover { color: var(--foreground); background: rgba(var(--foreground-rgb), 0.04); }
+.terminadas[open] .chevron { transform: rotate(90deg); }
+
+/* La píldora junto a «Levy» (encabezado del chat; 4 oct, simplificada el 5 oct 2026): agentes de ESTA conversación con
+   punto amarillo (Taller) y, si algo pide decisión, «N te espera» con punto azul (Tareas). Dos botones, una sola píldora. */
+.agentesVivos { --amarillo: var(--l-ambar-3, #eab308); --azul: var(--l-azul-6, #2563eb); display: inline-flex; align-items: center; height: 26px; padding: 0 3px; border-radius: 999px; border: 1px solid var(--border); background: var(--card); white-space: nowrap; }
+:global(.dark) .agentesVivos { --amarillo: var(--l-ambar-2, #facc15); --azul: var(--l-azul-4, #60a5fa); }
+.agentesVivos > button { display: inline-flex; align-items: center; gap: 6px; height: 20px; padding: 0 7px; border: 0; border-radius: 999px; background: transparent; color: var(--foreground); font-size: 12px; font-weight: 550; cursor: pointer; }
+.agentesVivos > button + button { color: var(--muted); font-weight: 500; }
+.agentesVivos > button:hover { background: rgba(var(--foreground-rgb), 0.06); color: var(--foreground); }
+.agentesVivos > button:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.agentesVivos[data-compacta] > button { padding: 0 6px; gap: 5px; }
+.puntoVivo, .puntoEspera { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+/* 28 oct 2026 (Daniel: «este era amarillo»): el punto amarillo que late, como antes de hoy. El título del Taller sigue morado quieto. */
+.puntoVivo { background: var(--amarillo); animation: puntoVivo 1.4s ease-in-out infinite; }
+.puntoEspera { background: var(--azul); }
+@keyframes puntoVivo { 0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 rgba(var(--l-halo-ambar-rgb, 234, 179, 8), 0.5); } 50% { opacity: 0.6; transform: scale(0.8); box-shadow: 0 0 0 4px rgba(var(--l-ambar-3-rgb, 234, 179, 8), 0); } }
+@media (prefers-reduced-motion: reduce) { .puntoVivo { animation: none; } }
+
+/* Pantalla completa (4–5 oct 2026): el panel a todo el ancho. El chat flotante vive en globals.css (selector global puro). */
+:global(html[data-enfoque]) .lateral { flex: 1 1 auto; width: 100% !important; max-width: none; border-left: 0; animation: none; }
+:global(html[data-enfoque]) .divisor { display: none; }
+.lateral { view-transition-name: panel-derecho; }
+
+/* «Volver», siempre a la vista arriba a la izquierda. */
+.volver { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 8px 0 9px; margin-right: 6px; border-radius: 8px; flex-shrink: 0;
+  border: 1px solid var(--border); background: var(--card); color: var(--foreground); font-size: 13px; font-weight: 500; cursor: pointer; transition: background 120ms, border-color 120ms; }
+.volver:hover { background: rgba(var(--foreground-rgb), 0.06); border-color: rgba(var(--foreground-rgb), 0.18); }
+.volver kbd, .levyBoton kbd { font: 500 10.5px/1 ui-monospace, SFMono-Regular, Menlo, monospace; padding: 3px 5px; border-radius: 5px; color: var(--muted); background: rgba(var(--foreground-rgb), 0.06); }
+
+/* Levy a la mano: botón fijo cuando el cajón está escondido. */
+.levyBoton { position: fixed; right: 20px; bottom: 20px; z-index: 61; display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 10px 0 14px;
+  border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--foreground); font-size: 13.5px; font-weight: 600; cursor: pointer;
+  box-shadow: 0 10px 30px -10px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.35), 0 2px 6px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.08); animation: aparece 200ms ease-out; transition: transform 160ms, box-shadow 160ms; }
+.levyBoton:hover { transform: translateY(-1px); box-shadow: 0 14px 34px -10px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.4), 0 2px 6px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.1); }
+.levyBoton svg { color: rgb(var(--brand-rgb)); }
+
+/* Cabecera del cajón de Levy (dentro de [data-shell-main], primero por `order`). */
+.levyCabecera { display: none; }
+:global(html[data-enfoque]) .levyCabecera { display: flex; order: -1; align-items: center; gap: 8px; min-height: 44px; padding: 6px 6px 6px 14px; flex-shrink: 0;
+  border-bottom: 1px solid var(--border); font-size: 13px; color: var(--foreground); }
+.levyCabecera > svg { color: rgb(var(--brand-rgb)); flex-shrink: 0; }
+.levyCabecera > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+.levyCabecera > b { flex-shrink: 0; }
+.levyAccion { height: 28px; padding: 0 10px; border-radius: 7px; border: 1px solid var(--border); background: transparent; color: var(--foreground); font-size: 12.5px; cursor: pointer; flex-shrink: 0; margin-left: auto; }
+.levyCabecera > span + .levyAccion { margin-left: 0; }
+.levyAccion:hover { background: rgba(var(--foreground-rgb), 0.06); }
+
+
+/* ── Anclar (5 oct 2026): como las fijadas de Chrome, solo el ícono, primero y sin ×; una raya las separa de las sueltas ── */
+.fijada[data-anclada] .pestana { padding: 0 10px; gap: 0; }
+.fijada[data-anclada] .pestana > span { display: none; }
+.fijada[data-anclada] + .fijada:not([data-anclada]) { margin-left: 5px; }
+.fijada[data-anclada] + .fijada:not([data-anclada])::before { content: ''; position: absolute; left: -4px; top: 8px; bottom: 8px; width: 1px; background: var(--border); }
+/* Otra ventana arrastra una pestaña sobre esta tira: las vecinas le abren hueco donde caería. */
+.pestanas[data-hueco] { position: relative; }
+.pestanas[data-hueco] > [data-clave] { transition: transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1); transition: transform 200ms linear(0, 0.041, 0.139, 0.265, 0.396, 0.523, 0.635, 0.732, 0.81, 0.873, 0.92, 0.955, 0.98, 0.996, 1.006, 1.012, 1.015, 1.015, 1.014, 1.013, 1); }
+/* La ranura que abre esta ventana para la pestaña que viene de otra (la inserta useHuecoEnTira): contorno con su ancho real. */
+.pestanas > [data-ranura] {
+  position: absolute; top: 50%; height: 30px; margin-top: -15px; border-radius: 8px; pointer-events: none;
+  background: rgba(var(--l-velo-morado-rgb, var(--brand-rgb)), 0.07); outline: 1.5px dashed var(--l-borde-morado, rgba(var(--brand-rgb), 0.6)); outline-offset: -1.5px;
+  transition: left 200ms cubic-bezier(0.2, 0.8, 0.2, 1), width 200ms cubic-bezier(0.2, 0.8, 0.2, 1); transition: left 200ms linear(0, 0.041, 0.139, 0.265, 0.396, 0.523, 0.635, 0.732, 0.81, 0.873, 0.92, 0.955, 0.98, 0.996, 1.006, 1.012, 1.015, 1.015, 1.014, 1.013, 1), width 200ms linear(0, 0.041, 0.139, 0.265, 0.396, 0.523, 0.635, 0.732, 0.81, 0.873, 0.92, 0.955, 0.98, 0.996, 1.006, 1.012, 1.015, 1.015, 1.014, 1.013, 1); animation: ranuraAbre 200ms ease-out;
+}
+/* Ventana dividida como Visual Studio (8 oct 2026, VentanaDividida.tsx y division.ts). */
+.cuerpoZona { position: relative; flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; }
+.division { flex: 1; min-height: 0; min-width: 0; display: flex; }
+.columnaDivision { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
+.filaDivision { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.parte { position: relative; flex: 1; display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.parteCuerpo { flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; }
+/* La cabecera de cada parte es la misma de la ventana; el foco se nota en la línea de abajo. */
+.parte[data-foco] > .cabecera { box-shadow: inset 0 -2px 0 rgba(var(--l-halo-morado-rgb, var(--brand-rgb)), 0.55); }
+/* La columna derecha se esconde y vuelve (⌘B, 9 oct 2026): el ancho de la izquierda se pliega con el tiempo y la curva
+   de la casa; la derecha se apaga y, ya cerrada, deja de verse. Arrastrando un divisor, nada se anima. */
+.division > .columnaDivision[data-columna="0"] { transition: flex-basis var(--mov-pliegue) var(--mov-curva); }
+.division > .columnaDivision[data-columna="1"] { overflow: hidden; transition: opacity var(--mov-pliegue) var(--mov-curva), visibility 0s; }
+.division > .columnaDivision[data-oculta] { opacity: 0; visibility: hidden; transition: opacity var(--mov-pliegue) var(--mov-curva), visibility 0s linear var(--mov-pliegue); }
+:global(html).redimensionando .division > .columnaDivision { transition: none; }
+@media (prefers-reduced-motion: reduce) { .division > .columnaDivision { transition: none !important; } }
+.divisorColumna, .divisorFila { flex-shrink: 0; background: var(--border); position: relative; z-index: 3; transition: background 120ms; }
+.divisorColumna { width: 1px; cursor: col-resize; }
+.divisorFila { height: 1px; cursor: row-resize; }
+.divisorColumna::before { content: ''; position: absolute; inset: 0 -4px; }
+.divisorFila::before { content: ''; position: absolute; inset: -4px 0; }
+.divisorColumna:hover, .divisorFila:hover { background: rgba(var(--brand-rgb), 0.6); }
+/* La sombra de dónde caerá la pestaña al soltarla sobre el cuerpo (la pinta arrastre.ts). */
+.sombraDivision {
+  position: absolute; z-index: 40; pointer-events: none; border-radius: 10px;
+  background: rgba(var(--l-velo-morado-rgb, var(--brand-rgb)), 0.12); outline: 2px solid var(--l-borde-morado, rgba(var(--brand-rgb), 0.55)); outline-offset: -2px;
+  transition: left 160ms cubic-bezier(0.2, 0.8, 0.2, 1), top 160ms cubic-bezier(0.2, 0.8, 0.2, 1), width 160ms cubic-bezier(0.2, 0.8, 0.2, 1), height 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation: zonaAparece 140ms ease-out;
+}
+@keyframes zonaAparece { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ranuraAbre { from { opacity: 0; transform: scaleX(0.6); } to { opacity: 1; transform: scaleX(1); } }
+@keyframes levantaPestana { from { transform: scale(1); box-shadow: 0 2px 6px -4px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.3); } to { transform: scale(1.04); } }
+
+/* Clic derecho en una pestaña: fijar, mover a otra ventana, cerrar. */
+.menuPestana {
+  position: fixed; z-index: 2147482000; display: flex; flex-direction: column; padding: 5px; border-radius: 12px;
+  border: 1px solid var(--border); background: var(--card); color: var(--foreground);
+  box-shadow: 0 16px 40px -14px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.45), 0 2px 8px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.08); animation: aparece 140ms ease-out;
+}
+.menuPestana button {
+  display: flex; align-items: center; gap: 9px; height: 32px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent;
+  color: inherit; font: inherit; font-size: 13px; text-align: left; cursor: pointer;
+}
+.menuPestana button:hover, .menuPestana button:focus-visible { background: rgba(var(--brand-rgb), 0.1); outline: none; }
+.menuPestana button svg { color: var(--muted); flex-shrink: 0; }
+
+/* ── El fantasma que cruza monitores (5 oct 2026, VentanaFantasma.tsx): ventana nativa transparente que sigue al cursor ──
+   'ventana': la ventana que nacería, translúcida, con la vista viva. 'pestana': solo la pestaña, para dejarla en otra tira. */
+.fantasmaRaiz { position: fixed; inset: 0; pointer-events: none; user-select: none; transition: opacity 160ms ease-out; }
+.fantasmaRaiz[data-modo='nada'] { opacity: 0; }
+.fantasmaMarco {
+  position: absolute; display: flex; flex-direction: column; overflow: hidden; border-radius: 12px;
+  background: var(--surface); border: 1px solid var(--l-borde-morado, rgba(var(--brand-rgb), 0.45));
+  box-shadow: 0 28px 60px -24px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.7), 0 0 0 1px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.25);
+  opacity: 0.8; transform: scale(1); transform-origin: 90px 52px;
+  transition: opacity 160ms ease-out, transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+:global(.dark) .fantasmaMarco { background: color-mix(in srgb, var(--surface) 92%, var(--l-gris-0, black)); }
+.fantasmaRaiz:not([data-modo='ventana']) .fantasmaMarco { opacity: 0; transform: scale(0.94); }
+.fantasmaBarra { display: flex; align-items: center; gap: 8px; padding: 0 12px; flex-shrink: 0; background: rgba(var(--foreground-rgb), 0.04); }
+.fantasmaBarra i { width: 12px; height: 12px; border-radius: 50%; background: rgba(var(--foreground-rgb), 0.18); }
+.fantasmaCabecera { flex-shrink: 0; border-bottom: 1px solid var(--border); }
+.fantasmaCuerpo { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.fantasmaPestana { position: absolute; left: 0; top: 0; will-change: transform; transition: transform 150ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+.pestanaDelFantasma {
+  transform: scale(1.04); color: var(--foreground); background: var(--surface); border: 1px solid var(--l-borde-morado, var(--brand)); cursor: grabbing;
+  box-shadow: 0 18px 38px -14px rgba(var(--l-halo-morado-rgb, var(--brand-rgb)), 0.55), 0 6px 16px -8px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.5);
+}
+:global(.dark) .pestanaDelFantasma { background: color-mix(in srgb, var(--surface) 88%, rgb(var(--brand-rgb))); }
+/* La pestaña que aterrizó desde otra ventana se asienta con un pulso corto (ventanas.ts, seguirLlegadas). */
+.pestanas > [data-clave][data-llego] .pestana { animation: llegoPestana 480ms var(--mov-curva, cubic-bezier(0.16, 1, 0.3, 1)); }
+@keyframes llegoPestana {
+  0% { box-shadow: 0 0 0 1px var(--l-borde-morado, var(--brand)), 0 10px 26px -12px rgba(var(--l-halo-morado-rgb, var(--brand-rgb)), 0.7); transform: scale(1.04); }
+  100% { box-shadow: 0 0 0 0 transparent; transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fantasmaRaiz, .fantasmaMarco, .fantasmaPestana { transition: none; }
+  :global(html[data-arrastrando-pestana]) .pestanas > [data-clave], .pestanas[data-hueco] > [data-clave], .pestanas > [data-ranura] { transition: none; }
+  :global(html[data-arrastrando-pestana]) .pestana[data-arrastrada], .pestanas > [data-ranura], .fantasma > * { animation: none; }
+  .pestanas > [data-clave][data-llego] .pestana { animation: none; }
+  .sombraDivision { transition: none; animation: none; }
+}
+
+/* Taller › Servidores (5 oct 2026): arriba el semáforo de negocio (la vista que estaba en el «+»), abajo lo técnico. */
+.tallerServidores { padding: 4px 16px 8px; container-type: inline-size; min-width: 0; max-width: 100%; }
+.tallerServidores > .seccion { padding-left: 0; padding-right: 0; }
+.tallerTecnico {
+  margin: 22px 0 0; padding: 14px 0 0; border-top: 1px solid var(--border); font-size: 11px; font-weight: 650;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+}
+
+/* «Escuchar» del documento (7 oct 2026). Envoltorio de alto 0 y pegajoso: no empuja el contenido y sigue a la vista al
+   hacer scroll. En reposo, un botón discreto arriba a la derecha junto al «tema» que pinta el propio HTML (mismo estilo);
+   al leer, la barra del chat flotando arriba al centro. `--ancla` = px del documento a su derecha (el iframe va
+   des-zoomeado, de ahí dividir entre el zoom de la app). Ancho del panel/teléfono: contenedor, no ventana. */
+.escucharFlota { position: sticky; top: 0; z-index: 90; height: 0; container-type: inline-size; pointer-events: none; }
+.escucharFlota > * { pointer-events: auto; }
+.escucharBoton { position: absolute; top: calc(13px / var(--ui-zoom, 1)); right: calc(var(--ancla, 15) * 1px / var(--ui-zoom, 1)); display: grid; place-items: center; width: 30px; height: 30px; border: 1px solid var(--border); border-radius: 999px; background: var(--card); color: var(--foreground); box-shadow: 0 3px 16px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.12); opacity: 0.8; cursor: pointer; transition: opacity 140ms; touch-action: manipulation; }
+.escucharBoton:hover, .escucharBoton:focus-visible { opacity: 1; }
+.escucharBoton:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+/* Ancho: centrada y sin pisar el «tema» (margen simétrico). En panel angosto o teléfono la barra baja una fila, a todo el ancho. */
+/* Al leer, la barra tiene franja propia: en el flujo, entre la tira de pestañas y el documento (no flota sobre él), así ni se corta arriba ni tapa título o texto. */
+.escucharFlota[data-leyendo] { height: auto; padding: 0 0 10px; background: var(--surface); }
+.escucharBarra { width: min(440px, 100%); margin: 0 auto; overflow: hidden; border: 1px solid var(--border); border-radius: 16px; background: var(--card); box-shadow: 0 4px 16px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.12); }
+.escucharBarra > div { border-bottom: 0; background: transparent; }
+.escucharAviso { position: absolute; top: calc(50px / var(--ui-zoom, 1)); right: calc(var(--ancla, 15) * 1px / var(--ui-zoom, 1)); max-width: 220px; padding: 5px 9px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); color: var(--muted); font-size: 11.5px; line-height: 1.25; text-align: right; }
+
+/* Lenguaje unificado (27 oct 2026): el punto morado de «trabajando» es claro sobre negro. El amarillo del tipo «trabajando»
+   (regla del 6 oct) se conserva. */
+:global(html.dark[data-estilo='unificado']) .punto[data-estado='trabajando'] { background: var(--l-tinta-morado); }
+:global(html.dark[data-estilo='unificado']) .tipo[data-estado='trabajando'] > .punto { background: var(--l-ambar-3); }

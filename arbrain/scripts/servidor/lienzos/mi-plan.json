@@ -1,0 +1,23 @@
+{
+  "nombre": "Mi plan · mes, semana y día",
+  "regionId": "mi-plan",
+  "theme": "claro",
+  "targetAspect": 1.6,
+  "spec": {
+    "title": "Mi plan · mes, semana y día",
+    "nodes": [
+      { "id": "mes", "role": "deliverable", "title": "Objetivo del mes", "caption": "Un resultado que puedas comprobar el último día del mes.", "chips": [{ "text": "MES" }] },
+      { "id": "s1", "role": "module", "title": "Semana 1", "items": ["Foco: …", "Cómo lo compruebo: …"] },
+      { "id": "s2", "role": "module", "title": "Semana 2", "items": ["Foco: …", "Cómo lo compruebo: …"] },
+      { "id": "s3", "role": "module", "title": "Semana 3", "items": ["Foco: …", "Cómo lo compruebo: …"] },
+      { "id": "s4", "role": "module", "title": "Semana 4", "items": ["Foco: …", "Cómo lo compruebo: …"] },
+      { "id": "hoy", "role": "card", "title": "Objetivo de hoy", "items": ["Lo único que mueve la semana", "Bloque de enfoque en el calendario"], "chips": [{ "text": "DÍA" }] },
+      { "id": "levy", "role": "agent", "title": "Levy lo baja al calendario", "caption": "Dile «planeemos el mes»: escribe objetivos.md y agenda los bloques en calendario.json." }
+    ],
+    "edges": [
+      { "from": "mes", "to": "s1" }, { "from": "mes", "to": "s2" }, { "from": "mes", "to": "s3" }, { "from": "mes", "to": "s4" },
+      { "from": "s1", "to": "hoy" },
+      { "from": "levy", "to": "hoy", "kind": "agente", "label": "agenda" }
+    ]
+  }
+}

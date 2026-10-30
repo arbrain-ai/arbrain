@@ -1,0 +1,64 @@
+/* «Ver tu cerebro» (5 oct 2026): cabe en el panel del Taller (360–560 px) y respira a lo ancho en su ventana. */
+.vista { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.vista[data-grande] { gap: 14px; }
+.vista code { font-size: 0.92em; overflow-wrap: anywhere; }
+
+.cabeza { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ceja { margin: 0; font-size: 11.5px; font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.ceja b { color: var(--gold-dark); font-weight: 650; }
+:global(.dark) .ceja b { color: var(--gold-bright); }
+.cifras { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; font-size: 14px; color: var(--foreground); }
+.cifras span > span { font-weight: 700; }
+.vista[data-grande] .cifras { font-size: 16px; }
+.tenue { color: var(--muted); }
+.ahora { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--gold-dark); }
+:global(.dark) .ahora { color: var(--gold-bright); }
+.ahora i { width: 7px; height: 7px; border-radius: 50%; border: 1.6px solid rgb(var(--gold-rgb)); }
+
+.barra { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.buscar { flex: 1 1 180px; display: flex; align-items: center; gap: 7px; min-width: 0; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--border); background: color-mix(in srgb, var(--card) 92%, var(--background)); color: var(--muted); }
+.buscar input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--foreground); font: inherit; font-size: 13px; outline: none; }
+.buscar button { display: inline-flex; border: 0; background: transparent; color: var(--muted); cursor: pointer; padding: 0; }
+.buscar:focus-within { border-color: rgba(var(--primary-rgb), 0.55); }
+.sintetizar { display: inline-flex; align-items: center; gap: 5px; padding: 6px 11px; border-radius: 999px; border: 1px solid rgba(var(--primary-rgb), 0.4); background: transparent; color: var(--brand-ink); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.sintetizar[aria-pressed=true] { background: rgba(var(--primary-rgb), 0.12); }
+.sintetizar small { min-width: 16px; padding: 0 5px; border-radius: 999px; background: var(--brand); color: #fff; font-size: 10.5px; text-align: center; }
+.conmutador { display: inline-flex; padding: 2px; border-radius: 999px; border: 1px solid var(--border); }
+.conmutador button { padding: 4px 11px; border-radius: 999px; border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 11.5px; font-weight: 700; letter-spacing: 0.04em; cursor: pointer; }
+.conmutador button[aria-selected=true] { background: rgba(var(--primary-rgb), 0.16); color: var(--brand-ink); }
+.icono { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 999px; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; }
+.icono:hover { color: var(--foreground); }
+.gira { animation: girar 900ms linear infinite; }
+@keyframes girar { to { transform: rotate(360deg); } }
+
+/* El lienzo: alto propio (el canvas mide a su padre). La 3D es un planetario oscuro en los dos temas. */
+.lienzo { position: relative; height: clamp(380px, 64vh, 760px); border-radius: 14px; border: 1px solid var(--border); background: var(--background); overflow: hidden; }
+.vista[data-grande] .lienzo { height: max(460px, calc(100vh - 230px)); }
+.lienzo[data-vista='3d'] { background: #09090b; border-color: #26262c; }
+.lienzo canvas { display: block; touch-action: none; }
+.estado { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; margin: 0; font-size: 13px; color: var(--muted); }
+.aviso { position: absolute; left: 16px; right: 16px; top: 16px; margin: 0; padding: 8px 11px; border-radius: 9px; font-size: 12.5px; line-height: 1.4; color: var(--foreground); background: color-mix(in srgb, var(--card) 94%, transparent); border: 1px solid var(--border); }
+
+.leyenda { position: absolute; left: 10px; bottom: 10px; right: 10px; display: flex; flex-wrap: wrap; gap: 5px; pointer-events: none; }
+.leyenda button { pointer-events: auto; display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px 3px 7px; border-radius: 999px; border: 1px solid var(--border); background: color-mix(in srgb, var(--card) 82%, transparent); backdrop-filter: blur(6px); color: var(--foreground); font: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer; }
+.leyenda button small { color: var(--muted); font-weight: 500; margin-left: 1px; }
+.leyenda button[aria-pressed=false] { color: var(--muted); text-decoration: line-through; opacity: 0.7; }
+.leyenda i { width: 8px; height: 8px; flex: none; border-radius: 50%; }
+.leyenda i[data-forma=rombo] { border-radius: 1px; transform: rotate(45deg) scale(0.9); }
+.leyenda i[data-forma=cuadro] { border-radius: 2px; }
+.lienzo[data-vista='3d'] .leyenda button { background: rgba(24, 24, 27, 0.72); border-color: #2a2a30; color: #f4f4f5; }
+.lienzo[data-vista='3d'] .leyenda button small, .lienzo[data-vista='3d'] .leyenda button[aria-pressed=false] { color: #a1a1aa; }
+.pista { position: absolute; top: 10px; right: 12px; margin: 0; max-width: 60%; text-align: right; font-size: 11px; color: var(--muted); pointer-events: none; }
+.lienzo[data-vista='3d'] .pista { color: #a1a1aa; }
+@container (max-width: 520px) { .pista { display: none; } }
+@media (max-width: 640px) { .pista { display: none; } }
+
+/* La hoja de la neurona: encima del lienzo en el panel angosto; a la derecha en la ventana ancha. */
+.hoja { position: absolute; inset: 0; z-index: 2; background: var(--surface, var(--card)); border-left: 1px solid var(--border); animation: entrarHoja 360ms var(--mov-curva, cubic-bezier(0.16, 1, 0.3, 1)) both; }
+.vista[data-grande] .hoja { left: auto; width: min(440px, 100%); }
+.hojaCuerpo { height: 100%; }
+.hojaCuerpo[hidden] { display: none; }
+@keyframes entrarHoja { from { opacity: 0; transform: translateX(14px); } }
+@media (prefers-reduced-motion: reduce) { .hoja, .gira { animation: none; } }
+
+.fuente { margin: 0; font-size: 11.5px; line-height: 1.45; color: var(--muted); }

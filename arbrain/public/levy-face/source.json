@@ -1,0 +1,31 @@
+{
+  "source": "saas-factory-community/public/onboarding-levy",
+  "copied_at": "2026-09-14",
+  "notes": "Runtime assets copied without changes. React adapter: src/features/chat/components/LevyFace.tsx. Live uses existing AudioEngine; visemes are estimated from text and synchronized to sentence playback, not forced alignment.",
+  "sha256": {
+    "rig/anatomy.js": "1dd50856aac64e5709b4c080a8a1b767ca9da37c5d81b948880fabc10850087b",
+    "rig/geometry-2026-08-02-gladiador.js.txt": "8adc8d45f73166fb7d9646aa5688911d22ff82c4d6529274eaf8d8536ea25689",
+    "rig/rig.js": "46cff40bb52896da08d88bcd5d93728f82a8e6a941f05d986eb8ac16dca219c2",
+    "rig/life.js": "3676539c1d0c310bbd4d28e37cde43e0e86ac2e656ef505676b017d036318fdf",
+    "rig/visemes.js": "c046a4444a2e2f6f7569bbc767b1a917bf5c3dc4459250baeec0200840638360",
+    "rig/voice.js": "92a86e402b18541818f8f316161840c3925975cf6eeabb5dee9cbd2473bddd1d",
+    "rig/geometry.js": "3553ef6dbe14e018105b81109eaccfde43549ed77a92b1d7e588e270638860bd",
+    "rig/emotions.js": "8d31316c573fd91bb1065d2919b1df384ac885d3ca57041364076dc2dfc4e456",
+    "assets/depth.png": "ac4262885631548d0ea055a7278534d48aeb96d89dcf39142e885316f605bd38",
+    "assets/masks_b.png": "612fe629ed7270a06e3a414e4c2dfd8df937e65516225af289b098797706b1fd",
+    "assets/masks_a.png": "310619e4718d47aa06cfc060fc992cfe596018628e938c9b4268f55b66bafd18",
+    "assets/levy.png": "089e327d6a6fcf6f094023eede0f270fe254f13b4a934ff6c5885d4c13541609",
+    "assets/views/views.json": "9743e4f2b6aea3f6aa03527970ee59ba47bfa5be855bc6a8bab9466231212b27",
+    "assets/views/cuarto-der.png": "52887370359d0f698607a0d32d8c79043491fa62beed8a1d0af7eb64f49630aa",
+    "assets/views/ojos-cerrados.png": "7016df32e6ef759a8ed16ea137d1e349cf4010a635fa30c1580978cfc538abfa",
+    "assets/views/boca-aa.png": "1e20b749dd981c876e4f04fa641b381573a49c10f0fdb5a082ea52f4ae32efaf",
+    "assets/views/flow-cuarto-izq.png": "ef3a683298c11a001c0c76e3daac15e7541984e8ca813481b723cbde65eb5ea4",
+    "assets/views/matte.png": "7d39c26efd2e4caede64bc98a447fa228d3ac20c0e23a5443b749dc20f3370b0",
+    "assets/views/flow-cuarto-der.png": "367a973aa3dcfe35d49e057ed485bc3f7dffc467861f33dcc1bc35a44e9c9cc9",
+    "assets/views/cuarto-izq.png": "fd9cac3bbdca9f6bf9e9d390b46513cdd2c5f8e2e6f1e951afc4d033134ecc02"
+  },
+  "local_changes": [
+    "2026-10-04 rig/rig.js: opción `capas` ({giro, cerrado, boca}) para apagar capas pintadas por superficie; Arbrain Live apaga giro (fundido frontal↔¾ = cara doble a media pose) y boca (dientes). Por defecto todo encendido.",
+    "2026-10-04 rig/rig.js: el párpado cerrado dibujado entra como cortinilla opaca por encima del filo que baja, no como fundido translúcido (ojo duplicado a medio parpadeo). Ver docs/agents/levy-presencia-noche-2026-10-04/2d."
+  ]
+}

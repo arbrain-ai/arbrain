@@ -1,0 +1,37 @@
+/* El negocio en Ajustes (6 oct 2026): estilo del Calendario y la Salud. Titular en serif, mucho aire, una sola línea
+   grande por tema; el resto, discreto. Todo con los tokens del tema: claro y oscuro salen solos. */
+.pagina { display: flex; flex-direction: column; gap: clamp(28px, 5vw, 44px); padding-top: 6px; }
+.bloque { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.bloque + .bloque { padding-top: clamp(24px, 4vw, 36px); border-top: 1px solid var(--border-subtle); }
+
+.ceja { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 11px; font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.titular { margin: 0; font-family: var(--serif-ui); font-size: clamp(24px, 3.4vw, 34px); line-height: 1.18; font-weight: 600; letter-spacing: -0.014em; color: var(--foreground); text-wrap: balance; overflow-wrap: anywhere; }
+.titular[data-largo] { font-size: clamp(20px, 2.6vw, 26px); line-height: 1.28; display: -webkit-box; -webkit-line-clamp: 6; line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
+.titular[data-vision] { font-size: clamp(26px, 3.8vw, 38px); line-height: 1.16; }
+.resumen { margin: 0; max-width: 60ch; font-size: 14.5px; line-height: 1.55; color: var(--muted); text-wrap: pretty; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.pie { margin: 2px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; font-size: 12.5px; color: var(--muted); }
+.fuente { margin: 0; font-size: 12px; line-height: 1.4; color: color-mix(in srgb, var(--muted) 82%, transparent); display: -webkit-box; -webkit-line-clamp: 1; line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+
+.etiqueta { display: inline-flex; align-items: center; min-height: 22px; padding: 0 9px; border-radius: 999px; font-size: 11px; font-weight: 650; letter-spacing: 0.04em; text-transform: none; color: var(--gold-dark); background: rgba(var(--gold-rgb), 0.12); border: 1px solid rgba(var(--gold-rgb), 0.3); }
+:global(.dark) .etiqueta { color: var(--gold-bright); }
+.etiqueta[data-quieta] { color: var(--muted); background: transparent; border-color: var(--border); }
+.revisar { composes: etiqueta; }
+
+.leer { display: inline-flex; align-items: center; gap: 5px; min-height: 36px; padding: 0 2px; border: 0; background: none; font: inherit; font-size: 13px; font-weight: 600; color: var(--foreground); cursor: pointer; border-radius: 8px; text-decoration: underline; text-decoration-color: rgba(var(--gold-rgb), 0.55); text-underline-offset: 4px; }
+.leer:hover { text-decoration-color: var(--gold-dark); }
+.leer:focus-visible { outline: 2px solid var(--gold-dark); outline-offset: 2px; }
+
+.mision { display: grid; gap: 22px; }
+.mision > div { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.mision h3 { margin: 0; font-size: 11px; font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+.mision p.linea { margin: 0; font-family: var(--serif-ui); font-size: clamp(19px, 2.3vw, 23px); line-height: 1.3; font-weight: 550; color: var(--foreground); text-wrap: pretty; }
+
+.principios { margin: 0; padding: 0; list-style: none; display: grid; gap: 18px; counter-reset: p; }
+.principios li { counter-increment: p; display: grid; grid-template-columns: 26px 1fr; column-gap: 8px; align-items: baseline; min-width: 0; }
+.principios li::before { content: counter(p); font-family: var(--serif-ui); font-size: 15px; color: var(--gold-dark); font-variant-numeric: tabular-nums; }
+:global(.dark) .principios li::before { color: var(--gold-bright); }
+.principios p { margin: 0; font-size: 15.5px; line-height: 1.45; color: var(--foreground); text-wrap: pretty; }
+.principios .fuente { grid-column: 2; margin-top: 3px; }
+
+.aviso { margin: 0; padding: 10px 14px; border-radius: 10px; font-size: 13px; line-height: 1.5; color: var(--foreground); background: rgba(var(--gold-rgb), 0.08); border: 1px solid rgba(var(--gold-rgb), 0.24); }
+.cargando { padding: 28px 2px; font-size: 13px; color: var(--muted); }
