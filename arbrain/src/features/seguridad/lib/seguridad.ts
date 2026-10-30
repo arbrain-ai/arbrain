@@ -21,7 +21,7 @@ export interface EstadoPausa { pausado: boolean; desde: number | null }
 
 /** Modo de permisos de Levy (grupal 23 oct 2026; Autónomo 0.2.15). Mismos ids que `server/src/cliente/modo-permisos.ts`. */
 export type ModoPermisos = 'preguntar' | 'carpeta' | 'autonomo'
-export type ViaConsentimiento = 'bienvenida' | 'ajustes' | 'pildora' | 'pausa' | 'migracion' | 'version'
+export type ViaConsentimiento = 'bienvenida' | 'ajustes' | 'pildora' | 'pausa' | 'migracion' | 'version' | 'modelo'
 /** Lo que la persona aceptó, tal como lo guardó el daemon (fecha, versión y huella del texto, app, sistema, por dónde). */
 export interface Consentimiento { ts: number; version: string; sha256: string; app: string; so: string; via: string }
 /** El texto del modo Autónomo que empaqueta el daemon: la app lo muestra tal cual y devuelve versión y huella al aceptar. */
@@ -46,7 +46,7 @@ export interface EstadoPermisosLevy {
 
 export const NOMBRE_MODO: Record<ModoPermisos, string> = { preguntar: 'Preguntar siempre', carpeta: 'Automático en mi carpeta', autonomo: 'Autónomo' }
 
-/** Lo que ni Autónomo deja pasar, en una línea (para la píldora, Ajustes y «Pausar todo»). */
+/** Lo que ni Autónomo deja pasar, en una línea (para el menú del modelo, Ajustes y la franja de pausa). */
 export const RED_MINIMA = 'Dinero, tus secretos, sus propios permisos y los borrados grandes se niegan solos; mandar a muchas personas, o a alguien que no nombraste, te lo enseña antes.'
 
 export const FICHAS_MODO: ReadonlyArray<{ modo: ModoPermisos; nombre: string; detalle: string; recomendado?: boolean }> = [
@@ -55,7 +55,7 @@ export const FICHAS_MODO: ReadonlyArray<{ modo: ModoPermisos; nombre: string; de
   { modo: 'preguntar', nombre: 'Preguntar siempre', detalle: 'Te pide tu clic para casi todo lo que no sea leer y escribir notas dentro de tu cerebro. Ideal para tus primeros días.' },
 ]
 
-/** Aviso que se ve mientras Autónomo está activo (Ajustes, la píldora y «Pausar todo»). */
+/** Aviso que se ve mientras Autónomo está activo (Ajustes, el menú del modelo y la franja de pausa). */
 export function avisoAutonomo(desde: number | null | undefined, ahora = Date.now()): string {
   return `Modo Autónomo${desde ? ` desde ${horaDe(desde, ahora)}` : ''}: Levy actúa sin preguntarte, salvo la red mínima.`
 }
@@ -69,6 +69,32 @@ export function consentimientoVigente(e: Pick<EstadoPermisosLevy, 'consentimient
 export function cuerpoAceptacion(texto: TextoAutonomia, via: ViaConsentimiento): { modo: 'autonomo'; acepto: { version: string; sha256: string }; via: ViaConsentimiento } {
   return { modo: 'autonomo', acepto: { version: texto.version, sha256: texto.sha256 }, via }
 }
+/**
+ * Menú del modelo del chat (30 oct 2026, Daniel: «el modo autónomo debería poder cambiarlo dando clic al modelo button»).
+ * Dos lados: Autónomo y Preguntar («Preguntar siempre» y «Automático en mi carpeta» cuentan como Preguntar).
+ */
+export type LadoPermisos = 'autonomo' | 'preguntar'
+export const ladoDelModo = (modo: ModoPermisos): LadoPermisos => (modo === 'autonomo' ? 'autonomo' : 'preguntar')
+
+/** Qué hace elegir un lado: nada (ya está), mandarlo al daemon, o abrir Ajustes para leer y aceptar el texto de Autónomo. */
+export type AccionLado = { tipo: 'nada' } | { tipo: 'mandar'; cuerpo: { modo: ModoPermisos; via: 'modelo' } } | { tipo: 'ajustes' }
+export function accionAlElegirLado(lado: LadoPermisos, e: Pick<EstadoPermisosLevy, 'modo' | 'consentimiento' | 'texto'>): AccionLado {
+  if (ladoDelModo(e.modo) === lado) return { tipo: 'nada' }
+  // Volver a preguntar = «Automático en mi carpeta», igual que la píldora de antes y la franja de pausa.
+  if (lado === 'preguntar') return { tipo: 'mandar', cuerpo: { modo: 'carpeta', via: 'modelo' } }
+  return consentimientoVigente(e) ? { tipo: 'mandar', cuerpo: { modo: 'autonomo', via: 'modelo' } } : { tipo: 'ajustes' }
+}
+
+/** Una línea bajo los dos lados: qué hace el modo en el que está. */
+export const LINEA_MODO: Record<ModoPermisos, string> = {
+  autonomo: 'Actúa sin pedirte un clic en cada paso, salvo la red mínima.',
+  carpeta: 'Trabaja en tu carpeta y te pregunta antes de lo que sale de tu computadora.',
+  preguntar: 'Te pide tu clic para casi todo.',
+}
+
+/** Dónde están «Pausar todo» y el modo (Ajustes y la bienvenida lo dicen igual). */
+export const DONDE_PAUSAR = 'Detiene en el acto lo que Levy esté haciendo (respuestas, rutinas, comandos) y no deja empezar nada hasta que reanudes. También está en el chat: toca el botón del modelo (abajo, junto a donde escribes) y elige «Pausar todo»; ahí mismo cambias entre Autónomo y Preguntar.'
+
 export interface CarpetaAbierta { ruta: string; abierta: number }
 
 export interface GastoOpenRouter {

@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Terminal } from '@xterm/xterm'
 import '@xterm/xterm/css/xterm.css'
 import s from './terminal.module.css'
+import { conEnlaces } from './enlaces'
 
 export const TEMA_TERMINAL = {
   background: '#0d0d12', foreground: '#d4d4d8', cursor: '#a78bfa', cursorAccent: '#0d0d12', selectionBackground: 'rgba(167,139,250,0.3)',
@@ -57,6 +58,7 @@ export function PtyPanel({ id, visible, activa, onFin, onTitulo }: {
       const fit = new FitAddon()
       term.loadAddon(fit)
       term.open(caja.current)
+      const enlaces = conEnlaces(term)
       montadas.set(id, term)
       // ⌘J lo atiende la app (alternar el panel): xterm no lo procesa, el evento sigue burbujeando.
       term.attachCustomKeyEventHandler(e => !(e.metaKey && e.code === 'KeyJ'))
@@ -116,7 +118,7 @@ export function PtyPanel({ id, visible, activa, onFin, onTitulo }: {
 
       ro = new ResizeObserver(() => ajustar())
       ro.observe(caja.current)
-      limpiar = () => { entrada.dispose(); titulo.dispose(); if (montadas.get(id) === term) montadas.delete(id); ajustarRef.current = () => {}; term.dispose() }
+      limpiar = () => { entrada.dispose(); titulo.dispose(); enlaces.dispose(); if (montadas.get(id) === term) montadas.delete(id); ajustarRef.current = () => {}; term.dispose() }
     })()
 
     return () => { vivo = false; clearTimeout(timerTam); es?.close(); ro?.disconnect(); limpiar() }

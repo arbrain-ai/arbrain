@@ -5,7 +5,8 @@ description: >
   arbrain/scripts/actualizar.mjs verifica la etiqueta FIRMADA, guarda lo suyo, respalda, mezcla en su rama mi-arbrain,
   siembra y reinicia Arbrain y su app. Usar ante
   «actualiza mi Arbrain», «jala los últimos cambios», «jala los últimos cambios de Dani», «actualiza Arbrain», «hay
-  versión nueva?», «qué trae la nueva versión» o el prompt de instalación cuando Arbrain ya está instalado.
+  versión nueva?», «qué trae la nueva versión», «qué versión tengo» o el prompt de instalación cuando Arbrain ya está
+  instalado.
 ---
 
 # Actualizar Arbrain
@@ -18,9 +19,18 @@ Todo lo mecánico lo hace UN script: `node arbrain/scripts/actualizar.mjs <orden
 (~/Arbrain salvo que diga otra). Tú solo pones el criterio donde el script se detiene. Por qué es seguro y qué hace cada
 paso por dentro: `docs/ACTUALIZAR-EXPLICADO.md`.
 
+En corto (lo que el dueño vive):
+1. Dice «actualiza mi Arbrain». Tú corres `revisar`, le cuentas en 5 líneas lo nuevo y corres `aplicar`. Nada más.
+2. Antes de tocar nada, el script guarda lo suyo y crea una rama de respaldo: si algo no le gusta, se vuelve a como estaba.
+3. En «Autónomo» o «Automático en mi carpeta» no tiene que dar ningún clic; en «Preguntar siempre», uno solo.
+4. Si su copia se separó de la del autor (cambió cosas en main, está en otra rama, el remoto es el viejo), el script se
+   detiene sin perder nada y te dice el motivo: PASO 4.
+5. Al final le confirmas la versión que ya corre (PASO 7).
+
 Cómo correrlo:
 - Exactamente así, sin nada antes ni después (ni `&&`, ni `;`, ni redirecciones): Arbrain reconoce ese comando y en
-  «Preguntar siempre» pide un solo clic para aplicar; desde «Automático en mi carpeta», ninguno.
+  «Preguntar siempre» pide un solo clic para aplicar; desde «Automático en mi carpeta» o «Autónomo», ninguno.
+  `revisar` y `estado` nunca piden clic.
 - Fuera del sandbox (en Claude Code, `dangerouslyDisableSandbox: true`): usa git, la red y la carpeta de Arbrain.
   Tiempo límite: 10 minutos.
 - Si dice que no encuentra `node`, repítelo con `. ~/.arbrain/entorno.sh 2>/dev/null; ` delante (Node recién
@@ -126,7 +136,12 @@ PASO 6 · Terminar: semilla, reinicio y app
   enciende en Arbrain › Ajustes › Voz con una llave gratis de https://console.groq.com/keys (la pega él ahí, nunca en
   el chat).
 
-PASO 7 · Reporta
+PASO 7 · Confirma la versión y reporta
+- Confirma que ya corre la nueva: `node arbrain/scripts/actualizar.mjs estado` debe decir `VERSION_CORRIENDO=` la
+  `ETIQUETA` sin la «v» (si estás en el chat de la app y el reinicio fue `al-terminar-el-turno`, hazlo en el siguiente
+  mensaje). Si no coincide, sigue el PASO 6 según `REINICIO`.
+- «¿Qué versión tengo?» sin querer actualizar: `estado` (la que corre) y `revisar` (`VERSION_ACTUAL` y si hay otra
+  nueva). Respóndele con el número, en una línea.
 - Resumen final en 4 líneas: de qué versión a cuál, qué trae, qué choques resolvimos y el nombre de la rama de respaldo
   («si algo no te gusta, volvemos con: git switch respaldo/...»).
 - Si `GIT_LIMPIO=no`, dile en una línea qué quedó sin guardar (sin mostrar contenido de llaves ni bases de datos).

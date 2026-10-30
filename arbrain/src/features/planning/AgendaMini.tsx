@@ -1,6 +1,6 @@
 'use client'
 import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
-import { CalendarClock, Lock } from 'lucide-react'
+import { Lock } from 'lucide-react'
 import { carriles, duracion, tramoDia, type Bloque } from './dia-vivo'
 import type { BloqueAgenda } from './agenda-llamadas'
 import { esCompromiso } from './categorias'
@@ -11,7 +11,7 @@ import { useGobierno } from './gobierno'
 import { useEncuadre } from './useEncuadre'
 import d from './dia-vivo.module.css'
 import { esNoNegociable, SECCION, seccionDe } from './secciones'
-import { franjasDelDia, rango, resumenCampo, tituloZona } from './campos-fondo'
+import { franjasDelDia, resumenCampo, tituloZona } from './campos-fondo'
 import { DEF } from './categorias'
 import { useZonas } from './useZonas'
 // La línea de ahora es la de «Tu día» (cabina/luz.module.css): se aplican las dos clases, no se copia el estilo.
@@ -30,22 +30,19 @@ const HORA_PX_MIN = 22
  * día entero de 05:00 a 22:00 (más si algo cae fuera), lo vivido sombreado y la línea de ahora; al abrir hoy, baja al ahora.
  * Desde el 21 oct 2026 la agenda no tiene scroll propio (se tragaba la rueda) y la línea de ahora es la de «Tu día».
  * Desde el 22 oct 2026 abre con el ahora a un tercio de lo visible y otro día en su primer evento o a las 5:30 (useEncuadre.ts).
+ * Desde el 30 oct 2026 va sin cabecera (Daniel: «casi que ni quiero ver nada de eso porque para eso ya tenemos bajado a tierra el
+ * dia con la linea amarilla de la hora»): fuera el título «Agenda», el conteo, el resumen de trabajo profundo y comida y las
+ * pastillas de día completo. Solo la línea de tiempo; lo de día completo sigue en la franja de la Semana.
  */
-export function AgendaMini({ bloques, bandas = [], todoElDia, fecha, ahora, esHoy, pasado, color, cargando, rejilla, onRejilla, onAbrir, objetivo, todoElDiaAbierto, onTodoElDia, central = true, llenar = false }: {
+export function AgendaMini({ bloques, bandas = [], fecha, ahora, esHoy, pasado, cargando, onAbrir, objetivo, central = true, llenar = false }: {
   bloques: BloqueAgenda[]
   /** Ventanas de disponibilidad (18 oct 2026): una banda de fondo detrás de las tarjetas, no una columna. */
   bandas?: Bloque[]
-  todoElDia: PlanEvent[]; fecha: Date; ahora: number; esHoy: boolean; pasado: boolean
-  color: (e: PlanEvent) => string | null; cargando: boolean
-  rejilla: boolean
-  /** El toque a la rejilla de FullCalendar. El Día ya no lo pasa (18 oct 2026: una sola rejilla, solo eventos). */
-  onRejilla?: () => void
+  fecha: Date; ahora: number; esHoy: boolean; pasado: boolean
+  cargando: boolean
   onAbrir: (item: PlanItem) => void
   /** La tarea-objetivo con hora (inicio y fin en ms). */
   objetivo?: { tarea: PlanTask; inicio: number; fin: number; hecha: boolean } | null
-  /** Lo de día completo plegado en una línea (la primera y «+N»); un toque lo abre. Sin `onTodoElDia`, siempre abierto. */
-  todoElDiaAbierto?: boolean
-  onTodoElDia?: () => void
   /** La hoja de en medio del carril: solo ella encuadra el scroll (las vecinas también se pintan). */
   central?: boolean
   /** Dos columnas (24 oct 2026): el día entero cabe en el alto que le dan, sin scroll; la hora mide lo que alcance. */
@@ -54,8 +51,6 @@ export function AgendaMini({ bloques, bandas = [], todoElDia, fecha, ahora, esHo
   // Zonas de mi vida (28 oct 2026): las encendidas de la persona (useZonas), detrás de todo.
   const zonas = useZonas()
   const base = new Date(fecha).setHours(0, 0, 0, 0)
-  // Lo de día completo nace plegado en una línea (ronda 3, 10 oct 2026): el mismo estado que la franja de la Semana.
-  const plegadas = Boolean(onTodoElDia) && !todoElDiaAbierto && todoElDia.length > 1
   const todos = [...bloques, ...bandas, ...(objetivo ? [{ inicio: objetivo.inicio, fin: objetivo.fin }] : [])]
   const { desde, hasta } = tramoDia(todos, fecha)
   const horasN = (hasta - desde) / 60
@@ -100,18 +95,6 @@ export function AgendaMini({ bloques, bandas = [], todoElDia, fecha, ahora, esHo
   }
 
   return <section className={`${d.columna} ${d.areaAgenda}`} aria-label="Agenda">
-    <header className={`${d.titulo} ${d.entra}`} style={esc(2)}><h3>Agenda</h3>{bloques.length > 0 && <small>{bloques.length}</small>}
-      {/* El espejo del día (28 oct 2026): cuánto trabajo profundo deja libre la agenda y la ventana de comida, en una línea. */}
-      {franjas.length > 0 && <span className={d.camposResumen} data-campos>{[profundo?.texto, ...franjas.filter(f => f.clave === 'comida').slice(0, 1).map(f => `Comida ${rango(f)}`)].filter(Boolean).join(' · ')}</span>}
-      {onRejilla && <button className={`${d.accion} ${d.soloIcono} ${d.sutil}`} onClick={onRejilla} aria-pressed={rejilla} aria-label={rejilla ? 'Plegar la rejilla de horas' : 'Ver en horas'}
-        title={rejilla ? 'Plegar la rejilla de horas' : 'Rejilla completa (arrastrar y crear)'}><CalendarClock size={13} aria-hidden /></button>}
-    </header>
-    {todoElDia.length > 0 && <div className={`${d.pastillas} ${d.entra}`} style={esc(3)} data-plegadas={plegadas || undefined}>
-      {(plegadas ? todoElDia.slice(0, 1) : todoElDia).map(e => <button key={e.id} className={d.pastilla} onClick={() => onAbrir(e)} title={e.title}>
-        <i aria-hidden style={{ background: color(e) ?? undefined }} /><span>{e.title}</span></button>)}
-      {onTodoElDia && todoElDia.length > 1 && <button className={d.pastillaMas} onClick={onTodoElDia} aria-expanded={!plegadas}
-        aria-label={plegadas ? `Ver las ${todoElDia.length} de día completo` : 'Plegar lo de día completo'}>{plegadas ? `+${todoElDia.length - 1}` : <svg viewBox="0 0 12 12" aria-hidden><path d="M3 7.5 6 4.5 9 7.5" /></svg>}</button>}
-    </div>}
     {!todos.length && <p className={d.vacio}>{cargando ? 'Leyendo tu calendario…' : `Nada agendado ${esHoy ? 'hoy' : 'este día'}.`}</p>}
     <div ref={caja} className={`${d.miniCaja} ${d.entra}`} style={esc(3)} data-hoy={esHoy || undefined}>
       <div ref={mini} className={d.mini} style={{ height: alto } as CSSProperties} role="presentation">

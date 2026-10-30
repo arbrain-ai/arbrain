@@ -9,7 +9,7 @@ import { escanearArchivo, escanearSalida } from './escaner.mjs'
 import { ahora, asegurarExclusion, avisar, avisosDelProceso, dirEstado, guardarEstado, leerEstado, sello } from './estado.mjs'
 import { cambios, contar, existeRef, git, hayFusionEnCurso, identidad, mostrar, ramaActual } from './git.mjs'
 import { liderLocal, rolPara } from './lider.mjs'
-import { cargarCapas, esSoloLider, LATIDOS_DIR, porQueNunca, rutaConflicto, viaja } from './viaja.mjs'
+import { cargarCapas, esSoloLider, GENERADOS_QUE_VIAJAN, LATIDOS_DIR, porQueNunca, rutaConflicto, viaja } from './viaja.mjs'
 
 const MAX_BYTES = 50 * 1024 * 1024
 const minutos = (env, k, d) => { const n = Number(env[k]); return Number.isFinite(n) && n >= 0 ? n : d }
@@ -92,6 +92,17 @@ export function ciclo(cerebro, maquina, env = process.env) {
       const destino = apartar(cerebro, c.ruta, t)
       r.apartados.push(c.ruta)
       avisar(cerebro, 'solo_lider', `${c.ruta} lo genera tu cerebro que manda (${lider}); tu versión quedó en ${destino.slice(cerebro.length + 1)}.`, { ruta: c.ruta })
+    }
+  }
+
+  // 1b. Lo generado que el .gitignore deja fuera (now.md) entra al índice en el que manda; ya versionado, viaja solo.
+  if (soyLider) {
+    for (const ruta of GENERADOS_QUE_VIAJAN) {
+      const abs = join(cerebro, ruta)
+      if (!existsSync(abs) || git(cerebro, ['ls-files', '--error-unmatch', '--', ruta]).ok) continue
+      // Solo si pasaría la revisión de abajo: nunca deja en el índice algo que no se va a subir.
+      if (lstatSync(abs).isSymbolicLink() || lstatSync(abs).size > MAX_BYTES || escanearArchivo(ruta, readFileSync(abs)).length) continue
+      git(cerebro, ['add', '-f', '--', ruta])
     }
   }
 

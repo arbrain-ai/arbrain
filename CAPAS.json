@@ -1,6 +1,6 @@
 {
   "_porque": "Contrato de capas de Arbrain. Todo lo que no está en «alumno» lo regenera el autor en cada versión; «alumno» nunca viene en el repo del autor: nace de la semilla y vive en tu rama. Lo leen los prompts de instalación y actualización y la CI.",
-  "version": "0.2.16",
+  "version": "0.2.17",
   "semilla": "arbrain/cerebro/semilla",
   "sembrar": "python3 arbrain/cerebro/sembrar.py",
   "alumno": [

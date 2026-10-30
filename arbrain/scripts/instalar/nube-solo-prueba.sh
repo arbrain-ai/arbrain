@@ -134,6 +134,8 @@ tn() { "${TC[@]}" -o /dev/null -w '%{http_code}' "https://$TS_HOST$1" "${@:2}"; 
 fin=$(( $(date +%s) + 180 )); s=0
 while [ "$(date +%s)" -lt "$fin" ]; do s="$(tn /sin-sesion)"; [ "$s" = 200 ] && break; sleep 3; done
 [ "$s" = 200 ] && ok "por la tailnet (https://$TS_HOST, certificado verificado): /sin-sesion 200" || mal "la web no respondió por la tailnet: $s · $(tail -2 "$T/tailnet.log")"
+P="$("${TC[@]}" "https://$TS_HOST/sin-sesion" 2>/dev/null)"
+case "$P" in *'data-servidor="1"'*nube.sh\ codigo*) case "$P" in *"servido por tu computadora"*) mal "/sin-sesion en el servidor habla de «tu computadora»" ;; *) ok "/sin-sesion en el servidor: el código sale de su Claude Code o nube.sh codigo (no de «tu computadora»)" ;; esac ;; *) mal "/sin-sesion en el servidor no dice de dónde sale el código" ;; esac
 R="$("${TC[@]}" -o /dev/null -w '%{http_code} %{redirect_url}' "https://$TS_HOST/chat")"
 case "$R" in 30[1278]\ *sin-sesion*) ok "sin sesión: /chat → /sin-sesion ($R)" ;; *) mal "sin sesión /chat: $R" ;; esac
 [ "$(tn /api/telefono)" = 401 ] && ok "sin sesión: /api/telefono 401" || mal "sin sesión /api/telefono no dio 401"
@@ -209,6 +211,7 @@ printf '{"motor":"suscripcion","elegido":"%s"}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ
 systemctl restart arbrain
 E="$(esperar_corriendo)"
 case "$E" in *llave=tope:10*chat=claude-sin-sesion*) ok "estado: rutinas con llave tope:10 y chat con su cuenta de Claude (aquí sin sesión: no se entra a ninguna cuenta en la CI)" ;; *) mal "estado tras llave y motor: $E" ;; esac
+case "$E" in *sandbox=ok*) ok "estado: aislamiento de Claude Code completo (bwrap y socat)" ;; *) mal "estado: el aislamiento no está completo: $E" ;; esac
 [ -f "$CFG/nube-llave.json" ] && ! grep -q "$CLAVE" "$CFG/nube-llave.json" && ok "marca de tope (nube-llave.json) sin la llave" || mal "marca de tope"
 { grep -rqsF "$CLAVE" "$A" || runuser -u arbrain -- git -C "$A" log -p --all | grep -qF "$CLAVE"; } && mal "¡la llave quedó en la copia git!" || ok "la llave no está en la copia git"
 CLAVE=""
