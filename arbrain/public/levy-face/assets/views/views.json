@@ -1,0 +1,59 @@
+{
+ "agente": "levy",
+ "grid": 1080,
+ "yawL": {
+  "view": "cuarto-izq.png",
+  "flow": "flow-cuarto-izq.png",
+  "range": 160.0,
+  "yaw_deg": -7.74164400721985,
+  "residuo": {
+   "cross_fade": 46.515785217285156,
+   "morph_guiado": 35.59514617919922,
+   "mejora_x": 1.306801353844914
+  }
+ },
+ "yawR": {
+  "view": "cuarto-der.png",
+  "flow": "flow-cuarto-der.png",
+  "range": 160.0,
+  "yaw_deg": 11.853198825719383,
+  "residuo": {
+   "cross_fade": 48.05615997314453,
+   "morph_guiado": 36.617103576660156,
+   "mejora_x": 1.312396538206142
+  }
+ },
+ "closed": {
+  "view": "ojos-cerrados.png",
+  "dx": 0.10337363979783731,
+  "dy": -2.733273993112846,
+  "scale": 1.0,
+  "eyeMidF": [
+   540.8142950730687,
+   441.4570060268463
+  ],
+  "registro": "chip (Vision no vio rostro; chip 117\u2192116 px)"
+ },
+ "aa": {
+  "view": "boca-aa.png",
+  "box": [
+   474.609375,
+   628.59375,
+   603.28125,
+   745.6640625
+  ],
+  "w": 128.671875,
+  "h": 117.0703125,
+  "eyeShift": null,
+  "registro": "cavidad oscura (Vision no vio rostro)"
+ },
+ "matte": {
+  "file": "matte.png",
+  "cobertura": {
+   "frontal": 0.7263660430908203,
+   "izq": 0.7406520843505859,
+   "der": 0.7309074401855469
+  },
+  "metodo": "luminancia>30, componente mayor, huecos rellenos, borde 3 px"
+ }
+}

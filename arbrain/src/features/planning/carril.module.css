@@ -1,0 +1,13 @@
+/* El carril de días (5 oct 2026): la hoja central en su lugar; ayer y mañana a los lados, fuera de vista, solo mientras se desliza.
+   `pan-y`: el navegador sigue llevando el scroll vertical; lo horizontal es del carril. `clip` (no `hidden`) para no crear
+   un contenedor de scroll que rompa lo pegajoso de adentro. */
+.marco { position: relative; min-width: 0; overflow-x: clip; touch-action: pan-y; overscroll-behavior-x: contain; }
+.pista { position: relative; will-change: transform; }
+.hoja { min-width: 0; }
+.hoja[data-lado] { position: absolute; top: 0; width: 100%; }
+.hoja[data-lado='-1'] { left: -100%; }
+.hoja[data-lado='1'] { left: 100%; }
+/* La vecina llega ya puesta: la subida de entrada es para abrir el día, no para cada hoja que se asoma al deslizar. */
+.hoja[data-quieta] :global([class*='entra']) { animation: none !important; }
+/* Dos columnas (24 oct 2026): la hoja del día ocupa el alto completo para que su agenda quepa entera sin scroll. */
+:global([data-dos-columnas]) .marco, :global([data-dos-columnas]) .pista, :global([data-dos-columnas]) .hoja { height: 100%; }

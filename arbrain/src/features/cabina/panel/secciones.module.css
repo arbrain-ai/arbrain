@@ -1,0 +1,123 @@
+/* Secciones como pestañas del panel (2 oct 2026): logos, el «+», y los cuerpos vivos de Calendario y Lienzo.
+   Luminorphism: morado para el chasis (selección, foco), oro para lo que importa (Editar, Hoy). */
+.logo { display: block; flex-shrink: 0; border-radius: 4px; object-fit: contain; }
+
+/* El «+» al final de la tira de pestañas */
+.mas {
+  margin-right: auto; /* empuja Taller y cerrar al extremo, como el «+» de un navegador */
+  display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0;
+  border: 1px dashed rgba(var(--foreground-rgb), 0.18); background: transparent; color: var(--muted); cursor: pointer;
+  transition: background 120ms, color 120ms, border-color 120ms;
+}
+.mas:hover, .mas[aria-expanded='true'] { color: var(--foreground); border-color: rgba(var(--brand-rgb), 0.5); background: rgba(var(--brand-rgb), 0.1); }
+.mas:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+
+.menu {
+  position: fixed; z-index: 80; width: min(340px, calc(100vw - 16px)); max-height: min(70vh, 560px); overflow-y: auto; padding: 6px;
+  border-radius: 14px; background: var(--surface); border: 1px solid var(--border); color: var(--foreground);
+  box-shadow: 0 24px 60px -24px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.6), 0 0 0 1px var(--l-borde-morado, rgba(var(--brand-rgb), 0.06));
+  animation: aparece 140ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+:global(.dark) .menu { background: color-mix(in srgb, var(--surface) 94%, var(--l-gris-0, black)); }
+@keyframes aparece { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.menuCeja { margin: 6px 10px 4px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.menuFila {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: 0; border-radius: 10px;
+  background: transparent; color: inherit; text-align: left; cursor: pointer; transition: background 100ms;
+}
+.menuFila:hover, .menuFila:focus-visible { background: rgba(var(--brand-rgb), 0.1); outline: none; }
+.menuIcono { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; background: rgba(var(--foreground-rgb), 0.05); color: var(--foreground); flex-shrink: 0; }
+.menuTexto { display: flex; flex-direction: column; min-width: 0; }
+.menuTexto b { font-size: 13.5px; font-weight: 600; }
+.menuTexto small { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.menuPie { margin: 6px 10px 4px; font-size: 12px; line-height: 1.4; color: var(--muted); font-style: italic; }
+.menuCabecera { display: flex; align-items: center; gap: 8px; padding: 6px 6px 4px; font-size: 13.5px; }
+.menuVolver { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; border: 0; background: transparent; color: var(--muted); cursor: pointer; }
+.menuVolver:hover { background: rgba(var(--foreground-rgb), 0.06); color: var(--foreground); }
+.buscar { display: flex; align-items: center; gap: 8px; margin: 4px 4px 6px; height: 34px; padding: 0 10px; border-radius: 9px; border: 1px solid var(--border); background: var(--card); color: var(--muted); }
+.buscar:focus-within { border-color: rgba(var(--brand-rgb), 0.45); }
+.buscar input { flex: 1; min-width: 0; border: 0; outline: none; background: transparent; color: var(--foreground); font-size: 13px; }
+.lienzos { display: flex; flex-direction: column; }
+
+/* «¿Qué lienzo?»: fijados en su grupo, el resto por fecha y el pliegue de archivados (5 oct 2026). Mismo lenguaje que el menú «+». */
+.grupoLienzos + .grupoLienzos { margin-top: 4px; }
+.cejaGrupo { display: flex; align-items: center; gap: 6px; color: var(--l-tinta-morado, var(--brand)); }
+.cejaGrupo small { font-size: 10.5px; letter-spacing: 0; color: var(--muted); }
+.lienzoAccion { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; border: 0; background: transparent; color: var(--muted); cursor: pointer; flex-shrink: 0; opacity: 0; transition: opacity 120ms, background 100ms, color 100ms; }
+.lienzoAccion:last-child { margin-right: 4px; }
+.lienzoFila:hover .lienzoAccion, .lienzoFila:focus-within .lienzoAccion, .lienzoSiempre { opacity: 1; }
+.lienzoSiempre[data-fijado] { color: var(--l-tinta-morado, var(--brand)); }
+.lienzoAccion:hover, .lienzoAccion:focus-visible { background: rgba(var(--foreground-rgb), 0.08); color: var(--foreground); outline: none; }
+.lienzoSiempre[data-fijado]:hover { color: var(--l-tinta-morado, var(--brand)); background: rgba(var(--brand-rgb), 0.12); }
+.lienzoFila[data-fijado] > .menuFila::before { content: ''; width: 2px; align-self: stretch; margin: 2px 0; border-radius: 2px; background: rgba(var(--brand-rgb), 0.55); flex-shrink: 0; }
+.archivados { margin-top: 8px; padding-top: 4px; border-top: 1px solid var(--border); }
+.pliegue { display: flex; align-items: center; gap: 6px; width: 100%; margin: 2px 0; padding: 6px 10px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; }
+.pliegue:hover, .pliegue:focus-visible { color: var(--foreground); background: rgba(var(--foreground-rgb), 0.05); outline: none; }
+.pliegue small { font-size: 10.5px; letter-spacing: 0; }
+.pliegue svg[data-abierto] { transform: rotate(90deg); }
+.pliegue svg { transition: transform var(--mov-pliegue, 380ms) var(--mov-curva, ease-out); }
+.archivados .menuTexto b { color: var(--muted); font-weight: 500; }
+@media (pointer: coarse) { .lienzoAccion { opacity: 1; width: 34px; height: 34px; } }
+
+/* Calendario y Lienzo ocupan todo el alto de la pestaña: no hay scroll anidado sobre un mapa. */
+/* De borde a borde (5 oct 2026): el marco de 12 px alrededor de Calendario y Lienzo era espacio sin uso. */
+.seccionLlena { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+/* La pestaña desprendida como editor completo: la pizarra o el calendario llenan la ventana. */
+.editor { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.editor > * { flex: 1; min-height: 0; }
+
+@media (pointer: coarse) {
+  .segmento { height: 32px; padding: 0 12px; }
+  .navegar button { height: 34px; min-width: 34px; }
+  .mas { width: 32px; height: 32px; }
+}
+
+/* «+» con todas las pestañas y el archivero (3 oct 2026) */
+.opciones { display: flex; flex-direction: column; }
+.menuFilaCaja { position: relative; display: flex; align-items: center; gap: 4px; }
+.menuFilaCaja > .menuFila { flex: 1; min-width: 0; }
+.yaAbierta { margin-left: 6px; font-style: normal; font-size: 10.5px; font-weight: 500; letter-spacing: 0.02em; color: var(--muted); padding: 1px 6px; border-radius: 999px; background: rgba(var(--foreground-rgb), 0.06); vertical-align: 1px; }
+.alcances { display: inline-flex; gap: 2px; padding-right: 6px; flex-shrink: 0; }
+.alcances button { height: 24px; padding: 0 8px; border: 1px solid var(--border); border-radius: 7px; background: transparent; color: var(--muted); font-size: 11.5px; font-weight: 600; cursor: pointer; }
+.alcances button:hover, .alcances button:focus-visible { color: var(--foreground); border-color: rgba(var(--brand-rgb), 0.5); background: rgba(var(--brand-rgb), 0.1); outline: none; }
+.guardadas { margin-top: 6px; padding-top: 4px; border-top: 1px solid var(--border); }
+.guardadas .menuCeja { display: flex; align-items: center; gap: 6px; }
+.guardadas .menuCeja small { font-size: 10.5px; letter-spacing: 0; color: var(--muted); }
+.quitarGuardada { display: grid; place-items: center; width: 26px; height: 26px; margin-right: 4px; border-radius: 7px; border: 0; background: transparent; color: var(--muted); cursor: pointer; opacity: 0; transition: opacity 120ms; flex-shrink: 0; }
+.menuFilaCaja:hover .quitarGuardada, .quitarGuardada:focus-visible { opacity: 1; }
+.quitarGuardada:hover { background: rgba(var(--foreground-rgb), 0.08); color: var(--foreground); }
+/* En grande (panel vacío): las mismas opciones, con aire. */
+.opciones[data-grande] .menuFila { padding: 10px 12px; }
+.opciones[data-grande] .menuIcono { width: 36px; height: 36px; border-radius: 10px; }
+.opciones[data-grande] .menuTexto b { font-size: 14.5px; }
+@media (pointer: coarse) { .quitarGuardada { opacity: 1; } .alcances button { height: 30px; } }
+
+/* Calendario en el «+» (3 oct 2026, crítico ciego): Día/Semana/Mes bajan a su propia línea, alineados con el texto,
+   en vez de comerse la descripción («Tus eventos y tar…»). */
+.menuFilaCaja:has(> .alcances) { flex-wrap: wrap; row-gap: 0; }
+.menuFilaCaja > .alcances { flex-basis: 100%; padding: 0 0 6px 50px; }
+/* La lista tiene más abajo: un desvanecido al pie lo dice (antes la última fila se cortaba sin señal). */
+.menu { mask-image: linear-gradient(to bottom, var(--l-gris-0, #000) calc(100% - 22px), transparent); padding-bottom: 22px; }
+
+/* Manija de 6 puntitos (5 oct 2026): aparece al pasar el ratón o con el foco; arrastra la fila o la mueve con ↑ ↓. */
+.manija {
+  position: absolute; left: -2px; top: 50%; transform: translateY(-50%); z-index: 1; display: grid; place-items: center; width: 16px; height: 28px;
+  padding: 0; border: 0; border-radius: 5px; background: transparent; color: var(--muted); cursor: grab; touch-action: none; opacity: 0; transition: opacity 120ms, background 120ms;
+}
+.menuFilaCaja:has(> .alcances) > .manija { top: 26px; }
+.menuFilaCaja:hover > .manija, .manija:focus-visible, .menuFilaCaja[data-arrastrada] > .manija { opacity: 1; }
+.manija:hover, .manija:focus-visible { background: rgba(var(--foreground-rgb), 0.07); color: var(--foreground); outline: none; }
+.manija:focus-visible { box-shadow: 0 0 0 2px var(--brand); }
+.opciones[data-arrastrando] { cursor: grabbing; user-select: none; }
+.opciones[data-arrastrando] .manija { cursor: grabbing; }
+.menuFilaCaja[data-arrastrada] { background: color-mix(in srgb, var(--surface) 92%, rgb(var(--brand-rgb))); border-radius: 10px; box-shadow: 0 0 0 1px var(--l-borde-morado, rgba(var(--brand-rgb), 0.35)), 0 10px 24px -12px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.55); will-change: transform; }
+@media (pointer: coarse) { .manija { opacity: 0.6; } }
+.ajustesPanel {
+  display: inline-flex; align-items: center; gap: 6px; align-self: flex-end; margin: 4px 8px 2px; padding: 3px 7px; border-radius: 6px;
+  color: var(--muted); font-size: 11.5px; text-decoration: none; background: none; border: 0; cursor: pointer;
+}
+.ajustesPanel:hover, .ajustesPanel:focus-visible { color: var(--foreground); background: rgba(var(--foreground-rgb), 0.06); outline: none; }
+/* Lugar para la manija a la izquierda del ícono (sin tapar nada). */
+.opciones > .menuFilaCaja > .menuFila { padding-left: 18px; }
+.opciones > .menuFilaCaja > .alcances { padding-left: 58px; }

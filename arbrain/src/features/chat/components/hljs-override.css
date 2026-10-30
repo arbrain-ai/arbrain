@@ -1,0 +1,2 @@
+/* Override hljs background so code bubbles control their own bg */
+.hljs { background: transparent !important; }

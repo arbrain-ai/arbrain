@@ -1,0 +1,51 @@
+/* DRIP en el calendario (24 oct 2026): la leyenda que ES la matriz, la hoja del evento y el toque de la mañana. Luminorphism sobrio:
+   la tinta de la casa, el oro solo para Producir, sin sombras de más. */
+
+/* ── La leyenda-matriz ─────────────────────────────────────────────────────────────────────────────────────────────── */
+.leyenda { display: inline-flex; align-items: stretch; gap: 6px; min-width: 0; margin: 0 0 8px; }
+.leyenda[data-en-barra] { margin: 0; }
+.eje { display: flex; flex-direction: column; justify-content: space-around; font-size: 8.5px; font-weight: 700; letter-spacing: .9px; text-transform: uppercase; color: var(--muted); text-align: right; line-height: 1; }
+.matriz { display: grid; grid-template-columns: auto auto; gap: 2px; padding: 2px; border-radius: 9px; background: color-mix(in srgb, var(--foreground) 4%, transparent); }
+.celda { display: inline-flex; align-items: center; gap: 5px; height: 17px; padding: 0 8px 0 6px; border: 0; border-radius: 6px; font: inherit; font-size: 10.5px; font-weight: 650; letter-spacing: .1px;
+  color: var(--foreground); background: color-mix(in srgb, var(--c) 13%, transparent); cursor: pointer; transition: background 140ms, color 140ms, opacity 140ms; white-space: nowrap; }
+.celda:hover { background: color-mix(in srgb, var(--c) 22%, transparent); }
+.celda i { flex: none; width: 7px; height: 7px; border-radius: 2px; background: var(--c); }
+.celda[data-c='producir'] { background: color-mix(in srgb, var(--c) 22%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 46%, transparent); }
+.celda[data-oculto] { background: transparent; box-shadow: none; color: var(--muted); }
+.celda[data-oculto] span { text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--muted) 60%, transparent); }
+.celda[data-oculto] i { background: transparent; box-shadow: inset 0 0 0 1.4px var(--c); }
+.celda:focus-visible { outline: 2px solid var(--c); outline-offset: 1px; }
+.punto { display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 2px; background: var(--c); }
+
+/* ── La hoja del evento ────────────────────────────────────────────────────────────────────────────────────────────── */
+.hojaDrip { display: flex; flex-direction: column; gap: 8px; margin: 2px 0 4px; padding: 11px 12px 12px; border-radius: 12px;
+  background: color-mix(in srgb, var(--c) 6%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 22%, transparent); }
+.hojaCabeza { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.rotulo { font-size: 10.5px; font-weight: 750; letter-spacing: 1.3px; color: var(--muted); }
+.origen { min-width: 0; font-size: 12px; color: var(--muted); }
+.enlace { border: 0; padding: 0; background: none; font: inherit; color: var(--foreground); text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--foreground) 30%, transparent); cursor: pointer; }
+.matrizHoja { display: grid; grid-template-columns: auto 1fr; grid-template-rows: 1fr auto; gap: 4px 6px; }
+.ejeY { display: flex; flex-direction: column; justify-content: space-around; font-size: 9px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: var(--muted); text-align: right; writing-mode: horizontal-tb; }
+.ejeX { grid-column: 2; display: flex; justify-content: space-around; font-size: 9px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: var(--muted); }
+.cuatro { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.cuatro button { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 7px; align-items: center; text-align: left; padding: 8px 10px; border: 0; border-radius: 9px;
+  font: inherit; color: var(--foreground); background: color-mix(in srgb, var(--foreground) 3.5%, transparent); cursor: pointer; transition: background 140ms, box-shadow 140ms; }
+.cuatro button i { grid-row: 1 / span 2; width: 10px; height: 10px; border-radius: 3px; background: var(--c); }
+.cuatro button b { font-size: 13px; font-weight: 650; }
+.cuatro button small { font-size: 10.5px; color: var(--muted); }
+.cuatro button:hover { background: color-mix(in srgb, var(--c) 12%, transparent); }
+.cuatro button[aria-checked='true'] { background: color-mix(in srgb, var(--c) 20%, transparent); box-shadow: inset 0 0 0 1.5px var(--c); }
+.alcance { margin: 0; font-size: 11px; color: var(--muted); }
+.delegableFila { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.etiquetaDelegable { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 999px; font-size: 10.5px; font-weight: 700; letter-spacing: .4px;
+  color: var(--foreground); background: color-mix(in srgb, var(--c) 18%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 40%, transparent); }
+.boton { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 11px; border: 0; border-radius: 8px; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+  color: var(--foreground); background: color-mix(in srgb, var(--foreground) 6%, transparent); }
+.boton:hover { background: color-mix(in srgb, var(--foreground) 10%, transparent); }
+.botonFuerte { color: var(--background); background: var(--foreground); }
+.botonFuerte:hover { background: color-mix(in srgb, var(--foreground) 85%, transparent); }
+.proteger { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 11px; border: 0; border-radius: 8px; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+  color: var(--foreground); background: rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.12); box-shadow: inset 0 0 0 1px var(--l-borde-ambar, color-mix(in srgb, var(--gold) 35%, transparent)); }
+.proteger[aria-pressed='true'] { background: color-mix(in srgb, var(--gold) 22%, transparent); box-shadow: inset 0 0 0 1.5px var(--gold); }
+.error { margin: 0; font-size: 12px; color: var(--foreground); border-left: 2px solid var(--gold); padding-left: 8px; }
+

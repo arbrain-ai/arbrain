@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "manos": {
+      "command": "arbrain/server/node_modules/.bin/tsx",
+      "args": ["arbrain/server/src/manos/mcp-stdio.ts"],
+      "env": { "ARBRAIN_EDICION": "cliente" }
+    },
+    "cabina": {
+      "command": "arbrain/server/node_modules/.bin/tsx",
+      "args": ["arbrain/server/src/cabina/mcp-stdio.ts"],
+      "env": { "ARBRAIN_EDICION": "cliente" }
+    }
+  }
+}

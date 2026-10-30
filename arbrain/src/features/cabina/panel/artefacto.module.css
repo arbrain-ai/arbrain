@@ -1,0 +1,15 @@
+/* `/artefacto` (14 oct 2026): la pieza a pantalla completa con una barra mínima arriba. */
+.pagina { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--surface); color: var(--foreground); }
+.barra {
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0; border-bottom: 1px solid var(--border);
+  padding: calc(8px + env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 8px max(12px, env(safe-area-inset-left));
+  min-height: 52px;
+}
+.icono { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: rgba(var(--l-velo-morado-rgb, var(--brand-rgb)), 0.1); color: rgb(var(--brand-rgb)); flex-shrink: 0; }
+.titulo { flex: 1; min-width: 0; margin: 0; font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.accion { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 10px; border-radius: 9px; border: 1px solid var(--border); background: transparent; color: var(--foreground); font-size: 13px; font-weight: 550; cursor: pointer; flex-shrink: 0; }
+.accion:active { background: rgba(var(--foreground-rgb), 0.06); }
+.cuerpo { flex: 1; min-height: 0; display: flex; flex-direction: column; padding-bottom: env(safe-area-inset-bottom); }
+.error { max-width: 420px; margin: 20vh auto 0; padding: 0 20px; text-align: center; }
+.error h1 { font-size: 18px; margin: 0 0 6px; }
+.error p { color: var(--muted); margin: 0; }

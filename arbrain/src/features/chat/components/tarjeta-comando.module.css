@@ -1,0 +1,262 @@
+/* Tarjeta de comando en el hilo (botón Play, 27 oct 2026).
+   Lenguaje unificado: neutros de base; ámbar solo para la acción principal; rojo solo para peligro.
+   Usa los tokens --l-* de lenguaje.css cuando existen (⇧T) y, si no, un respaldo equivalente. */
+
+.pila { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+
+.tarjeta {
+  --tc-borde: var(--l-borde, var(--border-subtle));
+  --tc-placa: var(--l-placa, var(--card));
+  --tc-tinta: var(--l-tinta-1, var(--foreground));
+  --tc-tenue: var(--l-tinta-2, var(--muted));
+  --tc-ambar: var(--l-ambar-4, #ff9101);
+  --tc-ambar-tinta: var(--l-gris-3, #1a1000);
+  --tc-rojo: var(--l-tinta-rojo, #b91c1c);
+  position: relative;
+  max-width: 640px;
+  padding: 14px 16px 14px;
+  border-radius: var(--l-radio-tarjeta, 14px);
+  border: 1px solid var(--tc-borde);
+  background: var(--tc-placa);
+  box-shadow: var(--l-sombra-placa, 0 1px 2px rgba(var(--l-sombra-rgb, 15, 17, 21), 0.05));
+  color: var(--tc-tinta);
+  animation: tc-llega 320ms var(--l-curva-salida, cubic-bezier(0.16, 1, 0.3, 1)) both;
+}
+:global(.dark) .tarjeta {
+  --tc-borde: var(--l-borde, rgba(255, 255, 255, 0.08));
+  --tc-rojo: var(--l-tinta-rojo, #f87171);
+  box-shadow: none;
+}
+@keyframes tc-llega { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .tarjeta { animation: none; } }
+
+.cabeza { display: flex; align-items: flex-start; gap: 10px; }
+.icono {
+  display: grid; place-items: center; flex-shrink: 0;
+  width: 30px; height: 30px; border-radius: 9px;
+  background: color-mix(in srgb, var(--tc-tinta) 7%, transparent);
+  color: var(--tc-tinta);
+}
+.tarjeta[data-peligro='si'] .icono { background: color-mix(in srgb, var(--tc-rojo) 12%, transparent); color: var(--tc-rojo); }
+.titulos { min-width: 0; flex: 1; }
+.titulo { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.01em; color: var(--tc-tenue); }
+.frase { margin: 2px 0 0; font-size: 15.5px; line-height: 1.35; font-weight: 600; color: var(--tc-tinta); overflow-wrap: anywhere; }
+.vence {
+  display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
+  padding: 2px 8px; border-radius: 999px; border: 1px solid var(--tc-borde);
+  font-size: 11.5px; color: var(--tc-tenue); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.subtitulo { margin: 2px 0 0; font-size: 13px; line-height: 1.45; color: var(--tc-tenue); }
+
+.peligro {
+  display: flex; align-items: center; gap: 6px;
+  margin: 10px 0 0; font-size: 12.5px; font-weight: 550; color: var(--tc-rojo);
+}
+
+.literal {
+  margin: 10px 0 0;
+  max-height: 34vh; overflow: auto;
+  padding: 10px 12px;
+  border-radius: var(--l-radio-control, 10px);
+  border: 1px solid var(--tc-borde);
+  background: color-mix(in srgb, var(--tc-tinta) 4%, transparent);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12.5px; line-height: 1.55;
+  white-space: pre-wrap; word-break: normal; overflow-wrap: normal;
+  color: var(--tc-tinta);
+  user-select: text;
+}
+/* Ronda 4: cada argumento (un archivo, una opción) es una pieza entera; el renglón se corta solo en los espacios.
+   Una pieza más ancha que la caja se parte por dentro (si no, se saldría). */
+.pieza { white-space: nowrap; }
+@supports (overflow-wrap: anywhere) { .pieza { white-space: normal; display: inline-block; max-width: 100%; overflow-wrap: anywhere; word-break: normal; } }
+.prompt { color: var(--tc-tenue); user-select: none; }
+.nota { margin: 10px 0 0; font-size: 12.5px; color: var(--tc-tenue); }
+/* «Ver el comando»: el literal plegado bajo la frase humana. */
+.plegado { margin-top: 8px; min-width: 0; }
+.verComando {
+  display: inline-flex; align-items: center; gap: 4px; padding: 2px 0; border: 0; background: none; cursor: pointer;
+  font: inherit; font-size: 12.5px; font-weight: 550; color: var(--tc-tenue);
+}
+.verComando:hover { color: var(--tc-tinta); }
+.verComando:focus-visible { outline: 2px solid var(--l-foco, rgba(var(--primary-rgb), 0.6)); outline-offset: 2px; border-radius: 4px; }
+.plegado .literal { margin-top: 6px; }
+
+.avisos { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; }
+.avisos li {
+  padding: 2px 8px; border-radius: 999px;
+  border: 1px solid var(--tc-borde);
+  font-size: 11.5px; color: var(--tc-tenue);
+}
+
+.explica { margin: 10px 0 0; font-size: 13px; line-height: 1.5; color: var(--tc-tenue); }
+
+.enlace {
+  margin-top: 10px; padding: 0; border: 0; background: none; cursor: pointer;
+  font-size: 12.5px; color: var(--tc-tenue); text-decoration: underline; text-underline-offset: 3px;
+}
+.enlace:hover { color: var(--tc-tinta); }
+.comentario { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; font-size: 12px; color: var(--tc-tenue); }
+.comentario textarea {
+  width: 100%; resize: vertical; min-height: 40px;
+  padding: 8px 10px; border-radius: var(--l-radio-control, 10px);
+  border: 1px solid var(--tc-borde); background: transparent; color: var(--tc-tinta);
+  font: inherit; font-size: 13.5px; line-height: 1.4;
+}
+.comentario textarea:focus { outline: 2px solid var(--l-foco, rgba(140, 39, 241, 0.55)); outline-offset: 1px; }
+
+.error { margin: 8px 0 0; font-size: 12.5px; color: var(--tc-rojo); }
+
+.botones { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.principal, .secundario {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  min-height: 40px; padding: 0 14px;
+  border-radius: var(--l-radio-control, 10px);
+  font-size: 13.5px; font-weight: 600; cursor: pointer;
+  transition: transform var(--l-dur-presion, 110ms) var(--l-curva-anticipa, ease), background var(--l-dur-respuesta, 240ms) ease, border-color var(--l-dur-respuesta, 240ms) ease, opacity 160ms ease;
+}
+.principal {
+  border: 1px solid color-mix(in srgb, var(--tc-ambar) 70%, var(--l-gris-0, #000));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tc-ambar) 88%, var(--l-gris-16, #fff)), var(--tc-ambar));
+  color: var(--tc-ambar-tinta);
+  box-shadow: 0 1px 0 rgba(var(--l-luz-rgb, 255, 255, 255), 0.35) inset, 0 1px 2px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.12);
+}
+.principal:hover:not(:disabled) { transform: translateY(var(--l-sube, -1px)); }
+.secundario {
+  border: 1px solid var(--tc-borde);
+  background: color-mix(in srgb, var(--tc-tinta) 3%, transparent);
+  color: var(--tc-tinta);
+}
+.secundario:hover:not(:disabled) { border-color: color-mix(in srgb, var(--tc-tinta) 25%, transparent); }
+.principal:active:not(:disabled), .secundario:active:not(:disabled) { transform: translateY(var(--l-hunde, 1px)) scale(var(--l-escala-presion, 0.975)); }
+.principal:disabled, .secundario:disabled { opacity: 0.55; cursor: default; }
+.principal:focus-visible, .secundario:focus-visible { outline: 2px solid var(--l-foco, rgba(140, 39, 241, 0.55)); outline-offset: 2px; }
+.patron {
+  font-family: var(--font-mono, ui-monospace, monospace); font-size: 12px; font-weight: 500;
+  padding: 1px 6px; border-radius: 6px;
+  background: color-mix(in srgb, var(--tc-tinta) 7%, transparent);
+}
+.pie { margin: 8px 0 0; font-size: 11.5px; line-height: 1.45; color: var(--tc-tenue); }
+.pie code { font-family: var(--font-mono, ui-monospace, monospace); }
+
+.terminal {
+  position: relative; margin-top: 10px; height: 220px;
+  border-radius: var(--l-radio-control, 10px); overflow: hidden;
+  background: var(--l-gris-2, #0d0d12); border: 1px solid rgba(var(--l-luz-rgb, 255, 255, 255), 0.08);
+}
+.terminalDemo {
+  margin: 0; height: 100%; padding: 10px 12px; overflow: auto;
+  font-family: var(--font-mono, ui-monospace, monospace); font-size: 12px; line-height: 1.5;
+  color: var(--l-gris-12, #d4d4d8); white-space: pre-wrap;
+}
+
+/* Freno: sin ámbar. «No» es la neutra dominante (más grande); el sí dice la consecuencia con contorno rojo. */
+.noDominante, .consecuencia {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  min-height: 40px; border-radius: var(--l-radio-control, 10px);
+  font-size: 13.5px; font-weight: 600; cursor: pointer;
+  transition: transform var(--l-dur-presion, 110ms) var(--l-curva-anticipa, ease), background var(--l-dur-respuesta, 240ms) ease, border-color var(--l-dur-respuesta, 240ms) ease, opacity 160ms ease;
+}
+.noDominante {
+  flex: 1 1 220px; min-height: 44px; padding: 0 18px; font-size: 14.5px;
+  border: 1px solid color-mix(in srgb, var(--tc-tinta) 22%, transparent);
+  background: color-mix(in srgb, var(--tc-tinta) 7%, transparent);
+  color: var(--tc-tinta);
+}
+.noDominante:hover:not(:disabled) { background: color-mix(in srgb, var(--tc-tinta) 11%, transparent); }
+.consecuencia {
+  flex: 0 0 auto; padding: 0 14px;
+  border: 1.5px solid var(--tc-rojo);
+  background: transparent;
+  color: var(--tc-rojo);
+}
+.consecuencia:hover:not(:disabled) { background: color-mix(in srgb, var(--tc-rojo) 8%, transparent); }
+.noDominante:active:not(:disabled), .consecuencia:active:not(:disabled) { transform: translateY(var(--l-hunde, 1px)) scale(var(--l-escala-presion, 0.975)); }
+.noDominante:disabled, .consecuencia:disabled { opacity: 0.55; cursor: default; }
+.noDominante:focus-visible, .consecuencia:focus-visible { outline: 2px solid var(--l-foco, rgba(140, 39, 241, 0.55)); outline-offset: 2px; }
+
+/* Rechazo escrito: escribir aquí y mandar es decir que no con razón. */
+.rechazo {
+  display: flex; align-items: flex-end; gap: 6px; margin-top: 10px;
+  padding: 4px 4px 4px 10px; border-radius: var(--l-radio-control, 10px);
+  border: 1px solid var(--tc-borde);
+  background: color-mix(in srgb, var(--tc-tinta) 2%, transparent);
+}
+.rechazo:focus-within { border-color: color-mix(in srgb, var(--tc-tinta) 28%, transparent); }
+.rechazo textarea {
+  flex: 1; min-width: 0; resize: none; border: 0; outline: none; background: transparent;
+  padding: 6px 0; color: var(--tc-tinta); font: inherit; font-size: 13.5px; line-height: 1.4; field-sizing: content; max-height: 120px;
+}
+.rechazo textarea::placeholder { color: var(--tc-tenue); }
+.mandar {
+  display: grid; place-items: center; flex-shrink: 0; width: 32px; height: 32px; border-radius: 8px;
+  border: 1px solid var(--tc-borde); background: transparent; color: var(--tc-tenue); cursor: pointer;
+}
+.rechazo[data-lleno='si'] .mandar { background: var(--tc-tinta); border-color: var(--tc-tinta); color: var(--tc-placa); }
+.mandar:disabled { cursor: default; }
+.mandar:focus-visible { outline: 2px solid var(--l-foco, rgba(140, 39, 241, 0.55)); outline-offset: 2px; }
+
+/* Teléfono (520 px): botones a lo ancho, la acción principal primero. */
+@media (max-width: 560px) {
+  .tarjeta { padding: 12px 12px 12px; }
+  .frase { font-size: 15px; }
+  .botones { flex-direction: column; }
+  .principal, .secundario, .noDominante, .consecuencia { width: 100%; min-height: 44px; flex: none; }
+  .noDominante { min-height: 48px; }
+  .cabeza { flex-wrap: wrap; }
+  .vence { order: 3; margin-left: 40px; }
+  .terminal { height: 200px; }
+}
+
+/* Ronda 3 · «Córrelo tú»: la terminal con rótulo (dónde se escribe) y el estado «Listo» con su frase. */
+.terminalMarco { margin-top: 10px; }
+.terminalRotulo {
+  display: inline-flex; align-items: center; gap: 5px; margin-bottom: 6px;
+  font-size: 11.5px; font-weight: 600; color: var(--tc-tenue);
+}
+.terminalMarco .terminal { margin-top: 0; }
+.terminalMarco .terminal:focus-within { outline: 2px solid var(--l-foco, rgba(140, 39, 241, 0.55)); outline-offset: 2px; }
+.cursor {
+  display: inline-block; width: 7px; height: 14px; margin-left: 2px; vertical-align: -2px;
+  background: var(--l-gris-12, #d4d4d8); animation: tc-cursor 1.1s steps(1) infinite;
+}
+@keyframes tc-cursor { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .cursor { animation: none; } }
+.icono[data-fin='ok'] { background: color-mix(in srgb, var(--l-verde-5, #16a34a) 14%, transparent); color: var(--l-tinta-verde-oscura, #15803d); }
+:global(.dark) .icono[data-fin='ok'] { color: var(--l-tinta-verde, #4ade80); }
+.icono[data-fin='error'] { background: color-mix(in srgb, var(--tc-rojo) 12%, transparent); color: var(--tc-rojo); }
+.fin { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; }
+.fin .enlace { margin-top: 0; display: inline-flex; align-items: center; gap: 4px; text-decoration: none; }
+.fin .secundario, .tarjeta .fin .secundario { width: auto; flex: none; min-height: 40px; margin-left: auto; }
+.fin .enlace { white-space: nowrap; }
+.flechita { transition: transform var(--l-dur-respuesta, 240ms) ease; }
+.flechita[data-abierta='si'] { transform: rotate(180deg); }
+.salida {
+  margin: 8px 0 0; max-height: 180px; overflow: auto; padding: 10px 12px;
+  border-radius: var(--l-radio-control, 10px); background: var(--l-gris-2, #0d0d12); color: var(--l-gris-12, #d4d4d8);
+  font-family: var(--font-mono, ui-monospace, monospace); font-size: 12px; line-height: 1.5; white-space: pre-wrap;
+}
+
+/* Ronda 3 · incrustada en la ficha de la cola: sin borde ni sombra propios (la ficha es el marco). */
+.tarjeta[data-incrustada='si'] { padding: 0; border: 0; background: transparent; box-shadow: none; max-width: none; animation: none; }
+.tarjeta[data-incrustada='si'] > :first-child { margin-top: 0; }
+
+/* Ronda 3 · tarjeta angosta (panel de la cola, 460 px): «Una vez» y «No» en una fila; «Permitir siempre» a lo ancho. */
+.tarjeta { container-type: inline-size; }
+/* Ronda 4: el orden de los botones es uno solo en todas las vistas (el del código: Una vez · Permitir siempre · No; en
+   el freno, el sí con su consecuencia · No). A lo angosto se apilan en ese mismo orden; nada se reacomoda. */
+@container (max-width: 480px) {
+  .botones { flex-direction: column; }
+  .botones > * { width: 100%; flex: none; }
+}
+
+/* Ronda 4 · «Córrelo tú» con contraseña: arriba, qué va a pasar y por qué (cálido); la terminal debajo. */
+.calida {
+  display: flex; align-items: flex-start; gap: 10px; margin: 12px 0 0; padding: 11px 13px;
+  border-radius: var(--l-radio-control, 10px); border: 1px solid var(--tc-borde);
+  background: color-mix(in srgb, var(--tc-tinta) 3%, transparent);
+  font-size: 14px; line-height: 1.5; color: var(--tc-tinta);
+}
+.calida svg { flex: none; margin-top: 3px; color: var(--tc-tenue); }
+.queCorre { margin: 8px 0 0; font-size: 11.5px; line-height: 1.5; color: var(--tc-tenue); }
+.queCorre code { font-family: var(--font-mono, ui-monospace, monospace); font-size: 11.5px; color: var(--tc-tenue); }

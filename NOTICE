@@ -1,0 +1,13 @@
+Arbrain
+Copyright 2026 Daniel Carreón
+
+Este producto incluye software desarrollado para Arbrain (https://arbrain.ai).
+Se distribuye bajo la Licencia Apache, versión 2.0 (ver LICENSE).
+
+This product includes software developed for Arbrain (https://arbrain.ai).
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Arbrain incluye componentes de terceros con sus propias licencias; consulta las
+dependencias declaradas en arbrain/package.json y arbrain/server/package.json.
+"Arbrain" y el logo de Arbrain son marcas de su autor; la licencia no concede
+permiso para usarlas salvo para describir el origen del software (sección 6).

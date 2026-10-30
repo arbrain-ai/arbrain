@@ -1,0 +1,20 @@
+[shell_environment_policy]
+inherit = "core"
+
+[shell_environment_policy.set]
+CLAUDE_CODE_SUBAGENT_MODEL = "sonnet"
+
+# La memoria curada compartida vive en .claude/memory/.
+[features]
+memories = false
+external_agent_memory_import = false
+
+# Manos (computer use, 0.1.2): mismo MCP que Claude (.mcp.json). Solo macOS y Windows; en Linux no lista nada.
+# Nace apagado en cada apertura de la app: lo enciende el dueño en Ajustes › Esta computadora.
+# Rutas relativas a la raíz del repo: Codex lanza los MCP del proyecto desde ahí.
+[mcp_servers.manos]
+command = "arbrain/server/node_modules/.bin/tsx"
+args = ["arbrain/server/src/manos/mcp-stdio.ts"]
+startup_timeout_sec = 30
+# Edición cliente explícita (además del marcador arbrain/EDICION): el freno pide confirmación.
+env = { ARBRAIN_EDICION = "cliente" }

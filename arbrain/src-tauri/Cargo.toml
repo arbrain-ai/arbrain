@@ -1,0 +1,56 @@
+[package]
+name = "mission-control-desktop"
+version = "0.1.3"
+description = "Business OS local-first desktop runtime"
+authors = ["Arbrain"]
+edition = "2021"
+
+[lib]
+name = "mission_control_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "mission-control-desktop"
+path = "src/main.rs"
+
+[features]
+# Solo para la evidencia del empaquetado (src/evidencia.rs). El build del alumno NO lo activa.
+evidencia = []
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+serde_json = "1"
+
+[dependencies]
+chrono = { version = "0.4", features = ["serde"] }
+# Llavero del sistema (I9): el backend nativo se activa por SO más abajo; sin él, keyring cae a un almacén simulado.
+keyring = "3"
+dirs = "6"
+rusqlite = { version = "0.32", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+tauri = { version = "2", features = ["macos-private-api"] }
+tauri-plugin-opener = "2"
+uuid = { version = "1", features = ["v4", "serde"] }
+tauri-plugin-window-state = "=2.4.1"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# Centro de permisos (src/permisos.rs): ya vienen con Tauri; aquí solo se nombran.
+objc2 = "0.6"
+block2 = "0.6"
+keyring = { version = "3", features = ["apple-native"] }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+keyring = { version = "3", features = ["windows-native"] }
+# Hijos sin ventana de consola y muertos con la app (Job Object con KILL_ON_JOB_CLOSE).
+windows-sys = { version = "0.60", features = ["Win32_Foundation", "Win32_Security", "Win32_System_JobObjects", "Win32_System_Threading"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+keyring = { version = "3", features = ["sync-secret-service", "crypto-rust"] }
+
+# El motor de terminales inmortales usa sockets Unix, paso de fds y grupos de procesos: solo existe en Unix.
+# En Windows la app compila sin él (motor.rs devuelve un estado vacío).
+[target.'cfg(unix)'.dependencies]
+arbrain-motor = { path = "../motor" }
+libc = "0.2"

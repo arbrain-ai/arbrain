@@ -1,0 +1,7 @@
+{"type": "thread.started", "thread_id": "bbaabbba-baab-abbb-aaaa-abaaaabbabba"}
+{"type": "item.completed", "item": {"id": "item_0", "type": "error", "message": "Configured service tier `priority` is not advertised as supported for model `gpt-5.5` and will be omitted from requests."}}
+{"type": "turn.started"}
+{"type": "item.started", "item": {"id": "item_1", "type": "command_execution", "command": "/bin/zsh -lc \"printf 'hola' > nota2.txt\"", "aggregated_output": "", "exit_code": null, "status": "in_progress"}}
+{"type": "item.completed", "item": {"id": "item_1", "type": "command_execution", "command": "/bin/zsh -lc \"printf 'hola' > nota2.txt\"", "aggregated_output": "", "exit_code": 0, "status": "completed"}}
+{"type": "item.completed", "item": {"id": "item_2", "type": "agent_message", "text": "listo"}}
+{"type": "turn.completed", "usage": {"input_tokens": 33766, "cached_input_tokens": 19200, "cache_write_input_tokens": 0, "output_tokens": 56, "reasoning_output_tokens": 0}}
