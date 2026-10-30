@@ -84,7 +84,7 @@ export function DiaVivo({ goals, guardarObjetivo, onDescripcion, donde, leyenda,
   const ahora = useAhora()
   const dia = dayKey(fecha), hoy = dayKey(new Date(ahora)), esHoy = dia === hoy, pasado = dia < hoy
   const zona = Intl.DateTimeFormat().resolvedOptions().timeZone
-  const { conHora, todoElDia } = useMemo(() => bloquesDelDia(eventos, fecha, visible, color), [eventos, fecha, visible, color])
+  const { conHora } = useMemo(() => bloquesDelDia(eventos, fecha, visible, color), [eventos, fecha, visible, color])
   // Semana de llamadas (18 oct 2026): las ventanas de disponibilidad van de fondo y el brief se pliega en su llamada.
   const agenda = useMemo(() => ordenarAgenda(conHora), [conHora])
 
@@ -190,9 +190,8 @@ export function DiaVivo({ goals, guardarObjetivo, onDescripcion, donde, leyenda,
   // «Acepto mi día» se fue (25 oct 2026, Daniel: «en teoría ya lo acepté desde antes»): el día se da por aceptado. Proteger el bloque
   // de Producir sigue en su hoja (HojaDrip), un toque sobre el bloque.
   const agendaMini = <div className={d.cuerpo}>
-      <AgendaMini central={central} llenar={dosColumnas} bloques={agenda.bloques} bandas={agenda.bandas} todoElDia={todoElDia} fecha={fecha} ahora={ahora} esHoy={esHoy} pasado={pasado} color={color} cargando={cargando && !snapshot}
-        rejilla={rejilla} onAbrir={onAbrir}
-        todoElDiaAbierto={plegado?.todoElDia} onTodoElDia={plegado ? () => plegado.alternar('todoElDia') : undefined} />
+      <AgendaMini central={central} llenar={dosColumnas} bloques={agenda.bloques} bandas={agenda.bandas} fecha={fecha} ahora={ahora} esHoy={esHoy} pasado={pasado} cargando={cargando && !snapshot}
+        onAbrir={onAbrir} />
     </div>
   const habitos = <>
     {/* Hábitos de hoy, en mínimo (25 oct 2026): una línea por hábito con casilla y racha; su historia vive en la vista H.

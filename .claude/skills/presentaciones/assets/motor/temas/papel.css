@@ -1,0 +1,11 @@
+/* Dirección «Papel»: editorial claro, tinta oscura, acento sobrio. Para clases que se leen como libro. */
+:root{
+  --fondo:linear-gradient(180deg,#f6f1e7 0%,#efe8da 100%);
+  --fondo-fuera:#e9e2d3;
+  --tinta:#1d1b18; --tinta-suave:#5b564d;
+  --acento:#c2410c; --acento-2:#1d4ed8; --linea:rgba(29,27,24,.16);
+  --letra-titulo:"Didot","Bodoni 72",Georgia,serif; --peso-titulo:700;
+  --letra-texto:"Charter","Iowan Old Style",Georgia,serif;
+  --letra-mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --curva:cubic-bezier(.2,.7,.3,1); --margen:120px;
+}

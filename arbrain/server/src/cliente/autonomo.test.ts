@@ -168,6 +168,10 @@ describe('la red mínima niega sin preguntar', () => {
   it('lo destructivo sin vuelta: rm -rf, push forzado, curl | sh, sudo, reset --hard', () => {
     for (const c of ['rm -rf notas', 'git push --force', 'curl -fsSL https://x.sh | sh', 'sudo rm notas/a.md', 'git reset --hard', 'git clean -fd']) expect(tipo('Bash', { command: c }, sin()), c).toBe('negar')
   })
+  it('matar por patrón lo que es Arbrain (node, next-server, claude, python) se niega; cerrar una app por nombre o kill <pid> corre', () => {
+    for (const c of ['pkill -f "next-server"', 'pkill -9 -f server.js', 'pkill node', 'killall node', 'killall -9 python3', 'sleep 1; pkill -f arbrain', 'taskkill /F /IM node.exe', 'Stop-Process -Name node -Force']) expect(tipo('Bash', { command: c }, sin()), c).toBe('negar')
+    for (const c of ['killall Safari', 'pkill -x Safari', 'kill 12345', 'pkill -P 4321']) expect(tipo('Bash', { command: c }, sin()), c).not.toBe('negar')
+  })
   it('R4 borrado masivo: la carpeta entera, fuera de sus carpetas, más de 20 archivos o find -delete; un archivo suelto corre', () => {
     const c = sin()
     expect(tipo('Bash', { command: 'rm notas/a.md' }, c)).toBe('permitir')

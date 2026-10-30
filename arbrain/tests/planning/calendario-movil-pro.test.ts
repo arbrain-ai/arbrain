@@ -128,7 +128,9 @@ test('lo principal se pliega con un toque: cerrado por defecto, recordado y comp
   assert.match(fuente('MesClaro.tsx'), /<FranjaPlan clave="arbrain\.calendario\.franja-mes-abierta"/)
   assert.doesNotMatch(fuente('MesClaro.tsx'), /ContadorPeriodo|AnoPrecargado/, 'sin monk mode ni contadores en el Mes')
   assert.match(fuente('SemanaClara.tsx'), /onTodoElDia=\{plegado \? \(\) => plegado\.alternar\('todoElDia'\)/)
-  assert.match(fuente('DiaVivo.tsx'), /onTodoElDia=\{plegado \? \(\) => plegado\.alternar\('todoElDia'\)/)
+  // El Día va sin cabecera ni pastillas de día completo (30 oct 2026): solo la línea de tiempo con la hora en ámbar.
+  assert.doesNotMatch(fuente('DiaVivo.tsx'), /onTodoElDia=/)
+  assert.doesNotMatch(fuente('AgendaMini.tsx'), /<h3>Agenda<\/h3>|camposResumen|d\.pastillas/)
   const cal = fuente('PlanningCalendar.tsx')
   for (const v of ['DiaVivo', 'MesClaro', 'SemanaClara']) assert.match(cal, new RegExp(`<${v} [^]*?plegado=\\{plegado\\}`), v)
   // El objetivo plegado es un botón con aria-expanded: un toque, no ir a configuraciones.

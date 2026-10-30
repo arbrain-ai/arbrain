@@ -151,7 +151,9 @@ de recall y la descripcion es solo orientacion.
 
 **Verificar siempre despues de escribir:** `bash .claude/hooks/memory-budget.sh`
 Si sale ⚠ o ✗, arreglarlo en el mismo turno. El techo NO se sube: se ROTA (mover entradas de
-`project/` con mas de 90 dias a `MEMORY-archivo.md`, que no se importa).
+`project/` con mas de 90 dias a `MEMORY-archivo.md`, que no se importa). El actuador:
+`python3 .claude/skills/memory-manager/scripts/rotar-indice.py` muestra que rotaria y `--aplicar` lo escribe
+(integras, con sus disparadores: el recall las sigue encontrando como «rotada»). Si el indice sigue alto, consolidar.
 
 ### Paso 4: Informar al dueño
 

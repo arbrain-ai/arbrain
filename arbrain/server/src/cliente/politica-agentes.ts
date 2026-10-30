@@ -1082,6 +1082,11 @@ const DESTRUCTIVOS: Array<{ re: RegExp; motivo: string }> = [
   { re: /\bchmod\s+-R\s+0?777\s+(?:\/|~)/, motivo: 'abrir permisos de todo el disco' },
   { re: /\bjq\b[^|;&]*?(?:[^\w$.]env\b|\$ENV\b)/, motivo: 'volcar las variables de entorno (jq env / $ENV)' },
   { re: /\bgit\b[^|;&]*\s--no-index\b/, motivo: 'git --no-index lee archivos fuera del repositorio' },
+  // Matar por patrón (30 oct 2026, el candado-matar de la instalación original): un patrón no sabe de quién es un proceso, y
+  // Arbrain, su chat y su Levy son `node`, `next-server`, `claude` y `python`. `pkill -f` o `killall node` tumba su propio
+  // Arbrain a media respuesta. Cerrar una app por su nombre (`killall Safari`) sigue; un proceso propio, `kill <pid>`.
+  { re: /\b(?:pkill|killall)\b[^|;&]*(?:\s-[a-zA-Z0-9]*f[a-zA-Z0-9]*(?=\s|$)|\s--full\b|\b(?:node|next|next-server|server\.js|arbrain|claude|python3?|tsx|npm|npx|bun|deno)\b)/i, motivo: 'matar procesos por patrón puede cerrar tu propio Arbrain (node, next-server, claude, python): termina solo el proceso que lanzaste, con kill <pid>' },
+  { re: /\btaskkill\b[^|;&]*\/im\s+"?(?:node|python|claude|arbrain)|\bStop-Process\b[^|;&]*-Name\s+"?(?:node|python|claude|arbrain)/i, motivo: 'matar procesos por nombre puede cerrar tu propio Arbrain (node, python, claude): termina solo el proceso que lanzaste, por su PID' },
 ]
 
 /** Nombres de programas que vuelcan el entorno, los procesos o el llavero: nunca, ni con clic. */

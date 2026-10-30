@@ -4,10 +4,15 @@ import { Cpu, Loader2, Check, MessageSquarePlus, SlidersHorizontal } from 'lucid
 import { useAjustes } from '@/shared/stores/ajustes-store'
 import type { ChatAccount, ChatTab, TabOption } from '../stores/account-store'
 import { ChatAccountTabs } from './ChatAccountTabs'
+import { esEdicionCliente } from '@/lib/edicion'
+import { PermisosEnModelo } from '@/features/seguridad/components/PermisosEnModelo'
 import {
   cabeEnConversacion, catalogoDeRespaldo, esModeloActual, modelosDelSelector, precioPorMillon,
   type Catalogo, type ModeloCatalogo,
 } from '@/features/modelo/catalogo-modelos'
+
+// Edición cliente (30 oct 2026): el menú también trae el modo de permisos y «Pausar todo» (antes, píldora y botón flotantes).
+const EDICION_CLIENTE = esEdicionCliente()
 
 interface Props {
   onSelect: (modelo: ModeloCatalogo) => void
@@ -77,6 +82,8 @@ export function ModelPicker({ onSelect, onClose, account, modeloActual, conversa
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') { onClose(); return }
+      // Con el foco en Autónomo/Preguntar o «Pausar todo», Enter es de ese botón, no del modelo marcado.
+      if (e.target instanceof Element && e.target.closest('[data-permisos-modelo]')) return
       if (loading || !filas.length) return
       if (e.key === 'ArrowUp') { e.preventDefault(); setSelectedIndex((i) => Math.max(0, i - 1)); return }
       if (e.key === 'ArrowDown') { e.preventDefault(); setSelectedIndex((i) => Math.min(filas.length - 1, i + 1)); return }
@@ -170,6 +177,8 @@ export function ModelPicker({ onSelect, onClose, account, modeloActual, conversa
           {grupos.openrouter.map((m, i) => fila(m, grupos.claude.length + i))}
         </ul>
       )}
+
+      {EDICION_CLIENTE && <PermisosEnModelo onClose={onClose} />}
 
       <div className="flex items-center gap-2 border-t border-border-subtle px-3.5 py-2 text-[11px] text-muted">
         {aviso ? <span className="flex-1 leading-snug">{aviso}</span> : <span className="flex-1" />}

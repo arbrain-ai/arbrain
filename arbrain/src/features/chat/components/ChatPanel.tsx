@@ -47,7 +47,6 @@ const MarkdownMessage = dynamic(
   { ssr: false }
 )
 import { AudioButton } from './AudioButton'
-import { ofreceResumen } from '../lib/resumen-hablado'
 import { ChatSpeechBar } from './ChatSpeechBar'
 import { chatSpeech } from '../lib/chat-speech'
 import { LectorPosicion } from './LectorPosicion'
@@ -64,6 +63,7 @@ import { comandoDeMensaje, filtrarComandos, pideArgumentos, textoRelleno } from 
 import { useCommandCatalog } from '../hooks/useCommandCatalog'
 import { useCommandStore } from '../stores/command-store'
 import { ModelPicker } from './ModelPicker'
+import { PuntoAutonomo } from '@/features/seguridad/components/PermisosEnModelo'
 import { cabeEnConversacion, esModeloActual, type ModeloCatalogo } from '@/features/modelo/catalogo-modelos'
 import { esEspacioClaude } from '@/shared/lib/espacios-chat'
 import { EffortSlider, stopLabel, type EffortStop } from './EffortSlider'
@@ -107,6 +107,7 @@ import { NOMBRE_SIN_DAR, PEDIDOS_BIENVENIDA, soloBienvenida } from '@/features/p
 import { esFaltaLlave, esLlaveRechazada, turnoSinCredito } from '@/features/primer-arranque/lib/sin-saldo'
 import { LlaveEnChat } from '@/features/primer-arranque/components/LlaveEnChat'
 import { RecargaEnChat } from '@/features/primer-arranque/components/RecargaEnChat'
+import { EVENTO_BORRADOR_CHAT } from '@/features/cabina/documento/comentarios'
 
 const EDICION_CLIENTE = esEdicionCliente()
 
@@ -510,8 +511,7 @@ export const MessageBubble = memo(function MessageBubble({ msg, isFresh = false,
                 en content (<!--thinking-->). Copiar/escuchar/leer NO debe arrastrarlo. */}
             {/* «Escuchar» con la voz del dispositivo (Web Speech): sin llave, también en la edición cliente (21 oct 2026). */}
             <AudioButton messageId={msg.id} />
-            {/* «Escuchar resumen» (29 oct 2026, cohorte): solo en respuestas largas; regla en resumen-hablado.ts. */}
-            {ofreceResumen(respuesta) && <AudioButton messageId={msg.id} resumen />}
+            {/* «Escuchar resumen» retirado del pie (30 oct 2026, pedido del dueño: no aportaba nada nuevo); la lógica sigue en resumen-hablado.ts. */}
             <CopyBtn text={stripThinking(msg.content)} />
             {/* Solo la hora (2 oct 2026): el contexto de la conversación vive en la barra de escribir y el
                 desglose de ESTE turno (entrada, salida, duración, costo) aparece al pasar el cursor. */}
@@ -808,6 +808,18 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
       el.setSelectionRange(el.value.length, el.value.length)
     })
   }, [autoResizeTextarea])
+
+  // Comentarios del Documento en la edición cliente (30 oct 2026): llegan como borrador a la caja; nunca se envían solos.
+  useEffect(() => {
+    const alBorrador = (e: Event) => {
+      const texto = (e as CustomEvent<string>).detail
+      if (typeof texto !== 'string' || !texto) return
+      restoreTextDraft(texto)
+      requestAnimationFrame(() => { const el = textareaRef.current; if (!el) return; el.focus(); autoResizeTextarea(); el.setSelectionRange(el.value.length, el.value.length) })
+    }
+    window.addEventListener(EVENTO_BORRADOR_CHAT, alBorrador)
+    return () => window.removeEventListener(EVENTO_BORRADOR_CHAT, alBorrador)
+  }, [restoreTextDraft, autoResizeTextarea])
 
   // Ancla de turno estilo Claude iOS: al enviar, tu mensaje queda ARRIBA del
   // viewport y un spacer reserva la pantalla para la respuesta. Declarados aquí
@@ -3427,11 +3439,13 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
                       chat). Abre el mismo ModelPicker que el header. */}
                   <button
                     onClick={() => setShowModelPicker(true)}
-                    aria-label="Cambiar modelo y cuenta"
+                    aria-label={EDICION_CLIENTE ? 'Modelo, permisos y Pausar todo' : 'Cambiar modelo y cuenta'}
                     aria-expanded={showModelPicker}
-                    title="Cambiar modelo y cuenta"
+                    title={EDICION_CLIENTE ? 'Modelo, Autónomo o Preguntar, y Pausar todo' : 'Cambiar modelo y cuenta'}
                     className={composerUI.model}
                   >
+                    {/* Autónomo (30 oct 2026): un punto discreto; el modo y «Pausar todo» se cambian en este menú. */}
+                    {EDICION_CLIENTE && <PuntoAutonomo />}
                     <span className="text-[12.5px] font-medium truncate">
                       {modelDisplayName(currentModel) ?? 'Modelo'} · {CHAT_TABS.find(t => t.id === account)?.label ?? account}
                     </span>

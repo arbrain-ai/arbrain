@@ -1,16 +1,16 @@
 import { appendFile, mkdir } from 'node:fs/promises'
-import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { dirLogs } from '@/features/chat/lib/rueda-log'
 import { requireChatPrincipal, chatAccessResponse } from '@/lib/chat-access'
 import { checkMutationOrigin } from '@/lib/planning/server'
 
 // «Esta pantalla tuvo un problema» con su stack (27 oct 2026). Antes el error solo iba a la consola del webview, que nadie
 // ve: dos caídas del mismo día (React #130) se diagnosticaron a ciegas. Ahora cada pantalla de error deja una línea en
-// ~/Library/Logs/Arbrain/errores-pantalla.jsonl con el mensaje, el stack minificado, la ruta y el build.
+// errores-pantalla.jsonl (rueda-log.ts › dirLogs: ~/Library/Logs/Arbrain del autor o la carpeta de datos del alumno) con el mensaje, el stack minificado, la ruta y el build.
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-const LOG = join(homedir(), 'Library', 'Logs', 'Arbrain', 'errores-pantalla.jsonl')
+// 30 oct 2026: en la edición cliente, en SU carpeta de datos (también Windows y Linux), junto a hilo-rueda.jsonl.
 const corta = (v: unknown, n: number) => (typeof v === 'string' ? v.slice(0, n) : null)
 
 export async function POST(request: Request) {
@@ -30,8 +30,9 @@ export async function POST(request: Request) {
       buildServidor: process.env.NEXT_PUBLIC_ARBRAIN_BUILD ?? null,
       ua: (request.headers.get('user-agent') ?? '').slice(0, 200),
     }
-    await mkdir(join(homedir(), 'Library', 'Logs', 'Arbrain'), { recursive: true })
-    await appendFile(LOG, JSON.stringify(linea) + '\n')
+    const dir = dirLogs()
+    await mkdir(dir, { recursive: true })
+    await appendFile(join(dir, 'errores-pantalla.jsonl'), JSON.stringify(linea) + '\n')
     return Response.json({ ok: true }, { headers: { 'Cache-Control': 'no-store' } })
   } catch (error) {
     return chatAccessResponse(error)

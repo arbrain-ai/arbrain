@@ -7,11 +7,13 @@
  *    supo de quién es el archivo, se elige el agente ahí. Un envío = un mensaje al agente, por la misma vía que «Responder».
  */
 import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { esEdicionCliente } from '@/lib/edicion'
 import { MessageSquarePlus, Send, X } from 'lucide-react'
 import { useFuente } from '../datos'
 import { urlPanel } from '../panel/datos'
 import type { Trabajos } from '../trabajos-modelo'
-import { agenteParaRuta, agentesAbiertos, comentarios, mandarComentarios, textoBoton, useComentarios, type AgenteAbierto, type ComentarioPendiente } from './comentarios'
+import { agenteParaRuta, agentesAbiertos, comentarios, comentariosAlChat, mandarComentarios, textoBoton, textoBotonLevy, useComentarios, type AgenteAbierto, type ComentarioPendiente } from './comentarios'
 import c from './comentarios.module.css'
 
 export interface Objetivo { ruta: string; linea?: number; cita?: string }
@@ -53,7 +55,20 @@ export function Bandeja({ agentes, solo, demo }: { agentes: AgenteAbierto[]; sol
   const lista = solo ? todos.filter(solo) : todos
   const [nota, setNota] = useState<{ texto: string; error?: boolean } | null>(null)
   const [ocupado, setOcupado] = useState<number | null>(null)
+  const router = useRouter()
   if (!lista.length && !nota) return null
+  // Edición cliente (30 oct 2026): sin agentes en terminales; un solo grupo que va a su chat con Levy, como borrador.
+  if (esEdicionCliente() && !demo) return <section className={c.bandeja} data-bandeja-comentarios aria-label="Comentarios por mandar">
+    {lista.length > 0 && <div className={c.grupo}>
+      <ol className={c.lista}>{lista.map((x, i) => <li key={x.id}>
+        <span className={c.num}>{i + 1}</span>
+        <div><p className={c.donde}><b>{donde(x)}</b>{x.cita && <q>{corta(x.cita, 90)}</q>}</p><p className={c.texto}>{x.texto}</p></div>
+        <button type="button" className={c.quitar} onClick={() => comentarios.quitar(x.id)} aria-label={`Quitar el comentario ${i + 1}`} title="Quitar"><X size={13} aria-hidden /></button>
+      </li>)}</ol>
+      <button type="button" className={c.mandar} onClick={() => setNota({ texto: comentariosAlChat(lista, url => router.push(url)) })}><Send size={13} aria-hidden />{textoBotonLevy(lista.length)}</button>
+    </div>}
+    {nota && <p className={c.nota} role="status">{nota.texto}</p>}
+  </section>
   const grupos = new Map<number | 'sin', ComentarioPendiente[]>()
   for (const x of lista) { const k = x.agente != null && agentes.some(a => a.id === x.agente) ? x.agente : 'sin'; grupos.set(k, [...(grupos.get(k) ?? []), x]) }
   const mandar = async (agente: number, cs: ComentarioPendiente[]) => {
