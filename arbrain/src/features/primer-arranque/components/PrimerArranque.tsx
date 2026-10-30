@@ -181,7 +181,7 @@ export function PrimerArranque() {
               <ul className="mx-auto mt-6 grid max-w-[460px] gap-2.5 text-left">
                 <Punto icono={<HardDrive className="size-4" />} titulo="Es tuyo">Tu memoria, tus conversaciones y tus archivos se quedan en {enServidor ? 'tu servidor, rentado a tu nombre' : 'esta computadora'}.</Punto>
                 <Punto icono={<KeyRound className="size-4" />} titulo="Con tus llaves">Levy trabaja con tu propia cuenta: tu Claude Code (Pro o Max) o tu llave, que va al llavero del sistema.</Punto>
-                <Punto icono={<ShieldCheck className="size-4" />} titulo="Bajo tu mando">Tú eliges cuánto te pregunta: desde un clic para todo hasta el modo Autónomo con una red mínima. Pausar todo siempre está a un clic.</Punto>
+                <Punto icono={<ShieldCheck className="size-4" />} titulo="Bajo tu mando">Tú eliges cuánto te pregunta: desde un clic para todo hasta el modo Autónomo con una red mínima. Para cambiarlo o pausar todo, toca el botón del modelo, abajo junto a donde escribes.</Punto>
               </ul>
               <label className="mx-auto mt-6 block max-w-[320px] text-left">
                 <span className="text-[13px] font-medium text-foreground/90">¿Cómo te llamo? <span className="font-normal text-muted">(opcional)</span></span>

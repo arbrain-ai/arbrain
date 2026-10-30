@@ -69,8 +69,9 @@ const themeInitScript = `
 })();
 `
 
-// Edición cliente (23 oct 2026, «Tu cerebro en el teléfono»): instalada en el celular se llama «Tu Arbrain» y lleva su
-// propio icono, para no confundirla con el «Agente Arbrain» del sitio del programa. La instalación original no cambia.
+// Edición cliente (23 oct 2026, «Tu cerebro en el teléfono»): instalada en el celular se llama «Tu Arbrain», para no
+// confundirla con el «Agente Arbrain» del sitio del programa. Su icono es el oscuro de la marca, sin texto (30 oct 2026,
+// Daniel en su iPhone: el claro con «tu Arbrain» no coincidía con la marca). La instalación original no cambia.
 const CLIENTE = esEdicionCliente()
 
 export const metadata: Metadata = {
@@ -79,7 +80,7 @@ export const metadata: Metadata = {
   manifest: CLIENTE ? '/manifest-cliente.json' : '/manifest.json',
   icons: {
     icon: '/icon-192.png',
-    apple: CLIENTE ? '/tu-arbrain-apple.png' : '/apple-touch-icon.png',
+    apple: '/apple-touch-icon.png',
   },
   appleWebApp: {
     capable: true,

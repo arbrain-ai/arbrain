@@ -3,6 +3,7 @@ import type { ModelInfo, Options, Query } from '@anthropic-ai/claude-agent-sdk'
 import type { SessionOverrides, EffortLevel } from '../agent.js'
 import { findClaudeModel, pinnedClaudeModel, getClaudeCatalog, readClaudeSettings, type ClaudeCapabilities } from './claude-capabilities.js'
 import { nearestEffort } from './effort-control.js'
+import { esEdicionCliente } from '../edicion.js'
 
 export interface ClaudeSelection {
   account: string
@@ -39,8 +40,23 @@ function resolveStoredModel(models: ClaudeCapabilities['models'], requested: str
   const bare = requested.replace(/\[[^\]]+\]$/, '')
   return bare !== requested ? findClaudeModel(models, bare) : undefined
 }
-/** Freeze user intent without replacing unknown configuration with catalog default. */
-export function freezeClaudeSelection(account: string, overrides: SessionOverrides, explicitEffort: string | undefined, catalog: ClaudeCapabilities, settings: Settings, storedModel: 'fallback' | 'reject' = 'fallback'): ClaudeSelection {
+/**
+ * El modelo de la casa para la edición cliente (30 oct 2026, primer mensaje desde el teléfono de Daniel contra su
+ * servidor: «No se pudo confirmar el modelo Claude»). Una cuenta de Claude recién conectada no trae `model` en ningún
+ * settings.json y la persona todavía no eligió motor: en la instalación de Daniel eso sigue bloqueando (no se inventa
+ * un modelo), pero al alumno se le responde con Opus 5.5 si su cuenta lo anuncia o, si no, con el modelo al que apunta
+ * la fila `default` de su catálogo (siempre una fila que la cuenta anuncia, sin conceder un sufijo de contexto).
+ */
+export const MODELO_CASA = 'claude-opus-5-5'
+export function filaDeLaCasa(models: ClaudeCapabilities['models']): ClaudeCapabilities['models'][number] | undefined {
+  const sinSufijo = (m: ModelInfo) => !/\[[^\]]+\]$/.test(pinnedClaudeModel(m) ?? '')
+  const de = (canonico: string) => models.filter(m => m.value !== 'default' && pinnedClaudeModel(m)?.replace(/\[[^\]]+\]$/, '') === canonico)
+    .sort((a, b) => Number(sinSufijo(b)) - Number(sinSufijo(a)))[0]
+  const porDefecto = models.find(m => m.value === 'default')?.resolvedModel
+  return de(MODELO_CASA) ?? (porDefecto ? de(porDefecto.replace(/\[[^\]]+\]$/, '')) : undefined)
+}
+/** Freeze user intent without replacing unknown configuration with catalog default (salvo el modelo de la casa en cliente). */
+export function freezeClaudeSelection(account: string, overrides: SessionOverrides, explicitEffort: string | undefined, catalog: ClaudeCapabilities, settings: Settings, storedModel: 'fallback' | 'reject' = 'fallback', env: NodeJS.ProcessEnv = process.env): ClaudeSelection {
   if (!['default', 'bro'].includes(account) || catalog.account !== account) throw new Error('Claude selection account mismatch')
   requireKnownSettings(settings)
   let requestedModel = overrides.model ?? settings.configuredModel
@@ -50,6 +66,10 @@ export function freezeClaudeSelection(account: string, overrides: SessionOverrid
     requestedModel = settings.configuredModel
     row = findClaudeModel(catalog.models, requestedModel)
     source = `conversation-unavailable:${overrides.model}`
+  }
+  if (!row && storedModel === 'fallback' && esEdicionCliente(env)) {
+    const casa = filaDeLaCasa(catalog.models)
+    if (casa) { source = requestedModel ? `casa:no-disponible:${requestedModel}` : 'casa'; requestedModel = casa.value; row = casa }
   }
   const model = row && pinnedClaudeModel(row)
   if (!requestedModel || !row || !model) throw new Error('No se pudo confirmar el modelo Claude. Elige un modelo disponible en esta cuenta.')
