@@ -64,6 +64,9 @@ export const claude: Adaptador = {
   modeloOk: modeloSimple,
   recibeEsfuerzo: true,
   cuentaCatalogo: 'default',
+  // Cuenta del CLI de los subagentes: sin la variable, ~/.claude. Con CLAUDECLAW_DEFAULT_ACCOUNT=bro el .env la
+  // apunta a la carpeta de bro (29 oct 2026: la cuenta de Daniel llegó al límite semanal y los subagentes seguían ahí).
+  entorno: { CLAUDE_CONFIG_DIR: { fuentes: ['CABINA_CLAUDE_CONFIG_DIR'] } },
   sesionPropia: true,
   perfiles: PERFILES,
   guardia: true,

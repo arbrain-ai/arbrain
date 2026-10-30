@@ -1,0 +1,41 @@
+/* Piel base del motor. Los colores y letras viven en tema.css (variables); aquí solo la mecánica. */
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--fondo-fuera,#000)}
+body{font-family:var(--letra-texto);color:var(--tinta);-webkit-font-smoothing:antialiased}
+body.oculto{cursor:none}
+#escena{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0;overflow:hidden;background:var(--fondo)}
+section.lamina{position:absolute;inset:0;padding:var(--margen,120px);opacity:0;visibility:hidden;transition:opacity .6s var(--curva),visibility 0s .6s}
+section.lamina.on{opacity:1;visibility:visible;transition:opacity .6s var(--curva),visibility 0s}
+aside.notas{display:none}
+
+/* builds: aparece en su clic */
+[data-p]{opacity:0;transform:translateY(14px);transition:opacity .55s var(--curva),transform .55s var(--curva)}
+[data-p].ver{opacity:1;transform:none}
+[data-p].sin-mover{transform:none}
+
+/* tipografía de lámina: una idea, letra grande */
+.kicker{font-family:var(--letra-mono);font-size:22px;letter-spacing:.22em;text-transform:uppercase;color:var(--acento)}
+h1{font-family:var(--letra-titulo);font-size:132px;line-height:1.02;letter-spacing:-.02em;font-weight:var(--peso-titulo,700)}
+h2{font-family:var(--letra-titulo);font-size:84px;line-height:1.06;letter-spacing:-.015em;font-weight:var(--peso-titulo,700)}
+p.grande{font-size:44px;line-height:1.3;color:var(--tinta-suave);max-width:1300px}
+.acento{color:var(--acento)}
+canvas.enactivo{position:absolute;display:block}
+
+/* chrome mínimo: nada visible encima de la lámina salvo una línea de avance */
+#avance{position:absolute;left:0;bottom:0;height:3px;width:0;background:var(--acento);opacity:.55;transition:width .6s var(--curva);z-index:5}
+body.mini #avance{display:none}
+
+/* zona de la cara (D): reserva para la cámara si grabas o compartes con tu cara encima */
+#cara{position:absolute;right:var(--cara-margen,40px);bottom:var(--cara-margen,40px);width:var(--cara,380px);height:var(--cara,380px);
+  border:3px dashed var(--acento);border-radius:50%;display:none;z-index:6;pointer-events:none}
+body.ver-cara #cara{display:block}
+
+#notas-panel,#ayuda{position:fixed;z-index:10;display:none;background:rgba(10,10,14,.94);color:#eee;font:20px/1.45 system-ui,sans-serif;padding:22px 26px;border-radius:12px}
+#notas-panel{left:20px;bottom:20px;max-width:720px;max-height:45vh;overflow:auto}
+#notas-panel p{margin-top:8px}
+body.ver-notas #notas-panel{display:block}
+#ayuda{right:20px;top:20px}
+body.ver-ayuda #ayuda{display:block}
+
+body.captura *{transition:none!important;animation:none!important}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}[data-p]{transform:none}}

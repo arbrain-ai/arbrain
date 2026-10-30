@@ -141,6 +141,36 @@ test('ciclo: sube lo del cerebro, no el código ni los secretos', () => {
   assert.deepEqual(r.rechazados.map((x) => x.ruta).sort(), ['.claude/memory/llaves.json', '.claude/memory/pegada.md'])
 })
 
+test('ciclo: now.md fuera de git por el .gitignore (0.2.16) viaja igual del que manda; fuera del que manda, no', () => {
+  const { a, origen } = montar()
+  writeFileSync(join(a, '.gitignore'), '.claude/now.md\n'); g(a, 'add', '-A'); g(a, 'commit', '-qm', 'gitignore de la copia'); g(a, 'push', '-q')
+  guardarMaquina(a, { activo: true, host: 'nube-1', rama: 'mi-arbrain' })
+  writeFileSync(join(a, '.claude', 'now.md'), '# Ahora · hoy\n')
+  // Siendo ventana (nadie la eligió) no lo sube: lo genera el que manda.
+  assert.equal(ciclo(a, { host: 'nube-1', rama: 'mi-arbrain' }, {}).codigo, 'ok')
+  assert.equal(g(a, 'ls-files', '--', '.claude/now.md'), '')
+  registrarMaquina(a, 'nube-1'); g(a, 'add', '-A'); g(a, 'commit', '-qm', 'alta')
+  assert.equal(elegir(a, { lider: 'nube-1', cita: 'que la nube mande', por: 'nube-1' }).codigo, 'elegido')
+  // Ya al mando: lo sube aunque el .gitignore de la copia lo excluya.
+  writeFileSync(join(a, '.claude', 'now.md'), '# Ahora · hoy\n')
+  assert.equal(ciclo(a, { host: 'nube-1', rama: 'mi-arbrain' }, {}).codigo, 'ok')
+  assert.equal(g(origen, 'show', 'mi-arbrain:.claude/now.md'), '# Ahora · hoy\n')
+  // Ya versionado, sus cambios viajan como los de cualquier archivo del líder.
+  writeFileSync(join(a, '.claude', 'now.md'), '# Ahora · mañana\n')
+  assert.equal(ciclo(a, { host: 'nube-1', rama: 'mi-arbrain' }, {}).codigo, 'ok')
+  assert.equal(g(origen, 'show', 'mi-arbrain:.claude/now.md'), '# Ahora · mañana\n')
+  // Con una llave pegada no entra ni al índice.
+  const { a: b2, origen: o2 } = montar()
+  writeFileSync(join(b2, '.gitignore'), '.claude/now.md\n'); g(b2, 'add', '-A'); g(b2, 'commit', '-qm', 'gitignore'); g(b2, 'push', '-q')
+  guardarMaquina(b2, { activo: true, host: 'nube-2', rama: 'mi-arbrain' })
+  registrarMaquina(b2, 'nube-2'); g(b2, 'add', '-A'); g(b2, 'commit', '-qm', 'alta')
+  elegir(b2, { lider: 'nube-2', cita: 'que la nube mande', por: 'nube-2' })
+  writeFileSync(join(b2, '.claude', 'now.md'), `llave ${OR}\n`)
+  ciclo(b2, { host: 'nube-2', rama: 'mi-arbrain' }, {})
+  assert.equal(g(b2, 'ls-files', '--', '.claude/now.md'), '')
+  assert.ok(!g(o2, 'log', '-p', '--all').includes(OR))
+})
+
 test('ciclo: un commit hecho a mano con una llave bloquea toda la subida', () => {
   const { a, origen } = montar()
   guardarMaquina(a, { activo: true, host: 'laptop-1', rama: 'mi-arbrain' })

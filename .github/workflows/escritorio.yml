@@ -40,8 +40,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: macos-14, plat: darwin-arm64, objetivo: '', e2e: true }
-          - { os: macos-14, plat: darwin-x64, objetivo: x86_64-apple-darwin, e2e: false }
+          - { os: macos-15, plat: darwin-arm64, objetivo: '', e2e: true }
+          - { os: macos-15, plat: darwin-x64, objetivo: x86_64-apple-darwin, e2e: false }
           - { os: windows-latest, plat: win32-x64, objetivo: '', e2e: true }
           - { os: ubuntu-22.04, plat: linux-x64, objetivo: '', e2e: true }
     steps:

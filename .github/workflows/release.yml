@@ -85,7 +85,7 @@ jobs:
           # arm64 (13 oct 2026): antes la matriz no lo tenía y el .deb arm64 se armaba a mano. ubuntu-22.04-arm, como el
           # x64 en 22.04, para que el .deb pida la misma glibc (2.35) y no excluya a Ubuntu 22.04 / Debian 12.
           la='{"nombre":"linux-arm64","os":"ubuntu-22.04-arm","triple":"aarch64-unknown-linux-gnu","bundles":"deb"}'
-          m='{"nombre":"mac","os":"macos-14","triple":"aarch64-apple-darwin","bundles":"app,dmg"}'
+          m='{"nombre":"mac","os":"macos-15","triple":"aarch64-apple-darwin","bundles":"app,dmg"}'
           case "$SISTEMAS" in windows) sel="$w";; linux) sel="$l";; *) sel="$w,$l";; esac
           [ "$ARM" = si ] && [ "$SISTEMAS" != windows ] && sel="$sel,$la"
           [ "$MAC" = "si" ] && sel="$sel,$m"
@@ -420,7 +420,7 @@ jobs:
           [ "$(echo "$v" | grep -c .)" = 1 ] || { echo "::error::SHA256SUMS no trae una sola versión: $v"; exit 1; }
           w="{\"nombre\":\"windows\",\"os\":\"windows-latest\",\"archivo\":\"Arbrain_${v}_x64-setup.exe\"}"
           l="{\"nombre\":\"linux\",\"os\":\"ubuntu-22.04\",\"archivo\":\"Arbrain_${v}_amd64.deb\"}"
-          m="{\"nombre\":\"mac\",\"os\":\"macos-14\",\"archivo\":\"Arbrain_${v}_aarch64.dmg\"}"
+          m="{\"nombre\":\"mac\",\"os\":\"macos-15\",\"archivo\":\"Arbrain_${v}_aarch64.dmg\"}"
           case "$SISTEMAS" in windows) sel="$w" ;; linux) sel="$l" ;; *) sel="$w,$l" ;; esac
           [ "$MAC" = si ] && sel="$sel,$m"
           for f in $(echo "[$sel]" | jq -r '.[].archivo'); do

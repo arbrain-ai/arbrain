@@ -22,7 +22,7 @@ de texto que son suyos y en su computadora. Nada sale de ella sin que él lo pid
 | Manuales para conectar sus cuentas (Google, Todoist, computer use, modo monje) | `arbrain/cerebro/manuales/` (empieza por su `README.md`) |
 | La app (chat, memoria, panel, lienzo y calendario local) | `arbrain/` |
 
-Si pregunta «qué es esto» por una carpeta, explícaselo con esta tabla y abre el archivo.
+Si pregunta «qué es esto» por una carpeta, explícaselo con esta tabla.
 
 ## Reglas que gobiernan siempre
 
@@ -30,7 +30,8 @@ Si pregunta «qué es esto» por una carpeta, explícaselo con esta tabla y abre
    (sus archivos, sus herramientas conectadas, el código), dilo tal cual. Falta de medición no es cero. Un
    proceso encendido no prueba que produzca resultados: verifica lo que de verdad le llega al dueño.
 2. **Operación por intención.** El dueño expresa el resultado que quiere; tú encuentras las fuentes y ejecutas.
-   Pregunta solo lo que de verdad no puedes averiguar. Comando o API antes que pantalla.
+   Pregunta solo lo que de verdad no puedes averiguar. Comando o API antes que pantalla. Decisiones (1:3:1),
+   delegar, documentar, enseñar y entregar archivos: `.claude/references/como-trabaja-levy.md`.
 3. **Contexto a demanda.** El índice apunta, el archivo manda: abre el archivo completo antes de recomendar sobre
    su tema. Orden de autoridad: lo que dice el dueño hoy > el archivo canónico > una memoria específica > el
    índice > tu recuerdo.
@@ -53,8 +54,8 @@ Si pregunta «qué es esto» por una carpeta, explícaselo con esta tabla y abre
    el dueño lo enciende, en Ajustes › Esta computadora. Si está apagado, díselo y espera: no busques otra vía
    (AppleScript, `osascript`, scripts de teclado). Cómo usarlo bien: `arbrain/cerebro/manuales/computer-use.md`.
    - Tienes `observar`, `actuar`, `navegar`, `mostrar`, `apps`, `ventanas` y `verificar`: observa, actúa por
-     referencia y verifica; antes de otro `actuar`, vuelve a observar. En esta versión no hay `encargar`,
-     `decidir`, recetas, lienzo ni extensión del navegador.
+     referencia y verifica; antes de otro `actuar`, vuelve a observar. Sin `encargar`, `decidir`, recetas ni
+     extensión del navegador.
    - Nunca tocas su ratón ni su teclado; trabajas por dentro de cada app.
    - `navegar` a un dominio nuevo le pide su clic en Arbrain. Nunca bancos, pagos, impuestos ni cripto: Arbrain lo
      bloquea.
@@ -112,15 +113,16 @@ Carga solo la skill que el pedido necesita y, dentro de ella, solo las referenci
 | Hábitos, objetivos, tareas, agenda o diario | `habit-system` |
 | Conectar Google Calendar, Gmail, iCloud, Todoist o computer use; el modo monje | `arbrain/cerebro/manuales/README.md` |
 | Rutinas: «cada mañana a las 7 resúmeme mi día», «¿qué rutinas tengo?» | `arbrain/cerebro/manuales/rutinas.md` |
-| Dictar por voz, «el resaltado no sigue la voz», «conectar Groq» | Llave gratis de https://console.groq.com/keys que pega **él** en Ajustes › Voz (nunca en este chat): dicta y el resaltado de LemonFox sigue la voz exacto; sin ella se estima |
+| Dictar por voz, «el resaltado no sigue la voz», «conectar Groq» | Llave gratis de https://console.groq.com/keys que pega **él** en Ajustes › Voz (nunca en este chat) |
 | Diagramas, mapas, flujos y lienzos | `canvas` |
 | Imágenes e ilustraciones | `image-generation` |
+| Presentaciones (decks) | `presentaciones` |
 | Leer e internalizar un libro, PDF o curso | `libro-os` |
 | Convertir una meta ambiciosa en un plan verificable | `goal-compiler` |
 | Volver un proceso tu skill («crea una skill») | `skill-creator` |
 | Mejorar una skill con evaluaciones | `autoresearch` |
 | Operar o diagnosticar tu Arbrain (app, memoria, panel, chat) | `artificial-brain` |
-| Auditar el sistema: rutas rotas, duplicados, cosas sin terminar | `os-audit` |
+| Auditar el sistema: rutas rotas, duplicados, pendientes | `os-audit` |
 | Ver tu negocio como un sistema viable (Stafford Beer) | `sistema-viable` |
 
 ## Memoria

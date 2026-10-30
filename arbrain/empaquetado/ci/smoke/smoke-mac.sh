@@ -3,7 +3,7 @@
 #
 #   smoke-mac.sh <Arbrain_x.y.z_aarch64.dmg | Arbrain.app> [carpeta-salida]
 #
-# Solo en un runner desechable de GitHub Actions (macos-14): monta el .dmg, copia Arbrain.app a una carpeta temporal,
+# Solo en un runner desechable de GitHub Actions (macos-15): monta el .dmg, copia Arbrain.app a una carpeta temporal,
 # la lanza con HOME temporal y SIN Node (renombra con sudo los `node` del sistema y los quita del PATH), descubre los
 # puertos de la app (daemon.json de su carpeta de datos o los sockets en escucha de su árbol de procesos) y comprueba
 # el contrato del daemon como Linux y Windows: v2 = daemon `GET /vivo` 200 y /health 401 sin token; Next /api/version

@@ -187,8 +187,13 @@ vuelve al PASO 9 de `INSTALAR.md`, opción 1, y regresa.
 ### N4 · Instalar (endurecer, usuario, servicio)
 
 ```bash
-bash ~/Arbrain/arbrain/scripts/instalar/nube.sh ${MI:+--mi-arbrain "$MI"}
+bash ~/Arbrain/arbrain/scripts/instalar/nube.sh ${MI:+--mi-arbrain "$MI"} --zona "$ZONA"
 ```
+
+`ZONA` es la zona horaria de la persona, para que sus rutinas corran a su hora (un servidor nuevo vive en UTC). Desde
+su computadora Mac o Linux: `ZONA=$(readlink /etc/localtime | sed 's|.*/zoneinfo/||')`. En Windows, o dentro del
+servidor: pregúntale en qué ciudad vive y usa su zona IANA (por ejemplo `America/Mexico_City`, `America/Bogota`,
+`Europe/Madrid`).
 
 Tarda de 3 a 10 minutos (paquetes, Tailscale, Node). Córrelo con el plazo más largo que tengas; si se corta, vuelve a
 correrlo: es seguro, cada paso mira antes de cambiar. Mientras, dile en una línea qué hace (seguridad del servidor,
@@ -243,15 +248,20 @@ Ahí entras con tu cuenta de Claude, pegas tu llave de OpenRouter con tope y ves
 pasa por este chat. Cuando termine, dime qué dice la última línea». El comando, con su dirección en lugar de `<S>`:
 
 ```text
-ssh -t <S> 'bash ~/Arbrain/arbrain/scripts/instalar/nube.sh conectar'
+ssh -t -o ServerAliveInterval=20 -o ServerAliveCountMax=6 <S> 'bash ~/Arbrain/arbrain/scripts/instalar/nube.sh conectar'
 ```
+
+Las dos `-o` mantienen viva la sesión mientras ella busca su llave o entra a Claude en el navegador (sin ellas, el
+router corta una sesión callada a los pocos minutos: «Broken pipe»). Si aun así se corta, que lo vuelva a pegar: lo
+que ya quedó (su cuenta de Claude, su llave) se salta solo y sigue donde iba.
 
 Si estás **dentro del servidor**, que abra otra sesión SSH al servidor (o salga un momento de Claude Code con `/exit`,
 corra `bash ~/Arbrain/arbrain/scripts/instalar/nube.sh conectar` y vuelva con `claude --continue`). Antes de dárselo,
 explícale en dos líneas lo que va a ver:
 
-1. **Su cuenta de Claude, para el chat** (si paga Pro o Max): Claude Code le muestra un enlace; lo abre en su
-   teléfono o su computadora, entra, autoriza y, si la página le muestra un código, lo pega en la terminal.
+1. **Su cuenta de Claude, para el chat** (si paga Pro o Max): Claude Code le muestra un enlace y abajo se repite
+   solo, en su propio renglón: clic para abrirlo (o selecciónalo completo y cópialo) en su teléfono o su computadora,
+   entra, autoriza y, si la página le muestra un código, lo pega en la terminal.
 2. **Su llave de OpenRouter con tope, para las rutinas:** en https://openrouter.ai/settings/keys, Create key, nombre
    «Arbrain servidor», **Credit limit** con lo que acepta gastar al mes (por ejemplo 10). La pega cuando la pida (no se
    ve). Las rutinas corren con Claude Haiku 5.5. Si prefiere después, Enter vacío.
@@ -261,7 +271,7 @@ La última línea dice `NUBE_CONECTAR claude=<…> llave=<…> codigo=<…>`:
 
 - `claude=NUBE_CLAUDE_OK`: el chat usa su cuenta. `NUBE_CLAUDE_FALTA` o `saltado`: el chat va por su llave de
   OpenRouter (si no hay llave, Levy no puede responder hasta que la ponga). Para reintentar solo esta parte:
-  `ssh -t <S> 'bash ~/Arbrain/arbrain/scripts/instalar/nube.sh claude'`.
+  `ssh -t -o ServerAliveInterval=20 -o ServerAliveCountMax=6 <S> 'bash ~/Arbrain/arbrain/scripts/instalar/nube.sh claude'`.
 - `llave=NUBE_LLAVE_OK`: rutinas encendidas con tope. `NUBE_LLAVE_FALTA`: casi siempre es una llave sin tope; que cree
   otra con Credit limit y corra `… nube.sh llave`. Sin llave, la nube corre igual, solo sin rutinas.
 - `codigo=NUBE_CODIGO_OK`: sigue al N8. Si se le pasaron los 10 minutos: `… nube.sh codigo` le da otro.
@@ -291,7 +301,7 @@ manda («Que mande: …»); si no lo dijo, pregúntale una sola cosa: qué máqu
 vuelve a correr el instalador con sus palabras textuales:
 
 ```bash
-bash ~/Arbrain/arbrain/scripts/instalar/nube.sh --mi-arbrain "$MI" --espejo --rol lider --cita "<lo que dijo, p. ej. que mande mi servidor>"
+bash ~/Arbrain/arbrain/scripts/instalar/nube.sh --mi-arbrain "$MI" --zona "$ZONA" --espejo --rol lider --cita "<lo que dijo, p. ej. que mande mi servidor>"
 # o, si prefiere que siga mandando su compu:  … --espejo --rol ventana
 ```
 

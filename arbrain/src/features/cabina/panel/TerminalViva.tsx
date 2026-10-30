@@ -11,6 +11,7 @@
 import { useEffect, useRef, useState } from 'react'
 import '@xterm/xterm/css/xterm.css'
 import s from './panel.module.css'
+import { conEnlaces } from '../terminal/enlaces'
 
 type Estado = { fase: 'conectando' | 'viva' | 'fin' | 'error'; msg?: string; soloLectura?: boolean }
 
@@ -47,6 +48,7 @@ export function TerminalViva({ id, onEstado }: { id: number; onEstado?: (e: Esta
       const fit = new FitAddon()
       term.loadAddon(fit)
       term.open(caja.current)
+      const enlaces = conEnlaces(term)
 
       // Escritura en orden: una petición a la vez, juntando lo que se teclee mientras tanto.
       let cola = '', enviando = false, soloLectura = false, reproduciendo = true
@@ -105,7 +107,7 @@ export function TerminalViva({ id, onEstado }: { id: number; onEstado?: (e: Esta
       ro = new ResizeObserver(() => ajustar())
       ro.observe(caja.current)
       limpiar = () => {
-        entrada.dispose(); term.dispose()
+        entrada.dispose(); enlaces.dispose(); term.dispose()
         // La PTY vuelve al tamaño que tenía antes de verla aquí (SFTerm o el lector no se enteran).
         if (original && ultimoTam && ultimoTam !== `${original.cols}x${original.rows}`) void post({ cols: original.cols, rows: original.rows }, true).catch(() => {})
       }

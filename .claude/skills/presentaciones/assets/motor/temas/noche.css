@@ -1,0 +1,12 @@
+/* Dirección «Noche»: luz sobre oscuro. Un solo acento caliente, un segundo frío para contraste puntual.
+   Cámbialo por los colores de tu marca: es el único archivo que define cómo se ve tu deck. */
+:root{
+  --fondo:radial-gradient(1200px 800px at 70% 30%,#16131f 0%,#0b0a10 60%,#07060a 100%);
+  --fondo-fuera:#07060a;
+  --tinta:#f3efe6; --tinta-suave:#b9b3a6;
+  --acento:#f2a03d; --acento-2:#8f7cff; --linea:rgba(243,239,230,.14);
+  --letra-titulo:"Iowan Old Style","Palatino Linotype",Georgia,serif; --peso-titulo:600;
+  --letra-texto:"Avenir Next","Segoe UI",system-ui,sans-serif;
+  --letra-mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --curva:cubic-bezier(.2,.7,.3,1); --margen:120px;
+}

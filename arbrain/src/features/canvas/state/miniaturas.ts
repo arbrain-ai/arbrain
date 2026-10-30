@@ -9,6 +9,7 @@
  *   · AL GUARDAR, con rebote: tras el último guardado de un lienzo pasan `REBOTE_MS` y se regenera (editar no la pide en cada trazo).
  *   · BACKFILL: los lienzos sin miniatura se rellenan de uno en uno, en reposo, al abrir la lista. Una vez por sesión y lienzo.
  * Una miniatura que falla no rompe nada: la fila muestra su placeholder.
+ * Edición cliente (30 oct 2026): no se generan. `/api/draw3` vive en Supabase y no existe ahí; cada guardado dejaba un 404.
  */
 import type { CanvasElement } from '../model/element'
 import { exportarPNG } from '../render/export'
@@ -16,6 +17,7 @@ import { THEMES, type Theme } from '../theme/tokens'
 import { waitForFonts } from '../text/metrics-browser'
 import type { TextStyle } from '../text/types'
 import { cargarPagina } from './nube'
+import { esEdicionCliente } from '@/lib/edicion'
 
 export const LADO_MINIATURA = 400
 /** El servidor rechaza más de 300 KB; se apunta debajo para que el base64 y el redondeo no lo rocen. */
@@ -53,7 +55,7 @@ const avisar = (id: string, url: string) => oyentes.forEach(fn => fn(id, url))
 const FUENTES: TextStyle[] = [{ family: 'montserrat', weight: 400, size: 20 }, { family: 'montserrat', weight: 700, size: 24 }, { family: 'roboto-slab', weight: 900, size: 24 }]
 
 async function hacer(id: string, elements: CanvasElement[], theme: Theme) {
-  if (elements.length === 0) return
+  if (elements.length === 0 || esEdicionCliente()) return
   await waitForFonts(FUENTES).catch(() => {})
   const dataUrl = await generarMiniatura(elements, theme)
   if (!dataUrl) return
@@ -87,7 +89,7 @@ const enReposo = () => new Promise<void>(ok => (typeof requestIdleCallback === '
  * y la sección a la vez. Una página del canvas anterior se dibuja con el tema con el que se hizo; el resto, con `temaApp`.
  */
 export async function rellenarMiniaturas<P extends { id: string; elementos: number; miniatura: string | null }>(paginas: P[], temaApp: Theme) {
-  if (corriendo) return
+  if (corriendo || esEdicionCliente()) return
   corriendo = true
   try {
     for (const x of sinMiniatura(paginas, intentadas)) {

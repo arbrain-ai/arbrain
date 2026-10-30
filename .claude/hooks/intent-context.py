@@ -44,6 +44,8 @@ ROUTES = [
      ['.claude/skills/canvas/SKILL.md']),
     ('Imágenes', ['genera una imagen', 'hazme una imagen', 'ilustracion', 'miniatura'],
      ['.claude/skills/image-generation/SKILL.md']),
+    ('Presentaciones', ['presentacion', 'un deck', 'diapositivas', 'slides', 'mi pitch', 'laminas para mi clase'],
+     ['.claude/skills/presentaciones/SKILL.md']),
     ('Leer un libro o curso', ['lee este libro', 'lee este pdf', 'internaliza', 'este curso'],
      ['.claude/skills/libro-os/SKILL.md']),
     ('Meta ambiciosa a plan', ['compila esta meta', 'goal', 'spec verificable', 'convierte esto en un plan'],

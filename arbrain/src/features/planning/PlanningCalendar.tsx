@@ -52,7 +52,6 @@ import { useOcultas, type ControlLeyenda } from './Leyenda'
 import { atencionDe, colorDePiedra, conDelegado, conProtegido, DRIP, esFase, esMecanicaAlumno, fotoDe, marcasEnViajes, piedraDe, semanaDelPrograma, semanasDelPrograma, horasRecompradas, horasUnion, leerDrip, type BloqueDrip, type Cuadrante, type LecturaDrip, type Propuesta } from './drip'
 import { GobiernoCtx, LeyendaDrip, useOcultosDrip, type Gobierno } from './gobierno'
 import { useDrip } from './useDrip'
-import { HojaDrip } from './HojaDrip'
 import { Domingo } from './Domingo'
 import { CalendarCheck2, Lock } from 'lucide-react'
 
@@ -107,6 +106,9 @@ const claveRejilla = (m: CalendarMode, donde: string) => `arbrain:planning:rejil
 
 /** Edición cliente: el calendario lee su pluma local (lib/planning/local.ts); sin reportes de crons ni plan del mes. */
 const EDICION_CLIENTE = esEdicionCliente()
+/** Vistas del selector. En cliente sin «Rutinas» (crons del Studio: `/api/planning/crons` no existe ahí; sus rutinas viven en
+ *  Taller › Rutinas, 30 oct 2026). */
+const MODOS_CALENDARIO = EDICION_CLIENTE ? MODES.filter(m => m.id !== 'crons') : MODES
 
 export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConversar, onAbrirDocumento, onNavegar }: {
   inicio?: { fecha?: string; modo?: CalendarMode }; donde?: 'seccion' | 'panel'; onCambio?: (fecha: string, modo: CalendarMode) => void
@@ -323,6 +325,7 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
   }, [monthDay, presentedEvents, visibleTasks, eventoVisible, colorEvento])
 
   const changeMode = useCallback((pedido: CalendarMode, restoring = false) => {
+    if (EDICION_CLIENTE && pedido === 'crons') return
     const next = escalaVigente(pedido)
     if (!restoring) { explicitView.current = true; setMov(enTransicion.current ? null : movimientoEntre(modeRef.current, next)) }
     if (isOwnSurface(next) || isOwnSurface(modeRef.current)) initialDate.current = calendar.current?.getApi().getDate() ?? initialDate.current
@@ -345,7 +348,7 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
       setTasksOpen(!angosto() && (prefs?.tasksOpen ?? false))
       if (!explicitView.current) {
         const guardado = escalaVigente(prefs?.mode)
-        if (guardado && MODES.some(m => m.id === guardado)) changeMode(guardado, true)
+        if (guardado && MODOS_CALENDARIO.some(m => m.id === guardado)) changeMode(guardado, true)
         else if (angosto() && donde !== 'panel') changeMode('agenda', true)
       }
       if (Array.isArray(prefs?.sources)) setSources(prefs.sources)
@@ -930,7 +933,7 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
           <div className={styles.vistaPie} data-arriba>
             <label>Ir a fecha<input aria-label="Ir a fecha" type="date" value={dayKey(anchor)} onChange={e => { irAFecha(e.target.value); setMoreOpen(false) }} /></label>
           </div>
-          <div className={styles.vistaLista} role="group" aria-label="Más vistas">{MODES.filter(m => !ESCALAS_BARRA.includes(m.id)).map(m => <button role="menuitemradio" aria-checked={mode === m.id} key={m.id} onClick={() => { escala(m.id); setMoreOpen(false) }}>{m.label}{mode === m.id ? <Check size={14} aria-hidden /> : <kbd aria-hidden>{TECLA[m.id]}</kbd>}</button>)}</div>
+          <div className={styles.vistaLista} role="group" aria-label="Más vistas">{MODOS_CALENDARIO.filter(m => !ESCALAS_BARRA.includes(m.id)).map(m => <button role="menuitemradio" aria-checked={mode === m.id} key={m.id} onClick={() => { escala(m.id); setMoreOpen(false) }}>{m.label}{mode === m.id ? <Check size={14} aria-hidden /> : <kbd aria-hidden>{TECLA[m.id]}</kbd>}</button>)}</div>
         </div>}
       </span>
       <div className={styles.escala} role="tablist" aria-label="Escala del calendario">{ESCALAS_BARRA.map(m => { const def = MODES.find(x => x.id === m)!
@@ -1034,7 +1037,7 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
     {selection && snapshot && <PlanEditor key={selection.item?.id ?? `new:${selection.start?.getTime() ?? 'capture'}:${selection.end?.getTime() ?? ''}`} selection={selection} snapshot={snapshot} saving={saving} unresolved={Boolean(pending) && !saving && !(pending?.action === 'update' && pending.externalId === selection.item?.externalId)} auto={auto}
       onSave={commit} onRetry={() => pending ? mutate(pending) : Promise.resolve()} onUndo={() => step('undo')} onAbrir={setSelection} onConversar={onConversar}
       onAviso={(texto, deshacer) => { setNotice(texto); setNoticeUndo(Boolean(deshacer)) }}
-      drip={selection.item?.kind === 'event' && !sourceMap.get(selection.item.sourceId)?.objective ? <HojaDrip evento={selection.item} onListo={() => setSelection(null)} /> : undefined}
+      // La hoja DRIP ya no se monta en el evento (30 oct 2026, pedido del dueño: que se vea normal); HojaDrip.tsx queda para reactivarla.
       acento={selection.item?.kind === 'event' ? colorEvento(selection.item) : null}
       // La hoja cierra guardando (puede tardar): si mientras tanto se abrió otra, no se cierra la nueva.
       onClose={() => setSelection(s => s === selection ? null : s)} />}
