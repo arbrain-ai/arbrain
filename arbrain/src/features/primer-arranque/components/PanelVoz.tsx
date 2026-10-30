@@ -16,6 +16,8 @@ import {
   type EstadoLlaves, type PruebaVoz,
 } from '../lib/llaves'
 import { Aviso, BotonQuitar, EstadoGuardada } from './PanelLlaves'
+import { mejorVozEspanol } from '@/features/chat/lib/chat-speech'
+import { consejoSinVozEspanol, idiomaDeRespaldo, idiomaPreferido, plataformaDe } from '@/features/chat/lib/voz-sistema'
 
 const MENSAJE: Record<string, string> = {
   falta_llave: 'Tu Arbrain todavía no ve la llave. Espera unos segundos y prueba de nuevo.',
@@ -145,6 +147,7 @@ function VozDeRespuestas({ estado, onEstado, onError }: { estado: EstadoLlaves |
       <p className="mt-1 text-[13px] leading-relaxed text-muted">
         «Escuchar» una respuesta no necesita llave: Arbrain elige la mejor voz en español de tu computadora (en Windows, si tienes una voz «Natural», la usa). Si quieres una voz más humana, pega tu llave de LemonFox (de pago, por uso).
       </p>
+      {!llave?.presente && <VozDelSistema />}
       {!soportada ? null : llave?.presente ? (
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
           <span className="text-[13.5px] font-medium text-foreground">Llave de LemonFox</span>
@@ -174,6 +177,48 @@ function VozDeRespuestas({ estado, onEstado, onError }: { estado: EstadoLlaves |
         </form>
       )}
     </section>
+  )
+}
+
+/**
+ * La voz del sistema que va a leer (29 oct 2026, un fundador en Windows): su nombre y un «Probar», o, si el sistema no trae
+ * ninguna en español, dónde instalarla. Las voces las da el motor de la app (WebView2 en Windows, WKWebView en Mac) o
+ * del navegador, y llegan tarde en Chromium: se escucha `voiceschanged`.
+ */
+function VozDelSistema() {
+  const [voz, setVoz] = useState<{ nombre: string | null; hay: boolean } | null>(null)
+  useEffect(() => {
+    const synth = typeof window !== 'undefined' ? window.speechSynthesis : undefined
+    if (!synth) return
+    // Apple: el lector no fija voz (suena la de Contenido hablado, chat-speech › currentVoice); no se adivina su nombre.
+    if (plataformaDe(navigator.userAgent) === 'mac') { setVoz({ nombre: null, hay: true }); return }
+    const leer = () => {
+      const voces = synth.getVoices()
+      if (!voces.length) return
+      const v = mejorVozEspanol(voces, idiomaPreferido(navigator.languages))
+      setVoz({ nombre: v?.name ?? null, hay: !!v })
+    }
+    leer()
+    synth.addEventListener?.('voiceschanged', leer)
+    // Mac (WKWebView) no dice el nombre de sus voces mejoradas: sin lista tras un momento, suena la del sistema.
+    const t = setTimeout(() => setVoz(a => a ?? { nombre: null, hay: true }), 1500)
+    return () => { clearTimeout(t); synth.removeEventListener?.('voiceschanged', leer) }
+  }, [])
+  if (!voz) return null
+  const probar = () => {
+    const synth = window.speechSynthesis
+    synth.cancel()
+    const u = new SpeechSynthesisUtterance('Hola, así te leo las respuestas.')
+    const v = plataformaDe(navigator.userAgent) === 'mac' ? null : mejorVozEspanol(synth.getVoices(), idiomaPreferido(navigator.languages))
+    if (v) { u.voice = v; u.lang = v.lang } else u.lang = idiomaDeRespaldo(navigator.languages)
+    synth.speak(u)
+  }
+  if (!voz.hay) return <p className="mt-2 text-[12.5px] leading-relaxed text-warning">{consejoSinVozEspanol(plataformaDe(navigator.userAgent))}</p>
+  return (
+    <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[12.5px] text-muted">
+      <span>Voz del sistema: <span className="font-medium text-foreground/85">{voz.nombre ?? 'la de tu sistema'}</span></span>
+      <button type="button" onClick={probar} className="btn-secondary min-h-8 shrink-0 !px-3 text-[12.5px]">Probar</button>
+    </div>
   )
 }
 

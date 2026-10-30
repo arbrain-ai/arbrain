@@ -21,6 +21,7 @@ import { validarDocumento } from './documento.js'
 import { ayudaDeCliente, ayudaOriginal } from './ayuda.js'
 import { esEdicionCliente } from '../edicion.js'
 import { CABINA_SUBAGENTES } from '../cliente/politica-agentes.js'
+import { subagentesClienteEncendidos } from '../cliente/subagentes-sdk.js'
 import { describir, guardar as guardarEnArchivero, leer as leerArchivero, limpiarVista, pedirAbrir, sacar as sacarDelArchivero } from './archivero.js'
 import { anotarBitacora, clientesVivos, describirPanel, emitir, esperarAcuses, esperarAjustes, informe } from './panel-bus.js'
 import { aplicar as aplicarAjustes, describir as describirAjustesTodas, DONDES, idDeSeccion, leer as leerAjustes, NOMBRES as NOMBRES_SECCION, NOMBRES_DONDE, SECCIONES } from './panel-ajustes.js'
@@ -272,8 +273,9 @@ export const CABINA_TOOLS = [
 
 /** Verbos con efecto (async): atender, delegar, retomar, cerrar. mostrar/abrir se validan en callCabina. */
 export async function ejecutarCabina(tool: string, raw: unknown): Promise<{ text: string; error?: boolean; imagenes?: { data: string; mimeType: string }[] }> {
-  // Red team A1: en la edición cliente no hay subagentes (procesos de CLI aparte, fuera de la guardia y de I8).
-  if (esEdicionCliente() && CABINA_SUBAGENTES.has(tool)) return { text: MENSAJE_SIN_SUBAGENTES, error: true }
+  // Red team A1: en la edición cliente `delegar` y compañía no existen (lanzan procesos de CLI aparte, fuera de la
+  // guardia y de I8). El alumno delega con `Agent` del SDK, que corre en su sesión bajo la guardia (cliente/subagentes-sdk.ts).
+  if (esEdicionCliente() && CABINA_SUBAGENTES.has(tool)) return { text: mensajeSinSubagentes(), error: true }
   // Carril T: la campana (avisos de la instalación original) no existe en cliente.
   if (esEdicionCliente() && CABINA_SOLO_ORIGINAL.has(tool)) return { text: motivoSoloOriginal(tool), error: true }
   if (tool === 'mostrar') return mostrarConEfecto(raw)
@@ -494,7 +496,7 @@ export function textosCabinaCliente(quien = dueno()) {
   const abrir = `Lleva a ${quien} a la sección Lienzo completa de Arbrain cuando la vista se queda corta o lo pide («ábreme el lienzo en grande»). Navega al terminar tu respuesta (puede cancelar); máximo una vez por turno. paginaId y zona opcionales; sin paginaId abre el último lienzo.`
   const panel = `Las pestañas que ${quien} tiene abiertas AHORA en su panel, según su app (no lo que creas haber fijado). accion listar: id, vista, ruta, quién la abrió y en qué ventana vive; úsala antes de afirmar qué ve. Sin cliente conectado da error: nada fijado está confirmado. accion secciones: lee o cambia el menú «+» (la misma config de Ajustes › Panel) con ocultar, mostrar, orden, restablecer o donde, y espera el acuse; «NO confirmado» = escrita pero sin aplicar aún. Secciones: calendario, lienzo, explorador (Archivos) y taller. Cambiarlo solo si lo pide.`
   const archivero = `Lo guardado en el archivero de ${quien} («+ › Guardadas»). accion listar | abrir {id o nombre} (la app la abre como pestaña) | sacar {id o nombre} (no borra el archivo). Para guardar usa mostrar guardar:true, solo si lo pide.`
-  const ayuda = `Detalle a demanda de la Cabina: qué pinta cada vista de mostrar y las reglas largas de cada herramienta. tema = una vista o herramienta (p. ej. "documento", "panel"); sin tema, el índice. Consúltala cuando dudes de una vista o un campo.`
+  const ayuda = `Detalle a demanda de la Cabina: qué pinta cada vista de mostrar y las reglas largas de cada herramienta. tema = una vista o herramienta (p. ej. "documento", "panel"); sin tema, el índice. Consúltala cuando dudes de una vista o un campo. Para delegar trabajo a un subagente (herramienta Agent, bajo la misma guardia): tema "subagentes".`
   return { quien, Quien, mostrar, abrir, panel, archivero, ayuda, despertador: textoDespertador(quien) }
 }
 
@@ -524,4 +526,10 @@ export function cabinaToolsCliente(quien = dueno()): CabinaTool[] {
   })
 }
 export const SIN_CAMPANA_CLIENTE = 'La campana de avisos no está disponible en esta edición.'
-export const MENSAJE_SIN_SUBAGENTES = 'Los subagentes (delegar, retomar, detener, interactivo, cerrar) no están disponibles en esta edición de Arbrain. Haz el trabajo tú en esta conversación.'
+/**
+ * Lo que recibe Levy si en cliente llama a `delegar` (oculto, pero un modelo puede intentarlo por costumbre). Con los
+ * subagentes encendidos lo manda a `Agent`; solo si la persona los apagó (`ARBRAIN_SUBAGENTES=0`) dice que no hay.
+ */
+export const mensajeSinSubagentes = (env: NodeJS.ProcessEnv = process.env) => subagentesClienteEncendidos(env)
+  ? 'En esta edición de Arbrain delegas con la herramienta Agent (subagent_type general-purpose, Explore o Plan): el subagente corre dentro de esta conversación, bajo la misma guardia y el mismo modo de permisos, y se ve en Taller › Agentes. delegar, retomar, detener, interactivo y cerrar no existen aquí.'
+  : 'Los subagentes están apagados en esta instalación de Arbrain (ARBRAIN_SUBAGENTES=0). Haz el trabajo tú en esta conversación.'

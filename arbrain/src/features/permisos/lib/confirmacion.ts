@@ -49,6 +49,8 @@ export interface Confirmacion {
   enColaDesde?: number
   /** «Siempre este patrón» dicho en humano (el patrón literal va en el detalle). */
   patronFrase?: string
+  /** Lo que conviene saber antes de «Permitir siempre» (la regla de tu memoria vale también tras leer afuera). */
+  patronAviso?: string
   /** Acciones del freno: el botón del sí dice la consecuencia («Borrar 14 archivos»). */
   botonSi?: string
 }
@@ -163,6 +165,21 @@ export function literalVisible(literal: string): { texto: string; invisibles: nu
 }
 
 /** Avisos para pintar: los del daemon (sin duplicados ni vacíos) más los que detecta la web sobre el literal. */
+/**
+ * El camino para que esta tarjeta no vuelva a salir cuando no admite «Permitir siempre» (un fundador en Windows, 29 oct 2026: «no me
+ * sale la opción de siempre»): el modo de permisos que el daemon sugirió en su aviso («para que no te pregunte esto, en
+ * Ajustes › Permisos y seguridad elige «Autónomo»»). null si la tarjeta ya ofrece «siempre», si es «Córrelo tú» o si el
+ * daemon no sugirió nada (pagar, una posible salida de datos tras leer afuera). Pura.
+ */
+export function sugerenciaModo(c: Pick<Confirmacion, 'avisos' | 'patron' | 'tipo'>): string | null {
+  if (c.patron || c.tipo === 'manos') return null
+  for (const a of Array.isArray(c.avisos) ? c.avisos : []) {
+    const m = /para que no te pregunte esto, en .+ elige «([^»]+)»/.exec(String(a))
+    if (m) return m[1]
+  }
+  return null
+}
+
 export function avisosDe(c: Pick<Confirmacion, 'avisos' | 'literal'>): string[] {
   const lista = (Array.isArray(c.avisos) ? c.avisos : []).map(a => String(a).trim()).filter(Boolean)
   if (c.literal) {

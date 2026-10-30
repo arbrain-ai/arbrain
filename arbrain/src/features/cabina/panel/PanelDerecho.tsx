@@ -66,6 +66,7 @@ import { IconoTipo, NOMBRE_TIPO, estadoTerminal, tipoTerminal } from './Tipo'
 import s from './panel.module.css'
 import { HistoriaTaller } from '@/features/historia/Historia'
 import w from './taller.module.css'
+import { esEdicionCliente, sinRespuestaDelServidor } from '@/lib/edicion'
 
 const CLAVE = 'arbrain.panelDerecho'
 const MIN = 320, CHAT_MIN = 520
@@ -558,7 +559,7 @@ export function Tareas() {
 
       {/* Los agentes viven en la píldora junto a «Levy» y en el Taller (5 oct 2026): aquí no se repiten. */}
       <TareasTodoist todoist={todoist} onConversar={ask} />
-      {trabajos.error && <p className={s.nota}>El Studio no respondió: {trabajos.error}.</p>}
+      {trabajos.error && <p className={s.nota}>{sinRespuestaDelServidor().replace(/\.$/, '')}: {trabajos.error}.</p>}
     </>}
   </div></div>
 }
@@ -605,15 +606,17 @@ const primeraLinea = (t: string | null) => t ? t.replace(/[#*_`>]/g, '').split('
 
 function Cargando({ error }: { error?: string }) {
   return <div className={s.cargando} aria-busy={!error}>
-    {error ? <><b>El Studio no respondió</b><span>{error}</span></> : <><span className={s.brillo} /><span className={s.brillo} /><span className={s.brillo} /></>}
+    {error ? <><b>{sinRespuestaDelServidor().replace(/\.$/, '')}</b><span>{error}</span></> : <><span className={s.brillo} /><span className={s.brillo} /><span className={s.brillo} /></>}
   </div>
 }
 
 function Pie({ leidoEn, error, data }: { leidoEn?: number; error?: string; data?: Trabajos }) {
-  const respaldo = data && data.fuente && data.fuente !== 'motor'
+  // Edición cliente (29 oct 2026): no hay motor ni Studio; la fuente es su propia Arbrain.
+  const cliente = esEdicionCliente()
+  const respaldo = !cliente && data && data.fuente && data.fuente !== 'motor'
   return <footer className={s.pie}>
     <span className={s.vivo} data-error={error ? '' : undefined} data-respaldo={respaldo || undefined} aria-hidden />
-    <span>{error ? 'Sin conexión con el Studio' : leidoEn ? `En vivo · ${data ? fuenteEnPalabras(data) : 'Studio'} · leído ${hace(leidoEn)}` : 'Leyendo…'}</span>
+    <span>{error ? (cliente ? 'Sin conexión con tu Arbrain' : 'Sin conexión con el Studio') : leidoEn ? `En vivo · ${data ? fuenteEnPalabras(data, cliente) : cliente ? 'tu Arbrain' : 'Studio'} · leído ${hace(leidoEn)}` : 'Leyendo…'}</span>
   </footer>
 }
 

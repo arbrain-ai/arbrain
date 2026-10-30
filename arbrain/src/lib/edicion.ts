@@ -62,6 +62,14 @@ export function esEdicionCliente(env: Record<string, string | undefined> = proce
   return (env.ARBRAIN_EDICION ?? '').trim().toLowerCase() === 'cliente'
 }
 
+/**
+ * Cuando el daemon no responde: en la instalación de Daniel es su Studio; en la del alumno es su propia Arbrain (la
+ * edición cliente nunca nombra el Studio, 29 oct 2026).
+ */
+export function sinRespuestaDelServidor(cliente = esEdicionCliente()): string {
+  return cliente ? 'Tu Arbrain no respondió.' : 'El Studio no respondió.'
+}
+
 /** Identidad de la persona en su propia instalación: no es Daniel ni nadie con datos reales. */
 export const CORREO_LOCAL_CLIENTE = 'tu@arbrain.local'
 export const NOMBRE_LOCAL_CLIENTE = 'Tú'
@@ -94,6 +102,10 @@ export const APIS_CLIENTE = [
   '/api/cabina/memoria', '/api/cabina/contexto', '/api/cabina/archivos', '/api/cabina/explorador',
   '/api/cabina/documento', '/api/cabina/archivero', '/api/cabina/panel', '/api/cabina/panel-ajustes',
   '/api/cabina/panel-terminal', '/api/cabina/terminal',
+  // Taller › Agentes (29 oct 2026, fundador en Windows: «El Studio no respondió · No disponible en esta edición»): SUS
+  // subagentes (Agent del SDK, bajo su guardia) y la salida de cada uno, de solo lectura. Su daemon responde con su propio
+  // registro (server/src/cabina/trabajos-cliente.ts), nunca el motor, los servidores ni los servicios del Studio.
+  '/api/cabina/trabajos', '/api/cabina/salida',
   // Lienzo local.
   '/api/canvas',
   // Calendario local (21 oct 2026): objetivos, eventos y tareas sobre archivos de su cerebro (lib/planning/local.ts).

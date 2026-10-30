@@ -5,7 +5,13 @@
 # Pasó entre el 19 jul y el 23 ago (81KB -> 158KB = +1,400 tokens/día cobrados en CADA conversación).
 # Uso: bash .claude/hooks/memory-budget.sh    ·    lo llama también la skill os-audit.
 cd "${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "$0")/../.." && pwd)}" || exit 1
-exec python3 -I - <<'PY'  # -I: sin la carpeta actual en sys.path (un módulo homónimo del workspace no se importa)
+# Windows (Git Bash): `python3` puede ser el alias de la Microsoft Store, que no corre nada; UTF-8 forzado para los ✓/✗.
+export PYTHONUTF8=1 PYTHONIOENCODING=utf-8
+py=python3
+for p in python3 python; do
+  if command -v "$p" >/dev/null 2>&1 && "$p" -I -c 'import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)' </dev/null >/dev/null 2>&1; then py=$p; break; fi
+done
+exec "$py" -I - <<'PY'  # -I: sin la carpeta actual en sys.path (un módulo homónimo del workspace no se importa)
 import re, sys
 from pathlib import Path
 # MEMORY.md se importa SIEMPRE -> techo duro chico. El índice no se importa (lo sirve el hook
@@ -14,10 +20,10 @@ from pathlib import Path
 # el contrato publicado con holgura (la prueba arbrain/empaquetado/generador/pruebas/memory-budget.test.mjs lo cuida);
 # antes era 9,000 y marcaba en rojo un CLAUDE.md que el alumno no puede recortar sin pelear con cada actualización.
 MEM_MAX, IDX_MAX, CLA_MAX, ENTRY_MAX, WARN = 6000, 90000, 18000, 400, 0.85
-mem = Path('.claude/memory/MEMORY.md').read_text()
-idx = Path('.claude/memory/MEMORY-indice.md').read_text()
-usr = Path('.claude/memory/MEMORY-user.md').read_text()
-cla = Path('CLAUDE.md').read_text()
+mem = Path('.claude/memory/MEMORY.md').read_text(encoding='utf-8')
+idx = Path('.claude/memory/MEMORY-indice.md').read_text(encoding='utf-8')
+usr = Path('.claude/memory/MEMORY-user.md').read_text(encoding='utf-8')
+cla = Path('CLAUDE.md').read_text(encoding='utf-8')
 fail = warn = False
 
 for name, txt, mx, imported in [('MEMORY.md', mem, MEM_MAX, True),

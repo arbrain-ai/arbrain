@@ -124,8 +124,11 @@ def main():
  p=argparse.ArgumentParser();p.add_argument('--runtime',choices=['codex','claude'],required=True);args=p.parse_args()
  if os.environ.get('CLAUDE_INVOKED_BY'):return
  if os.environ.get('CLAUDECLAW_DAEMON') and not chat_de_la_app_cliente():return
- data=json.load(sys.stdin)
- if not data.get('transcript_path') or not data.get('session_id'):return
+ # Entrada vacía o ilegible, o transcript que aún no existe: no hay nada que guardar y un gancho no truena.
+ try:data=json.load(sys.stdin)
+ except ValueError:return
+ if not isinstance(data,dict) or not data.get('transcript_path') or not data.get('session_id'):return
+ if not Path(data['transcript_path']).is_file():return
  cwd=Path(data.get('cwd',ROOT)).resolve()
  if cwd!=ROOT and ROOT not in cwd.parents:return
  result=capture(Path(data['transcript_path']),data['session_id'],args.runtime)

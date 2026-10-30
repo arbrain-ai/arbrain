@@ -8,7 +8,11 @@
  *   - Arriba, qué va a pasar en palabras de todos los días (la frase la calcula el daemon). Abajo, plegado tras «Ver el
  *     comando», el literal: la frase orienta, el literal manda (es lo único que corre).
  *   - Una vez (ámbar: la acción principal) · «Permitir siempre las pruebas de tus proyectos» (la frase humana del patrón;
- *     el patrón literal `npm test *` va en el pie y en Ajustes › Permisos, donde se quita) · No.
+ *     el patrón literal `npm test *` va en el pie y en Ajustes › Permisos, donde se quita) · No. Desde el 29 oct (un fundador en Windows:
+ *     «no me sale la opción de siempre») toda tarjeta rutinaria la trae: comandos de Bash y PowerShell, herramientas
+ *     conectadas, escribir en una carpeta (tu memoria, aunque Levy haya leído afuera, con su aviso) y páginas de un dominio.
+ *   - Cuando no se puede «siempre» (el freno, o una posible salida de datos), un botón «Que no me pregunte: modo …» abre
+ *     Ajustes › Permisos y seguridad, donde se elige el modo. No aprueba nada: solo lleva ahí.
  *   - Rechazo escrito (ronda 2, T3): escribir sobre la tarjeta y mandar es decir que no con razón; la razón viaja a Levy.
  *     Si hay texto y la persona aprueba, el texto viaja con el sí.
  *   - Freno (borrar, enviar, publicar, pagar): sin ámbar. «No» es la opción neutra y la más grande; el sí dice la
@@ -22,8 +26,9 @@
  * Color: neutros de base; ámbar solo para la acción principal de lo rutinario; rojo solo para peligro (el freno).
  */
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
-import { AlertTriangle, ArrowUp, Check, ChevronDown, CircleAlert, Clock, Hand, Loader2, LockKeyhole, Play, Repeat, ShieldAlert, Terminal, X } from 'lucide-react'
-import { avisosDe, cuerpoDecision, desdeCuando, esClicHumano, fraseManos, literalVisible, piezasLiteral, resumenCorrida, vaEnElHilo, type Confirmacion } from '@/features/permisos/lib/confirmacion'
+import { AlertTriangle, ArrowUp, Check, ChevronDown, CircleAlert, Clock, Hand, Loader2, LockKeyhole, Play, Repeat, Settings2, ShieldAlert, Terminal, X } from 'lucide-react'
+import { avisosDe, cuerpoDecision, desdeCuando, esClicHumano, fraseManos, literalVisible, piezasLiteral, resumenCorrida, sugerenciaModo, vaEnElHilo, type Confirmacion } from '@/features/permisos/lib/confirmacion'
+import { useAjustes } from '@/shared/stores/ajustes-store'
 import { descartarTerminada, olvidar, registrarHilo, usePendientes } from '@/features/permisos/lib/pendientes'
 // La terminal (xterm y su CSS) solo se carga cuando «Córrelo tú» de verdad corre: la tarjeta y la cola quedan ligeras.
 const PtyPanel = lazy(() => import('@/features/cabina/terminal/PtyPanel').then(m => ({ default: m.PtyPanel })))
@@ -127,6 +132,7 @@ export function TarjetaComando({ c, incrustada = false }: { c: Confirmacion; inc
   const titulo = manos ? 'Esto necesita tus manos' : c.herramienta === 'Bash' ? `${quien} quiere correr un comando` : `${quien} necesita tu permiso`
   const Icono = manos ? Hand : peligro ? ShieldAlert : Terminal
   const enCola = c.estado === 'en_cola' && c.enColaDesde ? desdeCuando(c.enColaDesde) : null
+  const modoSugerido = sugerenciaModo(c)
 
   /** Rechazo escrito: Enter (sin Mayúsculas) manda el «no» con su razón. */
   const alTeclear = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -181,7 +187,7 @@ export function TarjetaComando({ c, incrustada = false }: { c: Confirmacion; inc
               {ocupado === 'una' ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <Play size={15} aria-hidden />} Una vez
             </button>
             {c.patron && (
-              <button type="button" className={s.secundario} disabled={!armado || !!ocupado} onClick={alClic('siempre')} title={`Guarda la regla «${c.patron}»: lo que empiece igual ya no te pregunta`}>
+              <button type="button" className={s.secundario} disabled={!armado || !!ocupado} onClick={alClic('siempre')} title={`Guarda la regla «${c.patron}»: esto ya no te pregunta`}>
                 {ocupado === 'siempre' ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <Repeat size={15} aria-hidden />} {c.patronFrase || 'Permitir siempre este tipo de comando'}
               </button>
             )}
@@ -209,6 +215,14 @@ export function TarjetaComando({ c, incrustada = false }: { c: Confirmacion; inc
       </div>
       {conTexto && !peligro && !manos && <p className={s.pie}>Enter manda tu «no» con esta razón. Si mejor apruebas, el texto viaja con tu sí.</p>}
       {!manos && !peligro && c.patron && !conTexto && <p className={s.pie}>«Permitir siempre» guarda la regla <code>{c.patron}</code> en Ajustes › Permisos y seguridad, donde la ves y la quitas.</p>}
+      {!manos && !peligro && c.patron && c.patronAviso && <p className={s.pie} data-patron-aviso role="note">{c.patronAviso}</p>}
+      {!manos && !rutina && modoSugerido && (
+        <p className={s.pie} data-sugerencia-modo>
+          <button type="button" className={s.verComando} onClick={() => useAjustes.getState().abrir('seguridad')} title="Abre Ajustes › Permisos y seguridad: ahí eliges cuánto te pregunta Levy (no aprueba esta acción)">
+            <Settings2 size={13} aria-hidden /> Que no me pregunte: modo {modoSugerido}
+          </button>
+        </p>
+      )}
     </section>
   )
 }

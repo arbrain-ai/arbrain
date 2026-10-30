@@ -43,7 +43,7 @@ def load_entries():
     for tag, path in FILES:
         if not path.exists():
             continue
-        for line in path.read_text().splitlines():
+        for line in path.read_text(encoding='utf-8', errors='replace').splitlines():
             m = ENTRY_RE.match(line)
             if not m:
                 continue
@@ -103,6 +103,12 @@ def selftest():
 
 
 def main():
+    # Windows: la consola puede ser cp1252: el prompt llega con acentos y el selftest imprime ✓/✗ (sin py.sh, UnicodeError).
+    for stream in (sys.stdin, sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding='utf-8', errors='replace')
+        except (AttributeError, ValueError):
+            pass
     if '--selftest' in sys.argv:
         sys.exit(selftest())
     try:

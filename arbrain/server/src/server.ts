@@ -1205,6 +1205,8 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
         const r = await lanzarGuardian(pedido)
         sendJSON(res, r.ok ? 200 : r.status, r.ok ? r : { error: r.error }); return
       }
+      // Edición cliente (29 oct 2026): solo SUS subagentes del SDK y comandos de fondo (cabina/trabajos-cliente.ts).
+      if (parsed.que === 'trabajos' && esEdicionCliente()) { const { trabajosCliente } = await import('./cabina/trabajos-cliente.js'); sendJSON(res, 200, await trabajosCliente()); return }
       if (parsed.que === 'trabajos') { const { trabajos } = await import('./cabina/cuerpo.js'); sendJSON(res, 200, await trabajos(typeof parsed.lineas === 'number' ? Math.min(Math.max(parsed.lineas, 2), 30) : 6)); return }
       sendJSON(res, 400, { error: 'Vista desconocida.' })
     } catch (error) { sendJSON(res, 503, { error: error instanceof Error ? error.message : 'No se pudo leer la vista.' }) }

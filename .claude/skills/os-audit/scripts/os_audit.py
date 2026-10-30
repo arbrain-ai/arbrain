@@ -51,7 +51,7 @@ def age_hours(p: Path) -> float | None:
 def sh(*args: str, cwd: Path = ROOT) -> str:
     try:
         return subprocess.run(
-            args, cwd=cwd, capture_output=True, text=True, timeout=60
+            args, cwd=cwd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60
         ).stdout.strip()
     except Exception:
         return ""
@@ -499,7 +499,7 @@ def check_bloat() -> dict:
     if sensor.exists():
         try:
             result = subprocess.run([sys.executable, str(sensor), "--check"],
-                                    capture_output=True, text=True, timeout=5)
+                                    capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=5)
             if result.returncode:
                 hallazgos.append({"nivel": ROJO, "detalle": result.stdout.strip() or result.stderr.strip()})
         except (OSError, subprocess.TimeoutExpired) as exc:
@@ -668,14 +668,18 @@ def check_presupuesto() -> dict:
         hallazgos.append({"nivel": ROJO, "detalle": "memory-recall.py NO EXISTE — el indice no llega a ninguna conversacion"})
     else:
         try:
-            st = subprocess.run(["python3", str(recall), "--selftest"], capture_output=True, text=True, timeout=20)
+            # El mismo Python que corre la auditoría: en Windows `python3` suele ser el alias de la Microsoft Store.
+            st = subprocess.run([sys.executable, str(recall), "--selftest"], capture_output=True, text=True,
+                                encoding="utf-8", errors="replace", timeout=20,
+                                env={**os.environ, "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8"})
             if st.returncode != 0:
                 hallazgos.append({"nivel": ROJO,
                     "detalle": f"selftest del recall FALLA: {(st.stdout or st.stderr).strip()[:160]}"})
         except Exception as e:
             hallazgos.append({"nivel": ROJO, "detalle": f"selftest del recall no corre: {e}"})
         settings = ROOT / ".claude/settings.json"
-        if settings.exists() and "memory-recall.py" not in settings.read_text(encoding="utf-8", errors="ignore"):
+        # En la copia del alumno el gancho va por el lanzador: `sh .../py.sh memory-recall`.
+        if settings.exists() and "memory-recall" not in settings.read_text(encoding="utf-8", errors="ignore"):
             hallazgos.append({"nivel": ROJO,
                 "detalle": "memory-recall.py existe pero NO esta registrado en settings.json (UserPromptSubmit)"})
 
@@ -751,6 +755,11 @@ def render_md(reporte: dict) -> str:
 
 
 def main() -> None:
+    for stream in (sys.stdout, sys.stderr):  # consola cp1252 de Windows: los emojis del informe no truenan
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
     ap = argparse.ArgumentParser(description="Auditoria read-only de Arbrain")
     ap.add_argument("--json", action="store_true", help="salida JSON")
     ap.add_argument("--write", action="store_true", help="guarda el reporte en .claude/audits/")

@@ -4,6 +4,29 @@ Cada versión dice qué trae y qué tienes que hacer tú. Para actualizar, abre 
 «jala los últimos cambios». Las versiones siguen `MAYOR.MENOR.PARCHE`: un cambio en MENOR trae funciones
 nuevas; uno en PARCHE, arreglos.
 
+## v0.2.16 · 30 oct 2026 · Subagentes, «Permitir siempre» en todo y Windows a la par
+
+**Qué trae**
+- **Levy delega en subagentes.** Cuando un trabajo es largo o tiene partes que van en paralelo, tu Levy lo reparte en
+  subagentes. Trabajan bajo tus mismas reglas: tu modo de permisos, tus tarjetas y tu freno valen igual para ellos.
+  Los ves en **Taller › Agentes**, con lo que hace cada uno; si todavía no delegaste nada, te lo dice. Un subagente
+  vive mientras vive su conversación.
+- **«Permitir siempre» en cada tarjeta rutinaria.** Ya no solo en comandos: también en PowerShell, en tus apps (las
+  herramientas que conectaste), al guardar en tu memoria o en una carpeta tuya y al abrir páginas de un sitio. Lo ves y
+  lo quitas en Ajustes › Permisos y seguridad. Enviar, borrar, publicar o pagar siempre te piden tu clic; en esas
+  tarjetas aparece «Que no me pregunte» para llevarte al modo Autónomo.
+- **Autónomo te entiende con una palabra.** Un «mándalo» o «envíalo» tuyo basta para que Levy envíe lo que le pediste:
+  ya no hace falta una frase larga. Lo que dijiste que no («no lo envíes») sigue sin contar.
+- **Windows a la par.** Los ganchos que guardan tus conversaciones, tu memoria y tu diario corren en Windows con tu
+  zona horaria (ya no la de México), y cada uno se prueba en una computadora Windows de verdad antes de cada versión.
+  Tu cerebro en el teléfono vuelve solo al encender tu PC, también probado en Windows.
+- **Voz en Windows.** Si el dictado falla, te dice por qué y dónde se arregla (por ejemplo, el permiso de micrófono de
+  Windows). «Escuchar» usa la mejor voz en español de tu computadora, primero la de tu país. En Ajustes › Voz ves qué voz
+  suena y la pruebas con un botón.
+
+**Qué tienes que hacer**
+- Dile a Levy «actualiza mi Arbrain». Tu memoria, tus skills y tu marca se quedan como están.
+
 ## v0.2.15 · 29 oct 2026 · Modo Autónomo: Levy hace lo que le pides sin pedirte un clic en cada paso
 
 **Qué trae**
