@@ -77,5 +77,6 @@ proyecto o etiqueta nueva exige pasar el test de `taxonomia.md`.
 1. ¿En qué modo está? (¿conectó el servidor de Todoist o existe `TODOIST_API_TOKEN`? Verificación en el manual `todoist.md`.) No mezclar casas.
 2. Modo local: ¿la casilla está bajo el `#### <Día> NN` correcto, dentro del `## <Mes Año>` correcto?
 3. Todoist: ¿tiene fecha? Sin fecha no sale en Hoy. ¿La API respondió? Regenerar `now.md` y mirar.
-4. `now.md` se regenera al iniciar sesión o a mano; esta edición no trae tareas programadas que lo
-   refresquen solas.
+4. `now.md` lo regenera Arbrain solo (al arrancar, cada 20 minutos y al cambiar `.claude/plan/`). Si no se
+   mueve: ¿la primera línea dice `<!-- arbrain:now … -->`? Si no, alguien lo editó a mano y Arbrain lo respeta;
+   bórralo para que vuelva a generarse.

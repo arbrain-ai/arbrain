@@ -44,6 +44,8 @@ import s from './panel.module.css'
 import w from './taller.module.css'
 import tb from './tablero.module.css'
 import { capital, NOMBRE_DUENO } from '@/config'
+import { esEdicionCliente } from '@/lib/edicion'
+import { textoTallerVacio } from './taller-vacio'
 
 // ── Íconos de las pestañas y de las áreas ──
 export const ICONO_SEGMENTO: Record<SegmentoTaller, LucideIcon> = { terminales: Bot, historia: GitBranch, rutinas: Repeat, memoria: BrainCircuit, maquina: Server, registro: ScrollText }
@@ -81,7 +83,7 @@ export function PulsoTaller({ data: real, onIr }: { data: Trabajos | undefined; 
   const rutinas = useFuente<CronSnapshot>(urlRutinas()).data
   const { datos: data } = useDatosTaller(real)
   const n = cuentasTaller(data, rutinas)
-  if (!n) return <div className={w.pulso} data-tono="cargando" aria-busy="true"><span className={w.pulsoLuz} /><div><p className={w.pulsoTitular}>Mirando el Studio…</p></div></div>
+  if (!n) return <div className={w.pulso} data-tono="cargando" aria-busy="true"><span className={w.pulsoLuz} /><div><p className={w.pulsoTitular}>{esEdicionCliente() ? 'Mirando tu Arbrain…' : 'Mirando el Studio…'}</p></div></div>
   // Ronda 4 (crítico ciego, 27 oct): una rutina o un servicio que falló no es peligro, es aviso. Una sola línea neutra
   // con ícono y «Ver», sin rojo. Arriba solo va lo que te toca: cuántos trabajan y cuántos te esperan.
   const avisos: { texto: string; ir: SegmentoTaller }[] = []
@@ -164,6 +166,7 @@ export function AgentesTaller({ data: real, onAbrir, onAbrirInterna }: { data: T
   const data = datos ?? real
   const shells = data.terminales.filter(t => !esAgente(t) && !t.subagente)
   const hay = totalTablero(armarTablero(data)) > 0
+  const vacio = textoTallerVacio(esEdicionCliente(), data)
   return <div className={w.vista}>
     <div className={w.cabecera}>
       <h3 className={w.ceja}>Trabajando para ti</h3>
@@ -172,7 +175,7 @@ export function AgentesTaller({ data: real, onAbrir, onAbrirInterna }: { data: T
     <TableroAgentes data={data} onAbrir={onAbrir} onAbrirInterna={onAbrirInterna} demo={demo} />
     {!hay && <div className={`${w.calma} ${mov.entra}`} style={escalon(1)}>
       <Bot size={22} aria-hidden />
-      <p><b>Nadie trabaja ahora.</b> Cuando Levy lance un agente, lo verás aquí con su avance.</p>
+      <p><b>{vacio.titulo}</b> {vacio.cuerpo}</p>
     </div>}
     {shells.length > 0 && <details className={w.pliegue}>
       <summary><ChevronRight size={12} aria-hidden /><SquareTerminal size={12} aria-hidden />Terminales<small>{shells.length}</small></summary>

@@ -36,6 +36,8 @@ import { destinoDeDinero, dineroEnTexto, MCP_DINERO, MENSAJE_DINERO, valoresEnBa
 import { DONDE_CARPETAS, DONDE_PERMISOS, estadoPermisos, NOMBRE_MODO, type ModoPermisos } from './modo-permisos.js'
 import { EXT_EJECUTABLE } from './hooks-proyecto.js'
 import { reglaQueAplica, reglasSiempre, type ReglaSiempre } from './reglas-siempre.js'
+import { HERRAMIENTAS_CICLO_SUBAGENTE, motivoSubagenteCliente } from './subagentes-sdk.js'
+import { decidirActualizar } from './actualizar-arbrain.js'
 
 export type DecisionPolitica =
   | {
@@ -438,6 +440,7 @@ const INOCUAS = new Set([
   'WebSearch', 'TodoWrite', 'Task', 'Agent', 'TaskCreate', 'TaskGet', 'TaskList', 'TaskUpdate', 'TaskStop', 'TaskOutput',
   'BashOutput', 'KillShell', 'KillBash', 'Skill', 'SlashCommand', 'AskUserQuestion', 'ExitPlanMode', 'EnterPlanMode', 'ToolSearch',
   'ListMcpResourcesTool', 'ReadMcpResourceTool', 'ListMcpResources', 'ReadMcpResource', 'ReadMcpResourceDir',
+  ...HERRAMIENTAS_CICLO_SUBAGENTE,
 ])
 const LECTURA = new Set(['Read', 'NotebookRead', 'LS', 'Glob', 'Grep'])
 /** Herramientas de lectura que recorren carpetas enteras (M1). */
@@ -456,7 +459,23 @@ export function decidirHerramienta(herramienta: string, input: unknown, ctx: Con
   if (ctx.modo === 'autonomo') return aplicarAutonomo(d, herramienta, input, ctx)
   // Una conversación que leyó contenido de afuera DE VERDAD no se relaja con «carpeta»: lo de afuera puede estar dando
   // órdenes. Las manos y las notas propias no cuentan (A1 y A2: van en `leyoPantalla`, que aquí no endurece nada).
-  return ctx.contaminada ? endurecerContaminada(d, herramienta, input, ctx) : aplicarModo(d, ctx, herramienta, input)
+  return ctx.contaminada ? conSalidaAutonomo(endurecerContaminada(d, herramienta, input, ctx)) : aplicarModo(d, ctx, herramienta, input)
+}
+
+const avisoAutonomo = (nivel: 'carpeta' | 'autonomo') => `para que no te pregunte esto, en ${DONDE_PERMISOS} elige «${NOMBRE_MODO[nivel]}»`
+/** Opciones para resolver la ruta de una regla de «Escribir» igual que la política (`~`, relativas, realpath). */
+const opcionesRegla = (ctx: ContextoPolitica) => ({ home: ctx.home, rutaReal: (v: string) => rutaReal(expandirRuta(v, ctx)) })
+
+/**
+ * Un fundador en Windows, 29 oct 2026 («no me sale la opción de siempre»): una tarjeta rutinaria de una conversación contaminada no
+ * decía cómo dejar de verla. Se le suma el aviso que lleva a Autónomo (donde escribir en la memoria tras leer afuera no
+ * pregunta). Solo a lo rutinario («otra»): a una tarjeta de posible salida de datos (R6, `enviar`) no se le sugiere
+ * aflojar nada justo cuando una página podría estar dictando el paso.
+ */
+function conSalidaAutonomo(d: DecisionPolitica): DecisionPolitica {
+  if (d.tipo !== 'confirmar' || d.categoria !== 'otra') return d
+  const aviso = avisoAutonomo('autonomo')
+  return d.avisos.includes(aviso) ? d : { ...d, avisos: [...d.avisos, aviso] }
 }
 
 /** Las categorías del freno: en «preguntar» y «carpeta» siempre piden el clic de la persona. */
@@ -470,17 +489,22 @@ const FRENO = new Set<CategoriaConfirmacion>(['enviar', 'borrar', 'publicar', 'p
 export function aplicarModo(d: DecisionPolitica, ctx: ContextoPolitica, herramienta?: string, input?: unknown): DecisionPolitica {
   if (d.tipo !== 'confirmar') return d
   const modo = ctx.modo ?? 'preguntar'
-  if (FRENO.has(d.categoria)) return d
+  // El freno nunca acepta regla; en Autónomo, lo que la persona pidió corre (pagar sigue negado: sin aviso).
+  if (FRENO.has(d.categoria)) {
+    if (d.categoria === 'pagar') return d
+    const aviso = avisoAutonomo('autonomo')
+    return d.avisos.includes(aviso) ? d : { ...d, avisos: [...d.avisos, aviso] }
+  }
   const nivel = d.relajable ?? 'autonomo'
   if (modo === 'carpeta' && nivel === 'carpeta') return { tipo: 'permitir', porModo: modo }
   // «Siempre este patrón» (botón Play): nunca en rutinas; solo cambia «confirmar» de categoría «otra» por «permitir».
   if (herramienta && !ctx.rutina) {
-    const regla = reglaQueAplica(ctx.reglas, herramienta, input)
+    const regla = reglaQueAplica(ctx.reglas, herramienta, input, opcionesRegla(ctx))
     if (regla) return { tipo: 'permitir', porRegla: regla.patron }
   }
   const sugerido = nivel === 'carpeta' ? 'carpeta' : 'autonomo'
   if (modo === 'preguntar' || sugerido === 'autonomo') {
-    const aviso = `para que no te pregunte esto, en ${DONDE_PERMISOS} elige «${NOMBRE_MODO[sugerido]}»`
+    const aviso = avisoAutonomo(sugerido)
     return d.avisos.includes(aviso) ? d : { ...d, avisos: [...d.avisos, aviso] }
   }
   return d
@@ -494,11 +518,11 @@ export const MAX_BORRADO_AUTONOMO = 20
 export const MAX_DESTINATARIOS_AUTONOMO = 3
 
 const CUBRE_CATEGORIA: Record<string, string> = { enviar: 'enviar', publicar: 'publicar', borrar: 'borrar', pagar: 'pagar' }
-/** ¿La persona pidió esta acción en el chat hace poco? Una frase suya de 12+ caracteres que nombre el verbo. */
+/** ¿La persona pidió esta acción en el chat hace poco? Una frase suya que nombre el verbo sin negarlo («mándalo» basta desde 0.2.16). */
 export function cubiertoPorLaPersona(categoria: CategoriaConfirmacion, voz: readonly string[] | undefined): boolean {
   const c = CUBRE_CATEGORIA[categoria]
   if (!c) return true
-  return (voz ?? []).some(v => v.length >= 12 && nombraAccion(c, v))
+  return (voz ?? []).some(v => v.trim().length > 0 && nombraAccion(c, v))
 }
 
 const CAMPOS_DESTINO = /^(to|recipients?|destinatarios?|destinos?|cc|bcc|emails?|correos?|phones?|telefonos?|numbers?|numeros?|chat_ids?|user_ids?|users?|members?|participants?|addresses?|handles?)$/i
@@ -708,7 +732,15 @@ function endurecerContaminada(d: DecisionPolitica, herramienta: string, input: u
     const v = CAMPOS_RUTA.map(c => i[c]).find(x => typeof x === 'string' && x) as string | undefined
     const real = v ? rutaReal(expandirRuta(v, ctx)) : ''
     const rel = real && dentroDe(real, ctx.home) ? real.slice(ctx.home.length).replace(/^[\\/]+/, '').replace(/\\/g, '/').toLowerCase() : ''
-    if (rel.startsWith('.claude/')) return confirmar('otra', `Guardar en la memoria del agente tras leer contenido de afuera: ${real}`, literal, [aviso, 'lo que se guarda aquí vuelve en cada conversación'])
+    if (rel.startsWith('.claude/')) {
+      // Un fundador en Windows, 29 oct 2026: la regla «Permitir siempre guardar en tu memoria» sí vale aquí. Solo nace en esta misma
+      // tarjeta (fuera de una contaminada, escribir en la memoria no pregunta), así que la persona la eligió viendo este
+      // aviso; y escribir un archivo propio no saca nada de la computadora (la R6 no aplica). Lo demás de `.claude/`
+      // (habilidades, agentes) no tiene regla que valga aquí (`valeTrasAfuera`). Nunca en rutinas.
+      const regla = ctx.rutina ? null : reglaQueAplica(ctx.reglas, herramienta, input, { ...opcionesRegla(ctx), trasAfuera: true })
+      if (regla) return { tipo: 'permitir', porRegla: regla.patron }
+      return confirmar('otra', `Guardar en la memoria del agente tras leer contenido de afuera: ${real}`, literal, [aviso, 'lo que se guarda aquí vuelve en cada conversación'])
+    }
     return d
   }
   if (herramienta === 'mcp__cabina__despertador') return confirmar('otra', 'Programar un despertador tras leer contenido de afuera', literal, [aviso, 'correrá otro turno sin que estés delante'])
@@ -874,7 +906,11 @@ function decidirSinContexto(herramienta: string, input: unknown, ctx: ContextoPo
     if (dinero) return negar(MENSAJE_DINERO(dinero))
     const valores = valoresEnBash(cmd)
     if (valores) return negar(MENSAJE_DINERO(valores))
-    return confirmar('otra', `Ejecutar un comando (${herramienta})`, `${herramienta} ${JSON.stringify(i)}`)
+    // PowerShell en Windows (29 oct 2026): lo que borra, envía o publica es freno igual que en Bash (`Remove-Item`,
+    // `Invoke-WebRequest -Method Post`, `git push`), no una tarjeta rutinaria con «Una vez».
+    const irr = accionIrreversible('Bash', { command: cmd })
+    if (irr?.categoria === 'pagar') return negar(MENSAJE_DINERO('el comando'))
+    return confirmar(irr?.categoria ?? 'otra', irr ? irr.resumen : `Ejecutar un comando (${herramienta})`, `${herramienta} ${JSON.stringify(i)}`)
   }
 
   if (LECTURA.has(herramienta)) {
@@ -925,7 +961,7 @@ function decidirSinContexto(herramienta: string, input: unknown, ctx: ContextoPo
   if (herramienta.startsWith('mcp__')) {
     const [, servidor = '', ...resto] = herramienta.split('__')
     const accion = resto.join('__')
-    if (servidor === 'cabina') return CABINA_SUBAGENTES.has(accion) ? negar('los subagentes no están disponibles en esta edición') : { tipo: 'permitir' }
+    if (servidor === 'cabina') return CABINA_SUBAGENTES.has(accion) ? negar('delegar de la Cabina lanza procesos aparte y no existe en esta edición; usa la herramienta Agent (subagente bajo tu misma guardia)') : { tipo: 'permitir' }
     if (servidor === 'live') return { tipo: 'permitir' }
     // 0.1.2: computer use en macOS y Windows. El MCP de manos trae su propio freno (freno-cliente.ts, juicio-url.ts,
     // cita + clic I8) y su interruptor; aquí solo se niega donde no existe (Linux), como segunda capa del MCP vacío.
@@ -948,6 +984,9 @@ function decidirSinContexto(herramienta: string, input: unknown, ctx: ContextoPo
     return confirmar('otra', `Usar ${herramienta}`, literal)
   }
 
+  // Subagentes del SDK (29 oct 2026, subagentes-sdk.ts): corren en esta sesión, bajo esta misma política; se niega lo
+  // que los sacaría de ella (nube, worktree, definición propia).
+  if (herramienta === 'Agent' || herramienta === 'Task') { const m = motivoSubagenteCliente(input); if (m) return negar(m) }
   if (INOCUAS.has(herramienta)) return { tipo: 'permitir' }
   return confirmar('otra', `Usar la herramienta ${herramienta}`, `${herramienta} ${JSON.stringify(input ?? {})}`)
 }
@@ -1272,6 +1311,9 @@ function decidirBash(i: Record<string, unknown>, ctx: ContextoPolitica): Decisio
   if (cmd.length > LITERAL_MAX) return negar('comando demasiado largo para que la persona lo revise; divídelo en pasos')
   const m = motivoSecretoEnTexto(cmd, ctx)
   if (m) return negar(m)
+  // «Actualiza mi Arbrain» en un paso: el script firmado, una tarjeta como mucho (actualizar-arbrain.ts).
+  const actualizar = decidirActualizar(cmd, ctx)
+  if (actualizar) return actualizar
   const manos = necesitaManos(cmd, i, ctx)
   if (manos) return manos
   for (const p of DESTRUCTIVOS) if (p.re.test(cmd)) return negar(p.motivo)

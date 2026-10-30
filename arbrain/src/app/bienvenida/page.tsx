@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { notFound, redirect } from 'next/navigation'
 import { esEdicionCliente } from '@/lib/edicion'
 import { isDesktopAuthBypassFromHeaders } from '@/lib/desktop-auth-server'
-import { faltaPrimerArranque } from '@/features/primer-arranque/lib/estado'
+import { irABienvenida } from '@/features/primer-arranque/lib/estado'
 import { PrimerArranque } from '@/features/primer-arranque/components/PrimerArranque'
 
 export const metadata: Metadata = { title: 'Bienvenida · Arbrain' }
@@ -12,8 +12,7 @@ export const dynamic = 'force-dynamic'
 export default async function BienvenidaPage() {
   if (!esEdicionCliente()) notFound()
   if (!(await isDesktopAuthBypassFromHeaders())) redirect('/sin-sesion')
-  let falta = true
-  try { falta = faltaPrimerArranque() } catch { /* sin carpeta de datos: el flujo muestra el error al guardar */ }
-  if (!falta) redirect('/chat')
+  // Sin carpeta de datos, el flujo muestra el error al guardar; con el estado ilegible, al chat (irABienvenida).
+  if (!irABienvenida()) redirect('/chat')
   return <PrimerArranque />
 }

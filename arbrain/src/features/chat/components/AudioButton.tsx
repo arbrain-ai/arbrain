@@ -1,12 +1,14 @@
 'use client'
 import { useEffect, useSyncExternalStore } from 'react'
-import { Volume2, Square } from 'lucide-react'
+import { Volume2, Square, AudioLines } from 'lucide-react'
 import { chatSpeech } from '../lib/chat-speech'
 
 interface AudioButtonProps {
   messageId: string
   selectionEnabled?: boolean
   label?: string
+  /** «Escuchar resumen» (resumen-hablado.ts): lee el principio de la respuesta y cierra con «El resto está en pantalla». */
+  resumen?: boolean
 }
 
 /**
@@ -22,12 +24,12 @@ interface AudioButtonProps {
  * segundo... el mismo hilo por el que llegan los eventos `boundary` que mueven el resaltado.
  * De ahí que la lectura se desincronizara justo cuando la conversación se alargaba.
  */
-export function AudioButton({ messageId, selectionEnabled = false, label }: AudioButtonProps) {
+export function AudioButton({ messageId, selectionEnabled = false, label, resumen = false }: AudioButtonProps) {
   // getSnapshot devuelve un BOOLEAN primitivo: estable bajo Object.is (nada de objetos
   // nuevos por llamada — ese fue el bug que tumbó el chat en producción, ver chat-speech).
   const active = useSyncExternalStore(
     (cb) => (chatSpeech ? chatSpeech.subscribe(cb) : () => {}),
-    () => (chatSpeech ? chatSpeech.getState().id === messageId : false),
+    () => (chatSpeech ? chatSpeech.getState().id === messageId && chatSpeech.getState().resumen === resumen : false),
     () => false,
   )
 
@@ -41,12 +43,13 @@ export function AudioButton({ messageId, selectionEnabled = false, label }: Audi
   // conversación (volver la deja lista en el mismo párrafo y palabra), no lo olvida.
   useEffect(
     () => () => {
-      if (!chatSpeech?.isActive(messageId)) return
+      // Un solo dueño de la limpieza por mensaje: el botón completo (el de resumen va junto a él, se monta y desmonta a la par).
+      if (resumen || !chatSpeech?.isActive(messageId)) return
       setTimeout(() => {
         if (chatSpeech.isActive(messageId) && !chatSpeech.relocate()) chatSpeech.suspend()
       }, 120)
     },
-    [messageId],
+    [messageId, resumen],
   )
 
   const handleClick = () => {
@@ -54,6 +57,7 @@ export function AudioButton({ messageId, selectionEnabled = false, label }: Audi
     // Buscar el DOM renderizado de ESTE mensaje (lo marca ChatPanel con data-tts-content).
     const el = document.querySelector<HTMLElement>(`[data-tts-content="${CSS.escape(messageId)}"]`)
     if (!el) return
+    if (resumen) return chatSpeech.toggle(messageId, el, undefined, undefined, undefined, { resumen: true })
     const selection = selectionEnabled ? window.getSelection() : null
     if (selection && selection.rangeCount && selection.toString().trim() &&
       selection.anchorNode && selection.focusNode && el.contains(selection.anchorNode) && el.contains(selection.focusNode) && !active) {
@@ -66,6 +70,27 @@ export function AudioButton({ messageId, selectionEnabled = false, label }: Audi
     if (!chatSpeech || active) return
     const el = document.querySelector<HTMLElement>(`[data-tts-content="${CSS.escape(messageId)}"]`)
     if (el) chatSpeech.anticipar(el)
+  }
+
+  if (resumen) {
+    return (
+      <button
+        type="button"
+        data-escuchar-resumen
+        aria-label={active ? 'Detener resumen' : 'Escuchar resumen'}
+        onPointerEnter={anticipar}
+        onClick={handleClick}
+        title={active ? 'Detener' : 'Escuchar resumen (el principio, cerca de un minuto)'}
+        className={`
+          flex items-center gap-1 min-h-[36px] md:min-h-0 px-2 py-2 md:px-1 md:py-1 rounded-lg md:rounded transition-colors text-[11px]
+          ${active ? 'text-violet-400 hover:text-violet-300' : 'text-muted/70 hover:text-foreground/70'}
+          hover:bg-card-hover md:hover:bg-transparent
+        `}
+      >
+        {active ? <Square size={13} /> : <AudioLines size={13} />}
+        <span>Resumen</span>
+      </button>
+    )
   }
 
   return (

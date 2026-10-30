@@ -95,8 +95,8 @@ foto → leer con zoom → texto literal a .claude/diario/ → extraer lo agenda
    evidencia no existe; jamás inventarlo.** Un conflicto con una corrección manual posterior se
    reporta, nunca se fuerza.
 6. **VERIFICAR** releyendo `objetivos.md` y `calendario.json` (y enseñándolo con `mostrar`, vista
-   calendario del día) que el objetivo y los bloques quedaron. Si existe
-   `arbrain/server/scripts/calendar/now-snapshot.py`, regenerar `now.md` con él. Una escritura sin
+   calendario del día) que el objetivo y los bloques quedaron. `now.md` lo regenera Arbrain solo segundos
+   después; no lo escribas a mano. Una escritura sin
    verificación no cuenta.
 7. **Confirmar en UNA línea:** qué se transcribió, qué se movió, qué cayó a tareas y la adherencia de
    la noche (N de M cosas del plan cumplidas). **Chequeo de continuidad:** listar `.claude/diario/`;

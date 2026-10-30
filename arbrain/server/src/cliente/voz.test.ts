@@ -113,3 +113,39 @@ describe('leer en voz alta con LemonFox (v0.2.10)', () => {
     expect(JSON.stringify(r)).not.toContain('no sale')
   })
 })
+
+// 29 oct 2026, un fundador en Windows 11: «en Windows las cosas funcionan diferentes… lo de la voz». El daemon del alumno en
+// Windows recibe lo que graba WebView2 (webm/opus) y responde igual que en Mac: nada de esta ruta depende del sistema.
+describe('voz en Windows (process.platform simulado)', () => {
+  let plataforma: PropertyDescriptor | undefined
+  beforeEach(() => { plataforma = Object.getOwnPropertyDescriptor(process, 'platform'); Object.defineProperty(process, 'platform', { value: 'win32' }) })
+  afterEach(() => { if (plataforma) Object.defineProperty(process, 'platform', plataforma) })
+
+  const webm = () => new Blob([new Uint8Array([0x1a, 0x45, 0xdf, 0xa3, 1, 2, 3, 4])], { type: 'audio/webm;codecs=opus' })
+
+  it('webm/opus de WebView2 sin llave de Groq: 503 stt_not_configured (falta la llave, no el formato)', async () => {
+    expect(process.platform).toBe('win32')
+    await expect(transcribe(webm(), proveedoresVoz(true, () => ({ GROQ_API_KEY: 'del-env' })), new AbortController().signal)).rejects.toMatchObject({ code: 'stt_not_configured', status: 503 })
+  })
+
+  it('con su llave, Groq recibe el archivo como .webm y la transcripción vuelve', async () => {
+    let nombre = ''
+    let tipo = ''
+    const transporte = (async (_url: string, init: RequestInit) => {
+      const f = (init.body as FormData).get('file') as File
+      nombre = f.name; tipo = f.type
+      return new Response(JSON.stringify({ text: ' hola desde Windows ' }), { status: 200 })
+    }) as unknown as typeof fetch
+    const r = await transcribe(webm(), proveedoresVoz(true, () => ({}), GROQ), new AbortController().signal, transporte)
+    expect(r).toEqual({ text: 'hola desde Windows', provider: 'groq' })
+    expect(nombre).toBe('recording.webm')
+    expect(tipo).toMatch(/^audio\/webm/)
+  })
+
+  it('«Escuchar» sin llave de LemonFox: null (la ruta responde 503 y suena la voz del sistema) sin tocar la red', async () => {
+    let llamadas = 0
+    const transporte = (async () => { llamadas++; return new Response('') }) as unknown as typeof fetch
+    expect(await hablarLemonfox('Hola', 1, undefined, transporte, { marcas: true, llaveGroq: GROQ })).toBeNull()
+    expect(llamadas).toBe(0)
+  })
+})

@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { createServiceClient } from '@/lib/supabase/service'
 import { planningOwner, planningError, checkMutationOrigin } from '@/lib/planning/server'
-import { civilToday, habitRange, isCivilDate, HABIT_TIMEZONE } from '@/features/sistema/calendar-days'
+import { civilToday, habitRange, isCivilDate } from '@/features/sistema/calendar-days'
+import { zonaDueno } from '@/shared/lib/zona-dueno'
 import { ChatAccessError } from '@/lib/chat-access-policy'
 import { esEdicionCliente } from '@/lib/edicion'
 import { raizWorkspace } from '@/lib/rutas-instalacion'
@@ -71,7 +72,7 @@ export async function POST(request: Request) {
       return Response.json(r.cuerpo, { status: r.status, headers })
     }
     let today: string
-    try { today = civilToday(typeof body.timeZone === 'string' ? body.timeZone : HABIT_TIMEZONE) }
+    try { today = civilToday(typeof body.timeZone === 'string' ? body.timeZone : zonaDueno()) }
     catch { throw new ChatAccessError('Zona horaria inválida.', 400) }
     const date = body.date ?? today
     if (!isCivilDate(date)) throw new ChatAccessError('Fecha inválida.', 400)

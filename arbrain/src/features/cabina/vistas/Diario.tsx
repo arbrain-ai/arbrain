@@ -37,6 +37,10 @@ export interface DatosSegunda {
   comunidad: null | { sinRespuesta: string[]; conversacionesEsperando: number; nuevos: string[]; dejaron: string[] }
   youtube: null | { total: number; nuevos_3d: number }
   soporte: null; limites: string[]
+  /** Tu día (29 oct 2026): su agenda de hoy, su ⭐ y su racha. null = no se leyó su calendario; racha null = sin medir. */
+  dia?: null | { agenda: { titulo: string; inicio: string | null; fin: string | null; todoElDia: boolean; conDueno: boolean }[]
+    estrella: null | { texto: string; cumplida: boolean }; racha: number | null }
+  invitacionSemana?: string | null
 }
 
 export const urlDiario = (quien: Quien = DUENO(), fecha = hoyCivil()) => `/api/cabina/diario?quien=${quien}&fecha=${fecha}`
@@ -271,6 +275,20 @@ function Nombres({ nombres, vacio }: { nombres: string[]; vacio: string }) {
   return <div className={d.nombres}>{nombres.map((n, k) => <span key={`${n}-${k}`} className={mov.aparece} style={escalon(k)}>{n}</span>)}</div>
 }
 
+/** Su día (29 oct 2026): lo de SU calendario y del que comparte con el dueño, su ⭐ y su racha. */
+function TuDia({ dia, invitacion }: { dia: DatosSegunda['dia'] | null; invitacion: string | null }) {
+  const racha = dia?.racha
+  return <Tarjeta i={1} ceja={<b>Tu día</b>} extra={dia ? <small className={d.ayuda}>Racha de ⭐: {racha == null ? 'sin medir' : `${racha} ${racha === 1 ? 'día' : 'días'}`}</small> : undefined}>
+    {!dia ? <Hueco texto="No pude leer tu calendario hoy." /> : <>
+      {dia.agenda.length ? <ul className={d.lista}>{dia.agenda.map((e, k) => <li key={k} className={mov.entra} style={escalon(2 + k)}>
+        {e.todoElDia ? 'Todo el día' : e.fin && e.fin !== e.inicio ? `${e.inicio}–${e.fin}` : e.inicio} · {e.titulo}{e.conDueno && !e.titulo.includes('🫶') ? ' 🫶🏽' : ''}</li>)}</ul>
+        : <p className={l.vacio}>Nada en tu calendario hoy.</p>}
+      <p className={d.pie}>{dia.estrella ? `⭐ ${dia.estrella.texto}${dia.estrella.cumplida ? ' ✓' : ''}` : '⭐ ¿Cuál es tu ⭐ de hoy? Respóndeme en el chat en una línea.'}</p>
+      {invitacion && <p className={d.pie}>{invitacion}</p>}
+    </>}
+  </Tarjeta>
+}
+
 function DiarioSegunda({ fecha }: { fecha: string }) {
   const url = urlDiario(SEGUNDA(), fecha)
   const { data: x, error, cargando } = useFuente<DatosSegunda>(url)
@@ -280,6 +298,7 @@ function DiarioSegunda({ fecha }: { fecha: string }) {
     {error && !x && <p className={l.aviso}>{error}</p>}
     {x?.limites.length ? <p className={l.aviso}>Sin dato hoy: {x.limites.join('; ')}.</p> : null}
     <div className={d.rejilla}>
+      {x && 'dia' in x && <TuDia dia={x.dia ?? null} invitacion={x.invitacionSemana ?? null} />}
       <Tarjeta i={1} ceja={<b>Por responder</b>}>
         {!x ? <Cargando /> : !c ? <Hueco texto="No pude leer la comunidad hoy. No es cero." /> : <>
           <div className={d.cifras}>

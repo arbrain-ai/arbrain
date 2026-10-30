@@ -26,6 +26,7 @@ import {
 import { GrafoGit } from './GrafoGit'
 import { useCarrilPedido } from './carril-pedido'
 import h from './historia.module.css'
+import { zonaDueno } from '@/shared/lib/zona-dueno'
 
 export const URL_HISTORIA = '/api/historia'
 export const URL_CARRILES = '/api/historia?parte=carriles'
@@ -632,7 +633,7 @@ function Heroe({ x, c, ahora, grande }: { x: Historia; c: Carriles | undefined; 
     : <><b>No te toca nada.</b> {trabajando === 0 ? 'Nadie trabaja en paralelo ahora.' : trabajando === 1 ? 'Un trabajo sigue en curso.' : `${trabajando} trabajos siguen en curso.`}</>
   return <header className={h.heroe}>
     <div className={h.heroeTexto}>
-      <p className={`${h.cejaHeroe} ${mov.entra}`} style={escalon(0)}>{grande ? <span>{new Intl.DateTimeFormat('es-MX', { timeZone: 'America/Mexico_City', weekday: 'long', day: 'numeric', month: 'long' }).format(ahora)}</span> : <>Tu cerebro · <b>historia</b></>}<span className={h.vivo}><RefreshCw size={11} aria-hidden /> <Cuando iso={x.leidoEn} ahora={ahora} /></span></p>
+      <p className={`${h.cejaHeroe} ${mov.entra}`} style={escalon(0)}>{grande ? <span>{new Intl.DateTimeFormat('es-MX', { timeZone: zonaDueno(), weekday: 'long', day: 'numeric', month: 'long' }).format(ahora)}</span> : <>Tu cerebro · <b>historia</b></>}<span className={h.vivo}><RefreshCw size={11} aria-hidden /> <Cuando iso={x.leidoEn} ahora={ahora} /></span></p>
       <h3 className={`${h.palabra} ${mov.entra}`} style={escalon(1)} data-resumen>
         {n === 0 ? r.titular : <>Hoy tu cerebro cambió <Cifra valor={n} clave={`historia-hoy-${hoy}`} formato={v => String(Math.round(v))} /> {n === 1 ? 'vez' : 'veces'}</>}
       </h3>

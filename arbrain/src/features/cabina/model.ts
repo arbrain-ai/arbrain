@@ -8,6 +8,8 @@
  */
 import type { ChatMessage } from '@/features/chat/hooks/useChat'
 import { DUENO, NOMBRE_SEGUNDA, SEGUNDA } from '@/config'
+import { zonaDueno, ZONA_ORIGINAL } from '@/shared/lib/zona-dueno'
+import { civilMidnight } from '@/features/sistema/calendar-days'
 
 export type Vista = 'calendario' | 'objetivos' | 'centro' | 'lienzo' | 'reporte' | 'negocio' | 'trabajos' | 'finanzas' | 'contenido' | 'rutinas' | 'servidores' | 'memoria' | 'equipo' | 'documento' | 'diario' | 'salud' | 'masterclass' | 'explorador' | 'cohorte' | 'casa' | 'perro' | 'historia'
 export type SeccionNegocio = 'avatar' | 'oferta' | 'embudo' | 'sistema'
@@ -115,10 +117,12 @@ export function sinEcoDeDelegar(msg: Pick<ChatMessage, 'toolCalls'>, invs: Invoc
   return delego ? invs.filter(i => !(i.verbo === 'mostrar' && i.input?.vista === 'trabajos' && !i.input.fijar)) : invs
 }
 
-// ── Fechas civiles en America/Mexico_City (sin horario de verano desde 2022) ──
-export const TZ = 'America/Mexico_City'
-export function hoyCivil(now = new Date()): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now)
+// ── Fechas civiles en la zona del dueño (shared/lib/zona-dueno.ts) ──
+// Instalación original: America/Mexico_City, como siempre. Alumno: la de su sistema (29 oct 2026, T7: «Yo vivo en Madrid»).
+/** Zona del dueño, resuelta en cada llamada (las pruebas cambian la edición entre casos). */
+export const zonaCabina = () => zonaDueno()
+export function hoyCivil(now = new Date(), zona = zonaDueno()): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: zona, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now)
 }
 export function sumarDias(day: string, n: number): string {
   const d = new Date(day + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10)
@@ -144,7 +148,10 @@ export function moverPeriodo(alcance: Alcance, fecha: string, n: -1 | 1): string
   return t.toISOString().slice(0, 10)
 }
 
-export const isoMx = (day: string) => `${day}T00:00:00-06:00`
+/** Medianoche civil de `day` en la zona del dueño, como ISO. En la original, el mismo texto de siempre (México es UTC-6 fijo). */
+export function isoMx(day: string, zona = zonaDueno()): string {
+  return zona === ZONA_ORIGINAL ? `${day}T00:00:00-06:00` : civilMidnight(day, zona).toISOString()
+}
 
 export function etiquetaDia(day: string, o: Intl.DateTimeFormatOptions) {
   return new Date(day + 'T12:00:00Z').toLocaleDateString('es-MX', { ...o, timeZone: 'UTC' })

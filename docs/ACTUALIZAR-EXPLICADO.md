@@ -17,7 +17,7 @@ Tres líneas, sin más:
 
 | El dueño dice | Qué haces |
 |---|---|
-| «actualiza mi Arbrain», «jala los últimos cambios», «¿hay versión nueva?» | La skill `actualizar-arbrain` completa |
+| «actualiza mi Arbrain», «jala los últimos cambios», «¿hay versión nueva?» | La skill `actualizar-arbrain`: `node arbrain/scripts/actualizar.mjs revisar` y, si hay versión, `… aplicar vX.Y.Z` |
 | «cambia mis colores», «pon este logo», «cambia el nombre» | `mi-marca/` ([PERSONALIZAR.md](PERSONALIZAR.md)): nunca en archivos del autor |
 | «quiero mi propia skill», «quiero que hagas esto distinto» | [PERSONALIZAR.md](PERSONALIZAR.md): extender, no editar |
 | «regresa a como estaba antes de actualizar» | Sección 6 |
@@ -54,14 +54,39 @@ Si el dueño hizo cambios en `main` por error, la skill los pasa a `mi-arbrain` 
 
 ## 4. Qué pasa en cada paso, y por qué
 
+Desde la 0.2.16 todo lo mecánico lo hace un solo script, `arbrain/scripts/actualizar.mjs` (Node, igual en Mac, Linux y
+Windows, sin bash, `nohup` ni `python3` a mano). El agente corre dos comandos y pone el criterio donde el script se
+detiene:
+
+1. `node arbrain/scripts/actualizar.mjs revisar`: verifica la firma, enseña las novedades y lo que cambia de lo que se
+   ejecuta solo. No cambia nada de la copia del dueño. Corre sin clic en cualquier modo de permisos.
+2. `node arbrain/scripts/actualizar.mjs aplicar vX.Y.Z`: hace los pasos de la tabla de abajo. En «Preguntar siempre»
+   es **una** tarjeta; desde «Automático en mi carpeta», ninguna.
+
+La guardia reconoce esos comandos solo tal cual (nada encadenado), desde la carpeta del cerebro y si los archivos que
+ejecutan son idénticos a los de la última versión firmada; cualquier otro comando, git incluido, sigue su camino de
+siempre. Se detiene con un estado claro (`ESTADO=` y `MOTIVO=`) cuando hace falta criterio: firma que falla, remoto que
+no es el oficial, la versión toca la capa del dueño, choques en archivos del autor que él editó. Lo que cambia de lo
+que se ejecuta solo lo enseña `revisar` con su detalle, para que el agente lo lea antes de aplicar.
+
+**El reinicio no corta la conversación.** Si el dueño lo pidió en el chat de la app, el agente corre dentro del mismo
+servidor que hay que reiniciar: apagarlo en ese momento mataría el turno a la mitad. El script lanza un proceso aparte
+(fuera del árbol de procesos del turno) que espera a que no haya turnos en curso, reinicia el servidor con la versión
+nueva, pone al día la app de escritorio y deja el resultado en `~/.arbrain/actualizacion.json`
+(`node arbrain/scripts/actualizar.mjs estado`). La ventana abierta espera y vuelve sola. En Claude Code de terminal no
+hay turno que cuidar: espera ahí mismo hasta que Arbrain corre.
+
+Quien todavía tiene la 0.2.15 o anterior actualiza a la 0.2.16 con la skill vieja (sus pasos de git) y termina con el
+PASO 6 de la skill nueva (`… reiniciar`), que trae el reinicio que no corta la conversación. De ahí en adelante, un paso.
+
 | Paso | Qué hace | Por qué |
 |---|---|---|
 | Respaldo | Commit de lo que no esté guardado (sin `.env`, llaves ni bases de datos) y rama `respaldo/antes-de-actualizar-<AAAA-MM-DD-HHMM>` | Siempre hay un punto exacto al cual volver |
 | Firma | `verificar.py` trae etiquetas sin `--force` y comprueba que `vX.Y.Z` está firmada por una llave del ancla (`~/.config/arbrain/firmas-permitidas`, fuera del repo), que nadie movió etiquetas y que no es un regreso a una versión vieja | Que nadie pueda colar código ajeno, aunque un archivo del repo lo pida. Si dice `FALLA` o `ENTORNO`, se detiene y no cambia nada |
 | Revisión | `node arbrain/scripts/revisar-actualizacion.mjs main <ETIQUETA>` lista lo que se ejecuta solo (ganchos, scripts de instalación, filtros de git) | Lo que corre solo se lee antes de traerlo; el CHANGELOG no basta |
-| Mezcla | `main` avanza hasta la etiqueta (`--ff-only`) y se mezcla en `mi-arbrain` con `--no-ff` | El autor llega intacto a `main` y se junta con lo del dueño sin reescribir historia |
+| Mezcla | `main` avanza solo en rápido hasta la etiqueta (sin cambiar de rama: los archivos del dueño nunca desaparecen del disco) y se mezcla en `mi-arbrain` con `--no-ff` | El autor llega intacto a `main` y se junta con lo del dueño sin reescribir historia |
 | Semilla | `sembrar.py` agrega plantillas nuevas que falten | Solo llena huecos de la capa del dueño |
-| Reinicio | Se reinicia el modo servidor y se pone al día la app de escritorio, ambos verificados con la misma firma | El dueño queda corriendo la versión nueva sin tocar nada |
+| Reinicio | Al terminar el turno, se reinicia el modo servidor y se pone al día la app de escritorio, ambos verificados con la misma firma | El dueño queda corriendo la versión nueva sin tocar nada y sin perder la respuesta |
 
 Al terminar, el dueño abre una sesión nueva de Claude Code para que cargue lo nuevo.
 
