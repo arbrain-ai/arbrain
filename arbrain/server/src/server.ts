@@ -741,6 +741,24 @@ function gitLsFiles(root: string): Promise<string[]> {
 /** Atiende /apagar, /confirmaciones/*, /manos/interruptor y /cohorte/*. Devuelve true si respondió. Ya pasó el Bearer. */
 async function rutasCliente(req: IncomingMessage, res: ServerResponse, ruta: string, cuerpo: Record<string, unknown>): Promise<boolean> {
   const secretoApp = () => secretoConfirmarValido(req.headers['x-arbrain-confirmar'])
+  // Rutinas del alumno (T8, 29 oct 2026): la pestaña Rutinas del Taller y Levy con su pase (cliente/rutinas.ts).
+  if (ruta === '/schedule' || ruta.startsWith('/schedule/')) {
+    const { atenderRutinas } = await import('./cliente/rutinas.js')
+    const conPase = !isTokenValid((req.headers['authorization'] ?? '').replace('Bearer ', ''))
+    const r = atenderRutinas(req.method, ruta, cuerpo, { conPase })
+    if (r) { sendJSON(res, r.status, r.cuerpo); return true }
+  }
+  // Taller › Computadora (T16, 29 oct 2026): memoria, disco, procesador, reposo y cerrar apps (cliente/computadora.ts).
+  // Solo la app: el pase no abre `/computadora*` (cofre.ts) y cerrar o forzar exigen además su secreto.
+  if (ruta === '/computadora' || ruta.startsWith('/computadora/')) {
+    const { atenderComputadora, depsReales } = await import('./cliente/computadora.js')
+    const deps = depsReales(
+      () => { try { return listTasks().some(t => t.status === 'active' && !t.id.endsWith('-migrated')) } catch { return false } },
+      (que, motivo) => bitacoraDelDaemon()?.anotar({ herramienta: 'Computadora', que, decision: 'confirmado', motivo }),
+    )
+    const r = await atenderComputadora(req.method, ruta, cuerpo, { secretoApp: secretoApp(), deps })
+    if (r) { sendJSON(res, r.status, r.cuerpo); return true }
+  }
   if (req.method === 'POST' && ruta === '/apagar') {
     sendJSON(res, 200, { ok: true })
     setTimeout(() => { if (apagarDaemon) apagarDaemon(); else process.exit(0) }, 50)
@@ -1205,6 +1223,8 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
         const r = await lanzarGuardian(pedido)
         sendJSON(res, r.ok ? 200 : r.status, r.ok ? r : { error: r.error }); return
       }
+      // Edición cliente (29 oct 2026): solo SUS subagentes del SDK y comandos de fondo (cabina/trabajos-cliente.ts).
+      if (parsed.que === 'trabajos' && esEdicionCliente()) { const { trabajosCliente } = await import('./cabina/trabajos-cliente.js'); sendJSON(res, 200, await trabajosCliente()); return }
       if (parsed.que === 'trabajos') { const { trabajos } = await import('./cabina/cuerpo.js'); sendJSON(res, 200, await trabajos(typeof parsed.lineas === 'number' ? Math.min(Math.max(parsed.lineas, 2), 30) : 6)); return }
       sendJSON(res, 400, { error: 'Vista desconocida.' })
     } catch (error) { sendJSON(res, 503, { error: error instanceof Error ? error.message : 'No se pudo leer la vista.' }) }

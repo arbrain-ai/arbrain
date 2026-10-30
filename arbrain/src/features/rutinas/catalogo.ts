@@ -1,5 +1,5 @@
 import { capital, DUENO, NOMBRE_SEGUNDA, SEGUNDA } from '@/config'
-import { JOB_REPORTE_SEGUNDA } from '@/shared/constants/reporte-vivo'
+import { JOB_CIERRE_SEGUNDA, JOB_REPORTE_SEGUNDA } from '@/shared/constants/reporte-vivo'
 // Rutinas, no cronjobs (25 sep 2026). Lo que corre solo, contado como lo entiende
 // un dueño de negocio: qué hace y para qué le sirve, sin nombres de scripts ni
 // jerga. La identidad sigue siendo el id del scheduler (claudeclaw /schedule); si
@@ -65,6 +65,9 @@ export const RUTINAS: Record<string, Rutina> = {
     queHace: 'Ordena las clases nuevas para que tú y tus miembros las encuentren al buscar.' },
   [JOB_REPORTE_SEGUNDA]: { categoria: 'miembros', nombre: `Reporte de ${capital(NOMBRE_SEGUNDA())}`, produce: 'Lo que toca en la comunidad', para: SEGUNDA(), motor: 'programa',
     queHace: `Le manda a ${NOMBRE_SEGUNDA()} lo que toca hoy en la comunidad: publicaciones sin respuesta, miembros nuevos o inactivos y la cola de YouTube.` },
+
+  [JOB_CIERRE_SEGUNDA]: { categoria: 'miembros', nombre: `Cierre del día de ${capital(NOMBRE_SEGUNDA())}`, produce: 'Su ⭐ de hoy y la de mañana', para: SEGUNDA(), motor: 'programa',
+    queHace: `A las 20:30 le pregunta a ${NOMBRE_SEGUNDA()}, en su Arbrain, si cumplió su ⭐ y cuál es la de mañana.` },
 
   // ── Contenido y audiencia ──
   'youtube-comments-post': { categoria: 'contenido', nombre: 'Publicar respuestas aprobadas', produce: 'Tus respuestas en YouTube', para: 'audiencia', motor: 'programa', programaDesde: '10 oct',

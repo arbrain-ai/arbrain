@@ -15,7 +15,8 @@ import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { ChatAccessError } from '@/lib/chat-access-policy'
-import { civilToday, habitRange, isCivilDate, HABIT_TIMEZONE } from '@/features/sistema/calendar-days'
+import { civilToday, habitRange, isCivilDate } from '@/features/sistema/calendar-days'
+import { zonaDueno } from '@/shared/lib/zona-dueno'
 
 export const RUTA_HABITOS = '.claude/plan/habitos.json'
 const SECCIONES = ['ancla', 'cuerpo', 'mente', 'nutricion'] as const
@@ -104,7 +105,7 @@ export class HabitosLocales {
   escribir(body: Record<string, unknown>): Promise<{ status: number; cuerpo: Record<string, unknown> }> {
     return enFila(() => {
       let today: string
-      try { today = civilToday(typeof body.timeZone === 'string' ? body.timeZone : HABIT_TIMEZONE) } catch { throw err('Zona horaria inválida.', 400) }
+      try { today = civilToday(typeof body.timeZone === 'string' ? body.timeZone : zonaDueno()) } catch { throw err('Zona horaria inválida.', 400) }
       const fecha = body.date ?? today
       if (!isCivilDate(fecha)) throw err('Fecha inválida.', 400)
       const original = leerTexto(this.ruta)

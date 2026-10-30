@@ -15,6 +15,8 @@ import { DUENO, instalacion, SEGUNDA } from '@/config'
 /** Rutinas cuyo resultado llega como vista diario, y de quién es cada una. */
 /** La rutina del reporte propio de la segunda persona (su id en el scheduler lleva su clave). */
 export const JOB_REPORTE_SEGUNDA = `reporte-${SEGUNDA()}`
+/** El cierre del día de la segunda persona (29 oct 2026, 20:30): texto a su hilo «Reportes», sin vista. */
+export const JOB_CIERRE_SEGUNDA = `cierre-${SEGUNDA()}`
 export const REPORTES_VIVOS: Readonly<Record<string, string>> = { 'morning-briefing': DUENO(), [JOB_REPORTE_SEGUNDA]: SEGUNDA() }
 
 /** El hilo «Reportes» de la socia (suyo: profile_id = la socia). Id fijo: el push del script abre aquí

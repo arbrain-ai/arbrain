@@ -25,18 +25,24 @@ const isIOS =
     (navigator.platform === 'MacIntel' && (navigator as unknown as { maxTouchPoints: number }).maxTouchPoints > 1))
 const isChrome = typeof navigator !== 'undefined' && /Chrome/.test(navigator.userAgent)
 const esApple = isIOS || (typeof navigator !== 'undefined' && /Mac OS X|Macintosh/.test(navigator.userAgent))
+/** Idiomas del sistema de la persona (en España: es-ES primero). */
+const idiomasSistema = (): readonly string[] =>
+  typeof navigator === 'undefined' ? [] : navigator.languages?.length ? navigator.languages : navigator.language ? [navigator.language] : []
 
 /**
  * La mejor voz en español que expone el sistema, fuera de Apple (v0.2.10). Orden: neuronales/naturales (Edge y WebView2
  * exponen voces «Microsoft … Online (Natural)»; Chrome, «Google español de Estados Unidos») > mejoradas > el resto, y
  * dentro de cada nivel es-MX > es-US/es-419 > otras de Latinoamérica > es-ES. Ninguna en español: null (el caller fija
- * `lang = 'es-MX'` y el sistema decide). Pura, para probarla sin navegador.
+ * `lang` con idiomaDeRespaldo y el sistema decide). Pura, para probarla sin navegador.
+ * `idioma` (29 oct 2026, un fundador en España): el español del sistema de la persona (voz-sistema.ts › idiomaPreferido);
+ * dentro de cada nivel de calidad su región va primero (en España, la voz de España antes que la de México).
  */
-export function mejorVozEspanol<V extends { name: string; lang: string; localService?: boolean; default?: boolean }>(voces: readonly V[]): V | null {
+export function mejorVozEspanol<V extends { name: string; lang: string; localService?: boolean; default?: boolean }>(voces: readonly V[], idioma: string | null = null): V | null {
   const es = voces.filter((v) => /^es([-_]|$)/i.test(v.lang))
   if (!es.length) return null
   const calidad = (v: V) => /(natural|neural|online|wavenet|enhanced|mejorad|premium)/i.test(v.name) ? 0 : /google/i.test(v.name) ? 1 : 2
-  const region = (v: V) => { const l = v.lang.toLowerCase().replace('_', '-'); return l === 'es-mx' ? 0 : l === 'es-us' || l === 'es-419' ? 1 : l === 'es-es' ? 3 : 2 }
+  const suya = idioma?.toLowerCase().replace('_', '-') ?? null
+  const region = (v: V) => { const l = v.lang.toLowerCase().replace('_', '-'); return l === suya ? -1 : l === 'es-mx' ? 0 : l === 'es-us' || l === 'es-419' ? 1 : l === 'es-es' ? 3 : 2 }
   return [...es].sort((a, b) => calidad(a) - calidad(b) || region(a) - region(b) || Number(!!b.default) - Number(!!a.default))[0]
 }
 
@@ -157,6 +163,8 @@ import { VozServidor } from './voz-servidor'
 import { palabraEn, tiemposDeMarcas } from './marcas-voz'
 import { tiemposDelAudio } from './tiempos-estimados'
 import { ResaltadoUnico } from './resaltado'
+import { idiomaDeRespaldo, idiomaPreferido } from './voz-sistema'
+import { elegirResumen, type BloqueResumen } from './resumen-hablado'
 
 type StateCb = (playing: boolean) => void
 
@@ -193,12 +201,14 @@ export interface SpeechState {
   /** La pantalla está retenida (no se va a apagar sola durante la lectura).
    *  `false` mientras se lee = iOS va a dormir la pantalla y con ella el JS. */
   despierto: boolean
+  /** Se lee el RESUMEN del mensaje (resumen-hablado.ts), no el mensaje completo. */
+  resumen: boolean
 }
 
 // Snapshot inmutable compartido para el estado inactivo (SSR + arranque). Es una
 // referencia ESTABLE: useSyncExternalStore compara con Object.is, así que el
 // server snapshot y el cliente antes de arrancar apuntan al mismo objeto.
-const INACTIVE_STATE: SpeechState = { active: false, id: null, paused: false, rate: 1, idx: 0, total: 0, despierto: false }
+const INACTIVE_STATE: SpeechState = { active: false, id: null, paused: false, rate: 1, idx: 0, total: 0, despierto: false, resumen: false }
 
 // Screen Wake Lock. Los tipos del DOM no lo traen en todas las versiones de TS, y no
 // vale la pena subir el lib target por dos métodos.
@@ -228,6 +238,10 @@ class ChatSpeechController {
   private curId: string | null = null
   // Lectura de una SELECCIÓN: los bloques son un extracto desprendido a propósito.
   private extracto = false
+  // «Escuchar resumen» (29 oct 2026): los bloques son un subconjunto del mensaje más una frase de
+  // cierre DESPRENDIDA («El resto está en pantalla.»), que se oye pero no tiene dónde pintarse.
+  private resumen = false
+  private cierre: HTMLElement | null = null
   // Lectura de un texto ajeno (ver PuenteLector): el resaltado y el scroll los hace el puente.
   private puente: PuenteLector | null = null
   private indiceEspejo = new Map<HTMLElement, number>()
@@ -261,6 +275,10 @@ class ChatSpeechController {
 
   constructor() {
     if (typeof window === 'undefined') return
+    // Chromium (WebView2 en Windows, Chrome, Edge) carga las voces en segundo plano y solo empieza al primer
+    // getVoices(): sin esto, la primera lectura llegaba con la lista vacía y sonaba la voz por defecto del sistema
+    // (en un Windows en inglés, en inglés). Pedirla ya deja la lista lista para el primer «Escuchar».
+    try { this.synth?.getVoices() } catch { /* sin voces: el lector sigue con la del servidor */ }
     // iOS no siempre dispara pagehide: al ocultarse la página también se vuelca el punto.
     window.addEventListener('pagehide', () => this.guardaPunto(true))
     document.addEventListener('visibilitychange', () => { if (document.hidden) this.guardaPunto(true) })
@@ -277,7 +295,8 @@ class ChatSpeechController {
 
   /** Vuelca el punto de lectura de la conversación. Con `force` ignora el límite de 1/s. */
   private guardaPunto(force = false) {
-    if (!this.curId || !this.sesion || this.extracto || !this.blocks.length) return
+    // El resumen no guarda punto: su índice es de un subconjunto y volver a él no tiene sentido.
+    if (!this.curId || !this.sesion || this.extracto || this.resumen || !this.blocks.length) return
     const t = this.now()
     if (!force && t - this.ultimoGuardado < 1000) return
     this.ultimoGuardado = t
@@ -317,6 +336,7 @@ class ChatSpeechController {
     this.sesion = sesion
     this.stateCb = null
     this.extracto = false
+    this.resumen = false
     this.collectBlocks()
     if (!this.blocks.length) {
       this.container = null
@@ -478,6 +498,7 @@ class ChatSpeechController {
       idx: this.idx,
       total: this.blocks.length,
       despierto: this.despierto,
+      resumen: this.resumen,
     }
     this.listeners.forEach((l) => l())
     this.guardaPunto()
@@ -494,11 +515,13 @@ class ChatSpeechController {
   }
 
   /** Toggle desde el botón del mensaje: si este mensaje ya está cargado, cierra; si no, arranca. */
-  toggle(id: string, el: HTMLElement, cb?: StateCb, selectedText?: string, externo?: LecturaExterna) {
+  toggle(id: string, el: HTMLElement, cb?: StateCb, selectedText?: string, externo?: LecturaExterna, opciones?: { resumen?: boolean }) {
     if (!this.synth) return
+    const resumen = !!opciones?.resumen && !selectedText?.trim() && !externo
     if (this.curId === id) {
+      const mismoModo = this.resumen === resumen
       this.stop()
-      return
+      if (mismoModo) return // mismo botón = detener; el otro botón del mismo mensaje cambia de modo
     }
     this.stop()
     this.curId = id
@@ -507,6 +530,8 @@ class ChatSpeechController {
     this.container = el
     this.stateCb = cb ?? null
     this.extracto = !!selectedText?.trim() || !!externo
+    this.resumen = resumen
+    this.cierre = null
     this.puente = externo?.puente ?? null
     if (externo) {
       // Espejo desprendido: sin taps propios (los reenvía el puente por saltarA) ni posición guardada.
@@ -521,7 +546,7 @@ class ChatSpeechController {
       excerpt.textContent=selectedText
       this.blocks=[excerpt] // Detached excerpt: read only the selection, without scrolling or altering the message.
     } else this.collectBlocks()
-    this.firma = this.extracto ? [] : this.blocks.map(firmaDe)
+    this.firma = this.extracto ? [] : this.blocks.filter((b) => b !== this.cierre).map(firmaDe)
     if (!this.blocks.length) {
       this.puente?.cerrar()
       this.puente = null
@@ -562,6 +587,7 @@ class ChatSpeechController {
       }
     }
     this.blocks = bloquesLegibles(this.container)
+    if (this.resumen) this.blocks = this.recortaResumen(this.blocks)
     this.clearTaps()
     this.blocks.forEach((el, i) => {
       el.style.cursor = 'pointer'
@@ -578,6 +604,37 @@ class ChatSpeechController {
       this.tapHandlers.push(() => el.removeEventListener('click', h))
     })
   }
+  /** Subconjunto del resumen + la frase de cierre. Si el mensaje no da para resumen, se lee completo. */
+  private recortaResumen(bloques: HTMLElement[]): HTMLElement[] {
+    const listas = new Map<Element, number>()
+    const descr: BloqueResumen[] = bloques.map((el) => {
+      const l = el.closest('li') ? el.closest('ul,ol') : null
+      if (l && !listas.has(l)) listas.set(l, listas.size + 1)
+      return {
+        texto: el.innerText,
+        enTabla: !!el.closest('table'),
+        enCodigo: !!el.closest('pre'),
+        esEncabezado: /^H[1-4]$/.test(el.tagName),
+        lista: l ? listas.get(l) : undefined,
+      }
+    })
+    const r = elegirResumen(descr)
+    if (!r) return bloques
+    const out = r.indices.map((i) => bloques[i])
+    if (r.cierre) {
+      if (!this.cierre) {
+        this.cierre = document.createElement('p')
+        this.cierre.textContent = r.cierre
+      }
+      out.push(this.cierre)
+    }
+    return out
+  }
+  /** Bloque que se lee sin estar en el documento a propósito (una selección, la frase de cierre del resumen). */
+  private desprendido(el: HTMLElement) {
+    return this.extracto || el === this.cierre
+  }
+
   /**
    * LA LECTURA SOBREVIVE A UN RE-RENDER (1 oct 2026, reporte de Daniel: «se detiene o
    * desaparece cuando hago clic o selecciono en la caja de texto»).
@@ -595,7 +652,7 @@ class ChatSpeechController {
    */
   relocate(): boolean {
     if (!this.curId || typeof document === 'undefined') return false
-    const vivo = this.container?.isConnected && (this.extracto || this.blocks.every((b) => b.isConnected))
+    const vivo = this.container?.isConnected && (this.extracto || this.blocks.every((b) => b.isConnected || b === this.cierre))
     if (vivo) return true
     const iguales = (el: HTMLElement) => {
       const t = Array.from(el.querySelectorAll('p,li,h1,h2,h3,h4,blockquote')).map((b) => firmaDe(b as HTMLElement)).filter(Boolean)
@@ -726,7 +783,7 @@ class ChatSpeechController {
       null
     // Fuera de Apple (Windows, Linux, Android: grupal del 23 oct 2026, «la voz por defecto en Windows es fea») el
     // default del sistema suele ser una voz robótica o ni siquiera en español: se elige la mejor en español.
-    if (!juan && !esApple) return mejorVozEspanol(es)
+    if (!juan && !esApple) return mejorVozEspanol(es, idiomaPreferido(idiomasSistema()))
     return juan
   }
 
@@ -780,7 +837,7 @@ class ChatSpeechController {
       if (i != null) this.puente.pintar(i, start, end)
       return
     }
-    if (this.extracto && !el.isConnected) return // extracto desprendido (una selección): no hay dónde pintar
+    if (this.desprendido(el) && !el.isConnected) return // extracto desprendido (una selección): no hay dónde pintar
     this.resaltado.pintar(el, start, end)
   }
   private clearHighlight() {
@@ -947,7 +1004,7 @@ class ChatSpeechController {
       if (!this.playing) return
       // Entre frases (nunca a media frase): si un re-render desprendió el párrafo, se
       // reengancha y se sigue en el nodo nuevo desde la frase que tocaba.
-      if (!el.isConnected && !this.extracto) {
+      if (!el.isConnected && !this.desprendido(el)) {
         if (this.relocate()) {
           const s = sents[cursor]
           this.startOffset = s ? s.start : null
@@ -983,7 +1040,7 @@ class ChatSpeechController {
       if (v) {
         u.voice = v
         u.lang = v.lang
-      } else u.lang = 'es-MX'
+      } else u.lang = idiomaDeRespaldo(idiomasSistema())
       u.rate = RATES[this.rateIdx]
       const primera = /\S+/.exec(spoken)
 
@@ -1004,7 +1061,7 @@ class ChatSpeechController {
           this.pendienteDePintar = null
           if (!p) return
           // el párrafo pudo cambiar de nodo por un re-render: pintar en el nuevo
-          const destino = p.el.isConnected || this.extracto ? p.el : this.relocate() ? this.blocks[this.idx] : null
+          const destino = p.el.isConnected || this.desprendido(p.el) ? p.el : this.relocate() ? this.blocks[this.idx] : null
           if (destino) this.highlightWord(destino, p.from, p.to)
         })
       }
@@ -1110,7 +1167,7 @@ class ChatSpeechController {
       const [from, to] = visibles[i]
       this.cursorOffset = from
       this.guardaPunto()
-      if (!bloque.isConnected && !this.extracto) {
+      if (!bloque.isConnected && !this.desprendido(bloque)) {
         if (!this.relocate()) return
         bloque = this.blocks[this.idx]
         if (this.sonando) this.sonando.el = bloque
@@ -1532,6 +1589,8 @@ class ChatSpeechController {
       this.memoria.olvidar(this.sesion)
     this.sesion = null
     this.extracto = false
+    this.resumen = false
+    this.cierre = null
     this.firma = []
     this.playing = false
     this.paused = false

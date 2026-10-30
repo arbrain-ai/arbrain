@@ -2,7 +2,8 @@ import { randomUUID } from 'node:crypto'
 import { alDaemon, NOCACHE, soloAppCliente } from '@/lib/daemon-local'
 import { createServiceClient } from '@/lib/supabase/service'
 import { LOCAL_DESKTOP_USER_ID } from '@/lib/desktop-auth'
-import { faltaPrimerArranque, guardarPrimerArranque, leerPrimerArranque } from '@/features/primer-arranque/lib/estado'
+import { faltaPrimerArranque, guardarPrimerArranque, leerPrimerArranque, PrimerArranqueIlegible, rutaPrimerArranque } from '@/features/primer-arranque/lib/estado'
+import { ConfiguracionFaltante } from '@/lib/rutas-instalacion'
 import { VERSION_TEXTOS } from '@/features/primer-arranque/textos/legales'
 import { FUENTE_BIENVENIDA, mensajeBienvenida } from '@/features/primer-arranque/textos/bienvenida'
 import { estadoSandbox } from '@/features/permisos/lib/sandbox-server'
@@ -21,9 +22,13 @@ export async function GET() {
     const estado = leerPrimerArranque()
     // `sandbox` (contrato v3 §6.1): el resumen final avisa si cada comando de terminal pedirá un clic en este equipo.
     // `servidor` (29 oct 2026): la unidad de systemd de nube.sh marca que esta instalación vive en el servidor de la persona.
-    return Response.json({ estado, falta: faltaPrimerArranque(estado), versionTextos: VERSION_TEXTOS, sandbox: estadoSandbox(), servidor: process.env.ARBRAIN_SERVIDOR_NUBE === '1' }, { headers: NOCACHE })
+    // `archivo` (soporte 29 oct): qué archivo leyó esta web; si no es el de la carpeta de datos esperada, corre otra web.
+    return Response.json({ estado, falta: faltaPrimerArranque(estado), archivo: rutaPrimerArranque(), versionTextos: VERSION_TEXTOS, sandbox: estadoSandbox(), servidor: process.env.ARBRAIN_SERVIDOR_NUBE === '1' }, { headers: NOCACHE })
   } catch (e) {
-    return Response.json({ error: e instanceof Error ? e.message : 'No pude leer el estado.' }, { status: 503, headers: NOCACHE })
+    // Archivo ilegible o sin carpeta de datos: 503 con el motivo (nunca «falta: true», que mandaría a la bienvenida).
+    const motivo = e instanceof PrimerArranqueIlegible ? 'ilegible' : e instanceof ConfiguracionFaltante ? 'sin-configuracion' : 'error'
+    if (motivo === 'error') console.error(`[primer-arranque] GET: ${e instanceof Error ? e.stack ?? e.message : String(e)}`)
+    return Response.json({ error: e instanceof Error ? e.message : 'No pude leer el estado.', motivo, archivo: e instanceof PrimerArranqueIlegible ? e.ruta : null }, { status: 503, headers: NOCACHE })
   }
 }
 

@@ -51,7 +51,7 @@ def age_hours(p: Path) -> float | None:
 def sh(*args: str, cwd: Path = ROOT) -> str:
     try:
         return subprocess.run(
-            args, cwd=cwd, capture_output=True, text=True, timeout=60
+            args, cwd=cwd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60
         ).stdout.strip()
     except Exception:
         return ""
@@ -103,9 +103,9 @@ def indice_repo() -> dict[str, set[str]]:
         dirnames[:] = [d for d in dirnames if d not in PODA]
         rel_dir = Path(dirpath).relative_to(ROOT)
         for f in files:
-            idx.setdefault(f, set()).add(str(rel_dir / f))
+            idx.setdefault(f, set()).add((rel_dir / f).as_posix())
         for d in dirnames:
-            idx.setdefault(d, set()).add(str(rel_dir / d))
+            idx.setdefault(d, set()).add((rel_dir / d).as_posix())
     _indice_cache = idx
     return idx
 
@@ -151,7 +151,7 @@ def check_routing() -> dict:
     for router in ROUTERS:
         if not router.exists():
             hallazgos.append(
-                {"nivel": ROJO, "router": str(router.relative_to(ROOT)),
+                {"nivel": ROJO, "router": router.relative_to(ROOT).as_posix(),
                  "detalle": f"el router NO existe: {router.relative_to(ROOT)}"}
             )
             continue
@@ -172,7 +172,7 @@ def check_routing() -> dict:
                     externos += 1
                     continue
                 hallazgos.append(
-                    {"nivel": ROJO, "router": str(router.relative_to(ROOT)),
+                    {"nivel": ROJO, "router": router.relative_to(ROOT).as_posix(),
                      "detalle": f"puntero roto en `{router.relative_to(ROOT)}`: {raw}"}
                 )
     estado = worst(*[h["nivel"] for h in hallazgos]) if hallazgos else VERDE
@@ -225,7 +225,7 @@ def check_index_truth() -> dict:
                 continue
             target = (index.parent / raw).resolve()
             if target.is_file() and target.is_relative_to(mem_dir.resolve()):
-                rel = str(target.relative_to(mem_dir.resolve()))
+                rel = target.relative_to(mem_dir.resolve()).as_posix()
                 if rel not in index_files:
                     indexados.add(rel)
                 if rel not in visitados:
@@ -244,7 +244,7 @@ def check_index_truth() -> dict:
                 if not matches:
                     hallazgos.append({"nivel": AMBAR, "detalle": f"{nombre} menciona un patron sin coincidencias: {rel}"})
                 for match in matches:
-                    linked = str(match.relative_to(mem_dir))
+                    linked = match.relative_to(mem_dir).as_posix()
                     indexados.add(linked)
                     if linked not in visitados:
                         pendientes.append(linked)
@@ -258,7 +258,7 @@ def check_index_truth() -> dict:
                 pendientes.append(rel)
 
     en_disco = {
-        str(p.relative_to(mem_dir))
+        p.relative_to(mem_dir).as_posix()
         for p in mem_dir.rglob("*.md")
         if p.name not in index_files
     }
@@ -499,7 +499,7 @@ def check_bloat() -> dict:
     if sensor.exists():
         try:
             result = subprocess.run([sys.executable, str(sensor), "--check"],
-                                    capture_output=True, text=True, timeout=5)
+                                    capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=5)
             if result.returncode:
                 hallazgos.append({"nivel": ROJO, "detalle": result.stdout.strip() or result.stderr.strip()})
         except (OSError, subprocess.TimeoutExpired) as exc:
@@ -668,14 +668,18 @@ def check_presupuesto() -> dict:
         hallazgos.append({"nivel": ROJO, "detalle": "memory-recall.py NO EXISTE — el indice no llega a ninguna conversacion"})
     else:
         try:
-            st = subprocess.run(["python3", str(recall), "--selftest"], capture_output=True, text=True, timeout=20)
+            # El mismo Python que corre la auditoría: en Windows `python3` suele ser el alias de la Microsoft Store.
+            st = subprocess.run([sys.executable, str(recall), "--selftest"], capture_output=True, text=True,
+                                encoding="utf-8", errors="replace", timeout=20,
+                                env={**os.environ, "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8"})
             if st.returncode != 0:
                 hallazgos.append({"nivel": ROJO,
                     "detalle": f"selftest del recall FALLA: {(st.stdout or st.stderr).strip()[:160]}"})
         except Exception as e:
             hallazgos.append({"nivel": ROJO, "detalle": f"selftest del recall no corre: {e}"})
         settings = ROOT / ".claude/settings.json"
-        if settings.exists() and "memory-recall.py" not in settings.read_text(encoding="utf-8", errors="ignore"):
+        # En la copia del alumno el gancho va por el lanzador: `sh .../py.sh memory-recall`.
+        if settings.exists() and "memory-recall" not in settings.read_text(encoding="utf-8", errors="ignore"):
             hallazgos.append({"nivel": ROJO,
                 "detalle": "memory-recall.py existe pero NO esta registrado en settings.json (UserPromptSubmit)"})
 
@@ -751,6 +755,11 @@ def render_md(reporte: dict) -> str:
 
 
 def main() -> None:
+    for stream in (sys.stdout, sys.stderr):  # consola cp1252 de Windows: los emojis del informe no truenan
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
     ap = argparse.ArgumentParser(description="Auditoria read-only de Arbrain")
     ap.add_argument("--json", action="store_true", help="salida JSON")
     ap.add_argument("--write", action="store_true", help="guarda el reporte en .claude/audits/")

@@ -85,6 +85,31 @@ jobs:
         working-directory: arbrain
         run: node scripts/servidor/prueba-ci.mjs --datos "${{ runner.temp }}/arbrain-datos" --plazo-min 35
 
+      # 0.2.16 (29 oct, promesa a un fundador en Windows): «tu cerebro en el teléfono vuelve solo tras reiniciar la PC».
+      # Un runner no se reinicia, así que se hace lo que hace Windows al iniciar sesión: correr el .vbs de la carpeta
+      # Inicio. Con el servidor apagado, ese .vbs tiene que dejarlo «Corriendo» solo, sin ventana y sin nadie delante.
+      - name: Vuelve solo al iniciar sesión (Windows, el .vbs de la carpeta Inicio)
+        if: runner.os == 'Windows'
+        working-directory: arbrain
+        shell: bash
+        run: |
+          set -euo pipefail
+          DATOS="${{ runner.temp }}/arbrain-datos"
+          node scripts/servidor.mjs detener --datos "$DATOS" || true
+          node scripts/servidor.mjs arranque-automatico activar --datos "$DATOS"
+          VBS="$APPDATA/Microsoft/Windows/Start Menu/Programs/Startup/Arbrain Servidor.vbs"
+          test -f "$VBS" || { echo "no se escribió $VBS"; exit 1; }
+          node scripts/servidor.mjs estado --datos "$DATOS" | head -1 | grep -v Corriendo
+          cscript //nologo "$(cygpath -w "$VBS")"
+          for i in $(seq 1 60); do
+            if node scripts/servidor.mjs estado --datos "$DATOS" | head -1 | grep -q Corriendo; then echo "volvió solo en $((i*5)) s"; break; fi
+            [ "$i" = 60 ] && { echo "el .vbs no dejó Arbrain corriendo en 5 min"; exit 1; }
+            sleep 5
+          done
+          node scripts/servidor.mjs detener --datos "$DATOS"
+          node scripts/servidor.mjs arranque-automatico desactivar
+          test ! -f "$VBS"
+
       - name: Logs del modo servidor
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

@@ -136,7 +136,16 @@ class Plan(unittest.TestCase):
         self.assertEqual(len(obj), 1)
         self.assertEqual(obj[0]["fecha"], "2026-10-21")
         self.assertEqual(obj[0]["descripcion"], "- [ ] Lista de 10\n- [ ] Borrador\n- [ ] Mensaje a 3")
-        self.assertEqual(cal["eventos"][0]["inicio"], "2026-10-21T09:00:00-06:00")
+        # Con base de zonas, la del calendario (México, -06:00). Sin ella (Python de python.org en Windows), plan.py usa
+        # la zona del sistema para esa fecha: es el respaldo correcto, no un error.
+        try:
+            from zoneinfo import ZoneInfo
+            ZoneInfo("America/Mexico_City")
+            esperado = "2026-10-21T09:00:00-06:00"
+        except Exception:
+            import datetime as _dt
+            esperado = _dt.datetime(2026, 10, 21, 9, 0).astimezone().isoformat()
+        self.assertEqual(cal["eventos"][0]["inicio"], esperado)
         self.assertEqual(cal["recibos"], {"x": 1})  # lo que no es suyo no se toca
         self.assertTrue(any(x["id"] == "mia" for x in cal["tareas"]))
         # Idempotente: repetir no duplica.

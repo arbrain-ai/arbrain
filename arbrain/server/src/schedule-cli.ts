@@ -16,6 +16,8 @@ import { initDatabase, listTasks, createTask, deleteTask, updateTaskStatus, getT
 import { computeNextRun } from './scheduler.js'
 import { runAgent } from './agent.js'
 import { mcCronResult } from './mc-client.js'
+import { zonaDueno } from './zona.js'
+import { slugRutina } from './cliente/rutinas.js'
 
 initDatabase()
 
@@ -46,7 +48,7 @@ Examples:
 
 function formatDate(unixSeconds: number | null): string {
   if (!unixSeconds) return 'never'
-  return new Date(unixSeconds * 1000).toLocaleString('es-MX', { timeZone: 'America/Mexico_City' })
+  return new Date(unixSeconds * 1000).toLocaleString('es-MX', { timeZone: zonaDueno() })
 }
 
 function truncate(str: string, len: number): string {
@@ -97,13 +99,7 @@ switch (command) {
     const threadId = threadIdStr ? parseInt(threadIdStr, 10) : null
 
     // Generar ID desde el prompt (primeras palabras, slug)
-    const slug = prompt
-      .toLowerCase()
-      .replace(/[^a-z0-9 ]/g, '')
-      .trim()
-      .split(/\s+/)
-      .slice(0, 4)
-      .join('-')
+    const slug = slugRutina(prompt)
     const id = `custom-${slug}-${Date.now().toString(36)}`
 
     createTask({

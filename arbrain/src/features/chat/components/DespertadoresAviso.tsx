@@ -8,10 +8,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import { AlarmClock, X } from 'lucide-react'
 import { tocaLeerAhora } from '@/shared/lib/reposo'
+import { zonaDueno } from '@/shared/lib/zona-dueno'
 
 export interface DespertadorDto { id: string; texto: string; dueAt: number; cadaMs: number | null; restantes: number | null; estado: string }
 
-const hora = (ms: number) => new Date(ms).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Mexico_City' })
+const hora = (ms: number) => new Date(ms).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', timeZone: zonaDueno() })
 
 export function resumenDespertadores(lista: DespertadorDto[]): string | null {
   const pendientes = lista.filter(d => d.estado === 'pendiente').sort((a, b) => a.dueAt - b.dueAt)

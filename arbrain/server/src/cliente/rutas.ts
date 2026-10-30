@@ -6,7 +6,9 @@
 export const MENSAJE_NO_DISPONIBLE = 'No disponible en esta edición.'
 
 const RUTAS_SOLO_DANIEL = new Set(['/analytics/sales', '/planning', '/live/speech', '/consejo'])
-const VISTAS_CABINA_SOLO_DANIEL = new Set(['negocio', 'diario', 'salud', 'masterclass', 'servidores', 'apagar', 'trabajos', 'salida', 'actividad'])
+// `trabajos` y `salida` entran en cliente el 29 oct 2026 (Taller › Agentes): el daemon del alumno responde solo sus
+// subagentes del SDK (cabina/trabajos-cliente.ts) y la salida de esos mismos (internos.ts, por id de su registro).
+const VISTAS_CABINA_SOLO_DANIEL = new Set(['negocio', 'diario', 'salud', 'masterclass', 'servidores', 'apagar', 'actividad', 'guardian-disco', 'detener', 'responder', 'comentarios', 'correr-plan', 'descartar-plan'])
 
 export function rutaSoloDaniel(metodo: string | undefined, ruta: string, cuerpo: Record<string, unknown>): boolean {
   if (RUTAS_SOLO_DANIEL.has(ruta)) return true

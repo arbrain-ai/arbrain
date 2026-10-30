@@ -10,6 +10,7 @@ import { ReposoVentana } from '@/shared/movimiento/Reposo'
 import { ThemeProvider } from '@/shared/contexts/theme-context'
 import { AuthProvider } from '@/shared/contexts/auth-context'
 import { esEdicionCliente } from '@/lib/edicion'
+import { ZONA_ORIGINAL } from '@/shared/lib/zona-dueno'
 import { MiMarca } from '@/components/MiMarca'
 
 const inter = Inter({
@@ -46,11 +47,12 @@ const themeInitScript = `
     const stored = window.localStorage.getItem('mission-control-theme');
     const hasta = Number(window.localStorage.getItem('mission-control-theme-hasta'));
     const theme = (stored === 'light' || stored === 'dark') && Number.isFinite(hasta) && hasta > Date.now() ? stored : 'auto';
-    // Misma regla que shared/lib/tema-por-hora.ts: claro 06-19 (hora de México), oscuro el resto.
+    // Misma regla que shared/lib/tema-por-hora.ts: claro 06-19 (hora del dueño), oscuro el resto. instalación original: México; el
+    // alumno: la zona de su sistema, que es la del navegador (zonaDueno, 29 oct 2026).
     const forced = window.localStorage.getItem('arbrain-hora-forzada');
     const h = forced !== null && forced !== '' && Number.isInteger(+forced) && +forced >= 0 && +forced <= 23
       ? +forced
-      : Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'America/Mexico_City', hour: '2-digit', hourCycle: 'h23' }).format(new Date())) % 24;
+      : Number(new Intl.DateTimeFormat('en-GB', { timeZone: ${esEdicionCliente() ? 'undefined' : JSON.stringify(ZONA_ORIGINAL)}, hour: '2-digit', hourCycle: 'h23' }).format(new Date())) % 24;
     const resolved = theme === 'auto' ? (h >= 6 && h < 19 ? 'light' : 'dark') : theme;
     document.documentElement.classList.toggle('dark', resolved === 'dark');
     document.documentElement.dataset.theme = resolved;
