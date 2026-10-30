@@ -2,9 +2,10 @@
 # Fuente: arbrain/empaquetado/ci/workflows/actualizar.yml del repo fuente; el generador lo copia a .github/workflows/ de
 # la copia del alumno. En la copia no se edita: se regenera.
 #
-# Desde una versión publicada de verdad (v0.2.13 y v0.2.15, con su etiqueta firmada en github.com/arbrain-ai/arbrain):
-# la copia de ESTE commit se firma como v0.2.16 con una llave de prueba generada en el job, el alumno salta a ella con
-# la skill vieja + el PASO 6 nuevo, y después a una v0.2.17 de prueba en un solo paso (`actualizar.mjs revisar` +
+# Desde una versión publicada de verdad (v0.2.13, v0.2.15 y v0.2.16, con su etiqueta firmada en github.com/arbrain-ai/arbrain):
+# la copia de ESTE commit se firma con su VERSION encima de la última publicada, con una llave de prueba generada en el
+# job; el alumno salta a ella con la skill vieja + el PASO 6 nuevo (hasta 0.2.15) o con su actualizar.mjs (0.2.16 en
+# adelante), y después a la versión siguiente, de prueba, en un solo paso (`actualizar.mjs revisar` +
 # `aplicar`) desde un turno falso que muere con todo su árbol. Comprueba versión, memoria, skill, marca, git status,
 # rama de respaldo y que el servidor corre la versión nueva. Lo orquesta arbrain/empaquetado/ci/smoke/actualizar-ci.mjs.
 # No usa secretos ni la llave de publicación; nada se publica.
@@ -41,7 +42,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
-        desde: [v0.2.13, v0.2.15]
+        desde: [v0.2.13, v0.2.15, v0.2.16]
     env:
       NEXT_TELEMETRY_DISABLED: '1'
     steps:
