@@ -1,0 +1,144 @@
+/* Botón enviar del chat: la tecla ámbar retroiluminada de Titanio (rama `sistema-diseno-titanio`, 25 oct), portada
+   SOLA. Regla del dueño (memoria titanio-solo-puntual): la UI de antes es la base y el titanio con glow es la señal
+   «atención aquí»; esta tecla es la única pieza ámbar del chat. Solo flecha, sin la palabra «Enviar».
+   Sin texto (deshabilitada) es una tapa de titanio apagada; con texto se enciende desde dentro. En tema claro se enciende en
+   morado de marca (25 oct 2026); en oscuro, ámbar.
+   `.detener` (25 oct, pedido del dueño) es la misma tecla en morado de marca con el cuadro: identidad/estado
+   («Levy trabajando»), no compite con el ámbar. Solo cambia la luz; forma, capas y estados son los de enviar.
+   Las variables viven aquí: el resto de la app no carga tokens de Titanio. */
+
+.enviar {
+  --luz-rgb: var(--gold-rgb);
+  --luz-viva-rgb: var(--gold-bright-rgb);
+  --cara: linear-gradient(180deg, var(--l-gris-5, #2a1c0b), var(--l-gris-4, #1d150c));
+  --cara-clara: linear-gradient(180deg, var(--gold-bright), var(--gold-dark));
+  --cara-clara-hover: linear-gradient(180deg, var(--l-ambar-3, #ffbb5c), var(--gold-dark));
+  --brillo-interior: 255, 214, 160;
+  --tinta-viva: var(--l-tinta-ambar-clara, #ffe3bd); --tinta-viva-clara: var(--l-tinta-ambar-oscura, #2a1700);
+  --placa-arriba: var(--l-gris-16, #ffffff); --placa-abajo: var(--l-gris-14, #f6f6f8);
+  --destello: var(--l-gris-16, rgba(255, 255, 255, 1));
+  --canto-luz: var(--l-gris-16, rgba(255, 255, 255, 1)); --canto-costado: rgba(var(--l-sombra-rgb, 15, 17, 21), 0.08); --canto-sombra: rgba(var(--l-sombra-rgb, 15, 17, 21), 0.22);
+  --bisel: rgba(var(--l-luz-rgb, 255, 255, 255), 0.9); --junta: rgba(var(--l-sombra-rgb, 15, 17, 21), 0.06);
+  --tinta: var(--l-gris-2, #0f1115);
+  --curva-aterriza: cubic-bezier(0.34, 1.32, 0.64, 1);
+  --curva-anticipa: cubic-bezier(0.5, 0, 0.75, 0);
+  --curva-salida: cubic-bezier(0.16, 1, 0.3, 1);
+
+  position: relative; isolation: isolate; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; padding: 0;
+  border: 1px solid transparent; border-radius: 10px;
+  color: var(--tinta); cursor: pointer; user-select: none;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  transition: transform 240ms var(--curva-aterriza);
+  /* tapa de titanio */
+  background:
+    linear-gradient(180deg, var(--placa-arriba), var(--placa-abajo)) padding-box,
+    radial-gradient(50% 1.5px at 30% 0, var(--destello), transparent) border-box,
+    linear-gradient(180deg, var(--canto-luz), var(--canto-costado) 30%, var(--canto-costado) 60%, var(--canto-sombra)) border-box,
+    linear-gradient(var(--placa-abajo), var(--placa-abajo)) border-box;
+  box-shadow: inset 0 1px 0 var(--bisel), 0 0 0 1px var(--junta), 0 1px 1px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.18), 0 3px 6px -3px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.3);
+}
+@media (min-width: 768px) and (pointer: fine) { .enviar { width: 32px; height: 32px; } }
+.enviar svg { width: 16px; height: 16px; flex: none; }
+
+:global(.dark) .enviar {
+  --tinta: var(--l-gris-15, #f7f8f8);
+  background:
+    linear-gradient(180deg, var(--l-gris-7, #35353e), var(--l-gris-6, #26262d)) padding-box,
+    radial-gradient(50% 1.5px at 30% 0, rgba(var(--l-luz-rgb, 255, 255, 255), 0.55), transparent) border-box,
+    linear-gradient(180deg, rgba(var(--l-luz-rgb, 255, 255, 255), 0.2), rgba(var(--l-luz-rgb, 255, 255, 255), 0.06) 30%, rgba(var(--l-luz-rgb, 255, 255, 255), 0.04) 60%, rgba(var(--l-sombra-rgb, 0, 0, 0), 0.55)) border-box,
+    linear-gradient(var(--l-gris-6, #26262d), var(--l-gris-6, #26262d)) border-box;
+  box-shadow: inset 0 1px 0 rgba(var(--l-luz-rgb, 255, 255, 255), 0.09), 0 0 0 1px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.6), 0 1px 1px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.6), 0 4px 9px -4px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.7);
+}
+
+/* Capas de luz: pseudo-elementos que solo cambian de opacidad. ::before = cara encendida, ::after = canto luminoso. */
+.enviar::before, .enviar::after {
+  content: ''; position: absolute; inset: -1px; z-index: -1; border-radius: inherit; pointer-events: none;
+  opacity: 0; transition: opacity 240ms var(--curva-salida);
+}
+.enviar::before {
+  background:
+    radial-gradient(90% 120% at 50% 0%, rgba(var(--luz-viva-rgb), 0.42), rgba(var(--luz-rgb), 0.16) 58%, rgba(var(--luz-rgb), 0.08)),
+    var(--cara);
+  box-shadow:
+    inset 0 1px 0 rgba(var(--brillo-interior), 0.55),
+    inset 0 -1px 0 rgba(var(--l-sombra-rgb, 0, 0, 0), 0.4),
+    0 0 0 1px rgba(var(--luz-rgb), 0.6),
+    0 8px 22px -8px rgba(var(--luz-rgb), 0.62),
+    0 0 18px -6px rgba(var(--luz-rgb), 0.5);
+}
+.enviar::after {
+  padding: 1px;
+  background: linear-gradient(180deg, rgba(var(--luz-viva-rgb), 0.95), rgba(var(--luz-rgb), 0.38) 45%, rgba(var(--luz-rgb), 0.5));
+  -webkit-mask: linear-gradient(var(--l-gris-0, #000) 0 0) content-box, linear-gradient(var(--l-gris-0, #000) 0 0); -webkit-mask-composite: xor;
+  mask: linear-gradient(var(--l-gris-0, #000) 0 0) content-box exclude, linear-gradient(var(--l-gris-0, #000) 0 0);
+}
+:global(:root:not(.dark)) .enviar::before { background: var(--cara-clara); }
+
+/* Encendida: hay algo que mandar. */
+.enviar:not(:disabled)::before { opacity: 1; transition-delay: 90ms; transition-duration: 520ms; }
+.enviar:not(:disabled)::after { opacity: 1; }
+.enviar:not(:disabled) { color: var(--tinta-viva); }
+.enviar:not(:disabled) svg, .detener > span { filter: drop-shadow(0 0 6px rgba(var(--luz-rgb), 0.55)); }
+:global(:root:not(.dark)) .enviar:not(:disabled) { color: var(--tinta-viva-clara); }
+:global(:root:not(.dark)) .enviar:not(:disabled) svg, :global(:root:not(.dark)) .detener > span { filter: none; }
+
+/* Hover: la tecla sube un pelo y la luz crece. */
+@media (hover: hover) {
+  .enviar:not(:disabled):hover { transform: translateY(-1px); }
+  .enviar:not(:disabled):hover::before {
+    box-shadow:
+      inset 0 1px 0 rgba(var(--brillo-interior), 0.7),
+      inset 0 -1px 0 rgba(var(--l-sombra-rgb, 0, 0, 0), 0.4),
+      0 0 0 1px rgba(var(--luz-rgb), 0.75),
+      0 10px 26px -8px rgba(var(--luz-rgb), 0.78),
+      0 0 24px -5px rgba(var(--luz-rgb), 0.62);
+  }
+  :global(:root:not(.dark)) .enviar:not(:disabled):hover::before { background: var(--cara-clara-hover); }
+}
+
+/* Presionada: se hunde rápido (anticipa la acción) y vuelve con rebase. */
+.enviar:active:not(:disabled) { transform: translateY(1px) scale(0.975); transition-duration: 110ms; transition-timing-function: var(--curva-anticipa); }
+.enviar:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
+.enviar:disabled { opacity: 0.42; cursor: not-allowed; }
+
+/* Enviar en tema claro (25 oct 2026, 08:54, Daniel: «deja la tecla oscura; usa el diseño de titanio claro original… pero en MORADO
+   de marca»): la tapa de titanio clara apagada y, encendida, la cara con volumen de la rama `sistema-diseno-titanio` (degradado,
+   bisel interior, canto luminoso y glow) en morado. En oscuro sigue la tecla ámbar; detener no cambia. Solo cambian las variables. */
+:global(:root:not(.dark)) .enviar:not(.detener) {
+  --luz-rgb: var(--brand-rgb);
+  --luz-viva-rgb: 168, 112, 255;
+  --cara-clara: linear-gradient(180deg, var(--l-morado-5, #a870ff), var(--l-morado-8, #6512c0));
+  --cara-clara-hover: linear-gradient(180deg, var(--l-morado-4, #b684ff), var(--l-morado-8, #6512c0));
+  --brillo-interior: 222, 196, 255;
+  --tinta-viva-clara: var(--l-gris-15, #fffaf2);
+}
+
+/* Detener: la misma tecla, siempre encendida, en morado de marca; cuadro crema. */
+.detener {
+  --luz-rgb: var(--brand-rgb);
+  --luz-viva-rgb: 168, 112, 255;
+  --cara: linear-gradient(180deg, var(--l-morado-10, #22103d), var(--l-gris-3, #170b2b));
+  --cara-clara: linear-gradient(180deg, var(--l-morado-5, #a870ff), var(--l-morado-8, #6512c0));
+  --cara-clara-hover: linear-gradient(180deg, var(--l-morado-4, #b684ff), var(--l-morado-8, #6512c0));
+  --brillo-interior: 222, 196, 255;
+  --tinta-viva: var(--l-tinta-morado-clara, #f3eaff); --tinta-viva-clara: var(--l-gris-15, #fffaf2);
+}
+/* Mantener presionado = descartar el turno: la luz pasa a rojo mientras se llena el anillo. */
+.detener.sosteniendo { --luz-rgb: 229, 72, 77; --luz-viva-rgb: 240, 110, 114; --cara-clara: linear-gradient(180deg, var(--l-rojo-3, #ee6a6e), var(--l-rojo-6, #b8323a)); }
+
+@media (prefers-reduced-motion: reduce) {
+  .enviar, .enviar::before, .enviar::after { transition: none !important; }
+}
+
+/* Lenguaje unificado (27 oct 2026): la tecla de enviar es ÁMBAR en los dos temas (ámbar = la acción principal). Detener
+   sigue morada (estado: Levy trabajando) y sostener sigue roja (peligro). Solo cambia la luz. */
+:global(html[data-estilo='unificado']:not(.dark)) .enviar:not(.detener) {
+  --luz-rgb: var(--gold-rgb);
+  --luz-viva-rgb: var(--gold-bright-rgb);
+  --cara-clara: linear-gradient(180deg, var(--l-ambar-3), var(--l-ambar-5));
+  --cara-clara-hover: linear-gradient(180deg, var(--l-ambar-2), var(--l-ambar-5));
+  --brillo-interior: var(--l-ambar-1-rgb);
+  --tinta-viva-clara: var(--l-ambar-8);
+}

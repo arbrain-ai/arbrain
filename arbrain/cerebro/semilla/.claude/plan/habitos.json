@@ -1,0 +1,24 @@
+{
+  "_como_se_usa": [
+    "Tus hábitos en Arbrain. Los pinta Calendario › Día (fila «Hábitos», con racha y el tejido de 4 semanas).",
+    "Levy los crea cuando le dices «agrega el hábito X» (o los editas aquí). «objetivo_dia» es la estrella del objetivo del día: no le cambies la clave.",
+    "habitos[]: { clave (minúsculas y guiones bajos, única y para siempre), nombre, seccion (ancla | cuerpo | mente | nutricion), icono (opcional), orden (número), activo (true/false), creado }.",
+    "Para dejar de ver un hábito ponle activo:false: su historial se conserva. No borres claves con historial.",
+    "registro: { \"AAAA-MM-DD\": { \"<clave>\": { hecho (true cumplido | false no cumplido | null sin registro), revision, actualizado, fuente, evidencia, requestId } } }. Lo escribe la app al tocar; Levy puede marcar con fuente \"conversation\".",
+    "reflexion: { \"AAAA-MM-DD\": { prioridad_am, respuesta_am, respuesta_pm } }."
+  ],
+  "version": 1,
+  "habitos": [
+    {
+      "clave": "objetivo_dia",
+      "nombre": "Objetivo del día",
+      "seccion": "ancla",
+      "icono": null,
+      "orden": 0,
+      "activo": true,
+      "creado": "2026-10-21T00:00:00.000Z"
+    }
+  ],
+  "registro": {},
+  "reflexion": {}
+}

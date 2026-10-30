@@ -1,0 +1,105 @@
+/* Explorador de archivos (8 oct 2026). La piel de Salud y Masterclass llevada a un árbol: tarjeta con luz de marca arriba,
+   ceja en versalitas, filas de 28 px con guías de nivel finas, íconos neutros con un tinte por tipo y el morado de la marca
+   para lo que está abierto. El oro solo marca el archivo que tienes a la vista (el ahora). Nada late. */
+
+.explorador { --linea: color-mix(in srgb, var(--foreground) 9%, transparent); --sangria: 14px; container-type: inline-size; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+
+/* ── Cabeza: raíz, cuántos archivos y el buscador ── */
+.cabeza { position: sticky; top: 0; z-index: 2; display: flex; flex-direction: column; gap: 8px; padding: 13px 14px 12px 16px; border-radius: 16px; border: 1px solid var(--border);
+  background: radial-gradient(120% 90% at 0% 0%, rgba(var(--l-velo-morado-rgb, var(--brand-rgb)), 0.1), transparent 60%), var(--card); overflow: hidden; }
+:global(.dark) .cabeza { background: radial-gradient(120% 90% at 0% 0%, rgba(var(--l-velo-morado-rgb, var(--brand-rgb)), 0.16), transparent 62%), var(--card); }
+.cabeza::before { content: ''; position: absolute; left: 0; top: 14px; bottom: 14px; width: 3px; border-radius: 0 3px 3px 0; background: var(--brand); }
+.cabezaFila { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.cabezaFila > p { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acciones { display: inline-flex; gap: 2px; flex-shrink: 0; }
+.accion { display: grid; place-items: center; width: 28px; height: 28px; border: 0; border-radius: 8px; background: none; color: var(--muted); cursor: pointer; transition: background 160ms, color 160ms; }
+.accion:hover:not(:disabled) { background: color-mix(in srgb, var(--foreground) 6%, transparent); color: var(--foreground); }
+.accion:disabled { opacity: 0.35; cursor: default; }
+.accion:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+/* «Abrir carpeta» (22 oct 2026): con nombre, porque es la salida al Explorer o al Finder. */
+.accionTexto { display: inline-flex; align-items: center; gap: 5px; width: auto; padding: 0 8px; font: inherit; font-size: 12px; font-weight: 550; white-space: nowrap; }
+.totalFila { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; margin-top: -4px; }
+.totalFila > .total { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.totalFila > .accionTexto { flex-shrink: 0; height: 26px; margin-right: -4px; }
+.avisoAbrir { margin: 0; font-size: 12px; color: var(--muted); }
+.avisoAbrir[data-error] { color: var(--danger, var(--l-tinta-rojo, #e5484d)); }
+.total { margin: -4px 0 0; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.total b { font-size: 15px; font-weight: 600; color: var(--foreground); letter-spacing: -0.01em; }
+
+.buscador { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 8px 0 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--background, var(--card)); color: var(--muted);
+  transition: border-color 160ms, box-shadow 160ms; cursor: text; }
+.buscador:focus-within { border-color: rgba(var(--brand-rgb), 0.55); box-shadow: 0 0 0 3px rgba(var(--brand-rgb), 0.12); color: var(--foreground); }
+.buscador input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: none; color: var(--foreground); font: inherit; font-size: 13.5px; }
+.buscador input::placeholder { color: var(--muted); }
+.tecla { display: grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 5px; border: 1px solid var(--border); font: 600 11px/1 ui-monospace, 'SF Mono', Menlo, monospace; color: var(--muted); }
+.limpiar { display: grid; place-items: center; width: 22px; height: 22px; border: 0; border-radius: 6px; background: none; color: var(--muted); cursor: pointer; }
+.limpiar:hover { background: color-mix(in srgb, var(--foreground) 7%, transparent); color: var(--foreground); }
+
+/* ── El árbol ── */
+.arbol { display: flex; flex-direction: column; min-width: 0; padding: 6px; border-radius: 14px; border: 1px solid var(--border); background: var(--card);
+  box-shadow: 0 1px 0 rgba(var(--l-sombra-rgb, 15, 23, 42), 0.03), 0 10px 22px -20px rgba(var(--l-sombra-rgb, 15, 23, 42), 0.4); }
+:global(.dark) .arbol { background: rgba(var(--l-luz-rgb, 255, 255, 255), 0.03); box-shadow: none; }
+.grupo { position: relative; }
+/* La guía de nivel: una línea fina a la altura del chevron del padre. */
+.grupo::before { content: ''; position: absolute; top: 2px; bottom: 2px; left: calc(10px + (var(--nivel) - 2) * var(--sangria) + 6px); width: 1px; background: var(--linea); pointer-events: none; }
+
+.fila { position: relative; display: flex; align-items: center; gap: 6px; width: 100%; min-height: 28px; padding: 3px 8px 3px calc(10px + (var(--nivel) - 1) * var(--sangria)); border: 0; border-radius: 8px;
+  background: none; color: var(--foreground); font: inherit; font-size: 13.5px; text-align: left; cursor: pointer; transition: background 140ms; -webkit-tap-highlight-color: transparent; }
+.fila:hover { background: color-mix(in srgb, var(--foreground) 5%, transparent); }
+.fila:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+.fila[data-en-panel] .nombre { color: var(--l-tinta-morado, var(--brand)); }
+:global(.dark) .fila[data-en-panel] .nombre { color: color-mix(in srgb, var(--l-tinta-morado, var(--brand)) 60%, var(--l-gris-16, white)); }
+/* Lo que tienes a la vista: el ahora, en oro. */
+.fila[data-actual] { background: rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.1); box-shadow: inset 0 0 0 1px var(--l-borde-ambar, rgba(var(--gold-rgb), 0.28)); }
+.fila[data-actual] .nombre, :global(.dark) .fila[data-actual] .nombre { color: var(--foreground); font-weight: 550; }
+.fila[data-actual] .punto { background: var(--gold); }
+
+.chevron { display: grid; place-items: center; width: 13px; height: 13px; flex-shrink: 0; color: var(--muted); transition: transform var(--mov-pliegue, 380ms) var(--mov-curva, cubic-bezier(0.16, 1, 0.3, 1)); }
+.chevron[data-abierta] { transform: rotate(90deg); }
+.icono { flex-shrink: 0; color: var(--muted); }
+.icono[data-clase='carpeta'] { color: color-mix(in srgb, var(--l-tinta-morado, var(--brand)) 70%, var(--muted)); }
+.icono[data-clase='md'] { color: var(--l-tinta-morado, var(--brand)); }
+.icono[data-clase='codigo'] { color: var(--l-tinta-azul, #2f74e0); }
+.icono[data-clase='datos'], .icono[data-clase='config'] { color: var(--l-tinta-ambar-oscura, #c08a0a); }
+.icono[data-clase='imagen'] { color: var(--l-tinta-verde-oscura, #1f9d74); }
+.icono[data-clase='video'], .icono[data-clase='audio'] { color: var(--l-tinta-rojo, #d0527a); }
+.icono[data-clase='pdf'] { color: var(--l-tinta-rojo, #d4483b); }
+.icono[data-clase='html'] { color: var(--l-tinta-azul-oscura, #0e8fae); }
+:global(.dark) .icono[data-clase='codigo'] { color: var(--l-tinta-azul-clara, #5b9bf5); }
+:global(.dark) .icono[data-clase='datos'], :global(.dark) .icono[data-clase='config'] { color: var(--l-tinta-ambar, #f0b43a); }
+:global(.dark) .icono[data-clase='imagen'] { color: var(--l-tinta-verde, #45c79c); }
+:global(.dark) .icono[data-clase='video'], :global(.dark) .icono[data-clase='audio'] { color: var(--l-tinta-rojo-clara, #ef7fa2); }
+:global(.dark) .icono[data-clase='pdf'] { color: var(--l-tinta-rojo-clara, #f07b6f); }
+:global(.dark) .icono[data-clase='html'] { color: var(--l-tinta-azul, #4cc3e0); }
+
+.nombre { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nombre mark { background: rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.28); color: inherit; border-radius: 3px; padding: 0 1px; }
+.cuenta { flex-shrink: 0; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; opacity: 0; transition: opacity 140ms; }
+.fila:hover .cuenta, .fila:focus-visible .cuenta { opacity: 1; }
+.punto { flex-shrink: 0; width: 6px; height: 6px; margin-right: 2px; border-radius: 3px; background: var(--brand); }
+
+.resultado { min-height: 40px; align-items: center; }
+.nombreResultado { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.ruta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; font: 11.5px/1.3 ui-monospace, 'SF Mono', Menlo, monospace; color: var(--muted); }
+.cuantos { margin: 4px 8px 6px; font-size: 11px; font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.sinNada, .vacio { margin: 0; padding: 6px 8px 6px calc(10px + (var(--nivel, 1) - 1) * var(--sangria) + 19px); font-size: 12.5px; font-style: italic; color: var(--muted); }
+.sinNada { padding: 14px 10px; text-align: center; }
+.leyendo { animation: pulso 1.4s ease-in-out infinite; }
+
+/* Carga: renglones que respiran (cargando ≠ vacío). */
+@keyframes pulso { 50% { opacity: 0.45; } }
+.cargando { display: flex; flex-direction: column; gap: 9px; padding: 8px 10px; }
+.cargando span { height: 13px; border-radius: 6px; background: color-mix(in srgb, var(--foreground) 8%, transparent); animation: pulso 1.4s ease-in-out infinite; }
+.cargando span:nth-child(2) { width: 82%; margin-left: 14px; }
+.cargando span:nth-child(3) { width: 64%; margin-left: 14px; }
+.cargando span:nth-child(4) { width: 76%; }
+.cargando span:nth-child(5) { width: 58%; }
+
+.pie { margin: 0 4px; font-size: 11.5px; color: var(--muted); text-align: center; }
+
+/* En grande (Ampliar o pantalla completa) el árbol respira un poco más. */
+.explorador[data-grande] { --sangria: 16px; max-width: 980px; margin: 0 auto; width: 100%; }
+.explorador[data-grande] .fila { min-height: 30px; font-size: 14px; }
+
+@media (pointer: coarse) { .fila { min-height: 38px; } .cuenta { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .chevron, .fila, .cuenta { transition: none; } .leyendo, .cargando span { animation: none; } }

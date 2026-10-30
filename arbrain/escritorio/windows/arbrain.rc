@@ -1,0 +1,24 @@
+1 ICON "../iconos/icon.ico"
+
+1 VERSIONINFO
+FILEVERSION 1,0,0,0
+PRODUCTVERSION 1,0,0,0
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040A04B0"
+    BEGIN
+      VALUE "CompanyName", "Arbrain"
+      VALUE "FileDescription", "Arbrain"
+      VALUE "FileVersion", "1.0.0"
+      VALUE "InternalName", "arbrain"
+      VALUE "OriginalFilename", "Arbrain.exe"
+      VALUE "ProductName", "Arbrain"
+      VALUE "ProductVersion", "1.0.0"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x040A, 1200
+  END
+END

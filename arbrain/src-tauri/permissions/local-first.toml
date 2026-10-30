@@ -1,0 +1,32 @@
+[[permission]]
+identifier = "allow-local-first"
+description = "Local-first runtime used by the packaged UI (http://127.0.0.1:3218): SQLite mirror, sync queue and chat drafts. That UI is a remote origin for Tauri, so without this grant every command is rejected by the ACL and chat sends fail."
+commands.allow = [
+  "desktop_status",
+  "list_local_tasks",
+  "upsert_local_task",
+  "list_local_events",
+  "upsert_local_event",
+  "list_local_drawings",
+  "upsert_local_drawing",
+  "register_local_file",
+  "list_sync_queue",
+  "mark_sync_queue_item",
+  "queue_chat_prompt",
+  "sync_now",
+  "prepare_offline_pack",
+  "cache_snapshot",
+  "get_cached_snapshot",
+  "search_local",
+  "open_workspace",
+  "motor_status",
+  "abrir_ventana",
+  "enfocar_ventana",
+  "cerrar_ventana",
+  "ventanas_abiertas",
+  "ventanas_pestanas",
+  "fantasma",
+  "servidor_mudanza_recibida",
+  "servidor_mudanza_lista",
+  "servidor_traspaso_tomar",
+]

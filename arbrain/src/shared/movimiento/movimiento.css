@@ -1,0 +1,64 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   Lenguaje de movimiento de Arbrain (5 oct 2026). Documentado en docs/lenguaje-de-movimiento.md.
+
+   Nació en la Cabina v2 (30 sep, luz.module.css) y en la hoja del día (5 oct, dia-vivo.module.css), que lo
+   repetían cada una con sus propios keyframes. Aquí vive UNA vez, global, para cualquier vista nueva.
+
+   Reglas: el movimiento explica, no decora. Lo que entra sube escalonado UNA vez; lo que avanza se llena; solo
+   late lo que está vivo (el ahora); lo terminado se palomea y se pliega. Oro para el ahora, nada más.
+   Con «reducir movimiento» del sistema, todo llega quieto y en su estado final.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+:root {
+  --mov-curva: var(--ease-out-expo, cubic-bezier(0.16, 1, 0.3, 1));
+  --mov-paso: 45ms;        /* escalonado entre piezas: i × paso */
+  --mov-subida: 6px;       /* cuánto sube lo que entra */
+  --mov-entrada: 560ms;
+  --mov-llenado: 900ms;
+  --mov-latido: 2.4s;
+  --mov-trazo: 320ms;
+  --mov-pliegue: 380ms;
+  --mov-latido-rgb: var(--gold-rgb, 255, 145, 1);
+}
+
+@keyframes mov-subir { from { opacity: 0; transform: translateY(var(--mov-subida)); } }
+@keyframes mov-llenar { from { transform: scaleX(0); } }
+@keyframes mov-latir { 0%, 100% { box-shadow: 0 0 0 0 rgba(var(--mov-latido-rgb), 0.5); } 60% { box-shadow: 0 0 0 7px rgba(var(--mov-latido-rgb), 0); } }
+@keyframes mov-trazo { from { stroke-dashoffset: var(--mov-largo, 24); } to { stroke-dashoffset: 0; } }
+@keyframes mov-aparecer { from { opacity: 0; } }
+
+/* Entrada escalonada. El índice lo pone `escalon(i)` (style --i). Sin «to»: termina en el estado propio
+   del elemento (una fila pasada queda atenuada, no a opacidad 1). */
+.mov-entra { animation: mov-subir var(--mov-entrada) var(--mov-curva) backwards; animation-delay: calc(var(--i, 0) * var(--mov-paso)); }
+
+/* Llenado: una barra que crece desde la izquierda hasta su ancho. El retraso se suma al escalonado. */
+.mov-llena { transform-origin: left center; animation: mov-llenar var(--mov-llenado) var(--mov-curva) backwards; animation-delay: calc(var(--i, 0) * var(--mov-paso) + var(--mov-retraso, 120ms)); }
+
+/* Latido: solo para lo vivo (el punto del ahora, el bloque en curso). Necesita border-radius propio. */
+.mov-late { animation: mov-latir var(--mov-latido) ease-in-out infinite; }
+
+/* Palomita: el trazo SVG se dibuja cuando el elemento (o un ancestro) tiene [data-hecha]. */
+.mov-palomita path { stroke-dasharray: var(--mov-largo, 24); stroke-dashoffset: var(--mov-largo, 24); }
+[data-hecha] .mov-palomita path, .mov-palomita[data-hecha] path { stroke-dashoffset: 0; animation: mov-trazo var(--mov-trazo) ease-out backwards; }
+
+/* Pliegue: el contenedor se cierra a alto cero con [data-plegada]. Su único hijo debe tener min-height: 0. */
+.mov-pliega { display: grid; grid-template-rows: 1fr; transition: grid-template-rows var(--mov-pliegue) var(--mov-curva), opacity var(--mov-pliegue), margin var(--mov-pliegue); }
+.mov-pliega > * { min-height: 0; overflow: hidden; }
+.mov-pliega[data-plegada] { grid-template-rows: 0fr; opacity: 0; margin-top: 0 !important; margin-bottom: 0 !important; }
+
+.mov-aparece { animation: mov-aparecer var(--mov-entrada) ease-out backwards; animation-delay: calc(var(--i, 0) * var(--mov-paso)); }
+
+/* Hueco honesto: el lugar de un dato que NO se mide. Se ve vacío y rayado, nunca como cero. */
+.dato-hueco {
+  border: 1px dashed color-mix(in srgb, var(--muted) 55%, transparent);
+  background: repeating-linear-gradient(135deg, transparent 0 5px, color-mix(in srgb, var(--muted) 12%, transparent) 5px 6px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mov-entra, .mov-llena, .mov-late, .mov-aparece, [data-hecha] .mov-palomita path, .mov-palomita[data-hecha] path { animation: none !important; }
+  .mov-pliega { transition: none !important; }
+}
+
+/* Reposo (6 oct 2026): con la app sin foco u oculta, ReposoVentana pausa las animaciones INFINITAS (los latidos que
+   repintaban 60 veces por segundo sin nadie mirando) y las reanuda al volver. Desde el 12 oct ya no hay regla CSS que
+   pause todo: congelaba en opacidad 0 lo que nacía con animación de entrada (la barra del lector, mensajes nuevos). */

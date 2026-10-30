@@ -1,0 +1,9 @@
+{
+  "_como": "Vista «Servidores». Para vigilar un sitio tuyo, agrega una fila en «miembros» con tipo web: id único, nombre humano, que (una línea de para qué sirve) y url. Las credenciales se nombran (variable de entorno), nunca se escriben aquí. Lo lee arbrain/server/src/cabina/servidores.ts.",
+  "cadenciaMin": 5,
+  "lentoMs": 3000,
+  "certAvisoDias": 14,
+  "miembros": [],
+  "cerebro": [],
+  "maquinas": []
+}

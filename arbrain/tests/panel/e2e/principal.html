@@ -1,0 +1,13 @@
+<!doctype html><meta charset="utf-8"><title>principal</title>
+<style>
+  html, body { margin: 0; height: 100%; font: 14px system-ui }
+  #app { display: flex; height: 100vh }
+  main { flex: 1; background: #eef }
+  aside { width: 400px; background: #fee; border-left: 1px solid #999; display: flex; align-items: flex-start; padding: 12px; gap: 4px }
+  nav, #fuera-de-tira { display: flex; gap: 4px }
+  button { height: 30px; padding: 0 12px }
+  .fantasma { position: fixed; left: 0; top: 0; z-index: 99999; pointer-events: none }
+  .fantasma > * { display: inline-block; background: #fff; border: 1px solid #333 }
+</style>
+<div id="app"><main>chat</main><aside data-panel-derecho><nav data-tira></nav><div id="fuera-de-tira"></div></aside></div>
+<script src="principal.js"></script>

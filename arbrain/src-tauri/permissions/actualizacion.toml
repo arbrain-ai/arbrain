@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-actualizacion"
+description = "Actualizar sin cortar: consultar si hay una versión nueva de la app esperando y relanzar con ella cuando la web lo decide."
+commands.allow = ["actualizacion_estado", "actualizacion_aplicar"]

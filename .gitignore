@@ -1,0 +1,47 @@
+# Sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editores
+.vscode/
+.idea/
+*.swp
+
+# Dependencias y builds
+node_modules/
+.next/
+out/
+dist/
+target/
+*.tsbuildinfo
+arbrain/src-tauri/resources/
+arbrain/src-tauri/binaries/
+
+# Llaves y entorno: NUNCA en git (las llaves viven en el llavero del sistema)
+.env
+.env.*
+!.env.example
+*.env
+.mcp.json
+.claude/settings.local.json
+*.pem
+*.key
+*.p12
+*.pfx
+.npmrc
+
+# Datos locales del alumno
+store/
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+logs/
+*.log
+
+# Pruebas
+test-results/
+playwright-report/
+coverage/

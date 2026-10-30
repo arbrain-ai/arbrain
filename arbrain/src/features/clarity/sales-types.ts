@@ -1,0 +1,9 @@
+export type SaleKind='new'|'renewal'|'metered'|'upgrade'|'oneTime'|'zero'|'other'
+export type SaleAmounts={count:number;paidCents:number;refundedCents:number;retainedCents:number}
+export type SaleBucket=SaleAmounts&{kinds:Partial<Record<SaleKind,SaleAmounts>>}
+export type CurrencySales=Record<string,SaleBucket>
+export type SaleOrder={id:string;createdAt:string;status:string;kind:SaleKind;currency:string;paidCents:number;refundedCents:number;retainedCents:number;invoiceCents:number;taxCents:number;balanceCents:number;invoiceNumber:string|null;productName:string;videoId:string|null;slug:string|null;evidence:string;reason:string|null;sourceOrderId?:string;sourceCheckoutId?:string|null}
+export type SalesReading={asOf:string;from:string|null;to:string;days:number;stale:boolean;warning:string|null;checkoutFailures:number;coverage:{paidOrders:number;attributedOrders:number;unattributedOrders:number;balanced:boolean};totals:CurrencySales;attributed:CurrencySales;unattributed:CurrencySales;byVideo:Record<string,CurrencySales>;selected:CurrencySales;evidence:{orders:SaleOrder[];total:number;offset:number;nextOffset:number|null}}
+export const saleKindNames:Record<SaleKind,string>={new:'Altas nuevas',renewal:'Renovaciones',metered:'Consumo medido',upgrade:'Cambios de plan',oneTime:'Pagos únicos',zero:'Sin cobro',other:'Otros'}
+export function saleMoney(amount:number,currency:string){return (amount/100).toLocaleString('es-MX',{style:'currency',currency,currencyDisplay:'narrowSymbol',maximumFractionDigits:2})+' '+currency}
+export const attributionReasons:Record<string,string>={missing_tracking:'Sin seguimiento en la orden o checkout',unmapped_link:'Enlace sin video asociado',ambiguous_link:'Enlace compartido por varios videos',checkout_unavailable:'No se pudo consultar el checkout',missing_acquisition:'No hay una orden de adquisición verificable'}

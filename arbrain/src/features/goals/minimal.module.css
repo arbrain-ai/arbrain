@@ -1,0 +1,59 @@
+/* Objetivos vive en la sección y en el panel (4 oct 2026): responde al ancho de su raíz, no al de la ventana. */
+.raiz{container:hoy/inline-size;height:100%;min-height:0;display:flex;flex-direction:column;outline:none}.raiz>*{flex:1;min-height:0}
+.page{--line:color-mix(in srgb,var(--foreground) 10%,transparent);overflow:hidden}.topbar{min-height:44px;padding:6px 22px}.periodBar{display:flex;align-items:center;gap:20px;padding:11px 26px;border-bottom:1px solid var(--line);flex-shrink:0}.segment{display:flex;gap:2px;padding:2px;background:color-mix(in srgb,var(--foreground) 3%,transparent);border:1px solid var(--line);border-radius:7px}.page .segment button{padding:4px 13px;font-size:11px;color:var(--muted)}.page .segment button[aria-pressed=true]{background:var(--card);border-color:var(--line);color:var(--foreground)}.navigation{display:flex;align-items:center;gap:6px;min-width:0}.navigation h1{font-size:13px;font-weight:550;margin:0;white-space:nowrap}.navigation h1:first-letter{text-transform:uppercase}.page .navigation button{padding:4px}.shortcuts{margin-left:auto;display:flex;gap:8px}.page .shortcuts button{font-size:10px;color:var(--muted);padding:3px}.body{flex:1;min-height:0;overflow:hidden;padding:24px 30px}.columns{display:grid;grid-template-columns:minmax(0,1fr) minmax(235px,.55fr);gap:clamp(30px,5vw,80px);height:100%;max-width:1300px;margin:0 auto;align-items:start}.direction,.aside{min-width:0;min-height:0}.heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}.heading h2,.next>h2{margin:0;font-size:11px;font-weight:550;color:var(--muted)}.heading a,.page .converse{display:flex;align-items:center;gap:5px;color:var(--muted);font-size:10px;padding:0}.goalArea{min-height:65px;padding-bottom:16px;border-bottom:1px solid var(--line)}.empty{font-size:13px;color:var(--muted);margin:14px 0}.goal{padding:7px 0 12px}.goal+.goal{border-top:1px solid var(--line);padding-top:12px}.goalTitle{display:flex;align-items:start;gap:12px;justify-content:space-between}.goal h3{font-size:18px;line-height:1.35;font-weight:550;margin:0;letter-spacing:-.3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.goalTitle>span{flex-shrink:0;font-size:9px;color:var(--muted);padding-top:4px}.goalTitle>span[data-state=agreed]{color:var(--primary)}.goal p{font-size:11px;color:var(--muted);line-height:1.5;margin:8px 0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.page .parent{font-size:10px;color:var(--muted);padding:2px 0;max-width:100%;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.goal small{font-size:10px;color:var(--muted);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.next{margin-top:25px}.next h3{font-size:18px;font-weight:500;letter-spacing:-.25px;line-height:1.4;margin:12px 0 7px;max-width:620px}.next p{font-size:11px;color:var(--muted);margin:5px 0 14px}.page .next>button{font-size:10px;padding:4px 0;color:var(--primary)}.muted{font-size:11px;color:var(--muted)}.aside{display:flex;flex-direction:column;gap:25px}.schedule{min-height:0}.agendaItem,.task{display:flex;gap:12px;align-items:start;padding:10px 0;border-bottom:1px solid var(--line);font-size:11px;line-height:1.45}.agendaItem time,.task time{font-size:10px;color:var(--muted);min-width:35px;flex-shrink:0}.agendaItem>span,.task>span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.agendaItem[data-current=true]{border-left:2px solid var(--gold);padding-left:10px;margin-left:-12px}.breakdown{margin-top:24px}.page .periodRow{display:flex;align-items:center;gap:10px;border-radius:0;border-bottom:1px solid var(--line);width:100%;padding:11px 0;text-align:left;font-size:11px}.periodRow time{font-size:10px;color:var(--muted);min-width:105px}.periodRow>span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.periodRow small{font-size:9px;color:var(--muted)}.periodRow svg{color:var(--muted);flex-shrink:0}.habits{max-width:310px}.habits .heading{margin-bottom:7px}.page .habit{display:flex;align-items:center;gap:8px;width:100%;min-height:22px;font-size:10px;padding:3px 0;border-radius:0;text-align:left}.habit>span:nth-child(2){flex:1;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.habit kbd{font:9px ui-monospace,monospace;color:var(--muted);opacity:.6}.check{display:grid;place-items:center;width:12px;height:12px;border:1px solid var(--line);border-radius:3px;color:var(--muted);flex-shrink:0}.habit[data-state=done] .check{background:var(--primary);color:#fff;border-color:var(--primary)}.habit[data-state=done]>span:nth-child(2){text-decoration:line-through;opacity:.65}.habit[data-state=missed] .check{color:var(--error)}.habits>div:last-child{min-height:0;font-size:10px;padding:0}.habits>div:last-child:empty{display:none}.pager{display:flex;align-items:center;justify-content:flex-end;gap:4px;font-size:9px;color:var(--muted);margin-top:6px}.page .pager button{padding:2px}.error{font-size:11px;color:var(--muted);padding:7px 10px;border-left:2px solid var(--gold);margin-bottom:12px}.error button{font-size:10px!important;color:var(--primary)!important}.srOnly{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+@media(max-height:740px){@container hoy (min-width:701px){.body{padding:18px 25px}.aside{gap:17px}.agendaItem,.task{padding:7px 0}.next,.breakdown{margin-top:18px}.page .periodRow{padding:8px 0}.goal{padding-bottom:8px}.goal h3{font-size:16px}.goalArea{padding-bottom:10px}.page .habit{min-height:20px;padding:2px 0}.heading{margin-bottom:8px}}}
+@container hoy (max-width:700px){.periodBar{flex-wrap:wrap;gap:9px;padding:10px 16px}.shortcuts{margin-left:auto}.navigation h1{font-size:11px}.segment{order:0}.navigation{order:2;width:100%}.body{overflow:auto;padding:20px 17px}.columns{height:auto;grid-template-columns:1fr;gap:25px}.aside{gap:18px}.habits{max-width:none}.page .habit{min-height:28px;font-size:11px}.goal h3{font-size:18px}.periodRow time{min-width:95px}}
+/* Agreements are visible together, not one objective per page. */
+.goalBullets{list-style:none;margin:9px 0 0;padding:0}.goalBullets li{display:flex;gap:10px;align-items:baseline;padding:7px 0;font-size:14px;line-height:1.45}.goalBullets li>span:nth-child(2){flex:1}.goalBullet{color:var(--primary);width:11px;flex-shrink:0}.goalBullets small{font-size:9px;color:var(--muted)}.goalBullets li[data-state=completed]>span:nth-child(2){color:var(--muted);text-decoration:line-through}.habits{max-width:100%}.page .habit{font-size:11px;min-height:25px;gap:9px}.habit kbd{font-size:11px;color:var(--foreground);opacity:1;min-width:20px;text-align:center;padding:1px 4px;border:1px solid var(--line);border-radius:4px;background:var(--card)}
+/* Reporte diario — HTML self-contained servido en su propio iframe sandboxed. */
+.reporte{margin-top:25px;min-width:0}.reporteFrame{display:block;width:100%;height:440px;border:1px solid var(--line);border-radius:10px;background:var(--card)}
+@media(max-height:740px){@container hoy (min-width:701px){.reporteFrame{height:340px}}}
+@container hoy (max-width:700px){.reporte{margin-top:20px}.reporteFrame{height:300px}}
+
+/* ── Página v2 (30 sep 2026, noche de remodelación) ──────────────────────────
+   El escritorio había quedado detrás del teléfono: texto de 10–11 px y la
+   siguiente acción perdida entre líneas. Misma gramática que la Cabina v2:
+   titular serif, cejas en versalitas, UN foco de oro (la siguiente acción). */
+.periodBar{padding:14px var(--pagina-pad-x)}
+.navigation h1{font-family:var(--serif-ui);font-size:22px;font-weight:600;letter-spacing:-.012em;min-width:0;text-align:left}
+.page .segment button{font-size:12.5px;padding:6px 14px}
+.page .shortcuts button{font-size:12.5px}
+.body{padding:var(--pagina-pad-top) var(--pagina-pad-x) 48px}
+.columns{max-width:var(--pagina-max);gap:clamp(28px,4vw,56px)}
+.heading h2,.next>h2{font-size:11px;font-weight:650;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.heading a,.page .converse{font-size:12.5px;gap:6px}
+.page .converse{color:var(--brand-ink)}
+.goalArea{padding-bottom:20px}
+.goalBullets li{font-size:16px;padding:8px 0}
+.goalBullets small{font-size:11px}
+.empty{font-size:14px}
+.next{margin-top:28px;padding:20px 22px;border:1px solid rgba(var(--gold-rgb),.32);border-radius:var(--radio-tarjeta);background:linear-gradient(180deg,rgba(var(--gold-rgb),.07),transparent 75%),var(--card)}
+.next>h2{color:var(--gold-dark)}
+:global(.dark) .next>h2{color:var(--gold-bright)}
+.next h3{font-family:var(--serif-ui);font-size:24px;line-height:1.25;font-weight:600;letter-spacing:-.01em;margin:10px 0 6px}
+.next p{font-size:13.5px;margin:4px 0 16px}
+.page .next>button{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 16px;border-radius:10px;font-size:13.5px;font-weight:600;color:#fff;background:var(--brand)}
+.page .next>button:hover{filter:brightness(1.08)}
+.page .next>button:disabled{opacity:.5}
+.muted{font-size:13px}
+.aside{gap:32px}
+.agendaItem,.task{font-size:14px;padding:11px 0;gap:14px}
+.agendaItem time,.task time{font-size:12.5px;min-width:44px;font-variant-numeric:tabular-nums}
+.agendaItem[data-current=true]{border-left:2px solid var(--gold);padding-left:12px;margin-left:-14px;background:linear-gradient(90deg,rgba(var(--gold-rgb),.07),transparent)}
+.page .periodRow{font-size:14px;padding:13px 0}
+.periodRow time{font-size:12.5px}
+.page .habit{font-size:13.5px;min-height:30px}
+.check{width:16px;height:16px;border-radius:5px}
+.habit kbd{font-size:11.5px}
+.pager{font-size:11.5px}
+.error{font-size:13px}
+.error button{font-size:12.5px!important}
+/* Contexto del día (30 sep, noche): la semana y el mes que lo cubren, como en el teléfono. */
+.contexto{margin:0 0 22px;padding:14px 16px;border:1px solid color-mix(in srgb,var(--brand) 22%,var(--line));border-radius:var(--radio-tarjeta);background:color-mix(in srgb,var(--brand) 5%,transparent);display:grid;gap:8px}
+.contexto p{margin:0;display:flex;gap:12px;align-items:baseline;font-size:13.5px;color:var(--muted);line-height:1.45}
+.contexto span{flex-shrink:0;min-width:84px;font-size:10.5px;font-weight:650;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.contexto b{font-family:var(--serif-ui);font-weight:500;font-size:18px;color:var(--foreground);letter-spacing:-.2px}
+.contexto small{font-size:11px;color:var(--gold-dark,#c46f00)}
+:global(.dark) .contexto small{color:var(--gold)}
+/* La barra de período se alinea con la columna de contenido (antes iba pegada al borde). */
+@container hoy (min-width:701px){.periodBar{padding-inline:max(var(--pagina-pad-x),calc((100% - var(--pagina-max))/2))}}

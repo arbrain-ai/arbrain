@@ -1,0 +1,22 @@
+{
+  "name": "Tu Arbrain",
+  "short_name": "Tu Arbrain",
+  "description": "Tu cerebro artificial, servido por tu propia computadora: tu Levy, tu día y tu plan",
+  "start_url": "/chat",
+  "display": "standalone",
+  "background_color": "#0A0A0F",
+  "theme_color": "#0A0A0F",
+  "orientation": "any",
+  "categories": ["productivity"],
+  "icons": [
+    { "src": "/tu-arbrain-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/tu-arbrain-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/tu-arbrain-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "id": "/tu-arbrain",
+  "scope": "/",
+  "shortcuts": [
+    { "name": "Hablar con Levy", "url": "/chat", "icons": [{ "src": "/tu-arbrain-192.png", "sizes": "192x192" }] },
+    { "name": "Calendario", "url": "/calendar", "icons": [{ "src": "/tu-arbrain-192.png", "sizes": "192x192" }] }
+  ]
+}

@@ -1,0 +1,145 @@
+/* Pasos de herramientas del turno de Levy (25 oct 2026, pieza portada de la rama sistema-diseno-titanio, nada más):
+   renglones planos sin píldora. Punto verde = hecho, gris latiendo = en curso, rojo = falló. La acción en semibold
+   con la tinta del texto y el detalle en mono gris. El paso en curso lleva un destello que recorre su texto: blanco en
+   oscuro y, en claro, una luz que aclara la tinta al pasar. Con movimiento reducido, todo queda quieto. */
+.bandeja { list-style: none; margin: 2px 0 10px; padding: 0; display: grid; gap: 0; min-width: 0; }
+.bandeja > li { min-width: 0; }
+.paso {
+  display: flex; align-items: center; gap: 9px; width: 100%; min-width: 0; min-height: 28px; padding: 3px 6px 3px 0;
+  border: 0; border-radius: 8px; background: transparent; color: inherit; text-align: left; cursor: pointer; overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+@media (hover: hover) { .paso:hover { background: rgba(var(--foreground-rgb), 0.035); } }
+.paso:focus-visible { outline: 2px solid rgba(var(--primary-rgb), 0.7); outline-offset: 1px; }
+.paso[aria-expanded='true'] { background: rgba(var(--primary-rgb), 0.08); }
+@media (pointer: coarse) { .paso { min-height: 38px; } }
+
+.punto { flex: none; width: 7px; height: 7px; margin: 0 1px 0 2px; border-radius: 50%; background: rgba(var(--foreground-rgb), 0.3); }
+.paso[data-estado='listo'] .punto { background: var(--l-verde-4, #3fb27f); }
+.paso[data-estado='error'] .punto { background: var(--l-rojo-4, #e0484d); }
+.paso[data-estado='corriendo'] .punto { background: rgba(var(--foreground-rgb), 0.45); animation: late 1.1s cubic-bezier(0.65, 0, 0.35, 1) infinite; }
+
+.accion {
+  flex: none; max-width: 52%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font: 600 13px/18px var(--font-sans); letter-spacing: -0.003em; color: rgba(var(--foreground-rgb), 0.9);
+}
+.detalle {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font: 400 12px/18px var(--font-mono); letter-spacing: -0.01em; color: var(--muted);
+}
+.icono { flex: none; width: 13px; height: 13px; color: var(--muted); }
+.paso[data-estado='error'] .icono[data-falla] { color: var(--l-tinta-rojo, #e0484d); }
+.mas { font: 600 12.5px/18px var(--font-sans); color: var(--muted); }
+.nota { padding: 2px 0; }
+
+/* El destello: el texto del paso en curso se pinta con un degradado que lo cruza de izquierda a derecha. */
+.paso[data-estado='corriendo'] .accion {
+  --base: rgba(var(--foreground-rgb), 0.55);
+  --luz: var(--l-gris-16, #ffffff);
+  background: linear-gradient(90deg, var(--base) 0%, var(--base) 35%, var(--luz) 50%, var(--base) 65%, var(--base) 100%);
+  background-size: 250% 100%; background-position: 130% 0;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: destello 1.8s linear infinite;
+}
+:global(:root:not(.dark)) .paso[data-estado='corriendo'] .accion { --base: rgba(var(--foreground-rgb), 0.88); --luz: rgba(var(--foreground-rgb), 0.28); }
+
+@keyframes late { 0%, 100% { opacity: 0.35; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1); } }
+@keyframes destello { to { background-position: -150% 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .paso[data-estado='corriendo'] .punto { animation: none; opacity: 0.8; }
+  .paso[data-estado='corriendo'] .accion { animation: none; background: none; color: rgba(var(--foreground-rgb), 0.9); }
+}
+
+/* ─── Rastro del turno (25 oct 2026, «respuesta primero, rastro plegado») ───────────────────────────────────────────
+   El turno terminado enseña la respuesta y debajo, plegado, «Cómo lo hice · N pasos ›». Mientras trabaja: una línea viva
+   en español + reloj y el grupo en curso; el resto plegado. Mismas tintas que los pasos: nada de titanio ni glow nuevo. */
+.accionLarga { max-width: none; flex: 0 1 auto; min-width: 0; }
+.cuenta { flex: none; font: 400 12.5px/18px var(--font-sans); color: var(--muted); white-space: nowrap; }
+.flecha { transition: transform 0.15s ease; }
+.paso[aria-expanded='true'] .flecha { transform: rotate(90deg); }
+.llamadas { list-style: none; margin: 2px 0 4px 5px; padding: 0 0 0 12px; border-left: 1px solid var(--border); display: grid; min-width: 0; }
+.llamadas > li { min-width: 0; }
+.pasoLlamada .accion { font-weight: 500; font-size: 12.5px; max-width: 60%; }
+
+.rastro { margin: 0 0 6px; min-width: 0; font-family: var(--font-sans); }
+.abrir {
+  display: inline-flex; align-items: center; gap: 6px; min-width: 0; min-height: 28px; padding: 3px 8px 3px 0; border: 0;
+  border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; text-align: left;
+  font: 500 12.5px/18px var(--font-sans); -webkit-tap-highlight-color: transparent;
+}
+@media (hover: hover) { .abrir:hover { color: rgba(var(--foreground-rgb), 0.85); } }
+.abrir:focus-visible { outline: 2px solid rgba(var(--primary-rgb), 0.7); outline-offset: 1px; }
+@media (pointer: coarse) { .abrir { min-height: 38px; } }
+.abrirTexto { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.abrir .flecha { flex: none; width: 13px; height: 13px; }
+.abrir[aria-expanded='true'] .flecha { transform: rotate(90deg); }
+.cuerpo { margin: 4px 0 6px 5px; padding: 2px 0 2px 12px; border-left: 1px solid var(--border); min-width: 0; }
+.razonamiento {
+  margin: 0 0 6px; padding: 2px 0 2px 2px; font: 400 13px/1.6 var(--font-sans); color: var(--muted);
+  white-space: pre-wrap; overflow-wrap: anywhere; max-height: 22rem; overflow-y: auto;
+}
+.resumenes { margin: 2px 0 4px; font: italic 400 11px/1.45 var(--font-sans); color: var(--muted); }
+
+/* Línea viva: el giro reutiliza el anillo de la actividad de siempre. */
+.giro { position: relative; flex: none; width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--l-borde-morado, rgba(var(--primary-rgb), 0.2)); }
+.giro::after { content: ''; position: absolute; inset: -2px; border-radius: 50%; border: 2px solid transparent; border-top-color: rgb(var(--primary-rgb)); animation: girar 0.9s linear infinite; }
+.giro[data-quieto]::after { animation: none; border-top-color: transparent; }
+.giro[data-quieto] { border-color: rgba(var(--foreground-rgb), 0.25); }
+.linea { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: rgba(var(--foreground-rgb), 0.82); }
+.agentes {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 3px 0; border: 0; background: transparent;
+  color: var(--muted); font: 500 12.5px/18px var(--font-sans); cursor: pointer;
+}
+@media (hover: hover) { .agentes:hover { color: rgba(var(--foreground-rgb), 0.85); } }
+.agentes:focus-visible { outline: 2px solid rgba(var(--primary-rgb), 0.7); outline-offset: 1px; }
+@media (pointer: coarse) { .agentes { min-height: 38px; } }
+
+/* Línea fija sobre el composer mientras Levy trabaja y su turno quedó fuera de la vista. */
+.fija {
+  display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0; margin: 0 0 8px; padding: 6px 12px;
+  border: 1px solid var(--border); border-radius: 999px; background: var(--card); color: var(--muted);
+  font: 500 12.5px/18px var(--font-sans); text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.fija:focus-visible { outline: 2px solid rgba(var(--primary-rgb), 0.7); outline-offset: 1px; }
+.fija .linea { flex: 0 1 auto; }
+.fijaMeta { flex: none; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+@keyframes girar { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .giro::after { animation: none; }
+  .flecha, .paso[aria-expanded='true'] .flecha, .abrir[aria-expanded='true'] .flecha { transition: none; }
+}
+/* Toggle «Razonamiento» mientras trabaja: el renglón es la línea viva (giro + qué hace + reloj). */
+.abrir { max-width: 100%; }
+.abrirVivo { gap: 8px; min-height: 32px; font-size: 13px; }
+.abrirVivo .linea { flex: 0 1 auto; }
+
+/* Imágenes que leyó Levy (26 oct 2026): miniatura de caja fija en la fila y la imagen contenida en el detalle.
+   Borde tenue y sombra mínima, las tintas de siempre; sin glow nuevo. */
+.miniaturas { flex: none; display: inline-flex; align-items: center; gap: 4px; }
+.miniatura {
+  flex: none; display: block; width: 42px; height: 28px; object-fit: cover; border-radius: 6px;
+  border: 1px solid rgba(var(--foreground-rgb), 0.12); background: rgba(var(--foreground-rgb), 0.05);
+  box-shadow: 0 1px 2px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.08); opacity: 0.92; transition: opacity 0.15s ease;
+}
+@media (hover: hover) { .paso:hover .miniatura { opacity: 1; } }
+.imagenLeida {
+  display: block; max-width: 100%; padding: 0; border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+  background: rgba(var(--foreground-rgb), 0.04); cursor: zoom-in; line-height: 0;
+}
+.imagenLeida img { display: block; max-width: 100%; max-height: 480px; width: auto; height: auto; object-fit: contain; }
+.imagenLeida:focus-visible { outline: 2px solid rgba(var(--primary-rgb), 0.7); outline-offset: 1px; }
+
+/* Delegación en una línea (27 oct 2026): punto de estado (morado y quieto mientras corren, 28 oct) + nombres cortos + clic al Taller. Misma tinta que el rastro. */
+.delegados {
+  display: flex; align-items: center; gap: 7px; max-width: 100%; min-height: 26px; padding: 2px 0; border: 0; background: transparent;
+  color: var(--muted); font: 500 12.5px/18px var(--font-sans); cursor: pointer; text-align: left;
+}
+@media (hover: hover) { .delegados:hover { color: rgba(var(--foreground-rgb), 0.85); } }
+.delegados:focus-visible { outline: 2px solid rgba(var(--primary-rgb), 0.7); outline-offset: 1px; }
+@media (pointer: coarse) { .delegados { min-height: 36px; } }
+.puntoEstado { flex: none; width: 7px; height: 7px; border-radius: 50%; background: rgba(var(--foreground-rgb), 0.35); }
+.puntoEstado[data-estado='corriendo'] { background: rgb(var(--primary-rgb)); }
+.puntoEstado[data-estado='listo'] { background: rgba(var(--primary-rgb), 0.55); }
+.puntoEstado[data-estado='error'] { background: var(--error); }

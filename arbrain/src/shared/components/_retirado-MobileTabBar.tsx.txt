@@ -1,0 +1,65 @@
+// RETIRADO 27 sep 2026: se quitó la barra inferior del teléfono (redundante con el
+// menú de arriba a la izquierda). Consumidores: solo dashboard-shell.tsx (ya sin montarlo).
+// Se conserva como referencia; no se compila (.txt).
+'use client'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { Target, CalendarDays, Bot, Wallet, Menu } from 'lucide-react'
+import { useLayoutStore } from '@/shared/stores/layout-store'
+import { useAuth } from '@/hooks/useAuth'
+import { canAccessRoute } from '@/lib/permissions'
+
+// Barra inferior del teléfono (25 sep 2026): las cuatro superficies del día a un
+// toque, como una app nativa. El resto (Command Center, Contenido, Artificial
+// Brain, Rutinas, Biblioteca, ajustes) sigue en el cajón lateral: «Más» lo abre.
+// No sustituye al sidebar; en desktop no se monta.
+const TABS = [
+  { href: '/todotask/hoy', match: '/todotask', label: 'Hoy', icon: Target },
+  { href: '/calendar', match: '/calendar', label: 'Calendario', icon: CalendarDays },
+  { href: '/chat', match: '/chat', label: 'Levy', icon: Bot },
+  { href: '/finanzas', match: '/finanzas', label: 'Finanzas', icon: Wallet },
+] as const
+
+export function MobileTabBar() {
+  const pathname = usePathname() ?? ''
+  const { role } = useAuth()
+  const leftSidebarOpen = useLayoutStore((s) => s.leftSidebarOpen)
+  const libraryOpen = useLayoutStore((s) => s.libraryOpen)
+  const toggleLeftSidebar = useLayoutStore((s) => s.toggleLeftSidebar)
+  const closeLeftSidebar = useLayoutStore((s) => s.closeLeftSidebar)
+  const closeLibrary = useLayoutStore((s) => s.closeLibrary)
+  const tabs = TABS.filter(({ href }) => canAccessRoute(href, role))
+  const inTabs = tabs.some(({ match }) => pathname === match || pathname.startsWith(`${match}/`))
+
+  return (
+    <nav className="mobile-tabbar" aria-label="Secciones principales">
+      {tabs.map(({ href, match, label, icon: Icon }) => {
+        const active = !leftSidebarOpen && !libraryOpen && (pathname === match || pathname.startsWith(`${match}/`))
+        return (
+          <Link
+            key={href}
+            href={href}
+            onClick={() => { closeLeftSidebar(); closeLibrary() }}
+            className="mobile-tab"
+            data-active={active}
+            aria-current={active ? 'page' : undefined}
+          >
+            <Icon className="size-[22px]" strokeWidth={active ? 2.2 : 1.8} />
+            <span>{label}</span>
+          </Link>
+        )
+      })}
+      <button
+        type="button"
+        onClick={toggleLeftSidebar}
+        className="mobile-tab"
+        data-active={leftSidebarOpen || (!inTabs && !libraryOpen)}
+        aria-expanded={leftSidebarOpen}
+        aria-label="Más secciones"
+      >
+        <Menu className="size-[22px]" strokeWidth={1.8} />
+        <span>Más</span>
+      </button>
+    </nav>
+  )
+}

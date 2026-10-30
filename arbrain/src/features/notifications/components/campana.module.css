@@ -1,0 +1,20 @@
+/* La campana de decisiones (29 oct 2026). Color con significado (docs/builds/diseno-unificado-2026-10-27/LENGUAJE.md):
+ * casi todo gris; el ámbar vive solo como el punto de «Te toca decidir» (una pieza por pantalla); el rojo, solo en el
+ * punto de lo urgente (peligro). Los botones son teclas apagadas: lo principal se nota por la tinta, no por la luz. */
+.puntoDecidir {
+  width: 7px; height: 7px; border-radius: 50%; flex: none;
+  background: rgb(var(--l-ambar-rgb, 255, 145, 1));
+}
+.puntoUrgente {
+  width: 7px; height: 7px; border-radius: 50%; flex: none; margin-top: 7px;
+  background: var(--l-tinta-rojo, var(--error));
+}
+.tarjeta { animation: entra 220ms var(--l-curva-salida, cubic-bezier(0.16, 1, 0.3, 1)); }
+.tarjeta[data-saliendo] { animation: sale 260ms var(--l-curva-salida, cubic-bezier(0.16, 1, 0.3, 1)) forwards; }
+@keyframes entra { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+@keyframes sale { to { opacity: 0; transform: translateX(10px); } }
+.borrador {
+  border-left: 2px solid var(--l-borde-fuerte, var(--border));
+  white-space: pre-wrap;
+}
+@media (prefers-reduced-motion: reduce) { .tarjeta, .tarjeta[data-saliendo] { animation: none; } }

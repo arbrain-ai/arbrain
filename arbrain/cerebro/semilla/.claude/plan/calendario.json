@@ -1,0 +1,15 @@
+{
+  "_como_se_usa": [
+    "Tu calendario local de Arbrain. Lo pinta la sección Calendario del panel (Día, Semana y Mes).",
+    "Levy lo edita cuando le pides «agéndame…», «bloquea…» o «ponme una tarea para…». También lo puedes editar a mano.",
+    "eventos[]: { id (texto único), titulo, inicio y fin (ISO con zona, p. ej. 2026-10-22T09:00:00-06:00; todo el día: 2026-10-22 y fin = día siguiente),",
+    "  todoElDia (true/false), descripcion, lugar, repetir (opcional, una regla RRULE: FREQ=DAILY | FREQ=WEEKLY;BYDAY=MO,WE,FR | FREQ=MONTHLY; admite INTERVAL, COUNT y UNTIL=AAAAMMDD),",
+    "  omitir (fechas AAAA-MM-DD sin esa repetición), zona (opcional, p. ej. America/Mexico_City) }.",
+    "tareas[]: { id, titulo, descripcion, fecha (AAAA-MM-DD o ISO con hora; null = sin fecha), duracionMin, prioridad (1 urgente … 4 normal), hecha, hechaEn, etiquetas[] }.",
+    "Los objetivos del mes, la semana y el día viven en objetivos.md (misma carpeta). No edites «recibos»: los usa la app para no duplicar."
+  ],
+  "version": 1,
+  "eventos": [],
+  "tareas": [],
+  "recibos": {}
+}

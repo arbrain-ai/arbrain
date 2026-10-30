@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-read-chat-image"
+description = "Import a pasted screenshot using the bounded image reader; no general filesystem access."
+commands.allow = ["read_chat_image"]
