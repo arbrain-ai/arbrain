@@ -85,12 +85,17 @@ test('INSTALAR: en la compu de la persona el guion no cambia; el desvío es solo
   // En este repo, la plantilla; en la copia del alumno, el INSTALAR.md ya generado de la raíz.
   const plantilla = join(ARBRAIN, 'empaquetado', 'plantillas', 'INSTALAR.plantilla.md')
   const instalar = readFileSync(existsSync(plantilla) ? plantilla : join(ARBRAIN, '..', 'INSTALAR.md'), 'utf8')
-  const menciones = instalar.split('\n').filter((l) => /NUBE|espejo|servidor Linux|mi nube/i.test(l))
-  // Un solo párrafo nuevo, el del servidor, condicionado a Linux sin pantalla (o a que la persona lo diga).
-  const parrafo = instalar.slice(instalar.indexOf('**Si esto va en un servidor**'), instalar.indexOf('## Reglas que no se rompen'))
-  assert.ok(parrafo.length > 0)
-  assert.match(parrafo, /`uname -s` es `Linux`, `\$DISPLAY` y `\$WAYLAND_DISPLAY` vacíos y existe\s+`\/run\/systemd\/system`/)
-  assert.match(parrafo, /En su computadora \(Mac, Windows o Linux con pantalla\) todo sigue igual\./)
-  for (const l of menciones) assert.ok(parrafo.includes(l.trim()), `mención fuera del párrafo del servidor: ${l}`)
-  assert.doesNotMatch(instalar.replace(parrafo, ''), /espejo\.mjs|INSTALAR-NUBE|nube\.sh/)
+  // Desde la v0.2.14 (tres caminos) el desvío vive en la sección «Antes de todo · ¿Dónde vive su Arbrain?» y en la
+  // portada para la persona; antes era un párrafo «Si esto va en un servidor» (30 oct 2026: la prueba seguía buscándolo).
+  const desde = instalar.indexOf('## Antes de todo · ¿Dónde vive su Arbrain?')
+  const hasta = instalar.indexOf('## Reglas que no se rompen')
+  assert.ok(desde > 0 && hasta > desde, 'la sección del camino va antes de las reglas')
+  const seccion = instalar.slice(desde, hasta)
+  assert.match(seccion, /`uname -s` es `Linux`, `\$DISPLAY` y `\$WAYLAND_DISPLAY` vacíos y existe\s+`\/run\/systemd\/system`/)
+  assert.match(seccion, /\*\*1:\*\* sigue este guion desde el PASO 0\./)
+  assert.match(seccion, /Si no contesta o duda, es \*\*1\*\*\./)
+  // El guion de la computadora (de las reglas al final) no nombra el servidor ni el espejo ni sus herramientas.
+  const guion = instalar.slice(hasta)
+  for (const l of guion.split('\n')) assert.doesNotMatch(l, /NUBE|espejo|servidor Linux|mi nube/i, `mención fuera del desvío: ${l}`)
+  assert.doesNotMatch(guion, /espejo\.mjs|INSTALAR-NUBE|nube\.sh/)
 })

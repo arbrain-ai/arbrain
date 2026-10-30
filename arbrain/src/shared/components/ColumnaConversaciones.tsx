@@ -68,7 +68,6 @@ export function ColumnaConversaciones({ onElegir, tactil = false }: Props) {
 
       <div
         className={`shrink-0 border-t border-border-subtle px-3 ${tactil ? 'columna-pie-tactil' : ''}`}
-        data-evita-pausa
         style={tactil ? undefined : { paddingBottom: '0.375rem' }}
       >
         <AccionesBarra onNavegar={onElegir} tactil={tactil} />

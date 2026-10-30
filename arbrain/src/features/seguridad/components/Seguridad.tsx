@@ -2,10 +2,10 @@
 /**
  * Seguridad del alumno (12 oct 2026; docs/builds/seguridad-alumno-2026-10-12/AUDITORIA.md). Edición cliente.
  *
- *   FrenoGeneral       botón «Pausar todo» siempre a la mano y, en pausa, la franja «Levy está en pausa · Reanudar»
- *                      (con «Volver a que me pregunte» si está en Autónomo). Junto a él, la píldora «Autónomo» con
- *                      «Volver a preguntar» (0.2.15: reemplaza a «Sin freno · Poner»). Y, una vez, la tarjeta de
- *                      migración para quien venía de «Sin preguntar» o del freno quitado, o cuyo texto cambió.
+ *   FrenoGeneral       en pausa, la franja «Levy está en pausa · Reanudar» (con «Volver a que me pregunte» si está en
+ *                      Autónomo). Y, una vez, la tarjeta de migración para quien venía de «Sin preguntar» o del freno
+ *                      quitado, o cuyo texto cambió. «Pausar todo» y Autónomo/Preguntar viven en el menú del modelo del
+ *                      chat (`PermisosEnModelo.tsx`, 30 oct 2026, Daniel: «deja la ui limpia»).
  *   SeccionSeguridad   Ajustes › Permisos y seguridad: el nivel de permisos (Autónomo con su consentimiento, Automático
  *                      en mi carpeta, Preguntar siempre), las carpetas a las que el cerebro puede entrar, el freno,
  *                      «Lo que hizo Levy» (bitácora local) y el tope de gasto.
@@ -15,149 +15,31 @@
  * Todo pasa por las rutas `/api/seguridad/*` del servidor local, que exigen la cookie de la app y su origen; los
  * secretos los pone ese servidor (reanudar, abrir carpetas y aflojar permisos llevan el de confirmar), nunca el navegador.
  */
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { ReglasSiempre } from '@/features/permisos/components/ReglasSiempre'
 import { createPortal } from 'react-dom'
 import { ExternalLink, FolderOpen, FolderPlus, Loader2, OctagonPause, Play, RefreshCw, ScrollText, ShieldAlert, ShieldCheck, Sparkles, Wallet, X } from 'lucide-react'
 import { abrirEnNavegador } from '@/features/primer-arranque/lib/llaves'
 import { CASILLAS_VACIAS, ConsentimientoAutonomia, listoParaAceptar, type Casillas } from './ConsentimientoAutonomia'
 import {
-  avisoAutonomo, consentimientoVigente, cuerpoAceptacion, ENLACES_TOPE, ETIQUETA_DECISION, FICHAS_MODO, horaDe, NOMBRE_MODO, nombreHerramienta, RED_MINIMA, resumenGasto,
-  type AccionBitacora, type CarpetaAbierta, type EstadoPausa, type EstadoPermisosLevy, type ModoPermisos, type RespuestaGasto, type ViaConsentimiento,
+  avisoAutonomo, consentimientoVigente, cuerpoAceptacion, DONDE_PAUSAR, ENLACES_TOPE, ETIQUETA_DECISION, FICHAS_MODO, horaDe, NOMBRE_MODO, nombreHerramienta, RED_MINIMA, resumenGasto,
+  type AccionBitacora, type CarpetaAbierta, type EstadoPermisosLevy, type ModoPermisos, type RespuestaGasto, type ViaConsentimiento,
 } from '../lib/seguridad'
-import {
-  CLAVE_PREFERENCIA_PAUSA, colocarBotonPausa, dondeEstaPausa, ESQUINAS_PAUSA, escribirPreferenciaPausa, EVENTO_PREFERENCIA_PAUSA, leerPreferenciaPausa,
-  SELECTOR_OBSTACULOS_PAUSA, type Caja, type Colocacion, type EsquinaPausa, type PreferenciaPausa,
-} from '../lib/boton-pausa'
+import { EVENTO_PERMISOS, pedir, useModoGlobal, usePausa } from './estado-seguridad'
 
-async function pedir<T>(url: string, init?: RequestInit): Promise<T> {
-  const r = await fetch(url, { cache: 'no-store', ...init, headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) } })
-  const j = await r.json().catch(() => ({})) as T & { error?: string }
-  if (!r.ok) throw new Error(j.error || `Error ${r.status}`)
-  return j
-}
-
-function usePausa(cadaMs = 3_000) {
-  const [pausa, setPausa] = useState<EstadoPausa | null>(null)
-  const [ocupado, setOcupado] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const leer = useCallback(async () => { try { setPausa(await pedir<EstadoPausa>('/api/seguridad/pausa')) } catch { /* daemon reiniciando */ } }, [])
-  useEffect(() => {
-    void leer()
-    const t = window.setInterval(() => { if (document.visibilityState === 'visible') void leer() }, cadaMs)
-    return () => window.clearInterval(t)
-  }, [leer, cadaMs])
-  const fijar = useCallback(async (pausado: boolean) => {
-    setOcupado(true); setError(null)
-    try { setPausa(await pedir<EstadoPausa>('/api/seguridad/pausa', { method: 'POST', body: JSON.stringify({ pausado }) })) }
-    catch (e) { setError(e instanceof Error ? e.message : 'No se pudo.') }
-    finally { setOcupado(false) }
-  }, [])
-  return { pausa, ocupado, error, fijar }
-}
-
-/** Avisa a las otras vistas (Ajustes, la píldora) que el modo cambió. */
-const EVENTO_PERMISOS = 'arbrain:permisos'
-
-/** Estado del modo de permisos para toda la app (se consulta cada 10 s y al volver a la ventana). */
-function useModoGlobal(cadaMs = 10_000) {
-  const [estado, setEstado] = useState<EstadoPermisosLevy | null>(null)
-  const [ocupado, setOcupado] = useState(false)
-  const leer = useCallback(async () => { try { setEstado(await pedir<EstadoPermisosLevy>('/api/seguridad/permisos')) } catch { /* daemon reiniciando */ } }, [])
-  useEffect(() => {
-    void leer()
-    const t = window.setInterval(() => { if (document.visibilityState === 'visible') void leer() }, cadaMs)
-    const alCambiar = () => void leer()
-    window.addEventListener(EVENTO_PERMISOS, alCambiar)
-    return () => { window.clearInterval(t); window.removeEventListener(EVENTO_PERMISOS, alCambiar) }
-  }, [leer, cadaMs])
-  const mandar = useCallback(async (cuerpo: Record<string, unknown>) => {
-    setOcupado(true)
-    try { setEstado(await pedir<EstadoPermisosLevy>('/api/seguridad/permisos', { method: 'POST', body: JSON.stringify(cuerpo) })); window.dispatchEvent(new Event(EVENTO_PERMISOS)); return true }
-    catch { return false }
-    finally { setOcupado(false) }
-  }, [])
-  return { estado, autonomo: estado?.modo === 'autonomo', desde: estado?.consentimiento?.ts ?? null, ocupado, mandar }
-}
-
-/** Preferencia del botón «Pausar todo» (esquina y texto), guardada en este navegador y compartida entre Ajustes y el botón. */
-function usePreferenciaPausa() {
-  const [pref, setPref] = useState<PreferenciaPausa>(() => leerPreferenciaPausa(null))
-  useEffect(() => {
-    const leer = () => { try { setPref(leerPreferenciaPausa(window.localStorage.getItem(CLAVE_PREFERENCIA_PAUSA))) } catch { /* almacenamiento bloqueado */ } }
-    leer()
-    const alGuardar = (e: StorageEvent) => { if (e.key === CLAVE_PREFERENCIA_PAUSA) leer() }
-    window.addEventListener(EVENTO_PREFERENCIA_PAUSA, leer)
-    window.addEventListener('storage', alGuardar)
-    return () => { window.removeEventListener(EVENTO_PREFERENCIA_PAUSA, leer); window.removeEventListener('storage', alGuardar) }
-  }, [])
-  const guardar = useCallback((cambio: Partial<PreferenciaPausa>) => {
-    setPref(prev => {
-      const texto = escribirPreferenciaPausa({ ...prev, ...cambio })
-      try { window.localStorage.setItem(CLAVE_PREFERENCIA_PAUSA, texto) } catch { /* almacenamiento bloqueado: vale para esta sesión */ }
-      queueMicrotask(() => window.dispatchEvent(new Event(EVENTO_PREFERENCIA_PAUSA)))
-      return leerPreferenciaPausa(texto)
-    })
-  }, [])
-  return { pref, guardar }
-}
-
-/** Ancho que se reserva al esquivar: el del botón ya abierto con su texto, para que al pasar el ratón tampoco tape nada. */
-const ANCHO_ABIERTO = 128
-
-/** Mide lo que el botón no debe tapar y lo coloca en su esquina sin taparlo (al cambiar el tamaño de la ventana o el campo de escribir). */
-function useColocacion(esquina: EsquinaPausa, activo: boolean) {
-  const ref = useRef<HTMLDivElement | null>(null)
-  const [pos, setPos] = useState<Colocacion | null>(null)
-  useEffect(() => {
-    if (!activo) return
-    let cuadro = 0
-    const medir = () => {
-      cuadro = 0
-      const el = ref.current
-      if (!el) return
-      const r = el.getBoundingClientRect()
-      const obstaculos: Caja[] = Array.from(document.querySelectorAll(SELECTOR_OBSTACULOS_PAUSA))
-        .filter(o => !el.contains(o))
-        .map(o => o.getBoundingClientRect())
-      const nueva = colocarBotonPausa({ esquina, ancho: Math.max(r.width, ANCHO_ABIERTO), alto: r.height || 32, vw: window.innerWidth, vh: window.innerHeight, obstaculos })
-      setPos(prev => (prev && prev.top === nueva.top && prev.bottom === nueva.bottom && prev.left === nueva.left && prev.right === nueva.right ? prev : nueva))
-    }
-    const pedir = () => { if (!cuadro) cuadro = window.requestAnimationFrame(medir) }
-    pedir()
-    window.addEventListener('resize', pedir)
-    window.visualViewport?.addEventListener('resize', pedir)
-    // El campo de escribir crece con el texto y aparece o se va al cambiar de panel: un vistazo barato cada medio segundo.
-    const t = window.setInterval(() => { if (document.visibilityState === 'visible') pedir() }, 500)
-    return () => {
-      window.removeEventListener('resize', pedir)
-      window.visualViewport?.removeEventListener('resize', pedir)
-      window.clearInterval(t)
-      if (cuadro) window.cancelAnimationFrame(cuadro)
-    }
-  }, [esquina, activo])
-  return { ref, pos }
-}
-
-/** Botón flotante «Pausar todo», la píldora «Autónomo» y, en pausa, la franja con «Reanudar». */
+/** La franja de pausa (con «Reanudar») y, una vez, la tarjeta de migración. Pausar y el modo viven en el menú del modelo. */
 export function FrenoGeneral() {
   const [montado, setMontado] = useState(false)
   useEffect(() => setMontado(true), [])
   const { pausa, ocupado, error, fijar } = usePausa()
   const modo = useModoGlobal()
-  const { pref } = usePreferenciaPausa()
-  const { ref, pos } = useColocacion(pref.esquina, montado && !!pausa && !pausa.pausado)
   if (!montado || !pausa) return null
   const volver = (via: ViaConsentimiento) => void modo.mandar({ modo: 'carpeta', via })
-  const derecha = pref.esquina !== 'abajo-izquierda'
-  const arriba = pref.esquina === 'arriba-derecha'
-  // Mientras se mide la primera vez, la esquina con su margen de siempre (bottom-3/right-3): nunca se queda sin botón.
-  const lugar: React.CSSProperties = pos ?? (arriba ? { top: 56, right: 12 } : derecha ? { bottom: 12, right: 12 } : { bottom: 12, left: 12 })
   return createPortal(
     <>
     {modo.estado && (modo.estado.migracion || modo.estado.reaceptar) && <TarjetaMigracion estado={modo.estado} mandar={modo.mandar} />}
-    {pausa.pausado ? (
-      <div role="status" aria-live="polite" className="fixed left-1/2 top-14 z-[101] flex max-w-[min(44rem,calc(100vw-2rem))] -translate-x-1/2 flex-wrap items-center gap-3 rounded-xl border border-amber-400/40 bg-amber-950/80 px-4 py-2.5 text-[13px] text-amber-50 shadow-lg backdrop-blur-xl">
+    {pausa.pausado && (
+      <div role="status" aria-live="polite" data-franja-pausa className="fixed left-1/2 top-14 z-[101] flex max-w-[min(44rem,calc(100vw-2rem))] -translate-x-1/2 flex-wrap items-center gap-3 rounded-xl border border-amber-400/40 bg-amber-950/80 px-4 py-2.5 text-[13px] text-amber-50 shadow-lg backdrop-blur-xl">
         <OctagonPause className="size-4 shrink-0" aria-hidden />
         <span className="min-w-0">Levy está en pausa: no corre ningún turno, rutina ni herramienta.{error ? ` ${error}` : ''}</span>
         {modo.autonomo && (
@@ -168,24 +50,6 @@ export function FrenoGeneral() {
         <button type="button" onClick={() => void fijar(false)} disabled={ocupado} className="btn-secondary shrink-0 !px-3 !py-1.5 text-[12.5px]">
           {ocupado ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Play className="size-3.5" aria-hidden />} Reanudar
         </button>
-      </div>
-    ) : (
-      <div ref={ref} style={lugar} data-boton-pausa={pref.esquina}
-        className={`fixed z-[95] flex max-w-[calc(100vw-1.5rem)] gap-2 ${arriba ? 'flex-col' : 'flex-col-reverse'} ${derecha ? 'items-end' : 'items-start'}`}>
-        <button type="button" onClick={() => void fijar(true)} disabled={ocupado} aria-label="Pausar todo" title="Pausar todo: detiene todo lo que Levy está haciendo y no deja empezar nada hasta que reanudes"
-          className={`group flex h-8 min-w-8 items-center justify-center rounded-full border border-border-subtle bg-[var(--glass-bg)] text-[12px] font-medium text-foreground/80 shadow-md backdrop-blur-xl transition-[colors,padding] hover:border-red-400/50 hover:text-red-300 focus-visible:border-red-400/50 focus-visible:text-red-300 focus-visible:outline-2 focus-visible:outline-brand ${pref.conTexto ? 'gap-1.5 px-3' : 'px-2 hover:gap-1.5 hover:px-3 focus-visible:gap-1.5 focus-visible:px-3'}`}>
-          {ocupado ? <Loader2 className="size-3.5 shrink-0 animate-spin" aria-hidden /> : <OctagonPause className="size-3.5 shrink-0" aria-hidden />}
-          <span aria-hidden className={pref.conTexto ? 'whitespace-nowrap' : 'max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-[max-width,opacity] duration-150 group-hover:max-w-[8rem] group-hover:opacity-100 group-focus-visible:max-w-[8rem] group-focus-visible:opacity-100'}>Pausar todo</span>
-        </button>
-        {modo.autonomo && (
-          <div role="status" className="flex max-w-[min(26rem,calc(100vw-1.5rem))] items-center gap-2 rounded-full border border-brand/40 bg-[var(--glass-bg)] py-1 pl-3 pr-1 text-[12px] text-foreground/85 shadow-md backdrop-blur-xl" data-pildora-autonomo>
-            <Sparkles className="size-3.5 shrink-0 text-brand-ink" aria-hidden />
-            <span className="min-w-0 truncate" title={`${avisoAutonomo(modo.desde)} ${RED_MINIMA}`}>Autónomo</span>
-            <button type="button" onClick={() => volver('pildora')} disabled={modo.ocupado} className="btn-secondary shrink-0 !rounded-full !px-2.5 !py-0.5 text-[11.5px]" title="Vuelve a «Automático en mi carpeta» en un clic; tu consentimiento se conserva para regresar cuando quieras">
-              {modo.ocupado ? <Loader2 className="size-3 animate-spin" aria-hidden /> : null} Volver a preguntar
-            </button>
-          </div>
-        )}
       </div>
     )}
     </>,
@@ -525,10 +389,9 @@ function LoQueHizoLevy() {
 
 function Freno() {
   const { pausa, ocupado, error, fijar } = usePausa(2_000)
-  const { pref, guardar } = usePreferenciaPausa()
   return (
     <Tarjeta titulo="Pausar todo" icono={OctagonPause}>
-      <p className="text-[13px] leading-relaxed text-muted" data-donde-pausa>Detiene en el acto lo que Levy esté haciendo (respuestas, rutinas, comandos) y no deja empezar nada hasta que reanudes. También está {dondeEstaPausa(pref)} en toda la app{pref.conTexto ? '' : ', como un ícono pequeño que muestra «Pausar todo» al pasarle el ratón'}.</p>
+      <p className="text-[13px] leading-relaxed text-muted" data-donde-pausa>{DONDE_PAUSAR}</p>
       <div className="mt-3 flex items-center gap-3">
         {pausa?.pausado ? (
           <button type="button" onClick={() => void fijar(false)} disabled={ocupado} className="btn-secondary !px-3 !py-2 text-[13px]"><Play className="size-3.5" aria-hidden /> Reanudar</button>
@@ -538,18 +401,7 @@ function Freno() {
         <span className="text-[12.5px] text-muted" role="status">{pausa ? (pausa.pausado ? `En pausa desde ${pausa.desde ? horaDe(pausa.desde) : 'hace un momento'}.` : 'Levy está activo.') : 'Consultando…'}</span>
       </div>
       {error && <p className="mt-2 text-[12.5px] text-red-300" role="alert">{error}</p>}
-      <div className="mt-3 grid gap-2 sm:grid-cols-2">
-        <label className="text-[12px] text-muted">Posición del botón Pausar todo
-          <select value={pref.esquina} onChange={e => guardar({ esquina: e.target.value as EsquinaPausa })} className="input-field mt-1 min-h-10 w-full px-3 text-[13px]" data-preferencia-pausa="esquina">
-            {ESQUINAS_PAUSA.map(e => <option key={e.esquina} value={e.esquina}>{e.nombre[0].toUpperCase() + e.nombre.slice(1)}</option>)}
-          </select>
-        </label>
-        <label className="flex items-center gap-2 self-end pb-2.5 text-[12.5px] text-muted">
-          <input type="checkbox" checked={pref.conTexto} onChange={e => guardar({ conTexto: e.target.checked })} data-preferencia-pausa="texto" />
-          <span>Mostrar con texto</span>
-        </label>
-      </div>
-      <p className="mt-1 text-[12px] text-muted">Se guarda en esta computadora. En pausa, la franja con «Reanudar» siempre se ve completa arriba.</p>
+      <p className="mt-2 text-[12px] text-muted">En pausa, la franja con «Reanudar» siempre se ve completa arriba.</p>
     </Tarjeta>
   )
 }

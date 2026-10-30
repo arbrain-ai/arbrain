@@ -13,10 +13,36 @@ check() { if [ "$2" = "$3" ]; then echo "OK   $1"; else echo "FAIL $1 (esperaba 
 # 1. sshd: solo llave, y gana a 50-cloud-init (archivo 01-)
 check "sshd sin contraseñas" "$(texto_sshd | grep -c '^PasswordAuthentication no$')" 1
 check "sshd root solo con llave" "$(texto_sshd | grep -c '^PermitRootLogin prohibit-password$')" 1
+check "sshd da señal a la sesión callada" "$(texto_sshd | grep -c -e '^ClientAliveInterval 20$' -e '^ClientAliveCountMax 6$')" 2
 check "drop-in va primero" "$(basename "$CONF_SSH")" "01-arbrain.conf"
 check "drop-in bajo NUBE_RAIZ" "${CONF_SSH#"$T"/raiz/etc/ssh/}" "sshd_config.d/01-arbrain.conf"
 
 check "instala bubblewrap (sin él Claude Code no corre en Linux)" "$(printf '%s\n' $PAQUETES | grep -cx bubblewrap)" 1
+check "instala socat (sin él la web dice sandbox «faltan: socat»)" "$(printf '%s\n' $PAQUETES | grep -cx socat)" 1
+mkdir -p "$T/bin-sb" && for p in bwrap socat; do printf '#!/bin/sh\n' > "$T/bin-sb/$p"; chmod +x "$T/bin-sb/$p"; done
+check "estado del aislamiento: completo" "$(PATH="$T/bin-sb" estado_sandbox)" ok
+rm "$T/bin-sb/socat"
+check "estado del aislamiento: dice qué falta" "$(PATH="$T/bin-sb" estado_sandbox)" falta:socat
+check "estado del aislamiento: sin ninguno" "$(PATH="$T/vacio" estado_sandbox)" falta:bwrap,socat
+
+# 1b. bubblewrap en Ubuntu 24.04: perfil de AppArmor solo para bwrap, con userns
+PB="$(texto_perfil_bwrap /usr/bin/bwrap)"
+check "perfil bwrap apunta a su binario" "$(printf '%s\n' "$PB" | grep -c '^profile arbrain-bwrap /usr/bin/bwrap flags=(unconfined) {$')" 1
+check "perfil bwrap permite userns" "$(printf '%s\n' "$PB" | grep -c '^  userns,$')" 1
+check "perfil bwrap bajo NUBE_RAIZ" "${PERFIL_BWRAP#"$T"/raiz}" "/etc/apparmor.d/arbrain-bwrap"
+
+# 1c. zona horaria
+mkdir -p "$T/zi/America" && : > "$T/zi/America/Mexico_City" && : > "$T/zi/UTC"
+z() { NUBE_ZONEINFO="$T/zi" zona_valida "$1" && echo si || echo no; }
+check "zona válida" "$(z America/Mexico_City)" si
+check "zona UTC" "$(z UTC)" si
+check "zona inexistente" "$(z America/Narnia)" no
+check "zona con ../ se rechaza" "$(z ../../etc/passwd)" no
+check "zona con espacios se rechaza" "$(z 'America/Mexico City')" no
+R3="$(bash "$AQUI/nube.sh" instalar --zona America/Mexico_City --rol lider 2>&1 | tail -1)"
+check "--zona se acepta como opción" "$R3" "NUBE_FALTA --rol lider va con --espejo"
+R4="$(bash "$AQUI/nube.sh" instalar --rol 2>&1 | tail -1)"
+check "opción sin valor al final no se cuelga" "${R4%% *}" NUBE_FALTA
 
 # 2. actualizaciones automáticas
 check "unattended activado" "$(texto_auto_upgrades | grep -c 'Unattended-Upgrade "1"')" 1
@@ -111,6 +137,45 @@ for o in claude codigo conectar; do
   check "nube.sh $o escribe en /dev/tty y se niega sin terminal" "$(cuerpo "orden_$o" | grep -c 'hay_terminal ||')" 1
 done
 check "nube.sh telefono usa serve, nunca funnel" "$(cuerpo orden_telefono | grep -c funnel)" 0
+
+# 10. El enlace del login de Claude, solo y clicable (30 oct): la salida de `claude auth login` 2.1.x, partida en dos
+# escrituras a mitad del enlace, y lo que la persona pega pasa directo sin que el envoltorio lo repita.
+URL='https://claude.com/cai/oauth/authorize?code=true&client_id=9d1c&response_type=code&redirect_uri=https%3A%2F%2Fplatform.claude.com%2Foauth%2Fcode%2Fcallback&scope=user%3Ainference&code_challenge=AbC-123&code_challenge_method=S256&state=xYz_789'
+cat > "$T/claude-falso.sh" <<EOF
+printf '%s' 'Opening browser to sign in...
+If the browser did not open, visit: '; printf '\033]8;;%s' '${URL:0:70}'; sleep 0.3
+printf '%s\a\033[94m%s\033[39m\033]8;;\a\n' '${URL:70}' '$URL'; printf 'Paste code here if prompted > '
+IFS= read -r x; printf '\nrecibio=%s\n' "\${#x}"
+EOF
+SAL="$(printf 'CODIGO-DE-PRUEBA-123\n' | python3 -c "$ENLACE_PY" bash "$T/claude-falso.sh" | tr -d '\r')"
+check "enlace: sale el código de la orden" "$(printf 'exit 7\n' | python3 -c "$ENLACE_PY" bash >/dev/null; echo $?)" 7
+check "enlace: el original se queda" "$(printf '%s\n' "$SAL" | grep -c "visit: .*$URL")" 1
+check "enlace: se repite solo en su renglón (OSC 8)" "$(printf '%s\n' "$SAL" | grep -cx "$(printf '\033]8;;%s\a%s\033]8;;\a' "$URL" "$URL")")" 1
+check "enlace: va antes de «Paste code»" "$(printf '%s\n' "$SAL" | awk -v u="$URL" 'index($0, "\033]8;;" u "\a" u) == 1 {s = NR} /^Paste code/ {p = NR} END {print (s && p > s) ? "si" : "no"}')" si
+check "enlace: lo pegado llega a la orden" "$(printf '%s\n' "$SAL" | grep -c '^recibio=20$')" 1
+check "enlace: el envoltorio nunca escribe lo pegado" "$(printf '%s\n' "$SAL" | grep -c 'CODIGO-DE-PRUEBA-123')" 0
+check "enlace: sin enlace no agrega nada" "$(python3 -c "$ENLACE_PY" printf 'hola\nmundo\n' < /dev/null | tr -d '\r' | tr '\n' ' ')" "hola mundo "
+check "enlace: un enlace cualquiera no se repite" "$(python3 -c "$ENLACE_PY" printf 've a https://ejemplo.com/docs\n' < /dev/null | grep -c 'Tu enlace')" 0
+# 11. conectar se puede volver a correr (30 oct, la sesión SSH se cortó a mitad): lo hecho se salta, el código siempre.
+# Corre en una pseudo-terminal (usa /dev/tty) con las órdenes de la persona sustituidas por un doble.
+cat > "$T/doble.sh" <<'EOF2'
+case "$1" in claude) echo "NUBE_CLAUDE_OK plan=pro" ;; llave) echo "NUBE_LLAVE_FALTA vacia" ;; codigo) echo "NUBE_CODIGO_OK https://servidor.ejemplo.com" ;; esac
+EOF2
+conectar_con() { # <sesion> <motor> <llave> → la salida de orden_conectar, contestando «n» si pregunta
+  python3 -c "$ENLACE_PY" bash -c ". '$AQUI/nube.sh'; a_root() { :; }; sesion_claude() { echo '$1'; }; motor_elegido() { echo '$2'; }; estado_llave() { echo '$3'; }; orden_conectar" "$T/doble.sh" <<< 'n' 2>&1 | tr -d '\r'
+}
+H="$(NUBE_SOLO_FUNCIONES=1 conectar_con 'si max' suscripcion 'tope:50')"
+check "conectar: con todo hecho no pregunta por Claude" "$(printf '%s\n' "$H" | grep -c '\[S/n\]')" 0
+check "conectar: con todo hecho no pide la llave" "$(printf '%s\n' "$H" | grep -c 'Créala en')" 0
+check "conectar: con todo hecho lo dice y da el código" "$(printf '%s\n' "$H" | tail -1)" "NUBE_CONECTAR claude=NUBE_CLAUDE_OK llave=NUBE_LLAVE_OK codigo=NUBE_CODIGO_OK"
+H="$(NUBE_SOLO_FUNCIONES=1 conectar_con no - falta)"
+check "conectar: sin nada pregunta por Claude" "$(printf '%s\n' "$H" | grep -c '\[S/n\]')" 1
+check "conectar: sin nada pide la llave" "$(printf '%s\n' "$H" | grep -c 'Créala en')" 1
+check "conectar: sin nada sigue hasta el código" "$(printf '%s\n' "$H" | tail -1)" "NUBE_CONECTAR claude=saltado llave=NUBE_LLAVE_FALTA codigo=NUBE_CODIGO_OK"
+H="$(NUBE_SOLO_FUNCIONES=1 conectar_con 'si pro' - 'tope:10')"
+check "conectar: sesión sin el motor elegido pregunta otra vez" "$(printf '%s\n' "$H" | grep -c '\[S/n\]')" 1
+
+check "nube.sh claude entra por el envoltorio del enlace" "$(cuerpo orden_claude | grep -c 'ENLACE_PY.*claude auth login')" 1
 
 rm -rf "$T"
 [ "$fail" = 0 ] && echo "nube.test.sh: todo verde" || echo "nube.test.sh: HAY FALLAS"

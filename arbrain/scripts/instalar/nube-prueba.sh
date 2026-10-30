@@ -83,7 +83,7 @@ if [ ! -d /srv/mi-arbrain.git ]; then
 fi
 
 NUBE=/root/Arbrain/arbrain/scripts/instalar/nube.sh
-correr_nube() { NUBE_ESPERA_SEG="${1:-0}" bash "$NUBE" --mi-arbrain file:///srv/mi-arbrain.git 2>&1 | tee "$T/nube-$2.log" | tee -a "$EVID" | tail -1; }
+correr_nube() { NUBE_ESPERA_SEG="${1:-0}" bash "$NUBE" --mi-arbrain file:///srv/mi-arbrain.git --zona America/Mexico_City 2>&1 | tee "$T/nube-$2.log" | tee -a "$EVID" | tail -1; }
 esperar_corriendo() {
   local fin=$(( $(date +%s) + PLAZO_MIN * 60 )) l
   while [ "$(date +%s)" -lt "$fin" ]; do
@@ -100,6 +100,11 @@ L1="$(correr_nube 0 1)"
 case "$L1" in NUBE_OK*|NUBE_ESPERA*) ok "primera corrida: ${L1%% *}" ;; *) mal "primera corrida: $L1" ;; esac
 E="$(esperar_corriendo)" && ok "[$(seg) s] Arbrain corriendo: $E" || { mal "Arbrain no llegó a correr en $PLAZO_MIN min: $E"; journalctl -u arbrain -n 80 --no-pager | tee -a "$EVID"; log "NUBE_PRUEBA FALLAS=$FALLAS (corto aquí: sin Arbrain corriendo lo demás no se puede probar)"; exit 1; }
 PUERTO="$(printf '%s' "$E" | sed -n 's|.*web=http://127\.0\.0\.1:\([0-9]*\).*|\1|p')"
+# Ubuntu 24.04: bwrap sin root (Claude Code lo necesita en Linux) y la zona de la persona (27 oct).
+runuser -u arbrain -- bwrap --ro-bind / / --dev /dev --proc /proc --unshare-user --unshare-pid --unshare-net true >/dev/null 2>&1 \
+  && ok "bubblewrap funciona como arbrain (restricción de AppArmor: $(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2>/dev/null || echo n/a))" \
+  || mal "bubblewrap no funciona como arbrain: Claude Code no correría"
+case "$E" in *zona=America/Mexico_City*) ok "zona horaria de la persona: America/Mexico_City" ;; *) mal "zona horaria: $E" ;; esac
 
 # ── 5 · Comprobaciones por comando ────────────────────────────────────────────────────────────────────────────────────
 probar "systemctl is-active arbrain" systemctl is-active -q arbrain

@@ -8,7 +8,7 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 const MODOS = new Set(['preguntar', 'carpeta', 'autonomo'])
-const VIAS = new Set(['bienvenida', 'ajustes', 'pildora', 'pausa', 'migracion', 'version'])
+const VIAS = new Set(['bienvenida', 'ajustes', 'pildora', 'pausa', 'migracion', 'version', 'modelo'])
 
 export async function GET() {
   const no = await soloAppCliente()
