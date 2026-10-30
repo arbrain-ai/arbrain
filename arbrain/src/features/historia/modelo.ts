@@ -1,3 +1,4 @@
+import { zonaDueno } from '@/shared/lib/zona-dueno'
 /**
  * «La historia de tu cerebro» (27 oct 2026): git en humano. Lógica pura, sin disco ni procesos: lo que el servidor
  * lee de git (git.ts) entra aquí como texto y sale como eventos, carriles y diffs que entiende alguien que nunca usó git.
@@ -8,7 +9,8 @@
  *  · Diff     memorias y skills como prosa con lo añadido y lo quitado; el código, plegado con su resumen.
  */
 
-export const ZONA = 'America/Mexico_City'
+/** Zona del dueño (instalación original: México; alumno: la suya). Se resuelve al formatear. */
+export const ZONA = () => zonaDueno()
 
 // ── Quién ──
 
@@ -328,7 +330,7 @@ function temaLegible(t: string): string {
 
 // ── Cuándo ──
 
-const fmt = (o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat('es-MX', { timeZone: ZONA, ...o })
+const fmt = (o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat('es-MX', { timeZone: ZONA(), ...o })
 const diaCivil = (ms: number) => fmt({ year: 'numeric', month: '2-digit', day: '2-digit' }).format(ms)
 const hora = (ms: number) => fmt({ hour: '2-digit', minute: '2-digit', hour12: false }).format(ms)
 
@@ -357,7 +359,7 @@ export function cuandoAbsoluto(iso: string): string {
   return `${fmt({ weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(t)}, ${hora(t)}`
 }
 
-/** Clave del día (AAAA-MM-DD) en Ciudad de México, para agrupar la línea del tiempo. */
+/** Clave del día (AAAA-MM-DD) en la zona del dueño, para agrupar la línea del tiempo. */
 export function claveDia(iso: string): string {
   const p = fmt({ year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(Date.parse(iso))
   const v = (k: string) => p.find(x => x.type === k)?.value ?? ''
@@ -368,8 +370,9 @@ export function tituloDia(clave: string, ahora: number): string {
   const hoy = claveDia(new Date(ahora).toISOString()), ayer = claveDia(new Date(ahora - 864e5).toISOString())
   if (clave === hoy) return 'Hoy'
   if (clave === ayer) return 'Ayer'
-  const t = Date.parse(`${clave}T12:00:00-06:00`)
-  return mayuscula(fmt({ weekday: 'long', day: 'numeric', month: 'long' }).format(t))
+  // La clave ya es un día civil: se nombra en UTC a mediodía para que ninguna zona lo mueva de día.
+  const t = Date.parse(`${clave}T12:00:00Z`)
+  return mayuscula(new Intl.DateTimeFormat('es-MX', { timeZone: 'UTC', weekday: 'long', day: 'numeric', month: 'long' }).format(t))
 }
 
 // ── ¿Ya corre? ──

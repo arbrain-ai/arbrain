@@ -26,7 +26,7 @@ import { extraerUrls, normalizarUrl, procedenciaDelDaemon, type Procedencia } fr
 import { bitacoraDelDaemon, type DecisionBitacora } from './cliente/bitacora.js'
 import { MENSAJE_PAUSA, pausado } from './cliente/pausa.js'
 import { NOMBRE_MODO } from './cliente/modo-permisos.js'
-import { derivarPatron } from './cliente/reglas-siempre.js'
+import { patronParaTarjeta } from './cliente/reglas-siempre.js'
 import { fraseHumana } from './cliente/frase-humana.js'
 import { terminalDisponible } from './cliente/correlo.js'
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
@@ -146,7 +146,7 @@ function anotar(herramienta: string, input: unknown, decision: DecisionBitacora,
 }
 
 /** I8: crea la confirmación con el literal que interceptó la guardia y espera el clic humano. */
-async function confirmacionHumana(herramienta: string, input: unknown, d: Extract<DecisionPolitica, { tipo: 'confirmar' }>, op: OpcionesGuardia, registrar: (e: Record<string, unknown>) => void, signal?: AbortSignal, sesion?: string): Promise<Resultado> {
+async function confirmacionHumana(herramienta: string, input: unknown, d: Extract<DecisionPolitica, { tipo: 'confirmar' }>, op: OpcionesGuardia, registrar: (e: Record<string, unknown>) => void, signal?: AbortSignal, sesion?: string, ctx?: ContextoPolitica): Promise<Resultado> {
   const store = (op.confirmaciones ?? confirmacionesDelDaemon)()
   if (!store || !(op.hayQuienConfirme ?? haySecretoConfirmar)()) {
     registrar({ herramienta, decision: 'negado', motivo: 'sin confirmación humana configurada', categoria: d.categoria })
@@ -156,9 +156,10 @@ async function confirmacionHumana(herramienta: string, input: unknown, d: Extrac
   const origen = op.origen ?? 'agente'
   const huella = huellaGuardia(origen, herramienta, input)
   if (store.consumir(huella)) { registrar({ herramienta, decision: 'permitido', motivo: 'confirmación humana', categoria: d.categoria }); anotar(herramienta, input, 'confirmado', { origen }); return { ok: true } }
-  // Botón Play: la frase humana y, para un comando de la conversación (nunca el freno ni una rutina), el patrón que
-  // guardaría «Siempre este patrón».
-  const patron = origen === 'agente' && herramienta === 'Bash' && d.categoria === 'otra' ? derivarPatron(d.literal) ?? undefined : undefined
+  // Botón Play: la frase humana y, para lo rutinario de la conversación (nunca el freno ni una rutina), el patrón que
+  // guardaría «Permitir siempre»: comando (Bash, PowerShell), herramienta MCP, carpeta donde escribe o dominio
+  // (`patronParaTarjeta`). Tras leer afuera solo se ofrece el de la memoria. Lo calcula el daemon, nunca el navegador.
+  const patron = origen === 'agente' && ctx ? patronParaTarjeta(herramienta, input, d.categoria, { home: ctx.home, abiertas: ctx.abiertas, contaminada: !!ctx.contaminada, rutaReal: v => rutaReal(expandirRuta(v, ctx)) }) ?? undefined : undefined
   const c = store.pedir({ origen, categoria: d.categoria, resumen: d.resumen, detalle: d.literal.slice(0, 2000), literal: d.literal, avisos: d.avisos, herramienta, huella, creadaPor: 'guardia', frase: fraseHumana(herramienta, d.literal, d.resumen), ...(patron ? { patron } : {}), ...(sesion ? { sesion } : {}), ...(op.conversacion ? { conversacion: op.conversacion } : {}) })
   registrar({ herramienta, decision: 'esperando', confirmacion: c.id, categoria: d.categoria })
   const estado = await store.esperar(c.id, esperaDe(op), 500, signal)
@@ -423,11 +424,14 @@ export function guardiaHooks(registrar: (evento: Record<string, unknown>) => voi
         }
         // Modo automático: lo rutinario que la política mandaría a confirmar lo decide el clasificador del SDK; si no
         // puede, `canUseTool` (permisosCliente) sube la tarjeta.
-        if (op.clasificador && delegableAlClasificador(d, ctx)) {
+        // Subagentes del SDK (29 oct 2026, cliente/subagentes-sdk.ts): solo se delega lo que corre en modo `auto`, donde
+        // el clasificador y luego `canUseTool` lo revisan. Una llamada en otro modo (un subagente con modo propio) sube a
+        // la tarjeta: nunca corre sin que nadie la mire.
+        if (op.clasificador && delegableAlClasificador(d, ctx) && (input.permission_mode ?? 'auto') === 'auto') {
           registrar({ herramienta: input.tool_name, decision: 'al_clasificador', categoria: d.categoria })
           return { continue: true }
         }
-        const r = await confirmacionHumana(input.tool_name, input.tool_input, d, op, registrar, opciones?.signal, input.session_id)
+        const r = await confirmacionHumana(input.tool_name, input.tool_input, d, op, registrar, opciones?.signal, input.session_id, ctx)
         if (!r.ok) return negarHook(r.razon)
         marcarAprobada(input.tool_use_id)
         aprobadaPorLaPersona(input.tool_name, input.tool_input)
@@ -470,7 +474,7 @@ export function permisosCliente(base: CanUseTool, registrar: (evento: Record<str
     const d = decidirHerramienta(herramienta, input, ctx)
     if (d.tipo === 'negar') { registrar({ herramienta, decision: 'negado', motivo: d.motivo, capa: 'canUseTool' }); return { behavior: 'deny', message: mensajeNegado(d.motivo) } }
     if (d.tipo === 'confirmar' && !tomarAprobada(opciones?.toolUseID)) {
-      const r = await confirmacionHumana(herramienta, input, d, op, registrar, opciones?.signal)
+      const r = await confirmacionHumana(herramienta, input, d, op, registrar, opciones?.signal, undefined, ctx)
       if (!r.ok) return { behavior: 'deny', message: r.razon }
       if (r.comentario && opciones?.toolUseID) { if (comentariosPorId.size > 500) comentariosPorId.clear(); comentariosPorId.set(opciones.toolUseID, r.comentario) }
       aprobadaPorLaPersona(herramienta, input)

@@ -26,9 +26,11 @@ describe('M4-2: el pase de agente solo abre lo que usan los agentes', () => {
     for (const [m, r] of cerradas) expect(rutaSoloApp(m, r), `${m} ${r}`).toBe(true)
   })
   it('rutas de agente: abiertas, y solo con su método', () => {
-    for (const [m, r] of [['GET', '/health'], ['GET', '/schedule'], ['GET', '/manos/estado'], ['GET', '/manos/interruptor'], ['POST', '/confirmaciones/pedir'], ['POST', '/confirmaciones/consumir']] as const)
+    // POST /schedule (T8, 29 oct 2026): Levy propone una rutina, pero nace en pausa y solo la app la activa
+    // (cliente/rutinas.test.ts); activar, pausar, correr y borrar siguen cerradas al pase.
+    for (const [m, r] of [['GET', '/health'], ['GET', '/schedule'], ['POST', '/schedule'], ['GET', '/manos/estado'], ['GET', '/manos/interruptor'], ['POST', '/confirmaciones/pedir'], ['POST', '/confirmaciones/consumir']] as const)
       expect(rutaSoloApp(m, r), `${m} ${r}`).toBe(false)
-    for (const [m, r] of [['POST', '/health'], ['POST', '/schedule'], ['POST', '/manos/interruptor'], ['GET', '/confirmaciones/pedir'], ['DELETE', '/schedule']] as const)
+    for (const [m, r] of [['POST', '/health'], ['PUT', '/schedule'], ['POST', '/manos/interruptor'], ['GET', '/confirmaciones/pedir'], ['DELETE', '/schedule'], ['DELETE', '/schedule/x'], ['POST', '/schedule/x/resume']] as const)
       expect(rutaSoloApp(m, r), `${m} ${r}`).toBe(true)
   })
 })

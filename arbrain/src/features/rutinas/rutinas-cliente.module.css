@@ -1,0 +1,42 @@
+/* Taller › Rutinas de la edición cliente (T8, 29 oct 2026): una columna que cabe a 360 px, sin scroll horizontal. */
+.vista { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px 12px; min-width: 0; }
+.cabecera { display: flex; align-items: center; gap: 10px; min-height: 30px; }
+.ceja { flex: 1; margin: 0; font-size: 11px; font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.nota { margin: 0; font-size: 12px; line-height: 1.5; color: var(--muted); }
+.aviso { margin: 0; padding: 9px 12px; border-radius: 12px; font-size: 12.5px; line-height: 1.45; color: var(--foreground); background: color-mix(in srgb, var(--warning) 12%, transparent); border: 1px solid color-mix(in srgb, var(--warning) 30%, transparent); }
+.vacia { display: flex; flex-direction: column; gap: 8px; padding: 14px; border-radius: 14px; border: 1px dashed var(--border); background: color-mix(in srgb, var(--card) 92%, var(--background)); }
+.vacia p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--foreground); }
+.vacia q { font-style: italic; }
+.vacia .nota { color: var(--muted); font-size: 12px; }
+.vacia > button { align-self: flex-start; }
+.lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.fila { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 11px 12px; border-radius: 12px; border: 1px solid var(--border); background: color-mix(in srgb, var(--card) 92%, var(--background)); }
+.fila[data-tono=pausada] { opacity: 0.85; }
+.encabezado { display: flex; align-items: flex-start; gap: 8px; min-width: 0; }
+.titulo { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 620; line-height: 1.35; overflow-wrap: anywhere; }
+.estado { flex: none; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; color: var(--muted); background: color-mix(in srgb, var(--foreground) 8%, transparent); }
+.fila[data-tono=ok] .estado, .fila[data-tono=nueva] .estado { color: var(--success); background: color-mix(in srgb, var(--success) 12%, transparent); }
+.fila[data-tono=error] .estado { color: var(--error); background: color-mix(in srgb, var(--error) 12%, transparent); }
+.cuando, .ultima { margin: 0; font-size: 12px; line-height: 1.4; color: var(--muted); overflow-wrap: anywhere; }
+.fila[data-tono=error] .ultima { color: var(--error); }
+.levy { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 12px; line-height: 1.4; color: var(--foreground); }
+.resultado { font-size: 12px; color: var(--muted); }
+.resultado summary { cursor: pointer; }
+.resultado p { margin: 4px 0 0; line-height: 1.5; color: var(--foreground); overflow-wrap: anywhere; white-space: pre-wrap; }
+.error { margin: 0; font-size: 12px; line-height: 1.4; color: var(--error); }
+.botones { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; }
+.pregunta { flex-basis: 100%; font-size: 12.5px; color: var(--foreground); }
+.boton, .nueva, .peligro {
+  display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 11px; border-radius: 999px; font: inherit; font-size: 12.5px; font-weight: 600;
+  border: 1px solid var(--border); background: transparent; color: var(--foreground); cursor: pointer;
+}
+.boton:hover:not(:disabled) { background: color-mix(in srgb, var(--foreground) 7%, transparent); }
+.nueva { border-color: transparent; background: var(--brand, var(--foreground)); color: var(--brand-foreground, var(--background)); }
+.peligro { border-color: transparent; background: var(--error); color: var(--l-gris-16, var(--background)); }
+.boton:disabled, .nueva:disabled, .peligro:disabled { opacity: 0.55; cursor: default; }
+.formulario { display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: 14px; border: 1px solid var(--border); background: var(--card); }
+.campo { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; font-weight: 600; color: var(--foreground); }
+.campo textarea, .campo select, .campo input {
+  font: inherit; font-size: 13px; font-weight: 400; padding: 7px 9px; border-radius: 9px; border: 1px solid var(--border); background: var(--background); color: var(--foreground); min-width: 0;
+}
+.campo textarea { resize: vertical; line-height: 1.45; }

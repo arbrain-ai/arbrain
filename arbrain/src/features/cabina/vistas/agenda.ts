@@ -8,16 +8,26 @@ import type { PlanningSnapshot, PlanEvent, PlanTask, PlanMutation } from '@/feat
 import { mutationFor } from '@/features/planning/model'
 import { esFase, esMecanicaAlumno } from '@/features/planning/drip'
 import { refrescarCabina } from '../datos'
-import { TZ, sumarDias } from '../model'
+import { zonaCabina, sumarDias } from '../model'
 
 export interface Item { id: string; titulo: string; hora?: string; inicio?: number; fin?: number; orden: number; color: string; peso: number; objetivo: boolean; url?: string; tarea?: PlanTask; recurrente?: boolean }
 export interface Banda { id: string; titulo: string; desde: string; hasta: string; color: string }
 
-export const hora = new Intl.DateTimeFormat('es-MX', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hour12: false })
-export const diaDe = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' })
-const minutosDe = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hour12: false })
+/** Formateador en la zona del dueño (instalación original: México; alumno: la suya), memorizado por zona. */
+function enZona(locale: string, o: Intl.DateTimeFormatOptions) {
+  const cache = new Map<string, Intl.DateTimeFormat>()
+  return { format: (d: Date | number) => {
+    const z = zonaCabina()
+    let f = cache.get(z)
+    if (!f) { f = new Intl.DateTimeFormat(locale, { ...o, timeZone: z }); cache.set(z, f) }
+    return f.format(d)
+  } }
+}
+export const hora = enZona('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false })
+export const diaDe = enZona('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' })
+const minutosDe = enZona('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })
 
-/** Minutos desde la medianoche civil de México. */
+/** Minutos desde la medianoche civil del dueño. */
 export function minutosCiviles(ms: number) { const [h, m] = minutosDe.format(new Date(ms)).split(':').map(Number); return (h % 24) * 60 + m }
 export function duracion(min: number) { if (min < 60) return `${min} min`; const h = Math.floor(min / 60), m = min % 60; return m ? `${h} h ${m} min` : `${h} h` }
 export function faltan(min: number) { return min < 1 ? 'ya' : min < 60 ? `en ${min} min` : `en ${duracion(min)}` }

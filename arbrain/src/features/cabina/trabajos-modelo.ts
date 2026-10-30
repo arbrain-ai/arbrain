@@ -149,7 +149,9 @@ export function trabajandoEn(d: Trabajos | undefined, conversacion: string | nul
 }
 
 /** De dónde salió la lectura, para decirlo en una línea. */
-export function fuenteEnPalabras(d: Trabajos): string {
+export function fuenteEnPalabras(d: Trabajos, cliente = false): string {
+  // Edición cliente (29 oct 2026): sus subagentes los lee su propia Arbrain; no hay motor, SFTerm ni Studio.
+  if (cliente) return 'tu Arbrain'
   if (d.fuente === 'motor') return 'motor de Arbrain'
   if (d.fuente === 'sfterm-gate') return 'terminal de respaldo (el motor no respondió)'
   if (d.fuente === 'ninguna') return 'sin terminales: ni el motor ni el respaldo respondieron'

@@ -25,18 +25,24 @@ const isIOS =
     (navigator.platform === 'MacIntel' && (navigator as unknown as { maxTouchPoints: number }).maxTouchPoints > 1))
 const isChrome = typeof navigator !== 'undefined' && /Chrome/.test(navigator.userAgent)
 const esApple = isIOS || (typeof navigator !== 'undefined' && /Mac OS X|Macintosh/.test(navigator.userAgent))
+/** Idiomas del sistema de la persona (en España: es-ES primero). */
+const idiomasSistema = (): readonly string[] =>
+  typeof navigator === 'undefined' ? [] : navigator.languages?.length ? navigator.languages : navigator.language ? [navigator.language] : []
 
 /**
  * La mejor voz en español que expone el sistema, fuera de Apple (v0.2.10). Orden: neuronales/naturales (Edge y WebView2
  * exponen voces «Microsoft … Online (Natural)»; Chrome, «Google español de Estados Unidos») > mejoradas > el resto, y
  * dentro de cada nivel es-MX > es-US/es-419 > otras de Latinoamérica > es-ES. Ninguna en español: null (el caller fija
- * `lang = 'es-MX'` y el sistema decide). Pura, para probarla sin navegador.
+ * `lang` con idiomaDeRespaldo y el sistema decide). Pura, para probarla sin navegador.
+ * `idioma` (29 oct 2026, un fundador en España): el español del sistema de la persona (voz-sistema.ts › idiomaPreferido);
+ * dentro de cada nivel de calidad su región va primero (en España, la voz de España antes que la de México).
  */
-export function mejorVozEspanol<V extends { name: string; lang: string; localService?: boolean; default?: boolean }>(voces: readonly V[]): V | null {
+export function mejorVozEspanol<V extends { name: string; lang: string; localService?: boolean; default?: boolean }>(voces: readonly V[], idioma: string | null = null): V | null {
   const es = voces.filter((v) => /^es([-_]|$)/i.test(v.lang))
   if (!es.length) return null
   const calidad = (v: V) => /(natural|neural|online|wavenet|enhanced|mejorad|premium)/i.test(v.name) ? 0 : /google/i.test(v.name) ? 1 : 2
-  const region = (v: V) => { const l = v.lang.toLowerCase().replace('_', '-'); return l === 'es-mx' ? 0 : l === 'es-us' || l === 'es-419' ? 1 : l === 'es-es' ? 3 : 2 }
+  const suya = idioma?.toLowerCase().replace('_', '-') ?? null
+  const region = (v: V) => { const l = v.lang.toLowerCase().replace('_', '-'); return l === suya ? -1 : l === 'es-mx' ? 0 : l === 'es-us' || l === 'es-419' ? 1 : l === 'es-es' ? 3 : 2 }
   return [...es].sort((a, b) => calidad(a) - calidad(b) || region(a) - region(b) || Number(!!b.default) - Number(!!a.default))[0]
 }
 
@@ -157,6 +163,7 @@ import { VozServidor } from './voz-servidor'
 import { palabraEn, tiemposDeMarcas } from './marcas-voz'
 import { tiemposDelAudio } from './tiempos-estimados'
 import { ResaltadoUnico } from './resaltado'
+import { idiomaDeRespaldo, idiomaPreferido } from './voz-sistema'
 
 type StateCb = (playing: boolean) => void
 
@@ -261,6 +268,10 @@ class ChatSpeechController {
 
   constructor() {
     if (typeof window === 'undefined') return
+    // Chromium (WebView2 en Windows, Chrome, Edge) carga las voces en segundo plano y solo empieza al primer
+    // getVoices(): sin esto, la primera lectura llegaba con la lista vacía y sonaba la voz por defecto del sistema
+    // (en un Windows en inglés, en inglés). Pedirla ya deja la lista lista para el primer «Escuchar».
+    try { this.synth?.getVoices() } catch { /* sin voces: el lector sigue con la del servidor */ }
     // iOS no siempre dispara pagehide: al ocultarse la página también se vuelca el punto.
     window.addEventListener('pagehide', () => this.guardaPunto(true))
     document.addEventListener('visibilitychange', () => { if (document.hidden) this.guardaPunto(true) })
@@ -726,7 +737,7 @@ class ChatSpeechController {
       null
     // Fuera de Apple (Windows, Linux, Android: grupal del 23 oct 2026, «la voz por defecto en Windows es fea») el
     // default del sistema suele ser una voz robótica o ni siquiera en español: se elige la mejor en español.
-    if (!juan && !esApple) return mejorVozEspanol(es)
+    if (!juan && !esApple) return mejorVozEspanol(es, idiomaPreferido(idiomasSistema()))
     return juan
   }
 
@@ -983,7 +994,7 @@ class ChatSpeechController {
       if (v) {
         u.voice = v
         u.lang = v.lang
-      } else u.lang = 'es-MX'
+      } else u.lang = idiomaDeRespaldo(idiomasSistema())
       u.rate = RATES[this.rateIdx]
       const primera = /\S+/.exec(spoken)
 

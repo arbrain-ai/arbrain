@@ -62,6 +62,14 @@ export function esEdicionCliente(env: Record<string, string | undefined> = proce
   return (env.ARBRAIN_EDICION ?? '').trim().toLowerCase() === 'cliente'
 }
 
+/**
+ * Cuando el daemon no responde: en la instalación de Daniel es su Studio; en la del alumno es su propia Arbrain (la
+ * edición cliente nunca nombra el Studio, 29 oct 2026).
+ */
+export function sinRespuestaDelServidor(cliente = esEdicionCliente()): string {
+  return cliente ? 'Tu Arbrain no respondió.' : 'El Studio no respondió.'
+}
+
 /** Identidad de la persona en su propia instalación: no es Daniel ni nadie con datos reales. */
 export const CORREO_LOCAL_CLIENTE = 'tu@arbrain.local'
 export const NOMBRE_LOCAL_CLIENTE = 'Tú'
@@ -90,10 +98,17 @@ export const APIS_CLIENTE = [
   // Adjuntos del chat (v0.2.6, un fundador: «el servidor la rechazó (código 404…)»): subir y leer, en la carpeta de datos de
   // la web y no en Supabase (lib/adjuntos-locales.ts). Ambas piden sesión.
   '/api/storage/upload', '/api/storage/adjunto',
+  // Archivos que Levy genera, abiertos y descargados desde el chat (29 oct 2026, T6): `?ruta=` firma con sesión; `/f/…` sirve
+  // solo con la firma (lib/archivos-chat-server.ts), porque lo abre el navegador del sistema o Safari en el teléfono.
+  '/api/chat/archivo',
   // Panel y Taller sobre su daemon y su workspace.
   '/api/cabina/memoria', '/api/cabina/contexto', '/api/cabina/archivos', '/api/cabina/explorador',
   '/api/cabina/documento', '/api/cabina/archivero', '/api/cabina/panel', '/api/cabina/panel-ajustes',
   '/api/cabina/panel-terminal', '/api/cabina/terminal',
+  // Taller › Agentes (29 oct 2026, fundador en Windows: «El Studio no respondió · No disponible en esta edición»): SUS
+  // subagentes (Agent del SDK, bajo su guardia) y la salida de cada uno, de solo lectura. Su daemon responde con su propio
+  // registro (server/src/cabina/trabajos-cliente.ts), nunca el motor, los servidores ni los servicios del Studio.
+  '/api/cabina/trabajos', '/api/cabina/salida',
   // Lienzo local.
   '/api/canvas',
   // Calendario local (21 oct 2026): objetivos, eventos y tareas sobre archivos de su cerebro (lib/planning/local.ts).
@@ -117,6 +132,12 @@ export const APIS_CLIENTE = [
   '/api/telefono',
   // Mi marca (29 oct 2026): colores, logo y nombre del dueño desde `mi-marca/` (lib/mi-marca.ts).
   '/api/mi-marca',
+  // Rutinas (T8, 29 oct 2026): Taller › Rutinas sobre el scheduler de SU daemon (lib/rutinas-cliente.ts). Distinta de
+  // `/api/planning/crons`, que sigue fuera: esa lee el Studio y el historial en Supabase.
+  '/api/rutinas',
+  // Computadora (T16, 29 oct 2026): Taller › Computadora sobre SU daemon (lib/computadora-cliente.ts): memoria, disco,
+  // procesador, reposo y cerrar apps. Distinta de `/api/cabina/servidores` (el Studio de Daniel), que sigue fuera.
+  '/api/computadora',
 ] as const
 
 function coincidePrefijo(ruta: string, prefijo: string) {

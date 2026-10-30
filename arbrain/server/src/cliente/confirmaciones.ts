@@ -13,7 +13,7 @@
  */
 import { createHash, randomBytes } from 'node:crypto'
 import type Database from 'better-sqlite3'
-import { botonConsecuencia, frasePatron } from './frase-humana.js'
+import { avisoPatron, botonConsecuencia, frasePatron } from './frase-humana.js'
 
 export type CategoriaConfirmacion = 'enviar' | 'pagar' | 'borrar' | 'publicar' | 'otra'
 /**
@@ -75,6 +75,8 @@ export interface Confirmacion {
   enColaDesde?: number
   /** «Siempre este patrón» dicho para la persona («Permitir siempre las pruebas de tus proyectos»). */
   patronFrase?: string
+  /** Lo que conviene saber antes de elegir «Permitir siempre» (la regla de la memoria vale también tras leer afuera). */
+  patronAviso?: string
   /** En acciones del freno, el botón del sí dice la consecuencia («Borrar 14 archivos»). */
   botonSi?: string
 }
@@ -177,7 +179,8 @@ const publica = (f: Fila): Confirmacion => ({
   ...(f.salida != null ? { salida: f.salida } : {}), ...(f.codigo != null ? { codigo: f.codigo } : {}), ...(f.sesion ? { sesion: f.sesion } : {}),
   ...(leerConversacion(f.conversacion) ? { conversacion: leerConversacion(f.conversacion)!.conversationId } : {}),
   ...((f.estado === 'en_cola' || f.estado === 'corriendo' || f.estado === 'corrida') && f.cola ? { enColaDesde: f.cola } : {}),
-  ...(f.patron ? { patronFrase: frasePatron(f.patron) } : {}),
+  ...(f.patron ? { patronFrase: frasePatron(f.patron, f.herramienta ?? undefined) } : {}),
+  ...(f.patron && avisoPatron(f.patron, f.herramienta ?? undefined) ? { patronAviso: avisoPatron(f.patron, f.herramienta ?? undefined)! } : {}),
   ...(f.categoria !== 'otra' ? { botonSi: botonConsecuencia(f.categoria, f.herramienta ?? undefined, f.literal ?? undefined) } : {}),
 })
 

@@ -4,7 +4,8 @@
  * sin Rust ni Tauri. Mac, Linux y Windows con Node 22. Informe: docs/builds/modo-servidor-2026-10-21/REPORTE.md.
  *
  *   npm run servidor                         instala si falta, compila si cambió, arranca y abre el navegador
- *   npm run servidor -- abrir                abre el navegador ya con sesión (si no corre, lo arranca)
+ *   npm run servidor -- abrir                abre tu Arbrain: la app de escritorio si está instalada (o la enfoca si ya
+ *                                            está abierta); si no, el navegador ya con sesión (si no corre, lo arranca)
  *   npm run servidor -- estado               ¿corre?, direcciones, arranque automático
  *   npm run servidor -- detener              apaga el servidor que esté corriendo
  *   npm run servidor -- contrasena [--nueva] muestra (o cambia) la contraseña para entrar desde otro navegador
@@ -16,13 +17,14 @@
  * la etiqueta firmada y se usa en vez de instalar dependencias y compilar (scripts/servidor/programa.mjs). Si no se puede,
  * se compila como antes.
  *
- * Opciones: --datos <carpeta> · --puerto <n> · --cerebro <carpeta> · --sin-navegador · --compilar (fuerza compilar)
+ * Opciones: --datos <carpeta> · --puerto <n> · --cerebro <carpeta> · --sin-navegador (no abre nada) · --navegador (abre
+ *           el navegador aunque haya app de escritorio) · --compilar (fuerza compilar)
  *           · --repo-original (permite correrlo en el repo de Daniel, que no trae el marcador `arbrain/EDICION`).
  *
  * Qué hace este proceso (el «supervisor»): el papel que en la app hace Tauri (`src-tauri/src/daemon.rs`, `lib.rs ›
  * ensure_local_server_cliente`). Elige puertos en 127.0.0.1, genera los secretos por arranque (solo en memoria),
  * lanza el daemon y la web en edición cliente con los secretos y las llaves por stdin (CONTRATO-DAEMON v2 §2.1), los
- * vigila y los reinicia con freno, y al salir los apaga. El acceso por navegador usa la misma cookie que la app; la
+ * vigila y los relanza sin rendirse (espera creciente, servidor/reintentos.mjs), y al salir los apaga. El acceso por navegador usa la misma cookie que la app; la
  * contraseña vive en `<datos>/daemon/config/acceso.json` (0600, carpeta negada a los agentes). Todo escucha solo en
  * 127.0.0.1. La instalación de Daniel no pasa por aquí.
  */
@@ -37,11 +39,13 @@ import { fileURLToPath } from 'node:url'
 import * as auto from './servidor/arranque-auto.mjs'
 import {
   contrasenaNueva, dirDatosPorDefecto, entornoLimpio, errorDeLlave, estadoLlaves, LLAVES, limpiarLlave, lineaSecretos,
-  PUERTO_WEB_POR_DEFECTO, puertoValido, RESERVADOS, rutasDe, secreto,
+  PUERTO_WEB_POR_DEFECTO, puertoValido, RESERVADOS, rutasDe, secreto, carpetasGitWindows, reutilizarCompilado, huellaSinGit,
 } from './servidor/rutas.mjs'
 import { PRELUDIO_WEB } from './servidor/preludio-web.mjs'
 import { armarPaquete, programaYaCompilado } from './servidor/programa.mjs'
 import * as telefono from './servidor/telefono.mjs'
+import { avisoCaida, trasCaida } from './servidor/reintentos.mjs'
+import { abrirOEnfocarApp, elegirApertura, leerConfigEscritorio } from './servidor/ventanas.mjs'
 // Modo espejo (beta, apagado por defecto): el rol del daemon sale de lider.json; la lógica vive en espejo/.
 import { arrancarCiclo as arrancarEspejo, entornoDaemon as entornoEspejo } from './espejo/supervisor.mjs'
 
@@ -166,6 +170,22 @@ function abrirNavegador(url) {
   try { spawn(cmd, args, { stdio: 'ignore', detached: true }).unref() } catch { /* sin navegador: queda la dirección impresa */ }
 }
 
+/**
+ * Una sola ventana (29 oct 2026): con la app de escritorio instalada para esta copia y esta carpeta de datos, se abre
+ * (o se enfoca) la app; el navegador queda de respaldo. `--navegador` lo fuerza; `--sin-navegador` no abre nada.
+ */
+function apertura() {
+  return elegirApertura({
+    cfg: leerConfigEscritorio(homedir()), repo: REPO, datos: DATOS, home: homedir(), plataforma: process.platform,
+    datosPorDefecto: resolve(dirDatosPorDefecto(process.platform, process.env, homedir())),
+    sinNavegador: bandera('--sin-navegador'), navegador: bandera('--navegador'),
+  })
+}
+function abrirApp(app) {
+  const r = abrirOEnfocarApp(app, { avisar: registrar })
+  console.log(r === 'abierta' ? '[arbrain] Abrí tu Arbrain en su app.' : '[arbrain] Tu Arbrain ya estaba abierto en su app: lo traje al frente.')
+}
+
 // ── Acceso (contraseña) y llaves ──────────────────────────────────────────────────────────────────────────────────
 
 function contrasena({ nueva = false } = {}) {
@@ -192,12 +212,29 @@ const guardarLlaves = (o) => escribirPrivado(R.llaves, JSON.stringify(o, null, 1
 
 // ── Compilar ──────────────────────────────────────────────────────────────────────────────────────────────────────
 
-/** Huella del código: último commit de esas rutas + cambios sin confirmar en ellas. Sin git, «sin-git» (compila solo si falta). */
+/**
+ * Git al alcance del supervisor y de todo lo que lance (programa.mjs, el daemon). En Windows, la app de escritorio, el
+ * arranque automático y PowerShell no heredan el PATH de Git Bash: si `git` no responde, se busca en sus carpetas de
+ * siempre y se antepone al PATH de este proceso. Devuelve si hay git.
+ */
+function asegurarGit() {
+  const responde = () => spawnSync('git', ['--version'], { encoding: 'utf8', windowsHide: true }).status === 0
+  if (responde()) return true
+  if (!WIN) return false
+  const clave = Object.keys(process.env).find((k) => k.toUpperCase() === 'PATH') ?? 'PATH'
+  const dir = carpetasGitWindows(process.env).find((d) => existsSync(join(d, 'git.exe')))
+  if (!dir) return false
+  process.env[clave] = [dir, process.env[clave] ?? ''].filter(Boolean).join(delimiter)
+  registrar(`Git no estaba en el PATH de este arranque; uso ${dir}.`)
+  return responde()
+}
+
+/** Huella del código: último commit de esas rutas + cambios sin confirmar en ellas. Sin git, `sin-git-<versión>`. */
 function huella(rutas) {
-  const git = (args) => spawnSync('git', args, { cwd: REPO, encoding: 'utf8' })
+  const git = (args) => spawnSync('git', args, { cwd: REPO, encoding: 'utf8', windowsHide: true })
   // El último commit que tocó ESAS rutas (no HEAD): un commit de otra parte del repo no obliga a recompilar.
   const head = git(['log', '-1', '--format=%H', '--', ...rutas])
-  if (head.status !== 0 || !head.stdout.trim()) return 'sin-git'
+  if (head.status !== 0 || !head.stdout.trim()) return huellaSinGit(versionRepo() || versionArbrain())
   const st = git(['status', '--porcelain', '--', ...rutas])
   return createHash('sha256').update(head.stdout.trim()).update(st.stdout ?? '').digest('hex').slice(0, 16)
 }
@@ -231,15 +268,22 @@ async function compilarWeb(forzar) {
   const h = huella(RUTAS_WEB)
   const marca = join(R.programa, 'web.json')
   const hay = existsSync(join(STANDALONE, 'server.js'))
-  if (hay && !forzar && leerJson(marca)?.huella === h && h !== 'sin-git') return
-  if (hay && !forzar && h === 'sin-git') return
+  if (reutilizarCompilado({ hay, forzar, huella: h, marca: leerJson(marca) })) return
   registrar('Compilando la web (edición cliente, modo servidor). Tarda unos minutos la primera vez…')
   const env = { ...entornoLimpio(process.env), ARBRAIN_EDICION: 'cliente', ARBRAIN_MODO_SERVIDOR: '1', NODE_ENV: 'production', NEXT_TELEMETRY_DISABLED: '1' }
   const next = join(ARBRAIN, 'node_modules', 'next', 'dist', 'bin', 'next')
+  // `next build` reescribe next-env.d.ts (versionado; en desarrollo apunta a .next/dev/types): se deja como venía para que
+  // la copia siga idéntica a la versión firmada (git status limpio y, al actualizar, el programa ya compilado).
+  const nextEnv = join(ARBRAIN, 'next-env.d.ts')
+  let envAntes = null
+  try { envAntes = readFileSync(nextEnv) } catch { /* no existe: que lo cree next */ }
+  const restaurarNextEnv = () => { try { if (envAntes && !readFileSync(nextEnv).equals(envAntes)) writeFileSync(nextEnv, envAntes) } catch { /* */ } }
   // Hasta 3 intentos: `next/font/google` baja las fuentes al compilar y a veces Google responde mal (22 oct 2026: tumbó
   // 4 corridas de CI con «loader.js:122»). Un error real del código falla igual las tres veces.
   for (let intento = 1; ; intento++) {
-    if (correr(process.execPath, [next, 'build', '--webpack'], ARBRAIN, env) === 0) break
+    const codigo = correr(process.execPath, [next, 'build', '--webpack'], ARBRAIN, env)
+    restaurarNextEnv()
+    if (codigo === 0) break
     if (intento >= 3) fallar('Falló la compilación de la web. El detalle está arriba.')
     registrar(`La compilación de la web falló (intento ${intento} de 3; suele ser la descarga de fuentes). Reintento en 15 s…`)
     await dormir(15_000)
@@ -252,7 +296,7 @@ async function compilarWeb(forzar) {
   const quitados = limpiarSecretos(STANDALONE)
   if (quitados.length) registrar(`Fuera del servidor web: ${quitados.length} archivo(s) con secretos (${quitados.slice(0, 3).join(', ')}…)`)
   privada(R.programa)
-  writeFileSync(marca, JSON.stringify({ huella: h, compilado: ahora() }) + '\n')
+  writeFileSync(marca, JSON.stringify({ huella: h, version: versionRepo(), compilado: ahora() }) + '\n')
 }
 
 function compilarDaemon(forzar) {
@@ -294,6 +338,7 @@ function abrirLog(nombre) {
 function lanzarHijo(nombre, args, cwd, env, linea) {
   const log = abrirLog(`${nombre}.log`)
   const hijo = spawn(S.node, args, { cwd, env, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true })
+  hijo.inicio = Date.now()
   const escribir = (c) => { try { appendFileSync(log, c) } catch { /* */ } }
   hijo.stdout.on('data', escribir)
   hijo.stderr.on('data', escribir)
@@ -310,8 +355,9 @@ const S = {
   secretos: null, contrasena: '', tokenCli: '', daemonDir: '', home: '',
   // Node con el que corren daemon y web: el del programa ya compilado (su ABI) o, si se compiló aquí, este mismo.
   node: process.execPath, webDir: STANDALONE,
-  reinicios: { daemon: [], web: [] },
-  ultimoError: null, reiniciando: false, pausado: { daemon: false, web: false },
+  // Caídas seguidas por proceso y el relanzamiento en espera (servidor/reintentos.mjs: nunca se rinde).
+  caidas: { daemon: 0, web: 0 }, espera: { daemon: null, web: null },
+  ultimoError: null, reiniciando: false,
   tickets: new Map(),
   codigos: telefono.crearCodigos(),
 }
@@ -396,18 +442,37 @@ function lanzarWeb() {
   vigilar('web', S.web)
 }
 
-/** Reinicio con freno (como la app): máximo 5 en 5 minutos; después, pausa y aviso en el log. */
+/**
+ * Relanzar sin rendirse (29 oct 2026). Antes: 5 caídas en 5 minutos y dejaba de reintentar, con el supervisor vivo; la
+ * app y launchd creían que todo iba bien y la persona quedaba fuera hasta usar la terminal. Ahora espera 2 s, 5 s,
+ * 15 s, 30 s y luego 60 s entre intentos, sin límite; si el proceso aguantó arriba 2 minutos, vuelve a la espera corta.
+ * Cada caída queda en servidor.log con el aviso que la web lee en `lastError`.
+ */
 function vigilar(nombre, hijo) {
   hijo.on('exit', (codigo, senal) => {
     if (S.apagando || S[nombre] !== hijo) return
     S[nombre] = null
     registrar(`${nombre} se detuvo (código ${codigo ?? senal}). Detalle en ${join(R.logs, `${nombre}.log`)}`)
+    // 78 = configuración incompleta: reintentar no lo arregla; guardar una llave relanza el daemon (reiniciarDaemon).
     if (nombre === 'daemon' && codigo === 78) { S.ultimoError = 'El daemon no arrancó: configuración incompleta (revisa logs/daemon.log).'; return }
-    const r = S.reinicios[nombre]
-    while (r.length && Date.now() - r[0] > 5 * 60_000) r.shift()
-    if (r.length >= 5) { S.pausado[nombre] = true; S.ultimoError = `${nombre} se cayó 5 veces en 5 minutos; dejé de reintentar. Corre \`npm run servidor -- detener\` y vuelve a arrancarlo.`; registrar(S.ultimoError); return }
-    r.push(Date.now())
-    setTimeout(() => { if (!S.apagando && !S[nombre]) (nombre === 'daemon' ? lanzarDaemon : lanzarWeb)() }, 2000 * r.length)
+    const { caidas, esperaMs } = trasCaida(S.caidas[nombre], Date.now() - (hijo.inicio ?? Date.now()))
+    S.caidas[nombre] = caidas
+    const aviso = avisoCaida(nombre, caidas, esperaMs)
+    S.ultimoError = aviso
+    registrar(aviso)
+    clearTimeout(S.espera[nombre])
+    S.espera[nombre] = setTimeout(() => {
+      S.espera[nombre] = null
+      if (S.apagando || S[nombre]) return
+      registrar(`Vuelvo a encender ${nombre} (intento ${caidas}).`)
+      ;(nombre === 'daemon' ? lanzarDaemon : lanzarWeb)()
+      const sano = nombre === 'daemon' ? daemonSano : webSana
+      void esperar(sano, 90_000).then((ok) => {
+        if (!ok) return
+        if (S.ultimoError === aviso) S.ultimoError = null
+        registrar(`${nombre} volvió a responder.`)
+      })
+    }, esperaMs)
   })
 }
 
@@ -463,9 +528,9 @@ async function reiniciarDaemonAhora() {
   if (S.apagando) return
   S.reiniciando = true
   try {
+    clearTimeout(S.espera.daemon); S.espera.daemon = null
     await apagarHijo('daemon')
-    S.reinicios.daemon = []
-    S.pausado.daemon = false
+    S.caidas.daemon = 0
     S.ultimoError = null
     lanzarDaemon()
     await esperar(daemonSano, 30_000)
@@ -476,9 +541,9 @@ async function reiniciarDaemonAhora() {
 function reiniciarWeb() {
   const ahora = async () => {
     if (S.apagando) return
+    clearTimeout(S.espera.web); S.espera.web = null
     await apagarHijo('web')
-    S.reinicios.web = []
-    S.pausado.web = false
+    S.caidas.web = 0
     lanzarWeb()
     await esperar(webSana, 90_000)
   }
@@ -490,6 +555,7 @@ async function apagarTodo(codigo = 0) {
   if (S.apagando) return
   S.apagando = true
   S.espejo?.detener()
+  clearTimeout(S.espera.daemon); clearTimeout(S.espera.web)
   registrar('Apagando Arbrain…')
   await Promise.all([apagarHijo('web'), apagarHijo('daemon')])
   try { if (leerJson(R.proceso)?.pid === process.pid) rmSync(R.proceso, { force: true }) } catch { /* */ }
@@ -509,7 +575,7 @@ function ticketNuevo() {
 function daemonInfo() {
   return {
     url: `http://${HOST}:${S.puertoDaemon}`, port: S.puertoDaemon, ready: false, pid: S.daemon?.pid ?? null,
-    reinicios: S.reinicios.daemon.length, lastError: S.ultimoError, pausado: S.pausado.daemon,
+    reinicios: S.caidas.daemon, lastError: S.ultimoError, pausado: false,
   }
 }
 
@@ -573,7 +639,7 @@ function servidorControl() {
         return responder(200, { ok: !!vence && vence > Date.now() })
       }
       if (req.method === 'POST' && ruta === '/detener' && esCli) { responder(200, { ok: true }); setTimeout(() => apagarTodo(0), 50); return }
-      if (req.method === 'GET' && ruta === '/estado') return responder(200, { pid: process.pid, puertoWeb: S.puertoWeb, daemon: daemonInfo(), web: { pid: S.web?.pid ?? null, pausado: S.pausado.web } })
+      if (req.method === 'GET' && ruta === '/estado') return responder(200, { pid: process.pid, puertoWeb: S.puertoWeb, daemon: daemonInfo(), web: { pid: S.web?.pid ?? null, pausado: false, caidas: S.caidas.web } })
       if (ruta.startsWith('/telefono/')) {
         const r = await telefono.atenderControl({ metodo: req.method, ruta, cuerpo, esWeb, esCli }, { R, puertoWeb: () => S.puertoWeb, reiniciarWeb, registrar, codigos: S.codigos, asegurarArranque })
         if (r) return responder(r[0], r[1])
@@ -618,6 +684,9 @@ async function vivo() {
 }
 
 async function abrirConSesion(p) {
+  const a = apertura()
+  if (a.via === 'nada') return
+  if (a.via === 'app') return abrirApp(a.app)
   const r = await pedir(p.puertoControl, '/ticket', { metodo: 'POST', token: p.tokenCli, cuerpo: {} })
   if (r.status !== 200 || !r.json?.ticket) return fallar('El servidor está corriendo pero no me dio un pase. Prueba `npm run servidor -- detener` y arráncalo otra vez.')
   // Pase de un solo uso y 2 minutos: aunque quede en el historial del navegador o en `ps`, ya no sirve.
@@ -645,7 +714,7 @@ async function iniciar() {
   const ya = await vivo()
   if (ya && ya.repo === REPO && ya.version === versionRepo()) {
     console.log(`[arbrain] Tu Arbrain ya está corriendo (pid ${ya.pid}).`)
-    if (!bandera('--sin-navegador')) await abrirConSesion(ya)
+    await abrirConSesion(ya)
     return
   }
   if (ya) {
@@ -656,6 +725,7 @@ async function iniciar() {
     if (!(await esperar(async () => !(await vivo()), 20_000))) fallar('Hay un Arbrain anterior corriendo y no se apagó. Corre `npm run servidor -- detener` y vuelve a intentarlo.')
   }
 
+  if (!asegurarGit()) registrar('Aviso: no encontré git; no puedo verificar el programa ya compilado de esta versión.')
   const listo = bandera('--compilar') ? null : await programaYaCompilado({ repo: REPO, dirProgramas: R.programa, version: versionRepo(), avisar: registrar })
   if (listo) {
     S.webDir = listo.web
@@ -688,6 +758,8 @@ async function iniciar() {
 
   registrar(`Datos: ${DATOS}`)
   registrar(`Cerebro: ${S.home}`)
+  // Qué web y qué Node corren en este arranque (soporte 29 oct: «¿qué web contesta?» según quién lo encendió).
+  registrar(`Web: ${S.webDir} (${listo ? 'programa ya compilado' : 'compilado aquí'}) · Node: ${S.node} · versión ${versionRepo() || '?'}`)
   apagarHuerfano()
   lanzarDaemon()
   if (!(await esperar(daemonSano, 60_000))) {
@@ -709,9 +781,9 @@ async function iniciar() {
   · Registros: ${R.logs}
   · Para apagarlo: Ctrl+C aquí, o npm run servidor -- detener
 `)
-  if (!bandera('--sin-navegador')) {
-    abrirNavegador(`${url}/api/desktop/entrar?pase=${ticketNuevo()}`)
-  }
+  const a = apertura()
+  if (a.via === 'app') abrirApp(a.app)
+  else if (a.via === 'navegador') abrirNavegador(`${url}/api/desktop/entrar?pase=${ticketNuevo()}`)
 }
 
 /**
@@ -767,6 +839,9 @@ async function main() {
   if (orden === 'abrir') {
     const ya = await vivo()
     if (ya) return abrirConSesion(ya)
+    // Apagado y con app: la app lo enciende ella misma (sin navegador) y enseña el progreso en su ventana.
+    const a = apertura()
+    if (a.via === 'app') return abrirApp(a.app)
     return iniciar()
   }
   if (orden === 'detener') {

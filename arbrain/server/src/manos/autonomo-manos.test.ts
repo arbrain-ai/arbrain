@@ -71,12 +71,14 @@ function chrome(elementos: Record<string, ContextoAccion['elemento']>, extra: Pa
 const ELEMENTOS = { e1: { rol: 'AXTextArea', titulo: 'Buscar un chat o iniciar uno nuevo', placeholder: 'Buscar un chat o iniciar uno nuevo' }, e3: { rol: 'AXTextArea', titulo: 'Escribe un mensaje', placeholder: 'Escribe un mensaje' }, e4: { rol: 'AXButton', titulo: 'Enviar' } }
 
 describe('A5: la cita sale del chat', () => {
-  it('citaDelChat: la frase reciente de la persona que nombra la acción (12+ caracteres); «si» no', () => {
+  it('citaDelChat: la frase reciente de la persona que nombra la acción (cualquier largo desde 0.2.16); «si» no', () => {
     modo('preguntar', ['si', 'envíame un mensaje de WhatsApp a mi número'])
     expect(citaDelChat('enviar')).toBe('envíame un mensaje de whatsapp a mi número')
     expect(citaDelChat('borrar')).toBeNull()
     expect(citaDelChat('transmitir_datos')).toBe('envíame un mensaje de whatsapp a mi número') // «número»
     modo('preguntar', ['sí, envíalo'])
+    expect(citaDelChat('enviar')).toBe('sí, envíalo')
+    modo('preguntar', ['no lo envíes'])
     expect(citaDelChat('enviar')).toBeNull()
     // Instalación de Daniel (sin edición cliente): no hay voz guardada ni cita del chat.
     const edicion = process.env.ARBRAIN_EDICION

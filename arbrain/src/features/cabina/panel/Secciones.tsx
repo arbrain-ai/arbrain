@@ -42,6 +42,7 @@ import { usePanelAjustes } from './panel-ajustes'
 import { useAjustes } from '@/shared/stores/ajustes-store'
 import { bajoElAncla, zoomUI } from '@/shared/lib/zoom-ui'
 import p from './secciones.module.css'
+import { zonaDueno } from '@/shared/lib/zona-dueno'
 
 // El calendario (FullCalendar) y la pizarra (motor del lienzo) solo cargan al abrir su pestaña (6 oct 2026): este
 // archivo lo importa el layout de toda la app y los arrastraba a cada ruta aunque nadie abriera esas pestañas.
@@ -251,7 +252,7 @@ function Guardadas({ onElegido }: { onElegido: () => void }) {
 }
 
 function OrigenGuardada({ e }: { e: Entrada }) {
-  const fecha = new Date(e.guardadaEn).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', timeZone: 'America/Mexico_City' })
+  const fecha = new Date(e.guardadaEn).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', timeZone: zonaDueno() })
   return <>{e.conversacion ? <TituloDe id={e.conversacion} /> : 'Sin conversación'} · {fecha}</>
 }
 function TituloDe({ id }: { id: string }) { return <>{useTituloConversacion(id)}</> }
