@@ -1,6 +1,7 @@
 import importlib.util
 import json
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -67,7 +68,7 @@ class IntentContextTests(unittest.TestCase):
             self.assertEqual(M.find('telescopio', root), [])
 
     def test_actual_shared_hook_output(self):
-        proc = subprocess.run(['python3', str(ROOT / '.claude/hooks/memory-recall.py')],
+        proc = subprocess.run([sys.executable, str(ROOT / '.claude/hooks/memory-recall.py')],
                               input=json.dumps({'prompt': 'recuerda esto por favor'}), text=True,
                               capture_output=True, timeout=12)
         self.assertEqual(proc.returncode, 0, proc.stderr)
@@ -90,7 +91,7 @@ class IntentContextTests(unittest.TestCase):
             (memory / 'MEMORY-indice.md').write_text('- `project/demo.md` — recuerdo. **T:** vsl.\n')
             (hooks / 'memory-recall.py').write_bytes((ROOT / '.claude/hooks/memory-recall.py').read_bytes())
             (hooks / 'agenda-context.py').write_text('def agenda_context(): return "AGENDA_PRESERVADA"\n')
-            proc = subprocess.run(['python3', str(hooks / 'memory-recall.py')],
+            proc = subprocess.run([sys.executable, str(hooks / 'memory-recall.py')],
                                   input=json.dumps({'prompt': 'vsl'}), capture_output=True,
                                   text=True, timeout=5)
             self.assertEqual(proc.returncode, 0, proc.stderr)

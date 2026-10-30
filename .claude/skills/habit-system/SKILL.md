@@ -37,8 +37,8 @@ al sistema.
 | **Evento** | Tiempo comprometido a una hora. | `.claude/plan/calendario.json`, el calendario local que pinta la sección Calendario del panel; o el calendario que conectó el dueño (`gog`, ver `arbrain/cerebro/manuales/`) |
 | **Hábito** | Lo que se repite y se mide por racha. | `.claude/plan/habitos.json` (vía `scripts/habit_record.py`) |
 
-Y una vista ambiental: **`.claude/now.md`**, que Levy recibe en cada conversación (lo genera
-`now-snapshot.py` donde existe; en esta edición no viaja y puede estar viejo: la verdad está en las
+Y una vista ambiental: **`.claude/now.md`**, que Levy recibe en cada conversación (lo arma Arbrain solo
+al arrancar, cada 20 minutos y cuando cambia `.claude/plan/`; puede ir unos minutos atrás: la verdad está en las
 fuentes). La vista viva es la sección **Calendario** del panel, que lee `objetivos.md`,
 `calendario.json` y `habitos.json`.
 
@@ -96,8 +96,9 @@ detecta por su cuenta se menciona y se conversa; no se anota sin permiso.
 
 ## Reglas duras
 
-- **`now.md` es una proyección:** se cambia la fuente, no `now.md`. Si existe
-  `arbrain/server/scripts/calendar/now-snapshot.py`, se regenera con él; si no (esta edición), no se corre.
+- **`now.md` es una proyección:** se cambia la fuente, no `now.md`; Arbrain lo regenera solo segundos después de
+  que cambie `.claude/plan/`. Si lo editas a mano, Arbrain deja de tocarlo (para volver, bórralo). Con
+  `<!-- manual -->` en una línea propia, el dueño lo congela a propósito.
 - **Una pluma por objeto.** Hitos en `objetivos.md`, hábitos por `habit_record.py`, eventos en
   `calendario.json` (o el calendario que conectó el dueño, nunca los dos para el mismo evento), tareas
   en su casa única (casillas, `calendario.json` con fecha o Todoist, nunca dos para la misma tarea).

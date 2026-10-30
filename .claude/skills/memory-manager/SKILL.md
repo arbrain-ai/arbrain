@@ -18,6 +18,7 @@ description: >
 ```
 .claude/memory/
 ├── MEMORY.md              ← ESENCIA importada siempre: quién eres y reglas transversales compactas
+├── RETRATO.md             ← Retrato del dueño, importado siempre: quién es, meta, cómo decide, lo firmado
 ├── MEMORY-user.md         ← Índice de identidad a demanda (entradas de user/), consultado por el recall
 ├── MEMORY-indice.md       ← Indice completo project/feedback/reference (NO importado; lo sirve el
 │                            hook .claude/hooks/memory-recall.py por triggers; max 400 chars/entrada)
@@ -34,6 +35,18 @@ description: >
 
 Los nombres de ejemplo son ilustrativos: tu memoria empieza vacía y crece contigo.
 La carpeta ES el tipo. No se usa frontmatter.
+
+## El retrato del dueño (`RETRATO.md`)
+
+Para que respondas como él lo haría aunque no nombre el tema. Nace «Pendiente» con sus secciones (cómo usarlo, quién
+es, su meta y su porqué, cómo decide, qué odia que hagas, lo firmado, abierto). Cómo mantenerlo:
+- **Llenarlo:** con su expediente (`user/expediente.md`, `project/meta-90-dias.md`) y lo que te cuente, una sección
+  a la vez; enséñale lo que escribiste. Al llenar una sección, borra su texto de guía; cuando ya no quede ninguna
+  vacía, quita la línea «_Pendiente…_».
+- **Al día:** cuando firme algo, te corrija o cambie su meta, actualiza la línea del retrato en el mismo turno en que
+  guardas el archivo de detalle. Si una fuente cambia, manda la fuente.
+- **Corto:** máximo unas 60 líneas; el detalle va en `user/`, `project/` o `feedback/` y aquí solo la línea con su
+  enlace. Textual suyo entre «», tu lectura marcada «(Levy)». Nunca una frase, cifra o fecha inventada.
 
 ## Un solo cerebro entre runtimes
 

@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Loader2, Repeat, X } from 'lucide-react'
 
-interface Regla { id: string; patron: string; creada: number; ejemplo: string }
+interface Regla { id: string; patron: string; creada: number; ejemplo: string; herramienta?: string; frase?: string }
 
 const fecha = (ms: number) => ms ? new Date(ms).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }) : ''
 
@@ -36,11 +36,12 @@ export function ReglasSiempre() {
   return (
     <section className="rounded-2xl border border-border-subtle bg-surface/70 p-4">
       <header className="mb-2 flex items-center gap-2">
-        <h3 className="flex items-center gap-2 text-[14px] font-semibold text-foreground"><Repeat className="size-4 text-brand-ink" aria-hidden /> Comandos que ya no te preguntan</h3>
+        <h3 className="flex items-center gap-2 text-[14px] font-semibold text-foreground"><Repeat className="size-4 text-brand-ink" aria-hidden /> Lo que ya no te pregunta</h3>
       </header>
       <p className="text-[12.5px] leading-relaxed text-muted">
-        Cuando en una tarjeta eliges «Siempre», el comando se guarda aquí como patrón. Lo que empiece igual corre sin preguntarte. Nunca aplica a borrar,
-        enviar, publicar ni pagar, ni cuando Levy acaba de leer algo de afuera.
+        Cuando en una tarjeta eliges «Permitir siempre», se guarda aquí: un comando, una herramienta conectada, una carpeta donde escribe o un sitio
+        web. Lo que case corre sin preguntarte. Nunca aplica a borrar, enviar, publicar ni pagar, ni en tus rutinas, ni cuando Levy acaba de leer algo
+        de afuera (salvo guardar en tu memoria, que elegiste en esa misma tarjeta).
       </p>
       {reglas === null && !error && <p className="mt-3 text-[12.5px] text-muted"><Loader2 className="mr-1 inline size-3.5 animate-spin" aria-hidden />Leyendo…</p>}
       {reglas && reglas.length === 0 && <p className="mt-3 text-[12.5px] text-muted">Todavía no guardas ninguno.</p>}
@@ -48,9 +49,12 @@ export function ReglasSiempre() {
         <ul className="mt-3 divide-y divide-border-subtle rounded-xl border border-border-subtle">
           {reglas.map(r => (
             <li key={r.id} className="flex items-center gap-3 px-3 py-2">
-              <code className="min-w-0 flex-1 truncate font-mono text-[12.5px] text-foreground" title={r.ejemplo ? `Nació de: ${r.ejemplo}` : undefined}>{r.patron}</code>
+              <span className="min-w-0 flex-1" title={r.ejemplo ? `Nació de: ${r.ejemplo}` : undefined}>
+                {r.frase && <span className="block truncate text-[12.5px] text-foreground">{r.frase}</span>}
+                <code className={`block truncate font-mono ${r.frase ? 'text-[11.5px] text-muted' : 'text-[12.5px] text-foreground'}`}>{r.patron}</code>
+              </span>
               <span className="shrink-0 text-[11px] text-muted">{fecha(r.creada)}</span>
-              <button type="button" onClick={() => void quitar(r.id)} disabled={!!ocupado} className="btn-secondary shrink-0 !px-2.5 !py-1 text-[12px]" aria-label={`Quitar ${r.patron}`}>
+              <button type="button" onClick={() => void quitar(r.id)} disabled={!!ocupado} className="btn-secondary shrink-0 !px-2.5 !py-1 text-[12px]" aria-label={`Quitar ${r.frase ?? r.patron}`}>
                 {ocupado === r.id ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <X className="size-3.5" aria-hidden />} Quitar
               </button>
             </li>

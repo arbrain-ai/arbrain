@@ -199,8 +199,8 @@ describe('A-3: la cita está atada a la acción', () => {
     expect(pedidas[0].partes.slice(0, 3)).toEqual(['Mail', 'button «Enviar»', 'Enviar'])   // la persona ve qué y dónde, no «ref e1»
     expect(f.llego).toEqual([])
   })
-  it('una cita corta (< 12) no vale en cliente aunque sea real', () => {
+  it('una cita corta y real que nombra la acción vale en cliente (0.2.16)', () => {
     registrarVoz('envíalo ya')
-    expect(frenar({ accion: 'click', ref: 'e1', confirmacion: 'envíalo ya' }, MAIL).pasa).toBe(false)
+    expect(frenar({ accion: 'click', ref: 'e1', confirmacion: 'envíalo ya' }, MAIL).pasa).toBe(true)
   })
 })

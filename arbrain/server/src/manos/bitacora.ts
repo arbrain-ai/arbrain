@@ -23,6 +23,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { randomBytes } from 'node:crypto'
 import { APPS_CHAT } from './freno.js'
+import { diaCivil } from '../zona.js'
 
 export const DIR_BITACORA = () => process.env.MANOS_BITACORA_DIR || join(DIR_ARBRAIN(), 'manos', 'bitacora')
 
@@ -93,7 +94,7 @@ export function firmaFalla(app: string | undefined, detalle: string): string {
 function archivo(d = new Date()): string {
   const dir = DIR_BITACORA()
   mkdirSync(dir, { recursive: true })
-  const f = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d)
+  const f = diaCivil(d) // Día civil del dueño (instalación original: México; alumno: su zona, 29 oct 2026).
   return join(dir, `${f}.jsonl`)
 }
 

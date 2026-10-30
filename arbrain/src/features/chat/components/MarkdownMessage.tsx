@@ -1,6 +1,6 @@
 'use client'
 import { useRef, useState, useId, useCallback, useEffect, memo, isValidElement, createContext, useContext } from 'react'
-import ReactMarkdown from 'react-markdown'
+import ReactMarkdown, { defaultUrlTransform } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
 import 'highlight.js/styles/github-dark-dimmed.css'
@@ -13,12 +13,15 @@ import { HtmlPreview } from './HtmlPreview'
 // Se re-exporta para no romper a los consumidores existentes (ChatPanel).
 import { ImageLightbox } from '@/shared/components/ImageLightbox'
 import { localImagePath, localImageUrl } from '@/lib/local-image-path'
+import { rutaArchivoLocal, rutaEntregableEnCodigo } from '@/lib/archivos-chat'
+import { EnlaceArchivo } from './EnlaceArchivo'
 import { urlPublicaDeStorage } from '../lib/adjuntos'
 import { ImagenRapida, useMetaImagen } from '@/shared/components/ImagenRapida'
 import { esStorageOptimizable } from '@/lib/imagenes/variantes'
 import { esEdicionCliente } from '@/lib/edicion'
 import { imagenRemotaBloqueada } from '../lib/imagen-remota'
 import { useEsperaExplicada } from '../lib/espera-explicada'
+import { BotonReintentar } from './BotonReintentar'
 export { ImageLightbox }
 
 // ─── Contexto: ¿este mensaje sigue streameando? ──────────────────────────────
@@ -32,6 +35,35 @@ const MsgStreamingContext = createContext(false)
 // y HTML vivo salen de la prosa al carril ancho (globals.css · .chat-wide). Dentro
 // de tarjetas (vista reporte, tools, Consejo) se quedan en su caja.
 const MsgAnchoContext = createContext(false)
+
+// Dentro de un enlace, el código en línea no se vuelve otro enlace (un <a> dentro de otro rompe el clic).
+const DentroDeEnlaceContext = createContext(false)
+
+/**
+ * Archivos locales en enlaces (29 oct 2026, T6): react-markdown borra por defecto los `href` con esquema que no conoce
+ * (`file://`, `C:\…`). Una ruta local se deja pasar tal cual para que `a` la cambie por su enlace firmado; lo demás
+ * pasa por la regla de siempre.
+ */
+function urlTransformChat(url: string) {
+  return rutaArchivoLocal(url) ? url : defaultUrlTransform(url)
+}
+
+function Enlace({ href, children }: { href?: string; children?: ReactNode }) {
+  const ruta = rutaArchivoLocal(href)
+  if (ruta) return <DentroDeEnlaceContext.Provider value><EnlaceArchivo ruta={ruta}>{children}</EnlaceArchivo></DentroDeEnlaceContext.Provider>
+  return (
+    <DentroDeEnlaceContext.Provider value>
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-brand-ink hover:opacity-80 underline underline-offset-2 transition-opacity"
+      >
+        {children}
+      </a>
+    </DentroDeEnlaceContext.Provider>
+  )
+}
 
 function Carril({ children }: { children: ReactNode }) {
   return useContext(MsgAnchoContext) ? <div className="chat-wide">{children}</div> : <>{children}</>
@@ -69,6 +101,7 @@ function childrenToText(node: ReactNode): string {
 function CodeBlock({ className, children }: ComponentPropsWithoutRef<'code'>) {
   const streaming = useContext(MsgStreamingContext)
   const ancho = useContext(MsgAnchoContext)
+  const dentroDeEnlace = useContext(DentroDeEnlaceContext)
   const preRef = useRef<HTMLPreElement>(null)
   const [copied, setCopied] = useState(false)
   // Wrap por default (móvil-first: sin scroll horizontal anidado dentro del
@@ -83,6 +116,9 @@ function CodeBlock({ className, children }: ComponentPropsWithoutRef<'code'>) {
   const isBlock = /language-|hljs/.test(className ?? '') || raw.includes('\n')
 
   if (!isBlock) {
+    // `~/Arbrain/entregas/propuesta.pdf` en código: el entregable se abre y se descarga desde aquí (T6).
+    const entregable = !dentroDeEnlace && !streaming ? rutaEntregableEnCodigo(raw) : null
+    if (entregable) return <EnlaceArchivo ruta={entregable} codigo>{children}</EnlaceArchivo>
     return (
       <code className="bg-card-active border border-border px-1.5 py-0.5 rounded text-[0.8em] font-mono text-foreground/85 break-all">
         {children}
@@ -269,7 +305,7 @@ export function ThinkingBlock({ text, label, streaming = false, waiting = false,
       {tiempo}
       <ChevronDown aria-hidden size={15} className={`shrink-0 text-muted/60 transition-transform motion-reduce:transition-none ${open ? 'rotate-180' : ''}`} />
     </button>
-    {espera && <p role="status" data-espera-explicada className="-mt-1 mb-2 text-[12px] text-muted">{espera}</p>}
+    {espera && <p role="status" data-espera-explicada className="-mt-1 mb-2 text-[12px] text-muted">{espera.texto}{espera.reintentar && <> <BotonReintentar className="ml-1 align-baseline" /></>}</p>}
     {open && <div id={detailsId} role="region" aria-label="Detalle de actividad" aria-live="off"
       className="mt-1 mb-3 ml-2 border-l border-border pl-4 pr-2 text-[13px] text-muted leading-relaxed whitespace-pre-wrap break-words">
       {text || detail || (streaming ? 'Todavía no hay un resumen de razonamiento disponible.' : 'No se recibió un resumen de razonamiento para este turno.')}
@@ -351,6 +387,7 @@ export const MarkdownMessage = memo(function MarkdownMessage({
             key={i}
             remarkPlugins={[remarkGfm]}
             rehypePlugins={[rehypeHighlight]}
+            urlTransform={urlTransformChat}
             components={{
           code: CodeBlock,
           // CodeBlock ya emite su propio <pre> con header + copiar. Sin este
@@ -374,16 +411,7 @@ export const MarkdownMessage = memo(function MarkdownMessage({
           hr: () => <hr className="my-5 border-border" />,
           strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
           em: ({ children }) => <em className="text-foreground/75 italic">{children}</em>,
-          a: ({ href, children }) => (
-            <a
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-brand-ink hover:opacity-80 underline underline-offset-2 transition-opacity"
-            >
-              {children}
-            </a>
-          ),
+          a: Enlace,
           img: ({ src, alt }) => <ChatImage src={typeof src === 'string' ? src : undefined} alt={typeof alt === 'string' ? alt : undefined} />,
           table: TablaMd,
           th: ({ children }) => (

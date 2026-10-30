@@ -27,6 +27,12 @@ async function sesionesSdkDelJournal(claudeclawUrl: Promise<string> | string, ow
   } catch { return [] }
 }
 
+/** `linkedChatSessionId` = «perfil:conversación:…». Ajena si el perfil es otro (el escritorio local también es el dueño). */
+function enlazadaAOtroPerfil(enlace: string | null | undefined, perfil: string): boolean {
+  const dueno = typeof enlace === 'string' ? enlace.split(':')[0] : ''
+  return /^[0-9a-f-]{36}$/i.test(dueno) && dueno !== perfil
+}
+
 export async function GET(request: Request) {
   // En paralelo con la auth: la URL del daemon no depende de ella.
   const claudeclawUrl = getClaudeclawUrl()
@@ -106,6 +112,10 @@ export async function GET(request: Request) {
     })
   }
 
+  // El pool de sesiones CLI es de la máquina del dueño (29 oct 2026): la segunda persona no lo ve (antes recibía los
+  // resúmenes de las sesiones de Daniel) y al dueño no le llegan las enlazadas a la conversación de otro perfil (su
+  // app pedía esa conversación y recibía 404, y veía de qué hablaba ella con su Levy).
+  if (!auth.user!.personalOwner) return Response.json({ sessions: [] })
   try {
     // TEMPORAL: pool de sesiones CLI por cuenta ('bro' → su carpeta de configuración en el daemon).
     const accountQs = isNonDefaultAccount(account) ? `&account=${account}` : ''
@@ -117,7 +127,8 @@ export async function GET(request: Request) {
       headers: { Authorization: `Bearer ${CLAUDECLAW_TOKEN}` },
     })
     if (!res.ok) throw new Error(`ClaudeClaw ${res.status}`)
-    const data = await res.json()
+    const data = await res.json() as { sessions?: Array<{ linkedChatSessionId?: string | null }> }
+    if (Array.isArray(data.sessions)) data.sessions = data.sessions.filter((x) => !enlazadaAOtroPerfil(x.linkedChatSessionId, auth.user!.id))
     return Response.json(data)
   } catch {
     return Response.json({ sessions: [], degraded: true, error: 'ClaudeClaw unreachable' })

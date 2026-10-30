@@ -76,6 +76,8 @@ export interface PlanningSnapshot {
   health: SourceHealth[]
   loadedAt: string
   range: { from: string; to: string }
+  /** Calendario de otra persona (29 oct 2026): solo sus calendarios; sin Todoist si `tareas` es false. Ausente = el dueño. */
+  perfil?: { clave: string; tareas: boolean }
 }
 
 export interface PlanMutation {

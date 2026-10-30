@@ -24,7 +24,8 @@ import { esModoServidor } from '@/lib/modo-servidor'
 import { llegaPorTelefono } from '@/features/telefono/host-telefono'
 
 // `/api/mi-marca`: colores, logo y nombre del dueño (lib/mi-marca.ts), sin datos; la pantalla de entrada también los lleva.
-const SIN_SESION_API = ['/api/desktop', '/api/chat/complete', '/api/llaves/openrouter/callback', '/api/mi-marca']
+// `/api/chat/archivo/f`: un archivo del chat por su enlace firmado (T6, 29 oct 2026); la firma es la sesión de ese archivo.
+const SIN_SESION_API = ['/api/desktop', '/api/chat/complete', '/api/llaves/openrouter/callback', '/api/mi-marca', '/api/chat/archivo/f']
 const NO_DISPONIBLE = 'No disponible en esta edición.'
 const NOCACHE = { 'Cache-Control': 'no-store' }
 

@@ -26,20 +26,24 @@ const TODOS: { id: SegmentoTaller; etiqueta: string; pregunta: string }[] = [
   { id: 'maquina', etiqueta: 'Computadora', pregunta: '¿Está todo prendido?' },
 ]
 /**
- * Edición cliente: Agentes y Memoria. Revisado el 22 oct 2026 (prueba de Windows de Daniel: «no veo Rutinas ni Máquina») y se
- * quedan fuera porque hoy no funcionan en la copia del alumno:
- *  · Rutinas lee `/api/planning/crons`, que en cliente está excluida a propósito (edicion.ts, APIS_CLIENTE_EXCLUIDAS) y cuyo
- *    historial sale de `conversations` en Supabase, que el alumno no tiene. Mostrarla daría un 404 o una lista vacía con error.
- *    Además, con la suscripción de Claude las rutinas automáticas no corren (cliente/suscripcion.ts, MENSAJE_RUTINAS).
- *    Para abrirla en cliente hace falta una rama local de esa ruta: el `/schedule` del daemon del alumno y su historial en la base
- *    local, en vez de Supabase.
- *  · Máquina lee `/api/cabina/servidores` (fuera de APIS_CLIENTE) y pinta el Studio de Daniel: los servidores de sus miembros,
- *    sus servicios launchd por área y la Casa. En la computadora del alumno no hay nada de eso que mostrar.
+ * Edición cliente: Agentes, Rutinas, Memoria y Computadora. Revisado el 22 oct 2026 (prueba de Windows de Daniel: «no veo
+ * Rutinas ni Máquina»). Rutinas volvió el 29 oct 2026 (T8 del inventario de la cohorte): en cliente pinta `RutinasCliente`,
+ * que lee `/api/rutinas` (el `/schedule` de SU daemon) y no `/api/planning/crons` (sigue excluida: Studio y Supabase). Si las
+ * rutinas no correrían (suscripción sin llave de tope, falta de llave, pausa), la pestaña lo dice arriba.
+ * Computadora volvió el 29 oct 2026 (T16: un alumno con 8 GB, otro pidió «RAM y forzar salida», una Mac Mini dormida):
+ * en cliente pinta `ComputadoraCliente`, que lee `/api/computadora` (SU daemon: memoria, disco, procesador, reposo y las apps
+ * que más ocupan, con cerrar). La Máquina de Daniel (`/api/cabina/servidores`: sus servidores, launchd y la Casa) sigue fuera.
+ * El resto sigue fuera:
  *  · Registro vive detrás de Máquina y Rutinas.
  *  · Historia lee el repo del Studio con git (`/api/historia` responde 404 en cliente).
  */
 const CLIENTE = esEdicionCliente()
-export const SEGMENTOS_TALLER = CLIENTE ? TODOS.filter(t => t.id === 'terminales' || t.id === 'memoria') : TODOS
+export const SEGMENTOS_CLIENTE: readonly SegmentoTaller[] = ['terminales', 'rutinas', 'memoria', 'maquina']
+/** En cliente, Computadora responde otra pregunta: la del alumno no es «¿está todo prendido?» sino si su máquina aguanta. */
+const PREGUNTA_CLIENTE: Partial<Record<SegmentoTaller, string>> = { maquina: '¿Cómo va mi computadora?' }
+export const SEGMENTOS_TALLER = CLIENTE
+  ? TODOS.filter(t => SEGMENTOS_CLIENTE.includes(t.id)).map(t => ({ ...t, pregunta: PREGUNTA_CLIENTE[t.id] ?? t.pregunta }))
+  : TODOS
 const ALIAS: Record<string, SegmentoTaller> = { agentes: 'terminales', servidores: 'maquina', servicios: 'maquina', archivos: 'memoria' }
 /** El segmento al que lleva un id (nuevo o viejo); null si no es del Taller. */
 export function aSegmento(v: unknown): SegmentoTaller | null {

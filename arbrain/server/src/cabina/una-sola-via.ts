@@ -14,13 +14,25 @@
  *    conversación: el turno lo marca al empezar.
  *
  * ARBRAIN_UNA_SOLA_VIA=0 lo apaga (reversa sin deploy).
+ *
+ * Edición cliente (29 oct 2026, cliente/subagentes-sdk.ts): al revés. `delegar` no existe ahí (red team A1: procesos de
+ * CLI aparte, fuera de la guardia), así que la única vía del alumno es `Agent`/`Task` del SDK, que corren en la misma
+ * sesión y pasan por la guardia (ganchos y `canUseTool`) como cualquier herramienta del chat. Quedan permitidos salvo
+ * con `ARBRAIN_SUBAGENTES=0`. Workflow sigue igual (solo con «ultracode»).
  */
 import type { HookCallbackMatcher, HookInput, SyncHookJSONOutput } from '@anthropic-ai/claude-agent-sdk'
+import { esEdicionCliente } from '../edicion.js'
+import { subagentesClienteEncendidos } from '../cliente/subagentes-sdk.js'
 
 export const SUBAGENTES_SDK = ['Agent', 'Task'] as const
 export const WORKFLOW = 'Workflow'
 
 export const viaUnicaActiva = (env: NodeJS.ProcessEnv = process.env) => env.ARBRAIN_UNA_SOLA_VIA !== '0'
+
+/** ¿Este chat puede usar `Agent`/`Task` del SDK? Cliente: sí (bajo su guardia), salvo `ARBRAIN_SUBAGENTES=0`. Daniel: no, salvo vía única apagada. */
+export function subagentesSdkPermitidos(env: NodeJS.ProcessEnv = process.env, cliente = esEdicionCliente(env)): boolean {
+  return cliente ? subagentesClienteEncendidos(env) : !viaUnicaActiva(env)
+}
 
 /** «ultracode» como palabra (mismo criterio que `hasUltracodeWord` del chat) o el modo /ultracode de la conversación. */
 export function pideUltracode(mensaje: string, standing = false): boolean {
@@ -28,7 +40,7 @@ export function pideUltracode(mensaje: string, standing = false): boolean {
 }
 
 /** Lo que el chat de Levy no puede usar. `durable` = turno del chat vivo (journal). Crons y síntesis tienen su lista. */
-export function herramientasProhibidasChat(o: { durable: boolean; env?: NodeJS.ProcessEnv }): string[] {
+export function herramientasProhibidasChat(o: { durable: boolean; env?: NodeJS.ProcessEnv; cliente?: boolean }): string[] {
   return [
     // Chat vivo (3 oct 2026): los crons nativos de sesión no son durables (mueren con el proceso y el corredor se retira
     // a los 30 min). Levy usa mcp__cabina__despertador, que sí sobrevive.
@@ -37,7 +49,8 @@ export function herramientasProhibidasChat(o: { durable: boolean; env?: NodeJS.P
     'mcp__claude_ai_Gmail__*',
     'mcp__claude_ai_Google_Drive__*',
     // Una sola vía (27 oct 2026): lo largo va por mcp__cabina__delegar, que sobrevive a compactos y reinicios.
-    ...(viaUnicaActiva(o.env) ? SUBAGENTES_SDK : []),
+    // Cliente: la vía es Agent/Task (delegar no existe ahí); se quitan solo si la persona los apagó.
+    ...(subagentesSdkPermitidos(o.env, o.cliente) ? [] : SUBAGENTES_SDK),
   ]
 }
 
@@ -53,13 +66,13 @@ export function marcarTurno(clave: string, mensaje: string, standing = false): v
 export const workflowPermitido = (clave: string) => permisoWorkflow.get(clave) === true
 
 /** Gancho PreToolUse que niega `Workflow` (y, por si la lista no se aplicara, `Agent`/`Task`) fuera de ultracode. */
-export function ganchoViaUnica(clave: string): HookCallbackMatcher {
+export function ganchoViaUnica(clave: string, subagentes = false): HookCallbackMatcher {
   return {
     matcher: [WORKFLOW, ...SUBAGENTES_SDK].join('|'),
     hooks: [async (input: HookInput): Promise<SyncHookJSONOutput> => {
       if (input.hook_event_name !== 'PreToolUse') return { continue: true }
       const negar = (permissionDecisionReason: string): SyncHookJSONOutput => ({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason } })
-      if ((SUBAGENTES_SDK as readonly string[]).includes(input.tool_name)) return negar('Agent/Task no están disponibles en el chat: usa mcp__cabina__delegar (una sola vía).')
+      if ((SUBAGENTES_SDK as readonly string[]).includes(input.tool_name)) return subagentes ? { continue: true } : negar('Agent/Task no están disponibles en el chat: usa mcp__cabina__delegar (una sola vía).')
       if (input.tool_name === WORKFLOW && !workflowPermitido(clave)) return negar(MENSAJE_WORKFLOW)
       return { continue: true }
     }],
@@ -67,7 +80,7 @@ export function ganchoViaUnica(clave: string): HookCallbackMatcher {
 }
 
 /** Suma el gancho a los del turno sin pisar los demás. Con la vía única apagada, devuelve los ganchos tal cual. */
-export function conViaUnica<T extends { PreToolUse?: HookCallbackMatcher[] }>(hooks: T, clave: string | null, env: NodeJS.ProcessEnv = process.env): T {
-  if (!clave || !viaUnicaActiva(env)) return hooks
-  return { ...hooks, PreToolUse: [ganchoViaUnica(clave), ...(hooks.PreToolUse ?? [])] }
+export function conViaUnica<T extends { PreToolUse?: HookCallbackMatcher[] }>(hooks: T, clave: string | null, env: NodeJS.ProcessEnv = process.env, cliente = esEdicionCliente(env)): T {
+  if (!clave || (!cliente && !viaUnicaActiva(env))) return hooks
+  return { ...hooks, PreToolUse: [ganchoViaUnica(clave, subagentesSdkPermitidos(env, cliente)), ...(hooks.PreToolUse ?? [])] }
 }

@@ -15,7 +15,7 @@ import {
 } from './AudioBarChrome'
 
 // Referencia ESTABLE para SSR y estado inactivo (Object.is en useSyncExternalStore).
-const INACTIVE: SpeechState = { active: false, id: null, paused: false, rate: 1, idx: 0, total: 0, despierto: false }
+const INACTIVE: SpeechState = { active: false, id: null, paused: false, rate: 1, idx: 0, total: 0, despierto: false, resumen: false }
 
 /**
  * Barra de lectura por voz del chat — MISMO diseño que la GlobalAudioBar (pegada bajo el

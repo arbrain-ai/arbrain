@@ -10,6 +10,7 @@
  * Lo puro (línea de una cita, línea nueva de un diff, a qué agente va, el envío) se prueba en node; el almacén vive en
  * localStorage para no perder lo escrito si se cierra la pestaña.
  */
+import { sinRespuestaDelServidor } from '@/lib/edicion'
 import { useSyncExternalStore } from 'react'
 import type { Trabajos } from '../trabajos-modelo'
 
@@ -113,7 +114,7 @@ export function useComentarios(): ComentarioPendiente[] {
 export async function mandarComentarios(agente: number, cs: ComentarioPendiente[]): Promise<string> {
   const r = await fetch('/api/cabina/comentarios', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ agente, comentarios: envioDe(cs) }), signal: AbortSignal.timeout(60_000) })
   const b = await r.json().catch(() => ({})) as { texto?: string; error?: string }
-  if (!r.ok) throw new Error(b.error ?? 'El Studio no respondió.')
+  if (!r.ok) throw new Error(b.error ?? sinRespuestaDelServidor())
   comentarios.quitarVarios(cs.map(c => c.id))
   return b.texto ?? 'Enviados.'
 }

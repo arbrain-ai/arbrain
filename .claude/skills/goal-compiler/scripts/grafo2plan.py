@@ -164,17 +164,26 @@ def main():
     ap.add_argument("--json", help="escribir el plan como JSON aquí")
     args = ap.parse_args()
 
-    G = json.load(open(args.grafo))
+    # UTF-8 explícito: en Windows open() usa cp1252 y «→» o los acentos truenan o salen rotos.
+    for _s in (sys.stdout, sys.stderr):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
+    with open(args.grafo, encoding="utf-8") as f:
+        G = json.load(f)
     plan = compilar(G)
     md = render_md(G, plan)
     if args.out:
-        open(args.out, "w").write(md)
+        with open(args.out, "w", encoding="utf-8", newline="\n") as f:
+            f.write(md)
         print(f"✓ plan → {args.out} ({len(plan)} fases, "
               f"{sum(1 for p in plan if p['paralelizable'])} con paralelismo)")
     else:
         print(md)
     if args.json:
-        json.dump({"slug": G["slug"], "fases": plan}, open(args.json, "w"), ensure_ascii=False, indent=1)
+        with open(args.json, "w", encoding="utf-8", newline="\n") as f:
+            json.dump({"slug": G["slug"], "fases": plan}, f, ensure_ascii=False, indent=1)
 
 
 if __name__ == "__main__":

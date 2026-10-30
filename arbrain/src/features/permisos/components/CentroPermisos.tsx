@@ -10,6 +10,7 @@ import {
   GRUPOS, abrirPanel, fichaEnEdicion, leerPermisos, pedirPermiso, permisosDisponibles,
   type EstadoPermiso, type EstadoPermisos, type Identidad, type Permiso, type PermisoId,
 } from '../lib/permisos'
+import { permisosFueraDeMac, plataformaDe } from '@/features/chat/lib/voz-sistema'
 
 const CLIENTE = esEdicionCliente()
 const ficha = (id: PermisoId) => fichaEnEdicion(id, CLIENTE)
@@ -143,6 +144,21 @@ export function CentroPermisos() {
     } finally {
       setPidiendo(null)
     }
+  }
+
+  // Windows y Linux (29 oct 2026, un fundador en Windows): aquí no hay permisos de macOS que leer; se dice dónde decide su sistema.
+  const plataforma = plataformaDe(typeof navigator === 'undefined' ? '' : navigator.userAgent)
+  if ((estado && !estado.soportado) || (disponible === false && plataforma !== 'mac')) {
+    const fuera = permisosFueraDeMac(plataforma)
+    return (
+      <section id="permisos" className="solid-card overflow-hidden px-5 py-4">
+        <div className="flex items-center gap-2">
+          <Mic size={16} className="text-muted" />
+          <h2 className="text-sm font-semibold text-foreground/85">{fuera.titulo}</h2>
+        </div>
+        <p className="text-xs text-muted/80 mt-1 leading-relaxed">{fuera.texto}</p>
+      </section>
+    )
   }
 
   const usados = estado?.permisos.filter((p) => ficha(p.id).grupo !== 'sin_uso') ?? []

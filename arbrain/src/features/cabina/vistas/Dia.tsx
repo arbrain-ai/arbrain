@@ -12,6 +12,7 @@ import { etiquetaDia, hoyCivil } from '../model'
 import { escalon } from '../movimiento'
 import { type Item, porDia, bandaDe, tareasDe, atrasada, minutosCiviles, duracion, faltan, mutarTarea, sinEmoji } from './agenda'
 import l from '../luz.module.css'
+import { zonaDueno } from '@/shared/lib/zona-dueno'
 
 function useAhora(activo: boolean) {
   const [ahora, setAhora] = useState(() => Date.now())
@@ -23,7 +24,8 @@ function useAhora(activo: boolean) {
   return ahora
 }
 
-const relojFmt = new Intl.DateTimeFormat('es-MX', { timeZone: 'America/Mexico_City', hour: '2-digit', minute: '2-digit', hour12: false })
+/** Reloj en la zona del dueño (instalación original: México; alumno: la suya). */
+const relojFmt = { format: (d: Date | number) => new Intl.DateTimeFormat('es-MX', { timeZone: zonaDueno(), hour: '2-digit', minute: '2-digit', hour12: false }).format(d) }
 
 export function Reloj({ eventos, ahora }: { eventos: Item[]; ahora: number }) {
   const actual = eventos.find(e => e.inicio! <= ahora && ahora < e.fin!)

@@ -212,6 +212,8 @@ export const paseAgenteValido = (dado: unknown): boolean => igual(dado, cofre.ge
  *   - `GET /health`: sonda.
  *   - `GET /schedule`: ver las rutinas (lo documenta la skill de la app en el cerebro del alumno); correrlas o
  *     pausarlas sigue cerrado (red team 3 M-1/M-2).
+ *   - `POST /schedule` (T8, 29 oct 2026): proponer una rutina. Nace EN PAUSA (cliente/rutinas.ts); solo la app la activa,
+ *     así que el pase no puede dejar algo corriendo solo.
  *   - `GET /manos/estado`, `GET /manos/interruptor`, `POST /confirmaciones/pedir|consumir`: el MCP de manos. En la v1
  *     responden apagado o 403 `no_disponible` (DECISIONES #11); quedan para cuando computer use vuelva.
  * `/vivo` y `/live/tool` se atienden antes de la credencial (el segundo con su propio token por turno).
@@ -222,7 +224,8 @@ export function rutaSoloApp(metodo: string | undefined, ruta: string): boolean {
 
 const RUTAS_DEL_PASE: Record<string, ReadonlySet<string>> = {
   GET: new Set(['/health', '/schedule', '/manos/estado', '/manos/interruptor']),
-  POST: new Set(['/confirmaciones/pedir', '/confirmaciones/consumir']),
+  // POST /schedule (T8, 29 oct 2026): Levy propone una rutina y nace en pausa; activarla, pausarla o borrarla es de la app.
+  POST: new Set(['/confirmaciones/pedir', '/confirmaciones/consumir', '/schedule']),
 }
 
 /** Solo pruebas. */

@@ -13,12 +13,13 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod servidor;
+mod ventana;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc, Arc};
 use std::thread::sleep;
 use std::time::{Duration, Instant};
-use tao::dpi::LogicalSize;
+use tao::dpi::{LogicalPosition, LogicalSize};
 use tao::event::{Event, StartCause, WindowEvent};
 use tao::event_loop::{ControlFlow, EventLoopBuilder, EventLoopProxy};
 use tao::window::WindowBuilder;
@@ -78,12 +79,14 @@ fn conectar(proxy: &EventLoopProxy<Ev>) -> Result<String, Fallo> {
     };
     // Otro arranque en curso (por ejemplo «actualizar» lo reinició): se espera a ese en vez de encender otro.
     let inicio = Instant::now();
+    let mut motivo = Motivo::nuevo();
     while servidor::otro_arrancando(&cfg) && inicio.elapsed() < PLAZO_ARRANQUE {
         let aviso = servidor::ultimo_aviso(&cfg.datos.join("logs").join("servidor.log")).unwrap_or_default();
-        let _ = proxy.send_event(Ev::Estado(ENCENDIENDO.into(), aviso));
+        let _ = proxy.send_event(Ev::Estado(ENCENDIENDO.into(), motivo.detalle(aviso)));
         sleep(Duration::from_secs(2));
-        if let Some(url) = servidor::pase(&cfg) {
-            return Ok(url);
+        match servidor::pase_o_motivo(&cfg) {
+            Ok(url) => return Ok(url),
+            Err(m) => motivo.anotar(&cfg, "esperando otro arranque", m),
         }
     }
     let _ = proxy.send_event(Ev::Estado(ENCENDIENDO.into(), "Preparando…".into()));
@@ -91,10 +94,12 @@ fn conectar(proxy: &EventLoopProxy<Ev>) -> Result<String, Fallo> {
     let mut hijo = servidor::arrancar(&cfg, &node, &path).map_err(|e| fallo("No pude encender Arbrain", e.to_string(), ""))?;
     let inicio = Instant::now();
     let mut ultima = String::new();
+    let mut motivo = Motivo::nuevo();
     loop {
         sleep(Duration::from_millis(800));
-        if let Some(url) = servidor::pase(&cfg) {
-            return Ok(url);
+        match servidor::pase_o_motivo(&cfg) {
+            Ok(url) => return Ok(url),
+            Err(m) => motivo.anotar(&cfg, "encendiendo", m),
         }
         if let Ok(Some(salida)) = hijo.try_wait() {
             // Otro arranque (la terminal, el arranque automático) pudo ganarle: ese también sirve.
@@ -116,10 +121,42 @@ fn conectar(proxy: &EventLoopProxy<Ev>) -> Result<String, Fallo> {
                 servidor::ultimos_avisos(&log, 12).join("\n"),
             ));
         }
-        let linea = servidor::ultimo_aviso(&log).unwrap_or_else(|| "Preparando…".into());
+        let linea = motivo.detalle(servidor::ultimo_aviso(&log).unwrap_or_else(|| "Preparando…".into()));
         if linea != ultima {
             let _ = proxy.send_event(Ev::Estado(ENCENDIENDO.into(), linea.clone()));
             ultima = linea;
+        }
+    }
+}
+
+/// Por qué todavía no se puede entrar (soporte 29 oct 2026: «Encendiendo tu Arbrain…» más de 2 minutos sin decir nada).
+/// Cada 30 s anota el motivo en escritorio.log; pasado un minuto con el control del servidor ya vivo, la pantalla lo dice.
+struct Motivo {
+    inicio: Instant,
+    anotado: Option<Instant>,
+    ultimo: Option<String>,
+}
+
+impl Motivo {
+    fn nuevo() -> Motivo {
+        Motivo { inicio: Instant::now(), anotado: None, ultimo: None }
+    }
+
+    fn anotar(&mut self, cfg: &servidor::Config, etapa: &str, m: String) {
+        if self.anotado.map(|t| t.elapsed() >= Duration::from_secs(30)).unwrap_or(true) {
+            servidor::anotar(cfg, &format!("{etapa} ({} s): no puedo entrar todavía: {m}", self.inicio.elapsed().as_secs()));
+            self.anotado = Some(Instant::now());
+        }
+        self.ultimo = Some(m);
+    }
+
+    /// El aviso del servidor y, si ya pasó un minuto y el control contesta pero algo más falla, el motivo.
+    fn detalle(&self, aviso: String) -> String {
+        match &self.ultimo {
+            Some(m) if self.inicio.elapsed() > Duration::from_secs(60) && !m.starts_with("no hay servidor.json") && !m.starts_with("el control (") => {
+                format!("{aviso}\nTu Arbrain responde pero todavía no me deja entrar: {m}.")
+            }
+            _ => aviso,
         }
     }
 }
@@ -196,10 +233,17 @@ fn main() {
     #[cfg(target_os = "macos")]
     let menu = menu::crear(proxy.clone());
 
+    // Al área útil del monitor (sin la barra de tareas): en 1280×720 la ventana fija de 1360×880 dejaba el botón de la
+    // bienvenida fuera de la pantalla (ventana.rs).
+    let m = ventana::medidas(ventana::area_util(&event_loop));
     let constructor = WindowBuilder::new()
         .with_title("Arbrain")
-        .with_inner_size(LogicalSize::new(1360.0, 880.0))
-        .with_min_inner_size(LogicalSize::new(880.0, 600.0));
+        .with_inner_size(LogicalSize::new(m.ancho, m.alto))
+        .with_min_inner_size(LogicalSize::new(m.min_ancho, m.min_alto));
+    let constructor = match m.posicion {
+        Some((x, y)) => constructor.with_position(LogicalPosition::new(x, y)),
+        None => constructor,
+    };
     // Windows: ícono chico (barra de título) y grande (barra de tareas) desde el recurso del .exe, antes de crear la
     // ventana; sin el grande, la barra de tareas pinta uno genérico.
     #[cfg(windows)]

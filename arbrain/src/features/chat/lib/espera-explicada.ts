@@ -17,11 +17,16 @@ export function explicarEspera(salud: SaludPublica, segundos: number): string {
   return `Lleva ${segundos} s preparándose. El motor de Arbrain está activo; algunas respuestas tardan en empezar. Puedes esperar o detenerla.`
 }
 
-/** Explicación de una espera larga (null mientras no pase el umbral o si no hay espera). */
-export function useEsperaExplicada(esperando: boolean): string | null {
-  const [texto, setTexto] = useState<string | null>(null)
+/** ¿La espera es porque no hay conexión o el motor no responde? Entonces se ofrece «Reintentar». */
+export function esperaPideReintento(salud: SaludPublica): boolean {
+  return !salud || salud.etapas?.daemon?.ok === false
+}
+
+/** Explicación de una espera larga (null mientras no pase el umbral o si no hay espera). `reintentar`: ofrecer el botón. */
+export function useEsperaExplicada(esperando: boolean): { texto: string; reintentar: boolean } | null {
+  const [espera, setEspera] = useState<{ texto: string; reintentar: boolean } | null>(null)
   useEffect(() => {
-    if (!esperando) { setTexto(null); return }
+    if (!esperando) { setEspera(null); return }
     const inicio = Date.now()
     let vivo = true
     let timer: ReturnType<typeof setTimeout>
@@ -32,11 +37,11 @@ export function useEsperaExplicada(esperando: boolean): string | null {
         salud = await r.json().catch(() => null) as SaludPublica
       } catch { salud = null }
       if (!vivo) return
-      setTexto(explicarEspera(salud, Math.round((Date.now() - inicio) / 1000)))
+      setEspera({ texto: explicarEspera(salud, Math.round((Date.now() - inicio) / 1000)), reintentar: esperaPideReintento(salud) })
       timer = setTimeout(() => { void mirar() }, CONSULTA_CADA_MS)
     }
     timer = setTimeout(() => { void mirar() }, ESPERA_SIN_EXPLICAR_MS)
     return () => { vivo = false; clearTimeout(timer) }
   }, [esperando])
-  return texto
+  return espera
 }

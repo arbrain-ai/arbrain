@@ -1,5 +1,6 @@
 import { planningOwner, planningError, checkMutationOrigin } from '@/lib/planning/server'
 import { getSchedulerUrl, CLAUDECLAW_TOKEN } from '@/lib/claudeclaw'
+import { sinRespuestaDelServidor } from '@/lib/edicion'
 
 // Archivero del panel derecho (3 oct 2026): «+ › Guardadas». La lista vive en el Studio
 // (~/.config/arbrain/archivero.json) y la escribe una sola implementación, la del daemon
@@ -15,7 +16,7 @@ async function alDaemon(cuerpo: Record<string, unknown>) {
     method: 'POST', headers: { Authorization: `Bearer ${CLAUDECLAW_TOKEN}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ que: 'archivero', ...cuerpo }), signal: AbortSignal.timeout(15_000), cache: 'no-store',
   })
-  const body = await res.json().catch(() => ({ error: 'El Studio no respondió.' }))
+  const body = await res.json().catch(() => ({ error: sinRespuestaDelServidor() }))
   return Response.json(body, { status: res.status, headers: NO_CACHE })
 }
 

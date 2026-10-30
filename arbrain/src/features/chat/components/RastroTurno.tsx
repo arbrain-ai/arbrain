@@ -14,6 +14,7 @@ import { agruparHerramientas, agentesTrabajando, contarPasos, delegadosDe, linea
 import { inicioTurno } from '../lib/duracion-turno'
 import { etiquetaFila } from '../lib/fila-turno'
 import { useEsperaExplicada } from '../lib/espera-explicada'
+import { BotonReintentar } from './BotonReintentar'
 import { abrirTallerDelPanel } from '../lib/abrir-taller'
 import { esViva } from '../lib/tareas-turno'
 import { GruposHerramientas, NotasInyectadas } from './ToolCallCard'
@@ -110,7 +111,7 @@ export function Razonamiento({ msg, connection = 'online' }: { msg: ChatMessage;
         {conReloj && <span className={h.fijaMeta}><RelojTurno inicio={inicioTurno(msg)} /></span>}
         <ChevronRight aria-hidden className={h.flecha} />
       </button>
-      {espera && <p role="status" data-espera-explicada className="-mt-1 mb-2 text-[12px] text-muted">{espera}</p>}
+      {espera && <p role="status" data-espera-explicada className="-mt-1 mb-2 text-[12px] text-muted">{espera.texto}{espera.reintentar && <> <BotonReintentar className="ml-1 align-baseline" /></>}</p>}
       {abierto && <div id={id} role="region" aria-label="Razonamiento y herramientas de Levy" className={h.cuerpo}>
         <LineaDeTiempo msg={msg} tareas={vivo ? msg.tasks?.filter(t => !esViva(t)) : msg.tasks} />
         {vivo && !razonamiento && !pasos && <p className={h.resumenes}>Todavía no hay razonamiento ni herramientas.</p>}
