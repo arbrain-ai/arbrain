@@ -65,6 +65,31 @@ describe('Claude accepted selection', () => {
     // Sin modelo de cuenta conocido no se inventa uno.
     expect(() => freezeClaudeSelection('default', { ...overrides, model: 'claude-opus-4-8' }, undefined, live, { ...defaults, configuredModel: null })).toThrow('confirmar el modelo')
   })
+  it('edición cliente sin modelo configurado ni elegido: el de la casa (Opus 5.5), con source visible; la original sigue estricta', () => {
+    // 30 oct 2026: cuenta de Claude recién conectada en su servidor, sin `model` en settings.json ni preferencia de motor.
+    const cliente = { ARBRAIN_EDICION: 'cliente' }
+    const sinModelo = { ...defaults, configuredModel: null, settingsSource: null }
+    const live = { ...catalog, models: [
+      { value: 'default', resolvedModel: 'claude-opus-5-5', displayName: 'Default', description: '' },
+      { value: 'opus[1m]', resolvedModel: 'claude-opus-5-5', displayName: 'Opus 1M', description: '', supportedEffortLevels: ['low', 'medium', 'high'] as const },
+      { value: 'opus', resolvedModel: 'claude-opus-5-5', displayName: 'Opus', description: '', supportedEffortLevels: ['low', 'medium', 'high'] as const, supportsAdaptiveThinking: true },
+      catalog.models[3],
+    ] } as ClaudeCapabilities
+    expect(freezeClaudeSelection('default', overrides, undefined, live, sinModelo, 'fallback', cliente)).toMatchObject({ requestedModel: 'opus', model: 'claude-opus-5-5', effort: 'medium', source: 'casa' })
+    // Lo que la persona eligió o configuró sigue mandando.
+    expect(freezeClaudeSelection('default', { ...overrides, model: 'haiku' }, undefined, live, sinModelo, 'fallback', cliente)).toMatchObject({ model: 'claude-haiku-test', source: 'conversation' })
+    expect(freezeClaudeSelection('default', overrides, undefined, live, { ...defaults, configuredModel: 'haiku' }, 'fallback', cliente).model).toBe('claude-haiku-test')
+    // Un modelo guardado que ya no existe, sin modelo de cuenta: la casa, y se ve por qué.
+    expect(freezeClaudeSelection('default', { ...overrides, model: 'claude-opus-4-8' }, undefined, live, sinModelo, 'fallback', cliente).source).toBe('casa:no-disponible:claude-opus-4-8')
+    // Sin Opus 5.5 en la cuenta: el modelo de la fila default, por una fila que la cuenta anuncia.
+    const sinOpus = { ...catalog, models: catalog.models.filter(m => m.value !== 'opus') }
+    expect(freezeClaudeSelection('default', overrides, undefined, { ...sinOpus, models: [...sinOpus.models, { value: 'sonnet', resolvedModel: 'claude-sonnet-5', displayName: 'Sonnet', description: '' }] }, sinModelo, 'fallback', cliente).model).toBe('claude-sonnet-5')
+    expect(() => freezeClaudeSelection('default', overrides, undefined, sinOpus, sinModelo, 'fallback', cliente)).toThrow('confirmar el modelo')
+    // Elección explícita en el selector: estricta también en cliente.
+    expect(() => freezeClaudeSelection('default', { ...overrides, model: 'claude-opus-4-8' }, undefined, live, sinModelo, 'reject', cliente)).toThrow('confirmar el modelo')
+    // La instalación original no cambia: sin modelo no se inventa uno.
+    expect(() => freezeClaudeSelection('default', overrides, undefined, live, sinModelo, 'fallback', { ARBRAIN_EDICION: 'original' })).toThrow('confirmar el modelo')
+  })
   it('uses the nearest advertised level when the model lacks medium, and drops a stored effort the model no longer advertises', () => {
     const fable = { ...overrides, model: 'claude-fable-5-1[1m]' }
     expect(freezeClaudeSelection('default', fable, undefined, catalog, defaults).effort).toBe('high')

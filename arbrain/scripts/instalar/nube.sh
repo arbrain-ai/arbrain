@@ -5,7 +5,7 @@
 # sudo sin contraseña, en el servidor. Solo Debian/Ubuntu con systemd.
 #
 #   bash arbrain/scripts/instalar/nube.sh [instalar] [--mi-arbrain <git url>] [--usuario <nombre>]
-#        [--espejo [--rol lider --cita "<palabras de la persona>" | --rol ventana]]
+#        [--zona <America/Mexico_City>] [--espejo [--rol lider --cita "<palabras de la persona>" | --rol ventana]]
 #   bash arbrain/scripts/instalar/nube.sh estado
 #   bash arbrain/scripts/instalar/nube.sh llave            (la persona pega su llave de OpenRouter CON tope; no se ve)
 #   bash arbrain/scripts/instalar/nube.sh claude           (la persona entra con su cuenta de Claude para el CHAT)
@@ -20,8 +20,12 @@
 # de Claude, llave, código) nunca pasa por la salida de quien corre este script: va a /dev/tty.
 #
 # Qué deja (cada paso mira antes de cambiar: una segunda corrida dice cambios=0 y no reinicia nada):
-#   1. Paquetes que falten: git, curl, python3, ufw, unattended-upgrades, openssh-server, bubblewrap.
-#   2. SSH solo por llave (/etc/ssh/sshd_config.d/01-arbrain.conf: PasswordAuthentication no). Antes comprueba que hay
+#   1. Paquetes que falten: git, curl, python3, ufw, unattended-upgrades, openssh-server, bubblewrap y socat (los dos
+#      del aislamiento de Claude Code en Linux: sin socat la web dice sandbox «faltan: socat», 30 oct). Si Ubuntu 24.04
+#      bloquea a bwrap sin root (AppArmor), un perfil solo para bwrap (/etc/apparmor.d/arbrain-bwrap). Con --zona, la
+#      zona horaria de la persona (las rutinas corren a su hora; un VPS nace en UTC).
+#   2. SSH solo por llave (/etc/ssh/sshd_config.d/01-arbrain.conf: PasswordAuthentication no; ClientAliveInterval 20
+#      para que una sesión callada no la corte el router). Antes comprueba que hay
 #      al menos una llave autorizada para root o para quien usa sudo: sin ella NO toca SSH (no te deja fuera).
 #   3. Firewall (ufw): niega todo lo entrante salvo SSH y la red privada de Tailscale; deja salir.
 #   4. Actualizaciones automáticas de seguridad (unattended-upgrades).
@@ -55,9 +59,13 @@ SERVICIO=arbrain.service
 CONF_SSH="$RAIZ/etc/ssh/sshd_config.d/01-arbrain.conf"
 CONF_APT="$RAIZ/etc/apt/apt.conf.d/20auto-upgrades"
 UNIDAD="$RAIZ/etc/systemd/system/$SERVICIO"
+# Ubuntu 23.10+ (24.04 incluido) trae kernel.apparmor_restrict_unprivileged_userns=1: un usuario sin root no puede crear
+# el espacio de nombres que bwrap necesita («setting up uid map: Permission denied»), y sin bwrap Claude Code no corre.
+# Probado el 27 oct en el kernel 6.8 de Ubuntu 24.04: falla sin perfil, pasa con este perfil. Solo afecta a /usr/bin/bwrap.
+PERFIL_BWRAP="$RAIZ/etc/apparmor.d/arbrain-bwrap"
 # bubblewrap: en Linux, Claude Code no arranca sin él cuando Arbrain le pide aislar el entorno de sus subprocesos
 # (CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1, cliente/cofre.ts): sin bwrap ninguna rutina ni chat corre en la nube (N4, 23 oct).
-PAQUETES="git curl ca-certificates python3 ufw unattended-upgrades openssh-server bubblewrap"
+PAQUETES="git curl ca-certificates python3 ufw unattended-upgrades openssh-server bubblewrap socat"
 # Lo que nunca se copia de otra máquina (lección del 24 sep: al clonar máquinas se cruzaron identidades).
 AJENOS_RE='(^|/)(\.host-slug|compile-state\.json|flush-state\.json)$|(^|/)store/'
 
@@ -76,6 +84,9 @@ KbdInteractiveAuthentication no
 PermitRootLogin prohibit-password
 PermitEmptyPasswords no
 PubkeyAuthentication yes
+# Una sesión callada (la persona buscando su llave) no se cae por el router: el servidor da señal cada 20 s (30 oct).
+ClientAliveInterval 20
+ClientAliveCountMax 6
 SSHD
 }
 
@@ -85,6 +96,26 @@ texto_auto_upgrades() {
 APT::Periodic::Update-Package-Lists "1";
 APT::Periodic::Unattended-Upgrade "1";
 APT
+}
+
+texto_perfil_bwrap() { # <ruta de bwrap>
+  cat <<PERFIL
+# Arbrain (nube.sh): deja a bubblewrap crear su espacio de nombres sin root (Ubuntu 24.04 lo restringe por defecto).
+abi <abi/4.0>,
+include <tunables/global>
+
+profile arbrain-bwrap $1 flags=(unconfined) {
+  userns,
+
+  include if exists <local/arbrain-bwrap>
+}
+PERFIL
+}
+
+# Zona IANA válida (America/Mexico_City). Pura salvo por mirar que exista en zoneinfo (NUBE_ZONEINFO en pruebas).
+zona_valida() {
+  printf '%s' "$1" | grep -qE '^[A-Za-z_]+(/[A-Za-z0-9_+-]+){0,2}$|^UTC$' || return 1
+  [ -f "${NUBE_ZONEINFO:-/usr/share/zoneinfo}/$1" ]
 }
 
 # Escribe stdin en <ruta> solo si cambia. Devuelve 0 si escribió, 1 si ya estaba igual.
@@ -185,7 +216,7 @@ paso_ssh() {
       rm -f "$CONF_SSH"; falta "sshd rechazó la configuración ($(tail -1 /tmp/arbrain-sshd.err)); no cambié SSH"
     fi
     systemctl reload ssh 2>/dev/null || systemctl reload sshd 2>/dev/null || true
-    cambio "SSH solo con llave (sin contraseñas)"
+    cambio "SSH solo con llave (sin contraseñas) y con señal cada 20 s para que no se corte"
   else
     igual "SSH solo con llave"
   fi
@@ -214,6 +245,37 @@ paso_firewall() {
 paso_actualizaciones() {
   if texto_auto_upgrades | escribir_si_cambia "$CONF_APT" 644; then cambio "actualizaciones automáticas de seguridad"; else igual "actualizaciones automáticas de seguridad"; fi
   systemctl is-enabled apt-daily-upgrade.timer >/dev/null 2>&1 || { systemctl enable --now apt-daily-upgrade.timer >/dev/null 2>&1 && cambio "temporizador de actualizaciones"; }
+}
+
+# La hora de las rutinas es la de la máquina (scheduler.ts › CRON_TZ en la edición cliente). Un VPS nace en UTC: sin esto el
+# «brief de las 7» de alguien en CDMX corre a la 1:00 (hallazgo 3 de la prueba real del 26 oct).
+zona_actual() { timedatectl show -p Timezone --value 2>/dev/null || readlink /etc/localtime 2>/dev/null | sed 's|.*/zoneinfo/||'; }
+paso_zona() {
+  local z; z="$(zona_actual)"
+  if [ -z "$ZONA" ]; then
+    case "$z" in ""|UTC|Etc/UTC) di "Tu nube está en hora UTC: tus rutinas correrían con esa hora. Pásame tu zona con --zona (por ejemplo America/Mexico_City)." ;; *) igual "zona horaria $z" ;; esac
+    return
+  fi
+  zona_valida "$ZONA" || falta "no reconozco la zona horaria «$ZONA» (ejemplo: America/Mexico_City)"
+  if [ "$z" = "$ZONA" ]; then igual "zona horaria $ZONA"; return; fi
+  timedatectl set-timezone "$ZONA" 2>/dev/null || { ln -sf "/usr/share/zoneinfo/$ZONA" /etc/localtime && echo "$ZONA" > /etc/timezone; } || falta "no pude poner la zona $ZONA"
+  ZONA_CAMBIO=1; cambio "zona horaria $ZONA (tus rutinas corren a tu hora)"
+}
+
+# bwrap tiene que funcionar como el usuario de Arbrain (va después de paso_usuario).
+prueba_bwrap() { runuser -u "$U" -- "$1" --ro-bind / / --dev /dev --proc /proc --unshare-user --unshare-pid --unshare-net true >/dev/null 2>&1; }
+paso_bwrap() {
+  local b; b="$(command -v bwrap)" || falta "falta bubblewrap"
+  if prueba_bwrap "$b"; then igual "aislamiento de Claude Code (bubblewrap)"; return; fi
+  if [ "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2>/dev/null)" = 1 ] && ! command -v apparmor_parser >/dev/null 2>&1; then
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends apparmor >/dev/null 2>&1 || falta "no pude instalar apparmor (lo necesita bubblewrap en Ubuntu 24.04)"
+  fi
+  [ "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2>/dev/null)" = 1 ] && command -v apparmor_parser >/dev/null 2>&1 \
+    || falta "bubblewrap no funciona como $U y no es la restricción de AppArmor de Ubuntu: sin él Claude Code no corre aquí"
+  texto_perfil_bwrap "$b" | escribir_si_cambia "$PERFIL_BWRAP" 644 || true
+  apparmor_parser -r "$PERFIL_BWRAP" 2>/tmp/arbrain-apparmor.err || falta "AppArmor no aceptó el perfil de bubblewrap: $(tail -1 /tmp/arbrain-apparmor.err)"
+  prueba_bwrap "$b" || falta "bubblewrap sigue sin funcionar como $U aun con el perfil de AppArmor: sin él Claude Code no corre aquí"
+  cambio "aislamiento de Claude Code: perfil de AppArmor para bubblewrap (Ubuntu 24.04 lo bloquea sin root)"
 }
 
 paso_tailscale() {
@@ -346,6 +408,7 @@ paso_servicio() {
     systemctl is-enabled -q "$SERVICIO" || { systemctl enable "$SERVICIO" >/dev/null 2>&1; cambio "servicio habilitado al arranque"; }
     if ! systemctl is-active -q "$SERVICIO"; then systemctl start "$SERVICIO"; cambio "servicio $SERVICIO encendido"
     elif [ "${ESPEJO_CAMBIO:-0}" = 1 ]; then systemctl restart "$SERVICIO"; cambio "servicio $SERVICIO reiniciado para tomar el espejo"
+    elif [ "${ZONA_CAMBIO:-0}" = 1 ]; then systemctl restart "$SERVICIO"; cambio "servicio $SERVICIO reiniciado para tomar tu zona horaria"
     else igual "servicio $SERVICIO activo"; fi
   fi
 }
@@ -432,6 +495,8 @@ pedir_llave_github() {
 
 estado_servidor() { como_u ". ~/.arbrain/entorno.sh 2>/dev/null; cd ~/Arbrain/arbrain 2>/dev/null && node scripts/servidor.mjs estado 2>/dev/null | head -1"; }
 estado_llave() { como_u ". ~/.arbrain/entorno.sh 2>/dev/null; cd ~/Arbrain/arbrain 2>/dev/null && node scripts/instalar/nube-llave.mjs estado 2>/dev/null" | sed -n 's/^NUBE_LLAVE estado=//p'; }
+# «ok» o «falta:<programas>» (bwrap, socat), separados por coma.
+estado_sandbox() { local f="" p; for p in bwrap socat; do command -v "$p" >/dev/null 2>&1 || f="${f:+$f,}$p"; done; if [ -n "$f" ]; then echo "falta:$f"; else echo ok; fi; }
 puerto_web() { estado_servidor | sed -n 's|.*http://127\.0\.0\.1:\([0-9]*\).*|\1|p'; }
 
 orden_estado() {
@@ -443,6 +508,8 @@ orden_estado() {
   ssh="$(sshd -T 2>/dev/null | grep -qi '^passwordauthentication no' && echo solo-llave || echo acepta-contrasenas)"
   apt="$(apt-config dump 2>/dev/null | grep -q 'APT::Periodic::Unattended-Upgrade "1"' && echo si || echo no)"
   ts="$(estado_tailscale)"; llave="$(estado_llave)"
+  # El aislamiento de Claude Code en Linux: bwrap y socat (lo mismo que mira la web: features/permisos/lib/sandbox-server.ts).
+  local sb; sb="$(estado_sandbox)"
   # El chat: su cuenta de Claude (motor «Mi Claude Code» con sesión), su llave de OpenRouter, o nada todavía.
   local chat tel s
   s="$(sesion_claude)"
@@ -454,9 +521,9 @@ orden_estado() {
   tel="$(como_u '. ~/.arbrain/entorno.sh 2>/dev/null; cd ~/Arbrain/arbrain 2>/dev/null && node scripts/servidor.mjs telefono estado 2>/dev/null' </dev/null | grep '^TELEFONO_' | tail -1)"
   case "$tel" in "TELEFONO_ENCENDIDO "*) tel="${tel#TELEFONO_ENCENDIDO }" ;; *) tel=apagado ;; esac
   e="$(estado_servidor)"
-  printf '· Arbrain: %s\n· firewall=%s ssh=%s actualizaciones=%s tailscale=%s llave=%s chat=%s tailnet=%s\n' "${e:-sin copia}" "$fw" "$ssh" "$apt" "$ts" "${llave:-falta}" "$chat" "$tel"
+  printf '· Arbrain: %s\n· firewall=%s ssh=%s actualizaciones=%s tailscale=%s llave=%s chat=%s tailnet=%s sandbox=%s\n' "${e:-sin copia}" "$fw" "$ssh" "$apt" "$ts" "${llave:-falta}" "$chat" "$tel" "$sb"
   case "$e" in
-    *Corriendo*) printf 'NUBE_ESTADO servicio=%s web=http://127.0.0.1:%s firewall=%s ssh=%s actualizaciones=%s tailscale=%s llave=%s chat=%s tailnet=%s\n' "$srv" "$(puerto_web)" "$fw" "$ssh" "$apt" "$ts" "${llave:-falta}" "$chat" "$tel" ;;
+    *Corriendo*) printf 'NUBE_ESTADO servicio=%s web=http://127.0.0.1:%s firewall=%s ssh=%s actualizaciones=%s tailscale=%s llave=%s chat=%s tailnet=%s zona=%s sandbox=%s\n' "$srv" "$(puerto_web)" "$fw" "$ssh" "$apt" "$ts" "${llave:-falta}" "$chat" "$tel" "$(zona_actual)" "$sb" ;;
     *) printf 'NUBE_ESPERA Arbrain todavía no responde (servicio %s); la primera vez baja o compila el programa: vuelve a revisar en 15 s. Registro: journalctl -u arbrain -n 30\n' "$srv"; exit 3 ;;
   esac
 }
@@ -500,6 +567,71 @@ como_u_tty() {
   runuser -u "$U" -- env -i HOME="$(HOME_U)" USER="$U" LOGNAME="$U" SHELL=/bin/bash LANG=C.UTF-8 TERM="${TERM:-xterm-256color}" \
     PATH=/usr/local/bin:/usr/bin:/bin bash -c "$1" < /dev/tty > /dev/tty 2>&1
 }
+
+# El enlace de `claude auth login`, solo y clicable (30 oct 2026, VPS real): Claude Code lo pinta tras «visit:», en
+# color, y la terminal lo parte en 5 o 6 renglones; copiarlo o abrirlo no era fluido (Terminal de Mac y la de Arbrain).
+# `python3 -c "$ENLACE_PY" <orden…>` corre la orden en una pseudo-terminal propia y pasa todo tal cual en las dos
+# direcciones; cuando ve el enlace de autorización lo vuelve a escribir en su propio renglón, sin prefijo ni color y
+# como hipervínculo (OSC 8), justo antes de «Paste code here». Solo mira la SALIDA buscando ese enlace (que no es
+# secreto: lleva el reto PKCE, no el código); lo que la persona escribe o pega va directo a Claude Code y no se lee ni
+# se guarda. Si algo falla al buscar, sigue pasando todo sin tocarlo. La prueba: nube.test.sh.
+ENLACE_PY='import os, pty, re, select, signal, struct, sys, termios, fcntl, tty
+ENLACE = re.compile(rb"https://[A-Za-z0-9.-]+/[^\s\x07\x1b\"<>]*authorize\?[^\s\x07\x1b\"<>]*state=[^\s\x07\x1b\"<>]+(?=[\s\x07\x1b])")
+def bloque(url):
+    u = url.decode("ascii", "replace")
+    return ("\r\n  Tu enlace para entrar, solo (clic para abrirlo; o selecciónalo completo y cópialo):\r\n\r\n"
+            "\x1b]8;;" + u + "\x07" + u + "\x1b]8;;\x07\r\n\r\n").encode()
+pid, fd = pty.fork()
+if pid == 0:
+    try: os.execvp(sys.argv[1], sys.argv[1:])
+    finally: os._exit(127)
+ent, sal = sys.stdin.fileno(), sys.stdout.fileno()
+es_tty = os.isatty(ent)
+def tamano(*_):
+    try: fcntl.ioctl(fd, termios.TIOCSWINSZ, fcntl.ioctl(ent, termios.TIOCGWINSZ, b"\0" * 8))
+    except Exception: pass
+viejo = None
+if es_tty:
+    tamano(); signal.signal(signal.SIGWINCH, tamano)
+    viejo = termios.tcgetattr(ent); tty.setraw(ent)
+else:   # sin persona delante (pruebas): sin eco, así lo que entra nunca vuelve a salir
+    a = termios.tcgetattr(fd); a[3] &= ~termios.ECHO; termios.tcsetattr(fd, termios.TCSANOW, a)
+def escribe(b):
+    while b: b = b[os.write(sal, b):]
+cola, fase, fin, url = b"", "busca", -1, b""   # busca → linea (vio el enlace, espera el fin de su renglón) → listo
+abierta = True
+try:
+    while True:
+        fds = [fd] + ([ent] if abierta else [])
+        try: listos = select.select(fds, [], [], 0.4)[0]
+        except InterruptedError: continue
+        if ent in listos:
+            d = os.read(ent, 4096)
+            if d: os.write(fd, d)
+            else: abierta = False; es_tty or os.write(fd, b"\x04")   # fin de la entrada: EOF a la orden
+        if fd in listos:
+            try: d = os.read(fd, 65536)
+            except OSError: d = b""
+            if not d: escribe(cola); break
+            cola += d
+        try:
+            if fase == "busca":
+                m = ENLACE.search(cola)
+                if m: url, fin, fase = m.group(0), m.end(), "linea"
+                else:
+                    corte = max(cola.rfind(b"https://"), cola.rfind(b"\x1b]8;"))
+                    if corte < 0 or len(cola) - corte > 8192 or not listos: corte = len(cola)
+                    escribe(cola[:corte]); cola = cola[corte:]
+            if fase == "linea":
+                n = cola.find(b"\n", fin)
+                if n >= 0: escribe(cola[:n + 1] + bloque(url)); cola = cola[n + 1:]; fase = "listo"
+                elif not listos: escribe(cola + b"\r\n" + bloque(url)); cola = b""; fase = "listo"
+            if fase == "listo": escribe(cola); cola = b""
+        except Exception:
+            escribe(cola); cola = b""; fase = "listo"
+finally:
+    if viejo is not None: termios.tcsetattr(ent, termios.TCSAFLUSH, viejo)
+sys.exit(os.waitstatus_to_exitcode(os.waitpid(pid, 0)[1]))'
 # Vuelve a correr la orden como root si hace falta (con sudo sin contraseña).
 a_root() {
   [ "$(id -u)" = 0 ] && return 0
@@ -539,9 +671,10 @@ orden_claude() {
   como_u '. ~/.arbrain/entorno.sh 2>/dev/null; command -v claude' </dev/null >/dev/null || { echo "NUBE_CLAUDE_FALTA no encuentro Claude Code en tu servidor; vuelve a correr la instalación"; exit 4; }
   if [ "$(sesion_claude)" = no ]; then
     printf '\nEntra con tu cuenta de Claude (Pro o Max) para que el chat de tu Arbrain use tu plan.\n' > /dev/tty
-    printf 'Claude Code te muestra un enlace: ábrelo en tu teléfono o tu compu, entra y autoriza; si te muestra un\n' > /dev/tty
-    printf 'código, pégalo aquí. Las rutinas automáticas no usan tu plan: van por tu llave de OpenRouter con tope.\n\n' > /dev/tty
-    como_u_tty '. ~/.arbrain/entorno.sh 2>/dev/null; CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 claude auth login --claudeai' || true
+    printf 'Claude Code te muestra un enlace (abajo te lo repito solo, listo para abrir o copiar): ábrelo en tu\n' > /dev/tty
+    printf 'teléfono o tu compu, entra y autoriza; si te muestra un código, pégalo aquí. Las rutinas automáticas no\n' > /dev/tty
+    printf 'usan tu plan: van por tu llave de OpenRouter con tope.\n\n' > /dev/tty
+    como_u_tty ". ~/.arbrain/entorno.sh 2>/dev/null; CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 python3 -c $(printf %q "$ENLACE_PY") claude auth login --claudeai" || true
   fi
   local s; s="$(sesion_claude)"
   case "$s" in si*) ;; *) echo "NUBE_CLAUDE_FALTA no quedó la sesión de tu cuenta de Claude (¿se cerró o venció el enlace?); vuelve a correr: nube.sh claude"; exit 4 ;; esac
@@ -582,16 +715,31 @@ orden_codigo() {
 }
 
 # Lo que solo ella puede hacer, en UNA terminal: su cuenta de Claude (chat), su llave con tope (rutinas) y su código.
+# Se puede volver a correr (30 oct 2026, VPS real: la sesión SSH se cortó a mitad mientras buscaba su llave): lo que ya
+# quedó (su sesión de Claude, su llave con tope) se dice y se salta; el código es de un solo uso y siempre se da uno.
 orden_conectar() {
   a_root conectar
   hay_terminal || { echo "NUBE_CONECTAR_FALTA necesito tu terminal: corre esto tú (ssh -t a tu servidor), no Claude"; exit 4; }
-  local r c l k
-  printf '\n1/3 · ¿Pagas Claude Pro o Max y quieres que el chat use tu cuenta? [S/n] ' > /dev/tty
-  IFS= read -r r < /dev/tty || r=n
-  case "$r" in n|N|no|NO) c=saltado ;; *) c="$(bash "$0" claude 2>&1 | tail -1)" ;; esac
-  printf '\n2/3 · Tu llave de OpenRouter con tope, para las rutinas (Enter vacío para hacerlo después).\n' > /dev/tty
-  printf '      Créala en https://openrouter.ai/settings/keys con «Credit limit» (por ejemplo 10).\n' > /dev/tty
-  l="$(bash "$0" llave 2>&1 | tail -1)"
+  local r c l k s t
+  s="$(sesion_claude)"
+  if [ "$(motor_elegido)" = suscripcion ] && [ "${s%% *}" = si ]; then
+    printf '\n1/3 · Tu cuenta de Claude ya está conectada (plan %s): no hay que hacer nada.\n' "${s#si }" > /dev/tty
+    c="NUBE_CLAUDE_OK plan=${s#si }"
+  else
+    printf '\n1/3 · ¿Pagas Claude Pro o Max y quieres que el chat use tu cuenta? [S/n] ' > /dev/tty
+    IFS= read -r r < /dev/tty || r=n
+    case "$r" in n|N|no|NO) c=saltado ;; *) c="$(bash "$0" claude 2>&1 | tail -1)" ;; esac
+  fi
+  t="$(estado_llave)"
+  case "$t" in
+    tope:*)
+      printf '\n2/3 · Tu llave de OpenRouter ya está guardada (tope %s USD). Para cambiarla: nube.sh llave\n' "${t#tope:}" > /dev/tty
+      l="NUBE_LLAVE_OK tope=${t#tope:}" ;;
+    *)
+      printf '\n2/3 · Tu llave de OpenRouter con tope, para las rutinas (Enter vacío para hacerlo después).\n' > /dev/tty
+      printf '      Créala en https://openrouter.ai/settings/keys con «Credit limit» (por ejemplo 10).\n' > /dev/tty
+      l="$(bash "$0" llave 2>&1 | tail -1)" ;;
+  esac
   printf '\n3/3 · Tu código para entrar desde el navegador.\n' > /dev/tty
   k="$(bash "$0" codigo 2>&1 | tail -1)"
   printf 'NUBE_CONECTAR claude=%s llave=%s codigo=%s\n' "${c%% *}" "${l%% *}" "${k%% *}"
@@ -610,8 +758,10 @@ orden_instalar() {
   paso_ssh
   paso_firewall
   paso_actualizaciones
+  paso_zona
   paso_tailscale
   paso_usuario
+  paso_bwrap
   paso_copia
   paso_identidad
   paso_requisitos
@@ -625,23 +775,24 @@ orden_instalar() {
     [ "$t" -ge "$ESPERA_SEG" ] && { printf 'NUBE_ESPERA Arbrain arrancando (la primera vez baja o compila el programa, de 2 a 15 minutos); revisa con: bash %s estado · cambios=%s\n' "$0" "$CAMBIOS"; exit 3; }
     sleep 5; t=$((t + 5))
   done
-  printf 'NUBE_OK version=%s servicio=%s web=http://127.0.0.1:%s usuario=%s cambios=%s llave=%s tailscale=%s espejo=%s\n' \
-    "${v#v}" "$(systemctl is-active "$SERVICIO")" "$(puerto_web)" "$U" "$CAMBIOS" "$(estado_llave)" "$(estado_tailscale)" "$ESPEJO"
+  printf 'NUBE_OK version=%s servicio=%s web=http://127.0.0.1:%s usuario=%s cambios=%s llave=%s tailscale=%s espejo=%s zona=%s\n' \
+    "${v#v}" "$(systemctl is-active "$SERVICIO")" "$(puerto_web)" "$U" "$CAMBIOS" "$(estado_llave)" "$(estado_tailscale)" "$ESPEJO" "$(zona_actual)"
 }
 
 [ "${NUBE_SOLO_FUNCIONES:-}" = 1 ] && return 0 2>/dev/null
 
-ORDEN=instalar; MI_ARBRAIN=""; CON_ESPEJO=0; ESPEJO_ROL=""; ESPEJO_CITA=""
+ORDEN=instalar; MI_ARBRAIN=""; ZONA=""; CON_ESPEJO=0; ESPEJO_ROL=""; ESPEJO_CITA=""
 case "${1:-}" in instalar|estado|llave|claude|telefono|codigo|conectar) ORDEN="$1"; shift ;; esac
 if [ "$ORDEN" = instalar ]; then
   ARGS=("$@")
   while [ $# -gt 0 ]; do
     case "$1" in
-      --mi-arbrain) MI_ARBRAIN="${2:-}"; shift 2 ;;
-      --usuario) U="${2:-}"; shift 2 ;;
+      --mi-arbrain) MI_ARBRAIN="${2:-}"; shift; [ $# -gt 0 ] && shift ;;
+      --usuario) U="${2:-}"; shift; [ $# -gt 0 ] && shift ;;
+      --zona) ZONA="${2:-}"; shift; [ $# -gt 0 ] && shift ;;
       --espejo) CON_ESPEJO=1; shift ;;
-      --rol) ESPEJO_ROL="${2:-}"; shift 2 ;;
-      --cita) ESPEJO_CITA="${2:-}"; shift 2 ;;
+      --rol) ESPEJO_ROL="${2:-}"; shift; [ $# -gt 0 ] && shift ;;
+      --cita) ESPEJO_CITA="${2:-}"; shift; [ $# -gt 0 ] && shift ;;
       *) falta "opción desconocida: $1" ;;
     esac
   done

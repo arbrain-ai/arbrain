@@ -47,7 +47,6 @@ const MarkdownMessage = dynamic(
   { ssr: false }
 )
 import { AudioButton } from './AudioButton'
-import { ofreceResumen } from '../lib/resumen-hablado'
 import { ChatSpeechBar } from './ChatSpeechBar'
 import { chatSpeech } from '../lib/chat-speech'
 import { LectorPosicion } from './LectorPosicion'
@@ -510,8 +509,7 @@ export const MessageBubble = memo(function MessageBubble({ msg, isFresh = false,
                 en content (<!--thinking-->). Copiar/escuchar/leer NO debe arrastrarlo. */}
             {/* «Escuchar» con la voz del dispositivo (Web Speech): sin llave, también en la edición cliente (21 oct 2026). */}
             <AudioButton messageId={msg.id} />
-            {/* «Escuchar resumen» (29 oct 2026, cohorte): solo en respuestas largas; regla en resumen-hablado.ts. */}
-            {ofreceResumen(respuesta) && <AudioButton messageId={msg.id} resumen />}
+            {/* «Escuchar resumen» retirado del pie (30 oct 2026, pedido del dueño: no aportaba nada nuevo); la lógica sigue en resumen-hablado.ts. */}
             <CopyBtn text={stripThinking(msg.content)} />
             {/* Solo la hora (2 oct 2026): el contexto de la conversación vive en la barra de escribir y el
                 desglose de ESTE turno (entrada, salida, duración, costo) aparece al pasar el cursor. */}

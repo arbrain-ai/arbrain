@@ -4,6 +4,39 @@ Cada versión dice qué trae y qué tienes que hacer tú. Para actualizar, abre 
 «jala los últimos cambios». Las versiones siguen `MAYOR.MENOR.PARCHE`: un cambio en MENOR trae funciones
 nuevas; uno en PARCHE, arreglos.
 
+## v0.2.17 · 30 oct 2026 · Tu servidor en Ubuntu 24.04 vuelve a responder y entrar con Claude es un clic
+
+**Qué trae**
+- **Levy responde en tu servidor con Ubuntu 24.04.** En un servidor recién rentado (por ejemplo Hostinger), Ubuntu
+  24.04 no dejaba arrancar el aislamiento de Claude Code y el chat y tus rutinas no respondían. La instalación de tu
+  nube ahora le da a ese aislamiento solo el permiso que necesita, y sobrevive a los reinicios.
+- **Tu servidor a tu hora.** Un servidor nace en hora universal (UTC) y tus rutinas corrían a deshoras. Al instalar se
+  le pone tu zona horaria (por ejemplo, la de Ciudad de México).
+- **Entrar con tu cuenta de Claude en tu servidor, sin pelearte con el enlace.** El enlace largo para entrar se repite
+  solo, en su propio renglón y listo para abrir de un clic o copiar completo. En la terminal de Arbrain cualquier
+  enlace se abre con un clic en tu navegador, aunque ocupe varios renglones.
+- **Si la conexión se corta a mitad, retomas donde ibas.** El comando para conectar tu servidor mantiene viva la
+  sesión mientras buscas tu llave, y si aun así se corta, volver a correrlo salta lo que ya quedó (tu cuenta de Claude,
+  tu llave con tope) y sigue con lo que falta.
+- **Tu primer mensaje siempre sale.** Si conectaste tu cuenta de Claude y todavía no elegiste modelo, Levy responde
+  con Opus 5.5 (o con el modelo de tu cuenta si tu plan no lo trae) en vez de quedarse en «No se pudo confirmar el
+  modelo Claude». Lo que elijas en el selector sigue mandando.
+- **Tu teléfono abre directo.** Tu Arbrain instalado en la pantalla de inicio ya no se queda en blanco si la
+  bienvenida no ha terminado o tu sesión venció: te lleva a donde toca. Su ícono es el de la marca, oscuro y sin texto.
+  Y si entras desde tu servidor, la página para entrar te dice de dónde sale tu código (tu Claude Code o
+  `nube.sh codigo`), no «tu computadora».
+- **El aislamiento de Claude Code completo en tu servidor.** La instalación pone también `socat` (sin él, Ajustes
+  decía que el aislamiento no estaba disponible) y `nube.sh estado` te dice si está completo.
+- **Actualizar en tu servidor, limpio.** «Actualiza mi Arbrain» en tu servidor deja que su servicio lo vuelva a
+  arrancar con la versión nueva, en vez de arrancar otro aparte, y no intenta instalar la app de escritorio ahí.
+- **El chat, más limpio.** Quitamos el botón «Resumen» de las respuestas largas: «Escuchar» sigue igual.
+
+**Qué tienes que hacer**
+- Dile a Levy «actualiza mi Arbrain».
+- Si tu Arbrain vive en un servidor con Ubuntu 24.04 y el chat no te responde, pídele al Claude Code de tu computadora
+  (el que instaló tu servidor) «vuelve a correr la instalación de mi servidor»: corre `nube.sh` otra vez, pone el
+  permiso que faltaba y no toca tu sesión de Claude, tu llave ni tus datos.
+
 ## v0.2.16 · 30 oct 2026 · Subagentes, «Permitir siempre» en todo, actualizar en un paso y tu computadora a la vista
 
 **Qué trae**
