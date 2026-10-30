@@ -52,7 +52,6 @@ import { useOcultas, type ControlLeyenda } from './Leyenda'
 import { atencionDe, colorDePiedra, conDelegado, conProtegido, DRIP, esFase, esMecanicaAlumno, fotoDe, marcasEnViajes, piedraDe, semanaDelPrograma, semanasDelPrograma, horasRecompradas, horasUnion, leerDrip, type BloqueDrip, type Cuadrante, type LecturaDrip, type Propuesta } from './drip'
 import { GobiernoCtx, LeyendaDrip, useOcultosDrip, type Gobierno } from './gobierno'
 import { useDrip } from './useDrip'
-import { HojaDrip } from './HojaDrip'
 import { Domingo } from './Domingo'
 import { CalendarCheck2, Lock } from 'lucide-react'
 
@@ -1034,7 +1033,7 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
     {selection && snapshot && <PlanEditor key={selection.item?.id ?? `new:${selection.start?.getTime() ?? 'capture'}:${selection.end?.getTime() ?? ''}`} selection={selection} snapshot={snapshot} saving={saving} unresolved={Boolean(pending) && !saving && !(pending?.action === 'update' && pending.externalId === selection.item?.externalId)} auto={auto}
       onSave={commit} onRetry={() => pending ? mutate(pending) : Promise.resolve()} onUndo={() => step('undo')} onAbrir={setSelection} onConversar={onConversar}
       onAviso={(texto, deshacer) => { setNotice(texto); setNoticeUndo(Boolean(deshacer)) }}
-      drip={selection.item?.kind === 'event' && !sourceMap.get(selection.item.sourceId)?.objective ? <HojaDrip evento={selection.item} onListo={() => setSelection(null)} /> : undefined}
+      // La hoja DRIP ya no se monta en el evento (30 oct 2026, pedido del dueño: que se vea normal); HojaDrip.tsx queda para reactivarla.
       acento={selection.item?.kind === 'event' ? colorEvento(selection.item) : null}
       // La hoja cierra guardando (puede tardar): si mientras tanto se abrió otra, no se cierra la nueva.
       onClose={() => setSelection(s => s === selection ? null : s)} />}
