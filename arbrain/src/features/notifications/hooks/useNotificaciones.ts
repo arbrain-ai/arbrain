@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { estadoPush, mensajeDeError, type EstadoPush } from '../lib/soportePush'
 import {
-  activarEnDispositivo, desactivarEnDispositivo, estadoEnServidor, leerEntorno, pedirPrueba, permisoActual,
+  activarEnDispositivo, cargarClave, desactivarEnDispositivo, estadoEnServidor, leerEntorno, pedirPrueba, permisoActual,
   registrarEnServidor, soportaPush, suscripcionDelNavegador,
 } from '../lib/pushCliente'
 
@@ -19,6 +19,8 @@ export function useNotificaciones() {
 
   const revisar = useCallback(async () => {
     let suscrito = false
+    // Edición cliente (v0.2.18): la llave pública es de esta instalación; sin ella el estado sería «sin configurar».
+    await cargarClave()
     try {
       if (soportaPush() && permisoActual() === 'granted') {
         const sub = await suscripcionDelNavegador()

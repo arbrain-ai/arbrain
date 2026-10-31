@@ -13,6 +13,9 @@
  * pregunta Levy. «Autónomo» aparece marcado (recomendado) con sus dos casillas vacías (clickwrap): sin las dos,
  * «Continuar» no avanza. El texto, su versión y su huella vienen del daemon y vuelven a él al aceptar. Computer use
  * (0.1.2: macOS y Windows) es una casilla dentro de ese paso; en Linux no aparece.
+ * 31 oct 2026 (Daniel: «que sea default el modo oscuro con los botones tan hermosos como el botón de enviar»): la
+ * bienvenida es oscura salvo que la persona haya elegido claro a mano, sin importar el tramo de la hora; el botón principal
+ * es la tecla ámbar del enviar del chat (bienvenida.module.css). Solo cambia la presentación.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, ArrowRight, Check, HardDrive, KeyRound, Loader2, MousePointerClick, ShieldCheck, Sparkles } from 'lucide-react'
@@ -29,6 +32,8 @@ import { CASILLAS_VACIAS, ConsentimientoAutonomia, listoParaAceptar, type Casill
 import { consentimientoVigente, cuerpoAceptacion, FICHAS_MODO, NOMBRE_MODO, type EstadoPermisosLevy, type ModoPermisos } from '@/features/seguridad/lib/seguridad'
 import { ETIQUETA, pasosVisibles, type Paso } from '../lib/pasos'
 import { reprobarAlVolver } from '../lib/llaves'
+import { useTheme } from '@/shared/contexts/theme-context'
+import s from './bienvenida.module.css'
 
 
 interface Estado { aceptado: { version: string } | null; nombre: string | null; completado: string | null }
@@ -47,7 +52,7 @@ function demoDesdeUrl(): { paso: Paso; permisos: EstadoPermisosLevy } | null {
   if (q.get('demo') !== 'autonomia') return null
   return {
     paso: 'autonomia',
-    permisos: { modo: 'carpeta', modos: ['preguntar', 'carpeta', 'autonomo'], sandbox: q.get('sandbox') !== 'no', texto: { version: 'autonomia-v1-borrador-2026-10-29', sha256: 'demo', titulo: 'Qué significa el modo autónomo', aviso: 'Borrador pendiente de revisión legal. Puede cambiar antes de la versión final; si cambia, te lo volveremos a pedir.', casillas: ['He leído esto y entiendo que en modo autónomo mi cerebro actúa sin pedirme un clic en cada paso.', 'Acepto que soy responsable de lo que le pido y de lo que hace en mi nombre.'], cuerpo: 'Arbrain es un programa de código abierto que corre en tu computadora.\n\n## 1. Qué hace en modo autónomo\nEn modo autónomo tu cerebro hace lo que le pides sin pedirte un clic en cada paso.' } },
+    permisos: { modo: 'carpeta', modos: ['preguntar', 'carpeta', 'autonomo'], sandbox: q.get('sandbox') !== 'no', texto: { version: 'autonomia-v1-2026-10-31', sha256: 'demo', titulo: 'Qué significa el modo autónomo', aviso: 'Versión del 31 de octubre de 2026. Si cambia, te la volveremos a pedir.', casillas: ['He leído esto y entiendo que en modo autónomo mi cerebro actúa sin pedirme un clic en cada paso.', 'Acepto que soy responsable de lo que le pido y de lo que hace en mi nombre.'], cuerpo: 'Arbrain es un programa de código abierto que corre en tu computadora.\n\n## 1. Qué hace en modo autónomo\nEn modo autónomo tu cerebro hace lo que le pides sin pedirte un clic en cada paso.' } },
   }
 }
 
@@ -78,6 +83,9 @@ export function PrimerArranque() {
   const [ocupado, setOcupado] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const titulo = useRef<HTMLHeadingElement>(null)
+  // Oscuro por defecto: el tramo de la hora no decide aquí. Solo «claro» elegido a mano (y vigente) lo pinta claro. El
+  // proveedor nace en 'auto' en el servidor y en el cliente, así que el primer pintado ya es oscuro y no hay salto.
+  const claro = useTheme().theme === 'light'
 
   useEffect(() => {
     if (demo) return
@@ -156,14 +164,15 @@ export function PrimerArranque() {
     // Alto fijo con scroll propio (29 oct 2026, un fundador con pantalla de 1280×720 no llegaba al botón): html y body
     // tienen overflow:hidden, así que un min-h crecía por debajo de la ventana sin barra. Por dentro, min-h-full centra
     // la tarjeta cuando cabe y la deja empezar arriba cuando no.
-    <div data-bienvenida-scroll className="relative h-[100dvh] w-full overflow-y-auto overscroll-contain bg-background text-foreground">
+    <div data-bienvenida-scroll data-tema-bienvenida={claro ? 'claro' : 'oscuro'} style={{ colorScheme: claro ? 'light' : 'dark' }}
+      className={`${claro ? '' : 'dark '}${s.bienvenida} relative h-[100dvh] w-full overflow-y-auto overscroll-contain bg-background text-foreground`}>
       {/* Luz de marca detrás de la tarjeta (Luminorphism): un halo violeta suave, sin ruido. */}
       <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-[radial-gradient(60%_60%_at_50%_0%,rgba(var(--brand-rgb),0.22),transparent_70%)]" />
       <div className="relative flex min-h-full w-full flex-col items-center justify-center px-4 pb-10 pt-[max(env(safe-area-inset-top),2.5rem)]">
         <nav aria-label="Pasos del primer arranque" className="relative mb-6 flex items-center gap-1.5">
           {PASOS.map((p, k) => (
             <span key={p} title={ETIQUETA[p]} aria-current={p === paso ? 'step' : undefined}
-              className={`h-1.5 rounded-full transition-all duration-300 ${k < i ? 'w-5 bg-brand/70' : p === paso ? 'w-8 bg-brand' : 'w-5 bg-foreground/15'}`}>
+              className={`h-1.5 rounded-full transition-all duration-300 ${k < i ? 'w-5 bg-brand-ink/55' : p === paso ? 'w-8 bg-brand-ink shadow-[0_0_10px_rgba(var(--brand-rgb),0.45)]' : 'w-5 bg-foreground/15'}`}>
               <span className="sr-only">{`Paso ${k + 1} de ${PASOS.length}: ${ETIQUETA[p]}${k < i ? ' (hecho)' : ''}`}</span>
             </span>
           ))}
@@ -290,7 +299,7 @@ export function PrimerArranque() {
                 <ArrowLeft className="size-4" aria-hidden /> Atrás
               </button>
             )}
-            <button type="button" onClick={() => void continuar()} disabled={!puedeSeguir || ocupado || (!estado && !error)} title={paso === 'autonomia' && modo === 'autonomo' && !puedeSeguir ? 'Marca las dos casillas para empezar en modo autónomo' : undefined} className={`${botonDiscreto ? 'btn-secondary' : 'btn-primary'} min-h-11 min-w-[180px] !px-6 text-[15px]`}>
+            <button type="button" onClick={() => void continuar()} disabled={!puedeSeguir || ocupado || (!estado && !error)} title={paso === 'autonomia' && modo === 'autonomo' && !puedeSeguir ? 'Marca las dos casillas para empezar en modo autónomo' : undefined} className={`${s.tecla}${botonDiscreto ? ` ${s.discreta}` : ''}`}>
               {ocupado ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <>{textoBoton} <ArrowRight className="size-4" aria-hidden /></>}
             </button>
           </div>

@@ -21,10 +21,10 @@ export async function POST(request: Request) {
     checkMutationOrigin(request)
     const body = await request.json().catch(() => null) as Record<string, unknown> | null
     if (!body || typeof body.clientId !== 'string' || !body.clientId) return Response.json({ error: 'clientId obligatorio.' }, { status: 400, headers: NO_CACHE })
-    const { clientId, etiqueta, pestanas, casa, activa, acuses, ajustesRev, dispositivo, conversacion, escribio, casaEn, compartido } = body
+    const { clientId, etiqueta, pestanas, casa, activa, acuses, ajustesRev, dispositivo, conversacion, escribio, casaEn, compartido, sabe } = body
     const res = await fetch(`${await getSchedulerUrl()}/cabina`, {
       method: 'POST', headers: { Authorization: `Bearer ${CLAUDECLAW_TOKEN}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ que: 'panel', clientId, etiqueta, pestanas, casa, activa, acuses, ajustesRev, dispositivo, conversacion, escribio, casaEn, compartido, usuario: capital(NOMBRE_DUENO()), equipo: describirEquipo(request.headers.get('user-agent'), request.headers.get('host')) }), signal: AbortSignal.timeout(8_000), cache: 'no-store',
+      body: JSON.stringify({ que: 'panel', clientId, etiqueta, pestanas, casa, activa, acuses, ajustesRev, dispositivo, conversacion, escribio, casaEn, compartido, sabe, usuario: capital(NOMBRE_DUENO()), equipo: describirEquipo(request.headers.get('user-agent'), request.headers.get('host')) }), signal: AbortSignal.timeout(8_000), cache: 'no-store',
     })
     const out = await res.json().catch(() => ({ error: sinRespuestaDelServidor() }))
     return Response.json(out, { status: res.status, headers: NO_CACHE })

@@ -336,6 +336,8 @@ export async function prepareOfflinePack(request: OfflinePackRequest): Promise<O
  * Las viejas siguen dentro del estado: se leen UNA vez por sesion como respaldo hasta que se reescriban.
  */
 const SNAP_PREFIX = `${STORE_KEY}:snap:`
+/** Para la salida limpia de la pantalla de error (lib/estado-local.ts): las instantáneas son caché, se pueden tirar. */
+export const PREFIJO_INSTANTANEAS = SNAP_PREFIX
 type Instantanea = { module: string; payload: unknown; updatedAt: string }
 let snapshotsViejos: Promise<BrowserLocalState['snapshots']> | null = null
 

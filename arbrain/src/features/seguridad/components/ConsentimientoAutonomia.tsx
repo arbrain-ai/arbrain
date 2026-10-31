@@ -1,7 +1,7 @@
 'use client'
 /**
  * El consentimiento del modo Autónomo (0.2.15, 29 oct 2026; SPEC §4 y §5). Un solo componente para la bienvenida, Ajustes
- * › Permisos y seguridad y la tarjeta de migración: el aviso de borrador, el texto completo plegable («Leer qué
+ * › Permisos y seguridad y la tarjeta de migración: la nota de versión, el texto completo plegable («Leer qué
  * significa») y las dos casillas, que nacen vacías (clickwrap). El texto, su versión y su huella vienen del daemon
  * (`GET /api/seguridad/permisos` › `texto`): la app los muestra tal cual y los devuelve al aceptar; nunca los inventa.
  */
@@ -25,7 +25,7 @@ export function ConsentimientoAutonomia({ texto, marcadas, onMarcadas, abiertoIn
   const [abierto, setAbierto] = useState(abiertoInicial)
   return (
     <div className="space-y-3" data-consentimiento-autonomia={texto.version}>
-      <p className="inline-flex items-center gap-1.5 rounded-full bg-warning/12 px-2.5 py-1 text-[11.5px] font-medium text-foreground/80">{texto.aviso}</p>
+      <p className="inline-flex items-center gap-1.5 rounded-full bg-foreground/[0.05] px-2.5 py-1 text-[11.5px] font-medium text-muted">{texto.aviso}</p>
       <section className="rounded-2xl border border-border-subtle bg-surface/70">
         <button type="button" onClick={() => setAbierto(a => !a)} aria-expanded={abierto} aria-controls="texto-autonomia"
           className="flex min-h-12 w-full items-center gap-3 rounded-2xl px-4 py-2.5 text-left hover:bg-foreground/[0.03] focus-visible:outline-2 focus-visible:outline-brand">

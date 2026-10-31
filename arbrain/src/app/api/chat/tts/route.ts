@@ -75,8 +75,11 @@ async function ttsCliente(req: NextRequest): Promise<Response> {
 
 export async function POST(req: NextRequest) {
   if (esEdicionCliente()) return ttsCliente(req)
+  const t0 = performance.now()
   // En paralelo con la auth: la URL del daemon no depende de ella.
   const claudeclawUrl = getClaudeclawUrl()
+  // Auth por tramo (31 oct 2026, medido con Server-Timing `auth`): getUser() verifica el JWT LOCAL (claims-user.ts) y
+  // el rol sale de la caché de 5 min de getUserRole; no hay viaje a Supabase por tramo salvo al refrescar el token.
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
@@ -86,8 +89,9 @@ export async function POST(req: NextRequest) {
   if (!(await hasRole(user.id, 'owner', 'admin'))) {
     return NextResponse.json({ error: 'Forbidden: Chat access requires owner or admin role' }, { status: 403 })
   }
+  const tAuth = performance.now() - t0
 
-  const { text, lector, velocidad } = await req.json() as { text?: string; lector?: boolean; velocidad?: number }
+  const { text, lector, velocidad, formato, prioridad } = await req.json() as { text?: string; lector?: boolean; velocidad?: number; formato?: string; prioridad?: boolean }
   if (!text?.trim()) {
     return NextResponse.json({ error: 'text is required' }, { status: 400 })
   }
@@ -102,25 +106,38 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'text is empty after cleanup' }, { status: 400 })
   }
 
-  const res = await fetch(`${await claudeclawUrl}/tts`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${CLAUDECLAW_TOKEN}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(lector ? { text: clean, voice: 'levy', speed: LECTOR_SPEED, tempo: tempoLector(velocidad) } : { text: clean }),
-  })
+  let res: Response
+  try {
+    res = await fetch(`${await claudeclawUrl}/tts`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${CLAUDECLAW_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      // `formato` (31 oct 2026): el lector remoto (el teléfono) pide Ogg Opus, ~11 % del WAV con las marcas exactas.
+      body: JSON.stringify(lector ? { text: clean, voice: 'levy', speed: LECTOR_SPEED, tempo: tempoLector(velocidad), ...(formato === 'opus' ? { formato } : {}), ...(prioridad === true ? { prioridad } : {}) } : { text: clean }),
+      // El lector abandona un tramo que no llega (voz-servidor.ts): el daemon deja de sintetizarlo.
+      signal: AbortSignal.any([req.signal, AbortSignal.timeout(30_000)]),
+    })
+  } catch {
+    if (req.signal.aborted) return new NextResponse(null, { status: 499 })
+    // Daemon reiniciándose (31 oct 2026, 08:31:22: «other side closed»): 503 explícito; el lector reintenta el tramo.
+    return NextResponse.json({ error: 'La voz no respondió.', code: 'sin_daemon' }, { status: 503 })
+  }
 
   if (!res.ok) {
     const body = await res.text()
     return NextResponse.json({ error: `TTS error ${res.status}: ${body}` }, { status: res.status })
   }
 
-  const audio = await res.arrayBuffer()
   const marcas = lector ? res.headers.get('x-marcas') : null
-  return new NextResponse(audio, {
+  // Cuánto se fue en la auth y en el daemon (síntesis incluida): lo lee la bitácora del lector (lector-registro.ts).
+  const tiempos = [`auth;dur=${tAuth.toFixed(1)}`, `daemon;dur=${(performance.now() - t0 - tAuth).toFixed(1)}`, res.headers.get('server-timing')].filter(Boolean).join(', ')
+  // El cuerpo pasa en flujo: Next no espera el audio completo para empezar a mandarlo.
+  return new NextResponse(res.body, {
     headers: {
       'Content-Type': res.headers.get('content-type') || 'audio/mpeg',
+      'Server-Timing': tiempos,
       // Cuánto aceleró el servidor de verdad (un agent-server anterior no lo manda: el cliente lo toma como 1x).
       ...(lector ? { 'X-Tempo': res.headers.get('x-tempo') ?? '1' } : {}),
       // Sin marcas (voz-agentes, agent-server anterior al 29 oct): el cliente usa su respaldo (tiempos-estimados.ts).

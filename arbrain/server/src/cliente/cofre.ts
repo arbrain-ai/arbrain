@@ -52,7 +52,8 @@ export const CREDENCIALES_SUSCRIPCION = ['CLAUDE_CODE_OAUTH_TOKEN', 'CLAUDE_CODE
 /** Alias del contrato → nombre canónico. */
 const ALIAS: Record<string, string> = { ARBRAIN_DAEMON_TOKEN: 'OPENCLAW_GATEWAY_TOKEN' }
 /** Lo que nunca queda en `process.env` del daemon cliente (lo heredaría cualquier hijo). */
-export const NUNCA_EN_ENTORNO = ['OPENCLAW_GATEWAY_TOKEN', 'ARBRAIN_DAEMON_TOKEN', 'ARBRAIN_TOKEN_CONFIRMAR', 'ARBRAIN_DESKTOP_SECRET', ...LLAVES_COFRE, ...LLAVES_VOZ, ...CREDENCIALES_SUSCRIPCION] as const
+// VAPID_PRIVATE_KEY (v0.2.18): la llave de los avisos al teléfono es solo de la web; si llegara heredada, ningún hijo la ve.
+export const NUNCA_EN_ENTORNO = ['OPENCLAW_GATEWAY_TOKEN', 'ARBRAIN_DAEMON_TOKEN', 'ARBRAIN_TOKEN_CONFIRMAR', 'ARBRAIN_DESKTOP_SECRET', 'VAPID_PRIVATE_KEY', ...LLAVES_COFRE, ...LLAVES_VOZ, ...CREDENCIALES_SUSCRIPCION] as const
 /**
  * Variables que harían que el CLI buscara credenciales fuera de su carpeta aislada (`CLAUDE_CONFIG_DIR` del alumno):
  * `CLAUDE_SECURESTORAGE_CONFIG_DIR` redirige el almacén seguro (llavero / `.credentials.json`) del binario. Heredadas,

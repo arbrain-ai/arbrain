@@ -6,15 +6,18 @@
  * no leyó). Cambiar una palabra sube `VERSION_AUTONOMIA`: quien tenga una versión anterior vuelve a «Automático en mi
  * carpeta» hasta que acepte la nueva.
  *
- * ⚠️ BORRADOR PENDIENTE DE REVISIÓN LEGAL (decisión 4 de la SPEC, Daniel 29 oct): sale marcado como borrador, como los
- * textos legales del primer arranque (`AVISO_BORRADOR`). Los puntos para el abogado viven en TERMINOS-borrador.md.
+ * Versión final del 31 oct 2026 (revisión legal: docs/builds/legal-2026-10-31/REVISION.md). Sustituye al borrador del
+ * 29 oct: quien lo aceptó vuelve a «Automático en mi carpeta» hasta aceptar esta.
  *
  * Formato: párrafos separados por línea en blanco; «## » subtítulo; «- » viñeta.
  */
 import { createHash } from 'node:crypto'
 
-export const VERSION_AUTONOMIA = 'autonomia-v1-borrador-2026-10-29'
-export const AVISO_BORRADOR_AUTONOMIA = 'Borrador pendiente de revisión legal. Puede cambiar antes de la versión final; si cambia, te lo volveremos a pedir.'
+export const VERSION_AUTONOMIA = 'autonomia-v1-2026-10-31'
+export const AVISO_AUTONOMIA = 'Versión del 31 de octubre de 2026. Si cambia, te la volveremos a pedir.'
+
+/** Titular de Arbrain (el mismo responsable de src/features/primer-arranque/textos/legales.ts). */
+export const TITULAR = 'Jorge Daniel Carreón Guzmán'
 
 export const TITULO_AUTONOMIA = 'Qué significa el modo autónomo'
 
@@ -60,17 +63,18 @@ Al elegir el modo autónomo:
 - Entiendes que tu cerebro actuará en tu computadora y en tus cuentas sin pedirte confirmación en cada paso, con las excepciones de la sección 2.
 - Aceptas que tú eres responsable de lo que le pides y de revisar lo que hace, y de las consecuencias de las acciones que realiza a partir de tus pedidos, incluidos mensajes enviados, archivos cambiados o borrados y gasto en tu proveedor de IA.
 - Entiendes que Arbrain se entrega «tal cual» (AS IS), sin garantías de ningún tipo, como dice su licencia Apache-2.0, y que puede tener errores.
-- En la medida que permita la ley aplicable, [NOMBRE LEGAL DEL PRESTADOR], el fundador de Arbrain y quienes contribuyen a Arbrain no responden por daños directos, indirectos, pérdida de datos, de ingresos, de reputación o de oportunidades que resulten del uso del modo autónomo.
-- Nada de esto limita los derechos que la ley te da y que no se pueden renunciar.
+- En la medida que permita la ley aplicable, ${TITULAR}, como titular de Arbrain, y quienes contribuyen a su código no responden por daños indirectos ni por la pérdida de datos, de ingresos, de reputación o de oportunidades que resulten de lo que tu cerebro hace en modo autónomo a partir de tus pedidos.
+- Nada de esto excluye la responsabilidad por dolo o culpa grave, ni limita los derechos que la ley te da y que no se pueden renunciar, incluidos los de consumidor.
 - Te comprometes a no usar tu cerebro para enviar spam, suplantar a otros, acceder a sistemas sin permiso ni nada ilegal.
+- Este texto se suma a los Términos de uso y al aviso de privacidad que aceptaste al instalar Arbrain.
 
 ## 6. Cómo lo aceptas y cómo lo retiras
-Marcas las dos casillas y pulsas «Empezar en modo autónomo». Se guarda en tu computadora la fecha y hora, la versión de este texto, su huella, el modo elegido y la versión de Arbrain. Puedes ver tu aceptación y retirarla en Ajustes › Permisos y seguridad.`
+Marcas las dos casillas y pulsas «Empezar en modo autónomo». Se guarda en tu computadora la fecha y hora, la versión de este texto, su huella, el modo elegido y la versión de Arbrain; no se nos envía. Puedes ver tu aceptación y retirarla en Ajustes › Permisos y seguridad cuando quieras: al retirarla, tu cerebro vuelve a «Automático en mi carpeta».`
 
 export const HUELLA_AUTONOMIA = createHash('sha256').update(`${VERSION_AUTONOMIA}\n${TEXTO_AUTONOMIA}`).digest('hex')
 
 export interface TextoAutonomia { version: string; sha256: string; titulo: string; cuerpo: string; casillas: readonly string[]; aviso: string }
-export const textoAutonomia = (): TextoAutonomia => ({ version: VERSION_AUTONOMIA, sha256: HUELLA_AUTONOMIA, titulo: TITULO_AUTONOMIA, cuerpo: TEXTO_AUTONOMIA, casillas: CASILLAS_AUTONOMIA, aviso: AVISO_BORRADOR_AUTONOMIA })
+export const textoAutonomia = (): TextoAutonomia => ({ version: VERSION_AUTONOMIA, sha256: HUELLA_AUTONOMIA, titulo: TITULO_AUTONOMIA, cuerpo: TEXTO_AUTONOMIA, casillas: CASILLAS_AUTONOMIA, aviso: AVISO_AUTONOMIA })
 
 /** ¿Lo que la persona aceptó es exactamente el texto empaquetado? */
 export const aceptacionCoincide = (version: unknown, sha256: unknown): boolean => version === VERSION_AUTONOMIA && sha256 === HUELLA_AUTONOMIA

@@ -21,8 +21,10 @@ export interface NodoLector {
   textContent: string | null
 }
 
-/** Selector de los bloques que el lector sabe leer (hojas o contenedores de hojas). */
-export const SELECTOR_BLOQUES = 'p,li,h1,h2,h3,h4,blockquote'
+/** Selector de los bloques que el lector sabe leer (hojas o contenedores de hojas). Desde el 31 oct también h5, h6,
+ *  las definiciones (dt, dd), el título de un desplegable (summary) y el pie de una figura (figcaption): antes un
+ *  «##### Nota» nunca se oía. */
+export const SELECTOR_BLOQUES = 'p,li,h1,h2,h3,h4,h5,h6,blockquote,dt,dd,summary,figcaption'
 export const MARCA_PROPIO = 'data-lector-propio'
 
 const ELEMENTO = 1
@@ -31,7 +33,7 @@ const TEXTO = 3
 // Elementos que cortan un tramo en línea: todo lo que se pinta como bloque.
 const DE_BLOQUE = new Set([
   'P', 'LI', 'UL', 'OL', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'BLOCKQUOTE', 'DIV', 'PRE', 'TABLE',
-  'HR', 'SECTION', 'ARTICLE', 'DETAILS', 'FIGURE', 'DL',
+  'HR', 'SECTION', 'ARTICLE', 'DETAILS', 'FIGURE', 'DL', 'DT', 'DD', 'SUMMARY', 'FIGCAPTION',
 ])
 
 function esBloque(n: NodoLector): boolean {

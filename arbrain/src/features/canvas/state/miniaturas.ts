@@ -9,7 +9,8 @@
  *   · AL GUARDAR, con rebote: tras el último guardado de un lienzo pasan `REBOTE_MS` y se regenera (editar no la pide en cada trazo).
  *   · BACKFILL: los lienzos sin miniatura se rellenan de uno en uno, en reposo, al abrir la lista. Una vez por sesión y lienzo.
  * Una miniatura que falla no rompe nada: la fila muestra su placeholder.
- * Edición cliente (30 oct 2026): no se generan. `/api/draw3` vive en Supabase y no existe ahí; cada guardado dejaba un 404.
+ * Edición cliente (30 oct 2026): la misma imagen va a `/api/canvas/miniatura/[id]`, que la guarda en su carpeta de datos
+ * (`/api/draw3` vive en Supabase y ahí no existe).
  */
 import type { CanvasElement } from '../model/element'
 import { exportarPNG } from '../render/export'
@@ -40,7 +41,8 @@ export async function generarMiniatura(elements: CanvasElement[], theme: Theme):
 }
 
 export async function subirMiniatura(paginaId: string, dataUrl: string): Promise<string> {
-  const r = await fetch(`/api/draw3/${paginaId}/thumbnail`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dataUrl }) })
+  const destino = esEdicionCliente() ? `/api/canvas/miniatura/${paginaId}` : `/api/draw3/${paginaId}/thumbnail`
+  const r = await fetch(destino, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dataUrl }) })
   const j = await r.json().catch(() => ({})) as { thumbnail_url?: string; error?: string }
   if (!r.ok || !j.thumbnail_url) throw new Error(j.error ?? `miniatura: error ${r.status}`)
   return j.thumbnail_url
@@ -55,7 +57,7 @@ const avisar = (id: string, url: string) => oyentes.forEach(fn => fn(id, url))
 const FUENTES: TextStyle[] = [{ family: 'montserrat', weight: 400, size: 20 }, { family: 'montserrat', weight: 700, size: 24 }, { family: 'roboto-slab', weight: 900, size: 24 }]
 
 async function hacer(id: string, elements: CanvasElement[], theme: Theme) {
-  if (elements.length === 0 || esEdicionCliente()) return
+  if (elements.length === 0) return
   await waitForFonts(FUENTES).catch(() => {})
   const dataUrl = await generarMiniatura(elements, theme)
   if (!dataUrl) return
@@ -89,7 +91,7 @@ const enReposo = () => new Promise<void>(ok => (typeof requestIdleCallback === '
  * y la sección a la vez. Una página del canvas anterior se dibuja con el tema con el que se hizo; el resto, con `temaApp`.
  */
 export async function rellenarMiniaturas<P extends { id: string; elementos: number; miniatura: string | null }>(paginas: P[], temaApp: Theme) {
-  if (corriendo || esEdicionCliente()) return
+  if (corriendo) return
   corriendo = true
   try {
     for (const x of sinMiniatura(paginas, intentadas)) {

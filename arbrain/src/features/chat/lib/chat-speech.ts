@@ -61,6 +61,17 @@ export function indiceDeVelocidad(rate: number): number {
 // Tramos de voz del servidor que se piden por adelantado (también de los párrafos siguientes). Con uno solo, un párrafo
 // corto se acababa antes de que llegara el siguiente (~1.2 s de `say`) y quedaba un hueco.
 const PRECARGA = 3
+/**
+ * UN FALLO NO CAMBIA LA VOZ (31 oct 2026). El 31 oct a las 08:31:22 el auto-deploy reinició el daemon de voz en el mismo
+ * segundo en que el iPhone pedía un tramo: un 500, y la lectura siguió con la voz del navegador, que en WebKit pierde
+ * frases enteras (ver cancelAndSpeak). Ahora un tramo que no llega por la red o por el servidor se vuelve a pedir tras
+ * estas esperas (3.5 s en total: lo que dura un reinicio del daemon; medido en scripts/qa/lector-marcas/latencia.mjs,
+ * una caída de 2.5 s deja ~2.7 s de silencio y sigue con la misma voz) antes de cambiar de voz; si aun así cae a la del
+ * navegador, la del servidor vuelve en el párrafo siguiente en cuanto responde (sondeaServidor), sin silencio extra.
+ */
+export const ESPERAS_REINTENTO_MS = [250, 500, 750, 1000, 1000]
+/** Con la voz del navegador tras una caída: cada cuánto se vuelve a preguntar al servidor (sondeaServidor). */
+const SONDEO_MS = 2000
 
 // ---- Texto HABLADO vs texto VISIBLE ----
 // La voz no debe verbalizar lo que no es prosa: un emoji suena como "marca de verificación",
@@ -72,13 +83,17 @@ const PRECARGA = 3
 // descartan (una URL contiene puntos y barras, no queremos que además la parta la regla de
 // rutas). Las tablas y los bloques de código no llegan hasta aquí: el selector de bloques
 // ni los recoge, y así debe seguir siendo.
-const NOISE: Array<{ re: RegExp; say: string; si?: (m: string) => boolean }> = [
+const NOISE: Array<{ re: RegExp; say: string | ((m: RegExpExecArray) => string); si?: (m: string) => boolean }> = [
   // URLs sueltas: no se dicen (antes «un enlace»). Misma regla que lector-filtro.ts.
   { re: URL_RE, say: ' ' },
+  // Fechas dd/mm/aaaa (31 oct 2026): la regla de rutas las decía «una ruta» («el 31/10/2026» sonaba «el una ruta»).
+  // Va ANTES de las rutas: a igual tramo gana la primera regla.
+  { re: /(?<![\w/])(\d{1,2})\/(\d{1,2})\/(\d{4}|\d{2})(?![\w/])/gu, say: fechaHablada },
   // Rutas: exige DOS o más segmentos con barra. Con una sola barra se tragaba "80/20",
   // "24/7" y "60/90 min" y los leía como "una ruta". El `[\w.~-]*` inicial absorbe tanto
   // la barra de "/Users/..." como el "agent-server" de "arbrain/server/scripts/x/y.py".
-  { re: /[\w.~-]*(?:\/[\w.~-]+){2,}/gu, say: ' una ruta ' },
+  // Palabras sueltas entre barras («lunes/miércoles/viernes», «LT/HT/cohorte») no son ruta (31 oct 2026): se leen.
+  { re: /[\w.~-]*(?:\/[\w.~-]+){2,}/gu, say: ' una ruta ', si: esRuta },
   // Ruta de UNA barra con pinta de archivo ("project/comentario-ia-2026-09-22.md"). Medido
   // el 23 sep: la voz la deletreaba guion por guion durante 7s y el vigilante la cortaba
   // a media palabra. El filtro deja pasar "80/20", "LT/HT" o "input/output".
@@ -93,6 +108,26 @@ const NOISE: Array<{ re: RegExp; say: string; si?: (m: string) => boolean }> = [
   // Comillas/guillemets: la voz no las verbaliza pero sí le tropieza la prosodia en citas.
   { re: /[«»“”„‟‹›"']/gu, say: ' ' },
 ]
+
+const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
+
+/** «31/10/2026» → «31 de octubre de 2026» (también 10/31/2026, la forma de EE. UU.). Si no es fecha, los números. */
+function fechaHablada(m: RegExpExecArray): string {
+  const a = Number(m[1]), b = Number(m[2]), y = m[3]
+  const anio = y.length === 2 ? `del ${y}` : `de ${y}`
+  if (b >= 1 && b <= 12 && a >= 1 && a <= 31) return ` ${a} de ${MESES[b - 1]} ${anio} `
+  if (a >= 1 && a <= 12 && b >= 1 && b <= 31) return ` ${b} de ${MESES[a - 1]} ${anio} `
+  return ` ${m[1]} ${m[2]} ${y} `
+}
+
+/** ¿Esto que tiene dos o más barras es una ruta? No si son solo palabras («lunes/miércoles/viernes») o una fecha. */
+function esRuta(m: string): boolean {
+  if (/^[~./]/.test(m)) return true
+  const segmentos = m.replace(/[.~-]+$/, '').split('/') // el punto final es de la frase, no de la ruta
+  if (segmentos.every((x) => /^\p{L}+$/u.test(x))) return false
+  if (segmentos.every((x) => /^\d+$/.test(x))) return false
+  return true
+}
 
 /**
  * Convierte el texto visible en el texto que se le manda a la voz, y devuelve además
@@ -117,7 +152,7 @@ export function buildSpoken(text: string): { spoken: string; map: number[] } {
         continue
       }
       if (si && !si(m[0])) continue
-      hits.push({ start: m.index, end: m.index + m[0].length, say })
+      hits.push({ start: m.index, end: m.index + m[0].length, say: typeof say === 'string' ? say : say(m) })
     }
   }
   hits.sort((a, b) => a.start - b.start || b.end - a.end)
@@ -156,10 +191,11 @@ export function buildSpoken(text: string): { spoken: string; map: number[] } {
 import { calcularZonaLectura } from './zona-lectura'
 import { anclarElemento, deslizarScroll, escalaRect, fijarScroll } from './desplazar'
 import { sonda } from './tts-probe'
-import { URL_RE, filtrarBloques } from './lector-filtro'
+import { URL_RE, filtrarBloques, type BloqueLector } from './lector-filtro'
 import { MARCA_PROPIO, SELECTOR_BLOQUES, tramosPropios, type NodoLector } from './lector-bloques'
 import { MemoriaLector, huellaDeTexto, resolverPosicion, type PosicionLector } from './lector-posicion'
-import { VozServidor } from './voz-servidor'
+import { FallaVoz, VozServidor, type AudioTramo } from './voz-servidor'
+import { registrarLector } from './lector-registro'
 import { palabraEn, tiemposDeMarcas } from './marcas-voz'
 import { tiemposDelAudio } from './tiempos-estimados'
 import { ResaltadoUnico } from './resaltado'
@@ -556,6 +592,10 @@ class ChatSpeechController {
     this.idx = 0
     this.paused = false
     this.voz.reintentar() // un fallo de la lectura anterior no condena a esta a la voz del navegador
+    this.vozVuelve = false
+    this.servidorListo = false
+    this.motor = null
+    this.marcarToque(resumen ? 'resumen' : this.extracto ? 'seleccion' : 'escuchar')
     this.voz.desbloquear() // dentro del clic: Chrome y Safari solo dejan sonar Web Audio si arranca en un gesto
     if (isIOS && !this.warmed) {
       try {
@@ -614,7 +654,7 @@ class ChatSpeechController {
         texto: el.innerText,
         enTabla: !!el.closest('table'),
         enCodigo: !!el.closest('pre'),
-        esEncabezado: /^H[1-4]$/.test(el.tagName),
+        esEncabezado: /^H[1-6]$/.test(el.tagName),
         lista: l ? listas.get(l) : undefined,
       }
     })
@@ -655,7 +695,7 @@ class ChatSpeechController {
     const vivo = this.container?.isConnected && (this.extracto || this.blocks.every((b) => b.isConnected || b === this.cierre))
     if (vivo) return true
     const iguales = (el: HTMLElement) => {
-      const t = Array.from(el.querySelectorAll('p,li,h1,h2,h3,h4,blockquote')).map((b) => firmaDe(b as HTMLElement)).filter(Boolean)
+      const t = Array.from(el.querySelectorAll(SELECTOR_BLOQUES)).map((b) => firmaDe(b as HTMLElement)).filter(Boolean)
       return this.firma.length > 0 && this.firma.every((f) => t.includes(f))
     }
     let el = document.querySelector<HTMLElement>(`[data-tts-content="${CSS.escape(this.curId)}"]`)
@@ -966,12 +1006,20 @@ class ChatSpeechController {
     } else deslizarScroll(hiloEl, hiloEl.scrollTop + paso, undefined, anclar)
   }
 
-  private speakBlock(): void {
+  private speakBlock(motivo = 'bloque'): void {
     if (!this.synth) return
     const el = this.blocks[this.idx]
     if (!el) return this.stop()
     this.revealBlock(el)
+    // Tras una caída del servidor, el párrafo vuelve a su voz en cuanto el sondeo respondió (sondeaServidor).
+    if (!this.voz.disponible && this.vozVuelve && this.servidorListo) {
+      this.vozVuelve = false
+      this.servidorListo = false
+      this.voz.reintentar()
+    }
     if (this.voz.disponible) return this.hablaConAudio(el)
+    this.usaMotor('navegador', motivo)
+    this.sondeaServidor()
 
     const sents = this.sentencesOf(el)
     // Consumir el arranque a mitad de bloque (si lo hay): lo setea speakFrom().
@@ -1080,6 +1128,7 @@ class ChatSpeechController {
       u.onstart = () => {
         if (seq !== this.uttSeq) return
         this.uttStartedAt = this.now()
+        this.primerAudio('navegador')
         if (primera) pintaPalabra({ from: primera.index, to: primera.index + primera[0].length })
       }
       u.onend = () => {
@@ -1110,12 +1159,14 @@ class ChatSpeechController {
   // cada palabra en ESE audio (ver voz-servidor.ts y marcas-voz.ts). Aquí hay un solo reloj, voz.posicion() (lo que sale
   // por la bocina ahora), y en cada fotograma el resaltado va a la palabra de ese instante. Cada párrafo se parte en
   // tramos de pocas frases y se precargan los PRECARGA siguientes, aunque sean de otros párrafos. Si el servidor falla,
-  // ese mismo tramo sigue con la voz del navegador hasta la próxima lectura.
-  private voz = new VozServidor((texto, velocidad) =>
+  // el tramo se reintenta (ESPERAS_REINTENTO_MS); si sigue sin llegar, sigue la voz del navegador desde esa palabra y la
+  // del servidor vuelve en el párrafo siguiente en cuanto responde (31 oct 2026).
+  private voz = new VozServidor((texto, velocidad, formato, signal, prioridad) =>
     fetch('/api/chat/tts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: texto, lector: true, velocidad }),
+      body: JSON.stringify({ text: texto, lector: true, velocidad, ...(formato === 'opus' ? { formato } : {}), ...(prioridad ? { prioridad } : {}) }),
+      signal,
     }),
   )
   /** Hay un tramo sonando (o a punto) por la voz del servidor. */
@@ -1127,8 +1178,66 @@ class ChatSpeechController {
   private cuadro = 1 / 60
   /** Lo que suena ahora por la voz del servidor (lo lee el arnés de scripts/qa/lector-marcas para medir). */
   private sonando: { el: HTMLElement; texto: string; velocidad: number; palabras: Array<[number, number]>; tiempos: number[]; exactas: boolean } | null = null
+  /** El gesto que espera su primer audio (Escuchar, tap, reanudar, salto): la bitácora mide cuánto tardó en sonar. */
+  private toque: { t: number; tipo: string } | null = null
+  /** Último primer audio medido (lo lee el arnés de scripts/qa/lector-marcas). */
+  private ultimoPrimerAudio: Record<string, unknown> | null = null
+  /** Voz que suena en esta lectura: cada cambio queda en la bitácora. */
+  private motor: 'servidor' | 'navegador' | null = null
+  /** La voz del servidor cayó por la red o por el servidor: se sondea para volver en el siguiente párrafo. */
+  private vozVuelve = false
+  private servidorListo = false
+  private sondeo: Promise<unknown> | null = null
+  /** Reintento en espera de un tramo que no llegó (ESPERAS_REINTENTO_MS). */
+  private reintento: ReturnType<typeof setTimeout> | null = null
+
+  private marcarToque(tipo: string) {
+    this.toque = { t: this.now(), tipo }
+  }
+
+  /** El primer audio del gesto ya sale por la bocina: a la bitácora (lector-registro.ts). `atras`: hace cuántos ms. */
+  private primerAudio(motor: 'servidor' | 'navegador', atras = 0, extra: Record<string, unknown> = {}) {
+    const g = this.toque
+    if (!g) return
+    this.toque = null
+    const ms = Math.max(0, Math.round(this.now() - atras - g.t))
+    this.ultimoPrimerAudio = { ms, toque: g.tipo, motor, ...extra }
+    sonda.mark(`tts-primer-audio(${ms}ms)`)
+    registrarLector({ tipo: 'primer-audio', ms, toque: g.tipo, motor, velocidad: RATES[this.rateIdx], ...extra })
+  }
+
+  private usaMotor(m: 'servidor' | 'navegador', motivo: string) {
+    if (this.motor && this.motor !== m) {
+      sonda.mark(`tts-motor(${this.motor}→${m}: ${motivo})`)
+      registrarLector({ tipo: 'motor', de: this.motor, a: m, motivo })
+    }
+    this.motor = m
+  }
+
+  /**
+   * Con la voz del navegador tras una caída del servidor: pide ya el primer tramo del párrafo siguiente. Si llega, ese
+   * párrafo vuelve a la voz del servidor (y su audio ya está en la caché: sin espera). Si no, se intenta en el próximo.
+   */
+  private sondeaServidor() {
+    if (!this.vozVuelve || this.servidorListo || this.sondeo) return
+    if (this.sondeoTimer) { clearTimeout(this.sondeoTimer); this.sondeoTimer = null }
+    const b = this.blocks[this.idx + 1]
+    if (!b) return
+    const sp = buildSpoken(b.textContent || '').spoken
+    const t0 = tramosDeVoz(sp, palabrasDe(sp))[0]
+    if (!t0) return
+    const lectura = this.curId
+    this.sondeo = this.voz.cargar(t0.texto, RATES[this.rateIdx]).then(
+      () => { if (this.curId === lectura) this.servidorListo = true },
+      // Sigue caído: se vuelve a preguntar en un momento (un párrafo de la voz del navegador dura decenas de segundos).
+      () => { if (this.curId === lectura && this.playing) this.sondeoTimer = setTimeout(() => { this.sondeoTimer = null; this.sondeaServidor() }, SONDEO_MS) },
+    ).finally(() => { this.sondeo = null })
+  }
+  private sondeoTimer: ReturnType<typeof setTimeout> | null = null
 
   private paraAudio() {
+    if (this.reintento) clearTimeout(this.reintento)
+    this.reintento = null
     this.relevoVelocidad = null
     if (this.rafAudio) cancelAnimationFrame(this.rafAudio)
     this.rafAudio = 0
@@ -1156,7 +1265,13 @@ class ChatSpeechController {
       const i = words.findIndex((w) => (map[w.to - 1] ?? -1) >= startAt)
       w0 = i < 0 ? words.length - 1 : i
     }
-    const tramos = tramosDeVoz(spoken, words)
+    let tramos = tramosDeVoz(spoken, words)
+    // Arranque a media frase (tap, salto) en un tramo que no está en la caché: se pide un tramo que EMPIEZA en la palabra
+    // tocada y corta pronto (31 oct 2026: antes se sintetizaba el tramo entero, también lo que ya no iba a sonar). Si el
+    // tramo ya está (reanudar tras una pausa), se usa ese: arranca sin pedir nada.
+    const t0Viejo = tramos.findIndex((tr) => w0 < tr.hasta)
+    if (w0 > 0 && t0Viejo >= 0 && w0 > tramos[t0Viejo].desde && !this.voz.enCache(tramos[t0Viejo].texto, RATES[this.rateIdx]))
+      tramos = tramosDesde(spoken, words, w0)
     // Offsets VISIBLES de cada palabra hablada (lo que se pinta).
     const visibles = words.map((w): [number, number] => {
       const from = map[w.from] ?? 0
@@ -1186,6 +1301,9 @@ class ChatSpeechController {
     let rescates = 0
     // Tramo pedido que aún no suena (arranque, siguiente o relevo): un cambio de velocidad lo vuelve a pedir.
     let espera: { t: number; desde: number | null } | null = null
+    // Del tramo que suena: cuánto se esperó desde que se pidió (≈0 si venía de la precarga) y su medida de red.
+    let esperaTramo = 0
+    let medida: AudioTramo['medida'] | null = null
     const siguienteBloque = () => {
       if (this.idx < this.blocks.length - 1) {
         this.idx++
@@ -1204,30 +1322,41 @@ class ChatSpeechController {
         }
       }
     }
-    const falla = (motivo: string) => {
+    // `servidor`: cayó la red o el servidor (no el audio de este equipo): la voz del servidor vuelve en el siguiente
+    // párrafo. `palabra`: desde dónde sigue la voz del navegador (la primera del tramo que no llegó; nada se salta).
+    const falla = (motivo: string, o: { servidor?: boolean; palabra?: number } = {}) => {
       if (seq !== this.uttSeq) return
       sonda.mark(`tts-audio-falla(${motivo})`)
       console.warn('[lector] la voz del servidor falló; sigo con la del navegador:', motivo)
+      // Una edición sin voz de servidor (alumno sin llave) no es una falla: es su voz de siempre.
+      if (!/sin_voz_servidor/.test(motivo)) registrarLector({ tipo: 'falla', motivo, servidor: !!o.servidor, velocidad: RATES[this.rateIdx] })
+      this.vozVuelve = !!o.servidor
+      this.servidorListo = false
       this.voz.disponible = false
       this.paraAudio()
       this.uttSeq++
-      this.startOffset = this.cursorOffset
-      if (this.playing && !this.paused && this.curId) this.speakBlock()
+      const w = o.palabra != null ? visibles[Math.min(visibles.length - 1, Math.max(0, o.palabra))] : null
+      this.startOffset = w ? w[0] : this.cursorOffset
+      if (this.playing && !this.paused && this.curId) this.speakBlock(motivo)
     }
 
     // `desde`: palabra del párrafo donde arrancar; `null` = la que suena en el momento de arrancar (relevo).
-    const suena = (t: number, desde: number | null) => {
+    // `intento`: reintentos ya hechos de este tramo (ESPERAS_REINTENTO_MS).
+    const suena = (t: number, desde: number | null, intento = 0) => {
       const tramo = tramos[t]
       if (!tramo) return siguienteBloque()
       const v = RATES[this.rateIdx]
       const miTurno = turno
+      const pedido = this.now()
       espera = { t, desde }
-      this.voz.cargar(tramo.texto, v).then((audio) => {
+      this.voz.cargar(tramo.texto, v, true).then((audio) => {
         if (seq !== this.uttSeq || !this.playing || this.paused) return
         // Otro arranque ganó (el tramo terminó antes del relevo) o la velocidad volvió a cambiar (ya viene otro).
         if (miTurno !== turno || v !== RATES[this.rateIdx]) return
         turno++
         espera = null
+        esperaTramo = Math.round(this.now() - pedido)
+        medida = audio.medida ?? null
         const sub = words.slice(tramo.desde, tramo.hasta)
         // Instante de cada palabra en ESTE audio: las marcas de la síntesis. Solo una voz sin marcas usa el respaldo.
         const exactos = audio.marcas ? tiemposDeMarcas(tramo.texto, audio.marcas) : null
@@ -1249,6 +1378,7 @@ class ChatSpeechController {
           return falla(e instanceof Error ? e.message : 'web audio')
         }
         this.enAudio = true
+        this.usaMotor('servidor', intento ? `reintento ${intento}` : 'tramo')
         this.sonando = { el: bloque, texto: tramo.texto, velocidad: v, palabras: visibles.slice(tramo.desde, tramo.hasta), tiempos, exactas }
         sonda.mark(`${exactas ? 'tts-audio' : 'tts-audio-sin-marcas'}${audio.tempo === v ? '' : `(${audio.tempo}≠${v})`}`)
         // EL reloj: en cada fotograma, la palabra que sonará cuando ESTE fotograma llegue a la pantalla: voz.posicion()
@@ -1284,6 +1414,11 @@ class ChatSpeechController {
               return suena(t, actual.palabra)
             } else return falla('reloj de audio detenido')
           }
+          // El primer audio del gesto ya sale por la bocina (posición ≥ 0): cuándo cruzó, con el reloj del audio.
+          if (this.toque) {
+            const oido = this.voz.posicion() - (local ? tiempos[local] : 0)
+            if (oido >= 0) this.primerAudio('servidor', oido * 1000, { chars: tramo.texto.length, espera_ms: esperaTramo, ...(medida ?? {}) })
+          }
           const pos = this.voz.posicion() + this.cuadro
           const i = pos < tiempos[local] ? -1 : palabraEn(tiempos, pos)
           if (i >= 0 && i !== ultima) {
@@ -1301,7 +1436,24 @@ class ChatSpeechController {
           if (seq === this.uttSeq && turno === turnoAqui && this.playing && !this.paused && !this.voz.corriendo())
             falla('contexto suspendido')
         }, 2500)
-      }, (e: unknown) => falla(e instanceof Error ? e.message : 'red'))
+      }, (e: unknown) => {
+        if (seq !== this.uttSeq || !this.playing || this.paused) return
+        // Ya se pidió otro (un relevo de velocidad o un arranque que ganó): este fallo no decide nada.
+        if (miTurno !== turno || v !== RATES[this.rateIdx]) return
+        const motivo = e instanceof Error ? e.message : 'red'
+        const servidor = e instanceof FallaVoz ? e.reintentable : true
+        if (servidor && intento < ESPERAS_REINTENTO_MS.length) {
+          sonda.mark(`tts-reintento(${intento + 1}: ${motivo})`)
+          registrarLector({ tipo: 'reintento', motivo, intento: intento + 1 })
+          if (this.reintento) clearTimeout(this.reintento)
+          this.reintento = setTimeout(() => {
+            this.reintento = null
+            if (seq === this.uttSeq && miTurno === turno && this.playing && !this.paused) suena(t, desde, intento + 1)
+          }, ESPERAS_REINTENTO_MS[intento])
+          return
+        }
+        falla(motivo, { servidor, palabra: desde ?? actual.palabra })
+      })
     }
     this.relevoVelocidad = () => {
       // Lo que se esperaba se pide de nuevo a la velocidad nueva; si ya suena, el tramo actual se releva en su palabra.
@@ -1422,8 +1574,16 @@ class ChatSpeechController {
     this.uttSeq++ // invalida boundary/onend de la utterance que se está cancelando
     this.soltarDestrabe()
     this.paraAudio()
+    const hablaba = this.synth.speaking || this.synth.pending
     this.synth.cancel()
     if (this.speakTimer) clearTimeout(this.speakTimer)
+    this.speakTimer = null
+    // El respiro solo hace falta si la voz del navegador estaba hablando Y la que sigue también es la suya. La voz del
+    // servidor (Web Audio) no tiene esa carrera: arranca ya (31 oct 2026: 60 ms menos en cada play, tap y reanudar).
+    if (!hablaba || this.voz.disponible) {
+      if (this.playing && !this.paused && this.curId) this.speakBlock()
+      return
+    }
     this.speakTimer = setTimeout(() => {
       this.speakTimer = null
       if (this.playing && !this.paused && this.curId) this.speakBlock()
@@ -1465,6 +1625,7 @@ class ChatSpeechController {
         this.stateCb?.(true)
       }
       void this.retenPantalla() // la restauración arranca en pausa sin candado
+      this.marcarToque('reanudar')
       // Reanudar SIEMPRE por la palabra exacta (cursorOffset), NUNCA por synth.resume():
       // ese camino es inconsistente entre plataformas. speakFrom = cancel + re-speak
       // desde la palabra, idéntico en todas las superficies.
@@ -1534,6 +1695,7 @@ class ChatSpeechController {
   private jumpTo(i: number, charOffset = 0) {
     if (!this.blocks.length || !this.synth) return
     this.sigue = true
+    this.marcarToque('tap')
     this.speakFrom(i, charOffset)
   }
 
@@ -1564,6 +1726,7 @@ class ChatSpeechController {
       this.playing = true
       this.stateCb?.(true)
     }
+    this.marcarToque('salto')
     this.markBlockStart()
     this.cancelAndSpeak()
     this.emit()
@@ -1596,6 +1759,10 @@ class ChatSpeechController {
     this.paused = false
     this.cursorOffset = 0
     this.startOffset = null
+    this.toque = null
+    this.vozVuelve = false
+    this.servidorListo = false
+    if (this.sondeoTimer) { clearTimeout(this.sondeoTimer); this.sondeoTimer = null }
     this.paraAudio()
     if (this.synth) this.synth.cancel()
     this.clearHighlight()
@@ -1640,13 +1807,37 @@ function bloquesLegibles(container: HTMLElement): HTMLElement[] {
       if (set.has(d as HTMLElement)) return false
     return true
   })
-  return filtrarBloques(
-    hojas.map((el) => ({
-      texto: el.innerText,
-      enTabla: !!el.closest('table'),
-      esEncabezado: /^H[1-4]$/.test(el.tagName),
-    })),
-  ).map((i) => hojas[i])
+  return filtrarBloques(hojas.map(bloqueLector)).map((i) => hojas[i])
+}
+
+/** Lo que lector-filtro necesita saber de un bloque pintado (31 oct 2026: listas, enlaces y etiquetas en negrita, para
+ *  que una sección de fuentes calle sus entradas y nada más). */
+function bloqueLector(el: HTMLElement): BloqueLector {
+  const enlaces = Array.from(el.querySelectorAll('a[href]'))
+  let sinEnlaces: string | undefined
+  if (enlaces.length) {
+    sinEnlaces = el.innerText
+    for (const a of enlaces) sinEnlaces = sinEnlaces.replace((a as HTMLElement).innerText, ' ')
+  }
+  return {
+    texto: el.innerText,
+    enTabla: !!el.closest('table'),
+    esEncabezado: /^H[1-6]$/.test(el.tagName),
+    enLista: !!el.closest('li'),
+    conEnlace: enlaces.length > 0,
+    etiqueta: empiezaConEtiqueta(el),
+    sinEnlaces,
+  }
+}
+
+/** ¿El bloque abre con una negrita que termina en dos puntos («Siguiente paso:» o «Ojo» + «:»)? */
+function empiezaConEtiqueta(el: HTMLElement): boolean {
+  let n: ChildNode | null = el.firstChild
+  while (n && n.nodeType === 3 && !(n.textContent || '').trim()) n = n.nextSibling
+  if (!n || n.nodeType !== 1 || !/^(STRONG|B)$/.test((n as HTMLElement).tagName)) return false
+  const t = (n.textContent || '').trim()
+  if (!t || t.length > 60) return false
+  return t.endsWith(':') || /^\s*:/.test(n.nextSibling?.textContent || '')
 }
 
 /** Palabras del texto hablado, en sus coordenadas. */
@@ -1663,19 +1854,40 @@ function palabrasDe(spoken: string): Array<{ from: number; to: number }> {
  * un fin de frase (o a los 320 en cualquier palabra). Tramos cortos = el primero suena antes y el siguiente se precarga
  * mientras tanto. `desde`/`hasta` son índices de palabra; `texto`, lo que se le pide al servidor (también es la clave
  * de la caché). Exportado para testearlo.
+ *
+ * EL PRIMER TRAMO VA CORTO (31 oct 2026, Daniel: «la menor latencia posible al momento de play»): el primer fin de frase
+ * pasados PRIMER_TRAMO caracteres; si la primera frase es larga, su primera coma pasados PRIMER_TRAMO_COMA; tope
+ * PRIMER_TRAMO_MAX. Es lo único que se espera al tocar play: sintetizarlo, mandarlo y decodificarlo crece con su largo.
+ * Mientras suena, el resto del párrafo se precarga.
  */
+export const PRIMER_TRAMO = 60
+const PRIMER_TRAMO_COMA = 100
+const PRIMER_TRAMO_MAX = 200
 export function tramosDeVoz(spoken: string, words: Array<{ from: number; to: number }>) {
   const out: Array<{ desde: number; hasta: number; texto: string }> = []
   let desde = 0
   for (let i = 0; i < words.length; i++) {
     const largo = words[i].to - words[desde].from
-    const finDeFrase = /[.!?…:;]["»”’)\]]*$/.test(spoken.slice(words[i].from, words[i].to))
-    if (i === words.length - 1 || (finDeFrase && largo >= 160) || largo >= 320) {
+    const palabra = spoken.slice(words[i].from, words[i].to)
+    const finDeFrase = /[.!?…:;]["»”’)\]]*$/.test(palabra)
+    const primero = out.length === 0
+    const corta = primero
+      ? (finDeFrase && largo >= PRIMER_TRAMO) || (/,["»”’)\]]*$/.test(palabra) && largo >= PRIMER_TRAMO_COMA) || largo >= PRIMER_TRAMO_MAX
+      : (finDeFrase && largo >= 160) || largo >= 320
+    if (i === words.length - 1 || corta) {
       out.push({ desde, hasta: i + 1, texto: spoken.slice(words[desde].from, words[i].to).replace(/\s+/g, ' ') })
       desde = i + 1
     }
   }
   return out
+}
+
+/** Tramos de un párrafo con un corte en la palabra `w0`: lo de antes y, desde ahí, tramos nuevos (el primero corto).
+ *  Mismo contrato que tramosDeVoz (índices de palabra del párrafo entero). Exportado para testearlo. */
+export function tramosDesde(spoken: string, words: Array<{ from: number; to: number }>, w0: number) {
+  const antes = w0 > 0 ? tramosDeVoz(spoken, words.slice(0, w0)) : []
+  const despues = tramosDeVoz(spoken, words.slice(w0)).map((t) => ({ ...t, desde: t.desde + w0, hasta: t.hasta + w0 }))
+  return [...antes, ...despues]
 }
 
 /** Firma corta de un párrafo: estable entre renders, distinta entre mensajes. */

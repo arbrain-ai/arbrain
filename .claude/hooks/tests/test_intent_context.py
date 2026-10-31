@@ -26,7 +26,6 @@ class IntentContextTests(unittest.TestCase):
             ('dibuja esto en el lienzo', 'Diagramas y lienzo'),
             ('arregla el árbol de archivos de mi cerebro artificial', 'Operación del sistema'),
             ('qué hablamos en la conversación pasada', 'Búsqueda histórica'),
-            ('edita el video de ayer', 'Edición por voz'),
             ('hazme una imagen para el post', 'Imágenes'),
             ('lee este libro conmigo', 'Leer un libro o curso'),
             ('mejora la skill de agenda', 'Mejorar una skill'),

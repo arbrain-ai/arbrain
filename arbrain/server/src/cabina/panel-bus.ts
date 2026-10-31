@@ -40,8 +40,10 @@ export interface Pestana {
 export interface VistaPanel { vista: string; alcance?: string; fecha?: string; paginaId?: string; titulo?: string; enfoque?: string; seccion?: string; agenteId?: number; zona?: string; ruta?: string; compararCon?: string; fijar?: boolean; pestana?: string }
 export interface Acuse { etiqueta: string; en: string; ok: boolean; detalle: string; cerradas: string[]; abiertas: string[]; pestanas: Pestana[]; /** En qué ventana quedó lo que abrió: «Ventana 1 (la de la izquierda)». */ donde?: string }
 export interface Comando {
-  id: string; accion: 'fijar' | 'soltar' | 'guardar'
+  id: string; accion: 'fijar' | 'soltar' | 'guardar' | 'conversacion'
   input: VistaPanel; conversacion?: string
+  /** `conversacion` (31 oct 2026): la conversación nueva que Levy abrió (conversaciones.ts); la app la pinta en Fijadas y, si `abrir`, la abre. */
+  sesion?: { id: string; titulo: string; abrir: boolean }
   /** El dispositivo al que va (8 oct 2026): el de la conversación que lo pidió. Un pedido nunca va a «cualquier cliente conectado». */
   para?: string
   creado: string; expira: string
@@ -63,6 +65,8 @@ export interface Cliente {
   escribio?: Record<string, string>
   /** En qué ventana vive cada casa (Tareas y Taller). */
   casaEn?: { tareas?: string; taller?: string }
+  /** Comandos nuevos que esta web sabe atender (31 oct 2026: «conversacion»). Una web anterior no los recibe. */
+  sabe?: string[]
 }
 
 function leerJson<T>(archivo: string): T | undefined {
@@ -143,6 +147,19 @@ export function emitir(accion: Comando['accion'], input: VistaPanel, conversacio
   return { comando, objetivos: objetivosDe(destino), destino }
 }
 
+/**
+ * La conversación nueva que Levy abrió (31 oct 2026): un aviso a la app de la conversación desde donde la pidió, para que la pinte
+ * en Fijadas sin esperar su refresco y, si `abrir`, la abra. Si esa app es de una versión que no lo sabe atender, no se le manda
+ * (lo vería como pestaña): `objetivos` queda vacío y la conversación aparece en su próximo refresco.
+ */
+export function emitirConversacion(sesion: NonNullable<Comando['sesion']>, conversacion?: string, ahora = Date.now(), dir = DIR_PANEL()): { comando: Comando; objetivos: Cliente[]; destino: ReturnType<typeof destinoDe>; versionVieja: boolean } {
+  const destino = destinoDe(conversacion, ahora, dir)
+  const versionVieja = !!destino.cliente && !sabeAtender(destino.cliente, 'conversacion')
+  const comando: Comando = { id: `c-${ahora.toString(36)}${randomBytes(3).toString('hex')}`, accion: 'conversacion', input: { vista: 'conversacion', titulo: sesion.titulo }, sesion, ...(conversacion ? { conversacion } : {}), para: destino.cliente && !versionVieja ? dispositivoDe(destino.cliente) : 'nadie', creado: new Date(ahora).toISOString(), expira: new Date(ahora + VIDA_COMANDO_MS).toISOString(), acuses: {} }
+  escribirJson(archivoCmd(comando.id, dir), comando)
+  return { comando, objetivos: versionVieja ? [] : objetivosDe(destino), destino, versionVieja }
+}
+
 /** Espera a que cada objetivo acuse (o se agote el tiempo). Devuelve los acuses recibidos. */
 export async function esperarAcuses(id: string, objetivos: Cliente[], { esperaMs = 8000, cadaMs = 150, dir = DIR_PANEL() }: { esperaMs?: number; cadaMs?: number; dir?: string } = {}): Promise<Record<string, Acuse>> {
   const limite = Date.now() + esperaMs
@@ -171,7 +188,13 @@ export interface Sincronizacion {
   acuses?: { comando: string; ok: boolean; detalle: string; cerradas: string[]; abiertas: string[]; pestanas: Pestana[]; donde?: string }[]
   /** El panel compartido entre aparatos (14 oct 2026, panel-compartido.ts). Una web anterior no lo manda y sigue solo local. */
   compartido?: PedidoCompartido
+  /** Comandos nuevos que la web sabe atender (ver Cliente.sabe). */
+  sabe?: string[]
 }
+
+/** Comandos que solo recibe una web que los declara en `sabe` (una anterior haría con ellos lo de `fijar`). */
+const COMANDOS_NUEVOS = new Set<Comando['accion']>(['conversacion'])
+const sabeAtender = (c: Cliente | undefined, accion: Comando['accion']) => !COMANDOS_NUEVOS.has(accion) || !!c?.sabe?.includes(accion)
 
 const texto = (v: unknown, max: number) => typeof v === 'string' ? v.slice(0, max) : ''
 function limpiarPestanas(v: unknown): Pestana[] {
@@ -191,7 +214,7 @@ function limpiarPestanas(v: unknown): Pestana[] {
  */
 function esParaMi(cmd: Comando, yo: Cliente, ahora: number, dir: string): boolean {
   const para = cmd.para ?? (() => { const d = destinoDe(cmd.conversacion, Date.parse(cmd.creado) || ahora, dir); return d.cliente ? dispositivoDe(d.cliente) : 'nadie' })()
-  if (para !== dispositivoDe(yo)) return false
+  if (para !== dispositivoDe(yo) || !sabeAtender(yo, cmd.accion)) return false
   const conv = idConversacion(cmd.conversacion)
   const hermanos = clientesVivos(ahora, dir).filter(c => dispositivoDe(c) === para)
   const elegido = hermanos.sort((a, b) => Number(idConversacion(b.conversacion) === conv) - Number(idConversacion(a.conversacion) === conv) || ultimaEscritura(b, conv || undefined) - ultimaEscritura(a, conv || undefined) || Date.parse(b.latido) - Date.parse(a.latido))[0]
@@ -213,6 +236,7 @@ export function sincronizar(s: Sincronizacion, ahora = Date.now(), dir = DIR_PAN
     id, etiqueta, latido: new Date(ahora).toISOString(), pestanas, casa: { tareas: !!s.casa?.tareas, taller: !!s.casa?.taller }, activa: texto(s.activa, 120), ajustesRev: Number.isInteger(s.ajustesRev) && (s.ajustesRev as number) >= 0 ? s.ajustesRev : 0,
     ...(dispositivo ? { dispositivo } : {}), ...(s.usuario ? { usuario: texto(s.usuario, 60) } : {}), ...(s.equipo ? { equipo: texto(s.equipo, 80) } : {}),
     ...(conversacion ? { conversacion } : {}), ...(Object.keys(escribio).length ? { escribio } : {}),
+    ...(Array.isArray(s.sabe) ? { sabe: s.sabe.filter((x): x is string => typeof x === 'string').map(x => x.slice(0, 40)).slice(0, 20) } : {}),
     ...(s.casaEn ? { casaEn: { ...(s.casaEn.tareas ? { tareas: texto(s.casaEn.tareas, 40) } : {}), ...(s.casaEn.taller ? { taller: texto(s.casaEn.taller, 40) } : {}) } } : {}),
   }
   escribirJson(archivoCli(id, dir), cliente)

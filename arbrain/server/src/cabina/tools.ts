@@ -63,6 +63,8 @@ export const DETENER_DESCRIPTION = `Corta el paso en curso de un subagente tuyo 
 export const INTERACTIVO_DESCRIPTION = `Abre la sesión de un subagente tuyo (si no está trabajando) en una terminal del motor para que ${DUENO} entre a mano desde el Taller. Solo si lo pide. Devuelve la terminal.`
 export const CERRAR_DESCRIPTION = `Cierra un subagente tuyo cuando terminó o ${DUENO} lo pide: libera su lugar y registra sus tokens. Su conversación queda en disco. Nunca cierra terminales de ${DUENO}.`
 export const ABRIR_DESCRIPTION = `Lleva a ${DUENO} a la sección completa de Arbrain cuando la vista se queda corta o lo pide («llévame al calendario»). Navega al terminar tu respuesta (puede cancelar); máximo una vez por turno. lienzo acepta paginaId y zona; sfcal y sfmap caen en Calendario y Lienzo.`
+export const textoConversacion = (quien: string) => `Abre una conversación NUEVA del chat de ${quien}, fijada en Fijadas (barra izquierda), y le manda tu primer mensaje por el camino de uno escrito: otro turno tuyo lo trabaja ahí y sigue con ${quien}. Solo si lo pide («ábrela como conversación», «fíjala a la izquierda»). No ve esta conversación: el mensaje lleva el contexto. abrir:true la abre. Detalle: ayuda {tema:"conversacion"}.`
+export const CONVERSACION_DESCRIPTION = textoConversacion(DUENO)
 export const AYUDA_DESCRIPTION = `Detalle a demanda de la Cabina: qué pinta cada vista, campos y reglas largas de cada herramienta. tema = vista o herramienta ("cohorte", "documento", "delegar"); sin tema, el índice. Úsala cuando dudes.`
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/
@@ -268,6 +270,7 @@ export const CABINA_TOOLS = [
   { name: 'detener', description: DETENER_DESCRIPTION, inputSchema: obj({ agenteId: AGENTE }, ['agenteId'] as const) },
   { name: 'interactivo', description: INTERACTIVO_DESCRIPTION, inputSchema: obj({ agenteId: AGENTE }, ['agenteId'] as const) },
   { name: 'cerrar', description: CERRAR_DESCRIPTION, inputSchema: obj({ agenteId: AGENTE }, ['agenteId'] as const) },
+  { name: 'conversacion', description: CONVERSACION_DESCRIPTION, inputSchema: obj({ titulo: S, mensaje: { type: 'string', maxLength: 6000 }, abrir: B }, ['titulo', 'mensaje'] as const, true) },
   { name: 'ayuda', description: AYUDA_DESCRIPTION, inputSchema: obj({ tema: S }) },
 ] as const
 
@@ -285,6 +288,7 @@ export async function ejecutarCabina(tool: string, raw: unknown): Promise<{ text
   const o = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
   try {
     if (tool === 'despertador') return await despertador(o)
+    if (tool === 'conversacion') return await conversacion(o)
     if (tool === 'archivero') return archivero(o)
     if (tool === 'panel') return await panel(o)
     if (tool === 'atender') {
@@ -463,10 +467,43 @@ async function despertador(o: Record<string, unknown>): Promise<{ text: string; 
   } finally { db.close() }
 }
 
-/** Codex recibe los mismos verbos como dynamicTools con prefijo explícito. Sin `despertador` por ahora:
+/**
+ * `conversacion` (31 oct 2026): deja el pedido en el store del agent-server (conversaciones.ts) y espera a que su pulso cree la
+ * fila fijada y entregue el primer mensaje. Luego avisa a la app de ESTA conversación para que la pinte en Fijadas (y la abra si
+ * `abrir`). Solo afirma lo que pasó: la fila y el turno, o «NO confirmado» con el motivo.
+ */
+async function conversacion(o: Record<string, unknown>): Promise<{ text: string; error?: boolean }> {
+  const { parseConversacion, ConversacionesNuevas } = await import('./conversaciones.js')
+  const entrada = parseConversacion(o)
+  let scope: ReturnType<typeof scopeDeCabina>
+  try { scope = scopeDeCabina() } catch { throw new Error('Las conversaciones nuevas solo se abren desde una conversación del chat de Arbrain.') }
+  const [{ default: Database }, { join }, { STORE_DIR }] = await Promise.all([import('better-sqlite3'), import('node:path'), import('../config.js')])
+  const db = new Database(join(STORE_DIR, 'claudeclaw.db'))
+  let p
+  try {
+    const store = new ConversacionesNuevas(db)
+    p = store.pedir(scope, entrada)
+    const limite = Date.now() + (Number(process.env.ARBRAIN_CONVERSACION_ESPERA_MS) || 30_000)
+    while ((p.estado === 'pendiente' || p.estado === 'creando') && Date.now() < limite) {
+      await new Promise(r => setTimeout(r, 250))
+      p = store.get(p.id) ?? p
+    }
+  } finally { db.close() }
+  if (p.estado === 'error') return { text: `NO se creó la conversación «${p.titulo}»: ${p.motivo ?? 'la web la rechazó'}. No digas que existe.`, error: true }
+  if (p.estado !== 'hecha') return { text: `NO confirmado: pedí la conversación «${p.titulo}» (id ${p.id}) pero el servidor aún no la crea${p.motivo ? ` (último intento: ${p.motivo})` : ''}; la reintenta solo unas veces. No digas que ya está en Fijadas.`, error: true }
+  const { emitirConversacion, esperarAcuses } = await import('./panel-bus.js')
+  const { comando, objetivos, versionVieja } = emitirConversacion({ id: p.id, titulo: p.titulo, abrir: entrada.abrir }, scope.conversationId)
+  const acuse = Object.values(await esperarAcuses(comando.id, objetivos, { esperaMs: Number(process.env.ARBRAIN_PANEL_ESPERA_MS) || 8000 }))[0]
+  const app = acuse ? `${acuse.etiqueta} ${acuse.ok ? 'confirmó' : 'no confirmó'}: ${acuse.detalle}.`
+    : versionVieja ? 'La app abierta es de una versión anterior: la verá en Fijadas en su próximo refresco (unos 20 s) o al volver a la ventana.'
+      : `Ninguna app la confirmó todavía: aparece en Fijadas en su próximo refresco o al volver a la ventana${entrada.abrir ? '; no digas que ya la abrió' : ''}.`
+  return { text: `Conversación «${p.titulo}» creada y fijada (id ${p.id}). Su primer mensaje entró como uno escrito (turno ${p.turnId}) y otro turno tuyo lo trabaja allá; no ve esta conversación. ${app}` }
+}
+
+/** Codex recibe los mismos verbos como dynamicTools con prefijo explícito. Sin `despertador` ni `conversacion` por ahora:
  * su servidor no recibe la conversación (pendiente; los despertadores nacieron para el chat de Claude). */
 export function cabinaDynamicTools() {
-  return cabinaToolsVisibles().filter(t => t.name !== 'despertador').map(t => ({ name: `cabina_${t.name}`, description: t.description, inputSchema: t.inputSchema }))
+  return cabinaToolsVisibles().filter(t => t.name !== 'despertador' && t.name !== 'conversacion').map(t => ({ name: `cabina_${t.name}`, description: t.description, inputSchema: t.inputSchema }))
 }
 
 /**
@@ -497,7 +534,7 @@ export function textosCabinaCliente(quien = dueno()) {
   const panel = `Las pestañas que ${quien} tiene abiertas AHORA en su panel, según su app (no lo que creas haber fijado). accion listar: id, vista, ruta, quién la abrió y en qué ventana vive; úsala antes de afirmar qué ve. Sin cliente conectado da error: nada fijado está confirmado. accion secciones: lee o cambia el menú «+» (la misma config de Ajustes › Panel) con ocultar, mostrar, orden, restablecer o donde, y espera el acuse; «NO confirmado» = escrita pero sin aplicar aún. Secciones: calendario, lienzo, explorador (Archivos) y taller. Cambiarlo solo si lo pide.`
   const archivero = `Lo guardado en el archivero de ${quien} («+ › Guardadas»). accion listar | abrir {id o nombre} (la app la abre como pestaña) | sacar {id o nombre} (no borra el archivo). Para guardar usa mostrar guardar:true, solo si lo pide.`
   const ayuda = `Detalle a demanda de la Cabina: qué pinta cada vista de mostrar y las reglas largas de cada herramienta. tema = una vista o herramienta (p. ej. "documento", "panel"); sin tema, el índice. Consúltala cuando dudes de una vista o un campo. Para delegar trabajo a un subagente (herramienta Agent, bajo la misma guardia): tema "subagentes".`
-  return { quien, Quien, mostrar, abrir, panel, archivero, ayuda, despertador: textoDespertador(quien) }
+  return { quien, Quien, mostrar, abrir, panel, archivero, ayuda, despertador: textoDespertador(quien), conversacion: textoConversacion(quien) }
 }
 
 type CabinaTool = (typeof CABINA_TOOLS)[number]
@@ -520,6 +557,7 @@ export function cabinaToolsCliente(quien = dueno()): CabinaTool[] {
       case 'panel': return variante(t, tx.panel)
       case 'archivero': return variante(t, tx.archivero)
       case 'despertador': return variante(t, tx.despertador)
+      case 'conversacion': return variante(t, tx.conversacion)
       case 'ayuda': return variante(t, tx.ayuda)
       default: return t
     }

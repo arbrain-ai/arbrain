@@ -1,7 +1,39 @@
 'use client'
-import { useEffect, useSyncExternalStore } from 'react'
+import { useEffect, useRef, useSyncExternalStore } from 'react'
 import { Volume2, Square, AudioLines } from 'lucide-react'
 import { chatSpeech } from '../lib/chat-speech'
+
+/**
+ * PRECARGA CON EL DEDO (31 oct 2026, Daniel: «la menor latencia posible al momento de play»). En la Mac, pasar el cursor
+ * por el botón pide ya el primer tramo; con el dedo no hay `hover`: `pointerenter` llega junto con el toque. En una
+ * pantalla táctil el primer tramo se pide cuando el botón lleva ANTICIPO_MS a la vista (no al pasar de largo con el
+ * scroll) y otra vez en `pointerdown` (llega ~100 ms antes del click). Un solo IntersectionObserver para todos los
+ * botones: los mensajes no se desmontan nunca (ver la nota del botón).
+ */
+const ANTICIPO_MS = 600
+const esTactil = () => typeof window !== 'undefined' && !!window.matchMedia?.('(hover: none) and (pointer: coarse)').matches
+let observador: IntersectionObserver | null = null
+const alVerse = new Map<Element, () => void>()
+const relojes = new Map<Element, ReturnType<typeof setTimeout>>()
+function vigilarVista(el: Element, anticipar: () => void): () => void {
+  if (typeof IntersectionObserver === 'undefined' || !esTactil()) return () => {}
+  observador ??= new IntersectionObserver((entradas) => {
+    for (const e of entradas) {
+      const r = relojes.get(e.target)
+      if (r) { clearTimeout(r); relojes.delete(e.target) }
+      if (e.isIntersecting) relojes.set(e.target, setTimeout(() => { relojes.delete(e.target); alVerse.get(e.target)?.() }, ANTICIPO_MS))
+    }
+  }, { threshold: 0.5 })
+  alVerse.set(el, anticipar)
+  observador.observe(el)
+  return () => {
+    observador?.unobserve(el)
+    alVerse.delete(el)
+    const r = relojes.get(el)
+    if (r) clearTimeout(r)
+    relojes.delete(el)
+  }
+}
 
 interface AudioButtonProps {
   messageId: string
@@ -65,12 +97,20 @@ export function AudioButton({ messageId, selectionEnabled = false, label, resume
     } else chatSpeech.toggle(messageId, el)
   }
 
-  // El cursor llegó al botón: el primer tramo de la voz del servidor se pide ya (`say` tarda ~1.2 s en arrancar).
+  // El cursor llegó al botón (o el dedo lo tocó, o lleva un momento a la vista en el teléfono): el primer tramo de la
+  // voz del servidor se pide ya. El click lo encuentra en la caché o en vuelo.
   const anticipar = () => {
     if (!chatSpeech || active) return
     const el = document.querySelector<HTMLElement>(`[data-tts-content="${CSS.escape(messageId)}"]`)
     if (el) chatSpeech.anticipar(el)
   }
+  const boton = useRef<HTMLButtonElement>(null)
+  const anticiparRef = useRef(anticipar)
+  anticiparRef.current = anticipar
+  useEffect(() => {
+    if (resumen || !boton.current) return
+    return vigilarVista(boton.current, () => anticiparRef.current())
+  }, [resumen])
 
   if (resumen) {
     return (
@@ -97,7 +137,8 @@ export function AudioButton({ messageId, selectionEnabled = false, label, resume
     <button
       type="button"
       aria-label={active ? `Detener ${label ?? 'lectura'}` : label ? `Escuchar ${label} o su selección` : 'Escuchar (voz del dispositivo)'}
-      onPointerDown={selectionEnabled ? e => e.preventDefault() : undefined}
+      ref={boton}
+      onPointerDown={(e) => { if (selectionEnabled) e.preventDefault(); if (e.pointerType !== 'mouse') anticipar() }}
       onPointerEnter={anticipar}
       onClick={handleClick}
       title={active ? 'Detener' : 'Escuchar (voz del dispositivo)'}

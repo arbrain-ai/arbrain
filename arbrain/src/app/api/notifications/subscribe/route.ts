@@ -4,6 +4,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { esFallaDeAuth, respuestaServicioCaido } from '@/lib/infra-errores'
 import { almacenSupabase } from '@/features/notifications/lib/almacenSupabase'
 import { altaSuscripcion, bajaSuscripcion, estadoSuscripcion, type Respuesta } from '@/features/notifications/lib/pushServidor'
+import { clavePublicaVapid } from '@/features/notifications/lib/vapid'
 
 /**
  * Suscripción push de ESTE dispositivo (Ajustes › Notificaciones, 12 oct 2026). El destinatario sale de la sesión;
@@ -35,10 +36,11 @@ export async function POST(req: NextRequest) {
   return conAlmacen((usuario, almacen) => altaSuscripcion(usuario, cuerpo, almacen))
 }
 
-// GET ?endpoint= — ¿este dispositivo está registrado para mí? (la UI no confía solo en el navegador)
+// GET ?endpoint= — ¿este dispositivo está registrado para mí? (la UI no confía solo en el navegador). Trae también la
+// llave pública de esta instalación (v0.2.18): en la edición cliente no viene horneada en el navegador.
 export async function GET(req: NextRequest) {
   const endpoint = req.nextUrl.searchParams.get('endpoint')
-  return conAlmacen((usuario, almacen) => estadoSuscripcion(usuario, endpoint, almacen))
+  return conAlmacen((usuario, almacen) => estadoSuscripcion(usuario, endpoint, almacen, clavePublicaVapid()))
 }
 
 // DELETE — da de baja este dispositivo (solo si es del usuario de la sesión)

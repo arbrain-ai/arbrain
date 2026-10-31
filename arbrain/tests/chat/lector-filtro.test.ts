@@ -51,7 +51,9 @@ test('un «Fuentes:» a media respuesta seguido de otra sección no corta el res
     { texto: 'Siguiente paso', esEncabezado: true }, { texto: 'Dos.' },
     { texto: 'Sources:' }, { texto: 'https://x.com' },
   ]
-  assert.deepEqual(filtrarBloques(b).map((i) => b[i].texto), ['Uno.', 'Fuentes:', 'a', 'Siguiente paso', 'Dos.'])
+  // Desde el 31 oct el encabezado de fuentes y su entrada («a») se callan también a media respuesta; lo que sigue a la
+  // siguiente sección se oye igual que antes.
+  assert.deepEqual(filtrarBloques(b).map((i) => b[i].texto), ['Uno.', 'Siguiente paso', 'Dos.'])
 })
 
 test('tabla que no se pintó como tabla (filas con barras) también se salta', () => {

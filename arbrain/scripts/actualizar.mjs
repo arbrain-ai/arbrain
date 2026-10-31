@@ -138,6 +138,15 @@ function ubicarse({ arreglar }) {
   if (existsSync(join(REPO, '.git', 'rebase-merge')) || existsSync(join(REPO, '.git', 'rebase-apply'))) throw new Alto('DETENIDO', 'hay un rebase a medias en tu copia: no sigo', { MOTIVO: 'rebase-a-medias' })
   if (!existeRef(`refs/heads/${RAMA}`)) throw new Alto('DETENIDO', `no existe la rama ${RAMA}: esta copia no quedó como la deja el instalador`, { MOTIVO: 'sin-mi-arbrain' })
   let rama = salida(['branch', '--show-current'], { ok: false })
+  // «Solo en tu servidor» (nube.sh clona la copia desde un paquete con HEAD en mi-arbrain) no dejaba `main` local, y sin
+  // ella nada de lo de abajo funciona (VPS real de Daniel, 30 oct: «refs/heads/main: unknown revision»). `main` es la
+  // copia del autor de la versión instalada: se crea en la etiqueta de esa versión, como la deja INSTALAR.md.
+  if (!existeRef('refs/heads/main')) {
+    const v = (() => { try { return readFileSync(join(REPO, 'VERSION'), 'utf8').trim() } catch { return '' } })()
+    if (!v || !existeRef(`refs/tags/v${v}`)) throw new Alto('DETENIDO', `tu copia no tiene la rama main ni la etiqueta de su versión (v${v || '?'}): no sigo`, { MOTIVO: 'sin-main' })
+    git(['branch', 'main', salida(['rev-parse', `v${v}^{commit}`])])
+    di(`Tu copia no tenía la rama main (instalación de servidor): la dejé en la versión instalada, v${v}.`)
+  }
   if (existeRef(`refs/remotes/${REMOTO}/main`) && salida(['rev-list', '--count', `refs/remotes/${REMOTO}/main..refs/heads/main`]) !== '0') {
     if (!arreglar) {
       const v = versionDe(`refs/remotes/${REMOTO}/main`)

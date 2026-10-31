@@ -4,6 +4,65 @@ Cada versión dice qué trae y qué tienes que hacer tú. Para actualizar, abre 
 «jala los últimos cambios». Las versiones siguen `MAYOR.MENOR.PARCHE`: un cambio en MENOR trae funciones
 nuevas; uno en PARCHE, arreglos.
 
+## v0.2.18 · 31 oct 2026 · Los avisos de Levy llegan a tu teléfono y los textos legales quedan en su versión final
+
+**Antes de actualizar, solo si tu Arbrain vive en tu servidor**
+- Si instalaste Arbrain **solo en tu servidor** (o en espejo con tu servidor) con la v0.2.17 o antes, «actualiza mi
+  Arbrain» se detiene con `FALLA` y `refs/heads/main: unknown revision`: a tu copia le faltaba la rama `main`. Dile a
+  tu Levy **en el chat de tu servidor** que corra esta línea una sola vez, y después «actualiza mi Arbrain»:
+  ```
+  git -C ~/Arbrain branch main v0.2.17
+  ```
+  Si «¿qué versión tengo?» te dice otra (por ejemplo 0.2.16), cambia el número. No borra ni mueve nada tuyo: solo
+  marca cuál es la versión que ya tienes. Desde esta versión, las instalaciones de servidor nacen con esa rama y, si
+  falta, «actualiza mi Arbrain» la pone solo. En tu computadora no tienes que hacer nada.
+
+**Qué trae**
+- **Levy te avisa en el teléfono.** Con tu Arbrain en el teléfono (`Pon mi cerebro en mi teléfono`), activa en
+  Ajustes › **Notificaciones** y te llega un aviso cuando: Levy espera tu decisión (algo quedó en tu cola; mientras,
+  sigue con lo demás), una rutina terminó sola (con lo que dejó o, si falló, por qué) y una respuesta larga terminó
+  con la app cerrada. Uno por cada cosa, sin repetirse; al tocarlo se abre esa conversación o Taller › Rutinas.
+- **«Enviarme una prueba».** Un botón para comprobar que te llegan, y «Desactivar» para apagarlos en ese teléfono.
+- **iPhone, paso a paso.** La sección te dice lo que necesita Apple: iOS 16.4 o más, Tu Arbrain en la pantalla de
+  inicio y entrar por tu dirección de Tailscale (la que empieza con `https://`). En la computadora te explica que los
+  avisos se activan en el teléfono.
+- **Tus avisos son tuyos.** Tu Arbrain genera sus propias llaves de avisos la primera vez que arranca y las guarda en
+  su carpeta privada; los avisos salen de tu computadora (o tu servidor) directo a tu teléfono. Solo tu Levy puede
+  mandarlos: ni otra instalación ni los agentes.
+- **Textos legales en su versión final.** El aviso de privacidad, los términos, la licencia y el texto del modo
+  Autónomo ya no son borrador: se revisaron cláusula por cláusula, el aviso dice quién es el responsable de tus datos
+  y describe «Conectar con arbrain.ai». Por eso la app te pide aceptarlos otra vez (abajo, «Qué tienes que hacer»).
+- **Salir de una pantalla de error, de verdad.** Si una pantalla falla, «Recargar» e «Ir al inicio» limpian lo que el
+  navegador guardó de esa vista antes de volver a cargar; ya no te regresan al mismo error. Tus borradores del chat,
+  tus comentarios sin mandar, tu tema y tus envíos pendientes se quedan. Esas pantallas (error y «sin sesión») ahora
+  se ven como la bienvenida, oscuras y con la tecla ámbar.
+- **Tu Levy lee un error hasta el código.** Si una pantalla falló, tu Levy puede traducir el rastro que quedó en tu
+  carpeta de datos al archivo y la línea exactos de tu versión (`scripts/soporte`), para entender qué pasó.
+- **El lector de voz no se come palabras.** Ninguna regla se salta texto (negritas con dos puntos, fechas, listas y
+  enlaces se leen bien). Si un tramo de audio no llega, lo reintenta y sigue desde la palabra exacta; si toca leer con
+  la voz del sistema, la tuya vuelve en el párrafo siguiente. Tocar una palabra empieza a leer desde ahí, y el primer
+  audio sale antes.
+- **El chat ya no salta al escribir.** Teclear en el campo de escribir no mueve el hilo, ni con un texto largo.
+- **Levy abre una conversación aparte.** Cuando un tema merece su propio hilo, tu Levy puede abrir una conversación
+  nueva, fijada arriba en tu lista, con su primer mensaje ya escrito, y seguir ahí.
+- **Tus lienzos con vista previa.** Las miniaturas de tus lienzos se guardan en tu carpeta de datos y se ven en la
+  lista, sin imágenes rotas.
+- **Detalles.** La leyenda del calendario dice «Calendarios» (ya no da por hecho Google). La bienvenida es oscura por
+  defecto, con el mismo botón ámbar que el chat.
+- **Menos cosas que no eran para ti.** La edición de video llega en una versión próxima: su skill viajaba antes de
+  tiempo y tu Levy la ofrecía; ya no está en tu copia.
+
+**Qué tienes que hacer**
+- Si tu Arbrain vive en tu servidor y estás en la v0.2.17 o antes: primero la línea de arriba.
+- Dile a Levy «actualiza mi Arbrain».
+- Al abrir Arbrain después de actualizar, **acepta otra vez los textos legales**. Si usabas el modo **Autónomo**, marca
+  otra vez sus dos casillas: mientras no lo hagas, Levy trabaja en «Automático en mi carpeta» (dentro de tu cerebro y
+  tus carpetas no te pregunta; lo demás te llega como tarjeta en tu cola y, si activaste los avisos, al teléfono).
+- En tu teléfono, abre **Tu Arbrain** desde la pantalla de inicio › Ajustes › **Notificaciones** › **Activar
+  notificaciones**, acepta el permiso y toca **«Enviarme una prueba»**.
+- En iPhone: si agregaste Tu Arbrain a la pantalla de inicio desde otra dirección que no empieza con `https://` y
+  termina en `.ts.net`, bórralo y vuelve a agregarlo desde la dirección de Ajustes › Tu cerebro en el teléfono.
+
 ## v0.2.17 · 30 oct 2026 · Tu servidor en Ubuntu 24.04 vuelve a responder y entrar con Claude es un clic
 
 **Qué trae**

@@ -19,6 +19,7 @@ export type EstadoPush =
   | 'bloqueado' // permiso denegado: solo se cambia en los ajustes del sistema
   | 'listo' // un toque activa
   | 'activo' // suscrito en este dispositivo y registrado en el servidor
+  | 'en-computadora' // edición cliente en 127.0.0.1 (la app o el navegador de la computadora): se activan en el teléfono
 
 export interface EntornoPush {
   userAgent: string
@@ -32,7 +33,15 @@ export interface EntornoPush {
   /** Hay suscripción en el navegador Y el servidor la tiene a nombre de quien tiene la sesión. */
   suscrito: boolean
   vapidConfigurada: boolean
+  /**
+   * Edición cliente abierta en la computadora (127.0.0.1): ahí no hay service worker (cachearía la app de escritorio) y
+   * los avisos son para el teléfono, que entra por la dirección de Tailscale (HTTPS). v0.2.18.
+   */
+  enComputadora?: boolean
 }
+
+/** ¿Este hostname es la propia computadora? */
+export const esHostLocal = (h: string) => ['localhost', '127.0.0.1', '[::1]', '::1'].includes(h.toLowerCase())
 
 export interface Plataforma {
   ios: boolean
@@ -69,6 +78,7 @@ function iosConWebPush(version: [number, number] | null): boolean {
 }
 
 export function estadoPush(e: EntornoPush): EstadoPush {
+  if (e.enComputadora) return 'en-computadora'
   if (!e.vapidConfigurada) return 'sin-configurar'
   const p = detectarPlataforma(e.userAgent, e.maxTouchPoints)
 
@@ -96,6 +106,7 @@ export function resumenEstado(estado: EstadoPush | 'cargando'): string {
     case 'ios-actualizar': return 'Tu iPhone necesita iOS 16.4 o más'
     case 'no-soportado': return 'Este dispositivo no recibe notificaciones'
     case 'sin-configurar': return 'Todavía no están disponibles en este servidor'
+    case 'en-computadora': return 'Se activan en tu teléfono'
   }
 }
 

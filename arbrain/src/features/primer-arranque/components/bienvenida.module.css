@@ -1,0 +1,155 @@
+/* Bienvenida en oscuro con la tecla ámbar (31 oct 2026, Daniel: «que sea default el modo oscuro con los botones tan
+   hermosos como el botón de enviar este amarillo ámbar»). El primer arranque pinta su propio tema: oscuro salvo que la
+   persona haya elegido claro a mano (PrimerArranque › `claro`). Por eso todo aquí cuelga del contenedor `.bienvenida`
+   (que lleva `.dark`) y nunca de `:root`: a las 07:44 la ventana está en tramo claro y la bienvenida sigue oscura.
+
+   `.tecla` es la tecla de enviar del chat (boton-enviar.module.css) a tamaño de botón con texto: tapa de titanio, cara
+   ámbar encendida desde dentro, canto luminoso y halo. Es LA acción de cada paso. Sin poder seguir (casillas vacías) es
+   la tapa apagada con su texto legible, nunca un lila lavado. `.discreta` es la misma tapa sin luz: el «Continuar sin
+   llave» que no se recomienda. Los `.btn-primary` de los paneles (Conectar con OpenRouter, Recargar), que son lo
+   recomendado de su pantalla, toman el mismo ámbar solo aquí; en Ajustes no cambian. Mismos tokens que el resto de la
+   app (--gold*, --brand-ink, --l-* con su respaldo); no hay paleta nueva. */
+
+.bienvenida {
+  --luz-rgb: var(--gold-rgb);
+  --luz-viva-rgb: var(--gold-bright-rgb);
+  --brillo-interior: var(--l-ambar-1-rgb, 255, 227, 189);
+  --anillo-luz: linear-gradient(180deg, rgba(var(--luz-viva-rgb), 0.95), rgba(var(--luz-rgb), 0.38) 45%, rgba(var(--luz-rgb), 0.5));
+  /* Claro: tapa blanca de titanio y cara ámbar con tinta oscura (el enviar del lenguaje unificado en claro). */
+  --placa-arriba: var(--l-gris-16, #ffffff); --placa-abajo: var(--l-gris-14, #f4f4f5);
+  --canto-luz: var(--l-gris-16, #ffffff);
+  --canto-costado: rgba(15, 17, 21, 0.08); --canto-sombra: rgba(15, 17, 21, 0.22);
+  --bisel: rgba(255, 255, 255, 0.9); --junta: rgba(15, 17, 21, 0.06); --hundido: rgba(0, 0, 0, 0.12);
+  --cara: linear-gradient(180deg, var(--gold-bright), var(--gold-dark));
+  --cara-hover: linear-gradient(180deg, var(--l-ambar-2, #ffc980), var(--gold-dark));
+  --halo: 0;
+  --tinta-apagada: var(--l-gris-9, #52525b);
+  --tinta-viva: var(--l-ambar-8, #2a1700);
+  --sombra-tinta: none;
+  --curva-aterriza: cubic-bezier(0.34, 1.32, 0.64, 1);
+  --curva-anticipa: cubic-bezier(0.5, 0, 0.75, 0);
+  --curva-salida: cubic-bezier(0.16, 1, 0.3, 1);
+}
+.bienvenida:global(.dark) {
+  --placa-arriba: var(--l-gris-7, #2e2e36); --placa-abajo: var(--l-gris-6, #24242b);
+  --canto-luz: rgba(255, 255, 255, 0.2);
+  --canto-costado: rgba(255, 255, 255, 0.06); --canto-sombra: rgba(0, 0, 0, 0.55);
+  --bisel: rgba(255, 255, 255, 0.09); --junta: rgba(0, 0, 0, 0.6); --hundido: rgba(0, 0, 0, 0.4);
+  /* Oscuro: la cara es titanio con la luz ámbar dentro, como el enviar del chat. */
+  --cara: radial-gradient(90% 140% at 50% 0%, rgba(var(--luz-viva-rgb), 0.42), rgba(var(--luz-rgb), 0.16) 58%, rgba(var(--luz-rgb), 0.08)),
+          linear-gradient(180deg, var(--l-gris-5, #1c1c22), var(--l-gris-4, #16161c));
+  --cara-hover: radial-gradient(90% 140% at 50% 0%, rgba(var(--luz-viva-rgb), 0.54), rgba(var(--luz-rgb), 0.2) 58%, rgba(var(--luz-rgb), 0.1)),
+                linear-gradient(180deg, var(--l-gris-5, #1c1c22), var(--l-gris-4, #16161c));
+  --halo: 1;
+  --tinta-apagada: var(--l-gris-11, #a1a1aa);
+  --tinta-viva: var(--l-ambar-1, #ffe3bd);
+  --sombra-tinta: drop-shadow(0 0 6px rgba(var(--luz-rgb), 0.55));
+}
+
+/* ── La tecla principal de cada paso ── */
+.tecla {
+  position: relative; isolation: isolate;
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+  min-height: 2.75rem; min-width: 180px; padding: 0 1.5rem;
+  font-size: 15px; font-weight: 600; letter-spacing: -0.005em;
+  border: 1px solid transparent; border-radius: 12px;
+  color: var(--tinta-viva); cursor: pointer; user-select: none;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  transition: transform 240ms var(--curva-aterriza), color 240ms var(--curva-salida);
+  /* tapa de titanio (apagada) */
+  background:
+    linear-gradient(180deg, var(--placa-arriba), var(--placa-abajo)) padding-box,
+    radial-gradient(50% 1.5px at 30% 0, var(--canto-luz), transparent) border-box,
+    linear-gradient(180deg, var(--canto-luz), var(--canto-costado) 30%, var(--canto-costado) 60%, var(--canto-sombra)) border-box,
+    linear-gradient(var(--placa-abajo), var(--placa-abajo)) border-box;
+  box-shadow: inset 0 1px 0 var(--bisel), 0 0 0 1px var(--junta), 0 1px 1px rgba(0, 0, 0, 0.18), 0 3px 6px -3px rgba(0, 0, 0, 0.3);
+}
+.tecla svg { width: 16px; height: 16px; flex: none; }
+
+/* Capas de luz: ::before = cara encendida, ::after = canto luminoso. Solo cambian de opacidad. */
+.tecla::before, .tecla::after {
+  content: ''; position: absolute; inset: -1px; z-index: -1; border-radius: inherit; pointer-events: none;
+  opacity: 0; transition: opacity 240ms var(--curva-salida);
+}
+.tecla::before {
+  background: var(--cara);
+  box-shadow:
+    inset 0 1px 0 rgba(var(--brillo-interior), 0.55),
+    inset 0 -1px 0 var(--hundido),
+    0 0 0 1px rgba(var(--luz-rgb), 0.6),
+    0 8px 22px -8px rgba(var(--luz-rgb), 0.62),
+    0 0 18px -6px rgba(var(--luz-rgb), calc(0.5 * var(--halo)));
+}
+.tecla::after {
+  padding: 1px;
+  background: var(--anillo-luz);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+
+/* Encendida: se puede seguir. */
+.tecla:not(:disabled):not(.discreta)::before { opacity: 1; transition-delay: 90ms; transition-duration: 520ms; }
+.tecla:not(:disabled):not(.discreta)::after { opacity: 1; }
+.tecla:not(:disabled):not(.discreta) svg { filter: var(--sombra-tinta); }
+
+/* Apagada (no se puede seguir todavía): la tapa sin luz, texto legible y el cursor lo dice. Sigue recibiendo el puntero
+   para que el `title` («Marca las dos casillas…») se vea. */
+.tecla:disabled { color: var(--tinta-apagada); cursor: not-allowed; }
+
+/* Discreta: la salida que no se recomienda. Tapa apagada con tinta normal; al pasar, apenas el canto se ilumina. */
+.discreta { color: var(--foreground); }
+
+@media (hover: hover) {
+  .tecla:not(:disabled):hover { transform: translateY(-1px); }
+  .tecla:not(:disabled):not(.discreta):hover::before {
+    background: var(--cara-hover);
+    box-shadow:
+      inset 0 1px 0 rgba(var(--brillo-interior), 0.7),
+      inset 0 -1px 0 var(--hundido),
+      0 0 0 1px rgba(var(--luz-rgb), 0.75),
+      0 10px 26px -8px rgba(var(--luz-rgb), 0.78),
+      0 0 24px -5px rgba(var(--luz-rgb), calc(0.62 * var(--halo)));
+  }
+  .discreta:not(:disabled):hover::after { opacity: 0.45; }
+}
+.tecla:active:not(:disabled) { transform: translateY(1px) scale(0.975); transition-duration: 110ms; transition-timing-function: var(--curva-anticipa); }
+.tecla:focus-visible { outline: 2px solid var(--brand-ink); outline-offset: 3px; }
+
+/* ── Los primarios de los paneles (lo recomendado de su pantalla): la misma cara encendida, en un solo elemento ── */
+.bienvenida :global(.btn-primary) {
+  color: var(--tinta-viva);
+  border: 1px solid transparent;
+  background: var(--cara) padding-box, var(--anillo-luz) border-box;
+  box-shadow:
+    inset 0 1px 0 rgba(var(--brillo-interior), 0.5),
+    0 8px 22px -8px rgba(var(--luz-rgb), 0.55),
+    0 0 18px -6px rgba(var(--luz-rgb), calc(0.45 * var(--halo)));
+  transition: transform 240ms var(--curva-aterriza), box-shadow 240ms var(--curva-salida);
+}
+.bienvenida :global(.btn-primary) svg { filter: var(--sombra-tinta); }
+@media (hover: hover) {
+  .bienvenida :global(.btn-primary:not(:disabled):hover) {
+    background: var(--cara-hover) padding-box, var(--anillo-luz) border-box;
+    transform: translateY(-1px);
+    box-shadow:
+      inset 0 1px 0 rgba(var(--brillo-interior), 0.7),
+      0 10px 26px -8px rgba(var(--luz-rgb), 0.75),
+      0 0 24px -5px rgba(var(--luz-rgb), calc(0.6 * var(--halo)));
+  }
+}
+.bienvenida :global(.btn-primary:active:not(:disabled)) { transform: translateY(1px) scale(0.975); transition-duration: 110ms; transition-timing-function: var(--curva-anticipa); }
+.bienvenida :global(.btn-primary:focus-visible) { outline: 2px solid var(--brand-ink); outline-offset: 3px; }
+.bienvenida :global(.btn-primary:disabled) {
+  opacity: 1; color: var(--tinta-apagada);
+  background: linear-gradient(180deg, var(--placa-arriba), var(--placa-abajo));
+  border-color: var(--canto-costado);
+  box-shadow: inset 0 1px 0 var(--bisel), 0 0 0 1px var(--junta);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tecla, .tecla::before, .tecla::after, .bienvenida :global(.btn-primary) { transition: none !important; }
+}
+
+/* Casillas nativas del primer arranque: el morado legible del tema (en oscuro, el claro) y su foco. */
+.bienvenida input[type='checkbox'] { accent-color: var(--brand-ink); }
+.bienvenida input[type='checkbox']:focus-visible { outline: 2px solid var(--brand-ink); outline-offset: 2px; }

@@ -46,7 +46,7 @@ export class WarmSpeech{
   return this.starting
  }
  private fail(error:Error){const child=this.child;this.child=null;child?.kill();for(const job of this.jobs.values()){job.reject(error);try{job.controller.error(error)}catch{}job.cleanup()}this.jobs.clear()}
- async stream(text:string,speed:number,signal:AbortSignal,marca?:(m:MarcaVoz)=>void){
+ async stream(text:string,speed:number,signal:AbortSignal,marca?:(m:MarcaVoz)=>void,prioridad=false){
   await this.start();signal.throwIfAborted()
   if(this.jobs.size>=8)throw new Error('El servicio de voz está ocupado.')
   const child=this.child!;const id=++this.sequence
@@ -59,7 +59,7 @@ export class WarmSpeech{
   const cleanup=()=>{clearTimeout(timer);signal.removeEventListener('abort',abort)}
   this.jobs.set(id,{controller,ready,reject,started:false,bytes:0,cleanup,marca});signal.addEventListener('abort',abort,{once:true})
   if(signal.aborted)abort()
-  else child.stdin.write(JSON.stringify({id,text,rate:0.5+(speed-1)*(0.115/0.75),...(marca?{marcas:true}:{})})+'\n')
+  else child.stdin.write(JSON.stringify({id,text,rate:0.5+(speed-1)*(0.115/0.75),...(marca?{marcas:true}:{}),...(prioridad?{prioridad:true}:{})})+'\n')
   return {body,sampleRate:await rate}
  }
  close(){this.fail(new Error('Voz cerrada.'))}

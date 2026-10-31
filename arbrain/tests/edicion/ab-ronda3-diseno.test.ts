@@ -14,7 +14,8 @@ const relleno = 'A'.repeat(40)
 test('1 · jerarquía: sin llave o sin crédito, seguir de largo es secundario; con todo listo, primario', () => {
   const p = fuente('src/features/primer-arranque/components/PrimerArranque.tsx')
   assert.match(p, /const botonDiscreto = \(paso === 'llaves' && \(!llavesListas \|\| sinCredito\)\) \|\| \(paso === 'listo' && sinCredito\)/)
-  assert.match(p, /className=\{`\$\{botonDiscreto \? 'btn-secondary' : 'btn-primary'\} min-h-11/)
+  // 31 oct 2026: el primario es la tecla ámbar del enviar (bienvenida.module.css); lo discreto, la misma tapa sin luz.
+  assert.match(p, /className=\{`\$\{s\.tecla\}\$\{botonDiscreto \? ` \$\{s\.discreta\}` : ''\}`\}/)
   // Lo recomendado sigue primario: «Conectar con OpenRouter» sin llave y «Recargar» sin crédito.
   const panel = fuente('src/features/primer-arranque/components/PanelLlaves.tsx')
   assert.match(panel, /<ConectarOpenRouter principal=\{!listo && !sub\.estado\?\.sesion\}/)
@@ -68,7 +69,8 @@ test('5 · pantalla grande: la tarjeta del primer arranque va centrada en vertic
   const p = fuente('src/features/primer-arranque/components/PrimerArranque.tsx')
   // 29 oct 2026 (un fundador con 1280×720 no llegaba al botón): alto fijo con scroll propio (html y body tienen
   // overflow:hidden) y, por dentro, min-h-full centra la tarjeta cuando cabe.
-  assert.match(p, /<div data-bienvenida-scroll className="relative h-\[100dvh\] w-full overflow-y-auto/)
+  // 31 oct 2026: el contenedor también lleva el tema propio de la bienvenida (oscuro por defecto); el alto y el scroll no cambian.
+  assert.match(p, /<div data-bienvenida-scroll[^>]*className=\{`[^`]*relative h-\[100dvh\] w-full overflow-y-auto/)
   assert.match(p, /<div className="relative flex min-h-full w-full flex-col items-center justify-center/)
   assert.doesNotMatch(p, /min-h-\[100dvh\]/)
 })

@@ -33,6 +33,7 @@ import { CorredorLanzador, defaultCorredorLog } from './chat-runtime/corredor-la
 import { streamDurableTurn as observeDurableTurn } from './chat-runtime/http-stream.js'
 import { instalarAdoptante } from './chat-runtime/adoptante.js'
 import { Despertadores, dispararVencidos, DespertadorInvalido } from './chat-runtime/despertadores.js'
+import { ConversacionesNuevas, atenderConversaciones, enviarPorLaWeb } from './cabina/conversaciones.js'
 import { executeChatJob, type ChatJobInput } from './chat-runtime/chat-job.js'
 import { freezeChatContext, acceptResolvedChat, durableSubmissionError } from './chat-runtime/chat-envelope.js'
 import { getClaudeCatalog, findClaudeModel } from './chat-runtime/claude-capabilities.js'
@@ -69,6 +70,7 @@ import { parseGoalCommand, goalView, formatGoal, GOAL_HELP, GOAL_NO_THREAD, inte
 import { comandoMetaLocal, EstadoMetas, estadoMetas, textoComandoLocal } from './chat-runtime/meta-claude.js'
 import { downloadFromUrl, buildAttachmentMessage, esDocumento, validarAdjunto } from './media.js'
 import { synthesizeSpeech, synthesizeLector, LECTOR_SPEED } from './voice.js'
+import { marcarLectorActivo } from './lector-actividad.js'
 import { getDb, getSession, setSession, clearSession, listTasks, getTask, updateTaskStatus, updateTaskAfterRun, saveQueryUsage, getUsageSummary, getCronSession, setCronSession, getChatOverrides, setChatOverrides } from './db.js'
 import { computeNextRun, runDueTasks, executeCronJob, CRON_TZ } from './scheduler.js'
 import { saveConversationTurn } from './memory.js'
@@ -90,7 +92,8 @@ import { secretoConfirmarValido } from './cliente/secreto.js'
 import { cohorteDelDaemon, iniciarCohorte } from './cliente/cohorte.js'
 import { iniciarProgreso, progresoDelDaemon } from './cliente/progreso.js'
 import { bitacoraDelDaemon, iniciarBitacora, redactar } from './cliente/bitacora.js'
-import { alPausarTodo, estadoPausa, pausar, reanudar } from './cliente/pausa.js'
+import { alPausarTodo, estadoPausa, pausado, pausar, reanudar } from './cliente/pausa.js'
+import { registrarDestinoAvisos } from './cliente/avisos-telefono.js'
 import { abrirCarpeta, carpetasAbiertas, cerrarCarpeta } from './cliente/carpetas.js'
 import { contextoPolitica, motivoRutaSecreta } from './cliente/politica-agentes.js'
 import { llaveVoz, paseAgenteValido, rutaSoloApp } from './cliente/cofre.js'
@@ -197,6 +200,22 @@ function getDurableChat(): ChatSupervisor {
     catch (error) { logger.error({ err: error }, 'despertadores: pulso') }
   }, Number(process.env.ARBRAIN_DESPERTADOR_TICK_MS ?? 2_000))
   pulso.unref()
+  // Conversaciones nuevas fijadas (31 oct 2026, cabina/conversaciones.ts): el MCP de la Cabina deja el pedido en este store y
+  // este proceso, que sí tiene el token de la web, crea la fila y entrega el primer mensaje por /chat/stream. Mismo pulso.
+  // ARBRAIN_CONVERSACIONES=0 lo apaga (reversa sin deploy).
+  if (process.env.ARBRAIN_CONVERSACIONES !== '0') {
+    const conversaciones = new ConversacionesNuevas(getDb())
+    let atendiendo = false
+    const pulsoConversaciones = setInterval(() => {
+      if (atendiendo) return
+      atendiendo = true
+      // La dirección y el token de la web se leen al atender (se declaran más abajo en este módulo).
+      void atenderConversaciones(conversaciones, enviarPorLaWeb(ALLOWED_ORIGIN, MC_TOKEN), logger)
+        .catch(error => logger.error({ err: error }, 'conversaciones nuevas: pulso'))
+        .finally(() => { atendiendo = false })
+    }, Number(process.env.ARBRAIN_DESPERTADOR_TICK_MS ?? 2_000))
+    pulsoConversaciones.unref()
+  }
   // Subagentes del motor (delegar): al terminar, despiertan a la conversación que los lanzó por el mismo
   // camino del despertador. ARBRAIN_AVISO_SUBAGENTES=0 lo apaga (reversa sin deploy).
   if (process.env.ARBRAIN_AVISO_SUBAGENTES !== '0') {
@@ -1622,19 +1641,29 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     // Desde el 29 oct trae las marcas exactas de cada palabra (X-Marcas, ver synthesizeLector). Si falla, voz-agentes
     // como antes, sin marcas (X-Voice-Engine dice cuál sonó).
     if (tempo != null && voice === 'levy' && Math.abs(speed - LECTOR_SPEED) < 0.01 && process.platform === 'darwin') {
+      // El lector está sonando: el auto-deploy no reinicia este daemon en los próximos 2 min (lector-actividad.ts).
+      marcarLectorActivo()
+      // Si el cliente se va (lector cerrado, tramo abandonado), la síntesis se cancela y no ocupa la cola de sayd.
+      const fuera = new AbortController()
+      res.on('close', () => { if (!res.writableFinished) fuera.abort() })
       try {
         const leido = text.slice(0, 5000)
-        const { audio, tipo, tempo: aplicado, marcas } = await synthesizeLector(leido, tempo)
+        // `formato` (31 oct 2026): `opus` para un cliente remoto (el teléfono), WAV por defecto (ver FormatoLector).
+        const formato = parsed['formato'] === 'opus' ? 'opus' : 'wav'
+        // `prioridad`: el tramo que se espera ahora (play, tap) pasa delante de las precargas en la cola de sayd.
+        const { audio, tipo, tempo: aplicado, marcas, tiempos } = await synthesizeLector(leido, tempo, formato, { prioridad: parsed['prioridad'] === true, signal: fuera.signal })
         // Un tramo del lector (≤ 320 caracteres) da ~1 KB; un texto enorme se queda sin marcas antes que pasar el límite
         // de cabeceras (16 KB) del proxy.
         const tabla = JSON.stringify({ v: 1, n: leido.length, m: marcas })
         res.writeHead(200, {
           'Content-Type': tipo, 'Cache-Control': 'no-store', 'X-Tempo': String(aplicado), 'X-Voice-Engine': 'sayd',
+          'Server-Timing': `voz-primero;dur=${tiempos.primero}, voz;dur=${tiempos.sintesis}, codifica;dur=${tiempos.cierre}`,
           ...(tabla.length <= 8_000 ? { 'X-Marcas': tabla } : {}),
         })
         res.end(audio)
         return
       } catch (err) {
+        if (fuera.signal.aborted) return // nadie espera ya este tramo
         logger.warn({ reason: String(err).slice(0, 200) }, 'lector: sayd falló, voz-agentes')
       }
     }
@@ -2979,6 +3008,8 @@ export function startMCServer(): void {
     registrarDatosPropios(() => datosPropios())
     // Seguridad del alumno (12 oct 2026): el registro de actividad no guarda llaves; el literal completo vive solo en la
     // tabla de confirmaciones (la persona tiene que verlo entero para aprobarlo).
+    // v0.2.18: avisos al teléfono (rutinas que terminan solas): la web de la persona los entrega con el token del daemon.
+    registrarDestinoAvisos({ token: MC_TOKEN, url: ALLOWED_ORIGIN }, { pausado })
     iniciarConfirmaciones(getDb(), (tipo, c) => {
       opsLogger.log(tipo === 'resuelta' ? 'confirmacion_resuelta' : 'confirmacion_pendiente', 'system', {
         ...c, resumen: redactar(c.resumen), ...(c.detalle ? { detalle: redactar(c.detalle) } : {}), ...(c.literal ? { literal: redactar(c.literal) } : {}),

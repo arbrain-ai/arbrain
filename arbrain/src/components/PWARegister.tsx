@@ -1,6 +1,7 @@
 'use client'
 import { useEffect } from 'react'
-import { apagadoAMano, registrarEnServidor, tocaReconfirmar, urlBase64ToUint8Array, VAPID_PUBLICA } from '@/features/notifications/lib/pushCliente'
+import { apagadoAMano, cargarClave, registrarEnServidor, tocaReconfirmar, urlBase64ToUint8Array } from '@/features/notifications/lib/pushCliente'
+import { claveDistinta } from '@/features/notifications/lib/soportePush'
 
 // iOS revoca suscripciones push EN SILENCIO (pushsubscriptionchange jamás
 // dispara en Safari/iOS). Guard: en cada foreground, si el permiso está
@@ -17,16 +18,20 @@ async function ensurePushSubscription() {
     const now = Date.now()
     if (now - lastPushCheck < 60_000) return
     lastPushCheck = now
-    if (!VAPID_PUBLICA) return
+    // v0.2.18: en la edición cliente la llave es de cada instalación y la da el servidor.
+    const clave = await cargarClave()
+    if (!clave) return
     const reg = await navigator.serviceWorker.ready
     const existing = await reg.pushManager.getSubscription()
-    if (existing) {
+    // Una suscripción hecha con otra llave (la instalación generó unas nuevas) ya no recibe nada: se rehace abajo.
+    if (existing && !claveDistinta(existing.options?.applicationServerKey, clave)) {
       if (tocaReconfirmar(existing.endpoint)) await registrarEnServidor(existing)
       return
     }
+    if (existing) await existing.unsubscribe()
     const subscription = await reg.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLICA),
+      applicationServerKey: urlBase64ToUint8Array(clave),
     })
     await registrarEnServidor(subscription)
     console.log('[push] re-suscrito tras revocación silenciosa de iOS')

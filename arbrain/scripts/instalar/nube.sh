@@ -331,6 +331,10 @@ paso_copia() {
     rm -f "$paquete/arbrain.bundle"; rmdir "$paquete"
   fi
   como_u "cd ~/Arbrain && { [ \"\$(git branch --show-current)\" = mi-arbrain ] || git switch -q mi-arbrain 2>/dev/null || git switch -q -c mi-arbrain; } && git config --local pull.ff only && { git config user.name >/dev/null || git config --local user.name 'Mi Arbrain (nube)'; } && { git config user.email >/dev/null || git config --local user.email 'nube@mi-arbrain.local'; }" || falta "no pude dejar la rama mi-arbrain"
+  # `main` local = la copia del autor de la versión instalada, como la deja INSTALAR.md en una computadora. Sin ella
+  # «actualiza mi Arbrain» falla en el servidor (VPS real de Daniel, 30 oct: «refs/heads/main: unknown revision»).
+  como_u "cd ~/Arbrain && { git show-ref --verify -q refs/heads/main || git branch main \"\$(git rev-parse \"v\$(cat VERSION)^{commit}\")\"; }" \
+    || falta "no pude dejar la rama main en la versión instalada"
   # Verificación otra vez, ahora en SU copia: la etiqueta de su VERSION firmada y el código igual al firmado.
   local v; v="v$(cat "$dest/VERSION" 2>/dev/null)"
   como_u "cd ~/Arbrain && git -c gpg.format=ssh -c gpg.ssh.program=ssh-keygen -c gpg.ssh.allowedSignersFile=\$HOME/.config/arbrain/firmas-permitidas verify-tag '$v'" >/dev/null 2>&1 \

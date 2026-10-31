@@ -16,7 +16,7 @@ import { explicacionComputerUse } from '../../src/features/permisos/lib/disponib
 import { avisarSiTapada } from '../../src/features/permisos/lib/pendientes'
 
 const fuente = (r: string) => readFileSync(new URL(`../../${r}`, import.meta.url), 'utf8')
-const TEXTO: TextoAutonomia = { version: 'autonomia-v1-borrador-2026-10-29', sha256: 'a'.repeat(64), titulo: 'Qué significa el modo autónomo', cuerpo: 'x', casillas: ['uno', 'dos'], aviso: 'borrador' }
+const TEXTO: TextoAutonomia = { version: 'autonomia-v1-2026-10-31', sha256: 'a'.repeat(64), titulo: 'Qué significa el modo autónomo', cuerpo: 'x', casillas: ['uno', 'dos'], aviso: 'Versión del 31 de octubre de 2026.' }
 
 test('tres niveles, Autónomo primero y recomendado; los nombres son los del daemon', () => {
   assert.deepEqual(FICHAS_MODO.map(f => f.modo), ['autonomo', 'carpeta', 'preguntar'])
@@ -122,7 +122,7 @@ test('A6: el sondeo sigue con la ventana tapada y avisa una vez por pendiente nu
 })
 
 test('textos: la licencia es Apache-2.0 (no «no es una venta del código»), los términos nombran los niveles, y la versión sube', () => {
-  assert.equal(VERSION_TEXTOS, 'borrador-2026-10-29')
+  assert.equal(VERSION_TEXTOS, '2026-10-31')
   assert.match(LICENCIA.cuerpo, /Apache License 2\.0/)
   assert.match(LICENCIA.cuerpo, /redistribuirlo/)
   assert.ok(!/No es una venta del código|no puedes redistribuirlo|Revenderlo, sublicenciarlo/.test(LICENCIA.cuerpo))
