@@ -11,7 +11,21 @@ export interface RutinaDaemon {
   id: string; prompt: string; schedule: string; status: 'active' | 'paused'
   next_run: number | null; last_run: number | null; last_result: string | null; created_at?: number
 }
-export interface ListaRutinas { tasks: RutinaDaemon[]; tz?: string; aviso?: string | null }
+/** Lo que el daemon cuenta de cada precargada «De Arbrain» (server/src/cliente/rutinas-precargadas.ts). */
+export interface MetaPrecargada {
+  nombre: string; paraQue: string
+  /** Carpeta del reporte dentro del cerebro, con barra final (`.claude/reportes/diario/`). */
+  carpeta: string
+  /** El archivo exacto de la última corrida, si existe (lo calcula y anota el daemon, no el modelo). */
+  reporte?: string | null
+}
+export interface ListaRutinas {
+  tasks: RutinaDaemon[]; tz?: string; aviso?: string | null
+  /** Por id, las precargadas presentes. */
+  precargadas?: Record<string, MetaPrecargada>
+  /** El motor es la suscripción de Claude sin llave con tope: las rutinas no corren solas. */
+  suscripcion?: boolean
+}
 
 export type TipoCuando = 'diario' | 'entre-semana' | 'semanal' | 'cada-hora' | 'avanzado'
 export interface Formulario { que: string; tipo: TipoCuando; hora?: string; dia?: number; cron?: string }
@@ -73,6 +87,12 @@ export function cuandoRutina(schedule: string): string {
     if (dow === '1-5') return `De lunes a viernes ${a}`
     if (dow === '0,6' || dow === '6,0') return `Sábados y domingos ${a}`
     if (/^[0-7]$/.test(dow)) return `Cada ${DIAS_SEMANA[Number(dow) % 7]} ${a}`
+    // Varios días sueltos («2,4»): «Martes y jueves a las 9:00».
+    if (/^[0-7](,[0-7])+$/.test(dow)) {
+      const dias = [...new Set(dow.split(',').map(d => Number(d) % 7))].map(d => DIAS_SEMANA[d])
+      const lista = dias.length === 1 ? dias[0] : `${dias.slice(0, -1).join(', ')} y ${dias[dias.length - 1]}`
+      return `${lista.charAt(0).toUpperCase()}${lista.slice(1)} ${a}`
+    }
   }
   const frase = cuando(schedule)
   return frase === schedule ? `Horario avanzado: ${schedule}` : frase
@@ -93,17 +113,31 @@ export function proximaEn(seg: number | null, ahora: number, tz = 'America/Mexic
 export interface VistaRutina {
   id: string; titulo: string; texto: string; cuando: string; activa: boolean; deLevy: boolean
   proxima: string; ultima: string | null; resultado: string | null; fallo: boolean
+  /** Precargada «De Arbrain»: su para qué y dónde deja el reporte. */
+  deArbrain: boolean; paraQue: string | null; carpeta: string | null; reporte: string | null
 }
 
-/** Una rutina del daemon a lo que ve el dueño. Pura. */
-export function vistaRutina(t: RutinaDaemon, ahora: number, tz?: string): VistaRutina {
+/**
+ * Dónde queda un reporte, dicho al dueño (1 nov 2026, Daniel: «tus reportes», no «.claude/reportes/»): la carpeta oculta
+ * se nombra «tus reportes» y el archivo va sin extensión. La ruta exacta la sigue anotando el daemon; otra ruta queda igual.
+ * Pura.
+ */
+export function lugarReporte(ruta: string): string {
+  const r = ruta.replace(/\\/g, '/').replace(/^\.\//, '')
+  if (!/^\.claude\/reportes(\/|$)/.test(r)) return ruta
+  const resto = r.replace(/^\.claude\/reportes\/?/, '').replace(/\/+$/, '').replace(/\.md$/, '')
+  return resto ? `tus reportes › ${resto.split('/').join(' › ')}` : 'tus reportes'
+}
+
+/** Una rutina del daemon a lo que ve el dueño (con su ficha si es «De Arbrain»). Pura. */
+export function vistaRutina(t: RutinaDaemon, ahora: number, tz?: string, meta?: MetaPrecargada): VistaRutina {
   const activa = t.status === 'active'
   const crudo = t.last_result?.trim() || null
   const fallo = !!crudo && /^error:/i.test(crudo)
   const primera = t.prompt.trim().split('\n')[0] ?? ''
   return {
     id: t.id,
-    titulo: primera.length > 90 ? `${primera.slice(0, 89).trimEnd()}…` : primera,
+    titulo: meta?.nombre ?? (primera.length > 90 ? `${primera.slice(0, 89).trimEnd()}…` : primera),
     texto: t.prompt,
     cuando: cuandoRutina(t.schedule),
     activa,
@@ -112,7 +146,31 @@ export function vistaRutina(t: RutinaDaemon, ahora: number, tz?: string): VistaR
     ultima: t.last_run ? hace(t.last_run * 1000, ahora, tz) : null,
     resultado: crudo ? resumen(crudo.replace(/^(?:error:\s*)+/i, ''), 400) : null,
     fallo,
+    deArbrain: !!meta,
+    paraQue: meta?.paraQue ?? null,
+    carpeta: meta?.carpeta ?? null,
+    reporte: meta?.reporte ?? null,
   }
+}
+
+/** Separa las del dueño de las precargadas «De Arbrain» (estas, en el orden del catálogo que mandó el daemon). Pura. */
+export function separarRutinas(l: ListaRutinas, ahora: number): { propias: VistaRutina[]; deArbrain: VistaRutina[] } {
+  const meta = l.precargadas ?? {}
+  const orden = Object.keys(meta)
+  const todas = (l.tasks ?? []).map(t => vistaRutina(t, ahora, l.tz, meta[t.id]))
+  return {
+    propias: todas.filter(r => !r.deArbrain),
+    deArbrain: todas.filter(r => r.deArbrain).sort((a, b) => orden.indexOf(a.id) - orden.indexOf(b.id)),
+  }
+}
+
+/**
+ * ¿Hay un reporte nuevo que el dueño no ha visto? Una precargada que corrió bien después de la última vez que lo abrió en
+ * este dispositivo (`vistos[id]`, segundos). Es el aviso dentro de la app: la edición cliente no tiene campana. Pura.
+ */
+export function reporteNuevo(t: Pick<RutinaDaemon, 'id' | 'last_run' | 'last_result'>, vistos: Record<string, number>): boolean {
+  if (!t.last_run || /^error:/i.test(t.last_result?.trim() ?? '') || /^\s*sin novedad[.!]?\s*$/i.test(t.last_result ?? '')) return false
+  return t.last_run > (vistos[t.id] ?? 0)
 }
 
 // ── Adaptador de la ruta web → daemon ──

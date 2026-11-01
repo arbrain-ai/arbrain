@@ -8,8 +8,12 @@
  *   .claude/plan/habitos.json               hábitos activos y lo marcado hoy
  *   .claude/memory/project/meta-90-dias.md  su meta a 90 días (la trae su expediente del programa)
  *   .claude/memory/project/mi-camino.md     dónde va en el programa (la trae el puente)
+ *   Google Calendar y Todoist               si los conectó (1 nov 2026, now-fuentes.ts): sus eventos y sus tareas con
+ *                                           fecha, mezclados con lo local; solo lectura; si fallan, lo último bueno
+ *                                           con la fecha de esa lectura. Sin conexión, el archivo sale igual que antes.
  *
- * Cuándo: al arrancar el scheduler del alumno, cada 20 minutos y cuando cambia algo en `.claude/plan/`. Solo la máquina
+ * Cuándo: al arrancar el scheduler del alumno, cada 20 minutos y cuando cambia algo en `.claude/plan/`. Google y
+ * Todoist se leen al arrancar (con un respiro) y en cada vuelta del reloj; el cambio del plan usa lo último leído. Solo la máquina
  * que corre las rutinas (la líder del espejo, `CLAUDECLAW_ROLE` distinto de `chat`) lo escribe: el espejo ya asume que
  * `now.md` es SOLO_LIDER. La instalación del autor no llama a esto (su scheduler sigue con `now-snapshot.py`).
  *
@@ -25,6 +29,7 @@ import { createHash } from 'node:crypto'
 import { existsSync, readdirSync, readFileSync, renameSync, unlinkSync, watch, writeFileSync, type FSWatcher } from 'node:fs'
 import { join } from 'node:path'
 import { esEdicionCliente } from '../edicion.js'
+import { leerFuentes, sincronizarFuentes, type Dependencias, type Fuentes, type Lectura } from './now-fuentes.js'
 
 export const RUTA_NOW = '.claude/now.md'
 const RUTA_CAL = '.claude/plan/calendario.json'
@@ -170,7 +175,7 @@ export function eventosEntre(cal: Record<string, unknown> | null, desde: string,
   return out.sort((x, y) => (x.dia < y.dia ? -1 : x.dia > y.dia ? 1 : Number(y.todoElDia) - Number(x.todoElDia) || x.inicio - y.inicio))
 }
 
-interface TareaVista { titulo: string; dia: string; hora: string | null }
+interface TareaVista { titulo: string; dia: string; hora: string | null; origen?: 'todoist' }
 function tareasPendientes(cal: Record<string, unknown> | null, tz: string): TareaVista[] {
   const tareas = Array.isArray(cal?.tareas) ? cal!.tareas as unknown[] : []
   const out: TareaVista[] = []
@@ -183,6 +188,49 @@ function tareasPendientes(cal: Record<string, unknown> | null, tz: string): Tare
     else if (!Number.isNaN(Date.parse(f))) { const w = paredEn(new Date(Date.parse(f)), tz); out.push({ titulo: linea(t.titulo, 80) || 'Sin título', dia: w.dia, hora: w.hora.slice(0, 5) }) }
   }
   return out.sort((a, b) => (a.dia + (a.hora ?? '')).localeCompare(b.dia + (b.hora ?? '')))
+}
+
+// ── Google y Todoist (now-fuentes.ts) ──────────────────────────────────────────────────────────────────────────────
+
+/** Tareas de Todoist en la forma de la vista. Hora de pared sin zona (la «flotante» de Todoist) = hora en `tz`. */
+function tareasTodoist(f: Fuentes, tz: string): TareaVista[] {
+  const out: TareaVista[] = []
+  for (const t of f.todoist?.datos ?? []) {
+    const fecha = t.fecha.replace(/\.\d+(?=Z|[+-]\d{2}:?\d{2}$|$)/i, '')
+    const titulo = linea(t.titulo, 80) || 'Sin título'
+    if (esDia(fecha)) { out.push({ titulo, dia: fecha, hora: null, origen: 'todoist' }); continue }
+    const ms = instanteLibre(fecha, tz)
+    if (Number.isNaN(ms)) continue
+    const w = paredEn(new Date(ms), tz)
+    out.push({ titulo, dia: w.dia, hora: w.hora.slice(0, 5), origen: 'todoist' })
+  }
+  return out
+}
+
+/** Una ocurrencia por título y hora: la misma invitación en dos cuentas, o copiada al calendario local, sale una vez. */
+function sinRepetir(e: Ocurrencia[]): Ocurrencia[] {
+  const vistos = new Set<string>()
+  return e.filter(o => { const k = `${o.dia}|${o.todoElDia ? '' : o.inicio}|${o.titulo.toLowerCase()}`; if (vistos.has(k)) return false; vistos.add(k); return true })
+}
+
+/**
+ * Líneas de estado de las fuentes conectadas. Sin hora mientras están al día (el archivo no cambia cada 20 minutos);
+ * con la fecha de la última lectura buena cuando una falla: esa fecha tampoco se mueve mientras dure la falla.
+ */
+function lineasFuentes(f: Fuentes, tz: string): string[] {
+  const cuando = (iso: string | null) => {
+    if (!iso) return 'todavía sin una lectura buena'
+    const w = paredEn(new Date(iso), tz)
+    return `muestro lo último bueno, del ${diaCorto(w.dia).toLowerCase()} ${MESES[Number(w.dia.slice(5, 7)) - 1].slice(0, 3)}, ${w.hora.slice(0, 5)}`
+  }
+  const alDia: string[] = [], fallas: string[] = []
+  const cuentas = Object.entries(f.google), ok = cuentas.filter(([, l]) => !l.fallo).length
+  if (ok) alDia.push(`Google Calendar${cuentas.length === 1 ? '' : ok === cuentas.length ? ` (${ok} cuentas)` : ` (${ok} de ${cuentas.length} cuentas)`}`)
+  for (const [correo, l] of cuentas) if (l.fallo) fallas.push(`> Google Calendar (${linea(correo, 80)}): ${l.fallo}; ${cuando(l.leido)}.`)
+  const td: Lectura<unknown> | null = f.todoist
+  if (td && !td.fallo) alDia.push('Todoist')
+  if (td?.fallo) fallas.push(`> Todoist: ${td.fallo}; ${cuando(td.leido)}.`)
+  return [...(alDia.length ? [`> Al día con ${alDia.join(' y ')}.`] : []), ...fallas]
 }
 
 // ── Objetivos (registro arbrain-objectives-v1 y texto heredado; misma forma que objectives_store.py) ───────────────
@@ -265,15 +313,19 @@ function habitosDe(raiz: string, hoy: string): string | null {
 
 // ── El archivo ─────────────────────────────────────────────────────────────────────────────────────────────────────
 
-export function generarNow(raiz: string, ahora = new Date(), tz = zonaDelSistema()): string {
+export function generarNow(raiz: string, ahora = new Date(), tz = zonaDelSistema(), fuentes: Fuentes = leerFuentes(raiz)): string {
   if (!zonaValida(tz)) tz = 'UTC'
   const hoy = paredEn(ahora, tz).dia
-  const cal = leerJson(raiz, RUTA_CAL)
+  const local = leerJson(raiz, RUTA_CAL)
+  const google = Object.values(fuentes.google).flatMap(l => l.datos)
+  const cal = google.length ? { ...local, eventos: [...(Array.isArray(local?.eventos) ? local!.eventos as unknown[] : []), ...google] } : local
   const hitos = hitosDe(leer(raiz, RUTA_OBJ), hoy)
   const meta = metaDe(raiz), camino = caminoDe(raiz), habitos = habitosDe(raiz, hoy)
   const fin = sumarDia(hoy, DIAS_SEMANA + 1)
-  const eventos = eventosEntre(cal, hoy, fin, tz)
-  const tareas = tareasPendientes(cal, tz).filter(t => t.dia < fin)
+  const eventos = sinRepetir(eventosEntre(cal, hoy, fin, tz))
+  const tareas = [...tareasPendientes(cal, tz), ...tareasTodoist(fuentes, tz)].filter(t => t.dia < fin)
+    .sort((a, b) => (a.dia + (a.hora ?? '')).localeCompare(b.dia + (b.hora ?? '')))
+  const de = (t: TareaVista) => t.origen === 'todoist' ? ' · Todoist' : ''
   const ev = (e: Ocurrencia) => e.todoElDia ? `\`todo el día\` ${e.titulo}` : `\`${horaCorta(e.inicio, tz)}\` ${e.titulo}${e.fin - e.inicio >= 30 * 60_000 ? ` (hasta ${horaCorta(e.fin, tz)})` : ''}`
 
   const l: string[] = [
@@ -282,6 +334,7 @@ export function generarNow(raiz: string, ahora = new Date(), tz = zonaDelSistema
     `> **${diaLargo(hoy)}** (${tz})`,
     '> Lo arma Arbrain con tu calendario, tus objetivos y tus hábitos. Si algo está mal, corrige la fuente (Calendario u',
     '> Objetivos) y se regenera solo. Si prefieres escribirlo tú, pon `<!-- manual -->` en la primera línea y Arbrain ya no lo toca.',
+    ...lineasFuentes(fuentes, tz),
     '',
     '## Hitos',
     ...(meta ? [`- **Meta a 90 días:** ${meta}`] : []),
@@ -296,8 +349,9 @@ export function generarNow(raiz: string, ahora = new Date(), tz = zonaDelSistema
   const vencidas = tareas.filter(t => t.dia < hoy), tareasHoy = tareas.filter(t => t.dia === hoy)
   for (const e of deHoy.slice(0, MAX_EVENTOS_DIA)) l.push(`- ${ev(e)}`)
   if (deHoy.length > MAX_EVENTOS_DIA) l.push(`- _y ${deHoy.length - MAX_EVENTOS_DIA} más en tu calendario_`)
-  for (const t of tareasHoy.slice(0, 8)) l.push(`- [ ] ${t.hora ? `\`${t.hora}\` ` : ''}${t.titulo}`)
-  for (const t of vencidas.slice(0, 5)) l.push(`- [ ] ${t.titulo} _(venció el ${diaCorto(t.dia).toLowerCase()})_`)
+  for (const t of tareasHoy.slice(0, 8)) l.push(`- [ ] ${t.hora ? `\`${t.hora}\` ` : ''}${t.titulo}${de(t)}`)
+  if (tareasHoy.length > 8) l.push(`- _y ${tareasHoy.length - 8} tareas más para hoy_`)
+  for (const t of vencidas.slice(0, 5)) l.push(`- [ ] ${t.titulo}${de(t)} _(venció el ${diaCorto(t.dia).toLowerCase()})_`)
   if (vencidas.length > 5) l.push(`- _y ${vencidas.length - 5} tareas vencidas más_`)
   if (habitos) l.push(`- Hábitos: ${habitos}`)
   if (!deHoy.length && !tareasHoy.length && !vencidas.length) l.push('_Nada agendado._')
@@ -305,7 +359,7 @@ export function generarNow(raiz: string, ahora = new Date(), tz = zonaDelSistema
   let alguno = false
   for (let i = 1; i <= DIAS_SEMANA; i++) {
     const d = sumarDia(hoy, i)
-    const cosas = [...eventos.filter(e => e.dia === d).map(ev), ...tareas.filter(t => t.dia === d).map(t => `tarea: ${t.titulo}`)]
+    const cosas = [...eventos.filter(e => e.dia === d).map(ev), ...tareas.filter(t => t.dia === d).map(t => `tarea: ${t.titulo}${de(t)}`)]
     if (!cosas.length) continue
     alguno = true
     l.push(`- **${diaCorto(d)}:** ${cosas.slice(0, 6).join(' · ')}${cosas.length > 6 ? ` · y ${cosas.length - 6} más` : ''}`)
@@ -333,15 +387,18 @@ function escribirAtomico(ruta: string, contenido: string) {
   finally { if (existsSync(tmp)) try { unlinkSync(tmp) } catch { /* noop */ } }
 }
 
-/** Escribe `<raiz>/.claude/now.md` si sigue siendo nuestro y cambió algo más que la hora del sello. */
-export function escribirNow(raiz: string, opciones: { ahora?: Date; tz?: string } = {}): Resultado {
+/**
+ * Escribe `<raiz>/.claude/now.md` si sigue siendo nuestro y cambió algo más que la hora del sello. `fuentes`: lo recién
+ * leído de Google y Todoist; si no viene, lo último guardado.
+ */
+export function escribirNow(raiz: string, opciones: { ahora?: Date; tz?: string; fuentes?: Fuentes } = {}): Resultado {
   if (!esEdicionCliente()) return 'no_cliente'
   if (!raiz || !existsSync(join(raiz, '.claude'))) return 'sin_cerebro'
   const ruta = join(raiz, RUTA_NOW)
   let actual: string | null = null
   try { actual = readFileSync(ruta, 'utf8') } catch { /* no existe: se crea */ }
   if (actual !== null && !esNuestro(actual)) return 'editado_a_mano'
-  const cuerpo = generarNow(raiz, opciones.ahora, opciones.tz)
+  const cuerpo = generarNow(raiz, opciones.ahora, opciones.tz, opciones.fuentes)
   if (actual !== null && sinSello(actual) === sinSello(cuerpo)) return 'igual'
   escribirAtomico(ruta, conMarca(cuerpo))
   return 'escrito'
@@ -349,20 +406,38 @@ export function escribirNow(raiz: string, opciones: { ahora?: Date; tz?: string 
 
 // ── Reloj ──────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-export interface RelojNow { detener: () => void; ahora: () => Resultado }
+export interface RelojNow { detener: () => void; ahora: () => Resultado; refrescar: () => Promise<Resultado> }
 
 /**
- * Arranca el generador: una vez ya, cada `intervaloMs` (20 min) y, con un respiro de 3 s, cuando cambia algo en
- * `.claude/plan/` (calendario, objetivos, hábitos). Si la carpeta no se puede vigilar, queda el reloj.
+ * Arranca el generador: una vez ya (con lo último leído), a los `esperaFuentesMs` (2 s) y cada `intervaloMs` (20 min)
+ * lee Google y Todoist y reescribe, y, con un respiro de 3 s, reescribe cuando cambia algo en `.claude/plan/`
+ * (calendario, objetivos, hábitos). Si la carpeta no se puede vigilar, queda el reloj. `deps`: solo para pruebas.
  */
-export function iniciarNowAlumno(raiz: string, opciones: { intervaloMs?: number; registrar?: (r: Resultado, motivo: string) => void } = {}): RelojNow | null {
+export function iniciarNowAlumno(raiz: string, opciones: { intervaloMs?: number; esperaFuentesMs?: number; deps?: Partial<Dependencias>; registrar?: (r: Resultado, motivo: string) => void } = {}): RelojNow | null {
   if (!esEdicionCliente() || !raiz) return null
   const registrar = opciones.registrar ?? (() => {})
-  const correr = (motivo: string): Resultado => {
-    try { const r = escribirNow(raiz); registrar(r, motivo); return r } catch (err) { registrar('igual', `${motivo}: fallo ${(err as Error).message}`); return 'igual' }
+  let detenido = false, leyendo: Promise<Resultado> | null = null
+  const correr = (motivo: string, fuentes?: Fuentes): Resultado => {
+    try { const r = escribirNow(raiz, { fuentes }); registrar(r, motivo); return r } catch (err) { registrar('igual', `${motivo}: fallo ${(err as Error).message}`); return 'igual' }
+  }
+  /** Una lectura a la vez: si el reloj llega mientras otra sigue en curso, comparte su resultado. */
+  const refrescar = (motivo: string): Promise<Resultado> => {
+    if (leyendo) return leyendo
+    const p = (async (): Promise<Resultado> => {
+      try {
+        const tz = zonaDelSistema()
+        const f = await sincronizarFuentes(raiz, instanteDePared(paredEn(new Date(), tz).dia, '00:00:00', tz), { deps: opciones.deps })
+        return detenido ? 'igual' : correr(motivo, f)
+      } catch (err) { registrar('igual', `${motivo}: fallo ${(err as Error).message}`); return 'igual' }
+    })()
+    leyendo = p
+    void p.finally(() => { if (leyendo === p) leyendo = null })
+    return p
   }
   correr('arranque')
-  const reloj = setInterval(() => correr('reloj'), opciones.intervaloMs ?? 20 * 60_000)
+  const primera = setTimeout(() => { void refrescar('google y todoist') }, opciones.esperaFuentesMs ?? 2_000)
+  primera.unref?.()
+  const reloj = setInterval(() => { void refrescar('reloj') }, opciones.intervaloMs ?? 20 * 60_000)
   reloj.unref?.()
   let vigia: FSWatcher | null = null, espera: NodeJS.Timeout | null = null
   try {
@@ -375,7 +450,8 @@ export function iniciarNowAlumno(raiz: string, opciones: { intervaloMs?: number;
     vigia.on('error', () => { try { vigia?.close() } catch { /* noop */ } vigia = null })
   } catch { vigia = null }
   return {
-    detener: () => { clearInterval(reloj); if (espera) clearTimeout(espera); try { vigia?.close() } catch { /* noop */ } },
+    detener: () => { detenido = true; clearTimeout(primera); clearInterval(reloj); if (espera) clearTimeout(espera); try { vigia?.close() } catch { /* noop */ } },
     ahora: () => correr('a pedido'),
+    refrescar: () => refrescar('a pedido'),
   }
 }

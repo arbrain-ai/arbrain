@@ -8,6 +8,8 @@ import { VERSION_TEXTOS } from '@/features/primer-arranque/textos/legales'
 import { FUENTE_BIENVENIDA, mensajeBienvenida } from '@/features/primer-arranque/textos/bienvenida'
 import { estadoSandbox } from '@/features/permisos/lib/sandbox-server'
 import { computerUseDisponible, plataformaServidor } from '@/features/permisos/lib/disponibilidad'
+import { entregarSiguiente } from '@/features/primer-arranque/lib/tour-servidor'
+import { publicarCapitulo } from '@/features/primer-arranque/lib/tour-chat'
 
 // Primer arranque de la edición cliente (11 oct 2026): aceptación de los textos legales, nombre y cierre con el
 // primer mensaje de Levy. Solo la app (cookie del secreto por instalación); en la instalación de Daniel no existe.
@@ -64,7 +66,19 @@ export async function POST(request: Request) {
         const m = await db.from('chat_messages').insert({ session_id: sesion, role: 'assistant', content: mensajeBienvenida(estado.nombre, { computerUse: computerUseDisponible(true, plataformaServidor(process.env, process.platform)), servidor: process.env.ARBRAIN_SERVIDOR_NUBE === '1', ...(modo ? { modo } : {}) }), created_at: ahora, metadata: { source: FUENTE_BIENVENIDA } })
         if (m.error) throw new Error(m.error.message)
       }
-      return Response.json({ estado: guardarPrimerArranque({ completado: new Date().toISOString(), sesionBienvenida: sesion }), sesion }, { headers: NOCACHE })
+      const nueva = !estado.sesionBienvenida
+      // `tour: null` marca al alumno nuevo (recorrido completo). Sin ese campo y con la bienvenida hecha, es alguien que
+      // ya usaba Arbrain antes del recorrido: solo ve las Novedades (lib/tour.ts › tourDe).
+      const final = guardarPrimerArranque({ completado: new Date().toISOString(), sesionBienvenida: sesion, ...(nueva && estado.tour === undefined ? { tour: null } : {}) })
+      // Tour de bienvenida (1 nov 2026): con la conversación recién nacida, Levy abre el recorrido justo debajo del
+      // saludo. Si falla, la bienvenida sigue: el chat lo ofrece al abrir (GET /api/primer-arranque/tour).
+      if (nueva) {
+        try {
+          const entrega = await entregarSiguiente()
+          if (entrega) await publicarCapitulo(entrega, sesion, new Date(Date.now() + 1))
+        } catch (e) { console.error(`[primer-arranque] tour: ${e instanceof Error ? e.message : String(e)}`) }
+      }
+      return Response.json({ estado: final, sesion }, { headers: NOCACHE })
     }
     return Response.json({ error: 'Acción desconocida.' }, { status: 400, headers: NOCACHE })
   } catch (e) {

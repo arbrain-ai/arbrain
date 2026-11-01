@@ -4,6 +4,53 @@ Cada versión dice qué trae y qué tienes que hacer tú. Para actualizar, abre 
 «jala los últimos cambios». Las versiones siguen `MAYOR.MENOR.PARCHE`: un cambio en MENOR trae funciones
 nuevas; uno en PARCHE, arreglos.
 
+## v0.2.19 · 1 nov 2026 · Tu Levy piensa como estratega, te enseña tu app y te reporta solo
+
+**Qué trae**
+- **Levy, el estratega.** Tu Levy ahora piensa y habla como Hormozi: trabajo es igual a resultados, una sola
+  cosa al 100 %, mejor es mejor que nuevo. Si le pides algo que no mueve tu meta, te lo dice una vez y con argumento;
+  tú decides. ¿Prefieres otro mentor? Dile «háblame como…» y lo cambian juntos.
+- **Tu recorrido de bienvenida.** Levy te enseña tu Arbrain en capítulos cortos: la app, cómo piensa, tu meta, tu
+  retrato, tu día, tu memoria, tus manuales, tus rutinas y el freno. Se ve una sola vez; lo puedes pausar o saltar. Si
+  ya usabas Arbrain, te enseña solo lo nuevo.
+- **Siete rutinas listas, en pausa.** Reporte de la mañana, cierre del día, revisión de la semana, reporte del mes
+  contra tu meta, prepara tus reuniones, seguimiento de clientes e ideas para publicar. Actívalas en un clic en
+  Taller › Rutinas; cada una deja su reporte y te avisa en tu computadora y en tu teléfono. Nunca envían nada por ti.
+- **Tus metas llegan a tu cerebro.** Conecta con arbrain.ai en un clic (Ajustes › Privacidad › «Conectar con
+  arbrain.ai»): tu expediente, tu meta a 90 días y tu camino llegan a tu Levy, y con ellos arma el borrador de tu
+  retrato. El token nunca pasa por el chat.
+- **Tu día, al día con Google y Todoist.** Si conectaste tu Google Calendar o Todoist, el resumen de tu día los trae
+  solo, en modo lectura: Levy nunca escribe en ellos por ahí.
+- **Tu correo y tu agenda, con criterio.** Nueva habilidad `google-workspace`, con el método de correo y agenda
+  que compartió un fundador de la cohorte: nunca envía ni borra, solo archiva; distingue tus bloques propios de tus
+  compromisos reales; y te arma el resumen diario. El manual de Google se reescribió paso a paso.
+- **Cuatro manuales nuevos:** tu estratega, tu día sincronizado, tu retrato y tu memoria.
+- **Tu agenda ya no sale «vieja».** Levy dejaba de confiar en el resumen de tu día a los tres minutos y te pedía
+  confirmar el calendario casi en cada pregunta. Ahora sabe que la foto es de hoy y sigue siendo la que arma Arbrain;
+  solo te avisa si es de otro día o si cambiaste tu plan después.
+- **Levy conoce bien tu app.** Su manual decía que no tenías calendario, hábitos, avisos ni voz. Ahora sabe lo que tu
+  Arbrain trae (calendario con objetivos y hábitos, dictar y Escuchar, tu teléfono y sus avisos, tus Ajustes) y las
+  herramientas con las que te enseña cosas en el chat.
+- **Menos vueltas al delegar.** Cuando un trabajo largo no podía correr como flujo, Levy intentaba una herramienta que
+  tu edición no tiene; ahora va directo a sus subagentes. `autoresearch` y el orquestador de `goal-compiler`
+  guardan su trabajo en tu rama `mi-arbrain`, nunca en la copia del autor, así que ya no estorban tu siguiente
+  actualización.
+- **Cinco reglas nuevas en cómo trabaja Levy.** Una pregunta tuya recibe su opinión y espera tu sí («preguntar no es
+  firmar»); mide el antes y el después de tus clientes sin rellenar huecos ni mezclar periodos; revisa que un
+  subagente siga vivo antes de decirte que sigue trabajando; encarga mejor a sus subagentes y a las imágenes; y
+  cuando algo falla, lo arregla con la forma que evita que vuelva a pasar.
+- **Sus manos no se rinden con una lista larga.** Si lees con él el CRM o el correo web de un cliente, prueba otro
+  camino cuando uno no avanza (desplazar, teclas, el buscador del sitio, la dirección directa), no se salta elementos
+  y, si para, te dice qué probó.
+- **Codex te conoce igual que Claude.** Si abres tu cerebro con Codex, recibe tu retrato, tu meta a 90 días y tu
+  camino en el programa, además de tu memoria y tu agenda.
+
+**Qué tienes que hacer**
+- Dile a Levy «actualiza mi Arbrain».
+- Al abrir, toca «Ver las novedades» (o «Empezar el recorrido» si eres nuevo).
+- Conecta con arbrain.ai en Ajustes › Privacidad › «Conectar con arbrain.ai».
+- Las rutinas corren solas con una llave en Ajustes › Llaves; con la suscripción de Claude, pruébalas con «Probar una vez».
+
 ## v0.2.18 · 31 oct 2026 · Los avisos de Levy llegan a tu teléfono y los textos legales quedan en su versión final
 
 **Antes de actualizar, solo si tu Arbrain vive en tu servidor**

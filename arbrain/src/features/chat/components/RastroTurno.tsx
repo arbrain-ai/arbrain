@@ -17,7 +17,7 @@ import { useEsperaExplicada } from '../lib/espera-explicada'
 import { BotonReintentar } from './BotonReintentar'
 import { abrirTallerDelPanel } from '../lib/abrir-taller'
 import { esViva } from '../lib/tareas-turno'
-import { GruposHerramientas, NotasInyectadas } from './ToolCallCard'
+import { GruposHerramientas } from './ToolCallCard'
 import { TodoListWidget } from './TodoListWidget'
 import { AgentTaskCards } from './AgentTaskCard'
 import { RelojTurno } from './RelojTurno'
@@ -118,7 +118,6 @@ export function Razonamiento({ msg, connection = 'online' }: { msg: ChatMessage;
       </div>}
       <LineaDelegados msg={msg} />
       {vivo && (msg.tasks?.some(esViva) || !delegadosDe(msg)) && <MencionAgentes msg={msg} />}
-      {vivo && <NotasInyectadas notas={msg.inyectados} />}
     </div>
   )
 }

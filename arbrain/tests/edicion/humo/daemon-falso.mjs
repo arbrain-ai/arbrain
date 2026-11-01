@@ -51,6 +51,8 @@ http.createServer((req, res) => {
       permisos = { ...permisos, modo: b.modo, reaceptar: false, migracion: null }
       return json(res, 200, vistaPermisos())
     }
+    // Rutinas (`GET /schedule`, T8): las de las capturas vienen por entorno (las precargadas nacen en pausa); sin entorno, ninguna.
+    if (req.url === '/schedule' && req.method === 'GET') return json(res, 200, { tasks: process.env.RUTINAS ? JSON.parse(process.env.RUTINAS) : [], tz: 'America/Mexico_City', aviso: null })
     if (req.url === '/llaves/probar') return json(res, 200, { ok: false, ms: 5, code: 'falta_llave', error: 'Falta tu llave de Claude.' })
     json(res, 404, { error: 'no' })
   })

@@ -60,8 +60,11 @@ Consultar `references/eval-guide.md` para templates por tipo de skill.
 ### 1.4 Crear branch y baseline
 
 ```bash
-git checkout -b autoresearch/<skill-name>
+git checkout mi-arbrain && git checkout -b autoresearch/<skill-name>
 ```
+
+Siempre desde `mi-arbrain`, tu rama de trabajo. `main` es la copia limpia del autor: ahí solo llegan las versiones de
+Arbrain, y un commit tuyo en `main` estorba la siguiente actualización.
 
 - Leer el SKILL.md actual del skill target
 - Copiar el SKILL.md a `<skill>/SKILL.md.backup` (seguridad)
@@ -179,7 +182,7 @@ Cuando se alcanza `target_score` o `max_iterations`:
 ### 3.2 Merge o esperar
 
 - Mostrar el reporte al dueño
-- Si el dueño aprueba: `git checkout main && git merge autoresearch/<skill>`
+- Si el dueño aprueba: `git checkout mi-arbrain && git merge autoresearch/<skill>` (nunca a `main`)
 - Si el dueño quiere mas: continuar el loop
 - El `autoresearch-results.tsv` queda como historial permanente
 
@@ -252,7 +255,7 @@ Autoresearch los OPTIMIZA despues de creados.
 | Budget estimado | $5 USD | Control de costos |
 | Max prompt growth | 2x original | Prevenir prompt bloat |
 | Backup obligatorio | Siempre | Poder restaurar el original |
-| Branch dedicado | Siempre | No contaminar main |
+| Branch dedicado | Siempre | No contaminar `mi-arbrain`; nada a `main` |
 | Solo body del SKILL.md | Siempre | Frontmatter es sacrosanto |
 
 ---

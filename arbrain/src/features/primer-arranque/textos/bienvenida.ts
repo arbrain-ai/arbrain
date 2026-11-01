@@ -9,7 +9,10 @@
  * el «para qué» de cada uno va en el botón.
  * 0.1.2 (17 oct 2026, revierte DECISIONES #11): en macOS y Windows computer use existe; el mensaje dice cómo se
  * enciende y que se apaga en cada apertura. En Linux sigue nombrándose como límite.
+ * 1 nov 2026 (integración del tour): el recorrido de Levy viene justo debajo y explica la app, el freno y la privacidad;
+ * este mensaje queda en lo esencial y ya no anuncia la edición de video «en una versión próxima».
  */
+import { FUENTE_TOUR } from '../lib/tour'
 
 /** Los tres pedidos para empezar. `texto` es lo que se envía tal cual al tocar el botón. */
 export const PEDIDOS_BIENVENIDA = [
@@ -39,12 +42,12 @@ export type ModoBienvenida = 'preguntar' | 'carpeta' | 'autonomo'
 export function mensajeBienvenida(nombre?: string | null, opciones: { computerUse?: boolean; servidor?: boolean; modo?: ModoBienvenida } = {}): string {
   const autonomo = opciones.modo === 'autonomo'
   const computerUse = opciones.computerUse
-    ? `- Hoy trabajo con tus archivos, tu memoria, el lienzo y tu calendario, aquí en el chat (el calendario vive en el panel de la derecha: ábrelo con el botón del panel arriba a la derecha, o pídemelo). Computer use (que yo use tu pantalla y tus apps) viene apagado: lo enciendes en Ajustes › Esta computadora y ${autonomo ? 'en modo Autónomo queda como lo dejes' : 'se apaga cada vez que cierras la app'}. La edición de video llega en una versión próxima.`
-    : '- Hoy trabajo con tus archivos, tu memoria, el lienzo y tu calendario, aquí en el chat (el calendario vive en el panel de la derecha: ábrelo con el botón del panel arriba a la derecha, o pídemelo). Computer use (que yo use tu pantalla y tus apps) no está disponible en este sistema; la edición de video llega en una versión próxima.'
+    ? `- Trabajo con tus archivos, tu memoria, el lienzo y tu calendario (en el panel de la derecha). Computer use (que use tu pantalla y tus apps) viene apagado: lo enciendes en Ajustes › Esta computadora y ${autonomo ? 'en modo Autónomo queda como lo dejes' : 'se apaga cada vez que cierras la app'}.`
+    : '- Trabajo con tus archivos, tu memoria, el lienzo y tu calendario (en el panel de la derecha). Computer use (que use tu pantalla y tus apps) no está disponible en este sistema.'
   const permisos = autonomo
-    ? '- Elegiste el modo Autónomo: hago lo que me pides sin pedirte un clic en cada paso. Nunca toco tu dinero ni tus contraseñas, no borro en masa, y te enseño antes de mandar algo a muchas personas o a alguien que no nombraste. Lo cambias tocando el botón del modelo (abajo, junto a donde escribes): ahí eliges Autónomo o Preguntar y está «Pausar todo».'
+    ? '- Elegiste el modo Autónomo: hago lo que me pides sin pedirte un clic en cada paso. Nunca toco tu dinero ni tus contraseñas, no borro en masa y te enseño antes lo que vaya a muchas personas o a alguien que no nombraste. En el botón del modelo, junto a donde escribes, lo cambias y está «Pausar todo».'
     : opciones.modo === 'carpeta'
-      ? '- Elegiste «Automático en mi carpeta»: trabajo solo dentro de tu cerebro y te pido un clic antes de lo que sale de tu computadora (enviar, pagar, borrar, publicar, comandos con internet). Cuando quieras que deje de preguntar, toca el botón del modelo (abajo, junto a donde escribes) y elige «Autónomo».'
+      ? '- Elegiste «Automático en mi carpeta»: dentro de tu cerebro trabajo sin preguntar; antes de enviar, pagar, borrar, publicar o salir a internet te pido un clic. Para que deje de preguntar, toca el botón del modelo y elige «Autónomo».'
       : '- Antes de enviar, pagar, borrar o publicar algo te pido confirmación con un clic. Sin tu clic, no pasa.'
   const hola = nombre?.trim() ? `Hola, ${nombreVisible(nombre)}. Soy Levy.` : 'Hola. Soy Levy.'
   const vivo = opciones.servidor ? `${VIVO_EN_SERVIDOR} Trabajo con tu cerebro` : 'Vivo en tu computadora y trabajo con tu cerebro'
@@ -52,18 +55,18 @@ export function mensajeBienvenida(nombre?: string | null, opciones: { computerUs
 
 **Para empezar, toca uno de los botones de abajo o escríbeme lo tuyo.**
 
-**Lo que conviene saber:**
 ${permisos}
 ${computerUse}
-${opciones.servidor ? '- Tus llaves viven en tu servidor, en un archivo que solo lee Arbrain; nunca viajan a GitHub.' : '- Tus llaves están en el llavero de tu sistema. Cámbialas en Ajustes › Llaves.'}
-- Tus conversaciones se quedan aquí. El monitoreo del programa solo envía cifras si lo activas, y se decide en Ajustes › Privacidad.
-
-¿Por dónde empezamos?`
+${opciones.servidor ? '- Tus llaves viven en tu servidor, en un archivo que solo lee Arbrain; nunca viajan a GitHub.' : '- Tus llaves están en el llavero de tu sistema y tus conversaciones se quedan aquí; el programa solo recibe cifras si lo activas en Ajustes › Privacidad.'}`
 }
 
-/** ¿La conversación es solo el mensaje de bienvenida? Entonces el chat pinta los tres pedidos como botones. */
+const fuenteDe = (m: { metadata?: unknown }) => (m.metadata as { source?: unknown } | undefined)?.source
+
+/**
+ * ¿La conversación es solo el mensaje de bienvenida (y, desde el 1 nov 2026, los capítulos del tour de Levy)? Entonces el
+ * chat pinta los tres pedidos como botones. En cuanto la persona escribe, desaparecen.
+ */
 export function soloBienvenida(mensajes: ReadonlyArray<{ role: string; metadata?: unknown }>): boolean {
-  if (mensajes.length !== 1) return false
-  const m = mensajes[0]
-  return m.role === 'assistant' && (m.metadata as { source?: unknown } | undefined)?.source === FUENTE_BIENVENIDA
+  if (!mensajes.length || mensajes[0].role !== 'assistant' || fuenteDe(mensajes[0]) !== FUENTE_BIENVENIDA) return false
+  return mensajes.slice(1).every(m => m.role === 'assistant' && fuenteDe(m) === FUENTE_TOUR)
 }

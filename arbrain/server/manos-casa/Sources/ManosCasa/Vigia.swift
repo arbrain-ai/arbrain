@@ -9,6 +9,8 @@ enum Vigia {
     private static var ultimoPersona = CACurrentMediaTime() - segundosSistema()
     private static var ultimoPropio: Double?
     private static var ultimoTecladoPersona = CACurrentMediaTime() - segundosSistema()
+    /// Último clic, rueda o tecla de Daniel (no mover el ratón): «tomó la ventana» (1 nov 2026, opción 2).
+    private static var ultimoTomaPersona = CACurrentMediaTime() - segundosSistema()
     /// Eventos HID que publicó la mano desde que arrancó la app (para decir quién movió el cursor en un gesto).
     private(set) static var propiosHID = 0
     private static var monitor: Any?
@@ -17,10 +19,13 @@ enum Vigia {
         CGEventSource.secondsSinceLastEventType(.hidSystemState, eventType: CGEventType(rawValue: ~0)!)
     }
 
-    /// Arranca el monitor global (hilo principal, una vez).
+    /// Arranca el monitor global (hilo principal, una vez; también al despertar del reposo).
     static func iniciar() {
         DispatchQueue.main.async {
             guard monitor == nil else { return }
+            // Al despertar, lo que pasó mientras no escuchaba lo dice el sistema (cuenta también eventos de la mano).
+            let base = CACurrentMediaTime() - segundosSistema()
+            candado.lock(); ultimoPersona = max(ultimoPersona, base); candado.unlock()
             monitor = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved, .leftMouseDown, .rightMouseDown, .otherMouseDown,
                                                                    .leftMouseDragged, .rightMouseDragged, .scrollWheel, .keyDown, .flagsChanged]) { e in
                 guard let cg = e.cgEvent else { return }
@@ -32,8 +37,28 @@ enum Vigia {
                 if tecla, let p = ultimoPropio, ahora - p < 0.15 { return }
                 ultimoPersona = ahora
                 if tecla { ultimoTecladoPersona = ahora }
+                if tecla || e.type == .scrollWheel || [.leftMouseDown, .rightMouseDown, .otherMouseDown, .leftMouseDragged, .rightMouseDragged].contains(e.type) { ultimoTomaPersona = ahora }
             }
         }
+    }
+
+    /// Reposo (Salida): deja de escuchar ratón y teclado. `iniciar()` lo vuelve a encender.
+    static func detener() {
+        DispatchQueue.main.async {
+            if let m = monitor { NSEvent.removeMonitor(m); monitor = nil }
+        }
+    }
+
+    /// Segundos desde el último clic, rueda o tecla de Daniel. Lo que vio el monitor y, por si estaba en reposo o el
+    /// pedido lo acaba de despertar, lo que dice el sistema por tipo de evento (si no fue la mano la que publicó después).
+    static func tomaS() -> Double {
+        let ahora = CACurrentMediaTime()
+        let sistema = [CGEventType.leftMouseDown, .rightMouseDown, .otherMouseDown, .keyDown, .scrollWheel]
+            .map { CGEventSource.secondsSinceLastEventType(.hidSystemState, eventType: $0) }.min() ?? .greatestFiniteMagnitude
+        candado.lock(); defer { candado.unlock() }
+        let monitor = ahora - ultimoTomaPersona
+        if let p = ultimoPropio, ahora - p <= sistema + 0.25 { return monitor }  // lo último del sistema pudo ser la mano
+        return min(monitor, sistema)
     }
 
     /// La mano va a publicar (o acaba de publicar) un evento HID.

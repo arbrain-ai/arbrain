@@ -1,7 +1,7 @@
 /**
  * Estado del primer arranque de la edición cliente (11 oct 2026). Solo servidor.
  * Archivo `<ARBRAIN_DATA_DIR>/primer-arranque.json` (0600): qué textos legales aceptó la persona (versión y fecha),
- * su nombre (opcional, para que Levy la salude) y si terminó. Las llaves NO viven aquí (llavero del sistema), ni el
+ * su nombre (opcional, para que Levy la salude), si terminó y qué vio del tour de bienvenida. Las llaves NO viven aquí (llavero del sistema), ni el
  * consentimiento del monitoreo (lo guarda el daemon, que es quien envía), ni computer use (config compartida).
  */
 import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
@@ -16,6 +16,8 @@ export interface EstadoPrimerArranque {
   nombre: string | null
   completado: string | null
   sesionBienvenida: string | null
+  /** El tour de bienvenida (1 nov 2026): capítulos vistos, versión del guion y el recorrido abierto. Ver lib/tour.ts. */
+  tour?: unknown
 }
 
 const VACIO: EstadoPrimerArranque = { version: 1, aceptado: null, nombre: null, completado: null, sesionBienvenida: null }

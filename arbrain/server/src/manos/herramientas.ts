@@ -19,6 +19,7 @@ import { frenarNavegacion } from './juicio-url.js'
 import { esEdicionCliente } from '../edicion.js'
 import { contenidoNoConfiable } from './freno-cliente.js'
 import { dominioProtegido } from './juicio-url.js'
+import { CapaApps } from './permiso-app.js'
 
 /** Busca una capa concreta (Freno, Grabadora…) en la cadena de envoltorios. */
 export function capa<T>(a: Adaptador, clase: abstract new (...x: any[]) => T): T | undefined {
@@ -51,6 +52,7 @@ const OBJETIVO = {
   app: { type: 'string', description: 'Bundle id (preferido, p. ej. com.apple.systempreferences) o nombre visible de la app. En Windows: el ejecutable o su nombre (notepad, calc, msedge, «Bloc de notas»).' },
   pid: { type: 'integer', description: 'Pid, si ya lo conoces.' },
   ventana: { type: 'integer', description: 'Id de ventana (de `ventanas`). Sin él se usa la ventana de más arriba de esa app.' },
+  para: { type: 'string', description: 'Para qué necesitas esta app, en una frase corta para la persona («responder el mensaje de Juan»). En la edición del alumno se muestra en la tarjeta de permiso la primera vez que tocas una app en la conversación.' },
 }
 
 export const MANOS_TOOLS = [
@@ -100,7 +102,7 @@ export const MANOS_TOOLS = [
     description: `Lista las apps abiertas (nombre, bundle, pid, si está al frente). Con \`abrir\` abre una app en segundo plano, sin quitarle el frente a ${DUENO}, y devuelve su pid y ventanas.`,
     // `abrir` lanza una app en segundo plano: no destruye nada, pero cambia estado.
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
-    inputSchema: { type: 'object', additionalProperties: false, properties: { abrir: { type: 'string', description: 'Bundle id o nombre de la app a abrir.' } } },
+    inputSchema: { type: 'object', additionalProperties: false, properties: { abrir: { type: 'string', description: 'Bundle id o nombre de la app a abrir.' }, para: OBJETIVO.para } },
   },
   {
     name: 'ventanas',
@@ -217,10 +219,12 @@ export async function mostrarParaVer(manos: Adaptador, pid: number, ventana?: nu
 
 export async function ejecutarManos(nombre: string, args: any, manos: Adaptador, decisor: () => Decisor, almacen = new AlmacenRecetas(), extra: ExtraManos = {}): Promise<ResultadoTool> {
   const a = args ?? {}
-  const { pedido, solo_cambios, ...limpio } = a
+  const { pedido, solo_cambios, para, ...limpio } = a
   const t0 = performance.now()
   const anotar = (p: Omit<PasoBitacora, 't' | 'ms' | 'herramienta'> & { ms?: number }) => extra.bitacora?.paso({ herramienta: nombre, decidio: extra.quien, ms: Math.round(performance.now() - t0), ...p }, pedido)
   modoVer.observar(typeof pedido === 'string' ? pedido : extra.intencion)
+  // Permiso por app (edición del alumno): lo que la tarjeta muestra como «para qué».
+  capa(manos, CapaApps)?.declarar(para ?? pedido ?? extra.intencion)
   try {
     switch (nombre) {
       case 'observar': {
@@ -307,8 +311,8 @@ export async function ejecutarManos(nombre: string, args: any, manos: Adaptador,
         return { text: JSON.stringify({ ok: true, ventana: limpio.ventana, app: limpio.app }) }
       }
       case 'apps': return { text: JSON.stringify(a.abrir ? await manos.abrir(a.abrir) : await manos.apps()) }
-      case 'ventanas': return { text: JSON.stringify(await manos.ventanas(a)) }
-      case 'verificar': return { text: JSON.stringify(await manos.verificar(a)) }
+      case 'ventanas': return { text: JSON.stringify(await manos.ventanas(limpio)) }
+      case 'verificar': return { text: JSON.stringify(await manos.verificar(limpio)) }
       case 'decidir': return { text: JSON.stringify(await decisor().decidir(a)) }
       case 'listar_recetas': return { text: JSON.stringify({ dir: almacen.dir, recetas: almacen.listar().map(resumen) }) }
       case 'correr_receta': {

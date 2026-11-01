@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { Bot, Loader2, Check, Wrench, ChevronRight, X, AlertTriangle, Clock } from 'lucide-react'
 import type { ToolCall, ToolOutput } from '../hooks/useChat'
-import { ETIQUETA_ESTADO, type NotaInyectada } from '../lib/inyecciones'
+import { etiquetaVisible, type NotaInyectada } from '../lib/inyecciones'
 import type { GrupoRastro, LlamadaRastro } from '../lib/rastro'
 import { imagenLeida, localImageThumbUrl, localImageUrl } from '@/lib/local-image-path'
 import { ImageLightbox } from '@/shared/components/ImageLightbox'
@@ -102,18 +102,20 @@ function ImagenLeida({ ruta, onFalla }: { ruta: string; onFalla: () => void }) {
   )
 }
 
-/** Mensaje de Daniel dentro de la actividad del turno, con su estado: enviando… / entrando… / leído. */
+/** Mensaje del dueño dentro del turno, en el punto donde Levy lo tomó. «Leído» ya no se escribe (1 nov 2026: «esta ui
+ *  de leído no me encanta… sé que lo lees»): que Levy siga y lo conteste lo dice. Solo se ve lo que aún pide atención. */
 function NotaInyectadaChip({ nota }: { nota: NotaInyectada }) {
-  const leido = nota.estado === 'leido'
+  const etiqueta = etiquetaVisible(nota.estado)
   return (
-    // Ocupa su propia línea (w-full) dentro del flex-wrap de las pills: se lee como un mensaje, no como herramienta.
-    <span className="w-full flex justify-end my-0.5" data-nota-inyectada={nota.id}>
+    <span className="w-full flex justify-end my-1.5" data-nota-inyectada={nota.id} data-estado={nota.estado}>
       <span className="max-w-[85%] inline-flex flex-col items-end gap-0.5 px-2.5 py-1 rounded-xl rounded-br-sm bg-primary/10 border border-primary/25 text-[12px] text-foreground/90">
         <span className="whitespace-pre-wrap break-words text-left">{nota.texto}</span>
-        <span className={`inline-flex items-center gap-1 text-[10px] ${leido ? 'text-muted' : 'text-muted/80'}`}>
-          {leido ? <Check size={10} className="shrink-0" /> : <Loader2 size={10} className="animate-spin shrink-0" />}
-          {ETIQUETA_ESTADO[nota.estado]}
-        </span>
+        {etiqueta
+          ? <span className="inline-flex items-center gap-1 text-[10px] text-muted/80">
+              {nota.estado !== 'en_fila' && <Loader2 size={10} className="animate-spin shrink-0" />}
+              {etiqueta}
+            </span>
+          : <span className="sr-only">Levy ya lo leyó</span>}
       </span>
     </span>
   )

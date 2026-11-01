@@ -4,7 +4,7 @@ import { FileAttachmentCard } from './FileAttachmentCard'
 import { LevyFace } from './LevyFace'
 import { Retrato } from '@/shared/components/Retrato'
 import type { LiveChatController } from '@/features/live/controller'
-import { useEffect, useLayoutEffect, useRef, useState, KeyboardEvent, useCallback, memo, startTransition, useMemo, type ReactNode } from 'react'
+import { Fragment, useEffect, useLayoutEffect, useRef, useState, KeyboardEvent, useCallback, memo, startTransition, useMemo, type ReactNode } from 'react'
 import { Plus, ArrowUp, AlertCircle, Copy, Check, Clock, ChevronDown, ImageIcon, X, ShieldAlert, Pencil, GitBranch, FileText, AlarmClock, BellRing, Sparkles, Mic } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useLayoutStore } from '@/shared/stores/layout-store'
@@ -63,6 +63,7 @@ import { comandoDeMensaje, filtrarComandos, pideArgumentos, textoRelleno } from 
 import { useCommandCatalog } from '../hooks/useCommandCatalog'
 import { useCommandStore } from '../stores/command-store'
 import { ModelPicker } from './ModelPicker'
+import { PopoverAnclado } from '@/shared/components/PopoverAnclado'
 import { PuntoAutonomo } from '@/features/seguridad/components/PermisosEnModelo'
 import { cabeEnConversacion, esModeloActual, type ModeloCatalogo } from '@/features/modelo/catalogo-modelos'
 import { esEspacioClaude } from '@/shared/lib/espacios-chat'
@@ -80,8 +81,10 @@ import { esHerramientaCabina } from '@/features/cabina/model'
 import { chatArrancaNuevo } from '@/features/cabina/panel/telefono-pestanas'
 import { AgentesTrabajando } from '@/features/cabina/panel/AgentesTrabajando'
 import { useColaMensajes } from '../hooks/useColaMensajes'
+import { SalidaDeFila, turnoVivoEnServidor, type EstadoSalida } from '../lib/fila-salida'
+import { FilaServidor, cuerpoDelPendiente, type EstadoItemServidor } from '../lib/fila-servidor'
 import { hiloLimpio } from '../lib/hilo-limpio'
-import { plegarInyectadas, puedeInyectar } from '../lib/inyecciones'
+import { partirEnNotas, plegarInyectadas, puedeInyectar } from '../lib/inyecciones'
 import { ordenarPorTurno } from '../lib/orden-turnos'
 import { hayNoVisto } from '../lib/session-status'
 import { EVENTO_CAMBIO_SESION, type CambioSesion } from '../lib/cambios-sesion'
@@ -104,10 +107,14 @@ import { inicioDeChatNuevo, espacioVigente } from '@/features/modelo/modelo-inic
 import { useChatPrefsStore } from '../stores/chat-prefs-store'
 import { esEdicionCliente } from '@/lib/edicion'
 import { NOMBRE_SIN_DAR, PEDIDOS_BIENVENIDA, soloBienvenida } from '@/features/primer-arranque/textos/bienvenida'
+import { BarraTour, type MensajeTour } from '@/features/primer-arranque/components/BarraTour'
 import { esFaltaLlave, esLlaveRechazada, turnoSinCredito } from '@/features/primer-arranque/lib/sin-saldo'
 import { LlaveEnChat } from '@/features/primer-arranque/components/LlaveEnChat'
 import { RecargaEnChat } from '@/features/primer-arranque/components/RecargaEnChat'
 import { EVENTO_BORRADOR_CHAT } from '@/features/cabina/documento/comentarios'
+
+/** Lo que Levy no leyó al detenerlo: vuelve a la fila en pausa por id, con sus fotos. */
+type SinLeer = Array<{ id: string; texto: string; imagenes?: string[] }>
 
 const EDICION_CLIENTE = esEdicionCliente()
 
@@ -217,9 +224,12 @@ function DocumentoPendiente({ nombre, bytes, onRemove }: { nombre: string; bytes
 function MenuAdjuntar({ disabled, onFotos, onDocumentos, onConsejo }: { disabled: boolean; onFotos: () => void; onDocumentos: () => void; onConsejo?: () => void }) {
   const [abierto, setAbierto] = useState(false)
   const raiz = useRef<HTMLDivElement>(null)
+  const boton = useRef<HTMLButtonElement>(null)
+  const menu = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!abierto) return
-    const fuera = (e: PointerEvent) => { if (!raiz.current?.contains(e.target as Node)) setAbierto(false) }
+    // El menú vive en un portal (PopoverAnclado): «dentro» es el botón o el menú.
+    const fuera = (e: PointerEvent) => { const t = e.target as Node; if (!raiz.current?.contains(t) && !menu.current?.contains(t)) setAbierto(false) }
     const tecla = (e: globalThis.KeyboardEvent) => { if (e.key === 'Escape') setAbierto(false) }
     document.addEventListener('pointerdown', fuera); document.addEventListener('keydown', tecla)
     return () => { document.removeEventListener('pointerdown', fuera); document.removeEventListener('keydown', tecla) }
@@ -229,6 +239,7 @@ function MenuAdjuntar({ disabled, onFotos, onDocumentos, onConsejo }: { disabled
   return (
     <div ref={raiz} className="relative shrink-0">
       <button
+        ref={boton}
         type="button"
         onClick={() => setAbierto(v => !v)}
         disabled={disabled}
@@ -241,7 +252,7 @@ function MenuAdjuntar({ disabled, onFotos, onDocumentos, onConsejo }: { disabled
         <Plus size={17} className={`transition-transform duration-150 ${abierto ? 'rotate-45' : ''}`} />
       </button>
       {abierto && (
-        <div role="menu" className="absolute bottom-full left-0 z-50 mb-2 w-60 rounded-xl border border-border bg-card p-1 shadow-xl">
+        <PopoverAnclado ancla={boton} panelRef={menu} ancho={240} role="menu" aria-label="Adjuntar" className="rounded-xl border border-border bg-card p-1 shadow-xl overflow-y-auto overscroll-contain">
           <button type="button" role="menuitem" className={opcion} onClick={() => elegir(onFotos)}>
             <ImageIcon size={16} className="shrink-0 text-primary" />
             <span>Fotos e imágenes</span>
@@ -256,7 +267,7 @@ function MenuAdjuntar({ disabled, onFotos, onDocumentos, onConsejo }: { disabled
               <span className="flex flex-col"><span>Pedir consejo a dos modelos</span><span className="text-[11px] text-muted">Claude + OpenAI</span></span>
             </button>
           )}
-        </div>
+        </PopoverAnclado>
       )}
     </div>
   )
@@ -302,6 +313,11 @@ export const MessageBubble = memo(function MessageBubble({ msg, isFresh = false,
 
   // El razonamiento fundido en `content` (sesiones CLI recargadas) va al rastro; aquí solo la respuesta.
   const respuesta = isUser ? '' : separarRazonamiento(msg).respuesta
+  // Lo que escribiste con Levy trabajando va donde él lo tomó: tramo de texto → tu mensaje → lo que siguió (1 nov 2026).
+  const partes = isUser ? null : partirEnNotas(respuesta, msg.inyectados, !!msg.streaming)
+  const conTexto = !isUser && msg.metadata?.jobId !== 'evening-reflection'
+    && !(msg.metadata?.reporteVivo && !msg.metadata.reporteConTexto && msg.toolCalls?.length)
+    && !!respuesta && !(msg.error && msg.diagnostic && respuesta.trim() === msg.diagnostic.trim())
   const time = msg.timestamp.toLocaleTimeString('es-MX', {
     hour: '2-digit',
     minute: '2-digit',
@@ -404,8 +420,9 @@ export const MessageBubble = memo(function MessageBubble({ msg, isFresh = false,
         {/* «Razonamiento» (25 oct 2026, pedido del dueño): toggle simple ARRIBA de la respuesta, plegado. Al abrirlo, el razonamiento
             y las herramientas intercalados en orden real; mientras trabaja, su renglón es la línea viva + reloj. */}
         <Razonamiento msg={msg} connection={connection} />
-        {/* Lo que el dueño escribió con el turno vivo es conversación, no auditoría: queda a la vista. */}
-        {!msg.streaming && <NotasInyectadas notas={msg.inyectados} />}
+        {/* Lo que el dueño escribió con el turno vivo es conversación, no auditoría: queda a la vista. Aquí solo las
+            guardadas sin lugar (antes del 1 nov) o, sin texto aún, todas; las demás van dentro de la respuesta. */}
+        {partes && <NotasInyectadas notas={conTexto ? partes.arriba : [...partes.arriba, ...partes.tramos.flatMap(t => t.notas)]} />}
 
         {/* La Cabina: las vistas nacen cuando Levy usa la herramienta, ANTES de
             redactar; por eso van arriba de su texto y su pregunta de cierre queda al final. */}
@@ -420,7 +437,13 @@ export const MessageBubble = memo(function MessageBubble({ msg, isFresh = false,
           // data-tts-content: el botón Escuchar lee ESTE DOM con la voz del dispositivo. Sin el razonamiento
           // fundido de las sesiones CLI (<!--thinking-->): ese va al rastro plegado.
           <div data-tts-content={msg.id}>
-            <MarkdownMessage content={msg.streaming ? respuesta + ' ▍' : respuesta} streaming={!!msg.streaming} ancho />
+            {(partes?.tramos ?? [{ texto: respuesta, notas: [] }]).map((tramo, i, todos) => {
+              const ultimo = i === todos.length - 1, vivo = ultimo && !!msg.streaming
+              return <Fragment key={i}>
+                {(tramo.texto || vivo) && <MarkdownMessage content={vivo ? tramo.texto + ' ▍' : tramo.texto} streaming={vivo} ancho />}
+                {tramo.notas.length > 0 && <NotasInyectadas notas={tramo.notas} />}
+              </Fragment>
+            })}
           </div>
         ) : null}
 
@@ -688,6 +711,12 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
     [catalogoComandos, paletteQuery],
   )
   const [showModelPicker, setShowModelPicker] = useState(false)
+  // El selector de modelo se ancla a su chip (1 nov 2026): mide el aire alrededor y nunca sale de la ventana.
+  const modelChipRef = useRef<HTMLButtonElement>(null)
+  // Anclas de los demás popovers de la barra (1 nov 2026): cada uno se pega a lo que lo abre (PopoverAnclado).
+  const effortChipRef = useRef<HTMLButtonElement>(null)
+  const contextoChipRef = useRef<HTMLButtonElement>(null)
+  const composerCajaRef = useRef<HTMLDivElement>(null)
   // Popover del slider de esfuerzo (escala unificada low→ultracode), anclado al
   // chip del composer. Lo abre el chip y el comando /effort.
   const [showEffortSlider, setShowEffortSlider] = useState(false)
@@ -845,7 +874,9 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
     })
   }, [autoResizeTextarea])
 
-  const { changeEffort, connection, messages, loading, despachando, ocupado, inyectar, turnoInyectable, sendMessage, resumeStream, loadMessages, prependMessages, clearMessages, restoreMessages, appendMessage, stopStreaming, pauseStreaming, detachStream, currentModel, currentEffort, ultracode, removeMessages, suggestions, answerQuestion } = useChat({
+  // Tour de bienvenida (1 nov 2026): mientras el recorrido está abierto, los pedidos de bienvenida esperan a que termine.
+  const [tourEnCurso, setTourEnCurso] = useState(false)
+  const { changeEffort, connection, messages, loading, despachando, ocupado, inyectar, enviarAFilaServidor, retirarDeFilaServidor, turnoInyectable, sendMessage, resumeStream, loadMessages, prependMessages, clearMessages, restoreMessages, appendMessage, stopStreaming, pauseStreaming, detachStream, currentModel, currentEffort, ultracode, removeMessages, suggestions, answerQuestion } = useChat({
     sessionId: activeSession?.id,
     liveWorkspace: liveMode,
     onSave: handleSave,
@@ -857,9 +888,12 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
     account,
     pendingCreation: activeSession?.pendingCreation ?? false,
     // Stop con mensajes inyectados sin leer: a la fila en pausa (la fila se declara más abajo; el ref la alcanza).
-    onInyeccionSinLeer: useCallback((textos: string[]) => devolverEnPausaRef.current(textos), []),
+    onInyeccionSinLeer: useCallback((sinLeer: SinLeer) => devolverEnPausaRef.current(sinLeer), []),
   })
-  const devolverEnPausaRef = useRef<(textos: string[]) => void>(() => {})
+  const alCapituloTour = useCallback((m: MensajeTour) => {
+    appendMessage({ id: m.id, role: m.role, content: m.content, timestamp: new Date(m.created_at), metadata: m.metadata })
+  }, [appendMessage])
+  const devolverEnPausaRef = useRef<(sinLeer: SinLeer) => void>(() => {})
 
   // La lista lateral muestra UN hilo de reportes. Los crons escriben al hilo
   // «Automatizaciones» vigente (favorito); los duplicados viejos de migraciones se
@@ -872,9 +906,11 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
   // ── La fila: lo que escribes mientras Levy trabaja (ver useColaMensajes) ──
   const cola = useColaMensajes(`${account}:${activeSession?.id ?? 'nueva'}`)
   devolverEnPausaRef.current = cola.devolverEnPausa
-  const detencionManualRef = useRef(false)   // TÚ detuviste el turno: la fila no sale sola
-  const enviarYaRef = useRef(false)          // «Enviar ya»: detener y mandar la fila
+  // Cuándo sale la fila (ver lib/fila-salida): TÚ detuviste, «Enviar ya» y la salida por nivel. Se crea abajo.
+  const salidaRef = useRef<SalidaDeFila | null>(null)
   const soltarFilaRef = useRef<() => void>(() => {})  // handleSend la llama; se define abajo
+  // Mensajes con fotos que esperan en el servidor (opción B, 1 nov 2026; ver lib/fila-servidor). Se crea abajo.
+  const filaServidorRef = useRef<FilaServidor | null>(null)
   // Un envío con fotos ya salió de la caja pero aún sube: cuenta como «Levy ocupado».
   const enviandoRef = useRef(false)
   // Gracia del botón detener tras enviar (ver GRACIA_DETENER_MS).
@@ -920,7 +956,7 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
       holdFiredRef.current = true
       setHoldingStop(false)
       holdTimerRef.current = null
-      detencionManualRef.current = true
+      salidaRef.current?.detenidoAMano()
       stopStreaming()
     }, HOLD_STOP_MS)
   }, [stopStreaming])
@@ -930,7 +966,7 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
     if (holdTimerRef.current != null) {
       clearTimeout(holdTimerRef.current)
       holdTimerRef.current = null
-      if (!holdFiredRef.current) { detencionManualRef.current = true; pauseStreaming() }
+      if (!holdFiredRef.current) { salidaRef.current?.detenidoAMano(); pauseStreaming() }
     }
   }, [pauseStreaming])
 
@@ -2175,6 +2211,18 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
     // (en orden). Nunca interrumpe: detener es solo el botón con la caja vacía.
     // Se reevalúa aquí: durante la subida pudo arrancar un turno (la fila, otra pestaña).
     if (destino === 'fila' || (!desdeCola && !editando && (loading || ocupado()))) {
+      // Con fotos (1 nov 2026, opción B): viaja al servidor en el acto con su id y sale solo al cerrar el turno, aunque
+      // estés en otra conversación o con la app cerrada. En la caja queda su espejo editable. La fila del dispositivo
+      // sigue para lo demás: sin red, comandos, mientras un envío aún despacha o detrás de una fila que ya espera.
+      const conversacion = activeSession?.id
+      if (!desdeCola && !editando && imageUrls.length > 0 && conversacion && !activeSession?.pendingCreation && isOnline() && !msg.trim().startsWith('/')
+        && loading && !despachando && !cola.esperando() && filaServidorRef.current) {
+        const id = crypto.randomUUID()
+        cola.encolarServidor(id, msg, imageUrls)
+        vaciarCaja(); marcarEnvio()
+        filaServidorRef.current.registrar(conversacion, { id, texto: msg, imagenes: imageUrls })
+        return
+      }
       // Enter con Levy trabajando = el mensaje entra al turno EN CURSO (7 oct 2026, como Claude Code). La fila
       // del dispositivo queda para lo que no aplica: sin red, Codex, fotos, comandos o una fila que ya espera.
       if (puedeInyectar({ enLinea: isOnline(), motorCodex: !turnoInyectable(), conAdjuntos: imageUrls.length > 0, esComando: msg.trim().startsWith('/'),
@@ -2185,8 +2233,9 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
       }
       cola.encolar(msg, imageUrls)
       vaciarCaja(); marcarEnvio()
-      // Fila esperando y Levy libre: sale ya, con lo nuevo al final.
-      if (!(loading || ocupado())) soltarFilaRef.current()
+      // Fila esperando y Levy libre: sale ya, con lo nuevo al final. El ref, no `loading`: tras subir fotos el
+      // `loading` de este cierre es el del toque y el turno pudo terminar durante la subida (1 nov 2026).
+      if (!ocupado()) soltarFilaRef.current()
       return
     }
     // Modo edición: rebobina la conversación a este mensaje y reenvía (fork del
@@ -2838,51 +2887,122 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
     finally { setMetaAccionando(false) }
   }
 
-  // La fila sale sola cuando el turno termina EN ESTA conversación. No sale si tú
-  // detuviste a Levy (queda en pausa, a la vista) ni si el turno falló. Cambiar
-  // de conversación libera el stream pero no es «terminar»: tampoco dispara.
-  // Un borrador que sale por la cola (conversación recién creada) también es turno en curso aunque `loading` ya se soltó.
+  // La fila sale sola cuando el turno termina, siempre (ver lib/fila-salida): por el borde visto aquí o, si
+  // terminó contigo en otra conversación, al volver, tras confirmar con el servidor que no hay turno vivo.
+  // No sale si tú detuviste a Levy o el turno falló (queda en pausa, a la vista). Si no puede salir, reintenta y
+  // lo dice; al tope queda en pausa y avisa. Un borrador que sale por la cola (conversación recién creada)
+  // también es turno en curso aunque `loading` ya se soltó.
   const turnoEnCurso = loading || despachando
-  const prevCargaRef = useRef(turnoEnCurso), prevSesionRef = useRef(activeSession?.id)
+  const hayDelDispositivo = cola.items.some(x => !x.servidor)
   // Solo se toma la fila cuando el envío es posible: si el chat volvió a ocuparse o el
   // borrador aún no carga, handleSend saldría sin enviar y la fila ya estaría vacía.
   const puedeEnviarRef = useRef(false)
   puedeEnviarRef.current = !turnoEnCurso && composerDraft.ready
-  const soltarFila = useCallback((intentos = 0) => {
-    if (!puedeEnviarRef.current) { if (intentos < 20) window.setTimeout(() => soltarFila(intentos + 1), 250); return }
-    const fila = cola.tomarTodo(); if (fila) handleSendRef.current?.(fila.texto, { desdeCola: true, imagenes: fila.imagenes })
-  }, [cola])
-  soltarFilaRef.current = () => soltarFila()
+  const colaRef = useRef(cola)
+  colaRef.current = cola
+  const [salida, setSalida] = useState<{ estado: EstadoSalida; intento: number }>({ estado: 'quieta', intento: 0 })
+  if (!salidaRef.current) {
+    salidaRef.current = new SalidaDeFila({
+      reloj: { ahora: () => Date.now(), programar: (fn, ms) => window.setTimeout(fn, ms), cancelar: h => window.clearTimeout(h as number) },
+      soltar: ({ forzar }) => {
+        const c = colaRef.current
+        if (!c.hay()) return 'vacia'
+        if (!forzar && c.estaPausada()) return 'pausada'
+        if (!puedeEnviarRef.current || ocupado() || enviandoRef.current) return 'ocupado'
+        const fila = c.tomarTodo(); if (!fila) return 'vacia'
+        handleSendRef.current?.(fila.texto, { desdeCola: true, imagenes: fila.imagenes })
+        return 'salio'
+      },
+      pausar: () => colaRef.current.pausar(),
+      turnoVivo: turnoVivoEnServidor,
+      alCambiar: (estado, intento) => setSalida({ estado, intento }),
+      alAtorarse: () => {
+        console.warn('[chat/fila] no pudo salir sola tras reintentar; queda en pausa')
+        showChatError('La fila no pudo salir sola y quedó en pausa arriba de la caja. Toca «Enviar» para mandarla.', 12000)
+      },
+    })
+  }
+  soltarFilaRef.current = () => salidaRef.current?.soltarAhora()
+  const [estadosServidor, setEstadosServidor] = useState<ReadonlyMap<string, EstadoItemServidor>>(() => new Map())
+  const enviarAFilaServidorRef = useRef(enviarAFilaServidor)
+  enviarAFilaServidorRef.current = enviarAFilaServidor
+  if (!filaServidorRef.current) {
+    filaServidorRef.current = new FilaServidor({
+      reloj: { ahora: () => Date.now(), programar: (fn, ms) => window.setTimeout(fn, ms), cancelar: h => window.clearTimeout(h as number) },
+      enviar: (conversacion, item) => enviarAFilaServidorRef.current(conversacion, { id: item.id, ...cuerpoDelPendiente(item) }),
+      // Ya es su turno: sale de la caja y el chat vivo lo pinta con sus fotos.
+      salio: id => colaRef.current.quitar(id),
+      devolver: (id, motivo) => {
+        colaRef.current.delServidorAlDispositivo(id)
+        if (motivo === 'rechazado') showChatError('El mensaje con fotos no pudo quedar en el servidor: está en pausa arriba de la caja. Toca «Enviar» para mandarlo.', 12000)
+      },
+      alCambiar: estados => setEstadosServidor(estados),
+    })
+  }
+  const ultimoDelHilo = messages[messages.length - 1]
+  const turnoTerminoMal = !!ultimoDelHilo?.error || (ultimoDelHilo?.role === 'assistant' && ultimoDelHilo.terminalStatus === 'failed')
   useEffect(() => {
-    const antes = prevCargaRef.current, sesionAntes = prevSesionRef.current
-    prevCargaRef.current = turnoEnCurso; prevSesionRef.current = activeSession?.id
-    if (turnoEnCurso) { if (!antes) detencionManualRef.current = false; return }
-    if (!antes || sesionAntes !== activeSession?.id) return
-    if (!cola.hay()) { enviarYaRef.current = false; return }
-    const ultimo = messages[messages.length - 1]
-    if (!enviarYaRef.current && (detencionManualRef.current || ultimo?.error || cola.estaPausada())) { cola.pausar(); return }
-    const ahora = enviarYaRef.current
-    enviarYaRef.current = false
-    // Tras «Enviar ya» el servidor confirma la detención antes de recibir la fila
-    // (si llega antes, su propia fila por conversación la ordena igual).
-    const t = window.setTimeout(() => soltarFila(), ahora ? 900 : 250)
-    return () => window.clearTimeout(t)
-  }, [turnoEnCurso, activeSession?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+    salidaRef.current?.observar({
+      conversacion: activeSession?.id ?? null, hay: hayDelDispositivo, pausada: cola.pausada, turnoEnCurso,
+      ocupado: ocupado() || enviandoRef.current, listo: composerDraft.ready && !loadingSession, terminoMal: turnoTerminoMal,
+    })
+  }, [activeSession?.id, hayDelDispositivo, cola.pausada, turnoEnCurso, composerDraft.ready, loadingSession, turnoTerminoMal, ocupado])
+  useEffect(() => () => salidaRef.current?.detener(), [])
+  const enServidor = useMemo(() => cola.items.filter(x => x.servidor).map(x => ({ id: x.id, texto: x.texto, imagenes: x.imagenes })), [cola.items])
+  useEffect(() => {
+    filaServidorRef.current?.observar({ conversacion: activeSession?.id ?? null, pendientes: enServidor, turnoEnCurso })
+  }, [activeSession?.id, enServidor, turnoEnCurso])
+  useEffect(() => () => filaServidorRef.current?.detener(), [])
+  // Editar o quitar lo que espera en el servidor: primero se retira allá (solo si aún no salió). Si ya salió, no se toca.
+  const retirarDelServidor = useCallback(async (id: string): Promise<boolean> => {
+    const item = colaRef.current.items.find(x => x.id === id)
+    if (!item?.servidor) return true
+    const conversacion = activeSession?.id
+    if (!conversacion) return false
+    filaServidorRef.current?.olvidar(id)
+    const r = await retirarDeFilaServidor(conversacion, id)
+    if (r?.retirada) return true
+    if (r && (r.estado === 'requeued' || r.estado === 'sent')) {
+      colaRef.current.quitar(id)
+      showChatError('Ese mensaje ya salió hacia Levy; ya no se puede editar ni quitar.', 8000)
+      return false
+    }
+    // Sin respuesta del servidor: se queda donde estaba (y se sigue vigilando), nunca a medias.
+    filaServidorRef.current?.observar({ conversacion, pendientes: colaRef.current.items.filter(x => x.servidor).map(x => ({ id: x.id, texto: x.texto, imagenes: x.imagenes })), turnoEnCurso })
+    showChatError('No pude retirar ese mensaje del servidor. Sigue en la fila; inténtalo de nuevo.', 8000)
+    return false
+  }, [activeSession?.id, retirarDeFilaServidor, showChatError, turnoEnCurso])
+  const quitarDeFila = useCallback((id: string) => {
+    void retirarDelServidor(id).then(ok => { if (ok) colaRef.current.quitar(id) })
+  }, [retirarDelServidor])
 
   const enviarFilaYa = useCallback(() => {
-    if (loading) { enviarYaRef.current = true; detencionManualRef.current = true; pauseStreaming(); return }
-    soltarFila()
-  }, [loading, pauseStreaming, soltarFila])
+    const mandar = () => {
+      if (loading) { salidaRef.current?.enviarYa(); pauseStreaming(); return }
+      salidaRef.current?.soltarAhora({ forzar: true })
+    }
+    // «Enviar ya» manda TODO junto y ahora: lo que esperaba en el servidor se retira allá y vuelve al dispositivo
+    // primero (lo que ya salió no se toca), así nunca sale dos veces.
+    const delServidor = cola.items.filter(x => x.servidor)
+    if (!delServidor.length) { mandar(); return }
+    void Promise.all(delServidor.map(x => retirarDelServidor(x.id).then(ok => { if (ok) colaRef.current.delServidorAlDispositivo(x.id) }))).then(mandar)
+  }, [cola.items, loading, pauseStreaming, retirarDelServidor])
   // El pendiente regresa ENTERO (texto y adjuntos, en su orden) en un solo cambio del borrador, y sale de la fila
   // en el mismo tick: nunca queda medio mensaje arriba ni sale dos veces (12 oct 2026).
   const editarDeFila = useCallback((id?: string) => {
     if (!composerDraft.ready) return // Con el borrador aún cargando, escribir lo pisaría: la fila no se toca.
     // Editar un mensaje anterior reenvía solo texto: sus fotos se perderían. Se queda en la fila hasta terminar.
     if (composerDraft.value.editingMsgId) { showChatError('Termina o cancela la edición del mensaje anterior antes de traer uno de la fila.'); return }
-    const item = cola.sacar(id); if (!item) return
-    composerDrafts.update(composerKeyRef.current, EMPTY_CHAT_DRAFT, cur => devolverAlComposer(cur, item))
-    requestAnimationFrame(() => { const el = textareaRef.current; if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length) } })
-  }, [cola, composerDraft.ready, composerDraft.value.editingMsgId, showChatError])
+    const traer = (cual?: string) => {
+      const item = colaRef.current.sacar(cual); if (!item) return
+      composerDrafts.update(composerKeyRef.current, EMPTY_CHAT_DRAFT, cur => devolverAlComposer(cur, item))
+      requestAnimationFrame(() => { const el = textareaRef.current; if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length) } })
+    }
+    // Lo que espera en el servidor se retira allá primero: nunca sale allá Y vuelve a la caja.
+    const objetivo = id ? cola.items.find(x => x.id === id) : cola.items.at(-1)
+    if (objetivo?.servidor) { void retirarDelServidor(objetivo.id).then(ok => { if (ok) traer(objetivo.id) }); return }
+    traer(id)
+  }, [cola.items, composerDraft.ready, composerDraft.value.editingMsgId, showChatError, retirarDelServidor])
   // La Cabina: un botón dentro de una vista («Atiéndelo con Levy») envía su
   // pedido como mensaje del dueño, sin copiar y pegar.
   useEffect(() => {
@@ -3206,6 +3326,7 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
                     </button>
                   ))}
                 </div>
+                {EDICION_CLIENTE && <BarraTour sesionId={activeSession?.id ?? null} onMensaje={alCapituloTour} />}
               </div>
             ) : (
               // Columna de lectura centrada (48–52rem, modelo Claude/ChatGPT); las
@@ -3226,7 +3347,7 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
 
                 {/* Edición cliente (v1.1): bajo el primer mensaje de Levy, sus tres pedidos son botones de un clic que
                     envían ese mensaje tal cual. Desaparecen en cuanto la persona escribe o toca uno. */}
-                {EDICION_CLIENTE && !loading && soloBienvenida(messages) && (
+                {EDICION_CLIENTE && !loading && soloBienvenida(messages) && !tourEnCurso && (
                   <div role="group" aria-label="Para empezar" className="flex flex-wrap gap-2 pt-3" data-pedidos-bienvenida>
                     {PEDIDOS_BIENVENIDA.map((p) => (
                       <button
@@ -3242,6 +3363,9 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
                     ))}
                   </div>
                 )}
+
+                {/* Tour de bienvenida: los mandos del recorrido de Levy (Siguiente, Muéstramelo, Pausar, Saltar). Una sola vez. */}
+                {EDICION_CLIENTE && !loading && <BarraTour sesionId={activeSession?.id ?? null} onMensaje={alCapituloTour} onEnCurso={setTourEnCurso} />}
 
                 {/* Follow-up suggestions (promptSuggestions del SDK) — chips
                     tocables bajo el último mensaje, solo cuando el turno terminó. */}
@@ -3326,6 +3450,7 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
                   selectedIndex={paletteSelectedIndex}
                   onSelect={handleCommandSelect}
                   onClose={() => { setPaletteQuery(null); setPaletteSelectedIndex(0) }}
+                  ancla={composerCajaRef}
                 />
               )}
               {showModelPicker && (
@@ -3337,6 +3462,7 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
                   conversacionConMensajes={messages.length > 0}
                   cuentas={CHAT_TABS.filter(t => t.id !== 'crons')}
                   onCuenta={(c) => { setShowModelPicker(false); handleTabChange(c) }}
+                  ancla={modelChipRef}
                 />
               )}
               {showEffortSlider && (
@@ -3348,10 +3474,11 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
                   model={currentModel}
                   onSelect={handleEffortStopSelect}
                   onClose={() => setShowEffortSlider(false)}
+                  ancla={effortChipRef}
                 />
               )}
               {showContexto && contextoConversacion && (
-                <ContextoDetalle contexto={contextoConversacion} account={account} onClose={() => setShowContexto(false)} />
+                <ContextoDetalle contexto={contextoConversacion} account={account} onClose={() => setShowContexto(false)} ancla={contextoChipRef} />
               )}
 
 
@@ -3408,11 +3535,11 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
               {/* La meta activa (27 oct 2026): texto, estado y Pausar/Quitar sin teclear `/goal`. */}
               <ChipMeta meta={metaDelHilo} ocupado={metaAccionando} onPausar={() => void accionMeta('pausar')} onReanudar={() => void accionMeta('reanudar')} onQuitar={() => void accionMeta('quitar')} />
 
-              <ColaMensajes items={cola.items} pausada={cola.pausada} trabajando={loading}
-                onEditar={editarDeFila} onQuitar={cola.quitar} onEnviarYa={enviarFilaYa} />
+              <ColaMensajes items={cola.items} pausada={cola.pausada} estado={loading ? 'trabajando' : salida.estado} intento={salida.intento}
+                enServidor={estadosServidor} onEditar={editarDeFila} onQuitar={quitarDeFila} onEnviarYa={enviarFilaYa} />
 
               {/* Adjuntos, texto y controles comparten una sola caja en móvil y desktop. */}
-              <div className={`msg-composer ${composerUI.frame}`}>
+              <div ref={composerCajaRef} className={`msg-composer ${composerUI.frame}`}>
                 {(textFiles.length>0||pendingImages.length>0||imagenesSubidas.length>0||preparingImages>0)&&<div className={composerUI.attachments}>
               <TextAttachmentTray files={textFiles} onRemove={i => setTextFiles(old => old.filter((_, j) => i !== j))} onChange={(i, content) => setTextFiles(old => old.map((f, j) => i === j ? { ...f, content } : f))}/>
               {/* Los que regresaron de la fila (ya subidos) van primero: así salen. */}
@@ -3435,10 +3562,11 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
                     onConsejo={onConsejo}
                   />
 
-                  {/* Chip de MODELO — solo móvil (en desktop vive en el header del
-                      chat). Abre el mismo ModelPicker que el header. */}
+                  {/* Chip de MODELO: abre (y cierra) el ModelPicker anclado a él; el header móvil abre el mismo. */}
                   <button
-                    onClick={() => setShowModelPicker(true)}
+                    ref={modelChipRef}
+                    onClick={() => setShowModelPicker((v) => !v)}
+                    aria-haspopup="dialog"
                     aria-label={EDICION_CLIENTE ? 'Modelo, permisos y Pausar todo' : 'Cambiar modelo y cuenta'}
                     aria-expanded={showModelPicker}
                     title={EDICION_CLIENTE ? 'Modelo, Autónomo o Preguntar, y Pausar todo' : 'Cambiar modelo y cuenta'}
@@ -3454,6 +3582,7 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
 
                   {/* Esfuerzo y orquestación son controles separados. */}
                   <button
+                    ref={effortChipRef}
                     data-effort-chip
                     onClick={() => setShowEffortSlider((v) => !v)}
                     aria-label="Nivel de esfuerzo"
@@ -3469,7 +3598,7 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
                   </button>
 
                   {/* Contexto de ESTA conversación: anillo + «8 %»; detalle al tocar. */}
-                  <ContextoChip contexto={contextoConversacion} open={showContexto} onToggle={() => setShowContexto(v => !v)} />
+                  <ContextoChip ref={contextoChipRef} contexto={contextoConversacion} open={showContexto} onToggle={() => setShowContexto(v => !v)} />
                 </div>
                 <div className={`relative ${composerUI.inputRegion}`}>
                   {/* Highlight overlay — only mounted when the user actually typed

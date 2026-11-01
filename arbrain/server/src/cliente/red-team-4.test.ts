@@ -17,13 +17,15 @@ describe('M4-2: el pase de agente solo abre lo que usan los agentes', () => {
   it('lecturas de la persona: 403 con el pase', () => {
     const cerradas: Array<[string, string]> = [
       ['GET', '/sessions'], ['GET', '/chat/backstage'], ['GET', '/chat/sessions'], ['POST', '/chat/sdk-sessions'],
-      ['GET', '/ops/recent'], ['GET', '/ops/stream'], ['GET', '/usage'], ['GET', '/confirmaciones'], ['GET', '/confirmaciones/cf_000000000000'],
+      ['GET', '/ops/recent'], ['GET', '/ops/stream'], ['GET', '/usage'], ['GET', '/confirmaciones'],
       ['GET', '/fs/read'], ['GET', '/fs/list'], ['GET', '/fs/index'], ['POST', '/cabina'], ['GET', '/cohorte'],
       ['GET', '/commands'], ['GET', '/limits'], ['GET', '/models'], ['POST', '/efforts'], ['POST', '/preferencias/motor'],
       ['POST', '/modelos/catalogo'], ['POST', '/tts'], ['POST', '/live/workspace'], ['POST', '/live/transcribe'],
       ['POST', '/chat/despertadores'], ['POST', '/schedule/x/run'],
     ]
     for (const [m, r] of cerradas) expect(rutaSoloApp(m, r), `${m} ${r}`).toBe(true)
+    // `GET /confirmaciones/cf_<id>` se reabrió el 1 nov 2026 solo para la espera de las manos, con respuesta recortada:
+    // pase-espera-manos.test.ts.
   })
   it('rutas de agente: abiertas, y solo con su método', () => {
     // POST /schedule (T8, 29 oct 2026): Levy propone una rutina, pero nace en pausa y solo la app la activa

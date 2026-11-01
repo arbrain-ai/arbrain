@@ -89,6 +89,8 @@ export const APIS_CLIENTE = [
   '/api/chat/active', '/api/chat/sessions', '/api/chat/complete', '/api/chat/commands', '/api/chat/model',
   '/api/chat/models', '/api/chat/modelos', '/api/chat/modelos-catalogo', '/api/chat/selection', '/api/chat/efforts',
   '/api/chat/limits', '/api/chat/title', '/api/chat/preferencia-motor', '/api/chat/despertadores',
+  // Quitar o editar un mensaje con fotos que espera en el servidor a que Levy termine (1 nov 2026).
+  '/api/chat/inyeccion',
   // Ver y deshacer (v0.2.13): «Deshacer desde aquí» y Rehacer sobre el checkpoint de archivos de SU daemon; y los botones
   // de la meta (/goal) del hilo. La prueba real en modo alumno del 28 oct los encontró en 404.
   '/api/chat/deshacer', '/api/chat/meta',

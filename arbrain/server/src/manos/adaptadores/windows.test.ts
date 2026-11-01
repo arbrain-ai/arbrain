@@ -6,7 +6,7 @@ import { AdaptadorWindows, huellaFuente } from './windows.js'
 import { juzgar, frenar, Freno } from '../freno.js'
 import { componerManos, crearAdaptador, adaptadorPorDefecto } from '../registro.js'
 import { navegar } from '../navegador.js'
-import { MANOS_TOOLS } from '../herramientas.js'
+import { MANOS_TOOLS, capa } from '../herramientas.js'
 import type { ContextoAccion } from '../contrato.js'
 
 /** ManosWindows falso: mismo protocolo (JSON por líneas por stdio), respuestas fijas. Anota cada pedido en un archivo. */
@@ -75,7 +75,7 @@ describe.skipIf(process.platform === 'win32')('adaptador windows (protocolo, sin
 
   it('navegar usa la ventana nueva que abre el adaptador, la adopta y espera la página', async () => {
     const manos = componerManos(win)
-    const freno = (manos as any).interno as Freno
+    const freno = capa(manos, Freno)!
     const r = await navegar(freno, { url: 'example.com', navegador: 'edge' })
     expect(r).toMatchObject({ ok: true, pid: 900, ventana: 555, url: 'https://example.com/' })
     expect(freno.propias.has(555)).toBe(true)

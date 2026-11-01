@@ -25,6 +25,8 @@ import { avisoSinSandbox, avisosDe, esClicHumano, etiquetaOrigen, literalVisible
 import { olvidar, usePendientes } from '../lib/pendientes'
 // La cola (ronda 2) trae la tarjeta del hilo y su CSS: se carga aparte, así este diálogo sigue ligero.
 const ContadorCola = lazy(() => import('./ColaDeAprobaciones').then(m => ({ default: m.ContadorCola })))
+// La tarjeta de permiso por app (1 nov 2026) usa el CSS de la tarjeta del hilo: también aparte.
+const TarjetaPermisoApp = lazy(() => import('./TarjetaPermisoApp').then(m => ({ default: m.TarjetaPermisoApp })))
 
 export type { Confirmacion } from '../lib/confirmacion'
 export { ordenarPendientes } from '../lib/confirmacion'
@@ -38,7 +40,7 @@ export function ConfirmacionesHumanas() {
   // Botón Play (27 oct 2026): un solo sondeo compartido con la tarjeta del hilo. Lo que pidió Levy en la conversación
   // se contesta en el hilo mientras haya un turno vivo a la vista; este diálogo queda de respaldo (rutinas, manos, o
   // un pedido sin hilo en pantalla). «Córrelo tú» solo vive en el hilo (necesita su terminal).
-  const { pendientes, sandbox, hilosVivos } = usePendientes()
+  const { pendientes, sandbox, hilosVivos, apps } = usePendientes()
   const [montado, setMontado] = useState(false)
   // A7: lo que la persona cerró con Escape no se vuelve a abrir solo; sigue en su cola (contador y panel).
   const [cerradas, setCerradas] = useState<ReadonlySet<string>>(() => new Set())
@@ -49,6 +51,11 @@ export function ConfirmacionesHumanas() {
   if (!montado) return null
   return <>
     <Suspense fallback={null}><ContadorCola /></Suspense>
+    {/* Permiso por app (1 nov 2026) sin un hilo vivo a la vista: la tarjeta flota abajo a la derecha, sin tapar la app. */}
+    {hilosVivos === 0 && apps[0] && !actual && createPortal(
+      <div className="fixed bottom-4 right-4 z-[390] w-[min(440px,calc(100vw-2rem))]" role="region" aria-label="Levy espera tu decisión">
+        <Suspense fallback={null}><TarjetaPermisoApp key={apps[0].id} p={apps[0]} /></Suspense>
+      </div>, document.body)}
     {actual && createPortal(<DialogoConfirmacion key={actual.id} c={actual} sandbox={sandbox} restantes={aqui.length - 1} alResolver={() => olvidar(actual.id)} alCerrar={() => setCerradas(s => new Set([...s, actual.id]))} />, document.body)}
   </>
 }

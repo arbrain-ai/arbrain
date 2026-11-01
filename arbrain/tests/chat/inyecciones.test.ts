@@ -26,7 +26,7 @@ test('notaDelHost: pending = entrando, sent = leído; unread y requeued no se pi
 })
 
 test('leerDesenlace: inyectado, aceptado como turno normal o rechazado (fallback a la fila del dispositivo)', () => {
-  assert.deepEqual(leerDesenlace(202, { accepted: true, injected: true, turnId: 'n', into: 'vivo', status: 'pending' }), { tipo: 'inyectado', into: 'vivo' })
+  assert.deepEqual(leerDesenlace(202, { accepted: true, injected: true, turnId: 'n', into: 'vivo', status: 'pending' }), { tipo: 'inyectado', into: 'vivo', estado: 'pending' })
   assert.deepEqual(leerDesenlace(202, { accepted: true, turnId: 'n', status: 'queued' }), { tipo: 'en_fila_servidor', turnId: 'n' })
   assert.equal(leerDesenlace(409, { error: 'Turn conflict' }).tipo, 'rechazado')
   assert.equal(leerDesenlace(503, null).tipo, 'rechazado')

@@ -217,17 +217,42 @@ export const paseAgenteValido = (dado: unknown): boolean => igual(dado, cofre.ge
  *     así que el pase no puede dejar algo corriendo solo.
  *   - `GET /manos/estado`, `GET /manos/interruptor`, `POST /confirmaciones/pedir|consumir`: el MCP de manos. En la v1
  *     responden apagado o 403 `no_disponible` (DECISIONES #11); quedan para cuando computer use vuelva.
+ *   - `POST /manos/apps/pedir`, `GET /manos/apps/pa_<id>`, `POST /manos/turno` (1 nov 2026): permiso por app y soltar
+ *     al terminar el turno. Pedir crea una tarjeta; resolverla (`/manos/apps/resolver`) sigue siendo solo de la app.
+ *   - `GET /confirmaciones/cf_<id>` y `POST /confirmaciones/encolar` (1 nov 2026, firmado por Daniel; M4-2 las había
+ *     cerrado): la espera del clic de las manos. Solo confirmaciones de origen `manos`, y la lectura solo da su estado.
+ *     La lista (`GET /confirmaciones`), resolver y todo lo demás que cerró M4-2 siguen cerrados (pase-espera-manos.test.ts).
  * `/vivo` y `/live/tool` se atienden antes de la credencial (el segundo con su propio token por turno).
  */
 export function rutaSoloApp(metodo: string | undefined, ruta: string): boolean {
-  return !(RUTAS_DEL_PASE[metodo ?? '']?.has(ruta) ?? false)
+  if (RUTAS_DEL_PASE[metodo ?? '']?.has(ruta)) return false
+  return !(PATRONES_DEL_PASE[metodo ?? '']?.some(p => p.test(ruta)) ?? false)
 }
 
 const RUTAS_DEL_PASE: Record<string, ReadonlySet<string>> = {
   GET: new Set(['/health', '/schedule', '/manos/estado', '/manos/interruptor']),
   // POST /schedule (T8, 29 oct 2026): Levy propone una rutina y nace en pausa; activarla, pausarla o borrarla es de la app.
-  POST: new Set(['/confirmaciones/pedir', '/confirmaciones/consumir', '/schedule']),
+  // Permiso por app y ciclo atado al turno (1 nov 2026): el MCP de manos pide permiso para una app (la tarjeta la
+  // resuelve solo la app) y pregunta si su turno ya terminó (un contador). Ninguna aprueba nada.
+  // Espera de confirmación de las manos (1 nov 2026, firmado por Daniel): `encolar` pasa a la cola SU pendiente cuando
+  // dejó de esperar el clic; el daemon solo acepta ahí pendientes de origen `manos`.
+  POST: new Set(['/confirmaciones/pedir', '/confirmaciones/consumir', '/confirmaciones/encolar', '/schedule', '/manos/apps/pedir', '/manos/turno']),
 }
+
+/**
+ * Rutas con id: el MCP de manos consulta SU pedido de permiso por app y SU confirmación (1 nov 2026). Con el pase, el
+ * daemon responde a `GET /confirmaciones/cf_<id>` solo si es de origen `manos` y solo `{ id, estado }`
+ * (`confirmaciones.ts › vistaParaPase`): ni el literal, ni la lista, ni las del agente o las rutinas.
+ */
+const PATRONES_DEL_PASE: Record<string, readonly RegExp[]> = {
+  GET: [/^\/manos\/apps\/pa_[0-9a-f]{12}$/, /^\/confirmaciones\/cf_[0-9a-f]{12}$/],
+}
+
+/** Lo que abre el pase, tal cual (para la prueba guardia: ninguna ruta se abre sin cambiar esa prueba). */
+export const rutasDelPase = (): { exactas: string[]; patrones: string[] } => ({
+  exactas: Object.entries(RUTAS_DEL_PASE).flatMap(([m, s]) => [...s].map(r => `${m} ${r}`)).sort(),
+  patrones: Object.entries(PATRONES_DEL_PASE).flatMap(([m, l]) => l.map(p => `${m} ${p.source}`)).sort(),
+})
 
 /** Solo pruebas. */
 export function vaciarCofreParaPruebas(): void { cofre = new Map(); origen = 'ninguno' }

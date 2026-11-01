@@ -172,8 +172,14 @@ export function motivoNoMarcador(texto) {
 }
 
 /**
- * La memoria del alumno nace sin datos: solo índices (`MEMORY*.md`), README, `.gitkeep` y marcadores `pendiente`
- * (los reescribe la sincronización con el sitio del programa). Cualquier otra cosa detiene el build.
+ * Archivos de fábrica que viajan escritos en la memoria sin ser datos del dueño: la personalidad del estratega (1 nov
+ * 2026, `PERSONALIDAD.md`, solo en la raíz de la memoria). Se revisan igual por correos y teléfonos.
+ */
+const DE_FABRICA = new Set(['PERSONALIDAD.md'])
+
+/**
+ * La memoria del alumno nace sin datos: solo índices (`MEMORY*.md`), README, `.gitkeep`, marcadores `pendiente`
+ * (los reescribe la sincronización con el sitio del programa) y lo de fábrica. Cualquier otra cosa detiene el build.
  */
 export function memoriaVacia(dir) {
   if (!existsSync(dir)) throw new Error('[desktop] La plantilla no trae .claude/memory.')
@@ -183,6 +189,11 @@ export function memoriaVacia(dir) {
       const r = rel ? `${rel}/${e.name}` : e.name
       if (e.isDirectory()) { recorrerMemoria(join(d, e.name), r); continue }
       if (/^MEMORY[\w-]*\.md$/.test(r) || e.name === 'README.md' || e.name === '.gitkeep') continue
+      if (DE_FABRICA.has(r)) {
+        const dato = DATO_PERSONAL.find(x => x.re.test(readFileSync(join(d, e.name), 'utf8')))
+        if (dato) sobran.push(`${r} (lleva un ${dato.nombre})`)
+        continue
+      }
       const motivo = e.name.endsWith('.md') ? motivoNoMarcador(readFileSync(join(d, e.name), 'utf8')) : 'no es un marcador'
       if (motivo) sobran.push(`${r} (${motivo})`)
     }

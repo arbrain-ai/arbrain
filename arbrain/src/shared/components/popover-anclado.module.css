@@ -1,0 +1,26 @@
+/* Primitiva de los popovers de la barra de escribir (1 nov 2026): solo posición, hoja móvil, velo y asa.
+   El aspecto (fondo, borde, sombra, relleno) lo pone cada popover con su className. */
+
+.panel {
+  position: fixed; z-index: 70; box-sizing: border-box; min-height: 0;
+  /* Fuera del flujo hasta que la colocación escribe left/top/bottom (antes de pintar). */
+  left: 0; bottom: 0;
+}
+
+/* Teléfono: hoja inferior a todo el ancho, sobre el teclado virtual. */
+.panel[data-modo='hoja'] {
+  border-radius: 20px 20px 0 0; border-bottom-width: 0;
+  animation: subeHoja 240ms var(--l-curva-salida, cubic-bezier(0.16, 1, 0.3, 1)) both;
+}
+/* El aire del indicador de inicio del iPhone, al final del contenido (sirve con o sin relleno propio). */
+.panel[data-modo='hoja']::after { content: ''; display: block; flex-shrink: 0; height: env(safe-area-inset-bottom, 0px); }
+
+.velo { position: fixed; inset: 0; z-index: 69; background: rgba(var(--l-sombra-rgb, 9, 9, 11), 0.32); animation: velo 200ms ease-out both; }
+.asa { display: block; align-self: center; flex-shrink: 0; width: 36px; height: 4px; margin: 2px auto 8px; border-radius: 999px; background: color-mix(in srgb, var(--muted) 35%, transparent); }
+
+@keyframes subeHoja { from { transform: translateY(24px); opacity: 0.6; } }
+@keyframes velo { from { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .panel[data-modo='hoja'], .velo { animation: none; }
+}

@@ -99,7 +99,8 @@ describe('entrega', () => {
 
   it('cableado: el scheduler avisa al terminar (bien o mal) solo en la edición cliente; server.ts fija el destino con su token', () => {
     const sch = readFileSync(new URL('../scheduler.ts', import.meta.url), 'utf8')
-    expect(sch.match(/esEdicionCliente\(\) && !task\.id\.endsWith\('-migrated'\)\) void avisarFinRutina/g)).toHaveLength(2)
+    // Desde el 1 nov el bloque también lleva el aviso de la computadora de las precargadas (rutinas-precargadas.ts).
+    expect(sch.match(/esEdicionCliente\(\) && !task\.id\.endsWith\('-migrated'\)\) \{\s+(const fin = [^\n]+\s+)?void avisarFinRutina\(/g)).toHaveLength(2)
     const srv = readFileSync(new URL('../server.ts', import.meta.url), 'utf8')
     expect(srv).toMatch(/registrarDestinoAvisos\(\{ token: MC_TOKEN, url: ALLOWED_ORIGIN \}, \{ pausado \}\)/)
   })

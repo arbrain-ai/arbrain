@@ -118,6 +118,15 @@ enum CursorSistema {
         }
     }
 
+    /// Reposo (Salida): la flecha vuelve, y se apagan el monitor y la vigía (no se escucha el ratón sin uso).
+    static func detener() {
+        enPrincipal {
+            aplicar(politica.liberar(), "reposo")
+            if let m = monitor { NSEvent.removeMonitor(m); monitor = nil }
+            vigia?.invalidate(); vigia = nil
+        }
+    }
+
     /// Lectura independiente del WindowServer (CGCursorIsVisible ya no se expone en Swift; se resuelve por símbolo).
     static func cursorVisibleCG() -> Bool? {
         guard let f = dlsym(dlopen(nil, RTLD_NOW), "CGCursorIsVisible") else { return nil }

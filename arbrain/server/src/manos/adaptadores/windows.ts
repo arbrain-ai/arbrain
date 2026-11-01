@@ -110,11 +110,25 @@ export class ClienteWindows {
       h.stdin.write(JSON.stringify({ id, op, sesion: this.sesion, quien: this.quien, ...args }) + '\n')
     })
     this.ultimoMsApp = r.ms ?? 0
+    this.programarReposo()
     if (!r.ok) throw new Error(r.error || `${op}: error sin detalle`)
     return r.r
   }
 
-  cerrar(): void { this.hijo?.stdin.end(); this.hijo = null }
+  /**
+   * Reposo (1 nov 2026, opción 2): tras `MANOS_REPOSO_S` (120 por defecto) sin pedidos, el helper se cierra (stdin
+   * cerrado = sale): nada queda leyendo la pantalla de la persona sin uso. El siguiente pedido lo vuelve a abrir.
+   */
+  private reposo: NodeJS.Timeout | null = null
+  private programarReposo(): void {
+    if (this.reposo) clearTimeout(this.reposo)
+    const s = Number(process.env.MANOS_REPOSO_S ?? 120)
+    if (!(s > 0)) return
+    this.reposo = setTimeout(() => { this.reposo = null; if (this.pendientes.size === 0) this.cerrar() }, s * 1000)
+    this.reposo.unref?.()
+  }
+
+  cerrar(): void { if (this.reposo) { clearTimeout(this.reposo); this.reposo = null } this.hijo?.stdin.end(); this.hijo = null }
 }
 
 export class AdaptadorWindows implements Adaptador {

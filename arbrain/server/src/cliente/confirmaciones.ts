@@ -398,6 +398,16 @@ export function pedidoManos(cuerpo: Record<string, unknown>): { error: string; s
   }
 }
 
+/**
+ * Lo que ve el pase de agente de una confirmación (1 nov 2026): solo las de manos que pidió el MCP de manos
+ * (`origen: manos`, `creadaPor: peticion`) y solo su estado, que es lo que necesita para esperar el clic. Las demás
+ * (las del agente, las rutinas) no existen para el pase. Pura.
+ */
+export function vistaParaPase(c: Confirmacion | null): { id: string; estado: EstadoConfirmacion } | null {
+  if (!c || c.origen !== 'manos' || c.creadaPor !== 'peticion') return null
+  return { id: c.id, estado: c.estado }
+}
+
 // ---------- Qué es irreversible (pura) ----------
 
 export interface AccionIrreversible { categoria: CategoriaConfirmacion; resumen: string; detalle?: string }

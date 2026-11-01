@@ -20,10 +20,13 @@ export function cabinaMcpConfig(scope?: { owner: string; account: string; conver
 /**
  * Config MCP del servidor de manos para el chat de la app en la edición cliente (0.1.2): mismo Node que el daemon
  * (embebido) y su `dist`, como la Cabina. El `.mcp.json` del cerebro apunta a `.bin/tsx`, que en Windows no arranca.
- * Fuera de la edición cliente o donde computer use no existe (Linux): null.
+ * Fuera de la edición cliente o donde computer use no existe (Linux): null. `conversacion` = id de la conversación.
  */
-export function manosMcpConfig(): { type: 'stdio'; command: string; args: string[]; env: Record<string, string> } | null {
+export function manosMcpConfig(conversacion?: string): { type: 'stdio'; command: string; args: string[]; env: Record<string, string> } | null {
   const env: Record<string, string> = { ARBRAIN_EDICION: 'cliente' }
+  // Permiso por app «Solo esta conversación» y soltar al terminar el turno (1 nov 2026): la conversación, estable entre
+  // turnos (como el scope de la Cabina), así no cambia la firma del pool.
+  if (conversacion) env.ARBRAIN_MANOS_CONVERSACION = conversacion
   for (const k of ['ARBRAIN_CONFIG_DIR', 'MANOS_CASA_APP', 'MANOS_BITACORA_DIR', 'MANOS_ENCARGOS_DIR', 'MC_SERVER_PORT']) if (process.env[k]) env[k] = process.env[k]!
   const compiled = fileURLToPath(new URL('../manos/mcp-stdio.js', import.meta.url))
   if (existsSync(compiled)) return { type: 'stdio', command: process.execPath, args: [compiled], env }

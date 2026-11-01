@@ -30,7 +30,48 @@ export interface Injection {
   afterToolId: string | null
 }
 /** Lo que la web necesita para pintar una inyección dentro de la actividad del turno. */
-export interface InjectionView { injectionId: string; message: string; status: InjectionStatus; afterToolId: string | null; at: number }
+export interface InjectionView { injectionId: string; message: string; status: InjectionStatus; afterToolId: string | null; at: number; trasTexto?: number; ancla?: string; abierta?: boolean
+  /** Fotos del mensaje (1 nov 2026, opción B): el motor no las toma a media vuelta; esperan aquí y salen como su turno. */
+  imageUrl?: string }
+
+/** Dónde cae una inyección en el texto de la respuesta: largo del texto (en vivo, sin separadores) y su cola. */
+export interface PosicionEnTexto { trasTexto: number; ancla: string; abierta: boolean }
+const LARGO_ANCLA = 60
+/** Lo que marca que el motor ya tomó lo inyectado: otra llamada al modelo (tras un resultado de herramienta o un
+ * `init` con el mensaje) o el fin del turno. Misma regla que la web (`src/features/chat/lib/inyecciones.ts`). */
+const CIERRA = new Set(['tool_result', 'init', 'result', 'terminal'])
+
+/**
+ * El lugar de cada inyección en el texto (1 nov 2026, captura de las 08:13: el mensaje del dueño se pintaba ARRIBA
+ * de la respuesta que Levy ya estaba escribiendo). Recorre los eventos del turno en orden: `user_injected` abre la
+ * nota en el largo del texto de ese instante; el texto que llega mientras siga abierta la empuja al final del tramo
+ * (el motor la lee en su siguiente llamada, no a media frase); un evento de `CIERRA` la fija. El texto de una vuelta
+ * de la meta no cuenta: vive aparte, como en el snapshot (`chat-job.ts`).
+ */
+export function posicionesEnTexto(eventos: Iterable<unknown>): Map<string, PosicionEnTexto> {
+  const out = new Map<string, PosicionEnTexto>()
+  const abiertas = new Set<string>()
+  let texto = '', enVuelta = false
+  const fijar = (id: string, abierta: boolean) => out.set(id, { trasTexto: texto.length, ancla: texto.slice(Math.max(0, texto.length - LARGO_ANCLA)), abierta })
+  for (const raw of eventos) {
+    const e = raw as { type?: unknown; text?: unknown; injectionId?: unknown; meta?: { vueltas?: unknown[] } } | null
+    if (!e || typeof e.type !== 'string') continue
+    if (abiertas.size && CIERRA.has(e.type)) { for (const id of abiertas) fijar(id, false); abiertas.clear() }
+    if (e.type === 'text_delta' && typeof e.text === 'string') {
+      if (enVuelta) continue
+      texto += e.text
+      for (const id of abiertas) fijar(id, true)
+    } else if (e.type === 'goal') enVuelta = Array.isArray(e.meta?.vueltas) && e.meta.vueltas.length > 0
+    else if (e.type === 'user_injected' && typeof e.injectionId === 'string') { abiertas.add(e.injectionId); fijar(e.injectionId, true) }
+  }
+  return out
+}
+/** Fotos o audio: el motor no los toma a media vuelta (inyeccion-motor.ts). Esperan aquí y salen como su propio turno. */
+export function esperaAlTurno(input: unknown): boolean {
+  const i = input as { imageUrl?: unknown; audioUrl?: unknown } | null
+  return !!i && typeof i === 'object' && !!(i.imageUrl || i.audioUrl)
+}
+
 /** La inyección quedó registrada contra el turno vivo `into`. */
 export interface Injected { into: TurnRecord; injection: Injection }
 
@@ -70,7 +111,8 @@ export class ChatInjections {
         if (previa.status === 'requeued') return null
         return { into: into!, injection: previa }
       }
-      if (this.journal.get(id)) return null
+      // Ya es turno, o se retiró antes de llegar (`retirar` dejó la lápida): el accept normal lo resuelve sin duplicar.
+      if (this.journal.get(id) || this.journal.cancellationRequested(id)) return null
       const vivo = this.db.prepare(`SELECT turn_id FROM chat_runtime_turns WHERE owner = ? AND account = ? AND conversation_id = ? AND status IN (${VIVO.map(() => '?').join(',')}) ORDER BY created_at DESC LIMIT 1`)
         .get(id.owner, id.account, id.conversationId, ...VIVO) as { turn_id: string } | undefined
       const into = vivo ? this.journal.get({ ...id, turnId: vivo.turn_id }) : null
@@ -135,6 +177,27 @@ export class ChatInjections {
     this.db.prepare(`UPDATE chat_runtime_injections SET status = 'pending', sent_at = NULL, sent_by = NULL WHERE injection_id = ? AND status = 'sent'`).run(injectionId)
   }
 
+  /**
+   * El dueño quita o edita un mensaje que espera aquí (1 nov 2026, opción B: fotos en fila por el servidor). Solo se
+   * retira lo que sigue `pending`: queda `unread` (vuelve a ser del dispositivo y nunca sale sola). Si el id aún no
+   * llegó (el POST va en camino), deja una lápida en el journal: cuando llegue, ni se inyecta ni se acepta.
+   * `salio` = ya es su propio turno (o el motor la tomó): no se toca.
+   */
+  retirar(id: TurnIdentity): { retirada: boolean; estado: InjectionStatus | 'desconocida' } {
+    return this.db.transaction(() => {
+      const previa = this.get(id.turnId)
+      if (previa) {
+        if (previa.target.owner !== id.owner || previa.target.account !== id.account || previa.target.conversationId !== id.conversationId) throw new Error('Injection id conflicts with an existing request')
+        if (previa.status !== 'pending') return { retirada: previa.status === 'unread', estado: previa.status }
+        this.db.prepare(`UPDATE chat_runtime_injections SET status = 'unread' WHERE injection_id = ? AND status = 'pending'`).run(id.turnId)
+        return { retirada: true, estado: 'unread' as const }
+      }
+      if (this.journal.get(id)) return { retirada: false, estado: 'requeued' as const }
+      this.journal.requestCancellation(id)
+      return { retirada: true, estado: 'desconocida' as const }
+    }).immediate()
+  }
+
   /** El turno terminó con inyecciones sin empujar: cada una vuelve a la fila como turno normal, con su
    * propia identidad e input. Llamar DESPUÉS de cerrar el turno en el journal. Si el turno se detuvo
    * (`stopped`), no salen solas: quedan `unread` y el cliente las ofrece en su fila en pausa. */
@@ -145,6 +208,8 @@ export class ChatInjections {
       for (const injection of this.pending(target)) {
         const changed = this.db.prepare(`UPDATE chat_runtime_injections SET status = 'requeued' WHERE injection_id = ? AND status = 'pending'`).run(injection.id).changes
         if (changed !== 1) continue
+        // Una lápida de `retirar` nunca debe tumbar la transacción (y con ella a las demás): esa no sale.
+        if (this.journal.cancellationRequested({ ...injection.target, turnId: injection.id })) { this.db.prepare(`UPDATE chat_runtime_injections SET status = 'unread' WHERE injection_id = ?`).run(injection.id); continue }
         turnos.push(this.journal.accept({ ...injection.target, turnId: injection.id }, injection.input).turn)
       }
       return turnos
@@ -159,8 +224,9 @@ export class ChatInjections {
 }
 
 export function view(injection: Injection): InjectionView {
-  const message = (injection.input as { message?: unknown } | null)?.message
-  return { injectionId: injection.id, message: typeof message === 'string' ? message : '', status: injection.status, afterToolId: injection.afterToolId, at: injection.sentAt ?? injection.createdAt }
+  const { message, imageUrl } = (injection.input ?? {}) as { message?: unknown; imageUrl?: unknown }
+  return { injectionId: injection.id, message: typeof message === 'string' ? message : '', status: injection.status, afterToolId: injection.afterToolId, at: injection.sentAt ?? injection.createdAt,
+    ...(typeof imageUrl === 'string' && imageUrl ? { imageUrl } : {}) }
 }
 
 function decode(row: Record<string, unknown>): Injection {

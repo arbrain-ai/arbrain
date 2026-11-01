@@ -55,7 +55,9 @@ export function resumen(text: string | null, max = 190) {
     .replace(/```[\s\S]*?```/g, ' ')
     .replace(/^(?:error:\s*)+/i, '')
     .replace(/={2,}[^=\n]*={2,}/g, ' ')
-    .replace(/(?:\/[\w.@-]+){2,}\/?/g, m => m.split('/').filter(Boolean).at(-1) ?? '')
+    // Una ruta se acorta a su último tramo; también la relativa (`.claude/reportes/x.md` → `x.md`): antes el primer
+    // tramo quedaba pegado al nombre («.claude2026-11-01-manana.md», captura del 1 nov).
+    .replace(/(?:[\w.@-]+)?(?:\/[\w.@-]+){2,}\/?/g, m => m.split('/').filter(Boolean).at(-1) ?? '')
     .replace(/[*`#>|]+|(?<!\w)_+|_+(?!\w)/g, ' ')
     .replace(/\s*\n+\s*[-•·]\s*/g, '. ')
     .replace(/\s+/g, ' ')

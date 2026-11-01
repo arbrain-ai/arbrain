@@ -80,10 +80,12 @@ import { opsLogger, type OpsEvent } from './ops-logger.js'
 import { computerUseDisponible, computerUseEncendido, estadoParaManos, marcarFuenteLocal, registrarDatosPropios, registrarModoManos, registrarVoz } from './manos/politica.js'
 import { datosPropios, modoPermisos } from './cliente/modo-permisos.js'
 import { avisarSistema } from './cliente/aviso-sistema.js'
+import { appObjetivo, permisosAppDelDaemon, turnosManos } from './cliente/permisos-app.js'
+import { matarHuerfanos } from './manos/ciclo.js'
 import { esEdicionCliente } from './edicion.js'
 import { estadoLlaves, faltaLlaveClaude, faltaLlaveTrasConectar, MENSAJE_FALTA_LLAVE, CODIGO_FALTA_LLAVE } from './cliente/llaves.js'
 import { hostLocalValido, rutaCanonica, rutaSoloDaniel, MENSAJE_NO_DISPONIBLE } from './cliente/rutas.js'
-import { confirmacionesDelDaemon, iniciarConfirmaciones, pedidoManos } from './cliente/confirmaciones.js'
+import { confirmacionesDelDaemon, iniciarConfirmaciones, pedidoManos, vistaParaPase } from './cliente/confirmaciones.js'
 import { avisarTelefono, retomarEnConversacion } from './cliente/cola.js'
 import { marcarContaminada } from './guardia-agentes.js'
 import { listarReglas, resolverTarjeta, revocarRegla } from './cliente/tarjeta.js'
@@ -847,7 +849,8 @@ async function rutasCliente(req: IncomingMessage, res: ServerResponse, ruta: str
   if (ruta === '/confirmaciones' || ruta.startsWith('/confirmaciones/')) {
     const store = confirmacionesDelDaemon()
     if (!store) { sendJSON(res, 503, { error: 'Confirmaciones no iniciadas.' }); return true }
-    if (req.method === 'GET' && ruta === '/confirmaciones') { sendJSON(res, 200, { pendientes: store.pendientes(), terminadas: store.terminadas(), sandbox: sandboxActivo() }); return true }
+    // `apps` (1 nov 2026): las tarjetas de permiso por app viajan en el mismo sondeo que las confirmaciones.
+    if (req.method === 'GET' && ruta === '/confirmaciones') { sendJSON(res, 200, { pendientes: store.pendientes(), terminadas: store.terminadas(), sandbox: sandboxActivo(), apps: permisosAppDelDaemon().pendientes() }); return true }
     if (req.method === 'POST' && ruta === '/confirmaciones/resolver') {
       if (!secretoApp()) { sendJSON(res, 403, { error: 'Solo la app puede resolver una confirmación.' }); return true }
       // Botón Play: comentario, «Siempre este patrón» y «Córrelo tú» (cliente/tarjeta.ts).
@@ -880,7 +883,61 @@ async function rutasCliente(req: IncomingMessage, res: ServerResponse, ruta: str
       return true
     }
     const m = ruta.match(/^\/confirmaciones\/(cf_[0-9a-f]{12})$/)
-    if (req.method === 'GET' && m) { const c = store.get(m[1]); sendJSON(res, c ? 200 : 404, c ?? { error: 'No existe esa confirmación.' }); return true }
+    if (req.method === 'GET' && m) {
+      // Con el pase (la espera del MCP de manos, 1 nov 2026): solo las de manos y solo su estado (vistaParaPase).
+      const conPase = !isTokenValid((req.headers['authorization'] ?? '').replace('Bearer ', ''))
+      const c = store.get(m[1])
+      const vista = conPase ? vistaParaPase(c) : c
+      sendJSON(res, vista ? 200 : 404, vista ?? { error: 'No existe esa confirmación.' })
+      return true
+    }
+    sendJSON(res, 404, { error: 'Ruta desconocida.' })
+    return true
+  }
+  if (req.method === 'POST' && ruta === '/manos/turno') {
+    // Ciclo atado al turno (1 nov 2026): el MCP de manos pregunta si el turno de su conversación ya terminó para soltar
+    // sus candados al instante (manos/ciclo.ts). Un contador, nada más.
+    sendJSON(res, 200, turnosManos.estado(cuerpo.conversacion))
+    return true
+  }
+  if (ruta === '/manos/apps' || ruta.startsWith('/manos/apps/')) {
+    // Permiso por app (1 nov 2026; cliente/permisos-app.ts). Pedir y consultar: el MCP de manos con su pase. Ver la
+    // lista, resolver una tarjeta y quitar una app de «siempre»: solo la app (resolver, además, con su secreto).
+    const store = permisosAppDelDaemon()
+    const anotar = (que: string) => bitacoraDelDaemon()?.anotar({ herramienta: 'Computer use', decision: 'confirmado', que })
+    if (req.method === 'GET' && ruta === '/manos/apps') { sendJSON(res, 200, { pendientes: store.pendientes(), siempre: store.siempre() }); return true }
+    if (req.method === 'POST' && ruta === '/manos/apps/pedir') {
+      // Sin computer use (Linux) o con el interruptor apagado nadie fabrica tarjetas (como /confirmaciones/pedir).
+      if (!computerUseDisponible() || !computerUseEncendido()) { sendJSON(res, 403, { error: computerUseDisponible() ? 'Computer use está apagado.' : 'Computer use no está disponible en este sistema.', code: computerUseDisponible() ? 'apagado' : 'no_disponible' }); return true }
+      const app = appObjetivo(cuerpo.app)
+      if (!app) { sendJSON(res, 400, { error: 'app ({ clave, nombre }) requerida.' }); return true }
+      const antes = new Set(store.pendientes().map(p => p.id))
+      const r = store.pedir({ app, para: cuerpo.para, conversacion: cuerpo.conversacion })
+      if (r.estado === 'pendiente' && !antes.has(r.id)) {
+        opsLogger.log('confirmacion_pendiente', 'system', { id: r.id, tipo: 'app', app: app.nombre })
+        avisarSistema(r.id, 'Levy quiere usar una app', `¿Puede Levy usar ${app.nombre}? Decide en Arbrain: siempre, solo esta conversación o no.`)
+      }
+      sendJSON(res, 200, r)
+      return true
+    }
+    if (req.method === 'POST' && ruta === '/manos/apps/resolver') {
+      if (!secretoApp()) { sendJSON(res, 403, { error: 'Solo la persona, desde la app, decide qué apps puede usar Levy.' }); return true }
+      const r = store.resolver(cuerpo.id, cuerpo.decision)
+      if (!r.ok) { sendJSON(res, r.status, { error: r.error }); return true }
+      anotar(`${r.pedido.app.nombre}: ${r.pedido.decision === 'siempre' ? 'Levy puede usarla siempre' : r.pedido.decision === 'conversacion' ? 'Levy puede usarla en esta conversación' : 'Levy no puede usarla en esta conversación'}`)
+      opsLogger.log('confirmacion_resuelta', 'system', { id: r.pedido.id, tipo: 'app', app: r.pedido.app.nombre, decision: r.pedido.decision })
+      sendJSON(res, 200, { ...r.pedido, siempre: store.siempre() })
+      return true
+    }
+    if (req.method === 'POST' && ruta === '/manos/apps/quitar') {
+      // Quitar es más estricto (vuelve a preguntar): no exige el secreto, pero el pase no llega aquí (cofre.ts).
+      const quitada = store.quitar(cuerpo.clave)
+      if (quitada) anotar(`Levy vuelve a preguntar antes de usar ${String(cuerpo.nombre ?? cuerpo.clave).slice(0, 80)}`)
+      sendJSON(res, quitada ? 200 : 404, quitada ? { ok: true, siempre: store.siempre() } : { error: 'Esa app ya no estaba en la lista.' })
+      return true
+    }
+    const m = ruta.match(/^\/manos\/apps\/(pa_[0-9a-f]{12})$/)
+    if (req.method === 'GET' && m) { const e = store.estadoDe(m[1]); sendJSON(res, e ? 200 : 404, e ?? { error: 'No existe ese pedido de permiso.' }); return true }
     sendJSON(res, 404, { error: 'Ruta desconocida.' })
     return true
   }
@@ -1017,6 +1074,15 @@ async function rutasCliente(req: IncomingMessage, res: ServerResponse, ruta: str
     if (!p) { sendJSON(res, 503, { error: 'Conexión con arbrain.ai no iniciada.' }); return true }
     if (req.method === 'GET' && ruta === '/progreso') { sendJSON(res, 200, p.resumen()); return true }
     if (req.method === 'POST' && ruta === '/progreso/desconectar') { p.desconectar(); sendJSON(res, 200, p.resumen()); return true }
+    // Conectar de un clic (1 nov 2026): pide el vínculo a arbrain.ai y espera en segundo plano a que el alumno lo
+    // confirme en su navegador; el token llega directo de arbrain.ai al daemon. Solo la persona, desde la app.
+    if (req.method === 'POST' && ruta === '/progreso/vincular') {
+      if (!secretoApp()) { sendJSON(res, 403, { error: 'Solo la persona, desde la app, puede conectar.' }); return true }
+      const r = await p.vincular(cuerpo.url)
+      if (r.resultado === 'esperando') void p.esperarVinculo().then(v => logger.info({ estado: v }, 'progreso: vínculo de un clic'))
+      sendJSON(res, 200, { resultado: r.resultado, ...(r.detalle ? { detalle: r.detalle } : {}), ...p.resumen() })
+      return true
+    }
     if (req.method === 'POST' && (ruta === '/progreso/conectar' || ruta === '/progreso/ajustes' || ruta === '/progreso/enviar')) {
       if (!secretoApp()) { sendJSON(res, 403, { error: 'Solo la persona, desde la app, puede conectar o enviar.' }); return true }
       // «Enviar ahora» también trae el expediente (en paralelo: los dos plazos caben en el de la ruta).
@@ -1517,6 +1583,17 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     const ok = answerChatQuestion(requestId, answers)
     logger.info({ requestId, ok, answered: !!answers }, 'chat/answer')
     sendJSON(res, ok ? 200 : 404, { ok })
+    return
+  }
+
+  // POST /chat/inyeccion/retirar — el dueño quita o edita un mensaje con fotos que espera en el servidor a que
+  // Levy termine (1 nov 2026, opción B). Solo se retira si aún no salió; nunca detiene un turno.
+  if (req.method === 'POST' && req.url === '/chat/inyeccion/retirar') {
+    const { ownerId, account, sessionId, turnId } = parsed as Record<string, unknown>
+    if (![ownerId, account, sessionId, turnId].every(v => typeof v === 'string' && v.trim())) { sendJSON(res, 400, { error: 'ownerId, account, sessionId and turnId required' }); return }
+    getDurableChat()
+    try { sendJSON(res, 200, chatInjections!.retirar({ owner: String(ownerId), account: String(account), conversationId: String(sessionId), turnId: String(turnId).trim() })) }
+    catch (error) { sendJSON(res, 409, { error: error instanceof Error ? error.message : 'Injection conflict' }) }
     return
   }
 
@@ -3002,6 +3079,9 @@ export function startMCServer(): void {
     // I8 y cohorte (contrato §6-§7): viven en la base del daemon. La UI se entera por /ops/stream además del sondeo.
     // M1: el daemon es la fuente del interruptor de computer use y de la voz (manos le pregunta por /manos/estado).
     marcarFuenteLocal()
+    // Ciclo de las manos (1 nov 2026): una copia de las manos de esta app que quedó viva de la vida anterior del daemon
+    // (puede seguir escuchando el teclado o capturando) se termina antes de que nazca la primera sesión.
+    if (computerUseDisponible()) void matarHuerfanos().then(p => { if (p.length) logger.info({ pids: p }, 'manos: huérfanos terminados al arrancar') }).catch(() => {})
     // 0.2.15: y del modo de permisos que rige a las manos (Autónomo = solo la red mínima; la cita sale del chat).
     registrarModoManos(() => modoPermisos())
     // A13: y del teléfono y el correo que la persona guardó como suyos (mandarse algo a sí misma no frena).

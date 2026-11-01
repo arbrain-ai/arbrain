@@ -11,6 +11,13 @@
  *
  * Solo sale algo con: edición cliente + token guardado (archivo 0600 en su carpeta de datos, puesto por la app con su
  * secreto, nunca por el modelo) + URL. La URL es configurable (código abierto: no queda atado a arbrain.ai).
+ *
+ * Conectar de un clic (1 nov 2026, «un paso, sin secretos en el chat»): en vez de copiar el token de un lado y pegarlo
+ * en el otro, la app pide un vínculo (POST <url>/vincular), abre el navegador en arbrain.ai con un código corto que el
+ * alumno confirma con su sesión, y el daemon recoge el token directo de arbrain.ai (POST <url>/vincular/token con el
+ * código de dispositivo, que nunca sale del daemon). El token no pasa por la pantalla, el portapapeles ni el chat. Si
+ * arbrain.ai todavía no tiene la ruta (404), la app vuelve a la vía de pegar el token. Contrato del servidor:
+ * docs/builds/puente-un-clic-2026-11-01/CONTRATO.md (en el repo del autor).
  */
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -19,7 +26,9 @@ import type Database from 'better-sqlite3'
 import { esEdicionCliente } from '../edicion.js'
 import { diaLocal } from './cohorte.js'
 import { adoptarLegado, existeCerebro, sembrarExpediente, urlExpediente, validarRemoto, type Siembra } from './expediente.js'
-import { escribirCamino, urlCamino, validarCamino, type Resultado as ResultadoCamino } from './camino.js'
+import { escribirCamino, enlace, urlCamino, validarCamino, type Resultado as ResultadoCamino } from './camino.js'
+import { sembrarRetrato } from './retrato.js'
+import type { Resultado as ResultadoSiembra } from './expediente.js'
 
 export const URL_POR_OMISION = 'https://arbrain.ai/api/progreso'
 const DIA_MS = 86_400_000
@@ -27,6 +36,9 @@ const DIA_MS = 86_400_000
 const ESPERA_MS = 20 * 60 * 60_000
 /** El camino se trae cada mañana: el primer tic del día a partir de esta hora local (y siempre al conectar y al arrancar). */
 const HORA_MANANA = 5
+/** Vínculo de un clic: lo que arbrain.ai puede pedir, acotado. */
+const VINCULO_INTERVALO = { min: 2, omision: 3, max: 30 }
+const VINCULO_EXPIRA = { min: 60, omision: 600, max: 1800 }
 
 export interface ConfigProgreso {
   token: string
@@ -45,6 +57,11 @@ export interface ConfigProgreso {
   caminoResultado?: string
 }
 export interface Meta { presente: boolean; texto?: string }
+export type EstadoVinculo = 'esperando' | 'conectado' | 'expirado' | 'rechazado'
+/** Lo que la app ve del vínculo: el código corto y la página de arbrain.ai. El código de dispositivo nunca sale de aquí. */
+export interface Vinculo { estado: EstadoVinculo; codigo: string; url: string; expira: number; detalle?: string }
+/** Lo que pasó al sembrar: expediente, norte, índice y el retrato (retrato.ts). */
+export type SiembraCompleta = Siembra & { retrato: ResultadoSiembra }
 export interface Senal {
   v: 1
   instalado: true
@@ -63,6 +80,13 @@ export interface Senal {
 
 const dirDatos = () => join(process.env.ARBRAIN_DATA_DIR || join(process.env.ARBRAIN_CONFIG_DIR || '.', '..'), 'cohorte')
 const raizCerebro = () => process.env.ARBRAIN_HOME || ''
+const entre = (v: unknown, r: { min: number; omision: number; max: number }) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(r.max, Math.max(r.min, Math.round(v))) : r.omision)
+/**
+ * Un 404 de arbrain.ai puede ser dos cosas: la ruta existe y no hay datos (JSON con `error`), o arbrain.ai todavía no
+ * sirve esa ruta (la página de «no encontrado» en HTML). Antes los dos decían «todavía no hay expediente», y el alumno
+ * que ya lo había llenado creía que le faltaba llenarlo.
+ */
+const sinRuta = (r: Response, j: unknown) => r.status === 404 && !(j && typeof j === 'object' && typeof (j as { error?: unknown }).error === 'string')
 
 function escribirPrivado(ruta: string, datos: unknown): void {
   mkdirSync(dirname(ruta), { recursive: true, mode: 0o700 })
@@ -200,7 +224,7 @@ export class Progreso {
     return { ok: true }
   }
 
-  desconectar(): void { if (existsSync(this.ruta)) rmSync(this.ruta) }
+  desconectar(): void { this.vinculo = null; if (existsSync(this.ruta)) rmSync(this.ruta) }
 
   /** La señal exacta que se enviaría ahora. Pura lectura. */
   senal(): Senal {
@@ -260,6 +284,7 @@ export class Progreso {
       ultimo_resultado: c?.ultimoResultado ?? null,
       expediente: { ultimo: c?.ultimoExpediente ?? null, resultado: c?.expedienteResultado ?? null },
       camino: { ultimo: c?.ultimoCamino ?? null, resultado: c?.caminoResultado ?? null },
+      vinculo: this.vinculoVisible(),
       vista_previa: this.senal(),
     }
   }
@@ -288,7 +313,7 @@ export class Progreso {
    * enviar: edición cliente + token. Una vez al día salvo `forzar` (al conectar y al arrancar). Nunca lanza.
    * Un 404 (arbrain.ai sin la ruta, o sin expediente) no es error: se anota y se reintenta al día siguiente.
    */
-  async traerExpediente(forzar = false, fetcher: typeof fetch = fetch): Promise<{ resultado: 'no_cliente' | 'sin_conexion' | 'sin_cerebro' | 'pronto' | 'sembrado' | 'sin_expediente' | 'rechazado' | 'fallo'; detalle?: string; siembra?: Siembra }> {
+  async traerExpediente(forzar = false, fetcher: typeof fetch = fetch): Promise<{ resultado: 'no_cliente' | 'sin_conexion' | 'sin_cerebro' | 'pronto' | 'sembrado' | 'sin_expediente' | 'sin_ruta' | 'rechazado' | 'fallo'; detalle?: string; siembra?: SiembraCompleta }> {
     if (!esEdicionCliente()) return { resultado: 'no_cliente' }
     const raiz = this.raiz()
     if (!existeCerebro(raiz)) return { resultado: 'sin_cerebro' }
@@ -300,17 +325,20 @@ export class Progreso {
       const r = await fetcher(urlExpediente(c.url), { headers: { Authorization: `Bearer ${c.token}`, Accept: 'application/json' }, signal: AbortSignal.timeout(15_000) })
       const j = await r.json().catch(() => null) as Record<string, unknown> | null
       if (r.status === 401 || r.status === 403) out = { resultado: 'rechazado', detalle: typeof j?.error === 'string' ? j.error.slice(0, 200) : `HTTP ${r.status}` }
+      else if (sinRuta(r, j)) out = { resultado: 'sin_ruta' }
       else if (r.status === 404) out = { resultado: 'sin_expediente' }
       else if (!r.ok) out = { resultado: 'fallo', detalle: `HTTP ${r.status}` }
       else {
         const e = validarRemoto(j)
-        out = e ? { resultado: 'sembrado', siembra: sembrarExpediente(raiz, e) } : { resultado: 'sin_expediente' }
+        // Con el expediente llega también el borrador de su retrato, si el retrato sigue pendiente (retrato.ts).
+        out = e ? { resultado: 'sembrado', siembra: { ...sembrarExpediente(raiz, e), retrato: sembrarRetrato(raiz, e, diaLocal(this.ahora())) } } : { resultado: 'sin_expediente' }
       }
     } catch (e) { out = { resultado: 'fallo', detalle: e instanceof Error ? e.message.slice(0, 200) : 'sin red' } }
     const fresca = this.config()
     if (fresca) {
-      const bien = out.resultado === 'sembrado' || out.resultado === 'sin_expediente'
-      const texto = out.siembra ? `sembrado: expediente ${out.siembra.expediente}, meta ${out.siembra.norte}` : `${out.resultado}${out.detalle ? `: ${out.detalle}` : ''}`
+      // Un 404 de cualquier tipo cuenta como intento del día: no se insiste cada hora.
+      const bien = out.resultado === 'sembrado' || out.resultado === 'sin_expediente' || out.resultado === 'sin_ruta'
+      const texto = out.siembra ? `sembrado: expediente ${out.siembra.expediente}, meta ${out.siembra.norte}, retrato ${out.siembra.retrato}` : `${out.resultado}${out.detalle ? `: ${out.detalle}` : ''}`
       this.guardar({ ...fresca, expedienteResultado: texto, ...(bien ? { ultimoExpediente: this.ahora() } : {}) })
     }
     return out
@@ -350,6 +378,78 @@ export class Progreso {
     }
     return out
   }
+
+  // ── Conectar de un clic (vínculo) ─────────────────────────────────────────────────────────────────────────────
+
+  private vinculo: (Vinculo & { dispositivo: string; intervalo: number; base: string }) | null = null
+
+  private vinculoVisible(): Vinculo | null {
+    const v = this.vinculo
+    if (!v) return null
+    const estado: EstadoVinculo = v.estado === 'esperando' && this.ahora() > v.expira ? 'expirado' : v.estado
+    return { estado, codigo: v.codigo, url: v.url, expira: v.expira, ...(v.detalle ? { detalle: v.detalle } : {}) }
+  }
+
+  /**
+   * Pide un vínculo a arbrain.ai. Devuelve el código corto y la página donde el alumno lo confirma (la app la abre en su
+   * navegador). Solo edición cliente. Un 404 = arbrain.ai sin la ruta todavía: la app ofrece pegar el token. Nunca lanza.
+   */
+  async vincular(url?: unknown, fetcher: typeof fetch = fetch): Promise<{ resultado: 'no_cliente' | 'esperando' | 'sin_ruta' | 'fallo'; detalle?: string; vinculo?: Vinculo }> {
+    if (!esEdicionCliente()) return { resultado: 'no_cliente' }
+    const base = url === undefined || url === null || url === '' ? (this.config()?.url ?? URL_POR_OMISION) : url
+    if (!urlValida(base)) return { resultado: 'fallo', detalle: 'La dirección debe empezar con https://.' }
+    const b = String(base).trim().replace(/\/+$/, '')
+    try {
+      const r = await fetcher(`${b}/vincular`, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ v: 1, version_cerebro: versionCerebro(this.raiz()), sistema: process.platform }), signal: AbortSignal.timeout(15_000) })
+      const j = await r.json().catch(() => null) as Record<string, unknown> | null
+      if (sinRuta(r, j)) return { resultado: 'sin_ruta' }
+      if (!r.ok || !j) return { resultado: 'fallo', detalle: typeof j?.error === 'string' ? j.error.slice(0, 200) : `HTTP ${r.status}` }
+      const dispositivo = typeof j.codigo_dispositivo === 'string' && /^[A-Za-z0-9_-]{32,128}$/.test(j.codigo_dispositivo) ? j.codigo_dispositivo : null
+      const codigo = typeof j.codigo_usuario === 'string' && /^[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(j.codigo_usuario) ? j.codigo_usuario : null
+      const pagina = enlace(j.url, new URL(b).origin)
+      if (!dispositivo || !codigo || !pagina) return { resultado: 'fallo', detalle: 'respuesta sin el contrato del vínculo' }
+      this.vinculo = { estado: 'esperando', codigo, url: pagina, expira: this.ahora() + entre(j.expira_en, VINCULO_EXPIRA) * 1000, dispositivo, intervalo: entre(j.intervalo, VINCULO_INTERVALO), base: b }
+      return { resultado: 'esperando', vinculo: this.vinculoVisible()! }
+    } catch (e) { return { resultado: 'fallo', detalle: e instanceof Error ? e.message.slice(0, 200) : 'sin red' } }
+  }
+
+  /**
+   * Una pregunta a arbrain.ai: ¿ya lo confirmó? Con el token, conecta (mismo archivo 0600 que pegarlo) y trae expediente
+   * y camino. Pendiente o una falla pasajera: sigue esperando hasta que expire. Nunca lanza.
+   */
+  async sondearVinculo(fetcher: typeof fetch = fetch): Promise<EstadoVinculo | null> {
+    const v = this.vinculo
+    if (!v || v.estado !== 'esperando') return v?.estado ?? null
+    if (this.ahora() > v.expira) { v.estado = 'expirado'; return v.estado }
+    try {
+      const r = await fetcher(`${v.base}/vincular/token`, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ codigo_dispositivo: v.dispositivo }), signal: AbortSignal.timeout(15_000) })
+      const j = await r.json().catch(() => null) as Record<string, unknown> | null
+      if (this.vinculo !== v) return v.estado // se pidió otro mientras tanto
+      if (r.status === 410) { v.estado = 'expirado'; return v.estado }
+      if (r.status === 403) { v.estado = 'rechazado'; v.detalle = typeof j?.error === 'string' ? j.error.slice(0, 200) : undefined; return v.estado }
+      if (r.ok && typeof j?.token === 'string') {
+        const c = this.conectar(j.token, v.base, this.config()?.compartirTexto === true)
+        if (!c.ok) { v.estado = 'rechazado'; v.detalle = 'arbrain.ai mandó un token con otra forma'; return v.estado }
+        v.estado = 'conectado'
+        await Promise.all([this.traerExpediente(true, fetcher), this.traerCamino(true, fetcher)])
+        return v.estado
+      }
+      v.detalle = r.status === 202 || j?.estado === 'pendiente' ? undefined : `HTTP ${r.status}`
+    } catch (e) { v.detalle = e instanceof Error ? e.message.slice(0, 200) : 'sin red' }
+    return v.estado
+  }
+
+  /** Espera la confirmación preguntando cada `intervalo` segundos hasta conectar, expirar o rechazarse. */
+  async esperarVinculo(fetcher: typeof fetch = fetch, dormir = (ms: number) => new Promise<void>(r => setTimeout(r, ms).unref?.())): Promise<EstadoVinculo | null> {
+    const v = this.vinculo
+    while (v && this.vinculo === v && v.estado === 'esperando') {
+      await dormir(v.intervalo * 1000)
+      await this.sondearVinculo(fetcher)
+    }
+    return v?.estado ?? null
+  }
+
+  cancelarVinculo(): void { this.vinculo = null }
 
   /** Al arrancar: adopta lo sembrado a mano con el prompt viejo (archivos fechados). Solo edición cliente. */
   adoptar(): string[] {

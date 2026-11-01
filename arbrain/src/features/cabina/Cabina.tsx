@@ -44,7 +44,6 @@ import { VistaHistoria, URL_HISTORIA, resumenHistoria } from '@/features/histori
 import type { Historia as DatosHistoria } from '@/features/historia/modelo'
 import dynamic from 'next/dynamic'
 import type { EstadoCasa } from '@/features/casa/contrato'
-import type { DatosCohorte } from '@/features/cohorte/modelo'
 import { resumenMasterclass, URL_MASTERCLASS, type LecturaMasterclass } from '@/features/masterclass/modelo'
 import type { DatosSalud } from '@/features/salud/modelo'
 import { VistaDiario, urlDiario, resumenDiario, type DatosDueno, type DatosSegunda } from './vistas/Diario'
@@ -121,7 +120,7 @@ function CuerpoVista({ input, grande }: { input: MostrarInput; grande?: boolean 
     case 'diario': return <VistaDiario fecha={input.fecha} quien={input.quien} grande={grande} />
     case 'salud': return <VistaSalud grande={grande} />
     case 'masterclass': return <VistaMasterclass grande={grande} />
-    // Cohorte (18 oct 2026): la venta y la entrega de la cohorte fundadora, en vivo de Polar y de la comunidad.
+    // Cohorte (1 nov 2026, de cero): quién te necesita esta semana y para qué; cada fundador con su ficha.
     case 'cohorte': return <VistaCohorte grande={grande} />
     // Casa (26 oct 2026): el perro y los dispositivos de la casa; la puerta a la casa 3D (/casa).
     case 'casa': return <VistaCasa grande={grande} modo={input.modo} repetir={input.repetir} />
@@ -150,7 +149,7 @@ function datoCache(input: MostrarInput): string | null {
   if (input.vista === 'equipo') return resumenEquipo(lecturaEnCache<FotoEquipo>(URL_EQUIPO))
   if (input.vista === 'salud') return resumenSalud(lecturaEnCache<DatosSalud>(URL_SALUD))
   if (input.vista === 'masterclass') return resumenMasterclass(lecturaEnCache<LecturaMasterclass>(URL_MASTERCLASS))
-  if (input.vista === 'cohorte') return resumenCohorte(lecturaEnCache<DatosCohorte>(URL_COHORTE))
+  if (input.vista === 'cohorte') return resumenCohorte(lecturaEnCache(URL_COHORTE))
   if (input.vista === 'casa') return resumenCasa(lecturaEnCache<EstadoCasa>(URL_CASA) ?? null)
   if (input.vista === 'historia') return resumenHistoria(lecturaEnCache<DatosHistoria>(URL_HISTORIA))
   if (input.vista === 'diario') return resumenDiario(lecturaEnCache<DatosDueno | DatosSegunda>(urlDiario(input.quien, f)))

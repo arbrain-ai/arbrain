@@ -20,6 +20,7 @@ import { autoCommitCronChanges } from './autoCommit.js'
 import { readEnvFile } from './env.js'
 import { esEdicionCliente } from './edicion.js'
 import { avisarFinRutina } from './cliente/avisos-telefono.js'
+import { avisarFinPrecargada, promptDeCorrida, pulirResultado, sembrarPrecargadas } from './cliente/rutinas-precargadas.js'
 import { zonaDueno } from './zona.js'
 import { carpetaOriginal } from './dueno.js'
 import { faltaLlaveClaude, MENSAJE_FALTA_LLAVE } from './cliente/llaves.js'
@@ -177,9 +178,13 @@ export async function executeCronJob(task: ScheduledTask, opts?: { manual?: bool
       // Prefix con 🤖 + taskId para distinguir sesiones cron de conversaciones humanas
       // en el listado de Claude Code (/resume, ~/.claude/projects/). El primer user
       // message es lo que Claude Code usa como título de sesión.
-      const cronPrompt = `🤖 [${task.id}]\n\n${task.prompt}`
+      // Precargadas «De Arbrain» (edición cliente): el daemon fija la fecha y el archivo de la corrida, y el texto que
+      // vuelve sale sin rutas (cliente/rutinas-precargadas.ts). Las demás rutinas corren y se guardan tal cual.
+      const precargada = esEdicionCliente()
+      const cronPrompt = `🤖 [${task.id}]\n\n${precargada ? promptDeCorrida(task.id, task.prompt) : task.prompt}`
       const result = await runAgent(cronPrompt, undefined, undefined, 'cron', timeout)
       text = result.text?.trim() ?? ''
+      if (precargada) text = pulirResultado(task.id, text)
       usage = result.usage
     }
 
@@ -216,7 +221,11 @@ export async function executeCronJob(task: ScheduledTask, opts?: { manual?: bool
     })
     logger.info({ taskId: task.id, nextRun, costUsd: usage?.costUsd }, 'task completed')
     // v0.2.18: avisos al teléfono del alumno (una rutina terminó). No espera ni lanza; sin destino, no hace nada.
-    if (esEdicionCliente() && !task.id.endsWith('-migrated')) void avisarFinRutina({ id: task.id, prompt: task.prompt, ok: true, texto: text, manual })
+    if (esEdicionCliente() && !task.id.endsWith('-migrated')) {
+      void avisarFinRutina({ id: task.id, prompt: task.prompt, ok: true, texto: text, manual })
+      // Precargadas «De Arbrain»: también el aviso de la computadora (rutinas-precargadas.ts).
+      avisarFinPrecargada({ id: task.id, prompt: task.prompt, ok: true, texto: text, manual })
+    }
 
     // Auto-commit any tracked files this cron mutated (knowledge base,
     // autoresearch results, submodule pointers). Whitelisted paths only,
@@ -261,7 +270,11 @@ export async function executeCronJob(task: ScheduledTask, opts?: { manual?: bool
       logger.info({ taskId: task.id, retryAt: new Date(effectiveNext * 1000).toISOString() }, 'limit hit — rescheduled to just after reset')
     }
     updateTaskAfterRun(task.id, `Error: ${String(err)}`, effectiveNext)
-    if (esEdicionCliente() && !task.id.endsWith('-migrated')) void avisarFinRutina({ id: task.id, prompt: task.prompt, ok: false, error: err instanceof Error ? err.message : String(err), manual })
+    if (esEdicionCliente() && !task.id.endsWith('-migrated')) {
+      const fin = { id: task.id, prompt: task.prompt, ok: false, error: err instanceof Error ? err.message : String(err), manual }
+      void avisarFinRutina(fin)
+      avisarFinPrecargada(fin)
+    }
     // Even on agent error, the cron may have produced partial side effects
     // worth committing (e.g. autoresearch wrote results.tsv before timing out).
     await autoCommitCronChanges(task.id)
@@ -410,6 +423,12 @@ export function _enCursoParaPruebas(): ReadonlySet<string> { return enCurso }
  * (TS puro, su llave). La consolidación de memoria y la limpieza de adjuntos ya corren en index.ts.
  */
 export function initSchedulerCliente(): void {
+  // Rutinas precargadas «De Arbrain» (1 nov 2026): las que esta base nunca recibió llegan en pausa; lo ya sembrado no se
+  // toca (borrada o editada por el dueño, se queda así). Cada arranque, y por lo tanto tras cada actualización.
+  try {
+    const s = sembrarPrecargadas()
+    if (s.sembradas.length) logger.info({ sembradas: s.sembradas }, 'rutinas precargadas sembradas en pausa')
+  } catch (err) { logger.error({ err }, 'rutinas precargadas: la siembra falló; el scheduler sigue') }
   schedulerInterval = setInterval(() => {
     runDueTasks().catch((err) => logger.error({ err }, 'scheduler poll error'))
   }, 60_000)

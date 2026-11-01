@@ -9,6 +9,8 @@ _Pendiente. Levy lo llena contigo en las primeras conversaciones y lo mantiene a
 > (`user/expediente.md`, `project/meta-90-dias.md`) y con lo que te diga; lo que pongas entre «» tiene que ser textual
 > suyo, y lo que sea lectura tuya se marca «(Levy)». Nunca inventes una frase, una cifra o una fecha. Si una fuente
 > cambia, manda la fuente y corriges aquí. Cuando llenes una sección, borra su texto de guía en cursiva.
+> Si conecta su cerebro con arbrain.ai, Arbrain siembra aquí un borrador con su expediente mientras nadie haya
+> escrito en él; cómo revisarlo con él: `arbrain/cerebro/manuales/retrato.md`.
 
 ## Cómo usar este retrato
 _(Dos o tres reglas suyas de trato: qué tan corto quiere las respuestas, si prefiere una recomendación cerrada u

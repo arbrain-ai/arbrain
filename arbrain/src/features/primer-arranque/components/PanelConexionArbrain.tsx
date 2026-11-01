@@ -1,14 +1,17 @@
 'use client'
 /**
  * Ajustes › Privacidad › «Conectar con arbrain.ai (opcional)» (puente de seguimiento, 21 oct 2026).
- * Apagado por defecto. Se pega el token de «Conectar mi cerebro» (perfil de arbrain.ai), se ve EXACTAMENTE la señal que
- * saldría (la arma el daemon), se prueba con «Enviar ahora» y se desconecta cuando se quiera. La dirección es
- * configurable: el código es abierto y no queda atado a arbrain.ai.
+ * Apagado por defecto. Se conecta de un clic (1 nov 2026): «Conectar con arbrain.ai» abre el navegador con un código
+ * corto, el alumno lo confirma con su sesión y el token viaja de arbrain.ai al daemon sin pasar por la pantalla. Si
+ * arbrain.ai todavía no ofrece el vínculo, queda la vía de pegar el token de «Conectar mi cerebro» (perfil). Se ve
+ * EXACTAMENTE la señal que saldría (la arma el daemon), se prueba con «Enviar ahora» y se desconecta cuando se quiera.
+ * La dirección es configurable: el código es abierto y no queda atado a arbrain.ai.
  */
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { ChevronDown, Loader2, Lock } from 'lucide-react'
 import { Interruptor } from '@/features/configuracion/components/Interruptor'
 import { Aviso } from './PanelLlaves'
+import { abrirEnNavegador } from '@/lib/navegador'
 
 interface Estado {
   conectado: boolean
@@ -20,6 +23,7 @@ interface Estado {
   ultimo_resultado: string | null
   expediente?: { ultimo: number | null; resultado: string | null }
   camino?: { ultimo: number | null; resultado: string | null }
+  vinculo?: { estado: 'esperando' | 'conectado' | 'expirado' | 'rechazado'; codigo: string; url: string; expira: number; detalle?: string } | null
   vista_previa: Record<string, unknown>
   resultado?: string
   detalle?: string
@@ -46,6 +50,8 @@ export function PanelConexionArbrain() {
   const [ocupado, setOcupado] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
+  const [conToken, setConToken] = useState(false)
+  const sondeo = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const aplicar = useCallback((e: Estado) => {
     setEstado(e)
@@ -54,6 +60,38 @@ export function PanelConexionArbrain() {
     setConvs(e.manual?.conversaciones_venta?.toString() ?? '')
   }, [])
   useEffect(() => { pedir().then(aplicar, e => setError(e instanceof Error ? e.message : String(e))) }, [aplicar])
+  useEffect(() => () => { if (sondeo.current) clearInterval(sondeo.current) }, [])
+
+  // Mientras el vínculo espera, se pregunta al daemon cada 3 s; él es quien habla con arbrain.ai.
+  const esperarVinculo = useCallback(() => {
+    if (sondeo.current) clearInterval(sondeo.current)
+    sondeo.current = setInterval(() => {
+      pedir().then(e => {
+        aplicar(e)
+        if (e.vinculo?.estado === 'esperando' && !e.conectado) return
+        if (sondeo.current) clearInterval(sondeo.current)
+        sondeo.current = null
+        if (e.conectado) setAviso('Conectado. Tu expediente y tu camino ya vienen en camino a la memoria de tu Levy.')
+        else if (e.vinculo?.estado === 'rechazado') setError(`arbrain.ai no confirmó la conexión${e.vinculo.detalle ? `: ${e.vinculo.detalle}` : ''}.`)
+        else if (e.vinculo?.estado === 'expirado') setError('El código venció. Toca «Conectar con arbrain.ai» otra vez.')
+      }, () => {})
+    }, 3_000)
+  }, [aplicar])
+
+  const vincular = async () => {
+    setOcupado(true); setError(null); setAviso(null)
+    try {
+      const e = await pedir({ accion: 'vincular', url: url.trim() || undefined })
+      aplicar(e)
+      if (e.resultado === 'esperando' && e.vinculo) {
+        void abrirEnNavegador(e.vinculo.url).catch(() => {})
+        esperarVinculo()
+      } else if (e.resultado === 'sin_ruta') {
+        setConToken(true)
+        setAviso('arbrain.ai todavía no ofrece la conexión de un clic. Por ahora, conecta con tu token (abajo).')
+      } else setError(`No pude pedir la conexión: ${e.detalle ?? e.resultado ?? ''}`)
+    } catch (e) { setError(e instanceof Error ? e.message : String(e)) } finally { setOcupado(false) }
+  }
 
   const accion = async (cuerpo: Record<string, unknown>, ok?: (e: Estado) => string | null) => {
     setOcupado(true); setError(null); setAviso(null)
@@ -72,7 +110,23 @@ export function PanelConexionArbrain() {
 
       {!conectado ? (
         <div className="space-y-3 rounded-2xl border border-border-subtle bg-surface/70 p-4">
-          <p className="text-[13px] leading-snug text-muted">Apagado: no sale nada. Para conectar, entra a tu perfil en arbrain.ai, toca «Generar mi token» en «Conectar mi cerebro» y pégalo aquí.</p>
+          <p className="text-[13px] leading-snug text-muted">Apagado: no sale nada. Toca «Conectar con arbrain.ai»: se abre tu navegador, confirmas el código con tu sesión y listo. No copias ni pegas nada.</p>
+          {estado?.vinculo?.estado === 'esperando' ? (
+            <div className="rounded-xl border border-primary/40 bg-primary/5 p-3">
+              <p className="text-[13px] text-foreground/90">En tu navegador, confirma que ves este código:</p>
+              <p className="mt-1 font-mono text-[20px] font-semibold tracking-[0.18em] text-foreground">{estado.vinculo.codigo}</p>
+              <p className="mt-1 inline-flex items-center gap-2 text-[12px] text-muted"><Loader2 className="size-3.5 animate-spin" aria-hidden /> Esperando tu confirmación…
+                <button type="button" onClick={() => void abrirEnNavegador(estado.vinculo!.url).catch(() => {})} className="underline-offset-2 hover:underline">Abrir otra vez</button></p>
+            </div>
+          ) : (
+            <button type="button" disabled={ocupado} onClick={() => void vincular()}
+              className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-primary px-4 text-[13px] font-medium text-white disabled:opacity-50">
+              {ocupado && <Loader2 className="size-3.5 animate-spin" aria-hidden />} Conectar con arbrain.ai
+            </button>
+          )}
+          <button type="button" onClick={() => setConToken(v => !v)} className="block text-[12px] text-muted underline-offset-2 hover:underline">{conToken ? 'Ocultar la vía del token' : 'Prefiero pegar un token'}</button>
+          {conToken && <>
+          <p className="text-[12.5px] leading-snug text-muted">En tu perfil de arbrain.ai, toca «Generar mi token» en «Conectar mi cerebro» y pégalo aquí (nunca en el chat).</p>
           <label className="block text-[12.5px] font-medium text-foreground/90">Token
             <input type="password" autoComplete="off" spellCheck={false} value={token} onChange={e => setToken(e.target.value)} placeholder="arb_…"
               className="mt-1 block w-full rounded-lg border border-border-subtle bg-background px-3 py-2 font-mono text-[13px] text-foreground focus-visible:outline-2 focus-visible:outline-brand" />
@@ -87,6 +141,7 @@ export function PanelConexionArbrain() {
             className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-primary px-4 text-[13px] font-medium text-white disabled:opacity-50">
             {ocupado && <Loader2 className="size-3.5 animate-spin" aria-hidden />} Conectar
           </button>
+          </>}
         </div>
       ) : (
         <div className="space-y-3 rounded-2xl border border-border-subtle bg-surface/70 p-4">
@@ -146,6 +201,7 @@ function textoExpediente(e: Estado['expediente']): string {
   const r = e?.resultado ?? ''
   if (r.startsWith('sembrado') && e?.ultimo) return ` Tu expediente llegó a tu memoria: ${new Date(e.ultimo).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' })}.`
   if (r === 'sin_expediente') return ' Todavía no hay expediente en arbrain.ai para traer.'
+  if (r === 'sin_ruta') return ' arbrain.ai todavía no entrega tu expediente a tu cerebro; tu Levy lo traerá en cuanto lo haga.'
   return r ? ` Tu expediente no llegó: ${r}.` : ''
 }
 

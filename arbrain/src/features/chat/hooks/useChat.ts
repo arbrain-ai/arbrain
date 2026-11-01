@@ -21,7 +21,7 @@ import { herramientaEscribe, refrescarCabina } from '@/features/cabina/datos'
 import { marcarEnvioLocal } from '../lib/turnos-activos'
 import { marcarStreamLocal } from '@/lib/actividad-viva'
 import { useCommandStore } from '../stores/command-store'
-import { leerDesenlace, notaDelHost, trasTerminar, unirNotas, type InyeccionHost, type NotaInyectada } from '../lib/inyecciones'
+import { anclaDe, CIERRA_NOTAS, cerrarNotas, leerDesenlace, notaDelHost, trasTerminar, unirNotas, type DesenlaceEnvio, type InyeccionHost, type NotaInyectada } from '../lib/inyecciones'
 
 // Espejo local del standing mode ultracode (el daemon no expone GET del estado).
 
@@ -297,7 +297,8 @@ interface UseChatOptions {
   // vieja en la vista de otra.
   isSessionActive?: (sessionId: string) => boolean
   /** Stop con mensajes inyectados que Levy no alcanzó a leer: vuelven a la fila EN PAUSA (nunca se descartan). */
-  onInyeccionSinLeer?: (textos: string[]) => void
+  /** Lo que Levy no leyó al detenerlo vuelve a la fila en pausa: por id (su espejo puede estar ya en la caja) y con sus fotos. */
+  onInyeccionSinLeer?: (sinLeer: Array<{ id: string; texto: string; imagenes?: string[] }>) => void
   /** Espacio de la conversación abierta ('bro' | 'codex' | 'yt' | 'default').
    *  El header y el picker son POR MOTOR: sin esto, un chat corriendo en Codex
    *  mostraba "Opus 5" y ofrecía modelos de Anthropic (bug del 6 sep 2026). */
@@ -544,6 +545,8 @@ export function useChat({ sessionId, onSave, onRestoreInput, isSessionActive, ac
     let thinkingVisible = false
     // Razonamiento y herramientas en el orden en que llegan (lib/rastro · lineaDeTiempo).
     let cronologia: PasoCronologia[] = []
+    // Hay una nota inyectada esperando su lugar en el texto (se cierra con CIERRA_NOTAS).
+    let notasAbiertas = false
     const toolInputs: Record<string, string> = {}
     const toolOutputs: Record<string, ToolOutput> = {}
     let latestTodos: TodoItem[] | undefined
@@ -626,6 +629,13 @@ export function useChat({ sessionId, onSave, onRestoreInput, isSessionActive, ac
           window.dispatchEvent(new CustomEvent('arbrain:live', { detail: { owner: profile?.id, account: ctx.account ?? account, sessionId: ctx.sessionId, turnId: ctx.turnId, event } }))
           continue
         }
+        // El motor ya tomó lo inyectado (otra llamada al modelo o fin del turno): la nota queda tras el texto escrito
+        // hasta aquí. Antes de `result`, que cambia el texto por el final (ver lib/inyecciones · CIERRA_NOTAS).
+        if (notasAbiertas && CIERRA_NOTAS.has(event.type)) {
+          notasAbiertas = false
+          const hasta = accumulatedText
+          notasDe(assistantId, actuales => cerrarNotas(actuales, hasta))
+        }
         switch (event.type) {
           case 'resume_meta':
             durable = event.protocol === 'durable-v1'
@@ -633,20 +643,24 @@ export function useChat({ sessionId, onSave, onRestoreInput, isSessionActive, ac
             ctx.onResumeMeta?.(event)
             if (event.inyectados?.length) {
               const notas = event.inyectados.map(notaDelHost).filter((n): n is NotaInyectada => !!n)
+              if (notas.some(n => n.abierta)) notasAbiertas = true
               if (notas.length) notasDe(assistantId, actuales => unirNotas(actuales, notas))
             }
             break
 
           case 'user_injected':
-            notasDe(assistantId, actuales => unirNotas(actuales, [{ id: event.injectionId, texto: event.message, estado: 'leido', afterToolId: event.afterToolId ?? null, at: event.at }]))
+            // Entra a mitad de lo que Levy escribe: la nota va al final del tramo en curso (abierta hasta que cierre).
+            notasAbiertas = true
+            notasDe(assistantId, actuales => unirNotas(actuales, [{ id: event.injectionId, texto: event.message, estado: 'leido', afterToolId: event.afterToolId ?? null, at: event.at, trasTexto: accumulatedText.length, ancla: anclaDe(accumulatedText), abierta: true }]))
             break
 
           case 'injections_settled': {
             const fuera = new Set(event.sinLeer.map(i => i.injectionId))
             notasDe(assistantId, actuales => actuales.filter(n => !fuera.has(n.id)).map(n => event.leidas.includes(n.id) ? { ...n, estado: 'leido' as const } : n))
-            const textos = event.sinLeer.map(i => i.message).filter(t => t.trim())
+            const devueltos = event.sinLeer.map(i => ({ id: i.injectionId, texto: i.message, ...(i.imageUrl ? { imagenes: i.imageUrl.split('\n').filter(Boolean) } : {}) }))
+              .filter(i => i.texto.trim() || i.imagenes?.length)
             // Solo la pantalla que sigue el turno en vivo los devuelve a su fila (un replay viejo no los repite).
-            if (textos.length && cursorOfFrame !== null && (ctx.isCurrent?.() ?? true)) sinLeerRef.current?.(textos)
+            if (devueltos.length && cursorOfFrame !== null && (ctx.isCurrent?.() ?? true)) sinLeerRef.current?.(devueltos)
             break
           }
 
@@ -697,7 +711,7 @@ export function useChat({ sessionId, onSave, onRestoreInput, isSessionActive, ac
               // Efectos fuera del updater de React (StrictMode lo llama dos veces).
               const { aSuTurno } = trasTerminar(messagesRef.current.find(m => m.id === assistantId)?.inyectados)
               if (aSuTurno.length && ctx.sessionId && event.status !== 'interrupted') reengancheTrasTurnoRef.current = { sessionId: ctx.sessionId, account: ctx.account ?? null }
-              if (aSuTurno.length && event.status === 'interrupted' && cursorOfFrame !== null) sinLeerRef.current?.(aSuTurno.map(n => n.texto))
+              if (aSuTurno.length && event.status === 'interrupted' && cursorOfFrame !== null) sinLeerRef.current?.(aSuTurno.map(n => ({ id: n.id, texto: n.texto })))
             }
             setMessages(prev => prev.map(message => message.id === assistantId
               ? { ...message, questionPrompts, streaming: false, terminalStatus: event.status, error: event.status === 'failed', ...(message.inyectados ? { inyectados: trasTerminar(message.inyectados).quedan } : {}) }
@@ -1938,6 +1952,29 @@ export function useChat({ sessionId, onSave, onRestoreInput, isSessionActive, ac
     return true
   }, [account, profile?.id, notasDe, turnoInyectable])
 
+  /** Mensaje con fotos escrito con Levy trabajando (1 nov 2026, opción B): viaja al servidor con SU id y espera allá
+   *  a que el turno cierre (lib/fila-servidor). Repetirlo con el mismo id es seguro: el servidor no duplica. */
+  const enviarAFilaServidor = useCallback(async (conversacion: string, cuerpo: { id: string; message: string; imageUrl: string }): Promise<DesenlaceEnvio> => {
+    if (!profile?.id) return { tipo: 'rechazado', motivo: 'sin sesión' }
+    if (!isOnline()) return { tipo: 'rechazado', motivo: 'sin red' }
+    const source = /Mobi|Android|iPhone|iPad|iPod/i.test(window.navigator.userAgent) ? 'mobile' : 'desktop'
+    const res = await fetch('/api/chat/stream', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: cuerpo.message, imageUrl: cuerpo.imageUrl, chatSessionId: conversacion, account: account ?? 'default', turnId: cuerpo.id, inyectar: true, source, expectedOwnerId: profile.id }),
+      signal: AbortSignal.timeout(35_000),
+    })
+    return leerDesenlace(res.status, await res.json().catch(() => null))
+  }, [account, profile?.id])
+
+  /** Quitar o editar lo que espera en el servidor: solo se retira si aún no salió. */
+  const retirarDeFilaServidor = useCallback(async (conversacion: string, id: string): Promise<{ retirada: boolean; estado: string } | null> => {
+    try {
+      const res = await fetch('/api/chat/inyeccion', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: conversacion, account: account ?? 'default', turnId: id }), signal: AbortSignal.timeout(10_000) })
+      const data = await res.json().catch(() => null) as { retirada?: unknown; estado?: unknown } | null
+      return res.ok && typeof data?.retirada === 'boolean' ? { retirada: data.retirada, estado: String(data.estado ?? '') } : null
+    } catch { return null }
+  }, [account])
+
   /** Verdad síncrona de «hay un turno en esta UI»: `loading` pinta un render después;
    *  quien decide si un envío va a la fila lee esto para no perderlo en ese hueco. */
   const ocupado = useCallback(() => loadingRef.current || despachosRef.current > 0, [])
@@ -1961,5 +1998,5 @@ export function useChat({ sessionId, onSave, onRestoreInput, isSessionActive, ac
       if (isOnline()) void refreshSelection(scope).catch(() => {})
     }
   }, [account, profile?.id, setCurrentEffort, setUltracodeView])
-  return { changeEffort, connection, messages, loading, despachando, ocupado, inyectar, turnoInyectable, sendMessage, resumeStream, loadMessages, prependMessages, clearMessages, restoreMessages, appendMessage, stopStreaming, pauseStreaming, detachStream, currentModel, currentEffort, ultracode, setCurrentEffort, removeMessages, suggestions, answerQuestion }
+  return { changeEffort, connection, messages, loading, despachando, ocupado, inyectar, enviarAFilaServidor, retirarDeFilaServidor, turnoInyectable, sendMessage, resumeStream, loadMessages, prependMessages, clearMessages, restoreMessages, appendMessage, stopStreaming, pauseStreaming, detachStream, currentModel, currentEffort, ultracode, setCurrentEffort, removeMessages, suggestions, answerQuestion }
 }

@@ -64,8 +64,8 @@ type Opcion = { vista: Vista; nota: string } | { casa: 'tareas' | 'taller'; nota
 const OPCIONES: Opcion[] = [
   { vista: 'calendario', nota: 'Objetivo, tareas y agenda del día, la semana o el mes' },
   { casa: 'tareas', nota: 'Lo que espera tu decisión y tus tareas de hoy' },
-  // Cohorte (18 oct 2026, Daniel: «¿pudiéramos tener un panel para toda esta data?»): la venta y la entrega de la cohorte fundadora.
-  { vista: 'cohorte', nota: 'Cupos, cobros, llamadas y la Semana 1 de cada fundador' },
+  // Cohorte (1 nov 2026, de cero): el tablero del director técnico, quién te necesita esta semana y para qué.
+  { vista: 'cohorte', nota: 'Quién te necesita esta semana y para qué, con la ficha de cada fundador' },
   { vista: 'lienzo', nota: 'Tus mapas y pizarras' },
   { vista: 'negocio', nota: 'Avatar, oferta, embudo y sistema' },
   // Masterclass sale del «+» (11 oct 2026): vive en Guardadas, abajo; Levy la abre con `mostrar {vista:'masterclass'}`.

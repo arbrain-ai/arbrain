@@ -14,13 +14,17 @@
  */
 import { useSyncExternalStore } from 'react'
 import { vivasParaLaPersona, type Confirmacion, type EstadoSandbox } from './confirmacion'
+import type { PedidoApp } from './permiso-app'
 
 const SONDEO_MS = 1500
 const SONDEO_OCULTO_MS = 5000
 
-/** `terminadas` (ronda 3): «Córrelo tú» que acaba de terminar, para que su tarjeta quede en «Listo» en vez de esfumarse. */
-interface Estado { pendientes: Confirmacion[]; terminadas: Confirmacion[]; sandbox: EstadoSandbox | null; hilosVivos: number; demo: boolean }
-let estado: Estado = { pendientes: [], terminadas: [], sandbox: null, hilosVivos: 0, demo: false }
+/**
+ * `terminadas` (ronda 3): «Córrelo tú» que acaba de terminar, para que su tarjeta quede en «Listo» en vez de esfumarse.
+ * `apps` (1 nov 2026): tarjetas de permiso por app («Siempre / Solo esta conversación / No»), en el mismo sondeo.
+ */
+interface Estado { pendientes: Confirmacion[]; terminadas: Confirmacion[]; apps: PedidoApp[]; sandbox: EstadoSandbox | null; hilosVivos: number; demo: boolean }
+let estado: Estado = { pendientes: [], terminadas: [], apps: [], sandbox: null, hilosVivos: 0, demo: false }
 const oyentes = new Set<() => void>()
 let timer: number | null = null
 
@@ -31,11 +35,12 @@ export async function leerPendientes(): Promise<void> {
   try {
     const r = await fetch('/api/confirmaciones', { cache: 'no-store' })
     if (!r.ok) return
-    const j = await r.json() as { pendientes?: Confirmacion[]; terminadas?: Confirmacion[]; sandbox?: EstadoSandbox }
+    const j = await r.json() as { pendientes?: Confirmacion[]; terminadas?: Confirmacion[]; apps?: PedidoApp[]; sandbox?: EstadoSandbox }
     const terminadas = (Array.isArray(j.terminadas) ? j.terminadas : []).filter(c => c.estado === 'corrida' && !descartadas().has(c.id))
     const vivas = vivasParaLaPersona(Array.isArray(j.pendientes) ? j.pendientes : [])
     avisarSiTapada(vivas)
-    emitir({ pendientes: vivas, terminadas, ...(j.sandbox && typeof j.sandbox.disponible === 'boolean' ? { sandbox: j.sandbox } : {}) })
+    const apps = (Array.isArray(j.apps) ? j.apps : []).filter(p => p && p.estado === 'pendiente' && typeof p.id === 'string')
+    emitir({ pendientes: vivas, terminadas, apps, ...(j.sandbox && typeof j.sandbox.disponible === 'boolean' ? { sandbox: j.sandbox } : {}) })
   } catch { /* el daemon se está reiniciando: se reintenta en el siguiente ciclo */ }
 }
 
@@ -82,12 +87,18 @@ function suscribir(o: () => void) {
   return () => { oyentes.delete(o); if (!oyentes.size) parar() }
 }
 
-const SERVIDOR: Estado = { pendientes: [], terminadas: [], sandbox: null, hilosVivos: 0, demo: false }
+const SERVIDOR: Estado = { pendientes: [], terminadas: [], apps: [], sandbox: null, hilosVivos: 0, demo: false }
 export const usePendientes = (): Estado => useSyncExternalStore(suscribir, () => estado, () => SERVIDOR)
 
 /** Quita una ya resuelta (respuesta inmediata en la UI) y vuelve a leer. */
 export function olvidar(id: string, reemplazo?: Confirmacion) {
   emitir({ pendientes: reemplazo && (reemplazo.estado === 'corriendo') ? estado.pendientes.map(c => c.id === id ? reemplazo : c) : estado.pendientes.filter(c => c.id !== id) })
+  void leerPendientes()
+}
+
+/** Quita una tarjeta de permiso por app ya decidida y vuelve a leer. */
+export function olvidarApp(id: string) {
+  emitir({ apps: estado.apps.filter(p => p.id !== id) })
   void leerPendientes()
 }
 
@@ -99,9 +110,9 @@ export function registrarHilo(): () => void {
 }
 
 /** Solo la página de demostración (capturas): confirmaciones de ejemplo, sin red. */
-export function activarDemo(pendientes: Confirmacion[], sandbox: EstadoSandbox | null = null, terminadas: Confirmacion[] = []) {
+export function activarDemo(pendientes: Confirmacion[], sandbox: EstadoSandbox | null = null, terminadas: Confirmacion[] = [], apps: PedidoApp[] = []) {
   parar()
-  emitir({ demo: true, pendientes, terminadas, sandbox })
+  emitir({ demo: true, pendientes, terminadas, sandbox, apps })
 }
 
 /** «Entendido» sobre un «Listo»: no vuelve a pintarse en esta sesión de la app. */

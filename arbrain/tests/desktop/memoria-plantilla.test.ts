@@ -21,6 +21,7 @@ test('acepta índices, README, .gitkeep y marcadores pendiente', () => {
     'MEMORY.md': '# x\n', 'MEMORY-indice.md': '# x\n', 'feedback/README.md': '# x\n', 'user/.gitkeep': '',
     'project/meta-90-dias.md': '<!-- arbrain:expediente pendiente -->\n# Mi meta\n',
     'project/mi-camino.md': '<!-- arbrain:camino pendiente -->\r\n# Mi camino\r\n',
+    'PERSONALIDAD.md': '# Tu estratega\n\nEres Levy.\n',
   })
   assert.doesNotThrow(() => memoriaVacia(dir))
 })
@@ -37,6 +38,9 @@ test('rechaza memoria con datos, marcador fuera de la primera línea o con datos
     ['project/c.md', '<!-- arbrain:camino pendiente -->\nEscríbeme a alguien@ejemplo.com\n', 'correo'],
     ['project/d.md', '<!-- arbrain:camino pendiente -->\nWhatsApp +52 55 1234 5678\n', 'teléfono'],
     ['project/e.json', '{}', 'no es un marcador'],
+    // La personalidad de fábrica solo vale en la raíz de la memoria y sin datos personales (1 nov 2026).
+    ['user/PERSONALIDAD.md', '# Tu estratega\n', 'sin marcador'],
+    ['PERSONALIDAD.md', '# Tu estratega\nEscríbeme a alguien@ejemplo.com\n', 'correo'],
   ]) {
     assert.throws(() => memoriaVacia(memoria({ [rel]: texto })), (e: Error) => e.message.includes(rel) && e.message.includes(motivo), rel)
   }

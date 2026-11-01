@@ -40,6 +40,13 @@ export const PARADA: Parada = {
 
 export const REGLA_INSISTENCIA = `Regla de insistencia: si un camino no avanza, prueba el siguiente sin pedir ayuda: rueda → teclado (j/k, espacio, AvPág) → extensión web_* → buscador del sitio → URL directa. «Avance» = aparece algo nuevo (más elementos de la lista, otra URL, el valor cambió); compruébalo leyendo, no lo supongas. Parada explícita: el objetivo verificado; o ${PARADA.sinAvancePorCamino} intentos sin avance en cada uno de los caminos; o ${PARADA.intentosMax} intentos; o ${PARADA.presupuestoMs / 1000} s; o el freno pide a ${DUENO} (eso nunca se insiste). Al parar sin lograrlo, reporta qué caminos probaste y qué leíste en cada uno. En listas largas o virtuales cuenta por identificador (URL, id) y exige que cada lectura se solape con la anterior: si no se solapa, te saltaste elementos, sube un poco y vuelve a leer.`
 
+/**
+ * La misma regla para las manos de la edición cliente (1 nov 2026, sistema nervioso H2): sus siete herramientas no
+ * traen rueda, extensión ni `encargar`, así que los caminos son los suyos: actuar con scroll, actuar con teclas
+ * inocuas (las que su freno deja pasar sin clic), el buscador del sitio y `navegar` a la URL directa.
+ */
+export const REGLA_INSISTENCIA_CLIENTE = `Regla de insistencia: si un camino no avanza, prueba el siguiente sin pedir ayuda: actuar con scroll sobre el contenedor de la lista → actuar con tecla, la página enfocada (espacio, AvPág, flechas) → el buscador del propio sitio o app → navegar a la URL directa del destino (permalink, perfil, búsqueda; un sitio nuevo pide su clic). «Avance» = aparece algo nuevo (más elementos de la lista, otra URL, el valor cambió); compruébalo leyendo, no lo supongas. Parada explícita: el objetivo verificado; o ${PARADA.sinAvancePorCamino} intentos sin avance en cada uno de los caminos; o ${PARADA.intentosMax} intentos; o ${PARADA.presupuestoMs / 1000} s; o el freno pide a la persona (eso nunca se insiste ni se rodea). Al parar sin lograrlo, reporta qué caminos probaste y qué leíste en cada uno. En listas largas o virtuales cuenta por identificador (URL, id, nombre completo) y exige que cada lectura se solape con la anterior: si no se solapa, te saltaste elementos, sube un poco y vuelve a leer.`
+
 export interface IntentoCamino { camino: Camino; avance: boolean; ms: number; detalle?: string }
 
 export type Veredicto =

@@ -132,4 +132,24 @@ describe('expediente en la memoria de Levy', () => {
     expect((await p.traerExpediente(true, fetcher)).resultado).toBe('rechazado')
     expect(leer(raiz, RUTA_NORTE)).toContain('900 USD') // un rechazo no borra nada
   })
+
+  it('un 404 sin la ruta (HTML) no se confunde con «sin expediente», y con el expediente llega el borrador del retrato', async () => {
+    const raiz = cerebro()
+    writeFileSync(join(raiz, '.claude/memory/RETRATO.md'), '<!-- arbrain:retrato pendiente -->\n# Retrato del dueño\n\n_Pendiente. Levy lo llena contigo._\n\n## Quién es\n_(Tres a cinco líneas.)_\n')
+    const datos = mkdtempSync(join(tmpdir(), 'datos-exp-'))
+    const p = new Progreso(new Database(':memory:'), datos, () => raiz, () => new Date(2026, 10, 1, 9).getTime())
+    let respuesta = () => new Response('<!DOCTYPE html><html>404</html>', { status: 404, headers: { 'Content-Type': 'text/html' } })
+    const fetcher = (async () => respuesta()) as unknown as typeof fetch
+    process.env.ARBRAIN_EDICION = 'cliente'
+    p.conectar('arb_prueba_0123456789abcdef', 'http://127.0.0.1:9/api/progreso')
+    expect((await p.traerExpediente(true, fetcher)).resultado).toBe('sin_ruta')
+    expect(p.resumen().expediente.resultado).toBe('sin_ruta')
+    respuesta = () => new Response(JSON.stringify({ error: 'Todavía no tienes expediente.' }), { status: 404 })
+    expect((await p.traerExpediente(true, fetcher)).resultado).toBe('sin_expediente')
+    respuesta = () => new Response(JSON.stringify(REMOTO), { status: 200 })
+    const r = await p.traerExpediente(true, fetcher)
+    expect(r.siembra?.retrato).toBe('escrito')
+    expect(leer(raiz, '.claude/memory/RETRATO.md')).toContain('# Retrato de Prueba · capa 0 (borrador)')
+    expect(p.resumen().expediente.resultado).toContain('retrato escrito')
+  })
 })

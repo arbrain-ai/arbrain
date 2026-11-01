@@ -20,6 +20,42 @@ Dos condiciones para que corran (dilas una vez, cuando creen la primera):
 2. **Con qué paga el modelo.** Si el chat corre con la suscripción de Claude (Pro o Max), las rutinas no corren solas:
    la suscripción es para uso directo. Hace falta una llave (Ajustes › Llaves). La pestaña lo avisa arriba cuando aplica.
 
+## Las rutinas «De Arbrain» (vienen en pausa)
+
+La app trae rutinas listas, en la sección **De Arbrain** de la pestaña. Llegan en pausa porque corren con su llave y
+cuestan: el dueño decide cuáles enciende, con **Activar** (un clic), o las prueba antes con **Probar una vez** (siguen
+en pausa).
+
+| Rutina | Cuándo | Para qué | Deja su reporte en |
+|---|---|---|---|
+| Reporte de la mañana | de lunes a viernes, 7:00 | agenda, objetivo del día y las 3 tareas que más mueven su meta | `.claude/reportes/diario/` |
+| Prepara tus reuniones | de lunes a viernes, 7:30 | un brief por reunión con cliente o prospecto: qué quiere, qué se prometió, 3 preguntas | `.claude/reportes/reuniones/` |
+| Cierre del día | de lunes a viernes, 19:00 | lo planeado contra lo que pasó y las 3 primeras cosas de mañana | `.claude/reportes/diario/` |
+| Seguimiento de clientes | martes y jueves, 9:00 | quién espera algo, quién debe respuesta y quién se enfría, con borradores que él manda | `.claude/reportes/seguimiento/` |
+| Ideas para publicar | lunes, 8:00 | 3 ideas desde su oficio, en su voz | `.claude/reportes/contenido/` |
+| Revisión de la semana | domingo, 18:00 | qué avanzó, qué se atoró y UNA cosa en la que enfocarse | `.claude/reportes/semanal/` |
+| Reporte del mes | día 1, 8:00 | avance contra su meta a 90 días y si a ese ritmo llega | `.claude/reportes/mensual/` |
+
+Leen su `now.md`, sus objetivos (`.claude/plan/objetivos.md`), su meta (`.claude/memory/project/meta-90-dias.md`) y
+su retrato; las de clientes, sus fichas (`.claude/memory/project/clientes/`). Ninguna envía ni publica nada.
+
+La fecha y el archivo los pone Arbrain en cada corrida, no el modelo: al final del texto llega «Esta corrida» con el
+día de hoy en la zona del dueño y la ruta exacta (por ejemplo `.claude/reportes/diario/2026-11-02-manana.md`; el
+mensual, `.claude/reportes/mensual/2026-11.md`). La pestaña muestra esa ruta debajo de «Lo que hizo», y el resumen que
+le llega al dueño sale sin rutas. Si te pregunta por un reporte, búscalo ahí.
+
+**Cómo avisan.** Al terminar solas, Arbrain le avisa con su nombre y las dos primeras líneas del reporte: en su
+computadora (aviso del sistema), en su teléfono si lo conectó, y con **Nuevo** en Taller › Rutinas hasta que lo
+abre. Al probarlas no avisan (él está mirando). Si una no tiene nada que decir (sin reuniones, sin clientes que
+atender), responde «Sin novedad» y no suena.
+
+**Lo que hace el dueño con ellas se respeta.** Si borra una, no vuelve a aparecer; si la pausa o la activa, se queda
+así tras cada actualización. Las actualizaciones solo agregan rutinas nuevas, también en pausa. Si quiere otra hora u
+otro enfoque, créale una propia con el texto ajustado y que pause la de Arbrain.
+
+Si te pregunta «¿qué rutinas me recomiendas?», empieza por el reporte de la mañana y el cierre del día: dile para qué
+sirve cada una en una frase y que las active en la pestaña. Tú no puedes activarlas.
+
 ## Cuando el dueño te pide una rutina
 
 1. **Escribe el encargo completo.** La rutina corre sin esta conversación: nada de «lo de arriba» o «como te dije».
@@ -61,8 +97,9 @@ curl -s "http://127.0.0.1:$MC_SERVER_PORT/schedule" -H "Authorization: Bearer $A
 ```
 
 Cada tarea trae `prompt`, `schedule`, `status` (`paused` hasta que la active), `next_run` y, después de correr,
-`last_run` y `last_result`. Si `aviso` no viene vacío, díselo tal cual: es por qué no correría ahora. Cuéntale al dueño
-el resultado en palabras, no el JSON.
+`last_run` y `last_result`. Las de id `arbrain-…` son las «De Arbrain»: `precargadas` trae su nombre y para qué.
+Si `aviso` no viene vacío, díselo tal cual: es por qué no correría ahora. Cuéntale al dueño el resultado en
+palabras, no el JSON.
 
 ## Si falla
 

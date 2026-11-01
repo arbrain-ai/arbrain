@@ -389,6 +389,9 @@ async function daemonDeJuguete(pase: string): Promise<{ puerto: number; pedidas:
     if (req.headers.authorization !== `Bearer ${pase}`) return responder(401, { error: 'sin pase' })
     const url = req.url ?? ''
     if (req.method === 'GET' && url === '/manos/estado') return responder(200, { encendido: true, voz: Object.values(VOZ).map(texto => ({ t: Date.now(), texto: normalizarCita(texto) })) })
+    // Permiso por app (1 nov 2026): las apps de la prueba ya están en «siempre»; el turno sigue vivo (no suelta a medias).
+    if (req.method === 'POST' && url === '/manos/apps/pedir') return responder(200, { estado: 'permitida', alcance: 'siempre' })
+    if (req.method === 'POST' && url === '/manos/turno') return responder(200, { vivo: true, fin: 0 })
     if (req.method === 'POST' && url === '/confirmaciones/consumir') {
       const c = await leer(req); consumos.push(c)
       const p = pedidas.find(x => x.estado === 'permitida' && !x.consumida && huella(x.cuerpo) === huella(c))

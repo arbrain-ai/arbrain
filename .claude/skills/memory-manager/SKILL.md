@@ -47,6 +47,12 @@ es, su meta y su porqué, cómo decide, qué odia que hagas, lo firmado, abierto
   guardas el archivo de detalle. Si una fuente cambia, manda la fuente.
 - **Corto:** máximo unas 60 líneas; el detalle va en `user/`, `project/` o `feedback/` y aquí solo la línea con su
   enlace. Textual suyo entre «», tu lectura marcada «(Levy)». Nunca una frase, cifra o fecha inventada.
+- **Borrador sembrado:** si conectó su cerebro con arbrain.ai, al llegar su expediente Arbrain escribe un borrador
+  (primera línea `arbrain:retrato borrador sha256=…`) con sus respuestas textuales y nada firmado. Revísalo con él una
+  sección a la vez y, al terminar, quita esa primera línea: desde entonces es suyo y Arbrain no lo vuelve a tocar.
+  Paso a paso, la propiedad y la verificación: `arbrain/cerebro/manuales/retrato.md`.
+
+Las capas de la memoria, los disparadores y cómo rotar, explicados para el dueño: `arbrain/cerebro/manuales/memoria.md`.
 
 ## Un solo cerebro entre runtimes
 

@@ -1,6 +1,7 @@
 import type { LiveToolbox } from './live/tools.js'
 import { getCommandCatalog } from './chat-runtime/command-catalog.js'
 import { cabinaMcpConfig, manosMcpConfig } from './cabina/config.js'
+import { turnosManos } from './cliente/permisos-app.js'
 import { computerUseDisponible } from './manos/politica.js'
 import { chromeHooks, claveConversacion, configurarBitacora } from './cabina/chrome-guard.js'
 import { conViaUnica, herramientasProhibidasChat, marcarTurno } from './cabina/una-sola-via.js'
@@ -574,6 +575,10 @@ export async function* runAgentStream(
   const seguidorMeta = new SeguidorMeta(() => !!claveMeta && estadoMetas.pausada(claveMeta), (claveMeta && estadoMetas.get(claveMeta)?.condicion) || '')
   let metaInterrumpida = false
   let topeMetaCli = false
+  // Ciclo de las manos atado al turno (1 nov 2026): el proceso de manos de esta conversación suelta sus candados en
+  // cuanto este turno termina (cliente/permisos-app.ts › TurnosManos, manos/ciclo.ts).
+  const turnoManos = durable && !denyTools && esEdicionCliente() ? durable.scope.conversationId : null
+  if (turnoManos) turnosManos.empezar(turnoManos)
   try {
   while (true) {
    try {
@@ -585,7 +590,7 @@ export async function* runAgentStream(
     const cabina = cabinaMcpConfig(durable ? { owner: durable.scope.owner, account: durable.scope.account, conversationId: durable.scope.conversationId } : undefined)
     // 0.1.2: en la edición cliente (macOS y Windows) las manos van por código como la Cabina; el interruptor y el freno
     // viven en su proceso (sin el interruptor encendido no lista ninguna herramienta).
-    const manos = durable && !denyTools && esEdicionCliente() && computerUseDisponible() ? manosMcpConfig() : null
+    const manos = durable && !denyTools && esEdicionCliente() && computerUseDisponible() ? manosMcpConfig(durable.scope.conversationId) : null
     // claude-in-chrome (firmado 1 oct): solo turnos del chat (durable), nunca
     // síntesis ni crons. El guardián de sitios sensibles va como hook PreToolUse,
     // que sí corre con bypassPermissions. LEVY_CHROME=0 lo apaga sin tocar código.
@@ -1363,6 +1368,7 @@ export async function* runAgentStream(
    }
   }
   } finally {
+    if (turnoManos) turnosManos.terminar(turnoManos)
     clearTimeout(timeout)
     quitarDeEnCurso?.()
     signal?.removeEventListener('abort', externalAbort)

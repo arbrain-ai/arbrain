@@ -29,4 +29,6 @@
    curso, oro en pausa) y el botón «Enviar ya». Un acento por elemento. */
 .cola { border-color: var(--border-subtle); background: var(--card); }
 .cola[data-pausada] { border-color: color-mix(in srgb, var(--l-borde-ambar, var(--gold)) 30%, var(--border-subtle)); background: var(--card); }
+.servidor { display: inline-block; margin-left: 6px; font-size: 11px; color: var(--muted-foreground); }
+.servidor[data-falla] { color: var(--l-tinta-ambar, rgb(var(--gold-rgb))); }
 .fotos { display: inline-flex; align-items: center; gap: 3px; margin-right: 6px; padding: 0 6px; border-radius: 6px; font-size: 11px; background: rgba(var(--l-velo-morado-rgb, var(--brand-rgb)), 0.14); color: var(--foreground); vertical-align: 1px; }

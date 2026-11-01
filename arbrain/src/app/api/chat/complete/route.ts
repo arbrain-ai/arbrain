@@ -44,7 +44,7 @@ interface CompletePayload {
   // Inyección a mitad de turno (7 oct 2026): lo que Daniel escribió con este turno vivo y el modelo leyó.
   // Cada uno es una fila de Daniel con SU turnId (el índice único (turnId, role) dedupea reintentos y otros
   // dispositivos) e `injectedInto` = este turno, para que la web lo pinte dentro de su actividad.
-  injectedMessages?: Array<{ turnId: string; message: string; sentAt?: number | null; afterToolId?: string | null }> | null
+  injectedMessages?: Array<{ turnId: string; message: string; sentAt?: number | null; afterToolId?: string | null; trasTexto?: number; ancla?: string }> | null
   // ── Protocolo legacy (detección de desconexión — NUNCA funcionó en iOS) ──
   // Se conserva solo para el skew de deploy daemon-viejo/route-nuevo.
   clientWasConnected?: boolean

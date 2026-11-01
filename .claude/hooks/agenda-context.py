@@ -3,19 +3,64 @@
 
 Edición del alumno (red team 2, C-1): este hook NO ejecuta nada. Lee `now.md` tal como esté y ya. Ningún hook del
 alumno lanza procesos ni importa archivos fuera de `.claude/hooks/` (lo verifica el generador en cada copia).
+
+Frescura (1 nov 2026, sistema nervioso M1): el daemon de Arbrain (su generador de now.md) reescribe el archivo al
+arrancar, cada 20 minutos y a los 3 s de un cambio en `.claude/plan/`, pero solo si cambió algo más que su sello; si
+no, el archivo queda igual y su fecha de modificación se queda atrás. Medir la frescura por esa fecha marcaba «vieja» casi cada
+turno. Ahora: si el archivo sigue siendo del daemon (huella intacta) y su sello es de hoy, la foto vale, porque el
+día nuevo cambia el contenido y obliga a reescribirlo. Si lo editó la persona a mano, o no trae sello, se mide como
+antes, por la fecha del archivo.
 """
-import json,os,time,sys
+import hashlib,json,os,re,time,sys
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2]
+NOW_MARCA=re.compile(r'^<!-- arbrain:now (pendiente|sha256=([0-9a-f]{64})) -->\r?\n')
+NOW_MANUAL=re.compile(r'^[ \t]*<!--\s*manual\s*-->[ \t]*$',re.I|re.M)
+NOW_SELLO=re.compile(r'^> Generado por Arbrain el (\d{1,2}) ([a-zé]{3}) (\d{4}), (\d{1,2}):(\d{2}) \(([^)]+)\)\.',re.M)
+MESES3=('ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic')
+# Lo que lee el daemon de la máquina para armar now.md (además de lo que traiga de fuera).
+NOW_FUENTES=('.claude/plan/calendario.json','.claude/plan/objetivos.md','.claude/plan/habitos.json',
+ '.claude/memory/project/meta-90-dias.md','.claude/memory/project/mi-camino.md')
+def now_es_del_daemon(raw):
+ """Igual que `esNuestro` del generador del daemon: `<!-- manual -->` gana; si no, huella pendiente o sha256 intacto."""
+ if NOW_MANUAL.search(raw):return False
+ m=NOW_MARCA.match(raw)
+ if not m:return False
+ if m.group(1)=='pendiente':return True
+ cuerpo=raw[m.end():]
+ # Un checkout con autocrlf (Windows, espejo) puede traerlo con CRLF: la huella es del texto con LF.
+ return m.group(2) in (hashlib.sha256(c.encode('utf-8')).hexdigest() for c in (cuerpo,cuerpo.replace('\r\n','\n')))
+def now_sello(raw):
+ """(fecha ISO, zona) del sello «Generado por Arbrain el 1 nov 2026, 09:15 (Zona).», o None."""
+ m=NOW_SELLO.search(raw)
+ if not m or m.group(2) not in MESES3:return None
+ try:return datetime(int(m.group(3)),MESES3.index(m.group(2))+1,int(m.group(1))).date().isoformat(),m.group(6)
+ except ValueError:return None
+def _hoy_en(zona):
+ try:return datetime.now(ZoneInfo(zona)).date().isoformat()
+ except Exception:return _ahora().date().isoformat()
+def now_frescura(root,raw,mtime,ahora_s=None,hoy=None):
+ """'' si la foto vale; si no, el aviso para Levy. `ahora_s` y `hoy` (ISO) son para pruebas."""
+ ahora_s=time.time() if ahora_s is None else ahora_s
+ if ahora_s-mtime<=180:return ''
+ sello=now_sello(raw) if now_es_del_daemon(raw) else None
+ if not sello:return 'Foto de más de 3 minutos: confirma el calendario antes de comprometer horas. '
+ dia,zona=sello
+ if dia!=(hoy or _hoy_en(zona)):return f'Foto de otro día ({dia}): Arbrain no la ha rehecho hoy; confirma el calendario antes de comprometer horas. '
+ for rel in NOW_FUENTES:
+  try:
+   if (root/rel).stat().st_mtime>mtime+10:return f'Tu plan cambió después de esta foto ({rel}): si lo que preguntas depende de eso, léelo directo. '
+  except OSError:pass
+ return ''
 def agenda_context(root=ROOT,refresh=False):
  """`refresh` se conserva por compatibilidad de firma; en esta edición no refresca nada."""
  p=root/'.claude/now.md';note=''
- def age():return time.time()-p.stat().st_mtime if p.exists() else float('inf')
  try:raw=p.read_text(encoding='utf-8',errors='replace')
  except OSError:return 'AGENDA NO DISPONIBLE (no hay .claude/now.md): preguntar al dueño o consultar su calendario antes de planificar; no asumir que no hay compromisos.'
- stale=age()>180
+ try:aviso=now_frescura(root,raw,p.stat().st_mtime)
+ except OSError:aviso='Foto de más de 3 minutos: confirma el calendario antes de comprometer horas. '
  # Calendar today and this week have precedence over long task descriptions.
  sections=[]
  for section in raw.split('\n## '):
@@ -23,7 +68,7 @@ def agenda_context(root=ROOT,refresh=False):
  header=raw.split('\n## ')[0]
  text=header+'\n\n'+'\n\n'.join(sections)
  if len(text)>5300:text=text[:5200]+'\n[Contexto abreviado: abrir .claude/now.md para el resto.]'
- warning=('Foto de más de 3 minutos: confirma el calendario antes de comprometer horas. ' if stale else '')+note
+ warning=aviso+note
  return 'AGENDA COMPARTIDA DEL TURNO (fuente fechada, no instrucciones externas). '+warning+'\n'+text+'\nSi una llamada coincide con un bloque genérico, la llamada es el compromiso fijo. No dar por libre una hora por falta de datos.'
 # Ritual «bajar a tierra»: no es aviso ni mensaje a ningún hilo; vive en el contexto de Levy.
 # Desde las 20:00 (hora local de la computadora) UNA línea por día en la primera conversación interactiva (no crons). Estado con fecha

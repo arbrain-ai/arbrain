@@ -12,7 +12,8 @@ export async function GET() {
   if (no) return no
   const r = await alDaemon('/confirmaciones', { plazoMs: 3_000 })
   if (!r.ok) return r
-  const j = await r.json().catch(() => null) as { pendientes?: unknown; terminadas?: unknown } | null
-  // `terminadas` (ronda 3): «Córrelo tú» recién terminado, para que su tarjeta quede en «Listo».
-  return Response.json({ pendientes: Array.isArray(j?.pendientes) ? j.pendientes : [], terminadas: Array.isArray(j?.terminadas) ? j.terminadas : [], sandbox: estadoSandbox() }, { headers: NOCACHE })
+  const j = await r.json().catch(() => null) as { pendientes?: unknown; terminadas?: unknown; apps?: unknown } | null
+  // `terminadas` (ronda 3): «Córrelo tú» recién terminado, para que su tarjeta quede en «Listo». `apps` (1 nov 2026):
+  // tarjetas de permiso por app, en el mismo sondeo.
+  return Response.json({ pendientes: Array.isArray(j?.pendientes) ? j.pendientes : [], terminadas: Array.isArray(j?.terminadas) ? j.terminadas : [], apps: Array.isArray(j?.apps) ? j.apps : [], sandbox: estadoSandbox() }, { headers: NOCACHE })
 }

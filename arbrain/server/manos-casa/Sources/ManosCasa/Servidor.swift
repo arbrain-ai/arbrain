@@ -13,7 +13,7 @@ enum Servidor {
         ProcessInfo.processInfo.environment["MANOS_CASA_SOCKET"].flatMap { $0.isEmpty ? nil : $0 }
             ?? "\(NSHomeDirectory())/.config/\(Edicion.cliente ? "arbrain-cliente" : "arbrain")/manos.sock"
     }
-    static let version = "0.2.0"
+    static let version = "0.2.1"
     /// Candados por ventana entre sesiones (agentes). 15 s desde la última acción.
     static let candados = Candados(duracionMs: Int(ProcessInfo.processInfo.environment["MANOS_CANDADO_MS"] ?? "") ?? 15_000)
 
@@ -136,7 +136,7 @@ enum Servidor {
     static func despachar(_ a: JSON) throws -> Any {
         let m = Motor.compartido
         switch a["op"] as? String ?? "" {
-        case "salud": return Permisos.estado().merging(["version": version, "fantasma": Fantasma.compartido.activo, "modo": m.modo]) { x, _ in x }
+        case "salud": return Permisos.estado().merging(["version": version, "fantasma": Fantasma.compartido.activo, "modo": m.modo, "reposo": Salida.dormida, "ciclo": Salida.contadores]) { x, _ in x }
         case "pedir_permisos":
             return DispatchQueue.main.sync { Permisos.pedir() }.merging(["version": version, "fantasma": Fantasma.compartido.activo, "modo": m.modo]) { x, _ in x }
         case "apps": return m.apps()
@@ -173,7 +173,7 @@ enum Servidor {
             return candados.vigentes(ahora: ahora).map { (k, t) in ["llave": k.description, "sesion": t.sesion, "quien": t.quien ?? "", "hace_s": Double(ahora - t.desde) / 1e9] as JSON }
         case "inspeccionar": return try m.inspeccionar(a)
         case "cursor": return m.cursor()
-        case "inactividad": return ["segundos": Vigia.inactividadS()]
+        case "inactividad": return ["segundos": Vigia.inactividadS(), "toma_s": Vigia.tomaS()]
         case "colocar": return try m.colocar(a)
         case "modo":
             if let nuevo = a["modo"] as? String { m.modo = nuevo }
@@ -221,19 +221,48 @@ enum Servidor {
     }
 }
 
-/// Instancias de PRUEBA (scripts/instancia-prueba.sh): con `MANOS_SALIR_INACTIVA_S` la app sale sola tras N s sin
-/// pedidos. Antes una copia de prueba quedó viva del sábado al martes (6 oct) con su Halo y sus relojes.
+/// Ciclo de vida atado al uso (1 nov 2026, opción 2; política en ManosNucleo/Reposo.swift):
+///   - reposo: tras `MANOS_REPOSO_S` (120 por defecto) sin pedidos, deja de escuchar ratón y teclado, suelta la flecha y
+///     apaga el Halo. El siguiente pedido la despierta.
+///   - salida: con `MANOS_SALIR_INACTIVA_S` sale sola tras N s sin pedidos (instancias de prueba; la copia del alumno
+///     la abre con 300). Antes una copia de prueba quedó viva del sábado al martes (6 oct) con su Halo y sus relojes.
+/// Una grabación en curso nunca se corta.
 enum Salida {
     private static let candado = NSLock()
     private static var ultima = Date()
-    static func actividad() { candado.lock(); ultima = Date(); candado.unlock() }
+    private static var _dormida = false
+    private static var _reposos = 0, _despertares = 0
+    static let politica = PoliticaReposo(entorno: ProcessInfo.processInfo.environment)
+    static var dormida: Bool { candado.lock(); defer { candado.unlock() }; return _dormida }
+    /// Para el doctor y la verificación en vivo: cuántas veces entró en reposo y cuántas la despertó un pedido (leer
+    /// `salud` ya es un pedido: por eso el reposo se ve en los contadores, no en `reposo`).
+    static var contadores: JSON { candado.lock(); defer { candado.unlock() }; return ["reposos": _reposos, "despertares": _despertares, "reposo_s": politica.reposoS] }
+
+    /// Llega un pedido: cuenta como uso y, si estaba en reposo, vuelve a escuchar.
+    static func actividad() {
+        candado.lock(); ultima = Date(); let despertar = _dormida; _dormida = false; if despertar { _despertares += 1 }; candado.unlock()
+        if despertar { Vigia.iniciar() }
+    }
+
+    private static var grabando: Bool {
+        if #available(macOS 15.0, *) { return !Grabadora.activas.isEmpty }
+        return false
+    }
+
     static func vigilar() {
-        guard let s = ProcessInfo.processInfo.environment["MANOS_SALIR_INACTIVA_S"].flatMap(Double.init), s > 0 else { return }
         let h = Thread {
             while true {
                 sleep(1)
-                candado.lock(); let quieta = Date().timeIntervalSince(ultima); candado.unlock()
-                if quieta > s { unlink(Servidor.ruta); exit(0) }
+                candado.lock(); let quieta = Date().timeIntervalSince(ultima); let dormida = _dormida; candado.unlock()
+                switch politica.paso(quietoS: quieta, dormido: dormida, grabando: grabando) {
+                case .nada: continue
+                case .salir: unlink(Servidor.ruta); exit(0)
+                case .dormir:
+                    candado.lock(); _dormida = true; _reposos += 1; candado.unlock()
+                    Vigia.detener()
+                    CursorSistema.detener()
+                    Fantasma.compartido.ocultarYa("reposo")
+                }
             }
         }
         h.name = "manos.salida"

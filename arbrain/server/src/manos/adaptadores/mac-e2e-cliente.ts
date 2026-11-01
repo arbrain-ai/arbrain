@@ -34,6 +34,9 @@ const srv = createServer(async (req, res) => {
   const b = cuerpo ? JSON.parse(cuerpo) : {}
   const json = (x: unknown) => { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(x)) }
   if (req.url === '/manos/estado') return json({ encendido: true, voz: [{ t: Date.now(), texto: CITA }] })
+  // Permiso por app (1 nov 2026): la persona ya dejó la Calculadora en «siempre»; el ciclo del turno no suelta aquí.
+  if (req.url === '/manos/apps/pedir') return json({ estado: 'permitida', alcance: 'siempre' })
+  if (req.url === '/manos/turno') return json({ vivo: true, fin: 0 })
   if (req.url === '/confirmaciones/consumir') return json({ ok: decision === 'permitir' && pedidas.length > 0 })
   if (req.url === '/confirmaciones/pedir') { pedidas.push(String(b.herramienta)); return json({ id: 'cf_0123456789ab', estado: 'pendiente' }) }
   if (req.url?.startsWith('/confirmaciones/cf_')) return json({ estado: decision === 'permitir' ? 'permitida' : 'rechazada' })

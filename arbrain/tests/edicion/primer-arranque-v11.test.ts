@@ -36,12 +36,14 @@ test('1 · los tres pedidos del primer mensaje son botones que envían ese texto
 
 test('2 · el primer mensaje y la plantilla de Levy no prometen video; el calendario local sí existe; computer use solo donde existe', () => {
   const m = mensajeBienvenida(null)
-  const sinLimite = m.split('\n').filter(l => !/versión próxima/.test(l)).join('\n')
-  assert.ok(!/agenda|video|computer use|pantalla/i.test(sinLimite), 'solo se nombran como límite')
+  // 1 nov 2026 (integración del tour): la bienvenida ya no anuncia la edición de video «en una versión próxima» ni
+  // otra promesa a futuro; computer use se nombra solo como límite o como cómo se enciende.
+  assert.doesNotMatch(m, /video|versión próxima|agenda/i, 'no promete lo que esta versión no trae')
+  assert.match(m, /Computer use[^\n]*no está disponible en este sistema/)
   // v0.2.6: el calendario local existe y se dice dónde abrirlo (un fundador no lo encontraba).
-  assert.match(m, /tu calendario[^\n]*el calendario vive en el panel de la derecha/)
+  assert.match(m, /tu calendario \(en el panel de la derecha\)/)
   assert.doesNotMatch(m, /botón «Calendario»/)
-  assert.match(m, /Computer use[^\n]*video[^\n]*versión próxima/)
+  assert.ok(m.length < 800, `la bienvenida va corta (${m.length})`)
   const c = plantillaClaude()
   assert.ok(!/edicion-por-voz/.test(c), 'la tabla de intenciones no ofrece editar video')
   assert.ok(!/agenda de hoy/.test(c))

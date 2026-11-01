@@ -30,6 +30,7 @@ import { AlertTriangle, ArrowUp, Check, ChevronDown, CircleAlert, Clock, Hand, L
 import { avisosDe, cuerpoDecision, desdeCuando, esClicHumano, fraseManos, literalVisible, piezasLiteral, resumenCorrida, sugerenciaModo, vaEnElHilo, type Confirmacion } from '@/features/permisos/lib/confirmacion'
 import { useAjustes } from '@/shared/stores/ajustes-store'
 import { descartarTerminada, olvidar, registrarHilo, usePendientes } from '@/features/permisos/lib/pendientes'
+import { TarjetaPermisoApp } from '@/features/permisos/components/TarjetaPermisoApp'
 // La terminal (xterm y su CSS) solo se carga cuando «Córrelo tú» de verdad corre: la tarjeta y la cola quedan ligeras.
 const PtyPanel = lazy(() => import('@/features/cabina/terminal/PtyPanel').then(m => ({ default: m.PtyPanel })))
 import s from './tarjeta-comando.module.css'
@@ -45,14 +46,16 @@ const SI_PELIGRO: Partial<Record<Confirmacion['categoria'], string>> = { borrar:
 
 /** Las tarjetas de este turno vivo. Mientras están montadas, el diálogo global no pinta lo que pidió Levy. */
 export function TarjetasDelTurno() {
-  const { pendientes, terminadas } = usePendientes()
+  const { pendientes, terminadas, apps } = usePendientes()
   useEffect(() => registrarHilo(), [])
   // Lo que ya está en la cola se ve en la cola del hilo (ColaDelHilo), no aquí. Un «Córrelo tú» que acaba de terminar
   // se queda en «Listo» hasta que la persona dice «Entendido» (ronda 3).
   const aqui = [...pendientes, ...terminadas].filter(c => vaEnElHilo(c) && c.estado !== 'en_cola' && !c.enColaDesde)
-  if (!aqui.length) return null
+  if (!aqui.length && !apps.length) return null
+  // Permiso por app (1 nov 2026): primero la app (Levy espera para entrar); solo la primera atiende Escape.
   return (
     <div className={s.pila} aria-label="Levy espera tu decisión">
+      {apps.map((p, i) => <TarjetaPermisoApp key={p.id} p={p} escape={i === 0} />)}
       {aqui.map(c => <TarjetaComando key={c.id} c={c} />)}
     </div>
   )

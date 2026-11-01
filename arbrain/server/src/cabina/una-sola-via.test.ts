@@ -10,7 +10,7 @@ vi.mock('../ops-logger.js', () => ({ opsLogger: { log: vi.fn() } }))
 vi.mock('../logger.js', () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } }))
 
 import { runAgentStream } from '../agent.js'
-import { conViaUnica, ganchoViaUnica, herramientasProhibidasChat, marcarTurno, pideUltracode, workflowPermitido, MENSAJE_WORKFLOW } from './una-sola-via.js'
+import { conViaUnica, ganchoViaUnica, herramientasProhibidasChat, marcarTurno, pideUltracode, workflowPermitido, MENSAJE_WORKFLOW, MENSAJE_WORKFLOW_CLIENTE, MENSAJE_SIN_SUBAGENTES_CLIENTE } from './una-sola-via.js'
 
 const pre = (tool_name: string): HookInput => ({ hook_event_name: 'PreToolUse', tool_name, tool_input: {}, tool_use_id: 't', session_id: 's', transcript_path: '', cwd: '/' } as unknown as HookInput)
 const decision = (r: SyncHookJSONOutput) => (r.hookSpecificOutput as { permissionDecision?: string } | undefined)?.permissionDecision ?? 'sigue'
@@ -51,6 +51,23 @@ describe('una sola vía: regla pura', () => {
     expect(await correrGancho(g, 'Workflow')).toBe('deny')
     // otra conversación no hereda el permiso
     expect(workflowPermitido('conv-b')).toBe(false)
+  })
+
+  it('edición cliente: el gancho manda a Agent, nunca a delegar (que ahí no existe)', async () => {
+    const razon = async (m: ReturnType<typeof ganchoViaUnica>, tool: string) => ((await m.hooks[0](pre(tool), 't', { signal: new AbortController().signal }) as SyncHookJSONOutput).hookSpecificOutput as { permissionDecisionReason?: string })?.permissionDecisionReason
+    marcarTurno('conv-cli', 'revisa el repo')
+    const encendidos = ganchoViaUnica('conv-cli', true, true)
+    expect(await correrGancho(encendidos, 'Agent')).toBe('sigue')
+    expect(await razon(encendidos, 'Workflow')).toBe(MENSAJE_WORKFLOW_CLIENTE)
+    expect(MENSAJE_WORKFLOW_CLIENTE).toMatch(/herramienta Agent/)
+    const apagados = ganchoViaUnica('conv-cli', false, true)
+    expect(await razon(apagados, 'Agent')).toBe(MENSAJE_SIN_SUBAGENTES_CLIENTE)
+    for (const m of [MENSAJE_WORKFLOW_CLIENTE, MENSAJE_SIN_SUBAGENTES_CLIENTE]) expect(m).not.toMatch(/mcp__cabina__delegar/)
+    // la instalación del autor sigue con su vía
+    expect(await razon(ganchoViaUnica('conv-cli', false, false), 'Workflow')).toBe(MENSAJE_WORKFLOW)
+    // conViaUnica le pasa la edición al gancho
+    const h = conViaUnica({ PreToolUse: [] as ReturnType<typeof ganchoViaUnica>[] }, 'conv-cli', { ARBRAIN_EDICION: 'cliente' }, true)
+    expect(await razon(h.PreToolUse![0], 'Workflow')).toBe(MENSAJE_WORKFLOW_CLIENTE)
   })
 
   it('conViaUnica suma el gancho sin pisar otros y se apaga con ARBRAIN_UNA_SOLA_VIA=0', () => {

@@ -3,7 +3,8 @@
  * cómo aplicarlo»; «los Cron Jobs… ¿eso iba a estar en la interfaz?»). La pestaña Rutinas del Taller (edición cliente) las
  * lee, crea, pausa, reanuda y borra aquí; Levy, con su pase, puede proponer una (nace en pausa y el dueño la activa).
  *
- *   GET    /schedule                 lista + zona + aviso (por qué no correrían ahora mismo, si aplica)
+ *   GET    /schedule                 lista + zona + aviso (por qué no correrían ahora mismo, si aplica) + las precargadas
+ *                                    «De Arbrain» presentes con su para qué (rutinas-precargadas.ts)
  *   POST   /schedule                 {prompt, schedule} crea. Con el Bearer de la app nace activa; con el pase de
  *                                    agente nace EN PAUSA (`levy-…`): una rutina que corre sola sin que el dueño la vea
  *                                    sería persistencia para una instrucción inyectada.
@@ -25,6 +26,7 @@ import { faltaLlaveClaude, MENSAJE_FALTA_LLAVE } from './llaves.js'
 import { motorSuscripcion, MENSAJE_RUTINAS } from './suscripcion.js'
 import { rutinasConLlaveTope } from './rutinas-llave.js'
 import { MENSAJE_PAUSA, pausado } from './pausa.js'
+import { esPrecargada, metaPrecargadas } from './rutinas-precargadas.js'
 
 const _require = createRequire(import.meta.url)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -89,6 +91,8 @@ export function avisoRutinas(): string | null {
 }
 
 const visibles = (): ScheduledTask[] => listTasks().filter(t => !t.id.endsWith('-migrated'))
+/** El tope es para lo que crea el dueño o Levy: las precargadas «De Arbrain» no le quitan lugar. */
+const propias = (): ScheduledTask[] => visibles().filter(t => !esPrecargada(t.id))
 const ID = /^[A-Za-z0-9_-]{1,160}$/
 
 export interface Respuesta { status: number; cuerpo: Record<string, unknown> }
@@ -97,16 +101,20 @@ export interface Respuesta { status: number; cuerpo: Record<string, unknown> }
  * Atiende las rutas de rutinas de la edición cliente; null si la ruta no es suya (sigue el router de server.ts).
  * `conPase`: la llamada llegó con el pase de agente y no con el Bearer de la app.
  */
-export function atenderRutinas(metodo: string | undefined, ruta: string, cuerpo: Record<string, unknown>, opciones: { conPase: boolean; aviso?: () => string | null }): Respuesta | null {
+export function atenderRutinas(metodo: string | undefined, ruta: string, cuerpo: Record<string, unknown>, opciones: { conPase: boolean; aviso?: () => string | null; suscripcion?: () => boolean }): Respuesta | null {
   const aviso = opciones.aviso ?? avisoRutinas
   if (ruta === '/schedule') {
-    if (metodo === 'GET') return { status: 200, cuerpo: { tasks: visibles(), tz: CRON_TZ, aviso: aviso() } }
+    if (metodo === 'GET') {
+      const tasks = visibles()
+      // `precargadas`: nombre, para qué y carpeta de cada «De Arbrain» presente. `suscripcion`: con ese motor no corren solas.
+      return { status: 200, cuerpo: { tasks, tz: CRON_TZ, aviso: aviso(), precargadas: metaPrecargadas(tasks.map(t => t.id)), suscripcion: opciones.suscripcion?.() ?? (motorSuscripcion() && !rutinasConLlaveTope()) } }
+    }
     if (metodo !== 'POST') return null
     const p = validarPrompt(cuerpo.prompt)
     if (!p.ok) return { status: 400, cuerpo: { error: p.error } }
     const h = validarHorario(cuerpo.schedule)
     if (!h.ok) return { status: 400, cuerpo: { error: h.error } }
-    if (visibles().length >= MAX_RUTINAS) return { status: 409, cuerpo: { error: `Ya tienes ${MAX_RUTINAS} rutinas. Borra alguna antes de crear otra.` } }
+    if (propias().length >= MAX_RUTINAS) return { status: 409, cuerpo: { error: `Ya tienes ${MAX_RUTINAS} rutinas. Borra alguna antes de crear otra.` } }
     const origen = opciones.conPase ? 'levy' : 'app'
     const id = idRutina(p.prompt, origen)
     const status = origen === 'levy' ? 'paused' : 'active'

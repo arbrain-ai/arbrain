@@ -1,0 +1,96 @@
+/* Selector de modelo (1 nov 2026). La base limpia de Salud y Calendario: casi todo gris, la jerarquía la dan el tamaño,
+   el peso y el aire; morado solo para lo activo. Cada token del lenguaje unificado trae su respaldo para el estilo actual. */
+
+.panel {
+  /* Posición, altura, hoja móvil, velo y asa: PopoverAnclado (shared/components), la misma de todos los popovers de la barra. */
+  display: flex; flex-direction: column; overflow: hidden;
+  background: var(--l-placa, var(--card));
+  border: 1px solid var(--l-borde, var(--border));
+  border-radius: var(--l-radio-tarjeta, 14px);
+  box-shadow: var(--depth-hover);  /* flotante del sistema: neutra en claro, honda en oscuro; en unificado, --l-sombra-flotante */
+  color: var(--foreground);
+  animation: aparece 180ms var(--l-curva-salida, cubic-bezier(0.16, 1, 0.3, 1)) both;
+  --desde: 4px;
+}
+.panel[data-lado='abajo'] { --desde: -4px; }
+@keyframes aparece { from { opacity: 0; transform: translateY(var(--desde)) scale(0.985); } }
+
+.cabeza { padding: 8px 8px 6px; flex-shrink: 0; }
+
+/* ── Cuentas: segmentado discreto ── */
+.segmentado {
+  display: flex; gap: 2px; padding: 2px; border-radius: var(--l-radio-control, 10px);
+  background: color-mix(in srgb, var(--foreground) 4.5%, transparent);
+}
+:global(.dark) .segmentado { background: color-mix(in srgb, var(--foreground) 5%, transparent); }
+.segmento {
+  flex: 1 1 auto; min-width: 0; height: 28px; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 0 8px; border-radius: 8px; font-size: 12px; font-weight: 500; color: var(--muted);
+  transition: color 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
+}
+.segmento:hover { color: var(--foreground); }
+.segmento[aria-pressed='true'] {
+  color: var(--foreground); background: var(--l-placa, var(--card));
+  box-shadow: 0 1px 2px rgba(var(--l-sombra-rgb, 15, 17, 21), 0.08), 0 0 0 1px rgba(var(--l-sombra-rgb, 15, 17, 21), 0.04);
+}
+:global(.dark) .segmento[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--foreground) 10%, transparent);
+  box-shadow: inset 0 1px 0 rgba(var(--l-luz-rgb, 255, 255, 255), 0.06);
+}
+.segmento:focus-visible { outline: 2px solid var(--l-foco, rgba(var(--brand-rgb), 0.55)); outline-offset: 1px; }
+.punto { width: 6px; height: 6px; border-radius: 999px; flex-shrink: 0; }
+.punto[data-estado='lista'] { background: var(--l-verde-4, #10b981); }
+.punto[data-estado='cerca'] { background: var(--l-ambar-4, #ff9101); }
+.punto[data-estado='agotada'] { background: var(--l-rojo-4, #ef4444); }
+.punto[data-estado='sin-dato'] { box-shadow: inset 0 0 0 1.25px color-mix(in srgb, var(--muted) 55%, transparent); }
+
+/* ── Lista ── */
+.lista { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 2px 6px 6px; scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--muted) 35%, transparent) transparent; }
+.grupo + .grupo { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--l-borde, var(--border-subtle)); }
+.ceja {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+  padding: 8px 8px 4px; font-size: 10.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+  color: color-mix(in srgb, var(--muted) 85%, transparent);
+}
+.cejaColumna { font-family: var(--font-jetbrains-mono), ui-monospace, monospace; font-weight: 500; letter-spacing: 0; text-transform: none; font-size: 10px; padding-right: 26px; }
+.pista { display: flex; align-items: center; gap: 5px; margin: -1px 8px 3px; font-size: 11px; color: var(--muted); }
+.pista svg { color: var(--brand-ink); flex-shrink: 0; }
+
+.fila {
+  width: 100%; display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 5px 8px;
+  border-radius: 8px; text-align: left; transition: background-color 90ms ease;
+}
+.fila[data-activa] { background: color-mix(in srgb, var(--foreground) 5%, transparent); }
+:global(.dark) .fila[data-activa] { background: color-mix(in srgb, var(--foreground) 6.5%, transparent); }
+.fila:focus-visible { outline: 2px solid var(--l-foco, rgba(var(--brand-rgb), 0.55)); outline-offset: -2px; }
+.nombre { display: block; font-size: 13px; font-weight: 550; line-height: 1.3; color: var(--foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fila[aria-pressed='true'] .nombre { font-weight: 650; }
+.descripcion { display: block; margin-top: 1px; font-size: 11.5px; line-height: 1.3; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.precio {
+  flex-shrink: 0; font-family: var(--font-jetbrains-mono), ui-monospace, monospace; font-size: 10.5px;
+  font-variant-numeric: tabular-nums; color: color-mix(in srgb, var(--muted) 85%, transparent); text-align: right;
+}
+.marca { width: 16px; flex-shrink: 0; display: inline-flex; justify-content: center; color: var(--brand-ink); }
+
+/* ── Pie ── */
+.pie {
+  flex-shrink: 0; display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 4px 8px 4px 14px;
+  border-top: 1px solid var(--l-borde, var(--border-subtle)); font-size: 11px; color: var(--muted);
+}
+.teclas { flex: 1; display: inline-flex; align-items: center; gap: 3px; color: color-mix(in srgb, var(--muted) 80%, transparent); }
+.teclas kbd {
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace; font-size: 10px; line-height: 1; padding: 2px 4px;
+  border-radius: 4px; border: 1px solid var(--l-borde, var(--border)); background: color-mix(in srgb, var(--foreground) 3%, transparent);
+}
+.mas { display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 8px; border-radius: 8px; font-weight: 500; color: var(--muted); }
+.mas:hover { color: var(--foreground); background: color-mix(in srgb, var(--foreground) 5%, transparent); }
+
+/* Táctil: objetivos de 44 px y sin atajos de teclado que no existen. */
+.panel[data-modo='hoja'] .fila { min-height: 48px; padding: 6px 12px; }
+.panel[data-modo='hoja'] .segmento { height: 36px; font-size: 13px; }
+.panel[data-modo='hoja'] .teclas { visibility: hidden; }
+.panel[data-modo='hoja'] .mas { height: 40px; }
+.panel[data-modo='hoja'] .cabeza { padding: 8px 12px 6px; }
+.panel[data-modo='hoja'] .lista { padding: 2px 4px 8px; }
+
+@media (prefers-reduced-motion: reduce) { .panel { animation: none; } }

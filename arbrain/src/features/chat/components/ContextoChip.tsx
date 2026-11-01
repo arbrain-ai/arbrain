@@ -1,6 +1,7 @@
 'use client'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type Ref, type RefObject } from 'react'
 import { X } from 'lucide-react'
+import { PopoverAnclado } from '@/shared/components/PopoverAnclado'
 import { nombreEsfuerzo, nombreModelo, tokensCortos, ventanaCorta } from '@/shared/lib/uso-modelo'
 import { nivelPct, textoPct, type ContextoConversacion } from '../lib/contexto-conversacion'
 import { LimitesPlan } from './LimitesPlan'
@@ -11,11 +12,11 @@ import { LimitesPlan } from './LimitesPlan'
 
 const COLOR = { ok: 'text-brand-ink', aviso: 'text-amber-500', alto: 'text-red-500', 'sin-dato': 'text-muted' } as const
 
-export function ContextoChip({ contexto, open, onToggle }: { contexto: ContextoConversacion | null; open: boolean; onToggle: () => void }) {
+export function ContextoChip({ contexto, open, onToggle, ref }: { contexto: ContextoConversacion | null; open: boolean; onToggle: () => void; ref?: Ref<HTMLButtonElement> }) {
   if (!contexto) return null
   const { pct, uso, linea } = contexto
   const r = 6.5, c = 2 * Math.PI * r
-  return <button type="button" data-contexto-chip data-contexto-pct={pct == null ? '' : pct.toFixed(1)} onClick={onToggle}
+  return <button ref={ref} type="button" data-contexto-chip data-contexto-pct={pct == null ? '' : pct.toFixed(1)} onClick={onToggle}
     aria-label={`Contexto de la conversación: ${linea}`} aria-expanded={open} aria-haspopup="dialog" title={linea}
     className="shrink-0 flex items-center gap-1 min-h-11 md:min-h-8 rounded-full px-2 text-[11.5px] font-medium tabular-nums text-muted hover:text-foreground hover:bg-card-hover transition-colors select-none">
     {pct != null && <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden className={COLOR[nivelPct(pct)]}>
@@ -33,8 +34,9 @@ function Fila({ k, v }: { k: string; v: string | null }) {
   return <div className="flex items-baseline justify-between gap-4 text-sm"><dt className="text-muted">{k}</dt><dd className="text-right tabular-nums">{v}</dd></div>
 }
 
-/** Detalle del indicador. Lo monta ChatPanel arriba de la caja, como el dial de esfuerzo. */
-export function ContextoDetalle({ contexto, account, onClose }: { contexto: ContextoConversacion; account: string; onClose: () => void }) {
+/** Detalle del indicador, anclado al anillo con la primitiva de la barra (1 nov 2026: antes iba pegado arriba de la caja con 70dvh y se
+ *  cortaba arriba con el zoom de la app). */
+export function ContextoDetalle({ contexto, account, onClose, ancla }: { contexto: ContextoConversacion; account: string; onClose: () => void; ancla?: RefObject<HTMLElement | null> }) {
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const fuera = (e: PointerEvent) => {
@@ -46,9 +48,9 @@ export function ContextoDetalle({ contexto, account, onClose }: { contexto: Cont
     return () => document.removeEventListener('pointerdown', fuera)
   }, [onClose])
   const { uso, pct, usado, ventana } = contexto
-  return <div ref={ref} role="dialog" aria-label="Contexto de la conversación" tabIndex={-1} data-contexto-detalle
+  return <PopoverAnclado ancla={ancla} panelRef={ref} ancho={320} role="dialog" aria-label="Contexto de la conversación" tabIndex={-1} data-contexto-detalle
     onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); onClose() } }}
-    className="absolute bottom-full left-0 mb-2 w-full md:w-80 rounded-2xl border border-border bg-card p-4 shadow-xl z-50 outline-none max-h-[70dvh] overflow-y-auto">
+    className="rounded-2xl border border-border bg-card p-4 shadow-xl outline-none overflow-y-auto overscroll-contain">
     <div className="flex items-center justify-between gap-3">
       <h2 className="text-sm font-semibold">Contexto de la conversación</h2>
       <button type="button" aria-label="Cerrar" onClick={onClose} className="-mr-2 -mt-2 min-h-11 min-w-11 flex items-center justify-center rounded-xl hover:bg-foreground/5"><X size={18} /></button>
@@ -65,5 +67,5 @@ export function ContextoDetalle({ contexto, account, onClose }: { contexto: Cont
     </dl>
     <p className="mt-3 text-[11px] text-muted/80">Lo reportó el motor al terminar la última respuesta.</p>
     <LimitesPlan account={account} />
-  </div>
+  </PopoverAnclado>
 }

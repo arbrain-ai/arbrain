@@ -40,3 +40,9 @@
   font: inherit; font-size: 13px; font-weight: 400; padding: 7px 9px; border-radius: 9px; border: 1px solid var(--border); background: var(--background); color: var(--foreground); min-width: 0;
 }
 .campo textarea { resize: vertical; line-height: 1.45; }
+/* «De Arbrain» (1 nov 2026): las precargadas, en su propia sección. */
+.arbrain { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--border); }
+.sello, .nuevo { flex: none; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+.sello { color: var(--brand, var(--foreground)); background: color-mix(in srgb, var(--brand, var(--foreground)) 12%, transparent); }
+.nuevo { color: var(--success); background: color-mix(in srgb, var(--success) 14%, transparent); }
+.paraQue { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--foreground); overflow-wrap: anywhere; }

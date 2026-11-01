@@ -1,9 +1,9 @@
 ---
 name: arbrain-app
-description: "Operar la app de escritorio Arbrain (el cuerpo visible del cerebro): chat con Levy, lienzo, panel derecho (Lienzo, Explorador, Taller), ajustes, llaves BYOK, freno y computer use. Detecta la sección y carga references/<seccion>.md. Diagramas y mapas: references/canvas/SKILL.md. Memoria: skill memory-manager."
+description: "Operar la app de escritorio Arbrain (el cuerpo visible del cerebro): chat con Levy, calendario y objetivos, lienzo, panel derecho (Calendario, Lienzo, Archivos, Taller), voz, avisos al teléfono, ajustes, llaves BYOK, freno y computer use. Detecta la sección y carga references/<seccion>.md. Diagramas y mapas: references/canvas/SKILL.md. Memoria: skill memory-manager."
 metadata:
   author: levy
-  version: "5.0-alumno"
+  version: "5.1-alumno"
 ---
 
 # Arbrain, la app
@@ -38,30 +38,44 @@ imprimen): `MC_SERVER_PORT`, `MISSION_CONTROL_ORIGIN`, `ARBRAIN_PASE_AGENTE` (Be
 
 | Sección | Qué hace | Referencia |
 |---|---|---|
-| Chat | Hablar con Levy; conversaciones recientes; adjuntos; preguntas que Levy te hace | [references/chat.md](references/chat.md) |
+| Chat | Hablar con Levy; conversaciones recientes y fijadas; adjuntos; preguntas que Levy te hace; cuánto te pregunta Levy (Autónomo o Preguntar) y «Pausar todo» en el botón del modelo, abajo en el campo de escribir | [references/chat.md](references/chat.md) |
+| Calendario | Su plan y su agenda: objetivos del mes, la semana y el día, eventos, bloques, tareas con fecha y hábitos con su racha (se marcan en el Día). Vistas Día, Semana y Mes. Botón **Calendario** arriba a la derecha del chat y sección del «+» | Fuentes: `.claude/plan/calendario.json`, `.claude/plan/objetivos.md` y `.claude/plan/habitos.json` (cada una trae su instructivo); receta en `habit-system`, `references/tiempo-y-calendario.md`. Otro calendario: `arbrain/cerebro/manuales/` |
 | Lienzo | Lienzo infinito: diagramas compilados por Levy y dibujo a mano | [references/canvas-diagram/index.md](references/canvas-diagram/index.md) y [../canvas/SKILL.md](../canvas/SKILL.md) |
-| Panel derecho | Pestañas «+»: Lienzo, Explorador (archivos del cerebro) y Taller (Agentes, Rutinas y Memoria) | Este archivo |
+| Panel derecho | Pestañas «+»: Calendario, Lienzo, Archivos (el explorador del cerebro) y Taller (Agentes, Rutinas y Memoria); «+ › Guardadas» es el archivero | Este archivo |
 | Memoria | Lo que Levy sabe de ti, en `.claude/memory/` | Skill `memory-manager` |
-| Ajustes | Apariencia, Modelos, Atajos, Panel, Esta computadora, Llaves, Privacidad y monitoreo, Cuenta | Este archivo |
+| Voz | **Dictar** con el micrófono (su llave gratis de Groq, en Ajustes › Voz) y **Escuchar** en cada respuesta: la lee en voz alta, con su llave de LemonFox si la tiene o con la mejor voz del sistema | Ajustes › Voz |
+| Teléfono | Su Arbrain en el celular por su red privada de Tailscale («Pon mi cerebro en mi teléfono») | Ajustes › Tu cerebro en el teléfono |
+| Avisos al teléfono | Con su Arbrain en el teléfono: le llega un aviso cuando Levy espera su decisión, cuando una rutina terminó sola y cuando una respuesta larga terminó con la app cerrada. Se activan **en el teléfono** (Ajustes › Notificaciones › Activar y «Enviarme una prueba») | Ajustes › Notificaciones |
+| Ajustes | Tú: Llaves, Voz, Tu cerebro en el teléfono, Notificaciones, Permisos y seguridad, Privacidad, Apariencia. Arbrain: Modelos, Panel, Atajos. Esta computadora (computer use y permisos del sistema) | Este archivo |
 | Datos locales | Qué tablas guarda la app y dónde | [references/schema.md](references/schema.md) |
 
-Lo que **no** existe en esta edición (no lo prometas ni lo busques): tablero de tareas, calendario, hábitos,
-notificaciones push, campana de avisos, feed de actividad, voz y modo Live, Consejo, biblioteca,
-paneles de negocio. Si el dueño lo pide, dilo claro y ofrece la alternativa que sí existe (una nota en memoria,
-un lienzo, un despertador en la conversación).
+Lo que **no** existe en esta edición (no lo prometas ni lo busques): tablero de tareas (las tareas con fecha van en
+el calendario; Todoist se conecta con su manual), campana de avisos dentro de la app, feed de actividad, modo Live
+de voz, Consejo, biblioteca y paneles de negocio. Si el dueño lo pide, dilo claro y ofrece la alternativa que sí
+existe (el calendario, una nota en memoria, un lienzo, un despertador en la conversación).
 
 ## Herramientas del agente sobre la app (MCP `cabina`)
 
-- `mostrar`: abre una vista viva dentro de la conversación. En esta edición sirven `lienzo` (con `paginaId` y
-  `zona` opcional), `documento` (un archivo del cerebro por ruta relativa), `memoria` y `explorador`.
-- `abrir`: lleva una sección al panel derecho (p. ej. el lienzo).
+- `mostrar`: abre una vista viva dentro de la conversación. En esta edición sirven `calendario` (su plan y su
+  agenda; alcance día, semana o mes y fecha opcionales), `lienzo` (con `paginaId` y `zona` opcional), `documento`
+  (un archivo del cerebro por ruta relativa), `memoria` y `explorador`. Espera el acuse: si dice «NO confirmado», no
+  afirmes que quedó.
+- `abrir`: lleva al dueño a la sección Lienzo completa cuando la vista se queda corta.
+- `panel`: las pestañas que tiene abiertas AHORA según su app (úsala antes de afirmar qué ve) y el menú «+» de
+  secciones (ocultar, mostrar u ordenar, solo si lo pide).
+- `archivero`: lo guardado en «+ › Guardadas»: listar, abrir o sacar (sacar no borra el archivo).
 - `despertador`: recordatorios durables de ESTA conversación («revisa en 30 min», «a las 14:05 corre la QA»).
   Al vencer, el daemon te escribe en la misma conversación. Úsalo en lugar de inventar crons.
+- `conversacion`: abre una conversación nueva y fijada con su primer mensaje, cuando un tema merece su propio hilo
+  y él lo pide.
+- `ayuda`: el detalle de cada vista y herramienta a demanda (`tema`: una vista o herramienta; `subagentes` para
+  delegar con la herramienta Agent). Consúltala cuando dudes de un campo.
 
 ## Rutinas programadas
 
-El daemon tiene un programador, pero en esta edición nace vacío: solo corre lo que el dueño cree. Él las ve y las
-maneja en **Taller › Rutinas** (crear, pausar, reanudar, probar y borrar). Para ver lo que hay:
+El daemon tiene un programador que corre las rutinas que el dueño tiene activas. Él las ve y las maneja en
+**Taller › Rutinas** (crear, pausar, reanudar, probar y borrar); cuando una termina sola, le llega el aviso al
+teléfono si los activó. Para ver lo que hay:
 
 ```bash
 curl -s "http://127.0.0.1:$MC_SERVER_PORT/schedule" -H "Authorization: Bearer $ARBRAIN_PASE_AGENTE"
@@ -84,8 +98,9 @@ está en tu contexto. Para algo que solo toca esta conversación, usa `despertad
    versión no hay `encargar`, `decidir`, recetas, lienzo ni extensión del navegador. Navegar a un dominio nuevo
    pide su clic; bancos, pagos, impuestos y cripto están bloqueados; terminales, PowerShell, editores de código,
    Spotlight o el menú Inicio y la barra de direcciones están vedados a las manos (para comandos, tu terminal con
-   su política). Lo irreversible pide su cita textual y su clic. En Linux no existe. Cómo usarlo, verificarlo y
-   el computer use oficial de Claude o ChatGPT: `arbrain/cerebro/manuales/computer-use.md`.
+   su política). Lo irreversible se detiene salvo que él lo haya pedido en el chat, y pide su clic. En Linux no
+   existe. Cómo usarlo, verificarlo y el computer use oficial de Claude o ChatGPT:
+   `arbrain/cerebro/manuales/computer-use.md`.
 4. **Llaves:** viven en el llavero del sistema. La web solo ve si existen y sus últimos 4 caracteres. Nunca pidas
    que te peguen una llave en el chat; se guardan en Ajustes › Llaves.
 5. **Monitoreo de cohorte:** apagado salvo consentimiento explícito en Ajustes › Privacidad y monitoreo. Sin ese

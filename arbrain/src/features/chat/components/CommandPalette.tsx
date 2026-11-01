@@ -1,5 +1,5 @@
 'use client'
-import { Fragment, useEffect, useRef } from 'react'
+import { Fragment, useEffect, useRef, type RefObject } from 'react'
 import {
   Trash2, Minimize2, Activity, CheckSquare, Bot, BarChart2, HelpCircle, Cpu,
   Sparkles, Brain, Plug, ListTodo, Gauge, Zap, Network, Coins, ClipboardList, Target, Repeat,
@@ -7,6 +7,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { ETIQUETA_SECCION, type ComandoCatalogo, type SeccionComando } from '../lib/command-catalog'
+import { PopoverAnclado } from '@/shared/components/PopoverAnclado'
 
 interface IconoDef { icon: LucideIcon; iconClass: string }
 
@@ -50,9 +51,11 @@ interface Props {
   selectedIndex: number
   onSelect: (cmd: string) => void
   onClose: () => void
+  /** La caja de escribir: la paleta toma su ancho y se pega a su borde (1 nov 2026, primitiva de la barra). */
+  ancla?: RefObject<HTMLElement | null>
 }
 
-export function CommandPalette({ comandos, selectedIndex, onSelect, onClose }: Props) {
+export function CommandPalette({ comandos, selectedIndex, onSelect, onClose, ancla }: Props) {
   const ref = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLUListElement>(null)
 
@@ -76,12 +79,18 @@ export function CommandPalette({ comandos, selectedIndex, onSelect, onClose }: P
   for (const c of comandos) conteo.set(c.section, (conteo.get(c.section) ?? 0) + 1)
 
   return (
-    <div
-      ref={ref}
-      className="absolute bottom-full left-0 mb-2 w-full bg-card/96 backdrop-blur-xl border border-border rounded-2xl shadow-[0_-4px_6px_-2px_rgba(0,0,0,0.35),0_-16px_48px_rgba(0,0,0,0.75)] overflow-hidden z-50"
+    // Sin hoja en el teléfono: se escribe con la paleta abierta y la hoja taparía la caja.
+    <PopoverAnclado
+      ancla={ancla}
+      panelRef={ref}
+      ancho="ancla"
+      altoMax={390}
+      hojaEnMovil={false}
+      data-paleta-comandos
+      className="flex flex-col bg-card/96 backdrop-blur-xl border border-border rounded-2xl shadow-[0_-4px_6px_-2px_rgba(0,0,0,0.35),0_-16px_48px_rgba(0,0,0,0.75)] overflow-hidden"
     >
       {/* Header */}
-      <div className="flex items-center gap-2 px-3.5 py-2 border-b border-border-subtle bg-card/40">
+      <div className="shrink-0 flex items-center gap-2 px-3.5 py-2 border-b border-border-subtle bg-card/40">
         <div className="w-4 h-4 rounded-md bg-brand/15 flex items-center justify-center">
           <span className="text-[9px] font-bold text-brand-ink leading-none">/</span>
         </div>
@@ -97,7 +106,8 @@ export function CommandPalette({ comandos, selectedIndex, onSelect, onClose }: P
         ref={listRef}
         role="listbox"
         aria-label="Comandos de Levy"
-        className="py-1 max-h-[22rem] overflow-y-auto overscroll-contain"
+        data-popover-scroll
+        className="py-1 min-h-0 flex-1 overflow-y-auto overscroll-contain"
       >
         {!comandos.length && (
           <li className="px-3.5 py-6 text-center text-[12px] text-muted" role="presentation">Sin coincidencias</li>
@@ -153,6 +163,6 @@ export function CommandPalette({ comandos, selectedIndex, onSelect, onClose }: P
           )
         })}
       </ul>
-    </div>
+    </PopoverAnclado>
   )
 }

@@ -126,6 +126,7 @@ export class Envoltorio implements Adaptador {
   get soltar(): (() => Promise<void>) | undefined { return this.interno.soltar?.bind(this.interno) }
   get mostrar(): ((p: Objetivo) => Promise<void>) | undefined { return this.interno.mostrar?.bind(this.interno) }
   get inactividad(): (() => Promise<number | undefined>) | undefined { return this.interno.inactividad?.bind(this.interno) }
+  get ultimaToma(): (() => Promise<number | undefined>) | undefined { return this.interno.ultimaToma?.bind(this.interno) }
   get abrirUrl(): ((p: PedidoNavegar) => Promise<{ pid: number; ventanas: Ventana[] }>) | undefined { return this.interno.abrirUrl?.bind(this.interno) }
 }
 

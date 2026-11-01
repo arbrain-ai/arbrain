@@ -18,6 +18,7 @@ import { AdaptadorWindows } from './adaptadores/windows.js'
 import { CedeDecision, DecisorJev } from './decisores/jev.js'
 import { DecisorClaude } from './decisores/claude.js'
 import { Freno } from './freno.js'
+import { CapaApps } from './permiso-app.js'
 import { Vigia } from './navegador.js'
 import { Grabadora } from './recetas.js'
 import { esEdicionCliente } from '../edicion.js'
@@ -62,11 +63,12 @@ export function crearAdaptador(nombre = adaptadorPorDefecto()): Adaptador {
 }
 
 /**
- * Las manos completas: Grabadora (recetas) → Freno (seguridad) → Vigía (videos silenciados y pausados) → adaptador.
- * Toda vía pasa por el freno: MCP, cerebro, recetas y canario.
+ * Las manos completas: Grabadora (recetas) → CapaApps (permiso por app y «Daniel tiene el control») → Freno
+ * (seguridad) → Vigía (videos silenciados y pausados) → adaptador. Toda vía pasa por el freno: MCP, cerebro, recetas y
+ * canario.
  */
 export function componerManos(base: Adaptador = crearAdaptador()): Grabadora {
-  return new Grabadora(new Freno(new Vigia(base)))
+  return new Grabadora(new CapaApps(new Freno(new Vigia(base))))
 }
 
 /**

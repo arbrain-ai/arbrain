@@ -102,11 +102,12 @@ export class ClienteCasa {
 
   /**
    * `open` de la app: en cliente, con su socket y su archivo de token (la app no adivina nada de la instalación
-   * original) y salida sola tras 15 min sin pedidos: cerrar Arbrain no deja a ArbrainManos viva indefinidamente.
+   * original) y salida sola tras 5 min sin pedidos (1 nov 2026; antes 15): cerrar Arbrain o dejar de usar las manos
+   * no deja a ArbrainManos viva. A los 2 min sin pedidos ya dejó de escuchar ratón y teclado (reposo, Servidor.swift).
    */
   private argumentosOpen(): string[] {
     if (!this.cliente) return ['-g', this.app]
-    return ['-g', '--env', `MANOS_CASA_SOCKET=${this.ruta}`, '--env', `MANOS_CASA_TOKEN_ARCHIVO=${rutaTokenCasa()}`, '--env', 'MANOS_SALIR_INACTIVA_S=900', this.app]
+    return ['-g', '--env', `MANOS_CASA_SOCKET=${this.ruta}`, '--env', `MANOS_CASA_TOKEN_ARCHIVO=${rutaTokenCasa()}`, '--env', 'MANOS_SALIR_INACTIVA_S=300', this.app]
   }
 
   /** Edición cliente: la primera línea de cada conexión es el saludo con el token. */
@@ -270,6 +271,17 @@ export class AdaptadorCasa implements Adaptador {
     try {
       const r = await this.cliente.llamar('inactividad', {}, 3_000)
       return typeof r?.segundos === 'number' ? r.segundos : undefined
+    } catch { return undefined }
+  }
+
+  /**
+   * Segundos desde el último clic, rueda o tecla de la persona (`toma_s`, ArbrainManos 0.2.1+). Una app anterior no lo
+   * da: undefined (no se adivina con `segundos`, que cuenta también mover el ratón).
+   */
+  async ultimaToma(): Promise<number | undefined> {
+    try {
+      const r = await this.cliente.llamar('inactividad', {}, 3_000)
+      return typeof r?.toma_s === 'number' ? r.toma_s : undefined
     } catch { return undefined }
   }
 

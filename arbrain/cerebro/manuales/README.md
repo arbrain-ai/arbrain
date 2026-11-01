@@ -1,9 +1,9 @@
 # Manuales de conexión: léelos antes de conectar cualquier cosa
 
 Esta carpeta es para ti, Levy, y para el dueño. Aquí está cómo conectar sus cuentas (calendario, correo,
-tareas) y cómo encender que uses su computadora, en Mac, Windows y Linux, y desde Claude Code, Codex o la app
-Arbrain. **El dueño conecta sus cuentas él mismo; tú lo guías paso a paso.** Nunca le pidas una contraseña, un
-token o un código en el chat.
+tareas), cómo encender que uses su computadora (en Mac, Windows y Linux, desde Claude Code, Codex o la app
+Arbrain) y cómo funcionan tu personalidad, su retrato y su memoria. **El dueño conecta sus cuentas él mismo; tú lo
+guías paso a paso.** Nunca le pidas una contraseña, un token o un código en el chat.
 
 Dónde vive esta carpeta: en la app Arbrain, `arbrain/cerebro/manuales/`; si el cerebro se instaló con el prompt de
 instalación, `cerebro/manuales/`. Es la misma carpeta con los mismos archivos.
@@ -26,16 +26,22 @@ Responde estas tres preguntas sin preguntarle al dueño lo que puedes comprobar 
 
 ## 2. Qué manual usar
 
+El texto de cada enlace es el título del manual: así se lo nombras al dueño (nunca por su nombre de archivo).
+
 | Quiere… | Manual | Mac | Windows | Linux |
 |---|---|---|---|---|
-| Preparar la computadora (terminal, Homebrew o winget, Python, git) | [preparar-tu-computadora.md](preparar-tu-computadora.md) | sí | sí | sí |
-| Google Calendar y Gmail | [google-calendar-gmail.md](google-calendar-gmail.md) | sí | sí | sí |
-| Calendario de iPhone o iCloud | [calendario-icloud.md](calendario-icloud.md) | sí | sí | sí |
-| Todoist | [todoist.md](todoist.md) | sí | sí | sí |
-| Que Levy use el navegador o la computadora (computer use) | [computer-use.md](computer-use.md) | navegador y escritorio (también la app Arbrain) | navegador y escritorio (también la app Arbrain) | navegador; escritorio solo con piezas de la comunidad |
-| Modo monje opcional (rutina, hábitos, lo que hay que dejar) | [modo-monje.md](modo-monje.md) | sí | sí | sí |
-| Rutinas: que Levy haga algo solo a una hora («cada mañana a las 7 resúmeme mi día») | [rutinas.md](rutinas.md) | sí | sí | sí |
-| Cambiar su Arbrain (marca, colores, skills, código) sin perder las actualizaciones: el «cirujano del cerebro» | [cirujano-del-cerebro.md](cirujano-del-cerebro.md) | sí | sí | sí |
+| Preparar la computadora (terminal, Homebrew o winget, Python, git) | [Preparar tu computadora](preparar-tu-computadora.md) | sí | sí | sí |
+| Conectar Google Calendar y Gmail. Ya conectado, el día a día (correo, agenda, huecos, borradores) es la skill `google-workspace` | [Google Calendar y Gmail](google-calendar-gmail.md) | sí | sí | sí |
+| Que su día (`now.md`) traiga su Google Calendar y su Todoist | [Tu día sincronizado con tu calendario y tus tareas](now-sincronizado.md) | sí | sí | sí |
+| Calendario de iPhone o iCloud | [Calendario de iPhone o iCloud](calendario-icloud.md) | sí | sí | sí |
+| Todoist | [Todoist](todoist.md) | sí | sí | sí |
+| Que Levy use el navegador o la computadora (computer use) | [Que Levy use tu computadora](computer-use.md) | navegador y escritorio (también la app Arbrain) | navegador y escritorio (también la app Arbrain) | navegador; escritorio solo con piezas de la comunidad |
+| Modo monje opcional (rutina, hábitos, lo que hay que dejar) | [Modo monje](modo-monje.md) | sí | sí | sí |
+| Rutinas: que Levy haga algo solo a una hora («cada mañana a las 7 resúmeme mi día») | [Tus rutinas](rutinas.md) | sí | sí | sí |
+| Cambiar el mentor o el tono de Levy, o regresar al de fábrica | [Tu estratega](estratega.md) | sí | sí | sí |
+| Que Levy lo conozca: su retrato, sembrado con su expediente | [Tu retrato](retrato.md) | sí | sí | sí |
+| Cómo recuerda Levy: qué se carga siempre, qué llega a demanda y cómo se mantiene corta | [Tu memoria](memoria.md) | sí | sí | sí |
+| Cambiar su Arbrain (marca, colores, skills, código) sin perder las actualizaciones | [El cirujano del cerebro](cirujano-del-cerebro.md) | sí | sí | sí |
 
 **Qué funciona en cada herramienta:**
 

@@ -176,6 +176,11 @@ export interface Adaptador {
   soltar?(): Promise<void>
   /** Opcional: segundos desde el último toque de Daniel al ratón o al teclado (sin contar los eventos de la mano). */
   inactividad?(): Promise<number | undefined>
+  /**
+   * Opcional: segundos desde el último clic, rueda o tecla de la persona (sin contar mover el ratón ni los eventos de la
+   * mano). Es la señal de «tomó la ventana» (`permiso-app.ts › controlDeLaPersona`); sin ella se usa `inactividad`.
+   */
+  ultimaToma?(): Promise<number | undefined>
   /** Opcional: abre una URL en una ventana NUEVA del navegador sin activarla (Windows; en macOS `navegar` usa `open -g`). */
   abrirUrl?(p: PedidoNavegar): Promise<{ pid: number; ventanas: Ventana[] }>
 }

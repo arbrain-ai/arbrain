@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import type { Decisor, PedidoDecidir } from '../contrato.js'
-import { Insistencia, PARADA, REGLA_INSISTENCIA, recorrerLista, type Camino } from './insistencia.js'
-import { handle } from '../mcp-stdio.js'
+import { Insistencia, PARADA, REGLA_INSISTENCIA, REGLA_INSISTENCIA_CLIENTE, recorrerLista, type Camino } from './insistencia.js'
+import { handle, INSTRUCCIONES_MANOS_CLIENTE } from '../mcp-stdio.js'
 import { SISTEMA_CEREBRO } from '../cerebro.js'
 
 /**
@@ -110,6 +110,13 @@ describe('la regla vive en las instrucciones del MCP y en el cerebro', () => {
   })
   it('sistema del cerebro', () => {
     expect(SISTEMA_CEREBRO).toContain(REGLA_INSISTENCIA)
+  })
+  it('edición cliente: sus instrucciones traen la regla con SUS caminos, sin herramientas que no tiene', async () => {
+    const t = INSTRUCCIONES_MANOS_CLIENTE()
+    expect(t).toContain(REGLA_INSISTENCIA_CLIENTE)
+    for (const s of ['scroll', 'tecla', 'buscador', 'navegar', 'URL directa', 'Parada explícita', 'freno', 'identificador']) expect(REGLA_INSISTENCIA_CLIENTE).toContain(s)
+    for (const no of ['web_', 'encargar', 'rueda', 'receta', 'extensión', 'j/k']) expect(REGLA_INSISTENCIA_CLIENTE).not.toContain(no)
+    for (const m of ['carpeta', 'autonomo'] as const) expect(INSTRUCCIONES_MANOS_CLIENTE(undefined, m)).toContain(REGLA_INSISTENCIA_CLIENTE)
   })
   it('la regla nombra los cinco caminos y la parada', () => {
     for (const s of ['rueda', 'teclado', 'web_*', 'buscador', 'URL directa', 'Parada explícita', 'freno']) expect(REGLA_INSISTENCIA).toContain(s)

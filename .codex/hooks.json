@@ -9,7 +9,7 @@
             "type": "command",
             "command": "python3 \"$(git rev-parse --show-toplevel)/.claude/hooks/codex-context.py\"",
             "timeout": 5,
-            "additionalContextLimit": 10000,
+            "additionalContextLimit": 48000,
             "statusMessage": "Cargando memoria compartida de Levy"
           }
         ]

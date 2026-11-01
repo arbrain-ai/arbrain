@@ -10,7 +10,8 @@
  *      está viendo); su texto vive en `src/features/notifications/lib/avisosAlumno.ts`.
  *
  * Sin spam: cada evento suena una vez (su `tag` es su identidad y la web también lo deduplica), una misma rutina suena a
- * lo más una vez por hora, y si falla igual una y otra vez, una vez cada 12 h. Con «Pausar todo» no suena nada de rutinas.
+ * lo más una vez por hora, y si falla igual una y otra vez, una vez cada 12 h. Con «Pausar todo» no suena nada de rutinas,
+ * y una rutina que respondió «Sin novedad» tampoco (las precargadas lo usan cuando no hay nada que decir).
  * Ningún texto lleva literales de comandos ni direcciones: la notificación se ve en la pantalla bloqueada.
  */
 import type { Confirmacion } from './confirmaciones.js'
@@ -51,6 +52,9 @@ export function nombreRutina(prompt: string): string {
 }
 
 export interface FinRutina { id: string; prompt: string; ok: boolean; texto?: string; error?: string; corrida?: number }
+
+/** «Sin novedad» (con o sin punto) es la respuesta de una rutina que no tenía nada que decir: no suena. */
+export const sinNovedad = (texto: string | undefined): boolean => /^\s*sin novedad[.!]?\s*$/i.test(texto ?? '')
 
 /** 2. Una rutina terminó: bien (con el principio de lo que dejó) o con un problema. */
 export function avisoRutina(r: FinRutina): AvisoTelefono {
@@ -116,6 +120,7 @@ export function registrarDestinoAvisos(d: DestinoAvisos | null, opts: { pausado?
  */
 export async function avisarFinRutina(r: FinRutina & { manual?: boolean }, ahora = Date.now()): Promise<ResultadoAviso | 'omitido'> {
   if (!destino || r.manual || pausadoAhora()) return 'omitido'
+  if (r.ok && sinNovedad(r.texto)) return 'omitido'
   const clave = r.ok ? `rutina:${r.id}` : `fallo:${r.id}:${linea(r.error ?? '', 80)}`
   if (!tocaAvisar(clave, r.ok ? CADA_RUTINA_MS : CADA_FALLO_MS, ahora)) return 'omitido'
   return mandarAviso(avisoRutina({ ...r, corrida: r.corrida ?? ahora }), destino)

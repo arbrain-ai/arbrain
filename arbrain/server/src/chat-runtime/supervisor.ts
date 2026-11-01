@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { ChatJournal, type TurnIdentity, type TurnRecord } from './journal.js'
-import { view, type ChatInjections, type Injection } from './inyecciones.js'
+import { esperaAlTurno, posicionesEnTexto, view, type ChatInjections, type Injection, type PosicionEnTexto } from './inyecciones.js'
 
 export class JobRejected extends Error {}
 
@@ -157,6 +157,8 @@ export class ChatSupervisor {
     if (!injections || !inject) return
     try {
       for (const injection of injections.pending(turn)) {
+        // Con fotos espera al cierre (sin reclamarla en cada pulso); lo de atrás tampoco se adelanta.
+        if (esperaAlTurno(injection.input)) break
         // Primero se reclama (pending→sent) y luego se empuja: nunca puede quedar en el motor Y en la fila.
         if (!injections.markSent(injection.id, this.options.workerId)) continue
         if (!inject(turn, injection)) { injections.unmarkSent(injection.id); break } // en orden: si uno no entra, los de atrás tampoco
@@ -168,8 +170,28 @@ export class ChatSupervisor {
     } catch (error) { this.options.onError?.(error) }
   }
 
-  /** Inyecciones de un turno para quien se reengancha (resume_meta) o pinta la actividad. */
-  injectionsOf(turn: Pick<TurnIdentity, 'turnId'>) { return this.options.injections?.ofTurn(turn) ?? [] }
+  /** Inyecciones de un turno para quien se reengancha (resume_meta) o pinta la actividad, con su lugar en el texto. */
+  injectionsOf(turn: TurnIdentity) {
+    const views = this.options.injections?.ofTurn(turn) ?? []
+    if (!views.length) return views
+    const lugar = this.posiciones(turn)
+    return views.map(v => { const p = lugar.get(v.injectionId); return p ? { ...v, ...p } : v })
+  }
+
+  /** El lugar de cada inyección en el texto del turno, leído del journal (ver `posicionesEnTexto`). */
+  private posiciones(turn: TurnIdentity): Map<string, PosicionEnTexto> {
+    try {
+      if (!this.journal.get(turn)) return new Map()
+      const eventos: unknown[] = []
+      for (let after = 0; ;) {
+        const page = this.journal.events(turn, after, 500)
+        for (const e of page) eventos.push(e.event)
+        if (page.length < 500) break
+        after = page[page.length - 1].cursor
+      }
+      return posicionesEnTexto(eventos)
+    } catch (error) { this.options.onError?.(error); return new Map() }
+  }
 
   /** Antes de cerrar el turno: con Stop, lo que el modelo no leyó (enviado sin plegar o aún pendiente) queda
    * `unread` y se anuncia para que la web lo devuelva a su fila en pausa; lo leído queda como de Daniel. */
@@ -191,7 +213,12 @@ export class ChatSupervisor {
   private withInjected(turn: TurnRecord, payload: unknown): unknown {
     const sent = this.options.injections?.sent(turn) ?? []
     if (!sent.length || !payload || typeof payload !== 'object') return payload
-    return { ...payload, injectedMessages: sent.map(i => ({ turnId: i.id, message: (i.input as { message?: unknown }).message, sentAt: i.sentAt, afterToolId: i.afterToolId })) }
+    const lugar = this.posiciones(turn)
+    return { ...payload, injectedMessages: sent.map(i => {
+      const p = lugar.get(i.id)
+      // Su lugar en el texto viaja con la fila: al recargar se pinta donde Levy lo leyó (1 nov 2026).
+      return { turnId: i.id, message: (i.input as { message?: unknown }).message, sentAt: i.sentAt, afterToolId: i.afterToolId, ...(p ? { trasTexto: p.trasTexto, ancla: p.ancla } : {}) }
+    }) }
   }
 
   private async execute(turn: TurnRecord, ac: AbortController): Promise<void> {

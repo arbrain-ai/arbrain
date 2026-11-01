@@ -247,7 +247,7 @@ Cuando te quedes sin ideas obvias, intenta estas estrategias:
 ## Git Workflow Completo
 
 ```
-main ──────────────────────────────────────────────────
+mi-arbrain ────────────────────────────────────────────
   \
    └── autoresearch/canvas
        ├── iter 0 (baseline)
@@ -260,7 +260,7 @@ main ─────────────────────────
 
 # La branch solo contiene commits exitosos.
 # El TSV contiene TODAS las iteraciones (exitosas y fallidas).
-# Al final: git checkout main && git merge autoresearch/canvas
+# Al final: git checkout mi-arbrain && git merge autoresearch/canvas  (nunca a main: es la copia del autor)
 ```
 
 ---

@@ -55,6 +55,14 @@ export function herramientasProhibidasChat(o: { durable: boolean; env?: NodeJS.P
 }
 
 export const MENSAJE_WORKFLOW = 'Workflow solo corre cuando el mensaje de la persona dice «ultracode». Para trabajo largo o en paralelo usa mcp__cabina__delegar (una sola vía: sobrevive a compactos y reinicios y se ve en el Taller).'
+// Edición cliente (1 nov 2026, sistema nervioso H1): `delegar` no existe ahí; mandarlo a él le costaba dos turnos.
+export const MENSAJE_WORKFLOW_CLIENTE = 'Workflow solo corre cuando el mensaje de la persona dice «ultracode». Para trabajo largo o en paralelo usa la herramienta Agent (subagent_type general-purpose, Explore o Plan): corre bajo la misma guardia y se ve en Taller › Agentes. En esta edición no existe delegar.'
+export const MENSAJE_SIN_SUBAGENTES_CLIENTE = 'Los subagentes están apagados en esta instalación de Arbrain (ARBRAIN_SUBAGENTES=0). Haz el trabajo tú en esta conversación.'
+/** Por qué se niega Workflow (o Agent/Task con los subagentes apagados), según la edición: nunca apunta a algo que no existe. */
+export function mensajeViaUnica(herramienta: 'workflow' | 'subagentes', cliente = esEdicionCliente()): string {
+  if (!cliente) return herramienta === 'workflow' ? MENSAJE_WORKFLOW : 'Agent/Task no están disponibles en el chat: usa mcp__cabina__delegar (una sola vía).'
+  return herramienta === 'subagentes' ? MENSAJE_SIN_SUBAGENTES_CLIENTE : MENSAJE_WORKFLOW_CLIENTE
+}
 
 // Permiso del turno en curso, por conversación. El gancho vive en la sesión del pool (nace con el primer turno), por eso
 // no puede cerrar sobre el mensaje: lee de aquí.
@@ -66,14 +74,14 @@ export function marcarTurno(clave: string, mensaje: string, standing = false): v
 export const workflowPermitido = (clave: string) => permisoWorkflow.get(clave) === true
 
 /** Gancho PreToolUse que niega `Workflow` (y, por si la lista no se aplicara, `Agent`/`Task`) fuera de ultracode. */
-export function ganchoViaUnica(clave: string, subagentes = false): HookCallbackMatcher {
+export function ganchoViaUnica(clave: string, subagentes = false, cliente = esEdicionCliente()): HookCallbackMatcher {
   return {
     matcher: [WORKFLOW, ...SUBAGENTES_SDK].join('|'),
     hooks: [async (input: HookInput): Promise<SyncHookJSONOutput> => {
       if (input.hook_event_name !== 'PreToolUse') return { continue: true }
       const negar = (permissionDecisionReason: string): SyncHookJSONOutput => ({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason } })
-      if ((SUBAGENTES_SDK as readonly string[]).includes(input.tool_name)) return subagentes ? { continue: true } : negar('Agent/Task no están disponibles en el chat: usa mcp__cabina__delegar (una sola vía).')
-      if (input.tool_name === WORKFLOW && !workflowPermitido(clave)) return negar(MENSAJE_WORKFLOW)
+      if ((SUBAGENTES_SDK as readonly string[]).includes(input.tool_name)) return subagentes ? { continue: true } : negar(mensajeViaUnica('subagentes', cliente))
+      if (input.tool_name === WORKFLOW && !workflowPermitido(clave)) return negar(mensajeViaUnica('workflow', cliente))
       return { continue: true }
     }],
   }
@@ -82,5 +90,5 @@ export function ganchoViaUnica(clave: string, subagentes = false): HookCallbackM
 /** Suma el gancho a los del turno sin pisar los demás. Con la vía única apagada, devuelve los ganchos tal cual. */
 export function conViaUnica<T extends { PreToolUse?: HookCallbackMatcher[] }>(hooks: T, clave: string | null, env: NodeJS.ProcessEnv = process.env, cliente = esEdicionCliente(env)): T {
   if (!clave || (!cliente && !viaUnicaActiva(env))) return hooks
-  return { ...hooks, PreToolUse: [ganchoViaUnica(clave, subagentesSdkPermitidos(env, cliente)), ...(hooks.PreToolUse ?? [])] }
+  return { ...hooks, PreToolUse: [ganchoViaUnica(clave, subagentesSdkPermitidos(env, cliente), cliente), ...(hooks.PreToolUse ?? [])] }
 }

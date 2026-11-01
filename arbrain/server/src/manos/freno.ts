@@ -519,5 +519,6 @@ export class Freno implements Adaptador {
   get soltar() { return this.interno.soltar?.bind(this.interno) }
   get mostrar() { return this.interno.mostrar?.bind(this.interno) }
   get inactividad() { return this.interno.inactividad?.bind(this.interno) }
+  get ultimaToma() { return this.interno.ultimaToma?.bind(this.interno) }
   get abrirUrl() { return this.interno.abrirUrl?.bind(this.interno) }
 }

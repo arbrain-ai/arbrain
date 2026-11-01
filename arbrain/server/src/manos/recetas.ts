@@ -254,6 +254,7 @@ export class Grabadora implements Adaptador {
   get soltar() { return this.interno.soltar?.bind(this.interno) }
   get mostrar() { return this.interno.mostrar?.bind(this.interno) }
   get inactividad() { return this.interno.inactividad?.bind(this.interno) }
+  get ultimaToma() { return this.interno.ultimaToma?.bind(this.interno) }
 }
 
 export interface PedidoGrabar {

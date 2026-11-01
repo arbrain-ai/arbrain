@@ -1,6 +1,7 @@
 'use client'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { HelpCircle, X } from 'lucide-react'
+import { PopoverAnclado } from '@/shared/components/PopoverAnclado'
 import type { ChatAccount } from '../stores/account-store'
 import { DEFAULT_EFFORT, effortLabel, stopLabel } from '../lib/effort-labels'
 
@@ -25,6 +26,8 @@ interface Props {
   /** Aplica el cambio y lanza Error si falla: el dial lo muestra y se queda abierto (2 oct 2026). */
   onSelect: (stop: EffortStop) => Promise<void>
   onClose: () => void
+  /** El chip de esfuerzo: el dial se ancla a él con la primitiva de la barra (1 nov 2026). */
+  ancla?: RefObject<HTMLElement | null>
 }
 
 // The dial: a dense matrix of cells that lights up from "más rápido" to "más
@@ -33,7 +36,7 @@ interface Props {
 const ROWS = 3
 const COLS = 36
 
-export function EffortSlider({ effort, ultracode, sessionId, account, model, onSelect, onClose }: Props) {
+export function EffortSlider({ effort, ultracode, sessionId, account, model, onSelect, onClose, ancla }: Props) {
   const ref = useRef<HTMLDivElement>(null)
   const trackRef = useRef<HTMLDivElement>(null)
   const [state, setState] = useState<{ key: string; controls?: Controls; error?: string } | null>(null)
@@ -121,13 +124,13 @@ export function EffortSlider({ effort, ultracode, sessionId, account, model, onS
     if (index >= 0 && index < stops.length) commit(index)
   }
 
-  return <div ref={ref} role="dialog" aria-label="Configurar razonamiento" tabIndex={-1}
+  return <PopoverAnclado ancla={ancla} panelRef={ref} ancho={384} role="dialog" aria-label="Configurar razonamiento" tabIndex={-1}
     onKeyDown={event => {
       if (event.key === 'Escape') { event.stopPropagation(); onClose(); return }
       if (event.key === 'ArrowRight' || event.key === 'ArrowUp') { event.preventDefault(); step(1) }
       if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') { event.preventDefault(); step(-1) }
     }}
-    className="effort-dial absolute bottom-full left-0 mb-2 w-full md:w-96 rounded-2xl border border-border bg-card p-4 shadow-xl z-50 outline-none max-h-[65dvh] overflow-y-auto">
+    className="effort-dial rounded-2xl border border-border bg-card p-4 shadow-xl outline-none overflow-y-auto overscroll-contain">
     <div className="flex items-center justify-between gap-3">
       <h2 className="text-sm font-semibold flex items-baseline gap-2 min-w-0">
         <span>Esfuerzo</span>
@@ -212,5 +215,5 @@ export function EffortSlider({ effort, ultracode, sessionId, account, model, onS
         <button type="button" onClick={() => apply('ultracode-off')} className="min-h-11 w-full rounded-xl border border-border px-3 text-sm">Desactivar Ultracode</button>
       </div>}
     </>}
-  </div>
+  </PopoverAnclado>
 }

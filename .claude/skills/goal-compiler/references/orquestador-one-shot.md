@@ -6,7 +6,8 @@
 
 ## La idea en tres líneas
 
-1. El **spec es el contrato**; el orquestador es su dueño y el único que integra a `main`.
+1. El **spec es el contrato**; el orquestador es su dueño y el único que integra a `mi-arbrain`, tu
+   rama de trabajo (nunca a `main`, que es la copia limpia del autor y solo recibe versiones de Arbrain).
 2. Cada **nodo del grafo es un loop** que corre un subagente con su ficha: artefacto que posee, DoD verificable hoy,
    comando de validación y freno.
 3. **Nadie se auto-sella.** El orquestador vuelve a correr la prueba del nodo antes de aceptarlo; el reporte del
@@ -16,13 +17,13 @@
 
 | # | Paso | Qué produce | Gate para pasar al siguiente |
 |---|---|---|---|
-| 0 | **Chequeo previo** (`velocidad-de-la-luz.md`) | Sección `## CHEQUEO PREVIO` del spec: scopes de `gh`, cuotas, disco y carga, política del proveedor, dónde se prueba, decisiones de la persona en lote | Cada punto resuelto o declarado como riesgo con su sustituto |
+| 0 | **Chequeo previo** (cada punto es un hecho que se averigua antes de soltar el primer agente) | Sección `## CHEQUEO PREVIO` del spec: scopes de `gh`, cuotas, disco y carga, política del proveedor, dónde se prueba, decisiones de la persona en lote | Cada punto resuelto o declarado como riesgo con su sustituto |
 | 1 | **Compilar el spec** (Fases 1–4 de la skill) | `spec.md` con MISIÓN, `## GRAFO DEL SISTEMA`, DoD, comando de validación, restricciones y **FECHAS** por fase | Grafo con nodos = artefactos y aristas tipadas; ninguna DoD exige datos del futuro (si no se puede verificar hoy, es Action Item) |
 | 2 | **Plan** | `python3 .claude/skills/goal-compiler/scripts/grafo2plan.py GRAFO.json -o plan.md`: fases topológicas, paralelo solo entre artefactos disjuntos, convergencias | Cada nodo tiene ficha (abajo) |
 | 3 | **Lanzar por fase** | Un subagente por nodo, cada uno en su worktree | Fichas entregadas completas; rutas reclamadas en la bitácora compartida |
 | 4 | **Gate por nodo** | El orquestador re-corre el comando de validación en el worktree del nodo y lee el diff | Verde re-corrido por el orquestador + DoD del nodo surfeada; si falla, el nodo vuelve con **el gap más grande** (uno) |
-| 5 | **Integrar** | Merge secuencial a `main` desde el worktree del orquestador, uno por nodo, re-validando tras cada uno | Comando de validación global verde después de cada merge; nunca un merge que tire cambios en silencio |
-| 6 | **Reporte** | `REPORTE.md` junto al spec + resumen a la persona | Tabla DoD (probado / ámbar / falta), fechas, lo que espera la palabra de la persona, real vs límite (velocidad de la luz) |
+| 5 | **Integrar** | Merge secuencial a `mi-arbrain` desde el worktree del orquestador, uno por nodo, re-validando tras cada uno | Comando de validación global verde después de cada merge; nunca un merge que tire cambios en silencio |
+| 6 | **Reporte** | `REPORTE.md` junto al spec + resumen a la persona | Tabla DoD (probado / ámbar / falta), fechas, lo que espera la palabra de la persona, tiempo real contra el mínimo físico (lo que tardaría si nada estorbara) y en qué se fue la diferencia |
 
 ## La ficha de cada nodo (lo que recibe el subagente)
 
@@ -49,7 +50,7 @@ Libertad técnica dentro del nodo: la ficha dice qué artefacto debe existir y c
 
 - **Worktrees:** uno por nodo con `git worktree add ../wt-<nodo> -b <nodo>` (o el script de worktrees ralos de tu
   instalación, si existe). Si el disco está justo, preferirlo a `isolation: "worktree"` del Agent tool, que hace un
-  checkout entero. Al integrar: `git worktree remove` cuando la rama ya esté en `main`.
+  checkout entero. Al integrar: `git worktree remove` cuando la rama ya esté en `mi-arbrain`.
 - **Agent tool:** subagentes `general-purpose` con el modelo más capaz disponible. Los nodos paralelos de una fase se lanzan en **un solo
   mensaje con varias llamadas**, para que corran a la vez.
 - **Sin pantalla (headless):** el turno termina cuando el orquestador responde. Lanzar con `run_in_background: false`,
