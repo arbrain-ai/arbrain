@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
+import { PantallaSistema } from '@/components/PantallaSistema'
 import { llegaPorTelefono } from '@/features/telefono/host-telefono'
 import { esEdicionCliente } from '@/lib/edicion'
 import { esModoServidor } from '@/lib/modo-servidor'
@@ -22,6 +23,7 @@ const CODIGO_SERVIDOR = 'Ese código no sirve (ya se usó o pasaron 10 minutos).
  * Edición cliente (11 oct 2026): la web solo responde a la app de escritorio (secreto por instalación). Si alguien la
  * abre en un navegador, aquí se le explica en vez de un error. Modo servidor (21 oct 2026): aquí se entra con la
  * contraseña que genera `npm run servidor` (POST a /api/desktop/entrar).
+ * 31 oct 2026: el material de la bienvenida (`PantallaSistema`): oscuro por defecto y «Entrar» es la tecla ámbar.
  */
 export default async function SinSesionPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   if (!esEdicionCliente()) notFound()
@@ -34,7 +36,7 @@ export default async function SinSesionPage({ searchParams }: { searchParams: Pr
     // servidor de su Claude Code (`nube.sh codigo`) o de un dispositivo donde ya entró.
     const telefono = llegaPorTelefono(h.get('host'), h.get('x-forwarded-proto'))
     return (
-      <main className="grid min-h-[100dvh] place-items-center bg-background px-6 text-foreground">
+      <PantallaSistema className="grid min-h-[100dvh] place-items-center px-6">
         <form method="post" action="/api/desktop/entrar" className="glass-panel-strong w-full max-w-md space-y-4 p-8">
           <h1 className="text-xl font-semibold tracking-tight">Entra a tu Arbrain</h1>
           {telefono && enServidor ? (
@@ -62,17 +64,17 @@ export default async function SinSesionPage({ searchParams }: { searchParams: Pr
             className="w-full rounded-xl border border-border-subtle bg-surface px-3 py-2 font-mono text-[14px]"
           />
           {error && <p role="alert" className="text-[13px] text-red-500">{error}</p>}
-          <button type="submit" className="w-full rounded-xl bg-brand px-4 py-2 text-[14px] font-medium text-white">Entrar</button>
+          <button type="submit" className="ps-tecla w-full">Entrar</button>
         </form>
-      </main>
+      </PantallaSistema>
     )
   }
   return (
-    <main className="grid min-h-[100dvh] place-items-center bg-background px-6 text-foreground">
+    <PantallaSistema className="grid min-h-[100dvh] place-items-center px-6">
       <div className="glass-panel-strong max-w-md p-8 text-center">
         <h1 className="text-xl font-semibold tracking-tight">Abre Arbrain desde la app</h1>
         <p className="mt-3 text-[14px] leading-relaxed text-muted">Por seguridad, tu Arbrain solo responde a su app de escritorio. Esta página no puede abrirse desde un navegador.</p>
       </div>
-    </main>
+    </PantallaSistema>
   )
 }

@@ -3,9 +3,9 @@
  * Prueba de punta a punta de «actualiza mi Arbrain» (29 oct 2026), para CI en Windows, macOS y Linux. La corre
  * `.github/workflows/actualizar.yml` de la copia del alumno (fuente: arbrain/empaquetado/ci/workflows/actualizar.yml).
  *
- *   node arbrain/empaquetado/ci/smoke/actualizar-ci.mjs --desde v0.2.13 --candidato <checkout> --trabajo <carpeta>
+ *   node arbrain/empaquetado/ci/smoke/actualizar-ci.mjs --desde v0.2.13 --candidato <checkout> --trabajo <carpeta> [--caso servidor]
  *
- * El caso real de un alumno: tiene instalada una versión publicada (v0.2.13, v0.2.15 o v0.2.16, de
+ * El caso real de un alumno: tiene instalada una versión publicada (v0.2.13, v0.2.15, v0.2.16 o v0.2.17, de
  * github.com/arbrain-ai/arbrain con su etiqueta firmada de verdad) y pide «actualiza mi Arbrain».
  *   1. Autor: clon del repo público; la copia de ESTE commit (el candidato) va encima de la última versión publicada
  *      con su propia VERSION (30 oct 2026: antes era fija, «v0.2.16 encima de v0.2.15», y dejó de servir en cuanto se
@@ -22,6 +22,11 @@
  *      proceso que corre el comando por bash y al terminar se mata con todo su árbol (taskkill /T en Windows), como cuando el
  *      servidor se reinicia debajo del chat. El reinicio desacoplado tiene que sobrevivir y dejar corriendo la siguiente.
  *   Después de cada salto: versión nueva, memoria, skill y marca intactas, `git status` limpio y rama de respaldo.
+ * `--caso servidor` (31 oct 2026, v0.2.18): la copia como la deja «solo en tu servidor» (`nube.sh` hasta la 0.2.17),
+ * SIN rama `main` local. Si el actualizar.mjs de la versión instalada no sabe crearla (0.2.17 o anterior), primero
+ * comprueba que se detiene y después aplica el puente de las notas del release (`git branch main v<instalada>`), como lo
+ * haría el alumno; desde la 0.2.18 la crea solo. Antes del salto 2 se borran otra vez `main` y `dani/main` (la forma
+ * del espejo, que clona solo mi-arbrain) y el actualizador del candidato tiene que reponer `main` sin ayuda.
  * Sale con 1 al primer fallo y deja en <trabajo>/evidencia la salida de cada paso. Nunca imprime secretos.
  */
 import { spawn, spawnSync } from 'node:child_process'
@@ -34,6 +39,7 @@ import { dirDatosPorDefecto } from '../../../scripts/servidor/rutas.mjs'
 const argv = process.argv.slice(2)
 const opcion = (n) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : undefined }
 const DESDE = opcion('--desde') ?? 'v0.2.15'
+const SERVIDOR = (opcion('--caso') ?? 'computadora') === 'servidor'
 const CANDIDATO = resolve(opcion('--candidato') ?? '.')
 const T = resolve(opcion('--trabajo') ?? 'trabajo-actualizar')
 const WIN = process.platform === 'win32'
@@ -183,6 +189,20 @@ const actualizar = (args, env = {}) => {
 
 // ── 3. Al candidato: con la skill vieja + PASO 6 nuevo, o con el actualizar.mjs de la versión instalada ─────────
 
+if (SERVIDOR) {
+  if (!UN_PASO) falla(`--caso servidor necesita una versión instalada con actualizar.mjs (0.2.16 en adelante), no ${DESDE}`)
+  log(`servidor: la copia sin rama main local, como la deja nube.sh de la ${DESDE}`)
+  git(A, 'branch', '-D', 'main')
+  verdad(cmd('git', ['show-ref', '--verify', '-q', 'refs/heads/main'], { cwd: A, ok: false }).status !== 0, 'servidor: sin main local')
+  const sabeCrearMain = mostrar(`${DESDE}^{commit}`, 'arbrain/scripts/actualizar.mjs').includes("'sin-main'")
+  if (!sabeCrearMain) {
+    const r = actualizar(['revisar'])
+    verdad(r.codigo !== 0 && r.k.ESTADO !== 'DISPONIBLE' && /refs\/heads\/main/.test(r.salida), `servidor: el actualizar.mjs de la ${DESDE} se detiene sin main (${r.k.ESTADO ?? r.codigo}), por eso va el puente`)
+    log(`servidor: el puente de las notas del release, git -C ~/Arbrain branch main ${DESDE}`)
+    cmd('git', ['-C', A, 'branch', 'main', DESDE])
+  }
+}
+
 if (UN_PASO) {
   log(`salto 1: «actualiza mi Arbrain» con el actualizar.mjs de la ${DESDE} (revisar + aplicar, fuera de un turno)`)
   const r0 = actualizar(['revisar'])
@@ -230,6 +250,12 @@ loMioIntacto('salto 1')
 
 // ── 4. Del candidato a la siguiente en un paso, desde un turno que muere ────────────────────────────────────────
 
+if (SERVIDOR) {
+  log('servidor: borro main y dani/main otra vez (forma del espejo); el actualizar.mjs del candidato debe reponer main')
+  git(A, 'branch', '-D', 'main')
+  git(A, 'update-ref', '-d', 'refs/remotes/dani/main')
+}
+
 log(`v${VS} de prueba: cambia una skill del autor y su CHANGELOG`)
 const REF_NUEVA = `.claude/skills/canvas/references/ci-${VS}.md`
 const CS = publicar({
@@ -243,6 +269,7 @@ const CS = publicar({
 poner('.claude/memory/project/pendiente.md', '# Pendiente sin guardar\n\n- y otra línea\n')
 
 const rv = actualizar(['revisar'])
+if (SERVIDOR) verdad(/no tenía la rama main/.test(rv.salida), 'servidor: el candidato repuso main solo')
 igual(rv.k.ESTADO, 'DISPONIBLE', `salto 2: revisar ve la ${VS}`)
 igual(rv.k.ETIQUETA, `v${VS}`, 'salto 2: etiqueta')
 igual(rv.k.SIGUIENTE, `node arbrain/scripts/actualizar.mjs aplicar v${VS}`, 'salto 2: siguiente paso')
@@ -292,4 +319,4 @@ igual(actualizar(['revisar']).k.ESTADO, 'AL_DIA', 'salto 2: ya al día')
 log('apago Arbrain')
 cmd(process.execPath, ['arbrain/scripts/servidor.mjs', 'detener'], { cwd: join(A, 'arbrain'), ok: false })
 copiarLogs()
-log(`TODO OK desde ${DESDE}`)
+log(`TODO OK desde ${DESDE}${SERVIDOR ? ' (servidor sin main)' : ''}`)

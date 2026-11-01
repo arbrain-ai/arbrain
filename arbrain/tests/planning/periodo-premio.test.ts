@@ -35,8 +35,8 @@ test('las fechas del viaje se leen cortas', () => {
 
 test('el periodo vive en un solo lugar y nunca nombra el hábito privado', () => {
   const p = INSTALACION.periodo!
-  assert.equal(diaDelPeriodo(p.desde, p).total, 30)
-  assert.equal(p.desde, '2026-10-25', 'Día 1: domingo 25 oct (Daniel, 25 oct 08:54: «empieza HOY»)')
+  assert.equal(diaDelPeriodo(p.desde, p).total, 23)
+  assert.equal(p.desde, '2026-11-01', 'Día 1: domingo 1 nov (Daniel, 31 oct 07:55: «a partir de mañana»)')
   assert.equal(p.hasta, '2026-11-24', 'cierra el día de salida, no al volver')
   assert.equal(rangoCorto(p.viaje!.desde, p.viaje!.hasta), '24–29 nov')
   assert.equal(p.viaje!.firmado, true)
@@ -54,7 +54,7 @@ test('la temporada de hábitos no tiene fecha propia: cierre y premio salen del 
   assert.equal(temporada.hasta, INSTALACION.periodo!.hasta)
   assert.equal(temporada.desde, INSTALACION.periodo!.desde)
   assert.equal(temporada.premio, INSTALACION.periodo!.premio)
-  assert.equal(temporada.arranque, '2026-10-25')
+  assert.equal(temporada.arranque, '2026-11-01')
   assert.equal(temporadaDeHabitos(t, undefined), null, 'sin periodo no hay temporada')
   assert.equal(temporadaDeHabitos(undefined, INSTALACION.periodo), null)
 })

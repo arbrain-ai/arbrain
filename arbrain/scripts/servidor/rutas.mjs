@@ -6,14 +6,15 @@
  * diferencia):
  *   <datos>/daemon/          ARBRAIN_DATA_DIR del daemon (store/, uploads/, claude/, cohorte/)
  *   <datos>/daemon/config/   ARBRAIN_CONFIG_DIR (daemon y web). Aquí también lo privado del modo servidor:
- *                            acceso.json (contraseña), llaves.json (llaves BYOK), servidor.json (proceso vivo).
+ *                            acceso.json (contraseña), llaves.json (llaves BYOK), servidor.json (proceso vivo),
+ *                            avisos.json (llaves VAPID de los avisos al teléfono, v0.2.18).
  *                            La política de los agentes y el sandbox niegan leer esta carpeta.
  *   <datos>/web/             ARBRAIN_DATA_DIR de la web (chat y lienzo locales)
  *   <datos>/cerebro/         ARBRAIN_HOME cuando no se corre desde la copia del alumno
  *   <datos>/programa/        el daemon compilado para este sistema
  *   <datos>/logs/            servidor.log, daemon.log, web.log
  */
-import { createHash, randomBytes } from 'node:crypto'
+import { createHash, generateKeyPairSync, randomBytes } from 'node:crypto'
 import { join, resolve } from 'node:path'
 
 /** Puertos del sistema de Daniel y del desarrollo: el modo servidor nunca los usa (igual que la app). */
@@ -54,6 +55,7 @@ export function rutasDe(datos, tmp) {
     acceso: join(config, 'acceso.json'),
     llaves: join(config, 'llaves.json'),
     proceso: join(config, 'servidor.json'),
+    avisos: join(config, 'avisos.json'),
   }
 }
 
@@ -79,6 +81,41 @@ export function contrasenaNueva() {
     }
   }
   return s.match(/.{4}/g).join('-')
+}
+
+/**
+ * Llaves VAPID de los avisos al teléfono (v0.2.18, docs/builds/avisos-telefono-alumno-2026-10-31/REPORTE.md). Propias de
+ * cada instalación: se generan una vez (P-256, como `web-push generate-vapid-keys`) y viven en `avisos.json` (0600) junto
+ * a `acceso.json`. La pública va a la web por entorno (no es secreta: el navegador la usa para suscribirse); la privada
+ * solo por stdin (`VAPID_PRIVATE_KEY`, que el preludio quita de todo hijo de la web). El daemon y los agentes no la ven.
+ */
+export function llavesVapidNuevas() {
+  const { publicKey, privateKey } = generateKeyPairSync('ec', { namedCurve: 'prime256v1' })
+  const pub = publicKey.export({ format: 'jwk' })
+  const priv = privateKey.export({ format: 'jwk' })
+  const bytes = (b64) => Buffer.from(b64, 'base64url')
+  const publica = Buffer.concat([Buffer.from([4]), bytes(pub.x), bytes(pub.y)]).toString('base64url')
+  return { publica, privada: bytes(priv.d).toString('base64url') }
+}
+
+/** ¿Un `avisos.json` trae un par usable? Pública: 65 bytes sin comprimir (0x04…); privada: 32 bytes. */
+export function llavesVapidValidas(j) {
+  if (!j || typeof j.publica !== 'string' || typeof j.privada !== 'string') return false
+  if (!/^[A-Za-z0-9_-]+$/.test(j.publica) || !/^[A-Za-z0-9_-]+$/.test(j.privada)) return false
+  const pub = Buffer.from(j.publica, 'base64url'), priv = Buffer.from(j.privada, 'base64url')
+  return pub.length === 65 && pub[0] === 4 && priv.length === 32
+}
+
+/**
+ * Las llaves de esta instalación: las de `ruta` si sirven; si no (primera vez, o un archivo dañado), unas nuevas que se
+ * guardan ahí con `escribir` (el supervisor pasa su `escribirPrivado`: 0600). `regeneradas` = había algo y no servía.
+ */
+export function llavesVapidDe(ruta, { leer, escribir, ahora = () => new Date().toISOString() }) {
+  const actual = leer(ruta)
+  if (llavesVapidValidas(actual)) return { publica: actual.publica, privada: actual.privada, nuevas: false, regeneradas: false }
+  const nuevas = llavesVapidNuevas()
+  escribir(ruta, JSON.stringify({ ...nuevas, creadas: ahora() }, null, 1) + '\n')
+  return { ...nuevas, nuevas: true, regeneradas: actual !== null && actual !== undefined }
 }
 
 /** Puerto válido para el modo servidor (no reservado, no privilegiado). */
@@ -138,6 +175,8 @@ export const PROHIBIDAS = [
   'ARBRAIN_DESKTOP_SECRET', 'ARBRAIN_SECRETOS', 'ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN',
   'CLAUDE_CODE_OAUTH_REFRESH_TOKEN', 'CLAUDE_SECURESTORAGE_CONFIG_DIR', 'OPENROUTER_API_KEY', 'GROQ_API_KEY', 'LEMONFOX_API_KEY',
   'ANTHROPIC_AUTH_TOKEN', 'OPENCLAW_GATEWAY_TOKEN', 'ARBRAIN_DAEMON_TOKEN', 'ARBRAIN_TOKEN_CONFIRMAR', 'ARBRAIN_WEB_URL',
+  // Avisos al teléfono (v0.2.18): las llaves de cada instalación salen de su `avisos.json`, nunca de la terminal.
+  'VAPID_PRIVATE_KEY', 'VAPID_EMAIL', 'NEXT_PUBLIC_VAPID_PUBLIC_KEY', 'ARBRAIN_VAPID_PUBLICA',
   'ARBRAIN_COHORTE_URL', 'ARBRAIN_PERFIL', 'MC_SERVER_PORT', 'MISSION_CONTROL_ORIGIN', 'MISSION_CONTROL_URL',
   'CLAUDECLAW_ROLE', 'CLAUDECLAW_URL', 'CLAUDECLAW_URL_PINNED', 'CLAUDE_CONFIG_DIR', 'GOG_KEYRING_PASSWORD',
   'ARBRAIN_SANDBOX', 'ANTHROPIC_BASE_URL', 'ARBRAIN_PROVEEDOR_CLAUDE', 'ARBRAIN_PLANTILLA_DIR', 'MANOS_VOZ_VENTANA_MIN',

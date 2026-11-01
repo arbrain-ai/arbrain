@@ -105,6 +105,8 @@ export const APIS_CLIENTE = [
   '/api/cabina/memoria', '/api/cabina/contexto', '/api/cabina/archivos', '/api/cabina/explorador',
   '/api/cabina/documento', '/api/cabina/archivero', '/api/cabina/panel', '/api/cabina/panel-ajustes',
   '/api/cabina/panel-terminal', '/api/cabina/terminal',
+  // Conversación nueva fijada que abre su Levy (31 oct 2026): la llama SU daemon con su token, no el navegador.
+  '/api/cabina/conversacion',
   // Taller › Agentes (29 oct 2026, fundador en Windows: «El Studio no respondió · No disponible en esta edición»): SUS
   // subagentes (Agent del SDK, bajo su guardia) y la salida de cada uno, de solo lectura. Su daemon responde con su propio
   // registro (server/src/cabina/trabajos-cliente.ts), nunca el motor, los servidores ni los servicios del Studio.
@@ -141,6 +143,11 @@ export const APIS_CLIENTE = [
   // «Esta pantalla tuvo un problema» y el hilo del chat que no se pintó (30 oct 2026): la línea va a SU carpeta de datos
   // (`<datos web>/logs`, rueda-log.ts › dirLogs), no a Supabase. Sin ellas, sus caídas no dejaban rastro para diagnosticarlas.
   '/api/error-pantalla', '/api/chat/hilo-error',
+  // Bitácora del lector (31 oct 2026): primer audio, fallas y cambios de voz del alumno, a SU carpeta de datos.
+  '/api/chat/lector-log',
+  // Avisos de Levy en tu teléfono (v0.2.18, un fundador con iPhone): suscribir este dispositivo y la prueba, con la
+  // sesión del dueño; `send`, solo con el token de SU daemon (avisosAlumno.ts). Sin la campana del negocio original.
+  '/api/notifications/subscribe', '/api/notifications/prueba', '/api/notifications/send',
 ] as const
 
 function coincidePrefijo(ruta: string, prefijo: string) {

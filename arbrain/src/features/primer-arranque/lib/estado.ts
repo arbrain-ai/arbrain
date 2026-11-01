@@ -8,6 +8,7 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSy
 import { join } from 'node:path'
 import { dirDatosWeb } from '@/lib/rutas-instalacion'
 import { VERSION_TEXTOS } from '../textos/legales'
+import { esReaceptacion } from './pasos'
 
 export interface EstadoPrimerArranque {
   version: 1
@@ -82,4 +83,12 @@ export function faltaPrimerArranque(e = leerPrimerArranque()): boolean {
  */
 export function irABienvenida(): boolean {
   try { return faltaPrimerArranque() } catch (e) { return !(e instanceof PrimerArranqueIlegible) }
+}
+
+/**
+ * Para la página de bienvenida: ¿basta la re-aceptación corta (legal y autonomía)? Solo si ya la terminó y cambiaron los
+ * textos. Si el estado no se lee, no: la bienvenida completa es el camino seguro de siempre.
+ */
+export function reaceptacionCorta(): boolean {
+  try { return esReaceptacion(leerPrimerArranque(), VERSION_TEXTOS) } catch { return false }
 }

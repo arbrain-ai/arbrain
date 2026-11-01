@@ -4,11 +4,38 @@
  * Cualquier persona con cuenta en Arbrain (el dueño, su equipo, quien siga) ve el estado de ESTE dispositivo, las activa en
  * un toque, se manda una prueba (solo a sí misma) y las apaga. En iPhone sin Arbrain en la pantalla de inicio, en vez de
  * un botón muerto, la guía de 3 pasos. Patrón de la comunidad (la web de la comunidad, perfil › Notificaciones).
+ *
+ * Edición cliente (v0.2.18, un fundador con iPhone): los avisos de SU Levy (una decisión pendiente, una rutina que
+ * terminó, una respuesta larga con la app cerrada), sin la campana del negocio original. En iPhone: iOS 16.4+, Tu Arbrain
+ * en la pantalla de inicio y entrando por su dirección de Tailscale (HTTPS). En la computadora se explica y se manda al
+ * teléfono: ahí no hay service worker.
  */
 import { useState } from 'react'
 import { AlertTriangle, Bell, BellOff, CheckCircle2, Copy, Loader2, Send, Share, Smartphone, SquarePlus } from 'lucide-react'
 import { resumenEstado } from '../lib/soportePush'
 import { useNotificaciones } from '../hooks/useNotificaciones'
+import { esEdicionCliente } from '@/lib/edicion'
+import { useAjustes } from '@/shared/stores/ajustes-store'
+
+const CLIENTE = esEdicionCliente()
+
+/** Lo que tiene que cumplir un iPhone (siempre a la vista en la edición cliente). */
+function RequisitosIphone() {
+  const ir = useAjustes((s) => s.ir)
+  return (
+    <section aria-labelledby="notificaciones-iphone" className="solid-card px-4 py-4 sm:px-5" data-requisitos-iphone>
+      <h3 id="notificaciones-iphone" className="text-sm font-semibold text-foreground/90">En iPhone</h3>
+      <ul className="mt-2 space-y-1.5 text-sm leading-relaxed text-muted">
+        <li><strong className="font-medium text-foreground/85">iOS 16.4 o más.</strong> Lo ves en Ajustes › General › Información.</li>
+        <li><strong className="font-medium text-foreground/85">Tu Arbrain en la pantalla de inicio.</strong> Apple solo entrega avisos a una app agregada desde Safari (Compartir › Agregar a pantalla de inicio).</li>
+        <li><strong className="font-medium text-foreground/85">Entrando por tu dirección de Tailscale.</strong> La que empieza con <code className="text-xs">https://</code> y termina en <code className="text-xs">.ts.net</code>; sin HTTPS el iPhone no deja activarlos.</li>
+      </ul>
+      <button type="button" onClick={() => ir('telefono')} className="mt-3 text-sm font-medium text-brand-ink underline-offset-2 hover:underline">
+        Ver mi dirección en «Tu cerebro en el teléfono»
+      </button>
+    </section>
+  )
+}
 
 function Paso({ n, children }: { n: number; children: React.ReactNode }) {
   return (
@@ -80,11 +107,11 @@ export function SeccionNotificaciones() {
 
           {estado === 'ios-instalar' && (
             <div className="space-y-3">
-              <p className="text-sm text-muted">Apple solo entrega notificaciones a Arbrain cuando vive en tu pantalla de inicio. Son 20 segundos:</p>
+              <p className="text-sm text-muted">Apple solo entrega notificaciones a {CLIENTE ? 'Tu Arbrain' : 'Arbrain'} cuando vive en tu pantalla de inicio. Son 20 segundos:</p>
               <ol className="space-y-2.5">
-                <Paso n={1}>Toca <Share className="-mt-0.5 inline size-4 text-brand-ink" aria-label="Compartir" /> <strong>Compartir</strong> en la barra de Safari.</Paso>
+                <Paso n={1}>Toca <Share className="-mt-0.5 inline size-4 text-brand-ink" aria-label="Compartir" /> <strong>Compartir</strong> en la barra de Safari{CLIENTE ? ' (con esta misma dirección de Tailscale abierta)' : ''}.</Paso>
                 <Paso n={2}>Elige <SquarePlus className="-mt-0.5 inline size-4 text-brand-ink" aria-hidden /> <strong>Agregar a pantalla de inicio</strong> y luego <strong>Agregar</strong>.</Paso>
-                <Paso n={3}>Abre <strong>Arbrain</strong> desde el ícono nuevo, entra a <strong>Ajustes › Notificaciones</strong> (tu nombre al pie del menú) y toca <strong>Activar notificaciones</strong>.</Paso>
+                <Paso n={3}>Abre <strong>{CLIENTE ? 'Tu Arbrain' : 'Arbrain'}</strong> desde el ícono nuevo, entra a <strong>Ajustes › Notificaciones</strong> y toca <strong>Activar notificaciones</strong>.</Paso>
               </ol>
               <p className="text-xs text-muted">Tu sesión se queda iniciada. Necesitas iOS 16.4 o más.</p>
             </div>
@@ -111,10 +138,15 @@ export function SeccionNotificaciones() {
           )}
 
           {estado === 'ios-actualizar' && <p className="text-sm text-muted">Actualiza tu iPhone en Ajustes › General › Actualización de software y vuelve aquí.</p>}
-          {estado === 'no-soportado' && (
-            <p className="text-sm text-muted">Aquí los avisos llegan a la campana. Para recibirlos en el teléfono, abre Arbrain ahí (en iPhone, desde la pantalla de inicio) y actívalos en esta misma sección.</p>
+          {estado === 'en-computadora' && (
+            <p className="text-sm text-muted">Los avisos de Levy llegan a tu teléfono. Abre tu Arbrain ahí por tu dirección de Tailscale (en iPhone, desde la pantalla de inicio) y actívalos en esta misma sección. Aquí en tu computadora sigues viendo todo en la app.</p>
           )}
-          {estado === 'sin-configurar' && <p className="text-sm text-muted">A este servidor le faltan las claves de notificaciones. Mientras tanto los avisos llegan a la campana.</p>}
+          {estado === 'no-soportado' && (CLIENTE
+            ? <p className="text-sm text-muted">Este navegador no recibe notificaciones. Abre tu Arbrain en tu teléfono por tu dirección de Tailscale (en iPhone, desde la pantalla de inicio) y actívalos ahí.</p>
+            : <p className="text-sm text-muted">Aquí los avisos llegan a la campana. Para recibirlos en el teléfono, abre Arbrain ahí (en iPhone, desde la pantalla de inicio) y actívalos en esta misma sección.</p>)}
+          {estado === 'sin-configurar' && (CLIENTE
+            ? <p className="text-sm text-muted">A tu Arbrain le faltan sus llaves de avisos. Dile a Levy «actualiza mi Arbrain»: al reiniciarse las genera solo.</p>
+            : <p className="text-sm text-muted">A este servidor le faltan las claves de notificaciones. Mientras tanto los avisos llegan a la campana.</p>)}
 
           {error && <p role="alert" className="text-sm text-error">{error}</p>}
 
@@ -130,12 +162,23 @@ export function SeccionNotificaciones() {
 
       <section aria-labelledby="notificaciones-que" className="solid-card px-4 py-4 sm:px-5">
         <h3 id="notificaciones-que" className="text-sm font-semibold text-foreground/90">Qué te llega</h3>
-        <ul className="mt-2 space-y-1.5 text-sm leading-relaxed text-muted">
-          <li><strong className="font-medium text-foreground/85">Reportes:</strong> los que Levy te prepara (por ejemplo, el de la mañana).</li>
-          <li><strong className="font-medium text-foreground/85">Avisos:</strong> cuando Levy termina un trabajo o necesita tu respuesta.</li>
-          <li>Al tocar una, Arbrain abre su conversación. Todo queda también en la campana.</li>
-        </ul>
+        {CLIENTE ? (
+          <ul className="mt-2 space-y-1.5 text-sm leading-relaxed text-muted">
+            <li><strong className="font-medium text-foreground/85">Levy espera tu decisión:</strong> algo necesita tu sí o tu no; mientras, sigue con lo demás.</li>
+            <li><strong className="font-medium text-foreground/85">Una rutina terminó:</strong> con lo que dejó o, si falló, por qué.</li>
+            <li><strong className="font-medium text-foreground/85">Levy terminó tu respuesta:</strong> cuando tardó más de un minuto y cerraste la app.</li>
+            <li>Uno por cada cosa, sin repetirse. Al tocarlo se abre donde está: la conversación o Taller › Rutinas.</li>
+          </ul>
+        ) : (
+          <ul className="mt-2 space-y-1.5 text-sm leading-relaxed text-muted">
+            <li><strong className="font-medium text-foreground/85">Reportes:</strong> los que Levy te prepara (por ejemplo, el de la mañana).</li>
+            <li><strong className="font-medium text-foreground/85">Avisos:</strong> cuando Levy termina un trabajo o necesita tu respuesta.</li>
+            <li>Al tocar una, Arbrain abre su conversación. Todo queda también en la campana.</li>
+          </ul>
+        )}
       </section>
+
+      {CLIENTE && <RequisitosIphone />}
     </div>
   )
 }

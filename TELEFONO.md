@@ -110,6 +110,14 @@ ve el QR, la dirección y el botón **«Código para entrar»**. Dale estos paso
 
 Si el teléfono dice que no encuentra la página: Tailscale del teléfono está apagado o con otra cuenta.
 
+**Los avisos de Levy en el teléfono** (desde la 0.2.18; si la persona los quiere): en «Tu Arbrain» del teléfono,
+Ajustes › **Notificaciones** › **Activar notificaciones**, acepta el permiso y toca **«Enviarme una prueba»**: le llega
+una notificación de «Tu Arbrain». Desde ahí le avisa cuando Levy espera su decisión, cuando una rutina termina y cuando
+una respuesta larga termina con la app cerrada. En iPhone solo funciona con iOS 16.4 o más, desde el ícono de la
+pantalla de inicio (no en Safari) y entrando por la dirección `https://….ts.net`; si agregó el ícono antes desde otra
+dirección, que lo borre y lo vuelva a agregar desde la del QR. Si dice que el permiso está bloqueado: Ajustes del iPhone
+› Notificaciones › Tu Arbrain › Permitir. En la computadora la sección solo explica esto: los avisos son del teléfono.
+
 ## PASO 4 · Cierra
 
 ```text

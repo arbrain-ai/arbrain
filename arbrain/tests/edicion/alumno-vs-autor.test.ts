@@ -26,11 +26,15 @@ test('Documento: en cliente «Comentar» deja el lote como borrador en su chat c
   assert.match(fuente('src/features/chat/components/ChatPanel.tsx'), /window\.addEventListener\(EVENTO_BORRADOR_CHAT/)
 })
 
-test('Lienzo: en cliente no se generan miniaturas (`/api/draw3` vive en Supabase)', () => {
+test('Lienzo: en cliente las miniaturas van a su carpeta de datos (`/api/canvas/miniatura`), no a `/api/draw3` (Supabase)', () => {
   assert.equal(apiPermitidaEnCliente('/api/draw3/abc/thumbnail'), false)
+  assert.equal(apiPermitidaEnCliente('/api/canvas/miniatura/abc'), true)
   const m = fuente('src/features/canvas/state/miniaturas.ts')
-  assert.match(m, /if \(elements\.length === 0 \|\| esEdicionCliente\(\)\) return/)
-  assert.match(m, /if \(corriendo \|\| esEdicionCliente\(\)\) return/)
+  assert.match(m, /esEdicionCliente\(\) \? `\/api\/canvas\/miniatura\/\$\{paginaId\}` : `\/api\/draw3\/\$\{paginaId\}\/thumbnail`/)
+  const r = fuente('src/app/api/canvas/miniatura/[id]/route.ts')
+  assert.match(r, /dirDatosWeb/)
+  assert.doesNotMatch(r, /storage\.from/)
+  assert.equal((r.match(/if \(!esEdicionCliente\(\)\) return no\(404/g) ?? []).length, 2)
 })
 
 test('«Esta pantalla tuvo un problema» y el hilo que no se pintó dejan su línea en la carpeta de datos del alumno', () => {

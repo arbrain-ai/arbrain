@@ -4,6 +4,12 @@ const TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN, CONF = process.env.ARBRAIN_TOK
 let pendientes = [{ id: 'cf_0123456789ab', estado: 'pendiente', categoria: 'publicar', origen: 'agente', resumen: 'Publicar: git push origin main', detalle: 'git push origin main', literal: 'git push origin main', avisos: ['puede usar internet o abrir otras apps'], creadaPor: 'guardia', herramienta: 'Bash', creada: Date.now(), expira: Date.now() + 600000 }]
 let consentimiento = null
 let interruptor = null // §6.2: vive en la memoria del daemon
+// Permisos de Levy (0.2.15) y la re-aceptación corta (0.2.18): el texto de Autónomo viene por entorno (las capturas pasan
+// el real) o es uno de ejemplo; `/prueba/permisos` fija el escenario (p. ej. Autónomo con el texto viejo → reaceptar).
+const TEXTO = process.env.PERMISOS_TEXTO ? JSON.parse(process.env.PERMISOS_TEXTO) : { version: 'autonomia-prueba', sha256: 'a'.repeat(64), titulo: 'Qué significa el modo autónomo', aviso: 'Texto de prueba.', casillas: ['He leído esto.', 'Acepto que soy responsable.'], cuerpo: 'Texto de prueba del modo autónomo.' }
+let permisos = { modo: 'carpeta', consentimiento: null, reaceptar: false, migracion: null }
+const vistaPermisos = () => ({ ...permisos, modos: ['preguntar', 'carpeta', 'autonomo'], sandbox: true, texto: TEXTO, historialModo: [], avisos: [], misDatos: { telefono: '', correo: '' } })
+const vigente = () => permisos.consentimiento?.version === TEXTO.version && permisos.consentimiento?.sha256 === TEXTO.sha256
 const json = (res, s, o) => { res.writeHead(s, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(o)) }
 http.createServer((req, res) => {
   if (req.headers.authorization !== `Bearer ${TOKEN}`) return json(res, 401, { error: 'token' })
@@ -28,6 +34,22 @@ http.createServer((req, res) => {
       if (b.encendido && req.headers['x-arbrain-confirmar'] !== CONF) return json(res, 403, { error: 'Solo la persona, desde la app, puede encender computer use.' })
       interruptor = { encendido: b.encendido, decidido_en: new Date().toISOString(), por: 'app' }
       return json(res, 200, { encendido: b.encendido })
+    }
+    if (req.url === '/prueba/permisos') { permisos = { ...permisos, ...b }; return json(res, 200, vistaPermisos()) }
+    if (req.url === '/permisos' && req.method === 'GET') return json(res, 200, vistaPermisos())
+    if (req.url === '/permisos' && req.method === 'POST') {
+      if (b.decidirDespues === true) { permisos = { modo: 'carpeta', consentimiento: permisos.reaceptar ? null : permisos.consentimiento, reaceptar: false, migracion: null }; return json(res, 200, vistaPermisos()) }
+      if (!['preguntar', 'carpeta', 'autonomo'].includes(b.modo)) return json(res, 400, { error: 'modo' })
+      if (b.modo !== 'preguntar' && req.headers['x-arbrain-confirmar'] !== CONF) return json(res, 403, { error: 'Solo la persona, desde la app, puede cambiar los permisos de Levy.' })
+      if (b.modo === 'autonomo') {
+        if (b.acepto) {
+          if (b.acepto.version !== TEXTO.version || b.acepto.sha256 !== TEXTO.sha256) return json(res, 409, { error: 'otra versión', code: 'version', texto: TEXTO })
+          permisos.consentimiento = { ts: Date.now(), version: TEXTO.version, sha256: TEXTO.sha256, app: '', so: process.platform, via: b.via }
+        } else if (!vigente()) return json(res, 409, { error: 'falta aceptar', code: 'consentimiento', texto: TEXTO })
+      }
+      // Como el daemon real: elegir un nivel ya decide la re-aceptación o la migración pendiente.
+      permisos = { ...permisos, modo: b.modo, reaceptar: false, migracion: null }
+      return json(res, 200, vistaPermisos())
     }
     if (req.url === '/llaves/probar') return json(res, 200, { ok: false, ms: 5, code: 'falta_llave', error: 'Falta tu llave de Claude.' })
     json(res, 404, { error: 'no' })

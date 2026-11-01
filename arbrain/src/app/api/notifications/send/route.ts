@@ -6,6 +6,10 @@ import { decidir } from '@/features/avisos/policy'
 import { ownerIds, registrar } from '@/features/avisos/server'
 import { sameSecret } from '@/lib/desktop-auth'
 import { prepararVapid } from '@/features/notifications/lib/vapid'
+import { esEdicionCliente } from '@/lib/edicion'
+import { LOCAL_DESKTOP_USER_ID } from '@/lib/desktop-auth'
+import { almacenAlumno } from '@/features/notifications/lib/almacenSupabase'
+import { rutaSendAlumno } from '@/features/notifications/lib/avisosAlumno'
 
 const OPENCLAW_GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN
 
@@ -23,7 +27,31 @@ async function authorize(req: NextRequest): Promise<{ por: 'servidor' } | { por:
   return user ? { por: 'usuario', id: user.id } : null
 }
 
+/**
+ * Edición cliente (v0.2.18): los avisos de Levy al teléfono del alumno. Solo con el token de SU daemon (ni sesión ni
+ * pase de agente), al dueño de la instalación, sin campana. Lógica en features/notifications/lib/avisosAlumno.ts.
+ */
+async function sendAlumno(req: NextRequest) {
+  const cuerpo = await req.json().catch(() => null)
+  try {
+    const r = await rutaSendAlumno({
+      autorizacion: req.headers.get('authorization'),
+      token: process.env.OPENCLAW_GATEWAY_TOKEN,
+      cuerpo,
+      usuario: LOCAL_DESKTOP_USER_ID,
+      almacen: almacenAlumno(createServiceClient()),
+      enviar: async (s, payload) => { await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload, { TTL: 3600, urgency: 'high' }) },
+      vapidLista: prepararVapid(),
+    })
+    return NextResponse.json(r.json, { status: r.status, headers: { 'Cache-Control': 'no-store' } })
+  } catch (err) {
+    console.error('notifications/send (cliente):', err instanceof Error ? err.message : err)
+    return NextResponse.json({ error: 'No se pudo enviar el aviso.' }, { status: 500 })
+  }
+}
+
 export async function POST(req: NextRequest) {
+  if (esEdicionCliente()) return sendAlumno(req)
   try {
     const quien = await authorize(req)
     if (!quien) {

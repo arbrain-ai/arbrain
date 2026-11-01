@@ -16,9 +16,65 @@
  *
  * Este módulo no sabe nada del chat: recibe texto hablado, devuelve audio, marcas y reloj. Si el servidor falla, quien lo
  * usa vuelve a la voz del navegador.
+ *
+ * AUDIO LIGERO (31 oct 2026, Daniel: «la menor latencia posible al momento de play»): un cliente remoto (el teléfono por
+ * la tailnet) pide Ogg Opus, ~11 % del WAV, si este navegador lo decodifica sin correr las marcas (sonda-opus.ts). En la
+ * misma máquina, WAV (cero costo de codificar). Un Opus que no decodifique se vuelve a pedir en WAV, y WAV desde ahí.
+ * Los errores llegan clasificados (FallaVoz.reintentable): la red o un daemon reiniciándose valen un reintento; un 4xx
+ * o una edición sin voz de servidor, no.
  */
 import { leerMarcas, type MarcaPalabra } from './marcas-voz'
 import { marcasFaltan } from './aviso-groq-lector'
+import { bytesSondaOpus, sondaOpusExacta } from './sonda-opus'
+
+export type FormatoAudio = 'wav' | 'opus'
+
+/** Falla de un tramo. `reintentable`: la red o el servidor (un reinicio dura segundos); vale la pena volver a pedirlo. */
+export class FallaVoz extends Error {
+  constructor(motivo: string, readonly reintentable: boolean, readonly decodificacion = false) {
+    super(motivo)
+    this.name = 'FallaVoz'
+  }
+}
+
+/** ¿Vale la pena reintentar esta respuesta? Edición sin voz de servidor o un proveedor que la negó: no. Pura. */
+export function esReintentable(status: number, code?: string | null): boolean {
+  if (code === 'sin_voz_servidor' || code === 'voz_proveedor') return false
+  return status === 0 || status === 408 || status === 429 || status >= 500
+}
+
+/** Formato que pide el lector: Opus si el cliente es remoto y lo decodifica exacto; WAV en la misma máquina. Pura. */
+export function formatoDelLector(hostname: string, opusExacto: boolean): FormatoAudio {
+  const local = /^(localhost|127\.0\.0\.1|\[?::1\]?|tauri\.localhost)$/i.test(hostname)
+  return !local && opusExacto ? 'opus' : 'wav'
+}
+
+/** Cuánto tardó cada tramo, para la bitácora del lector (lector-registro.ts). ms. */
+export interface MedidaTramo {
+  formato: string
+  bytes: number
+  /** pedido → cabeceras (auth, síntesis y viaje de ida) */
+  red_ms: number
+  /** cabeceras → último byte */
+  descarga_ms: number
+  decodifica_ms: number
+  /** Server-Timing de la ruta y del daemon */
+  servidor: string | null
+}
+
+// Un tramo que no llega en este tiempo se da por perdido (y se reintenta): un daemon colgado no deja la lectura muda.
+const ESPERA_MAX_MS = 10_000
+
+function conTiempo(ms: number): AbortSignal | undefined {
+  try {
+    if (typeof AbortSignal !== 'undefined' && 'timeout' in AbortSignal) return AbortSignal.timeout(ms)
+    const c = new AbortController()
+    setTimeout(() => c.abort(), ms)
+    return c.signal
+  } catch { return undefined }
+}
+
+const ahora = () => (typeof performance !== 'undefined' ? performance.now() : Date.now())
 
 // Buffers decodificados (PCM a la frecuencia del contexto, ~2 MB por tramo largo): los últimos bastan para reanudar,
 // retroceder un párrafo y la precarga.
@@ -29,6 +85,7 @@ export interface AudioTramo {
   buffer: AudioBuffer
   tempo: number
   marcas: MarcaPalabra[] | null
+  medida?: MedidaTramo
 }
 
 // Holgura del vigía del final de un tramo: si `onended` no llegó medio segundo después de la duración, se da por terminado.
@@ -54,6 +111,14 @@ export function posicionAudible(currentTime: number, origen: number, baseLatency
   return currentTime - lat - origen
 }
 
+/** decodeAudioData con las dos firmas (Safari viejo solo tiene la de callbacks). */
+function decodificar(ctx: BaseAudioContext, datos: ArrayBuffer): Promise<AudioBuffer> {
+  return new Promise<AudioBuffer>((ok, mal) => {
+    const pr = ctx.decodeAudioData(datos, ok, mal)
+    if (pr && typeof pr.then === 'function') pr.then(ok, mal)
+  })
+}
+
 export class VozServidor {
   private ctx: AudioContext | null = null
   private cache = new Map<string, Promise<AudioTramo>>()
@@ -68,8 +133,49 @@ export class VozServidor {
     typeof window !== 'undefined' && !!(window.AudioContext || (window as unknown as { webkitAudioContext?: unknown }).webkitAudioContext)
   /** `false` tras un fallo del servidor: esa lectura sigue con la voz del navegador. */
   disponible = this.soportado
+  // ¿Ogg Opus decodifica exacto aquí? null = aún no se sabe (la sonda corre una vez, en segundo plano).
+  private opusExacto: boolean | null = null
+  private sondeoOpus: Promise<boolean> | null = null
+  private offline: BaseAudioContext | null = null
 
-  constructor(private pedir: (texto: string, velocidad: number) => Promise<Response>) {}
+  constructor(private pedir: (texto: string, velocidad: number, formato: FormatoAudio, signal?: AbortSignal, prioridad?: boolean) => Promise<Response>) {
+    // La sonda corre ya: al primer «Escuchar» el formato está decidido (decodificar 753 bytes, ~10 ms).
+    if (this.soportado && typeof location !== 'undefined' && formatoDelLector(location.hostname, true) === 'opus')
+      setTimeout(() => { void this.formato() }, 0)
+  }
+
+  /** Formato con que se piden los tramos (ver formatoDelLector). `localStorage['lector-formato']` lo fija para QA. */
+  async formato(): Promise<FormatoAudio> {
+    let fijo: string | null = null
+    try { fijo = typeof localStorage !== 'undefined' ? localStorage.getItem('lector-formato') : null } catch { /* modo privado */ }
+    if (fijo === 'wav') return 'wav'
+    if (fijo !== 'opus' && (typeof location === 'undefined' || formatoDelLector(location.hostname, true) === 'wav')) return 'wav'
+    if (this.opusExacto == null) this.opusExacto = await (this.sondeoOpus ??= this.sondearOpus())
+    return this.opusExacto ? 'opus' : 'wav'
+  }
+
+  private async sondearOpus(): Promise<boolean> {
+    try {
+      const ctx = this.decodificador()
+      if (!ctx) return false
+      const b = await decodificar(ctx, bytesSondaOpus())
+      return sondaOpusExacta(b.getChannelData(0), b.sampleRate, b.duration)
+    } catch {
+      return false
+    }
+  }
+
+  /** Contexto para decodificar: el de la lectura si ya existe; si no, uno fuera de línea (no toca la sesión de audio del
+   *  teléfono, así la precarga puede correr antes del primer toque). Los AudioBuffer sirven en cualquier contexto. */
+  private decodificador(): BaseAudioContext | null {
+    if (this.ctx) return this.ctx
+    if (this.offline) return this.offline
+    if (typeof window === 'undefined') return null
+    const w = window as unknown as { OfflineAudioContext?: typeof OfflineAudioContext; webkitOfflineAudioContext?: typeof OfflineAudioContext }
+    const O = w.OfflineAudioContext || w.webkitOfflineAudioContext
+    if (O) { try { this.offline = new O(1, 4800, 48000); return this.offline } catch { /* sin contexto fuera de línea */ } }
+    return this.contexto()
+  }
 
   private contexto(): AudioContext | null {
     if (!this.ctx && this.disponible) {
@@ -106,8 +212,9 @@ export class VozServidor {
     if (this.ctx && this.fuente && this.ctx.state !== 'running') this.ctx.resume().catch(() => {})
   }
 
-  /** Audio y marcas del texto a esa velocidad. Comparte la petición en vuelo y guarda los últimos en memoria. */
-  cargar(texto: string, velocidad: number): Promise<AudioTramo> {
+  /** Audio y marcas del texto a esa velocidad. Comparte la petición en vuelo y guarda los últimos en memoria.
+   *  `urgente`: alguien lo está esperando (play, tap): el servidor lo pasa delante de las precargas. */
+  cargar(texto: string, velocidad: number, urgente = false): Promise<AudioTramo> {
     const clave = `${velocidad}|${texto}`
     const hit = this.cache.get(clave)
     if (hit) {
@@ -116,29 +223,65 @@ export class VozServidor {
       this.cache.set(clave, hit)
       return hit
     }
-    const p = this.pedir(texto, velocidad).then(async (r) => {
-      if (!r.ok) throw new Error(`tts ${r.status}`)
-      const tipo = r.headers.get('content-type') || ''
-      if (!tipo.startsWith('audio/')) throw new Error(`tts ${tipo || 'sin tipo'}`)
-      const tempo = Number(r.headers.get('x-tempo')) || 1
-      const marcas = leerMarcas(r.headers.get('x-marcas'), texto)
-      // LemonFox sin llave de Groq: el lector se lo dice al alumno una vez (aviso-groq-lector.ts).
-      marcasFaltan(r.headers.get('x-marcas-falta'))
-      const datos = await r.arrayBuffer()
-      const ctx = this.contexto()
-      if (!ctx) throw new Error('sin Web Audio')
-      // Safari viejo solo tiene la firma de callbacks.
-      const buffer = await new Promise<AudioBuffer>((ok, mal) => {
-        const pr = ctx.decodeAudioData(datos, ok, mal)
-        if (pr && typeof pr.then === 'function') pr.then(ok, mal)
-      })
-      if (tempo + 0.01 < velocidad) console.warn(`[lector] el servidor aceleró ${tempo}x de ${velocidad}x: suena a ${tempo}x`)
-      return { buffer, tempo, marcas }
-    })
-    p.catch(() => this.cache.delete(clave))
+    const p = this.pedirTramo(texto, velocidad, urgente)
+    p.catch(() => { if (this.cache.get(clave) === p) this.cache.delete(clave) })
     this.cache.set(clave, p)
     while (this.cache.size > CACHE_MAX) this.cache.delete(this.cache.keys().next().value as string)
     return p
+  }
+
+  private async pedirTramo(texto: string, velocidad: number, urgente: boolean): Promise<AudioTramo> {
+    const formato = await this.formato()
+    try {
+      return await this.bajar(texto, velocidad, formato, urgente)
+    } catch (e) {
+      // Un Opus que este navegador no supo decodificar: el mismo tramo en WAV, y WAV desde aquí.
+      if (formato === 'opus' && e instanceof FallaVoz && e.decodificacion) {
+        console.warn('[lector] este navegador no decodificó Opus; sigo en WAV')
+        this.opusExacto = false
+        return this.bajar(texto, velocidad, 'wav', urgente)
+      }
+      throw e
+    }
+  }
+
+  private async bajar(texto: string, velocidad: number, formato: FormatoAudio, urgente = false): Promise<AudioTramo> {
+    const t0 = ahora()
+    let r: Response
+    try {
+      r = await this.pedir(texto, velocidad, formato, conTiempo(ESPERA_MAX_MS), urgente)
+    } catch (e) {
+      throw new FallaVoz((e as Error)?.name === 'TimeoutError' || (e as Error)?.name === 'AbortError' ? 'tiempo agotado' : 'red', true)
+    }
+    const t1 = ahora()
+    if (!r.ok) {
+      const j = (await r.json().catch(() => null)) as { code?: string } | null
+      throw new FallaVoz(`tts ${r.status}${j?.code ? ` ${j.code}` : ''}`, esReintentable(r.status, j?.code))
+    }
+    const tipo = r.headers.get('content-type') || ''
+    if (!tipo.startsWith('audio/')) throw new FallaVoz(`tts ${tipo || 'sin tipo'}`, false)
+    const tempo = Number(r.headers.get('x-tempo')) || 1
+    const marcas = leerMarcas(r.headers.get('x-marcas'), texto)
+    // LemonFox sin llave de Groq: el lector se lo dice al alumno una vez (aviso-groq-lector.ts).
+    marcasFaltan(r.headers.get('x-marcas-falta'))
+    let datos: ArrayBuffer
+    try { datos = await r.arrayBuffer() } catch { throw new FallaVoz('red', true) }
+    const t2 = ahora()
+    const ctx = this.decodificador()
+    if (!ctx) throw new FallaVoz('sin Web Audio', false)
+    let buffer: AudioBuffer
+    try { buffer = await decodificar(ctx, datos) } catch { throw new FallaVoz(`decodificar ${tipo}`, false, true) }
+    if (tempo + 0.01 < velocidad) console.warn(`[lector] el servidor aceleró ${tempo}x de ${velocidad}x: suena a ${tempo}x`)
+    const medida: MedidaTramo = {
+      formato: tipo, bytes: datos.byteLength, red_ms: Math.round(t1 - t0), descarga_ms: Math.round(t2 - t1),
+      decodifica_ms: Math.round(ahora() - t2), servidor: r.headers.get('server-timing'),
+    }
+    return { buffer, tempo, marcas, medida }
+  }
+
+  /** ¿Ese tramo ya está pedido o listo? (un tap en un tramo que no está decide partirlo en la palabra tocada). */
+  enCache(texto: string, velocidad: number): boolean {
+    return this.cache.has(`${velocidad}|${texto}`)
   }
 
   precargar(texto: string, velocidad: number) {

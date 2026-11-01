@@ -49,7 +49,7 @@ pub const NUNCA_POR_ENTORNO: [&str; 10] = [
 /// `ppid` con el del arranque (en Unix un huérfano pasa a launchd/init). En Windows el Job Object ya mata el árbol.
 pub const PRELUDIO_WEB: &str = concat!(
     "'use strict';const fs=require('fs'),path=require('path'),cp=require('child_process'),M=require('module');",
-    "const N=['ARBRAIN_DESKTOP_SECRET','OPENCLAW_GATEWAY_TOKEN','ARBRAIN_TOKEN_CONFIRMAR','ARBRAIN_PASE_AGENTE','ARBRAIN_MOTOR_TOKEN'];",
+    "const N=['ARBRAIN_DESKTOP_SECRET','OPENCLAW_GATEWAY_TOKEN','ARBRAIN_TOKEN_CONFIRMAR','ARBRAIN_PASE_AGENTE','ARBRAIN_MOTOR_TOKEN','VAPID_PRIVATE_KEY'];",
     "const linea=()=>{const b=Buffer.alloc(4096),w=new Int32Array(new SharedArrayBuffer(4)),t=Date.now()+15000;let a=Buffer.alloc(0);",
     "for(;;){let n;try{n=fs.readSync(0,b,0,b.length,null)}catch(e){if(e.code==='EOF')break;",
     "if((e.code==='EAGAIN'||e.code==='EWOULDBLOCK')&&Date.now()<t){Atomics.wait(w,0,0,20);continue}throw e}",

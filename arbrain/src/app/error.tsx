@@ -8,5 +8,5 @@ import { recargarSiHayVersionNueva, reportarErrorDePantalla } from '@/lib/desfas
 export default function ErrorDePantalla({ error }: { error: Error & { digest?: string }; reset: () => void }) {
   // Tras un deploy, el error suele ser JS viejo contra el build nuevo: recargar lo cura sin que Daniel haga nada.
   useEffect(() => { console.error('[arbrain] error de pantalla', error); reportarErrorDePantalla(error, 'pantalla'); void recargarSiHayVersionNueva() }, [error])
-  return <PaginaError titulo="Esta pantalla tuvo un problema" mensaje={MENSAJE_ERROR} codigo={codigoDeError(error)} />
+  return <PaginaError titulo="Esta pantalla tuvo un problema" mensaje={MENSAJE_ERROR} codigo={codigoDeError(error)} limpiar />
 }

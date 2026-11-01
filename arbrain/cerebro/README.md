@@ -30,8 +30,6 @@ decide qué miran los sentidos y qué hacen las manos.
 
 - `meta/libertad-medida-en-dinero.md`: la meta por defecto. La libertad es el fin; el dinero es cómo se mide.
 - `memoria/el-contexto-es-tuyo.md`: tu memoria vive en archivos de texto que son tuyos.
-- `manos/edicion-por-voz.md` y `manos/edicion-por-voz/`: editas tus videos hablándole a tu cerebro (también es
-  la skill `edicion-por-voz`).
 - `manuales/`: cómo conectar tus cuentas (Google Calendar y Gmail, iCloud, Todoist), qué computer use existe en tu
   sistema y el modo monje opcional. Tu Levy te guía con ellos; tú conectas.
 - `sentidos/` y `dolor/`: vacías. Se llenan cuando decidas qué debe vigilar tu cerebro y qué debe despertarte.

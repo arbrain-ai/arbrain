@@ -18,6 +18,20 @@ export const ETIQUETA: Record<Paso, string> = { bienvenida: 'Bienvenida', legal:
  * El paso de autonomía se muestra siempre; computer use (0.1.2: macOS y Windows; `/api/manos/interruptor` lo reporta
  * como `disponible`) aparece dentro de ese paso solo donde existe (`conComputerUse` lo decide la pantalla, no la lista).
  */
-export function pasosVisibles(conMonitoreo: boolean, _conComputerUse = false): Paso[] {
+export function pasosVisibles(conMonitoreo: boolean, _conComputerUse = false, reaceptacion = false): Paso[] {
+  if (reaceptacion) return [...PASOS_REACEPTACION]
   return PASOS.filter(p => p !== 'monitoreo' || conMonitoreo)
+}
+
+/**
+ * Re-aceptación corta (0.2.18, 31 oct 2026, PROPUESTA 80/20 #12): quien ya terminó la bienvenida y actualiza con textos
+ * legales nuevos ve solo «legal» y «autonomía». Su nombre, sus llaves, el monitoreo y «Dónde vive» ya están decididos y
+ * no cambian. El paso de autonomía va siempre: ahí se re-acepta el texto de Autónomo (si también cambió, la persona está
+ * en «Automático en mi carpeta» hasta aceptarlo) o se elige otro nivel.
+ */
+export const PASOS_REACEPTACION = ['legal', 'autonomia'] as const satisfies readonly Paso[]
+
+/** ¿Re-aceptación corta? Sí si ya terminó la bienvenida y lo aceptado es de otra versión de los textos. */
+export function esReaceptacion(e: { completado: string | null; aceptado: { version: string } | null } | null | undefined, versionTextos: string): boolean {
+  return !!e?.completado && e.aceptado?.version !== versionTextos
 }

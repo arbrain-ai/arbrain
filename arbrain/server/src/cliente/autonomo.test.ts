@@ -53,7 +53,7 @@ beforeEach(() => { rmSync(join(config, 'permisos.json'), { force: true }) })
 
 describe('el texto y la huella', () => {
   it('versión y huella son del texto empaquetado; cambiar una letra cambia la huella', () => {
-    expect(VERSION_AUTONOMIA).toMatch(/^autonomia-v1-borrador-2026-10-29$/)
+    expect(VERSION_AUTONOMIA).toBe('autonomia-v1-2026-10-31')
     expect(HUELLA_AUTONOMIA).toMatch(/^[0-9a-f]{64}$/)
     expect(aceptacionCoincide(VERSION_AUTONOMIA, HUELLA_AUTONOMIA)).toBe(true)
     expect(aceptacionCoincide(VERSION_AUTONOMIA, HUELLA_AUTONOMIA.replace(/^./, c => c === 'a' ? 'b' : 'a'))).toBe(false)
@@ -62,7 +62,16 @@ describe('el texto y la huella', () => {
     expect(t.casillas).toHaveLength(2)
     expect(t.cuerpo).toBe(TEXTO_AUTONOMIA)
     expect(t.cuerpo).toMatch(/Dinero: no paga/)
-    expect(t.aviso).toMatch(/revisión legal/)
+    expect(t.aviso).toMatch(/^Versión del 31 de octubre de 2026\./)
+  })
+
+  it('versión final (revisión legal del 31 oct): sin borrador ni huecos, con la salvedad de dolo, y el borrador del 29 ya no vale', () => {
+    // Fijar la huella obliga a subir VERSION_AUTONOMIA al cambiar una palabra: quien aceptó otra versión vuelve a pedirse.
+    expect(HUELLA_AUTONOMIA).toBe('a2b438f85de6d560701e18d586fec590e494f8e0046387fbb5abd544da8b45e2')
+    expect(`${textoAutonomia().aviso}\n${TEXTO_AUTONOMIA}`).not.toMatch(/revisión legal|pendiente de revisión|\[NOMBRE|\[COMPLETAR/i)
+    expect(TEXTO_AUTONOMIA).toMatch(/Nada de esto excluye la responsabilidad por dolo o culpa grave/)
+    expect(TEXTO_AUTONOMIA).toMatch(/como titular de Arbrain/)
+    expect(aceptacionCoincide('autonomia-v1-borrador-2026-10-29', HUELLA_AUTONOMIA)).toBe(false)
   })
 })
 

@@ -64,7 +64,7 @@ test('primer arranque: computer use vive dentro del paso de autonomía (0.2.15),
   assert.deepEqual(pasosVisibles(false, true), ['bienvenida', 'legal', 'llaves', 'autonomia', 'donde', 'listo'])
   assert.deepEqual(pasosVisibles(false), ['bienvenida', 'legal', 'llaves', 'autonomia', 'donde', 'listo'], 'el paso de autonomía siempre está')
   const c = fuente('src/features/primer-arranque/components/PrimerArranque.tsx')
-  assert.match(c, /pasosVisibles\(conMonitoreo, cu\.disponible\)/)
+  assert.match(c, /pasosVisibles\(conMonitoreo, cu\.disponible(, reaceptacion)?\)/)
   assert.match(c, /disponible: j\?\.disponible === true/)
   assert.match(c, /const \[computerUse, setComputerUse\] = useState\(false\)/, 'nace apagado')
   assert.match(c, /\{cu\.disponible && \(/, 'la casilla de computer use solo donde existe')

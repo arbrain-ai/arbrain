@@ -19,6 +19,7 @@ import { opsLogger } from './ops-logger.js'
 import { autoCommitCronChanges } from './autoCommit.js'
 import { readEnvFile } from './env.js'
 import { esEdicionCliente } from './edicion.js'
+import { avisarFinRutina } from './cliente/avisos-telefono.js'
 import { zonaDueno } from './zona.js'
 import { carpetaOriginal } from './dueno.js'
 import { faltaLlaveClaude, MENSAJE_FALTA_LLAVE } from './cliente/llaves.js'
@@ -214,6 +215,8 @@ export async function executeCronJob(task: ScheduledTask, opts?: { manual?: bool
       model: usage?.model,
     })
     logger.info({ taskId: task.id, nextRun, costUsd: usage?.costUsd }, 'task completed')
+    // v0.2.18: avisos al teléfono del alumno (una rutina terminó). No espera ni lanza; sin destino, no hace nada.
+    if (esEdicionCliente() && !task.id.endsWith('-migrated')) void avisarFinRutina({ id: task.id, prompt: task.prompt, ok: true, texto: text, manual })
 
     // Auto-commit any tracked files this cron mutated (knowledge base,
     // autoresearch results, submodule pointers). Whitelisted paths only,
@@ -258,6 +261,7 @@ export async function executeCronJob(task: ScheduledTask, opts?: { manual?: bool
       logger.info({ taskId: task.id, retryAt: new Date(effectiveNext * 1000).toISOString() }, 'limit hit — rescheduled to just after reset')
     }
     updateTaskAfterRun(task.id, `Error: ${String(err)}`, effectiveNext)
+    if (esEdicionCliente() && !task.id.endsWith('-migrated')) void avisarFinRutina({ id: task.id, prompt: task.prompt, ok: false, error: err instanceof Error ? err.message : String(err), manual })
     // Even on agent error, the cron may have produced partial side effects
     // worth committing (e.g. autoresearch wrote results.tsv before timing out).
     await autoCommitCronChanges(task.id)

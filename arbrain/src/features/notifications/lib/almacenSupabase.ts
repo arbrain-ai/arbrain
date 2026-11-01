@@ -35,3 +35,24 @@ export function almacenSupabase(db: SupabaseClient): AlmacenPush {
     },
   }
 }
+
+/** Cuántos acuses guarda la base local del alumno (v0.2.18): es un archivo que se reescribe completo en cada aviso. */
+export const MAX_PUSH_LOG_LOCAL = 300
+
+/**
+ * Edición cliente: el mismo almacén sobre su base local (`createServiceClient()` ya la devuelve), con `push_log` acotado a
+ * los últimos `MAX_PUSH_LOG_LOCAL` acuses para que no crezca sin fin.
+ */
+export function almacenAlumno(db: SupabaseClient, max = MAX_PUSH_LOG_LOCAL): AlmacenPush {
+  const base = almacenSupabase(db)
+  return {
+    ...base,
+    async registrar(intentos) {
+      await base.registrar(intentos)
+      if (!intentos.length) return
+      const { data } = await db.from('push_log').select('id, created_at').order('created_at', { ascending: false }).range(max, max + 5000)
+      const viejos = (data ?? []).map((f: { id: string }) => f.id)
+      if (viejos.length) await db.from('push_log').delete().in('id', viejos)
+    },
+  }
+}

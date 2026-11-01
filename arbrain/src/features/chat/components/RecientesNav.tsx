@@ -121,6 +121,12 @@ export function RecientesNav({ onElegir, tactil = false }: { onElegir: () => voi
   }, [publicadas, pedir])
 
   useEffect(() => () => control.current?.abort(), [])
+  // Una conversación fijada desde otro lado (31 oct 2026: la que abrió Levy, panel/conversacion-nueva.ts) se relee al instante.
+  useEffect(() => {
+    const alFijar = () => { void pedir() }
+    window.addEventListener('openclaw:session-pinned', alFijar)
+    return () => window.removeEventListener('openclaw:session-pinned', alFijar)
+  }, [pedir])
   // Estrella única (v3): otra ventana marcó una favorita; aquí se apagan las demás sin esperar a releer.
   useEffect(() => escucharEstrellaUnica(), [])
 

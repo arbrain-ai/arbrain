@@ -80,7 +80,7 @@ function MenuCalendarios({ calendarios, alternar, poner }: { calendarios: Calend
     <button className={l.menuBoton} aria-haspopup="true" aria-expanded={abierto} onClick={() => setAbierto(v => !v)}>
       Calendarios{apagados > 0 && <small>{calendarios.length - apagados}/{calendarios.length}</small>}<ChevronDown size={12} aria-hidden />
     </button>
-    {abierto && <div className={l.menu} role="group" aria-label="Calendarios de Google"><ListaCalendarios calendarios={calendarios} alternar={alternar} poner={poner} /></div>}
+    {abierto && <div className={l.menu} role="group" aria-label="Calendarios"><ListaCalendarios calendarios={calendarios} alternar={alternar} poner={poner} /></div>}
   </div>
 }
 

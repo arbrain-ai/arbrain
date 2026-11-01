@@ -40,6 +40,7 @@ import * as auto from './servidor/arranque-auto.mjs'
 import {
   contrasenaNueva, dirDatosPorDefecto, entornoLimpio, errorDeLlave, estadoLlaves, LLAVES, limpiarLlave, lineaSecretos,
   PUERTO_WEB_POR_DEFECTO, puertoValido, RESERVADOS, rutasDe, secreto, carpetasGitWindows, reutilizarCompilado, huellaSinGit,
+  llavesVapidDe,
 } from './servidor/rutas.mjs'
 import { PRELUDIO_WEB } from './servidor/preludio-web.mjs'
 import { armarPaquete, programaYaCompilado } from './servidor/programa.mjs'
@@ -206,6 +207,12 @@ function cerrarSesiones() {
   const generacion = generacionSesiones() + 1
   escribirPrivado(R.acceso, JSON.stringify({ ...actual, generacion, sesionesCerradas: ahora() }, null, 1) + '\n')
   return generacion
+}
+/** Llaves VAPID de esta instalación (avisos al teléfono, v0.2.18): las de `avisos.json` o, la primera vez, unas nuevas. */
+function llavesAvisos() {
+  const l = llavesVapidDe(R.avisos, { leer: leerJson, escribir: escribirPrivado, ahora })
+  if (l.regeneradas) registrar('Las llaves de los avisos al teléfono no se podían leer: generé unas nuevas (vuelve a activar los avisos en tu teléfono).')
+  return l
 }
 const llavesGuardadas = () => { const j = leerJson(R.llaves); const o = {}; for (const k of LLAVES) if (typeof j?.[k] === 'string' && j[k]) o[k] = j[k]; return o }
 const guardarLlaves = (o) => escribirPrivado(R.llaves, JSON.stringify(o, null, 1) + '\n')
@@ -414,6 +421,7 @@ function lanzarDaemon() {
 }
 
 function lanzarWeb() {
+  const avisos = llavesAvisos()
   const env = {
     ...entornoComun(),
     ARBRAIN_DATA_DIR: R.web,
@@ -430,8 +438,11 @@ function lanzarWeb() {
     NEXT_TELEMETRY_DISABLED: '1',
     // Teléfono (23 oct 2026): el Host *.ts.net que publica `tailscale serve`, solo mientras esté encendido.
     ...telefono.entornoWeb(R),
+    // Avisos al teléfono (v0.2.18): la llave PÚBLICA de esta instalación (la privada va por stdin, abajo).
+    ARBRAIN_VAPID_PUBLICA: avisos.publica,
   }
   const linea = lineaSecretos({
+    VAPID_PRIVATE_KEY: avisos.privada,
     ARBRAIN_DESKTOP_SECRET: S.contrasena,
     OPENCLAW_GATEWAY_TOKEN: S.secretos.daemon,
     ARBRAIN_TOKEN_CONFIRMAR: S.secretos.confirmar,

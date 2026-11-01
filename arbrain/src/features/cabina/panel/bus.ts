@@ -21,8 +21,9 @@ import { nombreVentana, PRINCIPAL, ventanaDe } from './pestanas-fuera'
 import { useRecientesStore } from '@/features/chat/stores/recientes-store'
 import { pedidoCompartido, recibirCompartido } from './compartido'
 import type { RespuestaCompartido } from './compartido-puro'
+import { SABE, atenderConversacion, type ConversacionNueva } from './conversacion-nueva'
 
-interface Comando { id: string; accion: 'fijar' | 'soltar' | 'guardar'; input: MostrarInput; conversacion?: string }
+interface Comando { id: string; accion: 'fijar' | 'soltar' | 'guardar' | 'conversacion'; input: MostrarInput; conversacion?: string; sesion?: ConversacionNueva }
 interface Acuse { comando: string; ok: boolean; detalle: string; cerradas: string[]; abiertas: string[]; pestanas: PestanaReporte[]; /** En qué ventana quedó lo que abrió. */ donde?: string }
 /** La ventana que recibe lo que Levy abre, y cómo decirlo. */
 export interface DestinoLevy { ventana: string; texto: string }
@@ -146,7 +147,7 @@ export function useAtenderPanel() {
       const enviados = acuses.splice(0)
       try {
         const r = await fetch(URL_PANEL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, cache: 'no-store',
-          body: JSON.stringify({ clientId, etiqueta, dispositivo, escribio: escrituras(), ...estadoReal(), acuses: enviados, compartido: pedidoCompartido() }) })
+          body: JSON.stringify({ clientId, etiqueta, dispositivo, sabe: SABE, escribio: escrituras(), ...estadoReal(), acuses: enviados, compartido: pedidoCompartido() }) })
         if (!r.ok) throw new Error(String(r.status))
         const { comandos, ajustes, compartido } = await r.json() as { comandos?: Comando[]; ajustes?: { rev: number; orden: string[]; ocultas: string[]; donde?: string }; compartido?: RespuestaCompartido }
         // El panel compartido entre aparatos (14 oct 2026, compartido.ts): lo que cambió en otro aparato llega aquí. Va ANTES de
@@ -161,6 +162,8 @@ export function useAtenderPanel() {
             continue
           }
           aplicados.add(cmd.id); anotarAplicado(cmd.id)
+          // La conversación nueva que Levy abrió (31 oct 2026) no toca el panel: Fijadas la pinta y, si la pidió abierta, se abre.
+          if (cmd.accion === 'conversacion') { const r = await atenderConversacion(cmd.sesion); acuses.push({ comando: cmd.id, ...r, cerradas: [], abiertas: [], pestanas: estadoReal().pestanas }); otraVez = true; continue }
           // Lo que Levy abre cae en la ventana que Daniel eligió (por defecto la de la izquierda): se mide antes de aplicar.
           acuses.push(aplicar(cmd, abreAlgo(cmd) ? await resolverDestino() : undefined)); otraVez = true
         }

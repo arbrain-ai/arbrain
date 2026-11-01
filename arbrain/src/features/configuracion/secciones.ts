@@ -21,7 +21,7 @@ const TODAS: ReadonlyArray<DefSeccion> = [
   { id: 'embudo', nombre: 'Embudo', detalle: 'Cómo una persona pasa de vernos a comprar', ajustes: ['Embudo', 'Definición del embudo', 'Funnel', 'Distribución por canal'] },
   { id: 'cuenta', nombre: 'Cuenta', detalle: 'Tu nombre y tu foto', ajustes: ['Nombre', 'Foto de perfil', 'Correo'] },
   { id: 'apariencia', nombre: 'Apariencia', detalle: 'Tema claro u oscuro', ajustes: ['Tema', 'Modo oscuro', 'Modo claro', 'Tema del sistema'] },
-  { id: 'avisos', nombre: 'Notificaciones', detalle: 'Reportes y avisos en tu teléfono: activar, probar y apagar', ajustes: ['Activar notificaciones', 'Notificaciones push', 'Avisos en el teléfono', 'Enviarme una prueba', 'Desactivar notificaciones', 'Reportes', 'iPhone', 'Pantalla de inicio'] },
+  { id: 'avisos', nombre: 'Notificaciones', detalle: CLIENTE ? 'Los avisos de Levy en tu teléfono: activar, probar y apagar' : 'Reportes y avisos en tu teléfono: activar, probar y apagar', ajustes: ['Activar notificaciones', 'Notificaciones push', 'Avisos en el teléfono', 'Avisos de Levy', 'Enviarme una prueba', 'Desactivar notificaciones', ...(CLIENTE ? ['Rutinas', 'Decisiones pendientes'] : ['Reportes']), 'iPhone', 'Pantalla de inicio'] },
   { id: 'modelo', nombre: 'Modelos', detalle: 'Qué modelos salen en el chat y en qué motor nacen', ajustes: ['Motores', 'Conversaciones nuevas', 'Modelo por defecto', 'Claude', 'DeepSeek', 'OpenRouter'] },
   { id: 'panel', nombre: 'Panel', detalle: 'Qué secciones salen en el «+» del panel', ajustes: ['Secciones del «+»', 'Ocultar secciones', 'Orden de las secciones', 'Tareas'] },
   { id: 'atajos', nombre: 'Atajos', detalle: 'Teclado de la app y del Canvas', ajustes: ['Atajos de teclado', 'Abrir Ajustes ⌘,', 'Atajos del Canvas', 'Atajos del Calendario'] },
@@ -46,11 +46,12 @@ const GRUPOS_ORIGINAL: ReadonlyArray<DefGrupo> = [
 ]
 
 /**
- * Edición cliente: sin «El negocio» (es el de Daniel), sin Cuenta (perfil y foto viven en su Supabase) ni Avisos push.
- * Llaves y Privacidad son suyas: se pueden cambiar después del primer arranque.
+ * Edición cliente: sin «El negocio» (es el de Daniel) ni Cuenta (perfil y foto viven en su Supabase). Llaves y
+ * Privacidad son suyas: se pueden cambiar después del primer arranque. Notificaciones (v0.2.18): los avisos de SU Levy
+ * en su teléfono, junto a «Tu cerebro en el teléfono».
  */
 const GRUPOS_CLIENTE: ReadonlyArray<DefGrupo> = [
-  { id: 'tu', titulo: 'Tú', secciones: ['llaves', 'voz', 'telefono', 'seguridad', 'privacidad', 'apariencia'] },
+  { id: 'tu', titulo: 'Tú', secciones: ['llaves', 'voz', 'telefono', 'avisos', 'seguridad', 'privacidad', 'apariencia'] },
   { id: 'arbrain', titulo: 'Arbrain', secciones: ['modelo', 'panel', 'atajos'] },
   { id: 'computadora', titulo: 'Esta computadora', secciones: ['mac'] },
 ]

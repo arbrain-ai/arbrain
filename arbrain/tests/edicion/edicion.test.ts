@@ -97,6 +97,9 @@ test('A12: en src/ los datos de la instalación solo viven en config/instalacion
   const fuera: string[] = []
   for (const a of archivos) {
     if (a.endsWith(join('src', 'config', 'instalacion.ts'))) continue
+    // El responsable legal (LFPDPPP) es el titular de la licencia, el mismo en toda instalación: su correo es contacto
+    // público del aviso, no dato de la instalación (Daniel, 1 nov 2026).
+    if (a.endsWith(join('src', 'features', 'primer-arranque', 'textos', 'legales.ts'))) continue
     const t = readFileSync(a, 'utf8')
     if (propios.some((v) => t.includes(v))) fuera.push(a.slice(raiz.length + 1))
   }

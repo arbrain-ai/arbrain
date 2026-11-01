@@ -2,13 +2,13 @@
 /** Los tres textos legales con su resumen y el texto completo plegable (primer arranque y Ajustes › Privacidad). */
 import { useState } from 'react'
 import { ChevronDown, FileText } from 'lucide-react'
-import { AVISO_BORRADOR, DOCUMENTOS_LEGALES, type DocumentoLegal } from '../textos/legales'
+import { AVISO_VERSION, DOCUMENTOS_LEGALES, type DocumentoLegal } from '../textos/legales'
 
 export function DocumentosLegales({ abierto: inicial = null }: { abierto?: DocumentoLegal['id'] | null }) {
   const [abierto, setAbierto] = useState<DocumentoLegal['id'] | null>(inicial)
   return (
     <div className="space-y-2">
-      <p className="inline-flex items-center gap-1.5 rounded-full bg-warning/12 px-2.5 py-1 text-[11.5px] font-medium text-foreground/80">{AVISO_BORRADOR}</p>
+      <p className="inline-flex items-center gap-1.5 rounded-full bg-foreground/[0.05] px-2.5 py-1 text-[11.5px] font-medium text-muted">{AVISO_VERSION}</p>
       {DOCUMENTOS_LEGALES.map(d => {
         const abiertoEste = abierto === d.id
         return (

@@ -26,8 +26,6 @@ def norm(text):
 ROUTES = [
     ('Actualizar Arbrain', ['jala los ultimos cambios', 'jala los cambios', 'actualiza arbrain', 'actualizar arbrain', 'version nueva de arbrain', 'nueva version de arbrain'],
      ['.claude/skills/actualizar-arbrain/SKILL.md']),
-    ('Edición por voz', ['edita el video', 'editar video', 'edicion de video', 'exportar video', 'editar la grabacion'],
-     ['.claude/skills/edicion-por-voz/SKILL.md']),
     ('Diario', ['diario', 'ultima nota', 'nuevo cuaderno'],
      ['.claude/skills/habit-system/SKILL.md', '.claude/skills/habit-system/references/diario.md']),
     ('Bajar a tierra (mes, semana, día)', ['buenos dias', 'bajame a tierra', 'baja mi meta a tierra', 'bajar a tierra', 'llena mi plan', 'planeemos el mes', 'planea mi mes', 'planea mi semana', 'planea mi dia'],

@@ -10,8 +10,9 @@ import { accionCtrl } from '../../src/shared/navigation/atajos-ctrl'
 
 const TEMPORADA = { desde: '2026-10-26', hasta: '2026-11-24' }
 
-test('el conteo del monk mode empieza hoy, dom 25 oct', () => {
-  assert.equal(INSTALACION.temporadaHabitos?.arranque, '2026-10-25')
+// 31 oct 2026, 07:55, Daniel: «que el conteo de hábitos solo comience a contar a partir de mañana».
+test('el conteo del monk mode empieza el dom 1 nov', () => {
+  assert.equal(INSTALACION.temporadaHabitos?.arranque, '2026-11-01')
   assert.deepEqual(ventanaTiempo('2026-10-25', { desde: '2026-10-25', hasta: '2026-11-24' }, null).desde, '2026-10-25')
 })
 

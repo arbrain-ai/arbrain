@@ -54,7 +54,7 @@ test('la UI monta el freno y la sección, y el panel de llaves muestra el tope (
   assert.match(fuente('src/app/(main)/dashboard-shell.tsx'), /EDICION_CLIENTE && <FrenoGeneral \/>/)
   assert.match(fuente('src/features/configuracion/components/ModalAjustes.tsx'), /seccion === 'seguridad' && <SeccionSeguridad \/>/)
   assert.match(fuente('src/features/primer-arranque/components/PanelLlaves.tsx'), /<TopeDeGasto/)
-  assert.match(fuente('src/features/configuracion/secciones.ts'), /secciones: \['llaves', 'voz', 'telefono', 'seguridad', 'privacidad', 'apariencia'\]/)
+  assert.match(fuente('src/features/configuracion/secciones.ts'), /secciones: \['llaves', 'voz', 'telefono', 'avisos', 'seguridad', 'privacidad', 'apariencia'\]/)
 })
 
 // 0.2.15: «Quitar también el freno» (23 oct 2026) se retiró; lo reemplaza el nivel «Autónomo» con consentimiento. Lo que

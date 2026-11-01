@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { notFound, redirect } from 'next/navigation'
 import { esEdicionCliente } from '@/lib/edicion'
 import { isDesktopAuthBypassFromHeaders } from '@/lib/desktop-auth-server'
-import { irABienvenida } from '@/features/primer-arranque/lib/estado'
+import { irABienvenida, reaceptacionCorta } from '@/features/primer-arranque/lib/estado'
 import { PrimerArranque } from '@/features/primer-arranque/components/PrimerArranque'
 
 export const metadata: Metadata = { title: 'Bienvenida · Arbrain' }
@@ -14,5 +14,6 @@ export default async function BienvenidaPage() {
   if (!(await isDesktopAuthBypassFromHeaders())) redirect('/sin-sesion')
   // Sin carpeta de datos, el flujo muestra el error al guardar; con el estado ilegible, al chat (irABienvenida).
   if (!irABienvenida()) redirect('/chat')
-  return <PrimerArranque />
+  // Quien ya la terminó y solo cambiaron los textos ve dos pasos (legal y autonomía), no la bienvenida entera.
+  return <PrimerArranque reaceptacion={reaceptacionCorta()} />
 }

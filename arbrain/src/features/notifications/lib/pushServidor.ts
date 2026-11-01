@@ -67,12 +67,16 @@ export const VENTANA_PRUEBA_MS = 30_000
 
 export interface PayloadPush { title: string; body: string; url: string; tag: string; icon: string }
 
-/** La notificación de prueba: solo para quien la pide; al tocarla abre Ajustes › Notificaciones. */
-export function payloadPrueba(nombre: string | null | undefined, ahora = new Date()): PayloadPush {
+/**
+ * La notificación de prueba: solo para quien la pide; al tocarla abre Ajustes › Notificaciones. En la edición cliente
+ * (v0.2.18) habla de los avisos de Levy: el alumno no recibe reportes.
+ */
+export function payloadPrueba(nombre: string | null | undefined, ahora = new Date(), cliente = false): PayloadPush {
   const quien = (nombre ?? '').trim().split(/\s+/)[0]
+  const que = cliente ? 'los avisos de Levy' : 'tus reportes y avisos'
   return {
-    title: 'Arbrain',
-    body: quien ? `${quien}, así te van a llegar tus reportes y avisos.` : 'Así te van a llegar tus reportes y avisos.',
+    title: cliente ? 'Tu Arbrain' : 'Arbrain',
+    body: quien ? `${quien}, así te van a llegar ${que}.` : `Así te van a llegar ${que}.`,
     url: '/settings?seccion=notificaciones',
     // tag único: dos pruebas seguidas no se tapan entre sí
     tag: `prueba-${ahora.getTime()}`,
@@ -91,11 +95,14 @@ export async function altaSuscripcion(usuario: string | null, cuerpo: unknown, a
   return { status: 200, json: { success: true } }
 }
 
-/** GET /api/notifications/subscribe?endpoint= — ¿este dispositivo está registrado para mí? y cuántos tengo. */
-export async function estadoSuscripcion(usuario: string | null, endpoint: string | null, almacen: AlmacenPush): Promise<Respuesta> {
+/**
+ * GET /api/notifications/subscribe?endpoint= — ¿este dispositivo está registrado para mí? y cuántos tengo. Con `clave`
+ * (v0.2.18), también la llave pública de esta instalación: en la edición cliente el navegador no la trae horneada.
+ */
+export async function estadoSuscripcion(usuario: string | null, endpoint: string | null, almacen: AlmacenPush, clave?: string): Promise<Respuesta> {
   if (!usuario) return sinSesion()
   const mias = await almacen.deUsuario(usuario)
-  return { status: 200, json: { registrada: !!endpoint && mias.some((s) => s.endpoint === endpoint), dispositivos: mias.length } }
+  return { status: 200, json: { registrada: !!endpoint && mias.some((s) => s.endpoint === endpoint), dispositivos: mias.length, ...(clave !== undefined ? { clave } : {}) } }
 }
 
 /** DELETE /api/notifications/subscribe — da de baja un dispositivo, solo si es mío. */
@@ -109,10 +116,36 @@ export async function bajaSuscripcion(usuario: string | null, cuerpo: unknown, a
 
 export type Enviar = (s: SuscripcionValida, payload: string) => Promise<void>
 
+/**
+ * Manda `payload` a cada suscripción, borra las que el servicio de push da por muertas (404/410) y deja un acuse por
+ * intento en `push_log` (sin el endpoint completo). Lo comparten la prueba de Ajustes y los avisos del alumno.
+ */
+export async function entregar(opts: { usuario: string; subs: FilaSuscripcion[]; payload: string; jobId: string; titulo: string; almacen: AlmacenPush; enviar: Enviar }) {
+  const { usuario, subs, payload, jobId, titulo, almacen, enviar } = opts
+  const intentos: IntentoPush[] = []
+  const muertas: string[] = []
+  await Promise.all(subs.map(async (s) => {
+    try {
+      await enviar(s, payload)
+      intentos.push({ job_id: jobId, status: 'accepted', endpoint_tail: s.endpoint.slice(-16), title: titulo })
+    } catch (err) {
+      const code = (err as { statusCode?: number }).statusCode
+      if (suscripcionMuerta(code)) muertas.push(s.id)
+      const msg = err instanceof Error ? err.message : String(err)
+      intentos.push({ job_id: jobId, status: 'failed', status_code: code ?? null, error: msg.slice(0, 300), endpoint_tail: s.endpoint.slice(-16), title: titulo })
+    }
+  }))
+  if (muertas.length) await almacen.borrarIds(usuario, muertas)
+  await almacen.registrar(intentos)
+  const enviadas = intentos.filter((i) => i.status === 'accepted').length
+  return { enviadas, fallidas: intentos.length - enviadas, limpiadas: muertas.length }
+}
+
 /** POST /api/notifications/prueba — una notificación SOLO a los dispositivos de quien la pide, una cada 30 s. */
 export async function enviarPrueba(opts: {
   usuario: string | null
   nombre?: string | null
+  cliente?: boolean
   vapidLista: boolean
   almacen: AlmacenPush
   enviar: Enviar
@@ -136,30 +169,15 @@ export async function enviarPrueba(opts: {
     await almacen.registrar([{ job_id: 'prueba-ajustes', status: 'no_subs', error: 'target has no push subscriptions', title: titulo }])
     return { status: 404, json: { enviadas: 0, dispositivos: 0, error: 'Todavía no activas las notificaciones en ningún dispositivo' } }
   }
-  const payload = JSON.stringify(payloadPrueba(opts.nombre, opts.ahora))
-  const intentos: IntentoPush[] = []
-  const muertas: string[] = []
-  await Promise.all(subs.map(async (s) => {
-    try {
-      await enviar(s, payload)
-      intentos.push({ job_id: 'prueba-ajustes', status: 'accepted', endpoint_tail: s.endpoint.slice(-16), title: titulo })
-    } catch (err) {
-      const code = (err as { statusCode?: number }).statusCode
-      if (suscripcionMuerta(code)) muertas.push(s.id)
-      const msg = err instanceof Error ? err.message : String(err)
-      intentos.push({ job_id: 'prueba-ajustes', status: 'failed', status_code: code ?? null, error: msg.slice(0, 300), endpoint_tail: s.endpoint.slice(-16), title: titulo })
-    }
-  }))
-  if (muertas.length) await almacen.borrarIds(usuario, muertas)
-  await almacen.registrar(intentos)
-  const enviadas = intentos.filter((i) => i.status === 'accepted').length
+  const payload = JSON.stringify(payloadPrueba(opts.nombre, opts.ahora, opts.cliente))
+  const { enviadas, fallidas, limpiadas } = await entregar({ usuario, subs, payload, jobId: 'prueba-ajustes', titulo, almacen, enviar })
   return {
     status: enviadas > 0 ? 200 : 502,
     json: {
       enviadas,
-      fallidas: intentos.length - enviadas,
+      fallidas,
       dispositivos: subs.length,
-      limpiadas: muertas.length,
+      limpiadas,
       ...(enviadas === 0 ? { error: 'El servicio de notificaciones rechazó el envío. Desactiva y vuelve a activar.' } : {}),
     },
   }

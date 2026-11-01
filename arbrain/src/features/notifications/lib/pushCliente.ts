@@ -4,9 +4,28 @@
  * y la guardia de re-suscripción de PWARegister: un solo camino para activar, comprobar y apagar.
  * El servidor decide el destinatario por la sesión; aquí nunca se manda un userId.
  */
-import { claveDistinta, type EntornoPush, type PermisoPush } from './soportePush'
+import { claveDistinta, esHostLocal, type EntornoPush, type PermisoPush } from './soportePush'
+import { esEdicionCliente } from '@/lib/edicion'
 
 export const VAPID_PUBLICA = (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? '').trim()
+
+/**
+ * La llave pública con la que este navegador se suscribe. En la instalación original viene horneada; en la edición
+ * cliente (v0.2.18) cada instalación tiene la suya y la da el servidor (`GET /api/notifications/subscribe` → `clave`).
+ */
+let claveEnVivo = VAPID_PUBLICA
+export const claveVapid = () => claveEnVivo
+
+/** Pide la llave al servidor si no la tiene; devuelve la que haya (vacía = esta instalación no tiene avisos). */
+export async function cargarClave(): Promise<string> {
+  if (claveEnVivo) return claveEnVivo
+  try {
+    const res = await fetch('/api/notifications/subscribe?endpoint=', { credentials: 'same-origin', cache: 'no-store' })
+    const j = res.ok ? await res.json() as { clave?: unknown } : null
+    if (typeof j?.clave === 'string' && /^[A-Za-z0-9_-]{80,100}$/.test(j.clave)) claveEnVivo = j.clave
+  } catch { /* sin servidor: se queda vacía y la sección lo dice */ }
+  return claveEnVivo
+}
 
 export function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
@@ -38,7 +57,9 @@ export function leerEntorno(suscrito: boolean): EntornoPush {
     tienePushManager: 'PushManager' in window,
     permiso: permisoActual(),
     suscrito,
-    vapidConfigurada: VAPID_PUBLICA.length > 0,
+    vapidConfigurada: claveEnVivo.length > 0,
+    // Edición cliente: en la computadora (127.0.0.1) no hay service worker; los avisos se activan en el teléfono.
+    enComputadora: esEdicionCliente() && esHostLocal(location.hostname),
   }
 }
 
@@ -93,12 +114,13 @@ export async function activarEnDispositivo(): Promise<PermisoPush> {
   let permiso = permisoActual()
   if (permiso !== 'granted') permiso = (await Notification.requestPermission()) as PermisoPush
   if (permiso !== 'granted') return permiso
-  if (!VAPID_PUBLICA) throw new Error('Las notificaciones no están configuradas en este servidor.')
+  const clave = await cargarClave()
+  if (!clave) throw new Error('Las notificaciones no están configuradas en este servidor.')
   const reg = await swListo()
   // Una suscripción vieja hecha con otra clave VAPID hace fallar subscribe(): se reemplaza.
   const previa = await reg.pushManager.getSubscription()
-  if (previa && claveDistinta(previa.options?.applicationServerKey, VAPID_PUBLICA)) await previa.unsubscribe()
-  const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLICA) })
+  if (previa && claveDistinta(previa.options?.applicationServerKey, clave)) await previa.unsubscribe()
+  const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(clave) })
   await registrarEnServidor(sub)
   try { localStorage.removeItem(APAGADO) } catch { /* sin almacenamiento */ }
   return 'granted'

@@ -207,8 +207,13 @@ export function cambiarModoPermisos(modo: ModoPermisos, op: { acepto?: Aceptacio
       return { ok: false, status: 409, code: 'consentimiento', error: 'El modo Autónomo necesita que leas y aceptes su texto (dos casillas). Ábrelo en Ajustes › Permisos y seguridad.' }
     }
   }
-  if (antes.modo === modo && !op.acepto) return { ok: true, estado: estadoPermisos(), cambio: false }
-  if (antes.modo !== modo && !(modo === 'autonomo' && op.acepto)) historial.push({ ts: ahora, accion: 'cambio_de_modo', modo, via, motivo: `de «${NOMBRE_MODO[antes.modo]}» a «${NOMBRE_MODO[modo]}»` })
+  // Con una re-aceptación o migración pendiente, «carpeta» ya es el modo efectivo pero el archivo aún dice Autónomo (o
+  // «libre»): elegirlo a propósito (re-aceptación corta de la bienvenida, 31 oct 2026) sí se escribe, para que la tarjeta
+  // de migración no vuelva a preguntar lo que la persona acaba de decidir.
+  const { reaceptar, migracion } = estadoPermisos()
+  const pendiente = reaceptar || !!migracion
+  if (antes.modo === modo && !op.acepto && !pendiente) return { ok: true, estado: estadoPermisos(), cambio: false }
+  if ((antes.modo !== modo || pendiente) && !(modo === 'autonomo' && op.acepto)) historial.push({ ts: ahora, accion: 'cambio_de_modo', modo, via, motivo: antes.modo !== modo ? `de «${NOMBRE_MODO[antes.modo]}» a «${NOMBRE_MODO[modo]}»` : `eligió «${NOMBRE_MODO[modo]}» ${reaceptar ? `en vez de aceptar el texto nuevo de Autónomo (${VERSION_AUTONOMIA})` : 'al decidir la migración'}` })
   // Elegir un nivel ya es decidir sobre la migración de la versión anterior.
   escribir({ modo, consentimiento, migracion: null, historialModo: historial }, ahora)
   return { ok: true, estado: estadoPermisos(), cambio: true }

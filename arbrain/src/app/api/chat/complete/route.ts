@@ -4,24 +4,13 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { perfilDelTurno, ownerIds as buzonDelDueno } from '@/features/avisos/server'
 import { filasInyectadas } from '@/features/chat/lib/inyecciones'
 import { sameSecret } from '@/lib/desktop-auth'
-import { instalacion } from '@/config'
+import { prepararVapid } from '@/features/notifications/lib/vapid'
+import { esEdicionCliente } from '@/lib/edicion'
+import { LOCAL_DESKTOP_USER_ID } from '@/lib/desktop-auth'
+import { almacenAlumno } from '@/features/notifications/lib/almacenSupabase'
+import { avisoRespuestaLarga, debeAvisarRespuesta, entregarAvisoAlumno } from '@/features/notifications/lib/avisosAlumno'
 
 const OPENCLAW_GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN
-
-// Lazy init VAPID
-let vapidReady = false
-function ensureVapid() {
-  if (vapidReady) return
-  const publicKey = (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? '').trim()
-  const privateKey = (process.env.VAPID_PRIVATE_KEY ?? '').trim()
-  if (!publicKey || !privateKey) return
-  webpush.setVapidDetails(
-    `mailto:${(process.env.VAPID_EMAIL ?? instalacion().correoDueno).trim()}`,
-    publicKey,
-    privateKey,
-  )
-  vapidReady = true
-}
 
 interface CompletePayload {
   chatSessionId?: string | null
@@ -251,12 +240,34 @@ export async function POST(req: NextRequest) {
   // Legacy: móvil + desconexión detectada (nunca disparaba en iOS, se conserva
   // idéntico para daemon viejo).
   // Kill switch: DISABLE_CHAT_PUSH=true silencia todo push del chat.
+  // Edición cliente (v0.2.18): el alumno recibe «Levy terminó tu respuesta» si la respuesta fue larga y nadie la estaba
+  // viendo (sin ACK = app cerrada o en segundo plano), venga de donde venga. Sin campana; una por turno.
+  const cliente = esEdicionCliente()
   const shouldNotify =
+    !cliente &&
     source === 'mobile' &&
     (turnId ? clientAcked !== true : clientWasConnected === false) &&
     process.env.DISABLE_CHAT_PUSH !== 'true'
-  ensureVapid()
+  const vapidReady = prepararVapid()
   const pushResults: PushResult[] = []
+  let avisoAlumno: Record<string, unknown> | null = null
+  if (cliente && turnId && process.env.DISABLE_CHAT_PUSH !== 'true'
+    && debeAvisarRespuesta({ turnId, clientAcked, startedAt, durationMs: usage?.durationMs, terminalStatus: payload.terminalStatus })) {
+    try {
+      const r = await entregarAvisoAlumno(
+        avisoRespuestaLarga({ sessionId, turnId, assistantMessage, terminalStatus: payload.terminalStatus }),
+        {
+          usuario: LOCAL_DESKTOP_USER_ID,
+          almacen: almacenAlumno(supabase),
+          enviar: async (s, p) => { await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, p, { TTL: 3600, urgency: 'high' }) },
+          vapidLista: vapidReady,
+        },
+      )
+      avisoAlumno = r.json
+    } catch (err) {
+      avisoAlumno = { sent: 0, error: (err instanceof Error ? err.message : String(err)).slice(0, 200) }
+    }
+  }
   if (shouldNotify && vapidReady) {
     const targetIds: string[] = []
     const duenoDelTurno = perfilDelTurno(payload.ownerId)
@@ -338,6 +349,7 @@ export async function POST(req: NextRequest) {
     dedupeReason,
     pushed: shouldNotify && vapidReady,
     pushResults,
+    ...(avisoAlumno ? { avisoAlumno } : {}),
   }
   console.log('[chat/complete]', JSON.stringify(summary))
   return NextResponse.json(summary)

@@ -14,6 +14,13 @@ export default defineConfig({
       const part = code.slice(start, end).replace('  return item', '  await (globalThis as any).__chatFixtureDelay?.(input)\n  return item')
       return code.slice(0, start) + part + code.slice(end)
     },
+  }, {
+    name: 'chat-render-counter', enforce: 'pre',
+    transform(code, id) {
+      if (!id.endsWith('/src/features/chat/components/ChatPanel.tsx')) return
+      // Test-only: cuenta renders de MessageBubble (composer-teclear: una tecla no re-renderiza la lista).
+      return code.replace('}: MessageBubbleProps) {', '}: MessageBubbleProps) {\n  ;(globalThis as any).__burbujas = ((globalThis as any).__burbujas ?? 0) + 1')
+    },
   }],
   root: dir('./'),
   resolve: { alias: { '@/hooks/useAuth': dir('./auth-fixture.ts'), '@': dir('../../src') }, dedupe: ['react', 'react-dom'] },

@@ -2,12 +2,14 @@
 # Fuente: arbrain/empaquetado/ci/workflows/actualizar.yml del repo fuente; el generador lo copia a .github/workflows/ de
 # la copia del alumno. En la copia no se edita: se regenera.
 #
-# Desde una versión publicada de verdad (v0.2.13, v0.2.15 y v0.2.16, con su etiqueta firmada en github.com/arbrain-ai/arbrain):
+# Desde una versión publicada de verdad (v0.2.13, v0.2.15, v0.2.16 y v0.2.17, con su etiqueta firmada en github.com/arbrain-ai/arbrain):
 # la copia de ESTE commit se firma con su VERSION encima de la última publicada, con una llave de prueba generada en el
 # job; el alumno salta a ella con la skill vieja + el PASO 6 nuevo (hasta 0.2.15) o con su actualizar.mjs (0.2.16 en
 # adelante), y después a la versión siguiente, de prueba, en un solo paso (`actualizar.mjs revisar` +
 # `aplicar`) desde un turno falso que muere con todo su árbol. Comprueba versión, memoria, skill, marca, git status,
 # rama de respaldo y que el servidor corre la versión nueva. Lo orquesta arbrain/empaquetado/ci/smoke/actualizar-ci.mjs.
+# Caso «servidor» (31 oct 2026): la copia que deja «solo en tu servidor» sin rama main, desde la v0.2.17 (la Latest):
+# su actualizar.mjs se detiene, el puente de las notas del release la repone y el del candidato ya la crea solo.
 # No usa secretos ni la llave de publicación; nada se publica.
 name: Arbrain · actualizar en un paso
 
@@ -35,14 +37,17 @@ concurrency:
 
 jobs:
   actualizar:
-    name: actualizar · ${{ matrix.os }} · desde ${{ matrix.desde }}
+    name: actualizar · ${{ matrix.os }} · desde ${{ matrix.desde }} · ${{ matrix.caso }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
-        desde: [v0.2.13, v0.2.15, v0.2.16]
+        desde: [v0.2.13, v0.2.15, v0.2.16, v0.2.17]
+        caso: [computadora]
+        include:
+          - { os: ubuntu-latest, desde: v0.2.17, caso: servidor }
     env:
       NEXT_TELEMETRY_DISABLED: '1'
     steps:
@@ -68,14 +73,14 @@ jobs:
           if [ "$RUNNER_OS" = Windows ]; then git config --global core.autocrlf true; fi
           git --version
 
-      - name: Actualizar desde ${{ matrix.desde }}
-        run: node candidato/arbrain/empaquetado/ci/smoke/actualizar-ci.mjs --desde ${{ matrix.desde }} --candidato candidato --trabajo "${{ runner.temp }}/act"
+      - name: Actualizar desde ${{ matrix.desde }} (${{ matrix.caso }})
+        run: node candidato/arbrain/empaquetado/ci/smoke/actualizar-ci.mjs --desde ${{ matrix.desde }} --caso ${{ matrix.caso }} --candidato candidato --trabajo "${{ runner.temp }}/act"
 
       - name: Evidencia y logs
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: actualizar-${{ matrix.os }}-${{ matrix.desde }}
+          name: actualizar-${{ matrix.os }}-${{ matrix.desde }}-${{ matrix.caso }}
           path: ${{ runner.temp }}/act/evidencia
           if-no-files-found: warn
           retention-days: 7

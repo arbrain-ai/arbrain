@@ -5,7 +5,7 @@
 // No toca nada de la instalación de Daniel: todo vive en una carpeta temporal que se deja para inspección.
 import { spawn } from 'node:child_process'
 import { createServer } from 'node:http'
-import { existsSync, mkdtempSync, mkdirSync, readdirSync, statSync } from 'node:fs'
+import { existsSync, mkdtempSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { randomBytes } from 'node:crypto'
@@ -107,6 +107,24 @@ r = await pedir('/api/confirmaciones/resolver', { metodo: 'POST', cuerpo: { id: 
 r = await pedir('/api/confirmaciones/resolver', { metodo: 'POST', cuerpo: { id: cf.id, decision: 'rechazar' } }); ver('I8: el clic resuelve (con el secreto que pone el servidor)', JSON.parse(r.texto).estado === 'rechazada')
 r = await pedir('/api/primer-arranque', { metodo: 'POST', cuerpo: { accion: 'completar' } }); const sesion = JSON.parse(r.texto).sesion; ver('completar crea la bienvenida de Levy', !!sesion)
 r = await pedir(`/api/chat/sessions/${sesion}/messages?source=mc&limit=50`); ver('el primer mensaje es de Levy y saluda por nombre', JSON.parse(r.texto).messages?.[0]?.content?.startsWith('Hola, Fulano. Soy Levy.'))
+// Re-aceptación corta (0.2.18): ya terminó la bienvenida, actualiza con textos nuevos y estaba en Autónomo con el texto
+// viejo. Ve solo «legal» y «autonomía»; aceptar los textos ya le deja entrar, y elegir nivel cierra la re-aceptación.
+const archivoPA = join(raiz, 'datos', 'primer-arranque.json')
+const pa = JSON.parse(readFileSync(archivoPA, 'utf8'))
+writeFileSync(archivoPA, JSON.stringify({ ...pa, aceptado: { version: '2026-10-11', fecha: '2026-10-20T12:00:00.000Z' } }))
+const alDaemonFalso = (ruta, cuerpo) => fetch(`http://127.0.0.1:${PD}${ruta}`, { method: 'POST', headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' }, body: JSON.stringify(cuerpo) }).then(x => x.json())
+await alDaemonFalso('/prueba/permisos', { modo: 'carpeta', reaceptar: true, consentimiento: { ts: 1, version: 'autonomia-vieja', sha256: 'f'.repeat(64), app: '', so: '', via: 'bienvenida' } })
+r = await pedir('/chat'); ver('re-aceptación: con textos viejos, /chat va a /bienvenida', r.status === 307 && r.lugar.endsWith('/bienvenida'))
+r = await pedir('/bienvenida')
+ver('re-aceptación corta: abre en «legal», dos pasos, sin nombre ni llaves', r.status === 200 && r.texto.includes('Actualizamos los textos') && /Paso (<!-- -->)?1(<!-- -->)? de (<!-- -->)?2/.test(r.texto) && !r.texto.includes('Bienvenido a Arbrain') && !r.texto.includes('¿Cómo te llamo?'))
+r = await pedir('/api/seguridad/permisos'); ver('re-aceptación: en Autónomo con texto viejo queda en «carpeta» hasta aceptar', JSON.parse(r.texto).modo === 'carpeta' && JSON.parse(r.texto).reaceptar === true)
+r = await pedir('/api/primer-arranque', { metodo: 'POST', cuerpo: { accion: 'aceptar', version } }); ver('re-aceptación: aceptar los textos nuevos', r.status === 200)
+r = await pedir('/chat'); ver('re-aceptación: tras aceptar, /chat ya no vuelve a la bienvenida (nadie atrapado)', r.status === 200)
+r = await pedir('/bienvenida'); ver('re-aceptación: y /bienvenida lleva al chat', r.status === 307 && r.lugar.endsWith('/chat'))
+const tx = JSON.parse((await pedir('/api/seguridad/permisos')).texto).texto
+r = await pedir('/api/seguridad/permisos', { metodo: 'POST', cuerpo: { modo: 'autonomo', acepto: { version: tx.version, sha256: tx.sha256 }, via: 'bienvenida' } })
+ver('re-aceptación: con las dos casillas vuelve a Autónomo', r.status === 200 && JSON.parse(r.texto).modo === 'autonomo' && JSON.parse(r.texto).reaceptar === false)
+ver('re-aceptación: el nombre y la conversación de bienvenida siguen ahí', JSON.parse(readFileSync(archivoPA, 'utf8')).nombre === 'Fulano' && JSON.parse(readFileSync(archivoPA, 'utf8')).sesionBienvenida === sesion)
 r = await pedir('/api/chat/complete', { metodo: 'POST', conCookie: false, cuerpo: { chatSessionId: sesion, turnId: 't-1', userMessage: 'Hola', assistantMessage: 'Hola, Fulano.', terminalStatus: 'completed' }, cabeceras: { Authorization: `Bearer ${TOKEN}` } })
 ver('el daemon entrega el turno (base local)', JSON.parse(r.texto).saved === true)
 r = await pedir('/api/chat/complete', { metodo: 'POST', conCookie: false, cuerpo: {} }); ver('complete sin token: 401', r.status === 401)

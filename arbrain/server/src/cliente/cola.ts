@@ -20,6 +20,7 @@
  */
 import type { Confirmacion, ConversacionConfirmacion } from './confirmaciones.js'
 import { VIDA_APROBACION_COLA_MS } from './confirmaciones.js'
+import { avisoCola, mandarAviso, type DestinoAvisos, type ResultadoAviso } from './avisos-telefono.js'
 
 /** Direcciones desactivadas: `https://x` → `https[:]//x` (se leen, no se siguen ni cuentan como escritas por la persona). */
 export const sinEnlaces = (t: string) => t.replace(/\b([a-z][a-z0-9+.-]{1,15}):\/\//gi, '$1[:]//').replace(/\bwww\./gi, 'www[.]')
@@ -75,25 +76,11 @@ export function retomarEnConversacion(deps: DepsRetomar) {
   }
 }
 
-/** Una vez por confirmación: la cola no suena dos veces por lo mismo aunque vuelva a pedirse. */
-const yaAvisadas = new Set<string>()
-
 /**
- * Aviso al teléfono cuando algo entra a la cola. Mismo camino que la campana (`/api/notifications/send` de la app, con
- * el token del daemon); si la instalación no tiene avisos al teléfono, no pasa nada (la cola se ve igual en la app).
+ * Aviso al teléfono cuando algo entra a la cola (v0.2.18: texto y entrega en `avisos-telefono.ts`). Lo entrega la web de
+ * la persona (`/api/notifications/send`, con el token del daemon) a sus dispositivos; una vez por confirmación. Si la
+ * instalación no tiene avisos al teléfono, no pasa nada (la cola se ve igual en la app).
  */
-export async function avisarTelefono(c: Confirmacion, op: { url?: string; token?: string; fetch?: typeof fetch } = {}): Promise<'enviado' | 'repetido' | 'sin_configurar' | 'fallo'> {
-  if (yaAvisadas.has(c.id)) return 'repetido'
-  if (yaAvisadas.size > 500) yaAvisadas.clear()
-  yaAvisadas.add(c.id)
-  const token = op.token, url = op.url
-  if (!token || !url) return 'sin_configurar'
-  const que = (c.frase || c.resumen).replace(/\s+/g, ' ').slice(0, 200)
-  try {
-    const r = await (op.fetch ?? fetch)(`${url.replace(/\/$/, '')}/api/notifications/send`, {
-      method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(10_000),
-      body: JSON.stringify({ title: 'Levy te espera para una decisión', body: `${que}. Siguió con lo demás; cuando decidas, lo retoma.`, url: '/', tag: `cola-${c.id}`, source: 'guardia:cola', kind: 'agente' }),
-    })
-    return r.ok ? 'enviado' : 'fallo'
-  } catch { return 'fallo' }
+export function avisarTelefono(c: Confirmacion, op: DestinoAvisos = {}): Promise<ResultadoAviso> {
+  return mandarAviso(avisoCola(c), op)
 }
