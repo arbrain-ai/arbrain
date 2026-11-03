@@ -1,8 +1,8 @@
 'use client'
 
 /**
- * El ⚙︎ junto a la píldora del título: «Mostrar en el lienzo» (6 oct 2026). Tres interruptores —herramientas, barra
- * inferior, capítulos— que se aplican en vivo y se guardan por dispositivo. Vive dentro de la barra del título, así que
+ * El ⚙︎ junto a la píldora del título: «Mostrar en el lienzo» (6 oct 2026). Interruptores —herramientas, barra
+ * inferior, zoom, capítulos y minimapa (los dos nuevos, 2 nov)— que se aplican en vivo y se guardan por dispositivo. Vive dentro de la barra del título, así que
  * el popover cuelga de ella y se mueve con el riel de lienzos.
  */
 
@@ -14,7 +14,9 @@ import type { MostrarEnLienzo as Mostrar } from '../state/mostrar-en-lienzo'
 const FILAS: Array<{ clave: keyof Mostrar; titulo: string; detalle: string }> = [
   { clave: 'herramientas', titulo: 'Herramientas', detalle: 'La barra de la izquierda' },
   { clave: 'barraInferior', titulo: 'Barra inferior', detalle: 'Guardado, deshacer, zoom, descargar' },
+  { clave: 'zoom', titulo: 'Zoom', detalle: 'El − % + de la barra inferior' },
   { clave: 'capitulos', titulo: 'Capítulos', detalle: 'Todo · 1 2 3 4' },
+  { clave: 'minimapa', titulo: 'Minimapa', detalle: 'El mapa chico de la esquina' },
 ]
 
 export function MostrarEnLienzo({ theme: t }: { theme: Theme }) {

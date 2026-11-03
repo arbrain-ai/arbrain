@@ -41,8 +41,9 @@ decide qué miran los sentidos y qué hacen las manos.
 - **Meta:** tus objetivos de mes, semana y día en `.claude/plan/objetivos.md`; aquí, el porqué de fondo.
 - **Manos:** las skills de `.claude/skills/`, las herramientas de la app y lo que conectes siguiendo `manuales/`.
   En macOS y Windows la app trae computer use (que Levy use tu pantalla y tus apps), apagado en cada apertura: lo
-  enciendes en Ajustes › Esta computadora. En Linux no; ahí el computer use oficial de Claude o de ChatGPT se
-  enciende en sus propias apps (`manuales/computer-use.md`).
+  enciendes en Ajustes › Esta computadora. En tu servidor también, con la pantalla virtual (`nube.sh pantalla`); en un
+  Linux de escritorio no: ahí el computer use oficial de Claude o de ChatGPT se enciende en sus propias apps
+  (`manuales/computer-use.md`).
 - **Sentidos y dolor:** avisos de la app y lo que conectes (calendario, correo, métricas; ver `manuales/`).
 
 ## Cómo se escribe aquí

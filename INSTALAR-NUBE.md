@@ -58,7 +58,8 @@
 > - **Abrir una terminal una sola vez** (Mac: Terminal; Windows: PowerShell) y pegar el comando que te da Claude. Ahí,
 >   sin que nada pase por el chat: entras con tu **cuenta de Claude** (para el chat), pegas tu **llave de OpenRouter
 >   con tope** (para las rutinas) y ves tu **código para entrar**.
-> - **Aceptar a GitHub**, solo en espejo: el servidor recibe una llave que sirve únicamente para tu `mi-arbrain`.
+> - **Aceptar a GitHub**, en espejo o si quieres que tu servidor se respalde solo en tu GitHub privado (cada 5
+>   minutos): el servidor recibe una llave que sirve únicamente para ese repositorio.
 >
 > ### Tu cuenta de Claude y tus rutinas: por qué van separadas
 >
@@ -78,7 +79,7 @@
 > | En tu computadora | Solo en tu servidor |
 > |---|---|
 > | La app de escritorio Arbrain | **«Tu Arbrain»** en tu teléfono (se instala desde el navegador, como app) y el navegador de cualquier computadora con Tailscale |
-> | Levy usa tus apps y tu pantalla (computer use) | No existe en el servidor: no hay pantalla. Si lo necesitas, usa el espejo con tu computadora |
+> | Levy usa tus apps y tu pantalla (computer use) | Con la pantalla virtual (`nube.sh pantalla`, opcional): Levy abre sitios en su propio Chrome, los lee y llena formularios, y tú lo ves en vivo solo por tu red privada. Tus apps de escritorio no: para eso, el espejo con tu computadora |
 > | Leer respuestas en voz alta con la voz de tu computadora | Con la voz del dispositivo donde lo abras (tu teléfono), o con LemonFox si quieres una mejor (Ajustes › Voz) |
 > | Dictar con tu llave de Groq | Igual: tu llave gratis de Groq en Ajustes › Voz, desde el navegador |
 > | Funciona con tu computadora prendida | Funciona siempre; tu computadora puede estar apagada |
@@ -154,7 +155,28 @@ del servidor**:
 
 **Pedidos sueltos de «Después»** (ya hay Arbrain en su servidor: `~/Arbrain` existe allá): prueba el acceso como
 arriba y salta directo: «código para entrar» → la parte del código del N7; «conecta mi cuenta de Claude» → la parte
-de Claude del N7; «llave de OpenRouter» → la parte de la llave del N7; «apaga» → `systemctl stop arbrain`. Nada más.
+de Claude del N7; «llave de OpenRouter» → la parte de la llave del N7; «respalda mi servidor en GitHub» → el N3 con
+`MODO=solo` y luego el N4 con lo que dice ahí (su copia se queda; solo se agrega el respaldo); «instala la pantalla
+virtual» (o «que Levy use un navegador en mi servidor») → `bash ~/Arbrain/arbrain/scripts/instalar/nube.sh pantalla`:
+con `PANTALLA_OK`, dile que en su Arbrain encienda Ajustes › Computer use y que ahí mismo está «Ver la pantalla de tu
+servidor»; con `PANTALLA_FALTA <motivo>`, el motivo en una línea; «apaga» → `systemctl stop arbrain`. Nada más.
+
+Antes de cualquier `nube.sh` de un pedido suelto, pon al día la copia del servidor con la versión que tiene su Arbrain
+(la copia de root no se actualiza sola cuando ella dice «actualiza mi Arbrain»). Nunca corras como root los scripts de
+la carpeta de su usuario (`/home/arbrain/Arbrain`): su Levy los puede cambiar.
+
+```bash
+U="$(systemctl show -p User --value arbrain)"; H="$(getent passwd "${U:-arbrain}" | cut -d: -f6)"
+V="v$(cat "$H/Arbrain/VERSION" 2>/dev/null)"
+printf '%s' "$V" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$' || { echo "COPIA_RAIZ_FALTA no sé qué versión tiene $U"; exit 0; }
+cd ~/Arbrain || { echo "COPIA_RAIZ_FALTA no hay ~/Arbrain"; exit 0; }
+git fetch -q dani "+refs/tags/$V:refs/tags/$V" || { echo "COPIA_RAIZ_FALTA no pude bajar $V"; exit 0; }
+if git -c gpg.format=ssh -c gpg.ssh.program=ssh-keygen -c gpg.ssh.allowedSignersFile="$HOME/.config/arbrain/firmas-permitidas" \
+     verify-tag "$V" >/dev/null 2>&1; then git checkout -q --detach "$V" && echo "COPIA_RAIZ_OK $V"; else echo "FIRMA_FALLA $V"; fi
+```
+
+`COPIA_RAIZ_OK`: sigue. `FIRMA_FALLA`: detente, como en el PASO 3. `COPIA_RAIZ_FALTA <motivo>`: sigue con la copia que
+hay y, si `nube.sh` no conoce la orden (por ejemplo `pantalla`), dile que primero actualice su Arbrain.
 
 Dile en tres líneas qué vas a hacer: dejar Arbrain en su servidor y endurecerlo (SSH solo con llave, firewall,
 actualizaciones); que la necesitas para entrar a Tailscale y para una terminal suya una sola vez; y, en espejo, para
@@ -176,9 +198,21 @@ Corre en el servidor los dos bloques del **PASO 3 de `INSTALAR.md`**, literales 
 rama `mi-arbrain`). Mismas reglas: `FIRMA_FALLA` = detente. Si `~/Arbrain` ya existe en el servidor y su remoto `dani`
 es `https://github.com/arbrain-ai/arbrain`, ya hubo una instalación: salta al N4 (correr otra vez no cambia nada).
 
-### N3 · Su respaldo en GitHub (solo espejo)
+### N3 · Su respaldo en GitHub
 
-Con `MODO=solo`, `MI` queda vacío: su Arbrain nace en el servidor con su propia semilla. Con `MODO=espejo`, desde su
+Con `MODO=solo`, pregúntale una sola vez: «¿Quieres que tu servidor se respalde solo en tu GitHub, en un repositorio
+privado, cada 5 minutos? Si un día el servidor se pierde, tu memoria y tu plan siguen ahí». Si dice que no (o no tiene
+cuenta de GitHub), `MI` queda vacío y su Arbrain nace en el servidor con su propia semilla, sin respaldo; lo puede pedir
+después. Si dice que sí, guarda su respuesta textual en `CITA` y, desde su computadora:
+
+- Si `gh auth status` está bien: `gh repo create <usuario>/mi-arbrain --private` (si ya existe un `mi-arbrain` con la
+  copia de su computadora, usa `mi-arbrain-servidor`: el respaldo de un servidor nuevo va a un repo **vacío**). Si no
+  tiene `gh`, que lo cree en https://github.com/new: privado y sin README.
+- `MI=git@github.com:<usuario>/<repo>.git`, y en el N4 agrega `--espejo --rol lider --cita "$CITA"`: el espejo de un solo
+  servidor es el que sube su respaldo cada 5 minutos, y al mando para que sus rutinas sigan corriendo (sin `--rol lider`
+  el servidor se queda como ventana y no corre rutinas).
+
+Con `MODO=espejo`, desde su
 computadora: `git -C ~/Arbrain remote get-url origin 2>/dev/null`. Si es `https://github.com/<usuario>/mi-arbrain`
 (con o sin `.git`), sube lo último sin forzar: `git -C ~/Arbrain push -q origin mi-arbrain` (si falla, sigue sin él y
 díselo), y usa `MI=git@github.com:<usuario>/mi-arbrain.git` en el N4. Si no tiene respaldo, el espejo lo necesita:
@@ -202,7 +236,7 @@ Arbrain, servicio). La última línea manda:
 - `NUBE_OK …`: sigue al N5.
 - `NUBE_ESPERA …`: Arbrain está bajando su programa. Revisa cada 15 segundos, hasta 20 minutos, con
   `bash ~/Arbrain/arbrain/scripts/instalar/nube.sh estado` hasta que diga `NUBE_ESTADO`.
-- `NUBE_LLAVE_GITHUB <llave pública>`: el servidor necesita permiso para leer y escribir **solo** su `mi-arbrain`. Desde
+- `NUBE_LLAVE_GITHUB <llave pública>`: el servidor necesita permiso para leer y escribir **solo** su repo (`MI`). Desde
   su computadora, si `gh auth status` está bien: guarda esa línea (sin el prefijo) en un archivo temporal y corre
   `gh repo deploy-key add <archivo> --repo <usuario>/mi-arbrain --title "Arbrain nube" --allow-write`. Si no, dile que
   abra `https://github.com/<usuario>/mi-arbrain/settings/keys/new`, pegue esa llave pública, marque «Allow write
@@ -213,12 +247,13 @@ Arbrain, servicio). La última línea manda:
 ### N5 · Tailscale (su red privada)
 
 ```bash
-nohup tailscale up --hostname="$(cat /home/arbrain/Arbrain/.claude/hooks/.host-slug)" > /root/tailscale-up.log 2>&1 &
+nohup tailscale up --hostname=arbrain > /root/tailscale-up.log 2>&1 &
 sleep 5; grep -o 'https://login.tailscale.com/[^ ]*' /root/tailscale-up.log | head -1
 ```
 
-Dale ese enlace: que lo abra y entre con **la misma cuenta** de Tailscale de su teléfono (si no tiene, la crea ahí,
-gratis). Revisa cada 10 segundos, hasta 10 minutos, con
+Su servidor aparece en su red como `arbrain` (su dirección será `https://arbrain.<su red>.ts.net`, no el nombre que
+le puso el proveedor, como `srv123456`). Dale ese enlace: que lo abra y entre con **la misma cuenta** de Tailscale de su
+teléfono (si no tiene, la crea ahí, gratis). Revisa cada 10 segundos, hasta 10 minutos, con
 `tailscale status --json | grep -o '"BackendState": *"[A-Za-z]*"'` hasta que diga `Running`. Si prefiere hacerlo
 después, sigue (sin Tailscale no hay N6: con `MODO=solo` díselo, porque es su única forma de entrar).
 
@@ -324,6 +359,7 @@ Chat: <tu cuenta de Claude (plan) / tu llave de OpenRouter / pendiente>
 Rutinas: <OpenRouter con tope de US$n, Claude Haiku 5.5 / pendientes de tu llave>
 Corre como servicio: arranca solo con el servidor y se levanta si se cae
 Seguridad: SSH solo con llave · firewall cerrado salvo SSH y Tailscale · actualizaciones automáticas · nada abierto a internet
+Respaldo: <tu GitHub privado (<repo>), cada 5 minutos / sin respaldo (pídemelo cuando quieras)>
 Modo espejo: <activado (manda …) / apagado>
 Para apagarlo: pídeme «apaga mi Arbrain en mi servidor» (systemctl stop arbrain en el servidor).
 ```

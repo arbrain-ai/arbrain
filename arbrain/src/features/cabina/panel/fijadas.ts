@@ -17,6 +17,7 @@
 import { create } from 'zustand'
 import { esEdicionCliente, vistaPermitidaEnCliente } from '@/lib/edicion'
 import { esVistaConocida, hoyCivil, rangoCalendario, type MostrarInput } from '../model'
+import { REAPERTURA_MS } from '@/features/planning/apertura'
 import { coincide, coincideVista, mismaRuta } from './bus-puro'
 import { useMemo } from 'react'
 import { cerrarVentanas, enlazarFijadas, escuchar, publicar } from './ventanas'
@@ -94,12 +95,17 @@ export const esHoy = (alcance: MostrarInput['alcance'], fecha: string, hoy = hoy
   return hoy >= r.desde && hoy < r.hasta
 }
 
-/** Al abrir la app, un calendario que quedó en un periodo ya terminado (el «dom 4 oct» del lunes 5) vuelve a hoy.
- *  Un periodo futuro que Levy fijó a propósito se respeta. */
-export function fechaViva(i: MostrarInput, hoy = hoyCivil()): MostrarInput {
+/**
+ * La fecha de una pestaña de calendario vale solo dentro de la sesión viva: `REAPERTURA_MS` desde que se puso (`fechaEn`), la
+ * pusiera Daniel navegando o Levy con `mostrar`. Pasado eso, o sin `fechaEn` (pestañas de antes del 2 nov), la pestaña vuelve a
+ * hoy. Antes un periodo futuro se respetaba sin caducar (5 oct): el 2 nov la pestaña traía «9 nov» guardado desde días antes, el
+ * panel compartido lo llevó a la app y la Semana abrió en S3 con la hora de hoy fuera de vista. Regla firmada (10 oct,
+ * planning/apertura.ts): al abrir o reabrir, hoy; la fecha navegada solo vale dentro de la sesión viva.
+ */
+export function fechaViva(i: MostrarInput, ahora = Date.now()): MostrarInput {
   if (i.vista !== 'calendario' || !i.fecha) return i
-  if (rangoCalendario(i.alcance ?? 'semana', i.fecha).hasta > hoy && !esHoy(i.alcance, i.fecha, hoy)) return i
-  const { fecha: _fuera, ...resto } = i
+  if (typeof i.fechaEn === 'number' && ahora - i.fechaEn >= 0 && ahora - i.fechaEn < REAPERTURA_MS) return i
+  const { fecha: _fuera, fechaEn: _cuando, ...resto } = i
   return resto
 }
 
@@ -118,9 +124,30 @@ export function siembraCalendario(fijadas: readonly Fijada[], cliente: boolean, 
   if (!cliente || yaSembrado || fijadas.some(f => alias(f.input).vista === 'calendario')) return null
   return { id: ID_CALENDARIO_INICIAL, input: { vista: 'calendario', alcance: 'dia' }, en: Date.now() }
 }
-function marcarSembrado(): boolean {
-  try { if (localStorage.getItem(CLAVE_CALENDARIO_CLIENTE)) return true; localStorage.setItem(CLAVE_CALENDARIO_CLIENTE, '1'); return false } catch { return true }
+function marcarSembrado(clave = CLAVE_CALENDARIO_CLIENTE): boolean {
+  try { if (localStorage.getItem(clave)) return true; localStorage.setItem(clave, '1'); return false } catch { return true }
 }
+/**
+ * La segunda persona en la instalación del dueño (2 nov 2026: «no ha podido configurar su calendario todavía»). Su panel
+ * nacía con «Tareas», que es el Todoist del dueño: le respondía 403 con un texto que decía «calendario», así que ella
+ * entendía que SU calendario no estaba listo, aunque su sección Calendario (perfil de la segunda persona,
+ * lib/planning/server.ts › planningViewer) ya leía su Google. Como en la edición cliente: sin Tareas y con su Calendario
+ * como primera pestaña, sembrado una vez por aparato (si lo cierra, vuelve desde «+»).
+ * Pura (para las pruebas): devuelve el acomodo nuevo o null si no cambia nada.
+ */
+export function acomodoSegunda(st: Pick<Estado, 'fijadas' | 'orden' | 'ancladas' | 'activa'>, yaSembrado: boolean): Pick<Estado, 'fijadas' | 'orden' | 'activa'> | null {
+  // Su vista es la semana (ahí cabe el calendario que comparten); en el teléfono el calendario pasa solo a agenda.
+  const sembrada = siembraCalendario(st.fijadas, true, yaSembrado)
+  const semilla: Fijada | null = sembrada && { ...sembrada, input: { vista: 'calendario', alcance: 'semana' } }
+  const sinTareas = st.orden.filter(c => c !== TAREAS)
+  if (!semilla && sinTareas.length === st.orden.length) return null
+  const fijadas = semilla ? [semilla, ...st.fijadas] : st.fijadas
+  const orden = semilla ? conAncladas([semilla.id, ...sinTareas.filter(c => c !== semilla.id)], st.ancladas) : sinTareas
+  const calendario = fijadas.find(f => alias(f.input).vista === 'calendario')?.id
+  const activa = semilla ? semilla.id : st.activa === TAREAS ? (calendario ?? orden[0] ?? TALLER) : st.activa
+  return { fijadas, orden, activa }
+}
+const CLAVE_CALENDARIO_SEGUNDA = 'arbrain.panelDerecho.calendarioSegunda'
 
 function leerAcomodo(): unknown {
   try { return JSON.parse(localStorage.getItem(CLAVE_ACOMODO) ?? 'null') } catch { return null }
@@ -186,6 +213,8 @@ interface Estado {
   /** Llegó el panel compartido de otro aparato (14 oct 2026, compartido.ts): pestañas, orden, Taller y ancladas. Las ventanas
    *  de este aparato y su pestaña a la vista se conservan (si la de la vista ya no existe, queda su vecina). */
   aplicarRemoto: (e: { fijadas: Fijada[]; orden: string[]; taller: boolean; ancladas: string[] }) => void
+  /** La sesión es de la segunda persona (acomodoSegunda): fuera Tareas, su Calendario primero. Idempotente. */
+  comoSegunda: () => void
 }
 
 /** Las pestañas abiertas, en orden de cabecera (con el Taller al final si está abierto). */
@@ -245,6 +274,13 @@ export const usePanelFijadas = create<Estado>((set, get) => {
         set({ fijadas, ...acomodo, enVentana, ...activa })
       })
     },
+    comoSegunda: () => {
+      get().cargar()
+      if (CLIENTE) return
+      const st = get()
+      const nuevo = acomodoSegunda(st, marcarSembrado(CLAVE_CALENDARIO_SEGUNDA))
+      if (nuevo) guardarTodo(nuevo)
+    },
     fijar: (id, entrada, activar = true, origen = {}) => {
       get().cargar()
       // Servidores vive en el Taller (5 oct 2026, Daniel: «todo lo técnico me gustaría que cayera en el Taller»): pedirla abre
@@ -254,11 +290,12 @@ export const usePanelFijadas = create<Estado>((set, get) => {
       if (seg) { pedirSegmentoTaller(seg); get().abrirCasa(TALLER); return TALLER }
       // Edición cliente: lo que no existe en esta edición no se abre (Levy pudo pedir una vista del negocio de Daniel).
       if (!esVistaConocida(entrada.vista) || !vistaPermitidaEnCliente(entrada.vista, CLIENTE)) return ''
-      const input = alias(entrada)
+      const ahora = Date.now()
+      // La fecha que Levy pide vale como la navegada: dentro de la sesión viva (fechaViva).
+      const pedido = alias(entrada), input = pedido.vista === 'calendario' && pedido.fecha && pedido.fechaEn == null ? { ...pedido, fechaEn: ahora } : pedido
       const clave = claveDe(input)
       // Un documento abierto con ruta relativa y pedido con la absoluta (o ~/) es la misma pestaña: se enfoca, no se duplica.
       const previa = get().fijadas.find(f => f.id === id || claveDe(f.input) === clave || mismoDocumento(f.input, input))
-      const ahora = Date.now()
       // La misma vista pedida otra vez reemplaza su enfoque y título, pero conserva su lugar. Lo que Daniel
       // abrió a mano sigue siendo suyo aunque Levy lo vuelva a mostrar.
       const fijadas = previa

@@ -44,6 +44,7 @@ import {
 } from './servidor/rutas.mjs'
 import { PRELUDIO_WEB } from './servidor/preludio-web.mjs'
 import { armarPaquete, programaYaCompilado } from './servidor/programa.mjs'
+import { apartarMarcadoresVacios } from './servidor/marcadores-sandbox.mjs'
 import * as telefono from './servidor/telefono.mjs'
 import { avisoCaida, trasCaida } from './servidor/reintentos.mjs'
 import { abrirOEnfocarApp, elegirApertura, leerConfigEscritorio } from './servidor/ventanas.mjs'
@@ -285,16 +286,21 @@ async function compilarWeb(forzar) {
   let envAntes = null
   try { envAntes = readFileSync(nextEnv) } catch { /* no existe: que lo cree next */ }
   const restaurarNextEnv = () => { try { if (envAntes && !readFileSync(nextEnv).equals(envAntes)) writeFileSync(nextEnv, envAntes) } catch { /* */ } }
+  // Los archivos vacíos que deja el aislamiento de Claude Code en Linux (package.json, package-lock.json… en la raíz)
+  // descolocan a `next build`: se apartan mientras compila y vuelven al terminar (servidor/marcadores-sandbox.mjs).
+  const marcadores = apartarMarcadoresVacios(REPO, join(R.programa, `marcadores-apartados-${process.pid}`))
+  if (marcadores.apartados.length) registrar(`Mientras compilo aparto los archivos vacíos que deja el aislamiento de Claude Code: ${marcadores.apartados.join(', ')}.`)
   // Hasta 3 intentos: `next/font/google` baja las fuentes al compilar y a veces Google responde mal (22 oct 2026: tumbó
   // 4 corridas de CI con «loader.js:122»). Un error real del código falla igual las tres veces.
   for (let intento = 1; ; intento++) {
     const codigo = correr(process.execPath, [next, 'build', '--webpack'], ARBRAIN, env)
     restaurarNextEnv()
     if (codigo === 0) break
-    if (intento >= 3) fallar('Falló la compilación de la web. El detalle está arriba.')
+    if (intento >= 3) { marcadores.devolver(); fallar('Falló la compilación de la web. El detalle está arriba.') }
     registrar(`La compilación de la web falló (intento ${intento} de 3; suele ser la descarga de fuentes). Reintento en 15 s…`)
     await dormir(15_000)
   }
+  marcadores.devolver()
   if (!existsSync(join(STANDALONE, 'server.js'))) fallar('La compilación no dejó .next/standalone/server.js (next.config.ts debe tener output: "standalone").')
   // Lo mismo que prepare-tauri-resources: estáticos y public junto al server.js; fuera .env y bases.
   cpSync(join(ARBRAIN, '.next', 'static'), join(STANDALONE, '.next', 'static'), { recursive: true })
@@ -307,7 +313,8 @@ async function compilarWeb(forzar) {
 }
 
 function compilarDaemon(forzar) {
-  const h = huella(['arbrain/server/src', 'arbrain/server/package-lock.json', 'arbrain/server/empaquetado.json', 'arbrain/EDICION'])
+  // manos-linux (1 nov 2026) viaja junto al daemon compilado (empaquetado.json › extras): si cambia, se vuelve a copiar.
+  const h = huella(['arbrain/server/src', 'arbrain/server/package-lock.json', 'arbrain/server/empaquetado.json', 'arbrain/EDICION', 'arbrain/server/manos-linux'])
   privada(R.programa)
   const destino = join(R.programa, `daemon-${h}`)
   const listo = existsSync(join(destino, 'dist', 'index.js'))

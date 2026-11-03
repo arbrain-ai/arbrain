@@ -111,7 +111,12 @@ export function juzgarCliente(p: PedidoActuar, c: ContextoAccion, cliente = esEd
   const pistas = [e?.titulo, e?.descripcion, e?.placeholder, e?.ayuda, e?.identificador, e?.dom_id, e?.etiqueta_ui].filter(Boolean).join(' · ')
 
   if (esNavegador(c) || esNavegador({ app: p.app })) {
-    if ((escribe || p.accion === 'tecla') && e && /^(AXTextField|AXComboBox|AXSearchField|AXTextArea)$/.test(e.rol) && BARRA.test(pistas) && !TECLA_INOCUA.test(tecla)) {
+    // La barra de direcciones vive en el marco del navegador, nunca dentro de la página (AXWebArea → `dentro_de: web`,
+    // en los tres adaptadores). Un campo de la página cuya etiqueta dice «E-mail address», «Dirección de envío» o
+    // «Location» no es la barra: antes se bloqueaba en duro y el correo de un formulario no se podía llenar (QA del modo
+    // servidor, 1 nov 2026, httpbin.org/forms/post). Sin `dentro_de` (no se sabe dónde está) sigue el criterio prudente.
+    const enLaPagina = c.dentro_de?.includes('web') === true
+    if ((escribe || p.accion === 'tecla') && e && !enLaPagina && /^(AXTextField|AXComboBox|AXSearchField|AXTextArea)$/.test(e.rol) && BARRA.test(pistas) && !TECLA_INOCUA.test(tecla)) {
       return duro('barra_de_direcciones', 'escribir en la barra de direcciones navega sin el freno de navegación: usa la herramienta navegar')
     }
     if ((escribe || (p.accion === 'tecla' && !TECLA_INOCUA.test(tecla))) && !p.ref) {
@@ -138,6 +143,9 @@ export function juzgarCliente(p: PedidoActuar, c: ContextoAccion, cliente = esEd
 /** Windows: solo las apps que el helper conoce por nombre (ShellExecute de un nombre suelto busca primero en la carpeta actual). */
 export const APPS_WINDOWS_CLIENTE = /^(calc|calculator|calculadora|notepad|bloc de notas|bloc|msedge|edge|microsoft edge|chrome|google chrome|mspaint|paint|explorer|explorador|explorador de archivos|file explorer)(\.exe)?$/i
 
+/** Linux (pantalla virtual del servidor, 1 nov 2026): el instalador solo pone Google Chrome; las páginas, con navegar. */
+export const APPS_LINUX_CLIENTE = /^(chrome|google chrome|google-chrome|google-chrome-stable|navegador)$/i
+
 /** ¿Se puede abrir esta app en la edición cliente? Nombres de app o bundle ids; nunca rutas, URLs ni esquemas. */
 export function juzgarAbrir(app: unknown, plataforma: string = process.platform, cliente = esEdicionCliente()): { ok: true } | { ok: false; texto: string } {
   if (!cliente) return { ok: true }
@@ -148,6 +156,7 @@ export function juzgarAbrir(app: unknown, plataforma: string = process.platform,
   if (EJECUTABLE.test(a) && !/\.exe$/i.test(a) && !/^[a-z0-9-]+(\.[a-z0-9-]+){2,}$/i.test(a)) return no(`«${a}» es un archivo que abrir ejecuta`)
   if (esAppDeEjecucion({ app: a, bundle: a })) return no(`${a} ejecuta lo que se le escribe (terminal, editor de código, lanzador o utilidad de sistema): las manos no la abren. Para comandos usa tu propia terminal`)
   if (plataforma === 'win32' && !APPS_WINDOWS_CLIENTE.test(a)) return no(`en Windows las manos de esta versión abren Calculadora, Bloc de notas, Paint, Edge, Chrome y el Explorador; «${a}» no. Pídele a la persona que la abra ella y luego opérala por su nombre`)
+  if (plataforma === 'linux' && !APPS_LINUX_CLIENTE.test(a)) return no(`en la pantalla virtual de tu servidor las manos abren Google Chrome; «${a}» no. Para una página usa navegar`)
   return { ok: true }
 }
 

@@ -13,6 +13,7 @@
  *  · Expandir     vive en la cabecera de la vista (AbrirCompleto, Cabina.tsx): lleva a la sección de la barra izquierda
  *                 en la misma fecha, página o zona. Sacarla a su propia ventana sigue con ⌘⌥B o arrastrando la pestaña.
  */
+import { useSoySegunda } from './segunda'
 import { useAccesosCasa } from '@/shared/components/AccesosCasa'
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent as TeclaReact, type PointerEvent as PunteroReact } from 'react'
 import { createPortal } from 'react-dom'
@@ -33,7 +34,7 @@ import dynamic from 'next/dynamic'
 import { EVENTO_IR_CALENDARIO } from '@/features/planning/eventos'
 import type { CalendarMode } from '@/features/planning/types'
 import { useAskLevy } from '@/shared/hooks/useAskLevy'
-import { esHoy, usePanelFijadas, ventanaPropia, type Fijada } from './fijadas'
+import { esHoy, fechaViva, usePanelFijadas, ventanaPropia, type Fijada } from './fijadas'
 import { PRINCIPAL } from './pestanas-fuera'
 import { mostrarPanel } from './ventanas'
 import { moverVisible, visibles } from './menu-orden'
@@ -166,7 +167,9 @@ export function OpcionesPanel({ grande, onElegido }: { grande?: boolean; onElegi
   const ajustes = usePanelAjustes(st => st.ajustes), cargarAjustes = usePanelAjustes(st => st.cargar), guardarAjustes = usePanelAjustes(st => st.guardar)
   useEffect(() => { cargarAjustes() }, [cargarAjustes])
   const ordenMenu = visibles(ajustes.orden, ajustes.ocultas)
-  const opciones = ordenMenu.map(id => OPCION_DE.get(id)!).filter(Boolean)
+  // La segunda persona (2 nov 2026): Tareas es el Todoist del dueño; a ella no se le ofrece (fijadas.ts › acomodoSegunda).
+  const soySegunda = useSoySegunda()
+  const opciones = ordenMenu.map(id => OPCION_DE.get(id)!).filter(o => o && !(soySegunda && idOpcion(o) === 'tareas'))
   const cajaRef = useRef<HTMLDivElement>(null)
   const mover = (id: string, destino: number) => { void guardarAjustes({ orden: moverVisible(ajustes.orden, ajustes.ocultas, id, destino) }) }
   const enfocarManija = (id: string) => requestAnimationFrame(() => cajaRef.current?.querySelector<HTMLElement>(`[data-opcion="${id}"] [data-manija]`)?.focus())
@@ -310,13 +313,15 @@ export function CuerpoSeccion({ f }: { f: Fijada }) {
   // Calendario y Objetivos son UNA vista (4 oct 2026): objetivo, tareas y calendario del día, la semana o el mes. «objetivos» llega
   // normalizado a «calendario» (fijadas.ts, `alias`), así que esta pestaña es la de los dos.
   if (f.input.vista === 'calendario') return <div className={`${p.seccionLlena} ${p.editor}`}>
-    <PlanningCalendar donde="panel" inicio={{ fecha: f.input.fecha, modo: MODO_DE[f.input.alcance ?? 'semana'] }}
+    {/* La fecha de la pestaña, solo si sigue viva (fechaViva): una navegada hace horas o días, o en otro aparato, abre en hoy. */}
+    <PlanningCalendar donde="panel" inicio={{ fecha: fechaViva(f.input).fecha, modo: MODO_DE[f.input.alcance ?? 'semana'] }}
       onConversar={ask}
       onAbrirDocumento={(ruta, titulo) => abrirSeccion({ vista: 'documento', ruta, titulo })} onNavegar={url => router.push(url)}
       onCambio={(dia, modo) => {
         // En el periodo de hoy la pestaña no guarda fecha: así mañana abre en mañana (5 oct 2026, el «Hoy» que no avanzaba).
         const alcance = ALCANCE_DE[modo] ?? f.input.alcance, fecha = esHoy(alcance, dia) ? undefined : dia
-        if (fecha !== f.input.fecha || alcance !== f.input.alcance) { const { fecha: _vieja, ...resto } = f.input; actualizar(f.id, { ...resto, alcance, ...(fecha ? { fecha } : {}) }) }
+        // La fecha navegada lleva su hora: vale dentro de la sesión viva y luego la pestaña vuelve a hoy (fechaViva, 2 nov 2026).
+        if (fecha !== f.input.fecha || alcance !== f.input.alcance) { const { fecha: _vieja, fechaEn: _cuando, ...resto } = f.input; actualizar(f.id, { ...resto, alcance, ...(fecha ? { fecha, fechaEn: Date.now() } : {}) }) }
       }} />
   </div>
   return null

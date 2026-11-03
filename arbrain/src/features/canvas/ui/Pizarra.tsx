@@ -2568,7 +2568,7 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
       </div>
 
       {/* Angosto (la pestaña del panel, el teléfono): la barra de estado ocupa el pie y el minimapa quedaba debajo. */}
-      {viewport.width >= 720 && <Minimap elements={elements} camara={camViva} viewport={viewport} theme={t}
+      {mostrar.minimapa && viewport.width >= 720 && <Minimap elements={elements} camara={camViva} viewport={viewport} theme={t}
         onJump={p => irCamara({ ...camRef.current, x: p.x, y: p.y }, 220)} />}
 
       {selectedIds.size > 1 && !editingId && (
@@ -2695,7 +2695,7 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
       )}
 
       {mostrar.barraInferior && <StatusBar
-        angosto={viewport.width < 720}
+        angosto={viewport.width < 720} mostrarZoom={mostrar.zoom}
         theme={t} zoom={camera.zoom} camara={camViva} background={background} save={saveStatus}
         canUndo={depth.undo > 0} canRedo={depth.redo > 0}
         onZoom={f => zoomAnimado(z => siguienteNivel(z, f > 1 ? 1 : -1), { x: vpRef.current.width / 2, y: vpRef.current.height / 2 })}

@@ -34,6 +34,10 @@ arbrain/src-tauri/binaries/
 # Generados por Arbrain: se rehacen solos cada pocos minutos (versionarlos ensucia git y choca en el espejo)
 .claude/now.md
 
+# Caché de Python: la crean solos los ganchos de Claude Code al correr (no es tuya ni del autor)
+__pycache__/
+*.py[co]
+
 # Datos locales del alumno
 store/
 *.db

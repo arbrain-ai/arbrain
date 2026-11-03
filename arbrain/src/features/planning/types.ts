@@ -36,6 +36,8 @@ export interface PlanEvent {
   attendees?: { email: string; name: string; response: string; self: boolean; organizer: boolean }[]
   /** Color del evento en Google (1–11). Manda sobre la categoría inferida (categorias.ts, 10 oct 2026). */
   colorId?: string | null
+  /** De quién es, si el calendario es de otra persona (ajenos.ts, 2 nov 2026): su nombre. Solo se pinta; nunca se escribe. */
+  de?: string
 }
 
 export interface PlanTask {

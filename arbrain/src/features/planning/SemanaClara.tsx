@@ -22,6 +22,7 @@ import { Leyenda, type ControlLeyenda } from './Leyenda'
 import { LeyendaDrip, useGobierno } from './gobierno'
 import { esDelegable, semanaDelPrograma, semanasDelPrograma, type LecturaDrip } from './drip'
 import type { PlanEvent, PlanItem, PlanTask, PlanningSnapshot } from './types'
+import { tituloVisible } from './ajenos'
 import c from './claridad.module.css'
 
 /**
@@ -82,7 +83,7 @@ export function bloquesDeSemana(eventos: PlanEvent[], tareas: PlanTask[], visibl
   // La Perfect Week (24 oct 2026): rutina es lo que se repite casi a diario (rutinas.ts), no cualquier serie; la clase semanal resalta.
   const rutinas = rutinasDiarias(eventos, iso => dayKey(parseISO(iso)))
   return [
-    ...eventos.filter(e => !e.allDay && visible(e)).map(e => ({ id: e.id, titulo: sinEmoji(e.title || '(sin título)'), inicio: Date.parse(e.start), fin: Date.parse(e.end), color: color(e), movible: e.editable,
+    ...eventos.filter(e => !e.allDay && visible(e)).map(e => ({ id: e.id, titulo: sinEmoji(tituloVisible(e, '(sin título)')), inicio: Date.parse(e.start), fin: Date.parse(e.end), color: color(e), movible: e.editable,
       rutina: rutinas.has(e.id), compromiso: esCompromiso(e), seccion: seccionDe(e) ?? undefined, innegociable: esNoNegociable(e) || undefined, ...(drip ? marcaDrip(drip(e)) : {}) })),
     ...tareas.filter(t => t.due && hasTime(t.due) && !t.completed).map(t => { const ini = Date.parse(t.due!); return { id: t.id, titulo: sinEmoji(t.title), inicio: ini, fin: ini + (t.durationMinutes ?? 30) * 60_000, color: null, movible: true, tarea: true, prioridad: t.priority === 1, ...(t.durationMinutes ? {} : { sinDuracion: true }) } }),
   ]
@@ -97,7 +98,7 @@ export function todoElDiaDeSemana(dias: string[], eventos: PlanEvent[], visible:
   const mapa = new Map<string, MarcaDia[]>(dias.map(d => [d, []]))
   for (const e of eventos) {
     if (!e.allDay || !visible(e) || esDeVariosDias(e)) continue
-    for (const d of dias) if (e.start.slice(0, 10) <= d && d < e.end.slice(0, 10)) mapa.get(d)!.push({ id: e.id, titulo: sinEmoji(e.title || '(sin título)'), color: color(e), abrir: abrir ? () => abrir(e) : undefined })
+    for (const d of dias) if (e.start.slice(0, 10) <= d && d < e.end.slice(0, 10)) mapa.get(d)!.push({ id: e.id, titulo: sinEmoji(tituloVisible(e, '(sin título)')), color: color(e), abrir: abrir ? () => abrir(e) : undefined })
   }
   return mapa
 }
@@ -108,7 +109,7 @@ export function barrasDeSemana(dias: string[], eventos: PlanEvent[], visible: (e
   const primero = dias[0], ultimo = dias[dias.length - 1]
   return eventos.filter(e => e.allDay && visible(e) && esDeVariosDias(e)).map(e => ({ e, t: tramoDeTodoElDia(e) })).filter(({ t }) => t[0] <= ultimo && t[1] >= primero)
     .sort((x, y) => x.t[0].localeCompare(y.t[0]) || y.t[1].localeCompare(x.t[1]))
-    .map(({ e, t }) => ({ id: e.id, titulo: sinEmoji(e.title || '(sin título)'), color: color(e), desde: t[0], hasta: t[1], abrir: abrir ? () => abrir(e) : undefined }))
+    .map(({ e, t }) => ({ id: e.id, titulo: sinEmoji(tituloVisible(e, '(sin título)')), color: color(e), desde: t[0], hasta: t[1], abrir: abrir ? () => abrir(e) : undefined }))
 }
 
 export function SemanaClara({ goals, guardarObjetivo, fecha, ventana, onVentana, snapshot, eventos, visible, color, tareas, zona, cargando, donde = 'seccion', leyenda, onDia, onAbrir, onMover, onEstirar, onCrear,

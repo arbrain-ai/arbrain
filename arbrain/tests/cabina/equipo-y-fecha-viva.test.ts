@@ -63,9 +63,27 @@ describe('la fecha del calendario cruza la medianoche', () => {
     assert.equal(esHoy('semana', '2026-10-05', '2026-10-07'), true)
     assert.equal(esHoy('dia', '2026-10-04', '2026-10-05'), false)
   })
-  it('al abrir la app, un periodo terminado vuelve a hoy y uno futuro se respeta', () => {
-    assert.deepEqual(fechaViva({ vista: 'calendario', alcance: 'dia', fecha: '2026-10-04' }, '2026-10-05'), { vista: 'calendario', alcance: 'dia' })
-    assert.deepEqual(fechaViva({ vista: 'calendario', alcance: 'dia', fecha: '2026-10-17' }, '2026-10-05'), { vista: 'calendario', alcance: 'dia', fecha: '2026-10-17' })
-    assert.deepEqual(fechaViva({ vista: 'lienzo', paginaId: 'p', fecha: '2026-10-01' }, '2026-10-05'), { vista: 'lienzo', paginaId: 'p', fecha: '2026-10-01' })
+  // 2 nov 2026: la pestaña traía «9 nov» guardado días antes (sin hora) y la Semana abrió en S3. La fecha vale solo en la sesión viva.
+  it('la fecha de la pestaña vale dentro de la sesión viva; vieja o sin hora, vuelve a hoy', () => {
+    const t = Date.parse('2026-11-02T12:08:00Z'), min = 60_000
+    assert.deepEqual(fechaViva({ vista: 'calendario', alcance: 'semana', fecha: '2026-11-09' }, t), { vista: 'calendario', alcance: 'semana' })
+    assert.deepEqual(fechaViva({ vista: 'calendario', alcance: 'semana', fecha: '2026-11-09', fechaEn: t - 5 * min }, t), { vista: 'calendario', alcance: 'semana', fecha: '2026-11-09', fechaEn: t - 5 * min })
+    assert.deepEqual(fechaViva({ vista: 'calendario', alcance: 'semana', fecha: '2026-11-09', fechaEn: t - 16 * min }, t), { vista: 'calendario', alcance: 'semana' })
+    // Un día pasado elegido hace un momento también se respeta (navegar hacia atrás dentro de la sesión).
+    assert.deepEqual(fechaViva({ vista: 'calendario', alcance: 'dia', fecha: '2026-10-30', fechaEn: t - min }, t), { vista: 'calendario', alcance: 'dia', fecha: '2026-10-30', fechaEn: t - min })
+    // Un reloj que se fue para atrás no deja una fecha eterna.
+    assert.deepEqual(fechaViva({ vista: 'calendario', alcance: 'dia', fecha: '2026-11-09', fechaEn: t + 60 * min }, t), { vista: 'calendario', alcance: 'dia' })
+    assert.deepEqual(fechaViva({ vista: 'lienzo', paginaId: 'p', fecha: '2026-10-01' }, t), { vista: 'lienzo', paginaId: 'p', fecha: '2026-10-01' })
+  })
+})
+
+// 2 nov 2026: la app quedó abierta la noche en S3. Un día nuevo sin navegación en la sesión viva vuelve a hoy.
+describe('día nuevo con la app abierta', () => {
+  it('sin navegar en 15 min vuelve a hoy; recién navegado se respeta', async () => {
+    const { nuevoDiaVuelveAHoy, REAPERTURA_MS } = await import('../../src/features/planning/apertura')
+    const t = Date.parse('2026-11-02T06:00:00Z')
+    assert.equal(nuevoDiaVuelveAHoy(t - 8 * 3600_000, t), true)
+    assert.equal(nuevoDiaVuelveAHoy(t - REAPERTURA_MS, t), true)
+    assert.equal(nuevoDiaVuelveAHoy(t - 60_000, t), false)
   })
 })

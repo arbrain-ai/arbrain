@@ -2,6 +2,7 @@ import { addDays, format, parseISO } from 'date-fns'
 import type { Goal } from '@/features/goals/model'
 import type { Bloque } from './dia-vivo'
 import type { PlanEvent, PlanTask } from './types'
+import { tituloVisible } from './ajenos'
 
 /**
  * Semana y Mes con claridad (6 oct 2026). Lógica pura, sin React. Lo que responde cada vista lo firmó Daniel:
@@ -94,7 +95,7 @@ export function compromisosDelDia(dia: { conHora: Bloque[]; todoElDia: PlanEvent
     .sort((a, b) => Number(a.fin - a.inicio < 45 * 60e3) - Number(b.fin - b.inicio < 45 * 60e3) || a.inicio - b.inicio)
     .map(b => ({ id: b.id, titulo: b.titulo, hora: format(b.inicio, 'HH:mm'), tipo: 'evento' as const, item: b.evento }))
   const largos: Compromiso[] = dia.todoElDia.filter(e => !e.recurringEventId && !excluir(e.title))
-    .map(e => ({ id: e.id, titulo: e.title, hora: null, tipo: 'evento' as const, item: e }))
+    .map(e => ({ id: e.id, titulo: tituloVisible(e), hora: null, tipo: 'evento' as const, item: e }))
   const importantes: Compromiso[] = [...tareas].filter(t => !excluir(t.title)).sort((a, b) => a.priority - b.priority)
     .map(t => ({ id: t.id, titulo: t.title, hora: t.due?.includes('T') ? format(parseISO(t.due), 'HH:mm') : null, tipo: 'tarea' as const, item: t }))
   const todos = [...eventos, ...largos, ...importantes]

@@ -12,6 +12,7 @@
 #   bash arbrain/scripts/instalar/nube.sh telefono         (publica la web SOLO en su red de Tailscale: `serve`, nunca funnel)
 #   bash arbrain/scripts/instalar/nube.sh codigo           (código de un solo uso para entrar; sale solo en SU terminal)
 #   bash arbrain/scripts/instalar/nube.sh conectar         (claude + llave + código, en una sola terminal de la persona)
+#   bash arbrain/scripts/instalar/nube.sh pantalla [estado|quitar]  (pantalla virtual para las manos de Levy: pantalla.sh)
 #
 # «Solo en tu servidor» (29 oct 2026; guía INSTALAR-NUBE.md): la misma instalación, sin computadora detrás. La persona
 # entra desde el navegador de cualquier computadora o su teléfono por su Tailscale. El chat que ella escribe usa su
@@ -31,7 +32,9 @@
 #   4. Actualizaciones automáticas de seguridad (unattended-upgrades).
 #   5. Tailscale instalado con su instalador oficial, SIN iniciar sesión (eso lo hace la persona: `tailscale up`).
 #   6. Un usuario sin root (`arbrain`, sin contraseña ni sudo) con su copia en /home/arbrain/Arbrain: un clon de su
-#      `mi-arbrain` (--mi-arbrain) o, si no hay, la copia verificada de la que sale este script. Identidad propia: lo
+#      `mi-arbrain` (--mi-arbrain) o, si no hay (o su repo está vacío), la copia verificada de la que sale este script.
+#      Con --mi-arbrain y un repo vacío (o una copia que ya existe sin respaldo), ese repo privado queda como su
+#      respaldo: origin y un primer push; el espejo de un solo servidor sube lo demás cada 5 min (1 nov 2026). Identidad propia: lo
 #      que traiga de otra máquina (.host-slug, compile-state.json, flush-state.json, store/) se aparta a
 #      ~/.arbrain/identidad-ajena/ y se escribe su slug `nube-<host>`. El código de Arbrain se verifica otra vez contra
 #      la etiqueta firmada; si su mi-arbrain trae código distinto de la versión firmada, se detiene.
@@ -112,6 +115,19 @@ profile arbrain-bwrap $1 flags=(unconfined) {
 PERFIL
 }
 
+# Primera ruta cuyo dueño no es root ni quien usó sudo (ese ya tiene root). Vacío = todas son de confianza.
+rutas_de_otro_dueno() {
+  local f u confia
+  confia="${SUDO_USER:+$(id -u "$SUDO_USER" 2>/dev/null)}"
+  for f in "$@"; do
+    [ -e "$f" ] || continue
+    u="$(stat -c %u "$f" 2>/dev/null || stat -f %u "$f" 2>/dev/null)"
+    [ "$u" = 0 ] && continue
+    [ -n "$confia" ] && [ "$u" = "$confia" ] && continue
+    printf '%s' "$f"; return 0
+  done
+}
+
 # Zona IANA válida (America/Mexico_City). Pura salvo por mirar que exista en zoneinfo (NUBE_ZONEINFO en pruebas).
 zona_valida() {
   printf '%s' "$1" | grep -qE '^[A-Za-z_]+(/[A-Za-z0-9_+-]+){0,2}$|^UTC$' || return 1
@@ -152,6 +168,8 @@ fuera_de_capa() {
       arbrain/cerebro/meta/*|arbrain/cerebro/sentidos/*|arbrain/cerebro/memoria/*|arbrain/cerebro/manos/*|arbrain/cerebro/dolor/*) continue ;;
       arbrain/cerebro/reportes/*|arbrain/cerebro/lider.json|arbrain/cerebro/espejo.json|arbrain/cerebro/maquinas/*) continue ;;
       arbrain/cerebro/latidos/*|arbrain/cerebro/enviados/*) continue ;;
+      # Caché de Python de los ganchos: la crean solos y «actualiza mi Arbrain» la llegó a versionar (VPS, 1 nov 2026).
+      */__pycache__/*|__pycache__/*|*.pyc|*.pyo) continue ;;
       .claude/skills/*)
         skill="${f#.claude/skills/}"; skill="${skill%%/*}"
         git -C "$repo" cat-file -e "$v:.claude/skills/$skill" 2>/dev/null || continue ;;
@@ -315,8 +333,11 @@ paso_copia() {
     paquete="$(mktemp -d /tmp/arbrain-nube.XXXXXX)"; chmod 755 "$paquete"
     git -C "$ORIGEN" bundle create -q "$paquete/arbrain.bundle" --all 2>/dev/null || git -C "$ORIGEN" bundle create "$paquete/arbrain.bundle" --all >/dev/null 2>&1 || falta "no pude empaquetar la copia verificada"
     chmod 644 "$paquete/arbrain.bundle"
-    if [ -n "$MI_ARBRAIN" ]; then
-      preparar_github
+    local clase=""
+    if [ -n "$MI_ARBRAIN" ]; then preparar_github; clase="$(clase_mi_arbrain)"; fi
+    [ "$clase" != sin-acceso ] || { rm -f "$paquete/arbrain.bundle"; rmdir "$paquete"; pedir_llave_github; falta "no pude leer tu mi-arbrain ($MI_ARBRAIN)"; }
+    case "$clase" in error:*) rm -f "$paquete/arbrain.bundle"; rmdir "$paquete"; falta "no pude leer tu mi-arbrain: ${clase#error:}" ;; esac
+    if [ "$clase" = con-rama ]; then
       como_u "git clone -q --branch mi-arbrain '$MI_ARBRAIN' ~/Arbrain" >/tmp/arbrain-clon.log 2>&1 || {
         rm -f "$paquete/arbrain.bundle"; rmdir "$paquete"
         if grep -qiE 'permission denied|could not read|not found|repository .* not found' /tmp/arbrain-clon.log; then pedir_llave_github; fi
@@ -493,6 +514,50 @@ pedir_llave_github() {
   [ -n "$pub" ] || return 0
   printf 'NUBE_LLAVE_GITHUB %s\n' "$pub"
   exit 3
+}
+
+# ¿Qué hay en su mi-arbrain? con-rama (ya trae la rama mi-arbrain: el espejo de su compu) | vacio (repo nuevo, o sin esa
+# rama: el respaldo de un servidor que nace aquí) | sin-acceso (falta la llave de despliegue) | error:<motivo>.
+# Pura sobre <código de salida> y <salida de git ls-remote> (la prueba nube.test.sh); clase_mi_arbrain la corre.
+clase_ls_remote() {
+  if [ "$1" = 0 ]; then
+    printf '%s\n' "$2" | grep -qE $'\trefs/heads/mi-arbrain$' && echo con-rama || echo vacio
+  elif printf '%s' "$2" | grep -qiE 'permission denied|could not read|repository .*not found|not found'; then echo sin-acceso
+  else echo "error:$(printf '%s' "$2" | tail -1 | tr ' ' '_' | cut -c1-160)"; fi
+}
+clase_mi_arbrain() {
+  local out c
+  out="$(como_u "GIT_TERMINAL_PROMPT=0 git ls-remote '$MI_ARBRAIN'" </dev/null 2>&1)"; c=$?
+  clase_ls_remote "$c" "$out"
+}
+
+# Respaldo en su GitHub para «solo en tu servidor» (1 nov 2026, VPS de pruebas: el camino 2 no respaldaba en ningún lado
+# y la demo lo cerró a mano). Con --mi-arbrain y una copia sin «origin»: su repo privado y VACÍO queda como origin y se
+# sube su rama mi-arbrain una vez. Lo que sigue subiendo cada 5 minutos es el espejo de un solo servidor
+# (--espejo --rol lider --cita, INSTALAR-NUBE.md › N3). Nunca pisa un repo que ya trae la rama mi-arbrain de otra copia ni
+# cambia un origin que ya existe.
+paso_respaldo() {
+  [ -n "$MI_ARBRAIN" ] || return 0
+  local actual; actual="$(como_u "cd ~/Arbrain && git remote get-url origin 2>/dev/null")"
+  if [ -n "$actual" ] && [ "$actual" != "$MI_ARBRAIN" ]; then falta "tu copia ya respalda en otro repo ($actual); no lo cambio"; fi
+  if [ -z "$actual" ]; then
+    preparar_github
+    case "$(clase_mi_arbrain)" in
+      sin-acceso) pedir_llave_github; falta "no pude leer tu mi-arbrain ($MI_ARBRAIN)" ;;
+      con-rama) falta "tu repo $MI_ARBRAIN ya tiene la rama mi-arbrain de otra copia: no la piso. Para respaldar este servidor usa un repo nuevo, privado y vacío" ;;
+      vacio) ;;
+      *) falta "no pude leer tu mi-arbrain ($MI_ARBRAIN)" ;;
+    esac
+    como_u "cd ~/Arbrain && git remote add origin '$MI_ARBRAIN'" || falta "no pude agregar tu mi-arbrain como respaldo"
+  fi
+  if como_u "cd ~/Arbrain && git rev-parse -q --verify refs/remotes/origin/mi-arbrain >/dev/null"; then
+    igual "respaldo en tu GitHub ($MI_ARBRAIN)"; return
+  fi
+  como_u "cd ~/Arbrain && GIT_TERMINAL_PROMPT=0 git push -q -u origin mi-arbrain" </dev/null >/tmp/arbrain-respaldo.log 2>&1 || {
+    grep -qiE 'denied|read only|write access' /tmp/arbrain-respaldo.log && falta "GitHub no dejó subir: a la llave de despliegue de tu mi-arbrain le falta «Allow write access» (Settings › Deploy keys)"
+    falta "no pude subir tu rama mi-arbrain: $(tail -1 /tmp/arbrain-respaldo.log)"
+  }
+  cambio "respaldo: tu rama mi-arbrain subió a tu GitHub privado ($MI_ARBRAIN)"
 }
 
 # ── Órdenes ───────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -770,6 +835,7 @@ orden_instalar() {
   paso_identidad
   paso_requisitos
   paso_capa
+  paso_respaldo
   ESPEJO=pendiente-motor; gancho_espejo
   paso_servicio
   local t=0 e
@@ -784,6 +850,16 @@ orden_instalar() {
 }
 
 [ "${NUBE_SOLO_FUNCIONES:-}" = 1 ] && return 0 2>/dev/null
+
+# Como root, nube.sh solo corre desde una copia de root o de quien ya tiene sudo (1 nov 2026): la copia del usuario de
+# Arbrain la puede cambiar su Levy, y correrla como root le daría root. La guía pone al día ~/Arbrain de root con su firma.
+if [ "$(id -u)" = 0 ] && [ -z "$RAIZ" ]; then
+  AJENA="$(rutas_de_otro_dueno "$(cd "$(dirname "$0")/../../.." && pwd)" "$(dirname "$0")" "$0" "$(dirname "$0")/pantalla.sh")"
+  [ -z "$AJENA" ] || falta "como root solo corro desde la copia de root (~/Arbrain, puesta al día con su firma); $AJENA es de otro usuario"
+fi
+
+# La pantalla virtual vive en su propio script (pantalla.sh): aquí solo se despacha.
+[ "${1:-}" = pantalla ] && { shift; exec bash "$(dirname "$0")/pantalla.sh" "$@"; }
 
 ORDEN=instalar; MI_ARBRAIN=""; ZONA=""; CON_ESPEJO=0; ESPEJO_ROL=""; ESPEJO_CITA=""
 case "${1:-}" in instalar|estado|llave|claude|telefono|codigo|conectar) ORDEN="$1"; shift ;; esac
@@ -802,6 +878,8 @@ if [ "$ORDEN" = instalar ]; then
   done
   case "$U" in [a-z_]*) ;; *) falta "usuario no válido: $U" ;; esac
   printf '%s' "$U" | grep -qE '^[a-z_][a-z0-9_-]{0,31}$' || falta "usuario no válido: $U"
+  [ -z "$MI_ARBRAIN" ] || printf '%s' "$MI_ARBRAIN" | grep -qE '^(git@github\.com:|ssh://git@github\.com/|https://github\.com/)[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$' \
+    || falta "--mi-arbrain tiene que ser la dirección de tu repo en GitHub (git@github.com:<usuario>/<repo>.git)"
   case "$ESPEJO_ROL" in ""|lider|ventana) ;; *) falta "--rol solo puede ser lider o ventana" ;; esac
   [ "$ESPEJO_ROL" != lider ] || [ "$CON_ESPEJO" = 1 ] || falta "--rol lider va con --espejo"
   [ "$ESPEJO_ROL" != lider ] || [ "${#ESPEJO_CITA}" -ge 3 ] || falta "para que esta nube mande necesito las palabras de la persona: --cita \"<lo que dijo, por ejemplo: que la nube mande>\". Nadie se autopromueve"

@@ -27,6 +27,14 @@ export function reabrirEnHoy(ocultoDesde: number | null, ahora: number): boolean
   return ocultoDesde !== null && ahora - ocultoDesde >= REAPERTURA_MS
 }
 
+/**
+ * Cambió el día con la app abierta (2 nov 2026: la Semana del panel amaneció en S3 el lunes 2). Lo que se veía no era hoy, pero
+ * si nadie navegó dentro de la sesión viva (`REAPERTURA_MS`), lo de ayer no es una decisión de hoy: se vuelve a hoy.
+ */
+export function nuevoDiaVuelveAHoy(navegadoEn: number, ahora: number): boolean {
+  return ahora - navegadoEn >= REAPERTURA_MS
+}
+
 /** Lee y renueva la marca de sesión (sin almacenamiento, cada montaje es una apertura nueva). */
 export function marcarSesion(ahora = Date.now()): boolean {
   try {

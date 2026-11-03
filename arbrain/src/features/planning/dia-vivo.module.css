@@ -255,8 +255,10 @@
 /* 28 oct 2026 (Daniel, 08:02: «la línea no cruza el bloque Trabajo fuerte»): ENCIMA de los eventos. El bloque en curso sube a
    z-index 3 (`li:has(> button[data-vivo])`) y tapaba la línea, que estaba en 2; ahora va en 6 (sobre bloques, brief y etiqueta) y su
    trazo es entero, sin desvanecerse, para que se vea en todo el ancho. Mismo valor en Actual y Unificado. */
+/* 2 nov 2026 (arnés WKWebView a zoom 1.4, docs/builds/linea-hora-2026-11-02): «15:32» no cabía en 26 px y se partía en dos
+   renglones («15:3 / 2»). Una línea siempre; la columna llega hasta el borde de los bloques (30 + 2 = 32 px). */
 .mini > .miniAhora { position: absolute; left: 0; right: 0; z-index: 6; margin: 0; transform: translateY(-50%);
-  --ahora-col: 26px; --ahora-gap: 6px; font-size: 9.5px; line-height: 1; text-align: right; pointer-events: none; }
+  --ahora-col: 30px; --ahora-gap: 2px; font-size: 9.5px; line-height: 1; text-align: right; white-space: nowrap; letter-spacing: -.02em; pointer-events: none; }
 .mini > .miniAhora::after { height: 1.5px; background: var(--gold); box-shadow: 0 0 6px rgba(var(--l-halo-ambar-rgb, var(--gold-rgb)), 0.35); }
 /* Tareas junto a la agenda: en una columna, una tarjeta por fila. */
 .areaTareas .tarjetas { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }

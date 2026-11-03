@@ -50,7 +50,7 @@ El texto de cada enlace es el título del manual: así se lo nombras al dueño (
 | Google con `gog` (la vía estándar) | sí | sí (pide permiso de red) | sí, con un clic por comando |
 | Conector oficial de Google | con claude.ai Pro o Max | plugin de Gmail en `/plugins` | no |
 | Todoist (servidor oficial) | sí (`/mcp`) | sí (`codex mcp`) | no todavía: úsalo desde Claude Code o Codex en esta misma carpeta |
-| Computer use | ver [computer-use.md](computer-use.md) | ver [computer-use.md](computer-use.md) | macOS y Windows: sí, apagado en cada apertura (Ajustes › Esta computadora); Linux: no |
+| Computer use | ver [computer-use.md](computer-use.md) | ver [computer-use.md](computer-use.md) | macOS y Windows: sí, apagado en cada apertura (Ajustes › Esta computadora); Linux: solo en tu servidor, con la pantalla virtual (`nube.sh pantalla`) |
 
 Lo que conectes desde Claude Code o Codex **no** aparece solo en la app Arbrain: la app usa su propia
 configuración aislada. Tus archivos, tu memoria y tus tareas sí son los mismos, porque es la misma carpeta.

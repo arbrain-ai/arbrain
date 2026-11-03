@@ -42,6 +42,8 @@ interface Props {
   haySeleccion: boolean
   /** Teléfono o panel estrecho: sin separadores, guardado como punto y botones más chicos, para no desbordar. */
   angosto?: boolean
+  /** El bloque − % + y encuadrar. Se apaga desde «Mostrar en el lienzo»; ⌘+/⌘− y la rueda siguen funcionando. */
+  mostrarZoom?: boolean
 }
 
 const VISTAS: Array<{ kind: BackgroundKind; label: string; icon: (p: { size?: number }) => React.ReactElement }> = [
@@ -160,34 +162,36 @@ export function StatusBar(p: Props) {
       </div>
       {sep}
 
-      <button title="Alejar" onClick={() => p.onZoom(1 / 1.2)} style={btn()}
-        onPointerEnter={hover(true)} onPointerLeave={hover(false)}><I.IconMinus size={16} /></button>
+      {p.mostrarZoom !== false && <>
+        <button title="Alejar" onClick={() => p.onZoom(1 / 1.2)} style={btn()}
+          onPointerEnter={hover(true)} onPointerLeave={hover(false)}><I.IconMinus size={16} /></button>
 
-      <div style={{ position: 'relative' }}>
-        <button title="Nivel de zoom" data-zoom onClick={() => { setZoomAbierto(z => !z); setVistaAbierta(false) }}
-          style={{ ...btn({ width: p.angosto ? 46 : 56 }), font: 'inherit' }}
-          onPointerEnter={hover(true)} onPointerLeave={hover(false)}>
-          <PorcentajeZoom camara={p.camara} zoom={p.zoom} />
-        </button>
-        {zoomAbierto && (
-          <div style={menu(t)}>
-            {NIVELES.map(z => (
-              <button key={z} onClick={() => { p.onZoomTo(z); setZoomAbierto(false) }}
-                style={fila(t, Math.abs(p.zoom - z) < 0.005)}
-                onPointerEnter={e => { e.currentTarget.style.background = t.roles.sticky.fill }}
-                onPointerLeave={e => { e.currentTarget.style.background = 'transparent' }}>
-                {Math.round(z * 100)}%
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+        <div style={{ position: 'relative' }}>
+          <button title="Nivel de zoom" data-zoom onClick={() => { setZoomAbierto(z => !z); setVistaAbierta(false) }}
+            style={{ ...btn({ width: p.angosto ? 46 : 56 }), font: 'inherit' }}
+            onPointerEnter={hover(true)} onPointerLeave={hover(false)}>
+            <PorcentajeZoom camara={p.camara} zoom={p.zoom} />
+          </button>
+          {zoomAbierto && (
+            <div style={menu(t)}>
+              {NIVELES.map(z => (
+                <button key={z} onClick={() => { p.onZoomTo(z); setZoomAbierto(false) }}
+                  style={fila(t, Math.abs(p.zoom - z) < 0.005)}
+                  onPointerEnter={e => { e.currentTarget.style.background = t.roles.sticky.fill }}
+                  onPointerLeave={e => { e.currentTarget.style.background = 'transparent' }}>
+                  {Math.round(z * 100)}%
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
-      <button title="Acercar" onClick={() => p.onZoom(1.2)} style={btn()}
-        onPointerEnter={hover(true)} onPointerLeave={hover(false)}><I.IconPlus size={16} /></button>
-      <button title="Encuadrar (⇧1)" data-fit onClick={p.onFit} style={btn()}
-        onPointerEnter={hover(true)} onPointerLeave={hover(false)}><I.IconFit size={17} /></button>
-      {sep}
+        <button title="Acercar" onClick={() => p.onZoom(1.2)} style={btn()}
+          onPointerEnter={hover(true)} onPointerLeave={hover(false)}><I.IconPlus size={16} /></button>
+        <button title="Encuadrar (⇧1)" data-fit onClick={p.onFit} style={btn()}
+          onPointerEnter={hover(true)} onPointerLeave={hover(false)}><I.IconFit size={17} /></button>
+        {sep}
+      </>}
 
       {/*
         EXPORTAR, con menu.

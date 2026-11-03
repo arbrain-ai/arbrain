@@ -133,7 +133,7 @@ export function AgendaMini({ bloques, bandas = [], fecha, ahora, esHoy, pasado, 
             </li>
           })()}
         </ol>
-        {ahoraY != null && ahoraY >= 0 && ahoraY <= alto && <p className={`${luz.lineaAhora} ${d.miniAhora}`} style={{ top: ahoraY }} aria-hidden>{hora(ahora)}</p>}
+        {ahoraY != null && ahoraY >= 0 && ahoraY <= alto && <p className={`${luz.lineaAhora} ${d.miniAhora}`} data-ahora-linea style={{ top: ahoraY }} aria-hidden>{hora(ahora)}</p>}
       </div>
     </div>
   </section>

@@ -762,6 +762,20 @@ function gitLsFiles(root: string): Promise<string[]> {
 /** Atiende /apagar, /confirmaciones/*, /manos/interruptor y /cohorte/*. Devuelve true si respondió. Ya pasó el Bearer. */
 async function rutasCliente(req: IncomingMessage, res: ServerResponse, ruta: string, cuerpo: Record<string, unknown>): Promise<boolean> {
   const secretoApp = () => secretoConfirmarValido(req.headers['x-arbrain-confirmar'])
+  // Pantalla virtual del modo servidor (1 nov 2026): la web la MIRA (estado y JPEG). Solo la app: el pase no abre
+  // `/pantalla/*` (cofre.ts › rutaSoloApp) y aquí no hay ruta que mande clics ni teclas (manos/pantalla-vista.ts).
+  if (ruta === '/pantalla/estado' || ruta === '/pantalla/captura') {
+    const { atenderPantalla } = await import('./manos/pantalla-vista.js')
+    const r = await atenderPantalla(req.method, req.url ?? ruta)
+    if (r) {
+      if ('jpeg' in r) {
+        res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Content-Length': r.jpeg.length, 'Cache-Control': 'no-store', 'X-Pantalla-Ancho': String(r.ancho), 'X-Pantalla-Alto': String(r.alto) })
+        res.end(r.jpeg)
+      } else if ('json' in r) sendJSON(res, r.status, r.json)
+      else { res.writeHead(204, { 'Cache-Control': 'no-store' }); res.end() }
+      return true
+    }
+  }
   // Rutinas del alumno (T8, 29 oct 2026): la pestaña Rutinas del Taller y Levy con su pase (cliente/rutinas.ts).
   if (ruta === '/schedule' || ruta.startsWith('/schedule/')) {
     const { atenderRutinas } = await import('./cliente/rutinas.js')

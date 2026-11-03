@@ -337,6 +337,29 @@ export function columnaCercana(bordes: readonly number[], scroll: number): numbe
 }
 
 /**
+ * El riel oculto no mide (2 nov 2026, 11:59, captura a zoom 1.4: el título decía «2 – 4 nov» y las columnas eran el 26, 27 y 28 de oct).
+ * La pestaña del panel que se oculta (el Taller al frente) queda montada con `display: none` y su ResizeObserver mide 0. Con ese
+ * 0 cada columna medía 1 px; al volver, WebKit restauraba el scroll sobre ese lienzo enano (lo recortaba a 14 px) y el riel
+ * «se asentaba» en el primer día del colchón, 7 días atrás. Un 0 no es un ancho: se conserva el último real.
+ */
+export const anchoVisible = (previo: number, medido: number) => medido > 0 ? medido : previo
+
+/** Qué hace el riel al detenerse: esperar a que llegue a donde lo mandó el código, ir a la columna más cercana o asentarse en un día. */
+export type Asiento = { tipo: 'esperar' } | { tipo: 'ajustar'; borde: number } | { tipo: 'asentar'; dia: string }
+/**
+ * Asentar el riel (2 nov 2026): solo un riel pintado se lee (oculto, sus columnas y su `scrollLeft` miden 0 y eso no es un gesto
+ * de nadie), y un deslizamiento que mandó el código (Hoy, ← →, volver a la pestaña) no lo reinterpreta un cuadro intermedio:
+ * mientras va en camino a `destino`, se espera. null = nada que hacer.
+ */
+export function asiento({ dias, bordes, scroll, pintado, destino = null }: { dias: readonly string[]; bordes: readonly number[]; scroll: number; pintado: boolean; destino?: number | null }): Asiento | null {
+  if (!pintado || !dias.length) return null
+  if (destino !== null && Math.abs(scroll - destino) > 2) return { tipo: 'esperar' }
+  const i = columnaCercana(bordes, scroll)
+  if (Math.abs(bordes[i] - scroll) > 2) return { tipo: 'ajustar', borde: bordes[i] }
+  return { tipo: 'asentar', dia: dias[i] }
+}
+
+/**
  * Cuántos días se ven a la vez (10 oct 2026, Daniel: «¿cómo luce con más días? tal vez 4, 7»; y en el engrane, 1 · 3 · 4 · 7).
  * Por defecto, en el panel o el teléfono, los que quepan con al menos 110 px por columna (3, 4 o 7); a tamaño completo, 7.
  */

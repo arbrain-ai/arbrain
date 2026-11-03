@@ -81,7 +81,9 @@ export interface TareaInterna {
 /** Proceso = un comando en segundo plano (14 oct 2026, Daniel: «muchos son procesos de la terminal… debería decir X agentes
  *  y Y procesos»). No conversa ni gasta tokens: se cuenta aparte y se muestra bajo el agente que lo lanzó. */
 export const esProceso = (t: Pick<TareaInterna, 'tipo'>) => t.tipo === 'comando'
-export interface Trabajos { fuente?: 'motor' | 'sfterm-gate' | 'ninguna'; sfterm: boolean; motor?: Motor; topes?: Topes; internas?: TareaInterna[]; terminales: Terminal[]; servidores: Servidor[]; servicios: Servicio[]; procesos?: Proceso[]; planes?: PlanPendiente[]; leidoEn: string; error?: string }
+export interface Trabajos { fuente?: 'motor' | 'sfterm-gate' | 'ninguna'; sfterm: boolean; motor?: Motor; topes?: Topes; internas?: TareaInterna[]; terminales: Terminal[]; servidores: Servidor[]; servicios: Servicio[]; procesos?: Proceso[]; planes?: PlanPendiente[]; preparando?: Preparando[]; leidoEn: string; error?: string }
+/** Un `delegar` que todavía crea su copia y no nace (agent-server `cabina/preparando.ts`, 2 nov 2026). */
+export interface Preparando { clave: string; nombre: string; harness: string; desde: string; origen: string | null; aislamiento: 'worktree' | 'carpeta' | null }
 /** Lo que el daemon lee de la transcripción de un subagente (`DetalleSubagente` en `arbrain/server/src/cabina/internos.ts`). */
 export interface DetalleSubagente {
   encargo?: string; modelo?: string; contexto?: number

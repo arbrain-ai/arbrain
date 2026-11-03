@@ -1,7 +1,7 @@
 'use client'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { estiloEvento } from '@/lib/calendar/contraste'
-import { CHIP_MIN, COLUMNA_COMPACTA, columnasDeBarra, DIAS_VISTA, TRAMO, altoHora, columnaCercana, columnaEntera, columnasDe, escalaVisual, diaEnHoras, diasAuto, diasDelRiel, diasVisibles, esArrastre, estirar, habil, hhmm, inicioDeVentana, instante, lineasDeTitulo, lugarEnColumna, repartir, lineasNecesarias, medianoche, minutoDelDia, primerDiaVisible, rangoCrear, ranura, reencuadrar, soltar, sumarDia, type Bloque, type DiasVista, type Pieza } from './semana-horas'
+import { CHIP_MIN, COLUMNA_COMPACTA, columnasDeBarra, DIAS_VISTA, TRAMO, altoHora, anchoVisible, asiento, columnaCercana, columnaEntera, columnasDe, escalaVisual, diaEnHoras, diasAuto, diasDelRiel, diasVisibles, esArrastre, estirar, habil, hhmm, inicioDeVentana, instante, lineasDeTitulo, lugarEnColumna, repartir, lineasNecesarias, medianoche, minutoDelDia, primerDiaVisible, rangoCrear, ranura, reencuadrar, soltar, sumarDia, type Bloque, type DiasVista, type Pieza } from './semana-horas'
 import { diasAlSoltarRiel, ejeDeRueda, ejeDeToque, FRENO_RUEDA, velocidad } from './carril-logica'
 import { encuadreDe } from './encuadre'
 import { useEncuadre } from './useEncuadre'
@@ -68,6 +68,8 @@ const BLOQUE_ESTRECHO = 140
 const METRICA = { normal: { linea: 14, hora: 13, relleno: 7, letra: 11.5, lados: 20 }, denso: { linea: 13, hora: 12, relleno: 5, letra: 10.5, lados: 16 }, minimo: { linea: 12, hora: 0, relleno: 3, letra: 10, lados: 7 } } as const
 /** Sin eventos de scroll durante este tiempo, el riel se da por asentado (respaldo de `scrollend`). */
 const ASIENTO_MS = 140
+/** Lo que se le da a un deslizamiento suave que mandó el código para llegar; si no llegó (ventana tapada, animación suspendida), salta. */
+const LLEGADA_MS = 900
 /** Franja junto al borde de arriba o de abajo que desplaza la página mientras se arrastra, y su velocidad máxima por cuadro. */
 const BORDE_AUTO = 48, VEL_AUTO = 16
 const NUEVO: Bloque = { id: '\u0000nuevo', titulo: '', inicio: 0, fin: 0, color: null, movible: true }
@@ -175,7 +177,7 @@ export function SemanaHoras({ dias: diasFijos, semana, inicio, onVentana, sinBar
   useLayoutEffect(() => {
     const el = riel.current
     if (!llenar || !el) { setAltoRiel(0); return }
-    const medir = () => setAltoRiel(el.clientHeight)
+    const medir = () => setAltoRiel(a => anchoVisible(a, el.clientHeight))
     medir()
     const o = new ResizeObserver(medir); o.observe(el)
     return () => o.disconnect()
@@ -209,7 +211,8 @@ export function SemanaHoras({ dias: diasFijos, semana, inicio, onVentana, sinBar
     if (!el) return
     // El ancho con decimales (10 oct 2026): `clientWidth` redondea y las columnas, que dividen el ancho entre los días a la vista,
     // dejaban asomar 0.2 px del día siguiente en la orilla. Con el ancho exacto, los días a la vista llenan el riel justo.
-    const medir = (exacto?: number) => setAncho(exacto ?? el.clientWidth)
+    // Oculta (`display: none`, otra pestaña al frente) mide 0: se conserva el último ancho real (`anchoVisible`).
+    const medir = (exacto?: number) => setAncho(a => anchoVisible(a, exacto ?? el.clientWidth))
     medir()
     const o = new ResizeObserver(([e]) => medir(e?.contentBoxSize?.[0]?.inlineSize ?? e?.contentRect.width)); o.observe(el)
     return () => o.disconnect()
@@ -253,19 +256,42 @@ export function SemanaHoras({ dias: diasFijos, semana, inicio, onVentana, sinBar
   }, [desliza, ancho, objetivo, porVista, inicio])
   // Llevar el riel al objetivo: al recentrar o cambiar de forma, sin animación (no se nota: el contenido se movió lo mismo);
   // con las flechas, ← →, Hoy cercano, deslizando suave. Si el objetivo cae fuera del riel pintado, se repinta a su alrededor.
+  // Oculto (otra pestaña al frente) no se mide ni se mueve: todo mide 0. Al volver a verse (`vuelta`), salta sin animación al
+  // objetivo, que pudo cambiar mientras tanto (Hoy al volver a la app). El deslizamiento suave queda `programado`: el asentar no
+  // lo reinterpreta a medio camino y, si no llegó en LLEGADA_MS, salta (2 nov 2026: título y columnas siempre coinciden).
   const forma = useRef('')
+  const programado = useRef<{ destino: number; hasta: number } | null>(null)
+  const llegada = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const [vuelta, setVuelta] = useState(0)
+  useEffect(() => {
+    const r = riel.current
+    if (!desliza || !r) return
+    let antes = r.offsetWidth
+    const o = new ResizeObserver(() => { const w = r.offsetWidth; if (w > 0 && antes === 0) setVuelta(n => n + 1); antes = w })
+    o.observe(r)
+    return () => o.disconnect()
+  }, [desliza])
+  useEffect(() => () => clearTimeout(llegada.current), [])
   useLayoutEffect(() => {
     const r = riel.current
     if (!desliza || !r || !ancho || !objetivo || !base) return
+    if (!r.offsetWidth) { forma.current = ''; return }
     const i = dias.indexOf(objetivo)
     if (i < 0 || i + porVista > dias.length) { setBase(objetivo); return }
-    const destino = bordeDe(i), clave = `${base}:${porVista}:${ancho}:${finDeSemana}`
+    const destino = bordeDe(i), clave = `${base}:${porVista}:${ancho}:${finDeSemana}:${vuelta}`
     const salto = forma.current !== clave
     forma.current = clave
+    clearTimeout(llegada.current); programado.current = null
     if (Math.abs(r.scrollLeft - destino) < 1) return
-    if (salto || window.matchMedia('(prefers-reduced-motion: reduce)').matches) r.scrollLeft = destino
-    else r.scrollTo({ left: destino, behavior: 'smooth' })
-  }, [desliza, objetivo, base, porVista, ancho, dias, bordeDe, finDeSemana])
+    if (salto || window.matchMedia('(prefers-reduced-motion: reduce)').matches) { r.scrollLeft = destino; return }
+    programado.current = { destino, hasta: performance.now() + LLEGADA_MS }
+    r.scrollTo({ left: destino, behavior: 'smooth' })
+    llegada.current = setTimeout(() => {
+      if (programado.current?.destino !== destino) return
+      programado.current = null
+      if (!arrastre.current && !gestoRef.current && r.offsetWidth && Math.abs(r.scrollLeft - destino) > 1) r.scrollLeft = destino
+    }, LLEGADA_MS)
+  }, [desliza, objetivo, base, porVista, ancho, dias, bordeDe, finDeSemana, vuelta])
   // Asentarse: cuando el riel se detiene en un día (lo lleve el gesto, la rueda o el código), ese día es el nuevo centro del riel
   // y, si no era el objetivo, se avisa. Sin scroll-snap (10 oct 2026): si quedó entre dos días, el riel mismo va al más cercano.
   const vivos = useRef({ dias, base, objetivo, porVista }); vivos.current = { dias, base, objetivo, porVista }
@@ -278,10 +304,13 @@ export function SemanaHoras({ dias: diasFijos, semana, inicio, onVentana, sinBar
       clearTimeout(t)
       if (arrastre.current) return
       if (gestoRef.current) { t = setTimeout(asentar, ASIENTO_MS); return }
-      const v = vivos.current, bordes = v.dias.map((_, i) => bordeDe(i))
-      const i = columnaCercana(bordes, r.scrollLeft), dia = v.dias[i]
-      if (!dia) return
-      if (Math.abs(bordes[i] - r.scrollLeft) > 2) { r.scrollTo({ left: bordes[i], behavior: reducido() ? 'auto' : 'smooth' }); t = setTimeout(asentar, ASIENTO_MS * 3); return }
+      const v = vivos.current, p = programado.current
+      const a = asiento({ dias: v.dias, bordes: v.dias.map((_, i) => bordeDe(i)), scroll: r.scrollLeft, pintado: r.offsetWidth > 0, destino: p && performance.now() < p.hasta ? p.destino : null })
+      if (!a) return
+      if (a.tipo === 'esperar') { t = setTimeout(asentar, ASIENTO_MS); return }
+      if (a.tipo === 'ajustar') { r.scrollTo({ left: a.borde, behavior: reducido() ? 'auto' : 'smooth' }); t = setTimeout(asentar, ASIENTO_MS * 3); return }
+      const dia = a.dia
+      programado.current = null
       if (dia !== v.base) setBase(dia)
       if (dia !== v.objetivo) { avisado.current = `${dia}:${v.porVista}`; avisar.current?.(dia, v.porVista) }
     }
@@ -311,7 +340,7 @@ export function SemanaHoras({ dias: diasFijos, semana, inicio, onVentana, sinBar
         if (Math.abs(acumulado) < 40 || ahora - ultimoPaso < 160) return
         const bordes = vivos.current.dias.map((_, i) => bordeDe(i))
         const i = Math.max(0, Math.min(bordes.length - 1, columnaCercana(bordes, r.scrollLeft) + Math.sign(acumulado)))
-        acumulado = 0; ultimoPaso = ahora
+        acumulado = 0; ultimoPaso = ahora; programado.current = null
         r.scrollTo({ left: bordes[i], behavior: reducido() ? 'auto' : 'smooth' })
         return
       }
@@ -322,7 +351,7 @@ export function SemanaHoras({ dias: diasFijos, semana, inicio, onVentana, sinBar
       if (!eje) {
         eje = ejeDeRueda(dx, dy)
         // Un gesto que se corta un instante (la inercia del trackpad a veces titubea) sigue siendo el mismo: no se parte en dos.
-        if (eje === 'x') { if (ahora - soltadoEn > 350) { s0 = r.scrollLeft; d = 0 } arrastre.current = true; clearTimeout(t) }
+        if (eje === 'x') { if (ahora - soltadoEn > 350) { s0 = r.scrollLeft; d = 0 } arrastre.current = true; programado.current = null; clearTimeout(t) }
       }
       if (eje === 'x') {
         e.preventDefault()
@@ -348,7 +377,7 @@ export function SemanaHoras({ dias: diasFijos, semana, inicio, onVentana, sinBar
       if (!tocando) return
       if (gestoRef.current?.activo) { tocando = false; if (ejeT === 'x') llevar(t0, 0); return }
       const x = e.touches[0].clientX, mx = (x - x0) / escalaRiel(), my = (e.touches[0].clientY - y0) / escalaRiel()
-      if (!ejeT) { ejeT = ejeDeToque(mx, my); if (ejeT === 'x') { t0 = r.scrollLeft; arrastre.current = true; clearTimeout(t) } }
+      if (!ejeT) { ejeT = ejeDeToque(mx, my); if (ejeT === 'x') { t0 = r.scrollLeft; arrastre.current = true; programado.current = null; clearTimeout(t) } }
       if (ejeT !== 'x') return
       if (e.cancelable) e.preventDefault()
       r.scrollLeft = t0 - mx
@@ -512,6 +541,10 @@ export function SemanaHoras({ dias: diasFijos, semana, inicio, onVentana, sinBar
     onCrear(r.inicio, r.fin)
   }
   const ahoraMin = minutoDelDia(ahora, hoy)
+  // La hora del canal es la etiqueta de la línea: solo si la columna de hoy está a la vista (2 nov 2026, Daniel a zoom 1.4: la ventana
+  // en «9 – 11 nov» pintaba la pastilla de las 06:09 a la izquierda y la línea vivía en el 2 nov, fuera de vista, dentro del colchón).
+  const hoyALaVista = desliza && objetivo ? diasVisibles(objetivo, porVista, finDeSemana).includes(hoy) : dias.includes(hoy)
+  const conLinea = hoyALaVista && ahoraMin >= tramo.desde * 60 && ahoraMin <= tramo.hasta * 60
   const y = (minuto: number) => `calc(${(minuto - tramo.desde * 60) / 60} * var(--hora))`
   // El encuadre vertical (22 oct 2026, useEncuadre.ts): al abrir, a medianoche o con «Hoy», si hoy se ve, el ahora a un tercio de lo
   // visible; si no, la primera hora con eventos de los días a la vista o las 5:30. Solo en el calendario: en el chat el scroll es del hilo.
@@ -585,7 +618,11 @@ export function SemanaHoras({ dias: diasFijos, semana, inicio, onVentana, sinBar
         <div className={h.lienzo} role="row">
           <div ref={canal} className={h.canal} aria-hidden>
             {Array.from({ length: horas + 1 }, (_, k) => <span key={k} style={{ top: `calc(${k} * var(--hora))` }} data-borde={k === 0 || k === horas || undefined}>{String(tramo.desde + k).padStart(2, '0')}</span>)}
-            {dias.includes(hoy) && ahoraMin >= tramo.desde * 60 && ahoraMin <= tramo.hasta * 60 && <time className={h.ahoraHora} style={{ top: y(ahoraMin) }}>{hhmm(ahoraMin)}</time>}
+            {/* La línea de la hora (2 nov 2026, «debería sobreponerse a todas las secciones»): UNA línea que nace en el borde del
+                canal y cruza todas las columnas visibles, encima de bloques, bandas y zonas. Vive aquí, no en la columna de hoy: cada
+                columna aísla sus capas y el canal va sobre todas; el riel la recorta y nunca sube sobre la cabecera pegada. */}
+            {conLinea && <i className={h.ahora} data-ahora-linea style={{ top: y(ahoraMin) }} aria-hidden />}
+            {conLinea && <time className={h.ahoraHora} data-ahora-hora style={{ top: y(ahoraMin) }}>{hhmm(ahoraMin)}</time>}
           </div>
           {dias.map((d, i) => { const { piezas, antes, despues, bandas = [], chips = [] } = porDia.get(d)!, esHoy = d === hoy
             return <div key={d} ref={el => { columnas.current[i] = el }} role="gridcell" className={h.columna} data-hoy={esHoy || undefined} data-pasado={d < hoy || undefined}
@@ -664,7 +701,6 @@ export function SemanaHoras({ dias: diasFijos, semana, inicio, onVentana, sinBar
                   aria-label={una ? `Tarea: ${una.titulo}, ${hhmm(g.desde)}` : `${g.bloques.length} tareas desde las ${hhmm(g.desde)}: abrir el día`}>{una ? null : g.bloques.length}</button> })}
               {fantasma && fantasma.dia === d && <div className={h.fantasma} data-igual={fantasma.igual || undefined} data-nuevo={'nuevo' in fantasma || undefined} role="status" aria-live="polite" style={{ top: y(fantasma.desde), height: `calc(${(fantasma.hasta - fantasma.desde) / 60} * var(--hora) - 2px)` }}>
                 <time>{hhmm(fantasma.desde)} – {hhmm(fantasma.hasta)}<small> · {duracion(fantasma.hasta - fantasma.desde)}</small></time></div>}
-              {esHoy && ahoraMin >= tramo.desde * 60 && ahoraMin <= tramo.hasta * 60 && <i className={h.ahora} style={{ top: y(ahoraMin) }} aria-hidden />}
               {despues.length > 0 && <button className={h.fuera} data-lado="despues" onClick={() => onDia?.(d)} title={despues.map(b => `${hhmm(minutoDelDia(b.inicio, d))} ${b.titulo}`).join('\n')}>
                 ↓ {minimo ? despues.length : despues.length === 1 ? `${hhmm(minutoDelDia(despues[0].inicio, d))} ${despues[0].titulo}` : `${despues.length} después de las ${tramo.hasta}`}</button>}
             </div> })}

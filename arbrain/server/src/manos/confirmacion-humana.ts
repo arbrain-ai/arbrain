@@ -14,6 +14,10 @@ import type { CategoriaConfirmacion } from '../cliente/confirmaciones.js'
 export function categoriaDe(categoriaFreno: string | undefined, motivo = ''): CategoriaConfirmacion {
   const t = `${categoriaFreno ?? ''} ${motivo}`.toLowerCase()
   if (/pag|compr|tarjeta|cobr|checkout|transfer/.test(t)) return 'pagar'
+  // Escribir un dato (correo, teléfono, contraseña) en un campo no es enviar: la tarjeta decía «Levy quiere enviar» al
+  // llenar el correo de un formulario y empujaba a rechazar lo que la persona sí pidió (QA del modo servidor, 1 nov 2026).
+  // El resumen de la tarjeta ya dice qué dato y dónde; el envío del formulario es otra acción con su propia tarjeta.
+  if (categoriaFreno === 'transmitir_datos') return 'otra'
   if (/borr|elimin|delete|papelera|vaciar/.test(t)) return 'borrar'
   if (/public|post|tuit|tweet|compart/.test(t)) return 'publicar'
   if (/envi|send|chat|correo|mensaje|enter|pegar/.test(t)) return 'enviar'

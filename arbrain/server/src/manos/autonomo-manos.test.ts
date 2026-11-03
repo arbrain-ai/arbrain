@@ -191,6 +191,14 @@ describe('Autónomo', () => {
     modo('autonomo', ['envíame un whatsapp al +34 600 000 999'])
     const propio = await f.actuar({ app: 'com.google.chrome', pid: PID, ventana: W, accion: 'escribir', ref: 'e1', texto: '+34 600 000 999' })
     expect(propio.ok).toBe(true)
+    expect(propio.freno?.tarjeta).toBeUndefined()
+    // Si la persona aprueba la tarjeta de R6, el resultado lo dice (QA 1 nov 2026: Levy decía «no salieron tarjetas»).
+    modo('autonomo', ['envíame un mensaje de WhatsApp a mi número'])
+    responder = 'permitida'
+    const aprobado = await f.actuar({ app: 'com.google.chrome', pid: PID, ventana: W, accion: 'escribir', ref: 'e1', texto: '+34 600 000 999' })
+    expect(aprobado.ok).toBe(true)
+    expect(aprobado.freno).toMatchObject({ paso: true, tarjeta: true })
+    expect(aprobado.detalle).toMatch(/la persona lo aprobó con su clic en la tarjeta de Arbrain/)
   })
   it('navegar: páginas nuevas sin clic; una URL con efecto corre si la persona la pidió y si no, tarjeta', async () => {
     modo('autonomo', ['entra a mi cuenta y cierra sesión'])

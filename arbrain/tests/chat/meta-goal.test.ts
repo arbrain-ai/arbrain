@@ -88,3 +88,22 @@ test('tras delegar, `mostrar trabajos` no pinta la tarjeta; pedida sola, o fijad
   const calendario = turno(delegar('d1', 'Goal UX'), [{ toolId: 'c1', toolName: 'mcp__cabina__mostrar', status: 'done' }, JSON.stringify({ vista: 'calendario', alcance: 'dia' })])
   assert.equal(sinEcoDeDelegar(calendario, invocacionesDe(calendario)).length, 1)
 })
+
+// 2 nov 2026, el dueño: «veo que estás delegando a cuatro subagentes pero no los veo». El turno real (06:16): dos delegar
+// fallaron por validación, uno nació (900444) y el cuarto lo rechazó la sesión. La tarjeta cuenta solo los que nacieron.
+const fallo = (toolId: string, nombre: string): [ToolCall, string] => delegar(toolId, nombre)
+const conSalidas = (t: ReturnType<typeof turno>, errores: Record<string, string>) => ({ ...t, toolOutputs: Object.fromEntries(Object.entries(errores).map(([id, content]) => [id, { content, isError: true }])) }) as Parameters<typeof delegadosDe>[0]
+
+test('«Lanzando N»: los intentos fallidos y los repetidos no cuentan (turno real del 2 nov)', () => {
+  const t = turno(fallo('a', 'agenda-de-zutano'), fallo('b', 'linea-de-la-hora'), delegar('c', 'agenda-de-zutano'), delegar('d', 'linea-de-la-hora'))
+  const d = delegadosDe(conSalidas(t, { a: 'delegar necesita…', b: 'delegar necesita…', d: "The user doesn't want to proceed with this tool use." }))!
+  assert.equal(d.total, 1)
+  assert.equal(textoDelegados(d), 'Lanzó un subagente · agenda-de-zutano')
+  // Mientras el que nace sigue creando su worktree: uno en vuelo, no tres.
+  const vivo = turno(fallo('a', 'agenda-de-zutano'), fallo('b', 'linea-de-la-hora'), delegar('c', 'agenda-de-zutano', 'running'))
+  assert.equal(textoDelegados(delegadosDe(conSalidas(vivo, { a: 'x', b: 'x' }))!), 'Lanzando un subagente · agenda-de-zutano')
+  // El mismo nombre dos veces es un subagente; si ya nació, manda «Lanzó».
+  assert.equal(textoDelegados(delegadosDe(turno(delegar('a', 'Perro'), delegar('b', 'Perro', 'running')))!), 'Lanzó un subagente · Perro')
+  // Ninguno nació: lo dice, con cuántos intentos.
+  assert.equal(textoDelegados(delegadosDe(conSalidas(turno(fallo('a', 'X'), fallo('b', 'Y')), { a: 'x', b: 'x' }))!), 'No pudo lanzar los 2 subagentes')
+})

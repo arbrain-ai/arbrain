@@ -57,6 +57,13 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ["127.0.0.1"],
   devIndicators: false,
   output: 'standalone',
+  // La raíz del proyecto es arbrain/ (donde vive este archivo), no la que Next adivina por los lockfiles de más arriba.
+  // En el servidor del alumno el aislamiento de Claude Code deja un package-lock.json y un pnpm-lock.yaml VACÍOS en la
+  // raíz de su Arbrain, Next tomaba esa carpeta y server.js quedaba en .next/standalone/arbrain/: el modo servidor no
+  // arrancaba (VPS de pruebas, 1 nov 2026; scripts/servidor/marcadores-sandbox.mjs). En el repo de Daniel y en la copia
+  // del alumno la raíz detectada ya era arbrain/: esto la fija. Ningún import de la web sale de arbrain/ (turbopack.root
+  // toma el mismo valor).
+  outputFileTracingRoot: typeof __dirname === 'string' ? __dirname : process.cwd(),
   outputFileTracingExcludes: {
     'next-server': [
       'src-tauri/**/*',

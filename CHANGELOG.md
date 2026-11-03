@@ -4,6 +4,57 @@ Cada versión dice qué trae y qué tienes que hacer tú. Para actualizar, abre 
 «jala los últimos cambios». Las versiones siguen `MAYOR.MENOR.PARCHE`: un cambio en MENOR trae funciones
 nuevas; uno en PARCHE, arreglos.
 
+## v0.2.20 · 2 nov 2026 · Tu servidor, más sólido
+
+**Antes de actualizar, solo si tu Arbrain vive en tu servidor y todavía no pasaste por la 0.2.18**
+- Si instalaste Arbrain **solo en tu servidor** (o en espejo con tu servidor) con la v0.2.17 o antes y no has
+  actualizado desde entonces, «actualiza mi Arbrain» se detiene con `FALLA` y `refs/heads/main` («unknown revision»):
+  a tu copia le faltaba la rama `main`. Dile a tu Levy **en el chat de tu servidor** que corra esta línea una sola vez,
+  con tu versión (la que te dice «¿qué versión tengo?»), y después «actualiza mi Arbrain»:
+  ```
+  git -C ~/Arbrain branch main v0.2.17
+  ```
+  Probado en un servidor real desde la 0.2.16 y la 0.2.17 (1 nov). Si ya estás en la 0.2.18 o después, no hace falta.
+
+**Qué trae**
+- **Levy usa una pantalla en tu servidor, y tú la ves en vivo.** Si tienes Arbrain solo en tu servidor, Levy ya puede
+  abrir sitios en su propio Chrome ahí, leerlos y llenar formularios con tu computadora apagada. Lo miras desde tu
+  Arbrain o tu teléfono en Ajustes › Computer use › «Ver la pantalla de tu servidor»: solo mirar, solo por tu red
+  privada (Tailscale) y con tu sesión; nada nuevo queda abierto a internet. Enviar, pagar, borrar o publicar siguen
+  esperando tu pedido en el chat o tu clic. La pantalla se enciende cuando Levy la necesita y se apaga sola tras 30
+  minutos sin uso.
+- **Escribir en un campo «Dirección» o «E-mail» de una página ya no se frena por error.** Levy confundía esos campos
+  con la barra de direcciones del navegador (en Mac y Windows también). Y la tarjeta para escribir tu correo o tu
+  teléfono en un formulario ya no dice «enviar».
+- **Tu servidor se respalda solo en tu GitHub.** Si tienes Arbrain solo en tu servidor, ahora puedes pedirle a Levy
+  (desde Claude Code de tu computadora) «respalda mi servidor en GitHub»: tu memoria y tu plan se suben a un
+  repositorio privado tuyo cada 5 minutos. En una instalación nueva te lo ofrece con una sola pregunta, y tu servidor
+  aparece en tu red de Tailscale como `arbrain`.
+- **Tu servidor ya no se traba al compilar.** Si Arbrain se compila en tu servidor (por ejemplo, si cambiaste el código
+  de la app), los archivos vacíos que deja ahí el aislamiento de Claude Code ya no lo detienen.
+- **«Actualiza mi Arbrain» ya no guarda la caché de Python** que crean los ganchos (`__pycache__`): no es tuya, ensuciaba
+  tu historial y en el servidor se leía como código cambiado. Si ya estaba guardada, sale de git sola al actualizar.
+- **Tu calendario siempre abre en hoy.** La línea de la hora se ve siempre y cruza todas las columnas por encima de
+  los eventos. La Semana abre en la semana de hoy: una fecha a la que navegaste (o que Levy te mostró) vale mientras
+  usas la app, no días después, y si cambia el día con la app abierta vuelve sola a hoy. Al volver del Taller, la
+  Semana ya no se desfasa.
+- **Ves a tus subagentes desde que nacen.** Mientras un subagente prepara su copia del código (puede tardar unos
+  minutos), el Taller ya lo muestra como «Preparando» en vez de «Nadie trabaja ahora». Y la tarjeta del chat cuenta solo
+  los que de verdad arrancaron: un intento fallido o repetido ya no suma a «Lanzando N».
+- **El lienzo se abre con un clic de trackpad.** En la app de la Mac, un clic en el árbol de lienzos con el dedo
+  ligeramente corrido se tomaba por arrastre y el lienzo no abría. Y en «Mostrar en el lienzo» hay dos interruptores
+  nuevos, Minimapa y Zoom, para presentar a puro lápiz.
+- **Cuando apruebas una acción en su tarjeta, Levy lo sabe.** Antes, tras aprobar una tarjeta, podía decirte que no
+  te habían salido tarjetas o que «tal vez verías alguna». Ahora el resultado de lo que hizo con sus manos dice que
+  corrió porque tú la aprobaste, y te lo cuenta así.
+
+**Qué tienes que hacer**
+- Dile a Levy «actualiza mi Arbrain».
+- Solo si tu Arbrain vive en tu servidor y quieres la pantalla: después de actualizar, desde Claude Code de tu
+  computadora dile «instala la pantalla virtual en mi servidor». Pone al día la copia de tu servidor (con la firma
+  verificada) e instala la pantalla y Google Chrome de sus repositorios oficiales, una sola vez. Luego, en tu Arbrain:
+  Ajustes › Computer use › encender.
+
 ## v0.2.19 · 1 nov 2026 · Tu Levy piensa como estratega, te enseña tu app y te reporta solo
 
 **Qué trae**

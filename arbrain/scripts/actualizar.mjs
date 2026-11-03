@@ -92,6 +92,13 @@ export const claves = (texto) => Object.fromEntries(String(texto).split(/\r?\n/)
 
 const SECRETO = /(^|\/)(\.env(\.[^/]*)?|\.envrc|\.netrc|\.npmrc|\.git-credentials|llaves\.json|acceso\.json|id_(rsa|ed25519|ecdsa|dsa)(\.pub)?)$|\.(pem|key|p12|pfx|kdbx|db|db-wal|db-shm|sqlite|sqlite3)$/i
 export const esSecreto = (ruta) => SECRETO.test(ruta.replace(/\\/g, '/')) && !/\.example$/i.test(ruta)
+/**
+ * Caché de Python (`__pycache__/`, `.pyc`): la crean solos los ganchos de Claude Code al importar sus módulos. No es
+ * del dueño ni del autor y cambia con cada versión de Python. Antes del 1 nov 2026 «Mis cambios antes de actualizar» la
+ * guardaba en git (VPS de pruebas: `.claude/hooks/__pycache__/*.pyc` versionados en mi-arbrain, siempre modificados, y
+ * nube.sh los leía como «código distinto de la versión firmada»). Nunca se agrega; si ya estaba versionada, sale del índice.
+ */
+export const esCache = (ruta) => /(^|\/)__pycache__\/|\.py[co]$/.test(ruta.replace(/\\/g, '/'))
 
 /** Cambios sin guardar: [{ruta, estado}] (porcelain -z, con renombres). */
 export function pendientes(cwd = REPO) {
@@ -109,7 +116,7 @@ export function pendientes(cwd = REPO) {
 export function guardarLoMio(mensaje, cwd = REPO) {
   const lista = pendientes(cwd)
   const fuera = lista.filter(x => esSecreto(x.ruta) && x.estado === '??').map(x => x.ruta)
-  const rutas = lista.map(x => x.ruta).filter(r => !fuera.includes(r))
+  const rutas = lista.map(x => x.ruta).filter(r => !fuera.includes(r) && !esCache(r))
   if (!rutas.length) return { guardados: 0, fuera }
   git(['add', '-A', '--pathspec-from-file=-', '--pathspec-file-nul'], { cwd, entrada: rutas.join('\0') + '\0' })
   if (git(['diff', '--cached', '--quiet'], { cwd, ok: false }).status === 0) return { guardados: 0, fuera }
@@ -565,19 +572,24 @@ export function espejoEncendido(repo = REPO) {
   try { return JSON.parse(readFileSync(join(repo, '.arbrain-espejo', 'maquina.json'), 'utf8')).activo === true } catch { return false }
 }
 function dejarDeVersionarGenerados() {
-  if (espejoEncendido()) return 0
   const ignora = (r) => git(['check-ignore', '-q', '--no-index', '--', r], { ok: false }).status === 0
-  const sacar = GENERADOS.filter(r => git(['ls-files', '--error-unmatch', '--', r], { ok: false }).status === 0 && ignora(r))
-  if (!sacar.length) return 0
-  git(['rm', '-q', '--cached', '--', ...sacar])
-  git(['commit', '-q', '--no-verify', '-m', `Arbrain genera ${sacar.join(', ')} solo: deja de versionarse (el archivo sigue en su lugar)`])
-  return sacar.length
+  const generados = espejoEncendido() ? [] : GENERADOS.filter(r => git(['ls-files', '--error-unmatch', '--', r], { ok: false }).status === 0 && ignora(r))
+  // La caché de Python sale siempre (con o sin espejo: no viaja ni es de nadie).
+  const caches = git(['-c', 'core.quotepath=off', 'ls-files', '-z'], { ok: false }).stdout.split('\0').filter(r => r && esCache(r))
+  const sacar = [...generados, ...caches]
+  if (!sacar.length) return { generados: 0, caches: 0 }
+  git(['rm', '-q', '--cached', '--pathspec-from-file=-', '--pathspec-file-nul'], { entrada: sacar.join('\0') + '\0' })
+  const que = [...generados, ...(caches.length ? [`la caché de Python (${caches.length} archivo${caches.length === 1 ? '' : 's'} .pyc)`] : [])]
+  git(['commit', '-q', '--no-verify', '-m', `Arbrain genera ${que.join(' y ')} solo: deja de versionarse (el archivo sigue en su lugar)`])
+  return { generados: generados.length, caches: caches.length }
 }
 
 async function ordenReiniciar({ sembrar = true, version } = {}) {
   ubicarse({ arreglar: false })
   const out = {}
-  if (dejarDeVersionarGenerados()) di('Tu resumen del día (now.md) se rehace solo: ya no se guarda en git.')
+  const fuera = dejarDeVersionarGenerados()
+  if (fuera.generados) di('Tu resumen del día (now.md) se rehace solo: ya no se guarda en git.')
+  if (fuera.caches) di(`Saqué de git la caché de Python (${fuera.caches} archivo(s) .pyc): se rehace sola y no es tuya.`)
   if (sembrar && existsSync(join(ARBRAIN, 'cerebro', 'sembrar.py'))) {
     const [cmd, pre] = python()
     const r = spawnSync(cmd, [...pre, join(ARBRAIN, 'cerebro', 'sembrar.py')], { cwd: REPO, encoding: 'utf8', windowsHide: true, timeout: 120_000 })
@@ -585,7 +597,7 @@ async function ordenReiniciar({ sembrar = true, version } = {}) {
     const g = guardarLoMio(`Semilla de la versión ${version ?? versionDe('HEAD')}`)
     if (g.guardados) di(`Sembré ${g.guardados} archivo(s) nuevos de la plantilla (nada tuyo se pisó).`)
   }
-  const sucio = pendientes().filter(x => !esSecreto(x.ruta))
+  const sucio = pendientes().filter(x => !esSecreto(x.ruta) && !esCache(x.ruta))
   out.GIT_LIMPIO = sucio.length ? 'no' : 'si'
   if (sucio.length) di(`Aviso: quedan cambios sin guardar: ${sucio.slice(0, 6).map(x => x.ruta).join(', ')}`)
   Object.assign(out, await reiniciar())

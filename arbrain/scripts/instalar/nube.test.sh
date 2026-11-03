@@ -83,6 +83,10 @@ check "código cambiado sí cuenta" "$(fuera_de_capa "$R" v0.0.1)" "arbrain/scri
 check "lo que sube el espejo (líder, máquinas, reportes, folios, latidos) no cuenta" "$(fuera_de_capa "$R" v0.0.1)" ""
 ( cd "$R" && echo x > arbrain/cerebro/sembrar.py && git add -A && git commit -qm sembrador )
 check "código de arbrain/cerebro fuera de lo que sube el espejo sí cuenta" "$(fuera_de_capa "$R" v0.0.1)" "arbrain/cerebro/sembrar.py"
+( cd "$R" && git checkout -q HEAD~1 -- arbrain/cerebro/sembrar.py 2>/dev/null; git rm -q --cached arbrain/cerebro/sembrar.py 2>/dev/null; rm -f arbrain/cerebro/sembrar.py \
+  && mkdir -p .claude/hooks/__pycache__ && echo c > .claude/hooks/__pycache__/intent-context.cpython-312.pyc && echo c > arbrain/scripts/viejo.pyc \
+  && git add -A && git commit -qm "caché de Python versionada por la 0.2.17" )
+check "la caché de Python versionada (VPS, 1 nov) no cuenta como código" "$(fuera_de_capa "$R" v0.0.1)" ""
 # La lista de nube.sh es la del motor (si el motor agrega una carpeta del cerebro, esta prueba avisa).
 if command -v node >/dev/null 2>&1 && [ -f "$AQUI/../espejo/lib/viaja.mjs" ]; then
   MOTOR="$(cd "$AQUI/../espejo/lib" && node --input-type=module -e '
@@ -176,6 +180,35 @@ H="$(NUBE_SOLO_FUNCIONES=1 conectar_con 'si pro' - 'tope:10')"
 check "conectar: sesión sin el motor elegido pregunta otra vez" "$(printf '%s\n' "$H" | grep -c '\[S/n\]')" 1
 
 check "nube.sh claude entra por el envoltorio del enlace" "$(cuerpo orden_claude | grep -c 'ENLACE_PY.*claude auth login')" 1
+
+# 12. Respaldo en su GitHub para «solo en tu servidor» (1 nov 2026, VPS de pruebas): qué hay en su mi-arbrain
+SHA=0123456789abcdef0123456789abcdef01234567
+check "mi-arbrain con la rama de su compu: se clona (espejo)" "$(clase_ls_remote 0 "$SHA	HEAD
+$SHA	refs/heads/mi-arbrain")" con-rama
+check "repo nuevo y vacío: respaldo nuevo desde la copia verificada" "$(clase_ls_remote 0 "")" vacio
+check "repo con solo un README (otra rama): también es respaldo nuevo" "$(clase_ls_remote 0 "$SHA	refs/heads/main")" vacio
+check "sin llave de despliegue: se pide" "$(clase_ls_remote 128 "git@github.com: Permission denied (publickey).
+fatal: Could not read from remote repository.")" sin-acceso
+check "repo que no existe (o sin acceso): se pide la llave" "$(clase_ls_remote 128 "ERROR: Repository not found.")" sin-acceso
+check "otro error: se dice cuál" "$(clase_ls_remote 128 "ssh: connect to host github.com port 22: Network is unreachable")" "error:ssh:_connect_to_host_github.com_port_22:_Network_is_unreachable"
+check "el respaldo va antes del espejo (el espejo necesita origin)" "$(cuerpo orden_instalar | grep -nE 'paso_respaldo|gancho_espejo' | cut -d: -f2 | tr -d ' ' | cut -c1-14 | tr '\n' ' ')" "paso_respaldo ESPEJO=pendien "
+for u in "git@github.com:ana/mi-arbrain.git" "ssh://git@github.com/ana/mi-arbrain" "https://github.com/ana/mi-arbrain.git"; do
+  check "--mi-arbrain acepta $u" "$(NUBE_SOLO_FUNCIONES= bash "$AQUI/nube.sh" --mi-arbrain "$u" --rol nada 2>&1 | tail -1)" "NUBE_FALTA --rol solo puede ser lider o ventana"
+done
+for u in "git@github.com:ana/mi'; rm -x '.git" "file:///etc" "git@otro.com:ana/x.git" "git@github.com:ana/x.git extra"; do
+  check "--mi-arbrain rechaza «$u» (va dentro de comandos de shell)" "$(NUBE_SOLO_FUNCIONES= bash "$AQUI/nube.sh" --mi-arbrain "$u" 2>&1 | tail -1 | cut -c1-40)" "NUBE_FALTA --mi-arbrain tiene que ser la"
+done
+
+# Como root, solo desde una copia de root o de quien ya tiene sudo (1 nov 2026): la del usuario de Arbrain la cambia su Levy.
+touch "$T/ajeno"
+if [ "$(id -u)" = 0 ]; then
+  echo "·    rutas_de_otro_dueno: omitida como root (aquí todo es de root)"
+else
+  check "copia de otro usuario: la nombra" "$(SUDO_USER= rutas_de_otro_dueno / "$T/ajeno")" "$T/ajeno"
+  check "copia de root: de confianza" "$(SUDO_USER= rutas_de_otro_dueno / /usr)" ""
+  check "copia de quien usó sudo: de confianza" "$(SUDO_USER="$(id -un)" rutas_de_otro_dueno / "$T/ajeno")" ""
+  check "una ruta que no existe no cuenta" "$(SUDO_USER= rutas_de_otro_dueno "$T/no-existe")" ""
+fi
 
 rm -rf "$T"
 [ "$fail" = 0 ] && echo "nube.test.sh: todo verde" || echo "nube.test.sh: HAY FALLAS"

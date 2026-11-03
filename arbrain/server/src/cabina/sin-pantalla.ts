@@ -36,6 +36,7 @@ import { adaptador, aplicarLinea, bitacoraVacia, coherencia, NOMBRES, respuestaD
 import { resolverEleccion } from './catalogo-delegar.js'
 import { cambiosDeRama, prepararAislamiento, type Aislamiento, type CambiosRama, type PuertoAislamiento } from './aislamiento.js'
 import { worktreeDe } from './procesos.js'
+import { conPreparando } from './preparando.js'
 import { PERFIL_DEFAULT, esPerfil, type Perfil } from './perfiles.js'
 import { calcularTopes, cwdPermitido, herramientaLegible, leerRegistro, mutarRegistroAsync, olvidarFoto, permisosDefault, preludioSkills, tachar, type Conversacion, type Mensaje, type Seguimiento, type Subagente, type SubagenteOrigen, type Terminal } from './cuerpo.js'
 
@@ -342,34 +343,37 @@ export async function delegarSinPantalla(p: PedidoDelegar, o: { aislar?: PuertoA
   const topes = calcularTopes(registro, await vivosParaTope(registro))
   if (topes.paralelo.vivos >= topes.paralelo.max) throw new Error(`Tope de subagentes en paralelo alcanzado (${topes.paralelo.vivos}/${topes.paralelo.max}). Cierra uno antes de lanzar otro.`)
   if (topes.tokens.hoy >= topes.tokens.max) throw new Error(`Tope de tokens del día alcanzado (${topes.tokens.hoy.toLocaleString('es-MX')}/${topes.tokens.max.toLocaleString('es-MX')}).`)
-  // el worktree nace solo si el lanzamiento pasó validación y topes: un rechazo no deja copias
-  const aislado = await prepararAislamiento({ nombre: p.nombre, cwd: p.cwd, ...(p.aislamiento ? { aislamiento: p.aislamiento } : {}) }, o.aislar)
-  const cwd = aislado.cwd
-  mkdirSync(cwd, { recursive: true })
-  const sesion = ad.sesionPropia ? randomUUID() : undefined
-  const permisos = permisosDefault()
-  const skills = preludioSkills(cwd)
-  const encargo = p.encargo + (skills?.texto ?? '') + notaAutoria(p.nombre) + NOTA_SIN_PANTALLA
-  const dod = extraerDoD(p.encargo)
-  let sub: Subagente | null = null
-  // id, registro y proceso bajo el mismo candado: dos delegar a la vez no comparten id ni bitácora
-  await mutarRegistroAsync(async l => {
-    const id = siguienteId(l)
-    if (existsSync(rutaBitacora(id))) throw new Error(`Ya existe la bitácora ${rutaBitacora(id)}; no la piso.`)
-    const pid = await lanzarTurno({ id, harness: ad.nombre, cwd, modelo, esfuerzo: eleccion.esfuerzo, esfuerzoCli: eleccion.esfuerzoCli, permisos, perfil, sesion, texto: encargo, reanudar: false })
-    sub = {
-      id, nombre: p.nombre.slice(0, 80), harness: ad.nombre, encargo: p.encargo.slice(0, 2000), cwd, creado: new Date().toISOString(), modo: 'sin-pantalla', pid, turno: 1, permisos,
-      entrega: 'entregado', entregaNota: 'el encargo viajó como argumento del CLI (sin pantalla)', bitacora: rutaBitacora(id).replace(homedir(), '~'),
-      perfil, ...(ad.guardia ? {} : { sinGuardia: true }), ...(p.plan ? { plan: p.plan } : {}),
-      ...(skills ? { aviso: skills.aviso } : {}), ...(sesion ? { sesion } : {}), ...(modelo ? { modelo } : {}), ...(eleccion.esfuerzo ? { esfuerzo: eleccion.esfuerzo, ...(eleccion.esfuerzoCli ? { esfuerzoCli: eleccion.esfuerzoCli } : {}) } : {}), ...(p.avisarA ? { avisarA: p.avisarA } : {}),
-      eleccion: eleccion.resumen, aislamiento: aislado.aislamiento, ...(aislado.rama ? { rama: aislado.rama } : {}),
-      // La DoD completa, para el juez (el encargo se recorta a 2,000 caracteres y la DoD suele ir al final).
-      ...(dod ? { dod } : {}),
-    }
-    return [...l, sub]
+  // Mientras se prepara su copia y hasta que nace, el Taller lo ve como «Preparando» (preparando.ts, 2 nov 2026).
+  return conPreparando({ nombre: p.nombre, harness: ad.nombre, origen: p.avisarA?.conversationId ?? null, aislamiento: p.aislamiento ?? null }, async () => {
+    // el worktree nace solo si el lanzamiento pasó validación y topes: un rechazo no deja copias
+    const aislado = await prepararAislamiento({ nombre: p.nombre, cwd: p.cwd, ...(p.aislamiento ? { aislamiento: p.aislamiento } : {}) }, o.aislar)
+    const cwd = aislado.cwd
+    mkdirSync(cwd, { recursive: true })
+    const sesion = ad.sesionPropia ? randomUUID() : undefined
+    const permisos = permisosDefault()
+    const skills = preludioSkills(cwd)
+    const encargo = p.encargo + (skills?.texto ?? '') + notaAutoria(p.nombre) + NOTA_SIN_PANTALLA
+    const dod = extraerDoD(p.encargo)
+    let sub: Subagente | null = null
+    // id, registro y proceso bajo el mismo candado: dos delegar a la vez no comparten id ni bitácora
+    await mutarRegistroAsync(async l => {
+      const id = siguienteId(l)
+      if (existsSync(rutaBitacora(id))) throw new Error(`Ya existe la bitácora ${rutaBitacora(id)}; no la piso.`)
+      const pid = await lanzarTurno({ id, harness: ad.nombre, cwd, modelo, esfuerzo: eleccion.esfuerzo, esfuerzoCli: eleccion.esfuerzoCli, permisos, perfil, sesion, texto: encargo, reanudar: false })
+      sub = {
+        id, nombre: p.nombre.slice(0, 80), harness: ad.nombre, encargo: p.encargo.slice(0, 2000), cwd, creado: new Date().toISOString(), modo: 'sin-pantalla', pid, turno: 1, permisos,
+        entrega: 'entregado', entregaNota: 'el encargo viajó como argumento del CLI (sin pantalla)', bitacora: rutaBitacora(id).replace(homedir(), '~'),
+        perfil, ...(ad.guardia ? {} : { sinGuardia: true }), ...(p.plan ? { plan: p.plan } : {}),
+        ...(skills ? { aviso: skills.aviso } : {}), ...(sesion ? { sesion } : {}), ...(modelo ? { modelo } : {}), ...(eleccion.esfuerzo ? { esfuerzo: eleccion.esfuerzo, ...(eleccion.esfuerzoCli ? { esfuerzoCli: eleccion.esfuerzoCli } : {}) } : {}), ...(p.avisarA ? { avisarA: p.avisarA } : {}),
+        eleccion: eleccion.resumen, aislamiento: aislado.aislamiento, ...(aislado.rama ? { rama: aislado.rama } : {}),
+        // La DoD completa, para el juez (el encargo se recorta a 2,000 caracteres y la DoD suele ir al final).
+        ...(dod ? { dod } : {}),
+      }
+      return [...l, sub]
+    })
+    olvidarFoto()
+    return sub!
   })
-  olvidarFoto()
-  return sub!
 }
 
 export interface CambioTurno { modelo?: string; esfuerzo?: string }

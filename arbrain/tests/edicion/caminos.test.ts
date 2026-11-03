@@ -63,6 +63,18 @@ test('INSTALAR-NUBE.md: plan recomendado con «revisa el precio», chat con su c
   assert.doesNotMatch(n.replace(/[Nn]unca `?tailscale funnel`?|nunca `funnel`/g, ''), /tailscale funnel/)
 })
 
+test('INSTALAR-NUBE.md: «solo en tu servidor» ofrece su respaldo en GitHub y el servidor se llama arbrain en su red (VPS, 1 nov 2026)', () => {
+  const n = plano(guia('INSTALAR-NUBE'))
+  const n3 = n.slice(n.indexOf('### N3'), n.indexOf('### N4'))
+  assert.match(n3, /Con `MODO=solo`, pregúntale una sola vez: «¿Quieres que tu servidor se respalde solo en tu GitHub/)
+  assert.match(n3, /gh repo create <usuario>\/mi-arbrain --private/)
+  assert.match(n3, /\*\*vacío\*\*/, 'el respaldo de un servidor nuevo va a un repo vacío (nube.sh no pisa una rama mi-arbrain ajena)')
+  assert.match(n3, /--espejo --rol lider --cita "\$CITA"/, 'el espejo de un solo servidor sube el respaldo; al mando para que corran las rutinas')
+  assert.match(n, /«respalda mi servidor en GitHub»/)
+  assert.match(n, /tailscale up --hostname=arbrain /)
+  assert.match(n, /Respaldo: <tu GitHub privado/)
+})
+
 test('en el servidor, Levy dice dónde vive y dónde están las llaves', () => {
   const m = mensajeBienvenida('Fulano de Tal', { servidor: true })
   assert.ok(m.includes(VIVO_EN_SERVIDOR))

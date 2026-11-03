@@ -568,28 +568,40 @@ const DELEGA = /(?:^|__|_)cabina(?:__|_)delegar$|^(Agent|Task)$/
 
 export interface Delegados { nombres: string[]; estado: EstadoPaso; total: number }
 
-/** Los subagentes que Levy lanzó en este turno (cabina delegar, o Agent/Task del SDK), con su estado de lanzamiento. */
+/**
+ * Los subagentes que Levy lanzó en este turno (cabina delegar, o Agent/Task del SDK), con su estado de lanzamiento.
+ * Cuenta solo los que nacieron o siguen naciendo (2 nov 2026, Daniel: «veo que estás delegando a cuatro subagentes pero no
+ * los veo»): la tarjeta decía «Lanzando 3» cuando dos llamadas fallaron por validación y la tercera repetía a la primera.
+ * Un intento fallido o cancelado no suma, y el mismo nombre lanzado dos veces es un subagente. Si ninguno nació, es error.
+ */
 export function delegadosDe(msg: Pick<ChatMessage, 'toolCalls' | 'toolInputs' | 'toolOutputs'>): Delegados | null {
   const llamadas = (msg.toolCalls ?? []).filter(t => DELEGA.test(t.toolName))
   if (!llamadas.length) return null
-  const nombres: string[] = []
+  const vivos = new Map<string, EstadoPaso>()
+  let sinNombre = 0, fallidas = 0
   for (const t of llamadas) {
+    const estado = estadoDe(t, msg.toolOutputs?.[t.toolId])
+    if (estado === 'error') { fallidas++; continue }
     const crudo = msg.toolInputs?.[t.toolId]
     let input: Record<string, unknown> | null = null
     try { const v = crudo ? JSON.parse(crudo) : null; input = v && typeof v === 'object' && !Array.isArray(v) ? v : null } catch { /* parcial */ }
     const nombre = str(input, 'nombre', 'description', 'name') ?? /"(?:nombre|description)"\s*:\s*"([^"]*)/.exec(crudo ?? '')?.[1] ?? null
     // «Goal UX: que la meta no entierre respuestas» → «Goal UX»: el nombre corto, el encargo completo vive en el Taller.
-    if (nombre) nombres.push(corto(nombre.split(/[:·—(]/)[0].trim() || nombre, 28))
+    if (!nombre) { sinNombre++; continue }
+    const clave = corto(nombre.split(/[:·—(]/)[0].trim() || nombre, 28)
+    // El repetido que ya nació manda sobre el que sigue en vuelo: «Lanzó», no «Lanzando».
+    if (vivos.get(clave) !== 'listo') vivos.set(clave, estado)
   }
-  const estados = llamadas.map(t => estadoDe(t, msg.toolOutputs?.[t.toolId]))
-  const estado: EstadoPaso = estados.includes('corriendo') ? 'corriendo' : estados.includes('error') ? 'error' : 'listo'
-  return { nombres, estado, total: llamadas.length }
+  const total = vivos.size + sinNombre
+  if (!total) return { nombres: [], estado: 'error', total: fallidas }
+  const estado: EstadoPaso = [...vivos.values()].includes('corriendo') ? 'corriendo' : 'listo'
+  return { nombres: [...vivos.keys()], estado, total }
 }
 
 /** «Lanzó 2 subagentes · Goal UX, Harness» · «Lanzando un subagente · Goal UX». */
 export function textoDelegados(d: Delegados): string {
   const verbo = d.estado === 'corriendo' ? (d.total === 1 ? 'Lanzando un subagente' : `Lanzando ${d.total} subagentes`)
-    : d.estado === 'error' ? (d.total === 1 ? 'No pudo lanzar el subagente' : `Lanzó subagentes con un error`)
+    : d.estado === 'error' ? (d.total === 1 ? 'No pudo lanzar el subagente' : `No pudo lanzar los ${d.total} subagentes`)
     : d.total === 1 ? 'Lanzó un subagente' : `Lanzó ${d.total} subagentes`
   const nombres = d.nombres.length > 3 ? [...d.nombres.slice(0, 3), `${d.nombres.length - 3} más`] : d.nombres
   return nombres.length ? `${verbo} · ${nombres.join(', ')}` : verbo

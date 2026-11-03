@@ -21,7 +21,7 @@ export type Quien = string
 
 /** `zona` (2 oct 2026, solo lienzo): lo que la cámara encuadra para que se lea a ancho de panel —
  *  id de un elemento o marco, prefijo de ids (`ht:op`), rectángulo `x,y,ancho,alto` o una frase del lienzo. */
-export interface MostrarInput { vista: Vista; alcance?: Alcance; fecha?: string; paginaId?: string; titulo?: string; enfoque?: string; seccion?: SeccionNegocio; agenteId?: number; fijar?: boolean; zona?: string
+export interface MostrarInput { vista: Vista; alcance?: Alcance; fecha?: string; /** Cuándo se navegó a esa `fecha` (epoch ms; fijadas.ts `fechaViva`). Sin esto, la fijó Levy. */ fechaEn?: number; paginaId?: string; titulo?: string; enfoque?: string; seccion?: SeccionNegocio; agenteId?: number; fijar?: boolean; zona?: string
   /** Vista documento (3 oct 2026): el archivo, y contra qué versión marcar cambios ("HEAD" o otra ruta). */
   ruta?: string; compararCon?: string
   /** Visor único (8 oct 2026): más versiones de un video o imagen, y el segundo en que abre un video o audio. */

@@ -57,7 +57,7 @@ const QUE_AREA: Record<AreaServicio, string> = {
 }
 
 // ── Cuentas del Taller (una sola regla para el pulso y las pestañas) ──
-export interface CuentasTaller { trabajando: number; procesos: number; preguntan: number; espera: number; huerfanos: number; fallas: number; fallasMenores: number; servicios: number; rutinasFallidas: number }
+export interface CuentasTaller { trabajando: number; /** De los que trabajan, cuántos todavía preparan su copia (preparando.ts). */ preparando: number; procesos: number; preguntan: number; espera: number; huerfanos: number; fallas: number; fallasMenores: number; servicios: number; rutinasFallidas: number }
 export function cuentasTaller(d: Trabajos | undefined, rutinas?: CronSnapshot): CuentasTaller | null {
   if (!d) return null
   // Ronda 3 (crítico ciego, 27 oct): agentes, procesos y «te pregunta» salen de la MISMA cuenta que el tablero
@@ -66,7 +66,7 @@ export function cuentasTaller(d: Trabajos | undefined, rutinas?: CronSnapshot): 
   const procs = d.procesos ?? []
   const fallas = d.servicios.filter(x => x.estado === 'falló')
   return {
-    trabajando: c.trabajando, procesos: c.procesos, preguntan: c.preguntan, espera: c.espera, huerfanos: procs.filter(p => p.clase === 'huerfano').length,
+    trabajando: c.trabajando, preparando: d.preparando?.length ?? 0, procesos: c.procesos, preguntan: c.preguntan, espera: c.espera, huerfanos: procs.filter(p => p.clase === 'huerfano').length,
     fallas: fallas.filter(x => !x.menor).length, fallasMenores: fallas.filter(x => x.menor).length,
     servicios: d.servicios.filter(x => x.estado === 'corriendo').length,
     rutinasFallidas: rutinasFallidas(rutinas),
@@ -99,7 +99,7 @@ export function PulsoTaller({ data: real, onIr }: { data: Trabajos | undefined; 
     <div className={w.pulsoTexto}>
       <p className={w.pulsoTitular}>
         {n.trabajando
-          ? <button type="button" className={w.pulsoIr} onClick={() => onIr('terminales')} title="Ver quién trabaja · Taller › Agentes"><Cifra valor={n.trabajando} clave="taller-trabajando" formato={x => String(Math.round(x))} /> {n.trabajando === 1 ? 'agente trabajando' : 'agentes trabajando'} para ti</button>
+          ? <button type="button" className={w.pulsoIr} onClick={() => onIr('terminales')} title="Ver quién trabaja · Taller › Agentes"><Cifra valor={n.trabajando} clave="taller-trabajando" formato={x => String(Math.round(x))} /> {n.trabajando === n.preparando ? (n.trabajando === 1 ? 'agente preparándose' : 'agentes preparándose') : n.trabajando === 1 ? 'agente trabajando' : 'agentes trabajando'} para ti</button>
           : 'Nadie trabaja ahora'}
       </p>
       <p className={tb.pulsoNotas}>

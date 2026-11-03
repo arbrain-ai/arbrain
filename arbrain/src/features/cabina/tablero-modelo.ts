@@ -24,7 +24,7 @@
  * Las cinco columnas del spec siguen en el modelo (y «murió» se sigue detectando); solo cambia cómo se nombran. El
  * detalle técnico (código de salida, modelo, latido) vive tras «Ver detalles».
  */
-import { esAgente, esProceso, preguntaAlgo, esperaALevy, ultimaRespuesta, type CambiosRama, type Coherencia, type Columna, type EstadoTablero, type Juicio, type TareaInterna, type Terminal, type Trabajos, type Veredicto } from './trabajos-modelo'
+import { esAgente, esProceso, preguntaAlgo, esperaALevy, ultimaRespuesta, type CambiosRama, type Coherencia, type Columna, type EstadoTablero, type Juicio, type Preparando, type TareaInterna, type Terminal, type Trabajos, type Veredicto } from './trabajos-modelo'
 import { agenteTerminado, resumenInterna, resumenTerminal, unaLinea } from './terminados'
 import { actividadLegible, tituloLegible } from './internas-lectura'
 
@@ -93,7 +93,7 @@ export function columnaDe(t: Terminal): Columna {
 export interface Entregable { tipo: 'enlace' | 'archivo' | 'commit'; valor: string; etiqueta: string }
 
 /** De dónde sale el renglón: un encargo de Levy (`delegar`), una tarea dentro de un turno suyo, una sesión tuya o un comando. */
-export type TipoFila = 'encargo' | 'interna' | 'tuya' | 'proceso'
+export type TipoFila = 'encargo' | 'interna' | 'tuya' | 'proceso' | 'preparando'
 export interface FilaTablero {
   /** Número de la terminal (encargos y sesiones) o id de la tarea interna. */
   id: number | string; tipo: TipoFila; nombre: string; columna: Columna; motivo: string; harness: string; modelo: string | null
@@ -232,6 +232,20 @@ export function filaDeInterna(x: TareaInterna): FilaTablero {
   }
 }
 
+/**
+ * El que todavía nace (2 nov 2026, Daniel: «veo que estás delegando a cuatro subagentes pero no los veo»): `delegar` crea su
+ * worktree antes de registrarlo y el Taller decía «Nadie trabaja ahora». Va en «Trabajando» con el paso «Preparando su copia».
+ */
+export function filaDePreparando(x: Preparando): FilaTablero {
+  const desde = Date.parse(x.desde) || Date.now()
+  return {
+    id: `preparando:${x.clave}`, tipo: 'preparando', nombre: x.nombre, columna: 'trabajando', motivo: 'Preparando',
+    harness: x.harness, modelo: null, creado: x.desde, origen: x.origen, cwd: '',
+    paso: x.aislamiento === 'worktree' ? 'Preparando su copia del código' : 'Preparando su carpeta',
+    linea: null, latido: null, desde, fin: desde, juicio: null, entregables: [], conLevy: false, puedeDetener: false, coherencia: null, cambios: null,
+  }
+}
+
 export interface Tablero extends Record<Columna, FilaTablero[]> {
   /** Tareas internas de Levy y sesiones tuyas que terminaron en las últimas 24 h (en «Hecho», plegadas). */
   cortas: FilaTablero[]
@@ -272,6 +286,7 @@ export function armarTablero(d: Trabajos | undefined, conversacion?: string | nu
       if (!agenteTerminado(term)) t[f.columna].push(f); else if (reciente(f)) t.cortas.push(f)
     }
   }
+  for (const x of d?.preparando ?? []) if (deAqui(x.origen)) t.trabajando.push(filaDePreparando(x))
   for (const x of d?.internas ?? []) {
     if (!deAqui(x.conversacion)) continue
     const f = filaDeInterna(x)

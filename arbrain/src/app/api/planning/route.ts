@@ -1,5 +1,6 @@
 import { callPlanning, checkMutationOrigin, planningError, planningViewer } from '@/lib/planning/server'
 import { ChatAccessError } from '@/lib/chat-access-policy'
+import { marcarAjenos } from '@/features/planning/ajenos'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -9,7 +10,8 @@ export async function GET(request: Request) {
     const { ownerId, perfil } = await planningViewer()
     const params = new URL(request.url).searchParams
     const result = await callPlanning({ action: 'snapshot', from: params.get('from'), to: params.get('to'), includeCompleted: params.get('includeCompleted') === 'true', forceMetadata: params.get('forceMetadata') === 'true', perfil })
-    return Response.json({ ...result, ownerId }, { headers: { 'Cache-Control': 'no-store' } })
+    // Lo de otra persona sale nombrado (ajenos.ts): «Fulana · 🌼 Panteón», no un evento suyo sin dueño.
+    return Response.json({ ...marcarAjenos(result), ownerId }, { headers: { 'Cache-Control': 'no-store' } })
   } catch (error) { return planningError(error) }
 }
 

@@ -107,7 +107,8 @@ export interface ResultadoAccion {
   efecto: 'confirmado' | 'sin_verificar' | 'fallo' | 'bloqueado'
   detalle?: string
   /** Si el freno intervino: categoría y motivo (también cuando dejó pasar con confirmación). */
-  freno?: { categoria: string; motivo: string; paso: boolean }
+  /** `cita`: de dónde salió el permiso (modelo o chat); `tarjeta`: corrió porque la persona aprobó su tarjeta (I8). */
+  freno?: { categoria: string; motivo: string; paso: boolean; cita?: 'modelo' | 'chat'; tarjeta?: boolean }
   /** Si la acción dejó la página en un video: lo que hicieron las manos para silenciarlo y pausarlo. */
   medios?: ResultadoMedios
 }
@@ -124,8 +125,8 @@ export interface ContextoAccion {
   dialogo?: { tipo: string; texto?: string; boton_defecto?: string; boton_cancelar?: string }
   boton_defecto_ventana?: string
   url?: string
-  /** Sistema del adaptador que armó el contexto: el freno traduce los atajos de Windows (Ctrl = ⌘, Alt+F4). */
-  plataforma?: 'macos' | 'windows'
+  /** Sistema del adaptador que armó el contexto: el freno traduce los atajos de Windows y Linux (Ctrl = ⌘, Alt+F4). */
+  plataforma?: 'macos' | 'windows' | 'linux'
 }
 
 export interface ResultadoMedios { silenciado: boolean; pausado: boolean; reproductor: boolean; acciones: string[]; ms: number; url?: string }

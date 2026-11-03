@@ -8,6 +8,7 @@ import { VERSION_TEXTOS } from '@/features/primer-arranque/textos/legales'
 import { FUENTE_BIENVENIDA, mensajeBienvenida } from '@/features/primer-arranque/textos/bienvenida'
 import { estadoSandbox } from '@/features/permisos/lib/sandbox-server'
 import { computerUseDisponible, plataformaServidor } from '@/features/permisos/lib/disponibilidad'
+import { pantallaVirtualServidor } from '@/features/permisos/lib/pantalla-server'
 import { entregarSiguiente } from '@/features/primer-arranque/lib/tour-servidor'
 import { publicarCapitulo } from '@/features/primer-arranque/lib/tour-chat'
 
@@ -63,7 +64,7 @@ export async function POST(request: Request) {
         // El nivel que eligió en el paso de autonomía (0.2.15): lo dice el daemon; sin respuesta, el mensaje de siempre.
         let modo: 'preguntar' | 'carpeta' | 'autonomo' | undefined
         try { const r = await alDaemon('/permisos', { plazoMs: 2_000 }); if (r.ok) { const j = await r.json() as { modo?: unknown }; if (j.modo === 'preguntar' || j.modo === 'carpeta' || j.modo === 'autonomo') modo = j.modo } } catch { /* sin daemon: sin nivel */ }
-        const m = await db.from('chat_messages').insert({ session_id: sesion, role: 'assistant', content: mensajeBienvenida(estado.nombre, { computerUse: computerUseDisponible(true, plataformaServidor(process.env, process.platform)), servidor: process.env.ARBRAIN_SERVIDOR_NUBE === '1', ...(modo ? { modo } : {}) }), created_at: ahora, metadata: { source: FUENTE_BIENVENIDA } })
+        const m = await db.from('chat_messages').insert({ session_id: sesion, role: 'assistant', content: mensajeBienvenida(estado.nombre, { computerUse: computerUseDisponible(true, plataformaServidor(process.env, process.platform), pantallaVirtualServidor()), servidor: process.env.ARBRAIN_SERVIDOR_NUBE === '1', ...(modo ? { modo } : {}) }), created_at: ahora, metadata: { source: FUENTE_BIENVENIDA } })
         if (m.error) throw new Error(m.error.message)
       }
       const nueva = !estado.sesionBienvenida

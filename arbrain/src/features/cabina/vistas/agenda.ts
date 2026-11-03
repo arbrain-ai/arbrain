@@ -7,6 +7,7 @@
 import type { PlanningSnapshot, PlanEvent, PlanTask, PlanMutation } from '@/features/planning/types'
 import { mutationFor } from '@/features/planning/model'
 import { esFase, esMecanicaAlumno } from '@/features/planning/drip'
+import { tituloVisible } from '@/features/planning/ajenos'
 import { refrescarCabina } from '../datos'
 import { zonaCabina, sumarDias } from '../model'
 
@@ -43,13 +44,13 @@ export function porDia(snap: PlanningSnapshot | undefined) {
     // «🔓 Abre … en el classroom» es para los alumnos: no se pinta en el calendario de Daniel (drip.ts `esMecanicaAlumno`).
     if (esMecanicaAlumno(e)) continue
     const f = fuentes.get(e.sourceId)
-    const base = { id: e.id, titulo: e.title || '(sin título)', color: f?.color ?? 'var(--brand)', objetivo: !!f?.objective, url: e.url, recurrente: !!e.recurringEventId }
+    const base = { id: e.id, titulo: tituloVisible(e, '(sin título)'), color: f?.color ?? 'var(--brand)', objetivo: !!f?.objective, url: e.url, recurrente: !!e.recurringEventId }
     if (e.allDay && f?.objective && sumarDias(e.start.slice(0, 10), 1) < e.end.slice(0, 10)) {
-      bandas.push({ id: e.id, titulo: e.title, desde: e.start.slice(0, 10), hasta: e.end.slice(0, 10), color: f.color ?? 'var(--gold)' })
+      bandas.push({ id: e.id, titulo: tituloVisible(e), desde: e.start.slice(0, 10), hasta: e.end.slice(0, 10), color: f.color ?? 'var(--gold)' })
       continue
     }
     if (e.allDay && sumarDias(e.start.slice(0, 10), 1) < e.end.slice(0, 10)) {
-      tramos.push({ id: e.id, titulo: e.title, desde: e.start.slice(0, 10), hasta: e.end.slice(0, 10), color: f?.color ?? 'var(--brand)' })
+      tramos.push({ id: e.id, titulo: tituloVisible(e), desde: e.start.slice(0, 10), hasta: e.end.slice(0, 10), color: f?.color ?? 'var(--brand)' })
     }
     // Las fases del programa viven solo como tramo (el Mes): el Día y la Semana no las repiten en cada celda (25 oct 2026).
     if (esFase(e)) continue

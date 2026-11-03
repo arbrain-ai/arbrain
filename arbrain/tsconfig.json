@@ -46,6 +46,7 @@
     "src-tauri/resources",
     "extension",
     "server",
+    "tests/chat/fila-servidor.test.ts",
     "src-tauri/target-cliente",
     "empaquetado/ci/linux-local/salida"
   ]

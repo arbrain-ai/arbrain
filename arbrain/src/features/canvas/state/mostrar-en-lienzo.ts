@@ -14,9 +14,16 @@ export interface MostrarEnLienzo {
   barraInferior: boolean
   /** El índice «Todo 1 2 3 4». El velo del capítulo abierto no depende de esto. */
   capitulos: boolean
+  /** El minimapa de la esquina inferior izquierda (2 nov 2026, Daniel: presentar a puro lápiz sin estorbos). */
+  minimapa: boolean
+  /** El bloque − % + y encuadrar dentro de la barra inferior. Sin barra inferior no se ve de todos modos. */
+  zoom: boolean
 }
 
-export const MOSTRAR_POR_DEFECTO: Readonly<MostrarEnLienzo> = { herramientas: false, barraInferior: false, capitulos: true }
+export const MOSTRAR_POR_DEFECTO: Readonly<MostrarEnLienzo> = {
+  herramientas: false, barraInferior: false, capitulos: true, minimapa: true, zoom: true,
+}
+const CLAVES = Object.keys(MOSTRAR_POR_DEFECTO) as Array<keyof MostrarEnLienzo>
 export const CLAVE_MOSTRAR = 'arbrain.lienzo.mostrar'
 export const EVENTO_MOSTRAR = 'arbrain:lienzo-mostrar'
 
@@ -26,13 +33,12 @@ export function interpretar(crudo: string | null | undefined): MostrarEnLienzo {
   try { o = crudo ? JSON.parse(crudo) : null } catch { o = null }
   const r = (o && typeof o === 'object' ? o : {}) as Record<string, unknown>
   const b = (k: keyof MostrarEnLienzo) => (typeof r[k] === 'boolean' ? (r[k] as boolean) : MOSTRAR_POR_DEFECTO[k])
-  return { herramientas: b('herramientas'), barraInferior: b('barraInferior'), capitulos: b('capitulos') }
+  return Object.fromEntries(CLAVES.map(k => [k, b(k)])) as unknown as MostrarEnLienzo
 }
 
 export const serializar = (m: MostrarEnLienzo): string => JSON.stringify(m)
 
-export const igual = (a: MostrarEnLienzo, b: MostrarEnLienzo) =>
-  a.herramientas === b.herramientas && a.barraInferior === b.barraInferior && a.capitulos === b.capitulos
+export const igual = (a: MostrarEnLienzo, b: MostrarEnLienzo) => CLAVES.every(k => a[k] === b[k])
 
 export function leer(): MostrarEnLienzo {
   try { return interpretar(localStorage.getItem(CLAVE_MOSTRAR)) } catch { return { ...MOSTRAR_POR_DEFECTO } }

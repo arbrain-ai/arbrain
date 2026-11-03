@@ -7,7 +7,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import {
   COMPUTER_USE_NO_DISPONIBLE, computerUseDisponible, decisionInterruptorCliente, ESTADO_CLIENTE_SIN_COMPUTER_USE,
-  explicacionComputerUse, plataformaServidor,
+  explicacionComputerUse, plataformaServidor, rutaMarcadorPantalla,
 } from '../../src/features/permisos/lib/disponibilidad'
 import { fichaEnEdicion, FICHAS, type PermisoId } from '../../src/features/permisos/lib/permisos'
 import { PASOS, pasosVisibles } from '../../src/features/primer-arranque/lib/pasos'
@@ -26,6 +26,13 @@ test('disponibilidad: cliente en macOS y Windows sí, en Linux no; la instalaci�
   assert.equal(plataformaServidor({ ARBRAIN_PLATAFORMA_PRUEBA: 'win32' }, 'linux'), 'win32')
   assert.deepEqual(ESTADO_CLIENTE_SIN_COMPUTER_USE, { edicion: 'cliente', encendido: false, decidido: true, disponible: false })
   assert.match(COMPUTER_USE_NO_DISPONIBLE, /no está disponible en Linux/)
+  // Modo servidor (1 nov 2026): Linux con pantalla virtual (marcador de root) sí; sin ella, no; otros sistemas, igual.
+  assert.equal(computerUseDisponible(true, 'linux', true), true)
+  assert.equal(computerUseDisponible(true, 'linux', false), false)
+  assert.equal(computerUseDisponible(true, 'freebsd', true), false)
+  assert.equal(rutaMarcadorPantalla({}), '/etc/arbrain/pantalla-virtual.json')
+  assert.equal(rutaMarcadorPantalla({ ARBRAIN_PANTALLA_MARCADOR: '/tmp/x.json' }), '/tmp/x.json')
+  assert.match(COMPUTER_USE_NO_DISPONIBLE, /nube\.sh pantalla/)
 })
 
 test('explicación: apagado por cada apertura, el clic para lo irreversible y los permisos de cada sistema', () => {
@@ -38,6 +45,12 @@ test('explicación: apagado por cada apertura, el clic para lo irreversible y lo
   assert.match(explicacionComputerUse('darwin'), /«ArbrainManos»: Accesibilidad y Grabación de pantalla/)
   assert.match(explicacionComputerUse('win32'), /no hay permisos extra/)
   assert.ok(!/ArbrainManos/.test(explicacionComputerUse('win32')))
+  // Servidor Linux con pantalla virtual: lo que hace ahí y dónde mirarla; lo irreversible sigue pidiendo su clic.
+  const lx = explicacionComputerUse('linux')
+  assert.match(lx, /pantalla virtual de tu servidor/)
+  assert.match(lx, /Ver la pantalla de tu servidor/)
+  assert.match(lx, /te pide tu clic/)
+  assert.ok(!/ArbrainManos/.test(lx))
 })
 
 test('la ruta del interruptor: en Linux encender es 403 sin hablar con el daemon; en Mac y Windows va al daemon', () => {
@@ -47,7 +60,7 @@ test('la ruta del interruptor: en Linux encender es 403 sin hablar con el daemon
   assert.equal(decisionInterruptorCliente('true').status, 400)
   assert.equal(decisionInterruptorCliente(undefined).status, 400)
   const ruta = fuente('src/app/api/manos/interruptor/route.ts')
-  assert.match(ruta, /computerUseDisponible\(true, plataforma\(\)\)/)
+  assert.match(ruta, /computerUseDisponible\(true, plataforma\(\), pantallaVirtualServidor\(\)\)/)
   // Encender en cliente pasa por el daemon con el secreto de confirmar (fijarComputerUseCliente → alDaemon confirmar).
   assert.match(ruta, /fijarComputerUseCliente\(alDaemon, body\.encendido\)/)
   assert.match(ruta, /leerComputerUseCliente\(alDaemon\)/)
@@ -107,7 +120,7 @@ test('textos: bienvenida según el sistema; términos y privacidad nombran compu
   assert.match(TERMINOS.cuerpo, /banco, pagos, impuestos ni cripto/)
   assert.match(PRIVACIDAD.cuerpo, /capturas de tu pantalla/)
   // La bienvenida del servidor decide con la plataforma del servidor.
-  assert.match(fuente('src/app/api/primer-arranque/route.ts'), /computerUse: computerUseDisponible\(true, plataformaServidor\(process\.env, process\.platform\)\)/)
+  assert.match(fuente('src/app/api/primer-arranque/route.ts'), /computerUse: computerUseDisponible\(true, plataformaServidor\(process\.env, process\.platform\), pantallaVirtualServidor\(\)\)/)
 })
 
 test('A-5 y M-4: CSP de cliente sin https: en imágenes ni marcos; sin MCP de Next en cliente', () => {
@@ -119,4 +132,28 @@ test('A-5 y M-4: CSP de cliente sin https: en imágenes ni marcos; sin MCP de Ne
   assert.ok(!/https:/.test(csp), 'ningún origen https en la CSP de cliente')
   assert.deepEqual(csp.match(/http:\/\/[^\s"]+/g), ['http://ipc.localhost'], 'el único http es el IPC de Tauri')
   assert.match(n, /mcpServer: !EDICION_CLIENTE/)
+})
+
+test('pantalla de tu servidor (1 nov 2026): solo con sesión, solo mirar, sin puertos nuevos', async () => {
+  const { decidirCliente } = await import('../../src/lib/proxy-cliente')
+  const { paginaPermitidaEnCliente, apiPermitidaEnCliente } = await import('../../src/lib/edicion')
+  // Sin sesión: la imagen y el estado responden 401 y la página manda a entrar; con sesión, pasan.
+  for (const ruta of ['/api/manos/pantalla', '/api/manos/pantalla/captura']) {
+    assert.equal(apiPermitidaEnCliente(ruta), true, ruta)
+    assert.equal(decidirCliente(ruta, false, true).tipo, 'json', ruta)
+    assert.equal((decidirCliente(ruta, false, true) as { status: number }).status, 401, ruta)
+    assert.deepEqual(decidirCliente(ruta, true, true), { tipo: 'pasa' }, ruta)
+  }
+  assert.equal(paginaPermitidaEnCliente('/pantalla'), true)
+  assert.deepEqual(decidirCliente('/pantalla', false, true), { tipo: 'redirige', a: '/sin-sesion' })
+  // Las rutas vuelven a pedir la sesión de la app y solo exportan GET: no hay forma de mandar clics ni teclas.
+  for (const r of ['src/app/api/manos/pantalla/route.ts', 'src/app/api/manos/pantalla/captura/route.ts']) {
+    const f = fuente(r)
+    assert.match(f, /const no = await soloAppCliente\(\)/, r)
+    assert.ok(!/export async function (POST|PUT|PATCH|DELETE)/.test(f), r)
+  }
+  // La vista no lleva teclado ni ratón hacia el servidor: solo pide imágenes y estado.
+  const v = fuente('src/features/pantalla/VistaPantalla.tsx')
+  assert.ok(!/method:\s*'POST'/.test(v))
+  assert.match(v, /\/api\/manos\/pantalla\/captura/)
 })

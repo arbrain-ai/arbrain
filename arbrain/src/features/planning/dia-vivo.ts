@@ -1,5 +1,6 @@
 import { addDays, parseISO, startOfDay } from 'date-fns'
 import type { PlanEvent, PlanTask } from './types'
+import { tituloVisible } from './ajenos'
 import type { Goal } from '@/features/goals/model'
 import { TRAMO } from './semana-horas'
 
@@ -16,7 +17,7 @@ export function bloquesDelDia(eventos: PlanEvent[], dia: Date, visible: (e: Plan
     const a = parseISO(e.start).getTime(), b = parseISO(e.end).getTime()
     return a < hasta && (b > desde || (a === b && a >= desde))
   })
-  const conHora: Bloque[] = delDia.filter(e => !e.allDay).map(e => ({ id: e.id, titulo: e.title, inicio: Math.max(desde, parseISO(e.start).getTime()), fin: Math.min(hasta, parseISO(e.end).getTime()), color: color(e), evento: e }))
+  const conHora: Bloque[] = delDia.filter(e => !e.allDay).map(e => ({ id: e.id, titulo: tituloVisible(e), inicio: Math.max(desde, parseISO(e.start).getTime()), fin: Math.min(hasta, parseISO(e.end).getTime()), color: color(e), evento: e }))
     .sort((a, b) => a.inicio - b.inicio || a.fin - b.fin)
   return { conHora, todoElDia: delDia.filter(e => e.allDay) }
 }

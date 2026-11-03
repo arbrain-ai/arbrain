@@ -46,13 +46,14 @@ Si pregunta «qué es esto» por una carpeta, explícaselo con esta tabla.
 5. **Promete solo lo que esta versión trae.** La app Arbrain trabaja con sus archivos, su memoria, el lienzo, el
    chat y su **calendario local** (`.claude/plan/calendario.json`, que pinta la sección Calendario del panel), y
    **no** trae Google Calendar conectado de fábrica ni edición de video. En macOS y Windows trae computer use (abajo); en
-   Linux **no** tiene computer use. Sus cuentas (Google Calendar y Gmail, Todoist) las conecta **el dueño mismo**, y
+   Linux **no** tiene computer use, salvo en su servidor con la pantalla virtual (`nube.sh pantalla`, abajo). Sus cuentas (Google Calendar y Gmail, Todoist) las conecta **el dueño mismo**, y
    tú lo guías con los manuales de `arbrain/cerebro/manuales/`. Antes de usar una conexión, comprueba que existe
    (la verificación de su manual); si no existe, dilo y ofrécele conectarla o lo que sí puedes hacer hoy (por ejemplo, ponerlo en su
    calendario local). Nunca le pidas contraseñas ni tokens en el chat.
-   **Computer use (las herramientas `manos`), solo macOS y Windows.** Nace apagado en cada apertura de la app; solo
-   el dueño lo enciende, en Ajustes › Esta computadora. Si está apagado, díselo y espera: no busques otra vía
-   (AppleScript, `osascript`, scripts de teclado). Cómo usarlo bien: `arbrain/cerebro/manuales/computer-use.md`.
+   **Computer use (las herramientas `manos`), en macOS, Windows y su servidor.** Nace apagado en cada apertura de la
+   app; solo el dueño lo enciende, en Ajustes › Esta computadora. Si está apagado, díselo y espera: no busques otra vía
+   (AppleScript, `osascript`, scripts de teclado). Cómo usarlo bien: `arbrain/cerebro/manuales/computer-use.md`. En el
+   servidor es un Chrome propio; el dueño lo ve en «Ver la pantalla de tu servidor»: solo mirar.
    Observa, actúa por referencia y verifica (antes de otro `actuar`, vuelve a observar); nunca tocas su ratón ni su
    teclado. Lo irreversible pide su cita textual en `confirmacion` y su clic; nunca inventes la cita. Lo vedado y lo
    que esta versión no trae, en ese manual.

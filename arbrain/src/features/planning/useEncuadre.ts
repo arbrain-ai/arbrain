@@ -1,6 +1,7 @@
 'use client'
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, type RefObject } from 'react'
 import { destinoScroll, type Encuadre } from './encuadre'
+import { escalaVisual } from './semana-horas'
 
 /**
  * El encuadre vertical en el DOM (22 oct 2026). Una vista (el Día, la Semana) dice qué elemento es su minuto `origen`, cuántos
@@ -59,10 +60,14 @@ export function useEncuadre(o: OpcionesEncuadre) {
     const el = ancla.current, s = el && desplazador(el)
     if (!el || !s) return null
     const caja = s === document.scrollingElement ? { top: 0, height: window.innerHeight } : s.getBoundingClientRect()
+    // Una sola escala (2 nov 2026, Daniel a zoom 1.4: la línea del ahora quedaba bajo lo pegajoso). Con el zoom de la interfaz (CSS
+    // `zoom` en <html>) WebKit mide `getBoundingClientRect` e `innerHeight` en pantalla, y `scrollTop`, `offsetHeight`, la tapa y
+    // `pxPorMinuto` en px del documento. Todo se pasa a px del documento, como el riel de la Semana (semana-horas.ts `escalaVisual`).
+    const r = el.getBoundingClientRect(), k = escalaVisual(r.height, el.offsetHeight)
     const t = Math.max(0, tapa?.() ?? 0), e = encuadre()
     return { s, destino: destinoScroll({
-      actual: s.scrollTop, marca: el.getBoundingClientRect().top + (e.minuto - origen) * pxPorMinuto,
-      arriba: caja.top + t, alto: caja.height - t, maximo: s.scrollHeight - s.clientHeight, fraccion: e.fraccion, aire: e.aire,
+      actual: s.scrollTop, marca: r.top / k + (e.minuto - origen) * pxPorMinuto,
+      arriba: caja.top / k + t, alto: caja.height / k - t, maximo: s.scrollHeight - s.clientHeight, fraccion: e.fraccion, aire: e.aire,
     }) }
   }
   /** Al abrir, lo que llega después (hábitos, tareas, objetivo) cambia el alto: el encuadre se sostiene un momento, sin animar. */

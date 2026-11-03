@@ -18,6 +18,7 @@ import type { AccionesLienzos } from '../../state/acciones-lienzos'
 import { puedeAnidar, type NodoCarpeta } from '../../state/carpetas'
 import { enCarpetaFijada } from '../../state/organizacion'
 import { armarVista, esCarpetaFijada } from '../../state/vista-lienzos'
+import { ClicOArrastre } from '../../state/clic-o-arrastre'
 import { MenuLienzo, type Objetivo } from './MenuLienzo'
 import css from './lienzos.module.css'
 
@@ -86,6 +87,25 @@ export function ArbolLienzos({ paginas, carpetas, activa, a, onAbrir, variante, 
   const [cursor, setCursor] = useState<string | null>(null)
   const raiz = useRef<HTMLDivElement>(null)
   const arrastre = useRef<{ tipo: 'pagina' | 'carpeta'; id: string } | null>(null)
+  // Clic con el dedo corrido (1 nov 2026): en WebKit 3 px con el botón abajo ya son un arrastre y se comen el clic; un
+  // arrastre que no se alejó ni se soltó en un destino abre el lienzo (o pliega la carpeta) igual (state/clic-o-arrastre.ts).
+  const gesto = useRef(new ClicOArrastre<string>()).current
+  const quitarPaso = useRef<(() => void) | null>(null)
+  const alBajar = (clave: string) => (e: React.PointerEvent) => { if (e.button === 0 && e.isPrimary) gesto.bajar(clave, { x: e.clientX, y: e.clientY }) }
+  const alArrastrar = (clave: string) => {
+    gesto.arrastrar(clave)
+    quitarPaso.current?.()
+    const paso = (ev: DragEvent) => gesto.pasar({ x: ev.clientX, y: ev.clientY })
+    window.addEventListener('dragover', paso, true)
+    quitarPaso.current = () => { window.removeEventListener('dragover', paso, true); quitarPaso.current = null }
+  }
+  /** Fin del gesto por `pointerup` o `dragend`; `soltado`: cayó en una carpeta o en «Sin carpeta» (su onDrop ya limpió `arrastre`). */
+  const alTerminar = (e: { clientX: number; clientY: number }, soltado: boolean, accion: () => void) => {
+    const era = gesto.arrastrando()
+    const clave = gesto.terminar({ x: e.clientX, y: e.clientY }, soltado)
+    if (era) { quitarPaso.current?.(); arrastre.current = null; setSobre(null) }
+    if (clave) accion()
+  }
   const buscando = busqueda.trim().length > 0
   const v = useMemo(() => armarVista(carpetas, paginas, busqueda), [carpetas, paginas, busqueda])
   const idMenu = menu ? (menu.objetivo.tipo === 'pagina' ? menu.objetivo.pagina.id : menu.objetivo.carpeta.id) : null
@@ -114,8 +134,10 @@ export function ArbolLienzos({ paginas, carpetas, activa, a, onAbrir, variante, 
     const objetivo: Objetivo = { tipo: 'pagina', pagina: x, archivada: archivo, enCarpetaFijada: enCarpetaFijada(x.folderId, carpetas) }
     return <div key={`${clave}${x.id}`} className={css.fila} data-lz-pagina={x.id} data-lz-clave={`${clave}${x.id}`} data-cursor={`${clave}${x.id}` === cursor ? '' : undefined} data-activa={x.id === activa ? '' : undefined} data-archivada={archivo ? '' : undefined} data-menu={idMenu === x.id ? '' : undefined}
       draggable={!archivo && !editandoEsta}
-      onDragStart={e => { e.dataTransfer.setData('text/pagina', x.id); e.dataTransfer.effectAllowed = 'move'; arrastre.current = { tipo: 'pagina', id: x.id } }}
-      onDragEnd={() => { arrastre.current = null; setSobre(null) }}
+      onPointerDown={alBajar(`p:${x.id}`)}
+      onPointerUp={e => alTerminar(e, false, () => onAbrir(x))}
+      onDragStart={e => { e.dataTransfer.setData('text/pagina', x.id); e.dataTransfer.effectAllowed = 'move'; arrastre.current = { tipo: 'pagina', id: x.id }; alArrastrar(`p:${x.id}`) }}
+      onDragEnd={e => { const soltado = !arrastre.current || e.dataTransfer.dropEffect !== 'none'; alTerminar(e, soltado, () => onAbrir(x)); arrastre.current = null; setSobre(null) }}
       onContextMenu={e => { e.preventDefault(); abrirMenu(objetivo, punto(e)) }}>
       <div className={css.cuerpo} data-editando={editandoEsta ? '' : undefined}
         {...(editandoEsta ? {} : { role: 'button', tabIndex: 0, onClick: () => onAbrir(x), onKeyDown: alTeclear(() => onAbrir(x)) })}>
@@ -140,8 +162,10 @@ export function ArbolLienzos({ paginas, carpetas, activa, a, onAbrir, variante, 
     return <div key={c.id} data-nivel={nivel}>
       <div className={css.carpeta} data-archivada={archivo ? '' : undefined} data-menu={idMenu === c.id ? '' : undefined} data-suelta={sobre === c.id ? 'encima' : undefined}
         draggable={!archivo && !edit}
-        onDragStart={e => { e.stopPropagation(); e.dataTransfer.setData('text/carpeta', c.id); e.dataTransfer.effectAllowed = 'move'; arrastre.current = { tipo: 'carpeta', id: c.id } }}
-        onDragEnd={() => { arrastre.current = null; setSobre(null) }}
+        onPointerDown={alBajar(`c:${c.id}`)}
+        onPointerUp={e => alTerminar(e, false, () => alternar(n, archivo))}
+        onDragStart={e => { e.stopPropagation(); e.dataTransfer.setData('text/carpeta', c.id); e.dataTransfer.effectAllowed = 'move'; arrastre.current = { tipo: 'carpeta', id: c.id }; alArrastrar(`c:${c.id}`) }}
+        onDragEnd={e => { const soltado = !arrastre.current || e.dataTransfer.dropEffect !== 'none'; alTerminar(e, soltado, () => alternar(n, archivo)); arrastre.current = null; setSobre(null) }}
         onDragOver={e => { if (!acepta()) return; e.preventDefault(); e.stopPropagation(); setSobre(c.id) }}
         onDragLeave={() => setSobre(s => s === c.id ? null : s)}
         onDrop={e => {

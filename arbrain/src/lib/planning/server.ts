@@ -14,7 +14,7 @@ import { PlumaLocal } from './local'
 
 export async function planningOwner() {
   const principal = await requireChatPrincipal()
-  if (!principal.personalOwner) throw new ChatAccessError(`Este calendario personal requiere acceso de ${NOMBRE_DUENO()}.`, 403)
+  if (!principal.personalOwner) throw new ChatAccessError(`Esta sección es personal de ${NOMBRE_DUENO()}.`, 403)
   return principal.id
 }
 
@@ -29,7 +29,7 @@ export async function planningViewer(): Promise<{ ownerId: string; perfil?: stri
   if (principal.personalOwner) return { ownerId: principal.id }
   const segunda = instalacion().idPerfilSecundario
   if (!esEdicionCliente() && principal.owner && segunda && principal.id === segunda) return { ownerId: principal.id, perfil: SEGUNDA() }
-  throw new ChatAccessError(`Este calendario personal requiere acceso de ${NOMBRE_DUENO()}.`, 403)
+  throw new ChatAccessError(`Esta sección es personal de ${NOMBRE_DUENO()}.`, 403)
 }
 
 export function planningError(error: unknown) {

@@ -261,3 +261,18 @@ test('la demo trae un renglón en ámbar y uno con «Ver cambios» (capturas del
   assert.ok(filas.some(f => f.coherencia?.desajuste === 'pediste max · corre medium'))
   assert.ok(filas.some(f => f.cambios && f.columna === 'falló'))
 })
+
+// 2 nov 2026, Daniel: «veo que estás delegando a cuatro subagentes pero no los veo». `delegar` llevaba 4:48 creando el worktree
+// y el Taller decía «Nadie trabaja ahora». Lo que todavía prepara su copia va en «Trabajando» como «Preparando».
+test('preparando: el que todavía crea su worktree se ve en Trabajando, en su conversación', () => {
+  const d: Trabajos = { ...datos([]), preparando: [{ clave: 'k1', nombre: 'linea-de-la-hora', harness: 'claude', desde: new Date(T - 60_000).toISOString(), origen: 'chat-a', aislamiento: 'worktree' }] }
+  const t = armarTablero(d, undefined, T)
+  assert.equal(t.trabajando.length, 1)
+  assert.equal(t.trabajando[0].tipo, 'preparando')
+  assert.equal(t.trabajando[0].motivo, 'Preparando')
+  assert.equal(t.trabajando[0].paso, 'Preparando su copia del código')
+  assert.equal(cuentas(t).trabajando, 1)
+  // La píldora del chat: cuenta en su conversación, no en otra.
+  assert.equal(cuentas(armarTablero(d, 'chat-a', T)).trabajando, 1)
+  assert.equal(cuentas(armarTablero(d, 'chat-b', T)).trabajando, 0)
+})

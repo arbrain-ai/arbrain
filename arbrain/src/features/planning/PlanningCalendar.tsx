@@ -26,7 +26,7 @@ import { PulsoHoy } from './useEncuadre'
 import { datosDeMovimiento, diasVisibles, inicioDeVentana, lunesDe, moverDias } from './semana-horas'
 import { rechazado, useAjustes } from './ajustes'
 import { Engrane } from './Engrane'
-import { fechaDeArranque, marcarSesion, reabrirEnHoy, tocarSesion } from './apertura'
+import { fechaDeArranque, marcarSesion, nuevoDiaVuelveAHoy, reabrirEnHoy, tocarSesion } from './apertura'
 import { MesClaro } from './MesClaro'
 import { movimientoEntre } from './periodo-vivo'
 import { debeAvanzarAHoy } from './hoy-vivo'
@@ -50,6 +50,7 @@ import { categoriaDe, DEF, esCompromiso } from './categorias'
 import { fueraDelMes, rutinaDeAgenda, rutinaOculta } from './rutinas'
 import { useOcultas, type ControlLeyenda } from './Leyenda'
 import { atencionDe, colorDePiedra, conDelegado, conProtegido, DRIP, esFase, esMecanicaAlumno, fotoDe, marcasEnViajes, piedraDe, semanaDelPrograma, semanasDelPrograma, horasRecompradas, horasUnion, leerDrip, type BloqueDrip, type Cuadrante, type LecturaDrip, type Propuesta } from './drip'
+import { tituloVisible } from './ajenos'
 import { GobiernoCtx, LeyendaDrip, useOcultosDrip, type Gobierno } from './gobierno'
 import { useDrip } from './useDrip'
 import { Domingo } from './Domingo'
@@ -279,7 +280,7 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
     [eventoVisible, rutina, ahoraMinuto, ajustes.rutinaFutura])
   const eventInputs = useMemo<EventInput[]>(() => [
     ...presentedEvents.filter(eventoVisible).filter(e => mode !== 'month' || (e.allDay && !fueraMes.has(e.id) && (compacto || !marcasMes.has(e.id)))).filter(e => mode === 'month' || !esFase(e)).map(e => ({
-      id: e.id, title: e.title, start: e.start, end: e.end, allDay: e.allDay, editable: e.editable && !saving && !pending,
+      id: e.id, title: tituloVisible(e), start: e.start, end: e.end, allDay: e.allDay, editable: e.editable && !saving && !pending,
       classNames: [styles.calendarEvent], extendedProps: { kind: 'event', recurring: Boolean(e.recurringEventId), source: sourceMap.get(e.sourceId)?.title, color: colorEvento(e), drip: lecturaDe(e).cuadrante, piedra: piedraDe(e, lecturaDe(e).cuadrante), protegido: lecturaDe(e).protegido,
         // El peso en la celda del Mes: lo de día completo, luego lo que es con otras personas o una clase, luego lo demás.
         peso: e.allDay ? 0 : esCompromiso(e) || categoriaEvento(e) === 'ensenar' ? 1 : 2 },
@@ -513,12 +514,15 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
   const hoyVisto = useRef(dayKey(new Date()))
   const rangoRef = useRef(range); rangoRef.current = range
   const irHoy = useRef(goToday); irHoy.current = goToday
+  // La última vez que se navegó (fecha, escala o ventana de la Semana): un día nuevo sin navegación en la sesión viva vuelve a hoy.
+  const navegadoEn = useRef(Date.now())
+  useEffect(() => { navegadoEn.current = Date.now() }, [anchor, mode, ventanaSemana.inicio])
   useEffect(() => {
     const revisar = () => {
       const hoy = dayKey(new Date()), antes = hoyVisto.current
       if (hoy === antes) return
       hoyVisto.current = hoy
-      if (debeAvanzarAHoy(antes, hoy, dayKey(parseISO(rangoRef.current.from)), dayKey(parseISO(rangoRef.current.to)))) irHoy.current()
+      if (debeAvanzarAHoy(antes, hoy, dayKey(parseISO(rangoRef.current.from)), dayKey(parseISO(rangoRef.current.to))) || nuevoDiaVuelveAHoy(navegadoEn.current, Date.now())) irHoy.current()
     }
     revisar()
     window.addEventListener('focus', revisar); document.addEventListener('visibilitychange', revisar)
@@ -624,16 +628,22 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
   }, []) // eslint-disable-line react-hooks/exhaustive-deps -- solo al montar: `inicio` es el punto de partida, no un control
   // Volver a la app tras un rato fuera (la página siguió viva en segundo plano) es reabrirla: vuelve a hoy. Mientras se usa, la
   // marca de sesión se renueva para que recargar dentro de la sesión conserve la fecha.
+  // La app de escritorio casi nunca queda «oculta» (la ventana sigue a la vista con Daniel en otra app o la pantalla dormida): perder
+  // el foco también cuenta como estar fuera (2 nov 2026).
   useEffect(() => {
     let oculto: number | null = null
-    const cambio = () => {
-      if (document.visibilityState === 'hidden') { oculto = Date.now(); tocarSesion(); return }
+    const fuera = () => { oculto ??= Date.now(); tocarSesion() }
+    // El foco que entra a un iframe de la misma página (un lienzo, un documento) no es salir de la app.
+    const desenfoque = () => setTimeout(() => { if (!document.hasFocus() && document.activeElement?.tagName !== 'IFRAME') fuera() }, 0)
+    const vuelve = () => {
       const volver = reabrirEnHoy(oculto, Date.now())
       oculto = null; tocarSesion()
       if (volver && modeRef.current !== 'crons' && modeRef.current !== 'year') irHoy.current()
     }
+    const cambio = () => { if (document.visibilityState === 'hidden') fuera(); else vuelve() }
     document.addEventListener('visibilitychange', cambio)
-    return () => document.removeEventListener('visibilitychange', cambio)
+    window.addEventListener('blur', desenfoque); window.addEventListener('focus', vuelve)
+    return () => { document.removeEventListener('visibilitychange', cambio); window.removeEventListener('blur', desenfoque); window.removeEventListener('focus', vuelve) }
   }, [])
   // Expandir desde la pestaña del panel con la sección ya abierta: el Link a la misma ruta no remonta, así que el panel avisa por aquí
   // y la sección se pone en la MISMA fecha y vista (si la sección no estaba abierta, la lee de la URL al montar).

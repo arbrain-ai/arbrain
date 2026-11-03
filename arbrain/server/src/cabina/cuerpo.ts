@@ -758,7 +758,7 @@ export async function apagarHuerfano(firma: string) {
 
 /** Una sola lista de lo que trabaja para Daniel: terminales (motor o, de respaldo, el gate de
  *  SFTerm) + `internas` (subagentes y comandos en segundo plano de los turnos de Levy). */
-export interface Trabajos { fuente: 'motor' | 'sfterm-gate' | 'ninguna'; sfterm: boolean; internas: TareaInterna[]; motor?: MotorResumen; topes?: Topes; permitidos: { harness: readonly string[]; carpetas: string[] }; terminales: Terminal[]; servidores: Servidor[]; servicios: Servicio[]; procesos?: Proceso[]; /** Planes de encargo por correr (plan.ts): el dueño los edita y los corre desde el Taller. */ planes?: import('./plan.js').PlanPendiente[]; leidoEn: string; error?: string }
+export interface Trabajos { fuente: 'motor' | 'sfterm-gate' | 'ninguna'; sfterm: boolean; internas: TareaInterna[]; motor?: MotorResumen; topes?: Topes; permitidos: { harness: readonly string[]; carpetas: string[] }; terminales: Terminal[]; servidores: Servidor[]; servicios: Servicio[]; procesos?: Proceso[]; /** Planes de encargo por correr (plan.ts): el dueño los edita y los corre desde el Taller. */ planes?: import('./plan.js').PlanPendiente[]; /** Lanzamientos que todavía preparan su copia (preparando.ts): el Taller los pinta como «Preparando». */ preparando?: import('./preparando.js').Preparando[]; leidoEn: string; error?: string }
 
 // ── De qué conversación salió cada subagente (3 oct 2026, Daniel: «no sé de qué conversación viene») ──
 // El MCP de la cabina corre sin saber en qué conversación está (su config es JSON fijo para no romper el pool).
@@ -991,9 +991,11 @@ async function leerTrabajos(lineas: number): Promise<Trabajos> {
   const [srv, svc, int, procs] = await Promise.all([servidoresVivos(), serviciosVivos(), leerInternas().catch(() => [] as TareaInterna[]), leerProcesos({ subagentes: subRefs(registro), terminales: termRefs(terminales) }).catch(() => undefined)])
   // Planes por correr (29 oct 2026): los de docs/planes que ningún subagente usó todavía. Solo en la instalación original.
   const planes = esEdicionCliente() ? [] : await import('./plan.js').then(m => m.planesPendientes(new Set(registro.map(s => s.plan?.ruta).filter((r): r is string => !!r)))).catch(() => [])
+  // Lo que `delegar` todavía prepara (2 nov 2026): sin esto, el Taller decía «Nadie trabaja» mientras nacía su worktree.
+  const preparando = await import('./preparando.js').then(m => m.leerPreparando()).catch(() => [])
   return {
     fuente, sfterm: fuente !== 'ninguna', internas: int.map(t => ({ ...t, descripcion: tachar(t.descripcion), ...(t.actividad ? { actividad: tachar(t.actividad) } : {}), ...(t.resumen ? { resumen: tachar(t.resumen).slice(0, 300) } : {}), ...(t.resultado ? { resultado: undefined } : {}) })), ...(resumen ? { motor: resumen } : {}), ...(topes ? { topes } : {}),
     permitidos: { harness: permitidos, carpetas: ['/tmp', '~/Developer'] },
-    terminales, servidores: srv, servicios: svc, ...(procs ? { procesos: procs } : {}), ...(planes.length ? { planes } : {}), leidoEn: new Date().toISOString(), ...(error ? { error } : {}),
+    terminales, servidores: srv, servicios: svc, ...(procs ? { procesos: procs } : {}), ...(planes.length ? { planes } : {}), ...(preparando.length ? { preparando } : {}), leidoEn: new Date().toISOString(), ...(error ? { error } : {}),
   }
 }

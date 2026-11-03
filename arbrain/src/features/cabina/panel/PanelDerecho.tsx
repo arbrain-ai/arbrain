@@ -70,6 +70,7 @@ import { HistoriaTaller } from '@/features/historia/Historia'
 import w from './taller.module.css'
 import { esEdicionCliente, sinRespuestaDelServidor } from '@/lib/edicion'
 import { zonaDueno } from '@/shared/lib/zona-dueno'
+import { useSoySegunda } from './segunda'
 
 const CLAVE = 'arbrain.panelDerecho'
 const MIN = 320, CHAT_MIN = 520
@@ -96,6 +97,9 @@ export function PanelDerechoShell() {
     const fin = [coordinarPrincipal(), atenderVentana(), seguirLlegadas()]
     return () => fin.forEach(f => f())
   }, [])
+  // La segunda persona (2 nov 2026): su panel abre su Calendario y no el Todoist del dueño (fijadas.ts › acomodoSegunda).
+  const soySegunda = useSoySegunda()
+  useEffect(() => { if (soySegunda) usePanelFijadas.getState().comoSegunda() }, [soySegunda])
   // Lo que Levy fijó en otra conversación y Daniel no guardó se cierra solo al cambiar de conversación (3 oct 2026).
   const conversacion = useConversacionActiva()
   // 14 oct 2026: el panel es uno para todos los aparatos (compartido.ts); el teléfono no poda (abre cada vez una conversación

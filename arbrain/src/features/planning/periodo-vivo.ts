@@ -3,6 +3,7 @@ import { period, statusLabels, taskDay, type Goal, type GoalStatus, type Horizon
 import { focusFor } from '@/features/goals/hoy-model'
 import { bloquesDelDia, type Bloque } from './dia-vivo'
 import type { CalendarMode, PlanEvent, PlanTask, PlanningSnapshot } from './types'
+import { tituloVisible } from './ajenos'
 
 /**
  * Modelo de las escalas vivas (Calendario › 4 días, Semana y Mes, 5 oct 2026). Puro y sin React.
@@ -115,7 +116,7 @@ export function semanasDelMes(goals: Goal[], snapshot: PlanningSnapshot | null, 
 export interface Marca { id: string; titulo: string; color: string | null; hora: string | null; rutina: boolean; evento: PlanEvent }
 export function marcasDelDia(dia: { conHora: Bloque[]; todoElDia: PlanEvent[] }, pasado: boolean, color: (e: PlanEvent) => string | null): Marca[] {
   const todas: Marca[] = [
-    ...dia.todoElDia.map(e => ({ id: e.id, titulo: e.title, color: color(e), hora: null, rutina: Boolean(e.recurringEventId), evento: e })),
+    ...dia.todoElDia.map(e => ({ id: e.id, titulo: tituloVisible(e), color: color(e), hora: null, rutina: Boolean(e.recurringEventId), evento: e })),
     ...dia.conHora.map(b => ({ id: b.id, titulo: b.titulo, color: b.color, hora: format(b.inicio, 'HH:mm'), rutina: Boolean(b.evento.recurringEventId), evento: b.evento })),
   ]
   const orden = (m: Marca) => (m.hora === null ? 0 : 1) + (m.rutina ? 2 : 0)
@@ -185,7 +186,7 @@ export interface Hito { id: string; titulo: string; inicio: string; dia: string;
 export function hitosDe(agenda: Agenda, color: (e: PlanEvent) => string | null): Hito[] {
   const vistos = new Map<string, Hito>()
   for (const [dia, a] of agenda) {
-    for (const e of a.todoElDia) if (!e.recurringEventId && !vistos.has(e.id)) vistos.set(e.id, { id: e.id, titulo: e.title, inicio: e.start, dia, hora: null, color: color(e), evento: e })
+    for (const e of a.todoElDia) if (!e.recurringEventId && !vistos.has(e.id)) vistos.set(e.id, { id: e.id, titulo: tituloVisible(e), inicio: e.start, dia, hora: null, color: color(e), evento: e })
     for (const b of a.conHora) if (!b.evento.recurringEventId && !vistos.has(b.id)) vistos.set(b.id, { id: b.id, titulo: b.titulo, inicio: b.evento.start, dia, hora: format(b.inicio, 'HH:mm'), color: b.color, evento: b.evento })
   }
   return [...vistos.values()].sort((a, b) => a.dia.localeCompare(b.dia) || (a.hora ?? '').localeCompare(b.hora ?? ''))

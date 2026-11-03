@@ -76,8 +76,11 @@ export const NOMBRE_LOCAL_CLIENTE = 'Tú'
 
 // ── Lista blanca de la edición cliente ────────────────────────────────────────────────────────────────────────────
 
-/** Páginas que existen en cliente. Lo demás de la app redirige a `/chat`. */
-export const PAGINAS_CLIENTE = ['/chat', '/lienzo', '/calendar', '/panel', '/settings', '/bienvenida', '/sin-sesion'] as const
+/**
+ * Páginas que existen en cliente. Lo demás de la app redirige a `/chat`. `/pantalla` (1 nov 2026): la pantalla virtual
+ * del servidor, solo para mirar (sin pantalla virtual, la página lo dice y no pide nada al daemon).
+ */
+export const PAGINAS_CLIENTE = ['/chat', '/lienzo', '/calendar', '/panel', '/settings', '/bienvenida', '/sin-sesion', '/pantalla'] as const
 
 /**
  * APIs que existen en cliente (prefijos exactos de segmento). Lo demás responde 404 desde el proxy: el negocio de

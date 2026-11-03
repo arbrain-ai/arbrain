@@ -6,16 +6,26 @@
  * daemon no lo enciende al arrancar; la persona lo enciende en Ajustes (o en el primer arranque) y lo irreversible
  * siempre pide su clic. La instalación original no cambia.
  *
+ * Modo servidor (1 nov 2026; docs/builds/modo-servidor-2026-11-01/pantalla-virtual.md): en un servidor Linux donde root
+ * instaló la pantalla virtual (`nube.sh pantalla`, marcador /etc/arbrain/pantalla-virtual.json) computer use SÍ existe:
+ * Levy trabaja en esa pantalla y la persona la mira en vivo en `/pantalla`. Linux sin ese marcador, como antes.
+ *
  * Módulo puro (sin node:*, sin React): lo usan la ruta `/api/manos/interruptor`, el primer arranque, Ajustes y las
- * pruebas. La plataforma la pasa quien llama (en el servidor, `plataformaServidor()`).
+ * pruebas. La plataforma y si hay pantalla virtual los pasa quien llama (en el servidor, `plataformaServidor()` y
+ * `pantallaVirtualServidor()` de `pantalla-server.ts`).
  */
 
 /** Sistemas donde la edición cliente trae computer use (valores de `process.platform`). */
 export const PLATAFORMAS_COMPUTER_USE: ReadonlyArray<string> = ['darwin', 'win32']
 
-/** ¿Esta instalación ofrece computer use? Original: siempre. Cliente: solo en macOS y Windows. */
-export function computerUseDisponible(cliente: boolean, plataforma: string): boolean {
-  return !cliente || PLATAFORMAS_COMPUTER_USE.includes(plataforma)
+/** ¿Esta instalación ofrece computer use? Original: siempre. Cliente: en macOS y Windows, y en Linux con pantalla virtual. */
+export function computerUseDisponible(cliente: boolean, plataforma: string, pantallaVirtual = false): boolean {
+  return !cliente || PLATAFORMAS_COMPUTER_USE.includes(plataforma) || (plataforma === 'linux' && pantallaVirtual)
+}
+
+/** Marcador que deja el instalador de la pantalla virtual (de root). Mismo que `server/src/manos/adaptadores/linux.ts`. */
+export function rutaMarcadorPantalla(env: Record<string, string | undefined>): string {
+  return env.ARBRAIN_PANTALLA_MARCADOR?.trim() || '/etc/arbrain/pantalla-virtual.json'
 }
 
 /**
@@ -26,10 +36,11 @@ export function plataformaServidor(env: Record<string, string | undefined>, plat
   return env.ARBRAIN_PLATAFORMA_PRUEBA?.trim() || plataforma
 }
 
-/** Lo que ve la persona en Linux, donde estaba el interruptor. */
+/** Lo que ve la persona en Linux sin pantalla virtual, donde estaba el interruptor. */
 export const COMPUTER_USE_NO_DISPONIBLE =
   'Computer use (que Levy use tu pantalla, haga clic y escriba en tus apps) no está disponible en Linux: Arbrain lo trae ' +
-  'en macOS y Windows. En Linux Levy trabaja con tus archivos, tus comandos y en el chat.'
+  'en macOS y Windows. En Linux Levy trabaja con tus archivos, tus comandos y en el chat. Si este Linux es tu servidor, ' +
+  'instala su pantalla virtual con «nube.sh pantalla» y Levy podrá usar un navegador ahí.'
 
 /** Error de la API si alguien intenta encenderlo donde no existe. */
 export const COMPUTER_USE_NO_INCLUIDO = 'Computer use no está disponible en Linux: Arbrain lo trae en macOS y Windows.'
@@ -44,9 +55,13 @@ export function explicacionComputerUse(plataforma: string, autonomo = false): st
     ? 'La primera vez, macOS te pide dos permisos para «ArbrainManos»: Accesibilidad y Grabación de pantalla.'
     : plataforma === 'win32'
       ? 'En Windows no hay permisos extra que dar.'
-      : ''
+      : plataforma === 'linux'
+        ? 'Tú la ves en vivo, solo por tu red privada, en «Ver la pantalla de tu servidor».'
+        : ''
   return [
-    'Deja que Levy mire tu pantalla, haga clic y escriba en tus apps, sin mover tu ratón ni tu teclado.',
+    plataforma === 'linux'
+      ? 'Deja que Levy use la pantalla virtual de tu servidor: abre sitios en su propio Chrome, los lee y llena formularios con tu compu apagada.'
+      : 'Deja que Levy mire tu pantalla, haga clic y escriba en tus apps, sin mover tu ratón ni tu teclado.',
     autonomo
       ? 'En modo Autónomo queda como lo dejes entre aperturas; en los demás niveles se apaga cada vez que cierras Arbrain.'
       : 'Viene apagado y se apaga cada vez que cierras Arbrain: lo enciendes en cada apertura, cuando lo necesites.',

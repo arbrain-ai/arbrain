@@ -154,8 +154,9 @@ const PASA: Juicio = { irreversible: false, motivo: 'acción reversible' }
  */
 export function juzgar(p: PedidoActuar, c: ContextoAccion, propias: Set<number> = new Set()): Juicio {
   const e = c.elemento
-  const win = c.plataforma === 'windows'
-  // En Windows Ctrl es la tecla de comando: Ctrl+W, Ctrl+Q, Ctrl+Enter y Ctrl+Supr se juzgan como sus ⌘ de macOS.
+  // En Windows y en Linux (la pantalla virtual) Ctrl es la tecla de comando: Ctrl+W, Ctrl+Q, Ctrl+Enter y Ctrl+Supr se
+  // juzgan como sus ⌘ de macOS, y Alt+F4 cierra la ventana.
+  const win = c.plataforma === 'windows' || c.plataforma === 'linux'
   const mods = new Set((p.modificadores ?? []).map(m => m.toLowerCase().replace('command', 'cmd').replace('control', 'ctrl').replace('alt', 'option')).map(m => (win && m === 'ctrl' ? 'cmd' : m)))
   const tecla = (p.tecla ?? '').toLowerCase()
   const esTexto = !!e && ROLES_TEXTO.test(e.rol)
@@ -287,7 +288,8 @@ export interface ResultadoFrenar {
     categoria: string; motivo: string; paso: boolean
     /** De dónde salió la cita que lo dejó pasar: la del modelo (validada) o la que la persona ya escribió en el chat (A5). */
     cita?: 'modelo' | 'chat'
-    /** Autónomo: pasa a una tarjeta (I8) porque la persona no lo pidió en el chat. */
+    /** Pasa por la tarjeta de la persona (I8): en Autónomo, lo que no pidió en el chat (y R5/R6); en los otros modos, todo
+     *  lo irreversible. En el resultado de `actuar`, true = corrió porque ella la aprobó con su clic. */
     tarjeta?: boolean
   }
 }
@@ -448,7 +450,10 @@ export class Freno implements Adaptador {
       if (!humana.ok) { this.ultimo = { categoria: f.freno.categoria, motivo: 'sin confirmación humana', paso: false, bloqueo: true }; return { ok: false, efecto: 'bloqueado', freno: { ...f.freno, paso: false }, detalle: humana.detalle } }
     }
     const r = await this.adoptandoNuevas(p, () => this.interno.actuar(p))
-    return { ...r, freno: f.freno }
+    // Si pasó por la tarjeta (I8, R5 o R6), el agente lo sabe: en la demo Levy le dijo a la persona «esta vez no te
+    // salieron tarjetas» justo después de que ella aprobara dos (QA del modo servidor, 1 nov 2026).
+    if (!tarjeta) return { ...r, freno: f.freno }
+    return { ...r, freno: { ...f.freno, tarjeta: true }, detalle: [r.detalle, 'la persona lo aprobó con su clic en la tarjeta de Arbrain'].filter(Boolean).join(' · ') }
   }
 
   /** ⌘N / ⌘T y similares abren ventanas: las que aparecen tras una acción de esta sesión son propias. */

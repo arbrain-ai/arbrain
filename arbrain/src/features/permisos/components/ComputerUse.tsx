@@ -8,6 +8,8 @@
  *     nace apagado en cada apertura; `/api/manos/interruptor` le habla desde el servidor. En Linux no existe: la
  *     tarjeta es un aviso sin interruptor. Avisa además si la terminal de los agentes no tiene sandbox.
  *   - Permiso por app (1 nov 2026, edición cliente): debajo del interruptor, las apps en «Siempre» (`AppsSiempre`).
+ *   - Modo servidor (1 nov 2026): un Linux con la pantalla virtual instalada sí tiene interruptor, y un enlace a
+ *     `/pantalla` para mirarla en vivo.
  */
 import { useCallback, useEffect, useState } from 'react'
 import { AppWindow, MousePointerClick, X } from 'lucide-react'
@@ -76,6 +78,9 @@ export function TarjetaComputerUse() {
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-foreground/90">Computer use {estado.encendido ? 'encendido' : 'apagado'}</h3>
             <p className="mt-0.5 text-xs leading-snug text-muted">{explicacion}</p>
+            {estado.edicion === 'cliente' && estado.plataforma === 'linux' && (
+              <a href="/pantalla" className="mt-1 inline-block text-xs font-medium text-foreground/80 underline underline-offset-2">Ver la pantalla de tu servidor</a>
+            )}
             {error && <p className="mt-1 text-xs text-red-400">{error}</p>}
           </div>
         </div>

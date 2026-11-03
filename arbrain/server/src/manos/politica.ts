@@ -27,11 +27,17 @@
  *    `casa` y `windows`) y no en Linux. Sigue naciendo APAGADO en cada apertura de la app: el archivo del interruptor ya
  *    no enciende nada al arrancar (red team 3 M-7); solo la persona lo enciende desde la app. Las defensas de C-1, A-1,
  *    A-2 y A-3 viven en `freno-cliente.ts` y `juicio-url.ts`. Daniel: sin cambio.
+ *
+ * 5. Linux con pantalla virtual (modo servidor, 1 nov 2026; docs/builds/modo-servidor-2026-11-01/pantalla-virtual.md).
+ *    En un servidor Linux donde root corrió `nube.sh pantalla` (marcador /etc/arbrain/pantalla-virtual.json, que el
+ *    agente sin root no puede crear) computer use EXISTE con el adaptador `linux`. Mismas reglas: nace apagado y solo la
+ *    persona lo enciende. Linux de escritorio sin ese marcador sigue sin computer use.
  */
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { DIR_ARBRAIN, esEdicionCliente } from '../edicion.js'
 import { CITA_MIN_CLIENTE, nombraAccion } from './cubre.js'
+import { pantallaVirtualInstalada } from './adaptadores/linux.js'
 
 // ---------- 1. Interruptor ----------
 
@@ -80,18 +86,21 @@ export function marcarFuenteLocal(): void {
   interruptorMemoria = null
 }
 
-/** Sistemas donde la edición cliente trae manos (0.1.2): macOS (`casa`) y Windows (`windows`). */
+/** Sistemas donde la edición cliente trae manos (0.1.2): macOS (`casa`) y Windows (`windows`). Linux, solo con pantalla virtual. */
 export const PLATAFORMAS_COMPUTER_USE = new Set<string>(['darwin', 'win32'])
 
-/** ¿Existe computer use en esta instalación? Daniel: siempre. Cliente: solo en macOS y Windows. Un solo lugar que lo dice. */
-export const computerUseDisponible = (plataforma: string = process.env.ARBRAIN_PLATAFORMA_PRUEBA || process.platform): boolean =>
-  !esEdicionCliente() || PLATAFORMAS_COMPUTER_USE.has(plataforma)
+/**
+ * ¿Existe computer use en esta instalación? Daniel: siempre. Cliente: en macOS y Windows, y en Linux solo con la pantalla
+ * virtual instalada (`pantalla`: el marcador de root). Un solo lugar que lo dice.
+ */
+export const computerUseDisponible = (plataforma: string = process.env.ARBRAIN_PLATAFORMA_PRUEBA || process.platform, pantalla: boolean = pantallaVirtualInstalada(plataforma)): boolean =>
+  !esEdicionCliente() || PLATAFORMAS_COMPUTER_USE.has(plataforma) || (plataforma === 'linux' && pantalla)
 
-export const MENSAJE_NO_DISPONIBLE = 'Computer use no está disponible en este sistema (Arbrain lo trae en macOS y Windows): las manos no observan, no hacen clic, no escriben ni navegan, y no hay forma de encenderlas. No intentes otra vía (AppleScript, osascript, cliclick) para controlar apps o el navegador: dile a la persona qué haría falta y espera.'
+export const MENSAJE_NO_DISPONIBLE = 'Computer use no está disponible en este sistema (Arbrain lo trae en macOS, en Windows y en un servidor Linux con la pantalla virtual instalada): las manos no observan, no hacen clic, no escriben ni navegan, y no hay forma de encenderlas. No intentes otra vía (AppleScript, osascript, cliclick, xdotool) para controlar apps o el navegador: dile a la persona qué haría falta y espera.'
 
 export function leerInterruptor(): Interruptor | null {
   if (!esEdicionCliente()) return leerArchivoInterruptor()
-  // Linux (cliente): ni memoria, ni archivo, ni daemon.
+  // Sin computer use en este sistema (Linux sin pantalla virtual, cliente): ni memoria, ni archivo, ni daemon.
   if (!computerUseDisponible()) return null
   if (!fuenteLocal) return remoto ? { encendido: remoto.encendido, por: 'daemon' } : null
   const archivo = leerArchivoInterruptor()

@@ -8,11 +8,12 @@ al final el escritorio. Este manual dice qué existe hoy en cada sistema y cómo
 > ChatGPT) para decidir el siguiente clic. Tus llaves no viajan, pero lo que esté en la pantalla sí. Cierra lo que
 > no quieras que vea antes de pedirle algo así.
 
-## Lo primero: la app Arbrain opera tu pantalla en Mac y Windows (no en Linux)
+## Lo primero: la app Arbrain opera tu pantalla en Mac y Windows (no en Linux, salvo en tu servidor)
 
 Desde la versión 0.1.2, la app Arbrain (edición cliente) trae sus propias manos en **macOS y Windows**: Levy mira tu
-pantalla, hace clic y escribe en tus apps **sin mover tu ratón ni tu teclado**. En **Linux no**: ahí usa el computer
-use oficial de Claude o de ChatGPT (abajo) o la vía del navegador.
+pantalla, hace clic y escribe en tus apps **sin mover tu ratón ni tu teclado**. En un **Linux de escritorio no**: ahí
+usa el computer use oficial de Claude o de ChatGPT (abajo) o la vía del navegador. **En tu servidor sí** (abajo, «Tu
+servidor: la pantalla virtual»).
 
 ### Cómo encenderlo
 
@@ -158,6 +159,20 @@ No hay computer use de escritorio oficial de Claude ni de Codex para Linux hoy. 
 Chrome** para todo lo web. Existen servidores MCP de la comunidad (para X11 con `xdotool`, o para Wayland con los
 portales del escritorio), pero son proyectos pequeños, sin revisión de seguridad; solo si sabes lo que instalas.
 
+### Tu servidor: la pantalla virtual
+
+Si Arbrain vive en tu servidor (`INSTALAR-NUBE.md`) y ahí corriste, como root, `nube.sh pantalla`, Levy tiene una
+pantalla que no existe físicamente, con **su propio Google Chrome**: abre sitios, los lee y llena formularios con tu
+compu apagada. Se enciende igual, en **Ajustes › Esta computadora › Computer use**, y tiene el mismo freno (nada de
+bancos ni pagos; enviar o publicar, solo con tu pedido).
+
+- **La ves en vivo** en Ajustes › Esta computadora › «Ver la pantalla de tu servidor», desde tu compu o tu teléfono,
+  solo por tu red privada de Tailscale y con tu sesión. Es **solo para mirar**: desde ahí no se escribe ni se hace
+  clic. Si falta un dato, díselo a Levy en el chat.
+- **Se apaga sola** tras 30 minutos sin uso (pantalla y Chrome) y vuelve a nacer la próxima vez que Levy la necesite.
+- **Para Levy:** en el servidor solo existe Chrome (`navegar` abre la página en su propia ventana); no hay terminales
+  ni otras apps en esa pantalla. El texto entra como teclas sobre el campo leído; verifica siempre con `verificar`.
+
 ## Cómo trabaja Levy con tu pantalla
 
 - **Comando o API primero.** Si existe `gog`, un MCP o una API para la tarea, usa eso. La pantalla solo para lo que
@@ -196,7 +211,7 @@ Con la app Arbrain (Mac o Windows), primero enciende computer use en Ajustes ›
 | Arbrain en Mac: Levy no ve la pantalla o no puede hacer clic | Falta un permiso para «ArbrainManos». Revisa Privacidad y seguridad › Accesibilidad y › Grabación de pantalla y audio del sistema; enciéndelo, cierra Arbrain por completo y ábrelo de nuevo. |
 | Arbrain: Levy se detiene antes de abrir una página | Es un sitio nuevo: Arbrain te pide tu clic. Si es un banco, un pago, impuestos o cripto, está bloqueado y no hay clic que lo abra. |
 | Arbrain: Levy no puede usar la Terminal, PowerShell o un editor de código con las manos | Están vedados a las manos a propósito. Levy usa su propia terminal, con un clic tuyo por comando. |
-| Arbrain en Linux: no aparece el interruptor | Esta versión no trae computer use en Linux. Usa Claude in Chrome o un comando. |
+| Arbrain en Linux: no aparece el interruptor | En un Linux de escritorio esta versión no trae computer use: usa Claude in Chrome o un comando. En tu servidor falta la pantalla virtual: corre como root `bash ~arbrain/Arbrain/arbrain/scripts/instalar/nube.sh pantalla` (o la ruta de tu usuario de Arbrain). |
 | `computer-use` no aparece en `/mcp` | Solo existe en Mac, con Pro o Max y sesión de claude.ai (`/status` lo dice). Con llave de API no aparece. |
 | macOS vuelve a pedir el permiso una y otra vez | Cierra la app por completo y ábrela. Revisa en Privacidad y seguridad › Grabación de pantalla que la app correcta (tu terminal, «Claude» o «Codex») está encendida. |
 | «Computer use is in use by another Claude session» | Otra sesión de Claude tiene el control. Ciérrala. |

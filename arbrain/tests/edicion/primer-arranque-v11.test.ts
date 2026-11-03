@@ -52,6 +52,9 @@ test('2 · el primer mensaje y la plantilla de Levy no prometen video; el calend
   assert.match(c, /\*\*no\*\* trae Google Calendar conectado de fábrica ni edición de video/)
   // 0.1.2: computer use sí en macOS y Windows (apagado en cada apertura); en Linux no.
   assert.match(c, /Linux \*\*no\*\* tiene computer use/)
+  // Modo servidor (1 nov 2026): salvo su servidor con la pantalla virtual, que el dueño mira sin poder escribir ahí.
+  assert.match(c, /salvo en su servidor con la pantalla virtual \(`nube\.sh pantalla`/)
+  assert.match(c, /«Ver la pantalla de tu servidor»: solo mirar/)
   assert.match(c, /Nace apagado en cada apertura/)
 })
 

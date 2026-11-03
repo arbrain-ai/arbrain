@@ -105,7 +105,8 @@ export function TableroAgentes({ data, onAbrir, onAbrirInterna, demo = false }: 
   const planes = data?.planes ?? []
   if (!totalTablero(tablero) && !planes.length) return null
   const n = cuentas(tablero)
-  const abrir = (f: FilaTablero) => typeof f.id === 'number' ? onAbrir(f.id) : onAbrirInterna(f.id)
+  // El que todavía prepara su copia no tiene conversación que abrir: su renglón solo dice que está naciendo.
+  const abrir = (f: FilaTablero) => f.tipo === 'preparando' ? undefined : typeof f.id === 'number' ? onAbrir(f.id) : onAbrirInterna(f.id)
   const filas = (lista: FilaTablero[], quieto = false) => <div className={t.lista}>{lista.map(f => <Renglon key={claveFila(f)} f={f} onAbrir={abrir} demo={demo} ahora={ahora} quieto={quieto} />)}</div>
   // 29 oct 2026: por conversación (la lógica del 1 y 3 oct, sobre el tablero de hoy). Misma cuenta, otra forma de juntar.
   // En el demo, «Plan de la semana 1» hace de conversación abierta.
@@ -309,7 +310,7 @@ function Renglon({ f, onAbrir, demo, ahora, quieto = false, entrada, resaltado, 
     {modo === 'detalle' && <dl className={`${t.detalle} ${mov.aparece}`}>
       <div><dt>{f.columna === 'falló' ? 'Qué pasó' : 'Estado'}</dt><dd>{!encargo ? f.motivo : f.conLevy && f.columna === 'te-espera' ? `Con Levy · ${f.motivo}` : f.columna === 'falló' ? f.motivo : `${COLUMNA[f.columna].titulo} · ${f.motivo}`}</dd></div>
       <div><dt>Empezó</dt><dd>{hace(f.creado)}{!demo && desde && f.origen ? ` · desde «${desde}»` : ''}</dd></div>
-      <div><dt>Quién</dt><dd>{f.tipo === 'interna' ? 'Tarea dentro de un turno de Levy' : f.tipo === 'tuya' ? 'Sesión abierta por ti' : f.tipo === 'proceso' ? 'Comando en segundo plano' : modelo(f)}</dd></div>
+      <div><dt>Quién</dt><dd>{f.tipo === 'preparando' ? 'Encargo de Levy que todavía prepara su copia' : f.tipo === 'interna' ? 'Tarea dentro de un turno de Levy' : f.tipo === 'tuya' ? 'Sesión abierta por ti' : f.tipo === 'proceso' ? 'Comando en segundo plano' : modelo(f)}</dd></div>
       {desajuste && <div><dt>Ojo</dt><dd className={t.ambar}>{desajuste}. Lo reportó su CLI: corre con eso, no con lo pedido.</dd></div>}
       {f.perfil && <div><dt>Permisos</dt><dd>{PERFIL_EN_PALABRAS[f.perfil]}</dd></div>}
       {f.plan && <div><dt>Plan</dt><dd className={t.cambios}><span>{f.plan.ruta.split('/').pop()}{f.plan.commit ? ` · aprobado en ${f.plan.commit.slice(0, 7)}` : ''}</span>

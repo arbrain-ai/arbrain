@@ -2,7 +2,7 @@
  * Registro de manos: qué adaptador y qué decisor están activos.
  *
  * Se elige por entorno (arbrain/server/.env), nunca en el código de los motores:
- *   MANOS_ADAPTADOR=cua            # tecnología de control: cua, casa (macOS) o windows
+ *   MANOS_ADAPTADOR=cua            # tecnología de control: cua, casa (macOS), windows o linux (pantalla virtual)
  *   MANOS_DECISOR=jev              # decisor rápido
  *   MANOS_DECISOR_RESPALDO=claude  # si el rápido cede (sin cuota, baja confianza)
  *
@@ -15,6 +15,7 @@ import type { Adaptador, Decision, Decisor, PedidoDecidir } from './contrato.js'
 import { AdaptadorCua } from './adaptadores/cua.js'
 import { AdaptadorCasa } from './adaptadores/casa.js'
 import { AdaptadorWindows } from './adaptadores/windows.js'
+import { AdaptadorLinux, pantallaVirtualInstalada } from './adaptadores/linux.js'
 import { CedeDecision, DecisorJev } from './decisores/jev.js'
 import { DecisorClaude } from './decisores/claude.js'
 import { Freno } from './freno.js'
@@ -27,20 +28,22 @@ export const ADAPTADORES: Record<string, () => Adaptador> = {
   cua: () => new AdaptadorCua(),
   casa: () => new AdaptadorCasa(),
   windows: () => new AdaptadorWindows(),
+  linux: () => new AdaptadorLinux(),
 }
 
 /**
  * Sin `MANOS_ADAPTADOR`: en Windows, las manos propias de Windows; en macOS de la edición cliente, las de la casa
- * (ArbrainManos viaja dentro de la app, 0.1.2); en el resto, Cua (como siempre en la instalación de Daniel).
+ * (ArbrainManos viaja dentro de la app, 0.1.2); en un servidor Linux con la pantalla virtual instalada (`nube.sh
+ * pantalla`, 1 nov 2026), las de la pantalla virtual; en el resto, Cua (como siempre en la instalación de Daniel).
  */
-export const adaptadorPorDefecto = () => process.env.MANOS_ADAPTADOR || (process.platform === 'win32' ? 'windows' : process.platform === 'darwin' && esEdicionCliente() ? 'casa' : 'cua')
+export const adaptadorPorDefecto = () => process.env.MANOS_ADAPTADOR || (process.platform === 'win32' ? 'windows' : process.platform === 'darwin' && esEdicionCliente() ? 'casa' : process.platform === 'linux' && pantallaVirtualInstalada('linux') ? 'linux' : 'cua')
 
 export const DECISORES: Record<string, () => Decisor> = {
   jev: () => new DecisorJev(),
   claude: () => new DecisorClaude(),
 }
 
-const LLAVES = ['MANOS_CEREBRO_MODELO', 'MANOS_CEREBRO_ESCALA', 'MANOS_JEV_VE_ARBOL', 'MANOS_BITACORA_DIR', 'MANOS_ADAPTADOR', 'MANOS_MODO', 'MANOS_CASA_SOCKET', 'MANOS_CASA_APP', 'MANOS_WINDOWS_EXE', 'MANOS_WINDOWS_CACHE', 'MANOS_HALO', 'MANOS_DECISOR', 'MANOS_DECISOR_RESPALDO', 'MANOS_CUA_BIN', 'MANOS_CUA_SESION', 'MANOS_CLAUDE_MODELO', 'MANOS_JEV_MODELO', 'MANOS_JEV_TIMEOUT_MS', 'MANOS_JEV_VIA', 'OPENROUTER_API_KEY', 'AI_GATEWAY_API_KEY', 'VERCEL_OIDC_TOKEN']
+const LLAVES = ['MANOS_CEREBRO_MODELO', 'MANOS_CEREBRO_ESCALA', 'MANOS_JEV_VE_ARBOL', 'MANOS_BITACORA_DIR', 'MANOS_ADAPTADOR', 'MANOS_MODO', 'MANOS_CASA_SOCKET', 'MANOS_CASA_APP', 'MANOS_WINDOWS_EXE', 'MANOS_WINDOWS_CACHE', 'MANOS_LINUX_PANTALLA', 'MANOS_LINUX_INACTIVA_MIN', 'MANOS_HALO', 'MANOS_DECISOR', 'MANOS_DECISOR_RESPALDO', 'MANOS_CUA_BIN', 'MANOS_CUA_SESION', 'MANOS_CLAUDE_MODELO', 'MANOS_JEV_MODELO', 'MANOS_JEV_TIMEOUT_MS', 'MANOS_JEV_VIA', 'OPENROUTER_API_KEY', 'AI_GATEWAY_API_KEY', 'VERCEL_OIDC_TOKEN']
 
 /**
  * Lee solo las llaves de manos de arbrain/server/.env si el proceso no las trae.
