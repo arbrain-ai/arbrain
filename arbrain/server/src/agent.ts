@@ -397,6 +397,13 @@ export async function computeRewindCheckpoint(
   }
 }
 
+/** Texto del error de un `result` con is_error: los `errors` del SDK o, si vienen vacíos, el texto del proveedor
+ *  que el SDK deja solo en `result` (402 / «Credit balance is too low», 400 de abliteration.ai). En ambas ediciones. */
+export function errTextDeResultConError(sdkErrors: string[], result: unknown): string {
+  if (sdkErrors.length) return sdkErrors.join(' | ')
+  return typeof result === 'string' ? result.slice(0, 2000) : ''
+}
+
 /** Texto para el dueño cuando un turno muere. El `[ede_diagnostic]` del SDK queda en el
  *  log (ops_events); en el chat se dice qué pasó y qué hacer. */
 export function mensajeDeTurnoMuerto(errText: string | undefined, subtype: string | undefined, porTecho: boolean): string {
@@ -1208,8 +1215,7 @@ export async function* runAgentStream(
           // `errors` vacío; sin él, el chat no podía reconocer «sin crédito» y ofrecer recargar. Daniel: sin cambio.
           // 3 nov: también en la instalación original. Un 400 del endpoint (p. ej. abliteration.ai: «more images than
           // the limit of 4») llega solo aquí, y sin el texto el chat decía «sin respuesta (success)».
-          const textoResult = !sdkErrors.length && typeof e['result'] === 'string' ? String(e['result']).slice(0, 2000) : ''
-          errorResult = { subtype, errText: sdkErrors.length ? sdkErrors.join(' | ') : textoResult }
+          errorResult = { subtype, errText: errTextDeResultConError(sdkErrors, e['result']) }
           logger.warn({ subtype, errors: sdkErrors, account }, 'result con is_error — no se emite como respuesta')
           continue
         }

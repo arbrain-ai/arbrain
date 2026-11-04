@@ -4,6 +4,15 @@ Cada versión dice qué trae y qué tienes que hacer tú. Para actualizar, abre 
 «jala los últimos cambios». Las versiones siguen `MAYOR.MENOR.PARCHE`: un cambio en MENOR trae funciones
 nuevas; uno en PARCHE, arreglos.
 
+## v0.2.22 · 4 nov 2026 · Las portadas de los libros
+
+**Qué trae**
+- **Las portadas de los cuatro libros.** En la 0.2.21 los libros se abrían bien pero salían sin su portada,
+  porque el empaquetado se dejaba fuera los `.webp`. Ya viajan dentro de tu copia.
+
+**Qué tienes que hacer**
+- Actualizar y abrir la biblioteca. Nada más.
+
 ## v0.2.21 · 4 nov 2026 · Los libros, dentro de tu Arbrain
 
 **Qué trae**

@@ -71,8 +71,14 @@ export const VIAS_DE_API = [
   'CLAUDE_CONFIG_DIR', 'CLAUDE_SECURESTORAGE_CONFIG_DIR',
 ] as const
 
+/**
+ * Un entorno ya filtrado (`Record<string, string>`) visto como `ProcessEnv`. Los tipos de Next declaran `NODE_ENV`
+ * obligatorio en `ProcessEnv`; los entornos que armamos aquí no lo traen y no lo necesitan (4 nov 2026).
+ */
+const comoProcessEnv = (env: Record<string, string>): NodeJS.ProcessEnv => env as NodeJS.ProcessEnv
+
 /** Copia de `base` sin ninguna vía de API ni carpeta de credenciales ajena. Pura. */
-export function entornoSinApi(base: NodeJS.ProcessEnv): Record<string, string> {
+export function entornoSinApi(base: Record<string, string | undefined>): Record<string, string> {
   const env: Record<string, string> = {}
   for (const [k, v] of Object.entries(base)) if (typeof v === 'string') env[k] = v
   for (const k of VIAS_DE_API) delete env[k]
@@ -221,7 +227,7 @@ const PLAZO_ESTADO_MS = 45_000
 
 const ejecutarReal: Ejecutar = (archivo, args, env) => new Promise((resolve) => {
   const c = comandoParaEjecutar(archivo)
-  execFile(c.archivo, args, { env, timeout: PLAZO_ESTADO_MS, maxBuffer: 64 * 1024, windowsHide: true, shell: c.shell }, (err, stdout) => {
+  execFile(c.archivo, args, { env: comoProcessEnv(env), timeout: PLAZO_ESTADO_MS, maxBuffer: 64 * 1024, windowsHide: true, shell: c.shell }, (err, stdout) => {
     const e = err as (Error & { code?: unknown; killed?: boolean; signal?: unknown }) | null
     const code = e ? (typeof e.code === 'number' ? e.code : -1) : 0
     resolve({ stdout: String(stdout ?? ''), code, lento: !!e && (e.killed === true || e.signal === 'SIGTERM') && !String(stdout ?? '').trim() })
@@ -281,7 +287,7 @@ type Lanzar = (archivo: string, args: string[], env: Record<string, string>) => 
 const lanzarReal: Lanzar = (archivo, args, env) => {
   const c = comandoParaEjecutar(archivo)
   // stdin abierto y sin escribir: el CLI espera el regreso del navegador; stdout/stderr se descartan (nunca se leen).
-  return spawn(c.archivo, args, { env, shell: c.shell, windowsHide: true, stdio: ['pipe', 'ignore', 'ignore'] })
+  return spawn(c.archivo, args, { env: comoProcessEnv(env), shell: c.shell, windowsHide: true, stdio: ['pipe', 'ignore', 'ignore'] })
 }
 
 let login: { proc: ChildProcess | null; estado: EstadoLogin; plazo?: NodeJS.Timeout } | null = null
@@ -337,7 +343,7 @@ export function instalarClaude(op: { env?: NodeJS.ProcessEnv; plataforma?: NodeJ
   const env = op.env ?? process.env
   const c = comandoInstalarClaude(op.plataforma)
   return new Promise((resolve) => {
-    execFile(c.archivo, c.args, { env: entornoSinApi(env), timeout: PLAZO_INSTALAR_MS, maxBuffer: 4 * 1024 * 1024, windowsHide: true }, () => {
+    execFile(c.archivo, c.args, { env: comoProcessEnv(entornoSinApi(env)), timeout: PLAZO_INSTALAR_MS, maxBuffer: 4 * 1024 * 1024, windowsHide: true }, () => {
       cache = null
       resolve(buscarClaude(env))
     })

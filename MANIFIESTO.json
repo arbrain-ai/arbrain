@@ -1,16 +1,16 @@
 {
   "generador": "arbrain/empaquetado/generador",
   "origen": {
-    "ref": "2860358bdb5c7702930e7ed3d0feb18b0010cee1",
-    "commit": "2860358bdb5c7702930e7ed3d0feb18b0010cee1",
-    "fecha": "2026-11-04T08:56:43-06:00"
+    "ref": "a361256b88dce727d0aed1a98c9a6b4f2f03c4c5",
+    "commit": "a361256b88dce727d0aed1a98c9a6b4f2f03c4c5",
+    "fecha": "2026-11-04T09:07:19-06:00"
   },
-  "version": "0.2.21",
+  "version": "0.2.22",
   "allowlist": {
     "ruta": "docs/builds/empaquetado-2026-10-11/allowlist.yaml",
     "sha256": "dd378a820d9251b21faa0af299c1a64f20ff6f2dbdf6e76359a67ecb91eda7ec"
   },
-  "conteo": 2947,
+  "conteo": 2951,
   "archivos": {
     ".agents/skills": {
       "enlace": "../.claude/skills",
@@ -883,14 +883,14 @@
       "origen": "allowlist:enlaces"
     },
     "CAPAS.json": {
-      "sha256": "bd26d44b2eb616e79570692629bb5eb52aad6cab6c14702ad4adcf71b2d62aa0",
+      "sha256": "dd29c861b0ef047f6132910d216416553216728d0cd9bd131c9a8b99b1b8f2e6",
       "bytes": 1386,
       "modo": "644",
       "origen": "distribucion:CAPAS.json"
     },
     "CHANGELOG.md": {
-      "sha256": "b55ca9b1603d7e44119fce7cf6a6de626cabee89ad53b6f84fcad50cbd70cc29",
-      "bytes": 67417,
+      "sha256": "ede7429bfa9a5e4b710029b330c5bcfcfc6a71a8dd4dbd2e3058c36c6375fb41",
+      "bytes": 67755,
       "modo": "644",
       "origen": "distribucion:CHANGELOG.md"
     },
@@ -943,7 +943,7 @@
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/TELEFONO.plantilla.md"
     },
     "VERSION": {
-      "sha256": "d612e32bad3e982c0bff1240bd4d9f08fced471fe070dc54d15a669eb636909e",
+      "sha256": "1c26b6827d8350fcc391724bf4e71440a594c6580edb5e88687febdab34f8a70",
       "bytes": 7,
       "modo": "644",
       "origen": "distribucion:VERSION"
@@ -1847,6 +1847,30 @@
       "bytes": 23340,
       "modo": "644",
       "origen": "arbrain/public/levy.png"
+    },
+    "arbrain/public/library-covers/demarco-millionaire-fastlane.webp": {
+      "sha256": "ab63de17c0d59b226f3783c761956654ea4e2ab79b16fb5ff5dc929dd6e232b6",
+      "bytes": 18066,
+      "modo": "644",
+      "origen": "arbrain/public/library-covers/demarco-millionaire-fastlane.webp"
+    },
+    "arbrain/public/library-covers/hormozi-100m-leads.webp": {
+      "sha256": "75fb79024da23627ed9edc0922a9f5f13e37d4ba34c8ac1eb52b68ed7f1fadc4",
+      "bytes": 15754,
+      "modo": "644",
+      "origen": "arbrain/public/library-covers/hormozi-100m-leads.webp"
+    },
+    "arbrain/public/library-covers/hormozi-100m-money-models.webp": {
+      "sha256": "7e7fecaa7631130770e08f64ad5503d50d0432d5eb25839e1814efcd0a61ae6f",
+      "bytes": 12518,
+      "modo": "644",
+      "origen": "arbrain/public/library-covers/hormozi-100m-money-models.webp"
+    },
+    "arbrain/public/library-covers/hormozi-100m-ofertas.webp": {
+      "sha256": "3557614e479266ff6744205f80e5e387c2af659f457dd78f116fa36349c1ae14",
+      "bytes": 19146,
+      "modo": "644",
+      "origen": "arbrain/public/library-covers/hormozi-100m-ofertas.webp"
     },
     "arbrain/public/library-covers/manual-dueno.webp": {
       "sha256": "bfcf42877783e33a6009eaf35420e8c482989217a56a33229c8500c85adff5df",
@@ -4045,8 +4069,8 @@
       "origen": "plantilla:servidores.json"
     },
     "arbrain/server/src/agent.ts": {
-      "sha256": "e5cc536ea57791164d413e3de90b1e0954264b98a1692630023da87210048713",
-      "bytes": 93040,
+      "sha256": "ed78c8742f2589004c0c3394a0532575ec63ccea844b1412e0b8845f36cb9ab5",
+      "bytes": 93355,
       "modo": "644",
       "origen": "arbrain/server/src/agent.ts"
     },
@@ -5797,8 +5821,8 @@
       "origen": "arbrain/server/src/cliente/rutinas-llave.test.ts"
     },
     "arbrain/server/src/cliente/rutinas-llave.ts": {
-      "sha256": "14632361d821da1d3012a723683337c315e5c3039d1e86367d6648023165150f",
-      "bytes": 4997,
+      "sha256": "913702712fb413e8a7843beacc0cc6c7ed66eae14b7e3baec40d16ea4430b0da",
+      "bytes": 5010,
       "modo": "644",
       "origen": "arbrain/server/src/cliente/rutinas-llave.ts"
     },
@@ -5887,8 +5911,8 @@
       "origen": "arbrain/server/src/cliente/suscripcion.test.ts"
     },
     "arbrain/server/src/cliente/suscripcion.ts": {
-      "sha256": "a3d376764103640a4989d43115e4142dfcc236e23089337245e7e3628d807e24",
-      "bytes": 28486,
+      "sha256": "56e9ac94dbc184238ca45fc1d62ac02d24bcf07f95ca3be23670268281eedd17",
+      "bytes": 28893,
       "modo": "644",
       "origen": "arbrain/server/src/cliente/suscripcion.ts"
     },
@@ -6175,8 +6199,8 @@
       "origen": "arbrain/server/src/cron-account.test.ts"
     },
     "arbrain/server/src/cron-account.ts": {
-      "sha256": "50a1c31e2b74ff70fd6c40d27a7fd7f7ab345dd2a450e67b5d5114238a26262b",
-      "bytes": 2065,
+      "sha256": "93a98552c958c40e70d9ac17ed31f09905d7b15ccf2e55720930d648af456f38",
+      "bytes": 2097,
       "modo": "644",
       "origen": "arbrain/server/src/cron-account.ts"
     },
@@ -16309,8 +16333,8 @@
       "origen": "arbrain/tests/diseno/sin-lenguaje.ts"
     },
     "arbrain/tests/edicion/ab-ronda2-sin-credito.test.ts": {
-      "sha256": "e437588a0880e3b73d21677f430f98968faa599c54e6795e42c3ab5c25f91cb0",
-      "bytes": 7592,
+      "sha256": "7e939013e809a2150f381bc5b73714ecabc443542032bfc9482310435024d032",
+      "bytes": 8769,
       "modo": "644",
       "origen": "arbrain/tests/edicion/ab-ronda2-sin-credito.test.ts"
     },

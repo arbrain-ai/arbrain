@@ -27,6 +27,6 @@ export function configuredCronEnvironment():NodeJS.ProcessEnv {
   // Edición cliente (empaquetado, 11 oct 2026): las tareas del alumno usan SU llave (BYOK) y su carpeta aislada del CLI;
   // no hay cuentas 'default'/'bro' de Daniel ni llavero que borrar.
   // Con el chat en su suscripción, la rutina va por su llave de OpenRouter CON TOPE (cliente/rutinas-llave.ts), nunca por el plan.
-  if(esEdicionCliente())return{...(rutinasConLlaveTope()?entornoRutinaConLlave(process.env):entornoClaude(process.env)),CLAUDECLAW_DAEMON:'1',CLAUDECLAW_SOURCE:'cron',CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC:'1'}
+  if(esEdicionCliente())return{...(rutinasConLlaveTope()?entornoRutinaConLlave(process.env):entornoClaude(process.env)),CLAUDECLAW_DAEMON:'1',CLAUDECLAW_SOURCE:'cron',CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC:'1'} as unknown as NodeJS.ProcessEnv
   return cronEnvironment(readEnvFile(['CLAUDECLAW_CRON_ACCOUNT']).CLAUDECLAW_CRON_ACCOUNT??'default')
 }

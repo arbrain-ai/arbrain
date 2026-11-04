@@ -4,6 +4,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { esSinSaldo, PATRON_SIN_SALDO, turnoSinCredito } from '../../src/features/primer-arranque/lib/sin-saldo'
+import { clasificarFalloDeCuenta, mensajeFalloDeCuenta } from '../../server/src/cliente/sin-saldo'
+import { errTextDeResultConError, mensajeDeTurnoMuerto } from '../../server/src/agent'
 import {
   AVISO_SIN_RESPUESTA_MS, quienCobra, reprobarAlVolver, textoConectado, type EstadoLlaves,
 } from '../../src/features/primer-arranque/lib/llaves'
@@ -50,8 +52,18 @@ test('chat: el turno que falló sin crédito pinta «Recargar» (solo cliente); 
   const r = fuente('src/features/primer-arranque/components/RecargaEnChat.tsx')
   assert.match(r, /<PasoRecarga cobra=\{cobra\}/)
   assert.match(r, /useReprobarAlVolver\(/)
-  // El daemon (cliente) ya no pierde el texto del proveedor cuando el SDK lo deja solo en `result`.
-  assert.match(fuente('server/src/agent.ts'), /esEdicionCliente\(\) && !sdkErrors\.length && typeof e\['result'\] === 'string'/)
+  // El daemon ya no pierde el texto del proveedor cuando el SDK lo deja solo en `result` (con `errors` vacío). Se
+  // prueba la cadena, no la línea: desde el 3 nov (proxy abliterated) aplica en ambas ediciones, no solo en cliente.
+  const sdk = 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'
+  const errText = errTextDeResultConError([], sdk)
+  assert.equal(errText, sdk)
+  assert.equal(clasificarFalloDeCuenta({ texto: errText }), 'sin_saldo', 'la edición cliente lo corta como falta de saldo')
+  assert.ok(turnoSinCredito({ error: true, diagnostic: mensajeFalloDeCuenta('sin_saldo', 'anthropic', errText), content: '' }))
+  assert.ok(turnoSinCredito({ error: true, diagnostic: mensajeDeTurnoMuerto(errText, 'success', false), content: '' }))
+  assert.equal(errTextDeResultConError(['API Error: 402'], sdk), 'API Error: 402', 'los errors del SDK mandan si vienen')
+  assert.equal(errTextDeResultConError([], undefined), '')
+  assert.equal(errTextDeResultConError([], 'x'.repeat(5000)).length, 2000)
+  assert.match(fuente('server/src/agent.ts'), /errText: errTextDeResultConError\(sdkErrors, e\['result'\]\)/, 'el daemon usa esa función')
 })
 
 test('primer arranque: la prueba de la llave llega a todo el arranque', () => {

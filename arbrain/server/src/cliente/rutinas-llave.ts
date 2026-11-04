@@ -61,7 +61,7 @@ export function rutinasConLlaveTope(env: NodeJS.ProcessEnv = process.env, llave:
 export function entornoRutinaConLlave(base: NodeJS.ProcessEnv = process.env, llave: string = secreto('OPENROUTER_API_KEY') ?? ''): Record<string, string> {
   const env = entornoSinApi(base)
   for (const k of [...NUNCA_EN_ENTORNO, ...RUTAS_CREDENCIALES_AJENAS, 'ARBRAIN_MOTOR_CLAUDE']) delete env[k]
-  const vista: NodeJS.ProcessEnv = { ...env, OPENROUTER_API_KEY: llave.trim() }
+  const vista = { ...env, OPENROUTER_API_KEY: llave.trim() } as unknown as NodeJS.ProcessEnv
   configurarProveedorClaude(vista)
   delete vista.OPENROUTER_API_KEY
   // Sin modelo explícito (los crons no lo fijan) el CLI usa ANTHROPIC_MODEL; lo rápido y los subagentes «haiku», igual.
