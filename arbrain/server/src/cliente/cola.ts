@@ -29,8 +29,19 @@ const minutos = Math.round(VIDA_APROBACION_COLA_MS / 60_000)
 
 /** El mensaje que el daemon le escribe al agente cuando la persona decide algo de su cola. null = no hace falta. */
 export function mensajeRetomar(c: Confirmacion): string | null {
-  const que = sinEnlaces((c.frase || c.resumen).replace(/\s+/g, ' ').slice(0, 300))
+  const que = sinEnlaces((c.titulo || c.frase || c.resumen).replace(/\s+/g, ' ').slice(0, 300))
   const coment = c.comentario ? ` Te dejó este comentario: «${c.comentario}».` : ''
+  // Bandeja de decisiones (autonomía v2): una decisión que Levy subió vuelve SIEMPRE a su conversación, con la respuesta.
+  if (c.tipo === 'decision') {
+    if (c.estado === 'permitida') return [
+      `La persona dijo SÍ en su bandeja de Arbrain a la decisión ${c.id}: «${que}».`,
+      `Hazlo ahora, tal cual lo propusiste. Su Sí vale como su pedido explícito sobre ESE texto: si es con las manos, pasa \`decision: "${c.id}"\` a encargar (o \`confirmacion: "bandeja:${c.id}"\` a actuar/web_actuar) y no le pidas otra frase. Vale ${minutos} min y solo para esta categoría (${c.categoria}).${coment}`,
+      'Después cuéntale en una línea cómo quedó.',
+    ].join('\n')
+    if (c.respuesta === 'otro') return `La persona eligió OTRO en su bandeja de Arbrain para la decisión ${c.id} («${que}»): «${c.comentario ?? ''}». No hagas lo que propusiste; haz lo que te pidió. Si eso es irreversible (contactar, pagar, borrar, publicar), súbelo otra vez a la bandeja con el texto nuevo.`
+    if (c.estado === 'rechazada') return `La persona dijo NO en su bandeja de Arbrain a la decisión ${c.id}: «${que}».${coment} No lo hagas ni busques otra vía.`
+    return null
+  }
   if (c.estado === 'permitida') {
     return [
       `La persona APROBÓ en su cola de Arbrain la acción que te quedó pendiente (${c.id}): «${que}».`,

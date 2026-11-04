@@ -14,6 +14,8 @@ import { esNoNegociable, SECCION, seccionDe } from './secciones'
 import { franjasDelDia, resumenCampo, tituloZona } from './campos-fondo'
 import { DEF } from './categorias'
 import { useZonas } from './useZonas'
+import type { ItemDia } from './lista-dia'
+import { horaDeMinuto } from './ListaDia'
 // La línea de ahora es la de «Tu día» (cabina/luz.module.css): se aplican las dos clases, no se copia el estilo.
 import luz from '@/features/cabina/luz.module.css'
 
@@ -33,8 +35,16 @@ const HORA_PX_MIN = 22
  * Desde el 30 oct 2026 va sin cabecera (Daniel: «casi que ni quiero ver nada de eso porque para eso ya tenemos bajado a tierra el
  * dia con la linea amarilla de la hora»): fuera el título «Agenda», el conteo, el resumen de trabajo profundo y comida y las
  * pastillas de día completo. Solo la línea de tiempo; lo de día completo sigue en la franja de la Semana.
+ * Desde el 3 nov 2026 la lista del día se refleja aquí «de forma sutil y elegante» (Daniel): lo ligado a un evento va DENTRO de su tarjeta
+ * como una sublínea discreta (círculo hueco y texto tenue); lo suelto con hora, como una marca en su hora, nunca como bloque. Se marcan
+ * desde aquí con la misma pluma que la lista.
  */
-export function AgendaMini({ bloques, bandas = [], fecha, ahora, esHoy, pasado, cargando, onAbrir, objetivo, central = true, llenar = false }: {
+export interface PendientesTimeline {
+  dentro: Map<string, ItemDia[]>; sueltas: ItemDia[]
+  alternar: (it: ItemDia) => void; puede: (it: ItemDia) => boolean
+  resaltado?: string | null; onResaltar?: (id: string | null) => void
+}
+export function AgendaMini({ bloques, bandas = [], fecha, ahora, esHoy, pasado, cargando, onAbrir, objetivo, central = true, llenar = false, pendientes }: {
   bloques: BloqueAgenda[]
   /** Ventanas de disponibilidad (18 oct 2026): una banda de fondo detrás de las tarjetas, no una columna. */
   bandas?: Bloque[]
@@ -47,6 +57,8 @@ export function AgendaMini({ bloques, bandas = [], fecha, ahora, esHoy, pasado, 
   central?: boolean
   /** Dos columnas (24 oct 2026): el día entero cabe en el alto que le dan, sin scroll; la hora mide lo que alcance. */
   llenar?: boolean
+  /** La lista del día en el timeline: sublíneas dentro de su evento y marcas sueltas en su hora. */
+  pendientes?: PendientesTimeline
 }) {
   // Zonas de mi vida (28 oct 2026): las encendidas de la persona (useZonas), detrás de todo.
   const zonas = useZonas()
@@ -89,6 +101,16 @@ export function AgendaMini({ bloques, bandas = [], fecha, ahora, esHoy, pasado, 
   // DRIP (24 oct 2026): la etiqueta de lo delegable, de quién es y el candado de lo protegido.
   const gobierno = useGobierno()
   const vivo = (inicio: number, fin: number) => esHoy && inicio <= ahora && ahora < fin
+  // Las marcas sueltas: en su hora; dos que caen juntas se apilan sin encimarse. Sobre un evento, a la derecha y con velo (no tapan su título).
+  const marcas = (() => { let ultimo = -Infinity
+    return (pendientes?.sueltas ?? []).filter(it => it.minuto! >= desde && it.minuto! <= hasta).map(it => {
+      const t = base + it.minuto! * 60000, top = Math.max(ultimo + 15, y(t)); ultimo = top
+      return { it, top, encima: bloques.some(b => b.inicio <= t && t < b.fin) } }) })()
+  const marcar = (it: ItemDia, conTexto: boolean, clase: string) => { const p = pendientes!, si = p.puede(it)
+    return <button key={it.id} className={clase} data-hecho={it.hecho || undefined} data-origen={it.origen} data-resaltado={p.resaltado === it.id || undefined}
+      role="checkbox" aria-checked={it.hecho} disabled={!si} onClick={() => p.alternar(it)} onMouseEnter={() => p.onResaltar?.(it.id)} onMouseLeave={() => p.onResaltar?.(null)}
+      aria-label={`${it.hecho ? 'Reabrir' : 'Marcar'}: ${it.texto}`} title={`${it.minuto != null ? `${horaDeMinuto(it.minuto)} · ` : ''}${it.texto}${si ? (it.hecho ? ' · tocar para reabrir' : ' · tocar para marcar') : ''}`}>
+      <i aria-hidden />{conTexto && <span>{it.texto}</span>}</button> }
   const lugar = (inicio: number, fin: number, id: string) => {
     const top = y(inicio), h = Math.max(12, y(fin) - top - 1), l = lanes.get(id) ?? { col: 0, cols: 1 }
     return { h, style: { top, height: h, left: `${l.col / l.cols * 100}%`, width: `calc(${100 / l.cols}% - 2px)` } }
@@ -111,16 +133,18 @@ export function AgendaMini({ bloques, bandas = [], fecha, ahora, esHoy, pasado, 
         <ol className={d.miniBloques}>
           {bloques.map(b => {
             const c = lugar(b.inicio, b.fin, b.id), yaPaso = pasado || (esHoy && b.fin <= ahora)
-            const sec = seccionDe(b.evento)
+            const sec = seccionDe(b.evento), subs = pendientes?.dentro.get(b.id)
             const l = gobierno?.lectura(b.evento), tag = l && (l.protegido || l.delegable) ? (l.protegido ? 'protegido' : l.delegadoA ? 'delegado' : 'delegable') : null
             return <li key={b.id} style={{ ...c.style, ['--c' as string]: b.color ?? 'var(--primary)' } as CSSProperties} data-seccion={sec ?? undefined} data-innegociable={esNoNegociable(b.evento) || undefined} data-drip={l?.cuadrante} data-letra={l?.cuadrante ? l.cuadrante[0].toUpperCase() : undefined} data-protegido={l?.protegido || undefined}>
               <button onClick={() => onAbrir(b.evento)} data-pasado={yaPaso || undefined} data-compromiso={esCompromiso(b.evento) || undefined} data-vivo={vivo(b.inicio, b.fin) || undefined} data-corto={c.h < 26 || undefined}
                 title={`${hora(b.inicio)} – ${hora(b.fin)} · ${b.titulo}`} aria-label={`${hora(b.inicio)} a ${hora(b.fin)}, ${b.titulo}, ${duracion((b.fin - b.inicio) / 60000)}`} data-con-brief={b.brief ? '' : undefined} data-con-tag={tag ?? undefined}>
-                {sec && <svg className={d.icoSeccion} viewBox="0 0 16 16" aria-hidden><path d={SECCION[sec].icono} /></svg>}<span>{b.corto ?? b.titulo}</span>{c.h >= 34 && <time>{hora(b.inicio)} – {hora(b.fin)}</time>}
+                {sec && <svg className={d.icoSeccion} viewBox="0 0 16 16" aria-hidden><path d={SECCION[sec].icono} /></svg>}<span>{b.corto ?? b.titulo}</span>{c.h >= (subs ? 50 : 34) && <time>{hora(b.inicio)} – {hora(b.fin)}</time>}
                 {tag && <em className={d.dripTag} data-tipo={tag} title={tag === 'protegido' ? 'Protegido: nada nuevo entra encima' : tag === 'delegado' ? `De ${l!.delegadoA}` : 'Delegable: tócalo y «Delegar a Levy»'}>
                   {tag === 'protegido' ? <Lock size={9} aria-label="protegido" /> : tag === 'delegado' ? `de ${l!.delegadoA}` : 'delegable'}</em>}
               </button>
               {b.brief && <button className={d.miniBrief} onClick={() => onAbrir(b.brief!.evento)} title={b.brief.titulo} aria-label={`Abrir ${b.brief.titulo}`}>📋</button>}
+              {subs && <div className={d.miniSub} data-sublinea data-corto={c.h < 38 || undefined} role="group" aria-label={`Pendientes de ${b.titulo}`}>
+                {subs.map(it => marcar(it, c.h >= 38, d.miniSubItem))}</div>}
             </li>
           })}
           {objetivo && (() => {
@@ -133,6 +157,9 @@ export function AgendaMini({ bloques, bandas = [], fecha, ahora, esHoy, pasado, 
             </li>
           })()}
         </ol>
+        {marcas.length > 0 && <ol className={d.miniMarcas} aria-label="Pendientes con hora">
+          {marcas.map(m => <li key={m.it.id} style={{ top: m.top }} data-marca-tarea data-encima={m.encima || undefined}>{marcar(m.it, true, d.miniMarca)}</li>)}
+        </ol>}
         {ahoraY != null && ahoraY >= 0 && ahoraY <= alto && <p className={`${luz.lineaAhora} ${d.miniAhora}`} data-ahora-linea style={{ top: ahoraY }} aria-hidden>{hora(ahora)}</p>}
       </div>
     </div>

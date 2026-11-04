@@ -16,7 +16,7 @@ import { esEdicionCliente } from './edicion.js'
 const aqui = dirname(fileURLToPath(import.meta.url))
 export const MARCA_ORIGINAL = 'instalacion.json'
 
-export interface Instalacion { cuentas_alternas?: { claude?: string; codex?: string; claude_extra?: string[] }; dueno?: string; personas_reporte?: string[]; equipo?: string[]; repo_txt?: string; perfil_id?: string; origen_respaldo?: string; sitios_vigilados?: string; lienzo_sistema_id?: string; consejo_origen_salud?: string; manos_perfil_defecto?: string; manos_perfil_trabajo?: string; manos_correo_trabajo?: string; perfiles_equipo?: Record<string, { nombre?: string; contexto?: string }>; vps_ssh?: string }
+export interface Instalacion { cuentas_alternas?: { claude?: string; codex?: string; claude_extra?: string[] }; dueno?: string; personas_reporte?: string[]; equipo?: string[]; repo_txt?: string; perfil_id?: string; origen_respaldo?: string; sitios_vigilados?: string; lienzo_sistema_id?: string; consejo_origen_salud?: string; manos_perfil_defecto?: string; manos_perfil_trabajo?: string; manos_correo_trabajo?: string; agente?: string; perfiles_equipo?: Record<string, { nombre?: string; contexto?: string }>; vps_ssh?: string }
 export interface CarpetaOriginal { nombre: string; src: string }
 
 let cache: CarpetaOriginal | null | undefined
@@ -58,6 +58,19 @@ const mayuscula = (s: string) => s.charAt(0).toLocaleUpperCase('es') + s.slice(1
 export const DUENO = dueno()
 /** El dueño al inicio de frase («La persona escribió…»). */
 export const DUENO_M = mayuscula(DUENO)
+
+/**
+ * Nombre del agente en lo que ve la persona (la franja de las manos: «Levy está usando TextEdit»). `ARBRAIN_AGENTE` >
+ * `instalacion.json › agente` > «Tu cerebro» en la copia del alumno o «Arbrain».
+ */
+export function agente(env: NodeJS.ProcessEnv = process.env): string {
+  const explicito = (env.ARBRAIN_AGENTE ?? '').trim()
+  if (explicito) return explicito.slice(0, 40)
+  if (esEdicionCliente(env)) return 'Tu cerebro'
+  const a = instalacionOriginal().agente
+  return typeof a === 'string' && a.trim() ? a.trim().slice(0, 40) : 'Arbrain'
+}
+export const AGENTE = agente()
 
 /** Personas con reporte diario (vista de la instalación original). La primera es el dueño. */
 export const PERSONAS: readonly string[] = (() => {

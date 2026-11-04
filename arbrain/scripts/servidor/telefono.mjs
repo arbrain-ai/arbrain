@@ -361,11 +361,79 @@ export async function alArrancar({ R, puertoWeb, bin = binarioTailscale(), regis
   return true
 }
 
+// ── «Encender» desde la app hace lo que hacía TELEFONO.md (3 nov 2026, vuelta 2 del primer uso) ─────────────────────
+//
+// Antes, poner el cerebro en el teléfono era otra conversación con Claude Code (TELEFONO.md): leer la última línea de
+// `telefono encender`, abrir la App Store, el enlace de sesión o el de HTTPS, y repetir cada 20 s. Ahora el botón
+// «Encender» de Ajustes lo hace: la web pide encender, el supervisor abre lo que toca UNA vez (lo mismo que abría Claude,
+// solo direcciones de Tailscale y Apple) y la pantalla repite sola hasta «Encendido». Lo que solo puede hacer la persona
+// (aceptar la VPN, entrar con su cuenta, pulsar «Enable») va en una línea: `teToca`.
+
+const APP_STORE_TAILSCALE = 'macappstore://apps.apple.com/app/tailscale/id1475387142'
+const ENLACE_PERMITIDO = /^(?:https:\/\/login\.tailscale\.com\/[^\s"']*|macappstore:\/\/apps\.apple\.com\/app\/tailscale\/id1475387142)$/
+export const REABRIR_MS = 3 * 60_000
+
+/**
+ * Qué hace la app por la persona en cada estado (puro). `abrir`: dirección que se abre en su navegador o en la App Store;
+ * `abrirApp`: abrir la app de Tailscale; `winget`: instalar Tailscale en Windows; `teToca`: lo que le queda a ella.
+ * @param {{ estado: string, enlace?: string | null }} r
+ * @param {string} [plataforma]
+ */
+export function ayudaDe(r, plataforma = process.platform) {
+  const enlace = r.enlace && ENLACE_PERMITIDO.test(r.enlace) ? r.enlace : null
+  const mac = plataforma === 'darwin', win = plataforma === 'win32'
+  switch (r.estado) {
+    case 'falta-tailscale':
+      if (mac) return { abrir: APP_STORE_TAILSCALE, teToca: 'Se abrió la App Store: pulsa «Obtener» e instala Tailscale (gratis). Al abrirla, acepta la configuración de VPN que te pide tu Mac e inicia sesión.' }
+      if (win) return { winget: true, teToca: 'Windows te pide permiso para instalar Tailscale (gratis): acepta. Luego ábrelo desde el menú Inicio e inicia sesión.' }
+      return { teToca: 'Instala Tailscale en una terminal: curl -fsSL https://tailscale.com/install.sh | sh && sudo tailscale up --operator=$USER' }
+    case 'falta-sesion':
+      return enlace
+        ? { abrir: enlace, teToca: 'Se abrió tu navegador: entra a Tailscale con la cuenta que también vas a usar en tu teléfono (Google, Apple, Microsoft o GitHub).' }
+        : { abrirApp: mac || win, teToca: 'Abre Tailscale (el ícono junto al reloj) y pulsa «Log in» con la cuenta que también vas a usar en tu teléfono.' }
+    case 'falta-aprobacion':
+      return { abrir: 'https://login.tailscale.com/admin/machines', teToca: 'Tu red de Tailscale pide aprobar esta computadora: apruébala en la página que se abrió.' }
+    case 'apagado-tailscale':
+      return { abrirApp: mac || win, teToca: 'Tailscale está desconectado: abre su ícono junto al reloj y pulsa «Connect».' }
+    case 'falta-https':
+      return { abrir: enlace, teToca: 'Se abrió una página de Tailscale: pulsa «Enable» para que tu red tenga candado (HTTPS). Es un clic.' }
+    case 'sin-magicdns':
+      return { abrir: 'https://login.tailscale.com/admin/dns', teToca: 'En la página que se abrió, pulsa «Enable MagicDNS».' }
+    case 'falta-permiso':
+      return { teToca: 'En Linux, dale permiso a tu usuario una sola vez en una terminal: sudo tailscale set --operator=$USER' }
+    case 'arrancando':
+      return { teToca: 'Tailscale está arrancando; sigo en unos segundos.' }
+    default:
+      return { teToca: null }
+  }
+}
+
+/**
+ * Abre lo que toca, sin repetir: la misma dirección (o la misma app, o winget) solo una vez cada REABRIR_MS. `ctx.abrir`
+ * (url) y `ctx.abrirApp` / `ctx.winget` los pone servidor.mjs; con ARBRAIN_TELEFONO_NO_ABRIR=1 (marcador de primer uso)
+ * solo se anota en el registro. Devuelve la ayuda con `abierto` (qué se abrió ahora, si algo).
+ */
+export function ayudar(r, ctx, ahora = Date.now()) {
+  const a = ayudaDe(r, ctx.plataforma)
+  const clave = a.abrir ?? (a.abrirApp ? 'app:tailscale' : a.winget ? 'winget:tailscale' : null)
+  const abiertos = ctx.abiertos ?? new Map()
+  let abierto = null
+  if (clave && !(abiertos.get(clave) > ahora - REABRIR_MS)) {
+    abiertos.set(clave, ahora)
+    abierto = clave
+    if (process.env.ARBRAIN_TELEFONO_NO_ABRIR === '1') ctx.registrar?.(`Teléfono: abriría ${clave} (ARBRAIN_TELEFONO_NO_ABRIR)`)
+    else if (a.abrir) ctx.abrir?.(a.abrir)
+    else if (a.abrirApp) ctx.abrirApp?.()
+    else if (a.winget) ctx.winget?.()
+  }
+  return { teToca: a.teToca, enlace: a.abrir ?? null, abierto }
+}
+
 // ── Control del supervisor (la web pregunta y actúa por aquí) ───────────────────────────────────────────────────
 
 /**
  * Rutas `/telefono/*` del control local de servidor.mjs. `ctx`: { R, puertoWeb, reiniciarWeb, registrar, codigos,
- * asegurarArranque? }. La web llega con el token del daemon (esWeb) y el CLI con el suyo (esCli). Devuelve [status, json] o null.
+ * asegurarArranque?, abrir?, abrirApp?, winget?, abiertos?, plataforma? }. La web llega con el token del daemon (esWeb) y el CLI con el suyo (esCli). Devuelve [status, json] o null.
  */
 export async function atenderControl({ metodo, ruta, cuerpo, esWeb, esCli }, ctx) {
   const base = { R: ctx.R, puertoWeb: ctx.puertoWeb(), registrar: ctx.registrar, bin: ctx.bin ?? binarioTailscale() }
@@ -375,6 +443,8 @@ export async function atenderControl({ metodo, ruta, cuerpo, esWeb, esCli }, ctx
     const r = ruta === '/telefono/encender' ? await encender(base) : await apagar(base)
     // Encendido = tiene que sobrevivir a un reinicio de la computadora (servidor.mjs › asegurarArranque).
     if (r.estado === 'encendido' && ctx.asegurarArranque) r.arranque = ctx.asegurarArranque()
+    // Desde la app (el botón «Encender»), lo que falta se abre solo, como lo hacía TELEFONO.md.
+    if (ruta === '/telefono/encender' && esWeb && r.estado !== 'encendido') r.ayuda = ayudar(r, ctx)
     const cambia = JSON.stringify(entornoWeb(ctx.R)) !== antes
     // La web se relanza con el Host nuevo (o sin él). Se responde antes: quien pidió esto es, a veces, la propia web.
     if (cambia) setTimeout(() => { void ctx.reiniciarWeb() }, 300)

@@ -31,7 +31,12 @@ export type EstadoConfirmacion = 'pendiente' | 'en_cola' | 'permitida' | 'rechaz
  * Botón Play (27 oct 2026): `permiso` = la tarjeta de siempre (Una vez · Siempre este patrón · No); `manos` = «Córrelo
  * tú»: el agente no puede correrlo (sudo, iniciar sesión) y la persona lo corre ella misma en una terminal visible.
  */
-export type TipoConfirmacion = 'permiso' | 'manos'
+export type TipoConfirmacion = 'permiso' | 'manos' | 'decision'
+/**
+ * Respuesta de la bandeja de decisiones (autonomía v2, 3 nov 2026): Sí, No u Otro (con lo que la persona quiere en su
+ * lugar). «Otro» nunca ejecuta lo que se pidió: queda `rechazada` y su comentario viaja al agente.
+ */
+export type RespuestaDecision = 'si' | 'no' | 'otro'
 export type AlcanceConfirmacion = 'una' | 'siempre'
 export type OrigenConfirmacion = 'agente' | 'manos' | 'cron'
 /** Quién creó la pendiente: la guardia del daemon (acción interceptada) o una petición HTTP con el pase de agente. */
@@ -79,6 +84,13 @@ export interface Confirmacion {
   patronAviso?: string
   /** En acciones del freno, el botón del sí dice la consecuencia («Borrar 14 archivos»). */
   botonSi?: string
+  /** Bandeja (autonomía v2): título corto de la decisión, lo que Levy recomienda y por qué, y qué contestó la persona. */
+  titulo?: string
+  recomendacion?: string
+  recomienda?: 'si' | 'no'
+  respuesta?: RespuestaDecision
+  /** Veces que una decisión aprobada ya autorizó una acción de manos (tope `USOS_DECISION`). */
+  usos?: number
 }
 
 /** Conversación de la app donde vive el turno (la misma forma que un despertador). */
@@ -100,10 +112,28 @@ export interface PedidoConfirmacion {
   patron?: string
   sesion?: string
   conversacion?: ConversacionConfirmacion
+  titulo?: string
+  recomendacion?: string
+  recomienda?: 'si' | 'no'
+  /** Nadie la espera en el momento (decisiones de Levy): nace en la cola de la persona. */
+  enCola?: boolean
+  /**
+   * Una decisión atada a una hora («hoy a la 1 pm», 3 nov 2026): a partir de este instante (ms) ya no aplica y vence sola
+   * (`vencida`: nunca se ejecuta, queda en el historial). Nunca alarga la vida de la cola.
+   */
+  expira?: number
+}
+
+/** El límite pedido, si es un instante futuro y no pasa del tope de su vida normal; si no, null (rige la vida normal). */
+export function limiteDe(pedido: unknown, ahora: number, tope: number): number | null {
+  return typeof pedido === 'number' && Number.isFinite(pedido) && pedido > ahora ? Math.min(pedido, tope) : null
 }
 
 /** Lo que acompaña una decisión de la app (tarjeta del hilo). */
 export interface ExtrasDecision { comentario?: unknown; alcance?: unknown }
+
+/** Cuántas acciones de manos puede autorizar una decisión aprobada en la bandeja (y por cuánto tiempo). */
+export const USOS_DECISION = 5
 
 /** Lo más largo que viaja de un comentario de la persona y de la salida de «Córrelo tú». */
 export const COMENTARIO_MAX = 500
@@ -149,8 +179,10 @@ interface Fila {
   id: string; estado: EstadoConfirmacion; categoria: CategoriaConfirmacion; origen: OrigenConfirmacion; resumen: string; detalle: string | null; herramienta: string | null; literal: string | null; avisos: string | null; creada_por: CreadaPor | null; huella: string; creada: number; expira: number; resuelta: number | null
   tipo: TipoConfirmacion | null; frase: string | null; patron: string | null; comentario: string | null; alcance: AlcanceConfirmacion | null; terminal: number | null; salida: string | null; codigo: number | null; sesion: string | null
   conversacion: string | null; cola: number | null
+  titulo: string | null; recomendacion: string | null; recomienda: string | null; respuesta: string | null; usos: number | null
 }
-const COLUMNAS_PLAY = [['tipo', 'TEXT'], ['frase', 'TEXT'], ['patron', 'TEXT'], ['comentario', 'TEXT'], ['alcance', 'TEXT'], ['terminal', 'INTEGER'], ['salida', 'TEXT'], ['codigo', 'INTEGER'], ['sesion', 'TEXT'], ['conversacion', 'TEXT'], ['cola', 'INTEGER']] as const
+const COLUMNAS_PLAY = [['tipo', 'TEXT'], ['frase', 'TEXT'], ['patron', 'TEXT'], ['comentario', 'TEXT'], ['alcance', 'TEXT'], ['terminal', 'INTEGER'], ['salida', 'TEXT'], ['codigo', 'INTEGER'], ['sesion', 'TEXT'], ['conversacion', 'TEXT'], ['cola', 'INTEGER'],
+  ['titulo', 'TEXT'], ['recomendacion', 'TEXT'], ['recomienda', 'TEXT'], ['respuesta', 'TEXT'], ['usos', 'INTEGER']] as const
 
 const leerConversacion = (s: string | null): ConversacionConfirmacion | null => {
   try {
@@ -173,7 +205,7 @@ const publica = (f: Fila): Confirmacion => ({
   ...(f.literal ? { literal: f.literal } : {}), ...(f.avisos && leerAvisos(f.avisos).length ? { avisos: leerAvisos(f.avisos) } : {}),
   creadaPor: f.creada_por ?? 'guardia',
   creada: f.creada, expira: f.expira, ...(f.resuelta ? { resuelta: f.resuelta } : {}),
-  tipo: f.tipo === 'manos' ? 'manos' : 'permiso',
+  tipo: f.tipo === 'manos' ? 'manos' : f.tipo === 'decision' ? 'decision' : 'permiso',
   ...(f.frase ? { frase: f.frase } : {}), ...(f.patron ? { patron: f.patron } : {}), ...(f.comentario ? { comentario: f.comentario } : {}),
   ...(f.alcance ? { alcance: f.alcance } : {}), ...(f.terminal != null ? { terminal: f.terminal } : {}),
   ...(f.salida != null ? { salida: f.salida } : {}), ...(f.codigo != null ? { codigo: f.codigo } : {}), ...(f.sesion ? { sesion: f.sesion } : {}),
@@ -181,7 +213,11 @@ const publica = (f: Fila): Confirmacion => ({
   ...((f.estado === 'en_cola' || f.estado === 'corriendo' || f.estado === 'corrida') && f.cola ? { enColaDesde: f.cola } : {}),
   ...(f.patron ? { patronFrase: frasePatron(f.patron, f.herramienta ?? undefined) } : {}),
   ...(f.patron && avisoPatron(f.patron, f.herramienta ?? undefined) ? { patronAviso: avisoPatron(f.patron, f.herramienta ?? undefined)! } : {}),
-  ...(f.categoria !== 'otra' ? { botonSi: botonConsecuencia(f.categoria, f.herramienta ?? undefined, f.literal ?? undefined) } : {}),
+  ...(f.categoria !== 'otra' && f.tipo !== 'decision' ? { botonSi: botonConsecuencia(f.categoria, f.herramienta ?? undefined, f.literal ?? undefined) } : {}),
+  ...(f.titulo ? { titulo: f.titulo } : {}), ...(f.recomendacion ? { recomendacion: f.recomendacion } : {}),
+  ...(f.recomienda === 'si' || f.recomienda === 'no' ? { recomienda: f.recomienda } : {}),
+  ...(f.respuesta === 'si' || f.respuesta === 'no' || f.respuesta === 'otro' ? { respuesta: f.respuesta } : {}),
+  ...(f.usos ? { usos: f.usos } : {}),
 })
 
 /** Lo que hace el daemon cuando la persona decide algo que ya nadie esperaba (cola): se lo dice al agente. */
@@ -270,28 +306,36 @@ export class Confirmaciones {
     const origen = ORIGENES.has(p.origen) ? p.origen : 'agente'
     const viva = this.db.prepare(`SELECT * FROM confirmaciones WHERE huella = ? AND estado IN ('pendiente','en_cola','permitida','corriendo') ORDER BY creada DESC LIMIT 1`).get(p.huella) as Fila | undefined
     const ahora = this.ahora()
+    // Una decisión que Levy vuelve a subir con otra recomendación o texto la actualiza en su lugar (no se apila).
+    if (viva && p.tipo === 'decision' && (viva.estado === 'pendiente' || viva.estado === 'en_cola')) {
+      const expira = limiteDe(p.expira, ahora, viva.creada + (viva.estado === 'en_cola' ? VIDA_COLA_MS : VIDA_PENDIENTE_MS)) ?? viva.expira
+      this.db.prepare(`UPDATE confirmaciones SET titulo = ?, recomendacion = ?, recomienda = ?, detalle = ?, expira = ? WHERE id = ?`).run(p.titulo ? String(p.titulo).slice(0, 160) : viva.titulo, p.recomendacion ? String(p.recomendacion).slice(0, 600) : viva.recomendacion, p.recomienda === 'si' || p.recomienda === 'no' ? p.recomienda : viva.recomienda, p.detalle ? String(p.detalle).slice(0, 2000) : viva.detalle, expira, viva.id)
+      return this.get(viva.id)!
+    }
     // La misma acción ya estaba en la cola y el agente la vuelve a pedir: vuelve a ser una pendiente que un turno espera
     // (la persona puede estar delante); si tampoco contesta, regresa a la cola.
-    if (viva?.estado === 'en_cola') {
+    if (viva?.estado === 'en_cola' && p.tipo !== 'decision') {
       this.db.prepare(`UPDATE confirmaciones SET estado = 'pendiente', cola = NULL, expira = ? WHERE id = ? AND estado = 'en_cola'`).run(ahora + VIDA_PENDIENTE_MS, viva.id)
       return this.get(viva.id)!
     }
     if (viva) return publica(viva)
     const f: Fila = {
-      id: `cf_${randomBytes(6).toString('hex')}`, estado: 'pendiente', categoria, origen,
+      id: `cf_${randomBytes(6).toString('hex')}`, estado: p.enCola ? 'en_cola' : 'pendiente', categoria, origen,
       resumen: String(p.resumen ?? '').slice(0, 300) || 'Acción irreversible', detalle: p.detalle ? String(p.detalle).slice(0, 2000) : null,
       herramienta: p.herramienta ? String(p.herramienta).slice(0, 120) : null,
       literal: p.literal ? String(p.literal) : null, avisos: p.avisos?.length ? JSON.stringify(p.avisos.map(String).slice(0, 8)) : null,
       creada_por: p.creadaPor === 'peticion' ? 'peticion' : 'guardia', huella: String(p.huella).slice(0, 160),
-      creada: ahora, expira: ahora + VIDA_PENDIENTE_MS, resuelta: null,
-      tipo: p.tipo === 'manos' ? 'manos' : 'permiso', frase: p.frase ? String(p.frase).slice(0, 300) : null,
+      creada: ahora, expira: limiteDe(p.expira, ahora, ahora + (p.enCola ? VIDA_COLA_MS : VIDA_PENDIENTE_MS)) ?? ahora + (p.enCola ? VIDA_COLA_MS : VIDA_PENDIENTE_MS), resuelta: null,
+      tipo: p.tipo === 'manos' ? 'manos' : p.tipo === 'decision' ? 'decision' : 'permiso', frase: p.frase ? String(p.frase).slice(0, 300) : null,
       // El freno nunca se guarda como regla: ni se ofrece.
       patron: p.patron && categoria === 'otra' && p.tipo !== 'manos' ? String(p.patron).slice(0, 200) : null,
       comentario: null, alcance: null, terminal: null, salida: null, codigo: null, sesion: p.sesion ? String(p.sesion).slice(0, 120) : null,
-      conversacion: p.conversacion && leerConversacion(JSON.stringify(p.conversacion)) ? JSON.stringify(leerConversacion(JSON.stringify(p.conversacion))).slice(0, 600) : null, cola: null,
+      conversacion: p.conversacion && leerConversacion(JSON.stringify(p.conversacion)) ? JSON.stringify(leerConversacion(JSON.stringify(p.conversacion))).slice(0, 600) : null, cola: p.enCola ? ahora : null,
+      titulo: p.titulo ? String(p.titulo).slice(0, 160) : null, recomendacion: p.recomendacion ? String(p.recomendacion).slice(0, 600) : null,
+      recomienda: p.recomienda === 'si' || p.recomienda === 'no' ? p.recomienda : null, respuesta: null, usos: null,
     }
-    this.db.prepare(`INSERT INTO confirmaciones (id, estado, categoria, origen, resumen, detalle, herramienta, literal, avisos, creada_por, huella, creada, expira, resuelta, tipo, frase, patron, comentario, alcance, terminal, salida, codigo, sesion, conversacion, cola)
-      VALUES (@id, @estado, @categoria, @origen, @resumen, @detalle, @herramienta, @literal, @avisos, @creada_por, @huella, @creada, @expira, @resuelta, @tipo, @frase, @patron, @comentario, @alcance, @terminal, @salida, @codigo, @sesion, @conversacion, @cola)`).run(f)
+    this.db.prepare(`INSERT INTO confirmaciones (id, estado, categoria, origen, resumen, detalle, herramienta, literal, avisos, creada_por, huella, creada, expira, resuelta, tipo, frase, patron, comentario, alcance, terminal, salida, codigo, sesion, conversacion, cola, titulo, recomendacion, recomienda, respuesta, usos)
+      VALUES (@id, @estado, @categoria, @origen, @resumen, @detalle, @herramienta, @literal, @avisos, @creada_por, @huella, @creada, @expira, @resuelta, @tipo, @frase, @patron, @comentario, @alcance, @terminal, @salida, @codigo, @sesion, @conversacion, @cola, @titulo, @recomendacion, @recomienda, @respuesta, @usos)`).run(f)
     const c = publica(f)
     this.avisar('pendiente', c)
     return c
@@ -303,7 +347,11 @@ export class Confirmaciones {
    * «Córrelo tú» (tipo `manos`) no se «permite»: se corre (`empezarCorrida`) o se rechaza.
    */
   resolver(id: string, decision: unknown, extras: ExtrasDecision = {}): { ok: true; confirmacion: Confirmacion } | { ok: false; status: number; error: string } {
-    if (decision !== 'permitir' && decision !== 'rechazar') return { ok: false, status: 400, error: 'decision debe ser «permitir» o «rechazar».' }
+    // Bandeja (autonomía v2): «otro» = no lo que se pidió, sino lo que la persona escribe. Nunca ejecuta la acción.
+    const otro = decision === 'otro'
+    if (otro && !limpiarComentario(extras.comentario)) return { ok: false, status: 400, error: '«Otro» necesita que escribas qué quieres en su lugar.' }
+    if (otro) decision = 'rechazar'
+    if (decision !== 'permitir' && decision !== 'rechazar') return { ok: false, status: 400, error: 'decision debe ser «permitir», «rechazar» u «otro».' }
     const actual = this.get(id)
     if (!actual) return { ok: false, status: 404, error: 'No existe esa confirmación.' }
     if (actual.estado !== 'pendiente' && actual.estado !== 'en_cola') return { ok: false, status: 409, error: `La confirmación ya está ${actual.estado}.` }
@@ -315,14 +363,54 @@ export class Confirmaciones {
     const estado: EstadoConfirmacion = decision === 'permitir' ? 'permitida' : 'rechazada'
     // Desde la cola nadie espera: la aprobación tiene que durar lo que tarda el agente en retomarla.
     const desdeCola = actual.estado === 'en_cola'
-    const vida = !desdeCola ? VIDA_APROBACION_MS : actual.origen === 'cron' ? VIDA_APROBACION_COLA_RUTINA_MS : VIDA_APROBACION_COLA_MS
-    const cambio = this.db.prepare(`UPDATE confirmaciones SET estado = ?, resuelta = ?, expira = ?, comentario = ?, alcance = ? WHERE id = ? AND estado = ?`)
-      .run(estado, ahora, estado === 'permitida' ? ahora + vida : actual.expira, comentario, decision === 'permitir' ? alcance : null, id, actual.estado).changes
+    const vida = actual.tipo === 'decision' ? VIDA_APROBACION_COLA_MS : !desdeCola ? VIDA_APROBACION_MS : actual.origen === 'cron' ? VIDA_APROBACION_COLA_RUTINA_MS : VIDA_APROBACION_COLA_MS
+    const respuesta: RespuestaDecision = otro ? 'otro' : decision === 'permitir' ? 'si' : 'no'
+    const cambio = this.db.prepare(`UPDATE confirmaciones SET estado = ?, resuelta = ?, expira = ?, comentario = ?, alcance = ?, respuesta = ? WHERE id = ? AND estado = ?`)
+      // Un Sí nunca estira una decisión atada a una hora: si la hora llega antes de que Levy la use, vence igual.
+      .run(estado, ahora, estado === 'permitida' ? Math.min(ahora + vida, actual.tipo === 'decision' ? actual.expira : Infinity) : actual.expira, comentario, decision === 'permitir' ? alcance : null, respuesta, id, actual.estado).changes
     if (cambio !== 1) return { ok: false, status: 409, error: 'La confirmación cambió mientras tanto.' }
     const c = this.get(id)!
     this.avisar('resuelta', c)
-    if (desdeCola) this.retomar(c, this.conversacionDe(id))
+    // Una decisión de Levy nadie la espera en el momento: su respuesta siempre vuelve a su conversación.
+    if (desdeCola || actual.tipo === 'decision') this.retomar(c, this.conversacionDe(id))
     return { ok: true, confirmacion: c }
+  }
+
+  /**
+   * Bandeja (autonomía v2): el «Sí» de una decisión autoriza las acciones de manos de su categoría, como lo hacía la cita
+   * de la persona, por `VIDA_APROBACION_COLA_MS` y hasta `USOS_DECISION` acciones. Devuelve la decisión si sirvió.
+   */
+  usarDecision(id: string, categoria: CategoriaConfirmacion): Confirmacion | null {
+    this.vencer()
+    const f = this.db.prepare(`SELECT * FROM confirmaciones WHERE id = ? AND tipo = 'decision' AND estado = 'permitida'`).get(id) as Fila | undefined
+    if (!f || (f.usos ?? 0) >= USOS_DECISION) return null
+    // Una decisión de «enviar» no autoriza borrar ni pagar: la categoría tiene que ser la misma (otra = solo lo reversible).
+    if (f.categoria !== categoria) return null
+    if (this.db.prepare(`UPDATE confirmaciones SET usos = COALESCE(usos, 0) + 1 WHERE id = ? AND estado = 'permitida' AND COALESCE(usos, 0) < ?`).run(id, USOS_DECISION).changes !== 1) return null
+    return this.get(id)
+  }
+
+  /** Lo que se resolvió desde `desde` (la bandeja muestra lo decidido hoy). */
+  resueltasDesde(desde: number): Confirmacion[] {
+    return (this.db.prepare(`SELECT * FROM confirmaciones WHERE resuelta >= ? AND estado NOT IN ('pendiente','en_cola') ORDER BY resuelta DESC LIMIT 50`).all(desde) as Fila[]).map(publica)
+  }
+
+  /**
+   * Minutos que el sistema esperó por la persona entre `desde` y `hasta`: cada tarjeta suma el tiempo que estuvo abierta
+   * dentro de la ventana (desde que se creó hasta que la persona decidió, venció o hasta ahora). Pura sobre la tabla.
+   */
+  esperaEntre(desde: number, hasta: number): { minutos: number; tarjetas: number; abiertas: number } {
+    this.vencer()
+    const ahora = this.ahora()
+    const filas = this.db.prepare(`SELECT creada, resuelta, estado, expira FROM confirmaciones WHERE creada < ? AND COALESCE(resuelta, ?) > ?`).all(hasta, ahora, desde) as { creada: number; resuelta: number | null; estado: EstadoConfirmacion; expira: number }[]
+    let ms = 0, abiertas = 0
+    for (const f of filas) {
+      const fin = Math.min(hasta, f.resuelta ?? ahora)
+      const ini = Math.max(desde, f.creada)
+      if (fin > ini) ms += fin - ini
+      if (f.estado === 'pendiente' || f.estado === 'en_cola') abiertas++
+    }
+    return { minutos: Math.round(ms / 60_000), tarjetas: filas.length, abiertas }
   }
 
   /** «Córrelo tú»: la persona apretó el botón. Pasa a `corriendo` (con su terminal) si seguía pendiente. */

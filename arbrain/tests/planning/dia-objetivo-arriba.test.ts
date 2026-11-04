@@ -45,9 +45,9 @@ test('Día: el objetivo va arriba en la franja del objetivo, plegable, y tocarlo
   assert.match(dia, /<HabitosHoy [^>]*\bminimo\b/)
   assert.ok(dia.indexOf('{franja}') < dia.indexOf('{agendaMini}'), 'franja → agenda')
   assert.equal(dia.match(/<HabitosHoy /g)?.length, 1, 'los hábitos salen una vez')
-  assert.match(dia, /<Entregables texto=\{casillas\?\.texto \?\? ''\} guardar=\{guardarCasillas\}/)
+  assert.match(dia, /useCasillas\(casillas\?\.texto \?\? '', guardarCasillas\)/, 'las casillas del objetivo, con la misma pluma, en la lista del día')
   assert.doesNotMatch(dia, /objLinea|abrirObjetivo|titulo: titulo \?\? ''/, 'sin la línea de abajo ni el atajo a la hoja de tarea')
-  assert.match(dia, /: !leyendoObjetivo && <button className=\{d\.objVacio\} onClick=\{fijarObjetivo\}/, 'solo el vacío ofrece fijar uno')
+  assert.match(dia, /\{!titulo && !leyendoObjetivo && <button className=\{d\.objVacio\} onClick=\{fijarObjetivo\}/, 'solo el vacío ofrece fijar uno')
   // Un solo componente para las tres escalas.
   assert.match(semana, /<Entregables texto=\{goal\.success\}/)
   assert.doesNotMatch(semana + dia, /function Entregables|function ObjetivoCaja/)

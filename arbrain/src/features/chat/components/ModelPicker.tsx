@@ -73,7 +73,8 @@ export function ModelPicker({ onSelect, onClose, account, modeloActual, conversa
   }, [])
 
   const grupos = useMemo(() => modelosDelSelector(catalogo), [catalogo])
-  const filas = useMemo(() => [...grupos.claude, ...grupos.openrouter], [grupos])
+  // Sin filtro (3 nov 2026): su fila se ve aun sin llave, deshabilitada con el motivo; el teclado no se detiene en ella.
+  const filas = useMemo(() => [...grupos.claude, ...grupos.openrouter, ...grupos.abliterated], [grupos])
 
   // El teclado arranca en el modelo activo.
   useEffect(() => {
@@ -99,7 +100,7 @@ export function ModelPicker({ onSelect, onClose, account, modeloActual, conversa
       if (loading || !filas.length) return
       if (e.key === 'ArrowUp') { e.preventDefault(); setSelectedIndex((i) => Math.max(0, i - 1)); return }
       if (e.key === 'ArrowDown') { e.preventDefault(); setSelectedIndex((i) => Math.min(filas.length - 1, i + 1)); return }
-      if (e.key === 'Enter') { e.preventDefault(); const m = filas[selectedIndex]; if (m) onSelect(m) }
+      if (e.key === 'Enter') { e.preventDefault(); const m = filas[selectedIndex]; if (m?.disponible) onSelect(m) }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
@@ -113,14 +114,17 @@ export function ModelPicker({ onSelect, onClose, account, modeloActual, conversa
     const activa = i === selectedIndex
     const actual = esModeloActual(m, espacio, modeloActual)
     const nueva = conversacionConMensajes && !cabeEnConversacion(m, espacio)
-    const precio = m.via === 'openrouter' ? precioPorMillon(m) : null
+    const precio = m.via !== 'suscripcion' ? precioPorMillon(m) : null
+    const sinFiltro = m.via === 'abliterated'
     return (
       <li key={m.id} data-model={m.id}>
         <button
           type="button"
           aria-pressed={actual}
           data-activa={activa || undefined}
-          title={nueva ? 'Otro motor: abre una conversación nueva' : undefined}
+          data-sin-filtro={sinFiltro || undefined}
+          disabled={!m.disponible}
+          title={!m.disponible ? (m.motivo ?? 'No disponible') : nueva ? 'Otro motor: abre una conversación nueva' : undefined}
           onFocus={() => setSelectedIndex(i)}
           onMouseDown={(e) => e.preventDefault()}
           onMouseMove={() => { if (!activa) setSelectedIndex(i) }}
@@ -128,8 +132,8 @@ export function ModelPicker({ onSelect, onClose, account, modeloActual, conversa
           className={css.fila}
         >
           <span className="min-w-0 flex-1">
-            <span className={css.nombre}>{m.nombre}</span>
-            <span className={css.descripcion}>{m.descripcion}</span>
+            <span className={css.nombre}>{m.nombre}{sinFiltro && <span className={css.noEsClaude}>no es Claude</span>}</span>
+            <span className={css.descripcion}>{m.disponible ? m.descripcion : m.motivo}</span>
           </span>
           {precio && <span className={css.precio} title="USD por millón de tokens: entrada / salida (OpenRouter)">{precio}</span>}
           {nueva && <span className="sr-only">. Abre una conversación nueva</span>}
@@ -140,7 +144,7 @@ export function ModelPicker({ onSelect, onClose, account, modeloActual, conversa
   }
 
   // Pista única por grupo (no un enlace por fila): elegir aquí abre una conversación nueva.
-  const abreNueva = (lista: ModeloCatalogo[]) => conversacionConMensajes && lista.some((m) => !cabeEnConversacion(m, espacio))
+  const abreNueva = (lista: ModeloCatalogo[]) => conversacionConMensajes && lista.some((m) => m.disponible && !cabeEnConversacion(m, espacio))
   const grupo = (titulo: string, lista: ModeloCatalogo[], desde: number, columna?: string) => lista.length > 0 && (
     <li className={css.grupo} role="presentation">
       <div className={css.ceja} aria-hidden>
@@ -187,6 +191,7 @@ export function ModelPicker({ onSelect, onClose, account, modeloActual, conversa
         <ul ref={listRef} className={css.lista} data-popover-scroll>
           {grupo('Claude · tu suscripción', grupos.claude, 0)}
           {grupo('OpenRouter · pagas por uso', grupos.openrouter, grupos.claude.length, '$ / millón')}
+          {grupo('Sin filtro · abliteration.ai', grupos.abliterated, grupos.claude.length + grupos.openrouter.length, '$ / millón')}
         </ul>
       )}
 

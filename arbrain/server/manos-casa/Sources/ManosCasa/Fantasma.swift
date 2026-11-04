@@ -43,6 +43,7 @@ final class Fantasma {
     private func asegurar() {
         guard panel == nil else { return }
         let p = Fantasma.panelBase(NSRect(x: 0, y: 0, width: VistaFantasma.lado, height: VistaFantasma.lado))
+        p.title = "manos-halo"   // la batería de UX distingue Halo, marco y franja por título
         let v = VistaFantasma(frame: NSRect(x: 0, y: 0, width: VistaFantasma.lado, height: VistaFantasma.lado))
         p.contentView = v
         panel = p; vista = v
@@ -56,7 +57,7 @@ final class Fantasma {
         if p === compartido.panel { compartido.sobre = ventana; compartido.vigilarCapas() }
         if let ventana, ventana != 0 {
             p.level = .normal
-            p.order(.above, relativeTo: Int(ventana))
+            p.order(.above, relativeTo: Borde.compartido.tope(sobre: ventana) ?? Int(ventana))
         } else {
             p.level = .floating
             p.orderFrontRegardless()
@@ -73,6 +74,8 @@ final class Fantasma {
 
     struct Destino { var x: Double; var y: Double; var pulso: Bool; var ventana: CGWindowID? }
     private var cola: [Destino] = []
+    /// Último destino pedido (coordenadas AX): la batería de UX mide la punta contra él.
+    private(set) var objetivo: (x: Double, y: Double)?
     /// Tramo en curso: un `Movimiento` del modelo publicado (ManosNucleo/Trazado.swift), el mismo que usa la mano real.
     private var tramo: (mov: Movimiento, hasta: Destino, t0: CFTimeInterval, llego: CFTimeInterval?)?
     /// Última posición de la punta (coordenadas AX). Sobrevive al desvanecido: al volver, sale de ahí.
@@ -87,10 +90,16 @@ final class Fantasma {
         guard capas == nil else { return }
         let t = Timer(timeInterval: 0.25, repeats: true) { [weak self] _ in
             guard let self, let p = self.panel, p.isVisible, p.alphaValue > 0.01 else { self?.capas?.invalidate(); self?.capas = nil; return }
-            if let w = self.sobre, w != 0, p.level == .normal { p.order(.above, relativeTo: Int(w)) }
+            if let w = self.sobre, w != 0, p.level == .normal { p.order(.above, relativeTo: Borde.compartido.tope(sobre: w) ?? Int(w)) }
         }
         RunLoop.main.add(t, forMode: .common)
         capas = t
+    }
+
+    /// El marco se reapiló sobre `ventana`: el Halo sube encima de su franja (si es su ventana y se ve).
+    func reapilar(sobre ventana: CGWindowID, tope: Int) {
+        guard let p = panel, p.isVisible, p.alphaValue > 0.01, sobre == ventana, p.level == .normal else { return }
+        p.order(.above, relativeTo: tope)
     }
 
     /// Para el doctor y la evidencia: dónde está el Halo y si está justo encima de su ventana en el orden de capas.
@@ -100,6 +109,15 @@ final class Fantasma {
                                     "sobre": Int(sobre ?? 0), "panel": panel?.windowNumber ?? 0,
                                     "dueno": dueno ?? "", "ultimo_apagado": ultimoApagado, "tope_s": Fantasma.topeS, "perro": perro != nil]
             if let p = punta { r["x"] = p.x; r["y"] = p.y }
+            if let o = objetivo { r["objetivo"] = ["x": o.x, "y": o.y] }
+            r["en_destino"] = tramo == nil && cola.isEmpty
+            // La verdad del WindowServer (no lo que el Halo cree): marco real del panel y su punta en coordenadas AX.
+            if let n = panel?.windowNumber, n > 0, let info = (CGWindowListCopyWindowInfo([.optionIncludingWindow], CGWindowID(n)) as? [[String: Any]])?.first,
+               let b = info[kCGWindowBounds as String] as? [String: Double] {
+                r["ws"] = b
+                r["punta_ws"] = ["x": (b["X"] ?? 0) + Double(VistaFantasma.punta.x), "y": (b["Y"] ?? 0) + Double(VistaFantasma.lado - VistaFantasma.punta.y)]
+                r["en_pantalla_ws"] = info[kCGWindowIsOnscreen as String] as? Bool ?? false
+            }
             if let panel, let f = panel.screen { r["pantalla"] = ["x": f.frame.minX, "ancho": f.frame.width, "nombre": f.localizedName] }
             if let n = panel?.windowNumber, let l = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] {
                 let ids = l.compactMap { $0[kCGWindowNumber as String] as? Int }
@@ -156,17 +174,24 @@ final class Fantasma {
     private(set) var ultimoApagado = ""
 
     /// Una acción movió el Halo: el perro cuenta desde aquí.
-    private func latir() { ultimaAccion = CACurrentMediaTime(); visibleParaVigia = true; vigilarPerro() }
+    /// El latido se renueva YA (siempre corre en el hilo principal, que está vivo): antes solo lo escribía el primer tic del
+    /// perro, un segundo después, y en ese segundo el vigía veía «visible» con un latido de hace minutos y salía con
+    /// código 3 a mitad de un encargo (batería de UX del 3 nov: «hilo principal congelado 123 s», tras una pausa).
+    private func latir() {
+        if Thread.isMainThread { latido = CACurrentMediaTime() }
+        ultimaAccion = CACurrentMediaTime(); visibleParaVigia = true; vigilarPerro()
+    }
 
     private func vigilarPerro() {
         let iniciar = { [self] in
             guard perro == nil else { return }
+            latido = CACurrentMediaTime()
             let t = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
                 guard let self else { return }
                 self.latido = CACurrentMediaTime()
                 let visible = (self.panel?.isVisible ?? false) || (self.marcoMirada?.isVisible ?? false)
                 if !visible { self.visibleParaVigia = false; self.perro?.invalidate(); self.perro = nil; return }
-                if CACurrentMediaTime() - self.ultimaAccion > Fantasma.topeS { self.ocultarYa("perro") }
+                if CACurrentMediaTime() - self.ultimaAccion > Fantasma.topeS && !Borde.compartido.sostenido { self.ocultarYa("perro") }
             }
             RunLoop.main.add(t, forMode: .common)
             perro = t
@@ -236,12 +261,18 @@ final class Fantasma {
 
     /// Encola un destino (hilo principal). Si ya está en esa zona y no hay nada pendiente, solo pulsa.
     private func encolar(_ d: Destino) {
+        objetivo = (d.x, d.y)
         if estilo == "antes" { irAntes(a: d.x, d.y, sobre: d.ventana); if d.pulso { vista?.pulso() }; return }
+        // Oculto (reposo largo, otra pantalla): no cruza la pantalla desde donde se apagó; entra junto al objetivo.
+        let oculto = panel == nil || !(panel?.isVisible ?? false) || (panel?.alphaValue ?? 0) < 0.05
         aparecer(sobre: d.ventana)
         latir()
-        if punta == nil {
-            // Primera aparición: entra desde un poco abajo a la derecha, como una mano que llega.
-            colocar(d.x + 90, d.y + 70)
+        if punta == nil || (oculto && cola.isEmpty && tramo == nil) {
+            // Aparición: entra desde un poco abajo a la derecha, como una mano que llega (hacia dentro de su pantalla).
+            let s = Borde.pantallaQueMasCubre(CGRect(x: d.x, y: d.y, width: 1, height: 1))
+            let alto = NSScreen.screens.first?.frame.maxY ?? 0
+            let maxX = s.map { Double($0.frame.maxX) } ?? .infinity, maxY = s.map { Double(alto - $0.frame.minY) } ?? .infinity
+            colocar(d.x + (d.x + 110 > maxX ? -90 : 90), d.y + (d.y + 90 > maxY ? -70 : 70))
         }
         cola.append(d)
         arrancarReloj()
@@ -372,6 +403,8 @@ final class Fantasma {
         latir()
         apagar?.cancel()
         let w = DispatchWorkItem { [weak self] in
+            // Un encargo sigue vivo (su marco está sostenido): el Halo espera respirando, no parpadea entre pasos.
+            if Borde.compartido.sostenido { self?.programarApagado(); return }
             CursorSistema.liberar("halo_reposo")   // el Halo se va: la flecha del sistema vuelve antes
             guard let p = self?.panel else { return }
             self?.vista?.respirar(false)
@@ -383,14 +416,21 @@ final class Fantasma {
     }
 
     /// Observar: un contorno tenue recorre la ventana. El fantasma NO se mueve al leer (antes saltaba a la ventana en cada lectura).
+    private var ultimaMirada: (ventana: CGWindowID?, t: CFTimeInterval)?
+
     func mirar(_ m: Marco, ventana: CGWindowID? = nil) {
         guard activo else { return }
         DispatchQueue.main.async { [self] in
+            // Leer seguido la misma ventana no la hace parpadear: un contorno por ventana cada 6 s (el borde de pantalla
+            // ya dice que las manos trabajan).
+            if let u = ultimaMirada, u.ventana == ventana, CACurrentMediaTime() - u.t < 6 { return }
+            ultimaMirada = (ventana, CACurrentMediaTime())
             if estilo == "antes" { irAntes(a: m.x + min(m.w * 0.5, 160), m.y + 18, sobre: ventana) }
             let c = Fantasma.aCocoa(m.x, m.y + m.h)
             let marco = NSRect(x: c.x - 3, y: c.y - 3, width: m.w + 6, height: m.h + 6)
             let p = marcoMirada ?? Fantasma.panelBase(marco)
             if marcoMirada == nil {
+                p.title = "manos-contorno"
                 let v = VistaContorno(frame: NSRect(origin: .zero, size: marco.size))
                 p.contentView = v
                 marcoMirada = p
@@ -444,7 +484,7 @@ final class VistaFantasma: NSView {
         let t = VistaFantasma.punta
         cuerpo.frame = bounds
         cuerpo.contents = VistaFantasma.imagen
-        cuerpo.contentsScale = NSScreen.main?.backingScaleFactor ?? 2
+        cuerpo.contentsScale = NSScreen.screens.map(\.backingScaleFactor).max() ?? 2   // nítido en cualquier monitor
         // Ancla en la punta: el «press» del clic se encoge hacia donde apunta.
         cuerpo.anchorPoint = CGPoint(x: t.x / bounds.width, y: t.y / bounds.height)
         cuerpo.position = t
@@ -515,7 +555,8 @@ final class VistaFantasma: NSView {
 
     /// Reposo: el Halo «respira» (brillo y escala muy leves, ~0.45 Hz) mientras el agente piensa entre pasos.
     func respirar(_ si: Bool) {
-        if !si { cuerpo.removeAnimation(forKey: "respirar"); return }
+        // «Reducir movimiento» de macOS: el Halo no respira.
+        if !si || Borde.reducirMovimiento { cuerpo.removeAnimation(forKey: "respirar"); return }
         guard cuerpo.animation(forKey: "respirar") == nil else { return }
         let a = CABasicAnimation(keyPath: "opacity"); a.fromValue = 1; a.toValue = 0.72
         let e = CABasicAnimation(keyPath: "transform.scale"); e.fromValue = 1; e.toValue = 0.94
@@ -530,7 +571,8 @@ final class VistaFantasma: NSView {
         guard let capa = layer else { return }
         let t = VistaFantasma.punta
         let diametro: CGFloat = 24   // 40 px del diseño × 0.6
-        for (i, ancho) in [CGFloat(2), 1].enumerated() {
+        let reducir = Borde.reducirMovimiento   // «Reducir movimiento»: un solo anillo corto, sin «press»
+        for (i, ancho) in (reducir ? [CGFloat(2)] : [CGFloat(2), CGFloat(1)] as [CGFloat]).enumerated() {
             let a = CAShapeLayer()
             a.bounds = CGRect(x: 0, y: 0, width: diametro, height: diametro)
             a.position = t
@@ -540,15 +582,16 @@ final class VistaFantasma: NSView {
             a.lineWidth = ancho
             a.opacity = 0
             capa.insertSublayer(a, below: cuerpo)
-            let escala = CABasicAnimation(keyPath: "transform.scale"); escala.fromValue = 0.2; escala.toValue = 1.6
+            let escala = CABasicAnimation(keyPath: "transform.scale"); escala.fromValue = reducir ? 0.8 : 0.2; escala.toValue = reducir ? 1.1 : 1.6
             let alfa = CABasicAnimation(keyPath: "opacity"); alfa.fromValue = 0.95; alfa.toValue = 0
-            let g = CAAnimationGroup(); g.animations = [escala, alfa]; g.duration = 0.45
+            let g = CAAnimationGroup(); g.animations = [escala, alfa]; g.duration = reducir ? 0.25 : 0.45
             g.beginTime = CACurrentMediaTime() + Double(i) * 0.08
             g.timingFunction = CAMediaTimingFunction(name: .easeOut)
             g.fillMode = .backwards
             a.add(g, forKey: "onda")
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { a.removeFromSuperlayer() }
         }
+        if reducir { return }
         let press = CAKeyframeAnimation(keyPath: "transform.scale")
         press.values = [1, 0.86, 1]; press.keyTimes = [0, 0.35, 1]; press.duration = 0.2
         cuerpo.add(press, forKey: "press")

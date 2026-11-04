@@ -33,7 +33,8 @@ export const esReapertura = (ocultaDesde: number | null, ahora: number) => ocult
  * de la casa física (26 oct 2026, Daniel con el enlace de /perro en el iPhone: «Me reenvía aquí wtf»). Volver de WhatsApp
  * o de la cámara tras unos minutos lo regresaba al chat con el perro todavía caminando.
  */
-export const RUTAS_DESTINO = ['/telefono/habitos', '/perro', '/casa'] as const
+// La bandeja de decisiones (3 nov 2026): se entra desde el push de una tarjeta y se vuelve a ella tras mirar el contexto.
+export const RUTAS_DESTINO = ['/telefono/habitos', '/telefono/decisiones', '/perro', '/casa'] as const
 export const seQuedaAlReabrir = (ruta: string) => RUTAS_DESTINO.some(r => ruta === r || ruta.startsWith(r + '/'))
 /** Las secciones que en el teléfono abren a pantalla completa, sin una pestaña del panel encima. */
 export const esSeccionCompleta = (ruta: string | null | undefined) => !!ruta && (ruta === '/perro' || ruta === '/casa' || ruta.startsWith('/perro/') || ruta.startsWith('/casa/'))

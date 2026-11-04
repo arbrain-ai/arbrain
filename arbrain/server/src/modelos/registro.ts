@@ -12,7 +12,7 @@
  * Las llaves se guardan SOLO por nombre de variable (`apiKeyEnv`); el valor se lee de
  * arbrain/server/.env al lanzar el proceso del motor y nunca se persiste, se loguea ni sale por HTTP.
  */
-import { textoFaltaLlave, textoMotorApiApagado } from '../edicion.js'
+import { esEdicionCliente, textoFaltaLlave, textoMotorApiApagado } from '../edicion.js'
 import { readEnvFile } from '../env.js'
 
 export type Motor = 'claude-agent-sdk' | 'codex-app-server'
@@ -123,7 +123,9 @@ export function rutaDeCuenta(cuenta: string | null | undefined): Ruta | undefine
 export const esCuentaApi = (cuenta: string | null | undefined): boolean => !!rutaDeCuenta(cuenta)
 
 /** Todos los espacios que el daemon reconoce. Una conversación vieja de un espacio por API se sigue reconociendo con el interruptor apagado (se rechaza su turno, no se manda a otro motor). */
-export function cuentasChat(): string[] { return [...CUENTAS_SUSCRIPCION, ...rutasApi().map(r => r.cuenta)] }
+export function cuentasChat(): string[] { return [...CUENTAS_SUSCRIPCION, ...(esEdicionCliente() ? [] : [ESPACIO_ABLITERATED]), ...rutasApi().map(r => r.cuenta)] }
+/** Espacio del chat con DeepSeek V4.1 Flash abliterated (chat-runtime/abliterated-chat.ts). Solo instalación original. */
+export const ESPACIO_ABLITERATED = 'abliterated'
 export const esCuentaChat = (cuenta: unknown): cuenta is string => typeof cuenta === 'string' && cuentasChat().includes(cuenta)
 
 /**

@@ -6,6 +6,7 @@ import { defaultAccountConfigDir } from '../config.js'
 import { esEdicionCliente } from '../edicion.js'
 import { motorSuscripcion } from '../cliente/suscripcion.js'
 import { dirClaudeAlternaO } from '../cuentas-alternas.js'
+import { ESPACIO_ABLITERATED, entornoAbliterated } from './abliterated-chat.js'
 import { logger } from '../logger.js'
 
 class Mailbox<T> implements AsyncIterable<T> {
@@ -139,8 +140,17 @@ export class ClaudeInteractiveSession {
 
   constructor(readonly scope: { owner: string; account: string; conversationId: string }, options: Options, private onIdle?: (event: ClaudeBackgroundEvent) => void, create: typeof query = query, inheritEnvironment = true) {
     for (const value of [scope.owner, scope.account, scope.conversationId]) if (typeof value !== 'string' || !value.trim()) throw new Error('Claude session identity required')
-    if (!['default', 'bro'].includes(scope.account)) throw new Error('Unknown Claude subscription account')
-    const env = inheritEnvironment ? { ...process.env, ...options.env } : { ...options.env }
+    if (!['default', 'bro', ESPACIO_ABLITERATED].includes(scope.account)) throw new Error('Unknown Claude subscription account')
+    const base = inheritEnvironment ? { ...process.env, ...options.env } : { ...options.env }
+    // Espacio «abliterated» (3 nov 2026): el mismo CLI contra un endpoint que no es Anthropic, con su carpeta y su token;
+    // sin suscripción que confirmar (no es Claude) y sin ninguna credencial de Anthropic en su entorno.
+    if (scope.account === ESPACIO_ABLITERATED) {
+      this.query = create({ prompt: this.input, options: { ...options, env: entornoAbliterated(base) } })
+      this.initialization = Promise.resolve()
+      this.drained = this.read()
+      return
+    }
+    const env = base
     // Even explicitly naming ~/.claude can select a different Keychain key.
     // The default account follows the CLI's default resolution, as production does.
     if (scope.account === 'default' && !defaultAccountConfigDir()) delete env.CLAUDE_CONFIG_DIR

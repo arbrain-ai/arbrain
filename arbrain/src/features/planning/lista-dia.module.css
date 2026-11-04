@@ -1,0 +1,43 @@
+/* La lista del día dentro de la franja (3 nov 2026): casillas del objetivo y tareas de Todoist en una sola lista. Luminorphism: la casilla
+   es dorada (el objetivo), la tarea un círculo de tinta (Todoist); lo hecho se tacha en su lugar. Nada late. */
+.lista { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.lista ul { list-style: none; margin: 0 0 0 -6px; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+.lista li { position: relative; display: flex; align-items: flex-start; gap: 2px; min-width: 0; border-radius: 9px; transition: background 140ms; }
+.lista li:hover, .lista li[data-resaltado] { background: rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.08); }
+
+.marca { flex: none; display: grid; place-items: center; width: 28px; height: 26px; padding: 0; border: 0; background: none; cursor: pointer; color: var(--background); }
+.marca:disabled { cursor: default; }
+.marca i { display: grid; place-items: center; width: 16px; height: 16px; box-sizing: border-box; border-radius: 50%;
+  border: 1.5px solid color-mix(in srgb, var(--foreground) 34%, transparent); transition: background 200ms, border-color 200ms, transform 200ms; }
+.marca i svg { width: 10px; height: 10px; visibility: hidden; }
+li[data-origen='casilla'] .marca i { border-radius: 5px; border-color: color-mix(in srgb, var(--l-borde-ambar, var(--gold)) 75%, var(--foreground)); }
+.marca:hover:not(:disabled) i { border-color: var(--success, var(--primary)); transform: scale(1.06); }
+li[data-origen='casilla'] .marca:hover:not(:disabled) i { border-color: var(--l-borde-ambar, var(--gold)); }
+li[data-hecho] .marca i { background: var(--success, var(--primary)); border-color: var(--success, var(--primary)); }
+li[data-hecho][data-origen='casilla'] .marca i { background: var(--gold); border-color: var(--l-borde-ambar, var(--gold)); color: var(--l-gris-0, #111); }
+li[data-hecho] .marca i svg { visibility: visible; }
+li[data-vencida] .marca i { border-color: color-mix(in srgb, var(--error) 55%, transparent); }
+
+.cuerpo { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: 8px; padding: 4px 8px 4px 2px; border: 0; background: none; color: var(--foreground);
+  font: inherit; text-align: left; cursor: pointer; }
+.cuerpo:disabled { cursor: default; }
+.texto { flex: 1 1 auto; min-width: 0; font-size: 13.5px; line-height: 1.38; text-wrap: pretty; transition: color 200ms; }
+li[data-hecho] .texto { color: var(--muted); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--muted) 60%, transparent); }
+.cuerpo time { flex: none; font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
+.cuerpo time small { font-size: 11px; font-weight: 500; }
+.cuerpo svg { flex: none; align-self: center; color: var(--muted); }
+.prio { flex: none; font-size: 10px; font-weight: 750; letter-spacing: .4px; color: var(--l-tinta-ambar, var(--gold)); }
+.vencio { flex: none; font-size: 11px; font-weight: 600; color: color-mix(in srgb, var(--error) 80%, var(--foreground)); white-space: nowrap; }
+.lista li[data-vencida] { box-shadow: inset 2px 0 0 color-mix(in srgb, var(--error) 60%, transparent); }
+
+.pie { display: flex; align-items: center; flex-wrap: wrap; gap: 2px 6px; }
+.pie > div { flex: 0 1 auto; margin-left: 0; }
+.pie:has(form) > div { flex: 1 1 100%; }
+.nueva { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px 3px 6px; border: 0; border-radius: 8px; background: transparent; color: var(--muted);
+  font: inherit; font-size: 13px; cursor: pointer; }
+.nueva:hover { color: var(--foreground); background: color-mix(in srgb, var(--foreground) 6%, transparent); }
+.fallo { margin: 0; font-size: 12px; color: var(--error); }
+
+.entra { animation: entra 360ms cubic-bezier(.2, .7, .2, 1) both; animation-delay: calc(var(--i, 0) * 28ms); }
+@keyframes entra { from { opacity: 0; transform: translateY(3px); } }
+@media (prefers-reduced-motion: reduce) { .entra { animation: none; } .marca i { transition: none; } }

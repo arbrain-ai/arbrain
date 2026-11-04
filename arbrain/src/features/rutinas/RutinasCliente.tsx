@@ -10,14 +10,37 @@
  * en pausa hasta que el dueño pulsa «Activar». Cada una dice para qué le sirve y dónde deja su reporte; un reporte que
  * llegó y no ha visto lleva «Nuevo» (la edición cliente no tiene campana: este es su aviso dentro de la app).
  */
+import { escucharIrA } from '@/shared/navigation/ir-a'
 import { useCallback, useEffect, useState } from 'react'
 import { Pause, Play, Plus, Sparkles, Trash2, Zap } from 'lucide-react'
 import { releer, useFuente } from '@/features/cabina/datos'
 import { DIAS_SEMANA, TIPOS_CUANDO, lugarReporte, reporteNuevo, separarRutinas, validarFormulario, type Formulario, type ListaRutinas, type RutinaDaemon, type VistaRutina } from '@/lib/rutinas-cliente'
+import { esRutinaLoop, type VistaLoops } from '@/lib/loops'
+import { LoopsNegocio, SelectorRutinasLoops, URL_LOOPS } from './LoopsNegocio'
 import c from './rutinas-cliente.module.css'
 
 const URL_RUTINAS = '/api/rutinas'
 const CLAVE_VISTOS = 'arbrain.rutinas.vistos'
+const CLAVE_VISTA = 'arbrain.rutinas.vista'
+
+/**
+ * Loops de negocio (3 nov 2026, detrás de ARBRAIN_LOOPS=1): si el daemon los tiene encendidos, arriba aparece el selector
+ * «Tus rutinas · Loops de negocio» (se recuerda en este dispositivo). Apagados, la pestaña es la de siempre.
+ */
+export function RutinasCliente() {
+  const loops = useFuente<VistaLoops>(URL_LOOPS, 30_000)
+  const [vista, setVistaEstado] = useState<'rutinas' | 'loops'>('rutinas')
+  useEffect(() => { try { if (localStorage.getItem(CLAVE_VISTA) === 'loops') setVistaEstado('loops') } catch { /* sin almacenamiento */ } }, [])
+  // «Loops» en la barra lateral (3 nov 2026): con Rutinas ya abierta, pasa a Loops en sitio.
+  useEffect(() => escucharIrA('loops', () => setVistaEstado('loops')), [])
+  const setVista = (v: 'rutinas' | 'loops') => { setVistaEstado(v); try { localStorage.setItem(CLAVE_VISTA, v) } catch { /* sin almacenamiento */ } }
+  const activos = !!loops.data?.activo
+  if (!activos) return <RutinasDelDueno />
+  return <div className={c.vista}>
+    <SelectorRutinasLoops vista={vista} setVista={setVista} enBandeja={loops.data?.resumen?.enBandeja ?? 0} />
+    {vista === 'loops' ? <LoopsNegocio vista={loops.data!} /> : <RutinasDelDueno incrustada sinLoops />}
+  </div>
+}
 
 /** Hasta qué corrida vio el dueño el reporte de cada precargada, en este dispositivo. */
 function useVistos(): [Record<string, number>, (id: string, hasta: number) => void] {
@@ -40,16 +63,18 @@ async function pedir(url: string, init: RequestInit): Promise<string | null> {
   } catch { return 'Tu Arbrain local no responde. Intenta en unos segundos.' }
 }
 
-export function RutinasCliente() {
+function RutinasDelDueno({ incrustada = false, sinLoops = false }: { incrustada?: boolean; sinLoops?: boolean }) {
   const { data, error } = useFuente<ListaRutinas>(URL_RUTINAS, 30_000)
   const [creando, setCreando] = useState(false)
   const [vistos, marcarVisto] = useVistos()
-  if (!data) return <div className={c.vista} aria-busy="true"><p className={c.nota}>{error ?? 'Leyendo tus rutinas…'}</p></div>
+  if (!data) return <div className={incrustada ? undefined : c.vista} aria-busy="true"><p className={c.nota}>{error ?? 'Leyendo tus rutinas…'}</p></div>
   const ahora = Date.now()
-  const { propias: lista, deArbrain } = separarRutinas(data, ahora)
+  const { propias: todas, deArbrain } = separarRutinas(data, ahora)
+  // Con la pestaña de loops a la vista, los loops viven allá y no se repiten aquí.
+  const lista = sinLoops ? todas.filter(r => !esRutinaLoop(r.id)) : todas
   const porId = new Map<string, RutinaDaemon>((data.tasks ?? []).map(t => [t.id, t]))
   const nuevos = deArbrain.filter(r => { const t = porId.get(r.id); return !!t && reporteNuevo(t, vistos) })
-  return <div className={c.vista}>
+  return <div className={incrustada ? c.incrustada : c.vista}>
     <div className={c.cabecera}>
       <p className={c.ceja}>Lo que corre solo</p>
       {!creando && <button type="button" className={c.nueva} onClick={() => setCreando(true)}><Plus size={14} aria-hidden />Nueva rutina</button>}

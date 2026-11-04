@@ -119,6 +119,7 @@ enum Pluma {
 
         func fantasma(_ l: CGPoint, pulso: Bool = false) {
             let g = global(l)
+            Borde.compartido.trabajando(en: v.id)
             Fantasma.compartido.mostrar(x: g.x, y: g.y, pulso: pulso, ventana: v.id)
         }
 
@@ -134,6 +135,7 @@ enum Pluma {
         /// Durante un arrastre el Halo va pegado a la punta (sin cola): nunca se queda atrás ni salta.
         func seguir(_ l: CGPoint) {
             let g = global(l)
+            Borde.compartido.trabajando(en: v.id)
             Fantasma.compartido.seguir(x: g.x, y: g.y, ventana: v.id)
         }
 

@@ -6,22 +6,37 @@
  * No es el «Agente Arbrain» del sitio del programa (fue confusión real en la grupal del 23 oct): por eso el nombre y el icono
  * dicen «Tu Arbrain». Estado, dirección con QR, código de entrada de un solo uso y el paso a paso para iPhone y Android.
  * Lo hace `scripts/servidor/telefono.mjs` por `/api/telefono`; esta pantalla solo pregunta y pide.
+ *
+ * 3 nov 2026 (vuelta 2 del primer uso, «dos conversaciones con Claude Code»): «Encender» hace aquí lo que hacía
+ * TELEFONO.md. Si falta algo, el supervisor abre lo que toca (App Store, inicio de sesión, el enlace de HTTPS) y esta
+ * pantalla dice en una línea qué le queda a la persona, revisa cada pocos segundos y vuelve a encender sola hasta
+ * «Encendido» (15 minutos como mucho, igual que la guía).
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Check, Copy, KeyRound, Loader2, Power, RefreshCw, Smartphone } from 'lucide-react'
 import { Aviso } from '@/features/primer-arranque/components/PanelLlaves'
 import { caminoQR, codigoQR } from './qr'
+import { TarjetaConectar } from './TarjetaConectar'
 
 interface Estado {
   estado: string
   url?: string
   host?: string
+  https?: boolean
   paso?: string | null
   enlace?: string | null
   detalle?: string
   error?: string
   desdeTelefono?: boolean
+  ayuda?: { teToca: string | null; enlace: string | null; abierto: string | null }
 }
+
+/** Mientras se guía el encendido: cada cuánto se revisa y cada cuánto se vuelve a pedir encender (como la guía, 20 s). */
+const REVISAR_MS = 4000
+const REINTENTAR_MS = 20_000
+const GUIA_MAX_MS = 15 * 60_000
+/** Estados en los que lo que sigue es volver a encender ya (Tailscale listo, falta publicar). */
+const LISTO_PARA_ENCENDER = new Set(['apagado', 'desfasado'])
 
 const TITULO: Record<string, string> = {
   encendido: 'Encendido',
@@ -54,6 +69,8 @@ export function SeccionTelefono() {
   const [ocupado, setOcupado] = useState<null | 'encender' | 'apagar' | 'leer'>('leer')
   const [codigo, setCodigo] = useState<{ codigo: string; vence: string } | null>(null)
   const [copiado, setCopiado] = useState(false)
+  // Encendido guiado: lo que le toca a la persona ahora y desde cuándo se guía.
+  const [guia, setGuia] = useState<{ desde: number; ultimoEncender: number; teToca: string | null; enlace: string | null } | null>(null)
 
   const leer = useCallback(async () => {
     setOcupado('leer'); setError(null)
@@ -68,6 +85,9 @@ export function SeccionTelefono() {
       const j = await r.json().catch(() => ({})) as Estado & { reiniciaWeb?: boolean }
       if (!r.ok) throw new Error(j.error || `Arbrain respondió ${r.status}.`)
       setEstado(j)
+      if (accion === 'encender' && j.estado !== 'encendido' && j.estado !== 'sin-modo-servidor' && j.estado !== 'servidor-viejo') {
+        setGuia({ desde: Date.now(), ultimoEncender: Date.now(), teToca: j.ayuda?.teToca ?? j.paso ?? null, enlace: j.ayuda?.enlace ?? j.enlace ?? null })
+      } else setGuia(null)
       // Encender o apagar relanza la web con el permiso nuevo: se espera a que vuelva (unos segundos).
       if (j.reiniciaWeb) {
         await dormir(1500)
@@ -88,15 +108,50 @@ export function SeccionTelefono() {
     } catch (e) { setError(e instanceof Error ? e.message : 'No pude crear el código.') }
   }
 
+  // Guía: revisa cada pocos segundos; con Tailscale listo vuelve a encender enseguida, y si sigue faltando algo, cada 20 s
+  // (así llega el enlace nuevo de sesión o de HTTPS). Termina en «Encendido» o a los 15 minutos.
+  useEffect(() => {
+    if (!guia) return
+    let vivo = true
+    const t = setInterval(async () => {
+      if (!vivo || ocupado) return
+      if (Date.now() - guia.desde > GUIA_MAX_MS) { setGuia(null); setError('Pasaron 15 minutos sin terminar. Cuando estés listo, pulsa «Encender» otra vez.'); return }
+      let e: Estado
+      try { e = await pedirEstado() } catch { return }
+      if (!vivo) return
+      setEstado(e)
+      if (e.estado === 'encendido') { setGuia(null); return }
+      const ya = LISTO_PARA_ENCENDER.has(e.estado) && (e.https !== false || Date.now() - guia.ultimoEncender >= REINTENTAR_MS)
+      if (!ya && Date.now() - guia.ultimoEncender < REINTENTAR_MS) return
+      try {
+        const r = await fetch('/api/telefono', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accion: 'encender' }) })
+        const j = await r.json().catch(() => ({})) as Estado & { reiniciaWeb?: boolean }
+        if (!vivo || !r.ok) return
+        setEstado(j)
+        if (j.estado === 'encendido') {
+          setGuia(null)
+          if (j.reiniciaWeb) { await dormir(1500); for (let i = 0; i < 40; i++) { try { setEstado(await pedirEstado()); break } catch { await dormir(1500) } } }
+          return
+        }
+        setGuia((g) => g && { ...g, ultimoEncender: Date.now(), teToca: j.ayuda?.teToca ?? j.paso ?? g.teToca, enlace: j.ayuda?.enlace ?? j.enlace ?? g.enlace })
+      } catch { /* la web vuelve; la siguiente vuelta repite */ }
+    }, REVISAR_MS)
+    return () => { vivo = false; clearInterval(t) }
+  }, [guia, ocupado])
+
   const qr = useMemo(() => (estado?.url ? caminoQR(codigoQR(estado.url)) : null), [estado?.url])
   const encendido = estado?.estado === 'encendido'
   const sinServidor = estado?.estado === 'sin-modo-servidor'
 
   return (
     <div className="space-y-4" data-seccion="telefono">
-      <section className="rounded-2xl border border-brand/40 bg-brand/[0.06] p-4" aria-label="Tu cerebro en el teléfono">
+      {/* Sin Tailscale (3 nov 2026): el camino por omisión. El de Tailscale queda abajo para quien ya lo usa. */}
+      <TarjetaConectar />
+      <details className="group space-y-4 rounded-2xl border border-border-subtle p-3" data-tailscale>
+        <summary className="cursor-pointer text-[13px] font-medium text-muted">Otra forma: por tu red privada de Tailscale</summary>
+      <section className="mt-3 rounded-2xl border border-border-subtle bg-surface/70 p-4" aria-label="Tu cerebro en el teléfono">
         <h3 className="flex flex-wrap items-center gap-2 text-sm font-semibold text-foreground">
-          <Smartphone className="size-4 text-brand-ink" aria-hidden /> Tu cerebro en el teléfono
+          <Smartphone className="size-4 text-brand-ink" aria-hidden /> Por Tailscale
           <span className="rounded-full bg-brand/12 px-2 py-0.5 text-[11px] font-medium text-brand-ink">Tu Arbrain</span>
         </h3>
         <p className="mt-1 text-[13px] leading-relaxed text-muted">
@@ -128,7 +183,14 @@ export function SeccionTelefono() {
           )}
         </div>
 
-        {estado && !encendido && (estado.paso || estado.enlace || estado.error) && (
+        {guia && !encendido && (
+          <div className="mt-3 rounded-xl bg-brand/8 px-3 py-2.5 text-[13px] leading-relaxed text-foreground/90" role="status" aria-live="polite" data-guia-telefono>
+            <p className="flex items-start gap-2"><Loader2 className="mt-0.5 size-4 shrink-0 animate-spin text-brand-ink" aria-hidden />
+              <span>{guia.teToca ?? 'Encendiendo…'} <span className="text-muted">Sigo solo en cuanto lo hagas.</span></span></p>
+            {guia.enlace?.startsWith('https://') && <a className="mt-1 inline-block font-medium underline" href={guia.enlace} target="_blank" rel="noreferrer">Abrir de nuevo</a>}
+          </div>
+        )}
+        {!guia && estado && !encendido && (estado.paso || estado.enlace || estado.error) && (
           <Aviso tono={estado.estado === 'apagado' ? 'info' : 'alerta'} className="mt-3">
             {estado.paso ?? estado.error}
             {estado.enlace && <> <a className="font-medium underline" href={estado.enlace} target="_blank" rel="noreferrer">Abrir el enlace de Tailscale</a></>}
@@ -189,6 +251,7 @@ export function SeccionTelefono() {
         Funciona mientras esta computadora esté prendida, con internet y con Arbrain corriendo. Si la apagas, el teléfono no
         tiene a quién preguntar. Solo entran los equipos de tu cuenta de Tailscale y, además, con tu código o contraseña.
       </p>
+      </details>
 
       {error && <Aviso tono="alerta">{error}</Aviso>}
     </div>

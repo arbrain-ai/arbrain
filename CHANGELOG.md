@@ -4,6 +4,19 @@ Cada versión dice qué trae y qué tienes que hacer tú. Para actualizar, abre 
 «jala los últimos cambios». Las versiones siguen `MAYOR.MENOR.PARCHE`: un cambio en MENOR trae funciones
 nuevas; uno en PARCHE, arreglos.
 
+## v0.2.21 · 4 nov 2026 · Los libros, dentro de tu Arbrain
+
+**Qué trae**
+- **La biblioteca ya está en tu Arbrain, con los cuatro libros completos.** El botón de libro (abajo a la
+  izquierda, junto a tu perfil) abre: **$100M Ofertas** (español), **$100M Leads**, **$100M Money Models**
+  y **La Vía Rápida del Millonario** (español). Se leen ahí mismo, del principio al final, sin resumen y sin
+  salir de la app; desde la computadora o el teléfono, y se queda en el libro donde lo dejaste.
+- **Nada que instalar aparte.** Los libros viajan dentro de tu copia y se abren sin internet después de la
+  primera carga.
+
+**Qué tienes que hacer**
+- Actualizar y abrir el botón de libro. Si venías leyendo algo en la biblioteca, se abre donde lo dejaste.
+
 ## v0.2.20 · 2 nov 2026 · Tu servidor, más sólido
 
 **Antes de actualizar, solo si tu Arbrain vive en tu servidor y todavía no pasaste por la 0.2.18**

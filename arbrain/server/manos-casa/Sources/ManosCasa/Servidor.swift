@@ -13,7 +13,7 @@ enum Servidor {
         ProcessInfo.processInfo.environment["MANOS_CASA_SOCKET"].flatMap { $0.isEmpty ? nil : $0 }
             ?? "\(NSHomeDirectory())/.config/\(Edicion.cliente ? "arbrain-cliente" : "arbrain")/manos.sock"
     }
-    static let version = "0.2.1"
+    static let version = "0.2.2"
     /// Candados por ventana entre sesiones (agentes). 15 s desde la última acción.
     static let candados = Candados(duracionMs: Int(ProcessInfo.processInfo.environment["MANOS_CANDADO_MS"] ?? "") ?? 15_000)
 
@@ -53,7 +53,7 @@ enum Servidor {
             let n = read(fd, &trozo, trozo.count)
             // Al cerrarse la conexión, sus candados se sueltan: un agente muerto no bloquea a nadie.
             // Y si era quien movía el Halo, el Halo se va con él (falla del 6 oct: encargo detenido, Halo encima horas).
-            if n <= 0 { for s in sesiones { candados.soltar(sesion: s) }; Fantasma.compartido.soltar(sesiones: sesiones, motivo: "desconexion"); close(fd); return }
+            if n <= 0 { for s in sesiones { candados.soltar(sesion: s) }; Fantasma.compartido.soltar(sesiones: sesiones, motivo: "desconexion"); Borde.compartido.soltar(sesiones: sesiones, motivo: "desconexion"); close(fd); return }
             bufer.append(contentsOf: trozo[0..<n])
             while let i = bufer.firstIndex(of: 0x0A) {
                 let linea = bufer.subdata(in: bufer.startIndex..<i)
@@ -97,14 +97,23 @@ enum Servidor {
             // Concurrencia: actuar toma la ventana. La espera ocurre FUERA de la cola del motor,
             // para que la sesión dueña pueda seguir actuando mientras la otra espera.
             Salida.actividad()
-            if pedido["op"] as? String == "soltar" { candados.soltar(sesion: sesion); Fantasma.compartido.soltar(sesiones: [sesion], motivo: "soltar"); return try! JSONSerialization.data(withJSONObject: ["id": id, "ok": true, "r": ["soltado": sesion]]) }
+            if pedido["op"] as? String == "soltar" { candados.soltar(sesion: sesion); Fantasma.compartido.soltar(sesiones: [sesion], motivo: "soltar"); Borde.compartido.soltar(sesiones: [sesion], motivo: "soltar"); return try! JSONSerialization.data(withJSONObject: ["id": id, "ok": true, "r": ["soltado": sesion]]) }
+            // El marco de trabajo (Borde.swift): toda operación que lee o toca una app de la persona lo enciende sobre su ventana.
+            // Si la persona detuvo esta sesión desde la franja, nada más corre: error con nombre hasta que la sesión suelte.
+            let esTrabajo = Servidor.trabajo.contains(pedido["op"] as? String ?? "") && pedido["sin_borde"] as? Bool != true
+            if esTrabajo, let motivo = Borde.compartido.detenida(sesion) { throw ErrorManos(Borde.errorDetenida(motivo)) }
+            if esTrabajo, let w = pedido["ventana"] as? Int { Borde.compartido.encender(sesion: sesion, texto: nil, ventana: CGWindowID(w), sostenerS: Borde.ttlS) }
             var llave: Candados.Llave?
             if ["actuar", "medios", "trazo", "clic_xy", "hover", "rueda", "pegar"].contains(pedido["op"] as? String ?? "") {
                 llave = try esperarCandado(pedido, sesion: sesion)
                 Fantasma.compartido.dueno = sesion
             }
             if pedido["op"] as? String == "fantasma", pedido["x"] != nil { Fantasma.compartido.dueno = sesion }
-            let r = try Motor.compartido.cola.sync { try despachar(pedido) }
+            let r = try Motor.compartido.cola.sync { () throws -> Any in
+                Borde.compartido.sesionEnCurso = esTrabajo ? sesion : nil
+                defer { Borde.compartido.sesionEnCurso = nil }
+                return try despachar(pedido)
+            }
             if let llave { candados.renovar(llave, sesion: sesion) }
             salida = ["id": id, "ok": true, "r": r]
         } catch {
@@ -132,6 +141,9 @@ enum Servidor {
             usleep(50_000)
         }
     }
+
+    /// Operaciones que cuentan como «las manos trabajando» (encienden el marco de pantalla).
+    static let trabajo: Set<String> = ["observar", "actuar", "verificar", "contexto", "medios", "trazo", "clic_xy", "hover", "seleccion", "rueda", "ojos", "pegar", "pagina"]
 
     static func despachar(_ a: JSON) throws -> Any {
         let m = Motor.compartido
@@ -195,6 +207,28 @@ enum Servidor {
                 Fantasma.compartido.mostrar(x: x, y: y, pulso: a["pulso"] as? Bool ?? true, ventana: (a["ventana"] as? Int).map { CGWindowID($0) })
             }
             return ["activo": Fantasma.compartido.activo]
+        case "borde":
+            // El encargo lo sostiene (TS: al empezar, latido cada 2 s, apagar al terminar). Solo su sesión lo apaga.
+            if a["apagar"] as? Bool == true {
+                let sesion = a["sesion"] as? String ?? ""
+                if Borde.compartido.dueno == nil || Borde.compartido.dueno == sesion || a["forzar"] as? Bool == true { Borde.compartido.apagar(a["motivo"] as? String ?? "fin") }
+                return Borde.compartido.estado()
+            }
+            if a["probar_clics"] as? Bool == true { return Borde.compartido.probarClics() }
+            if a["encender"] as? Bool == true {
+                if a["nuevo"] as? Bool == true, let s = a["sesion"] as? String { Borde.compartido.olvidarDetencion(s) }
+                Borde.compartido.encender(sesion: a["sesion"] as? String, texto: a["nombre"] as? String, ventana: (a["ventana"] as? Int).map { CGWindowID($0) }, sostenerS: a["sostener_s"] as? Double ?? 8)
+            }
+            if let act = a["activo"] as? Bool { Borde.compartido.activo = act; if !act { Borde.compartido.apagar("desactivado") } }
+            var e = Borde.compartido.estado()
+            // El latido del encargo pregunta por SU sesión: si la persona la detuvo desde la franja, el encargo se corta.
+            if let s = a["sesion"] as? String, let motivo = Borde.compartido.detenida(s) { e["esta_detenida"] = motivo; e["error"] = Borde.errorDetenida(motivo) }
+            return e
+        case "captura_escena":
+            // Evidencia de la batería de UX: solo las ventanas pedidas (propias + Halo + borde), compuestas como se ven.
+            guard let ids = a["ventanas"] as? [Int], let ruta = a["ruta"] as? String else { throw ErrorManos("captura_escena necesita ventanas y ruta") }
+            if let e = Captura.escena(ids.map { CGWindowID($0) }, ruta, recorte: (a["recorte"] as? Int).map { CGWindowID($0) }, escala: a["escala"] as? Double ?? 1) { throw ErrorManos(e) }
+            return ["ruta": ruta]
         case "captura":
             guard let w = a["ventana"] as? Int, let ruta = a["ruta"] as? String else { throw ErrorManos("captura necesita ventana y ruta") }
             if let e = Captura.ventana(CGWindowID(w), ruta) { throw ErrorManos(e) }
@@ -262,6 +296,7 @@ enum Salida {
                     Vigia.detener()
                     CursorSistema.detener()
                     Fantasma.compartido.ocultarYa("reposo")
+                    Borde.compartido.apagar("reposo")
                 }
             }
         }

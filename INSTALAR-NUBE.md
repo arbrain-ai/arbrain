@@ -216,7 +216,7 @@ Con `MODO=espejo`, desde su
 computadora: `git -C ~/Arbrain remote get-url origin 2>/dev/null`. Si es `https://github.com/<usuario>/mi-arbrain`
 (con o sin `.git`), sube lo último sin forzar: `git -C ~/Arbrain push -q origin mi-arbrain` (si falla, sigue sin él y
 díselo), y usa `MI=git@github.com:<usuario>/mi-arbrain.git` en el N4. Si no tiene respaldo, el espejo lo necesita:
-vuelve al PASO 9 de `INSTALAR.md`, opción 1, y regresa.
+vuelve a «Al terminar» de `INSTALAR.md`, opción 1, y regresa.
 
 ### N4 · Instalar (endurecer, usuario, servicio)
 
@@ -343,7 +343,7 @@ bash ~/Arbrain/arbrain/scripts/instalar/nube.sh --mi-arbrain "$MI" --zona "$ZONA
 La línea final dice `espejo=activo:nube-<host>`. Sin `--cita` no la pongas al mando: nadie se autopromueve.
 Desde su computadora (tienes `S`), enciende ahí también el espejo, como ventana, en su copia:
 `cd ~/Arbrain && node arbrain/scripts/espejo/espejo.mjs activar --host laptop-<su nombre>`, y reinicia su Arbrain
-(`npm run servidor -- detener` en `~/Arbrain/arbrain` y vuelve a arrancarlo como en el PASO 4 de `INSTALAR.md`). Dile
+(`npm run servidor -- detener` en `~/Arbrain/arbrain` y vuelve a arrancarlo con `nohup node scripts/servidor.mjs --sin-navegador > "$HOME/.arbrain/arranque.log" 2>&1 &`). Dile
 que su computadora se pone al día cada 5 minutos mientras Arbrain corre en modo servidor; con la app de escritorio
 todavía no lo hace sola. Si la copia no trae el motor (`espejo=pendiente-motor`), dile que el modo espejo llega en
 beta y que su servidor ya quedó listo para recibirlo.

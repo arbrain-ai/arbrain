@@ -12,7 +12,8 @@ export interface ModeloCatalogo {
   laboratorio: string
   descripcion: string
   puesto: number | null
-  via: 'suscripcion' | 'openrouter'
+  /** abliterated = DeepSeek V4.1 Flash sin filtro (abliteration.ai o nuestro pod): no es Claude, va en su grupo. */
+  via: 'suscripcion' | 'openrouter' | 'abliterated'
   /** Espacio del chat donde corre. */
   cuenta: string
   /** Lo que se manda a `/model` (Claude) o el id de OpenRouter; null si no se pudo resolver. */
@@ -52,15 +53,20 @@ export function cabeEnConversacion(m: Pick<ModeloCatalogo, 'via' | 'cuenta'>, es
 
 /** ¿Es el modelo que corre la conversación abierta? En un espacio por API, el del espacio; en Claude, por nombre. */
 export function esModeloActual(m: Pick<ModeloCatalogo, 'via' | 'cuenta' | 'modelo' | 'nombre'>, espacio: string, modeloActual: string | null | undefined): boolean {
-  if (m.via === 'openrouter') return m.cuenta === espacio
+  if (m.via !== 'suscripcion') return m.cuenta === espacio
   if (!esEspacioClaude(espacio) || !modeloActual) return false
   return m.modelo === modeloActual || nombreModelo(modeloActual) === m.nombre
 }
 
-/** Lo que muestra el selector: encendidos y disponibles, Claude primero y luego OpenRouter, en orden del catálogo. */
-export function modelosDelSelector(c: Catalogo | null): { claude: ModeloCatalogo[]; openrouter: ModeloCatalogo[] } {
-  const visibles = (c?.modelos ?? []).filter(m => m.habilitado && m.disponible)
-  return { claude: visibles.filter(m => m.via === 'suscripcion'), openrouter: visibles.filter(m => m.via === 'openrouter') }
+/**
+ * Lo que muestra el selector: encendidos y disponibles, Claude primero y luego OpenRouter, en orden del catálogo.
+ * `abliterated` va aparte y se ve aunque no esté disponible (sin llave): deshabilitado, con su motivo. Nunca entra en
+ * `claude` ni `openrouter`, así una conversación normal jamás nace en el modelo sin filtro (modelo-inicial.ts).
+ */
+export function modelosDelSelector(c: Catalogo | null): { claude: ModeloCatalogo[]; openrouter: ModeloCatalogo[]; abliterated: ModeloCatalogo[] } {
+  const todos = c?.modelos ?? []
+  const visibles = todos.filter(m => m.habilitado && m.disponible)
+  return { claude: visibles.filter(m => m.via === 'suscripcion'), openrouter: visibles.filter(m => m.via === 'openrouter'), abliterated: todos.filter(m => m.via === 'abliterated') }
 }
 
 /**

@@ -21,6 +21,8 @@ import { readEnvFile } from './env.js'
 import { esEdicionCliente } from './edicion.js'
 import { avisarFinRutina } from './cliente/avisos-telefono.js'
 import { avisarFinPrecargada, promptDeCorrida, pulirResultado, sembrarPrecargadas } from './cliente/rutinas-precargadas.js'
+import { cerrarCorridaLoop, esLoop, opcionesLoop, promptDeCorridaLoop } from './cliente/loops.js'
+import { confirmacionesDelDaemon } from './cliente/confirmaciones.js'
 import { zonaDueno } from './zona.js'
 import { carpetaOriginal } from './dueno.js'
 import { faltaLlaveClaude, MENSAJE_FALTA_LLAVE } from './cliente/llaves.js'
@@ -181,8 +183,11 @@ export async function executeCronJob(task: ScheduledTask, opts?: { manual?: bool
       // Precargadas «De Arbrain» (edición cliente): el daemon fija la fecha y el archivo de la corrida, y el texto que
       // vuelve sale sin rutas (cliente/rutinas-precargadas.ts). Las demás rutinas corren y se guardan tal cual.
       const precargada = esEdicionCliente()
-      const cronPrompt = `🤖 [${task.id}]\n\n${precargada ? promptDeCorrida(task.id, task.prompt) : task.prompt}`
-      const result = await runAgent(cronPrompt, undefined, undefined, 'cron', timeout)
+      // Loops de negocio (cliente/loops.ts): su contrato al final, y su modelo y esfuerzo.
+      const loop = precargada && esLoop(task.id)
+      const texto = loop ? promptDeCorridaLoop(task.id, task.prompt) : precargada ? promptDeCorrida(task.id, task.prompt) : task.prompt
+      const cronPrompt = `🤖 [${task.id}]\n\n${texto}`
+      const result = await runAgent(cronPrompt, undefined, undefined, 'cron', timeout, loop ? opcionesLoop(task.id) : undefined)
       text = result.text?.trim() ?? ''
       if (precargada) text = pulirResultado(task.id, text)
       usage = result.usage
@@ -204,6 +209,9 @@ export async function executeCronJob(task: ScheduledTask, opts?: { manual?: bool
     // usage para la sala Acciones), incluso sin output. Solo los VISIBLE_JOBS
     // ademas inyectan al chat Automatizaciones + push; el resto va con silent
     // (conversations si, chat/push no — eso lo resuelve el webhook).
+    // Loops de negocio: lo que está en orden se archiva solo (sin aviso); la excepción sube a la bandeja como tarjeta.
+    const cierreLoop = esEdicionCliente() && esLoop(task.id) ? cerrarCorridaLoop(task.id, { ok: true, texto: text, manual }, { store: confirmacionesDelDaemon }) : null
+    if (cierreLoop) text = cierreLoop.texto
     const isVisible = VISIBLE_JOBS.has(task.id)
     await mcCronResult(task.id, text, undefined, { silent: !isVisible, usage })
 
@@ -221,7 +229,7 @@ export async function executeCronJob(task: ScheduledTask, opts?: { manual?: bool
     })
     logger.info({ taskId: task.id, nextRun, costUsd: usage?.costUsd }, 'task completed')
     // v0.2.18: avisos al teléfono del alumno (una rutina terminó). No espera ni lanza; sin destino, no hace nada.
-    if (esEdicionCliente() && !task.id.endsWith('-migrated')) {
+    if (esEdicionCliente() && !task.id.endsWith('-migrated') && (!cierreLoop || cierreLoop.avisar)) {
       void avisarFinRutina({ id: task.id, prompt: task.prompt, ok: true, texto: text, manual })
       // Precargadas «De Arbrain»: también el aviso de la computadora (rutinas-precargadas.ts).
       avisarFinPrecargada({ id: task.id, prompt: task.prompt, ok: true, texto: text, manual })
@@ -272,7 +280,10 @@ export async function executeCronJob(task: ScheduledTask, opts?: { manual?: bool
     updateTaskAfterRun(task.id, `Error: ${String(err)}`, effectiveNext)
     if (esEdicionCliente() && !task.id.endsWith('-migrated')) {
       const fin = { id: task.id, prompt: task.prompt, ok: false, error: err instanceof Error ? err.message : String(err), manual }
-      void avisarFinRutina(fin)
+      // Loops: tres fallas seguidas del agente lo pausan (las del ambiente, como no tener llave, no cuentan).
+      const cierre = esLoop(task.id) ? cerrarCorridaLoop(task.id, fin, { store: confirmacionesDelDaemon }) : null
+      if (cierre?.pausado) updateTaskAfterRun(task.id, cierre.texto, effectiveNext)
+      void avisarFinRutina(cierre?.pausado ? { ...fin, error: cierre.texto } : fin)
       avisarFinPrecargada(fin)
     }
     // Even on agent error, the cron may have produced partial side effects

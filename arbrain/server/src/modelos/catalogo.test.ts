@@ -20,7 +20,8 @@ describe('catálogo de modelos', () => {
   it('trae el top 10 del índice más Sonnet 5.5 y GPT-6 Luna; Anthropic por suscripción, el resto por OpenRouter', () => {
     expect(CATALOGO.filter(e => e.puesto).map(e => e.puesto)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
     expect(CATALOGO.map(e => e.id)).toEqual(expect.arrayContaining(['sonnet-5.5', 'gpt-6-luna']))
-    for (const e of CATALOGO) {
+    // El sin filtro (3 nov 2026) no es Claude ni OpenRouter: va en su grupo (abliterated-chat.test.ts).
+    for (const e of CATALOGO.filter(x => x.via !== 'abliterated')) {
       expect(e.via).toBe(e.laboratorio === 'Anthropic' ? 'suscripcion' : 'openrouter')
       if (e.via === 'openrouter') expect(rutaDeEntrada(e)?.modelId).toBe(e.openrouterId)
     }
@@ -30,7 +31,7 @@ describe('catálogo de modelos', () => {
     const db = new Database(':memory:')
     expect(leerHabilitados(db)).toEqual(['opus-5.5', 'sonnet-5.5', 'haiku-5.5', 'deepseek-v4.1-flash', 'gpt-6-luna'])
     const vista = catalogoPublico(entorno())
-    expect(vista.modelos.filter(m => m.habilitado).map(m => m.id)).toEqual(['opus-5.5', 'deepseek-v4.1-flash', 'sonnet-5.5', 'haiku-5.5', 'gpt-6-luna'])
+    expect(vista.modelos.filter(m => m.habilitado && m.via !== 'abliterated').map(m => m.id)).toEqual(['opus-5.5', 'deepseek-v4.1-flash', 'sonnet-5.5', 'haiku-5.5', 'gpt-6-luna'])
   })
 
   it('Anthropic solo pide ids fijos de versión: un alias suelto de un SDK viejo nunca baja de generación (8 oct 2026)', () => {

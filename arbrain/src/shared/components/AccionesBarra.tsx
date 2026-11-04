@@ -38,15 +38,16 @@ export function AccionesBarra({ onNavegar, tactil = false }: { onNavegar?: () =>
       {canAccessRoute('/settings', role)
         ? <button type="button" onClick={() => { onNavegar?.(); useAjustes.getState().abrir() }} className={clasePerfil} title="Perfil y ajustes (⌘,)" aria-label="Perfil y ajustes" aria-haspopup="dialog" aria-expanded={enAjustes}>{perfil}</button>
         : <div className={clasePerfil}>{perfil}</div>}
-      {/* Edición cliente: sin biblioteca (su contenido describe la instalación del autor). */}
-      {!esEdicionCliente() && <button
+      {/* Biblioteca: en cliente trae solo los libros de la cohorte (/libros/indice.json);
+          en la del autor, el manual, sus libros y sus pergaminos. */}
+      <button
         onClick={() => { useLayoutStore.getState().openLibrary(); onNavegar?.() }}
         className={`icon-btn-ghost size-9 ${libraryOpen ? 'text-primary' : ''}`}
-        title="Manual y biblioteca"
-        aria-label="Abrir el manual y la biblioteca"
+        title={esEdicionCliente() ? 'Libros de la cohorte' : 'Manual y biblioteca'}
+        aria-label={esEdicionCliente() ? 'Abrir los libros de la cohorte' : 'Abrir el manual y la biblioteca'}
       >
         <BookOpen className="size-[18px] md:size-[16px]" />
-      </button>}
+      </button>
       {/* Campana única (1 oct): lleva el contador de avisos; el botón del cajón en la cabecera del teléfono lleva un punto. */}
       {!esEdicionCliente() && <NotificationBell compact placement="top" ghost />}
       {/* Tema (dark<->light, ⌘⌥T): lo elegido a mano dura hasta el siguiente cambio de tramo y vuelve a «por hora». */}

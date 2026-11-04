@@ -21,7 +21,7 @@ describe('registro de modelos', () => {
   })
 
   it('reconoce los espacios de siempre más los del registro', () => {
-    expect(cuentasChat()).toEqual(['default', 'bro', 'codex', 'yt', 'deepseek', 'gpt-luna', 'gpt-astra', 'gpt-sol', 'gemini', 'muse', 'grok', 'mimo', 'glm', 'kimi'])
+    expect(cuentasChat()).toEqual(['default', 'bro', 'codex', 'yt', 'abliterated', 'deepseek', 'gpt-luna', 'gpt-astra', 'gpt-sol', 'gemini', 'muse', 'grok', 'mimo', 'glm', 'kimi'])
     expect(esCuentaChat('deepseek')).toBe(true)
     expect(esCuentaChat('otro')).toBe(false)
     expect(esCuentaApi('codex')).toBe(false)

@@ -81,6 +81,11 @@ export interface PedidoActuar extends Objetivo {
    */
   confirmacion?: string
   /**
+   * Autonomía v2 (instalación original): lo que Levy recomienda y por qué, en una línea, como lo diría el dueño. Si el
+   * freno detiene la acción, va a la tarjeta de la bandeja junto al Sí · No · Otro. No autoriza nada por sí sola.
+   */
+  recomendacion?: string
+  /**
    * Escritura visible: letra por letra con ritmo humano y el fantasma posado en el campo (grabaciones, masterclass).
    * Por defecto el texto entra de golpe; `MANOS_MODO_DEMO=1` lo vuelve visible siempre.
    */

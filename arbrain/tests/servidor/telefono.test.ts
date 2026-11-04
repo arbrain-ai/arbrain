@@ -9,7 +9,7 @@ import { join } from 'node:path'
 import {
   apagar, binarioTailscale, codigoNuevo, crearCodigos, encender, entornoWeb, estado, fallaServe, guardarEstado, hostValido,
   interpretarStatus, leerEstado, manejadoresServe, normalizarCodigo, puertoLibreHttps, puertoNuestro, urlTelefono, atenderControl,
-  alArrancar,
+  alArrancar, ayudaDe, ayudar, REABRIR_MS,
 } from '../../scripts/servidor/telefono.mjs'
 import { esHostTelefono, hostTelefono, llegaPorTelefono } from '../../src/features/telefono/host-telefono'
 import { pareceCodigo } from '../../src/features/telefono/codigo'
@@ -233,6 +233,53 @@ test('encender asegura el arranque automático (el teléfono sobrevive al reinic
   const [, k] = (await atenderControl({ metodo: 'POST', ruta: '/telefono/encender', cuerpo: {}, esWeb: true, esCli: false }, { ...ctx, R: otro.R, bin: otro.bin }))!
   assert.equal(k.estado, 'falta-sesion')
   assert.equal(llamadas, 1)
+  await new Promise((r) => setTimeout(r, 400))
+})
+
+test('«Encender» desde la app (vuelta 2 del primer uso): abre lo que toca una sola vez y dice qué le queda a la persona', async () => {
+  // Lo que TELEFONO.md hacía por Claude Code, por estado y sistema.
+  assert.equal(ayudaDe({ estado: 'falta-tailscale' }, 'darwin').abrir, 'macappstore://apps.apple.com/app/tailscale/id1475387142')
+  assert.equal(ayudaDe({ estado: 'falta-tailscale' }, 'win32').winget, true)
+  assert.match(ayudaDe({ estado: 'falta-tailscale' }, 'linux').teToca!, /install\.sh/)
+  assert.equal(ayudaDe({ estado: 'falta-sesion', enlace: 'https://login.tailscale.com/a/abc' }, 'darwin').abrir, 'https://login.tailscale.com/a/abc')
+  assert.equal(ayudaDe({ estado: 'falta-sesion', enlace: null }, 'darwin').abrirApp, true)
+  assert.equal(ayudaDe({ estado: 'falta-https', enlace: 'https://login.tailscale.com/f/serve?node=n' }, 'darwin').abrir, 'https://login.tailscale.com/f/serve?node=n')
+  // Solo direcciones de Tailscale: un enlace raro no se abre.
+  assert.equal(ayudaDe({ estado: 'falta-https', enlace: 'https://otro.example/x' }, 'darwin').abrir, null)
+  assert.equal(ayudaDe({ estado: 'apagado' }, 'darwin').teToca, null)
+
+  const abiertas: string[] = []
+  const ctx = { plataforma: 'darwin', abiertos: new Map<string, number>(), abrir: (u: string) => abiertas.push(u), abrirApp: () => abiertas.push('app'), registrar: () => {} }
+  const r = { estado: 'falta-https', enlace: 'https://login.tailscale.com/f/serve?node=n' }
+  assert.equal(ayudar(r, ctx, 1_000).abierto, r.enlace)
+  assert.equal(ayudar(r, ctx, 2_000).abierto, null, 'la guía repite cada 20 s: el enlace no se vuelve a abrir')
+  assert.equal(ayudar(r, ctx, 1_000 + REABRIR_MS + 1).abierto, r.enlace, 'pasado el plazo, sí')
+  assert.deepEqual(abiertas, [r.enlace, r.enlace])
+
+  // Por el control: solo la web (el botón) recibe la ayuda y abre; la terminal no.
+  const otro = entorno({ ARBRAIN_TAILSCALE_FALSO_ESTADO: 'NeedsLogin' })
+  const base = { R: otro.R, puertoWeb: () => 4310, reiniciarWeb: async () => {}, registrar: () => {}, codigos: crearCodigos(), bin: otro.bin, plataforma: 'darwin', abiertos: new Map<string, number>(), abrir: (u: string) => abiertas.push(u), abrirApp: () => abiertas.push('app') }
+  const [, web] = (await atenderControl({ metodo: 'POST', ruta: '/telefono/encender', cuerpo: {}, esWeb: true, esCli: false }, base))!
+  assert.equal(web.estado, 'falta-sesion')
+  assert.match(web.ayuda.teToca, /misma cuenta|cuenta que también/)
+  assert.ok(web.ayuda.abierto, 'abrió el inicio de sesión de Tailscale o su app')
+  const antes = abiertas.length
+  const [, cli] = (await atenderControl({ metodo: 'POST', ruta: '/telefono/encender', cuerpo: {}, esWeb: false, esCli: true }, base))!
+  assert.equal(cli.ayuda, undefined)
+  assert.equal(abiertas.length, antes)
+  // Sin Tailscale en una Mac: la App Store, una vez; con ARBRAIN_TELEFONO_NO_ABRIR=1 (el marcador) solo se anota.
+  const sin = { ...base, bin: null, abiertos: new Map<string, number>() }
+  process.env.ARBRAIN_TELEFONO_NO_ABRIR = '1'
+  const falso = process.env.ARBRAIN_TAILSCALE
+  process.env.ARBRAIN_TAILSCALE = join(otro.dir, 'no-hay-tailscale') // = Mac sin Tailscale
+  const notas: string[] = []
+  try {
+    const [, s] = (await atenderControl({ metodo: 'POST', ruta: '/telefono/encender', cuerpo: {}, esWeb: true, esCli: false }, { ...sin, registrar: (m: string) => notas.push(m) }))!
+    assert.equal(s.estado, 'falta-tailscale')
+    assert.equal(s.ayuda.abierto, 'macappstore://apps.apple.com/app/tailscale/id1475387142')
+  } finally { delete process.env.ARBRAIN_TELEFONO_NO_ABRIR; process.env.ARBRAIN_TAILSCALE = falso }
+  assert.equal(abiertas.length, antes, 'no abrió nada de verdad')
+  assert.match(notas.join('\n'), /abriría macappstore/)
   await new Promise((r) => setTimeout(r, 400))
 })
 

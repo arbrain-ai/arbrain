@@ -46,7 +46,7 @@ export function CatalogoModelos() {
     } finally { setGuardando(null) }
   }
 
-  const encendidos = catalogo?.modelos.filter((m) => m.habilitado).length ?? 0
+  const encendidos = catalogo?.modelos.filter((m) => m.habilitado && m.via !== 'abliterated').length ?? 0
   const hora = catalogo?.consultadoEn ? new Date(catalogo.consultadoEn).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }) : null
 
   return (
@@ -72,7 +72,7 @@ export function CatalogoModelos() {
 
       {catalogo && (
         <ul className="divide-y divide-border-subtle">
-          {catalogo.modelos.map((m) => {
+          {catalogo.modelos.filter((m) => m.via !== 'abliterated').map((m) => {  // sin filtro: sin interruptor, siempre en el selector
             const precio = precioPorMillon(m)
             return (
               <li key={m.id} className="flex items-center gap-3 px-4 py-2.5 sm:px-5" data-modelo={m.id} data-disponible={m.disponible}>
@@ -82,7 +82,7 @@ export function CatalogoModelos() {
                 <div className={`min-w-0 flex-1 ${m.disponible ? '' : 'opacity-70'}`}>
                   <div className="flex flex-wrap items-baseline gap-x-2">
                     <span className="text-[13px] font-semibold text-foreground">{m.nombre}</span>
-                    <span className="text-[11px] text-muted">{m.laboratorio} · {m.via === 'suscripcion' ? 'suscripción' : 'OpenRouter'}</span>
+                    <span className="text-[11px] text-muted">{m.laboratorio} · {m.via === 'suscripcion' ? 'suscripción' : m.via === 'abliterated' ? 'sin filtro · abliteration.ai' : 'OpenRouter'}</span>
                   </div>
                   {m.disponible ? (
                     <p className="mt-0.5 text-xs leading-snug text-muted">

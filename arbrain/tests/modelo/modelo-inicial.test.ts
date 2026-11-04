@@ -45,3 +45,14 @@ test('sin catálogo no se decide nada; el espacio guardado apagado no es vigente
   assert.equal(espacioVigente(c, 'default'), true)
   assert.equal(espacioVigente(null, 'deepseek'), true)
 })
+
+test('sin filtro (abliterated): una conversación nueva jamás nace en él, aunque haya sido lo último usado', () => {
+  const abl = m('deepseek-v4.1-flash-abliterated', { via: 'abliterated', cuenta: 'abliterated' })
+  const c = cat(opus, sonnet, abl)
+  const r = inicioDeChatNuevo(c, { motor: 'abliterated', modelo: null })
+  assert.equal(r.cuenta, 'default')
+  assert.equal(r.cayo, true)
+  // ...pero abrir una conversación suya no la saca de su espacio mientras esté disponible
+  assert.equal(espacioVigente(c, 'abliterated'), true)
+  assert.equal(espacioVigente(cat(opus, { ...abl, disponible: false }), 'abliterated'), false)
+})

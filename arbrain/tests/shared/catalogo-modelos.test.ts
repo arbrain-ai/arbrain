@@ -53,3 +53,15 @@ test('sin catálogo en el servidor, el respaldo deja Opus y Sonnet y quita alias
   ])
   assert.deepEqual(c.modelos.map(x => [x.nombre, x.modelo]), [['Opus 5.5', 'opus[1m]'], ['Sonnet 5.5', 'sonnet']])
 })
+
+test('sin filtro (abliterated): su propio grupo, visible aun sin llave, y abre conversación nueva en su espacio', () => {
+  const sinLlave = m('deepseek-v4.1-flash-abliterated', { via: 'abliterated', cuenta: 'abliterated', disponible: false, motivo: 'Falta la llave', habilitado: true })
+  const g = modelosDelSelector({ consultadoEn: '', errorOpenRouter: null, modelos: [opus, deepseek, sinLlave] })
+  assert.deepEqual(g.abliterated.map(x => x.id), ['deepseek-v4.1-flash-abliterated'])
+  assert.equal(g.claude.some(x => x.via === 'abliterated') || g.openrouter.some(x => x.via === 'abliterated'), false)
+  const lista = { ...sinLlave, disponible: true, motivo: null }
+  assert.equal(cabeEnConversacion(lista, 'default'), false)
+  assert.equal(cabeEnConversacion(lista, 'abliterated'), true)
+  assert.equal(esModeloActual(lista, 'abliterated', 'abliterated-model-large-flash'), true)
+  assert.equal(esModeloActual(lista, 'default', 'claude-opus-5-5[1m]'), false)
+})

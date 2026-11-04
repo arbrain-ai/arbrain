@@ -1,12 +1,12 @@
 # Tu cerebro en el teléfono
 
-> **Para la persona.** Abre Claude Code en tu carpeta de Arbrain (`~/Arbrain`) y escribe:
+> **Para la persona.** En tu app Arbrain, abre **Ajustes › Tu cerebro en el teléfono**, despliega «Otra forma: por
+> tu red privada de Tailscale» y pulsa **«Encender»**. La app hace el resto: si falta algo, te abre lo que toca (la App
+> Store, el inicio de sesión o un enlace de un clic), te dice en una línea qué te queda y sigue sola hasta que aparece
+> el QR. No hace falta abrir Claude Code.
 >
-> ```text
-> Pon mi cerebro en mi teléfono
-> ```
->
-> (Si lo abres en otra carpeta: `Pon mi cerebro en mi teléfono siguiendo https://github.com/arbrain-ai/arbrain/blob/main/TELEFONO.md`.)
+> (¿Prefieres que lo haga Claude Code? Ábrelo en tu carpeta de Arbrain, `~/Arbrain`, y escribe `Pon mi cerebro en mi
+> teléfono`; en otra carpeta: `Pon mi cerebro en mi teléfono siguiendo https://github.com/arbrain-ai/arbrain/blob/main/TELEFONO.md`.)
 >
 > Al terminar tienes **tu Arbrain** (tu Levy, tu día, tu plan) como app en tu celular, servido por tu propia
 > computadora. Lo único que haces tú: instalar Tailscale (gratis) en la computadora y en el teléfono e iniciar sesión

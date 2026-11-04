@@ -1,4 +1,6 @@
 import { existsSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { configDefaults, defineConfig } from 'vitest/config'
 
@@ -11,7 +13,9 @@ export default defineConfig({
   test: {
     // La copia del alumno trae `arbrain/EDICION` = cliente (carril O): sin esto, sus pruebas correrían como cliente y
     // las que describen la instalación original fallarían. Las pruebas fijan su edición; la variable del que corre manda.
-    env: { ARBRAIN_EDICION: process.env.ARBRAIN_EDICION || 'original' },
+    // La política de autonomía real de quien corre las pruebas no entra (sin archivo, rige el preset de la edición) y una
+    // tarjeta de prueba nunca llega al daemon real por su `.env` (ARBRAIN_TOQUE_SIN_ENV).
+    env: { ARBRAIN_EDICION: process.env.ARBRAIN_EDICION || 'original', ARBRAIN_POLITICA_AUTONOMIA: join(tmpdir(), 'arbrain-pruebas-sin-politica', 'politica.json'), ARBRAIN_HECHO_SOLO_DIR: join(tmpdir(), 'arbrain-pruebas-hecho-solo'), ARBRAIN_TOQUE_SIN_ENV: '1' },
     exclude: [...configDefaults.exclude, ...(WEB_INSTALADA ? [] : PRUEBAS_CON_WEB)],
   },
   // PostCSS en línea (vacío): sin esto Vite busca `arbrain/postcss.config.js` y exige las dependencias de la web

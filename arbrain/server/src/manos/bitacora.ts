@@ -46,6 +46,8 @@ export interface PasoBitacora {
   resultado: 'ok' | 'fallo' | 'bloqueado' | 'lectura'
   efecto?: string
   freno?: { categoria: string; paso: boolean }
+  /** Pasó por la política de autonomía (clase reversible, sin cita). */
+  autonomia?: string
   ms: number
   detalle?: string
 }

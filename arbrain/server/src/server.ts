@@ -87,6 +87,14 @@ import { estadoLlaves, faltaLlaveClaude, faltaLlaveTrasConectar, MENSAJE_FALTA_L
 import { hostLocalValido, rutaCanonica, rutaSoloDaniel, MENSAJE_NO_DISPONIBLE } from './cliente/rutas.js'
 import { confirmacionesDelDaemon, iniciarConfirmaciones, pedidoManos, vistaParaPase } from './cliente/confirmaciones.js'
 import { avisarTelefono, retomarEnConversacion } from './cliente/cola.js'
+import { asegurarSecretoDecidir, avisarTarjetaAlTelefono, rutasBandeja, secretoDecidirValido } from './autonomia/bandeja.js'
+import { alDecidirLoop, registrarCorredorLoops } from './cliente/loops.js'
+import type { Confirmacion, ConversacionConfirmacion } from './cliente/confirmaciones.js'
+
+/** Una tarjeta de un loop de negocio vuelve al loop (cliente/loops.ts); las demás, a su conversación como siempre. */
+const conLoops = (retomar: (c: Confirmacion, scope: ConversacionConfirmacion | null) => void) =>
+  (c: Confirmacion, scope: ConversacionConfirmacion | null): void => { if (!alDecidirLoop(c)) retomar(c, scope) }
+import { marcarFuentePolitica } from './autonomia/politica.js'
 import { marcarContaminada } from './guardia-agentes.js'
 import { listarReglas, resolverTarjeta, revocarRegla } from './cliente/tarjeta.js'
 import { motor as motorPty } from './motor/cliente.js'
@@ -783,6 +791,13 @@ async function rutasCliente(req: IncomingMessage, res: ServerResponse, ruta: str
     const r = atenderRutinas(req.method, ruta, cuerpo, { conPase })
     if (r) { sendJSON(res, r.status, r.cuerpo); return true }
   }
+  // Loops de negocio (3 nov 2026, detrás de ARBRAIN_LOOPS=1): catálogo, agregar en un clic y corridas (cliente/loops.ts).
+  // Solo la app: el pase no abre `/loops*` (cofre.ts › rutaSoloApp).
+  if (ruta === '/loops' || ruta.startsWith('/loops/')) {
+    const { atenderLoops } = await import('./cliente/loops.js')
+    const r = atenderLoops(req.method, ruta, cuerpo, { store: confirmacionesDelDaemon })
+    if (r) { sendJSON(res, r.status, r.cuerpo); return true }
+  }
   // Taller › Computadora (T16, 29 oct 2026): memoria, disco, procesador, reposo y cerrar apps (cliente/computadora.ts).
   // Solo la app: el pase no abre `/computadora*` (cofre.ts) y cerrar o forzar exigen además su secreto.
   if (ruta === '/computadora' || ruta.startsWith('/computadora/')) {
@@ -1226,6 +1241,14 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     if (rutaSoloDaniel(req.method, reqPath, parsed)) { sendJSON(res, 404, { error: MENSAJE_NO_DISPONIBLE }); return }
     if (await rutasCliente(req, res, reqPath, parsed)) return
   }
+  // Autonomía v2: la bandeja de decisiones única (las dos ediciones) y las confirmaciones de manos en la original.
+  if (await rutasBandeja(req.method ?? 'GET', reqPath, parsed, {
+    store: confirmacionesDelDaemon, conPase, db: getDb,
+    puedeDecidir: () => esEdicionCliente() ? secretoConfirmarValido(req.headers['x-arbrain-confirmar']) : secretoDecidirValido(req.headers['x-arbrain-decidir']),
+    deshacer: (h, scope) => { if (!despertadores) throw new Error('despertadores sin iniciar'); despertadores.avisar(scope, `La persona pidió DESHACER desde «Lo que hice solo»: «${h.que}»${h.deshacer ? `. Cómo: ${h.deshacer}` : ''}. Deshazlo ahora (es reversible) y cuéntale en una línea.`, 'confirmacion') },
+    registrar: e => logger.info(e, 'autonomía'),
+    enviar: (status, cuerpo) => sendJSON(res, status, cuerpo),
+  })) return
   if (req.method === 'POST' && reqPath === '/live/speech') {
     if (typeof parsed.text !== 'string' || !parsed.text.trim() || parsed.text.length > 1200 || typeof parsed.speed !== 'number' || parsed.speed < 0.5 || parsed.speed > 3) { sendJSON(res, 400, { error: 'Frase de voz inválida.' }); return }
     const ac = new AbortController(); res.on('close', () => ac.abort())
@@ -3100,6 +3123,8 @@ export function startMCServer(): void {
     registrarModoManos(() => modoPermisos())
     // A13: y del teléfono y el correo que la persona guardó como suyos (mandarse algo a sí misma no frena).
     registrarDatosPropios(() => datosPropios())
+    // Autonomía v2: el daemon es la fuente de la política (su carpeta de datos); las manos la reciben por /manos/estado.
+    marcarFuentePolitica()
     // Seguridad del alumno (12 oct 2026): el registro de actividad no guarda llaves; el literal completo vive solo en la
     // tabla de confirmaciones (la persona tiene que verlo entero para aprobarlo).
     // v0.2.18: avisos al teléfono (rutinas que terminan solas): la web de la persona los entrega con el token del daemon.
@@ -3119,7 +3144,7 @@ export function startMCServer(): void {
         void avisarTelefono(c, { token: MC_TOKEN, url: ALLOWED_ORIGIN })
           .then(r => { if (r !== 'repetido') logger.info({ confirmacion: c.id, resultado: r }, 'cola: aviso al teléfono') })
       }
-    }).alRetomar(retomarEnConversacion({
+    }).alRetomar(conLoops(retomarEnConversacion({
       // Al decidir algo de la cola, el agente se entera en SU conversación: aviso que vence ya (mismo camino que un
       // despertador; el pulso de 2 s lo dispara y retoma la sesión).
       avisar: (scope, texto) => {
@@ -3128,7 +3153,9 @@ export function startMCServer(): void {
       },
       marcarContaminada,
       registrar: e => logger.info(e, 'cola de aprobaciones'),
-    }))
+    })))
+    // Loops de negocio: el Sí u Otro de su tarjeta vuelve al loop como una corrida de seguimiento, ahora mismo.
+    registrarCorredorLoops(id => { const t = getTask(id); if (t) void executeCronJob(t, { manual: true }) })
     iniciarBitacora(getDb())
     // «Pausar todo»: además de abortar los turnos vivos, cierra las sesiones del pool (nada sigue en segundo plano).
     alPausarTodo(() => claudeRuntimePool.close())
@@ -3154,6 +3181,21 @@ export function startMCServer(): void {
     setInterval(ticCamino, 60 * 60_000).unref()
     setTimeout(ticProgreso, 90_000).unref()
     setInterval(ticProgreso, 60 * 60_000).unref()
+  } else {
+    // Autonomía v2 (3 nov 2026): la bandeja de decisiones en la instalación original. Lo irreversible que el freno detiene
+    // y lo que Levy decide subir llegan como tarjeta (Sí · No · Otro) a la app y al teléfono; sin su toque no sale.
+    asegurarSecretoDecidir()
+    iniciarConfirmaciones(getDb(), (tipo, c) => {
+      opsLogger.log(tipo === 'resuelta' ? 'confirmacion_resuelta' : 'confirmacion_pendiente', 'system', { id: c.id, tipo: c.tipo, categoria: c.categoria, estado: c.estado, respuesta: c.respuesta })
+      // Una tarjeta nueva (pendiente o nacida en la cola) suena una vez en el teléfono.
+      if (tipo === 'pendiente') void avisarTarjetaAlTelefono(c).then(r => logger.info({ confirmacion: c.id, resultado: r }, 'bandeja: aviso al teléfono'))
+    }).alRetomar(retomarEnConversacion({
+      avisar: (scope, texto) => {
+        if (!despertadores) throw new Error('despertadores sin iniciar')
+        despertadores.avisar(scope, texto, 'confirmacion')
+      },
+      registrar: e => logger.info(e, 'bandeja de decisiones'),
+    }))
   }
   server.listen(PORT, '127.0.0.1', () => {
     getDurableChat()

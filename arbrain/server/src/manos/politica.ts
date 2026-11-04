@@ -38,6 +38,7 @@ import { join } from 'node:path'
 import { DIR_ARBRAIN, esEdicionCliente } from '../edicion.js'
 import { CITA_MIN_CLIENTE, nombraAccion } from './cubre.js'
 import { pantallaVirtualInstalada } from './adaptadores/linux.js'
+import { politicaVigente, registrarPoliticaRemota } from '../autonomia/politica.js'
 
 // ---------- 1. Interruptor ----------
 
@@ -234,8 +235,10 @@ export const manosAutonomas = (): boolean => modoManos() === 'autonomo'
 // ---------- 4. Manos pregunta al daemon (M1) ----------
 
 /** Lo que el daemon le da al proceso de manos (`GET /manos/estado`, pase de agente). */
-export function estadoParaManos(ahora = Date.now()): { encendido: boolean; voz: Voz[]; modo: ModoManos; propios: string[] } {
-  return { encendido: computerUseEncendido(), voz: leerVoz().filter(v => ahora - v.t < VENTANA_MS()), modo: modoManos(), propios: datosPropios() }
+export function estadoParaManos(ahora = Date.now()): { encendido: boolean; voz: Voz[]; modo: ModoManos; propios: string[]; politica: { preset: string; ajustes: Record<string, string> } } {
+  // Autonomía v2: la política de la persona viaja con el estado (el proceso de manos no lee el archivo, M1).
+  const p = politicaVigente()
+  return { encendido: computerUseEncendido(), voz: leerVoz().filter(v => ahora - v.t < VENTANA_MS()), modo: modoManos(), propios: datosPropios(), politica: { preset: p.preset, ajustes: p.ajustes } }
 }
 
 /** A13: teléfono y correo propios de la persona. Fuera de la edición cliente, ninguno (la instalación de Daniel no cambia). */
@@ -272,13 +275,15 @@ export async function refrescarDesdeDaemon(op: { fetcher?: typeof fetch; plazoMs
     if (!puerto || !token) throw new Error('sin daemon')
     const r = await (op.fetcher ?? fetch)(`http://127.0.0.1:${puerto}/manos/estado`, { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(op.plazoMs ?? 3000) })
     if (!r.ok) throw new Error(`HTTP ${r.status}`)
-    const j = await r.json() as { encendido?: unknown; voz?: unknown; modo?: unknown; propios?: unknown }
+    const j = await r.json() as { encendido?: unknown; voz?: unknown; modo?: unknown; propios?: unknown; politica?: unknown }
     const voz = Array.isArray(j.voz) ? (j.voz as Voz[]).filter(v => v && typeof v.t === 'number' && typeof v.texto === 'string').slice(-MAX_MENSAJES) : []
     // Un modo que no se reconoce cae al más estricto: la red de las manos nunca se abre por un dato raro.
     const modo: ModoManos = j.modo === 'autonomo' || j.modo === 'carpeta' || j.modo === 'preguntar' ? j.modo : 'preguntar'
     const propios = Array.isArray(j.propios) ? j.propios.filter((x): x is string => typeof x === 'string' && x.length <= 120).slice(0, 2) : []
     remoto = { encendido: j.encendido === true, voz, modo, propios }
-  } catch { remoto = { encendido: false, voz: [], modo: 'preguntar' } }
+    // Sin política del daemon (versión anterior), rige la más estricta (Cauteloso).
+    registrarPoliticaRemota(j.politica ?? null)
+  } catch { remoto = { encendido: false, voz: [], modo: 'preguntar' }; registrarPoliticaRemota(null) }
 }
 
 /** Solo pruebas. */

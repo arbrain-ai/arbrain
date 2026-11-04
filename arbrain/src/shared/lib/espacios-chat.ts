@@ -5,7 +5,9 @@
  * Módulo puro: lo usan las rutas del servidor (acceso, borradores sin conexión) y el store del cliente.
  */
 export const ESPACIOS_API = ['deepseek', 'gpt-luna', 'gpt-astra', 'gpt-sol', 'gemini', 'muse', 'grok', 'mimo', 'glm', 'kimi'] as const
-export const ESPACIOS_NO_DEFAULT = ['bro', 'codex', 'yt', ...ESPACIOS_API] as const
+/** DeepSeek V4.1 Flash abliterated (3 nov 2026): el Claude Code del chat contra un endpoint sin filtro. No es Claude. */
+export const ESPACIO_ABLITERATED = 'abliterated' as const
+export const ESPACIOS_NO_DEFAULT = ['bro', 'codex', 'yt', ESPACIO_ABLITERATED, ...ESPACIOS_API] as const
 export const ESPACIOS_CHAT = ['default', ...ESPACIOS_NO_DEFAULT] as const
 
 export type EspacioApi = (typeof ESPACIOS_API)[number]
@@ -16,7 +18,7 @@ export const esEspacioChat = (v: unknown): v is EspacioChat => ESPACIOS_CHAT.inc
  * Espacios que solo existen en la instalación original: las suscripciones de su dueño (segunda cuenta de Claude y las
  * dos cuentas de OpenAI por el Codex CLI). En la edición cliente no existen: ni selector, ni ruta, ni carpeta.
  */
-export const ESPACIOS_SOLO_ORIGINAL = ['bro', 'codex', 'yt'] as const
+export const ESPACIOS_SOLO_ORIGINAL = ['bro', 'codex', 'yt', ESPACIO_ABLITERATED] as const
 export const espacioDisponible = (v: unknown, cliente: boolean): boolean =>
   esEspacioChat(v) && !(cliente && (ESPACIOS_SOLO_ORIGINAL as readonly string[]).includes(v as string))
 export const esEspacioApi = (v: unknown): v is EspacioApi => ESPACIOS_API.includes(v as EspacioApi)

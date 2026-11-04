@@ -1,0 +1,118 @@
+/* Tu negocio › El sistema (4 nov 2026). Luminorphism vigente: tokens del panel, un solo foco ámbar (el cuello),
+   morado para estado, rojo solo para una rutina caída. Responde al ancho de SU columna (container), no al de la
+   ventana: cabe en el panel a 360 px sin scroll lateral y abre a tres columnas en «Ampliar». */
+.panel { --ambar: var(--l-tinta-ambar, var(--gold-dark, #b8862b)); --velo-ambar: rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.08); --borde-ambar: var(--l-borde-ambar, rgba(var(--gold-rgb), 0.34));
+  container-type: inline-size; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+
+/* Cabeza */
+.cabeza { display: flex; flex-direction: column; gap: 4px; }
+.ceja { margin: 0; font-size: 11px; font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.ceja b { font-weight: 650; color: var(--l-ceja-ambar, var(--gold-dark)); }
+:global(.dark) .ceja b { color: var(--l-tinta-ambar, var(--gold-bright)); }
+.titular { margin: 0; font-family: var(--serif-ui, inherit); font-size: 22px; line-height: 1.15; font-weight: 600; letter-spacing: -0.01em; color: var(--foreground); }
+.grande .titular { font-size: 28px; }
+.bajada { margin: 2px 0 0; font-size: 13px; line-height: 1.45; color: var(--muted); }
+.enlaceTexto { padding: 0; border: 0; background: none; font: inherit; color: var(--ambar); font-weight: 600; cursor: pointer; text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 35%, transparent); text-underline-offset: 3px; }
+.meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+.accion { display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 11px; border-radius: 999px; border: 1px solid var(--border); background: transparent; color: var(--foreground); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; text-decoration: none; }
+.accion:hover { background: color-mix(in srgb, var(--foreground) 7%, transparent); }
+.accion:focus-visible, .tramo:focus-visible, .skill:focus-visible, .evidencia:focus-visible, .enlaceTexto:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.leyenda { list-style: none; display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 6px 0 0; padding: 0; font-size: 11.5px; color: var(--muted); }
+.leyenda li { display: inline-flex; align-items: center; gap: 6px; }
+.leyenda i { width: 18px; height: 9px; border-radius: 3px; border: 1.5px solid color-mix(in srgb, var(--brand) 55%, transparent); background: color-mix(in srgb, var(--brand) 12%, transparent); }
+.leyenda i[data-trazo=punteado] { border-style: dashed; border-color: var(--muted); background: transparent; }
+.leyenda i[data-trazo=cuello] { border-color: var(--ambar); background: var(--velo-ambar); display: grid; place-items: center; }
+.leyenda i[data-trazo=cuello]::after { content: ''; width: 5px; height: 5px; border-radius: 999px; background: var(--gold); box-shadow: 0 0 6px rgba(var(--gold-rgb), 0.6); }
+
+/* Cada embudo */
+.grupo { display: flex; flex-direction: column; gap: 10px; }
+.embudo { display: flex; flex-direction: column; gap: 12px; padding: 14px; border-radius: var(--radio-tarjeta, 16px); border: 1px solid var(--border-subtle, var(--border)); background: color-mix(in srgb, var(--card) 94%, var(--background)); }
+.embudoCabeza { display: flex; flex-direction: column; gap: 2px; }
+.kicker { margin: 0; font-size: 10.5px; font-weight: 650; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.embudoNombre { margin: 0; font-size: 17px; font-weight: 680; line-height: 1.25; color: var(--foreground); }
+.frase { margin: 2px 0 0; font-size: 12.5px; line-height: 1.45; color: var(--muted); text-wrap: pretty; }
+
+/* El moño: se estrecha hasta el pago y se abre después. Cada tramo lleva a su tarjeta. */
+.mono { list-style: none; display: flex; gap: 3px; margin: 0; padding: 0; }
+.mono li { flex: 1 1 0; min-width: 0; }
+.tramo { width: 100%; display: grid; grid-template-rows: 46px auto auto; justify-items: center; gap: 2px; padding: 0; border: 0; background: none; font: inherit; color: var(--foreground); cursor: pointer; }
+.tramoBarra { display: grid; place-items: center; align-self: center; width: 100%; height: var(--alto, 100%); border-radius: 7px; border: 1.5px solid color-mix(in srgb, var(--brand) 40%, transparent); background: color-mix(in srgb, var(--brand) 13%, transparent); transition: background 0.15s ease, border-color 0.15s ease; }
+.tramo:hover .tramoBarra { background: color-mix(in srgb, var(--brand) 22%, transparent); }
+.tramo:not([data-hoy]) .tramoBarra { border-style: dashed; border-color: color-mix(in srgb, var(--muted) 80%, transparent); background: transparent; }
+.tramo[data-cuello] .tramoBarra { border-style: solid; border-color: var(--ambar); background: var(--velo-ambar); box-shadow: 0 0 0 3px rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.10); }
+.tramoNum { font-size: 10.5px; font-weight: 650; color: var(--muted); font-variant-numeric: tabular-nums; }
+.tramoNombre { max-width: 100%; font-size: 11.5px; font-weight: 600; line-height: 1.2; text-align: center; overflow-wrap: anywhere; }
+.tramo[data-cuello] .tramoNombre { color: var(--ambar); }
+
+/* Tarjetas de etapa: una columna en el panel, dos o tres con espacio. */
+.etapas { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+@container (min-width: 640px) { .etapas { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container (min-width: 1000px) { .etapas { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+.etapa { scroll-margin-top: 12px; display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 13px 14px; border-radius: 13px; border: 1px solid var(--border-subtle, var(--border)); background: var(--card); transition: box-shadow 0.25s ease, border-color 0.25s ease; }
+.etapa:not([data-hoy]) { border-style: dashed; border-color: color-mix(in srgb, var(--muted) 55%, transparent); background: color-mix(in srgb, var(--card) 70%, transparent); }
+.etapa[data-cuello] { border-style: solid; border-color: var(--borde-ambar); background: linear-gradient(180deg, var(--velo-ambar), transparent 72%), var(--card); }
+.etapa[data-enfocada] { box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand) 55%, transparent); }
+.etapaCabeza { display: flex; align-items: flex-start; gap: 10px; }
+.etapaNum { flex: none; width: 24px; height: 24px; border-radius: 999px; display: grid; place-items: center; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--l-tinta-morado, var(--brand)); background: color-mix(in srgb, var(--brand) 12%, transparent); }
+.etapa[data-cuello] .etapaNum { color: var(--ambar); background: var(--velo-ambar); }
+.etapaCeja { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: 0; font-size: 10.5px; font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.porConstruir { padding: 0 7px; border-radius: 999px; border: 1px dashed currentColor; font-size: 10px; letter-spacing: 0.04em; text-transform: none; font-weight: 600; }
+.etapaNombre { margin: 1px 0 0; font-size: 15px; font-weight: 680; line-height: 1.25; color: var(--foreground); }
+.que { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--foreground); opacity: 0.9; text-wrap: pretty; }
+
+/* El cuello: el único foco ámbar de la pantalla. En el lenguaje vigente el ámbar no es tinta: la señal la da la luz (el
+   punto dorado, como en el explorador), y borde y texto quedan en neutro fuerte. */
+.luz { flex: none; display: inline-block; width: 7px; height: 7px; border-radius: 999px; background: var(--gold); box-shadow: 0 0 8px rgba(var(--gold-rgb), 0.55); }
+.cuello { display: flex; flex-direction: column; gap: 4px; padding: 9px 11px; border-radius: 10px; border: 1px solid var(--borde-ambar); background: var(--velo-ambar); }
+.cuelloEtiqueta { display: flex; align-items: center; gap: 7px; margin: 0; font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ambar); }
+.cuelloFrase { margin: 0; font-size: 13px; line-height: 1.45; color: var(--foreground); text-wrap: pretty; }
+.evidencia { align-self: flex-start; display: inline-flex; align-items: center; gap: 5px; padding: 0; border: 0; background: none; font: inherit; font-size: 11.5px; color: var(--muted); cursor: pointer; text-align: left; }
+.evidencia:hover { color: var(--foreground); }
+
+/* El número y su fuente */
+.numero { display: flex; flex-direction: column; gap: 1px; padding: 8px 0 2px; border-top: 1px solid color-mix(in srgb, var(--foreground) 7%, transparent); }
+.etiqueta { margin: 0; font-size: 10.5px; font-weight: 650; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); }
+.cifra { margin: 2px 0 0; font-size: 20px; font-weight: 650; line-height: 1.15; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; color: var(--foreground); }
+.cifra[data-sin-dato] { font-size: 14px; font-weight: 550; letter-spacing: 0; color: var(--muted); }
+.fuente { margin: 2px 0 0; font-size: 11.5px; line-height: 1.4; color: var(--muted); overflow-wrap: anywhere; }
+
+/* Quién la mueve y habilidades */
+.bloque { display: flex; flex-direction: column; gap: 5px; }
+.chips { list-style: none; display: flex; flex-wrap: wrap; gap: 5px; margin: 0; padding: 0; }
+.chip, .skill { display: inline-flex; align-items: center; gap: 5px; min-height: 24px; padding: 1px 9px 1px 7px; border-radius: 999px; border: 1px solid var(--border); font-size: 12px; color: var(--foreground); background: transparent; }
+.chip small { font-size: 11px; color: var(--muted); }
+.chip[data-tipo=levy] { color: var(--l-tinta-morado, var(--brand)); border-color: color-mix(in srgb, var(--brand) 32%, transparent); background: color-mix(in srgb, var(--brand) 7%, transparent); }
+.skill { font: inherit; font-size: 12px; cursor: pointer; transition: background 0.15s ease, border-color 0.15s ease; }
+.skill:hover { background: color-mix(in srgb, var(--foreground) 7%, transparent); border-color: color-mix(in srgb, var(--foreground) 22%, transparent); }
+
+/* Rutinas con su última corrida */
+.rutinas { list-style: none; display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; }
+.rutina { display: grid; grid-template-columns: 10px minmax(0, 1fr); gap: 8px; align-items: start; }
+.rutina:not([data-activa]) { opacity: 0.78; }
+.punto { margin-top: 5px; width: 8px; height: 8px; border-radius: 999px; background: var(--muted); opacity: 0.55; }
+.punto[data-tono=ok] { background: var(--success); opacity: 1; }
+.punto[data-tono=curso] { background: var(--brand); opacity: 1; }
+.punto[data-tono=atencion] { background: var(--ambar); opacity: 1; }
+.punto[data-tono=error] { background: var(--error); opacity: 1; }
+.punto[data-tono=sin-dato], .punto[data-tono=pausada] { background: transparent; border: 1.5px solid var(--muted); }
+.punto[data-tono=por-construir] { background: transparent; border: 1.5px dashed var(--muted); }
+.rutinaTexto { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.rutinaTexto b { font-size: 12.5px; font-weight: 600; line-height: 1.35; color: var(--foreground); }
+.rutinaTexto small { font-size: 11.5px; line-height: 1.35; color: var(--muted); overflow-wrap: anywhere; }
+
+/* Puentes entre embudos y el giro de vuelta */
+.puente { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; align-items: start; margin: 0 6px; padding: 9px 12px; border-radius: 11px; border: 1px solid color-mix(in srgb, var(--brand) 30%, transparent); background: color-mix(in srgb, var(--brand) 6%, transparent); color: var(--l-tinta-morado, var(--brand)); }
+.puente[data-por-construir] { border-style: dashed; border-color: color-mix(in srgb, var(--muted) 70%, transparent); background: transparent; color: var(--muted); }
+.puente svg { margin-top: 2px; }
+.flechaVuelta { transform: rotate(180deg); }
+.puenteTexto { margin: 0; font-size: 12.5px; line-height: 1.4; color: var(--foreground); }
+.puenteTexto b { font-weight: 650; }
+.puenteMeta { margin: 2px 0 0; font-size: 11.5px; line-height: 1.4; color: var(--muted); }
+
+/* Sin embudo todavía */
+.vacio { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 16px; border-radius: 14px; border: 1px dashed var(--border); }
+.vacio p, .vacio li { margin: 0; font-size: 13px; line-height: 1.5; color: var(--foreground); }
+.vacio ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; }
+
+@media (prefers-reduced-motion: reduce) { .etapa, .tramoBarra, .skill { transition: none; } }

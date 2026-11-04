@@ -4,7 +4,12 @@ import { useFuente } from '../datos'
 import type { SeccionNegocio } from '../model'
 import { rutaDe } from '../model'
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
+import { escucharPedido, EVENTO_ETAPA_NEGOCIO, LLAVE_ETAPA_NEGOCIO } from '@/shared/navigation/ir-a'
+import { PanelEmbudo } from '@/features/negocio/PanelEmbudo'
+import { URL_EMBUDO, type RespuestaEmbudo } from '@/features/negocio/embudo'
 import s from '../cabina.module.css'
+import l from '@/features/rutinas/loops.module.css'
 
 const MarkdownMessage = dynamic(() => import('@/features/chat/components/MarkdownMessage').then(m => m.MarkdownMessage), { loading: () => <p className={s.vacio}>…</p> })
 
@@ -21,8 +26,31 @@ function revision(f: Fuente) {
   return `revisado ${fecha}${dias > 0 ? ` · hace ${dias} ${dias === 1 ? 'día' : 'días'}` : ' · hoy'}${f.origenFecha === 'local' ? ' (sin commit)' : ''}`
 }
 
-/** El libro del negocio: avatar, oferta, embudo y sistema, cada uno con su canónico y su fecha. */
+/**
+ * Tu negocio. Con ARBRAIN_PANEL_NEGOCIO=1 (prototipo del 4 nov 2026) suma «El sistema»: el embudo completo con skills,
+ * rutinas, manos, números y cuello (features/negocio). Apagado, la API responde { activo: false } y la vista es el libro,
+ * igual que siempre.
+ */
 export function VistaNegocio({ seccion, grande }: { seccion?: SeccionNegocio; grande?: boolean }) {
+  const sistema = useFuente<RespuestaEmbudo>(URL_EMBUDO).data
+  const [parte, setParte] = useState<'sistema' | 'libro'>(seccion && seccion !== 'embudo' ? 'libro' : 'sistema')
+  // Habilidades › «Ver en tu negocio» pide una etapa: se ve en El sistema (PanelEmbudo toma el pedido y enfoca).
+  useEffect(() => {
+    try { if (localStorage.getItem(LLAVE_ETAPA_NEGOCIO)) setParte('sistema') } catch { /* sin almacenamiento */ }
+    return escucharPedido(EVENTO_ETAPA_NEGOCIO, () => setParte('sistema'))
+  }, [])
+  if (!sistema?.activo) return <LibroNegocio seccion={seccion} grande={grande} />
+  return <div className={l.loops}>
+    <div className={l.selector} role="tablist" aria-label="Qué ver de tu negocio">
+      <button role="tab" aria-selected={parte === 'sistema'} onClick={() => setParte('sistema')}>El sistema</button>
+      <button role="tab" aria-selected={parte === 'libro'} onClick={() => setParte('libro')}>El libro</button>
+    </div>
+    {parte === 'sistema' ? <PanelEmbudo datos={sistema} grande={grande} /> : <LibroNegocio seccion={seccion} grande={grande} />}
+  </div>
+}
+
+/** El libro del negocio: avatar, oferta, embudo y sistema, cada uno con su canónico y su fecha. */
+function LibroNegocio({ seccion, grande }: { seccion?: SeccionNegocio; grande?: boolean }) {
   const { data, error } = useFuente<Datos>(urlNegocio(grande))
   if (!data) return <div className={s.cargando} aria-busy="true">{error ? <p className={s.aviso}>{error}</p> : 'Abriendo el libro del negocio…'}</div>
   const orden = seccion ? [...data.tarjetas].sort((a, b) => Number(b.seccion === seccion) - Number(a.seccion === seccion)) : data.tarjetas

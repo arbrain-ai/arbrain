@@ -137,11 +137,17 @@ export const APIS_CLIENTE = [
   '/api/salud/chat',
   // Tu cerebro en el teléfono (23 oct 2026): estado, encender/apagar y códigos de entrada (scripts/servidor/telefono.mjs).
   '/api/telefono',
+  // Sin Tailscale (3 nov 2026): tu Levy en el teléfono por el relay de Arbrain (scripts/servidor/conectar.mjs).
+  '/api/conectar',
   // Mi marca (29 oct 2026): colores, logo y nombre del dueño desde `mi-marca/` (lib/mi-marca.ts).
   '/api/mi-marca',
   // Rutinas (T8, 29 oct 2026): Taller › Rutinas sobre el scheduler de SU daemon (lib/rutinas-cliente.ts). Distinta de
   // `/api/planning/crons`, que sigue fuera: esa lee el Studio y el historial en Supabase.
   '/api/rutinas',
+  // Loops de negocio (3 nov 2026, detrás de ARBRAIN_LOOPS=1 en SU daemon; lib/loops.ts) y la bandeja de decisiones
+  // (autonomía v2): su ruta ya tenía la rama del alumno (cookie de la app + secreto de confirmar al decidir), pero el
+  // proxy la cerraba con 404 y la excepción de un loop no se podía decidir en la app del alumno.
+  '/api/loops', '/api/decisiones',
   // Computadora (T16, 29 oct 2026): Taller › Computadora sobre SU daemon (lib/computadora-cliente.ts): memoria, disco,
   // procesador, reposo y cerrar apps. Distinta de `/api/cabina/servidores` (el Studio de Daniel), que sigue fuera.
   '/api/computadora',

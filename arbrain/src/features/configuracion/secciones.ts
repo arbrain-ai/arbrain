@@ -8,7 +8,7 @@ import { capital, NOMBRE_DUENO, NOMBRE_SEGUNDA } from '@/config'
 
 const CLIENTE = esEdicionCliente()
 
-export type IdSeccion = 'norte' | 'equipo' | 'clientes' | 'oferta' | 'embudo' | 'modelo' | 'apariencia' | 'cuenta' | 'avisos' | 'mac' | 'atajos' | 'panel' | 'llaves' | 'voz' | 'privacidad' | 'seguridad' | 'telefono'
+export type IdSeccion = 'norte' | 'equipo' | 'clientes' | 'oferta' | 'embudo' | 'modelo' | 'apariencia' | 'cuenta' | 'avisos' | 'mac' | 'atajos' | 'panel' | 'llaves' | 'voz' | 'privacidad' | 'seguridad' | 'telefono' | 'maquinas'
 
 export interface DefSeccion { id: IdSeccion; nombre: string; detalle: string; ajustes: string[] }
 export interface DefGrupo { id: string; titulo: string; secciones: IdSeccion[] }
@@ -34,7 +34,9 @@ const TODAS: ReadonlyArray<DefSeccion> = [
   // Grupal 23 oct 2026: el modo de permisos y las carpetas van primero («demasiadas confirmaciones»).
   { id: 'seguridad', nombre: 'Permisos y seguridad', detalle: 'Cuánto te pregunta Levy, a qué carpetas entra, pausar todo y tope de gasto', ajustes: ['Permisos', 'Modo de permisos', 'Preguntar siempre', 'Automático en mi carpeta', 'Sin preguntar', 'Confirmaciones', 'Carpetas a las que tu cerebro puede entrar', 'Carpetas abiertas', 'Abrir carpeta', 'Pausar todo', 'Reanudar', 'Lo que hizo Levy', 'Bitácora', 'Tope de gasto', 'Límite de crédito', 'Gasto'] },
   // Tu cerebro en el teléfono (23 oct 2026): tu Arbrain en el celular por tu Tailscale (scripts/servidor/telefono.mjs).
-  { id: 'telefono', nombre: 'Tu cerebro en el teléfono', detalle: 'Tu Arbrain en tu celular, por tu red privada de Tailscale', ajustes: ['Teléfono', 'Celular', 'iPhone', 'Android', 'Tailscale', 'Código QR', 'Código para entrar', 'Pantalla de inicio', 'App en el teléfono'] },
+  // Sin Tailscale (3 nov 2026): QR, «Listo desde…» y la dirección privada por el relay de Arbrain (scripts/servidor/conectar.mjs).
+  { id: 'telefono', nombre: 'Teléfono', detalle: 'Tu Levy en tu celular: escanea el QR, sin instalar nada', ajustes: ['Teléfono', 'Tu cerebro en el teléfono', 'Tu Levy en el teléfono', 'Celular', 'iPhone', 'Android', 'Código QR', 'Escanear con tu teléfono', 'Dirección privada', 'Cerrar sesión en todos los teléfonos', 'Código para entrar', 'Pantalla de inicio', 'App en el teléfono', 'Tailscale'] },
+  { id: 'maquinas', nombre: 'Máquinas', detalle: 'Dónde corre tu Levy: esta computadora y tu servidor', ajustes: ['Máquinas', 'Esta computadora', 'Mi servidor', 'Otra computadora', 'Agregar otra máquina', 'Unir a mi cuenta', 'Abrir otra máquina'] },
   { id: 'privacidad', nombre: 'Privacidad', detalle: 'Monitoreo del programa y documentos legales', ajustes: ['Monitoreo de cohorte', 'Compartir mi avance', 'Qué se envía', 'Aviso de privacidad', 'Términos de uso', 'Licencia'] },
 ]
 
@@ -51,7 +53,7 @@ const GRUPOS_ORIGINAL: ReadonlyArray<DefGrupo> = [
  * en su teléfono, junto a «Tu cerebro en el teléfono».
  */
 const GRUPOS_CLIENTE: ReadonlyArray<DefGrupo> = [
-  { id: 'tu', titulo: 'Tú', secciones: ['llaves', 'voz', 'telefono', 'avisos', 'seguridad', 'privacidad', 'apariencia'] },
+  { id: 'tu', titulo: 'Tú', secciones: ['llaves', 'voz', 'telefono', 'maquinas', 'avisos', 'seguridad', 'privacidad', 'apariencia'] },
   { id: 'arbrain', titulo: 'Arbrain', secciones: ['modelo', 'panel', 'atajos'] },
   { id: 'computadora', titulo: 'Esta computadora', secciones: ['mac'] },
 ]

@@ -42,6 +42,10 @@ export function taskData(task: PlanTask) {
 /** Provisional UI only. A provider rejection restores the previous snapshot. */
 export function optimisticTask(snapshot: PlanningSnapshot, operation: PlanMutation): PlanningSnapshot {
   if(operation.kind!=='task')return snapshot
+  // Reabrir desde la lista o el timeline del Día (3 nov 2026): vuelve a abiertas al instante; la lectura de Todoist confirma.
+  if(operation.action==='reopen'){const hecha=snapshot.completedTasks?.find(t=>t.externalId===operation.externalId)
+    return hecha&&!snapshot.tasks.some(t=>t.id===hecha.id)?{...snapshot,tasks:[...snapshot.tasks,{...hecha,completed:false,completedAt:null,pending:true}],
+      completedTasks:snapshot.completedTasks!.filter(t=>t.id!==hecha.id)}:snapshot}
   const task=snapshot.tasks.find(t=>t.externalId===operation.externalId)
   if(!task)return snapshot
   if(operation.action==='complete')return {...snapshot,

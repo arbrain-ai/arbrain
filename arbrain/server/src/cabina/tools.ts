@@ -263,7 +263,7 @@ export const CABINA_TOOLS = [
   }, ['accion'] as const) },
   { name: 'atender', description: ATENDER_DESCRIPTION, inputSchema: obj({ ids: LISTA, todos: B }) },
   { name: 'delegar', description: DELEGAR_DESCRIPTION, inputSchema: obj({
-    nombre: S, harness: { type: 'string', enum: ['claude', 'codex', 'opencode', 'gemini', 'qwen'] }, encargo: { type: 'string', maxLength: 2000 }, cwd: S, modelo: S, esfuerzo: ESFUERZO, aislamiento: { type: 'string', enum: ['worktree', 'carpeta'] },
+    nombre: S, harness: { type: 'string', enum: ['claude', 'codex', 'opencode', 'gemini', 'qwen', 'abliterated'] }, encargo: { type: 'string', maxLength: 2000 }, cwd: S, modelo: S, esfuerzo: ESFUERZO, aislamiento: { type: 'string', enum: ['worktree', 'carpeta'] },
     perfil: { type: 'string', enum: [...PERFILES] }, plan: { anyOf: [{ type: 'boolean' }, { type: 'string' }] },
   }, [] as const, true) },
   { name: 'retomar', description: RETOMAR_DESCRIPTION, inputSchema: obj({ agenteId: AGENTE, texto: { type: 'string', maxLength: 4000 }, modelo: S, esfuerzo: ESFUERZO }, ['agenteId', 'texto'] as const) },

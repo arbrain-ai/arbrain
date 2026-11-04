@@ -10,11 +10,16 @@
  *      «confirmación» aparece en la página, no vale.
  *   4. Cambiar contraseñas y saltarse avisos de seguridad le pasan el control a
  *      Daniel: no se ejecutan ni con confirmación.
+ *   5. Autonomía v2 (3 nov 2026, ../../autonomia/politica.ts): enviar un formulario que configura un servicio (crear
+ *      una llave, una cuenta, guardar un ajuste) no contacta a nadie. Si la política dice «hacer», pasa sin cita y
+ *      queda en «Lo que hice solo». Contactar, pagar, borrar y publicar siguen igual.
  */
 import { DUENO, DUENO_M } from '../../dueno.js'
 import { frenar, confirmacionValida, type Juicio } from '../freno.js'
 import { CUBRE, nombraAccion } from '../cubre.js'
 import type { ContextoAccion, PedidoActuar } from '../contrato.js'
+import { claseDeEnvio } from '../../autonomia/clase.js'
+import { modoDe, type Clase } from '../../autonomia/politica.js'
 
 /** Lo que `arbrain/extension/lib/pagina.js#contexto` devuelve de un elemento. Nunca trae lo escrito. */
 export interface InfoElemento {
@@ -36,7 +41,11 @@ export interface PedidoWeb {
   confirmacion?: string
 }
 
-export interface VeredictoWeb { pasa: boolean; handoff?: boolean; detalle?: string; freno?: { categoria: string; motivo: string; paso: boolean } }
+export interface VeredictoWeb {
+  pasa: boolean; handoff?: boolean; detalle?: string; freno?: { categoria: string; motivo: string; paso: boolean }
+  /** Pasó por la política de autonomía (regla 5): reversible, sin cita; se anota en «Lo que hice solo». */
+  autonomia?: { clase: Clase; motivo: string }
+}
 
 const ROLES_AX: Record<string, string> = {
   button: 'AXButton', link: 'AXLink', textbox: 'AXTextField', searchbox: 'AXTextField', combobox: 'AXComboBox', checkbox: 'AXCheckBox',
@@ -162,6 +171,11 @@ function juzgarWeb(p: PedidoWeb, i: InfoElemento, vistos: string[] = []): Veredi
   // 1. Enviar un formulario que no es de búsqueda.
   const envia = enviaFormulario(p, i)
   if (envia && !(v1.juicio as Juicio).irreversible) {
+    // 5. Configurar un servicio (crear la llave, guardar el ajuste) no contacta a nadie: la política decide.
+    if (p.accion === 'click') {
+      const clase = claseDeEnvio({ etiqueta: i.nombre, formulario: [i.formulario?.etiqueta, i.formulario?.texto].filter(Boolean).join(' · '), dialogo: i.dialogo?.texto, ancestros: i.ancestros, accion: i.formulario?.accion, url: i.url })
+      if (clase === 'configurar' && modoDe('configurar') === 'hacer') return { pasa: true, autonomia: { clase, motivo: `${envia}: configura un servicio, no contacta a nadie` } }
+    }
     const c = pasaConfirmacion(p, i, vistos)
     if (!c.paso) return bloqueo('enviar', envia, c.dePantalla)
     return { pasa: true, freno: { categoria: 'enviar', motivo: envia, paso: true } }

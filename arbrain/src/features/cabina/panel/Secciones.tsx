@@ -41,7 +41,7 @@ import { moverVisible, visibles } from './menu-orden'
 import { arrastrarFila } from './arrastre-lista'
 import { usePanelAjustes } from './panel-ajustes'
 import { useAjustes } from '@/shared/stores/ajustes-store'
-import { bajoElAncla, zoomUI } from '@/shared/lib/zoom-ui'
+import { aFijo, bajoElAncla, zoomUI } from '@/shared/lib/zoom-ui'
 import p from './secciones.module.css'
 import { zonaDueno } from '@/shared/lib/zona-dueno'
 
@@ -234,15 +234,42 @@ function EntornoFisico({ onElegido }: { onElegido: () => void }) {
   </section>
 }
 
+/**
+ * «Artefactos» de la barra lateral (3 nov 2026, Daniel: «algo como artefactos… poder verlo desde acá»): lo Guardado del
+ * panel, el mismo archivero de «+ › Guardadas», abierto a un clic desde la izquierda. Sale a la derecha de su fila; si no
+ * cabe (cajón del teléfono), debajo.
+ */
+export function MenuArtefactos({ ancla, onCerrar, onElegido }: { ancla: HTMLElement | null; onCerrar: () => void; onElegido?: () => void }) {
+  const menu = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
+  useEffect(() => {
+    const r = ancla?.getBoundingClientRect()
+    if (!r) return
+    const z = zoomUI(), ancho = Math.min(ANCHO_MENU * z, window.innerWidth - 16), m = 8
+    const aLaDerecha = r.right + m + ancho <= window.innerWidth - m
+    const left = aLaDerecha ? r.right + m : Math.max(m, Math.min(r.left, window.innerWidth - ancho - m))
+    const top = aLaDerecha ? Math.max(m, Math.min(r.top, window.innerHeight - 240)) : r.bottom + 6
+    setPos({ left: aFijo(left, z), top: aFijo(top, z) })
+    const fuera = (e: PointerEvent) => { if (!menu.current?.contains(e.target as Node) && !ancla?.contains(e.target as Node)) onCerrar() }
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onCerrar() } }
+    window.addEventListener('pointerdown', fuera, true); window.addEventListener('keydown', esc, true)
+    return () => { window.removeEventListener('pointerdown', fuera, true); window.removeEventListener('keydown', esc, true) }
+  }, [ancla, onCerrar])
+  if (!pos) return null
+  return createPortal(<div ref={menu} className={p.menu} style={{ top: pos.top, left: pos.left }} role="menu" aria-label="Artefactos">
+    <Guardadas onElegido={() => { onCerrar(); onElegido?.() }} titulo="Artefactos" vacio="Aún no hay artefactos. Lo que Levy te muestre en el panel se guarda con el marcador de su pestaña, o pídeselo: «guárdalo»." />
+  </div>, document.body)
+}
+
 /** «Guardadas»: el archivero (lo comparten la app y Levy). Un clic la reabre como pestaña. */
-function Guardadas({ onElegido }: { onElegido: () => void }) {
+function Guardadas({ onElegido, titulo = 'Guardadas', vacio = 'Nada guardado. Pasa el mouse por una pestaña y toca el marcador para guardarla aquí.' }: { onElegido: () => void; titulo?: string; vacio?: string }) {
   const { data, error } = useArchivero()
   const [quitando, setQuitando] = useState<string | null>(null)
   const entradas = data?.entradas ?? []
-  return <section className={p.guardadas} aria-label="Guardadas">
-    <p className={p.menuCeja}><Bookmark size={11} aria-hidden /> Guardadas{entradas.length > 0 && <small>{entradas.length}</small>}</p>
+  return <section className={p.guardadas} aria-label={titulo}>
+    <p className={p.menuCeja}><Bookmark size={11} aria-hidden /> {titulo}{entradas.length > 0 && <small>{entradas.length}</small>}</p>
     {error && !data && <p className={p.menuPie}>No se pudo leer el archivero: {error}</p>}
-    {data && !entradas.length && <p className={p.menuPie}>Nada guardado. Pasa el mouse por una pestaña y toca el marcador para guardarla aquí.</p>}
+    {data && !entradas.length && <p className={p.menuPie}>{vacio}</p>}
     {entradas.map(e => <div key={e.id} className={p.menuFilaCaja}>
       <button role="menuitem" className={p.menuFila} onClick={() => { reabrir(e); onElegido() }} title={e.input.vista === 'documento' ? e.input.ruta : undefined}>
         <span className={p.menuIcono}><IconoVista vista={e.input.vista} size={15} /></span>

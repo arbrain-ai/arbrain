@@ -14,7 +14,7 @@ const turno = (n: string, codigo = 0) => `{"arbrain":"inicio","en":1,"texto":"en
 const leer = (h: string, ...turnos: string[]) => leerBitacora(turnos.join(''), adaptador(h)!)
 
 describe('registro de adaptadores', () => {
-  it('trae los cinco obligatorios', () => expect(Object.keys(ADAPTADORES).sort()).toEqual(['claude', 'codex', 'gemini', 'opencode', 'qwen']))
+  it('trae los cinco obligatorios y el modo abliterated', () => expect(Object.keys(ADAPTADORES).sort()).toEqual(['abliterated', 'claude', 'codex', 'gemini', 'opencode', 'qwen']))
   it('un prompt que empieza con guion no se lee como opción', () => {
     for (const a of Object.values(ADAPTADORES)) {
       const argv = a.lanzar({ encargo: '--borra-todo', modelo: null, cwd: '/tmp/x', permisos: 'bypass' })

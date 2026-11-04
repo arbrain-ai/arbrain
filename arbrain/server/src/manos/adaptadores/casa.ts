@@ -311,6 +311,15 @@ export class AdaptadorCasa implements Adaptador {
 
   async soltar(): Promise<void> { await this.cliente.llamar('soltar').catch(() => {}) }
 
+  /**
+   * El marco de trabajo y la franja de control (Borde.swift, 3 nov): el encargo lo enciende al empezar y lo sostiene con un
+   * latido; cada operación lo pone sobre su ventana. La respuesta trae `esta_detenida` si la persona pulsó «Detener» o
+   * «Tomar el control» en la franja. Una app anterior a la 0.2.2 no lo conoce: null.
+   */
+  async borde(p: { encender?: boolean; apagar?: boolean; nuevo?: boolean; nombre?: string; sostener_s?: number; motivo?: string }): Promise<{ esta_detenida?: string; error?: string; visible?: boolean } | null> {
+    try { return await this.cliente.llamar('borde', p, 3_000) } catch { return null }
+  }
+
   async cerrar(): Promise<void> { this.cliente.cerrar() }
 }
 

@@ -112,7 +112,8 @@ export function useReprobarAlVolver(activo: boolean, probar: () => unknown) {
   }, [activo, probar])
 }
 
-export interface EstadoPanel { listo: boolean; cobra: 'openrouter' | 'anthropic'; motor?: 'suscripcion' | 'llave' }
+/** `porLogin`: la sesión llegó después de pulsar «Iniciar sesión con Claude» en este panel (el primer arranque avanza solo). */
+export interface EstadoPanel { listo: boolean; cobra: 'openrouter' | 'anthropic'; motor?: 'suscripcion' | 'llave'; porLogin?: boolean }
 
 /**
  * ¿Hay Claude Code con sesión de suscripción y cuál motor usa el chat? (GET /api/llaves/suscripcion). 22 oct 2026: si
@@ -157,13 +158,15 @@ export function PanelLlaves({ onEstado, compacto = false, control }: { onEstado?
   const [conectada, setConectada] = useState<string | null>(null)
   const sub = useSuscripcion()
   const conSuscripcion = !!sub.estado?.activo
+  // ¿La persona pulsó «Iniciar sesión con Claude» aquí? Cuando su sesión aparece, quien monta el panel puede seguir solo.
+  const [loginPedido, setLoginPedido] = useState(false)
   const conLlave = hayConQueHablar(estado)
   const listo = conLlave || conSuscripcion
   const guardadas = ORDEN.filter(m => llaveDe(estado, OPCIONES[m].nombre)?.presente)
   // El chat usa Anthropic antes que OpenRouter (CONTRATO-DAEMON § OPENROUTER_API_KEY): la recarga va a quien cobra.
   const cobra = quienCobra(estado)
 
-  useEffect(() => { onEstado?.({ listo, cobra, motor: conSuscripcion ? 'suscripcion' : 'llave' }) }, [listo, cobra, conSuscripcion, onEstado])
+  useEffect(() => { onEstado?.({ listo, cobra, motor: conSuscripcion ? 'suscripcion' : 'llave', porLogin: loginPedido && conSuscripcion }) }, [listo, cobra, conSuscripcion, loginPedido, onEstado])
   useReprobarAlVolver(app && listo && reprobarAlVolver(prueba), probar)
 
   if (!app) {
@@ -188,7 +191,7 @@ export function PanelLlaves({ onEstado, compacto = false, control }: { onEstado?
         </p>
       )}
 
-      <MiClaudeCode sub={sub.estado} buscando={sub.buscando} onRecargar={sub.recargar} onLogin={(login) => sub.setEstado(e => e ? { ...e, login } : e)} prueba={conSuscripcion ? prueba : null} probando={probando}
+      <MiClaudeCode sub={sub.estado} buscando={sub.buscando} onRecargar={sub.recargar} onLogin={(login) => { setLoginPedido(true); sub.setEstado(e => e ? { ...e, login } : e) }} prueba={conSuscripcion ? prueba : null} probando={probando}
         onProbar={probar} onCambio={() => { setPrueba(null); void sub.recargar(true).then(() => probar()) }} onError={setError} />
 
       {guardadas.length > 0 && (
@@ -214,7 +217,9 @@ export function PanelLlaves({ onEstado, compacto = false, control }: { onEstado?
         </section>
       )}
 
-      {!conOpenRouter && <ConectarOpenRouter principal={!listo && !sub.estado?.sesion} onGuardada={(e, texto) => { setConectada(texto); alGuardar(e) }} onError={setError} />}
+      {/* 3 nov 2026 (vuelta 2 del primer uso): con Claude Code a la vista, el único primario es «Iniciar sesión con Claude»;
+          OpenRouter es principal solo donde no hay Claude Code que ofrecer. */}
+      {!conOpenRouter && <ConectarOpenRouter principal={!listo && !sub.estado} onGuardada={(e, texto) => { setConectada(texto); alGuardar(e) }} onError={setError} />}
 
       <details className="group rounded-2xl border border-border-subtle bg-surface/70">
         <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 text-[13.5px] font-medium text-foreground/90 [&::-webkit-details-marker]:hidden">

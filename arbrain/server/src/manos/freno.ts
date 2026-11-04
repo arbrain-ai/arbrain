@@ -19,12 +19,14 @@
  * `confirmacion`; solo la pasa quien llama, citando a Daniel.
  */
 import { DUENO, DUENO_M } from '../dueno.js'
-import { confirmacionHumana, categoriaDe } from './confirmacion-humana.js'
+import { confirmacionHumana, categoriaDe, pedirToque, pideToque } from './confirmacion-humana.js'
 import { citaDelChat, esDatoPropio, modoManos, verificarCita, vozReciente, type ModoManos } from './politica.js'
 import { citaCubre } from './cubre.js'
 import { esNavegador, juzgarAbrir, juzgarCliente, type JuicioCliente } from './freno-cliente.js'
 import { dominioProtegido } from './juicio-url.js'
 import { esEdicionCliente } from '../edicion.js'
+import { claseDeEnvio, esCredencialEnAjustes } from '../autonomia/clase.js'
+import { anotarHechoSolo, modoDe } from '../autonomia/politica.js'
 import type { Adaptador, ContextoAccion, Expectativa, Objetivo, Observacion, PedidoActuar, PedidoObservar, ResultadoAccion, ResultadoVerificar, Ventana, App } from './contrato.js'
 
 export type Categoria = 'enviar' | 'borrar' | 'pagar' | 'publicar' | 'salir' | 'descartar' | 'confirmar_peligro' | 'boton_sin_texto' | 'ventana_de_daniel' | 'pestana_de_daniel' | 'transmitir_datos' | 'sin_contexto' | 'cursor_de_daniel' | 'ejecutar'
@@ -284,6 +286,8 @@ const DATO_DE_DINERO = /tarjeta|clabe|cuenta bancaria/i
 
 export interface ResultadoFrenar {
   pasa: boolean; juicio: Juicio; detalle?: string
+  /** Pasó por la política de autonomía: configurar algo que la persona pidió (reversible, sin cita). */
+  autonomia?: { clase: 'configurar'; motivo: string }
   freno?: {
     categoria: string; motivo: string; paso: boolean
     /** De dónde salió la cita que lo dejó pasar: la del modelo (validada) o la que la persona ya escribió en el chat (A5). */
@@ -311,6 +315,12 @@ export function frenar(p: PedidoActuar, c: ContextoAccion, op: { propias?: Set<n
   const j0 = juzgar(p, c, op.propias ?? new Set())
   const j: Juicio = !j0.irreversible && k ? { irreversible: true, categoria: k.categoria as Categoria, motivo: k.motivo } : j0
   if (!j.irreversible) return { pasa: true, juicio: j }
+  // Autonomía v2 (punto 4): configurar algo en una app o servicio que la persona pidió no contacta a nadie. Solo sin
+  // juicio de la edición cliente encima (lo duro y lo de su freno siguen) y si la política dice «hacer».
+  if (!k && modoDe('configurar') === 'hacer') {
+    const conf = configuraSinContactar(p, c, j)
+    if (conf) return { pasa: true, juicio: j, autonomia: { clase: 'configurar', motivo: conf } }
+  }
   const modo = op.modo ?? modoManos()
   const cliente = modo !== 'original'
   const autonomo = modo === 'autonomo'
@@ -353,6 +363,23 @@ export function frenar(p: PedidoActuar, c: ContextoAccion, op: { propias?: Set<n
   }
 }
 
+/** ¿Esta acción irreversible es en realidad configurar algo (un botón «Crear…» o una llave en sus ajustes)? Motivo o null. */
+function configuraSinContactar(p: PedidoActuar, c: ContextoAccion, j: Juicio): string | null {
+  const web = !!c.dentro_de?.includes('web')
+  const compositor = !!c.elemento && ROLES_TEXTO.test(c.elemento.rol) && tipoCampo(c) === 'compositor'
+  if (j.categoria === 'transmitir_datos' && (p.accion === 'escribir' || p.accion === 'valor')) {
+    const e = c.elemento
+    const pistas = [e?.titulo, e?.descripcion, e?.placeholder, e?.identificador, e?.dom_id, e?.etiqueta_ui, ...(c.ancestros ?? []).slice(0, 3)].filter(Boolean).join(' ')
+    return esCredencialEnAjustes({ motivo: j.motivo, pistasCampo: pistas, enChat: enChat(c), web, compositor }) ? `${j.motivo} en los ajustes de ${c.app ?? 'una app'}: configura, no contacta a nadie` : null
+  }
+  if (j.categoria !== 'enviar' || enChat(c) || compositor) return null
+  // Un botón (o el botón por defecto que presiona un Enter): su etiqueta dice si crea o ajusta algo.
+  const etiqueta = p.accion === 'click' || (p.accion === 'tecla' && !ROLES_TEXTO.test(c.elemento?.rol ?? '')) ? etiquetaDe(c) || c.dialogo?.boton_defecto || '' : c.dialogo?.boton_defecto ?? ''
+  if (!etiqueta) return null
+  const clase = claseDeEnvio({ etiqueta, dialogo: c.dialogo?.texto, ancestros: c.ancestros, url: c.url })
+  return clase === 'configurar' ? `«${etiqueta}» configura ${c.app ?? 'la app'}, no contacta a nadie` : null
+}
+
 // ---------- Envoltorio ----------
 
 interface Anotado { rol: string; etiqueta?: string; ruta: string[] }
@@ -370,6 +397,8 @@ export class Freno implements Adaptador {
   private vistos: string[] = []
   /** Última decisión del freno (para la bitácora). */
   ultimo: { categoria?: string; motivo: string; paso: boolean; bloqueo: boolean } | null = null
+  /** Lo último que se escribió por app: la tarjeta de un Enter que envía muestra QUÉ se envía (autonomía v2). */
+  private escrito = new Map<string, string>()
 
   constructor(readonly interno: Adaptador, private readonly avisar?: (j: Juicio & { paso: boolean; p: PedidoActuar }) => void) {
     this.nombre = interno.nombre
@@ -424,9 +453,38 @@ export class Freno implements Adaptador {
     this.ultimoElemento = c.elemento ? { rol: c.elemento.rol, etiqueta: etiquetaDe(c) || undefined, url: c.url } : null
     const modo = modoManos()
     const f = frenar(p, c, { propias: this.propias, vistos: this.vistos, cliente: juzgarCliente(p, c), modo })
-    if (!f.freno) { this.ultimo = null; return this.adoptandoNuevas(p, () => this.interno.actuar(p)) }
+    if (f.autonomia) {
+      // Autonomía v2: lo reversible sale solo y queda en «Lo que hice solo».
+      this.ultimo = { categoria: 'configurar', motivo: f.autonomia.motivo, paso: true, bloqueo: false }
+      const r = await this.adoptandoNuevas(p, () => this.interno.actuar(p))
+      if (r.ok) anotarHechoSolo({ clase: 'configurar', que: `${c.app ?? p.app ?? 'Una app'}: ${p.accion === 'click' ? `«${etiquetaDe(c)}»` : `llave escrita en «${etiquetaDe(c) || 'su campo'}»`}`, donde: c.app ?? p.app, origen: 'manos', deshacer: 'en la misma app: borrar lo creado o el valor del campo', ...(process.env.CLAUDE_CODE_SESSION_ID ? { sesion: process.env.CLAUDE_CODE_SESSION_ID } : {}) })
+      return { ...r, detalle: [r.detalle, `la política de autonomía lo dejó pasar sin cita (configurar); queda en «Lo que hice solo»`].filter(Boolean).join(' · ') }
+    }
+    if (!f.freno) {
+      this.ultimo = null
+      const r0 = await this.adoptandoNuevas(p, () => this.interno.actuar(p))
+      if (p.accion === 'escribir' && p.texto && r0.ok) this.escrito.set(String(c.app ?? p.app ?? null), p.texto.slice(0, 400))
+      return r0
+    }
     this.ultimo = { categoria: f.freno.categoria, motivo: f.freno.motivo, paso: f.pasa, bloqueo: !f.pasa }
     this.avisar?.({ ...f.juicio, paso: f.pasa, p })
+    if (!f.pasa && modo === 'original' && pideToque(f.freno.categoria)) {
+      // Autonomía v2 (3 nov 2026): en la instalación original, lo irreversible sin cita no rebota pidiendo una frase:
+      // va a la bandeja como tarjeta (Sí · No · Otro) con push al teléfono. Sin su toque no sale nada.
+      const app = c.app ?? p.app ?? null
+      const texto = p.texto ?? p.valor ?? (p.accion === 'tecla' ? this.escrito.get(String(app)) : undefined) ?? null
+      const t = await pedirToque({
+        categoriaFreno: f.freno.categoria, motivo: f.freno.motivo, herramienta: `manos:${p.accion}`, confirmacion: p.confirmacion, recomendacion: p.recomendacion,
+        partes: [app, f.freno.motivo, etiquetaDe(c) || c.elemento?.rol || null, p.texto ?? p.valor ?? null, p.tecla ? [...(p.modificadores ?? []), p.tecla].join('+') : null],
+        titulo: `${app ?? 'Una app'}: ${f.freno.motivo}${texto ? ` («${String(texto).replace(/\s+/g, ' ').slice(0, 90)}»)` : ''}`,
+      })
+      // Si la «confirmación» salió de la pantalla, se dice (el contenido de una página nunca es permiso; el toque sí).
+      const dePantalla = (f.detalle ?? '').match(/La confirmación que pasaste aparece en la pantalla[^.]*\./)?.[0]
+      if (!t.ok) { this.ultimo = { categoria: f.freno.categoria, motivo: 'espera su toque', paso: false, bloqueo: true }; return { ok: false, efecto: 'bloqueado', freno: f.freno, detalle: t.sinBandeja ? f.detalle : [dePantalla, t.detalle].filter(Boolean).join(' ') } }
+      this.ultimo = { categoria: f.freno.categoria, motivo: f.freno.motivo, paso: true, bloqueo: false }
+      const r = await this.adoptandoNuevas(p, () => this.interno.actuar(p))
+      return { ...r, freno: { ...f.freno, paso: true, tarjeta: true }, detalle: [r.detalle, t.como === 'decision' ? `pasó con el Sí de ${DUENO} en su bandeja (${t.id})` : `${DUENO} lo aprobó con su toque en la bandeja`].filter(Boolean).join(' · ') }
+    }
     if (!f.pasa) return { ok: false, efecto: 'bloqueado', freno: f.freno, detalle: f.detalle }
     // I8 (edición cliente): en «Preguntar siempre» y «Automático en mi carpeta», la cita real no basta para lo
     // irreversible; hace falta el clic de la persona en la app. En Autónomo (0.2.15) solo la red mínima pide el clic:

@@ -1,8 +1,8 @@
 'use client'
-import { useMemo, useRef } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { addDays, format, startOfDay } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { ArrowDownUp, Plus } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import type { Goal, GoalSnapshot } from '@/features/goals/model'
 import { taskDay } from '@/features/goals/model'
 import { shiftDay } from '@/features/sistema/calendar-days'
@@ -17,13 +17,14 @@ import { FranjaPlan } from './FranjaPlan'
 import { objetivoDe } from './periodo-vivo'
 import { HabitosHoy } from './HabitosHoy'
 import { VENTANA_RACHA } from './habitos-dia'
-import { AvisoHecha, FilaTarea, proyectosDe, sinEmoji, useAhora, useCompletar } from './vivo-piezas'
-import { entregablesDe } from './claridad'
-import { Entregables, Segmentos } from './ObjetivoCaja'
+import { sinEmoji, useAhora } from './vivo-piezas'
+import { Segmentos, useCasillas } from './ObjetivoCaja'
+import { ListaDia } from './ListaDia'
+import { FranjaDecisiones } from '@/features/decisiones/FranjaDecisiones'
+import { enElTimeline, eventosExplicitos, listaDelDia, type ItemDia } from './lista-dia'
 import type { EditorSelection } from './PlanEditor'
 import type { PlanEvent, PlanItem, PlanTask, PlanningSnapshot } from './types'
 import type { Plegado } from './SemanaClara'
-import { etiquetaOrden, ordenarTareas, siguienteOrden, topTareas, useOrdenTareas, usePreferencia, vencida } from './orden-tareas'
 import d from './dia-vivo.module.css'
 
 /**
@@ -41,9 +42,11 @@ import d from './dia-vivo.module.css'
  * 18 oct 2026 (Daniel): las tareas suben arriba de la agenda como «Top 3» plegado (vencidas P1, luego P1→P4, luego hora) con
  * «Ver todas (N)» y el orden Hora · Prioridad · Proyecto (orden-tareas.ts). La agenda es la ÚNICA rejilla del Día y solo lleva
  * eventos: ni la tarea-objetivo como bloque ni la rejilla de FullCalendar debajo (que pintaba las tareas con hora entre las llamadas).
+ *
+ * 3 nov 2026 (Daniel, 18:43: «quiero unificarlo toda la logica en el toggle… ya viste que se repite lo de la grupal»): UNA sola lista en el
+ * toggle de la franja (lista-dia.ts): las casillas del objetivo y las tareas de Todoist del día; marcar cierra en su fuente y marcar otra vez
+ * reabre. La sección «Tareas» se fue. Lo ligado a un evento vive dentro de su tarjeta en la agenda; lo suelto con hora, como marca tenue.
  */
-/** Las tareas plegadas: el top 3 del día; «Ver todas (N)» abre la lista completa con su orden. */
-const TOP = 3
 /** El hábito que ES el cumplimiento del objetivo del día (plasticidad y rachas lo leen así). Lo marca la estrella. */
 const HABITO_OBJETIVO = 'objetivo_dia'
 
@@ -113,15 +116,14 @@ export function DiaVivo({ goals, guardarObjetivo, onDescripcion, donde, leyenda,
     if (f.origen === 'plan') return plan && guardarObjetivo ? guardarObjetivo({ ...plan, success: texto }) : Promise.reject(new Error('Sin registro'))
     return onDescripcion!(f.origen === 'tarea' ? f.tarea : f.evento, texto)
   } : undefined
-  const marcas = entregablesDe(casillas?.texto ?? '').items, hechas0 = marcas.filter(e => e.hecho).length
-
-  const { abiertas, animando: hechas, completar, ultima, deshacer } = useCompletar(tareas, onCompletar, onDeshacer, ocupado)
+  // La pluma de las casillas, una para la lista y el timeline (lo marcado se ve en los dos al instante).
+  const pluma = useCasillas(casillas?.texto ?? '', guardarCasillas)
   /** La estrella (y la palomita de la tarea-objetivo): un solo acto que se escribe en los tres lugares donde vive el dato. */
   function marcarObjetivo() {
     const siguiente = !cumplido
     if (ancla) {
-      if (siguiente) { const i = abiertas.findIndex(t => t.id === ancla.tarea.id); i >= 0 ? completar(ancla.tarea, i) : void onCompletar(ancla.tarea).catch(() => {}) }
-      else void onReabrir?.(ancla.tarea).catch(() => {})
+      if (siguiente) void onCompletar(ancla.tarea).catch(() => {})
+      else void onReabrir?.({ ...ancla.tarea, updatedAt: null }).catch(() => {})
     }
     if (conHabito) habits.mark(dia, HABITO_OBJETIVO, siguiente ? true : null)
     if (eventoObjetivo?.editable && onObjetivo && tituloCumplido(eventoObjetivo.title) !== siguiente) void onObjetivo(eventoObjetivo, siguiente).catch(() => {})
@@ -137,50 +139,45 @@ export function DiaVivo({ goals, guardarObjetivo, onDescripcion, donde, leyenda,
   const fijarObjetivo = () => onNueva({ kind: 'task', allDay: true, start: startOfDay(fecha), titulo: '', prioridad: 1, etiquetas: [ETIQUETA_OBJETIVO] })
   const leyendoObjetivo = !goals.data && !goals.error && !ancla && !eventoObjetivo
 
-  // Plegadas por defecto (18 oct 2026, Daniel: «top 3 tareas priority hasta arriba colapsadas… si quiero ver más pues un botón»).
-  const [todas, alternarTodas] = usePreferencia('arbrain.dia.tareas-todas')
-  const proyectos = useMemo(() => proyectosDe(snapshot), [snapshot])
-  // El orden (18 oct 2026, «organiza las tareas por hora del día… el 80/20 de filtros en un botón simple»): Hora · Prioridad ·
-  // Proyecto, un toque cicla y el dispositivo lo recuerda (orden-tareas.ts). La tarea-objetivo sigue arriba de su grupo.
-  const [orden, ciclarOrden] = useOrdenTareas()
-  const grupos = useMemo(() => ordenarTareas(abiertas, orden, { zona, proyectos: snapshot?.projects, primero: ancla?.tarea.id }), [abiertas, orden, zona, snapshot?.projects, ancla])
-  const top = useMemo(() => topTareas(abiertas, { hoy, zona, primero: ancla?.tarea.id, n: TOP }), [abiertas, hoy, zona, ancla])
-  const abierta = todas && abiertas.length > TOP
-  const visibles = abierta ? grupos : [{ id: 'top', titulo: null, tareas: top }], pendientes = abiertas.length - Object.keys(hechas).length
-  const hechasHoy = esHoy ? (snapshot?.completedTasks ?? []).filter(t => t.completedAt && dayKey(new Date(t.completedAt)) === dia).length : 0
+  // Una sola lista (3 nov 2026): casillas del objetivo y tareas del día (las que vencen hoy, las vencidas si es hoy y las ligadas al objetivo
+  // por `taskIds`). La tarea-objetivo es el título de la franja: no se repite si su hábito la marca; sin hábito, va en la lista.
+  const ligadas = useMemo(() => new Set((goals.data?.goals ?? []).filter(g => g.scope === 'day' && g.start <= dia && g.end > dia).flatMap(g => g.taskIds)), [goals.data, dia])
+  const abiertasDia = useMemo(() => [...tareas, ...(snapshot?.tasks ?? []).filter(t => (ligadas.has(t.id) || ligadas.has(t.externalId)) && !tareas.some(x => x.id === t.id))], [tareas, snapshot?.tasks, ligadas])
+  const lista = useMemo(() => listaDelDia({ dia, hoy, zona, casillas: pluma.items, abiertas: abiertasDia, completadas: snapshot?.completedTasks ?? [], goals: goals.data?.goals, sin: conHabito ? ancla?.tarea.id : null }),
+    [dia, hoy, zona, pluma.items, abiertasDia, snapshot?.completedTasks, goals.data, conHabito, ancla])
+  const enAgenda = useMemo(() => enElTimeline(lista, agenda.bloques, startOfDay(fecha).getTime(), eventosExplicitos(goals.data?.goals, dia, agenda.bloques)), [lista, agenda.bloques, fecha, goals.data, dia])
+  const eventoDeItem = useMemo(() => { const m = new Map<string, string>()
+    for (const b of agenda.bloques) for (const it of enAgenda.dentro.get(b.id) ?? []) m.set(it.id, sinEmoji(b.corto ?? b.titulo).replace(/^\d{1,2}:\d{2}\s*/, '').split(/\s+[·|:(]\s*/)[0].trim())
+    return m }, [agenda.bloques, enAgenda])
+  const abiertaEnTodoist = (t: { id: string }) => abiertasDia.some(x => x.id === t.id)
+  /** Marcar desde la lista o el timeline: la casilla en su texto (y su tarea gemela), la tarea en Todoist; lo marcado se reabre igual. */
+  function alternarItem(it: ItemDia) {
+    const cerrar = (t: NonNullable<ItemDia['tarea']>, hecho: boolean) => {
+      if (t.id === ancla?.tarea.id) { if (hecho !== cumplido) marcarObjetivo(); return }
+      if (hecho && abiertaEnTodoist(t)) void onCompletar(t).catch(() => {})
+      else if (!hecho && !abiertaEnTodoist(t) && onReabrir && !t.recurring) void onReabrir({ ...t, updatedAt: null }).catch(() => {})
+    }
+    if (it.origen === 'casilla') { pluma.alternar(it.linea!, !it.hecho); if (it.gemela) cerrar(it.gemela, !it.hecho); return }
+    if (it.tarea) cerrar(it.tarea, !it.hecho)
+  }
+  const puedeItem = (it: ItemDia) => it.origen === 'casilla' ? pluma.puede
+    : !ocupado && !it.tarea?.pending && !(it.hecho && (it.fija || !onReabrir))
+  const [resaltado, setResaltado] = useState<string | null>(null)
+  const hechasN = lista.filter(i => i.hecho).length
 
   /* Las piezas, una vez; el orden lo decide el ancho (abajo). */
   // Lo que abre el objetivo del día (25 oct 2026, un solo esqueleto con Semana y Mes): sus casillas y, sin objetivo, fijar uno.
-  const objetivoDetalle = titulo ? <>
-      <Segmentos k={hechas0} n={marcas.length} i={1} />
-      <Entregables texto={casillas?.texto ?? ''} guardar={guardarCasillas} i0={2} nombre="Casillas del objetivo del día" vacio="Sin casillas para hoy." />
+  const lleno = titulo || lista.length > 0
+  const objetivoDetalle = lleno || !leyendoObjetivo ? <>
+      {!titulo && !leyendoObjetivo && <button className={d.objVacio} onClick={fijarObjetivo} disabled={!snapshot || ocupado}><Plus size={13} aria-hidden />Fijar el objetivo del día</button>}
+      {lista.length > 0 && lista.length <= 12 && <Segmentos k={hechasN} n={lista.length} i={1} />}
+      {cargando && !snapshot && !lista.length ? <p className={d.vacio}>Leyendo Todoist…</p> : todoistCaido && !lista.length ? <p className={d.vacio}>Todoist no se pudo leer.</p> : null}
+      <ListaDia items={lista} alternar={alternarItem} puede={puedeItem} evento={eventoDeItem} resaltado={resaltado} onResaltar={setResaltado}
+        onAbrir={onAbrir} onNueva={snapshot && !ocupado ? () => onNueva() : undefined} onAgregar={pluma.puede && titulo ? pluma.agregar : undefined} fallo={pluma.fallo} />
       {otros.length > 0 && <ul className={d.otrosObjetivos} aria-label="Más objetivos del día">
         {otros.map(o => <li key={o.titulo} data-hecho={o.hecho || undefined}>{o.titulo}</li>)}
       </ul>}
-    </> : !leyendoObjetivo && <button className={d.objVacio} onClick={fijarObjetivo} disabled={!snapshot || ocupado}><Plus size={13} aria-hidden />Fijar el objetivo del día</button>
-  const ahoraYTareas = <>
-    {/* Sin tarjeta «Ahora/Luego» (25 oct 2026, pedido del dueño: la línea ámbar de la hora en la agenda ya le da el compás). */}
-
-    {/* Las tareas, arriba de la agenda (18 oct 2026): el top 3 plegado; «Ver todas» abre la lista con su orden (Hora · Prioridad · Proyecto). */}
-    <section className={`${d.columna} ${d.topTareas}`} aria-label={abierta ? 'Tareas' : 'Top 3 tareas'} data-abierta={abierta || undefined}>
-      <header className={`${d.titulo} ${d.entra}`} style={{ ['--i' as string]: 2 }}><h3>{abierta || abiertas.length <= TOP ? 'Tareas' : 'Top 3'}</h3>{pendientes > 0 && <small>{abierta || abiertas.length <= TOP ? pendientes : `de ${pendientes}`}</small>}
-        {hechasHoy > 0 && <small className={d.hechas}>{hechasHoy} {hechasHoy === 1 ? 'hecha' : 'hechas'}</small>}
-        {abierta && <button className={`${d.accion} ${d.orden}`} onClick={ciclarOrden} aria-label={`Ordenar por ${etiquetaOrden(orden)}. Tocar para ordenar por ${etiquetaOrden(siguienteOrden(orden))}`}
-          title={`Orden: ${etiquetaOrden(orden)} · toca para ${etiquetaOrden(siguienteOrden(orden))}`}><ArrowDownUp size={12} aria-hidden /><span>{etiquetaOrden(orden)}</span></button>}
-        <button className={`${d.accion} ${d.soloIcono} ${d.sutil}`} onClick={() => onNueva()} disabled={!snapshot || ocupado} aria-label="Tarea nueva" title="Tarea nueva"><Plus size={14} aria-hidden /></button>
-      </header>
-      {abiertas.length === 0 ? <p className={d.vacio}>{cargando && !snapshot ? 'Leyendo Todoist…' : todoistCaido ? 'Todoist no se pudo leer.' : esHoy ? 'Nada pendiente hoy.' : 'Sin tareas este día.'}</p>
-        : <div className={d.filas}>{(() => { let i = 0
-          return visibles.map(g => <div key={g.id} className={d.grupoTareas} role="group" aria-label={g.titulo ?? undefined}>
-            {g.titulo && <h4 className={d.grupoTitulo}>{g.titulo}<small>{grupos.find(x => x.id === g.id)?.tareas.length}</small></h4>}
-            {g.tareas.map(t => { const esObj = t.id === ancla?.tarea.id, n = i++
-              return <FilaTarea key={t.id} t={t} i={3 + n} hecha={!!hechas[t.id]} ocupado={ocupado} proyecto={t.projectId ? proyectos.get(t.projectId) : undefined} objetivo={esObj}
-                vencida={vencida(t, hoy, zona)} onCompletar={() => esObj ? marcarObjetivo() : completar(t, n)} onAbrir={() => onAbrir(t)} /> })}
-          </div>) })()}</div>}
-      {abiertas.length > TOP && <button className={d.mas} onClick={alternarTodas} aria-expanded={abierta}>{abierta ? 'Ver solo el top 3' : `Ver todas (${abiertas.length})`}</button>}
-      <AvisoHecha ultima={ultima} onDeshacer={deshacer} />
-    </section>
-  </>
+    </> : null
   // DRIP (24 oct 2026): la leyenda es la matriz; en ancho vive en la barra del calendario y aquí no se repite.
   const gobierno = useGobierno()
   const chips = <>
@@ -191,7 +188,7 @@ export function DiaVivo({ goals, guardarObjetivo, onDescripcion, donde, leyenda,
   // de Producir sigue en su hoja (HojaDrip), un toque sobre el bloque.
   const agendaMini = <div className={d.cuerpo}>
       <AgendaMini central={central} llenar={dosColumnas} bloques={agenda.bloques} bandas={agenda.bandas} fecha={fecha} ahora={ahora} esHoy={esHoy} pasado={pasado} cargando={cargando && !snapshot}
-        onAbrir={onAbrir} />
+        onAbrir={onAbrir} pendientes={{ dentro: enAgenda.dentro, sueltas: enAgenda.sueltas, alternar: alternarItem, puede: puedeItem, resaltado, onResaltar: setResaltado }} />
     </div>
   const habitos = <>
     {/* Hábitos de hoy, en mínimo (25 oct 2026): una línea por hábito con casilla y racha; su historia vive en la vista H.
@@ -205,14 +202,18 @@ export function DiaVivo({ goals, guardarObjetivo, onDescripcion, donde, leyenda,
   // arriba; el detalle (el objetivo con sus subobjetivos y los hábitos en mínimo) se abre con un toque. La temporada vive en la vista H.
   const franja = <FranjaPlan rotulo={<>{esHoy ? 'Hoy' : 'Día'}{cumplido && titulo && <em> · cumplido</em>}</>} titulo={titulo}
     vacio={leyendoObjetivo ? 'Leyendo el objetivo…' : goals.error && !eventoObjetivo ? 'No se pudo leer el objetivo.' : 'Sin objetivo del día.'}
-    detalle={objetivoDetalle} />
+    cuenta={lista.length ? { k: hechasN, n: lista.length } : null} detalle={objetivoDetalle}
+    {...(dosColumnas ? { clave: 'arbrain.dia.franja-abierta-dos-columnas', abiertaInicial: true } : {})} />
+
+  // «Esperan tu toque» (3 nov 2026): la primera franja del Día de HOY, arriba del objetivo. Nunca en el calendario de otra persona.
+  const decisiones = esHoy && !snapshot?.perfil ? <FranjaDecisiones /> : null
 
   // Pantalla completa (24 oct 2026, «lo importante al lado izquierdo» y la agenda a la derecha, sin scroll); la franja va encima de las
   // dos columnas (25 oct 2026).
   if (dosColumnas) return <section className={d.dia} data-compacta data-dos-columnas aria-label={etiqueta}>
-    <div className={d.franjaArriba}>{franja}</div>
     <div className={d.izquierda}>
-      {ahoraYTareas}
+      {decisiones}
+      {franja}
     </div>
     <div className={d.derecha}>
       {chips}
@@ -222,8 +223,8 @@ export function DiaVivo({ goals, guardarObjetivo, onDescripcion, donde, leyenda,
   </section>
 
   return <section className={d.dia} data-compacta aria-label={etiqueta}>
+    {decisiones}
     {franja}
-    {ahoraYTareas}
     {chips}
     {agendaMini}
     <div className={d.pieHabitos}>{habitos}</div>

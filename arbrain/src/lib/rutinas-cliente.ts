@@ -87,12 +87,21 @@ export function cuandoRutina(schedule: string): string {
     if (dow === '1-5') return `De lunes a viernes ${a}`
     if (dow === '0,6' || dow === '6,0') return `Sábados y domingos ${a}`
     if (/^[0-7]$/.test(dow)) return `Cada ${DIAS_SEMANA[Number(dow) % 7]} ${a}`
+    // Un rango de días («0-4», loops de negocio 3 nov 2026): «De domingo a jueves a las 18:00».
+    const rango = /^([0-6])-([0-6])$/.exec(dow)
+    if (rango) return `De ${DIAS_SEMANA[Number(rango[1])]} a ${DIAS_SEMANA[Number(rango[2])]} ${a}`
     // Varios días sueltos («2,4»): «Martes y jueves a las 9:00».
     if (/^[0-7](,[0-7])+$/.test(dow)) {
       const dias = [...new Set(dow.split(',').map(d => Number(d) % 7))].map(d => DIAS_SEMANA[d])
       const lista = dias.length === 1 ? dias[0] : `${dias.slice(0, -1).join(', ')} y ${dias[dias.length - 1]}`
       return `${lista.charAt(0).toUpperCase()}${lista.slice(1)} ${a}`
     }
+  }
+  // Varias horas el mismo minuto («0 9,12,15,18 * * 1-5»): «De lunes a viernes, 4 veces al día: 9:00, 12:00, 15:00 y 18:00».
+  if (simple && /^\d+$/.test(min) && /^\d+(,\d+)+$/.test(hora) && (dow === '*' || dow === '1-5')) {
+    const hs = hora.split(',').map(h => `${Number(h)}:${dosDigitos(min)}`)
+    const veces = `${hs.length} veces al día: ${hs.slice(0, -1).join(', ')} y ${hs[hs.length - 1]}`
+    return dow === '1-5' ? `De lunes a viernes, ${veces}` : `${veces.charAt(0).toUpperCase()}${veces.slice(1)}`
   }
   const frase = cuando(schedule)
   return frase === schedule ? `Horario avanzado: ${schedule}` : frase

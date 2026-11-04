@@ -1,0 +1,51 @@
+/* Bandeja de decisiones (autonomía v2). Tokens del panel: --foreground, --muted, --border, --card, --brand, --gold. */
+.bandeja { display: flex; flex-direction: column; gap: 10px; padding: 10px 12px 6px; }
+.bandeja[data-donde='telefono'] { padding: 0; gap: 12px; }
+.cabeza h3 { margin: 0; font-size: 11.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--l-tinta-ambar, var(--gold-dark)); display: flex; gap: 6px; align-items: baseline; }
+.cabeza h3 small { font-size: 11px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--muted); font-variant-numeric: tabular-nums; }
+.espera { margin: 3px 0 0; font-size: 12.5px; color: var(--muted); }
+.barra { display: flex; flex-wrap: wrap; gap: 6px; }
+.tarjetas { display: flex; flex-direction: column; gap: 8px; }
+.tarjeta { border: 1px solid var(--border); background: var(--card); border-radius: 12px; padding: 11px 12px; display: flex; flex-direction: column; gap: 7px; }
+.tarjeta[data-recomienda='si'] { border-color: rgba(var(--gold-rgb, 200 160 60), 0.45); }
+.tarjetaCabeza { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+.tarjetaCabeza time { margin-left: auto; font-variant-numeric: tabular-nums; }
+.categoria { padding: 1px 7px; border-radius: 999px; background: rgba(var(--foreground-rgb, 230 230 230), 0.07); color: var(--foreground); font-weight: 600; }
+.categoria[data-categoria='pagar'] { color: var(--l-tinta-ambar, var(--gold-dark)); }
+.categoria[data-categoria='borrar'] { color: var(--error); }
+.irreversible { font-size: 10.5px; letter-spacing: 0.04em; text-transform: uppercase; }
+.de { display: inline-flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--brand); font-weight: 600; }
+.titulo { margin: 0; font-size: 14px; line-height: 1.35; color: var(--foreground); }
+.recomendacion { margin: 0; font-size: 13px; line-height: 1.4; color: var(--foreground); opacity: 0.9; }
+.recomendacion b { color: var(--brand); margin-right: 4px; }
+.recomendacion[data-tono='no'] b { color: var(--error); }
+.exacto { margin: 0; padding: 8px 10px; border-radius: 8px; background: rgba(var(--foreground-rgb, 230 230 230), 0.05); font-size: 12px; white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow: auto; color: var(--foreground); }
+.botones { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.si, .no, .secundario, .deshacer { display: inline-flex; align-items: center; gap: 5px; border-radius: 9px; font-size: 13px; padding: 7px 12px; border: 1px solid var(--border); background: transparent; color: var(--foreground); cursor: pointer; }
+.si { background: var(--brand); border-color: var(--brand); color: #fff; font-weight: 600; }
+.si svg { color: #fff; }
+.no:hover, .secundario:hover, .deshacer:hover { background: rgba(var(--foreground-rgb, 230 230 230), 0.06); }
+.si:disabled, .no:disabled, .secundario:disabled, .deshacer:disabled { opacity: 0.5; cursor: default; }
+.bandeja[data-donde='telefono'] .si, .bandeja[data-donde='telefono'] .no, .bandeja[data-donde='telefono'] .secundario { padding: 11px 16px; font-size: 15px; flex: 1; justify-content: center; }
+.otro { display: flex; flex-direction: column; gap: 6px; }
+.otro textarea { width: 100%; border-radius: 9px; border: 1px solid var(--border); background: var(--surface, transparent); color: var(--foreground); padding: 8px 10px; font: inherit; font-size: 13.5px; resize: vertical; }
+.vacio, .nota { margin: 0; font-size: 12.5px; color: var(--muted); }
+.error { margin: 0; font-size: 12.5px; color: var(--error); }
+.plegar { display: inline-flex; align-items: center; gap: 4px; background: none; border: 0; padding: 0; font-size: 12px; color: var(--muted); cursor: pointer; align-self: flex-start; }
+.hechoSolo h4 { margin: 6px 0 4px; font-size: 11.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); display: flex; gap: 6px; align-items: baseline; }
+.hechoSolo h4 small { letter-spacing: 0; text-transform: none; font-weight: 500; }
+.hechoSolo ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.hechoSolo li { display: flex; align-items: baseline; gap: 8px; padding: 5px 0; border-bottom: 1px solid rgba(var(--foreground-rgb, 230 230 230), 0.06); font-size: 13px; }
+.hechoSolo li time { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 12px; flex: none; }
+.que { flex: 1; color: var(--foreground); min-width: 0; overflow-wrap: anywhere; }
+.deshacer { padding: 3px 8px; font-size: 12px; flex: none; }
+.comoDeshacer { font-size: 11.5px; color: var(--muted); flex: none; max-width: 42%; text-align: right; }
+.decididas summary, .politica summary { cursor: pointer; font-size: 12.5px; color: var(--muted); }
+.decididas ul { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; }
+.decididas li { display: flex; gap: 8px; justify-content: space-between; color: var(--foreground); }
+.decididas li b { flex: none; font-weight: 600; color: var(--muted); }
+.decididas li b[data-respuesta='si'] { color: var(--success); }
+.presets { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
+.preset { display: flex; flex-direction: column; gap: 2px; text-align: left; border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; background: transparent; color: var(--foreground); cursor: pointer; font-size: 12.5px; }
+.preset span { color: var(--muted); }
+.preset[data-activo] { border-color: var(--brand); background: rgba(var(--brand-rgb, 90 120 255), 0.08); }

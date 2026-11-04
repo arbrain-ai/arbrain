@@ -11,6 +11,7 @@
  *   npm run servidor -- contrasena [--nueva] muestra (o cambia) la contraseña para entrar desde otro navegador
  *   npm run servidor -- arranque-automatico activar|desactivar|estado
  *   npm run servidor -- telefono encender|apagar|estado|codigo   tu cerebro en el teléfono por tu Tailscale (scripts/servidor/telefono.mjs)
+ *   npm run servidor -- conectar encender|apagar|estado          tu Levy en el teléfono SIN Tailscale, por el relay de Arbrain (scripts/servidor/conectar.mjs)
  *   npm run servidor -- empaquetar --salida <carpeta>   (CI) arma el programa ya compilado de esta plataforma
  *
  * Programa ya compilado (v0.2.7): si la versión publicada trae el programa de esta plataforma, se baja, se verifica con
@@ -46,6 +47,7 @@ import { PRELUDIO_WEB } from './servidor/preludio-web.mjs'
 import { armarPaquete, programaYaCompilado } from './servidor/programa.mjs'
 import { apartarMarcadoresVacios } from './servidor/marcadores-sandbox.mjs'
 import * as telefono from './servidor/telefono.mjs'
+import * as conectar from './servidor/conectar.mjs'
 import { avisoCaida, trasCaida } from './servidor/reintentos.mjs'
 import { abrirOEnfocarApp, elegirApertura, leerConfigEscritorio } from './servidor/ventanas.mjs'
 // Modo espejo (beta, apagado por defecto): el rol del daemon sale de lider.json; la lógica vive en espejo/.
@@ -62,7 +64,7 @@ const HOST = '127.0.0.1'
 const argv = process.argv.slice(2)
 const opcion = (n) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : undefined }
 const bandera = (n) => argv.includes(n)
-const CON_VALOR = new Set(['--datos', '--puerto', '--cerebro', '--salida'])
+const CON_VALOR = new Set(['--datos', '--puerto', '--cerebro', '--salida', '--relay', '--invitacion', '--unir'])
 const posicionales = argv.filter((a, i) => !a.startsWith('--') && !CON_VALOR.has(argv[i - 1]))
 const orden = posicionales[0] ?? 'iniciar'
 
@@ -170,6 +172,15 @@ function pedir(port, ruta, { metodo = 'GET', token, cuerpo, plazo = 4000 } = {})
 function abrirNavegador(url) {
   const [cmd, args] = process.platform === 'darwin' ? ['open', [url]] : WIN ? ['rundll32', ['url.dll,FileProtocolHandler', url]] : ['xdg-open', [url]]
   try { spawn(cmd, args, { stdio: 'ignore', detached: true }).unref() } catch { /* sin navegador: queda la dirección impresa */ }
+}
+
+/** «Encender» del teléfono (telefono.mjs › ayudar): la app de Tailscale, o instalarla en Windows (pide el permiso de Windows). */
+function abrirTailscale() {
+  const [cmd, args] = process.platform === 'darwin' ? ['open', ['-a', 'Tailscale']] : [join(process.env.ProgramFiles || 'C:\\Program Files', 'Tailscale', 'tailscale-ipn.exe'), []]
+  try { spawn(cmd, args, { stdio: 'ignore', detached: true, windowsHide: true }).unref() } catch { /* queda el texto de qué hacer */ }
+}
+function instalarTailscaleWindows() {
+  try { spawn('winget', ['install', '--id', 'Tailscale.Tailscale', '-e', '--silent', '--accept-package-agreements', '--accept-source-agreements'], { stdio: 'ignore', detached: true, windowsHide: true }).unref() } catch { /* queda el texto */ }
 }
 
 /**
@@ -374,6 +385,10 @@ const S = {
   ultimoError: null, reiniciando: false,
   tickets: new Map(),
   codigos: telefono.crearCodigos(),
+  telefonoAbiertos: new Map(),
+  // Tu Levy en el teléfono sin Tailscale (3 nov 2026): secretos del QR en memoria y el túnel al relay (conectar.mjs).
+  emparejamientos: conectar.crearEmparejamientos(),
+  conector: null,
 }
 
 function entornoComun() {
@@ -445,6 +460,8 @@ function lanzarWeb() {
     NEXT_TELEMETRY_DISABLED: '1',
     // Teléfono (23 oct 2026): el Host *.ts.net que publica `tailscale serve`, solo mientras esté encendido.
     ...telefono.entornoWeb(R),
+    // Sin Tailscale (3 nov 2026): el Host `<handle>.<relay>` que llega por el túnel de salida, solo encendido.
+    ...conectar.entornoWeb(R),
     // Avisos al teléfono (v0.2.18): la llave PÚBLICA de esta instalación (la privada va por stdin, abajo).
     ARBRAIN_VAPID_PUBLICA: avisos.publica,
   }
@@ -573,6 +590,7 @@ async function apagarTodo(codigo = 0) {
   if (S.apagando) return
   S.apagando = true
   S.espejo?.detener()
+  S.conector?.detener()
   clearTimeout(S.espera.daemon); clearTimeout(S.espera.web)
   registrar('Apagando Arbrain…')
   await Promise.all([apagarHijo('web'), apagarHijo('daemon')])
@@ -632,6 +650,12 @@ function asegurarArranque() {
   }
 }
 
+/** El conector al relay (uno por supervisor): el QR, el código y el boleto de entrada son los de este proceso. */
+function conectorDe() {
+  S.conector ??= conectar.crearConector({ R, puertoWeb: () => S.puertoWeb, registrar, emparejamientos: S.emparejamientos, codigos: S.codigos, pase: ticketNuevo })
+  return S.conector
+}
+
 function servidorControl() {
   const srv = http.createServer(async (req, res) => {
     const responder = (status, j) => { res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(j)) }
@@ -659,7 +683,11 @@ function servidorControl() {
       if (req.method === 'POST' && ruta === '/detener' && esCli) { responder(200, { ok: true }); setTimeout(() => apagarTodo(0), 50); return }
       if (req.method === 'GET' && ruta === '/estado') return responder(200, { pid: process.pid, puertoWeb: S.puertoWeb, daemon: daemonInfo(), web: { pid: S.web?.pid ?? null, pausado: false, caidas: S.caidas.web } })
       if (ruta.startsWith('/telefono/')) {
-        const r = await telefono.atenderControl({ metodo: req.method, ruta, cuerpo, esWeb, esCli }, { R, puertoWeb: () => S.puertoWeb, reiniciarWeb, registrar, codigos: S.codigos, asegurarArranque })
+        const r = await telefono.atenderControl({ metodo: req.method, ruta, cuerpo, esWeb, esCli }, { R, puertoWeb: () => S.puertoWeb, reiniciarWeb, registrar, codigos: S.codigos, asegurarArranque, abrir: abrirNavegador, abrirApp: abrirTailscale, winget: instalarTailscaleWindows, abiertos: S.telefonoAbiertos })
+        if (r) return responder(r[0], r[1])
+      }
+      if (ruta.startsWith('/conectar/')) {
+        const r = await conectar.atenderControl({ metodo: req.method, ruta, cuerpo, esWeb, esCli }, { R, conector: conectorDe(), emparejamientos: S.emparejamientos, reiniciarWeb, registrar })
         if (r) return responder(r[0], r[1])
       }
       if (!esWeb) return responder(403, { error: 'Solo la web.' })
@@ -791,6 +819,7 @@ async function iniciar() {
   }
   try { await sembrarLienzos() } catch (e) { registrar(`Lienzos de inicio: ${e?.message ?? e}`) }
   void telefono.alArrancar({ R, puertoWeb: S.puertoWeb, registrar }).catch((e) => registrar(`Teléfono: ${e?.message ?? e}`))
+  if (conectar.leerEstado(R).encendido) conectorDe().arrancar()
   S.espejo = arrancarEspejo({ cerebro: S.home, registrar, alCambiarRol: () => void reiniciarDaemon() })
   const url = `http://${HOST}:${S.puertoWeb}`
   console.log(`
@@ -903,6 +932,10 @@ async function main() {
     const guardado = () => { const n = Number.parseInt((() => { try { return readFileSync(join(R.config, 'puerto-web'), 'utf8') } catch { return '' } })().trim(), 10); return puertoValido(n) ? n : null }
     return telefono.orden({ R, sub: posicionales[1], vivo, pedir, puertoGuardado: guardado, asegurarArranque })
   }
+  if (orden === 'conectar') {
+    privada(R.config)
+    return conectar.orden({ R, sub: posicionales[1], vivo, pedir, banderas: opcion })
+  }
   if (orden === 'arranque-automatico') {
     const sub = posicionales[1] ?? 'estado'
     const base = { plataforma: process.platform, home: homedir(), env: process.env }
@@ -923,7 +956,7 @@ async function main() {
     console.log(`[arbrain] Arranque automático: ${a.activo ? `activado (${a.ruta})` : 'desactivado'}`)
     return
   }
-  fallar(`Orden desconocida: ${orden}. Usa: iniciar, abrir, estado, detener, contrasena, cerrar-sesiones, arranque-automatico, telefono, empaquetar.`)
+  fallar(`Orden desconocida: ${orden}. Usa: iniciar, abrir, estado, detener, contrasena, cerrar-sesiones, arranque-automatico, telefono, conectar, empaquetar.`)
 }
 
 main().catch((e) => fallar(e?.stack ?? String(e)))

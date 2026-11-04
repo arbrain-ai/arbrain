@@ -1,5 +1,7 @@
 /* Taller › Rutinas de la edición cliente (T8, 29 oct 2026): una columna que cabe a 360 px, sin scroll horizontal. */
 .vista { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px 12px; min-width: 0; }
+/* Dentro del selector de loops (3 nov 2026): el mismo contenido sin el relleno de afuera. */
+.incrustada { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .cabecera { display: flex; align-items: center; gap: 10px; min-height: 30px; }
 .ceja { flex: 1; margin: 0; font-size: 11px; font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
 .nota { margin: 0; font-size: 12px; line-height: 1.5; color: var(--muted); }

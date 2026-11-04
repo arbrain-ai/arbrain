@@ -122,7 +122,7 @@ test('lo principal se pliega con un toque: cerrado por defecto, recordado y comp
   // Semana y Día (25 oct 2026): el objetivo, la temporada y los hábitos se pliegan juntos en la franja de una línea.
   for (const f of ['SemanaClara.tsx', 'DiaVivo.tsx']) assert.match(fuente(f), /<FranjaPlan /, f)
   assert.match(fuente('FranjaPlan.tsx'), /clave = 'arbrain\.calendario\.franja-abierta'/)
-  assert.match(fuente('FranjaPlan.tsx'), /usePreferencia\(clave\)/)
+  assert.match(fuente('FranjaPlan.tsx'), /usePreferencia\(clave, abiertaInicial\)/)
   // El Mes (25 oct 2026, «monk mode mejor solo en la vista de hábitos»): la misma franja, solo con el objetivo; al abrirla, sus
   // entregables. Recuerda aparte si quedó abierta.
   assert.match(fuente('MesClaro.tsx'), /<FranjaPlan clave="arbrain\.calendario\.franja-mes-abierta"/)

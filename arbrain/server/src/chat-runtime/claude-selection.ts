@@ -4,6 +4,7 @@ import type { SessionOverrides, EffortLevel } from '../agent.js'
 import { findClaudeModel, pinnedClaudeModel, getClaudeCatalog, readClaudeSettings, type ClaudeCapabilities } from './claude-capabilities.js'
 import { nearestEffort } from './effort-control.js'
 import { esEdicionCliente } from '../edicion.js'
+import { ESPACIO_ABLITERATED, destinoAbliterated, motivoNoDisponible } from './abliterated-chat.js'
 
 export interface ClaudeSelection {
   account: string
@@ -117,7 +118,18 @@ export function checkClaudeSelection(selection: ClaudeSelection, account: string
   if (selection.adaptiveThinking && row.supportsAdaptiveThinking !== true) throw new Error('El modo de pensamiento Claude aceptado ya no está disponible.')
   return row
 }
+/**
+ * Espacio «abliterated» (3 nov 2026): un solo modelo, sin esfuerzo, fast, ultracode ni pensamiento adaptativo (el
+ * endpoint no es Anthropic y no anuncia catálogo). Se congela igual que una selección de Claude para el diario de turnos.
+ */
+export function seleccionAbliterated(overrides: SessionOverrides, effort?: string): ClaudeSelection {
+  if (motivoNoDisponible()) throw new Error(`DeepSeek V4.1 Flash · abliterated no está disponible: ${motivoNoDisponible()}`)
+  if (effort || overrides.ultracode) throw new Error('Este modelo no recibe esfuerzo ni ultracode: su servidor fija el razonamiento.')
+  const model = destinoAbliterated().modelo
+  return { account: ESPACIO_ABLITERATED, requestedModel: model, model, effort: null, fast: false, ultracode: false, adaptiveThinking: false, observedAt: new Date().toISOString(), source: 'abliterated' }
+}
 export async function resolveClaudeSelection(cwd: string, account: string, overrides: SessionOverrides, effort?: string, storedModel: 'fallback' | 'reject' = 'fallback'): Promise<ClaudeSelection> {
+  if (account === ESPACIO_ABLITERATED) return seleccionAbliterated(overrides, effort)
   const [catalog, settings] = await Promise.all([getClaudeCatalog(cwd).read(account), readClaudeSettings(cwd, account)])
   return freezeClaudeSelection(account, overrides, effort, catalog, settings, storedModel)
 }

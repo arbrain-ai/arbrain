@@ -28,6 +28,7 @@ import { delimiter, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import { readEnvFile } from '../env.js'
+import { dirClaudeAlterna } from '../cuentas-alternas.js'
 import type { Harness } from '../motor/lector.js'
 import { extraerDoD } from './juez.js'
 import { estadoTablero, pasoEnHumano, type Hechos } from './tablero.js'
@@ -84,11 +85,57 @@ export function entornoPara(ad: Adaptador, base: NodeJS.ProcessEnv = process.env
   const env: Record<string, string> = {}
   for (const [k, v] of Object.entries(base)) if (v != null && !NO_HEREDAR.test(k)) env[k] = v
   env.PATH = [...new Set([...(base.PATH ?? '').split(delimiter).filter(Boolean), ...CARPETAS()])].join(delimiter)
+  // lo que el adaptador exige sale de SUS fuentes, nunca heredado del proceso (un token ajeno no viaja a otro endpoint)
+  for (const k of ad.requiere ?? []) delete env[k]
   for (const [destino, d] of Object.entries(ad.entorno ?? {})) {
     const v = (d.fuentes ?? []).map(f => base[f] || archivo[f]).find(Boolean) ?? d.valor
     if (v) env[destino] = v
   }
   return env
+}
+
+// ── Dos suscripciones de Claude (3 nov 2026) ──
+// Daniel: «tenemos 2 cuentas… deberían estar las dos bien vinculadas». Hasta hoy TODO subagente heredaba
+// CABINA_CLAUDE_CONFIG_DIR (la cuenta alterna) y con 7 a la vez esa sola cuenta llegó al límite de sesión.
+// Ahora cada subagente de claude nace en una cuenta y se queda en ella (su sesión vive en esa carpeta):
+// 'default' = ~/.claude sin CLAUDE_CONFIG_DIR (con la variable explícita el CLI busca otra entrada del llavero y
+// responde «Not logged in», mismo criterio que cron-account.ts); 'bro' = la carpeta de la cuenta alterna.
+export type CuentaClaude = 'default' | 'bro'
+
+/** Aplica la cuenta al entorno del CLI de claude. Sin cuenta, lo que ya resolvió el adaptador (CABINA_CLAUDE_CONFIG_DIR). */
+export function aplicarCuenta(env: Record<string, string>, cuenta: CuentaClaude | undefined, alterna: string | null = dirClaudeAlterna()): Record<string, string> {
+  if (cuenta === 'default') delete env.CLAUDE_CONFIG_DIR
+  else if (cuenta === 'bro' && alterna) env.CLAUDE_CONFIG_DIR = alterna
+  return env
+}
+
+/**
+ * La cuenta para un subagente NUEVO de claude. CABINA_CLAUDE_CUENTA = default | bro fija una; sin ella (o «alternar»)
+ * va a la que tenga menos subagentes de claude trabajando (con turno vivo; sin `vivos`, abiertos). Los registros sin cuenta corren en la del .env
+ * (CABINA_CLAUDE_CONFIG_DIR): cuentan para «bro» si esa carpeta es la alterna, si no para «default».
+ */
+export function elegirCuenta(registro: Pick<Subagente, 'id' | 'harness' | 'cerrado' | 'cuenta'>[], o: { politica?: string; dirEnv?: string; alterna?: string | null; vivos?: Set<number> } = {}): CuentaClaude {
+  const politica = o.politica ?? leerVar('CABINA_CLAUDE_CUENTA', envFile())
+  if (politica === 'default' || politica === 'bro') return politica
+  const alterna = o.alterna === undefined ? dirClaudeAlterna() : o.alterna
+  const dirEnv = o.dirEnv ?? leerVar('CABINA_CLAUDE_CONFIG_DIR', envFile())
+  const legado: CuentaClaude = dirEnv && alterna && dirEnv.replace(/^~(?=\/)/, homedir()) === alterna ? 'bro' : 'default'
+  const abiertos = { default: 0, bro: 0 }
+  // con `vivos`, solo cuentan los que tienen un turno corriendo (los abiertos en reposo no gastan cuota)
+  for (const s of registro) if (s.harness === 'claude' && !s.cerrado && (!o.vivos || o.vivos.has(s.id))) abiertos[s.cuenta ?? legado]++
+  return abiertos.bro < abiertos.default ? 'bro' : 'default'
+}
+
+/** Los destinos que el adaptador `requiere` y que ninguna fuente ni valor fijo resuelve. */
+export function entornoFaltante(ad: Adaptador, base: NodeJS.ProcessEnv = process.env, archivo: Record<string, string> = envFile()): string[] {
+  const env = entornoPara(ad, base, archivo)
+  return (ad.requiere ?? []).filter(k => !env[k])
+}
+const exigirEntorno = (ad: Adaptador) => {
+  const faltan = entornoFaltante(ad)
+  if (!faltan.length) return
+  const fuentes = faltan.flatMap(k => ad.entorno?.[k]?.fuentes ?? [k])
+  throw new Error(`«${ad.nombre}» no se lanza sin ${faltan.join(', ')}: pon ${fuentes.join(' o ')} en arbrain/server/.env.`)
 }
 
 const CON_ENTORNO = () => join(dirname(fileURLToPath(import.meta.url)), '../../scripts/subagentes/con-entorno.sh')
@@ -116,7 +163,7 @@ export function comandoInteractivo(ad: Adaptador, bin: string, sesion: string, m
 const ENVOLTURA = `"$@"; c=$?; printf '{"arbrain":"salida","codigo":%d,"en":%s000}\\n' "$c" "$(date +%s)"; exit $c`
 export const MARCA_PROCESO = 'arbrain-subagente'
 
-export interface Turnar { id: number; harness: string; cwd: string; modelo: string | null; esfuerzo?: string | null; /** El que recibe el CLI (catalogo-delegar.ts); sin él, el equivalente del adaptador. */ esfuerzoCli?: string | null; permisos: Subagente['permisos']; /** Perfil de permisos (perfiles.ts); sin campo, total. */ perfil?: Perfil; sesion?: string; texto: string; reanudar: boolean }
+export interface Turnar { id: number; harness: string; cwd: string; modelo: string | null; esfuerzo?: string | null; /** El que recibe el CLI (catalogo-delegar.ts); sin él, el equivalente del adaptador. */ esfuerzoCli?: string | null; permisos: Subagente['permisos']; /** Perfil de permisos (perfiles.ts); sin campo, total. */ perfil?: Perfil; sesion?: string; texto: string; reanudar: boolean; /** Cuenta de Claude del subagente (harness claude): fija su CLAUDE_CONFIG_DIR. Sin campo, la del .env (registros viejos). */ cuenta?: CuentaClaude }
 
 /** El esfuerzo que recibe el CLI: el que validó el catálogo o, en registros viejos y sin catálogo, el equivalente del adaptador. */
 export function esfuerzoParaCli(ad: Adaptador, pedido: string | null | undefined, cli?: string | null): string | null {
@@ -135,12 +182,16 @@ export function comandoGuardia(perfil: Perfil, raiz: string, bitacora: string, u
 /** ¿Este turno corre con pastor (entrada en vivo)? Con guardia, solo si el CLI la respeta en vivo (codex no). */
 export const conPastor = (ad: Adaptador) => !!ad.vivo && entradaViva() && (!ad.guardia || !!ad.guardiaEnVivo)
 
+/** El entorno de un turno: el del adaptador y, en claude, la cuenta del subagente. */
+const entornoTurno = (ad: Adaptador, t: Pick<Turnar, 'cuenta'>) => ad.nombre === 'claude' ? aplicarCuenta(entornoPara(ad), t.cuenta) : entornoPara(ad)
+
 /** Lanza un turno como proceso desacoplado. Devuelve el pid de la envoltura (= su grupo de procesos). */
 export async function lanzarTurno(t: Turnar): Promise<number> {
   // Red team A1: procesos desacoplados (detached) fuera de la guardia: nunca en la edición cliente.
   if (esEdicionCliente()) throw new Error('Los subagentes no están disponibles en esta edición de Arbrain.')
   const ad = adaptador(t.harness)
   if (!ad) throw new Error(`Harness sin adaptador: ${t.harness}`)
+  exigirEntorno(ad)
   const bin = await resolverBinario(ad.binario)
   if (!bin) throw new Error(`No encuentro el CLI «${ad.binario}» en el Studio (busqué en el PATH y en ${CARPETAS().slice(0, 4).join(', ')}).`)
   const permisos = t.permisos ?? permisosDefault()
@@ -158,7 +209,7 @@ export async function lanzarTurno(t: Turnar): Promise<number> {
   const argv = t.reanudar ? ad.reanudar({ sesion: t.sesion!, texto: t.texto, modelo: t.modelo, esfuerzo, cwd: t.cwd, permisos, ...pt }) : ad.lanzar({ encargo: t.texto, modelo: t.modelo, esfuerzo, cwd: t.cwd, permisos, ...pt, ...(t.sesion ? { sesion: t.sesion } : {}) })
   const out = openSync(ruta, 'a'), err = openSync(ruta.replace(/\.jsonl$/, '.err'), 'a')
   try {
-    const hijo = spawn('/bin/sh', ['-c', ENVOLTURA, MARCA_PROCESO, bin, ...argv], { cwd: t.cwd, env: entornoPara(ad), detached: true, stdio: ['ignore', out, err] })
+    const hijo = spawn('/bin/sh', ['-c', ENVOLTURA, MARCA_PROCESO, bin, ...argv], { cwd: t.cwd, env: entornoTurno(ad, t), detached: true, stdio: ['ignore', out, err] })
     const pid = hijo.pid
     if (!pid) throw new Error('El sistema no dio pid al subagente.')
     hijo.on('error', () => { /* el código de salida queda en la bitácora */ })
@@ -189,7 +240,7 @@ async function lanzarConPastor(t: Turnar, ad: Adaptador, vivo: NonNullable<Adapt
   writeFileSync(rutaConfig, JSON.stringify(config))
   const err = openSync(config.err, 'a')
   try {
-    const hijo = spawn(process.execPath, [PASTOR(), MARCA_PROCESO, rutaConfig], { cwd: t.cwd, env: entornoPara(ad), detached: true, stdio: ['ignore', 'ignore', err] })
+    const hijo = spawn(process.execPath, [PASTOR(), MARCA_PROCESO, rutaConfig], { cwd: t.cwd, env: entornoTurno(ad, t), detached: true, stdio: ['ignore', 'ignore', err] })
     if (!hijo.pid) throw new Error('El sistema no dio pid al pastor del subagente.')
     hijo.on('error', () => { /* queda en la bitácora */ })
     hijo.unref()
@@ -318,7 +369,7 @@ export interface PedidoDelegar { nombre: string; harness: string; encargo: strin
 
 /** El perfil pedido, validado contra lo que el CLI sabe cumplir. */
 export function perfilPara(ad: Adaptador, pedido: unknown): Perfil {
-  if (pedido == null || pedido === '') return PERFIL_DEFAULT
+  if (pedido == null || pedido === '') return ad.perfilDefault ?? PERFIL_DEFAULT
   if (!esPerfil(pedido)) throw new Error(`Perfil desconocido «${String(pedido)}» (hay: total, codigo, lectura).`)
   const puede = ad.perfiles ?? [PERFIL_DEFAULT]
   if (!puede.includes(pedido)) throw new Error(`El perfil «${pedido}» necesita un CLI que lo cumpla (${ad.nombre} solo: ${puede.join(', ')}). Usa claude o codex.`)
@@ -336,11 +387,13 @@ export async function delegarSinPantalla(p: PedidoDelegar, o: { aislar?: PuertoA
   if (!ad) throw new Error(`Harness no registrado (hay: ${NOMBRES.join(', ')}).`)
   if (!cwdPermitido(p.cwd)) throw new Error('Directorio no permitido para un subagente (solo /tmp o ~/Developer).')
   const perfil = perfilPara(ad, p.perfil)
+  exigirEntorno(ad)
   const eleccion = await elegir(ad, { modelo: p.modelo, esfuerzo: p.esfuerzo })
   const modelo = eleccion.modelo
   if (!(await resolverBinario(ad.binario))) throw new Error(`El CLI «${ad.binario}» no está instalado en el Studio.`)
   const registro = await leerRegistro()
-  const topes = calcularTopes(registro, await vivosParaTope(registro))
+  const vivos = await vivosParaTope(registro)
+  const topes = calcularTopes(registro, vivos)
   if (topes.paralelo.vivos >= topes.paralelo.max) throw new Error(`Tope de subagentes en paralelo alcanzado (${topes.paralelo.vivos}/${topes.paralelo.max}). Cierra uno antes de lanzar otro.`)
   if (topes.tokens.hoy >= topes.tokens.max) throw new Error(`Tope de tokens del día alcanzado (${topes.tokens.hoy.toLocaleString('es-MX')}/${topes.tokens.max.toLocaleString('es-MX')}).`)
   // Mientras se prepara su copia y hasta que nace, el Taller lo ve como «Preparando» (preparando.ts, 2 nov 2026).
@@ -359,10 +412,11 @@ export async function delegarSinPantalla(p: PedidoDelegar, o: { aislar?: PuertoA
     await mutarRegistroAsync(async l => {
       const id = siguienteId(l)
       if (existsSync(rutaBitacora(id))) throw new Error(`Ya existe la bitácora ${rutaBitacora(id)}; no la piso.`)
-      const pid = await lanzarTurno({ id, harness: ad.nombre, cwd, modelo, esfuerzo: eleccion.esfuerzo, esfuerzoCli: eleccion.esfuerzoCli, permisos, perfil, sesion, texto: encargo, reanudar: false })
+      const cuenta = ad.nombre === 'claude' ? elegirCuenta(l, { vivos }) : undefined
+      const pid = await lanzarTurno({ id, harness: ad.nombre, cwd, modelo, esfuerzo: eleccion.esfuerzo, esfuerzoCli: eleccion.esfuerzoCli, permisos, perfil, sesion, texto: encargo, reanudar: false, ...(cuenta ? { cuenta } : {}) })
       sub = {
         id, nombre: p.nombre.slice(0, 80), harness: ad.nombre, encargo: p.encargo.slice(0, 2000), cwd, creado: new Date().toISOString(), modo: 'sin-pantalla', pid, turno: 1, permisos,
-        entrega: 'entregado', entregaNota: 'el encargo viajó como argumento del CLI (sin pantalla)', bitacora: rutaBitacora(id).replace(homedir(), '~'),
+        entrega: 'entregado', entregaNota: 'el encargo viajó como argumento del CLI (sin pantalla)', bitacora: rutaBitacora(id).replace(homedir(), '~'), ...(cuenta ? { cuenta } : {}),
         perfil, ...(ad.guardia ? {} : { sinGuardia: true }), ...(p.plan ? { plan: p.plan } : {}),
         ...(skills ? { aviso: skills.aviso } : {}), ...(sesion ? { sesion } : {}), ...(modelo ? { modelo } : {}), ...(eleccion.esfuerzo ? { esfuerzo: eleccion.esfuerzo, ...(eleccion.esfuerzoCli ? { esfuerzoCli: eleccion.esfuerzoCli } : {}) } : {}), ...(p.avisarA ? { avisarA: p.avisarA } : {}),
         eleccion: eleccion.resumen, aislamiento: aislado.aislamiento, ...(aislado.rama ? { rama: aislado.rama } : {}),
@@ -405,7 +459,7 @@ export async function retomarSinPantalla(id: number, texto: string, cambio: Camb
     if (!sesion) throw new Error('El subagente todavía no reportó su sesión (¿su CLI falló al arrancar?). Mira su bitácora con mostrar trabajos.')
     const modelo = eleccion ? eleccion.modelo : sub.modelo ?? null, esfuerzo = eleccion ? eleccion.esfuerzo : sub.esfuerzo ?? null
     const esfuerzoCli = eleccion ? eleccion.esfuerzoCli : sub.esfuerzoCli ?? null
-    const pid = await lanzarTurno({ id, harness: sub.harness, cwd: sub.cwd, modelo, esfuerzo, esfuerzoCli, permisos: sub.permisos, perfil: sub.perfil, sesion, texto, reanudar: true })
+    const pid = await lanzarTurno({ id, harness: sub.harness, cwd: sub.cwd, modelo, esfuerzo, esfuerzoCli, permisos: sub.permisos, perfil: sub.perfil, sesion, texto, reanudar: true, ...(sub.cuenta ? { cuenta: sub.cuenta } : {}) })
     r = { encolado: false, confirmado: true, ...(eleccion ? { eleccion: eleccion.resumen } : {}) }
     const nuevo = eleccion ? { modelo: modelo ?? undefined, esfuerzo: esfuerzo ?? undefined, esfuerzoCli: esfuerzoCli ?? undefined, eleccion: eleccion.resumen } : {}
     return l.map(s => s === sub ? { ...s, ...nuevo, pid, sesion, turno: (s.turno ?? 1) + 1, pregunta: undefined, escalado: undefined, escaladoPor: undefined } : s)
@@ -453,7 +507,7 @@ export async function entregarCola(id: number): Promise<boolean> {
     if (!sub?.cola?.length) return null
     const e = await estadoDe(sub)
     if (e.corriendo || !e.sesion) return null
-    const pid = await lanzarTurno({ id, harness: sub.harness, cwd: sub.cwd, modelo: sub.modelo ?? null, esfuerzo: sub.esfuerzo ?? null, esfuerzoCli: sub.esfuerzoCli ?? null, permisos: sub.permisos, perfil: sub.perfil, sesion: e.sesion, texto: sub.cola.join('\n\n'), reanudar: true })
+    const pid = await lanzarTurno({ id, harness: sub.harness, cwd: sub.cwd, modelo: sub.modelo ?? null, esfuerzo: sub.esfuerzo ?? null, esfuerzoCli: sub.esfuerzoCli ?? null, permisos: sub.permisos, perfil: sub.perfil, ...(sub.cuenta ? { cuenta: sub.cuenta } : {}), sesion: e.sesion, texto: sub.cola.join('\n\n'), reanudar: true })
     lanzado = true
     return l.map(s => s === sub ? { ...s, pid, sesion: e.sesion, turno: (s.turno ?? 1) + 1, cola: [] } : s)
   })

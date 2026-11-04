@@ -57,6 +57,29 @@ export function ObjetivoCaja({ rotulo, titulo, vacio, leyendo, cuenta, marca, ch
 export function Entregables({ texto, guardar, i0 = 1, nombre = 'Entregables', vacio = 'Sin casillas todavía.' }: {
   texto: string; guardar?: (texto: string) => Promise<unknown>; i0?: number; nombre?: string; vacio?: string
 }) {
+  const { items, resto, alternar, agregar, fallo } = useCasillas(texto, guardar)
+  return <>
+    {items.length > 0 && <ul className={c.entregables} aria-label={nombre}>
+      {items.map((e, n) => <li key={e.linea} className={c.entra} style={esc(i0 + n)}>
+        <button role="checkbox" aria-checked={e.hecho} data-hecha={e.hecho || undefined} disabled={!guardar} onClick={() => alternar(e.linea, !e.hecho)}
+          title={guardar ? (e.hecho ? 'Desmarcar' : 'Marcar como hecho') : undefined}>
+          <span className={c.casilla} aria-hidden><Palomita /></span><span className={c.entregableTexto}>{e.texto}</span>
+        </button>
+      </li>)}
+    </ul>}
+    {resto && <p className={c.prosa}>{resto}</p>}
+    {!items.length && !guardar && !resto && <p className={c.cajaVacia}>{vacio}</p>}
+    {guardar && <Agregar vacio={!items.length ? vacio : null} onAgregar={agregar} i={i0 + items.length} />}
+    {fallo && <p className={c.fallo} role="alert">{fallo}</p>}
+  </>
+}
+
+/**
+ * La pluma de las casillas, sin pintar (3 nov 2026): la usan `Entregables` y la lista del Día, que además las marca desde el timeline.
+ * Lo marcado se ve al instante; los toques seguidos se guardan en fila, cada uno con todo lo marcado hasta ese momento; si la fuente
+ * rechaza, la casilla vuelve y `fallo` dice por qué.
+ */
+export function useCasillas(texto: string, guardar?: (texto: string) => Promise<unknown>) {
   const [local, setLocal] = useState<Record<number, boolean>>({})
   const [nuevos, setNuevos] = useState<string[]>([])
   const [fallo, setFallo] = useState<string | null>(null)
@@ -81,6 +104,7 @@ export function Entregables({ texto, guardar, i0 = 1, nombre = 'Entregables', va
       .finally(() => { enVuelo.current-- })
   }
   function alternar(linea: number, hecho: boolean) {
+    if (!guardar) return
     const siguiente = { ...local, [linea]: hecho }
     setLocal(siguiente)
     enviar(marcado(siguiente, actual), () => setLocal(x => { const n = { ...x }; delete n[linea]; return n }))
@@ -90,24 +114,11 @@ export function Entregables({ texto, guardar, i0 = 1, nombre = 'Entregables', va
     setNuevos(n => [...n, t])
     enviar(marcado(local, conNuevoEntregable(actual, t)), () => setNuevos(n => n.filter(x => x !== t)))
   }
-  return <>
-    {items.length > 0 && <ul className={c.entregables} aria-label={nombre}>
-      {items.map((e, n) => <li key={e.linea} className={c.entra} style={esc(i0 + n)}>
-        <button role="checkbox" aria-checked={e.hecho} data-hecha={e.hecho || undefined} disabled={!guardar} onClick={() => alternar(e.linea, !e.hecho)}
-          title={guardar ? (e.hecho ? 'Desmarcar' : 'Marcar como hecho') : undefined}>
-          <span className={c.casilla} aria-hidden><Palomita /></span><span className={c.entregableTexto}>{e.texto}</span>
-        </button>
-      </li>)}
-    </ul>}
-    {base.resto && <p className={c.prosa}>{base.resto}</p>}
-    {!items.length && !guardar && !base.resto && <p className={c.cajaVacia}>{vacio}</p>}
-    {guardar && <Agregar vacio={!items.length ? vacio : null} onAgregar={agregar} i={i0 + items.length} />}
-    {fallo && <p className={c.fallo} role="alert">{fallo}</p>}
-  </>
+  return { items, resto: base.resto, alternar, agregar, fallo, puede: Boolean(guardar) }
 }
 
 /** La fila para sumar una casilla: un toque la vuelve campo; Enter agrega y deja el campo listo para la siguiente; Esc cierra. */
-function Agregar({ vacio, onAgregar, i }: { vacio: string | null; onAgregar: (t: string) => void; i: number }) {
+export function Agregar({ vacio, onAgregar, i }: { vacio: string | null; onAgregar: (t: string) => void; i: number }) {
   const [abierta, setAbierta] = useState(false), [valor, setValor] = useState('')
   const cerrar = () => { setAbierta(false); setValor('') }
   return <div className={`${c.agregar} ${c.entra}`} style={esc(i)}>

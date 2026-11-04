@@ -19,7 +19,7 @@ import s from './franja-plan.module.css'
  * - Sin detalle no hay toggle (antes la Semana vacía tenía un chevron que «no muestra nada»): el título se lee entero en su línea.
  * - La temporada/monk mode vive solo en la vista H (25 oct 2026, 08:10).
  */
-export function FranjaPlan({ rotulo, titulo, vacio, cuenta, habitos, detalle, clave = 'arbrain.calendario.franja-abierta' }: {
+export function FranjaPlan({ rotulo, titulo, vacio, cuenta, habitos, detalle, clave = 'arbrain.calendario.franja-abierta', abiertaInicial = false }: {
   /** «Hoy», «Semana · S4», «Mes · octubre». */
   rotulo: ReactNode
   titulo: string | null
@@ -32,8 +32,10 @@ export function FranjaPlan({ rotulo, titulo, vacio, cuenta, habitos, detalle, cl
   detalle?: ReactNode
   /** Dónde recuerda el dispositivo si quedó abierta. */
   clave?: string
+  /** Abierta hasta que se pliegue (el Día a pantalla completa: la lista del día ocupa la columna izquierda, 3 nov 2026). */
+  abiertaInicial?: boolean
 }) {
-  const [preferida, alternar] = usePreferencia(clave)
+  const [preferida, alternar] = usePreferencia(clave, abiertaInicial)
   const { today } = useCivilClock()
   const conDetalle = Boolean(detalle), abierta = conDetalle && preferida
   const linea = <span className={s.seg} data-objetivo><span className={s.rotulo}>{rotulo}</span>

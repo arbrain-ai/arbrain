@@ -59,6 +59,7 @@ import { lineaLimpia, dondeVive, esperaALevy, fuenteEnPalabras, preguntaAlgo, ul
 import { TerminalViva } from './TerminalViva'
 import { firmaRevision, usePendientes } from './pendientes'
 import { TareasTodoist, useTodoist } from './TareasTodoist'
+import { Bandeja } from '@/features/decisiones/Bandeja'
 import { useAskLevy } from '@/shared/hooks/useAskLevy'
 import { Registro } from './Registro'
 import t from './todoist.module.css'
@@ -550,6 +551,8 @@ export function Tareas() {
   return <div className={t.raiz}><div className={s.cuerpo} role="tabpanel">
     {nada ? <Cargando error={trabajos.error ?? plan.error ?? undefined} /> : <>
       <Resumen decidir={decidir} tuyas={todoist.cuentas.hoy} hechas={todoist.cuentas.hechasHoy} />
+      {/* Autonomía v2 (3 nov 2026): la bandeja única. Lo irreversible espera aquí tu toque; debajo, lo que Levy hizo solo. */}
+      <Bandeja />
 
       {decidir > 0 && <Seccion titulo="Espera tu decisión" n={decidir} tono="oro">
         {piden.map(t => <Fila key={t.id}

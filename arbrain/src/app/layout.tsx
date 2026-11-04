@@ -3,6 +3,7 @@ import { Inter, JetBrains_Mono, Roboto_Slab, Montserrat } from 'next/font/google
 import './globals.css'
 import '@/shared/movimiento/movimiento.css'
 import { PWARegister } from '@/components/PWARegister'
+import { HojaInstalar } from '@/features/telefono/HojaInstalar'
 import { aperturaEnChatScript } from '@/shared/lib/apertura-en-chat'
 import { AuthExpiryGuard } from '@/components/AuthExpiryGuard'
 import { DesktopReloadShortcut } from '@/components/DesktopReloadShortcut'
@@ -137,6 +138,7 @@ export default function RootLayout({
           <AuthProvider>
             {children}
             <PWARegister />
+            {CLIENTE && <HojaInstalar />}
             <AuthExpiryGuard />
             <DesktopReloadShortcut />
             <ReposoVentana />

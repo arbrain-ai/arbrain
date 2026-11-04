@@ -167,6 +167,15 @@ export function PrimerArranque({ reaceptacion = false }: { reaceptacion?: boolea
     } catch (e) { setError(e instanceof Error ? e.message : 'No pude guardar. Reintenta.') } finally { setOcupado(false) }
   }, [paso, nombre, estado?.nombre, computerUse, cu.disponible, monitoreo, conMonitoreo, i, PASOS, ultimo, modo, permisos, vigente, demo])
 
+  // Vuelta 2 del primer uso (3 nov 2026): quien pulsó «Iniciar sesión con Claude» en Llaves no vuelve a tocar nada; en
+  // cuanto su Claude Code tiene sesión y Levy lo usa, el arranque sigue solo al paso siguiente (una vez).
+  const siguioPorLogin = useRef(false)
+  useEffect(() => {
+    if (paso !== 'llaves' || !llaves.porLogin || siguioPorLogin.current || ocupado) return
+    siguioPorLogin.current = true
+    void continuar()
+  }, [paso, llaves.porLogin, ocupado, continuar])
+
   const puedeSeguir = paso === 'legal' ? acepto : paso === 'autonomia' ? (modo !== 'autonomo' || vigente || (listoParaAceptar(casillas) && !!permisos?.texto)) : true
   // A/B ronda 3: la salida que no se recomienda no pesa igual que la recomendada. Sin llave, el primario es «Conectar con
   // OpenRouter»; sin crédito, «Recargar». Entonces seguir de largo es secundario.

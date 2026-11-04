@@ -5,6 +5,7 @@
  * marcas propias: `{"arbrain":"inicio",…}` (la escribe Levy antes de lanzar cada turno, con el texto que le mandó) y
  * `{"arbrain":"salida","codigo":N}` (la escribe la envoltura de shell cuando el proceso sale). Terminar = salir.
  */
+import { abliterated } from './abliterated.js'
 import { claude } from './claude.js'
 import { codex } from './codex.js'
 import { gemini } from './gemini.js'
@@ -15,7 +16,7 @@ import { json, num, str, type Adaptador } from './tipos.js'
 export type { Adaptador, Evento, Permisos } from './tipos.js'
 export { coherencia, type Coherencia } from './coherencia.js'
 
-export const ADAPTADORES: Record<string, Adaptador> = { claude, codex, opencode, gemini, qwen }
+export const ADAPTADORES: Record<string, Adaptador> = { claude, codex, opencode, gemini, qwen, abliterated }
 export const NOMBRES = Object.keys(ADAPTADORES)
 export const adaptador = (h: string): Adaptador | null => ADAPTADORES[h] ?? null
 

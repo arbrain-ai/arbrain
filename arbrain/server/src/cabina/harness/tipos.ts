@@ -67,6 +67,8 @@ export interface Adaptador {
   esfuerzoCli?(e: string): string
   /** Perfiles que este CLI sabe cumplir (sin campo: solo «total», sin guardia). */
   perfiles?: readonly Perfil[]
+  /** Perfil cuando delegar no pide uno (sin campo: «total»). `abliterated` nace en «lectura». */
+  perfilDefault?: Perfil
   /** El CLI corre la guardia de perfil como gancho PreToolUse (claude por `--settings`, codex por `-c hooks`). */
   guardia?: boolean
   /** La guardia también aplica con entrada en vivo. Codex no: su app-server no deja confiar un gancho de sesión, así que
@@ -82,6 +84,8 @@ export interface Adaptador {
   /** Variables que el CLI necesita: destino ← la primera fuente que exista (proceso o arbrain/server/.env), o un
    *  valor fijo. Declarativo para que la terminal interactiva las tome del .env sin escribir el secreto en el comando. */
   entorno?: Record<string, { fuentes?: string[]; valor?: string }>
+  /** Destinos de `entorno` sin los cuales el CLI no se lanza (un token que falta no se sustituye por otro login). */
+  requiere?: string[]
   /** Entrada en vivo (ajuste de Levy, 6 oct): el CLI acepta mensajes mientras trabaja y una orden de detener el paso
    *  sin perder la sesión. Lo opera `scripts/subagentes/pastor.mjs`. Sin esto, retomar encola y entrega al salir. */
   vivo?: Vivo

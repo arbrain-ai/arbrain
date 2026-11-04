@@ -1,14 +1,16 @@
 /**
  * Navegador para las manos.
  *
- *   - `navegar`: abre una URL por comando (`open -g -na <navegador> --args --new-window`), en una
- *     ventana NUEVA y en segundo plano. No usa la barra de direcciones (el Enter por proceso no
- *     navega: falla real del 2 oct) ni toca las pestañas de Daniel. La ventana queda como propia
- *     de la sesión: es la única que las manos pueden cerrar al terminar.
+ *   - `navegar`: abre una URL por comando (`open -g -a <navegador> --args --new-window`) SOLO si el
+ *     navegador no corre: lo lanza en segundo plano con una ventana que queda como propia de la sesión
+ *     (la única que las manos pueden cerrar al terminar). Con el navegador vivo se niega y manda a
+ *     web_abrir: `open -n` mató al Chrome de Daniel el 3 nov (ver `argumentosAbrir`). No usa la barra
+ *     de direcciones (el Enter por proceso no navega: falla real del 2 oct) ni toca sus pestañas.
  *   - `Vigia`: envuelve al adaptador. Si una acción en un navegador deja la página en un video
  *     (YouTube, Vimeo), lo silencia y lo pausa en el MISMO paso, antes de devolver el resultado
  *     (regla de Daniel: investigar video por transcript; un watch abierto se pausa y se silencia).
  */
+import { DUENO } from '../dueno.js'
 import { esEdicionCliente } from '../edicion.js'
 import { dominioProtegido } from './juicio-url.js'
 import { execFile } from 'node:child_process'
@@ -30,10 +32,21 @@ export const URL_CON_EFECTO = /\/(log-?out|sign-?out|salir|delete|remove|unsubsc
 
 const dormir = (ms: number) => new Promise(r => setTimeout(r, ms))
 
-function abrirPorComando(app: string, url: string, nueva: boolean): Promise<void> {
-  const args = nueva ? ['-g', '-n', '-a', app, '--args', '--new-window', url] : ['-g', '-a', app, url]
-  return new Promise((ok, mal) => execFile('open', args, { timeout: 15_000 }, e => (e ? mal(e) : ok())))
+/**
+ * Argumentos de `open` para un navegador que NO corre. Nunca `-n`: una segunda instancia del mismo perfil le pide al
+ * Chrome vivo que abra la ventana y, si no le contesta en ~20 s (Studio usando disco como memoria), le manda SIGKILL y
+ * se queda con el perfil. Falla real del 3 nov, 07:33:31→07:33:56: Chrome de la persona (pid 652) terminado por la señal 9,
+ * «¿Restaurar las páginas?», Meet y YouTube Music cerrados.
+ */
+export function argumentosAbrir(app: string, url: string): string[] {
+  return ['-g', '-a', app, '--args', '--new-window', url]
 }
+
+export const abrirPorComando = (app: string, url: string): Promise<void> =>
+  new Promise((ok, mal) => execFile('open', argumentosAbrir(app, url), { timeout: 15_000 }, e => (e ? mal(e) : ok())))
+
+/** Por qué `navegar` no toca un navegador que ya corre (texto para el agente). */
+export const NAVEGADOR_VIVO = (app: string) => `${app} ya está abierto y es de ${DUENO}: navegar no abre otra instancia ni pestañas en sus ventanas (una segunda instancia puede matar a la suya: falla del 3 nov). Usa web_abrir (extensión Arbrain, ventana propia en segundo plano); si la extensión no está conectada en ese perfil, díselo a ${DUENO} en vez de reintentar.`
 
 export function validarUrl(u: string): string {
   let url: URL
@@ -43,27 +56,25 @@ export function validarUrl(u: string): string {
 }
 
 /** Abre la URL y devuelve la ventana (propia) con la página ya cargada; si es un video, ya silenciado y pausado. */
-export async function navegar(manos: Adaptador & { adoptar?: (id: number) => void }, p: PedidoNavegar): Promise<ResultadoNavegar> {
+export async function navegar(manos: Adaptador & { adoptar?: (id: number) => void }, p: PedidoNavegar, abrir = abrirPorComando): Promise<ResultadoNavegar> {
   if (manos.abrirUrl) return navegarConAdaptador(manos, p)
   const nav = NAVEGADORES[(p.navegador ?? 'chrome').toLowerCase()] ?? NAVEGADORES.chrome
   const url = validarUrl(p.url)
-  const nueva = p.ventana_nueva !== false
+  // Con el navegador vivo no hay forma segura por comando: `open -n` puede matarlo y `open <url>` abre una pestaña en
+  // la ventana de Daniel. La web con él abierto va por la extensión (ventana propia, sin foco).
   const corriendo = (await manos.apps()).find(a => a.bundle === nav.bundle)
-  const antes = new Set(corriendo ? (await manos.ventanas({ pid: corriendo.pid })).map(w => w.id) : [])
-  await abrirPorComando(nav.app, url, nueva)
-  let pid = corriendo?.pid
+  if (corriendo) return { ok: false, pid: corriendo.pid, ventana: 0, detalle: NAVEGADOR_VIVO(nav.app) }
+  await abrir(nav.app, url)
+  let pid: number | undefined
   let ventana: number | undefined
   const fin = Date.now() + 12_000
   while (Date.now() < fin && ventana == null) {
     pid ??= (await manos.apps()).find(a => a.bundle === nav.bundle)?.pid
-    if (pid) {
-      const vs = (await manos.ventanas({ pid })).filter(w => w.en_pantalla && w.marco.h > 150)
-      ventana = (nueva ? vs.find(w => !antes.has(w.id)) : vs.sort((a, b) => (b.z ?? 0) - (a.z ?? 0))[0])?.id
-    }
+    if (pid) ventana = (await manos.ventanas({ pid })).filter(w => w.en_pantalla && w.marco.h > 150).sort((a, b) => (b.z ?? 0) - (a.z ?? 0))[0]?.id
     if (ventana == null) await dormir(100)
   }
   if (!pid || ventana == null) return { ok: false, pid: pid ?? 0, ventana: 0, detalle: `${nav.app} no mostró la ventana en 12 s` }
-  if (nueva) manos.adoptar?.(ventana)
+  manos.adoptar?.(ventana)
   // Esperar a que la página sea la pedida (el host coincide). Sin `pagina` (Cua) se devuelve sin esperar.
   const host = new URL(url).host.replace(/^www\./, '')
   let pag: { titulo?: string; url?: string } = {}

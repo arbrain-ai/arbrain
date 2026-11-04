@@ -17,8 +17,8 @@
  * El avance no lleva texto de las apps: solo herramienta, acción, rol/etiqueta de control y resultado. El estado
  * final en disco (0600, local) sí incluye el resultado y la pregunta que redactó el cerebro, igual que la respuesta.
  */
-import { DUENO, DUENO_M, ejemploPerfilChrome } from '../dueno.js'
-import { mkdirSync, renameSync, writeFileSync } from 'node:fs'
+import { AGENTE, DUENO, DUENO_M, ejemploPerfilChrome } from '../dueno.js'
+import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { randomBytes } from 'node:crypto'
@@ -26,6 +26,7 @@ import type { Adaptador, Decisor } from './contrato.js'
 import type { OpcionesPedir, Progreso, ResultadoPedido } from './cerebro.js'
 import { DIR_ARBRAIN, esEdicionCliente } from '../edicion.js'
 import { citaReal, MENSAJE_CITA_FALSA } from './politica.js'
+import { fijarContextoToque } from './confirmacion-humana.js'
 
 export const DIR_ENCARGOS = () => process.env.MANOS_ENCARGOS_DIR || join(DIR_ARBRAIN(), 'manos', 'encargos')
 
@@ -34,7 +35,7 @@ export const TOPE_POR_DEFECTO_S = 180
 
 export const ENCARGAR_TOOL = {
   name: 'encargar',
-  description: `PRIMERA OPCIÓN para cualquier tarea de varios pasos en la Mac o en la web («abre el 6.º guardado de X», «escríbele a Lucía en WhatsApp…», «12 × 3 en la Calculadora», «¿el Dock se oculta solo?»). Resuelve el pedido COMPLETO de punta a punta con el cerebro de las manos (receta guardada sin modelo → Jev → Sonnet 5.5 → Opus 5.5, insistencia, web por la extensión con URL directa, precalentado), todo en segundo plano, y devuelve: estado, resultado verificado con su evidencia, resumen corto de pasos, tiempo y URL final o captura. Tarda segundos, no minutos: no lo partas en pasos tú. FRENO: \`cita\` = las palabras TEXTUALES de ${DUENO}; solo ellas autorizan enviar, borrar, pagar o publicar, y «quiero verte / muéstrame» (la ventana al frente con el Halo, tu cursor). El ratón de ${DUENO} no se toca: el encargo nunca usa su cursor real. Si algo irreversible no tiene su cita, vuelve con estado requiere_confirmacion y \`pregunta\`: pregúntale a ${DUENO} y repite el encargo con su respuesta textual en \`cita\`. Las herramientas finas (observar, actuar, web_*) quedan para un paso suelto o para depurar un encargo que falló.`,
+  description: `PRIMERA OPCIÓN para cualquier tarea de varios pasos en la Mac o en la web («abre el 6.º guardado de X», «escríbele a Lucía en WhatsApp…», «12 × 3 en la Calculadora», «¿el Dock se oculta solo?»). Resuelve el pedido COMPLETO de punta a punta con el cerebro de las manos (receta guardada sin modelo → Jev → Sonnet 5.5 → Opus 5.5, insistencia, web por la extensión con URL directa, precalentado), todo en segundo plano, y devuelve: estado, resultado verificado con su evidencia, resumen corto de pasos, tiempo y URL final o captura. Tarda segundos, no minutos: no lo partas en pasos tú. FRENO: \`cita\` = las palabras TEXTUALES de ${DUENO}; solo ellas autorizan enviar, borrar, pagar o publicar, y «quiero verte / muéstrame» (la ventana al frente con el Halo, tu cursor). El ratón de ${DUENO} no se toca: el encargo nunca usa su cursor real. Si algo irreversible no tiene su cita, a ${DUENO} le llega una tarjeta en su bandeja (Sí · No · Otro, con push) y el encargo espera su toque; si tarda, vuelve con requiere_confirmacion: dile en una línea que espera su toque (no le pidas frase) y, con su Sí, repite con \`decision\` = el id de la tarjeta. Las herramientas finas (observar, actuar, web_*) quedan para un paso suelto o para depurar un encargo que falló.`,
   annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
   inputSchema: {
     type: 'object', additionalProperties: false, required: ['pedido', 'cita'],
@@ -44,6 +45,7 @@ export const ENCARGAR_TOOL = {
       captura: { type: 'boolean', description: 'Captura PNG del resultado (ventana o pestaña propia, sin traerla al frente). Por defecto true.' },
       perfil: { type: 'string', description: `Solo si hay varios Chrome conectados: parte del correo del perfil donde trabajar la web (p. ej. ${ejemploPerfilChrome()}). Sin él: el perfil personal de ${DUENO}, salvo que el pedido nombre la cuenta de trabajo.` },
       tope_s: { type: 'integer', minimum: 10, maximum: 600, description: `Tope del encargo completo en segundos (por defecto ${TOPE_POR_DEFECTO_S}).` },
+      decision: { type: 'string', description: `Id (cf_…) de una decisión de la bandeja que ${DUENO} aprobó con su Sí: autoriza lo irreversible de su categoría en este encargo, sin otra frase ni otra tarjeta.` },
     },
   },
 } as const
@@ -80,6 +82,8 @@ export interface RespuestaEncargo {
   aprendida?: string
   bitacora_id: string
   costo_usd?: number
+  /** La persona paró el encargo desde la franja de control. */
+  detenido_por?: 'detenido_por_persona' | 'persona_tiene_el_control'
 }
 
 /** Estado del encargo en disco para la UI (se reescribe entero en cada avance; escritura atómica). */
@@ -94,6 +98,8 @@ function guardarEstado(id: string, datos: Record<string, unknown>): void {
 }
 
 export function preguntaPara(r: Pick<ResultadoPedido, 'estado' | 'detalle'>): string | undefined {
+  // Autonomía v2 (instalación original): si ya hay tarjeta en la bandeja, no se le pide frase a nadie.
+  if (r.estado === 'requiere_confirmacion' && !esEdicionCliente() && /bandeja|toque|cf_[0-9a-f]{12}/i.test(r.detalle ?? '')) return `Lo irreversible quedó como tarjeta en la bandeja de ${DUENO} (Sí · No · Otro), con su push. NO le pidas una frase: dile en una línea qué espera su toque. Si dice Sí, su respuesta te llega a esta conversación; repite el encargo con \`decision\` = el id de la tarjeta.`
   if (r.estado === 'requiere_confirmacion') return `El freno detuvo el encargo antes de algo irreversible: ${(r.detalle ?? '(sin detalle)').replace(/[.\s]+$/, '')}. Pregúntale a ${DUENO} si lo autoriza; si dice que sí, repite encargar con su respuesta TEXTUAL en cita.`
   if (r.estado === 'aclaracion') return r.detalle ?? `El encargo necesita una aclaración de ${DUENO}.`
   return undefined
@@ -104,7 +110,55 @@ export function preguntaPara(r: Pick<ResultadoPedido, 'estado' | 'detalle'>): st
  * 19:43: Daniel detuvo un encargo y el Halo se quedó encima; el servidor MCP es persistente y nunca se desconectaba).
  */
 export async function ejecutarEncargar(args: any, deps: DepsEncargar): Promise<{ text: string; error?: boolean; respuesta?: RespuestaEncargo }> {
-  try { return await encargarSinSoltar(args, deps) } finally { await soltarManos(deps.manos) }
+  const id = `enc-${Date.now().toString(36)}-${randomBytes(3).toString('hex')}`
+  const marco = sostenerMarco(deps.manos, undefined, ordenEnDisco(id))
+  const senal = deps.senal ? AbortSignal.any([deps.senal, marco.senal]) : marco.senal
+  try {
+    const r = await encargarSinSoltar(args, { ...deps, senal }, id)
+    return marco.detenida ? detenidaDesdeFranja(r, marco.detenida) : r
+  } finally { marco.parar(); fijarContextoToque(null); await soltarManos(deps.manos) }
+}
+
+/** Latido del marco (ms) y cuánto vive sin otro: el cerebro piensa varios segundos entre pasos y el marco no parpadea. */
+export const LATIDO_MARCO_MS = () => Number(process.env.MANOS_LATIDO_MARCO_MS) || 2_000
+const SOSTENER_MARCO_S = 6
+
+/**
+ * El marco de trabajo y la franja (3 nov): encendido mientras dure el encargo, sobre la ventana en la que trabajan las manos.
+ * Si la persona pulsa «Detener» o «Tomar el control» en la franja, el latido lo ve y corta el encargo (señal), así el
+ * cerebro no abre otro intento. Se apaga al soltar (fin, fallo o detención).
+ */
+export function sostenerMarco(a: Adaptador | undefined, nombre = process.env.MANOS_NOMBRE_AGENTE || AGENTE, orden: () => string | null = () => null): { senal: AbortSignal; detenida?: string; parar(): void } {
+  const control = new AbortController()
+  let x: any = a
+  for (let i = 0; x && i < 8 && typeof x.borde !== 'function'; i++) x = x.interno
+  const estado: { senal: AbortSignal; detenida?: string; parar(): void } = { senal: control.signal, parar: () => {} }
+  const detener = (motivo: string) => { if (!estado.detenida) { estado.detenida = motivo; control.abort(motivo) } }
+  const conBorde = !!x && typeof x.borde === 'function'
+  const latir = async (nuevo = false) => {
+    // La misma franja, espejada en la conversación: la app deja la orden en disco y este latido la cumple.
+    const o = orden()
+    if (o) { detener(o); if (conBorde) await x.borde({ apagar: true, motivo: o === 'control' ? 'toma_control' : 'detener' }).catch(() => null); return }
+    if (!conBorde) return
+    const r = await x.borde({ encender: true, nuevo, nombre, sostener_s: SOSTENER_MARCO_S }).catch(() => null)
+    if (r?.esta_detenida) detener(r.esta_detenida)
+  }
+  void latir(true)
+  const t = setInterval(() => void latir(), LATIDO_MARCO_MS())
+  t.unref?.()
+  estado.parar = () => clearInterval(t)
+  return estado
+}
+
+/** La respuesta del encargo cuando la persona lo paró desde la franja: un error con nombre que dice no reintentar. */
+function detenidaDesdeFranja(r: { text: string; error?: boolean; respuesta?: RespuestaEncargo }, motivo: string): { text: string; error?: boolean; respuesta?: RespuestaEncargo } {
+  const control = motivo === 'control'
+  const resultado = control
+    ? `${DUENO_M} tomó el control desde la franja (persona_tiene_el_control): la ventana es suya. No reintentes ni busques otra vía; dile en una línea dónde quedó el encargo y espera a que te lo pida.`
+    : `${DUENO_M} detuvo el encargo desde la franja (detenido_por_persona). No reintentes; dile en una línea dónde quedó.`
+  if (!r.respuesta) return { text: resultado, error: true }
+  const respuesta: RespuestaEncargo = { ...r.respuesta, estado: 'fallo', ok: false, resultado, detenido_por: control ? 'persona_tiene_el_control' : 'detenido_por_persona' }
+  return { text: JSON.stringify(respuesta, null, 1), respuesta }
 }
 
 /** Primera capa del adaptador que sabe soltar (Freno → casa); `soltar` en ArbrainManos también apaga el Halo de la sesión. */
@@ -113,21 +167,40 @@ export async function soltarManos(a: Adaptador | undefined): Promise<void> {
   for (let i = 0; x && i < 8; i++, x = x.interno) if (typeof x.soltar === 'function') { await Promise.resolve(x.soltar()).catch(() => {}); return }
 }
 
-async function encargarSinSoltar(args: any, deps: DepsEncargar): Promise<{ text: string; error?: boolean; respuesta?: RespuestaEncargo }> {
+/**
+ * Orden de la conversación (3 nov): la app de Arbrain escribe `<encargos>/<id>.detener` con «detener» o «control»
+ * (los botones de la franja espejada en el chat). Se lee una vez y se borra.
+ */
+export function ordenEnDisco(id: string): () => string | null {
+  const ruta = join(DIR_ENCARGOS(), `${id}.detener`)
+  return () => {
+    if (!existsSync(ruta)) return null
+    let o = ''
+    try { o = readFileSync(ruta, 'utf8').trim() } catch { return null }
+    try { unlinkSync(ruta) } catch { /* otro latido ya la tomó */ }
+    return o === 'control' ? 'control' : 'detener'
+  }
+}
+
+async function encargarSinSoltar(args: any, deps: DepsEncargar, idDado?: string): Promise<{ text: string; error?: boolean; respuesta?: RespuestaEncargo }> {
   const pedido = typeof args?.pedido === 'string' ? args.pedido.trim() : ''
   const cita = typeof args?.cita === 'string' ? args.cita.trim() : ''
   if (!pedido) return { text: 'encargar necesita `pedido` (qué hay que lograr).', error: true }
   if (!cita) return { text: `encargar necesita \`cita\`: las palabras textuales de ${DUENO}. Sin ellas el freno no tiene a quién obedecer.`, error: true }
   // Edición cliente: la cita es la autoridad del freno, así que tiene que salir de lo que la persona escribió de verdad.
   if (esEdicionCliente() && !citaReal(cita)) return { text: `FRENO (cita): ${MENSAJE_CITA_FALSA}`, error: true }
-  const id = `enc-${Date.now().toString(36)}-${randomBytes(3).toString('hex')}`
+  const id = idDado ?? `enc-${Date.now().toString(36)}-${randomBytes(3).toString('hex')}`
+  // Autonomía v2: si el freno pide su toque, la tarjeta recomienda con sus palabras; una decisión aprobada lo cubre.
+  fijarContextoToque({ pedido: cita || pedido, decisiones: typeof args?.decision === 'string' ? [args.decision.trim()] : [] })
   const tope = Math.min(600, Math.max(10, Number(args?.tope_s) || TOPE_POR_DEFECTO_S))
   const lineas: string[] = []
   const pedirFn = deps.pedir ?? (await import('./cerebro.js')).pedir
-  guardarEstado(id, { estado: 'en_curso', pedido: pedido.slice(0, 200), fase: 'inicio', mensaje: 'encargo recibido', pasos: 0, ms: 0, quien: deps.quien })
+  // La franja para la conversación: qué decir y dónde dejar «detener» o «control» (ordenEnDisco).
+  const franja = { texto: `${process.env.MANOS_NOMBRE_AGENTE || AGENTE} está trabajando`, orden: `${id}.detener`, valores: ['detener', 'control'] }
+  guardarEstado(id, { estado: 'en_curso', pedido: pedido.slice(0, 200), fase: 'inicio', mensaje: 'encargo recibido', pasos: 0, ms: 0, quien: deps.quien, franja })
   const progreso = (p: Progreso) => {
     if (p.fase === 'paso') lineas.push(p.mensaje)
-    guardarEstado(id, { estado: p.fase === 'fin' ? 'cerrando' : 'en_curso', pedido: pedido.slice(0, 200), fase: p.fase, mensaje: p.mensaje, pasos: p.pasos, ms: p.ms, ultimos: lineas.slice(-6), quien: deps.quien })
+    guardarEstado(id, { estado: p.fase === 'fin' ? 'cerrando' : 'en_curso', pedido: pedido.slice(0, 200), fase: p.fase, mensaje: p.mensaje, pasos: p.pasos, ms: p.ms, ultimos: lineas.slice(-6), quien: deps.quien, franja })
     try { deps.progreso?.({ ...p, encargo: id }) } catch { /* el cliente se fue: el encargo sigue */ }
   }
   let r: ResultadoPedido

@@ -197,8 +197,39 @@ final class Motor {
             // Árbol vacío (canvas, juegos, apps sin AX): ojos de reserva con el OCR del sistema.
             if let texto = Captura.ocr(wid), !texto.isEmpty { r["ocr"] = texto; r["texto"] = (r["texto"] as! String) + "\n[ocr]\n" + texto }
         }
+        Borde.compartido.trabajando(en: wid)
         if let c = l.nodos.first?.marco { Fantasma.compartido.mirar(Marco(x: c.x, y: c.y, w: c.w, h: c.h), ventana: wid) }
         return r
+    }
+
+    /// El Halo va a TODA acción (3 nov): al elemento, recortado a la parte que se ve de su ventana (un elemento más grande
+    /// que la ventana ponía la punta fuera); sin ref (una tecla, un scroll), al elemento con el foco de la app o al centro
+    /// de la ventana. El objetivo es el mismo que mide la batería de UX (`objetivoHalo`).
+    func moverHalo(_ pid: pid_t, _ e: AXUIElement?, _ accion: String, ventana wid: CGWindowID?) {
+        let v = ventanaDe(pid, e, wid)
+        let w = wid ?? v.flatMap(AX.windowID)
+        let marcoVentana = v.flatMap(AX.marco)
+        var objetivo = e.flatMap(AX.marco)
+        if objetivo == nil {
+            var f: CFTypeRef?
+            if AXUIElementCopyAttributeValue(AXUIElementCreateApplication(pid), kAXFocusedUIElementAttribute as CFString, &f) == .success, let f, CFGetTypeID(f) == AXUIElementGetTypeID() {
+                objetivo = AX.marco(f as! AXUIElement)
+            }
+        }
+        Borde.compartido.trabajando(en: w)
+        guard let m = Motor.objetivoHalo(objetivo, ventana: marcoVentana) else { return }
+        if accion == "escribir" && e != nil { Fantasma.compartido.posar(m, ventana: w) } else { Fantasma.compartido.clic(m, accion: accion, ventana: w) }
+    }
+
+    /// Lo visible del elemento dentro de su ventana; sin elemento útil, el centro de la ventana (un punto).
+    static func objetivoHalo(_ elemento: Marco?, ventana: Marco?) -> Marco? {
+        guard let e = elemento, e.w > 0 || e.h > 0 else { return ventana.map { Marco(x: $0.x + $0.w / 2, y: $0.y + $0.h / 2, w: 0, h: 0) } }
+        guard let v = ventana else { return e }
+        let x0 = max(e.x, v.x), y0 = max(e.y, v.y), x1 = min(e.x + e.w, v.x + v.w), y1 = min(e.y + e.h, v.y + v.h)
+        if x1 >= x0 && y1 >= y0 { return Marco(x: x0, y: y0, w: x1 - x0, h: y1 - y0) }
+        // Fuera de la ventana (desplazado): el punto de la ventana más cercano a su centro.
+        let cx = min(max(e.x + e.w / 2, v.x), v.x + v.w), cy = min(max(e.y + e.h / 2, v.y), v.y + v.h)
+        return Marco(x: cx, y: cy, w: 0, h: 0)
     }
 
     func aJSON(_ n: Nodo) -> JSON {
@@ -229,10 +260,7 @@ final class Motor {
         Asentador.compartido.vigilar(pid)
         let frente = NSWorkspace.shared.frontmostApplication?.processIdentifier
         let hid = a["via"] as? String == "hid"
-        if !hid, let e, let m = AX.marco(e) {
-            let w = wid ?? ventanaDe(pid, e, nil).flatMap(AX.windowID)
-            if accion == "escribir" { Fantasma.compartido.posar(m, ventana: w) } else { Fantasma.compartido.clic(m, accion: accion, ventana: w) }
-        }
+        if !hid { moverHalo(pid, e, accion, ventana: wid) }
         let marca = Asentador.compartido.marca(pid)
         let t0 = DispatchTime.now().uptimeNanoseconds
         // Último recurso del contrato: traer la ventana un instante (apps que filtran eventos por proceso).

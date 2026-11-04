@@ -11,17 +11,20 @@
  *   web_mostrar   trae la pestaña al frente, solo si el pedido es «ponme / muéstrame»
  *   web_verificar comprueba URL, título, texto o estado del video sin pantalla
  */
-import { DUENO, DUENO_M, ejemploPerfilChrome, perfilesChrome } from '../../dueno.js'
-import { confirmacionHumana, categoriaDe } from '../confirmacion-humana.js'
+import { DUENO, DUENO_M, ejemploPerfilChrome, perfilesChrome, AGENTE } from '../../dueno.js'
+import { confirmacionHumana, categoriaDe, pedirToque, pideToque } from '../confirmacion-humana.js'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { SinkBitacora } from '../herramientas.js'
 import { etiquetaSegura } from '../bitacora.js'
 import { IndiceTab, diferencia, renderizar, type NodoWeb, type Vista } from './arbol.js'
-import { frenarWeb, type InfoElemento, type PedidoWeb } from './freno-web.js'
+import { frenarWeb, type InfoElemento, type PedidoWeb, type VeredictoWeb } from './freno-web.js'
+import { anotarHechoSolo } from '../../autonomia/politica.js'
+import { dominioDe } from '../../autonomia/clase.js'
 import { ClienteWeb, type CanalWeb } from './cliente.js'
 import { dirWeb } from './puente.js'
 import { frenarNavegacion } from '../juicio-url.js'
+import { esEdicionCliente } from '../../edicion.js'
 
 const PESTANA = { type: 'integer', description: 'Id de una pestaña propia (de web_abrir o web_pestanas). Si solo hay una, puedes omitirlo.' } as const
 const PEDIDO = { type: 'string', description: `Las palabras de ${DUENO} que originan este encargo (pásalas en la primera llamada): deciden si se puede mostrar o reproducir y van a la bitácora.` } as const
@@ -75,7 +78,7 @@ export const MANOS_WEB_TOOLS = [
     annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     inputSchema: {
       type: 'object', additionalProperties: false,
-      properties: { pestana: PESTANA, pasos: { type: 'array', minItems: 1, maxItems: 8, items: PASO }, ...PASO.properties, max: { type: 'integer', minimum: 20, maximum: 2000 }, confirmacion: { type: 'string', description: `Solo para lo que el freno detiene: cita textual del pedido de ${DUENO}.` }, consulta: CONSULTA, pedido: PEDIDO, perfil: PERFIL },
+      properties: { pestana: PESTANA, pasos: { type: 'array', minItems: 1, maxItems: 8, items: PASO }, ...PASO.properties, max: { type: 'integer', minimum: 20, maximum: 2000 }, confirmacion: { type: 'string', description: `Solo para lo que el freno detiene: cita textual del pedido de ${DUENO}, o \`bandeja:cf_…\` (su Sí a una decisión de la bandeja).` }, recomendacion: { type: 'string', description: `Si es irreversible: por qué conviene, en una línea. Si el freno lo detiene, va a la tarjeta de ${DUENO} (Sí · No · Otro); su Sí reemplaza la cita.` }, consulta: CONSULTA, pedido: PEDIDO, perfil: PERFIL },
     },
   },
   {
@@ -272,8 +275,34 @@ export async function ejecutarWeb(nombre: string, args: any, s: SesionWeb, bitac
   }
 }
 
+/**
+ * El marco y la franja en la pestaña propia (3 nov, extensión: método `marco`): encendidos mientras dure el encargo, con un
+ * latido cada 2 s para que el marco no parpadee mientras el cerebro piensa. Si la persona pulsa «Detener» o «Tomar el
+ * control» en la franja, la respuesta lo dice y `detenida` queda puesto (el cerebro corta). Una extensión anterior no
+ * conoce `marco`: no pasa nada.
+ */
+export function sostenerMarcoWeb(s: SesionWeb, texto = `${AGENTE} está trabajando en esta pestaña`): { detenida?: string; parar(): void; alDetener?: (motivo: string) => void } {
+  const estado: { detenida?: string; parar(): void; alDetener?: (motivo: string) => void } = { parar: () => {} }
+  const latir = async (nuevo = false) => {
+    try {
+      const r = await s.canal.llamar<{ detenida?: string | null }>('marco', { sesion: grupoDe(s), encendido: true, texto, ttl_ms: 8000, ...(nuevo ? { nuevo: true } : {}) }, 1500)
+      if (r?.detenida && !estado.detenida) { estado.detenida = r.detenida; estado.alDetener?.(r.detenida) }
+    } catch { /* el marco nunca tumba el encargo */ }
+  }
+  void latir(true)
+  const t = setInterval(() => void latir(), 2000)
+  t.unref?.()
+  estado.parar = () => clearInterval(t)
+  return estado
+}
+
+/** Fin del encargo: el marco y la franja de la sesión se van ya (≤ 1 s), sin esperar el TTL. */
+export async function apagarMarcoWeb(s: SesionWeb): Promise<void> {
+  try { await s.canal.llamar('marco', { sesion: grupoDe(s), encendido: false }, 1500) } catch { /* sin marco que apagar */ }
+}
+
 function grupoDe(s: SesionWeb): string {
-  const corto = s.pedido.replace(/[^\p{L}\p{N} ]/gu, '').trim().split(/\s+/).slice(0, 4).join(' ')
+  const corto = (s.pedido ?? '').replace(/[^\p{L}\p{N} ]/gu, '').trim().split(/\s+/).slice(0, 4).join(' ')
   return corto || s.nombre
 }
 
@@ -284,6 +313,9 @@ function medios(m: any): string {
 }
 
 type Paso = { accion: PedidoWeb['accion']; indice?: number; texto?: string; tecla?: string; modificadores?: string[]; direccion?: string; cantidad?: number; valor?: string; reemplazar?: boolean; x?: number; y?: number }
+
+/** Lo último que se escribió por pestaña: la tarjeta de un envío muestra QUÉ se envía (autonomía v2). */
+const ESCRITO_WEB = new Map<string, string>()
 
 async function actuar(a: any, s: SesionWeb, anotar: (p: any) => void): Promise<ResultadoWeb> {
   const tab = await s.pestanaDe(a)
@@ -305,6 +337,7 @@ async function actuar(a: any, s: SesionWeb, anotar: (p: any) => void): Promise<R
     // Una confirmación vale para UN paso: el resto del lote no hereda el permiso.
     const pw: PedidoWeb = { accion: p.accion, texto: p.texto, tecla: p.tecla, modificadores: p.modificadores, valor: p.valor, confirmacion: confirmacionUsada ? undefined : a.confirmacion }
     let info: InfoElemento | null = null
+    let autonomia: VeredictoWeb['autonomia']
     if (p.accion !== 'scroll') {
       try {
         info = await s.canal.llamar<InfoElemento>('contexto', { pestana: tab, b: nodo?.b, x: p.x, y: p.y, cita: a.confirmacion ?? '' })
@@ -312,14 +345,30 @@ async function actuar(a: any, s: SesionWeb, anotar: (p: any) => void): Promise<R
         bloqueado = `paso ${n + 1}: ${(e as Error).message}`
         break
       }
-      const v = frenarWeb(pw, info, [idx.textoVisto])
+      let v = frenarWeb(pw, info, [idx.textoVisto])
+      autonomia = v.pasa ? v.autonomia : undefined
+      if (!v.pasa && !v.handoff && pideToque(v.freno?.categoria)) {
+        // Autonomía v2 (instalación original): lo irreversible sin cita va a la bandeja como tarjeta; su Sí lo deja salir.
+        const donde = dominioDe(info.url)
+        const texto = p.texto ?? p.valor ?? (p.accion === 'tecla' || p.accion === 'click' ? ESCRITO_WEB.get(String(tab)) : undefined)
+        const t = await pedirToque({
+          categoriaFreno: v.freno!.categoria, motivo: v.freno!.motivo, herramienta: `web:${p.accion}`, confirmacion: a.confirmacion, recomendacion: a.recomendacion,
+          partes: [tab ?? null, nodo?.b ?? null, p.accion, p.texto ?? null, p.tecla ?? null, p.valor ?? null],
+          titulo: `${donde ?? 'Una página'}: ${v.freno!.motivo}${texto ? ` («${String(texto).replace(/\s+/g, ' ').slice(0, 90)}»)` : ''}`,
+        })
+        if (t.ok) {
+          v = { pasa: true, freno: { ...v.freno!, paso: true } }
+          confirmacionUsada = true
+          informe.push(`paso ${n + 1}: ${t.como === 'decision' ? `pasó con el Sí de ${DUENO} en su bandeja (${t.id})` : `${DUENO} lo aprobó con su toque en la bandeja`}`)
+        } else if (!t.sinBandeja) v = { ...v, detalle: t.detalle }
+      }
       if (!v.pasa) {
         anotar({ accion: p.accion, resultado: 'bloqueado', freno: v.freno ? { categoria: v.freno.categoria, paso: false } : undefined, rol: info.tag, ...(p.texto != null ? { escrito: String(p.texto).length } : {}) })
         bloqueado = `paso ${n + 1} ${p.accion}${p.indice !== undefined ? ` [${p.indice}]` : ''}: ${v.detalle}${v.handoff ? ` (HANDOFF: pásale el control a ${DUENO})` : ''}`
         informe.push(JSON.stringify({ paso: n + 1, efecto: 'bloqueado', freno: v.freno, handoff: !!v.handoff }))
         break
       }
-      if (v.freno?.paso) {
+      if (v.freno?.paso && !(confirmacionUsada && !esEdicionCliente())) {
         // I8 (edición cliente): además de la cita real, el clic de la persona en la app.
         const humana = await confirmacionHumana({ categoria: categoriaDe(v.freno.categoria), resumen: `${p.accion} en ${info.tag ?? 'la página'} (${v.freno.categoria})`.slice(0, 280), herramienta: `web:${p.accion}`, partes: [tab ?? null, nodo?.b ?? null, p.accion, p.texto ?? null, p.tecla ?? null, p.valor ?? null] })
         if (!humana.ok) {
@@ -334,7 +383,14 @@ async function actuar(a: any, s: SesionWeb, anotar: (p: any) => void): Promise<R
     try {
       const r = await s.canal.llamar('actuar', { pestana: tab, b: nodo?.b, accion: p.accion, texto: p.texto, reemplazar: p.reemplazar, tecla: p.tecla, modificadores: p.modificadores, direccion: p.direccion, cantidad: p.cantidad, valor: p.valor, x: p.x, y: p.y, asentar: ultimo || p.accion === 'click' || p.accion === 'tecla', rotulo: nodo?.nombre }, 30_000)
       informe.push(`paso ${n + 1} ${p.accion}${p.indice !== undefined ? ` [${p.indice}]` : ''}: ok (${r.como ?? 'hecho'})${r.url !== r.url_antes ? ` · navegó a ${r.url}` : ''}${r.movio === false ? ' · LA PÁGINA NO SE MOVIÓ: prueba scroll con el indice de la lista, el buscador del sitio o una URL directa' : ''}${r.cargo_mas === true ? ' · llegó al fondo y el feed cargó más' : r.cargo_mas === false ? ' · llegó al fondo: la página no trajo más' : ''}${r.aviso ? ` · ${r.aviso}` : ''}`)
-      anotar({ accion: p.accion, resultado: 'ok', efecto: 'sin_verificar', rol: info?.tag, etiqueta: etiquetaSegura(nodo?.rol, nodo?.nombre, 'chrome-web', r.url), ...(p.texto != null ? { escrito: String(p.texto).length } : {}), ...(p.tecla ? { tecla: [...(p.modificadores ?? []), p.tecla].join('+') } : {}) })
+      if (p.accion === 'escribir' && p.texto) ESCRITO_WEB.set(String(tab), String(p.texto).slice(0, 400))
+      anotar({ accion: p.accion, resultado: 'ok', efecto: 'sin_verificar', rol: info?.tag, etiqueta: etiquetaSegura(nodo?.rol, nodo?.nombre, 'chrome-web', r.url), ...(p.texto != null ? { escrito: String(p.texto).length } : {}), ...(p.tecla ? { tecla: [...(p.modificadores ?? []), p.tecla].join('+') } : {}), ...(autonomia ? { autonomia: autonomia.clase } : {}) })
+      if (autonomia) {
+        // Autonomía v2: lo reversible sale solo y queda en «Lo que hice solo» (una línea, con cómo deshacerlo).
+        const donde = dominioDe(r.url_antes ?? info?.url)
+        anotarHechoSolo({ clase: autonomia.clase, que: `«${String(nodo?.nombre ?? info?.nombre ?? 'enviar').slice(0, 60)}»${donde ? ` en ${donde}` : ''}`, donde, origen: 'web', deshacer: 'en el mismo servicio: borrar lo creado o revertir el ajuste', ...(process.env.CLAUDE_CODE_SESSION_ID ? { sesion: process.env.CLAUDE_CODE_SESSION_ID } : {}) })
+        informe.push(`paso ${n + 1}: la política de autonomía lo dejó pasar sin cita (${autonomia.clase}: ${autonomia.motivo}); queda en «Lo que hice solo»`)
+      }
       if (!ultimo && r.url !== r.url_antes) { informe.push(`los pasos ${n + 2}–${pasos.length} no se corrieron: la página cambió de URL y sus índices pueden no existir. Observa y sigue.`); break }
     } catch (e) {
       const msg = (e as Error).message

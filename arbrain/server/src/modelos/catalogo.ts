@@ -11,7 +11,8 @@
  * público, sin llave) con caché de una hora: un id que no está ahí se muestra deshabilitado con el motivo.
  * Qué modelos están encendidos vive en el daemon (SQLite) para que web, escritorio y teléfono vean lo mismo.
  */
-import { textoFaltaLlave, textoMotorApiApagado } from '../edicion.js'
+import { esEdicionCliente, textoFaltaLlave, textoMotorApiApagado } from '../edicion.js'
+import { ESPACIO_ABLITERATED, TARIFA_ABLITERATED, destinoAbliterated, motivoNoDisponible } from '../chat-runtime/abliterated-chat.js'
 import type Database from 'better-sqlite3'
 import { REGISTRO, llavePresente, motorApiEncendido, proveedor, type Ruta } from './registro.js'
 
@@ -25,7 +26,7 @@ export interface EntradaCatalogo {
   puesto: number | null
   /** Id en OpenRouter: de ahí sale el precio (y la existencia, para los que corren por OpenRouter). */
   openrouterId: string
-  via: 'suscripcion' | 'openrouter'
+  via: 'suscripcion' | 'openrouter' | 'abliterated'
   /**
    * Suscripción: ids que acepta `/model` en el Claude SDK, en orden de preferencia (el catálogo vivo decide).
    * Solo ids fijos de versión: un alias suelto (`haiku`) apunta a lo que diga el SDK instalado. El 8 oct 2026
@@ -36,6 +37,8 @@ export interface EntradaCatalogo {
   /** OpenRouter: id de la ruta del registro. */
   ruta?: string
 }
+
+export const ID_ABLITERATED = 'deepseek-v4.1-flash-abliterated'
 
 export const CATALOGO: EntradaCatalogo[] = [
   { id: 'opus-5.5', nombre: 'Opus 5.5', laboratorio: 'Anthropic', descripcion: 'El más capaz para el trabajo de todos los días', puesto: 1, openrouterId: 'anthropic/claude-opus-5.5', via: 'suscripcion', claude: ['claude-opus-5-5[1m]', 'claude-opus-5-5'] },
@@ -51,6 +54,9 @@ export const CATALOGO: EntradaCatalogo[] = [
   { id: 'kimi-k3', nombre: 'Kimi K3', laboratorio: 'Moonshot', descripcion: 'Abierto de Moonshot, fuerte en agentes y código; ventana de un millón', puesto: null, openrouterId: 'moonshotai/kimi-k3', via: 'openrouter', ruta: 'kimi-k3@openrouter' },
   { id: 'sonnet-5.5', nombre: 'Sonnet 5.5', laboratorio: 'Anthropic', descripcion: 'Rápido para tareas de rutina', puesto: null, openrouterId: 'anthropic/claude-sonnet-5.5', via: 'suscripcion', claude: ['claude-sonnet-5-5[1m]', 'claude-sonnet-5-5'] },
   { id: 'haiku-5.5', nombre: 'Haiku 5.5', laboratorio: 'Anthropic', descripcion: 'El rápido y barato de Anthropic; ventana de un millón', puesto: null, openrouterId: 'anthropic/claude-haiku-5.5', via: 'suscripcion', claude: ['claude-haiku-5-5[1m]', 'claude-haiku-5-5'] },
+  // Sin filtro (3 nov 2026): el mismo Claude Code contra api.abliteration.ai o nuestro pod (chat-runtime/abliterated-chat.ts).
+  // No es Claude: va en su grupo, siempre visible en la instalación original y oculto en la del alumno.
+  { id: ID_ABLITERATED, nombre: 'DeepSeek V4.1 Flash · abliterated', laboratorio: 'DeepSeek', descripcion: 'Sin filtro y no es Claude; los frenos del código siguen', puesto: null, openrouterId: '', via: 'abliterated' },
   { id: 'gpt-6-luna', nombre: 'GPT-6 Luna', laboratorio: 'OpenAI', descripcion: 'El ligero de OpenAI; centavos por millón', puesto: null, openrouterId: 'openai/gpt-6-luna', via: 'openrouter', ruta: 'gpt-6-luna@openrouter' },
 ]
 
@@ -132,7 +138,7 @@ export function guardarHabilitado(db: Database.Database, id: string, habilitado:
 
 export interface ModeloPublico {
   id: string; nombre: string; laboratorio: string; descripcion: string; puesto: number | null
-  via: 'suscripcion' | 'openrouter'
+  via: 'suscripcion' | 'openrouter' | 'abliterated'
   /** Espacio del chat donde corre. */
   cuenta: string
   /** Lo que se manda a `/model` (Claude) o el id de la ruta (OpenRouter); null si no se pudo resolver. */
@@ -152,6 +158,9 @@ export interface EntornoCatalogo {
   errorClaude?: string | null
   motorApi?: boolean
   llave?: boolean
+  /** Espacio abliterated: su modelo y por qué no se puede elegir (null = disponible). Por defecto, el del .env. */
+  abliterated?: { modelo: string; motivo: string | null }
+  cliente?: boolean
 }
 
 export function catalogoPublico(env: EntornoCatalogo) {
@@ -159,7 +168,17 @@ export function catalogoPublico(env: EntornoCatalogo) {
   const p = proveedor('openrouter')
   const llave = env.llave ?? (!!p && llavePresente(p))
   const or = env.openrouter.modelos
-  const modelos: ModeloPublico[] = CATALOGO.map(e => {
+  const cliente = env.cliente ?? esEdicionCliente()
+  // En la edición del alumno el espacio abliterated no existe (hasta que Daniel decida).
+  const modelos: ModeloPublico[] = CATALOGO.filter(e => !(cliente && e.via === 'abliterated')).map(e => {
+    if (e.via === 'abliterated') {
+      const d = env.abliterated ?? (() => { const x = destinoAbliterated(); return { modelo: x.modelo, motivo: motivoNoDisponible(x) } })()
+      const { entrada, salida } = TARIFA_ABLITERATED
+      // Sin interruptor: siempre a la vista; sin llave, deshabilitada con su motivo.
+      return { id: e.id, nombre: e.nombre, laboratorio: e.laboratorio, descripcion: e.descripcion, puesto: e.puesto, via: e.via,
+        openrouter: { id: '', existe: null, precio: { entrada, salida } }, habilitado: true,
+        cuenta: ESPACIO_ABLITERATED, modelo: d.modelo, disponible: !d.motivo, motivo: d.motivo }
+    }
     const enOr = or?.get(e.openrouterId) ?? null
     const existe = or ? !!enOr : null
     const base = {
@@ -183,5 +202,5 @@ export function catalogoPublico(env: EntornoCatalogo) {
     return { ...base, cuenta: ruta?.cuenta ?? e.id, modelo: ruta?.modelId ?? null, disponible: !motivo, motivo }
   })
   // Un modelo deshabilitado por falta de verificación nunca sale encendido en el selector.
-  return { consultadoEn: env.openrouter.consultadoEn, errorOpenRouter: env.openrouter.error, modelos: modelos.map(m => ({ ...m, habilitado: m.habilitado && m.disponible })), habilitadosGuardados: env.habilitados }
+  return { consultadoEn: env.openrouter.consultadoEn, errorOpenRouter: env.openrouter.error, modelos: modelos.map(m => ({ ...m, habilitado: m.via === 'abliterated' || (m.habilitado && m.disponible) })), habilitadosGuardados: env.habilitados }
 }

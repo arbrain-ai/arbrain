@@ -48,6 +48,6 @@ export function inicioDeChatNuevo(c: Catalogo | null, uso: UltimoUso | null): In
 /** ¿El espacio activo corre un modelo encendido? (corrige el arranque con un espacio guardado que ya se apagó) */
 export function espacioVigente(c: Catalogo | null, espacio: string): boolean {
   if (!c) return true
-  const { claude, openrouter } = modelosDelSelector(c)
-  return esEspacioClaude(espacio) ? claude.length > 0 : openrouter.some(m => m.cuenta === espacio)
+  const { claude, openrouter, abliterated } = modelosDelSelector(c)
+  return esEspacioClaude(espacio) ? claude.length > 0 : [...openrouter, ...abliterated.filter(m => m.disponible)].some(m => m.cuenta === espacio)
 }

@@ -373,8 +373,12 @@
 /* La franja del plan arriba (25 oct 2026, Daniel: «muchos bordes blancos horizontales»): una línea que cruza las dos columnas, y menos
    aire arriba y abajo para que la agenda se quede con el alto. */
 .dia { padding-top: 0; }
-.dia[data-dos-columnas] { grid-template-rows: auto minmax(0, 1fr) auto; gap: 10px 32px; padding: 0 18px 8px; }
-.franjaArriba { grid-column: 1 / -1; min-width: 0; }
+.dia[data-dos-columnas] { grid-template-rows: minmax(0, 1fr) auto; gap: 10px 32px; padding: 0 18px 8px; }
+/* 3 nov 2026: sin la sección de Tareas, la franja con la lista del día es la columna izquierda (abierta; su lista crece con la columna y
+   solo la columna se desplaza) y la agenda, la derecha. */
+.izquierda { padding-top: 8px; }
+.izquierda > section[data-objetivo-escala] { flex: none; }
+.izquierda > section[data-objetivo-escala] > div:last-child:not(:first-child) { max-height: none; overflow: visible; }
 
 /* ══ Riel en la agenda del Día (25 oct 2026; misma dirección que la Semana, semana-horas.module.css): tarjeta neutra, riel DRIP
    y su letra, el ahora en ámbar (`data-vivo`), el pasado atenuado. `li` lleva el cuadrante (`data-drip`, `data-letra`). */
@@ -412,3 +416,35 @@
 
 /* Lenguaje unificado (27 oct 2026): lo ya vivido se atenúa sin bajar de AA. */
 :global(html[data-estilo='unificado']) .agenda button[data-pasado], :global(html[data-estilo='unificado']) .miniBloques button[data-pasado], :global(html[data-estilo='unificado']) .areaAgenda .miniBloques button[data-pasado] { opacity: 0.72; }
+
+/* La lista del día en el timeline (3 nov 2026, Daniel: «de forma sutil y elegante»). Dentro de su evento: una sublínea discreta al pie
+   de la tarjeta (círculo hueco de 9 px y texto tenue); en una tarjeta corta, solo los círculos a la derecha. Suelta: una marca en su
+   hora con un hilo punteado hasta el borde; sobre un evento ajeno, a la derecha y con velo, para no tapar su título. Nunca un bloque. */
+.miniSub { position: absolute; left: 12px; right: 22px; bottom: 3px; z-index: 2; display: flex; gap: 10px; min-width: 0; pointer-events: none; }
+.miniSub[data-corto] { left: auto; right: 22px; bottom: auto; top: 50%; transform: translateY(-50%); gap: 2px; }
+/* Especificidad (0,5,2): gana al riel de la tarjeta (`:global(.dark) .areaAgenda .miniBloques li[data-seccion] button`). */
+.areaAgenda .miniBloques li .miniSub button.miniSubItem[data-origen], .miniBloques li .miniSub button.miniSubItem[data-origen], .miniMarcas button.miniMarca {
+  pointer-events: auto; flex: 0 1 auto; min-width: 0; width: auto; height: 16px; display: inline-flex; flex-direction: row; align-items: center; gap: 5px;
+  padding: 0 5px 0 2px; border: 0; border-radius: 8px; background: transparent; box-shadow: none; transform: none; color: var(--muted); font: inherit; cursor: pointer;
+  transition: background 140ms, opacity 200ms; }
+.miniSub[data-corto] button.miniSubItem { padding: 0 2px; }
+.miniBloques .miniSub button.miniSubItem:hover:not(:disabled), .miniMarcas button.miniMarca:hover:not(:disabled), .miniSub button.miniSubItem[data-resaltado], .miniMarcas button.miniMarca[data-resaltado] {
+  background: color-mix(in srgb, var(--foreground) 7%, transparent); }
+.miniSub button.miniSubItem:disabled, .miniMarcas button.miniMarca:disabled { cursor: default; }
+.miniSub button.miniSubItem i, .miniMarcas button.miniMarca i { flex: none; box-sizing: border-box; width: 9px; height: 9px; border-radius: 50%;
+  border: 1.25px solid color-mix(in srgb, var(--foreground) 46%, transparent); transition: background 200ms, border-color 200ms, transform 200ms; }
+.miniSub button.miniSubItem[data-origen='casilla'] i, .miniMarcas button.miniMarca[data-origen='casilla'] i { border-color: color-mix(in srgb, var(--l-borde-ambar, var(--gold)) 85%, transparent); }
+.miniSub button.miniSubItem:hover:not(:disabled) i, .miniMarcas button.miniMarca:hover:not(:disabled) i { border-color: var(--success, var(--primary)); transform: scale(1.12); }
+.miniSub button.miniSubItem[data-hecho] i, .miniMarcas button.miniMarca[data-hecho] i { background: var(--success, var(--primary)); border-color: var(--success, var(--primary)); }
+.areaAgenda .miniBloques .miniSub button.miniSubItem span, .miniMarcas button.miniMarca span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 10.5px; font-weight: 500; line-height: 1.2; letter-spacing: .05px; color: color-mix(in srgb, var(--foreground) 56%, transparent); }
+.miniSub button.miniSubItem[data-hecho] span, .miniMarcas button.miniMarca[data-hecho] span { text-decoration: line-through; color: var(--muted); }
+.miniMarcas { position: absolute; inset: 0 0 0 32px; z-index: 4; list-style: none; margin: 0; padding: 0; pointer-events: none; }
+.miniMarcas li { position: absolute; left: 0; right: 0; height: 0; display: flex; align-items: center; }
+.miniMarcas li::after { content: ''; flex: 1 1 auto; min-width: 12px; margin: 0 2px 0 4px; border-top: 1px dashed color-mix(in srgb, var(--foreground) 13%, transparent); }
+.miniMarcas li[data-encima] { justify-content: flex-end; }
+.miniMarcas li[data-encima]::after { content: none; }
+.miniMarcas button.miniMarca { max-width: 72%; }
+.miniMarcas li[data-encima] button.miniMarca { margin-right: 24px; background: color-mix(in srgb, var(--card) 84%, transparent); backdrop-filter: blur(6px);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--foreground) 9%, transparent), 0 2px 6px -3px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.25); }
+@media (prefers-reduced-motion: reduce) { .miniSub button.miniSubItem i, .miniMarcas button.miniMarca i { transition: none; } }

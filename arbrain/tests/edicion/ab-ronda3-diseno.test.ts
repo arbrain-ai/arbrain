@@ -16,9 +16,11 @@ test('1 · jerarquía: sin llave o sin crédito, seguir de largo es secundario; 
   assert.match(p, /const botonDiscreto = \(paso === 'llaves' && \(!llavesListas \|\| sinCredito\)\) \|\| \(paso === 'listo' && sinCredito\)/)
   // 31 oct 2026: el primario es la tecla ámbar del enviar (bienvenida.module.css); lo discreto, la misma tapa sin luz.
   assert.match(p, /className=\{`\$\{s\.tecla\}\$\{botonDiscreto \? ` \$\{s\.discreta\}` : ''\}`\}/)
-  // Lo recomendado sigue primario: «Conectar con OpenRouter» sin llave y «Recargar» sin crédito.
+  // Lo recomendado sigue primario: «Recargar» sin crédito; sin llave, «Iniciar sesión con Claude» si hay Claude Code que
+  // ofrecer (vuelta 2 del primer uso, 3 nov 2026) y «Conectar con OpenRouter» donde no lo hay.
   const panel = fuente('src/features/primer-arranque/components/PanelLlaves.tsx')
-  assert.match(panel, /<ConectarOpenRouter principal=\{!listo && !sub\.estado\?\.sesion\}/)
+  assert.match(panel, /<ConectarOpenRouter principal=\{!listo && !sub\.estado\}/)
+  assert.match(panel, /\{botonEntrar\(true\)\}/)
   assert.match(panel, /className="btn-primary[^"]*" onClick=\{[^\n]*RECARGAR\[cobra\]/)
 })
 

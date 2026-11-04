@@ -12,9 +12,11 @@
  *  · Contexto       lo que entra en la ventana de esta conversación (la anatomía medida).
  * Todo es lectura: para cambiar algo se le pide a Levy en el chat.
  */
+import { abrirEtapaNegocio, escucharIrA, escucharPedido, EVENTO_HABILIDAD, LLAVE_HABILIDAD, tomarPedido } from '@/shared/navigation/ir-a'
+import { etapasDeSkill, nombreEmbudo, skillDeRuta, URL_EMBUDO, type Embudo, type RespuestaEmbudo } from '@/features/negocio/embudo'
 import { useEffect, useMemo, useState } from 'react'
 import dynamic from 'next/dynamic'
-import { ArrowLeft, BookOpen, BrainCircuit, ChevronRight, FileText, Gauge, Orbit, PenLine, ScrollText, Search, Wand2, type LucideIcon } from 'lucide-react'
+import { ArrowLeft, BookOpen, BrainCircuit, ChevronRight, FileText, Gauge, Orbit, PenLine, ScrollText, Search, Store, Wand2, type LucideIcon } from 'lucide-react'
 import { MarkdownMessage } from '@/features/chat/components/MarkdownMessage'
 import { Cifra, escalon, mov } from '@/shared/movimiento'
 import { useFuente } from '../datos'
@@ -23,6 +25,7 @@ import type { FotoMemoria } from '../vistas/contexto-capas'
 import { hace } from './datos'
 import s from './panel.module.css'
 import w from './taller.module.css'
+import n from './habilidades-embudo.module.css'
 
 interface Archivo { ruta: string; titulo: string; detalle: string | null; grupo: 'memoria' | 'skills' | 'documentos'; editado: string }
 interface Instruccion { ruta: string; titulo: string; detalle: string; editado: string; bytes: number }
@@ -55,7 +58,15 @@ export function MemoriaTaller() {
   const memoria = useFuente<FotoMemoria>(URL_MEMORIA).data
   const archivos = useFuente<FotoArchivos>(URL_ARCHIVOS)
   const [parte, setParte] = useState<Parte>('memorias')
-  useEffect(() => { setParte(leerParte()) }, [])
+  // Tu negocio › El sistema (4 nov 2026, detrás de ARBRAIN_PANEL_NEGOCIO=1): de qué etapa cuelga cada habilidad, y la
+  // habilidad que pidió el panel abierta en su lectura. Apagado, la fuente dice { activo: false } y nada de esto aparece.
+  const respuesta = useFuente<RespuestaEmbudo>(URL_EMBUDO).data
+  const embudo = respuesta?.activo ? respuesta.embudo : null
+  const [pedida, setPedida] = useState<{ ruta: string; n: number } | null>(null)
+  useEffect(() => { setParte(leerParte()); const r = tomarPedido(LLAVE_HABILIDAD); if (r) setPedida({ ruta: r, n: Date.now() }) }, [])
+  // «Habilidades» en la barra lateral (3 nov 2026): con el Taller ya abierto, cambia de parte en sitio.
+  useEffect(() => escucharIrA('habilidades', () => setParte('skills')), [])
+  useEffect(() => escucharPedido(EVENTO_HABILIDAD, r => { tomarPedido(LLAVE_HABILIDAD); setParte('skills'); setPedida({ ruta: r, n: Date.now() }) }), [])
   const elegir = (p: Parte) => { setParte(p); try { localStorage.setItem(LLAVE, p) } catch { /* sin almacenamiento */ } }
   const a = archivos.data
   const nMem = memoria?.archivos.length ?? null
@@ -83,7 +94,8 @@ export function MemoriaTaller() {
       : parte === 'memorias' ? <div className={w.incrustada}><Memoria grande /></div>
       : parte === 'contexto' ? <div className={w.incrustada}><Ventana grande /></div>
       : parte === 'instrucciones' ? <Instrucciones data={a} error={archivos.error} />
-      : <ListaArchivos data={a} error={archivos.error} grupo={parte === 'skills' ? 'skills' : 'documentos'} />}
+      : parte === 'skills' ? <ListaArchivos data={a} error={archivos.error} grupo="skills" embudo={embudo} pedida={pedida} />
+      : <ListaArchivos data={a} error={archivos.error} grupo="documentos" />}
   </div>
 }
 
@@ -91,13 +103,14 @@ function Cargando({ error }: { error?: string }) {
   return <div className={s.cargando} aria-busy={!error}>{error ? <><b>No se pudo leer</b><span>{error}</span></> : <><span className={s.brillo} /><span className={s.brillo} /></>}</div>
 }
 
-function ListaArchivos({ data, error, grupo }: { data: FotoArchivos | undefined; error?: string; grupo: 'skills' | 'documentos' }) {
+function ListaArchivos({ data, error, grupo, embudo, pedida }: { data: FotoArchivos | undefined; error?: string; grupo: 'skills' | 'documentos'; embudo?: Embudo | null; pedida?: { ruta: string; n: number } | null }) {
   const [filtro, setFiltro] = useState('')
   const [abierto, setAbierto] = useState<string | null>(null)
   const [todos, setTodos] = useState(false)
+  useEffect(() => { if (pedida) setAbierto(pedida.ruta) }, [pedida])
   const q = filtro.trim().toLowerCase()
   const lista = useMemo(() => (data?.archivos ?? []).filter(a => a.grupo === grupo && (!q || a.titulo.toLowerCase().includes(q) || a.ruta.toLowerCase().includes(q) || a.detalle?.toLowerCase().includes(q))), [data, grupo, q])
-  if (abierto) return <Lector ruta={abierto} volver={() => setAbierto(null)} etiqueta={grupo === 'skills' ? 'Habilidades' : 'Documentos'} />
+  if (abierto) return <Lector ruta={abierto} volver={() => setAbierto(null)} etiqueta={grupo === 'skills' ? 'Habilidades' : 'Documentos'} embudo={embudo} />
   if (!data) return <Cargando error={error} />
   if (!data.raiz) return <p className={w.nota}>El cerebro no está montado en esta máquina. En el Studio aquí ves memoria, habilidades y documentos.</p>
   const ver = q || todos ? lista : lista.slice(0, 12)
@@ -107,7 +120,7 @@ function ListaArchivos({ data, error, grupo }: { data: FotoArchivos | undefined;
     {!lista.length ? <p className={w.nota}>Nada coincide con «{filtro}».</p> : <section className={`${w.tarjeta} ${mov.entra}`} style={escalon(1)}>
       <div className={s.lista}>{ver.map(a => <button key={a.ruta} className={s.fila} onClick={() => setAbierto(a.ruta)} title={a.ruta}>
         <span className={s.marca}><Icono size={13} className={s.iconoArchivo} aria-hidden /></span>
-        <span className={s.filaTexto}><span className={s.filaNombre}>{a.titulo}</span>{a.detalle && <span className={s.filaMeta}>{a.detalle}</span>}</span>
+        <span className={s.filaTexto}><span className={s.filaNombre}>{a.titulo}</span>{a.detalle && <span className={s.filaMeta}>{a.detalle}</span>}{embudo && <EtapasFila etapas={etapasDeSkill(embudo, a.titulo)} />}</span>
         <span className={s.filaEstado}>{hace(a.editado)}</span>
       </button>)}</div>
       {lista.length > ver.length && <button className={s.mas} onClick={() => setTodos(true)}>Ver las {lista.length}</button>}
@@ -134,7 +147,7 @@ function Instrucciones({ data, error }: { data: FotoArchivos | undefined; error?
 }
 
 /** Lector de solo lectura; «Corregir esto» deja la cita en la caja del chat (escribir es de Levy). */
-function Lector({ ruta, volver, etiqueta, titulo }: { ruta: string; volver: () => void; etiqueta: string; titulo?: string }) {
+function Lector({ ruta, volver, etiqueta, titulo, embudo }: { ruta: string; volver: () => void; etiqueta: string; titulo?: string; embudo?: Embudo | null }) {
   const { data, error } = useFuente<{ ruta: string; texto: string; editado: string }>(`${URL_ARCHIVOS}?ruta=${encodeURIComponent(ruta)}`)
   useEffect(() => {
     const esc = (e: KeyboardEvent) => { if (e.key === 'Escape' && !e.defaultPrevented) { e.preventDefault(); volver() } }
@@ -153,6 +166,26 @@ function Lector({ ruta, volver, etiqueta, titulo }: { ruta: string; volver: () =
     </div>
     <p className={w.lectorTitulo}>{titulo ?? ruta.split('/').at(-1)}</p>
     <p className={w.lectorMeta}><code>{ruta}</code>{data ? ` · editado ${hace(data.editado)}` : ''}</p>
+    {embudo && skillDeRuta(ruta) && <EnTuEmbudo embudo={embudo} etapas={etapasDeSkill(embudo, skillDeRuta(ruta)!)} />}
     {error ? <p className={s.aviso}>{error}</p> : !data ? <Cargando /> : <div className={`${s.lectura} ${w.lectorTexto}`}><MarkdownMessage content={texto} /></div>}
+  </div>
+}
+
+/** En la fila de Habilidades: de qué etapa del embudo cuelga (solo con el panel «Tu negocio» encendido). */
+function EtapasFila({ etapas }: { etapas: ReturnType<typeof etapasDeSkill> }) {
+  if (!etapas.length) return null
+  return <span className={n.fila}><Store size={11} aria-hidden />{etapas.map(et => et.nombre).join(' · ')}</span>
+}
+
+/** En la lectura de una habilidad: sus etapas, cada una con el enlace a Tu negocio. */
+function EnTuEmbudo({ embudo, etapas }: { embudo: Embudo; etapas: ReturnType<typeof etapasDeSkill> }) {
+  return <div className={n.bloque} aria-label="En tu embudo">
+    <p className={n.etiqueta}>En tu embudo</p>
+    {!etapas.length ? <p className={n.nada}>Esta habilidad todavía no cuelga de ninguna etapa de tu negocio.</p>
+      : <ul className={n.lista}>{etapas.map(et => <li key={et.id}>
+        <button className={n.etapa} onClick={() => abrirEtapaNegocio(et.id)} title="Ver la etapa en Tu negocio">
+          <span className={n.donde}>{nombreEmbudo(embudo, et.embudo)} · {et.etapa}</span><b>{et.nombre}</b><ChevronRight size={13} aria-hidden />
+        </button>
+      </li>)}</ul>}
   </div>
 }

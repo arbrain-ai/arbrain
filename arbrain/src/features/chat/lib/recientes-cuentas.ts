@@ -22,6 +22,8 @@ export const CUENTAS_RECIENTES: readonly CuentaReciente[] = [
   { id: 'codex', etiqueta: 'ChatGPT g00', corta: 'GPT', texto: 'text-emerald-300' },
   { id: 'yt', etiqueta: 'ChatGPT yt', corta: 'GPT yt', texto: 'text-cyan-300' },
   { id: 'deepseek', etiqueta: 'DeepSeek', corta: 'DeepSeek', texto: 'text-sky-300' },
+  // Sin filtro (3 nov 2026): rojo, para que nunca se confunda con Claude.
+  { id: 'abliterated', etiqueta: 'DeepSeek abliterated · no es Claude', corta: 'Sin filtro', texto: 'text-rose-300' },
   // Catálogo de modelos (2 oct 2026): un espacio por modelo de OpenRouter.
   { id: 'gpt-luna', etiqueta: 'GPT-6 Luna', corta: 'Luna', texto: 'text-emerald-300' },
   { id: 'gpt-astra', etiqueta: 'GPT-6 Astra', corta: 'Astra', texto: 'text-emerald-300' },

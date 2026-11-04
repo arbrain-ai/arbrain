@@ -190,7 +190,7 @@ export function pasosDeLinea(harness: string, linea: string, n: { turno: number 
     if (d.arbrain === 'error') return [{ k: 'error', texto: str(d.mensaje) ?? 'error del pastor' }]
     return []
   }
-  if (harness === 'claude' || harness === 'qwen') return pasosClaude(d)
+  if (harness === 'claude' || harness === 'qwen' || harness === 'abliterated') return pasosClaude(d)
   if (harness === 'codex') return pasosCodex(d)
   if (harness === 'opencode') return pasosOpencode(d)
   // Cualquier otro CLI: lo que su adaptador ya sabe leer.

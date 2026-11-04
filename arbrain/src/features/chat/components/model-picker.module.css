@@ -70,6 +70,14 @@
   flex-shrink: 0; font-family: var(--font-jetbrains-mono), ui-monospace, monospace; font-size: 10.5px;
   font-variant-numeric: tabular-nums; color: color-mix(in srgb, var(--muted) 85%, transparent); text-align: right;
 }
+/* Sin filtro (3 nov 2026): rojo, para que nunca se confunda con Claude. Sin llave, deshabilitada con su motivo. */
+.noEsClaude {
+  margin-left: 6px; padding: 0 5px; border-radius: 999px; font-size: 10px; font-weight: 600; vertical-align: 1px;
+  color: var(--error); background: color-mix(in srgb, var(--error) 14%, transparent); border: 1px solid color-mix(in srgb, var(--error) 35%, transparent);
+}
+.fila[data-sin-filtro] .nombre { color: var(--error); }
+.fila:disabled { cursor: not-allowed; opacity: 0.55; }
+.fila:disabled .descripcion { white-space: normal; }
 .marca { width: 16px; flex-shrink: 0; display: inline-flex; justify-content: center; color: var(--brand-ink); }
 
 /* ── Pie ── */

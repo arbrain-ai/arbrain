@@ -35,7 +35,7 @@ import { Freno } from './freno.js'
 import { capa } from './herramientas.js'
 import { REGLA_INSISTENCIA } from './decisores/insistencia.js'
 import { elegirReceta, objetivoDelPedido } from './decisores/atajos.js'
-import { SesionWeb, ejecutarWeb, perfilDelPedido } from './web/herramientas-web.js'
+import { SesionWeb, apagarMarcoWeb, ejecutarWeb, perfilDelPedido, sostenerMarcoWeb } from './web/herramientas-web.js'
 import { dirWeb } from './web/puente.js'
 
 export const MODELO_SONNET = () => process.env.MANOS_CEREBRO_MODELO || 'claude-sonnet-5-5'
@@ -74,7 +74,8 @@ Reglas:
 - Observa → actúa por ref → vuelve a observar (solo_cambios) antes del siguiente ref. En páginas grandes usa consulta para filtrar. Si son varios controles estables de la misma lectura (botones de una calculadora, campos de un formulario), usa actuar_lote: una llamada en vez de una por paso.
 - Todo en segundo plano, con el Halo como tu cursor: el ratón y el teclado de ${DUENO} nunca se tocan. Si ${DUENO} dijo «quiero verte» o «muéstrame cómo», la ventana de trabajo pasa al frente sola al actuar y él ve moverse al Halo. Si dijo «ponme» o «muéstrame», al final usa mostrar (o web_mostrar) con la ventana o pestaña tuya.
 - Si un enlace lleva a un video, las manos lo silencian y pausan solas: confírmalo en el resultado (medios) y repórtalo.
-- El freno detiene lo irreversible (enviar, borrar, pagar, publicar, salir, descartar, datos sensibles). Solo puedes pasar confirmacion si es una cita LITERAL del pedido de ${DUENO} que lo pide explícitamente; si no, terminar con estado requiere_confirmacion y explica qué falta.
+- Autonomía (política firmada): lo reversible lo haces sin pedir permiso. Crear cuentas, llaves API y configuraciones en el servicio que ${DUENO} pidió (botones Create, Crear, Guardar, Generar…) es reversible: hazlo, el freno lo deja pasar sin cita y queda anotado. No te frenes tú antes que el freno.
+- El freno detiene lo irreversible (contactar personas, borrar, pagar, publicar, salir, descartar, datos sensibles). Solo puedes pasar confirmacion si es una cita LITERAL del pedido de ${DUENO} que lo pide explícitamente. Sin cita, el freno le manda a ${DUENO} una tarjeta (Sí · No · Otro) y espera su toque: si la aprueba, la acción sale y sigues; si no, termina con estado requiere_confirmacion y di qué espera su toque en la bandeja (nunca le pidas una frase exacta).
 - Si el pedido es ambiguo (no está claro qué, cuál o dónde) y no hay receta que lo cubra, llama escalar ANTES de actuar.
 - ${REGLA_INSISTENCIA}
 - Verifica el resultado con una lectura (URL, valor, estado) y pon esa evidencia en terminar. No inventes: si no lo comprobaste, es fallo.
@@ -264,6 +265,12 @@ export async function pedir(pedido: string, op: OpcionesPedir = {}): Promise<Res
     else if (!op.web) await s.canal.cerrar().catch(() => null)
   }
   const pestanasMostradas = new Set<number>()
+  // El marco y la franja en la pestaña propia mientras dure el pedido; «Detener» o «Tomar el control» en la franja lo cortan.
+  const parada = new AbortController()
+  const marcoWeb = web ? sostenerMarcoWeb(web) : null
+  if (marcoWeb) marcoWeb.alDetener = motivo => parada.abort(motivo)
+  if (op.senal) { if (op.senal.aborted) parada.abort(op.senal.reason); else op.senal.addEventListener('abort', () => parada.abort(op.senal!.reason), { once: true }) }
+  op = { ...op, senal: parada.signal }
   // Última observación por ventana: la usa el respaldo por coordenadas de un clic que no entra.
   const ultimas = new Map<number, Observacion>()
   const memoria = recordar(manos, ultimas)
@@ -308,6 +315,8 @@ export async function pedir(pedido: string, op: OpcionesPedir = {}): Promise<Res
   }
   // Lo que se ve al final (URL de la pestaña propia o captura de la última ventana), antes de cerrar nada.
   avisar('cierre', 'leyendo el estado final y cerrando lo propio')
+  marcoWeb?.parar()
+  if (web) await apagarMarcoWeb(web)
   const final: { url_final?: string; titulo_final?: string; captura?: string } = {}
   if (web && web.ultimaPestana != null) {
     const e = await conTope(web.canal.llamar<{ url: string; titulo: string }>('evaluar_estado', { pestana: web.ultimaPestana }), 3000).catch(() => null)

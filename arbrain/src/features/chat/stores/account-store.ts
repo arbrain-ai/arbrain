@@ -54,6 +54,7 @@ const ETIQUETAS_NEUTRAS: Record<string, string> = {
   codex: 'OpenAI · Codex',
   yt: 'OpenAI · segunda cuenta',
   deepseek: 'DeepSeek V4.1 Flash · OpenRouter (por API)',
+  abliterated: 'DeepSeek V4.1 Flash abliterated · sin filtro, no es Claude',
   crons: 'Sesiones de cron jobs y procesos de fondo',
 }
 const etiqueta = (id: string) => instalacion().etiquetasCuentasChat?.[id] ?? ETIQUETAS_NEUTRAS[id] ?? ''

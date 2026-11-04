@@ -103,6 +103,13 @@ case "movimiento":
     FileHandle.standardOutput.write(try! JSONSerialization.data(withJSONObject: salida))
     exit(0)
 
+case "testigo":
+    // Batería de UX (3 nov): testigo independiente de las manos que se miden. Lanzado con `open -n -g` desde una copia
+    // firmada (hereda Accesibilidad), anota a 50 Hz la app al frente, el foco de teclado (sistema), la ventana de arriba,
+    // el ratón real y las ventanas del Halo y del borde del proceso medido (`--sut <pid>`) tal como las ve el WindowServer,
+    // más cada activación de app. Solo lee. Sale sola a los `--max-s` segundos o al borrar su archivo de vida.
+    Testigo.correr(argumentos)
+
 case "simular-persona":
     // SOLO para la prueba en vivo de «una sola flecha» (scripts/prueba-flecha-unica.sh): mueve el ratón como lo haría
     // Daniel (evento SIN la marca de la mano) para comprobar que la flecha del sistema vuelve sola.

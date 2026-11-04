@@ -32,6 +32,8 @@ import { registrarTurno, type UsoLlamada } from './cabina/contexto.js'
 import { ClaudeExecutionUncertain, ClaudeSubmissionCancelled, confirmClaudeSubscription, type ClaudeBackgroundEvent } from './chat-runtime/claude-session.js'
 import { validateClaudeSelection, claudeSelectionOptions, type ClaudeSelection } from './chat-runtime/claude-selection.js'
 import { CUENTA_ALTERNA_NO_DISPONIBLE, dirClaudeAlterna } from './cuentas-alternas.js'
+import { urlProxyAbliterated } from './chat-runtime/abliterated-proxy.js'
+import { CONFIG_ABLITERATED, ESPACIO_ABLITERATED, anotarUso, costoDeUso, destinoAbliterated, entornoAbliterated, esEspacioAbliterated } from './chat-runtime/abliterated-chat.js'
 
 /** Cola de aprobaciones (edición cliente): la conversación del turno, para que lo no contestado vuelva ahí. */
 const colaDe = (durable?: { scope: { owner: string; account: string; conversationId: string } }) =>
@@ -47,7 +49,8 @@ export type { Query, ModelInfo }
 // La carpeta es dato de la instalación (cuentas-alternas.ts); en la edición cliente la cuenta alterna no existe.
 const accountConfigDirs = (): Record<string, string> => {
   const bro = dirClaudeAlterna()
-  return bro ? { bro } : {}
+  // El espacio «abliterated» (chat-runtime/abliterated-chat.ts) también es solo de la instalación original.
+  return bro ? { bro, [ESPACIO_ABLITERATED]: CONFIG_ABLITERATED } : {}
 }
 
 /** Config dir de la cuenta alterna, o undefined = cuenta principal
@@ -401,6 +404,9 @@ export function mensajeDeTurnoMuerto(errText: string | undefined, subtype: strin
   if (errText && /\[ede_diagnostic\][^\n]*stop_reason=tool_use/.test(errText)) {
     return 'El turno se cortó a media herramienta (el proceso del agente se detuvo antes de recibir el resultado). Lo hecho hasta aquí quedó en disco; escribe «sigue» y Levy continúa desde donde quedó.'
   }
+  if (errText && /more images than the limit/i.test(errText)) {
+    return 'Este modelo acepta máximo 4 imágenes por conversación y esta ya tiene más (capturas de pantalla incluidas). Abre un chat nuevo y pega ahí lo que necesitas; esta conversación ya no puede seguir con este modelo.'
+  }
   return errText ? `El turno murió del lado del agente: ${errText}` : `El turno terminó sin respuesta (${subtype ?? 'error'}).`
 }
 
@@ -470,6 +476,16 @@ export async function* runAgentStream(
   }
   if (accountConfigDir) queryEnv.CLAUDE_CONFIG_DIR = accountConfigDir
   else delete queryEnv.CLAUDE_CONFIG_DIR
+  // Espacio «abliterated»: su endpoint, su token y su carpeta; ninguna credencial de Anthropic (lanza si falta la llave).
+  const abliterated = esEspacioAbliterated(account) ? destinoAbliterated() : null
+  if (abliterated) {
+    if (!accountConfigDir) throw new Error(CUENTA_ALTERNA_NO_DISPONIBLE)
+    const solo = entornoAbliterated(queryEnv, abliterated)
+    // abliteration.ai rechaza requests con más de 4 imágenes: el CLI pasa por un proxy local que deja las 4 recientes.
+    if (abliterated.destino === 'abliteration.ai') solo.ANTHROPIC_BASE_URL = await urlProxyAbliterated(abliterated.baseUrl)
+    for (const k of Object.keys(queryEnv)) delete queryEnv[k]
+    Object.assign(queryEnv, solo)
+  }
 
   // Link external signal to our abort controller
   const externalAbort = () => ac.abort()
@@ -742,8 +758,14 @@ export async function* runAgentStream(
     // Motor «Mi Claude Code»: la sesión del pool ya confirma la suscripción antes de enviar; la vía directa corta el
     // turno si el CLI no corre con la cuenta de Claude de la persona (nunca se cobra por API en silencio).
     if (stream && !pooled && motorSuscripcion()) await confirmClaudeSubscription(() => stream.accountInfo())
-    if (frozenSelection && stream) {
-      await validateClaudeSelection(PROJECT_ROOT, durable!.scope.account, frozenSelection, stream)
+    // El catálogo de un endpoint que no es Anthropic no anuncia su modelo: la selección del espacio abliterated es fija.
+    if (frozenSelection && stream && !abliterated) {
+      // Un proceso del pool que no contesta el catálogo está colgado (3 nov 2026): se cierra para que el siguiente
+      // intento nazca limpio y retome la sesión nativa, en vez de chocar otra vez con el mismo proceso.
+      await validateClaudeSelection(PROJECT_ROOT, durable!.scope.account, frozenSelection, stream).catch((err: unknown) => {
+        if (pooled && err instanceof Error && err.message.includes('preflight timed out')) pooled.session.close()
+        throw err
+      })
       if (ac.signal.aborted) throw new ClaudeSubmissionCancelled('Abortado antes de enviar.')
     }
     if (pooled) {
@@ -1184,7 +1206,9 @@ export async function* runAgentStream(
           // llegara a lanzar, el bloque post-loop emite el error explícito.
           // Edición cliente (A/B ronda 2): un 402 o «Credit balance is too low» puede llegar solo en `result`, con
           // `errors` vacío; sin él, el chat no podía reconocer «sin crédito» y ofrecer recargar. Daniel: sin cambio.
-          const textoResult = esEdicionCliente() && !sdkErrors.length && typeof e['result'] === 'string' ? String(e['result']).slice(0, 2000) : ''
+          // 3 nov: también en la instalación original. Un 400 del endpoint (p. ej. abliteration.ai: «more images than
+          // the limit of 4») llega solo aquí, y sin el texto el chat decía «sin respuesta (success)».
+          const textoResult = !sdkErrors.length && typeof e['result'] === 'string' ? String(e['result']).slice(0, 2000) : ''
           errorResult = { subtype, errText: sdkErrors.length ? sdkErrors.join(' | ') : textoResult }
           logger.warn({ subtype, errors: sdkErrors, account }, 'result con is_error — no se emite como respuesta')
           continue
@@ -1205,11 +1229,15 @@ export async function* runAgentStream(
         // Unknown context stays unknown; enabling a beta is not a measurement.
 
         // Extract usage data from result message
-        const accounting = e['arbrainUsage'] as { estimatedCostUsd: number; cumulativeEstimatedCostUsd: number; inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheWriteTokens: number; scope: string; kind: string } | undefined
-        const costUsd = accounting?.estimatedCostUsd ?? (e['total_cost_usd'] as number) ?? 0
         const usage = (e['usage'] as Record<string, number>) ?? {}
         const durationMs = (e['duration_ms'] as number) ?? 0
         const numTurns = (e['num_turns'] as number) ?? 0
+        // Espacio «abliterated»: el costo del CLI usa precios de Anthropic y la contabilidad del pool es de suscripción;
+        // aquí manda la tarifa de abliteration.ai, y cada turno queda en store/abliterated-uso.jsonl.
+        const usoAbliterated = abliterated ? costoDeUso(usage) : null
+        if (usoAbliterated) anotarUso(STORE_DIR, { ...usoAbliterated, destino: abliterated!.destino, modelo: turnResolvedModelId ?? abliterated!.modelo, sesion: streamSessionId, duracionMs: durationMs, llamadas: numTurns })
+        const accounting = usoAbliterated ? undefined : e['arbrainUsage'] as { estimatedCostUsd: number; cumulativeEstimatedCostUsd: number; inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheWriteTokens: number; scope: string; kind: string } | undefined
+        const costUsd = usoAbliterated?.costoUsd ?? accounting?.estimatedCostUsd ?? (e['total_cost_usd'] as number) ?? 0
 
         // Use last assistant message's total context as real context size
         if (lastTurnInputTokens != null) {
@@ -1390,6 +1418,8 @@ export async function runAgent(
   onTyping?: () => void,
   source: OpsSource = 'web',
   timeoutMs?: number,
+  /** Loops de negocio (cliente/loops.ts): el modelo y el esfuerzo que el dueño ve en su chip. Solo en crons. */
+  cronOpciones?: { model?: string; effort?: EffortLevel },
 ): Promise<AgentResult> {
   let resultText: string | null = null
   let newSessionId: string | undefined
@@ -1470,6 +1500,9 @@ export async function runAgent(
         ],
         // Sin `model`: los crons corren SIEMPRE en el default del sistema, NO en el
         // override que Daniel eligió en el chat (aislamiento cron↔chat, ver arriba).
+        // Salvo un loop de negocio: su plantilla fija modelo y esfuerzo (lo que el dueño ve es lo que corre).
+        ...(isCron && cronOpciones?.model ? { model: cronOpciones.model } : {}),
+        ...(isCron && cronOpciones?.effort ? { effort: cronOpciones.effort } : {}),
       },
     })
 

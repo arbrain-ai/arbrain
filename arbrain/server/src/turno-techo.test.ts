@@ -15,4 +15,9 @@ describe('techo del turno de chat (incidente 30 sep: rediseño muerto a los 30:0
     expect(mensajeDeTurnoMuerto(undefined, undefined, true)).toContain('techo de tiempo configurado')
     expect(mensajeDeTurnoMuerto('otro error', undefined, false)).toContain('otro error')
   })
+  it('el tope de 4 imágenes de abliteration.ai se explica, no sale como «sin respuesta» (3 nov)', () => {
+    const m = mensajeDeTurnoMuerto('API Error: 400 This request has more images than the limit of 4. Send fewer images and try again.', 'success', false)
+    expect(m).toContain('chat nuevo')
+    expect(m).not.toContain('sin respuesta')
+  })
 })

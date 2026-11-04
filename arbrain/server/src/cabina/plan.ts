@@ -24,6 +24,7 @@ import { join, relative, resolve, sep } from 'node:path'
 import { promisify } from 'node:util'
 import { repoPrincipal } from './aislamiento.js'
 import { esPerfil, type Perfil } from './perfiles.js'
+import { adaptador } from './harness/index.js'
 
 const run = promisify(execFile)
 export const DIR_PLANES = 'docs/planes'
@@ -174,7 +175,7 @@ export function planesPendientes(usados: Set<string>, o: { repo?: string; max?: 
     try { plan = leerPlan(readFileSync(join(dir, f), 'utf8'), rel) } catch { /* ilegible: no es plan */ }
     if (!plan || plan.descartado) continue
     const primera = plan.encargo.split('\n').map(l => l.replace(/^[#>*\s-]+/, '').trim()).find(Boolean) ?? ''
-    fuera.push({ ruta: rel, abs: join(repo, rel), nombre: plan.nombre, harness: plan.harness, perfil: plan.perfil ?? 'total', propuesto: plan.propuesto ?? null, resumen: primera.slice(0, 160) })
+    fuera.push({ ruta: rel, abs: join(repo, rel), nombre: plan.nombre, harness: plan.harness, perfil: plan.perfil ?? adaptador(plan.harness)?.perfilDefault ?? 'total', propuesto: plan.propuesto ?? null, resumen: primera.slice(0, 160) })
     if (fuera.length >= (o.max ?? 12)) break
   }
   return fuera
