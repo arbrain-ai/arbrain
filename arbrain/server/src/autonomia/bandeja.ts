@@ -274,6 +274,13 @@ export async function rutasBandeja(metodo: string, ruta: string, cuerpo: Record<
       d.enviar(200, store.encolar(id!) ?? c)
       return true
     }
+    if (metodo === 'POST' && ruta === '/confirmaciones/caducar') {
+      // 4 nov 2026: el encargo que las pidió terminó y sus tarjetas sin contestar salen de la bandeja. Solo las de manos;
+      // caducar nunca aprueba nada (lo que no se aprobó no corre).
+      const ids = (Array.isArray(cuerpo.ids) ? cuerpo.ids : []).filter((x): x is string => typeof x === 'string' && /^cf_[0-9a-f]{12}$/.test(x)).slice(0, 20)
+      d.enviar(200, { caducadas: ids.map(id => store.caducar(id)?.id).filter(Boolean) })
+      return true
+    }
     const mc = ruta.match(/^\/confirmaciones\/(cf_[0-9a-f]{12})$/)
     if (metodo === 'GET' && mc) { const v = vistaParaPase(store.get(mc[1])); d.enviar(v ? 200 : 404, v ?? { error: 'No existe esa confirmación.' }); return true }
     if (metodo === 'GET' && ruta === '/confirmaciones') { d.enviar(200, { pendientes: store.pendientes(), terminadas: store.terminadas() }); return true }

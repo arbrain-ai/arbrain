@@ -4,6 +4,24 @@ Cada versión dice qué trae y qué tienes que hacer tú. Para actualizar, abre 
 «jala los últimos cambios». Las versiones siguen `MAYOR.MENOR.PARCHE`: un cambio en MENOR trae funciones
 nuevas; uno en PARCHE, arreglos.
 
+## v0.2.23 · 4 nov 2026 · El modelo sin filtro y la skill de animación
+
+**Qué trae**
+- **El modelo sin filtro, con tu propia llave.** En el selector de modelo aparece **DeepSeek V4.1 Flash · abliterated**:
+  un modelo abierto que no se niega a responder, con tu mismo cerebro y tus herramientas, en una conversación aparte.
+  No es Claude y lo pagas tú por uso en abliteration.ai. Los frenos de tu Arbrain siguen (permisos, la pregunta antes de
+  mandar mensajes, borrar o publicar, y nada de dinero).
+- **Manual paso a paso** en Ajustes › **Sin filtro**: crear tu cuenta en abliteration.ai, sacar tu llave, pegarla y
+  elegir el modelo. Levy también lo tiene (dile «quiero conectar el modelo sin filtro»).
+- **Un aviso más limpio.** Ya no hay franja roja arriba del chat: mientras estés en sin filtro, el selector de modelo
+  es una píldora roja.
+- **Skill nueva: `code-animation`.** Animaciones y videos hechos con código (imagen, música y efectos en la misma línea
+  de tiempo) y HTML vivos que se tocan. Pídele a Levy «haz una animación de…» o «sorpréndeme».
+- **La biblioteca sale de la app.** El botón de libro y los cuatro libros dejan de viajar dentro de tu copia.
+
+**Qué tienes que hacer**
+- Actualizar («jala los últimos cambios»). Si quieres el modelo sin filtro, abre Ajustes › Sin filtro y sigue los pasos.
+
 ## v0.2.22 · 4 nov 2026 · Las portadas de los libros
 
 **Qué trae**

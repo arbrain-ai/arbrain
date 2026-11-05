@@ -98,7 +98,7 @@ const sesionIframe = async () => {
   return (await cdp('Target.attachToTarget', { targetId: t.targetId, flatten: true })).sessionId
 }
 const botonEscuchar = `document.querySelector('[aria-label="Escuchar documento"],[aria-label="Detener lectura"]')`
-const estado = () => ev(`(()=>{const s=__motor.getState();return JSON.stringify({id:s.id,paused:s.paused,rate:s.rate,idx:s.idx,total:s.total})})()`).then(JSON.parse)
+const estado = () => ev(`(()=>{const s=__motor.getState();return JSON.stringify({id:s.id,paused:s.paused,rate:s.rate,idx:s.idx,total:s.total,siguiendo:s.siguiendo})})()`).then(JSON.parse)
 const palabra = sid => ev(`(()=>{const h=CSS.highlights.get('arbrain-lector');if(!h)return null;const r=[...h][0];return r?r.toString():null})()`, sid)
 const palabraLocal = () => ev(`(()=>{const h=CSS.highlights.get('arbrain-lector');if(!h)return null;const r=[...h][0];return r?r.toString():null})()`)
 
@@ -224,6 +224,28 @@ for (const [doc, etiqueta, esperaBloques] of [
   assert.equal(despues.idx, destino, 'tocar un párrafo salta exactamente ahí')
   assert.ok(await palabra(sid), 'tras el salto hay palabra resaltada')
   await foto(`${etiqueta}-salto.png`)
+
+  // La mano manda (4 nov 2026, «hago scroll y me regresa arriba»): rueda REAL dentro del documento mientras suena; la
+  // voz sigue avanzando y el documento se queda donde la mano lo dejó; «Seguir» lo regresa al párrafo que suena.
+  const yDoc = () => ev(`Math.round((document.scrollingElement||document.documentElement).scrollTop)`, sid).then(Number)
+  const conMano = await yDoc()
+  for (let k = 0; k < 6; k++) { await cdp('Input.dispatchMouseEvent', { type: 'mouseWheel', x, y, deltaX: 0, deltaY: -500 }); await dormir(40) }
+  await dormir(800)
+  const soltado = await yDoc()
+  assert.ok(soltado < conMano - 300, `la rueda subió el documento (${conMano} → ${soltado})`)
+  const idxMano = (await estado()).idx
+  for (let i = 0; i < 100 && (await estado()).idx === idxMano; i++) await dormir(100)
+  await dormir(600)
+  const tras = await yDoc()
+  log('mano: documento en', soltado, '· la voz pasó del bloque', idxMano + 1, 'al', (await estado()).idx + 1, '· documento en', tras)
+  assert.ok((await estado()).idx > idxMano, 'la voz siguió avanzando')
+  assert.ok(Math.abs(tras - soltado) <= 4, `nada regresa el documento tras la mano (${soltado} → ${tras})`)
+  assert.equal((await estado()).siguiendo, false, 'el motor sabe que la mano lo soltó')
+  assert.ok(await ev(`!!document.querySelector('[aria-label="Lectura del documento"] [data-lector-seguir]')`), 'la barra ofrece «Seguir»')
+  await foto(`${etiqueta}-mano.png`)
+  await ev(`document.querySelector('[aria-label="Lectura del documento"] [data-lector-seguir]').click()`); await dormir(900)
+  assert.ok(Math.abs((await yDoc()) - soltado) > 100, '«Seguir» regresa el documento al párrafo que suena')
+  assert.equal(await ev(`!!document.querySelector('[aria-label="Lectura del documento"] [data-lector-seguir]')`), false, 'y el botón se va')
 
   // Hilo principal: ninguna tarea larga (>200 ms) por la extracción ni por la lectura.
   const largas = [...JSON.parse(await ev(`JSON.stringify(__lt)`)), ...JSON.parse(await ev(`JSON.stringify(__lt)`, sid))]

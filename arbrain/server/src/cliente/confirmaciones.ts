@@ -267,6 +267,20 @@ export class Confirmaciones {
     return this.aLaCola(id) ?? this.get(id)
   }
 
+  /**
+   * El encargo de manos que pidió esta tarjeta terminó (4 nov 2026): nadie va a repetir esa acción, así que sale de la
+   * bandeja (vencida) en vez de quedarse colgada en la cola una semana. Solo las de manos que nadie contestó; una que la
+   * persona ya aprobó o rechazó no se toca.
+   */
+  caducar(id: string): Confirmacion | null {
+    const ahora = this.ahora()
+    const ok = this.db.prepare(`UPDATE confirmaciones SET estado = 'vencida', resuelta = ?, expira = ? WHERE id = ? AND origen = 'manos' AND estado IN ('pendiente','en_cola')`).run(ahora, ahora, id).changes === 1
+    if (!ok) return null
+    const c = this.get(id)!
+    this.avisar('resuelta', c)
+    return c
+  }
+
   /** «Córrelo tú» que sigue corriendo cuando el turno se cansó de esperar: al terminar, su salida va al agente. */
   sinEspera(id: string): void {
     this.db.prepare(`UPDATE confirmaciones SET cola = ? WHERE id = ? AND estado = 'corriendo'`).run(this.ahora(), id)

@@ -38,6 +38,7 @@ El texto de cada enlace es el título del manual: así se lo nombras al dueño (
 | Que Levy use el navegador o la computadora (computer use) | [Que Levy use tu computadora](computer-use.md) | navegador y escritorio (también la app Arbrain) | navegador y escritorio (también la app Arbrain) | navegador; escritorio solo con piezas de la comunidad |
 | Modo monje opcional (rutina, hábitos, lo que hay que dejar) | [Modo monje](modo-monje.md) | sí | sí | sí |
 | Rutinas: que Levy haga algo solo a una hora («cada mañana a las 7 resúmeme mi día») | [Tus rutinas](rutinas.md) | sí | sí | sí |
+| Conectar el modelo sin filtro (DeepSeek abliterated) con su llave de abliteration.ai | [El modelo sin filtro](sin-filtro.md) | sí | sí | sí |
 | Cambiar el mentor o el tono de Levy, o regresar al de fábrica | [Tu estratega](estratega.md) | sí | sí | sí |
 | Que Levy lo conozca: su retrato, sembrado con su expediente | [Tu retrato](retrato.md) | sí | sí | sí |
 | Cómo recuerda Levy: qué se carga siempre, qué llega a demanda y cómo se mantiene corta | [Tu memoria](memoria.md) | sí | sí | sí |

@@ -145,7 +145,9 @@ export class ClaudeInteractiveSession {
     // Espacio «abliterated» (3 nov 2026): el mismo CLI contra un endpoint que no es Anthropic, con su carpeta y su token;
     // sin suscripción que confirmar (no es Claude) y sin ninguna credencial de Anthropic en su entorno.
     if (scope.account === ESPACIO_ABLITERATED) {
-      this.query = create({ prompt: this.input, options: { ...options, env: entornoAbliterated(base) } })
+      // El proxy local de imágenes que armó agent.ts se conserva (antes esta línea lo pisaba con el endpoint real y una
+      // conversación del pool volvía a morir con la quinta captura).
+      this.query = create({ prompt: this.input, options: { ...options, env: entornoAbliterated(base, undefined, options.env?.ANTHROPIC_BASE_URL) } })
       this.initialization = Promise.resolve()
       this.drained = this.read()
       return

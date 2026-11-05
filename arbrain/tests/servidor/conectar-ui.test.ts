@@ -35,7 +35,7 @@ test('hoja de instalación: pasos en español por teléfono', () => {
 test('cableado: Ajustes › Teléfono y Máquinas, la ruta en la lista blanca, iconos de lucide', () => {
   const sec = readFileSync(join(raiz, 'src/features/configuracion/secciones.ts'), 'utf8')
   assert.match(sec, /id: 'maquinas', nombre: 'Máquinas'/)
-  assert.match(sec, /secciones: \['llaves', 'voz', 'telefono', 'maquinas'/)
+  assert.match(sec, /secciones: \['llaves', 'voz', 'sinfiltro', 'telefono', 'maquinas'/)
   assert.match(readFileSync(join(raiz, 'src/lib/edicion.ts'), 'utf8'), /'\/api\/conectar'/)
   const tarjeta = readFileSync(join(raiz, 'src/features/telefono/TarjetaConectar.tsx'), 'utf8')
   for (const t of ['Cerrar sesión en todos los teléfonos', 'Dirección privada', 'Copiar', 'Abrir', 'Escanéalo con tu teléfono']) assert.ok(tarjeta.includes(t), t)

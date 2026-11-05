@@ -3,7 +3,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import type { query, Query } from '@anthropic-ai/claude-agent-sdk'
-import { anotarUso, CONFIG_ABLITERATED, costoDeUso, destinoAbliterated, entornoAbliterated, motivoNoDisponible, resumenUso } from './abliterated-chat.js'
+import { anotarUso, CONFIG_ABLITERATED, configAbliterated, costoDeUso, destinoAbliterated, entornoAbliterated, motivoNoDisponible, resumenUso } from './abliterated-chat.js'
+import { entornoClaude, fijarSecreto, llavesByok, parsearSecretos, vaciarCofreParaPruebas } from '../cliente/cofre.js'
 import { ClaudeInteractiveSession } from './claude-session.js'
 import { seleccionAbliterated } from './claude-selection.js'
 import { catalogoPublico, ID_ABLITERATED } from '../modelos/catalogo.js'
@@ -24,11 +25,39 @@ describe('espacio abliterated: destino y llave', () => {
     expect(motivoNoDisponible(d, false)).toMatch(/ABLITERATED_API_KEY/)
     expect(destinoAbliterated({}, { ABLITERATED_BASE_URL: 'https://pod.example:8000', ABLITERATED_API_KEY: 'llave-pod' }, sinLlave).token).toBe('llave-pod')
   })
-  it('sin llave no está disponible y dice dónde ponerla; en la edición del alumno nunca', () => {
+  it('sin llave no está disponible y dice dónde ponerla', () => {
     const d = destinoAbliterated({}, {}, sinLlave)
     expect(motivoNoDisponible(d, false)).toMatch(/ABLITERATION_AI_API_KEY.*abliteration\.key/)
     expect(motivoNoDisponible({ ...d, token: 'x' }, false)).toBeNull()
-    expect(motivoNoDisponible({ ...d, token: 'x' }, true)).toMatch(/instalación original/)
+  })
+})
+
+describe('espacio abliterated: edición del alumno (v0.2.23, su propia llave)', () => {
+  it('solo abliteration.ai con la llave de SU cofre: ni pod, ni .env, ni archivo de llaves', () => {
+    vaciarCofreParaPruebas()
+    try {
+      const pod = { ABLITERATED_BASE_URL: 'https://pod.example:8000', ABLITERATED_API_KEY: 'llave-pod', ABLITERATION_AI_API_KEY: 'llave-env' }
+      const sin = destinoAbliterated(pod, pod, conLlave, true)
+      expect(sin).toMatchObject({ destino: 'abliteration.ai', baseUrl: 'https://api.abliteration.ai', modelo: 'abliterated-model-large-flash', token: null })
+      expect(motivoNoDisponible(sin, true)).toMatch(/Ajustes › Sin filtro/)
+      fijarSecreto('ABLITERATION_AI_API_KEY', 'llave-alumno')
+      const con = destinoAbliterated(pod, pod, conLlave, true)
+      expect(con.token).toBe('llave-alumno')
+      expect(motivoNoDisponible(con, true)).toBeNull()
+    } finally { vaciarCofreParaPruebas() }
+  })
+  it('su llave entra al cofre, nunca cuenta como llave del chat y nunca llega al CLI de Claude', () => {
+    vaciarCofreParaPruebas()
+    try {
+      expect(parsearSecretos(JSON.stringify({ ABLITERATION_AI_API_KEY: ' abl-123 ' }))).toEqual({ ABLITERATION_AI_API_KEY: 'abl-123' })
+      fijarSecreto('ABLITERATION_AI_API_KEY', 'abl-123')
+      expect(llavesByok()).not.toHaveProperty('ABLITERATION_AI_API_KEY')
+      expect(entornoClaude({ PATH: '/bin', ABLITERATION_AI_API_KEY: 'abl-123' }, true)).not.toHaveProperty('ABLITERATION_AI_API_KEY')
+    } finally { vaciarCofreParaPruebas() }
+  })
+  it('su carpeta de Claude Code vive dentro de los datos de su Arbrain', () => {
+    expect(configAbliterated(true, { ARBRAIN_DATA_DIR: '/datos/daemon' })).toBe('/datos/daemon/claude-abliterated')
+    expect(configAbliterated(false, { ARBRAIN_DATA_DIR: '/datos/daemon' })).toBe(CONFIG_ABLITERATED)
   })
 })
 
@@ -39,6 +68,11 @@ describe('espacio abliterated: entorno del CLI', () => {
     expect(env).toMatchObject({ PATH: '/bin', ANTHROPIC_AUTH_TOKEN: 'tok', ANTHROPIC_BASE_URL: 'https://api.abliteration.ai', CLAUDE_CONFIG_DIR: CONFIG_ABLITERATED, ANTHROPIC_MODEL: d.modelo, ANTHROPIC_DEFAULT_HAIKU_MODEL: d.modelo, CLAUDE_CODE_SUBAGENT_MODEL: d.modelo, CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1' })
     expect(env.ANTHROPIC_API_KEY).toBeUndefined()
     expect(env.CLAUDE_CODE_USE_BEDROCK).toBeUndefined()
+  })
+  it('conserva el proxy local de imágenes (solo loopback); cualquier otro destino se ignora', () => {
+    expect(entornoAbliterated({ PATH: '/bin' }, d, 'http://127.0.0.1:51234').ANTHROPIC_BASE_URL).toBe('http://127.0.0.1:51234')
+    expect(entornoAbliterated({ PATH: '/bin' }, d, 'https://evil.example').ANTHROPIC_BASE_URL).toBe('https://api.abliteration.ai')
+    expect(entornoAbliterated({ PATH: '/bin' }, d, 'https://api.anthropic.com').ANTHROPIC_BASE_URL).toBe('https://api.abliteration.ai')
   })
   it('sin token lanza: nunca se cae a otra cuenta', () => {
     expect(() => entornoAbliterated({}, { ...d, token: null })).toThrow(/no está disponible/)
@@ -79,10 +113,11 @@ describe('espacio abliterated: selección, catálogo y espacios', () => {
     const con = catalogoPublico({ ...base, cliente: false, abliterated: { modelo: 'm', motivo: null } }).modelos.find(m => m.id === ID_ABLITERATED)!
     expect(con).toMatchObject({ habilitado: true, disponible: true, motivo: null, modelo: 'm' })
   })
-  it('en la edición del alumno no existe: ni en el catálogo ni como espacio', () => {
-    expect(catalogoPublico({ ...base, cliente: true, abliterated: { modelo: 'm', motivo: null } }).modelos.some(m => m.via === 'abliterated')).toBe(false)
+  it('en la edición del alumno existe (v0.2.23): en el catálogo y como espacio; sin llave, deshabilitado con el motivo', () => {
+    const fila = catalogoPublico({ ...base, cliente: true, abliterated: { modelo: 'm', motivo: 'Pon tu llave de abliteration.ai en Ajustes › Sin filtro.' } }).modelos.find(m => m.via === 'abliterated')
+    expect(fila).toMatchObject({ disponible: false, habilitado: true, cuenta: 'abliterated' })
     vi.stubEnv('ARBRAIN_EDICION', 'cliente')
-    try { expect(cuentasChat()).not.toContain('abliterated') } finally { vi.unstubAllEnvs() }
+    try { expect(cuentasChat()).toContain('abliterated') } finally { vi.unstubAllEnvs() }
     expect(cuentasChat()).toContain('abliterated')
   })
 })

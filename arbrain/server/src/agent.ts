@@ -33,7 +33,7 @@ import { ClaudeExecutionUncertain, ClaudeSubmissionCancelled, confirmClaudeSubsc
 import { validateClaudeSelection, claudeSelectionOptions, type ClaudeSelection } from './chat-runtime/claude-selection.js'
 import { CUENTA_ALTERNA_NO_DISPONIBLE, dirClaudeAlterna } from './cuentas-alternas.js'
 import { urlProxyAbliterated } from './chat-runtime/abliterated-proxy.js'
-import { CONFIG_ABLITERATED, ESPACIO_ABLITERATED, anotarUso, costoDeUso, destinoAbliterated, entornoAbliterated, esEspacioAbliterated } from './chat-runtime/abliterated-chat.js'
+import { ESPACIO_ABLITERATED, configAbliterated, anotarUso, costoDeUso, destinoAbliterated, entornoAbliterated, esEspacioAbliterated } from './chat-runtime/abliterated-chat.js'
 
 /** Cola de aprobaciones (edición cliente): la conversación del turno, para que lo no contestado vuelva ahí. */
 const colaDe = (durable?: { scope: { owner: string; account: string; conversationId: string } }) =>
@@ -49,8 +49,9 @@ export type { Query, ModelInfo }
 // La carpeta es dato de la instalación (cuentas-alternas.ts); en la edición cliente la cuenta alterna no existe.
 const accountConfigDirs = (): Record<string, string> => {
   const bro = dirClaudeAlterna()
-  // El espacio «abliterated» (chat-runtime/abliterated-chat.ts) también es solo de la instalación original.
-  return bro ? { bro, [ESPACIO_ABLITERATED]: CONFIG_ABLITERATED } : {}
+  // El espacio «abliterated» (chat-runtime/abliterated-chat.ts): en la instalación original y, desde v0.2.23, en la del
+  // alumno con su propia llave y su carpeta dentro de sus datos (configAbliterated).
+  return { ...(bro && { bro }), [ESPACIO_ABLITERATED]: configAbliterated() }
 }
 
 /** Config dir de la cuenta alterna, o undefined = cuenta principal
@@ -487,9 +488,9 @@ export async function* runAgentStream(
   const abliterated = esEspacioAbliterated(account) ? destinoAbliterated() : null
   if (abliterated) {
     if (!accountConfigDir) throw new Error(CUENTA_ALTERNA_NO_DISPONIBLE)
-    const solo = entornoAbliterated(queryEnv, abliterated)
     // abliteration.ai rechaza requests con más de 4 imágenes: el CLI pasa por un proxy local que deja las 4 recientes.
-    if (abliterated.destino === 'abliteration.ai') solo.ANTHROPIC_BASE_URL = await urlProxyAbliterated(abliterated.baseUrl)
+    const proxy = abliterated.destino === 'abliteration.ai' ? await urlProxyAbliterated(abliterated.baseUrl) : undefined
+    const solo = entornoAbliterated(queryEnv, abliterated, proxy)
     for (const k of Object.keys(queryEnv)) delete queryEnv[k]
     Object.assign(queryEnv, solo)
   }
@@ -764,7 +765,8 @@ export async function* runAgentStream(
     releaseTurn = pooled?.release
     // Motor «Mi Claude Code»: la sesión del pool ya confirma la suscripción antes de enviar; la vía directa corta el
     // turno si el CLI no corre con la cuenta de Claude de la persona (nunca se cobra por API en silencio).
-    if (stream && !pooled && motorSuscripcion()) await confirmClaudeSubscription(() => stream.accountInfo())
+    // El espacio sin filtro no es Claude: no hay suscripción que confirmar.
+    if (stream && !pooled && !abliterated && motorSuscripcion()) await confirmClaudeSubscription(() => stream.accountInfo())
     // El catálogo de un endpoint que no es Anthropic no anuncia su modelo: la selección del espacio abliterated es fija.
     if (frozenSelection && stream && !abliterated) {
       // Un proceso del pool que no contesta el catálogo está colgado (3 nov 2026): se cierra para que el siguiente

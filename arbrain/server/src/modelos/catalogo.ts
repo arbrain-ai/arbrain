@@ -169,10 +169,10 @@ export function catalogoPublico(env: EntornoCatalogo) {
   const llave = env.llave ?? (!!p && llavePresente(p))
   const or = env.openrouter.modelos
   const cliente = env.cliente ?? esEdicionCliente()
-  // En la edición del alumno el espacio abliterated no existe (hasta que Daniel decida).
-  const modelos: ModeloPublico[] = CATALOGO.filter(e => !(cliente && e.via === 'abliterated')).map(e => {
+  // Sin filtro: en las dos ediciones desde v0.2.23 (el alumno con su llave; sin ella, deshabilitado con el motivo).
+  const modelos: ModeloPublico[] = CATALOGO.map(e => {
     if (e.via === 'abliterated') {
-      const d = env.abliterated ?? (() => { const x = destinoAbliterated(); return { modelo: x.modelo, motivo: motivoNoDisponible(x) } })()
+      const d = env.abliterated ?? (() => { const x = destinoAbliterated(process.env, undefined, undefined, cliente); return { modelo: x.modelo, motivo: motivoNoDisponible(x, cliente) } })()
       const { entrada, salida } = TARIFA_ABLITERATED
       // Sin interruptor: siempre a la vista; sin llave, deshabilitada con su motivo.
       return { id: e.id, nombre: e.nombre, laboratorio: e.laboratorio, descripcion: e.descripcion, puesto: e.puesto, via: e.via,

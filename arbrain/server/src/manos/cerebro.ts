@@ -37,6 +37,7 @@ import { REGLA_INSISTENCIA } from './decisores/insistencia.js'
 import { elegirReceta, objetivoDelPedido } from './decisores/atajos.js'
 import { SesionWeb, apagarMarcoWeb, ejecutarWeb, perfilDelPedido, sostenerMarcoWeb } from './web/herramientas-web.js'
 import { dirWeb } from './web/puente.js'
+import { correrRecetaWeb, recetaWebDelPedido } from './web/recetas-web.js'
 
 export const MODELO_SONNET = () => process.env.MANOS_CEREBRO_MODELO || 'claude-sonnet-5-5'
 export const MODELO_OPUS = () => process.env.MANOS_CEREBRO_ESCALA || 'claude-opus-5-5'
@@ -259,6 +260,8 @@ export async function pedir(pedido: string, op: OpcionesPedir = {}): Promise<Res
   let web: SesionWeb | null = null
   if (op.web !== null) {
     const s = op.web ? op.web() : new SesionWeb()
+    // La ventana que cree web_abrir queda adoptada por el freno de estas manos (un clic nativo ahí no es «pestaña de Daniel»).
+    s.manos ??= manos
     const perfil = (op.perfil ?? '').trim().toLowerCase() || perfilDelPedido(`${pedido} ${op.cita ?? ''}`)
     if (perfil) s.perfil = perfil
     if (await webViva(s)) web = s
@@ -281,14 +284,26 @@ export async function pedir(pedido: string, op: OpcionesPedir = {}): Promise<Res
   const inicial = op.modelo ? { modelo: op.modelo } : modeloInicial(`${pedido} ${op.cita ?? ''}`)
   let modelo = inicial.modelo
   let escalado: ResultadoPedido['escalado'] = inicial.motivo ? { de: MODELO_SONNET(), a: modelo, motivo: inicial.motivo } : undefined
+  // Receta web sin modelo (4 nov 2026): un pedido que una receta web cubre entero (el borrador de Skool) corre en segundos.
+  // Si falla, el modelo retoma desde la pestaña donde quedó.
+  let recetaWeb = false
+  const rw = web && !op.sinRecetas ? recetaWebDelPedido(pedido) : null
+  if (web && rw) {
+    avisar('receta', `receta web «${rw.nombre}»`)
+    const r = await correrRecetaWeb(rw.nombre, rw.parametros, web, { bitacora: { paso: p => registro.paso({ ...p, decidio: p.decidio ?? 'receta-web' }) }, quien: 'receta-web', pedido: autoridad, senal: op.senal })
+    log(`▶ receta web «${rw.nombre}» → ${r.estado} en ${r.ms} ms`)
+    intentos.push({ modelo: 'receta', estado: r.estado, detalle: r.estado === 'hecho' ? `${r.detalle} (receta ${rw.nombre}, sin modelo)` : `receta web ${rw.nombre}: ${r.detalle}`, evidencia: r.evidencia, ms: r.ms })
+    // El resultado vive en esa pestaña (un borrador): no se cierra al terminar.
+    if (r.estado === 'hecho') { recetaWeb = true; escalado = undefined; if (r.pestana != null) pestanasMostradas.add(r.pestana) }
+  }
   const sinkPre: SinkBitacora = { paso: p => registro.paso({ ...p, decidio: 'precalentar' }) }
   // El precalentado arranca ya; el primer intento lo espera dentro de su prompt (en paralelo al arranque del modelo).
-  const pre = op.sinPrecalentar ? Promise.resolve('') : precalentar(pedido, memoria, web, frescura, sinkPre, autoridad)
+  const pre = recetaWeb || op.sinPrecalentar ? Promise.resolve('') : precalentar(pedido, memoria, web, frescura, sinkPre, autoridad)
   let notaPrevia = intentos.length ? `Se intentó primero la receta y falló: ${intentos[0].detalle}. Resuélvelo tú.` : ''
   const max = op.maxIntentos ?? 4
   log(`▶ pedido: «${pedido}» · cerebro ${modelo}${inicial.motivo ? ` (${inicial.motivo})` : ''}${web ? ' · web por extensión' : ''}`)
 
-  for (let n = 0; n < max; n++) {
+  for (let n = 0; n < max && !recetaWeb; n++) {
     const queda = presupuesto - registro.ms
     if (queda < 3000) { log('  presupuesto agotado: no se abre otro intento'); break }
     if (op.senal?.aborted) { log(`  detenido por ${DUENO}: no se abre otro intento`); break }
@@ -306,7 +321,7 @@ export async function pedir(pedido: string, op: OpcionesPedir = {}): Promise<Res
   const ult = intentos[intentos.length - 1]
   const ok = ult?.estado === 'hecho'
   let aprendida: string | undefined
-  if (ok && grabadora && !op.sinAprender) {
+  if (ok && grabadora && !op.sinAprender && !recetaWeb) {
     const espera = ult.espera?.length ? [{ tipo: 'pantalla' as const, espera: ult.espera }] : undefined
     const a = await aprender(grabadora, almacen, pedido, desde, espera).catch(e => ({ estado: 'nada' as const, motivo: (e as Error).message }))
     log(`  aprender: ${a.estado}${'motivo' in a ? ` (${a.motivo})` : 'nombre' in a ? ` ${a.nombre}` : ''}`)
@@ -329,7 +344,8 @@ export async function pedir(pedido: string, op: OpcionesPedir = {}): Promise<Res
   }
   // Todo queda como estaba (regla de Daniel): se cierran las ventanas y pestañas propias, salvo la que se le mostró.
   const freno = capa(manos, Freno)
-  for (const w of [...(freno?.propias ?? [])].filter(w => !mostradas.has(w) && !propiasAntes.has(w))) {
+  // Las ventanas de la extensión no van por ⌘W: las cierra la extensión al cerrar sus pestañas (y la mostrada se queda).
+  for (const w of [...(freno?.propias ?? [])].filter(w => !mostradas.has(w) && !propiasAntes.has(w) && !web?.ventanasAdoptadas.has(w) && !freno?.propiasWeb.has(w))) {
     const v = (await manos.ventanas().catch(() => [])).find(x => x.id === w)
     if (!v) continue
     // El ⌘W de la casa usa el botón de cierre de la VENTANA (no la pestaña activa): cierra la ventana propia entera.
@@ -341,6 +357,7 @@ export async function pedir(pedido: string, op: OpcionesPedir = {}): Promise<Res
     for (const p of propias.filter(p => !pestanasMostradas.has(p.pestana))) await ejecutarWeb('web_pestanas', { cerrar: p.pestana }, web).catch(() => null)
     await web.canal.cerrar().catch(() => null)
   }
+  freno?.soltarWeb()
   const modelos = intentos.map(i => i.modelo)
   registro.cerebro = { modelos, ...(escalado ? { escalado } : {}), intentos: intentos.length, costo_usd: Number(intentos.reduce((s, i) => s + (i.costo_usd ?? 0), 0).toFixed(4)) }
   registro.verificacion = { ok, como: (ult?.evidencia ?? ult?.detalle ?? '').slice(0, 300) }
@@ -348,7 +365,7 @@ export async function pedir(pedido: string, op: OpcionesPedir = {}): Promise<Res
   if (!op.manos) { await capa(manos, Freno)?.soltar?.(); await manos.cerrar() }
   await dec?.cerrar?.()
   avisar('fin', `${ult?.estado ?? 'fallo'} en ${(e.ms / 1000).toFixed(1)} s`)
-  return { ok, estado: ult?.estado ?? 'fallo', intentos, ...(escalado ? { escalado } : {}), evidencia: ult?.evidencia, id: e.id, ms: e.ms, ruta: 'modelo', ...(aprendida ? { aprendida } : {}), detalle: ult?.detalle, pasos: e.pasos, ...final }
+  return { ok, estado: ult?.estado ?? 'fallo', intentos, ...(escalado ? { escalado } : {}), evidencia: ult?.evidencia, id: e.id, ms: e.ms, ruta: recetaWeb ? 'receta' : 'modelo', ...(aprendida ? { aprendida } : {}), detalle: ult?.detalle, pasos: e.pasos, ...final }
 }
 
 const conTope = <T>(p: Promise<T>, ms: number) => Promise.race([p, new Promise<never>((_, mal) => { setTimeout(() => mal(new Error('tope')), ms).unref?.() })])
@@ -432,12 +449,12 @@ async function intento(pedido: string, modelo: string, nota: string, pre: Promis
     return { content: [{ type: 'text' as const, text: recortar(r.text) }], isError: !!r.error }
   }
   const obj = { app: z.string().optional(), pid: z.number().int().optional(), ventana: z.number().int().optional() }
-  const paso = z.object({ accion: z.enum(['click', 'escribir', 'tecla', 'scroll', 'valor']), indice: z.number().int().optional(), texto: z.string().optional(), tecla: z.string().optional(), modificadores: z.array(z.string()).optional(), direccion: z.enum(['arriba', 'abajo', 'izquierda', 'derecha']).optional(), cantidad: z.number().int().optional(), valor: z.string().optional() })
+  const paso = z.object({ accion: z.enum(['click', 'escribir', 'tecla', 'scroll', 'valor']), indice: z.number().int().optional(), texto_visible: z.string().optional(), texto: z.string().optional(), tecla: z.string().optional(), modificadores: z.array(z.string()).optional(), direccion: z.enum(['arriba', 'abajo', 'izquierda', 'derecha']).optional(), cantidad: z.number().int().optional(), valor: z.string().optional() })
   const herramientasWeb = c.web ? [
     tool('web_abrir', `Abre una URL en una pestaña PROPIA del Chrome de ${DUENO} (grupo Arbrain, segundo plano, video pausado y silenciado) y devuelve el árbol por índices. Usa URL directa siempre que exista.`, { url: z.string(), consulta: z.string().optional(), max: z.number().int().optional() }, a => correrWeb('web_abrir', a)),
     tool('web_navegar', 'Lleva tu pestaña propia a otra URL (p. ej. el permalink de un elemento de una lista).', { pestana: z.number().int().optional(), url: z.string(), consulta: z.string().optional(), max: z.number().int().optional() }, a => correrWeb('web_navegar', a)),
     tool('web_observar', 'Lee la página por índices; por defecto solo lo que cambió. completo: true da todo.', { pestana: z.number().int().optional(), completo: z.boolean().optional(), consulta: z.string().optional(), max: z.number().int().optional() }, a => correrWeb('web_observar', a)),
-    tool('web_actuar', 'Actúa por índice: click, escribir, tecla, scroll o valor. Hasta 8 pasos en una llamada (pasos) con una sola lectura al final (devuelve lo que cambió). El freno detiene enviar/publicar/pagar/borrar.', { pestana: z.number().int().optional(), pasos: z.array(paso).optional(), accion: z.enum(['click', 'escribir', 'tecla', 'scroll', 'valor']).optional(), indice: z.number().int().optional(), texto: z.string().optional(), tecla: z.string().optional(), direccion: z.enum(['arriba', 'abajo', 'izquierda', 'derecha']).optional(), cantidad: z.number().int().optional(), valor: z.string().optional(), confirmacion: z.string().optional(), max: z.number().int().optional() }, a => correrWeb('web_actuar', a)),
+    tool('web_actuar', 'Actúa por índice: click, escribir, tecla, scroll o valor. Hasta 8 pasos en una llamada (pasos) con una sola lectura al final (devuelve lo que cambió). Lo que se pulsa sin rol sale como `[n] clicable «…»`; si algo visible no tiene índice, click con texto_visible (el texto que se ve). El freno detiene enviar/publicar/pagar/borrar.', { pestana: z.number().int().optional(), pasos: z.array(paso).optional(), accion: z.enum(['click', 'escribir', 'tecla', 'scroll', 'valor']).optional(), indice: z.number().int().optional(), texto_visible: z.string().optional(), texto: z.string().optional(), tecla: z.string().optional(), direccion: z.enum(['arriba', 'abajo', 'izquierda', 'derecha']).optional(), cantidad: z.number().int().optional(), valor: z.string().optional(), confirmacion: z.string().optional(), max: z.number().int().optional() }, a => correrWeb('web_actuar', a)),
     tool('web_verificar', 'Comprueba sin pantalla: URL o título que contienen un texto, texto visible, o estado del video.', { pestana: z.number().int().optional(), url_contiene: z.string().optional(), titulo_contiene: z.string().optional(), texto_contiene: z.string().optional(), video: z.enum(['pausado', 'reproduciendo', 'silenciado']).optional() }, a => correrWeb('web_verificar', a)),
     tool('web_mostrar', `Trae al frente tu pestaña propia. Solo si ${DUENO} dijo «ponme» o «muéstrame».`, { pestana: z.number().int().optional(), reproducir: z.boolean().optional() }, a => correrWeb('web_mostrar', a)),
   ] : []

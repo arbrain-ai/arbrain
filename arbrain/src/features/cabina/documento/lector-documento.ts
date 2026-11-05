@@ -51,7 +51,7 @@ export function usePreparando(fijadaId: string): boolean {
 }
 
 // ── El agente dentro del iframe, con la misma forma que el local ──
-function agenteRemoto(marco: HTMLIFrameElement, alToque: (i: number, offset: number) => void, falloExtraer: () => void): AgenteLector & { soltar(): void } {
+function agenteRemoto(marco: HTMLIFrameElement, alToque: (i: number, offset: number) => void, falloExtraer: () => void, alMano: (suelto: boolean) => void): AgenteLector & { soltar(): void } {
   const ventana = () => marco.contentWindow
   const enviar = (m: object) => ventana()?.postMessage(m, '*')
   let pedido = 0
@@ -60,6 +60,7 @@ function agenteRemoto(marco: HTMLIFrameElement, alToque: (i: number, offset: num
   const al = (e: MessageEvent) => {
     if (e.source !== ventana() || !e.data) return
     if (e.data.tipo === 'arbrain-lector-toque' && typeof e.data.i === 'number') alToque(e.data.i, Number(e.data.offset) || 0)
+    else if (e.data.tipo === 'arbrain-lector-mano') alMano(!!e.data.suelto)
     else if (e.data.tipo === 'arbrain-lector-bloques' && e.data.id === pedido && listoPendiente) {
       if (espera) clearTimeout(espera)
       const f = listoPendiente
@@ -79,7 +80,7 @@ function agenteRemoto(marco: HTMLIFrameElement, alToque: (i: number, offset: num
     },
     pintar: (bloque, desde, hasta) => enviar({ tipo: 'arbrain-lector-pintar', i: bloque, desde, hasta }),
     limpiar: () => enviar({ tipo: 'arbrain-lector-limpiar' }),
-    ver: bloque => enviar({ tipo: 'arbrain-lector-ver', i: bloque }),
+    ver: (bloque, retomar) => enviar({ tipo: 'arbrain-lector-ver', i: bloque, retomar: !!retomar }),
     cerrar() { enviar({ tipo: 'arbrain-lector-cerrar' }); this.soltar() },
     soltar() { if (espera) clearTimeout(espera); listoPendiente = null; window.removeEventListener('message', al) },
   }
@@ -114,7 +115,9 @@ export async function alternarLectura(fijadaId: string): Promise<ResultadoLector
   const crudos = await new Promise<{ agente: AgenteLector; bloques: BloqueCrudo[] } | null>(listo => {
     let agente: AgenteLector
     const fallo = () => { agente.cerrar(); listo(null) }
-    agente = marco ? agenteRemoto(marco, alToque, fallo) : crearAgenteLector(dom!, window, alToque)
+    // La mano de Daniel desplazó el documento (o volvió al párrafo): la barra muestra u oculta «Seguir».
+    const alMano = (suelto: boolean) => { if (chatSpeech.isActive(id)) chatSpeech.manoEnDocumento(suelto) }
+    agente = marco ? agenteRemoto(marco, alToque, fallo, alMano) : crearAgenteLector(dom!, window, alToque, alMano)
     agente.activar()
     agente.extraer(bloques => listo({ agente, bloques }))
   })
@@ -129,7 +132,7 @@ export async function alternarLectura(fijadaId: string): Promise<ResultadoLector
   const puente: PuenteLector = {
     pintar: (k, desde, hasta) => agente.pintar(elegidos[k], desde, hasta),
     limpiar: () => agente.limpiar(),
-    ver: k => agente.ver(elegidos[k]),
+    ver: (k, retomar) => agente.ver(elegidos[k], retomar),
     cerrar: () => { agente.cerrar(); quitarVigia() },
   }
   const v = velocidadGuardada()

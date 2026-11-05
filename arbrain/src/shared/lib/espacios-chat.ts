@@ -17,8 +17,9 @@ export const esEspacioChat = (v: unknown): v is EspacioChat => ESPACIOS_CHAT.inc
 /**
  * Espacios que solo existen en la instalación original: las suscripciones de su dueño (segunda cuenta de Claude y las
  * dos cuentas de OpenAI por el Codex CLI). En la edición cliente no existen: ni selector, ni ruta, ni carpeta.
+ * El sin filtro (abliterated) existe en las dos desde v0.2.23: el alumno lo conecta con SU llave de abliteration.ai.
  */
-export const ESPACIOS_SOLO_ORIGINAL = ['bro', 'codex', 'yt', ESPACIO_ABLITERATED] as const
+export const ESPACIOS_SOLO_ORIGINAL = ['bro', 'codex', 'yt'] as const
 export const espacioDisponible = (v: unknown, cliente: boolean): boolean =>
   esEspacioChat(v) && !(cliente && (ESPACIOS_SOLO_ORIGINAL as readonly string[]).includes(v as string))
 export const esEspacioApi = (v: unknown): v is EspacioApi => ESPACIOS_API.includes(v as EspacioApi)

@@ -47,6 +47,7 @@
     "extension",
     "server",
     "tests/chat/fila-servidor.test.ts",
+    "tests/edicion/ab-ronda2-sin-credito.test.ts",
     "src-tauri/target-cliente",
     "empaquetado/ci/linux-local/salida"
   ]

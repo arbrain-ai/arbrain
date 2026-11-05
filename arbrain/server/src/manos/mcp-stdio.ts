@@ -13,6 +13,7 @@ import type { Adaptador, Decisor } from './contrato.js'
 import { AlmacenRecetas } from './recetas.js'
 import { Registro, type PasoBitacora } from './bitacora.js'
 import { MANOS_WEB_TOOLS, NOMBRES_WEB, SesionWeb, ejecutarWeb } from './web/herramientas-web.js'
+import { correrRecetaWeb, esRecetaWeb, listarRecetasWeb } from './web/recetas-web.js'
 import { MANOS_LIENZO_TOOLS, NOMBRES_LIENZO, ejecutarLienzo } from './lienzo/herramientas-lienzo.js'
 import { AdaptadorCasa, ClienteCasa } from './adaptadores/casa.js'
 import { capa } from './herramientas.js'
@@ -142,8 +143,10 @@ export async function handle(msg: Msg, notificar: Notificar = () => {}): Promise
       }).finally(() => encargosVivos.delete(id))
       return { id, result: { content: [{ type: 'text', text: r.text }], isError: !!r.error } }
     }
+    // La sesión web conoce a las manos nativas: la ventana que abre web_abrir es propia para su freno.
+    const sesionWeb = () => { web ??= new SesionWeb(); web.manos ??= adaptador(); return web }
     if (NOMBRES_WEB.has(String(params?.name ?? ''))) {
-      const r = await ejecutarWeb(String(params?.name), params?.arguments, (web ??= new SesionWeb()), bitacora, cliente)
+      const r = await ejecutarWeb(String(params?.name), params?.arguments, sesionWeb(), bitacora, cliente)
       return { id, result: { content: [{ type: 'text', text: r.text }], isError: !!r.error } }
     }
     if (NOMBRES_LIENZO.has(String(params?.name ?? ''))) {
@@ -154,6 +157,16 @@ export async function handle(msg: Msg, notificar: Notificar = () => {}): Promise
       return { id, result: { content, isError: !!r.error } }
     }
     const nombre = String(params?.name ?? '')
+    // Recetas web (recetas-web.ts): corren en la sesión web con su freno; la lista suma las de disco y las web.
+    const a = (params?.arguments ?? {}) as { nombre?: unknown; parametros?: Record<string, string> }
+    if (nombre === 'correr_receta' && esRecetaWeb(a.nombre)) {
+      const r = await correrRecetaWeb(String(a.nombre), a.parametros ?? {}, sesionWeb(), { bitacora, quien: 'receta-web' })
+      return { id, result: { content: [{ type: 'text', text: JSON.stringify(r) }], isError: r.estado !== 'hecho' } }
+    }
+    if (nombre === 'listar_recetas') {
+      const r = await ejecutarManos(nombre, params?.arguments, adaptador(), elDecisor, almacen, { bitacora, frescura, quien: cliente })
+      try { const j = JSON.parse(r.text); return { id, result: { content: [{ type: 'text', text: JSON.stringify({ ...j, recetas_web: listarRecetasWeb() }) }] } } } catch { return { id, result: { content: [{ type: 'text', text: r.text }], isError: !!r.error } } }
+    }
     const r = await ejecutarManos(nombre, params?.arguments, adaptador(), elDecisor, almacen, { bitacora, frescura, quien: cliente })
     if (TOMAN.has(nombre)) void vigiaTurno.actuo().catch(() => {})
     return { id, result: { content: [{ type: 'text', text: r.text }], isError: !!r.error } }

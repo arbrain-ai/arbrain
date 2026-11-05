@@ -22,3 +22,45 @@
 }
 
 .attachments::-webkit-scrollbar { display:none; }
+
+/* Sin filtro (4 nov 2026, Daniel: «no me gusta cuadrado abajo ponle volumen y como píldora… un rojo al estilo que el botón de
+   enviar pausar detener»). Es el único aviso del modo: píldora con la misma construcción de tecla que boton-enviar.module.css
+   (cara con degradado, bisel arriba, sombra interior abajo, canto de color y halo), en el rojo de «mantener para descartar».
+   Claro: cara roja encendida y tinta crema. Oscuro: cara oscura iluminada desde dentro y tinta roja clara. */
+.model.sinFiltro {
+  --rojo-rgb: 229, 72, 77;
+  --rojo-vivo-rgb: 240, 110, 114;
+  padding: 5px 12px 5px 13px; border-radius: 999px; border: 1px solid transparent;
+  font-weight: 600; letter-spacing: 0.005em;
+  color: var(--l-gris-15, #fffaf2);
+  background: linear-gradient(180deg, var(--l-rojo-3, #ee6a6e), var(--l-rojo-6, #b8323a)) padding-box,
+    linear-gradient(180deg, rgba(var(--rojo-vivo-rgb), 0.95), rgba(var(--rojo-rgb), 0.5)) border-box;
+  box-shadow:
+    inset 0 1px 0 rgba(var(--l-rojo-1-rgb, 254, 202, 202), 0.55),
+    inset 0 -1px 0 rgba(var(--l-sombra-rgb, 0, 0, 0), 0.22),
+    0 1px 1px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.16),
+    0 6px 16px -7px rgba(var(--rojo-rgb), 0.7);
+  text-shadow: 0 1px 0 rgba(var(--l-rojo-7-rgb, 127, 29, 29), 0.35);
+  transition: transform 240ms cubic-bezier(0.34, 1.32, 0.64, 1), box-shadow 240ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.model.sinFiltro svg { color: currentColor !important; opacity: 0.85; }
+:global(.dark) .model.sinFiltro {
+  color: var(--l-rojo-1, #fecaca);
+  background: radial-gradient(90% 130% at 50% 0%, rgba(var(--rojo-vivo-rgb), 0.38), rgba(var(--rojo-rgb), 0.14) 60%, rgba(var(--rojo-rgb), 0.08)) padding-box,
+    linear-gradient(180deg, var(--l-rojo-8, #2a0e0e), color-mix(in srgb, var(--l-rojo-8, #2a0e0e) 70%, var(--l-gris-0, #000))) padding-box,
+    linear-gradient(180deg, rgba(var(--rojo-vivo-rgb), 0.9), rgba(var(--rojo-rgb), 0.35) 45%, rgba(var(--rojo-rgb), 0.5)) border-box;
+  box-shadow:
+    inset 0 1px 0 rgba(var(--l-rojo-2-rgb, 252, 165, 165), 0.28),
+    inset 0 -1px 0 rgba(var(--l-sombra-rgb, 0, 0, 0), 0.45),
+    0 1px 1px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.5),
+    0 8px 20px -8px rgba(var(--rojo-rgb), 0.6),
+    0 0 16px -6px rgba(var(--rojo-rgb), 0.5);
+  text-shadow: 0 0 8px rgba(var(--rojo-rgb), 0.45);
+}
+@media (hover: hover) {
+  .model.sinFiltro:hover { transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(var(--l-rojo-1-rgb, 254, 202, 202), 0.6), inset 0 -1px 0 rgba(var(--l-sombra-rgb, 0, 0, 0), 0.22), 0 1px 1px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.16), 0 9px 22px -8px rgba(var(--rojo-rgb), 0.8); }
+  :global(.dark) .model.sinFiltro:hover { box-shadow: inset 0 1px 0 rgba(var(--l-rojo-2-rgb, 252, 165, 165), 0.32), inset 0 -1px 0 rgba(var(--l-sombra-rgb, 0, 0, 0), 0.45), 0 1px 1px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.5), 0 10px 26px -8px rgba(var(--rojo-rgb), 0.75), 0 0 22px -5px rgba(var(--rojo-rgb), 0.62); }
+}
+.model.sinFiltro:active { transform: translateY(1px) scale(0.98); transition-duration: 110ms; }
+.model.sinFiltro:focus-visible { outline: 2px solid rgba(var(--rojo-rgb), 0.9); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) { .model.sinFiltro { transition: none; } }

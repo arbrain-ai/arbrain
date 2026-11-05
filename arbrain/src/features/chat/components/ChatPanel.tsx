@@ -3252,14 +3252,6 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
             <span>Corriendo en <strong className="font-semibold">bro-claude</strong> · {bannerCuenta('bro')}</span>
           </div>
         )}
-        {/* Sin filtro (3 nov 2026): DeepSeek V4.1 Flash abliterated. Rojo y explícito: no es Claude; el modelo no se niega
-            a nada, el freno de manos y el de mensajes del código sí. */}
-        {account === 'abliterated' && (
-          <div data-banner-abliterated className="shrink-0 flex items-center justify-center gap-1.5 px-4 py-1.5 bg-rose-500/10 border-b border-rose-500/25 text-[11px] text-rose-300">
-            <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
-            <span>Sin filtro · <strong className="font-semibold">DeepSeek V4.1 Flash abliterated</strong> · no es Claude · los frenos del código siguen</span>
-          </div>
-        )}
         {/* Espacio codex (4 sep 2026): Levy sobre OpenAI vía Codex CLI, ChatGPT Pro del dueño. */}
         {connection === 'online' && account === 'codex' && (
           <div className="shrink-0 flex items-center justify-center gap-1.5 px-4 py-1.5 bg-emerald-500/10 border-b border-emerald-500/20 text-[11px] text-emerald-300">
@@ -3580,9 +3572,8 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
                     aria-label={EDICION_CLIENTE ? 'Modelo, permisos y Pausar todo' : 'Cambiar modelo y cuenta'}
                     aria-expanded={showModelPicker}
                     title={EDICION_CLIENTE ? 'Modelo, Autónomo o Preguntar, y Pausar todo' : 'Cambiar modelo y cuenta'}
-                    className={composerUI.model}
+                    className={account === 'abliterated' ? `${composerUI.model} ${composerUI.sinFiltro}` : composerUI.model}
                     data-sin-filtro={account === 'abliterated' || undefined}
-                    style={account === 'abliterated' ? { color: 'var(--error)', borderColor: 'color-mix(in srgb, var(--error) 45%, transparent)', background: 'color-mix(in srgb, var(--error) 10%, transparent)' } : undefined}
                   >
                     {/* Autónomo (30 oct 2026): un punto discreto; el modo y «Pausar todo» se cambian en este menú. */}
                     {EDICION_CLIENTE && <PuntoAutonomo />}

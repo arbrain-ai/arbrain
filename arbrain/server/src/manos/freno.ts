@@ -407,6 +407,16 @@ export class Freno implements Adaptador {
   /** Marca una ventana como propia (la abrió esta sesión: navegar, abrir, ⌘N). */
   adoptar(id: number): void { this.propias.add(id) }
 
+  /**
+   * Ventanas del navegador que creó la extensión para esta sesión (`web_abrir`, 4 nov 2026): son propias para el freno
+   * (antes, un clic nativo en ellas salía como «pestaña de Daniel» y se bloqueaba), pero las cierra la extensión al
+   * terminar, nunca un ⌘W nativo: así la que se le mostró a Daniel se queda.
+   */
+  readonly propiasWeb = new Set<number>()
+  adoptarWeb(id: number): void { this.propias.add(id); this.propiasWeb.add(id) }
+  /** Al terminar el encargo, las de la extensión dejan de ser propias (la ventana pudo quedar en manos de Daniel). */
+  soltarWeb(): void { for (const id of this.propiasWeb) this.propias.delete(id); this.propiasWeb.clear() }
+
   async observar(p: PedidoObservar): Promise<Observacion> {
     const o = await this.interno.observar(p)
     const pila: { prof: number; pieza: string }[] = []

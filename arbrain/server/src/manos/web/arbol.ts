@@ -34,6 +34,9 @@ export class IndiceTab {
 
   nodo(indice: number): NodoWeb | undefined { return this.porIndice.get(indice) }
 
+  /** Los nodos de la última lectura con su índice, en orden de la página (las recetas web buscan por nombre y rol). */
+  nodos(): [number, NodoWeb][] { return [...this.porIndice.entries()] }
+
   /** Registra una lectura nueva y devuelve su vista. Los índices de nodos que siguen vivos no cambian. */
   registrar(nodos: NodoWeb[], url: string, titulo?: string): Vista {
     this.porIndice.clear()

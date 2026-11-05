@@ -18,6 +18,9 @@
  *    otro; un pergamino de 100 KB no congela ni la app ni el iframe (que comparte hilo con la voz).
  *  · Scroll con moderación: solo se mueve si el párrafo sale de la zona cómoda (15–85 %) del contenedor que
  *    DESPLAZA (el panel, no la ventana), y 'auto' en saltos largos. Un scroll continuo despierta a todo observador.
+ *  · La mano manda (4 nov 2026, la regla de chat/lib/seguimiento.ts): si Daniel desplaza el documento (rueda, dedo,
+ *    teclas de scroll, clic), `ver` ya no lo mueve hasta que él vuelva al párrafo que suena o toque «Seguir»
+ *    (`retomar`). El cambio se avisa con `alMano` para que la barra muestre u oculte «Seguir».
  *  · Un solo Highlight persistente por ventana (clear+add), nunca uno por palabra.
  *  · Offsets contra `textContent` del bloque: son los mismos que ve el motor en su espejo.
  *
@@ -32,7 +35,8 @@ export interface AgenteLector {
   extraer(listo: (bloques: Array<{ t: string; tabla: boolean; enc: boolean }>) => void): void
   pintar(bloque: number, desde: number, hasta: number): void
   limpiar(): void
-  ver(bloque: number): void
+  /** Trae el bloque a la vista. Si la mano de Daniel desplazó el documento, no se mueve salvo con `retomar`. */
+  ver(bloque: number, retomar?: boolean): void
   /** Suelta todo: resaltado, cursor y escuchador. */
   cerrar(): void
 }
@@ -41,6 +45,7 @@ export function crearAgenteLector(
   raiz: Element,
   ventana: Window,
   alToque: (bloque: number, offset: number) => void,
+  alMano?: (suelto: boolean) => void,
 ): AgenteLector {
   var SEL = 'p,li,h1,h2,h3,h4,h5,h6,blockquote'
   var HOJAS = 'div,article,section,dd,dt,td,summary'
@@ -241,7 +246,50 @@ export function crearAgenteLector(
     return null
   }
 
-  function ver(i: number) {
+  // ── La mano manda ──
+  var suelto = false
+  var ultimo = -1
+  var finGesto: ReturnType<typeof setTimeout> | null = null
+  var TECLAS = ['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' ']
+  function marcarSuelto(s: boolean) {
+    if (s === suelto) return
+    suelto = s
+    if (alMano) alMano(s)
+  }
+  /** ¿El bloque se ve entero en el contenedor que desplaza? */
+  function seVe(i: number): boolean {
+    var b = bloques[i]
+    if (!b || !b.el.isConnected) return false
+    var r = b.el.getBoundingClientRect()
+    var c = desplazador(b.el)
+    var arriba = 0
+    var alto = ventanaDe(b.el).innerHeight
+    if (c) {
+      var cr = c.getBoundingClientRect()
+      arriba = cr.top
+      alto = cr.height
+    }
+    return r.top - arriba >= 0 && r.bottom - arriba <= alto
+  }
+  function alGesto(ev: Event) {
+    if (!activo) return
+    if (ev.type === 'keydown') {
+      var k = (ev as KeyboardEvent).key
+      if (TECLAS.indexOf(k) < 0 || (ev as KeyboardEvent).ctrlKey) return
+    }
+    marcarSuelto(true)
+    if (finGesto) clearTimeout(finGesto)
+    // La inercia del trackpad sigue mandando ruedas: el gesto termina tras 350 ms sin ninguna.
+    finGesto = setTimeout(function () {
+      finGesto = null
+      if (ultimo >= 0 && seVe(ultimo)) marcarSuelto(false) // él volvió al párrafo que suena
+    }, 350)
+  }
+
+  function ver(i: number, retomar?: boolean) {
+    ultimo = i
+    if (retomar) marcarSuelto(false)
+    if (suelto) return
     var b = bloques[i]
     if (!b || !b.el.isConnected) return
     var r = b.el.getBoundingClientRect()
@@ -313,11 +361,13 @@ export function crearAgenteLector(
   }
 
   var escuchados: Document[] = []
+  var GESTOS = ['wheel', 'touchmove', 'keydown', 'pointerdown']
   function escucharDocs() {
     if (!activo) return
     for (var i = 0; i < docs.length; i++) {
       if (escuchados.indexOf(docs[i]) < 0) {
         docs[i].addEventListener('click', alClic)
+        for (var g = 0; g < GESTOS.length; g++) docs[i].addEventListener(GESTOS[g], alGesto, { passive: true, capture: true })
         escuchados.push(docs[i])
       }
     }
@@ -332,8 +382,15 @@ export function crearAgenteLector(
   function cerrar() {
     activo = false
     raiz.removeAttribute('data-arbrain-lee')
-    for (var i = 0; i < escuchados.length; i++) escuchados[i].removeEventListener('click', alClic)
+    for (var i = 0; i < escuchados.length; i++) {
+      escuchados[i].removeEventListener('click', alClic)
+      for (var g = 0; g < GESTOS.length; g++) escuchados[i].removeEventListener(GESTOS[g], alGesto, { capture: true })
+    }
     escuchados = []
+    if (finGesto) clearTimeout(finGesto)
+    finGesto = null
+    suelto = false
+    ultimo = -1
     limpiar()
     resaltados.forEach(function (_h, win) {
       try {
@@ -356,18 +413,20 @@ export function crearAgenteLector(
 
 /**
  * Lo que se inyecta en cada .html servido: el agente y el pegamento de mensajes con la app.
- *  app → documento: `arbrain-lector-pedir {id}` · `-pintar {i,desde,hasta}` · `-ver {i}` · `-limpiar` · `-cerrar`
+ *  app → documento: `arbrain-lector-pedir {id}` · `-pintar {i,desde,hasta}` · `-ver {i,retomar}` · `-limpiar` · `-cerrar`
  *  documento → app: `arbrain-lector-bloques {id,bloques}` · `arbrain-lector-toque {i,offset}` · `arbrain-lector-ancla {der}`
+ *                   · `arbrain-lector-mano {suelto}`
  * Solo escucha mensajes de su ventana padre.
  */
 export const SCRIPT_LECTOR =
   '<script>(function(){var crear=' +
   crearAgenteLector.toString() +
-  ';var ag=crear(document.documentElement,window,function(i,o){parent.postMessage({tipo:"arbrain-lector-toque",i:i,offset:o},"*")});' +
+  ';var ag=crear(document.documentElement,window,function(i,o){parent.postMessage({tipo:"arbrain-lector-toque",i:i,offset:o},"*")},' +
+  'function(s){parent.postMessage({tipo:"arbrain-lector-mano",suelto:s},"*")});' +
   'addEventListener("message",function(e){if(e.source!==parent)return;var d=e.data;if(!d||typeof d.tipo!=="string"||d.tipo.indexOf("arbrain-lector-")!==0)return;' +
   'if(d.tipo==="arbrain-lector-pedir"){ag.activar();ag.extraer(function(l){parent.postMessage({tipo:"arbrain-lector-bloques",id:d.id,bloques:l},"*")})}' +
   'else if(d.tipo==="arbrain-lector-pintar")ag.pintar(d.i,d.desde,d.hasta);' +
-  'else if(d.tipo==="arbrain-lector-ver")ag.ver(d.i);' +
+  'else if(d.tipo==="arbrain-lector-ver")ag.ver(d.i,!!d.retomar);' +
   'else if(d.tipo==="arbrain-lector-limpiar")ag.limpiar();' +
   'else if(d.tipo==="arbrain-lector-cerrar")ag.cerrar()});' +
   // Ancla de la píldora «Escuchar» de la app: cuánto espacio deja a la derecha el botón «tema» del documento (0 si no tiene).

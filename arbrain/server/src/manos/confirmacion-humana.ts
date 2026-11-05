@@ -59,6 +59,8 @@ export async function confirmacionHumana(p: { categoria: CategoriaConfirmacion; 
     const c = await llamar('/confirmaciones/pedir', { ...accion, categoria: p.categoria, motivo: p.resumen, ...extra })
     const id = String(c.id ?? '')
     if (!/^cf_[0-9a-f]{12}$/.test(id)) return { ok: false, detalle: 'CONFIRMACIÓN HUMANA: Arbrain no pudo registrar la confirmación. No se ejecutó nada.' }
+    // La tarjeta es de este encargo: caduca cuando el encargo termina (4 nov 2026).
+    if (!esEdicionCliente() && !contexto.tarjetas.includes(id)) contexto.tarjetas.push(id)
     const fin = Date.now() + (op.esperaMs ?? (Number(process.env.ARBRAIN_CONFIRMAR_ESPERA_S) || 90) * 1000)
     let estado = String(c.estado ?? 'pendiente')
     while (estado === 'pendiente' && Date.now() < fin) {
@@ -93,11 +95,31 @@ export const pideToque = (categoria: string | undefined): boolean => !esEdicionC
  * Contexto del encargo en curso (un proceso de manos sirve a una sola sesión de Claude): las palabras de la persona
  * para la recomendación de la tarjeta y las decisiones de la bandeja que ella ya aprobó para este encargo.
  */
-let contexto: { pedido?: string; decisiones: string[] } = { decisiones: [] }
+let contexto: { pedido?: string; decisiones: string[]; tarjetas: string[] } = { decisiones: [], tarjetas: [] }
 export function fijarContextoToque(c: { pedido?: string; decisiones?: string[] } | null): void {
-  contexto = c ? { pedido: c.pedido?.replace(/\s+/g, ' ').trim().slice(0, 200), decisiones: (c.decisiones ?? []).filter(d => /^cf_[0-9a-f]{12}$/.test(d)).slice(0, 5) } : { decisiones: [] }
+  contexto = c ? { pedido: c.pedido?.replace(/\s+/g, ' ').trim().slice(0, 200), decisiones: (c.decisiones ?? []).filter(d => /^cf_[0-9a-f]{12}$/.test(d)).slice(0, 5), tarjetas: [] } : { decisiones: [], tarjetas: [] }
 }
 export const pedidoEnCurso = () => contexto.pedido
+/** Las tarjetas que pidió el encargo en curso (las ids de la bandeja). */
+export const tarjetasDelEncargo = (): readonly string[] => [...contexto.tarjetas]
+
+/**
+ * Fin del encargo (4 nov 2026): sus tarjetas sin contestar salen de la bandeja. El 4 nov un clic en un botón sin nombre
+ * dejó una (cf_35266d3fa1c0) colgada después de que el encargo ya había fallado: Daniel la habría aprobado para nada.
+ * `quedan`: las que el encargo devuelve como pregunta (requiere_confirmacion): esas siguen esperando su toque.
+ * Un daemon sin la ruta (versión anterior) responde 404: no pasa nada.
+ */
+export async function caducarTarjetas(ids: readonly string[], op: OpcionesConfirmacion = {}): Promise<string[]> {
+  const validas = ids.filter(id => /^cf_[0-9a-f]{12}$/.test(id))
+  if (!validas.length || esEdicionCliente()) return []
+  const { puerto, token } = await daemon()
+  if (!puerto || !token) return []
+  try {
+    const r = await (op.fetcher ?? fetch)(`http://127.0.0.1:${puerto}/confirmaciones/caducar`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: validas }), signal: AbortSignal.timeout(5_000) })
+    const j = await r.json() as { caducadas?: unknown }
+    return Array.isArray(j.caducadas) ? j.caducadas.filter((x): x is string => typeof x === 'string') : []
+  } catch { return [] }
+}
 
 /** `confirmacion: "bandeja:cf_…"`: el Sí de la persona a una decisión de la bandeja, en lugar de su cita. */
 export const decisionDeConfirmacion = (c: unknown): string | null => typeof c === 'string' && /^bandeja:cf_[0-9a-f]{12}$/.test(c.trim()) ? c.trim().slice(8) : null

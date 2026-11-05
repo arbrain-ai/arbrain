@@ -139,7 +139,7 @@ export const MANOS_TOOLS = [
   },
   {
     name: 'listar_recetas',
-    description: 'Lista las recetas guardadas: tareas de apps que ya se resolvieron una vez y se repiten sin pensar (nombre, app, pasos, parámetros, pasos sensibles, corridas, reparaciones). Antes de operar una app con observar/actuar, mira si ya hay receta para esa tarea.',
+    description: 'Lista las recetas guardadas: tareas de apps que ya se resolvieron una vez y se repiten sin pensar (nombre, app, pasos, parámetros, pasos sensibles, corridas, reparaciones). Antes de operar una app con observar/actuar, mira si ya hay receta para esa tarea. \`recetas_web\` son las de páginas (p. ej. skool_borrador_post: url, categoria, titulo, cuerpo; deja el borrador sin publicar en segundos) y se corren igual con correr_receta.',
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     inputSchema: { type: 'object', additionalProperties: false, properties: {} },
   },

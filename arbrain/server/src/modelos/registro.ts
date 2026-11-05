@@ -123,8 +123,8 @@ export function rutaDeCuenta(cuenta: string | null | undefined): Ruta | undefine
 export const esCuentaApi = (cuenta: string | null | undefined): boolean => !!rutaDeCuenta(cuenta)
 
 /** Todos los espacios que el daemon reconoce. Una conversación vieja de un espacio por API se sigue reconociendo con el interruptor apagado (se rechaza su turno, no se manda a otro motor). */
-export function cuentasChat(): string[] { return [...CUENTAS_SUSCRIPCION, ...(esEdicionCliente() ? [] : [ESPACIO_ABLITERATED]), ...rutasApi().map(r => r.cuenta)] }
-/** Espacio del chat con DeepSeek V4.1 Flash abliterated (chat-runtime/abliterated-chat.ts). Solo instalación original. */
+export function cuentasChat(): string[] { return [...CUENTAS_SUSCRIPCION, ESPACIO_ABLITERATED, ...rutasApi().map(r => r.cuenta)] }
+/** Espacio del chat con DeepSeek V4.1 Flash abliterated (chat-runtime/abliterated-chat.ts). En las dos ediciones desde v0.2.23. */
 export const ESPACIO_ABLITERATED = 'abliterated'
 export const esCuentaChat = (cuenta: unknown): cuenta is string => typeof cuenta === 'string' && cuentasChat().includes(cuenta)
 

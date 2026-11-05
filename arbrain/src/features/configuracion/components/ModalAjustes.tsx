@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { createPortal } from 'react-dom'
-import { Bell, ChevronLeft, ChevronRight, Compass, Cpu, Filter, KeyRound, Keyboard, Laptop, Lock, Mic, Palette, PanelRight, Search, Server, ShieldHalf, Smartphone, Tag, Target, UserCircle, Users, X, type LucideIcon } from 'lucide-react'
+import { Bell, ChevronLeft, ChevronRight, Compass, Cpu, Filter, Flame, KeyRound, Keyboard, Laptop, Lock, Mic, Palette, PanelRight, Search, Server, ShieldHalf, Smartphone, Tag, Target, UserCircle, Users, X, type LucideIcon } from 'lucide-react'
 import { SeccionModelo } from '@/features/modelo/SeccionModelo'
 import { useAjustes } from '@/shared/stores/ajustes-store'
 import { useIsMobile } from '@/shared/hooks/useMediaQuery'
@@ -13,13 +13,14 @@ import { SeccionAtajos } from './SeccionAtajos'
 import { SeccionPanel } from './SeccionPanel'
 import { PanelLlaves } from '@/features/primer-arranque/components/PanelLlaves'
 import { PanelVoz } from '@/features/primer-arranque/components/PanelVoz'
+import { PanelSinFiltro } from '@/features/primer-arranque/components/PanelSinFiltro'
 import { SeccionPrivacidad } from '@/features/primer-arranque/components/SeccionPrivacidad'
 import { SeccionSeguridad } from '@/features/seguridad/components/Seguridad'
 import { SeccionClientes, SeccionEmbudo, SeccionEquipo, SeccionNorte, SeccionOferta } from './SeccionesNegocio'
 
 const ICONOS: Record<IdSeccion, LucideIcon> = {
   norte: Compass, equipo: Users, clientes: Target, oferta: Tag, embudo: Filter,
-  cuenta: UserCircle, apariencia: Palette, avisos: Bell, modelo: Cpu, panel: PanelRight, atajos: Keyboard, mac: Laptop, llaves: KeyRound, voz: Mic, privacidad: Lock, seguridad: ShieldHalf, telefono: Smartphone, maquinas: Server,
+  cuenta: UserCircle, apariencia: Palette, avisos: Bell, modelo: Cpu, panel: PanelRight, atajos: Keyboard, mac: Laptop, llaves: KeyRound, voz: Mic, sinfiltro: Flame, privacidad: Lock, seguridad: ShieldHalf, telefono: Smartphone, maquinas: Server,
 }
 
 const FOCOS = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])'
@@ -211,6 +212,7 @@ function Ventana({ seccion, enLista }: { seccion: IdSeccion; enLista: boolean })
                 {seccion === 'atajos' && <SeccionAtajos />}
                 {seccion === 'llaves' && <PanelLlaves />}
                 {seccion === 'voz' && <PanelVoz />}
+                {seccion === 'sinfiltro' && <PanelSinFiltro />}
                 {seccion === 'privacidad' && <SeccionPrivacidad />}
                 {seccion === 'seguridad' && <SeccionSeguridad />}
                 {seccion === 'telefono' && <SeccionTelefono />}

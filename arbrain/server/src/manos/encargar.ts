@@ -26,7 +26,7 @@ import type { Adaptador, Decisor } from './contrato.js'
 import type { OpcionesPedir, Progreso, ResultadoPedido } from './cerebro.js'
 import { DIR_ARBRAIN, esEdicionCliente } from '../edicion.js'
 import { citaReal, MENSAJE_CITA_FALSA } from './politica.js'
-import { fijarContextoToque } from './confirmacion-humana.js'
+import { caducarTarjetas, fijarContextoToque, tarjetasDelEncargo } from './confirmacion-humana.js'
 
 export const DIR_ENCARGOS = () => process.env.MANOS_ENCARGOS_DIR || join(DIR_ARBRAIN(), 'manos', 'encargos')
 
@@ -35,7 +35,7 @@ export const TOPE_POR_DEFECTO_S = 180
 
 export const ENCARGAR_TOOL = {
   name: 'encargar',
-  description: `PRIMERA OPCIÓN para cualquier tarea de varios pasos en la Mac o en la web («abre el 6.º guardado de X», «escríbele a Lucía en WhatsApp…», «12 × 3 en la Calculadora», «¿el Dock se oculta solo?»). Resuelve el pedido COMPLETO de punta a punta con el cerebro de las manos (receta guardada sin modelo → Jev → Sonnet 5.5 → Opus 5.5, insistencia, web por la extensión con URL directa, precalentado), todo en segundo plano, y devuelve: estado, resultado verificado con su evidencia, resumen corto de pasos, tiempo y URL final o captura. Tarda segundos, no minutos: no lo partas en pasos tú. FRENO: \`cita\` = las palabras TEXTUALES de ${DUENO}; solo ellas autorizan enviar, borrar, pagar o publicar, y «quiero verte / muéstrame» (la ventana al frente con el Halo, tu cursor). El ratón de ${DUENO} no se toca: el encargo nunca usa su cursor real. Si algo irreversible no tiene su cita, a ${DUENO} le llega una tarjeta en su bandeja (Sí · No · Otro, con push) y el encargo espera su toque; si tarda, vuelve con requiere_confirmacion: dile en una línea que espera su toque (no le pidas frase) y, con su Sí, repite con \`decision\` = el id de la tarjeta. Las herramientas finas (observar, actuar, web_*) quedan para un paso suelto o para depurar un encargo que falló.`,
+  description: `PRIMERA OPCIÓN para cualquier tarea de varios pasos en la Mac o en la web («abre el 6.º guardado de X», «escríbele a Lucía en WhatsApp…», «12 × 3 en la Calculadora», «¿el Dock se oculta solo?»). Resuelve el pedido COMPLETO de punta a punta con el cerebro de las manos (receta guardada sin modelo → Jev → Sonnet 5.5 → Opus 5.5, insistencia, web por la extensión con URL directa, precalentado), todo en segundo plano, y devuelve: estado, resultado verificado con su evidencia, resumen corto de pasos, tiempo y URL final o captura. Tarda segundos, no minutos: no lo partas en pasos tú. FRENO: \`cita\` = las palabras TEXTUALES de ${DUENO}; solo ellas autorizan enviar, borrar, pagar o publicar, y «quiero verte / muéstrame» (la ventana al frente con el Halo, tu cursor). El ratón de ${DUENO} no se toca: el encargo nunca usa su cursor real. Si algo irreversible no tiene su cita, a ${DUENO} le llega una tarjeta en su bandeja (Sí · No · Otro, con push) y el encargo espera su toque; si tarda, vuelve con requiere_confirmacion: dile en una línea que espera su toque (no le pidas frase) y, con su Sí, repite con \`decision\` = el id de la tarjeta. Las herramientas finas (observar, actuar, web_*) quedan para un paso suelto o para depurar un encargo que falló. Borrador en Skool: pon en \`pedido\` la URL de la comunidad y «borrador sin publicar · categoría «…» · título «…» · cuerpo «…»» (el cuerpo al final) y corre la receta en segundos, sin modelo.`,
   annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
   inputSchema: {
     type: 'object', additionalProperties: false, required: ['pedido', 'cita'],
@@ -61,6 +61,8 @@ export interface DepsEncargar {
   quien?: string
   /** Se aborta si Daniel detiene el turno (MCP `notifications/cancelled`). */
   senal?: AbortSignal
+  /** Fetch para caducar las tarjetas del encargo (inyectable en pruebas). */
+  caducar?: typeof fetch
 }
 
 export interface RespuestaEncargo {
@@ -113,10 +115,25 @@ export async function ejecutarEncargar(args: any, deps: DepsEncargar): Promise<{
   const id = `enc-${Date.now().toString(36)}-${randomBytes(3).toString('hex')}`
   const marco = sostenerMarco(deps.manos, undefined, ordenEnDisco(id))
   const senal = deps.senal ? AbortSignal.any([deps.senal, marco.senal]) : marco.senal
+  let r: Awaited<ReturnType<typeof encargarSinSoltar>> | undefined
   try {
-    const r = await encargarSinSoltar(args, { ...deps, senal }, id)
-    return marco.detenida ? detenidaDesdeFranja(r, marco.detenida) : r
-  } finally { marco.parar(); fijarContextoToque(null); await soltarManos(deps.manos) }
+    r = await encargarSinSoltar(args, { ...deps, senal }, id)
+    if (marco.detenida) r = detenidaDesdeFranja(r, marco.detenida)
+    return r
+  } finally {
+    marco.parar()
+    // Las tarjetas que nacieron en este encargo caducan con él, salvo la que el encargo devuelve como pregunta.
+    const quedan = tarjetasQueQuedan(r?.respuesta)
+    await caducarTarjetas(tarjetasDelEncargo().filter(t => !quedan.has(t)), deps.caducar ? { fetcher: deps.caducar } : {}).catch(() => [])
+    fijarContextoToque(null)
+    await soltarManos(deps.manos)
+  }
+}
+
+/** Las tarjetas por las que el encargo vuelve a preguntar (requiere_confirmacion con su id): siguen vivas. */
+export function tarjetasQueQuedan(r: Pick<RespuestaEncargo, 'estado' | 'resultado' | 'pregunta'> | undefined): Set<string> {
+  if (!r || r.estado !== 'requiere_confirmacion') return new Set()
+  return new Set(`${r.resultado ?? ''} ${r.pregunta ?? ''}`.match(/cf_[0-9a-f]{12}/g) ?? [])
 }
 
 /** Latido del marco (ms) y cuánto vive sin otro: el cerebro piensa varios segundos entre pasos y el marco no parpadea. */

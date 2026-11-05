@@ -43,6 +43,13 @@ export const LLAVES_BYOK = ['ANTHROPIC_API_KEY', 'OPENROUTER_API_KEY'] as const
  */
 export const LLAVES_VOZ = ['GROQ_API_KEY', 'LEMONFOX_API_KEY'] as const
 /**
+ * Modelo sin filtro (v0.2.23, 4 nov 2026, Daniel: «el modelo sin filtro también metámoslo en una siguiente versión»):
+ * la llave de abliteration.ai del alumno. Como las de voz, vive aparte de las BYOK: su sola presencia nunca cuenta como
+ * «hay con qué hablar» con Claude. Solo llega al CLI de una conversación del espacio sin filtro
+ * (chat-runtime/abliterated-chat.ts), nunca a otro hijo.
+ */
+export const LLAVES_SIN_FILTRO = ['ABLITERATION_AI_API_KEY'] as const
+/**
  * Lo que vive en el cofre: las llaves BYOK más `ANTHROPIC_AUTH_TOKEN`, que SOLO fija el propio daemon con la llave de
  * OpenRouter (cliente/proveedor.ts). Nunca se acepta desde fuera.
  */
@@ -53,7 +60,7 @@ export const CREDENCIALES_SUSCRIPCION = ['CLAUDE_CODE_OAUTH_TOKEN', 'CLAUDE_CODE
 const ALIAS: Record<string, string> = { ARBRAIN_DAEMON_TOKEN: 'OPENCLAW_GATEWAY_TOKEN' }
 /** Lo que nunca queda en `process.env` del daemon cliente (lo heredaría cualquier hijo). */
 // VAPID_PRIVATE_KEY (v0.2.18): la llave de los avisos al teléfono es solo de la web; si llegara heredada, ningún hijo la ve.
-export const NUNCA_EN_ENTORNO = ['OPENCLAW_GATEWAY_TOKEN', 'ARBRAIN_DAEMON_TOKEN', 'ARBRAIN_TOKEN_CONFIRMAR', 'ARBRAIN_DESKTOP_SECRET', 'VAPID_PRIVATE_KEY', ...LLAVES_COFRE, ...LLAVES_VOZ, ...CREDENCIALES_SUSCRIPCION] as const
+export const NUNCA_EN_ENTORNO = ['OPENCLAW_GATEWAY_TOKEN', 'ARBRAIN_DAEMON_TOKEN', 'ARBRAIN_TOKEN_CONFIRMAR', 'ARBRAIN_DESKTOP_SECRET', 'VAPID_PRIVATE_KEY', ...LLAVES_COFRE, ...LLAVES_VOZ, ...LLAVES_SIN_FILTRO, ...CREDENCIALES_SUSCRIPCION] as const
 /**
  * Variables que harían que el CLI buscara credenciales fuera de su carpeta aislada (`CLAUDE_CONFIG_DIR` del alumno):
  * `CLAUDE_SECURESTORAGE_CONFIG_DIR` redirige el almacén seguro (llavero / `.credentials.json`) del binario. Heredadas,
@@ -61,7 +68,7 @@ export const NUNCA_EN_ENTORNO = ['OPENCLAW_GATEWAY_TOKEN', 'ARBRAIN_DAEMON_TOKEN
  */
 export const RUTAS_CREDENCIALES_AJENAS = ['CLAUDE_SECURESTORAGE_CONFIG_DIR'] as const
 
-const CONOCIDOS = new Set<string>([...SECRETOS_APP, ...LLAVES_BYOK, ...LLAVES_VOZ, ...Object.keys(ALIAS)])
+const CONOCIDOS = new Set<string>([...SECRETOS_APP, ...LLAVES_BYOK, ...LLAVES_VOZ, ...LLAVES_SIN_FILTRO, ...Object.keys(ALIAS)])
 const LIMITE_LINEA = 64 * 1024
 
 let cofre = new Map<string, string>()
@@ -119,7 +126,7 @@ export function parsearSecretos(linea: string): Record<string, string> {
 export function guardarSecretos(env: NodeJS.ProcessEnv, deStdin: Record<string, string> | null): typeof origen {
   cofre = new Map()
   let alguno = false
-  for (const nombre of [...SECRETOS_APP, ...LLAVES_BYOK, ...LLAVES_VOZ]) {
+  for (const nombre of [...SECRETOS_APP, ...LLAVES_BYOK, ...LLAVES_VOZ, ...LLAVES_SIN_FILTRO]) {
     const alias = Object.keys(ALIAS).find(a => ALIAS[a] === nombre)
     const v = deStdin?.[nombre] ?? env[nombre] ?? (alias ? env[alias] : undefined)
     if (typeof v === 'string' && v.trim()) { cofre.set(nombre, v.trim()); alguno = true }
@@ -155,6 +162,12 @@ export function llaveVoz(): string | undefined {
 /** La llave de LemonFox del alumno (leer las respuestas en voz alta), si la app la entregó. */
 export function llaveLemonfox(): string | undefined {
   const v = cofre.get('LEMONFOX_API_KEY')?.trim()
+  return v ? v : undefined
+}
+
+/** La llave de abliteration.ai del alumno (modelo sin filtro), si la entregó. Vacía cuenta como ausente. */
+export function llaveSinFiltro(): string | undefined {
+  const v = cofre.get('ABLITERATION_AI_API_KEY')?.trim()
   return v ? v : undefined
 }
 

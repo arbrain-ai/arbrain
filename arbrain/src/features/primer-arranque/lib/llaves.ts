@@ -8,7 +8,7 @@
 
 import { ACCION_DE_COMANDO, esModoServidor } from '@/lib/modo-servidor'
 
-export type NombreLlave = 'ANTHROPIC_API_KEY' | 'OPENROUTER_API_KEY' | 'GROQ_API_KEY' | 'LEMONFOX_API_KEY'
+export type NombreLlave = 'ANTHROPIC_API_KEY' | 'OPENROUTER_API_KEY' | 'GROQ_API_KEY' | 'LEMONFOX_API_KEY' | 'ABLITERATION_AI_API_KEY'
 
 export interface EstadoLlaves {
   llaves: Array<{ nombre: string; presente: boolean; vista: string | null }>
@@ -92,6 +92,27 @@ export function validarLlaveLemonfox(crudo: string): { ok: true } | { ok: false;
   return { ok: true }
 }
 export const CONSOLA_LEMONFOX = 'https://www.lemonfox.ai/apis/keys'
+
+// ── Sin filtro: llave de abliteration.ai (v0.2.23, 4 nov 2026) ─────────────────────────────────────────────────────
+
+/** Dónde crea el alumno su cuenta y su llave de abliteration.ai. */
+export const CONSOLA_ABLITERATION = 'https://abliteration.ai/console'
+
+/**
+ * Formato de la llave de abliteration.ai (hoy empiezan con «ak_»). Se descarta lo que es de otro proveedor; no se exige
+ * el prefijo por si cambia: la prueba real es abrir una conversación.
+ */
+export function validarLlaveSinFiltro(crudo: string): { ok: true } | { ok: false; error: string } {
+  const v = limpiarLlave(crudo)
+  if (!v) return { ok: false, error: 'Pega tu llave de abliteration.ai para continuar.' }
+  if (/\s/.test(v)) return { ok: false, error: 'La llave no lleva espacios. Cópiala de nuevo, completa.' }
+  if (v.length > 4096) return { ok: false, error: 'Eso es demasiado largo para ser una llave.' }
+  if (esTokenDeSuscripcion(v)) return { ok: false, error: MENSAJE_TOKEN_SUSCRIPCION }
+  if (/^(sk-or-|sk-ant-)/.test(v)) return { ok: false, error: 'Esa llave es para conversar con Claude (Ajustes › Llaves). Aquí va la de abliteration.ai, que empieza con «ak_».' }
+  if (v.startsWith('gsk_')) return { ok: false, error: 'Esa es la llave de Groq (para dictar). Aquí va la de abliteration.ai, que empieza con «ak_».' }
+  if (v.length < 16) return { ok: false, error: 'Esa llave se ve incompleta. Cópiala de nuevo desde abliteration.ai.' }
+  return { ok: true }
+}
 
 export interface PruebaVoz { ok: boolean; ms?: number; code?: string; error?: string }
 

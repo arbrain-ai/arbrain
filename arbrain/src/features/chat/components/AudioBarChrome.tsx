@@ -35,6 +35,12 @@ export const BTN_CERRAR =
 
 export const TXT_CONTADOR = 'text-[11px] font-mono text-muted tabular-nums whitespace-nowrap'
 
+// «Seguir» (4 nov 2026): aparece solo cuando la mano de Daniel movió el texto y el lector dejó de llevar el scroll
+// (chat-speech.ts › seguir). Junto al contador, para no correr el eje de los controles.
+// Solo el ícono donde el carril es angosto (teléfono, panel); el texto lo pone quien tiene espacio.
+export const BTN_SEGUIR =
+  'ml-1.5 flex h-8 min-w-8 shrink-0 items-center justify-center gap-1 rounded-full bg-brand/15 px-2 text-[11px] font-medium text-brand-ink ring-1 ring-inset ring-brand/30 transition-colors hover:bg-brand/25'
+
 export function AudioBarFrame({
   izquierda,
   velocidad,

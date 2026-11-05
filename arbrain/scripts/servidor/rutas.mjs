@@ -124,7 +124,8 @@ export function puertoValido(p) {
 }
 
 /** Llaves que el modo servidor guarda y entrega al daemon por stdin. Nunca tokens de suscripción de claude.ai. */
-export const LLAVES = ['ANTHROPIC_API_KEY', 'OPENROUTER_API_KEY', 'GROQ_API_KEY', 'LEMONFOX_API_KEY']
+// ABLITERATION_AI_API_KEY (v0.2.23): el modelo sin filtro con la llave del alumno; como las de voz, no cuenta como «listo».
+export const LLAVES = ['ANTHROPIC_API_KEY', 'OPENROUTER_API_KEY', 'GROQ_API_KEY', 'LEMONFOX_API_KEY', 'ABLITERATION_AI_API_KEY']
 
 export function limpiarLlave(v) {
   return String(v ?? '').trim().replace(/^['"`]+|['"`]+$/g, '').trim()
@@ -141,6 +142,7 @@ export function errorDeLlave(nombre, valor) {
   if (nombre === 'ANTHROPIC_API_KEY' && !v.startsWith('sk-ant-')) return 'Las llaves de Anthropic empiezan con «sk-ant-».'
   if (nombre === 'GROQ_API_KEY' && !v.startsWith('gsk_')) return 'Las llaves de Groq empiezan con «gsk_».'
   if (nombre === 'LEMONFOX_API_KEY' && (/^(sk-or-|sk-ant-|gsk_)/.test(v) || v.length < 16)) return 'Esa no parece una llave de LemonFox.'
+  if (nombre === 'ABLITERATION_AI_API_KEY' && (/^(sk-or-|sk-ant-|gsk_)/.test(v) || v.length < 16)) return 'Esa no parece una llave de abliteration.ai (empiezan con «ak_»).'
   return null
 }
 
@@ -174,6 +176,7 @@ export const PROHIBIDAS = [
   'ARBRAIN_PASE_AGENTE', 'ARBRAIN_MOTOR_TOKEN', 'ARBRAIN_MOTOR_SECRETOS', 'NODE_OPTIONS', 'LEVY_CHROME',
   'ARBRAIN_DESKTOP_SECRET', 'ARBRAIN_SECRETOS', 'ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN',
   'CLAUDE_CODE_OAUTH_REFRESH_TOKEN', 'CLAUDE_SECURESTORAGE_CONFIG_DIR', 'OPENROUTER_API_KEY', 'GROQ_API_KEY', 'LEMONFOX_API_KEY',
+  'ABLITERATION_AI_API_KEY', 'ABLITERATED_BASE_URL', 'ABLITERATED_API_KEY', 'CABINA_MODELO_ABLITERATED',
   'ANTHROPIC_AUTH_TOKEN', 'OPENCLAW_GATEWAY_TOKEN', 'ARBRAIN_DAEMON_TOKEN', 'ARBRAIN_TOKEN_CONFIRMAR', 'ARBRAIN_WEB_URL',
   // Avisos al teléfono (v0.2.18): las llaves de cada instalación salen de su `avisos.json`, nunca de la terminal.
   'VAPID_PRIVATE_KEY', 'VAPID_EMAIL', 'NEXT_PUBLIC_VAPID_PUBLIC_KEY', 'ARBRAIN_VAPID_PUBLICA',

@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useSyncExternalStore } from 'react'
-import { SkipBack, SkipForward, Play, Pause, X, Zap } from 'lucide-react'
+import { LocateFixed, SkipBack, SkipForward, Play, Pause, X, Zap } from 'lucide-react'
 import { chatSpeech, type SpeechState } from '../lib/chat-speech'
 import { avisoGroqMostrado, avisoGroqVisible, cerrarAvisoGroq, suscribirAvisoGroq } from '../lib/aviso-groq-lector'
 import { MARCA_DESDE_MIC } from '@/features/primer-arranque/lib/llaves'
@@ -10,12 +10,13 @@ import {
   BTN_CERRAR,
   BTN_PLAY,
   BTN_SALTO,
+  BTN_SEGUIR,
   BTN_VELOCIDAD,
   TXT_CONTADOR,
 } from './AudioBarChrome'
 
 // Referencia ESTABLE para SSR y estado inactivo (Object.is en useSyncExternalStore).
-const INACTIVE: SpeechState = { active: false, id: null, paused: false, rate: 1, idx: 0, total: 0, despierto: false, resumen: false }
+const INACTIVE: SpeechState = { active: false, id: null, paused: false, rate: 1, idx: 0, total: 0, despierto: false, resumen: false, siguiendo: true }
 
 /**
  * Barra de lectura por voz del chat — MISMO diseño que la GlobalAudioBar (pegada bajo el
@@ -52,9 +53,24 @@ export function ChatSpeechBar() {
   return (
     <AudioBarFrame
       izquierda={
-        <span className={TXT_CONTADOR} title="Párrafo">
-          {state.idx + 1}/{state.total}
-        </span>
+        <>
+          <span className={`${TXT_CONTADOR} shrink-0`} title="Párrafo">
+            {state.idx + 1}/{state.total}
+          </span>
+          {/* Moviste el texto con la mano: la voz sigue y la pantalla se queda donde la dejaste hasta que tocas aquí. */}
+          {!state.siguiendo && (
+            <button
+              data-lector-seguir
+              onClick={() => chatSpeech.seguir()}
+              className={BTN_SEGUIR}
+              title="Seguir: volver al párrafo que se está leyendo"
+              aria-label="Seguir el párrafo que se lee"
+            >
+              <LocateFixed size={12} aria-hidden />
+              <span className="hidden sm:inline">Seguir</span>
+            </button>
+          )}
+        </>
       }
       velocidad={
         <button

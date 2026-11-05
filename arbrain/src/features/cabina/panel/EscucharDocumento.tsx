@@ -11,9 +11,9 @@
  * dejar a la derecha (`arbrain-lector-ancla`); sin botón de tema, la píldora ocupa la esquina.
  */
 import { useEffect, useState, useSyncExternalStore } from 'react'
-import { Loader2, Pause, Play, SkipBack, SkipForward, Volume2, X, Zap } from 'lucide-react'
+import { Loader2, LocateFixed, Pause, Play, SkipBack, SkipForward, Volume2, X, Zap } from 'lucide-react'
 import { chatSpeech } from '@/features/chat/lib/chat-speech'
-import { AudioBarFrame, BTN_CERRAR, BTN_PLAY, BTN_SALTO, BTN_VELOCIDAD, TXT_CONTADOR } from '@/features/chat/components/AudioBarChrome'
+import { AudioBarFrame, BTN_CERRAR, BTN_PLAY, BTN_SALTO, BTN_SEGUIR, BTN_VELOCIDAD, TXT_CONTADOR } from '@/features/chat/components/AudioBarChrome'
 import { alternarLectura, guardarVelocidad, idLector, sePuedeEscuchar, usePreparando, type ResultadoLector } from '../documento/lector-documento'
 import type { Fijada } from './fijadas'
 import s from './panel.module.css'
@@ -52,6 +52,7 @@ export function EscucharDocumento({ f }: { f: Fijada }) {
   const rate = usaMotor(() => chatSpeech.getState().rate, 1)
   const idx = usaMotor(() => chatSpeech.getState().idx, 0)
   const total = usaMotor(() => chatSpeech.getState().total, 0)
+  const siguiendo = usaMotor(() => chatSpeech.getState().siguiendo, true)
   const preparando = usePreparando(f.id)
   const ancla = useAncla(f.id)
   const [aviso, setAviso] = useState<string | null>(null)
@@ -75,7 +76,11 @@ export function EscucharDocumento({ f }: { f: Fijada }) {
     {/* Al darle play: la barra del chat (mismo marco y botones), en una franja propia sobre el documento. */}
     {activo && <div className={s.escucharBarra} role="group" aria-label="Lectura del documento">
       <AudioBarFrame
-        izquierda={<span className={TXT_CONTADOR} title="Párrafo">{idx + 1}/{total}</span>}
+        izquierda={<>
+          <span className={`${TXT_CONTADOR} shrink-0`} title="Párrafo">{idx + 1}/{total}</span>
+          {/* Moviste el documento con la mano: no se te regresa hasta que vuelves al párrafo o tocas aquí (solo ícono: el panel es angosto). */}
+          {!siguiendo && <button data-lector-seguir onClick={() => chatSpeech.seguir()} className={BTN_SEGUIR} title="Seguir: volver al párrafo que se está leyendo" aria-label="Seguir el párrafo que se lee"><LocateFixed size={13} aria-hidden /></button>}
+        </>}
         velocidad={<button onClick={velocidad} className={`${BTN_VELOCIDAD} ${colorVel}`} title="Velocidad (se recuerda)" aria-label={`Velocidad ${fmt(rate)}`}><Zap size={11} aria-hidden />{fmt(rate)}</button>}
         controles={<>
           <button onClick={() => chatSpeech.prev()} className={BTN_SALTO} title="Párrafo anterior" aria-label="Párrafo anterior"><SkipBack size={18} aria-hidden /></button>

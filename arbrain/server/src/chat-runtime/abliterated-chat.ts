@@ -7,8 +7,12 @@
  *  - si no, api.abliteration.ai con `ABLITERATION_AI_API_KEY` (.env) o `~/.config/arbrain/llaves/abliteration.key`.
  *
  * Aislamiento: su propia carpeta de Claude Code (`CONFIG_ABLITERATED`), así sus transcripciones no se mezclan con las
- * de las cuentas de Claude y el login de Daniel en Anthropic nunca viaja a un tercero. Solo existe en la instalación
- * original: en la edición del alumno no hay espacio, ni opción, ni carpeta (hasta que Daniel decida).
+ * de las cuentas de Claude y el login de Daniel en Anthropic nunca viaja a un tercero.
+ *
+ * Edición del alumno (v0.2.23, 4 nov 2026, Daniel: «el modelo sin filtro también metámoslo en una siguiente versión»):
+ * el alumno pone SU llave de abliteration.ai en Ajustes › Sin filtro (cofre del daemon, `ABLITERATION_AI_API_KEY`).
+ * Solo abliteration.ai: el pod, el .env y el archivo de llaves son de la instalación original y aquí no se leen. Su
+ * carpeta de Claude Code vive dentro de los datos de su Arbrain (`<ARBRAIN_DATA_DIR>/claude-abliterated`).
  *
  * Costo: el CLI calcula `costUsd` con precios de Anthropic, que aquí no aplican. Cada turno se cobra con la tarifa de
  * abliteration.ai (1 / 0.10 / 2 USD por millón: entrada, caché, salida) y queda en `store/abliterated-uso.jsonl` para
@@ -18,6 +22,7 @@ import { appendFileSync, existsSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { ABLITERATION_AI, CONFIG_ABLITERATED, MODELO_ABLITERATED } from '../cabina/harness/abliterated.js'
+import { llaveSinFiltro } from '../cliente/cofre.js'
 import { esEdicionCliente } from '../edicion.js'
 import { readEnvFile } from '../env.js'
 
@@ -25,6 +30,15 @@ export const ESPACIO_ABLITERATED = 'abliterated'
 export const esEspacioAbliterated = (cuenta: string | null | undefined): boolean => cuenta === ESPACIO_ABLITERATED
 export const LLAVE_ABLITERATION = () => join(homedir(), '.config/arbrain/llaves/abliteration.key')
 export { CONFIG_ABLITERATED }
+
+/** Carpeta de Claude Code del espacio. Alumno: dentro de los datos de su Arbrain, nunca en una ruta de Daniel. */
+export function configAbliterated(cliente = esEdicionCliente(), env: NodeJS.ProcessEnv = process.env): string {
+  if (!cliente) return CONFIG_ABLITERATED
+  return join(env.ARBRAIN_DATA_DIR?.trim() || join(homedir(), '.arbrain'), 'claude-abliterated')
+}
+
+/** Dónde pone el alumno su llave (texto que ve en el selector y en los errores). */
+export const DONDE_LLAVE_ALUMNO = 'Pon tu llave de abliteration.ai en Ajustes › Sin filtro.'
 
 const CLAVES = ['ABLITERATED_BASE_URL', 'ABLITERATED_API_KEY', 'ABLITERATION_AI_API_KEY', 'CABINA_MODELO_ABLITERATED'] as const
 
@@ -41,7 +55,10 @@ function leerLlaveArchivo(ruta: string): string | null {
 }
 
 /** A dónde va un turno de este espacio y con qué token. Se lee en cada turno: conectar el pod no exige reiniciar. */
-export function destinoAbliterated(base: NodeJS.ProcessEnv = process.env, archivo: Record<string, string> = readEnvFile([...CLAVES]), llave: () => string | null = () => leerLlaveArchivo(LLAVE_ABLITERATION())): DestinoAbliterated {
+export function destinoAbliterated(base: NodeJS.ProcessEnv = process.env, archivo?: Record<string, string>, llave: () => string | null = () => leerLlaveArchivo(LLAVE_ABLITERATION()), cliente = esEdicionCliente()): DestinoAbliterated {
+  // Alumno: solo abliteration.ai con la llave de su cofre; ni pod, ni .env, ni archivo de llaves.
+  if (cliente) return { destino: 'abliteration.ai', baseUrl: ABLITERATION_AI, modelo: MODELO_ABLITERATED, token: llaveSinFiltro() ?? null }
+  archivo ??= readEnvFile([...CLAVES])
   const v = (k: (typeof CLAVES)[number]) => base[k]?.trim() || archivo[k]?.trim() || ''
   const modelo = v('CABINA_MODELO_ABLITERATED') || MODELO_ABLITERATED
   // El pod va en pareja (URL + su llave): una llave de abliteration.ai nunca viaja al pod ni la del pod a abliteration.ai.
@@ -52,8 +69,8 @@ export function destinoAbliterated(base: NodeJS.ProcessEnv = process.env, archiv
 
 /** null = se puede elegir; si no, el motivo que ve Daniel en el selector. */
 export function motivoNoDisponible(d: DestinoAbliterated = destinoAbliterated(), cliente = esEdicionCliente()): string | null {
-  if (cliente) return 'Solo en la instalación original.'
   if (d.token) return null
+  if (cliente) return DONDE_LLAVE_ALUMNO
   return d.destino === 'pod'
     ? 'Falta ABLITERATED_API_KEY del pod en arbrain/server/.env (ds41.py conectar).'
     : 'Falta la llave de abliteration.ai: ABLITERATION_AI_API_KEY en arbrain/server/.env o ~/.config/arbrain/llaves/abliteration.key.'
@@ -63,14 +80,15 @@ export function motivoNoDisponible(d: DestinoAbliterated = destinoAbliterated(),
  * Entorno del CLI para un turno de este espacio. Parte del entorno ya armado para Claude y le quita toda credencial de
  * Anthropic antes de poner la del endpoint. Sin token lanza: nunca se cae a otra cuenta en silencio.
  */
-export function entornoAbliterated(env: Record<string, string | undefined>, d: DestinoAbliterated = destinoAbliterated()): Record<string, string> {
+export function entornoAbliterated(env: Record<string, string | undefined>, d: DestinoAbliterated = destinoAbliterated(), proxy?: string): Record<string, string> {
   const motivo = motivoNoDisponible(d)
   if (motivo) throw new Error(`DeepSeek V4.1 Flash · abliterated no está disponible: ${motivo}`)
   const out: Record<string, string> = {}
   for (const [k, val] of Object.entries(env)) if (val != null && !/^(ANTHROPIC_|CLAUDE_CODE_USE_|CLAUDE_CONFIG_DIR$)/.test(k)) out[k] = val
   Object.assign(out, {
-    CLAUDE_CONFIG_DIR: CONFIG_ABLITERATED,
-    ANTHROPIC_BASE_URL: d.baseUrl,
+    CLAUDE_CONFIG_DIR: configAbliterated(),
+    // `proxy`: el proxy local de imágenes (abliterated-proxy.ts), solo en loopback; si no, el endpoint real.
+    ANTHROPIC_BASE_URL: proxy && /^http:\/\/127\.0\.0\.1:\d+\/?$/.test(proxy) ? proxy : d.baseUrl,
     ANTHROPIC_AUTH_TOKEN: d.token!,
     // Las llamadas de fondo del CLI (títulos, haiku, subagentes) piden su modelo al MISMO endpoint: con un id de
     // Anthropic responderían 404. Y nada de telemetría ni betas de Anthropic hacia un tercero.

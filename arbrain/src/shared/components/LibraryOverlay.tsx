@@ -22,11 +22,7 @@ import type { LibFile } from '@/features/library/server'
  */
 
 const LIBROS_BASE = instalacion().urlLibros
-/**
- * Edición cliente: la biblioteca muestra SOLO los libros de la cohorte (/libros/indice.json).
- * El resto (libros de Daniel, pergaminos, conectomas, documentos sueltos) describe su instalación
- * y sigue oculto; por eso tampoco hay botón de carpeta.
- */
+/** Edición cliente: sin biblioteca (el manual, los libros y los documentos describen la instalación de Daniel). */
 const CLIENTE = esEdicionCliente()
 
 type Book = { slug: string; title: string; subtitle: string; cover: string; url?: string }
@@ -189,20 +185,10 @@ const CONECTOMAS: Book[] = [
 
 // URL del lector: los items con `url` propia se sirven desde Arbrain mismo (same-origin);
 // el resto vive en el lector publicado (<urlLibros>/<slug>/).
-const readerUrl = (slug: string, extra: Book[] = []) => {
-  const item = [...extra, ...BOOKS, ...PERGAMINOS, ...CONECTOMAS].find((b) => b.slug === slug)
+const readerUrl = (slug: string) => {
+  const item = [...BOOKS, ...PERGAMINOS, ...CONECTOMAS].find((b) => b.slug === slug)
   return item?.url ?? `${LIBROS_BASE}/${slug}/`
 }
-
-/**
- * Libros de la cohorte (4 nov 2026): los cuatro títulos que se leen COMPLETOS dentro del alumno.
- * El catálogo es `/libros/indice.json` — archivo estático, servido same-origin, sin API (la
- * edición cliente no expone /api/biblioteca). Fuente de verdad del catálogo: el repo privado
- * `libros` del autor; `arbrain/public/libros/` es su copia para el empaquetado.
- */
-type LibroIndice = { slug: string; titulo: string; subtitulo?: string; portada: string; archivo: string }
-const librosABooks = (lista: LibroIndice[]): Book[] =>
-  lista.map((l) => ({ slug: l.slug, title: l.titulo, subtitle: l.subtitulo ?? '', cover: l.portada, url: `/libros/${l.archivo}` }))
 
 export function LibraryOverlay() {
   const open = useLayoutStore((s) => s.libraryOpen)
@@ -210,7 +196,6 @@ export function LibraryOverlay() {
   const isMobile = useIsMobile()
   const isTouch = useIsCoarsePointer() // teléfono + tablet: hay gesto de volver → sobra el botón
   const [reading, setReading] = useState<string | null>(null)
-  const [libros, setLibros] = useState<Book[]>([])
   const [docsOpen, setDocsOpen] = useState(false)
   const [pergOpen, setPergOpen] = useState(false)
   const [conOpen, setConOpen] = useState(false)
@@ -233,31 +218,12 @@ export function LibraryOverlay() {
   // ahora la biblioteca se OCULTA (no se desmonta) y conserva libro + vista + posición,
   // igual que dejar Chat o Calendar y volver. Solo `goBack` desanda la pila a mano.
   // Al recargar/reiniciar la app restauramos el último libro publicado que leías.
-  // Edición cliente: el catálogo es el manifiesto estático de /libros/.
-  useEffect(() => {
-    if (!CLIENTE) return
-    let vivo = true
-    fetch('/libros/indice.json')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (!vivo || !Array.isArray(d?.libros)) return
-        setLibros(librosABooks(d.libros as LibroIndice[]))
-      })
-      .catch(() => {})
-    return () => {
-      vivo = false
-    }
-  }, [])
-
   useEffect(() => {
     try {
       const last = localStorage.getItem('mc_lastBook')
-      if (!last) return
-      // En cliente el libro guardado solo se retoma cuando el manifiesto ya llegó.
-      if (CLIENTE && !libros.some((b) => b.slug === last)) return
-      setReading(last)
+      if (last) setReading(last)
     } catch {}
-  }, [libros])
+  }, [])
 
   useEffect(() => {
     try {
@@ -322,7 +288,7 @@ export function LibraryOverlay() {
       aria-hidden={!open}
     >
       {reading ? (
-        <ReaderFrame src={readerUrl(reading, libros)} />
+        <ReaderFrame src={readerUrl(reading)} />
       ) : doc ? (
         <DocView file={doc} />
       ) : docsOpen ? (
@@ -346,8 +312,8 @@ export function LibraryOverlay() {
       ) : (
         <ColeccionList
           titulo="Biblioteca"
-          intro={CLIENTE ? 'Los libros de la cohorte · completos, sin resumen · se leen desde cualquier aparato.' : 'Leer · Escuchar · desde cualquier aparato.'}
-          items={CLIENTE ? libros : BOOKS}
+          intro="Leer · Escuchar · desde cualquier aparato."
+          items={CLIENTE ? [] : BOOKS}
           onOpen={setReading}
           onDocs={CLIENTE ? undefined : () => setDocsOpen(true)}
           onPergaminos={CLIENTE ? undefined : () => setPergOpen(true)}

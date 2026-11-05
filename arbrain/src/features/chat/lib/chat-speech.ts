@@ -190,6 +190,7 @@ export function buildSpoken(text: string): { spoken: string; map: number[] } {
 
 import { calcularZonaLectura } from './zona-lectura'
 import { anclarElemento, deslizarScroll, escalaRect, fijarScroll } from './desplazar'
+import { FIN_GESTO_MS, TECLAS_DE_SCROLL, Seguimiento } from './seguimiento'
 import { sonda } from './tts-probe'
 import { URL_RE, filtrarBloques, type BloqueLector } from './lector-filtro'
 import { MARCA_PROPIO, SELECTOR_BLOQUES, tramosPropios, type NodoLector } from './lector-bloques'
@@ -213,7 +214,9 @@ type StateCb = (playing: boolean) => void
 export interface PuenteLector {
   pintar(bloque: number, desde: number, hasta: number): void
   limpiar(): void
-  ver(bloque: number): void
+  /** Trae el bloque a la vista. `retomar`: lo pidió Daniel («Seguir», anterior/siguiente, tocar un párrafo, una
+   *  lectura nueva); sin él, el documento no se mueve si su mano lo desplazó (lector-agente.ts). */
+  ver(bloque: number, retomar?: boolean): void
   /** El motor terminó o paró: soltar escuchadores y resaltado. */
   cerrar(): void
 }
@@ -239,12 +242,14 @@ export interface SpeechState {
   despierto: boolean
   /** Se lee el RESUMEN del mensaje (resumen-hablado.ts), no el mensaje completo. */
   resumen: boolean
+  /** El lector lleva el scroll. `false` = la mano de Daniel lo movió: la barra ofrece «Seguir» (seguimiento.ts). */
+  siguiendo: boolean
 }
 
 // Snapshot inmutable compartido para el estado inactivo (SSR + arranque). Es una
 // referencia ESTABLE: useSyncExternalStore compara con Object.is, así que el
 // server snapshot y el cliente antes de arrancar apuntan al mismo objeto.
-const INACTIVE_STATE: SpeechState = { active: false, id: null, paused: false, rate: 1, idx: 0, total: 0, despierto: false, resumen: false }
+const INACTIVE_STATE: SpeechState = { active: false, id: null, paused: false, rate: 1, idx: 0, total: 0, despierto: false, resumen: false, siguiendo: true }
 
 // Screen Wake Lock. Los tipos del DOM no lo traen en todas las versiones de TS, y no
 // vale la pena subir el lib target por dos métodos.
@@ -395,6 +400,7 @@ class ChatSpeechController {
     this.playing = false
     this.paused = true // lista para seguir con play; pauseResume() reanuda por la palabra
     this.attachKeys()
+    this.vigilarDesde()
     if (typeof document !== 'undefined') document.addEventListener('visibilitychange', this.onVisibility)
     if (r.offset > 0) this.highlightAtOffset(this.blocks[this.idx], r.offset)
     else this.markBlockStart()
@@ -535,6 +541,7 @@ class ChatSpeechController {
       total: this.blocks.length,
       despierto: this.despierto,
       resumen: this.resumen,
+      siguiendo: this.seg.lleva,
     }
     this.listeners.forEach((l) => l())
     this.guardaPunto()
@@ -606,6 +613,7 @@ class ChatSpeechController {
       this.warmed = true
     }
     this.attachKeys()
+    this.vigilarDesde()
     if (typeof document !== 'undefined')
       document.addEventListener('visibilitychange', this.onVisibility)
     void this.retenPantalla()
@@ -940,41 +948,64 @@ class ChatSpeechController {
     this.ancla = null
   }
   /**
-   * ¿El lector lleva el scroll? (25 oct 2026, Daniel: «cuando llego hasta abajo me regresa al mismo punto… no fue
-   * hasta que lo cerré que sí me permitió»). Con una lectura activa, cada párrafo nuevo y cada cambio de alto del hilo
-   * (el composer, la fila «Esperando a su agente») devolvían el scroll al párrafo leído, aun en pausa. Ahora el gesto
-   * de Daniel sobre el hilo (rueda, dedo, tecla, clic) suelta el seguimiento; se retoma solo con un gesto al lector
-   * (play, anterior/siguiente, tocar un párrafo) o cuando él mismo vuelve a dejar el párrafo leído a la vista.
+   * ¿El lector lleva el scroll? La regla vive en seguimiento.ts (25 oct y 4 nov 2026): la mano de Daniel sobre el hilo
+   * (rueda, dedo, tecla, clic) lo suelta y NADA lo regresa —ni la voz que avanza, ni Ctrl+Espacio, ni un cambio de alto
+   * del hilo— hasta que él mismo vuelve con la mano al párrafo que suena o toca «Seguir» (o anterior, siguiente, tocar
+   * un párrafo). El vigía se pone al cargar la lectura (también al restaurarla en pausa), no al primer párrafo: antes,
+   * tras restaurar, la primera rueda no se veía y Ctrl+Espacio lo regresaba al punto guardado.
    */
-  private sigue = true
+  private seg = new Seguimiento()
+  /** El siguiente `ver` de un documento del panel lo pidió Daniel (ver PuenteLector.ver). */
+  private retomarPuente = true
   private gestos: { hilo: HTMLElement; quitar: () => void } | null = null
+  private finGesto: ReturnType<typeof setTimeout> | null = null
+  private vigilarDesde(el: HTMLElement | undefined = this.blocks[this.idx]) {
+    const hilo = el?.isConnected ? el.closest<HTMLElement>('[data-arbrain-scroll="chat"]') : null
+    if (hilo) this.vigilarGestos(hilo)
+  }
   private vigilarGestos(hilo: HTMLElement) {
     if (this.gestos?.hilo === hilo) return
     this.dejarDeVigilar()
-    const soltar = () => {
-      this.sigue = false
+    const mano = (e: Event) => {
+      // Teclas: solo las que desplazan (Espacio y ← → son del lector y no mueven el hilo).
+      if (e.type === 'keydown' && !TECLAS_DE_SCROLL.has((e as KeyboardEvent).key)) return
+      const llevaba = this.seg.lleva
+      this.seg.mano()
       this.soltarAncla()
+      if (llevaba) this.emit()
+      // La inercia del trackpad sigue mandando ruedas: el gesto termina tras FIN_GESTO_MS sin ninguna.
+      if (this.finGesto) clearTimeout(this.finGesto)
+      this.finGesto = setTimeout(() => {
+        this.finGesto = null
+        if (this.seg.lleva) return // ya lo retomó otro gesto (tocar un párrafo, anterior/siguiente)
+        const el = this.blocks[this.idx]
+        const z = el ? this.zonaDe(el) : null
+        this.seg.manoTermino(!!z?.aLaVista)
+        if (this.seg.lleva && el && z) {
+          // Él volvió al párrafo que suena: el lector vuelve a llevarlo, anclado donde lo dejó.
+          this.soltarAncla()
+          this.ancla = anclarElemento(z.hilo, el)
+          this.emit()
+        }
+      }, FIN_GESTO_MS)
     }
     const eventos = ['wheel', 'touchmove', 'keydown', 'pointerdown'] as const
-    for (const ev of eventos) hilo.addEventListener(ev, soltar, { passive: true })
-    this.gestos = { hilo, quitar: () => { for (const ev of eventos) hilo.removeEventListener(ev, soltar) } }
+    for (const ev of eventos) hilo.addEventListener(ev, mano, { passive: true })
+    this.gestos = { hilo, quitar: () => { for (const ev of eventos) hilo.removeEventListener(ev, mano) } }
   }
   private dejarDeVigilar() {
     this.gestos?.quitar()
     this.gestos = null
+    if (this.finGesto) clearTimeout(this.finGesto)
+    this.finGesto = null
   }
-  private revealBlock(el: HTMLElement) {
-    if (this.puente) {
-      const i = this.indiceEspejo.get(el)
-      if (i != null) this.puente.ver(i)
-      return
-    }
+  /** Dónde queda el párrafo respecto a la zona visible del hilo (entre la barra del lector y el composer). */
+  private zonaDe(el: HTMLElement): { hilo: HTMLElement; aLaVista: boolean; delta: number } | null {
+    if (!el.isConnected) return null
+    const hilo = el.closest<HTMLElement>('[data-arbrain-scroll="chat"]')
+    if (!hilo) return null
     const r = el.getBoundingClientRect()
-    if (!el.isConnected) return
-    const hiloEl = el.closest<HTMLElement>('[data-arbrain-scroll="chat"]')
-    if (!hiloEl) return
-    this.vigilarGestos(hiloEl)
-    const h = hiloEl.getBoundingClientRect()
+    const h = hilo.getBoundingClientRect()
     // Composer y barra se miden AHORA: el composer cambia de alto mientras se escribe.
     const composer = document.querySelector<HTMLElement>('[data-chat-composer]')?.getBoundingClientRect()
     const barra = document.querySelector<HTMLElement>('[data-tts-barra]')?.getBoundingClientRect()
@@ -984,19 +1015,29 @@ class ChatSpeechController {
       composerTop: composer && composer.height > 0 ? composer.top : null,
       barraBottom: barra && barra.height > 0 ? barra.bottom : null,
     })
+    return { hilo, aLaVista: dentro || Math.abs(delta) < 1, delta }
+  }
+  private revealBlock(el: HTMLElement) {
+    if (this.puente) {
+      const i = this.indiceEspejo.get(el)
+      if (i != null) this.puente.ver(i, this.retomarPuente)
+      this.retomarPuente = false
+      return
+    }
+    const z = this.zonaDe(el)
+    if (!z) return
+    const hiloEl = z.hilo
+    this.vigilarGestos(hiloEl)
     // El párrafo que se lee queda anclado donde se ve: si lo de arriba cambia de alto, no se va (ver desplazar.ts).
     this.soltarAncla()
-    const anclar = () => { if (this.blocks[this.idx] === el) this.ancla = anclarElemento(hiloEl, el) }
-    const aLaVista = dentro || Math.abs(delta) < 1
-    if (!this.sigue) {
-      // Daniel movió el hilo: no se le regresa. Si él mismo dejó el párrafo leído a la vista, se vuelve a seguir.
-      if (!aLaVista) return
-      this.sigue = true
-    }
-    if (aLaVista) return anclar()
+    const anclar = () => { if (this.blocks[this.idx] === el && this.seg.lleva) this.ancla = anclarElemento(hiloEl, el) }
+    const que = this.seg.decidir(z.aLaVista)
+    // Daniel movió el hilo: la voz sigue, la pantalla se queda donde él la dejó (la barra le ofrece «Seguir»).
+    if (que === 'quieto') return
+    if (que === 'anclar') return anclar()
     // La zona se calcula con rects (px en pantalla); el scroll va en px de layout. Con el zoom de la app no son lo
     // mismo (1.4 px de rect por px de scroll): sin convertir, cada seguimiento se pasaba de largo.
-    const paso = delta / escalaRect(hiloEl)
+    const paso = z.delta / escalaRect(hiloEl)
     // Salto largo: al instante (una animación de cientos de ms compitiendo con la voz); corto: deslizado.
     // NUNCA `scrollBy`/`scrollTop` directos: con el zoom de la app, WKWebView deja el compositor en otra posición
     // y el mensaje se ve en blanco debajo del párrafo (12 oct 2026, ver desplazar.ts).
@@ -1004,6 +1045,23 @@ class ChatSpeechController {
       fijarScroll(hiloEl, hiloEl.scrollTop + paso)
       anclar()
     } else deslizarScroll(hiloEl, hiloEl.scrollTop + paso, undefined, anclar)
+  }
+
+  /** «Seguir» (4 nov 2026): Daniel le devuelve el scroll al lector; el párrafo que suena vuelve a la vista. */
+  seguir() {
+    if (!this.curId) return
+    this.seg.retomar()
+    this.retomarPuente = true
+    const el = this.blocks[this.idx]
+    if (el) this.revealBlock(el)
+    this.emit()
+  }
+  /** Un documento del panel avisa que la mano de Daniel lo desplazó (`true`) o que él volvió al párrafo (`false`). */
+  manoEnDocumento(suelto: boolean) {
+    if (!this.puente || suelto === !this.seg.lleva) return
+    if (suelto) this.seg.mano()
+    else this.seg.retomar()
+    this.emit()
   }
 
   private speakBlock(motivo = 'bloque'): void {
@@ -1619,7 +1677,8 @@ class ChatSpeechController {
     if (!this.synth || !this.curId) return
     if (this.paused) {
       this.paused = false
-      this.sigue = true // play es gesto al lector: vuelve a llevar el scroll
+      // Play NO le devuelve el scroll al lector (4 nov 2026): si Daniel bajó a leer, la voz sigue y él se queda ahí.
+      this.seg.reanudar()
       if (!this.playing) {
         this.playing = true
         this.stateCb?.(true)
@@ -1694,14 +1753,16 @@ class ChatSpeechController {
   // la palabra exacta bajo el dedo (charOffset, calculado en collectBlocks()).
   private jumpTo(i: number, charOffset = 0) {
     if (!this.blocks.length || !this.synth) return
-    this.sigue = true
+    this.seg.retomar()
+    this.retomarPuente = true
     this.marcarToque('tap')
     this.speakFrom(i, charOffset)
   }
 
   private jump(i: number) {
     if (!this.blocks.length || !this.synth) return
-    this.sigue = true
+    this.seg.retomar()
+    this.retomarPuente = true
     this.idx = Math.max(0, Math.min(this.blocks.length - 1, i))
     if (this.paused) {
       // Navegar entre párrafos SIN reproducir: el ancla naranja se muda al párrafo nuevo.
@@ -1744,7 +1805,7 @@ class ChatSpeechController {
   reajustar() {
     // En pausa no se recoloca nada: Daniel está leyendo o moviéndose por el hilo, no siguiendo la voz.
     const el = this.blocks[this.idx]
-    if (el && this.getState().active && !this.paused && this.sigue) this.revealBlock(el)
+    if (el && this.getState().active && !this.paused && this.seg.lleva) this.revealBlock(el)
   }
 
   stop(olvidar = true) {
@@ -1780,7 +1841,8 @@ class ChatSpeechController {
     this.detachKeys()
     this.soltarAncla()
     this.dejarDeVigilar()
-    this.sigue = true
+    this.seg.retomar()
+    this.retomarPuente = true
     if (typeof document !== 'undefined')
       document.removeEventListener('visibilitychange', this.onVisibility)
     this.soltarPantalla()

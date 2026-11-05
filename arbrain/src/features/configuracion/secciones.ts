@@ -8,7 +8,7 @@ import { capital, NOMBRE_DUENO, NOMBRE_SEGUNDA } from '@/config'
 
 const CLIENTE = esEdicionCliente()
 
-export type IdSeccion = 'norte' | 'equipo' | 'clientes' | 'oferta' | 'embudo' | 'modelo' | 'apariencia' | 'cuenta' | 'avisos' | 'mac' | 'atajos' | 'panel' | 'llaves' | 'voz' | 'privacidad' | 'seguridad' | 'telefono' | 'maquinas'
+export type IdSeccion = 'norte' | 'equipo' | 'clientes' | 'oferta' | 'embudo' | 'modelo' | 'apariencia' | 'cuenta' | 'avisos' | 'mac' | 'atajos' | 'panel' | 'llaves' | 'voz' | 'sinfiltro' | 'privacidad' | 'seguridad' | 'telefono' | 'maquinas'
 
 export interface DefSeccion { id: IdSeccion; nombre: string; detalle: string; ajustes: string[] }
 export interface DefGrupo { id: string; titulo: string; secciones: IdSeccion[] }
@@ -30,6 +30,8 @@ const TODAS: ReadonlyArray<DefSeccion> = [
   { id: 'llaves', nombre: 'Llaves', detalle: 'Tu conexión con Claude y OpenRouter', ajustes: ['API key de Anthropic', 'Cuenta de Claude', 'Token', 'OpenRouter', 'Probar conexión', 'Llavero'] },
   // Voz del alumno (21 oct 2026): su llave de Groq (gratis) para dictar; «Escuchar» usa la voz del dispositivo.
   { id: 'voz', nombre: 'Voz', detalle: 'Dictar con tu llave de Groq (gratis)', ajustes: ['Llave de Groq', 'Groq', 'Dictar', 'Micrófono', 'Nota de voz', 'Transcribir', 'Escuchar'] },
+  // Sin filtro del alumno (v0.2.23, 4 nov 2026): SU llave de abliteration.ai para DeepSeek V4.1 Flash abliterated.
+  { id: 'sinfiltro', nombre: 'Sin filtro', detalle: 'DeepSeek abliterated con tu llave de abliteration.ai', ajustes: ['Sin filtro', 'Modelo sin filtro', 'DeepSeek abliterated', 'Abliterated', 'abliteration.ai', 'Llave de abliteration.ai', 'No es Claude'] },
   // Seguridad del alumno (12 oct 2026): freno general, bitácora, carpetas abiertas y tope de gasto.
   // Grupal 23 oct 2026: el modo de permisos y las carpetas van primero («demasiadas confirmaciones»).
   { id: 'seguridad', nombre: 'Permisos y seguridad', detalle: 'Cuánto te pregunta Levy, a qué carpetas entra, pausar todo y tope de gasto', ajustes: ['Permisos', 'Modo de permisos', 'Preguntar siempre', 'Automático en mi carpeta', 'Sin preguntar', 'Confirmaciones', 'Carpetas a las que tu cerebro puede entrar', 'Carpetas abiertas', 'Abrir carpeta', 'Pausar todo', 'Reanudar', 'Lo que hizo Levy', 'Bitácora', 'Tope de gasto', 'Límite de crédito', 'Gasto'] },
@@ -53,7 +55,7 @@ const GRUPOS_ORIGINAL: ReadonlyArray<DefGrupo> = [
  * en su teléfono, junto a «Tu cerebro en el teléfono».
  */
 const GRUPOS_CLIENTE: ReadonlyArray<DefGrupo> = [
-  { id: 'tu', titulo: 'Tú', secciones: ['llaves', 'voz', 'telefono', 'maquinas', 'avisos', 'seguridad', 'privacidad', 'apariencia'] },
+  { id: 'tu', titulo: 'Tú', secciones: ['llaves', 'voz', 'sinfiltro', 'telefono', 'maquinas', 'avisos', 'seguridad', 'privacidad', 'apariencia'] },
   { id: 'arbrain', titulo: 'Arbrain', secciones: ['modelo', 'panel', 'atajos'] },
   { id: 'computadora', titulo: 'Esta computadora', secciones: ['mac'] },
 ]
