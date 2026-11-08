@@ -12,6 +12,8 @@ export const RANGOS: { id: FinanceRange; label: string; word: string }[] = [
   { id: '3m', label: '3M', word: '3 meses' },
   { id: '6m', label: '6M', word: '6 meses' },
   { id: '12m', label: '12M', word: '12 meses' },
+  // Desde el primer movimiento registrado (5 nov 2026): la historia completa, mes por mes.
+  { id: 'todo', label: 'Todo', word: 'toda la historia' },
 ]
 
 export const esRango = (v: unknown): v is FinanceRange => RANGOS.some(r => r.id === v)
@@ -53,6 +55,32 @@ export function proximosCobros<R extends FinanceRecurring>(recurrentes: R[], hoy
 
 export const aMxn = (monto: number, moneda: string, fx: { usd_mxn: number; eur_mxn: number }) =>
   moneda === 'USD' ? monto * fx.usd_mxn : moneda === 'EUR' ? monto * fx.eur_mxn : monto
+
+/**
+ * Un movimiento retirado (`is_correction`, 6 nov 2026) ya no cuenta en nada: ni en las sumas, ni en la lista, ni en el
+ * conteo. Se separan una vez al leer; los retirados solo viajan a quien los pide (`retirados=1`, el dedup del sync de Polar).
+ */
+export function separarRetirados<T extends { is_correction: boolean }>(movs: T[]): { vivos: T[]; retirados: T[] } {
+  const vivos: T[] = [], retirados: T[] = []
+  for (const m of movs) (m.is_correction ? retirados : vivos).push(m)
+  return { vivos, retirados }
+}
+
+/** Lo mínimo de un movimiento para saber cuánto valió en pesos. */
+export interface ConPesos { amount: number; currency: string; counter_currency?: string | null; counter_amount?: number | string | null }
+
+/**
+ * Cuánto valió un movimiento en pesos EL DÍA QUE OCURRIÓ (5 nov 2026). Si trae su contraparte en MXN
+ * (`counter_currency='MXN'` + `counter_amount`: el tipo de cambio de su día, o lo que de verdad llegó al banco), esa es su
+ * cifra y la historia ya no se mueve con el dólar de hoy. Sin ese dato, cae al tipo de cambio que se le pase (el vivo).
+ */
+export function pesosDe(m: ConPesos, fx: { usd_mxn: number; eur_mxn: number } | ((monto: number, moneda: string) => number)): number {
+  const amount = Number(m.amount)
+  if (m.currency === 'MXN') return amount
+  const contraparte = m.counter_amount == null || m.counter_amount === '' ? NaN : Number(m.counter_amount)
+  if (m.counter_currency === 'MXN' && Number.isFinite(contraparte)) return contraparte
+  return typeof fx === 'function' ? fx(amount, m.currency) : aMxn(amount, m.currency, fx)
+}
 
 /** El cierre más reciente (la API los manda ordenados; no se confía en ello). */
 export const ultimoCierre = (cierres: FinanceSnapshot[]) =>

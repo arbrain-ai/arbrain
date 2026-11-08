@@ -1,0 +1,716 @@
+{
+  "$schema": "../embudo.schema.json",
+  "esquema": "arbrain.embudo/v1",
+  "negocio": "‹Tu negocio de consultoría›",
+  "generado": "2026-11-05",
+  "reglas": [
+    "plantilla vacía: cambia cada ‹…› por lo que diga el dueño y borra los pisos o etapas que no apliquen",
+    "valor siempre null hasta leerlo de su fuente; nunca 0 por falta de dato",
+    "sin nombres de clientes ni cifras personales: las personas, por su rol",
+    "lo que todavía no existe va con opera_hoy=false o estado «por construir» (se pinta punteado)",
+    "un solo cuello de botella, y solo con evidencia (frase, ruta y fecha)"
+  ],
+  "ejecutores": {
+    "levy": "tu agente",
+    "rutina": "una tarea que corre sola",
+    "persona": "una persona, por su rol"
+  },
+  "embudos": [
+    {
+      "id": "canal",
+      "nombre": "‹Tu canal›",
+      "kicker": "PISO 1 · TU CANAL",
+      "frase": "‹Contenido de tu industria, hecho con tu agente, que atrae a dueños de negocio de tu nicho.›",
+      "tipo": "piso",
+      "estado": "por construir"
+    },
+    {
+      "id": "iman",
+      "nombre": "‹Tu lead magnet›",
+      "kicker": "PISO 2 · TU LEAD MAGNET",
+      "frase": "‹Lo que regalas para que te dejen su correo.›",
+      "tipo": "piso",
+      "estado": "por construir"
+    },
+    {
+      "id": "diagnostico",
+      "nombre": "‹El diagnóstico›",
+      "kicker": "EMBUDO 1 · LA ENTRADA",
+      "frase": "‹Le dibujas su embudo y le muestras su cuello de botella.›",
+      "tipo": "oferta",
+      "estado": "por construir"
+    },
+    {
+      "id": "operacion",
+      "nombre": "‹Instalación y operación mensual›",
+      "kicker": "EMBUDO 2 · LA RECURRENCIA",
+      "frase": "‹Le instalas su cerebro y lo operas con él cada mes.›",
+      "tipo": "oferta",
+      "estado": "por construir"
+    }
+  ],
+  "etapas": [
+    {
+      "id": "canal.adquisicion",
+      "orden": 1,
+      "embudo": "canal",
+      "etapa": "Adquisición",
+      "nombre": "‹Tu contenido›",
+      "que_pasa": "‹Videos o posts sobre los problemas de los negocios de tu industria, hechos con tu agente.›",
+      "opera_hoy": false,
+      "skills": [
+        {
+          "nombre": "code-animation",
+          "ruta": ".claude/skills/code-animation/SKILL.md"
+        },
+        {
+          "nombre": "image-generation",
+          "ruta": ".claude/skills/image-generation/SKILL.md"
+        }
+      ],
+      "rutinas": [],
+      "ejecuta": [
+        {
+          "tipo": "persona",
+          "rol": "fundador"
+        },
+        {
+          "tipo": "levy"
+        }
+      ],
+      "mide": {
+        "nombre": "Vistas y seguidores",
+        "fuente": "‹Las estadísticas de tu canal›",
+        "frecuencia": "‹cada semana›",
+        "dueno": {
+          "tipo": "persona",
+          "rol": "fundador"
+        },
+        "hay_numero": true,
+        "valor": null
+      },
+      "cuello": {
+        "es": false
+      }
+    },
+    {
+      "id": "canal.nutricion",
+      "orden": 2,
+      "embudo": "canal",
+      "etapa": "Nutrición",
+      "nombre": "‹Respuestas y llamada›",
+      "que_pasa": "‹Tu agente contesta y cada pieza manda a un solo lugar: tu lead magnet.›",
+      "opera_hoy": false,
+      "skills": [],
+      "rutinas": [],
+      "ejecuta": [
+        {
+          "tipo": "levy"
+        }
+      ],
+      "mide": {
+        "nombre": "Clics a tu lead magnet",
+        "fuente": "‹Un enlace rastreado en cada pieza›",
+        "frecuencia": "‹en vivo, cuando exista el enlace›",
+        "dueno": {
+          "tipo": "levy"
+        },
+        "hay_numero": false,
+        "como_medirlo": "‹Un enlace con contador por pieza, con destino a tu lead magnet.›",
+        "valor": null
+      },
+      "cuello": {
+        "es": false
+      }
+    },
+    {
+      "id": "iman.conversion",
+      "orden": 1,
+      "embudo": "iman",
+      "etapa": "Conversión",
+      "nombre": "‹Lo que regalas›",
+      "que_pasa": "‹Un recurso gratis que resuelve una parte del problema y pide el correo.›",
+      "opera_hoy": false,
+      "skills": [
+        {
+          "nombre": "presentaciones",
+          "ruta": ".claude/skills/presentaciones/SKILL.md"
+        }
+      ],
+      "rutinas": [],
+      "ejecuta": [
+        {
+          "tipo": "levy"
+        }
+      ],
+      "mide": {
+        "nombre": "Correos captados",
+        "fuente": "‹La herramienta donde guardas los correos›",
+        "frecuencia": "‹en vivo›",
+        "dueno": {
+          "tipo": "persona",
+          "rol": "fundador"
+        },
+        "hay_numero": true,
+        "valor": null
+      },
+      "cuello": {
+        "es": false
+      }
+    },
+    {
+      "id": "diagnostico.adquisicion",
+      "orden": 1,
+      "embudo": "diagnostico",
+      "etapa": "Adquisición",
+      "nombre": "‹La invitación›",
+      "que_pasa": "‹Quien tomó el lead magnet recibe la invitación al diagnóstico.›",
+      "opera_hoy": false,
+      "skills": [
+        {
+          "nombre": "google-workspace",
+          "ruta": ".claude/skills/google-workspace/SKILL.md"
+        }
+      ],
+      "rutinas": [],
+      "ejecuta": [
+        {
+          "tipo": "levy"
+        }
+      ],
+      "mide": {
+        "nombre": "Invitaciones enviadas",
+        "fuente": "‹Tu correo›",
+        "frecuencia": "‹cada semana›",
+        "dueno": {
+          "tipo": "levy"
+        },
+        "hay_numero": true,
+        "valor": null
+      },
+      "cuello": {
+        "es": false
+      }
+    },
+    {
+      "id": "diagnostico.nutricion",
+      "orden": 2,
+      "embudo": "diagnostico",
+      "etapa": "Nutrición",
+      "nombre": "‹Seguimiento›",
+      "que_pasa": "‹Un caso real o una demo por correo antes de agendar.›",
+      "opera_hoy": false,
+      "skills": [
+        {
+          "nombre": "google-workspace",
+          "ruta": ".claude/skills/google-workspace/SKILL.md"
+        }
+      ],
+      "rutinas": [],
+      "ejecuta": [
+        {
+          "tipo": "levy"
+        }
+      ],
+      "mide": {
+        "nombre": "Agendas",
+        "fuente": "‹Tu calendario›",
+        "frecuencia": "‹en vivo›",
+        "dueno": {
+          "tipo": "persona",
+          "rol": "fundador"
+        },
+        "hay_numero": true,
+        "valor": null
+      },
+      "cuello": {
+        "es": false
+      }
+    },
+    {
+      "id": "diagnostico.conversion",
+      "orden": 3,
+      "embudo": "diagnostico",
+      "etapa": "Conversión",
+      "nombre": "‹La llamada›",
+      "que_pasa": "‹Una llamada corta: ¿encaja?, y el pago del diagnóstico.›",
+      "opera_hoy": false,
+      "skills": [
+        {
+          "nombre": "clientes",
+          "ruta": ".claude/skills/clientes/SKILL.md"
+        }
+      ],
+      "rutinas": [],
+      "ejecuta": [
+        {
+          "tipo": "persona",
+          "rol": "fundador"
+        }
+      ],
+      "mide": {
+        "nombre": "Llamadas → diagnósticos pagados",
+        "fuente": "‹Tu calendario y tu cobro›",
+        "frecuencia": "‹en vivo›",
+        "dueno": {
+          "tipo": "persona",
+          "rol": "fundador"
+        },
+        "hay_numero": true,
+        "valor": null
+      },
+      "cuello": {
+        "es": false
+      }
+    },
+    {
+      "id": "diagnostico.bienvenida",
+      "orden": 4,
+      "embudo": "diagnostico",
+      "etapa": "Bienvenida",
+      "nombre": "‹Arranque›",
+      "que_pasa": "‹Accesos, entrevista con el dueño y su ficha de cliente abierta.›",
+      "opera_hoy": false,
+      "skills": [
+        {
+          "nombre": "clientes",
+          "ruta": ".claude/skills/clientes/SKILL.md"
+        }
+      ],
+      "rutinas": [],
+      "ejecuta": [
+        {
+          "tipo": "levy"
+        },
+        {
+          "tipo": "persona",
+          "rol": "fundador"
+        }
+      ],
+      "mide": {
+        "nombre": "Diagnósticos arrancados en la semana",
+        "fuente": "‹La ficha de cada cliente›",
+        "frecuencia": "‹en vivo›",
+        "dueno": {
+          "tipo": "levy"
+        },
+        "hay_numero": true,
+        "valor": null
+      },
+      "cuello": {
+        "es": false
+      }
+    },
+    {
+      "id": "diagnostico.entrega",
+      "orden": 5,
+      "embudo": "diagnostico",
+      "etapa": "Entrega",
+      "nombre": "‹El diagnóstico›",
+      "que_pasa": "‹El embudo de su negocio en este mismo estándar (plantilla del cliente) y el cuello de botella con evidencia.›",
+      "opera_hoy": false,
+      "skills": [
+        {
+          "nombre": "clientes",
+          "ruta": ".claude/skills/clientes/SKILL.md"
+        },
+        {
+          "nombre": "canvas",
+          "ruta": ".claude/skills/canvas/SKILL.md"
+        }
+      ],
+      "rutinas": [],
+      "ejecuta": [
+        {
+          "tipo": "persona",
+          "rol": "fundador"
+        },
+        {
+          "tipo": "levy"
+        }
+      ],
+      "mide": {
+        "nombre": "Diagnósticos entregados",
+        "fuente": "‹La ficha de cada cliente›",
+        "frecuencia": "‹en vivo›",
+        "dueno": {
+          "tipo": "persona",
+          "rol": "fundador"
+        },
+        "hay_numero": true,
+        "valor": null
+      },
+      "cuello": {
+        "es": false
+      }
+    },
+    {
+      "id": "diagnostico.expansion",
+      "orden": 6,
+      "embudo": "diagnostico",
+      "etapa": "Expansión",
+      "nombre": "‹La propuesta›",
+      "que_pasa": "‹Del cuello que encontraste sale la propuesta: instalarle su cerebro.›",
+      "opera_hoy": false,
+      "skills": [
+        {
+          "nombre": "presentaciones",
+          "ruta": ".claude/skills/presentaciones/SKILL.md"
+        }
+      ],
+      "rutinas": [],
+      "ejecuta": [
+        {
+          "tipo": "persona",
+          "rol": "fundador"
+        }
+      ],
+      "mide": {
+        "nombre": "Propuestas presentadas",
+        "fuente": "‹La ficha de cada cliente›",
+        "frecuencia": "‹en vivo›",
+        "dueno": {
+          "tipo": "persona",
+          "rol": "fundador"
+        },
+        "hay_numero": true,
+        "valor": null
+      },
+      "cuello": {
+        "es": false
+      }
+    },
+    {
+      "id": "operacion.adquisicion",
+      "orden": 1,
+      "embudo": "operacion",
+      "etapa": "Adquisición",
+      "nombre": "‹Propuesta aceptada›",
+      "que_pasa": "‹El cliente del diagnóstico decide instalar.›",
+      "opera_hoy": false,
+      "skills": [
+        {
+          "nombre": "clientes",
+          "ruta": ".claude/skills/clientes/SKILL.md"
+        }
+      ],
+      "rutinas": [],
+      "ejecuta": [
+        {
+          "tipo": "persona",
+          "rol": "fundador"
+        }
+      ],
+      "mide": {
+        "nombre": "Propuestas aceptadas",
+        "fuente": "‹La ficha de cada cliente›",
+        "frecuencia": "‹en vivo›",
+        "dueno": {
+          "tipo": "persona",
+          "rol": "fundador"
+        },
+        "hay_numero": true,
+        "valor": null
+      },
+      "cuello": {
+        "es": false
+      }
+    },
+    {
+      "id": "operacion.nutricion",
+      "orden": 2,
+      "embudo": "operacion",
+      "etapa": "Nutrición",
+      "nombre": "‹Prueba›",
+      "que_pasa": "‹Un caso o una demo de lo que el cerebro hace por un negocio como el suyo.›",
+      "opera_hoy": false,
+      "skills": [
+        {
+          "nombre": "presentaciones",
+          "ruta": ".claude/skills/presentaciones/SKILL.md"
+        }
+      ],
+      "rutinas": [],
+      "ejecuta": [
+        {
+          "tipo": "persona",
+          "rol": "fundador"
+        },
+        {
+          "tipo": "levy"
+        }
+      ],
+      "mide": {
+        "nombre": "Demos hechas",
+        "fuente": "‹Tu calendario›",
+        "frecuencia": "‹en vivo›",
+        "dueno": {
+          "tipo": "persona",
+          "rol": "fundador"
+        },
+        "hay_numero": true,
+        "valor": null
+      },
+      "cuello": {
+        "es": false
+      }
+    },
+    {
+      "id": "operacion.conversion",
+      "orden": 3,
+      "embudo": "operacion",
+      "etapa": "Conversión",
+      "nombre": "‹Cierre›",
+      "que_pasa": "‹Contrato y primer pago de la instalación y la operación mensual.›",
+      "opera_hoy": false,
+      "skills": [],
+      "rutinas": [],
+      "ejecuta": [
+        {
+          "tipo": "persona",
+          "rol": "fundador"
+        }
+      ],
+      "mide": {
+        "nombre": "Cierres",
+        "fuente": "‹Tu cobro›",
+        "frecuencia": "‹en vivo›",
+        "dueno": {
+          "tipo": "persona",
+          "rol": "fundador"
+        },
+        "hay_numero": true,
+        "valor": null
+      },
+      "cuello": {
+        "es": false
+      }
+    },
+    {
+      "id": "operacion.bienvenida",
+      "orden": 4,
+      "embudo": "operacion",
+      "etapa": "Bienvenida",
+      "nombre": "‹Instalar su cerebro›",
+      "que_pasa": "‹Su cerebro instalado, con su memoria, sus skills y su panel.›",
+      "opera_hoy": false,
+      "skills": [
+        {
+          "nombre": "artificial-brain",
+          "ruta": ".claude/skills/artificial-brain/SKILL.md"
+        }
+      ],
+      "rutinas": [],
+      "ejecuta": [
+        {
+          "tipo": "levy"
+        },
+        {
+          "tipo": "persona",
+          "rol": "fundador"
+        }
+      ],
+      "mide": {
+        "nombre": "Cerebros instalados",
+        "fuente": "‹La ficha de cada cliente›",
+        "frecuencia": "‹en vivo›",
+        "dueno": {
+          "tipo": "levy"
+        },
+        "hay_numero": true,
+        "valor": null
+      },
+      "cuello": {
+        "es": false
+      }
+    },
+    {
+      "id": "operacion.entrega",
+      "orden": 5,
+      "embudo": "operacion",
+      "etapa": "Entrega",
+      "nombre": "‹Operación mensual›",
+      "que_pasa": "‹Cada mes: revisar su embudo, mover su cuello y capacitar a su equipo.›",
+      "opera_hoy": false,
+      "skills": [
+        {
+          "nombre": "clientes",
+          "ruta": ".claude/skills/clientes/SKILL.md"
+        },
+        {
+          "nombre": "habit-system",
+          "ruta": ".claude/skills/habit-system/SKILL.md"
+        }
+      ],
+      "rutinas": [
+        {
+          "id": null,
+          "que_hace": "‹Revisión mensual de cada cliente›",
+          "horario": null,
+          "motor": null,
+          "activa": false,
+          "nota": "‹por construir›"
+        }
+      ],
+      "ejecuta": [
+        {
+          "tipo": "persona",
+          "rol": "fundador"
+        },
+        {
+          "tipo": "levy"
+        },
+        {
+          "tipo": "rutina"
+        }
+      ],
+      "mide": {
+        "nombre": "Clientes que renuevan el mes",
+        "fuente": "‹Tu cobro›",
+        "frecuencia": "‹cada mes›",
+        "dueno": {
+          "tipo": "persona",
+          "rol": "fundador"
+        },
+        "hay_numero": true,
+        "valor": null
+      },
+      "cuello": {
+        "es": false
+      }
+    },
+    {
+      "id": "operacion.expansion",
+      "orden": 6,
+      "embudo": "operacion",
+      "etapa": "Expansión",
+      "nombre": "‹Casos y referidos›",
+      "que_pasa": "‹Resultados con permiso que venden al siguiente cliente.›",
+      "opera_hoy": false,
+      "skills": [
+        {
+          "nombre": "clientes",
+          "ruta": ".claude/skills/clientes/SKILL.md"
+        }
+      ],
+      "rutinas": [],
+      "ejecuta": [
+        {
+          "tipo": "persona",
+          "rol": "fundador"
+        }
+      ],
+      "mide": {
+        "nombre": "Casos con permiso",
+        "fuente": "‹La ficha de cada cliente›",
+        "frecuencia": "‹cuando haya casos›",
+        "dueno": {
+          "tipo": "persona",
+          "rol": "fundador"
+        },
+        "hay_numero": false,
+        "como_medirlo": "‹Pedir permiso por escrito a cada cliente con resultado y guardarlo en su ficha.›",
+        "valor": null
+      },
+      "cuello": {
+        "es": false
+      }
+    }
+  ],
+  "aristas": [
+    {
+      "desde": "canal.adquisicion",
+      "hacia": "canal.nutricion",
+      "tipo": "flujo",
+      "estado": "por construir"
+    },
+    {
+      "desde": "canal.nutricion",
+      "hacia": "iman.conversion",
+      "tipo": "upsell",
+      "accion": "‹del contenido al lead magnet›",
+      "estado": "por construir"
+    },
+    {
+      "desde": "iman.conversion",
+      "hacia": "diagnostico.adquisicion",
+      "tipo": "upsell",
+      "accion": "‹del lead magnet al diagnóstico›",
+      "estado": "por construir"
+    },
+    {
+      "desde": "diagnostico.adquisicion",
+      "hacia": "diagnostico.nutricion",
+      "tipo": "flujo",
+      "estado": "por construir"
+    },
+    {
+      "desde": "diagnostico.nutricion",
+      "hacia": "diagnostico.conversion",
+      "tipo": "flujo",
+      "estado": "por construir"
+    },
+    {
+      "desde": "diagnostico.conversion",
+      "hacia": "diagnostico.bienvenida",
+      "tipo": "flujo",
+      "estado": "por construir"
+    },
+    {
+      "desde": "diagnostico.bienvenida",
+      "hacia": "diagnostico.entrega",
+      "tipo": "flujo",
+      "estado": "por construir"
+    },
+    {
+      "desde": "diagnostico.entrega",
+      "hacia": "diagnostico.expansion",
+      "tipo": "flujo",
+      "estado": "por construir"
+    },
+    {
+      "desde": "diagnostico.expansion",
+      "hacia": "operacion.adquisicion",
+      "tipo": "upsell",
+      "accion": "‹del diagnóstico a la instalación›",
+      "estado": "por construir"
+    },
+    {
+      "desde": "operacion.adquisicion",
+      "hacia": "operacion.nutricion",
+      "tipo": "flujo",
+      "estado": "por construir"
+    },
+    {
+      "desde": "operacion.nutricion",
+      "hacia": "operacion.conversion",
+      "tipo": "flujo",
+      "estado": "por construir"
+    },
+    {
+      "desde": "operacion.conversion",
+      "hacia": "operacion.bienvenida",
+      "tipo": "flujo",
+      "estado": "por construir"
+    },
+    {
+      "desde": "operacion.bienvenida",
+      "hacia": "operacion.entrega",
+      "tipo": "flujo",
+      "estado": "por construir"
+    },
+    {
+      "desde": "operacion.entrega",
+      "hacia": "operacion.expansion",
+      "tipo": "flujo",
+      "estado": "por construir"
+    },
+    {
+      "desde": "operacion.expansion",
+      "hacia": "canal.adquisicion",
+      "tipo": "volante",
+      "accion": "‹casos → contenido›",
+      "estado": "por construir"
+    }
+  ]
+}

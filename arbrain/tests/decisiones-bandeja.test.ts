@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { deshacible, enOrden, estadoDecidida, fraseEspera, lineaRecomendacion, minutos, recomendadas, VENCIDA_A_LA_VISTA_MS, vencidasRecientes, type Tarjeta, type VistaBandeja } from '../src/features/decisiones/lib/bandeja'
+import { agruparPorPersona, deshacible, enOrden, tituloEnGrupo, estadoDecidida, fraseEspera, lineaRecomendacion, minutos, recomendadas, urlVistaPrevia, type Tarjeta, type VistaBandeja } from '../src/features/decisiones/lib/bandeja'
 import { seQuedaAlReabrir } from '../src/features/cabina/panel/telefono-logica'
 
 const t = (o: Partial<Tarjeta>): Tarjeta => ({ id: 'cf_000000000001', estado: 'en_cola', tipo: 'decision', categoria: 'enviar', origen: 'agente', titulo: 'x', creada: 1, irreversible: true, ...o })
@@ -42,23 +42,94 @@ test('«Sí a todas» (3 nov 2026): nunca agrupa contactar ni pagar; esas van un
   assert.deepEqual(recomendadas(lista).map(x => x.id), ['a', 'd'])
 })
 
-test('lo que venció porque su hora pasó: «ya no aplica», a la vista un rato y luego solo en el historial', () => {
-  const ahora = 1_000_000_000
-  const v = { vencidasHoy: [t({ id: 'reciente', estado: 'vencida', resuelta: ahora - 60_000 }), t({ id: 'vieja', estado: 'vencida', resuelta: ahora - VENCIDA_A_LA_VISTA_MS - 1 })] } as unknown as VistaBandeja
-  assert.deepEqual(vencidasRecientes(v, ahora).map(x => x.id), ['reciente'])
+test('lo que venció (4 nov 2026, 19:31): sale de la lista en el acto y vive solo en el historial de la bandeja', () => {
+  const f = (r: string) => readFileSync(new URL(`../src/${r}`, import.meta.url), 'utf8')
   assert.equal(estadoDecidida(t({ estado: 'vencida' })), 'ya no aplica')
-  assert.deepEqual(vencidasRecientes(null, ahora), [])
+  const franja = f('features/decisiones/FranjaDecisiones.tsx')
+  // La sección solo pinta lo que espera: ni renglón tachado ni «ya no aplica».
+  assert.match(franja, /const hay = pendientes\.length > 0/)
+  assert.doesNotMatch(franja, /vencidas|data-vencida|ya no aplica<\/em>/)
+  // El historial sí lo cuenta: «Decidiste hoy · N ya no aplica».
+  assert.match(f('features/decisiones/Bandeja.tsx'), /v\.vencidasHoy\?\.length \? ` · \$\{v\.vencidasHoy\.length\} ya no aplica/)
 })
 
-test('la franja vive en el Día de hoy, arriba del objetivo, y en /telefono; la píldora lleva ahí y cuenta lo mismo', () => {
+test('«Esperan tu toque» vive DENTRO de la tarjeta HOY (4 nov 2026), junto a las tareas; es el único lugar con «N te esperan»', () => {
   const f = (r: string) => readFileSync(new URL(`../src/${r}`, import.meta.url), 'utf8')
   const dia = f('features/planning/DiaVivo.tsx')
-  assert.match(dia, /const decisiones = esHoy && !snapshot\?\.perfil \? <FranjaDecisiones \/> : null/)
-  assert.ok(dia.indexOf('{decisiones}') < dia.indexOf('{franja}'), 'decisiones → objetivo')
-  assert.match(f('features/cabina/panel/PanelTelefono.tsx'), /<FranjaDecisiones compacta \/>/)
-  const pildora = f('features/cabina/panel/AgentesTrabajando.tsx')
-  assert.match(pildora, /const espera = useBandeja\(15_000\)\.vista\?\.pendientes\.length/)
-  assert.match(pildora, /onClick=\{irADecisiones\} data-testid="te-espera"/)
-  assert.match(pildora, /abrirSeccion\(\{ vista: 'calendario', alcance: 'dia' \}\)/)
+  assert.match(dia, /const conBandeja = esHoy && !snapshot\?\.perfil/)
+  assert.match(dia, /const decisiones = conBandeja && bandeja\.vista \? <SeccionDecisiones b=\{bandeja\} \/> : null/)
+  // En el detalle de la tarjeta, después de la lista del día; nunca como bloque aparte arriba.
+  const detalle = dia.slice(dia.indexOf('const objetivoDetalle'), dia.indexOf('const gobierno'))
+  assert.ok(detalle.indexOf('<ListaDia') < detalle.indexOf('{decisiones}'), 'tareas → decisiones, en el detalle de HOY')
+  assert.doesNotMatch(dia.slice(dia.indexOf('if (dosColumnas)')), /\{decisiones\}/)
+  // Plegada: la línea dice cuántas esperan y la abre.
+  assert.match(dia, /aviso=\{<AvisoDecisiones n=\{esperan\} \/>\} abrirSenal=\{abrirHoy\}/)
   assert.match(f('features/decisiones/FranjaDecisiones.tsx'), /const pendientes = enOrden\(b\.vista\?\.pendientes \?\? \[\]\)/)
+  // 19:31 (Daniel: «quita eso de 5 te esperan… debería solo aparecer en la vista de mi hoy»): fuera del encabezado del chat y fuera de
+  // la franja propia de /telefono. La píldora conserva subagentes y «N pregunta».
+  const pildora = f('features/cabina/panel/AgentesTrabajando.tsx')
+  assert.doesNotMatch(pildora, /te-espera|useBandeja|irADecisiones/)
+  assert.match(pildora, /data-testid="agentes-trabajando"/)
+  assert.match(pildora, /data-testid="te-pregunta"/)
+  assert.doesNotMatch(f('features/cabina/panel/PanelTelefono.tsx'), /FranjaDecisiones/)
+  assert.doesNotMatch(f('features/decisiones/FranjaDecisiones.tsx'), /export function FranjaDecisiones/)
+})
+
+test('el teléfono igual que el escritorio (4 nov 2026): HOY nace plegada, el aviso la abre sin guardarlo y el push llega a la decisión', () => {
+  const f = (r: string) => readFileSync(new URL(`../src/${r}`, import.meta.url), 'utf8')
+  const dia = f('features/planning/DiaVivo.tsx')
+  // En el teléfono la tarjeta no recuerda que quedó abierta: nace plegada y la línea del tiempo a la vista.
+  assert.match(dia, /: \{ recordar: !telefono \}\)\} \/>/)
+  const plan = f('features/planning/FranjaPlan.tsx')
+  // La señal (aviso, push) abre solo esta vez: nunca escribe la preferencia.
+  assert.match(plan, /useEffect\(\(\) => \{ if \(abrirSenal\) setPorSenal\(true\) \}, \[abrirSenal\]\)/)
+  assert.doesNotMatch(plan, /if \(abrirSenal && !preferida\) alternar\(\)/)
+  // El push (/telefono/decisiones?id=…): si sigue esperando, al Día de hoy en esa decisión.
+  const pagina = f('app/(main)/telefono/decisiones/page.tsx')
+  assert.match(pagina, /pedirEnfocarDecisiones\(id\)\n    abrirHoyEnTelefono\(\)\n    router\.replace\('\/telefono'\)/)
+  assert.match(pagina, /vista\?\.pendientes\.some\(t => t\.id === id\)/)
+  const tel = f('features/cabina/panel/telefono-pestanas.ts')
+  assert.match(tel, /f\.actualizar\(cal\.id, \{ \.\.\.resto, alcance: 'dia' \}\)/)
+  // La sección abre la decisión pedida y la trae a la vista.
+  assert.match(f('features/decisiones/FranjaDecisiones.tsx'), /if \(fila\) setAbierta\(id\)/)
+})
+
+test('agrupar por persona (4 nov 2026): dos de Mengano = una tarjeta con dos acciones, en el lugar de la más vieja', () => {
+  const lista = [
+    t({ id: 'fulano', creada: 1, persona: 'Fulano', titulo: 'WhatsApp a Fulano: mover el diagnóstico' }),
+    t({ id: 'm1', creada: 2, persona: 'Mengano', titulo: 'WhatsApp a Mengano: adelantar su uno a uno' }),
+    t({ id: 'compra', creada: 3, categoria: 'pagar', titulo: 'Comprar midominio.app' }),
+    t({ id: 'm2', creada: 4, persona: 'Mengano Pérez', titulo: 'Comentario a Mengano en el resumen fijado' }),
+  ]
+  const g = agruparPorPersona(lista)
+  assert.deepEqual(g.map(x => x.tarjetas.map(y => y.id)), [['fulano'], ['m1', 'm2'], ['compra']])
+  assert.equal(g[1].persona, 'Mengano')
+  assert.equal(tituloEnGrupo(lista[1]), 'WhatsApp · adelantar su uno a uno')
+  assert.equal(tituloEnGrupo(lista[3]), 'Comentario a Mengano en el resumen fijado')
+  assert.equal(tituloEnGrupo(lista[2]), 'Comprar midominio.app')
+})
+
+test('Sí y No son la tecla del compositor: la recomendada encendida, la otra apagada', () => {
+  const franja = readFileSync(new URL('../src/features/decisiones/FranjaDecisiones.tsx', import.meta.url), 'utf8')
+  assert.match(franja, /import tecla from '@\/features\/chat\/components\/boton-enviar\.module\.css'/)
+  assert.equal((franja.match(/className=\{`\$\{tecla\.enviar\} \$\{s\.tecla\}`\} data-apagada=/g) ?? []).length, 2)
+})
+
+test('Ajustes › Autonomía: lo irreversible no ofrece «lo hace solo»; cambiar una clase conserva lo demás que cambiaste', async () => {
+  const { ajustesCon, modosDe, NOMBRE_MODO } = await import('../src/features/decisiones/lib/bandeja')
+  assert.deepEqual(modosDe({ irreversible: true }), ['tocar', 'nunca'])
+  assert.deepEqual(modosDe({ irreversible: false }), ['hacer', 'tocar', 'nunca'])
+  assert.equal(NOMBRE_MODO.hacer, 'Lo hace solo')
+  const p = { preset: 'piloto' as const, ajustes: { pagar: 'nunca' as const }, vigente: {} as never, presets: [], clases: [], siempreTuyo: [] }
+  assert.deepEqual(ajustesCon(p, 'soporte', 'hacer'), { pagar: 'nunca', soporte: 'hacer' })
+  assert.deepEqual(ajustesCon({ ...p, ajustes: undefined }, 'soporte', 'hacer'), { soporte: 'hacer' })
+})
+
+test('vista previa (7 nov 2026, cola de publicación): la tarjeta enseña la miniatura de lo que se publicaría, por /api/local-image', () => {
+  assert.equal(urlVistaPrevia(t({ imagen: '/Users/x/final/miniaturas/miniatura a.png' })), '/api/local-image?path=%2FUsers%2Fx%2Ffinal%2Fminiaturas%2Fminiatura%20a.png&w=640')
+  assert.equal(urlVistaPrevia(t({})), null)
+  for (const archivo of ['Bandeja.tsx', 'FranjaDecisiones.tsx']) {
+    const src = readFileSync(new URL(`../src/features/decisiones/${archivo}`, import.meta.url), 'utf8')
+    assert.match(src, /vista && <img className=\{s\.vista\} src=\{vista\}/, `${archivo} pinta la vista previa`)
+  }
 })

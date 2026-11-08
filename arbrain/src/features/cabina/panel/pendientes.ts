@@ -1,7 +1,7 @@
 'use client'
 /**
  * Lo que espera una decisión de Daniel: la pregunta de un modelo que Levy no lleva y los avisos que piden un sí/no.
- * Lo leen Tareas (la lista completa) y la píldora del encabezado del chat («· 1 te espera», 5 oct 2026), que
+ * Lo leen Tareas (la lista completa) y la píldora del encabezado del chat («· 1 pregunta», 5 oct 2026), que
  * reemplazó a la fila de píldoras sobre el cuerpo del panel. Una sola lectura por fuente (datos.ts).
  */
 import { useCallback, useEffect, useState } from 'react'

@@ -251,7 +251,9 @@ function decode(row: Record<string, unknown>): Despertador {
 }
 
 /** Etiqueta del chip en la web: el texto del despertador, o solo la cabecera del aviso de un subagente. */
-export function etiquetaDespertador(d: { texto: string; tipo?: string }): string {
+export function etiquetaDespertador(d: { texto: string; tipo?: string; desde?: { titulo?: string } }): string {
+  // Mensaje de otra conversación (6 nov 2026): el chip dice quién lo manda, nunca que lo escribió el dueño.
+  if (d.tipo === 'conversacion') return `Levy, desde «${(d.desde?.titulo ?? 'otra conversación').slice(0, 120)}»`
   return d.tipo === 'subagente' || d.tipo === 'confirmacion' ? d.texto.split('\n')[0].slice(0, 160) : d.texto
 }
 

@@ -125,6 +125,16 @@ export class ClaudeRuntimePool {
   /** Algún proceso Claude con turno, reserva o tareas de fondo: el corredor no debe retirarse. */
   get busy(): boolean { return [...this.entries.values()].some(e => e.reserved || e.session.busy || e.session.hasBackgroundWork) }
   close(): void { for (const entry of this.entries.values()) entry.session.close(); this.entries.clear() }
+  /** Cola por memoria (5 nov 2026): cierra los procesos sin turno, reserva ni tareas de fondo que llevan `ociosoMs` sin
+   * uso, del más viejo al más nuevo. Su conversación retoma la sesión nativa con el siguiente mensaje. → cuántos cerró. */
+  cerrarOciosos(ociosoMs = 120_000, ahora = Date.now()): number {
+    let n = 0
+    for (const [key, e] of [...this.entries.entries()].sort((a, b) => a[1].lastUsed - b[1].lastUsed)) {
+      if (e.reserved || e.session.busy || e.session.hasBackgroundWork || e.session.backgroundReplyOpen || ahora - e.lastUsed < ociosoMs) continue
+      e.session.close(); this.entries.delete(key); n++
+    }
+    return n
+  }
 }
 
 export const claudeRuntimePool = new ClaudeRuntimePool()

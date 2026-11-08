@@ -17,6 +17,7 @@ const FILAS: Array<{ clave: keyof Mostrar; titulo: string; detalle: string }> = 
   { clave: 'zoom', titulo: 'Zoom', detalle: 'El − % + de la barra inferior' },
   { clave: 'capitulos', titulo: 'Capítulos', detalle: 'Todo · 1 2 3 4' },
   { clave: 'minimapa', titulo: 'Minimapa', detalle: 'El mapa chico de la esquina' },
+  { clave: 'pideALevy', titulo: 'Pídele a Levy', detalle: 'La caja que manda tu pedido al chat' },
 ]
 
 export function MostrarEnLienzo({ theme: t }: { theme: Theme }) {

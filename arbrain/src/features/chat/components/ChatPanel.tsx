@@ -4,8 +4,8 @@ import { FileAttachmentCard } from './FileAttachmentCard'
 import { LevyFace } from './LevyFace'
 import { Retrato } from '@/shared/components/Retrato'
 import type { LiveChatController } from '@/features/live/controller'
-import { Fragment, useEffect, useLayoutEffect, useRef, useState, KeyboardEvent, useCallback, memo, startTransition, useMemo, type ReactNode } from 'react'
-import { Plus, ArrowUp, AlertCircle, Copy, Check, Clock, ChevronDown, ImageIcon, X, ShieldAlert, Pencil, GitBranch, FileText, AlarmClock, BellRing, Sparkles, Mic } from 'lucide-react'
+import { Fragment, useEffect, useLayoutEffect, useRef, useState, KeyboardEvent, useCallback, memo, startTransition, useMemo, useSyncExternalStore, type ReactNode } from 'react'
+import { Plus, ArrowUp, AlertCircle, Copy, Check, Clock, ChevronDown, ImageIcon, X, ShieldAlert, Pencil, GitBranch, FileText, AlarmClock, BellRing, Sparkles, Mic, MessagesSquare } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useLayoutStore } from '@/shared/stores/layout-store'
 import { tocaLeerAhora } from '@/shared/lib/reposo'
@@ -70,8 +70,10 @@ import { esEspacioClaude } from '@/shared/lib/espacios-chat'
 import { EffortSlider, stopLabel, type EffortStop } from './EffortSlider'
 import { CompactSeparator } from './CompactSeparator'
 import { DateSeparator } from './DateSeparator'
-import { NotasInyectadas } from './ToolCallCard'
-import { LineaFija, Razonamiento } from './RastroTurno'
+import { BurbujaUsuario, CopyBtn, NotasInyectadas, PieUsuario } from './MensajeUsuario'
+import { LineaFija, LineaReenganche, Razonamiento } from './RastroTurno'
+import { turnoSinEnganchar } from '../lib/turno-sin-enganchar'
+import { suscribirTurnosActivos, turnosActivos, versionTurnosActivos } from '../lib/turnos-activos'
 import { CambiosTurno } from './CambiosTurno'
 import { ChipMeta, VueltasMeta } from './MetaTurno'
 import { metaVigente, type EstadoMeta } from '../lib/meta'
@@ -118,26 +120,7 @@ type SinLeer = Array<{ id: string; texto: string; imagenes?: string[] }>
 
 const EDICION_CLIENTE = esEdicionCliente()
 
-// ─── Copy button ──────────────────────────────────────────────────────────────
-
-function CopyBtn({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false)
-  const handle = () => {
-    navigator.clipboard.writeText(text)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-  return (
-    <button
-      onClick={handle}
-      title="Copiar mensaje"
-      aria-label="Copiar mensaje"
-      className="flex items-center justify-center min-w-[36px] min-h-[36px] md:min-w-0 md:min-h-0 p-2 md:p-0.5 rounded-lg md:rounded text-muted/60 hover:text-muted hover:bg-card-hover md:hover:bg-transparent transition-colors"
-    >
-      {copied ? <Check size={14} className="text-gold-dark dark:text-gold-bright" /> : <Copy size={14} />}
-    </button>
-  )
-}
+// ─── Copy button: vive en MensajeUsuario (lo comparten la burbuja del dueño y la de Levy) ────────────────────────
 
 // El tercer botón del footer (📖 "Abrir en lector") murió el 15 jul 2026. Abría el mensaje
 // en un overlay de texto plano para que el Speak Screen de iOS pudiera leerlo sin tragarse
@@ -328,6 +311,24 @@ export const MessageBubble = memo(function MessageBubble({ msg, isFresh = false,
     ? msg.content.replace(/^\[Nota de voz\]:\s*/i, '').trim()
     : null
 
+  // ── Mensaje de Levy desde otra conversación (6 nov 2026, `conversacion {accion:"enviar"}`): nunca como burbuja de Daniel.
+  // El contenido trae primero el encabezado para el modelo; se pinta solo el mensaje, bajo «Levy, desde «…»». ──
+  if (isUser && msg.metadata?.origen?.tipo === 'despertador' && msg.metadata.origen.despertadorId?.startsWith('c-')) {
+    const cuerpo = msg.content.split('\n\n').slice(1).join('\n\n').trim() || msg.content
+    return (
+      <div data-testid="mensaje-entre-conversaciones" className={`flex justify-center ${isFresh ? 'msg-enter' : ''}`}>
+        <div className="w-full max-w-[85%] rounded-xl border border-border bg-card px-3 py-2 text-[13px]">
+          <div className="mb-1 flex items-center gap-1.5 text-[11px] text-muted">
+            <MessagesSquare size={11} className="shrink-0 text-brand-ink" />
+            <span className="truncate">{msg.metadata.origen.etiqueta ?? 'Levy, desde otra conversación'}</span>
+            <span className="text-muted/70">{time}</span>
+          </div>
+          <p className="whitespace-pre-wrap break-words text-foreground">{cuerpo}</p>
+        </div>
+      </div>
+    )
+  }
+
   // ── Chat vivo: el «mensaje» de un despertador lo escribió Levy para sí mismo, no Daniel ──
   if (isUser && msg.metadata?.origen?.tipo === 'despertador') {
     return (
@@ -346,12 +347,12 @@ export const MessageBubble = memo(function MessageBubble({ msg, isFresh = false,
     // Solo imágenes, sin texto: no pintar una burbuja vacía bajo las miniaturas.
     const conBurbuja = isVoiceNote || isCommand || !!msg.content.trim() || !msg.imageUrl
     return (
-      <div className={`group flex flex-col items-end ${isFresh ? 'msg-enter' : ''}`}>
+      <div className={`group/usuario flex flex-col items-end ${isFresh ? 'msg-enter' : ''}`}>
         {msg.imageUrl && <UserImageAttachment src={msg.imageUrl} />}
         {msg.imageUrl && <UserDocumentAttachments src={msg.imageUrl} />}
         {/* v2: las acciones viven DEBAJO de la burbuja (como claude.ai); dentro dejaban
             una franja vacía bajo cada mensaje de una línea. */}
-        {conBurbuja && <div className="max-w-[85%] md:max-w-[75%] min-w-0 overflow-hidden px-4 py-2.5 text-[15px] leading-relaxed msg-bubble-own rounded-br-md">
+        {conBurbuja && <BurbujaUsuario>
           {isVoiceNote && msg.audioUrl ? (
             <>
               <WaveformPlayer audioUrl={msg.audioUrl} messageId={msg.id} isUser />
@@ -370,8 +371,8 @@ export const MessageBubble = memo(function MessageBubble({ msg, isFresh = false,
           ) : (
             <UserMessageText text={msg.content}/>
           )}
-        </div>}
-        <div className="flex items-center justify-end mt-1 gap-1.5 pr-1 min-h-6 md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100 transition-opacity duration-200">
+        </BurbujaUsuario>}
+        <PieUsuario>
           {onEdit && !isVoiceNote && !isCommand && (
             <button
               onClick={() => onEdit(msg)}
@@ -384,7 +385,7 @@ export const MessageBubble = memo(function MessageBubble({ msg, isFresh = false,
           )}
           <CopyBtn text={copyableUserText(msg.content)} />
           <p className="text-[10px] text-muted/80">{time}</p>
-        </div>
+        </PieUsuario>
       </div>
     )
   }
@@ -2895,6 +2896,9 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
   // lo dice; al tope queda en pausa y avisa. Un borrador que sale por la cola (conversación recién creada)
   // también es turno en curso aunque `loading` ya se soltó.
   const turnoEnCurso = loading || despachando
+  useSyncExternalStore(suscribirTurnosActivos, versionTurnosActivos, versionTurnosActivos)
+  const ultimoMensaje = messages[messages.length - 1]
+  const reenganchando = turnoSinEnganchar({ estado: activeSession ? turnosActivos()?.get(activeSession.id) : undefined, siguiendo: turnoEnCurso, ultimo: ultimoMensaje })
   const hayDelDispositivo = cola.items.some(x => !x.servidor)
   // Solo se toma la fila cuando el envío es posible: si el chat volvió a ocuparse o el
   // borrador aún no carga, handleSend saldría sin enviar y la fila ya estaría vacía.
@@ -3102,7 +3106,7 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
               tokensAfter={msg.compact.tokensAfter}
             />
           )}
-          {eager ? bubble : <LazyMessage text={msg.content}>{bubble}</LazyMessage>}
+          <LazyMessage text={msg.content} eager={eager}>{bubble}</LazyMessage>
         </div>
       )
       prevRole = msg.role
@@ -3206,8 +3210,10 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
       <div ref={chatAreaRef} className="chat-area flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden">
         {/* Cabecera del chat (1 oct, pedido del dueño): dos botones, nueva conversación y el
             panel a la derecha. Levy al centro abre la lista de conversaciones; el modelo se
-            cambia en el composer. Solo escritorio: en el teléfono la pinta el Header global. */}
-        <div data-cabecera-chat className="titanium-header shrink-0 relative hidden md:flex items-center justify-end px-4 py-3 border-b border-border-subtle z-10">
+            cambia en el composer. Solo escritorio: en el teléfono la pinta el Header global. `solo-escritorio` (8 nov 2026):
+            un iPhone en horizontal mide ≥ 768 px de ancho y `md:flex` la prendía junto al Header global (cabecera doble);
+            esa clase la apaga con el mismo criterio de «teléfono» que usa el shell (CONSULTA_TELEFONO). */}
+        <div data-cabecera-chat className="solo-escritorio titanium-header shrink-0 relative hidden md:flex items-center justify-end px-4 py-3 border-b border-border-subtle z-10">
           <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2.5 pointer-events-auto select-none">
             {/* 4 oct 2026, pedido del dueño: todo el bloque de Levy (foto + nombre) es un solo botón,
                 hablar con Levy en persona (avatar 3D con voz, pestaña Live). La lista de conversaciones
@@ -3533,6 +3539,7 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
 
               {/* Línea de estado fija (25 oct 2026): qué hace Levy · N pasos · tiempo, cuando su turno quedó fuera de la vista. */}
               <LineaFija msg={messages[messages.length - 1]} connection={connection} />
+              {reenganchando && <LineaReenganche inicio={ultimoMensaje?.role === 'user' ? new Date(ultimoMensaje.timestamp).getTime() : undefined} />}
 
               {/* La meta activa (27 oct 2026): texto, estado y Pausar/Quitar sin teclear `/goal`. */}
               <ChipMeta meta={metaDelHilo} ocupado={metaAccionando} onPausar={() => void accionMeta('pausar')} onReanudar={() => void accionMeta('reanudar')} onQuitar={() => void accionMeta('quitar')} />

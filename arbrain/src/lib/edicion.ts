@@ -112,6 +112,9 @@ export const APIS_CLIENTE = [
   '/api/cabina/panel-terminal', '/api/cabina/terminal',
   // Conversación nueva fijada que abre su Levy (31 oct 2026): la llama SU daemon con su token, no el navegador.
   '/api/cabina/conversacion',
+  // Orquestar las que ya existen (6 nov 2026; abierta aquí en la v0.2.24): listar, renombrar, fijar y desfijar, también
+  // desde SU daemon con su token. Sin esta línea el proxy respondía 404 y la herramienta `conversacion` fallaba.
+  '/api/cabina/conversaciones',
   // Taller › Agentes (29 oct 2026, fundador en Windows: «El Studio no respondió · No disponible en esta edición»): SUS
   // subagentes (Agent del SDK, bajo su guardia) y la salida de cada uno, de solo lectura. Su daemon responde con su propio
   // registro (server/src/cabina/trabajos-cliente.ts), nunca el motor, los servidores ni los servicios del Studio.
@@ -139,6 +142,8 @@ export const APIS_CLIENTE = [
   '/api/telefono',
   // Sin Tailscale (3 nov 2026): tu Levy en el teléfono por el relay de Arbrain (scripts/servidor/conectar.mjs).
   '/api/conectar',
+  // Modo espejo (5 nov 2026): Ajustes › Máquinas dice si tus conversaciones están en tus dos máquinas (solo lectura).
+  '/api/espejo/conversaciones',
   // Mi marca (29 oct 2026): colores, logo y nombre del dueño desde `mi-marca/` (lib/mi-marca.ts).
   '/api/mi-marca',
   // Rutinas (T8, 29 oct 2026): Taller › Rutinas sobre el scheduler de SU daemon (lib/rutinas-cliente.ts). Distinta de
@@ -148,6 +153,12 @@ export const APIS_CLIENTE = [
   // (autonomía v2): su ruta ya tenía la rama del alumno (cookie de la app + secreto de confirmar al decidir), pero el
   // proxy la cerraba con 404 y la excepción de un loop no se podía decidir en la app del alumno.
   '/api/loops', '/api/decisiones',
+  // Tu primer día (5 nov 2026, encendido en la edición del alumno, ARBRAIN_PRIMER_DIA=0 lo apaga; features/primer-dia): el avance de los cinco
+  // pasos leído de SU cerebro y SU daemon. Apagado responde { activo: false } y no cambia nada.
+  '/api/primer-dia',
+  // Cola por memoria (5 nov 2026; la v0.2.24 la abre aquí: sin esta línea el proxy respondía 404 y el bloque del Taller
+  // nunca aparecía): Taller › Agentes › En cola por memoria sobre SU daemon (server/src/cliente/cola-memoria.ts).
+  '/api/taller/cola-memoria',
   // Computadora (T16, 29 oct 2026): Taller › Computadora sobre SU daemon (lib/computadora-cliente.ts): memoria, disco,
   // procesador, reposo y cerrar apps. Distinta de `/api/cabina/servidores` (el Studio de Daniel), que sigue fuera.
   '/api/computadora',

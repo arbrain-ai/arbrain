@@ -30,7 +30,7 @@ interface Props {
   vars?: CSSProperties
   onAbrir?: (x: PaginaResumen) => void
   onRenombrar: () => void
-  /** Solo la sección Lienzo (que crea con su propio flujo): «Lienzo nuevo aquí» y «Subcarpeta nueva». */
+  /** «Lienzo nuevo aquí» (abre «＋ Nuevo lienzo» con esta carpeta) y «Subcarpeta nueva» (pide su nombre en la fila). */
   onNuevaPagina?: (folderId: string) => void
   onNuevaSubcarpeta?: (madre: string) => void
   onCerrar: () => void
@@ -97,7 +97,7 @@ export function MenuLienzo(p: Props) {
     if (p.onAbrir) items.push({ clave: 'abrir', etiqueta: 'Abrir', icono: <ExternalLink size={15} />, hacer: cerrando(() => p.onAbrir!(x)) })
     if (o.archivada) items.push({ clave: 'restaurar', etiqueta: 'Restaurar', icono: <ArchiveRestore size={15} />, hacer: cerrando(() => a.archivarPagina(x, false)) })
     else items.push({ clave: 'renombrar', etiqueta: 'Renombrar', icono: <Pencil size={15} />, hacer: cerrando(p.onRenombrar) })
-    items.push({ clave: 'mover', etiqueta: 'Mover a carpeta…', icono: <FolderInput size={15} />, hacer: () => setVista('mover'), sigue: true })
+    items.push({ clave: 'mover', etiqueta: 'Mover a…', icono: <FolderInput size={15} />, hacer: () => setVista('mover'), sigue: true })
     if (!o.archivada) {
       items.push({ clave: 'duplicar', etiqueta: 'Duplicar', icono: <Copy size={15} />, hacer: cerrando(() => a.duplicarPagina(x.id)) })
       // En una carpeta fijada el pin no aplica: manda la carpeta (se saca de ella para soltarlo).
@@ -126,7 +126,7 @@ export function MenuLienzo(p: Props) {
   const eliminar = () => { if (o.tipo === 'pagina') a.borrarPagina(o.pagina.id); else a.borrarCarpeta(o.carpeta.id); p.onCerrar() }
 
   return createPortal(
-    <div ref={caja} className={css.menu} role="menu" aria-label={`Acciones de ${nombre}`} style={{ ...p.vars, left: pos?.left ?? 0, top: pos?.top ?? 0, ...(pos?.maxHeight ? { maxHeight: pos.maxHeight, overflowY: 'auto' as const } : {}), visibility: pos ? 'visible' : 'hidden' }}>
+    <div ref={caja} className={css.menu} role="menu" data-capa-hija="" aria-label={`Acciones de ${nombre}`} style={{ ...p.vars, left: pos?.left ?? 0, top: pos?.top ?? 0, ...(pos?.maxHeight ? { maxHeight: pos.maxHeight, overflowY: 'auto' as const } : {}), visibility: pos ? 'visible' : 'hidden' }}>
       {vista === 'principal' && items.map(i => <div key={i.clave}>
         {i.sepAntes && <div className={css.sep} role="separator" />}
         <button role="menuitem" className={css.item} data-peligro={i.peligro ? '' : undefined} onClick={i.hacer}>{i.icono}<span>{i.etiqueta}</span></button>

@@ -18,6 +18,12 @@ export const CONFIG_VERSIONADA = 'arbrain/cerebro/espejo.json'
 export const MAQUINAS_DIR = 'arbrain/cerebro/maquinas'
 export const LATIDOS_DIR = 'arbrain/cerebro/latidos'
 export const ENVIADOS_DIR = 'arbrain/cerebro/enviados'
+/**
+ * Diario de conversaciones (5 nov 2026): `<host>/<AAAA-MM>.jsonl`, uno por máquina (nunca choca). Lo escribe y lo lee
+ * la web (`src/lib/espejo-conversaciones`), que tapa antes todo lo que tenga forma de llave. Con esto el chat es una
+ * sola lista en las dos máquinas.
+ */
+export const CONVERSACIONES_DIR = 'arbrain/cerebro/conversaciones'
 
 /** Capa del alumno si la copia no trae CAPAS.json (la de la v0.2.9). `.claude/settings.local.json` es de la máquina. */
 const CAPA_ALUMNO = [
@@ -32,7 +38,7 @@ const SKILLS_DEL_AUTOR = [
 const CEREBRO = [
   'arbrain/cerebro/meta/', 'arbrain/cerebro/sentidos/', 'arbrain/cerebro/memoria/', 'arbrain/cerebro/manos/',
   'arbrain/cerebro/dolor/', 'arbrain/cerebro/reportes/',
-  LIDER, CONFIG_VERSIONADA, `${MAQUINAS_DIR}/`, `${LATIDOS_DIR}/`, `${ENVIADOS_DIR}/`,
+  LIDER, CONFIG_VERSIONADA, `${MAQUINAS_DIR}/`, `${LATIDOS_DIR}/`, `${ENVIADOS_DIR}/`, `${CONVERSACIONES_DIR}/`,
 ]
 
 /** Archivos que solo escribe el líder: el resto los recibe («esto lo genera tu cerebro en la nube»). */

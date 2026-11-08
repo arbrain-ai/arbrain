@@ -81,10 +81,10 @@ export function streamDurableTurn(res: ServerResponse, worker: ChatSupervisor, t
   // committed before, during or after replay is therefore delivered once.
   unsubscribe = worker.subscribe(turn, wake)
   res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' })
-  const input = turn.input as { message?: string; audioUrl?: string; imageUrl?: string; spontaneous?: { label?: string }; despertador?: { id?: string; texto?: string; tipo?: string } }
+  const input = turn.input as { message?: string; audioUrl?: string; imageUrl?: string; spontaneous?: { label?: string }; despertador?: { id?: string; texto?: string; tipo?: string; desde?: { titulo?: string } } }
   // Chat vivo (3 oct 2026): un turno que Daniel no escribió dice de dónde vino; la web no le pinta burbuja suya.
   const origen = input.spontaneous ? { tipo: 'espontanea', etiqueta: input.spontaneous.label }
-    : input.despertador ? { tipo: 'despertador', etiqueta: etiquetaDespertador({ texto: input.despertador.texto ?? '', tipo: input.despertador.tipo }), despertadorId: input.despertador.id } : undefined
+    : input.despertador ? { tipo: 'despertador', etiqueta: etiquetaDespertador({ texto: input.despertador.texto ?? '', tipo: input.despertador.tipo, desde: input.despertador.desde }), despertadorId: input.despertador.id } : undefined
   const meta = { type: 'resume_meta', protocol: 'durable-v1', turnId: turn.turnId, userMessage: input.message, audioUrl: input.audioUrl, imageUrl: input.imageUrl, startedAt: turn.createdAt, ...(origen ? { origen } : {}),
     // Lo que Daniel escribió con este turno vivo (7 oct 2026): el reenganche lo pinta dentro de la actividad.
     ...(() => { const inyectados = worker.injectionsOf(turn); return inyectados.length ? { inyectados } : {} })() }

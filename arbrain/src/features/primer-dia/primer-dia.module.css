@@ -1,0 +1,52 @@
+/* Taller › Tu primer día (5 nov 2026, encendido en la edición del alumno, ARBRAIN_PRIMER_DIA=0 lo apaga). Una columna que cabe a 360 px, sin scroll horizontal;
+   los mismos tokens que Taller › Rutinas (rutinas-cliente.module.css). */
+.vista { display: flex; flex-direction: column; gap: 12px; padding: 12px 14px 16px; min-width: 0; }
+.cabecera { display: flex; flex-direction: column; gap: 6px; padding: 14px; border-radius: 16px; border: 1px solid var(--border);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--brand, var(--foreground)) 9%, var(--card)), var(--card)); }
+.ceja { margin: 0; font-size: 11px; font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; color: var(--brand, var(--muted)); }
+.titular { margin: 0; font-size: 18px; font-weight: 680; line-height: 1.25; letter-spacing: -0.01em; color: var(--foreground); }
+.barra { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin: 4px 0 2px; }
+.barra span { height: 5px; border-radius: 999px; background: color-mix(in srgb, var(--foreground) 10%, transparent); transition: background 400ms ease; }
+.barra span[data-estado=hecho] { background: var(--success); }
+.barra span[data-estado=siguiente] { background: color-mix(in srgb, var(--brand, var(--foreground)) 55%, transparent); }
+.barra span[data-estado=revisar] { background: color-mix(in srgb, var(--warning) 70%, transparent); }
+.nota { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--muted); }
+.aviso { display: flex; align-items: flex-start; gap: 6px; margin: 0; padding: 9px 12px; border-radius: 12px; font-size: 12.5px; line-height: 1.45; color: var(--foreground);
+  background: color-mix(in srgb, var(--warning) 12%, transparent); border: 1px solid color-mix(in srgb, var(--warning) 30%, transparent); }
+.lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.paso { display: flex; flex-direction: column; gap: 5px; min-width: 0; padding: 12px; border-radius: 14px; border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--card) 92%, var(--background)); }
+.paso[data-estado=siguiente] { border-color: color-mix(in srgb, var(--brand, var(--foreground)) 45%, var(--border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand, var(--foreground)) 10%, transparent); }
+.paso[data-estado=revisar] { border-color: color-mix(in srgb, var(--warning) 45%, var(--border)); }
+.paso[data-estado=hecho] { opacity: 0.88; }
+.encabezado { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.numero { flex: none; display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 999px; font-size: 11.5px; font-weight: 700;
+  color: var(--muted); background: color-mix(in srgb, var(--foreground) 8%, transparent); }
+.paso[data-estado=siguiente] .numero { color: var(--brand-foreground, var(--background)); background: var(--brand, var(--foreground)); }
+.paso[data-estado=hecho] .numero { color: var(--success); background: color-mix(in srgb, var(--success) 14%, transparent); }
+.titulo { flex: 1; min-width: 0; margin: 0; font-size: 13.5px; font-weight: 640; line-height: 1.35; overflow-wrap: anywhere; color: var(--foreground); }
+.estado { flex: none; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; color: var(--muted); background: color-mix(in srgb, var(--foreground) 8%, transparent); }
+.paso[data-estado=hecho] .estado { color: var(--success); background: color-mix(in srgb, var(--success) 12%, transparent); }
+.paso[data-estado=siguiente] .estado { color: var(--brand, var(--foreground)); background: color-mix(in srgb, var(--brand, var(--foreground)) 12%, transparent); }
+.paso[data-estado=revisar] .estado { color: var(--warning); background: color-mix(in srgb, var(--warning) 14%, transparent); }
+.que { margin: 0 0 0 31px; font-size: 12.5px; line-height: 1.45; color: var(--foreground); overflow-wrap: anywhere; }
+.detalle { margin: 0 0 0 31px; font-size: 12px; line-height: 1.4; color: var(--muted); overflow-wrap: anywhere; }
+.paso[data-estado=hecho] .detalle { color: var(--success); }
+.errores { margin: 0 0 0 31px; padding-left: 16px; font-size: 12px; line-height: 1.45; color: var(--warning); }
+.deja { display: flex; align-items: flex-start; gap: 5px; margin: 0 0 0 31px; font-size: 12px; line-height: 1.4; color: var(--muted); }
+.botones { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 0 0 31px; }
+.boton, .principal {
+  display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 11px; border-radius: 999px; font: inherit; font-size: 12.5px; font-weight: 600;
+  border: 1px solid var(--border); background: transparent; color: var(--foreground); cursor: pointer;
+}
+.boton:hover:not(:disabled) { background: color-mix(in srgb, var(--foreground) 7%, transparent); }
+.principal { border-color: transparent; background: var(--brand, var(--foreground)); color: var(--brand-foreground, var(--background)); }
+.boton:disabled, .principal:disabled { opacity: 0.55; cursor: default; }
+.listo { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 600; color: var(--success); }
+.gira { animation: gira 900ms linear infinite; }
+@keyframes gira { to { transform: rotate(360deg); } }
+.pie { margin: 2px 0 0; text-align: center; }
+.enlace { border: 0; background: none; padding: 0; font: inherit; font-size: 12px; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+@media (prefers-reduced-motion: reduce) { .gira { animation: none; } .barra span { transition: none; } }
+.deja svg { flex: none; margin-top: 2px; }

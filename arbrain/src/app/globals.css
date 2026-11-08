@@ -153,12 +153,15 @@
   --t-titulo: clamp(26px, 2.4vw, 34px);
   --t-cifra: clamp(24px, 2.1vw, 30px);
   --radio-tarjeta: 14px;
+  /* Prioridades de Todoist (8 nov 2026, Daniel: «justo como lo hace y permite Todoist»): P1 rojo, P2 naranja, P3 azul; P4 sin color. */
+  --prioridad-1: #d1453b; --prioridad-2: #eb8909; --prioridad-3: #246fe0;
 }
 
 /* =============================================================================
    DARK MODE TOKENS (activados por ThemeProvider via .dark)
    ============================================================================= */
 .dark {
+  --prioridad-1: #ff7066; --prioridad-2: #ff9a14; --prioridad-3: #5297ff;
   --background: #09090b;
   --surface: #131318;
   --surface-elevated: #1a1a1f;
@@ -757,6 +760,11 @@ html, body {
   @media (min-width: 768px) {
     .chat-input-toolbar { transition: margin-bottom 420ms var(--ease-out-expo); }
     .chat-input-toolbar[data-vacio] { margin-bottom: clamp(48px, 30vh, 340px); }
+  }
+  /* Teléfono en horizontal (8 nov 2026): mide ≥ 768 px y la regla de arriba subía el campo 30vh, dejando un vacío bajo la
+     barra. El criterio de teléfono es el del shell (CONSULTA_TELEFONO): táctil con alto ≤ 600; ahí el campo se queda abajo. */
+  @media (pointer: coarse) and (max-height: 600px) {
+    .chat-input-toolbar[data-vacio] { margin-bottom: 0; }
   }
   @media (max-width: 767px) { .chat-vacio-titular { flex-direction: column; gap: 12px; } .chat-vacio-sello { width: 48px; height: 48px; } .chat-vacio-atajo { height: 44px; } }
   @media (prefers-reduced-motion: reduce) { .chat-input-toolbar { transition: none; } }
@@ -2297,3 +2305,8 @@ html[data-enfoque] [data-shell-main] [data-cabecera-chat] { display: none !impor
 html[data-pantalla-doc] body * { visibility: hidden; }
 html[data-pantalla-doc] [data-pantalla-marco], html[data-pantalla-doc] [data-pantalla-marco] * { visibility: visible; }
 html[data-pantalla-doc], html[data-pantalla-doc] body { background: var(--l-gris-0, #000) !important; overflow: hidden !important; overscroll-behavior: none; }
+
+/* Modo directo (7 nov 2026, features/modo-directo): la página nace cubierta hasta que el velo esté puesto, y un campo
+   editable con algo sensible (nombre de un cliente, dinero, una llave) se difumina entero: su texto no se reescribe. */
+html[data-directo-cubre] body { visibility: hidden; }
+[data-directo-velado] { filter: blur(7px) !important; }

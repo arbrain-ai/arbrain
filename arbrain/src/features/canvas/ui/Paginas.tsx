@@ -3,7 +3,7 @@
 /**
  * Canvas v4 — el riel de lienzos de la sección Lienzo.
  *
- * Desde el 6 oct 2026 es solo el marco (encabezado, «carpeta nueva», «lienzo nuevo», ocultar): el árbol, las filas con
+ * Desde el 6 oct 2026 es solo el marco (encabezado y ocultar; «＋ Nuevo lienzo» y «carpeta nueva» viven en el árbol desde el 7 nov): el árbol, las filas con
  * miniatura y el menú ⋯ son los MISMOS que usa «¿Qué lienzo?» en el panel (`lienzos/ArbolLienzos`). Daniel veía «dos sistemas
  * de carpetas»; ahora hay uno y este riel lo viste con el tema del lienzo.
  *
@@ -31,9 +31,6 @@ interface Props {
   abierto: boolean
   onAbrir: (v: boolean) => void
   onElegir: (id: string) => void
-  onNuevaPagina: (folderId: string | null) => void
-  /** Con `madre`, nace como subcarpeta suya. */
-  onNuevaCarpeta: (madre?: string | null) => void
   /** Un lienzo se eliminó: la pizarra suelta el que tenga abierto. */
   onBorrada: (id: string) => void
 }
@@ -62,14 +59,11 @@ export function Paginas(p: Props) {
       {/* El boton para ABRIR no vive aqui: es el icono de carpeta de la barra del titulo, pegado al nombre del lienzo. */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '10px 10px 6px' }}>
         <strong style={{ flex: 1, font: '900 13px CanvasSlab, Georgia, serif', color: t.text.title }}>Lienzos</strong>
-        <button onClick={() => p.onNuevaCarpeta(null)} title="Carpeta nueva" style={iconBtn(t)}><I.IconFolderPlus size={16} /></button>
-        <button onClick={() => p.onNuevaPagina(null)} title="Lienzo nuevo" style={iconBtn(t)}><I.IconPlus size={16} /></button>
         <button onClick={() => p.onAbrir(false)} title="Ocultar" style={iconBtn(t)}><I.IconChevron size={16} /></button>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '0 6px 12px' }}>
         <ArbolLienzos variante="riel" vars={vars} paginas={p.paginas} carpetas={p.carpetas} activa={p.activa} a={a}
-          onAbrir={x => p.onElegir(x.id)}
-          onNuevaPagina={id => p.onNuevaPagina(id)} onNuevaSubcarpeta={madre => p.onNuevaCarpeta(madre)} />
+          onAbrir={x => p.onElegir(x.id)} />
       </div>
     </div>
   )

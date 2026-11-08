@@ -15,7 +15,7 @@ import { escuchar, publicar } from './ventanas'
  * Máquina (¿está todo prendido?). `registro` ya no es pestaña: vive detrás de un enlace discreto en Máquina y Rutinas.
  * Los ids viejos siguen llegando (avisos, rutas, Levy, lo guardado): `alias` los lleva a su pestaña nueva.
  */
-export type SegmentoTaller = 'terminales' | 'historia' | 'rutinas' | 'memoria' | 'maquina' | 'registro'
+export type SegmentoTaller = 'terminales' | 'historia' | 'rutinas' | 'memoria' | 'maquina' | 'registro' | 'primer-dia'
 const TODOS: { id: SegmentoTaller; etiqueta: string; pregunta: string }[] = [
   { id: 'terminales', etiqueta: 'Agentes', pregunta: '¿Quién está trabajando para mí ahora?' },
   // Historia (28 oct 2026, Daniel: «cómo podemos obtener lo mejor de ambos mundos con vistas en el taller… así como VS Code, con
@@ -44,12 +44,18 @@ const PREGUNTA_CLIENTE: Partial<Record<SegmentoTaller, string>> = { maquina: '¿
 export const SEGMENTOS_TALLER = CLIENTE
   ? TODOS.filter(t => SEGMENTOS_CLIENTE.includes(t.id)).map(t => ({ ...t, pregunta: PREGUNTA_CLIENTE[t.id] ?? t.pregunta }))
   : TODOS
+/**
+ * Tu primer día (5 nov 2026, encendido en la edición del alumno, ARBRAIN_PRIMER_DIA=0 lo apaga; features/primer-dia). No está en la lista fija: la
+ * pestaña aparece al frente solo cuando `/api/primer-dia` responde activo (bandera encendida, edición del alumno, sin ocultar).
+ * Apagada, un pedido de este segmento cae en Agentes, como cualquier otro que no existe.
+ */
+export const SEGMENTO_PRIMER_DIA = { id: 'primer-dia' as const, etiqueta: 'Tu primer día', pregunta: '¿Qué le falta a mi negocio para vivir en mi cerebro?' }
 const ALIAS: Record<string, SegmentoTaller> = { agentes: 'terminales', servidores: 'maquina', servicios: 'maquina', archivos: 'memoria' }
 /** El segmento al que lleva un id (nuevo o viejo); null si no es del Taller. */
 export function aSegmento(v: unknown): SegmentoTaller | null {
   if (typeof v !== 'string') return null
-  const s = v === 'registro' || TODOS.some(t => t.id === v) ? v as SegmentoTaller : ALIAS[v] ?? null
-  if (s && CLIENTE && !SEGMENTOS_TALLER.some(t => t.id === s)) return 'terminales'
+  const s = v === 'registro' || v === SEGMENTO_PRIMER_DIA.id || TODOS.some(t => t.id === v) ? v as SegmentoTaller : ALIAS[v] ?? null
+  if (s && CLIENTE && s !== SEGMENTO_PRIMER_DIA.id && !SEGMENTOS_TALLER.some(t => t.id === s)) return 'terminales'
   return s
 }
 export const esSegmentoTaller = (v: unknown): v is SegmentoTaller => aSegmento(v) != null

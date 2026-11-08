@@ -59,6 +59,19 @@ export function abrirPanelEnTelefono() {
   useLayoutStore.getState().setPanelDerecho(true)
 }
 
+/** El Día de HOY en el teléfono, sea cual sea el periodo en que quedó la pestaña del calendario (4 nov 2026: el push de una decisión
+ *  lleva a la tarjeta HOY). Cambiar periodo o fecha remonta la vista en hoy (`firmaDe`); sin pestaña de calendario, nace una. */
+export function abrirHoyEnTelefono() {
+  const f = usePanelFijadas.getState()
+  const cal = f.fijadas.find(x => x.input.vista === 'calendario')
+  if (cal && cal.input.vista === 'calendario') {
+    const { fecha, fechaEn: _cuando, ...resto } = cal.input
+    if (fecha || cal.input.alcance !== 'dia') f.actualizar(cal.id, { ...resto, alcance: 'dia' })
+    f.activar(cal.id)
+  } else f.fijar(`mano-calendario-${Date.now().toString(36)}`, { vista: 'calendario', alcance: 'dia' } as never)
+  useLayoutStore.getState().setPanelDerecho(true)
+}
+
 /**
  * En el teléfono no hay pestaña Tareas (10 oct 2026, Daniel: «sigo viendo la vista de tareas cuando ya la había ocultado,
  * todo lo hemos unificado en la vista del calendario»): las tareas viven en el Día del calendario.

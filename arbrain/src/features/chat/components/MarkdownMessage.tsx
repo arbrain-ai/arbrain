@@ -22,6 +22,7 @@ import { esEdicionCliente } from '@/lib/edicion'
 import { imagenRemotaBloqueada } from '../lib/imagen-remota'
 import { useEsperaExplicada } from '../lib/espera-explicada'
 import { BotonReintentar } from './BotonReintentar'
+import { useTapar } from '@/shared/stores/modo-directo-store'
 export { ImageLightbox }
 
 // ─── Contexto: ¿este mensaje sigue streameando? ──────────────────────────────
@@ -334,7 +335,7 @@ export function stripThinking(content: string): string {
 }
 
 export const MarkdownMessage = memo(function MarkdownMessage({
-  content,
+  content: crudo,
   streaming = false,
   ancho = false,
 }: {
@@ -344,6 +345,8 @@ export const MarkdownMessage = memo(function MarkdownMessage({
   /** true en el cuerpo de una respuesta del chat: bloques no-prosa al carril ancho */
   ancho?: boolean
 }) {
+  // Modo directo (7 nov 2026): se tapa la fuente, antes de que el resaltado de código parta una llave en piezas.
+  const content = useTapar()(crudo)
   // Extract thinking blocks into separate components, render rest as markdown
   const thinkingRegex = /<!--thinking-->([\s\S]*?)<!--\/thinking-->/g
   const segments: Array<{ type: 'thinking' | 'text'; content: string }> = []

@@ -18,6 +18,8 @@ export interface EstadoPrimerArranque {
   sesionBienvenida: string | null
   /** El tour de bienvenida (1 nov 2026): capítulos vistos, versión del guion y el recorrido abierto. Ver lib/tour.ts. */
   tour?: unknown
+  /** Tu primer día (5 nov 2026, encendido en la edición del alumno, ARBRAIN_PRIMER_DIA=0 lo apaga): solo si ya se ofreció y si el dueño lo ocultó. Ver features/primer-dia. */
+  primerDia?: unknown
 }
 
 const VACIO: EstadoPrimerArranque = { version: 1, aceptado: null, nombre: null, completado: null, sesionBienvenida: null }

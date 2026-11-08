@@ -308,6 +308,9 @@ interface UseChatOptions {
   pendingCreation?: boolean
 }
 
+// Cubre el plazo de cabeceras del servidor hacia el daemon (PLAZO_LIVE_MS, 10 s) más la autenticación con la máquina cargada.
+const PLAZO_PRIMER_EVENTO_MS = 15_000
+
 export function useChat({ sessionId, onSave, onRestoreInput, isSessionActive, account, pendingCreation = false, liveWorkspace = false, onInyeccionSinLeer }: UseChatOptions = {}) {
   const { profile } = useAuth()
   const sinLeerRef = useRef(onInyeccionSinLeer)
@@ -1173,16 +1176,21 @@ export function useChat({ sessionId, onSave, onRestoreInput, isSessionActive, ac
   // /api/chat/live; si el daemon tiene el turno vivo, replay del buffer +
   // tail en vivo con el MISMO pipeline del stream normal. Si no hay turno
   // vivo devuelve false y el caller reconcilia desde la BD/transcript.
-  const resumingRef = useRef(false)
+  // Un solo reenganche a la vez, atado a su conversación: uno lento de la que dejaste no bloquea el de la que abriste.
+  const resumingRef = useRef<{ target: string; ac: AbortController } | null>(null)
   const resumeStream = useCallback(async (targetSessionId: string, targetAccount: string | null = account ?? null): Promise<boolean> => {
     if (!targetSessionId) return false
     if (loadingRef.current) return false // ya hay un stream vivo en esta UI
-    if (resumingRef.current) return false // reenganche en progreso (multi-unlock)
     if (isSessionActive && !isSessionActive(targetSessionId)) return false
-    resumingRef.current = true
+    if (resumingRef.current?.target === targetSessionId) return false // reenganche en progreso (multi-unlock)
+    resumingRef.current?.ac.abort()
     const ac = new AbortController()
+    resumingRef.current = { target: targetSessionId, ac }
     const resumedSubmission = { turnId: '', cancelled: false, controller: ac }
     let attached = false
+    // Sin plazo, un /live colgado (31 s sin su primer evento el 5 nov) dejaba la conversación sin indicador: mientras
+    // este intento vivía, ningún pulso podía reintentar. Uno nuevo enganchó en segundos. El turno no se toca: esto solo cierra al observador.
+    const plazoPrimerEvento = setTimeout(() => { if (!attached) ac.abort() }, PLAZO_PRIMER_EVENTO_MS)
     try {
       const res = await fetch('/api/chat/live', {
         method: 'POST',
@@ -1314,7 +1322,8 @@ export function useChat({ sessionId, onSave, onRestoreInput, isSessionActive, ac
       }
       return attached
     } finally {
-      resumingRef.current = false
+      clearTimeout(plazoPrimerEvento)
+      if (resumingRef.current?.ac === ac) resumingRef.current = null
       if (abortRef.current === ac) abortRef.current = null
       if (attached && activeSubmissionRef.current === resumedSubmission) {
         setLoading(false)

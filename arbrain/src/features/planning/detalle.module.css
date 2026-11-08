@@ -9,7 +9,8 @@
   --hoja-linea: color-mix(in srgb, var(--foreground) 9%, transparent);
   --hoja-tinte: color-mix(in srgb, var(--foreground) 3.5%, transparent);
   --hoja-fondo: var(--card);
-  --p1: var(--gold); --p2: var(--primary); --p3: color-mix(in srgb, var(--primary) 50%, var(--muted)); --p4: var(--muted);
+  /* Los colores de Todoist, los mismos de la lista del Hoy (8 nov 2026). */
+  --p1: var(--prioridad-1); --p2: var(--prioridad-2); --p3: var(--prioridad-3); --p4: var(--muted);
   position: absolute; z-index: 50; top: 10px; right: 10px; bottom: 10px; width: 440px; max-width: calc(100% - 20px);
   display: flex; flex-direction: column; overflow: hidden;
   background: var(--hoja-fondo); color: var(--foreground);

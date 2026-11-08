@@ -39,13 +39,15 @@ export interface PasoBitacora {
   etiqueta?: string
   /** Longitud de lo escrito (nunca el texto). */
   escrito?: number
+  /** Archivo subido a una web (ruta real; sale de las palabras del dueño, no de la app). */
+  archivo?: string
   tecla?: string
   /** Quién decidió el paso: el modelo del cerebro, `jev`, `receta`, `claude:…`, `guion`. */
   decidio?: string
   confianza?: number | null
   resultado: 'ok' | 'fallo' | 'bloqueado' | 'lectura'
   efecto?: string
-  freno?: { categoria: string; paso: boolean }
+  freno?: { categoria: string; paso: boolean; apagado?: boolean }
   /** Pasó por la política de autonomía (clase reversible, sin cita). */
   autonomia?: string
   ms: number

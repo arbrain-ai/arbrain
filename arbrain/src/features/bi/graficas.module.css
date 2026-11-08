@@ -1,0 +1,102 @@
+/* Business Intelligence · las gráficas (7 nov 2026). Hereda las variables de bi.module.css (--bi-corredor, --bi-placer,
+   --bi-dolor, --bi-linea, --aliento). La tinta de datos es una sola (la línea); el morado es el corredor (lo normal, el
+   concepto); el oro y el rojo solo aparecen cuando un número es protagonista o se sale (estado real, nunca decoración).
+   «Se dibuja como se explica»: corredor 0–0.6 s → línea 0.35–1.45 s → el «ahora» 1.35 s → la marca de Levy 1.65 s. */
+.lienzo { width: 100%; }
+.lienzo svg { display: block; overflow: visible; }
+.tope { stroke: color-mix(in srgb, var(--foreground) 9%, transparent); stroke-width: 1; stroke-dasharray: 2 4; }
+.base { stroke: color-mix(in srgb, var(--foreground) 14%, transparent); stroke-width: 1; }
+.eje { font-family: var(--font-mono, ui-monospace, monospace); font-size: 10px; fill: var(--muted); font-variant-numeric: tabular-nums; }
+.corredor { transform-box: fill-box; transform-origin: center; }
+.borde { fill: none; stroke: var(--bi-corredor); stroke-opacity: 0.32; stroke-width: 1; }
+.linea { fill: none; stroke: var(--bi-linea); stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.oro { stroke: var(--bi-placer); stroke-width: 2.3; filter: drop-shadow(0 0 6px color-mix(in srgb, var(--bi-placer) 45%, transparent)); }
+.sombra { fill: none; stroke: var(--muted); stroke-opacity: 0.55; stroke-width: 1.4; stroke-dasharray: 3 4; stroke-linecap: round; }
+.hueco { stroke: var(--muted); stroke-opacity: 0.6; stroke-width: 1; }
+.fuera { fill: var(--placa-arriba, #fff); stroke: var(--bi-corredor); stroke-width: 1.4; }
+.fuera[data-fuerte] { fill: var(--bi-corredor); }
+.halo { fill: var(--bi-corredor); opacity: calc(0.10 + var(--aliento) * 0.16); transform-box: fill-box; transform-origin: center; transform: scale(calc(0.55 + var(--aliento) * 0.55)); }
+.punto { fill: var(--bi-linea); stroke: var(--placa-arriba, #fff); stroke-width: 2; }
+.puntoOro { fill: var(--bi-placer); }
+/* El «ahora» de una gráfica fuera de su corredor: el color de su lámpara y un latido rápido (la única cosa que no respira lento). */
+[data-tono] .ahora[data-estado=fuera] .punto { fill: var(--bi-lampara-g, var(--bi-corredor)); }
+[data-tono] .ahora[data-estado=fuera] .halo { fill: var(--bi-lampara-g, var(--bi-corredor)); opacity: 0.35; transform: none; animation: latido 1.05s ease-in-out infinite; }
+:global([data-silencio]) .ahora .halo { animation: none !important; opacity: 0.18; }
+.lienzo[data-tono=dolor] { --bi-lampara-g: var(--bi-dolor); }
+.lienzo[data-tono=placer] { --bi-lampara-g: var(--bi-placer); }
+.lienzo[data-tono=atencion] { --bi-lampara-g: var(--bi-corredor); }
+.marca .guia { stroke: var(--marca); stroke-opacity: 0.55; stroke-width: 1; stroke-dasharray: 2 3; }
+.marcaTexto { font-family: var(--serif-ui, serif); font-style: italic; font-size: 12.5px; fill: var(--marca); }
+
+.dibuja .corredor { animation: abre 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.dibuja .linea { stroke-dasharray: 1; animation: traza 1.1s cubic-bezier(0.65, 0, 0.35, 1) 0.35s both; }
+.dibuja .ahora { animation: aparece 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) 1.35s both; transform-box: fill-box; transform-origin: center; }
+.dibuja .fuera { animation: aparece 0.4s ease 1.2s both; transform-box: fill-box; transform-origin: center; }
+.dibuja .marca { animation: llega 0.5s ease 1.65s both; }
+.dibuja .sombra { animation: llega 0.6s ease both; }
+
+/* Ranking */
+.barras { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+.barras li { position: relative; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.barraEtiqueta { font-size: 12.5px; line-height: 1.3; color: var(--foreground); opacity: 0.85; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.barraFila { display: flex; align-items: center; gap: 9px; }
+.barra { flex: none; height: 9px; width: calc(var(--w) * 0.86); min-width: 3px; border-radius: 5px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--bi-corredor) 55%, transparent), color-mix(in srgb, var(--bi-corredor) 80%, transparent)); }
+.barras li[data-primera] .barraEtiqueta { opacity: 1; font-weight: 650; }
+.barras li[data-primera] .barra { height: 11px; background: linear-gradient(90deg, color-mix(in srgb, var(--bi-placer) 70%, transparent), var(--bi-placer)); box-shadow: 0 0 14px -2px color-mix(in srgb, var(--bi-placer) 70%, transparent); }
+.barras li[data-resto] .barraEtiqueta { color: var(--muted); font-style: italic; }
+.barras li[data-resto] .barra { background: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--muted) 35%, transparent) 0 3px, transparent 3px 7px); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--muted) 45%, transparent); }
+.barraValor { font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--foreground); }
+.barraMarca { position: absolute; right: 0; top: 0; font-family: var(--serif-ui, serif); font-style: italic; font-size: 12px; color: color-mix(in srgb, var(--bi-placer) 85%, var(--foreground)); }
+.dibuja .barra { animation: crece 0.9s cubic-bezier(0.22, 1, 0.36, 1) calc(0.15s + var(--i) * 0.08s) both; transform-origin: left; }
+.dibuja .barraValor, .dibuja .barraMarca { animation: llega 0.4s ease calc(0.6s + var(--i) * 0.08s) both; }
+
+/* Proporción */
+.proporcion { display: flex; flex-direction: column; gap: 10px; }
+.tira { display: flex; height: 16px; border-radius: 8px; overflow: hidden; gap: 2px; }
+.tira span { width: var(--w); min-width: 2px; background: color-mix(in srgb, var(--bi-corredor) calc(70% - var(--i) * 18%), transparent); }
+.tira span[data-i='0'] { background: linear-gradient(90deg, color-mix(in srgb, var(--bi-placer) 75%, transparent), var(--bi-placer)); }
+.partes { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.partes li { display: inline-flex; align-items: baseline; gap: 6px; font-size: 12.5px; color: var(--foreground); }
+.partes i { width: 8px; height: 8px; border-radius: 2px; align-self: center; background: color-mix(in srgb, var(--bi-corredor) 55%, transparent); }
+.partes li[data-i='0'] i { background: var(--bi-placer); }
+.partes b { font-weight: 700; font-variant-numeric: tabular-nums; }
+.partes small { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.dibuja .tira span { animation: crece 0.9s cubic-bezier(0.22, 1, 0.36, 1) calc(0.1s + var(--i) * 0.12s) both; transform-origin: left; }
+
+/* Embudo: barras centradas (el cauce que se angosta); entre pasos, cuánto pasa; el paso más estrecho en oro. */
+.embudo { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.embudo li { display: flex; flex-direction: column; align-items: stretch; gap: 2px; }
+.paso { align-self: center; margin-left: calc(8.6em + 8px); margin-right: calc(3.6em + 8px); text-align: center; font-size: 10.5px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; padding: 1px 0; }
+.paso[data-peor] { color: color-mix(in srgb, var(--bi-placer) 85%, var(--foreground)); font-weight: 750; }
+.embudoFila { display: grid; grid-template-columns: minmax(0, 8.6em) minmax(0, 1fr) 3.6em; align-items: center; gap: 8px; height: 24px; }
+.embudoEtiqueta { font-size: 12.5px; color: var(--foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.embudoValor { font-size: 12.5px; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; color: var(--foreground); }
+.embudoCarril { position: relative; height: 100%; }
+.embudoBarra { position: absolute; left: 50%; top: 0; bottom: 0; width: var(--w); transform: translateX(-50%); border-radius: 7px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bi-corredor) 26%, transparent), color-mix(in srgb, var(--bi-corredor) 16%, transparent));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bi-corredor) 30%, transparent); }
+.embudo li[data-peor] .embudoBarra { background: linear-gradient(180deg, color-mix(in srgb, var(--bi-placer) 34%, transparent), color-mix(in srgb, var(--bi-placer) 18%, transparent)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bi-placer) 60%, transparent), 0 0 18px -6px var(--bi-placer); }
+.escala { margin-top: 6px; font-size: 10.5px; color: var(--muted); align-items: center !important; }
+.dibuja .embudoBarra { animation: abreCentro 0.8s cubic-bezier(0.22, 1, 0.36, 1) calc(0.1s + var(--i) * 0.1s) both; }
+.dibuja .paso { animation: llega 0.4s ease calc(0.5s + var(--i) * 0.1s) both; }
+
+.leyenda { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 6px 0 0; font-size: 11.5px; color: var(--muted); }
+.llave { display: inline-block; width: 14px; height: 0; margin-left: 4px; border-top: 2px solid var(--bi-placer); }
+.llave[data-sombra] { margin-left: 10px; border-top: 2px dashed var(--muted); }
+
+/* El boceto mientras Levy piensa: un trazo que se escribe y se borra. */
+.boceto path { fill: none; stroke: var(--bi-corredor, var(--brand)); stroke-width: 2.2; stroke-linecap: round; stroke-dasharray: 1; animation: boceto 2.6s cubic-bezier(0.65, 0, 0.35, 1) infinite; }
+
+@keyframes abre { from { opacity: 0; transform: scaleY(0.4); } to { opacity: 1; transform: none; } }
+@keyframes traza { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes aparece { from { opacity: 0; transform: scale(0.2); } to { opacity: 1; transform: none; } }
+@keyframes llega { from { opacity: 0; } to { opacity: 1; } }
+@keyframes crece { from { transform: scaleX(0); } to { transform: none; } }
+@keyframes abreCentro { from { opacity: 0; transform: translateX(-50%) scaleX(0.1); } to { opacity: 1; transform: translateX(-50%); } }
+@keyframes latido { 0%, 100% { transform: scale(0.7); opacity: 0.45; } 50% { transform: scale(1.25); opacity: 0.12; } }
+@keyframes boceto { 0% { stroke-dashoffset: 1; opacity: 0.9; } 55% { stroke-dashoffset: 0; opacity: 0.9; } 85% { stroke-dashoffset: 0; opacity: 0; } 100% { stroke-dashoffset: 1; opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .dibuja *, .boceto path, .halo { animation: none !important; }
+}

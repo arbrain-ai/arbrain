@@ -105,3 +105,13 @@ export function destinosDeCarpeta(carpetas: CarpetaPlana[], id: string): Destino
 
 /** La carpeta y sus subcarpetas: lo que archivar o restaurar una carpeta toca. */
 export const conSubcarpetas = (carpetas: CarpetaPlana[], id: string) => carpetas.filter(c => c.id === id || c.madre === id).map(c => c.id)
+
+/**
+ * Las plantillas de «＋ Nuevo lienzo › Desde plantilla» (7 nov 2026): los lienzos que se llaman «plantilla» o viven en una
+ * carpeta que se llama así, archivados incluidos (una plantilla guardada no estorba en la lista pero sigue sirviendo). La más
+ * reciente primero. Nombrar un lienzo «… · Plantilla» basta para que salga aquí.
+ */
+export function plantillasDisponibles<P extends PaginaVista>(paginas: P[], carpetas: CarpetaPlana[]): P[] {
+  const deCarpeta = new Set(carpetas.filter(c => normalizar(c.nombre).includes('plantilla')).map(c => c.id))
+  return paginas.filter(x => normalizar(x.nombre).includes('plantilla') || (!!x.folderId && deCarpeta.has(x.folderId))).sort(reciente)
+}

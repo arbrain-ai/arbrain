@@ -899,6 +899,8 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
     cargando: loading, ocupado: !snapshot, todoistCaido: !ajeno && Boolean(snapshot) && snapshot!.health.find(h => h.id === 'todoist')?.state !== 'fresh',
     onModo: undefined, onConversar, donde, leyenda: leyendaVista,
     onAbrir: (item: PlanItem) => setSelection({ item }), onCompletar: (t: PlanTask) => snapshot ? commit(mutationFor(t, snapshot.ownerId, {}, 'complete')) : Promise.reject(new Error('Sin lectura')),
+    // La prioridad como en Todoist (8 nov 2026): la misma pluma, con ⌘Z. Todoist exige el título en cada update.
+    onPrioridad: (t: PlanTask, priority: 1 | 2 | 3 | 4) => snapshot ? commit(mutationFor(t, snapshot.ownerId, { title: t.title, priority })) : Promise.reject(new Error('Sin lectura')),
     onNueva: () => setSelection({ kind: 'task', allDay: true }), onObjetivo: (ev: PlanEvent, cumplido: boolean) => marcarObjetivo(ev, cumplido) }
 
   // La estrella del objetivo del día: `✓` al inicio del título del evento «Objetivo del dia», por la misma pluma (con ⌘Z).

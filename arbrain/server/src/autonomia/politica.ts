@@ -14,28 +14,38 @@
  * El PISO no se edita: contactar personas, pagar, borrar lo que no es de prueba, publicar fuera de la cohorte y aceptar
  * términos legales nunca bajan de «tocar», diga lo que diga el archivo (un archivo alterado no relaja lo irreversible).
  * En la edición cliente, además, pagar es «nunca» (R1: Arbrain no paga en esta versión).
+ *
+ * Freno apagado (5 nov 2026, 18:56, Daniel: «asumo el riesgo… ya puedes usar todo»): `freno_apagado_hasta` (hora
+ * local del dueño, «2026-11-06T06:00», o un instante con zona) y `freno_apagado_por` (su cita) apagan el freno ENTERO
+ * hasta esa hora: manos nativas, web y navegación dejan pasar todo, y la política rige «hacer» en todas las clases
+ * (el piso incluido). Cada acción que antes se habría frenado queda en la bitácora y en «Lo que hice solo» con su
+ * categoría. Al vencer, vuelve solo lo de siempre. Solo en la instalación original: la edición cliente lo ignora.
  */
 import { appendFileSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { DIR_ARBRAIN, esEdicionCliente } from '../edicion.js'
-import { diaCivil } from '../zona.js'
+import { diaCivil, instanteDeHoraCivil, zonaDueno } from '../zona.js'
 
-export type Clase = 'configurar' | 'agenda' | 'cohorte' | 'borrar_prueba' | 'contactar' | 'pagar' | 'borrar' | 'publicar' | 'legal'
+export type Clase = 'configurar' | 'agenda' | 'cohorte' | 'soporte' | 'borrar_prueba' | 'contactar' | 'pagar' | 'borrar' | 'publicar' | 'legal'
 export type Modo = 'hacer' | 'tocar' | 'nunca'
 export type Preset = 'cauteloso' | 'equilibrado' | 'piloto'
 
-export const CLASES: readonly Clase[] = ['configurar', 'agenda', 'cohorte', 'borrar_prueba', 'contactar', 'pagar', 'borrar', 'publicar', 'legal']
+export const CLASES: readonly Clase[] = ['configurar', 'agenda', 'cohorte', 'soporte', 'borrar_prueba', 'contactar', 'pagar', 'borrar', 'publicar', 'legal']
 export const PRESETS: readonly Preset[] = ['cauteloso', 'equilibrado', 'piloto']
 const MODOS: readonly Modo[] = ['hacer', 'tocar', 'nunca']
 export const esClase = (v: unknown): v is Clase => typeof v === 'string' && (CLASES as readonly string[]).includes(v)
 export const esPreset = (v: unknown): v is Preset => typeof v === 'string' && (PRESETS as readonly string[]).includes(v)
 export const esModo = (v: unknown): v is Modo => typeof v === 'string' && (MODOS as readonly string[]).includes(v)
 
-/** Lo que ve la persona (Ajustes, tarjetas, el archivo) y lo que lee Levy. */
-export const INFO_CLASE: Record<Clase, { nombre: string; que: string; irreversible: boolean }> = {
+/** Lo que ve la persona (Ajustes, tarjetas, el archivo) y lo que lee Levy. `firmado`: la línea de lo que la persona firmó. */
+export const INFO_CLASE: Record<Clase, { nombre: string; que: string; irreversible: boolean; firmado?: string }> = {
   configurar: { nombre: 'Configurar servicios', irreversible: false, que: 'Crear cuentas, llaves API y configuraciones en servicios que pediste (p. ej. «Create key» en una consola).' },
   agenda: { nombre: 'Tu agenda', irreversible: false, que: 'Mover tu agenda, choques incluidos. Si moverla implica escribirle a otra persona, cuenta como contactar.' },
   cohorte: { nombre: 'Classroom de la cohorte', irreversible: false, que: 'Publicar o esconder en el classroom de la cohorte lo que ya existe; subir clips.' },
+  // 4 nov 2026: las dudas técnicas de los alumnos no le llegan al dueño como «contactar» (caso real: un alumno, 32 h trabado).
+  // Reversible a efectos del freno SOLO con todas las señales a favor (autonomia/clase.ts · claseDeSoporte); si no, contactar.
+  // La plataforma y la línea de lo firmado son de la instalación (autonomia/soporte.ts · plataformaCohorte).
+  soporte: { nombre: 'Soporte técnico a la cohorte', irreversible: false, que: 'Responder dudas técnicas o de uso de los alumnos dentro de la plataforma de la cohorte (posts, comentarios y DMs). Nunca por WhatsApp, correo ni fuera de la cohorte, ni promesas, precios, reembolsos, cobranza o mensajes delicados: eso sigue siendo contactar.' },
   borrar_prueba: { nombre: 'Borrar lo de prueba', irreversible: false, que: 'Borrar recursos de prueba que creó Levy.' },
   contactar: { nombre: 'Contactar personas', irreversible: true, que: 'WhatsApp, DM, correo, comentarios con mención, invitaciones a terceros, formularios de contacto.' },
   pagar: { nombre: 'Pagar', irreversible: true, que: 'Comprar, pagar, suscribirse, transferir, escribir datos de pago.' },
@@ -54,16 +64,21 @@ export const INFO_PRESET: Record<Preset, string> = {
   piloto: 'Todo lo reversible lo hace solo y te avisa; solo lo irreversible espera tu toque.',
 }
 
-const IRREVERSIBLE_TOCA: Record<Clase, Modo> = { configurar: 'tocar', agenda: 'tocar', cohorte: 'tocar', borrar_prueba: 'tocar', contactar: 'tocar', pagar: 'tocar', borrar: 'tocar', publicar: 'tocar', legal: 'tocar' }
+// Soporte nace en «tocar» en los tres presets: la enciende la persona en Ajustes › Autonomía (un agente no cambia su propia autonomía).
+const IRREVERSIBLE_TOCA: Record<Clase, Modo> = { configurar: 'tocar', agenda: 'tocar', cohorte: 'tocar', soporte: 'tocar', borrar_prueba: 'tocar', contactar: 'tocar', pagar: 'tocar', borrar: 'tocar', publicar: 'tocar', legal: 'tocar' }
 export const MODOS_PRESET: Record<Preset, Record<Clase, Modo>> = {
   cauteloso: { ...IRREVERSIBLE_TOCA },
   equilibrado: { ...IRREVERSIBLE_TOCA, configurar: 'hacer', agenda: 'hacer' },
   piloto: { ...IRREVERSIBLE_TOCA, configurar: 'hacer', agenda: 'hacer', cohorte: 'hacer', borrar_prueba: 'hacer' },
 }
 
-/** El piso: lo irreversible nunca baja de «tocar». */
+/** Clases que solo existen en la instalación original: el soporte a la cohorte es de quien da el programa. */
+export const SOLO_ORIGINAL: readonly Clase[] = ['soporte']
+
+/** El piso: lo irreversible nunca baja de «tocar». En la edición cliente, pagar es «nunca» y el soporte no sale solo. */
 export function conPiso(clase: Clase, modo: Modo, cliente = esEdicionCliente()): Modo {
   if (cliente && clase === 'pagar') return 'nunca'
+  if (cliente && SOLO_ORIGINAL.includes(clase) && modo === 'hacer') return 'tocar'
   if (INFO_CLASE[clase].irreversible && modo === 'hacer') return 'tocar'
   return modo
 }
@@ -77,6 +92,10 @@ export interface Politica {
   vigente: Record<Clase, Modo>
   actualizado?: string
   por?: string
+  /** Freno apagado hasta esta hora (tal como se escribió en el archivo). */
+  freno_apagado_hasta?: string
+  /** La cita del dueño que lo apagó. */
+  freno_apagado_por?: string
 }
 
 export const presetPorDefecto = (cliente = esEdicionCliente()): Preset => (cliente ? 'equilibrado' : 'piloto')
@@ -111,7 +130,7 @@ function leerArchivo(): Politica | null {
     const mtime = statSync(ruta).mtimeMs
     if (cache && cache.ruta === ruta && cache.mtime === mtime) return cache.politica
     const j = JSON.parse(readFileSync(ruta, 'utf8')) as Record<string, unknown>
-    const politica = { ...armarPolitica(esPreset(j.preset) ? j.preset : presetPorDefecto(), (j.ajustes ?? {}) as Partial<Record<Clase, Modo>>), ...(typeof j.actualizado === 'string' ? { actualizado: j.actualizado } : {}), ...(typeof j.por === 'string' ? { por: j.por.slice(0, 60) } : {}) }
+    const politica = { ...armarPolitica(esPreset(j.preset) ? j.preset : presetPorDefecto(), (j.ajustes ?? {}) as Partial<Record<Clase, Modo>>), ...(typeof j.actualizado === 'string' ? { actualizado: j.actualizado } : {}), ...(typeof j.por === 'string' ? { por: j.por.slice(0, 60) } : {}), ...(typeof j.freno_apagado_hasta === 'string' ? { freno_apagado_hasta: j.freno_apagado_hasta } : {}), ...(typeof j.freno_apagado_por === 'string' ? { freno_apagado_por: j.freno_apagado_por.slice(0, 400) } : {}) }
     cache = { ruta, mtime, politica }
     return politica
   } catch { return null }
@@ -123,7 +142,58 @@ export function politicaVigente(): Politica {
   return leerArchivo() ?? armarPolitica(presetPorDefecto())
 }
 
-export const modoDe = (clase: Clase): Modo => politicaVigente().vigente[clase]
+/** Instante (ms) de `freno_apagado_hasta`: hora local del dueño si no trae zona. NaN si no se entiende. */
+export function instanteApagado(hasta: string): number {
+  const t = hasta.trim()
+  if (/(Z|[+-]\d{2}:?\d{2})$/i.test(t)) return Date.parse(t)
+  const m = /^(\d{4}-\d{2}-\d{2})(?:[T ](\d{1,2}):(\d{2}))?$/.exec(t)
+  if (!m) return NaN
+  return instanteDeHoraCivil(m[1], Number(m[2] ?? 0), Number(m[3] ?? 0), zonaDueno())
+}
+
+/**
+ * ¿El freno está apagado ahora? Devuelve hasta cuándo (ISO) y la cita, o null. Vencido, mal escrito o en la edición
+ * cliente: null (el freno rige como siempre).
+ */
+export function frenoApagado(ahora = Date.now()): { hasta: string; por?: string } | null {
+  if (esEdicionCliente()) return null
+  const p = leerArchivo()
+  if (!p?.freno_apagado_hasta) return null
+  const t = instanteApagado(p.freno_apagado_hasta)
+  if (!Number.isFinite(t) || ahora >= t) return null
+  return { hasta: new Date(t).toISOString(), ...(p.freno_apagado_por ? { por: p.freno_apagado_por } : {}) }
+}
+
+/** Con el freno apagado, todas las clases se hacen solas (el piso incluido); al vencer, lo vigente de siempre. */
+export const modoDe = (clase: Clase): Modo => (frenoApagado() ? 'hacer' : politicaVigente().vigente[clase])
+
+/** Categoría del freno → clase de la política, para anotar en «Lo que hice solo» lo que pasó con el freno apagado. */
+export function claseDeCategoria(categoria: string): Clase {
+  if (/^(enviar|boton_sin_texto|transmitir_datos|url_con_efecto)$/.test(categoria)) return 'contactar'
+  if (categoria === 'pagar') return 'pagar'
+  if (/^(borrar|descartar|confirmar_peligro)$/.test(categoria)) return 'borrar'
+  if (categoria === 'publicar') return 'publicar'
+  return 'configurar'
+}
+
+/** Apaga el freno hasta `hasta` (hora local o instante con zona) con la cita del dueño. */
+export function apagarFreno(hasta: string, por: string): Politica {
+  const t = instanteApagado(hasta)
+  if (!Number.isFinite(t)) throw new Error(`no entiendo la hora «${hasta}» (usa AAAA-MM-DDTHH:MM, hora local)`)
+  if (t <= Date.now()) throw new Error(`«${hasta}» ya pasó`)
+  if (!por.trim()) throw new Error('falta la cita del dueño que lo autoriza')
+  const actual = leerArchivo() ?? armarPolitica(presetPorDefecto())
+  return escribir({ ...actual, freno_apagado_hasta: hasta.trim(), freno_apagado_por: por.trim().slice(0, 400), actualizado: new Date().toISOString() })
+}
+
+/** Vuelve a encender el freno antes de tiempo (quita los dos campos). */
+export function encenderFreno(por = 'terminal'): Politica {
+  const actual = leerArchivo() ?? armarPolitica(presetPorDefecto())
+  const resto: Politica = { ...actual, actualizado: new Date().toISOString(), por: por.slice(0, 60) }
+  delete resto.freno_apagado_hasta
+  delete resto.freno_apagado_por
+  return escribir(resto)
+}
 
 /** El archivo como lo lee una persona o Levy: preset, ajustes, lo vigente y qué significa cada clase. */
 export function archivoLegible(p: Politica): Record<string, unknown> {
@@ -131,22 +201,29 @@ export function archivoLegible(p: Politica): Record<string, unknown> {
     version: 1,
     leeme: 'Política de autonomía de Levy. Edita «preset» (cauteloso, equilibrado, piloto) o «ajustes» ({ clase: hacer|tocar|nunca }). «vigente» se recalcula. Lo irreversible nunca baja de «tocar».',
     preset: p.preset, ajustes: p.ajustes, vigente: p.vigente,
-    clases: Object.fromEntries(CLASES.map(c => [c, `${INFO_CLASE[c].nombre}${INFO_CLASE[c].irreversible ? ' (irreversible)' : ''}: ${INFO_CLASE[c].que}`])),
+    clases: Object.fromEntries(CLASES.map(c => [c, `${INFO_CLASE[c].nombre}${INFO_CLASE[c].irreversible ? ' (irreversible)' : ''}: ${INFO_CLASE[c].que}${INFO_CLASE[c].firmado ? ` ${INFO_CLASE[c].firmado}` : ''}`])),
     modos: { hacer: 'Levy lo hace solo y lo anota en «Lo que hice solo».', tocar: 'Levy te avisa antes con una tarjeta (Sí · No · Otro); sin tu toque no sale.', nunca: 'Levy no lo hace; lo haces tú.' },
     siempre_tuyo: SIEMPRE_SUYO,
     ...(p.actualizado ? { actualizado: p.actualizado } : {}), ...(p.por ? { por: p.por } : {}),
+    ...(p.freno_apagado_hasta ? { freno_apagado_hasta: p.freno_apagado_hasta, freno_apagado_por: p.freno_apagado_por ?? '', freno_apagado_leeme: 'Mientras «freno_apagado_hasta» (hora local) no venza, el freno de las manos y la política dejan pasar todo y lo anotan en «Lo que hice solo». Para encenderlo antes: borra los dos campos o corre `tsx arbrain/server/src/autonomia/cli.ts encender-freno`.' } : {}),
   }
 }
 
-/** La app cambia la política (preset y ajustes). Escritura atómica, 0600. */
-export function fijarPolitica(preset: Preset, ajustes: Partial<Record<Clase, Modo>> = {}, por = 'app'): Politica {
-  const p: Politica = { ...armarPolitica(preset, ajustes), actualizado: new Date().toISOString(), por: por.slice(0, 60) }
+function escribir(p: Politica): Politica {
   const ruta = RUTA_POLITICA()
   mkdirSync(dirname(ruta), { recursive: true, mode: 0o700 })
   writeFileSync(`${ruta}.tmp`, JSON.stringify(archivoLegible(p), null, 2) + '\n', { mode: 0o600 })
   renameSync(`${ruta}.tmp`, ruta)
   cache = null
   return p
+}
+
+/** La app cambia la política (preset y ajustes). Escritura atómica, 0600. */
+export function fijarPolitica(preset: Preset, ajustes: Partial<Record<Clase, Modo>> = {}, por = 'app'): Politica {
+  // El freno apagado lo pone y lo quita el dueño aparte: cambiar el preset desde la app no lo toca.
+  const previo = leerArchivo()
+  const apagado = previo?.freno_apagado_hasta ? { freno_apagado_hasta: previo.freno_apagado_hasta, ...(previo.freno_apagado_por ? { freno_apagado_por: previo.freno_apagado_por } : {}) } : {}
+  return escribir({ ...armarPolitica(preset, ajustes), ...apagado, actualizado: new Date().toISOString(), por: por.slice(0, 60) })
 }
 
 // ---------- «Lo que hice solo» ----------
@@ -158,8 +235,12 @@ export interface HechoSolo {
   que: string
   /** Dónde (dominio o app). */
   donde?: string
+  /** Enlace a lo que salió (el hilo de la plataforma donde respondió), para verlo desde «Lo que hice solo». */
+  enlace?: string
   /** Cómo se deshace, si se puede. */
   deshacer?: string
+  /** Categoría del freno que se habría frenado (con el freno apagado). */
+  categoria?: string
   /** Quién lo hizo (manos, web, levy, cron). */
   origen?: string
   /** Pedido o bitácora de origen. */
@@ -178,7 +259,7 @@ export function anotarHechoSolo(h: Omit<HechoSolo, 'ts'> & { ts?: string }): voi
   try {
     const dir = DIR_HECHO_SOLO()
     mkdirSync(dir, { recursive: true, mode: 0o700 })
-    const fila: HechoSolo = { ts: h.ts ?? new Date().toISOString(), clase: h.clase, que: h.que.replace(/\s+/g, ' ').slice(0, 240), ...(h.donde ? { donde: h.donde.slice(0, 120) } : {}), ...(h.deshacer ? { deshacer: h.deshacer.slice(0, 200) } : {}), ...(h.origen ? { origen: h.origen.slice(0, 30) } : {}), ...(h.ref ? { ref: h.ref.slice(0, 60) } : {}), ...(h.sesion ? { sesion: h.sesion.slice(0, 60) } : {}), ...(h.conversacion ? { conversacion: h.conversacion } : {}) }
+    const fila: HechoSolo = { ts: h.ts ?? new Date().toISOString(), clase: h.clase, que: h.que.replace(/\s+/g, ' ').slice(0, 240), ...(h.donde ? { donde: h.donde.slice(0, 120) } : {}), ...(h.enlace && /^https:\/\//.test(h.enlace) ? { enlace: h.enlace.slice(0, 300) } : {}), ...(h.deshacer ? { deshacer: h.deshacer.slice(0, 200) } : {}), ...(h.categoria ? { categoria: h.categoria.slice(0, 40) } : {}), ...(h.origen ? { origen: h.origen.slice(0, 30) } : {}), ...(h.ref ? { ref: h.ref.slice(0, 60) } : {}), ...(h.sesion ? { sesion: h.sesion.slice(0, 60) } : {}), ...(h.conversacion ? { conversacion: h.conversacion } : {}) }
     appendFileSync(join(dir, `${diaCivil(new Date(fila.ts))}.jsonl`), JSON.stringify(fila) + '\n', { mode: 0o600 })
   } catch { /* la anotación nunca tumba la acción */ }
 }

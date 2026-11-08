@@ -7,6 +7,9 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { escucharPedido, EVENTO_ETAPA_NEGOCIO, LLAVE_ETAPA_NEGOCIO } from '@/shared/navigation/ir-a'
 import { PanelEmbudo } from '@/features/negocio/PanelEmbudo'
+import { ElPulso } from '@/features/negocio/ElPulso'
+import pv from '@/features/negocio/pulso.module.css'
+import { ArrowLeft } from 'lucide-react'
 import { URL_EMBUDO, type RespuestaEmbudo } from '@/features/negocio/embudo'
 import s from '../cabina.module.css'
 import l from '@/features/rutinas/loops.module.css'
@@ -27,25 +30,27 @@ function revision(f: Fuente) {
 }
 
 /**
- * Tu negocio. Con ARBRAIN_PANEL_NEGOCIO=1 (prototipo del 4 nov 2026) suma «El sistema»: el embudo completo con skills,
- * rutinas, manos, números y cuello (features/negocio). Apagado, la API responde { activo: false } y la vista es el libro,
- * igual que siempre.
+ * Tu negocio. Con ARBRAIN_PANEL_NEGOCIO=1 (prototipo del 4 nov 2026) la vista es «El pulso» (7 nov, features/negocio/ElPulso):
+ * seis órganos con su número vivo, la Mente del comprador como órgano y el botón al lienzo del sistema nervioso. El libro ya
+ * no se le muestra al dueño (Daniel, 7 nov: «el libro no debería verlo… luce aburrido»): su texto sigue en /api/cabina/negocio
+ * para Levy. Las etapas y skills del embudo (PanelEmbudo) se abren desde el pie del pulso o cuando Habilidades pide una etapa.
+ * Apagado, la API responde { activo: false } y la vista es el libro, igual que siempre.
  */
 export function VistaNegocio({ seccion, grande }: { seccion?: SeccionNegocio; grande?: boolean }) {
-  const sistema = useFuente<RespuestaEmbudo>(URL_EMBUDO).data
-  const [parte, setParte] = useState<'sistema' | 'libro'>(seccion && seccion !== 'embudo' ? 'libro' : 'sistema')
-  // Habilidades › «Ver en tu negocio» pide una etapa: se ve en El sistema (PanelEmbudo toma el pedido y enfoca).
+  const lectura = useFuente<RespuestaEmbudo>(URL_EMBUDO), sistema = lectura.data
+  const [parte, setParte] = useState<'pulso' | 'etapas'>(seccion === 'embudo' ? 'etapas' : 'pulso')
+  // Habilidades › «Ver en tu negocio» pide una etapa: se ve en las etapas (PanelEmbudo toma el pedido y enfoca).
   useEffect(() => {
-    try { if (localStorage.getItem(LLAVE_ETAPA_NEGOCIO)) setParte('sistema') } catch { /* sin almacenamiento */ }
-    return escucharPedido(EVENTO_ETAPA_NEGOCIO, () => setParte('sistema'))
+    try { if (localStorage.getItem(LLAVE_ETAPA_NEGOCIO)) setParte('etapas') } catch { /* sin almacenamiento */ }
+    return escucharPedido(EVENTO_ETAPA_NEGOCIO, () => setParte('etapas'))
   }, [])
+  // Mientras llega el interruptor no se asoma el libro (antes parpadeaba un instante antes del panel).
+  if (!sistema && !lectura.error) return <div className={s.cargando} aria-busy="true">Abriendo tu negocio…</div>
   if (!sistema?.activo) return <LibroNegocio seccion={seccion} grande={grande} />
+  if (parte === 'pulso') return <ElPulso embudo={sistema.embudo} grande={grande} inicio={seccion === 'avatar' ? 'comprador' : undefined} verEtapas={() => setParte('etapas')} />
   return <div className={l.loops}>
-    <div className={l.selector} role="tablist" aria-label="Qué ver de tu negocio">
-      <button role="tab" aria-selected={parte === 'sistema'} onClick={() => setParte('sistema')}>El sistema</button>
-      <button role="tab" aria-selected={parte === 'libro'} onClick={() => setParte('libro')}>El libro</button>
-    </div>
-    {parte === 'sistema' ? <PanelEmbudo datos={sistema} grande={grande} /> : <LibroNegocio seccion={seccion} grande={grande} />}
+    <button type="button" className={pv.volver} onClick={() => setParte('pulso')} style={{ alignSelf: 'flex-start' }}><ArrowLeft size={14} aria-hidden />El pulso</button>
+    <PanelEmbudo datos={sistema} grande={grande} />
   </div>
 }
 

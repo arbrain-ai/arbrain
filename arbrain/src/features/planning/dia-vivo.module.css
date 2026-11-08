@@ -436,6 +436,10 @@
 .miniSub button.miniSubItem[data-origen='casilla'] i, .miniMarcas button.miniMarca[data-origen='casilla'] i { border-color: color-mix(in srgb, var(--l-borde-ambar, var(--gold)) 85%, transparent); }
 .miniSub button.miniSubItem:hover:not(:disabled) i, .miniMarcas button.miniMarca:hover:not(:disabled) i { border-color: var(--success, var(--primary)); transform: scale(1.12); }
 .miniSub button.miniSubItem[data-hecho] i, .miniMarcas button.miniMarca[data-hecho] i { background: var(--success, var(--primary)); border-color: var(--success, var(--primary)); }
+/* La prioridad de Todoist también en la marca del timeline (8 nov 2026): el mismo anillo que en la lista. */
+:is(.miniSub button.miniSubItem, .miniMarcas button.miniMarca)[data-origen='tarea'][data-p='1']:not([data-hecho]) i { border-color: var(--prioridad-1); }
+:is(.miniSub button.miniSubItem, .miniMarcas button.miniMarca)[data-origen='tarea'][data-p='2']:not([data-hecho]) i { border-color: var(--prioridad-2); }
+:is(.miniSub button.miniSubItem, .miniMarcas button.miniMarca)[data-origen='tarea'][data-p='3']:not([data-hecho]) i { border-color: var(--prioridad-3); }
 .areaAgenda .miniBloques .miniSub button.miniSubItem span, .miniMarcas button.miniMarca span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   font-size: 10.5px; font-weight: 500; line-height: 1.2; letter-spacing: .05px; color: color-mix(in srgb, var(--foreground) 56%, transparent); }
 .miniSub button.miniSubItem[data-hecho] span, .miniMarcas button.miniMarca[data-hecho] span { text-decoration: line-through; color: var(--muted); }

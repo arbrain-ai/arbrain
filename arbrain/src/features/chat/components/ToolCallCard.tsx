@@ -2,13 +2,13 @@
 import { useState } from 'react'
 import { Bot, Loader2, Check, Wrench, ChevronRight, X, AlertTriangle, Clock } from 'lucide-react'
 import type { ToolCall, ToolOutput } from '../hooks/useChat'
-import { etiquetaVisible, type NotaInyectada } from '../lib/inyecciones'
 import type { GrupoRastro, LlamadaRastro } from '../lib/rastro'
 import { imagenLeida, localImageThumbUrl, localImageUrl } from '@/lib/local-image-path'
 import { ImageLightbox } from '@/shared/components/ImageLightbox'
 import h from './herramientas.module.css'
 import { edicionDe } from '../lib/diff-edicion'
 import { CuerpoDiff } from './DiffEdicion'
+import { useTapar } from '@/shared/stores/modo-directo-store'
 
 const TOOL_LABELS: Record<string, string> = {
   Read: 'Leyendo archivo',
@@ -102,33 +102,18 @@ function ImagenLeida({ ruta, onFalla }: { ruta: string; onFalla: () => void }) {
   )
 }
 
-/** Mensaje del dueño dentro del turno, en el punto donde Levy lo tomó. «Leído» ya no se escribe (1 nov 2026: «esta ui
- *  de leído no me encanta… sé que lo lees»): que Levy siga y lo conteste lo dice. Solo se ve lo que aún pide atención. */
-function NotaInyectadaChip({ nota }: { nota: NotaInyectada }) {
-  const etiqueta = etiquetaVisible(nota.estado)
-  return (
-    <span className="w-full flex justify-end my-1.5" data-nota-inyectada={nota.id} data-estado={nota.estado}>
-      <span className="max-w-[85%] inline-flex flex-col items-end gap-0.5 px-2.5 py-1 rounded-xl rounded-br-sm bg-primary/10 border border-primary/25 text-[12px] text-foreground/90">
-        <span className="whitespace-pre-wrap break-words text-left">{nota.texto}</span>
-        {etiqueta
-          ? <span className="inline-flex items-center gap-1 text-[10px] text-muted/80">
-              {nota.estado !== 'en_fila' && <Loader2 size={10} className="animate-spin shrink-0" />}
-              {etiqueta}
-            </span>
-          : <span className="sr-only">Levy ya lo leyó</span>}
-      </span>
-    </span>
-  )
-}
-
 // Detalle expandido de UNA tool: nombre real + input completo + output real.
 // Nace del dolor de móvil: "no alcanzo a leer ni madres de lo que ejecuto".
-function ToolDetailCard({ tool, input, output, onClose }: {
+function ToolDetailCard({ tool, input: inputCrudo, output: outputCrudo, onClose }: {
   tool: ToolCall
   input?: string
   output?: ToolOutput
   onClose: () => void
 }) {
+  // Modo directo (7 nov 2026): llaves, nombres y dinero se tapan antes de partir el JSON en campos.
+  const tapar = useTapar()
+  const input = inputCrudo && tapar(inputCrudo)
+  const output = outputCrudo && outputCrudo.content ? { ...outputCrudo, content: tapar(outputCrudo.content) } : outputCrudo
   const fields = parseInputFields(input)
   const kindLabel = output?.kind ? (KIND_LABELS[output.kind] ?? output.kind) : null
   const failed = output?.isError || !!kindLabel
@@ -312,12 +297,6 @@ export function GruposHerramientas({ grupos, soloUno }: {
       })}
     </ul>
   )
-}
-
-/** Lo que Daniel escribió con el turno vivo, en orden y fuera del rastro plegado: es conversación, no auditoría. */
-export function NotasInyectadas({ notas }: { notas?: NotaInyectada[] }) {
-  if (!notas?.length) return null
-  return <div className="flex flex-col">{notas.map(nota => <NotaInyectadaChip key={nota.id} nota={nota} />)}</div>
 }
 
 export function StreamingIndicator() {

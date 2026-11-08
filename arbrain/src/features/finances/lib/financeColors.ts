@@ -30,6 +30,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   'health-gym': '#10B981',
   suscripciones: '#3B82F6',
   'equipo-tech': '#06B6D4',
+  compras: '#E879F9',
   vivienda: '#EC4899',
   [SEGUNDA()]: '#F472B6',
   familia: '#FB923C',
@@ -46,6 +47,7 @@ export function categoryColor(cat: string): string {
 // Fuentes de ingreso → color.
 const INCOME_COLORS: Record<string, string> = {
   Polar: '#10B981',
+  Skool: '#0EA5E9',
   USDT: '#F59E0B',
   'HT-cierre': '#8B5CF6',
   otros: '#64748B',

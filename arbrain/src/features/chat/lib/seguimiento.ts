@@ -8,9 +8,9 @@
  * volvía a perseguir los siguientes. La telemetría del 4 nov trae decenas de «reanudar» por hora: Daniel pausa con
  * Ctrl+Espacio, lee adelante y reanuda, y cada vez el hilo lo regresaba.
  *
- * Regla: si la mano movió el hilo, NADA lo mueve hasta que él mismo regrese con la mano al párrafo que suena o toque
- * «Seguir» (o navegue el lector: anterior, siguiente, tocar un párrafo). Play no cuenta: la voz sigue donde iba y la
- * pantalla se queda donde él la dejó.
+ * Regla: si la mano movió el hilo, NADA lo mueve hasta que él mismo regrese con la mano al párrafo que suena o navegue
+ * el lector (tocar un párrafo, anterior, siguiente). Play no cuenta: la voz sigue donde iba y la pantalla se queda donde
+ * él la dejó. Sin botón «Seguir» (5 nov 2026): aparecía bajo el dedo y en iPhone se tragaba el toque.
  */
 export type Decision = 'quieto' | 'anclar' | 'mover'
 
@@ -18,7 +18,7 @@ export class Seguimiento {
   private suelto = false
   /** La mano de Daniel movió el hilo (rueda, dedo, tecla, clic). */
   mano() { this.suelto = true }
-  /** «Seguir», anterior/siguiente, tocar un párrafo o una lectura nueva. */
+  /** Tocar un párrafo, anterior/siguiente o una lectura nueva. */
   retomar() { this.suelto = false }
   /** Play / Ctrl+Espacio: la voz sigue, pero el scroll sigue siendo de quien lo tenía. */
   reanudar() {}

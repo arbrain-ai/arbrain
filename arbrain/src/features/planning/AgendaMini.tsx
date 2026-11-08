@@ -15,7 +15,7 @@ import { franjasDelDia, resumenCampo, tituloZona } from './campos-fondo'
 import { DEF } from './categorias'
 import { useZonas } from './useZonas'
 import type { ItemDia } from './lista-dia'
-import { horaDeMinuto } from './ListaDia'
+import { horaDeMinuto, pistaDeMarca } from './ListaDia'
 // La línea de ahora es la de «Tu día» (cabina/luz.module.css): se aplican las dos clases, no se copia el estilo.
 import luz from '@/features/cabina/luz.module.css'
 
@@ -107,9 +107,9 @@ export function AgendaMini({ bloques, bandas = [], fecha, ahora, esHoy, pasado, 
       const t = base + it.minuto! * 60000, top = Math.max(ultimo + 15, y(t)); ultimo = top
       return { it, top, encima: bloques.some(b => b.inicio <= t && t < b.fin) } }) })()
   const marcar = (it: ItemDia, conTexto: boolean, clase: string) => { const p = pendientes!, si = p.puede(it)
-    return <button key={it.id} className={clase} data-hecho={it.hecho || undefined} data-origen={it.origen} data-resaltado={p.resaltado === it.id || undefined}
+    return <button key={it.id} className={clase} data-hecho={it.hecho || undefined} data-origen={it.origen} data-p={it.tarea?.priority} data-resaltado={p.resaltado === it.id || undefined}
       role="checkbox" aria-checked={it.hecho} disabled={!si} onClick={() => p.alternar(it)} onMouseEnter={() => p.onResaltar?.(it.id)} onMouseLeave={() => p.onResaltar?.(null)}
-      aria-label={`${it.hecho ? 'Reabrir' : 'Marcar'}: ${it.texto}`} title={`${it.minuto != null ? `${horaDeMinuto(it.minuto)} · ` : ''}${it.texto}${si ? (it.hecho ? ' · tocar para reabrir' : ' · tocar para marcar') : ''}`}>
+      aria-label={`${it.hecho ? 'Reabrir' : 'Marcar'}: ${it.texto}`} title={`${it.minuto != null ? `${horaDeMinuto(it.minuto)} · ` : ''}${it.texto}\n${pistaDeMarca(it, si)}`}>
       <i aria-hidden />{conTexto && <span>{it.texto}</span>}</button> }
   const lugar = (inicio: number, fin: number, id: string) => {
     const top = y(inicio), h = Math.max(12, y(fin) - top - 1), l = lanes.get(id) ?? { col: 0, cols: 1 }

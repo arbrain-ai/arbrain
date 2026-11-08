@@ -21,7 +21,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   AppWindow, ArrowUpRight, AudioLines, Bot, BrainCircuit, Check, GitBranch, ChevronRight, CircleAlert, CircleX, Database, Hand, HeartPulse,
-  House, Info, LayoutGrid, Loader2, Plus, Power, Repeat, ScrollText, Server, Sparkles, SquareTerminal, Waypoints, type LucideIcon,
+  House, Info, LayoutGrid, Loader2, Plus, Power, Repeat, ScrollText, Server, Sparkles, SquareTerminal, Sunrise, Waypoints, type LucideIcon,
 } from 'lucide-react'
 import { Cifra, escalon, mov } from '@/shared/movimiento'
 import { releer, useFuente } from '../datos'
@@ -46,9 +46,10 @@ import tb from './tablero.module.css'
 import { capital, NOMBRE_DUENO } from '@/config'
 import { esEdicionCliente } from '@/lib/edicion'
 import { textoTallerVacio } from './taller-vacio'
+import { ColaMemoriaTaller } from './ColaMemoriaTaller'
 
 // ── Íconos de las pestañas y de las áreas ──
-export const ICONO_SEGMENTO: Record<SegmentoTaller, LucideIcon> = { terminales: Bot, historia: GitBranch, rutinas: Repeat, memoria: BrainCircuit, maquina: Server, registro: ScrollText }
+export const ICONO_SEGMENTO: Record<SegmentoTaller, LucideIcon> = { terminales: Bot, historia: GitBranch, rutinas: Repeat, memoria: BrainCircuit, maquina: Server, registro: ScrollText, 'primer-dia': Sunrise }
 const ICONO_AREA: Record<AreaServicio, LucideIcon> = { Levy: Sparkles, Arbrain: LayoutGrid, Casa: House, Voz: AudioLines, Salud: HeartPulse, 'Túneles': Waypoints, Datos: Database, Manos: Hand, Apps: AppWindow }
 const ORDEN_AREAS: AreaServicio[] = ['Levy', 'Arbrain', 'Casa', 'Voz', 'Salud', 'Túneles', 'Datos', 'Manos', 'Apps']
 const QUE_AREA: Record<AreaServicio, string> = {
@@ -172,6 +173,8 @@ export function AgentesTaller({ data: real, onAbrir, onAbrirInterna }: { data: T
       <h3 className={w.ceja}>Trabajando para ti</h3>
       <NuevoAgente />
     </div>
+    {/* Cola por memoria (5 nov 2026): lo que espera aire para salir, arriba de lo que ya trabaja. Solo si algo espera. */}
+    <ColaMemoriaTaller />
     <TableroAgentes data={data} onAbrir={onAbrir} onAbrirInterna={onAbrirInterna} demo={demo} />
     {!hay && <div className={`${w.calma} ${mov.entra}`} style={escalon(1)}>
       <Bot size={22} aria-hidden />

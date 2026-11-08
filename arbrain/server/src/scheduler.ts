@@ -29,7 +29,8 @@ import { faltaLlaveClaude, MENSAJE_FALTA_LLAVE } from './cliente/llaves.js'
 import { motorSuscripcion, MENSAJE_RUTINAS } from './cliente/suscripcion.js'
 import { rutinasConLlaveTope } from './cliente/rutinas-llave.js'
 import { MENSAJE_PAUSA, pausado } from './cliente/pausa.js'
-import { cercaEspejo } from './cliente/espejo.js'
+import { cercaEspejo, derivarEspejo } from './cliente/espejo.js'
+import { colaActiva, colaDelDaemon, DERIVAR_TRAS_MS, type ColaMemoria } from './cliente/cola-memoria.js'
 import { iniciarNowAlumno, type RelojNow } from './cliente/now-alumno.js'
 
 let schedulerInterval: ReturnType<typeof setInterval> | null = null
@@ -353,6 +354,9 @@ export async function runDueTasks(): Promise<void> {
   runDueTasksActive = true
   try {
     const tasks = getDueTasks()
+    const cola = colaActiva() ? colaDelDaemon(getDb()) : null
+    // Lo que esperaba en la cola por memoria y ya no está vencido (se pausó, se borró): fuera de la cola.
+    if (cola) for (const e of cola.esperando()) if (e.tipo === 'rutina' && !tasks.some(t => t.id === e.ref)) cola.soltar(e.id)
     if (tasks.length === 0) return
     const enParalelo = esEdicionCliente()
 
@@ -379,6 +383,19 @@ export async function runDueTasks(): Promise<void> {
         continue
       }
 
+      // Cola por memoria (5 nov 2026, cliente/cola-memoria.ts): sin aire en la máquina la rutina no se reclama; sigue
+      // vencida, formada en la cola, y sale sola en orden cuando hay memoria (o la corre la otra máquina del espejo).
+      let enCola: string | null = null
+      if (cola) {
+        const turno = await cola.pedir({ tipo: 'rutina', ref: task.id, titulo: tituloRutina(task.id) })
+        if (!turno.lanzar) {
+          logger.info({ taskId: task.id, cola: turno.id, posicion: turno.posicion }, 'rutina en la cola por memoria')
+          await quizaDerivar(cola, turno.id, task, nowEpoch, nextRun)
+          continue
+        }
+        enCola = turno.id
+      }
+
       // Guard 2: CLAIM ATOMICO contra la fila FRESCA (no el snapshot).
       // Solo gana quien encuentre la tarea aun vencida Y sin correr en los
       // ultimos 30 min (restart guard). Si otro pase ya la reclamo, changes=0.
@@ -389,6 +406,7 @@ export async function runDueTasks(): Promise<void> {
       ).run(nextRun, nowEpoch, task.id, nowEpoch, nowEpoch - 1800)
 
       if (claimed.changes === 0) {
+        if (enCola) cola?.soltar(enCola, 'otra corrida la reclamó')
         // Perdio el claim: o ya la corrio/reclamo otro pase, o corrio hace
         // <30 min (restart guard). Si sigue vencida, avanzar next_run para
         // que no quede atorada en el backlog.
@@ -413,6 +431,28 @@ export async function runDueTasks(): Promise<void> {
   } finally {
     runDueTasksActive = false
   }
+}
+
+/** Nombre de la rutina para la cola del Taller: su id en palabras («brief-de-la-manana» → «Brief de la manana»). */
+const tituloRutina = (id: string): string => { const t = id.replace(/[-_]+/g, ' ').trim(); return t ? t[0].toUpperCase() + t.slice(1) : 'Rutina' }
+
+/**
+ * Cola por memoria + modo espejo: una rutina que lleva un rato esperando aire se le ofrece UNA vez a la otra máquina
+ * (`derivarEspejo`). Si la acepta, aquí se reclama sin correr (avanza su próxima corrida) y la cola la marca derivada.
+ */
+async function quizaDerivar(cola: ColaMemoria, id: string, task: ScheduledTask, nowEpoch: number, nextRun: number): Promise<void> {
+  if (!process.env.ARBRAIN_ESPEJO_GUARDA?.trim()) return
+  const e = cola.obtener(id)
+  if (!e || e.estado !== 'esperando' || e.derivacionIntentada || cola.ahoraMs() - e.creado < DERIVAR_TRAS_MS) return
+  cola.marcarDerivacionIntentada(id)
+  const r = await derivarEspejo(task.id).catch(() => ({ derivada: false as const }))
+  if (!r.derivada) return
+  const claimed = getDb().prepare(
+    `UPDATE scheduled_tasks SET next_run = ?, last_run = ? WHERE id = ? AND status = 'active' AND next_run <= ?`
+  ).run(nextRun, nowEpoch, task.id, nowEpoch)
+  if (claimed.changes === 0) return
+  cola.derivado(id, r.a)
+  logger.info({ taskId: task.id, a: r.a }, 'rutina sin memoria aquí: la corre la otra máquina del espejo')
 }
 
 /**

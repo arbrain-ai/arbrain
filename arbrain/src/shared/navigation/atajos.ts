@@ -1,4 +1,5 @@
 import { AREA_SHORTCUTS } from './area-shortcuts'
+import { esEdicionCliente } from '@/lib/edicion'
 import { ATAJOS_CTRL } from './atajos-ctrl'
 import { CALENDAR_SHORTCUTS } from '@/features/planning/shortcuts'
 import { CANVAS_SHORTCUTS, shortcutsByCategory, type ShortcutCategory } from '@/features/draw3/shortcuts/registry'
@@ -40,6 +41,8 @@ export const ATAJOS_SHELL: GrupoAtajos[] = [
       { teclas: ['?'], accion: 'Ver los atajos' },
       { teclas: ['⌘', '⌥', 'S'], accion: 'Ver u ocultar los atajos' },
       { teclas: ['⌘', ','], accion: 'Abrir o cerrar Ajustes' },
+      // Modo directo: solo en la instalación original (en la edición cliente no existe, v0.2.24).
+      ...(esEdicionCliente() ? [] : [{ teclas: ['⌘', '⇧', 'D'], accion: 'Prender o apagar el modo directo (antes de grabar o transmitir)' }]),
       { teclas: ['Esc'], accion: 'Cerrar Ajustes (también con la × o un clic fuera)' },
     ],
   },

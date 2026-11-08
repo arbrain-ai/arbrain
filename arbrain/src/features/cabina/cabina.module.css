@@ -388,3 +388,13 @@
 :global(html[data-estilo='unificado']) .enfocada { border-color: var(--l-borde-fuerte); box-shadow: none; }
 :global(html[data-estilo='unificado']) .responder button:not(.cerrarAgente) { border-color: var(--l-borde-fuerte); background: transparent; color: var(--l-tinta-1); }
 :global(html.dark[data-estilo='unificado']) .agente[data-estado='trabajando'] .puntoEstado { background: var(--l-tinta-morado); }
+
+/* La misma vista ya está en una pestaña del panel (5 nov 2026): en el hilo, un chip compacto que la enfoca. */
+.abiertaEnPanel { display: inline-flex; align-self: flex-start; width: fit-content; align-items: center; gap: 6px; max-width: 100%; min-height: 32px; padding: 5px 12px; border-radius: 999px; border: 1px dashed var(--l-borde-morado, rgba(var(--brand-rgb), 0.35)); background: transparent; color: var(--l-tinta-morado, var(--brand)); font-size: 12.5px; cursor: pointer; transition: background 0.15s ease, border-color 0.15s ease; }
+.abiertaEnPanel:hover { border-style: solid; background: rgba(var(--l-velo-morado-rgb, var(--brand-rgb)), 0.06); }
+.abiertaEnPanel:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.abiertaEnPanel > span { color: var(--foreground); font-weight: 550; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.abiertaEnPanel > small { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.abiertaEnPanel > small::before { content: '· '; }
+.abiertaEnPanel > em { display: inline-flex; align-items: center; gap: 2px; font-style: normal; font-weight: 600; white-space: nowrap; }
+.abiertaEnPanel > em > i { font-style: normal; color: var(--muted); font-weight: 400; margin-right: 2px; }

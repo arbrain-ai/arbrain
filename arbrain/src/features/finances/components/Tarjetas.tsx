@@ -8,11 +8,11 @@ import { ChevronRight, MessageCircle } from 'lucide-react'
 import { Cifra, escalon, mov } from '@/shared/movimiento'
 import { etiquetaDia } from '@/features/cabina/model'
 import { accountColor, categoryColor, incomeColor } from '../lib/financeColors'
-import { diasEntre, formatoRunway, mxn, proximosCobros, aMxn } from '../lib/finanzas'
+import { diasEntre, formatoRunway, mxn, proximosCobros, aMxn, separarRetirados } from '../lib/finanzas'
 import { clasificar, MESES_CORTO, nombreMes } from '../lib/granularidad'
 import {
   agruparMovimientos, CIERRE_VIEJO, corteGastos, despuesDeLaFoto, diaDelCobro, fechaCorta, frescuraCierre, hace, mesAnterior,
-  montoDe, nombreCategoria, nombreCuenta, nombreFuente, pesos, sinClasificar,
+  montoDe, nombreCategoria, nombreCuenta, nombreFuente, pesos, resumenMovimientos, sinClasificar,
 } from '../lib/modelo'
 import { InfoTip } from './InfoTip'
 import { Segmentado } from './Segmentado'
@@ -139,7 +139,7 @@ export function EnQueSeVa({ summary, i, palabraRango, extraEntra }: { summary: F
     <p className={h.fuente}>
       {lado === 'sale'
         ? <>{estados ? `Suma ${estados} ${estados === 1 ? 'total' : 'totales'} de estado de cuenta con corte en ${palabraRango}: cada uno es de un mes completo.` : `Del rango: ${palabraRango}.`}{sinClas && total > 0 ? ` ${Math.round((sinClas.total_mxn / total) * 100)}% está sin clasificar.` : ''}</>
-        : <>Entradas registradas en {palabraRango}. Lo de Polar entra en dólares y aquí se ve en pesos al tipo de cambio de hoy ({summary.fx.usd_mxn} MXN por USD).</>}
+        : <>Entradas registradas en {palabraRango}. Lo de Polar entra en dólares y aquí se ve en los pesos de su día; lo que no trae ese dato, al tipo de cambio de hoy ({summary.fx.usd_mxn} MXN por USD).</>}
     </p>
     {lado === 'entra' && extraEntra}
   </Tarjeta>
@@ -219,11 +219,13 @@ export function Movimientos({ movements, fx, abierto, onAlternar, palabraRango }
 }) {
   const [tantos, setTantos] = useState(14)
   const [expandido, setExpandido] = useState<Set<string>>(new Set())
-  const grupos = useMemo(() => agruparMovimientos(movements, (a, m) => aMxn(a, m, fx), clasificar), [movements, fx])
+  // Solo los vivos: un retirado (is_correction) no se lista ni se cuenta, aunque una respuesta vieja lo traiga.
+  const vivos = useMemo(() => separarRetirados(movements).vivos, [movements])
+  const grupos = useMemo(() => agruparMovimientos(vivos, (a, m) => aMxn(a, m, fx), clasificar), [vivos, fx])
   const visibles = grupos.slice(0, tantos)
   const alternar = (k: string) => setExpandido(s => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n })
   return <>
-    <Pliegue id="movimientos" abierto={abierto} onAlternar={onAlternar} titulo={<b>Movimientos</b>} resumen={`${movements.length} en ${palabraRango}${grupos.length !== movements.length ? ` · ${grupos.length} renglones` : ''}`}>
+    <Pliegue id="movimientos" abierto={abierto} onAlternar={onAlternar} titulo={<b>Movimientos</b>} resumen={resumenMovimientos(movements, grupos.length, palabraRango)}>
       {!grupos.length ? <Hueco texto="Sin movimientos en este rango." /> : <ul className={h.movs}>
         {visibles.map((g, k) => <li key={g.clave}>
           {(k === 0 || visibles[k - 1].mes !== g.mes) && <p className={h.mesCabeza}>{nombreMes(g.mes, true)}</p>}

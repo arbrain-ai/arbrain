@@ -11,19 +11,21 @@
  *    un resumen estático que se reactiva al tocarlo;
  *  - cero iframes: componentes nativos que comparten una lectura por fuente.
  */
-import { Component, createContext, startTransition, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Component, createContext, startTransition, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { AlertTriangle, ArrowUpRight, BookOpen, Bookmark, BookmarkCheck, CalendarDays, Clapperboard, Gauge, Inbox, Loader2, Maximize2, Target, TerminalSquare, Wallet, Shapes, X, Navigation, ChevronRight, Pin, PinOff, FileText, Repeat, Server, BrainCircuit, Network, Sun, Activity, GraduationCap, FolderTree, UsersRound, House, Dog, History } from 'lucide-react'
+import { AlertTriangle, ArrowUpRight, BookOpen, ChartSpline, Bookmark, BookmarkCheck, CalendarDays, Clapperboard, Gauge, Inbox, Loader2, Maximize2, Target, TerminalSquare, Wallet, Shapes, X, Navigation, ChevronRight, Pin, PinOff, FileText, Repeat, Server, BrainCircuit, Network, Sun, Activity, GraduationCap, FolderTree, UsersRound, House, Dog, History } from 'lucide-react'
 import type { ChatMessage } from '@/features/chat/hooks/useChat'
 import { type Invocacion, type MostrarInput, type AbrirInput, invocacionesDe, sinEcoDeDelegar, rutaDe, seccionDe, resumen, NOMBRE, abrirEsVivo, abrirEjecutado, hoyCivil, tituloPeriodo, nombreDocumento } from './model'
 import { lecturaEnCache } from './datos'
+import { SostenAlto, altoConocido, recordarAlto } from './alto-sostenido'
 import { VistaCalendario, urlCalendario, resumenCalendario } from './vistas/Calendario'
 import { VistaObjetivos, URL_OBJETIVOS, resumenObjetivos } from './vistas/Objetivos'
 import { VistaLienzo } from './vistas/Lienzo'
 import { VistaReporte, urlReporte, resumenReporte } from './vistas/Reporte'
 import { VistaNegocio, urlNegocio, resumenNegocio } from './vistas/Negocio'
+import { VistaBI } from './vistas/BI'
 import { VistaTrabajos, urlTrabajos, resumenTrabajos } from './vistas/Trabajos'
 import { VistaRutinas, urlRutinas, resumenRutinas } from './vistas/Rutinas'
 import { VistaServidores, URL_SERVIDORES, resumenServidores } from './vistas/Servidores'
@@ -56,6 +58,9 @@ import { mostrarPanel } from './panel/ventanas'
 import { resolverDestino } from './panel/bus'
 import { PRINCIPAL } from './panel/pestanas-fuera'
 import { useRecientesStore } from '../chat/stores/recientes-store'
+import { OcultoPorDirecto } from '@/features/modo-directo/ModoDirecto'
+import { invocacionVetadaDirecto } from '@/lib/modo-directo/reglas'
+import { useDirecto, useModoDirecto } from '@/shared/stores/modo-directo-store'
 import s from './cabina.module.css'
 import l from './luz.module.css'
 
@@ -86,7 +91,7 @@ export function CabinaProvider({ messages, children, sinOptimizar }: { messages:
   return <CabinaCtx.Provider value={value}>{children}</CabinaCtx.Provider>
 }
 
-export const ICONO = { calendario: CalendarDays, objetivos: Target, centro: Gauge, lienzo: Shapes, reporte: Inbox, negocio: BookOpen, trabajos: TerminalSquare, finanzas: Wallet, contenido: Clapperboard, rutinas: Repeat, servidores: Server, memoria: BrainCircuit, equipo: Network, documento: FileText, diario: Sun, salud: Activity, masterclass: GraduationCap, explorador: FolderTree, cohorte: UsersRound, casa: House, perro: Dog, historia: History }
+export const ICONO = { calendario: CalendarDays, objetivos: Target, centro: Gauge, lienzo: Shapes, reporte: Inbox, negocio: BookOpen, bi: ChartSpline, trabajos: TerminalSquare, finanzas: Wallet, contenido: Clapperboard, rutinas: Repeat, servidores: Server, memoria: BrainCircuit, equipo: Network, documento: FileText, diario: Sun, salud: Activity, masterclass: GraduationCap, explorador: FolderTree, cohorte: UsersRound, casa: House, perro: Dog, historia: History }
 
 /** Una vista que falla se queda en SU tarjeta: nunca tumba el hilo. */
 class Aislada extends Component<{ children: ReactNode }, { error: string | null }> {
@@ -96,7 +101,20 @@ class Aislada extends Component<{ children: ReactNode }, { error: string | null 
   render() { return this.state.error ? <p className={s.aviso}>Esta vista no se pudo pintar ({this.state.error}). La conversación sigue intacta; «Abrir completo» lleva a la sección.</p> : this.props.children }
 }
 
-export function Cuerpo(props: { input: MostrarInput; grande?: boolean }) { return <Aislada><CuerpoVista {...props} /></Aislada> }
+export function Cuerpo(props: { input: MostrarInput; grande?: boolean }) { return <Aislada><CuerpoDirecto {...props} /></Aislada> }
+
+/** ¿Esta invocación toca algo que en directo no se enseña? (la vista, o un documento en ruta sensible). */
+export function vetadaEnDirecto(input: MostrarInput): string | null {
+  const veto = invocacionVetadaDirecto(input)
+  return veto === 'vista' ? `La vista ${NOMBRE[input.vista] ?? input.vista}` : veto === 'ruta' ? 'Ese archivo' : null
+}
+
+/** Modo directo (7 nov 2026): lo vetado no se monta (ni pide sus datos), aunque la invocación ya esté en el hilo o fijada en el panel. */
+function CuerpoDirecto(props: { input: MostrarInput; grande?: boolean }) {
+  const directo = useDirecto()
+  const veto = directo ? vetadaEnDirecto(props.input) : null
+  return veto ? <OcultoPorDirecto que={veto} compacto={!props.grande} /> : <CuerpoVista {...props} />
+}
 
 function CuerpoVista({ input, grande }: { input: MostrarInput; grande?: boolean }) {
   switch (input.vista) {
@@ -107,6 +125,8 @@ function CuerpoVista({ input, grande }: { input: MostrarInput; grande?: boolean 
     case 'lienzo': return <VistaLienzo paginaId={input.paginaId!} zona={input.zona} grande={grande} />
     case 'reporte': return <VistaReporte alcance={input.alcance} grande={grande} />
     case 'negocio': return <VistaNegocio seccion={input.seccion} grande={grande} />
+    // Business Intelligence (7 nov 2026): el negocio se mira a sí mismo y te habla; trae su propio encabezado.
+    case 'bi': return <VistaBI grande={grande} />
     case 'trabajos': return <VistaTrabajos agenteId={input.agenteId} grande={grande} />
     case 'finanzas': return <VistaFinanzas grande={grande} />
     // En el panel y en «Ampliar», Contenido completo: producción, radar, resultados con ventas y comentarios (4 oct 2026).
@@ -134,6 +154,7 @@ function CuerpoVista({ input, grande }: { input: MostrarInput; grande?: boolean 
 }
 
 function datoCache(input: MostrarInput): string | null {
+  if (useModoDirecto.getState().prendido && vetadaEnDirecto(input)) return null
   const f = input.fecha ?? hoyCivil()
   if (input.vista === 'calendario') return resumenCalendario(lecturaEnCache(urlCalendario(input.alcance ?? 'semana', f)), input.alcance ?? 'semana', f)
   if (input.vista === 'objetivos') return resumenObjetivos(lecturaEnCache(URL_OBJETIVOS), input.alcance ?? 'mes', f)
@@ -167,7 +188,13 @@ export function titulo(input: MostrarInput) {
 
 /** Las vistas v2 traen su propio encabezado editorial (la fecha, la meta, la cifra):
  *  la cabecera de la tarjeta solo dice de dónde viene, sin repetir el título. */
-const conHeroe = (i: MostrarInput) => ['calendario', 'objetivos', 'centro', 'finanzas', 'contenido', 'rutinas', 'servidores', 'memoria', 'equipo', 'diario', 'salud', 'masterclass', 'explorador', 'cohorte', 'casa', 'perro', 'historia'].includes(i.vista)
+const conHeroe = (i: MostrarInput) => ['bi', 'calendario', 'objetivos', 'centro', 'finanzas', 'contenido', 'rutinas', 'servidores', 'memoria', 'equipo', 'diario', 'salud', 'masterclass', 'explorador', 'cohorte', 'casa', 'perro', 'historia'].includes(i.vista)
+
+/** ¿Algo de la vista está en uso fuera de su lugar? Un visor marcado `data-en-uso` o lo que esté en pantalla completa. */
+export function enUso(nodo: Element) {
+  const lleno = document.fullscreenElement
+  return !!nodo.querySelector('[data-en-uso]') || (!!lleno && nodo.contains(lleno))
+}
 
 /** Monta el cuerpo solo mientras el marco está cerca del viewport (callback ref:
  *  se re-engancha cuando una vista colapsada se reactiva y aparece su nodo). */
@@ -179,22 +206,44 @@ function useALaVista(margen = '600px') {
     if (typeof IntersectionObserver === 'undefined') { setVisible(true); return }
     // Montar es trabajo de render (un mes son ~40 celdas): va en una transición
     // interrumpible para no congelar el frame del scroll que la trajo a la vista.
-    const io = new IntersectionObserver(([e]) => startTransition(() => setVisible(e.isIntersecting)), { rootMargin: margen })
+    // Una vista EN USO no se duerme aunque salga de la pantalla (6 nov 2026, Daniel: «doy clic a pantalla completa y me
+    // saca»): el video en pantalla completa sale del flujo, la vista se encoge fuera de la pantalla y dormirla lo desmontaba.
+    const io = new IntersectionObserver(([e]) => startTransition(() => setVisible(e.isIntersecting || enUso(nodo))), { rootMargin: margen })
     io.observe(nodo); return () => io.disconnect()
   }, [nodo, margen])
   return [setNodo, visible] as const
 }
 
-/** Recuerda el último alto real del cuerpo para reservarlo mientras duerme. */
-function useAltoReservado() {
-  const alto = useRef(0), ro = useRef<ResizeObserver | null>(null)
-  const ref = useCallback((el: HTMLDivElement | null) => {
-    ro.current?.disconnect(); ro.current = null
-    if (!el || typeof ResizeObserver === 'undefined') return
-    ro.current = new ResizeObserver(([e]) => { if (e.contentRect.height > 40) alto.current = e.contentRect.height })
-    ro.current.observe(el)
-  }, [])
-  return [ref, alto] as const
+/** El alto real del cuerpo: se reserva mientras duerme, sobrevive a un remonte y se sostiene mientras se recarga
+ *  (alto-sostenido.ts). `sosten` lleva el alto mínimo; `contenido` es lo que se mide (su alto natural). */
+function useAltoSostenido(id: string, visible: boolean) {
+  const ref = useRef<SostenAlto | null>(null)
+  if (!ref.current) ref.current = new SostenAlto(altoConocido(id))
+  const sosten = useRef<HTMLDivElement | null>(null)
+  const [contenido, setContenido] = useState<HTMLDivElement | null>(null)
+  useLayoutEffect(() => {
+    const s = ref.current!, caja = sosten.current, el = contenido
+    if (!caja || !el) return
+    // El cuerpo vuelve a montarse (despertó o la vista nació de nuevo): lo que llegue corto mientras carga no encoge el hilo.
+    if (visible) s.montar(Date.now())
+    let t = 0, cuadro = 0
+    const aplicar = () => {
+      window.clearTimeout(t)
+      const ahora = Date.now(), min = s.medir(el.offsetHeight, ahora), valor = min ? `${min}px` : ''
+      if (caja.style.minHeight !== valor) caja.style.minHeight = valor
+      if (!s.vence) recordarAlto(id, min)
+      else t = window.setTimeout(aplicar, s.vence - ahora + 16)
+    }
+    aplicar()
+    const mano = () => { s.mano(Date.now()); aplicar() }
+    caja.addEventListener('pointerdown', mano, true); caja.addEventListener('keydown', mano, true)
+    // Desde el observador, al cuadro siguiente: escribir el alto dentro de su aviso movía a los observadores del hilo
+    // («ResizeObserver loop completed…»). No hace falta antes: lo que se encoge ya está sostenido por el mínimo puesto.
+    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => { cancelAnimationFrame(cuadro); cuadro = requestAnimationFrame(aplicar) })
+    ro?.observe(el)
+    return () => { ro?.disconnect(); window.clearTimeout(t); cancelAnimationFrame(cuadro); caja.removeEventListener('pointerdown', mano, true); caja.removeEventListener('keydown', mano, true) }
+  }, [contenido, id, visible])
+  return { sosten, contenido: setContenido, alto: () => ref.current!.estable }
 }
 
 /** Guardar una vista en el archivero («+ › Guardadas»): mismo tamaño y lugar que Expandir, a su izquierda. */
@@ -327,6 +376,15 @@ function LineaSoltada({ inv, input, vivo }: { inv: Extract<Invocacion, { verbo: 
   return <p className={s.preparando} data-cabina-vista={input.vista} data-cabina-estado="soltada"><Icono size={13} aria-hidden /> Levy quitó «{titulo(input)}» del panel.</p>
 }
 
+/** La misma vista ya vive en una pestaña del panel: en el hilo, un chip que la enfoca. */
+function AbiertaEnPanel({ id, input }: { id: string; input: MostrarInput }) {
+  const Icono = ICONO[input.vista]
+  return <button className={s.abiertaEnPanel} data-cabina-vista={input.vista} data-cabina-estado="abierta-en-panel" onClick={() => mostrarPanel(id)}
+    title="Ya está abierta en una pestaña del panel: llevarte a ella" aria-label={`${titulo(input)}: abierta a la izquierda. Ir a su pestaña`}>
+    <Icono size={13} aria-hidden /><span>{titulo(input)}</span><small>Abierta a la izquierda</small><em><i aria-hidden>·</i> Ir <ArrowUpRight size={12} aria-hidden /></em>
+  </button>
+}
+
 function VistaViva({ inv, streaming }: { inv: Extract<Invocacion, { verbo: 'mostrar' }>; streaming?: boolean }) {
   const ctx = useContext(CabinaCtx)
   const isMobile = useIsMobile()
@@ -334,9 +392,11 @@ function VistaViva({ inv, streaming }: { inv: Extract<Invocacion, { verbo: 'most
   const [tocada, setTocada] = useState(false), [ampliada, setAmpliada] = useState(false)
   const [ref, aLaVista] = useALaVista()
   const visible = aLaVista || !!ctx?.sinOptimizar
-  const [cuerpoRef, altoRef] = useAltoReservado()
+  const alto = useAltoSostenido(inv.toolId, visible)
   const cerrar = useCallback(() => setAmpliada(false), [])
   useFijarAlNacer(inv, inv.input, vivo && !isMobile)
+  const fijadas = usePanelFijadas(st => st.fijadas), cargarFijadas = usePanelFijadas(st => st.cargar)
+  useEffect(() => { if (!isMobile) cargarFijadas() }, [isMobile, cargarFijadas])
 
   if (inv.error) return <p className={s.error}><AlertTriangle size={13} aria-hidden /> Levy intentó mostrar una vista y falló: {inv.error}</p>
   if (!inv.input) return inv.status === 'running'
@@ -349,6 +409,10 @@ function VistaViva({ inv, streaming }: { inv: Extract<Invocacion, { verbo: 'most
   // Lo fijado vive en el panel, no se repite en el chat (Daniel, 3 oct 06:56: «es redundante e innecesario»;
   // ya lo pedía el diseño v2 del 1 oct). En el hilo queda una línea que la nombra y enfoca su pestaña.
   if (input.fijar && !isMobile) return <LineaEnPanel inv={inv} input={input} vivo={vivo} />
+  // Ya abierta en una pestaña del panel (Daniel, 5 nov 07:47: «ya lo abrí en la pantalla izquierda!»): el hilo no la
+  // vuelve a pintar entera (ni a releer y recargarse junto a la de la izquierda); queda un chip que lleva a su pestaña.
+  const abierta = isMobile ? undefined : fijadaDe(fijadas, inv.toolId, input)
+  if (abierta) return <AbiertaEnPanel id={abierta.id} input={input} />
   const activa = tocada || !ctx || !!ctx.sinOptimizar || ctx.activas.has(inv.toolId)
 
   if (!activa) {
@@ -371,8 +435,10 @@ function VistaViva({ inv, streaming }: { inv: Extract<Invocacion, { verbo: 'most
       </span>
     </header>
     {input.enfoque && <p className={`${s.enfoque} ${l.serif}`}>{input.enfoque}</p>}
-    <div ref={cuerpoRef} className={s.cuerpo} style={!visible && altoRef.current ? { minHeight: altoRef.current } : undefined}>
-      {visible ? <Cuerpo input={input} /> : <div className={s.dormida} style={{ minHeight: altoRef.current || 160 }} />}
+    <div className={s.cuerpo}>
+      <div ref={alto.sosten}><div ref={alto.contenido}>
+        {visible ? <Cuerpo input={input} /> : <div className={s.dormida} style={{ minHeight: alto.alto() || 160 }} />}
+      </div></div>
     </div>
     {ampliada && <Panel input={input} onClose={cerrar} />}
   </section>

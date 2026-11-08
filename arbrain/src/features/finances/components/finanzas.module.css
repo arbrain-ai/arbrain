@@ -249,21 +249,44 @@
 .metricaSub { margin: 0; font-size: 11.5px; line-height: 1.4; color: var(--muted); text-wrap: pretty; }
 .chip { font-style: normal; font-size: 10px; font-weight: 650; letter-spacing: 0.04em; text-transform: uppercase; padding: 1px 7px; border-radius: 6px; color: var(--muted); border: 1px dashed color-mix(in srgb, var(--muted) 60%, transparent); white-space: nowrap; }
 
-.pend { margin-top: -2px; }
-.pend .pliegueBoton { padding: 6px 4px; font-size: 12.5px; font-weight: 550; color: var(--muted); }
-.pend .pliegueBoton small { display: none; }
-.pendPunto { width: 8px; height: 8px; border-radius: 4px; flex-shrink: 0; border: 1px solid color-mix(in srgb, var(--muted) 70%, transparent); background: repeating-linear-gradient(135deg, transparent 0 2px, color-mix(in srgb, var(--muted) 45%, transparent) 2px 3px); }
 .pendLista { list-style: none; margin: 4px 0 2px; padding: 0; display: flex; flex-direction: column; gap: 7px; }
 .pendLista li { font-size: 12.5px; line-height: 1.5; color: var(--muted); padding-left: 14px; position: relative; text-wrap: pretty; }
 .pendLista li::before { content: ''; position: absolute; left: 3px; top: 8px; width: 4px; height: 4px; border-radius: 2px; background: color-mix(in srgb, var(--muted) 70%, transparent); }
 .detalle .pliegue { margin-top: 0; }
 .detalle .pliegue + .pliegue { border-top: 1px solid var(--linea); margin-top: 4px; padding-top: 4px; }
 .detalle { padding-top: 6px; padding-bottom: 8px; }
-.pendTitulo { display: inline-flex; align-items: center; gap: 7px; }
-.pendPunto { display: inline-block; }
 
 /* Corte por fuente: cada fuente es una pieza que no se parte; lo que no cabe baja a otro renglón. */
 .cortes { display: flex; flex-wrap: wrap; gap: 0 10px; }
 .cortes b { font-weight: 600; color: var(--foreground); white-space: nowrap; }
 .cortes > span { white-space: nowrap; }
 .cortes > span:not(:last-child)::after { content: '·'; margin-left: 10px; color: color-mix(in srgb, var(--muted) 60%, transparent); }
+
+/* ── El espejo (6 nov 2026): tres cifras y la gráfica, una sola tarjeta a todo el ancho ── */
+.espejo { --superficie: var(--card); min-width: 0; padding: 20px 22px 16px; border-radius: 18px; border: 1px solid var(--border); background: var(--superficie);
+  box-shadow: 0 1px 0 rgba(var(--l-sombra-rgb, 15, 23, 42), 0.03), 0 14px 30px -26px rgba(var(--l-sombra-rgb, 15, 23, 42), 0.45);
+  --gana: var(--l-verde-5, #059669); --pierde: var(--l-rojo-5, #dc2626); }
+:global(.dark) .espejo { --superficie: color-mix(in srgb, var(--background), var(--foreground) 3%); box-shadow: none; --pierde: var(--l-rojo-4, #ef4444); }
+.cifras { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr); margin: 0 0 18px; padding-bottom: 18px; border-bottom: 1px solid var(--linea); }
+.cifra { min-width: 0; display: flex; flex-direction: column; gap: 4px; padding: 0 20px; }
+.cifra:first-child { padding-left: 0; }
+.cifra + .cifra { border-left: 1px solid var(--linea); }
+.cifraEtiqueta { margin: 0; display: flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 500; color: var(--muted); white-space: nowrap; }
+.cifraEtiqueta i { width: 12px; height: 2px; border-radius: 1px; flex-shrink: 0; }
+.cifraEtiqueta i[data-t='gana'] { background: var(--gana); }
+.cifraEtiqueta i[data-t='pierde'] { background: var(--pierde); }
+.cifraValor { margin: 0; font-size: 24px; line-height: 1.15; font-weight: 500; letter-spacing: -0.015em; color: var(--foreground); white-space: nowrap; }
+.cifra[data-heroe] .cifraValor { font-size: 40px; line-height: 1.1; font-weight: 600; letter-spacing: -0.025em; }
+.cifraValor[data-sin-dato] { font-size: 18px; font-weight: 550; color: var(--muted); letter-spacing: 0; }
+.cifraSub { margin: 0; font-size: 12px; line-height: 1.4; color: var(--muted); text-wrap: pretty; }
+.corte { white-space: nowrap; }
+.cobertura { margin: 14px 0 0; font-size: 11.5px; line-height: 1.5; color: var(--muted); text-wrap: pretty; font-variant-numeric: tabular-nums; }
+@container (max-width: 640px) {
+  .espejo { padding: 16px 14px 12px; border-radius: 16px; }
+  .cifras { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); row-gap: 14px; margin-bottom: 14px; padding-bottom: 14px; }
+  .cifra[data-heroe] { grid-column: 1 / -1; padding: 0 0 14px; border-bottom: 1px solid var(--linea); }
+  .cifra { padding: 0 14px; }
+  .cifra:nth-child(2) { padding-left: 0; border-left: 0; }
+  .cifra[data-heroe] .cifraValor { font-size: 34px; }
+  .cifraValor { font-size: 21px; }
+}

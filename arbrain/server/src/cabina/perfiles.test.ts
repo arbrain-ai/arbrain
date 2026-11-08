@@ -13,7 +13,8 @@ import { gemini } from './harness/gemini.js'
 import { comandoGuardia, conPastor, perfilPara } from './sin-pantalla.js'
 
 const RAIZ = '/Users/usuario/Developer/wt-algo'
-const ctx = { raiz: RAIZ, home: '/Users/usuario', temporales: ['/tmp'] }
+const ctx = { raiz: RAIZ, home: '/Users/usuario', temporales: ['/tmp'], cliente: false }
+const ctxCliente = { ...ctx, cliente: true }
 const bash = (perfil: Perfil, command: string) => decidirPerfil(perfil, 'Bash', { command }, ctx)
 
 describe('lista negra (todos los perfiles, también total = bypass)', () => {
@@ -57,9 +58,23 @@ describe('lista negra (todos los perfiles, también total = bypass)', () => {
     expect(decidirPerfil('total', 'mcp__slack__post_message', {}, ctx)).toMatch(/publicar por MCP/)
     expect(decidirPerfil('total', 'mcp__stripe__create_payment_link', {}, ctx)).toMatch(/pagar/)
     expect(decidirPerfil('total', 'mcp__polar__execute', {}, ctx)).toMatch(/pagar o mover dinero/)
-    expect(decidirPerfil('total', 'mcp__claude_ai_Gmail__create_draft', {}, ctx)).toBeNull()
-    expect(decidirPerfil('total', 'mcp__claude_ai_Gmail__search_threads', {}, ctx)).toBeNull()
+    expect(decidirPerfil('total', 'mcp__claude_ai_Gmail__create_draft', {}, ctxCliente)).toBeNull()
+    expect(decidirPerfil('total', 'mcp__claude_ai_Gmail__search_threads', {}, ctxCliente)).toBeNull()
     expect(decidirPerfil('total', 'mcp__manos__encargar', {}, ctx)).toBeNull()
+  })
+  it('conectores de Google de claude.ai: se niegan en la instalación de Daniel (usa gog), pasan en la del alumno', () => {
+    for (const h of ['mcp__claude_ai_Google_Drive__read_file_content', 'mcp__claude_ai_Google_Drive__search_files', 'mcp__claude_ai_Gmail__search_threads',
+      'mcp__claude_ai_Gmail__create_draft', 'mcp__claude_ai_Google_Calendar__list_events']) {
+      for (const perfil of ['total', 'codigo', 'lectura'] as const) expect(decidirPerfil(perfil, h, {}, ctx), `${perfil} ${h}`).toMatch(/lista negra: conector de Google.*usa gog, skill google-workspace/)
+      expect(decidirPerfil('total', h, {}, ctxCliente), h).toBeNull()
+    }
+    // otros servidores de lectura siguen pasando en la de Daniel
+    expect(decidirPerfil('total', 'mcp__claude_ai_Claude_Docs__read', {}, ctx)).toBeNull()
+    expect(decidirPerfil('lectura', 'mcp__polar__search', {}, ctx)).toBeNull()
+    expect(decidirPerfil('total', 'mcp__manos__observar', {}, ctx)).toBeNull()
+    // la guardia real (sin `cliente` en el contexto) lee la edición del proceso: la de Daniel en estas pruebas
+    const r = responderGuardia('total', RAIZ, JSON.stringify({ tool_name: 'mcp__claude_ai_Google_Drive__read_file_content', tool_input: {} }))
+    expect(JSON.parse(r.salida).hookSpecificOutput.permissionDecisionReason).toMatch(/usa gog/)
   })
   it('total no agrega nada más: escribir donde sea y comandos normales pasan sin preguntar', () => {
     expect(decidirPerfil('total', 'Write', { file_path: '/Users/usuario/Developer/otro/a.md' }, ctx)).toBeNull()
@@ -102,8 +117,8 @@ describe('perfil lectura', () => {
     expect(bash('lectura', 'echo $(whoami)')).toMatch(/no entiendo/)
     expect(decidirPerfil('lectura', 'Write', { file_path: `${RAIZ}/a.md` }, ctx)).toMatch(/fuera de \/tmp/)
     expect(decidirPerfil('lectura', 'Write', { file_path: '/tmp/reporte.md' }, ctx)).toBeNull()
-    expect(decidirPerfil('lectura', 'mcp__claude_ai_Gmail__create_draft', {}, ctx)).toMatch(/no es de lectura/)
-    expect(decidirPerfil('lectura', 'mcp__claude_ai_Gmail__search_threads', {}, ctx)).toBeNull()
+    expect(decidirPerfil('lectura', 'mcp__claude_ai_Gmail__create_draft', {}, ctxCliente)).toMatch(/no es de lectura/)
+    expect(decidirPerfil('lectura', 'mcp__claude_ai_Gmail__search_threads', {}, ctxCliente)).toBeNull()
     expect(decidirPerfil('lectura', 'Read', { file_path: '/etc/hosts' }, ctx)).toBeNull()
   })
 })

@@ -129,4 +129,16 @@ describe('clasificarFalloDeCuenta', () => {
     expect(m).toMatch(/\n\nDetalle técnico: API Error: 401 \(authentication_failed\)$/)
     expect(mensajeFalloDeCuenta('sin_saldo', 'anthropic', 'API Error: 400 (billing_error)')).toMatch(/^Tu cuenta de Anthropic se quedó sin crédito/)
   })
+  it('con las dos llaves, si falla la de Anthropic dice que OpenRouter espera y cómo pasar a ella (7 nov 2026)', () => {
+    for (const tipo of ['sin_saldo', 'llave_invalida'] as const) {
+      const m = mensajeFalloDeCuenta(tipo, 'anthropic', 'API Error: 400 (billing_error)', { openrouterGuardada: true })
+      expect(m).toMatch(/Tu llave de OpenRouter también está guardada/)
+      expect(m).toMatch(/quita la de Anthropic en Ajustes › Llaves/)
+      expect(m).toMatch(/\n\nDetalle técnico: API Error: 400 \(billing_error\)$/)
+    }
+    // Solo Anthropic, solo OpenRouter o la suscripción: el aviso de siempre.
+    expect(mensajeFalloDeCuenta('sin_saldo', 'anthropic', 'x', { openrouterGuardada: false })).not.toMatch(/OpenRouter/)
+    expect(mensajeFalloDeCuenta('sin_saldo', 'openrouter', 'x', { openrouterGuardada: true })).not.toMatch(/quita la de Anthropic/)
+    expect(mensajeFalloDeCuenta('sin_saldo', 'suscripcion', 'x', { openrouterGuardada: true })).not.toMatch(/quita la de Anthropic/)
+  })
 })

@@ -13,6 +13,17 @@ export const registrarReciente = (lista: readonly string[], id: string, max = MA
 export const recientesVisibles = (lista: readonly string[], vivos: ReadonlySet<string>, abierto: string | null, max = 5): string[] =>
   lista.filter(id => id !== abierto && vivos.has(id)).slice(0, max)
 
+/**
+ * «Recientes» de la lista (7 nov 2026): los abiertos en este aparato y, si faltan, los editados hace menos, hasta `max`. Así un
+ * aparato nuevo no arranca con la sección vacía. `vivos` va del más reciente al más viejo (por `actualizado`).
+ */
+export const recientesConRelleno = (lista: readonly string[], vivos: readonly { id: string }[], abierto: string | null, max = 5): string[] => {
+  const ids = new Set(vivos.map(x => x.id))
+  const abiertos = recientesVisibles(lista, ids, abierto, max)
+  const ya = new Set(abiertos)
+  return [...abiertos, ...vivos.map(x => x.id).filter(id => id !== abierto && !ya.has(id))].slice(0, max)
+}
+
 export function leerRecientes(): string[] {
   try { const v = JSON.parse(localStorage.getItem(CLAVE) ?? '[]'); return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [] } catch { return [] }
 }

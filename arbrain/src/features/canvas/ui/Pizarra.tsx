@@ -51,6 +51,7 @@ import * as Nube from '@/features/canvas/state/nube'
 import { programarMiniatura } from '@/features/canvas/state/miniaturas'
 import { guardarReciente } from '@/features/canvas/state/recientes-lienzos'
 import { SelectorLienzo } from '@/features/canvas/ui/lienzos/SelectorLienzo'
+import { PideALevy } from '@/features/canvas/ui/PideALevy'
 import { EVENTO_SELECTOR_LIENZO } from '@/shared/navigation/atajos-ctrl'
 import { factorPaneo, factorZoom } from '@/features/canvas/input/sensibilidad'
 import { History } from '@/features/canvas/state/history'
@@ -2533,22 +2534,6 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
         setPaginas={setPaginas} setCarpetas={setCarpetas}
         abierto={railAbierto} onAbrir={setRailAbierto}
         onElegir={id => { setRailAbierto(false); void irAPagina(id) }}
-        onNuevaPagina={async folderId => {
-          // Se VACIA el estado antes de que llegue la pagina nueva. Sin esto, el
-          // autoguardado alcanza a escribir los elementos del lienzo anterior
-          // dentro del recien creado — el bug D4 del v3, cambiar de pagina
-          // rapido compitiendo con un guardado en vuelo.
-          await autosaveRef.current?.flush()
-          const pag = await Nube.crearPagina(undefined, folderId)
-          setPaginas(prev => [pag, ...prev])
-          setElements([]); prevElementsRef.current = []
-          dueñoRef.current = pag.id
-          setPaginaId(pag.id)
-        }}
-        onNuevaCarpeta={async madre => {
-          const c = await Nube.crearCarpeta(madre ? 'Subcarpeta nueva' : undefined, madre)
-          setCarpetas(prev => [...prev, c])
-        }}
         onBorrada={id => {
           // El dueño vuelve al banco: si se quedara con la pagina borrada, lo que se dibuje despues en el banco se
           // descartaria por no ser de la pagina abierta.
@@ -2693,6 +2678,11 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
         <MenuContextual x={menu.x} y={menu.y} theme={t} onClose={() => setMenu(null)}
           acciones={accionesMenu(menu)} />
       )}
+
+      {/* «Pídele a Levy» (7 nov 2026): el pedido va al chat con el id de ESTE lienzo. Sin página (banco) no hay a quién referirse. */}
+      {mostrar.pideALevy && paginaId && <PideALevy theme={t} paginaId={paginaId} nombre={paginas.find(x => x.id === paginaId)?.nombre ?? ''}
+        abajo={mostrar.barraInferior ? 64 : (capitulos.length >= 2 && viewport.width < 720 ? 58 : 14)} angosto={viewport.width < 720}
+        antesDeIr={() => autosaveRef.current?.flush() ?? Promise.resolve()} />}
 
       {mostrar.barraInferior && <StatusBar
         angosto={viewport.width < 720} mostrarZoom={mostrar.zoom}

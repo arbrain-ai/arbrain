@@ -8,7 +8,7 @@
 import type {
   Aggregate, DayPoint, FinanceCoverage, FinancesPayload, FinanceRecurring, FinanceSnapshot, MonthTotal, PostCloseEvent,
 } from '../types/finances'
-import { diasEntre } from './finanzas'
+import { diasEntre, pesosDe, separarRetirados } from './finanzas'
 import { nombreMes, MESES_CORTO, pagoTarjetaEn } from './granularidad'
 import { capital, instalacion, NOMBRE_SEGUNDA, SEGUNDA } from '@/config'
 
@@ -104,12 +104,27 @@ export interface DiaGrafica {
   agrSalio: Aggregate[]
 }
 
+/** Último día de un mes «YYYY-MM». */
+export const finDeMes = (ym: string) => { const [y, m] = ym.split('-').map(Number); return `${ym}-${String(new Date(Date.UTC(y, m, 0)).getUTCDate()).padStart(2, '0')}` }
+
+/**
+ * Dónde se suma un total de periodo (6 nov 2026): dentro de su mes. Un estado de septiembre fechado el 5 oct se suma el
+ * 30 sep, así el acumulado al cierre de cada mes es la suma de los meses. Si ese día queda antes del rango, en su fecha.
+ */
+export function fechaDelTotal(a: Pick<Aggregate, 'date' | 'period'>, primerDia: string): string {
+  if (!a.period || a.date.startsWith(a.period)) return a.date
+  const fin = finDeMes(a.period)
+  return fin < a.date && fin >= primerDia ? fin : a.date
+}
+
 export function diasGrafica(summary: { daily_series?: DayPoint[]; aggregates?: Aggregate[] }): DiaGrafica[] {
-  const aggs = summary.aggregates ?? []
-  return (summary.daily_series ?? []).map(p => ({
+  const serie = summary.daily_series ?? []
+  const primerDia = serie[0]?.date ?? ''
+  const aggs = (summary.aggregates ?? []).map(a => ({ a, fecha: fechaDelTotal(a, primerDia) }))
+  return serie.map(p => ({
     fecha: p.date, entro: p.income_day_mxn, salio: p.expense_day_mxn, usd: p.income_day_usd,
-    agrEntro: aggs.filter(a => a.date === p.date && a.type === 'ingreso'),
-    agrSalio: aggs.filter(a => a.date === p.date && a.type === 'gasto'),
+    agrEntro: aggs.filter(x => x.fecha === p.date && x.a.type === 'ingreso').map(x => x.a),
+    agrSalio: aggs.filter(x => x.fecha === p.date && x.a.type === 'gasto').map(x => x.a),
   }))
 }
 
@@ -153,7 +168,15 @@ export function mesesGrafica(months: MonthTotal[], cov: FinanceCoverage | undefi
   })
 }
 
-export function mesesDelRango(dias: number): number { return dias <= 30 ? 3 : dias <= 90 ? 4 : dias <= 180 ? 7 : 13 }
+/** Cuántos meses dibuja la gráfica por mes. Más de un año (rango «Todo»): desde el mes de `desde` hasta el de `hoy`. */
+export function mesesDelRango(dias: number, desde?: string, hoy?: string): number {
+  if (dias <= 30) return 3
+  if (dias <= 90) return 4
+  if (dias <= 180) return 7
+  if (dias <= 366 || !desde || !hoy) return 13
+  const [yd, md] = desde.split('-').map(Number), [yh, mh] = hoy.split('-').map(Number)
+  return Math.max(13, (yh - yd) * 12 + (mh - md) + 1)
+}
 
 // ── Cobros fijos ────────────────────────────────────────────────────────────────────────────────────────
 
@@ -174,13 +197,13 @@ export function despuesDeLaFoto(eventos: PostCloseEvent[] | undefined): Map<stri
 
 const CATEGORIAS: Record<string, string> = {
   'viaje-hospedaje': 'Viaje: hospedaje', 'viaje-transporte': 'Transporte y viajes', comida: 'Comida', despensa: 'Despensa', 'health-gym': 'Salud y gym',
-  suscripciones: 'Suscripciones', 'equipo-tech': 'Equipo y tecnología', vivienda: 'Casa y renta', [SEGUNDA()]: capital(NOMBRE_SEGUNDA()), familia: 'Familia',
+  suscripciones: 'Suscripciones', 'equipo-tech': 'Equipo y tecnología', compras: 'Compras en línea', vivienda: 'Casa y renta', [SEGUNDA()]: capital(NOMBRE_SEGUNDA()), familia: 'Familia',
   'inversion-conocimiento': 'Aprender', 'negocio-ops': 'Operar el negocio', personal: 'Personal (ropa y trámites)', otros: 'Sin clasificar',
 }
 export const nombreCategoria = (c: string) => CATEGORIAS[c] ?? c
 /** «Sin clasificar» es lo que nadie ha puesto en su lugar: se pinta rayado, como todo lo que no se sabe. */
 export const sinClasificar = (c: string) => c === 'otros'
-export const nombreFuente = (c: string) => ({ Polar: 'Polar (ventas)', otros: 'Otros depósitos', USDT: 'USDT', 'HT-cierre': 'Cierres de alto ticket' } as Record<string, string>)[c] ?? c
+export const nombreFuente = (c: string) => ({ Polar: 'Polar (ventas)', Skool: 'Skool', otros: 'Otros depósitos', USDT: 'USDT', 'HT-cierre': 'Cierres de alto ticket' } as Record<string, string>)[c] ?? c
 
 // ── Movimientos agrupados ───────────────────────────────────────────────────────────────────────────────
 
@@ -203,9 +226,10 @@ export interface GrupoMov {
   desglose?: string
 }
 
-/** Decenas de «Revenue Polar del día» son UN renglón por mes; lo que es un total de periodo lo dice. Nada se pierde. */
+/** Decenas de «Revenue Polar del día» son UN renglón por mes; lo que es un total de periodo lo dice. Nada se pierde.
+ *  Cada monto va en pesos de su día cuando el movimiento los trae (`pesosDe`); `aMxn` solo convierte lo que no. */
 export function agruparMovimientos(
-  movs: { id: string; date: string; type: string; amount: number; currency: string; category: string | null; note: string | null; registered_by: string; is_correction: boolean; account_name?: string; counter_account_name?: string }[],
+  movs: { id: string; date: string; type: string; amount: number; currency: string; counter_currency?: string | null; counter_amount?: number | null; category: string | null; note: string | null; registered_by: string; is_correction: boolean; account_name?: string; counter_account_name?: string }[],
   aMxn: (monto: number, moneda: string) => number,
   clasificar: (m: { type: any; date: string; note: string | null; category: string | null; registered_by: string }) => { granularidad: 'dia' | 'mes'; label: string; detail: string | null; source: string | null; account: string | null; period: string | null; category: string | null },
 ): GrupoMov[] {
@@ -214,7 +238,7 @@ export function agruparMovimientos(
   const estados = new Map<string, GrupoMov>()
   for (const m of [...movs].sort((a, b) => b.date.localeCompare(a.date))) {
     if (m.is_correction) continue
-    const mxn = aMxn(m.amount, m.currency)
+    const mxn = pesosDe(m, aMxn)
     const mes = m.date.slice(0, 7)
     const c = clasificar(m)
     if (m.type === 'ingreso' && m.category === 'Polar' && c.granularidad === 'dia') {
@@ -255,6 +279,12 @@ export function agruparMovimientos(
   return out
 }
 
+/** El resumen del pliegue «Movimientos»: cuántos VIVOS hay en el rango (los retirados no cuentan) y en cuántos renglones van. */
+export function resumenMovimientos(movs: { is_correction: boolean }[], renglones: number, palabraRango: string): string {
+  const n = separarRetirados(movs).vivos.length
+  return `${n.toLocaleString('es-MX')} en ${palabraRango}${renglones !== n ? ` · ${renglones.toLocaleString('es-MX')} renglones` : ''}`
+}
+
 /** Un monto en SU divisa, sin ambigüedad: US$105.50, €10.40, $3,450. */
 export function montoDe(n: number, moneda: string): string {
   const f = (d: number) => n.toLocaleString('es-MX', { minimumFractionDigits: d, maximumFractionDigits: d })
@@ -271,18 +301,18 @@ export function pendientes(d: Pick<FinancesPayload, 'summary'>, hoy: string, cie
   const out: Pendiente[] = []
   const corte = corteGastos(summary.coverage, hoy)
   const atrasadas = corte.porCuenta.filter(c => !c.alDia)
-  if (atrasadas.length) out.push({ clave: 'estados', texto: `Gastado: cada fuente llega hasta su corte (${cortesPorFuente(summary.coverage).map(c => `${c.nombre} ${fechaCorta(c.fecha)}`).join(' · ')}). Lo posterior todavía no está, así que ese tramo es un piso.` })
+  if (atrasadas.length) out.push({ clave: 'estados', texto: `Salió: cada fuente llega hasta su corte (${cortesPorFuente(summary.coverage).map(c => `${c.nombre} ${fechaCorta(c.fecha)}`).join(' · ')}). Lo posterior todavía no está, así que ese tramo es un piso.` })
   const burn = summary.burn_range_mxn
   if (burn > 0) {
     const tarjeta = (summary.aggregates ?? []).filter(a => a.type === 'gasto').reduce((n, a) => n + pagoTarjetaEn(a.detail), 0)
-    if (tarjeta / burn >= 0.25) out.push({ clave: 'tarjeta', texto: `Gastado: ${pesos(tarjeta)} (${Math.round((tarjeta / burn) * 100)}%) son pagos de la tarjeta Nu. Se ve cuánto se pagó, no en qué se gastó: falta el estado de la tarjeta.` })
+    if (tarjeta / burn >= 0.25) out.push({ clave: 'tarjeta', texto: `Salió: ${pesos(tarjeta)} (${Math.round((tarjeta / burn) * 100)}%) son pagos de la tarjeta Nu. Se ve cuánto se pagó, no en qué se gastó: falta el estado de la tarjeta.` })
     const pareja = summary.burn_by_category.find(c => c.category === SEGUNDA())?.total_mxn ?? 0
-    if (pareja / burn >= 0.1) out.push({ clave: SEGUNDA(), texto: `Gastado: ${pesos(pareja)} (${Math.round((pareja / burn) * 100)}%) están en la categoría ${capital(NOMBRE_SEGUNDA())}. Si son movimientos entre ustedes, no son gasto: hay que reclasificarlos como transferencia.` })
+    if (pareja / burn >= 0.1) out.push({ clave: SEGUNDA(), texto: `Salió: ${pesos(pareja)} (${Math.round((pareja / burn) * 100)}%) están en la categoría ${capital(NOMBRE_SEGUNDA())}. Si son movimientos entre ustedes, no son gasto: hay que reclasificarlos como transferencia.` })
     const otros = summary.burn_by_category.find(c => c.category === 'otros')?.total_mxn ?? 0
     if (otros / burn >= 0.2) out.push({ clave: 'otros', texto: `En qué se va: ${Math.round((otros / burn) * 100)}% del gasto está sin clasificar.` })
   }
   const f = frescuraCierre(cierre, hoy)
-  if (!cierre) out.push({ clave: 'foto', texto: 'Patrimonio: todavía no hay una foto de saldos. Dicta tus saldos a Levy.' })
-  else if (f.frescura === 'viejo') out.push({ clave: 'foto', texto: `Patrimonio: es la foto del ${fechaCorta(cierre.snapshot_date)}, ${hace(f.dias!)}. Dicta tus saldos a Levy y se pone al día.` })
+  if (!cierre) out.push({ clave: 'foto', texto: 'Lo que tienes: todavía no hay una foto de saldos. Dicta tus saldos a Levy.' })
+  else if (f.frescura === 'viejo') out.push({ clave: 'foto', texto: `Lo que tienes: sale de la foto del ${fechaCorta(cierre.snapshot_date)}, ${hace(f.dias!)}. Dicta tus saldos a Levy y se pone al día.` })
   return out
 }

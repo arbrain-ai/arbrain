@@ -34,6 +34,7 @@ import { TarjetaPermisoApp } from '@/features/permisos/components/TarjetaPermiso
 // La terminal (xterm y su CSS) solo se carga cuando «Córrelo tú» de verdad corre: la tarjeta y la cola quedan ligeras.
 const PtyPanel = lazy(() => import('@/features/cabina/terminal/PtyPanel').then(m => ({ default: m.PtyPanel })))
 import s from './tarjeta-comando.module.css'
+import { useTapar } from '@/shared/stores/modo-directo-store'
 
 const ARMADO_MS = 700
 const PELIGRO: Partial<Record<Confirmacion['categoria'], string>> = {
@@ -72,7 +73,8 @@ function useEquipo(): string {
  * El literal en piezas (ronda 4): cada argumento (un archivo, una opción) es una pieza que no se parte a media palabra;
  * el renglón se corta solo en los espacios. Una pieza más ancha que la caja sí se parte, por dentro.
  */
-function Literal({ texto, bash, etiqueta, foco = false }: { texto: string; bash: boolean; etiqueta: string; foco?: boolean }) {
+function Literal({ texto: crudo, bash, etiqueta, foco = false }: { texto: string; bash: boolean; etiqueta: string; foco?: boolean }) {
+  const texto = useTapar()(crudo)
   return <pre className={s.literal} tabIndex={foco ? 0 : undefined} aria-label={etiqueta}>
     {bash && <span className={s.prompt} aria-hidden>$ </span>}
     {piezasLiteral(texto).map((p, i) => /^\s+$/.test(p) ? p : <span key={i} className={s.pieza}>{p}</span>)}
@@ -236,6 +238,7 @@ export function TarjetaComando({ c, incrustada = false }: { c: Confirmacion; inc
  * de salida y última línea útil, `resumenCorrida`); la salida completa queda plegada. «Entendido» la quita del hilo.
  */
 function TarjetaCorriendo({ c, incrustada = false }: { c: Confirmacion; incrustada?: boolean }) {
+  const tapar = useTapar()
   const [finLocal, setFinLocal] = useState(false)
   const [verSalida, setVerSalida] = useState(false)
   const caja = useRef<HTMLDivElement>(null)
@@ -266,7 +269,7 @@ function TarjetaCorriendo({ c, incrustada = false }: { c: Confirmacion; incrusta
             {c.terminal != null && c.terminal >= 0 && !demo ? (
               <Suspense fallback={null}><PtyPanel id={c.terminal} visible activa onFin={() => setFinLocal(true)} onTitulo={() => {}} /></Suspense>
             ) : (
-              <pre className={s.terminalDemo}>{c.salida ?? ''}<span className={s.cursor} aria-hidden /></pre>
+              <pre className={s.terminalDemo}>{tapar(c.salida ?? '')}<span className={s.cursor} aria-hidden /></pre>
             )}
           </div>
           {c.literal && <ComandoPlegado texto={c.literal} bash etiqueta="Lo que se corre" />}
@@ -282,7 +285,7 @@ function TarjetaCorriendo({ c, incrustada = false }: { c: Confirmacion; incrusta
           {terminada && <button type="button" className={s.secundario} onClick={() => descartarTerminada(c.id)}>Entendido</button>}
         </div>
       )}
-      {fin && verSalida && c.salida && <pre className={s.salida}>{c.salida}</pre>}
+      {fin && verSalida && c.salida && <pre className={s.salida}>{tapar(c.salida)}</pre>}
     </section>
   )
 }

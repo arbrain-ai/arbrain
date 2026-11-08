@@ -21,7 +21,9 @@ import type Database from 'better-sqlite3'
 import { DIR_ARBRAIN, esEdicionCliente } from '../edicion.js'
 import { diaCivil, instanteDeHoraCivil, zonaDueno } from '../zona.js'
 import { pedidoManos, VIDA_COLA_MS, vistaParaPase, type CategoriaConfirmacion, type Confirmacion, type Confirmaciones, type ConversacionConfirmacion } from '../cliente/confirmaciones.js'
-import { archivoLegible, CLASES, DIR_HECHO_SOLO, esClase, esModo, esPreset, fijarPolitica, INFO_CLASE, INFO_PRESET, NOMBRE_PRESET, PRESETS, politicaVigente, SIEMPRE_SUYO, type Clase, type HechoSolo, type Modo } from './politica.js'
+import { lineaCaducada, personaDe, type MotivoCaducidad } from './caducidad.js'
+import { plataformaCohorte, soporteDe } from './soporte.js'
+import { anotarHechoSolo, CLASES, DIR_HECHO_SOLO, esClase, esModo, esPreset, fijarPolitica, INFO_CLASE, INFO_PRESET, NOMBRE_PRESET, PRESETS, politicaVigente, SIEMPRE_SUYO, SOLO_ORIGINAL, type Clase, type HechoSolo, type Modo } from './politica.js'
 
 // ---------- El secreto de decidir (instalación original) ----------
 
@@ -92,6 +94,10 @@ export interface TarjetaBandeja {
   vence?: number
   /** Contactar personas o pagar: nunca va en «Sí a todas», una por una. */
   unaPorUna?: boolean
+  /** A quién va (contactar): la bandeja junta en una tarjeta lo de la misma persona (4 nov 2026). */
+  persona?: string
+  /** Vista previa de lo que se publica (ruta de una imagen local; la web la sirve por /api/local-image). */
+  imagen?: string
 }
 /** Lo que nunca se aprueba en lote (3 nov 2026, Daniel vio un «Sí a las 6» que incluía contactar personas). */
 export const UNA_POR_UNA: readonly CategoriaConfirmacion[] = ['enviar', 'pagar']
@@ -107,15 +113,27 @@ export function tarjeta(c: Confirmacion): TarjetaBandeja {
     ...(c.origen === 'cron' && c.tipo === 'decision' && c.resumen.startsWith('Loop · ') ? { de: c.resumen } : {}),
     ...((c.estado === 'pendiente' || c.estado === 'en_cola') && c.tipo === 'decision' && c.expira < c.creada + VIDA_COLA_MS - 60_000 ? { vence: c.expira } : {}),
     ...(UNA_POR_UNA.includes(c.categoria) ? { unaPorUna: true } : {}),
+    ...((c.persona ?? (c.categoria === 'enviar' ? personaDe(c.titulo || c.resumen) : null)) ? { persona: c.persona ?? personaDe(c.titulo || c.resumen)! } : {}),
+    ...(c.imagen ? { imagen: c.imagen } : {}),
   }
+}
+
+const CLASE_DE: Record<CategoriaConfirmacion, Clase> = { enviar: 'contactar', pagar: 'pagar', borrar: 'borrar', publicar: 'publicar', otra: 'configurar' }
+/**
+ * Caducidad por sentido (4 nov 2026): una tarjeta que dejó de aplicar sin el toque de la persona nunca se ejecuta y queda una
+ * línea en «Lo que hice solo» («Caducó sin enviar: …»). Es telemetría: va a la bitácora, nunca a la campana.
+ */
+export function anotarCaducada(c: Confirmacion, motivo: MotivoCaducidad): void {
+  anotarHechoSolo({ ts: new Date(c.resuelta ?? Date.now()).toISOString(), clase: CLASE_DE[c.categoria] ?? 'configurar', que: lineaCaducada(c.titulo || c.frase || c.resumen, c.categoria, motivo), origen: 'bandeja', ref: c.id, ...(c.sesion ? { sesion: c.sesion } : {}) })
 }
 
 export function politicaParaLaApp() {
   const p = politicaVigente()
+  const cliente = esEdicionCliente(), firmado = plataformaCohorte()?.firmado
   return {
     preset: p.preset, ajustes: p.ajustes, vigente: p.vigente,
     presets: PRESETS.map(id => ({ id, nombre: NOMBRE_PRESET[id], que: INFO_PRESET[id] })),
-    clases: CLASES.map(id => ({ id, ...INFO_CLASE[id], modo: p.vigente[id] })),
+    clases: CLASES.filter(id => !cliente || !SOLO_ORIGINAL.includes(id)).map(id => ({ id, ...INFO_CLASE[id], ...(id === 'soporte' && firmado ? { firmado } : {}), modo: p.vigente[id] })),
     siempreTuyo: SIEMPRE_SUYO,
   }
 }
@@ -214,6 +232,11 @@ export async function rutasBandeja(metodo: string, ruta: string, cuerpo: Record<
     const titulo = texto(cuerpo.titulo, 160)
     if (!titulo) { d.enviar(400, { error: 'titulo requerido (la decisión en una línea).' }); return true }
     const categoria = CATEGORIAS.includes(cuerpo.categoria as CategoriaConfirmacion) ? cuerpo.categoria as CategoriaConfirmacion : 'otra'
+    // Soporte técnico a la cohorte (4 nov 2026): una respuesta a un alumno dentro de la plataforma, técnica o de uso, no
+    // sube tarjeta si la persona encendió la clase («hacer»). Si no la encendió, o la respuesta toca algo suyo, sale de
+    // aquí como siempre: tarjeta de contactar. Quien la publica la anota en «Lo que hice solo» (`cli.ts soporte`).
+    const soporte = soporteDe(cuerpo, categoria)
+    if (soporte?.clase === 'soporte' && soporte.modo === 'hacer') { d.enviar(200, { hazlo: true, clase: 'soporte', motivo: soporte.motivo }); return true }
     const scope = scopeValido(cuerpo.conversacion) ?? (d.db ? scopeDeSesion(d.db(), cuerpo.sesion) : null)
     const detalle = typeof cuerpo.detalle === 'string' ? cuerpo.detalle.slice(0, 2000) : undefined
     const expira = cuerpo.expira == null || cuerpo.expira === '' ? null : expiraDe(cuerpo.expira)
@@ -227,8 +250,11 @@ export async function rutasBandeja(metodo: string, ruta: string, cuerpo: Record<
       huella: `decision:${createHashCorta(JSON.stringify([titulo, scope?.conversationId ?? cuerpo.sesion ?? '']))}`,
       ...(scope ? { conversacion: scope } : {}), ...(typeof cuerpo.sesion === 'string' ? { sesion: cuerpo.sesion } : {}),
       ...(expira ? { expira } : {}),
+      ...(texto(cuerpo.persona, 60) ? { persona: texto(cuerpo.persona, 60) } : {}),
+      // Vista previa (7 nov 2026, cola de publicación): la miniatura de lo que se publicaría.
+      ...(typeof cuerpo.imagen === 'string' ? { imagen: cuerpo.imagen } : {}),
     })
-    d.enviar(200, { id: c.id, estado: c.estado, conversacion: !!scope, ...(expira ? { vence: c.expira } : {}) })
+    d.enviar(200, { id: c.id, estado: c.estado, conversacion: !!scope, ...(expira ? { vence: c.expira } : {}), ...(soporte ? { soporte } : {}) })
     return true
   }
 

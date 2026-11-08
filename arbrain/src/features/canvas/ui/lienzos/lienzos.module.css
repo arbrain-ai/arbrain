@@ -99,3 +99,43 @@
 .confirma button[data-peligro] { background: var(--c-riesgo); border-color: var(--c-riesgo); color: #fff; }
 .confirma button[data-peligro]:hover, .confirma button[data-peligro]:focus-visible { filter: brightness(1.08); }
 @media (prefers-reduced-motion: reduce) { .menu { animation: none; } .chevron, .pliegue svg { transition: none; } }
+
+/* «＋ Nuevo lienzo» y carpeta nueva (7 nov 2026): la acción principal arriba, en el morado de la marca; la carpeta, al lado y callada. */
+.barra { display: flex; align-items: center; gap: 6px; margin: 4px 4px 6px; flex-shrink: 0; }
+.nuevoBoton { flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px; height: 36px; padding: 0 12px; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--c-acento) 55%, transparent); background: linear-gradient(180deg, color-mix(in srgb, var(--c-acento) 92%, #fff 8%), var(--c-acento)); color: #fff; font: inherit; font-size: 13px; font-weight: 650; letter-spacing: 0.01em; cursor: pointer; box-shadow: 0 6px 18px -10px var(--c-acento), inset 0 1px 0 rgba(255, 255, 255, 0.18); transition: filter 120ms, transform 120ms; }
+.nuevoBoton:hover, .nuevoBoton:focus-visible { filter: brightness(1.08); outline: none; }
+.nuevoBoton:active { transform: translateY(1px); }
+.nuevoBoton[aria-expanded='true'] { filter: brightness(0.92); }
+.iconoBoton { display: grid; place-items: center; width: 36px; height: 36px; flex-shrink: 0; border-radius: 10px; border: 1px solid var(--c-borde); background: var(--c-fondo); color: var(--c-quieto); cursor: pointer; }
+.iconoBoton:hover, .iconoBoton:focus-visible { color: var(--c-texto); border-color: var(--c-acento); outline: none; }
+
+.nuevo { display: flex; flex-direction: column; gap: 8px; margin: 0 4px 8px; padding: 10px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--c-acento) 45%, var(--c-borde)); background: var(--c-fondo); box-shadow: 0 14px 34px -22px var(--c-acento); animation: lzAparece 140ms cubic-bezier(0.16, 1, 0.3, 1); }
+.nuevoCabeza { display: flex; align-items: center; justify-content: space-between; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--c-acento); font-weight: 600; }
+.nuevoCabeza button { display: grid; place-items: center; width: 24px; height: 24px; border: 0; border-radius: 6px; background: transparent; color: var(--c-quieto); cursor: pointer; }
+.nuevoCabeza button:hover, .nuevoCabeza button:focus-visible { background: var(--c-suave); color: var(--c-texto); outline: none; }
+.campo { width: 100%; height: 38px; padding: 0 11px; border-radius: 9px; border: 1px solid var(--c-borde); background: var(--c-superficie); color: var(--c-texto); font: inherit; font-size: 14.5px; font-weight: 600; outline: none; }
+.campo:focus { border-color: var(--c-acento); box-shadow: 0 0 0 3px var(--c-acento-suave); }
+.campo::placeholder { color: var(--c-quieto); font-weight: 500; }
+.modos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.modo { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 9px 4px 8px; border-radius: 10px; border: 1px solid var(--c-borde); background: transparent; color: var(--c-quieto); font: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer; text-align: center; line-height: 1.15; }
+.modo:hover, .modo:focus-visible { color: var(--c-texto); background: var(--c-suave); outline: none; }
+.modo[data-activo] { color: var(--c-acento); border-color: var(--c-acento); background: var(--c-acento-suave); }
+.nuevoNota { margin: 0 2px; font-size: 11.5px; line-height: 1.4; color: var(--c-quieto); }
+.plantillas { display: flex; flex-direction: column; gap: 2px; max-height: 176px; overflow-y: auto; }
+.plantilla { display: flex; align-items: center; gap: 9px; padding: 4px; border-radius: 9px; border: 1px solid transparent; background: transparent; color: var(--c-texto); font: inherit; font-size: 12.5px; font-weight: 600; text-align: left; cursor: pointer; }
+.plantilla span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plantilla:hover, .plantilla:focus-visible { background: var(--c-suave); outline: none; }
+.plantilla[data-activo] { border-color: var(--c-acento); background: var(--c-acento-suave); }
+.destino { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--c-quieto); }
+.destino select { flex: 1; min-width: 0; height: 32px; padding: 0 8px; border-radius: 8px; border: 1px solid var(--c-borde); background: var(--c-superficie); color: var(--c-texto); font: inherit; font-size: 12.5px; font-weight: 600; outline: none; }
+.destino select:focus { border-color: var(--c-acento); }
+.nuevoPie { display: flex; gap: 6px; }
+.nuevoPie button { flex: 1; height: 34px; border-radius: 9px; border: 1px solid var(--c-borde); background: transparent; color: var(--c-texto); font: inherit; font-size: 12.5px; font-weight: 650; cursor: pointer; }
+.nuevoPie button:hover, .nuevoPie button:focus-visible { background: var(--c-suave); outline: none; }
+.nuevoPie button[data-primario] { flex: 1.4; border-color: var(--c-acento); background: var(--c-acento); color: #fff; }
+.nuevoPie button[data-primario]:hover, .nuevoPie button[data-primario]:focus-visible { filter: brightness(1.08); }
+.nuevoPie button[disabled] { opacity: 0.45; cursor: default; filter: none; }
+.carpeta[data-borrador] { background: var(--c-acento-suave); }
+.nombre::placeholder { color: var(--c-quieto); font-weight: 500; }
+@media (pointer: coarse) { .nuevoBoton, .iconoBoton { height: 40px; } .iconoBoton { width: 40px; } .campo { height: 42px; font-size: 16px; } }
+@media (prefers-reduced-motion: reduce) { .nuevo { animation: none; } }

@@ -6,6 +6,8 @@ import { ErrorDocumento, guardarTexto, hermanasImagen, leerEntrega, leerTexto, l
 import { editable, resolverRuta, rutaPermitida } from '@/features/cabina/documento/ruta'
 import { partirFrontmatter } from '@/features/cabina/documento/frontmatter'
 import { registrarArchivo } from '@/lib/imagenes/optimizar'
+import { rutaSensibleDirecto } from '@/lib/modo-directo/reglas'
+import { directoPrendido, respuestaOculta } from '@/lib/modo-directo/servidor'
 
 // Vista «documento» del panel (3 oct 2026): lee un archivo permitido para pintarlo, lo guarda
 // (solo .md/.txt, sin pisar cambios ajenos) y da la versión contra la que marcar cambios.
@@ -55,6 +57,8 @@ export async function GET(request: Request) {
     const pedida = q.get('ruta')
     if (!pedida) throw new ErrorDocumento('Falta ruta.')
     const doc = await resolverEnDisco(pedida)
+    // Modo directo (7 nov 2026): con la transmisión prendida no salen .env, llaves ni rutas sensibles (lib/modo-directo/reglas.ts).
+    if ((rutaSensibleDirecto(pedida) || rutaSensibleDirecto(doc.real)) && await directoPrendido()) return respuestaOculta('Ese archivo')
     const base = { ruta: pedida, archivo: path.basename(doc.real), tipo: doc.tipo, editable: editable(doc.tipo) }
     // Código y texto sin extensión conocida (8 oct 2026): solo con `codigo=1`, lo que pide el explorador de archivos, y solo
     // si es texto (sin bytes nulos) de hasta 1 MB. Se lee, nunca se edita: `editable` sigue en false.

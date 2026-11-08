@@ -1,9 +1,6 @@
 'use client'
-import { useCallback, useRef, useState } from 'react'
-import { History, Infinity as IconoLoops, Shapes, SquarePen, Wand2, type LucideIcon } from 'lucide-react'
+import { History, SquarePen } from 'lucide-react'
 import { usePathname, useRouter } from 'next/navigation'
-import { MenuArtefactos } from '@/features/cabina/panel/Secciones'
-import { irA } from '@/shared/navigation/ir-a'
 import { RecientesNav } from '@/features/chat/components/RecientesNav'
 import { useNuevoChat } from '@/shared/hooks/useNuevoChat'
 import { useLayoutStore } from '@/shared/stores/layout-store'
@@ -61,7 +58,8 @@ export function ColumnaConversaciones({ onElegir, tactil = false }: Props) {
             <History className={tactil ? 'size-[18px]' : 'size-4'} aria-hidden />
           </button>
         </div>
-        <AccesosBarra onElegir={onElegir} alto={alto} tactil={tactil} />
+        {/* Loops · Habilidades · Artefactos salieron de aquí (5 nov 2026, el dueño: «me importan las conversaciones. todo va en
+            los paneles, como en el taller»): viven en Taller › Rutinas, Taller › Memoria › Habilidades y «+ › Guardadas». */}
         {/* Perro y Casa viven en «Entorno físico», al pie del «+» del panel (27 oct 2026): un solo lugar, sin duplicar. */}
         {/* Buscar se quitó (2 oct 2026, el dueño: «ni la uso; si ocupo buscar algo te pregunto a ti por el chat»). */}
       </div>
@@ -80,32 +78,3 @@ export function ColumnaConversaciones({ onElegir, tactil = false }: Props) {
   )
 }
 
-/**
- * Loops · Habilidades · Artefactos (3 nov 2026, Daniel viendo Claude y Cloudroom: «necesitamos a la izquierda algo como
- * artefactos… loops… skills, poder verlo desde acá»). Tres accesos a lo que ya existe, sin pantalla nueva:
- * Loops abre Taller › Rutinas en su vista Loops (en la instalación original, Rutinas viva); Habilidades abre Taller ›
- * Memoria › Habilidades; Artefactos despliega lo Guardado del panel (el archivero de «+ › Guardadas»).
- */
-function AccesosBarra({ onElegir, alto, tactil }: { onElegir?: () => void; alto: string; tactil: boolean }) {
-  const [artefactos, setArtefactos] = useState(false)
-  const filaArtefactos = useRef<HTMLButtonElement>(null)
-  const cerrarArtefactos = useCallback(() => setArtefactos(false), [])
-  const ir = (d: 'loops' | 'habilidades') => { onElegir?.(); irA(d) }
-  const fila = `${alto} flex w-full min-w-0 items-center gap-2.5 rounded-xl px-2.5 text-muted transition-colors hover:bg-foreground/[0.06] hover:text-foreground active:bg-foreground/[0.08] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand aria-expanded:bg-foreground/[0.06] aria-expanded:text-foreground`
-  const Icono = ({ I }: { I: LucideIcon }) => <span className={`grid shrink-0 place-items-center ${tactil ? 'size-7' : 'size-6'}`} aria-hidden><I className={tactil ? 'size-[18px]' : 'size-4'} strokeWidth={1.75} /></span>
-  return (
-    <nav aria-label="Tu cerebro" className="mt-1 flex flex-col">
-      <button type="button" className={fila} onClick={() => ir('loops')} title="Loops: revisiones de tu negocio que corren solas y te suben solo lo que necesita tu decisión">
-        <Icono I={IconoLoops} /><span className="truncate">Loops</span>
-      </button>
-      <button type="button" className={fila} onClick={() => ir('habilidades')} title="Habilidades (skills): lo que tu cerebro sabe hacer y cuándo lo usa">
-        <Icono I={Wand2} /><span className="truncate">Habilidades</span>
-      </button>
-      <button ref={filaArtefactos} type="button" className={fila} aria-haspopup="menu" aria-expanded={artefactos}
-        onClick={() => setArtefactos(v => !v)} title="Artefactos: lo que Levy te hizo y guardaste (lienzos, documentos, pestañas)">
-        <Icono I={Shapes} /><span className="truncate">Artefactos</span>
-      </button>
-      {artefactos && <MenuArtefactos ancla={filaArtefactos.current} onCerrar={cerrarArtefactos} onElegido={onElegir} />}
-    </nav>
-  )
-}

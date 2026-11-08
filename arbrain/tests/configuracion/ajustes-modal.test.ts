@@ -7,8 +7,8 @@ const ids = (q: string) => buscarAjustes(q).flatMap((g) => g.secciones.map((s) =
 test('la nav agrupa: El negocio primero, luego Tú, Arbrain, Esta computadora', () => {
   assert.deepEqual(GRUPOS.map((g) => [g.titulo, g.secciones.join(',')]), [
     ['El negocio', 'norte,equipo,clientes,oferta,embudo'],
-    ['Tú', 'cuenta,apariencia,avisos'],
-    ['Arbrain', 'modelo,panel,atajos'],
+    ['Tú', 'cuenta,apariencia,avisos,directo'],
+    ['Arbrain', 'modelo,autonomia,panel,atajos'],
     ['Esta computadora', 'mac'],
   ])
   assert.deepEqual(GRUPOS.flatMap((g) => g.secciones).sort(), SECCIONES.map((s) => s.id).sort())

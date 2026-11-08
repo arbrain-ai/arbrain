@@ -584,10 +584,11 @@ export async function* runAgentStream(
   const errorDeCuenta = () => {
     const f = falloCuenta!
     let proveedor: string | null = null
-    try { proveedor = estadoLlaves().proveedor } catch { /* sin proveedor: texto genérico */ }
+    let openrouterGuardada = false
+    try { const e = estadoLlaves(); proveedor = e.proveedor; openrouterGuardada = e.openrouter } catch { /* sin proveedor: texto genérico */ }
     logger.warn({ tipo: f.tipo, detalle: f.detalle.slice(0, 300), account }, 'turno cortado: la cuenta de la llave falló')
     opsLogger.log('agent_error', source, { error: f.detalle.slice(0, 300), subtype: f.tipo, account }, streamSessionId)
-    return { type: 'error' as const, message: mensajeFalloDeCuenta(f.tipo, proveedor, f.detalle) }
+    return { type: 'error' as const, message: mensajeFalloDeCuenta(f.tipo, proveedor, f.detalle, { openrouterGuardada }) }
   }
   const textoFalloCuenta = (texto: string): FalloDeCuenta | null => (esEdicionCliente() ? clasificarFalloDeCuenta({ texto }) : null)
   // La meta (`/goal`) de Claude, solo en turnos del chat (27 oct 2026, chat-runtime/meta-claude.ts). Que Daniel

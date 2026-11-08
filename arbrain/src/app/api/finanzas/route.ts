@@ -13,18 +13,32 @@ import {
   type FinanceSnapshot,
   type CategoryTotal,
   type SeriesPoint,
+  TAX_ESTADOS,
+  type TaxEstado,
 } from '@/features/finances/types/finances'
 import { calcularV2 } from '@/features/finances/lib/agregados'
+import { fuenteEstado } from '@/features/finances/lib/granularidad'
+import { diasEntre, pesosDe, separarRetirados } from '@/features/finances/lib/finanzas'
+import { leerTodas } from '@/features/finances/lib/paginar'
+import { fotoVigente, tienesHoy } from '@/features/finances/lib/tienes'
+import { vetoDirecto } from '@/lib/modo-directo/servidor'
 
 /**
  * /api/finanzas — Finanzas personales el dueño + la socia
  *
- * GET  → payload completo (accounts, movements del mes, snapshots, recurring, summary).
- *        Query params: ?month=YYYY-MM (default mes actual, tz Mexico City)
+ * GET  → payload completo (accounts, movements del rango, snapshots, recurring, summary, tienes).
+ *        Es un espejo (6 nov 2026): lo que tienes, lo que entró y lo que salió. No lee ni devuelve las filas de impuestos.
+ *        Query params: ?range=30d|3m|6m|12m|todo (default 30d; `todo` = desde el primer movimiento).
+ *        `movements` trae solo los vivos; los retirados (is_correction) no cuentan en nada y solo se agregan
+ *        al final con ?retirados=1 (el dedup de polar_income_sync.sh los necesita para no volver a postear un día).
+ *        Los movimientos se leen paginados (PostgREST corta en 1000): ninguno se queda fuera.
+ *        Cada gasto o ingreso vale en pesos su contraparte MXN (el tipo de cambio de su día); sin ella, el FX vivo.
  * POST → escritura para agentes (Levy) y UI:
  *        { action: 'add_movement', movement: {...} }
  *        { action: 'add_snapshot', snapshot: {...} }
  *        { action: 'add_recurring', recurring: {...} }
+ *        { action: 'upsert_tax_period', period: { periodo: 'YYYY-MM', estado, ... } }   (un mes de impuestos; upsert por periodo)
+ *        { action: 'add_tax_estimate', estimate: { fecha?, bajo, centro, alto, pagado?, nota? } } (solo se agregan)
  *
  * Auth (ambos métodos): sesión Supabase con rol owner/admin, O bearer
  * OPENCLAW_GATEWAY_TOKEN (agentes headless).
@@ -96,28 +110,36 @@ async function getLiveFx(latestSnapshotFx: FinanceFx | null): Promise<FxResult> 
 // ─── GET ─────────────────────────────────────────────────────────────────────
 
 export async function GET(request: Request) {
+  // Modo directo (7 nov 2026): con la transmisión prendida, Finanzas no entrega datos (lib/modo-directo/servidor.ts).
+  { const veto = await vetoDirecto('Finanzas'); if (veto) return veto }
   if (!(await isAuthorized(request))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   const { searchParams } = new URL(request.url)
-  // Rango GLOBAL: recalcula toda la página (curva, KPIs, runway). Default: últimos 30 días.
+  // Rango GLOBAL: recalcula toda la página (curva, KPIs, runway). Default: últimos 30 días. `todo`: desde el primer movimiento.
   const RANGE_DAYS: Record<string, number> = { '30d': 30, '3m': 90, '6m': 180, '12m': 365 }
   const rangeParam = searchParams.get('range') ?? '30d'
-  const range = rangeParam in RANGE_DAYS ? rangeParam : '30d'
-  const days = RANGE_DAYS[range]
+  const range = rangeParam === 'todo' || rangeParam in RANGE_DAYS ? rangeParam : '30d'
+  const todo = range === 'todo'
 
   const service = createServiceClient()
 
-  // Ventana del rango: `days` días hacia atrás desde hoy (tz Mexico City).
   const todayISO = mexicoTodayISO()
-  const windowStart = new Date(`${todayISO}T12:00:00Z`)
-  windowStart.setUTCDate(windowStart.getUTCDate() - (days - 1))
-  const fromISO = windowStart.toISOString().slice(0, 10)
   // Meses completos de contexto (13) sin importar el rango: el mes «de la lectura» no puede depender del botón 30D.
+  // En `todo` no hay piso: se lee toda la historia.
   const [ty, tm] = todayISO.split('-').map(Number)
   const contextStart = new Date(Date.UTC(ty, tm - 1 - 12, 1, 12)).toISOString().slice(0, 10)
-  const queryFrom = contextStart < fromISO ? contextStart : fromISO
+  const fijoDesde = (() => { const d = new Date(`${todayISO}T12:00:00Z`); d.setUTCDate(d.getUTCDate() - ((RANGE_DAYS[range] ?? 30) - 1)); return d.toISOString().slice(0, 10) })()
+  const queryFrom: string | null = todo ? null : contextStart < fijoDesde ? contextStart : fijoDesde
+
+  // Movimientos paginados (PostgREST corta en 1000); la primera página trae el conteo y las demás van en paralelo.
+  // El orden lleva `id` al final para que ninguna fila cambie de página entre una lectura y otra.
+  const movimientosPromise = leerTodas<FinanceMovement>((desde, hasta, contar) => {
+    let q = service.from('finance_movements').select('*', contar ? { count: 'exact' } : undefined)
+    if (queryFrom) q = q.gte('date', queryFrom)
+    return q.order('date', { ascending: false }).order('created_at', { ascending: false }).order('id', { ascending: true }).range(desde, hasta)
+  }, { clave: (m) => m.id })
 
   // FX vivo en paralelo con la BD (26 sep 2026): antes esperaba a que terminaran
   // las 4 consultas y en lambda fría sumaba hasta 4 s de open.er-api en serie. El
@@ -126,12 +148,7 @@ export async function GET(request: Request) {
 
   const [accountsRes, movementsRes, snapshotsRes, recurringRes] = await Promise.all([
     service.from('finance_accounts').select('*').order('created_at'),
-    service
-      .from('finance_movements')
-      .select('*')
-      .gte('date', queryFrom)
-      .order('date', { ascending: false })
-      .order('created_at', { ascending: false }),
+    movimientosPromise,
     service.from('finance_snapshots').select('*').order('snapshot_date', { ascending: false }).limit(24),
     service.from('finance_recurring').select('*').eq('is_active', true).order('charge_day'),
   ])
@@ -142,8 +159,16 @@ export async function GET(request: Request) {
   }
 
   const accounts = (accountsRes.data ?? []) as FinanceAccount[]
-  const contextMovements = (movementsRes.data ?? []) as FinanceMovement[]
-  // `movements` del payload sigue siendo SOLO el rango (contrato del GET); el contexto de 13 meses alimenta `months`.
+  // Lo retirado (is_correction) se aparta aquí: ningún cálculo, lista ni conteo lo ve.
+  const { vivos: contextMovements, retirados } = separarRetirados(movementsRes.data)
+  const conRetirados = searchParams.get('retirados') === '1'
+  // Ventana del rango: `days` días hacia atrás desde hoy (tz Mexico City). En `todo`, desde el primer movimiento
+  // (vienen del más nuevo al más viejo: el último es el primero que se registró).
+  const primero = contextMovements.at(-1)?.date
+  const fromISO = todo ? (primero && primero < todayISO ? primero : todayISO) : fijoDesde
+  const days = diasEntre(fromISO, todayISO) + 1
+  const windowStart = new Date(`${fromISO}T12:00:00Z`)
+  // `movements` del payload sigue siendo SOLO el rango (contrato del GET); el contexto (13 meses o todo) alimenta `months`.
   const rangeMovements = contextMovements.filter((m) => m.date >= fromISO)
   const snapshots = (snapshotsRes.data ?? []) as FinanceSnapshot[]
   const recurring = (recurringRes.data ?? []) as FinanceRecurring[]
@@ -173,7 +198,8 @@ export async function GET(request: Request) {
 
   for (const m of rangeMovements) {
     if (m.is_correction) continue
-    const mxn = toMxn(m.amount, m.currency, fx)
+    // En pesos de su día si trae contraparte MXN; si no, al FX vivo. Las transferencias no son ni ingreso ni gasto.
+    const mxn = pesosDe(m, fx)
     if (m.type === 'gasto') {
       burnRange += mxn
       expenseMovementCount += 1
@@ -223,8 +249,9 @@ export async function GET(request: Request) {
   // Desde el 5 oct 2026 los gastos se cargan desde ESTADOS DE CUENTA (registered_by
   // 'estado-de-cuenta'): ya traen dentro los fijos que se cobran en esas cuentas. Sumar
   // además finance_recurring los contaría dos veces (deuda #4 de finance-os).
+  // Los cargos individuales (`[edo-cuenta-cargo:…]`, 8 oct y 5 nov 2026) también vienen de un estado de cuenta.
   const statementBacked = rangeMovements.some(
-    (m) => m.type === 'gasto' && !m.is_correction && m.registered_by === 'estado-de-cuenta'
+    (m) => m.type === 'gasto' && !m.is_correction && (m.registered_by === 'estado-de-cuenta' || fuenteEstado(m.note) != null)
   )
   const monthlyBurn = statementBacked ? oneoffMonthly : recurringMonthlyMxn + oneoffMonthly
   // Poco confiable si el burn es casi puro presupuesto (sin estados) o si no hay datos.
@@ -235,14 +262,18 @@ export async function GET(request: Request) {
   const runwayMonths =
     latestLiquidMxn && monthlyBurn > 0 ? Number((latestLiquidMxn / monthlyBurn).toFixed(1)) : null
 
+  // Lo que tienes hoy: la última foto de saldos + lo que movió Polar después de ella (lib/tienes.ts).
+  const tienes = tienesHoy(fotoVigente(snapshots, todayISO), accounts, contextMovements, fx, todayISO)
+
   return NextResponse.json({
     accounts,
-    movements: rangeMovements,
+    movements: conRetirados ? [...rangeMovements, ...retirados.filter((m) => m.date >= fromISO)] : rangeMovements,
     snapshots,
     recurring,
     summary: {
       range,
       days,
+      desde: fromISO,
       fx,
       fx_at: fxResult.at,
       fx_stale: fxResult.stale,
@@ -258,6 +289,7 @@ export async function GET(request: Request) {
       recurring_monthly_mxn: Math.round(recurringMonthlyMxn),
       ...v2,
     },
+    tienes,
   })
 }
 
@@ -286,6 +318,31 @@ interface AddSnapshotBody {
   notes?: string
 }
 
+interface UpsertTaxPeriodBody {
+  periodo: string
+  ingreso?: number | null
+  deducciones?: number | null
+  isr?: number | null
+  recargos_actualizacion?: number | null
+  iva?: number | null
+  total?: number | null
+  estado?: string
+  pagado_en?: string | null
+  fuente?: string | null
+  nota?: string | null
+}
+
+interface AddTaxEstimateBody {
+  fecha?: string
+  bajo: number
+  centro: number
+  alto: number
+  pagado?: number | null
+  nota?: string | null
+}
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
+
 interface AddRecurringBody {
   name: string
   category?: string
@@ -303,7 +360,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  let body: { action?: string; movement?: AddMovementBody; snapshot?: AddSnapshotBody; recurring?: AddRecurringBody }
+  let body: {
+    action?: string; movement?: AddMovementBody; snapshot?: AddSnapshotBody; recurring?: AddRecurringBody
+    period?: UpsertTaxPeriodBody; estimate?: AddTaxEstimateBody
+  }
   try {
     body = await request.json()
   } catch {
@@ -352,6 +412,17 @@ export async function POST(request: Request) {
     }
     if (!(typeof mv.amount === 'number' && mv.amount > 0)) {
       return NextResponse.json({ error: 'amount debe ser número > 0' }, { status: 400 })
+    }
+    // Contraparte (5 nov 2026): en un ingreso o gasto en dólares, `counter_currency: 'MXN'` + `counter_amount` es lo que valió
+    // en pesos SU día; la vista usa esa cifra en vez del dólar de hoy. En una transferencia, lo que llegó a la otra cuenta.
+    if ((mv.counter_currency == null) !== (mv.counter_amount == null)) {
+      return NextResponse.json({ error: 'counter_currency y counter_amount van juntos (o ninguno)' }, { status: 400 })
+    }
+    if (mv.counter_currency != null && !['MXN', 'USD', 'EUR'].includes(mv.counter_currency)) {
+      return NextResponse.json({ error: `counter_currency inválida: "${mv.counter_currency}"` }, { status: 400 })
+    }
+    if (mv.counter_amount != null && !(typeof mv.counter_amount === 'number' && Number.isFinite(mv.counter_amount) && mv.counter_amount > 0)) {
+      return NextResponse.json({ error: 'counter_amount debe ser número > 0' }, { status: 400 })
     }
     if (mv.type === 'gasto' && mv.category && !(EXPENSE_CATEGORIES as readonly string[]).includes(mv.category)) {
       return NextResponse.json(
@@ -479,8 +550,62 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, recurring: data })
   }
 
+  // ── upsert_tax_period: un mes de impuestos. Solo se escriben los campos que vienen (lo demás se conserva). ──
+  if (body.action === 'upsert_tax_period') {
+    const p = body.period
+    if (!p?.periodo || !/^\d{4}-(0[1-9]|1[0-2])$/.test(p.periodo)) {
+      return NextResponse.json({ error: 'period.periodo debe ser YYYY-MM' }, { status: 400 })
+    }
+    if (p.estado !== undefined && !TAX_ESTADOS.includes(p.estado as TaxEstado)) {
+      return NextResponse.json({ error: `Estado inválido: "${p.estado}". Válidos: ${TAX_ESTADOS.join(', ')}` }, { status: 400 })
+    }
+    if (p.pagado_en != null && !ISO_DATE.test(p.pagado_en)) {
+      return NextResponse.json({ error: 'pagado_en debe ser YYYY-MM-DD' }, { status: 400 })
+    }
+    if (p.estado === 'pagada' && !p.pagado_en) {
+      return NextResponse.json({ error: 'Un mes pagado lleva pagado_en (YYYY-MM-DD)' }, { status: 400 })
+    }
+    const montos = ['ingreso', 'deducciones', 'isr', 'recargos_actualizacion', 'iva', 'total'] as const
+    const fila: Record<string, unknown> = { periodo: p.periodo, updated_at: new Date().toISOString() }
+    for (const k of montos) {
+      const v = p[k]
+      if (v === undefined) continue
+      if (v !== null && !(typeof v === 'number' && Number.isFinite(v) && v >= 0)) {
+        return NextResponse.json({ error: `${k} debe ser número ≥ 0 o null (sin dato)` }, { status: 400 })
+      }
+      fila[k] = v
+    }
+    for (const k of ['estado', 'pagado_en', 'fuente', 'nota'] as const) if (p[k] !== undefined) fila[k] = p[k]
+
+    const { data, error } = await service.from('finance_tax_periods').upsert(fila, { onConflict: 'periodo' }).select().single()
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ ok: true, period: data })
+  }
+
+  // ── add_tax_estimate: un estimado nuevo del total pendiente. Nunca se edita uno viejo: la tabla es la historia. ──
+  if (body.action === 'add_tax_estimate') {
+    const e = body.estimate
+    const ok = (v: unknown) => typeof v === 'number' && Number.isFinite(v) && v >= 0
+    if (!e || !ok(e.bajo) || !ok(e.centro) || !ok(e.alto)) {
+      return NextResponse.json({ error: 'estimate necesita bajo, centro y alto (números ≥ 0, MXN)' }, { status: 400 })
+    }
+    if (!(e.bajo <= e.centro && e.centro <= e.alto)) {
+      return NextResponse.json({ error: 'Debe cumplirse bajo ≤ centro ≤ alto' }, { status: 400 })
+    }
+    if (e.pagado != null && !ok(e.pagado)) return NextResponse.json({ error: 'pagado debe ser número ≥ 0' }, { status: 400 })
+    if (e.fecha !== undefined && !ISO_DATE.test(e.fecha)) return NextResponse.json({ error: 'fecha debe ser YYYY-MM-DD' }, { status: 400 })
+
+    const { data, error } = await service
+      .from('finance_tax_estimates')
+      .insert({ fecha: e.fecha ?? mexicoTodayISO(), bajo: e.bajo, centro: e.centro, alto: e.alto, pagado: e.pagado ?? null, nota: e.nota ?? null })
+      .select()
+      .single()
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ ok: true, estimate: data })
+  }
+
   return NextResponse.json(
-    { error: `Acción desconocida: "${body.action}". Válidas: add_movement, add_snapshot, add_recurring` },
+    { error: `Acción desconocida: "${body.action}". Válidas: add_movement, add_snapshot, add_recurring, upsert_tax_period, add_tax_estimate` },
     { status: 400 },
   )
 }

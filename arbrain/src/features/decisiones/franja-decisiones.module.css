@@ -1,13 +1,22 @@
-/* «Esperan tu toque» (3 nov 2026): el mismo esqueleto que la franja del plan (franja-plan.module.css) con el riel morado de Levy en vez
-   del dorado del objetivo. Una línea por decisión; lo irreversible no grita: su verbo en una pastilla y Sí / No a la mano. */
-.franja { --morado: var(--l-morado-6, #8c27f1); --tinta-m: color-mix(in srgb, var(--morado) 78%, var(--foreground));
-  flex: none; display: flex; flex-direction: column; min-width: 0; container-type: inline-size; margin: 2px 0 8px; border-radius: 12px; overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
-  background: linear-gradient(90deg, color-mix(in srgb, var(--morado) 9%, transparent), transparent 58%), var(--card);
-  box-shadow: inset 4px 0 0 var(--morado), 0 1px 2px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.04); transition: box-shadow 300ms; }
-:global(.dark) .franja { --morado: var(--l-morado-5, #a66bff); --tinta-m: color-mix(in srgb, var(--morado) 70%, var(--foreground));
-  background: linear-gradient(90deg, color-mix(in srgb, var(--morado) 12%, transparent), transparent 58%), var(--card); }
-.franja[data-enfocada] { box-shadow: inset 4px 0 0 var(--morado), 0 0 0 2px color-mix(in srgb, var(--morado) 45%, transparent), 0 8px 24px -12px color-mix(in srgb, var(--morado) 60%, transparent); }
+/* «Esperan tu toque» (3 nov 2026): una línea por decisión; lo irreversible no grita: su verbo en una pastilla y Sí / No a la mano.
+   Vive solo dentro de la tarjeta HOY (4 nov 2026): la franja propia del teléfono se fue. */
+/* Dentro de la tarjeta HOY (4 nov 2026): sin caja propia; una sección con su rótulo morado debajo de las tareas. */
+.seccion { --morado: var(--l-morado-6, #8c27f1); --tinta-m: color-mix(in srgb, var(--morado) 78%, var(--foreground));
+  display: flex; flex-direction: column; min-width: 0; container-type: inline-size; margin: 10px -6px 0; padding-top: 6px; border-radius: 10px;
+  border-top: 1px solid color-mix(in srgb, var(--foreground) 8%, transparent); transition: box-shadow 300ms; }
+:global(.dark) .seccion { --morado: var(--l-morado-5, #a66bff); --tinta-m: color-mix(in srgb, var(--morado) 70%, var(--foreground)); }
+.seccion[data-enfocada] { box-shadow: 0 0 0 2px color-mix(in srgb, var(--morado) 45%, transparent); }
+.seccion .cabeza { padding-left: 8px; }
+.seccion .filas { padding-left: 2px; }
+
+/* «7 te esperan» en la línea de la tarjeta HOY plegada: un punto morado y el conteo, un toque la abre en su sección. */
+.aviso { --morado: var(--l-morado-6, #8c27f1); flex: none; display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 9px 0 8px; border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--morado) 30%, transparent); background: color-mix(in srgb, var(--morado) 8%, transparent);
+  color: color-mix(in srgb, var(--morado) 80%, var(--foreground)); font: inherit; font-size: 11.5px; font-weight: 600; white-space: nowrap; cursor: pointer; transition: background 140ms; }
+:global(.dark) .aviso { --morado: var(--l-morado-5, #a66bff); }
+.aviso:hover { background: color-mix(in srgb, var(--morado) 14%, transparent); }
+.aviso i { width: 6px; height: 6px; border-radius: 50%; background: var(--morado); box-shadow: 0 0 6px color-mix(in srgb, var(--morado) 70%, transparent); }
+.aviso b { font-weight: 750; font-variant-numeric: tabular-nums; }
 
 .cabeza { display: flex; align-items: center; gap: 8px; min-height: 34px; padding: 4px 8px 0 16px; }
 .rotulo { font-size: 10.5px; font-weight: 750; letter-spacing: 1.2px; text-transform: uppercase; color: var(--tinta-m); }
@@ -19,19 +28,22 @@
 .filas { list-style: none; margin: 0; padding: 2px 6px 6px 10px; display: flex; flex-direction: column; gap: 1px; }
 .fila { border-radius: 9px; transition: background 140ms; }
 .fila:hover, .fila[data-abierta] { background: color-mix(in srgb, var(--foreground) 4%, transparent); }
-.linea { display: flex; align-items: center; gap: 6px; min-width: 0; padding: 2px 2px 2px 0; }
+.linea { display: flex; align-items: flex-start; gap: 6px; min-width: 0; padding: 2px 2px 2px 0; }
 .cuerpo { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 9px; padding: 5px 4px 5px 6px; border: 0; background: none; color: var(--foreground);
   font: inherit; text-align: left; cursor: pointer; }
-.categoria { flex: none; padding: 1px 7px; border-radius: 999px; font-size: 10px; font-weight: 700; letter-spacing: .3px; color: var(--muted);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--foreground) 14%, transparent); }
-.categoria[data-categoria='enviar'], .categoria[data-categoria='pagar'] { color: var(--l-tinta-ambar, var(--gold)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 45%, transparent); }
+.categoria { flex: none; padding: 1px 7px; border-radius: 6px; font-size: 10.5px; font-weight: 650; line-height: 16px; color: var(--muted);
+  background: color-mix(in srgb, var(--foreground) 6%, transparent); }
+.categoria[data-categoria='enviar'], .categoria[data-categoria='pagar'] { color: var(--l-tinta-ambar, var(--gold)); background: color-mix(in srgb, var(--gold) 13%, transparent); }
 .texto { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-.titulo { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; font-weight: 600; line-height: 1.3; }
-.rec { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; line-height: 1.3; color: var(--muted); }
+.texto { gap: 3px; }
+/* Se lee entero (4 nov 2026: «el texto truncado que se lea mejor»): el título hasta dos líneas y la recomendación hasta dos. */
+.titulo { min-width: 0; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; font-size: 13.5px; font-weight: 600; line-height: 1.35; text-wrap: pretty; }
+.meta { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
+.rec { flex: 1 1 auto; min-width: 0; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; font-size: 12px; line-height: 1.4; color: var(--muted); }
 .rec b { font-weight: 700; color: var(--tinta-m); margin-right: 2px; }
 .rec[data-tono='no'] b { color: color-mix(in srgb, var(--error) 75%, var(--foreground)); }
-.vence { flex: none; font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
-.chevron { flex: none; color: var(--muted); transition: transform 180ms; }
+.vence { flex: none; font-size: 11px; line-height: 16px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
+.chevron { flex: none; align-self: center; color: var(--muted); transition: transform 180ms; }
 .fila[data-abierta] .chevron { transform: rotate(180deg); }
 
 .si, .no, .sutil { flex: none; display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 10px; border-radius: 8px; font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; }
@@ -45,6 +57,24 @@
 .fila[data-recomienda='no'] .si { background: transparent; color: var(--foreground); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--foreground) 14%, transparent); }
 .fila[data-recomienda='no'] .no { border-color: transparent; background: var(--morado); color: #fff; }
 
+/* Sí / No con volumen (4 nov 2026): la tecla del compositor (boton-enviar.module.css) con texto. La que Levy recomienda va
+   encendida; la otra es la tapa de titanio apagada, del mismo cuerpo. `.tecla.tecla` gana a las medidas fijas de la tecla. */
+.botones { flex: none; display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; padding-top: 4px; }
+.tecla.tecla { width: auto; height: 30px; padding: 0 12px 0 10px; gap: 5px; border-radius: 9px; font: inherit; font-size: 12.5px; font-weight: 650; letter-spacing: .1px; white-space: nowrap; }
+.tecla.tecla svg { width: 13px; height: 13px; }
+.tecla[data-apagada]:not(:disabled)::before, .tecla[data-apagada]:not(:disabled)::after { opacity: 0; }
+.tecla[data-apagada]:not(:disabled) { color: var(--foreground) !important; }
+.tecla[data-apagada]:not(:disabled) svg { filter: none; }
+
+/* Una persona con varias acciones: una tarjeta con su nombre y sus acciones debajo. */
+.grupo { border-radius: 10px; padding: 4px 0 2px; background: color-mix(in srgb, var(--foreground) 2.5%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--foreground) 7%, transparent); margin: 2px 0; }
+.persona { display: flex; align-items: center; gap: 7px; padding: 3px 8px 2px 8px; font-size: 12px; color: var(--muted); }
+.persona b { color: var(--foreground); font-size: 13px; font-weight: 700; }
+.inicial { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; font-size: 10.5px; font-weight: 750; color: #fff;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--morado) 80%, #fff), var(--morado)); }
+.acciones { list-style: none; margin: 0; padding: 0 0 0 18px; display: flex; flex-direction: column; gap: 1px; }
+
 .detalle { display: flex; flex-direction: column; gap: 6px; padding: 2px 10px 10px 12px; }
 .detalle h4 { margin: 0; font-size: 10px; font-weight: 750; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
 .detalle pre { margin: 0; max-height: 220px; overflow: auto; padding: 8px 10px; border-radius: 8px; white-space: pre-wrap; word-break: break-word; font: inherit; font-size: 12.5px;
@@ -56,17 +86,14 @@
 .otro > div { display: flex; justify-content: flex-end; gap: 6px; }
 .nota { margin: 0; font-size: 12px; color: var(--muted); }
 
-.fila[data-vencida] .linea { padding: 5px 6px; gap: 10px; }
-.fila[data-vencida] .titulo { font-weight: 500; color: var(--muted); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--muted) 60%, transparent); }
-.yaNo { flex: none; font-style: normal; font-size: 11px; font-weight: 650; color: var(--muted); }
 .error { margin: 0 16px 8px; font-size: 12px; color: var(--error); }
 
-/* Compacta (teléfono) y angosta (panel): la recomendación baja y los botones se quedan a la derecha del título. */
-.franja[data-compacta] .cabeza { padding-left: 14px; }
+/* Angosta (teléfono, panel): la recomendación baja y los botones se quedan a la derecha del título. */
 @container (max-width: 520px) {
-  .categoria { display: none; }
   .vence { display: none; }
-  .rec { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-  .si, .no { height: 30px; padding: 0 9px; }
+  .tecla.tecla { padding: 0 9px; }
+  .acciones { padding-left: 8px; }
 }
-@media (prefers-reduced-motion: reduce) { .franja, .chevron { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .seccion, .chevron { transition: none; } }
+/* Vista previa de lo que se publica (cola de publicación, 7 nov 2026). */
+.vista { display: block; width: 100%; max-width: 360px; aspect-ratio: auto; border-radius: 8px; margin: 6px 0; object-fit: contain; background: rgba(0, 0, 0, 0.2); }

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import { strict as assert } from 'node:assert'
-import { buscarEnPiezas, formatoTiempo, fotogramaDe, leerTiempo, mensajeMarca, mensajeMarcas, mensajePdf, modoPorDefecto, ordenarEntrega, pasoDeFotograma, pasoVolumen, siguienteVelocidad, tiempoEnOtra, versionesDe, viaPantallaCompleta, volumenAlOir, type ItemEntrega } from '../../src/features/cabina/documento/medio'
+import { buscarEnPiezas, formatoTiempo, fotogramaDe, leerTiempo, moverBarra, otroSegundo, mensajeMarca, mensajeMarcas, mensajePdf, modoPorDefecto, ordenarEntrega, pasoDeFotograma, pasoVolumen, siguienteVelocidad, tiempoEnOtra, versionesDe, viaPantallaCompleta, volumenAlOir, type ItemEntrega } from '../../src/features/cabina/documento/medio'
 import { tipoDocumento, resolverRuta } from '../../src/features/cabina/documento/ruta'
 
 test('tiempo: formato y lectura son inversos', () => {
@@ -12,6 +12,24 @@ test('tiempo: formato y lectura son inversos', () => {
   assert.equal(leerTiempo('130,4'), 130.4)
   assert.equal(leerTiempo('hola'), null)
 })
+test('mientras corre, el visor se repinta por segundo y por píxel, no por cuadro (7 nov 2026, «parpadea se traba»)', () => {
+  // El reloj m:ss: el mismo segundo no repinta; el siguiente sí.
+  assert.equal(otroSegundo(130.02, 130.97), false)
+  assert.equal(otroSegundo(130.97, 131.01), true)
+  assert.equal(formatoTiempo(130.02), formatoTiempo(130.97))
+  // 13:41 (821.7 s) a 30 fps en la barra grande (2,527 px CSS a 2x): un cuadro mueve 0.2 px de pantalla, no se repinta.
+  const dur = 821.7, cuadro = 1 / 30
+  assert.equal(moverBarra(100, 100 + cuadro, dur, 2527 * 2), false)
+  // En 10 s de video la barra grande se repinta unas 61 veces (6 por segundo), no 300; la chica, unas 14.
+  const repintes = (anchoPx: number) => { let n = 0, pintado = 100; for (let i = 1; i <= 300; i++) { const t = 100 + i * cuadro; if (moverBarra(pintado, t, dur, anchoPx)) { n++; pintado = t } } return n }
+  assert.ok(repintes(2527 * 2) <= 65 && repintes(2527 * 2) >= 55, `grande: ${repintes(2527 * 2)}`)
+  assert.ok(repintes(596 * 2) <= 16, `chica: ${repintes(596 * 2)}`)
+  // Un clip de 12 s en la misma barra sí se mueve en cada cuadro (14 px de pantalla por cuadro).
+  assert.equal(moverBarra(5, 5 + cuadro, 12, 2527 * 2), true)
+  // Sin duración o sin ancho todavía: se pinta si cambió.
+  assert.equal(moverBarra(0, 1, 0, 1000), true)
+  assert.equal(moverBarra(1, 1, 0, 0), false)
+})
 test('fotogramas: el paso cae en el medio del fotograma y no se sale del video', () => {
   assert.equal(fotogramaDe(1, 30), 30)
   assert.equal(fotogramaDe(pasoDeFotograma(1, 30, 1, 10), 30), 31)
@@ -19,8 +37,8 @@ test('fotogramas: el paso cae en el medio del fotograma y no se sale del video',
   assert.equal(pasoDeFotograma(0, 30, -5, 10), 0.5 / 30)
   assert.ok(pasoDeFotograma(9.99, 30, 50, 10) < 10)
 })
-test('L acelera 1 → 1.5 → 2 → 3 y se queda', () => {
-  assert.deepEqual([0.5, 1, 1.5, 2, 3].map(siguienteVelocidad), [1, 1.5, 2, 3, 3])
+test('L acelera de cuarto en cuarto hasta 2x y se queda', () => {
+  assert.deepEqual([1, 1.25, 1.5, 1.75, 2].map(siguienteVelocidad), [1.25, 1.5, 1.75, 2, 2])
 })
 test('dos versiones: mismo tiempo o mismo avance', () => {
   assert.equal(tiempoEnOtra(5, 20, 10, 'tiempo'), 5)
@@ -63,11 +81,14 @@ test('rutas: pdf, audio y las carpetas del dueño se abren; las credenciales no'
   assert.ok('error' in resolverRuta('~/Library/x.pdf', r))
 })
 test('pantalla completa: el video nativo (sin controles en el escritorio) solo en el teléfono', () => {
-  assert.equal(viaPantallaCompleta({ elemento: false, escritorio: true, tactil: false, videoNativo: true }), 'ventana')
-  assert.equal(viaPantallaCompleta({ elemento: true, escritorio: true, tactil: false, videoNativo: true }), 'ventana')
-  assert.equal(viaPantallaCompleta({ elemento: true, escritorio: false, tactil: false, videoNativo: true }), 'elemento')
-  assert.equal(viaPantallaCompleta({ elemento: false, escritorio: false, tactil: true, videoNativo: true }), 'video')
-  assert.equal(viaPantallaCompleta({ elemento: false, escritorio: false, tactil: false, videoNativo: true }), 'ventana')
+  // Teléfono: la nativa del <video>, aunque el contenedor tenga la API (iPad); 6 nov 2026, «doy clic a pantalla completa y me saca».
+  assert.equal(viaPantallaCompleta({ elemento: false, tactil: true, videoNativo: true }), 'video')
+  assert.equal(viaPantallaCompleta({ elemento: true, tactil: true, videoNativo: true }), 'video')
+  // Escritorio con la API: el contenedor con los controles propios.
+  assert.equal(viaPantallaCompleta({ elemento: true, tactil: false, videoNativo: true }), 'elemento')
+  // Sin la API (WKWebView): la capa propia sobre la ventana nativa.
+  assert.equal(viaPantallaCompleta({ elemento: false, tactil: false, videoNativo: true }), 'ventana')
+  assert.equal(viaPantallaCompleta({ elemento: false, tactil: true, videoNativo: false }), 'ventana')
 })
 test('volumen: pasos de 10 % dentro de 0–1, y quitar el silencio en cero suena', () => {
   assert.equal(pasoVolumen(0.95, 1), 1)

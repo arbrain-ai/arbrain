@@ -29,7 +29,7 @@ import { Cuerpo, GuardarVista, titulo } from '../Cabina'
 import { guardable, usePanelFijadas, useTodasFuera, type Fijada } from './fijadas'
 import { nombrePestana } from './nombre-pestana'
 import { aFijo, zoomUI } from '@/shared/lib/zoom-ui'
-import { pedirSegmentoTaller, SEGMENTOS_TALLER, useSegmentoTaller, type SegmentoTaller } from './taller-segmento'
+import { pedirSegmentoTaller, SEGMENTO_PRIMER_DIA, SEGMENTOS_TALLER, useSegmentoTaller, type SegmentoTaller } from './taller-segmento'
 import { AgentesTaller, MaquinaTaller, ProgramadosStudio, PulsoTaller, SegmentosTaller } from './Taller'
 import { MemoriaTaller } from './MemoriaTaller'
 import { EscucharDocumento } from './EscucharDocumento'
@@ -37,6 +37,7 @@ import { ActividadViva } from './ActividadViva'
 import { VistaRutinasViva } from '@/features/rutinas/RutinasViva'
 import { RutinasCliente } from '@/features/rutinas/RutinasCliente'
 import { ComputadoraCliente } from '@/features/computadora/ComputadoraCliente'
+import { PrimerDia, usePrimerDia } from '@/features/primer-dia/PrimerDia'
 import { useAtenderPedidos, useGuardado } from './archivero'
 import { useAtenderPanel } from './bus'
 import { atenderVentana, coordinarPrincipal, devolverAlPanel, llevarA, puedeDesprender, sacarAVentanaNueva, seguirLlegadas, useHueco, useVentanas } from './ventanas'
@@ -57,6 +58,7 @@ import {
 } from './datos'
 import { lineaLimpia, dondeVive, esperaALevy, fuenteEnPalabras, preguntaAlgo, ultimaRespuesta } from '../trabajos-modelo'
 import { TerminalViva } from './TerminalViva'
+import { ResponderAgente } from './ResponderAgente'
 import { firmaRevision, usePendientes } from './pendientes'
 import { TareasTodoist, useTodoist } from './TareasTodoist'
 import { Bandeja } from '@/features/decisiones/Bandeja'
@@ -611,6 +613,12 @@ function Fila({ marca, titulo, linea, lineaTono, dueno, cuando, onClick, accion,
 
 /** El cuerpo de un aviso en una línea legible: sin el encabezado en mayúsculas del cron ni rutas crudas. */
 const resumenRespuesta = (t: Terminal) => primeraLinea(ultimaRespuesta(t)?.texto ?? null)
+/** Lo que el agente preguntó, completo: el diálogo abierto o el último párrafo de su mensaje (donde cierra con «?»). */
+const textoPregunta = (t: Terminal): string | null => {
+  const dicha = t.subagente?.pregunta?.texto ?? ultimaRespuesta(t)?.texto ?? null
+  if (!dicha) return null
+  return dicha.trim().split(/\n\s*\n/).at(-1)!.replace(/\s+/g, ' ').trim().slice(-500) || null
+}
 const lineaAviso = (t: string | null) => primeraLinea(t)?.replace(/^[A-ZÁÉÍÓÚÑ0-9 ]{6,}\s*·\s*/, '').replace(/\\/g, '/') ?? null
 const primeraLinea = (t: string | null) => t ? t.replace(/[#*_`>]/g, '').split('\n').map(x => x.trim()).find(Boolean)?.slice(0, 160) ?? null : null
 
@@ -636,6 +644,7 @@ function DetalleTerminal({ id, onVolver }: { id: number; onVolver: () => void })
   const data = lectura.data ?? lecturaEnCache<Trabajos>(urlPanel(false))
   const t = data?.terminales.find(x => x.id === id)
   const [soloLectura, setSoloLectura] = useState(false)
+  const { marcarRevisado } = usePendientes()
   useEffect(() => {
     // Esc vuelve, salvo con el foco en la terminal: ahí Esc es del agente (interrumpir, cerrar menús).
     const esc = (e: KeyboardEvent) => { if (e.key === 'Escape' && !e.defaultPrevented && !(e.target as HTMLElement | null)?.closest?.('.xterm')) { e.preventDefault(); onVolver() } }
@@ -661,6 +670,9 @@ function DetalleTerminal({ id, onVolver }: { id: number; onVolver: () => void })
     {t && esAgente(t) && <FichaConsumo t={t} />}
     {t?.subagente && <details className={s.encargoPlegado}><summary>Su encargo</summary><p>{t.subagente.encargo}</p></details>}
     {t?.subagente?.entrega && t.subagente.entrega !== 'entregado' && <p className={s.aviso}>{t.subagente.entrega === 'pendiente' ? 'El encargo se está entregando: el CLI aún arrancaba.' : `El encargo no se confirmó (${t.subagente.entregaNota ?? 'sin detalle'}). Pídele a Levy que lo retome.`}</p>}
+    {/* La salida de «1 pregunta» (8 nov 2026): contestarle o soltarla desde aquí, sin teclear en la terminal cruda. */}
+    {t && preguntaAlgo(t) && !esperaALevy(t) && <ResponderAgente id={t.id} pregunta={textoPregunta(t)}
+      puedeEscribir={!soloLectura && t.origen !== 'sin-pantalla'} dialogo={t.subagente?.pregunta?.tipo === 'dialogo'} onVisto={() => marcarRevisado(firmaRevision(t))} />}
     {t?.origen === 'sin-pantalla' ? <>
       {/* Sin pantalla (6 oct 2026): no hay PTY; desde el 7 oct se ve trabajar con su actividad leída de la bitácora. */}
       <ActividadViva agente={t.id} cwd={t.cwd} />
@@ -696,11 +708,16 @@ export function TallerPanel() {
   const lectura = useFuente<Trabajos>(urlPanel(false), 4000)
   const data = lectura.data
   const enDetalle = detalle != null || interna != null
+  // Tu primer día (5 nov 2026, encendido en la edición del alumno, ARBRAIN_PRIMER_DIA=0 lo apaga): al frente mientras la ruta responda activa y no esté oculto.
+  const primerDia = usePrimerDia().data
+  const conPrimerDia = !!(primerDia?.activo && !primerDia.oculto)
+  const segmentos = conPrimerDia ? [SEGMENTO_PRIMER_DIA, ...SEGMENTOS_TALLER] : SEGMENTOS_TALLER
 
   return <div className={`${s.cuerpo} ${w.taller}`} role="tabpanel">
     {!enDetalle && <PulsoTaller data={data} onIr={elegir} />}
-    <SegmentosTaller vista={vista} elegir={elegir} data={data} segmentos={SEGMENTOS_TALLER} />
-    {vista === 'memoria' ? <MemoriaTaller />
+    <SegmentosTaller vista={vista} elegir={elegir} data={data} segmentos={segmentos} />
+    {vista === 'primer-dia' && conPrimerDia ? <PrimerDia onRutinas={() => elegir('rutinas')} />
+      : vista === 'memoria' ? <MemoriaTaller />
       // Historia (28 oct 2026): la del dueño arriba y el historial de git como VS Code debajo (historia/Historia.tsx, HistoriaTaller).
       : vista === 'historia' ? <div className={w.vista}><HistoriaTaller /></div>
       // Rutinas, la vista viva (10 oct 2026): una sola vista con «cómo van» y «qué rinde» juntas; lo programado del Studio, al fondo.

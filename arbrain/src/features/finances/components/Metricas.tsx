@@ -22,7 +22,7 @@ export const URL_CENTRO = '/api/clarity?section=overview'
 
 const EDU_M = {
   mrr: 'Lo que Polar debería cobrar cada mes con las suscripciones activas de hoy. Incluye los planes anuales repartidos entre 12, por eso puede ser más que lo que realmente se cobra en un mes.',
-  cobrado: 'Lo que entró por ventas y renovaciones de Polar en el rango, ya sin la comisión ni los reembolsos. Polar cobra en dólares: aquí se ve en pesos al tipo de cambio de hoy.',
+  cobrado: 'Lo que entró por ventas y renovaciones de Polar en el rango, ya sin la comisión ni los reembolsos. Polar cobra en dólares: aquí cada día se ve en los pesos de ese día (su tipo de cambio).',
   gastado: 'Todo lo que salió en el rango elegido (no es el mes calendario): cobros fijos, despensa, compras y efectivo que se registró. Los cobros fijos son una parte de este número, no todo. Un tramo sin su estado de cuenta todavía no cuenta.',
   patrimonio: 'Lo que tienes líquido (bancos, efectivo y crypto) el día de la última foto de saldos. No se actualiza solo: cada movimiento posterior no está en ella.',
 }

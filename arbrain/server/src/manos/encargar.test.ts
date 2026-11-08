@@ -258,3 +258,114 @@ describe('encargar en el servidor MCP', () => {
     expect(notas).toHaveLength(0)
   })
 })
+
+describe('cerrar «hecho» exige verificar el resultado pedido (6 nov 2026, enc-mw4dqzyo-74eb8d)', () => {
+  const STUDIO = 'https://studio.youtube.com/channel/UCvnAZTnuozAuan2RN4Y7OjA/editing/profile'
+  const BANNER = join(tmpdir(), 'levy-banner-cierre.jpg')
+  const PLACEHOLDER = 'https://www.gstatic.com/youtube/img/creator/banner_placeholder.svg'
+  const ZONA = 'Para obtener los mejores resultados en todos los dispositivos'
+  /** Una pestaña de YouTube Studio falsa: el recorte se abre al subir y la imagen que se lee la decide la prueba. */
+  function webFalsa(imagen: { src: string; tipo: 'url' | 'blob' }) {
+    // Cinco o más: un árbol casi vacío se vuelve a leer (SPA que aún pinta).
+    const nodos = ['Subir', 'Listo', 'Cancelar', 'Publicar', 'Ver canal'].map((nombre, i) => ({ b: 101 + i, rol: 'button', nombre, prof: 0 }))
+    const canal = {
+      llamar: async (metodo: string): Promise<any> => {
+        if (metodo === 'pestanas') return [{ pestana: 5 }]
+        if (metodo === 'observar') return { nodos, url: STUDIO, titulo: 'Personalización del canal', total_ax: 30, ms_ax: 1 }
+        if (metodo === 'contexto') return { tag: 'button', nombre: 'Subir', url: STUDIO }
+        if (metodo === 'archivo') return { ok: true, como: 'el selector que abrió el botón (sin panel)', archivos: [{ nombre: 'levy-banner-cierre.jpg', bytes: 4 }], aceptado: { senal: 'dialogo', detalle: 'Personalizar material gráfico del banner' }, zonas: [ZONA], imagenes_antes: [PLACEHOLDER], url_antes: STUDIO, url: STUDIO }
+        if (metodo === 'actuar') return { ok: true, como: 'ratón', url_antes: STUDIO, url: STUDIO, titulo: 'x' }
+        if (metodo === 'navegar') return { url: STUDIO, titulo: 'x' }
+        if (metodo === 'imagenes') return { url: STUDIO, imagenes: [{ ...imagen, zona: ZONA }] }
+        if (metodo === 'evaluar_estado') return { url: STUDIO, titulo: 'Personalización del canal', texto: 'Se publicaron los cambios', medios: [] }
+        return {}
+      },
+      cerrar: async () => {},
+    }
+    return () => new SesionWebT(canal)
+  }
+  let SesionWebT: any
+  beforeAll(async () => {
+    SesionWebT = (await import('./web/herramientas-web.js')).SesionWeb
+    const { writeFileSync } = await import('node:fs')
+    writeFileSync(BANNER, 'JPG!')
+  })
+  const pedido = () => `Sube ${BANNER} como banner del canal en ${STUDIO} y publica`
+  const subirYPublicar = [
+    { tool: 'web_observar', args: {} },
+    { tool: 'web_actuar', args: { accion: 'archivo', indice: 1, ruta: BANNER } },
+    { tool: 'web_actuar', args: { accion: 'click', indice: 2 } },
+  ]
+
+  it('subir, pulsar Listo y cerrar «hecho» verificando solo un texto: no se registra y el encargo termina en fallo', async () => {
+    const { a } = falso()
+    const hecho = { tool: 'terminar', args: { estado: 'hecho', resumen: 'banner subido con Listo y publicado', evidencia: 'Studio dice «Se publicaron los cambios»' } }
+    sdk.guion = [...subirYPublicar, { tool: 'web_verificar', args: { texto_contiene: 'Se publicaron los cambios' } }, hecho, hecho, hecho]
+    const r = await pedir(pedido(), { ...base(a), web: webFalsa({ src: PLACEHOLDER, tipo: 'url' }), cita: 'ok intenta configurara el canal de levy otra vez pues', maxIntentos: 1 })
+    const terminar = sdk.respuestas.filter(x => x.tool === 'terminar')
+    expect(terminar[0]).toMatchObject({ isError: true })
+    expect(terminar[0].text).toMatch(/NO registrado: subiste levy-banner-cierre\.jpg/)
+    expect(r.ok).toBe(false)
+    expect(r.estado).toBe('fallo')
+    expect(r.detalle).toMatch(/sin verificar/)
+  })
+
+  it('con la lectura de imágenes, si tras recargar sigue la imagen de antes tampoco cierra; si el src es nuevo y guardado, sí', async () => {
+    const { a } = falso()
+    const verificar = [{ tool: 'web_navegar', args: { url: STUDIO } }, { tool: 'web_verificar', args: { imagenes_subidas: true } }]
+    const hecho = { tool: 'terminar', args: { estado: 'hecho', resumen: 'banner guardado', evidencia: 'src nuevo en la vista previa' } }
+    sdk.guion = [...subirYPublicar, ...verificar, hecho]
+    const mal = await pedir(pedido(), { ...base(a), web: webFalsa({ src: PLACEHOLDER, tipo: 'url' }), cita: 'ok intenta configurara el canal de levy otra vez pues', maxIntentos: 1 })
+    expect(mal.ok).toBe(false)
+    sdk.respuestas = []
+    const bien = await pedir(pedido(), { ...base(a), web: webFalsa({ src: 'https://yt3.googleusercontent.com/banner_levy', tipo: 'url' }), cita: 'ok intenta configurara el canal de levy otra vez pues', maxIntentos: 1 })
+    expect(sdk.respuestas.find(x => x.tool === 'web_verificar')!.text).toMatch(/"cumple":true/)
+    expect(bien).toMatchObject({ ok: true, estado: 'hecho' })
+  })
+})
+
+describe('precisión y reloj (5 nov 2026, canal «Levy Arbrain»: cuatro fallos subiendo el banner)', () => {
+  it('un paso que falla dos veces igual no se corre una tercera: el cerebro tiene que cambiar de vía', async () => {
+    const { a, actuar } = falso()
+    a.actuar = async p => { actuar.push(structuredClone(p)); return { ok: false, efecto: 'fallo', detalle: 'el menú «Seleccionar todo» está inactivo' } }
+    const t = { tool: 'actuar', args: { pid: 7, ventana: 3, accion: 'tecla', tecla: 'a', modificadores: ['cmd'] } }
+    sdk.guion = [t, t, t, { tool: 'terminar', args: { estado: 'fallo', resumen: 'no entró' } }]
+    await pedir('selecciona todo en la nota', { ...base(a), maxIntentos: 1 })
+    expect(actuar).toHaveLength(2)
+    expect(sdk.respuestas[1].text).toMatch(/cambia de vía/i)
+    expect(sdk.respuestas[2]).toMatchObject({ isError: true })
+    expect(sdk.respuestas[2].text).toMatch(/NO SE CORRIÓ/)
+  })
+
+  it('el sistema del cerebro enseña a subir archivos con web_actuar «archivo» y a no operar el panel «Abrir»', async () => {
+    const { SISTEMA_CEREBRO } = await import('./cerebro.js')
+    expect(SISTEMA_CEREBRO).toMatch(/accion «archivo»/)
+    expect(SISTEMA_CEREBRO).toMatch(/panel «Abrir»/)
+    expect(SISTEMA_CEREBRO).toMatch(/cambia de vía/)
+  })
+
+  it('pasoHumano: lo que se le dice a la persona del paso actual, sin texto de la app', async () => {
+    const { pasoHumano } = await import('./cerebro.js')
+    expect(pasoHumano({ herramienta: 'web_actuar', accion: 'click', etiqueta: 'Subir', resultado: 'ok', ms: 1 })).toBe('tocando «Subir»')
+    expect(pasoHumano({ herramienta: 'web_actuar', accion: 'archivo', archivo: '/Users/x/Developer/banner-levy.png', resultado: 'ok', ms: 1 })).toBe('subiendo banner-levy.png')
+    expect(pasoHumano({ herramienta: 'web_observar', resultado: 'lectura', ms: 1 })).toBe('leyendo la página')
+    expect(pasoHumano({ herramienta: 'actuar', accion: 'tecla', tecla: 'cmd+a', resultado: 'fallo', ms: 1 })).toBe('pulsando cmd+a (falló)')
+  })
+
+  it('el estado en disco lleva desde cuándo corre (inicio) y el paso actual en palabras', async () => {
+    const vistos: any[] = []
+    const r = await ejecutarEncargar({ pedido: 'sube el banner', cita: 'sube el banner' }, {
+      manos: falso().a, decisor,
+      pedir: async (_p, op) => {
+        op.progreso?.({ fase: 'paso', mensaje: 'web_actuar click · chrome-web «Subir» → ok', paso: 'tocando «Subir»', pasos: 1, ms: 1200 })
+        const dir = process.env.MANOS_ENCARGOS_DIR!
+        for (const f of readdirSync(dir).filter(f => f.endsWith('.json'))) vistos.push(JSON.parse(readFileSync(join(dir, f), 'utf8')))
+        return { ok: true, estado: 'hecho', intentos: [], id: 'b1', ms: 1300, detalle: 'listo', pasos: [] } as any
+      },
+    })
+    const id = JSON.parse(r.text).encargo
+    const vivo = vistos.find(v => v.id === id)
+    expect(vivo).toMatchObject({ estado: 'en_curso', paso: 'tocando «Subir»' })
+    expect(Date.parse(vivo.inicio)).toBeGreaterThan(Date.now() - 60_000)
+  })
+})

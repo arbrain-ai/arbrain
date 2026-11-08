@@ -4,6 +4,9 @@ import { raices, verificar } from '@/lib/cabina/documento-server'
 import { rutaPermitida } from '@/features/cabina/documento/ruta'
 import { inyectarTema } from '@/features/cabina/documento/tema-html'
 import { cspCrudo } from '@/features/cabina/documento/csp-crudo'
+import { rutaSensibleDirecto, velarHtml } from '@/lib/modo-directo/reglas'
+import { estadoDirecto } from '@/lib/modo-directo/servidor'
+import { estadoMiniaturas, hojaMiniaturas } from '@/lib/cabina/miniaturas-video'
 
 // Archivos de la vista «documento» servidos con su carpeta (3 oct 2026): el HTML del iframe aislado
 // y sus assets relativos, imágenes y video (con Range: WebKit no reproduce mp4 sin él). Sin cookie
@@ -44,17 +47,32 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
   try { real = await realpath(pedida) } catch { return no(404, 'No existe.') }
   const r = raices()
   if (rutaPermitida(real, r) && rutaPermitida(real, { ...r, repo: await realpath(r.repo).catch(() => r.repo) })) return no(403, 'No permitido.')
+  // Modo directo (7 nov 2026): lo sensible no sale y el texto de los .html se enmascara (el iframe queda fuera del velo de la app).
+  const directo = await estadoDirecto()
+  if (directo.prendido && (rutaSensibleDirecto(pedida) || rutaSensibleDirecto(real))) return no(423, 'Oculto por modo directo.')
   const info = await stat(real).catch(() => null)
   if (!info?.isFile()) return no(404, 'No existe.')
   const ext = real.slice(real.lastIndexOf('.') + 1).toLowerCase()
   const headers: Record<string, string> = { 'Content-Type': TIPOS[ext] ?? 'application/octet-stream', 'Cache-Control': 'private, max-age=60', 'Accept-Ranges': 'bytes', 'X-Content-Type-Options': 'nosniff' }
   const csp = cspCrudo(ext)
   if (csp) headers['Content-Security-Policy'] = csp
+  // Miniaturas bajo la barra del visor de video (8 nov 2026): `?miniaturas=meta` dice cómo va la hoja (y la pide si no existe),
+  // `?miniaturas=img` la entrega. Mismo token y mismos permisos que el video: no abre nada nuevo.
+  const miniaturas = new URL(request.url).searchParams.get('miniaturas')
+  if (miniaturas && ['mp4', 'm4v', 'webm', 'mov'].includes(ext)) {
+    if (miniaturas === 'img') {
+      const hoja = await hojaMiniaturas(real, info)
+      return hoja ? new Response(new Uint8Array(hoja), { headers: { 'Content-Type': 'image/jpeg', 'Content-Length': String(hoja.byteLength), 'Cache-Control': 'private, max-age=86400', 'X-Content-Type-Options': 'nosniff' } }) : no(404, 'Aún no hay miniaturas.')
+    }
+    return Response.json(await estadoMiniaturas(real, info), { headers: { 'Cache-Control': 'no-store' } })
+  }
   // Los .html llevan el tema de la app: se les inyecta `html[data-tema]` (convención en documento/tema-html.ts).
   if (ext === 'html' || ext === 'htm') {
     const crudo = await readFile(real, 'utf8')
-    const cuerpo = inyectarTema(crudo, new URL(request.url).searchParams.get('tema'))
-    return new Response(cuerpo, { headers: { ...headers, 'Content-Length': String(Buffer.byteLength(cuerpo)) } })
+    const tematizado = inyectarTema(crudo, new URL(request.url).searchParams.get('tema'))
+    const cuerpo = directo.prendido ? velarHtml(tematizado, directo.velo) : tematizado
+    // Sin caché: si el modo directo se prende, la siguiente carga ya sale enmascarada.
+    return new Response(cuerpo, { headers: { ...headers, 'Cache-Control': 'no-store', 'Content-Length': String(Buffer.byteLength(cuerpo)) } })
   }
   const rango = /^bytes=(\d*)-(\d*)$/.exec(request.headers.get('range') ?? '')
   if (rango && (rango[1] || rango[2])) {

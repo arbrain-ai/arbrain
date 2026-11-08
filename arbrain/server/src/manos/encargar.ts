@@ -199,6 +199,9 @@ export function ordenEnDisco(id: string): () => string | null {
   }
 }
 
+/** El paso en palabras de las fases sin paso propio (los pasos de herramienta traen el suyo: `pasoHumano`). */
+const PASO_DE_FASE: Partial<Record<Progreso['fase'], string>> = { inicio: 'empezando', receta: 'corriendo una receta guardada', modelo: 'pensando el siguiente paso', escala: 'pasándoselo a Opus', cierre: 'verificando y cerrando' }
+
 async function encargarSinSoltar(args: any, deps: DepsEncargar, idDado?: string): Promise<{ text: string; error?: boolean; respuesta?: RespuestaEncargo }> {
   const pedido = typeof args?.pedido === 'string' ? args.pedido.trim() : ''
   const cita = typeof args?.cita === 'string' ? args.cita.trim() : ''
@@ -214,10 +217,15 @@ async function encargarSinSoltar(args: any, deps: DepsEncargar, idDado?: string)
   const pedirFn = deps.pedir ?? (await import('./cerebro.js')).pedir
   // La franja para la conversación: qué decir y dónde dejar «detener» o «control» (ordenEnDisco).
   const franja = { texto: `${process.env.MANOS_NOMBRE_AGENTE || AGENTE} está trabajando`, orden: `${id}.detener`, valores: ['detener', 'control'] }
-  guardarEstado(id, { estado: 'en_curso', pedido: pedido.slice(0, 200), fase: 'inicio', mensaje: 'encargo recibido', pasos: 0, ms: 0, quien: deps.quien, franja })
+  // Reloj (5 nov 2026, Daniel: «incluso si pudieras poner un temporizador»): desde cuándo corre y qué hace ahora, en
+  // palabras, para que el chat cuente los segundos solo y diga el paso sin leer texto de las apps.
+  const inicio = new Date().toISOString()
+  let paso = 'empezando'
+  guardarEstado(id, { estado: 'en_curso', pedido: pedido.slice(0, 200), inicio, fase: 'inicio', mensaje: 'encargo recibido', paso, pasos: 0, ms: 0, quien: deps.quien, franja })
   const progreso = (p: Progreso) => {
     if (p.fase === 'paso') lineas.push(p.mensaje)
-    guardarEstado(id, { estado: p.fase === 'fin' ? 'cerrando' : 'en_curso', pedido: pedido.slice(0, 200), fase: p.fase, mensaje: p.mensaje, pasos: p.pasos, ms: p.ms, ultimos: lineas.slice(-6), quien: deps.quien, franja })
+    paso = p.paso ?? PASO_DE_FASE[p.fase] ?? paso
+    guardarEstado(id, { estado: p.fase === 'fin' ? 'cerrando' : 'en_curso', pedido: pedido.slice(0, 200), inicio, fase: p.fase, mensaje: p.mensaje, paso, pasos: p.pasos, ms: p.ms, ultimos: lineas.slice(-6), quien: deps.quien, franja })
     try { deps.progreso?.({ ...p, encargo: id }) } catch { /* el cliente se fue: el encargo sigue */ }
   }
   let r: ResultadoPedido
@@ -243,7 +251,7 @@ async function encargarSinSoltar(args: any, deps: DepsEncargar, idDado?: string)
     bitacora_id: r.id,
     costo_usd: Number(r.intentos.reduce((s, i) => s + (i.costo_usd ?? 0), 0).toFixed(4)),
   }
-  guardarEstado(id, { estado: r.estado, pedido: pedido.slice(0, 200), ok: r.ok, resultado: respuesta.resultado.slice(0, 300), pregunta: respuesta.pregunta, pasos: respuesta.pasos, tiempo_s: respuesta.tiempo_s, url_final: respuesta.url_final, captura: respuesta.captura, bitacora_id: r.id, quien: deps.quien })
+  guardarEstado(id, { estado: r.estado, pedido: pedido.slice(0, 200), inicio, ok: r.ok, resultado: respuesta.resultado.slice(0, 300), pregunta: respuesta.pregunta, pasos: respuesta.pasos, tiempo_s: respuesta.tiempo_s, url_final: respuesta.url_final, captura: respuesta.captura, bitacora_id: r.id, quien: deps.quien })
   // Un fallo o una pregunta no son error del protocolo: el modelo debe leer la respuesta y decidir.
   return { text: JSON.stringify(respuesta, null, 1), respuesta }
 }

@@ -10,7 +10,6 @@
  * - Sin pestaña a la vista (se cerró la última o se volvió atrás), esta página: la lista de lo abierto para tocar.
  * En el escritorio la misma ruta abre la columna del panel con esa pestaña.
  */
-import { FranjaDecisiones } from '@/features/decisiones/FranjaDecisiones'
 import { useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
@@ -56,8 +55,6 @@ export function PanelTelefono() {
 
   const claves = clavesTelefono(orden, taller)
   return <main className={s.pagina}>
-    {/* «Esperan tu toque» (3 nov 2026): la misma franja del Día de hoy, compacta y lo primero; sin decisiones no pinta nada. */}
-    <FranjaDecisiones compacta />
     <header className={s.cabeza}>
       <Smartphone size={18} aria-hidden />
       <div>
@@ -66,7 +63,8 @@ export function PanelTelefono() {
       </div>
     </header>
     {/* Hábitos de hoy (22 oct 2026): un toque a las casillas. Desde ahí, «Agregar a inicio» deja su propio ícono. */}
-    {/* Autonomía v2 (3 nov 2026): la bandeja de decisiones; el push de cada tarjeta abre aquí. */}
+    {/* Autonomía v2 (3 nov 2026): la bandeja completa, con su historial. «N te esperan» vive solo en la tarjeta HOY del Día (4 nov 2026:
+        la franja que se pintaba aquí arriba se fue) y el push de una tarjeta abre ahí, en esa decisión. */}
     <Link href="/telefono/decisiones" className={s.fila} data-decisiones-acceso>
       <span className={s.icono}><Inbox size={16} aria-hidden /></span>
       <span className={s.nombre}>Decisiones</span>

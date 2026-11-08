@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises'
+import { readdir, readFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { planningOwner, planningError } from '@/lib/planning/server'
@@ -9,7 +9,8 @@ import { motorDe, panelNegocioEncendido, RUTA_EMBUDO, validarEmbudo, type Respue
 
 // Tu negocio › El sistema (4 nov 2026, prototipo detrás de ARBRAIN_PANEL_NEGOCIO=1). Lee el embudo que escribió Levy
 // en la memoria (docs/embudo/README.md) y la última corrida de cada rutina launchd del Studio (las del scheduler las lee
-// el cliente de /api/planning/crons, la misma caché que Rutinas). Apagado, o fuera de la edición del dueño: { activo: false }.
+// el cliente de /api/planning/crons, la misma caché que Rutinas). 5 nov: también el inventario de skills vivas, para la
+// vista «Skills por etapa». Apagado, o fuera de la edición del dueño: { activo: false }.
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -19,6 +20,16 @@ const APAGADO = () => Response.json({ activo: false } satisfies RespuestaEmbudo,
 
 const RAICES = () => [process.env.BUSINESS_OS_ROOT, instalacion().raizRepoRespaldo, path.join(process.cwd(), '..')].filter(Boolean) as string[]
 const raiz = () => RAICES().find(r => existsSync(path.join(r, '.claude', 'memory', 'MEMORY.md'))) ?? null
+
+/** Las skills vivas: cada carpeta de `.claude/skills/` con su SKILL.md (sigue enlaces). Sin carpeta legible, undefined:
+ *  el panel dice que no pudo leerlas en vez de marcar todo «sin revisar». */
+async function inventarioSkills(base: string): Promise<string[] | undefined> {
+  const dir = path.join(base, '.claude', 'skills')
+  try {
+    const nombres = await readdir(dir)
+    return nombres.filter(n => !/^[._]/.test(n) && existsSync(path.join(dir, n, 'SKILL.md'))).sort()
+  } catch { return undefined }
+}
 
 export async function GET() {
   if (!panelNegocioEncendido() || esEdicionCliente()) return APAGADO()
@@ -42,7 +53,8 @@ export async function GET() {
       const m = await medirFuente({ tipo: 'launchd', label }, opciones)
       launchd[label] = { semaforo: m.semaforo, texto: m.texto, medidoEn: m.medidoEn }
     }))
-    return Response.json({ activo: true, ruta: RUTA_EMBUDO, embudo: v.embudo, launchd } satisfies RespuestaEmbudo, { headers: NOCACHE })
+    const skills = await inventarioSkills(base)
+    return Response.json({ activo: true, ruta: RUTA_EMBUDO, embudo: v.embudo, launchd, skills } satisfies RespuestaEmbudo, { headers: NOCACHE })
   } catch (error) {
     return planningError(error)
   }

@@ -14,7 +14,7 @@ import { tokenDaemon } from '@/lib/daemon-local'
 // 175/306: la voz `levy` de voz-agentes habla a 306 ppm (1.75x); el lector la pide a 1x.
 const LECTOR_SPEED = 175 / 306
 
-// Velocidades del lector (RATES de chat-speech.ts, hasta 3x; voz-agentes topa en TEMPO_MAX = 3): lo demás suena a 1x.
+// Velocidades del lector (VELOCIDADES de chat-speech.ts, de 1x a 2x en cuartos; voz-agentes topa en TEMPO_MAX = 3).
 function tempoLector(v: unknown): number {
   return typeof v === 'number' && Number.isFinite(v) ? Math.min(3, Math.max(1, v)) : 1
 }

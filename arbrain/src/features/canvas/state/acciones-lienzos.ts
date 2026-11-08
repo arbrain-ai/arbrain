@@ -9,7 +9,7 @@
  */
 import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import * as Nube from './nube'
-import type { Carpeta, PaginaResumen } from './nube'
+import type { Carpeta, ModoNuevo, PaginaResumen } from './nube'
 import { alMiniatura, rellenarMiniaturas } from './miniaturas'
 import { carpetaArchivada, conSubcarpetas } from './vista-lienzos'
 import { GRUPO_GENERAL, ordenAlFinal } from './organizacion'
@@ -45,7 +45,10 @@ export interface AccionesLienzos {
   borrarPagina: (id: string) => void
   archivarCarpeta: (c: Carpeta, si: boolean) => void
   borrarCarpeta: (id: string) => void
-  nuevaCarpeta: (madre?: string | null) => void
+  /** Con nombre siempre (7 nov 2026): una carpeta sin nombre no se guarda. */
+  nuevaCarpeta: (nombre: string, madre?: string | null) => void
+  /** «＋ Nuevo lienzo»: nace con su nombre, en su carpeta y con su modo. Devuelve el lienzo (para abrirlo) o null si falló. */
+  crearLienzo: (nombre: string, folderId: string | null, modo: ModoNuevo) => Promise<PaginaResumen | null>
 }
 
 export function useAccionesLienzos(e: EstadoLienzos): AccionesLienzos {
@@ -133,10 +136,19 @@ export function useAccionesLienzos(e: EstadoLienzos): AccionesLienzos {
         ref.current.alTerminar?.()
       }).catch(err => setFallo(err instanceof Error ? err.message : 'No se pudo eliminar la carpeta.'))
     },
-    nuevaCarpeta: madre => {
+    nuevaCarpeta: (nombre, madre) => {
+      const limpio = nombre.trim(); if (!limpio) return
       setFallo(null)
-      Nube.crearCarpeta(madre ? 'Subcarpeta nueva' : undefined, madre).then(c => { ref.current.setCarpetas(cs => [...cs, c]); ref.current.alTerminar?.() })
+      Nube.crearCarpeta(limpio, madre).then(c => { ref.current.setCarpetas(cs => [...cs, c]); ref.current.alTerminar?.() })
         .catch(err => setFallo(err instanceof Error ? err.message : 'No se pudo crear la carpeta.'))
+    },
+    crearLienzo: async (nombre, folderId, modo) => {
+      setFallo(null)
+      try {
+        const p = await Nube.crearLienzo(nombre.trim(), folderId, modo)
+        ref.current.setPaginas(ps => [p, ...ps]); ref.current.alTerminar?.()
+        return p
+      } catch (err) { setFallo(err instanceof Error ? err.message : 'No se pudo crear el lienzo.'); return null }
     },
   }
 

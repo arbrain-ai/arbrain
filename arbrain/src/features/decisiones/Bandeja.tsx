@@ -7,10 +7,10 @@
  * Vive en el panel (Lo que espera tu decisión) y a pantalla completa en el teléfono (/telefono/decisiones).
  */
 import { useState } from 'react'
-import { Check, ChevronDown, ChevronRight, CornerUpLeft, MessageSquare, Repeat, X } from 'lucide-react'
+import { Check, ChevronDown, ChevronRight, CornerUpLeft, ExternalLink, MessageSquare, Repeat, X } from 'lucide-react'
 import { zonaDueno } from '@/shared/lib/zona-dueno'
 import { useBandeja } from './useBandeja'
-import { deshacible, enOrden, estadoDecidida, etiquetaCategoria, fraseEspera, hora, lineaRecomendacion, recomendadas, type HechoSolo, type Tarjeta } from './lib/bandeja'
+import { deshacible, enOrden, estadoDecidida, etiquetaCategoria, fraseEspera, hora, lineaRecomendacion, recomendadas, urlVistaPrevia, type HechoSolo, type Tarjeta } from './lib/bandeja'
 import s from './bandeja.module.css'
 
 export function Bandeja({ donde = 'panel', enfocar }: { donde?: 'panel' | 'telefono'; enfocar?: string | null }) {
@@ -53,7 +53,7 @@ export function Bandeja({ donde = 'panel', enfocar }: { donde?: 'panel' | 'telef
       <ul>{[...v.decididasHoy, ...(v.vencidasHoy ?? [])].map(t => <li key={t.id}><span>{t.titulo}</span><b data-respuesta={t.respuesta ?? t.estado}>{estadoDecidida(t)}</b></li>)}</ul>
     </details>}
 
-    <Politica politica={v.politica} ocupado={b.ocupado === 'politica'} onElegir={p => void b.politica(p, {})} />
+    <Politica politica={v.politica} ocupado={b.ocupado === 'politica'} onElegir={p => void b.politica(p, v.politica.ajustes ?? {})} />
   </section>
 }
 
@@ -63,7 +63,7 @@ export function TarjetaDecision({ t, ocupado, onResponder }: { t: Tarjeta; ocupa
   const [texto, setTexto] = useState('')
   const [ver, setVer] = useState(false)
   const rec = lineaRecomendacion(t)
-  const exacto = t.detalle ?? t.literal
+  const exacto = t.detalle ?? t.literal, vista = urlVistaPrevia(t)
   return <article className={s.tarjeta} data-decision={t.id} data-recomienda={t.recomienda ?? ''}>
     <div className={s.tarjetaCabeza}>
       <span className={s.categoria} data-categoria={t.categoria}>{etiquetaCategoria(t.categoria)}</span>
@@ -72,6 +72,7 @@ export function TarjetaDecision({ t, ocupado, onResponder }: { t: Tarjeta; ocupa
       <time>{new Date(t.creada).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false })}</time>
     </div>
     <p className={s.titulo}>{t.titulo}</p>
+    {vista && <img className={s.vista} src={vista} alt="Vista previa de lo que se publica" loading="lazy" />}
     {rec && <p className={s.recomendacion} data-tono={t.recomienda === 'no' ? 'no' : 'si'}><b>Levy</b> {rec}</p>}
     {exacto && <>
       <button className={s.plegar} onClick={() => setVer(!ver)}>{ver ? <ChevronDown size={14} /> : <ChevronRight size={14} />} Qué sale exactamente</button>
@@ -102,6 +103,7 @@ function HechoSoloLista({ titulo, filas, dia, zona, ocupado, onDeshacer, vacio }
       {filas.map(h => <li key={h.ts}>
         <time>{hora(h.ts, zona)}</time>
         <span className={s.que}>{h.que}</span>
+        {h.enlace && <a className={s.deshacer} href={h.enlace} target="_blank" rel="noreferrer" title={h.enlace}><ExternalLink size={13} aria-hidden /> Ver</a>}
         {deshacible(h)
           ? <button className={s.deshacer} disabled={ocupado === `deshacer:${h.ts}`} onClick={() => void onDeshacer(h.ts, dia)} title={h.deshacer ? `Levy lo deshace: ${h.deshacer}` : 'Levy lo deshace'}><CornerUpLeft size={13} aria-hidden /> Deshacer</button>
           : h.deshacer ? <span className={s.comoDeshacer} title={h.deshacer}>se deshace {h.deshacer}</span> : null}

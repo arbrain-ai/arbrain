@@ -26,6 +26,7 @@ import { confirmacionHumana, categoriaDe } from './confirmacion-humana.js'
 import { URL_CON_EFECTO } from './navegador.js'
 import { citaDelChat, modoManos, verificarCita, vozReciente, type ModoManos } from './politica.js'
 import { citaCubre } from './cubre.js'
+import { anotarHechoSolo, claseDeCategoria, frenoApagado } from '../autonomia/politica.js'
 import { hostDe as host, hostNombradoEnVoz, parsearUrl as parsear, senalExfiltracion } from '../cliente/url.js'
 import { sitioSensible } from '../cabina/chrome-guard.js'
 
@@ -153,6 +154,11 @@ export async function frenarNavegacion(url: string, herramienta: HerramientaNave
     return { ok: true }
   }
   if (j.tipo === 'negar') return { ok: false, categoria: j.categoria, texto: `FRENO (${j.categoria}): ${j.motivo}. No se abrió nada; no busques otra vía. Pídele a la persona que lo haga ella misma.` }
+  // Freno apagado por el dueño hasta una hora (politica.json, 5 nov 2026; solo instalación original): abre y lo anota.
+  if (frenoApagado()) {
+    anotarHechoSolo({ clase: claseDeCategoria(j.categoria), categoria: j.categoria, que: `${herramienta}: ${j.motivo} (freno apagado)`.slice(0, 240), donde: url.slice(0, 120), origen: herramienta === 'navegar' ? 'manos' : 'web', ...(process.env.CLAUDE_CODE_SESSION_ID ? { sesion: process.env.CLAUDE_CODE_SESSION_ID } : {}) })
+    return { ok: true }
+  }
   const autonomo = esEdicionCliente() && modoManos() === 'autonomo'
   if (j.tipo === 'cita_y_clic') {
     // La cita del modelo (validada) o, en cliente, la que la persona ya escribió en el chat (A5).

@@ -6,6 +6,7 @@
  * sin títulos (la casa no siempre los da) solo se adopta si apareció exactamente una.
  */
 import type { Adaptador, Ventana } from '../contrato.js'
+import type { CanalWeb } from './cliente.js'
 import { BUNDLES_NAVEGADOR } from '../freno.js'
 
 const NOMBRES_NAVEGADOR = /^(google chrome( for testing| beta| canary)?|chromium|brave browser|microsoft edge|arc|vivaldi)$/i
@@ -17,7 +18,7 @@ export async function ventanasDelNavegador(manos: Adaptador): Promise<Set<number
 }
 
 /** La capa del freno (o la que sepa adoptar ventanas de la extensión) en la cadena de envoltorios. */
-function adoptador(a: Adaptador): { adoptarWeb(id: number): void } | null {
+function adoptador(a: Adaptador): { adoptarWeb(id: number): void; registrarTitulosArbrain?(f: () => Promise<string[]>): void } | null {
   let x: any = a
   for (let i = 0; x && i < 8; i++, x = x.interno) if (typeof x.adoptarWeb === 'function') return x
   return null
@@ -49,4 +50,15 @@ export async function adoptarVentanaWeb(manos: Adaptador, antes: Set<number>, ti
     await new Promise(r => setTimeout(r, op.esperaMs ?? 150))
   }
   return []
+}
+
+/**
+ * Panel de archivos (5 nov 2026): el freno nativo pregunta a la extensión qué pestañas activas son del grupo de Arbrain,
+ * para reconocer como de las manos el panel «Abrir» de una ventana que web_abrir reusó (y por eso no adoptó).
+ */
+export function enlazarFrenoWeb(manos: Adaptador, sesion: { canal: Pick<CanalWeb, 'llamar'> }): void {
+  adoptador(manos)?.registrarTitulosArbrain?.(async () => {
+    const ps = await sesion.canal.llamar<{ titulo?: string; activa?: boolean; ventana_propia?: boolean }[]>('pestanas', undefined, 3000)
+    return ps.filter(t => t.activa && t.ventana_propia && t.titulo).map(t => t.titulo!)
+  })
 }

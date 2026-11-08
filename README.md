@@ -104,19 +104,22 @@ Levy usa tu computadora y la web por ti en macOS y Windows. Viene apagado y siem
 ## Instalar
 
 Funciona en macOS, Windows y Linux. **No tienes que instalar nada antes:** Claude Code se encarga de Git, Node y
-Python, sin pedirte comandos.
+Python, sin pedirte comandos. **Lo único que necesitas es una cuenta de Claude Pro o Max:** Claude Code, que hace la
+instalación, no viene en el plan gratis.
 
 1. **¿Ya tienes Claude Code?** Si sí, ábrelo. Si no: descarga la app de Claude de
    [claude.ai/download](https://claude.ai/download), entra con tu cuenta (Pro o Max) y abre la pestaña **Code**. No
-   necesitas una terminal.
+   necesitas una terminal. Si te pide una carpeta, elige tu carpeta personal (la que lleva tu nombre), en esta
+   computadora.
 2. Pega este mensaje y envíalo:
 
    ```text
    Instala Arbrain siguiendo https://github.com/arbrain-ai/arbrain/blob/main/INSTALAR.md
    ```
 
-3. Acepta los permisos que te pida (los de Claude Code y, si aparece, la ventana de tu sistema). En unos minutos se
-   abre la app **Arbrain** con Levy listo.
+3. Acepta los permisos que te pida (los de Claude Code y, si aparece, la ventana de tu sistema). Cuando se abra tu
+   navegador, entra a tu cuenta de Claude y pulsa **Autorizar**. En unos minutos se abre la app **Arbrain** con Levy
+   listo.
 
 Tu Claude Code verifica la firma de la versión, instala lo que falte, respalda lo que ya tengas (la app 0.1.x, tu
 Business OS o tu propio repo) y te pregunta una sola vez si lo copia o lo unifica, baja Arbrain ya compilado para tu
@@ -124,8 +127,8 @@ sistema, deja la app de escritorio abierta y conecta a Levy con tu cuenta de Cla
 [`INSTALAR.md`](INSTALAR.md).
 
 > **Antes de pegar cualquier prompt, revisa de dónde viene.** Un prompt le da órdenes a un agente que puede usar tu
-> computadora. Este sale de arbrain.ai y apunta solo a `github.com/arbrain-ai/arbrain`. Si alguien te pasa uno
-> parecido con otra dirección, no lo pegues.
+> computadora. Este es el de esta página (el mismo que dan arbrain.ai y los videos de Arbrain) y apunta solo a
+> `github.com/arbrain-ai/arbrain`. Si alguien te pasa uno parecido con otra dirección, no lo pegues.
 
 **Desinstalar o empezar desde cero:** pega
 `Desinstala Arbrain siguiendo https://github.com/arbrain-ai/arbrain/blob/main/INSTALAR.md`. Guarda todo en

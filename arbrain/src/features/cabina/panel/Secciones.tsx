@@ -17,7 +17,7 @@ import { useSoySegunda } from './segunda'
 import { useAccesosCasa } from '@/shared/components/AccesosCasa'
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent as TeclaReact, type PointerEvent as PunteroReact } from 'react'
 import { createPortal } from 'react-dom'
-import { ArrowLeft, Bookmark, FolderPlus, GripVertical, Hammer, ListChecks, Plus, Shapes, SlidersHorizontal, X } from 'lucide-react'
+import { ArrowLeft, Bookmark, GripVertical, Hammer, ListChecks, Plus, Shapes, SlidersHorizontal, X } from 'lucide-react'
 import { ICONO } from '../Cabina'
 import { hoyCivil, NOMBRE, type Alcance, type MostrarInput, type Vista } from '../model'
 import { useTituloConversacion } from '../conversaciones'
@@ -41,9 +41,11 @@ import { moverVisible, visibles } from './menu-orden'
 import { arrastrarFila } from './arrastre-lista'
 import { usePanelAjustes } from './panel-ajustes'
 import { useAjustes } from '@/shared/stores/ajustes-store'
-import { aFijo, bajoElAncla, zoomUI } from '@/shared/lib/zoom-ui'
+import { bajoElAncla, zoomUI } from '@/shared/lib/zoom-ui'
 import p from './secciones.module.css'
 import { zonaDueno } from '@/shared/lib/zona-dueno'
+import { OcultoPorDirecto } from '@/features/modo-directo/ModoDirecto'
+import { useDirecto } from '@/shared/stores/modo-directo-store'
 
 // El calendario (FullCalendar) y la pizarra (motor del lienzo) solo cargan al abrir su pestaña (6 oct 2026): este
 // archivo lo importa el layout de toda la app y los arrastraba a cada ruta aunque nadie abriera esas pestañas.
@@ -69,6 +71,8 @@ const OPCIONES: Opcion[] = [
   { vista: 'cohorte', nota: 'Quién te necesita esta semana y para qué, con la ficha de cada fundador' },
   { vista: 'lienzo', nota: 'Tus mapas y pizarras' },
   { vista: 'negocio', nota: 'Avatar, oferta, embudo y sistema' },
+  // Business Intelligence (7 nov 2026): se le pregunta en español; la alarma de Beer y el cuello siempre a la vista.
+  { vista: 'bi', nota: 'Pregúntale a tu negocio: gráficas vivas, la alarma y el cuello' },
   // Masterclass sale del «+» (11 oct 2026): vive en Guardadas, abajo; Levy la abre con `mostrar {vista:'masterclass'}`.
   { vista: 'reporte', nota: 'Avisos y reportes de los crons' },
   { vista: 'centro', nota: 'Abre Finanzas · Lo que entra' },
@@ -135,9 +139,11 @@ export function MenuSecciones({ clase }: { clase?: string } = {}) {
     // Medido en px de pantalla y convertido con el zoom de la UI: sin eso, a ⌘+ el menú salía por la derecha (3 oct 2026).
     const z = zoomUI(), ancho = Math.min(ANCHO_MENU * z, window.innerWidth - 16)
     if (r) setPos(bajoElAncla(r, ancho, { ancho: window.innerWidth }, { z }))
-    const fuera = (e: PointerEvent) => { if (!menu.current?.contains(e.target as Node) && !boton.current?.contains(e.target as Node)) cerrar() }
-    // Escape durante un arrastre cancela solo el arrastre (arrastre-lista.ts), no cierra el menú.
-    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape' && !document.querySelector('[data-arrastrando]')) { e.preventDefault(); e.stopPropagation(); cerrar() } }
+    // El ⋯ de un lienzo vive en un portal fuera del menú: tocarlo no es tocar fuera (`data-capa-hija`, 7 nov 2026).
+    const fuera = (e: PointerEvent) => { if (!menu.current?.contains(e.target as Node) && !boton.current?.contains(e.target as Node) && !(e.target as Element | null)?.closest?.('[data-capa-hija]')) cerrar() }
+    // Escape durante un arrastre cancela solo el arrastre (arrastre-lista.ts), no cierra el menú. Tampoco el de un campo o menú
+    // con su propio Esc (`data-capa-hija`: «Nuevo lienzo», renombrar, el ⋯ de un lienzo; 7 nov 2026): cierra solo lo suyo.
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape' && !document.querySelector('[data-arrastrando]') && !(e.target as Element | null)?.closest?.('[data-capa-hija]') && !document.querySelector('[role="menu"][data-capa-hija]')) { e.preventDefault(); e.stopPropagation(); cerrar() } }
     window.addEventListener('pointerdown', fuera, true); window.addEventListener('keydown', esc, true)
     return () => { window.removeEventListener('pointerdown', fuera, true); window.removeEventListener('keydown', esc, true) }
   }, [abierto])
@@ -234,42 +240,15 @@ function EntornoFisico({ onElegido }: { onElegido: () => void }) {
   </section>
 }
 
-/**
- * «Artefactos» de la barra lateral (3 nov 2026, Daniel: «algo como artefactos… poder verlo desde acá»): lo Guardado del
- * panel, el mismo archivero de «+ › Guardadas», abierto a un clic desde la izquierda. Sale a la derecha de su fila; si no
- * cabe (cajón del teléfono), debajo.
- */
-export function MenuArtefactos({ ancla, onCerrar, onElegido }: { ancla: HTMLElement | null; onCerrar: () => void; onElegido?: () => void }) {
-  const menu = useRef<HTMLDivElement>(null)
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
-  useEffect(() => {
-    const r = ancla?.getBoundingClientRect()
-    if (!r) return
-    const z = zoomUI(), ancho = Math.min(ANCHO_MENU * z, window.innerWidth - 16), m = 8
-    const aLaDerecha = r.right + m + ancho <= window.innerWidth - m
-    const left = aLaDerecha ? r.right + m : Math.max(m, Math.min(r.left, window.innerWidth - ancho - m))
-    const top = aLaDerecha ? Math.max(m, Math.min(r.top, window.innerHeight - 240)) : r.bottom + 6
-    setPos({ left: aFijo(left, z), top: aFijo(top, z) })
-    const fuera = (e: PointerEvent) => { if (!menu.current?.contains(e.target as Node) && !ancla?.contains(e.target as Node)) onCerrar() }
-    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onCerrar() } }
-    window.addEventListener('pointerdown', fuera, true); window.addEventListener('keydown', esc, true)
-    return () => { window.removeEventListener('pointerdown', fuera, true); window.removeEventListener('keydown', esc, true) }
-  }, [ancla, onCerrar])
-  if (!pos) return null
-  return createPortal(<div ref={menu} className={p.menu} style={{ top: pos.top, left: pos.left }} role="menu" aria-label="Artefactos">
-    <Guardadas onElegido={() => { onCerrar(); onElegido?.() }} titulo="Artefactos" vacio="Aún no hay artefactos. Lo que Levy te muestre en el panel se guarda con el marcador de su pestaña, o pídeselo: «guárdalo»." />
-  </div>, document.body)
-}
-
 /** «Guardadas»: el archivero (lo comparten la app y Levy). Un clic la reabre como pestaña. */
-function Guardadas({ onElegido, titulo = 'Guardadas', vacio = 'Nada guardado. Pasa el mouse por una pestaña y toca el marcador para guardarla aquí.' }: { onElegido: () => void; titulo?: string; vacio?: string }) {
+function Guardadas({ onElegido }: { onElegido: () => void }) {
   const { data, error } = useArchivero()
   const [quitando, setQuitando] = useState<string | null>(null)
   const entradas = data?.entradas ?? []
-  return <section className={p.guardadas} aria-label={titulo}>
-    <p className={p.menuCeja}><Bookmark size={11} aria-hidden /> {titulo}{entradas.length > 0 && <small>{entradas.length}</small>}</p>
+  return <section className={p.guardadas} aria-label="Guardadas">
+    <p className={p.menuCeja}><Bookmark size={11} aria-hidden /> Guardadas{entradas.length > 0 && <small>{entradas.length}</small>}</p>
     {error && !data && <p className={p.menuPie}>No se pudo leer el archivero: {error}</p>}
-    {data && !entradas.length && <p className={p.menuPie}>{vacio}</p>}
+    {data && !entradas.length && <p className={p.menuPie}>Nada guardado. Pasa el mouse por una pestaña y toca el marcador para guardarla aquí.</p>}
     {entradas.map(e => <div key={e.id} className={p.menuFilaCaja}>
       <button role="menuitem" className={p.menuFila} onClick={() => { reabrir(e); onElegido() }} title={e.input.vista === 'documento' ? e.input.ruta : undefined}>
         <span className={p.menuIcono}><IconoVista vista={e.input.vista} size={15} /></span>
@@ -290,7 +269,7 @@ function TituloDe({ id }: { id: string }) { return <>{useTituloConversacion(id)}
 /**
  * «¿Qué lienzo?» (6 oct 2026): el MISMO árbol que la sección Lienzo (`ArbolLienzos`): Fijados (la carpeta fijada primero),
  * carpetas plegables, «Sin carpeta» y el pliegue «Archivados». Cada lienzo con su miniatura y su menú ⋯ (abrir, renombrar,
- * mover, duplicar, fijar, archivar, eliminar). Todo vive en la base de lienzos; nada se borra de golpe.
+ * mover, duplicar, fijar, archivar, eliminar). Arriba (7 nov 2026): «＋ Nuevo lienzo», carpeta nueva con nombre y «Recientes». Todo vive en la base de lienzos; nada se borra de golpe.
  * Un lienzo que ya está abierto como pestaña NO se oculta: lleva la etiqueta «abierta» (la del menú «+») y tocarlo activa su
  * pestaña (una pestaña por lienzo desde el 14 oct 2026: `abrirSeccion` reusa la de ese lienzo; otro lienzo abre otra).
  */
@@ -316,7 +295,6 @@ function ElegirLienzo({ onVolver, onElegir }: { onVolver: () => void; onElegir: 
     <div className={p.menuCabecera}>
       <button className={p.menuVolver} onClick={onVolver} aria-label="Volver a las secciones"><ArrowLeft size={14} /></button>
       <IconoVista vista="lienzo" size={14} /><b>¿Qué lienzo?</b>
-      <button className={`${p.lienzoAccion} ${p.lienzoSiempre}`} style={{ marginLeft: 'auto' }} onClick={() => a.nuevaCarpeta()} aria-label="Carpeta nueva" title="Carpeta nueva"><FolderPlus size={14} aria-hidden /></button>
     </div>
     <div className={p.lienzos}>
       <ArbolLienzos variante="panel" autoFoco paginas={paginas} carpetas={carpetas} a={a} abiertas={abiertas} onAbrir={onElegir}
@@ -329,8 +307,10 @@ function ElegirLienzo({ onVolver, onElegir }: { onVolver: () => void; onElegir: 
 export function CuerpoSeccion({ f }: { f: Fijada }) {
   const actualizar = usePanelFijadas(st => st.actualizar)
   const router = useRouter(), ask = useAskLevy()
+  // Modo directo (7 nov 2026): la cámara y el mapa de la casa no salen en la transmisión.
+  const directo = useDirecto()
   // Perro (27 oct 2026): el mando completo a lo alto de la pestaña, con el STOP fijo abajo fuera del scroll.
-  if (f.input.vista === 'perro') return <div className={`${p.seccionLlena} ${p.editor}`}><VistaPerro llena /></div>
+  if (f.input.vista === 'perro') return <div className={`${p.seccionLlena} ${p.editor}`}>{directo ? <OcultoPorDirecto que="Perro" /> : <VistaPerro llena />}</div>
   // Lienzo (4 oct 2026): el editor completo de la sección, no solo mirar. Sus atajos, solo con el foco dentro.
   if (f.input.vista === 'lienzo' && f.input.paginaId) return <div className={`${p.seccionLlena} ${p.editor}`}>
     <PizarraEmbebida paginaId={f.input.paginaId} zona={f.input.zona} soloConFoco

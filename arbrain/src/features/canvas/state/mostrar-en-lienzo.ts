@@ -18,10 +18,12 @@ export interface MostrarEnLienzo {
   minimapa: boolean
   /** El bloque − % + y encuadrar dentro de la barra inferior. Sin barra inferior no se ve de todos modos. */
   zoom: boolean
+  /** La caja «Pídele a Levy» de la esquina (7 nov 2026): el pedido va al chat con el id del lienzo. Se apaga para grabar. */
+  pideALevy: boolean
 }
 
 export const MOSTRAR_POR_DEFECTO: Readonly<MostrarEnLienzo> = {
-  herramientas: false, barraInferior: false, capitulos: true, minimapa: true, zoom: true,
+  herramientas: false, barraInferior: false, capitulos: true, minimapa: true, zoom: true, pideALevy: true,
 }
 const CLAVES = Object.keys(MOSTRAR_POR_DEFECTO) as Array<keyof MostrarEnLienzo>
 export const CLAVE_MOSTRAR = 'arbrain.lienzo.mostrar'

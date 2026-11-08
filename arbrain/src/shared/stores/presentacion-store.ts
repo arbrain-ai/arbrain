@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { create } from 'zustand'
+import { useDirecto } from './modo-directo-store'
 
 /**
  * Modo presentación (22 oct 2026, Daniel comparte pantalla con la cohorte): lo privado se oculta del todo. Arbrain no tenía un
@@ -22,6 +23,8 @@ export const usePresentacion = create<{ activo: boolean; hidratado: boolean; hid
 /** El estado, ya leído de este equipo (la lectura va en un efecto: el servidor no sabe si estás presentando). */
 export function useModoPresentacion() {
   const p = usePresentacion()
+  // Modo directo (7 nov 2026): transmitir también es compartir pantalla; lo privado se oculta igual.
+  const directo = useDirecto()
   useEffect(() => { usePresentacion.getState().hidratar() }, [])
-  return p
+  return directo && !p.activo ? { ...p, activo: true } : p
 }

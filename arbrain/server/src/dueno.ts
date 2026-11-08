@@ -16,7 +16,7 @@ import { esEdicionCliente } from './edicion.js'
 const aqui = dirname(fileURLToPath(import.meta.url))
 export const MARCA_ORIGINAL = 'instalacion.json'
 
-export interface Instalacion { cuentas_alternas?: { claude?: string; codex?: string; claude_extra?: string[] }; dueno?: string; personas_reporte?: string[]; equipo?: string[]; repo_txt?: string; perfil_id?: string; origen_respaldo?: string; sitios_vigilados?: string; lienzo_sistema_id?: string; consejo_origen_salud?: string; manos_perfil_defecto?: string; manos_perfil_trabajo?: string; manos_correo_trabajo?: string; agente?: string; perfiles_equipo?: Record<string, { nombre?: string; contexto?: string }>; vps_ssh?: string }
+export interface Instalacion { cuentas_alternas?: { claude?: string; codex?: string; claude_extra?: string[] }; dueno?: string; personas_reporte?: string[]; equipo?: string[]; repo_txt?: string; perfil_id?: string; origen_respaldo?: string; sitios_vigilados?: string; lienzo_sistema_id?: string; consejo_origen_salud?: string; manos_perfil_defecto?: string; manos_perfil_trabajo?: string; manos_correo_trabajo?: string; agente?: string; perfiles_equipo?: Record<string, { nombre?: string; contexto?: string }>; vps_ssh?: string; soporte_cohorte?: { dominio?: string; repo?: string; firmado?: string }; /** Modo directo: de dónde salen los nombres que se tapan (rutas relativas al repo). */ modo_directo?: { fichas?: string[]; tablas?: string[] } }
 export interface CarpetaOriginal { nombre: string; src: string }
 
 let cache: CarpetaOriginal | null | undefined

@@ -143,3 +143,23 @@
 .puntoEstado[data-estado='corriendo'] { background: rgb(var(--primary-rgb)); }
 .puntoEstado[data-estado='listo'] { background: rgba(var(--primary-rgb), 0.55); }
 .puntoEstado[data-estado='error'] { background: var(--error); }
+
+/* Encargo de las manos en vivo (5 nov 2026, «incluso si pudieras poner un temporizador»): bajo la línea viva, alineado
+   con su texto, el reloj del encargo, el paso en que va y el freno («Detener», «Tomar el control») como texto discreto.
+   Mismas tintas del rastro, sin píldoras ni glow. */
+.encargos { display: grid; margin: -2px 0 4px; padding-left: 22px; min-width: 0; }
+.encargo {
+  display: flex; align-items: center; gap: 6px; min-width: 0; min-height: 24px;
+  font: 500 12.5px/18px var(--font-sans); color: var(--muted);
+}
+.encargoReloj { flex: none; font-variant-numeric: tabular-nums; color: rgba(var(--foreground-rgb), 0.82); }
+.encargoPaso { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; }
+.encargoPaso[data-error] { color: var(--error); }
+.encargoAcciones { flex: none; display: inline-flex; align-items: center; gap: 2px; margin-left: 4px; }
+.encargoBoton {
+  padding: 1px 6px; border: 0; border-radius: 6px; background: transparent; color: var(--muted);
+  font: 500 12px/18px var(--font-sans); white-space: nowrap; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+@media (hover: hover) { .encargoBoton:hover { color: rgba(var(--foreground-rgb), 0.9); background: rgba(var(--foreground-rgb), 0.05); } }
+.encargoBoton:focus-visible { outline: 2px solid rgba(var(--primary-rgb), 0.7); outline-offset: 1px; }
+@media (pointer: coarse) { .encargo { min-height: 34px; } .encargoBoton { padding: 6px 8px; } }

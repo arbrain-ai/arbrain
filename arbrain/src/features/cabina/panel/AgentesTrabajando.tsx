@@ -3,17 +3,15 @@
  * La píldora junto a «Levy» en el encabezado del chat (4 oct 2026; simplificada el 5 oct, Daniel: «súper simple»).
  *   · Cuenta SOLO lo que trabaja para ESTA conversación (`cuentas` del tablero, la misma del Taller): los agentes que Levy lanzó desde ella y las
  *     tareas internas de sus turnos. Punto amarillo que late mientras alguno trabaja (28 oct, Daniel: «este era amarillo»). Clic: Taller › Agentes.
- *   · «· N te espera» con punto azul: las decisiones de la bandeja, el MISMO número que la franja «Esperan tu toque» del Día de hoy.
- *     Clic: Calendario › Día › esa franja (3 nov 2026, Daniel: «no debería aparecerme en el calendario vistas de hoy… decisiones»).
+ *   · Las decisiones de la bandeja («N te esperan») ya NO van aquí (4 nov 2026, 19:31, Daniel: «quita eso de 5 te esperan… debería solo
+ *     aparecer en la vista de mi hoy»): un número, un solo lugar, la línea de la tarjeta HOY del Día. El push lleva a ella.
  *   · «· N pregunta» si un modelo que Levy no lleva o un aviso pide algo (pendientes.ts). Clic: Tareas.
  * Reemplaza la fila de píldoras que vivía sobre el cuerpo del panel. Misma fuente que el panel (`urlPanel`, una sola
  * lectura compartida por URL en datos.ts), cero fuentes nuevas. Sin nada que decir no pinta nada.
  */
 import { useConversacionActiva } from '../conversaciones'
 import { usePendientes } from './pendientes'
-import { abrirCasa, abrirSeccion } from './Secciones'
-import { useBandeja } from '@/features/decisiones/useBandeja'
-import { pedirEnfocarDecisiones } from '@/features/decisiones/FranjaDecisiones'
+import { abrirCasa } from './Secciones'
 import { pedirSegmentoTaller } from './taller-segmento'
 import s from './panel.module.css'
 import t from './tablero.module.css'
@@ -26,25 +24,18 @@ function irAAgentes() {
   abrirCasa('taller')
 }
 
-/** A la franja de decisiones: el Día de hoy en el panel (la misma pestaña si ya estaba) y la franja a la vista. */
-function irADecisiones() {
-  abrirSeccion({ vista: 'calendario', alcance: 'dia' })
-  pedirEnfocarDecisiones()
-}
-
 /** `conversacion` solo para arneses fuera del chat; en la app manda la conversación abierta. */
 export function AgentesTrabajando({ compacta = false, conversacion: fija }: { compacta?: boolean; conversacion?: string }) {
   const activa = useConversacionActiva(), conversacion = fija ?? activa
   const { trabajos, piden, sinLeer } = usePendientes()
-  const espera = useBandeja(15_000).vista?.pendientes.length ?? 0
   const preguntas = piden.length + sinLeer.length
   // Tablero por estado (27 oct 2026): lo que ya no trabaja de esta conversación también se cuenta, para que un agente
-  // muerto no desaparezca en silencio. «Te espera» de Daniel va en su botón propio. Ronda 3: la misma cuenta que el
+  // muerto no desaparezca en silencio. Las decisiones de Daniel viven en la tarjeta HOY. Ronda 3: la misma cuenta que el
   // Taller (`cuentas`), con su ventana de 24 h: un fallo de hace días ya no se suma aquí.
   const tablero = armarTablero(trabajos.data, conversacion)
   const n = cuentas(tablero).trabajando
   const otros = resumenPildora(tablero).filter(p => p.parte === 'listo' || p.parte === 'sin-terminar')
-  if (!n && !espera && !preguntas && !otros.length) return null
+  if (!n && !preguntas && !otros.length) return null
   const agentes = `${n} ${n === 1 ? 'subagente trabajando' : 'subagentes trabajando'}`
   const resto = otros.map(p => p.texto).join(', ')
   return <span className={s.agentesVivos} data-compacta={compacta || undefined}>
@@ -53,11 +44,6 @@ export function AgentesTrabajando({ compacta = false, conversacion: fija }: { co
       {n > 0 && <><i className={s.puntoVivo} aria-hidden /><span>{compacta ? n : agentes}</span></>}
       {!compacta && otros.length > 0 && <span className={t.pildora}>{otros.map(p => <span key={p.parte} className={t.pildoraParte} data-parte={p.parte}><i className={t.punto} aria-hidden />{p.texto}</span>)}</span>}
       {compacta && otros.length > 0 && !n && <span>{otros.reduce((a, p) => a + p.n, 0)}</span>}
-    </button>}
-    {espera > 0 && <button type="button" onClick={irADecisiones} data-testid="te-espera"
-      title="Esperan tu toque · abrir el Día de hoy" aria-label={`${espera} ${espera === 1 ? 'decisión espera' : 'decisiones esperan'} tu toque. Abrir el Día de hoy`}>
-      <i className={s.puntoEspera} aria-hidden />
-      <span>{espera} te espera{espera === 1 ? '' : 'n'}</span>
     </button>}
     {preguntas > 0 && <button type="button" onClick={() => abrirCasa('tareas')} data-testid="te-pregunta"
       title="Te preguntan · abrir Tareas" aria-label={`${preguntas} ${preguntas === 1 ? 'pregunta' : 'preguntas'} para ti. Abrir Tareas`}>

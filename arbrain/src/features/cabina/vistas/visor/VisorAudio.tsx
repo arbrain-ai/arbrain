@@ -4,9 +4,10 @@
  * sola vez en barras; clic o arrastre para ir a un punto, las mismas marcas con comentario que en video (el instante viaja
  * a Levy como `tiempo`). Abre pausado: un audio nunca suena solo.
  */
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Flag, Pause, Play, SkipBack, SkipForward } from 'lucide-react'
-import { VELOCIDADES, formatoTiempo, siguienteVelocidad, saltoAtras } from '../../documento/medio'
+import { formatoTiempo, siguienteVelocidad, saltoAtras } from '../../documento/medio'
+import { BotonVelocidad } from './Velocidad'
 import { ComposerMarca, ListaMarcas, useMarcas } from './Marcas'
 import v from './visor.module.css'
 
@@ -68,6 +69,8 @@ export function VisorAudio({ url, ruta, archivo, tiempoInicial, clave }: { url: 
   const irA = (s: number) => { const a = audio.current; if (!a) return; a.currentTime = Math.min(Math.max(0, s), a.duration || s); setT(a.currentTime) }
   const alternar = () => { const a = audio.current; if (!a) return; if (a.paused) void a.play().catch(() => undefined); else a.pause() }
   const velocidad = (x: number) => { setVel(x); if (audio.current) audio.current.playbackRate = x }
+  const velocidadRef = useRef(velocidad); velocidadRef.current = velocidad
+  const cambiarVelocidad = useCallback((x: number) => velocidadRef.current(x), [])
   const posicion = (e: { clientX: number }) => { const r = barra.current!.getBoundingClientRect(); return Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)) * dur }
   const arrastrando = useRef(false)
   const toast = (x: string) => { setAviso(x); window.setTimeout(() => setAviso(y => y === x ? null : y), 2200) }
@@ -95,7 +98,7 @@ export function VisorAudio({ url, ruta, archivo, tiempoInicial, clave }: { url: 
   const frac = dur ? t / dur : 0
   const marcasAqui = marcas.filter(m => m.ruta === ruta)
 
-  return <div ref={raiz} className={v.audio} tabIndex={0} onKeyDown={alTeclado} role="group" aria-label={`Audio ${archivo}`}>
+  return <div ref={raiz} className={v.audio} tabIndex={0} onKeyDown={alTeclado} role="group" aria-label={`Audio ${archivo}`} data-espacio-propio>
     <audio ref={audio} src={url} preload="metadata" onLoadedMetadata={e => { const dv = e.currentTarget.duration; setDur(dv) }} onPlay={() => setSuena(true)} onPause={() => setSuena(false)} onEnded={() => setSuena(false)} />
     <div ref={barra} className={v.onda} role="slider" aria-label="Posición" aria-valuemin={0} aria-valuemax={Math.round(dur)} aria-valuenow={Math.round(t)}
       onPointerDown={e => { if (!dur) return; e.currentTarget.setPointerCapture(e.pointerId); arrastrando.current = true; irA(posicion(e)) }}
@@ -112,7 +115,7 @@ export function VisorAudio({ url, ruta, archivo, tiempoInicial, clave }: { url: 
       <button type="button" className={v.reproducir} onClick={alternar} aria-label={suena ? 'Pausar' : 'Reproducir'}>{suena ? <Pause size={17} aria-hidden /> : <Play size={17} aria-hidden />}</button>
       <button type="button" className={v.icono} onClick={() => irA(t + 5)} aria-label="Adelante 5 segundos"><SkipForward size={15} aria-hidden /></button>
       <span className={v.tiempo}><b>{formatoTiempo(t, { fotogramas: false })}</b><i> / {formatoTiempo(dur)}</i></span>
-      <label className={v.velocidad}><select value={vel} onChange={e => velocidad(Number(e.target.value))} aria-label="Velocidad">{VELOCIDADES.map(x => <option key={x} value={x}>{x}×</option>)}</select></label>
+      <BotonVelocidad vel={vel} alCambiar={cambiarVelocidad} atajos="L para acelerar" />
       <button type="button" className={v.marcar} onClick={marcarAqui} title="Marcar este instante (M)"><Flag size={13} aria-hidden />Marcar aquí</button>
     </div>
     {aviso && <div className={v.toast} role="status" data-fijo>{aviso}</div>}

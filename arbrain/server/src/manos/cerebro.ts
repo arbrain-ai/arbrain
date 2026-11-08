@@ -34,10 +34,13 @@ import { Registro, type Origen, type PasoBitacora } from './bitacora.js'
 import { Freno } from './freno.js'
 import { capa } from './herramientas.js'
 import { REGLA_INSISTENCIA } from './decisores/insistencia.js'
+import { Repeticiones, avisoTurnos } from './decisores/repeticion.js'
 import { elegirReceta, objetivoDelPedido } from './decisores/atajos.js'
-import { SesionWeb, apagarMarcoWeb, ejecutarWeb, perfilDelPedido, sostenerMarcoWeb } from './web/herramientas-web.js'
+import { SesionWeb, apagarMarcoWeb, ejecutarWeb, perfilDelPedido, sostenerMarcoWeb, type MarcoWeb } from './web/herramientas-web.js'
+import { enlazarFrenoWeb } from './web/ventanas-web.js'
 import { dirWeb } from './web/puente.js'
 import { correrRecetaWeb, recetaWebDelPedido } from './web/recetas-web.js'
+import { faltaParaHecho } from './cierre.js'
 
 export const MODELO_SONNET = () => process.env.MANOS_CEREBRO_MODELO || 'claude-sonnet-5-5'
 export const MODELO_OPUS = () => process.env.MANOS_CEREBRO_ESCALA || 'claude-opus-5-5'
@@ -75,10 +78,12 @@ Reglas:
 - Observa → actúa por ref → vuelve a observar (solo_cambios) antes del siguiente ref. En páginas grandes usa consulta para filtrar. Si son varios controles estables de la misma lectura (botones de una calculadora, campos de un formulario), usa actuar_lote: una llamada en vez de una por paso.
 - Todo en segundo plano, con el Halo como tu cursor: el ratón y el teclado de ${DUENO} nunca se tocan. Si ${DUENO} dijo «quiero verte» o «muéstrame cómo», la ventana de trabajo pasa al frente sola al actuar y él ve moverse al Halo. Si dijo «ponme» o «muéstrame», al final usa mostrar (o web_mostrar) con la ventana o pestaña tuya.
 - Si un enlace lleva a un video, las manos lo silencian y pausan solas: confírmalo en el resultado (medios) y repórtalo.
+- Subir un archivo a una web (banner, foto, documento): web_actuar con accion «archivo», \`ruta\` = la ruta absoluta copiada TAL CUAL del pedido o de la cita, y el índice del botón que lo pide («Subir», «Cambiar», «Elegir archivo») o del input de archivo. La extensión lo pone sin abrir el panel «Abrir» de macOS y solo responde ok si la página lo aceptó (recorte, vista previa); si dice que no lo aceptó, no sigas como si estuviera subido. Confirma el recorte («Listo») y guarda la página (Publicar, Guardar); el clic espera a que la página termine de enviar. Después recarga la página (web_navegar a la misma URL) y comprueba con web_verificar imagenes_subidas: true que cada imagen quedó guardada (por su src): sin esa lectura no se puede cerrar «hecho». NUNCA operes ese panel con teclas (⌘⇧G, teclear la ruta, Return): no se puede leer y falla a ciegas; si ya se abrió uno, ciérralo con Escape y usa archivo. Si la ruta no aparece en el pedido, no la adivines: termina con aclaracion pidiéndola.
 - Autonomía (política firmada): lo reversible lo haces sin pedir permiso. Crear cuentas, llaves API y configuraciones en el servicio que ${DUENO} pidió (botones Create, Crear, Guardar, Generar…) es reversible: hazlo, el freno lo deja pasar sin cita y queda anotado. No te frenes tú antes que el freno.
 - El freno detiene lo irreversible (contactar personas, borrar, pagar, publicar, salir, descartar, datos sensibles). Solo puedes pasar confirmacion si es una cita LITERAL del pedido de ${DUENO} que lo pide explícitamente. Sin cita, el freno le manda a ${DUENO} una tarjeta (Sí · No · Otro) y espera su toque: si la aprueba, la acción sale y sigues; si no, termina con estado requiere_confirmacion y di qué espera su toque en la bandeja (nunca le pidas una frase exacta).
 - Si el pedido es ambiguo (no está claro qué, cuál o dónde) y no hay receta que lo cubra, llama escalar ANTES de actuar.
 - ${REGLA_INSISTENCIA}
+- Si un paso falla dos veces igual (misma acción, mismo resultado), no lo repitas: cambia de vía (otro índice, texto_visible, la URL directa, otra herramienta) o termina con lo que probaste. Una tercera repetición idéntica ni se corre.
 - Verifica el resultado con una lectura (URL, valor, estado) y pon esa evidencia en terminar. No inventes: si no lo comprobaste, es fallo.
 - Nunca cierres, escondas ni muevas ventanas de ${DUENO}; deja todo como estaba.`
 
@@ -119,11 +124,40 @@ export interface OpcionesPedir {
 }
 
 /** Un evento de avance. `pasos` = pasos registrados hasta ahora; `ms` desde el inicio del pedido. */
-export interface Progreso { fase: 'inicio' | 'receta' | 'modelo' | 'paso' | 'escala' | 'cierre' | 'fin'; mensaje: string; pasos: number; ms: number }
+export interface Progreso { fase: 'inicio' | 'receta' | 'modelo' | 'paso' | 'escala' | 'cierre' | 'fin'; mensaje: string; pasos: number; ms: number
+  /** El paso actual en palabras para la persona («tocando «Subir»», «subiendo banner.png»): la franja y el chat lo muestran con el reloj. */
+  paso?: string }
 
 /** Una línea por paso, solo con lo que la bitácora ya considera seguro (rol, etiqueta de control, resultado). */
 export function describirPaso(p: Omit<PasoBitacora, 't'>): string {
   return `${p.herramienta}${p.accion ? ` ${p.accion}` : ''}${p.app ? ` · ${p.app}` : ''}${p.etiqueta ? ` «${p.etiqueta}»` : ''} → ${p.resultado}${p.freno ? ` (freno: ${p.freno.categoria}${p.freno.paso ? ', pasó con la cita' : ''})` : ''}${p.decidio && p.decidio !== 'precalentar' ? ` [${p.decidio}]` : ''}`
+}
+
+/**
+ * El paso en palabras para la persona (5 nov 2026: Daniel miraba el encargo sin saber en qué iba). Solo con lo que la
+ * bitácora ya considera seguro: la etiqueta de un control, el nombre del archivo que él mismo nombró, la tecla.
+ */
+export function pasoHumano(p: Omit<PasoBitacora, 't'>): string {
+  const que = p.etiqueta ? ` «${p.etiqueta}»` : ''
+  const base = (() => {
+    switch (p.accion) {
+      case 'click': return `tocando${que || ' un control'}`
+      case 'escribir': return `escribiendo${que ? ` en${que}` : ''}`
+      case 'tecla': return `pulsando ${p.tecla ?? 'una tecla'}`
+      case 'scroll': return 'desplazando la página'
+      case 'valor': return `eligiendo${que ? ` en${que}` : ' una opción'}`
+      case 'archivo': return `subiendo ${p.archivo ? p.archivo.split('/').pop() : 'un archivo'}`
+      case 'abrir': return 'abriendo la página'
+      case 'navegar': return 'yendo a otra página'
+      case 'mostrar': return 'trayendo la ventana al frente'
+    }
+    if (/^web_observar$/.test(p.herramienta)) return 'leyendo la página'
+    if (p.herramienta === 'observar') return `leyendo ${p.app ?? 'la ventana'}`
+    if (/verificar/.test(p.herramienta)) return 'verificando el resultado'
+    if (p.herramienta === 'leer_ajuste') return 'leyendo un ajuste'
+    return p.herramienta.replace(/_/g, ' ')
+  })()
+  return p.resultado === 'fallo' ? `${base} (falló)` : p.resultado === 'bloqueado' ? `${base} (lo detuvo el freno)` : base
 }
 
 /** Resumen corto de los pasos: sin duplicados seguidos, como mucho `max` líneas. */
@@ -215,10 +249,17 @@ export async function pedir(pedido: string, op: OpcionesPedir = {}): Promise<Res
   const log = (s: string) => { if (!op.silencio) console.log(s) }
   // La autoridad para el freno y para «ponme / quiero verte» es SOLO la cita textual de Daniel.
   const autoridad = (op.cita ?? '').trim() || pedido
-  const avisar = (fase: Progreso['fase'], mensaje: string) => { try { op.progreso?.({ fase, mensaje, pasos: registro.pasos.length, ms: registro.ms }) } catch { /* el avance nunca tumba el pedido */ } }
-  if (op.progreso) {
+  const avisar = (fase: Progreso['fase'], mensaje: string, paso?: string) => { try { op.progreso?.({ fase, mensaje, pasos: registro.pasos.length, ms: registro.ms, ...(paso ? { paso } : {}) }) } catch { /* el avance nunca tumba el pedido */ } }
+  // Cada paso, en palabras, a la franja de la pestaña (reloj) y al avance del encargo (chat).
+  let marcoWeb: MarcoWeb | null = null
+  {
     const anotarPaso = registro.paso.bind(registro)
-    registro.paso = p => { anotarPaso(p); avisar('paso', describirPaso(p)) }
+    registro.paso = p => {
+      anotarPaso(p)
+      const humano = pasoHumano(p)
+      marcoWeb?.fijarPaso(humano)
+      if (op.progreso) avisar('paso', describirPaso(p), humano)
+    }
   }
   const presupuesto = op.presupuestoMs ?? Infinity
   // Ventanas propias que ya existían (p. ej. abiertas por herramientas finas del mismo servidor): no son de este pedido.
@@ -262,15 +303,18 @@ export async function pedir(pedido: string, op: OpcionesPedir = {}): Promise<Res
     const s = op.web ? op.web() : new SesionWeb()
     // La ventana que cree web_abrir queda adoptada por el freno de estas manos (un clic nativo ahí no es «pestaña de Daniel»).
     s.manos ??= manos
+    enlazarFrenoWeb(s.manos, s)
     const perfil = (op.perfil ?? '').trim().toLowerCase() || perfilDelPedido(`${pedido} ${op.cita ?? ''}`)
     if (perfil) s.perfil = perfil
+    // Las rutas que se pueden subir a una web salen de aquí: el pedido y la cita (archivo-web.ts).
+    s.textosEncargo = [pedido, op.cita ?? ''].filter(Boolean)
     if (await webViva(s)) web = s
     else if (!op.web) await s.canal.cerrar().catch(() => null)
   }
   const pestanasMostradas = new Set<number>()
   // El marco y la franja en la pestaña propia mientras dure el pedido; «Detener» o «Tomar el control» en la franja lo cortan.
   const parada = new AbortController()
-  const marcoWeb = web ? sostenerMarcoWeb(web) : null
+  marcoWeb = web ? sostenerMarcoWeb(web) : null
   if (marcoWeb) marcoWeb.alDetener = motivo => parada.abort(motivo)
   if (op.senal) { if (op.senal.aborted) parada.abort(op.senal.reason); else op.senal.addEventListener('abort', () => parada.abort(op.senal!.reason), { once: true }) }
   op = { ...op, senal: parada.signal }
@@ -301,6 +345,8 @@ export async function pedir(pedido: string, op: OpcionesPedir = {}): Promise<Res
   const pre = recetaWeb || op.sinPrecalentar ? Promise.resolve('') : precalentar(pedido, memoria, web, frescura, sinkPre, autoridad)
   let notaPrevia = intentos.length ? `Se intentó primero la receta y falló: ${intentos[0].detalle}. Resuélvelo tú.` : ''
   const max = op.maxIntentos ?? 4
+  // Lo que ya falló dos veces igual no se repite, tampoco en el reintento ni en Opus (decisores/repeticion.ts).
+  const repeticiones = new Repeticiones()
   log(`▶ pedido: «${pedido}» · cerebro ${modelo}${inicial.motivo ? ` (${inicial.motivo})` : ''}${web ? ' · web por extensión' : ''}`)
 
   for (let n = 0; n < max && !recetaWeb; n++) {
@@ -308,7 +354,7 @@ export async function pedir(pedido: string, op: OpcionesPedir = {}): Promise<Res
     if (queda < 3000) { log('  presupuesto agotado: no se abre otro intento'); break }
     if (op.senal?.aborted) { log(`  detenido por ${DUENO}: no se abre otro intento`); break }
     avisar('modelo', `intento ${n + 1} con ${modelo}${n === 0 && inicial.motivo ? ` (${inicial.motivo})` : ''}`)
-    const it = await intento(pedido, modelo, notaPrevia, n === 0 ? pre : Promise.resolve(''), { memoria, ultimas, mostradas, pestanasMostradas, manos, decisor, almacen, frescura, registro, web, maxTurnos: op.maxTurnos ?? 40, log, autoridad, citaAparte: !!op.cita?.trim() && op.cita.trim() !== pedido.trim(), topeMs: queda, senal: op.senal })
+    const it = await intento(pedido, modelo, notaPrevia, n === 0 ? pre : Promise.resolve(''), { memoria, ultimas, mostradas, pestanasMostradas, manos, decisor, almacen, frescura, registro, web, maxTurnos: op.maxTurnos ?? 40, repeticiones, log, autoridad, citaAparte: !!op.cita?.trim() && op.cita.trim() !== pedido.trim(), topeMs: queda, senal: op.senal })
     intentos.push(it)
     if (op.senal?.aborted) break
     log(`  intento ${n + 1} · ${modelo} → ${it.estado}: ${it.detalle.slice(0, 160)}`)
@@ -318,7 +364,10 @@ export async function pedir(pedido: string, op: OpcionesPedir = {}): Promise<Res
     notaPrevia = `Intento anterior (${modelo}) terminó en «${it.estado}»: ${it.detalle}. Las ventanas y pestañas que abriste siguen abiertas; retoma desde donde quedó.`
     modelo = sig.modelo
   }
-  const ult = intentos[intentos.length - 1]
+  let ult = intentos[intentos.length - 1]
+  // Segunda llave (encargar no cierra «hecho» sin verificar): la bitácora entera del encargo, todos los intentos.
+  const falta = ult?.estado === 'hecho' && ult.modelo !== 'receta' ? faltaParaHecho(registro.pasos) : null
+  if (falta) { ult = { ...ult, estado: 'fallo', detalle: `sin verificar: ${falta}. Lo que dijo el cerebro: ${ult.detalle}` }; intentos[intentos.length - 1] = ult }
   const ok = ult?.estado === 'hecho'
   let aprendida: string | undefined
   if (ok && grabadora && !op.sinAprender && !recetaWeb) {
@@ -390,6 +439,8 @@ async function capturarWeb(web: SesionWeb, pestana: number): Promise<string | un
 }
 
 interface Ctx { memoria: Adaptador; ultimas: Map<number, Observacion>; lienzo?: ClienteCasa; mostradas: Set<number>; pestanasMostradas: Set<number>; manos: Adaptador; decisor: () => Decisor; almacen: AlmacenRecetas; frescura: Frescura; registro: Registro; web: SesionWeb | null; maxTurnos: number; log: (s: string) => void
+  /** Pasos que ya terminaron igual dos veces: la tercera no se corre (cambiar de vía). */
+  repeticiones?: Repeticiones
   /** Cita textual de Daniel: lo único que vale como confirmación del freno y como «ponme / quiero verte». */
   autoridad: string
   /** La cita viene aparte del pedido (encargar): se le muestra al modelo como tal. */
@@ -403,7 +454,24 @@ async function intento(pedido: string, modelo: string, nota: string, pre: Promis
   let fin = null as { estado: EstadoIntento; detalle: string; evidencia?: string; espera?: Intento['espera'] } | null
   const sink: SinkBitacora = { paso: p => c.registro.paso({ ...p, decidio: p.decidio === 'jev' || p.decidio === 'receta' ? p.decidio : modelo }) }
   const recortar = (text: string) => (text.length > 60_000 ? text.slice(0, 60_000) + '\n…(recortado: usa consulta)' : text)
-  const correr = async (nombre: string, args: any) => {
+  // Turnos usados (mensajes del modelo): cerca del tope se le pide cerrar con terminar en vez de morir en error_max_turns.
+  let turnos = 0
+  // Veces que pidió cerrar «hecho» sin haber verificado (cierre.ts).
+  let rechazosHecho = 0
+  const rep = c.repeticiones
+  /** Repetición y turnos alrededor de cada herramienta: la tercera vez idéntica que no avanzó no se corre. */
+  const vigilar = async (nombre: string, args: any, correrla: () => Promise<{ content: { type: 'text'; text: string }[]; isError: boolean }>) => {
+    const antes = rep?.antes(nombre, args)
+    if (antes && !antes.correr) {
+      sink.paso({ herramienta: nombre, accion: args?.accion, resultado: 'bloqueado', ms: 0, detalle: 'repetición: cambia de vía' })
+      return { content: [{ type: 'text' as const, text: antes.texto + avisoTurnos(turnos, c.maxTurnos) }], isError: true }
+    }
+    const r = await correrla()
+    const aviso = (rep?.despues(nombre, args, r.content[0].text, r.isError) ?? '') + avisoTurnos(turnos, c.maxTurnos)
+    return aviso ? { ...r, content: [{ type: 'text' as const, text: r.content[0].text + aviso }] } : r
+  }
+  const correr = (nombre: string, args: any) => vigilar(nombre, args, () => correrSin(nombre, args))
+  const correrSin = async (nombre: string, args: any) => {
     // Confirmaciones del cerebro: solo valen si son una cita literal del pedido de Daniel.
     if (args?.confirmacion && !citaLiteral(c.autoridad, args.confirmacion)) delete args.confirmacion
     let r = await ejecutarManos(nombre, args, c.memoria, c.decisor, c.almacen, { bitacora: sink, frescura: c.frescura, quien: modelo, intencion: c.autoridad })
@@ -440,7 +508,8 @@ async function intento(pedido: string, modelo: string, nota: string, pre: Promis
     c.log(`    · ${nombre} ${JSON.stringify(args).slice(0, 110)} → ${r.text.replace(/\s+/g, ' ').slice(0, 140)}`)
     return { content: [{ type: 'text' as const, text: recortar(r.text) }], isError: !!r.error }
   }
-  const correrWeb = async (nombre: string, args: any) => {
+  const correrWeb = (nombre: string, args: any) => vigilar(nombre, args, () => correrWebSin(nombre, args))
+  const correrWebSin = async (nombre: string, args: any) => {
     if (!c.web) return { content: [{ type: 'text' as const, text: 'La extensión web no está conectada: usa navegar.' }], isError: true }
     if (args?.confirmacion && !citaLiteral(c.autoridad, args.confirmacion)) delete args.confirmacion
     const r = await ejecutarWeb(nombre, { ...args, pedido: c.autoridad }, c.web, sink, modelo)
@@ -449,13 +518,13 @@ async function intento(pedido: string, modelo: string, nota: string, pre: Promis
     return { content: [{ type: 'text' as const, text: recortar(r.text) }], isError: !!r.error }
   }
   const obj = { app: z.string().optional(), pid: z.number().int().optional(), ventana: z.number().int().optional() }
-  const paso = z.object({ accion: z.enum(['click', 'escribir', 'tecla', 'scroll', 'valor']), indice: z.number().int().optional(), texto_visible: z.string().optional(), texto: z.string().optional(), tecla: z.string().optional(), modificadores: z.array(z.string()).optional(), direccion: z.enum(['arriba', 'abajo', 'izquierda', 'derecha']).optional(), cantidad: z.number().int().optional(), valor: z.string().optional() })
+  const paso = z.object({ accion: z.enum(['click', 'escribir', 'tecla', 'scroll', 'valor', 'archivo']), indice: z.number().int().optional(), texto_visible: z.string().optional(), texto: z.string().optional(), tecla: z.string().optional(), modificadores: z.array(z.string()).optional(), direccion: z.enum(['arriba', 'abajo', 'izquierda', 'derecha']).optional(), cantidad: z.number().int().optional(), valor: z.string().optional(), ruta: z.string().optional() })
   const herramientasWeb = c.web ? [
     tool('web_abrir', `Abre una URL en una pestaña PROPIA del Chrome de ${DUENO} (grupo Arbrain, segundo plano, video pausado y silenciado) y devuelve el árbol por índices. Usa URL directa siempre que exista.`, { url: z.string(), consulta: z.string().optional(), max: z.number().int().optional() }, a => correrWeb('web_abrir', a)),
     tool('web_navegar', 'Lleva tu pestaña propia a otra URL (p. ej. el permalink de un elemento de una lista).', { pestana: z.number().int().optional(), url: z.string(), consulta: z.string().optional(), max: z.number().int().optional() }, a => correrWeb('web_navegar', a)),
     tool('web_observar', 'Lee la página por índices; por defecto solo lo que cambió. completo: true da todo.', { pestana: z.number().int().optional(), completo: z.boolean().optional(), consulta: z.string().optional(), max: z.number().int().optional() }, a => correrWeb('web_observar', a)),
-    tool('web_actuar', 'Actúa por índice: click, escribir, tecla, scroll o valor. Hasta 8 pasos en una llamada (pasos) con una sola lectura al final (devuelve lo que cambió). Lo que se pulsa sin rol sale como `[n] clicable «…»`; si algo visible no tiene índice, click con texto_visible (el texto que se ve). El freno detiene enviar/publicar/pagar/borrar.', { pestana: z.number().int().optional(), pasos: z.array(paso).optional(), accion: z.enum(['click', 'escribir', 'tecla', 'scroll', 'valor']).optional(), indice: z.number().int().optional(), texto_visible: z.string().optional(), texto: z.string().optional(), tecla: z.string().optional(), direccion: z.enum(['arriba', 'abajo', 'izquierda', 'derecha']).optional(), cantidad: z.number().int().optional(), valor: z.string().optional(), confirmacion: z.string().optional(), max: z.number().int().optional() }, a => correrWeb('web_actuar', a)),
-    tool('web_verificar', 'Comprueba sin pantalla: URL o título que contienen un texto, texto visible, o estado del video.', { pestana: z.number().int().optional(), url_contiene: z.string().optional(), titulo_contiene: z.string().optional(), texto_contiene: z.string().optional(), video: z.enum(['pausado', 'reproduciendo', 'silenciado']).optional() }, a => correrWeb('web_verificar', a)),
+    tool('web_actuar', 'Actúa por índice: click, escribir, tecla, scroll, valor o archivo. Hasta 8 pasos en una llamada (pasos) con una sola lectura al final (devuelve lo que cambió). Lo que se pulsa sin rol sale como `[n] clicable «…»`; si algo visible no tiene índice, click con texto_visible (el texto que se ve). archivo sube un archivo sin el panel «Abrir» de macOS: ruta = la ruta absoluta tal cual la nombra el pedido, indice = el botón «Subir»/«Cambiar» o el input de archivo (sin indice: el selector que la página ya pidió). El freno detiene enviar/publicar/pagar/borrar.', { pestana: z.number().int().optional(), pasos: z.array(paso).optional(), accion: z.enum(['click', 'escribir', 'tecla', 'scroll', 'valor', 'archivo']).optional(), indice: z.number().int().optional(), texto_visible: z.string().optional(), texto: z.string().optional(), tecla: z.string().optional(), direccion: z.enum(['arriba', 'abajo', 'izquierda', 'derecha']).optional(), cantidad: z.number().int().optional(), valor: z.string().optional(), ruta: z.string().optional(), confirmacion: z.string().optional(), max: z.number().int().optional() }, a => correrWeb('web_actuar', a)),
+    tool('web_verificar', 'Comprueba sin pantalla: URL o título que contienen un texto, texto visible, o estado del video. imagenes_subidas: true comprueba por el src que cada archivo que subiste quedó guardado en la página (no solo en vista previa); úsalo tras guardar y recargar. vista_previa_basta solo si el pedido es adjuntar sin guardar.', { pestana: z.number().int().optional(), url_contiene: z.string().optional(), titulo_contiene: z.string().optional(), texto_contiene: z.string().optional(), video: z.enum(['pausado', 'reproduciendo', 'silenciado']).optional(), imagenes_subidas: z.boolean().optional(), vista_previa_basta: z.boolean().optional() }, a => correrWeb('web_verificar', a)),
     tool('web_mostrar', `Trae al frente tu pestaña propia. Solo si ${DUENO} dijo «ponme» o «muéstrame».`, { pestana: z.number().int().optional(), reproducir: z.boolean().optional() }, a => correrWeb('web_mostrar', a)),
   ] : []
   const servidor = createSdkMcpServer({
@@ -507,7 +576,14 @@ async function intento(pedido: string, modelo: string, nota: string, pre: Promis
         fin = { estado: 'escala', detalle: a.motivo }
         return { content: [{ type: 'text' as const, text: 'Escalado. Termina tu turno ya.' }] }
       }),
-      tool('terminar', `Cierra el pedido. estado hecho solo con evidencia leída (URL, valor). requiere_confirmacion si el freno pide permiso de ${DUENO}. En apps nativas, espera = lo que se ve en pantalla cuando la tarea quedó hecha (sirve para aprenderla como receta).`, { estado: z.enum(['hecho', 'fallo', 'requiere_confirmacion', 'aclaracion']), resumen: z.string(), evidencia: z.string().optional(), espera: z.array(z.object({ rol: z.string().optional(), etiqueta_contiene: z.string().optional(), valor_contiene: z.string().optional() })).optional() }, async a => {
+      tool('terminar', `Cierra el pedido. estado hecho solo con evidencia leída (URL, valor) DESPUÉS de tu última acción; si subiste archivos, con web_verificar imagenes_subidas que cumpla. requiere_confirmacion si el freno pide permiso de ${DUENO}. En apps nativas, espera = lo que se ve en pantalla cuando la tarea quedó hecha (sirve para aprenderla como receta).`, { estado: z.enum(['hecho', 'fallo', 'requiere_confirmacion', 'aclaracion']), resumen: z.string(), evidencia: z.string().optional(), espera: z.array(z.object({ rol: z.string().optional(), etiqueta_contiene: z.string().optional(), valor_contiene: z.string().optional() })).optional() }, async a => {
+        // «hecho» sin verificar el resultado pedido no se registra (cierre.ts): se le dice qué falta; a la tercera, fallo.
+        const falta = a.estado === 'hecho' && fin?.estado !== 'escala' ? faltaParaHecho(c.registro.pasos) : null
+        if (falta) {
+          rechazosHecho++
+          if (rechazosHecho >= 3) { fin = { estado: 'fallo', detalle: `cerró «hecho» sin verificar: ${falta}. Su resumen: ${a.resumen}` }; return { content: [{ type: 'text' as const, text: 'Registrado como fallo: no verificaste el resultado. Termina tu turno ya.' }] } }
+          return { content: [{ type: 'text' as const, text: `NO registrado: ${falta}.` }], isError: true }
+        }
         // Escalar es definitivo en este intento: un terminar posterior no lo pisa.
         if (fin?.estado !== 'escala') fin = { estado: a.estado, detalle: a.resumen, evidencia: a.evidencia, ...(a.espera?.length ? { espera: a.espera } : {}) }
         return { content: [{ type: 'text' as const, text: 'Registrado. Termina tu turno ya.' }] }
@@ -540,7 +616,12 @@ async function intento(pedido: string, modelo: string, nota: string, pre: Promis
   try {
     for await (const m of q as AsyncIterable<any>) {
       if (process.env.MANOS_CEREBRO_DEBUG) c.log(`      [${m.type}${m.subtype ? ':' + m.subtype : ''}] ${JSON.stringify(m.message?.content ?? m.result ?? m.tools ?? m.error ?? '').slice(0, 300)}`)
-      if (m.type === 'result') { costo = Number(m.total_cost_usd ?? 0); if (!fin && m.subtype !== 'success') fin = { estado: 'fallo', detalle: `el cerebro terminó sin cerrar: ${m.subtype}` }; break }
+      if (m.type === 'assistant') turnos++
+      if (m.type === 'result') {
+        costo = Number(m.total_cost_usd ?? 0)
+        if (!fin && m.subtype !== 'success') fin = { estado: 'fallo', detalle: `el cerebro terminó sin cerrar: ${m.subtype}${m.subtype === 'error_max_turns' ? ` (gastó sus ${c.maxTurnos} turnos sin llamar a terminar; últimos pasos: ${resumirPasos(c.registro.pasos.slice(-6), 6).join(' · ').slice(0, 400)})` : ''}` }
+        break
+      }
     }
   } catch (e) {
     if (!fin) fin = { estado: 'fallo', detalle: `error del cerebro: ${(e as Error).message.slice(0, 200)}` }

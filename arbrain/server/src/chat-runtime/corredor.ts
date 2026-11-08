@@ -24,6 +24,7 @@ import { executeChatJob } from './chat-job.js'
 import { ChatInjections } from './inyecciones.js'
 import { inyectarEnMotor, sinLeerEnMotor } from './inyeccion-motor.js'
 import { claudeRuntimePool } from './claude-pool.js'
+import { colaActiva, colaDelDaemon } from '../cliente/cola-memoria.js'
 import { instalarAdoptante } from './adoptante.js'
 import { CorredorRegistro, codeStamp, corredorWorkerId, workerConfirmedDead, workerState, isCorredorWorker } from './corredor-registro.js'
 
@@ -104,6 +105,14 @@ async function main(): Promise<void> {
     } catch (error) { logger.error({ err: error }, 'corredor: relevo de respuestas') }
   }
   setInterval(relayAnswers, 250)
+
+  // Cola por memoria (5 nov 2026, cliente/cola-memoria.ts): el gancho de los subagentes de este proceso consulta la misma
+  // tabla; mientras algo espera aire, los procesos de chat ociosos de ESTE pool devuelven su memoria.
+  const cola = colaActiva() ? colaDelDaemon(db) : null
+  if (cola) setInterval(() => {
+    try { if (cola.hayEspera()) { const n = claudeRuntimePool.cerrarOciosos(); if (n) logger.info({ cerrados: n }, 'corredor: cola por memoria, procesos ociosos cerrados') } }
+    catch (error) { logger.error({ err: error }, 'corredor: cola por memoria') }
+  }, 30_000).unref()
 
   let tick = 0
   setInterval(() => {

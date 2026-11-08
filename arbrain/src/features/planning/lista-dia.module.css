@@ -18,6 +18,33 @@ li[data-hecho][data-origen='casilla'] .marca i { background: var(--gold); border
 li[data-hecho] .marca i svg { visibility: visible; }
 li[data-vencida] .marca i { border-color: color-mix(in srgb, var(--error) 55%, transparent); }
 
+/* Prioridades de Todoist (8 nov 2026): el anillo y su velo con el color de allá; P4 queda en el gris de siempre. Hecha, se llena de su color. */
+.lista li[data-p='1'] { --pc: var(--prioridad-1); }
+.lista li[data-p='2'] { --pc: var(--prioridad-2); }
+.lista li[data-p='3'] { --pc: var(--prioridad-3); }
+li[data-origen='tarea'][data-p]:not([data-p='4']) .marca i { border-color: var(--pc); background: color-mix(in srgb, var(--pc) 12%, transparent); }
+li[data-origen='tarea'][data-p]:not([data-p='4']) .marca:hover:not(:disabled) i { border-color: var(--pc); background: color-mix(in srgb, var(--pc) 22%, transparent); }
+li[data-origen='tarea'][data-p][data-hecho]:not([data-p='4']) .marca i { background: var(--pc); border-color: var(--pc); }
+li[data-origen='tarea'][data-p]:not([data-p='4']):not([data-hecho]) .marca i svg { color: var(--pc); }
+li[data-origen='tarea'][data-p]:not([data-p='4']):not([data-hecho]) .marca:hover:not(:disabled) i svg { visibility: visible; }
+
+/* La bandera de prioridad: aparece con el mouse encima o el foco dentro, como en Todoist; el menú cuelga de la fila. */
+.bandera { flex: none; align-self: center; display: grid; place-items: center; width: 24px; height: 24px; margin-right: 2px; padding: 0; border: 0; border-radius: 6px;
+  background: none; color: var(--muted); cursor: pointer; opacity: 0; transition: opacity 120ms, background 120ms; }
+.lista li:hover .bandera, .lista li:focus-within .bandera, .lista li[data-menu-abierto] .bandera { opacity: 1; }
+.bandera:hover { color: var(--foreground); background: color-mix(in srgb, var(--foreground) 7%, transparent); }
+.menu { position: fixed; z-index: 1000; width: 200px; box-sizing: border-box; gap: 0; display: flex; flex-direction: column; padding: 4px; border-radius: 10px;
+  background: var(--card); box-shadow: 0 0 0 1px color-mix(in srgb, var(--foreground) 10%, transparent), 0 10px 28px rgba(var(--l-sombra-rgb, 15, 23, 42), .16); }
+.menu button { display: flex; align-items: center; gap: 9px; padding: 6px 8px; border: 0; border-radius: 7px; background: none; color: var(--foreground); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+.menu button:hover, .menu button:focus-visible { background: color-mix(in srgb, var(--foreground) 7%, transparent); outline: none; }
+.menu button span { flex: 1; }
+.menu button svg:first-child { color: var(--muted); }
+.menu button[data-p='1'] svg:first-child { color: var(--prioridad-1); fill: var(--prioridad-1); }
+.menu button[data-p='2'] svg:first-child { color: var(--prioridad-2); fill: var(--prioridad-2); }
+.menu button[data-p='3'] svg:first-child { color: var(--prioridad-3); fill: var(--prioridad-3); }
+.menu button > svg:last-child { color: var(--muted); }
+.menu kbd { font: inherit; font-size: 11px; color: var(--muted); }
+
 .cuerpo { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: 8px; padding: 4px 8px 4px 2px; border: 0; background: none; color: var(--foreground);
   font: inherit; text-align: left; cursor: pointer; }
 .cuerpo:disabled { cursor: default; }
@@ -26,7 +53,6 @@ li[data-hecho] .texto { color: var(--muted); text-decoration: line-through; text
 .cuerpo time { flex: none; font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
 .cuerpo time small { font-size: 11px; font-weight: 500; }
 .cuerpo svg { flex: none; align-self: center; color: var(--muted); }
-.prio { flex: none; font-size: 10px; font-weight: 750; letter-spacing: .4px; color: var(--l-tinta-ambar, var(--gold)); }
 .vencio { flex: none; font-size: 11px; font-weight: 600; color: color-mix(in srgb, var(--error) 80%, var(--foreground)); white-space: nowrap; }
 .lista li[data-vencida] { box-shadow: inset 2px 0 0 color-mix(in srgb, var(--error) 60%, transparent); }
 

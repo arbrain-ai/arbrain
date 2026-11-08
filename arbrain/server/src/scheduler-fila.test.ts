@@ -11,6 +11,9 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 const store = mkdtempSync(join(tmpdir(), 'arbrain-fila-'))
 const previo = { store: process.env.CLAUDECLAW_STORE_DIR, edicion: process.env.ARBRAIN_EDICION, paralelo: process.env.ARBRAIN_RUTINAS_PARALELO }
 process.env.CLAUDECLAW_STORE_DIR = store
+// La cola por memoria tiene sus propias pruebas (cliente/cola-memoria.test.ts): aquí la fila no depende de la RAM real.
+const previoCola = process.env.ARBRAIN_COLA_MEMORIA
+process.env.ARBRAIN_COLA_MEMORIA = '0'
 
 type Sched = typeof import('./scheduler.js')
 type Db = typeof import('./db.js')
@@ -24,6 +27,7 @@ beforeAll(async () => {
 afterAll(() => {
   s._ejecutorParaPruebas(null)
   for (const [k, v] of [['CLAUDECLAW_STORE_DIR', previo.store], ['ARBRAIN_EDICION', previo.edicion], ['ARBRAIN_RUTINAS_PARALELO', previo.paralelo]] as const) { if (v === undefined) delete process.env[k]; else process.env[k] = v }
+  if (previoCola === undefined) delete process.env.ARBRAIN_COLA_MEMORIA; else process.env.ARBRAIN_COLA_MEMORIA = previoCola
   rmSync(store, { recursive: true, force: true })
 })
 

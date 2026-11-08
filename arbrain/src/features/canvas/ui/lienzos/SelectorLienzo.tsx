@@ -6,12 +6,10 @@
  * MISMO árbol que «¿Qué lienzo?» (buscador, miniaturas, carpetas, menú ⋯), con los recientes arriba. ↑↓ recorren las filas,
  * Enter abre la marcada, Esc cierra. Elegir uno lo pone EN ESTA pizarra (misma pestaña, misma ventana): no abre otra.
  */
-import { useEffect, useMemo, useRef, type Dispatch, type SetStateAction } from 'react'
+import { useEffect, useRef, type Dispatch, type SetStateAction } from 'react'
 import type { Theme } from '../../theme/tokens'
 import type { Carpeta, PaginaResumen } from '../../state/nube'
 import { useAccionesLienzos } from '../../state/acciones-lienzos'
-import { carpetaArchivada } from '../../state/vista-lienzos'
-import { leerRecientes, recientesVisibles } from '../../state/recientes-lienzos'
 import { ArbolLienzos } from './ArbolLienzos'
 import { varsDeTema } from './vars-tema'
 
@@ -32,11 +30,7 @@ interface Props {
 export function SelectorLienzo(p: Props) {
   const raiz = useRef<HTMLDivElement>(null)
   const a = useAccionesLienzos({ paginas: p.paginas, carpetas: p.carpetas, setPaginas: p.setPaginas, setCarpetas: p.setCarpetas, alBorrarPagina: p.onBorrada })
-  // Los recientes se fijan al abrir: el orden no se mueve mientras se mira.
-  const recientes = useMemo(() => {
-    const vivos = new Set(p.paginas.filter(x => !x.archivado && !carpetaArchivada(p.carpetas, x.folderId)).map(x => x.id))
-    return recientesVisibles(leerRecientes(), vivos, p.activa)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  // Los recientes (5) los calcula el árbol al abrir y quedan quietos mientras se mira.
 
   useEffect(() => {
     const fuera = (e: PointerEvent) => {
@@ -59,7 +53,7 @@ export function SelectorLienzo(p: Props) {
     boxShadow: t.name === 'oscuro' ? '0 14px 40px rgba(0,0,0,.6)' : '0 14px 40px rgba(15,15,25,.16)',
     transition: 'left .16s ease',
   }}>
-    <ArbolLienzos variante="riel" vars={varsDeTema(t)} autoFoco teclado recientes={recientes}
+    <ArbolLienzos variante="riel" vars={varsDeTema(t)} autoFoco teclado
       paginas={p.paginas} carpetas={p.carpetas} activa={p.activa} a={a} onAbrir={x => p.onElegir(x.id)} />
     <p style={{ margin: '8px 6px 2px', font: '500 11px CanvasSans, system-ui', color: t.text.caption }}>↑↓ recorre · Enter abre · Esc cierra · Ctrl+L</p>
   </div>

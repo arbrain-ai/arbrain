@@ -2,13 +2,13 @@
 .aviso { margin: 0; padding: 7px 10px; border-radius: 8px; font-size: 12.5px; line-height: 1.4; color: var(--foreground); background: rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.1); border: 1px solid var(--l-borde-ambar, rgba(var(--gold-rgb), 0.25)); }
 
 /* Botones comunes */
-.icono, .mini, .marcar, .lado, .enviar, .secundario, .volver { font: inherit; cursor: pointer; }
+.icono, .mini, .marcar, .lado, .enviar, .secundario, .volver, .velocidad { font: inherit; cursor: pointer; }
 .icono { display: inline-grid; place-items: center; width: 28px; height: 28px; border: 0; border-radius: 7px; background: none; color: var(--foreground); }
 .icono:hover, .mini:hover { background: rgba(var(--l-sombra-rgb, 127, 127, 127), 0.16); }
 .icono[aria-pressed='true'] { background: rgba(var(--brand-rgb), 0.16); color: var(--l-tinta-morado, var(--brand)); }
 .icono:disabled, .mini:disabled { opacity: 0.35; cursor: default; }
 .mini { display: inline-grid; place-items: center; width: 22px; height: 22px; border: 0; border-radius: 6px; background: none; color: var(--muted); }
-.icono:focus-visible, .mini:focus-visible, .marcar:focus-visible, .lado:focus-visible, .enviar:focus-visible, .secundario:focus-visible, .reproducir:focus-visible, .volver:focus-visible, .tarjeta:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.icono:focus-visible, .velocidad:focus-visible, .mini:focus-visible, .marcar:focus-visible, .lado:focus-visible, .enviar:focus-visible, .secundario:focus-visible, .reproducir:focus-visible, .volver:focus-visible, .tarjeta:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 
 /* ── PDF ── */
 .pdf { position: relative; display: flex; flex-direction: column; height: 560px; min-width: 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--card); }
@@ -57,116 +57,122 @@
 .seleccion form button { display: grid; place-items: center; width: 30px; height: 30px; border: 0; border-radius: 8px; background: var(--brand); color: var(--l-gris-16, #fff); cursor: pointer; }
 .enviado { display: inline-flex; align-items: center; height: 30px; padding: 0 12px; border-radius: 999px; background: var(--card); border: 1px solid var(--border); font-size: 12.5px; color: var(--foreground); box-shadow: 0 6px 20px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.35); }
 
-/* ── Video ── */
-.video { display: flex; flex-direction: column; gap: 8px; min-width: 0; outline: 0; container-type: inline-size; --alto-escena: clamp(220px, 50vh, 520px); }
-.video[data-grande] { --alto-escena: calc((100vh - 360px) / var(--ui-zoom, 1)); }
-.versiones { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.versiones [role='tab'] { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border: 1px solid var(--border); border-radius: 999px; background: var(--card); color: var(--muted); font: inherit; font-size: 12px; font-weight: 550; cursor: pointer; }
-.versiones [role='tab'] kbd { font: inherit; font-size: 10px; opacity: 0.6; }
-.versiones [role='tab'][aria-selected='true'] { color: var(--foreground); border-color: rgba(var(--brand-rgb), 0.6); background: rgba(var(--brand-rgb), 0.12); }
-.versiones [role='tab'][data-derecha] { color: var(--foreground); border-color: var(--l-borde-ambar, rgba(var(--gold-rgb), 0.7)); background: rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.12); }
-.lado { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); color: var(--foreground); font-size: 12px; font-weight: 550; margin-left: auto; }
-.lado[aria-pressed='true'] { border-color: rgba(var(--brand-rgb), 0.6); background: rgba(var(--brand-rgb), 0.12); }
-.sync { display: inline-flex; padding: 2px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); }
-.sync button { height: 22px; padding: 0 8px; border: 0; border-radius: 6px; background: none; color: var(--muted); font: inherit; font-size: 11px; cursor: pointer; }
-.sync button[aria-pressed='true'] { background: rgba(var(--brand-rgb), 0.18); color: var(--foreground); }
-.escena { position: relative; display: flex; gap: 8px; height: var(--alto-escena); min-width: 0; }
-.cuadro { position: relative; flex: 1 1 0; min-width: 0; margin: 0; display: flex; flex-direction: column; gap: 5px; }
-.pantalla { flex: 1; min-height: 0; display: grid; place-items: center; background: var(--l-gris-0, #000); border-radius: 10px; overflow: hidden; }
-.cuadro[data-oculto] { position: absolute; width: 2px; height: 2px; opacity: 0; pointer-events: none; overflow: hidden; }
-.cuadro video { display: block; max-width: 100%; max-height: 100%; height: auto; width: auto; background: var(--l-gris-0, #000); cursor: pointer; }
-.cuadro figcaption { display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 25px; font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.cuadro figcaption button { padding: 2px 9px; border-radius: 999px; border: 1px solid var(--border); background: var(--card); color: var(--foreground); font: inherit; font-weight: 600; cursor: pointer; }
-.cuadro[data-maestro] figcaption button { border-color: var(--l-borde-morado, var(--brand)); background: rgba(var(--l-velo-morado-rgb, var(--brand-rgb)), 0.14); }
-.cuadro[data-maestro] .pantalla { box-shadow: 0 0 0 2px var(--brand); }
-.delta { font-size: 11.5px; color: var(--muted); }
-.toast { position: absolute; z-index: 4; left: 50%; bottom: 10px; transform: translateX(-50%); padding: 5px 12px; border-radius: 999px; background: rgba(var(--l-sombra-rgb, 0, 0, 0), 0.78); color: var(--l-gris-16, #fff); font-size: 12px; pointer-events: none; }
+/* ── Compartido con el audio: barra de tiempo, banderas, controles ── */
+.toast { position: absolute; z-index: 4; left: 50%; bottom: 12px; transform: translateX(-50%); padding: 5px 12px; border-radius: 999px; background: rgba(var(--l-sombra-rgb, 0, 0, 0), 0.78); color: var(--l-gris-16, #fff); font-size: 12px; pointer-events: none; }
 .toast[data-fijo] { position: static; transform: none; align-self: flex-start; background: rgba(var(--brand-rgb), 0.9); }
-.reloj { padding: 6px 4px 0; }
-.barraTiempo { position: relative; height: 22px; cursor: pointer; touch-action: none; }
-.barraTiempo::before { content: ''; position: absolute; left: 0; right: 0; top: 9px; height: 4px; border-radius: 3px; background: rgba(var(--l-sombra-rgb, 127, 127, 127), 0.3); }
-.relleno { position: absolute; left: 0; top: 9px; height: 4px; border-radius: 3px; background: var(--brand); }
 .cabeza { position: absolute; top: 4px; width: 3px; height: 14px; margin-left: -1.5px; border-radius: 2px; background: var(--foreground); pointer-events: none; box-shadow: 0 0 0 1px var(--card); }
 .bandera { position: absolute; top: -4px; transform: translateX(-50%); display: grid; place-items: center; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 5px; background: var(--gold, var(--l-ambar-4, #ff9101)); color: var(--l-gris-3, #1a1208); cursor: pointer; z-index: 2; }
 .bandera[data-enviada] { background: rgba(var(--l-sombra-rgb, 127, 127, 127), 0.55); color: var(--foreground); }
-.pista { position: absolute; bottom: 24px; transform: translateX(-50%); display: grid; justify-items: center; gap: 4px; padding: 2px 6px; border-radius: 6px; background: rgba(var(--l-sombra-rgb, 0, 0, 0), 0.8); color: var(--l-gris-16, #fff); font-size: 11px; font-variant-numeric: tabular-nums; pointer-events: none; white-space: nowrap; z-index: 3; }
-.pista canvas { display: none; border-radius: 6px; background: var(--l-gris-0, #000); }
-/* Avance: el fotograma bajo el cursor encima de su tiempo, como en un editor. */
-.pista[data-previa] { padding: 4px 4px 3px; border-radius: 9px; background: rgba(var(--l-sombra-rgb, 12, 12, 14), 0.9); box-shadow: 0 0 0 1px rgba(var(--l-luz-rgb, 255, 255, 255), 0.14), 0 10px 30px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.55); }
-.pista[data-previa] canvas { display: block; }
-.previaFuente { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
-.avance { position: absolute; left: 0; top: 9px; height: 4px; border-radius: 3px; background: rgba(var(--l-sombra-rgb, 127, 127, 127), 0.38); pointer-events: none; }
-.barraTiempo::before, .relleno, .avance { transition: height 160ms var(--mov-curva), top 160ms var(--mov-curva); }
-.barraTiempo:hover::before, .barraTiempo:hover .relleno, .barraTiempo:hover .avance { top: 8px; height: 6px; }
 .controles { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 6px; }
 .reproducir { display: inline-grid; place-items: center; width: 34px; height: 34px; border: 0; border-radius: 50%; background: var(--brand); color: var(--l-gris-16, #fff); cursor: pointer; }
-.tiempo { font-size: 12.5px; font-variant-numeric: tabular-nums; margin: 0 4px; }
+.tiempo { font-size: 12.5px; font-variant-numeric: tabular-nums; margin: 0 4px; white-space: nowrap; }
 .tiempo i { color: var(--muted); font-style: normal; }
-.volumen { display: inline-flex; align-items: center; gap: 2px; }
-/* Deslizador de volumen: pista fina, lo lleno en marca, perilla que crece al tocarla. */
-.volumen input { -webkit-appearance: none; appearance: none; width: 76px; height: 18px; margin: 0 4px 0 0; background: none; cursor: pointer; --nivel: 100%; }
-.volumen input::-webkit-slider-runnable-track { height: 4px; border-radius: 3px; background: linear-gradient(to right, var(--brand) var(--nivel), rgba(var(--l-sombra-rgb, 127, 127, 127), 0.32) var(--nivel)); }
-.volumen input::-moz-range-track { height: 4px; border-radius: 3px; background: linear-gradient(to right, var(--brand) var(--nivel), rgba(var(--l-sombra-rgb, 127, 127, 127), 0.32) var(--nivel)); }
-.volumen input::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; margin-top: -4px; border-radius: 50%; background: var(--foreground); box-shadow: 0 0 0 1px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.25); transition: transform 160ms var(--mov-curva); }
-.volumen input::-moz-range-thumb { width: 12px; height: 12px; border: 0; border-radius: 50%; background: var(--foreground); }
-.volumen input:hover::-webkit-slider-thumb, .volumen input:focus-visible::-webkit-slider-thumb { transform: scale(1.2); }
-.volumen input:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 4px; }
-.volumen[data-mudo] input::-webkit-slider-thumb { background: var(--muted); }
-.velocidad select { height: 26px; border: 1px solid var(--border); border-radius: 7px; background: var(--card); color: var(--foreground); font: inherit; font-size: 12px; padding: 0 4px; }
-.formato { font-size: 11.5px; color: var(--muted); margin-left: auto; white-space: nowrap; }
+/* Velocidad: un botón que da la vuelta (no un <select>: ver Velocidad.tsx). Ancho fijo para que «1×» y «1.75×» no muevan nada. */
+.velocidad { min-width: 50px; height: 26px; padding: 0 6px; border: 1px solid var(--border); border-radius: 7px; background: var(--card); color: var(--foreground); font-size: 12px; font-variant-numeric: tabular-nums; }
+.velocidad:hover { background: rgba(var(--l-sombra-rgb, 127, 127, 127), 0.16); }
 .marcar { display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 11px; border: 1px solid var(--l-borde-ambar, rgba(var(--gold-rgb), 0.55)); border-radius: 8px; background: rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.14); color: var(--foreground); font-size: 12px; font-weight: 600; }
 .marcar:hover { background: rgba(var(--gold-rgb), 0.24); }
-@container (max-width: 700px) { .formato { display: none; } }
 .ayuda { margin: 0; font-size: 11px; color: var(--muted); }
-.mando { display: flex; flex-direction: column; gap: 8px; }
 .sitioComposer { display: contents; }
-/* En el teléfono no hay teclado que anunciar ni volumen que mover (iOS lo deja al botón físico). */
-@media (hover: none) and (pointer: coarse) { .ayuda, .volumen input { display: none; } }
+@media (hover: none) and (pointer: coarse) { .ayuda { display: none; } }
 
-/* ── Pantalla completa (9 oct): el video manda, los controles flotan encima y se van solos ──
-   Mismo visor con otra piel: oscura siempre, sea cual sea el tema. Entra por la API de pantalla completa o como capa
-   superior (popover) sobre la ventana nativa a pantalla completa del escritorio; por eso fija sus propios bordes. */
+/* ── Video (rehecho el 6 nov 2026: «más simple pero funcional», de la familia del botón de enviar) ──
+   Un escenario negro de esquinas suaves, la tecla de reproducir (boton-enviar.module.css: la misma tapa, luz y presión),
+   una barra gruesa que se arrastra con el dedo, y a la derecha solo velocidad, sonido y pantalla completa. */
+.video { --luz-barra: var(--gold-rgb); display: flex; flex-direction: column; gap: 10px; min-width: 0; outline: 0; }
+:global(:root:not(.dark)) .video { --luz-barra: var(--brand-rgb); }
+:global(html[data-estilo='unificado']) .video { --luz-barra: var(--gold-rgb); }
+.versiones { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.versiones [role='tab'] { display: inline-flex; align-items: center; height: 30px; padding: 0 12px; border: 1px solid var(--border); border-radius: 999px; background: var(--card); color: var(--muted); font: inherit; font-size: 12.5px; font-weight: 550; cursor: pointer; touch-action: manipulation; }
+.versiones [role='tab'][aria-selected='true'] { color: var(--foreground); border-color: rgba(var(--luz-barra), 0.6); background: rgba(var(--luz-barra), 0.12); }
+.versiones [role='tab'][data-derecha] { color: var(--foreground); border-color: rgba(var(--brand-rgb), 0.6); background: rgba(var(--brand-rgb), 0.12); }
+.lado { display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 11px; border: 1px solid var(--border); border-radius: 9px; background: var(--card); color: var(--foreground); font-size: 12px; font-weight: 550; margin-left: auto; }
+.lado[aria-pressed='true'] { border-color: rgba(var(--brand-rgb), 0.6); background: rgba(var(--brand-rgb), 0.12); }
+
+/* Alto de arranque (antes de medir): 55vh es de pantalla y un height se multiplica por el zoom de la interfaz, de ahí el `/ var(--ui-zoom)`. */
+.escena { position: relative; display: flex; gap: 8px; height: clamp(220px, calc(55vh / var(--ui-zoom, 1)), 520px); min-width: 0; }
+.cuadro { position: relative; flex: 1 1 0; min-width: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.cuadro[data-oculto] { position: absolute; width: 2px; height: 2px; opacity: 0; pointer-events: none; overflow: hidden; }
+.cuadro figcaption { height: 22px; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pantalla { position: relative; flex: 1; min-height: 0; background: var(--l-gris-0, #000); border-radius: 14px; overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.5), 0 12px 32px -14px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.55); }
+.cuadro[data-maestro] .pantalla { box-shadow: 0 0 0 2px rgba(var(--luz-barra), 0.8); }
+/* El video llena su pantalla y se encuadra entero: con `max-height: 100%` en una celda de alto automático el límite no aplicaba,
+   un 9:16 crecía a lo ancho (702×1248 en una escena de 450) y se veía recortado a una franja. */
+.cuadro video { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: contain; background: var(--l-gris-0, #000); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+
+/* La tecla grande al centro, en pausa: la de enviar, a escala de pulgar. */
+.teclaCentro.teclaCentro { position: absolute; z-index: 3; left: 50%; top: 50%; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 18px; }
+.teclaCentro.teclaCentro svg { width: 26px; height: 26px; margin-left: 3px; fill: currentColor; }
+.tecla.tecla { width: 44px; height: 44px; border-radius: 12px; }
+.tecla.tecla svg { width: 18px; height: 18px; fill: currentColor; }
+@media (min-width: 768px) and (pointer: fine) { .tecla.tecla { width: 38px; height: 38px; border-radius: 11px; } }
+
+.mando { display: flex; flex-direction: column; gap: 6px; }
+/* Barra de avance: 28 px de alto para el dedo; la pista fina engorda al tocarla; la perilla aparece al pasar o arrastrar. */
+.barraTiempo { position: relative; height: 28px; margin: 0 2px; cursor: pointer; touch-action: none; -webkit-tap-highlight-color: transparent; user-select: none; }
+.barraTiempo .pista, .barraTiempo .relleno { position: absolute; left: 0; top: 50%; height: 5px; margin-top: -2.5px; border-radius: 999px; transition: height 160ms var(--mov-curva, ease), margin 160ms var(--mov-curva, ease); }
+.barraTiempo .pista { right: 0; background: rgba(var(--l-sombra-rgb, 127, 127, 127), 0.28); }
+:global(.dark) .barraTiempo .pista { background: rgba(var(--l-luz-rgb, 255, 255, 255), 0.16); }
+.barraTiempo .relleno { width: calc(var(--avance, 0) * 100%); background: linear-gradient(90deg, rgba(var(--luz-barra), 0.75), rgb(var(--luz-barra))); box-shadow: 0 0 10px -1px rgba(var(--luz-barra), 0.6); }
+.perilla { position: absolute; top: 50%; left: calc(var(--avance, 0) * 100%); width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; pointer-events: none;
+  background: var(--l-gris-16, #fff); box-shadow: 0 0 0 1px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.18), 0 2px 6px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.35), 0 0 12px rgba(var(--luz-barra), 0.55);
+  transform: scale(0.6); opacity: 0; transition: transform 180ms var(--mov-curva, ease), opacity 180ms; }
+.barraTiempo:hover .pista, .barraTiempo:hover .relleno, .barraTiempo[data-arrastrando] .pista, .barraTiempo[data-arrastrando] .relleno { height: 8px; margin-top: -4px; }
+.barraTiempo:hover .perilla, .barraTiempo[data-arrastrando] .perilla { transform: scale(1); opacity: 1; }
+.barraTiempo[data-arrastrando] .perilla { transform: scale(1.2); }
+@media (hover: none) and (pointer: coarse) { .perilla { transform: scale(0.85); opacity: 1; } }
+.barraTiempo .bandera { top: 50%; width: 8px; height: 8px; margin-top: -4px; border-radius: 50%; box-shadow: 0 0 0 2px var(--card); }
+
+.video .controles { flex-wrap: nowrap; gap: 6px; }
+.video .tiempo { font-size: 13px; margin: 0 2px 0 4px; }
+.video .tiempo b { font-weight: 600; }
+.empuje { flex: 1; }
+.video .icono { width: 40px; height: 40px; border-radius: 11px; color: var(--foreground); touch-action: manipulation; transition: background 160ms, transform 110ms; }
+.video .icono svg { width: 19px; height: 19px; }
+.video .icono:active { transform: scale(0.94); }
+.video .icono[aria-pressed='true'] { background: rgba(var(--luz-barra), 0.14); color: var(--foreground); }
+.video .velocidad { min-width: 54px; height: 32px; border-radius: 999px; font-weight: 600; touch-action: manipulation; }
+@media (min-width: 768px) and (pointer: fine) { .video .icono { width: 34px; height: 34px; border-radius: 9px; } .video .icono svg { width: 17px; height: 17px; } }
+
+/* Sin `backdrop-filter` sobre el video en pantalla completa (8 nov 2026): un desenfoque encima de un video de 1080p que cambia 30 veces por segundo
+   obliga a recomponer la capa del video con cada cuadro; en WebKit eso congela la imagen (se queda el cuadro anterior aunque el reloj avance
+   y no cambia al moverlo). Ya se había visto el 7 nov: «en pantalla pequeña sí funciona bien». Fondo casi opaco en su lugar. */
+/* ── Pantalla completa propia (escritorio): el video manda, los controles flotan abajo y se van solos ──
+   Oscura siempre. Entra por la API de pantalla completa o como capa superior (popover) sobre la ventana nativa. */
 .video[data-pantalla] {
   position: fixed; inset: 0; width: auto; height: auto; max-width: none; max-height: none; margin: 0; border: 0; padding: 0; gap: 0; overflow: hidden;
-  background: var(--l-gris-0, #000); color-scheme: dark; color: var(--foreground);
-  --foreground: var(--l-gris-14, #f4f4f6); --muted: rgba(var(--l-luz-rgb, 244, 244, 246), 0.6); --card: rgba(var(--l-luz-rgb, 255, 255, 255), 0.07); --border: rgba(var(--l-luz-rgb, 255, 255, 255), 0.16);
+  background: var(--l-gris-0, #000); color-scheme: dark; --foreground: var(--l-gris-15, #f7f8f8); --muted: rgba(var(--l-luz-rgb, 255, 255, 255), 0.6); --card: var(--l-gris-4, #15151a); --border: rgba(var(--l-luz-rgb, 255, 255, 255), 0.14); color: var(--foreground);
 }
 .video[data-pantalla]::backdrop { background: var(--l-gris-0, #000); }
 .video[data-pantalla][data-quieto], .video[data-pantalla][data-quieto] * { cursor: none !important; }
 .video[data-pantalla] .escena { position: absolute; inset: 0; height: auto; gap: 2px; }
-.video[data-pantalla] .pantalla { border-radius: 0; }
-.video[data-pantalla] .toast { bottom: auto; top: 18px; }
-.video[data-pantalla] .mando, .video[data-pantalla] .versiones, .video[data-pantalla] .cuadro figcaption {
-  transition: opacity 320ms var(--mov-curva), transform 320ms var(--mov-curva);
-}
-.video[data-pantalla] .mando {
-  position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; gap: 6px;
-  padding: 72px clamp(16px, 3vw, 44px) max(16px, env(safe-area-inset-bottom));
-  background: linear-gradient(to top, rgba(var(--l-sombra-rgb, 4, 4, 8), 0.86) 0%, rgba(var(--l-sombra-rgb, 4, 4, 8), 0.55) 45%, rgba(var(--l-sombra-rgb, 4, 4, 8), 0) 100%);
-}
-.video[data-pantalla] .versiones {
-  position: absolute; left: 0; right: 0; top: 0; z-index: 3;
-  padding: max(14px, env(safe-area-inset-top)) clamp(16px, 3vw, 44px) 48px;
-  background: linear-gradient(to bottom, rgba(var(--l-sombra-rgb, 4, 4, 8), 0.72), rgba(var(--l-sombra-rgb, 4, 4, 8), 0));
-}
-.video[data-pantalla] .cuadro figcaption { position: absolute; z-index: 2; top: 56px; left: 12px; right: 12px; }
-.video[data-pantalla][data-quieto] .mando { opacity: 0; transform: translateY(8px); pointer-events: none; }
-.video[data-pantalla][data-quieto] .versiones, .video[data-pantalla][data-quieto] .cuadro figcaption { opacity: 0; transform: translateY(-6px); pointer-events: none; }
-.video[data-pantalla] .reloj { padding: 0; }
-.video[data-pantalla] .barraTiempo::before { background: rgba(var(--l-luz-rgb, 255, 255, 255), 0.22); }
-.video[data-pantalla] .avance { background: rgba(var(--l-luz-rgb, 255, 255, 255), 0.3); }
-.video[data-pantalla] .cabeza { box-shadow: 0 0 0 1px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.5), 0 0 10px rgba(var(--l-luz-rgb, 255, 255, 255), 0.35); }
-.video[data-pantalla] .relleno { box-shadow: 0 0 12px rgba(var(--l-halo-morado-rgb, var(--brand-rgb)), 0.55); }
-.video[data-pantalla] .controles { gap: 4px 8px; flex-wrap: nowrap; }
-.video[data-pantalla] .reproducir { width: 40px; height: 40px; box-shadow: 0 0 22px rgba(var(--l-halo-morado-rgb, var(--brand-rgb)), 0.45); }
-.video[data-pantalla] .icono { width: 34px; height: 34px; border-radius: 9px; }
+.video[data-pantalla] .pantalla { border-radius: 0; box-shadow: none; }
+.video[data-pantalla] .mando, .video[data-pantalla] .versiones { position: absolute; z-index: 3; left: 50%; transform: translateX(-50%); width: min(760px, calc(100% - 32px)); transition: opacity 220ms, transform 220ms; }
+.video[data-pantalla] .versiones { top: max(16px, env(safe-area-inset-top)); }
+.video[data-pantalla] .mando { bottom: max(18px, env(safe-area-inset-bottom)); padding: 10px 14px 12px; border-radius: 18px;
+  background: rgba(var(--l-sombra-rgb, 12, 12, 14), 0.84);
+  box-shadow: inset 0 1px 0 rgba(var(--l-luz-rgb, 255, 255, 255), 0.08), 0 0 0 1px rgba(var(--l-luz-rgb, 255, 255, 255), 0.08), 0 18px 50px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.55); }
 .video[data-pantalla] .icono:hover { background: rgba(var(--l-luz-rgb, 255, 255, 255), 0.12); }
-.video[data-pantalla] .tiempo { font-size: 13.5px; }
-.video[data-pantalla] .velocidad select { height: 30px; background: rgba(var(--l-luz-rgb, 255, 255, 255), 0.08); }
-.video[data-pantalla] .marcar { height: 32px; }
-.video[data-pantalla] .sitioComposer { display: block; position: absolute; z-index: 4; left: 50%; bottom: 128px; width: min(600px, calc(100% - 32px)); transform: translateX(-50%); }
-.video[data-pantalla] .composer { background: rgba(var(--l-sombra-rgb, 14, 12, 10), 0.86); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: 0 18px 50px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.55); }
-@media (prefers-reduced-motion: reduce) { .video[data-pantalla] .mando, .video[data-pantalla] .versiones, .video[data-pantalla] .cuadro figcaption { transition: none; } }
+.video[data-pantalla][data-quieto] .mando, .video[data-pantalla][data-quieto] .versiones { opacity: 0; transform: translate(-50%, 8px); pointer-events: none; }
+.video[data-pantalla] .toast { bottom: auto; top: 18px; }
+.video[data-pantalla] .sitioComposer { display: block; position: absolute; z-index: 4; left: 50%; bottom: 140px; width: min(600px, calc(100% - 32px)); transform: translateX(-50%); }
+.video[data-pantalla] .composer { background: rgba(var(--l-sombra-rgb, 14, 12, 10), 0.92); box-shadow: 0 18px 50px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.55); }
+@media (prefers-reduced-motion: reduce) { .video[data-pantalla] .mando, .video[data-pantalla] .versiones, .perilla, .barraTiempo .pista, .barraTiempo .relleno { transition: none; } }
+
+/* Vista previa bajo el cursor, como YouTube: miniatura del fotograma + instante, sobre la barra. La mueve VisorVideo sin React. */
+.vista { position: absolute; z-index: 5; bottom: calc(100% + 8px); left: 0; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 4px; pointer-events: none; opacity: 0; transition: opacity 110ms; }
+.vista[data-visible] { opacity: 1; }
+.vistaCuadro { display: block; border-radius: 8px; background-color: var(--l-gris-0, #000); background-repeat: no-repeat; box-shadow: 0 0 0 1px rgba(var(--l-luz-rgb, 255, 255, 255), 0.22), 0 8px 24px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.55); }
+.vistaTiempo { padding: 1px 7px; border-radius: 999px; background: rgba(var(--l-sombra-rgb, 0, 0, 0), 0.82); color: var(--l-gris-16, #fff); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) { .vista { transition: none; } }
+/* Cargando… y fallas: el video nunca se queda congelado en silencio. */
+.espera { position: absolute; z-index: 4; left: 50%; top: 50%; transform: translate(-50%, -50%); display: inline-flex; align-items: center; gap: 9px; padding: 8px 14px; border-radius: 999px; background: rgba(var(--l-sombra-rgb, 0, 0, 0), 0.72); color: var(--l-gris-16, #fff); font-size: 13px; pointer-events: none; }
+.espera i { width: 14px; height: 14px; border-radius: 50%; border: 2px solid rgba(var(--l-luz-rgb, 255, 255, 255), 0.3); border-top-color: var(--l-gris-16, #fff); animation: giroEspera 800ms linear infinite; }
+@keyframes giroEspera { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .espera i { animation: none; } }
+.falla { position: absolute; z-index: 4; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 10px; max-width: min(360px, 86%); padding: 14px 18px; border-radius: 14px; text-align: center; font-size: 13px; line-height: 1.4; background: rgba(var(--l-sombra-rgb, 0, 0, 0), 0.86); color: var(--l-gris-16, #fff); box-shadow: 0 0 0 1px rgba(var(--l-luz-rgb, 255, 255, 255), 0.14); }
+.falla .secundario { background: rgba(var(--l-luz-rgb, 255, 255, 255), 0.12); color: var(--l-gris-16, #fff); border-color: rgba(var(--l-luz-rgb, 255, 255, 255), 0.25); }
 
 /* Marcas */
 .composer { display: grid; gap: 8px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--l-borde-ambar, rgba(var(--gold-rgb), 0.45)); background: color-mix(in srgb, var(--card) 94%, rgb(var(--gold-rgb)) 6%); }
@@ -249,4 +255,8 @@
 .tarjeta[data-grande] .tarjetaTexto b { font-size: 13.5px; }
 .tarjetaTexto small { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .entregaAbierta { display: grid; gap: 10px; }
-.volver { display: inline-flex; align-items: center; gap: 6px; justify-self: start; height: 28px; padding: 0 11px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); color: var(--foreground); font-size: 12.5px; font-weight: 550; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Al abrir o volver la vista se trae a la pantalla (VisorEntrega › traer): un respiro arriba para que no quede pegada al borde. */
+.entrega, .entregaAbierta, .tarjeta { scroll-margin: 12px 0; }
+.volver { display: inline-flex; align-items: center; gap: 6px; justify-self: start; min-height: 36px; padding: 0 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); color: var(--foreground); font-size: 12.5px; font-weight: 550; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; touch-action: manipulation; }
+.volver small { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 11.5px; font-weight: 450; color: var(--muted); }
+.volver small::before { content: '·'; margin-right: 6px; }

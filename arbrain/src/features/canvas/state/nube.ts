@@ -63,6 +63,16 @@ export const crearPagina = (nombre?: string, folderId?: string | null) =>
     method: 'POST', body: JSON.stringify({ nombre, folderId }),
   }).then(r => r.pagina)
 
+/** Cómo nace un lienzo desde «＋ Nuevo lienzo» (7 nov 2026): en blanco, la plantilla de clase o la copia de otro lienzo. */
+export type ModoNuevo = { modo: 'blanco' } | { modo: 'clase' } | { modo: 'plantilla'; desde: string }
+
+/** Lienzo nuevo con su nombre, en su carpeta y con el modo elegido. */
+export const crearLienzo = (nombre: string, folderId: string | null, m: ModoNuevo) =>
+  pedir<{ pagina: PaginaResumen }>('/api/canvas/pages', {
+    method: 'POST',
+    body: JSON.stringify({ nombre, folderId, ...(m.modo === 'clase' ? { plantilla: 'clase' } : m.modo === 'plantilla' ? { duplicarDe: m.desde } : {}) }),
+  }).then(r => r.pagina)
+
 /** Fija o desfija (grupo y orden al fijar). Solo `settings`: no sube la version ni mueve la fecha. */
 export const fijarPagina = (id: string, fijar: boolean, grupo?: string, orden?: number) =>
   pedir(`/api/canvas/pages/${id}`, { method: 'PATCH', body: JSON.stringify({ fijar, grupo, orden }) })
@@ -79,7 +89,8 @@ export const duplicarPagina = (id: string) =>
 export const archivarCarpeta = (id: string, archivar: boolean) =>
   pedir('/api/canvas/folders', { method: 'PATCH', body: JSON.stringify({ accion: 'archivar', id, archivar }) })
 
-export const crearCarpeta = (nombre?: string, madre?: string | null) =>
+/** Una carpeta nace con nombre: el servidor rechaza una sin él. */
+export const crearCarpeta = (nombre: string, madre?: string | null) =>
   pedir<{ carpeta: Carpeta }>('/api/canvas/folders', {
     method: 'POST', body: JSON.stringify({ nombre, madre: madre ?? null }),
   }).then(r => r.carpeta)

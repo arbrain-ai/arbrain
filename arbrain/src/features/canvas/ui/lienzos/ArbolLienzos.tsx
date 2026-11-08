@@ -9,17 +9,25 @@
  *
  * Cada lienzo: miniatura a la izquierda, título + «N elementos · fecha», ⋯ a la derecha (`MenuLienzo`). Se arrastra un lienzo
  * a una carpeta (o a «Sin carpeta») y una carpeta sobre otra; renombrar es en el sitio (Enter confirma, Escape cancela).
+ *
+ * 7 nov 2026 (Daniel: «si quiero crear un nuevo lienzo desde acá en blanco… la experiencia manual no es tan buena»): arriba
+ * «＋ Nuevo lienzo» (`NuevoLienzo`: nombre en el sitio, en blanco / clase / desde plantilla, nace en la carpeta abierta) y
+ * «carpeta nueva», que pide su nombre en la fila y no se guarda sin él; «Recientes» (5) arriba en las tres superficies;
+ * soltar un lienzo sobre otro lo mueve a la carpeta de ese otro (la fila entera recibe, no solo la cabecera).
  * La lógica de qué va dónde es pura y vive en `state/vista-lienzos.ts`; las escrituras, en `state/acciones-lienzos.ts`.
  */
 import { useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react'
-import { Archive, ChevronRight, Ellipsis, Folder, FolderOpen, Pin, Search, Shapes } from 'lucide-react'
+import { Archive, ChevronRight, Ellipsis, Folder, FolderOpen, FolderPlus, Pin, Plus, Search } from 'lucide-react'
 import type { Carpeta, PaginaResumen } from '../../state/nube'
 import type { AccionesLienzos } from '../../state/acciones-lienzos'
 import { puedeAnidar, type NodoCarpeta } from '../../state/carpetas'
 import { enCarpetaFijada } from '../../state/organizacion'
-import { armarVista, esCarpetaFijada } from '../../state/vista-lienzos'
+import { armarVista, carpetaArchivada, esCarpetaFijada } from '../../state/vista-lienzos'
+import { leerRecientes, recientesConRelleno } from '../../state/recientes-lienzos'
 import { ClicOArrastre } from '../../state/clic-o-arrastre'
 import { MenuLienzo, type Objetivo } from './MenuLienzo'
+import { NuevoLienzo } from './NuevoLienzo'
+import { Miniatura } from './Miniatura'
 import css from './lienzos.module.css'
 
 interface Props {
@@ -34,31 +42,22 @@ interface Props {
   /** Lienzos que ya están abiertos como pestaña: se marcan «abierta», no se ocultan. */
   abiertas?: ReadonlySet<string>
   autoFoco?: boolean
-  /** Selector del título (Ctrl+L): ids de los lienzos recientes, arriba y en su orden. */
+  /** Ids de los lienzos recientes, arriba y en su orden. Sin esto, los abiertos en este aparato y, si faltan, los editados hace menos (5). */
   recientes?: string[]
   /** Flechas ↑↓ recorren las filas y Enter abre la marcada (en el buscador). Sin esto, el árbol solo se usa con el puntero. */
   teclado?: boolean
   /** «Leyendo tus lienzos…» o el error de lectura, mientras no hay datos. */
   estado?: string | null
-  onNuevaPagina?: (folderId: string) => void
-  onNuevaSubcarpeta?: (madre: string) => void
 }
 
 const fechaCorta = (iso: string) => new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
 const elementos = (n: number) => `${n.toLocaleString('es-MX')} ${n === 1 ? 'elemento' : 'elementos'}`
 
-function Miniatura({ url }: { url: string | null }) {
-  const [mala, setMala] = useState<string | null>(null)
-  return <span className={css.mini} aria-hidden>
-    {url && mala !== url ? <img src={url} alt="" loading="lazy" decoding="async" draggable={false} onError={() => setMala(url)} /> : <Shapes size={16} />}
-  </span>
-}
-
 /** Nombre en el sitio: Enter confirma, Escape cancela, salir del campo confirma (como en el riel de siempre). */
-function Nombre({ valor, onListo, onFin }: { valor: string; onListo: (v: string) => void; onFin: () => void }) {
+function Nombre({ valor, onListo, onFin, placeholder }: { valor: string; onListo: (v: string) => void; onFin: () => void; placeholder?: string }) {
   const cancelado = useRef(false)
   const fin = (v: string) => { if (!cancelado.current && v.trim() && v.trim() !== valor) onListo(v.trim()); onFin() }
-  return <input className={css.nombre} autoFocus defaultValue={valor} aria-label="Nombre" onFocus={e => e.currentTarget.select()}
+  return <input className={css.nombre} data-capa-hija="" autoFocus defaultValue={valor} aria-label={placeholder ?? 'Nombre'} placeholder={placeholder} onFocus={e => e.currentTarget.select()}
     onPointerDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}
     onBlur={e => fin(e.target.value)}
     onKeyDown={e => {
@@ -72,8 +71,10 @@ const alTeclear = (f: () => void) => (e: KeyboardEvent) => { if (e.target === e.
 
 /** Abierto/cerrado a mano por carpeta, compartido entre montajes de esta ventana. */
 const plegadoRecordado: Record<string, boolean> = {}
+/** La última carpeta que se abrió a mano: ahí nace el lienzo nuevo (sobrevive a que la lista se vuelva a montar). */
+let carpetaRecordada: string | null = null
 
-export function ArbolLienzos({ paginas, carpetas, activa, a, onAbrir, variante, vars, abiertas, autoFoco, recientes, teclado, estado, onNuevaPagina, onNuevaSubcarpeta }: Props) {
+export function ArbolLienzos({ paginas, carpetas, activa, a, onAbrir, variante, vars, abiertas, autoFoco, recientes, teclado, estado }: Props) {
   const [busqueda, setBusqueda] = useState('')
   // 6 oct 2026 (Daniel: «archivo uno y se cierra la carpeta»): lo abierto/cerrado a mano sobrevive a que la lista se
   // vuelva a montar tras una acción, y abrir el ⋯ de un lienzo fija abierta su carpeta (y su madre).
@@ -83,6 +84,11 @@ export function ArbolLienzos({ paginas, carpetas, activa, a, onAbrir, variante, 
   const [menu, setMenu] = useState<{ objetivo: Objetivo; ancla: DOMRect } | null>(null)
   const [verArchivados, setVerArchivados] = useState(false)
   const [sobre, setSobre] = useState<string | null>(null)
+  const [nuevo, setNuevo] = useState<{ carpeta: string | null } | null>(null)
+  /** La carpeta que se está creando: su fila pide el nombre y, sin él, no se guarda. `madre` null = en la raíz. */
+  const [borrador, setBorrador] = useState<{ madre: string | null } | null>(null)
+  const [ultimaCarpeta, setUltimaCrudo] = useState<string | null>(carpetaRecordada)
+  const setUltima = (id: string) => { carpetaRecordada = id; setUltimaCrudo(id) }
   /** La fila marcada con el teclado (selector). */
   const [cursor, setCursor] = useState<string | null>(null)
   const raiz = useRef<HTMLDivElement>(null)
@@ -127,17 +133,45 @@ export function ArbolLienzos({ paginas, carpetas, activa, a, onAbrir, variante, 
   const contieneActiva = (n: NodoCarpeta<PaginaResumen>): boolean => n.paginas.some(x => x.id === activa) || n.hijas.some(contieneActiva)
   const abierta = (n: NodoCarpeta<PaginaResumen>, archivo: boolean) =>
     buscando || sobre === n.carpeta.id || (manual[n.carpeta.id] ?? (!archivo && (esCarpetaFijada(n.carpeta) || contieneActiva(n))))
-  const alternar = (n: NodoCarpeta<PaginaResumen>, archivo: boolean) => setManual(m => ({ ...m, [n.carpeta.id]: !abierta(n, archivo) }))
+  const alternar = (n: NodoCarpeta<PaginaResumen>, archivo: boolean) => {
+    const abre = !abierta(n, archivo)
+    if (abre && !archivo) setUltima(n.carpeta.id)
+    setManual(m => ({ ...m, [n.carpeta.id]: abre }))
+  }
+  /** Dónde nace el lienzo nuevo: la última carpeta abierta a mano (si sigue viva) o la del lienzo abierto. */
+  const carpetaAbierta = (() => {
+    const viva = (id: string | null | undefined) => !!id && carpetas.some(c => c.id === id) && !carpetaArchivada(carpetas, id)
+    if (viva(ultimaCarpeta)) return ultimaCarpeta
+    const delActivo = paginas.find(x => x.id === activa)?.folderId
+    return viva(delActivo) ? delActivo! : null
+  })()
+  const abrirNuevo = (carpeta: string | null) => { setNuevo({ carpeta }); setBorrador(null); raiz.current?.scrollIntoView?.({ block: 'nearest' }) }
+  const nuevaCarpeta = (madre: string | null) => { setBorrador({ madre }); setNuevo(null); if (madre) setManual(m => ({ ...m, [madre]: true })) }
+  const filaBorrador = (madre: string | null) => borrador && borrador.madre === madre && <div className={css.carpeta} data-borrador="">
+    <div className={css.carpetaCuerpo}>
+      <ChevronRight size={13} className={css.chevron} aria-hidden style={{ visibility: 'hidden' }} /><FolderOpen size={15} aria-hidden />
+      <Nombre valor="" placeholder="Nombre de la carpeta" onListo={nom => a.nuevaCarpeta(nom, madre)} onFin={() => setBorrador(null)} />
+    </div>
+  </div>
 
   const filaPagina = (x: PaginaResumen, archivo = false, clave = '') => {
     const editandoEsta = editando?.tipo === 'pagina' && editando.id === x.id
     const objetivo: Objetivo = { tipo: 'pagina', pagina: x, archivada: archivo, enCarpetaFijada: enCarpetaFijada(x.folderId, carpetas) }
+    const recibe = () => { const d = arrastre.current; return !archivo && !clave && !!d && d.tipo === 'pagina' && d.id !== x.id }
     return <div key={`${clave}${x.id}`} className={css.fila} data-lz-pagina={x.id} data-lz-clave={`${clave}${x.id}`} data-cursor={`${clave}${x.id}` === cursor ? '' : undefined} data-activa={x.id === activa ? '' : undefined} data-archivada={archivo ? '' : undefined} data-menu={idMenu === x.id ? '' : undefined}
       draggable={!archivo && !editandoEsta}
       onPointerDown={alBajar(`p:${x.id}`)}
       onPointerUp={e => alTerminar(e, false, () => onAbrir(x))}
       onDragStart={e => { e.dataTransfer.setData('text/pagina', x.id); e.dataTransfer.effectAllowed = 'move'; arrastre.current = { tipo: 'pagina', id: x.id }; alArrastrar(`p:${x.id}`) }}
       onDragEnd={e => { const soltado = !arrastre.current || e.dataTransfer.dropEffect !== 'none'; alTerminar(e, soltado, () => onAbrir(x)); arrastre.current = null; setSobre(null) }}
+      // Soltar un lienzo sobre otro lo deja en la carpeta de ese otro: la carpeta abierta entera recibe (7 nov 2026).
+      onDragOver={e => { if (!recibe()) return; e.preventDefault(); e.stopPropagation(); setSobre(x.folderId ?? '__raiz__') }}
+      onDrop={e => {
+        const pid = e.dataTransfer.getData('text/pagina')
+        if (!pid || pid === x.id || !recibe()) return
+        e.preventDefault(); e.stopPropagation()
+        a.moverPagina(pid, x.folderId); setSobre(null); arrastre.current = null
+      }}
       onContextMenu={e => { e.preventDefault(); abrirMenu(objetivo, punto(e)) }}>
       <div className={css.cuerpo} data-editando={editandoEsta ? '' : undefined}
         {...(editandoEsta ? {} : { role: 'button', tabIndex: 0, onClick: () => onAbrir(x), onKeyDown: alTeclear(() => onAbrir(x)) })}>
@@ -171,7 +205,7 @@ export function ArbolLienzos({ paginas, carpetas, activa, a, onAbrir, variante, 
         onDrop={e => {
           e.preventDefault(); e.stopPropagation()
           const pid = e.dataTransfer.getData('text/pagina')
-          if (pid && !archivo) { a.moverPagina(pid, c.id); setManual(m => ({ ...m, [c.id]: true })) }
+          if (pid && !archivo) { a.moverPagina(pid, c.id); setManual(m => ({ ...m, [c.id]: true })); setUltima(c.id) }
           const cid = e.dataTransfer.getData('text/carpeta')
           if (cid && cid !== c.id && !archivo && puedeAnidar(carpetas, cid, c.id) === null) { a.anidarCarpeta(cid, c.id); setManual(m => ({ ...m, [c.id]: true })) }
           setSobre(null); arrastre.current = null
@@ -188,15 +222,21 @@ export function ArbolLienzos({ paginas, carpetas, activa, a, onAbrir, variante, 
           onClick={e => abrirMenu(objetivo, e.currentTarget.getBoundingClientRect())}><Ellipsis size={16} aria-hidden /></button>
       </div>
       {abre && <div className={css.hijos}>
+        {!archivo && filaBorrador(c.id)}
         {n.hijas.map(h => filaCarpeta(h, nivel + 1, archivo))}
         {n.paginas.map(x => filaPagina(x, archivo))}
-        {n.paginas.length === 0 && n.hijas.length === 0 && <p className={css.vacia}>vacía</p>}
+        {n.paginas.length === 0 && n.hijas.length === 0 && borrador?.madre !== c.id && <p className={css.vacia}>vacía</p>}
       </div>}
     </div>
   }
 
   const porId = useMemo(() => new Map(paginas.map(x => [x.id, x])), [paginas])
-  const filasRecientes = useMemo(() => buscando ? [] : (recientes ?? []).map(id => porId.get(id)).filter((x): x is PaginaResumen => !!x), [recientes, porId, buscando])
+  // Sin lista del anfitrión, «Recientes» se calcula una vez que llegan los lienzos y queda quieta mientras se mira.
+  const hayPaginas = paginas.length > 0
+  const idsRecientes = useMemo(() => recientes ?? recientesConRelleno(leerRecientes(),
+    paginas.filter(x => !x.archivado && !carpetaArchivada(carpetas, x.folderId)).sort((p, q) => q.actualizado.localeCompare(p.actualizado)), activa ?? null),
+  [recientes, hayPaginas, activa]) // eslint-disable-line react-hooks/exhaustive-deps
+  const filasRecientes = useMemo(() => buscando ? [] : idsRecientes.map(id => porId.get(id)).filter((x): x is PaginaResumen => !!x), [idsRecientes, porId, buscando])
 
   /** ↑↓ mueven la marca por las filas visibles (en el orden en que se ven); Enter abre la marcada, o la primera. */
   const alTeclearBuscador = (e: KeyboardEvent) => {
@@ -223,6 +263,19 @@ export function ArbolLienzos({ paginas, carpetas, activa, a, onAbrir, variante, 
   const vivasConCarpeta = carpetas.some(c => !c.archivada)
 
   return <div ref={raiz} className={css.raiz} data-variante={variante} style={vars}>
+    <div className={css.barra}>
+      <button type="button" className={css.nuevoBoton} data-nuevo-lienzo aria-expanded={!!nuevo}
+        onClick={() => nuevo ? setNuevo(null) : abrirNuevo(carpetaAbierta)}><Plus size={15} aria-hidden /> Nuevo lienzo</button>
+      <button type="button" className={css.iconoBoton} onClick={() => nuevaCarpeta(null)} aria-label="Carpeta nueva" title="Carpeta nueva"><FolderPlus size={15} aria-hidden /></button>
+    </div>
+    {nuevo && <NuevoLienzo key={nuevo.carpeta ?? 'raiz'} paginas={paginas} carpetas={carpetas} carpeta={nuevo.carpeta} onCerrar={() => setNuevo(null)}
+      onCrear={async (nombre, fid, modo) => {
+        const p = await a.crearLienzo(nombre, fid, modo)
+        if (!p) return false
+        if (fid) { setManual(m => ({ ...m, [fid]: true })); setUltima(fid) }
+        onAbrir(p)
+        return true
+      }} />}
     <label className={css.buscar}><Search size={13} aria-hidden />
       <input autoFocus={autoFoco} value={busqueda} onChange={e => { setBusqueda(e.target.value); setCursor(null) }} onKeyDown={alTeclearBuscador} placeholder="Buscar un lienzo" aria-label="Buscar un lienzo" /></label>
     {estado && <p className={css.aviso}>{estado}</p>}
@@ -240,8 +293,9 @@ export function ArbolLienzos({ paginas, carpetas, activa, a, onAbrir, variante, 
       {v.fijados.paginas.map(x => filaPagina(x))}
     </section>}
 
-    {v.raiz.length > 0 && <section aria-label="Carpetas">
+    {(v.raiz.length > 0 || borrador?.madre === null) && <section aria-label="Carpetas">
       {hayFijados && <p className={css.ceja}>Carpetas</p>}
+      {filaBorrador(null)}
       {v.raiz.map(n => filaCarpeta(n, 0))}
     </section>}
 
@@ -271,6 +325,6 @@ export function ArbolLienzos({ paginas, carpetas, activa, a, onAbrir, variante, 
 
     {menu && <MenuLienzo objetivo={menu.objetivo} ancla={menu.ancla} carpetas={carpetas} a={a} vars={vars} onAbrir={onAbrir}
       onRenombrar={() => setEditando(menu.objetivo.tipo === 'pagina' ? { tipo: 'pagina', id: menu.objetivo.pagina.id } : { tipo: 'carpeta', id: menu.objetivo.carpeta.id })}
-      onNuevaPagina={onNuevaPagina} onNuevaSubcarpeta={onNuevaSubcarpeta} onCerrar={() => setMenu(null)} />}
+      onNuevaPagina={abrirNuevo} onNuevaSubcarpeta={nuevaCarpeta} onCerrar={() => setMenu(null)} />}
   </div>
 }

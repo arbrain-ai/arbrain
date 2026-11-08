@@ -27,6 +27,8 @@ import { SCHEMA_V4 } from '@/features/canvas/model/schema'
 import { leerOrganizacion } from '@/features/canvas/state/organizacion'
 import { urlPublicaDeStorage } from '@/features/chat/lib/adjuntos'
 import { instalacion } from '@/config'
+import { plantillaClase } from '@/features/canvas/model/plantilla-clase'
+import { serverMeasureContext } from '@/features/canvas/text/metrics-server'
 
 export async function GET(request: Request) {
   if (!await authenticateDraw3(request)) {
@@ -60,7 +62,9 @@ export async function POST(request: Request) {
   if (!await authenticateDraw3(request)) {
     return NextResponse.json({ ok: false, error: 'no autorizado' }, { status: 401 })
   }
-  const body = await request.json().catch(() => ({})) as { nombre?: string; folderId?: string | null; duplicarDe?: string }
+  // `plantilla: 'clase'` (7 nov 2026): título y tres bloques (model/plantilla-clase.ts). `duplicarDe` con `nombre`/`folderId`
+  // es «Desde plantilla» de «＋ Nuevo lienzo»: la copia nace con su nombre y en la carpeta abierta.
+  const body = await request.json().catch(() => ({})) as { nombre?: string; folderId?: string | null; duplicarDe?: string; plantilla?: 'clase' }
   const db = createServiceClient()
   // DUPLICAR (6 oct 2026): copia el documento tal cual en un lienzo nuevo, en la misma carpeta. Sin settings: la copia
   // no hereda fijado ni archivado, y sin regiones gobernadas (la copia es un lienzo de mano, no un diagrama del compilador).
@@ -70,7 +74,7 @@ export async function POST(request: Request) {
     if (!o) return NextResponse.json({ ok: false, error: 'no existe' }, { status: 404 })
     const doc = o.page_elements as { schemaVersion?: number; elements?: unknown[]; camera?: unknown } | null
     const { data, error } = await db.from('draw').insert({
-      user_id: OWNER, name: `${o.name ?? 'Sin título'} (copia)`, folder_id: o.folder_id,
+      user_id: OWNER, name: body.nombre?.trim() || `${o.name ?? 'Sin título'} (copia)`, folder_id: body.folderId !== undefined ? body.folderId : o.folder_id,
       page_elements: { ...(doc ?? {}), regions: undefined }, agent_version: 1, is_deleted: false,
     }).select('page_id, name, folder_id, updated_at, created_at').single()
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
@@ -80,11 +84,12 @@ export async function POST(request: Request) {
       version: 1, elementos, esV4: doc?.schemaVersion === SCHEMA_V4, miniatura: null, fijado: null, archivado: null,
     } })
   }
+  const clase = body.plantilla === 'clase' ? plantillaClase(serverMeasureContext, body.nombre ?? '') : null
   const { data, error } = await db.from('draw').insert({
     user_id: OWNER,
     name: body.nombre?.trim() || 'Lienzo nuevo',
     folder_id: body.folderId ?? null,
-    page_elements: { schemaVersion: SCHEMA_V4, elements: [], camera: { x: 0, y: 0, zoom: 1 } },
+    page_elements: { schemaVersion: SCHEMA_V4, elements: clase?.elements ?? [], camera: clase?.camera ?? { x: 0, y: 0, zoom: 1 } },
     agent_version: 1,
     is_deleted: false,
   }).select('page_id, name, folder_id, updated_at').single()
@@ -92,6 +97,6 @@ export async function POST(request: Request) {
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true, pagina: {
     id: data.page_id, nombre: data.name, folderId: data.folder_id,
-    actualizado: data.updated_at, version: 1, elementos: 0, esV4: true, miniatura: null, fijado: null, archivado: null,
+    actualizado: data.updated_at, version: 1, elementos: clase?.elements.length ?? 0, esV4: true, miniatura: null, fijado: null, archivado: null,
   } })
 }

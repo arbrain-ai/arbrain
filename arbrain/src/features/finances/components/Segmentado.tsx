@@ -1,7 +1,7 @@
 'use client'
 import s from './segmentado.module.css'
 
-/** Un selector de 2 a 4 opciones con pulgar que se desliza (260 ms): se ve a dónde va el cambio. Cada opción es un tab. */
+/** Un selector de 2 a 5 opciones con pulgar que se desliza (260 ms): se ve a dónde va el cambio. Cada opción es un tab. */
 export function Segmentado<T extends string>({ opciones, valor, onChange, etiqueta, chico }: {
   opciones: { id: T; label: string; title?: string }[]; valor: T; onChange: (v: T) => void; etiqueta: string; chico?: boolean
 }) {

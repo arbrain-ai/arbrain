@@ -46,12 +46,12 @@ export function mejorVozEspanol<V extends { name: string; lang: string; localSer
   return [...es].sort((a, b) => calidad(a) - calidad(b) || region(a) - region(b) || Number(!!b.default) - Number(!!a.default))[0]
 }
 
-// Velocidad REAL (la hornea el servidor, atempo sin cambiar el tono). Hasta 3x desde el 23 oct 2026: Daniel, «sigo sin
-// escuchar la velocidad rápida; esto funcionaba por meses». Por meses la app leyó con la voz de WebKit, cuyo `rate` no es
-// lineal: «1.75x» sonaba a 42 car/s, 3x de los 14 car/s de 1x (medido el 22 oct). El 2x real del servidor son ~30 car/s:
-// correcto, pero más lento que lo que su oído conocía como «rápido».
-const RATES = [1, 1.5, 2, 2.5, 3]
-/** Índice de la velocidad de RATES más cercana; en empate, la más rápida (una posición guardada a 1.75 vuelve a 2). */
+// Velocidad REAL (la hornea el servidor, atempo sin cambiar el tono). Del 23 oct al 5 nov llegó a 3x (la voz de WebKit,
+// la que Daniel conocía como «rápida», no es lineal: su «1.75x» sonaba a 42 car/s). El 5 nov, con el 2x real del servidor
+// (~30 car/s) ya en el oído: «la velocidad de x2 ya es súper rápida de por si!! Prefiero velocidad x1.25, x1.5 x1.75 x2».
+export const VELOCIDADES = [1, 1.25, 1.5, 1.75, 2] as const
+const RATES: readonly number[] = VELOCIDADES
+/** Índice de la velocidad de RATES más cercana; en empate, la más rápida (una guardada a 2.5x o 3x, de la escala vieja, cae en 2x). */
 export function indiceDeVelocidad(rate: number): number {
   if (!Number.isFinite(rate)) return -1
   let mejor = 0
@@ -214,8 +214,8 @@ type StateCb = (playing: boolean) => void
 export interface PuenteLector {
   pintar(bloque: number, desde: number, hasta: number): void
   limpiar(): void
-  /** Trae el bloque a la vista. `retomar`: lo pidió Daniel («Seguir», anterior/siguiente, tocar un párrafo, una
-   *  lectura nueva); sin él, el documento no se mueve si su mano lo desplazó (lector-agente.ts). */
+  /** Trae el bloque a la vista. `retomar`: lo pidió Daniel (anterior/siguiente, tocar un párrafo, una lectura
+   *  nueva); sin él, el documento no se mueve si su mano lo desplazó (lector-agente.ts). */
   ver(bloque: number, retomar?: boolean): void
   /** El motor terminó o paró: soltar escuchadores y resaltado. */
   cerrar(): void
@@ -242,7 +242,7 @@ export interface SpeechState {
   despierto: boolean
   /** Se lee el RESUMEN del mensaje (resumen-hablado.ts), no el mensaje completo. */
   resumen: boolean
-  /** El lector lleva el scroll. `false` = la mano de Daniel lo movió: la barra ofrece «Seguir» (seguimiento.ts). */
+  /** El lector lleva el scroll. `false` = la mano de Daniel lo movió (seguimiento.ts). La barra no lo pinta: ver BarraDelLector. */
   siguiendo: boolean
 }
 
@@ -950,9 +950,10 @@ class ChatSpeechController {
   /**
    * ¿El lector lleva el scroll? La regla vive en seguimiento.ts (25 oct y 4 nov 2026): la mano de Daniel sobre el hilo
    * (rueda, dedo, tecla, clic) lo suelta y NADA lo regresa —ni la voz que avanza, ni Ctrl+Espacio, ni un cambio de alto
-   * del hilo— hasta que él mismo vuelve con la mano al párrafo que suena o toca «Seguir» (o anterior, siguiente, tocar
-   * un párrafo). El vigía se pone al cargar la lectura (también al restaurarla en pausa), no al primer párrafo: antes,
-   * tras restaurar, la primera rueda no se veía y Ctrl+Espacio lo regresaba al punto guardado.
+   * del hilo— hasta que él mismo vuelve con la mano al párrafo que suena, toca un párrafo o usa anterior/siguiente (el
+   * botón «Seguir» se quitó el 5 nov: en iPhone se tragaba el toque, ver BarraDelLector). El vigía se pone al cargar la
+   * lectura (también al restaurarla en pausa), no al primer párrafo: antes, tras restaurar, la primera rueda no se veía y
+   * Ctrl+Espacio lo regresaba al punto guardado.
    */
   private seg = new Seguimiento()
   /** El siguiente `ver` de un documento del panel lo pidió Daniel (ver PuenteLector.ver). */
@@ -1032,7 +1033,7 @@ class ChatSpeechController {
     this.soltarAncla()
     const anclar = () => { if (this.blocks[this.idx] === el && this.seg.lleva) this.ancla = anclarElemento(hiloEl, el) }
     const que = this.seg.decidir(z.aLaVista)
-    // Daniel movió el hilo: la voz sigue, la pantalla se queda donde él la dejó (la barra le ofrece «Seguir»).
+    // Daniel movió el hilo: la voz sigue, la pantalla se queda donde él la dejó (tocar un párrafo la retoma).
     if (que === 'quieto') return
     if (que === 'anclar') return anclar()
     // La zona se calcula con rects (px en pantalla); el scroll va en px de layout. Con el zoom de la app no son lo
@@ -1047,15 +1048,6 @@ class ChatSpeechController {
     } else deslizarScroll(hiloEl, hiloEl.scrollTop + paso, undefined, anclar)
   }
 
-  /** «Seguir» (4 nov 2026): Daniel le devuelve el scroll al lector; el párrafo que suena vuelve a la vista. */
-  seguir() {
-    if (!this.curId) return
-    this.seg.retomar()
-    this.retomarPuente = true
-    const el = this.blocks[this.idx]
-    if (el) this.revealBlock(el)
-    this.emit()
-  }
   /** Un documento del panel avisa que la mano de Daniel lo desplazó (`true`) o que él volvió al párrafo (`false`). */
   manoEnDocumento(suelto: boolean) {
     if (!this.puente || suelto === !this.seg.lleva) return
@@ -1859,12 +1851,13 @@ class ChatSpeechController {
 }
 
 /** Bloques hoja que se leen, en orden. Fuentes del final, tablas y párrafos que solo eran una URL no se oyen ni
- *  cuentan en el total: regla única en lector-filtro.ts. Siguen visibles en pantalla. */
+ *  cuentan en el total: regla única en lector-filtro.ts. Siguen visibles en pantalla. Nada bajo `[data-tts-exclude]`. */
 function bloquesLegibles(container: HTMLElement): HTMLElement[] {
   const cands = Array.from(container.querySelectorAll(`${SELECTOR_BLOQUES},span[${MARCA_PROPIO}]`)) as HTMLElement[]
   const set = new Set(cands)
   const hojas = cands.filter((el) => {
-    if (!el.innerText.trim()) return false
+    // Lo que el dueño escribió a mitad de turno va dentro de la respuesta con su propia burbuja: no es voz de Levy.
+    if (!el.innerText.trim() || el.closest('[data-tts-exclude]')) return false
     for (const d of Array.from(el.querySelectorAll(SELECTOR_BLOQUES)))
       if (set.has(d as HTMLElement)) return false
     return true

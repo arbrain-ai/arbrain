@@ -14,9 +14,11 @@
 > **1 · En tu computadora.** Arbrain vive en tu Mac, Windows o Linux. Levy usa tus apps y la voz de tu sistema;
 > funciona mientras tu computadora esté prendida.
 >
-> 1. Abre Claude Code (la app de Claude, pestaña Code) con tu cuenta Pro o Max.
+> 1. Abre Claude Code (la app de Claude, pestaña Code) con tu cuenta Pro o Max. Si te pide una carpeta, elige tu
+>    carpeta personal (la que lleva tu nombre), en esta computadora.
 > 2. Pega el prompt de abajo y acepta los permisos que te pida.
-> 3. Espera de 5 a 15 minutos: la app Arbrain se abre sola, ya con tu cuenta.
+> 3. Cuando se abra tu navegador, entra a tu cuenta de Claude y pulsa **Autorizar**.
+> 4. Espera de 5 a 15 minutos: la app Arbrain se abre sola, ya con tu cuenta.
 >
 > ```text
 > Instala Arbrain siguiendo https://github.com/arbrain-ai/arbrain/blob/main/INSTALAR.md
@@ -59,8 +61,9 @@
 > `~/Arbrain-respaldos` y no borra nada.
 >
 > **Antes de pegar cualquier prompt, revisa de dónde viene.** Un prompt le da órdenes a un agente que puede usar tu
-> computadora. Pega solo los que salen de una fuente que conoces (este viene de arbrain.ai y apunta únicamente a
-> `github.com/arbrain-ai/arbrain`). Si alguien te pasa uno parecido con otra dirección, no lo pegues.
+> computadora. Pega solo los que salen de una fuente que conoces (este viene de arbrain.ai y de los videos de Arbrain,
+> y apunta únicamente a `github.com/arbrain-ai/arbrain`). Si alguien te pasa uno parecido con otra dirección, no lo
+> pegues.
 >
 > **Para Claude:** este archivo es tu guion completo. Si lo recibiste resumido o por una herramienta que recorta
 > páginas, léelo literal antes de empezar:

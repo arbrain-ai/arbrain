@@ -5,6 +5,7 @@
  *     herramientas intercalados en el orden en que ocurrieron (lib/rastro · lineaDeTiempo).
  *   · Trabajando: el mismo renglón es la línea viva en español + reloj. Los agentes se mencionan («N agentes
  *     trabajando ›») y su detalle vive en el Taller. La línea fija sobre el composer repite la línea viva fuera de vista.
+ *   · Un encargo de las manos en curso (5 nov 2026) suma debajo su reloj, su paso, «Detener» y «Tomar el control».
  * Todo con data-tts-exclude: voz, lector y copiar leen solo la respuesta.
  */
 import { useEffect, useId, useMemo, useState } from 'react'
@@ -21,6 +22,7 @@ import { GruposHerramientas } from './ToolCallCard'
 import { TodoListWidget } from './TodoListWidget'
 import { AgentTaskCards } from './AgentTaskCard'
 import { RelojTurno } from './RelojTurno'
+import { EncargosEnVivo } from './EncargoEnVivo'
 import h from './herramientas.module.css'
 
 type Conexion = 'online' | 'offline' | 'reconnecting'
@@ -111,6 +113,8 @@ export function Razonamiento({ msg, connection = 'online' }: { msg: ChatMessage;
         {conReloj && <span className={h.fijaMeta}><RelojTurno inicio={inicioTurno(msg)} /></span>}
         <ChevronRight aria-hidden className={h.flecha} />
       </button>
+      {/* Encargo de las manos en curso: su reloj, su paso y el freno, a la vista aunque el rastro siga plegado. */}
+      {vivo && <EncargosEnVivo msg={msg} />}
       {espera && <p role="status" data-espera-explicada className="-mt-1 mb-2 text-[12px] text-muted">{espera.texto}{espera.reintentar && <> <BotonReintentar className="ml-1 align-baseline" /></>}</p>}
       {abierto && <div id={id} role="region" aria-label="Razonamiento y herramientas de Levy" className={h.cuerpo}>
         <LineaDeTiempo msg={msg} tareas={vivo ? msg.tasks?.filter(t => !esViva(t)) : msg.tasks} />
@@ -159,5 +163,16 @@ export function LineaFija({ msg, connection = 'online', siempre = false }: { msg
       {pasos > 0 && <span className={h.fijaMeta}>· {textoPasos(pasos)}</span>}
       {conReloj && <span className={h.fijaMeta}><RelojTurno inicio={inicioTurno(msg)} /></span>}
     </button>
+  )
+}
+
+/** Levy ya trabaja según el journal y esta pantalla aún se engancha: se dice, en vez de dejar el hilo mudo. */
+export function LineaReenganche({ inicio }: { inicio?: number }) {
+  return (
+    <div className={h.fija} style={{ cursor: "default" }} role="status" aria-live="polite" data-linea-reenganche data-tts-exclude>
+      <span className={h.giro} aria-hidden />
+      <span className={h.linea}>Levy está trabajando · reconectando</span>
+      {inicio !== undefined && <span className={h.fijaMeta}><RelojTurno inicio={inicio} /></span>}
+    </div>
   )
 }

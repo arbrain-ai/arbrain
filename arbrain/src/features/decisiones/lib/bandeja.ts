@@ -4,7 +4,7 @@
  */
 
 export type Respuesta = 'si' | 'no' | 'otro'
-export type Clase = 'configurar' | 'agenda' | 'cohorte' | 'borrar_prueba' | 'contactar' | 'pagar' | 'borrar' | 'publicar' | 'legal'
+export type Clase = 'configurar' | 'agenda' | 'cohorte' | 'soporte' | 'borrar_prueba' | 'contactar' | 'pagar' | 'borrar' | 'publicar' | 'legal'
 export type Modo = 'hacer' | 'tocar' | 'nunca'
 export type Preset = 'cauteloso' | 'equilibrado' | 'piloto'
 
@@ -31,17 +31,36 @@ export interface Tarjeta {
   vence?: number
   /** Contactar personas o pagar: nunca en «Sí a todas». */
   unaPorUna?: boolean
+  /** A quién va (contactar): sus tarjetas se juntan en una (4 nov 2026). */
+  persona?: string
+  /** Vista previa de lo que se publicaría (ruta de una imagen local; 7 nov 2026, cola de publicación). */
+  imagen?: string
 }
 
-export interface HechoSolo { ts: string; clase: Clase; que: string; donde?: string; deshacer?: string; origen?: string; sesion?: string; conversacion?: unknown }
+/** La vista previa servida por /api/local-image (sesión y lista blanca de la propia ruta), a 640 px de lado mayor. */
+export function urlVistaPrevia(t: Pick<Tarjeta, 'imagen'>): string | null {
+  return t.imagen ? `/api/local-image?path=${encodeURIComponent(t.imagen)}&w=640` : null
+}
+
+export interface HechoSolo { ts: string; clase: Clase; que: string; donde?: string; enlace?: string; deshacer?: string; origen?: string; sesion?: string; conversacion?: unknown }
 export interface Espera { dia: string; minutos: number; tarjetas: number; abiertas: number }
 export interface PoliticaApp {
   preset: Preset
+  /** Lo que la persona cambió respecto del preset (se conserva al cambiar de preset). */
+  ajustes?: Partial<Record<Clase, Modo>>
   vigente: Record<Clase, Modo>
   presets: { id: Preset; nombre: string; que: string }[]
-  clases: { id: Clase; nombre: string; que: string; irreversible: boolean; modo: Modo }[]
+  /** `firmado`: la línea de lo que la persona firmó (p. ej. el soporte a la cohorte, 24 oct). */
+  clases: { id: Clase; nombre: string; que: string; irreversible: boolean; modo: Modo; firmado?: string }[]
   siempreTuyo: string[]
 }
+
+/** Cómo se dice cada modo en Ajustes › Autonomía. */
+export const NOMBRE_MODO: Record<Modo, string> = { hacer: 'Lo hace solo', tocar: 'Te pregunta', nunca: 'Nunca' }
+/** Lo que se puede elegir por clase: lo irreversible nunca baja de «te pregunta» (el daemon lo repite en el piso). */
+export const modosDe = (c: { irreversible: boolean }): Modo[] => (c.irreversible ? ['tocar', 'nunca'] : ['hacer', 'tocar', 'nunca'])
+/** Los ajustes con una clase cambiada; lo demás que la persona ya había cambiado se queda. */
+export const ajustesCon = (p: PoliticaApp, clase: Clase, modo: Modo): Partial<Record<Clase, Modo>> => ({ ...(p.ajustes ?? {}), [clase]: modo })
 export interface VistaBandeja {
   pendientes: Tarjeta[]
   decididasHoy: Tarjeta[]
@@ -63,11 +82,33 @@ export const UNA_POR_UNA: readonly Tarjeta['categoria'][] = ['enviar', 'pagar']
 export const unaPorUna = (x: Tarjeta) => x.unaPorUna === true || UNA_POR_UNA.includes(x.categoria)
 export const recomendadas = (t: Tarjeta[]): Tarjeta[] => t.filter(x => x.recomienda === 'si' && x.tipo !== 'manos' && !unaPorUna(x))
 
-/** Cuánto se queda a la vista una que venció («ya no aplica») antes de irse al historial. */
-export const VENCIDA_A_LA_VISTA_MS = 45 * 60_000
-/** Las vencidas recientes que la franja todavía enseña tachadas. */
-export const vencidasRecientes = (v: VistaBandeja | null, ahora = Date.now()): Tarjeta[] =>
-  (v?.vencidasHoy ?? []).filter(t => t.resuelta && ahora - t.resuelta < VENCIDA_A_LA_VISTA_MS)
+/** Un grupo de la bandeja: una persona con sus acciones, o una tarjeta suelta. */
+export interface GrupoBandeja { clave: string; persona?: string; tarjetas: Tarjeta[] }
+/**
+ * Agrupar por persona (4 nov 2026, Daniel: dos de Mengano = una tarjeta con dos acciones). En el orden de la bandeja: el grupo va
+ * donde está la más vieja de esa persona. Lo que no va a una persona queda suelto. La persona se compara sin acentos ni mayúsculas.
+ */
+export function agruparPorPersona(tarjetas: Tarjeta[]): GrupoBandeja[] {
+  const grupos: GrupoBandeja[] = [], porPersona = new Map<string, GrupoBandeja>()
+  for (const t of tarjetas) {
+    const k = t.persona ? t.persona.split(/\s+/)[0].normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() : null
+    const g = k ? porPersona.get(k) : undefined
+    if (g) { g.tarjetas.push(t); continue }
+    const nuevo: GrupoBandeja = { clave: k ? `persona:${k}` : t.id, ...(t.persona ? { persona: t.persona.split(/\s+/)[0] } : {}), tarjetas: [t] }
+    grupos.push(nuevo)
+    if (k) porPersona.set(k, nuevo)
+  }
+  return grupos
+}
+
+/** «Fulano: mover el diagnóstico…» dentro de la tarjeta de Fulano: el título sin el «WhatsApp a Fulano:» que ya dice el grupo. */
+export function tituloEnGrupo(t: Tarjeta): string {
+  if (!t.persona) return t.titulo
+  const nombre = t.persona.split(/\s+/)[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const sin = t.titulo.replace(new RegExp(`^(.*?)\\s+a\\s+@?${nombre}(?:\\s+[A-ZÁÉÍÓÚÑ][\\wáéíóúñ]+)?\\s*[:·-]\\s*`, 'u'), '$1 · ')
+  return sin === t.titulo ? t.titulo : sin.replace(/^\s*·\s*/, '')
+}
+
 
 const VERBO: Record<Tarjeta['categoria'], string> = { enviar: 'Contactar', pagar: 'Pagar', borrar: 'Borrar', publicar: 'Publicar', otra: 'Decidir' }
 export const etiquetaCategoria = (c: Tarjeta['categoria']) => VERBO[c]

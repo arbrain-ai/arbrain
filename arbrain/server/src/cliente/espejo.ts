@@ -55,3 +55,36 @@ export function cercaEspejo(rutina: string, env: NodeJS.ProcessEnv = process.env
     hijo.stdin.end(llave + '\n')
   })
 }
+
+/**
+ * Cola por memoria (5 nov 2026, `cliente/cola-memoria.ts`): esta máquina no tiene aire para una rutina y el espejo está
+ * prendido. Se le ofrece a la otra máquina con `espejo.mjs derivar --rutina <id> --json`.
+ *
+ * Contrato para el modo espejo (lo implementa `scripts/espejo/`; mientras no exista la orden, responde
+ * `orden_desconocida` y aquí vale «no»): imprime una línea JSON `{ "derivada": true, "a": "<host>" }` solo si la otra
+ * máquina ya quedó comprometida a correr ESA rutina en este vencimiento (con su propio folio, para no duplicarla).
+ * Cualquier otra respuesta, un error o el plazo vencido = no se derivó: la rutina sigue esperando aquí y sale cuando haya
+ * memoria. Se pregunta una sola vez por espera. La llave no viaja: la otra máquina corre con la suya.
+ */
+export function derivarEspejo(rutina: string, env: NodeJS.ProcessEnv = process.env, plazoMs = 60_000): Promise<{ derivada: true; a: string } | { derivada: false }> {
+  const guarda = env.ARBRAIN_ESPEJO_GUARDA?.trim()
+  if (!guarda) return Promise.resolve({ derivada: false })
+  const args = [guarda, 'derivar', '--rutina', rutina, '--json', ...(env.ARBRAIN_HOME ? ['--cerebro', env.ARBRAIN_HOME] : [])]
+  return new Promise((ok) => {
+    let salida = ''
+    let listo = false
+    const fin = (r: { derivada: true; a: string } | { derivada: false }) => { if (!listo) { listo = true; ok(r) } }
+    const hijo = spawn(env.ARBRAIN_NODE_BINARY || process.execPath, args, { cwd: env.ARBRAIN_HOME || undefined, env: entornoCerca(env), stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true })
+    const reloj = setTimeout(() => { hijo.kill(); fin({ derivada: false }) }, plazoMs)
+    hijo.stdout.setEncoding('utf8')
+    hijo.stdout.on('data', (c: string) => { salida += c })
+    hijo.on('error', () => { clearTimeout(reloj); fin({ derivada: false }) })
+    hijo.on('close', () => {
+      clearTimeout(reloj)
+      try {
+        const r = JSON.parse(salida.trim().split('\n').pop() ?? '') as { derivada?: unknown; a?: unknown }
+        fin(r.derivada === true && typeof r.a === 'string' && r.a.trim() ? { derivada: true, a: r.a.trim() } : { derivada: false })
+      } catch { fin({ derivada: false }) }
+    })
+  })
+}

@@ -13,6 +13,7 @@ import { EstiloToggle, ThemeToggle } from '@/shared/components/ThemeToggle'
 import { CentroPermisos } from '@/features/permisos/components/CentroPermisos'
 import { TarjetaComputerUse } from '@/features/permisos/components/ComputerUse'
 import { esEdicionCliente } from '@/lib/edicion'
+import { SincronizacionAvanzada } from '@/shared/components/SincronizacionAvanzada'
 
 function Tarjeta({ titulo, detalle, children, accion }: { titulo: string; detalle?: string; children?: React.ReactNode; accion?: React.ReactNode }) {
   return (
@@ -156,6 +157,13 @@ export function SeccionMac() {
           </Link>
         }
       />}
+      {/* Sincronización (4 nov 2026): el panel del punto verde, fuera de la barra. Corre solo (SyncAutonomo); aquí, a mano. */}
+      {!esEdicionCliente() && <Tarjeta
+        titulo="Sincronización"
+        detalle="Corre sola: reintenta con espera creciente, resuelve conflictos (gana tu cambio local) y solo te avisa si algo no se pudo en 8 intentos. Esto es para revisar a mano."
+      >
+        <SincronizacionAvanzada />
+      </Tarjeta>}
     </div>
   )
 }

@@ -35,7 +35,9 @@ export async function warmEleven(): Promise<{ ok: boolean; ms: number; reason?: 
 
 export type ElevenResult = { ok: true; body: ReadableStream<Uint8Array>; firstByteMs: number } | { ok: false; reason: string }
 
-export async function speakEleven(o: { text: string; voiceId: string; previousText?: string; speed?: number; signal?: AbortSignal; budgetMs?: number }): Promise<ElevenResult> {
+/** `alineacion` (Levy vivo, bandera del cliente): pide `stream/with-timestamps`, que devuelve JSON por línea con el PCM en
+ *  base64 y la alineación POR CARÁCTER de lo que se sintetiza. Sin ella, el PCM crudo de siempre. */
+export async function speakEleven(o: { text: string; voiceId: string; previousText?: string; speed?: number; signal?: AbortSignal; budgetMs?: number; alineacion?: boolean }): Promise<ElevenResult> {
   const key = elevenKey()
   if (!key) return { ok: false, reason: 'sin_clave' }
   const blocked = elevenBlocked()
@@ -47,7 +49,7 @@ export async function speakEleven(o: { text: string; voiceId: string; previousTe
   const timer = setTimeout(() => { timedOut = true; ctl.abort() }, o.budgetMs ?? FIRST_BYTE_BUDGET_MS)
   try {
     const speed = typeof o.speed === 'number' ? Math.min(1.2, Math.max(0.7, o.speed)) : 1
-    const response = await fetch(`${BASE}/v1/text-to-speech/${o.voiceId}/stream?output_format=pcm_24000`, {
+    const response = await fetch(`${BASE}/v1/text-to-speech/${o.voiceId}/stream${o.alineacion ? '/with-timestamps' : ''}?output_format=pcm_24000`, {
       method: 'POST', signal: ctl.signal,
       headers: { 'xi-api-key': key, 'Content-Type': 'application/json' },
       body: JSON.stringify({

@@ -61,10 +61,15 @@ const nombreProveedor = (p: string | null | undefined) => (p === 'anthropic' ? '
  * Texto del chat cuando el turno se corta por la cuenta. El detalle técnico va al final y en una línea propia: sirve
  * para soporte y conserva el «402»/«billing» que reconoce `esSinSaldo` (así el chat ofrece «Recargar»).
  */
-export function mensajeFalloDeCuenta(tipo: FalloDeCuenta, proveedor: string | null | undefined, detalle: string): string {
+export function mensajeFalloDeCuenta(tipo: FalloDeCuenta, proveedor: string | null | undefined, detalle: string, op: { openrouterGuardada?: boolean } = {}): string {
   const donde = nombreProveedor(proveedor)
   const d = detalle.replace(/\s+/g, ' ').trim().slice(0, 300)
-  const cola = d ? `\n\nDetalle técnico: ${d}` : ''
+  // 7 nov 2026 (duda de un fundador): con las dos llaves guardadas el chat usa SIEMPRE la de Anthropic
+  // (cliente/proveedor.ts) y la de OpenRouter se queda sin usar. Si la de Anthropic falla, se dice cómo pasar a la otra.
+  const otra = proveedor === 'anthropic' && op.openrouterGuardada
+    ? ' Tu llave de OpenRouter también está guardada, pero mientras exista la de Anthropic Levy usa esa. Para hablar con OpenRouter, quita la de Anthropic en Ajustes › Llaves (Arbrain se reinicia solo).'
+    : ''
+  const cola = `${otra}${d ? `\n\nDetalle técnico: ${d}` : ''}`
   // Motor «Mi Claude Code» (cliente/suscripcion.ts): no hay llave que recargar ni pegar; la sesión es la de su terminal.
   if (proveedor === 'suscripcion') {
     if (tipo === 'sin_saldo') return `Tu plan de Claude no dejó responder a Levy (límite de uso o plan inactivo). Espera a que se reinicie tu límite o revisa tu plan en claude.ai; también puedes conectar una llave en Ajustes › Llaves.${cola}`

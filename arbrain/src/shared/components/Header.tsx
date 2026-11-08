@@ -87,7 +87,7 @@ export function Header() {
             </span>
             <span className="text-sm font-semibold text-foreground leading-none">Levy</span>
           </button>
-          {/* Agentes de esta conversación y lo que te espera (5 oct 2026): la misma píldora del escritorio, compacta. */}
+          {/* Agentes de esta conversación y lo que te pregunta un modelo (5 oct 2026): la misma píldora del escritorio, compacta. */}
           <AgentesTrabajando compacta />
         </>) : (
           <BrandBadge />

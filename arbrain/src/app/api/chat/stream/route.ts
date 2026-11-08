@@ -6,6 +6,8 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { getClaudeclawUrl, CLAUDECLAW_TOKEN, upstreamError } from '@/lib/claudeclaw'
 import { capital, NOMBRE_DUENO } from '@/config'
 import { msjMotorCaido } from '@/lib/infra-errores'
+import { esEdicionCliente } from '@/lib/edicion'
+import { puenteDeConversacion } from '@/lib/espejo-conversaciones'
 
 // Turnos largos de Levy (deep work multi-minuto): sin esto, la función muere en
 // el límite default de Vercel y corta el stream aunque la app siga abierta.
@@ -84,6 +86,12 @@ export async function POST(request: Request) {
         `que te llegaron por cron (briefings, councils, reflexión, investigaciones). Úsalas para responder ` +
         `con continuidad sobre lo que ${NOMBRE_DUENO()} pregunte:\n\n${parts.join('\n\n')}`
       contextParam = contextParam ? `${threadContext}\n\n${contextParam}` : threadContext
+    }
+
+    // Modo espejo (5 nov 2026): si la conversación siguió en la otra máquina, Levy recibe lo que se dijo allá.
+    if (esEdicionCliente() && !esComando) {
+      const puente = await puenteDeConversacion(chatSessionId)
+      if (puente) contextParam = contextParam ? `${puente}\n\n${contextParam}` : puente
     }
 
     // Cierre del día: si el mensaje MÁS reciente de la thread es el cron

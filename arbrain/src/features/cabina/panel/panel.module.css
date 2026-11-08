@@ -255,6 +255,20 @@
 .sinPantalla li span { display: block; margin-top: 2px; font-size: 11.5px; color: var(--muted); }
 .vivaPie { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 8px 20px 12px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
 
+/* Contestarle a un agente (8 nov 2026): la salida de «1 pregunta», sobre la terminal. 16 px en el campo: Safari no hace zoom al enfocarlo. */
+.responder { display: flex; flex-direction: column; gap: 8px; margin: 4px 16px 10px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--l-borde-ambar, rgba(var(--gold-rgb), 0.25)); background: rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.08); }
+.responderPregunta { margin: 0; font-size: 13px; line-height: 1.45; color: var(--foreground); max-height: 96px; overflow: auto; white-space: pre-wrap; }
+.responderNota { margin: 0; font-size: 12.5px; color: var(--muted); }
+.responderForma { display: flex; gap: 8px; align-items: center; }
+.responderCampo { flex: 1; min-width: 0; height: 38px; padding: 0 12px; border-radius: 9px; border: 1px solid var(--border); background: var(--card); color: var(--foreground); font-size: 16px; }
+.responderCampo:focus-visible { outline: 2px solid rgba(var(--brand-rgb), 0.45); outline-offset: 1px; }
+.responderEnviar { display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 14px; border-radius: 9px; border: 1px solid var(--l-borde-morado, rgba(var(--brand-rgb), 0.35)); background: rgba(var(--l-velo-morado-rgb, var(--brand-rgb)), 0.12); color: var(--l-tinta-morado, var(--brand-ink)); font-size: 13px; font-weight: 600; cursor: pointer; flex-shrink: 0; }
+.responderEnviar:disabled { opacity: 0.45; cursor: default; }
+.responderPie { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 28px; font-size: 12px; color: var(--muted); }
+.responderPie [data-error] { color: var(--error); }
+.responderVisto { height: 28px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--foreground); font-size: 12.5px; cursor: pointer; flex-shrink: 0; }
+.responderVisto:hover { border-color: rgba(var(--brand-rgb), 0.3); }
+
 .nuevoFila { display: flex; align-items: center; gap: 10px; margin: 10px 16px 2px; flex-wrap: wrap; }
 .nuevo {
   display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 9px;
@@ -367,18 +381,17 @@
 .terminadas[open] .chevron { transform: rotate(90deg); }
 
 /* La píldora junto a «Levy» (encabezado del chat; 4 oct, simplificada el 5 oct 2026): agentes de ESTA conversación con
-   punto amarillo (Taller) y, si algo pide decisión, «N te espera» con punto azul (Tareas). Dos botones, una sola píldora. */
-.agentesVivos { --amarillo: var(--l-ambar-3, #eab308); --azul: var(--l-azul-6, #2563eb); display: inline-flex; align-items: center; height: 26px; padding: 0 3px; border-radius: 999px; border: 1px solid var(--border); background: var(--card); white-space: nowrap; }
-:global(.dark) .agentesVivos { --amarillo: var(--l-ambar-2, #facc15); --azul: var(--l-azul-4, #60a5fa); }
+   punto amarillo (Taller) y, si un modelo pregunta, «N pregunta» (Tareas). Las decisiones de la bandeja viven solo en la tarjeta HOY (4 nov 2026). */
+.agentesVivos { --amarillo: var(--l-ambar-3, #eab308); display: inline-flex; align-items: center; height: 26px; padding: 0 3px; border-radius: 999px; border: 1px solid var(--border); background: var(--card); white-space: nowrap; }
+:global(.dark) .agentesVivos { --amarillo: var(--l-ambar-2, #facc15); }
 .agentesVivos > button { display: inline-flex; align-items: center; gap: 6px; height: 20px; padding: 0 7px; border: 0; border-radius: 999px; background: transparent; color: var(--foreground); font-size: 12px; font-weight: 550; cursor: pointer; }
 .agentesVivos > button + button { color: var(--muted); font-weight: 500; }
 .agentesVivos > button:hover { background: rgba(var(--foreground-rgb), 0.06); color: var(--foreground); }
 .agentesVivos > button:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
 .agentesVivos[data-compacta] > button { padding: 0 6px; gap: 5px; }
-.puntoVivo, .puntoEspera { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.puntoVivo { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 /* 28 oct 2026 (Daniel: «este era amarillo»): el punto amarillo que late, como antes de hoy. El título del Taller sigue morado quieto. */
 .puntoVivo { background: var(--amarillo); animation: puntoVivo 1.4s ease-in-out infinite; }
-.puntoEspera { background: var(--azul); }
 @keyframes puntoVivo { 0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 rgba(var(--l-halo-ambar-rgb, 234, 179, 8), 0.5); } 50% { opacity: 0.6; transform: scale(0.8); box-shadow: 0 0 0 4px rgba(var(--l-ambar-3-rgb, 234, 179, 8), 0); } }
 @media (prefers-reduced-motion: reduce) { .puntoVivo { animation: none; } }
 

@@ -41,12 +41,18 @@ export function pasoDeFotograma(seg: number, fps: number, pasos: number, duracio
 }
 
 // ── J / K / L ──
-export const VELOCIDADES = [0.25, 0.5, 1, 1.25, 1.5, 2, 3] as const
-/** L repetida acelera: 1x → 1.5x → 2x → 3x. J repetida retrocede cada vez más (5 s, 10 s, 20 s). */
-const ESCALA_L = [1, 1.5, 2, 3]
+/** Las del lector del chat (5 nov 2026, Daniel: «Prefiero velocidad x1.25, x1.5 x1.75 x2»): de 1x a 2x en cuartos. */
+export const VELOCIDADES = [1, 1.25, 1.5, 1.75, 2] as const
+/** L repetida acelera un paso y se queda en 2x. J repetida retrocede cada vez más (5 s, 10 s, 20 s). */
 export function siguienteVelocidad(actual: number): number {
-  return ESCALA_L.find(v => v > actual + 1e-6) ?? ESCALA_L[ESCALA_L.length - 1]
+  return VELOCIDADES.find(v => v > actual + 1e-6) ?? VELOCIDADES[VELOCIDADES.length - 1]
 }
+/** El botón de velocidad da la vuelta: 1x → 1.25x → 1.5x → 1.75x → 2x → 1x. */
+export function velocidadEnCiclo(actual: number): number {
+  return VELOCIDADES.find(v => v > actual + 1e-6) ?? VELOCIDADES[0]
+}
+/** «1×», «1.25×»: lo que dice el botón. */
+export const rotuloVelocidad = (x: number) => `${x}×`
 export const saltoAtras = (repeticiones: number) => 5 * Math.min(4, 2 ** Math.max(0, repeticiones))
 
 // ── Dos versiones, un solo reloj ──
@@ -59,17 +65,123 @@ export function tiempoEnOtra(seg: number, durActual: number, durOtra: number, mo
 /** Por defecto: mismo tiempo si miden casi igual (misma edición, otro tratamiento); si no, mismo avance. */
 export const modoPorDefecto = (d1: number, d2: number): 'tiempo' | 'avance' => d1 > 0 && d2 > 0 && Math.abs(d1 - d2) / Math.max(d1, d2) < 0.02 ? 'tiempo' : 'avance'
 
+// ── El reloj del visor mientras corre (7 nov 2026, Daniel: «parpadea se traba» con el video en grande) ──
+/** El tiempo que se lee (m:ss) cambia solo cuando cambia el segundo: el visor no se re-renderiza en cada cuadro. */
+export const otroSegundo = (antes: number, ahora: number) => Math.floor(antes) !== Math.floor(ahora)
+/** La barra se repinta solo si la perilla se movería al menos un píxel de pantalla (medio píxel CSS a 2x). Un video de 13 min en una barra de
+ *  2,500 px avanza ~3 px por segundo: repintarla (y re-renderizar el visor) en cada cuadro era trabajo tirado; un clip corto
+ *  sigue moviéndose en cada cuadro. `anchoPx` en píxeles de pantalla (CSS × devicePixelRatio). */
+export function moverBarra(antes: number, ahora: number, dur: number, anchoPx: number): boolean {
+  if (!(dur > 0) || !(anchoPx > 0)) return antes !== ahora
+  return (Math.abs(ahora - antes) / dur) * anchoPx >= 1
+}
+
+// ── Tamaño del escenario (8 nov 2026) ──
+/** Lo que el visor deja libre a su alrededor cuando ocupa el panel principal (pestañas, controles, relleno), en px de la interfaz. */
+export const HOLGURA_GRANDE = 300
+/**
+ * Alto del escenario del video en px de la INTERFAZ (lo que se pone en `style.height`). Daniel, 8 nov 2026: «el visualizador de
+ * videos no se adapta al 16:9, es tan grande que me toca hacer scroll y debería ser estático». Causa: la altura de la ventana
+ * (`visualViewport.height`) viene en px de pantalla, pero un `height` en px se multiplica por el zoom de la interfaz (CSS `zoom`
+ * en <html>, ⌘+/⌘−): a 1.25 el escenario salía 25 % más alto de lo que cabía. Aquí la ventana se pasa a px de la interfaz
+ * (÷ zoom), como hace el visor de PDF con `/ var(--ui-zoom)`. A zoom 1 el resultado es el de siempre.
+ *  - grande (panel principal): toda la ventana menos la holgura; vertical (9:16): la ventana menos sus controles, sin pasar de 720;
+ *  - en la hoja del chat: hasta el 55 % de la ventana, entre 220 y 520.
+ * El escenario toma el alto de la versión que más lo pide (con dos lado a lado, cada una en su mitad del ancho: `hueco`).
+ */
+export function altoDeEscenario(o: { grande: boolean; vertical: boolean; altoVentana: number; zoom: number; hueco: number; proporciones: number[]; libre?: number | null }): number {
+  const local = o.altoVentana / (o.zoom > 0 ? o.zoom : 1)
+  // En el panel principal manda el espacio REAL que queda (`libre`, medido con espacioLibre); la holgura fija es solo el respaldo.
+  const libre = typeof o.libre === 'number' && Number.isFinite(o.libre) && o.libre > 0 ? o.libre : null
+  const tope = o.grande ? Math.max(260, libre ?? local - HOLGURA_GRANDE) : o.vertical ? Math.max(260, Math.min(720, local - 210)) : Math.min(520, Math.max(220, local * 0.55))
+  const pide = o.proporciones.map(p => Math.min(tope, o.hueco / (p > 0 ? p : 16 / 9)))
+  return Math.round(Math.max(160, ...pide))
+}
+
+/** Aire que se deja bajo el visor en el panel principal, en px de la interfaz. */
+export const MARGEN_INFERIOR_VISOR = 24
+/**
+ * El alto que le queda al ESCENARIO en el panel principal (8 nov 2026, Daniel: «cabe, pero wtf con todo el espacio vacío debajo»:
+ * la holgura fija de 300 px reservaba casi el doble de lo que ocupan lo de arriba y los controles). Es lo que mide la ventana desde donde
+ * empieza el visor hasta su borde, menos lo que el propio visor ocupa fuera del escenario (controles, versiones, huecos) y un margen.
+ *  - `arriba`: dónde empieza el visor, en px de PANTALLA (getBoundingClientRect().top); `altoVentana` también va en px de pantalla;
+ *  - `fijo`: lo que mide el visor sin el escenario, en px de la interfaz (offsetHeight);
+ *  - el resultado, en px de la interfaz como el `height` que se pone (por eso se divide entre el zoom).
+ */
+export function espacioLibre(o: { altoVentana: number; arriba: number; zoom: number; fijo: number; margen?: number }): number {
+  const z = o.zoom > 0 ? o.zoom : 1
+  return Math.max(0, Math.floor((o.altoVentana - Math.max(0, o.arriba)) / z - o.fijo - (o.margen ?? MARGEN_INFERIOR_VISOR)))
+}
+
+// ── Miniaturas bajo la barra (8 nov 2026, Daniel: «ver la miniatura del frame abajo, justo como YT») ──
+// Como YouTube: UNA hoja de miniaturas por video (un fotograma cada pocos segundos, en cuadrícula) que el servidor genera con
+// ffmpeg una sola vez y guarda; el navegador solo recorta la celda que toca bajo el cursor (nada de decodificar al pasar).
+export interface PlanMiniaturas { cada: number; n: number; cols: number; filas: number; ancho: number; alto: number }
+export const MINIATURAS_COLUMNAS = 10
+/** Alto (o ancho, si es vertical) de cada miniatura en px: lo justo para verse nítida al doble de tamaño en pantalla retina. */
+export const MINIATURA_LADO = 90
+
+/**
+ * Cuántas miniaturas y de qué tamaño. Un fotograma cada 1 s (≤ 2 min), 2 s (≤ 10 min), 5 s (≤ 30 min) o 10 s: de 60 a 180 piezas,
+ * una hoja de 1 a 2 MB como mucho. El tamaño sigue la proporción del video (16:9 → 160×90, 9:16 → 90×160), siempre par (lo pide el escalado).
+ * Sin duración conocida no hay plan.
+ */
+export function planMiniaturas(duracion: number, proporcion: number): PlanMiniaturas | null {
+  if (!Number.isFinite(duracion) || duracion <= 0) return null
+  const p = Number.isFinite(proporcion) && proporcion > 0 ? proporcion : 16 / 9
+  const cada = duracion <= 120 ? 1 : duracion <= 600 ? 2 : duracion <= 1800 ? 5 : 10
+  const n = Math.max(1, Math.floor(duracion / cada) + 1)
+  const par = (x: number) => Math.max(2, Math.round(x / 2) * 2)
+  const ancho = p >= 1 ? par(MINIATURA_LADO * p) : MINIATURA_LADO
+  const alto = p >= 1 ? MINIATURA_LADO : par(MINIATURA_LADO / p)
+  return { cada, n, cols: Math.min(MINIATURAS_COLUMNAS, n), filas: Math.ceil(n / Math.min(MINIATURAS_COLUMNAS, n)), ancho: Math.min(ancho, 240), alto: Math.min(alto, 240) }
+}
+
+/** Qué celda de la hoja toca a un instante (la última miniatura sirve para el final del video). */
+export function celdaDeMiniatura(plan: PlanMiniaturas, seg: number): { indice: number; col: number; fila: number } {
+  const indice = Math.min(plan.n - 1, Math.max(0, Math.floor((Number.isFinite(seg) ? seg : 0) / plan.cada)))
+  return { indice, col: indice % plan.cols, fila: Math.floor(indice / plan.cols) }
+}
+
+/** Argumentos de ffmpeg que arman la hoja de un video en una sola pasada (sin shell: la ruta va como argumento). */
+export function argsMiniaturas(entrada: string, salida: string, plan: PlanMiniaturas): string[] {
+  return ['-v', 'error', '-nostdin', '-y', '-threads', '2', '-i', entrada, '-an', '-sn',
+    '-vf', `fps=1/${plan.cada},scale=${plan.ancho}:${plan.alto}:flags=bilinear,tile=${plan.cols}x${plan.filas}`,
+    '-frames:v', '1', '-q:v', '6', salida]
+}
+
+/** Qué decirle a Daniel cuando el <video> falla (MediaError.code: 2 red, 3 decodificación, 4 fuente no válida, p. ej. enlace vencido). */
+export function textoFallaVideo(codigo: number | null | undefined): string {
+  if (codigo === 2) return 'Se cortó la conexión con el video.'
+  if (codigo === 3) return 'El video no se pudo decodificar en este punto.'
+  if (codigo === 4) return 'No se pudo abrir el video (¿venció el enlace?).'
+  return 'El video dejó de responder.'
+}
+
+// ── Flechas (8 nov 2026) ──
+/** Lo que salta ← → sin parar el video. */
+export const SALTO_FLECHA_S = 5
+/**
+ * ← → adelantan y atrasan 5 s (Daniel: «flechas para adelantar y atrasar»); con Shift, un fotograma, que es lo que hacían
+ * solas para editar con Levy. Cualquier otra tecla: null.
+ */
+export function pasoDeFlecha(tecla: string, shift: boolean): { segundos: number } | { fotogramas: number } | null {
+  if (tecla !== 'ArrowRight' && tecla !== 'ArrowLeft') return null
+  const signo = tecla === 'ArrowRight' ? 1 : -1
+  return shift ? { fotogramas: signo } : { segundos: signo * SALTO_FLECHA_S }
+}
+
 // ── Pantalla completa y volumen ──
 /** Sin movimiento del ratón ni toques, la capa de controles (y el cursor) se van tras este tiempo. */
 export const OCULTAR_MANDO_MS = 2500
 export type ViaPantalla = 'elemento' | 'ventana' | 'video'
-/** Por dónde entra a pantalla completa. 'video' (webkitEnterFullscreen del <video>) solo en el teléfono: trae los controles
- *  del sistema y gira a horizontal; en el escritorio no tiene controles (9 oct, Daniel: «no hay barra»). El escritorio Tauri
- *  pone la ventana nativa a pantalla completa y el visor la cubre con su propia capa. */
-export function viaPantallaCompleta(o: { elemento: boolean; escritorio: boolean; tactil: boolean; videoNativo: boolean }): ViaPantalla {
-  if (o.escritorio) return 'ventana'
-  if (o.elemento) return 'elemento'
+/** Por dónde entra a pantalla completa (6 nov 2026, rehecho). En el teléfono (iPhone, iPad), la nativa del <video>
+ *  (webkitEnterFullscreen): controles del sistema, gira a horizontal y no saca al <video> de su lugar. Donde la API de
+ *  pantalla completa de elementos existe y está permitida, el contenedor con nuestros controles. Si no (WKWebView sin ella),
+ *  la capa propia sobre la ventana nativa a pantalla completa. */
+export function viaPantallaCompleta(o: { elemento: boolean; tactil: boolean; videoNativo: boolean }): ViaPantalla {
   if (o.tactil && o.videoNativo) return 'video'
+  if (o.elemento) return 'elemento'
   return 'ventana'
 }
 /** Flechas ↑ ↓ mueven el volumen en pasos de 10 %, dentro de 0–1. */
@@ -145,7 +257,7 @@ const CARPETAS_FINALES = /^(finales?|entrega|entregables?|export(s|ados?)?|salid
 const NOMBRE_FINAL = /^(final|master|export|entrega)([-_. ].*)?\./i
 const VERSION = /^v(\d+)(?:[._](\d+))?\b/i
 
-/** ¿Es un «final»? Una carpeta de finales/entrega/export, o un nombre que empieza por final/master/export. */
+/** ¿Se llama «final»? Una carpeta de finales/entrega/export, o un nombre que empieza por final/master/export. */
 export function esFinal(relativa: string): boolean {
   const partes = relativa.split('/')
   const nombre = partes[partes.length - 1] ?? ''
@@ -164,10 +276,25 @@ export function ordenarEntrega(items: ItemEntrega[]): { finales: ItemEntrega[]; 
     if (vb) return 1
     return a.relativa.localeCompare(b.relativa, 'es', { numeric: true })
   }
-  const finales = items.filter(i => esFinal(i.relativa)).sort(cmp)
-  const piezas = items.filter(i => !esFinal(i.relativa)).sort(cmp)
+  // Sin nombres de final (6 nov 2026, Daniel: «0 finales · 13 piezas» en una carpeta de 6 cortos y sus hojas): lo que se
+  // ve o se oye es lo que se entrega; hojas, .md y lo demás son piezas del camino.
+  const porNombre = items.some(i => esFinal(i.relativa))
+  const final = (i: ItemEntrega) => porNombre ? esFinal(i.relativa) : i.clase === 'video' || i.clase === 'audio'
+  const finales = items.filter(final).sort(cmp)
+  const piezas = items.filter(i => !final(i)).sort(cmp)
   return { finales, piezas }
 }
+
+/** Lo abierto de cada carpeta de entrega, por ruta: sobrevive a que la vista se remonte (se duerme fuera de pantalla, el
+ *  hilo se recarga con los ids de la base, la pestaña renace). Vive lo que la página. */
+const abiertasEnCarpeta = new Map<string, unknown>()
+export function abiertaEnCarpeta<T>(carpeta: string): T | null { return (abiertasEnCarpeta.get(carpeta) as T | undefined) ?? null }
+export function recordarAbiertaEnCarpeta<T>(carpeta: string, abierta: T | null) {
+  if (abierta == null) abiertasEnCarpeta.delete(carpeta); else abiertasEnCarpeta.set(carpeta, abierta)
+}
+
+/** ¿Hay que traer la vista a la pantalla? Sí si su borde de arriba quedó fuera (arriba) o en la mitad de abajo. */
+export const hayQueTraer = (arriba: number, altoVisible: number) => arriba < 0 || arriba > altoVisible * 0.6
 
 /** Las versiones de un mismo material en una lista: videos cuyo nombre empieza por vN (v1, v2.1…). */
 export const versionesDe = (items: ItemEntrega[]) => items.filter(i => i.clase === 'video' && ordenVersion(i.nombre)).sort((a, b) => {

@@ -22,11 +22,12 @@ import { ayudaDeCliente, ayudaOriginal } from './ayuda.js'
 import { esEdicionCliente } from '../edicion.js'
 import { CABINA_SUBAGENTES } from '../cliente/politica-agentes.js'
 import { subagentesClienteEncendidos } from '../cliente/subagentes-sdk.js'
-import { describir, guardar as guardarEnArchivero, leer as leerArchivero, limpiarVista, pedirAbrir, sacar as sacarDelArchivero } from './archivero.js'
+import { buscar as buscarEnArchivero, describir, guardar as guardarEnArchivero, leer as leerArchivero, limpiarVista, pedirAbrir, sacar as sacarDelArchivero } from './archivero.js'
 import { anotarBitacora, clientesVivos, describirPanel, emitir, esperarAcuses, esperarAjustes, informe } from './panel-bus.js'
+import { vetoDirecto, vetoEntrada } from './modo-directo.js'
 import { aplicar as aplicarAjustes, describir as describirAjustesTodas, DONDES, idDeSeccion, leer as leerAjustes, NOMBRES as NOMBRES_SECCION, NOMBRES_DONDE, SECCIONES } from './panel-ajustes.js'
 
-export const VISTAS = ['calendario', 'objetivos', 'centro', 'lienzo', 'reporte', 'negocio', 'trabajos', 'finanzas', 'contenido', 'rutinas', 'servidores', 'memoria', 'equipo', 'documento', 'diario', 'salud', 'masterclass', 'explorador', 'cohorte', 'casa', 'perro', 'historia'] as const
+export const VISTAS = ['calendario', 'objetivos', 'centro', 'lienzo', 'reporte', 'negocio', 'bi', 'trabajos', 'finanzas', 'contenido', 'rutinas', 'servidores', 'memoria', 'equipo', 'documento', 'diario', 'salud', 'masterclass', 'explorador', 'cohorte', 'casa', 'perro', 'historia'] as const
 export const QUIENES = PERSONAS
 export const SECCIONES_NEGOCIO = ['avatar', 'oferta', 'embudo', 'sistema'] as const
 export const DESTINOS = ['calendario', 'objetivos', 'hoy', 'centro', 'contenido', 'lienzo', 'rutinas', 'finanzas', 'sfcal', 'sfmap'] as const
@@ -63,7 +64,7 @@ export const DETENER_DESCRIPTION = `Corta el paso en curso de un subagente tuyo 
 export const INTERACTIVO_DESCRIPTION = `Abre la sesión de un subagente tuyo (si no está trabajando) en una terminal del motor para que ${DUENO} entre a mano desde el Taller. Solo si lo pide. Devuelve la terminal.`
 export const CERRAR_DESCRIPTION = `Cierra un subagente tuyo cuando terminó o ${DUENO} lo pide: libera su lugar y registra sus tokens. Su conversación queda en disco. Nunca cierra terminales de ${DUENO}.`
 export const ABRIR_DESCRIPTION = `Lleva a ${DUENO} a la sección completa de Arbrain cuando la vista se queda corta o lo pide («llévame al calendario»). Navega al terminar tu respuesta (puede cancelar); máximo una vez por turno. lienzo acepta paginaId y zona; sfcal y sfmap caen en Calendario y Lienzo.`
-export const textoConversacion = (quien: string) => `Abre una conversación NUEVA del chat de ${quien}, fijada en Fijadas (barra izquierda), y le manda tu primer mensaje por el camino de uno escrito: otro turno tuyo lo trabaja ahí y sigue con ${quien}. Solo si lo pide («ábrela como conversación», «fíjala a la izquierda»). No ve esta conversación: el mensaje lleva el contexto. abrir:true la abre. Detalle: ayuda {tema:"conversacion"}.`
+export const textoConversacion = (quien: string) => `Conversaciones del chat de ${quien}, solo si lo pide. accion crear (default): abre una NUEVA fijada con titulo y le manda mensaje; otro turno tuyo la trabaja sin ver esta (el mensaje lleva el contexto; abrir:true la abre). listar: id, título, estado (gris quieta, amarillo trabajando, morado lista sin ver), fijada. renombrar {id,titulo} · fijar|desfijar {id} · enviar {id,mensaje}: le escribes como Levy desde esta, nunca como ${quien}, y arranca su turno. Detalle: ayuda {tema:"conversaciones"}.`
 export const CONVERSACION_DESCRIPTION = textoConversacion(DUENO)
 export const AYUDA_DESCRIPTION = `Detalle a demanda de la Cabina: qué pinta cada vista, campos y reglas largas de cada herramienta. tema = vista o herramienta ("cohorte", "documento", "delegar"); sin tema, el índice. Úsala cuando dudes.`
 
@@ -184,7 +185,7 @@ export function parseAbrir(raw: unknown): AbrirInput {
   return input
 }
 
-const LABEL: Record<string, string> = { diario: 'reporte diario', documento: 'documento', reporte: 'reporte',  negocio: 'negocio', trabajos: 'trabajos', calendario: 'calendario', objetivos: 'objetivos', hoy: 'hoy', centro: 'finanzas · lo que entra', contenido: 'contenido', lienzo: 'lienzo', rutinas: 'rutinas', finanzas: 'finanzas', servidores: 'servidores', memoria: 'memoria y contexto', equipo: 'equipo', salud: 'salud', masterclass: 'masterclass', explorador: 'archivos', cohorte: 'cohorte', casa: 'casa', perro: 'perro', sfcal: 'calendario', sfmap: 'lienzo' }
+const LABEL: Record<string, string> = { diario: 'reporte diario', documento: 'documento', reporte: 'reporte',  negocio: 'negocio', bi: 'business intelligence', trabajos: 'trabajos', calendario: 'calendario', objetivos: 'objetivos', hoy: 'hoy', centro: 'finanzas · lo que entra', contenido: 'contenido', lienzo: 'lienzo', rutinas: 'rutinas', finanzas: 'finanzas', servidores: 'servidores', memoria: 'memoria y contexto', equipo: 'equipo', salud: 'salud', masterclass: 'masterclass', explorador: 'archivos', cohorte: 'cohorte', casa: 'casa', perro: 'perro', sfcal: 'calendario', sfmap: 'lienzo' }
 const ALC: Record<Alcance, string> = { dia: 'día', semana: 'semana', mes: 'mes' }
 
 /** Ejecuta un verbo de la cabina. Solo valida y confirma: la vista la monta el cliente. */
@@ -270,7 +271,7 @@ export const CABINA_TOOLS = [
   { name: 'detener', description: DETENER_DESCRIPTION, inputSchema: obj({ agenteId: AGENTE }, ['agenteId'] as const) },
   { name: 'interactivo', description: INTERACTIVO_DESCRIPTION, inputSchema: obj({ agenteId: AGENTE }, ['agenteId'] as const) },
   { name: 'cerrar', description: CERRAR_DESCRIPTION, inputSchema: obj({ agenteId: AGENTE }, ['agenteId'] as const) },
-  { name: 'conversacion', description: CONVERSACION_DESCRIPTION, inputSchema: obj({ titulo: S, mensaje: { type: 'string', maxLength: 6000 }, abrir: B }, ['titulo', 'mensaje'] as const, true) },
+  { name: 'conversacion', description: CONVERSACION_DESCRIPTION, inputSchema: obj({ accion: { type: 'string', enum: ['crear', 'listar', 'renombrar', 'fijar', 'desfijar', 'enviar'] }, id: S, titulo: S, mensaje: { type: 'string', maxLength: 6000 }, abrir: B }, [] as const, true) },
   { name: 'ayuda', description: AYUDA_DESCRIPTION, inputSchema: obj({ tema: S }) },
 ] as const
 
@@ -281,6 +282,9 @@ export async function ejecutarCabina(tool: string, raw: unknown): Promise<{ text
   if (esEdicionCliente() && CABINA_SUBAGENTES.has(tool)) return { text: mensajeSinSubagentes(), error: true }
   // Carril T: la campana (avisos de la instalación original) no existe en cliente.
   if (esEdicionCliente() && CABINA_SOLO_ORIGINAL.has(tool)) return { text: motivoSoloOriginal(tool), error: true }
+  // Modo directo (7 nov 2026): con Daniel transmitiendo, lo vetado no se muestra ni se abre aunque un agente lo pida.
+  // Va como error para que el chat no monte la vista ni navegue (Cabina.tsx no pinta una invocación con error).
+  if (tool === 'mostrar' || tool === 'abrir') { const veto = vetoDirecto(tool, raw); if (veto) return { text: veto, error: true } }
   if (tool === 'mostrar') return mostrarConEfecto(raw)
   if (tool === 'abrir') return callCabina(tool, raw)
   // Dieta de contexto (27 oct 2026): el detalle que salió de las descripciones, a demanda.
@@ -423,6 +427,8 @@ function archivero(o: Record<string, unknown>): { text: string; error?: boolean 
   const quien = typeof o.id === 'string' ? o.id.trim() : ''
   if (!quien) throw new Error(`${o.accion ?? 'archivero'} necesita id (o el nombre de la entrada).`)
   if (o.accion === 'abrir') {
+    const veto = vetoEntrada(buscarEnArchivero(quien)?.input as Record<string, unknown> | undefined)
+    if (veto) return { text: veto, error: true }
     const e = pedirAbrir(quien)
     return e ? { text: `«${e.nombre}» se abrirá como pestaña en el panel de ${DUENO} en unos segundos (la app atiende el pedido).` } : { text: `No hay nada guardado como «${quien}». Usa accion listar.`, error: true }
   }
@@ -473,7 +479,9 @@ async function despertador(o: Record<string, unknown>): Promise<{ text: string; 
  * `abrir`). Solo afirma lo que pasó: la fila y el turno, o «NO confirmado» con el motivo.
  */
 async function conversacion(o: Record<string, unknown>): Promise<{ text: string; error?: boolean }> {
-  const { parseConversacion, ConversacionesNuevas } = await import('./conversaciones.js')
+  const { parseConversacion, parseOrden, ConversacionesNuevas } = await import('./conversaciones.js')
+  const orden = parseOrden(o)
+  if (orden) return ordenDeConversacion(orden)
   const entrada = parseConversacion(o)
   let scope: ReturnType<typeof scopeDeCabina>
   try { scope = scopeDeCabina() } catch { throw new Error('Las conversaciones nuevas solo se abren desde una conversación del chat de Arbrain.') }
@@ -498,6 +506,45 @@ async function conversacion(o: Record<string, unknown>): Promise<{ text: string;
     : versionVieja ? 'La app abierta es de una versión anterior: la verá en Fijadas en su próximo refresco (unos 20 s) o al volver a la ventana.'
       : `Ninguna app la confirmó todavía: aparece en Fijadas en su próximo refresco o al volver a la ventana${entrada.abrir ? '; no digas que ya la abrió' : ''}.`
   return { text: `Conversación «${p.titulo}» creada y fijada (id ${p.id}). Su primer mensaje entró como uno escrito (turno ${p.turnId}) y otro turno tuyo lo trabaja allá; no ve esta conversación. ${app}` }
+}
+
+/**
+ * `conversacion` con accion listar | renombrar | fijar | desfijar | enviar (6 nov 2026, cabina/conversaciones.ts): deja la orden
+ * en el store del agent-server y espera a que su pulso la atienda con la web (filas) o el journal (enviar). Solo afirma lo
+ * que el pulso confirmó; si no llega a tiempo, «NO confirmado».
+ */
+async function ordenDeConversacion(entrada: import('./conversaciones.js').EntradaOrden): Promise<{ text: string; error?: boolean }> {
+  const { OrdenesConversacion, SEMAFORO_EN_PALABRAS } = await import('./conversaciones.js')
+  let scope: ReturnType<typeof scopeDeCabina>
+  try { scope = scopeDeCabina() } catch { throw new Error('Las conversaciones solo se orquestan desde una conversación del chat de Arbrain.') }
+  const [{ default: Database }, { join }, { STORE_DIR }] = await Promise.all([import('better-sqlite3'), import('node:path'), import('../config.js')])
+  const db = new Database(join(STORE_DIR, 'claudeclaw.db'))
+  let p
+  try {
+    const store = new OrdenesConversacion(db)
+    p = store.pedir(scope, entrada)
+    const limite = Date.now() + (Number(process.env.ARBRAIN_CONVERSACION_ESPERA_MS) || 20_000)
+    while ((p.estado === 'pendiente' || p.estado === 'creando') && Date.now() < limite) {
+      await new Promise(r => setTimeout(r, 200))
+      p = store.get(p.id) ?? p
+    }
+  } finally { db.close() }
+  const que = entrada.accion === 'listar' ? 'listar las conversaciones' : `${entrada.accion} la conversación ${entrada.id}`
+  if (p.estado === 'error') return { text: `NO se pudo ${que}: ${p.motivo ?? 'la web lo rechazó'}.`, error: true }
+  if (p.estado !== 'hecha') return { text: `NO confirmado: pedí ${que} (orden ${p.id}) pero el servidor aún no la atiende${p.motivo ? ` (último intento: ${p.motivo})` : ''}; la reintenta solo unas veces. No afirmes que quedó.`, error: true }
+  const r = p.resultado as Record<string, unknown>
+  const refresco = `La barra de ${DUENO} lo refleja en su próximo refresco (unos segundos).`
+  if (entrada.accion === 'listar') {
+    const lista = (Array.isArray(p.resultado) ? p.resultado : []) as import('./conversaciones.js').ConversacionListada[]
+    if (!lista.length) return { text: `${DUENO_M} no tiene conversaciones en el chat.` }
+    const [{ fechaHoraCivil }, { zonaDueno }] = await Promise.all([import('../chat-runtime/despertadores.js'), import('../zona.js')])
+    const zona = zonaDueno()
+    const lineas = lista.map(c => `${c.id} · «${c.titulo}» · ${SEMAFORO_EN_PALABRAS[c.estado]}${c.fijada ? ' · fijada' : ''}${c.cuenta !== 'default' ? ` · cuenta ${c.cuenta}` : ''}${c.ultima ? ` · última ${fechaHoraCivil(Date.parse(c.ultima), zona)}` : ''}${c.id === scope.conversationId ? ' · (esta)' : ''}`)
+    return { text: `${lista.length} conversaciones de ${DUENO}, como en su barra (fijadas primero):\n${lineas.join('\n')}` }
+  }
+  if (entrada.accion === 'renombrar') return { text: `Conversación ${r.id} renombrada: «${r.antes ?? '(sin título)'}» → «${r.titulo}». ${refresco}` }
+  if (entrada.accion === 'fijar' || entrada.accion === 'desfijar') return { text: r.yaEstaba ? `«${r.titulo}» (${r.id}) ya estaba ${entrada.accion === 'fijar' ? 'fijada' : 'sin fijar'}; no cambió nada.` : `«${r.titulo}» (${r.id}) ${entrada.accion === 'fijar' ? 'fijada arriba de Fijadas' : 'desfijada: vuelve a Recientes'}. ${refresco}` }
+  return { text: `Mensaje entregado a «${r.titulo}» (${r.destino}) como turno ${r.turnId}, firmado «Levy, desde «${r.desdeTitulo}»» (no como ${DUENO}). Allá arranca un turno tuyo que no ve esta conversación: pasa a amarillo mientras trabaja y a morado al terminar.` }
 }
 
 /** Codex recibe los mismos verbos como dynamicTools con prefijo explícito. Sin `despertador` ni `conversacion` por ahora:

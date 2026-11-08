@@ -8,6 +8,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { ExternalLink, Laptop, Loader2, Monitor, Plus, RefreshCw, Server, Trash2 } from 'lucide-react'
 import { Aviso } from '@/features/primer-arranque/components/PanelLlaves'
 import { estadoDeMaquina, horaCorta, tipoDeMaquina, type Maquina } from './conectar-ui'
+import { LineaConversaciones } from './LineaConversaciones'
 
 async function pedir<T>(metodo: 'GET' | 'POST', cuerpo?: Record<string, string>): Promise<T> {
   const r = await fetch(metodo === 'GET' ? '/api/conectar?ver=maquinas' : '/api/conectar', metodo === 'GET'
@@ -54,6 +55,7 @@ export function SeccionMaquinas() {
           <button type="button" className="btn-secondary !px-2 !py-1 text-[12px]" aria-label="Revisar de nuevo" onClick={() => void leer()}><RefreshCw className="size-3.5" aria-hidden /></button>
         </div>
         <p className="mt-1 text-[13px] leading-relaxed text-muted">Cada computadora o servidor donde vive tu Arbrain, con su dirección privada. Desde cualquiera puedes abrir las demás.</p>
+        <LineaConversaciones />
 
         {maquinas === null && !error && <p className="mt-3 flex items-center gap-2 text-[13px] text-muted"><Loader2 className="size-3.5 animate-spin" aria-hidden /> Revisando…</p>}
         {maquinas && maquinas.length === 0 && <Aviso tono="info" className="mt-3">Enciende «Tu Levy en el teléfono» en Ajustes › Teléfono y esta máquina aparece aquí.</Aviso>}

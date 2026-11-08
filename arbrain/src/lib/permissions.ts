@@ -15,6 +15,8 @@ const ROUTE_PERMISSIONS: Record<string, UserRole[]> = {
   '/salud': ['owner', 'admin', 'member'],
   '/masterclass': ['owner'],
   '/cohorte': ['owner'],
+  '/negocio': ['owner'],
+  '/bi': ['owner'],
   '/perro': ['owner'],
   '/casa': ['owner'],
   '/historia': ['owner'],

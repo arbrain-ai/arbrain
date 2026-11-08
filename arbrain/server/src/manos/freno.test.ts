@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { juzgar, confirmacionValida, Freno } from './freno.js'
+import { juzgar, confirmacionValida, frenar, Freno } from './freno.js'
 import type { Adaptador, ContextoAccion, PedidoActuar } from './contrato.js'
 
 const WA = { bundle: 'net.whatsapp.WhatsApp', app: 'WhatsApp' }
@@ -203,5 +203,102 @@ describe('freno: «Sí» en español (17 oct)', () => {
     const d: ContextoAccion = { elemento: { rol: 'AXButton', titulo: 'Sí' }, dentro_de: ['hoja'], dialogo: { tipo: 'hoja', texto: 'Esta acción no se puede deshacer' } }
     expect(juzgar({ pid, accion: 'click', ref: 'e1' }, d).categoria).toBe('confirmar_peligro')
     expect(juzgar({ pid, accion: 'click', ref: 'e1' }, { ...d, elemento: { rol: 'AXButton', titulo: 'Sincronizar' } }).irreversible).toBe(false)
+  })
+})
+
+describe('freno: panel de archivos que nace de una pestaña propia (5 nov, banner del canal)', () => {
+  // Así lo da la casa: la hoja «abrir» cuelga de la ventana madre; su título de accesibilidad dice el grupo de la pestaña activa.
+  const panel = (tituloMadre: string, e: Partial<NonNullable<ContextoAccion['elemento']>> = { rol: 'AXTextField' }): ContextoAccion => ({
+    bundle: 'com.google.Chrome', app: 'Google Chrome', elemento: { rol: 'AXTextField', ...e },
+    ancestros: ['AXSheet «abrir»'], dentro_de: ['hoja'], ventana: { titulo: tituloMadre, subrol: 'AXStandardWindow' },
+    dialogo: { tipo: 'hoja', texto: 'Escritorio · Documentos · Descargas', boton_defecto: 'Abrir', boton_cancelar: 'Cancelar' },
+  })
+  const deArbrain = panel('Personalización del canal - YouTube Studio: Parte del grupo Arbrain · sube el banner - Google Chrome - Fulano')
+  const dePersona = panel('YouTube Music - Google Chrome - Fulano')
+
+  it('en la ventana del grupo Arbrain: ⌘⇧G, teclear la ruta, Return (Abrir), Cancelar y Escape pasan', () => {
+    expect(juzgar({ pid, ventana: 15609, accion: 'tecla', tecla: 'g', modificadores: ['cmd', 'shift'] }, deArbrain).irreversible).toBe(false)
+    expect(juzgar({ pid, ventana: 15609, accion: 'escribir', ref: 'e3', texto: '/Users/usuario/Desktop/banner.png' }, deArbrain).irreversible).toBe(false)
+    expect(juzgar({ pid, ventana: 15609, accion: 'tecla', tecla: 'return', ref: 'e3' }, deArbrain).irreversible).toBe(false)
+    expect(juzgar({ pid, ventana: 15609, accion: 'tecla', tecla: 'return' }, { ...deArbrain, elemento: undefined }).irreversible).toBe(false)
+    expect(juzgar({ pid, ventana: 15609, accion: 'click', ref: 'e9' }, panel(deArbrain.ventana!.titulo!, { rol: 'AXButton', titulo: 'Abrir' })).irreversible).toBe(false)
+    expect(juzgar({ pid, ventana: 15609, accion: 'click', ref: 'e8' }, panel(deArbrain.ventana!.titulo!, { rol: 'AXButton', titulo: 'Cancelar' })).irreversible).toBe(false)
+    expect(juzgar({ pid, ventana: 15609, accion: 'tecla', tecla: 'escape' }, deArbrain).irreversible).toBe(false)
+  })
+  it('con la ventana madre propia (adoptada) también pasa, aunque el título no diga el grupo', () => {
+    expect(juzgar({ pid, ventana: 15628, accion: 'tecla', tecla: 'g', modificadores: ['cmd', 'shift'] }, panel('Prueba - Google Chrome'), new Set([15628])).irreversible).toBe(false)
+  })
+  it('el panel alojado por «Open and Save Panel Service» no es ventana de Daniel', () => {
+    const c: ContextoAccion = { bundle: 'com.apple.appkit.xpc.openAndSavePanelService', elemento: { rol: 'AXButton', titulo: 'Abrir' }, ventana: { titulo: 'Abrir', subrol: 'AXDialog' } }
+    expect(juzgar({ pid, ventana: 77, accion: 'click', ref: 'e1' }, c).irreversible).toBe(false)
+  })
+  it('el panel de una ventana de Daniel sigue bloqueado, y lo demás de su ventana también', () => {
+    expect(juzgar({ pid, ventana: 10682, accion: 'tecla', tecla: 'g', modificadores: ['cmd', 'shift'] }, dePersona).categoria).toBe('pestana_de_daniel')
+    expect(juzgar({ pid, ventana: 10682, accion: 'click', ref: 'e9' }, panel(dePersona.ventana!.titulo!, { rol: 'AXButton', titulo: 'Abrir' })).categoria).toBe('pestana_de_daniel')
+    // Fuera del panel, la ventana del grupo Arbrain sin adoptar sigue como siempre: el permiso es solo para el panel.
+    const pagina: ContextoAccion = { bundle: 'com.google.Chrome', dentro_de: ['web'], elemento: { rol: 'AXLink', titulo: 'Prankedy' }, ventana: deArbrain.ventana }
+    expect(juzgar({ pid, ventana: 15609, accion: 'click', ref: 'e1' }, pagina).categoria).toBe('pestana_de_daniel')
+  })
+  it('dentro del panel propio, lo irreversible sigue frenado sin cita (enviar, pagar, borrar, publicar, reemplazar)', () => {
+    const boton = (titulo: string) => panel(deArbrain.ventana!.titulo!, { rol: 'AXButton', titulo })
+    expect(frenar({ pid, ventana: 15609, accion: 'click', ref: 'e1' }, boton('Enviar'))).toMatchObject({ pasa: false, freno: { categoria: 'enviar' } })
+    expect(frenar({ pid, ventana: 15609, accion: 'click', ref: 'e1' }, boton('Pagar'))).toMatchObject({ pasa: false, freno: { categoria: 'pagar' } })
+    expect(frenar({ pid, ventana: 15609, accion: 'click', ref: 'e1' }, boton('Mover a la papelera'))).toMatchObject({ pasa: false, freno: { categoria: 'borrar' } })
+    expect(frenar({ pid, ventana: 15609, accion: 'click', ref: 'e1' }, boton('Publicar'))).toMatchObject({ pasa: false, freno: { categoria: 'publicar' } })
+    const reemplazar: ContextoAccion = { ...boton('Reemplazar'), elemento: { rol: 'AXButton', titulo: 'Sí' }, dialogo: { tipo: 'hoja', texto: '«banner.png» ya existe. ¿Quieres reemplazarlo?' } }
+    expect(frenar({ pid, ventana: 15609, accion: 'click', ref: 'e1' }, reemplazar)).toMatchObject({ pasa: false, freno: { categoria: 'confirmar_peligro' } })
+  })
+  it('el panel como ventana suelta del WindowServer (su propio id) pasa si está centrado sobre una ventana propia', async () => {
+    const hechas: PedidoActuar[] = []
+    const ventanas = [
+      { id: 15633, pid, app: 'Google Chrome', titulo: 'Abrir', marco: { x: -1403, y: 331, w: 887, h: 448 }, en_pantalla: true, z: 122 },
+      { id: 15628, pid, app: 'Google Chrome', titulo: 'Prueba panel archivos Arbrain', marco: { x: -1920, y: 30, w: 1920, h: 1050 }, en_pantalla: true, z: 117 },
+      { id: 10682, pid, app: 'Google Chrome', titulo: 'YouTube Music', marco: { x: -1920, y: 30, w: 1920, h: 1050 }, en_pantalla: true, z: 37 },
+    ]
+    const a = {
+      nombre: 'f', observar: async () => ({ app: 'X', pid, ventana: 3, elementos: [], texto: '', total_elementos: 0 }),
+      actuar: async (p: PedidoActuar) => { hechas.push(p); return { ok: true, efecto: 'sin_verificar' as const } },
+      apps: async () => [], abrir: async () => ({ pid, ventanas: [] }), ventanas: async () => ventanas, verificar: async () => ({ cumple: true, detalle: '' }),
+      cursor: async () => ({ x: 0, y: 0 }), salud: async () => ({ ok: true, detalle: '' }), cerrar: async () => {},
+      contexto: async () => ({ bundle: 'com.google.Chrome', app: 'Google Chrome' }),
+    } as Adaptador
+    const f = new Freno(a)
+    expect((await f.actuar({ pid, ventana: 15633, accion: 'tecla', tecla: 'g', modificadores: ['cmd', 'shift'] })).efecto).toBe('bloqueado')
+    f.adoptar(15628)
+    expect((await f.actuar({ pid, ventana: 15633, accion: 'tecla', tecla: 'g', modificadores: ['cmd', 'shift'] })).ok).toBe(true)
+    expect(f.propias.has(15633)).toBe(false) // solo para esa acción: no se adopta
+    // Si la madre es de Daniel, no.
+    const g = new Freno({ ...a, ventanas: async () => ventanas.filter(w => w.id !== 15628) } as Adaptador)
+    g.adoptar(15628)
+    expect((await g.actuar({ pid, ventana: 15633, accion: 'tecla', tecla: 'g', modificadores: ['cmd', 'shift'] })).efecto).toBe('bloqueado')
+    expect(hechas).toHaveLength(1)
+    // La ventana del grupo Arbrain que web_abrir reusó (no adoptada): la extensión dice que su pestaña activa es de Arbrain.
+    const h = new Freno(a)
+    h.registrarTitulosArbrain(async () => ['Prueba panel archivos Arbrain'])
+    expect((await h.actuar({ pid, ventana: 15633, accion: 'tecla', tecla: 'g', modificadores: ['cmd', 'shift'] })).ok).toBe(true)
+    const k = new Freno(a)
+    k.registrarTitulosArbrain(async () => ['YouTube Studio'])
+    expect((await k.actuar({ pid, ventana: 15633, accion: 'tecla', tecla: 'g', modificadores: ['cmd', 'shift'] })).efecto).toBe('bloqueado')
+    expect(hechas).toHaveLength(2)
+  })
+})
+
+describe('freno: la cita de Daniel que nombra su ventana destraba «pestaña de Daniel» (5 nov)', () => {
+  const link: ContextoAccion = { bundle: 'com.google.Chrome', dentro_de: ['web'], elemento: { rol: 'AXLink', titulo: 'Prankedy' } }
+  const p = (confirmacion: string): PedidoActuar => ({ pid, ventana: 252, accion: 'click', ref: 'e1', confirmacion })
+  it('plurales, «panel» y la ñ partida del dictado (NFD) cuentan como nombrarla', () => {
+    expect(frenar(p('«sí, usa mis pestañas de YouTube Studio»'), link).pasa).toBe(true)
+    expect(frenar(p('sube el banner en la pestaña de YouTube'.normalize('NFD')), link).pasa).toBe(true)
+    expect(frenar(p('opera el panel Abrir que salió de YouTube'), link).pasa).toBe(true)
+    expect(frenar(p('puedes usar mis ventanas de Chrome'), link).pasa).toBe(true)
+  })
+  it('una cita que no nombra la ventana no la destraba', () => {
+    expect(frenar(p('te doy si y desactiva ese freno'), link)).toMatchObject({ pasa: false, freno: { categoria: 'pestana_de_daniel' } })
+  })
+  it('autoriza la ventana, no lo que se haga en ella: enviar o publicar ahí sigue pidiendo su permiso', () => {
+    const wa: ContextoAccion = { bundle: 'com.google.Chrome', url: 'https://web.whatsapp.com/', dentro_de: ['web'], elemento: { rol: 'AXTextArea' } }
+    expect(frenar({ pid, ventana: 252, accion: 'tecla', tecla: 'return', ref: 'e2', confirmacion: 'usa mi pestaña de WhatsApp' }, wa)).toMatchObject({ pasa: false, freno: { categoria: 'enviar' } })
+    const pub: ContextoAccion = { bundle: 'com.google.Chrome', dentro_de: ['web'], elemento: { rol: 'AXButton', titulo: 'Publicar' } }
+    expect(frenar({ pid, ventana: 252, accion: 'click', ref: 'e2', confirmacion: 'usa mi pestaña de YouTube' }, pub)).toMatchObject({ pasa: false, freno: { categoria: 'publicar' } })
   })
 })

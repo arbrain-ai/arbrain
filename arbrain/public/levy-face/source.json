@@ -26,6 +26,14 @@
   },
   "local_changes": [
     "2026-10-04 rig/rig.js: opción `capas` ({giro, cerrado, boca}) para apagar capas pintadas por superficie; Arbrain Live apaga giro (fundido frontal↔¾ = cara doble a media pose) y boca (dientes). Por defecto todo encendido.",
-    "2026-10-04 rig/rig.js: el párpado cerrado dibujado entra como cortinilla opaca por encima del filo que baja, no como fundido translúcido (ojo duplicado a medio parpadeo). Ver docs/agents/levy-presencia-noche-2026-10-04/2d."
-  ]
+    "2026-10-04 rig/rig.js: el párpado cerrado dibujado entra como cortinilla opaca por encima del filo que baja, no como fundido translúcido (ojo duplicado a medio parpadeo). Ver docs/agents/levy-presencia-noche-2026-10-04/2d.",
+    "2026-11-07 rig/rig.js (Levy vivo): capa opcional `atlas` (capas.atlas = ruta del manifiesto, p. ej. 'assets/atlas/atlas.json'): campos de deformación de la boca por visema horneados con LivePortrait sobre la cara oficial; el shader mezcla CAMPOS con los pesos de la voz (utt.pesosAtlas) y muestrea el retrato una vez, con la cavidad como distancia con signo pintada en el morado de cavidadPareja (sin dientes, sin labios dobles a media pose). Y gancho `extra` ({headShift, headRot, parallax, brow, blink}) para sumar gestos de fuera (el movimiento del 3D). Sin capas.atlas ni extra el rig es idéntico al anterior. Ver labs/god-animation/practicas/2026-11-08-levy-unico/vivo/LEEME.md.",
+    "2026-11-07 assets/levy-oficial.webp (la cara oficial con el chip Arbrain, WebP sin pérdida, idéntica píxel a píxel a levy-oficial-arbrain.png) y assets/atlas/atlas.{png,json} (20 teselas). Solo los carga LevyFace con la bandera Levy vivo encendida."
+  ],
+  "sha256_locales": {
+    "rig/rig.js": "53bfab5439f3bd219d37e94c8b6f1046afa4cac0e5f44dcaa7432dd2aeaf239f",
+    "assets/levy-oficial.webp": "baaa9383e87e515714ee2f948a3b0f777289c4f9dc179e085411b7b468f766fc",
+    "assets/atlas/atlas.png": "863932e848080d83d3266bc50fc80ba460f38b258ba0ba585bce198bf8ba5096",
+    "assets/atlas/atlas.json": "62b97800805194803a8c380b92004c552f75b15865e89f808689a893aeb6af6f"
+  }
 }

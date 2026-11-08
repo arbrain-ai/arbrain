@@ -11,6 +11,7 @@
 import type { ChatMessage, ToolCall, ToolOutput } from '../hooks/useChat'
 import { esHerramientaCabina } from '@/features/cabina/model'
 import { esViva } from './tareas-turno'
+import { pedidoDeInput } from '@/features/manos/lib/encargos'
 
 export type EstadoPaso = 'corriendo' | 'error' | 'listo'
 
@@ -605,4 +606,19 @@ export function textoDelegados(d: Delegados): string {
     : d.total === 1 ? 'Lanzó un subagente' : `Lanzó ${d.total} subagentes`
   const nombres = d.nombres.length > 3 ? [...d.nombres.slice(0, 3), `${d.nombres.length - 3} más`] : d.nombres
   return nombres.length ? `${verbo} · ${nombres.join(', ')}` : verbo
+}
+
+// ─── Encargos de las manos en vivo (5 nov 2026) ─────────────────────────────────────────────────────────────────────
+//
+// Daniel, viendo a las manos subir un banner por minutos sin saber cuánto llevaban: «incluso si pudieras poner un
+// temporizador». Mientras la fila «Haciendo una tarea en pantalla» corre, el chat le pone reloj, paso y freno
+// (components/EncargoEnVivo). Aquí solo se dice qué llamadas a `encargar` siguen en curso y con qué pedido.
+
+export interface EncargoCorriendo { toolId: string; pedido: string | null }
+
+/** Las llamadas a `manos › encargar` en curso del turno, en orden, con el pedido de su input. */
+export function encargosCorriendo(grupos: GrupoRastro[]): EncargoCorriendo[] {
+  return grupos.filter(g => g.clave === 'manos:encargar').flatMap(g => g.llamadas)
+    .filter(l => l.estado === 'corriendo')
+    .map(l => ({ toolId: l.tool.toolId, pedido: pedidoDeInput(l.input) }))
 }

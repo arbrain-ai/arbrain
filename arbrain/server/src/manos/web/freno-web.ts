@@ -19,7 +19,7 @@ import { frenar, confirmacionValida, type Juicio } from '../freno.js'
 import { CUBRE, nombraAccion } from '../cubre.js'
 import type { ContextoAccion, PedidoActuar } from '../contrato.js'
 import { claseDeEnvio } from '../../autonomia/clase.js'
-import { modoDe, type Clase } from '../../autonomia/politica.js'
+import { frenoApagado, modoDe, type Clase } from '../../autonomia/politica.js'
 
 /** Lo que `arbrain/extension/lib/pagina.js#contexto` devuelve de un elemento. Nunca trae lo escrito. */
 export interface InfoElemento {
@@ -42,7 +42,7 @@ export interface PedidoWeb {
 }
 
 export interface VeredictoWeb {
-  pasa: boolean; handoff?: boolean; detalle?: string; freno?: { categoria: string; motivo: string; paso: boolean }
+  pasa: boolean; handoff?: boolean; detalle?: string; freno?: { categoria: string; motivo: string; paso: boolean; apagado?: boolean }
   /** Pasó por la política de autonomía (regla 5): reversible, sin cita; se anota en «Lo que hice solo». */
   autonomia?: { clase: Clase; motivo: string }
 }
@@ -191,6 +191,14 @@ function juzgarWeb(p: PedidoWeb, i: InfoElemento, vistos: string[] = []): Veredi
  *   - La cita de Daniel tiene que nombrar la acción que autoriza.
  */
 export function frenarWeb(p0: PedidoWeb, i: InfoElemento, vistos: string[] = []): VeredictoWeb {
+  const v = frenarWebSiempre(p0, i, vistos)
+  // Freno apagado por el dueño hasta una hora (politica.json, 5 nov 2026): lo que se habría frenado pasa y se anota.
+  if ((!v.pasa || (v.freno && !v.freno.paso)) && v.freno && frenoApagado()) return { pasa: true, freno: { categoria: v.freno.categoria, motivo: v.freno.motivo, paso: true, apagado: true } }
+  if (!v.pasa && !v.freno && frenoApagado()) return { pasa: true, freno: { categoria: 'irreversible', motivo: v.detalle ?? 'frenado', paso: true, apagado: true } }
+  return v
+}
+
+function frenarWebSiempre(p0: PedidoWeb, i: InfoElemento, vistos: string[]): VeredictoWeb {
   let p = p0
   if (p.accion === 'tecla' && /^(space|espacio|return|enter)$/i.test(p.tecla ?? '') && !i.editable && i.tag !== 'iframe' && i.tag !== 'body' && i.tag !== 'html') p = { ...p, accion: 'click' }
   if (p.accion === 'tecla' && (p.modificadores ?? []).some(m => /^(ctrl|control)$/i.test(m))) p = { ...p, modificadores: [...(p.modificadores ?? []), 'cmd'] }

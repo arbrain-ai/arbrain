@@ -115,7 +115,7 @@ export async function alternarLectura(fijadaId: string): Promise<ResultadoLector
   const crudos = await new Promise<{ agente: AgenteLector; bloques: BloqueCrudo[] } | null>(listo => {
     let agente: AgenteLector
     const fallo = () => { agente.cerrar(); listo(null) }
-    // La mano de Daniel desplazó el documento (o volvió al párrafo): la barra muestra u oculta «Seguir».
+    // La mano de Daniel desplazó el documento (o volvió al párrafo): el motor deja o retoma el scroll.
     const alMano = (suelto: boolean) => { if (chatSpeech.isActive(id)) chatSpeech.manoEnDocumento(suelto) }
     agente = marco ? agenteRemoto(marco, alToque, fallo, alMano) : crearAgenteLector(dom!, window, alToque, alMano)
     agente.activar()

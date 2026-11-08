@@ -226,9 +226,11 @@ for (const [doc, etiqueta, esperaBloques] of [
   await foto(`${etiqueta}-salto.png`)
 
   // La mano manda (4 nov 2026, «hago scroll y me regresa arriba»): rueda REAL dentro del documento mientras suena; la
-  // voz sigue avanzando y el documento se queda donde la mano lo dejó; «Seguir» lo regresa al párrafo que suena.
+  // voz sigue avanzando y el documento se queda donde la mano lo dejó; ⏭ (o tocar un párrafo) lo regresa al lector.
+  // Sin botón «Seguir» (5 nov 2026): aparecía bajo el dedo y en iPhone se tragaba el toque.
   const yDoc = () => ev(`Math.round((document.scrollingElement||document.documentElement).scrollTop)`, sid).then(Number)
-  const conMano = await yDoc()
+  const botones = `document.querySelectorAll('[aria-label="Lectura del documento"] button').length`
+  const conMano = await yDoc(), botonesAntes = await ev(botones)
   for (let k = 0; k < 6; k++) { await cdp('Input.dispatchMouseEvent', { type: 'mouseWheel', x, y, deltaX: 0, deltaY: -500 }); await dormir(40) }
   await dormir(800)
   const soltado = await yDoc()
@@ -241,11 +243,11 @@ for (const [doc, etiqueta, esperaBloques] of [
   assert.ok((await estado()).idx > idxMano, 'la voz siguió avanzando')
   assert.ok(Math.abs(tras - soltado) <= 4, `nada regresa el documento tras la mano (${soltado} → ${tras})`)
   assert.equal((await estado()).siguiendo, false, 'el motor sabe que la mano lo soltó')
-  assert.ok(await ev(`!!document.querySelector('[aria-label="Lectura del documento"] [data-lector-seguir]')`), 'la barra ofrece «Seguir»')
+  assert.equal(await ev(botones), botonesAntes, 'la barra no cambia cuando la mano mueve el documento (nada aparece bajo el dedo)')
   await foto(`${etiqueta}-mano.png`)
-  await ev(`document.querySelector('[aria-label="Lectura del documento"] [data-lector-seguir]').click()`); await dormir(900)
-  assert.ok(Math.abs((await yDoc()) - soltado) > 100, '«Seguir» regresa el documento al párrafo que suena')
-  assert.equal(await ev(`!!document.querySelector('[aria-label="Lectura del documento"] [data-lector-seguir]')`), false, 'y el botón se va')
+  await ev(`document.querySelector('[aria-label="Lectura del documento"] button[aria-label="Párrafo siguiente"]').click()`); await dormir(900)
+  assert.ok(Math.abs((await yDoc()) - soltado) > 100, '⏭ regresa el documento al párrafo que suena')
+  assert.equal((await estado()).siguiendo, true, 'y el lector vuelve a llevarlo')
 
   // Hilo principal: ninguna tarea larga (>200 ms) por la extracción ni por la lectura.
   const largas = [...JSON.parse(await ev(`JSON.stringify(__lt)`)), ...JSON.parse(await ev(`JSON.stringify(__lt)`, sid))]

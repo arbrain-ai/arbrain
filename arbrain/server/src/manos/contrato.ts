@@ -113,7 +113,7 @@ export interface ResultadoAccion {
   detalle?: string
   /** Si el freno intervino: categoría y motivo (también cuando dejó pasar con confirmación). */
   /** `cita`: de dónde salió el permiso (modelo o chat); `tarjeta`: corrió porque la persona aprobó su tarjeta (I8). */
-  freno?: { categoria: string; motivo: string; paso: boolean; cita?: 'modelo' | 'chat'; tarjeta?: boolean }
+  freno?: { categoria: string; motivo: string; paso: boolean; cita?: 'modelo' | 'chat'; tarjeta?: boolean; apagado?: boolean }
   /** Si la acción dejó la página en un video: lo que hicieron las manos para silenciarlo y pausarlo. */
   medios?: ResultadoMedios
 }

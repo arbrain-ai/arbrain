@@ -14,7 +14,7 @@ import { KeyboardShortcutsHelp } from '@/shared/components/KeyboardShortcutsHelp
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { RouteGuard } from '@/shared/components/RouteGuard'
 import { KeepAliveRouter } from '@/shared/components/KeepAliveRouter'
-import { RuntimeStatusPill } from '@/shared/components/RuntimeStatusPill'
+import { SyncAutonomo } from '@/shared/components/SyncAutonomo'
 import { ZoomController } from '@/shared/components/ZoomController'
 import { LibraryOverlay } from '@/shared/components/LibraryOverlay'
 import { ModalAjustes } from '@/features/configuracion/components/ModalAjustes'
@@ -22,6 +22,7 @@ import { ConfirmacionesHumanas } from '@/features/permisos/components/Confirmaci
 import { EstadoArbrain } from '@/shared/components/EstadoArbrain'
 import { FrenoGeneral } from '@/features/seguridad/components/Seguridad'
 import { esEdicionCliente } from '@/lib/edicion'
+import { AperturaPrimerDia } from '@/features/primer-dia/AperturaPrimerDia'
 
 /** Edición cliente: el freno pide el clic humano en un diálogo (AUDITORIA I8). En la instalación de Daniel no hay endpoint. */
 const EDICION_CLIENTE = esEdicionCliente()
@@ -31,6 +32,9 @@ import { esSeccionCompleta, useReabrirEnChat, useVistaTelefono } from '@/feature
 import { abrirCasa } from '@/features/cabina/panel/Secciones'
 import { TerminalInferior } from '@/features/cabina/terminal/TerminalInferior'
 import { LLAVE_PARTE_MEMORIA } from '@/features/cabina/panel/MemoriaTaller'
+import { OcultoPorDirecto } from '@/features/modo-directo/ModoDirecto'
+import { rutaAppVetadaDirecto } from '@/lib/modo-directo/reglas'
+import { useDirecto } from '@/shared/stores/modo-directo-store'
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const { conversationsDrawerOpen, closeConversationsDrawer, toggleConversationsDrawer, drawFullscreen, libraryOpen, panelDerechoOpen } = useLayoutStore()
@@ -41,6 +45,8 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const [edgeDrag, setEdgeDrag] = useState(0)
   const [helpOpen, setHelpOpen] = useState(false)
   const pathname = usePathname()
+  // Modo directo (7 nov 2026): Finanzas, Cohorte, Casa y Perro no se abren mientras se transmite.
+  const directo = useDirecto()
   // "Móvil" independiente de la orientación: un teléfono en landscape (ancho > 768)
   // ya no se trata como desktop, así el header y el sidebar-overlay siguen visibles.
   const isMobile = useIsMobile()
@@ -284,6 +290,8 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     {EDICION_CLIENTE && <EstadoArbrain />}
     {/* Seguridad del alumno (12 oct 2026): «Pausar todo» siempre a la mano y la franja de pausa. */}
     {EDICION_CLIENTE && <FrenoGeneral />}
+    {/* Tu primer día (5 nov 2026, encendido en la edición del alumno, ARBRAIN_PRIMER_DIA=0 lo apaga): se abre solo una vez tras el recorrido de Levy. */}
+    {EDICION_CLIENTE && <AperturaPrimerDia />}
     <div
       className="flex flex-col overflow-hidden"
       style={{
@@ -409,7 +417,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           <div className="relative min-h-0 min-w-0 flex-1">
           <RouteGuard>
             <div key={pathname?.split('/')[1] ?? ''} className="page-enter absolute inset-0">
-              <KeepAliveRouter>{children}</KeepAliveRouter>
+              {directo && rutaAppVetadaDirecto(pathname) ? <OcultoPorDirecto que="Esta sección" /> : <KeepAliveRouter>{children}</KeepAliveRouter>}
             </div>
           </RouteGuard>
           {/* Biblioteca: en DESKTOP se monta dentro de <main> (absolute inset-0) para que
@@ -431,7 +439,8 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
               pill es fixed z-50 — sin ocultarlo, pintaba encima del header de la biblioteca. */}
           {/* Con el panel derecho abierto el pill taparía su botón de cerrar; el panel ya dice si está en vivo. */}
           {/* Edición cliente: sin la píldora del espejo local-first (sincroniza con la nube del dueño). */}
-          {!isMobile && !libraryOpen && !panelDerechoOpen && !EDICION_CLIENTE && <div className="solo-escritorio contents"><RuntimeStatusPill /></div>}
+          {/* Sin punto verde (4 nov 2026): la sincronización corre sola y no pinta nada; a mano, en Ajustes › Mac y sistema. */}
+          {!EDICION_CLIENTE && <SyncAutonomo />}
           <KeyboardShortcutsHelp isOpen={helpOpen} onClose={() => setHelpOpen(false)} />
         </>
       )}

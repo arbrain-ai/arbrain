@@ -12,7 +12,7 @@
  *  · Contexto       lo que entra en la ventana de esta conversación (la anatomía medida).
  * Todo es lectura: para cambiar algo se le pide a Levy en el chat.
  */
-import { abrirEtapaNegocio, escucharIrA, escucharPedido, EVENTO_HABILIDAD, LLAVE_HABILIDAD, tomarPedido } from '@/shared/navigation/ir-a'
+import { abrirEtapaNegocio, escucharPedido, EVENTO_HABILIDAD, LLAVE_HABILIDAD, tomarPedido } from '@/shared/navigation/ir-a'
 import { etapasDeSkill, nombreEmbudo, skillDeRuta, URL_EMBUDO, type Embudo, type RespuestaEmbudo } from '@/features/negocio/embudo'
 import { useEffect, useMemo, useState } from 'react'
 import dynamic from 'next/dynamic'
@@ -64,8 +64,6 @@ export function MemoriaTaller() {
   const embudo = respuesta?.activo ? respuesta.embudo : null
   const [pedida, setPedida] = useState<{ ruta: string; n: number } | null>(null)
   useEffect(() => { setParte(leerParte()); const r = tomarPedido(LLAVE_HABILIDAD); if (r) setPedida({ ruta: r, n: Date.now() }) }, [])
-  // «Habilidades» en la barra lateral (3 nov 2026): con el Taller ya abierto, cambia de parte en sitio.
-  useEffect(() => escucharIrA('habilidades', () => setParte('skills')), [])
   useEffect(() => escucharPedido(EVENTO_HABILIDAD, r => { tomarPedido(LLAVE_HABILIDAD); setParte('skills'); setPedida({ ruta: r, n: Date.now() }) }), [])
   const elegir = (p: Parte) => { setParte(p); try { localStorage.setItem(LLAVE, p) } catch { /* sin almacenamiento */ } }
   const a = archivos.data

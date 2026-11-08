@@ -7,7 +7,7 @@ let hostUnavailableUntil=0
 /** PCM passthrough: no arrayBuffer, so a first audio chunk does not wait for the last. */
 export async function POST(request: Request) {
   try { await requireChatPrincipal() } catch (error) { return chatAccessResponse(error) }
-  let body: { text?: unknown; speed?: unknown; agent?: unknown; previousText?: unknown; warm?: unknown }
+  let body: { text?: unknown; speed?: unknown; agent?: unknown; previousText?: unknown; warm?: unknown; alineacion?: unknown }
   try { body=await request.json() } catch { return Response.json({error:'Solicitud de voz inválida.'},{status:400}) }
   if (body.warm === true) return Response.json(await warmEleven(),{headers:{'Cache-Control':'no-store'}})
   if (typeof body.text !== 'string' || !body.text.trim() || body.text.length > 1200) return Response.json({error:'La frase debe tener entre 1 y 1200 caracteres.'},{status:400})
@@ -17,8 +17,10 @@ export async function POST(request: Request) {
   let fallbackReason=''
   if(elevenKey()){
     const agent=normalizeAgent(body.agent)
-    const eleven=await speakEleven({text:body.text.trim(),voiceId:voiceIdFor(agent,process.env),previousText:typeof body.previousText==='string'?body.previousText:undefined,speed:Number(process.env.LIVE_ELEVEN_SPEED)||1,signal:request.signal})
-    if(eleven.ok)return new Response(eleven.body,{headers:{'Content-Type':'audio/pcm','X-Sample-Rate':'24000','X-Voice-Provider':'elevenlabs','X-Voice-Agent':agent,'X-Provider-First-Byte-Ms':String(eleven.firstByteMs),'Cache-Control':'no-store, no-transform','X-Accel-Buffering':'no'}})
+    // Levy vivo (bandera del cliente, apagada por defecto): la misma voz con la alineación por carácter, en JSON por línea.
+    const alineacion=body.alineacion===true
+    const eleven=await speakEleven({text:body.text.trim(),voiceId:voiceIdFor(agent,process.env),previousText:typeof body.previousText==='string'?body.previousText:undefined,speed:Number(process.env.LIVE_ELEVEN_SPEED)||1,signal:request.signal,alineacion})
+    if(eleven.ok)return new Response(eleven.body,{headers:{'Content-Type':alineacion?'application/x-ndjson':'audio/pcm','X-Sample-Rate':'24000','X-Voice-Provider':'elevenlabs','X-Voice-Agent':agent,...(alineacion?{'X-Voice-Alignment':'chars'}:{}),'X-Provider-First-Byte-Ms':String(eleven.firstByteMs),'Cache-Control':'no-store, no-transform','X-Accel-Buffering':'no'}})
     if(eleven.reason==='cancelado')return new Response(null,{status:499})
     fallbackReason=eleven.reason
     console.warn('[latencia-live] ElevenLabs no disponible, respaldo de voz:',fallbackReason)

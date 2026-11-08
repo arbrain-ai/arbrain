@@ -9,7 +9,8 @@ import type { PlanTask } from './types'
  * quiero unificarlo toda la logica en el toggle… ya viste que se repite lo de la grupal… que las tareas, de alguna forma tambien se vean
  * reflejadas en el timeline del dia… peero de forma sutil y elegante»). Puro y sin React:
  *   - la lista junta las casillas del objetivo del día y las tareas de Todoist del día (las que vencen ese día, las vencidas si es hoy
- *     y las ligadas al objetivo por `taskIds`), sin repetir la tarea-objetivo (es el título) ni una tarea gemela de una casilla;
+ *     y las ligadas al objetivo por `taskIds`), sin repetir la tarea-objetivo (es el título) ni un criterio que dice lo mismo que una
+ *     tarea (`mismoPendiente`): de esa pareja se ve UNA fila, la tarea con su color, y cerrarla marca el criterio (8 nov 2026);
  *   - cada pendiente puede tener hora: la de Todoist o la que trae escrita («Grupal 12:00: …», «Rutina a las 5:30»);
  *   - con hora, se liga a su evento: por `eventIds` del objetivo, o por caer en su horario con el mismo nombre de bloque o empezando
  *     a la misma hora. Ligado, vive dentro del evento; suelto y con hora, es una marca tenue en su hora; sin hora, solo en la lista.
@@ -25,8 +26,8 @@ export interface ItemDia {
   /** La línea de la casilla en el texto del objetivo. */
   linea?: number
   tarea?: PlanTask
-  /** La tarea de Todoist con el mismo texto que la casilla: marcar una cierra las dos. */
-  gemela?: PlanTask
+  /** El criterio del objetivo que dice lo mismo que esta tarea: no se pinta aparte y cerrar la tarea lo marca. */
+  criterio?: { linea: number; texto: string; hecho: boolean }
   vencida?: boolean
   /** Una repetición ya completada no se reabre (Todoist ya movió la siguiente). */
   fija?: boolean
@@ -53,6 +54,37 @@ const VACIAS = new Set(['para', 'como', 'with', 'from', 'esta', 'este', 'todos',
 export function palabras(texto: string): Set<string> {
   return new Set(claveTexto(texto).split(/[^\p{L}]+/u).filter(p => p.length >= 4 && !VACIAS.has(p)))
 }
+/** La raíz de una palabra ya sin acentos: «revisada» y «revisar» → «revis», «tocado» y «tocar» → «toc», «clientes» → «client». */
+const raiz = (p: string) => {
+  const r = p.replace(/(?:ando|iendo|ados|adas|idos|idas|ado|ada|ido|ida|ar|er|ir|es|s)$/, '')
+  const base = r.length >= 3 ? r : p
+  return base.length > 4 ? base.replace(/[aeo]$/, '') : base
+}
+const raices = (texto: string) => new Set([...palabras(texto)].map(raiz))
+
+/**
+ * ¿Un criterio y una tarea dicen lo mismo? (8 nov 2026, Daniel con el Hoy del dom 8 nov: «Cola de la semana del canal de Levy revisada y
+ * con tu sí» y «Revisar y dar tu sí a la cola de la semana del canal de Levy»; «Mensajes de cobro a Fulano, Mengano y Zutano enviados» y
+ * «Mandar a Fulano, Mengano y Zutano el aviso amable de pago»). Mismo texto, o las raíces de sus palabras con cuerpo se cubren: al menos tres
+ * en común y la mitad del más corto, o dos y casi todo el más corto. Devuelve la fuerza del parecido (0 = distintos).
+ */
+export function mismoPendiente(a: string, b: string): number {
+  if (claveTexto(a) === claveTexto(b)) return 2
+  const ra = raices(a), rb = raices(b), menor = Math.min(ra.size, rb.size)
+  if (!menor) return 0
+  const comunes = [...ra].filter(r => rb.has(r)).length, parte = comunes / menor
+  // A igual cobertura del más corto, gana la que también cubre al otro (la de menos palabras de sobra).
+  return (comunes >= 3 && parte >= 0.5) || (comunes >= 2 && parte >= 0.8) ? parte + comunes / (ra.size + rb.size - comunes) / 10 : 0
+}
+
+/** Las parejas criterio↔tarea, una a una y la más parecida primero: índice de la casilla → la tarea que la representa. */
+export function parejas<C extends { texto: string }>(casillas: C[], tareas: PlanTask[]): Map<number, PlanTask> {
+  const candidatas = casillas.flatMap((c, i) => tareas.map(t => ({ i, t, f: mismoPendiente(c.texto, t.title) }))).filter(x => x.f > 0).sort((x, y) => y.f - x.f)
+  const res = new Map<number, PlanTask>(), usadas = new Set<string>()
+  for (const { i, t } of candidatas) if (!res.has(i) && !usadas.has(t.id)) { res.set(i, t); usadas.add(t.id) }
+  return res
+}
+
 const compartenNombre = (a: string, b: string) => { const pb = palabras(b); return [...palabras(a)].some(p => pb.has(p)) }
 
 /**
@@ -90,18 +122,19 @@ export function listaDelDia(i: {
   const completadas = i.completadas.filter(t => t.id !== i.sin && !ids.has(t.id)
     && (liga(t) || delDia(t) === dia || (!!t.completedAt && dayKeyLocal(new Date(t.completedAt)) === dia)))
   const tareas = [...abiertas, ...completadas].sort(cronologia(zona))
-  const porTexto = new Map(tareas.map(t => [claveTexto(t.title), t]))
-  const gemelas = new Set<string>()
-  const casillas: ItemDia[] = i.casillas.map(c => {
-    const gemela = porTexto.get(claveTexto(c.texto))
-    if (gemela) gemelas.add(gemela.id)
-    return { id: `casilla:${c.linea}`, origen: 'casilla', texto: c.texto, hecho: c.hecho, minuto: horaEnTexto(c.texto), linea: c.linea, ...(gemela ? { gemela } : {}) }
-  })
-  return [...casillas, ...tareas.filter(t => !gemelas.has(t.id)).map((t): ItemDia => {
+  const deTarea = (t: PlanTask): ItemDia => {
     const hecho = Boolean(t.completed) || !ids.has(t.id), d = delDia(t)
     return { id: t.id, origen: 'tarea', texto: t.title, hecho, minuto: minutoDeTarea(t, dia, zona), tarea: t,
       ...(!hecho && d && d < dia ? { vencida: true } : {}), ...(hecho && t.recurring ? { fija: true } : {}) }
-  })]
+  }
+  // Un criterio con su tarea gemela se ve como la tarea (con su prioridad), en el lugar del criterio; cerrarla lo marca.
+  const pares = parejas(i.casillas, tareas), enPar = new Set([...pares.values()].map(t => t.id))
+  const casillas: ItemDia[] = i.casillas.map((c, n) => {
+    const t = pares.get(n)
+    if (t) { const it = deTarea(t); return { ...it, minuto: it.minuto ?? horaEnTexto(c.texto), criterio: { linea: c.linea, texto: c.texto, hecho: c.hecho } } }
+    return { id: `casilla:${c.linea}`, origen: 'casilla', texto: c.texto, hecho: c.hecho, minuto: horaEnTexto(c.texto), linea: c.linea }
+  })
+  return [...casillas, ...tareas.filter(t => !enPar.has(t.id)).map(deTarea)]
 }
 
 /** El evento explícito de cada tarea: un objetivo de día con `taskIds` y `eventIds` liga sus tareas a su evento si ese día tiene uno solo. */
@@ -118,7 +151,7 @@ export function eventosExplicitos(goals: Goal[] | undefined, dia: string, bloque
 export function enElTimeline(items: ItemDia[], bloques: Bloque[], base: number, explicitos: Map<string, string> = new Map()) {
   const dentro = new Map<string, ItemDia[]>(), sueltas: ItemDia[] = []
   for (const it of items) {
-    const explicito = it.tarea ? explicitos.get(it.tarea.id) ?? explicitos.get(it.tarea.externalId) : it.gemela ? explicitos.get(it.gemela.id) : undefined
+    const explicito = it.tarea ? explicitos.get(it.tarea.id) ?? explicitos.get(it.tarea.externalId) : undefined
     const b = eventoDe(it, bloques, base, explicito)
     if (b) dentro.set(b.id, [...(dentro.get(b.id) ?? []), it])
     else if (it.minuto != null) sueltas.push(it)

@@ -8,6 +8,9 @@ import { Confirmaciones, USOS_DECISION } from '../cliente/confirmaciones.js'
 import { mensajeRetomar } from '../cliente/cola.js'
 import { asegurarSecretoDecidir, avisoDeTarjeta, expiraDe, rutasBandeja, scopeDeSesion, ventanaDelDia, vistaBandeja } from './bandeja.js'
 import { anotarHechoSolo, fijarPolitica, _politicaAutonomiaParaPruebas } from './politica.js'
+import { _plataformaParaPruebas, responderSoporte, type PedidoSoporte, type ResultadoPublicar } from './soporte.js'
+import { leerHechoSolo } from './bandeja.js'
+import { diaCivil } from '../zona.js'
 import { Freno } from '../manos/freno.js'
 import { fijarContextoToque } from '../manos/confirmacion-humana.js'
 import { frenarWeb } from '../manos/web/freno-web.js'
@@ -187,6 +190,15 @@ describe('bandeja: decisiones atadas a una hora (3 nov 2026)', () => {
 })
 
 describe('bandeja: las rutas', () => {
+  it('la vista previa viaja con la tarjeta (cola de publicación, 7 nov); lo que no es imagen se ignora', async () => {
+    const p = await http('/decisiones/pedir', { titulo: 'Publicar en @canal: «Un video» (video largo)', categoria: 'publicar', imagen: '/tmp/miniatura-a.png' })
+    expect((await http(`/decisiones/${p.j.id}`)).j).toMatchObject({ categoria: 'publicar', imagen: '/tmp/miniatura-a.png' })
+    for (const imagen of ['/tmp/video.mp4', 'relativa.png', '/tmp/../etc/x.png', 42]) {
+      const q = await http('/decisiones/pedir', { titulo: `Publicar otra (${String(imagen)})`, categoria: 'publicar', imagen })
+      expect((await http(`/decisiones/${q.j.id}`)).j.imagen).toBeUndefined()
+    }
+  })
+
   it('pedir con el token; decidir solo con el secreto de la web', async () => {
     const p = await http('/decisiones/pedir', { titulo: 'Pagar el VPS de la beta (6 USD)', recomienda: 'si', recomendacion: 'Lo pediste para hoy', categoria: 'pagar', sesion: process.env.CLAUDE_CODE_SESSION_ID })
     expect(p.status).toBe(200)
@@ -286,5 +298,97 @@ describe('el toque reemplaza a la cita (instalación original)', () => {
     const v = frenarWeb({ accion: 'click' }, { tag: 'button', boton_tipo: 'submit', nombre: 'Create key', en_formulario: true, formulario: { busqueda: false, etiqueta: 'Create API key' }, url: 'https://abliteration.ai/console/api-keys' })
     expect(v.pasa).toBe(true)
     expect(store.pendientes()).toHaveLength(0)
+  })
+})
+
+// 4 nov 2026: «Dudas técnicas o de uso (instalar, actualizar, permisos, teléfono, cómo funciona) en la plataforma: 100 % de
+// Levy» (el dueño, 24 oct). El caso real: un alumno trabado 32 h porque su respuesta subió como «contactar».
+describe('soporte técnico a la cohorte: el flujo', () => {
+  const HILO = 'https://miplataforma.com/community?post=0a0a0a0a-0a0a-4a0a-8a0a-0a0a0a0a0a0a'
+  const PERENGANO: PedidoSoporte = {
+    url: HILO, persona: 'Perengano', pregunta: 'Ya pegué mi llave de OpenRouter y Levy me dice que espere a que se renueve mi ventana',
+    texto: 'Perengano, se resuelve con un clic. Tu Arbrain está en modo «Mi Claude Code»: usa solo tu suscripción y deja tus llaves sin usar a propósito. Para cambiarlo: Ajustes › Llaves → «Usar una llave en su lugar». Levy se reinicia en unos segundos y ya responde con tu llave.',
+  }
+  const deps = (publicadas: PedidoSoporte[], resultado: ResultadoPublicar = { ok: true, comentario: 'c-nuevo' }) => ({
+    pedir: (cuerpo: Record<string, unknown>) => http('/decisiones/pedir', cuerpo),
+    publicar: async (p: PedidoSoporte) => { publicadas.push(p); return resultado },
+  })
+  const hoy = () => leerHechoSolo(diaCivil(Date.now()))
+  beforeEach(() => _plataformaParaPruebas({ dominio: 'miplataforma.com', repo: 'github.com/mi-org/', firmado: 'Lo firmaste el 24 oct: «… 100 % de Levy».' }))
+  afterEach(() => _plataformaParaPruebas(undefined))
+
+  it('nace en «tocar»: la respuesta técnica sube su tarjeta de contactar, como antes, y no se publica', async () => {
+    const publicadas: PedidoSoporte[] = []
+    const r = await responderSoporte(PERENGANO, deps(publicadas))
+    expect(r.tarjeta).toMatch(/^cf_/)
+    expect(r.text).toMatch(/Ajustes › Autonomía/)
+    expect(publicadas).toHaveLength(0)
+    const [t] = store.pendientes()
+    expect(t).toMatchObject({ categoria: 'enviar', persona: 'Perengano', detalle: PERENGANO.texto })
+    expect(hoy()).toHaveLength(0)
+  })
+
+  it('encendida por la persona: sale sola, sin tarjeta, y queda en «Lo que hice solo» con su enlace', async () => {
+    fijarPolitica('piloto', { soporte: 'hacer' }, 'app')
+    const publicadas: PedidoSoporte[] = []
+    const r = await responderSoporte(PERENGANO, deps(publicadas))
+    expect(r.publicada).toBe(true)
+    expect(publicadas).toEqual([PERENGANO])
+    expect(store.pendientes()).toHaveLength(0)
+    const [h] = hoy()
+    expect(h).toMatchObject({ clase: 'soporte', donde: 'miplataforma.com', enlace: HILO, origen: 'levy', ref: 'c-nuevo' })
+    expect(h.que).toMatch(/^Respondí a Perengano en miplataforma\.com/)
+    expect(h.sesion).toBeUndefined()
+    // La vista de la app lo trae (hoy) y la política dice que está encendida.
+    const v = await http('/decisiones')
+    expect(v.j.hechoSolo.hoy[0].enlace).toBe(HILO)
+    expect(v.j.politica.vigente.soporte).toBe('hacer')
+  })
+
+  it('encendida, pero toca precio, cobranza, una promesa o sale a WhatsApp: tarjeta de contactar, nunca sola', async () => {
+    fijarPolitica('piloto', { soporte: 'hacer' }, 'app')
+    const publicadas: PedidoSoporte[] = []
+    const casos: [string, Partial<PedidoSoporte>][] = [
+      ['precio', { pregunta: '¿Cuánto cuesta la siguiente cohorte?', texto: 'Zutano, en Ajustes › Llaves lo ves' }],
+      ['cobranza', { texto: 'Zutano, tu segunda parcialidad se cobra el lunes; mientras, reinicia Arbrain' }],
+      ['promesa', { texto: 'Zutano, el fundador te llama mañana para instalarlo contigo' }],
+      ['WhatsApp', { texto: 'Zutano, mándame tu error por WhatsApp y lo vemos en Arbrain' }],
+      ['fuera', { url: 'https://web.whatsapp.com/', texto: 'Zutano, reinicia Arbrain y vuelve a pegar tu llave' }],
+    ]
+    for (const [nombre, c] of casos) {
+      const r = await responderSoporte({ ...PERENGANO, persona: 'Zutano', pregunta: undefined, ...c }, deps(publicadas))
+      expect(r.tarjeta, nombre).toMatch(/^cf_/)
+      expect(r.text, nombre).toMatch(/es contactar/)
+    }
+    expect(publicadas).toHaveLength(0)
+    expect(hoy()).toHaveLength(0)
+  })
+
+  it('si miplataforma.com no la publica, sube la tarjeta con el motivo; si el hilo ya tiene decisión abierta, no apila otra', async () => {
+    fijarPolitica('piloto', { soporte: 'hacer' }, 'app')
+    const r = await responderSoporte(PERENGANO, deps([], { ok: false, motivo: 'comunidad-publicar-auto: HTTP 500' }))
+    expect(r.tarjeta).toMatch(/^cf_/)
+    expect(store.get(r.tarjeta!)?.recomendacion).toMatch(/No se publicó sola: comunidad-publicar-auto: HTTP 500/)
+    const r2 = await responderSoporte({ ...PERENGANO, url: `${HILO.slice(0, -1)}0` }, deps([], { ok: false, conflicto: true, motivo: 'HTTP 409' }))
+    expect(r2.tarjeta).toBeUndefined()
+    expect(r2.text).toMatch(/decisión abierta/)
+    expect(store.pendientes()).toHaveLength(1)
+    expect(hoy()).toHaveLength(0)
+  })
+
+  it('un agente no se enciende el soporte: cambiar la política exige el secreto de la web', async () => {
+    const r = await http('/autonomia/politica', { preset: 'piloto', ajustes: { soporte: 'hacer' } })
+    expect(r.status).toBe(403)
+    expect((await http('/autonomia/politica')).j.vigente.soporte).toBe('tocar')
+    const ok = await http('/autonomia/politica', { preset: 'piloto', ajustes: { soporte: 'hacer' } }, true)
+    expect(ok.j.vigente.soporte).toBe('hacer')
+    expect(ok.j.clases.find((c: { id: string }) => c.id === 'soporte').firmado).toMatch(/24 oct/)
+  })
+
+  it('sin la marca de soporte, una decisión a una persona sigue siendo tarjeta aunque la clase esté encendida', async () => {
+    fijarPolitica('piloto', { soporte: 'hacer' }, 'app')
+    const p = await http('/decisiones/pedir', { titulo: 'Responderle a Perengano', categoria: 'enviar', detalle: PERENGANO.texto })
+    expect(p.j.id).toMatch(/^cf_/)
+    expect(p.j.hazlo).toBeUndefined()
   })
 })

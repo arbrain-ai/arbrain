@@ -52,6 +52,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: 'no autorizado' }, { status: 401 })
   }
   const body = await request.json().catch(() => ({})) as { nombre?: string; madre?: string | null }
+  // Una carpeta nace con nombre (7 nov 2026): las «Carpeta nueva» vacías se quedaban para siempre en el árbol.
+  if (!body.nombre?.trim()) return NextResponse.json({ ok: false, error: 'la carpeta necesita un nombre' }, { status: 400 })
   const db = createServiceClient()
   if (body.madre) {
     const carpetas = await leerCarpetas(db).catch(() => [])
@@ -64,7 +66,7 @@ export async function POST(request: Request) {
   const orden = ((ultimas?.[0]?.position as number | null) ?? 0) + 1
 
   const { data, error } = await db.from('draw_folders')
-    .insert({ user_id: OWNER, name: body.nombre?.trim() || 'Carpeta nueva', position: orden, ...(body.madre ? { parent_id: body.madre } : {}) })
+    .insert({ user_id: OWNER, name: body.nombre.trim(), position: orden, ...(body.madre ? { parent_id: body.madre } : {}) })
     .select('id, name, position, parent_id').single()
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true, carpeta: { id: data.id, nombre: data.name, orden: data.position ?? orden, madre: data.parent_id ?? null, archivada: null } })

@@ -21,12 +21,12 @@
 import { DUENO, DUENO_M } from '../dueno.js'
 import { confirmacionHumana, categoriaDe, pedirToque, pideToque } from './confirmacion-humana.js'
 import { citaDelChat, esDatoPropio, modoManos, verificarCita, vozReciente, type ModoManos } from './politica.js'
-import { citaCubre } from './cubre.js'
+import { citaCubre, nombraAccion } from './cubre.js'
 import { esNavegador, juzgarAbrir, juzgarCliente, type JuicioCliente } from './freno-cliente.js'
 import { dominioProtegido } from './juicio-url.js'
 import { esEdicionCliente } from '../edicion.js'
 import { claseDeEnvio, esCredencialEnAjustes } from '../autonomia/clase.js'
-import { anotarHechoSolo, modoDe } from '../autonomia/politica.js'
+import { anotarHechoSolo, claseDeCategoria, frenoApagado, modoDe } from '../autonomia/politica.js'
 import type { Adaptador, ContextoAccion, Expectativa, Objetivo, Observacion, PedidoActuar, PedidoObservar, ResultadoAccion, ResultadoVerificar, Ventana, App } from './contrato.js'
 
 export type Categoria = 'enviar' | 'borrar' | 'pagar' | 'publicar' | 'salir' | 'descartar' | 'confirmar_peligro' | 'boton_sin_texto' | 'ventana_de_daniel' | 'pestana_de_daniel' | 'transmitir_datos' | 'sin_contexto' | 'cursor_de_daniel' | 'ejecutar'
@@ -150,11 +150,53 @@ function juzgarBoton(etiqueta: string, c: ContextoAccion, como: string): Juicio 
 
 const PASA: Juicio = { irreversible: false, motivo: 'acción reversible' }
 
+// ---------- Panel del sistema para elegir o guardar archivo (5 nov 2026) ----------
+// Al subir el banner del canal, el botón «Subir» de la pestaña propia abrió el panel «Abrir» de macOS: una hoja
+// (AXSheet «abrir») dentro de la ventana madre, o una ventana del WindowServer centrada sobre ella. El freno la tomaba por
+// «pestaña de Daniel» y no dejaba teclear la ruta ni pulsar Abrir. Un panel que nace de una pestaña propia es de las manos.
+
+/** El panel lo aloja a veces este servicio (apps con sandbox): no es un navegador ni una ventana de Daniel. */
+export const SERVICIO_PANEL = 'com.apple.appkit.xpc.openandsavepanelservice'
+const ROTULO_PANEL = /^(abrir|open|guardar( como)?|save( as)?|elegir|choose|seleccionar|select|subir|upload|cargar|importar|import)(?![\p{L}\p{N}])/iu
+/** Título de la ventana del navegador cuya pestaña activa está en el grupo de Arbrain («…: Parte del grupo Arbrain · …»). */
+const GRUPO_ARBRAIN = /(parte del grupo|part of group|grupo) arbrain(?![\p{L}\p{N}])/iu
+
+/** ¿La acción cae dentro de un panel de elegir o guardar archivo? (por el contexto que da el adaptador). */
+export function enPanelDeArchivos(c: ContextoAccion): boolean {
+  if ((c.bundle ?? '').toLowerCase() === SERVICIO_PANEL) return true
+  const hoja = (c.ancestros ?? []).find(a => /^AXSheet\b/.test(a))
+  const rotulo = hoja?.match(/«(.*)»/)?.[1]?.trim()
+  const defecto = c.dialogo?.boton_defecto?.trim()
+  if (hoja && ((rotulo && ROTULO_PANEL.test(rotulo)) || (c.dialogo?.tipo === 'hoja' && !!defecto && ROTULO_PANEL.test(defecto)))) return true
+  const v = c.ventana
+  return !!v && /^AX(Dialog|SystemDialog)$/.test(v.subrol ?? '') && ROTULO_PANEL.test((v.titulo ?? '').trim())
+}
+
+/** ¿El título de una ventana del navegador es el de esta pestaña? (Chrome añade « - Google Chrome» y el perfil.) */
+function mismoTituloVentana(ventana: string | undefined, pestana: string | undefined): boolean {
+  const n = (x: string) => x.normalize('NFC').toLowerCase().replace(/\s+/g, ' ').trim()
+  if (!ventana || !pestana || !n(pestana)) return false
+  const v = n(ventana), t = n(pestana)
+  return v === t || v.startsWith(`${t} - `) || v.startsWith(`${t} – `)
+}
+
+/** ¿La ventana madre (título de accesibilidad) aloja el grupo de pestañas de Arbrain? */
+export const madreDeArbrain = (tituloVentana?: string): boolean => GRUPO_ARBRAIN.test(tituloVentana ?? '')
+
+/**
+ * Panel de archivos de las manos: está dentro de un panel de elegir o guardar archivo y su ventana madre es propia o
+ * aloja el grupo de pestañas de Arbrain. Se opera (ruta, Abrir, Cancelar); lo demás de esa ventana se juzga igual.
+ */
+export function panelDeArchivosPropio(p: PedidoActuar, c: ContextoAccion, propias: Set<number>): boolean {
+  if (!enPanelDeArchivos(c)) return false
+  return (p.ventana != null && propias.has(p.ventana)) || madreDeArbrain(c.ventana?.titulo)
+}
+
 /**
  * Juicio puro: ¿esta acción, en este contexto, es irreversible?
  * `propias`: ventanas que abrió esta sesión (las únicas que las manos pueden cerrar, esconder o mover).
  */
-export function juzgar(p: PedidoActuar, c: ContextoAccion, propias: Set<number> = new Set()): Juicio {
+export function juzgar(p: PedidoActuar, c: ContextoAccion, propias: Set<number> = new Set(), op: { pestanaAutorizada?: boolean } = {}): Juicio {
   const e = c.elemento
   // En Windows y en Linux (la pantalla virtual) Ctrl es la tecla de comando: Ctrl+W, Ctrl+Q, Ctrl+Enter y Ctrl+Supr se
   // juzgan como sus ⌘ de macOS, y Alt+F4 cierra la ventana.
@@ -166,7 +208,8 @@ export function juzgar(p: PedidoActuar, c: ContextoAccion, propias: Set<number> 
 
   if (p.accion === 'scroll') return PASA
   // Pestañas de Daniel: en un navegador solo se opera la ventana propia (abierta por `navegar`) salvo mención explícita.
-  if (BUNDLES_NAVEGADOR.has((c.bundle ?? '').toLowerCase()) && ventanaAjena) {
+  // Excepto el panel de archivos que nació de una pestaña propia y la ventana que Daniel nombró en su cita.
+  if (BUNDLES_NAVEGADOR.has((c.bundle ?? '').toLowerCase()) && ventanaAjena && !op.pestanaAutorizada && !panelDeArchivosPropio(p, c, propias)) {
     return { irreversible: true, categoria: 'pestana_de_daniel', motivo: `la ventana ${p.ventana ?? '(sin id)'} del navegador no la abrieron las manos: son pestañas de ${DUENO}` }
   }
   if (p.accion === 'escribir' || p.accion === 'valor') {
@@ -295,8 +338,14 @@ export interface ResultadoFrenar {
     /** Pasa por la tarjeta de la persona (I8): en Autónomo, lo que no pidió en el chat (y R5/R6); en los otros modos, todo
      *  lo irreversible. En el resultado de `actuar`, true = corrió porque ella la aprobó con su clic. */
     tarjeta?: boolean
+    /** Pasó porque el dueño apagó el freno hasta una hora (politica.json › freno_apagado_hasta). */
+    apagado?: boolean
   }
 }
+
+/** Una cita que nombra la ventana o la pestaña (plurales, «panel», «diálogo»; NFC: el dictado de macOS manda la ñ partida). */
+const VENTANA_CITA = /(?<![\p{L}\p{N}])(ventanas?|cierra(la|lo|las|los)?|cerrar(la|lo|las|los)?|esconde(la|lo)?|minimiza(la|lo)?|oculta(la|lo)?|mueve(la|lo)?|panel(es)?|di[aá]logos?)(?![\p{L}\p{N}])/iu
+const PESTANA_CITA = /(?<![\p{L}\p{N}])(pesta[nñ]as?|ventanas?|tabs?|panel(es)?|di[aá]logos?)(?![\p{L}\p{N}])/iu
 
 /**
  * API pública del freno para cualquier adaptador (nativo, web/extensión de 100018, el que venga):
@@ -308,13 +357,24 @@ export interface ResultadoFrenar {
  *     Autónomo, lo irreversible que la persona NO pidió no se bloquea con un texto: va a una tarjeta (I8), salvo dinero,
  *     lo que exige observar y las ventanas o el ratón de la persona.
  */
-export function frenar(p: PedidoActuar, c: ContextoAccion, op: { propias?: Set<number>; vistos?: string[]; cliente?: JuicioCliente | null; modo?: ModoManos; voz?: readonly string[] } = {}): ResultadoFrenar {
+export function frenar(p: PedidoActuar, c: ContextoAccion, op: OpFrenar = {}): ResultadoFrenar {
   // Edición cliente 0.1.2 (freno-cliente.ts): lo duro no se desbloquea con nada; lo demás se juzga como irreversible.
   const k = op.cliente
   if (k?.duro) return { pasa: false, juicio: { irreversible: true, motivo: k.motivo }, freno: { categoria: k.categoria, motivo: k.motivo, paso: false }, detalle: `FRENO (${k.categoria}): ${k.motivo}. No se ejecutó nada y no hay confirmación que lo desbloquee; no busques otra vía (ni AppleScript, ni PowerShell, ni otra app).` }
   const j0 = juzgar(p, c, op.propias ?? new Set())
   const j: Juicio = !j0.irreversible && k ? { irreversible: true, categoria: k.categoria as Categoria, motivo: k.motivo } : j0
   if (!j.irreversible) return { pasa: true, juicio: j }
+  return frenarJuicio(p, c, j, op)
+}
+
+type OpFrenar = { propias?: Set<number>; vistos?: string[]; cliente?: JuicioCliente | null; modo?: ModoManos; voz?: readonly string[] }
+
+/** Lo que hace `frenar` con una acción ya juzgada irreversible. */
+function frenarJuicio(p: PedidoActuar, c: ContextoAccion, j: Juicio, op: OpFrenar): ResultadoFrenar {
+  const k = op.cliente
+  // Freno apagado por el dueño hasta una hora (politica.json, 5 nov 2026): todo pasa y el que llama lo anota.
+  const apagado = !k ? frenoApagado() : null
+  if (apagado) return { pasa: true, juicio: j, freno: { categoria: j.categoria ?? 'irreversible', motivo: j.motivo, paso: true, apagado: true } }
   // Autonomía v2 (punto 4): configurar algo en una app o servicio que la persona pidió no contacta a nadie. Solo sin
   // juicio de la edición cliente encima (lo duro y lo de su freno siguen) y si la política dice «hacer».
   if (!k && modoDe('configurar') === 'hacer') {
@@ -332,12 +392,12 @@ export function frenar(p: PedidoActuar, c: ContextoAccion, op: { propias?: Set<n
   }
   const cita = p.confirmacion ? normalizar(p.confirmacion).replace(/^[«"']|[»"']$/g, '') : ''
   const dePantalla = !!cita && (op.vistos ?? []).some(v => normalizar(v).includes(cita))
-  const VENTANA = /\b(ventana|cierra|cerrar|esconde|minimiza|oculta|mueve)\b/i, PESTANA = /\b(pesta[nñ]a|ventana|tab)\b/i
+  const conf = (p.confirmacion ?? '').normalize('NFC')
   const pasoModelo = !dePantalla && categoria !== 'sin_contexto' && (categoria === 'ventana_de_daniel'
     // Cerrar, esconder o mover ventanas de Daniel exige nombrarlas en el pedido, no un «sí» genérico.
-    ? confirmacionValida(p.confirmacion) && VENTANA.test(p.confirmacion!)
+    ? confirmacionValida(p.confirmacion) && VENTANA_CITA.test(conf)
     : categoria === 'pestana_de_daniel'
-      ? confirmacionValida(p.confirmacion) && PESTANA.test(p.confirmacion!)
+      ? confirmacionValida(p.confirmacion) && PESTANA_CITA.test(conf)
       : confirmacionValida(p.confirmacion))
     // Red team 3 A-3 (cliente): la cita tiene que nombrar la acción («Hola Levy» no autoriza un «Enviar»).
     && (categoria === 'ventana_de_daniel' || categoria === 'pestana_de_daniel' || citaCubre(categoria, p.confirmacion))
@@ -346,7 +406,16 @@ export function frenar(p: PedidoActuar, c: ContextoAccion, op: { propias?: Set<n
   // pedido explícito, sin que el modelo la copie ni se la pida otra vez. La voz la guarda el daemon: una página no la dicta.
   if (!origenCita && cliente && categoria !== 'sin_contexto' && categoria !== 'cursor_de_daniel') {
     const delChat = citaDelChat(categoria === 'ventana_de_daniel' || categoria === 'pestana_de_daniel' ? undefined : categoria)
-    if (delChat && (categoria === 'ventana_de_daniel' ? VENTANA.test(delChat) : categoria === 'pestana_de_daniel' ? PESTANA.test(delChat) : true)) origenCita = 'chat'
+    if (delChat && (categoria === 'ventana_de_daniel' ? VENTANA_CITA.test(delChat.normalize('NFC')) : categoria === 'pestana_de_daniel' ? PESTANA_CITA.test(delChat.normalize('NFC')) : true)) origenCita = 'chat'
+  }
+  // La cita que nombra su ventana o pestaña autoriza ESA ventana, no lo que se haga en ella: la acción se vuelve a juzgar
+  // como en una ventana propia y, si es irreversible (enviar, pagar, borrar, publicar), necesita su propia autorización.
+  if (origenCita && categoria === 'pestana_de_daniel') {
+    const j2 = juzgar(p, c, op.propias ?? new Set(), { pestanaAutorizada: true })
+    if (j2.irreversible && !(origenCita === 'modelo' && nombraAccion(j2.categoria!, conf))) {
+      const { confirmacion: _cita, ...sinCita } = p
+      return frenarJuicio(sinCita, c, j2, op)
+    }
   }
   // Autónomo: datos sensibles (contraseña, correo, teléfono) pasan si la persona los escribió en el chat.
   if (!origenCita && autonomo && categoria === 'transmitir_datos' && datoEnVoz(p.texto ?? p.valor ?? '', op.voz)) origenCita = 'chat'
@@ -455,14 +524,24 @@ export class Freno implements Adaptador {
 
   async actuar(p: PedidoActuar): Promise<ResultadoAccion> {
     // Cada quien su cursor (3 oct): el ratón real de Daniel solo con el permiso que puso `permisoHid` (modo-ver.ts).
-    if (p.via === 'hid' && !p.permiso_hid) {
+    const apagadoHid = p.via === 'hid' && !p.permiso_hid ? frenoApagado() : null
+    if (apagadoHid) anotarHechoSolo({ clase: 'configurar', categoria: 'cursor_de_daniel', que: `${p.app ?? 'Una app'}: usé el ratón real (via=hid) con el freno apagado`, donde: p.app, origen: 'manos', ...(process.env.CLAUDE_CODE_SESSION_ID ? { sesion: process.env.CLAUDE_CODE_SESSION_ID } : {}) })
+    if (p.via === 'hid' && !p.permiso_hid && !apagadoHid) {
       this.ultimo = { categoria: 'cursor_de_daniel', motivo: 'via=hid sin permiso', paso: false, bloqueo: true }
       return { ok: false, efecto: 'bloqueado', freno: { categoria: 'cursor_de_daniel', motivo: `via=hid sin la cita explícita de ${DUENO} ni su inactividad`, paso: false }, detalle: `FRENO (cursor_de_daniel): el ratón de ${DUENO} no se toca sin su pedido explícito o su inactividad.` }
     }
     const c = await this.contextoDe(p)
     this.ultimoElemento = c.elemento ? { rol: c.elemento.rol, etiqueta: etiquetaDe(c) || undefined, url: c.url } : null
     const modo = modoManos()
-    const f = frenar(p, c, { propias: this.propias, vistos: this.vistos, cliente: juzgarCliente(p, c), modo })
+    const f = frenar(p, c, { propias: await this.conPanelPropio(p, c), vistos: this.vistos, cliente: juzgarCliente(p, c), modo })
+    if (f.freno?.apagado) {
+      // Freno apagado por el dueño hasta una hora: sale, y queda en la bitácora (freno.apagado) y en «Lo que hice solo».
+      this.ultimo = { categoria: f.freno.categoria, motivo: `freno apagado: ${f.freno.motivo}`, paso: true, bloqueo: false }
+      this.avisar?.({ ...f.juicio, paso: true, p })
+      const r = await this.adoptandoNuevas(p, () => this.interno.actuar(p))
+      if (r.ok) anotarHechoSolo({ clase: claseDeCategoria(f.freno.categoria), categoria: f.freno.categoria, que: `${c.app ?? p.app ?? 'Una app'}: ${f.freno.motivo} (freno apagado)`.slice(0, 240), donde: c.app ?? p.app, origen: 'manos', ...(process.env.CLAUDE_CODE_SESSION_ID ? { sesion: process.env.CLAUDE_CODE_SESSION_ID } : {}) })
+      return { ...r, freno: f.freno, detalle: [r.detalle, `pasó con el freno apagado (${f.freno.categoria}); queda en «Lo que hice solo»`].filter(Boolean).join(' · ') }
+    }
     if (f.autonomia) {
       // Autonomía v2: lo reversible sale solo y queda en «Lo que hice solo».
       this.ultimo = { categoria: 'configurar', motivo: f.autonomia.motivo, paso: true, bloqueo: false }
@@ -523,6 +602,35 @@ export class Freno implements Adaptador {
     if (!tarjeta) return { ...r, freno: f.freno }
     return { ...r, freno: { ...f.freno, tarjeta: true }, detalle: [r.detalle, 'la persona lo aprobó con su clic en la tarjeta de Arbrain'].filter(Boolean).join(' · ') }
   }
+
+  /**
+   * El panel de archivos como ventana suelta del WindowServer (la casa a veces lo da con su propio id): cuenta como propio
+   * si está encima de una ventana propia del mismo navegador, centrado sobre ella, como nace una hoja. Solo para esta
+   * acción: no se adopta nada.
+   */
+  private async conPanelPropio(p: PedidoActuar, c: ContextoAccion): Promise<Set<number>> {
+    if (p.ventana == null || this.propias.has(p.ventana) || !BUNDLES_NAVEGADOR.has((c.bundle ?? '').toLowerCase())) return this.propias
+    let vs: Ventana[] = []
+    try { vs = await this.interno.ventanas(p.pid ? { pid: p.pid } : p.app ? { app: p.app } : undefined) } catch { return this.propias }
+    const panel = vs.find(w => w.id === p.ventana)
+    if (!panel || !ROTULO_PANEL.test((panel.titulo ?? '').trim())) return this.propias
+    const cx = panel.marco.x + panel.marco.w / 2
+    const madre = vs
+      .filter(w => w.id !== panel.id && w.pid === panel.pid && w.marco.h > 150 && (panel.z == null || w.z == null || w.z < panel.z))
+      .filter(w => cx >= w.marco.x && cx <= w.marco.x + w.marco.w && panel.marco.y >= w.marco.y && panel.marco.y + panel.marco.h <= w.marco.y + w.marco.h + 1)
+      .filter(w => Math.abs(w.marco.x + w.marco.w / 2 - cx) <= 2)
+      .sort((a, b) => (b.z ?? 0) - (a.z ?? 0))[0]
+    if (!madre) return this.propias
+    // Madre propia, o la ventana del grupo de Arbrain aunque no se haya adoptado (una ventana que web_abrir reusó): lo dice
+    // su título de accesibilidad («Parte del grupo Arbrain») o la extensión (su pestaña activa del grupo tiene ese título).
+    const deArbrain = !!madre.titulo && ((madreDeArbrain(c.ventana?.titulo) && (c.ventana?.titulo ?? '').startsWith(madre.titulo))
+      || (await this.titulosArbrain?.().catch(() => []) ?? []).some(t => mismoTituloVentana(madre.titulo, t)))
+    return this.propias.has(madre.id) || deArbrain ? new Set([...this.propias, panel.id]) : this.propias
+  }
+
+  /** Títulos de las pestañas activas del grupo de Arbrain en sus ventanas propias (la extensión; ventanas-web.ts). */
+  private titulosArbrain?: () => Promise<string[]>
+  registrarTitulosArbrain(f: () => Promise<string[]>): void { this.titulosArbrain = f }
 
   /** ⌘N / ⌘T y similares abren ventanas: las que aparecen tras una acción de esta sesión son propias. */
   private async adoptandoNuevas(p: PedidoActuar, f: () => Promise<ResultadoAccion>): Promise<ResultadoAccion> {

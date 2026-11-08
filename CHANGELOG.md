@@ -4,6 +4,51 @@ Cada versión dice qué trae y qué tienes que hacer tú. Para actualizar, abre 
 «jala los últimos cambios». Las versiones siguen `MAYOR.MENOR.PARCHE`: un cambio en MENOR trae funciones
 nuevas; uno en PARCHE, arreglos.
 
+## v0.2.24 · 8 nov 2026 · Tu primer día
+
+**Qué trae**
+- **Tu primer día, en el Taller.** Al terminar la bienvenida, Levy te lleva en cinco pasos a meter tu negocio en tu
+  cerebro (tu negocio, tu oferta, tu embudo, tus primeras 2 rutinas y tu primera habilidad) y el Taller te muestra
+  cuánto te falta. Si no lo quieres, pon `ARBRAIN_PRIMER_DIA=0` en el `arbrain.env` de la app.
+- **«＋ Nuevo lienzo».** Arriba de tus lienzos: en blanco, una clase (título y tres bloques ya armados) o desde una
+  plantilla, y nace en la carpeta que tengas abierta. Las carpetas nuevas piden nombre, «Recientes» te deja a la mano
+  los últimos que abriste, sueltas un lienzo sobre una carpeta para moverlo (o «Mover a…» en el menú ⋯) y
+  **«Pídele a Levy»**, dentro del lienzo, le manda tu pedido al chat con ese lienzo ya nombrado.
+- **Cola por memoria.** Si tu computadora se queda sin memoria libre, la rutina o el agente que iba a salir espera su
+  turno en vez de trabarla, y sale solo, en orden, cuando hay aire. La ves en Taller › Agentes › **En cola por
+  memoria**, donde puedes cambiar el orden o pulsar «Lanzar ya». Nunca se queda atorada: a los 15 minutos sale igual.
+- **Tus conversaciones, en tus dos máquinas.** Si usas el modo espejo (tu computadora y tu servidor), la lista de
+  conversaciones es una sola: lo que hablas en una aparece en la otra y Levy sabe lo que se habló allá, aunque nadie
+  esté usando el servidor. Ajustes › Máquinas te dice en una línea si están al día.
+- **La skill `code-animation` también responde a «god animation».**
+- **Levy ordena tus conversaciones.** Pídele que las liste, les cambie el nombre, las fije o las desfije, o que le
+  escriba a una que ya existe.
+- **La barra de la izquierda, solo para conversaciones.** Loops, Habilidades y Artefactos viven en el Taller.
+- **«Esperan tu toque», dentro de HOY.** Lo que Levy espera que apruebes vive en la tarjeta HOY, junto a tus tareas,
+  agrupado por persona y con Sí y No a un toque. Lo que se vence no se ejecuta nunca: queda en «Lo que hice solo» como
+  «Caducó sin enviar».
+- **Cuando Levy usa la pantalla**, ves en el chat cuánto lleva, en qué paso va y los botones «Detener» y «Tomar el
+  control».
+- **Contesta a un agente desde su ficha.** Cuando un agente del Taller te hace una pregunta, su detalle muestra qué
+  preguntó, una caja para contestarle y «Visto», sin abrir la terminal.
+- **El visor de video, más firme.** Llena el panel sin hueco debajo y cabe aunque tengas la interfaz con zoom; las
+  flechas adelantan o atrasan 5 segundos (con Shift, un fotograma) y Esc sale de pantalla completa; en grande ya no se
+  traba ni parpadea; un reinicio de tu Arbrain ya no deja congelado el video que tenías abierto, y si algo falla te dice
+  por qué con «Reintentar». Si tu computadora tiene ffmpeg, al pasar por la barra ves la miniatura de ese momento.
+- **Prioridades en HOY, como en Todoist.** El círculo de cada tarea lleva el color de su prioridad (rojo, naranja, azul o
+  gris) y la cambias con la bandera al pasar el mouse, con clic derecho o con las teclas 1 a 4. Si un criterio de tu
+  objetivo y una tarea dicen lo mismo, se ven como una sola fila.
+- **Si tu llave de Anthropic se queda sin crédito y tienes guardada la de OpenRouter**, el chat te dice cómo pasarte a ella.
+- **Arreglos que se notan:** el mensaje que mandas mientras Levy trabaja se ve igual que uno normal; con la
+  computadora saturada ya no se pierde el «pensando» ni hace falta reiniciar; una vista que ya tienes abierta a la
+  izquierda no te regresa al principio del chat; en el visor, Espacio pausa el video, la velocidad ya no parpadea y
+  tocar un video o ponerlo en pantalla completa no te saca de la carpeta; en el teléfono, tocar un párrafo vuelve a
+  leer desde ahí, y con el teléfono en horizontal el chat tiene una sola cabecera y el campo abajo.
+
+**Qué tienes que hacer**
+- Actualizar («actualiza mi Arbrain»). Si usas el modo espejo, actualiza tus dos máquinas para que compartan las
+  conversaciones.
+
 ## v0.2.23 · 4 nov 2026 · El modelo sin filtro y la skill de animación
 
 **Qué trae**

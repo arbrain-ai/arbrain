@@ -35,6 +35,7 @@ export const CALENDAR_SHORTCUTS: { teclas: string[]; accion: string }[] = [
   { teclas: ['Y', 'A', '7'], accion: 'Año · Agenda · Rutinas' },
   { teclas: ['T', '.'], accion: 'Ir a hoy y a la hora actual' },
   { teclas: ['1', '2', '3'], accion: 'Con el foco en los hábitos del Día: marcan su casilla' },
+  { teclas: ['1', '2', '3', '4'], accion: 'Con el mouse sobre una tarea del Hoy: su prioridad, como en Todoist (también la bandera o clic derecho)' },
   { teclas: ['E'], accion: 'Evento nuevo (también N)' },
   { teclas: ['R'], accion: 'Tarea nueva' },
   { teclas: ['Supr'], accion: 'Borrar el evento seleccionado' },

@@ -17,6 +17,7 @@ import { randomUUID } from 'node:crypto'
 import { basename, join } from 'node:path'
 import { dirDatosWeb } from '@/lib/rutas-instalacion'
 import type { Almacen, Fila } from './consulta'
+import { alEscribir, alLeer, esTablaDeChat } from '@/lib/espejo-conversaciones/pulso'
 
 const POSIX = process.platform !== 'win32'
 
@@ -144,6 +145,9 @@ export function almacenArchivos(carpetaPropia?: string): Almacen {
 let compartido: Almacen | null = null
 const real = () => (compartido ??= almacenArchivos())
 
+/** El almacén crudo, sin el pulso del espejo (lo usa el ciclo periódico del espejo de conversaciones). */
+export const almacenCrudoDeLaInstalacion = (): Almacen => real()
+
 /**
  * El almacén de esta instalación (uno por proceso). Perezoso: la carpeta se resuelve al primer uso, así crear el
  * cliente para comprobar la sesión no exige `ARBRAIN_DATA_DIR`; leer o escribir datos sí.
@@ -152,7 +156,15 @@ export function almacenDeLaInstalacion(): Almacen {
   return {
     escribible: true,
     nuevoId: () => randomUUID(),
-    leer: (t) => real().leer(t),
-    escribir: (t, f) => real().escribir(t, f),
+    // Modo espejo (5 nov 2026): el chat es una sola lista en tus dos máquinas. Leer une lo que llegó de la otra;
+    // escribir pide un ciclo del espejo. Con el espejo apagado no hace nada (espejo-conversaciones/pulso.ts).
+    leer: (t) => {
+      if (esTablaDeChat(t)) alLeer(real())
+      return real().leer(t)
+    },
+    escribir: (t, f) => {
+      real().escribir(t, f)
+      if (esTablaDeChat(t)) alEscribir(real())
+    },
   }
 }

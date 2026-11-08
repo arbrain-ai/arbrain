@@ -72,3 +72,17 @@ test('conSubcarpetas: la carpeta y sus hijas', () => {
   assert.deepEqual(conSubcarpetas(CARPETAS, 'neg').sort(), ['ht', 'neg'])
   assert.deepEqual(conSubcarpetas(CARPETAS, 'per'), ['per'])
 })
+
+test('plantillas: por nombre o por carpeta «Plantillas», archivadas incluidas, la más reciente primero (7 nov 2026)', async () => {
+  const { plantillasDisponibles } = await import('../../src/features/canvas/state/vista-lienzos')
+  const P = (id: string, nombre: string, folderId: string | null, actualizado: string, archivado: string | null = null) => ({ id, nombre, folderId, actualizado, fijado: null, archivado })
+  const carpetas = [{ id: 'pl', nombre: 'Plantillas', orden: 0, madre: null }, { id: 'n', nombre: 'Negocio', orden: 0, madre: null }]
+  const ps = [
+    P('a', 'Tu negocio · Plantilla', 'n', '2026-11-03'),
+    P('b', 'Algo', 'pl', '2026-11-05', '2026-10-06'),
+    P('c', 'El Negocio', 'n', '2026-11-06'),
+    P('d', 'PLANTILLA · El Negocio', null, '2026-10-01'),
+  ]
+  assert.deepEqual(plantillasDisponibles(ps, carpetas).map(x => x.id), ['b', 'a', 'd'])
+  assert.deepEqual(plantillasDisponibles([P('c', 'El Negocio', 'n', '2026-11-06')], carpetas), [])
+})

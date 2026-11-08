@@ -19,8 +19,8 @@
  *  · Scroll con moderación: solo se mueve si el párrafo sale de la zona cómoda (15–85 %) del contenedor que
  *    DESPLAZA (el panel, no la ventana), y 'auto' en saltos largos. Un scroll continuo despierta a todo observador.
  *  · La mano manda (4 nov 2026, la regla de chat/lib/seguimiento.ts): si Daniel desplaza el documento (rueda, dedo,
- *    teclas de scroll, clic), `ver` ya no lo mueve hasta que él vuelva al párrafo que suena o toque «Seguir»
- *    (`retomar`). El cambio se avisa con `alMano` para que la barra muestre u oculte «Seguir».
+ *    teclas de scroll, clic), `ver` ya no lo mueve hasta que él vuelva al párrafo que suena, toque un párrafo
+ *    o use anterior/siguiente (`retomar`). El cambio se avisa con `alMano` (el motor lleva la cuenta).
  *  · Un solo Highlight persistente por ventana (clear+add), nunca uno por palabra.
  *  · Offsets contra `textContent` del bloque: son los mismos que ve el motor en su espejo.
  *

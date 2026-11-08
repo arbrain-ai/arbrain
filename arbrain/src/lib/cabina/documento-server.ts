@@ -7,7 +7,7 @@ import 'server-only'
  * su origen es opaco y la cookie de sesión no viaja. Por eso la URL lleva una firma (HMAC con un
  * secreto del proceso) que dice hasta qué carpeta puede leer y hasta cuándo.
  */
-import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
+import { createHash, createHmac, timingSafeEqual } from 'node:crypto'
 import { execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { readdir, readFile, realpath, stat, writeFile } from 'node:fs/promises'
@@ -16,6 +16,7 @@ import path from 'node:path'
 import { alcanceDeAssets, resolverRuta, rutaPermitida, tipoDocumento, type Raices, type TipoDocumento } from '@/features/cabina/documento/ruta'
 import { esEdicionCliente } from '@/lib/edicion'
 import { raizWorkspace } from '@/lib/rutas-instalacion'
+import { secretoDeFirma } from '@/lib/secreto-firma'
 
 const CANDIDATAS = [process.env.BUSINESS_OS_ROOT, path.join(homedir(), 'Developer/artificial-brain'), path.join(homedir(), 'Developer/business-os'), path.join(process.cwd(), '..')].filter(Boolean) as string[]
 /**
@@ -74,8 +75,7 @@ export function versionHead(real: string): Promise<string | null> {
 }
 
 // ── Firma de assets ──
-const g = globalThis as { __arbrainDocSecreto?: Buffer }
-const secreto = () => (g.__arbrainDocSecreto ??= process.env.ARBRAIN_DOC_SECRET ? Buffer.from(process.env.ARBRAIN_DOC_SECRET) : randomBytes(32))
+const secreto = secretoDeFirma
 const b64 = (b: Buffer | string) => Buffer.from(b).toString('base64url')
 const TRAMO_MS = 6 * 3600_000
 

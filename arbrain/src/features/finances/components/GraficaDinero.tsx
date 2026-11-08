@@ -1,69 +1,65 @@
 'use client'
 /**
- * «Entró y salió» (v3.1, 8 oct 2026). Tres lecturas del mismo dinero, un toggle; verde = entró, rojo = salió:
- *  · Por mes (default): barras por mes. Un total de mes está en su casa; el mes al que le falta un estado de cuenta o que
- *    sigue en curso se dibuja como piso (rayado, «al menos»).
- *  · Por día: SOLO lo que tiene fecha real (las ventas de Polar de cada día, y los gastos con fecha cuando existan). Los
- *    totales de mes (estados de cuenta, ajustes de renovaciones) NO se dibujan como un día: una línea dice cuánto llega así.
- *  · Acumulado: las dos curvas sumadas. Aquí un total de mes sí sube como escalón en su fecha de corte (así es el acumulado
- *    real) y lleva su marca (círculo hueco); el listón entre curvas es verde si va ganando lo que entra y rojo si lo que sale.
- * SVG propio: se mide su ancho real, se dibuja una vez, se lee con ratón, dedo o flechas, y con «reducir movimiento» llega quieto.
+ * «Entró y salió» (6 nov 2026, el espejo). La protagonista de Finanzas, a todo el ancho. Dos vistas del mismo dinero:
+ *  · Acumulado (default): verde lo que entró y rojo lo que salió, sumados día con día; mismo trazo y mismo peso, cada línea
+ *    con su valor al final. Cada una llega hasta su último movimiento: después no hay dato, no un cero.
+ *  · Por día: solo los días con dinero, verde arriba y rojo abajo del eje. Tocar un día muestra sus movimientos: concepto,
+ *    cuenta y monto. Al abrir, el último día con dinero ya está elegido.
+ * Las rayas de color de las cifras de arriba son su leyenda; aquí la cabeza dice el periodo, una vez. Las etiquetas del eje Y
+ * van dentro del área, sobre su línea guía (como Stripe), así la gráfica usa todo el ancho también en el teléfono.
+ * SVG propio: se mide su ancho, se lee con ratón, dedo o flechas, y con «reducir movimiento» llega quieto. El cálculo vive
+ * en `lib/espejo.ts`.
  */
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { Cifra, escalon, mov } from '@/shared/movimiento'
-import type { Aggregate } from '../types/finances'
-import { acumulado, corto, fechaCorta, nombreCuenta, pesos, suma, type DiaGrafica, type MesGrafica } from '../lib/modelo'
-import { nombreMes } from '../lib/granularidad'
-import { etiquetaDia } from '@/features/cabina/model'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import type { FinanceFx, FinanceMovement } from '../types/finances'
+import { corto, montoDe, pesos, type DiaGrafica } from '../lib/modelo'
+import { compacto, diaLargo, diasConDinero, fechaConAnio, marcasX, movimientosDelDia, pasoBonito, type SerieAcumulada } from '../lib/espejo'
 import { Segmentado } from './Segmentado'
 import g from './grafica.module.css'
 
-export type ModoGrafica = 'dia' | 'mes' | 'acum'
-const MODOS: { id: ModoGrafica; label: string; ayuda: string }[] = [
-  { id: 'mes', label: 'Por mes', ayuda: 'Los totales de cada mes' },
-  { id: 'dia', label: 'Por día', ayuda: 'Lo que entró y salió cada día' },
-  { id: 'acum', label: 'Acumulado', ayuda: 'Sumando día con día' },
+export type ModoGrafica = 'acum' | 'dia'
+const MODOS: { id: ModoGrafica; label: string; title: string }[] = [
+  { id: 'acum', label: 'Acumulado', title: 'Sumado día con día' },
+  { id: 'dia', label: 'Por día', title: 'Los días que entró y salió dinero' },
 ]
 
 interface Props {
   dias: DiaGrafica[]
-  meses: MesGrafica[]
+  /** El acumulado ya conciliado con los meses (lo calcula Finanzas: sus cifras y esta gráfica dicen lo mismo). */
+  serie: SerieAcumulada
+  movements: FinanceMovement[]
+  fx: FinanceFx
   modo: ModoGrafica
   onModo: (m: ModoGrafica) => void
-  /** Clave que cambia con el rango: vuelve a dibujar. */
+  /** Cambia con el rango: vuelve a dibujar y elige otra vez el último día. */
   clave: string
-  palabraRango: string
-  /** Hasta cuándo se conocen todos los gastos (estado de cuenta más atrasado). */
-  gastosHasta: string | null
-  cuentaAtrasada: string | null
-  /** Antes de esta fecha el registro diario de Polar solo veía ventas nuevas. */
-  exactoDesde: string
   hoy: string
-  vacio: boolean
+  /** «4 ene 2024 – 6 nov 2026»: lo que cubren Entró, Salió y la gráfica. */
+  periodo: string
 }
 
-const MARGEN = { izq: 40, der: 10, arr: 32, aba: 24 }
-
-/** Escala ajustada al dato: hasta 5 tramos con paso «bonito» y un margen del 6%, sin el aire vacío de redondear a la siguiente potencia. */
-function escala(max: number) {
-  const m = Math.max(max * 1.06, 1), crudo = m / 5, k = 10 ** Math.floor(Math.log10(crudo)), r = crudo / k
-  const paso = ([1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].find(v => v >= r) ?? 10) * k
-  const top = Math.ceil(m / paso - 1e-9) * paso
-  return { paso, top, ticks: Array.from({ length: Math.round(top / paso) + 1 }, (_, i) => i * paso) }
+const conSigno = (n: number, tipo: 'ingreso' | 'gasto') => `${tipo === 'ingreso' ? '+' : '−'}${pesos(Math.abs(Math.round(n)))}`
+const tick = (t: number) => (t === 0 ? '$0' : corto(t))
+const fechaTip = (iso: string, hoy: string) => {
+  const [y, m, d] = iso.split('-').map(Number)
+  const semana = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'][new Date(Date.UTC(y, m - 1, d)).getUTCDay()]
+  return `${semana} ${fechaConAnio(iso, hoy)}`
 }
 
-/** Un paso «bonito» para el eje: 1, 2, 2.5, 5 × 10^k. */
-function paso(max: number, tramos = 3) {
-  const crudo = Math.max(max, 1) / tramos, k = 10 ** Math.floor(Math.log10(crudo)), r = crudo / k
-  return (r <= 1 ? 1 : r <= 2 ? 2 : r <= 2.5 ? 2.5 : r <= 5 ? 5 : 10) * k
+/** Una barra con la punta redondeada (la base, contra el eje, queda recta). `y1` es la punta. */
+function barra(cx: number, w: number, y0: number, y1: number): string {
+  const x0 = cx - w / 2, h = Math.abs(y1 - y0), r = w >= 3 ? Math.min(1.5, w / 2, h) : 0
+  const f = (n: number) => n.toFixed(2)
+  if (r <= 0) return `M${f(x0)} ${f(y0)}H${f(x0 + w)}V${f(y1)}H${f(x0)}Z`
+  const s = y1 < y0 ? 1 : -1 // hacia arriba: la punta está arriba
+  return `M${f(x0)} ${f(y0)}V${f(y1 + s * r)}Q${f(x0)} ${f(y1)} ${f(x0 + r)} ${f(y1)}H${f(x0 + w - r)}Q${f(x0 + w)} ${f(y1)} ${f(x0 + w)} ${f(y1 + s * r)}V${f(y0)}Z`
 }
-const dia = (iso: string) => etiquetaDia(iso, { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '')
 
-export function GraficaDinero({ dias, meses, modo, onModo, clave, palabraRango, gastosHasta, cuentaAtrasada, exactoDesde, hoy, vacio }: Props) {
+export function GraficaDinero({ dias, serie, movements, fx, modo, onModo, clave, hoy, periodo }: Props) {
   const caja = useRef<HTMLDivElement>(null)
   const [w, setW] = useState(0)
-  const [foco, setFoco] = useState<number | null>(null)
-  const uid = useId().replace(/:/g, '')
+  const [foco, setFoco] = useState<number | null>(null) // índice de día bajo el puntero
+  const [elegido, setElegido] = useState<string | null>(null) // día fijado en «Por día» (null = el último con dinero)
   useEffect(() => {
     const el = caja.current; if (!el) return
     const medir = () => setW(Math.round(el.getBoundingClientRect().width))
@@ -71,229 +67,200 @@ export function GraficaDinero({ dias, meses, modo, onModo, clave, palabraRango, 
     if (typeof ResizeObserver === 'undefined') return
     const ro = new ResizeObserver(medir); ro.observe(el); return () => ro.disconnect()
   }, [])
-  useEffect(() => setFoco(null), [modo, clave])
+  useEffect(() => { setFoco(null); setElegido(null) }, [modo, clave])
 
-  const alto = w < 420 ? 214 : w < 760 ? 244 : 292
-  const L = MARGEN.izq, R = w - MARGEN.der, T = MARGEN.arr, B = alto - MARGEN.aba
-  const ancho = Math.max(0, R - L), altoPlot = B - T
+  const conDinero = useMemo(() => diasConDinero(dias), [dias])
+  const n = dias.length
+  const angosto = w < 560
+  const acum = modo === 'acum'
+  const alto = w < 560 ? 236 : w < 900 ? 280 : 320
+  // A la derecha del acumulado, el aire para el valor final de cada línea.
+  const L = 1, R = w - (acum ? (angosto ? 60 : 74) : 1), T = 18, B = alto - 26
+  const ancho = Math.max(1, R - L), altoPlot = B - T
+  const vacio = acum ? serie.finEntro < 0 && serie.finSalio < 0 : conDinero.length === 0
 
-  const total = useMemo(() => {
-    const e = dias.reduce((n, d) => n + d.entro + suma(d.agrEntro), 0), s = dias.reduce((n, d) => n + d.salio + suma(d.agrSalio), 0)
-    return { entro: e, salio: s }
-  }, [dias])
-  const acum = useMemo(() => acumulado(dias), [dias])
-  const aggGasto = useMemo(() => dias.reduce((n, d) => n + suma(d.agrSalio), 0), [dias])
-  const aggIngreso = useMemo(() => dias.reduce((n, d) => n + suma(d.agrEntro), 0), [dias])
+  // ── Escalas ──
+  const xA = (i: number) => L + (n <= 1 ? 0.5 : i / (n - 1)) * ancho // acumulado: un punto por día
+  const xD = (i: number) => L + ((i + 0.5) / Math.max(1, n)) * ancho // por día: una casilla por día
+  const escA = useMemo(() => {
+    const max = Math.max(1, ...serie.entro, ...serie.salio) * 1.04
+    const paso = pasoBonito(max, angosto ? 3 : 4), top = Math.ceil(max / paso) * paso
+    return { top, ticks: Array.from({ length: Math.round(top / paso) + 1 }, (_, k) => k * paso) }
+  }, [serie, angosto])
+  const escD = useMemo(() => {
+    const maxE = Math.max(0, ...conDinero.map(d => d.entro)), maxS = Math.max(0, ...conDinero.map(d => d.salio))
+    const paso = pasoBonito(Math.max(1, maxE, maxS), 3)
+    const arriba = maxE > 0 ? Math.ceil(maxE / paso) * paso : 0, abajo = maxS > 0 ? Math.ceil(maxS / paso) * paso : 0
+    const ticks: number[] = []
+    for (let t = -abajo; t <= arriba + 1e-6; t += paso) ticks.push(Math.round(t))
+    return { arriba, abajo, ticks }
+  }, [conDinero, angosto])
+  const yA = (v: number) => B - Math.min(1, Math.max(0, v / escA.top)) * altoPlot
+  const kD = altoPlot / Math.max(1, escD.arriba + escD.abajo), y0 = T + escD.arriba * kD
+  const yD = (v: number) => y0 - v * kD
 
-  const n = modo === 'mes' ? meses.length : dias.length
-  const x = (i: number) => modo === 'mes' ? L + ((i + 0.5) / n) * ancho : L + (n <= 1 ? 0.5 : i / (n - 1)) * ancho
+  // ── Acumulado: líneas, puntos finales y sus etiquetas ──
+  const linea = (vals: number[], fin: number) => {
+    let d = ''
+    for (let i = 0; i <= fin; i++) {
+      // Un tramo plano no necesita cada día: solo sus extremos.
+      if (i > 0 && i < fin && vals[i] === vals[i - 1] && vals[i] === vals[i + 1]) continue
+      d += `${d ? 'L' : 'M'}${xA(i).toFixed(1)} ${yA(vals[i]).toFixed(1)}`
+    }
+    return d
+  }
+  // El valor final va 8 px a la derecha del último punto de su línea; si dos quedan juntos, se separan 18 px.
+  const finales = useMemo(() => {
+    if (!acum || w === 0) return []
+    const out = ([['gana', serie.finEntro, serie.entro], ['pierde', serie.finSalio, serie.salio]] as const)
+      .filter(([, fin]) => fin >= 0).map(([t, fin, vals]) => ({ t, fin, valor: vals[fin], y: yA(vals[fin]), ly: yA(vals[fin]) }))
+    if (out.length === 2 && Math.abs(xA(out[0].fin) - xA(out[1].fin)) < 72 && Math.abs(out[0].ly - out[1].ly) < 18) {
+      const [a, b] = out[0].ly <= out[1].ly ? [out[0], out[1]] : [out[1], out[0]], medio = (a.ly + b.ly) / 2
+      a.ly = medio - 9; b.ly = medio + 9
+    }
+    for (const f of out) f.ly = Math.min(B - 2, Math.max(T + 8, f.ly))
+    return out
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [acum, w, serie, escA.top, alto])
 
-  // ── Escala ──
-  const esc = useMemo(() => {
-    if (modo === 'mes') return escala(Math.max(1, ...meses.map(m => Math.max(m.entro, m.salio))))
-    if (modo === 'acum') return escala(Math.max(1, ...acum.entro, ...acum.salio))
-    return escala(Math.max(300, ...dias.map(d => Math.max(d.entro, d.salio))))
-  }, [modo, meses, acum, dias])
-  const yMax = esc.top
-  const y = (v: number) => B - Math.min(1, Math.max(0, v / yMax)) * altoPlot
-  const ticks = esc.ticks
-
-  // ── Caminos ──
-  const linea = (vals: number[]) => vals.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(' ')
-  const escalonado = (vals: number[]) => vals.map((v, i) => i === 0 ? `M${x(0).toFixed(1)} ${y(v).toFixed(1)}` : `H${x(i).toFixed(1)} V${y(v).toFixed(1)}`).join(' ') + ` H${R}`
-  const dEntro = modo === 'dia' ? linea(dias.map(d => d.entro)) : ''
-  const hayGastoDia = dias.some(d => d.salio > 0)
-  const dSalio = modo === 'dia' && hayGastoDia ? linea(dias.map(d => d.salio)) : ''
-
-  // Listón entre las curvas del acumulado: un rectángulo por día, verde o rojo según quién va arriba.
-  const liston = useMemo(() => {
-    if (modo !== 'acum' || w === 0) return { gana: '', pierde: '' }
+  // ── Por día: barras y el día elegido ──
+  const bw = Math.min(10, Math.max(1, (ancho / Math.max(1, n)) * 0.64))
+  const barras = useMemo(() => {
+    if (acum || w === 0) return { gana: '', pierde: '' }
     let gana = '', pierde = ''
-    for (let i = 0; i < n; i++) {
-      const x0 = x(i), x1 = i === n - 1 ? R : x(i + 1), a = y(acum.entro[i]), b = y(acum.salio[i])
-      const r = `M${x0.toFixed(1)} ${Math.min(a, b).toFixed(1)}H${x1.toFixed(1)}V${Math.max(a, b).toFixed(1)}H${x0.toFixed(1)}Z`
-      if (acum.entro[i] >= acum.salio[i]) gana += r; else pierde += r
+    for (const d of conDinero) {
+      const cx = xD(d.i)
+      if (d.entro > 0) gana += barra(cx, bw, y0 - 0.5, Math.min(y0 - 1.5, yD(d.entro)))
+      if (d.salio > 0) pierde += barra(cx, bw, y0 + 0.5, Math.max(y0 + 1.5, yD(-d.salio)))
     }
     return { gana, pierde }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modo, w, n, acum, yMax])
+  }, [acum, w, conDinero, bw, escD, alto])
+  const diaFijo = acum ? null : (elegido ? conDinero.find(d => d.fecha === elegido) : conDinero.at(-1)) ?? null
+  const movsDia = useMemo(() => (diaFijo ? movimientosDelDia(movements, diaFijo.fecha, fx) : []), [diaFijo, movements, fx])
 
-  // ── Lo que se lee ──
-  const rangoCompleto = gastosHasta != null && dias.length > 0 && gastosHasta >= dias[dias.length - 1].fecha
-  const iGasto = gastosHasta ? dias.findIndex(d => d.fecha > gastosHasta) : -1
-  const sinCargar = modo === 'acum' && iGasto > 0 ? x(iGasto) - (n > 1 ? (R - L) / (n - 1) / 2 : 0) : null
-  const iExacto = dias.findIndex(d => d.fecha >= exactoDesde)
-
-  function posicion(e: React.PointerEvent | React.MouseEvent) {
-    const r = (e.currentTarget as Element).getBoundingClientRect()
-    const px = e.clientX - r.left
-    const i = modo === 'mes' ? Math.floor(((px - L) / ancho) * n) : Math.round(((px - L) / ancho) * (n - 1))
-    setFoco(Math.max(0, Math.min(n - 1, i)))
+  // ── Puntero y teclado ──
+  const indice = (e: React.PointerEvent) => {
+    const r = (e.currentTarget as Element).getBoundingClientRect(), px = e.clientX - r.left
+    if (acum) return Math.max(0, Math.min(n - 1, Math.round(((px - L) / ancho) * (n - 1))))
+    let mejor: number | null = null, dist = Infinity
+    for (const d of conDinero) { const dd = Math.abs(xD(d.i) - px); if (dd < dist) { dist = dd; mejor = d.i } }
+    return dist <= Math.max(24, ancho / Math.max(1, n)) ? mejor : null
+  }
+  const mover = (e: React.PointerEvent) => { if (e.pointerType !== 'touch' || acum) setFoco(indice(e)) }
+  const tocar = (e: React.PointerEvent) => {
+    const i = indice(e)
+    if (acum) { setFoco(i); return }
+    if (i != null) { setElegido(dias[i].fecha); if (e.pointerType === 'touch') setFoco(null) }
   }
   function teclas(e: React.KeyboardEvent) {
-    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-      e.preventDefault(); setFoco(f => Math.max(0, Math.min(n - 1, (f ?? (e.key === 'ArrowLeft' ? n : -1)) + (e.key === 'ArrowLeft' ? -1 : 1))))
-    } else if (e.key === 'Escape') setFoco(null)
+    const izq = e.key === 'ArrowLeft', der = e.key === 'ArrowRight'
+    if (e.key === 'Escape') { setFoco(null); return }
+    if (!izq && !der && e.key !== 'Home' && e.key !== 'End') return
+    e.preventDefault()
+    if (acum) {
+      const paso = (e.shiftKey ? 30 : 1) * (izq ? -1 : 1)
+      setFoco(f => (e.key === 'Home' ? 0 : e.key === 'End' ? n - 1 : Math.max(0, Math.min(n - 1, (f ?? (izq ? n : -1)) + paso))))
+      return
+    }
+    if (!conDinero.length) return
+    const k = Math.max(0, conDinero.findIndex(d => d.fecha === diaFijo?.fecha))
+    const sig = e.key === 'Home' ? 0 : e.key === 'End' ? conDinero.length - 1 : Math.max(0, Math.min(conDinero.length - 1, k + (izq ? -1 : 1)))
+    setElegido(conDinero[sig].fecha); setFoco(conDinero[sig].i)
   }
 
-  const totalMeses = useMemo(() => ({ entro: meses.reduce((n, x) => n + x.entro, 0), salio: meses.reduce((n, x) => n + x.salio, 0) }), [meses])
-  const d = foco != null && modo !== 'mes' ? dias[foco] : null
-  const m = foco != null && modo === 'mes' ? meses[foco] : null
-  const lectura = leer({ modo, d, m, foco, acum, totalDia: { entro: dias.reduce((n, x) => n + x.entro, 0), salio: dias.reduce((n, x) => n + x.salio, 0) }, total: modo === 'mes' ? totalMeses : total, dias, palabraRango, gastosHasta, cuentaAtrasada, rangoCompleto, exactoDesde })
+  const marcas = useMemo(() => (w ? marcasX(serie.fechas, ancho) : []), [serie.fechas, ancho, w])
+  const xM = (i: number) => (acum ? xA(i) : xD(i))
+  const anclaX = (i: number) => (xM(i) > R - 24 ? 'end' : xM(i) < L + 24 ? 'start' : 'middle')
+  const ticks = acum ? escA.ticks : escD.ticks
+  const yT = (t: number) => (acum ? yA(t) : yD(t))
 
-  const etiquetaX = (i: number) => modo === 'mes' ? nombreMes(meses[i].mes, false, true) + (meses[i].mes.endsWith('-01') || i === 0 ? ` ${meses[i].mes.slice(2, 4)}` : '') : fechaCorta(dias[i].fecha)
-  const pasoX = modo === 'mes' ? 1 : Math.max(1, Math.ceil(n / Math.max(2, Math.floor(ancho / 62))))
-  const ariaResumen = modo === 'mes'
-    ? `Entró y salió por mes, ${meses.length} meses.`
-    : `Entró ${pesos(total.entro)} y salió ${pesos(total.salio)} en ${palabraRango}.`
+  // El cartel del puntero: valores primero, etiqueta después.
+  const tip = (() => {
+    if (foco == null || !dias[foco]) return null
+    const fecha = dias[foco].fecha, x = xM(foco)
+    if (acum) {
+      const e = serie.finEntro >= 0 ? serie.entro[Math.min(foco, serie.finEntro)] : null
+      const s = serie.finSalio >= 0 ? serie.salio[Math.min(foco, serie.finSalio)] : null
+      return { x, fecha, filas: [['gana', e, 'Entró'], ['pierde', s, 'Salió']] as const, extra: null }
+    }
+    const d = conDinero.find(c => c.i === foco)
+    if (!d) return null
+    const cuantos = movimientosDelDia(movements, d.fecha, fx).length
+    return { x, fecha, filas: [['gana', d.entro || null, 'Entró'], ['pierde', d.salio || null, 'Salió']] as const, extra: `${cuantos} ${cuantos === 1 ? 'movimiento' : 'movimientos'}` }
+  })()
+  // En el acumulado las líneas suben hacia la derecha: el cartel va a la izquierda del puntero si cabe, sobre el aire.
+  const tipIzq = tip ? (acum ? tip.x - 190 > L : tip.x > w - 200) : false
 
-  return <section className={`${g.tarjeta} ${mov.entra}`} style={escalon(3)} aria-label="Entró y salió">
-    <header className={g.cabeza}>
-      <h2 className={g.titulo}>Entró y salió · {modo === 'mes' ? 'por mes' : modo === 'dia' ? 'por día' : 'acumulado'}</h2>
-      <Segmentado etiqueta="Cómo ver el dinero" opciones={MODOS.map(o => ({ id: o.id, label: o.label, title: o.ayuda }))} valor={modo} onChange={onModo} />
-    </header>
-    <ul className={g.leyenda} aria-label="Cómo leer la gráfica">
-      <li><i data-t="gana" aria-hidden />Entró</li>
-      <li><i data-t="pierde" aria-hidden />Salió</li>
-      {modo === 'dia' && !hayGastoDia && <li className={g.leyendaNota}>Salió: todavía no hay gastos con fecha</li>}
-      {modo === 'mes' && <li><i data-t="rayado" aria-hidden />Mes incompleto: al menos</li>}
-      {modo === 'acum' && <li><i data-t="salto" aria-hidden />Salto: total de un periodo</li>}
-    </ul>
+  const resumen = acum
+    ? `Acumulado: entró ${pesos(serie.finEntro >= 0 ? serie.entro[serie.finEntro] : 0)} y salió ${pesos(serie.finSalio >= 0 ? serie.salio[serie.finSalio] : 0)}.`
+    : `Por día: ${conDinero.length} días con dinero.`
+
+  return <div className={g.grafica} data-modo={modo}>
+    <div className={g.cabeza}>
+      <p className={g.periodo}>{periodo}</p>
+      <Segmentado etiqueta="Cómo ver el dinero" opciones={MODOS} valor={modo} onChange={onModo} />
+    </div>
 
     <div ref={caja} className={g.plot} style={{ height: alto }}>
-      {vacio ? <p className={g.vacio}>Sin movimientos en este rango todavía. Cuando entren ventas de Polar o se cargue un estado de cuenta, aquí se ve cada uno.</p>
-        : w > 0 && <svg width={w} height={alto} viewBox={`0 0 ${w} ${alto}`} role="img" aria-label={ariaResumen}
-          tabIndex={0} onKeyDown={teclas} onPointerMove={posicion} onPointerDown={posicion} onPointerLeave={e => { if (e.pointerType !== 'touch') setFoco(null) }} onBlur={() => setFoco(null)}>
-          <defs>
-            <pattern id={`${uid}-g`} width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill="var(--gana)" fillOpacity="0.10" /><rect width="1.6" height="5" fill="var(--gana)" fillOpacity="0.75" /></pattern>
-            <pattern id={`${uid}-p`} width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill="var(--pierde)" fillOpacity="0.10" /><rect width="1.6" height="5" fill="var(--pierde)" fillOpacity="0.75" /></pattern>
-            <pattern id={`${uid}-v`} width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(135)"><rect width="1" height="6" fill="var(--muted)" fillOpacity="0.28" /></pattern>
-            <linearGradient id={`${uid}-ag`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="var(--gana)" stopOpacity="0.22" /><stop offset="1" stopColor="var(--gana)" stopOpacity="0" /></linearGradient>
-          </defs>
+      {vacio ? <p className={g.vacio}>Sin movimientos en este rango.</p>
+        : w > 0 && <svg width={w} height={alto} viewBox={`0 0 ${w} ${alto}`} role="img" aria-label={resumen} tabIndex={0}
+          onKeyDown={teclas} onPointerMove={mover} onPointerDown={tocar} onPointerLeave={() => setFoco(null)} onBlur={() => setFoco(null)}>
+          {ticks.map(t => <line key={t} className={g.rejilla} data-cero={t === 0 || undefined} x1={L} x2={R} y1={Math.round(yT(t)) + 0.5} y2={Math.round(yT(t)) + 0.5} />)}
+          {marcas.map(m => <text key={m.i} className={g.tick} x={xM(m.i)} y={alto - 7} textAnchor={anclaX(m.i)}>{m.texto}</text>)}
+          {!acum && diaFijo && <line className={g.fijoLinea} x1={Math.round(xD(diaFijo.i)) + 0.5} x2={Math.round(xD(diaFijo.i)) + 0.5} y1={T} y2={B} />}
 
-          {/* Rejilla y eje */}
-          {ticks.map((t, k) => <g key={k}>
-            <line className={g.rejilla} x1={L} x2={R} y1={y(t)} y2={y(t)} data-cero={k === 0 || undefined} />
-            <text className={g.tick} x={L - 6} y={y(t) + 3.5} textAnchor="end">{k === 0 ? '$0' : corto(t)}</text>
-          </g>)}
-
-          {/* Gastos que todavía no existen aquí: lo que sigue después del último estado de cuenta */}
-          {sinCargar != null && <g className={mov.aparece}>
-            <rect x={sinCargar} y={T} width={Math.max(0, R - sinCargar)} height={altoPlot} fill={`url(#${uid}-v)`} />
-            {R - sinCargar > 92 && <text className={g.nota} x={R - 6} y={T + 12} textAnchor="end">gastos sin cargar</text>}
-          </g>}
-
-          <g key={`${modo}-${clave}`}>
-            {/* ── Por día ── */}
-            {modo === 'dia' && <>
-              <path className={g.area} d={`${dEntro} L${x(n - 1).toFixed(1)} ${B} L${x(0).toFixed(1)} ${B} Z`} fill={`url(#${uid}-ag)`} />
-              {dSalio && <path className={g.trazo} data-t="pierde" pathLength={1} d={dSalio} />}
-              <path className={g.trazo} data-t="gana" pathLength={1} d={dEntro} />
-              {n <= 45 && dias.map((p, i) => p.entro > 0 && <circle key={`e${i}`} className={g.punto} data-t="gana" cx={x(i)} cy={y(p.entro)} r={2.3} style={{ animationDelay: `${300 + i * 8}ms` }} />)}
-              {iExacto > 0 && <line className={g.parcial} x1={x(0)} x2={x(iExacto)} y1={B + 0.5} y2={B + 0.5} />}
-            </>}
-
-            {/* ── Acumulado ── */}
-            {modo === 'acum' && <>
-              <path className={g.liston} data-t="gana" d={liston.gana} />
-              <path className={g.liston} data-t="pierde" d={liston.pierde} />
-              <path className={g.trazo} data-t="pierde" pathLength={1} d={escalonado(acum.salio)} />
-              <path className={g.trazo} data-t="gana" pathLength={1} d={escalonado(acum.entro)} />
-              {dias.map((_, i) => <g key={i}>
-                {acum.saltoEntro[i] && <circle className={g.salto} data-t="gana" cx={x(i)} cy={y(acum.entro[i])} r={3.6} />}
-                {acum.saltoSalio[i] && <circle className={g.salto} data-t="pierde" cx={x(i)} cy={y(acum.salio[i])} r={3.6} />}
+          <g key={`${modo}-${clave}-${w > 0}`}>
+            {acum && <>
+              <path className={g.trazo} data-t="pierde" pathLength={1} d={linea(serie.salio, serie.finSalio)} />
+              <path className={g.trazo} data-t="gana" pathLength={1} d={linea(serie.entro, serie.finEntro)} />
+              {finales.map(f => <g key={f.t} className={g.final}>
+                <circle className={g.punto} data-t={f.t} cx={xA(f.fin)} cy={f.y} r={4} />
+                <text className={g.valorFinal} x={xA(f.fin) + 9} y={f.ly + 4}>{compacto(f.valor)}</text>
               </g>)}
             </>}
-
-            {/* ── Por mes ── */}
-            {modo === 'mes' && meses.map((mm, i) => {
-              const slot = ancho / n, bw = Math.min(26, slot * 0.34), cx = x(i)
-              const hE = B - y(mm.entro), hS = B - y(mm.salio)
-              return <g key={mm.mes} className={g.mes} style={{ animationDelay: `${i * 50}ms` }} data-foco={foco === i || undefined}>
-                {mm.sinDatos ? <text className={g.nota} x={cx} y={B - 8} textAnchor="middle">sin datos</text> : <>
-                  <rect className={g.barra} x={cx - bw - 1.5} y={y(mm.entro)} width={bw} height={Math.max(0, hE)} rx={3} data-t="gana" fill={mm.enCurso && hE > 14 ? `url(#${uid}-g)` : undefined} data-piso={(mm.enCurso && hE > 14) || undefined} />
-                  <rect className={g.barra} x={cx + 1.5} y={y(mm.salio)} width={bw} height={Math.max(0, hS)} rx={3} data-t="pierde" fill={mm.gastoParcial && hS > 14 ? `url(#${uid}-p)` : undefined} data-piso={(mm.gastoParcial && hS > 14) || undefined} />
-                </>}
-              </g>
-            })}
-
-            {/* Hoy, el único dato vivo: pulso dorado al final de la línea */}
-            {modo === 'dia' && dias.length > 0 && dias[n - 1].fecha === hoy && <circle className={g.hoy} cx={x(n - 1)} cy={B} r={3.4} />}
+            {!acum && <g className={g.barras} data-elegido={diaFijo ? true : undefined}>
+              <path data-t="gana" d={barras.gana} />
+              <path data-t="pierde" d={barras.pierde} />
+            </g>}
           </g>
 
-          {/* Eje X */}
-          {Array.from({ length: n }, (_, i) => i).filter(i => (n - 1 - i) % pasoX === 0).map(i =>
-            <text key={i} className={g.tick} x={x(i)} y={alto - 6} textAnchor={modo === 'mes' ? 'middle' : i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'}>{etiquetaX(i)}</text>)}
+          {!acum && diaFijo && <g className={g.fijo} pointerEvents="none">
+            {diaFijo.entro > 0 && <path data-t="gana" d={barra(xD(diaFijo.i), Math.max(bw, 3), y0 - 0.5, Math.min(y0 - 1.5, yD(diaFijo.entro)))} />}
+            {diaFijo.salio > 0 && <path data-t="pierde" d={barra(xD(diaFijo.i), Math.max(bw, 3), y0 + 0.5, Math.max(y0 + 1.5, yD(-diaFijo.salio)))} />}
+          </g>}
 
-          {/* Guía del puntero */}
-          {foco != null && <g className={g.guia} pointerEvents="none">
-            {modo === 'mes' ? <rect x={L + (foco / n) * ancho} y={T} width={ancho / n} height={altoPlot} className={g.fondoMes} />
-              : <line x1={x(foco)} x2={x(foco)} y1={T} y2={B} />}
-            {modo === 'dia' && dias[foco] && dias[foco].entro > 0 && <circle cx={x(foco)} cy={y(dias[foco].entro)} r={4} data-t="gana" />}
-            {modo === 'dia' && dias[foco] && dias[foco].salio > 0 && <circle cx={x(foco)} cy={y(dias[foco].salio)} r={4} data-t="pierde" />}
-            {modo === 'acum' && <><circle cx={x(foco)} cy={y(acum.entro[foco])} r={4} data-t="gana" /><circle cx={x(foco)} cy={y(acum.salio[foco])} r={4} data-t="pierde" /></>}
+          {ticks.filter(t => t !== 0).map(t => <text key={t} className={g.tickY} x={L + 2} y={Math.round(yT(t)) - 5}>{tick(t)}</text>)}
+
+          {tip && <g className={g.guia} pointerEvents="none">
+            <line x1={Math.round(tip.x) + 0.5} x2={Math.round(tip.x) + 0.5} y1={T} y2={B} />
+            {acum && foco != null && foco <= serie.finEntro && <circle data-t="gana" cx={tip.x} cy={yA(serie.entro[foco])} r={4} />}
+            {acum && foco != null && foco <= serie.finSalio && <circle data-t="pierde" cx={tip.x} cy={yA(serie.salio[foco])} r={4} />}
           </g>}
         </svg>}
+      {tip && <div className={g.tip} style={{ left: tip.x, top: T }} data-izq={tipIzq || undefined} aria-hidden>
+        <p className={g.tipFecha}>{fechaTip(tip.fecha, hoy)}</p>
+        {tip.filas.map(([t, v, etiqueta]) => <p key={t} className={g.tipFila}><i data-t={t} /><b>{v == null ? '—' : pesos(Math.round(v))}</b><span>{etiqueta}</span></p>)}
+        {tip.extra && <p className={g.tipExtra}>{tip.extra}</p>}
+      </div>}
     </div>
 
-    {modo === 'dia' && !vacio && (aggGasto > 0 || aggIngreso > 0) && <p className={g.sugiere}>
-      {aggGasto > 0 && <>{pesos(aggGasto)} del gasto llega como total de mes</>}{aggGasto > 0 && aggIngreso > 0 && ' y '}{aggIngreso > 0 && <>{pesos(aggIngreso)} de lo cobrado, como ajuste del mes</>}: no se pone en un día, está en <button onClick={() => onModo('mes')}>Por mes</button>.
-    </p>}
-    <div className={g.lectura} aria-live="polite" data-foco={foco != null || undefined}>
-      <p className={g.cuando}>{lectura.cuando}</p>
-      {!lectura.soloNota && <dl className={g.cifras}>
-        <div data-t="gana"><dt>{lectura.entroEtiqueta}</dt><dd><Cifra valor={lectura.entro} clave={`graf-e-${modo}-${clave}`} formato={n => pesos(Math.round(n))} /></dd></div>
-        <div data-t="pierde"><dt>{lectura.salioEtiqueta}</dt><dd>{!(lectura.salioTexto && lectura.salio === 0) ? <>{lectura.salioPiso && <small>al menos </small>}<Cifra valor={lectura.salio} clave={`graf-s-${modo}-${clave}`} formato={n => pesos(Math.round(n))} /></> : <small>{lectura.salioTexto}</small>}</dd></div>
-        {lectura.quedo != null && <div data-t={lectura.quedo >= 0 ? 'gana' : 'pierde'} data-quedo><dt>{lectura.salioPiso && lectura.quedoEtiqueta === 'Quedó' ? 'Quedó, como máximo' : lectura.quedoEtiqueta}</dt><dd>{lectura.quedo >= 0 ? '+' : '−'}{pesos(Math.abs(lectura.quedo))}</dd></div>}
-      </dl>}
-      {lectura.nota && <p className={g.nota2}>{lectura.nota}</p>}
-    </div>
-  </section>
-}
-
-// ── El texto que acompaña a la gráfica: lo apuntado, o el total del rango ──
-interface Lec {
-  cuando: string; entro: number; salio: number; quedo: number | null; cifras: boolean
-  entroEtiqueta: string; salioEtiqueta: string; quedoEtiqueta: string
-  entroTexto?: string; salioTexto?: string; salioPiso?: boolean; nota?: string; soloNota?: boolean
-}
-
-function detalleAgregados(xs: Aggregate[]): string {
-  return xs.map(a => `${a.label.replace(/^Estado de cuenta · /, 'Estado de cuenta ')}${a.detail ? `: ${a.detail}` : ''}`).join(' · ')
-}
-
-function leer(o: {
-  modo: ModoGrafica; d: DiaGrafica | null; m: MesGrafica | null; foco: number | null; acum: ReturnType<typeof acumulado>
-  total: { entro: number; salio: number }; totalDia: { entro: number; salio: number }; dias: DiaGrafica[]; palabraRango: string; gastosHasta: string | null; cuentaAtrasada: string | null
-  rangoCompleto: boolean; exactoDesde: string
-}): Lec {
-  const base = { entroEtiqueta: 'Entró', salioEtiqueta: 'Salió', quedoEtiqueta: 'Quedó', cifras: true }
-  if (o.modo === 'mes' && !o.m) return { ...base, cuando: 'Cada par de barras es un mes', entro: 0, salio: 0, quedo: null, soloNota: true, nota: 'Toca un mes para ver cuánto entró y salió. Las barras rayadas son un piso: falta un estado de cuenta o el mes sigue en curso.' }
-  if (o.modo === 'mes' && o.m) {
-    const m = o.m
-    const notas = [m.enCurso ? 'El mes sigue en curso: lo de Polar llega hasta ayer y los gastos con el estado de cuenta.' : m.gastoParcial ? `Falta el estado de cuenta de ${m.faltan.map(nombreCuenta).join(' y ')}: lo que salió es al menos esto.` : null].filter(Boolean)
-    return { ...base, cuando: nombreMes(m.mes, true), entro: m.entro, salio: m.salio, quedo: m.sinDatos ? null : m.entro - m.salio, salioPiso: m.gastoParcial && m.salio > 0, nota: m.sinDatos ? 'Sin datos de este mes.' : (notas[0] as string | undefined) }
-  }
-  if (o.modo === 'acum' && o.foco != null && o.d) {
-    const i = o.foco, e = o.acum.entro[i], s = o.acum.salio[i]
-    const agr = [...o.d.agrEntro, ...o.d.agrSalio]
-    return { ...base, cuando: `Hasta el ${dia(o.d.fecha)}`, entroEtiqueta: 'Entró en total', salioEtiqueta: 'Salió en total', quedoEtiqueta: 'Diferencia', entro: e, salio: s, quedo: e - s, nota: agr.length ? `Aquí suma un total de periodo: ${detalleAgregados(agr)}` : undefined }
-  }
-  if (o.modo === 'dia' && o.d) {
-    const d = o.d, agr = [...d.agrEntro, ...d.agrSalio]
-    const antesDelSync = d.fecha < o.exactoDesde && d.entro >= 0
-    const partes: string[] = []
-    if (d.usd > 0) partes.push(`Polar: US$${d.usd.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} netos de comisión`)
-    if (agr.length) partes.push(`${agr.length === 1 ? 'Este día lleva' : 'Este día lleva'} un total de periodo, no de un solo día: ${detalleAgregados(agr)}`)
-    else if (d.salio === 0) partes.push('Gastos de este día: sin registro por día (llegan en el estado de cuenta del mes)')
-    if (antesDelSync) partes.push('Antes del 4 oct el registro diario de Polar solo veía ventas nuevas; las renovaciones entran como ajuste del mes')
-    return { ...base, cuando: dia(d.fecha), entro: d.entro, salio: d.salio, quedo: null, nota: partes.join('. ') + (partes.length ? '.' : ''), salioTexto: d.salio === 0 ? 'sin registro' : undefined, cifras: true }
-  }
-  // Sin apuntar. Por día: solo lo que tiene fecha real (los totales de mes no son de un día).
-  if (o.modo === 'dia') return { ...base, cuando: `En ${o.palabraRango}, solo lo que tiene fecha`, entro: o.totalDia.entro, salio: o.totalDia.salio, quedo: null, salioTexto: 'sin gastos con fecha', cifras: true,
-    nota: 'Pasa el dedo o el cursor por la gráfica para ver cada día.' }
-  // Acumulado: el total del rango.
-  const piso = !o.rangoCompleto && o.gastosHasta != null
-  const nota = piso ? `Los gastos se conocen hasta el ${fechaCorta(o.gastosHasta!)}${o.cuentaAtrasada ? ` (${nombreCuenta(o.cuentaAtrasada)})` : ''}: después de esa fecha la curva roja está quieta porque falta el estado de cuenta, no porque no hayas gastado.` : undefined
-  return { ...base, cuando: `En ${o.palabraRango}`, entro: o.total.entro, salio: o.total.salio, quedo: o.total.entro - o.total.salio, salioPiso: piso && o.total.salio > 0, nota }
+    {!acum && diaFijo && <div className={g.dia} aria-live="polite" data-fecha={diaFijo.fecha}>
+      <div className={g.diaCabeza}>
+        <p className={g.diaFecha}>{diaLargo(diaFijo.fecha)}</p>
+        <p className={g.diaTotales}>
+          {diaFijo.entro > 0 && <span><i data-t="gana" aria-hidden />{conSigno(diaFijo.entro, 'ingreso')}</span>}
+          {diaFijo.salio > 0 && <span><i data-t="pierde" aria-hidden />{conSigno(diaFijo.salio, 'gasto')}</span>}
+        </p>
+      </div>
+      <ul className={g.movs}>
+        {movsDia.map(m => <li key={m.id}>
+          <i data-t={m.tipo === 'ingreso' ? 'gana' : 'pierde'} aria-hidden />
+          <span className={g.concepto} title={m.concepto}>{m.concepto}</span>
+          <span className={g.cuenta}>{m.cuenta}</span>
+          <span className={g.monto}>{conSigno(m.mxn, m.tipo)}{m.original && <small>{montoDe(m.original.monto, m.original.moneda)}</small>}</span>
+        </li>)}
+      </ul>
+    </div>}
+  </div>
 }

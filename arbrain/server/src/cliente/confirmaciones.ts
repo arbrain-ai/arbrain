@@ -14,6 +14,7 @@
 import { createHash, randomBytes } from 'node:crypto'
 import type Database from 'better-sqlite3'
 import { avisoPatron, botonConsecuencia, frasePatron } from './frase-humana.js'
+import { venceSegunTexto, type MotivoCaducidad } from '../autonomia/caducidad.js'
 
 export type CategoriaConfirmacion = 'enviar' | 'pagar' | 'borrar' | 'publicar' | 'otra'
 /**
@@ -91,6 +92,10 @@ export interface Confirmacion {
   respuesta?: RespuestaDecision
   /** Veces que una decisión aprobada ya autorizó una acción de manos (tope `USOS_DECISION`). */
   usos?: number
+  /** A quién va (contactar): agrupa sus tarjetas en una sola en la bandeja (4 nov 2026). */
+  persona?: string
+  /** Vista previa (ruta absoluta de una imagen local; la web la sirve por /api/local-image): la miniatura de lo que se publica. */
+  imagen?: string
 }
 
 /** Conversación de la app donde vive el turno (la misma forma que un despertador). */
@@ -122,6 +127,10 @@ export interface PedidoConfirmacion {
    * (`vencida`: nunca se ejecuta, queda en el historial). Nunca alarga la vida de la cola.
    */
   expira?: number
+  /** A quién va, si Levy lo dice (`--persona`); si no, la bandeja lo saca del título. */
+  persona?: string
+  /** Vista previa: ruta absoluta de una imagen (png, jpg, webp). Otra cosa se ignora. */
+  imagen?: string
 }
 
 /** El límite pedido, si es un instante futuro y no pasa del tope de su vida normal; si no, null (rige la vida normal). */
@@ -144,8 +153,16 @@ export const VIDA_PENDIENTE_MS = 10 * 60_000
 export const VIDA_APROBACION_MS = 10 * 60_000
 /** Lo más que se vigila una corrida de «Córrelo tú» (la persona escribe su contraseña o inicia sesión en el navegador). */
 export const VIDA_CORRIDA_MS = 10 * 60_000
-/** Cuánto vive una confirmación en la cola sin respuesta (después queda `vencida`: nunca se ejecuta). */
-export const VIDA_COLA_MS = 7 * 24 * 60 * 60_000
+/**
+ * Cuánto vive una confirmación en la cola sin respuesta (después queda `vencida`: nunca se ejecuta). Tope general de la
+ * caducidad por sentido (4 nov 2026: era una semana; lo que nadie tocó en 48 h ya no aplica). Ver `autonomia/caducidad.ts`.
+ */
+export const VIDA_COLA_MS = 48 * 60 * 60_000
+/**
+ * Las de manos: su encargo dura segundos o minutos y al terminar las caduca (`caducarTarjetas`). Esta es la red por si el
+ * fin del encargo no llegó (el proceso murió, o la tarjeta nació antes de que existiera ese aviso).
+ */
+export const VIDA_COLA_MANOS_MS = 6 * 60 * 60_000
 /**
  * Una aprobación dada desde la cola: el agente la usa en el turno que el daemon abre al aprobar (chat) o en la siguiente
  * corrida de la rutina. Vale una vez, para la misma acción exacta.
@@ -180,9 +197,11 @@ interface Fila {
   tipo: TipoConfirmacion | null; frase: string | null; patron: string | null; comentario: string | null; alcance: AlcanceConfirmacion | null; terminal: number | null; salida: string | null; codigo: number | null; sesion: string | null
   conversacion: string | null; cola: number | null
   titulo: string | null; recomendacion: string | null; recomienda: string | null; respuesta: string | null; usos: number | null
+  persona?: string | null
+  imagen?: string | null
 }
 const COLUMNAS_PLAY = [['tipo', 'TEXT'], ['frase', 'TEXT'], ['patron', 'TEXT'], ['comentario', 'TEXT'], ['alcance', 'TEXT'], ['terminal', 'INTEGER'], ['salida', 'TEXT'], ['codigo', 'INTEGER'], ['sesion', 'TEXT'], ['conversacion', 'TEXT'], ['cola', 'INTEGER'],
-  ['titulo', 'TEXT'], ['recomendacion', 'TEXT'], ['recomienda', 'TEXT'], ['respuesta', 'TEXT'], ['usos', 'INTEGER']] as const
+  ['titulo', 'TEXT'], ['recomendacion', 'TEXT'], ['recomienda', 'TEXT'], ['respuesta', 'TEXT'], ['usos', 'INTEGER'], ['persona', 'TEXT'], ['imagen', 'TEXT']] as const
 
 const leerConversacion = (s: string | null): ConversacionConfirmacion | null => {
   try {
@@ -218,15 +237,41 @@ const publica = (f: Fila): Confirmacion => ({
   ...(f.recomienda === 'si' || f.recomienda === 'no' ? { recomienda: f.recomienda } : {}),
   ...(f.respuesta === 'si' || f.respuesta === 'no' || f.respuesta === 'otro' ? { respuesta: f.respuesta } : {}),
   ...(f.usos ? { usos: f.usos } : {}),
+  ...(f.persona ? { persona: f.persona } : {}),
+  ...(f.imagen ? { imagen: f.imagen } : {}),
 })
+
+/** Una vista previa válida: ruta absoluta a una imagen, sin `..` ni controles (la web vuelve a juzgarla al servirla). */
+export function imagenValida(r: unknown): string | null {
+  if (typeof r !== 'string' || r.length > 500 || !r.startsWith('/') || /[\0-\x1f]/.test(r) || r.split('/').includes('..')) return null
+  return /\.(png|jpe?g|webp)$/i.test(r) ? r : null
+}
+
+/**
+ * Hasta cuándo aplica una tarjeta abierta por su sentido (4 nov 2026): tope general de 48 h; las de manos, la red de su
+ * encargo; las decisiones de Levy, el momento que nombra su título. Devuelve el límite y por qué.
+ */
+export function limitePorSentido(f: Pick<Fila, 'origen' | 'tipo' | 'titulo' | 'resumen' | 'creada'>): { limite: number; motivo: MotivoCaducidad } {
+  let limite = f.creada + VIDA_COLA_MS, motivo: MotivoCaducidad = 'tope'
+  if (f.origen === 'manos' && f.creada + VIDA_COLA_MANOS_MS < limite) { limite = f.creada + VIDA_COLA_MANOS_MS; motivo = 'encargo' }
+  // Solo los títulos que escribe Levy: el resumen de una acción de manos o de la guardia es un comando, no una frase con hora.
+  const porTexto = f.tipo === 'decision' ? venceSegunTexto(f.titulo || f.resumen, f.creada) : null
+  if (porTexto !== null && porTexto < limite) { limite = porTexto; motivo = 'hora' }
+  return { limite, motivo }
+}
 
 /** Lo que hace el daemon cuando la persona decide algo que ya nadie esperaba (cola): se lo dice al agente. */
 export type Retomar = (c: Confirmacion, scope: ConversacionConfirmacion | null) => void
+/** Una tarjeta abierta que caducó sin toque (nunca se ejecutó): Levy lo anota en «Lo que hice solo». */
+export type AlCaducar = (c: Confirmacion, motivo: MotivoCaducidad) => void
 
 export class Confirmaciones {
   private retomar: Retomar = () => {}
   /** Cola de aprobaciones: quién le avisa al agente cuando la persona decide algo que ya nadie esperaba. */
   alRetomar(fn: Retomar): this { this.retomar = fn; return this }
+  private alCaducarFn: AlCaducar = () => {}
+  /** Caducidad por sentido: quién anota lo que caducó sin enviar. */
+  alCaducar(fn: AlCaducar): this { this.alCaducarFn = fn; return this }
 
   constructor(private readonly db: Database.Database, private readonly ahora: () => number = Date.now, private readonly avisar: (tipo: 'pendiente' | 'resuelta' | 'cola', c: Confirmacion) => void = () => {}) {
     db.exec(`CREATE TABLE IF NOT EXISTS confirmaciones (
@@ -246,6 +291,18 @@ export class Confirmaciones {
     const ahora = this.ahora()
     const filas = this.db.prepare(`SELECT id FROM confirmaciones WHERE estado = 'pendiente' AND origen IN ${ORIGENES_COLA} AND expira <= ?`).all(ahora) as { id: string }[]
     for (const { id } of filas) this.aLaCola(id)
+    // Caducidad por sentido (4 nov 2026): lo que está en la cola deja de aplicar cuando pasa su momento, su encargo terminó o
+    // lleva 48 h. Se calcula sobre la fila (también las de bases viejas, que nacieron con una semana de vida).
+    const enCola = this.db.prepare(`SELECT * FROM confirmaciones WHERE estado = 'en_cola'`).all() as Fila[]
+    for (const f of enCola) {
+      const { limite, motivo } = limitePorSentido(f)
+      if (limite < f.expira) this.db.prepare(`UPDATE confirmaciones SET expira = ? WHERE id = ? AND estado = 'en_cola'`).run(limite, f.id)
+      if (Math.min(limite, f.expira) > ahora) continue
+      if (this.db.prepare(`UPDATE confirmaciones SET estado = 'vencida', resuelta = ?, expira = ? WHERE id = ? AND estado = 'en_cola'`).run(ahora, Math.min(limite, f.expira), f.id).changes !== 1) continue
+      const c = publica({ ...f, estado: 'vencida', resuelta: ahora })
+      this.avisar('resuelta', c)
+      try { this.alCaducarFn(c, limite <= f.expira ? motivo : f.tipo === 'decision' ? 'hora' : 'tope') } catch { /* anotar nunca tumba la bandeja */ }
+    }
     this.db.prepare(`UPDATE confirmaciones SET estado='vencida', resuelta=COALESCE(resuelta, ?) WHERE estado IN ('pendiente','en_cola','permitida','corriendo') AND expira <= ?`).run(ahora, ahora)
   }
 
@@ -278,6 +335,7 @@ export class Confirmaciones {
     if (!ok) return null
     const c = this.get(id)!
     this.avisar('resuelta', c)
+    try { this.alCaducarFn(c, 'encargo') } catch { /* anotar nunca tumba la bandeja */ }
     return c
   }
 
@@ -347,9 +405,11 @@ export class Confirmaciones {
       conversacion: p.conversacion && leerConversacion(JSON.stringify(p.conversacion)) ? JSON.stringify(leerConversacion(JSON.stringify(p.conversacion))).slice(0, 600) : null, cola: p.enCola ? ahora : null,
       titulo: p.titulo ? String(p.titulo).slice(0, 160) : null, recomendacion: p.recomendacion ? String(p.recomendacion).slice(0, 600) : null,
       recomienda: p.recomienda === 'si' || p.recomienda === 'no' ? p.recomienda : null, respuesta: null, usos: null,
+      persona: typeof p.persona === 'string' && p.persona.trim() ? p.persona.replace(/\s+/g, ' ').trim().slice(0, 60) : null,
+      imagen: imagenValida(p.imagen),
     }
-    this.db.prepare(`INSERT INTO confirmaciones (id, estado, categoria, origen, resumen, detalle, herramienta, literal, avisos, creada_por, huella, creada, expira, resuelta, tipo, frase, patron, comentario, alcance, terminal, salida, codigo, sesion, conversacion, cola, titulo, recomendacion, recomienda, respuesta, usos)
-      VALUES (@id, @estado, @categoria, @origen, @resumen, @detalle, @herramienta, @literal, @avisos, @creada_por, @huella, @creada, @expira, @resuelta, @tipo, @frase, @patron, @comentario, @alcance, @terminal, @salida, @codigo, @sesion, @conversacion, @cola, @titulo, @recomendacion, @recomienda, @respuesta, @usos)`).run(f)
+    this.db.prepare(`INSERT INTO confirmaciones (id, estado, categoria, origen, resumen, detalle, herramienta, literal, avisos, creada_por, huella, creada, expira, resuelta, tipo, frase, patron, comentario, alcance, terminal, salida, codigo, sesion, conversacion, cola, titulo, recomendacion, recomienda, respuesta, usos, persona, imagen)
+      VALUES (@id, @estado, @categoria, @origen, @resumen, @detalle, @herramienta, @literal, @avisos, @creada_por, @huella, @creada, @expira, @resuelta, @tipo, @frase, @patron, @comentario, @alcance, @terminal, @salida, @codigo, @sesion, @conversacion, @cola, @titulo, @recomendacion, @recomienda, @respuesta, @usos, @persona, @imagen)`).run(f)
     const c = publica(f)
     this.avisar('pendiente', c)
     return c

@@ -10,8 +10,9 @@
  */
 import type { Aggregate, FinanceMovement, Granularidad } from '../types/finances'
 
-/** Desde aquí el sync diario de Polar lee las órdenes reales (altas + renovaciones). finance-os, deuda #1. */
-export const POLAR_EXACTO_DESDE = '2026-10-04'
+/** Desde aquí Polar está registrado por día con sus órdenes reales (altas + renovaciones). finance-os, deuda #1.
+ *  5 nov 2026: Polar se recarga por día desde enero de 2026, así que el aviso de «antes solo veía ventas nuevas» ya no aplica. */
+export const POLAR_EXACTO_DESDE = '2026-01-01'
 
 export const MESES_LARGO = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
 export const MESES_CORTO = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']

@@ -5,11 +5,10 @@
  */
 import type { Aggregate, DayPoint, FinanceCoverage, FinanceFx, FinanceMovement, MonthTotal, PostCloseEvent, StatementCoverage } from '../types/finances'
 import { clasificar, fuenteEstado, pagoTarjetaEn, POLAR_EXACTO_DESDE } from './granularidad'
-
-const aMxn = (amount: number, currency: string, fx: FinanceFx) => currency === 'USD' ? amount * fx.usd_mxn : currency === 'EUR' ? amount * fx.eur_mxn : amount
+import { pesosDe } from './finanzas'
 
 export interface EntradaV2 {
-  /** Los movimientos de los últimos 13 meses (o del rango, si es más largo), con `account_name` ya unido. */
+  /** Los movimientos de los últimos 13 meses (o del rango, si es más largo; en `todo`, todos), con `account_name` ya unido. */
   context: FinanceMovement[]
   /** Los del rango elegido. */
   range: FinanceMovement[]
@@ -21,7 +20,8 @@ export interface EntradaV2 {
 }
 
 export function calcularV2({ context: contextMovements, range: rangeMovements, days, windowStart, fx, closeDate }: EntradaV2) {
-  const toMxn = (amount: number, currency: string) => aMxn(amount, currency, fx)
+  // Cada movimiento en pesos de SU día (contraparte MXN); sin ella, al tipo de cambio vivo.
+  const toMxn = (m: FinanceMovement) => pesosDe(m, fx)
   const dayMap = new Map<string, DayPoint>()
   for (let i = 0; i < days; i++) {
     const d = new Date(windowStart)
@@ -33,7 +33,7 @@ export function calcularV2({ context: contextMovements, range: rangeMovements, d
   for (const m of rangeMovements) {
     if (m.is_correction || (m.type !== 'gasto' && m.type !== 'ingreso')) continue
     const c = clasificar(m)
-    const mxn = toMxn(m.amount, m.currency)
+    const mxn = toMxn(m)
     if (c.granularidad === 'mes') {
       aggregates.push({
         id: m.id, date: m.date, type: m.type, total_mxn: Math.round(mxn), currency: m.currency, amount: m.amount,
@@ -52,7 +52,7 @@ export function calcularV2({ context: contextMovements, range: rangeMovements, d
     ...d, income_day_mxn: Math.round(d.income_day_mxn), expense_day_mxn: Math.round(d.expense_day_mxn), income_day_usd: Number(d.income_day_usd.toFixed(2)),
   }))
 
-  // Meses (13) con su cobertura: nada de esto depende del rango.
+  // Meses (al menos 13; en `todo`, toda la historia) con su cobertura: nada de esto depende del botón del rango.
   const monthMap = new Map<string, MonthTotal>()
   const stmtPeriods = new Map<string, Set<string>>()
   const stmtLastDate = new Map<string, string>()
@@ -85,7 +85,7 @@ export function calcularV2({ context: contextMovements, range: rangeMovements, d
     // El mes al que pertenece un total de periodo es su periodo; un movimiento del día, el mes de su fecha.
     const ym = c.period ?? m.date.slice(0, 7)
     const t = monthMap.get(ym) ?? { month: ym, income_mxn: 0, expense_mxn: 0, income_polar_mxn: 0, expense_card_payment_mxn: 0, has_daily_expense: false }
-    const mxn = toMxn(m.amount, m.currency)
+    const mxn = toMxn(m)
     if (m.type === 'ingreso') {
       t.income_mxn += mxn
       if (m.category === 'Polar') t.income_polar_mxn += mxn
@@ -109,7 +109,7 @@ export function calcularV2({ context: contextMovements, range: rangeMovements, d
   // Movimientos que la última foto de saldos no conoce (un préstamo cobrado, una transferencia).
   const postClose: PostCloseEvent[] = closeDate
     ? contextMovements
-        .filter((m) => m.date > closeDate && ['transferencia', 'prestamo', 'pago_deuda'].includes(m.type))
+        .filter((m) => !m.is_correction && m.date > closeDate && ['transferencia', 'prestamo', 'pago_deuda'].includes(m.type))
         .map((m) => ({
           id: m.id, date: m.date, type: m.type, account: m.account_name ?? null, counter_account: m.counter_account_name ?? null,
           amount: m.amount, currency: m.currency, note: m.note,

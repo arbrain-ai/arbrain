@@ -57,7 +57,12 @@ export interface ChatJobInput {
   /** Respuesta que Levy dio por su cuenta (aviso de subagente o Bash de fondo): turno sintético sin mensaje de Daniel. */
   spontaneous?: { kind: 'aviso'; label: string; avisos: Array<{ taskId?: string; status?: string; summary?: string }> }
   /** Turno que disparó un despertador: el mensaje lo escribió Levy para sí mismo, no Daniel. */
-  despertador?: { id: string; texto: string; programadoPara: number; disparo: number; /** aviso del motor: terminó un subagente de `delegar` */ tipo?: 'subagente' }
+  despertador?: {
+    id: string; texto: string; programadoPara: number; disparo: number
+    /** `subagente`: aviso del motor (terminó un subagente de `delegar`). `conversacion`: mensaje de Levy desde otra conversación
+     * del mismo dueño (cabina/conversaciones.ts › enviar), con `desde` = la conversación que lo manda. */
+    tipo?: 'subagente' | 'conversacion'; desde?: { id: string; titulo: string }
+  }
 }
 
 /** «/compact», «/skill args»: una palabra tras «/» seguida de espacio o fin. Una ruta («/ruta/al/archivo») no cuenta. */
@@ -237,6 +242,8 @@ export async function executeChatJob(journal: ChatJournal, turn: TurnRecord, emi
         }
       } catch { /* la apertura es ayuda, nunca bloquea el turno */ }
     }
+    // Modo directo (7 nov 2026): con Daniel transmitiendo, Levy lo sabe en cada turno (cabina/modo-directo.ts).
+    if (!input.editOriginalText) try { const { avisoDirecto } = await import('../cabina/modo-directo.js'); const aviso = avisoDirecto(); if (aviso) apertura += '\n\n' + aviso } catch { /* el aviso es ayuda, nunca bloquea el turno */ }
     const conApertura = comando ? prompt : prompt + apertura
     // Dos capas (4 oct 2026, solo Live): Jev clasifica en ~200 ms mientras Opus arranca; ver docs/builds/live-dos-capas-jev-2026-10-04.md.
     const dosCapas = !!live && !native && !spontaneous && !input.despertador && capaRapidaActiva()

@@ -13,7 +13,8 @@
  *
  * La lista negra, en todos los perfiles: `git push` forzado (--force, -f, --force-with-lease, +ref, --mirror, --delete),
  * `rm -r` fuera de su carpeta (o de la carpeta entera), deploy o publicación a producción, y por MCP enviar, pagar o
- * publicar. Las reglas de qué es irreversible y de qué MCP es de lectura son las de la edición cliente
+ * publicar. En la instalación de Daniel, además, los conectores de Google de claude.ai (`mcp__claude_ai_Google_*`,
+ * `mcp__claude_ai_Gmail__*`): piden popup en headless y su vía es `gog` (CLAUDE.md, regla 6). Las reglas de qué es irreversible y de qué MCP es de lectura son las de la edición cliente
  * (`cliente/confirmaciones.ts`, `cliente/politica-agentes.ts`, `cliente/dinero.ts`, `cliente/shell.ts`): una sola fuente.
  *
  * Pura salvo `realpath` del disco (un enlace dentro de la carpeta que apunta afuera cuenta como afuera).
@@ -25,6 +26,7 @@ import { analizarShell, type ComandoSimple } from '../cliente/shell.js'
 import { accionIrreversible } from '../cliente/confirmaciones.js'
 import { mcpDeLectura } from '../cliente/politica-agentes.js'
 import { MCP_DINERO } from '../cliente/dinero.js'
+import { esEdicionCliente } from '../edicion.js'
 
 export const PERFILES = ['total', 'codigo', 'lectura'] as const
 export type Perfil = typeof PERFILES[number]
@@ -45,6 +47,8 @@ export interface ContextoPerfil {
   home?: string
   /** Carpetas de borrador donde todo perfil escribe y borra (por defecto /tmp, /private/tmp y el TMPDIR). */
   temporales?: string[]
+  /** Edición cliente (app del alumno). Por defecto, la del proceso (`esEdicionCliente()`). */
+  cliente?: boolean
 }
 
 // ── Rutas ──
@@ -227,9 +231,17 @@ function negroCrudo(cmd: string, dir0: string, c: ContextoPerfil): string | null
   return null
 }
 
-/** MCP: enviar, pagar o publicar (reglas de `confirmaciones.ts` y `dinero.ts`). Las de Arbrain (cabina, manos) traen su freno. */
-export function negroMcp(herramienta: string, input: unknown): string | null {
+/** Conectores de Google de claude.ai (Drive, Docs, Calendar, Gmail…): en headless abren popup de permisos. */
+const MCP_GOOGLE_CLAUDE_AI = /^mcp__claude_ai_(Google_[A-Za-z0-9_]+|Gmail)__/
+
+/**
+ * MCP: enviar, pagar o publicar (reglas de `confirmaciones.ts` y `dinero.ts`). Las de Arbrain (cabina, manos) traen su
+ * freno. En la instalación de Daniel (`cliente` falso), también los conectores de Google de claude.ai: Gmail, Calendar
+ * y Drive van por `gog`. El alumno no tiene `gog`, así que en su edición pasan.
+ */
+export function negroMcp(herramienta: string, input: unknown, cliente = esEdicionCliente()): string | null {
   if (!herramienta.startsWith('mcp__')) return null
+  if (!cliente && MCP_GOOGLE_CLAUDE_AI.test(herramienta)) return `conector de Google de claude.ai (${herramienta}): abre popup sin pantalla; usa gog, skill google-workspace`
   const [, servidor = '', ...resto] = herramienta.split('__')
   const accion = resto.join('__')
   const irr = accionIrreversible(herramienta, input)
@@ -356,7 +368,7 @@ export function decidirPerfil(perfil: Perfil, herramienta: string, input: unknow
     if (perfil === 'lectura') return lecturaTexto(cmd, raiz, c)
     return null
   }
-  const mcp = negroMcp(herramienta, input)
+  const mcp = negroMcp(herramienta, input, c.cliente ?? esEdicionCliente())
   if (mcp) return `lista negra: ${mcp}`
   // 2. Archivos
   if (ESCRIBE.test(herramienta)) {

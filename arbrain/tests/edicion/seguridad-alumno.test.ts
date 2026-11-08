@@ -57,6 +57,16 @@ test('la UI monta el freno y la sección, y el panel de llaves muestra el tope (
   assert.match(fuente('src/features/configuracion/secciones.ts'), /secciones: \['llaves', 'voz', 'sinfiltro', 'telefono', 'maquinas', 'avisos', 'seguridad', 'privacidad', 'apariencia'\]/)
 })
 
+// v0.2.24: el modo directo es de la instalación original. En la edición cliente no existe /api/modo-directo; prender
+// es optimista y apagar espera al servidor, así que ⌘⇧D (Ctrl+Shift+D) dejaba la app tapada sin forma de apagarla.
+test('el modo directo no se monta, no cubre la página ni consulta el servidor en la edición cliente', () => {
+  const layout = fuente('src/app/layout.tsx')
+  assert.match(layout, /\{!CLIENTE && <ModoDirecto \/>\}/)
+  assert.match(layout, /\{!CLIENTE && <script dangerouslySetInnerHTML=\{\{ __html: cubrirDirectoScript \}\} \/>\}/)
+  assert.match(fuente('src/shared/stores/modo-directo-store.ts'), /typeof window === 'undefined' \|\| esEdicionCliente\(\)\) return/)
+  assert.doesNotMatch(fuente('src/features/configuracion/secciones.ts'), /'apariencia', 'directo'\] \}/)
+})
+
 // 0.2.15: «Quitar también el freno» (23 oct 2026) se retiró; lo reemplaza el nivel «Autónomo» con consentimiento. Lo que
 // esas pruebas cuidaban (la web no inventa lo que valida el daemon; aflojar lleva el secreto) sigue en autonomia-0-2-15.test.ts.
 test('autónomo: la web no trae frase ni «Sin preguntar»; los nombres de los niveles son los del daemon', async () => {

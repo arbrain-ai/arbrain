@@ -13,6 +13,8 @@ import { AuthProvider } from '@/shared/contexts/auth-context'
 import { esEdicionCliente } from '@/lib/edicion'
 import { ZONA_ORIGINAL } from '@/shared/lib/zona-dueno'
 import { MiMarca } from '@/components/MiMarca'
+import { ModoDirecto } from '@/features/modo-directo/ModoDirecto'
+import { cubrirDirectoScript } from '@/lib/modo-directo/cubrir'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -114,6 +116,9 @@ export default function RootLayout({
   return (
     <html lang="es" className={`${inter.variable} ${jetbrainsMono.variable} ${robotoSlab.variable} ${montserrat.variable}`} suppressHydrationWarning>
       <head>
+        {/* Modo directo: si este equipo transmite, la página nace cubierta hasta que el velo esté puesto (cero cuadros sin tapar).
+            Solo en la instalación original: en la edición cliente no existe /api/modo-directo y no se podría apagar (v0.2.24). */}
+        {!CLIENTE && <script dangerouslySetInnerHTML={{ __html: cubrirDirectoScript }} />}
         <script dangerouslySetInnerHTML={{ __html: aperturaEnChatScript }} />
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         {/* Preconexión al Supabase de esta instalación, si tiene uno (la edición cliente no). */}
@@ -142,6 +147,7 @@ export default function RootLayout({
             <AuthExpiryGuard />
             <DesktopReloadShortcut />
             <ReposoVentana />
+            {!CLIENTE && <ModoDirecto />}
             {CLIENTE && <MiMarca />}
           </AuthProvider>
         </ThemeProvider>

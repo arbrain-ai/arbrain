@@ -10,7 +10,6 @@
  * en pausa hasta que el dueño pulsa «Activar». Cada una dice para qué le sirve y dónde deja su reporte; un reporte que
  * llegó y no ha visto lleva «Nuevo» (la edición cliente no tiene campana: este es su aviso dentro de la app).
  */
-import { escucharIrA } from '@/shared/navigation/ir-a'
 import { useCallback, useEffect, useState } from 'react'
 import { Pause, Play, Plus, Sparkles, Trash2, Zap } from 'lucide-react'
 import { releer, useFuente } from '@/features/cabina/datos'
@@ -31,8 +30,6 @@ export function RutinasCliente() {
   const loops = useFuente<VistaLoops>(URL_LOOPS, 30_000)
   const [vista, setVistaEstado] = useState<'rutinas' | 'loops'>('rutinas')
   useEffect(() => { try { if (localStorage.getItem(CLAVE_VISTA) === 'loops') setVistaEstado('loops') } catch { /* sin almacenamiento */ } }, [])
-  // «Loops» en la barra lateral (3 nov 2026): con Rutinas ya abierta, pasa a Loops en sitio.
-  useEffect(() => escucharIrA('loops', () => setVistaEstado('loops')), [])
   const setVista = (v: 'rutinas' | 'loops') => { setVistaEstado(v); try { localStorage.setItem(CLAVE_VISTA, v) } catch { /* sin almacenamiento */ } }
   const activos = !!loops.data?.activo
   if (!activos) return <RutinasDelDueno />

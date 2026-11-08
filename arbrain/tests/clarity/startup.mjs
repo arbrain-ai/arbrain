@@ -19,8 +19,9 @@ try{
  await page.goto((process.env.CLARITY_URL??'http://127.0.0.1:3032')+'/ml-dashboard')
  await page.waitForFunction(()=>Number(localStorage.getItem('mission-control:last-mirror-pull'))>0)
  assert.equal(calls.length,0,'Startup must not fetch hidden analytics')
- await page.getByRole('button',{name:'Arbrain runtime status',exact:true}).click();await page.getByRole('button',{name:'Pull Local Mirror',exact:true}).click()
- await page.waitForFunction(()=>document.body.innerText.includes('Mirror ready:'))
+ // 4 nov 2026: sin punto verde; el espejo a mano vive en Ajustes › Mac y sistema › Sincronización.
+ await page.goto((process.env.CLARITY_URL??'http://127.0.0.1:3032')+'/settings?seccion=mac');await page.getByRole('button',{name:'Traer el espejo',exact:true}).click()
+ await page.waitForFunction(()=>document.body.innerText.includes('Espejo listo:'))
  assert.deepEqual([...new Set(calls)].sort(),legacy.sort())
  await writeFile('docs/builds/arbrain-claridad-2026-09-13/evidence/startup.json',JSON.stringify({automaticHiddenAnalytics:0,manualTargets: [...new Set(calls)],isolatedFixtures:true},null,2));console.log('PASS startup avoids hidden analytics; explicit mirror retains all targets')
 }finally{await browser.close()}

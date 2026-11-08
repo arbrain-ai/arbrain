@@ -346,6 +346,9 @@ export async function syncNow(): Promise<SyncResult> { return syncQueue() }
 /** `soloIds`: reintento automático de envíos concretos (reintento-envios.ts); sin él, toda la cola del dueño. */
 export async function syncChatQueue(expectedOwnerId: string, soloIds?: string[]): Promise<SyncResult> { return syncQueue(expectedOwnerId, soloIds ? new Set(soloIds) : undefined) }
 
+/** Sincronizador autónomo (sync-autonomo.ts): sube solo estos envíos de la cola (nunca chat), conflictos incluidos. */
+export async function syncEntidades(ids: string[]): Promise<SyncResult> { return syncQueue(undefined, new Set(ids)) }
+
 async function syncQueue(chatOwner?: string, soloIds?: Set<string>): Promise<SyncResult> {
   const online = isOnline()
   if (!online) {
@@ -356,7 +359,8 @@ async function syncQueue(chatOwner?: string, soloIds?: Set<string>): Promise<Syn
   }
 
   const queue = (await listSyncQueue())
-    .filter((item) => item.status === 'pending' || item.status === 'failed')
+    // Un conflicto solo se reintenta por id (sync-autonomo.ts, la regla: gana el cambio local); «sincronizar todo» no lo toca.
+    .filter((item) => item.status === 'pending' || item.status === 'failed' || (!!soloIds && item.status === 'conflict' && item.entityType !== 'chat_prompt'))
     .filter((item) => !soloIds || soloIds.has(item.id))
     .filter(item => {
       if (item.entityType !== 'chat_prompt') return !chatOwner

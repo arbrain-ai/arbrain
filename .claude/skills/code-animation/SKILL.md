@@ -1,6 +1,6 @@
 ---
 name: code-animation
-description: "Animación y video hechos con código: el modelo genera imagen, música y efectos en la misma línea de tiempo y entrega un MP4, o una pieza viva (un solo HTML que se mueve y se toca en el navegador). Guarda las palabras que desatan al modelo, la vara, el oficio y los principios de animación de Lasseter. Usar ante «haz una animación de X», «hazme un video de X», «un intro», «un comercial», «una animación con código», «un HTML vivo», «que se pueda tocar», «que se explique solo», «sorpréndeme», «code animation». Decks y diapositivas: presentaciones. Imágenes sueltas: image-generation."
+description: "Animación y video hechos con código: el modelo genera imagen, música y efectos en la misma línea de tiempo y entrega un MP4, o una pieza viva (un solo HTML que se mueve y se toca en el navegador). Guarda las palabras que desatan al modelo, la vara, el oficio y los principios de animación de Lasseter. Usar ante «haz una animación de X», «hazme un video de X», «un intro», «un comercial», «una animación con código», «un HTML vivo», «que se pueda tocar», «que se explique solo», «sorpréndeme», «code animation», «god animation», «god-animation». Decks y diapositivas: presentaciones. Imágenes sueltas: image-generation."
 ---
 
 # code-animation · rieles, no riendas

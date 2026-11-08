@@ -29,6 +29,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFile
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { juzgar, APPS_CHAT } from './freno.js'
+import { frenoApagado } from '../autonomia/politica.js'
 
 /** Apps de chat o correo: lo que se lee de su pantalla es de terceros y no sale de Anthropic. */
 export const esPrivada = (app: string) => APPS_CHAT.has(app.toLowerCase())
@@ -480,7 +481,8 @@ export async function correrReceta(manos: Adaptador, decisor: () => Decisor, alm
   }
 
   // Sensible antes de tocar nada: si algún paso exige confirmación, no se empieza a medias.
-  const sensibles = receta.pasos.map((p, i) => ({ p, i })).filter(({ p, i }) => (p.sensible || esSensible(p)) && !op.confirmar?.includes(i))
+  // Con el freno apagado por el dueño (politica.json) no se para aquí: cada paso pasa por el freno, que lo deja y lo anota.
+  const sensibles = frenoApagado() ? [] : receta.pasos.map((p, i) => ({ p, i })).filter(({ p, i }) => (p.sensible || esSensible(p)) && !op.confirmar?.includes(i))
   if (sensibles.length) {
     const { p, i } = sensibles[0]
     return salir({ ok: false, estado: 'requiere_confirmacion', detalle: `El paso ${i} («${p.meta}») envía, borra, paga o publica: pide confirmación a ${DUENO} y corre de nuevo con confirmar: [${sensibles.map(s => s.i).join(', ')}].`, paso_sensible: { paso: i, meta: p.meta, etiqueta: p.elemento?.etiqueta } })
@@ -563,7 +565,7 @@ export async function correrReceta(manos: Adaptador, decisor: () => Decisor, alm
         } catch (e) { return salir({ ok: false, estado: 'fallo', detalle: `paso ${i}: el decisor no pudo elegir (${(e as Error).message.slice(0, 120)})` }) }
         ref = d.eleccion; estado = 'reparado'; quien = d.decisor; confianza = d.confianza
         const nuevo = describir(o, ref)
-        if (nuevo && esSensible({ elemento: nuevo }) && !op.confirmar?.includes(i)) {
+        if (nuevo && esSensible({ elemento: nuevo }) && !op.confirmar?.includes(i) && !frenoApagado()) {
           return salir({ ok: false, estado: 'requiere_confirmacion', detalle: `Al reparar, el paso ${i} cayó en «${nuevo.etiqueta}», que envía, borra, paga o publica: pide confirmación.`, paso_sensible: { paso: i, meta: paso.meta, etiqueta: nuevo.etiqueta } })
         }
         reparaciones.push({ en: new Date().toISOString(), paso: i, antes: receta.pasos[i].elemento, despues: nuevo, decisor: d.decisor, confianza: d.confianza })

@@ -12,6 +12,7 @@ export const EXPENSE_CATEGORIES: readonly string[] = [
   'health-gym',
   'suscripciones',
   'equipo-tech',
+  'compras', // en línea: Amazon, Mercado Libre, Shein (5 nov 2026)
   'vivienda',
   SEGUNDA(),
   'familia',
@@ -21,7 +22,7 @@ export const EXPENSE_CATEGORIES: readonly string[] = [
   'otros',
 ]
 
-export const INCOME_SOURCES = ['Polar', 'USDT', 'HT-cierre', 'otros'] as const
+export const INCOME_SOURCES = ['Polar', 'Skool', 'USDT', 'HT-cierre', 'otros'] as const
 
 export interface FinanceAccount {
   id: string
@@ -107,7 +108,8 @@ export interface CategoryTotal {
   count: number
 }
 
-export type FinanceRange = '30d' | '3m' | '6m' | '12m'
+/** `todo` = desde el primer movimiento registrado. */
+export type FinanceRange = '30d' | '3m' | '6m' | '12m' | 'todo'
 
 // Punto de la curva: ingresos y gastos ACUMULADOS al día `date` dentro del rango.
 export interface SeriesPoint {
@@ -183,6 +185,8 @@ export interface PostCloseEvent {
 export interface FinanceSummary {
   range: FinanceRange
   days: number
+  /** Primer día de la ventana (YYYY-MM-DD). En `todo`, el día del primer movimiento. */
+  desde?: string
   fx: FinanceFx
   fx_at: string | null // ISO timestamp del FX usado (null = fallback)
   fx_stale: boolean // true si se cayó al FX de respaldo (no vivo)
@@ -199,9 +203,59 @@ export interface FinanceSummary {
   // ── Agregados en 2026-10-08 (finanzas v2). Solo se AGREGAN campos: `series` y los demás siguen igual. ──
   daily_series?: DayPoint[] // un punto por día de la ventana, solo lo registrado por día
   aggregates?: Aggregate[] // totales de periodo dentro de la ventana
-  months?: MonthTotal[] // últimos 13 meses, sin importar el rango
+  months?: MonthTotal[] // al menos los últimos 13 meses; en `todo`, desde el primer movimiento
   coverage?: FinanceCoverage
   post_close?: PostCloseEvent[]
+}
+
+// ── Filas de impuestos (5 nov 2026). Las escribe el POST (`upsert_tax_period`, `add_tax_estimate`) para la socia y la
+// contadora. Finanzas NO las lee ni las pinta (6 nov 2026, «quiero que sea un espejo»): ni el GET las devuelve.
+
+/** estimado: sale del modelo · calculada: la contadora ya la calculó · presentada: declarada · pagada: con fecha de pago. */
+export type TaxEstado = 'estimado' | 'calculada' | 'presentada' | 'pagada'
+export const TAX_ESTADOS: readonly TaxEstado[] = ['estimado', 'calculada', 'presentada', 'pagada']
+
+/** Un mes declarado. `null` = sin dato (nunca 0). */
+export interface FinanceTaxPeriod {
+  id: string
+  periodo: string // YYYY-MM
+  ingreso: number | null
+  deducciones: number | null
+  isr: number | null
+  recargos_actualizacion: number | null
+  iva: number | null
+  total: number | null
+  estado: TaxEstado
+  pagado_en: string | null
+  fuente: string | null
+  nota: string | null
+  created_at: string
+  updated_at: string
+}
+
+/** Un estimado del total pendiente con el SAT a una fecha. Solo se agregan: la tabla es la historia. */
+export interface FinanceTaxEstimate {
+  id: string
+  fecha: string // YYYY-MM-DD
+  bajo: number
+  centro: number
+  alto: number
+  pagado: number | null
+  nota: string | null
+  created_at: string
+}
+
+/** Lo que tienes hoy (`lib/tienes.ts`): la última foto de saldos (líquido) + lo que movió Polar después de ella. */
+export interface LoQueTienes {
+  mxn: number
+  /** Fecha de la foto de saldos de la que sale. */
+  cierre: string
+  /** true si la foto es de hoy; si no, los gastos posteriores a la foto no están restados. */
+  al_dia: boolean
+  /** Lo que entró (o salió) de las cuentas de cobro (Polar) después de la foto, en MXN. */
+  cobros_despues_mxn: number
+  /** Último día con movimiento de cobro registrado después de la foto. */
+  cobros_hasta: string | null
 }
 
 export interface FinancesPayload {
@@ -210,4 +264,6 @@ export interface FinancesPayload {
   snapshots: FinanceSnapshot[]
   recurring: FinanceRecurring[]
   summary: FinanceSummary
+  /** Lo que tienes hoy. null = todavía no hay foto de saldos (no es 0). */
+  tienes?: LoQueTienes | null
 }

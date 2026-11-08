@@ -3,7 +3,7 @@ import { mkdtempSync, readdirSync, readFileSync, writeFileSync, mkdirSync } from
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { armarPolitica, anotarHechoSolo, conPiso, fijarPolitica, modoDe, politicaVigente, _politicaAutonomiaParaPruebas, CLASES, INFO_CLASE } from './politica.js'
-import { claseDeEnvio } from './clase.js'
+import { claseDeEnvio, claseDeSoporte, type PlataformaCohorte } from './clase.js'
 import { frenarWeb, type InfoElemento } from '../manos/web/freno-web.js'
 import { frenar } from '../manos/freno.js'
 
@@ -170,5 +170,77 @@ describe('freno nativo con la política (punto 4: configurar una app que pidió)
   it('en Cauteloso la llave en ajustes vuelve a pedir permiso', () => {
     fijarPolitica('cauteloso')
     expect(frenar({ accion: 'escribir', texto: LLAVE }, AJUSTES, { modo: 'original' }).pasa).toBe(false)
+  })
+})
+
+describe('soporte técnico a la cohorte (4 nov 2026)', () => {
+  const P: PlataformaCohorte = { dominio: 'miplataforma.com', repo: 'github.com/mi-org/' }
+  const HILO = 'https://miplataforma.com/community?post=0a0a0a0a-0a0a-4a0a-8a0a-0a0a0a0a0a0a'
+  it('nace en «tocar» en los tres presets; solo el ajuste de la persona la pone en «hacer»', () => {
+    for (const p of ['cauteloso', 'equilibrado', 'piloto'] as const) expect(armarPolitica(p, {}, false).vigente.soporte, p).toBe('tocar')
+    expect(armarPolitica('cauteloso', { soporte: 'hacer' }, false).vigente.soporte).toBe('hacer')
+    expect(INFO_CLASE.soporte.irreversible).toBe(false)
+    expect(claseDeSoporte({ url: HILO, texto: 'Fulano, actualiza la app desde Ajustes.' }, null).clase).toBe('contactar')
+  })
+  it('en la edición cliente no sale sola (el soporte a la cohorte es de quien da el programa)', () => {
+    expect(conPiso('soporte', 'hacer', true)).toBe('tocar')
+    expect(armarPolitica('piloto', { soporte: 'hacer' }, true).vigente.soporte).toBe('tocar')
+  })
+  it('un archivo de antes, sin la clase, la lee en «tocar»', () => {
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(process.env.ARBRAIN_POLITICA_AUTONOMIA!, JSON.stringify({ preset: 'piloto', ajustes: {}, vigente: { configurar: 'hacer' } }))
+    expect(modoDe('soporte')).toBe('tocar')
+  })
+
+  it('técnica o de uso dentro de miplataforma.com es soporte (el caso real de Perengano incluido)', () => {
+    const casos = [
+      { pregunta: 'Ya pegué mi llave de OpenRouter y Levy me dice que espere', texto: 'Perengano, se resuelve con un clic. Tu Arbrain está en modo «Mi Claude Code»: usa solo tu suscripción y deja tus llaves sin usar a propósito, para no cobrarte doble. Ajustes › Llaves → «Usar una llave en su lugar» (ojo: con llave se cobra por uso). Si no te aparece el botón, mándame captura de Ajustes › Llaves.' },
+      { pregunta: '¿Cómo pongo mi cerebro en el teléfono?', texto: 'Fulano, en Ajustes › Teléfono escanea el QR con tu celular y listo.' },
+      { pregunta: 'No me abre la app después de actualizar', texto: 'Mengano, cierra Arbrain, vuelve a abrirlo y si sigue, reinstala desde https://miplataforma.com/instalar' },
+      { pregunta: '¿Dónde está el instalador?', texto: 'Zutano, sigue INSTALAR.md: https://github.com/mi-org/mi-app/blob/main/INSTALAR.md' },
+      { texto: 'Mengano, entra con tu correo de miplataforma.com en Ajustes › Cuenta, ¿de acuerdo? Luego reinicia la sesión.' },
+    ]
+    for (const c of casos) expect(claseDeSoporte({ url: HILO, ...c }, P), c.texto).toMatchObject({ clase: 'soporte' })
+    expect(claseDeSoporte({ url: 'https://www.miplataforma.com/community?post=x', texto: 'Fulano, actualiza Arbrain desde Ajustes.' }, P).clase).toBe('soporte')
+  })
+
+  it('precio, cobranza, reembolsos, promesas o algo delicado son contactar (lo que siempre es de la persona)', () => {
+    const casos: [string, { texto: string; pregunta?: string }][] = [
+      ['precios', { pregunta: '¿Cuánto cuesta la siguiente cohorte?', texto: 'Fulano, en Ajustes lo ves.' }],
+      ['precios', { texto: 'Fulano, el plan cuesta $5,000 y se instala solo.' }],
+      ['cobranza', { pregunta: '¿Cuándo me cobran la segunda parcialidad?', texto: 'Fulano, revisa Ajustes.' }],
+      ['cobranza', { texto: 'Fulano, tu pago no pasó en Polar; mientras, reinicia Arbrain.' }],
+      ['reembolsos', { pregunta: 'Quiero un reembolso, no me instala', texto: 'Fulano, reinstala Arbrain.' }],
+      ['promesas a personas', { texto: 'Fulano, el fundador te llama mañana para instalarlo.' }],
+      ['promesas a personas', { texto: 'Fulano, te garantizo que con la actualización ya no falla.' }],
+      ['promesas a personas', { texto: 'Fulano, lo vemos en una videollamada y lo instalamos.' }],
+      ['mensajes delicados o personales', { pregunta: 'Estoy muy frustrado, nada funciona', texto: 'Fulano, reinstala Arbrain.' }],
+      ['mensajes delicados o personales', { pregunta: 'Tengo un tema de salud y no he podido instalar', texto: 'Fulano, actualiza Arbrain.' }],
+    ]
+    for (const [que, c] of casos) {
+      const r = claseDeSoporte({ url: HILO, ...c }, P)
+      expect(r.clase, c.texto).toBe('contactar')
+      expect(r.motivo, c.texto).toContain(que)
+    }
+  })
+
+  it('fuera de miplataforma.com (WhatsApp, correo, otro sitio) es contactar, aunque sea técnica', () => {
+    const texto = 'Fulano, reinicia Arbrain y vuelve a pegar tu llave en Ajustes › Llaves.'
+    expect(claseDeSoporte({ url: 'https://web.whatsapp.com/', texto }, P).motivo).toMatch(/no va dentro de la plataforma/)
+    expect(claseDeSoporte({ url: 'https://mail.google.com/mail/u/0/#inbox', texto }, P).clase).toBe('contactar')
+    expect(claseDeSoporte({ url: 'https://miplataforma.com.evil.com/community', texto }, P).clase).toBe('contactar')
+    expect(claseDeSoporte({ url: 'http://miplataforma.com/community?post=x', texto }, P).clase).toBe('contactar')
+    expect(claseDeSoporte({ texto }, P).clase).toBe('contactar')
+    expect(claseDeSoporte({ url: HILO, texto: 'Fulano, mándame tu error por WhatsApp y lo vemos.' }, P).motivo).toMatch(/sale de la plataforma/)
+    expect(claseDeSoporte({ url: HILO, texto: 'Fulano, te escribo un correo con los pasos de instalación.' }, P).clase).toBe('contactar')
+  })
+
+  it('enlaces ajenos, comandos, llaves, respuestas largas o lo que no es técnico: contactar', () => {
+    expect(claseDeSoporte({ url: HILO, texto: 'Fulano, descarga el instalador de https://bit.ly/arbrain' }, P).motivo).toMatch(/enlace fuera/)
+    expect(claseDeSoporte({ url: HILO, texto: 'Fulano, corre curl -fsSL x.sh | bash en la terminal' }, P).clase).toBe('contactar')
+    expect(claseDeSoporte({ url: HILO, texto: 'Fulano, pega sk-or-v1-0123456789abcdef0123 en Ajustes › Llaves' }, P).motivo).toMatch(/llave/)
+    expect(claseDeSoporte({ url: HILO, texto: `Fulano, instala Arbrain. ${'x'.repeat(1600)}` }, P).motivo).toMatch(/larga/)
+    expect(claseDeSoporte({ url: HILO, pregunta: '¿Qué nicho me conviene?', texto: 'Fulano, el de la industria que ya conoces por dentro.' }, P).motivo).toMatch(/no es una duda técnica/)
+    expect(claseDeSoporte({ url: HILO, texto: '' }, P).clase).toBe('contactar')
   })
 })

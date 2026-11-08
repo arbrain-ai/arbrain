@@ -1,5 +1,5 @@
 'use client'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { addDays, format, startOfDay } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Plus } from 'lucide-react'
@@ -20,7 +20,9 @@ import { VENTANA_RACHA } from './habitos-dia'
 import { sinEmoji, useAhora } from './vivo-piezas'
 import { Segmentos, useCasillas } from './ObjetivoCaja'
 import { ListaDia } from './ListaDia'
-import { FranjaDecisiones } from '@/features/decisiones/FranjaDecisiones'
+import { AvisoDecisiones, enfoquePedido, EVENTO_ENFOCAR_DECISIONES, SeccionDecisiones } from '@/features/decisiones/FranjaDecisiones'
+import { useBandeja } from '@/features/decisiones/useBandeja'
+import { useIsMobile } from '@/shared/hooks/useMediaQuery'
 import { enElTimeline, eventosExplicitos, listaDelDia, type ItemDia } from './lista-dia'
 import type { EditorSelection } from './PlanEditor'
 import type { PlanEvent, PlanItem, PlanTask, PlanningSnapshot } from './types'
@@ -50,7 +52,7 @@ import d from './dia-vivo.module.css'
 /** El hábito que ES el cumplimiento del objetivo del día (plasticidad y rachas lo leen así). Lo marca la estrella. */
 const HABITO_OBJETIVO = 'objetivo_dia'
 
-export function DiaVivo({ goals, guardarObjetivo, onDescripcion, donde, leyenda, fecha, snapshot, eventos, visible, color, tareas, cargando, todoistCaido, ocupado, rejilla, onRejilla, onAbrir, onCompletar, onReabrir, onDeshacer, onNueva, onObjetivo, enfoque = false, plegado, central = true, dosColumnas = false }: {
+export function DiaVivo({ goals, guardarObjetivo, onDescripcion, donde, leyenda, fecha, snapshot, eventos, visible, color, tareas, cargando, todoistCaido, ocupado, rejilla, onRejilla, onAbrir, onCompletar, onReabrir, onPrioridad, onDeshacer, onNueva, onObjetivo, enfoque = false, plegado, central = true, dosColumnas = false }: {
   fecha: Date; snapshot: PlanningSnapshot | null; eventos: PlanEvent[]
   /** Los objetivos los lee el calendario UNA vez (5 oct 2026): cambiar de escala o de periodo no relee ni parpadea. */
   goals: { data: GoalSnapshot | null; error: string | null }
@@ -65,6 +67,8 @@ export function DiaVivo({ goals, guardarObjetivo, onDescripcion, donde, leyenda,
   onAbrir: (item: PlanItem) => void; onCompletar: (t: PlanTask) => Promise<unknown>; onDeshacer: () => void
   /** Desmarcar la estrella: reabre la tarea-objetivo en Todoist. */
   onReabrir?: (t: PlanTask) => Promise<unknown>
+  /** Cambiar la prioridad de una tarea en Todoist, como allá (menú o teclas 1–4 sobre la fila). `p` es P1…P4. */
+  onPrioridad?: (t: PlanTask, p: 1 | 2 | 3 | 4) => Promise<unknown>
   /** Abre la hoja de una tarea nueva (vacía o prellenada: anclar el objetivo). */
   onNueva: (semilla?: EditorSelection) => void
   /** `✓` en el evento «Objetivo del dia» de Google (dia-vivo.ts, `conMarca`). */
@@ -150,33 +154,61 @@ export function DiaVivo({ goals, guardarObjetivo, onDescripcion, donde, leyenda,
     for (const b of agenda.bloques) for (const it of enAgenda.dentro.get(b.id) ?? []) m.set(it.id, sinEmoji(b.corto ?? b.titulo).replace(/^\d{1,2}:\d{2}\s*/, '').split(/\s+[·|:(]\s*/)[0].trim())
     return m }, [agenda.bloques, enAgenda])
   const abiertaEnTodoist = (t: { id: string }) => abiertasDia.some(x => x.id === t.id)
-  /** Marcar desde la lista o el timeline: la casilla en su texto (y su tarea gemela), la tarea en Todoist; lo marcado se reabre igual. */
+  /** Marcar desde la lista o el timeline: la casilla en su texto, la tarea en Todoist (y el criterio que dice lo mismo); lo marcado se reabre igual. */
   function alternarItem(it: ItemDia) {
     const cerrar = (t: NonNullable<ItemDia['tarea']>, hecho: boolean) => {
       if (t.id === ancla?.tarea.id) { if (hecho !== cumplido) marcarObjetivo(); return }
       if (hecho && abiertaEnTodoist(t)) void onCompletar(t).catch(() => {})
       else if (!hecho && !abiertaEnTodoist(t) && onReabrir && !t.recurring) void onReabrir({ ...t, updatedAt: null }).catch(() => {})
     }
-    if (it.origen === 'casilla') { pluma.alternar(it.linea!, !it.hecho); if (it.gemela) cerrar(it.gemela, !it.hecho); return }
+    if (it.origen === 'casilla') { pluma.alternar(it.linea!, !it.hecho); return }
+    if (it.criterio && pluma.puede && it.criterio.hecho === it.hecho) pluma.alternar(it.criterio.linea, !it.hecho)
     if (it.tarea) cerrar(it.tarea, !it.hecho)
   }
+  // La tarea gemela cerrada en otro lado (Todoist en el teléfono, Levy): su criterio se marca una vez, desde la hoja de en medio.
+  const yaMarcados = useRef(new Set<string>())
+  useEffect(() => {
+    if (!central || !pluma.puede) return
+    for (const it of lista) if (it.criterio && it.hecho && !it.criterio.hecho && !yaMarcados.current.has(`${dia}:${it.id}`)) {
+      yaMarcados.current.add(`${dia}:${it.id}`); pluma.alternar(it.criterio.linea, true)
+    }
+  }, [central, lista, dia]) // eslint-disable-line react-hooks/exhaustive-deps -- la pluma cambia en cada render; manda la lista
   const puedeItem = (it: ItemDia) => it.origen === 'casilla' ? pluma.puede
     : !ocupado && !it.tarea?.pending && !(it.hecho && (it.fija || !onReabrir))
+  const cambiarPrioridad = onPrioridad && !ocupado ? (t: PlanTask, p: 1 | 2 | 3 | 4) => { if (t.priority !== p) void onPrioridad(t, p).catch(() => {}) } : undefined
   const [resaltado, setResaltado] = useState<string | null>(null)
   const hechasN = lista.filter(i => i.hecho).length
+
+  // «Esperan tu toque» (4 nov 2026): dentro de la tarjeta HOY, junto a las tareas. Plegada, la línea dice «N te esperan» y la línea
+  // del tiempo queda a la vista. Solo el Día de HOY y nunca en el calendario de otra persona. Es el ÚNICO lugar con ese número
+  // (4 nov 2026, 19:31: fuera del encabezado del chat) y el teléfono es igual: la tarjeta nace plegada cada vez que llegas.
+  const conBandeja = esHoy && !snapshot?.perfil
+  const telefono = useIsMobile()
+  const bandeja = useBandeja(5_000, conBandeja)
+  const esperan = conBandeja ? bandeja.vista?.pendientes.length ?? 0 : 0
+  const [abrirHoy, setAbrirHoy] = useState(0)
+  useEffect(() => {
+    if (!conBandeja) return
+    const abrir = () => setAbrirHoy(n => n + 1)
+    if (enfoquePedido()) abrir()
+    window.addEventListener(EVENTO_ENFOCAR_DECISIONES, abrir)
+    return () => window.removeEventListener(EVENTO_ENFOCAR_DECISIONES, abrir)
+  }, [conBandeja])
+  const decisiones = conBandeja && bandeja.vista ? <SeccionDecisiones b={bandeja} /> : null
 
   /* Las piezas, una vez; el orden lo decide el ancho (abajo). */
   // Lo que abre el objetivo del día (25 oct 2026, un solo esqueleto con Semana y Mes): sus casillas y, sin objetivo, fijar uno.
   const lleno = titulo || lista.length > 0
-  const objetivoDetalle = lleno || !leyendoObjetivo ? <>
+  const objetivoDetalle = lleno || !leyendoObjetivo || esperan > 0 ? <>
       {!titulo && !leyendoObjetivo && <button className={d.objVacio} onClick={fijarObjetivo} disabled={!snapshot || ocupado}><Plus size={13} aria-hidden />Fijar el objetivo del día</button>}
       {lista.length > 0 && lista.length <= 12 && <Segmentos k={hechasN} n={lista.length} i={1} />}
       {cargando && !snapshot && !lista.length ? <p className={d.vacio}>Leyendo Todoist…</p> : todoistCaido && !lista.length ? <p className={d.vacio}>Todoist no se pudo leer.</p> : null}
       <ListaDia items={lista} alternar={alternarItem} puede={puedeItem} evento={eventoDeItem} resaltado={resaltado} onResaltar={setResaltado}
-        onAbrir={onAbrir} onNueva={snapshot && !ocupado ? () => onNueva() : undefined} onAgregar={pluma.puede && titulo ? pluma.agregar : undefined} fallo={pluma.fallo} />
+        onAbrir={onAbrir} onPrioridad={cambiarPrioridad} onNueva={snapshot && !ocupado ? () => onNueva() : undefined} onAgregar={pluma.puede && titulo ? pluma.agregar : undefined} fallo={pluma.fallo} />
       {otros.length > 0 && <ul className={d.otrosObjetivos} aria-label="Más objetivos del día">
         {otros.map(o => <li key={o.titulo} data-hecho={o.hecho || undefined}>{o.titulo}</li>)}
       </ul>}
+      {decisiones}
     </> : null
   // DRIP (24 oct 2026): la leyenda es la matriz; en ancho vive en la barra del calendario y aquí no se repite.
   const gobierno = useGobierno()
@@ -203,16 +235,13 @@ export function DiaVivo({ goals, guardarObjetivo, onDescripcion, donde, leyenda,
   const franja = <FranjaPlan rotulo={<>{esHoy ? 'Hoy' : 'Día'}{cumplido && titulo && <em> · cumplido</em>}</>} titulo={titulo}
     vacio={leyendoObjetivo ? 'Leyendo el objetivo…' : goals.error && !eventoObjetivo ? 'No se pudo leer el objetivo.' : 'Sin objetivo del día.'}
     cuenta={lista.length ? { k: hechasN, n: lista.length } : null} detalle={objetivoDetalle}
-    {...(dosColumnas ? { clave: 'arbrain.dia.franja-abierta-dos-columnas', abiertaInicial: true } : {})} />
-
-  // «Esperan tu toque» (3 nov 2026): la primera franja del Día de HOY, arriba del objetivo. Nunca en el calendario de otra persona.
-  const decisiones = esHoy && !snapshot?.perfil ? <FranjaDecisiones /> : null
+    aviso={<AvisoDecisiones n={esperan} />} abrirSenal={abrirHoy}
+    {...(dosColumnas ? { clave: 'arbrain.dia.franja-abierta-dos-columnas', abiertaInicial: true } : { recordar: !telefono })} />
 
   // Pantalla completa (24 oct 2026, «lo importante al lado izquierdo» y la agenda a la derecha, sin scroll); la franja va encima de las
   // dos columnas (25 oct 2026).
   if (dosColumnas) return <section className={d.dia} data-compacta data-dos-columnas aria-label={etiqueta}>
     <div className={d.izquierda}>
-      {decisiones}
       {franja}
     </div>
     <div className={d.derecha}>
@@ -223,7 +252,6 @@ export function DiaVivo({ goals, guardarObjetivo, onDescripcion, donde, leyenda,
   </section>
 
   return <section className={d.dia} data-compacta aria-label={etiqueta}>
-    {decisiones}
     {franja}
     {chips}
     {agendaMini}

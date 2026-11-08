@@ -29,6 +29,8 @@ import { NOMBRE_MODO } from './cliente/modo-permisos.js'
 import { patronParaTarjeta } from './cliente/reglas-siempre.js'
 import { fraseHumana } from './cliente/frase-humana.js'
 import { terminalDisponible } from './cliente/correlo.js'
+import { colaDelDaemon, ESPERA_SUBAGENTE_MS, turnoSubagente } from './cliente/cola-memoria.js'
+import { SUBAGENTES_SDK_CLIENTE } from './cliente/subagentes-sdk.js'
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
@@ -391,7 +393,8 @@ export function guardiaHooks(registrar: (evento: Record<string, unknown>) => voi
     }],
     PreToolUse: [{
       // El hook puede esperar el clic humano (I8) y, con «Córrelo tú», la corrida: margen sobre la espera.
-      timeout: Math.ceil((hayCorrelo(op) ? Math.max(esperaDe(op), ESPERA_CLIC_MANOS_MS(op)) + ESPERA_CORRIDA_MS() : esperaDe(op)) / 1000) + 60,
+      // Más la espera de la cola por memoria (un subagente que espera aire).
+      timeout: Math.ceil(((hayCorrelo(op) ? Math.max(esperaDe(op), ESPERA_CLIC_MANOS_MS(op)) + ESPERA_CORRIDA_MS() : esperaDe(op)) + ESPERA_SUBAGENTE_MS()) / 1000) + 60,
       hooks: [async (input: HookInput, _id, opciones): Promise<SyncHookJSONOutput> => {
         if (input.hook_event_name !== 'PreToolUse') return { continue: true }
         // «Pausar todo»: mientras dure, ninguna herramienta corre (lo que sobreviva al aborto no actúa).
@@ -408,6 +411,15 @@ export function guardiaHooks(registrar: (evento: Record<string, unknown>) => voi
           registrar({ herramienta: input.tool_name, decision: 'negado', motivo: d.motivo })
           anotar(input.tool_name, input.tool_input, 'negado', { motivo: d.motivo, origen: op.origen })
           return negarHook(mensajeNegado(d.motivo))
+        }
+        // Cola por memoria (5 nov 2026, cliente/cola-memoria.ts): un subagente sale solo si la máquina tiene aire; si no,
+        // espera en la cola (visible en Taller › Agentes) y Arbrain se lo devuelve al agente cuando hay memoria.
+        if ((SUBAGENTES_SDK_CLIENTE as readonly string[]).includes(input.tool_name)) {
+          const enCola = await turnoSubagente(colaDelDaemon(), input.tool_input, op.origen === 'cron' ? null : op.conversacion, { signal: opciones?.signal })
+          if (enCola) {
+            registrar({ herramienta: input.tool_name, decision: 'cola_memoria' })
+            return negarHook(enCola)
+          }
         }
         if (d.tipo === 'permitir') {
           if (ctx.contaminada && input.tool_name === 'WebFetch') webSinClic.set(input.session_id, (webSinClic.get(input.session_id) ?? 0) + 1)

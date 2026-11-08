@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useSyncExternalStore } from 'react'
-import { LocateFixed, SkipBack, SkipForward, Play, Pause, X, Zap } from 'lucide-react'
+import { SkipBack, SkipForward, Play, Pause, X, Zap } from 'lucide-react'
 import { chatSpeech, type SpeechState } from '../lib/chat-speech'
 import { avisoGroqMostrado, avisoGroqVisible, cerrarAvisoGroq, suscribirAvisoGroq } from '../lib/aviso-groq-lector'
 import { MARCA_DESDE_MIC } from '@/features/primer-arranque/lib/llaves'
@@ -10,7 +10,6 @@ import {
   BTN_CERRAR,
   BTN_PLAY,
   BTN_SALTO,
-  BTN_SEGUIR,
   BTN_VELOCIDAD,
   TXT_CONTADOR,
 } from './AudioBarChrome'
@@ -45,7 +44,15 @@ export function ChatSpeechBar() {
 
   // Un documento del panel lleva sus controles en su propia pestaña (lo que vive en el panel no se pinta otra vez en el chat).
   if (!chatSpeech || !state.active || state.id?.startsWith('doc:')) return null
+  return <BarraDelLector state={state} avisoGroq={avisoGroq} />
+}
 
+/**
+ * Lo que se pinta con el lector activo; puro (sin el motor) para el test. Tocar el texto no cambia nada de aquí: en iPhone,
+ * lo que aparece bajo el dedo en el pointerdown se traga el clic (5 nov 2026, el botón «Seguir» de 74ed06648; ver
+ * tests/chat/lector-toque-lee.test.ts). Si la mano movió el hilo, lo re-engancha tocar un párrafo o anterior/siguiente.
+ */
+export function BarraDelLector({ state, avisoGroq }: { state: SpeechState; avisoGroq: boolean }) {
   const fmtRate = (r: number) => r.toFixed(2).replace(/\.?0+$/, '') + 'x'
   const pct = state.total > 0 ? ((state.idx + 1) / state.total) * 100 : 0
   const speedColor = state.rate === 1 ? 'text-muted' : state.rate >= 1.75 ? 'text-amber-400' : 'text-brand-ink'
@@ -53,24 +60,9 @@ export function ChatSpeechBar() {
   return (
     <AudioBarFrame
       izquierda={
-        <>
-          <span className={`${TXT_CONTADOR} shrink-0`} title="Párrafo">
-            {state.idx + 1}/{state.total}
-          </span>
-          {/* Moviste el texto con la mano: la voz sigue y la pantalla se queda donde la dejaste hasta que tocas aquí. */}
-          {!state.siguiendo && (
-            <button
-              data-lector-seguir
-              onClick={() => chatSpeech.seguir()}
-              className={BTN_SEGUIR}
-              title="Seguir: volver al párrafo que se está leyendo"
-              aria-label="Seguir el párrafo que se lee"
-            >
-              <LocateFixed size={12} aria-hidden />
-              <span className="hidden sm:inline">Seguir</span>
-            </button>
-          )}
-        </>
+        <span className={TXT_CONTADOR} title="Párrafo">
+          {state.idx + 1}/{state.total}
+        </span>
       }
       velocidad={
         <button

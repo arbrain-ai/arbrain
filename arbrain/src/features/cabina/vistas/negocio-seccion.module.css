@@ -1,0 +1,3 @@
+/* /negocio (5 nov 2026): la página de Tu negocio es más ancha que las demás secciones (980 px) para que el grafo se
+   acueste en filas y se lea casi a tamaño real en escritorio. En el teléfono, el mismo margen de siempre. */
+.scroll { padding-left: max(var(--pagina-pad-x), calc((100% - 1400px) / 2)); padding-right: max(var(--pagina-pad-x), calc((100% - 1400px) / 2)); }

@@ -1,9 +1,14 @@
 import { PcmDecoder } from './pcm.ts'
 import { normalizeAgent, type LiveAgent } from './voices.ts'
+import { SeparadorJson, base64ABytes } from '../../chat/lib/levy-vivo.ts'
+import { pedirAlineacion } from '../../chat/lib/levy4.ts'
+import { unirAlineacion, type Alineacion } from '../../chat/lib/levy-visemas.ts'
 export type VoiceTiming = { text: string; firstByteMs: number | null; firstSoundMs: number | null; completed: boolean; failed: string | null; provider?: string | null; fallback?: string | null; firstByteAt?: number | null; firstSoundAt?: number | null }
 /** El PCM ya decodificado de una frase (mismas muestras que suenan). La cara lo lee para mover la boca con la
  * energía exacta del instante que suena, sin un segundo analizador ni latencia. */
-export type VoiceTrack = { rate: number; chunks: Float32Array[]; length: number }
+export type VoiceTrack = { rate: number; chunks: Float32Array[]; length: number
+  /** Levy vivo / Levy v4: alineación por carácter de ElevenLabs de esta frase (crece mientras llega). Sin bandera no existe. */
+  alineacion?: Alineacion }
 export type VoicePosition = { text: string; elapsed: number; duration: number; complete: boolean; level: number; track?: VoiceTrack }
 type Part = { track: VoiceTrack; text: string; buffers: Float32Array[]; rate: number; done: boolean; started: boolean; start: number; duration: number; totalSeconds: number; intervals: {at:number;duration:number;offset:number}[]; timing: VoiceTiming; generation: number }
 
@@ -91,7 +96,7 @@ export class LivePcmPlayer {
   }
   private async receive(part:Part,speed:number,generation:number,signal:AbortSignal,agent:LiveAgent,previousText:string){
     try{
-      const response=await this.transport('/api/live/speech',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:part.text,speed,agent,previousText}),signal})
+      const response=await this.transport('/api/live/speech',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:part.text,speed,agent,previousText,...(pedirAlineacion()?{alineacion:true}:{})}),signal})
       part.timing.provider=response.headers.get('X-Voice-Provider');part.timing.fallback=response.headers.get('X-Voice-Fallback')||null
       if(!response.ok||!response.body){
         const body=await response.json().catch(()=>({})) as {error?:string}
@@ -101,14 +106,22 @@ export class LivePcmPlayer {
       if(!Number.isInteger(rate)||rate<8000||rate>96000)throw new Error('Formato de audio inválido.')
       part.rate=rate;part.track.rate=rate
       const reader=response.body.getReader(),decoder=new PcmDecoder()
+      // Levy vivo: JSON por línea ({audio_base64, alignment}); el PCM sigue el mismo camino que el crudo.
+      const json=response.headers.get('X-Voice-Alignment')?new SeparadorJson():null,texto=json?new TextDecoder():null
       let total=0
+      const audio=(bytes:Uint8Array)=>{const decoded=decoder.decode(bytes);if(decoded.length){part.totalSeconds+=decoded.length/rate;part.buffers.push(decoded);part.track.chunks.push(decoded);part.track.length+=decoded.length}}
       try{
         while(true){
           const {value,done}=await reader.read();if(done)break
           if(generation!==this.generation){await reader.cancel();return}
           if(part.timing.firstByteMs===null){part.timing.firstByteAt=performance.now();part.timing.firstByteMs=part.timing.firstByteAt-this.turnStarted}
           total+=value.length;if(total>12_000_000)throw new Error('La frase de voz excedió su límite.')
-          const decoded=decoder.decode(value);if(decoded.length){part.totalSeconds+=decoded.length/rate;part.buffers.push(decoded);part.track.chunks.push(decoded);part.track.length+=decoded.length}
+          if(json&&texto){
+            for(const o of json.push(texto.decode(value,{stream:true})) as {audio_base64?:string;alignment?:{characters:string[];character_start_times_seconds:number[];character_end_times_seconds:number[]}|null}[]){
+              if(o.alignment?.characters?.length)part.track.alineacion=unirAlineacion(part.track.alineacion??{chars:[],starts:[],ends:[]},{chars:o.alignment.characters,starts:o.alignment.character_start_times_seconds,ends:o.alignment.character_end_times_seconds},part.track.length/rate)
+              if(o.audio_base64)audio(base64ABytes(o.audio_base64))
+            }
+          }else audio(value)
           this.pump()
         }
         decoder.finish()

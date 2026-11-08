@@ -1,6 +1,7 @@
 'use client'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { isNonDefaultAccount, type ChatAccount } from '../stores/account-store'
+import { leerConReintento } from '../lib/leer-con-reintento'
 
 type Values = { currentModel: string | null; currentEffort: string | null; ultracode: boolean }
 const empty: Values = { currentModel: null, currentEffort: null, ultracode: false }
@@ -58,16 +59,13 @@ export function useChatSettings({ owner, sessionId, account, pending = false }: 
     const apply = <K extends keyof Values>(key: K, value: Values[K]) => {
       if (!cancelled && active.current === identity && identity.revisions[key] === revisions[key]) update(key, value)
     }
-    const read = async (path: string) => {
-      const response = await fetch(`/api/chat/${path}${qs}`, { signal: controller.signal })
-      return response.ok ? response.json() : null
-    }
+    const read = (path: string) => leerConReintento(() => fetch(`/api/chat/${path}${qs}`, { signal: controller.signal }), controller.signal) as Promise<Record<string, unknown> | null>
     void read('model').then(data => {
-      if (data && Object.hasOwn(data, 'model') && (data.model === null || typeof data.model === 'string')) apply('currentModel', data.model)
+      if (data && Object.hasOwn(data, 'model') && (data.model === null || typeof data.model === 'string')) apply('currentModel', data.model as string | null)
     }).catch(() => {})
     void read('efforts').then(data => {
       if (!data) return
-      if (Object.hasOwn(data, 'current') && (data.current === null || typeof data.current === 'string')) apply('currentEffort', data.current)
+      if (Object.hasOwn(data, 'current') && (data.current === null || typeof data.current === 'string')) apply('currentEffort', data.current as string | null)
       if (typeof data.ultracode === 'boolean') apply('ultracode', data.ultracode)
     }).catch(() => {})
     return () => { cancelled = true; controller.abort() }

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { VozServidor, posicionAudible } from '../../src/features/chat/lib/voz-servidor'
 import { silenciosDe, tiemposDePalabras, tiemposDelAudio } from '../../src/features/chat/lib/tiempos-estimados'
 import { leerMarcas, palabraEn, tiemposDeMarcas, type MarcaPalabra } from '../../src/features/chat/lib/marcas-voz'
-import { indiceDeVelocidad, tramosDeVoz } from '../../src/features/chat/lib/chat-speech'
+import { indiceDeVelocidad, tramosDeVoz, VELOCIDADES } from '../../src/features/chat/lib/chat-speech'
 
 function palabras(s: string) {
   return [...s.matchAll(/\S+/g)].map((m) => ({ from: m.index!, to: m.index! + m[0].length }))
@@ -185,11 +185,15 @@ test('un fallo no condena la lectura siguiente: reintentar() vuelve al servidor'
   })
 })
 
-test('las velocidades llegan a 3x y una posición guardada con la escala vieja cae en la vecina rápida', () => {
+test('el ciclo es 1x → 1.25x → 1.5x → 1.75x → 2x y una velocidad guardada a 2.5x o 3x cae en 2x', () => {
+  assert.deepEqual(VELOCIDADES, [1, 1.25, 1.5, 1.75, 2])
   assert.equal(indiceDeVelocidad(1), 0)
-  assert.equal(indiceDeVelocidad(2), 2)
+  assert.equal(indiceDeVelocidad(1.25), 1)
+  assert.equal(indiceDeVelocidad(1.5), 2)
+  assert.equal(indiceDeVelocidad(1.75), 3)
+  assert.equal(indiceDeVelocidad(2), 4)
+  assert.equal(indiceDeVelocidad(2.5), 4) // la escala del 23 oct llegaba a 3x
   assert.equal(indiceDeVelocidad(3), 4)
-  assert.equal(indiceDeVelocidad(1.75), 2) // la de Daniel por meses: 2x, no 1.5x
   assert.equal(indiceDeVelocidad(9), 4)
   assert.equal(indiceDeVelocidad(Number.NaN), -1)
 })

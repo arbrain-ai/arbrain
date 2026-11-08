@@ -36,6 +36,9 @@ import { Bandeja, Redactor, useAgentesAbiertos, type Objetivo } from '../documen
 import { lineaDeCita, useComentarios, type AgenteAbierto } from '../documento/comentarios'
 import cc from '../documento/comentarios.module.css'
 import { capital, instalacion, NOMBRE_DUENO } from '@/config'
+import { OcultoPorDirecto } from '@/features/modo-directo/ModoDirecto'
+import { invocacionVetadaDirecto } from '@/lib/modo-directo/reglas'
+import { useDirecto } from '@/shared/stores/modo-directo-store'
 
 interface Doc {
   ruta: string; archivo: string; tipo: TipoDocumento; editable: boolean
@@ -59,7 +62,14 @@ type Modo = 'previa' | 'texto' | 'cambios'
 export const urlDocumento = (ruta: string, comparar?: string, versiones?: string[], codigo?: boolean) =>
   `/api/cabina/documento?ruta=${encodeURIComponent(ruta)}${comparar ? `&comparar=${encodeURIComponent(comparar)}` : ''}${(versiones ?? []).map(x => `&version=${encodeURIComponent(x)}`).join('')}${codigo ? '&codigo=1' : ''}`
 
+/** Modo directo (7 nov 2026): `.env`, llaves y rutas sensibles no se piden ni se pintan (también los que se abren desde una carpeta). */
 export function VistaDocumento({ input, grande }: { input: MostrarInput; grande?: boolean }) {
+  const directo = useDirecto()
+  if (directo && invocacionVetadaDirecto({ ruta: input.ruta, compararCon: input.compararCon, versiones: input.versiones })) return <OcultoPorDirecto que="Ese archivo" compacto={!grande} />
+  return <VistaDocumentoLibre input={input} grande={grande} />
+}
+
+function VistaDocumentoLibre({ input, grande }: { input: MostrarInput; grande?: boolean }) {
   const url = urlDocumento(input.ruta!, input.compararCon, input.versiones, !!input.explorador)
   const { data, error } = useFuente<Doc>(url, 3000)
   const fm = data?.frontmatter ?? {}
@@ -77,7 +87,7 @@ export function VistaDocumento({ input, grande }: { input: MostrarInput; grande?
   if (data.tipo === 'pdf') return <VisorPdf key={data.ruta} url={data.url!} archivo={data.archivo} ruta={input.ruta!} grande={grande} />
   if (data.tipo === 'audio') return <VisorAudio url={data.url!} ruta={input.ruta!} archivo={data.archivo} tiempoInicial={input.tiempo} clave={input.ruta!} />
   // Nunca autoplay con sonido: arranca pausado y silenciado; Daniel le da play si quiere.
-  if (data.tipo === 'video') return <VisorVideo versiones={data.versiones ?? []} tiempoInicial={input.tiempo} grande={grande} clave={input.ruta!} />
+  if (data.tipo === 'video') return <VisorVideo versiones={data.versiones ?? []} tiempoInicial={input.tiempo} grande={grande} clave={input.ruta!} alReintentar={() => { void releer(url) }} />
   if (data.tipo === 'carpeta') return <VisorEntrega data={{ archivo: data.archivo, ruta: input.ruta!, items: data.items ?? [], recortado: !!data.recortado, manifiesto: data.manifiesto ?? null }} grande={grande}
     abrir={sub => <VistaDocumento input={sub} grande={grande} />} />
   if (data.tipo === 'html') return <MarcoHtml key={data.hash} clave={`doc:${input.ruta}`} url={data.url!} titulo={input.titulo ?? data.archivo} grande={grande} />

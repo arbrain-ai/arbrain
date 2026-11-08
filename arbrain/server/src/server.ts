@@ -33,7 +33,7 @@ import { CorredorLanzador, defaultCorredorLog } from './chat-runtime/corredor-la
 import { streamDurableTurn as observeDurableTurn } from './chat-runtime/http-stream.js'
 import { instalarAdoptante } from './chat-runtime/adoptante.js'
 import { Despertadores, dispararVencidos, DespertadorInvalido } from './chat-runtime/despertadores.js'
-import { ConversacionesNuevas, atenderConversaciones, enviarPorLaWeb } from './cabina/conversaciones.js'
+import { ConversacionesNuevas, OrdenesConversacion, atenderConversaciones, atenderOrdenes, enviarPorLaWeb, ordenesPorLaWeb } from './cabina/conversaciones.js'
 import { executeChatJob, type ChatJobInput } from './chat-runtime/chat-job.js'
 import { freezeChatContext, acceptResolvedChat, durableSubmissionError } from './chat-runtime/chat-envelope.js'
 import { getClaudeCatalog, findClaudeModel } from './chat-runtime/claude-capabilities.js'
@@ -73,6 +73,7 @@ import { synthesizeSpeech, synthesizeLector, LECTOR_SPEED } from './voice.js'
 import { marcarLectorActivo } from './lector-actividad.js'
 import { getDb, getSession, setSession, clearSession, listTasks, getTask, updateTaskStatus, updateTaskAfterRun, saveQueryUsage, getUsageSummary, getCronSession, setCronSession, getChatOverrides, setChatOverrides } from './db.js'
 import { computeNextRun, runDueTasks, executeCronJob, CRON_TZ } from './scheduler.js'
+import { atenderColaMemoria, colaActiva, colaDelDaemon, iniciarRelojCola } from './cliente/cola-memoria.js'
 import { saveConversationTurn } from './memory.js'
 import { logger } from './logger.js'
 import { validateInput, validateUrl, redactSecrets, MAX_DOWNLOAD_SIZE } from './security.js'
@@ -87,7 +88,7 @@ import { estadoLlaves, faltaLlaveClaude, faltaLlaveTrasConectar, MENSAJE_FALTA_L
 import { hostLocalValido, rutaCanonica, rutaSoloDaniel, MENSAJE_NO_DISPONIBLE } from './cliente/rutas.js'
 import { confirmacionesDelDaemon, iniciarConfirmaciones, pedidoManos, vistaParaPase } from './cliente/confirmaciones.js'
 import { avisarTelefono, retomarEnConversacion } from './cliente/cola.js'
-import { asegurarSecretoDecidir, avisarTarjetaAlTelefono, rutasBandeja, secretoDecidirValido } from './autonomia/bandeja.js'
+import { anotarCaducada, asegurarSecretoDecidir, avisarTarjetaAlTelefono, rutasBandeja, secretoDecidirValido } from './autonomia/bandeja.js'
 import { alDecidirLoop, registrarCorredorLoops } from './cliente/loops.js'
 import type { Confirmacion, ConversacionConfirmacion } from './cliente/confirmaciones.js'
 
@@ -210,6 +211,16 @@ function getDurableChat(): ChatSupervisor {
     catch (error) { logger.error({ err: error }, 'despertadores: pulso') }
   }, Number(process.env.ARBRAIN_DESPERTADOR_TICK_MS ?? 2_000))
   pulso.unref()
+  // Cola por memoria (5 nov 2026, cliente/cola-memoria.ts): lo que espera aire sale solo y en orden. Un subagente
+  // admitido vuelve a su conversación por el mismo camino del despertador; una rutina admitida despierta al scheduler.
+  const cola = colaActiva() ? colaDelDaemon(getDb()) : null
+  if (cola) iniciarRelojCola(cola, {
+    avisar: (scope, texto) => { despertadores!.avisar(scope, texto, 'confirmacion') },
+    correrRutinas: () => { if (CLAUDECLAW_ROLE !== 'chat') runDueTasks().catch(error => logger.error({ err: error }, 'cola por memoria: pase del scheduler')) },
+    // Sin corredor, los procesos de chat viven aquí: los ociosos devuelven su memoria mientras algo espera.
+    liberar: () => { if (!CORREDOR) { const n = claudeRuntimePool.cerrarOciosos(); if (n) logger.info({ cerrados: n }, 'cola por memoria: procesos de chat ociosos cerrados') } },
+    registrar: e => logger.info(e, 'cola por memoria'),
+  })
   // Conversaciones nuevas fijadas (31 oct 2026, cabina/conversaciones.ts): el MCP de la Cabina deja el pedido en este store y
   // este proceso, que sí tiene el token de la web, crea la fila y entrega el primer mensaje por /chat/stream. Mismo pulso.
   // ARBRAIN_CONVERSACIONES=0 lo apaga (reversa sin deploy).
@@ -225,6 +236,27 @@ function getDurableChat(): ChatSupervisor {
         .finally(() => { atendiendo = false })
     }, Number(process.env.ARBRAIN_DESPERTADOR_TICK_MS ?? 2_000))
     pulsoConversaciones.unref()
+    // Orquestar conversaciones existentes (6 nov 2026): listar, renombrar, fijar, desfijar y enviar. Las filas, por la web;
+    // `enviar` acepta aquí un turno sintético en el journal de la conversación destino, como un despertador.
+    const ordenes = new OrdenesConversacion(getDb())
+    let ordenando = false
+    const pulsoOrdenes = setInterval(() => {
+      if (ordenando) return
+      ordenando = true
+      void atenderOrdenes(ordenes, {
+        web: ordenesPorLaWeb(ALLOWED_ORIGIN, MC_TOKEN),
+        activos: owner => journal.activeTurns(owner),
+        turnoExiste: id => !!journal.get(id),
+        previo: (owner, account, conversationId) => journal.latest(owner, account, conversationId)?.input as ChatJobInput | undefined,
+        seleccion: async (account, overrides) => isCodexAccount(account)
+          ? { codexSelection: await resolveCodexSelection(account, overrides as unknown as SessionOverrides) }
+          : { claudeSelection: await resolveClaudeSelection(PROJECT_ROOT, account, overrides as unknown as SessionOverrides) },
+        aceptar: (id, input) => { journal.accept(id, input); void supervisor.pump() },
+      }, logger)
+        .catch(error => logger.error({ err: error }, 'conversaciones: pulso de órdenes'))
+        .finally(() => { ordenando = false })
+    }, Number(process.env.ARBRAIN_DESPERTADOR_TICK_MS ?? 2_000))
+    pulsoOrdenes.unref()
   }
   // Subagentes del motor (delegar): al terminar, despiertan a la conversación que los lanzó por el mismo
   // camino del despertador. ARBRAIN_AVISO_SUBAGENTES=0 lo apaga (reversa sin deploy).
@@ -798,6 +830,12 @@ async function rutasCliente(req: IncomingMessage, res: ServerResponse, ruta: str
     const r = atenderLoops(req.method, ruta, cuerpo, { store: confirmacionesDelDaemon })
     if (r) { sendJSON(res, r.status, r.cuerpo); return true }
   }
+  // Taller › Agentes › En cola por memoria (5 nov 2026, cliente/cola-memoria.ts): ver, reordenar y «Lanzar ya». Solo la
+  // app: el pase no abre `/cola-memoria*` (cofre.ts › rutaSoloApp).
+  if (ruta === '/cola-memoria' || ruta.startsWith('/cola-memoria/')) {
+    const r = await atenderColaMemoria(req.method, ruta, cuerpo, colaActiva() ? colaDelDaemon(getDb()) : null)
+    if (r) { sendJSON(res, r.status, r.cuerpo); return true }
+  }
   // Taller › Computadora (T16, 29 oct 2026): memoria, disco, procesador, reposo y cerrar apps (cliente/computadora.ts).
   // Solo la app: el pase no abre `/computadora*` (cofre.ts) y cerrar o forzar exigen además su secreto.
   if (ruta === '/computadora' || ruta.startsWith('/computadora/')) {
@@ -1291,6 +1329,8 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
       if (parsed.que === 'salida' && typeof parsed.tarea === 'string') { const { salidaDe } = await import('./cabina/internos.js'); const { tachar } = await import('./cabina/cuerpo.js'); try { sendJSON(res, 200, await salidaDe(parsed.tarea, typeof parsed.lineas === 'number' ? Math.min(Math.max(parsed.lineas, 5), 200) : 80, tachar)) } catch (e) { sendJSON(res, 404, { error: e instanceof Error ? e.message : 'Sin salida.' }) } return }
       if (parsed.que === 'panel') { const { sincronizar } = await import('./cabina/panel-bus.js'); try { sendJSON(res, 200, sincronizar(parsed as unknown as import('./cabina/panel-bus.js').Sincronizacion)) } catch (e) { sendJSON(res, 400, { error: e instanceof Error ? e.message : 'Sincronización inválida.' }) } return }
       if (parsed.que === 'panel-ajustes') { const { accionPanelAjustes } = await import('./cabina/panel-ajustes.js'); const r = accionPanelAjustes(parsed); sendJSON(res, 'error' in r ? r.status : 200, 'error' in r ? { error: r.error } : r); return }
+      // Modo directo (7 nov 2026): el interruptor de Ajustes y ⌘⇧D; con el modo prendido, `leer` trae los nombres que la app tapa.
+      if (parsed.que === 'modo-directo') { const { accionModoDirecto } = await import('./cabina/modo-directo.js'); const r = accionModoDirecto(parsed); sendJSON(res, 'error' in r ? r.status : 200, 'error' in r ? { error: r.error } : r); return }
       if (parsed.que === 'archivero') { const { accionArchivero } = await import('./cabina/archivero.js'); const r = accionArchivero(parsed); sendJSON(res, 'error' in r ? r.status : 200, 'error' in r ? { error: r.error } : r); return }
       // Memoria y contexto (4 oct 2026): A = la memoria de Levy sobre Daniel; B = la anatomía medida de la ventana.
       if (parsed.que === 'memoria') {
@@ -3144,7 +3184,7 @@ export function startMCServer(): void {
         void avisarTelefono(c, { token: MC_TOKEN, url: ALLOWED_ORIGIN })
           .then(r => { if (r !== 'repetido') logger.info({ confirmacion: c.id, resultado: r }, 'cola: aviso al teléfono') })
       }
-    }).alRetomar(conLoops(retomarEnConversacion({
+    }).alCaducar((c, motivo) => { anotarCaducada(c, motivo); logger.info({ confirmacion: c.id, motivo }, 'bandeja: caducó sin toque') }).alRetomar(conLoops(retomarEnConversacion({
       // Al decidir algo de la cola, el agente se entera en SU conversación: aviso que vence ya (mismo camino que un
       // despertador; el pulso de 2 s lo dispara y retoma la sesión).
       avisar: (scope, texto) => {
@@ -3189,7 +3229,7 @@ export function startMCServer(): void {
       opsLogger.log(tipo === 'resuelta' ? 'confirmacion_resuelta' : 'confirmacion_pendiente', 'system', { id: c.id, tipo: c.tipo, categoria: c.categoria, estado: c.estado, respuesta: c.respuesta })
       // Una tarjeta nueva (pendiente o nacida en la cola) suena una vez en el teléfono.
       if (tipo === 'pendiente') void avisarTarjetaAlTelefono(c).then(r => logger.info({ confirmacion: c.id, resultado: r }, 'bandeja: aviso al teléfono'))
-    }).alRetomar(retomarEnConversacion({
+    }).alCaducar((c, motivo) => { anotarCaducada(c, motivo); logger.info({ confirmacion: c.id, motivo }, 'bandeja: caducó sin toque') }).alRetomar(retomarEnConversacion({
       avisar: (scope, texto) => {
         if (!despertadores) throw new Error('despertadores sin iniciar')
         despertadores.avisar(scope, texto, 'confirmacion')

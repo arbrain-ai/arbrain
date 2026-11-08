@@ -1,0 +1,248 @@
+{
+  "$schema": "../embudo.schema.json",
+  "esquema": "arbrain.embudo/v1",
+  "negocio": "‹El negocio de tu cliente›",
+  "generado": "2026-11-05",
+  "reglas": [
+    "plantilla vacía: cambia cada ‹…› por lo que diga el dueño y borra los pisos o etapas que no apliquen",
+    "valor siempre null hasta leerlo de su fuente; nunca 0 por falta de dato",
+    "sin nombres de clientes ni cifras personales: las personas, por su rol",
+    "lo que todavía no existe va con opera_hoy=false o estado «por construir» (se pinta punteado)",
+    "un solo cuello de botella, y solo con evidencia (frase, ruta y fecha)",
+    "en el diagnóstico, cada skill y rutina es la que el cliente tendrá en su cerebro; si aún no existe, va como rutina con id null"
+  ],
+  "ejecutores": {
+    "levy": "tu agente",
+    "rutina": "una tarea que corre sola",
+    "persona": "una persona, por su rol"
+  },
+  "embudos": [
+    {
+      "id": "negocio",
+      "nombre": "‹Su oferta principal›",
+      "kicker": "EMBUDO 1",
+      "frase": "‹Qué vende y cómo llega la gente.›",
+      "tipo": "oferta"
+    }
+  ],
+  "etapas": [
+    {
+      "id": "negocio.adquisicion",
+      "orden": 1,
+      "embudo": "negocio",
+      "etapa": "Adquisición",
+      "nombre": "‹Atraer›",
+      "que_pasa": "‹Cómo llega la gente: anuncios, recomendaciones, redes, local.›",
+      "opera_hoy": true,
+      "skills": [],
+      "rutinas": [],
+      "ejecuta": [
+        {
+          "tipo": "persona",
+          "rol": "fundador"
+        }
+      ],
+      "mide": {
+        "nombre": "Prospectos nuevos por semana",
+        "fuente": "‹Su fuente de prospectos›",
+        "frecuencia": "‹en vivo, cada semana o a mano›",
+        "dueno": {
+          "tipo": "persona",
+          "rol": "fundador"
+        },
+        "hay_numero": true,
+        "valor": null
+      },
+      "cuello": {
+        "es": false
+      }
+    },
+    {
+      "id": "negocio.nutricion",
+      "orden": 2,
+      "embudo": "negocio",
+      "etapa": "Nutrición",
+      "nombre": "‹Ganar confianza›",
+      "que_pasa": "‹Qué ve o recibe antes de comprar.›",
+      "opera_hoy": true,
+      "skills": [],
+      "rutinas": [],
+      "ejecuta": [
+        {
+          "tipo": "persona",
+          "rol": "fundador"
+        }
+      ],
+      "mide": {
+        "nombre": "Prospectos que piden informes",
+        "fuente": "‹Su WhatsApp, correo o formulario›",
+        "frecuencia": "‹en vivo, cada semana o a mano›",
+        "dueno": {
+          "tipo": "persona",
+          "rol": "fundador"
+        },
+        "hay_numero": true,
+        "valor": null
+      },
+      "cuello": {
+        "es": false
+      }
+    },
+    {
+      "id": "negocio.conversion",
+      "orden": 3,
+      "embudo": "negocio",
+      "etapa": "Conversión",
+      "nombre": "‹Cobrar›",
+      "que_pasa": "‹Cotización, visita o llamada, y el pago.›",
+      "opera_hoy": true,
+      "skills": [],
+      "rutinas": [],
+      "ejecuta": [
+        {
+          "tipo": "persona",
+          "rol": "fundador"
+        }
+      ],
+      "mide": {
+        "nombre": "Ventas cerradas",
+        "fuente": "‹Su caja o su cobro›",
+        "frecuencia": "‹en vivo, cada semana o a mano›",
+        "dueno": {
+          "tipo": "persona",
+          "rol": "fundador"
+        },
+        "hay_numero": true,
+        "valor": null
+      },
+      "cuello": {
+        "es": false
+      }
+    },
+    {
+      "id": "negocio.bienvenida",
+      "orden": 4,
+      "embudo": "negocio",
+      "etapa": "Bienvenida",
+      "nombre": "‹Recibir›",
+      "que_pasa": "‹Qué pasa justo después de pagar.›",
+      "opera_hoy": true,
+      "skills": [],
+      "rutinas": [],
+      "ejecuta": [
+        {
+          "tipo": "persona",
+          "rol": "fundador"
+        }
+      ],
+      "mide": {
+        "nombre": "Clientes que arrancan bien",
+        "fuente": "‹Su agenda o su sistema›",
+        "frecuencia": "‹en vivo, cada semana o a mano›",
+        "dueno": {
+          "tipo": "persona",
+          "rol": "fundador"
+        },
+        "hay_numero": true,
+        "valor": null
+      },
+      "cuello": {
+        "es": false
+      }
+    },
+    {
+      "id": "negocio.entrega",
+      "orden": 5,
+      "embudo": "negocio",
+      "etapa": "Entrega",
+      "nombre": "‹Entregar›",
+      "que_pasa": "‹El servicio o producto, como se entrega hoy.›",
+      "opera_hoy": true,
+      "skills": [],
+      "rutinas": [],
+      "ejecuta": [
+        {
+          "tipo": "persona",
+          "rol": "fundador"
+        }
+      ],
+      "mide": {
+        "nombre": "Entregas a tiempo",
+        "fuente": "‹Su sistema de operación›",
+        "frecuencia": "‹en vivo, cada semana o a mano›",
+        "dueno": {
+          "tipo": "persona",
+          "rol": "fundador"
+        },
+        "hay_numero": true,
+        "valor": null
+      },
+      "cuello": {
+        "es": false
+      }
+    },
+    {
+      "id": "negocio.expansion",
+      "orden": 6,
+      "embudo": "negocio",
+      "etapa": "Expansión",
+      "nombre": "‹Que vuelvan›",
+      "que_pasa": "‹Recompra, referidos o una oferta mayor.›",
+      "opera_hoy": true,
+      "skills": [],
+      "rutinas": [],
+      "ejecuta": [
+        {
+          "tipo": "persona",
+          "rol": "fundador"
+        }
+      ],
+      "mide": {
+        "nombre": "Clientes que vuelven o recomiendan",
+        "fuente": "‹Su caja o su lista de clientes›",
+        "frecuencia": "‹en vivo, cada semana o a mano›",
+        "dueno": {
+          "tipo": "persona",
+          "rol": "fundador"
+        },
+        "hay_numero": true,
+        "valor": null
+      },
+      "cuello": {
+        "es": false
+      }
+    }
+  ],
+  "aristas": [
+    {
+      "desde": "negocio.adquisicion",
+      "hacia": "negocio.nutricion",
+      "tipo": "flujo",
+      "estado": "opera"
+    },
+    {
+      "desde": "negocio.nutricion",
+      "hacia": "negocio.conversion",
+      "tipo": "flujo",
+      "estado": "opera"
+    },
+    {
+      "desde": "negocio.conversion",
+      "hacia": "negocio.bienvenida",
+      "tipo": "flujo",
+      "estado": "opera"
+    },
+    {
+      "desde": "negocio.bienvenida",
+      "hacia": "negocio.entrega",
+      "tipo": "flujo",
+      "estado": "opera"
+    },
+    {
+      "desde": "negocio.entrega",
+      "hacia": "negocio.expansion",
+      "tipo": "flujo",
+      "estado": "opera"
+    }
+  ]
+}

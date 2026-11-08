@@ -18,7 +18,7 @@
  *
  * Sin `server-only` para que las pruebas lo importen; solo lo usan las rutas de la API.
  */
-import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
+import { createHmac, timingSafeEqual } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
 import { realpath, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
@@ -26,6 +26,7 @@ import path from 'node:path'
 import { CARPETAS_DEL_DUENO, pareceSecreto } from '@/features/cabina/documento/ruta'
 import { esEdicionCliente } from '@/lib/edicion'
 import { dirConfigArbrain, raizWorkspace } from '@/lib/rutas-instalacion'
+import { secretoDeFirma } from '@/lib/secreto-firma'
 import { extensionDe, nombreArchivo } from '@/lib/archivos-chat'
 import { cspCrudo } from '@/features/cabina/documento/csp-crudo'
 
@@ -124,9 +125,8 @@ export async function resolverArchivoChat(pedida: string, op: OpcionesArchivo = 
 }
 
 // ── Firma ──
-// El mismo secreto de proceso que la vista documento (`__arbrainDocSecreto`, o `ARBRAIN_DOC_SECRET`), con prefijo propio.
-const g = globalThis as { __arbrainDocSecreto?: Buffer }
-const secreto = () => (g.__arbrainDocSecreto ??= process.env.ARBRAIN_DOC_SECRET ? Buffer.from(process.env.ARBRAIN_DOC_SECRET) : randomBytes(32))
+// El mismo secreto que la vista documento (estable entre reinicios: ver secreto-firma.ts), con prefijo propio.
+const secreto = secretoDeFirma
 const PREFIJO = 'archivo-chat:'
 /** Un enlace vive 12 horas; el chat lo vuelve a pedir antes (cada vez que pinta el mensaje y cada 4 h). */
 export const VIGENCIA_MS = 12 * 3600_000

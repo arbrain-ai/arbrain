@@ -1,5 +1,5 @@
 'use client'
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Check, ChevronDown } from 'lucide-react'
 import { instalacion } from '@/config'
 import { useCivilClock } from '@/features/sistema/useHabitRecords'
@@ -15,11 +15,14 @@ import s from './franja-plan.module.css'
  * completo»). Una línea con el riel dorado de la casa a la izquierda, la escala en dorado y el título legible; en el Día, además, los
  * hábitos de hoy marcables ahí mismo. Un toque la abre: el título entero y su detalle (entregables, subobjetivos, hábitos).
  *
- * - Plegada por defecto; el dispositivo recuerda si la dejaste abierta (el Mes recuerda la suya aparte).
+ * - Plegada por defecto; el dispositivo recuerda si la dejaste abierta (el Mes recuerda la suya aparte). Con `recordar={false}`
+ *   (el Día en el teléfono, 4 nov 2026) nace plegada cada vez.
+ * - Lo que la abre desde fuera (`abrirSenal`: el aviso «N te esperan», un push) la abre SOLO esta vez: plegarla la deja como estaba y
+ *   no se guarda (4 nov 2026, 19:31: el aviso la dejaba abierta para siempre y en el teléfono tapaba la línea del tiempo).
  * - Sin detalle no hay toggle (antes la Semana vacía tenía un chevron que «no muestra nada»): el título se lee entero en su línea.
  * - La temporada/monk mode vive solo en la vista H (25 oct 2026, 08:10).
  */
-export function FranjaPlan({ rotulo, titulo, vacio, cuenta, habitos, detalle, clave = 'arbrain.calendario.franja-abierta', abiertaInicial = false }: {
+export function FranjaPlan({ rotulo, titulo, vacio, cuenta, habitos, detalle, aviso, abrirSenal = 0, clave = 'arbrain.calendario.franja-abierta', abiertaInicial = false, recordar = true }: {
   /** «Hoy», «Semana · S4», «Mes · octubre». */
   rotulo: ReactNode
   titulo: string | null
@@ -34,10 +37,25 @@ export function FranjaPlan({ rotulo, titulo, vacio, cuenta, habitos, detalle, cl
   clave?: string
   /** Abierta hasta que se pliegue (el Día a pantalla completa: la lista del día ocupa la columna izquierda, 3 nov 2026). */
   abiertaInicial?: boolean
+  /** Lo que se ve en la línea aunque esté plegada, junto a la cuenta («7 te esperan», 4 nov 2026). */
+  aviso?: ReactNode
+  /** Cada vez que cambia (y no es 0), la franja se abre si estaba plegada (el aviso lleva a su sección), sin guardarlo. */
+  abrirSenal?: number
+  /** false: el dispositivo no guarda si quedó abierta (nace plegada, o `abiertaInicial`, cada vez). */
+  recordar?: boolean
 }) {
-  const [preferida, alternar] = usePreferencia(clave, abiertaInicial)
+  const [guardada, alternarGuardada] = usePreferencia(clave, abiertaInicial)
+  const [suelta, setSuelta] = useState(abiertaInicial)
+  const preferida = recordar ? guardada : suelta
+  // Abierta por la señal: dura hasta que la persona la pliega; nunca se escribe en la preferencia.
+  const [porSenal, setPorSenal] = useState(false)
+  useEffect(() => { if (abrirSenal) setPorSenal(true) }, [abrirSenal])
   const { today } = useCivilClock()
-  const conDetalle = Boolean(detalle), abierta = conDetalle && preferida
+  const conDetalle = Boolean(detalle), abierta = conDetalle && (preferida || porSenal)
+  const alternar = () => {
+    if (abierta && porSenal) { setPorSenal(false); if (!preferida) return }
+    if (recordar) alternarGuardada(); else setSuelta(x => !x)
+  }
   const linea = <span className={s.seg} data-objetivo><span className={s.rotulo}>{rotulo}</span>
     {titulo ? <span className={s.titulo}>{titulo}</span> : <span className={s.vacio}>{vacio}</span>}</span>
 
@@ -47,6 +65,7 @@ export function FranjaPlan({ rotulo, titulo, vacio, cuenta, habitos, detalle, cl
       {conDetalle ? <button className={s.resumen} onClick={alternar} aria-expanded={abierta} title={abierta ? 'Plegar a una línea' : 'Ver el objetivo completo'}>{linea}</button>
         : <div className={s.resumen}>{linea}</div>}
       {cuenta && cuenta.n > 0 && <span className={s.cuenta}><b>{cuenta.k}</b> de {cuenta.n}</span>}
+      {aviso}
       {habitos && habitos.dia <= today && <Casillas {...habitos} />}
       {conDetalle && <button className={s.chevron} onClick={alternar} aria-expanded={abierta} aria-label={abierta ? 'Plegar el objetivo' : 'Abrir el objetivo'}><ChevronDown size={15} aria-hidden /></button>}
     </div>

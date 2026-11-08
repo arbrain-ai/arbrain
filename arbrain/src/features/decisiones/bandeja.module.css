@@ -49,3 +49,5 @@
 .preset { display: flex; flex-direction: column; gap: 2px; text-align: left; border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; background: transparent; color: var(--foreground); cursor: pointer; font-size: 12.5px; }
 .preset span { color: var(--muted); }
 .preset[data-activo] { border-color: var(--brand); background: rgba(var(--brand-rgb, 90 120 255), 0.08); }
+/* Vista previa de lo que se publica (cola de publicación, 7 nov 2026). */
+.vista { display: block; width: 100%; max-width: 360px; aspect-ratio: auto; border-radius: 8px; margin: 6px 0; object-fit: contain; background: rgba(0, 0, 0, 0.2); }

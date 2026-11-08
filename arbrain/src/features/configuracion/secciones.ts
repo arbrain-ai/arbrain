@@ -8,7 +8,7 @@ import { capital, NOMBRE_DUENO, NOMBRE_SEGUNDA } from '@/config'
 
 const CLIENTE = esEdicionCliente()
 
-export type IdSeccion = 'norte' | 'equipo' | 'clientes' | 'oferta' | 'embudo' | 'modelo' | 'apariencia' | 'cuenta' | 'avisos' | 'mac' | 'atajos' | 'panel' | 'llaves' | 'voz' | 'sinfiltro' | 'privacidad' | 'seguridad' | 'telefono' | 'maquinas'
+export type IdSeccion = 'norte' | 'equipo' | 'clientes' | 'oferta' | 'embudo' | 'modelo' | 'apariencia' | 'cuenta' | 'avisos' | 'mac' | 'atajos' | 'panel' | 'llaves' | 'voz' | 'sinfiltro' | 'privacidad' | 'seguridad' | 'telefono' | 'maquinas' | 'autonomia' | 'directo'
 
 export interface DefSeccion { id: IdSeccion; nombre: string; detalle: string; ajustes: string[] }
 export interface DefGrupo { id: string; titulo: string; secciones: IdSeccion[] }
@@ -20,12 +20,16 @@ const TODAS: ReadonlyArray<DefSeccion> = [
   { id: 'oferta', nombre: 'Oferta', detalle: 'Lo que vendemos: low ticket y high ticket', ajustes: ['Low ticket', 'High ticket', 'LT', 'HT', 'Promesa', 'Precio'] },
   { id: 'embudo', nombre: 'Embudo', detalle: 'Cómo una persona pasa de vernos a comprar', ajustes: ['Embudo', 'Definición del embudo', 'Funnel', 'Distribución por canal'] },
   { id: 'cuenta', nombre: 'Cuenta', detalle: 'Tu nombre y tu foto', ajustes: ['Nombre', 'Foto de perfil', 'Correo'] },
+  // Modo directo (7 nov 2026): antes de grabar o transmitir. Tapa nombres, dinero y secretos; niega Finanzas, Cohorte, Casa y Perro.
+  { id: 'directo', nombre: 'Modo directo', detalle: 'Antes de grabar o transmitir: tapa clientes, dinero y secretos', ajustes: ['Modo directo', 'En directo', 'Transmitir', 'Grabar pantalla', 'Stream', 'Live', 'Directo', 'Ocultar datos', 'Ocultar clientes', 'Ocultar dinero', 'Ocultar secretos', '⌘⇧D'] },
   { id: 'apariencia', nombre: 'Apariencia', detalle: 'Tema claro u oscuro', ajustes: ['Tema', 'Modo oscuro', 'Modo claro', 'Tema del sistema'] },
   { id: 'avisos', nombre: 'Notificaciones', detalle: CLIENTE ? 'Los avisos de Levy en tu teléfono: activar, probar y apagar' : 'Reportes y avisos en tu teléfono: activar, probar y apagar', ajustes: ['Activar notificaciones', 'Notificaciones push', 'Avisos en el teléfono', 'Avisos de Levy', 'Enviarme una prueba', 'Desactivar notificaciones', ...(CLIENTE ? ['Rutinas', 'Decisiones pendientes'] : ['Reportes']), 'iPhone', 'Pantalla de inicio'] },
   { id: 'modelo', nombre: 'Modelos', detalle: 'Qué modelos salen en el chat y en qué motor nacen', ajustes: ['Motores', 'Conversaciones nuevas', 'Modelo por defecto', 'Claude', 'DeepSeek', 'OpenRouter'] },
+  // Autonomía v2 (4 nov 2026): el preset y cada clase (lo hace solo · te pregunta · nunca). Aquí se enciende el soporte a la cohorte.
+  { id: 'autonomia', nombre: 'Autonomía', detalle: 'Qué hace Levy solo y qué espera tu toque', ajustes: ['Autonomía', 'Política de autonomía', 'Cauteloso', 'Equilibrado', 'Piloto automático', 'Lo hace solo', 'Te pregunta', 'Soporte técnico a la cohorte', 'Dudas de los alumnos', 'Configurar servicios', 'Tu agenda', 'Classroom de la cohorte', 'Lo que hice solo'] },
   { id: 'panel', nombre: 'Panel', detalle: 'Qué secciones salen en el «+» del panel', ajustes: ['Secciones del «+»', 'Ocultar secciones', 'Orden de las secciones', 'Tareas'] },
   { id: 'atajos', nombre: 'Atajos', detalle: 'Teclado de la app y del Canvas', ajustes: ['Atajos de teclado', 'Abrir Ajustes ⌘,', 'Atajos del Canvas', 'Atajos del Calendario'] },
-  { id: 'mac', nombre: CLIENTE ? 'Esta computadora' : 'Mac y sistema', detalle: CLIENTE ? 'Computer use y permisos del sistema' : 'Permisos de macOS y Ops', ajustes: ['Permisos de macOS', 'Micrófono', 'Cámara', 'Grabación de pantalla', 'Accesibilidad', 'Computer use', 'Ops'] },
+  { id: 'mac', nombre: CLIENTE ? 'Esta computadora' : 'Mac y sistema', detalle: CLIENTE ? 'Computer use y permisos del sistema' : 'Permisos de macOS y Ops', ajustes: ['Permisos de macOS', 'Micrófono', 'Cámara', 'Grabación de pantalla', 'Accesibilidad', 'Computer use', 'Ops', ...(CLIENTE ? [] : ['Sincronización', 'Cola de sincronización', 'Conflictos', 'Paquete offline', 'Espejo local'])] },
   // Edición cliente (11 oct 2026): las llaves del alumno (BYOK) y su privacidad.
   { id: 'llaves', nombre: 'Llaves', detalle: 'Tu conexión con Claude y OpenRouter', ajustes: ['API key de Anthropic', 'Cuenta de Claude', 'Token', 'OpenRouter', 'Probar conexión', 'Llavero'] },
   // Voz del alumno (21 oct 2026): su llave de Groq (gratis) para dictar; «Escuchar» usa la voz del dispositivo.
@@ -44,8 +48,8 @@ const TODAS: ReadonlyArray<DefSeccion> = [
 
 const GRUPOS_ORIGINAL: ReadonlyArray<DefGrupo> = [
   { id: 'negocio', titulo: 'El negocio', secciones: ['norte', 'equipo', 'clientes', 'oferta', 'embudo'] },
-  { id: 'tu', titulo: 'Tú', secciones: ['cuenta', 'apariencia', 'avisos'] },
-  { id: 'arbrain', titulo: 'Arbrain', secciones: ['modelo', 'panel', 'atajos'] },
+  { id: 'tu', titulo: 'Tú', secciones: ['cuenta', 'apariencia', 'avisos', 'directo'] },
+  { id: 'arbrain', titulo: 'Arbrain', secciones: ['modelo', 'autonomia', 'panel', 'atajos'] },
   { id: 'computadora', titulo: 'Esta computadora', secciones: ['mac'] },
 ]
 
@@ -68,7 +72,7 @@ export const SECCIONES: ReadonlyArray<DefSeccion> = TODAS.filter((d) => GRUPOS.s
 export const SECCION_INICIAL: IdSeccion = CLIENTE ? 'llaves' : 'cuenta'
 
 /** Enlaces viejos que siguen vivos: `permisos` → Mac y sistema (en la edición cliente, Permisos y seguridad), `modelos` → Modelos, `notificaciones` → Notificaciones (id `avisos`). `labels` se fue al Board. */
-const ALIAS: Record<string, IdSeccion> = { notificaciones: 'avisos', permisos: CLIENTE ? 'seguridad' : 'mac', modelos: 'modelo', general: 'apariencia', teclado: 'atajos' }
+const ALIAS: Record<string, IdSeccion> = { notificaciones: 'avisos', permisos: CLIENTE ? 'seguridad' : 'mac', modelos: 'modelo', general: 'apariencia', teclado: 'atajos', 'en-directo': 'directo', stream: 'directo' }
 
 export const defDe = (id: IdSeccion): DefSeccion => TODAS.find((s) => s.id === id)!
 

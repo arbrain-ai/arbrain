@@ -28,7 +28,7 @@ import { llegaPorTelefono } from '@/features/telefono/host-telefono'
 // `/api/cabina/conversacion`: la llama el daemon con su Bearer (como `chat/complete`); la ruta lo compara en tiempo constante.
 // `/api/notifications/send` (v0.2.18): lo llama el daemon con SU token, sin cookie; la ruta exige ese Bearer exacto y
 // rechaza la sesión y el pase de agente (features/notifications/lib/avisosAlumno.ts).
-const SIN_SESION_API = ['/api/desktop', '/api/chat/complete', '/api/cabina/conversacion', '/api/llaves/openrouter/callback', '/api/mi-marca', '/api/chat/archivo/f', '/api/notifications/send']
+const SIN_SESION_API = ['/api/desktop', '/api/chat/complete', '/api/cabina/conversacion', '/api/cabina/conversaciones', '/api/llaves/openrouter/callback', '/api/mi-marca', '/api/chat/archivo/f', '/api/notifications/send']
 const NO_DISPONIBLE = 'No disponible en esta edición.'
 const NOCACHE = { 'Cache-Control': 'no-store' }
 

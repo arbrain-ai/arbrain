@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { enElTimeline, eventoDe, eventosExplicitos, horaEnTexto, listaDelDia, minutoDeTarea } from '../../src/features/planning/lista-dia'
+import { enElTimeline, eventoDe, eventosExplicitos, horaEnTexto, listaDelDia, minutoDeTarea, mismoPendiente, parejas } from '../../src/features/planning/lista-dia'
 import type { Bloque } from '../../src/features/planning/dia-vivo'
 import type { Goal } from '../../src/features/goals/model'
 import type { PlanEvent, PlanTask } from '../../src/features/planning/types'
@@ -84,9 +84,9 @@ test('completadas del día se quedan marcadas; la tarea-objetivo y la gemela de 
   const ancla = tarea('ancla', 'Clase de ofertas', DIA, { labels: ['objetivo'] })
   const vieja = tarea('vieja', 'Vencida', '2026-11-01')
   const lista = listaDelDia({ dia: DIA, hoy: DIA, zona: ZONA, casillas, abiertas: [gemela, ancla, vieja], completadas: [hecha, repe], sin: 'ancla' })
-  assert.deepEqual(lista.map(i => i.id), ['casilla:0', 'casilla:1', 'casilla:2', 'vieja', 'repe', 'hecha'], 'cronología: a igual día y prioridad, por título')
-  assert.equal(lista.find(i => i.id === 'casilla:2')?.gemela?.id, 'gemela')
-  assert.ok(!lista.some(i => i.id === 'ancla' || i.id === 'gemela'))
+  assert.deepEqual(lista.map(i => i.id), ['casilla:0', 'casilla:1', 'gemela', 'vieja', 'repe', 'hecha'], 'la gemela toma el lugar de su criterio; luego cronología')
+  assert.equal(lista.find(i => i.id === 'gemela')?.criterio?.linea, 2)
+  assert.ok(!lista.some(i => i.id === 'ancla' || i.id === 'casilla:2'))
   assert.equal(lista.find(i => i.id === 'hecha')?.hecho, true)
   assert.equal(lista.find(i => i.id === 'repe')?.fija, true, 'una repetición completada no se reabre')
   assert.equal(lista.find(i => i.id === 'vieja')?.vencida, true)
@@ -102,4 +102,58 @@ test('el Día ya no tiene sección de Tareas: la lista vive en la franja y el ti
   assert.match(dia, /<ListaDia /)
   assert.match(agenda, /data-marca-tarea/)
   assert.match(agenda, /data-sublinea/)
+})
+
+// El dom 8 nov 2026 tal como lo leyó Daniel: tres criterios del objetivo repetidos como tareas de Todoist con otras palabras.
+const DOM = '2026-11-08'
+const criterios = [
+  { linea: 0, texto: 'Cola de la semana del canal de Levy revisada y con tu sí', hecho: false },
+  { linea: 1, texto: 'Permiso de estadísticas de YouTube tocado en la bandeja', hecho: true },
+  { linea: 2, texto: 'Mensajes de cobro a Fulano, Mengano y Zutano enviados', hecho: false },
+  { linea: 3, texto: 'Rutina 5:30 + gym de abdomen y correr', hecho: false },
+  { linea: 4, texto: 'Revisión corta de la semana', hecho: false },
+]
+const cobro = tarea('cobro', 'Mandar a Fulano, Mengano y Zutano el aviso amable de pago (borradores abajo)', DOM, { priority: 1 })
+const cola = tarea('cola', 'Revisar y dar tu sí a la cola de la semana del canal de Levy', DOM, { priority: 1 })
+const permiso = tarea('permiso', 'Tocar en la bandeja el permiso de estadísticas de YouTube (canal de Levy)', DOM, { priority: 2, completed: true, completedAt: '2026-11-08T15:07:54Z' })
+const caja = tarea('caja', '🎨 miplataforma.com: mejor UI para la caja de comunidad', '2026-10-24', { priority: 3 })
+
+test('criterio y tarea que dicen lo mismo con otras palabras: los tres pares del dom 8 nov', () => {
+  assert.ok(mismoPendiente(criterios[0].texto, cola.title) > 0, 'revisada ↔ revisar, cola, semana, canal, Levy')
+  assert.ok(mismoPendiente(criterios[1].texto, permiso.title) > 0, 'tocado ↔ tocar, permiso, estadísticas, YouTube, bandeja')
+  assert.ok(mismoPendiente(criterios[2].texto, cobro.title) > 0, 'los tres nombres: Fulano, Mengano y Zutano')
+  assert.equal(mismoPendiente('Post de Wins publicado', 'post de wins publicado'), 2, 'mismo texto, el más fuerte')
+})
+
+test('lo que solo se parece no se junta: una o dos palabras sueltas no bastan', () => {
+  assert.equal(mismoPendiente(criterios[4].texto, cola.title), 0, '«revisión» y «semana» no hacen la cola del canal')
+  assert.equal(mismoPendiente(criterios[0].texto, permiso.title), 0, '«canal de Levy» en las dos, nada más')
+  assert.equal(mismoPendiente(criterios[3].texto, caja.title), 0)
+  assert.equal(mismoPendiente('Grupal 12:00: nombre y bonos', 'Preparar bonos y descuentos con Levy'), 0)
+  assert.equal(mismoPendiente('', cola.title), 0)
+})
+
+test('las parejas son una a una: cada tarea representa a un solo criterio, el más parecido', () => {
+  const dos = [{ texto: 'Cola del canal de Levy revisada' }, { texto: 'Cola de la semana del canal de Levy revisada y con tu sí' }]
+  const p = parejas(dos, [cola])
+  assert.equal(p.size, 1)
+  assert.equal(p.get(1)?.id, 'cola', 'gana el criterio que la cubre entera')
+})
+
+test('el Hoy del dom 8 nov: una fila por pendiente, la tarea con su prioridad en el lugar de su criterio', () => {
+  const lista = listaDelDia({ dia: DOM, hoy: DOM, zona: ZONA, casillas: criterios, abiertas: [cobro, cola, caja], completadas: [permiso] })
+  assert.deepEqual(lista.map(i => i.id), ['cola', 'permiso', 'cobro', 'casilla:3', 'casilla:4', 'caja'])
+  assert.equal(lista.length, 6, 'eran 8 filas con los tres pares repetidos')
+  assert.deepEqual(lista.slice(0, 3).map(i => [i.origen, i.tarea?.priority, i.criterio?.linea]), [['tarea', 1, 0], ['tarea', 2, 1], ['tarea', 1, 2]])
+  assert.equal(lista[1].hecho, true, 'la tarea cerrada manda: el permiso se ve hecho')
+  assert.equal(lista[0].criterio?.hecho, false, 'el criterio pendiente viaja con la tarea para marcarlo al cerrarla')
+  assert.equal(lista.find(i => i.id === 'caja')?.vencida, true)
+  const { dentro, sueltas } = enElTimeline(lista, [], BASE)
+  assert.equal(dentro.size + sueltas.length, 1, 'solo la rutina de las 5:30 trae hora')
+})
+
+test('la fila de la tarea gemela: cerrar marca el criterio y el tooltip lo dice', () => {
+  const fuente = (f: string) => readFileSync(new URL(`../../src/features/planning/${f}`, import.meta.url), 'utf8')
+  assert.match(fuente('DiaVivo.tsx'), /it\.criterio && pluma\.puede && it\.criterio\.hecho === it\.hecho\) pluma\.alternar\(it\.criterio\.linea, !it\.hecho\)/)
+  assert.doesNotMatch(fuente('ListaDia.tsx'), />P1</, 'sin la etiqueta P1: la prioridad es el color del círculo')
 })

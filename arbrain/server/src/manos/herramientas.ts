@@ -264,7 +264,7 @@ export async function ejecutarManos(nombre: string, args: any, manos: Adaptador,
           accion: limpio.accion, app: app?.bundle ?? limpio.app, ...(limpio.texto != null ? { escrito: String(limpio.texto).length } : {}),
           ...(limpio.tecla ? { tecla: [...(limpio.modificadores ?? []), limpio.tecla].join('+') } : {}),
           resultado: r.efecto === 'bloqueado' ? 'bloqueado' : r.ok ? 'ok' : 'fallo', efecto: r.efecto,
-          ...(r.freno ? { freno: { categoria: r.freno.categoria, paso: r.freno.paso } } : {}),
+          ...(r.freno ? { freno: { categoria: r.freno.categoria, paso: r.freno.paso, ...(r.freno.apagado ? { apagado: true } : {}) } } : {}),
           ...(ctx?.ultimoElemento ? { rol: ctx.ultimoElemento.rol, etiqueta: etiquetaSegura(ctx.ultimoElemento.rol, ctx.ultimoElemento.etiqueta, app?.bundle, ctx.ultimoElemento.url) } : {}),
           ...(r.ok ? {} : { detalle: (r.detalle ?? '').slice(0, 160) }),
         })

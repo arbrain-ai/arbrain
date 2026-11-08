@@ -52,6 +52,8 @@ export function optimisticTask(snapshot: PlanningSnapshot, operation: PlanMutati
     tasks:snapshot.tasks.filter(t=>t.id!==task.id),
     completedTasks:[...(snapshot.completedTasks??[]).filter(t=>t.id!==task.id),{...task,completed:true,pending:true,completedAt:new Date().toISOString()}]}
   if(operation.action==='move'&&typeof operation.data?.projectId==='string')return {...snapshot,tasks:snapshot.tasks.map(t=>t.id===task.id?{...t,projectId:operation.data!.projectId as string,sectionId:null,pending:true}:t)}
+  // La prioridad cambia de color al instante (8 nov 2026); la lectura de Todoist confirma.
+  if(operation.action==='update'&&[1,2,3,4].includes(operation.data?.priority as number))return {...snapshot,tasks:snapshot.tasks.map(t=>t.id===task.id?{...t,priority:operation.data!.priority as number,pending:true}:t)}
   if(operation.action==='move')return {...snapshot,tasks:snapshot.tasks.map(t=>t.id===task.id?{...t,sectionId:typeof operation.data?.sectionId==='string'?operation.data.sectionId:null,pending:true}:t)}
   return snapshot
 }

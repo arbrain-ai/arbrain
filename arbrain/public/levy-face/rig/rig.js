@@ -146,6 +146,19 @@ uniform vec4  uAABox;       // x0,y0,x1,y1 del interior de la boca en la vista a
 uniform float uFlowRange;   // ±px que codifica el campo de flujo
 uniform sampler2D uMatte;   // R=frontal · G=¾ izq · B=¾ der (tools/matte.py)
 uniform float uMatteMode;   // 1 = pintar la MATTE (alpha) en vez del color, para render con alpha
+// ATLAS DE BOCAS (Arbrain, Levy vivo, 7-8 nov 2026). Opcional (capas.atlas); apagado el rig es el de siempre.
+// Cada tesela es un CAMPO DE DEFORMACIÓN de la boca respecto al retrato neutro (R,G: de dónde se toma cada píxel) y una
+// distancia con signo a la cavidad (B), horneados sin conexión con LivePortrait sobre la cara oficial
+// (labs/god-animation/practicas/2026-11-08-levy-unico/vivo). El shader MEZCLA CAMPOS con los pesos de los visemas y
+// muestrea el retrato una sola vez: una imagen deformada de forma continua, nunca dos bocas fundidas (labios dobles).
+uniform sampler2D uAtlas;
+uniform float uAtlasOn;
+uniform vec4  uAtlasReg;     // x0, y0, ancho, alto de la región en la rejilla de 1080
+uniform vec2  uAtlasGrid;    // columnas, filas de teselas
+uniform vec2  uAtlasRange;   // ±px del campo, ±px de la distancia con signo
+uniform float uAtlasW[6];    // pesos de las teselas activas (el neutro, tesela 0, se lleva el resto)
+uniform float uAtlasI[6];    // índices de esas teselas
+uniform float uAtlasAbre;    // 0..1 cuánto abre la mezcla (sombra de contacto; 0 en reposo)
 
 // La rejilla de trabajo es SIEMPRE 1080²: el muestreo va en coordenadas
 // normalizadas (p / IMG), así que la resolución real de la textura no entra en
@@ -215,6 +228,13 @@ vec2 flowL(vec2 p) { vec4 t = texture(uFlowL, clamp(p / IMG, 0.0, 1.0));
   return (vec2(t.r * 65280.0 + t.g * 255.0, t.b * 65280.0 + t.a * 255.0) / 65535.0 * 2.0 - 1.0) * uFlowRange; }
 vec2 flowR(vec2 p) { vec4 t = texture(uFlowR, clamp(p / IMG, 0.0, 1.0));
   return (vec2(t.r * 65280.0 + t.g * 255.0, t.b * 65280.0 + t.a * 255.0) / 65535.0 * 2.0 - 1.0) * uFlowRange; }
+
+vec3 atlasTesela(float i, vec2 r) {
+  float col = mod(i, uAtlasGrid.x), fila = floor(i / uAtlasGrid.x);
+  vec2 tx = vec2(col, fila) * uAtlasReg.zw + clamp(r, vec2(0.5), uAtlasReg.zw - 0.5);
+  vec3 t = texture(uAtlas, tx / (uAtlasGrid * uAtlasReg.zw)).rgb;
+  return vec3((t.rg * 2.0 - 1.0) * uAtlasRange.x, (t.b * 2.0 - 1.0) * uAtlasRange.y);
+}
 
 void main() {
   // --- cover-fit del canvas al cuadrado de la imagen ---
@@ -446,6 +466,25 @@ void main() {
   }
 
   // ================= BOCA =================
+  // Atlas: el campo mezclado lleva cada píxel de la boca a su origen en el retrato neutro, y la distancia con signo
+  // mezclada dice dónde está la cavidad (un solo contorno que se mueve continuo). Lo paramétrico de abajo sigue
+  // corriendo para la sonrisa; con el atlas activo sus canales de boca llegan en cero.
+  float atlasSd = -99.0;
+  if (uAtlasOn > 0.5) {
+    vec2 ar = p - uAtlasReg.xy;
+    if (ar.x > 0.0 && ar.y > 0.0 && ar.x < uAtlasReg.z && ar.y < uAtlasReg.w) {
+      vec2 ad = vec2(0.0); float asd = 0.0, aw = 0.0;
+      for (int k = 0; k < 6; k++) {
+        float w = uAtlasW[k];
+        if (w <= 0.0) continue;
+        vec3 t = atlasTesela(uAtlasI[k], ar);
+        ad += w * t.xy; asd += w * t.z; aw += w;
+      }
+      asd += max(0.0, 1.0 - aw) * atlasTesela(0.0, ar).z;
+      p += ad;
+      atlasSd = asd;
+    }
+  }
   float interior = 0.0;
   float mouthV = 0.0;
   float mouthJawPx = 0.0;
@@ -620,6 +659,20 @@ ${GIRO_GLOBAL ? `
     col = mix(col, cav, interior);
   }
   col *= 1.0 - lowLipShade * 0.7;
+  // cavidad del atlas: morado oscuro procedural (el de cavidadPareja). Se pinta con min(): lo que el retrato ya tiene
+  // oscuro (la sombra del sello) se conserva, y lo claro que quedara estirado dentro de la boca no pasa (sin dientes).
+  if (atlasSd > -98.0) {
+    // degradado de ~4 px desde el borde: un corte duro dejaba un segundo contorno entre la sombra estirada del labio y
+    // la cavidad plana (se leía como labio interior a media pose; hojas del 7 nov)
+    float ait = smoothstep(-1.0, 3.5, atlasSd);
+    vec3 acav = mix(${v3(A.cavWall)}, ${v3(A.cavDeep)}, smoothstep(2.0, 12.0, atlasSd));
+    col = mix(col, min(col, acav), ait);
+    // sombra de contacto a ~5 px fuera del borde, solo con la boca abierta: el filo claro del labio estirado dejaba una
+    // línea interior tenue a media transición (aa→i). En reposo uAtlasAbre = 0 y no toca nada.
+    float aring = (1.0 - smoothstep(0.0, 5.0, -atlasSd)) * (1.0 - ait);
+    col *= 1.0 - 0.5 * aring * uAtlasAbre;
+    interior = max(interior, ait);
+  }
 
   // sombra de pestañas al parpadear
   col *= 1.0 - lash * 0.45;
@@ -731,7 +784,8 @@ const UNIFORMS = ['uTex', 'uMaskA', 'uMaskB', 'uDepth', 'uCanvas', 'uTime', 'uPa
   'uBlink', 'uBrow', 'uFurrow', 'uLidWide', 'uLidLow', 'uPupil', 'uBreath', 'uHeadShift', 'uHeadRot',
   'uJaw', 'uWide', 'uPucker', 'uPress', 'uLipUp', 'uSmile', 'uChipPulse', 'uBrainPulse', 'uSpeakGlow',
   'uSwallow', 'uViewL', 'uViewR', 'uFlowL', 'uFlowR', 'uViewClosed', 'uViewAA', 'uYaw', 'uLayers',
-  'uClosedOff', 'uAABox', 'uFlowRange', 'uMatte', 'uMatteMode'];
+  'uClosedOff', 'uAABox', 'uFlowRange', 'uMatte', 'uMatteMode', 'uAtlas', 'uAtlasOn', 'uAtlasReg', 'uAtlasGrid', 'uAtlasRange',
+  'uAtlasW', 'uAtlasI', 'uAtlasAbre'];
 
 // ---------- techo de apertura de la mandíbula ----------
 // La ilustración tiene la boca CERRADA y el shader no pinta dientes: oscurece la
@@ -850,6 +904,34 @@ export class Rig {
     gl.uniform1i(this.u.uViewClosed, 8);
     gl.uniform1i(this.u.uViewAA, 9);
     gl.uniform1i(this.u.uMatte, 10);
+    gl.uniform1i(this.u.uAtlas, 11);
+    // ATLAS DE BOCAS (opcional): `capas.atlas` = ruta del manifiesto relativa a `base` (p. ej. 'assets/atlas/atlas.json').
+    // Mientras no cargue, o si falla, la boca es la paramétrica de siempre. `ready` no lo espera.
+    this.atlas = null;
+    this.atlasPesos = null;   // [[índice, peso], …] del cuadro; lo pone quien habla (utt.pesosAtlas)
+    this.extra = null;        // gestos sumados desde fuera (LevyFace: movimiento del 3D); null = la vida de siempre
+    if (capas.atlas) {
+      const url = `${base}/${capas.atlas}`;
+      fetch(url).then((r) => (r.ok ? r.json() : null)).then((man) => {
+        if (!man || !this.running) return;
+        const img = new Image();
+        img.onload = () => {
+          if (!this.running) return;
+          const t = gl.createTexture();
+          gl.activeTexture(gl.TEXTURE0 + 11);
+          gl.bindTexture(gl.TEXTURE_2D, t);
+          // el campo son números, no color: sin gestión de color ni premultiplicar
+          gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.NONE);
+          gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+          gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.BROWSER_DEFAULT_WEBGL);
+          for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
+          this.atlas = man;
+          canvas.dispatchEvent(new Event('rig-atlas'));
+        };
+        img.src = url.replace(/[^/]*$/, man.archivo);
+      }).catch(() => {});
+    }
     for (const unit of [4, 5, 6, 7, 8, 9, 10]) loadTex(gl, unit, 'data:,', null);   // placeholders 1×1
     this.matteMode = 0;
     fetch(`${base}/assets/views/views.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null).then((man) => {
@@ -1208,6 +1290,15 @@ export class Rig {
     // Timelines already contain continuous media-time transitions. Filtering
     // them again in wall time erases brief contacts at accelerated playback.
     // Keep physical inertia for the unaligned browser/analyser fallback only.
+    // Atlas: si la voz trae pesos de teselas (alineación de ElevenLabs), la boca son esos campos y los canales
+    // paramétricos de boca quedan en cero (la sonrisa sigue). Sin pesos, todo como siempre.
+    let atlasW = null;
+    if (this.atlas && this.speech?.utt?.pesosAtlas) {
+      // quien habla lleva su propio reloj de audio (la alineación va en tiempo de audio, no de timeline)
+      const w = this.speech.utt.pesosAtlas(this.atlas.teselas);
+      if (w) { atlasW = w; mouth = { jaw: 0, wide: 0, pucker: 0, press: 0, lipUp: 0 }; }
+    }
+    this.atlasPesos = atlasW;
     if (!timeline) mouth = this._mouthInertia(mouth, dt);
     else if (this.speech) {
       if (speechPaused && this.speech.lastMediaTime === this.speechTimeMs && this.speech.lastMouth) mouth = { ...this.speech.lastMouth };
@@ -1220,8 +1311,9 @@ export class Rig {
     // ---- cabeza: sigue a los OJOS con retraso, más deriva y respiración ----
     const hf = this.life.headFollow(life.gaze, dt);
     const A = this.anat;
-    const hTargetX = life.headShift[0] + hf[0] + this.parallax[0] * 2.6 * A.k + (E.headTilt || 0) * 0.4;
-    const hTargetY = life.headShift[1] + hf[1] + this.parallax[1] * 2.2 * A.k + (E.headNod || 0) * A.k;
+    const X = this.extra;
+    const hTargetX = life.headShift[0] + hf[0] + this.parallax[0] * 2.6 * A.k + (E.headTilt || 0) * 0.4 + (X?.headShift?.[0] ?? 0);
+    const hTargetY = life.headShift[1] + hf[1] + this.parallax[1] * 2.2 * A.k + (E.headNod || 0) * A.k + (X?.headShift?.[1] ?? 0);
     // YAW. La cabeza gira hacia donde está el cursor (o la cara del usuario, con
     // ?cam=1), a través del MISMO resorte del cuello: los ojos saltan primero,
     // el parallax se suaviza (k=5) y el giro llega el último. Se lee del parallax
@@ -1239,7 +1331,7 @@ export class Rig {
     const headShift = this.overrides.headShift ?? [this.head.x, this.head.y];
     const yaw = this.overrides.yaw ?? this.head.yaw;
     const headRot = this.overrides.headRot ?? (life.headRot + (E.headTilt || 0) * Math.PI / 180
-      + this.parallax[0] * 0.018 + (speaking ? Math.sin(this.t * 3.7) * 0.003 : 0));
+      + this.parallax[0] * 0.018 + (speaking ? Math.sin(this.t * 3.7) * 0.003 : 0) + (X?.headRot ?? 0));
 
     // Reflejo vestíbulo-ocular: los ojos compensan el vaivén INVOLUNTARIO del
     // cuello para sostener el contacto visual (la cabeza deriva, la mirada se
@@ -1261,11 +1353,11 @@ export class Rig {
     const g = A.emoGain ?? 1;
     const eg = (v, hi = 1.25) => clamp(v * g, -1, hi);
     const P = {
-      blink: [o.blink ?? life.blink, o.blink ?? life.blinkR],
+      blink: [o.blink ?? X?.blink ?? life.blink, o.blink ?? X?.blink ?? life.blinkR],
       // La ceja que el habla suma por defecto (+0.12/+0.10). En Levy la ceja vive pegada al pliegue del
       // párpado y subirla abre el ojo: su voz la pone en 0 (`browSpeak`) y el ojo habla como en reposo.
-      brow: [o.browL ?? (eg(E.browL) + (speaking ? 0.12 * (this.speech?.utt?.browSpeak ?? 1) : 0)),
-             o.browR ?? (eg(E.browR) + (speaking ? 0.10 * (this.speech?.utt?.browSpeak ?? 1) : 0))],
+      brow: [o.browL ?? (eg(E.browL) + (speaking ? 0.12 * (this.speech?.utt?.browSpeak ?? 1) : 0) + (X?.brow?.[0] ?? 0)),
+             o.browR ?? (eg(E.browR) + (speaking ? 0.10 * (this.speech?.utt?.browSpeak ?? 1) : 0) + (X?.brow?.[1] ?? 0))],
       furrow: [o.furrowL ?? eg(E.furrowL, 1), o.furrowR ?? eg(E.furrowR, 1)],
       lidWide: o.lidWide ?? eg(E.lidWide, 1),
       lidLow: [o.lidLowL ?? eg(E.lidLowL, 1), o.lidLowR ?? eg(E.lidLowR, 1)],
@@ -1279,7 +1371,8 @@ export class Rig {
       gaze: o.gaze ?? [life.gaze[0] + vorX, life.gaze[1] + vorY],
       headShift, headRot, yaw,
       breath: o.breath ?? clamp(life.breath + this._breathEvent(), -0.6, 2.4),
-      parallax: o.parallax ?? this.parallax,
+      // el giro del 3D es parallax de profundidad (deformación), nunca la vista ¾ fundida
+      parallax: o.parallax ?? (X?.parallax ? [this.parallax[0] + X.parallax[0], this.parallax[1] + X.parallax[1]] : this.parallax),
       swallow: o.swallow ?? life.swallow,
       averting: life.averting,
       // lo que mira el banco de pruebas
@@ -1321,6 +1414,21 @@ export class Rig {
     gl.uniform4f(this.u.uAABox, this.aaBox[0], this.aaBox[1], this.aaBox[2], this.aaBox[3]);
     gl.uniform1f(this.u.uFlowRange, this.flowRange);
     gl.uniform1f(this.u.uMatteMode, this.matteMode);
+    // atlas: hasta 6 teselas por cuadro (el resto del peso es el neutro)
+    const aw = new Float32Array(6), ai = new Float32Array(6);
+    if (atlasW) atlasW.slice(0, 6).forEach(([i, w], k) => { ai[k] = i; aw[k] = w; });
+    gl.uniform1f(this.u.uAtlasOn, atlasW ? 1 : 0);
+    if (this.atlas) {
+      const m = this.atlas;
+      gl.uniform4f(this.u.uAtlasReg, m.region[0], m.region[1], m.region[2], m.region[3]);
+      gl.uniform2f(this.u.uAtlasGrid, m.rejilla[0], m.rejilla[1]);
+      gl.uniform2f(this.u.uAtlasRange, m.rango_px, m.sdf_px);
+      gl.uniform1fv(this.u.uAtlasW, aw);
+      gl.uniform1fv(this.u.uAtlasI, ai);
+      // cuánto abre la mezcla: alto de cavidad ponderado (px) sobre 20 px
+      let abre = 0; if (atlasW && m.abre_px) for (const [i, w] of atlasW) abre += w * (m.abre_px[m.teselas[i]] ?? 0);
+      gl.uniform1f(this.u.uAtlasAbre, Math.min(1, abre / 20));
+    }
     gl.drawArrays(gl.TRIANGLES, 0, 3);
 
     if (this.onFrame) this.onFrame(P);

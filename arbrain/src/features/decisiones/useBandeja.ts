@@ -2,8 +2,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Clase, Modo, Preset, Respuesta, VistaBandeja } from './lib/bandeja'
 
-/** La bandeja viva: se lee cada 5 s mientras la pestaña está a la vista y al volver a ella. */
-export function useBandeja(cadaMs = 5_000) {
+/** La bandeja viva: se lee cada 5 s mientras la pestaña está a la vista y al volver a ella. `activa` = false: no lee nada
+ *  (el Día de otra fecha o el calendario de otra persona montan la misma hoja). */
+export function useBandeja(cadaMs = 5_000, activa = true) {
   const [vista, setVista] = useState<VistaBandeja | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [ocupado, setOcupado] = useState<string | null>(null)
@@ -20,13 +21,14 @@ export function useBandeja(cadaMs = 5_000) {
   }, [])
 
   useEffect(() => {
+    if (!activa) return
     vivo.current = true
     void leer()
     const t = setInterval(() => { if (document.visibilityState === 'visible') void leer() }, cadaMs)
     const alVolver = () => { if (document.visibilityState === 'visible') void leer() }
     document.addEventListener('visibilitychange', alVolver)
     return () => { vivo.current = false; clearInterval(t); document.removeEventListener('visibilitychange', alVolver) }
-  }, [leer, cadaMs])
+  }, [leer, cadaMs, activa])
 
   const mandar = useCallback(async (clave: string, cuerpo: Record<string, unknown>) => {
     setOcupado(clave)

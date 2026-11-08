@@ -20,14 +20,20 @@ export const MATERIALIZAR_MENSAJE = 'arbrain:materializar-mensaje'
 
 export const LazyMessage = memo(function LazyMessage({
   text,
+  eager = false,
   children,
 }: {
   /** Contenido crudo del mensaje — el placeholder lo pinta plano. */
   text: string
+  /** Cola de la conversación: se pinta completo desde el inicio. Va por prop y no cambiando la envoltura (5 nov 2026):
+   *  `eager ? bubble : <LazyMessage>` REMONTABA el mensaje al salir de la cola (llega otro turno), y con él sus vistas de
+   *  la Cabina, que volvían a cargarse y encogían el hilo. Una vez montado, montado se queda. */
+  eager?: boolean
   children: ReactNode
 }) {
   const ref = useRef<HTMLDivElement>(null)
-  const [mounted, setMounted] = useState(false)
+  const [mounted, setMounted] = useState(eager)
+  useEffect(() => { if (eager && !mounted) setMounted(true) }, [eager, mounted])
 
   useEffect(() => {
     if (mounted) return
