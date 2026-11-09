@@ -12,17 +12,17 @@
  * Datos: fuente.tsx (API o banco simulado). Lectura: modelo.ts (puro). Contrato de Levy: arbrain/docs/bi/README.md.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from 'react'
-import { ArrowUp, BadgeInfo, Check, ChevronRight, Headphones, MessageCircle, Pin, PinOff, Square, X } from 'lucide-react'
+import { ArrowUp, BadgeInfo, Cable, Check, ChevronRight, Headphones, MessageCircle, Pin, PinOff, Square, X } from 'lucide-react'
 import { useDirecto, useModoDirecto } from '@/shared/stores/modo-directo-store'
 import { CLAVE_DIRECTO } from '@/lib/modo-directo/cubrir'
 import { OcultoPorDirecto } from '@/features/modo-directo/ModoDirecto'
 import { abrirSeccion } from '@/features/cabina/panel/Secciones'
 import { escalon, mov, prefiereQuieto } from '@/shared/movimiento'
-import { CATALOGO, consultaDe, type Consulta } from './catalogo'
+import { consultaEn, esDinero, type Consulta } from './catalogo'
 import {
   excepcion, fechaCorta, leer, titularDe, diaYMes, type Excepcion, type Grafica, type Leida, type Lectura, type RespuestaConsulta,
 } from './modelo'
-import { leerPendiente, usePendiente, useFuenteBI, type LecturaBI, type Pendiente } from './fuente'
+import { leerPendiente, usePendiente, useFuenteBI, type EstadoFuentesBI, type LecturaBI, type Pendiente } from './fuente'
 import { Acumulado, Barras, Boceto, Embudo, Proporcion, SerieCorredor, usePrimeraVez } from './Graficas'
 import { Cauce } from './Cauce'
 import { narrar, type Tramo } from './voz'
@@ -62,6 +62,10 @@ export function BusinessIntelligence({ grande }: { grande?: boolean }) {
 
   const datos = archivo.data?.activo ? archivo.data : null
   const graficas = useMemo(() => datos?.graficas ?? [], [datos])
+  const catalogo = useMemo(() => datos?.catalogo ?? [], [datos])
+  const consultaDe = useCallback((id: string) => consultaEn(catalogo, id), [catalogo])
+  /** Una gráfica se pide si su consulta tiene fuente y, en directo, si no es dinero. */
+  const pedible = useCallback((g: Grafica) => { const c = consultaDe(g.consulta.id); return !!c && c.conectada !== false && !(directo && esDinero(c)) }, [consultaDe, directo])
   const fijadas = graficas.filter(g => g.estado === 'fijada')
   const respuesta = [...graficas].reverse().find(g => g.estado === 'respuesta') ?? null
 
@@ -74,11 +78,11 @@ export function BusinessIntelligence({ grande }: { grande?: boolean }) {
     const c = consultaDe(g.consulta.id)
     if (!c) return []
     const l = lecturas[g.id]
-    return [{ grafica: g, consulta: c, lectura: l?.data ? leer(c, g.tipo, g.consulta.ventana, l.data.datos) : { estado: 'sin-datos', frase: l?.error ? `No se pudo leer: ${l.error}` : 'Leyendo…' } as Lectura }]
-  }), [graficas, lecturas])
+    return [{ grafica: g, consulta: c, lectura: l?.data ? leer(c, g.tipo, g.consulta.ventana, l.data.datos) : { estado: 'sin-datos', frase: c.conectada === false ? 'Sin fuente todavía.' : l?.error ? `No se pudo leer: ${l.error}` : 'Leyendo…' } as Lectura }]
+  }), [graficas, lecturas, consultaDe])
   const ex = useMemo(() => excepcion(leidas), [leidas])
   const titular = titularDe(leidas, ex)
-  const listas = fijadas.every(g => lecturas[g.id]?.data || lecturas[g.id]?.error || (directo && consultaDe(g.consulta.id)?.unidad === 'usd'))
+  const listas = fijadas.every(g => lecturas[g.id]?.data || lecturas[g.id]?.error || !pedible(g))
   const clima: 'calma' | 'senal' | 'leyendo' = !listas ? 'leyendo' : ex ? 'senal' : 'calma'
   const tonoEx = ex?.principal.lectura.senal?.tono
   const simulado = archivo.data?.activo && archivo.data.simulado || Object.values(lecturas).some(l => l.data?.simulado)
@@ -131,8 +135,8 @@ export function BusinessIntelligence({ grande }: { grande?: boolean }) {
   const hoy = hoyCivil()
   return <div ref={raiz} className={`${b.bi} ${grande ? b.grande : ''}`} data-clima={clima} data-tono={tonoEx} data-narrando={narrando ? '' : undefined} data-testid="business-intelligence">
     <div className={b.luna} aria-hidden />
-    {fijadas.map(g => <Sensor key={g.id} g={g} activa={!(directo && consultaDe(g.consulta.id)?.unidad === 'usd')} avisar={avisar} />)}
-    {respuesta && <Sensor key={respuesta.id} g={respuesta} activa={!(directo && consultaDe(respuesta.consulta.id)?.unidad === 'usd')} avisar={avisar} />}
+    {fijadas.map(g => <Sensor key={g.id} g={g} activa={pedible(g)} avisar={avisar} />)}
+    {respuesta && <Sensor key={respuesta.id} g={respuesta} activa={pedible(respuesta)} avisar={avisar} />}
 
     <header className={`${b.cabeza} ${mov.entra}`} style={escalon(0)} data-foco-id="cabeza" data-luz={estado('cabeza')}>
       <div className={b.cejaFila}>
@@ -155,15 +159,17 @@ export function BusinessIntelligence({ grande }: { grande?: boolean }) {
       <Cauce embudo={embudo.data?.activo ? embudo.data.embudo : null} abrir={fuente.banco ? undefined : () => abrirSeccion({ vista: 'negocio', seccion: 'embudo' })} />
     </div>
 
-    <Preguntar fijadas={fijadas} pendiente={pendiente} preguntar={preguntar} cancelar={() => setPendiente(null)} hayRespuesta={!!respuesta} />
+    {datos.generico && <Conecta catalogo={catalogo} fuentes={datos.fuentes} conversar={fuente.conversar} />}
 
-    {respuesta && <TarjetaGrafica key={`r-${respuesta.id}`} g={respuesta} lectura={leidas.find(l => l.grafica === respuesta)?.lectura} meta={lecturas[respuesta.id]?.data} error={lecturas[respuesta.id]?.error}
+    <Preguntar catalogo={catalogo} fijadas={fijadas} pendiente={pendiente} preguntar={preguntar} cancelar={() => setPendiente(null)} hayRespuesta={!!respuesta} />
+
+    {respuesta && <TarjetaGrafica key={`r-${respuesta.id}`} c={consultaDe(respuesta.consulta.id)} g={respuesta} lectura={leidas.find(l => l.grafica === respuesta)?.lectura} meta={lecturas[respuesta.id]?.data} error={lecturas[respuesta.id]?.error}
       directo={directo} esRespuesta luz={estado(`g:${respuesta.id}`)} conversar={fuente.conversar}
       fijar={() => fijar(respuesta)} descartar={() => fuente.accion({ accion: 'descartar', id: respuesta.id })} />}
 
     <section className={b.tablero} aria-label="Gráficas fijadas">
       {fijadas.length ? <div className={b.rejilla}>
-        {fijadas.map((g, i) => <TarjetaGrafica key={g.id} g={g} indice={i} lectura={leidas.find(l => l.grafica === g)?.lectura} meta={lecturas[g.id]?.data} error={lecturas[g.id]?.error}
+        {fijadas.map((g, i) => <TarjetaGrafica key={g.id} c={consultaDe(g.consulta.id)} g={g} indice={i} lectura={leidas.find(l => l.grafica === g)?.lectura} meta={lecturas[g.id]?.data} error={lecturas[g.id]?.error}
           directo={directo} recien={recien === g.id} luz={estado(`g:${g.id}`)} conversar={fuente.conversar} lampara={ex?.principal.grafica.id === g.id}
           soltar={() => fuente.accion({ accion: 'soltar', id: g.id })} />)}
       </div> : <p className={b.vacio}>Todavía no hay gráficas fijadas. Pregunta algo arriba: la respuesta se queda aquí y se vuelve a preguntar sola cada vez que abras.</p>}
@@ -173,6 +179,48 @@ export function BusinessIntelligence({ grande }: { grande?: boolean }) {
       <p>Lo normal de cada número sale de sus 28 días anteriores (sin los extremos). Las gráficas no guardan cifras: guardan la pregunta, y se recalculan al abrir.</p>
       {datos.errores.length > 0 && <details className={b.errores}><summary>{datos.errores.length === 1 ? 'Una gráfica no se pudo leer' : `${datos.errores.length} gráficas no se pudieron leer`}: Levy las corrige</summary><ul>{datos.errores.map(e => <li key={e}>{e}</li>)}</ul></details>}
     </footer>
+  </div>
+}
+
+// ── Conectar las fuentes (catálogo genérico) ──
+
+/** El mensaje con que el dueño le pide a Levy conectar sus fuentes: el contrato y por dónde empezar. */
+export function mensajeConectar(c?: Consulta): string {
+  return [
+    c ? `Quiero conectar la fuente de «${c.nombre}» (consulta ${c.id}) en Business Intelligence. ${c.falta ?? ''}`.trim() : 'Quiero conectar mis fuentes a Business Intelligence.',
+    'Mira qué tengo con `npm --prefix arbrain run bi -- fuentes`, pregúntame de dónde salen los números (un CSV o Excel que exporto, o mi base Postgres o Supabase) y escribe `.claude/memory/project/mi-negocio/bi-fuentes.json`. Pruébala con `bi -- leer --consulta <id>` antes de decirme que quedó.',
+    'Contrato: arbrain/docs/bi/README.md. Las llaves de una base van en `.claude/bi.env`, nunca en la memoria.',
+  ].join('\n')
+}
+
+/** Arriba del tablero, solo con el catálogo genérico: cuántas preguntas ya tienen fuente; vacío, cómo se llena. */
+function Conecta({ catalogo, fuentes, conversar }: { catalogo: Consulta[]; fuentes?: EstadoFuentesBI; conversar: (t: string) => void }) {
+  const con = catalogo.filter(c => c.conectada !== false).length
+  const errores = fuentes?.errores ?? []
+  if (con > 0) return <section className={`${b.conectaLinea} ${mov.entra}`} style={escalon(2)} aria-label="Fuentes conectadas">
+    <Cable size={14} aria-hidden />
+    <span><b>{con} de {catalogo.length}</b> preguntas con fuente{fuentes?.negocio ? ` · ${fuentes.negocio}` : ''}</span>
+    <button type="button" className={b.enlace} onClick={() => conversar(mensajeConectar())}>Conectar otra<ChevronRight size={13} aria-hidden /></button>
+    {errores.length > 0 && <details className={b.errores}><summary>{errores.length === 1 ? 'Una línea de tus fuentes no se pudo leer' : `${errores.length} líneas de tus fuentes no se pudieron leer`}</summary><ul>{errores.map(e => <li key={e}>{e}</li>)}</ul></details>}
+  </section>
+  return <section className={`${b.conecta} ${mov.entra}`} style={escalon(2)} aria-label="Conecta tu fuente" data-testid="bi-conecta">
+    <p className={b.ceja}>Tu motor está listo · <b>sin fuentes</b></p>
+    <h4 className={b.conectaTitulo}>Conecta tu primera fuente</h4>
+    <p className={b.conectaTexto}>Business Intelligence lee los números de donde ya viven: un archivo que exportas (CSV o Excel) o tu base de datos (Postgres o Supabase). Dile a Levy de dónde salen tus ventas y él lo conecta; tú solo preguntas.</p>
+    <ul className={b.chips} aria-label="Lo que podrás preguntar">{catalogo.map(c => <li key={c.id} title={c.falta}>{c.nombre}</li>)}</ul>
+    <div className={b.exAcciones}>
+      <button type="button" className={b.exHablar} onClick={() => conversar(mensajeConectar())}><Cable size={14} aria-hidden />Conectar con Levy</button>
+      {fuentes?.existe && <span className={b.exOtras}>Tu archivo de fuentes existe pero ninguna pregunta tiene fuente todavía.</span>}
+    </div>
+    {errores.length > 0 && <details className={b.errores} open><summary>{errores.length === 1 ? 'Una línea de tus fuentes no se pudo leer' : `${errores.length} líneas de tus fuentes no se pudieron leer`}: Levy las corrige</summary><ul>{errores.map(e => <li key={e}>{e}</li>)}</ul></details>}
+  </section>
+}
+
+/** Una gráfica cuya consulta todavía no tiene fuente: no es una falla ni un cero; dice qué la conectaría. */
+function SinFuente({ c, conversar }: { c: Consulta; conversar: (t: string) => void }) {
+  return <div className={b.sinFuente}>
+    <p><b>Conecta tu fuente.</b> {c.falta}</p>
+    <button type="button" className={b.enlace} onClick={() => conversar(mensajeConectar(c))}><Cable size={13} aria-hidden />Conectarla con Levy</button>
   </div>
 }
 
@@ -209,12 +257,13 @@ function Excepcion({ ex, estado, ver, conversar }: { ex: Excepcion; estado?: str
 
 // ── Preguntar ──
 
-function Preguntar({ fijadas, pendiente, preguntar, cancelar, hayRespuesta }: { fijadas: Grafica[]; pendiente: Pendiente | null; preguntar: (t: string) => void; cancelar: () => void; hayRespuesta: boolean }) {
+function Preguntar({ catalogo, fijadas, pendiente, preguntar, cancelar, hayRespuesta }: { catalogo: Consulta[]; fijadas: Grafica[]; pendiente: Pendiente | null; preguntar: (t: string) => void; cancelar: () => void; hayRespuesta: boolean }) {
   const [texto, setTexto] = useState('')
   const [ahora, setAhora] = useState(() => Date.now())
   useEffect(() => { if (!pendiente) return; const t = setInterval(() => setAhora(Date.now()), 5000); return () => clearInterval(t) }, [pendiente])
   const usadas = new Set(fijadas.map(g => g.consulta.id))
-  const sugerencias = CATALOGO.filter(c => !usadas.has(c.id)).slice(0, 3).map(c => c.ejemplos[0])
+  // Se sugiere lo que se puede contestar hoy: lo que ya tiene fuente y todavía no está en el tablero.
+  const sugerencias = catalogo.filter(c => !usadas.has(c.id) && c.conectada !== false).slice(0, 3).map(c => c.ejemplos[0])
   const enviar = (e?: FormEvent) => { e?.preventDefault(); const t = texto.trim(); if (t.length < 3) return; preguntar(t); setTexto('') }
   const largo = pendiente && ahora - pendiente.en > 4 * 60_000
   return <section className={`${b.preguntar} ${mov.entra}`} style={escalon(3)} aria-label="Pregúntale a tu negocio">
@@ -239,14 +288,15 @@ function Preguntar({ fijadas, pendiente, preguntar, cancelar, hayRespuesta }: { 
 // ── Una gráfica ──
 
 function TarjetaGrafica(p: {
-  g: Grafica; lectura?: Lectura; meta?: RespuestaConsulta; error?: string; directo: boolean; luz?: string; indice?: number
+  c: Consulta | null; g: Grafica; lectura?: Lectura; meta?: RespuestaConsulta; error?: string; directo: boolean; luz?: string; indice?: number
   esRespuesta?: boolean; recien?: boolean; lampara?: boolean; conversar: (t: string) => void; fijar?: () => void; descartar?: () => void; soltar?: () => void
 }) {
   const { g, lectura, meta, directo } = p
-  const c = consultaDe(g.consulta.id) as Consulta
+  const c = p.c ?? { id: g.consulta.id, nombre: g.consulta.id, que: '', familia: 'datos', fuente: g.fuente, tipo: g.tipo, tipos: [g.tipo], unidad: 'registros', mejor: null, alarma: false, ventanas: [g.consulta.ventana], ejemplos: [] } satisfies Consulta
+  const sinFuente = c.conectada === false
   const [sello, setSello] = useState(false)
   const [seguro, setSeguro] = useState(false)
-  const oculto = directo && c.unidad === 'usd'
+  const oculto = directo && esDinero(c)
   const listo = !!meta && !!lectura && lectura.estado !== 'sin-datos'
   const dibuja = usePrimeraVez(`${g.id}:${g.consulta.ventana}:${meta?.hasta ?? ''}`, listo)
   const tono = lectura?.senal?.tono
@@ -258,7 +308,7 @@ function TarjetaGrafica(p: {
     {lectura?.estado === 'fuera' && (p.lampara || p.esRespuesta) && <div className={b.lampara} aria-hidden />}
     {p.esRespuesta && <p className={b.respuestaCeja}><i aria-hidden />Levy contestó · {g.por === 'Levy' ? 'nueva' : g.por}</p>}
     <h4 className={b.pregunta}>{g.pregunta}</h4>
-    {sello ? <Sello g={g} c={c} meta={meta} /> : oculto ? <OcultoPorDirecto que="Esta gráfica de dinero" compacto /> : <>
+    {sello ? <Sello g={g} c={c} meta={meta} /> : oculto ? <OcultoPorDirecto que="Esta gráfica de dinero" compacto /> : sinFuente ? <SinFuente c={c} conversar={p.conversar} /> : <>
       <div className={b.respuesta}>
         {lectura?.cifra && listo && <p className={b.cifra}><b>{lectura.cifra}</b>{lectura.sub && <small>{lectura.sub}</small>}</p>}
         <p className={b.lectura} data-dibuja={dibuja || undefined}>{(lectura?.cifra && listo ? lectura.detalle : null) ?? lectura?.frase ?? 'Leyendo…'}</p>
@@ -267,7 +317,7 @@ function TarjetaGrafica(p: {
         {!meta ? (p.error ? <p className={b.falla}>No se pudo leer: {p.error}</p> : <div className={b.esqueleto}><Boceto /></div>)
           : lectura?.estado === 'sin-datos' ? <p className={b.falla}>{lectura.frase}</p>
           : g.tipo === 'linea' ? <SerieCorredor c={c} lectura={lectura!} dibuja={dibuja} />
-          : g.tipo === 'acumulado' ? <Acumulado lectura={lectura!} dibuja={dibuja} />
+          : g.tipo === 'acumulado' ? <Acumulado c={c} lectura={lectura!} dibuja={dibuja} />
           : g.tipo === 'embudo' ? <Embudo c={c} lectura={lectura!} dibuja={dibuja} />
           : g.tipo === 'proporcion' ? <Proporcion c={c} lectura={lectura!} dibuja={dibuja} />
           : <Barras c={c} lectura={lectura!} dibuja={dibuja} />}

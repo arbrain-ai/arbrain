@@ -555,11 +555,11 @@ export async function* runAgentStream(
   const effectiveEffort = frozenSelection ? frozenSelection.effort ?? undefined : effort ?? overrides?.effort ?? undefined
   const ultracodeEnabled = frozenSelection?.ultracode ?? overrides?.ultracode ?? false
 
-  // Guard fast-mode (fix "si elijo Fable, corre Fable"): fast mode es Opus-only.
+  // Guard fast-mode (fix "si elijo Fable, corre Fable"): fast mode solo existe en Opus y, desde el 9 nov 2026, en Fable 5.2.
   // Si Daniel eligió un modelo NO-Opus (ej. Fable), aplicar settings.fastMode:true
   // forzaría Opus por debajo → el pick sería una mentira (label Fable, corre Opus).
   // Con override no-Opus, no mandamos fastMode: se respeta el modelo elegido de verdad.
-  const fastApplies = (overrides?.fast ?? false) && (!modelOverride || /opus/i.test(modelOverride))
+  const fastApplies = (overrides?.fast ?? false) && (!modelOverride || /opus|fable-5-2/i.test(modelOverride))
 
   let resumeId = sessionId
   // Rewind: al reanudar en un punto anterior forkeamos a nueva sesión (no

@@ -226,3 +226,16 @@
   .lampara, .pulso i, .exCeja i, .respuestaCeja i, .tarjeta, .pensando, .sello, .lectura[data-dibuja] { animation: none !important; }
   .bi [data-luz] { transition: none; }
 }
+
+/* ── Conectar las fuentes (8 nov 2026, catálogo genérico): el motor vacío dice cómo se llena, no se esconde ── */
+.conecta { display: flex; flex-direction: column; gap: 8px; padding: 16px 16px 14px; border-radius: 18px; border: 1px dashed color-mix(in srgb, var(--bi-corredor) 45%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--placa-arriba) 92%, transparent), color-mix(in srgb, var(--placa-abajo) 92%, transparent)); }
+.conectaTitulo { margin: 0; font-family: var(--serif-ui, serif); font-size: 21px; line-height: 1.2; font-weight: 600; color: var(--foreground); }
+.conectaTexto { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--foreground); opacity: 0.86; max-width: 62ch; text-wrap: pretty; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 4px; padding: 0; list-style: none; }
+.chips li { padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; color: var(--muted); border: 1px solid var(--border-subtle, var(--border)); background: color-mix(in srgb, var(--card) 70%, transparent); }
+.conectaLinea { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 12.5px; color: var(--muted); padding: 0 2px; }
+.conectaLinea b { color: var(--foreground); font-weight: 700; }
+.conectaLinea .errores { flex-basis: 100%; }
+.sinFuente { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px 13px; border-radius: 12px; border: 1px dashed color-mix(in srgb, var(--muted) 45%, transparent); }
+.sinFuente p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--foreground); opacity: 0.88; }

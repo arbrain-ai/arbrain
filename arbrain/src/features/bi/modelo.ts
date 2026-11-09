@@ -10,7 +10,7 @@
  * ancho o más es la señal: placer (oro) si va hacia donde es bueno, dolor (rojo) si va en contra (Beer: algos + hedos).
  * Lógica pura (sin React ni fs): la usan la vista, la API, la CLI y node:test.
  */
-import { CATALOGO, cifra, consultaDe, esVentana, palabra, type Consulta, type Tipo, type Ventana } from './catalogo'
+import { cifraDe, consultaEn, esDinero, esVentana, palabraDe, type Consulta, type Tipo, type Ventana } from './catalogo'
 
 export const ESQUEMA_BI = 'arbrain.bi/v1'
 /** La única ruta donde el panel busca sus gráficas, relativa a la raíz del cerebro. */
@@ -47,8 +47,11 @@ const obj = (x: unknown): x is Record<string, unknown> => !!x && typeof x === 'o
 const txt = (x: unknown, max = 400): x is string => typeof x === 'string' && x.trim().length > 0 && x.length <= max
 export const ID_GRAFICA = /^[a-z0-9][a-z0-9-]{2,59}$/
 
-/** Lo que exige el contrato, con errores en palabras (Levy los lee para corregir). Las válidas se pintan aunque otras fallen. */
-export function validarBI(x: unknown): { graficas: Grafica[]; errores: string[] } {
+/**
+ * Lo que exige el contrato contra el catálogo vigente (el del autor o el genérico: lo da servidor.ts), con errores en palabras
+ * (Levy los lee para corregir). Las válidas se pintan aunque otras fallen.
+ */
+export function validarBI(x: unknown, catalogo: readonly Consulta[]): { graficas: Grafica[]; errores: string[] } {
   const errores: string[] = []
   if (!obj(x)) return { graficas: [], errores: ['El archivo no es un objeto JSON.'] }
   if (x.esquema !== ESQUEMA_BI) errores.push(`«esquema» debe ser «${ESQUEMA_BI}».`)
@@ -56,7 +59,7 @@ export function validarBI(x: unknown): { graficas: Grafica[]; errores: string[] 
   const graficas: Grafica[] = []
   const vistos = new Set<string>()
   x.graficas.forEach((g, i) => {
-    const e = errorDeGrafica(g, `Gráfica ${i + 1}`)
+    const e = errorDeGrafica(g, `Gráfica ${i + 1}`, catalogo)
     if (e.length) { errores.push(...e); return }
     const gr = g as unknown as Grafica
     if (vistos.has(gr.id)) { errores.push(`Gráfica ${i + 1}: el id «${gr.id}» está repetido.`); return }
@@ -66,14 +69,14 @@ export function validarBI(x: unknown): { graficas: Grafica[]; errores: string[] 
   return { graficas, errores }
 }
 
-export function errorDeGrafica(g: unknown, n = 'La gráfica'): string[] {
+export function errorDeGrafica(g: unknown, n: string, catalogo: readonly Consulta[]): string[] {
   if (!obj(g)) return [`${n}: no es un objeto.`]
   const e: string[] = []
   if (typeof g.id !== 'string' || !ID_GRAFICA.test(g.id)) e.push(`${n}: «id» en minúsculas, números y guiones (3 a 60).`)
   if (!txt(g.pregunta, 200)) e.push(`${n}: falta «pregunta» (hasta 200 caracteres).`)
   const c = obj(g.consulta) ? g.consulta : null
-  const consulta = c && typeof c.id === 'string' ? consultaDe(c.id) : null
-  if (!c || !consulta) e.push(`${n}: «consulta.id» debe ser del catálogo (${CATALOGO.map(k => k.id).join(', ')}).`)
+  const consulta = c && typeof c.id === 'string' ? consultaEn(catalogo, c.id) : null
+  if (!c || !consulta) e.push(`${n}: «consulta.id» debe ser del catálogo (${catalogo.map(k => k.id).join(', ')}).`)
   else if (!esVentana(c.ventana) || !consulta.ventanas.includes(c.ventana)) e.push(`${n}: «consulta.ventana» de ${consulta.id} es ${consulta.ventanas.join(' | ')}.`)
   if (consulta && !consulta.tipos.includes(g.tipo as Tipo)) e.push(`${n}: «tipo» de ${consulta.id} es ${consulta.tipos.join(' | ')}.`)
   if (!txt(g.fuente, 160)) e.push(`${n}: falta «fuente».`)
@@ -99,7 +102,7 @@ export function mensajeParaLevy(pregunta: string): string {
   return [
     `Pregunta para Business Intelligence: «${pregunta.trim()}»`,
     'Contéstala con una gráfica del panel: elige la consulta del catálogo (`npm --prefix arbrain run bi -- catalogo`) y escríbela con `npm --prefix arbrain run bi -- responder --pregunta "…" --consulta <id> [--ventana 7|30|90] [--tipo …] --lectura "lo que ves" --propone "lo que harías"`.',
-    'Contrato: arbrain/docs/bi/README.md. Si la pregunta no cabe en el catálogo, dímelo aquí y propón la consulta que faltaría; nada de SQL libre en el panel.',
+    'Contrato: arbrain/docs/bi/README.md. Si la pregunta no cabe en el catálogo, dímelo aquí y propón la consulta que faltaría; si la consulta no tiene fuente todavía, dime qué la conectaría (`npm --prefix arbrain run bi -- fuentes`). Nada de SQL libre en el panel.',
   ].join('\n')
 }
 
@@ -213,6 +216,8 @@ export interface Lectura {
 /** Porcentaje legible: con un decimal debajo de 10 % (1.5 %, no «1 %»). */
 const pct = (n: number) => { const p = n * 100; return `${p > 0 && p < 10 ? (Math.round(p * 10) / 10).toLocaleString('es-MX') : Math.round(p)} %` }
 const may = (t: string) => (t ? t[0].toLocaleUpperCase('es') + t.slice(1) : t)
+/** La cifra con su palabra («9 ventas»); el dinero ya dice su moneda y no lleva palabra. */
+const cuanto = (n: number, c: Consulta) => (esDinero(c) ? cifraDe(n, c) : `${cifraDe(n, c)} ${palabraDe(c, n)}`)
 
 export function leer(c: Consulta, tipo: Tipo, ventana: Ventana, datos: Datos | undefined): Lectura {
   if (!datos) return { estado: 'sin-datos', frase: 'Sin datos todavía.' }
@@ -234,19 +239,20 @@ function leerSerie(c: Consulta, ventana: Ventana, puntos: Punto[]): Lectura {
   const ultimo = medidos[medidos.length - 1]
   const iUlt = vis.lastIndexOf(ultimo), gUlt = desde + iUlt
   const v = ultimo.valor as number
-  const quien = `${fechaCorta(ultimo.fecha)}: ${cifra(v, c.unidad)}${c.unidad === 'usd' ? '' : ` ${palabra(c.unidad, v)}`}`
+  const quien = `${fechaCorta(ultimo.fecha)}: ${cifraDe(v, c)}${esDinero(c) ? '' : ` ${palabraDe(c, v)}`}`
   const total = medidos.reduce((s, p) => s + (p.valor as number), 0)
-  const acumulable = c.unidad !== 'suscripciones' && c.id !== 'mrr'
-  const sub = `${c.unidad === 'usd' ? '' : `${palabra(c.unidad, v)} · `}${fechaCorta(ultimo.fecha)}`
-  const enVentana = acumulable ? ` En ${ventana} días: ${cifra(total, c.unidad)}.` : ''
-  const base: Lectura = { estado: 'calma', frase: '', cifra: cifra(v, c.unidad), sub, puntos: vis }
+  // Un promedio o un saldo no se suman: «En 30 días» solo va en lo que se acumula.
+  const acumulable = c.unidad !== 'suscripciones' && c.id !== 'mrr' && c.id !== 'ticket-promedio'
+  const sub = `${esDinero(c) ? '' : `${palabraDe(c, v)} · `}${fechaCorta(ultimo.fecha)}`
+  const enVentana = acumulable ? ` En ${ventana} días: ${cifraDe(total, c)}.` : ''
+  const base: Lectura = { estado: 'calma', frase: '', cifra: cifraDe(v, c), sub, puntos: vis }
 
   if (!ultimo.corredor) {
     const tiene = valores.slice(Math.max(0, gUlt - HISTORIA), gUlt).filter(x => x !== null).length
     return { ...base, estado: 'aprendiendo', aprendiendo: { tiene, faltan: Math.max(0, MINIMO - tiene) }, frase: `${may(quien)}. Todavía aprendo qué es normal aquí: ${tiene} de ${MINIMO} días medidos.`, detalle: `Todavía aprendo qué es normal aquí.${enVentana}`, anotacion: { indice: iUlt, texto: 'aprendiendo' } }
   }
   const cor = ultimo.corredor
-  const rango = `entre ${cifra(cor.lo, c.unidad)} y ${cifra(cor.hi, c.unidad)}`
+  const rango = `entre ${cifraDe(cor.lo, c)} y ${cifraDe(cor.hi, c)}`
   if (ultimo.lado && ultimo.exceso >= UMBRAL) {
     const senal = senalDe(c, valores, gUlt, ultimo)
     const como = senal.record ? (ultimo.lado === 'arriba' ? `el día más alto en ${senal.dias} días` : `el día más bajo en ${senal.dias} días`) : (ultimo.lado === 'arriba' ? 'muy por encima de lo normal' : 'muy por debajo de lo normal')
@@ -270,7 +276,7 @@ function senalDe(c: Consulta, valores: (number | null)[], i: number, p: PuntoLei
 
 function leerAcumulado(c: Consulta, puntos: Punto[]): Lectura {
   const medidos = puntos.filter(p => p.valor !== null)
-  if (!medidos.length) return { estado: 'sin-datos', frase: 'Polar no trae cobros en estos dos meses.' }
+  if (!medidos.length) return { estado: 'sin-datos', frase: `${c.familia === 'polar' ? 'Polar' : 'La fuente'} no trae cobros en estos dos meses.` }
   const hoy = medidos[medidos.length - 1].fecha
   const mesEste = hoy.slice(0, 7)
   const ant = sumarDias(`${mesEste}-01`, -1).slice(0, 7)
@@ -293,11 +299,11 @@ function leerAcumulado(c: Consulta, puntos: Punto[]): Lectura {
   const lleva = este[este.length - 1] ?? 0
   const aEsta = anterior[Math.min(dia, diasAnt) - 1] ?? 0
   const delta = aEsta > 0 ? (lleva - aEsta) / aEsta : null
-  const comp = delta === null ? 'el mes pasado no trae cobros para comparar' : `a estas alturas de ${mesLargo(`${ant}-01`)} llevabas ${cifra(aEsta, 'usd')} (${delta >= 0 ? '+' : '−'}${pct(Math.abs(delta))})`
+  const comp = delta === null ? 'el mes pasado no trae cobros para comparar' : `a estas alturas de ${mesLargo(`${ant}-01`)} llevabas ${cifraDe(aEsta, c)} (${delta >= 0 ? '+' : '−'}${pct(Math.abs(delta))})`
   return {
-    estado: 'calma', cifra: cifra(lleva, 'usd'), sub: `cobrado en ${mesLargo(hoy)} al ${diaYMes(hoy)}`,
-    frase: `Llevas ${cifra(lleva, 'usd')} cobrados en ${mesLargo(hoy)}; ${comp}.`,
-    detalle: delta === null ? `${may(comp)}.` : `A estas alturas de ${mesLargo(`${ant}-01`)} llevabas ${cifra(aEsta, 'usd')}: vas ${pct(Math.abs(delta))} ${delta >= 0 ? 'arriba' : 'abajo'}.`,
+    estado: 'calma', cifra: cifraDe(lleva, c), sub: `cobrado en ${mesLargo(hoy)} al ${diaYMes(hoy)}`,
+    frase: `Llevas ${cifraDe(lleva, c)} cobrados en ${mesLargo(hoy)}; ${comp}.`,
+    detalle: delta === null ? `${may(comp)}.` : `A estas alturas de ${mesLargo(`${ant}-01`)} llevabas ${cifraDe(aEsta, c)}: vas ${pct(Math.abs(delta))} ${delta >= 0 ? 'arriba' : 'abajo'}.`,
     meses: { este, anterior, etiquetaEste: mesLargo(hoy), etiquetaAnterior: mesLargo(`${ant}-01`), dia },
     anotacion: { indice: dia - 1, texto: delta === null ? 'hoy' : `${delta >= 0 ? '+' : '−'}${pct(Math.abs(delta))} contra ${mesLargo(`${ant}-01`)}` },
   }
@@ -306,24 +312,24 @@ function leerAcumulado(c: Consulta, puntos: Punto[]): Lectura {
 function leerBarras(c: Consulta, tipo: Tipo, barras: Barra[], resto?: Barra): Lectura {
   const orden = [...barras].sort((a, b) => b.valor - a.valor)
   const total = orden.reduce((s, b) => s + b.valor, 0) + (resto?.valor ?? 0)
-  if (!orden.length || total === 0) return { estado: 'sin-datos', frase: resto?.valor ? `${cifra(resto.valor, c.unidad)} ${palabra(c.unidad, resto.valor)} en la ventana, ninguna con ${c.id === 'paises' ? 'país' : c.id === 'clics-por-video' ? 'video' : 'origen'} registrado: la fuente todavía no lo guarda. No es cero; es un sensor que falta.` : 'Sin registros en esta ventana.', barras: orden, resto }
+  if (!orden.length || total === 0) return { estado: 'sin-datos', frase: resto?.valor ? `${cuanto(resto.valor, c)} en la ventana, ninguna con ${c.id === 'paises' ? 'país' : c.id === 'clics-por-video' ? 'video' : c.id === 'lo-mas-vendido' ? 'producto' : 'origen'} registrado: la fuente todavía no lo guarda. No es cero; es un sensor que falta.` : 'Sin registros en esta ventana.', barras: orden, resto }
   const top = orden[0]
   const parte = (x: Barra) => pct(x.valor / total)
   let frase: string, detalle: string
   if (c.id === 'ventas-por-video') {
     const atribuidos = total - (resto?.valor ?? 0)
-    frase = `«${top.etiqueta}» trajo ${cifra(top.valor, c.unidad)} ${palabra(c.unidad, top.valor)} de entrada.${resto?.valor ? ` De ${cifra(total, c.unidad)} pagos, ${cifra(resto.valor, c.unidad)} no traen video: la atribución es parcial.` : ` De ${cifra(atribuidos, c.unidad)} pagos atribuidos.`}`
-    detalle = resto?.valor ? `De ${cifra(total, c.unidad)} pagos de entrada, ${cifra(resto.valor, c.unidad)} no traen video: la atribución es parcial, no cero.` : `De ${cifra(atribuidos, c.unidad)} pagos de entrada, todos con su video.`
+    frase = `«${top.etiqueta}» trajo ${cuanto(top.valor, c)} de entrada.${resto?.valor ? ` De ${cifraDe(total, c)} pagos, ${cifraDe(resto.valor, c)} no traen video: la atribución es parcial.` : ` De ${cifraDe(atribuidos, c)} pagos atribuidos.`}`
+    detalle = resto?.valor ? `De ${cifraDe(total, c)} pagos de entrada, ${cifraDe(resto.valor, c)} no traen video: la atribución es parcial, no cero.` : `De ${cifraDe(atribuidos, c)} pagos de entrada, todos con su video.`
   } else if (tipo === 'proporcion') {
     const otros = orden.slice(1).concat(resto?.valor ? [resto] : [])
-    frase = `${may(top.etiqueta)}: ${parte(top)} de ${cifra(total, c.unidad)} ${palabra(c.unidad, total)}.${otros[0] ? ` ${otros.map(o => `${may(o.etiqueta)}, ${parte(o)}`).join('; ')}.` : ''}`
-    detalle = otros.length ? `${otros.map(o => `${may(o.etiqueta)}: ${parte(o)}`).join(' · ')}. De ${cifra(total, c.unidad)} ${palabra(c.unidad, total)}.` : `De ${cifra(total, c.unidad)} ${palabra(c.unidad, total)}.`
+    frase = `${may(top.etiqueta)}: ${parte(top)} de ${cuanto(total, c)}.${otros[0] ? ` ${otros.map(o => `${may(o.etiqueta)}, ${parte(o)}`).join('; ')}.` : ''}`
+    detalle = otros.length ? `${otros.map(o => `${may(o.etiqueta)}: ${parte(o)}`).join(' · ')}. De ${cuanto(total, c)}.` : `De ${cuanto(total, c)}.`
     return { estado: 'calma', frase, detalle, cifra: parte(top), sub: top.etiqueta.toLocaleLowerCase('es'), barras: orden, resto, anotacion: { indice: 0, texto: parte(top) } }
   } else {
-    frase = `${may(top.etiqueta)} va primero con ${cifra(top.valor, c.unidad)} ${palabra(c.unidad, top.valor)} (${parte(top)} del total).`
-    detalle = `${parte(top)} de ${cifra(total, c.unidad)} ${palabra(c.unidad, total)}.${orden[1] ? ` Le sigue ${orden[1].etiqueta} con ${parte(orden[1])}.` : ''}`
+    frase = `${may(top.etiqueta)} va primero con ${cuanto(top.valor, c)} (${parte(top)} del total).`
+    detalle = `${parte(top)} de ${cuanto(total, c)}.${orden[1] ? ` Le sigue ${orden[1].etiqueta} con ${parte(orden[1])}.` : ''}`
   }
-  return { estado: 'calma', frase, detalle, cifra: cifra(top.valor, c.unidad), sub: top.etiqueta, barras: orden, resto, anotacion: { indice: 0, texto: `${parte(top)} del total` } }
+  return { estado: 'calma', frase, detalle, cifra: cifraDe(top.valor, c), sub: top.etiqueta, barras: orden, resto, anotacion: { indice: 0, texto: `${parte(top)} del total` } }
 }
 
 function leerEmbudo(c: Consulta, pasos: Barra[]): Lectura {
@@ -335,9 +341,10 @@ function leerEmbudo(c: Consulta, pasos: Barra[]): Lectura {
   const a = leidos[iPeor - 1], b = leidos[iPeor]
   const fin = leidos[leidos.length - 1]
   return {
-    estado: 'calma', cifra: pct(fin.valor / leidos[0].valor), sub: `de ${cifra(leidos[0].valor, c.unidad)} llegó al final`, pasos: leidos,
+    estado: 'calma', cifra: pct(fin.valor / leidos[0].valor), sub: `de ${cifraDe(leidos[0].valor, c)} llegó al final`, pasos: leidos,
     detalle: `El paso más estrecho: de «${a.etiqueta.toLocaleLowerCase('es')}» a «${b.etiqueta.toLocaleLowerCase('es')}», solo pasa el ${pct(b.paso ?? 0)}.`,
-    frase: `De ${cifra(leidos[0].valor, c.unidad)} que ${leidos[0].etiqueta.toLocaleLowerCase('es')}, ${cifra(fin.valor, c.unidad)} llegaron a ${fin.etiqueta.toLocaleLowerCase('es')}. El paso más estrecho: de «${a.etiqueta.toLocaleLowerCase('es')}» a «${b.etiqueta.toLocaleLowerCase('es')}», solo pasa el ${pct(b.paso ?? 0)}.`,
+    // Con las fuentes del dueño, los pasos se nombran en pasado («Preguntaron», «Compraron»): la frase los dice tal cual.
+    frase: `De ${cifraDe(leidos[0].valor, c)} que ${leidos[0].etiqueta.toLocaleLowerCase('es')}, ${cifraDe(fin.valor, c)} ${c.familia === 'datos' ? '' : 'llegaron a '}${fin.etiqueta.toLocaleLowerCase('es')}. El paso más estrecho: de «${a.etiqueta.toLocaleLowerCase('es')}» a «${b.etiqueta.toLocaleLowerCase('es')}», solo pasa el ${pct(b.paso ?? 0)}.`,
     anotacion: { indice: iPeor, texto: `aquí se cae · pasa ${pct(b.paso ?? 0)}` },
   }
 }
@@ -368,12 +375,14 @@ export function excepcion(leidas: Leida[]): Excepcion | null {
   const mismoDia = leidas.filter(l => l !== principal && l.lectura.puntos?.some(p => p.fecha === s.fecha && p.lado && p.exceso >= UMBRAL))
   for (const l of mismoDia.slice(0, 2)) {
     const p = l.lectura.puntos!.find(x => x.fecha === s.fecha)!
-    porque.push(`Ese mismo día también se salieron «${l.consulta.nombre.toLocaleLowerCase('es')}»: ${cifra(p.valor as number, l.consulta.unidad)} contra ${cifra(p.corredor!.lo, l.consulta.unidad)}–${cifra(p.corredor!.hi, l.consulta.unidad)} de lo normal.`)
+    porque.push(`Ese mismo día también se salieron «${l.consulta.nombre.toLocaleLowerCase('es')}»: ${cifraDe(p.valor as number, l.consulta)} contra ${cifraDe(p.corredor!.lo, l.consulta)}–${cifraDe(p.corredor!.hi, l.consulta)} de lo normal.`)
   }
   if (!mismoDia.length) {
     porque.push('Ningún otro número fijado se salió ese día: parece algo de este número, no de todo el negocio.')
     // Una caída de golpe, sola y profunda en un número que viene de un rastreo se parece mucho a un rastreo roto.
-    if (s.lado === 'abajo' && c.familia !== 'polar' && s.veces !== null && s.veces < 0.5) porque.push('Antes de buscar la causa en el mercado, confirma que el rastreo siga vivo: un enlace roto o un evento que dejó de llegar se ve igual.')
+    if (s.lado === 'abajo' && c.familia !== 'polar' && s.veces !== null && s.veces < 0.5) porque.push(c.familia === 'datos'
+      ? 'Antes de buscar la causa en el mercado, confirma que la fuente traiga ese día completo: un archivo exportado a medias o una tabla que dejó de llenarse se ve igual.'
+      : 'Antes de buscar la causa en el mercado, confirma que el rastreo siga vivo: un enlace roto o un evento que dejó de llegar se ve igual.')
   }
   const propone = principal.grafica.propone ?? (s.tono === 'atencion' ? 'Pregúntale a Levy qué cambió.' : c.propone?.[s.tono === 'dolor' ? 'dolor' : 'placer'] ?? 'Pregúntale a Levy qué cambió.')
   return { principal, otras: orden.slice(1), porque, propone }
@@ -395,7 +404,7 @@ export function titularDe(leidas: Leida[], ex: Excepcion | null): { palabra: str
     const v = plural ? verbo : verbo.replace(/aron$/, 'ó').replace(/ieron$/, 'ió')
     return {
       palabra: s.tono === 'dolor' ? 'Algo se salió' : s.tono === 'placer' ? 'Algo salió de más' : 'Algo cambió',
-      frase: `${nombre} ${v} el ${fechaCorta(s.fecha)}: ${cifra(s.valor, ex.principal.consulta.unidad)} contra ${cifra(s.corredor.lo, ex.principal.consulta.unidad)}–${cifra(s.corredor.hi, ex.principal.consulta.unidad)} de lo normal.${otras || ' Lo demás está en calma.'}`,
+      frase: `${nombre} ${v} el ${fechaCorta(s.fecha)}: ${cifraDe(s.valor, ex.principal.consulta)} contra ${cifraDe(s.corredor.lo, ex.principal.consulta)}–${cifraDe(s.corredor.hi, ex.principal.consulta)} de lo normal.${otras || ' Lo demás está en calma.'}`,
     }
   }
   const rozan = conBanda.filter(l => l.lectura.estado === 'roza').length

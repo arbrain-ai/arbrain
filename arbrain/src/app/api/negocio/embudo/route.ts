@@ -3,14 +3,14 @@ import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { planningOwner, planningError } from '@/lib/planning/server'
 import { instalacion } from '@/config'
-import { esEdicionCliente } from '@/lib/edicion'
 import { medirFuente } from '@/lib/canvas/nervio-estado'
 import { motorDe, panelNegocioEncendido, RUTA_EMBUDO, validarEmbudo, type RespuestaEmbudo } from '@/features/negocio/embudo'
 
 // Tu negocio › El sistema (4 nov 2026, prototipo detrás de ARBRAIN_PANEL_NEGOCIO=1). Lee el embudo que escribió Levy
 // en la memoria (docs/embudo/README.md) y la última corrida de cada rutina launchd del Studio (las del scheduler las lee
 // el cliente de /api/planning/crons, la misma caché que Rutinas). 5 nov: también el inventario de skills vivas, para la
-// vista «Skills por etapa». Apagado, o fuera de la edición del dueño: { activo: false }.
+// vista «Skills por etapa». Apagado: { activo: false }. En la edición del alumno (8 nov 2026) viene encendido y lee SU
+// embudo (el de Tu primer día).
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -32,7 +32,7 @@ async function inventarioSkills(base: string): Promise<string[] | undefined> {
 }
 
 export async function GET() {
-  if (!panelNegocioEncendido() || esEdicionCliente()) return APAGADO()
+  if (!panelNegocioEncendido()) return APAGADO()
   try {
     await planningOwner()
     const base = raiz()

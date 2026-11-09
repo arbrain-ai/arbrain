@@ -45,7 +45,7 @@ describe('ajustes del panel: el archivo es la fuente única', () => {
 
   it('ordenar (lo guardado): lo desconocido se tira, lo repetido se une y lo que falta entra tras su vecina de siempre', () => {
     expect(ordenar(null)).toEqual([...SECCIONES])
-    expect(ordenar(['taller', 'xx', 'taller', 'lienzo'])).toEqual(['calendario', 'tareas', 'cohorte', 'taller', 'lienzo', 'negocio', 'bi', 'reporte', 'centro', 'equipo', 'salud', 'contenido', 'finanzas', 'explorador'])
+    expect(ordenar(['taller', 'xx', 'taller', 'lienzo'])).toEqual(['calendario', 'tareas', 'cohorte', 'taller', 'lienzo', 'negocio', 'estrategia', 'bi', 'reporte', 'centro', 'equipo', 'salud', 'contenido', 'finanzas', 'explorador'])
   })
 
   it('aplicar: oculta, muestra, ordena y sube rev; escribe un archivo legible', () => {

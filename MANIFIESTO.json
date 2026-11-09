@@ -1,16 +1,16 @@
 {
   "generador": "arbrain/empaquetado/generador",
   "origen": {
-    "ref": "6148196833bba8bc715bb3fd9fef26a2601f58a3",
-    "commit": "6148196833bba8bc715bb3fd9fef26a2601f58a3",
-    "fecha": "2026-11-08T09:46:08-06:00"
+    "ref": "a81da1e1ffdcff41f86bfdd3ff7a0681e8cb3060",
+    "commit": "a81da1e1ffdcff41f86bfdd3ff7a0681e8cb3060",
+    "fecha": "2026-11-09T14:34:36-06:00"
   },
-  "version": "0.2.24",
+  "version": "0.2.25",
   "allowlist": {
     "ruta": "docs/builds/empaquetado-2026-10-11/allowlist.yaml",
-    "sha256": "b9b2420844e9e391494acfa972f52a43884be3b4b4292bbcbe3c12ff5450a869"
+    "sha256": "12841f27ee12f6965fb20ba28f7257a371c38b990890cf7ff4adfeac811786d1"
   },
-  "conteo": 3140,
+  "conteo": 3178,
   "archivos": {
     ".agents/skills": {
       "enlace": "../.claude/skills",
@@ -71,8 +71,8 @@
       "origen": ".claude/hooks/install.sh"
     },
     ".claude/hooks/intent-context.py": {
-      "sha256": "ea271c40667329c2f3b07041a513a3294104bc0a1cd386c876cc9bd687f7cdd1",
-      "bytes": 8812,
+      "sha256": "df0e954624a62f0b9a19d2c24a963b2110b4cb5f6f9d7a18dc2d6a84d83153cd",
+      "bytes": 9167,
       "modo": "644",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/claude/hooks/intent-context.py"
     },
@@ -137,8 +137,8 @@
       "origen": ".claude/hooks/tests/test_ganchos_sin_fcntl.py"
     },
     ".claude/hooks/tests/test_intent_context.py": {
-      "sha256": "614057de87e204fc7db7ed15e5f44f3310103ad3d8458f9f5bf689b23b61ce57",
-      "bytes": 5357,
+      "sha256": "e73e0a02affdde2c46ebe2ec58f518eda4052d49dff4379aa1634d10fc444d9a",
+      "bytes": 5655,
       "modo": "644",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/claude/hooks/tests/test_intent_context.py"
     },
@@ -221,8 +221,8 @@
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/artificial-brain/references/anatomia/neurociencia.md"
     },
     ".claude/skills/artificial-brain/references/app/SKILL.md": {
-      "sha256": "a69286ed25eec22aead81e95c39a563376285c20383eeff37d6fffd561517a9e",
-      "bytes": 10303,
+      "sha256": "c7e334d4c1f7f3a960a961094a832f6b00b6041a9a7a3ab969425067ff706fdf",
+      "bytes": 11555,
       "modo": "644",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/artificial-brain/references/app/SKILL.md"
     },
@@ -567,6 +567,24 @@
       "bytes": 2900,
       "modo": "644",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/memory-manager/scripts/rotar-indice.py"
+    },
+    ".claude/skills/oferta/SKILL.md": {
+      "sha256": "e886f437a5f7841e4b803b346d3e4a4559801156a92b402a849b847e32724140",
+      "bytes": 9250,
+      "modo": "644",
+      "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/oferta/SKILL.md"
+    },
+    ".claude/skills/oferta/references/piezas.md": {
+      "sha256": "8b93e5761a4ff62575b2aa0780f980a06bbcd59e5742b0871c29693ff397f4ea",
+      "bytes": 21129,
+      "modo": "644",
+      "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/oferta/references/piezas.md"
+    },
+    ".claude/skills/oferta/references/plantilla.md": {
+      "sha256": "118f8148cbc4c8389cc1fc508932d30888c0f4fabb3e025a7fa78462cc77b46e",
+      "bytes": 3144,
+      "modo": "644",
+      "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/oferta/references/plantilla.md"
     },
     ".claude/skills/os-audit/SKILL.md": {
       "sha256": "0df5234a9f3988f5d88ade70becd2ea58fee6f59e2b7a66f79bca05ff3931a64",
@@ -931,20 +949,20 @@
       "origen": "allowlist:enlaces"
     },
     "CAPAS.json": {
-      "sha256": "b6e202eece2537dbf8d13a41beef1f32db9093d44d7c290cf57b021f8d33382b",
-      "bytes": 1408,
+      "sha256": "67526fd44d5f19986b4f95126c507f375941b6b11f4365247fe5bdf560c22ab8",
+      "bytes": 1422,
       "modo": "644",
       "origen": "distribucion:CAPAS.json"
     },
     "CHANGELOG.md": {
-      "sha256": "89a759514458ad215eae7165b743e81c16a16984cb10e27cf3e0b6dceb6c4fdd",
-      "bytes": 73179,
+      "sha256": "2e5e733c595feadc82b4556deec0bbc737674e255c8bb307ac2a4728b7a4ec7d",
+      "bytes": 76360,
       "modo": "644",
       "origen": "distribucion:CHANGELOG.md"
     },
     "CLAUDE.md": {
-      "sha256": "b11010eb45a4745d66ccd804374da6cf62fdc3004c9d6aead4251a6658f1a195",
-      "bytes": 15657,
+      "sha256": "4dbf3b7d6824bb7d11d39f77c7613be8b870092c6d07252fa0f3b1e14b720757",
+      "bytes": 15659,
       "modo": "644",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/CLAUDE.plantilla.md"
     },
@@ -991,7 +1009,7 @@
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/TELEFONO.plantilla.md"
     },
     "VERSION": {
-      "sha256": "4ce70733152daba047916c32d0f6671601a34c45272c34a50c886235652d9c25",
+      "sha256": "575319fa2b37e219385d7c031940542506ddc44da5421e9ea749b7b66e4d5822",
       "bytes": 7,
       "modo": "644",
       "origen": "distribucion:VERSION"
@@ -1331,6 +1349,60 @@
       "bytes": 449,
       "modo": "644",
       "origen": "arbrain/components.json"
+    },
+    "arbrain/docs/bi/README.md": {
+      "sha256": "5367fbdeb638c40ca358cf7cc50af185be33957939b788a21b07b62f57d1d8d3",
+      "bytes": 10953,
+      "modo": "644",
+      "origen": "arbrain/docs/bi/README.md"
+    },
+    "arbrain/docs/bi/ejemplo/bi-fuentes.json": {
+      "sha256": "8834ec25dc4e877baac85222469a77bd4a03b53522f7d5a0901246cc20b6bbf3",
+      "bytes": 1723,
+      "modo": "644",
+      "origen": "arbrain/docs/bi/ejemplo/bi-fuentes.json"
+    },
+    "arbrain/docs/bi/ejemplo/bi.json": {
+      "sha256": "41e9ce76b00e463bb8bd6fd0cff08b68554541476f6bc30a77a7b3e9d9531042",
+      "bytes": 2014,
+      "modo": "644",
+      "origen": "arbrain/docs/bi/ejemplo/bi.json"
+    },
+    "arbrain/docs/bi/ejemplo/datos/gastos.csv": {
+      "sha256": "7825c8a6b6c193d038e10a1d3994e15297b8b84acd926175ba3c5a0d498feb07",
+      "bytes": 4034,
+      "modo": "644",
+      "origen": "arbrain/docs/bi/ejemplo/datos/gastos.csv"
+    },
+    "arbrain/docs/bi/ejemplo/datos/interesados.csv": {
+      "sha256": "5ee561b0b07c6bcff2421c4a1fbcc03b2a794d8e89d890a9bfe2ca8978daeef1",
+      "bytes": 19860,
+      "modo": "644",
+      "origen": "arbrain/docs/bi/ejemplo/datos/interesados.csv"
+    },
+    "arbrain/docs/bi/ejemplo/datos/ventas.csv": {
+      "sha256": "6b4828085dec29369f3305b34a30f005eaa47416dfd70dd502d9f185df51c74a",
+      "bytes": 335248,
+      "modo": "644",
+      "origen": "arbrain/docs/bi/ejemplo/datos/ventas.csv"
+    },
+    "arbrain/docs/bi/ejemplo/embudo.json": {
+      "sha256": "a1aebde29107be3d2576e2d757843e2363bc62f21fd6ac2a7f267906a31319f7",
+      "bytes": 5010,
+      "modo": "644",
+      "origen": "arbrain/docs/bi/ejemplo/embudo.json"
+    },
+    "arbrain/docs/bi/ejemplo/generar.mjs": {
+      "sha256": "dd6f15f154690c08301fb446a73c51af3265a9df924a93a08575849a25ec34a2",
+      "bytes": 4618,
+      "modo": "644",
+      "origen": "arbrain/docs/bi/ejemplo/generar.mjs"
+    },
+    "arbrain/docs/bi/ejemplo/voz-del-cliente.json": {
+      "sha256": "5ab9db6f12081fa26ea1137105a4d82674fa42de9693043484cae1ad4345efba",
+      "bytes": 1458,
+      "modo": "644",
+      "origen": "arbrain/docs/bi/ejemplo/voz-del-cliente.json"
     },
     "arbrain/docs/embudo/README.md": {
       "sha256": "d95fcb3959aa78940e011580b0eeb406b47e5810d52770ac557858e943bed026",
@@ -3253,8 +3325,8 @@
       "origen": "arbrain/scripts/actualizar.mjs"
     },
     "arbrain/scripts/bi.ts": {
-      "sha256": "5ccf70ba2e6166dbea42597e614a9e6d944980ea6282fd109bb861d66a28041a",
-      "bytes": 6148,
+      "sha256": "e8837534dc64aadb3f154d5261aadd1eee7dc093d7109ba783da45a241a50401",
+      "bytes": 11929,
       "modo": "644",
       "origen": "arbrain/scripts/bi.ts"
     },
@@ -4081,13 +4153,13 @@
       "origen": "arbrain/server/manos-windows/src/ManosWindows.cs"
     },
     "arbrain/server/package-lock.json": {
-      "sha256": "952b3a7f81b12397fe97c2d47f2fd05e2576c02778e2cf3ca05ee6b4542dea48",
-      "bytes": 164514,
+      "sha256": "11331a61ed45ad3acbb25516205aed9aa750a59b442f915e9771b95fef7dd70c",
+      "bytes": 164515,
       "modo": "644",
       "origen": "arbrain/server/package-lock.json"
     },
     "arbrain/server/package.json": {
-      "sha256": "33d4c990b3342047dad5102d39fc54fd1d816cb970993147f4367f3cf2bd68aa",
+      "sha256": "c4d25ab7994c76ba15b50519a269205b9a3debab983519bd839ac12d9908f7d5",
       "bytes": 1049,
       "modo": "644",
       "origen": "arbrain/server/package.json"
@@ -4117,8 +4189,8 @@
       "origen": "plantilla:servidores.json"
     },
     "arbrain/server/src/agent.ts": {
-      "sha256": "80ae66c76f97939c20837690e35b016afdf460f417d01709784bc1f1f27aca20",
-      "bytes": 93662,
+      "sha256": "8baf650f922f34c548ff68b95aaa3f8e69e723260db9c16147b73aae6347a9a4",
+      "bytes": 93716,
       "modo": "644",
       "origen": "arbrain/server/src/agent.ts"
     },
@@ -4243,8 +4315,8 @@
       "origen": "arbrain/server/src/cabina/archivero.test.ts"
     },
     "arbrain/server/src/cabina/archivero.ts": {
-      "sha256": "d9051db616c9f9db0803be0d97b151ff68e99a728f4d5365d51f32d337e9d8d1",
-      "bytes": 11283,
+      "sha256": "4db5ccfc36537160520b386fa769f83659826b9d8c415a05b5e05ede885440cb",
+      "bytes": 11309,
       "modo": "644",
       "origen": "arbrain/server/src/cabina/archivero.ts"
     },
@@ -4273,8 +4345,8 @@
       "origen": "arbrain/server/src/cabina/aviso-subagentes.ts"
     },
     "arbrain/server/src/cabina/ayuda.ts": {
-      "sha256": "a18733214ee0938ab72238b764f182ce794c7daab8adf76df37dce0b053de48a",
-      "bytes": 49519,
+      "sha256": "39b9b24c51cde6da73ba43ce2f7d9058b269bc4bbc0a4df4a4e60e3052667277",
+      "bytes": 54794,
       "modo": "644",
       "origen": "arbrain/server/src/cabina/ayuda.ts"
     },
@@ -4729,14 +4801,14 @@
       "origen": "arbrain/server/src/cabina/negocio.ts"
     },
     "arbrain/server/src/cabina/panel-ajustes.test.ts": {
-      "sha256": "450e5bbab617d2dba9cd6fbdc16228dcf26526539d83eff94476cf4f2553c930",
-      "bytes": 11805,
+      "sha256": "abab92f4be9cb66a32686aa2282a714903471d4d07e8d7bdd6282d31a047d9fd",
+      "bytes": 11819,
       "modo": "644",
       "origen": "arbrain/server/src/cabina/panel-ajustes.test.ts"
     },
     "arbrain/server/src/cabina/panel-ajustes.ts": {
-      "sha256": "e9f80c4d10b1130e0036db35a50f2838050ec37985c6c2ff2ddc51bfc011695a",
-      "bytes": 10504,
+      "sha256": "a1c1a8a3fded2f55952c584bd5e1f58a4bc985ebd0036cebaece1c97b967133d",
+      "bytes": 10544,
       "modo": "644",
       "origen": "arbrain/server/src/cabina/panel-ajustes.ts"
     },
@@ -4891,14 +4963,14 @@
       "origen": "arbrain/server/src/cabina/telefono.test.ts"
     },
     "arbrain/server/src/cabina/telefono.ts": {
-      "sha256": "a67d1e20fa0807397fa2fc994b89af8910de09868ef159c510629bbf8ca9b57c",
-      "bytes": 4225,
+      "sha256": "c81ac9b4f4f02525b0260ae28e5e5a2be977db889ae3b0c2576a4d59762b1a48",
+      "bytes": 4251,
       "modo": "644",
       "origen": "arbrain/server/src/cabina/telefono.ts"
     },
     "arbrain/server/src/cabina/textos-cliente.test.ts": {
-      "sha256": "38fa23365858726cbd3bc7cf27bb8388686970a34d31310835898855c3cd0925",
-      "bytes": 7609,
+      "sha256": "74dad8d3ad36a08ad88e869398c59323d423e72f64c524bffd2a67460cc9c230",
+      "bytes": 7893,
       "modo": "644",
       "origen": "arbrain/server/src/cabina/textos-cliente.test.ts"
     },
@@ -4909,8 +4981,8 @@
       "origen": "arbrain/server/src/cabina/tools.test.ts"
     },
     "arbrain/server/src/cabina/tools.ts": {
-      "sha256": "bf58a416ae4c1b08121eb57ad3f53bb21f1a5fa990331be083e7eaa53475290b",
-      "bytes": 59622,
+      "sha256": "2f6c24aeea05c9cf931027f92035ebb68f2c0f1adc46e55deecb504314ca7366",
+      "bytes": 59946,
       "modo": "644",
       "origen": "arbrain/server/src/cabina/tools.ts"
     },
@@ -5119,8 +5191,8 @@
       "origen": "arbrain/server/src/chat-runtime/claude-session.test.ts"
     },
     "arbrain/server/src/chat-runtime/claude-session.ts": {
-      "sha256": "8f320e38df4ab6a76aa4207a44c0f529e7311eec0024d49202a79690747f7761",
-      "bytes": 27992,
+      "sha256": "7b6bea81a95fb53732c865d76d4eb380a3b8cefd1cea76762360b857fb6f852a",
+      "bytes": 28569,
       "modo": "644",
       "origen": "arbrain/server/src/chat-runtime/claude-session.ts"
     },
@@ -7081,8 +7153,8 @@
       "origen": "arbrain/server/src/modelos/catalogo.test.ts"
     },
     "arbrain/server/src/modelos/catalogo.ts": {
-      "sha256": "021f7185d5c6de00473d194b164410bd67a7908a57d026388521eb19c1ea8b3c",
-      "bytes": 14894,
+      "sha256": "968262e6a3d2c9a12a6f380d39ff4fd28a582a69f44e3e026a2670feab52c634",
+      "bytes": 15167,
       "modo": "644",
       "origen": "arbrain/server/src/modelos/catalogo.ts"
     },
@@ -7147,8 +7219,8 @@
       "origen": "arbrain/server/src/motor/sfterm/ORIGEN.sha256"
     },
     "arbrain/server/src/motor/sfterm/msgs.ts": {
-      "sha256": "26777c775868659da25973897b7dc51eb4a5a44606fdc42a42463d784973119e",
-      "bytes": 8595,
+      "sha256": "62e895048eb9c154a588af47462ac412a843fa15db4eccf5ea398e69cd37c910",
+      "bytes": 8646,
       "modo": "644",
       "origen": "arbrain/server/src/motor/sfterm/msgs.ts"
     },
@@ -7237,8 +7309,8 @@
       "origen": "arbrain/server/src/security.ts"
     },
     "arbrain/server/src/server.ts": {
-      "sha256": "ba08ce6e51a129c9cda0c212b7019f0cbbaf016866eff7410121633e1257562d",
-      "bytes": 198591,
+      "sha256": "4f81561350f57c6e63f82d854aaad9af0b71ae8754d1b633137aab834088b755",
+      "bytes": 198633,
       "modo": "644",
       "origen": "arbrain/server/src/server.ts"
     },
@@ -7794,6 +7866,12 @@
       "modo": "644",
       "origen": "arbrain/src/app/(main)/equipo/page.tsx"
     },
+    "arbrain/src/app/(main)/estrategia/page.tsx": {
+      "sha256": "142fb1f6390557a8bd05fc694a6abc617add78beacce9c82c0a78ed9188e8e3c",
+      "bytes": 217,
+      "modo": "644",
+      "origen": "arbrain/src/app/(main)/estrategia/page.tsx"
+    },
     "arbrain/src/app/(main)/finanzas/cobros/page.tsx": {
       "sha256": "ae44e4ef9ac8cfa937db2caa336e7c166844ce1dfe5e76a8d3dadc5afd9bd61d",
       "bytes": 418,
@@ -8101,14 +8179,14 @@
       "origen": "arbrain/src/app/api/avisos/route.ts"
     },
     "arbrain/src/app/api/bi/consulta/route.ts": {
-      "sha256": "b63365bf8e43d90bdee8714490930673a05b5823b116bd223b896a9d15533e61",
-      "bytes": 2427,
+      "sha256": "fb508d7d7ea74fe2dea46c1a05f4711056a33d2899d67bf04690148862cd8fcd",
+      "bytes": 2340,
       "modo": "644",
       "origen": "arbrain/src/app/api/bi/consulta/route.ts"
     },
     "arbrain/src/app/api/bi/route.ts": {
-      "sha256": "dec9dc3fbf86d420bcf98ac3a8584ed3a89ca40de56e01252fbefe08ed6db52a",
-      "bytes": 4518,
+      "sha256": "e0b1aecf04dcec50915a5357640fd849d593f0048e9bb323af8f77c3e16ede2d",
+      "bytes": 5098,
       "modo": "644",
       "origen": "arbrain/src/app/api/bi/route.ts"
     },
@@ -8983,16 +9061,22 @@
       "origen": "arbrain/src/app/api/monitoreo/route.ts"
     },
     "arbrain/src/app/api/negocio/comprador/route.ts": {
-      "sha256": "dc4435110b2e6e401f03361443165732d6f41e26b983a0acc1d2e2968c53bc29",
-      "bytes": 3036,
+      "sha256": "8a0120e32e56d2b3a1faaa430d46adeac0eddbb3c7c39b568440a9a6b323258b",
+      "bytes": 3430,
       "modo": "644",
       "origen": "arbrain/src/app/api/negocio/comprador/route.ts"
     },
     "arbrain/src/app/api/negocio/embudo/route.ts": {
-      "sha256": "f8364762dccdf91b3ae5ca17fe964fcc886a78aa03269c367857ec41cef014f3",
-      "bytes": 3606,
+      "sha256": "8fe38a18340178baefb62c924ec3403a2d31966f4641c0fbfd604ea64e050bc3",
+      "bytes": 3598,
       "modo": "644",
       "origen": "arbrain/src/app/api/negocio/embudo/route.ts"
+    },
+    "arbrain/src/app/api/negocio/estrategia/route.ts": {
+      "sha256": "42b9f941837a614f6c99e6ee0732079e6e0b7d1c38948322b22f43569cf136e2",
+      "bytes": 2775,
+      "modo": "644",
+      "origen": "arbrain/src/app/api/negocio/estrategia/route.ts"
     },
     "arbrain/src/app/api/negocio/marketing/route.ts": {
       "sha256": "13dc0cf423e5055f193d263a0697a5345324c4ff2757c3a5eb1a26adfcde1265",
@@ -9541,8 +9625,8 @@
       "origen": "arbrain/src/features/avisos/server.ts"
     },
     "arbrain/src/features/bi/BusinessIntelligence.tsx": {
-      "sha256": "a24a0dc25ec9d5ce6eaee43e7489231cbbccef3a8b73e81ff036bbc11649c25d",
-      "bytes": 23349,
+      "sha256": "f4cb21453641885662703e7057d44958725884c5bf691b5cc46e7942be8ce613",
+      "bytes": 28107,
       "modo": "644",
       "origen": "arbrain/src/features/bi/BusinessIntelligence.tsx"
     },
@@ -9553,28 +9637,76 @@
       "origen": "arbrain/src/features/bi/Cauce.tsx"
     },
     "arbrain/src/features/bi/Graficas.tsx": {
-      "sha256": "918d93fdda068451f6accc30130cbc16961538c02811c13c0741bcf3d4468881",
-      "bytes": 14407,
+      "sha256": "7f4db419e1aabe95d8255e5e8f19c39d891056683b9b4e4606717f265aa580d7",
+      "bytes": 14561,
       "modo": "644",
       "origen": "arbrain/src/features/bi/Graficas.tsx"
     },
+    "arbrain/src/features/bi/autor/catalogo.ts": {
+      "sha256": "b36a8fc4eb4313df051029404ef3304ca65116804bc8dd6ba396c6f5f25703dc",
+      "bytes": 406,
+      "modo": "644",
+      "origen": "plantilla-g:arbrain/empaquetado/plantillas/arbrain/src/features/bi/autor/catalogo.ts"
+    },
+    "arbrain/src/features/bi/autor/servidor.ts": {
+      "sha256": "6179ed630d6992dbb9b77cb164a65ccc3a4e98f8cb74f253be95293f2b102127",
+      "bytes": 485,
+      "modo": "644",
+      "origen": "plantilla-g:arbrain/empaquetado/plantillas/arbrain/src/features/bi/autor/servidor.ts"
+    },
     "arbrain/src/features/bi/bi.module.css": {
-      "sha256": "e317f571fdc14fdf65a6ca1ac510ebeaa17f947194f791833fda13e02a3aa703",
-      "bytes": 23877,
+      "sha256": "d3873946f61e3913752105308edeb0e278d6e0bf8d833bc2fdf69bd2699d7a30",
+      "bytes": 25512,
       "modo": "644",
       "origen": "arbrain/src/features/bi/bi.module.css"
     },
+    "arbrain/src/features/bi/calculo.ts": {
+      "sha256": "8bdd428481d2f6b3db1e0d2d346ed6edbf2182bb40d92d221547f457090d014c",
+      "bytes": 13585,
+      "modo": "644",
+      "origen": "arbrain/src/features/bi/calculo.ts"
+    },
     "arbrain/src/features/bi/catalogo.ts": {
-      "sha256": "0efa748d29775d3c1fde69e38855deaddd81b28020e269c48c409a01899e6574",
-      "bytes": 14496,
+      "sha256": "a5a931e26b24f1572db31094db38b3ddf92bc8b26f7c5272ee9855c7e3da2452",
+      "bytes": 5737,
       "modo": "644",
       "origen": "arbrain/src/features/bi/catalogo.ts"
     },
     "arbrain/src/features/bi/fuente.tsx": {
-      "sha256": "39551a7218a568033f79ce20c281e08e2d331e99a9ccb3567dfc059cef1b3673",
-      "bytes": 3779,
+      "sha256": "66a20b24aa52bfd9dc359f9240b30978a93e552bd47682b64ecba09fc4f8837f",
+      "bytes": 4272,
       "modo": "644",
       "origen": "arbrain/src/features/bi/fuente.tsx"
+    },
+    "arbrain/src/features/bi/fuentes/csv.ts": {
+      "sha256": "f04fb28cb2301deb79d6bb53ab5f66fe0d3196c0742705ff87d56d9a54da8a80",
+      "bytes": 2705,
+      "modo": "644",
+      "origen": "arbrain/src/features/bi/fuentes/csv.ts"
+    },
+    "arbrain/src/features/bi/fuentes/leer.ts": {
+      "sha256": "6e80c673fb0a59fd0f385b5c5fe65d46f975a3e719a3a969e0961d47575ba131",
+      "bytes": 8772,
+      "modo": "644",
+      "origen": "arbrain/src/features/bi/fuentes/leer.ts"
+    },
+    "arbrain/src/features/bi/fuentes/pg.ts": {
+      "sha256": "0e4c5d4d856dd56b9eb34f6792090781ea2c8e566a7b6aea692e599158b4e279",
+      "bytes": 17867,
+      "modo": "644",
+      "origen": "arbrain/src/features/bi/fuentes/pg.ts"
+    },
+    "arbrain/src/features/bi/fuentes/xlsx.ts": {
+      "sha256": "635576783e5bfab5bd5eb4c21f11fd72452a9ef0bd7b881c553d59ff6d8b4415",
+      "bytes": 13887,
+      "modo": "644",
+      "origen": "arbrain/src/features/bi/fuentes/xlsx.ts"
+    },
+    "arbrain/src/features/bi/generico.ts": {
+      "sha256": "769f10095fea853ce56a72339c562763d0fc187f2d414a48b396a8b861a0f22b",
+      "bytes": 23739,
+      "modo": "644",
+      "origen": "arbrain/src/features/bi/generico.ts"
     },
     "arbrain/src/features/bi/graficas.module.css": {
       "sha256": "1cd2250322512dc25bc0fe61043bce87a318978fcc255497fe5e451ac7900b0f",
@@ -9582,29 +9714,23 @@
       "modo": "644",
       "origen": "arbrain/src/features/bi/graficas.module.css"
     },
-    "arbrain/src/features/bi/iniciales.ts": {
-      "sha256": "2120776aea8f3691462d8e6a0d6904767b20e4eeedb775e91393ae7a531bb84b",
-      "bytes": 1496,
-      "modo": "644",
-      "origen": "arbrain/src/features/bi/iniciales.ts"
-    },
     "arbrain/src/features/bi/modelo.ts": {
-      "sha256": "31584167eba8fbd86cb32f1a9758ba6b6e0cb383bf822b9d0206601495827bdd",
-      "bytes": 28703,
+      "sha256": "f5419ac41d792409cc23a15107e4ca72f617e8b0d792ab3406bba6e6e929470e",
+      "bytes": 29363,
       "modo": "644",
       "origen": "arbrain/src/features/bi/modelo.ts"
     },
+    "arbrain/src/features/bi/motor.ts": {
+      "sha256": "abc527a78932ce479e5d2ee1c7f92cfe881212d49fdbddc3612675e0cc80d38c",
+      "bytes": 4046,
+      "modo": "644",
+      "origen": "arbrain/src/features/bi/motor.ts"
+    },
     "arbrain/src/features/bi/servidor.ts": {
-      "sha256": "001caa7e0806a736a19305ed0f2feb5487a11992f49a1160be1b5ab4e125fad2",
-      "bytes": 18890,
+      "sha256": "068a36f540adde78f552e63a977676bf19089cb43b16d9e012b5b0251b6bedb1",
+      "bytes": 2709,
       "modo": "644",
       "origen": "arbrain/src/features/bi/servidor.ts"
-    },
-    "arbrain/src/features/bi/simulado.ts": {
-      "sha256": "1be58a6d1cb652c1d0b72741045021b9528c2ed33c0b9371ab02703d5be02e5c",
-      "bytes": 7211,
-      "modo": "644",
-      "origen": "arbrain/src/features/bi/simulado.ts"
     },
     "arbrain/src/features/bi/voz.ts": {
       "sha256": "d523275016e3a716ca01b1cd75f55f88a7b140076be930f7188a14c93d013f36",
@@ -9619,8 +9745,8 @@
       "origen": "arbrain/src/features/business/components/PolarHealthChip.tsx"
     },
     "arbrain/src/features/cabina/Cabina.tsx": {
-      "sha256": "28855ca5421b0edfb4a43a099a6fd4d91da9fe88694b67a283f7513da4cfa3f4",
-      "bytes": 34520,
+      "sha256": "704c3ea7605ee06259ab8ddabbcb0ee4fdce023553bbdc59eacb749188fbc893",
+      "bytes": 34807,
       "modo": "644",
       "origen": "arbrain/src/features/cabina/Cabina.tsx"
     },
@@ -9781,8 +9907,8 @@
       "origen": "arbrain/src/features/cabina/luz.module.css"
     },
     "arbrain/src/features/cabina/model.ts": {
-      "sha256": "29f7d168694a958a3ecde499d101e0338de26f9945447dac0969f6f19625f301",
-      "bytes": 19123,
+      "sha256": "671cffb6f513876f9f437347d1d549be35b3d1142de0802a8624324c3aefeab8",
+      "bytes": 19449,
       "modo": "644",
       "origen": "arbrain/src/features/cabina/model.ts"
     },
@@ -9913,8 +10039,8 @@
       "origen": "arbrain/src/features/cabina/panel/ResponderAgente.tsx"
     },
     "arbrain/src/features/cabina/panel/Secciones.tsx": {
-      "sha256": "50dc31c852edf78973eab215994291b57b629050d4b6edad02c7eae91e5273a9",
-      "bytes": 25246,
+      "sha256": "4ce445cac3cb7114cecb024087d17fbb66d9b4f2998838b4be2eb0b66f040c2a",
+      "bytes": 25468,
       "modo": "644",
       "origen": "arbrain/src/features/cabina/panel/Secciones.tsx"
     },
@@ -10051,14 +10177,14 @@
       "origen": "arbrain/src/features/cabina/panel/cola-memoria.module.css"
     },
     "arbrain/src/features/cabina/panel/compartido-puro.ts": {
-      "sha256": "262cd104fb4fb0328085e9b6f2a7d3bd2495574305c26b4f81af035ab61ac8db",
-      "bytes": 6450,
+      "sha256": "36bd88a9b58caf388695a9cf9fc41f7d4a548167fbdc42dea78003933aad06c0",
+      "bytes": 9145,
       "modo": "644",
       "origen": "arbrain/src/features/cabina/panel/compartido-puro.ts"
     },
     "arbrain/src/features/cabina/panel/compartido.ts": {
-      "sha256": "74218997451c65d5ff1dfa46ef6d847ff22903bcf1b6f657a69a75af9fb464d1",
-      "bytes": 4455,
+      "sha256": "9e6b1e328a7444895a4c4720908f3c2be98cff256a16553dae46ccb11473e9f5",
+      "bytes": 4697,
       "modo": "644",
       "origen": "arbrain/src/features/cabina/panel/compartido.ts"
     },
@@ -10123,8 +10249,8 @@
       "origen": "arbrain/src/features/cabina/panel/fantasma.ts"
     },
     "arbrain/src/features/cabina/panel/fijadas.ts": {
-      "sha256": "3a98b9dcdab1b5fb35b0cd784a30cb4bb2234d7c8997b8798c8a96d8efa0f9f1",
-      "bytes": 27178,
+      "sha256": "e68f3f66901d4f66586f8e4a767f9701f9c649c3f7da3d0707151ed54288b9eb",
+      "bytes": 29385,
       "modo": "644",
       "origen": "arbrain/src/features/cabina/panel/fijadas.ts"
     },
@@ -10165,8 +10291,8 @@
       "origen": "arbrain/src/features/cabina/panel/internas.module.css"
     },
     "arbrain/src/features/cabina/panel/menu-orden.ts": {
-      "sha256": "1c3da91ac3835907292e4bf5c62dce655d457a4194b822dcddd9efaa4c3cec71",
-      "bytes": 6602,
+      "sha256": "3db746c29fb679501e65d094351477c3745aba440c573187a8b1e33cbf0d9e94",
+      "bytes": 6616,
       "modo": "644",
       "origen": "arbrain/src/features/cabina/panel/menu-orden.ts"
     },
@@ -10213,8 +10339,8 @@
       "origen": "arbrain/src/features/cabina/panel/pendientes.ts"
     },
     "arbrain/src/features/cabina/panel/pestanas-fuera.ts": {
-      "sha256": "8084a9a89c27b6a1a5574982ec4c7e55e042cf0e2d01fce6f49200d0ef053644",
-      "bytes": 9423,
+      "sha256": "1a4f02e7aee10aef9b7c9bd1620852e249fd1fdf215798599a7030311bf47312",
+      "bytes": 10054,
       "modo": "644",
       "origen": "arbrain/src/features/cabina/panel/pestanas-fuera.ts"
     },
@@ -10303,8 +10429,8 @@
       "origen": "arbrain/src/features/cabina/panel/telefono-logica.ts"
     },
     "arbrain/src/features/cabina/panel/telefono-pestanas.ts": {
-      "sha256": "5aa5e95dbcd504c9ff39bbf32df008d74506442126b183fd565b515ac2c063f1",
-      "bytes": 8689,
+      "sha256": "2731866bfd1849399ebfbcc0035e33213e0cf3f87815a12060aa79e5663494bc",
+      "bytes": 8096,
       "modo": "644",
       "origen": "arbrain/src/features/cabina/panel/telefono-pestanas.ts"
     },
@@ -10464,6 +10590,18 @@
       "modo": "644",
       "origen": "arbrain/src/features/cabina/vistas/EquipoSeccion.tsx"
     },
+    "arbrain/src/features/cabina/vistas/Estrategia.tsx": {
+      "sha256": "714af74f717c3685159a7e7f693fde8287cd9479a3410028c2eeb81b63353ddf",
+      "bytes": 320,
+      "modo": "644",
+      "origen": "arbrain/src/features/cabina/vistas/Estrategia.tsx"
+    },
+    "arbrain/src/features/cabina/vistas/EstrategiaSeccion.tsx": {
+      "sha256": "2d6ef215798130deb3889ca418ac99bd28558b553a670efd9e989b9b43cb313a",
+      "bytes": 452,
+      "modo": "644",
+      "origen": "arbrain/src/features/cabina/vistas/EstrategiaSeccion.tsx"
+    },
     "arbrain/src/features/cabina/vistas/Explorador.tsx": {
       "sha256": "2cb6c9c50221155160115c2f04e6047d821a42cea2b92f0e134daf2051405201",
       "bytes": 21965,
@@ -10501,8 +10639,8 @@
       "origen": "arbrain/src/features/cabina/vistas/Memoria.tsx"
     },
     "arbrain/src/features/cabina/vistas/Negocio.tsx": {
-      "sha256": "9d871b00376dd4bfde31c4b242e7492de0e0212eaf38416a2e2d62647504d64e",
-      "bytes": 6069,
+      "sha256": "82ba4c76cc9196d32a7b25c42268a63231cdc76310f5b88032acbc2a177cc46f",
+      "bytes": 6351,
       "modo": "644",
       "origen": "arbrain/src/features/cabina/vistas/Negocio.tsx"
     },
@@ -11503,8 +11641,8 @@
       "origen": "arbrain/src/features/chat/components/ChatDraftStatus.tsx"
     },
     "arbrain/src/features/chat/components/ChatPanel.tsx": {
-      "sha256": "5524e23514fc08b7d84388e8101826503dc523223550f81ae637ef5265910555",
-      "bytes": 209319,
+      "sha256": "128c61f5ff554ccccf39c6d78fa3748d7dd6b8da97d4aead967518fa60df2bab",
+      "bytes": 208950,
       "modo": "644",
       "origen": "arbrain/src/features/chat/components/ChatPanel.tsx"
     },
@@ -11755,8 +11893,8 @@
       "origen": "arbrain/src/features/chat/components/RelojTurno.tsx"
     },
     "arbrain/src/features/chat/components/SessionItem.tsx": {
-      "sha256": "d20f151fe34426d7f6fbae3a67162140fbea9b902173ef6b0b6dd28309cf2b8c",
-      "bytes": 5667,
+      "sha256": "163f211461c66c04137cc9d07cb6b3c57c900ad0203250d53e766b7053a32eca",
+      "bytes": 6042,
       "modo": "644",
       "origen": "arbrain/src/features/chat/components/SessionItem.tsx"
     },
@@ -11887,8 +12025,8 @@
       "origen": "arbrain/src/features/chat/hooks/useChat.ts"
     },
     "arbrain/src/features/chat/hooks/useChatHistory.ts": {
-      "sha256": "6d24dbcfb9f8a3ce1ad4f3a8159b25c95f54b0244308785002e8362e9ebf32bb",
-      "bytes": 27705,
+      "sha256": "4b534fe3b5bef9f591edd9464671e368f552ea7ad591a05314d758fa5ceb5bb7",
+      "bytes": 28093,
       "modo": "644",
       "origen": "arbrain/src/features/chat/hooks/useChatHistory.ts"
     },
@@ -12017,6 +12155,12 @@
       "bytes": 3503,
       "modo": "644",
       "origen": "arbrain/src/features/chat/lib/contexto-conversacion.ts"
+    },
+    "arbrain/src/features/chat/lib/conversacion-al-abrir.ts": {
+      "sha256": "b8809ee879c8561659b3b1cca34fbf01846845d368ad7eceb76a5d812ac6f90a",
+      "bytes": 1671,
+      "modo": "644",
+      "origen": "arbrain/src/features/chat/lib/conversacion-al-abrir.ts"
     },
     "arbrain/src/features/chat/lib/conversacion-bifurcada.ts": {
       "sha256": "7fe547aaf30cbe77939cc03f26f1350acf4204b44e5d36f45abbbd3a0c4b1149",
@@ -12457,8 +12601,8 @@
       "origen": "arbrain/src/features/chat/stores/command-store.ts"
     },
     "arbrain/src/features/chat/stores/model-store.ts": {
-      "sha256": "210eee2ca0071a2e3b0f02afce92aeb834a443db4f47047081de076efc59618f",
-      "bytes": 1558,
+      "sha256": "d1b98e57a7a3045c838f2df749e0268c6217c81b08c15e514ea54e1530134bb0",
+      "bytes": 1593,
       "modo": "644",
       "origen": "arbrain/src/features/chat/stores/model-store.ts"
     },
@@ -13609,8 +13753,8 @@
       "origen": "arbrain/src/features/modo-directo/ModoDirecto.tsx"
     },
     "arbrain/src/features/negocio/ElPulso.tsx": {
-      "sha256": "5e9b9ef261100cd858b7b4b83058892e8eeb5d7aa620bdd321d11093bae673f0",
-      "bytes": 15961,
+      "sha256": "c62d5ad191533266d2600dbb363710af48bd2dc25c7e5e20b32939d20a2f301a",
+      "bytes": 16807,
       "modo": "644",
       "origen": "arbrain/src/features/negocio/ElPulso.tsx"
     },
@@ -13626,17 +13770,53 @@
       "modo": "644",
       "origen": "arbrain/src/features/negocio/PanelEmbudo.tsx"
     },
+    "arbrain/src/features/negocio/SeccionEstrategia.tsx": {
+      "sha256": "9472c120e95239088e7145a5ba3c4024393dc14d547fb823cc2bf19c3c599f5b",
+      "bytes": 38795,
+      "modo": "644",
+      "origen": "arbrain/src/features/negocio/SeccionEstrategia.tsx"
+    },
     "arbrain/src/features/negocio/SkillsPorEtapa.tsx": {
       "sha256": "9f0f7a93f7bf78288fbea4af720cdeffa942c4b375f3cccb3946228791064c3b",
       "bytes": 4548,
       "modo": "644",
       "origen": "arbrain/src/features/negocio/SkillsPorEtapa.tsx"
     },
+    "arbrain/src/features/negocio/TarjetaEstrategia.tsx": {
+      "sha256": "5c8c80e7f32b790de6a29cfbb1a4faefff6d5e6a32620ad81d8f7dd273de2701",
+      "bytes": 6489,
+      "modo": "644",
+      "origen": "arbrain/src/features/negocio/TarjetaEstrategia.tsx"
+    },
     "arbrain/src/features/negocio/embudo.ts": {
-      "sha256": "7a24a4e69a64905a180bfa416172acbde6644988fd826cb701a45a9f597e7908",
-      "bytes": 18329,
+      "sha256": "b93280a1c2eebc7670ac43dfae00d12df26dc7e7e7f89a155ddaf4fd40caef6a",
+      "bytes": 18724,
       "modo": "644",
       "origen": "arbrain/src/features/negocio/embudo.ts"
+    },
+    "arbrain/src/features/negocio/estrategia-panel.module.css": {
+      "sha256": "edc0a6e9b3caf8db8d88ec2c521aa41218fd10bbe4bc7d89790881e8b747d49a",
+      "bytes": 17068,
+      "modo": "644",
+      "origen": "arbrain/src/features/negocio/estrategia-panel.module.css"
+    },
+    "arbrain/src/features/negocio/estrategia-seccion.module.css": {
+      "sha256": "1b644dc09ebf455a175afd2f1990248e6fea481e7e4c5e14d4ba769fcac3766f",
+      "bytes": 15558,
+      "modo": "644",
+      "origen": "arbrain/src/features/negocio/estrategia-seccion.module.css"
+    },
+    "arbrain/src/features/negocio/estrategia.module.css": {
+      "sha256": "c5d3ca99223f6c040afe1e6a5a6b227c41b51292e42b9db69f078725d4c00311",
+      "bytes": 9542,
+      "modo": "644",
+      "origen": "arbrain/src/features/negocio/estrategia.module.css"
+    },
+    "arbrain/src/features/negocio/estrategia.ts": {
+      "sha256": "da9b3af7346fb8a3df33d7201f030ccfb832cb306f1c32ab8a84e398873e1206",
+      "bytes": 25983,
+      "modo": "644",
+      "origen": "arbrain/src/features/negocio/estrategia.ts"
     },
     "arbrain/src/features/negocio/grafo.ts": {
       "sha256": "222be76e15196c42ca44db3a40d9f41aec563355fda9aa6b9894fb44d7037125",
@@ -13662,6 +13842,12 @@
       "modo": "644",
       "origen": "arbrain/src/features/negocio/panel-embudo.module.css"
     },
+    "arbrain/src/features/negocio/pulso-cliente.ts": {
+      "sha256": "fe468a34a38e0ee2653a5e97c83200f3507d767546656364352ec3a944c6e7c6",
+      "bytes": 6552,
+      "modo": "644",
+      "origen": "arbrain/src/features/negocio/pulso-cliente.ts"
+    },
     "arbrain/src/features/negocio/pulso.module.css": {
       "sha256": "e47a9af613b5f2866343696e5bbb12e16aae92f8a016d1403003c8d49b0ec066",
       "bytes": 17118,
@@ -13669,10 +13855,16 @@
       "origen": "arbrain/src/features/negocio/pulso.module.css"
     },
     "arbrain/src/features/negocio/pulso.ts": {
-      "sha256": "43d98796c2c47e3170e96ade60a06d9fe4ed4d294f081a54fb9218abd648f118",
-      "bytes": 19428,
+      "sha256": "10c19bbdb5ed27eb9be4770ed9a697e77fd078ca54d12759a19a1587f75d3854",
+      "bytes": 19883,
       "modo": "644",
       "origen": "arbrain/src/features/negocio/pulso.ts"
+    },
+    "arbrain/src/features/negocio/usePulsosCliente.ts": {
+      "sha256": "d867c3a1d6d5e7ee54b4b355feb5d9aff7e45f9bd76855fdd3c04797f2bb2c5d",
+      "bytes": 2268,
+      "modo": "644",
+      "origen": "arbrain/src/features/negocio/usePulsosCliente.ts"
     },
     "arbrain/src/features/notifications/components/NotificationBell.tsx": {
       "sha256": "674b0ec145ecbbebfbd723a3afa005f01fa110c577eaff2bdc0a84e4b26b2078",
@@ -14653,14 +14845,14 @@
       "origen": "arbrain/src/features/primer-dia/PrimerDia.tsx"
     },
     "arbrain/src/features/primer-dia/guia.ts": {
-      "sha256": "150e0c6f83efd4a0f9b97be1a7e6826b39fea4209dfab6ba4c93ecd894eb6f40",
-      "bytes": 8214,
+      "sha256": "33c0c5e253c0d6a767422188d6bafb1b9050ac11299483be05d282e6f0e76ea8",
+      "bytes": 8469,
       "modo": "644",
       "origen": "arbrain/src/features/primer-dia/guia.ts"
     },
     "arbrain/src/features/primer-dia/modelo.ts": {
-      "sha256": "4da064237da05ecc86171e57cc3db8e10b38456b52e2157f9eb9327379407c37",
-      "bytes": 13627,
+      "sha256": "a4012cf038d61df1fef48238d0b170a8bb6761e2740a22ee0bacd8622e6c9734",
+      "bytes": 13834,
       "modo": "644",
       "origen": "arbrain/src/features/primer-dia/modelo.ts"
     },
@@ -14671,8 +14863,8 @@
       "origen": "arbrain/src/features/primer-dia/primer-dia.module.css"
     },
     "arbrain/src/features/primer-dia/servidor.ts": {
-      "sha256": "84a4f707f019ac183630c49750ef227565c995ca05204bb29b8532cb5631fa6b",
-      "bytes": 4946,
+      "sha256": "c9d60a0c4f71ab2e8b55a679dffe5eb73c8ed56cbf6846270e4af429eaf4e973",
+      "bytes": 5211,
       "modo": "644",
       "origen": "arbrain/src/features/primer-dia/servidor.ts"
     },
@@ -15289,8 +15481,8 @@
       "origen": "arbrain/src/lib/draw3-auth.ts"
     },
     "arbrain/src/lib/edicion.ts": {
-      "sha256": "1c62ab221f743843ee48a6ddd606f8df06d623cafe8f32608dacbee792cd85e4",
-      "bytes": 13386,
+      "sha256": "5f0a876b2c621e2e9061aa2e1a4656140d30f088b4e8de662002521413018b73",
+      "bytes": 14125,
       "modo": "644",
       "origen": "arbrain/src/lib/edicion.ts"
     },
@@ -15493,8 +15685,8 @@
       "origen": "arbrain/src/lib/notifications.ts"
     },
     "arbrain/src/lib/permissions.ts": {
-      "sha256": "cc977993cfe2dc607f03c40198c8c3be78352ed230d6eafb8d729752fa3c707a",
-      "bytes": 2544,
+      "sha256": "2d3a3f5c2fafcb3b24c89d961e8a5f0843a3a760dc463071f244914028f5aa5c",
+      "bytes": 2572,
       "modo": "644",
       "origen": "arbrain/src/lib/permissions.ts"
     },
@@ -16260,11 +16452,29 @@
       "modo": "644",
       "origen": "arbrain/tests/barra-solo-conversaciones.test.ts"
     },
+    "arbrain/tests/bi/generico.test.ts": {
+      "sha256": "8584df7340198510f5fcfee50da23ff7cc3c7e360684b760a12b843493082957",
+      "bytes": 15791,
+      "modo": "644",
+      "origen": "arbrain/tests/bi/generico.test.ts"
+    },
     "arbrain/tests/bi/modelo.test.ts": {
-      "sha256": "f0e97570c3785e24c8e734ae4d75035f727a5ab38cc4fa6a397c9efc4c969212",
-      "bytes": 10574,
+      "sha256": "b60b14d3a13baf1700cc98fcfef4590962382279e3139244d7ce5b735203728a",
+      "bytes": 7670,
       "modo": "644",
       "origen": "arbrain/tests/bi/modelo.test.ts"
+    },
+    "arbrain/tests/bi/pg.test.ts": {
+      "sha256": "811ffea98ea54d738e10e7255d5f60b96288be70546864933a4ade9e6d7b4f51",
+      "bytes": 14855,
+      "modo": "644",
+      "origen": "arbrain/tests/bi/pg.test.ts"
+    },
+    "arbrain/tests/bi/xlsx.test.ts": {
+      "sha256": "8295063f0a1759bec0a785dca68ea8287616e23693c8bcc5b88f783cbb8c29bc",
+      "bytes": 11949,
+      "modo": "644",
+      "origen": "arbrain/tests/bi/xlsx.test.ts"
     },
     "arbrain/tests/cabina/abrir-carpeta.test.ts": {
       "sha256": "1cb78447905d20df73568b2fd028d5d658a9bc0e17c1605cf45e0d7468b88244",
@@ -16818,6 +17028,12 @@
       "modo": "644",
       "origen": "arbrain/tests/chat/contexto-conversacion.test.ts"
     },
+    "arbrain/tests/chat/conversacion-al-abrir.test.ts": {
+      "sha256": "494325506500b3eb59c1d0622115fac5235de7f7cc242de4887cd68b76d832db",
+      "bytes": 1584,
+      "modo": "644",
+      "origen": "arbrain/tests/chat/conversacion-al-abrir.test.ts"
+    },
     "arbrain/tests/chat/cronologia.test.ts": {
       "sha256": "e085ea64b1d62efacab00971da932a4ea67ca38c7ef2ab29518bfefb36dd289d",
       "bytes": 4034,
@@ -16985,6 +17201,12 @@
       "bytes": 3230,
       "modo": "644",
       "origen": "arbrain/tests/chat/limites-plan.test.ts"
+    },
+    "arbrain/tests/chat/lista-todas-cuentas.test.ts": {
+      "sha256": "0205cb1668a7e154c19bc97d30da86320eb8ea1132ca91762df690fb717d9c2b",
+      "bytes": 1062,
+      "modo": "644",
+      "origen": "arbrain/tests/chat/lista-todas-cuentas.test.ts"
     },
     "arbrain/tests/chat/meta-goal.test.ts": {
       "sha256": "66cb0464ad3b11b87128f0181d30811c2ea9b0f3db3bad55b023b2d07bc0e6f2",
@@ -17737,10 +17959,16 @@
       "origen": "arbrain/tests/modo-directo.test.ts"
     },
     "arbrain/tests/negocio/embudo.test.ts": {
-      "sha256": "436226781848c9e1ef441f4a48399f363af0e8eb181a7a3ba0ff907b0fd4d762",
-      "bytes": 18550,
+      "sha256": "df3d87e5ece300413a9356e286cd3917aa1cd7d4209169ecf35f64bb67180fb3",
+      "bytes": 18907,
       "modo": "644",
       "origen": "arbrain/tests/negocio/embudo.test.ts"
+    },
+    "arbrain/tests/negocio/estrategia.test.ts": {
+      "sha256": "a5e8382f67723f027f37ab031b1395ef4d75a83bd61153026ce97388db0bc75a",
+      "bytes": 14200,
+      "modo": "644",
+      "origen": "arbrain/tests/negocio/estrategia.test.ts"
     },
     "arbrain/tests/negocio/grafo.test.ts": {
       "sha256": "2745b84d00419a8f114d83a2b467c93aa2260b2873e10ad0785dba3e3aae2738",
@@ -17755,8 +17983,8 @@
       "origen": "arbrain/tests/negocio/marketing.test.ts"
     },
     "arbrain/tests/negocio/pulso.test.ts": {
-      "sha256": "aea95473654fd6529aaa5d06ad1b0adb4be561886648c89566fd7bcc9e18d04f",
-      "bytes": 13315,
+      "sha256": "e516f7929dd11c79ddd5f66029dfb264e45528b656dacd10ea1050915c11df2a",
+      "bytes": 13534,
       "modo": "644",
       "origen": "arbrain/tests/negocio/pulso.test.ts"
     },
@@ -17815,14 +18043,14 @@
       "origen": "arbrain/tests/panel/columna-lateral.test.ts"
     },
     "arbrain/tests/panel/compartido-sincronia.test.ts": {
-      "sha256": "7e81c3693a85cfb35352f263513229af0c3523de3f8adca422040b1f51c14ba4",
-      "bytes": 5246,
+      "sha256": "e0e426068de53e9e15571c8c02621e72de802cfc65d06bb786a621d9a796783a",
+      "bytes": 7034,
       "modo": "644",
       "origen": "arbrain/tests/panel/compartido-sincronia.test.ts"
     },
     "arbrain/tests/panel/compartido.test.ts": {
-      "sha256": "e816867b885a3980c029e2d4c895db7eadf92d51bb610322a7f3a64cf8808da2",
-      "bytes": 5679,
+      "sha256": "4f3a0b8c646a0591aed235933bd6ef10589c68b6be916bd09f9c23ef995a5180",
+      "bytes": 7772,
       "modo": "644",
       "origen": "arbrain/tests/panel/compartido.test.ts"
     },
@@ -17965,8 +18193,8 @@
       "origen": "arbrain/tests/panel/menu-orden.test.ts"
     },
     "arbrain/tests/panel/pestanas-fuera.test.ts": {
-      "sha256": "7e15a6d1322b0dc71389cbd13f0a9e35481526f74cd51ff36c54311e2bf0ee5e",
-      "bytes": 10191,
+      "sha256": "73d022863fbe8927d77822cedc1f0fddffbaa1dc0cf942896a75c7c0e9ed76c0",
+      "bytes": 10803,
       "modo": "644",
       "origen": "arbrain/tests/panel/pestanas-fuera.test.ts"
     },
@@ -18277,8 +18505,8 @@
       "origen": "arbrain/tests/podar-respaldos.test.ts"
     },
     "arbrain/tests/primer-dia/primer-dia.test.ts": {
-      "sha256": "ff84df990dc2d287d1e1952dffa52f1c663ed889c35b17fbed425b0b0ee7129b",
-      "bytes": 10297,
+      "sha256": "94f0d6350143ab0dcece60a9e5af6df318e8c0eb7f7a8eefbb055eb34b951ed4",
+      "bytes": 10555,
       "modo": "644",
       "origen": "arbrain/tests/primer-dia/primer-dia.test.ts"
     },

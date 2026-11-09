@@ -13,7 +13,7 @@ import { LOCAL_DESKTOP_USER_ID } from '@/lib/desktop-auth'
 import { guardarPrimerArranque, leerPrimerArranque } from '@/features/primer-arranque/lib/estado'
 import { textoGuia } from './guia'
 import {
-  RUTA_EMBUDO, RUTA_GUIA, RUTA_NEGOCIO, RUTA_OFERTA, RUTINA_MANANA, estadoPrimerDia, leerEmbudo, skillsDelEmbudo,
+  RUTA_EMBUDO, RUTA_GUIA, RUTA_NEGOCIO, RUTA_OFERTA, RUTA_OFERTA_COMPLETA, RUTINA_MANANA, estadoPrimerDia, leerEmbudo, skillsDelEmbudo,
   type EstadoPrimerDia, type Senales,
 } from './modelo'
 
@@ -21,6 +21,8 @@ const raiz = (r?: string) => { if (r) return r; try { return raizWorkspace() } c
 const leerTexto = (ruta: string): string | null => { try { return readFileSync(ruta, 'utf8') } catch { return null } }
 /** Caracteres con contenido (sin espacios ni encabezados vacíos); null si no existe. */
 const largo = (ruta: string): number | null => { const t = leerTexto(ruta); return t == null ? null : t.replace(/\s+/g, ' ').trim().length }
+/** El mayor de varios largos; null si ninguno existe. */
+const mayor = (...ls: (number | null)[]): number | null => ls.reduce<number | null>((m, l) => l == null ? m : Math.max(m ?? 0, l), null)
 
 /** Las rutinas del daemon en lo que necesita el paso 4; null si no respondió. */
 export function rutinasDe(lista: Partial<ListaRutinas> | null): Senales['rutinas'] {
@@ -42,7 +44,7 @@ export function leerSenales(rutinas: Senales['rutinas'], r?: string): Senales {
   const nombres = skillsDelEmbudo(embudo.estado === 'ok' ? embudo.embudo : null)
   return {
     negocio: largo(join(base, RUTA_NEGOCIO)),
-    oferta: largo(join(base, RUTA_OFERTA)),
+    oferta: mayor(largo(join(base, RUTA_OFERTA)), largo(join(base, RUTA_OFERTA_COMPLETA))),
     embudo,
     rutinas,
     skillsEnDisco: nombres.filter(n => /^[\w.-]+$/.test(n) && existsSync(join(base, '.claude', 'skills', n, 'SKILL.md'))),

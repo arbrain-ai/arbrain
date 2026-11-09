@@ -180,9 +180,11 @@ test('la vista: El pulso manda, el libro ya no es pestaña, el botón abre el li
   assert.match(pulso, /Abrir el lienzo completo/)
   assert.match(pulso, /Lienzo en camino/)
   assert.doesNotMatch(pulso, /\bSAT\b|te queda/)
-  // En directo Cohorte y Finanzas ni se piden (sus rutas están vetadas).
-  assert.match(pulso, /useFuente<CohortePulso>\(directo \? null/)
-  assert.match(pulso, /useFuente<FinancesPayload>\(directo \? null/)
+  // En directo Cohorte y Finanzas ni se piden (sus rutas están vetadas); en la edición del alumno tampoco (no existen).
+  assert.match(pulso, /useFuente<CohortePulso>\(directo \|\| cliente \? null/)
+  assert.match(pulso, /useFuente<FinancesPayload>\(directo \|\| cliente \? null/)
+  assert.match(pulso, /useFuente<RespuestaMarketing>\(cliente \? null/)
+  assert.match(pulso, /const pulsos: Pulso\[\] = pulsosCliente \?\? \[/)
 })
 
 test('la voz del cliente real (si está en este checkout) se lee entera, sin errores, con sus tres tops', () => {

@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { alRecibir, basePrimerContacto, codificarVista, decodificarVista, firmaEstado, iguales, rehacer, VACIO, type EstadoPanel, type FijadaCompartida } from '../../src/features/cabina/panel/compartido-puro'
+import { alRecibir, basePrimerContacto, codificarVista, conAjenas, separarAjenas, sumarAjenas, decodificarVista, firmaEstado, iguales, rehacer, VACIO, type EstadoPanel, type FijadaCompartida } from '../../src/features/cabina/panel/compartido-puro'
 
 const f = (id: string, vista = 'calendario', extra: Record<string, unknown> = {}): FijadaCompartida => ({ id, input: { vista, ...extra }, en: 1 })
 const e = (fs: FijadaCompartida[], extra: Partial<EstadoPanel> = {}): EstadoPanel => ({ fijadas: fs, orden: ['tareas', ...fs.map(x => x.id)], taller: true, ancladas: [], ...extra })
@@ -103,5 +103,34 @@ describe('enlaces de un artefacto', async () => {
     assert.match(enlaceTelefono({ vista: 'salud' } as never), /^\/telefono\?abrir=/)
     assert.equal(idDeEnlace('abc'), idDeEnlace('abc'))
     assert.notEqual(idDeEnlace('abc'), idDeEnlace('abd'))
+  })
+})
+
+describe('panel compartido: lo que este aparato no sabe pintar no lo cierra (9 nov 2026)', () => {
+  const ajena = (x: FijadaCompartida) => x.input.vista === 'estrategia'
+  it('separa las ajenas con su lugar y las devuelve ahí (anclada incluida)', () => {
+    const remoto = e([f('cal'), f('est', 'estrategia'), f('bi', 'bi')], { orden: ['est', 'cal', 'bi'], ancladas: ['est'] })
+    const ajenas = separarAjenas(remoto, ajena)
+    assert.deepEqual(ajenas.map(a => [a.fijada.id, a.antes, a.anclada]), [['est', [], true]])
+    const aqui = { ...remoto, fijadas: remoto.fijadas.filter(x => !ajena(x)), orden: ['cal', 'bi'], ancladas: [] }
+    const todo = conAjenas(aqui, ajenas)
+    assert.deepEqual(todo.orden, ['est', 'cal', 'bi'])
+    assert.deepEqual(todo.ancladas, ['est'])
+    // Rehecho contra la base que la tenía, no cuenta como cierre ni como reacomodo.
+    const otroCambio = e([f('cal'), f('est', 'estrategia'), f('bi', 'bi'), f('nueva', 'salud')], { orden: ['est', 'bi', 'cal', 'nueva'], ancladas: ['est'] })
+    const r = rehacer(otroCambio, remoto, todo)
+    assert.deepEqual(ids(r).sort(), ['bi', 'cal', 'est', 'nueva'])
+    assert.deepEqual(r.orden, ['est', 'bi', 'cal', 'nueva'])
+  })
+  it('una ajena que ya no figura en el orden va al final; sin ajenas no cambia nada', () => {
+    const aqui = e([f('cal')])
+    assert.equal(conAjenas(aqui, []), aqui)
+    assert.deepEqual(conAjenas(aqui, [{ fijada: f('x', 'estrategia'), antes: null, anclada: false }]).orden, ['tareas', 'cal', 'x'])
+    assert.deepEqual(conAjenas(aqui, [{ fijada: f('x', 'estrategia'), antes: ['borrada', 'tareas'], anclada: false }]).orden, ['tareas', 'x', 'cal'])
+  })
+  it('entre ventanas solo se suman (quitar una ajena es cosa del Studio)', () => {
+    const a = { fijada: f('a', 'estrategia'), antes: null, anclada: false }, b = { fijada: f('b', 'estrategia'), antes: null, anclada: false }
+    assert.deepEqual(sumarAjenas([a], [b]).map(x => x.fijada.id), ['a', 'b'])
+    assert.deepEqual(sumarAjenas([a, b], []).map(x => x.fijada.id), ['a', 'b'])
   })
 })

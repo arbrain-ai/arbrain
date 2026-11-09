@@ -162,6 +162,14 @@ export class ClaudeInteractiveSession {
     // alumno con OpenRouter respondía «Not logged in» (11 oct 2026, evidencia del .app).
     const cliente = esEdicionCliente()
     if (!cliente || motorSuscripcion()) for (const key of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_BASE_URL', 'CLAUDE_CODE_USE_BEDROCK', 'CLAUDE_CODE_USE_VERTEX', 'CLAUDE_CODE_USE_FOUNDRY']) delete env[key]
+    // Fable 5.2 (9 nov 2026): con CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC el CLI no baja la lista remota de modelos y
+    // solo anuncia su fila estática (Fable 5.1), aunque la suscripción sí sirva 5.2. Se fija por id para que el catálogo
+    // y la validación de cada turno lo vean. Solo en la instalación original: al alumno no se le anuncia lo que su plan
+    // quizá no tenga.
+    if (!cliente && !env.ANTHROPIC_CUSTOM_MODEL_OPTION) {
+      env.ANTHROPIC_CUSTOM_MODEL_OPTION = 'claude-fable-5-2'
+      env.ANTHROPIC_CUSTOM_MODEL_OPTION_NAME = 'Fable 5.2'
+    }
     this.query = create({ prompt: this.input, options: { ...options, env } })
     this.initialization = confirmClaudeSubscription(() => this.query.accountInfo(), cliente)
     // Attach immediately; metadata failures must not create unhandled rejection.

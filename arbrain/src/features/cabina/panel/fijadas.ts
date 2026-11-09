@@ -22,6 +22,7 @@ import { coincide, coincideVista, mismaRuta } from './bus-puro'
 import { useMemo } from 'react'
 import { cerrarVentanas, enlazarFijadas, escuchar, publicar } from './ventanas'
 import { pedirSegmentoTaller } from './taller-segmento'
+import { conAjenas, separarAjenas, sumarAjenas, type Ajena } from './compartido-puro'
 import {
   conAncladas, fueraDe, moverA, moverAVentana as moverEntreVentanas, moverUno as moverUnoEn, normalizarAcomodo, normalizarEnVentana, porCerrar, PRINCIPAL,
   esVentana, TALLER, TAREAS, tiraDe, todasFuera, todasLasClaves, vaciadas, ventanaDe, type EnVentana,
@@ -56,6 +57,17 @@ export type PestanaPanel = 'tareas' | 'taller' | (string & {})
 const CLIENTE = esEdicionCliente()
 // Historia (28 oct 2026) también: una pestaña «historia» fijada antes se suelta al cargar y pedirla abre Taller › Historia.
 export const EN_TALLER = new Map<string, string>([['servidores', 'maquina'], ['rutinas', 'rutinas'], ['memoria', 'memoria'], ['historia', 'historia']])
+
+/**
+ * ¿Una pestaña que este aparato no sabe pintar? Una vista más nueva que su bundle (9 nov 2026: un Chrome con el bundle de antes de
+ * «estrategia» la cerraba para todos) o que su edición no trae. No se pinta, pero se conserva (`ajenas`, compartido-puro.ts).
+ * Las que pasaron al Taller (EN_TALLER) no: esas se retiraron a propósito.
+ */
+export function esAjena(f: { input?: { vista?: unknown } } | null | undefined): boolean {
+  const v = f?.input?.vista
+  return typeof v === 'string' && !EN_TALLER.has(v) && !(esVistaConocida(v) && vistaPermitidaEnCliente(v, CLIENTE))
+}
+const validaDelCanal = (f: unknown): f is Fijada => !!f && typeof (f as Fijada).id === 'string' && !!(f as Fijada).input
 
 const CLAVE = 'arbrain.panelDerecho.fijadas'
 const CLAVE_ACOMODO = 'arbrain.panelDerecho.acomodo'
@@ -180,6 +192,9 @@ interface Estado {
   ancladas: string[]
   /** En qué ventana aparte vive cada pestaña (lo que no figura, en el panel principal). */
   enVentana: EnVentana
+  /** Pestañas que este aparato no sabe pintar (esAjena): no están en `fijadas` ni en `orden`, pero viajan al Studio y a las otras
+   *  ventanas con su lugar. Solo el Studio las quita (cuando las cierra quien sí las ve). */
+  ajenas: Ajena<Fijada>[]
   /** La pestaña a la vista en ESTA ventana. */
   activa: PestanaPanel
   cargado: boolean
@@ -231,7 +246,9 @@ export const usePanelFijadas = create<Estado>((set, get) => {
     set({ enVentana, ancladas, orden: conAncladas(get().orden, ancladas) })
     const { fijadas, orden, taller } = get()
     escribir(fijadas, orden, taller, ancladas, enVentana)
-    publicar({ tipo: 'fijadas', fijadas, orden, taller, ancladas, enVentana, ...(activa ? { activa } : {}) })
+    // A las otras ventanas va también lo que aquí no se pinta: si no, la que lo recibe lo daría por cerrado.
+    const todo = conAjenas({ fijadas, orden, ancladas }, get().ajenas)
+    publicar({ tipo: 'fijadas', fijadas: todo.fijadas, orden: todo.orden, taller, ancladas: todo.ancladas, enVentana, ...(activa ? { activa } : {}) })
     // Una ventana que se queda sin pestañas se cierra, como en Chrome.
     cerrarVentanas(vaciadas(antes, enVentana))
   }
@@ -248,6 +265,7 @@ export const usePanelFijadas = create<Estado>((set, get) => {
     taller: true,
     ancladas: [],
     enVentana: {},
+    ajenas: [],
     activa: CLIENTE ? TALLER : TAREAS,
     cargado: false,
     cargar: () => {
@@ -267,11 +285,16 @@ export const usePanelFijadas = create<Estado>((set, get) => {
       escuchar(m => {
         if (m.tipo !== 'fijadas') return
         const fijadas = sinDuplicadas(m.fijadas.filter(f => esVistaConocida(f?.input?.vista)))
+        // Lo que otra ventana trae y aquí no se pinta. La principal es la que sincroniza con el Studio: SUMA (una ventana que no
+        // lo conoce tampoco lo cerró, y una más nueva puede traer una vista que aquí no existe). Las ventanas aparte reflejan lo
+        // que les publica la principal, así que adoptan lo que llega (si sumaran, devolverían una que el Studio ya quitó).
+        const llegan = separarAjenas({ fijadas: m.fijadas.filter(validaDelCanal), orden: m.orden ?? [], ancladas: m.ancladas ?? [] }, esAjena)
+        const ajenas = (propia === PRINCIPAL ? sumarAjenas(get().ajenas, llegan) : llegan).filter(a => !fijadas.some(f => f.id === a.fijada.id))
         const acomodo = normalizarAcomodo(m.orden ? { orden: m.orden, taller: m.taller, ancladas: m.ancladas ?? get().ancladas } : { orden: get().orden, taller: get().taller, ancladas: get().ancladas }, fijadas.map(f => f.id))
         const enVentana = m.enVentana ? normalizarEnVentana(m.enVentana, todasLasClaves(acomodo.orden, acomodo.taller)) : get().enVentana
         // La pestaña que otra ventana trajo al frente solo cambia ESTA ventana si vive aquí.
         const activa = m.activa && (fijadas.some(f => f.id === m.activa) || m.activa === TAREAS || m.activa === TALLER) && ventanaDe(enVentana, m.activa) === propia ? { activa: m.activa } : {}
-        set({ fijadas, ...acomodo, enVentana, ...activa })
+        set({ fijadas, ...acomodo, enVentana, ajenas, ...activa })
       })
     },
     comoSegunda: () => {
@@ -362,14 +385,17 @@ export const usePanelFijadas = create<Estado>((set, get) => {
     },
     aplicarRemoto: (e) => {
       get().cargar()
-      const fijadas = sinDuplicadas(e.fijadas.filter(f => f && typeof f.id === 'string' && f.input && esVistaConocida(f.input.vista) && !EN_TALLER.has(f.input.vista) && vistaPermitidaEnCliente(f.input.vista, CLIENTE))
+      const validas = e.fijadas.filter(validaDelCanal)
+      const fijadas = sinDuplicadas(validas.filter(f => esVistaConocida(f.input.vista) && !EN_TALLER.has(f.input.vista) && vistaPermitidaEnCliente(f.input.vista, CLIENTE))
         .map(f => ({ ...f, input: fechaViva(alias(f.input)) })))
+      // El Studio manda: las que aquí no se pintan quedan como ajenas (y se van cuando él ya no las trae).
+      const ajenas = separarAjenas({ fijadas: validas, orden: e.orden, ancladas: e.ancladas }, esAjena)
       const acomodo = normalizarAcomodo({ orden: e.orden, taller: e.taller, ancladas: e.ancladas }, fijadas.map(f => f.id))
       if (CLIENTE) acomodo.orden = acomodo.orden.filter(c => c !== TAREAS)
       const claves = todasLasClaves(acomodo.orden, acomodo.taller), activa = get().activa
       const sigue = claves.includes(activa)
       // Quitar `ancladas` antes de guardarTodo: normaliza contra las claves nuevas.
-      set({ ancladas: acomodo.ancladas })
+      set({ ancladas: acomodo.ancladas, ajenas })
       guardarTodo({ fijadas, orden: acomodo.orden, taller: acomodo.taller, ...(sigue ? {} : { activa: claves[0] ?? '' }) })
     },
     podarConversacion: (conversacion) => {

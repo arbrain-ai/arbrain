@@ -93,3 +93,32 @@ test('la pestaña a la vista: el escritorio no la sigue y nadie se la arrebata a
   latir()
   assert.equal(studio.leerCompartido(dir).activa, 'a')
 })
+
+// 9 nov 2026 (Daniel: «siento un bug, algo lo cierra solo»). Un aparato con un bundle viejo (Chrome por Tailscale no se
+// recarga solo: ActualizacionDesktop solo corre en escritorio y localhost) no conoce una vista nueva como «estrategia».
+// Al recibir el panel la filtraba (aplicarRemoto) y en el latido siguiente mandaba ese estado filtrado como cambio: la
+// pestaña se cerraba en TODOS los aparatos. Regla: lo que este aparato no sabe pintar no lo cierra.
+test('una vista que este aparato no conoce no se cierra para todos', async () => {
+  const { st, latir, otro, studio } = await montar()
+  otro(() => ({ fijadas: [fij('cal', 'calendario'), fij('futura', 'vista-del-futuro'), fij('bi', 'bi')], orden: ['cal', 'futura', 'bi'] }))
+  latir() // primer contacto: adopta el panel (no pinta «futura»)
+  assert.deepEqual(st().fijadas.map(f => f.id), ['cal', 'bi'])
+  latir()
+  latir()
+  assert.deepEqual(studio.leerCompartido(dir).fijadas.map(f => f.id).sort(), ['bi', 'cal', 'futura'])
+  assert.deepEqual(studio.leerCompartido(dir).orden, ['cal', 'futura', 'bi'])
+  // Cerrar aquí otra pestaña no se lleva a la que no se pinta…
+  st().cerrar('bi')
+  latir()
+  assert.deepEqual(studio.leerCompartido(dir).fijadas.map(f => f.id).sort(), ['cal', 'futura'])
+  // …abrir una nueva tampoco…
+  st().fijar('mano-salud', { vista: 'salud' } as never)
+  latir()
+  assert.deepEqual(studio.leerCompartido(dir).fijadas.map(f => f.id).sort(), ['cal', 'futura', 'mano-salud'])
+  // …y si el aparato que sí la conoce la cierra, aquí no revive.
+  otro(e => ({ fijadas: e.fijadas.filter(f => f.id !== 'futura'), orden: e.orden.filter(c => c !== 'futura') }))
+  latir()
+  latir()
+  assert.deepEqual(studio.leerCompartido(dir).fijadas.map(f => f.id).sort(), ['cal', 'mano-salud'])
+})
+

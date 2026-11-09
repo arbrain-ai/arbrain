@@ -4,6 +4,42 @@ Cada versión dice qué trae y qué tienes que hacer tú. Para actualizar, abre 
 «jala los últimos cambios». Las versiones siguen `MAYOR.MENOR.PARCHE`: un cambio en MENOR trae funciones
 nuevas; uno en PARCHE, arreglos.
 
+## v0.2.25 · 9 nov 2026 · Tu oferta con Levy, Business Intelligence y Tu negocio
+
+**Qué trae**
+- **Tu oferta en 11 piezas, con Levy.** Dile «vamos a armar mi oferta» y Levy la construye contigo pieza por pieza:
+  avatar, promesa, vehículo, nueva oportunidad, dolores y deseos, urgencia y escasez, diferenciación, bonos, garantía,
+  precio, y tu pitch con su gran dominó. No tienes que memorizar los libros: en cada pieza te explica qué es, te da un
+  ejemplo y te pregunta; tú escribes primero y él la afila contra la prueba de una pieza bien hecha. Lo que todavía no
+  sepas queda «sin dato» y siguen. Al final te da tu oferta en 2 o 3 renglones.
+- **Lee lo que ya escribiste.** Lo que ya tengas en `project/mi-negocio/` (tu nicho, tu promesa, tu precio…) Levy lo
+  confirma en vez de preguntártelo otra vez. Tu oferta queda en `project/mi-negocio/02-oferta.md`, con el estado de
+  cada pieza (borrador o firmada), y también cuenta para el paso «Tu oferta» de Tu primer día. Dile «califica mi
+  oferta» y te dice cuál es tu pieza más floja.
+- **Business Intelligence, en el menú «+».** Le preguntas en español a tu negocio y Levy te contesta con una gráfica
+  que se vuelve a calcular sola cada vez que la abres. Cada número trae lo que es normal para ti (sus 28 días
+  anteriores) y, si se sale, sube una alarma: roja si duele, dorada si es buena, con qué pasó, por qué creemos y qué
+  haría Levy. El cuello de tu embudo se ve arriba. Son doce preguntas que tiene cualquier negocio: ventas, lo que entró
+  (por día y en el mes contra el pasado), ticket promedio, clientes nuevos, interesados, entregas, gastos, bajas, lo
+  que más se vende, de dónde llega la gente y del interesado al cliente.
+- **Lee tus números de donde ya viven:** un CSV o un Excel que exportas (de tu punto de venta, tu hoja de cálculo o tu
+  CRM) o tu base de datos Postgres o Supabase. Solo lee, nunca escribe. Las llaves de una base van en
+  `.claude/bi.env`, nunca en tu memoria. Dile a Levy «conecta mis fuentes de Business Intelligence».
+- **Tu negocio › El pulso, en el menú «+».** Seis órganos de tu negocio (marketing, venta, mente del comprador,
+  entrega, finanzas y sistemas). Cada uno enseña su número en cuanto conectas su fuente; mientras tanto dice
+  «Conecta tu fuente» y qué lo conectaría. Nunca un cero inventado.
+- **Para practicar antes de tu primer cliente:** dile a Levy «siembra el ejemplo de Business Intelligence» y llega un
+  café ficticio con 130 días de ventas, pedidos y gastos, con una caída el último día para que veas la alarma. No toca
+  tus archivos: solo crea los que todavía no tienes.
+- **La pestaña de Business Intelligence se queda** en tu panel cuando cambias de conversación.
+- **En el teléfono, cierras y vuelves a donde estabas:** al reabrir Arbrain regresa a la conversación que tenías
+  abierta.
+
+**Qué tienes que hacer**
+- Actualizar («jala los últimos cambios»). Para tu oferta, dile a Levy «vamos a armar mi oferta». Para tus números,
+  abre «+» › **Business Intelligence** o **Tu negocio** (si no los quieres, pon `ARBRAIN_PANEL_NEGOCIO=0` en el
+  `arbrain.env` de la app).
+
 ## v0.2.24 · 8 nov 2026 · Tu primer día
 
 **Qué trae**

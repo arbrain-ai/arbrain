@@ -46,6 +46,52 @@ export function rehacer<F extends FijadaCompartida>(remoto: EstadoPanel<F>, base
   return { fijadas, orden: [...new Set(orden)], taller, ancladas }
 }
 
+// ── Lo que este aparato no sabe pintar (9 nov 2026) ──
+// Un aparato con un bundle viejo (un Chrome por Tailscale no se recarga solo) no conoce una vista nueva como «estrategia».
+// Antes la filtraba al recibir el panel y en el latido siguiente mandaba ese estado filtrado como CAMBIO: la pestaña se cerraba
+// en todos los aparatos («algo lo cierra solo», Daniel, 9 nov). Regla: lo que este aparato no sabe pintar no lo cierra. No se
+// pinta, pero viaja en lo que se sincroniza (y entre sus ventanas) hasta que la cierre quien sí la ve.
+
+/** Una pestaña que no se pinta aquí. `antes`: las que la precedían en el orden, la más cercana primero (para devolverla a su
+ *  lugar); null si no figuraba en el orden. */
+export interface Ajena<F extends { id: string } = FijadaCompartida> { fijada: F; antes: string[] | null; anclada: boolean }
+type Tira<F> = { fijadas: F[]; orden: string[]; ancladas: string[] }
+
+/** Las pestañas de `e` que este aparato no sabe pintar, con su lugar. */
+export function separarAjenas<F extends { id: string }>(e: Tira<F>, esAjena: (f: F) => boolean): Ajena<F>[] {
+  return e.fijadas.filter(esAjena).map(f => {
+    const i = e.orden.indexOf(f.id)
+    return { fijada: f, antes: i < 0 ? null : e.orden.slice(0, i).reverse(), anclada: e.ancladas.includes(f.id) }
+  })
+}
+
+/** Junta las que ya se conocían con las que llegan de otra ventana (las que llegan mandan). Solo SUMA: quitar una ajena es cosa
+ *  del Studio (la principal la suelta cuando él ya no la trae). */
+export function sumarAjenas<F extends { id: string }>(previas: readonly Ajena<F>[], nuevas: readonly Ajena<F>[]): Ajena<F>[] {
+  const ids = new Set(nuevas.map(a => a.fijada.id))
+  return [...previas.filter(a => !ids.has(a.fijada.id)), ...nuevas]
+}
+
+const insertar = (lista: string[], id: string, antes: string[] | null) => {
+  if (lista.includes(id)) return
+  if (!antes) { lista.push(id); return }
+  const previa = antes.find(c => lista.includes(c))
+  lista.splice(previa ? lista.indexOf(previa) + 1 : 0, 0, id)
+}
+
+/** El estado de este aparato con las ajenas devueltas a su lugar: es lo que se sincroniza y se publica a las otras ventanas. */
+export function conAjenas<F extends { id: string }, T extends Tira<F>>(e: T, ajenas: readonly Ajena<F>[]): T {
+  const ids = new Set(e.fijadas.map(f => f.id))
+  const faltan = ajenas.filter(a => !ids.has(a.fijada.id))
+  if (!faltan.length) return e
+  const orden = [...e.orden], ancladas = [...e.ancladas]
+  for (const a of faltan) {
+    insertar(orden, a.fijada.id, a.antes)
+    if (a.anclada) insertar(ancladas, a.fijada.id, a.antes)
+  }
+  return { ...e, fijadas: [...e.fijadas, ...faltan.map(a => a.fijada)], orden, ancladas }
+}
+
 /**
  * Primer contacto con el Studio: ¿qué cuenta como «ya acordado»? El escritorio no pierde nada (base vacía: lo suyo se SUMA a
  * lo del Studio). Un teléfono o un navegador adopta el panel del Studio tal cual (sus pestañas viejas de ese aparato no se

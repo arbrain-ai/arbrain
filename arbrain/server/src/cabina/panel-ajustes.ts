@@ -19,11 +19,11 @@ import path from 'node:path'
 
 export const ARCHIVO = () => process.env.ARBRAIN_PANEL_AJUSTES || path.join(DIR_ARBRAIN(), 'panel-ajustes.json')
 
-export const SECCIONES = ['calendario', 'tareas', 'cohorte', 'lienzo', 'negocio', 'bi', 'reporte', 'centro', 'equipo', 'salud', 'contenido', 'finanzas', 'explorador', 'taller'] as const
+export const SECCIONES = ['calendario', 'tareas', 'cohorte', 'lienzo', 'negocio', 'estrategia', 'bi', 'reporte', 'centro', 'equipo', 'salud', 'contenido', 'finanzas', 'explorador', 'taller'] as const
 export type Seccion = typeof SECCIONES[number]
 export const OCULTAS_POR_DEFECTO: Seccion[] = ['equipo', 'reporte']
 /** Cómo las llama Daniel (para que Levy pueda decir «Tareas» o «command center»). */
-export const NOMBRES: Record<Seccion, string> = { calendario: 'Calendario', tareas: 'Tareas', cohorte: 'Cohorte', lienzo: 'Lienzo', negocio: 'Negocio', bi: 'Business Intelligence', reporte: 'Lo que llegó', centro: 'Command center', equipo: 'Equipo', salud: 'Salud', contenido: 'Contenido', finanzas: 'Finanzas', explorador: 'Archivos', taller: 'Taller' }
+export const NOMBRES: Record<Seccion, string> = { calendario: 'Calendario', tareas: 'Tareas', cohorte: 'Cohorte', lienzo: 'Lienzo', negocio: 'Negocio', estrategia: 'Estrategia', bi: 'Business Intelligence', reporte: 'Lo que llegó', centro: 'Command center', equipo: 'Equipo', salud: 'Salud', contenido: 'Contenido', finanzas: 'Finanzas', explorador: 'Archivos', taller: 'Taller' }
 
 /**
  * «Dónde abre Levy» (7 oct 2026, Daniel: «as default siempre me abrirás todo en la ventana de la izquierda… en el derecho suelo

@@ -1,0 +1,15 @@
+{
+  "actualizado": "2026-11-07",
+  "citas": [
+    { "texto": "¿Me lo pueden tener listo a las 8? La junta empieza a las 8:15.", "quien": null, "tipo": "pregunta", "tema": "horario de entrega", "nivel_conciencia": "consciente de la solución", "objecion_tipo": null },
+    { "texto": "La vez pasada llegó tibio y frente al cliente se vio mal.", "quien": null, "tipo": "objecion", "tema": "temperatura al llegar", "nivel_conciencia": "consciente del producto", "objecion_tipo": "confianza" },
+    { "texto": "Lo que quiero es no pensar en el café del evento: que llegue y ya.", "quien": null, "tipo": "deseo", "tema": "cero preocupación", "nivel_conciencia": "consciente del problema", "objecion_tipo": null },
+    { "texto": "Me sale más caro que comprar en el súper y servirlo nosotros.", "quien": null, "tipo": "objecion", "tema": "precio", "nivel_conciencia": "consciente de la solución", "objecion_tipo": "precio" },
+    { "texto": "Siempre se nos olvida pedir con tiempo y terminamos con lo que haya.", "quien": null, "tipo": "dolor", "tema": "pedir tarde", "nivel_conciencia": "consciente del problema", "objecion_tipo": null }
+  ],
+  "resumen": {
+    "top_objeciones": [{ "texto": "llegó tibio", "veces": 4 }, { "texto": "precio contra el súper", "veces": 3 }],
+    "top_deseos": [{ "texto": "que llegue y ya", "veces": 5 }, { "texto": "a tiempo para la junta", "veces": 3 }],
+    "top_dolores": [{ "texto": "pedir tarde", "veces": 4 }]
+  }
+}

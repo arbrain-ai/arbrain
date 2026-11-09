@@ -67,11 +67,18 @@ export function indiceEnOrden(orden: string[], tiraVisible: string[], clave: str
 /** ⌥← / ⌥→: un lugar a la izquierda o a la derecha. */
 export const moverUno = (orden: string[], clave: string, delta: -1 | 1) => moverA(orden, clave, orden.indexOf(clave) + delta)
 
+/** Los tableros del negocio: secciones que Daniel deja abiertas junto al Calendario, no respuestas efímeras de Levy. Aunque
+ *  Levy los abra con `mostrar` desde un hilo, no se podan al cambiar de conversación (BI el 8 nov; Estrategia y Tu negocio, su
+ *  sección madre, el 9 nov: «siento un bug, algo lo cierra solo»). Tampoco llevan «Guardar» (fijadas.ts › guardable), así que
+ *  no habría forma de conservarlos. */
+export const TABLEROS_DURABLES: ReadonlySet<string> = new Set(['negocio', 'estrategia', 'bi'])
+
 /** Lo que Levy fijó y Daniel no guardó se cierra solo al cambiar de conversación, salvo lo que está a la vista
- *  (la pestaña activa o una que vive en su propia ventana). Sin tope de pestañas: esto es lo único que poda. */
-export function porCerrar(fijadas: { id: string; deLevy?: boolean; guardada?: boolean; conversacion?: string }[], activaConversacion: string | null, aLaVista: string[]) {
+ *  (la pestaña activa o una que vive en su propia ventana) y los tableros durables.
+ *  Sin tope de pestañas: esto es lo único que poda. */
+export function porCerrar(fijadas: { id: string; deLevy?: boolean; guardada?: boolean; conversacion?: string; input?: { vista?: string } }[], activaConversacion: string | null, aLaVista: string[]) {
   if (!activaConversacion) return []
-  return fijadas.filter(f => f.deLevy && !f.guardada && f.conversacion && f.conversacion !== activaConversacion && !aLaVista.includes(f.id)).map(f => f.id)
+  return fijadas.filter(f => f.deLevy && !f.guardada && !TABLEROS_DURABLES.has(f.input?.vista ?? '') && f.conversacion && f.conversacion !== activaConversacion && !aLaVista.includes(f.id)).map(f => f.id)
 }
 
 // ── Ventanas con su propia tira (5 oct 2026) ──

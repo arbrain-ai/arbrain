@@ -235,21 +235,24 @@ test('el embudo de Daniel categoriza las skills de su cerebro: cada una cuelga d
   assert.ok(s.sinRevisar!.length <= 4, `demasiadas skills sin revisar: ${s.sinRevisar!.join(', ')}`)
 })
 
-test('el interruptor solo se enciende con ARBRAIN_PANEL_NEGOCIO=1', () => {
+test('el interruptor: en el autor solo con ARBRAIN_PANEL_NEGOCIO=1; en el alumno encendido salvo =0', () => {
   assert.equal(panelNegocioEncendido({}), false)
   assert.equal(panelNegocioEncendido({ ARBRAIN_PANEL_NEGOCIO: '0' }), false)
   assert.equal(panelNegocioEncendido({ ARBRAIN_PANEL_NEGOCIO: 'true' }), false)
   assert.equal(panelNegocioEncendido({ ARBRAIN_PANEL_NEGOCIO: '1' }), true)
+  // 8 nov 2026: el kit de BI viaja al alumno como motor vacío.
+  assert.equal(panelNegocioEncendido({ ARBRAIN_EDICION: 'cliente' }), true)
+  assert.equal(panelNegocioEncendido({ ARBRAIN_EDICION: 'cliente', ARBRAIN_PANEL_NEGOCIO: '0' }), false)
   assert.equal(fechaCorta('2026-10-23'), '23 oct 2026')
 })
 
 test('apagado, la API responde { activo: false } antes de leer nada, y la vista queda como estaba', () => {
   // La ruta importa `server-only` (no corre fuera de Next): se vigila su forma. Lo primero del GET es el interruptor.
   const ruta = leer('src/app/api/negocio/embudo/route.ts')
-  assert.match(ruta, /export async function GET\(\) \{\n {2}if \(!panelNegocioEncendido\(\) \|\| esEdicionCliente\(\)\) return APAGADO\(\)/)
+  assert.match(ruta, /export async function GET\(\) \{\n {2}if \(!panelNegocioEncendido\(\)\) return APAGADO\(\)/)
   assert.match(ruta, /const APAGADO = \(\) => Response\.json\(\{ activo: false \}/)
-  // La vista: sin `activo`, devuelve el libro de siempre antes de pintar nada nuevo.
-  assert.match(leer('src/features/cabina/vistas/Negocio.tsx'), /if \(!sistema\?\.activo\) return <LibroNegocio seccion=\{seccion\} grande=\{grande\} \/>/)
+  // La vista: sin `activo`, devuelve el libro de siempre antes de pintar nada nuevo (en el alumno, que está apagado).
+  assert.match(leer('src/features/cabina/vistas/Negocio.tsx'), /if \(!sistema\?\.activo\) return esEdicionCliente\(\) \? <p[^>]*>Tu negocio está apagado[^<]*<\/p> : <LibroNegocio seccion=\{seccion\} grande=\{grande\} \/>/)
 })
 
 test('Tu negocio tiene sección propia: el teléfono y los enlaces directos abren /negocio, no Memoria', async () => {

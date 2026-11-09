@@ -41,7 +41,10 @@ imprimen): `MC_SERVER_PORT`, `MISSION_CONTROL_ORIGIN`, `ARBRAIN_PASE_AGENTE` (Be
 | Chat | Hablar con Levy; conversaciones recientes y fijadas; adjuntos; preguntas que Levy te hace; cuánto te pregunta Levy (Autónomo o Preguntar) y «Pausar todo» en el botón del modelo, abajo en el campo de escribir | [references/chat.md](references/chat.md) |
 | Calendario | Su plan y su agenda: objetivos del mes, la semana y el día, eventos, bloques, tareas con fecha y hábitos con su racha (se marcan en el Día). Vistas Día, Semana y Mes. Botón **Calendario** arriba a la derecha del chat y sección del «+» | Fuentes: `.claude/plan/calendario.json`, `.claude/plan/objetivos.md` y `.claude/plan/habitos.json` (cada una trae su instructivo); receta en `habit-system`, `references/tiempo-y-calendario.md`. Otro calendario: `arbrain/cerebro/manuales/` |
 | Lienzo | Lienzo infinito: diagramas compilados por Levy y dibujo a mano | [references/canvas-diagram/index.md](references/canvas-diagram/index.md) y [../canvas/SKILL.md](../canvas/SKILL.md) |
-| Panel derecho | Pestañas «+»: Calendario, Lienzo, Archivos (el explorador del cerebro) y Taller (Agentes, Rutinas y Memoria); «+ › Guardadas» es el archivero | Este archivo |
+| Tu negocio | **El pulso**: seis órganos (marketing, venta, mente del comprador, entrega, finanzas y sistemas), cada uno con su número solo si tiene fuente; sin fuente dice «Conecta tu fuente» y qué la conectaría. El canal y el cuello salen de su embudo | `.claude/memory/project/mi-negocio/` (`embudo.json`, `voz-del-cliente.json`, `bi-fuentes.json`); `ayuda {tema:"negocio"}` |
+| Estrategia | Su investigación de mercado en cuatro pestañas: quién compra (segmentos con su número), contra quién (competidores con su imagen pública, audiencia y precio, y la escalera de precios), hacia dónde va (tendencias) y lo que decide (borradores sin firmar). Sin archivo dice «Conecta tu investigación» | `.claude/memory/project/mi-negocio/mercado.json`; `arbrain/docs/mercado/README.md`; `ayuda {tema:"estrategia"}` |
+| Business Intelligence | Le pregunta en español a su negocio y Levy contesta con una gráfica de un catálogo cerrado; corredor de lo normal, la alarma (dolor o placer) y el cuello. Lee sus fuentes: CSV, Excel, Postgres o Supabase | `arbrain/docs/bi/README.md`; `npm --prefix arbrain run bi -- fuentes`; `ayuda {tema:"bi"}` |
+| Panel derecho | Pestañas «+»: Calendario, Lienzo, Tu negocio, Estrategia, Business Intelligence, Archivos (el explorador del cerebro) y Taller (Agentes, Rutinas y Memoria); «+ › Guardadas» es el archivero | Este archivo |
 | Memoria | Lo que Levy sabe de ti, en `.claude/memory/` | Skill `memory-manager` |
 | Voz | **Dictar** con el micrófono (su llave gratis de Groq, en Ajustes › Voz) y **Escuchar** en cada respuesta: la lee en voz alta, con su llave de LemonFox si la tiene o con la mejor voz del sistema | Ajustes › Voz |
 | Teléfono | Su Arbrain en el celular por su red privada de Tailscale («Pon mi cerebro en mi teléfono») | Ajustes › Tu cerebro en el teléfono |
@@ -51,14 +54,14 @@ imprimen): `MC_SERVER_PORT`, `MISSION_CONTROL_ORIGIN`, `ARBRAIN_PASE_AGENTE` (Be
 
 Lo que **no** existe en esta edición (no lo prometas ni lo busques): tablero de tareas (las tareas con fecha van en
 el calendario; Todoist se conecta con su manual), campana de avisos dentro de la app, feed de actividad, modo Live
-de voz, Consejo, biblioteca y paneles de negocio. Si el dueño lo pide, dilo claro y ofrece la alternativa que sí
+de voz, Consejo y biblioteca. Si el dueño lo pide, dilo claro y ofrece la alternativa que sí
 existe (el calendario, una nota en memoria, un lienzo, un despertador en la conversación).
 
 ## Herramientas del agente sobre la app (MCP `cabina`)
 
 - `mostrar`: abre una vista viva dentro de la conversación. En esta edición sirven `calendario` (su plan y su
   agenda; alcance día, semana o mes y fecha opcionales), `lienzo` (con `paginaId` y `zona` opcional), `documento`
-  (un archivo del cerebro por ruta relativa), `memoria` y `explorador`. Espera el acuse: si dice «NO confirmado», no
+  (un archivo del cerebro por ruta relativa), `memoria`, `explorador`, `negocio` (el pulso), `estrategia` (su mercado) y `bi` (sus gráficas). Espera el acuse: si dice «NO confirmado», no
   afirmes que quedó.
 - `abrir`: lleva al dueño a la sección Lienzo completa cuando la vista se queda corta.
 - `panel`: las pestañas que tiene abiertas AHORA según su app (úsala antes de afirmar qué ve) y el menú «+» de

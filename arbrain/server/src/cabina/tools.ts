@@ -27,7 +27,7 @@ import { anotarBitacora, clientesVivos, describirPanel, emitir, esperarAcuses, e
 import { vetoDirecto, vetoEntrada } from './modo-directo.js'
 import { aplicar as aplicarAjustes, describir as describirAjustesTodas, DONDES, idDeSeccion, leer as leerAjustes, NOMBRES as NOMBRES_SECCION, NOMBRES_DONDE, SECCIONES } from './panel-ajustes.js'
 
-export const VISTAS = ['calendario', 'objetivos', 'centro', 'lienzo', 'reporte', 'negocio', 'bi', 'trabajos', 'finanzas', 'contenido', 'rutinas', 'servidores', 'memoria', 'equipo', 'documento', 'diario', 'salud', 'masterclass', 'explorador', 'cohorte', 'casa', 'perro', 'historia'] as const
+export const VISTAS = ['calendario', 'objetivos', 'centro', 'lienzo', 'reporte', 'negocio', 'estrategia', 'bi', 'trabajos', 'finanzas', 'contenido', 'rutinas', 'servidores', 'memoria', 'equipo', 'documento', 'diario', 'salud', 'masterclass', 'explorador', 'cohorte', 'casa', 'perro', 'historia'] as const
 export const QUIENES = PERSONAS
 export const SECCIONES_NEGOCIO = ['avatar', 'oferta', 'embudo', 'sistema'] as const
 export const DESTINOS = ['calendario', 'objetivos', 'hoy', 'centro', 'contenido', 'lienzo', 'rutinas', 'finanzas', 'sfcal', 'sfmap'] as const
@@ -40,11 +40,12 @@ export type Alcance = typeof ALCANCES[number]
 /**
  * Edición cliente (carril U, 11 oct 2026): lo único que existe en la app del alumno. Misma lista que la web
  * (arbrain/src/lib/edicion.ts › VISTAS_CLIENTE y SECCIONES_PANEL_CLIENTE); el resto son vistas del negocio de la
- * instalación original y no se ofrecen ni se aceptan.
+ * instalación original y no se ofrecen ni se aceptan. Tu negocio y Business Intelligence (8 nov 2026) sí viajan, como
+ * motor vacío que lee el cerebro y las fuentes del dueño.
  */
-export const VISTAS_CLIENTE = ['calendario', 'lienzo', 'memoria', 'documento', 'explorador'] as const satisfies readonly Vista[]
+export const VISTAS_CLIENTE = ['calendario', 'lienzo', 'memoria', 'documento', 'explorador', 'negocio', 'estrategia', 'bi'] as const satisfies readonly Vista[]
 export const DESTINOS_CLIENTE = ['lienzo'] as const satisfies readonly Destino[]
-export const SECCIONES_PANEL_CLIENTE = ['calendario', 'lienzo', 'explorador', 'taller'] as const satisfies readonly (typeof SECCIONES)[number][]
+export const SECCIONES_PANEL_CLIENTE = ['calendario', 'lienzo', 'negocio', 'estrategia', 'bi', 'explorador', 'taller'] as const satisfies readonly (typeof SECCIONES)[number][]
 /** Vistas de `mostrar` según la edición. */
 export const vistasEdicion = (cliente = esEdicionCliente()): readonly Vista[] => cliente ? VISTAS_CLIENTE : VISTAS
 /** Destinos de `abrir` según la edición. */
@@ -185,7 +186,7 @@ export function parseAbrir(raw: unknown): AbrirInput {
   return input
 }
 
-const LABEL: Record<string, string> = { diario: 'reporte diario', documento: 'documento', reporte: 'reporte',  negocio: 'negocio', bi: 'business intelligence', trabajos: 'trabajos', calendario: 'calendario', objetivos: 'objetivos', hoy: 'hoy', centro: 'finanzas · lo que entra', contenido: 'contenido', lienzo: 'lienzo', rutinas: 'rutinas', finanzas: 'finanzas', servidores: 'servidores', memoria: 'memoria y contexto', equipo: 'equipo', salud: 'salud', masterclass: 'masterclass', explorador: 'archivos', cohorte: 'cohorte', casa: 'casa', perro: 'perro', sfcal: 'calendario', sfmap: 'lienzo' }
+const LABEL: Record<string, string> = { diario: 'reporte diario', documento: 'documento', reporte: 'reporte',  negocio: 'negocio', estrategia: 'estrategia', bi: 'business intelligence', trabajos: 'trabajos', calendario: 'calendario', objetivos: 'objetivos', hoy: 'hoy', centro: 'finanzas · lo que entra', contenido: 'contenido', lienzo: 'lienzo', rutinas: 'rutinas', finanzas: 'finanzas', servidores: 'servidores', memoria: 'memoria y contexto', equipo: 'equipo', salud: 'salud', masterclass: 'masterclass', explorador: 'archivos', cohorte: 'cohorte', casa: 'casa', perro: 'perro', sfcal: 'calendario', sfmap: 'lienzo' }
 const ALC: Record<Alcance, string> = { dia: 'día', semana: 'semana', mes: 'mes' }
 
 /** Ejecuta un verbo de la cabina. Solo valida y confirma: la vista la monta el cliente. */
@@ -576,7 +577,7 @@ export const motivoSoloOriginal = (_tool: string) => SIN_CAMPANA_CLIENTE
  */
 export function textosCabinaCliente(quien = dueno()) {
   const Quien = quien.charAt(0).toLocaleUpperCase('es') + quien.slice(1)
-  const mostrar = `Muestra a ${quien}, dentro del chat, una vista viva (la app lee la fuente y se refresca sola). Aparece ARRIBA de tu texto (di «arriba»; tu pregunta va al final). Úsala si ver algo ahorra explicación, una o dos por turno; no escribe nada y no afirmes lo que no consultaste. Vistas: calendario (su plan y agenda; alcance y fecha opcionales; lee .claude/plan/calendario.json, objetivos.md y habitos.json, que tú editas cuando pide agendar o planear: cada uno trae su instructivo) · lienzo (paginaId; zona encuadra) · memoria (lo que sabes y qué entra en tu contexto) · documento (ruta: .md, .txt, .html, .pdf, imagen, audio, video o carpeta; nunca código) · explorador (el árbol de archivos de su cerebro). fijar:true la deja en el panel y soltar:true la cierra, solo si lo pide; guardar:true al archivero. Esperan el acuse de su app: si dice «NO confirmado» no afirmes que quedó. Detalle: ayuda {tema:"<vista>"}.`
+  const mostrar = `Muestra a ${quien}, dentro del chat, una vista viva (la app lee la fuente y se refresca sola). Aparece ARRIBA de tu texto (di «arriba»; tu pregunta va al final). Úsala si ver algo ahorra explicación, una o dos por turno; no escribe nada y no afirmes lo que no consultaste. Vistas: calendario (su plan y agenda; alcance y fecha opcionales; lee .claude/plan/calendario.json, objetivos.md y habitos.json, que tú editas cuando pide agendar o planear: cada uno trae su instructivo) · lienzo (paginaId; zona encuadra) · memoria (lo que sabes y qué entra en tu contexto) · documento (ruta: .md, .txt, .html, .pdf, imagen, audio, video o carpeta; nunca código) · explorador (el árbol de archivos de su cerebro) · negocio (Tu negocio: el pulso de seis órganos) · bi (Business Intelligence: sus gráficas). fijar:true la deja en el panel y soltar:true la cierra, solo si lo pide; guardar:true al archivero. Esperan el acuse de su app: si dice «NO confirmado» no afirmes que quedó. Detalle: ayuda {tema:"<vista>"}.`
   const abrir = `Lleva a ${quien} a la sección Lienzo completa de Arbrain cuando la vista se queda corta o lo pide («ábreme el lienzo en grande»). Navega al terminar tu respuesta (puede cancelar); máximo una vez por turno. paginaId y zona opcionales; sin paginaId abre el último lienzo.`
   const panel = `Las pestañas que ${quien} tiene abiertas AHORA en su panel, según su app (no lo que creas haber fijado). accion listar: id, vista, ruta, quién la abrió y en qué ventana vive; úsala antes de afirmar qué ve. Sin cliente conectado da error: nada fijado está confirmado. accion secciones: lee o cambia el menú «+» (la misma config de Ajustes › Panel) con ocultar, mostrar, orden, restablecer o donde, y espera el acuse; «NO confirmado» = escrita pero sin aplicar aún. Secciones: calendario, lienzo, explorador (Archivos) y taller. Cambiarlo solo si lo pide.`
   const archivero = `Lo guardado en el archivero de ${quien} («+ › Guardadas»). accion listar | abrir {id o nombre} (la app la abre como pestaña) | sacar {id o nombre} (no borra el archivo). Para guardar usa mostrar guardar:true, solo si lo pide.`

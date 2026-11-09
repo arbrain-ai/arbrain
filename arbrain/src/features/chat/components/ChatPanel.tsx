@@ -80,7 +80,7 @@ import { metaVigente, type EstadoMeta } from '../lib/meta'
 import { separarRazonamiento } from '../lib/rastro'
 import { CabinaDelMensaje, CabinaProvider } from '@/features/cabina/Cabina'
 import { esHerramientaCabina } from '@/features/cabina/model'
-import { chatArrancaNuevo } from '@/features/cabina/panel/telefono-pestanas'
+import { esPrimerMontajeDelChat, sesionDeEnlaceVigente } from '@/features/chat/lib/conversacion-al-abrir'
 import { AgentesTrabajando } from '@/features/cabina/panel/AgentesTrabajando'
 import { useColaMensajes } from '../hooks/useColaMensajes'
 import { SalidaDeFila, turnoVivoEnServidor, type EstadoSalida } from '../lib/fila-salida'
@@ -1487,8 +1487,8 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
       }
       localStorage.setItem('mc_lastChatSessionId', session.id)
       // sessionStorage = memoria de NAVEGACIÓN (sobrevive cambios de tab dentro
-      // de la app, muere al cerrarla): el cold open sigue aterrizando en
-      // conversación nueva (decisión 2 jul), pero tab-switch regresa aquí.
+      // de la app, muere al cerrarla); localStorage es la que trae de vuelta al
+      // reabrir en frío.
       try { sessionStorage.setItem('mc_activeChatSessionId', session.id) } catch { /* storage lleno/privado */ }
       anchorActiveRef.current = false
       anchorPendingRef.current = false
@@ -1883,32 +1883,27 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
     return () => { snapshotView() }
   }, [snapshotView])
 
-  // Default al abrir (decisión de Daniel, fase 2): conversación NUEVA — el chat
-  // aterriza vacío, listo para escribir, sin bajar historial (cero red = cold
-  // open aún más rápido). Dos EXCEPCIONES, en orden de prioridad:
-  //   1. Deep-link ?session= (push/cron): esa sesión específica se abre.
+  // Al abrir (9 nov 2026, ver conversacion-al-abrir.ts), en orden de prioridad:
+  //   1. Deep-link ?session= vigente (push/cron): esa sesión específica se abre.
   //   2. Navegación interna (tab-switch): cada cambio de ruta desmonta la página
   //      completa (no hay keep-alive), así que la sesión activa vive en
   //      sessionStorage — sobrevive moverse entre tabs, muere al cerrar la app.
-  //      El cold open sigue aterrizando en conversación nueva.
+  //   3. Apertura en frío: la última conversación que tuvo abierta (localStorage),
+  //      en el escritorio y en el teléfono. Sin ninguna, conversación nueva.
   // We DON'T strip the query param — it's harmless (refresh just reopens the same
   // session) and manually editing window.history can confuse Next.js App Router on iOS PWA.
   useEffect(() => {
     if (hasAutoLoaded.current) return
 
     const params = new URLSearchParams(window.location.search)
-    const fromUrl = params.get('session')
+    const fromUrl = sesionDeEnlaceVigente(window.location.search, esPrimerMontajeDelChat(), localStorage)
     let fromNav: string | null = null
     try { fromNav = sessionStorage.getItem('mc_activeChatSessionId') } catch { /* modo privado */ }
-    // 6 oct 2026 (Daniel: «asegúrate que me abra en el último chat donde me quedé»): en frío ya no se aterriza en una
-    // conversación nueva, se vuelve a la última que tuvo abierta (localStorage). Si ya no existe, el camino de abajo
-    // cae a conversación nueva como antes.
+    // 6 oct 2026 (Daniel: «asegúrate que me abra en el último chat donde me quedé») y 9 nov en el teléfono (el 10 oct
+    // el teléfono nacía en una conversación nueva): en frío se vuelve a la última que tuvo abierta. Si ya no existe, el
+    // camino de abajo cae a conversación nueva como antes.
     let fromLast: string | null = null
     try { fromLast = localStorage.getItem('mc_lastChatSessionId') } catch { /* modo privado */ }
-    // 10 oct 2026 (Daniel, en el teléfono: «al abrir, lo primero es el chat: una conversación nueva lista para escribir»):
-    // en el teléfono la apertura en frío nace en una conversación nueva; la anterior queda en el historial. El escritorio
-    // sigue volviendo a la última. Un deep link (?session=) manda siempre.
-    if (chatArrancaNuevo()) { fromNav = null; fromLast = null }
     const targetId = fromUrl ?? fromNav ?? fromLast
 
     if (!targetId) {

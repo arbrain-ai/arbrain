@@ -65,7 +65,7 @@ describe('Cabina en la edición cliente', () => {
     for (const h of t.cabinaToolsCliente()) expect(JSON.stringify(h)).not.toMatch(PROHIBIDO)
     expect(t.textosCabinaCliente('alumna de prueba').mostrar).toContain('Muestra a alumna de prueba')
     // Dieta de contexto (27 oct 2026): la ayuda a demanda tampoco nombra el negocio, para ningún tema ni para el índice.
-    for (const tema of [undefined, 'mostrar', 'calendario', 'documento', 'panel', 'archivero', 'abrir', 'despertador', 'conversacion', 'zona', 'cohorte', 'delegar']) {
+    for (const tema of [undefined, 'mostrar', 'calendario', 'documento', 'panel', 'archivero', 'abrir', 'despertador', 'conversacion', 'zona', 'cohorte', 'delegar', 'negocio', 'estrategia', 'bi']) {
       const r = await t.ejecutarCabina('ayuda', tema ? { tema } : {})
       expect(r.text, String(tema)).not.toMatch(PROHIBIDO)
     }
@@ -74,12 +74,13 @@ describe('Cabina en la edición cliente', () => {
   it('las vistas y destinos ofrecidos son los de la web del alumno; los demás no se aceptan', async () => {
     const t = await cargar('cliente')
     const props = (n: string) => (t.cabinaToolsVisibles().find(x => x.name === n)!.inputSchema as unknown as { properties: Record<string, { enum?: string[] }> }).properties
-    expect(props('mostrar').vista.enum).toEqual(['calendario', 'lienzo', 'memoria', 'documento', 'explorador'])
+    // Tu negocio y Business Intelligence (8 nov 2026) viajan al alumno como motor vacío.
+    expect(props('mostrar').vista.enum).toEqual(['calendario', 'lienzo', 'memoria', 'documento', 'explorador', 'negocio', 'estrategia', 'bi'])
     for (const k of ['seccion', 'quien', 'agenteId']) expect(props('mostrar')[k]).toBeUndefined()
     // Calendario local (21 oct 2026): alcance y fecha vuelven, solo para esa vista.
     for (const k of ['alcance', 'fecha']) expect(props('mostrar')[k]).toBeDefined()
     expect(props('abrir').destino.enum).toEqual(['lienzo'])
-    expect(() => t.parseMostrar({ vista: 'finanzas' })).toThrow(/vista debe ser calendario\|lienzo\|memoria\|documento\|explorador\./)
+    expect(() => t.parseMostrar({ vista: 'finanzas' })).toThrow(/vista debe ser calendario\|lienzo\|memoria\|documento\|explorador\|negocio\|estrategia\|bi\./)
     expect(() => t.parseAbrir({ destino: 'calendario' })).toThrow(/destino debe ser lienzo\./)
     expect(t.parseMostrar({ vista: 'explorador' }).vista).toBe('explorador')
     const r = t.callCabina('mostrar', { vista: 'salud' })
@@ -94,14 +95,14 @@ describe('Cabina en la edición cliente', () => {
     expect(r.text).not.toMatch(PROHIBIDO)
   })
 
-  it('panel secciones: solo Calendario, Lienzo, Archivos y Taller; nombrar otra es error y la lista no enseña las ocultas', async () => {
+  it('panel secciones: solo las del alumno (con Tu negocio y Business Intelligence); nombrar otra es error y la lista no enseña las ocultas', async () => {
     const t = await cargar('cliente')
     const leer = await t.ejecutarCabina('panel', { accion: 'secciones' })
-    expect(leer.text).toMatch(/«\+» muestra, en este orden: Calendario, Lienzo, Archivos, Taller\. Ocultas: ninguna\./)
+    expect(leer.text).toMatch(/«\+» muestra, en este orden: Calendario, Lienzo, Negocio, Estrategia, Business Intelligence, Archivos, Taller\. Ocultas: ninguna\./)
     expect(leer.text).not.toMatch(PROHIBIDO)
     const mal = await t.ejecutarCabina('panel', { accion: 'secciones', ocultar: ['Finanzas'] })
     expect(mal.error).toBe(true)
-    expect(mal.text).toMatch(/no es una sección del «\+» en esta edición\. Son: Calendario, Lienzo, Archivos, Taller\./)
+    expect(mal.text).toMatch(/no es una sección del «\+» en esta edición\. Son: Calendario, Lienzo, Negocio, Estrategia, Business Intelligence, Archivos, Taller\./)
     const ok = await t.ejecutarCabina('panel', { accion: 'secciones', ocultar: ['Taller'] })
     expect(ok.text).toMatch(/ocultó Taller/)
     expect(ok.text).not.toMatch(PROHIBIDO)

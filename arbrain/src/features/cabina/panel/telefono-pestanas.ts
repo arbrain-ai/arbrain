@@ -84,32 +84,18 @@ export function tocarAgente(ruta: string, push: (url: string) => void) {
   if (ruta !== '/chat') push('/chat')
 }
 
-/** Lo primero al abrir o reabrir: el chat con una conversación nueva, sin panel ni cajón encima. */
-function abrirChatNuevo(push: (url: string) => void) {
+/** Lo primero al reabrir: el chat en la conversación donde estabas (9 nov 2026), sin panel ni cajón encima. */
+function volverAlChat(push: (url: string) => void) {
   const l = useLayoutStore.getState()
   l.setPanelDerecho(false)
   l.closeConversationsDrawer()
-  if (window.location.pathname === '/chat') { window.dispatchEvent(new CustomEvent('openclaw:new-chat')); return }
-  // Fuera del chat ChatPanel no está montado: se olvida la conversación de la navegación y /chat arranca en una nueva.
-  try { sessionStorage.removeItem('mc_activeChatSessionId') } catch { /* modo privado */ }
-  push('/chat')
+  // Fuera del chat ChatPanel no está montado: /chat regresa a la conversación de la navegación.
+  if (window.location.pathname !== '/chat') push('/chat')
 }
 
 /**
- * Apertura en frío (10 oct 2026): el primer chat que se monta en un teléfono desde que cargó la app nace en una
- * conversación nueva en vez de la última abierta (6 oct), haya arrancado en el chat o en una sección (iOS restaura la
- * última URL). Las vueltas siguientes al chat conservan la suya. Un deep link (?session= de un push) manda siempre: lo
- * resuelve ChatPanel antes.
- */
-let primerChat = true
-export function chatArrancaNuevo() {
-  const nuevo = primerChat && esTelefono()
-  primerChat = false
-  return nuevo
-}
-
-/**
- * Reabrir la app en el teléfono tras un rato en segundo plano (`REAPERTURA_MS`) es abrirla: el chat, conversación nueva.
+ * Reabrir la app en el teléfono tras un rato en segundo plano (`REAPERTURA_MS`) es abrirla: el chat, en la conversación
+ * donde estabas (9 nov 2026, Daniel: «no recuerda en la conversación que estaba»; del 10 oct al 9 nov nacía una nueva).
  * Salvo que la haya abierto el toque de una notificación (18 oct 2026, Daniel: «me llegó la noti pero no a la
  * conversación»): entonces manda la notificación (features/notifications/lib/toque-aviso.ts).
  */
@@ -142,7 +128,7 @@ export function useReabrirEnChat() {
       if (window.location.pathname === '/chat' && new URLSearchParams(window.location.search).get('tab') === 'live') return
       // El ícono «Hábitos» (22 oct 2026) y Perro y Casa (26 oct 2026): se entra a propósito; reabrir no los manda al chat.
       if (seQuedaAlReabrir(window.location.pathname)) return
-      abrirChatNuevo(url => router.push(url))
+      volverAlChat(url => router.push(url))
     }
     document.addEventListener('visibilitychange', alCambiar)
     return () => { document.removeEventListener('visibilitychange', alCambiar); sw?.removeEventListener('message', alMensaje) }

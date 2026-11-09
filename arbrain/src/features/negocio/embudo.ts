@@ -6,6 +6,8 @@
  * Sin estados inventados: lo que no viene en el archivo o en una lectura real se dice «sin dato», nunca 0.
  */
 
+import { esEdicionCliente } from '@/lib/edicion'
+
 export const ESQUEMA_EMBUDO = 'arbrain.embudo/v1'
 /** La única ruta donde el panel busca el embudo, relativa a la raíz del cerebro. */
 export const RUTA_EMBUDO = '.claude/memory/project/mi-negocio/embudo.json'
@@ -246,8 +248,15 @@ export type RespuestaEmbudo =
 
 export const URL_EMBUDO = '/api/negocio/embudo'
 
-/** El interruptor del prototipo: solo `ARBRAIN_PANEL_NEGOCIO=1` en el entorno del servidor lo enciende. */
-export const panelNegocioEncendido = (env: Record<string, string | undefined> = process.env) => env.ARBRAIN_PANEL_NEGOCIO === '1'
+/**
+ * El interruptor de Tu negocio y Business Intelligence. En la instalación del autor, solo `ARBRAIN_PANEL_NEGOCIO=1` en el
+ * entorno del servidor lo enciende. En la edición del alumno (8 nov 2026, Daniel: «este mismo sistema les compartiré a mis
+ * alumnos») viene encendido como motor vacío y `ARBRAIN_PANEL_NEGOCIO=0` lo apaga, igual que Tu primer día.
+ */
+export const panelNegocioEncendido = (env: Record<string, string | undefined> = process.env) => {
+  const v = (env.ARBRAIN_PANEL_NEGOCIO ?? '').trim()
+  return v === '1' || (v !== '0' && esEdicionCliente(env))
+}
 
 /** Cómo le fue a una rutina, en una frase. `tono` sigue a Rutinas (ok, error, curso, pausada, sin-dato) más `atencion`. */
 export interface Corrida { tono: 'ok' | 'error' | 'curso' | 'pausada' | 'sin-dato' | 'atencion' | 'por-construir'; texto: string }

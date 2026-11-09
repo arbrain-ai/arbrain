@@ -71,6 +71,8 @@ const OPCIONES: Opcion[] = [
   { vista: 'cohorte', nota: 'Quién te necesita esta semana y para qué, con la ficha de cada fundador' },
   { vista: 'lienzo', nota: 'Tus mapas y pizarras' },
   { vista: 'negocio', nota: 'Avatar, oferta, embudo y sistema' },
+  // Estrategia (8 nov 2026): la investigación de mercado con el lenguaje de Contenido; El pulso la abre desde su tarjeta.
+  { vista: 'estrategia', nota: 'Quién te compra, contra quién te comparan y hacia dónde va' },
   // Business Intelligence (7 nov 2026): se le pregunta en español; la alarma de Beer y el cuello siempre a la vista.
   { vista: 'bi', nota: 'Pregúntale a tu negocio: gráficas vivas, la alarma y el cuello' },
   // Masterclass sale del «+» (11 oct 2026): vive en Guardadas, abajo; Levy la abre con `mostrar {vista:'masterclass'}`.

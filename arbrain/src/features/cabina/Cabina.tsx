@@ -15,7 +15,7 @@ import { Component, createContext, startTransition, useCallback, useContext, use
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { AlertTriangle, ArrowUpRight, BookOpen, ChartSpline, Bookmark, BookmarkCheck, CalendarDays, Clapperboard, Gauge, Inbox, Loader2, Maximize2, Target, TerminalSquare, Wallet, Shapes, X, Navigation, ChevronRight, Pin, PinOff, FileText, Repeat, Server, BrainCircuit, Network, Sun, Activity, GraduationCap, FolderTree, UsersRound, House, Dog, History } from 'lucide-react'
+import { AlertTriangle, ArrowUpRight, BookOpen, ChartSpline, Compass, Bookmark, BookmarkCheck, CalendarDays, Clapperboard, Gauge, Inbox, Loader2, Maximize2, Target, TerminalSquare, Wallet, Shapes, X, Navigation, ChevronRight, Pin, PinOff, FileText, Repeat, Server, BrainCircuit, Network, Sun, Activity, GraduationCap, FolderTree, UsersRound, House, Dog, History } from 'lucide-react'
 import type { ChatMessage } from '@/features/chat/hooks/useChat'
 import { type Invocacion, type MostrarInput, type AbrirInput, invocacionesDe, sinEcoDeDelegar, rutaDe, seccionDe, resumen, NOMBRE, abrirEsVivo, abrirEjecutado, hoyCivil, tituloPeriodo, nombreDocumento } from './model'
 import { lecturaEnCache } from './datos'
@@ -26,6 +26,7 @@ import { VistaLienzo } from './vistas/Lienzo'
 import { VistaReporte, urlReporte, resumenReporte } from './vistas/Reporte'
 import { VistaNegocio, urlNegocio, resumenNegocio } from './vistas/Negocio'
 import { VistaBI } from './vistas/BI'
+import { VistaEstrategia } from './vistas/Estrategia'
 import { VistaTrabajos, urlTrabajos, resumenTrabajos } from './vistas/Trabajos'
 import { VistaRutinas, urlRutinas, resumenRutinas } from './vistas/Rutinas'
 import { VistaServidores, URL_SERVIDORES, resumenServidores } from './vistas/Servidores'
@@ -91,7 +92,7 @@ export function CabinaProvider({ messages, children, sinOptimizar }: { messages:
   return <CabinaCtx.Provider value={value}>{children}</CabinaCtx.Provider>
 }
 
-export const ICONO = { calendario: CalendarDays, objetivos: Target, centro: Gauge, lienzo: Shapes, reporte: Inbox, negocio: BookOpen, bi: ChartSpline, trabajos: TerminalSquare, finanzas: Wallet, contenido: Clapperboard, rutinas: Repeat, servidores: Server, memoria: BrainCircuit, equipo: Network, documento: FileText, diario: Sun, salud: Activity, masterclass: GraduationCap, explorador: FolderTree, cohorte: UsersRound, casa: House, perro: Dog, historia: History }
+export const ICONO = { calendario: CalendarDays, objetivos: Target, centro: Gauge, lienzo: Shapes, reporte: Inbox, negocio: BookOpen, estrategia: Compass, bi: ChartSpline, trabajos: TerminalSquare, finanzas: Wallet, contenido: Clapperboard, rutinas: Repeat, servidores: Server, memoria: BrainCircuit, equipo: Network, documento: FileText, diario: Sun, salud: Activity, masterclass: GraduationCap, explorador: FolderTree, cohorte: UsersRound, casa: House, perro: Dog, historia: History }
 
 /** Una vista que falla se queda en SU tarjeta: nunca tumba el hilo. */
 class Aislada extends Component<{ children: ReactNode }, { error: string | null }> {
@@ -127,6 +128,8 @@ function CuerpoVista({ input, grande }: { input: MostrarInput; grande?: boolean 
     case 'negocio': return <VistaNegocio seccion={input.seccion} grande={grande} />
     // Business Intelligence (7 nov 2026): el negocio se mira a sí mismo y te habla; trae su propio encabezado.
     case 'bi': return <VistaBI grande={grande} />
+    // Estrategia (8 nov 2026): quién compra, contra quién, hacia dónde va y lo que decides; trae su propio encabezado.
+    case 'estrategia': return <VistaEstrategia grande={grande} />
     case 'trabajos': return <VistaTrabajos agenteId={input.agenteId} grande={grande} />
     case 'finanzas': return <VistaFinanzas grande={grande} />
     // En el panel y en «Ampliar», Contenido completo: producción, radar, resultados con ventas y comentarios (4 oct 2026).
@@ -188,7 +191,7 @@ export function titulo(input: MostrarInput) {
 
 /** Las vistas v2 traen su propio encabezado editorial (la fecha, la meta, la cifra):
  *  la cabecera de la tarjeta solo dice de dónde viene, sin repetir el título. */
-const conHeroe = (i: MostrarInput) => ['bi', 'calendario', 'objetivos', 'centro', 'finanzas', 'contenido', 'rutinas', 'servidores', 'memoria', 'equipo', 'diario', 'salud', 'masterclass', 'explorador', 'cohorte', 'casa', 'perro', 'historia'].includes(i.vista)
+const conHeroe = (i: MostrarInput) => ['bi', 'estrategia', 'calendario', 'objetivos', 'centro', 'finanzas', 'contenido', 'rutinas', 'servidores', 'memoria', 'equipo', 'diario', 'salud', 'masterclass', 'explorador', 'cohorte', 'casa', 'perro', 'historia'].includes(i.vista)
 
 /** ¿Algo de la vista está en uso fuera de su lugar? Un visor marcado `data-en-uso` o lo que esté en pantalla completa. */
 export function enUso(nodo: Element) {

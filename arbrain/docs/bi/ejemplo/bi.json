@@ -1,0 +1,12 @@
+{
+  "esquema": "arbrain.bi/v1",
+  "graficas": [
+    { "id": "cuantas-ventas-tuve", "pregunta": "¿Cuántas ventas tuve cada día?", "consulta": { "id": "ventas", "ventana": 30 }, "tipo": "linea", "fuente": "Ventas del punto de venta · CSV", "creada": "2026-11-08T09:00:00-06:00", "por": "Levy", "estado": "fijada" },
+    { "id": "cuanto-entro-este-mes", "pregunta": "¿Cuánto dinero entró este mes y voy mejor que el pasado?", "consulta": { "id": "lo-que-entro", "ventana": 30 }, "tipo": "acumulado", "fuente": "Ventas del punto de venta · CSV", "creada": "2026-11-08T09:00:00-06:00", "por": "Levy", "estado": "fijada" },
+    { "id": "que-es-lo-que-mas-vendo", "pregunta": "¿Qué es lo que más vendo?", "consulta": { "id": "lo-mas-vendido", "ventana": 30 }, "tipo": "barras", "fuente": "Ventas del punto de venta · CSV", "creada": "2026-11-08T09:00:00-06:00", "por": "Levy", "estado": "fijada" },
+    { "id": "donde-se-cae-la-gente", "pregunta": "¿Dónde se cae la gente antes de comprar?", "consulta": { "id": "embudo", "ventana": 30 }, "tipo": "embudo", "fuente": "Pedidos para eventos · CSV", "creada": "2026-11-08T09:00:00-06:00", "por": "Levy", "estado": "fijada" },
+    { "id": "de-donde-llegan", "pregunta": "¿De dónde llegan los pedidos para eventos?", "consulta": { "id": "de-donde-llegan", "ventana": 30 }, "tipo": "proporcion", "fuente": "Pedidos para eventos · CSV", "creada": "2026-11-08T09:00:00-06:00", "por": "Levy", "estado": "fijada" },
+    { "id": "cuanto-gasta-cada-cliente", "pregunta": "¿Cuánto gasta cada cliente?", "consulta": { "id": "ticket-promedio", "ventana": 30 }, "tipo": "linea", "fuente": "Ventas del punto de venta · CSV", "creada": "2026-11-08T09:00:00-06:00", "por": "Levy", "estado": "fijada" },
+    { "id": "estoy-ganando-clientes", "pregunta": "¿Estoy ganando clientes?", "consulta": { "id": "clientes-nuevos", "ventana": 30 }, "tipo": "linea", "fuente": "Sin fuente todavía", "creada": "2026-11-08T09:00:00-06:00", "por": "Levy", "estado": "fijada" }
+  ]
+}

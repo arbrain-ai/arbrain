@@ -181,8 +181,11 @@ export function useChatHistory(account: ChatAccount = 'default', view: ChatHisto
       return
     }
 
-    // 1. Load MC sessions through the local/server auth layer — filtradas por espacio.
-    const mcRes = await fetch(`/api/chat/sessions?source=mc&limit=30&account=${account}`, { cache: 'no-store' }).catch(() => null)
+    // 1. Load MC sessions through the local/server auth layer. Todas las cuentas (9 nov 2026): con Opus elegido la lista
+    // escondía las conversaciones de «Sin filtro» y de los demás modelos. Daniel: «si tengo modelo opus dejo de ver las
+    // conversaciones con abliterated models». Igual que la barra lateral (recientes-cuentas.ts, 1 oct: «por ahora no
+    // ocupamos un filtro»); abrir una de otra cuenta ya resincroniza la cuenta activa (handleSelectSession).
+    const mcRes = await fetch(`/api/chat/sessions?source=mc&limit=40&sort=last_message`, { cache: 'no-store' }).catch(() => null)
     if (!mcRes) { setLoading(false); setLoadError('sin conexión con el servidor'); return }
     const mcJson = await mcRes.json().catch(() => ({})) as { sessions?: ChatSession[]; error?: string }
     // Falla = conservar lo pintado y decirlo; nunca una lista vacía (12 oct 2026).

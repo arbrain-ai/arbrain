@@ -11,7 +11,7 @@ import { DUENO, NOMBRE_SEGUNDA, SEGUNDA } from '@/config'
 import { zonaDueno, ZONA_ORIGINAL } from '@/shared/lib/zona-dueno'
 import { civilMidnight } from '@/features/sistema/calendar-days'
 
-export type Vista = 'calendario' | 'objetivos' | 'centro' | 'lienzo' | 'reporte' | 'negocio' | 'bi' | 'trabajos' | 'finanzas' | 'contenido' | 'rutinas' | 'servidores' | 'memoria' | 'equipo' | 'documento' | 'diario' | 'salud' | 'masterclass' | 'explorador' | 'cohorte' | 'casa' | 'perro' | 'historia'
+export type Vista = 'calendario' | 'objetivos' | 'centro' | 'lienzo' | 'reporte' | 'negocio' | 'estrategia' | 'bi' | 'trabajos' | 'finanzas' | 'contenido' | 'rutinas' | 'servidores' | 'memoria' | 'equipo' | 'documento' | 'diario' | 'salud' | 'masterclass' | 'explorador' | 'cohorte' | 'casa' | 'perro' | 'historia'
 export type SeccionNegocio = 'avatar' | 'oferta' | 'embudo' | 'sistema'
 export type Destino = 'calendario' | 'objetivos' | 'hoy' | 'centro' | 'contenido' | 'lienzo' | 'rutinas' | 'finanzas' | 'sfcal' | 'sfmap' | 'reporte' | 'negocio' | 'trabajos'
 export type Alcance = 'dia' | 'semana' | 'mes'
@@ -45,7 +45,7 @@ export type Invocacion =
   | { toolId: string; verbo: 'mostrar'; input: MostrarInput | null; status: 'running' | 'done'; error?: string }
   | { toolId: string; verbo: 'abrir'; input: AbrirInput | null; status: 'running' | 'done'; error?: string }
 
-const VISTAS: readonly Vista[] = ['calendario', 'objetivos', 'centro', 'lienzo', 'reporte', 'negocio', 'bi', 'trabajos', 'finanzas', 'contenido', 'rutinas', 'servidores', 'memoria', 'equipo', 'documento', 'diario', 'salud', 'masterclass', 'explorador', 'cohorte', 'casa', 'perro', 'historia']
+const VISTAS: readonly Vista[] = ['calendario', 'objetivos', 'centro', 'lienzo', 'reporte', 'negocio', 'estrategia', 'bi', 'trabajos', 'finanzas', 'contenido', 'rutinas', 'servidores', 'memoria', 'equipo', 'documento', 'diario', 'salud', 'masterclass', 'explorador', 'cohorte', 'casa', 'perro', 'historia']
 /**
  * ¿Este build sabe pintar esa vista? (27 oct 2026) Una pestaña fijada con `vista: 'historia'` (nacida en una rama en obra y
  * sincronizada a todos los dispositivos) tumbó la app entera: ICONO['historia'] era undefined (React #130). Lo que entra al
@@ -194,6 +194,8 @@ export function rutaDe(d: { destino: Destino | Vista; alcance?: Alcance; fecha?:
     case 'negocio': return '/negocio'
     // Business Intelligence (7 nov 2026): pregúntale a tu negocio, la alarma y el cuello.
     case 'bi': return '/bi'
+    // Estrategia (8 nov 2026): la investigación de mercado como sección propia, con el lenguaje de Contenido.
+    case 'estrategia': return '/estrategia'
     case 'documento': return '/segundo-cerebro'
     case 'diario': return '/chat'
     // El explorador de archivos (8 oct 2026) vive solo en el panel.
@@ -215,7 +217,7 @@ export function seccionDe(i: Pick<MostrarInput, 'vista' | 'alcance' | 'fecha' | 
 export const NOMBRE: Record<Destino | Vista, string> = {
   calendario: 'Calendario', objetivos: 'Objetivos', hoy: 'Hoy', centro: 'Command Center', contenido: 'Contenido',
   lienzo: 'Lienzo', rutinas: 'Rutinas', finanzas: 'Finanzas', sfcal: 'Calendario', sfmap: 'Lienzo',
-  reporte: 'Lo que llegó', negocio: 'Tu negocio', bi: 'Business Intelligence', trabajos: 'Trabajos en el Studio', servidores: 'Servidores', memoria: 'Memoria', equipo: 'Equipo', documento: 'Documento', diario: 'Reporte diario', salud: 'Salud', masterclass: 'Masterclass', explorador: 'Archivos', cohorte: 'Cohorte', casa: 'Casa', perro: 'Perro', historia: 'Historia',
+  reporte: 'Lo que llegó', negocio: 'Tu negocio', estrategia: 'Estrategia', bi: 'Business Intelligence', trabajos: 'Trabajos en el Studio', servidores: 'Servidores', memoria: 'Memoria', equipo: 'Equipo', documento: 'Documento', diario: 'Reporte diario', salud: 'Salud', masterclass: 'Masterclass', explorador: 'Archivos', cohorte: 'Cohorte', casa: 'Casa', perro: 'Perro', historia: 'Historia',
 }
 
 /** Nombre de un documento: el título que le dio Levy o el nombre del archivo. */
@@ -228,6 +230,7 @@ export function resumen(i: MostrarInput): string {
   if (i.vista === 'lienzo') return `Lienzo${i.titulo ? ` · ${i.titulo}` : ''}`
   if (i.vista === 'reporte') return i.titulo ?? 'Lo que llegó'
   if (i.vista === 'negocio') return i.titulo ?? `Tu negocio${i.seccion ? ` · ${i.seccion}` : ''}`
+  if (i.vista === 'estrategia') return i.titulo ?? 'Estrategia · quién compra, contra quién y hacia dónde va'
   if (i.vista === 'bi') return i.titulo ?? 'Business Intelligence · tu negocio te habla'
   if (i.vista === 'trabajos') return i.titulo ?? 'Trabajos en el Studio'
   if (i.vista === 'finanzas') return i.titulo ?? 'Finanzas · últimos 30 días'

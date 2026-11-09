@@ -57,7 +57,7 @@ export const claveDe = (i: VistaGuardada) => i.vista === 'calendario' || (i.vist
   : i.vista === 'lienzo' ? `lienzo|${i.paginaId}`
   : [i.vista, i.alcance, i.fecha, i.seccion, i.paginaId, i.agenteId].join('|')
 
-const NOMBRE: Record<string, string> = { calendario: 'Calendario', objetivos: 'Objetivos', centro: 'Command center', lienzo: 'Lienzo', reporte: 'Lo que llegó', negocio: 'Negocio', bi: 'Business Intelligence', cohorte: 'Cohorte', trabajos: 'Trabajos', finanzas: 'Finanzas', contenido: 'Contenido', rutinas: 'Rutinas', servidores: 'Servidores', memoria: 'Memoria y contexto', salud: 'Salud', masterclass: 'Masterclass', explorador: 'Archivos', documento: 'Documento' }
+const NOMBRE: Record<string, string> = { calendario: 'Calendario', objetivos: 'Objetivos', centro: 'Command center', lienzo: 'Lienzo', reporte: 'Lo que llegó', negocio: 'Negocio', estrategia: 'Estrategia', bi: 'Business Intelligence', cohorte: 'Cohorte', trabajos: 'Trabajos', finanzas: 'Finanzas', contenido: 'Contenido', rutinas: 'Rutinas', servidores: 'Servidores', memoria: 'Memoria y contexto', salud: 'Salud', masterclass: 'Masterclass', explorador: 'Archivos', documento: 'Documento' }
 export const nombreDe = (i: VistaGuardada) => i.titulo || (i.vista === 'documento' ? path.basename(i.ruta ?? '') : i.vista === 'negocio' && i.seccion ? i.seccion : NOMBRE[i.vista] ?? i.vista)
 
 export function leer(archivo = ARCHIVO()): Libro {

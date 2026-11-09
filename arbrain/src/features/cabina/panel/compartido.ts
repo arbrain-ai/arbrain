@@ -12,7 +12,7 @@
 import { isDesktopRuntime } from '@/lib/local-first/runtime'
 import { esTelefonoAhora } from '@/shared/hooks/useMediaQuery'
 import { usePanelFijadas, type Fijada } from './fijadas'
-import { alRecibir, basePrimerContacto, firmaEstado, type EstadoPanel, type PedidoCompartido, type RespuestaCompartido } from './compartido-puro'
+import { alRecibir, basePrimerContacto, conAjenas, firmaEstado, type EstadoPanel, type PedidoCompartido, type RespuestaCompartido } from './compartido-puro'
 import { todasLasClaves } from './pestanas-fuera'
 
 type Estado = EstadoPanel<Fijada & { input: Fijada['input'] & Record<string, unknown> }>
@@ -28,9 +28,11 @@ let activaSabida: string | null = null
 /** Un cambio que el Studio no quiso guardar (demasiado grande): no se reintenta hasta que cambie algo más. */
 let rechazadoPorError: string | null = null
 
+/** Lo de este aparato, con lo que aquí no se pinta devuelto a su lugar (9 nov 2026): sin eso, un aparato que no conoce una
+ *  vista la mandaba como cerrada y se cerraba en todos (compartido-puro.ts › conAjenas). */
 const local = (): Estado => {
   const st = usePanelFijadas.getState()
-  return { fijadas: st.fijadas as Estado['fijadas'], orden: st.orden, taller: st.taller, ancladas: st.ancladas }
+  return conAjenas({ fijadas: st.fijadas, orden: st.orden, taller: st.taller, ancladas: st.ancladas }, st.ajenas) as Estado
 }
 
 /** Lo que este latido le manda al Studio. */

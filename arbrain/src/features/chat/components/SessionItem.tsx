@@ -6,6 +6,7 @@ import { es } from 'date-fns/locale'
 import type { ChatSession } from '../hooks/useChatHistory'
 import { deriveSessionState } from '../lib/session-status'
 import { textMessageTitle } from '../lib/text-attachments'
+import { cuentaDe, cuentaReciente } from '../lib/recientes-cuentas'
 import { esProtegida } from '../lib/atajos-conversacion'
 import { renombrar } from '../lib/acciones-conversacion'
 import { EditorTitulo } from './EditorTitulo'
@@ -32,6 +33,7 @@ export interface SessionItemProps {
 }
 
 export function SessionItem({ session, active, onSelect, onAbrir }: SessionItemProps) {
+  const cuenta = cuentaReciente(cuentaDe(session))
   const [editando, setEditando] = useState(false)
   const menu = useMenuConversacion(session, { onRenombrar: () => setEditando(true), onAbrir })
 
@@ -96,6 +98,8 @@ export function SessionItem({ session, active, onSelect, onAbrir }: SessionItemP
                 <Clock size={9} className="shrink-0" />
               )}
               <span className="truncate">{timeAgo}</span>
+              {/* La lista trae todas las cuentas (9 nov 2026): las que no son su Claude llevan su rótulo, como en la barra. */}
+              {cuenta.corta && <span className={`shrink-0 ${cuenta.texto}`} title={cuenta.etiqueta}>· {cuenta.corta}</span>}
             </div>
           )}
         </div>

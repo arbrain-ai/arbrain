@@ -7,7 +7,7 @@
  * mismo (`features/negocio/embudo.ts`) y la prueba comprueba que el ejemplo de esta guía pase.
  */
 import { ESQUEMA_EMBUDO, ETAPAS } from '@/features/negocio/embudo'
-import { HABILIDADES_DE_ARBRAIN, RUTA_EMBUDO, RUTA_NEGOCIO, RUTA_OFERTA, RUTINAS_META } from './modelo'
+import { HABILIDADES_DE_ARBRAIN, RUTA_EMBUDO, RUTA_NEGOCIO, RUTA_OFERTA, RUTA_OFERTA_COMPLETA, RUTINAS_META } from './modelo'
 
 /** El embudo mínimo de la guía: un consultor de una sola oferta. La prueba lo valida con `validarEmbudo`. */
 export const EJEMPLO_EMBUDO = {
@@ -62,6 +62,9 @@ Qué escribir: el nicho (industria y tamaño, p. ej. «negocios de servicio de 5
 dolor en sus palabras; la promesa (libertad y eficiencia medibles; dinero solo si lo puede probar); la entrega
 (diagnóstico → instalación → operación mensual → capacitación de su equipo); el precio que él elige (setup + mensualidad
 o paquete); la garantía; y cómo medirá el resultado (línea base de los últimos 12 meses, revisión a 3, 6 y 12).
+
+Aquí basta lo esencial en una pantalla. La oferta completa, en sus 11 piezas, se arma con la habilidad \`oferta\`
+(\`${RUTA_OFERTA_COMPLETA}\`), y también cumple este paso; si ya existe, confírmala con él en lugar de repetirla.
 
 ## Paso 3 · Tu embudo → \`${RUTA_EMBUDO}\`
 

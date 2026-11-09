@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react'
 import { escucharPedido, EVENTO_ETAPA_NEGOCIO, LLAVE_ETAPA_NEGOCIO } from '@/shared/navigation/ir-a'
 import { PanelEmbudo } from '@/features/negocio/PanelEmbudo'
 import { ElPulso } from '@/features/negocio/ElPulso'
+import { esEdicionCliente } from '@/lib/edicion'
 import pv from '@/features/negocio/pulso.module.css'
 import { ArrowLeft } from 'lucide-react'
 import { URL_EMBUDO, type RespuestaEmbudo } from '@/features/negocio/embudo'
@@ -46,7 +47,8 @@ export function VistaNegocio({ seccion, grande }: { seccion?: SeccionNegocio; gr
   }, [])
   // Mientras llega el interruptor no se asoma el libro (antes parpadeaba un instante antes del panel).
   if (!sistema && !lectura.error) return <div className={s.cargando} aria-busy="true">Abriendo tu negocio…</div>
-  if (!sistema?.activo) return <LibroNegocio seccion={seccion} grande={grande} />
+  // En la edición del alumno no existe el libro del autor: apagado (ARBRAIN_PANEL_NEGOCIO=0), lo dice y ya.
+  if (!sistema?.activo) return esEdicionCliente() ? <p className={s.aviso}>Tu negocio está apagado en esta instalación (ARBRAIN_PANEL_NEGOCIO=0).</p> : <LibroNegocio seccion={seccion} grande={grande} />
   if (parte === 'pulso') return <ElPulso embudo={sistema.embudo} grande={grande} inicio={seccion === 'avatar' ? 'comprador' : undefined} verEtapas={() => setParte('etapas')} />
   return <div className={l.loops}>
     <button type="button" className={pv.volver} onClick={() => setParte('pulso')} style={{ alignSelf: 'flex-start' }}><ArrowLeft size={14} aria-hidden />El pulso</button>

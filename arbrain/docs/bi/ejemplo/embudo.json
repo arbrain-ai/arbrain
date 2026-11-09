@@ -1,0 +1,208 @@
+{
+  "esquema": "arbrain.embudo/v1",
+  "negocio": "Café Brújula (ejemplo)",
+  "generado": "2026-11-08",
+  "embudos": [
+    {
+      "id": "eventos",
+      "nombre": "Café para eventos",
+      "tipo": "oferta",
+      "estado": "opera"
+    }
+  ],
+  "etapas": [
+    {
+      "id": "eventos.adquisicion",
+      "orden": 1,
+      "embudo": "eventos",
+      "etapa": "Adquisición",
+      "nombre": "Atraer",
+      "que_pasa": "Instagram, Google Maps y recomendaciones traen a quien busca café para un evento.",
+      "opera_hoy": true,
+      "skills": [],
+      "rutinas": [],
+      "ejecuta": [
+        {
+          "tipo": "persona",
+          "rol": "fundador"
+        }
+      ],
+      "mide": {
+        "nombre": "Pedidos para eventos por semana",
+        "fuente": "Pedidos para eventos · CSV",
+        "frecuencia": "cada día",
+        "dueno": {
+          "tipo": "persona",
+          "rol": "fundador"
+        },
+        "hay_numero": true,
+        "valor": null
+      },
+      "cuello": {
+        "es": false
+      }
+    },
+    {
+      "id": "eventos.nutricion",
+      "orden": 2,
+      "embudo": "eventos",
+      "etapa": "Nutrición",
+      "nombre": "Responder",
+      "que_pasa": "Se contesta por WhatsApp con el menú de eventos y fotos.",
+      "opera_hoy": true,
+      "skills": [],
+      "rutinas": [],
+      "ejecuta": [
+        {
+          "tipo": "persona",
+          "rol": "fundador"
+        }
+      ],
+      "mide": {
+        "nombre": "Respuestas el mismo día",
+        "fuente": "A mano",
+        "frecuencia": "a mano",
+        "dueno": {
+          "tipo": "persona",
+          "rol": "fundador"
+        },
+        "hay_numero": true,
+        "valor": null
+      },
+      "cuello": {
+        "es": false
+      }
+    },
+    {
+      "id": "eventos.conversion",
+      "orden": 3,
+      "embudo": "eventos",
+      "etapa": "Conversión",
+      "nombre": "Cotizar y cerrar",
+      "que_pasa": "Se manda la cotización y se confirma con anticipo.",
+      "opera_hoy": true,
+      "skills": [],
+      "rutinas": [],
+      "ejecuta": [
+        {
+          "tipo": "persona",
+          "rol": "fundador"
+        }
+      ],
+      "mide": {
+        "nombre": "Cotizaciones que se cierran",
+        "fuente": "Pedidos para eventos · CSV",
+        "frecuencia": "cada día",
+        "dueno": {
+          "tipo": "persona",
+          "rol": "fundador"
+        },
+        "hay_numero": true,
+        "valor": null
+      },
+      "cuello": {
+        "es": true,
+        "frase": "De cada tres que reciben cotización, solo uno compra: se pierden entre la cotización y el anticipo.",
+        "evidencia": {
+          "ruta": "mi-negocio/datos/ejemplo/interesados.csv",
+          "fecha": "2026-11-07"
+        }
+      }
+    },
+    {
+      "id": "eventos.bienvenida",
+      "orden": 4,
+      "embudo": "eventos",
+      "etapa": "Bienvenida",
+      "nombre": "Confirmar el pedido",
+      "que_pasa": "Se confirma hora, lugar y cantidad un día antes.",
+      "opera_hoy": true,
+      "skills": [],
+      "rutinas": [],
+      "ejecuta": [
+        {
+          "tipo": "persona",
+          "rol": "fundador"
+        }
+      ],
+      "mide": {
+        "nombre": "Pedidos confirmados",
+        "fuente": "A mano",
+        "frecuencia": "a mano",
+        "dueno": {
+          "tipo": "persona",
+          "rol": "fundador"
+        },
+        "hay_numero": true,
+        "valor": null
+      },
+      "cuello": {
+        "es": false
+      }
+    },
+    {
+      "id": "eventos.entrega",
+      "orden": 5,
+      "embudo": "eventos",
+      "etapa": "Entrega",
+      "nombre": "Entregar caliente",
+      "que_pasa": "Se entrega en termos a la hora acordada.",
+      "opera_hoy": true,
+      "skills": [],
+      "rutinas": [],
+      "ejecuta": [
+        {
+          "tipo": "persona",
+          "rol": "fundador"
+        }
+      ],
+      "mide": {
+        "nombre": "Pedidos a domicilio por día",
+        "fuente": "Ventas del punto de venta · CSV",
+        "frecuencia": "cada día",
+        "dueno": {
+          "tipo": "persona",
+          "rol": "fundador"
+        },
+        "hay_numero": true,
+        "valor": null
+      },
+      "cuello": {
+        "es": false
+      }
+    },
+    {
+      "id": "eventos.expansion",
+      "orden": 6,
+      "embudo": "eventos",
+      "etapa": "Expansión",
+      "nombre": "Volver a pedir",
+      "que_pasa": "Se ofrece repetir el pedido cada mes.",
+      "opera_hoy": false,
+      "skills": [],
+      "rutinas": [],
+      "ejecuta": [
+        {
+          "tipo": "persona",
+          "rol": "fundador"
+        }
+      ],
+      "mide": {
+        "nombre": "Clientes que repiten",
+        "fuente": "Sin fuente todavía",
+        "frecuencia": "a mano",
+        "dueno": {
+          "tipo": "persona",
+          "rol": "fundador"
+        },
+        "hay_numero": false,
+        "valor": null,
+        "como_medirlo": "Una lista de clientes con su fecha de alta: con ella se ve quién repite."
+      },
+      "cuello": {
+        "es": false
+      }
+    }
+  ],
+  "aristas": []
+}

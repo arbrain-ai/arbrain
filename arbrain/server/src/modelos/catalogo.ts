@@ -42,6 +42,7 @@ export const ID_ABLITERATED = 'deepseek-v4.1-flash-abliterated'
 
 export const CATALOGO: EntradaCatalogo[] = [
   { id: 'opus-5.5', nombre: 'Opus 5.5', laboratorio: 'Anthropic', descripcion: 'El más capaz para el trabajo de todos los días', puesto: 1, openrouterId: 'anthropic/claude-opus-5.5', via: 'suscripcion', claude: ['claude-opus-5-5[1m]', 'claude-opus-5-5'] },
+  { id: 'fable-5.2', nombre: 'Fable 5.2', laboratorio: 'Anthropic', descripcion: 'Para lo más difícil y largo; gasta más suscripción', puesto: null, openrouterId: 'anthropic/claude-fable-5.2', via: 'suscripcion', claude: ['claude-fable-5-2[1m]', 'claude-fable-5-2'] },
   { id: 'fable-5.1', nombre: 'Fable 5.1', laboratorio: 'Anthropic', descripcion: 'Para lo más difícil y largo; gasta más suscripción', puesto: 2, openrouterId: 'anthropic/claude-fable-5.1', via: 'suscripcion', claude: ['claude-fable-5-1[1m]', 'claude-fable-5-1'] },
   { id: 'gpt-6-astra', nombre: 'GPT-6 Astra', laboratorio: 'OpenAI', descripcion: 'El tope de OpenAI; caro por token', puesto: 3, openrouterId: 'openai/gpt-6-astra', via: 'openrouter', ruta: 'gpt-6-astra@openrouter' },
   { id: 'gemini-4-argon', nombre: 'Gemini 4 Argon', laboratorio: 'Google', descripcion: 'El más capaz de Google', puesto: 4, openrouterId: 'google/gemini-4-argon', via: 'openrouter', ruta: 'gemini-4-argon@openrouter' },

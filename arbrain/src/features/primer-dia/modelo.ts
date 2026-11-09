@@ -30,6 +30,8 @@ export const primerDiaEncendido = (env: Record<string, string | undefined> = pro
 export const CARPETA_NEGOCIO = '.claude/memory/project/mi-negocio'
 export const RUTA_NEGOCIO = `${CARPETA_NEGOCIO}/negocio.md`
 export const RUTA_OFERTA = `${CARPETA_NEGOCIO}/oferta.md`
+/** La oferta completa en 11 piezas (skill `oferta`, 9 nov 2026). También cumple el paso 2: gana la más larga de las dos. */
+export const RUTA_OFERTA_COMPLETA = `${CARPETA_NEGOCIO}/02-oferta.md`
 /** La guía que lee su Levy (guia.ts). Se siembra al empezar, solo si no existe: si el dueño la edita, manda la suya. */
 export const RUTA_GUIA = `${CARPETA_NEGOCIO}/primer-dia.md`
 export { RUTA_EMBUDO }
@@ -49,7 +51,7 @@ export const RUTINA_MANANA = 'arbrain-reporte-manana'
 export const HABILIDADES_DE_ARBRAIN = [
   'actualizar-arbrain', 'artificial-brain', 'autoresearch', 'bajar-a-tierra', 'canvas', 'clientes', 'code-animation',
   'goal-compiler', 'google-workspace', 'habit-system', 'image-generation', 'knowledge-search', 'libro-os', 'memory-manager',
-  'os-audit', 'presentaciones', 'sistema-viable', 'skill-creator', 'tour-bienvenida',
+  'oferta', 'os-audit', 'presentaciones', 'sistema-viable', 'skill-creator', 'tour-bienvenida',
 ] as const
 
 export type IdPaso = 'negocio' | 'oferta' | 'embudo' | 'rutinas' | 'habilidades'

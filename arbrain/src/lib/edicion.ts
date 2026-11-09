@@ -80,7 +80,7 @@ export const NOMBRE_LOCAL_CLIENTE = 'Tú'
  * Páginas que existen en cliente. Lo demás de la app redirige a `/chat`. `/pantalla` (1 nov 2026): la pantalla virtual
  * del servidor, solo para mirar (sin pantalla virtual, la página lo dice y no pide nada al daemon).
  */
-export const PAGINAS_CLIENTE = ['/chat', '/lienzo', '/calendar', '/panel', '/settings', '/bienvenida', '/sin-sesion', '/pantalla'] as const
+export const PAGINAS_CLIENTE = ['/chat', '/lienzo', '/calendar', '/panel', '/settings', '/bienvenida', '/sin-sesion', '/pantalla', '/negocio', '/estrategia', '/bi'] as const
 
 /**
  * APIs que existen en cliente (prefijos exactos de segmento). Lo demás responde 404 desde el proxy: el negocio de
@@ -167,6 +167,11 @@ export const APIS_CLIENTE = [
   '/api/error-pantalla', '/api/chat/hilo-error',
   // Bitácora del lector (31 oct 2026): primer audio, fallas y cambios de voz del alumno, a SU carpeta de datos.
   '/api/chat/lector-log',
+  // Tu negocio y Business Intelligence (8 nov 2026, Daniel: «este mismo sistema les compartiré a mis alumnos»): el kit que el
+  // alumno instala a su primer cliente, como motor vacío. Leen SU cerebro (embudo.json, voz-del-cliente.json, bi.json y
+  // bi-fuentes.json en `.claude/memory/project/mi-negocio/`) y las fuentes que él conecte; nunca las del autor
+  // (features/bi/servidor.ts: el catálogo del autor no viaja). `ARBRAIN_PANEL_NEGOCIO=0` los apaga.
+  '/api/negocio', '/api/bi',
   // Avisos de Levy en tu teléfono (v0.2.18, un fundador con iPhone): suscribir este dispositivo y la prueba, con la
   // sesión del dueño; `send`, solo con el token de SU daemon (avisosAlumno.ts). Sin la campana del negocio original.
   '/api/notifications/subscribe', '/api/notifications/prueba', '/api/notifications/send',
@@ -192,16 +197,17 @@ export function paginaPermitidaEnCliente(ruta: string): boolean {
 /**
  * Secciones del «+» del panel que existen en cliente. Calendario (21 oct 2026) lee su pluma local
  * (lib/planning/local.ts); Google Calendar se conecta después como otra fuente. Tareas pide Todoist (conectar después);
- * negocio, finanzas, salud, contenido, equipo, reporte y centro son de Daniel.
+ * finanzas, salud, contenido, equipo, reporte y centro son de Daniel. Tu negocio, Estrategia y Business Intelligence (8 nov 2026)
+ * viajan como motor vacío: el pulso y las gráficas leen el cerebro y las fuentes del dueño.
  */
-export const SECCIONES_PANEL_CLIENTE = ['calendario', 'lienzo', 'explorador', 'taller'] as const
+export const SECCIONES_PANEL_CLIENTE = ['calendario', 'lienzo', 'negocio', 'estrategia', 'bi', 'explorador', 'taller'] as const
 
 export function seccionPanelPermitida(id: string, cliente = esEdicionCliente()): boolean {
   return !cliente || (SECCIONES_PANEL_CLIENTE as readonly string[]).includes(id)
 }
 
 /** Vistas del panel (las que Levy puede abrir con `mostrar`) que existen en cliente. */
-export const VISTAS_CLIENTE = ['calendario', 'objetivos', 'lienzo', 'explorador', 'documento', 'memoria'] as const
+export const VISTAS_CLIENTE = ['calendario', 'objetivos', 'lienzo', 'explorador', 'documento', 'memoria', 'negocio', 'estrategia', 'bi'] as const
 
 export function vistaPermitidaEnCliente(vista: string, cliente = esEdicionCliente()): boolean {
   return !cliente || (VISTAS_CLIENTE as readonly string[]).includes(vista)

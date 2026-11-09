@@ -9,7 +9,7 @@ import { join } from 'node:path'
 import { validarEmbudo, ETAPAS, type Embudo } from '../../src/features/negocio/embudo'
 import {
   debeOfrecer, ESTADO_VACIO, estadoPrimerDia, evaluar, HABILIDADES_DE_ARBRAIN, habilidadesPropias, leerEmbudo, mensajeOferta, mensajePaso,
-  MINIMO_FICHA, PASOS, primerDiaEncendido, RUTA_EMBUDO, RUTA_GUIA, RUTA_NEGOCIO, RUTA_OFERTA, type Senales,
+  MINIMO_FICHA, PASOS, primerDiaEncendido, RUTA_EMBUDO, RUTA_GUIA, RUTA_NEGOCIO, RUTA_OFERTA, RUTA_OFERTA_COMPLETA, type Senales,
 } from '../../src/features/primer-dia/modelo'
 import { EJEMPLO_EMBUDO, textoGuia } from '../../src/features/primer-dia/guia'
 import { leerSenales, rutinasDe, sembrarGuia } from '../../src/features/primer-dia/servidor'
@@ -149,6 +149,8 @@ test('del disco: fichas, embudo y skills que existen; la guía se siembra una ve
   const s = leerSenales(null, raiz)
   assert.ok(s.negocio! >= MINIMO_FICHA)
   assert.equal(s.oferta, null)
+  escribir(RUTA_OFERTA_COMPLETA, `# Mi oferta\n\n${'Avatar, promesa y vehículo en borrador. '.repeat(8)}`)
+  assert.ok(leerSenales(null, raiz).oferta! >= MINIMO_FICHA, 'la oferta de 11 piezas (skill oferta) también cumple el paso 2')
   assert.equal(s.embudo.estado, 'ok')
   assert.deepEqual(s.skillsEnDisco, ['reporte-cliente'])
   assert.equal(sembrarGuia(raiz), true)

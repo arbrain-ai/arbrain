@@ -32,6 +32,8 @@ ROUTES = [
      ['.claude/skills/bajar-a-tierra/SKILL.md']),
     ('Mi camino en el programa', ['que sigo', 'en que voy', 'que me falta', 'mi camino', 'mi siguiente paso', 'mis casillas', 'que casilla'],
      ['.claude/skills/bajar-a-tierra/references/mi-camino.md']),
+    ('Mi oferta (las 11 piezas)', ['mi oferta', 'arma mi oferta', 'plantilla de oferta', 'plantilla oferta', 'one sheeter', 'onesheeter', 'las 11 piezas', 'las once piezas', 'gran domino', 'nueva oportunidad', 'mi promesa', 'puente de epifania', 'mis bonos', 'mi garantia', 'cuanto cobro', 'califica mi oferta'],
+     ['.claude/skills/oferta/SKILL.md']),
     ('Correo y agenda de Google', ['mi correo', 'revisa mi correo', 'mi bandeja', 'bandeja de entrada', 'gmail', 'mis correos', 'un borrador', 'quien espera respuesta', 'buscame un hueco', 'busca un hueco', 'ordena mi correo', 'limpia mi bandeja', 'resumen de la manana'],
      ['.claude/skills/google-workspace/SKILL.md']),
     ('Recorrido de la app', ['el tour', 'el recorrido', 'retoma el recorrido', 'retoma el tour', 'que hay de nuevo', 'explicame la app', 'que es cada cosa'],

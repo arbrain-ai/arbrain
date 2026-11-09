@@ -100,6 +100,7 @@ export function toolSummary(name: string, input: Record<string, unknown>): strin
  *  (que es ruido, no informacion). */
 export function modelPretty(id: string): string {
   const m = id.toLowerCase();
+  if (m.includes("fable-5-2")) return "Fable 5.2";
   if (m.includes("fable")) return "Fable 5";
   if (m.includes("mythos")) return "Mythos 5";
   if (m.includes("opus")) {

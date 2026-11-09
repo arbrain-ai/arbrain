@@ -9,6 +9,8 @@
  * una fuente que la app ya consulta (features/negocio/pulso.ts); sin sensor, «sin datos todavía» y qué sensor falta.
  * Mente del comprador abre su órgano: avatar, vehículo, canal y la voz del cliente. En modo directo, Cohorte y Finanzas no
  * se piden (sus rutas están vetadas) y la voz llega con iniciales desde el servidor.
+ * Encima de los órganos (8 nov), la tarjeta Estrategia: la cabeza del negocio, leída de la investigación de mercado
+ * (features/negocio/TarjetaEstrategia.tsx).
  */
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
@@ -22,14 +24,17 @@ import { urlRutinas } from '@/features/cabina/vistas/Rutinas'
 import { urlTrabajos, type Trabajos } from '@/features/cabina/trabajos-modelo'
 import { abrirCasa, abrirSeccion } from '@/features/cabina/panel/Secciones'
 import { useDirecto, useModoDirecto } from '@/shared/stores/modo-directo-store'
+import { esEdicionCliente } from '@/lib/edicion'
 import { CLAVE_DIRECTO } from '@/lib/modo-directo/cubrir'
 import { escalon, mov } from '@/shared/movimiento'
 import { fechaCorta, type Embudo } from './embudo'
+import { TarjetaEstrategia } from './TarjetaEstrategia'
 import {
   canalesDe, lienzoSistema, ORGANO, pulsoComprador, pulsoEntrega, pulsoFinanzas, pulsoMarketing, pulsoSistemas, pulsoVenta,
   URL_COMPRADOR, type Cita, type CohortePulso, type Destino, type Organo, type Pieza, type Pulso, type RespuestaComprador, type Tema,
 } from './pulso'
 import { rango, URL_MARKETING, type CanalPulso, type RespuestaMarketing } from './marketing'
+import { usePulsosCliente } from './usePulsosCliente'
 import p from './pulso.module.css'
 
 const URL_COHORTE = '/api/cohorte'
@@ -43,14 +48,17 @@ export function ElPulso({ embudo, grande, inicio, verEtapas }: { embudo: Embudo 
   const confirmado = useModoDirecto(st => st.confirmado)
   const directo = prendido || (!confirmado && directoRecordado())
   const [organo, setOrgano] = useState<'comprador' | null>(inicio ?? null)
-  const cohorte = useFuente<CohortePulso>(directo ? null : URL_COHORTE)
-  const finanzas = useFuente<FinancesPayload>(directo ? null : urlFinanzas('30d'))
-  const crons = useFuente<CronSnapshot>(urlRutinas())
-  const trabajos = useFuente<Trabajos>(urlTrabajos(6))
+  // Edición del alumno (8 nov 2026): los órganos salen de SU motor de BI y sus rutinas; nada del negocio del autor se pide.
+  const cliente = esEdicionCliente()
+  const cohorte = useFuente<CohortePulso>(directo || cliente ? null : URL_COHORTE)
+  const finanzas = useFuente<FinancesPayload>(directo || cliente ? null : urlFinanzas('30d'))
+  const crons = useFuente<CronSnapshot>(cliente ? null : urlRutinas())
+  const trabajos = useFuente<Trabajos>(cliente ? null : urlTrabajos(6))
   const comprador = useFuente<RespuestaComprador>(URL_COMPRADOR)
-  const marketing = useFuente<RespuestaMarketing>(URL_MARKETING)
+  const marketing = useFuente<RespuestaMarketing>(cliente ? null : URL_MARKETING)
+  const pulsosCliente = usePulsosCliente(cliente, comprador)
 
-  const pulsos: Pulso[] = [
+  const pulsos: Pulso[] = pulsosCliente ?? [
     pulsoMarketing(marketing),
     pulsoVenta(cohorte, directo),
     pulsoComprador(comprador),
@@ -61,6 +69,7 @@ export function ElPulso({ embudo, grande, inicio, verEtapas }: { embudo: Embudo 
   const abrir = (d: Destino) => {
     if (d === 'comprador') setOrgano('comprador')
     else if (d === 'taller') abrirCasa('taller')
+    else if (d === 'bi') abrirSeccion({ vista: 'bi' })
     else abrirSeccion({ vista: d })
   }
 
@@ -88,6 +97,8 @@ export function ElPulso({ embudo, grande, inicio, verEtapas }: { embudo: Embudo 
       {lienzo && <ExternalLink className={p.lienzoFlecha} size={15} aria-hidden />}
     </button>
 
+    <TarjetaEstrategia grande={grande} />
+
     <ul className={p.tarjetas} aria-label="Los seis órganos">
       {pulsos.map((x, i) => <li key={x.organo} className={mov.entra} style={escalon(2 + i)} data-ancha={x.canales?.length ? '' : undefined}>
         <TarjetaOrgano x={x} abrir={x.abre && x.estado !== 'oculto' ? () => abrir(x.abre!) : undefined} />
@@ -109,7 +120,7 @@ function TarjetaOrgano({ x, abrir }: { x: Pulso; abrir?: () => void }) {
       <span className={p.nombre}>{o.nombre}</span>
       {abrir && <ChevronRight className={p.chevron} size={15} aria-hidden />}
     </span>
-    <span className={p.pregunta}>{o.pregunta}</span>
+    <span className={p.pregunta}>{x.pregunta ?? o.pregunta}</span>
     {x.estado === 'numero' && x.canales ? <Canales canales={x.canales} /> : <Lectura x={x} />}
     {x.estado === 'sin-sensor' && x.canales && <Canales canales={x.canales} />}
     <span className={p.fuente}>Fuente: {x.fuente}</span>
@@ -130,7 +141,7 @@ function Lectura({ x }: { x: Pulso }) {
   if (x.estado === 'error') return <span className={p.lectura}><span className={p.sinDatos}>No se pudo leer ahora</span><span className={p.detalle}>{x.error}</span></span>
   return <span className={p.lectura}>
     <span className={p.sinDatos}>Sin datos todavía</span>
-    <span className={p.falta}><b>Falta el sensor:</b> {x.falta}</span>
+    <span className={p.falta}><b>{x.conecta ? 'Conecta tu fuente:' : 'Falta el sensor:'}</b> {x.falta}</span>
   </span>
 }
 
@@ -177,8 +188,8 @@ function OrganoComprador({ datos, error, embudo, grande, volver }: { datos?: Res
 
     {!datos ? <p className={p.bajada}>{error ? `No se pudo leer: ${error}` : 'Leyendo…'}</p> : <>
       <div className={`${p.piezas} ${mov.entra}`} style={escalon(2)}>
-        <TarjetaPieza titulo="Avatar" pieza={on?.avatar ?? null} />
-        <TarjetaPieza titulo="Vehículo" pieza={on?.vehiculo ?? null} />
+        <TarjetaPieza titulo={on?.etiquetas?.avatar ?? 'Avatar'} pieza={on?.avatar ?? null} />
+        <TarjetaPieza titulo={on?.etiquetas?.vehiculo ?? 'Vehículo'} pieza={on?.vehiculo ?? null} />
         <section className={p.pieza} aria-label="Canal">
           <p className={p.etiqueta}>Canal</p>
           {canales.length ? <ul className={p.canales}>{canales.map(c => <li key={`${c.embudo}-${c.nombre}`} data-opera={c.opera || undefined}>

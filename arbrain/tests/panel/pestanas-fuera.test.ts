@@ -43,9 +43,16 @@ test('se cierra solo lo de Levy sin guardar, de otra conversación y que no est�
     { id: 'l2', deLevy: true, conversacion: 'c1', guardada: true },
     { id: 'l3', deLevy: true, conversacion: 'c2' },
     { id: 'l4', deLevy: true, conversacion: 'c1' },
+    // BI es un tablero durable: Levy puede abrirlo desde una conversación, pero debe
+    // sobrevivir cuando Daniel empieza otra, igual que si lo hubiera abierto desde «+».
+    { id: 'bi', deLevy: true, conversacion: 'c1', input: { vista: 'bi' } },
+    // 9 nov 2026: igual Estrategia y Tu negocio, su sección madre (tableros durables).
+    { id: 'estrategia', deLevy: true, conversacion: 'c1', input: { vista: 'estrategia' } },
+    { id: 'negocio', deLevy: true, conversacion: 'c1', input: { vista: 'negocio' } },
+    { id: 'doc', deLevy: true, conversacion: 'c1', input: { vista: 'documento' } },
     { id: 'm1', conversacion: 'c1' },
   ]
-  assert.deepEqual(porCerrar(f, 'c2', ['l4']), ['l1'])
+  assert.deepEqual(porCerrar(f, 'c2', ['l4']), ['l1', 'doc'])
   assert.deepEqual(porCerrar(f, null, []), [])
 })
 

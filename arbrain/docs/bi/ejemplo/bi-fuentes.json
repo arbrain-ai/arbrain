@@ -1,0 +1,27 @@
+{
+  "esquema": "arbrain.bi-fuentes/v1",
+  "negocio": "Café Brújula (ejemplo)",
+  "moneda": "MXN",
+  "zona": "America/Mexico_City",
+  "fuentes": [
+    { "id": "ventas", "tipo": "csv", "nombre": "Ventas del punto de venta", "ruta": "mi-negocio/datos/ejemplo/ventas.csv", "fecha": "Fecha", "formato_fecha": "dd/mm/aaaa" },
+    { "id": "interesados", "tipo": "csv", "nombre": "Pedidos para eventos", "ruta": "mi-negocio/datos/ejemplo/interesados.csv", "fecha": "fecha" },
+    { "id": "gastos", "tipo": "csv", "nombre": "Hoja de gastos", "ruta": "mi-negocio/datos/ejemplo/gastos.csv", "fecha": "fecha", "decimal": "," }
+  ],
+  "consultas": {
+    "ventas": { "fuente": "ventas", "unico": "Ticket" },
+    "ingresos": { "fuente": "ventas", "valor": "Total" },
+    "lo-que-entro": { "fuente": "ventas", "valor": "Total" },
+    "ticket-promedio": { "fuente": "ventas", "valor": "Total", "unico": "Ticket" },
+    "lo-mas-vendido": { "fuente": "ventas", "por": "Producto", "valor": "Total" },
+    "interesados": { "fuente": "interesados", "nombre": "Pedidos para eventos" },
+    "entregas": { "fuente": "ventas", "unico": "Ticket", "donde": { "columna": "Canal", "es": ["Domicilio"] }, "nombre": "Pedidos a domicilio", "palabras": ["pedido", "pedidos"] },
+    "gastos": { "fuente": "gastos", "valor": "monto" },
+    "de-donde-llegan": { "fuente": "interesados", "por": "canal" },
+    "embudo": { "pasos": [
+      { "etiqueta": "Preguntaron", "fuente": "interesados" },
+      { "etiqueta": "Recibieron cotización", "fuente": "interesados", "donde": { "columna": "estado", "es": ["cotizado", "compró"] } },
+      { "etiqueta": "Compraron", "fuente": "interesados", "donde": { "columna": "estado", "es": ["compró"] } }
+    ] }
+  }
+}

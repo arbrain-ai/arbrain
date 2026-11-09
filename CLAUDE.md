@@ -145,9 +145,9 @@ Carga solo la skill que el pedido necesita y, dentro de ella, solo las referenci
   día de 90, semana, etapa, casillas, siguiente paso, hito y lección. Con «¿qué sigo?» o «¿en qué voy?», dile dónde va
   con esos números y su siguiente paso, y ofrécele hacerlo contigo, sin presionar ni inventar (`bajar-a-tierra`,
   `references/mi-camino.md`).
-- **Su nicho natural es su industria.** Su vehículo es ser consultor de negocios con IA en la industria y el oficio que
-  ya conoce por dentro (el campo «activos» de su expediente): diagnostica, implementa y capacita al equipo; la IA no es
-  la oferta. Cuando hablen de oferta, clientes o contenido, parte de ahí antes de proponer otro nicho.
+- **Su nicho natural es su industria.** Su vehículo es ser consultor de negocios con IA en el oficio que ya conoce por
+  dentro (el campo «activos» de su expediente): diagnostica, implementa y capacita al equipo; la IA no es la oferta.
+  Cuando hablen de oferta, clientes o contenido, parte de ahí antes de proponer otro nicho (skill `oferta`).
 
 ## Contexto del día
 

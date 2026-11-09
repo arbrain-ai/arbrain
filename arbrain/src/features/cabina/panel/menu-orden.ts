@@ -37,7 +37,7 @@ export const esPorDefecto = (orden: string[], porDefecto: string[]) => orden.joi
  * Las secciones del «+», en el orden de siempre. Las MISMAS ids que arbrain/server/src/cabina/panel-ajustes.ts → SECCIONES
  * (un test compara las dos listas). `tareas` y `taller` son «casas» del panel; las demás, vistas.
  */
-export const SECCIONES_MENU = ['calendario', 'tareas', 'cohorte', 'lienzo', 'negocio', 'bi', 'reporte', 'centro', 'equipo', 'salud', 'contenido', 'finanzas', 'explorador', 'taller']
+export const SECCIONES_MENU = ['calendario', 'tareas', 'cohorte', 'lienzo', 'negocio', 'estrategia', 'bi', 'reporte', 'centro', 'equipo', 'salud', 'contenido', 'finanzas', 'explorador', 'taller']
 /** Equipo y «Lo que llegó» nacen fuera del «+» (6 oct 2026): el organigrama vive en Ajustes › Panel y los reportes ya llegan a su hilo. Se vuelven a mostrar desde Ajustes. */
 export const OCULTAS_POR_DEFECTO = ['equipo', 'reporte']
 

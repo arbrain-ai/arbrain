@@ -29,8 +29,8 @@ export const ORGANO: Record<Organo, { nombre: string; pregunta: string }> = {
   sistemas: { nombre: 'Sistemas', pregunta: '¿Trabaja solo?' },
 }
 
-/** Adónde lleva tocar la tarjeta: su órgano (comprador) o la vista que ya tiene el detalle. */
-export type Destino = 'comprador' | 'cohorte' | 'finanzas' | 'taller'
+/** Adónde lleva tocar la tarjeta: su órgano (comprador) o la vista que ya tiene el detalle (`bi`: edición del alumno). */
+export type Destino = 'comprador' | 'cohorte' | 'finanzas' | 'taller' | 'bi'
 
 /**
  * El estado de una tarjeta. `numero`: hay cifra leída de su fuente. `sin-sensor`: no existe todavía una fuente que la app
@@ -56,6 +56,10 @@ export interface Pulso {
   abre?: Destino
   /** Marketing: la semana de cada canal, cada cifra con su fuente y sus fechas. */
   canales?: CanalPulso[]
+  /** Edición del alumno (pulso-cliente.ts): sin número, la tarjeta dice «Conecta tu fuente» en vez de «Falta el sensor». */
+  conecta?: boolean
+  /** La pregunta del órgano cuando la del autor no aplica a cualquier negocio. */
+  pregunta?: string
 }
 
 /**
@@ -301,6 +305,8 @@ export const lienzoSistema = (e: Embudo | null | undefined): string | null => {
 /** Respuesta de /api/negocio/comprador. */
 export type RespuestaComprador =
   | { activo: false }
-  | { activo: true; avatar: Pieza | null; vehiculo: Pieza | null; voz: { ruta: string; existe: boolean; datos: VozCliente | null; errores?: string[] }; directo: boolean }
+  | { activo: true; avatar: Pieza | null; vehiculo: Pieza | null; voz: { ruta: string; existe: boolean; datos: VozCliente | null; errores?: string[] }; directo: boolean
+      /** Edición del alumno: cómo se llaman sus dos piezas (su oferta y su negocio, de Tu primer día). */
+      etiquetas?: { avatar: string; vehiculo: string } }
 
 export const URL_COMPRADOR = '/api/negocio/comprador'

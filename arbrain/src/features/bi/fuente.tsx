@@ -8,10 +8,19 @@ import { createContext, useCallback, useContext, type ReactNode } from 'react'
 import { releer, useFuente } from '@/features/cabina/datos'
 import { pedirALevy } from '@/features/cabina/documento/enviar'
 import { URL_EMBUDO, type RespuestaEmbudo } from '@/features/negocio/embudo'
-import type { Ventana } from './catalogo'
+import type { Consulta, Ventana } from './catalogo'
 import { mensajeParaLevy, type Accion, type Grafica, type RespuestaConsulta } from './modelo'
 
-export type RespuestaBI = { activo: false } | { activo: true; ruta: string; graficas: Grafica[]; errores: string[]; simulado?: string }
+/** Cómo está el archivo de fuentes del dueño (solo con el catálogo genérico). */
+export interface EstadoFuentesBI { ruta: string; existe: boolean; errores: string[]; negocio?: string }
+/**
+ * Lo que entrega `/api/bi`. `catalogo` es el vigente en esta instalación (el del autor o el genérico, con `conectada` por
+ * consulta): la vista valida, sugiere y pinta con él, nunca con un catálogo propio.
+ */
+export type RespuestaBI = { activo: false } | {
+  activo: true; ruta: string; graficas: Grafica[]; errores: string[]; simulado?: string
+  catalogo: Consulta[]; generico?: boolean; fuentes?: EstadoFuentesBI
+}
 export interface LecturaBI<T> { data?: T; error?: string }
 
 export interface FuenteBI {

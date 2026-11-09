@@ -6,7 +6,7 @@
  * Las curvas son monótonas (Fritsch–Carlson): suaves sin inventar picos que no existen entre dos días.
  */
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
-import { cifra, type Consulta } from './catalogo'
+import { cifraDe, type Consulta } from './catalogo'
 import { diaYMes, type Lectura, type PuntoLeido, type Tono } from './modelo'
 import g from './graficas.module.css'
 
@@ -77,7 +77,8 @@ export function SerieCorredor({ c, lectura, dibuja, alto = 168 }: { c: Consulta;
   const pts = lectura.puntos ?? []
   const H = alto, izq = 2, der = 2, arriba = 36, abajo = 22
   const vals = pts.flatMap(p => [p.valor, p.corredor?.lo, p.corredor?.hi]).filter((v): v is number => typeof v === 'number')
-  const cero = !(c.unidad === 'suscripciones' || c.id === 'mrr')
+  // Un nivel (suscripciones, MRR, ticket promedio) se lee mejor desde su rango; lo que se cuenta, desde cero.
+  const cero = !(c.unidad === 'suscripciones' || c.id === 'mrr' || c.id === 'ticket-promedio')
   let lo = cero ? 0 : Math.min(...vals), hi = Math.max(...vals, 1)
   if (!cero) { const pad = (hi - lo) * 0.18 || hi * 0.02; lo -= pad; hi += pad } else hi = tope(hi * 1.08)
   const x = (i: number) => izq + (pts.length <= 1 ? (W - izq - der) / 2 : (i * (W - izq - der)) / (pts.length - 1))
@@ -99,8 +100,8 @@ export function SerieCorredor({ c, lectura, dibuja, alto = 168 }: { c: Consulta;
       {/* La rejilla: solo la base y el tope, en tinta tenue. */}
       <line x1={0} x2={W} y1={y(lo)} y2={y(lo)} className={g.base} />
       <line x1={0} x2={W} y1={y(hi)} y2={y(hi)} className={g.tope} />
-      <text x={0} y={arriba - 4} className={g.eje}>{cifra(hi, c.unidad)}</text>
-      {!cero && <text x={0} y={H - abajo - 4} className={g.eje}>{cifra(lo, c.unidad)}</text>}
+      <text x={0} y={arriba - 4} className={g.eje}>{cifraDe(hi, c)}</text>
+      {!cero && <text x={0} y={H - abajo - 4} className={g.eje}>{cifraDe(lo, c)}</text>}
       {conCor.map((t, k) => {
         const altoP: P[] = t.map(e => [x(e.i), y(e.p.corredor!.hi)] as P), bajoP: P[] = t.map(e => [x(e.i), y(e.p.corredor!.lo)] as P).reverse()
         const d = `${monotono(altoP)} L${monotono(bajoP).slice(1)} Z`
@@ -127,7 +128,7 @@ export function SerieCorredor({ c, lectura, dibuja, alto = 168 }: { c: Consulta;
 }
 
 /** El mes en curso contra la sombra del mes pasado, acumulados día a día. */
-export function Acumulado({ lectura, dibuja, alto = 168 }: { lectura: Lectura; dibuja: boolean; alto?: number }) {
+export function Acumulado({ c, lectura, dibuja, alto = 168 }: { c: Pick<Consulta, 'unidad' | 'moneda'>; lectura: Lectura; dibuja: boolean; alto?: number }) {
   const [ref, W] = useAncho<HTMLDivElement>()
   const m = lectura.meses
   if (!m) return null
@@ -149,7 +150,7 @@ export function Acumulado({ lectura, dibuja, alto = 168 }: { lectura: Lectura; d
       </defs>
       <line x1={0} x2={W} y1={y(0)} y2={y(0)} className={g.base} />
       <line x1={0} x2={W} y1={y(max)} y2={y(max)} className={g.tope} />
-      <text x={0} y={arriba - 4} className={g.eje}>{cifra(max, 'usd')}</text>
+      <text x={0} y={arriba - 4} className={g.eje}>{cifraDe(max, c)}</text>
       <path d={monotono(ant)} className={g.sombra} />
       {area && <path d={area} fill="url(#acum-area)" className={g.corredor} />}
       {est.length > 1 && <path d={monotono(est)} className={`${g.linea} ${g.oro}`} pathLength={1} />}
@@ -170,12 +171,12 @@ export function Barras({ c, lectura, dibuja }: { c: Consulta; lectura: Lectura; 
   return <ol className={`${g.barras} ${dibuja ? g.dibuja : ''}`}>
     {barras.map((b, i) => <li key={b.id} data-primera={i === 0 || undefined} style={{ '--i': i, '--w': `${Math.max(1.5, (b.valor / max) * 100)}%` } as CSSProperties}>
       <span className={g.barraEtiqueta} title={b.etiqueta}>{b.etiqueta}</span>
-      <span className={g.barraFila}><span className={g.barra} /><b className={g.barraValor}>{cifra(b.valor, c.unidad)}</b></span>
+      <span className={g.barraFila}><span className={g.barra} /><b className={g.barraValor}>{cifraDe(b.valor, c)}</b></span>
       {i === 0 && lectura.anotacion && <em className={g.barraMarca}>{lectura.anotacion.texto}</em>}
     </li>)}
     {resto && resto.valor > 0 && <li data-resto style={{ '--i': barras.length, '--w': `${Math.max(1.5, (resto.valor / max) * 100)}%` } as CSSProperties}>
       <span className={g.barraEtiqueta}>{resto.etiqueta}</span>
-      <span className={g.barraFila}><span className={g.barra} /><b className={g.barraValor}>{cifra(resto.valor, c.unidad)}</b></span>
+      <span className={g.barraFila}><span className={g.barra} /><b className={g.barraValor}>{cifraDe(resto.valor, c)}</b></span>
     </li>}
   </ol>
 }
@@ -189,7 +190,7 @@ export function Proporcion({ c, lectura, dibuja }: { c: Consulta; lectura: Lectu
       {barras.map((b, i) => <span key={b.id} data-i={i} style={{ '--w': `${(b.valor / total) * 100}%`, '--i': i } as CSSProperties} />)}
     </div>
     <ul className={g.partes}>
-      {barras.map((b, i) => <li key={b.id} data-i={i}><i aria-hidden /><span>{b.etiqueta}</span><b>{Math.round((b.valor / total) * 100)} %</b><small>{cifra(b.valor, c.unidad)}</small></li>)}
+      {barras.map((b, i) => <li key={b.id} data-i={i}><i aria-hidden /><span>{b.etiqueta}</span><b>{Math.round((b.valor / total) * 100)} %</b><small>{cifraDe(b.valor, c)}</small></li>)}
     </ul>
   </div>
 }
@@ -205,7 +206,7 @@ export function Embudo({ c, lectura, dibuja }: { c: Consulta; lectura: Lectura; 
       <span className={g.embudoFila}>
         <span className={g.embudoEtiqueta}>{p.etiqueta}</span>
         <span className={g.embudoCarril}><span className={g.embudoBarra} /></span>
-        <b className={g.embudoValor}>{cifra(p.valor, c.unidad)}</b>
+        <b className={g.embudoValor}>{cifraDe(p.valor, c)}</b>
       </span>
     </li>)}
     <li className={g.escala} aria-hidden>Ancho en raíz cuadrada: los pasos chicos se siguen viendo.</li>
