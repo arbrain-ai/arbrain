@@ -1,16 +1,16 @@
 {
   "generador": "arbrain/empaquetado/generador",
   "origen": {
-    "ref": "a81da1e1ffdcff41f86bfdd3ff7a0681e8cb3060",
-    "commit": "a81da1e1ffdcff41f86bfdd3ff7a0681e8cb3060",
-    "fecha": "2026-11-09T14:34:36-06:00"
+    "ref": "a4a871ebff1891e6835ee4d90b3743a93299deff",
+    "commit": "a4a871ebff1891e6835ee4d90b3743a93299deff",
+    "fecha": "2026-11-09T18:00:33-06:00"
   },
-  "version": "0.2.25",
+  "version": "0.2.26",
   "allowlist": {
     "ruta": "docs/builds/empaquetado-2026-10-11/allowlist.yaml",
     "sha256": "12841f27ee12f6965fb20ba28f7257a371c38b990890cf7ff4adfeac811786d1"
   },
-  "conteo": 3178,
+  "conteo": 3196,
   "archivos": {
     ".agents/skills": {
       "enlace": "../.claude/skills",
@@ -71,8 +71,8 @@
       "origen": ".claude/hooks/install.sh"
     },
     ".claude/hooks/intent-context.py": {
-      "sha256": "df0e954624a62f0b9a19d2c24a963b2110b4cb5f6f9d7a18dc2d6a84d83153cd",
-      "bytes": 9167,
+      "sha256": "6c67af138b1e143492f0c45e07476b73b278aeaa929047ae2f9ebb0e92b7b1fa",
+      "bytes": 9195,
       "modo": "644",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/claude/hooks/intent-context.py"
     },
@@ -605,80 +605,188 @@
       "origen": ".claude/skills/os-audit/scripts/test_index_truth.py"
     },
     ".claude/skills/presentaciones/SKILL.md": {
-      "sha256": "8f7b1d090b49348111bd0f4214059f355f5c7fb670466baad265c46e6dc81a97",
-      "bytes": 5652,
+      "sha256": "e99fe2105a60349cb43564559ef6357781eb9a373f86c2d671f8a661a847b792",
+      "bytes": 5814,
       "modo": "644",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/presentaciones/SKILL.md"
     },
-    ".claude/skills/presentaciones/assets/motor/enactivos.js": {
-      "sha256": "08f4a5dc7da05ff1c96e2d51de214f2acd6c355d045e270175717bc80be04c96",
-      "bytes": 2274,
+    ".claude/skills/presentaciones/assets/demo/piezas/00.html": {
+      "sha256": "1710ebc263af4a0c3c9dd3ca316646d0541b98a86a01f1cb37db28b195e7858d",
+      "bytes": 468,
       "modo": "644",
-      "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/presentaciones/assets/motor/enactivos.js"
+      "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/presentaciones/assets/demo/piezas/00.html"
+    },
+    ".claude/skills/presentaciones/assets/demo/piezas/01.html": {
+      "sha256": "0c66a01b473743789e9c4ec71061e24bdeff0fa3fa7fb45108413d37d83c53db",
+      "bytes": 1156,
+      "modo": "644",
+      "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/presentaciones/assets/demo/piezas/01.html"
+    },
+    ".claude/skills/presentaciones/assets/demo/piezas/01.js": {
+      "sha256": "742e4b1f3f597be48d649ba269362a2a30e08b78f9bf2672f44cbbb44501b965",
+      "bytes": 1080,
+      "modo": "644",
+      "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/presentaciones/assets/demo/piezas/01.js"
+    },
+    ".claude/skills/presentaciones/assets/demo/piezas/02.html": {
+      "sha256": "bc397b19d4f7b34a417ebb9605afb616d8ae10a3543c103f85aee7415969580c",
+      "bytes": 915,
+      "modo": "644",
+      "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/presentaciones/assets/demo/piezas/02.html"
+    },
+    ".claude/skills/presentaciones/assets/demo/piezas/03.html": {
+      "sha256": "1488ff9247cded7971377d77f86460c58107ed21ad823d4c3dcceaeed03c91da",
+      "bytes": 793,
+      "modo": "644",
+      "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/presentaciones/assets/demo/piezas/03.html"
     },
     ".claude/skills/presentaciones/assets/motor/estilo.css": {
-      "sha256": "1503179ba427f059030a47194a03cf478b1540635dd1df9115762026bfd574ef",
-      "bytes": 2760,
+      "sha256": "10ce5cd3778c9bbfd6ef6b28b0086347643df08921fa6bbbec2ceb3509f31e47",
+      "bytes": 8848,
       "modo": "644",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/presentaciones/assets/motor/estilo.css"
     },
-    ".claude/skills/presentaciones/assets/motor/index.html": {
-      "sha256": "33ca23863b627341915b99137b6ac933612e7f1bcd73d5f124be82f402a91cba",
-      "bytes": 3472,
+    ".claude/skills/presentaciones/assets/motor/fuentes/LICENCIAS.md": {
+      "sha256": "ca0f0421f8fc23884aba0886541171f2795981036399f543b306a8a996e4096e",
+      "bytes": 221,
       "modo": "644",
-      "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/presentaciones/assets/motor/index.html"
+      "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/presentaciones/assets/motor/fuentes/LICENCIAS.md"
+    },
+    ".claude/skills/presentaciones/assets/motor/fuentes/cormorant-400.woff2": {
+      "sha256": "8048ac209bec741e1c29cd0cfac5aac1c0c2ba8c3ddbd4a58fa9bd92ef5c63c2",
+      "bytes": 22876,
+      "modo": "644",
+      "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/presentaciones/assets/motor/fuentes/cormorant-400.woff2"
+    },
+    ".claude/skills/presentaciones/assets/motor/fuentes/cormorant-700.woff2": {
+      "sha256": "21a0fc1c5c22708cf4aa0c147fd32982e25bf9e21efec0ca31a4495ba41753eb",
+      "bytes": 22340,
+      "modo": "644",
+      "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/presentaciones/assets/motor/fuentes/cormorant-700.woff2"
+    },
+    ".claude/skills/presentaciones/assets/motor/fuentes/cormorant-italica.woff2": {
+      "sha256": "263debb2ba427a28001e2771b5282aa1666dc403b0ea9f272c32dfc304bda57f",
+      "bytes": 46224,
+      "modo": "644",
+      "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/presentaciones/assets/motor/fuentes/cormorant-italica.woff2"
+    },
+    ".claude/skills/presentaciones/assets/motor/fuentes/inter-500-italica.woff2": {
+      "sha256": "ec7b5fad608d36d16f65939bd09e70b4bb81446fa7ee32b345d0c2e4fcd174b7",
+      "bytes": 25636,
+      "modo": "644",
+      "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/presentaciones/assets/motor/fuentes/inter-500-italica.woff2"
+    },
+    ".claude/skills/presentaciones/assets/motor/fuentes/inter-500.woff2": {
+      "sha256": "f3779f1efccc4bdcdf9c0a02ab95bf6bd092ed09c48c08cedc725889edd1d19f",
+      "bytes": 24272,
+      "modo": "644",
+      "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/presentaciones/assets/motor/fuentes/inter-500.woff2"
+    },
+    ".claude/skills/presentaciones/assets/motor/fuentes/inter-600.woff2": {
+      "sha256": "f9a06e79cd3a2a20951c0f0e28f66dd0e6d3fda73911d640a2125c8fcb78f21a",
+      "bytes": 24452,
+      "modo": "644",
+      "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/presentaciones/assets/motor/fuentes/inter-600.woff2"
+    },
+    ".claude/skills/presentaciones/assets/motor/fuentes/inter-700.woff2": {
+      "sha256": "6f56409fd3d64bb85f7d070bce20749db2d66b6d63cec586cc22d1c761be2491",
+      "bytes": 24356,
+      "modo": "644",
+      "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/presentaciones/assets/motor/fuentes/inter-700.woff2"
+    },
+    ".claude/skills/presentaciones/assets/motor/fuentes/inter-800.woff2": {
+      "sha256": "a7d0a50f15d389cad679238466bdb5fc9787aa0715719064ce25abaff042820d",
+      "bytes": 24400,
+      "modo": "644",
+      "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/presentaciones/assets/motor/fuentes/inter-800.woff2"
+    },
+    ".claude/skills/presentaciones/assets/motor/mk.js": {
+      "sha256": "13dc285d3400f0097c0eb2c9b7a55d9992d38d40b9c69c91158e33809e3a047f",
+      "bytes": 6443,
+      "modo": "644",
+      "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/presentaciones/assets/motor/mk.js"
     },
     ".claude/skills/presentaciones/assets/motor/motor.js": {
-      "sha256": "92fb09925ee1bce6e55cb9e15f0697c518d2799e2a9bca56969cdfc53c6a7d89",
-      "bytes": 7184,
+      "sha256": "280a652b5ac6a9e07f47d7dbcc09b5bf7b05b05f26cb45c383251f168a5b96f8",
+      "bytes": 13520,
       "modo": "644",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/presentaciones/assets/motor/motor.js"
     },
+    ".claude/skills/presentaciones/assets/motor/plantilla.html": {
+      "sha256": "8fd9fd78c637810398f15de1029be1ffbe552c579ade98c32fe9ec233ee45b35",
+      "bytes": 804,
+      "modo": "644",
+      "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/presentaciones/assets/motor/plantilla.html"
+    },
     ".claude/skills/presentaciones/assets/motor/presentador.html": {
-      "sha256": "bfbf874efbe3e7528fac2c8f46985ff7f21d09eb131837c4a26ff4954d19e4f2",
-      "bytes": 4920,
+      "sha256": "ed7b616e4bf20f1402c0e74951ce5edf90760744c5f81bb2ac182626931f6805",
+      "bytes": 5755,
       "modo": "644",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/presentaciones/assets/motor/presentador.html"
     },
     ".claude/skills/presentaciones/assets/motor/temas/noche.css": {
-      "sha256": "f46f9bc6d7a7e4e8dc91af85aa523f3aa4041c173db75599f77ac2ac4dc2c25b",
-      "bytes": 710,
+      "sha256": "abbf093662a157676a3de1f883407d6b759e5ec7068f4e27c5b2d0594342ccc0",
+      "bytes": 1119,
       "modo": "644",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/presentaciones/assets/motor/temas/noche.css"
     },
     ".claude/skills/presentaciones/assets/motor/temas/papel.css": {
-      "sha256": "1b39dcd7b832d9c7499f8c0d7709c3d14dfe07176393dd788afa76d6a2217eb2",
-      "bytes": 559,
+      "sha256": "44a0bd6408bd5960f2202641b015380a8312f459eab4d4cb9bb71273ebd330f4",
+      "bytes": 918,
       "modo": "644",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/presentaciones/assets/motor/temas/papel.css"
     },
     ".claude/skills/presentaciones/references/critico.md": {
-      "sha256": "2d96eaba139c14b1a50aa18affe94b76ce65a0cc6132eb624c4712e809e3fdc1",
-      "bytes": 1441,
+      "sha256": "e7cc9727482ad30a8f9916fd80cca8e175a91f5f7295600f7177cf2513120629",
+      "bytes": 1791,
       "modo": "644",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/presentaciones/references/critico.md"
     },
     ".claude/skills/presentaciones/references/diseno.md": {
-      "sha256": "75ba5f105a6590bd9668333a6304651a3f2e0a9637950320bc9d8eb5b4ac0285",
-      "bytes": 2412,
+      "sha256": "42f292b22ca11169eca31496ef67a08783245131df608307b800d4c2640254fe",
+      "bytes": 2334,
       "modo": "644",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/presentaciones/references/diseno.md"
     },
+    ".claude/skills/presentaciones/references/enactivos.md": {
+      "sha256": "80cf695605325da56bdcc77bda60c28eedfe284a51ee8d3edd0f83a66a4eea0a",
+      "bytes": 3849,
+      "modo": "644",
+      "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/presentaciones/references/enactivos.md"
+    },
+    ".claude/skills/presentaciones/references/gramatica.md": {
+      "sha256": "cde09243164b85b5353102325051bedfd7d172521c05ea8042d1a6c4e891a6d8",
+      "bytes": 4052,
+      "modo": "644",
+      "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/presentaciones/references/gramatica.md"
+    },
     ".claude/skills/presentaciones/references/oficio.md": {
-      "sha256": "4f799fd7c98c0d87d6426eaf9ede2b56ba0ba41b4d16ffa0be3bf00d34ac9680",
-      "bytes": 3240,
+      "sha256": "31c1b76d1a3031e419c36d9d78b4967d5593b7bc76b9140b49ee3d3f76579a7d",
+      "bytes": 3558,
       "modo": "644",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/presentaciones/references/oficio.md"
     },
-    ".claude/skills/presentaciones/scripts/nuevo_deck.py": {
-      "sha256": "5c93724f008ad78a409471eb9cfd7fc9b8548484474254c7369d059c180e5712",
-      "bytes": 1629,
+    ".claude/skills/presentaciones/scripts/abrir.py": {
+      "sha256": "40e319fe024b798a53d310b9bcf82420f8134bf2540cc43e2baa2b048dcac484",
+      "bytes": 1744,
       "modo": "644",
-      "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/presentaciones/scripts/nuevo_deck.py"
+      "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/presentaciones/scripts/abrir.py"
+    },
+    ".claude/skills/presentaciones/scripts/construir.py": {
+      "sha256": "72f50f39d23f7b862b44f6cade69181d516d527f93520d0be3e0f69197defc21",
+      "bytes": 5516,
+      "modo": "644",
+      "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/presentaciones/scripts/construir.py"
+    },
+    ".claude/skills/presentaciones/scripts/listo.py": {
+      "sha256": "160d8209f49d4f88318cb9d633a63392baf6bd3c86b6e56a66d91e7f9d39f0aa",
+      "bytes": 2812,
+      "modo": "644",
+      "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/presentaciones/scripts/listo.py"
     },
     ".claude/skills/presentaciones/scripts/verificar.py": {
-      "sha256": "6005cd8d86853ebb47121f4af2bf55ee19f95385d71c969ee22bb29415eb2740",
-      "bytes": 3794,
+      "sha256": "d0f5e2d47eba69f6e1960c6a112ca2bb8b07ab3781de8936543960e8f7f677c6",
+      "bytes": 6745,
       "modo": "644",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/presentaciones/scripts/verificar.py"
     },
@@ -949,14 +1057,14 @@
       "origen": "allowlist:enlaces"
     },
     "CAPAS.json": {
-      "sha256": "67526fd44d5f19986b4f95126c507f375941b6b11f4365247fe5bdf560c22ab8",
+      "sha256": "fec7fb0dc77d003ca5fa67ebf3108a4223bf1e2ebc477f0060138bcc46296ebe",
       "bytes": 1422,
       "modo": "644",
       "origen": "distribucion:CAPAS.json"
     },
     "CHANGELOG.md": {
-      "sha256": "2e5e733c595feadc82b4556deec0bbc737674e255c8bb307ac2a4728b7a4ec7d",
-      "bytes": 76360,
+      "sha256": "dfe9d41c9ec79c4e6745ff47fe79e89321b1cf4fa46d59b735aa1834f65f66df",
+      "bytes": 78103,
       "modo": "644",
       "origen": "distribucion:CHANGELOG.md"
     },
@@ -1009,7 +1117,7 @@
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/TELEFONO.plantilla.md"
     },
     "VERSION": {
-      "sha256": "575319fa2b37e219385d7c031940542506ddc44da5421e9ea749b7b66e4d5822",
+      "sha256": "11a14e9a0376a16d1c8c9a8f53dcdc43f441589ec789807e1a112df4949c3630",
       "bytes": 7,
       "modo": "644",
       "origen": "distribucion:VERSION"

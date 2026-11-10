@@ -48,7 +48,7 @@ ROUTES = [
      ['.claude/skills/canvas/SKILL.md']),
     ('Imágenes', ['genera una imagen', 'hazme una imagen', 'ilustracion', 'miniatura'],
      ['.claude/skills/image-generation/SKILL.md']),
-    ('Presentaciones', ['presentacion', 'un deck', 'diapositivas', 'slides', 'mi pitch', 'laminas para mi clase'],
+    ('Presentaciones', ['presentacion', 'un deck', 'diapositivas', 'slides', 'mi pitch', 'laminas para mi clase', 'la lamina', 'las laminas'],
      ['.claude/skills/presentaciones/SKILL.md']),
     ('Modelo sin filtro', ['sin filtro', 'abliterated', 'abliteration', 'deepseek sin censura', 'modelo sin censura'],
      ['arbrain/cerebro/manuales/sin-filtro.md']),

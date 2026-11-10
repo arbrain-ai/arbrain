@@ -1,88 +1,75 @@
 ---
 name: presentaciones
-description: "Presentaciones hermosas en HTML que se abren con doble clic: una idea por lámina, la idea se arma por clics, enactivos 2D que se mueven con la clase, vista de presentador con notas y reloj, pantalla completa con F. Toma el diseño del dueño (su marca, paleta y tipografía; si no hay, propone dos direcciones) y exprime al máximo la capacidad creativa del modelo. Usar ante «hazme una presentación», «un deck», «slides», «diapositivas», «mi clase», «mi pitch», «la presentación de mi webinar o mi taller», «que se vea tan hermosa como…». No es para PowerPoint (.pptx) ni Google Slides."
+description: "Presentaciones que dejan callada a la sala, en HTML de doble clic: un universo visual propio, una idea por lámina, dibujos que se mueven con cada clic, vista de presentador con notas y reloj. El dueño solo dice de qué es; todo el oficio lo pone el modelo, con su marca. Usar ante «hazme una presentación», «un deck», «slides», «diapositivas», «láminas», «mi clase», «mi pitch», «mi webinar», «mi taller», «una presentación como las de las clases», «la skill de presentaciones», «cómo hago presentaciones», «cámbiale la lámina 5». No es para PowerPoint (.pptx) ni Google Slides."
 ---
 
-# presentaciones · decks que se entienden solos
+# presentaciones · el dueño dice de qué es, tú pones el oficio
 
-Un deck aquí es una carpeta con `index.html` que abre con doble clic, sin internet ni servidor. Tu dueño
-habla encima; la lámina le da ritmo y hace visible lo que dice. La vara no es «limpio y correcto»: es que
-alguien que nunca lo vio diga «¿cómo hiciste esto?».
+Tu dueño no sabe de diseño ni de código, ni tiene que saberlo. **Todo lo que puedas decidir tú, lo decides tú.**
+Él pone el tema y sus ideas; tú pones todo lo demás. La vara no es «limpio y correcto»: es que quien la vea
+pregunte «¿cómo hiciste esto?».
 
-## 1. Antes de una sola lámina
+Si solo pregunta cómo se usa, contesta en dos líneas: «Dime de qué es tu presentación y para quién, y yo la armo. Te
+la entrego abierta, lista para darla». Háblale en español simple: nada de HTML, canvas, scripts ni carpetas.
 
-1. **El diseño es del dueño.** Búscalo antes de preguntar, en este orden: `mi-marca/tema.css`,
-   `mi-marca/logo.*` y `mi-marca/marca.json`; su memoria (`.claude/memory/`, busca marca, colores,
-   tipografía); una presentación, web o imagen suya que te haya pasado. Si lo encuentras, dilo en una
-   línea («uso tu morado y tu logo») y sigue. Si no hay nada, **propón dos direcciones** con un nombre,
-   tres colores y dos letras cada una, y que elija. Detalle y ejemplos: [references/diseno.md](references/diseno.md).
-2. **El contenido, en sus palabras.** Qué quiere que su público sepa, sienta y haga al final. Cuánto
-   dura. Si va a grabarse con su cara encima (entonces se respeta la zona de la cara).
-3. **Guion de una línea por lámina** antes del HTML: título que es una afirmación, no un tema. Si una
-   lámina necesita dos ideas, son dos láminas.
+## El camino completo (él vive solo los pasos 1, 3 y 6)
 
-## 2. Dirigirte a ti mismo (las palabras que desatan al modelo)
+**1. De qué es.** Si ya te lo dijo, no preguntes nada. Si no: una sola pregunta, «¿De qué es y para quién?». Lo que falte
+(duración, si se graba) lo supones: 20 a 30 minutos, compartida en videollamada. Si te dio un PDF, un documento, un audio o
+sus notas, ese es el contenido: léelo completo.
 
-Antes de diseñar, léete esto y créetelo: [references/oficio.md](references/oficio.md). Lo esencial:
+**2. Su contenido y su diseño, sin molestarlo.** Lee su memoria (`.claude/memory/`, `project/mi-negocio/`): su negocio, su
+público, cómo habla, qué ofrece. Busca su marca en `mi-marca/` (tema, logo, `marca.json`) y en su memoria. Si tiene, la
+usas. **Si no tiene, eliges tú** la dirección que mejor le quede a su negocio ([references/diseno.md](references/diseno.md))
+y al final le dices en una línea que la cambias si quiere. Nunca le pongas a escoger colores.
 
-- No te quedes con tu primera idea. Para cada lámina importante piensa varias formas de hacer visible el
-  concepto, descarta los clichés (íconos con texto, tarjetas en rejilla, viñetas) y elige la que el
-  público recordaría mañana.
-- Cada lámina que explica algo lleva un **enactivo**: un dibujo que ES la idea y cambia con cada clic
-  (no una caja que la rotula). Los tres tests: tapa el texto y aún se entiende; después de verlo,
-  alguien podría explicarlo; cada clic cambia el estado del sistema, no solo la opacidad.
-- Letra grande, mucho aire, un solo acento de color por lámina. Lo que se quiere recordar se queda
-  quieto lo suficiente para leerlo.
+**3. El guion, una sola confirmación.** Una línea por lámina, con la frase que se queda, en lenguaje de la gente que lo va
+a escuchar. Enséñaselo en un mensaje corto: «Así la voy a contar. ¿La armo o le cambias algo?». Solo ideas que él pueda
+defender en voz alta; si algo viene de ti y no de él, lo marcas. Si te dijo «hazla de una» o ya te dio su guion, te saltas
+la pregunta. Con su sí, avísale: «Va, te la entrego en unos minutos» y no vuelvas a preguntar.
 
-## 3. Construir
+**4. El universo, y construir.** Antes de una sola lámina lee y créete [references/oficio.md](references/oficio.md): ahí
+está cómo apuntar alto, cómo inventar el universo visual que une toda la presentación y la fórmula de lámina que funciona.
 
-```bash
-python3 .claude/skills/presentaciones/scripts/nuevo_deck.py <carpeta> --tema noche --titulo "Mi clase"
-```
+Luego escribe la presentación con tus herramientas de archivos, en `mi-negocio/presentaciones/<fecha>-<tema>/` (salvo que
+él pida otro lugar): `deck.json` con su título, y una lámina por archivo, `piezas/00.html`, `piezas/01.html`…, con su dibujo
+en `piezas/01.js`. Cómo se escribe todo: [references/gramatica.md](references/gramatica.md). Cómo se inventa un dibujo que
+enseña: [references/enactivos.md](references/enactivos.md). Con su marca, escribe también `tema.css`. Para una animación
+compleja o para exprimir más la forma, también tienes `.claude/skills/code-animation/`.
 
-Crea la carpeta con el motor, el presentador, un `tema.css` y un demo de 4 láminas que muestra cada pieza
-(portada, idea por clics, enactivo, cierre). Reescríbelo entero con el contenido del dueño. Temas de
-partida: `noche` (luz sobre oscuro) y `papel` (editorial claro); con su marca, escribe su propio
-`tema.css` con las mismas variables. Dónde guardar: donde el dueño diga; si no dice, en
-`mi-negocio/presentaciones/<fecha>-<tema>/`.
-
-Gramática del motor (todo en `index.html`, cada lámina es una `<section class="lamina">`):
-
-| Quieres | Escribes |
-|---|---|
-| Que algo aparezca en el clic 2 | `data-p="2"` (y `data-hasta="3"` si se apaga después del 3) |
-| Animar por CSS según el paso | la lámina recibe `.p1`, `.p2`…: `.p2 .barra{width:80%}` |
-| Notas para el presentador | `<aside class="notas"><p data-p="1">lo que dices en el clic 1</p></aside>` |
-| Un enactivo 2D | `<canvas class="enactivo" data-enactivo="x">` + `Enactivos.registrar("x",{w,h,nuevo,cuadro})` en `enactivos.js` |
-| Pasos sin elementos (solo el enactivo cambia) | `data-pasos="3"` en la `<section>` |
-| Algo que se toca sin avanzar | `data-toca` en el elemento |
-
-Teclas para el dueño: flechas, espacio o clic avanzan; **F** pantalla completa; **P** abre el
-presentador (notas del clic actual, el siguiente clic en miniatura, hora y cronómetro); **N** notas
-dentro del deck; **D** marca la zona de la cara (círculo de 380 px abajo a la derecha; ningún texto ahí
-si va a grabarse); **?** ayuda. `index.html#3.2` abre la lámina 3 en su paso 2. Para compartir en una
-videollamada: abre el deck en Chrome, F, y comparte esa pestaña; el presentador va en otra ventana.
-
-## 4. Verificar y criticarte (no se entrega sin esto)
+**5. Revisar y criticarte (no se entrega sin esto).** Hay un solo comando, y se corre **siempre exactamente así, sin nada
+antes ni después** (ni `cd`, ni `&&`, ni carpeta como argumento):
 
 ```bash
-python3 .claude/skills/presentaciones/scripts/verificar.py <carpeta>
+python3 .claude/skills/presentaciones/scripts/listo.py
 ```
 
-Abre el deck en Chrome sin pantalla, falla si hay errores de JavaScript o el motor no arranca, y saca
-una captura por lámina en su último paso (`<carpeta>/_capturas/`). Luego **mira cada captura** con el
-crítico de [references/critico.md](references/critico.md), corrige lo que falle y repite hasta que no
-puedas nombrar una sola cosa que la mejore. Al dueño le llega el deck terminado, no la lista de fallas.
+(En Windows, `python` en lugar de `python3`.) Arma la presentación, revisa cada clic de cada lámina (errores, texto que se
+sale, que no cabe o encimado) y deja `_capturas/hoja.png` y una captura por lámina. La primera vez, Arbrain puede pedirle
+permiso: **avísale antes, en una línea**: «Te va a salir un permiso para correr mi revisor; si eliges *Permitir siempre*, no
+te lo vuelvo a pedir». Ese es el único permiso que la skill necesita, y por eso el comando nunca cambia.
 
-## 5. Entregar
+Arregla cada falla. Después **mira las capturas** con [references/critico.md](references/critico.md) y da otra vuelta hasta
+que no puedas nombrar una sola cosa que la mejore. Si dice `NO_REVISADO`, revisa el código con más cuidado y entrega de todos
+modos; si es porque no hay Chrome, dile que instalarlo te deja revisarla mejor. A tu dueño le llega la presentación terminada,
+no la lista de fallas.
 
-En tres líneas: dónde está (`<carpeta>/index.html`, doble clic), cómo darla (F, P, flechas) y qué
-decidir si algo quedó abierto. Si el dueño pide cambios, edita el mismo deck; una versión nueva solo si
-la pide.
+**6. Entregar.** Agrega `"entregar": true` a `deck.json` y corre el mismo comando: se la abre en su navegador. Si dice
+`NO_ABIERTA`, dile dónde quedó: doble clic en `index.html` de esa carpeta. Le dices, en tres líneas:
+- Ya está abierta. Flechas o clic para avanzar; **F**, pantalla completa.
+- **P** abre tu vista con tus notas y el reloj. Para una videollamada: comparte solo esa pestaña.
+- Si quieres cambiar algo, dime qué: «cámbiale la lámina 5», «ponla más corta», «usa estos colores».
+
+## Cuando pide cambios
+
+Editas solo la pieza que toca, y con `"entregar": true` corres el mismo comando: se revisa y se le abre sola. Versión nueva
+solo si la pide. No le pidas que busque archivos ni que recargue nada a mano.
 
 ## Límites
 
-- PowerPoint o Google Slides: aquí no; si los pide, díselo y ofrécele este formato o exportar capturas.
-- Imágenes generadas para las láminas: `image-generation`. Diagramas editables: `canvas`.
-- Sin dependencias externas: nada de CDNs ni fuentes de internet; si quiere una letra suya, el archivo
-  va en la carpeta del deck.
+- PowerPoint o Google Slides: aquí no; dile que esta se abre en cualquier navegador y que, si la necesita en otro lado,
+  le sacas las imágenes de cada lámina (`_capturas/`).
+- Imágenes generadas para las láminas: `image-generation`, solo si aportan; nunca inventes caras ni cifras. Diagramas
+  editables: `canvas`.
+- Sin dependencias externas: nada de internet ni de librerías. Letras y motor van dentro del archivo.
+- Para compartirla: `index.html` basta si no lleva fotos ni video; si lleva, manda la carpeta completa.

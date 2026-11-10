@@ -1,41 +1,90 @@
-/* Piel base del motor. Los colores y letras viven en tema.css (variables); aquí solo la mecánica. */
+/* Piel base del motor. Los colores y letras viven en tema.css (variables); aquí solo la mecánica y las piezas comunes. */
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{width:100%;height:100%;overflow:hidden;background:var(--fondo-fuera,#000)}
-body{font-family:var(--letra-texto);color:var(--tinta);-webkit-font-smoothing:antialiased}
+body{font-family:var(--letra-texto);color:var(--tinta-suave);-webkit-font-smoothing:antialiased}
 body.oculto{cursor:none}
 #escena{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0;overflow:hidden;background:var(--fondo)}
-section.lamina{position:absolute;inset:0;padding:var(--margen,120px);opacity:0;visibility:hidden;transition:opacity .6s var(--curva),visibility 0s .6s}
-section.lamina.on{opacity:1;visibility:visible;transition:opacity .6s var(--curva),visibility 0s}
+/* grano fino encima de todo: quita lo «plano» de la pantalla */
+#escena::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:40;opacity:var(--grano,.07);mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")}
+#universo{position:absolute;inset:0;width:1920px;height:1080px;z-index:0;pointer-events:none}
+section.lamina{position:absolute;inset:0;z-index:2;opacity:0;visibility:hidden;transition:opacity .7s var(--curva),visibility 0s .7s}
+section.lamina.on{opacity:1;visibility:visible;transition:opacity .7s var(--curva),visibility 0s}
+section.lamina:not(.on) *{animation-play-state:paused!important}
 aside.notas{display:none}
 
-/* builds: aparece en su clic */
-[data-p]{opacity:0;transform:translateY(14px);transition:opacity .55s var(--curva),transform .55s var(--curva)}
-[data-p].ver{opacity:1;transform:none}
-[data-p].sin-mover{transform:none}
+/* entradas: de la niebla a la luz. data-p aparece en su clic; .rev entra al llegar a la lámina (--r = turno) */
+[data-p],.rev{opacity:0;transform:translateY(22px);filter:blur(10px);transition:opacity .8s var(--curva),transform .9s var(--curva),filter .9s var(--curva)}
+[data-p].ver{opacity:1;transform:none;filter:none}
+[data-p].sin-mover{transform:none;filter:none}
+.rev{transition-delay:calc(var(--r,0) * .12s)}
+section.lamina.on .rev{opacity:1;transform:none;filter:none}
 
-/* tipografía de lámina: una idea, letra grande */
-.kicker{font-family:var(--letra-mono);font-size:22px;letter-spacing:.22em;text-transform:uppercase;color:var(--acento)}
-h1{font-family:var(--letra-titulo);font-size:132px;line-height:1.02;letter-spacing:-.02em;font-weight:var(--peso-titulo,700)}
-h2{font-family:var(--letra-titulo);font-size:84px;line-height:1.06;letter-spacing:-.015em;font-weight:var(--peso-titulo,700)}
-p.grande{font-size:44px;line-height:1.3;color:var(--tinta-suave);max-width:1300px}
-.acento{color:var(--acento)}
+/* tipografía: una idea, letra grande */
+.kicker{font-family:var(--letra-mono);font-size:24px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:var(--acento)}
+.kicker.dos{color:var(--acento-2-claro)}
+h1,.t1{font-family:var(--letra-titulo);font-size:132px;line-height:1.02;letter-spacing:-.015em;font-weight:var(--peso-titulo,600);color:var(--tinta)}
+h2,.t2{font-family:var(--letra-titulo);font-size:100px;line-height:1.04;letter-spacing:-.005em;font-weight:var(--peso-titulo,600);color:var(--tinta)}
+.t3{font-family:var(--letra-titulo);font-size:68px;line-height:1.08;font-weight:var(--peso-titulo,600);color:var(--tinta)}
+p.grande,.sub{font-family:var(--letra-texto);font-weight:600;font-size:42px;line-height:1.3;color:var(--tinta-suave);max-width:1400px}
+.cita{font-family:var(--letra-titulo);font-style:italic;font-weight:500;font-size:60px;line-height:1.14;color:var(--tinta)}
+.acento{color:var(--acento)}.dos{color:var(--acento-2-claro)}
+.brillo{background:linear-gradient(100deg,var(--acento) 0%,var(--acento) 28%,var(--acento-claro) 48%,var(--acento) 66%,var(--acento) 100%);background-size:260% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:brillo 5s var(--curva) 1s infinite}
+@keyframes brillo{0%{background-position:100% 0}55%,100%{background-position:0 0}}
+.cifra{font-family:var(--letra-titulo);font-size:240px;line-height:1;color:var(--acento);font-weight:var(--peso-titulo,600)}
+
+/* la fórmula de lámina que más funciona: arriba la afirmación, en medio el dibujo que la actúa, abajo UNA frase por clic */
+.arriba{position:absolute;left:var(--margen);right:var(--margen);top:84px}
+.arriba>*+*{margin-top:12px}
+.centro{position:absolute;left:var(--margen);right:var(--margen);top:0;bottom:0;display:flex;flex-direction:column;justify-content:center;gap:36px}
+.duo{position:absolute;left:var(--margen);right:var(--margen);top:0;bottom:0;display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center}
 canvas.enactivo{position:absolute;display:block}
+.lienzo{position:absolute;left:0;top:0;width:1920px;height:1080px}
+.lienzo canvas.enactivo{left:0;top:0;width:100%;height:100%}
+/* .dice: una sola frase a la vez, en el mismo lugar. Cada hijo .p lleva data-p="N" data-hasta="M". */
+.dice{position:absolute;left:var(--margen);right:var(--margen);top:840px;min-height:150px;z-index:3}
+.dice>.p{position:absolute;left:0;top:0;width:100%;font-family:var(--letra-texto);font-weight:600;font-size:44px;line-height:1.28;color:var(--tinta-suave)}
+.dice>.p b{color:var(--tinta);font-weight:800}
+.dice>.p em{color:var(--acento-claro);font-style:normal}
+.dice.grande>.p{font-family:var(--letra-titulo);font-style:italic;font-weight:500;font-size:60px;line-height:1.12;color:var(--tinta)}
 
-/* chrome mínimo: nada visible encima de la lámina salvo una línea de avance */
+/* vidrio y chips */
+.vidrio{border-radius:28px;background:linear-gradient(180deg,rgba(255,255,255,.075),rgba(255,255,255,.018));border:1.5px solid var(--linea);border-top-color:rgba(255,255,255,.2);
+  box-shadow:0 30px 80px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.07);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.vidrio.acento{border-color:rgba(var(--acento-rgb),.42);border-top-color:rgba(var(--acento-rgb),.8);background:linear-gradient(180deg,rgba(var(--acento-rgb),.15),rgba(var(--acento-rgb),.035));box-shadow:0 30px 90px rgba(var(--acento-rgb),.13)}
+.chip{display:inline-flex;align-items:center;gap:10px;font-family:var(--letra-mono);font-weight:700;font-size:24px;letter-spacing:.12em;text-transform:uppercase;padding:9px 18px;border-radius:999px;border:1.5px solid rgba(var(--acento-rgb),.55);color:var(--acento-claro);background:rgba(var(--acento-rgb),.1)}
+
+/* video dentro de la lámina (<div class="vcaja"><video data-play-en="1" src="media/x.mp4" poster="media/x.jpg" playsinline></video><div class="vplay"><i></i></div></div>) */
+.vcaja{position:absolute;z-index:4;border-radius:22px;overflow:hidden;background:#000;cursor:pointer;border:1.5px solid rgba(var(--acento-rgb),.42);box-shadow:0 40px 120px rgba(0,0,0,.6)}
+.vcaja video{display:block;width:100%;height:100%;object-fit:cover;background:#000}
+.vplay{position:absolute;inset:0;display:grid;place-items:center;background:linear-gradient(0deg,rgba(0,0,0,.6),rgba(0,0,0,.1) 60%);transition:opacity .5s var(--curva)}
+.vcaja.corre .vplay{opacity:0;pointer-events:none}
+.vplay i{display:block;width:130px;height:130px;border-radius:50%;border:3px solid var(--acento);background:radial-gradient(circle,rgba(0,0,0,.55),rgba(0,0,0,.55));position:relative}
+.vplay i::after{content:"";position:absolute;left:50px;top:37px;border-left:42px solid var(--acento);border-top:27px solid transparent;border-bottom:27px solid transparent}
+/* botón de copiar (data-copia="#id"): el prompt o ejercicio que el público se lleva */
+button[data-copia]{font-family:var(--letra-mono);font-weight:700;font-size:24px;letter-spacing:.1em;text-transform:uppercase;padding:12px 24px;border-radius:999px;border:0;background:var(--acento);color:var(--base);cursor:pointer}
+
+/* la línea de la clase: un punto que avanza, y nada más encima de la lámina */
+#rumbo{position:absolute;left:var(--margen);right:var(--margen);bottom:34px;height:20px;z-index:20;pointer-events:none;transition:opacity .4s}
+#rumbo .linea{position:absolute;left:0;right:0;top:9px;height:2px;border-radius:2px;background:var(--linea)}
+#rumbo .hecho{position:absolute;left:0;top:9px;height:2px;border-radius:2px;background:linear-gradient(90deg,var(--acento-2),var(--acento));width:0;transition:width .8s var(--curva)}
+#rumbo .punto{position:absolute;top:4px;width:12px;height:12px;margin-left:0;border-radius:50%;background:var(--acento);box-shadow:0 0 14px var(--acento);transition:left .8s var(--curva)}
+.sin-rumbo #rumbo{opacity:0}
+body.mini #rumbo{display:none}
 #avance{position:absolute;left:0;bottom:0;height:3px;width:0;background:var(--acento);opacity:.55;transition:width .6s var(--curva);z-index:5}
 body.mini #avance{display:none}
 
 /* zona de la cara (D): reserva para la cámara si grabas o compartes con tu cara encima */
-#cara{position:absolute;right:var(--cara-margen,40px);bottom:var(--cara-margen,40px);width:var(--cara,380px);height:var(--cara,380px);
-  border:3px dashed var(--acento);border-radius:50%;display:none;z-index:6;pointer-events:none}
+#cara{position:absolute;right:var(--cara-margen,40px);bottom:var(--cara-margen,40px);width:var(--cara,380px);height:var(--cara,380px);border:3px dashed var(--acento);border-radius:50%;display:none;z-index:6;pointer-events:none}
 body.ver-cara #cara{display:block}
 
-#notas-panel,#ayuda{position:fixed;z-index:10;display:none;background:rgba(10,10,14,.94);color:#eee;font:20px/1.45 system-ui,sans-serif;padding:22px 26px;border-radius:12px}
+#notas-panel,#ayuda{position:fixed;z-index:50;display:none;background:rgba(10,10,14,.94);color:#eee;font:20px/1.45 system-ui,sans-serif;padding:22px 26px;border-radius:12px}
 #notas-panel{left:20px;bottom:20px;max-width:720px;max-height:45vh;overflow:auto}
 #notas-panel p{margin-top:8px}
 body.ver-notas #notas-panel{display:block}
 #ayuda{right:20px;top:20px}
 body.ver-ayuda #ayuda{display:block}
+body.mini #notas-panel,body.mini #ayuda{display:none!important}
 
 body.captura *{transition:none!important;animation:none!important}
-@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}[data-p]{transform:none}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}[data-p],.rev{transform:none;filter:none}}

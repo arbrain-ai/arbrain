@@ -1,11 +1,13 @@
-/* Dirección «Papel»: editorial claro, tinta oscura, acento sobrio. Para clases que se leen como libro. */
+/* Dirección «Papel»: editorial claro, tinta oscura, acento sobrio. Para contenido serio que se lee como libro o se imprime.
+   Para llevarlo a una marca basta cambiar los seis colores de acento. */
 :root{
-  --fondo:linear-gradient(180deg,#f6f1e7 0%,#efe8da 100%);
+  --acento:#c2410c; --acento-claro:#ea580c; --acento-rgb:194,65,12;
+  --acento-2:#1d4ed8; --acento-2-claro:#1d4ed8; --acento-2-rgb:29,78,216;
+  --base:#f6f1e7; --tinta:#1d1b18; --tinta-suave:#3f3b34; --tinta-tenue:#5b564d; --linea:rgba(29,27,24,.16);
+  --fondo:radial-gradient(1200px 700px at 80% -10%,rgba(var(--acento-rgb),.07),transparent 60%),linear-gradient(180deg,#f6f1e7 0%,#efe8da 100%);
   --fondo-fuera:#e9e2d3;
-  --tinta:#1d1b18; --tinta-suave:#5b564d;
-  --acento:#c2410c; --acento-2:#1d4ed8; --linea:rgba(29,27,24,.16);
-  --letra-titulo:"Didot","Bodoni 72",Georgia,serif; --peso-titulo:700;
-  --letra-texto:"Charter","Iowan Old Style",Georgia,serif;
+  --letra-titulo:"Cormorant","Didot","Bodoni 72",Georgia,serif; --peso-titulo:700;
+  --letra-texto:"Inter","Helvetica Neue","Segoe UI",system-ui,sans-serif;
   --letra-mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
-  --curva:cubic-bezier(.2,.7,.3,1); --margen:120px;
+  --curva:cubic-bezier(.2,.7,.2,1); --margen:140px; --grano:.05;
 }

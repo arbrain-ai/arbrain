@@ -4,6 +4,28 @@ Cada versión dice qué trae y qué tienes que hacer tú. Para actualizar, abre 
 «jala los últimos cambios». Las versiones siguen `MAYOR.MENOR.PARCHE`: un cambio en MENOR trae funciones
 nuevas; uno en PARCHE, arreglos.
 
+## v0.2.26 · 9 nov 2026 · Presentaciones como las de las clases, con una frase
+
+**Qué trae**
+- **Dile a Levy de qué es, y ya.** La skill `presentaciones` se renovó por completo. Dile «hazme una presentación de…» y Levy
+  lee tu negocio, usa tu marca (si no tienes, elige él el diseño), te enseña el guion en un solo mensaje y, con tu sí, te la
+  entrega abierta y lista para darla. No escoges colores ni tocas código.
+- **Cada presentación tiene su propio mundo.** Un fondo vivo que la une de principio a fin, una sola frase por clic, dibujos
+  que se mueven y enseñan la idea, y una línea que avanza contigo. Lo mismo que has visto en las clases, con tus colores y
+  tus palabras.
+- **Levy no te pone palabras en la boca.** Te marca qué ideas son suyas para que te quedes solo con las que puedas defender, y
+  no inventa cifras ni testimonios.
+- **Un solo archivo que abre con doble clic,** sin internet y con las letras adentro: se ve igual en cualquier computadora.
+- **Tu vista de presentador, mejorada (tecla P):** tus notas de cada clic, lo que sigue, tus bloques de tiempo y si vas a
+  tiempo. También puede llevar videos y un botón para que tu público copie un ejercicio.
+- **Arreglado:** el botón «Siguiente» de la vista de presentador avanzaba dos clics de golpe.
+- **Cámbiala hablando:** «cámbiale la lámina 5», «ponla más corta», «usa estos colores». Levy la revisa y te la vuelve a abrir.
+
+**Qué tienes que hacer**
+- Actualizar («actualiza mi Arbrain»). Luego dile a Levy «hazme una presentación de [tu tema] para [tu público]». Si te sale un
+  permiso para correr su revisor, elige **Permitir siempre** y no te lo vuelve a pedir. Tus presentaciones anteriores se
+  quedan como estaban.
+
 ## v0.2.25 · 9 nov 2026 · Tu oferta con Levy, Business Intelligence y Tu negocio
 
 **Qué trae**

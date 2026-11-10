@@ -1,12 +1,15 @@
-/* Dirección «Noche»: luz sobre oscuro. Un solo acento caliente, un segundo frío para contraste puntual.
-   Cámbialo por los colores de tu marca: es el único archivo que define cómo se ve tu deck. */
+/* Dirección «Noche»: luz sobre oscuro, un acento cálido y un segundo color frío para contraste puntual.
+   Para llevarlo a una marca basta cambiar los seis colores de acento; el fondo y los dibujos los siguen solos. */
 :root{
-  --fondo:radial-gradient(1200px 800px at 70% 30%,#16131f 0%,#0b0a10 60%,#07060a 100%);
-  --fondo-fuera:#07060a;
-  --tinta:#f3efe6; --tinta-suave:#b9b3a6;
-  --acento:#f2a03d; --acento-2:#8f7cff; --linea:rgba(243,239,230,.14);
-  --letra-titulo:"Iowan Old Style","Palatino Linotype",Georgia,serif; --peso-titulo:600;
-  --letra-texto:"Avenir Next","Segoe UI",system-ui,sans-serif;
+  --acento:#ff9101; --acento-claro:#ffb64d; --acento-rgb:255,145,1;
+  --acento-2:#8c27f1; --acento-2-claro:#c79cff; --acento-2-rgb:140,39,241;
+  --base:#09090b; --tinta:#f7f8f8; --tinta-suave:#d4d4d8; --tinta-tenue:#a1a1aa; --linea:rgba(255,255,255,.09);
+  --fondo:radial-gradient(1300px 700px at 50% -12%,rgba(var(--acento-rgb),.11),transparent 62%),
+          radial-gradient(1000px 760px at -6% 112%,rgba(var(--acento-2-rgb),.20),transparent 62%),
+          radial-gradient(800px 600px at 108% 100%,rgba(var(--acento-2-rgb),.08),transparent 60%),var(--base);
+  --fondo-fuera:#000;
+  --letra-titulo:"Cormorant","Iowan Old Style","Palatino Linotype",Georgia,serif; --peso-titulo:600;
+  --letra-texto:"Inter",-apple-system,"Segoe UI",system-ui,sans-serif;
   --letra-mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
-  --curva:cubic-bezier(.2,.7,.3,1); --margen:120px;
+  --curva:cubic-bezier(.2,.7,.2,1); --margen:140px; --grano:.07;
 }
