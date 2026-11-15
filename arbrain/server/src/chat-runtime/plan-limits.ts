@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { Options } from '@anthropic-ai/claude-agent-sdk'
 import { ClaudeInteractiveSession, requireClaudeSubscription } from './claude-session.js'
+import { tr, trMarca } from '../i18n/tr.js'
 
 /**
  * Límites de uso del plan de UNA cuenta (2 oct 2026), para el popover de la
@@ -41,20 +42,20 @@ const percentOf = (value: unknown): number | null => { const n = asNumber(value)
 function claudeRowLabel(kind: string, scope: Record<string, unknown> | null): string {
   const model = asText(record(scope?.model)?.display_name)
   const surface = asText(record(scope?.surface)?.display_name)
-  if (kind === 'session') return 'Ventana de 5 h'
-  if (kind === 'weekly_all') return 'Semanal'
-  if (kind === 'weekly_scoped') return `Semanal · ${model ?? surface ?? 'por modelo'}`
+  if (kind === 'session') return tr('Ventana de 5 h')
+  if (kind === 'weekly_all') return tr('Semanal')
+  if (kind === 'weekly_scoped') return tr('Semanal · {modelo}', { modelo: model ?? surface ?? tr('por modelo') })
   return model ?? surface ?? kind
 }
 
 /** Las dos filas que Daniel pidió ver siempre (2 oct 2026): ventana de 5 h y semanal. Si el
  * proveedor no las trae, quedan con percent null («sin dato»), nunca con un cero. */
 const CLAUDE_FIXED: Array<Pick<PlanLimitWindow, 'id' | 'label' | 'windowMinutes'>> = [
-  { id: 'session', label: 'Ventana de 5 h', windowMinutes: 300 },
-  { id: 'weekly_all', label: 'Semanal', windowMinutes: 10080 },
+  { id: 'session', label: trMarca('Ventana de 5 h'), windowMinutes: 300 },
+  { id: 'weekly_all', label: trMarca('Semanal'), windowMinutes: 10080 },
 ]
 function withClaudeFixed(windows: PlanLimitWindow[]): PlanLimitWindow[] {
-  const fixed = CLAUDE_FIXED.map(row => windows.find(w => w.id === row.id) ?? { ...row, percent: null, resetsAt: null })
+  const fixed = CLAUDE_FIXED.map(row => windows.find(w => w.id === row.id) ?? { ...row, label: tr(row.label), percent: null, resetsAt: null })
   return [...fixed, ...windows.filter(w => !CLAUDE_FIXED.some(row => row.id === w.id))]
 }
 
@@ -83,17 +84,17 @@ function serverWindows(rateLimits: unknown): PlanLimitWindow[] {
     if (!window || percentOf(window.utilization) === null) return
     legacy.push({ id, label, percent: percentOf(window.utilization), resetsAt: asText(window.resets_at), windowMinutes })
   }
-  add('session', 'Ventana de 5 h', root.five_hour, 300)
-  add('weekly_all', 'Semanal', root.seven_day, 10080)
+  add('session', tr('Ventana de 5 h'), root.five_hour, 300)
+  add('weekly_all', tr('Semanal'), root.seven_day, 10080)
   if (Array.isArray(root.model_scoped)) {
     for (const raw of root.model_scoped) {
       const row = record(raw)
       const name = asText(row?.display_name)
-      if (row && name) add(`scoped:${name}`, `Semanal · ${name}`, row, 10080)
+      if (row && name) add(`scoped:${name}`, tr('Semanal · {modelo}', { modelo: name }), row, 10080)
     }
   } else {
-    add('seven_day_opus', 'Semanal · Opus', root.seven_day_opus, 10080)
-    add('seven_day_sonnet', 'Semanal · Sonnet', root.seven_day_sonnet, 10080)
+    add('seven_day_opus', tr('Semanal · {modelo}', { modelo: 'Opus' }), root.seven_day_opus, 10080)
+    add('seven_day_sonnet', tr('Semanal · {modelo}', { modelo: 'Sonnet' }), root.seven_day_sonnet, 10080)
   }
   return legacy
 }
@@ -104,7 +105,7 @@ export function claudeLimitsFromUsage(account: string, usage: unknown, observedA
   const base = { account, engine: 'claude' as const, plan: capitalize(asText(root?.subscription_type)), reached: null, observedAt, source: 'claude-usage' as const }
   const windows = root?.rate_limits_available === true ? claudeWindows(root.rate_limits) : withClaudeFixed([])
   if (!windows.some(w => w.percent !== null)) {
-    return { ...base, available: false, windows, reason: root?.rate_limits_available === false ? 'Esta cuenta no tiene límites de plan (no es una suscripción de claude.ai).' : 'Claude no pudo leer los límites de esta cuenta (la sesión no tiene acceso al perfil o la consulta falló).' }
+    return { ...base, available: false, windows, reason: root?.rate_limits_available === false ? tr('Esta cuenta no tiene límites de plan (no es una suscripción de claude.ai).') : tr('Claude no pudo leer los límites de esta cuenta (la sesión no tiene acceso al perfil o la consulta falló).') }
   }
   const reached = windows.find(w => w.percent !== null && w.percent >= 100)
   return { ...base, available: true, reason: null, windows, reached: reached?.label ?? null }
@@ -186,7 +187,7 @@ export function createClaudeLimitsLoader(cwd: string): Loader {
           const usage = await session.query.usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET({ skipBehaviors: true })
           return claudeLimitsFromUsage(account, usage)
         })(),
-        new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('Claude no respondió a tiempo con los límites del plan.')), 15_000) }),
+        new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error(tr('Claude no respondió a tiempo con los límites del plan.'))), 15_000) }),
       ])
     } finally { clearTimeout(timer); session.close(); await session.drained }
   }

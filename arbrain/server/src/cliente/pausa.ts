@@ -15,8 +15,10 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { DIR_ARBRAIN } from '../edicion.js'
+import { trMarca } from '../i18n/tr.js'
 
-export const MENSAJE_PAUSA = 'Arbrain está en pausa: la persona detuvo todo desde la app. No se ejecutó nada. Cuando ella pulse «Reanudar», vuelve a intentarlo.'
+/** Para el agente tal cual; a la persona le llega con `tr(MENSAJE_PAUSA)` (chat, Taller › Rutinas). */
+export const MENSAJE_PAUSA = trMarca('Arbrain está en pausa: la persona detuvo todo desde la app. No se ejecutó nada. Cuando ella pulse «Reanudar», vuelve a intentarlo.')
 
 export interface EstadoPausa { pausado: boolean; desde: number | null }
 

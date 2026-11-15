@@ -2,6 +2,7 @@
  * El visor único (7 oct 2026): la parte pura de PDF, video, audio y carpeta de entrega. Sin DOM ni React, para probarla
  * (tests/cabina/visor.test.ts) y para que el mensaje que viaja al agente tenga UNA sola forma.
  */
+import { tr } from '@/shared/i18n'
 
 // ── Tiempo y fotogramas ──
 export const FPS_POR_DEFECTO = 30
@@ -152,10 +153,10 @@ export function argsMiniaturas(entrada: string, salida: string, plan: PlanMiniat
 
 /** Qué decirle a Daniel cuando el <video> falla (MediaError.code: 2 red, 3 decodificación, 4 fuente no válida, p. ej. enlace vencido). */
 export function textoFallaVideo(codigo: number | null | undefined): string {
-  if (codigo === 2) return 'Se cortó la conexión con el video.'
-  if (codigo === 3) return 'El video no se pudo decodificar en este punto.'
-  if (codigo === 4) return 'No se pudo abrir el video (¿venció el enlace?).'
-  return 'El video dejó de responder.'
+  if (codigo === 2) return tr('Se cortó la conexión con el video.')
+  if (codigo === 3) return tr('El video no se pudo decodificar en este punto.')
+  if (codigo === 4) return tr('No se pudo abrir el video (¿venció el enlace?).')
+  return tr('El video dejó de responder.')
 }
 
 // ── Flechas (8 nov 2026) ──

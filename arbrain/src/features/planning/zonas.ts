@@ -1,5 +1,6 @@
 import type { CampoFondo, CategoriaCampo } from '@/config/tipos'
 import { minutos } from './campos-fondo'
+import { trMarca } from '@/shared/i18n'
 /**
  * Zonas de mi vida (28 oct 2026, 08:09, Daniel: «en algún panel en la config activar y desactivar ciertas zonas de mi vida; por
  * ahora habilita todas, pero que el color de fondo dicte la zona; quizá sea el mismo color que las categorías de calendario»).
@@ -87,22 +88,22 @@ export type CambioZonas =
  * Un ajuste igual a lo de fábrica no se guarda: la zona vuelve a seguir a la fábrica.
  */
 export function aplicarCambioZonas(doc: DocZonas, cambio: unknown, fabrica: readonly CampoFondo[], ahora = new Date().toISOString()): DocZonas | string {
-  if (!cambio || typeof cambio !== 'object') return 'Cambio inválido.'
+  if (!cambio || typeof cambio !== 'object') return trMarca('Cambio inválido.')
   const c = cambio as Record<string, unknown>
   const zonas = { ...doc.zonas }
   if (c.accion === 'restablecer') {
     if (c.clave === undefined) return { version: 1, actualizado: ahora, zonas: {} }
-    if (typeof c.clave !== 'string' || !zonas[c.clave]) return 'Esa zona no tiene ajustes.'
+    if (typeof c.clave !== 'string' || !zonas[c.clave]) return trMarca('Esa zona no tiene ajustes.')
     delete zonas[c.clave]
     return { version: 1, actualizado: ahora, zonas }
   }
-  if (c.accion !== 'zona') return 'Acción inválida: zona o restablecer.'
+  if (c.accion !== 'zona') return trMarca('Acción inválida: zona o restablecer.')
   const base = typeof c.clave === 'string' ? fabrica.find(z => z.clave === c.clave) : undefined
-  if (!base) return 'Esa zona no existe.'
+  if (!base) return trMarca('Esa zona no existe.')
   const a: AjusteZona = { ...zonas[base.clave] }
-  if ('activa' in c) { if (typeof c.activa !== 'boolean') return 'activa debe ser sí o no.'; a.activa = c.activa }
-  if ('categoria' in c) { if (!esCategoriaZona(c.categoria)) return 'Color inválido: crear, vender, ensenar, construir o vida.'; a.categoria = c.categoria }
-  if ('franjas' in c) { const f = franjasValidas(c.franjas); if (!f) return 'Horas inválidas: «HH:MM» de inicio y fin, distintas.'; a.franjas = f }
+  if ('activa' in c) { if (typeof c.activa !== 'boolean') return trMarca('activa debe ser sí o no.'); a.activa = c.activa }
+  if ('categoria' in c) { if (!esCategoriaZona(c.categoria)) return trMarca('Color inválido: crear, vender, ensenar, construir o vida.'); a.categoria = c.categoria }
+  if ('franjas' in c) { const f = franjasValidas(c.franjas); if (!f) return trMarca('Horas inválidas: «HH:MM» de inicio y fin, distintas.'); a.franjas = f }
   // Lo que coincide con fábrica no se guarda.
   if (a.activa === true) delete a.activa
   if (a.categoria === base.categoria) delete a.categoria

@@ -7,6 +7,7 @@ import { esEdicionCliente } from '@/lib/edicion'
 import { estadoDirecto } from '@/lib/modo-directo/servidor'
 import { panelNegocioEncendido } from '@/features/negocio/embudo'
 import { leerMercado, ocultarEnDirecto, RUTA_MERCADO, type RespuestaEstrategia } from '@/features/negocio/estrategia'
+import { tr } from '@/shared/i18n'
 
 // Tu negocio › El pulso › Estrategia (8 nov 2026). La investigación de mercado del dueño (`mercado.json`, la consolida
 // Levy): quién compra, contra quién, hacia dónde va y lo que decides. Solo lectura. Modo directo: fuera lo que trae números
@@ -33,7 +34,7 @@ export async function GET() {
     let crudo: unknown
     try { crudo = JSON.parse(await readFile(path.join(base, RUTA_MERCADO), 'utf8')) } catch (e) {
       if ((e as NodeJS.ErrnoException)?.code === 'ENOENT') return Response.json(vacia, { headers: NOCACHE })
-      return Response.json({ ...vacia, existe: true, errores: ['El archivo de la investigación no es JSON válido.'] } satisfies RespuestaEstrategia, { headers: NOCACHE })
+      return Response.json({ ...vacia, existe: true, errores: [tr('El archivo de la investigación no es JSON válido.')] } satisfies RespuestaEstrategia, { headers: NOCACHE })
     }
     const { mercado, errores } = leerMercado(crudo)
     const velado = mercado && prendido ? ocultarEnDirecto(mercado) : null

@@ -1,6 +1,7 @@
 import { NOCACHE, soloAppCliente, tokenDaemon } from '@/lib/daemon-local'
 import { esModoServidor, urlControl } from '@/lib/modo-servidor'
 import { llegaPorTelefono } from '@/features/telefono/host-telefono'
+import { tr } from '@/shared/i18n'
 
 // Ajustes › Tu cerebro en el teléfono (23 oct 2026; scripts/servidor/telefono.mjs). Reenvía al control del supervisor:
 //   GET                     estado (Tailscale, publicación, dirección)
@@ -15,7 +16,7 @@ const ACCIONES = new Set(['encender', 'apagar', 'codigo'])
 async function alControl(ruta: string, metodo: 'GET' | 'POST', plazo: number) {
   const control = urlControl()
   const token = tokenDaemon()
-  if (!control || !token) return Response.json({ error: 'El servidor de Arbrain no le pasó a la web su control. Reinícialo con `npm run servidor`.' }, { status: 503, headers: NOCACHE })
+  if (!control || !token) return Response.json({ error: tr('El servidor de Arbrain no le pasó a la web su control. Reinícialo con `npm run servidor`.') }, { status: 503, headers: NOCACHE })
   try {
     const r = await fetch(`${control}${ruta}`, {
       method: metodo,
@@ -25,11 +26,11 @@ async function alControl(ruta: string, metodo: 'GET' | 'POST', plazo: number) {
       signal: AbortSignal.timeout(plazo),
     })
     // Un supervisor anterior a esta versión no conoce /telefono: 404 con su error genérico.
-    if (r.status === 404) return Response.json({ estado: 'servidor-viejo', error: 'Tu Arbrain corre una versión sin esta función. Actualízalo y reinícialo.' }, { status: 200, headers: NOCACHE })
-    const j = await r.json().catch(() => ({ error: 'Respuesta ilegible del servidor de Arbrain.' }))
+    if (r.status === 404) return Response.json({ estado: 'servidor-viejo', error: tr('Tu Arbrain corre una versión sin esta función. Actualízalo y reinícialo.') }, { status: 200, headers: NOCACHE })
+    const j = await r.json().catch(() => ({ error: tr('Respuesta ilegible del servidor de Arbrain.') }))
     return Response.json(j, { status: r.status, headers: NOCACHE })
   } catch {
-    return Response.json({ error: 'No pude hablar con el servidor de Arbrain. ¿Sigue corriendo?' }, { status: 503, headers: NOCACHE })
+    return Response.json({ error: tr('No pude hablar con el servidor de Arbrain. ¿Sigue corriendo?') }, { status: 503, headers: NOCACHE })
   }
 }
 
@@ -44,11 +45,11 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  if (!esModoServidor()) return Response.json({ error: 'No disponible en esta edición.' }, { status: 404, headers: NOCACHE })
+  if (!esModoServidor()) return Response.json({ error: tr('No disponible en esta edición.') }, { status: 404, headers: NOCACHE })
   const no = await soloAppCliente(request, true)
   if (no) return no
   const j = await request.json().catch(() => ({})) as { accion?: unknown }
   const accion = typeof j.accion === 'string' && ACCIONES.has(j.accion) ? j.accion : null
-  if (!accion) return Response.json({ error: 'Acción no permitida.' }, { status: 400, headers: NOCACHE })
+  if (!accion) return Response.json({ error: tr('Acción no permitida.') }, { status: 400, headers: NOCACHE })
   return alControl(`/telefono/${accion}`, 'POST', 90_000)
 }

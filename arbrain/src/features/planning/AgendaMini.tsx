@@ -1,5 +1,5 @@
 'use client'
-import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
 import { Lock } from 'lucide-react'
 import { carriles, duracion, tramoDia, type Bloque } from './dia-vivo'
 import type { BloqueAgenda } from './agenda-llamadas'
@@ -16,13 +16,22 @@ import { DEF } from './categorias'
 import { useZonas } from './useZonas'
 import type { ItemDia } from './lista-dia'
 import { horaDeMinuto, pistaDeMarca } from './ListaDia'
+import { arrastrableEnDia, soltarEnDia } from './arrastre-dia'
+import { esArrastre, hhmm } from './semana-horas'
+// El fantasma de mover es el de la Semana en Horas (mismo oro punteado y la hora en vivo): se usa su clase, no se copia el estilo.
+import h from './semana-horas.module.css'
 // La línea de ahora es la de «Tu día» (cabina/luz.module.css): se aplican las dos clases, no se copia el estilo.
 import luz from '@/features/cabina/luz.module.css'
+import { tr } from '@/shared/i18n'
 
 /** Alto de una hora (10 oct 2026): el día entero de 05 a 22 mide ~510 px y va en el scroll del panel o de la página. */
 const HORA_PX = 30
 /** Con `llenar`, la hora nunca baja de esto aunque la pantalla sea corta (la etiqueta y un bloque de 30 min siguen legibles). */
 const HORA_PX_MIN = 22
+/** Con el dedo, mover empieza tras mantener presionado esto (igual que la Semana); antes, el dedo desplaza la página. */
+const MANTENER_MS = 320
+/** Un arrastre en curso: el evento, cuántos minutos debajo de su inicio se tomó y el minuto de inicio bajo el puntero. */
+interface Gesto { bloque: BloqueAgenda; agarre: number; minuto: number; x0: number; y0: number; activo: boolean; esDedo: boolean }
 /**
  * La agenda mini (5 oct 2026, Daniel: «la mitad de la pantalla con el día en horas, como una agenda miniatura súper fluida,
  * y la otra mitad con las tareas»). Una columna de horas, ajustada a lo que tiene el día, con los bloques en su lugar, los
@@ -38,13 +47,16 @@ const HORA_PX_MIN = 22
  * Desde el 3 nov 2026 la lista del día se refleja aquí «de forma sutil y elegante» (Daniel): lo ligado a un evento va DENTRO de su tarjeta
  * como una sublínea discreta (círculo hueco y texto tenue); lo suelto con hora, como una marca en su hora, nunca como bloque. Se marcan
  * desde aquí con la misma pluma que la lista.
+ * Desde el 11 nov 2026 (Daniel: «deberia poder agarrar eventos y reposicionarlos a otra hora») un evento con hora y editable se arrastra
+ * a otra hora como en la Semana: fantasma con la hora en vivo, redondeo a 15 min, Esc cancela y al soltar va por `onMover` (la misma
+ * pluma de la Semana, con ⌘Z y la guarda de invitados). Con el dedo, mantener presionado. Los de todo el día no viven aquí.
  */
 export interface PendientesTimeline {
   dentro: Map<string, ItemDia[]>; sueltas: ItemDia[]
   alternar: (it: ItemDia) => void; puede: (it: ItemDia) => boolean
   resaltado?: string | null; onResaltar?: (id: string | null) => void
 }
-export function AgendaMini({ bloques, bandas = [], fecha, ahora, esHoy, pasado, cargando, onAbrir, objetivo, central = true, llenar = false, pendientes }: {
+export function AgendaMini({ bloques, bandas = [], fecha, ahora, esHoy, pasado, cargando, onAbrir, objetivo, central = true, llenar = false, pendientes, onMover }: {
   bloques: BloqueAgenda[]
   /** Ventanas de disponibilidad (18 oct 2026): una banda de fondo detrás de las tarjetas, no una columna. */
   bandas?: Bloque[]
@@ -59,6 +71,8 @@ export function AgendaMini({ bloques, bandas = [], fecha, ahora, esHoy, pasado, 
   llenar?: boolean
   /** La lista del día en el timeline: sublíneas dentro de su evento y marcas sueltas en su hora. */
   pendientes?: PendientesTimeline
+  /** Arrastrar un evento a otra hora (la pluma de la Semana: `moverEnRejilla`). Sin esto, la agenda no arrastra. */
+  onMover?: (evento: PlanEvent, inicio: Date, fin: Date) => void
 }) {
   // Zonas de mi vida (28 oct 2026): las encendidas de la persona (useZonas), detrás de todo.
   const zonas = useZonas()
@@ -109,15 +123,74 @@ export function AgendaMini({ bloques, bandas = [], fecha, ahora, esHoy, pasado, 
   const marcar = (it: ItemDia, conTexto: boolean, clase: string) => { const p = pendientes!, si = p.puede(it)
     return <button key={it.id} className={clase} data-hecho={it.hecho || undefined} data-origen={it.origen} data-p={it.tarea?.priority} data-resaltado={p.resaltado === it.id || undefined}
       role="checkbox" aria-checked={it.hecho} disabled={!si} onClick={() => p.alternar(it)} onMouseEnter={() => p.onResaltar?.(it.id)} onMouseLeave={() => p.onResaltar?.(null)}
-      aria-label={`${it.hecho ? 'Reabrir' : 'Marcar'}: ${it.texto}`} title={`${it.minuto != null ? `${horaDeMinuto(it.minuto)} · ` : ''}${it.texto}\n${pistaDeMarca(it, si)}`}>
+      aria-label={it.hecho ? tr('Reabrir: {texto}', { texto: it.texto }) : tr('Marcar: {texto}', { texto: it.texto })} title={`${it.minuto != null ? `${horaDeMinuto(it.minuto)} · ` : ''}${it.texto}\n${pistaDeMarca(it, si)}`}>
       <i aria-hidden />{conTexto && <span>{it.texto}</span>}</button> }
+  // Arrastrar a otra hora (11 nov 2026): el mismo gesto que la Semana en Horas, en una sola columna.
+  const tramo = { desde, hasta }
+  const [gesto, setGesto] = useState<Gesto | null>(null)
+  const gestoRef = useRef<Gesto | null>(null)
+  const recienSoltado = useRef(0)
+  const onMoverRef = useRef(onMover); onMoverRef.current = onMover
+  /** El minuto del día bajo el puntero (puede salir del tramo; `soltar` lo acota). */
+  const minutoBajo = (clientY: number) => { const r = mini.current?.getBoundingClientRect(); return r ? desde + (clientY - r.top) / px * 60 : desde }
+  const minutoBajoRef = useRef(minutoBajo); minutoBajoRef.current = minutoBajo
+  const tramoRef = useRef(tramo); tramoRef.current = tramo
+  useEffect(() => {
+    if (!gesto) return
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const poner = (g: Gesto | null) => { gestoRef.current = g; setGesto(g) }
+    const activar = () => { const g = gestoRef.current; if (g && !g.activo) { poner({ ...g, activo: true }); navigator.vibrate?.(8) } }
+    if (gesto.esDedo && !gesto.activo) timer = setTimeout(activar, MANTENER_MS)
+    const terminar = (soltado: boolean) => {
+      const g = gestoRef.current
+      clearTimeout(timer); poner(null)
+      if (!g?.activo) return
+      recienSoltado.current = Date.now()
+      if (!soltado) return
+      const r = soltarEnDia(g.bloque.evento, diaClave, g.minuto, tramoRef.current)
+      if (r) onMoverRef.current?.(g.bloque.evento, r.inicio, r.fin)
+    }
+    const mover = (e: PointerEvent) => {
+      const g = gestoRef.current
+      if (!g) return
+      if (!g.activo) {
+        if (g.esDedo) { if (Math.hypot(e.clientX - g.x0, e.clientY - g.y0) > 8) { clearTimeout(timer); poner(null) } return }
+        if (!esArrastre(e.clientX - g.x0, e.clientY - g.y0)) return
+      }
+      poner({ ...g, activo: true, minuto: minutoBajoRef.current(e.clientY) - g.agarre })
+    }
+    const arriba = () => terminar(true)
+    const cancelar = () => terminar(false)
+    const tecla = (e: KeyboardEvent) => { if (e.key === 'Escape' && gestoRef.current) { e.preventDefault(); e.stopPropagation(); cancelar() } }
+    const quieto = (e: TouchEvent) => { if (gestoRef.current?.activo) e.preventDefault() }
+    window.addEventListener('pointermove', mover); window.addEventListener('pointerup', arriba); window.addEventListener('pointercancel', cancelar)
+    window.addEventListener('keydown', tecla, true); window.addEventListener('touchmove', quieto, { passive: false })
+    return () => {
+      clearTimeout(timer)
+      window.removeEventListener('pointermove', mover); window.removeEventListener('pointerup', arriba); window.removeEventListener('pointercancel', cancelar)
+      window.removeEventListener('keydown', tecla, true); window.removeEventListener('touchmove', quieto)
+    }
+  }, [gesto?.bloque.id, gesto?.esDedo, diaClave]) // eslint-disable-line react-hooks/exhaustive-deps -- un gesto, una suscripción
+  const movible = (b: BloqueAgenda) => Boolean(onMover) && arrastrableEnDia(b.evento, diaClave)
+  function tomar(e: ReactPointerEvent, b: BloqueAgenda) {
+    if (e.button !== 0 || !movible(b) || gestoRef.current) return
+    const g: Gesto = { bloque: b, agarre: minutoBajo(e.clientY) - (b.inicio - base) / 60000, minuto: (b.inicio - base) / 60000, x0: e.clientX, y0: e.clientY, activo: false, esDedo: e.pointerType === 'touch' }
+    gestoRef.current = g; setGesto(g)
+  }
+  // El fantasma: dónde caería si se suelta ahora, con la hora en vivo; en su mismo lugar, solo el contorno (como la Semana).
+  const fantasma = (() => {
+    if (!gesto?.activo) return null
+    const b = gesto.bloque, r = soltarEnDia(b.evento, diaClave, gesto.minuto, tramo)
+    const ini = r ? r.inicio.getTime() : b.inicio, fin = r ? r.fin.getTime() : b.fin
+    return { top: y(ini), alto: Math.max(12, y(fin) - y(ini) - 1), desde: (ini - base) / 60000, hasta: (fin - base) / 60000, igual: !r }
+  })()
   const lugar = (inicio: number, fin: number, id: string) => {
     const top = y(inicio), h = Math.max(12, y(fin) - top - 1), l = lanes.get(id) ?? { col: 0, cols: 1 }
     return { h, style: { top, height: h, left: `${l.col / l.cols * 100}%`, width: `calc(${100 / l.cols}% - 2px)` } }
   }
 
-  return <section className={`${d.columna} ${d.areaAgenda}`} aria-label="Agenda">
-    {!todos.length && <p className={d.vacio}>{cargando ? 'Leyendo tu calendario…' : `Nada agendado ${esHoy ? 'hoy' : 'este día'}.`}</p>}
+  return <section className={`${d.columna} ${d.areaAgenda}`} aria-label={tr('Agenda')} data-arrastrando={gesto?.activo || undefined}>
+    {!todos.length && <p className={d.vacio}>{cargando ? tr('Leyendo tu calendario…') : esHoy ? tr('Nada agendado hoy.') : tr('Nada agendado este día.')}</p>}
     <div ref={caja} className={`${d.miniCaja} ${d.entra}`} style={esc(3)} data-hoy={esHoy || undefined}>
       <div ref={mini} className={d.mini} style={{ height: alto } as CSSProperties} role="presentation">
         {esHoy && ahoraY != null && ahoraY > 0 && <i className={d.miniVivido} style={{ height: Math.min(ahoraY, alto) }} aria-hidden />}
@@ -129,21 +202,21 @@ export function AgendaMini({ bloques, bandas = [], fecha, ahora, esHoy, pasado, 
             style={{ top, height: h, ['--c' as string]: DEF[f.categoria].color } as CSSProperties} aria-hidden title={tituloZona(f, profundo)} /> })}
         {bandas.map(b => { const top = y(b.inicio), h = Math.max(12, y(b.fin) - top)
           return <button key={b.id} className={d.miniBanda} style={{ top, height: h, ['--c' as string]: b.color ?? 'var(--primary)' } as CSSProperties} onClick={() => onAbrir(b.evento)}
-            title={`${hora(b.inicio)} – ${hora(b.fin)} · ${b.titulo}`} aria-label={`Ventana de ${hora(b.inicio)} a ${hora(b.fin)}, ${b.titulo}`}><span>{b.titulo.replace(/^[^\p{L}\p{N}]+/u, '')}</span></button> })}
+            title={`${hora(b.inicio)} – ${hora(b.fin)} · ${b.titulo}`} aria-label={tr('Ventana de {inicio} a {fin}, {titulo}', { inicio: hora(b.inicio), fin: hora(b.fin), titulo: b.titulo })}><span>{b.titulo.replace(/^[^\p{L}\p{N}]+/u, '')}</span></button> })}
         <ol className={d.miniBloques}>
           {bloques.map(b => {
             const c = lugar(b.inicio, b.fin, b.id), yaPaso = pasado || (esHoy && b.fin <= ahora)
             const sec = seccionDe(b.evento), subs = pendientes?.dentro.get(b.id)
             const l = gobierno?.lectura(b.evento), tag = l && (l.protegido || l.delegable) ? (l.protegido ? 'protegido' : l.delegadoA ? 'delegado' : 'delegable') : null
-            return <li key={b.id} style={{ ...c.style, ['--c' as string]: b.color ?? 'var(--primary)' } as CSSProperties} data-seccion={sec ?? undefined} data-innegociable={esNoNegociable(b.evento) || undefined} data-drip={l?.cuadrante} data-letra={l?.cuadrante ? l.cuadrante[0].toUpperCase() : undefined} data-protegido={l?.protegido || undefined}>
-              <button onClick={() => onAbrir(b.evento)} data-pasado={yaPaso || undefined} data-compromiso={esCompromiso(b.evento) || undefined} data-vivo={vivo(b.inicio, b.fin) || undefined} data-corto={c.h < 26 || undefined}
-                title={`${hora(b.inicio)} – ${hora(b.fin)} · ${b.titulo}`} aria-label={`${hora(b.inicio)} a ${hora(b.fin)}, ${b.titulo}, ${duracion((b.fin - b.inicio) / 60000)}`} data-con-brief={b.brief ? '' : undefined} data-con-tag={tag ?? undefined}>
+            return <li key={b.id} style={{ ...c.style, ['--c' as string]: b.color ?? 'var(--primary)' } as CSSProperties} data-tomado={gesto?.activo && gesto.bloque.id === b.id || undefined} data-seccion={sec ?? undefined} data-innegociable={esNoNegociable(b.evento) || undefined} data-drip={l?.cuadrante} data-letra={l?.cuadrante ? l.cuadrante[0].toUpperCase() : undefined} data-protegido={l?.protegido || undefined}>
+              <button onClick={() => { if (Date.now() - recienSoltado.current > 250) onAbrir(b.evento) }} onPointerDown={e => tomar(e, b)} data-planning-id={b.id} data-movible={movible(b) || undefined} data-pasado={yaPaso || undefined} data-compromiso={esCompromiso(b.evento) || undefined} data-vivo={vivo(b.inicio, b.fin) || undefined} data-corto={c.h < 26 || undefined}
+                title={`${hora(b.inicio)} – ${hora(b.fin)} · ${b.titulo}`} aria-label={`${tr('{inicio} a {fin}, {titulo}, {duracion}', { inicio: hora(b.inicio), fin: hora(b.fin), titulo: b.titulo, duracion: duracion((b.fin - b.inicio) / 60000) })}${movible(b) ? `. ${tr('Arrastra para moverlo a otra hora.')}` : ''}`} data-con-brief={b.brief ? '' : undefined} data-con-tag={tag ?? undefined}>
                 {sec && <svg className={d.icoSeccion} viewBox="0 0 16 16" aria-hidden><path d={SECCION[sec].icono} /></svg>}<span>{b.corto ?? b.titulo}</span>{c.h >= (subs ? 50 : 34) && <time>{hora(b.inicio)} – {hora(b.fin)}</time>}
-                {tag && <em className={d.dripTag} data-tipo={tag} title={tag === 'protegido' ? 'Protegido: nada nuevo entra encima' : tag === 'delegado' ? `De ${l!.delegadoA}` : 'Delegable: tócalo y «Delegar a Levy»'}>
-                  {tag === 'protegido' ? <Lock size={9} aria-label="protegido" /> : tag === 'delegado' ? `de ${l!.delegadoA}` : 'delegable'}</em>}
+                {tag && <em className={d.dripTag} data-tipo={tag} title={tag === 'protegido' ? tr('Protegido: nada nuevo entra encima') : tag === 'delegado' ? tr('De {quien}', { quien: l!.delegadoA }) : tr('Delegable: tócalo y «Delegar a Levy»')}>
+                  {tag === 'protegido' ? <Lock size={9} aria-label={tr('protegido')} /> : tag === 'delegado' ? tr('de {quien}', { quien: l!.delegadoA }) : tr('delegable')}</em>}
               </button>
-              {b.brief && <button className={d.miniBrief} onClick={() => onAbrir(b.brief!.evento)} title={b.brief.titulo} aria-label={`Abrir ${b.brief.titulo}`}>📋</button>}
-              {subs && <div className={d.miniSub} data-sublinea data-corto={c.h < 38 || undefined} role="group" aria-label={`Pendientes de ${b.titulo}`}>
+              {b.brief && <button className={d.miniBrief} onClick={() => onAbrir(b.brief!.evento)} title={b.brief.titulo} aria-label={tr('Abrir {titulo}', { titulo: b.brief.titulo })}>📋</button>}
+              {subs && <div className={d.miniSub} data-sublinea data-corto={c.h < 38 || undefined} role="group" aria-label={tr('Pendientes de {titulo}', { titulo: b.titulo })}>
                 {subs.map(it => marcar(it, c.h >= 38, d.miniSubItem))}</div>}
             </li>
           })}
@@ -151,13 +224,17 @@ export function AgendaMini({ bloques, bandas = [], fecha, ahora, esHoy, pasado, 
             const c = lugar(objetivo.inicio, objetivo.fin, 'objetivo')
             return <li key="objetivo" style={{ ...c.style, ['--c' as string]: 'var(--gold)' } as CSSProperties}>
               <button onClick={() => onAbrir(objetivo.tarea)} data-objetivo data-hecha={objetivo.hecha || undefined} data-corto={c.h < 26 || undefined}
-                title={`Objetivo · ${hora(objetivo.inicio)} · ${objetivo.tarea.title}`} aria-label={`Objetivo a las ${hora(objetivo.inicio)}: ${objetivo.tarea.title}`}>
+                title={tr('Objetivo · {hora} · {titulo}', { hora: hora(objetivo.inicio), titulo: objetivo.tarea.title })} aria-label={tr('Objetivo a las {hora}: {titulo}', { hora: hora(objetivo.inicio), titulo: objetivo.tarea.title })}>
                 <span>{objetivo.tarea.title}</span>
               </button>
             </li>
           })()}
         </ol>
-        {marcas.length > 0 && <ol className={d.miniMarcas} aria-label="Pendientes con hora">
+        {fantasma && <div className={d.miniFantasmas} aria-hidden={fantasma.igual || undefined}>
+          <div className={h.fantasma} data-igual={fantasma.igual || undefined} role="status" aria-live="polite" style={{ top: fantasma.top, height: fantasma.alto }}>
+            <time>{hhmm(fantasma.desde)} – {hhmm(fantasma.hasta)}<small> · {duracion(fantasma.hasta - fantasma.desde)}</small></time></div>
+        </div>}
+        {marcas.length > 0 && <ol className={d.miniMarcas} aria-label={tr('Pendientes con hora')}>
           {marcas.map(m => <li key={m.it.id} style={{ top: m.top }} data-marca-tarea data-encima={m.encima || undefined}>{marcar(m.it, true, d.miniMarca)}</li>)}
         </ol>}
         {ahoraY != null && ahoraY >= 0 && ahoraY <= alto && <p className={`${luz.lineaAhora} ${d.miniAhora}`} data-ahora-linea style={{ top: ahoraY }} aria-hidden>{hora(ahora)}</p>}

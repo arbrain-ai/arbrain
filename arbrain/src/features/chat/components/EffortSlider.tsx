@@ -1,4 +1,5 @@
 'use client'
+import { tr } from '@/shared/i18n'
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { HelpCircle, X } from 'lucide-react'
 import { PopoverAnclado } from '@/shared/components/PopoverAnclado'
@@ -57,15 +58,15 @@ export function EffortSlider({ effort, ultracode, sessionId, account, model, onS
     if (sessionId) params.set('session', sessionId)
     void fetch(`/api/chat/efforts?${params}`, { signal: ac.signal }).then(async response => {
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || 'No se pudieron cargar los controles.')
-      if (!Array.isArray(data.efforts)) throw new Error('No se recibieron los esfuerzos disponibles.')
+      if (!response.ok) throw new Error(data.error ? tr(data.error) : tr('No se pudieron cargar los controles.'))
+      if (!Array.isArray(data.efforts)) throw new Error(tr('No se recibieron los esfuerzos disponibles.'))
       const seen = new Set<string>()
       const efforts = data.efforts.filter((item: { value?: unknown }) => {
         if (typeof item?.value !== 'string' || !item.value.trim() || item.value === 'ultracode' || seen.has(item.value)) return false
         seen.add(item.value); return true
       })
       if (!ac.signal.aborted) setState({ key, controls: { ...data, efforts } })
-    }).catch(error => { if (!ac.signal.aborted) setState({ key, error: error instanceof Error ? error.message : 'No hubo respuesta.' }) })
+    }).catch(error => { if (!ac.signal.aborted) setState({ key, error: error instanceof Error ? error.message : tr('No hubo respuesta.') }) })
     return () => ac.abort()
   }, [key, sessionId, account])
   useEffect(() => {
@@ -87,7 +88,7 @@ export function EffortSlider({ effort, ultracode, sessionId, account, model, onS
     if (applyingStop) return
     setApplyError(null)
     setApplying({ key, stop })
-    onSelect(stop).catch(error => setApplyError(error instanceof Error ? error.message : 'No se pudo aplicar el cambio.'))
+    onSelect(stop).catch(error => setApplyError(error instanceof Error ? error.message : tr('No se pudo aplicar el cambio.')))
       .finally(() => setApplying(current => current?.key === key && current.stop === stop ? null : current))
   }
 
@@ -124,7 +125,7 @@ export function EffortSlider({ effort, ultracode, sessionId, account, model, onS
     if (index >= 0 && index < stops.length) commit(index)
   }
 
-  return <PopoverAnclado ancla={ancla} panelRef={ref} ancho={384} role="dialog" aria-label="Configurar razonamiento" tabIndex={-1}
+  return <PopoverAnclado ancla={ancla} panelRef={ref} ancho={384} role="dialog" aria-label={tr('Configurar razonamiento')} tabIndex={-1}
     onKeyDown={event => {
       if (event.key === 'Escape') { event.stopPropagation(); onClose(); return }
       if (event.key === 'ArrowRight' || event.key === 'ArrowUp') { event.preventDefault(); step(1) }
@@ -133,26 +134,26 @@ export function EffortSlider({ effort, ultracode, sessionId, account, model, onS
     className="effort-dial rounded-2xl border border-border bg-card p-4 shadow-xl outline-none overflow-y-auto overscroll-contain">
     <div className="flex items-center justify-between gap-3">
       <h2 className="text-sm font-semibold flex items-baseline gap-2 min-w-0">
-        <span>Esfuerzo</span>
+        <span>{tr('Esfuerzo')}</span>
         <span key={shownLabel} className="effort-dial-label text-brand-ink truncate" aria-live="polite">{shownLabel}</span>
       </h2>
       <div className="flex items-center">
-        <button type="button" aria-label="Ayuda del esfuerzo" aria-expanded={help} onClick={() => setHelp(value => !value)} className="min-h-11 min-w-11 flex items-center justify-center rounded-xl text-muted hover:text-foreground hover:bg-foreground/5"><HelpCircle size={18} /></button>
-        <button type="button" aria-label="Cerrar controles de razonamiento" onClick={onClose} className="min-h-11 min-w-11 flex items-center justify-center rounded-xl hover:bg-foreground/5"><X size={18} /></button>
+        <button type="button" aria-label={tr('Ayuda del esfuerzo')} aria-expanded={help} onClick={() => setHelp(value => !value)} className="min-h-11 min-w-11 flex items-center justify-center rounded-xl text-muted hover:text-foreground hover:bg-foreground/5"><HelpCircle size={18} /></button>
+        <button type="button" aria-label={tr('Cerrar controles de razonamiento')} onClick={onClose} className="min-h-11 min-w-11 flex items-center justify-center rounded-xl hover:bg-foreground/5"><X size={18} /></button>
       </div>
     </div>
-    {help && <p className="text-xs text-muted mt-1">Más esfuerzo piensa más y tarda más. Por defecto es {effortLabel(DEFAULT_EFFORT)}. ← → también mueven el dial.</p>}
-    {!current && <p role="status" className="py-4 text-sm text-muted">Consultando opciones…</p>}
-    {current?.error && <p role="alert" className="py-4 text-sm text-red-400">{current.error}</p>}
+    {help && <p className="text-xs text-muted mt-1">{tr('Más esfuerzo piensa más y tarda más. Por defecto es {nivel}. ← → también mueven el dial.', { nivel: effortLabel(DEFAULT_EFFORT) })}</p>}
+    {!current && <p role="status" className="py-4 text-sm text-muted">{tr('Consultando opciones…')}</p>}
+    {current?.error && <p role="alert" className="py-4 text-sm text-red-400">{tr(current.error)}</p>}
     {controls && <>
-      {controls.needsModelSelection && <p role="status" className="mt-3 text-xs text-muted">Selecciona un modelo para consultar sus niveles de esfuerzo. El nivel por defecto ({effortLabel(DEFAULT_EFFORT)}) se confirma al ejecutar.</p>}
-      {!controls.needsModelSelection && stops.length === 0 && <p role="status" className="mt-3 text-xs text-muted">Este modelo no ofrece niveles de esfuerzo.</p>}
-      {applyError && <p role="alert" className="mt-3 text-xs text-red-400">{applyError}</p>}
+      {controls.needsModelSelection && <p role="status" className="mt-3 text-xs text-muted">{tr('Selecciona un modelo para consultar sus niveles de esfuerzo. El nivel por defecto ({nivel}) se confirma al ejecutar.', { nivel: effortLabel(DEFAULT_EFFORT) })}</p>}
+      {!controls.needsModelSelection && stops.length === 0 && <p role="status" className="mt-3 text-xs text-muted">{tr('Este modelo no ofrece niveles de esfuerzo.')}</p>}
+      {applyError && <p role="alert" className="mt-3 text-xs text-red-400">{tr(applyError)}</p>}
       {stops.length > 0 && <>
       <div className="flex items-center justify-between mt-4 text-sm text-muted select-none">
-        <span>Más rápido</span><span>Más inteligente</span>
+        <span>{tr('Más rápido')}</span><span>{tr('Más inteligente')}</span>
       </div>
-      <div ref={trackRef} role="group" aria-label="Esfuerzo disponible" data-effort-track data-effort-index={shownIndex}
+      <div ref={trackRef} role="group" aria-label={tr('Esfuerzo disponible')} data-effort-track data-effort-index={shownIndex}
         className={`effort-track relative mt-2 h-14 rounded-xl bg-foreground/[0.06] overflow-hidden touch-none select-none ${preview !== null ? 'is-dragging' : ''}`}
         style={{ ['--effort-progress' as string]: progress, ['--effort-cols' as string]: COLS }}
         onPointerDown={event => {
@@ -198,21 +199,21 @@ export function EffortSlider({ effort, ultracode, sessionId, account, model, onS
         {stops.map(stop => <span key={stop.value} className={`flex-1 min-w-0 text-center truncate ${stop.value === shownEffort ? 'text-brand-ink font-semibold' : ''}`}>{stop.label}</span>)}
       </div>
       </>}
-      {confirmedUltracode === true && <p role="status" className="mt-3 text-xs text-muted">Ultracode requiere {effortLabel('xhigh')}. Desactívalo para elegir otro esfuerzo.</p>}
-      {effort && !controls.efforts.some(item => item.value === effort) && <p role="status" className="mt-3 text-xs text-amber-500">El esfuerzo guardado ({effortLabel(effort)}) no está disponible para este modelo. Elige otro.</p>}
+      {confirmedUltracode === true && <p role="status" className="mt-3 text-xs text-muted">{tr('Ultracode requiere {nivel}. Desactívalo para elegir otro esfuerzo.', { nivel: effortLabel('xhigh') })}</p>}
+      {effort && !controls.efforts.some(item => item.value === effort) && <p role="status" className="mt-3 text-xs text-amber-500">{tr('El esfuerzo guardado ({nivel}) no está disponible para este modelo. Elige otro.', { nivel: effortLabel(effort) })}</p>}
       {controls.supportsUltracode && <div className="border-t border-border mt-4 pt-3">
         <button type="button" role={confirmedUltracode === null ? undefined : 'switch'} aria-checked={confirmedUltracode ?? undefined} disabled={confirmedUltracode === null || flagPending}
-          aria-label={confirmedUltracode === null ? 'Ultracode: estado sin confirmar' : 'Ultracode'}
+          aria-label={confirmedUltracode === null ? tr('Ultracode: estado sin confirmar') : 'Ultracode'}
           onClick={() => {
             if (confirmedUltracode === null || flagPending) return
             apply(confirmedUltracode ? 'ultracode-off' : 'ultracode-on')
           }} className="min-h-11 w-full flex justify-between items-center gap-3 rounded-xl px-3 hover:bg-foreground/5 disabled:opacity-60">
-          <span className="text-sm font-medium">Ultracode</span><span className="text-xs text-muted">{flagPending ? 'Cambio solicitado' : confirmedUltracode === null ? 'Sin confirmar' : confirmedUltracode ? 'Activado' : 'Desactivado'}</span>
-        </button><p className="text-xs text-muted px-3 mt-1">Orquestación de trabajo con varios agentes y esfuerzo {effortLabel('xhigh')}.</p>
+          <span className="text-sm font-medium">Ultracode</span><span className="text-xs text-muted">{flagPending ? tr('Cambio solicitado') : confirmedUltracode === null ? tr('Sin confirmar') : confirmedUltracode ? tr('Activado') : tr('Desactivado')}</span>
+        </button><p className="text-xs text-muted px-3 mt-1">{tr('Orquestación de trabajo con varios agentes y esfuerzo {nivel}.', { nivel: effortLabel('xhigh') })}</p>
       </div>}
       {!controls.supportsUltracode && (ultracode || controls.ultracode) && <div className="border-t border-border mt-4 pt-3">
-        <p className="text-xs text-amber-500 mb-2">Ultracode estaba activado, pero no está disponible en esta cuenta.</p>
-        <button type="button" onClick={() => apply('ultracode-off')} className="min-h-11 w-full rounded-xl border border-border px-3 text-sm">Desactivar Ultracode</button>
+        <p className="text-xs text-amber-500 mb-2">{tr('Ultracode estaba activado, pero no está disponible en esta cuenta.')}</p>
+        <button type="button" onClick={() => apply('ultracode-off')} className="min-h-11 w-full rounded-xl border border-border px-3 text-sm">{tr('Desactivar Ultracode')}</button>
       </div>}
     </>}
   </PopoverAnclado>

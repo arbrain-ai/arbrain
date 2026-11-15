@@ -1,6 +1,7 @@
 'use client'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { aplicarCambioDrip, normalizarDoc, type CambioDrip, type DocDrip, type Tarifa } from './drip'
+import { tr } from '@/shared/i18n'
 
 /** El documento DRIP tal como lo da /api/planning/drip: la tarifa efectiva (propia o de la instalación) y dónde vive. */
 export interface DocDripVista extends DocDrip { tarifaPropia: boolean; almacen: 'archivo' | 'servidor' }
@@ -20,10 +21,10 @@ export function useDrip() {
     try {
       const r = await fetch('/api/planning/drip', { cache: 'no-store', signal: AbortSignal.timeout(30_000) })
       const b = await r.json()
-      if (!r.ok) throw new Error(b.error ?? 'No se pudo leer DRIP.')
+      if (!r.ok) throw new Error(b.error ? tr(b.error) : tr('No se pudo leer DRIP.'))
       setDoc({ ...normalizarDoc(b), tarifa: b.tarifa ?? null, tarifaPropia: Boolean(b.tarifaPropia), almacen: b.almacen === 'archivo' ? 'archivo' : 'servidor' })
       setError(null)
-    } catch (e) { setError(e instanceof Error ? e.message : 'No se pudo leer DRIP.') }
+    } catch (e) { setError(e instanceof Error ? e.message : tr('No se pudo leer DRIP.')) }
   }, [])
   useEffect(() => {
     void leer()
@@ -36,21 +37,21 @@ export function useDrip() {
     const antes = docRef.current
     if (antes) {
       const local = aplicarCambioDrip(antes, cambio)
-      if (typeof local === 'string') throw new Error(local)
+      if (typeof local === 'string') throw new Error(tr(local))
       const tarifa: Tarifa | null = cambio.accion === 'tarifa' ? local.tarifa : antes.tarifa
       setDoc({ ...local, tarifa, tarifaPropia: cambio.accion === 'tarifa' ? local.tarifa !== null : antes.tarifaPropia, almacen: antes.almacen })
     }
     try {
       const r = await fetch('/api/planning/drip', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cambio), signal: AbortSignal.timeout(30_000) })
       const b = await r.json()
-      if (!r.ok) throw new Error(b.error ?? 'No se pudo guardar.')
+      if (!r.ok) throw new Error(b.error ? tr(b.error) : tr('No se pudo guardar.'))
       const nuevo: DocDripVista = { ...normalizarDoc(b), tarifa: b.tarifa ?? null, tarifaPropia: Boolean(b.tarifaPropia), almacen: b.almacen === 'archivo' ? 'archivo' : 'servidor' }
       setDoc(nuevo); setError(null)
       window.dispatchEvent(new Event(EVENTO))
       return nuevo
     } catch (e) {
       setDoc(antes)
-      const m = e instanceof Error ? e.message : 'No se pudo guardar.'
+      const m = e instanceof Error ? e.message : tr('No se pudo guardar.')
       setError(m); throw new Error(m)
     }
   }, [])

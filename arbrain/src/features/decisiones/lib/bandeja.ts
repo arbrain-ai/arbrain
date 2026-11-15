@@ -2,6 +2,7 @@
  * Bandeja de decisiones (autonomía v2, 3 nov 2026): lo que la web sabe de una tarjeta y las reglas puras de la vista.
  * La fuente es el daemon (`arbrain/server/src/autonomia/bandeja.ts`); aquí no se decide nada, solo se ordena y se dice.
  */
+import { localeIntl, tr, trMarca, trn } from '@/shared/i18n'
 
 export type Respuesta = 'si' | 'no' | 'otro'
 export type Clase = 'configurar' | 'agenda' | 'cohorte' | 'soporte' | 'borrar_prueba' | 'contactar' | 'pagar' | 'borrar' | 'publicar' | 'legal'
@@ -35,9 +36,19 @@ export interface Tarjeta {
   persona?: string
   /** Vista previa de lo que se publicaría (ruta de una imagen local; 7 nov 2026, cola de publicación). */
   imagen?: string
+  /** El órgano del negocio que toca (mapa v16, 14 nov 2026): el mapa la pinta sobre ese órgano. La declara la tarjeta. */
+  organo?: 'marketing' | 'venta' | 'comprador' | 'entrega' | 'finanzas' | 'sistemas'
 }
 
 /** La vista previa servida por /api/local-image (sesión y lista blanca de la propia ruta), a 640 px de lado mayor. */
+/**
+ * El órgano de una tarjeta (mapa v16): el que DECLARA; si no declara (una tarjeta de antes o de un servidor sin el campo), el
+ * de su categoría, el mismo mapa que el servidor (`ORGANO_DE_CATEGORIA` en server/src/autonomia/bandeja.ts): publicar es de
+ * Marketing y pagar de Finanzas. Nunca se adivina por palabras.
+ */
+export const ORGANO_DE_CATEGORIA: Partial<Record<Tarjeta['categoria'], NonNullable<Tarjeta['organo']>>> = { publicar: 'marketing', pagar: 'finanzas' }
+export const organoDeTarjeta = (t: Pick<Tarjeta, 'organo' | 'categoria'>): Tarjeta['organo'] => t.organo ?? ORGANO_DE_CATEGORIA[t.categoria]
+
 export function urlVistaPrevia(t: Pick<Tarjeta, 'imagen'>): string | null {
   return t.imagen ? `/api/local-image?path=${encodeURIComponent(t.imagen)}&w=640` : null
 }
@@ -110,14 +121,16 @@ export function tituloEnGrupo(t: Tarjeta): string {
 }
 
 
-const VERBO: Record<Tarjeta['categoria'], string> = { enviar: 'Contactar', pagar: 'Pagar', borrar: 'Borrar', publicar: 'Publicar', otra: 'Decidir' }
-export const etiquetaCategoria = (c: Tarjeta['categoria']) => VERBO[c]
+const VERBO: Record<Tarjeta['categoria'], string> = { enviar: trMarca('Contactar'), pagar: trMarca('Pagar'), borrar: trMarca('Borrar'), publicar: trMarca('Publicar'), otra: trMarca('Decidir') }
+export const etiquetaCategoria = (c: Tarjeta['categoria']) => tr(VERBO[c])
 
 /** La línea de la recomendación, en voz de Levy. */
 export function lineaRecomendacion(t: Tarjeta): string | null {
   if (!t.recomendacion && !t.recomienda) return null
-  const que = t.recomienda === 'no' ? 'Recomiendo que no' : 'Recomiendo que sí'
-  return t.recomendacion ? `${que}: ${t.recomendacion.replace(/^(s[ií]|no)\s*[:,.-]\s*/i, '')}` : `${que}.`
+  const no = t.recomienda === 'no'
+  if (!t.recomendacion) return no ? tr('Recomiendo que no.') : tr('Recomiendo que sí.')
+  const razon = t.recomendacion.replace(/^(s[ií]|no)\s*[:,.-]\s*/i, '')
+  return no ? tr('Recomiendo que no: {razon}', { razon }) : tr('Recomiendo que sí: {razon}', { razon })
 }
 
 /** «12 min», «1 h 5 min». */
@@ -129,21 +142,24 @@ export function minutos(n: number): string {
 
 /** La métrica del día, en una frase. */
 export function fraseEspera(e: Espera | undefined): string {
-  if (!e || !e.tarjetas) return 'Hoy el sistema no ha esperado por ti.'
-  return `Hoy el sistema esperó ${minutos(e.minutos)} por ti (${e.tarjetas} ${e.tarjetas === 1 ? 'decisión' : 'decisiones'}${e.abiertas ? `, ${e.abiertas} abierta${e.abiertas === 1 ? '' : 's'}` : ''}).`
+  if (!e || !e.tarjetas) return tr('Hoy el sistema no ha esperado por ti.')
+  const tiempo = minutos(e.minutos), decisiones = trn(e.tarjetas, '{n} decisión', '{n} decisiones')
+  return e.abiertas
+    ? tr('Hoy el sistema esperó {tiempo} por ti ({decisiones}, {abiertas}).', { tiempo, decisiones, abiertas: trn(e.abiertas, '{n} abierta', '{n} abiertas') })
+    : tr('Hoy el sistema esperó {tiempo} por ti ({decisiones}).', { tiempo, decisiones })
 }
 
 /** Hora corta de una acción («08:14»). */
-export const hora = (ts: string | number, zona?: string) => new Date(ts).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false, ...(zona ? { timeZone: zona } : {}) })
+export const hora = (ts: string | number, zona?: string) => new Date(ts).toLocaleTimeString(localeIntl(), { hour: '2-digit', minute: '2-digit', hour12: false, ...(zona ? { timeZone: zona } : {}) })
 
 /** ¿Se puede pedir «Deshacer» desde la app? Solo si quedó ligada a una conversación (ahí lo hace Levy). */
 export const deshacible = (h: HechoSolo) => !!(h.sesion || h.conversacion)
 
 /** Qué responde cada botón, para el texto del estado de una tarjeta decidida. */
 export function estadoDecidida(t: Tarjeta): string {
-  if (t.respuesta === 'otro') return `Otro: «${t.comentario ?? ''}»`
-  if (t.respuesta === 'si' || t.estado === 'usada' || t.estado === 'permitida') return 'Sí'
-  if (t.respuesta === 'no' || t.estado === 'rechazada') return 'No'
-  if (t.estado === 'vencida') return 'ya no aplica'
+  if (t.respuesta === 'otro') return tr('Otro: «{comentario}»', { comentario: t.comentario ?? '' })
+  if (t.respuesta === 'si' || t.estado === 'usada' || t.estado === 'permitida') return tr('Sí')
+  if (t.respuesta === 'no' || t.estado === 'rechazada') return tr('No')
+  if (t.estado === 'vencida') return tr('ya no aplica')
   return t.estado
 }

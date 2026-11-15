@@ -14,6 +14,7 @@ import { diasDeTabla, estadoTiempo, lineaPeriodo, llenado, rangoTiempo, registra
 import { textoRacha } from './habitos-hoy'
 import { diaDelPeriodo, rangoCorto, textoFaltan, textoPeriodo, type DiaPeriodo } from './periodo-premio'
 import { useTemporada } from './useTemporada'
+import { localeIntl, tr, trn, trNodos } from '@/shared/i18n'
 import s from './habitos-tiempo.module.css'
 
 /** La casilla del objetivo del día es tarea + ✓ en Google + hábito a la vez: hoy se marca desde el Día, no desde aquí. */
@@ -60,7 +61,7 @@ export function HabitosTiempo({ donde }: { donde: string }) {
   const tramos = useMemo(() => periodo ? trayecto(dias, claves, marca, today, inicio) : [], [dias, claves.join(), habits.data, habits.pending, today, inicio]) // eslint-disable-line react-hooks/exhaustive-deps
   const llenosHoy = claves.filter(c => registrado(marca(today, c))).length
   const linea = periodo ? lineaPeriodo(vigente?.temporadaHabitos?.nombre, periodo, diaDelPeriodo(today, periodo))
-    : new Date(`${today}T12:00:00`).toLocaleDateString('es-MX', { month: 'long', year: 'numeric' })
+    : new Date(`${today}T12:00:00`).toLocaleDateString(localeIntl(), { month: 'long', year: 'numeric' })
 
   const enfocar = () => {
     raiz.current?.querySelector('tr[data-hoy]')?.scrollIntoView({ block: 'center', behavior: 'smooth' })
@@ -89,18 +90,18 @@ export function HabitosTiempo({ donde }: { donde: string }) {
     if (n == null || lista[n].clave === HABITO_OBJETIVO) return
     e.preventDefault(); e.stopPropagation(); alternar(today, lista[n].clave)
   }
-  const fechaLarga = (f: string) => new Date(`${f}T12:00:00`).toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })
-  const texto = (m: Marca) => m === true ? 'cumplido' : m === false ? 'no cumplido, registrado' : 'sin registrar'
+  const fechaLarga = (f: string) => new Date(`${f}T12:00:00`).toLocaleDateString(localeIntl(), { weekday: 'long', day: 'numeric', month: 'long' })
+  const texto = (m: Marca) => m === true ? tr('cumplido') : m === false ? tr('no cumplido, registrado') : tr('sin registrar')
   const nombres = lista.map(x => nombreEnPantalla(x.nombre, x.p))
 
-  return <section ref={raiz} className={s.vista} aria-label="Hábitos" data-habitos-tiempo tabIndex={-1} onKeyDown={tecla}>
+  return <section ref={raiz} className={s.vista} aria-label={tr('Hábitos')} data-habitos-tiempo tabIndex={-1} onKeyDown={tecla}>
     <header className={s.heroe} data-estado={dia?.estado}>
       <div className={s.heroeTexto}>
-        <h2 className={s.ceja}>No negociables{vigente?.temporadaHabitos?.nombre ? <> · <b>{vigente.temporadaHabitos.nombre}</b></> : null}</h2>
-        {dia ? <p className={s.palabra}>{dia.estado === 'en-curso' ? <>Día <b>{dia.dia}</b><span> de {dia.total}</span></> : textoPeriodo(dia)}</p>
+        <h2 className={s.ceja}>{tr('No negociables')}{vigente?.temporadaHabitos?.nombre ? <> · <b>{vigente.temporadaHabitos.nombre}</b></> : null}</h2>
+        {dia ? <p className={s.palabra}>{dia.estado === 'en-curso' ? <>{tr('Día')} <b>{dia.dia}</b><span> {tr('de {total}', { total: dia.total })}</span></> : textoPeriodo(dia)}</p>
           : <p className={s.palabra}>{linea}</p>}
         {periodo && <p className={s.rumbo}>
-          <span>Rumbo a <b>{periodo.premio}</b>{periodo.viaje ? ` · ${rangoCorto(periodo.viaje.desde, periodo.viaje.hasta)}` : ''}</span>
+          <span>{trNodos('Rumbo a {premio}', { premio: <b>{periodo.premio}</b> })}{periodo.viaje ? ` · ${rangoCorto(periodo.viaje.desde, periodo.viaje.hasta)}` : ''}</span>
           {dia && textoFaltan(dia) && <span>{textoFaltan(dia)}</span>}
           {periodo.meta && <span className={s.meta}>{periodo.meta}</span>}
         </p>}
@@ -109,28 +110,28 @@ export function HabitosTiempo({ donde }: { donde: string }) {
       {periodo && tramos.length > 0 && <Trayecto tramos={tramos} total={claves.length} premio={periodo.premio} dia={dia} />}
     </header>
 
-    {habits.data && lista.length > 0 && <ul className={s.habitos} aria-label="Cada hábito en el periodo">
+    {habits.data && lista.length > 0 && <ul className={s.habitos} aria-label={tr('Cada hábito en el periodo')}>
       {lista.map((x, n) => {
         const r = resumenHabito(x.clave, dias, marca, today, inicio)
         return <li key={x.clave} className={s.habito} data-hoy={r.hoy === true ? 'hecho' : r.hoy === false ? 'fallado' : 'vacio'}>
           <p className={s.habitoNombre}><kbd aria-hidden>{n + 1}</kbd><NombreHabito clave={x.clave} nombre={x.nombre} p={x.p} /></p>
-          <p className={s.racha} data-viva={r.racha > 0 || undefined}><Flame size={15} aria-hidden /><b>{r.racha}</b><span>{r.racha === 1 ? 'día seguido' : 'días seguidos'}</span></p>
+          <p className={s.racha} data-viva={r.racha > 0 || undefined}><Flame size={15} aria-hidden /><b>{r.racha}</b><span>{trn(r.racha, 'día seguido', 'días seguidos')}</span></p>
           <p className={s.habitoPie}>
-            <span>Mejor <b>{textoRacha(r.mejor)}</b></span>
-            <span>Llenado <b>{r.pct == null ? '—' : `${r.pct}%`}</b></span>
+            <span>{trNodos('Mejor {valor}', { valor: <b>{textoRacha(r.mejor)}</b> })}</span>
+            <span>{trNodos('Llenado {valor}', { valor: <b>{r.pct == null ? '—' : `${r.pct}%`}</b> })}</span>
           </p>
           <span className={s.barra} aria-hidden><i style={{ width: `${r.pct ?? 0}%` }} /></span>
         </li>
       })}
     </ul>}
 
-    {!habits.data ? <p className={s.vacio}>{habits.loading ? 'Leyendo tus hábitos…' : habits.error ?? 'No se pudieron leer los hábitos.'}</p>
-      : !lista.length ? <p className={s.vacio}>Aún no tienes hábitos activos.</p>
+    {!habits.data ? <p className={s.vacio}>{habits.loading ? tr('Leyendo tus hábitos…') : habits.error != null ? tr(habits.error) : tr('No se pudieron leer los hábitos.')}</p>
+      : !lista.length ? <p className={s.vacio}>{tr('Aún no tienes hábitos activos.')}</p>
       : <table className={s.tabla} style={{ ['--habitos' as string]: lista.length }}>
         <thead><tr>
-          <th scope="col" className={s.colDia}><span className={s.srOnly}>Día</span></th>
+          <th scope="col" className={s.colDia}><span className={s.srOnly}>{tr('Día')}</span></th>
           {lista.map(x => <th key={x.clave} scope="col"><NombreHabito clave={x.clave} nombre={x.nombre} p={x.p} /></th>)}
-          <th scope="col" className={s.colTotal}><span className={s.srOnly}>Llenados del día</span></th>
+          <th scope="col" className={s.colTotal}><span className={s.srOnly}>{tr('Llenados del día')}</span></th>
         </tr></thead>
         <tbody>
           {dias.map((f, k) => {
@@ -139,14 +140,14 @@ export function HabitosTiempo({ donde }: { donde: string }) {
             const dow = new Date(`${f}T12:00:00Z`).getUTCDay(), cierre = !!periodo && f === periodo.hasta
             return <tr key={f} data-hoy={f === today || undefined} data-futuro={futuro || undefined} data-cierre={cierre || undefined}
               data-lunes={(dow === 1 && k > 0) || undefined} data-finde={dow === 0 || dow === 6 || undefined} title={cierre ? periodo!.premio : undefined}>
-              <th scope="row" className={s.colDia}>{r.dia}{r.mes && <small> {r.mes}</small>}{f === today && <em className={s.hoyPastilla}>hoy</em>}</th>
+              <th scope="row" className={s.colDia}>{r.dia}{r.mes && <small> {r.mes}</small>}{f === today && <em className={s.hoyPastilla}>{tr('hoy')}</em>}</th>
               {lista.map((x, n) => {
                 const m = marca(f, x.clave), e = estadoTiempo(m, f, today, inicio)
                 const objetivoHoy = x.clave === HABITO_OBJETIVO && f === today
                 return <td key={x.clave}>
                   <button className={s.celda} data-estado={e} data-hoy={f === today || undefined} disabled={e === 'fuera' || e === 'futuro' || objetivoHoy}
-                    title={objetivoHoy ? 'Hoy se marca con el objetivo del día, en el Día' : undefined}
-                    aria-label={`${nombres[n]}, ${fechaLarga(f)}: ${e === 'fuera' ? 'antes de empezar' : e === 'futuro' ? 'aún no llega' : texto(m)}${f === today ? `. Tecla ${n + 1}` : ''}`}
+                    title={objetivoHoy ? tr('Hoy se marca con el objetivo del día, en el Día') : undefined}
+                    aria-label={`${nombres[n]}, ${fechaLarga(f)}: ${e === 'fuera' ? tr('antes de empezar') : e === 'futuro' ? tr('aún no llega') : texto(m)}${f === today ? tr('. Tecla {tecla}', { tecla: n + 1 }) : ''}`}
                     onClick={() => alternar(f, x.clave)}>
                     {e === 'hecho' ? <Check size={14} strokeWidth={3} aria-hidden /> : e === 'fallado' ? <X size={13} strokeWidth={2.5} aria-hidden /> : e === 'futuro' ? <i className={s.porVenir} aria-hidden /> : null}
                   </button>
@@ -160,11 +161,11 @@ export function HabitosTiempo({ donde }: { donde: string }) {
         </tbody>
       </table>}
 
-    {habits.data && lista.length > 0 && <p className={s.pie}>{total ? <><b>{total.diasLlenos}</b> de {total.dias} {total.dias === 1 ? 'día' : 'días'} con los {claves.length} llenados</> : `Cuenta desde el ${Number((inicio ?? today).slice(8, 10))}.`}</p>}
+    {habits.data && lista.length > 0 && <p className={s.pie}>{total ? (total.dias === 1 ? trNodos('{llenos} de {dias} día con los {n} llenados', { llenos: <b>{total.diasLlenos}</b>, dias: total.dias, n: claves.length }) : trNodos('{llenos} de {dias} días con los {n} llenados', { llenos: <b>{total.diasLlenos}</b>, dias: total.dias, n: claves.length })) : tr('Cuenta desde el {dia}.', { dia: Number((inicio ?? today).slice(8, 10)) })}</p>}
 
     {(habits.error && habits.data) || (habits.pending.length > 0 && !habits.saving) ? <p className={s.aviso} role="status">
-      <span>{habits.error ?? 'Hay una marca sin confirmar.'}</span>
-      {habits.pending.length > 0 && !habits.saving && <button onClick={() => void habits.retry()}>Reintentar</button>}
+      <span>{habits.error != null ? tr(habits.error) : tr('Hay una marca sin confirmar.')}</span>
+      {habits.pending.length > 0 && !habits.saving && <button onClick={() => void habits.retry()}>{tr('Reintentar')}</button>}
     </p> : null}
   </section>
 }
@@ -172,19 +173,19 @@ export function HabitosTiempo({ donde }: { donde: string }) {
 /** Lo llenado hoy, en un anillo: «2/3». Completo, se cierra en verde. */
 function Anillo({ hechos, total }: { hechos: number; total: number }) {
   const R = 26, C = 2 * Math.PI * R, pct = total ? hechos / total : 0
-  return <div className={s.anillo} data-completo={(total > 0 && hechos === total) || undefined} role="img" aria-label={`Hoy: ${hechos} de ${total} llenados`}>
+  return <div className={s.anillo} data-completo={(total > 0 && hechos === total) || undefined} role="img" aria-label={tr('Hoy: {hechos} de {total} llenados', { hechos, total })}>
     <svg viewBox="0 0 64 64" aria-hidden><circle cx="32" cy="32" r={R} className={s.anilloPista} />
       {hechos > 0 && <circle cx="32" cy="32" r={R} className={s.anilloAvance} strokeDasharray={`${C * pct} ${C}`} transform="rotate(-90 32 32)" />}</svg>
-    <span><span className={s.anilloCifra}><b>{hechos}</b>/{total}</span><small>hoy</small></span>
+    <span><span className={s.anilloCifra}><b>{hechos}</b>/{total}</span><small>{tr('hoy')}</small></span>
   </div>
 }
 
 /** El periodo día por día, rumbo al premio: lo vivido según cuánto se llenó, hoy con la luz del ahora y lo que falta como camino. */
 function Trayecto({ tramos, total, premio, dia }: { tramos: { fecha: string; tramo: string; llenos: number }[]; total: number; premio: string; dia: DiaPeriodo | null }) {
-  const fecha = (f: string) => new Date(`${f}T12:00:00`).toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' })
+  const fecha = (f: string) => new Date(`${f}T12:00:00`).toLocaleDateString(localeIntl(), { weekday: 'short', day: 'numeric', month: 'short' })
   const vividos = tramos.filter(t => t.tramo !== 'futuro' && t.tramo !== 'fuera').length
-  return <div className={s.trayecto} role="img" aria-label={`Trayecto: ${vividos} de ${tramos.length} días vividos${dia?.dia ? `, hoy es el día ${dia.dia}` : ''}, rumbo a ${premio}`}>
-    <ol>{tramos.map(t => <li key={t.fecha} data-tramo={t.tramo} title={`${fecha(t.fecha)}${t.tramo === 'futuro' ? ' · por venir' : t.tramo === 'fuera' ? '' : ` · ${t.llenos}/${total}`}`} />)}</ol>
+  return <div className={s.trayecto} role="img" aria-label={dia?.dia ? tr('Trayecto: {vividos} de {total} días vividos, hoy es el día {dia}, rumbo a {premio}', { vividos, total: tramos.length, dia: dia.dia, premio }) : tr('Trayecto: {vividos} de {total} días vividos, rumbo a {premio}', { vividos, total: tramos.length, premio })}>
+    <ol>{tramos.map(t => <li key={t.fecha} data-tramo={t.tramo} title={`${fecha(t.fecha)}${t.tramo === 'futuro' ? ` · ${tr('por venir')}` : t.tramo === 'fuera' ? '' : ` · ${t.llenos}/${total}`}`} />)}</ol>
     <span className={s.destino}><Flag size={12} aria-hidden />{premio}</span>
   </div>
 }

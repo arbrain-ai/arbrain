@@ -6,6 +6,7 @@ import { catalogoVigente, raizCerebro } from '@/features/bi/servidor'
 import { RUTA_FUENTES } from '@/features/bi/generico'
 import { aplicar, ESQUEMA_BI, RUTA_BI, validarBI, type Accion, type ArchivoBI, type Grafica } from '@/features/bi/modelo'
 import type { RespuestaBI } from '@/features/bi/fuente'
+import { tr } from '@/shared/i18n'
 
 // Business Intelligence (7 nov 2026). GET: las gráficas que Levy escribió en la memoria (RUTA_BI), validadas contra el catálogo
 // vigente (el del autor o el genérico, servidor.ts), y ese catálogo; las inválidas llegan como errores en palabras. Con el
@@ -37,9 +38,9 @@ export async function GET() {
       activo: true as const, ruta: RUTA_BI, catalogo: vigente.catalogo, generico: vigente.generico,
       ...(vigente.fuentes ? { fuentes: { ruta: RUTA_FUENTES, existe: vigente.fuentes.existe, errores: vigente.fuentes.errores.slice(0, 12), ...(vigente.fuentes.archivo?.negocio ? { negocio: vigente.fuentes.archivo.negocio } : {}) } } : {}),
     }
-    if (!base) return Response.json({ ...comun, graficas: [], errores: ['No se encontró la raíz del cerebro.'] } satisfies RespuestaBI, { headers: NOCACHE })
+    if (!base) return Response.json({ ...comun, graficas: [], errores: [tr('No se encontró la raíz del cerebro.')] } satisfies RespuestaBI, { headers: NOCACHE })
     const { crudo } = await leerArchivo(base)
-    if (crudo === null) return Response.json({ ...comun, graficas: [], errores: ['El archivo de gráficas no es JSON válido.'] } satisfies RespuestaBI, { headers: NOCACHE })
+    if (crudo === null) return Response.json({ ...comun, graficas: [], errores: [tr('El archivo de gráficas no es JSON válido.')] } satisfies RespuestaBI, { headers: NOCACHE })
     const v = validarBI(crudo, vigente.catalogo)
     return Response.json({ ...comun, graficas: v.graficas, errores: v.errores.slice(0, 12), ...(simulado() && !vigente.generico ? { simulado: simulado() } : {}) } satisfies RespuestaBI, { headers: NOCACHE })
   } catch (error) {
@@ -55,11 +56,11 @@ export async function POST(request: Request) {
     const cuerpo = await request.json().catch(() => null) as Accion | null
     const acciones = ['fijar', 'soltar', 'descartar', 'mover']
     if (!cuerpo || typeof cuerpo.id !== 'string' || !acciones.includes(cuerpo.accion) || (cuerpo.accion === 'mover' && typeof cuerpo.a !== 'number'))
-      return Response.json({ ok: false, error: 'Acción inválida.' }, { status: 400, headers: NOCACHE })
+      return Response.json({ ok: false, error: tr('Acción inválida.') }, { status: 400, headers: NOCACHE })
     const base = raizCerebro()
-    if (!base) return Response.json({ ok: false, error: 'No se encontró la raíz del cerebro.' }, { status: 503, headers: NOCACHE })
+    if (!base) return Response.json({ ok: false, error: tr('No se encontró la raíz del cerebro.') }, { status: 503, headers: NOCACHE })
     const { crudo } = await leerArchivo(base)
-    if (crudo === null) return Response.json({ ok: false, error: 'El archivo de gráficas no es JSON válido; Levy lo corrige.' }, { status: 409, headers: NOCACHE })
+    if (crudo === null) return Response.json({ ok: false, error: tr('El archivo de gráficas no es JSON válido; Levy lo corrige.') }, { status: 409, headers: NOCACHE })
     const v = validarBI(crudo, (await catalogoVigente(base)).catalogo)
     // Lo que no valida se conserva tal cual: el panel no borra lo que no entiende.
     const invalidas = Array.isArray((crudo as { graficas?: unknown[] }).graficas) ? (crudo as { graficas: unknown[] }).graficas.filter(g => !v.graficas.includes(g as Grafica)) : []

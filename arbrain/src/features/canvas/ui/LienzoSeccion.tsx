@@ -19,6 +19,7 @@ import type { CanvasElement } from '@/features/canvas/model/element'
 import * as Nube from '@/features/canvas/state/nube'
 import { paginaPorDefecto } from '@/features/canvas/state/pagina-por-defecto'
 import { useTheme } from '@/shared/contexts/theme-context'
+import { tr } from '@/shared/i18n'
 
 type Rect = { x: number; y: number; width: number; height: number }
 const ULTIMA = 'arbrain.lienzo.ultima'
@@ -73,8 +74,8 @@ export function LienzoSeccion() {
         ? <Pizarra pagina={destino.pagina} encuadre={destino.encuadre} temaApp={resolvedTheme === 'dark' ? 'oscuro' : 'claro'} />
         : vacio
           ? <div className="flex h-full flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
-              <p>Aún no hay lienzos. Pídele uno a Levy o empieza uno en blanco.</p>
-              <button className="btn-secondary" onClick={() => void Nube.crearPagina('Lienzo nuevo').then(pg => router.replace(`${pathname}?p=${encodeURIComponent(pg.id)}`)).catch(() => {})}>Lienzo nuevo</button>
+              <p>{tr('Aún no hay lienzos. Pídele uno a Levy o empieza uno en blanco.')}</p>
+              <button className="btn-secondary" onClick={() => void Nube.crearPagina(tr('Lienzo nuevo')).then(pg => router.replace(`${pathname}?p=${encodeURIComponent(pg.id)}`)).catch(() => {})}>{tr('Lienzo nuevo')}</button>
             </div>
           : null}
     </div>

@@ -1,8 +1,9 @@
 'use client'
+import { tr } from '@/shared/i18n'
 import { useState } from 'react'
 import { Archive, Clock, Pin, Star } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
-import { es } from 'date-fns/locale'
+import { localeFechas } from '@/shared/i18n/fechas'
 import type { ChatSession } from '../hooks/useChatHistory'
 import { deriveSessionState } from '../lib/session-status'
 import { textMessageTitle } from '../lib/text-attachments'
@@ -39,7 +40,7 @@ export function SessionItem({ session, active, onSelect, onAbrir }: SessionItemP
 
   const timeAgo = formatDistanceToNow(new Date(session.updated_at), {
     addSuffix: false,
-    locale: es,
+    locale: localeFechas(),
   })
 
   const isProtected = esProtegida(session)
@@ -78,7 +79,7 @@ export function SessionItem({ session, active, onSelect, onAbrir }: SessionItemP
                   ? 'text-foreground/90 group-hover:text-foreground'
                   : 'text-muted group-hover:text-foreground/75'
             }`}>
-              {isProtected ? 'Reportes' : textMessageTitle(session.title)}
+              {isProtected ? tr('Reportes') : tr(textMessageTitle(session.title))}
             </p>
           )}
 
@@ -89,17 +90,17 @@ export function SessionItem({ session, active, onSelect, onAbrir }: SessionItemP
               {isProtected ? (
                 <Clock size={9} className="text-emerald-400/80 shrink-0" />
               ) : session.archived_at ? (
-                <Archive size={9} className="text-muted shrink-0" aria-label="Archivada" />
+                <Archive size={9} className="text-muted shrink-0" aria-label={tr('Archivada')} />
               ) : session.is_starred ? (
-                <Star size={9} className="text-muted shrink-0" aria-label="Favorita" />
+                <Star size={9} className="text-muted shrink-0" aria-label={tr('Favorita')} />
               ) : session.is_favorite ? (
-                <Pin size={9} className="text-muted shrink-0" aria-label="Fijada" />
+                <Pin size={9} className="text-muted shrink-0" aria-label={tr('Fijada')} />
               ) : (
                 <Clock size={9} className="shrink-0" />
               )}
               <span className="truncate">{timeAgo}</span>
               {/* La lista trae todas las cuentas (9 nov 2026): las que no son su Claude llevan su rótulo, como en la barra. */}
-              {cuenta.corta && <span className={`shrink-0 ${cuenta.texto}`} title={cuenta.etiqueta}>· {cuenta.corta}</span>}
+              {cuenta.corta && <span className={`shrink-0 ${cuenta.texto}`} title={tr(cuenta.etiqueta)}>· {cuenta.corta}</span>}
             </div>
           )}
         </div>

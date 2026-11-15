@@ -1,4 +1,5 @@
 import type { CalendarMode } from '@/features/planning/types'
+import { trMarca } from '@/shared/i18n'
 
 /**
  * Ctrl + letra en toda la app (5 oct 2026, Daniel): D · W · M llevan al Calendario del panel en Día, Semana y Mes, en hoy; Q cierra la pestaña activa del panel; L abre el selector de lienzos del título. Es Ctrl, no ⌘: en Mac ni Chrome ni el menú de la app de escritorio usan
@@ -51,10 +52,10 @@ export function cedeAlCampo(accion: AccionCtrl, campo: CampoTexto | null): boole
 }
 
 export const ATAJOS_CTRL: { teclas: string[]; accion: string }[] = [
-  { teclas: ['Ctrl', 'D'], accion: 'Calendario en Día, hoy (en un campo con texto delante del cursor, borra hacia adelante)' },
-  { teclas: ['Ctrl', 'W'], accion: 'Calendario en Semana, la de hoy' },
-  { teclas: ['Ctrl', 'M'], accion: 'Calendario en Mes, el de hoy' },
-  { teclas: ['Ctrl', 'Q'], accion: 'Cerrar la pestaña activa del panel' },
-  { teclas: ['Ctrl', 'L'], accion: 'Lienzo: cambiar de lienzo desde el mismo lienzo (recientes arriba; flechas y Enter)' },
-  { teclas: ['Ctrl', 'H'], accion: 'Hábitos a través del tiempo: el Calendario del panel en su vista H, con el foco en hoy (en un campo con texto detrás del cursor, borra hacia atrás)' },
+  { teclas: ['Ctrl', 'D'], accion: trMarca('Calendario en Día, hoy (en un campo con texto delante del cursor, borra hacia adelante)') },
+  { teclas: ['Ctrl', 'W'], accion: trMarca('Calendario en Semana, la de hoy') },
+  { teclas: ['Ctrl', 'M'], accion: trMarca('Calendario en Mes, el de hoy') },
+  { teclas: ['Ctrl', 'Q'], accion: trMarca('Cerrar la pestaña activa del panel') },
+  { teclas: ['Ctrl', 'L'], accion: trMarca('Lienzo: cambiar de lienzo desde el mismo lienzo (recientes arriba; flechas y Enter)') },
+  { teclas: ['Ctrl', 'H'], accion: trMarca('Hábitos a través del tiempo: el Calendario del panel en su vista H, con el foco en hoy (en un campo con texto detrás del cursor, borra hacia atrás)') },
 ]

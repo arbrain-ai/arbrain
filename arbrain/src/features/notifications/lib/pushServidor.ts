@@ -6,6 +6,8 @@
  * Regla de oro: el destinatario SIEMPRE sale de la sesión. Cualquier `userId` que mande el cliente se ignora.
  */
 
+import { tr } from '@/shared/i18n'
+
 export interface SuscripcionValida { endpoint: string; p256dh: string; auth: string }
 export interface FilaSuscripcion extends SuscripcionValida { id: string }
 
@@ -73,10 +75,10 @@ export interface PayloadPush { title: string; body: string; url: string; tag: st
  */
 export function payloadPrueba(nombre: string | null | undefined, ahora = new Date(), cliente = false): PayloadPush {
   const quien = (nombre ?? '').trim().split(/\s+/)[0]
-  const que = cliente ? 'los avisos de Levy' : 'tus reportes y avisos'
+  const que = cliente ? tr('los avisos de Levy') : tr('tus reportes y avisos')
   return {
-    title: cliente ? 'Tu Arbrain' : 'Arbrain',
-    body: quien ? `${quien}, así te van a llegar ${que}.` : `Así te van a llegar ${que}.`,
+    title: cliente ? tr('Tu Arbrain') : 'Arbrain',
+    body: quien ? tr('{quien}, así te van a llegar {que}.', { quien, que }) : tr('Así te van a llegar {que}.', { que }),
     url: '/settings?seccion=notificaciones',
     // tag único: dos pruebas seguidas no se tapan entre sí
     tag: `prueba-${ahora.getTime()}`,
@@ -84,13 +86,13 @@ export function payloadPrueba(nombre: string | null | undefined, ahora = new Dat
   }
 }
 
-const sinSesion = (): Respuesta => ({ status: 401, json: { error: 'Inicia sesión para activar las notificaciones' } })
+const sinSesion = (): Respuesta => ({ status: 401, json: { error: tr('Inicia sesión para activar las notificaciones') } })
 
 /** POST /api/notifications/subscribe — registra ESTE dispositivo a nombre del usuario de la sesión. */
 export async function altaSuscripcion(usuario: string | null, cuerpo: unknown, almacen: AlmacenPush): Promise<Respuesta> {
   if (!usuario) return sinSesion()
   const sub = validarSuscripcion((cuerpo as { subscription?: unknown } | null)?.subscription)
-  if (!sub) return { status: 400, json: { error: 'Suscripción inválida' } }
+  if (!sub) return { status: 400, json: { error: tr('Suscripción inválida') } }
   await almacen.guardar(usuario, sub)
   return { status: 200, json: { success: true } }
 }
@@ -157,17 +159,17 @@ export async function enviarPrueba(opts: {
   const titulo = 'Prueba de notificaciones'
   if (!opts.vapidLista) {
     await almacen.registrar([{ job_id: 'prueba-ajustes', status: 'vapid_missing', error: 'VAPID keys not configured', title: titulo }])
-    return { status: 503, json: { error: 'Las notificaciones no están configuradas en este servidor' } }
+    return { status: 503, json: { error: tr('Las notificaciones no están configuradas en este servidor') } }
   }
   const espera = limitador.intentar(usuario, opts.ahora?.getTime())
   if (espera > 0) {
     const s = Math.ceil(espera / 1000)
-    return { status: 429, json: { error: `Espera ${s} s antes de otra prueba` }, headers: { 'Retry-After': String(s) } }
+    return { status: 429, json: { error: tr('Espera {s} s antes de otra prueba', { s }) }, headers: { 'Retry-After': String(s) } }
   }
   const subs = await almacen.deUsuario(usuario)
   if (subs.length === 0) {
     await almacen.registrar([{ job_id: 'prueba-ajustes', status: 'no_subs', error: 'target has no push subscriptions', title: titulo }])
-    return { status: 404, json: { enviadas: 0, dispositivos: 0, error: 'Todavía no activas las notificaciones en ningún dispositivo' } }
+    return { status: 404, json: { enviadas: 0, dispositivos: 0, error: tr('Todavía no activas las notificaciones en ningún dispositivo') } }
   }
   const payload = JSON.stringify(payloadPrueba(opts.nombre, opts.ahora, opts.cliente))
   const { enviadas, fallidas, limpiadas } = await entregar({ usuario, subs, payload, jobId: 'prueba-ajustes', titulo, almacen, enviar })
@@ -178,7 +180,7 @@ export async function enviarPrueba(opts: {
       fallidas,
       dispositivos: subs.length,
       limpiadas,
-      ...(enviadas === 0 ? { error: 'El servicio de notificaciones rechazó el envío. Desactiva y vuelve a activar.' } : {}),
+      ...(enviadas === 0 ? { error: tr('El servicio de notificaciones rechazó el envío. Desactiva y vuelve a activar.') } : {}),
     },
   }
 }

@@ -19,6 +19,7 @@ import type { MetaImagen } from '@/lib/imagenes/variantes'
 import { abiertaEnCarpeta, hayQueTraer, ordenarEntrega, pesoLegible, recordarAbiertaEnCarpeta, type ItemEntrega } from '../../documento/medio'
 import type { MostrarInput } from '../../model'
 import v from './visor.module.css'
+import { tr, trn } from '@/shared/i18n'
 
 export interface ItemCarpeta extends ItemEntrega { url?: string; imagen?: MetaImagen | null }
 export interface Entrega { archivo: string; ruta: string; items: ItemCarpeta[]; recortado: boolean; manifiesto: { titulo?: string; nota?: string; finales?: string[]; piezas?: string[] } | null }
@@ -65,11 +66,11 @@ export function VisorEntrega({ data, abrir, grande }: { data: Entrega; abrir: (i
   const videosDe = (grupo: ItemCarpeta[]) => grupo.filter(i => i.clase === 'video')
   // Un video se abre solo (6 nov 2026: «más simple»); compararlos es «Verlos juntos» / «Comparar versiones».
   const abrirItem = (it: ItemCarpeta) => poner({ input: { vista: 'documento', ruta: it.ruta, titulo: it.nombre }, desde: it.ruta })
-  const comparar = (grupo: ItemCarpeta[]) => { const vs = videosDe(grupo); if (vs.length >= 2) poner({ input: { vista: 'documento', ruta: vs[0].ruta, titulo: 'Versiones', versiones: vs.slice(1, 6).map(x => x.ruta), compararCon: vs[1].ruta }, desde: vs[0].ruta }) }
+  const comparar = (grupo: ItemCarpeta[]) => { const vs = videosDe(grupo); if (vs.length >= 2) poner({ input: { vista: 'documento', ruta: vs[0].ruta, titulo: tr('Versiones'), versiones: vs.slice(1, 6).map(x => x.ruta), compararCon: vs[1].ruta }, desde: vs[0].ruta }) }
 
   if (abierto) return <div ref={raiz} className={v.entregaAbierta}>
-    <button type="button" className={v.volver} data-volver-carpeta onClick={() => poner(null)} aria-label={`Volver a la carpeta ${titulo}`} title={titulo}>
-      <ArrowLeft size={14} aria-hidden />Volver a la carpeta<small>{titulo}</small></button>
+    <button type="button" className={v.volver} data-volver-carpeta onClick={() => poner(null)} aria-label={tr('Volver a la carpeta {titulo}', { titulo })} title={titulo}>
+      <ArrowLeft size={14} aria-hidden />{tr('Volver a la carpeta')}<small>{titulo}</small></button>
     {abrir(abierto)}
   </div>
 
@@ -77,15 +78,15 @@ export function VisorEntrega({ data, abrir, grande }: { data: Entrega; abrir: (i
   return <div ref={raiz} className={v.entrega} data-grande={grande || undefined}>
     <header className={v.entregaCabeza}>
       <h3>{titulo}</h3>
-      <p>{vacio ? 'Esta carpeta no tiene nada que el visor pueda abrir.' : `${finales.length === 1 ? '1 final' : `${finales.length} finales`} · ${piezas.length === 1 ? '1 pieza' : `${piezas.length} piezas`}${data.recortado ? ' · lista recortada' : ''}`}</p>
+      <p>{vacio ? tr('Esta carpeta no tiene nada que el visor pueda abrir.') : `${trn(finales.length, '1 final', '{n} finales')} · ${trn(piezas.length, '1 pieza', '{n} piezas')}${data.recortado ? ` · ${tr('lista recortada')}` : ''}`}</p>
       {data.manifiesto?.nota && <p className={v.entregaNota}>{data.manifiesto.nota}</p>}
     </header>
-    {finales.length > 0 && <section aria-label="Finales">
-      <h4>Finales {videosDe(finales).length >= 2 && <button type="button" className={v.lado} onClick={() => comparar(finales)}><Columns2 size={13} aria-hidden />Verlos juntos</button>}</h4>
+    {finales.length > 0 && <section aria-label={tr('Finales')}>
+      <h4>{tr('Finales')} {videosDe(finales).length >= 2 && <button type="button" className={v.lado} onClick={() => comparar(finales)}><Columns2 size={13} aria-hidden />{tr('Verlos juntos')}</button>}</h4>
       <div className={v.tarjetasGrandes}>{finales.map(it => <Tarjeta key={it.ruta} it={it} grande alAbrir={() => abrirItem(it)} />)}</div>
     </section>}
-    {piezas.length > 0 && <section aria-label="Piezas">
-      <h4>{finales.length ? 'Piezas' : 'Archivos'} {videosDe(piezas).length >= 2 && <button type="button" className={v.lado} onClick={() => comparar(piezas)}><Columns2 size={13} aria-hidden />Comparar versiones</button>}</h4>
+    {piezas.length > 0 && <section aria-label={tr('Piezas')}>
+      <h4>{finales.length ? tr('Piezas') : tr('Archivos')} {videosDe(piezas).length >= 2 && <button type="button" className={v.lado} onClick={() => comparar(piezas)}><Columns2 size={13} aria-hidden />{tr('Comparar versiones')}</button>}</h4>
       <div className={v.tarjetas}>{piezas.map(it => <Tarjeta key={it.ruta} it={it} alAbrir={() => abrirItem(it)} />)}</div>
     </section>}
   </div>

@@ -1,0 +1,21 @@
+.encabezado { display: flex; align-items: flex-end; gap: 32px; }
+.encCuerpo { flex: 1; min-width: 0; }
+.encCeja { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+
+.cita { margin: 0; position: relative; padding-left: 26px; }
+.cita::before { content: ''; position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px; border-radius: 2px; background: var(--i-oro); opacity: 0.8; }
+.cita[data-tono=morado]::before { background: var(--i-mor); }
+.cita blockquote { margin: 0; }
+.citaCab { display: flex; align-items: baseline; gap: 12px; margin-bottom: 10px; }
+.citaGlosa { font-style: italic; font-size: 15px; color: var(--i-tinta-3); }
+.citaFecha { margin-left: auto; font-size: 11.5px; font-weight: 800; letter-spacing: 0.18em; text-transform: uppercase; color: var(--i-tinta-3); white-space: nowrap; }
+.citaAutor { margin-top: 14px; font-size: 12px; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; color: var(--i-oro-tinta); }
+
+.botonesFila { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+
+.lista { display: flex; flex-direction: column; gap: 10px; }
+.listaTitulo { margin: 0; font-size: 26px; font-weight: 800; color: var(--i-tinta); line-height: 1.25; }
+.items { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.items li { display: grid; grid-template-columns: 38px 1fr; gap: 8px; font-size: 20px; font-weight: 700; line-height: 1.35; color: var(--i-tinta); padding: 6px 0; }
+.items li[data-resalta] { color: var(--i-mor-tinta); }
+.n { font-family: var(--i-serif); font-size: 26px; font-weight: 600; line-height: 1.05; color: var(--i-oro-tinta); }

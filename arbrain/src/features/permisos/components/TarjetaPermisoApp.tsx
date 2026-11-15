@@ -18,6 +18,7 @@ import { esClicHumano } from '../lib/confirmacion'
 import { campoAjeno, cuerpoResolverApp, decisionPorTecla, frasePara, type DecisionApp, type PedidoApp } from '../lib/permiso-app'
 import { olvidarApp } from '../lib/pendientes'
 import s from '@/features/chat/components/tarjeta-comando.module.css'
+import { tr, trMarca } from '@/shared/i18n'
 
 const ARMADO_MS = 700
 
@@ -34,9 +35,9 @@ export function TarjetaPermisoApp({ p, escape = true }: { p: PedidoApp; escape?:
     try {
       const r = await fetch('/api/manos/apps/resolver', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cuerpoResolverApp(p.id, d)) })
       const j = await r.json().catch(() => ({})) as { error?: string }
-      if (!r.ok && r.status !== 404 && r.status !== 409) throw new Error(j.error ?? 'No pude enviar tu decisión.')
+      if (!r.ok && r.status !== 404 && r.status !== 409) throw new Error(j.error ?? trMarca('No pude enviar tu decisión.'))
       olvidarApp(p.id)
-    } catch (e) { setError(e instanceof Error ? e.message : 'No pude enviar tu decisión.'); setOcupado(null) }
+    } catch (e) { setError(e instanceof Error ? tr(e.message) : tr('No pude enviar tu decisión.')); setOcupado(null) }
   }, [p.id])
 
   // Escape = No (fuera de otro campo de texto). Una tecla suelta nunca aprueba: los botones del sí piden clic real.
@@ -56,32 +57,32 @@ export function TarjetaPermisoApp({ p, escape = true }: { p: PedidoApp; escape?:
     if (d !== 'no' && !esClicHumano({ detail: e.detail, isTrusted: e.nativeEvent.isTrusted })) return
     void decidir(d)
   }
-  const nombre = p.app.nombre || 'esta app'
+  const nombre = p.app.nombre || tr('esta app')
 
   return (
     <section ref={caja} className={s.tarjeta} data-permiso-app={p.id} aria-labelledby={`pa-${p.id}`}>
       <header className={s.cabeza}>
         <span className={s.icono} aria-hidden><AppWindow size={16} /></span>
         <div className={s.titulos}>
-          <h3 id={`pa-${p.id}`} className={s.titulo}>Levy quiere usar una app</h3>
-          <p className={s.frase}>¿Dejas que Levy use {nombre}?</p>
+          <h3 id={`pa-${p.id}`} className={s.titulo}>{tr('Levy quiere usar una app')}</h3>
+          <p className={s.frase}>{tr('¿Dejas que Levy use {nombre}?', { nombre })}</p>
         </div>
       </header>
-      <p className={s.explica} data-para><strong>Para qué:</strong> {frasePara(p)}</p>
-      <p className={s.explica}>Podrá ver lo que hay en {nombre}, hacer clic y escribir ahí, con su propio cursor. Enviar, borrar, pagar o publicar te lo sigue preguntando aparte.</p>
+      <p className={s.explica} data-para><strong>{tr('Para qué:')}</strong> {tr(frasePara(p))}</p>
+      <p className={s.explica}>{tr('Podrá ver lo que hay en {nombre}, hacer clic y escribir ahí, con su propio cursor. Enviar, borrar, pagar o publicar te lo sigue preguntando aparte.', { nombre })}</p>
       {error && <p role="alert" className={s.error}>{error}</p>}
       <div className={s.botones}>
-        <button type="button" className={s.principal} disabled={!armado || !!ocupado} onClick={alClic('conversacion')} title="Solo con un clic: el teclado no aprueba" data-decision="conversacion">
-          {ocupado === 'conversacion' ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <Check size={15} aria-hidden />} Solo esta conversación
+        <button type="button" className={s.principal} disabled={!armado || !!ocupado} onClick={alClic('conversacion')} title={tr('Solo con un clic: el teclado no aprueba')} data-decision="conversacion">
+          {ocupado === 'conversacion' ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <Check size={15} aria-hidden />} {tr('Solo esta conversación')}
         </button>
-        <button type="button" className={s.secundario} disabled={!armado || !!ocupado} onClick={alClic('siempre')} title={`Guarda ${nombre} en Ajustes › Computer use: ya no te pregunta`} data-decision="siempre">
-          {ocupado === 'siempre' ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <Siempre size={15} aria-hidden />} Siempre
+        <button type="button" className={s.secundario} disabled={!armado || !!ocupado} onClick={alClic('siempre')} title={tr('Guarda {nombre} en Ajustes › Computer use: ya no te pregunta', { nombre })} data-decision="siempre">
+          {ocupado === 'siempre' ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <Siempre size={15} aria-hidden />} {tr('Siempre')}
         </button>
         <button type="button" className={s.secundario} disabled={!!ocupado} onClick={alClic('no')} data-decision="no">
-          {ocupado === 'no' ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <X size={15} aria-hidden />} No
+          {ocupado === 'no' ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <X size={15} aria-hidden />} {tr('No')}
         </button>
       </div>
-      <p className={s.pie}>«Siempre» guarda {nombre} en Ajustes › Computer use, donde la quitas cuando quieras.{escape ? ' Escape es «No».' : ''} Mientras decides, Levy espera.</p>
+      <p className={s.pie}>{tr('«Siempre» guarda {nombre} en Ajustes › Computer use, donde la quitas cuando quieras.', { nombre })}{escape ? ` ${tr('Escape es «No».')}` : ''} {tr('Mientras decides, Levy espera.')}</p>
     </section>
   )
 }

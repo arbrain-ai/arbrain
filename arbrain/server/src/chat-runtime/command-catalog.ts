@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { ClaudeInteractiveSession, requireClaudeSubscription } from './claude-session.js'
 import { esCuentaApi } from '../modelos/registro.js'
 import { PROJECT_ROOT, STORE_DIR } from '../config.js'
+import { trMarca } from '../i18n/tr.js'
 
 /**
  * Catálogo de comandos "/" del chat (5 oct 2026). Une lo que expone el SDK de
@@ -35,26 +36,26 @@ type LocalDef = Omit<CatalogCommand, 'name'> & { name: string; claudeOnly?: bool
 
 /** Orden fijo. `claudeOnly`: no aplica a Codex/API. /plan no está: ver server.ts (no hay toggle real). */
 const MODES: LocalDef[] = [
-  { name: '/goal', description: 'Objetivo persistente: sigue trabajando hasta cumplir la condición', argumentHint: '<condición> | status | pause | resume | clear', section: 'modos', kind: 'mode' },
-  { name: '/model', description: 'Cambiar el modelo de esta conversación', argumentHint: '<modelo>', section: 'modos', kind: 'local' },
-  { name: '/effort', description: 'Nivel de esfuerzo de razonamiento (low a max)', argumentHint: '<low|medium|high|xhigh|max|default>', section: 'modos', kind: 'local' },
-  { name: '/fast', description: 'Modo rápido: más velocidad en modelos compatibles (alterna)', argumentHint: '[on|off]', section: 'modos', kind: 'mode' },
-  { name: '/ultracode', description: 'Ultracode: esfuerzo xhigh y flujos multiagente (alterna)', argumentHint: '[on|off]', section: 'modos', kind: 'mode', claudeOnly: true },
-  { name: '/compact', description: 'Comprime el contexto de la conversación', argumentHint: '<instrucciones opcionales de resumen>', section: 'modos', kind: 'sdk', claudeOnly: true },
-  { name: '/context', description: 'Cuánto contexto se está usando', section: 'modos', kind: 'sdk', claudeOnly: true },
-  { name: '/loop', description: 'Repite un prompt o comando cada cierto intervalo', argumentHint: '[intervalo] [prompt]', section: 'modos', kind: 'sdk', claudeOnly: true },
+  { name: '/goal', description: trMarca('Objetivo persistente: sigue trabajando hasta cumplir la condición'), argumentHint: trMarca('<condición> | status | pause | resume | clear'), section: 'modos', kind: 'mode' },
+  { name: '/model', description: trMarca('Cambiar el modelo de esta conversación'), argumentHint: trMarca('<modelo>'), section: 'modos', kind: 'local' },
+  { name: '/effort', description: trMarca('Nivel de esfuerzo de razonamiento (low a max)'), argumentHint: '<low|medium|high|xhigh|max|default>', section: 'modos', kind: 'local' },
+  { name: '/fast', description: trMarca('Modo rápido: más velocidad en modelos compatibles (alterna)'), argumentHint: '[on|off]', section: 'modos', kind: 'mode' },
+  { name: '/ultracode', description: trMarca('Ultracode: esfuerzo xhigh y flujos multiagente (alterna)'), argumentHint: '[on|off]', section: 'modos', kind: 'mode', claudeOnly: true },
+  { name: '/compact', description: trMarca('Comprime el contexto de la conversación'), argumentHint: trMarca('<instrucciones opcionales de resumen>'), section: 'modos', kind: 'sdk', claudeOnly: true },
+  { name: '/context', description: trMarca('Cuánto contexto se está usando'), section: 'modos', kind: 'sdk', claudeOnly: true },
+  { name: '/loop', description: trMarca('Repite un prompt o comando cada cierto intervalo'), argumentHint: trMarca('[intervalo] [prompt]'), section: 'modos', kind: 'sdk', claudeOnly: true },
 ]
 const LOCALS: LocalDef[] = [
-  { name: '/clear', description: 'Nueva conversación, borra el historial', section: 'arbrain', kind: 'local' },
-  { name: '/status', description: 'Estado de Levy: modelo, tareas activas, sesión', section: 'arbrain', kind: 'local' },
-  { name: '/skills', description: 'Skills disponibles en esta cuenta', section: 'arbrain', kind: 'local' },
-  { name: '/memory', description: 'Memoria persistente (MEMORY.md)', section: 'arbrain', kind: 'local' },
-  { name: '/mcp', description: 'Estado de los servidores MCP', section: 'arbrain', kind: 'local' },
-  { name: '/todos', description: 'Lista de tareas activa del agente', section: 'arbrain', kind: 'local' },
-  { name: '/tasks', description: 'Tareas actuales del tablero', section: 'arbrain', kind: 'local' },
-  { name: '/agents', description: 'Estado en vivo de todos los agentes', section: 'arbrain', kind: 'local' },
-  { name: '/usage', description: 'Costo y tokens de Levy (7 y 30 días)', section: 'arbrain', kind: 'local' },
-  { name: '/help', description: 'Ver todos los comandos disponibles', section: 'arbrain', kind: 'local' },
+  { name: '/clear', description: trMarca('Nueva conversación, borra el historial'), section: 'arbrain', kind: 'local' },
+  { name: '/status', description: trMarca('Estado de Levy: modelo, tareas activas, sesión'), section: 'arbrain', kind: 'local' },
+  { name: '/skills', description: trMarca('Skills disponibles en esta cuenta'), section: 'arbrain', kind: 'local' },
+  { name: '/memory', description: trMarca('Memoria persistente (MEMORY.md)'), section: 'arbrain', kind: 'local' },
+  { name: '/mcp', description: trMarca('Estado de los servidores MCP'), section: 'arbrain', kind: 'local' },
+  { name: '/todos', description: trMarca('Lista de tareas activa del agente'), section: 'arbrain', kind: 'local' },
+  { name: '/tasks', description: trMarca('Tareas actuales del tablero'), section: 'arbrain', kind: 'local' },
+  { name: '/agents', description: trMarca('Estado en vivo de todos los agentes'), section: 'arbrain', kind: 'local' },
+  { name: '/usage', description: trMarca('Costo y tokens de Levy (7 y 30 días)'), section: 'arbrain', kind: 'local' },
+  { name: '/help', description: trMarca('Ver todos los comandos disponibles'), section: 'arbrain', kind: 'local' },
 ]
 const LOCAL_NAMES = new Set([...MODES, ...LOCALS].map(c => c.name.slice(1)))
 const HIDDEN = (name: string) => name.startsWith('__') || name === 'workflow-launch-exec' || name === 'heapdump'

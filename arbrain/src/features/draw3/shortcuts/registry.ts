@@ -9,6 +9,8 @@
  * Add new shortcuts here so they show up automatically in the UI.
  */
 
+import { trMarca } from '@/shared/i18n'
+
 export type ShortcutCategory =
   | 'Seleccion'
   | 'Herramientas'
@@ -32,58 +34,58 @@ const REDO_ALT_KEYS = isMac ? '⌘Y / Ctrl+Y' : 'Ctrl+Y'
 
 export const CANVAS_SHORTCUTS: ShortcutEntry[] = [
   // Seleccion
-  { keys: 'V', action: 'Herramienta seleccionar', category: 'Seleccion' },
-  { keys: 'H', action: 'Mover lienzo (Hand)', category: 'Seleccion' },
-  { keys: 'Esc', action: 'Deseleccionar todo', category: 'Seleccion' },
-  { keys: `${MOD}+A`, action: 'Seleccionar todo', category: 'Seleccion' },
+  { keys: 'V', action: trMarca('Herramienta seleccionar'), category: 'Seleccion' },
+  { keys: 'H', action: trMarca('Mover lienzo (Hand)'), category: 'Seleccion' },
+  { keys: 'Esc', action: trMarca('Deseleccionar todo'), category: 'Seleccion' },
+  { keys: `${MOD}+A`, action: trMarca('Seleccionar todo'), category: 'Seleccion' },
 
   // Herramientas
-  { keys: 'R', action: 'Rectangulo', category: 'Herramientas' },
-  { keys: 'O', action: 'Ovalo', category: 'Herramientas' },
-  { keys: 'D', action: 'Rombo', category: 'Herramientas' },
-  { keys: 'T', action: 'Triangulo', category: 'Herramientas' },
-  { keys: 'L', action: 'Linea', category: 'Herramientas' },
-  { keys: 'A', action: 'Flecha', category: 'Herramientas' },
-  { keys: 'C', action: 'Flecha curva (connector)', category: 'Herramientas' },
-  { keys: 'F', action: 'Frame / seccion', category: 'Herramientas' },
-  { keys: 'N', action: 'Sticky note', category: 'Herramientas' },
-  { keys: 'T', action: 'Texto', category: 'Herramientas' },
-  { keys: 'I', action: 'Imagen', category: 'Herramientas' },
-  { keys: 'P', action: 'Boligrafo (freedraw)', category: 'Herramientas' },
-  { keys: 'E', action: 'Borrador', category: 'Herramientas' },
+  { keys: 'R', action: trMarca('Rectangulo'), category: 'Herramientas' },
+  { keys: 'O', action: trMarca('Ovalo'), category: 'Herramientas' },
+  { keys: 'D', action: trMarca('Rombo'), category: 'Herramientas' },
+  { keys: 'T', action: trMarca('Triangulo'), category: 'Herramientas' },
+  { keys: 'L', action: trMarca('Linea'), category: 'Herramientas' },
+  { keys: 'A', action: trMarca('Flecha'), category: 'Herramientas' },
+  { keys: 'C', action: trMarca('Flecha curva (connector)'), category: 'Herramientas' },
+  { keys: 'F', action: trMarca('Frame / seccion'), category: 'Herramientas' },
+  { keys: 'N', action: trMarca('Sticky note'), category: 'Herramientas' },
+  { keys: 'T', action: trMarca('Texto'), category: 'Herramientas' },
+  { keys: 'I', action: trMarca('Imagen'), category: 'Herramientas' },
+  { keys: 'P', action: trMarca('Boligrafo (freedraw)'), category: 'Herramientas' },
+  { keys: 'E', action: trMarca('Borrador'), category: 'Herramientas' },
 
   // Edicion
-  { keys: UNDO_KEYS, action: 'Deshacer', category: 'Edicion' },
-  { keys: REDO_SHIFT_KEYS, action: 'Rehacer', category: 'Edicion' },
-  { keys: REDO_ALT_KEYS, action: 'Rehacer (alterno)', category: 'Edicion' },
-  { keys: `${MOD}+D`, action: 'Duplicar seleccion', category: 'Edicion' },
-  { keys: `${MOD}+C`, action: 'Copiar', category: 'Edicion' },
-  { keys: `${MOD}+X`, action: 'Cortar', category: 'Edicion' },
-  { keys: `${MOD}+V`, action: 'Pegar', category: 'Edicion' },
-  { keys: 'Del / Backspace', action: 'Eliminar seleccion', category: 'Edicion' },
-  { keys: 'Enter', action: 'Editar elemento seleccionado', category: 'Edicion' },
+  { keys: UNDO_KEYS, action: trMarca('Deshacer'), category: 'Edicion' },
+  { keys: REDO_SHIFT_KEYS, action: trMarca('Rehacer'), category: 'Edicion' },
+  { keys: REDO_ALT_KEYS, action: trMarca('Rehacer (alterno)'), category: 'Edicion' },
+  { keys: `${MOD}+D`, action: trMarca('Duplicar seleccion'), category: 'Edicion' },
+  { keys: `${MOD}+C`, action: trMarca('Copiar'), category: 'Edicion' },
+  { keys: `${MOD}+X`, action: trMarca('Cortar'), category: 'Edicion' },
+  { keys: `${MOD}+V`, action: trMarca('Pegar'), category: 'Edicion' },
+  { keys: 'Del / Backspace', action: trMarca('Eliminar seleccion'), category: 'Edicion' },
+  { keys: 'Enter', action: trMarca('Editar elemento seleccionado'), category: 'Edicion' },
 
   // Capas
-  { keys: `${MOD}+]`, action: 'Traer al frente', category: 'Capas' },
-  { keys: `${MOD}+[`, action: 'Enviar al fondo', category: 'Capas' },
-  { keys: `${MOD}+G`, action: 'Agrupar / Desagrupar (toggle)', category: 'Capas' },
-  { keys: `${MOD}+Shift+G`, action: 'Desagrupar', category: 'Capas' },
+  { keys: `${MOD}+]`, action: trMarca('Traer al frente'), category: 'Capas' },
+  { keys: `${MOD}+[`, action: trMarca('Enviar al fondo'), category: 'Capas' },
+  { keys: `${MOD}+G`, action: trMarca('Agrupar / Desagrupar (toggle)'), category: 'Capas' },
+  { keys: `${MOD}+Shift+G`, action: trMarca('Desagrupar'), category: 'Capas' },
 
   // Vista
-  { keys: '⌥1', action: 'Mostrar todo (Fit view)', category: 'Vista' },
-  { keys: `${MOD}+0`, action: 'Resetear zoom (100%)', category: 'Vista' },
-  { keys: '?', action: 'Mostrar atajos', category: 'Vista' },
+  { keys: '⌥1', action: trMarca('Mostrar todo (Fit view)'), category: 'Vista' },
+  { keys: `${MOD}+0`, action: trMarca('Resetear zoom (100%)'), category: 'Vista' },
+  { keys: '?', action: trMarca('Mostrar atajos'), category: 'Vista' },
 
   // Zoom
-  { keys: `${MOD}+= / ${MOD}++`, action: 'Acercar', category: 'Zoom' },
-  { keys: `${MOD}+-`, action: 'Alejar', category: 'Zoom' },
-  { keys: `${MOD}+Scroll`, action: 'Zoom con rueda', category: 'Zoom' },
+  { keys: `${MOD}+= / ${MOD}++`, action: trMarca('Acercar'), category: 'Zoom' },
+  { keys: `${MOD}+-`, action: trMarca('Alejar'), category: 'Zoom' },
+  { keys: `${MOD}+Scroll`, action: trMarca('Zoom con rueda'), category: 'Zoom' },
 
   // Formas (rapidos)
-  { keys: 'Doble click', action: 'Editar texto / abrir comentario', category: 'Formas' },
-  { keys: `${MOD}+Click / Shift+Click`, action: 'Agregar o quitar de seleccion', category: 'Formas' },
-  { keys: 'Shift+Drag', action: 'Restringir proporciones', category: 'Formas' },
-  { keys: 'Alt+Drag', action: 'Duplicar arrastrando', category: 'Formas' },
+  { keys: trMarca('Doble click'), action: trMarca('Editar texto / abrir comentario'), category: 'Formas' },
+  { keys: `${MOD}+Click / Shift+Click`, action: trMarca('Agregar o quitar de seleccion'), category: 'Formas' },
+  { keys: 'Shift+Drag', action: trMarca('Restringir proporciones'), category: 'Formas' },
+  { keys: 'Alt+Drag', action: trMarca('Duplicar arrastrando'), category: 'Formas' },
 ]
 
 export function shortcutsByCategory(): Record<ShortcutCategory, ShortcutEntry[]> {

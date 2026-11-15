@@ -3,6 +3,7 @@ import { requireChatPrincipal, resolveChatConversation, chatAccessResponse } fro
 import { createServiceClient } from '@/lib/supabase/service'
 import { getClaudeclawUrl, CLAUDECLAW_TOKEN, upstreamError } from '@/lib/claudeclaw'
 import { mensajeParaCopia, patronTitulosParecidos, tituloBifurcada, trozos, type MensajeOrigen } from '@/features/chat/lib/conversacion-bifurcada'
+import { tr } from '@/shared/i18n'
 
 // POST /api/chat/sessions/[sessionId]/fork   body opcional: { forkId }
 //
@@ -25,7 +26,7 @@ interface RespuestaFork { engine?: 'claude' | 'codex' | 'none'; reused?: boolean
 
 export async function POST(request: Request, { params }: { params: Promise<{ sessionId: string }> }) {
   const { sessionId } = await params
-  if (!UUID.test(sessionId)) return Response.json({ error: 'Esta conversación no se puede bifurcar.' }, { status: 400 })
+  if (!UUID.test(sessionId)) return Response.json({ error: tr('Esta conversación no se puede bifurcar.') }, { status: 400 })
 
   let principal
   let scope
@@ -36,16 +37,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ ses
 
   const body = await request.json().catch(() => ({})) as { forkId?: unknown }
   const forkId = typeof body.forkId === 'string' && UUID.test(body.forkId) ? body.forkId.toLowerCase() : randomUUID()
-  if (forkId === sessionId.toLowerCase()) return Response.json({ error: 'La copia no puede tener el mismo id que la original.' }, { status: 400 })
+  if (forkId === sessionId.toLowerCase()) return Response.json({ error: tr('La copia no puede tener el mismo id que la original.') }, { status: 400 })
 
   const service = createServiceClient()
   const { data: origen, error: errorOrigen } = await service.from('chat_sessions').select('*').eq('id', sessionId).maybeSingle()
   if (errorOrigen) return Response.json({ error: errorOrigen.message }, { status: 500 })
-  if (!origen) return Response.json({ error: 'Conversación no encontrada.' }, { status: 404 })
+  if (!origen) return Response.json({ error: tr('Conversación no encontrada.') }, { status: 404 })
 
   const { count: total, error: errorConteo } = await service.from('chat_messages').select('id', { count: 'exact', head: true }).eq('session_id', sessionId)
   if (errorConteo) return Response.json({ error: errorConteo.message }, { status: 500 })
-  if (!total) return Response.json({ error: 'Esta conversación aún no tiene mensajes que bifurcar.' }, { status: 400 })
+  if (!total) return Response.json({ error: tr('Esta conversación aún no tiene mensajes que bifurcar.') }, { status: 400 })
 
   // Un reintento reutiliza la copia que ya quedó; si no, calcula el título sin chocar con otras bifurcaciones.
   const { data: yaExiste } = await service.from('chat_sessions').select('*').eq('id', forkId).maybeSingle()
@@ -67,14 +68,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ ses
       body: JSON.stringify({ ownerId: scope.owner, account: scope.account, sourceId: sessionId, forkId, title: titulo }),
       signal: AbortSignal.timeout(ESPERA_DAEMON_MS),
     })
-    if (!upstream.ok) return upstreamError(upstream, 'bifurcar la conversación')
+    if (!upstream.ok) return upstreamError(upstream, tr('bifurcar la conversación'))
     motor = await upstream.json() as RespuestaFork
   } catch (error) {
     const agotado = error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')
     return Response.json({
       error: agotado
-        ? 'El motor tardó demasiado en bifurcar la conversación. No se creó nada; intenta de nuevo.'
-        : 'No se pudo hablar con el servidor del chat. No se creó la copia; intenta de nuevo en un momento.',
+        ? tr('El motor tardó demasiado en bifurcar la conversación. No se creó nada; intenta de nuevo.')
+        : tr('No se pudo hablar con el servidor del chat. No se creó la copia; intenta de nuevo en un momento.'),
     }, { status: agotado ? 504 : 503 })
   }
   const contextoMotor = motor.engine === 'claude' || motor.engine === 'codex'
@@ -112,7 +113,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ ses
     }
   } catch (error) {
     await service.from('chat_sessions').delete().eq('id', forkId) // cascada: no queda copia a medias
-    return Response.json({ error: `No se pudieron copiar los mensajes: ${error instanceof Error ? error.message : 'error desconocido'}` }, { status: 500 })
+    return Response.json({ error: tr('No se pudieron copiar los mensajes: {detalle}', { detalle: error instanceof Error ? error.message : tr('error desconocido') }) }, { status: 500 })
   }
 
   // La copia nace «de hoy» (sube a Recientes) y ya vista (gris): quien la crea está mirándola.
@@ -125,7 +126,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ ses
     .single()
   if (errorFinal || !copia) {
     await service.from('chat_sessions').delete().eq('id', forkId)
-    return Response.json({ error: errorFinal?.message ?? 'No se pudo terminar la copia.' }, { status: 500 })
+    return Response.json({ error: errorFinal?.message ?? tr('No se pudo terminar la copia.') }, { status: 500 })
   }
   return Response.json({ session: copia, engine: motor.engine ?? 'none', contextoMotor, reused: false })
 }

@@ -12,6 +12,7 @@
  *   - al recargar, el borrador vuelve con sus imágenes; si alguna se perdió, se avisa.
  * Los borradores guardados con el formato anterior (Files sueltos en el documento) se siguen leyendo.
  */
+import { tr, trn } from '@/shared/i18n'
 
 export type Almacen = { get(key: string): Promise<unknown>; set(key: string, value: unknown): Promise<void>; del(key: string): Promise<void> }
 export type Lectura = { value: unknown; aviso?: string }
@@ -37,7 +38,6 @@ export function esErrorDeCuota(e: unknown): boolean {
 }
 
 const aleatorio = () => Math.random().toString(36).slice(2, 10)
-const plural = (n: number, uno: string, varios: string) => n === 1 ? uno : varios
 
 export function crearPersistenciaBorradores(almacen: Almacen) {
   /** Id estable por File (la clave de su imagen) y claves de imagen que SÍ están en el almacén: cada File se escribe una vez. */
@@ -77,8 +77,8 @@ export function crearPersistenciaBorradores(almacen: Almacen) {
     }
     try { await almacen.set(key, doc) } catch (e) {
       throw new ErrorBorrador(esErrorDeCuota(e)
-        ? 'Tu borrador sigue abierto, pero este dispositivo no tiene espacio para guardarlo. Libera espacio o envíalo antes de cerrar la app.'
-        : 'Tu borrador sigue abierto, pero no pudo guardarse en este dispositivo. No cierres la app todavía.')
+        ? tr('Tu borrador sigue abierto, pero este dispositivo no tiene espacio para guardarlo. Libera espacio o envíalo antes de cerrar la app.')
+        : tr('Tu borrador sigue abierto, pero no pudo guardarse en este dispositivo. No cierres la app todavía.'))
     }
     const previas = referenciadas.get(key)
     referenciadas.set(key, nuevas)
@@ -88,9 +88,9 @@ export function crearPersistenciaBorradores(almacen: Almacen) {
     if (!perdidas) return
     const n = perdidas
     const causa = cuota
-      ? `este dispositivo no tiene espacio para ${plural(n, 'ella', 'ellas')}; libera espacio`
-      : ilegibles ? `${plural(n, 'no se pudo leer', 'no se pudieron leer')} (el sistema ya no ${plural(n, 'tiene el archivo', 'tiene los archivos')}); vuelve a ${plural(n, 'pegarla', 'pegarlas')}` : 'no se pudo guardar'
-    return { aviso: `El texto de tu borrador está guardado, pero ${n} ${plural(n, 'imagen', 'imágenes')} no: ${causa}. No cierres la app todavía.` }
+      ? trn(n, 'este dispositivo no tiene espacio para ella; libera espacio', 'este dispositivo no tiene espacio para ellas; libera espacio')
+      : ilegibles ? trn(n, 'no se pudo leer (el sistema ya no tiene el archivo); vuelve a pegarla', 'no se pudieron leer (el sistema ya no tiene los archivos); vuelve a pegarlas') : tr('no se pudo guardar')
+    return { aviso: trn(n, 'El texto de tu borrador está guardado, pero {n} imagen no: {causa}. No cierres la app todavía.', 'El texto de tu borrador está guardado, pero {n} imágenes no: {causa}. No cierres la app todavía.', { causa }) }
   }
 
   async function get(key: string): Promise<Lectura> {
@@ -121,7 +121,7 @@ export function crearPersistenciaBorradores(almacen: Almacen) {
       salida[campo] = archivos
     }
     referenciadas.set(key, vivas)
-    return { value: salida, aviso: perdidas ? `${perdidas} ${plural(perdidas, 'imagen de tu borrador ya no estaba disponible y se quitó', 'imágenes de tu borrador ya no estaban disponibles y se quitaron')}. Vuelve a ${plural(perdidas, 'adjuntarla', 'adjuntarlas')}.` : undefined }
+    return { value: salida, aviso: perdidas ? trn(perdidas, '{n} imagen de tu borrador ya no estaba disponible y se quitó. Vuelve a adjuntarla.', '{n} imágenes de tu borrador ya no estaban disponibles y se quitaron. Vuelve a adjuntarlas.') : undefined }
   }
 
   return { get, set }

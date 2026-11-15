@@ -15,6 +15,8 @@
  * `pantallaVirtualServidor()` de `pantalla-server.ts`).
  */
 
+import { tr, trMarca } from '@/shared/i18n'
+
 /** Sistemas donde la edición cliente trae computer use (valores de `process.platform`). */
 export const PLATAFORMAS_COMPUTER_USE: ReadonlyArray<string> = ['darwin', 'win32']
 
@@ -38,12 +40,10 @@ export function plataformaServidor(env: Record<string, string | undefined>, plat
 
 /** Lo que ve la persona en Linux sin pantalla virtual, donde estaba el interruptor. */
 export const COMPUTER_USE_NO_DISPONIBLE =
-  'Computer use (que Levy use tu pantalla, haga clic y escriba en tus apps) no está disponible en Linux: Arbrain lo trae ' +
-  'en macOS y Windows. En Linux Levy trabaja con tus archivos, tus comandos y en el chat. Si este Linux es tu servidor, ' +
-  'instala su pantalla virtual con «nube.sh pantalla» y Levy podrá usar un navegador ahí.'
+  trMarca('Computer use (que Levy use tu pantalla, haga clic y escriba en tus apps) no está disponible en Linux: Arbrain lo trae en macOS y Windows. En Linux Levy trabaja con tus archivos, tus comandos y en el chat. Si este Linux es tu servidor, instala su pantalla virtual con «nube.sh pantalla» y Levy podrá usar un navegador ahí.')
 
 /** Error de la API si alguien intenta encenderlo donde no existe. */
-export const COMPUTER_USE_NO_INCLUIDO = 'Computer use no está disponible en Linux: Arbrain lo trae en macOS y Windows.'
+export const COMPUTER_USE_NO_INCLUIDO = trMarca('Computer use no está disponible en Linux: Arbrain lo trae en macOS y Windows.')
 
 /**
  * Explicación junto al interruptor y en el primer arranque de la edición cliente. Nombra lo que el alumno necesita
@@ -52,22 +52,22 @@ export const COMPUTER_USE_NO_INCLUIDO = 'Computer use no está disponible en Lin
  */
 export function explicacionComputerUse(plataforma: string, autonomo = false): string {
   const permisos = plataforma === 'darwin'
-    ? 'La primera vez, macOS te pide dos permisos para «ArbrainManos»: Accesibilidad y Grabación de pantalla.'
+    ? tr('La primera vez, macOS te pide dos permisos para «ArbrainManos»: Accesibilidad y Grabación de pantalla.')
     : plataforma === 'win32'
-      ? 'En Windows no hay permisos extra que dar.'
+      ? tr('En Windows no hay permisos extra que dar.')
       : plataforma === 'linux'
-        ? 'Tú la ves en vivo, solo por tu red privada, en «Ver la pantalla de tu servidor».'
+        ? tr('Tú la ves en vivo, solo por tu red privada, en «Ver la pantalla de tu servidor».')
         : ''
   return [
     plataforma === 'linux'
-      ? 'Deja que Levy use la pantalla virtual de tu servidor: abre sitios en su propio Chrome, los lee y llena formularios con tu compu apagada.'
-      : 'Deja que Levy mire tu pantalla, haga clic y escriba en tus apps, sin mover tu ratón ni tu teclado.',
+      ? tr('Deja que Levy use la pantalla virtual de tu servidor: abre sitios en su propio Chrome, los lee y llena formularios con tu compu apagada.')
+      : tr('Deja que Levy mire tu pantalla, haga clic y escriba en tus apps, sin mover tu ratón ni tu teclado.'),
     autonomo
-      ? 'En modo Autónomo queda como lo dejes entre aperturas; en los demás niveles se apaga cada vez que cierras Arbrain.'
-      : 'Viene apagado y se apaga cada vez que cierras Arbrain: lo enciendes en cada apertura, cuando lo necesites.',
+      ? tr('En modo Autónomo queda como lo dejes entre aperturas; en los demás niveles se apaga cada vez que cierras Arbrain.')
+      : tr('Viene apagado y se apaga cada vez que cierras Arbrain: lo enciendes en cada apertura, cuando lo necesites.'),
     autonomo
-      ? 'Hace lo que le pediste en el chat sin pedirte clic; lo que no pediste te lo enseña antes. Nunca con tu banco, pagos, impuestos ni cripto.'
-      : 'Antes de enviar, pagar, borrar o publicar se detiene y te pide tu clic. No lo uses con tu banco, pagos, impuestos ni cripto.',
+      ? tr('Hace lo que le pediste en el chat sin pedirte clic; lo que no pediste te lo enseña antes. Nunca con tu banco, pagos, impuestos ni cripto.')
+      : tr('Antes de enviar, pagar, borrar o publicar se detiene y te pide tu clic. No lo uses con tu banco, pagos, impuestos ni cripto.'),
     permisos,
   ].filter(Boolean).join(' ')
 }

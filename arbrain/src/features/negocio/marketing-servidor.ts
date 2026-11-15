@@ -10,7 +10,8 @@ import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { createSFClient } from '@/lib/supabase/sf-client'
-import { canalPulso, clicsPorCanal, leerMarketing, masDias, principalDe, RUTA_MARKETING, type ArchivoMarketing, type Enlace, type RespuestaMarketing } from './marketing'
+import { canalPulso, clicsPorCanal, leerMarketing, masDias, principalDe, RUTA_MARKETING, type ArchivoMarketing, type ClicsCanal, type Enlace, type RespuestaMarketing } from './marketing'
+import { armarMarcador, leerMarcador, RUTA_MARCADOR, type ArchivoMarcador, type RespuestaMarcador } from './marcador-levy'
 
 const ZONA = 'America/Mexico_City'
 const diaCivil = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: ZONA, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d)
@@ -69,8 +70,35 @@ export async function marketing(raiz: string | null): Promise<Extract<RespuestaM
     const { enlaces, clics } = await enlacesYClics(masDias(hasta, -13))
     porCanal = clicsPorCanal(enlaces, clics, hasta, principalDe(leido.archivo))
   } catch (e) { errorClics = e instanceof Error ? e.message : 'Los enlaces rastreados no respondieron.' }
-  const canales = leido.archivo.canales.map(c => canalPulso(c, errorClics
+  // Los enlaces de Levy viven en la base de la plataforma de la cohorte (arbrain-ht-db), no en la de SaaS Factory: sus clics vienen del marcador.
+  const levy = (await archivoMarcador(raiz))?.archivo?.clics
+  const clicsLevy: ClicsCanal | null = levy?.hasta && !levy.error ? { porDia: sumaEnlaces(levy.por_enlace), hasta: levy.hasta, fuente: FUENTE_CLICS } : null
+  const canales = leido.archivo.canales.map(c => canalPulso(c, c.clave === 'levy' && clicsLevy ? clicsLevy : errorClics
     ? { porDia: null, hasta, fuente: FUENTE_CLICS, error: errorClics }
     : { porDia: porCanal?.get(c.id) ?? null, hasta, fuente: FUENTE_CLICS }))
   return { activo: true, generado: leido.archivo.generado, canales, ...(leido.errores.length ? { errores: leido.errores } : {}) }
+}
+
+function sumaEnlaces(por: Record<string, Record<string, number>>): Record<string, number> {
+  const out: Record<string, number> = {}
+  for (const dias of Object.values(por)) for (const [d, n] of Object.entries(dias)) out[d] = (out[d] ?? 0) + n
+  return out
+}
+
+/** La foto del marcador por video. null = no existe en esta máquina (vive en el Studio). */
+async function archivoMarcador(raiz: string | null): Promise<{ archivo: ArchivoMarcador | null; errores: string[] } | null> {
+  const ruta = raiz ? path.join(raiz, ...RUTA_MARCADOR) : null
+  if (!ruta || !existsSync(ruta)) return null
+  return memo(`marcador:${ruta}`, 60_000, async () => {
+    try { return leerMarcador(JSON.parse(await readFile(ruta, 'utf8'))) } catch { return { archivo: null, errores: ['El archivo del marcador no es JSON válido.'] } }
+  })
+}
+
+const SIN_FOTO = { generado: null, handle: '', estado: 'error' as const, analytics: null, alcance: null, clics: null, videos: [] }
+
+/** El marcador por video del canal de Levy. */
+export async function marcadorLevy(raiz: string | null): Promise<Extract<RespuestaMarcador, { activo: true }>> {
+  const leido = await archivoMarcador(raiz)
+  if (!leido?.archivo) return { ...armarMarcador(SIN_FOTO), lectura: 'El marcador todavía no tiene su primera foto.', falta: leido ? leido.errores[0] : 'El sensor todavía no corre en esta máquina (scripts/analytics/marcador_levy.py, en el Studio).' }
+  return armarMarcador(leido.archivo, leido.errores)
 }

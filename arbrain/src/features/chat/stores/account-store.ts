@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { ESPACIOS_NO_DEFAULT, espacioDisponible, type EspacioChat } from '@/shared/lib/espacios-chat'
 import { esEdicionCliente } from '@/lib/edicion'
 import { instalacion } from '@/config'
+import { tr } from '@/shared/i18n'
 
 // ─── Espacios de cuenta del chat (2026-07-08) ─────────────────────────────────
 //
@@ -45,7 +46,7 @@ export interface AccountOption {
 
 // Edición cliente: un solo espacio, Claude con la llave del alumno (las cuentas de abajo son de la instalación del autor).
 const CLIENTE = esEdicionCliente()
-const SOLO_CLIENTE: AccountOption[] = [{ id: 'default', label: 'Claude', sublabel: 'Con tu llave de Anthropic o tu sesión de Claude' }]
+const SOLO_CLIENTE: AccountOption[] = [{ id: 'default', label: 'Claude', get sublabel() { return tr('Con tu llave de Anthropic o tu sesión de Claude') } }]
 
 /** Subtítulo de un espacio: el de la instalación si lo declara; si no, una descripción neutra. */
 const ETIQUETAS_NEUTRAS: Record<string, string> = {

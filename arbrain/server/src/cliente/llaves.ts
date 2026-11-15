@@ -11,11 +11,13 @@ import { conectarSuscripcionSiHay, motorSuscripcion } from './suscripcion.js'
 /** Quién atiende el chat: una llave (Anthropic u OpenRouter) o la suscripción de la persona en su Claude Code. */
 export type ProveedorChat = ProveedorClaude | 'suscripcion'
 import { vistaConLlaves } from './cofre.js'
-import { INICIO_FALTA_LLAVE } from './sin-saldo.js'
+import { trMarca } from '../i18n/tr.js'
 
 // Prueba en Windows del 22 oct 2026 (punto 11): sin llave ni sesión, el chat dice cómo conectarse, nunca un error crudo.
-// Empieza con `INICIO_FALTA_LLAVE` (cliente/sin-saldo.ts): la web lo reconoce y ofrece el atajo a Ajustes › Llaves.
-export const MENSAJE_FALTA_LLAVE = `${INICIO_FALTA_LLAVE} Abre Ajustes › Llaves: si pagas Claude Pro o Max, pulsa «Iniciar sesión con Claude»; si no, «Conectar con OpenRouter».`
+// Empieza con `INICIO_FALTA_LLAVE` (cliente/sin-saldo.ts; y su traducción con `INICIO_FALTA_LLAVE_EN`): la web lo
+// reconoce y ofrece el atajo a Ajustes › Llaves. Literal completo para el catálogo inglés: quien lo emite a la persona
+// lo pasa por `tr()` (13 nov 2026); quien lo compara (loops.ts) lo usa tal cual.
+export const MENSAJE_FALTA_LLAVE = trMarca('Levy todavía no está conectado a un modelo. Abre Ajustes › Llaves: si pagas Claude Pro o Max, pulsa «Iniciar sesión con Claude»; si no, «Conectar con OpenRouter».')
 export const CODIGO_FALTA_LLAVE = 'falta_llave'
 
 const tiene = (env: NodeJS.ProcessEnv, k: string) => typeof env[k] === 'string' && env[k]!.trim().length > 0

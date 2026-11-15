@@ -10,6 +10,7 @@
  * Una pestaña se nombra por su CLAVE: 'tareas', 'taller' o el id de una vista que Levy fijó.
  */
 import type { Fijada } from './fijadas'
+import { tr } from '@/shared/i18n'
 
 export const TAREAS = 'tareas'
 export const TALLER = 'taller'
@@ -98,7 +99,7 @@ export const fueraDe = (en: EnVentana) => Object.keys(en)
 export const ventanasCon = (en: EnVentana) => [...new Set(Object.values(en))].sort((a, b) => numero(a) - numero(b))
 const numero = (id: string) => Number(id.slice('ventana-'.length)) || 0
 /** «Ventana 2», para Levy y los títulos. */
-export const nombreVentana = (id: string) => id === PRINCIPAL ? 'Panel principal' : `Ventana ${numero(id)}`
+export const nombreVentana = (id: string) => id === PRINCIPAL ? tr('Panel principal') : tr('Ventana {n}', { n: numero(id) })
 
 /** La ventana nueva toma el primer número libre: así reusa el lugar (monitor, posición, tamaño) que la app recuerda de esa etiqueta. */
 export function ventanaNueva(en: EnVentana, abiertas: string[] = []) {

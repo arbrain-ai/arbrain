@@ -11,6 +11,7 @@ import { computerUseDisponible, plataformaServidor } from '@/features/permisos/l
 import { pantallaVirtualServidor } from '@/features/permisos/lib/pantalla-server'
 import { entregarSiguiente } from '@/features/primer-arranque/lib/tour-servidor'
 import { publicarCapitulo } from '@/features/primer-arranque/lib/tour-chat'
+import { tr } from '@/shared/i18n'
 
 // Primer arranque de la edición cliente (11 oct 2026): aceptación de los textos legales, nombre y cierre con el
 // primer mensaje de Levy. Solo la app (cookie del secreto por instalación); en la instalación de Daniel no existe.
@@ -31,7 +32,7 @@ export async function GET() {
     // Archivo ilegible o sin carpeta de datos: 503 con el motivo (nunca «falta: true», que mandaría a la bienvenida).
     const motivo = e instanceof PrimerArranqueIlegible ? 'ilegible' : e instanceof ConfiguracionFaltante ? 'sin-configuracion' : 'error'
     if (motivo === 'error') console.error(`[primer-arranque] GET: ${e instanceof Error ? e.stack ?? e.message : String(e)}`)
-    return Response.json({ error: e instanceof Error ? e.message : 'No pude leer el estado.', motivo, archivo: e instanceof PrimerArranqueIlegible ? e.ruta : null }, { status: 503, headers: NOCACHE })
+    return Response.json({ error: e instanceof Error ? e.message : tr('No pude leer el estado.'), motivo, archivo: e instanceof PrimerArranqueIlegible ? e.ruta : null }, { status: 503, headers: NOCACHE })
   }
 }
 
@@ -43,7 +44,7 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({})) as Cuerpo
   try {
     if (body.accion === 'aceptar') {
-      if (body.version !== VERSION_TEXTOS) return Response.json({ error: 'Los textos cambiaron. Recarga para leer la versión nueva.' }, { status: 409, headers: NOCACHE })
+      if (body.version !== VERSION_TEXTOS) return Response.json({ error: tr('Los textos cambiaron. Recarga para leer la versión nueva.') }, { status: 409, headers: NOCACHE })
       return Response.json({ estado: guardarPrimerArranque({ aceptado: { version: VERSION_TEXTOS, fecha: new Date().toISOString() } }) }, { headers: NOCACHE })
     }
     if (body.accion === 'nombre') {
@@ -52,14 +53,14 @@ export async function POST(request: Request) {
     }
     if (body.accion === 'completar') {
       const estado = leerPrimerArranque()
-      if (estado.aceptado?.version !== VERSION_TEXTOS) return Response.json({ error: 'Falta aceptar el aviso de privacidad, los términos y la licencia.' }, { status: 409, headers: NOCACHE })
+      if (estado.aceptado?.version !== VERSION_TEXTOS) return Response.json({ error: tr('Falta aceptar el aviso de privacidad, los términos y la licencia.') }, { status: 409, headers: NOCACHE })
       // La conversación de bienvenida nace una sola vez; si ya existe, se reabre.
       let sesion = estado.sesionBienvenida
       if (!sesion) {
         sesion = randomUUID()
         const db = createServiceClient()
         const ahora = new Date().toISOString()
-        const s = await db.from('chat_sessions').insert({ id: sesion, title: 'Bienvenida', profile_id: LOCAL_DESKTOP_USER_ID, account: null, last_message_at: ahora, is_favorite: false, archived_at: null })
+        const s = await db.from('chat_sessions').insert({ id: sesion, title: tr('Bienvenida'), profile_id: LOCAL_DESKTOP_USER_ID, account: null, last_message_at: ahora, is_favorite: false, archived_at: null })
         if (s.error) throw new Error(s.error.message)
         // El nivel que eligió en el paso de autonomía (0.2.15): lo dice el daemon; sin respuesta, el mensaje de siempre.
         let modo: 'preguntar' | 'carpeta' | 'autonomo' | undefined
@@ -81,8 +82,8 @@ export async function POST(request: Request) {
       }
       return Response.json({ estado: final, sesion }, { headers: NOCACHE })
     }
-    return Response.json({ error: 'Acción desconocida.' }, { status: 400, headers: NOCACHE })
+    return Response.json({ error: tr('Acción desconocida.') }, { status: 400, headers: NOCACHE })
   } catch (e) {
-    return Response.json({ error: e instanceof Error ? e.message : 'No pude guardar.' }, { status: 503, headers: NOCACHE })
+    return Response.json({ error: e instanceof Error ? e.message : tr('No pude guardar.') }, { status: 503, headers: NOCACHE })
   }
 }

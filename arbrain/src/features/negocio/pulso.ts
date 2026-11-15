@@ -14,19 +14,20 @@ import { estado as estadoRutina } from '@/features/rutinas/model'
 import { esAgente, type Trabajos } from '@/features/cabina/trabajos-modelo'
 import { iniciales, type Velo, enmascarar } from '@/lib/modo-directo/reglas'
 import type { Embudo } from './embudo'
-import type { CanalPulso, RespuestaMarketing } from './marketing'
+import { dm, rango, type CanalPulso, type RespuestaMarketing } from './marketing'
+import { tr, trMarca } from '@/shared/i18n'
 
 export const ORGANOS = ['marketing', 'venta', 'comprador', 'entrega', 'finanzas', 'sistemas'] as const
 export type Organo = (typeof ORGANOS)[number]
 
 /** Lo que muestra cada tarjeta: el órgano y la pregunta que contesta su número. */
 export const ORGANO: Record<Organo, { nombre: string; pregunta: string }> = {
-  marketing: { nombre: 'Marketing', pregunta: '¿Cuánta gente te descubre?' },
-  venta: { nombre: 'Venta', pregunta: '¿Cuántos compran?' },
-  comprador: { nombre: 'Mente del comprador', pregunta: '¿Qué dice, qué teme y qué desea?' },
-  entrega: { nombre: 'Entrega', pregunta: '¿Avanzan tus fundadores?' },
-  finanzas: { nombre: 'Finanzas', pregunta: '¿Qué entró y qué salió?' },
-  sistemas: { nombre: 'Sistemas', pregunta: '¿Trabaja solo?' },
+  marketing: { nombre: 'Marketing', pregunta: trMarca('¿Cuánta gente te descubre?') },
+  venta: { nombre: trMarca('Venta'), pregunta: trMarca('¿Cuántos compran?') },
+  comprador: { nombre: trMarca('Mente del comprador'), pregunta: trMarca('¿Qué dice, qué teme y qué desea?') },
+  entrega: { nombre: trMarca('Entrega'), pregunta: trMarca('¿Avanzan tus fundadores?') },
+  finanzas: { nombre: trMarca('Finanzas'), pregunta: trMarca('¿Qué entró y qué salió?') },
+  sistemas: { nombre: trMarca('Sistemas'), pregunta: trMarca('¿Trabaja solo?') },
 }
 
 /** Adónde lleva tocar la tarjeta: su órgano (comprador) o la vista que ya tiene el detalle (`bi`: edición del alumno). */
@@ -73,7 +74,25 @@ export interface CohortePulso {
     cuposPagados: number | null
     llamadas: { total: number; presento: number; noLlego: number; canceladas: number; porVenir: number; sinMarca: number } | null
   }
-  fundadores: { cerebro: unknown; atorado: unknown }[]
+  fundadores: { cerebro: unknown; atorado: unknown; casillas?: { numero: number; marcada: boolean }[] | null }[]
+  /** Lo que entró fuera de Polar (transferencia, trueque, forma de pago por fijar), del archivo de compromisos que Levy lleva
+   *  a mano. null = no se pudo leer (sin dato, no «nadie»). */
+  compromisos?: { actualizado: string; lineas: { via: string; cobrado: number | null; cobradoMxn: number }[] } | null
+}
+
+/**
+ * Los lugares de la cohorte que Polar NO ve (14 nov 2026, Daniel: «Polar no ve a quien pagó por transferencia… falta de
+ * medición no es cero»). No hay una sola fuente de todos los pagados: Polar cuenta los suyos en vivo y lo demás vive en el
+ * archivo de compromisos, a mano y con fecha. Por eso no se suman: se dicen aparte, con su fecha.
+ */
+export function fueraDePolar(d: Pick<CohortePulso, 'compromisos'>): { transferencia: number; trueque: number; porFijar: number; al: string } | null {
+  const c = d.compromisos
+  if (!c || !Array.isArray(c.lineas)) return null
+  const pago = (x: { cobrado: number | null; cobradoMxn: number }) => (x.cobrado ?? 0) > 0 || x.cobradoMxn > 0
+  const fuera = c.lineas.filter(x => x.via !== 'polar')
+  const transferencia = fuera.filter(x => x.via === 'transferencia' && pago(x)).length
+  const trueque = fuera.filter(x => x.via === 'trueque').length
+  return { transferencia, trueque, porFijar: fuera.length - transferencia - trueque, al: /^\d{4}-\d{2}-\d{2}/.test(c.actualizado) ? dm(c.actualizado.slice(0, 10)) : '' }
 }
 
 /** Una lectura de `useFuente` reducida a lo que el pulso necesita. */
@@ -82,16 +101,16 @@ export interface LecturaDe<T> { data?: T; error?: string }
 const MXN = (n: number) => `$${Math.round(n).toLocaleString('es-MX')} MXN`
 const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`
 
-const RARA = 'La fuente respondió algo que no se esperaba.'
+const RARA = trMarca('La fuente respondió algo que no se esperaba.')
 const obj0 = (x: unknown): x is Record<string, unknown> => !!x && typeof x === 'object' && !Array.isArray(x)
 
 const FUENTE = {
   marketing: 'YouTube Analytics y enlaces rastreados',
   venta: 'Polar y la plataforma · cohorte fundadora',
-  comprador: 'La voz del cliente (voz-del-cliente.json)',
+  comprador: trMarca('La voz del cliente (voz-del-cliente.json)'),
   entrega: 'La plataforma · el cerebro de cada fundador',
   finanzas: 'Finanzas · tus cuentas, últimos 30 días',
-  sistemas: 'Taller · rutinas y agentes',
+  sistemas: trMarca('Taller · rutinas y agentes'),
 } as const satisfies Record<Organo, string>
 
 /** Común a las fuentes que se leen: modo directo, error o leyendo. null = ya hay datos. */
@@ -120,7 +139,14 @@ export function pulsoMarketing(l: LecturaDe<RespuestaMarketing> = {}): Pulso {
   if (!r.canales.some(c => c.cifras.some(x => x.valor !== null))) return { ...sinSensor('Esperando primer dato de tus canales: el reporte de YouTube tarda hasta 48 h.'), canales: r.canales }
   const fecha = r.generado ? new Date(r.generado) : null
   const cuando = fecha && !Number.isNaN(fecha.getTime()) ? ` · sensor del ${fecha.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', timeZone: 'America/Mexico_City' })}` : ''
-  return { organo: 'marketing', estado: 'numero', fuente: `${FUENTE.marketing}${cuando}`, canales: r.canales }
+  // La cifra del órgano (14 nov 2026, mapa v16: de lejos decía «sin dato» con los canales llenos): las vistas de la semana del
+  // canal principal, con sus suscriptores nuevos. El panel sigue pintando cada canal completo.
+  const principal = r.canales.find(c => c.cifras.some(x => x.id === 'vistas' && x.valor !== null))
+  const vistas = principal?.cifras.find(x => x.id === 'vistas'), subs = principal?.cifras.find(x => x.id === 'subs')
+  const semana = vistas?.desde && vistas.hasta ? ` · ${rango(vistas.desde, vistas.hasta)}` : ''
+  const detalle = [subs?.valor != null ? `${subs.valor} ${trMarca('suscriptores nuevos')}${subs.nota ? ` (${subs.nota})` : ''}` : null, vistas?.cambio ?? null].filter((x): x is string => !!x)
+  return { organo: 'marketing', estado: 'numero', fuente: `${FUENTE.marketing}${cuando}`, canales: r.canales,
+    ...(vistas?.valor ? { cifra: vistas.valor, unidad: `${trMarca('vistas en 7 días')}${semana}`, ...(detalle.length ? { detalle } : {}) } : {}) }
 }
 
 /** Venta: los lugares pagados de la cohorte (Polar, sin pruebas), con las llamadas que se presentaron. */
@@ -130,10 +156,15 @@ export function pulsoVenta(l: LecturaDe<CohortePulso>, oculto = false): Pulso {
   if (!obj0(l.data!.numeros)) return { organo: 'venta', estado: 'error', fuente: FUENTE.venta, error: RARA, abre: 'cohorte' }
   const n = l.data!.numeros
   if (n.cuposPagados === null) return { organo: 'venta', estado: 'error', fuente: FUENTE.venta, error: 'Polar no respondió.', abre: 'cohorte' }
+  // La cifra es la de Polar y lo dice: quien pagó por transferencia no está en Polar (nunca se afirma como el total).
   const detalle: string[] = []
-  if (l.data!.cupo) detalle.push(`Cupo de ${l.data!.cupo}`)
+  const fuera = fueraDePolar(l.data!)
+  if (fuera) {
+    const partes = [fuera.transferencia ? `${fuera.transferencia} por transferencia` : null, fuera.trueque ? `${fuera.trueque} por trueque` : null, fuera.porFijar ? `${fuera.porFijar} por fijar` : null].filter((x): x is string => !!x)
+    if (partes.length) detalle.push(`Fuera de Polar: ${partes.join(' · ')} (anotado a mano${fuera.al ? ` al ${fuera.al}` : ''})`)
+  }
   if (n.llamadas && n.llamadas.total) detalle.push(`${n.llamadas.presento} de ${plural(n.llamadas.total, 'llamada', 'llamadas')} se presentaron`)
-  return { organo: 'venta', estado: 'numero', cifra: String(n.cuposPagados), unidad: n.cuposPagados === 1 ? 'lugar pagado de la cohorte' : 'lugares pagados de la cohorte', detalle, fuente: FUENTE.venta, abre: 'cohorte' }
+  return { organo: 'venta', estado: 'numero', cifra: String(n.cuposPagados), unidad: 'por Polar · transferencias aparte', detalle, fuente: FUENTE.venta, abre: 'cohorte' }
 }
 
 /** Entrega: cuántos fundadores ya conectaron su cerebro y cuántos están atorados. */
@@ -192,12 +223,12 @@ export function pulsoComprador(l: LecturaDe<RespuestaComprador>): Pulso {
   const voz = r.activo && obj0(r.voz) ? r.voz : null
   if (!voz?.datos || !voz.datos.citas.length) {
     return { organo: 'comprador', estado: 'sin-sensor', fuente: FUENTE.comprador, abre: 'comprador',
-      falta: voz?.errores?.length ? 'La voz del cliente tiene un formato que no se pudo leer; Levy la corrige.' : 'La voz del cliente: las citas de tus llamadas y mensajes. Levy la está reuniendo.' }
+      falta: voz?.errores?.length ? trMarca('La voz del cliente tiene un formato que no se pudo leer; Levy la corrige.') : trMarca('La voz del cliente: las citas de tus llamadas y mensajes. Levy la está reuniendo.') }
   }
   const top = voz.datos.resumen.top_objeciones[0]
   return {
-    organo: 'comprador', estado: 'numero', cifra: String(voz.datos.citas.length), unidad: voz.datos.citas.length === 1 ? 'cita de tus clientes' : 'citas de tus clientes',
-    detalle: top ? [`Objeción nº 1: ${top.texto}`] : [], fuente: FUENTE.comprador, abre: 'comprador',
+    organo: 'comprador', estado: 'numero', cifra: String(voz.datos.citas.length), unidad: voz.datos.citas.length === 1 ? tr('cita de tus clientes') : tr('citas de tus clientes'),
+    detalle: top ? [tr('Objeción nº 1: {texto}', { texto: top.texto })] : [], fuente: FUENTE.comprador, abre: 'comprador',
   }
 }
 
@@ -230,12 +261,12 @@ function tema(x: unknown): Tema | null {
  * resumen{top_objeciones,top_deseos,top_dolores}.
  */
 export function leerVoz(x: unknown): { voz: VozCliente | null; errores: string[] } {
-  if (!obj(x)) return { voz: null, errores: ['El archivo no es un objeto JSON.'] }
-  if (!Array.isArray(x.citas)) return { voz: null, errores: ['Falta la lista «citas».'] }
+  if (!obj(x)) return { voz: null, errores: [tr('El archivo no es un objeto JSON.')] }
+  if (!Array.isArray(x.citas)) return { voz: null, errores: [tr('Falta la lista «citas».')] }
   const errores: string[] = []
   const citas: Cita[] = []
   for (const [i, c] of x.citas.entries()) {
-    if (!obj(c) || !texto(c.texto)) { errores.push(`Cita ${i + 1}: falta «texto».`); continue }
+    if (!obj(c) || !texto(c.texto)) { errores.push(tr('Cita {n}: falta «texto».', { n: i + 1 })); continue }
     citas.push({ texto: texto(c.texto)!, quien: texto(c.quien), tipo: texto(c.tipo), tema: texto(c.tema), nivel_conciencia: texto(c.nivel_conciencia), objecion_tipo: texto(c.objecion_tipo) })
   }
   const r = obj(x.resumen) ? x.resumen : {}

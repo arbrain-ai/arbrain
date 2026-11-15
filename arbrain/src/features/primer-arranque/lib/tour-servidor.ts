@@ -8,6 +8,8 @@ import { join } from 'node:path'
 import { raizWorkspace } from '@/lib/rutas-instalacion'
 import { separarRutinas, type ListaRutinas } from '@/lib/rutinas-cliente'
 import { GUION_INCORPORADO } from '../textos/tour-guion'
+import { GUION_INCORPORADO_EN } from '../textos/tour-guion-en'
+import { idiomaActual } from '@/shared/i18n'
 import { guardarPrimerArranque, leerPrimerArranque } from './estado'
 import {
   manualesDelIndice, parsearGuion, pausarTour, planTour, saltarTour, siguienteCapitulo, textoCapitulo, textoManuales,
@@ -21,16 +23,23 @@ const RUTAS_MANUALES = [join('arbrain', 'cerebro', 'manuales', 'README.md'), joi
 
 const raiz = (r?: string) => { if (r) return r; try { return raizWorkspace() } catch { return null } }
 
-/** El guion del dueño si existe y trae capítulos; si no, el incorporado. */
-export function leerGuion(r?: string): Guion {
+/** El guion en inglés (Ajustes › Idioma en English), junto al español en la misma skill. */
+export const RUTA_GUION_EN = join('.claude', 'skills', 'tour-bienvenida', 'guion.en.md')
+
+/**
+ * El guion del dueño si existe y trae capítulos; si no, el incorporado. Con English: su `guion.en.md`, si no el
+ * incorporado en inglés (nunca el español: el recorrido sale entero en el idioma de Ajustes).
+ */
+export function leerGuion(r?: string, idioma = idiomaActual()): Guion {
   const base = raiz(r)
+  const [ruta, incorporado] = idioma === 'en' ? [RUTA_GUION_EN, GUION_INCORPORADO_EN] : [RUTA_GUION, GUION_INCORPORADO]
   if (base) {
     try {
-      const g = parsearGuion(readFileSync(join(base, RUTA_GUION), 'utf8'))
+      const g = parsearGuion(readFileSync(join(base, ruta), 'utf8'))
       if (g.capitulos.length) return g
     } catch { /* sin archivo: el incorporado */ }
   }
-  return parsearGuion(GUION_INCORPORADO)
+  return parsearGuion(incorporado)
 }
 
 /** Los manuales del índice vivo; null si no hay índice. */

@@ -8,6 +8,7 @@ import { estadoDirecto } from '@/lib/modo-directo/servidor'
 import { panelNegocioEncendido } from '@/features/negocio/embudo'
 import { FUENTES_COMPRADOR, leerVoz, piezaDe, RUTA_VOZ, velarVoz, type Pieza, type RespuestaComprador } from '@/features/negocio/pulso'
 import { ETIQUETAS_COMPRADOR_CLIENTE, FUENTES_COMPRADOR_CLIENTE } from '@/features/negocio/pulso-cliente'
+import { tr } from '@/shared/i18n'
 
 // Tu negocio › El pulso › Mente del comprador (7 nov 2026). El avatar (arquitectura de marketing), el vehículo del alumno
 // (su memoria canónica) y la voz del cliente (voz-del-cliente.json, la arma Levy con llamadas y mensajes). El canal lo lee
@@ -44,7 +45,7 @@ export async function GET() {
       const { voz: datos, errores } = leerVoz(JSON.parse(await readFile(path.join(base, RUTA_VOZ), 'utf8')))
       voz = { ruta: RUTA_VOZ, existe: true, datos: datos && prendido ? velarVoz(datos, velo) : datos, ...(errores.length ? { errores: errores.slice(0, 8) } : {}) }
     } catch (e) {
-      if ((e as NodeJS.ErrnoException)?.code !== 'ENOENT') voz = { ruta: RUTA_VOZ, existe: true, datos: null, errores: ['El archivo de la voz del cliente no es JSON válido.'] }
+      if ((e as NodeJS.ErrnoException)?.code !== 'ENOENT') voz = { ruta: RUTA_VOZ, existe: true, datos: null, errores: [tr('El archivo de la voz del cliente no es JSON válido.')] }
     }
     return Response.json({ activo: true, avatar, vehiculo, voz, directo: prendido, ...etiquetas } satisfies RespuestaComprador, { headers: NOCACHE })
   } catch (error) {

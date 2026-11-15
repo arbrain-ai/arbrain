@@ -7,6 +7,7 @@
  * piezas: sesión, origen, `relativaSegura`, la lista visible, `realpath` dentro de la raíz y `spawn` con argumentos, sin shell.
  */
 import { relativaSegura, esCarpeta } from './arbol'
+import { tr } from '@/shared/i18n'
 
 /** La carpeta que se está viendo: la fila con el foco si es carpeta, la carpeta de un archivo, o la raíz. */
 export function carpetaDeFoco(foco: string | null | undefined, tipo: 'carpeta' | 'archivo' | null | undefined): string {
@@ -40,10 +41,10 @@ export function pedidoLocal(headers: { get(nombre: string): string | null }): bo
 
 /** Valida la carpeta pedida contra la lista visible del explorador: relativa, sin «..», sin lo escondido y existente. */
 export function carpetaPermitida(pedida: unknown, lista: readonly string[]): { rel: string } | { error: string; status: number } {
-  if (pedida != null && typeof pedida !== 'string') return { error: 'Ruta inválida.', status: 400 }
+  if (pedida != null && typeof pedida !== 'string') return { error: tr('Ruta inválida.'), status: 400 }
   const r = relativaSegura(pedida as string | null | undefined)
   if ('error' in r) return { error: r.error, status: 403 }
-  if (!esCarpeta(lista, r.rel)) return { error: 'Esa carpeta no existe en el explorador.', status: 404 }
+  if (!esCarpeta(lista, r.rel)) return { error: tr('Esa carpeta no existe en el explorador.'), status: 404 }
   return r
 }
 
@@ -64,15 +65,15 @@ export type Comando = { cmd: string; args: string[] } | { error: string }
  * Windows: Explorer necesita barras invertidas (con «/» abre Documentos). Linux sin DISPLAY ni WAYLAND_DISPLAY: no hay a quién pedírselo.
  */
 export function comandoAbrir(plataforma: string, ruta: string, env: Record<string, string | undefined> = {}): Comando {
-  if (!ruta || ruta.includes('\0')) return { error: 'Ruta inválida.' }
+  if (!ruta || ruta.includes('\0')) return { error: tr('Ruta inválida.') }
   // Solo absolutas: así la ruta nunca se lee como opción («-a…» para open, «/select,…» para Explorer).
   if (plataforma === 'win32') {
     const w = ruta.replace(/\//g, '\\')
-    if (!/^([A-Za-z]:\\|\\\\[^\\])/.test(w)) return { error: 'Ruta inválida.' }
+    if (!/^([A-Za-z]:\\|\\\\[^\\])/.test(w)) return { error: tr('Ruta inválida.') }
     return { cmd: 'explorer.exe', args: [w] }
   }
-  if (!ruta.startsWith('/')) return { error: 'Ruta inválida.' }
+  if (!ruta.startsWith('/')) return { error: tr('Ruta inválida.') }
   if (plataforma === 'darwin') return { cmd: 'open', args: [ruta] }
-  if (!env.DISPLAY && !env.WAYLAND_DISPLAY) return { error: 'Esta computadora no tiene entorno gráfico: no hay un gestor de archivos que abrir.' }
+  if (!env.DISPLAY && !env.WAYLAND_DISPLAY) return { error: tr('Esta computadora no tiene entorno gráfico: no hay un gestor de archivos que abrir.') }
   return { cmd: 'xdg-open', args: [ruta] }
 }

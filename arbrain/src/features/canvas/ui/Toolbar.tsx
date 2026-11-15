@@ -18,6 +18,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Tool } from '../input/pointers'
 import type { Theme } from '../theme/tokens'
 import * as I from './icons'
+import { tr, trn, trMarca } from '@/shared/i18n'
 
 type IconFn = (p: { size?: number }) => React.ReactElement
 
@@ -26,8 +27,8 @@ interface Item { tool: Tool; label: string; key: string; icon: IconFn }
 /** Los grupos del rail. El orden es el de la mano, no el del código. */
 const GRUPOS: Array<{ id: string; items: Item[] }> = [
   { id: 'puntero', items: [
-    { tool: 'select', label: 'Seleccionar', key: 'V', icon: I.IconCursor },
-    { tool: 'pan', label: 'Mano', key: 'H', icon: I.IconHand },
+    { tool: 'select', label: trMarca('Seleccionar'), key: 'V', icon: I.IconCursor },
+    { tool: 'pan', label: trMarca('Mano'), key: 'H', icon: I.IconHand },
   ]},
   // NOTA y TEXTO viven en primer nivel, cada una con su boton.
   //
@@ -35,34 +36,34 @@ const GRUPOS: Array<{ id: string; items: Item[] }> = [
   // TEXTO no se veia nunca — Daniel: *"falta el icono que me permite añadir
   // texto"*. Un grupo tiene sentido para ocho formas que comparten gesto; no
   // para tres herramientas que no se parecen en nada y se usan a diario.
-  { id: 'nota', items: [{ tool: 'sticky', label: 'Nota', key: 'N', icon: I.IconSticky }] },
-  { id: 'texto', items: [{ tool: 'text', label: 'Texto', key: 'T', icon: I.IconText }] },
+  { id: 'nota', items: [{ tool: 'sticky', label: trMarca('Nota'), key: 'N', icon: I.IconSticky }] },
+  { id: 'texto', items: [{ tool: 'text', label: trMarca('Texto'), key: 'T', icon: I.IconText }] },
   { id: 'formas', items: [
-    { tool: 'rect', label: 'Rectángulo', key: 'R', icon: I.IconSquare },
-    { tool: 'ellipse', label: 'Círculo', key: 'O', icon: I.IconCircle },
-    { tool: 'triangle', label: 'Triángulo', key: '', icon: I.IconTriangle },
-    { tool: 'diamond', label: 'Rombo', key: '', icon: I.IconDiamond },
-    { tool: 'star', label: 'Estrella', key: '', icon: I.IconStar },
-    { tool: 'pill', label: 'Píldora', key: '', icon: I.IconPill },
-    { tool: 'hexagon', label: 'Hexágono', key: '', icon: I.IconHexagon },
-    { tool: 'arrow', label: 'Flecha', key: '', icon: I.IconArrowShape },
+    { tool: 'rect', label: trMarca('Rectángulo'), key: 'R', icon: I.IconSquare },
+    { tool: 'ellipse', label: trMarca('Círculo'), key: 'O', icon: I.IconCircle },
+    { tool: 'triangle', label: trMarca('Triángulo'), key: '', icon: I.IconTriangle },
+    { tool: 'diamond', label: trMarca('Rombo'), key: '', icon: I.IconDiamond },
+    { tool: 'star', label: trMarca('Estrella'), key: '', icon: I.IconStar },
+    { tool: 'pill', label: trMarca('Píldora'), key: '', icon: I.IconPill },
+    { tool: 'hexagon', label: trMarca('Hexágono'), key: '', icon: I.IconHexagon },
+    { tool: 'arrow', label: trMarca('Flecha'), key: '', icon: I.IconArrowShape },
   ]},
   { id: 'conector', items: [
-    { tool: 'connector', label: 'Conector', key: 'C', icon: I.IconConnector },
+    { tool: 'connector', label: trMarca('Conector'), key: 'C', icon: I.IconConnector },
   ]},
   { id: 'seccion', items: [
-    { tool: 'section', label: 'Sección', key: 'S', icon: I.IconSection },
+    { tool: 'section', label: trMarca('Sección'), key: 'S', icon: I.IconSection },
   ]},
   { id: 'tinta', items: [
-    { tool: 'pen', label: 'Lápiz', key: 'P', icon: I.IconPen },
-    { tool: 'highlighter', label: 'Marcador', key: 'M', icon: I.IconMarker },
-    { tool: 'eraser', label: 'Goma', key: 'E', icon: I.IconEraser },
+    { tool: 'pen', label: trMarca('Lápiz'), key: 'P', icon: I.IconPen },
+    { tool: 'highlighter', label: trMarca('Marcador'), key: 'M', icon: I.IconMarker },
+    { tool: 'eraser', label: trMarca('Goma'), key: 'E', icon: I.IconEraser },
   ]},
   { id: 'insertar', items: [
-    { tool: 'table', label: 'Tabla', key: '', icon: I.IconTable },
-    { tool: 'image', label: 'Imagen', key: '', icon: I.IconImage },
-    { tool: 'embed', label: 'Embed', key: '', icon: I.IconEmbed },
-    { tool: 'code', label: 'Código', key: '', icon: I.IconCode },
+    { tool: 'table', label: trMarca('Tabla'), key: '', icon: I.IconTable },
+    { tool: 'image', label: trMarca('Imagen'), key: '', icon: I.IconImage },
+    { tool: 'embed', label: trMarca('Embed'), key: '', icon: I.IconEmbed },
+    { tool: 'code', label: trMarca('Código'), key: '', icon: I.IconCode },
   ]},
 ]
 
@@ -152,7 +153,7 @@ export function Toolbar({ tool, theme, onPick, tinta, onTinta }: Props) {
               }} />
             )}
             <button
-              aria-label={mostrado.label}
+              aria-label={tr(mostrado.label)}
               data-tool={mostrado.tool}
               onPointerEnter={() => setSobre(g.id)}
               onPointerLeave={() => setSobre(null)}
@@ -222,7 +223,7 @@ export function Toolbar({ tool, theme, onPick, tinta, onTinta }: Props) {
                 display: 'flex', alignItems: 'center', gap: 7,
                 boxShadow: '0 4px 14px rgba(0,0,0,.28)',
               }}>
-                {mostrado.label}
+                {tr(mostrado.label)}
                 {mostrado.key && (
                   <span style={{
                     padding: '1px 5px', borderRadius: 4, font: '700 10px CanvasSans, system-ui',
@@ -230,7 +231,7 @@ export function Toolbar({ tool, theme, onPick, tinta, onTinta }: Props) {
                   }}>{mostrado.key}</span>
                 )}
                 {tieneVariantes && (
-                  <span style={{ opacity: .6, font: '500 10.5px CanvasSans' }}>· {g.items.length} variantes</span>
+                  <span style={{ opacity: .6, font: '500 10.5px CanvasSans' }}>· {trn(g.items.length, '{n} variante', '{n} variantes')}</span>
                 )}
               </div>
             )}
@@ -251,7 +252,7 @@ export function Toolbar({ tool, theme, onPick, tinta, onTinta }: Props) {
                   const ItemIcon = item.icon
                   const act = item.tool === tool
                   return (
-                    <button key={item.tool} title={`${item.label}${item.key ? ` (${item.key})` : ''}`}
+                    <button key={item.tool} title={`${tr(item.label)}${item.key ? ` (${item.key})` : ''}`}
                       data-tool-variant={item.tool}
                       onClick={() => elegir(g.id, item.tool)}
                       style={{
@@ -276,7 +277,7 @@ export function Toolbar({ tool, theme, onPick, tinta, onTinta }: Props) {
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 20px)', gap: 4 }}>
                       {TINTAS_LAPIZ.map((c, i) => (
                         <button key={c ?? 'tema'} data-tinta-lapiz={c ?? 'tema'}
-                          title={c ?? 'Tinta del tema (sigue al claro/oscuro)'}
+                          title={c ?? tr('Tinta del tema (sigue al claro/oscuro)')}
                           onClick={() => onTinta({ ...tinta, color: c })}
                           style={{
                             width: 20, height: 20, borderRadius: 6, cursor: 'pointer', padding: 0,

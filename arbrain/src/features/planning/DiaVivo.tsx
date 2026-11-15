@@ -1,7 +1,6 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { addDays, format, startOfDay } from 'date-fns'
-import { es } from 'date-fns/locale'
 import { Plus } from 'lucide-react'
 import type { Goal, GoalSnapshot } from '@/features/goals/model'
 import { taskDay } from '@/features/goals/model'
@@ -27,6 +26,8 @@ import { enElTimeline, eventosExplicitos, listaDelDia, type ItemDia } from './li
 import type { EditorSelection } from './PlanEditor'
 import type { PlanEvent, PlanItem, PlanTask, PlanningSnapshot } from './types'
 import type { Plegado } from './SemanaClara'
+import { tr } from '@/shared/i18n'
+import { localeFechas } from '@/shared/i18n/fechas'
 import d from './dia-vivo.module.css'
 
 /**
@@ -52,7 +53,7 @@ import d from './dia-vivo.module.css'
 /** El hábito que ES el cumplimiento del objetivo del día (plasticidad y rachas lo leen así). Lo marca la estrella. */
 const HABITO_OBJETIVO = 'objetivo_dia'
 
-export function DiaVivo({ goals, guardarObjetivo, onDescripcion, donde, leyenda, fecha, snapshot, eventos, visible, color, tareas, cargando, todoistCaido, ocupado, rejilla, onRejilla, onAbrir, onCompletar, onReabrir, onPrioridad, onDeshacer, onNueva, onObjetivo, enfoque = false, plegado, central = true, dosColumnas = false }: {
+export function DiaVivo({ goals, guardarObjetivo, onDescripcion, donde, leyenda, fecha, snapshot, eventos, visible, color, tareas, cargando, todoistCaido, ocupado, rejilla, onRejilla, onAbrir, onCompletar, onReabrir, onPrioridad, onDeshacer, onNueva, onObjetivo, onMover, enfoque = false, plegado, central = true, dosColumnas = false }: {
   fecha: Date; snapshot: PlanningSnapshot | null; eventos: PlanEvent[]
   /** Los objetivos los lee el calendario UNA vez (5 oct 2026): cambiar de escala o de periodo no relee ni parpadea. */
   goals: { data: GoalSnapshot | null; error: string | null }
@@ -71,6 +72,8 @@ export function DiaVivo({ goals, guardarObjetivo, onDescripcion, donde, leyenda,
   onPrioridad?: (t: PlanTask, p: 1 | 2 | 3 | 4) => Promise<unknown>
   /** Abre la hoja de una tarea nueva (vacía o prellenada: anclar el objetivo). */
   onNueva: (semilla?: EditorSelection) => void
+  /** Arrastrar un evento de la agenda a otra hora (11 nov 2026): la pluma de la Semana (`moverEnRejilla`, con ⌘Z y la guarda de invitados). */
+  onMover?: (evento: PlanEvent, inicio: Date, fin: Date) => void
   /** `✓` en el evento «Objetivo del dia» de Google (dia-vivo.ts, `conMarca`). */
   onObjetivo?: (evento: PlanEvent, cumplido: boolean) => Promise<unknown>
   /** Las casillas del objetivo: el registro (como la Semana) o la descripción de su tarea/evento, por la misma pluma. */
@@ -116,8 +119,8 @@ export function DiaVivo({ goals, guardarObjetivo, onDescripcion, donde, leyenda,
   const casillasRef = useRef(casillas); casillasRef.current = casillas
   const guardarCasillas = casillas && (casillas.origen === 'plan' ? guardarObjetivo : onDescripcion) ? (texto: string) => {
     const f = casillasRef.current
-    if (!f) return Promise.reject(new Error('El objetivo cambió. Vuelve a intentarlo.'))
-    if (f.origen === 'plan') return plan && guardarObjetivo ? guardarObjetivo({ ...plan, success: texto }) : Promise.reject(new Error('Sin registro'))
+    if (!f) return Promise.reject(new Error(tr('El objetivo cambió. Vuelve a intentarlo.')))
+    if (f.origen === 'plan') return plan && guardarObjetivo ? guardarObjetivo({ ...plan, success: texto }) : Promise.reject(new Error(tr('Sin registro')))
     return onDescripcion!(f.origen === 'tarea' ? f.tarea : f.evento, texto)
   } : undefined
   // La pluma de las casillas, una para la lista y el timeline (lo marcado se ve en los dos al instante).
@@ -200,12 +203,12 @@ export function DiaVivo({ goals, guardarObjetivo, onDescripcion, donde, leyenda,
   // Lo que abre el objetivo del día (25 oct 2026, un solo esqueleto con Semana y Mes): sus casillas y, sin objetivo, fijar uno.
   const lleno = titulo || lista.length > 0
   const objetivoDetalle = lleno || !leyendoObjetivo || esperan > 0 ? <>
-      {!titulo && !leyendoObjetivo && <button className={d.objVacio} onClick={fijarObjetivo} disabled={!snapshot || ocupado}><Plus size={13} aria-hidden />Fijar el objetivo del día</button>}
+      {!titulo && !leyendoObjetivo && <button className={d.objVacio} onClick={fijarObjetivo} disabled={!snapshot || ocupado}><Plus size={13} aria-hidden />{tr('Fijar el objetivo del día')}</button>}
       {lista.length > 0 && lista.length <= 12 && <Segmentos k={hechasN} n={lista.length} i={1} />}
-      {cargando && !snapshot && !lista.length ? <p className={d.vacio}>Leyendo Todoist…</p> : todoistCaido && !lista.length ? <p className={d.vacio}>Todoist no se pudo leer.</p> : null}
+      {cargando && !snapshot && !lista.length ? <p className={d.vacio}>{tr('Leyendo Todoist…')}</p> : todoistCaido && !lista.length ? <p className={d.vacio}>{tr('Todoist no se pudo leer.')}</p> : null}
       <ListaDia items={lista} alternar={alternarItem} puede={puedeItem} evento={eventoDeItem} resaltado={resaltado} onResaltar={setResaltado}
         onAbrir={onAbrir} onPrioridad={cambiarPrioridad} onNueva={snapshot && !ocupado ? () => onNueva() : undefined} onAgregar={pluma.puede && titulo ? pluma.agregar : undefined} fallo={pluma.fallo} />
-      {otros.length > 0 && <ul className={d.otrosObjetivos} aria-label="Más objetivos del día">
+      {otros.length > 0 && <ul className={d.otrosObjetivos} aria-label={tr('Más objetivos del día')}>
         {otros.map(o => <li key={o.titulo} data-hecho={o.hecho || undefined}>{o.titulo}</li>)}
       </ul>}
       {decisiones}
@@ -220,7 +223,7 @@ export function DiaVivo({ goals, guardarObjetivo, onDescripcion, donde, leyenda,
   // de Producir sigue en su hoja (HojaDrip), un toque sobre el bloque.
   const agendaMini = <div className={d.cuerpo}>
       <AgendaMini central={central} llenar={dosColumnas} bloques={agenda.bloques} bandas={agenda.bandas} fecha={fecha} ahora={ahora} esHoy={esHoy} pasado={pasado} cargando={cargando && !snapshot}
-        onAbrir={onAbrir} pendientes={{ dentro: enAgenda.dentro, sueltas: enAgenda.sueltas, alternar: alternarItem, puede: puedeItem, resaltado, onResaltar: setResaltado }} />
+        onAbrir={onAbrir} onMover={onMover} pendientes={{ dentro: enAgenda.dentro, sueltas: enAgenda.sueltas, alternar: alternarItem, puede: puedeItem, resaltado, onResaltar: setResaltado }} />
     </div>
   const habitos = <>
     {/* Hábitos de hoy, en mínimo (25 oct 2026): una línea por hábito con casilla y racha; su historia vive en la vista H.
@@ -228,12 +231,12 @@ export function DiaVivo({ goals, guardarObjetivo, onDescripcion, donde, leyenda,
     <HabitosHoy dia={dia} donde={donde} habits={habits} today={today} i={6} minimo
       especial={conHabito ? { [HABITO_OBJETIVO]: { hecho: objetivoHecho, onToggle: alternarObjetivo } } : undefined} />
   </>
-  const etiqueta = `Día ${format(fecha, "EEEE d 'de' MMMM", { locale: es })}`
+  const etiqueta = tr('Día {fecha}', { fecha: format(fecha, tr("EEEE d 'de' MMMM"), { locale: localeFechas() }) })
 
   // La franja (25 oct 2026, Daniel: «la UI actual me quita la mitad de la pantalla»): «Hoy · objetivo │ hábitos» en UNA línea
   // arriba; el detalle (el objetivo con sus subobjetivos y los hábitos en mínimo) se abre con un toque. La temporada vive en la vista H.
-  const franja = <FranjaPlan rotulo={<>{esHoy ? 'Hoy' : 'Día'}{cumplido && titulo && <em> · cumplido</em>}</>} titulo={titulo}
-    vacio={leyendoObjetivo ? 'Leyendo el objetivo…' : goals.error && !eventoObjetivo ? 'No se pudo leer el objetivo.' : 'Sin objetivo del día.'}
+  const franja = <FranjaPlan rotulo={<>{esHoy ? tr('Hoy') : tr('Día')}{cumplido && titulo && <em> · {tr('cumplido')}</em>}</>} titulo={titulo}
+    vacio={leyendoObjetivo ? tr('Leyendo el objetivo…') : goals.error && !eventoObjetivo ? tr('No se pudo leer el objetivo.') : tr('Sin objetivo del día.')}
     cuenta={lista.length ? { k: hechasN, n: lista.length } : null} detalle={objetivoDetalle}
     aviso={<AvisoDecisiones n={esperan} />} abrirSenal={abrirHoy}
     {...(dosColumnas ? { clave: 'arbrain.dia.franja-abierta-dos-columnas', abiertaInicial: true } : { recordar: !telefono })} />

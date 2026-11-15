@@ -27,6 +27,7 @@ import { motorSuscripcion, MENSAJE_RUTINAS } from './suscripcion.js'
 import { rutinasConLlaveTope } from './rutinas-llave.js'
 import { MENSAJE_PAUSA, pausado } from './pausa.js'
 import { esPrecargada, metaPrecargadas } from './rutinas-precargadas.js'
+import { tr } from '../i18n/tr.js'
 
 const _require = createRequire(import.meta.url)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -56,18 +57,18 @@ export function idRutina(prompt: string, origen: 'app' | 'levy', ahora = Date.no
 
 /** Horario de 5 campos, solo con lo que entiende cron. Devuelve la próxima corrida o el error en palabras del dueño. */
 export function validarHorario(schedule: unknown): { ok: true; schedule: string; nextRun: number } | { ok: false; error: string } {
-  if (typeof schedule !== 'string') return { ok: false, error: 'Falta cuándo debe correr.' }
+  if (typeof schedule !== 'string') return { ok: false, error: tr('Falta cuándo debe correr.') }
   const s = schedule.trim().replace(/\s+/g, ' ')
-  if (!s || s.split(' ').length !== 5 || !/^[0-9*/,\- ]+$/.test(s)) return { ok: false, error: 'El horario no es válido: usa cinco campos de cron (minuto hora día mes día-de-la-semana).' }
+  if (!s || s.split(' ').length !== 5 || !/^[0-9*/,\- ]+$/.test(s)) return { ok: false, error: tr('El horario no es válido: usa cinco campos de cron (minuto hora día mes día-de-la-semana).') }
   let nextRun: number
-  try { nextRun = computeNextRun(s) } catch { return { ok: false, error: 'El horario no es válido: revisa los números (minuto 0-59, hora 0-23).' } }
+  try { nextRun = computeNextRun(s) } catch { return { ok: false, error: tr('El horario no es válido: revisa los números (minuto 0-59, hora 0-23).') } }
   // Frecuencia: la distancia más corta entre las próximas corridas.
   try {
     const it = parseExpression(s, { tz: CRON_TZ })
     let previa = it.next().getTime()
     for (let i = 0; i < 8; i++) {
       const sig = it.next().getTime()
-      if ((sig - previa) / 1000 < INTERVALO_MINIMO_S) return { ok: false, error: 'Eso correría demasiado seguido. Lo más frecuente es cada 15 minutos.' }
+      if ((sig - previa) / 1000 < INTERVALO_MINIMO_S) return { ok: false, error: tr('Eso correría demasiado seguido. Lo más frecuente es cada 15 minutos.') }
       previa = sig
     }
   } catch { /* sin siguientes: corre pocas veces, vale */ }
@@ -75,18 +76,18 @@ export function validarHorario(schedule: unknown): { ok: true; schedule: string;
 }
 
 export function validarPrompt(prompt: unknown): { ok: true; prompt: string } | { ok: false; error: string } {
-  if (typeof prompt !== 'string') return { ok: false, error: 'Falta qué quieres que haga.' }
+  if (typeof prompt !== 'string') return { ok: false, error: tr('Falta qué quieres que haga.') }
   const p = prompt.trim()
-  if (p.length < PROMPT_MIN) return { ok: false, error: 'Escribe qué quieres que haga (al menos unas palabras).' }
-  if (p.length > PROMPT_MAX) return { ok: false, error: `Es demasiado largo: máximo ${PROMPT_MAX} caracteres.` }
+  if (p.length < PROMPT_MIN) return { ok: false, error: tr('Escribe qué quieres que haga (al menos unas palabras).') }
+  if (p.length > PROMPT_MAX) return { ok: false, error: tr('Es demasiado largo: máximo {max} caracteres.', { max: PROMPT_MAX }) }
   return { ok: true, prompt: p }
 }
 
 /** Por qué las rutinas no correrían ahora mismo, en una frase; null si nada lo impide. */
 export function avisoRutinas(): string | null {
-  if (faltaLlaveClaude()) return MENSAJE_FALTA_LLAVE
-  if (motorSuscripcion() && !rutinasConLlaveTope()) return MENSAJE_RUTINAS
-  if (pausado()) return MENSAJE_PAUSA
+  if (faltaLlaveClaude()) return tr(MENSAJE_FALTA_LLAVE)
+  if (motorSuscripcion() && !rutinasConLlaveTope()) return tr(MENSAJE_RUTINAS)
+  if (pausado()) return tr(MENSAJE_PAUSA)
   return null
 }
 
@@ -114,7 +115,7 @@ export function atenderRutinas(metodo: string | undefined, ruta: string, cuerpo:
     if (!p.ok) return { status: 400, cuerpo: { error: p.error } }
     const h = validarHorario(cuerpo.schedule)
     if (!h.ok) return { status: 400, cuerpo: { error: h.error } }
-    if (propias().length >= MAX_RUTINAS) return { status: 409, cuerpo: { error: `Ya tienes ${MAX_RUTINAS} rutinas. Borra alguna antes de crear otra.` } }
+    if (propias().length >= MAX_RUTINAS) return { status: 409, cuerpo: { error: tr('Ya tienes {max} rutinas. Borra alguna antes de crear otra.', { max: MAX_RUTINAS }) } }
     const origen = opciones.conPase ? 'levy' : 'app'
     const id = idRutina(p.prompt, origen)
     const status = origen === 'levy' ? 'paused' : 'active'
@@ -135,11 +136,11 @@ export function atenderRutinas(metodo: string | undefined, ruta: string, cuerpo:
   if (!accion && metodo !== 'DELETE') return null
   if (accion && metodo !== 'POST') return null
   const tarea = getTask(id)
-  if (!tarea) return { status: 404, cuerpo: { error: 'Esa rutina ya no existe.' } }
+  if (!tarea) return { status: 404, cuerpo: { error: tr('Esa rutina ya no existe.') } }
   if (!accion) { deleteTask(id); return { status: 200, cuerpo: { ok: true } } }
   if (accion === 'pause') { updateTaskStatus(id, 'paused'); return { status: 200, cuerpo: { ok: true } } }
   let nextRun: number
-  try { nextRun = computeNextRun(tarea.schedule) } catch { return { status: 400, cuerpo: { error: 'Su horario ya no es válido: bórrala y créala de nuevo.' } } }
+  try { nextRun = computeNextRun(tarea.schedule) } catch { return { status: 400, cuerpo: { error: tr('Su horario ya no es válido: bórrala y créala de nuevo.') } } }
   getDb().prepare('UPDATE scheduled_tasks SET status = ?, next_run = ? WHERE id = ?').run('active', nextRun, id)
   return { status: 200, cuerpo: { ok: true, nextRun } }
 }

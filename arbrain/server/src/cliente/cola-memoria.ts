@@ -35,6 +35,7 @@ import { freemem, platform, totalmem } from 'node:os'
 import type Database from 'better-sqlite3'
 import { esEdicionCliente } from '../edicion.js'
 import { leerVmStat } from './computadora.js'
+import { tr } from '../i18n/tr.js'
 
 export type TipoEncargo = 'rutina' | 'subagente'
 export type EstadoEncargo = 'esperando' | 'admitido' | 'lanzado' | 'derivado' | 'soltado'
@@ -271,7 +272,7 @@ export class ColaMemoria {
       const max = this.db.prepare(`SELECT MAX(orden) AS o FROM cola_memoria WHERE estado = 'esperando'`).get() as { o: number | null }
       const id = `cm_${randomBytes(6).toString('hex')}`
       this.db.prepare(`INSERT INTO cola_memoria (id, tipo, ref, titulo, conversacion, estado, orden, creado, forzar, derivacion, actualizado)
-        VALUES (?, ?, ?, ?, ?, 'esperando', ?, ?, 0, 0, ?)`).run(id, p.tipo, p.ref, p.titulo.slice(0, 200) || (p.tipo === 'rutina' ? 'Rutina' : 'Subagente'), p.conversacion ? JSON.stringify(p.conversacion) : null, (max.o ?? 0) + 1, t, t)
+        VALUES (?, ?, ?, ?, ?, 'esperando', ?, ?, 0, 0, ?)`).run(id, p.tipo, p.ref, p.titulo.slice(0, 200) || (p.tipo === 'rutina' ? tr('Rutina') : tr('Subagente')), p.conversacion ? JSON.stringify(p.conversacion) : null, (max.o ?? 0) + 1, t, t)
       e = this.obtener(id)!
     } else if (p.conversacion && !e.conversacion) this.poner(e.id, { conversacion: JSON.stringify(p.conversacion) })
     const salen = await this.revisar()
@@ -410,17 +411,17 @@ export function iniciarRelojCola(cola: ColaMemoria, deps: DepsReloj, cadaMs = 50
 // ── Rutas del daemon (Taller › Agentes) ─────────────────────────────────────────────────────────────────────────
 
 export async function atenderColaMemoria(metodo: string | undefined, ruta: string, cuerpo: unknown, cola: ColaMemoria | null): Promise<{ status: number; cuerpo: unknown } | null> {
-  if (!cola) return { status: 503, cuerpo: { error: 'La cola por memoria no está lista.' } }
+  if (!cola) return { status: 503, cuerpo: { error: tr('La cola por memoria no está lista.') } }
   if (metodo === 'GET' && ruta === '/cola-memoria') return { status: 200, cuerpo: await cola.vista() }
   const c = (cuerpo && typeof cuerpo === 'object' ? cuerpo : {}) as Record<string, unknown>
   const id = typeof c.id === 'string' && /^cm_[0-9a-f]{12}$/.test(c.id) ? c.id : null
   if (metodo === 'POST' && ruta === '/cola-memoria/mover') {
-    if (!id || !Number.isFinite(Number(c.posicion))) return { status: 400, cuerpo: { error: 'Falta id o posición.' } }
-    return cola.mover(id, Number(c.posicion)) ? { status: 200, cuerpo: await cola.vista() } : { status: 404, cuerpo: { error: 'Ese encargo ya no está en la cola.' } }
+    if (!id || !Number.isFinite(Number(c.posicion))) return { status: 400, cuerpo: { error: tr('Falta id o posición.') } }
+    return cola.mover(id, Number(c.posicion)) ? { status: 200, cuerpo: await cola.vista() } : { status: 404, cuerpo: { error: tr('Ese encargo ya no está en la cola.') } }
   }
   if (metodo === 'POST' && ruta === '/cola-memoria/forzar') {
-    if (!id) return { status: 400, cuerpo: { error: 'Falta id.' } }
-    if (!cola.forzar(id)) return { status: 404, cuerpo: { error: 'Ese encargo ya no está en la cola.' } }
+    if (!id) return { status: 400, cuerpo: { error: tr('Falta id.') } }
+    if (!cola.forzar(id)) return { status: 404, cuerpo: { error: tr('Ese encargo ya no está en la cola.') } }
     return { status: 200, cuerpo: await cola.vista() }
   }
   return null
@@ -440,7 +441,7 @@ export const ESPERA_SUBAGENTE_MS = () => Math.min(Math.max(numeroEnv(process.env
 export async function turnoSubagente(cola: ColaMemoria | null, input: unknown, conversacion: ConversacionCola | null | undefined, op: { esperaMs?: number; pasoMs?: number; signal?: AbortSignal } = {}): Promise<string | null> {
   if (!cola?.activa) return null
   const i = (input && typeof input === 'object' ? input : {}) as Record<string, unknown>
-  const titulo = String(i.description ?? i.prompt ?? 'Subagente').replace(/\s+/g, ' ').trim().slice(0, 120) || 'Subagente'
+  const titulo = String(i.description ?? i.prompt ?? tr('Subagente')).replace(/\s+/g, ' ').trim().slice(0, 120) || tr('Subagente')
   const pedido = { tipo: 'subagente' as const, ref: huellaSubagente(input), titulo, conversacion: conversacion ?? null }
   const fin = Date.now() + (op.esperaMs ?? ESPERA_SUBAGENTE_MS())
   for (;;) {

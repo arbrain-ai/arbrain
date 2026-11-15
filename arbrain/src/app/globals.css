@@ -158,6 +158,36 @@
 }
 
 /* =============================================================================
+   ESCALA DE LA CONVERSACIÓN (11 nov 2026, el dueño mirando Claude Desktop junto a Arbrain: «podemos hacer un poco más
+   grandes el tamaño de los botones, dado que lo principal es la interfaz conversacional de chat»).
+   Solo tamaño y aire; el lenguaje visual (paleta, tipografía, estilo) no cambia. Fuente única de la escala del chat
+   (lista de conversaciones, encabezado, mensajes, compositor y adjuntos), la barra izquierda y los botones comunes:
+   para agrandar o achicar todo eso se mueve aquí, no en cada componente. Medido contra la referencia del 11 nov
+   (Claude Desktop: filas de 45 a 49 px, chips y botones de ~40 px, compositor de ~62 px) y bajado un escalón para que
+   el chat siga cabiendo a 520 px junto al panel. Igual en claro y oscuro (no es color).
+   ============================================================================= */
+:root {
+  --tam-texto: 0.9375rem;         /* 15px · filas de la barra, botones comunes, encabezado (antes 13–14) */
+  --tam-texto-control: 0.875rem;  /* 14px · chips del compositor: modelo, esfuerzo, contexto (antes 11.5–12.5) */
+  --tam-texto-seccion: 0.8125rem; /* 13px · encabezados plegables de la barra: Hoy, Ayer (antes 12) */
+  --tam-texto-meta: 0.75rem;      /* 12px · rótulos, conteos y horas (antes 10–11) */
+  --tam-entrada: 1.0625rem;       /* 17px · lo que escribes en el compositor (antes 16) */
+  --tam-prosa: 1.125rem;          /* 18px · respuestas de Levy en serif (antes 17) */
+  --tam-prosa-sans: 1rem;         /* 16px · tu mensaje y el texto sans del hilo (antes 15) */
+  --tam-paso: 0.875rem;           /* 14px · pasos de herramientas, «Razonando» y conteos del rastro (antes 12.5–13) */
+  --tam-paso-detalle: 0.8125rem;  /* 13px · detalle en mono de cada paso, código y tablas del hilo (antes 12) */
+  --tam-fila-paso: 2rem;          /* 32px · alto de cada paso del rastro (antes 28) */
+  --tam-fila: 2.5rem;             /* 40px · filas de la barra y «Nuevo chat» (antes 33–36) */
+  --tam-fila-seccion: 2.125rem;   /* 34px · encabezados plegables (antes 28) */
+  --tam-control: 2.25rem;         /* 36px · chips y botones del compositor y del encabezado (antes 32) */
+  --tam-icono-boton: 2.5rem;      /* 40px · botones de icono comunes (.icon-btn, pie de la barra) (antes 36) */
+  --tam-icono: 1.125rem;          /* 18px · iconos dentro de esos botones (antes 14–16) */
+  --tam-radio-fila: 0.625rem;     /* 10px · filas de la barra (antes 8) */
+  /* El ancho inicial de la barra lateral sube de 240 a 272 px en useAnchoBarra.ts (número de JS); el que el dueño ya
+     arrastró se respeta. */
+}
+
+/* =============================================================================
    DARK MODE TOKENS (activados por ThemeProvider via .dark)
    ============================================================================= */
 .dark {
@@ -753,7 +783,7 @@ html, body {
   .chat-vacio-sello { width: 44px; height: 44px; border-radius: 999px; }
   .chat-vacio-saludo { margin: 0; font-family: var(--serif-ui); font-size: clamp(28px, 3vw, 38px); line-height: 1.1; font-weight: 500; letter-spacing: -0.015em; color: var(--foreground); text-wrap: balance; }
   .chat-vacio-atajos { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin-top: 18px; max-width: 34rem; }
-  .chat-vacio-atajo { height: 32px; padding: 0 14px; border-radius: 999px; font-size: 13px; font-weight: 500; color: var(--muted); background: transparent; border: 1px solid transparent; transition: color var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard), background var(--duration-fast) var(--ease-standard); }
+  .chat-vacio-atajo { height: var(--tam-control); padding: 0 16px; border-radius: 999px; font-size: var(--tam-texto-control); font-weight: 500; color: var(--muted); background: transparent; border: 1px solid transparent; transition: color var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard), background var(--duration-fast) var(--ease-standard); }
   .chat-vacio-atajo:hover { color: var(--foreground); border-color: rgba(var(--brand-rgb), 0.35); background: rgba(var(--brand-rgb), 0.05); }
   .chat-vacio-atajo:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
   /* En escritorio el campo sube a acompañar al saludo: saludo + campo quedan como UN bloque al centro. */
@@ -908,8 +938,8 @@ html, body {
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    padding: 0.625rem 1.25rem;
-    font-size: 0.875rem;
+    padding: 0.6875rem 1.25rem;
+    font-size: var(--tam-texto);
     font-weight: 600;
     color: var(--l-gris-16, white);
     background: var(--primary);
@@ -953,8 +983,8 @@ html, body {
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    padding: 0.625rem 1.25rem;
-    font-size: 0.875rem;
+    padding: 0.6875rem 1.25rem;
+    font-size: var(--tam-texto);
     font-weight: 600;
     color: var(--foreground);
     background: var(--surface);
@@ -980,8 +1010,8 @@ html, body {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.5rem 0.75rem;
-    font-size: 0.875rem;
+    padding: 0.5625rem 0.875rem;
+    font-size: var(--tam-texto);
     font-weight: 500;
     color: var(--muted);
     background: transparent;
@@ -999,8 +1029,8 @@ html, body {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.5rem 1.25rem;
-    font-size: 0.875rem;
+    padding: 0.5625rem 1.25rem;
+    font-size: var(--tam-texto);
     font-weight: 600;
     color: var(--l-gris-16, white);
     background: var(--error);
@@ -1203,8 +1233,8 @@ html, body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 2.25rem;
-    height: 2.25rem;
+    width: var(--tam-icono-boton);
+    height: var(--tam-icono-boton);
     flex-shrink: 0;
     color: var(--muted);
     background:
@@ -1235,8 +1265,8 @@ html, body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 2.25rem;
-    height: 2.25rem;
+    width: var(--tam-icono-boton);
+    height: var(--tam-icono-boton);
     flex-shrink: 0;
     color: var(--muted);
     background: transparent;
@@ -1262,15 +1292,18 @@ html, body {
     display: flex;
     align-items: center;
     gap: 0.625rem;
-    min-height: 2rem;
-    padding: 0.4rem 0.625rem;
+    min-height: var(--tam-control);
+    padding: 0.4rem 0.75rem;
     color: var(--muted);
     border: 1px solid transparent;
-    border-radius: 0.5rem;
-    font-size: 0.875rem;
+    border-radius: var(--tam-radio-fila);
+    font-size: var(--tam-texto);
     font-weight: 500;
     transition: color var(--duration-fast) var(--ease-standard), background var(--duration-fast) var(--ease-standard);
   }
+
+  /* Filas de la barra izquierda: un escalón más altas que los renglones de menú (escala del 11 nov). */
+  .nav-item { min-height: var(--tam-fila); }
 
   .nav-item:hover,
   .titanium-menu-item:hover {
@@ -1494,7 +1527,7 @@ html, body {
      cero impacto en cold open. Código/UI chrome siguen en sans/mono. */
   .chat-serif {
     font-family: ui-serif, 'New York', 'Iowan Old Style', Georgia, 'Times New Roman', serif;
-    font-size: 1.0625rem; /* 17px — la serif lee más chica que la sans a igual tamaño */
+    font-size: var(--tam-prosa); /* 18px (escala del 11 nov) — la serif lee más chica que la sans a igual tamaño */
     line-height: 1.6;
   }
 

@@ -16,10 +16,12 @@
  * Solo servidor. Fábrica pura con reloj y fetch inyectables para las pruebas; `flujoOpenRouter()` es el único de verdad.
  */
 import { createHash, randomBytes } from 'node:crypto'
+import { idiomaActual, tr, trMarca } from '@/shared/i18n'
 
 export const OPENROUTER_AUTH = 'https://openrouter.ai/auth'
 export const OPENROUTER_CANJE = 'https://openrouter.ai/api/v1/auth/keys'
-export const RUTA_CALLBACK = '/api/llaves/openrouter/callback'
+import { CSP_CALLBACK, RUTA_CALLBACK } from './openrouter-rutas'
+export { CSP_CALLBACK, RUTA_CALLBACK }
 /** Lo que dura un intento (lo mismo que el código de OpenRouter: «expires after 10 minutes»). */
 export const VIGENCIA_MS = 10 * 60_000
 /** Intentos vigentes a la vez; el más viejo cae si llega otro (nadie llena la memoria pulsando el botón). */
@@ -42,14 +44,14 @@ export type Recogida =
 export type ResultadoCallback = { ok: true } | { ok: false; code: CodigoError | 'sin_state' | 'state_invalido'; mensaje: string }
 
 const MENSAJES: Record<CodigoError, string> = {
-  denegado: 'Cancelaste en OpenRouter o algo falló allá. Vuelve a pulsar «Conectar con OpenRouter» cuando quieras.',
-  codigo_invalido: 'OpenRouter no aceptó la autorización (venció o ya se usó). Vuelve a pulsar «Conectar con OpenRouter».',
-  vencido: 'Pasaron más de 10 minutos. Vuelve a pulsar «Conectar con OpenRouter».',
-  sin_red: 'No pude hablar con OpenRouter. Revisa tu conexión a internet e inténtalo de nuevo.',
-  respuesta_rara: 'OpenRouter respondió algo inesperado. Inténtalo de nuevo o usa «Otras formas».',
-  error: 'Algo falló al conectar con OpenRouter. Inténtalo de nuevo o usa «Otras formas».',
+  denegado: trMarca('Cancelaste en OpenRouter o algo falló allá. Vuelve a pulsar «Conectar con OpenRouter» cuando quieras.'),
+  codigo_invalido: trMarca('OpenRouter no aceptó la autorización (venció o ya se usó). Vuelve a pulsar «Conectar con OpenRouter».'),
+  vencido: trMarca('Pasaron más de 10 minutos. Vuelve a pulsar «Conectar con OpenRouter».'),
+  sin_red: trMarca('No pude hablar con OpenRouter. Revisa tu conexión a internet e inténtalo de nuevo.'),
+  respuesta_rara: trMarca('OpenRouter respondió algo inesperado. Inténtalo de nuevo o usa «Otras formas».'),
+  error: trMarca('Algo falló al conectar con OpenRouter. Inténtalo de nuevo o usa «Otras formas».'),
 }
-export const mensajeError = (c: CodigoError) => MENSAJES[c]
+export const mensajeError = (c: CodigoError) => tr(MENSAJES[c])
 
 const b64url = (b: Buffer) => b.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 /** S256 de RFC 7636: BASE64URL(SHA256(verifier)). */
@@ -67,12 +69,12 @@ const FORMA_LLAVE = /^sk-or-[A-Za-z0-9_-]{20,}$/
  */
 export const HOST_CALLBACK = '127.0.0.1'
 export function urlCallback(puerto: number): string {
-  if (!Number.isInteger(puerto) || puerto < 1 || puerto > 65535) throw new Error('Puerto inválido para el regreso de OpenRouter.')
+  if (!Number.isInteger(puerto) || puerto < 1 || puerto > 65535) throw new Error(tr('Puerto inválido para el regreso de OpenRouter.'))
   return `http://${HOST_CALLBACK}:${puerto}${RUTA_CALLBACK}`
 }
 
 /** Texto del regreso sin `state`: así vuelve OpenRouter cuando la persona dice «no» o algo falla allá (su doc). */
-export const MENSAJE_SIN_STATE = 'Cancelaste o algo falló en OpenRouter. Vuelve a Arbrain e inténtalo de nuevo.'
+export const MENSAJE_SIN_STATE = trMarca('Cancelaste o algo falló en OpenRouter. Vuelve a Arbrain e inténtalo de nuevo.')
 
 export interface OpcionesFlujo { ahora?: () => number; fetch?: typeof fetch; aleatorio?: (n: number) => Buffer; plazoCanjeMs?: number }
 
@@ -117,21 +119,21 @@ export function crearFlujoOpenRouter(op: OpcionesFlujo = {}) {
         const esperando = [...intentos].filter(([, i]) => i.fase === 'esperando')
         if (esperando.length === 1) {
           const [s, i] = esperando[0]
-          intentos.set(s, { fase: 'error', code: 'denegado', error: MENSAJES.denegado, expira: i.expira })
-          return { ok: false, code: 'denegado', mensaje: MENSAJE_SIN_STATE }
+          intentos.set(s, { fase: 'error', code: 'denegado', error: tr(MENSAJES.denegado), expira: i.expira })
+          return { ok: false, code: 'denegado', mensaje: tr(MENSAJE_SIN_STATE) }
         }
       }
-      return { ok: false, code: 'sin_state', mensaje: MENSAJE_SIN_STATE }
+      return { ok: false, code: 'sin_state', mensaje: tr(MENSAJE_SIN_STATE) }
     }
     const intento = FORMA_STATE.test(state) ? intentos.get(state) : undefined
     if (!intento || intento.fase !== 'esperando') {
-      return { ok: false, code: 'state_invalido', mensaje: 'Este enlace ya se usó o venció. Vuelve a Arbrain y pulsa «Conectar con OpenRouter».' }
+      return { ok: false, code: 'state_invalido', mensaje: tr('Este enlace ya se usó o venció. Vuelve a Arbrain y pulsa «Conectar con OpenRouter».') }
     }
     // Un solo uso: desde aquí el state ya no sirve para otro regreso, pase lo que pase con el canje.
     const { verifier, expira } = intento
     const fallo = (code: CodigoError): ResultadoCallback => {
-      intentos.set(state, { fase: 'error', code, error: MENSAJES[code], expira })
-      return { ok: false, code, mensaje: MENSAJES[code] }
+      intentos.set(state, { fase: 'error', code, error: tr(MENSAJES[code]), expira })
+      return { ok: false, code, mensaje: tr(MENSAJES[code]) }
     }
     intentos.set(state, { fase: 'canjeando', expira })
     const code = params.code ?? ''
@@ -189,10 +191,10 @@ export function flujoOpenRouter(): FlujoOpenRouter {
 
 /** Página que ve el navegador del sistema al volver. Sin la llave, sin scripts, sin recursos externos. */
 export function paginaCallback(r: ResultadoCallback): string {
-  const titulo = r.ok ? 'Listo, vuelve a Arbrain' : 'No se conectó'
-  const texto = r.ok ? 'Tu cuenta de OpenRouter quedó conectada. Ya puedes cerrar esta pestaña y volver a la app.' : r.mensaje
+  const titulo = r.ok ? tr('Listo, vuelve a Arbrain') : tr('No se conectó')
+  const texto = r.ok ? tr('Tu cuenta de OpenRouter quedó conectada. Ya puedes cerrar esta pestaña y volver a la app.') : r.mensaje
   const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string))
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>Arbrain · ${esc(titulo)}</title>
+  return `<!doctype html><html lang="${idiomaActual()}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>Arbrain · ${esc(titulo)}</title>
 <style>html,body{margin:0;height:100%;background:#0a0a0f;color:#fafafa;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;display:flex;align-items:center;justify-content:center}main{max-width:420px;padding:32px;text-align:center}h1{font-size:22px;margin:0 0 10px}p{margin:0;color:#b4b4bd;font-size:15px;line-height:1.5}.s{width:56px;height:56px;margin:0 auto 18px;border-radius:50%;display:grid;place-items:center;font-size:26px;background:${r.ok ? 'rgba(52,211,153,.15);color:#34d399' : 'rgba(251,191,36,.15);color:#fbbf24'}}</style></head>
 <body><main><div class="s" aria-hidden="true">${r.ok ? '&#10003;' : '!'}</div><h1>${esc(titulo)}</h1><p>${esc(texto)}</p></main></body></html>`
 }
@@ -203,7 +205,6 @@ export function paginaCallback(r: ResultadoCallback): string {
  * ruta. Por eso las estrictas se repiten allí en una regla posterior (`CABECERAS_CALLBACK_CONFIG`, la última gana) y
  * el humo las comprueba en la respuesta viva.
  */
-export const CSP_CALLBACK = "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
 export const CABECERAS_CALLBACK: Record<string, string> = {
   'Content-Type': 'text/html; charset=utf-8',
   'Cache-Control': 'no-store',

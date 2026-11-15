@@ -1,10 +1,11 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { buildSpoken, tramosDeVoz, tramosDesde, PRIMER_TRAMO, ESPERAS_REINTENTO_MS } from '../../src/features/chat/lib/chat-speech'
 import { filtrarBloques, markdownHablable, type BloqueLector } from '../../src/features/chat/lib/lector-filtro'
 import { SELECTOR_BLOQUES } from '../../src/features/chat/lib/lector-bloques'
 import { FallaVoz, VozServidor, esReintentable, formatoDelLector } from '../../src/features/chat/lib/voz-servidor'
-import { SONDA_DURACION_S, SONDA_PICO_S, sondaOpusExacta, bytesSondaOpus } from '../../src/features/chat/lib/sonda-opus'
+import { SONDA_DURACION_S, SONDA_PICO_S, SONDA_OPUS_KBPS, sondaOpusExacta, bytesSondaOpus } from '../../src/features/chat/lib/sonda-opus'
 import { cabeEnElMinuto, lineaRegistroLector } from '../../src/features/chat/lib/lector-registro'
 
 // 31 oct 2026, Daniel: «que el lector sea preciso con cada palabra y todo funcione smooth; que no pare hasta que sea así».
@@ -143,7 +144,7 @@ async function conWebAudioFalso(fn: () => unknown, opus: { exacto: boolean; deco
       // «OggS» = Opus: decodifica solo si el navegador falso lo sabe.
       const esOgg = u[0] === 0x4f && u[1] === 0x67 && u[2] === 0x67 && u[3] === 0x53
       if (esOgg && (!opus || !opus.decodifica)) return Promise.reject(new Error('EncodingError'))
-      if (esOgg && u.length > 600) {
+      if (esOgg && u.length === bytesSondaOpus().byteLength) {
         // La sonda: 120 ms con el pico en el ms 60 (o corrido 5 ms si el decodificador no respeta el pre-skip).
         const sr = 48000
         const m = new Float32Array(Math.round(sr * SONDA_DURACION_S))
@@ -226,6 +227,17 @@ test('la sonda Opus: 120 ms con el pico a ±1 ms del ms 60', () => {
   assert.ok(!sondaOpusExacta(m, sr, 0.19)) // relleno al final
   const b = new Uint8Array(bytesSondaOpus())
   assert.equal(String.fromCharCode(...b.slice(0, 4)), 'OggS')
+})
+
+test('la sonda Opus está codificada con el MISMO bitrate que el lector del servidor (12 nov)', () => {
+  // Si cambia el -b:a de argsFfmpegLector, la sonda deja de probar lo que el teléfono decodifica: regenerarla con
+  // `node scripts/qa/sonda-opus.mjs`.
+  const voz = readFileSync(new URL('../../server/src/voice.ts', import.meta.url), 'utf8')
+  assert.equal(Number(voz.match(/'-b:a',\s*'(\d+)k'/)?.[1]), SONDA_OPUS_KBPS)
+  const b = Buffer.from(bytesSondaOpus())
+  const head = b.indexOf('OpusHead')
+  assert.ok(head > 0)
+  assert.equal(b.readUInt32LE(head + 12), 24000) // la frecuencia de entrada del servidor
 })
 
 // ─── Bitácora ligera ─────────────────────────────────────────────────────────────────────────────────────────────

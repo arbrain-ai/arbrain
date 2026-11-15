@@ -1,3 +1,4 @@
+import { tr } from '@/shared/i18n'
 import { Layers } from 'lucide-react'
 
 interface Props {
@@ -12,8 +13,8 @@ function fmt(n: number) {
 export function CompactSeparator({ tokensBefore, tokensAfter }: Props) {
   const label =
     tokensBefore && tokensAfter
-      ? `Contexto comprimido: ${fmt(tokensBefore)} → ${fmt(tokensAfter)} tokens`
-      : 'Contexto comprimido'
+      ? tr('Contexto comprimido: {antes} → {despues} tokens', { antes: fmt(tokensBefore), despues: fmt(tokensAfter) })
+      : tr('Contexto comprimido')
 
   return (
     <div aria-hidden className="flex items-center gap-2 py-1 select-none">

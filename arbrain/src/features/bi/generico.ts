@@ -12,6 +12,7 @@
  * Contrato: arbrain/docs/bi/README.md. Lógica pura (sin React ni fs): la usan la API, la vista, la CLI y node:test.
  */
 import { VENTANAS, type Consulta, type Mejor, type Tipo, type Unidad, type Ventana } from './catalogo'
+import { tr, trMarca, trMarcas } from '../../shared/i18n/tr'
 
 export const ESQUEMA_FUENTES = 'arbrain.bi-fuentes/v1'
 /** Dónde el dueño declara sus fuentes, junto a `bi.json` y `embudo.json` (la misma carpeta «Mi negocio»). */
@@ -49,112 +50,112 @@ const DIARIA = { tipo: 'linea', tipos: ['linea'], alarma: true, ventanas: VENTAN
 
 export const PLANTILLAS: readonly Plantilla[] = [
   {
-    id: 'ventas', nombre: 'Ventas', que: 'Cuántas ventas hubo cada día: cada fila de la fuente es una venta.', forma: 'conteo', ...DIARIA,
+    id: 'ventas', nombre: trMarca('Ventas'), que: trMarca('Cuántas ventas hubo cada día: cada fila de la fuente es una venta.'), forma: 'conteo', ...DIARIA,
     unidad: 'ventas', mejor: 'arriba', necesita: [],
-    falta: 'Una fuente con una fila por venta y su fecha: el reporte de tu punto de venta o de tu tienda (CSV o Excel), o la tabla de pedidos de tu base.',
+    falta: trMarca('Una fuente con una fila por venta y su fecha: el reporte de tu punto de venta o de tu tienda (CSV o Excel), o la tabla de pedidos de tu base.'),
     propone: {
-      dolor: 'Se vendió menos de lo normal: antes de bajar precios, mira si llegó menos gente (arriba del embudo) o si se cayó el cierre (abajo).',
-      placer: 'Se vendió más de lo normal: averigua qué lo empujó (una promoción, un canal, la temporada) y repítelo esta semana.',
+      dolor: trMarca('Se vendió menos de lo normal: antes de bajar precios, mira si llegó menos gente (arriba del embudo) o si se cayó el cierre (abajo).'),
+      placer: trMarca('Se vendió más de lo normal: averigua qué lo empujó (una promoción, un canal, la temporada) y repítelo esta semana.'),
     },
-    ejemplos: ['¿Cuántas ventas tuve esta semana?', '¿Estoy vendiendo más que antes?'],
+    ejemplos: trMarcas(['¿Cuántas ventas tuve esta semana?', '¿Estoy vendiendo más que antes?']),
   },
   {
-    id: 'ingresos', nombre: 'Lo que entró por día', que: 'El dinero de las ventas, sumado por día.', forma: 'suma', ...DIARIA,
-    unidad: 'dinero', mejor: 'arriba', necesita: ['valor'], nota: 'Es lo que dice tu fuente que se cobró, no la utilidad: los gastos van aparte.',
-    falta: 'Tu fuente de ventas con la columna del importe (total, monto o precio).',
+    id: 'ingresos', nombre: trMarca('Lo que entró por día'), que: trMarca('El dinero de las ventas, sumado por día.'), forma: 'suma', ...DIARIA,
+    unidad: 'dinero', mejor: 'arriba', necesita: ['valor'], nota: trMarca('Es lo que dice tu fuente que se cobró, no la utilidad: los gastos van aparte.'),
+    falta: trMarca('Tu fuente de ventas con la columna del importe (total, monto o precio).'),
     propone: {
-      dolor: 'Entró menos dinero de lo normal: cruza con las ventas del mismo día; si se vendió igual, bajó el ticket.',
-      placer: 'Entró más dinero de lo normal: mira si fue por más ventas o por ventas más grandes, y cuál de las dos puedes repetir.',
+      dolor: trMarca('Entró menos dinero de lo normal: cruza con las ventas del mismo día; si se vendió igual, bajó el ticket.'),
+      placer: trMarca('Entró más dinero de lo normal: mira si fue por más ventas o por ventas más grandes, y cuál de las dos puedes repetir.'),
     },
-    ejemplos: ['¿Cuánto dinero entró ayer?', '¿Cuánto vendo al día?'],
+    ejemplos: trMarcas(['¿Cuánto dinero entró ayer?', '¿Cuánto vendo al día?']),
   },
   {
-    id: 'lo-que-entro', nombre: 'Lo que entró este mes', que: 'El dinero acumulado del mes contra el mes pasado a la misma altura.', forma: 'mes',
+    id: 'lo-que-entro', nombre: trMarca('Lo que entró este mes'), que: trMarca('El dinero acumulado del mes contra el mes pasado a la misma altura.'), forma: 'mes',
     tipo: 'acumulado', tipos: ['acumulado', 'linea'], unidad: 'dinero', mejor: 'arriba', alarma: false, ventanas: [30], necesita: ['valor'],
-    nota: 'Es lo cobrado según tu fuente, no la utilidad.',
-    falta: 'Tu fuente de ventas con la columna del importe (total, monto o precio).',
-    ejemplos: ['¿Cuánto dinero entró este mes?', '¿Voy mejor que el mes pasado?'],
+    nota: trMarca('Es lo cobrado según tu fuente, no la utilidad.'),
+    falta: trMarca('Tu fuente de ventas con la columna del importe (total, monto o precio).'),
+    ejemplos: trMarcas(['¿Cuánto dinero entró este mes?', '¿Voy mejor que el mes pasado?']),
   },
   {
-    id: 'ticket-promedio', nombre: 'Ticket promedio', que: 'Cuánto deja en promedio cada venta, día por día.', forma: 'promedio', ...DIARIA,
-    unidad: 'dinero', mejor: 'arriba', necesita: ['valor'], nota: 'Un día sin ventas no tiene ticket: queda sin dato, no en cero.',
-    falta: 'Tu fuente de ventas con la columna del importe (total, monto o precio).',
+    id: 'ticket-promedio', nombre: trMarca('Ticket promedio'), que: trMarca('Cuánto deja en promedio cada venta, día por día.'), forma: 'promedio', ...DIARIA,
+    unidad: 'dinero', mejor: 'arriba', necesita: ['valor'], nota: trMarca('Un día sin ventas no tiene ticket: queda sin dato, no en cero.'),
+    falta: trMarca('Tu fuente de ventas con la columna del importe (total, monto o precio).'),
     propone: {
-      dolor: 'Cada venta dejó menos de lo normal: revisa descuentos del día y si se dejó de ofrecer el complemento.',
-      placer: 'Cada venta dejó más de lo normal: mira qué se vendió junto y conviértelo en paquete.',
+      dolor: trMarca('Cada venta dejó menos de lo normal: revisa descuentos del día y si se dejó de ofrecer el complemento.'),
+      placer: trMarca('Cada venta dejó más de lo normal: mira qué se vendió junto y conviértelo en paquete.'),
     },
-    ejemplos: ['¿Cuánto gasta cada cliente?', '¿Cuál es mi ticket promedio?'],
+    ejemplos: trMarcas(['¿Cuánto gasta cada cliente?', '¿Cuál es mi ticket promedio?']),
   },
   {
-    id: 'clientes-nuevos', nombre: 'Clientes nuevos', que: 'Clientes que se dieron de alta cada día.', forma: 'conteo', ...DIARIA,
+    id: 'clientes-nuevos', nombre: trMarca('Clientes nuevos'), que: trMarca('Clientes que se dieron de alta cada día.'), forma: 'conteo', ...DIARIA,
     unidad: 'clientes', mejor: 'arriba', necesita: [],
-    falta: 'Una fuente con una fila por cliente y su fecha de alta: tu lista de clientes o la tabla de clientes de tu base.',
+    falta: trMarca('Una fuente con una fila por cliente y su fecha de alta: tu lista de clientes o la tabla de clientes de tu base.'),
     propone: {
-      dolor: 'Entraron menos clientes de lo normal: mira si bajaron los interesados o si se atoró la conversión.',
-      placer: 'Entraron más clientes de lo normal: dales la bienvenida hoy y pregúntales cómo te encontraron.',
+      dolor: trMarca('Entraron menos clientes de lo normal: mira si bajaron los interesados o si se atoró la conversión.'),
+      placer: trMarca('Entraron más clientes de lo normal: dales la bienvenida hoy y pregúntales cómo te encontraron.'),
     },
-    ejemplos: ['¿Cuántos clientes nuevos tengo?', '¿Estoy ganando clientes?'],
+    ejemplos: trMarcas(['¿Cuántos clientes nuevos tengo?', '¿Estoy ganando clientes?']),
   },
   {
-    id: 'interesados', nombre: 'Interesados nuevos', que: 'Personas que preguntaron, agendaron o dejaron sus datos cada día.', forma: 'conteo', ...DIARIA,
+    id: 'interesados', nombre: trMarca('Interesados nuevos'), que: trMarca('Personas que preguntaron, agendaron o dejaron sus datos cada día.'), forma: 'conteo', ...DIARIA,
     unidad: 'personas', mejor: 'arriba', necesita: [],
-    falta: 'Una fuente con una fila por interesado y su fecha: el formulario, el CRM, la agenda o la hoja donde anotas a quien pregunta.',
+    falta: trMarca('Una fuente con una fila por interesado y su fecha: el formulario, el CRM, la agenda o la hoja donde anotas a quien pregunta.'),
     propone: {
-      dolor: 'Llegaron menos interesados de lo normal: revisa qué canal dejó de traer gente (un anuncio apagado, una publicación que no salió).',
-      placer: 'Llegaron más interesados de lo normal: averigua de dónde vinieron y contéstales hoy, mientras están calientes.',
+      dolor: trMarca('Llegaron menos interesados de lo normal: revisa qué canal dejó de traer gente (un anuncio apagado, una publicación que no salió).'),
+      placer: trMarca('Llegaron más interesados de lo normal: averigua de dónde vinieron y contéstales hoy, mientras están calientes.'),
     },
-    ejemplos: ['¿Cuánta gente me busca?', '¿Cuántos interesados llegaron esta semana?'],
+    ejemplos: trMarcas(['¿Cuánta gente me busca?', '¿Cuántos interesados llegaron esta semana?']),
   },
   {
-    id: 'entregas', nombre: 'Entregas', que: 'Pedidos, servicios o sesiones que se entregaron cada día.', forma: 'conteo', ...DIARIA,
-    unidad: 'registros', palabras: ['entrega', 'entregas'], mejor: 'arriba', necesita: [],
-    falta: 'Una fuente con una fila por entrega y su fecha: la bitácora de pedidos entregados, las citas atendidas o los servicios cerrados.',
+    id: 'entregas', nombre: trMarca('Entregas'), que: trMarca('Pedidos, servicios o sesiones que se entregaron cada día.'), forma: 'conteo', ...DIARIA,
+    unidad: 'registros', palabras: trMarcas(['entrega', 'entregas'] as const), mejor: 'arriba', necesita: [],
+    falta: trMarca('Una fuente con una fila por entrega y su fecha: la bitácora de pedidos entregados, las citas atendidas o los servicios cerrados.'),
     propone: {
-      dolor: 'Se entregó menos de lo normal: busca dónde se está atorando el trabajo antes de vender más.',
-      placer: 'Se entregó más de lo normal: confirma que la calidad aguantó y anota qué hizo fluir el día.',
+      dolor: trMarca('Se entregó menos de lo normal: busca dónde se está atorando el trabajo antes de vender más.'),
+      placer: trMarca('Se entregó más de lo normal: confirma que la calidad aguantó y anota qué hizo fluir el día.'),
     },
-    ejemplos: ['¿Estoy cumpliendo lo que vendo?', '¿Cuántas entregas hicimos?'],
+    ejemplos: trMarcas(['¿Estoy cumpliendo lo que vendo?', '¿Cuántas entregas hicimos?']),
   },
   {
-    id: 'gastos', nombre: 'Gastos por día', que: 'Lo que salió, sumado por día.', forma: 'suma', ...DIARIA,
+    id: 'gastos', nombre: trMarca('Gastos por día'), que: trMarca('Lo que salió, sumado por día.'), forma: 'suma', ...DIARIA,
     unidad: 'dinero', mejor: 'abajo', necesita: ['valor'],
-    falta: 'Una fuente con una fila por gasto, su fecha y su importe: el estado de cuenta o la hoja de gastos.',
+    falta: trMarca('Una fuente con una fila por gasto, su fecha y su importe: el estado de cuenta o la hoja de gastos.'),
     propone: {
-      dolor: 'Salió más dinero de lo normal: revisa el gasto más grande del día y si estaba planeado.',
-      placer: 'Salió menos dinero de lo normal: confirma que no se quedó un pago pendiente.',
+      dolor: trMarca('Salió más dinero de lo normal: revisa el gasto más grande del día y si estaba planeado.'),
+      placer: trMarca('Salió menos dinero de lo normal: confirma que no se quedó un pago pendiente.'),
     },
-    ejemplos: ['¿Cuánto estoy gastando?', '¿En qué día gasté más?'],
+    ejemplos: trMarcas(['¿Cuánto estoy gastando?', '¿En qué día gasté más?']),
   },
   {
-    id: 'bajas', nombre: 'Bajas', que: 'Clientes que cancelaron o se dieron de baja cada día.', forma: 'conteo', ...DIARIA,
+    id: 'bajas', nombre: trMarca('Bajas'), que: trMarca('Clientes que cancelaron o se dieron de baja cada día.'), forma: 'conteo', ...DIARIA,
     unidad: 'bajas', mejor: 'abajo', necesita: [],
-    falta: 'Una fuente con una fila por cancelación y su fecha.',
+    falta: trMarca('Una fuente con una fila por cancelación y su fecha.'),
     propone: {
-      dolor: 'Se fueron más de lo normal: llama a quien se fue esta semana y pregúntale por qué, antes de cambiar nada.',
-      placer: 'Casi nadie se fue: lo que estés haciendo está reteniendo; anótalo para repetirlo.',
+      dolor: trMarca('Se fueron más de lo normal: llama a quien se fue esta semana y pregúntale por qué, antes de cambiar nada.'),
+      placer: trMarca('Casi nadie se fue: lo que estés haciendo está reteniendo; anótalo para repetirlo.'),
     },
-    ejemplos: ['¿Cuántos clientes se van?', '¿Cuánto churn tengo?'],
+    ejemplos: trMarcas(['¿Cuántos clientes se van?', '¿Cuánto churn tengo?']),
   },
   {
-    id: 'lo-mas-vendido', nombre: 'Lo que más se vende', que: 'Qué producto o servicio deja más, en la ventana.', forma: 'por',
+    id: 'lo-mas-vendido', nombre: trMarca('Lo que más se vende'), que: trMarca('Qué producto o servicio deja más, en la ventana.'), forma: 'por',
     tipo: 'barras', tipos: ['barras', 'proporcion'], unidad: 'ventas', mejor: null, alarma: false, ventanas: VENTANAS, necesita: ['por'],
-    nota: 'Lo que no trae producto en la fuente se cuenta aparte, nunca como cero.',
-    falta: 'La fuente de ventas con la columna del producto o servicio (y el importe, si quieres verlo en dinero).',
-    ejemplos: ['¿Qué es lo que más vendo?', '¿Qué producto deja más dinero?'],
+    nota: trMarca('Lo que no trae producto en la fuente se cuenta aparte, nunca como cero.'),
+    falta: trMarca('La fuente de ventas con la columna del producto o servicio (y el importe, si quieres verlo en dinero).'),
+    ejemplos: trMarcas(['¿Qué es lo que más vendo?', '¿Qué producto deja más dinero?']),
   },
   {
-    id: 'de-donde-llegan', nombre: 'De dónde llegan', que: 'Por qué canal llegó la gente (anuncio, recomendación, redes…), en la ventana.', forma: 'por',
+    id: 'de-donde-llegan', nombre: trMarca('De dónde llegan'), que: trMarca('Por qué canal llegó la gente (anuncio, recomendación, redes…), en la ventana.'), forma: 'por',
     tipo: 'proporcion', tipos: ['proporcion', 'barras'], unidad: 'personas', mejor: null, alarma: false, ventanas: VENTANAS, necesita: ['por'],
-    nota: 'Depende de que cada registro diga su canal; el que no lo dice se cuenta aparte, nunca como cero.',
-    falta: 'La fuente de interesados (o de ventas) con la columna del canal u origen.',
-    ejemplos: ['¿De dónde llegan mis clientes?', '¿Qué canal me trae más gente?'],
+    nota: trMarca('Depende de que cada registro diga su canal; el que no lo dice se cuenta aparte, nunca como cero.'),
+    falta: trMarca('La fuente de interesados (o de ventas) con la columna del canal u origen.'),
+    ejemplos: trMarcas(['¿De dónde llegan mis clientes?', '¿Qué canal me trae más gente?']),
   },
   {
-    id: 'embudo', nombre: 'Del interesado al cliente', que: 'Cuántos pasan por cada paso, del primer contacto a la compra.', forma: 'pasos',
+    id: 'embudo', nombre: trMarca('Del interesado al cliente'), que: trMarca('Cuántos pasan por cada paso, del primer contacto a la compra.'), forma: 'pasos',
     tipo: 'embudo', tipos: ['embudo'], unidad: 'personas', mejor: 'arriba', alarma: false, ventanas: VENTANAS, necesita: [],
-    nota: 'Cada paso cuenta registros de su fuente en la ventana; si un paso sale de otra fuente, los nombres no se cruzan.',
-    falta: 'Dos o más pasos, cada uno con su fuente (y un filtro si el paso es un estado de la misma tabla): interesados → agendaron → compraron.',
-    ejemplos: ['¿Dónde se cae la gente antes de comprar?', '¿Cómo va mi embudo?'],
+    nota: trMarca('Cada paso cuenta registros de su fuente en la ventana; si un paso sale de otra fuente, los nombres no se cruzan.'),
+    falta: trMarca('Dos o más pasos, cada uno con su fuente (y un filtro si el paso es un estado de la misma tabla): interesados → agendaron → compraron.'),
+    ejemplos: trMarcas(['¿Dónde se cae la gente antes de comprar?', '¿Cómo va mi embudo?']),
   },
 ]
 
@@ -231,36 +232,36 @@ const ID = /^[a-z0-9][a-z0-9-]{0,39}$/
 const esBase = (t: TipoFuente) => t === 'postgres' || t === 'supabase'
 
 function erroresFuente(f: unknown, n: string): string[] {
-  if (!obj(f)) return [`${n}: no es un objeto.`]
+  if (!obj(f)) return [tr('{n}: no es un objeto.', { n })]
   const e: string[] = []
-  if (typeof f.id !== 'string' || !ID.test(f.id)) e.push(`${n}: «id» en minúsculas, números y guiones (hasta 40).`)
-  if (!TIPOS_FUENTE.includes(f.tipo as TipoFuente)) { e.push(`${n}: «tipo» es ${TIPOS_FUENTE.join(', ')}.`); return e }
+  if (typeof f.id !== 'string' || !ID.test(f.id)) e.push(tr('{n}: «id» en minúsculas, números y guiones (hasta 40).', { n }))
+  if (!TIPOS_FUENTE.includes(f.tipo as TipoFuente)) { e.push(tr('{n}: «tipo» es {tipos}.', { n, tipos: TIPOS_FUENTE.join(', ') })); return e }
   const tipo = f.tipo as TipoFuente
-  if (f.nombre !== undefined && !txt(f.nombre, 80)) e.push(`${n}: «nombre» es texto de hasta 80 caracteres.`)
-  if (!txt(f.fecha, 120)) e.push(`${n}: falta «fecha» (la columna con la fecha de cada fila).`)
-  else if (esBase(tipo) && !IDENT.test(f.fecha)) e.push(`${n}: en una base, «fecha» es el nombre exacto de la columna (letras, números y _).`)
+  if (f.nombre !== undefined && !txt(f.nombre, 80)) e.push(tr('{n}: «nombre» es texto de hasta 80 caracteres.', { n }))
+  if (!txt(f.fecha, 120)) e.push(tr('{n}: falta «fecha» (la columna con la fecha de cada fila).', { n }))
+  else if (esBase(tipo) && !IDENT.test(f.fecha)) e.push(tr('{n}: en una base, «fecha» es el nombre exacto de la columna (letras, números y _).', { n }))
   if (tipo === 'csv' || tipo === 'excel') {
     const ext = EXTENSIONES[tipo]
-    if (!txt(f.ruta, 400) || f.ruta.includes('\0')) e.push(`${n}: falta «ruta» del archivo (${ext.join(', ')}).`)
-    else if (!ext.some(x => f.ruta!.toString().toLowerCase().endsWith(x))) e.push(`${n}: un ${tipo === 'csv' ? 'CSV' : 'Excel'} termina en ${ext.join(', ')}.`)
-    if (f.hoja !== undefined && (tipo !== 'excel' || !txt(f.hoja, 120))) e.push(`${n}: «hoja» solo va en un Excel.`)
-    if (f.separador !== undefined && ![',', ';', '\t'].includes(f.separador as string)) e.push(`${n}: «separador» es «,», «;» o un tabulador.`)
-    if (f.decimal !== undefined && f.decimal !== '.' && f.decimal !== ',') e.push(`${n}: «decimal» es «.» o «,».`)
-    if (f.formato_fecha !== undefined && !['auto', 'dd/mm/aaaa', 'mm/dd/aaaa', 'aaaa-mm-dd'].includes(f.formato_fecha as string)) e.push(`${n}: «formato_fecha» es auto, dd/mm/aaaa, mm/dd/aaaa o aaaa-mm-dd.`)
-    for (const k of ['conexion', 'url', 'llave', 'tabla']) if (f[k] !== undefined) e.push(`${n}: «${k}» es de una base, no de un archivo.`)
+    if (!txt(f.ruta, 400) || f.ruta.includes('\0')) e.push(tr('{n}: falta «ruta» del archivo ({ext}).', { n, ext: ext.join(', ') }))
+    else if (!ext.some(x => f.ruta!.toString().toLowerCase().endsWith(x))) e.push(tr('{n}: un {tipo} termina en {ext}.', { n, tipo: tipo === 'csv' ? 'CSV' : 'Excel', ext: ext.join(', ') }))
+    if (f.hoja !== undefined && (tipo !== 'excel' || !txt(f.hoja, 120))) e.push(tr('{n}: «hoja» solo va en un Excel.', { n }))
+    if (f.separador !== undefined && ![',', ';', '\t'].includes(f.separador as string)) e.push(tr('{n}: «separador» es «,», «;» o un tabulador.', { n }))
+    if (f.decimal !== undefined && f.decimal !== '.' && f.decimal !== ',') e.push(tr('{n}: «decimal» es «.» o «,».', { n }))
+    if (f.formato_fecha !== undefined && !['auto', 'dd/mm/aaaa', 'mm/dd/aaaa', 'aaaa-mm-dd'].includes(f.formato_fecha as string)) e.push(tr('{n}: «formato_fecha» es auto, dd/mm/aaaa, mm/dd/aaaa o aaaa-mm-dd.', { n }))
+    for (const k of ['conexion', 'url', 'llave', 'tabla']) if (f[k] !== undefined) e.push(tr('{n}: «{k}» es de una base, no de un archivo.', { n, k }))
   } else {
-    if (typeof f.tabla !== 'string' || !TABLA.test(f.tabla)) e.push(`${n}: «tabla» es «tabla» o «esquema.tabla» (letras, números y _).`)
+    if (typeof f.tabla !== 'string' || !TABLA.test(f.tabla)) e.push(tr('{n}: «tabla» es «tabla» o «esquema.tabla» (letras, números y _).', { n }))
     const llaves = tipo === 'postgres' ? ['conexion'] : ['url', 'llave']
-    for (const k of llaves) if (typeof f[k] !== 'string' || !LLAVE.test(f[k] as string)) e.push(`${n}: «${k}» es el NOMBRE de una llave que empieza con BI_ (el valor va en ${RUTA_LLAVES}, nunca aquí).`)
-    if (typeof f.conexion === 'string' && /:\/\//.test(f.conexion)) e.push(`${n}: «conexion» trae una URL: va en ${RUTA_LLAVES} y aquí solo su nombre.`)
-    for (const k of ['ruta', 'hoja', 'separador', 'decimal', 'formato_fecha']) if (f[k] !== undefined) e.push(`${n}: «${k}» es de un archivo, no de una base.`)
+    for (const k of llaves) if (typeof f[k] !== 'string' || !LLAVE.test(f[k] as string)) e.push(tr('{n}: «{k}» es el NOMBRE de una llave que empieza con BI_ (el valor va en {ruta}, nunca aquí).', { n, k, ruta: RUTA_LLAVES }))
+    if (typeof f.conexion === 'string' && /:\/\//.test(f.conexion)) e.push(tr('{n}: «conexion» trae una URL: va en {ruta} y aquí solo su nombre.', { n, ruta: RUTA_LLAVES }))
+    for (const k of ['ruta', 'hoja', 'separador', 'decimal', 'formato_fecha']) if (f[k] !== undefined) e.push(tr('{n}: «{k}» es de un archivo, no de una base.', { n, k }))
   }
   return e
 }
 
 function erroresFiltro(d: unknown, n: string, columna: (c: unknown) => boolean): string[] {
   if (!obj(d) || !columna(d.columna) || !Array.isArray(d.es) || !d.es.length || d.es.some(v => !(typeof v === 'string' || typeof v === 'number')))
-    return [`${n}: «donde» lleva «columna» y «es» (la lista de valores que cuentan).`]
+    return [tr('{n}: «donde» lleva «columna» y «es» (la lista de valores que cuentan).', { n })]
   return []
 }
 
@@ -269,49 +270,49 @@ function erroresFiltro(d: unknown, n: string, columna: (c: unknown) => boolean):
  * aunque otras fallen: una mala no apaga a las demás.
  */
 export function validarFuentes(x: unknown): { archivo: ArchivoFuentes | null; errores: string[] } {
-  if (!obj(x)) return { archivo: null, errores: ['El archivo de fuentes no es un objeto JSON.'] }
+  if (!obj(x)) return { archivo: null, errores: [tr('El archivo de fuentes no es un objeto JSON.')] }
   const errores: string[] = []
-  if (x.esquema !== ESQUEMA_FUENTES) errores.push(`«esquema» debe ser «${ESQUEMA_FUENTES}».`)
-  if (x.moneda !== undefined && !(typeof x.moneda === 'string' && /^[A-Z]{3}$/.test(x.moneda))) errores.push('«moneda» es el código de tres letras (MXN, USD, COP…).')
-  if (x.zona !== undefined && !(typeof x.zona === 'string' && zonaValida(x.zona))) errores.push('«zona» es una zona horaria como America/Mexico_City.')
-  if (x.negocio !== undefined && !txt(x.negocio, 120)) errores.push('«negocio» es texto de hasta 120 caracteres.')
+  if (x.esquema !== ESQUEMA_FUENTES) errores.push(tr('«esquema» debe ser «{esquema}».', { esquema: ESQUEMA_FUENTES }))
+  if (x.moneda !== undefined && !(typeof x.moneda === 'string' && /^[A-Z]{3}$/.test(x.moneda))) errores.push(tr('«moneda» es el código de tres letras (MXN, USD, COP…).'))
+  if (x.zona !== undefined && !(typeof x.zona === 'string' && zonaValida(x.zona))) errores.push(tr('«zona» es una zona horaria como America/Mexico_City.'))
+  if (x.negocio !== undefined && !txt(x.negocio, 120)) errores.push(tr('«negocio» es texto de hasta 120 caracteres.'))
   const fuentes: Fuente[] = []
   const ids = new Set<string>()
   for (const [i, f] of (Array.isArray(x.fuentes) ? x.fuentes : []).entries()) {
-    const n = `Fuente ${i + 1}${obj(f) && typeof f.id === 'string' ? ` (${f.id})` : ''}`
+    const n = `${tr('Fuente {n}', { n: i + 1 })}${obj(f) && typeof f.id === 'string' ? ` (${f.id})` : ''}`
     const e = erroresFuente(f, n)
-    if (!e.length && ids.has((f as Fuente).id)) e.push(`${n}: «id» repetido.`)
+    if (!e.length && ids.has((f as Fuente).id)) e.push(tr('{n}: «id» repetido.', { n }))
     if (e.length) { errores.push(...e); continue }
     ids.add((f as Fuente).id)
     fuentes.push(f as Fuente)
   }
-  if (!Array.isArray(x.fuentes)) errores.push('Falta «fuentes» (una lista; puede ir vacía).')
+  if (!Array.isArray(x.fuentes)) errores.push(tr('Falta «fuentes» (una lista; puede ir vacía).'))
   const consultas: Record<string, Mapeo> = {}
-  if (x.consultas !== undefined && !obj(x.consultas)) errores.push('«consultas» es un objeto: id de la consulta → de dónde sale.')
+  if (x.consultas !== undefined && !obj(x.consultas)) errores.push(tr('«consultas» es un objeto: id de la consulta → de dónde sale.'))
   const deFuente = (id: unknown) => typeof id === 'string' && ids.has(id)
   for (const [id, m] of Object.entries(obj(x.consultas) ? x.consultas : {})) {
     const p = plantillaDe(id)
-    const n = `Consulta «${id}»`
-    if (!p) { errores.push(`${n}: no está en el catálogo (${PLANTILLAS.map(k => k.id).join(', ')}).`); continue }
-    if (!obj(m)) { errores.push(`${n}: no es un objeto.`); continue }
+    const n = tr('Consulta «{id}»', { id })
+    if (!p) { errores.push(tr('{n}: no está en el catálogo ({ids}).', { n, ids: PLANTILLAS.map(k => k.id).join(', ') })); continue }
+    if (!obj(m)) { errores.push(tr('{n}: no es un objeto.', { n })); continue }
     const e: string[] = []
     const base = (fid: unknown) => fuentes.find(f => f.id === fid)
     const columna = (fid: unknown) => (c: unknown) => txt(c, 120) && (!base(fid) || !esBase(base(fid)!.tipo) || IDENT.test(c))
     if (p.forma === 'pasos') {
-      if (!Array.isArray(m.pasos) || m.pasos.length < 2 || m.pasos.length > 8) e.push(`${n}: «pasos» es una lista de 2 a 8 pasos.`)
+      if (!Array.isArray(m.pasos) || m.pasos.length < 2 || m.pasos.length > 8) e.push(tr('{n}: «pasos» es una lista de 2 a 8 pasos.', { n }))
       else for (const [k, s] of m.pasos.entries()) {
-        if (!obj(s) || !txt(s.etiqueta, 60) || !deFuente(s.fuente)) { e.push(`${n}, paso ${k + 1}: lleva «etiqueta» y una «fuente» declarada.`); continue }
-        if (s.donde !== undefined) e.push(...erroresFiltro(s.donde, `${n}, paso ${k + 1}`, columna(s.fuente)))
+        if (!obj(s) || !txt(s.etiqueta, 60) || !deFuente(s.fuente)) { e.push(tr('{n}, paso {k}: lleva «etiqueta» y una «fuente» declarada.', { n, k: k + 1 })); continue }
+        if (s.donde !== undefined) e.push(...erroresFiltro(s.donde, tr('{n}, paso {k}', { n, k: k + 1 }), columna(s.fuente)))
       }
     } else {
-      if (!deFuente(m.fuente)) e.push(`${n}: «fuente» debe ser el id de una fuente declarada${fuentes.length ? ` (${fuentes.map(f => f.id).join(', ')})` : ''}.`)
-      for (const k of p.necesita) if (!columna(m.fuente)(m[k])) e.push(`${n}: falta «${k}» (${k === 'valor' ? 'la columna del importe' : 'la columna por la que se agrupa'}).`)
-      for (const k of ['valor', 'por', 'unico'] as const) if (m[k] !== undefined && !columna(m.fuente)(m[k])) e.push(`${n}: «${k}» es el nombre de una columna.`)
+      if (!deFuente(m.fuente)) e.push(tr('{n}: «fuente» debe ser el id de una fuente declarada{lista}.', { n, lista: fuentes.length ? ` (${fuentes.map(f => f.id).join(', ')})` : '' }))
+      for (const k of p.necesita) if (!columna(m.fuente)(m[k])) e.push(tr('{n}: falta «{k}» ({que}).', { n, k, que: k === 'valor' ? tr('la columna del importe') : tr('la columna por la que se agrupa') }))
+      for (const k of ['valor', 'por', 'unico'] as const) if (m[k] !== undefined && !columna(m.fuente)(m[k])) e.push(tr('{n}: «{k}» es el nombre de una columna.', { n, k }))
       if (m.donde !== undefined) e.push(...erroresFiltro(m.donde, n, columna(m.fuente)))
     }
-    if (m.nombre !== undefined && !txt(m.nombre, 60)) e.push(`${n}: «nombre» es texto de hasta 60 caracteres.`)
-    if (m.que !== undefined && !txt(m.que, 200)) e.push(`${n}: «que» es texto de hasta 200 caracteres.`)
-    if (m.palabras !== undefined && !(Array.isArray(m.palabras) && m.palabras.length === 2 && m.palabras.every(w => txt(w, 30)))) e.push(`${n}: «palabras» es [singular, plural] («cita», «citas»).`)
+    if (m.nombre !== undefined && !txt(m.nombre, 60)) e.push(tr('{n}: «nombre» es texto de hasta 60 caracteres.', { n }))
+    if (m.que !== undefined && !txt(m.que, 200)) e.push(tr('{n}: «que» es texto de hasta 200 caracteres.', { n }))
+    if (m.palabras !== undefined && !(Array.isArray(m.palabras) && m.palabras.length === 2 && m.palabras.every(w => txt(w, 30)))) e.push(tr('{n}: «palabras» es [singular, plural] («cita», «citas»).', { n }))
     if (e.length) { errores.push(...e); continue }
     consultas[id] = m as Mapeo
   }
@@ -353,16 +354,16 @@ export function catalogoGenerico(a: ArchivoFuentes | null): Consulta[] {
     // «Lo que más se vende» sin importe se cuenta en ventas; con importe, en dinero.
     const unidad: Unidad = p.id === 'lo-mas-vendido' && m?.valor ? 'dinero' : p.unidad
     const c: Consulta = {
-      id: p.id, nombre: m?.nombre ?? p.nombre, que: m?.que ?? p.que, familia: 'datos',
-      fuente: conectada ? fuentes.map(selloDe).join(' + ') : 'Sin fuente todavía',
-      tipo: p.tipo, tipos: p.tipos, unidad, mejor: p.mejor, alarma: p.alarma, ventanas: p.ventanas, ejemplos: p.ejemplos,
+      id: p.id, nombre: m?.nombre ?? tr(p.nombre), que: m?.que ?? tr(p.que), familia: 'datos',
+      fuente: conectada ? fuentes.map(selloDe).join(' + ') : tr('Sin fuente todavía'),
+      tipo: p.tipo, tipos: p.tipos, unidad, mejor: p.mejor, alarma: p.alarma, ventanas: p.ventanas, ejemplos: p.ejemplos.map(e => tr(e)),
       conectada, ...(unidad === 'dinero' ? { moneda } : {}),
     }
     const palabras = m?.palabras ?? p.palabras
     if (palabras) c.palabras = palabras
-    if (p.nota) c.nota = p.nota
-    if (p.propone) c.propone = p.propone
-    if (!conectada) c.falta = p.falta
+    if (p.nota) c.nota = tr(p.nota)
+    if (p.propone) c.propone = { dolor: tr(p.propone.dolor), placer: tr(p.propone.placer) }
+    if (!conectada) c.falta = tr(p.falta)
     return c
   })
 }

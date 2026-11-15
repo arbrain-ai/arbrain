@@ -80,7 +80,7 @@ test('visor de video: controles mínimos y la tecla de reproducir es la del bot�
   assert.match(v, /import tecla from '@\/features\/chat\/components\/boton-enviar\.module\.css'/)
   assert.match(v, /className=\{`\$\{tecla\.enviar\} \$\{v\.tecla\}`\}/)
   for (const fuera of ['Marcar aquí', 'Fotograma anterior', 'Fotograma siguiente', 'v.formato', 'v.ayuda']) assert.ok(!v.includes(fuera), `sin «${fuera}» a la vista`)
-  for (const dentro of ['aria-label="Posición"', '<BotonVelocidad ', "'Activar sonido'", "'Pantalla completa'"]) assert.ok(v.includes(dentro), `con ${dentro}`)
+  for (const dentro of ["aria-label={tr('Posición')}", '<BotonVelocidad ', "'Activar sonido'", "'Pantalla completa'"]) assert.ok(v.includes(dentro), `con ${dentro}`)
   // La barra se arrastra con el dedo: captura del puntero y sin gesto del navegador encima.
   assert.match(v, /setPointerCapture\(e\.pointerId\)/)
   assert.match(fuente('src/features/cabina/vistas/visor/visor.module.css'), /\.barraTiempo \{[^}]*touch-action: none/)

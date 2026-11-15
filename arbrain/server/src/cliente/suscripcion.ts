@@ -27,16 +27,17 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSy
 import { homedir } from 'node:os'
 import { delimiter, join } from 'node:path'
 import { esEdicionCliente } from '../edicion.js'
+import { trMarca } from '../i18n/tr.js'
 
 export type MotorClaude = 'suscripcion' | 'llave'
 export const ARCHIVO_MOTOR = 'motor-claude.json'
 
 // Prueba en Windows del 22 oct 2026 (docs/builds/prueba-windows-2026-10-22, puntos 10 y 12): cada estado dice en UNA
 // línea qué falta, y el arreglo es un botón de Arbrain (login oficial del CLI), nunca un prompt para copiar.
-export const MENSAJE_SIN_SESION = 'Tu Claude Code está instalado pero sin sesión. Pulsa «Iniciar sesión con Claude» y entra con tu cuenta en el navegador.'
-export const MENSAJE_SIN_CLAUDE = 'No encontré Claude Code en esta computadora (la app de escritorio de Claude no basta: hace falta Claude Code).'
-export const MENSAJE_LENTO = 'Tu Claude Code tardó demasiado en responder (la primera vez puede tardar). Pulsa «Revisar de nuevo».'
-export const MENSAJE_RUTINAS = 'Las rutinas automáticas no corren con tu suscripción de Claude (es para tu uso directo). Para que corran solas, conecta una llave en Ajustes › Llaves.'
+export const MENSAJE_SIN_SESION = trMarca('Tu Claude Code está instalado pero sin sesión. Pulsa «Iniciar sesión con Claude» y entra con tu cuenta en el navegador.')
+export const MENSAJE_SIN_CLAUDE = trMarca('No encontré Claude Code en esta computadora (la app de escritorio de Claude no basta: hace falta Claude Code).')
+export const MENSAJE_LENTO = trMarca('Tu Claude Code tardó demasiado en responder (la primera vez puede tardar). Pulsa «Revisar de nuevo».')
+export const MENSAJE_RUTINAS = trMarca('Las rutinas automáticas no corren con tu suscripción de Claude (es para tu uso directo). Para que corran solas, conecta una llave en Ajustes › Llaves.')
 export const CODIGO_SIN_SESION = 'sin_sesion'
 
 /** ¿El chat de esta instalación corre con la suscripción del alumno? Solo en la edición cliente. */
@@ -199,7 +200,7 @@ export interface EstadoSuscripcion {
  */
 export function interpretarEstadoAuth(salida: string): Pick<EstadoSuscripcion, 'sesion' | 'metodo' | 'plan' | 'code' | 'mensaje'> {
   let d: Record<string, unknown>
-  try { d = JSON.parse(salida) as Record<string, unknown> } catch { return { sesion: false, code: 'error', mensaje: 'Tu Claude Code no respondió como esperaba (quizá es una versión vieja). Pulsa «Iniciar sesión con Claude» o «Revisar de nuevo».' } }
+  try { d = JSON.parse(salida) as Record<string, unknown> } catch { return { sesion: false, code: 'error', mensaje: trMarca('Tu Claude Code no respondió como esperaba (quizá es una versión vieja). Pulsa «Iniciar sesión con Claude» o «Revisar de nuevo».') } }
   const metodo = typeof d.authMethod === 'string' ? d.authMethod : undefined
   const plan = typeof d.subscriptionType === 'string' && /^[a-z_-]{1,24}$/i.test(d.subscriptionType) ? d.subscriptionType : undefined
   const logueado = d.loggedIn === true
@@ -207,7 +208,7 @@ export function interpretarEstadoAuth(salida: string): Pick<EstadoSuscripcion, '
   if (logueado && metodo === 'claude.ai' && primerNivel) return { sesion: true, metodo, ...(plan ? { plan } : {}) }
   if (!logueado || metodo === 'none' || !metodo) return { sesion: false, ...(metodo ? { metodo } : {}), code: CODIGO_SIN_SESION, mensaje: MENSAJE_SIN_SESION }
   // Sesión por otra vía (llave de API, apiKeyHelper, Bedrock…): eso no es la suscripción y cobraría aparte.
-  return { sesion: false, metodo, code: 'otra_via', mensaje: 'Tu Claude Code está conectado con una llave de API o con otro proveedor, no con tu cuenta de Claude. Pulsa «Iniciar sesión con Claude» y entra con tu cuenta Pro o Max.' }
+  return { sesion: false, metodo, code: 'otra_via', mensaje: trMarca('Tu Claude Code está conectado con una llave de API o con otro proveedor, no con tu cuenta de Claude. Pulsa «Iniciar sesión con Claude» y entra con tu cuenta Pro o Max.') }
 }
 
 type Ejecutar = (archivo: string, args: string[], env: Record<string, string>) => Promise<{ stdout: string; code: number; lento?: boolean }>
@@ -270,15 +271,15 @@ export function vaciarCacheSuscripcion(): void { cache = null }
 // `auth status`.
 
 export interface EstadoLogin { estado: 'esperando' | 'listo' | 'fallo'; desde: string; mensaje?: string }
-export const MENSAJE_LOGIN_ESPERANDO = 'Se abrió tu navegador: entra con tu cuenta de Claude y autoriza. Arbrain lo detecta solo al volver.'
-export const MENSAJE_LOGIN_FALLO = 'El inicio de sesión no terminó (se cerró o venció). Pulsa «Iniciar sesión con Claude» otra vez.'
+export const MENSAJE_LOGIN_ESPERANDO = trMarca('Se abrió tu navegador: entra con tu cuenta de Claude y autoriza. Arbrain lo detecta solo al volver.')
+export const MENSAJE_LOGIN_FALLO = trMarca('El inicio de sesión no terminó (se cerró o venció). Pulsa «Iniciar sesión con Claude» otra vez.')
 /**
  * En tu servidor (29 oct 2026, «solo en tu servidor»): ahí no hay navegador que abrir ni regreso a 127.0.0.1, así que el
  * botón no sirve. La sesión se inicia con el login oficial en una terminal (`nube.sh claude`): Claude Code muestra el
  * enlace, la persona entra en el navegador de su teléfono o su compu y pega el código en esa terminal
  * (code.claude.com/docs/en/authentication: «Paste code here if prompted»). Arbrain no ve el código ni el token.
  */
-export const MENSAJE_LOGIN_SERVIDOR = 'Tu Arbrain vive en tu servidor: la sesión de Claude se inicia desde una terminal. Pídele a tu Claude Code «conecta mi cuenta de Claude en mi servidor»: te da un comando, entras con tu cuenta y pegas el código ahí.'
+export const MENSAJE_LOGIN_SERVIDOR = trMarca('Tu Arbrain vive en tu servidor: la sesión de Claude se inicia desde una terminal. Pídele a tu Claude Code «conecta mi cuenta de Claude en mi servidor»: te da un comando, entras con tu cuenta y pegas el código ahí.')
 /** ¿Este daemon corre en el servidor de la persona (unidad de systemd de nube.sh)? */
 export const enServidorNube = (env: NodeJS.ProcessEnv = process.env): boolean => (env.ARBRAIN_SERVIDOR_NUBE ?? '').trim() === '1'
 const PLAZO_LOGIN_MS = 10 * 60_000
@@ -374,8 +375,8 @@ export function iniciarSesionClaude(op: { env?: NodeJS.ProcessEnv; alTerminar?: 
   })
   return instalando
 }
-export const MENSAJE_INSTALANDO = 'Instalando Claude Code (el instalador oficial, uno o dos minutos). Después se abre tu navegador para entrar.'
-export const MENSAJE_NO_INSTALO = 'No pude instalar Claude Code (¿sin internet?). Revisa tu conexión y pulsa «Iniciar sesión con Claude» otra vez.'
+export const MENSAJE_INSTALANDO = trMarca('Instalando Claude Code (el instalador oficial, uno o dos minutos). Después se abre tu navegador para entrar.')
+export const MENSAJE_NO_INSTALO = trMarca('No pude instalar Claude Code (¿sin internet?). Revisa tu conexión y pulsa «Iniciar sesión con Claude» otra vez.')
 
 /** Cierra un inicio de sesión en curso (al apagar el daemon). */
 export function cancelarLoginClaude(): void {

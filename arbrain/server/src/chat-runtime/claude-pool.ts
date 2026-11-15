@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import { ClaudeInteractiveSession, ClaudeSubmissionCancelled, type ClaudeBackgroundEvent } from './claude-session.js'
 import { ClaudeQueryAccounting } from './claude-accounting.js'
 import { offerSpontaneous } from './spontaneous.js'
+import { tr } from '../i18n/tr.js'
 
 export interface ClaudeTurnScope { owner: string; account: string; conversationId: string; turnId: string }
 type Entry = { session: ClaudeInteractiveSession; signature: string; canUseTool: Options['canUseTool']; onBackground: (event: ClaudeBackgroundEvent) => void; lastUsed: number; reserved: boolean; accounting: ClaudeQueryAccounting }
@@ -31,7 +32,7 @@ export class ClaudeRuntimePool {
     let entry = this.entries.get(key)
     const resume = fresh ? undefined : options.resume ?? entry?.session.sessionId
     // Una respuesta espontánea (despertar) no bloquea: el turno de Daniel espera a que termine dentro de session.turn().
-    if (entry && (entry.reserved || entry.session.foregroundBusy)) throw new Error('La conversación Claude todavía está ejecutando un turno.')
+    if (entry && (entry.reserved || entry.session.foregroundBusy)) throw new Error(tr('La conversación Claude todavía está ejecutando un turno.'))
     if (entry && (fresh || entry.session.closed || entry.signature !== signature || (options.resume && entry.session.sessionId && options.resume !== entry.session.sessionId))) {
       if (entry.session.hasBackgroundWork || entry.session.backgroundReplyOpen) return this.afterBackground(entry, () => this.open(scope, options, message, onBackground, fresh), options.abortController?.signal)
       entry.session.close(); this.entries.delete(key); entry = undefined
@@ -39,12 +40,12 @@ export class ClaudeRuntimePool {
     if (!entry) {
       if (this.entries.size >= this.limit) {
         const idle = [...this.entries.entries()].filter(([, e]) => !e.reserved && !e.session.busy && !e.session.hasBackgroundWork).sort((a, b) => a[1].lastUsed - b[1].lastUsed)[0]
-        if (!idle) throw new Error('Todos los procesos Claude están ocupados; el trabajo conserva su identidad para reintentarlo.')
+        if (!idle) throw new Error(tr('Todos los procesos Claude están ocupados; el trabajo conserva su identidad para reintentarlo.'))
         idle[1].session.close(); this.entries.delete(idle[0])
       }
       const current = { signature, canUseTool, onBackground, lastUsed: Date.now(), reserved: false, accounting: new ClaudeQueryAccounting() } as Entry
       current.session = this.create(scope, { ...options, resume, abortController: undefined, canUseTool: async (...args) => {
-        if (!current.canUseTool) return { behavior: 'deny', message: 'No hay controlador de permisos para este turno.' }
+        if (!current.canUseTool) return { behavior: 'deny', message: tr('No hay controlador de permisos para este turno.') }
         return current.canUseTool(...args)
       } }, event => current.onBackground(event))
       // Respuestas que el CLI da solo (avisos, Bash de fondo, despertadores) se vuelven turnos visibles.
@@ -108,7 +109,7 @@ export class ClaudeRuntimePool {
     const key = JSON.stringify([scope.owner, scope.account, scope.conversationId])
     const entry = this.entries.get(key)
     if (!entry) return
-    if (entry.reserved || entry.session.busy || entry.session.hasBackgroundWork) throw new Error('Esta conversación todavía tiene trabajo en curso.')
+    if (entry.reserved || entry.session.busy || entry.session.hasBackgroundWork) throw new Error(tr('Esta conversación todavía tiene trabajo en curso.'))
     entry.session.close(); this.entries.delete(key)
   }
   /** Inyección a mitad de turno (7 oct 2026): solo si ESTE proceso corre ahora mismo ese turno.

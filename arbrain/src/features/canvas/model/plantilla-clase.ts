@@ -10,11 +10,12 @@ import type { Camera, CanvasElement, FrameElement, SectionTint, TextElement } fr
 import type { MeasureContext, TextStyle } from '../text/types'
 import { wrapText } from '../text/layout'
 import { createSection, createSticky } from './create'
+import { tr, trMarca } from '@/shared/i18n'
 
 export const BLOQUES_CLASE: { titulo: string; nota: string; tinte: SectionTint }[] = [
-  { titulo: '1 · Qué van a aprender', nota: 'La idea en una frase', tinte: 'morado' },
-  { titulo: '2 · Cómo funciona', nota: 'El mecanismo, paso a paso', tinte: 'azul' },
-  { titulo: '3 · Qué hacen hoy', nota: 'La acción concreta al salir', tinte: 'verde' },
+  { titulo: trMarca('1 · Qué van a aprender'), nota: trMarca('La idea en una frase'), tinte: 'morado' },
+  { titulo: trMarca('2 · Cómo funciona'), nota: trMarca('El mecanismo, paso a paso'), tinte: 'azul' },
+  { titulo: trMarca('3 · Qué hacen hoy'), nota: trMarca('La acción concreta al salir'), tinte: 'verde' },
 ]
 
 const ANCHO = 520, ALTO = 560, HUECO = 60
@@ -22,7 +23,7 @@ const TITULO: TextStyle = { family: 'roboto-slab', weight: 900, size: 64 }
 
 export function plantillaClase(ctx: MeasureContext, titulo: string): { elements: CanvasElement[]; camera: Camera } {
   const total = BLOQUES_CLASE.length * ANCHO + (BLOQUES_CLASE.length - 1) * HUECO
-  const texto = titulo.trim() || 'Clase'
+  const texto = titulo.trim() || tr('Clase')
   const laid = wrapText(ctx, texto, TITULO, { maxWidth: total })
   const cabeza: TextElement = {
     id: `clase-titulo-${Date.now().toString(36)}`, type: 'text',
@@ -34,8 +35,8 @@ export function plantillaClase(ctx: MeasureContext, titulo: string): { elements:
   const elements: CanvasElement[] = [cabeza]
   BLOQUES_CLASE.forEach((b, i) => {
     const x = i * (ANCHO + HUECO)
-    const seccion: FrameElement = { ...createSection({ x, y: y0, width: ANCHO, height: ALTO }, b.titulo), tint: b.tinte }
-    elements.push(seccion, createSticky(ctx, { x: x + ANCHO / 2, y: y0 + 190 }, b.nota, 2 + i))
+    const seccion: FrameElement = { ...createSection({ x, y: y0, width: ANCHO, height: ALTO }, tr(b.titulo)), tint: b.tinte }
+    elements.push(seccion, createSticky(ctx, { x: x + ANCHO / 2, y: y0 + 190 }, tr(b.nota), 2 + i))
   })
   const alto = y0 + ALTO
   return { elements, camera: { x: total / 2, y: alto / 2, zoom: 0.55 } }

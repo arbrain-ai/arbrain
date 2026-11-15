@@ -5,6 +5,7 @@
  * normal (MessageBubble) y para lo que escribió con Levy trabajando (dentro del turno, donde el motor lo tomó). Como
  * Claude y ChatGPT: lo que escribes es tu burbuja, entre o no a mitad de turno; el estado va fuera, en el pie.
  */
+import { tr, localeIntl } from '@/shared/i18n'
 import { useState, type ReactNode } from 'react'
 import { Check, Copy, Loader2 } from 'lucide-react'
 import { etiquetaVisible, type NotaInyectada } from '../lib/inyecciones'
@@ -21,8 +22,8 @@ export function CopyBtn({ text }: { text: string }) {
   return (
     <button
       onClick={handle}
-      title="Copiar mensaje"
-      aria-label="Copiar mensaje"
+      title={tr('Copiar mensaje')}
+      aria-label={tr('Copiar mensaje')}
       className="flex items-center justify-center min-w-[36px] min-h-[36px] md:min-w-0 md:min-h-0 p-2 md:p-0.5 rounded-lg md:rounded text-muted/60 hover:text-muted hover:bg-card-hover md:hover:bg-transparent transition-colors"
     >
       {copied ? <Check size={14} className="text-gold-dark dark:text-gold-bright" /> : <Copy size={14} />}
@@ -32,7 +33,7 @@ export function CopyBtn({ text }: { text: string }) {
 
 /** Burbuja morada a la derecha (identidad Titaniumorphism): la única forma del texto del dueño en el hilo. */
 export function BurbujaUsuario({ children }: { children: ReactNode }) {
-  return <div data-burbuja-usuario className="max-w-[85%] md:max-w-[75%] min-w-0 overflow-hidden px-4 py-2.5 text-[15px] leading-relaxed msg-bubble-own rounded-br-md">{children}</div>
+  return <div data-burbuja-usuario className="max-w-[85%] md:max-w-[75%] min-w-0 overflow-hidden px-4 py-2.5 text-[length:var(--tam-prosa-sans)] leading-relaxed msg-bubble-own rounded-br-md">{children}</div>
 }
 
 /** Pie bajo la burbuja, alto fijo: `estado` siempre a la vista (enviando, entrando…) y las acciones al pasar el ratón en
@@ -49,7 +50,7 @@ export function PieUsuario({ estado, children }: { estado?: ReactNode; children:
   )
 }
 
-const hora = (at: number) => new Date(at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
+const hora = (at: number) => new Date(at).toLocaleTimeString(localeIntl(), { hour: '2-digit', minute: '2-digit' })
 
 /** Mensaje del dueño dentro del turno, en el punto donde Levy lo tomó: la misma burbuja y el mismo pie que un mensaje
  *  normal. «Leído» no se escribe (1 nov 2026: «sé que lo lees»); solo se ve lo que aún pide atención, fuera de la burbuja.
@@ -62,9 +63,9 @@ function NotaInyectadaMensaje({ nota }: { nota: NotaInyectada }) {
       <PieUsuario estado={etiqueta
         ? <span role="status" className="inline-flex items-center gap-1 text-[10px] text-muted/80">
             {nota.estado !== 'en_fila' && <Loader2 size={10} className="animate-spin shrink-0" />}
-            {etiqueta}
+            {tr(etiqueta)}
           </span>
-        : <span className="sr-only">Levy ya lo leyó</span>}>
+        : <span className="sr-only">{tr('Levy ya lo leyó')}</span>}>
         <CopyBtn text={copyableUserText(nota.texto)} />
         <p className="text-[10px] text-muted/80">{hora(nota.at)}</p>
       </PieUsuario>

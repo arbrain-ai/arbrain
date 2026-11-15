@@ -23,6 +23,7 @@
 
 import { createClient, type RealtimeChannel } from '@supabase/supabase-js'
 import type { CanvasElement, Camera } from '../model/element'
+import { tr } from '@/shared/i18n'
 
 export interface PaginaResumen {
   id: string
@@ -37,6 +38,8 @@ export interface PaginaResumen {
   /** Fijado a mano en «Fijados» y cuándo se archivó. Ver `organizacion.ts`. */
   fijado: import('./organizacion').Fijado | null
   archivado: string | null
+  /** Página tablero (mapa v16): sin lápiz ni herramientas. Ausente = página normal. */
+  tablero?: boolean
 }
 
 /** `madre`: la carpeta que la contiene (un nivel, como sfmap). `archivada`: ISO del archivo; sus subcarpetas la siguen. */
@@ -47,8 +50,8 @@ async function pedir<T>(url: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
   })
-  const j = await r.json().catch(() => ({ ok: false, error: `respuesta ilegible (${r.status})` }))
-  if (!j.ok) throw new Error(j.error ?? `error ${r.status}`)
+  const j = await r.json().catch(() => ({ ok: false, error: tr('respuesta ilegible ({status})', { status: r.status }) }))
+  if (!j.ok) throw new Error(j.error ?? tr('error {status}', { status: r.status }))
   return j as T
 }
 
@@ -76,6 +79,10 @@ export const crearLienzo = (nombre: string, folderId: string | null, m: ModoNuev
 /** Fija o desfija (grupo y orden al fijar). Solo `settings`: no sube la version ni mueve la fecha. */
 export const fijarPagina = (id: string, fijar: boolean, grupo?: string, orden?: number) =>
   pedir(`/api/canvas/pages/${id}`, { method: 'PATCH', body: JSON.stringify({ fijar, grupo, orden }) })
+
+/** Página tablero (mapa v16): esconde el lápiz y las herramientas en ESA página. Solo `settings`: no sube la versión. */
+export const marcarTablero = (id: string, tablero: boolean) =>
+  pedir(`/api/canvas/pages/${id}`, { method: 'PATCH', body: JSON.stringify({ tablero }) })
 
 /** Archivar no borra: la marca se quita igual de facil. */
 export const archivarPagina = (id: string, archivar: boolean) =>
@@ -131,6 +138,8 @@ export interface PaginaCompleta {
   /** El tema con el que se dibujo. Solo viene en paginas del canvas anterior. */
   tema?: 'claro' | 'oscuro'
   elements: CanvasElement[]; camera: Camera | null
+  /** Página tablero (mapa v16, 14 nov 2026): el lienzo esconde el lápiz y las herramientas de dibujo. */
+  tablero?: boolean
 }
 
 /** Persiste la conversion. Es el UNICO camino que escribe una pagina del v3. */
@@ -163,9 +172,9 @@ export async function guardarSobreVersion(
     method: 'PUT', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ elements, camera, baseVersion }),
   })
-  const j = await r.json().catch(() => ({ ok: false, error: `respuesta ilegible (${r.status})` }))
+  const j = await r.json().catch(() => ({ ok: false, error: tr('respuesta ilegible ({status})', { status: r.status }) }))
   if (r.status === 409 && j.conflicto) return { ok: false, conflicto: true, version: Number(j.version ?? 0) }
-  if (!j.ok || typeof j.version !== 'number') throw new Error(j.error ?? `error ${r.status}`)
+  if (!j.ok || typeof j.version !== 'number') throw new Error(j.error ?? tr('error {status}', { status: r.status }))
   return { ok: true, version: j.version }
 }
 

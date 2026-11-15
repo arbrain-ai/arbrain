@@ -3,6 +3,7 @@ import type { ChatOverrides } from '../db.js'
 import type { NativeControlEvidence } from './native-control-proof.js'
 import { esCuentaChat } from '../modelos/registro.js'
 import { controlesIniciales } from '../modelos/preferencia.js'
+import { tr } from '../i18n/tr.js'
 export interface ControlScope { owner: string; account: string; conversationId: string | null }
 export interface LegacyControlSource { key: string; verifiedConversation: boolean; nativeEvidence?: NativeControlEvidence }
 type Row = ChatOverrides & { fast: boolean; ultracode: boolean; revision: number }
@@ -50,7 +51,7 @@ export class ScopedControls {
       const verifiedNative = evidence?.kind === 'claude-transcript-and-bindings' && evidence.owner === scope.owner && evidence.account === scope.account && evidence.conversationId === scope.conversationId && evidence.matchingMetadata > 0 && evidence.bindingCount > 0
       const verified = scope.conversationId?.startsWith('sdk:') ? verifiedNative : source.verifiedConversation
       if (!verified || !scope.conversationId || source.key !== scope.conversationId) {
-        throw new Error('Los ajustes antiguos no tienen propietario/cuenta verificables. Se conservaron sin importarlos; requieren migración explícita.')
+        throw new Error(tr('Los ajustes antiguos no tienen propietario/cuenta verificables. Se conservaron sin importarlos; requieren migración explícita.'))
       }
       initial = values({ ...legacy, revision: 1 }); origin = verifiedNative ? 'legacy-native-verified' : 'legacy-verified'
       this.db.prepare('INSERT INTO chat_controls_legacy_claims VALUES (?,?,?,?,?,?)').run(source.key, ...params(scope), JSON.stringify(legacy), Date.now())
@@ -58,7 +59,7 @@ export class ScopedControls {
     } else if (claimed && claimed.owner === scope.owner && claimed.account === scope.account && claimed.conversation_id === (scope.conversationId ?? '')) {
       // Missing destination after a prior migration indicates a partial/manual
       // rollback. Do not recreate it from a legacy row that may have changed.
-      throw new Error('Falta el destino de una migración previa de ajustes. Restaura su copia antes de continuar.')
+      throw new Error(tr('Falta el destino de una migración previa de ajustes. Restaura su copia antes de continuar.'))
     }
     this.db.prepare('INSERT INTO chat_controls_v2 VALUES (?,?,?,?,?,?,?,?,?,?)').run(...params(scope), initial.model, initial.effort, Number(initial.fast), Number(initial.ultracode), 1, origin, Date.now())
     return { ...initial, revision: 1 }
@@ -75,7 +76,7 @@ export class ScopedControls {
   patch(scope: ControlScope, source: LegacyControlSource, patch: Partial<ChatOverrides>, expectedRevision?: number): Row {
     return this.db.transaction(() => {
       const current = this.initialize(scope, source)
-      if (expectedRevision !== undefined && current.revision !== expectedRevision) throw new Error('Los ajustes cambiaron durante la validación. Repite la orden.')
+      if (expectedRevision !== undefined && current.revision !== expectedRevision) throw new Error(tr('Los ajustes cambiaron durante la validación. Repite la orden.'))
       const next = { ...current, ...patch, revision: current.revision + 1 }
       this.db.prepare('UPDATE chat_controls_v2 SET model=?,effort=?,fast=?,ultracode=?,revision=?,updated_at=? WHERE owner=? AND account=? AND conversation_id=?')
         .run(next.model, next.effort, Number(next.fast), Number(next.ultracode), next.revision, Date.now(), ...params(scope))
@@ -105,7 +106,7 @@ export function controlAccess(db: Database.Database, scope: ControlScope, source
     read: () => strip(store.read(scope, source)),
     patch: (patch: Partial<ChatOverrides>, validated?: ChatOverrides) => {
       const expected = validated ? snapshots.get(validated) : revision
-      if (validated && expected === undefined) throw new Error('La validación no pertenece a esta lectura de ajustes.')
+      if (validated && expected === undefined) throw new Error(tr('La validación no pertenece a esta lectura de ajustes.'))
       return strip(store.patch(scope, source, patch, expected))
     },
   }

@@ -12,6 +12,7 @@ import { useEffect, useRef, useState } from 'react'
 import '@xterm/xterm/css/xterm.css'
 import s from './panel.module.css'
 import { conEnlaces } from '../terminal/enlaces'
+import { tr } from '@/shared/i18n'
 
 type Estado = { fase: 'conectando' | 'viva' | 'fin' | 'error'; msg?: string; soloLectura?: boolean }
 
@@ -36,7 +37,7 @@ export function TerminalViva({ id, onEstado }: { id: number; onEstado?: (e: Esta
     let conectado = false
     const cambiar = (e: Estado) => { if (!vivo) return; if (e.fase !== 'conectando') conectado = true; setEstado(e); avisar.current?.(e) }
     // Nunca «Conectando…» para siempre (5 oct 2026, desde la MacBook por el Funnel): a los 25 s se dice y se ofrece reintentar.
-    const plazo = setTimeout(() => { if (!conectado) { es?.close(); cambiar({ fase: 'error', msg: 'El Studio no terminó de mandar la terminal en 25 s (¿conexión lenta?).' }) } }, 25_000)
+    const plazo = setTimeout(() => { if (!conectado) { es?.close(); cambiar({ fase: 'error', msg: tr('El Studio no terminó de mandar la terminal en 25 s (¿conexión lenta?).') }) } }, 25_000)
     const url = `/api/cabina/terminal/${id}`
     const post = (cuerpo: Record<string, unknown>, keepalive = false) => fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cuerpo), keepalive })
     let limpiar = () => {}
@@ -58,8 +59,8 @@ export function TerminalViva({ id, onEstado }: { id: number; onEstado?: (e: Esta
         const datos = cola; cola = ''
         try {
           const r = await post({ datos })
-          if (!r.ok) { const j = await r.json().catch(() => ({})); term.write(`\r\n\x1b[33m[${j.error ?? 'el motor no aceptó la entrada'}]\x1b[0m\r\n`) }
-        } catch { term.write('\r\n\x1b[33m[sin conexión con el Studio]\x1b[0m\r\n') }
+          if (!r.ok) { const j = await r.json().catch(() => ({})); term.write(`\r\n\x1b[33m[${j.error ? tr(j.error) : tr('el motor no aceptó la entrada')}]\x1b[0m\r\n`) }
+        } catch { term.write(`\r\n\x1b[33m[${tr('sin conexión con el Studio')}]\x1b[0m\r\n`) }
         enviando = false
         if (cola) void vaciar()
       }
@@ -97,12 +98,12 @@ export function TerminalViva({ id, onEstado }: { id: number; onEstado?: (e: Esta
           term.write('', () => { reproduciendo = false; ultimoTam = ''; ajustar(); if (!soloLectura) term.focus() })
           cambiar({ fase: 'viva', soloLectura })
         } else if (m.t === 'fin') {
-          term.write('\r\n\x1b[2m[la terminal terminó]\x1b[0m\r\n'); es?.close(); original = null; cambiar({ fase: 'fin' })
+          term.write(`\r\n\x1b[2m[${tr('la terminal terminó')}]\x1b[0m\r\n`); es?.close(); original = null; cambiar({ fase: 'fin' })
         } else if (m.t === 'error') {
-          es?.close(); cambiar({ fase: 'error', msg: m.msg })
+          es?.close(); cambiar({ fase: 'error', msg: m.msg ? tr(m.msg) : m.msg })
         }
       }
-      es.onerror = () => { if (es?.readyState === EventSource.CLOSED) cambiar({ fase: 'error', msg: 'Se perdió la conexión con el Studio.' }) }
+      es.onerror = () => { if (es?.readyState === EventSource.CLOSED) cambiar({ fase: 'error', msg: tr('Se perdió la conexión con el Studio.') }) }
 
       ro = new ResizeObserver(() => ajustar())
       ro.observe(caja.current)
@@ -117,11 +118,11 @@ export function TerminalViva({ id, onEstado }: { id: number; onEstado?: (e: Esta
   }, [id, intento])
 
   return <div className={s.vivaMarco}>
-    <div ref={caja} className={s.viva} aria-label="Terminal en vivo" data-fase={estado.fase} />
-    {estado.fase === 'conectando' && <p className={s.vivaVelo}>Conectando con el motor…</p>}
+    <div ref={caja} className={s.viva} aria-label={tr('Terminal en vivo')} data-fase={estado.fase} />
+    {estado.fase === 'conectando' && <p className={s.vivaVelo}>{tr('Conectando con el motor…')}</p>}
     {estado.fase === 'error' && <div className={s.vivaVelo}>
-      <span>{estado.msg ?? 'El motor no respondió.'}</span>
-      <button className={s.enlace} onClick={() => { setEstado({ fase: 'conectando' }); setIntento(n => n + 1) }}>Reintentar</button>
+      <span>{estado.msg ?? tr('El motor no respondió.')}</span>
+      <button className={s.enlace} onClick={() => { setEstado({ fase: 'conectando' }); setIntento(n => n + 1) }}>{tr('Reintentar')}</button>
     </div>}
   </div>
 }

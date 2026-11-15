@@ -2,6 +2,7 @@ import { addDays, format, parseISO } from 'date-fns'
 import { period, taskDay, type Goal, type Horizon } from '@/features/goals/model'
 import type { PlanTask } from './types'
 import type { AlcanceObjetivos } from './accesos'
+import { trMarca } from '@/shared/i18n'
 
 /** Vista unificada (4 oct 2026): el objetivo y las tareas de arriba cubren EL MISMO periodo que pinta el calendario de abajo. */
 export const HORIZONTE: Record<AlcanceObjetivos, Horizon> = { dia: 'day', semana: 'week', mes: 'month' }
@@ -26,5 +27,5 @@ export function objetivosDelPeriodo(goals: Goal[], alcance: AlcanceObjetivos, an
   return goals.filter(g => g.scope === h && g.start === p.start)
 }
 
-export const TITULO_OBJETIVO: Record<AlcanceObjetivos, string> = { dia: 'Objetivo del día', semana: 'Objetivo de la semana', mes: 'Objetivo del mes' }
-export const TITULO_VACIO: Record<AlcanceObjetivos, string> = { dia: 'Sin objetivo para este día.', semana: 'Sin objetivo para esta semana.', mes: 'Sin objetivo para este mes.' }
+export const TITULO_OBJETIVO: Record<AlcanceObjetivos, string> = { dia: trMarca('Objetivo del día'), semana: trMarca('Objetivo de la semana'), mes: trMarca('Objetivo del mes') }
+export const TITULO_VACIO: Record<AlcanceObjetivos, string> = { dia: trMarca('Sin objetivo para este día.'), semana: trMarca('Sin objetivo para esta semana.'), mes: trMarca('Sin objetivo para este mes.') }

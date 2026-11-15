@@ -7,6 +7,8 @@
  * salió (`creadaPor` + `origen`). El `resumen` es solo el título. Nada de esto lo escribe el modelo.
  */
 
+import { localeIntl, tr, trMarca } from '@/shared/i18n'
+
 export type CategoriaConfirmacion = 'enviar' | 'pagar' | 'borrar' | 'publicar' | 'otra'
 
 export interface Confirmacion {
@@ -71,12 +73,12 @@ export function enLaCola(lista: Confirmacion[], conversacion?: string | null): C
 /** «Desde las 10:42» (hoy) o «desde ayer a las 18:05» / «desde el 24 oct»: explícito, nunca un «9 min» suelto. */
 export function desdeCuando(t: number, ahora = Date.now()): string {
   const d = new Date(t), hoy = new Date(ahora)
-  const hora = d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false })
+  const hora = d.toLocaleTimeString(localeIntl(), { hour: '2-digit', minute: '2-digit', hour12: false })
   const mismoDia = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
-  if (mismoDia(d, hoy)) return `desde las ${hora}`
+  if (mismoDia(d, hoy)) return tr('desde las {hora}', { hora })
   const ayer = new Date(ahora - 86_400_000)
-  if (mismoDia(d, ayer)) return `desde ayer a las ${hora}`
-  return `desde el ${d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }).replace('.', '')}`
+  if (mismoDia(d, ayer)) return tr('desde ayer a las {hora}', { hora })
+  return tr('desde el {fecha}', { fecha: d.toLocaleDateString(localeIntl(), { day: 'numeric', month: 'short' }).replace('.', '') })
 }
 
 /**
@@ -94,9 +96,9 @@ export function ultimaLineaUtil(salida?: string): string | null {
 
 export function resumenCorrida(c: Pick<Confirmacion, 'codigo' | 'salida'>): { ok: boolean | null; titulo: string; frase: string } {
   const u = ultimaLineaUtil(c.salida)
-  if (c.codigo === 0) return { ok: true, titulo: 'Listo: terminó bien', frase: u ? `La última línea dice «${u}». Levy ya lo sabe y sigue.` : 'Levy ya lo sabe y sigue.' }
-  if (typeof c.codigo === 'number') return { ok: false, titulo: 'Terminó con un error', frase: `${u ? `La última línea dice «${u}». ` : ''}Levy ya vio lo que salió y te dice qué sigue.` }
-  return { ok: null, titulo: 'Terminó', frase: 'Se lo pasé a Levy con lo que salió en la terminal.' }
+  if (c.codigo === 0) return { ok: true, titulo: tr('Listo: terminó bien'), frase: u ? tr('La última línea dice «{linea}». Levy ya lo sabe y sigue.', { linea: u }) : tr('Levy ya lo sabe y sigue.') }
+  if (typeof c.codigo === 'number') return { ok: false, titulo: tr('Terminó con un error'), frase: u ? tr('La última línea dice «{linea}». Levy ya vio lo que salió y te dice qué sigue.', { linea: u }) : tr('Levy ya vio lo que salió y te dice qué sigue.') }
+  return { ok: null, titulo: tr('Terminó'), frase: tr('Se lo pasé a Levy con lo que salió en la terminal.') }
 }
 
 /** ¿Va en el hilo del chat? Lo que pidió Levy en la conversación (no rutinas ni manos de computer use). */
@@ -128,16 +130,16 @@ export interface EtiquetaOrigen {
  */
 export function etiquetaOrigen(c: Pick<Confirmacion, 'origen' | 'creadaPor'>): EtiquetaOrigen {
   if (c.creadaPor === 'peticion') {
-    const marcas = ['Pedida por Levy']
-    if (c.origen === 'manos') marcas.push('Manos')
-    return { quien: c.origen === 'manos' ? 'Levy, usando tu computadora,' : 'Levy', marcas, sinVerificar: false }
+    const marcas = [tr('Pedida por Levy')]
+    if (c.origen === 'manos') marcas.push(tr('Manos'))
+    return { quien: c.origen === 'manos' ? tr('Levy, usando tu computadora,') : 'Levy', marcas, sinVerificar: false }
   }
   if (c.creadaPor === 'guardia') {
-    if (c.origen === 'cron') return { quien: 'Una rutina tuya programada', marcas: ['Rutina'], sinVerificar: false }
-    if (c.origen === 'manos') return { quien: 'Levy, usando tu computadora,', marcas: ['Manos'], sinVerificar: false }
+    if (c.origen === 'cron') return { quien: tr('Una rutina tuya programada'), marcas: [tr('Rutina')], sinVerificar: false }
+    if (c.origen === 'manos') return { quien: tr('Levy, usando tu computadora,'), marcas: [tr('Manos')], sinVerificar: false }
     return { quien: 'Levy', marcas: [], sinVerificar: false }
   }
-  return { quien: 'Un agente', marcas: ['Origen sin verificar'], sinVerificar: true }
+  return { quien: tr('Un agente'), marcas: [tr('Origen sin verificar')], sinVerificar: true }
 }
 
 /** Límite del daemon para el literal (contrato v3 §6). Un literal de ese tamaño pudo llegar recortado. */
@@ -183,10 +185,10 @@ export function sugerenciaModo(c: Pick<Confirmacion, 'avisos' | 'patron' | 'tipo
 export function avisosDe(c: Pick<Confirmacion, 'avisos' | 'literal'>): string[] {
   const lista = (Array.isArray(c.avisos) ? c.avisos : []).map(a => String(a).trim()).filter(Boolean)
   if (c.literal) {
-    if (literalVisible(c.literal).invisibles > 0) lista.push('tiene caracteres invisibles (marcados como ⟨U+…⟩)')
-    if (c.literal.length >= LIMITE_LITERAL) lista.push('el texto llegó recortado: lo que corre puede ser más largo')
+    if (literalVisible(c.literal).invisibles > 0) lista.push(tr('tiene caracteres invisibles (marcados como ⟨U+…⟩)'))
+    if (c.literal.length >= LIMITE_LITERAL) lista.push(tr('el texto llegó recortado: lo que corre puede ser más largo'))
   } else {
-    lista.push('el servidor no mandó el comando literal')
+    lista.push(tr('el servidor no mandó el comando literal'))
   }
   return [...new Set(lista)]
 }
@@ -209,11 +211,11 @@ export interface EstadoSandbox {
 /** Texto para la persona cuando no hay sandbox (Windows, Linux sin bubblewrap/socat, sandbox apagado). */
 export function avisoSinSandbox(s: EstadoSandbox): string {
   const donde = s.sistema === 'windows'
-    ? 'En Windows no hay sandbox para la terminal'
+    ? tr('En Windows no hay sandbox para la terminal')
     : s.sistema === 'linux'
-      ? `En este Linux no hay sandbox para la terminal${s.faltan?.length ? ` (falta ${s.faltan.join(' y ')}: sudo apt install bubblewrap socat)` : ''}`
-      : 'En este equipo el sandbox de la terminal está apagado'
-  return `${donde}: cada comando que Levy quiera correr, incluso solo para leer, te pedirá un clic. Lee el comando antes de permitirlo.`
+      ? (s.faltan?.length ? tr('En este Linux no hay sandbox para la terminal (falta {faltan}: sudo apt install bubblewrap socat)', { faltan: s.faltan.join(tr(' y ')) }) : tr('En este Linux no hay sandbox para la terminal'))
+      : tr('En este equipo el sandbox de la terminal está apagado')
+  return tr('{donde}: cada comando que Levy quiera correr, incluso solo para leer, te pedirá un clic. Lee el comando antes de permitirlo.', { donde })
 }
 
 /**
@@ -224,7 +226,7 @@ export function avisoSinSandbox(s: EstadoSandbox): string {
  *     presiona Enter; Levy no la ve.»
  * Iniciar sesión (`gh auth login`…): «Este programa te pide iniciar sesión…». Sin literal: null.
  */
-export function fraseManos(c: Pick<Confirmacion, 'literal' | 'frase' | 'resumen'>, equipo = 'Tu computadora'): string | null {
+export function fraseManos(c: Pick<Confirmacion, 'literal' | 'frase' | 'resumen'>, equipo: string = trMarca('Tu computadora')): string | null {
   const lit = (c.literal ?? '').trim()
   if (!lit) return null
   if (/^(?:\S+=\S+\s+)*sudo\b/.test(lit)) {
@@ -233,10 +235,10 @@ export function fraseManos(c: Pick<Confirmacion, 'literal' | 'frase' | 'resumen'
       .replace(/\s*\([^)]*\)\s*$/, '')
       .replace(/[.\s]+$/, '')
       .trim()
-    const para = accion ? ` para ${accion.replace(/^./, ch => ch.toLocaleLowerCase('es-MX'))}` : ''
-    return `${equipo} pide tu contraseña${para}. Escríbela en el recuadro negro de abajo y presiona Enter; Levy no la ve.`
+    if (accion) return tr('{equipo} pide tu contraseña para {accion}. Escríbela en el recuadro negro de abajo y presiona Enter; Levy no la ve.', { equipo: tr(equipo), accion: accion.replace(/^./, ch => ch.toLocaleLowerCase('es-MX')) })
+    return tr('{equipo} pide tu contraseña. Escríbela en el recuadro negro de abajo y presiona Enter; Levy no la ve.', { equipo: tr(equipo) })
   }
-  return 'Este programa te pide iniciar sesión. Escribe lo que te pida en el recuadro negro de abajo y presiona Enter; Levy no lo ve.'
+  return tr('Este programa te pide iniciar sesión. Escribe lo que te pida en el recuadro negro de abajo y presiona Enter; Levy no lo ve.')
 }
 
 /** El literal en piezas que no se parten a media palabra: cada argumento es una pieza; los espacios, donde se corta. */

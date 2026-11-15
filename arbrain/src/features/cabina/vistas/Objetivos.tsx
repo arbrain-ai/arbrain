@@ -13,6 +13,7 @@ import { type Alcance, hoyCivil, rangoCalendario, etiquetaDia, sumarDias, inicio
 import { escalon } from '../movimiento'
 import s from '../cabina.module.css'
 import l from '../luz.module.css'
+import { tr, trNodos } from '@/shared/i18n'
 
 export const URL_OBJETIVOS = '/api/planning/objectives'
 const SCOPE: Record<Alcance, Goal['scope']> = { dia: 'day', semana: 'week', mes: 'month' }
@@ -20,7 +21,7 @@ const diasEntre = (a: string, b: string) => Math.round((Date.parse(b + 'T12:00:0
 const corta = (d: string) => etiquetaDia(d, { day: 'numeric', month: 'short' }).replace('.', '')
 const OK = <svg viewBox="0 0 12 12" aria-hidden><path d="M2.5 6.2 5 8.6l4.6-5.2" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
 
-function Estado({ g }: { g: Goal }) { return <span className={l.estado} data-status={g.status}>{statusLabels[g.status]}</span> }
+function Estado({ g }: { g: Goal }) { return <span className={l.estado} data-status={g.status}>{tr(statusLabels[g.status])}</span> }
 
 /** Pista del mes: un tramo por semana (proporcional a sus días dentro del mes) y el hoy. */
 function Pista({ desde, hasta, semanas, hoy }: { desde: string; hasta: string; semanas: [string, Goal[]][]; hoy: string }) {
@@ -40,7 +41,7 @@ function Pista({ desde, hasta, semanas, hoy }: { desde: string; hasta: string; s
     </div>
     {dentro && <span className={l.pistaHoy} style={{ left: `${(diasEntre(desde, hoy) + 0.5) / total * 100}%` }} aria-hidden />}
     <div className={l.pistaEtiquetas}>
-      {tramos.map((t, i) => <span key={t.inicio} style={{ ['--dias' as string]: t.dias }} data-actual={t.actual || undefined} title={t.titulo}>S{i + 1} · {corta(t.inicio)}</span>)}
+      {tramos.map((t, i) => <span key={t.inicio} style={{ ['--dias' as string]: t.dias }} data-actual={t.actual || undefined} title={t.titulo}>{tr('S{n} · {fecha}', { n: i + 1, fecha: corta(t.inicio) })}</span>)}
     </div>
   </div>
 }
@@ -53,7 +54,7 @@ function Nodo({ g, inicio, hoy, i, grande }: { g: Goal; inicio: string; hoy: str
     <span className={`${l.punto} ${actual ? l.nodoActual : ''}`} aria-hidden>{g.status === 'completed' && OK}</span>
     <div className={l.nodoCuerpo}>
       <button className={l.nodoBoton} onClick={() => setAbierto(v => !v)} aria-expanded={abierto || grande || !largo} disabled={!largo || grande}>
-        <span className={l.nodoCab}><small>Semana {i + 1} · {corta(inicio)} – {corta(fin)}</small>{actual && <span className={l.etiqueta}>en curso</span>}{g.status === 'draft' && <Estado g={g} />}</span>
+        <span className={l.nodoCab}><small>{tr('Semana {n} · {desde} – {hasta}', { n: i + 1, desde: corta(inicio), hasta: corta(fin) })}</small>{actual && <span className={l.etiqueta}>{tr('en curso')}</span>}{g.status === 'draft' && <Estado g={g} />}</span>
         <span className={l.nodoCab}><h5>{g.title}</h5></span>
       </button>
       {g.success && <p className={l.nodoExito} data-corto={(!abierto && !grande && largo) || undefined}>{g.success}</p>}
@@ -66,12 +67,12 @@ function Nodo({ g, inicio, hoy, i, grande }: { g: Goal; inicio: string; hoy: str
 export function VistaObjetivos({ alcance = 'mes', fecha, grande }: { alcance?: Alcance; fecha?: string; grande?: boolean }) {
   const hoy = hoyCivil(), ancla = fecha ?? hoy
   const { data, error } = useFuente<GoalSnapshot>(URL_OBJETIVOS)
-  if (!data) return <div className={s.cargando} aria-busy="true">{error ? <p className={s.aviso}>{error}</p> : 'Leyendo tus objetivos…'}</div>
+  if (!data) return <div className={s.cargando} aria-busy="true">{error ? <p className={s.aviso}>{error}</p> : tr('Leyendo tus objetivos…')}</div>
 
   const scope = SCOPE[alcance]
   const { desde, hasta } = alcance === 'mes' ? { desde: inicioMes(ancla), hasta: finMes(ancla) } : rangoCalendario(alcance, ancla)
   const propias = data.goals.filter(g => g.scope === scope && g.start >= desde && g.start < hasta)
-  const aviso = error && <p className={l.aviso}>{error} Se muestra la última lectura.</p>
+  const aviso = error && <p className={l.aviso}>{tr('{error} Se muestra la última lectura.', { error })}</p>
 
   if (alcance === 'mes') {
     const semanas = data.goals.filter(g => g.scope === 'week' && g.start < hasta && g.end > desde).sort((a, b) => a.start.localeCompare(b.start))
@@ -79,23 +80,23 @@ export function VistaObjetivos({ alcance = 'mes', fecha, grande }: { alcance?: A
     for (const g of semanas) { const l0 = grupos.get(g.start) ?? []; l0.push(g); grupos.set(g.start, l0) }
     const entradas = [...grupos.entries()]
     const total = diasEntre(desde, hasta)
-    const cuenta = hoy < desde ? <>Empieza {diasEntre(hoy, desde) === 1 ? <strong>mañana</strong> : <>en <strong>{diasEntre(hoy, desde)} días</strong></>} · {total} días</>
-      : hoy >= hasta ? <>Terminó el {corta(sumarDias(hasta, -1))}</>
-      : <>Día <strong>{diasEntre(desde, hoy) + 1}</strong> de {total} · quedan {diasEntre(hoy, hasta) - 1} días</>
+    const cuenta = hoy < desde ? (diasEntre(hoy, desde) === 1 ? trNodos('Empieza {cuando} · {total} días', { cuando: <strong>{tr('mañana')}</strong>, total }) : trNodos('Empieza en {dias} · {total} días', { dias: <strong>{tr('{n} días', { n: diasEntre(hoy, desde) })}</strong>, total }))
+      : hoy >= hasta ? tr('Terminó el {fecha}', { fecha: corta(sumarDias(hasta, -1)) })
+      : trNodos('Día {n} de {total} · quedan {quedan} días', { n: <strong>{diasEntre(desde, hoy) + 1}</strong>, total, quedan: diasEntre(hoy, hasta) - 1 })
     const cerradas = semanas.filter(g => g.status === 'completed').length, borrador = semanas.filter(g => g.status === 'draft').length
     return <div>
       {aviso}
-      <p className={`${l.ceja} ${l.entra}`} style={escalon(0)}>{etiquetaDia(desde, { month: 'long', year: 'numeric' })} · <b>meta del mes</b></p>
+      <p className={`${l.ceja} ${l.entra}`} style={escalon(0)}>{etiquetaDia(desde, { month: 'long', year: 'numeric' })} · <b>{tr('meta del mes')}</b></p>
       {propias.length ? propias.map((g, i) => <div key={g.id} className={`${l.meta} ${l.entra}`} style={escalon(1 + i)}>
         <div className={l.cabMeta}><h3 className={`${l.metaTitulo} ${l.serif}`}>{g.title}</h3><Estado g={g} /></div>
         {g.success && <p className={l.metaExito}>{g.success}</p>}
-      </div>) : <p className={l.vacio}>Sin meta acordada para {etiquetaDia(desde, { month: 'long' })} todavía.</p>}
+      </div>) : <p className={l.vacio}>{tr('Sin meta acordada para {mes} todavía.', { mes: etiquetaDia(desde, { month: 'long' }) })}</p>}
       {entradas.length > 0 && <Pista desde={desde} hasta={hasta} semanas={entradas} hoy={hoy} />}
-      <p className={`${l.cuentaAtras} ${l.entra}`} style={escalon(3)}>{cuenta}{entradas.length > 0 && <> · {entradas.length} semanas{cerradas ? `, ${cerradas} cumplidas` : ''}{borrador ? `, ${borrador} en planificación` : ''}</>}</p>
+      <p className={`${l.cuentaAtras} ${l.entra}`} style={escalon(3)}>{cuenta}{entradas.length > 0 && <> · {tr('{n} semanas', { n: entradas.length })}{cerradas ? `, ${tr('{n} cumplidas', { n: cerradas })}` : ''}{borrador ? `, ${tr('{n} en planificación', { n: borrador })}` : ''}</>}</p>
       {entradas.length > 0 && <div className={l.linea}>
         {entradas.slice(0, grande ? 8 : 6).map(([inicio, gs], i) => gs.map(g => <Nodo key={g.id} g={g} inicio={inicio} hoy={hoy} i={i} grande={grande} />))}
       </div>}
-      {!entradas.length && propias.length > 0 && <p className={l.vacio}>Todavía sin metas semanales dentro del mes.</p>}
+      {!entradas.length && propias.length > 0 && <p className={l.vacio}>{tr('Todavía sin metas semanales dentro del mes.')}</p>}
     </div>
   }
 
@@ -104,13 +105,13 @@ export function VistaObjetivos({ alcance = 'mes', fecha, grande }: { alcance?: A
     const padres = new Map(data.goals.map(g => [g.id, g]))
     return <div>
       {aviso}
-      <p className={`${l.ceja} ${l.entra}`} style={escalon(0)}>Semana del {corta(desde)} al {corta(sumarDias(hasta, -1))} · <b>{dias.includes(hoy) ? `día ${dias.indexOf(hoy) + 1} de 7` : hoy < desde ? 'por empezar' : 'terminada'}</b></p>
+      <p className={`${l.ceja} ${l.entra}`} style={escalon(0)}>{tr('Semana del {desde} al {hasta}', { desde: corta(desde), hasta: corta(sumarDias(hasta, -1)) })} · <b>{dias.includes(hoy) ? tr('día {n} de 7', { n: dias.indexOf(hoy) + 1 }) : hoy < desde ? tr('por empezar') : tr('terminada')}</b></p>
       {propias.length ? propias.map((g, i) => { const padre = g.parentId ? padres.get(g.parentId) : data.goals.find(m => m.scope === 'month' && m.start <= g.start && g.start < m.end)
         return <div key={g.id} className={`${l.meta} ${l.entra}`} style={escalon(1 + i)}>
           <div className={l.cabMeta}><h3 className={`${l.metaTitulo} ${l.serif}`}>{g.title}</h3><Estado g={g} /></div>
           {g.success && <p className={l.metaExito}>{g.success}</p>}
-          {padre && <p className={l.padre} style={{ marginTop: 10 }}>Sirve a: <b>{padre.title}</b></p>}
-        </div> }) : <p className={l.vacio}>Sin meta para esta semana todavía.</p>}
+          {padre && <p className={l.padre} style={{ marginTop: 10 }}>{trNodos('Sirve a: {meta}', { meta: <b>{padre.title}</b> })}</p>}
+        </div> }) : <p className={l.vacio}>{tr('Sin meta para esta semana todavía.')}</p>}
       <div className={`${l.diasSemana} ${l.entra}`} style={escalon(3)} aria-hidden>
         {dias.map(d => <span key={d} data-hoy={d === hoy || undefined} data-pasado={d < hoy || undefined}>{etiquetaDia(d, { weekday: 'short' }).replace('.', '')}<i /></span>)}
       </div>
@@ -119,11 +120,11 @@ export function VistaObjetivos({ alcance = 'mes', fecha, grande }: { alcance?: A
 
   return <div>
     {aviso}
-    <p className={`${l.ceja} ${l.entra}`} style={escalon(0)}>{etiquetaDia(ancla, { weekday: 'long', day: 'numeric', month: 'long' })} · <b>metas del día</b></p>
+    <p className={`${l.ceja} ${l.entra}`} style={escalon(0)}>{etiquetaDia(ancla, { weekday: 'long', day: 'numeric', month: 'long' })} · <b>{tr('metas del día')}</b></p>
     {propias.length ? propias.map((g, i) => <div key={g.id} className={`${l.meta} ${l.entra}`} style={escalon(1 + i)}>
       <div className={l.cabMeta}><h3 className={`${l.metaTitulo} ${l.serif}`}>{g.title}</h3><Estado g={g} /></div>
       {g.success && <p className={l.metaExito}>{g.success}</p>}
-    </div>) : <p className={l.vacio}>Sin metas para este día. Pídemelas y las dejamos escritas.</p>}
+    </div>) : <p className={l.vacio}>{tr('Sin metas para este día. Pídemelas y las dejamos escritas.')}</p>}
   </div>
 }
 
@@ -131,6 +132,6 @@ export function resumenObjetivos(snap: GoalSnapshot | undefined, alcance: Alcanc
   if (!snap) return null
   const desde = alcance === 'mes' ? inicioMes(fecha) : rangoCalendario(alcance, fecha).desde
   const propias = snap.goals.filter(g => g.scope === SCOPE[alcance] && g.start === desde)
-  if (!propias.length) return 'sin metas todavía'
-  return propias.length === 1 ? `«${propias[0].title.slice(0, 70)}${propias[0].title.length > 70 ? '…' : ''}» · ${statusLabels[propias[0].status].toLowerCase()}` : `${propias.length} metas`
+  if (!propias.length) return tr('sin metas todavía')
+  return propias.length === 1 ? `«${propias[0].title.slice(0, 70)}${propias[0].title.length > 70 ? '…' : ''}» · ${tr(statusLabels[propias[0].status]).toLowerCase()}` : tr('{n} metas', { n: propias.length })
 }

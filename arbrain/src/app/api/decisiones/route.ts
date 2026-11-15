@@ -1,4 +1,5 @@
 import { aLaBandeja } from '@/features/decisiones/server'
+import { tr } from '@/shared/i18n'
 
 // Bandeja de decisiones (autonomía v2, 3 nov 2026): GET la vista (tarjetas, decididas hoy, espera, «Lo que hice solo» y
 // la política); POST { accion } = resolver {id, respuesta, comentario} · lote {ids, respuesta} · politica {preset, ajustes}
@@ -15,7 +16,7 @@ const RUTA: Record<string, string> = { resolver: '/decisiones/resolver', lote: '
 export async function POST(request: Request) {
   const cuerpo = await request.json().catch(() => ({})) as Record<string, unknown>
   const ruta = RUTA[String(cuerpo.accion ?? '')]
-  if (!ruta) return Response.json({ error: 'accion: resolver, lote, politica o deshacer' }, { status: 400 })
+  if (!ruta) return Response.json({ error: tr('accion: resolver, lote, politica o deshacer') }, { status: 400 })
   const { accion: _a, ...resto } = cuerpo
   return aLaBandeja(request, ruta, { metodo: 'POST', cuerpo: resto, decidir: true })
 }

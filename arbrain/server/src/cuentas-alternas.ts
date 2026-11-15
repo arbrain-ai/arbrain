@@ -13,6 +13,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { instalacionOriginal } from './dueno.js'
 import { esEdicionCliente } from './edicion.js'
+import { tr, trMarca } from './i18n/tr.js'
 
 export interface CuentasAlternas { claude?: string; codex?: string; claude_extra?: string[] }
 
@@ -54,11 +55,11 @@ export function carpetasClaude(env: NodeJS.ProcessEnv = process.env): string[] {
 }
 
 /** Error que da el daemon cuando alguien pide una cuenta alterna en la edición cliente. */
-export const CUENTA_ALTERNA_NO_DISPONIBLE = 'Cuenta no disponible en esta edición.'
+export const CUENTA_ALTERNA_NO_DISPONIBLE = trMarca('Cuenta no disponible en esta edición.')
 
 /** CLAUDE_CONFIG_DIR para `account: 'bro'`; en cliente lanza (la cuenta no existe). */
 export function dirClaudeAlternaO(env: NodeJS.ProcessEnv = process.env): string {
   const d = dirClaudeAlterna(env)
-  if (!d) throw new Error(CUENTA_ALTERNA_NO_DISPONIBLE)
+  if (!d) throw new Error(tr(CUENTA_ALTERNA_NO_DISPONIBLE))
   return d
 }

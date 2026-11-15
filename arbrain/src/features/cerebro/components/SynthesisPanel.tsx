@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import type { CerebroNode, SynthesisMode } from '../types'
 import { SYNTHESIS_MODES, TYPE_META } from '../types'
+import { localeIntl, tr } from '@/shared/i18n'
 
 interface ArtifactRecord {
   ts: number
@@ -86,12 +87,12 @@ export function SynthesisPanel({
   const run = async () => {
     if (running) return
     if (slice.length === 0 && !question.trim()) {
-      setError('Selecciona nodos en el grafo (shift+click) o escribe una pregunta.')
+      setError(tr('Selecciona nodos en el grafo (shift+click) o escribe una pregunta.'))
       return
     }
     setError(null)
     setArtifact('')
-    setStatus('Armando el slice…')
+    setStatus(tr('Armando el slice…'))
     setRunning(true)
     const myRun = ++runIdRef.current
     const isStale = () => myRun !== runIdRef.current
@@ -136,9 +137,9 @@ export function SynthesisPanel({
           if (evt.type === 'meta' && evt.nodeIds) {
             effectiveNodeIds = evt.nodeIds
             setUsedNodes(evt.nodeIds)
-            setStatus(`Sintetizando ${evt.nodeIds.length} nodos…`)
+            setStatus(tr('Sintetizando {n} nodos…', { n: evt.nodeIds.length }))
           } else if (evt.type === 'status' && evt.status) {
-            setStatus(evt.status)
+            setStatus(tr(evt.status))
           } else if (evt.type === 'text_delta' && evt.text) {
             acc += evt.text
             setArtifact(acc)
@@ -147,7 +148,7 @@ export function SynthesisPanel({
             acc = evt.text
             setArtifact(acc)
           } else if (evt.type === 'error') {
-            throw new Error(evt.message ?? 'Error de síntesis')
+            throw new Error(evt.message ?? tr('Error de síntesis'))
           }
         }
       }
@@ -155,7 +156,7 @@ export function SynthesisPanel({
       if (acc.trim()) {
         saveToHistory({ ts: Date.now(), mode, question, nodeIds: effectiveNodeIds, text: acc })
       } else if (!ac.signal.aborted) {
-        setError('La síntesis terminó sin texto. Reintenta.')
+        setError(tr('La síntesis terminó sin texto. Reintenta.'))
       }
     } catch (e) {
       if (!isStale() && !ac.signal.aborted) setError(String(e instanceof Error ? e.message : e))
@@ -197,15 +198,15 @@ export function SynthesisPanel({
       {/* Header */}
       <div className="flex items-center gap-2 border-b border-border-subtle px-4 py-3">
         <Sparkles className="size-4 text-gold" />
-        <h2 className="flex-1 text-sm font-bold text-foreground">Síntesis</h2>
+        <h2 className="flex-1 text-sm font-bold text-foreground">{tr('Síntesis')}</h2>
         <button
           onClick={() => setShowHistory((s) => !s)}
           className={`icon-btn size-7 ${showHistory ? 'text-accent-purple' : ''}`}
-          title="Historial de artefactos"
+          title={tr('Historial de artefactos')}
         >
           <History className="size-4" />
         </button>
-        <button onClick={onClose} className="icon-btn size-7" title="Cerrar">
+        <button onClick={onClose} className="icon-btn size-7" title={tr('Cerrar')}>
           <X className="size-4" />
         </button>
       </div>
@@ -214,7 +215,7 @@ export function SynthesisPanel({
         {showHistory ? (
           <div className="px-4 py-3 space-y-1.5">
             {history.length === 0 && (
-              <div className="py-6 text-center text-xs text-muted">Sin artefactos todavía.</div>
+              <div className="py-6 text-center text-xs text-muted">{tr('Sin artefactos todavía.')}</div>
             )}
             {history.map((h) => (
               <button
@@ -235,13 +236,13 @@ export function SynthesisPanel({
                 className="w-full rounded-lg border border-border px-3 py-2 text-left hover:border-primary/40 transition-colors"
               >
                 <div className="text-[11px] font-semibold text-foreground">
-                  {SYNTHESIS_MODES[h.mode].label}
+                  {tr(SYNTHESIS_MODES[h.mode].label)}
                   <span className="ml-2 font-normal text-muted">
-                    {new Date(h.ts).toLocaleString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    {new Date(h.ts).toLocaleString(localeIntl(), { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
                 <div className="mt-0.5 truncate text-[11px] text-muted">
-                  {h.question || `${h.nodeIds.length} nodos`}
+                  {h.question || tr('{n} nodos', { n: h.nodeIds.length })}
                 </div>
               </button>
             ))}
@@ -254,14 +255,14 @@ export function SynthesisPanel({
                 <button
                   key={m}
                   onClick={() => setMode(m)}
-                  title={SYNTHESIS_MODES[m].hint}
+                  title={tr(SYNTHESIS_MODES[m].hint)}
                   className={`rounded-lg border px-2 py-1.5 text-[11px] font-semibold transition-colors ${
                     mode === m
                       ? 'border-gold/70 bg-gold/10 text-gold'
                       : 'border-border text-muted hover:text-foreground'
                   }`}
                 >
-                  {SYNTHESIS_MODES[m].label}
+                  {tr(SYNTHESIS_MODES[m].label)}
                 </button>
               ))}
             </div>
@@ -270,7 +271,7 @@ export function SynthesisPanel({
             <textarea
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
-              placeholder="Pregunta u objetivo (opcional si ya elegiste nodos): ej. «¿cómo relanzo la comunidad al volver a México?»"
+              placeholder={tr('Pregunta u objetivo (opcional si ya elegiste nodos): ej. «¿cómo relanzo la comunidad al volver a México?»')}
               rows={2}
               className="mt-2 w-full resize-none rounded-lg border border-border bg-card px-3 py-2 text-xs text-foreground placeholder:text-muted/60 focus:border-primary/50 focus:outline-none"
             />
@@ -279,11 +280,11 @@ export function SynthesisPanel({
             <div className="mt-2">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-muted">
-                  Slice · {slice.length} nodos {slice.length === 0 && '(auto por pregunta)'}
+                  {slice.length === 0 ? tr('Slice · {n} nodos (auto por pregunta)', { n: slice.length }) : tr('Slice · {n} nodos', { n: slice.length })}
                 </span>
                 {slice.length > 0 && (
                   <button onClick={onClearSlice} className="text-[10px] text-muted hover:text-error">
-                    limpiar
+                    {tr('limpiar')}
                   </button>
                 )}
               </div>
@@ -321,11 +322,11 @@ export function SynthesisPanel({
               >
                 {running ? (
                   <>
-                    <Square className="size-3.5" /> Detener
+                    <Square className="size-3.5" /> {tr('Detener')}
                   </>
                 ) : (
                   <>
-                    <Sparkles className="size-3.5" /> Generar artefacto
+                    <Sparkles className="size-3.5" /> {tr('Generar artefacto')}
                   </>
                 )}
               </button>
@@ -340,7 +341,7 @@ export function SynthesisPanel({
             {error && <div className="mt-2 text-[11px] text-error">{error}</div>}
             {usedNodes.length > 0 && !showHistory && (
               <div className="mt-2 text-[10px] text-muted">
-                Fuentes: {usedNodes.map((id) => id.split('/').pop()?.replace('.md', '')).join(' · ')}
+                {tr('Fuentes:')} {usedNodes.map((id) => id.split('/').pop()?.replace('.md', '')).join(' · ')}
               </div>
             )}
 
@@ -349,13 +350,13 @@ export function SynthesisPanel({
               <div className="mt-3 flex min-h-0 flex-1 flex-col">
                 <div className="flex items-center justify-between border-b border-border-subtle pb-1.5">
                   <span className="text-[10px] font-semibold uppercase tracking-wider text-gold">
-                    Artefacto
+                    {tr('Artefacto')}
                   </span>
                   <div className="flex gap-1">
-                    <button onClick={copy} className="icon-btn size-6" title="Copiar">
+                    <button onClick={copy} className="icon-btn size-6" title={tr('Copiar')}>
                       {copied ? <Check className="size-3.5 text-success" /> : <Copy className="size-3.5" />}
                     </button>
-                    <button onClick={download} className="icon-btn size-6" title="Descargar">
+                    <button onClick={download} className="icon-btn size-6" title={tr('Descargar')}>
                       <Download className="size-3.5" />
                     </button>
                   </div>
@@ -366,7 +367,7 @@ export function SynthesisPanel({
                       sandbox=""
                       srcDoc={artifact}
                       className="h-[60vh] w-full rounded-lg border border-border bg-background"
-                      title="Artefacto HTML"
+                      title={tr('Artefacto HTML')}
                     />
                   ) : (
                     <div className="cerebro-md text-[12.5px] leading-relaxed text-foreground/90">

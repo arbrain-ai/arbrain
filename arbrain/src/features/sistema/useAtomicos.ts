@@ -1,6 +1,7 @@
 'use client'
 import { useEffect } from 'react'
 import { create } from 'zustand'
+import { tr } from '@/shared/i18n'
 import type { Atomicos, PrincipioHabito } from '@/lib/sistema/atomicos'
 
 type Cambio = { identidad: string } | ({ clave: string } & Partial<PrincipioHabito>)
@@ -22,9 +23,9 @@ export const useAlmacenAtomicos = create<Almacen>((set, get) => ({
     set({ leyendo: true })
     try {
       const r = await fetch('/api/sistema/atomicos', { cache: 'no-store' }), j = await r.json()
-      if (!r.ok) throw new Error(j.error ?? 'No se pudieron leer.')
+      if (!r.ok) throw new Error(j.error ?? tr('No se pudieron leer.'))
       set({ data: j, error: null })
-    } catch (e) { set({ error: e instanceof Error ? e.message : 'Sin conexión.' }) }
+    } catch (e) { set({ error: e instanceof Error ? e.message : tr('Sin conexión.') }) }
     finally { set({ leyendo: false }) }
   },
   guardar: async (cambio) => {
@@ -39,9 +40,9 @@ export const useAlmacenAtomicos = create<Almacen>((set, get) => ({
     try {
       const r = await fetch('/api/sistema/atomicos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cambio) })
       const j = await r.json()
-      if (!r.ok) throw new Error(j.error ?? 'No se pudo guardar.')
+      if (!r.ok) throw new Error(j.error ?? tr('No se pudo guardar.'))
       set({ data: j, error: null })
-    } catch (e) { set({ data: antes, error: e instanceof Error ? e.message : 'No se pudo guardar.' }) }
+    } catch (e) { set({ data: antes, error: e instanceof Error ? e.message : tr('No se pudo guardar.') }) }
   },
 }))
 

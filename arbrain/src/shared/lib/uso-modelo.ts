@@ -5,6 +5,7 @@
  *
  * Lógica pura: tests/shared/uso-modelo.test.ts.
  */
+import { tr, trMarca } from '@/shared/i18n'
 
 export interface UsoModelo {
   /** Id crudo del modelo que respondió (el que reporta el motor), o null. */
@@ -39,9 +40,9 @@ export function nombreModelo(id: string | null | undefined): string | null {
   return sinProveedor || null
 }
 
-const ESFUERZOS: Record<string, string> = { minimal: 'mínimo', low: 'bajo', medium: 'medio', high: 'alto', xhigh: 'muy alto', max: 'máximo' }
-/** «low» → «bajo». Un nivel desconocido va tal cual. */
-export const nombreEsfuerzo = (e: string | null | undefined): string | null => e ? ESFUERZOS[e] ?? e : null
+const ESFUERZOS: Record<string, string> = { minimal: trMarca('mínimo'), low: trMarca('bajo'), medium: trMarca('medio'), high: trMarca('alto'), xhigh: trMarca('muy alto'), max: trMarca('máximo') }
+/** «low» → «bajo» (en el idioma activo). Un nivel desconocido va tal cual. */
+export const nombreEsfuerzo = (e: string | null | undefined): string | null => e ? (ESFUERZOS[e] ? tr(ESFUERZOS[e]) : e) : null
 
 /** 167583 → «168 K»; 1250000 → «1.3 M». */
 export function tokensCortos(n: number): string {
@@ -54,7 +55,7 @@ export function tokensCortos(n: number): string {
 export const ventanaCorta = (n: number) => n >= 1_000_000 ? `${+(n / 1_000_000).toFixed(1)}M` : `${Math.round(n / 1000)}K`
 
 /** «19 % de 1M» o, si la fuente no dice la ventana, «19 % de contexto». */
-export const contextoEnPalabras = (c: UsoModelo['contexto']) => c ? `${c.pct} % ${c.ventana ? `de ${ventanaCorta(c.ventana)}` : 'de contexto'}` : null
+export const contextoEnPalabras = (c: UsoModelo['contexto']) => c ? (c.ventana ? tr('{pct} % de {ventana}', { pct: c.pct, ventana: ventanaCorta(c.ventana) }) : tr('{pct} % de contexto', { pct: c.pct })) : null
 
 /** La línea compacta, idéntica en el chat y en el panel: «DeepSeek V4.1 Flash · bajo · 19 K tokens · 2 % de 1M». */
 export function lineaUso(u: UsoModelo): string | null {

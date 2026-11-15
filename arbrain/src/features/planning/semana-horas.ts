@@ -344,6 +344,19 @@ export function columnaCercana(bordes: readonly number[], scroll: number): numbe
  */
 export const anchoVisible = (previo: number, medido: number) => medido > 0 ? medido : previo
 
+/**
+ * Angosto con holgura (12 nov 2026, Daniel 06:05: «el calendario como que parpadea y se mueve bien raro… solo a ese tamaño»). Angosto
+ * cambia el alto de la hora (44 → 42 px) y con él el alto de la Semana. Con barras de scroll clásicas (macOS con ratón) el contenedor
+ * que desplaza pierde ~11–15 px de ancho cuando hay scroll: a ~700 px la rejilla medía 702 sin barra (ancha, horas de 44, el alto
+ * desborda y sale la barra) y 691 con ella (angosta, horas de 42, ya cabe y la barra se va), unas 150 veces por segundo. Para entrar
+ * a angosto basta bajar del umbral; para salir hay que pasarlo por `HOLGURA_ANGOSTO`, más que cualquier barra de scroll.
+ */
+export const HOLGURA_ANGOSTO = 24
+export function esAngosto(ancho: number, antes: boolean, umbral = 700, holgura = HOLGURA_ANGOSTO): boolean {
+  if (!(ancho > 0)) return false
+  return ancho < (antes ? umbral + holgura : umbral)
+}
+
 /** Qué hace el riel al detenerse: esperar a que llegue a donde lo mandó el código, ir a la columna más cercana o asentarse en un día. */
 export type Asiento = { tipo: 'esperar' } | { tipo: 'ajustar'; borde: number } | { tipo: 'asentar'; dia: string }
 /**

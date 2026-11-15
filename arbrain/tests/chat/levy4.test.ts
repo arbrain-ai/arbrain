@@ -4,7 +4,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { LEVY4_CLAVE, levy4Activo, pedirAlineacion, usarLevy4 } from '../../src/features/chat/lib/levy4.ts'
-import { LEVY_VIVO_CLAVE } from '../../src/features/chat/lib/levy-vivo.ts'
+import { CARA_LIVE_CLAVE, LEVY_VIVO_CLAVE } from '../../src/features/chat/lib/levy-vivo.ts'
 import { asimParpadeo, C06, crearIdentidad, cuadroDePista, FuenteVisemas, nivelParpadeo, VisPista } from '../../src/features/chat/lib/levy4-nucleo.ts'
 import { pista, type Fonema } from '../../src/features/chat/lib/levy-visemas.ts'
 import { bocaPesos, MORPHS_BOCA } from '../../src/features/chat/lib/levy4-boca.js'
@@ -44,16 +44,22 @@ test('?levy4=1 la enciende y queda guardada; ?levy4=0 la apaga; también a mano 
   sinNavegador()
 })
 
-test('sin bandera, Live usa el camino de siempre: Levy3D para los tres agentes y la voz sin alineación', () => {
+test('sin bandera levy4, el 3D de Live es el Levy3D de siempre; la voz pide alineación solo si la cara la usa', () => {
   navegador('')
   for (const a of ['levy', 'trinity', 'sensei']) assert.equal(usarLevy4(levy4Activo(), a), false, a)
-  assert.equal(pedirAlineacion(), false, 'la petición de voz no cambia')
+  // 13 nov 2026: el Levy de los videos es el default de Live y su boca lee la alineación.
+  assert.equal(pedirAlineacion(), true, 'default de Live: el Levy de los videos pide la alineación')
+  navegador('', { [CARA_LIVE_CLAVE]: '3d' })
+  assert.equal(pedirAlineacion(), false, 'con el 3D anterior elegido en Ajustes, la petición de voz es la de siempre')
+  navegador('', { [CARA_LIVE_CLAVE]: '2d-anterior' })
+  assert.equal(pedirAlineacion(), false, 'con el 2D anterior, también')
+  navegador('', { [CARA_LIVE_CLAVE]: '3d' })
   navegador('?levy4=1')
   assert.equal(usarLevy4(levy4Activo(), 'levy'), true)
   assert.equal(usarLevy4(levy4Activo(), 'trinity'), false, 'Trinity y Sensei siguen con su 3D')
   assert.equal(usarLevy4(levy4Activo(), 'sensei'), false)
   assert.equal(pedirAlineacion(), true, 'con el v4 la voz trae la alineación')
-  navegador('', { [LEVY_VIVO_CLAVE]: '1' })
+  navegador('', { [LEVY_VIVO_CLAVE]: '1', [CARA_LIVE_CLAVE]: '3d' })
   assert.equal(pedirAlineacion(), true, 'Levy vivo la sigue pidiendo como antes')
   sinNavegador()
   // El montaje de siempre sigue en LiveWorkspace, sin cambios, en la rama sin bandera.

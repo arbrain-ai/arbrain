@@ -5,6 +5,10 @@
  * `desde` es el día 1; `hasta` es el cierre (el día de salida al premio) y ya no se cuenta: del 22 oct al 20 nov son 29 días
  * (el 19 nov es el día 29). La temporada de hábitos toma de aquí inicio, cierre y premio: una sola fuente.
  */
+import { tr, type Idioma } from '@/shared/i18n'
+import { localeFechas } from '@/shared/i18n/fechas'
+import type { Month } from 'date-fns'
+
 const dias = (a: string, b: string) => Math.round((Date.parse(`${b}T12:00:00Z`) - Date.parse(`${a}T12:00:00Z`)) / 86_400_000)
 
 export type EstadoPeriodo = 'antes' | 'en-curso' | 'cierre' | 'pasado'
@@ -19,25 +23,26 @@ export function diaDelPeriodo(hoy: string, p: { desde: string; hasta: string }):
   return { estado: 'en-curso', dia: dias(p.desde, hoy) + 1, total, faltan, empieza }
 }
 
-/** La línea grande: «Día 1 de 34», «Empieza en 3 días», «Hoy se cierra». */
-export function textoPeriodo(d: DiaPeriodo): string {
-  if (d.estado === 'antes') return d.empieza === 1 ? 'Empieza mañana' : `Empieza en ${d.empieza} días`
-  if (d.estado === 'cierre') return 'Hoy se cierra'
-  if (d.estado === 'pasado') return 'Periodo cerrado'
-  return `Día ${d.dia} de ${d.total}`
+/** La línea grande: «Día 1 de 34», «Empieza en 3 días», «Hoy se cierra». `idioma` fija uno (sin él, el de la instalación). */
+export function textoPeriodo(d: DiaPeriodo, idioma?: Idioma): string {
+  if (d.estado === 'antes') return d.empieza === 1 ? tr('Empieza mañana', undefined, idioma) : tr('Empieza en {n} días', { n: d.empieza }, idioma)
+  if (d.estado === 'cierre') return tr('Hoy se cierra', undefined, idioma)
+  if (d.estado === 'pasado') return tr('Periodo cerrado', undefined, idioma)
+  return tr('Día {dia} de {total}', { dia: d.dia, total: d.total }, idioma)
 }
 
 /** El pie: cuánto falta para el cierre. */
 export function textoFaltan(d: DiaPeriodo): string | null {
   if (d.estado !== 'en-curso') return null
-  return d.faltan === 1 ? 'Mañana se cierra' : `Faltan ${d.faltan} días`
+  return d.faltan === 1 ? tr('Mañana se cierra') : tr('Faltan {n} días', { n: d.faltan })
 }
 
-const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
-/** «20–25 nov» o «28 nov – 2 dic». */
+/** El mes corto del idioma activo: «nov» en español (ene, feb… dic), «Nov» en inglés. */
+const mesCorto = (m: number) => localeFechas().localize.month((m - 1) as Month, { width: 'abbreviated' })
+/** «20–25 nov» o «28 nov – 2 dic» (en inglés, «Nov 20–25» o «Nov 28 – Dec 2»). */
 export function rangoCorto(desde: string, hasta: string): string {
   const [, m1, d1] = desde.split('-').map(Number), [, m2, d2] = hasta.split('-').map(Number)
-  return m1 === m2 ? `${d1}–${d2} ${MESES[m2 - 1]}` : `${d1} ${MESES[m1 - 1]} – ${d2} ${MESES[m2 - 1]}`
+  return m1 === m2 ? tr('{d1}–{d2} {mes}', { d1, d2, mes: mesCorto(m2) }) : tr('{d1} {mes1} – {d2} {mes2}', { d1, mes1: mesCorto(m1), d2, mes2: mesCorto(m2) })
 }
 
 /** La temporada de hábitos completa: nombre y arranque suyos; inicio, cierre (con el trofeo) y premio del periodo. */

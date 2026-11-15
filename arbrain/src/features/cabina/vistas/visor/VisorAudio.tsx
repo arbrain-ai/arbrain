@@ -9,7 +9,9 @@ import { Flag, Pause, Play, SkipBack, SkipForward } from 'lucide-react'
 import { formatoTiempo, siguienteVelocidad, saltoAtras } from '../../documento/medio'
 import { BotonVelocidad } from './Velocidad'
 import { ComposerMarca, ListaMarcas, useMarcas } from './Marcas'
+import { BotonDescargar } from './BotonDescargar'
 import v from './visor.module.css'
+import { tr } from '@/shared/i18n'
 
 const BARRAS = 220
 const MAX_BYTES = 120 * 1024 * 1024
@@ -39,7 +41,7 @@ async function picos(url: string): Promise<number[] | null> {
   } catch { return null }
 }
 
-export function VisorAudio({ url, ruta, archivo, tiempoInicial, clave }: { url: string; ruta: string; archivo: string; tiempoInicial?: number; clave: string }) {
+export function VisorAudio({ url, ruta, archivo, tiempoInicial, clave, descarga }: { url: string; ruta: string; archivo: string; tiempoInicial?: number; clave: string; descarga?: string }) {
   const audio = useRef<HTMLAudioElement>(null)
   const raiz = useRef<HTMLDivElement>(null)
   const barra = useRef<HTMLDivElement>(null)
@@ -78,7 +80,7 @@ export function VisorAudio({ url, ruta, archivo, tiempoInicial, clave }: { url: 
   const crear = (nota: string, enviarYa: boolean) => {
     if (borrador == null) return
     const m = agregar({ tiempo: borrador, nota: nota.trim(), version: archivo, ruta })
-    if (enviarYa) { enviar([m]); toast('Levy recibió el instante') }
+    if (enviarYa) { enviar([m]); toast(tr('Levy recibió el instante')) }
     setBorrador(null); raiz.current?.focus()
   }
   const alTeclado = (e: React.KeyboardEvent) => {
@@ -98,29 +100,30 @@ export function VisorAudio({ url, ruta, archivo, tiempoInicial, clave }: { url: 
   const frac = dur ? t / dur : 0
   const marcasAqui = marcas.filter(m => m.ruta === ruta)
 
-  return <div ref={raiz} className={v.audio} tabIndex={0} onKeyDown={alTeclado} role="group" aria-label={`Audio ${archivo}`} data-espacio-propio>
+  return <div ref={raiz} className={v.audio} tabIndex={0} onKeyDown={alTeclado} role="group" aria-label={tr('Audio {archivo}', { archivo })} data-espacio-propio>
     <audio ref={audio} src={url} preload="metadata" onLoadedMetadata={e => { const dv = e.currentTarget.duration; setDur(dv) }} onPlay={() => setSuena(true)} onPause={() => setSuena(false)} onEnded={() => setSuena(false)} />
-    <div ref={barra} className={v.onda} role="slider" aria-label="Posición" aria-valuemin={0} aria-valuemax={Math.round(dur)} aria-valuenow={Math.round(t)}
+    <div ref={barra} className={v.onda} role="slider" aria-label={tr('Posición')} aria-valuemin={0} aria-valuemax={Math.round(dur)} aria-valuenow={Math.round(t)}
       onPointerDown={e => { if (!dur) return; e.currentTarget.setPointerCapture(e.pointerId); arrastrando.current = true; irA(posicion(e)) }}
       onPointerMove={e => { if (arrastrando.current) irA(posicion(e)) }} onPointerUp={() => { arrastrando.current = false }}>
-      {onda === undefined && <span className={v.ondaEstado}>Dibujando la forma de onda…</span>}
-      {onda === null && <span className={v.ondaEstado}>Sin forma de onda (archivo muy grande o formato que el navegador no decodifica)</span>}
+      {onda === undefined && <span className={v.ondaEstado}>{tr('Dibujando la forma de onda…')}</span>}
+      {onda === null && <span className={v.ondaEstado}>{tr('Sin forma de onda (archivo muy grande o formato que el navegador no decodifica)')}</span>}
       {onda && <div className={v.barras} aria-hidden>{onda.map((p, i) => <i key={i} data-pasado={i / onda.length < frac || undefined} style={{ height: `${Math.max(4, p * 100)}%` }} />)}</div>}
-      {marcasAqui.map(m => <button key={m.id} type="button" className={v.bandera} data-enviada={m.enviada || undefined} style={{ left: dur ? `${(m.tiempo / dur) * 100}%` : 0 }} title={`${formatoTiempo(m.tiempo)} · ${m.nota || 'sin nota'}`}
+      {marcasAqui.map(m => <button key={m.id} type="button" className={v.bandera} data-enviada={m.enviada || undefined} style={{ left: dur ? `${(m.tiempo / dur) * 100}%` : 0 }} title={`${formatoTiempo(m.tiempo)} · ${m.nota || tr('sin nota')}`}
         onPointerDown={e => e.stopPropagation()} onClick={() => irA(m.tiempo)}><Flag size={11} aria-hidden /></button>)}
       <b className={v.cabeza} style={{ left: `${frac * 100}%` }} />
     </div>
     <div className={v.controles}>
-      <button type="button" className={v.icono} onClick={() => irA(t - 5)} aria-label="Atrás 5 segundos"><SkipBack size={15} aria-hidden /></button>
-      <button type="button" className={v.reproducir} onClick={alternar} aria-label={suena ? 'Pausar' : 'Reproducir'}>{suena ? <Pause size={17} aria-hidden /> : <Play size={17} aria-hidden />}</button>
-      <button type="button" className={v.icono} onClick={() => irA(t + 5)} aria-label="Adelante 5 segundos"><SkipForward size={15} aria-hidden /></button>
+      <button type="button" className={v.icono} onClick={() => irA(t - 5)} aria-label={tr('Atrás 5 segundos')}><SkipBack size={15} aria-hidden /></button>
+      <button type="button" className={v.reproducir} onClick={alternar} aria-label={suena ? tr('Pausar') : tr('Reproducir')}>{suena ? <Pause size={17} aria-hidden /> : <Play size={17} aria-hidden />}</button>
+      <button type="button" className={v.icono} onClick={() => irA(t + 5)} aria-label={tr('Adelante 5 segundos')}><SkipForward size={15} aria-hidden /></button>
       <span className={v.tiempo}><b>{formatoTiempo(t, { fotogramas: false })}</b><i> / {formatoTiempo(dur)}</i></span>
-      <BotonVelocidad vel={vel} alCambiar={cambiarVelocidad} atajos="L para acelerar" />
-      <button type="button" className={v.marcar} onClick={marcarAqui} title="Marcar este instante (M)"><Flag size={13} aria-hidden />Marcar aquí</button>
+      <BotonVelocidad vel={vel} alCambiar={cambiarVelocidad} atajos={tr('L para acelerar')} />
+      <button type="button" className={v.marcar} onClick={marcarAqui} title={tr('Marcar este instante (M)')}><Flag size={13} aria-hidden />{tr('Marcar aquí')}</button>
+      <BotonDescargar url={descarga} nombre={archivo} className={v.icono} />
     </div>
     {aviso && <div className={v.toast} role="status" data-fijo>{aviso}</div>}
     {borrador != null && <ComposerMarca tiempo={borrador} fps={30} version={archivo} alEnviar={n => crear(n, true)} alGuardar={n => crear(n, false)} alCerrar={() => { setBorrador(null); raiz.current?.focus() }} />}
-    <ListaMarcas marcas={marcas} fps={30} versionActual={archivo} alSaltar={m => irA(m.tiempo)} alQuitar={quitar} alEnviar={ms => { enviar(ms); toast(ms.length > 1 ? `Levy recibió ${ms.length} instantes` : 'Levy recibió el instante') }} />
-    <p className={v.ayuda}>Espacio reproduce · ← → 1 s (Mayús 10 s) · J K L · M marca</p>
+    <ListaMarcas marcas={marcas} fps={30} versionActual={archivo} alSaltar={m => irA(m.tiempo)} alQuitar={quitar} alEnviar={ms => { enviar(ms); toast(ms.length > 1 ? tr('Levy recibió {n} instantes', { n: ms.length }) : tr('Levy recibió el instante')) }} />
+    <p className={v.ayuda}>{tr('Espacio reproduce · ← → 1 s (Mayús 10 s) · J K L · M marca')}</p>
   </div>
 }

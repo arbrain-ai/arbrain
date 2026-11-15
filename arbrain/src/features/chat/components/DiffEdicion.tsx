@@ -6,6 +6,7 @@
  * dentro solo palabras completas cuando el cambio es pequeño. El código, por líneas con lo igual plegado. Sirve a la
  * edición de Daniel y a la del alumno por igual: solo lee el input de la herramienta.
  */
+import { tr, trn } from '@/shared/i18n'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronRight, FileCode2, FilePen, FileText, Brain, Sparkles, Undo2 } from 'lucide-react'
 import { diffFrases, fraseCodigo, plegarLineas, resumenHumano, rutaCorta, type BloqueProsa, type Edicion, type PalabraMarcada } from '../lib/diff-edicion'
@@ -32,15 +33,15 @@ function Frase({ palabras, como }: { palabras: PalabraMarcada[]; como: 'del' | '
 }
 
 function BloqueFrases({ b }: { b: BloqueProsa }) {
-  if (b.tipo === 'pliegue') return <p className={s.frasePliegue}>{b.frases === 1 ? '1 frase igual' : `${b.frases} frases iguales`}</p>
+  if (b.tipo === 'pliegue') return <p className={s.frasePliegue}>{trn(b.frases, '1 frase igual', '{n} frases iguales')}</p>
   if (b.tipo === 'igual') return <p className={s.fraseIgual}>{limpio(b.frase)}</p>
   return <div className={s.fraseCambio} data-fino={b.fino ? '' : undefined}>
     {b.antes.length > 0 && <div className={s.antes}>
-      <span className={s.etiqueta}>Antes</span>
+      <span className={s.etiqueta}>{tr('Antes')}</span>
       <div>{b.antes.map((f, i) => <p key={i}><Frase palabras={f} como="del" /></p>)}</div>
     </div>}
     {b.despues.length > 0 && <div className={s.ahora}>
-      <span className={s.etiqueta}>Ahora</span>
+      <span className={s.etiqueta}>{tr('Ahora')}</span>
       <div>{b.despues.map((f, i) => <p key={i}><Frase palabras={f} como="ins" /></p>)}</div>
     </div>}
   </div>
@@ -59,7 +60,7 @@ function ProsaEscrita({ e }: { e: Edicion }) {
   const corto = !todo && texto.length > MAX_ESCRITO
   return <div className={s.prosa}>
     {(corto ? texto.slice(0, MAX_ESCRITO) : texto).split('\n').filter(l => l.trim()).map((l, k) => <p key={k} className={s.fraseIgual}>{limpio(l.trim())}</p>)}
-    {corto && <button type="button" className={s.enlace} onClick={() => setTodo(true)}>Ver todo lo que escribió</button>}
+    {corto && <button type="button" className={s.enlace} onClick={() => setTodo(true)}>{tr('Ver todo lo que escribió')}</button>}
   </div>
 }
 
@@ -78,9 +79,9 @@ function Codigo({ e }: { e: Edicion }) {
     pie?.scrollIntoView({ block: 'nearest', behavior: reducir ? 'auto' : 'smooth' })
   }, [ver])
   return <div ref={caja} className={s.codigoCaja} data-codigo-visible={ver ? '' : undefined}>
-    <p className={s.fraseCodigo}>{fraseCodigo(e)}</p>
+    <p className={s.fraseCodigo}>{tr(fraseCodigo(e))}</p>
     <button type="button" className={s.enlace} aria-expanded={ver} onClick={() => setVer(v => !v)} data-ver-codigo>
-      {ver ? 'Ocultar el código' : 'Ver el código'}
+      {ver ? tr('Ocultar el código') : tr('Ver el código')}
     </button>
     {ver && <DiffCodigo e={e} />}
   </div>
@@ -92,30 +93,30 @@ function DiffCodigo({ e }: { e: Edicion }) {
   const visibles = lineas.slice(0, MAX_LINEAS)
   return <pre className={s.lineas}>
     {visibles.map((l, k) => l.tipo === 'pliegue'
-      ? <div key={k} className={s.pliegue}>{l.omitidas} {l.omitidas === 1 ? 'línea igual' : 'líneas iguales'}</div>
+      ? <div key={k} className={s.pliegue}>{trn(l.omitidas, '1 línea igual', '{n} líneas iguales')}</div>
       : <div key={k} className={s.linea} data-tipo={l.tipo}>
           <span className={s.signo} aria-hidden>{l.tipo === 'agregada' ? '+' : l.tipo === 'quitada' ? '−' : ' '}</span>
           <span className={s.contenido}>{l.texto || ' '}</span>
         </div>)}
-    {lineas.length > MAX_LINEAS && <div className={s.pliegue}>y {lineas.length - MAX_LINEAS} renglones más</div>}
+    {lineas.length > MAX_LINEAS && <div className={s.pliegue}>{tr('y {n} renglones más', { n: lineas.length - MAX_LINEAS })}</div>}
   </pre>
 }
 
 /** «Ver ubicación»: el nombre técnico y la carpeta, solo si se piden. */
-export function Ubicacion({ rutas, texto = 'Ver ubicación' }: { rutas: string[]; texto?: string }) {
+export function Ubicacion({ rutas, texto = tr('Ver ubicación') }: { rutas: string[]; texto?: string }) {
   const [ver, setVer] = useState(false)
   if (!rutas.length) return null
   return <div className={s.ubicacion}>
-    <button type="button" className={s.enlace} aria-expanded={ver} onClick={() => setVer(v => !v)}>{ver ? 'Ocultar ubicación' : texto}</button>
+    <button type="button" className={s.enlace} aria-expanded={ver} onClick={() => setVer(v => !v)}>{ver ? tr('Ocultar ubicación') : texto}</button>
     {ver && <ul>{rutas.map(r => <li key={r}><code title={r}>{rutaCorta(r)}</code></li>)}</ul>}
   </div>
 }
 
 export function CuerpoDiff({ e }: { e: Edicion }) {
   return <div className={s.diff} data-diff data-diff-tipo={e.esTexto ? 'prosa' : 'codigo'}>
-    {e.fallo && <p className={s.aviso}>Este cambio no se aplicó; el archivo quedó como estaba.</p>}
-    {e.incompleto && <p className={s.aviso}>El detalle de este cambio llegó recortado; aquí va lo que se alcanzó a guardar.</p>}
-    {e.escrito && e.esTexto && <p className={s.aviso}>Lo escribió completo. Así quedó:</p>}
+    {e.fallo && <p className={s.aviso}>{tr('Este cambio no se aplicó; el archivo quedó como estaba.')}</p>}
+    {e.incompleto && <p className={s.aviso}>{tr('El detalle de este cambio llegó recortado; aquí va lo que se alcanzó a guardar.')}</p>}
+    {e.escrito && e.esTexto && <p className={s.aviso}>{tr('Lo escribió completo. Así quedó:')}</p>}
     {e.esTexto ? (e.escrito ? <ProsaEscrita e={e} /> : <DiffProsa e={e} />) : <Codigo e={e} />}
     {e.ruta && <div className={s.diffPie}><Ubicacion rutas={[e.ruta]} /></div>}
   </div>
@@ -132,10 +133,10 @@ export function DiffEdicion({ e, abierto: inicial = false, deshecho = false }: {
     <div className={s.edicionCab}>
       <button type="button" className={s.edicionFila} aria-expanded={abierto} onClick={() => setAbierto(a => !a)} {...(e.fallo ? { 'data-fallo': '' } : {})}>
         <IconoClase e={e} />
-        <span className={s.frase}>{resumenHumano(e)}{deshecho && <span className={s.soloLector}> (deshecho)</span>}</span>
+        <span className={s.frase}>{tr(resumenHumano(e))}{deshecho && <span className={s.soloLector}> {tr('(deshecho)')}</span>}</span>
         <ChevronRight className={s.flecha} aria-hidden />
       </button>
-      {deshecho && <span className={s.marcaDeshecho} aria-hidden><Undo2 size={12} />Deshecho</span>}
+      {deshecho && <span className={s.marcaDeshecho} aria-hidden><Undo2 size={12} />{tr('Deshecho')}</span>}
     </div>
     {abierto && <CuerpoDiff e={e} />}
   </li>

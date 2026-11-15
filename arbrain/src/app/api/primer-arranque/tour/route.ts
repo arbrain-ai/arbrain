@@ -2,6 +2,7 @@ import { alDaemon, NOCACHE, soloAppCliente } from '@/lib/daemon-local'
 import { leerPrimerArranque } from '@/features/primer-arranque/lib/estado'
 import { entregarSiguiente, pausar, planActual, resumenRutinas, saltar } from '@/features/primer-arranque/lib/tour-servidor'
 import { publicarCapitulo } from '@/features/primer-arranque/lib/tour-chat'
+import { tr } from '@/shared/i18n'
 
 // Tour de bienvenida de Levy (1 nov 2026). Solo la app (cookie del secreto por instalación).
 //   GET                                 qué toca: { plan } (null = nada que mostrar; ya lo vio)
@@ -18,7 +19,7 @@ export async function GET() {
   try {
     return Response.json({ plan: planActual() }, { headers: NOCACHE })
   } catch (e) {
-    return Response.json({ plan: null, error: e instanceof Error ? e.message : 'No pude leer el tour.' }, { status: 503, headers: NOCACHE })
+    return Response.json({ plan: null, error: e instanceof Error ? e.message : tr('No pude leer el tour.') }, { status: 503, headers: NOCACHE })
   }
 }
 
@@ -46,8 +47,8 @@ export async function POST(request: Request) {
       const r = await publicarCapitulo(entrega, pedida ?? leerPrimerArranque().sesionBienvenida)
       return Response.json({ plan: entrega.plan, sesion: r.sesion, mensaje: r.mensaje }, { headers: NOCACHE })
     }
-    return Response.json({ error: 'Acción desconocida.' }, { status: 400, headers: NOCACHE })
+    return Response.json({ error: tr('Acción desconocida.') }, { status: 400, headers: NOCACHE })
   } catch (e) {
-    return Response.json({ error: e instanceof Error ? e.message : 'No pude seguir con el recorrido.' }, { status: 503, headers: NOCACHE })
+    return Response.json({ error: e instanceof Error ? e.message : tr('No pude seguir con el recorrido.') }, { status: 503, headers: NOCACHE })
   }
 }

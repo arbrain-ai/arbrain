@@ -14,6 +14,7 @@ import type { CanvasElement } from './element'
 import { leerLigaDoc } from './doc'
 import { accionDe, leerNervio, rotuloDe, type AccionNervio, type Semaforo, type VivoNervio } from './nervio'
 import { instalacion } from '@/config'
+import { tr, trMarca } from '@/shared/i18n'
 
 export type DestinoEnlace =
   | { tipo: 'panel'; input: MostrarInput; etiqueta: string }
@@ -27,7 +28,7 @@ const RUTAS: Record<string, Vista> = {
 const MODO: Record<string, MostrarInput['alcance']> = { day: 'dia', week: 'semana', month: 'mes' }
 
 const ETIQUETA: Partial<Record<Vista, string>> = {
-  calendario: 'Ver en calendario', masterclass: 'Ver masterclass', documento: 'Abrir documento', lienzo: 'Abrir lienzo',
+  calendario: trMarca('Ver en calendario'), masterclass: 'Ver masterclass', documento: trMarca('Abrir documento'), lienzo: trMarca('Abrir lienzo'),
   salud: 'Ver salud', finanzas: 'Ver finanzas', contenido: 'Ver contenido',
 }
 const FLECHA = ' ↗'
@@ -44,10 +45,10 @@ export function destinoDeEnlace(link: string | null | undefined, origenPropio?: 
   const s = (link ?? '').trim()
   if (!s) return null
   const doc = leerLigaDoc(s)
-  if (doc) return { tipo: 'panel', input: { vista: 'documento', ruta: doc.ruta, titulo: doc.ruta.split('/').pop() }, etiqueta: ETIQUETA.documento! + FLECHA }
+  if (doc) return { tipo: 'panel', input: { vista: 'documento', ruta: doc.ruta, titulo: doc.ruta.split('/').pop() }, etiqueta: tr(ETIQUETA.documento!) + FLECHA }
   if (/^page:/i.test(s)) {
     const paginaId = s.slice(5).trim()
-    return paginaId ? { tipo: 'panel', input: { vista: 'lienzo', paginaId }, etiqueta: ETIQUETA.lienzo! + FLECHA } : null
+    return paginaId ? { tipo: 'panel', input: { vista: 'lienzo', paginaId }, etiqueta: tr(ETIQUETA.lienzo!) + FLECHA } : null
   }
   let url: URL
   try { url = new URL(s, s.startsWith('/') ? 'http://arbrain.local' : undefined) } catch { return null }
@@ -69,9 +70,9 @@ export function destinoDeEnlace(link: string | null | undefined, origenPropio?: 
       input.paginaId = p
       const z = q.get('z'); if (z) input.zona = z
     }
-    return { tipo: 'panel', input, etiqueta: (ETIQUETA[vista] ?? 'Abrir') + FLECHA }
+    return { tipo: 'panel', input, etiqueta: tr(ETIQUETA[vista] ?? 'Abrir') + FLECHA }
   }
-  return { tipo: 'fuera', url: url.href, etiqueta: 'Abrir' + FLECHA }
+  return { tipo: 'fuera', url: url.href, etiqueta: tr('Abrir') + FLECHA }
 }
 
 // ── Geometría: tamaño de PANTALLA, como el chrome; se omite si no cabe dentro de la tarjeta ──

@@ -6,6 +6,8 @@
  *     bocina, con su desglose (red, descarga, decodificar, Server-Timing de la ruta y del daemon, caché, formato).
  *   · `falla` y `reintento`: cada tramo que no llegó y por qué.
  *   · `motor`: cada cambio entre la voz del servidor y la del navegador.
+ *   · `cierre` (12 nov 2026): cada vez que la barra se cierra y por qué (la ✕, el fin, otra conversación, un mensaje que
+ *     ya no está). Sin esto, «pongo pausa y desaparece» no dejaba ninguna línea.
  *
  * Destino: `/api/chat/lector-log` → `lector.jsonl` junto a los demás logs del cliente (rueda-log.ts › dirLogs; en el
  * Studio, ~/Library/Logs/Arbrain/lector.jsonl). Nunca la campana. En lotes (uno cada 3 s como mucho) y con tope de 40
@@ -17,8 +19,10 @@ export type EventoLector =
   | { tipo: 'falla'; motivo: string; servidor: boolean; [k: string]: unknown }
   | { tipo: 'reintento'; motivo: string; intento: number; [k: string]: unknown }
   | { tipo: 'motor'; de: 'servidor' | 'navegador'; a: 'servidor' | 'navegador'; motivo: string; [k: string]: unknown }
+  // 12 nov 2026: quién cerró la barra (x, boton, fin, otra-lectura, otra-conversacion, desmonte, mensaje-fuera…).
+  | { tipo: 'cierre'; motivo: string; en_pausa: boolean; [k: string]: unknown }
 
-export const TIPOS_EVENTO = ['primer-audio', 'falla', 'reintento', 'motor'] as const
+export const TIPOS_EVENTO = ['primer-audio', 'falla', 'reintento', 'motor', 'cierre'] as const
 export const TOPE_POR_MINUTO = 40
 const LOTE_MS = 3_000
 

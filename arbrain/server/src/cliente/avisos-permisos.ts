@@ -12,13 +12,15 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { esEdicionCliente } from '../edicion.js'
+import { trMarca } from '../i18n/tr.js'
 
 export interface AvisoPermisos { id: 'sin-python'; texto: string; como: string }
 
 export const AVISO_SIN_PYTHON: AvisoPermisos = {
   id: 'sin-python',
-  texto: 'En esta computadora no encontré Python 3.8 o más nuevo, así que los ganchos de tu cerebro (recuerdo de memoria, captura de conversaciones, candado de envíos) no corren. La guardia de Arbrain sigue protegiéndote igual; lo que pierdes es memoria y diario.',
-  como: 'Instala Python desde python.org (marca «Add python.exe to PATH») o con «winget install Python.Python.3.12», y vuelve a abrir Arbrain.',
+  // Idioma: la app los traduce al pintarlos (Seguridad.tsx › `tr(a.texto)`, `tr(a.como)`).
+  texto: trMarca('En esta computadora no encontré Python 3.8 o más nuevo, así que los ganchos de tu cerebro (recuerdo de memoria, captura de conversaciones, candado de envíos) no corren. La guardia de Arbrain sigue protegiéndote igual; lo que pierdes es memoria y diario.'),
+  como: trMarca('Instala Python desde python.org (marca «Add python.exe to PATH») o con «winget install Python.Python.3.12», y vuelve a abrir Arbrain.'),
 }
 
 /** ¿Hay un Python que sirva en el PATH? (Windows: python3 suele ser el alias de la tienda, que no corre nada.) */

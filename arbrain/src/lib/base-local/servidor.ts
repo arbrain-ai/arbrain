@@ -7,6 +7,7 @@ import { clienteLocal, type UsuarioLocal } from './consulta'
 import { almacenDeLaInstalacion } from './archivos'
 import { LOCAL_DESKTOP_USER_ID } from '@/lib/desktop-auth'
 import { CORREO_LOCAL_CLIENTE, NOMBRE_LOCAL_CLIENTE } from '@/lib/edicion'
+import { tr } from '@/shared/i18n'
 
 export const USUARIO_LOCAL_CLIENTE: UsuarioLocal = { id: LOCAL_DESKTOP_USER_ID, email: CORREO_LOCAL_CLIENTE, nombre: NOMBRE_LOCAL_CLIENTE }
 
@@ -18,6 +19,7 @@ export function clienteLocalServicio(): SupabaseClient {
 /** Equivalente al cliente con sesión: el usuario existe solo si la petición trae la cookie de la app. */
 export function clienteLocalSesion(esLaApp: () => Promise<boolean>): SupabaseClient {
   return clienteLocal(almacenDeLaInstalacion(), {
-    usuario: async () => (await esLaApp()) ? USUARIO_LOCAL_CLIENTE : null,
+    // Idioma (13 nov 2026): el nombre «Tú» de la dueña sale en el idioma de la instalación, al pedirse.
+    usuario: async () => (await esLaApp()) ? { ...USUARIO_LOCAL_CLIENTE, nombre: tr(NOMBRE_LOCAL_CLIENTE) } : null,
   }) as unknown as SupabaseClient
 }

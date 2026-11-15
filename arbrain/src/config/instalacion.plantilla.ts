@@ -3,6 +3,11 @@
  * El generador de la copia la escribe como `instalacion.ts`. Sin datos de nadie: la persona dueña es «tú».
  */
 import type { Instalacion } from './tipos'
+/**
+ * Marca para el catálogo inglés (la lee scripts/i18n/lib.mjs por su nombre). Local y sin imports: en la copia del alumno
+ * este archivo es `instalacion.ts` y lo carga `next.config.ts`, donde el alias `@/` no se resuelve.
+ */
+const trMarca = <T extends string>(texto: T): T => texto
 
 export const INSTALACION: Instalacion = {
   correoDueno: 'tu@arbrain.local',
@@ -27,8 +32,8 @@ export const INSTALACION: Instalacion = {
   urlLibros: '',
   gogKeyring: '',
   personas: {
-    dueno: { clave: 'dueno', nombre: 'la persona dueña', nombreCompleto: 'Tú' },
-    segunda: { clave: 'segunda', nombre: 'tu socio' },
+    dueno: { clave: 'dueno', nombre: trMarca('la persona dueña'), nombreCompleto: trMarca('Tú') },
+    segunda: { clave: 'segunda', nombre: trMarca('tu socio') },
   },
   firmaFeed: null,
   finanzas: { nombresCuentas: {}, coloresCuentas: {} },

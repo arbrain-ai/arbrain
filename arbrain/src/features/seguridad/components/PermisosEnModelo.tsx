@@ -14,10 +14,11 @@ import { Loader2, OctagonPause, Play } from 'lucide-react'
 import { useAjustes } from '@/shared/stores/ajustes-store'
 import { accionAlElegirLado, avisoAutonomo, ladoDelModo, LINEA_MODO, RED_MINIMA, type LadoPermisos } from '../lib/seguridad'
 import { useModoGlobal, usePausa } from './estado-seguridad'
+import { tr, trMarca } from '@/shared/i18n'
 
 const LADOS: { lado: LadoPermisos; nombre: string }[] = [
-  { lado: 'autonomo', nombre: 'Autónomo' },
-  { lado: 'preguntar', nombre: 'Preguntar' },
+  { lado: 'autonomo', nombre: trMarca('Autónomo') },
+  { lado: 'preguntar', nombre: trMarca('Preguntar') },
 ]
 
 export function PermisosEnModelo({ onClose }: { onClose: () => void }) {
@@ -35,9 +36,9 @@ export function PermisosEnModelo({ onClose }: { onClose: () => void }) {
   const error = modo.error ?? errorPausa
   return (
     <div data-permisos-modelo className="border-t border-border-subtle px-3.5 py-2.5">
-      <span className="block pb-1.5 text-[10px] uppercase tracking-widest text-muted/60">Cuánto te pregunta</span>
+      <span className="block pb-1.5 text-[10px] uppercase tracking-widest text-muted/60">{tr('Cuánto te pregunta')}</span>
       <div className="flex items-center gap-2">
-        <div role="radiogroup" aria-label="Cuánto te pregunta Levy" className="flex min-w-0 flex-1 rounded-full border border-border-subtle bg-card-active/60 p-0.5">
+        <div role="radiogroup" aria-label={tr('Cuánto te pregunta Levy')} className="flex min-w-0 flex-1 rounded-full border border-border-subtle bg-card-active/60 p-0.5">
           {LADOS.map(({ lado: l, nombre }) => {
             const activo = lado === l
             return (
@@ -45,10 +46,10 @@ export function PermisosEnModelo({ onClose }: { onClose: () => void }) {
                 disabled={!estado || modo.ocupado}
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => void elegir(l)}
-                title={l === 'autonomo' ? `${estado?.modo === 'autonomo' ? avisoAutonomo(modo.desde) : 'Hace lo que le pides sin pedirte un clic en cada paso.'} ${RED_MINIMA}` : 'Te pregunta antes de lo que sale de tu computadora (Automático en mi carpeta).'}
+                title={l === 'autonomo' ? `${estado?.modo === 'autonomo' ? avisoAutonomo(modo.desde) : tr('Hace lo que le pides sin pedirte un clic en cada paso.')} ${tr(RED_MINIMA)}` : tr('Te pregunta antes de lo que sale de tu computadora (Automático en mi carpeta).')}
                 className={`flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-full px-3 text-[12.5px] font-medium transition-colors md:min-h-8 ${activo ? (l === 'autonomo' ? 'bg-brand/20 text-brand-ink' : 'bg-card text-foreground shadow-sm') : 'text-muted hover:text-foreground'}`}>
                 {l === 'autonomo' && <span aria-hidden className={`size-1.5 rounded-full ${activo ? 'bg-brand' : 'bg-muted/50'}`} />}
-                {nombre}
+                {tr(nombre)}
                 {modo.ocupado && !activo && <Loader2 className="size-3 animate-spin" aria-hidden />}
               </button>
             )
@@ -57,18 +58,18 @@ export function PermisosEnModelo({ onClose }: { onClose: () => void }) {
         {pausa?.pausado ? (
           <button type="button" data-pausa-modelo="reanudar" onMouseDown={(e) => e.preventDefault()} onClick={() => void fijar(false)} disabled={pausando}
             className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-amber-400/40 px-3 text-[12.5px] font-medium text-amber-700 hover:bg-amber-400/10 dark:text-amber-200 md:min-h-8">
-            {pausando ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Play className="size-3.5" aria-hidden />} Reanudar
+            {pausando ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Play className="size-3.5" aria-hidden />} {tr('Reanudar')}
           </button>
         ) : (
           <button type="button" data-pausa-modelo="pausar" onMouseDown={(e) => e.preventDefault()} onClick={() => void pausar()} disabled={pausando || !pausa}
-            title="Pausar todo: detiene todo lo que Levy está haciendo y no deja empezar nada hasta que reanudes"
+            title={tr('Pausar todo: detiene todo lo que Levy está haciendo y no deja empezar nada hasta que reanudes')}
             className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-border-subtle px-3 text-[12.5px] font-medium text-foreground/80 hover:border-red-400/50 hover:text-red-500 dark:hover:text-red-300 md:min-h-8">
-            {pausando ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <OctagonPause className="size-3.5" aria-hidden />} Pausar todo
+            {pausando ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <OctagonPause className="size-3.5" aria-hidden />} {tr('Pausar todo')}
           </button>
         )}
       </div>
       <p className="mt-1.5 text-[11px] leading-snug text-muted" role="status">
-        {error ?? (pausa?.pausado ? 'Levy está en pausa: no corre ningún turno, rutina ni herramienta.' : estado ? LINEA_MODO[estado.modo] : 'Consultando…')}
+        {error ?? (pausa?.pausado ? tr('Levy está en pausa: no corre ningún turno, rutina ni herramienta.') : estado ? tr(LINEA_MODO[estado.modo]) : tr('Consultando…'))}
       </p>
     </div>
   )
@@ -81,7 +82,7 @@ export function PuntoAutonomo() {
   return (
     <span data-punto-autonomo title={avisoAutonomo(desde)} className="flex shrink-0 items-center">
       <span aria-hidden className="size-1.5 rounded-full bg-brand ring-2 ring-brand/25" />
-      <span className="sr-only">Modo Autónomo</span>
+      <span className="sr-only">{tr('Modo Autónomo')}</span>
     </span>
   )
 }

@@ -4,6 +4,7 @@ import { planningOwner, planningError, checkMutationOrigin } from '@/lib/plannin
 import { listaDe, raizExplorador } from '@/lib/cabina/explorador-server'
 import { absoluta } from '@/features/cabina/explorador/arbol'
 import { carpetaPermitida, comandoAbrir, dentroDeRaiz, pedidoLocal } from '@/features/cabina/explorador/abrir-carpeta'
+import { tr } from '@/shared/i18n'
 
 // «Abrir carpeta» del explorador (22 oct 2026): POST { dir: <relativa> } abre esa carpeta en Explorer, Finder o el gestor de
 // Linux. Misma sesión y misma raíz que GET /api/cabina/explorador; solo desde esta computadora (Host local, sin reenvío de fuera),
@@ -26,7 +27,7 @@ export async function POST(request: Request) {
   try {
     await planningOwner()
     checkMutationOrigin(request)
-    if (!pedidoLocal(request.headers)) return falla('Abrir carpeta solo funciona en la computadora donde corre Arbrain.', 403)
+    if (!pedidoLocal(request.headers)) return falla(tr('Abrir carpeta solo funciona en la computadora donde corre Arbrain.'), 403)
     const body = await request.json().catch(() => null) as { dir?: unknown } | null
     const raiz = await raizExplorador()
     const { lista } = await listaDe(raiz.ruta)
@@ -34,12 +35,12 @@ export async function POST(request: Request) {
     if ('error' in pedida) return falla(pedida.error, pedida.status)
     const raizReal = await realpath(raiz.ruta).catch(() => raiz.ruta)
     const real = await realpath(absoluta(raiz.ruta, pedida.rel)).catch(() => null)
-    if (!real || !dentroDeRaiz(real, raizReal, process.platform)) return falla('Esa carpeta queda fuera del explorador.', 403)
-    if (!(await stat(real).then(s => s.isDirectory(), () => false))) return falla('Esa carpeta ya no existe.', 404)
+    if (!real || !dentroDeRaiz(real, raizReal, process.platform)) return falla(tr('Esa carpeta queda fuera del explorador.'), 403)
+    if (!(await stat(real).then(s => s.isDirectory(), () => false))) return falla(tr('Esa carpeta ya no existe.'), 404)
     const comando = comandoAbrir(process.platform, real, process.env)
     if ('error' in comando) return falla(comando.error, 501)
     try { await lanzar(comando.cmd, comando.args) } catch {
-      return falla(`No encontré el gestor de archivos (${comando.cmd}) en esta computadora.`, 501)
+      return falla(tr('No encontré el gestor de archivos ({cmd}) en esta computadora.', { cmd: comando.cmd }), 501)
     }
     return Response.json({ ok: true, dir: pedida.rel }, { headers: NO_CACHE })
   } catch (error) { return planningError(error) }

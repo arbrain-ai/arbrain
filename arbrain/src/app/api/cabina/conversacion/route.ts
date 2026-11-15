@@ -3,6 +3,7 @@ import { getClaudeclawUrl, CLAUDECLAW_TOKEN } from '@/lib/claudeclaw'
 import { accountId, ChatAccessError } from '@/lib/chat-access-policy'
 import { sameSecret } from '@/lib/desktop-auth'
 import { cuerpoPrimerMensaje, esLaMisma, filaConversacion, leerPedido } from '@/features/cabina/conversacion-nueva'
+import { tr } from '@/shared/i18n'
 
 // Conversación nueva que abre Levy (31 oct 2026): la pide la herramienta `conversacion` de la Cabina y la manda aquí el
 // agent-server (server/src/cabina/conversaciones.ts), servidor a servidor con su token, como /api/chat/complete. Crea la fila
@@ -19,17 +20,17 @@ export async function POST(request: Request) {
   const pedido = leerPedido(await request.json().catch(() => null))
   if ('error' in pedido) return Response.json({ error: pedido.error }, { status: 400 })
   let account: string
-  try { account = accountId(pedido.account) } catch (error) { return Response.json({ error: error instanceof ChatAccessError ? error.message : 'Cuenta inválida.' }, { status: 400 }) }
+  try { account = accountId(pedido.account) } catch (error) { return Response.json({ error: error instanceof ChatAccessError ? error.message : tr('Cuenta inválida.') }, { status: 400 }) }
 
   const service = createServiceClient()
   const { data, error } = await service.from('chat_sessions').insert(filaConversacion(pedido, account)).select('*').single()
   let session = data
   if (error || !data) {
-    if (error?.code !== '23505') return Response.json({ error: error?.message ?? 'No se pudo crear la conversación.' }, { status: 500 })
+    if (error?.code !== '23505') return Response.json({ error: error?.message ?? tr('No se pudo crear la conversación.') }, { status: 500 })
     // Reintento del agent-server: la fila ya existe; vale solo si es la misma conversación.
     const existente = await service.from('chat_sessions').select('*').eq('id', pedido.id).maybeSingle()
-    if (existente.error || !existente.data) return Response.json({ error: existente.error?.message ?? 'No se pudo leer la conversación.' }, { status: 500 })
-    if (!esLaMisma(existente.data, pedido, account)) return Response.json({ error: 'Ese id ya es de otra conversación.' }, { status: 409 })
+    if (existente.error || !existente.data) return Response.json({ error: existente.error?.message ?? tr('No se pudo leer la conversación.') }, { status: 500 })
+    if (!esLaMisma(existente.data, pedido, account)) return Response.json({ error: tr('Ese id ya es de otra conversación.') }, { status: 409 })
     session = existente.data
   }
 
@@ -39,9 +40,9 @@ export async function POST(request: Request) {
       body: JSON.stringify(cuerpoPrimerMensaje(pedido, account)), signal: AbortSignal.timeout(20_000),
     })
     const out = await r.json().catch(() => ({})) as { accepted?: boolean; turnId?: string; error?: string }
-    if (!r.ok || !out.accepted) return Response.json({ error: `la conversación existe pero el servidor no aceptó su primer mensaje: ${out.error ?? r.status}` }, { status: 502 })
+    if (!r.ok || !out.accepted) return Response.json({ error: tr('la conversación existe pero el servidor no aceptó su primer mensaje: {detalle}', { detalle: out.error ?? r.status }) }, { status: 502 })
     return Response.json({ session, turnId: out.turnId })
   } catch (e) {
-    return Response.json({ error: `la conversación existe pero el servidor no respondió al primer mensaje (${e instanceof Error ? e.message : 'sin respuesta'})` }, { status: 502 })
+    return Response.json({ error: tr('la conversación existe pero el servidor no respondió al primer mensaje ({detalle})', { detalle: e instanceof Error ? e.message : tr('sin respuesta') }) }, { status: 502 })
   }
 }

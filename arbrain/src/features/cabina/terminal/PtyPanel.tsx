@@ -12,6 +12,7 @@ import type { Terminal } from '@xterm/xterm'
 import '@xterm/xterm/css/xterm.css'
 import s from './terminal.module.css'
 import { conEnlaces } from './enlaces'
+import { tr, trMarca } from '@/shared/i18n'
 
 export const TEMA_TERMINAL = {
   background: '#0d0d12', foreground: '#d4d4d8', cursor: '#a78bfa', cursorAccent: '#0d0d12', selectionBackground: 'rgba(167,139,250,0.3)',
@@ -72,8 +73,8 @@ export function PtyPanel({ id, visible, activa, onFin, onTitulo }: {
         const datos = cola; cola = ''
         try {
           const r = await post({ datos })
-          if (!r.ok) { const j = await r.json().catch(() => ({})); term.write(`\r\n\x1b[33m[${j.error ?? 'el motor no aceptó la entrada'}]\x1b[0m\r\n`) }
-        } catch { term.write('\r\n\x1b[33m[sin conexión con el Studio]\x1b[0m\r\n') }
+          if (!r.ok) { const j = await r.json().catch(() => ({})); term.write(`\r\n\x1b[33m[${tr(j.error ?? trMarca('el motor no aceptó la entrada'))}]\x1b[0m\r\n`) }
+        } catch { term.write(`\r\n\x1b[33m[${tr('sin conexión con el Studio')}]\x1b[0m\r\n`) }
         enviando = false
         if (cola) void vaciar()
       }
@@ -114,7 +115,7 @@ export function PtyPanel({ id, visible, activa, onFin, onTitulo }: {
           es?.close(); setFase({ f: 'error', msg: m.msg })
         }
       }
-      es.onerror = () => { if (es?.readyState === EventSource.CLOSED) setFase({ f: 'error', msg: 'Se perdió la conexión con el Studio.' }) }
+      es.onerror = () => { if (es?.readyState === EventSource.CLOSED) setFase({ f: 'error', msg: trMarca('Se perdió la conexión con el Studio.') }) }
 
       ro = new ResizeObserver(() => ajustar())
       ro.observe(caja.current)
@@ -132,11 +133,11 @@ export function PtyPanel({ id, visible, activa, onFin, onTitulo }: {
   }, [visible, activa, id])
 
   return <div className={s.cuerpoPty} hidden={!activa} data-fase={fase.f}>
-    <div ref={caja} className={s.xterm} aria-label="Terminal" />
-    {fase.f === 'conectando' && <p className={s.velo}>Conectando con el motor…</p>}
+    <div ref={caja} className={s.xterm} aria-label={tr('Terminal')} />
+    {fase.f === 'conectando' && <p className={s.velo}>{tr('Conectando con el motor…')}</p>}
     {fase.f === 'error' && <div className={s.velo}>
-      <span>{fase.msg ?? 'El motor no respondió.'}</span>
-      <button className={s.enlace} onClick={() => { setFase({ f: 'conectando' }); setIntento(n => n + 1) }}>Reintentar</button>
+      <span>{tr(fase.msg ?? trMarca('El motor no respondió.'))}</span>
+      <button className={s.enlace} onClick={() => { setFase({ f: 'conectando' }); setIntento(n => n + 1) }}>{tr('Reintentar')}</button>
     </div>}
   </div>
 }

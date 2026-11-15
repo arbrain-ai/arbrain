@@ -1,5 +1,6 @@
 import { NON_DEFAULT_ACCOUNTS, toChatAccount, type ChatAccount, type NonDefaultAccount } from '../stores/account-store'
 import type { ChatSession } from '../hooks/useChatHistory'
+import { tr } from '@/shared/i18n'
 
 /**
  * Cuentas de las conversaciones en «Recientes» de la barra lateral (1 oct 2026). Se ven todas
@@ -23,7 +24,8 @@ export const CUENTAS_RECIENTES: readonly CuentaReciente[] = [
   { id: 'yt', etiqueta: 'ChatGPT yt', corta: 'GPT yt', texto: 'text-cyan-300' },
   { id: 'deepseek', etiqueta: 'DeepSeek', corta: 'DeepSeek', texto: 'text-sky-300' },
   // Sin filtro (3 nov 2026): rojo, para que nunca se confunda con Claude.
-  { id: 'abliterated', etiqueta: 'DeepSeek abliterated · no es Claude', corta: 'Sin filtro', texto: 'text-rose-300' },
+  // Getters: el rótulo sale en el idioma activo al pintarse (la edición del alumno también tiene «Sin filtro»).
+  { id: 'abliterated', get etiqueta() { return tr('DeepSeek abliterated · no es Claude') }, get corta() { return tr('Sin filtro') }, texto: 'text-rose-300' },
   // Catálogo de modelos (2 oct 2026): un espacio por modelo de OpenRouter.
   { id: 'gpt-luna', etiqueta: 'GPT-6 Luna', corta: 'Luna', texto: 'text-emerald-300' },
   { id: 'gpt-astra', etiqueta: 'GPT-6 Astra', corta: 'Astra', texto: 'text-emerald-300' },

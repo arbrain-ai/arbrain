@@ -10,6 +10,12 @@ import type { useHabitRecords } from '@/features/sistema/useHabitRecords'
 import { avanceHabitos, diasTejido, moverFoco, racha, rotuloRacha, siguienteMarca, VENTANA_RACHA, type Marca } from './habitos-dia'
 import h from './habitos-dia.module.css'
 import { seMuestra } from './habitos-hoy'
+import { localeIntl, tr, trNodos } from '@/shared/i18n'
+
+/** «12 d» → «12 días» para leerse en voz alta. */
+const rachaLarga = (r: string) => tr('{n} días', { n: r.replace(' d', '') })
+/** El estado de una marca en palabras. */
+const estadoDe = (m: Marca) => m === true ? tr('cumplido') : m === false ? tr('no cumplido') : tr('sin registro')
 
 /**
  * Los hábitos en la hoja del día (5 oct 2026). Antes solo se marcaban en /todotask/hoy; Daniel firmó «un solo lugar por
@@ -95,69 +101,69 @@ export function HabitosDia({ dia, donde, i = 4, habits, today, ocultar = [], com
 
   if (compacta) {
     const conObj = objetivo != null, hechos = avance.hechos + (objetivo?.cumplido ? 1 : 0), total = avance.total + (conObj ? 1 : 0)
-    return <section ref={raiz} className={`${h.compacta} ${mov.entra}`} style={escalon(i)} aria-label="Hábitos" data-habitos data-completo={(total > 0 && hechos === total) || undefined}>
-      <header className={h.compactaCabeza}><h3>Hábitos</h3>{habits.data && <span className={h.cuenta}><b>{hechos}</b> de {total}</span>}
-        {habits.data && <button className={h.verTejido} onClick={() => setTejido(v => !v)} aria-pressed={tejido} title="Las últimas cuatro semanas de cada hábito">{tejido ? 'Hoy' : '4 sem'}</button>}</header>
-      {!habits.data ? <p className={h.vacio}>{habits.loading ? 'Leyendo tus hábitos…' : habits.error ?? 'No se pudieron leer los hábitos.'}</p>
+    return <section ref={raiz} className={`${h.compacta} ${mov.entra}`} style={escalon(i)} aria-label={tr('Hábitos')} data-habitos data-completo={(total > 0 && hechos === total) || undefined}>
+      <header className={h.compactaCabeza}><h3>{tr('Hábitos')}</h3>{habits.data && <span className={h.cuenta}>{trNodos('{hechos} de {total}', { hechos: <b>{hechos}</b>, total })}</span>}
+        {habits.data && <button className={h.verTejido} onClick={() => setTejido(v => !v)} aria-pressed={tejido} title={tr('Las últimas cuatro semanas de cada hábito')}>{tejido ? tr('Hoy') : tr('4 sem')}</button>}</header>
+      {!habits.data ? <p className={h.vacio}>{habits.loading ? tr('Leyendo tus hábitos…') : habits.error != null ? tr(habits.error) : tr('No se pudieron leer los hábitos.')}</p>
         : tejido ? <Tejido dia={dia} lista={lista} marca={marca} onMarcar={(fecha, clave, valor) => habits.mark(fecha, clave, valor)} />
-        : <div ref={rejilla} className={h.filas} role="group" aria-label={`Hábitos: ${hechos} de ${total} cumplidos`} onKeyDown={teclaRejilla}>
+        : <div ref={rejilla} className={h.filas} role="group" aria-label={tr('{titulo}: {hechos} de {total} cumplidos', { titulo: tr('Hábitos'), hechos, total })} onKeyDown={teclaRejilla}>
           {conObj && <button className={h.fila} data-objetivo data-estado={objetivo!.cumplido ? 'hecho' : 'vacio'} aria-pressed={objetivo!.cumplido} disabled={!objetivo!.onToggle}
-            onClick={() => objetivo!.onToggle?.()} aria-label={`Objetivo del día: ${objetivo!.cumplido ? 'cumplido' : 'sin cumplir'} (es la estrella de arriba)`}>
+            onClick={() => objetivo!.onToggle?.()} aria-label={objetivo!.cumplido ? tr('Objetivo del día: cumplido (es la estrella de arriba)') : tr('Objetivo del día: sin cumplir (es la estrella de arriba)')}>
             <span className={h.estrellaMini} aria-hidden><svg viewBox="0 0 24 24"><path d="M12 2.8l2.75 5.6 6.15.9-4.45 4.33 1.05 6.12L12 16.87l-5.5 2.88 1.05-6.12L3.1 9.3l6.15-.9z" /></svg></span>
-            <span className={h.nombre}>Objetivo del día</span></button>}
+            <span className={h.nombre}>{tr('Objetivo del día')}</span></button>}
           {lista.map((x, n) => {
             const m = marcas[n], nombre = habitDisplayName(x, dia), sub = habitSubtitle(x.clave), estado = m === true ? 'hecho' : m === false ? 'fallado' : 'vacio'
             const r = rotuloRacha(racha(f => marca(f, x.clave), dia, today, desde))
             return <button key={x.clave} className={h.fila} data-clave={x.clave} data-estado={estado} aria-pressed={m === true} onClick={() => alternar(x.clave, nombre)} title={sub ?? undefined}
-              aria-label={`${nombre}: ${m === true ? 'cumplido' : m === false ? 'no cumplido' : 'sin registro'}${r ? `, racha de ${r.replace(' d', ' días')}` : ''}`}>
+              aria-label={`${nombre}: ${estadoDe(m)}${r ? tr(', racha de {racha}', { racha: rachaLarga(r) }) : ''}`}>
               <span className={h.marca} aria-hidden>{m === true ? <svg viewBox="0 0 12 12" className={recien === x.clave ? mov.palomita : undefined}><path d="M2.5 6.2 5 8.6l4.6-5.2" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" /></svg> : m === false ? '×' : null}</span>
               <span className={h.nombre}><NombreHabito clave={x.clave} nombre={realHabitName(x, dia)} tocable={false} />{sub && <small className={h.subLinea}> · {sub}</small>}</span>
               {r && <span className={h.racha}>{r}</span>}
             </button>
           })}
         </div>}
-      {ultimo && habits.canUndo && !tejido && <p className={h.deshacer} role="status"><span>{ultimo.hecho ? 'Marcado' : 'Sin marca'}: «{ultimo.nombre}»</span>
-        <button onClick={() => { habits.undoLast(); setUltimo(null) }}>Deshacer</button></p>}
+      {ultimo && habits.canUndo && !tejido && <p className={h.deshacer} role="status"><span>{ultimo.hecho ? tr('Marcado: «{nombre}»', { nombre: ultimo.nombre }) : tr('Sin marca: «{nombre}»', { nombre: ultimo.nombre })}</span>
+        <button onClick={() => { habits.undoLast(); setUltimo(null) }}>{tr('Deshacer')}</button></p>}
     </section>
   }
 
-  const titulo = esHoy ? 'Hábitos' : 'Hábitos de ese día'
+  const titulo = esHoy ? tr('Hábitos') : tr('Hábitos de ese día')
   const pct = avance.total ? avance.hechos / avance.total * 100 : 0
   return <section ref={raiz} className={`${h.banda} ${mov.entra}`} style={escalon(i)} aria-label={titulo} data-habitos data-completo={avance.completo || undefined}>
     <header className={h.cabeza}>
-      <button className={h.plegar} onClick={() => setAbierto(!desplegado)} aria-expanded={desplegado} title={desplegado ? 'Plegar los hábitos' : 'Ver los hábitos'}>
+      <button className={h.plegar} onClick={() => setAbierto(!desplegado)} aria-expanded={desplegado} title={desplegado ? tr('Plegar los hábitos') : tr('Ver los hábitos')}>
         <h3>{titulo}</h3>
-        {habits.data && <span className={h.cuenta}>{avance.completo ? <>Completos<svg viewBox="0 0 12 12" aria-hidden className={h.sello}><path d="M2.5 6.2 5 8.6l4.6-5.2" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg></> : <><b>{avance.hechos}</b> de {avance.total}</>}</span>}
+        {habits.data && <span className={h.cuenta}>{avance.completo ? <>{tr('Completos')}<svg viewBox="0 0 12 12" aria-hidden className={h.sello}><path d="M2.5 6.2 5 8.6l4.6-5.2" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg></> : trNodos('{hechos} de {total}', { hechos: <b>{avance.hechos}</b>, total: avance.total })}</span>}
         <ChevronDown size={14} className={h.chevron} aria-hidden />
       </button>
-      {habits.data && desplegado && <button className={h.verTejido} onClick={() => setTejido(v => !v)} aria-pressed={tejido} title="Las últimas cuatro semanas de cada hábito">{tejido ? 'Hoy' : '4 semanas'}</button>}
+      {habits.data && desplegado && <button className={h.verTejido} onClick={() => setTejido(v => !v)} aria-pressed={tejido} title={tr('Las últimas cuatro semanas de cada hábito')}>{tejido ? tr('Hoy') : tr('4 semanas')}</button>}
     </header>
     <div className={h.medidor} aria-hidden><i className={mov.llena} style={{ width: `${pct}%`, ...escalon(i + 1) }} /></div>
 
     <div className={mov.pliega} data-plegada={!desplegado || undefined}><div>
-      {!habits.data ? <p className={h.vacio}>{habits.loading ? 'Leyendo tus hábitos…' : habits.error ?? 'No se pudieron leer los hábitos.'}</p>
-        : !lista.length ? <p className={h.vacio}>Aún no tienes hábitos activos.</p>
+      {!habits.data ? <p className={h.vacio}>{habits.loading ? tr('Leyendo tus hábitos…') : habits.error != null ? tr(habits.error) : tr('No se pudieron leer los hábitos.')}</p>
+        : !lista.length ? <p className={h.vacio}>{tr('Aún no tienes hábitos activos.')}</p>
         : tejido ? <Tejido dia={dia} lista={lista} marca={marca} onMarcar={(fecha, clave, valor) => habits.mark(fecha, clave, valor)} />
-        : <div ref={rejilla} className={h.rejilla} role="group" aria-label={`${titulo}: ${avance.hechos} de ${avance.total} cumplidos`} onKeyDown={teclaRejilla}>
+        : <div ref={rejilla} className={h.rejilla} role="group" aria-label={tr('{titulo}: {hechos} de {total} cumplidos', { titulo, hechos: avance.hechos, total: avance.total })} onKeyDown={teclaRejilla}>
           {lista.map((x, n) => {
             const m = marcas[n], nombre = habitDisplayName(x, dia), estado = m === true ? 'hecho' : m === false ? 'fallado' : 'vacio'
             const r = rotuloRacha(racha(f => marca(f, x.clave), dia, today, desde)), tecla = HABIT_SHORTCUTS[x.clave]
             return <button key={x.clave} className={`${h.habito} ${mov.entra}`} style={{ ...escalon(i + 2 + n), ['--n' as string]: n } as CSSProperties} data-clave={x.clave} data-estado={estado}
               data-hecha={m === true || undefined} aria-pressed={m === true} onClick={() => alternar(x.clave, nombre)}
-              aria-label={`${nombre}: ${m === true ? 'cumplido' : m === false ? 'no cumplido' : 'sin registro'}${r ? `, racha de ${r.replace(' d', ' días')}` : ''}${tecla ? `. Tecla ${tecla}` : ''}`}>
+              aria-label={`${nombre}: ${estadoDe(m)}${r ? tr(', racha de {racha}', { racha: rachaLarga(r) }) : ''}${tecla ? tr('. Tecla {tecla}', { tecla }) : ''}`}>
               <span className={h.marca} aria-hidden>{m === true ? <svg viewBox="0 0 12 12" className={recien === x.clave ? mov.palomita : undefined}><path d="M2.5 6.2 5 8.6l4.6-5.2" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" /></svg> : m === false ? '×' : null}</span>
               <span className={h.nombre}><NombreHabito clave={x.clave} nombre={realHabitName(x, dia)} tocable={false} />{habitSubtitle(x.clave) && <small className={h.sub}>{habitSubtitle(x.clave)}</small>}</span>
-              {r && <span className={h.racha} title={`Racha de ${r.replace(' d', ' días')}`}>{r}</span>}
+              {r && <span className={h.racha} title={tr('Racha de {racha}', { racha: rachaLarga(r) })}>{r}</span>}
               {tecla && <kbd className={h.tecla} aria-hidden>{tecla}</kbd>}
             </button>
           })}
         </div>}
       {(habits.error && habits.data) || (habits.pending.length > 0 && !habits.saving) ? <p className={h.aviso} role="status">
-        <span>{habits.error ?? 'Hay una marca sin confirmar.'}</span>
-        {habits.pending.length > 0 && !habits.saving && <button onClick={() => void habits.retry()}>Reintentar</button>}
+        <span>{habits.error != null ? tr(habits.error) : tr('Hay una marca sin confirmar.')}</span>
+        {habits.pending.length > 0 && !habits.saving && <button onClick={() => void habits.retry()}>{tr('Reintentar')}</button>}
       </p> : ultimo && habits.canUndo ? <p className={h.deshacer} role="status">
-        <span>{ultimo.hecho ? 'Marcado' : 'Sin marca'}: «{ultimo.nombre}»</span>
-        <button onClick={() => { habits.undoLast(); setUltimo(null) }}>Deshacer</button>
+        <span>{ultimo.hecho ? tr('Marcado: «{nombre}»', { nombre: ultimo.nombre }) : tr('Sin marca: «{nombre}»', { nombre: ultimo.nombre })}</span>
+        <button onClick={() => { habits.undoLast(); setUltimo(null) }}>{tr('Deshacer')}</button>
       </p> : null}
     </div></div>
   </section>
@@ -169,8 +175,8 @@ function Tejido({ dia, lista, marca, onMarcar }: {
   onMarcar: (fecha: string, clave: string, valor: boolean | null) => void
 }) {
   const dias = diasTejido(dia)
-  const corto = (f: string) => new Date(`${f}T12:00:00`).toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })
-  return <div className={h.tejido} role="table" aria-label="Las últimas cuatro semanas">
+  const corto = (f: string) => new Date(`${f}T12:00:00`).toLocaleDateString(localeIntl(), { weekday: 'long', day: 'numeric', month: 'long' })
+  return <div className={h.tejido} role="table" aria-label={tr('Las últimas cuatro semanas')}>
     <div className={h.tejidoFila} role="row" aria-hidden>
       <span />
       {dias.map(f => <span key={f} className={h.tejidoDia} data-lunes={new Date(`${f}T12:00:00`).getDay() === 1 || undefined}>{new Date(`${f}T12:00:00`).getDay() === 1 ? Number(f.slice(-2)) : ''}</span>)}
@@ -180,10 +186,10 @@ function Tejido({ dia, lista, marca, onMarcar }: {
       {dias.map(f => {
         const m = marca(f, x.clave)
         return <button key={f} role="cell" className={h.punto} data-estado={m === true ? 'hecho' : m === false ? 'fallado' : 'vacio'} data-hoy={f === dia || undefined}
-          aria-label={`${x.nombre}, ${corto(f)}: ${m === true ? 'cumplido' : m === false ? 'no cumplido' : 'sin registro'}. Tocar cambia el registro.`}
+          aria-label={tr('{nombre}, {fecha}: {estado}. Tocar cambia el registro.', { nombre: x.nombre, fecha: corto(f), estado: estadoDe(m) })}
           onClick={() => onMarcar(f, x.clave, siguienteMarca(m))} />
       })}
     </div>)}
-    <p className={h.leyenda}><span data-estado="hecho" />Cumplido<span data-estado="fallado" />No cumplido<span data-estado="vacio" />Sin registro · un hueco no es un fallo</p>
+    <p className={h.leyenda}><span data-estado="hecho" />{tr('Cumplido')}<span data-estado="fallado" />{tr('No cumplido')}<span data-estado="vacio" />{tr('Sin registro · un hueco no es un fallo')}</p>
   </div>
 }

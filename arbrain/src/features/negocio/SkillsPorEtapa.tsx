@@ -9,6 +9,8 @@ import { CircleDashed, Wand2 } from 'lucide-react'
 import { abrirHabilidad } from '@/shared/navigation/ir-a'
 import { rutaSkill, skillsPorEtapa, type Embudo, type SkillSinEtapa } from './embudo'
 import e from './panel-embudo.module.css'
+import { tr } from '@/shared/i18n'
+import { trNodos } from '@/shared/i18n'
 
 export function SkillsPorEtapa({ embudo, inventario, alElegirEtapa, pedirALevy }: {
   embudo: Embudo
@@ -21,46 +23,46 @@ export function SkillsPorEtapa({ embudo, inventario, alElegirEtapa, pedirALevy }
   const fuera = s.sistema.length + s.personal.length
   return <div className={e.skillsVista} data-testid="skills-por-etapa">
     <p className={e.skillsResumen}>
-      <b>{s.enEtapas}</b> {s.enEtapas === 1 ? 'skill cuelga' : 'skills cuelgan'} de alguna etapa · <b>{fuera}</b> fuera a propósito
-      {s.sinRevisar && <> · <b data-alerta={s.sinRevisar.length > 0 || undefined}>{s.sinRevisar.length}</b> sin revisar</>}
+      {s.enEtapas === 1 ? trNodos('{n} skill cuelga de alguna etapa', { n: <b>{s.enEtapas}</b> }) : trNodos('{n} skills cuelgan de alguna etapa', { n: <b>{s.enEtapas}</b> })} · {trNodos('{n} fuera a propósito', { n: <b>{fuera}</b> })}
+      {s.sinRevisar && <> · {trNodos('{n} sin revisar', { n: <b data-alerta={s.sinRevisar.length > 0 || undefined}>{s.sinRevisar.length}</b> })}</>}
     </p>
 
-    {s.grupos.map(g => <section key={g.info.id} className={e.skillsEmbudo} data-por-construir={g.info.estado === 'por construir' || undefined} aria-label={`Skills de ${g.info.nombre}`}>
+    {s.grupos.map(g => <section key={g.info.id} className={e.skillsEmbudo} data-por-construir={g.info.estado === 'por construir' || undefined} aria-label={tr('Skills de {nombre}', { nombre: g.info.nombre })}>
       <header>
         {g.info.kicker && <p className={e.kicker}>{g.info.kicker}</p>}
         <h5 className={e.skillsEmbudoNombre}>{g.info.nombre}</h5>
       </header>
       <ul className={e.skillsEtapas}>
         {g.etapas.map(({ etapa, skills }) => <li key={etapa.id} data-hoy={etapa.opera_hoy || undefined} data-etapa-skills={etapa.id}>
-          <button type="button" className={e.skillsEtapa} onClick={() => alElegirEtapa(etapa.id)} title="Ver la etapa en el grafo">
-            <span className={e.skillsEtapaCeja}>{etapa.orden} · {etapa.etapa}</span>
-            <span className={e.skillsEtapaNombre}>{etapa.nombre}{etapa.cuello.es && <i className={e.luz} aria-label="cuello de botella" />}</span>
+          <button type="button" className={e.skillsEtapa} onClick={() => alElegirEtapa(etapa.id)} title={tr('Ver la etapa en el grafo')}>
+            <span className={e.skillsEtapaCeja}>{etapa.orden} · {tr(etapa.etapa)}</span>
+            <span className={e.skillsEtapaNombre}>{etapa.nombre}{etapa.cuello.es && <i className={e.luz} aria-label={tr('cuello de botella')} />}</span>
           </button>
           {skills.length
             ? <ul className={e.chips}>{skills.map(n => <li key={n}><Chip nombre={n} /></li>)}</ul>
-            : <p className={e.nada}>Ninguna skill todavía.</p>}
+            : <p className={e.nada}>{tr('Ninguna skill todavía.')}</p>}
         </li>)}
       </ul>
     </section>)}
 
-    <section className={e.skillsFuera} aria-label="No cuelgan de ninguna etapa">
-      <h5 className={e.skillsEmbudoNombre}>No cuelgan de ninguna etapa</h5>
+    <section className={e.skillsFuera} aria-label={tr('No cuelgan de ninguna etapa')}>
+      <h5 className={e.skillsEmbudoNombre}>{tr('No cuelgan de ninguna etapa')}</h5>
       {s.sinRevisar === null
-        ? <p className={e.nada}>No pude leer la carpeta de skills: aquí solo salen las que el embudo nombra.</p>
+        ? <p className={e.nada}>{tr('No pude leer la carpeta de skills: aquí solo salen las que el embudo nombra.')}</p>
         : s.sinRevisar.length > 0 && <div className={e.sinRevisar} data-testid="skills-sin-revisar">
-          <p className={e.etiqueta}><CircleDashed size={12} aria-hidden />Sin revisar · nadie las ha ubicado</p>
+          <p className={e.etiqueta}><CircleDashed size={12} aria-hidden />{tr('Sin revisar · nadie las ha ubicado')}</p>
           <ul className={e.chips}>{s.sinRevisar.map(n => <li key={n}><Chip nombre={n} marcada /></li>)}</ul>
-          <button type="button" className={e.accion} onClick={() => pedirALevy(`Ubica en mi embudo estas skills (de qué etapa cuelgan o por qué quedan fuera): ${s.sinRevisar!.join(', ')}.`)}>Pedirle a Levy que las ubique</button>
+          <button type="button" className={e.accion} onClick={() => pedirALevy(tr('Ubica en mi embudo estas skills (de qué etapa cuelgan o por qué quedan fuera): {skills}.', { skills: s.sinRevisar!.join(', ') }))}>{tr('Pedirle a Levy que las ubique')}</button>
         </div>}
-      {s.sistema.length > 0 && <Fuera titulo="Sostienen todo el sistema" skills={s.sistema} />}
-      {s.personal.length > 0 && <Fuera titulo="Fuera del negocio" skills={s.personal} />}
-      {s.noExisten.length > 0 && <p className={e.aviso} role="note">El embudo nombra skills que ya no existen: {s.noExisten.join(', ')}.</p>}
+      {s.sistema.length > 0 && <Fuera titulo={tr('Sostienen todo el sistema')} skills={s.sistema} />}
+      {s.personal.length > 0 && <Fuera titulo={tr('Fuera del negocio')} skills={s.personal} />}
+      {s.noExisten.length > 0 && <p className={e.aviso} role="note">{tr('El embudo nombra skills que ya no existen: {skills}.', { skills: s.noExisten.join(', ') })}</p>}
     </section>
   </div>
 }
 
 function Chip({ nombre, marcada }: { nombre: string; marcada?: boolean }) {
-  return <button type="button" className={e.skill} data-marcada={marcada || undefined} onClick={() => abrirHabilidad(rutaSkill(nombre))} title="Abrir en Habilidades">
+  return <button type="button" className={e.skill} data-marcada={marcada || undefined} onClick={() => abrirHabilidad(rutaSkill(nombre))} title={tr('Abrir en Habilidades')}>
     <Wand2 size={12} aria-hidden />{nombre}
   </button>
 }

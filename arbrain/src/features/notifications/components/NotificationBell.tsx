@@ -10,6 +10,7 @@ import { useIsMobile } from '@/shared/hooks/useMediaQuery'
 import { usePushSubscription } from '../hooks/usePushSubscription'
 import type { AccionAviso, AvisoVista } from '@/features/avisos/bandeja'
 import { zoomUI } from '@/shared/lib/zoom-ui'
+import { abrirEnNavegador, esInterna } from '@/lib/navegador'
 import c from './campana.module.css'
 
 // La campana (25 sep 2026; decisiones, no reportes, 29 oct). Lee /api/avisos ya agrupado (features/avisos/bandeja.ts):
@@ -17,6 +18,9 @@ import c from './campana.module.css'
 // decidir» con su conteo (el número de la campana) y «Para saber» plegado. Cada aviso dice quién/qué en una línea, la decisión en una frase y trae sus botones. «Publicar» y
 // «Descartar» son el toque de /decidir (POST /api/avisos/accion): nada se publica sin ese toque. Lo que se resolvió
 // solo (decisión tomada, grabación encontrada, alerta repetida) ya no llega. La telemetría vive en la bitácora.
+// 13 nov 2026: «Te toca decidir» trae también las tarjetas de la bandeja de decisiones (Sí · No es el mismo toque que en la
+// bandeja, POST /api/decisiones) y lo de fuera (la plataforma) se abre en el navegador del sistema: en la app de escritorio
+// `window.open` no hace nada (WKWebView), así que va por el opener de Tauri (lib/navegador.ts).
 
 interface Bandeja { decidir: AvisoVista[]; urgente: AvisoVista[]; saber: AvisoVista[]; pendientes: number }
 const VACIA: Bandeja = { decidir: [], urgente: [], saber: [], pendientes: 0 }
@@ -165,7 +169,27 @@ export function NotificationBell({ compact = true, placement = 'bottom', ghost =
     setHechos(h => { const n = { ...h }; delete n[id]; return n })
   }, 1100)
 
-  const tocar = async (a: AvisoVista, accion: 'publicar' | 'descartar' | 'duda' | 'visto') => {
+  /** Sí · No de una tarjeta de la bandeja de decisiones: el mismo toque que en la bandeja (el daemon aplica sus reglas). */
+  const decidirTarjeta = async (a: AvisoVista, respuesta: 'si' | 'no') => {
+    if (enCurso[a.id] || !a.tarjeta) return
+    setEnCurso(e => ({ ...e, [a.id]: respuesta }))
+    setErrores(e => { const n = { ...e }; delete n[a.id]; return n })
+    try {
+      const res = await fetch('/api/decisiones', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accion: 'resolver', id: a.tarjeta, respuesta }) })
+      const data = await res.json().catch(() => ({})) as { error?: string }
+      if (res.ok && !data.error) {
+        setHechos(h => ({ ...h, [a.id]: respuesta === 'si' ? 'Dijiste que sí. Levy sigue.' : 'Dijiste que no. No sale.' }))
+        quitar(a.id)
+      } else setErrores(e => ({ ...e, [a.id]: data.error ?? 'No se pudo. Intenta de nuevo.' }))
+    } catch {
+      setErrores(e => ({ ...e, [a.id]: 'Sin conexión. No se decidió nada.' }))
+    } finally {
+      setEnCurso(e => { const n = { ...e }; delete n[a.id]; return n })
+    }
+  }
+
+  const tocar = async (a: AvisoVista, accion: 'publicar' | 'descartar' | 'duda' | 'visto' | 'si' | 'no') => {
+    if (accion === 'si' || accion === 'no') return decidirTarjeta(a, accion)
     if (enCurso[a.id]) return
     setEnCurso(e => ({ ...e, [a.id]: accion }))
     setErrores(e => { const n = { ...e }; delete n[a.id]; return n })
@@ -190,10 +214,11 @@ export function NotificationBell({ compact = true, placement = 'bottom', ghost =
     }
   }
 
+  // Lo de la app, en la app; lo de fuera, en el navegador del sistema (en escritorio por el opener de Tauri). El panel queda
+  // abierto al salir a otro lado: al volver, la decisión sigue a la mano.
   const irA = (url: string) => {
-    setIsOpen(false)
-    if (url.startsWith('/')) router.push(url)
-    else window.open(url, '_blank', 'noopener,noreferrer')
+    if (esInterna(url)) { setIsOpen(false); router.push(url) }
+    else void abrirEnNavegador(url)
   }
 
   const handlePushToggle = () => {
@@ -208,7 +233,7 @@ export function NotificationBell({ compact = true, placement = 'bottom', ghost =
       ? `l-tecla ${base} border border-border bg-card font-semibold text-foreground hover:bg-card-hover`
       : `${base} font-medium text-muted hover:bg-foreground/[0.06] hover:text-foreground`
     if (x.tipo === 'abrir') {
-      const externo = !x.url.startsWith('/')
+      const externo = !esInterna(x.url)
       return (
         <button key={`${x.tipo}-${x.etiqueta}`} type="button" className={clase} onClick={() => irA(x.url)}>
           {x.etiqueta}{externo && <ArrowUpRight size={13} aria-hidden="true" />}
@@ -240,7 +265,7 @@ export function NotificationBell({ compact = true, placement = 'bottom', ghost =
 
   const tarjeta = (a: AvisoVista, urgente = false) => {
     const hecho = hechos[a.id]
-    const principal = a.acciones.find(x => x.tipo === 'publicar') ?? a.acciones.find(x => x.tipo === 'abrir')
+    const principal = a.acciones.find(x => x.tipo === 'publicar') ?? a.acciones.find(x => x.tipo === 'si' || x.tipo === 'no') ?? a.acciones.find(x => x.tipo === 'abrir')
     return (
       <li key={a.id} className={`${c.tarjeta} border-b border-border-subtle px-4 py-3 last:border-b-0`} data-saliendo={hecho ? '' : undefined}>
         <div className="flex items-start gap-2.5">

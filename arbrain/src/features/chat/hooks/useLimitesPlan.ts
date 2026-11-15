@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { limitesDeRespuesta, type LimitesPlan } from '../lib/limites-plan'
+import { tr } from '@/shared/i18n'
 
 // Límites del plan de UNA cuenta (2 oct 2026) para el panel de contexto de la barra de escribir.
 // El daemon guarda 60 s cada lectura: abrir y cerrar el panel no lanza una consulta por vez.
@@ -14,9 +15,9 @@ export function useLimitesPlan(account: string): LecturaLimites | null {
     void fetch(`/api/chat/limits?${new URLSearchParams({ account })}`, { signal: ac.signal, cache: 'no-store' }).then(async response => {
       const data = await response.json().catch(() => null)
       if (response.status === 403) { if (!ac.signal.aborted) setLectura({ account, oculto: true }); return }
-      if (!response.ok) throw new Error(data?.error || 'No se pudieron consultar los límites.')
+      if (!response.ok) throw new Error(data?.error ? tr(data.error) : tr('No se pudieron consultar los límites.'))
       if (!ac.signal.aborted) setLectura({ account, limits: limitesDeRespuesta(data) })
-    }).catch(error => { if (!ac.signal.aborted) setLectura({ account, error: error instanceof Error ? error.message : 'No hubo respuesta.' }) })
+    }).catch(error => { if (!ac.signal.aborted) setLectura({ account, error: error instanceof Error ? error.message : tr('No hubo respuesta.') }) })
     return () => ac.abort()
   }, [account])
   // Una lectura de otra cuenta nunca se muestra como la de esta.

@@ -45,7 +45,7 @@ test('la ruta de la web valida y reenvía al daemon con el secreto de confirmar;
 
 test('la tarjeta: tres botones, el sí solo con clic real, Escape = No, y va primero en el hilo', () => {
   const t = leer('features/permisos/components/TarjetaPermisoApp.tsx')
-  for (const b of ['Solo esta conversación', 'Siempre', 'No']) assert.match(t, new RegExp(`\\} ${b}\\n`))
+  for (const b of ['Solo esta conversación', 'Siempre', 'No']) assert.match(t, new RegExp(`\\} \\{tr\\('${b}'\\)\\}\\n`))
   assert.match(t, /if \(d !== 'no' && !esClicHumano\(/)
   assert.match(t, /decisionPorTecla\(\{ key: e\.key, repetida: e\.repeat/)
   assert.match(t, /disabled=\{!armado \|\| !!ocupado\} onClick=\{alClic\('siempre'\)\}/)

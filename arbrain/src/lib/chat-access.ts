@@ -6,6 +6,7 @@ import { isLocalDesktopUserId, LOCAL_DESKTOP_EMAIL } from '@/lib/desktop-auth'
 import { ChatAccessError, conversationScope, type ChatPrincipal } from './chat-access-policy'
 import { esEdicionCliente } from '@/lib/edicion'
 import { esFallaDeAuth, MSJ_BASE_CAIDA } from '@/lib/infra-errores'
+import { tr } from '@/shared/i18n'
 
 export async function requireChatPrincipal(): Promise<ChatPrincipal> {
   const supabase = await createClient()
@@ -22,7 +23,7 @@ export async function requireChatPrincipal(): Promise<ChatPrincipal> {
     // The authenticated local desktop represents Daniel, not every profile in the DB.
     const { data, error } = await createServiceClient().from('profiles').select('id').eq('email', LOCAL_DESKTOP_EMAIL).eq('role', 'owner').maybeSingle()
     if (error) throw new ChatAccessError(MSJ_BASE_CAIDA, 503)
-    if (!data) throw new ChatAccessError('No se pudo verificar el propietario del escritorio.', 503)
+    if (!data) throw new ChatAccessError(tr('No se pudo verificar el propietario del escritorio.'), 503)
     return { id: data.id, personalOwner: true, owner: true }
   }
   const role = await getUserRole(user.id).catch((error: unknown) => {
@@ -36,17 +37,17 @@ export async function requireChatPrincipal(): Promise<ChatPrincipal> {
 export async function resolveChatConversation(principal: ChatPrincipal, id: string, requestedAccount?: unknown) {
   const { data, error } = await createServiceClient().from('chat_sessions').select('id, profile_id, account').eq('id', id).maybeSingle()
   if (error) throw new ChatAccessError(MSJ_BASE_CAIDA, 503)
-  if (!data) throw new ChatAccessError('Conversación no encontrada.', 404)
+  if (!data) throw new ChatAccessError(tr('Conversación no encontrada.'), 404)
   return conversationScope(principal, data, requestedAccount)
 }
 
 export function chatAccessResponse(error: unknown): Response {
-  return Response.json({ error: error instanceof ChatAccessError ? error.message : 'No se pudo verificar el acceso al chat.' }, { status: error instanceof ChatAccessError ? error.status : 503 })
+  return Response.json({ error: error instanceof ChatAccessError ? error.message : tr('No se pudo verificar el acceso al chat.') }, { status: error instanceof ChatAccessError ? error.status : 503 })
 }
 
 export function requireExpectedChatOwner(principal: ChatPrincipal, expected: unknown): void {
   if (expected === undefined) return
   if (typeof expected !== 'string' || (expected !== principal.id && !(isLocalDesktopUserId(expected) && principal.personalOwner))) {
-    throw new ChatAccessError('El borrador pertenece a otra identidad. No se cambió su cuenta.', 409)
+    throw new ChatAccessError(tr('El borrador pertenece a otra identidad. No se cambió su cuenta.'), 409)
   }
 }

@@ -6,6 +6,7 @@
  * vista previa y una sola confirmación ámbar, igual a la de «Volver» de la vista historia; después, «Rehacer». El motor
  * es el checkpoint de archivos del SDK (server/src/chat-runtime/deshacer.ts); nada se toca sin la confirmación.
  */
+import { tr, trn, localeIntl } from '@/shared/i18n'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { mostrarPanel } from '@/features/cabina/panel/ventanas'
@@ -31,8 +32,7 @@ type Estado =
   | { fase: 'rehecho' }
   | { fase: 'error'; texto: string }
 
-const hora = (d: Date) => d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false })
-const archivosDe = (n: number) => `${n} ${n === 1 ? 'archivo' : 'archivos'}`
+const hora = (d: Date) => d.toLocaleTimeString(localeIntl(), { hour: '2-digit', minute: '2-digit', hour12: false })
 
 function Dialogo({ vista, ediciones, cuando, ocupado, onConfirmar, onCancelar }: {
   vista: VistaDeshacer; ediciones: Edicion[]; cuando?: Date; ocupado: boolean; onConfirmar: () => void; onCancelar: () => void
@@ -55,28 +55,28 @@ function Dialogo({ vista, ediciones, cuando, ocupado, onConfirmar, onCancelar }:
       <div ref={caja} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={titulo} className={s.dialogo}>
         <header className={s.dialogoCab}>
           <div>
-            <p className={s.ceja}>Deshacer desde aquí</p>
-            <h2 id={titulo} className={s.titulo}>{!n ? 'No hay nada que deshacer' : n === 1 ? '¿Volver este archivo a como estaba?' : `¿Volver estos ${n} archivos a como estaban?`}</h2>
+            <p className={s.ceja}>{tr('Deshacer desde aquí')}</p>
+            <h2 id={titulo} className={s.titulo}>{!n ? tr('No hay nada que deshacer') : trn(n, '¿Volver este archivo a como estaba?', '¿Volver estos {n} archivos a como estaban?')}</h2>
           </div>
-          <button type="button" className={s.cerrar} onClick={onCancelar} disabled={ocupado} aria-label="Cerrar"><X size={15} /></button>
+          <button type="button" className={s.cerrar} onClick={onCancelar} disabled={ocupado} aria-label={tr('Cerrar')}><X size={15} /></button>
         </header>
         <div className={s.dialogoCuerpo}>
           {!n
-            ? <p className={s.explica}>Tus archivos ya están como antes de este mensaje.</p>
+            ? <p className={s.explica}>{tr('Tus archivos ya están como antes de este mensaje.')}</p>
             : <>
-                <p className={s.explica}>{fraseDeshacer(vista, ediciones, cuando ? hora(cuando) : undefined)}</p>
+                <p className={s.explica}>{tr(fraseDeshacer(vista, ediciones, cuando ? hora(cuando) : undefined))}</p>
                 <ul className={s.archivos}>
-                  {vista.archivos.map(r => <li key={r}><span className={s.archivoLugar}>{lugarDeRuta(r, ediciones)}</span></li>)}
+                  {vista.archivos.map(r => <li key={r}><span className={s.archivoLugar}>{tr(lugarDeRuta(r, ediciones))}</span></li>)}
                 </ul>
-                <Ubicacion rutas={vista.archivos} texto={n === 1 ? 'Ver ubicación' : 'Ver ubicación de los archivos'} />
-                <p className={s.nota}>Si Levy {n === 1 ? 'lo' : 'los'} volvió a cambiar en turnos posteriores, eso también se deshace. Lo que se cambió con comandos no se deshace. Después puedes rehacer.</p>
+                <Ubicacion rutas={vista.archivos} texto={n === 1 ? tr('Ver ubicación') : tr('Ver ubicación de los archivos')} />
+                <p className={s.nota}>{trn(n, 'Si Levy lo volvió a cambiar en turnos posteriores, eso también se deshace. Lo que se cambió con comandos no se deshace. Después puedes rehacer.', 'Si Levy los volvió a cambiar en turnos posteriores, eso también se deshace. Lo que se cambió con comandos no se deshace. Después puedes rehacer.')}</p>
               </>}
         </div>
         <footer className={s.dialogoPie}>
-          <button type="button" className={s.secundario} onClick={onCancelar} disabled={ocupado}>{n ? 'Cancelar' : 'Cerrar'}</button>
+          <button type="button" className={s.secundario} onClick={onCancelar} disabled={ocupado}>{n ? tr('Cancelar') : tr('Cerrar')}</button>
           {n > 0 && <button type="button" className={s.primario} onClick={onConfirmar} disabled={ocupado} data-deshacer-confirmar>
             {ocupado ? <Loader2 size={13} className={s.gira} aria-hidden /> : <Undo2 size={13} aria-hidden />}
-            {ocupado ? 'Volviendo…' : n === 1 ? 'Volver este archivo' : `Volver estos ${n}`}
+            {ocupado ? tr('Volviendo…') : trn(n, 'Volver este archivo', 'Volver estos {n}')}
           </button>}
         </footer>
       </div>
@@ -101,24 +101,24 @@ export function CambiosTurno({ msg }: { msg: ChatMessage }) {
     setEstado({ fase: 'cargando' })
     try {
       const vista = await api.vista(turnId)
-      setEstado(vista.ok ? { fase: 'confirmar', vista } : { fase: 'error', texto: vista.error ?? 'No se pudo preparar el deshacer.' })
-    } catch { setEstado({ fase: 'error', texto: 'No pude hablar con el servidor de Levy. No se tocó nada.' }) }
+      setEstado(vista.ok ? { fase: 'confirmar', vista } : { fase: 'error', texto: vista.error ?? tr('No se pudo preparar el deshacer.') })
+    } catch { setEstado({ fase: 'error', texto: tr('No pude hablar con el servidor de Levy. No se tocó nada.') }) }
   }
   const confirmar = async (vista: VistaDeshacer) => {
     if (!turnId) return
     setEstado({ fase: 'deshaciendo', vista })
     try {
       const r = await api.deshacer(turnId)
-      setEstado(r.ok ? { fase: 'deshecho', archivos: r.archivos.length || vista.archivos.length, rutas: r.archivos.length ? r.archivos : vista.archivos, respaldoId: r.respaldoId } : { fase: 'error', texto: r.error ?? 'No se pudo deshacer.' })
-    } catch { setEstado({ fase: 'error', texto: 'Se perdió la conexión mientras deshacía. Revisa tus archivos antes de reintentar.' }) }
+      setEstado(r.ok ? { fase: 'deshecho', archivos: r.archivos.length || vista.archivos.length, rutas: r.archivos.length ? r.archivos : vista.archivos, respaldoId: r.respaldoId } : { fase: 'error', texto: r.error ?? tr('No se pudo deshacer.') })
+    } catch { setEstado({ fase: 'error', texto: tr('Se perdió la conexión mientras deshacía. Revisa tus archivos antes de reintentar.') }) }
   }
   const rehacer = async (archivos: number, rutas: string[], respaldoId: string) => {
     if (!turnId) return
     setEstado({ fase: 'rehaciendo', archivos, rutas, respaldoId })
     try {
       const r = await api.rehacer(turnId, respaldoId)
-      setEstado(r.ok ? { fase: 'rehecho' } : { fase: 'error', texto: r.error ?? 'No se pudo rehacer.' })
-    } catch { setEstado({ fase: 'error', texto: 'No pude hablar con el servidor de Levy.' }) }
+      setEstado(r.ok ? { fase: 'rehecho' } : { fase: 'error', texto: r.error ?? tr('No se pudo rehacer.') })
+    } catch { setEstado({ fase: 'error', texto: tr('No pude hablar con el servidor de Levy.') }) }
   }
   // Las rutas que el servidor dice que volvieron; si ninguna coincide con las del turno (otra forma de escribirlas),
   // se marcan todas las que se aplicaron: el deshacer siempre es del turno entero.
@@ -131,31 +131,31 @@ export function CambiosTurno({ msg }: { msg: ChatMessage }) {
     <div className={s.cambios} data-cambios data-tts-exclude>
       <button type="button" className={s.fila} aria-expanded={abierto} {...(rutasDeshechas ? { 'data-deshecho': '' } : {})} aria-controls={id} onClick={() => setAbierto(a => !a)}>
         <FilePen className={s.icono} aria-hidden />
-        <span className={s.texto}>{rutasDeshechas ? resumenDeshecho(ediciones) : resumenTurno(ediciones)}</span>
+        <span className={s.texto}>{tr(rutasDeshechas ? resumenDeshecho(ediciones) : resumenTurno(ediciones))}</span>
         <span className={s.verCambios} aria-hidden>·</span>
-        <span className={s.verCambios}>{abierto ? 'Ocultar cambios' : 'Ver cambios'}</span>
+        <span className={s.verCambios}>{abierto ? tr('Ocultar cambios') : tr('Ver cambios')}</span>
         <ChevronRight className={s.flecha} aria-hidden />
       </button>
-      {abierto && <div id={id} role="region" aria-label="Lo que Levy cambió en este turno" className={s.cuerpo}>
+      {abierto && <div id={id} role="region" aria-label={tr('Lo que Levy cambió en este turno')} className={s.cuerpo}>
         <ul className={s.lista}>{archivos.map(e => <DiffEdicion key={e.ruta || e.toolId} e={e}
           deshecho={!!rutasDeshechas && !e.fallo && rutasDeshechas.has(e.ruta)} />)}</ul>
         <div className={s.pie} data-pie-turno>
           {puedeDeshacer && quieto && <button type="button" className={s.secundario} onClick={pedirVista} disabled={estado.fase === 'cargando'} data-deshacer-abrir>
             {estado.fase === 'cargando' ? <Loader2 size={13} className={s.gira} aria-hidden /> : <Undo2 size={13} aria-hidden />}
-            Deshacer desde aquí
+            {tr('Deshacer desde aquí')}
           </button>}
-          {puedeDeshacer && estado.fase === 'rehecho' && <span className={s.ayuda} role="status">Rehecho: tus archivos quedaron como antes de deshacer.</span>}
+          {puedeDeshacer && estado.fase === 'rehecho' && <span className={s.ayuda} role="status">{tr('Rehecho: tus archivos quedaron como antes de deshacer.')}</span>}
           {(estado.fase === 'deshecho' || estado.fase === 'rehaciendo') && <>
-            <span className={s.estado} role="status"><Check size={14} aria-hidden /> Listo: {archivosDe(estado.archivos)} {estado.archivos === 1 ? 'volvió a como estaba' : 'volvieron a como estaban'}.{estado.respaldoId ? ' Rehacer pone de nuevo todo lo de este turno.' : ''}</span>
+            <span className={s.estado} role="status"><Check size={14} aria-hidden /> {trn(estado.archivos, 'Listo: 1 archivo volvió a como estaba.', 'Listo: {n} archivos volvieron a como estaban.')}{estado.respaldoId ? ` ${tr('Rehacer pone de nuevo todo lo de este turno.')}` : ''}</span>
             {estado.respaldoId && <button type="button" className={s.secundario} disabled={estado.fase === 'rehaciendo'} onClick={() => rehacer(estado.archivos, estado.rutas, estado.respaldoId!)} data-rehacer>
-              {estado.fase === 'rehaciendo' ? <Loader2 size={13} className={s.gira} aria-hidden /> : <Redo2 size={13} aria-hidden />}Rehacer
+              {estado.fase === 'rehaciendo' ? <Loader2 size={13} className={s.gira} aria-hidden /> : <Redo2 size={13} aria-hidden />}{tr('Rehacer')}
             </button>}
           </>}
           {estado.fase === 'error' && <>
-            <span className={s.error} role="alert">{estado.texto}</span>
-            <button type="button" className={s.secundario} onClick={() => setEstado({ fase: 'quieto' })}>Entendido</button>
+            <span className={s.error} role="alert">{tr(estado.texto)}</span>
+            <button type="button" className={s.secundario} onClick={() => setEstado({ fase: 'quieto' })}>{tr('Entendido')}</button>
           </>}
-          {CON_HISTORIA && <button type="button" className={s.historia} data-ver-historia onClick={() => { pedirSegmentoTaller('historia'); mostrarPanel('taller') }}><History size={13} aria-hidden />Ver en la historia</button>}
+          {CON_HISTORIA && <button type="button" className={s.historia} data-ver-historia onClick={() => { pedirSegmentoTaller('historia'); mostrarPanel('taller') }}><History size={13} aria-hidden />{tr('Ver en la historia')}</button>}
         </div>
       </div>}
       {(estado.fase === 'confirmar' || estado.fase === 'deshaciendo') && <Dialogo vista={estado.vista} ediciones={ediciones} cuando={msg.metadata?.startedAt ? new Date(msg.metadata.startedAt) : msg.timestamp}

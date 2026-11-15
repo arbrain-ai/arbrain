@@ -20,7 +20,8 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { authenticateDraw3 } from '@/lib/draw3-auth'
 import { SCHEMA_V4 } from '@/features/canvas/model/schema'
 import { migrarDesdeV3 } from '@/features/canvas/model/migrar-v3'
-import { conArchivado, conFijado, GRUPO_GENERAL } from '@/features/canvas/state/organizacion'
+import { conArchivado, conFijado, conTablero, GRUPO_GENERAL, leerTablero } from '@/features/canvas/state/organizacion'
+import { tr } from '@/shared/i18n'
 
 export const runtime = 'nodejs'
 
@@ -28,15 +29,17 @@ interface Ctx { params: Promise<{ id: string }> }
 
 export async function GET(request: Request, { params }: Ctx) {
   if (!await authenticateDraw3(request)) {
-    return NextResponse.json({ ok: false, error: 'no autorizado' }, { status: 401 })
+    return NextResponse.json({ ok: false, error: tr('no autorizado') }, { status: 401 })
   }
   const { id } = await params
   const db = createServiceClient()
   const { data, error } = await db.from('draw')
-    .select('page_id, name, folder_id, page_elements, agent_version, updated_at')
+    .select('page_id, name, folder_id, page_elements, agent_version, updated_at, settings')
     .eq('page_id', id).maybeSingle()
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
-  if (!data) return NextResponse.json({ ok: false, error: 'no existe' }, { status: 404 })
+  if (!data) return NextResponse.json({ ok: false, error: tr('no existe') }, { status: 404 })
+  // Página tablero (mapa v16): sin lápiz ni herramientas. Solo se manda cuando está puesta.
+  const tablero = leerTablero(data.settings) ? { tablero: true } : {}
 
   const doc = data.page_elements as {
     schemaVersion?: number; elements?: unknown[]; camera?: unknown; theme?: string
@@ -47,7 +50,7 @@ export async function GET(request: Request, { params }: Ctx) {
     return NextResponse.json({ ok: true, pagina: {
       id: data.page_id, nombre: data.name, folderId: data.folder_id,
       version: data.agent_version ?? 0, actualizado: data.updated_at,
-      esV4: true, elements: doc?.elements ?? [], camera: doc?.camera ?? null,
+      esV4: true, elements: doc?.elements ?? [], camera: doc?.camera ?? null, ...tablero,
     } })
   }
 
@@ -90,7 +93,7 @@ export async function GET(request: Request, { params }: Ctx) {
 
 export async function PUT(request: Request, { params }: Ctx) {
   if (!await authenticateDraw3(request)) {
-    return NextResponse.json({ ok: false, error: 'no autorizado' }, { status: 401 })
+    return NextResponse.json({ ok: false, error: tr('no autorizado') }, { status: 401 })
   }
   const { id } = await params
   // El tamaño se anota: un documento de 13 MB fue el amplificador del «error al guardar» del 5 oct.
@@ -106,7 +109,7 @@ export async function PUT(request: Request, { params }: Ctx) {
   // Y se lee TAMBIEN el documento, por la capa semantica — ver abajo.
   const { data: actual } = await db.from('draw')
     .select('agent_version, page_elements').eq('page_id', id).maybeSingle()
-  if (!actual) return NextResponse.json({ ok: false, error: 'no existe' }, { status: 404 })
+  if (!actual) return NextResponse.json({ ok: false, error: tr('no existe') }, { status: 404 })
 
   /**
    * LA CARRERA DE ESCRITORES (3 oct 2026).
@@ -124,7 +127,7 @@ export async function PUT(request: Request, { params }: Ctx) {
   const enServidor = actual.agent_version ?? 0
   if (base !== null && base !== enServidor) {
     console.warn('[canvas/PUT] choque', { pagina: id, base, enServidor, bytes })
-    return NextResponse.json({ ok: false, conflicto: true, version: enServidor, error: 'la página cambió en otro lado' }, { status: 409 })
+    return NextResponse.json({ ok: false, conflicto: true, version: enServidor, error: tr('la página cambió en otro lado') }, { status: 409 })
   }
 
   /**
@@ -173,12 +176,12 @@ export async function PUT(request: Request, { params }: Ctx) {
     console.warn('[canvas/PUT] choque atómico', { pagina: id, base, bytes })
     const { data: ahora } = await db.from('draw').select('agent_version').eq('page_id', id).maybeSingle()
     if (ahora) {
-      return NextResponse.json({ ok: false, conflicto: true, version: ahora.agent_version ?? 0, error: 'la página cambió en otro lado' }, { status: 409 })
+      return NextResponse.json({ ok: false, conflicto: true, version: ahora.agent_version ?? 0, error: tr('la página cambió en otro lado') }, { status: 409 })
     }
   }
   // CERO FILAS ES UN ERROR. Nunca un exito silencioso — hecho de plataforma #26.
   if (!data || data.length === 0) {
-    return NextResponse.json({ ok: false, error: 'no se escribio ninguna fila' }, { status: 404 })
+    return NextResponse.json({ ok: false, error: tr('no se escribio ninguna fila') }, { status: 404 })
   }
   // AVISAR a los otros dispositivos. Ver la nota de `avisar` sobre por que el
   // aviso viaja por un canal publico y el documento no.
@@ -220,34 +223,35 @@ async function avisar(paginaId: string, version: number): Promise<void> {
 }
 
 /**
- * Fijar y archivar (5 oct 2026): solo `settings`. No toca el documento, no sube la version y no mueve `updated_at`
+ * Fijar, archivar y la bandera tablero (5 oct y 14 nov 2026): solo `settings`. No toca el documento, no sube la version y no mueve `updated_at`
  * (fijar un lienzo no es editarlo: la lista por fecha no se reacomoda). Nada se borra: archivar es una marca.
  */
 export async function PATCH(request: Request, { params }: Ctx) {
   if (!await authenticateDraw3(request)) {
-    return NextResponse.json({ ok: false, error: 'no autorizado' }, { status: 401 })
+    return NextResponse.json({ ok: false, error: tr('no autorizado') }, { status: 401 })
   }
   const { id } = await params
-  const body = await request.json().catch(() => null) as { fijar?: boolean; grupo?: string; orden?: number; archivar?: boolean } | null
-  if (!body || (typeof body.fijar !== 'boolean' && typeof body.archivar !== 'boolean')) {
-    return NextResponse.json({ ok: false, error: 'falta fijar o archivar' }, { status: 400 })
+  const body = await request.json().catch(() => null) as { fijar?: boolean; grupo?: string; orden?: number; archivar?: boolean; tablero?: boolean } | null
+  if (!body || (typeof body.fijar !== 'boolean' && typeof body.archivar !== 'boolean' && typeof body.tablero !== 'boolean')) {
+    return NextResponse.json({ ok: false, error: tr('falta fijar o archivar') }, { status: 400 })
   }
   const db = createServiceClient()
   const { data: fila, error: errL } = await db.from('draw').select('settings').eq('page_id', id).eq('is_deleted', false).maybeSingle()
   if (errL) return NextResponse.json({ ok: false, error: errL.message }, { status: 500 })
-  if (!fila) return NextResponse.json({ ok: false, error: 'no existe' }, { status: 404 })
+  if (!fila) return NextResponse.json({ ok: false, error: tr('no existe') }, { status: 404 })
   let settings: Record<string, unknown> = (fila.settings && typeof fila.settings === 'object' ? fila.settings : {}) as Record<string, unknown>
   if (typeof body.fijar === 'boolean') settings = conFijado(settings, body.fijar, body.grupo?.trim() || GRUPO_GENERAL, Number.isFinite(body.orden) ? body.orden : 0)
   if (typeof body.archivar === 'boolean') settings = conArchivado(settings, body.archivar)
+  if (typeof body.tablero === 'boolean') settings = conTablero(settings, body.tablero)
   const { data, error } = await db.from('draw').update({ settings }).eq('page_id', id).select('page_id')
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
-  if (!data?.length) return NextResponse.json({ ok: false, error: 'no se escribio ninguna fila' }, { status: 404 })
+  if (!data?.length) return NextResponse.json({ ok: false, error: tr('no se escribio ninguna fila') }, { status: 404 })
   return NextResponse.json({ ok: true })
 }
 
 export async function DELETE(request: Request, { params }: Ctx) {
   if (!await authenticateDraw3(request)) {
-    return NextResponse.json({ ok: false, error: 'no autorizado' }, { status: 401 })
+    return NextResponse.json({ ok: false, error: tr('no autorizado') }, { status: 401 })
   }
   const { id } = await params
   const db = createServiceClient()
@@ -258,7 +262,7 @@ export async function DELETE(request: Request, { params }: Ctx) {
     .eq('page_id', id).select('page_id')
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
   if (!data || data.length === 0) {
-    return NextResponse.json({ ok: false, error: 'no existe' }, { status: 404 })
+    return NextResponse.json({ ok: false, error: tr('no existe') }, { status: 404 })
   }
   return NextResponse.json({ ok: true })
 }

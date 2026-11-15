@@ -1,3 +1,4 @@
+import { tr, trMarca } from '@/shared/i18n'
 import { Star } from 'lucide-react'
 import type { ChatSession } from '../hooks/useChatHistory'
 import type { SessionDotState } from '../lib/session-status'
@@ -20,25 +21,25 @@ interface VisualEstado {
 
 const VISUAL: Record<SessionDotState, VisualEstado> = {
   working: {
-    titulo: 'Levy está trabajando',
+    titulo: trMarca('Levy está trabajando'),
     punto: 'bg-yellow-400 animate-pulse shadow-[0_0_6px_rgba(250,204,21,0.8)]',
     estrella: '#fbbf24',
     halo: 'animate-pulse drop-shadow-[0_0_5px_rgba(251,191,36,0.95)]',
   },
   needs_reply: {
-    titulo: 'Levy te preguntó algo: te toca a ti',
+    titulo: trMarca('Levy te preguntó algo: te toca a ti'),
     punto: 'bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.85)]',
     estrella: '#3b82f6',
     halo: 'drop-shadow-[0_0_5px_rgba(59,130,246,0.85)]',
   },
   unread: {
-    titulo: 'Terminó, aún sin ver',
+    titulo: trMarca('Terminó, aún sin ver'),
     punto: 'bg-brand shadow-[0_0_6px_rgba(140,39,241,0.7)]',
     estrella: '#8c27f1',
     halo: 'drop-shadow-[0_0_5px_rgba(140,39,241,0.8)]',
   },
   read: {
-    titulo: 'Ya la viste',
+    titulo: trMarca('Ya la viste'),
     punto: 'bg-muted/25',
     estrella: null,
     halo: '',
@@ -59,7 +60,7 @@ export const DOT_TITLE: Record<SessionDotState, string> = {
 }
 
 /** Título de la estrella: leyenda completa (es favorita + qué estado tiene). */
-export const tituloFavorita = (estado: SessionDotState) => `Favorita · ${VISUAL[estado].titulo}`
+export const tituloFavorita = (estado: SessionDotState) => tr('Favorita · {estado}', { estado: tr(VISUAL[estado].titulo) })
 
 interface Props {
   sesion: Pick<ChatSession, 'is_starred' | 'archived_at'>
@@ -87,5 +88,5 @@ export function IndicadorConversacion({ sesion, estado, clase = '' }: Props) {
       </Star>
     )
   }
-  return <span className={`size-1.5 shrink-0 rounded-full ${v.punto} ${clase}`} title={v.titulo} aria-hidden />
+  return <span className={`size-1.5 shrink-0 rounded-full ${v.punto} ${clase}`} title={tr(v.titulo)} aria-hidden />
 }

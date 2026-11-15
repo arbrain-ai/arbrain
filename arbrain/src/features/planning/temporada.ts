@@ -1,4 +1,5 @@
 import type { Instalacion } from '@/config/tipos'
+import { tr, trMarca } from '@/shared/i18n'
 
 /**
  * La temporada en tiempo de ejecución (24 oct 2026, Daniel: «lo mismo para la edición del alumno (sus hábitos y su calendario: la
@@ -21,7 +22,7 @@ export interface TemporadaVigente { periodo?: Periodo; temporadaHabitos?: Tempor
 export interface DocTemporada { version: 1; actualizado: string; nombre: string | null; arranque: string | null; periodo: Periodo | null }
 
 /** Si la temporada no trae nombre, la fila de hábitos y la franja dicen esto. */
-export const NOMBRE_POR_DEFECTO = 'Temporada'
+export const NOMBRE_POR_DEFECTO = trMarca('Temporada')
 /** Tope de días de una temporada (un año) y de casillas «antes del cierre». */
 export const DIAS_MAX = 366, CUMPLIR_MAX = 6
 
@@ -34,24 +35,24 @@ const obj = (x: unknown) => x && typeof x === 'object' && !Array.isArray(x) ? x 
 /** Valida un periodo. Devuelve el periodo limpio o el motivo (en palabras de la persona) por el que no sirve. */
 export function validarPeriodo(crudo: unknown): Periodo | string {
   const p = obj(crudo)
-  if (!p) return 'Falta la temporada: fechas, premio y meta.'
-  if (!esFecha(p.desde)) return 'Falta el día 1 de la temporada (AAAA-MM-DD).'
-  if (!esFecha(p.hasta)) return 'Falta el día del cierre (AAAA-MM-DD).'
+  if (!p) return tr('Falta la temporada: fechas, premio y meta.')
+  if (!esFecha(p.desde)) return tr('Falta el día 1 de la temporada (AAAA-MM-DD).')
+  if (!esFecha(p.hasta)) return tr('Falta el día del cierre (AAAA-MM-DD).')
   const total = dias(p.desde, p.hasta)
-  if (total < 1) return 'El cierre tiene que caer después del día 1.'
-  if (total > DIAS_MAX) return `Una temporada dura como mucho ${DIAS_MAX} días.`
+  if (total < 1) return tr('El cierre tiene que caer después del día 1.')
+  if (total > DIAS_MAX) return tr('Una temporada dura como mucho {n} días.', { n: DIAS_MAX })
   const premio = texto(p.premio, 80)
-  if (!premio) return 'Falta el premio: qué te espera al cerrar la temporada.'
+  if (!premio) return tr('Falta el premio: qué te espera al cerrar la temporada.')
   const meta = texto(p.meta, 140)
   let viaje: Periodo['viaje']
   if (p.viaje !== undefined && p.viaje !== null) {
     const v = obj(p.viaje)
-    if (!v || !esFecha(v.desde) || !esFecha(v.hasta) || v.hasta < v.desde) return 'Las fechas del premio no son válidas (desde y hasta, AAAA-MM-DD).'
+    if (!v || !esFecha(v.desde) || !esFecha(v.hasta) || v.hasta < v.desde) return tr('Las fechas del premio no son válidas (desde y hasta, AAAA-MM-DD).')
     viaje = { desde: v.desde, hasta: v.hasta, firmado: v.firmado !== false }
   }
-  if (p.cumplir !== undefined && !Array.isArray(p.cumplir)) return '«Antes del cierre» es una lista.'
+  if (p.cumplir !== undefined && !Array.isArray(p.cumplir)) return tr('«Antes del cierre» es una lista.')
   const cumplir = (Array.isArray(p.cumplir) ? p.cumplir : []).map(x => texto(x, 80)).filter(Boolean)
-  if (cumplir.length > CUMPLIR_MAX) return `Antes del cierre caben ${CUMPLIR_MAX} cosas como mucho: elige las que importan.`
+  if (cumplir.length > CUMPLIR_MAX) return tr('Antes del cierre caben {n} cosas como mucho: elige las que importan.', { n: CUMPLIR_MAX })
   return { desde: p.desde, hasta: p.hasta, premio, ...(meta ? { meta } : {}), ...(viaje ? { viaje } : {}), cumplir }
 }
 
@@ -69,7 +70,7 @@ export function fijarTemporada(entrada: unknown, ahora = new Date().toISOString(
   const periodo = validarPeriodo(e.periodo)
   if (typeof periodo === 'string') return periodo
   const arranque = e.arranque === undefined || e.arranque === null || e.arranque === '' ? null : e.arranque
-  if (arranque !== null && (!esFecha(arranque) || arranque < periodo.desde || arranque >= periodo.hasta)) return 'El arranque de los hábitos va entre el día 1 y el cierre.'
+  if (arranque !== null && (!esFecha(arranque) || arranque < periodo.desde || arranque >= periodo.hasta)) return tr('El arranque de los hábitos va entre el día 1 y el cierre.')
   return { version: 1, actualizado: ahora, nombre: texto(e.nombre, 40) || null, arranque, periodo }
 }
 

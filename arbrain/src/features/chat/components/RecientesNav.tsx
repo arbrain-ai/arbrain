@@ -1,4 +1,5 @@
 'use client'
+import { tr } from '@/shared/i18n'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type DragEvent } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { ChevronDown } from 'lucide-react'
@@ -39,7 +40,7 @@ const REINTENTO_FALLA_MS = 5_000
 const pedirLista = async (qs: string, signal: AbortSignal) => {
   const r = await fetch(`/api/chat/sessions?source=mc&${qs}`, { cache: 'no-store', signal })
   const j = await r.json().catch(() => null) as { sessions?: ChatSession[]; error?: string } | null
-  if (!r.ok) throw new Error(typeof j?.error === 'string' && j.error ? j.error : `el servidor respondió ${r.status}`)
+  if (!r.ok) throw new Error(typeof j?.error === 'string' && j.error ? j.error : tr('el servidor respondió {estado}', { estado: r.status }))
   return Array.isArray(j?.sessions) ? j.sessions : null
 }
 
@@ -101,7 +102,7 @@ export function RecientesNav({ onElegir, tactil = false }: { onElegir: () => voi
     } catch (e) {
       // Sin red o servidor caído: queda lo último que se pintó, se dice la causa y se reintenta solo.
       if (ctl.signal.aborted) return
-      setFalla(e instanceof Error && e.message !== 'Failed to fetch' ? e.message : 'sin conexión con el servidor')
+      setFalla(e instanceof Error && e.message !== 'Failed to fetch' ? e.message : tr('sin conexión con el servidor'))
       marcarCargada()
     }
   }, [])
@@ -269,9 +270,9 @@ export function RecientesNav({ onElegir, tactil = false }: { onElegir: () => voi
   const mostrarFijadas = fijadas.length > 0 || sueltaCambia(arrastrada, 'fijadas')
 
   const carpeta = (
-    <section className="mb-1" aria-label="Rutinas" data-testid="carpeta-rutinas">
+    <section className="mb-1" aria-label={tr('Rutinas')} data-testid="carpeta-rutinas">
       <EncabezadoSeccion
-        etiqueta="Rutinas"
+        etiqueta={tr('Rutinas')}
         resumen={resumen}
         abierto={rutinasAbierta}
         onAlternar={() => fijarRutinas(!rutinasAbierta)}
@@ -281,7 +282,7 @@ export function RecientesNav({ onElegir, tactil = false }: { onElegir: () => voi
         <div className="space-y-0.5">
           {hilosRutinas.map(({ hilo, sesion }) => sesion
             ? <FilaReciente key={hilo.id} s={sesion} activa={enChat && sesion.id === activaId} arrastrando={false} onAbrir={abrir} onArrastre={setArrastrada} hora={horaDe(sesion, ahora)} morado={pideDecision(sesion)} tactil={tactil} />
-            : <p key={hilo.id} className={`nav-item w-full cursor-default text-left text-muted/50 ${tactil ? 'min-h-11 text-[15px]' : 'text-xs'}`}>{hilo.icono} {hilo.etiqueta}</p>)}
+            : <p key={hilo.id} className={`nav-item w-full cursor-default text-left text-muted/50 ${tactil ? 'min-h-11 text-[15px]' : ''}`}>{hilo.icono} {tr(hilo.etiqueta)}</p>)}
         </div>
       )}
     </section>
@@ -294,26 +295,28 @@ export function RecientesNav({ onElegir, tactil = false }: { onElegir: () => voi
       {RUTINAS_EN_BARRA && RUTINAS_ARRIBA && carpeta}
 
       {mostrarFijadas && (
-        <section className={`mb-1 ${destino('fijadas')}`} aria-label="Fijadas" {...zona('fijadas')}>
-          <EncabezadoSeccion etiqueta="Fijadas" tactil={tactil} />
+        <section className={`mb-1 ${destino('fijadas')}`} aria-label={tr('Fijadas')} {...zona('fijadas')}>
+          <EncabezadoSeccion etiqueta={tr('Fijadas')} tactil={tactil} />
           <div className="relative space-y-0.5">{fijadas.map((s, i) => fila(s, i))}</div>
-          {fijadas.length === 0 && <p className="px-2.5 pb-2 text-[11px] text-muted/70">Suelta aquí para fijar</p>}
+          {fijadas.length === 0 && <p className="px-2.5 pb-2 text-[length:var(--tam-texto-meta)] text-muted/70">{tr('Suelta aquí para fijar')}</p>}
         </section>
       )}
 
       {RUTINAS_EN_BARRA && !RUTINAS_ARRIBA && carpeta}
 
       {falla && (
-        <p role="status" data-recientes-falla className={`px-2.5 py-2 text-muted/70 ${tactil ? 'text-[13px]' : 'text-[11px]'}`}>
-          {grupos.length === 0 && fijadas.length === 0 ? 'No pude cargar tus conversaciones' : 'No pude actualizar la lista'}: {falla}. Reintentando solo…
+        <p role="status" data-recientes-falla className={`px-2.5 py-2 text-muted/70 ${tactil ? 'text-[13px]' : 'text-[length:var(--tam-texto-meta)]'}`}>
+          {grupos.length === 0 && fijadas.length === 0
+            ? tr('No pude cargar tus conversaciones: {error}. Reintentando solo…', { error: tr(falla) })
+            : tr('No pude actualizar la lista: {error}. Reintentando solo…', { error: tr(falla) })}
         </p>
       )}
       {!falla && grupos.length === 0 && fijadas.length === 0 && (
-        <p className={`px-2.5 py-2 text-muted/70 ${tactil ? 'text-[13px]' : 'text-[11px]'}`}>Sin conversaciones en los últimos tres días</p>
+        <p className={`px-2.5 py-2 text-muted/70 ${tactil ? 'text-[13px]' : 'text-[length:var(--tam-texto-meta)]'}`}>{tr('Sin conversaciones en los últimos tres días')}</p>
       )}
 
       <div className={destino('dias')} {...zona('dias')}>
-      {sueltaCambia(arrastrada, 'dias') && <p className="px-2.5 py-1.5 text-[11px] text-muted/70">Suelta aquí para desfijar</p>}
+      {sueltaCambia(arrastrada, 'dias') && <p className="px-2.5 py-1.5 text-[length:var(--tam-texto-meta)] text-muted/70">{tr('Suelta aquí para desfijar')}</p>}
       {grupos.map((g: GrupoDia) => {
         // REGLA DURA (Daniel, 5ª vez, 2 oct 2026): cerrados al montar; candado en tests/chat/sidebar-grupos-cerrados.test.ts.
         // Plegados de entrada; lo que Daniel abre a mano queda en el store hasta cerrar la app (2 oct 2026).
@@ -323,7 +326,7 @@ export function RecientesNav({ onElegir, tactil = false }: { onElegir: () => voi
         return (
           <section key={g.clave} className="mb-1">
             <EncabezadoSeccion
-              etiqueta={g.etiqueta}
+              etiqueta={tr(g.etiqueta)}
               cuenta={g.sesiones.length}
               abierto={abierto}
               onAlternar={() => alternarDia(g.clave)}
@@ -366,20 +369,20 @@ interface PropsEncabezado {
  * (días y Rutinas) son una fila entera que se toca: etiqueta, conteo, señal y el chevrón a la derecha.
  */
 function EncabezadoSeccion({ etiqueta, cuenta, resumen, abierto, onAlternar, tactil, senal }: PropsEncabezado) {
-  const tam = tactil ? 'min-h-11 text-[14px]' : 'min-h-7 text-[12px]'
+  const tam = tactil ? 'min-h-11 text-[14px]' : 'min-h-[var(--tam-fila-seccion)] text-[length:var(--tam-texto-seccion)]'
   const clase = `flex w-full items-center gap-1.5 rounded-lg px-2.5 font-medium text-muted ${tam}`
   // Rótulo puro (Fijadas): pequeño y quieto; las filas plegables de abajo se leen como accesos, no como rótulos.
-  if (!onAlternar) return <div className={`flex w-full items-center px-2.5 pb-1 pt-1 font-semibold text-muted/75 ${tactil ? 'mt-2 text-[12px]' : 'mt-1.5 text-[11px]'}`}>{etiqueta}</div>
+  if (!onAlternar) return <div className={`flex w-full items-center px-2.5 pb-1 pt-1 font-semibold text-muted/75 ${tactil ? 'mt-2 text-[12px]' : 'mt-2 text-[length:var(--tam-texto-meta)]'}`}>{etiqueta}</div>
   return (
     <button type="button" onClick={onAlternar} aria-expanded={abierto} className={`${clase} transition-colors hover:bg-foreground/[0.04] hover:text-foreground active:bg-foreground/[0.06]`}>
       <span className="text-foreground/80">{etiqueta}</span>
       {/* Conteo del día completo, también plegado: es lo único que dice si vale la pena abrirlo (2 oct 2026). */}
       {cuenta !== undefined && <span className="font-normal tabular-nums text-muted/55">{cuenta}</span>}
-      {senal && <span className={`size-1.5 shrink-0 rounded-full ${DOT_STYLE[senal]}`} title={DOT_TITLE[senal]} aria-label={DOT_TITLE[senal]} />}
+      {senal && <span className={`size-1.5 shrink-0 rounded-full ${DOT_STYLE[senal]}`} title={tr(DOT_TITLE[senal])} aria-label={tr(DOT_TITLE[senal])} />}
       {/* Carpeta «Rutinas»: «al día» si todo está gris; si no, el contador morado («2 te necesitan»). */}
       {resumen && (resumen.alDia
-        ? <span className="font-normal text-muted/55">· {resumen.texto}</span>
-        : <span className="rounded-full bg-brand/15 px-2 py-px text-[11px] font-medium text-brand-ink" data-testid="rutinas-te-necesitan">{resumen.texto}</span>)}
+        ? <span className="font-normal text-muted/55">· {tr(resumen.texto)}</span>
+        : <span className="rounded-full bg-brand/15 px-2 py-px text-[length:var(--tam-texto-meta)] font-medium text-brand-ink" data-testid="rutinas-te-necesitan">{tr(resumen.texto)}</span>)}
       <ChevronDown className={`ml-auto size-3.5 shrink-0 text-muted/50 transition-transform duration-200 ${abierto ? '' : '-rotate-90'}`} aria-hidden />
     </button>
   )
@@ -424,9 +427,9 @@ function FilaReciente({ s, activa, arrastrando, linea, nodo, onAbrir, onArrastre
   const estado = morado === undefined ? estadoSemaforo : estadoSemaforo === 'working' ? 'working' : morado ? 'unread' : 'read'
   const reportes = esProtegida(s)
   const hilo = hiloDeSesion(s.id)
-  const titulo = hilo ? `${hilo.icono} ${hilo.etiqueta}` : reportes ? 'Reportes' : textMessageTitle(s.title) || 'Conversación'
+  const titulo = hilo ? `${hilo.icono} ${tr(hilo.etiqueta)}` : reportes ? tr('Reportes') : tr(textMessageTitle(s.title) || 'Conversación')
   const cuenta = cuentaReciente(cuentaDe(s))
-  const detalle = [cuenta.corta ? cuenta.etiqueta : '', estado === 'read' ? '' : morado ? 'Te pide una decisión' : DOT_TITLE[estado]].filter(Boolean)
+  const detalle = [cuenta.corta ? cuenta.etiqueta : '', estado === 'read' ? '' : morado ? tr('Te pide una decisión') : tr(DOT_TITLE[estado])].filter(Boolean)
   // En el teléfono el punto y la estrella comparten una columna fija: todos los títulos arrancan en la misma x.
   const punto = tactil
     ? <span className="flex h-[1.375rem] w-3.5 shrink-0 items-center justify-center" aria-hidden={estado === 'read' && !s.is_starred}><IndicadorConversacion sesion={s} estado={estado} /></span>
@@ -478,7 +481,7 @@ function FilaReciente({ s, activa, arrastrando, linea, nodo, onAbrir, onArrastre
     >
       {linea && <span className={`pointer-events-none absolute inset-x-2 z-20 h-0.5 rounded-full bg-brand ${linea === 'arriba' ? '-top-[2px]' : '-bottom-[2px]'}`} aria-hidden />}
       {editando ? (
-        <div className={`nav-item w-full gap-2 ${tactil ? 'min-h-11 text-[15px]' : 'text-xs'}`}>
+        <div className={`nav-item w-full gap-2 ${tactil ? 'min-h-11 text-[15px]' : ''}`}>
           {punto}
           <EditorTitulo
             valor={s.title}
@@ -499,7 +502,7 @@ function FilaReciente({ s, activa, arrastrando, linea, nodo, onAbrir, onArrastre
           onPointerUp={soltarPresion}
           onPointerCancel={soltarPresion}
           onPointerLeave={soltarPresion}
-          className={`nav-item w-full text-left ${tactil ? 'min-h-11 !items-start !gap-2.5 rounded-xl !py-2.5 text-[15px] leading-[1.375rem] active:bg-foreground/[0.07]' : 'text-xs'} ${activa ? 'nav-item-active' : ''} ${menu.abierto ? '!bg-foreground/[0.07] !text-foreground' : ''}`}
+          className={`nav-item w-full text-left ${tactil ? 'min-h-11 !items-start !gap-2.5 rounded-xl !py-2.5 text-[15px] leading-[1.375rem] active:bg-foreground/[0.07]' : ''} ${activa ? 'nav-item-active' : ''} ${menu.abierto ? '!bg-foreground/[0.07] !text-foreground' : ''}`}
           title={detalle.length > 0 ? `${titulo} · ${detalle.join(' · ')}` : titulo}
           aria-current={activa ? 'page' : undefined}
           aria-haspopup={tactil && menu.opciones.length > 0 ? 'menu' : undefined}
@@ -518,8 +521,8 @@ function FilaReciente({ s, activa, arrastrando, linea, nodo, onAbrir, onArrastre
           ) : (
             <span className={`flex min-w-0 flex-1 items-center gap-2 ${menu.abierto ? MASCARA : FILA_MASCARA}`}>
               <span className="min-w-0 flex-1 truncate">{titulo}</span>
-              {cuenta.corta && <span className={`shrink-0 text-[10px] font-medium ${cuenta.texto}`} aria-label={cuenta.etiqueta}>{cuenta.corta}</span>}
-              {hora && <span className="shrink-0 text-[10px] tabular-nums text-muted/60">{hora}</span>}
+              {cuenta.corta && <span className={`shrink-0 text-[length:var(--tam-texto-meta)] font-medium ${cuenta.texto}`} aria-label={cuenta.etiqueta}>{cuenta.corta}</span>}
+              {hora && <span className="shrink-0 text-[length:var(--tam-texto-meta)] tabular-nums text-muted/60">{hora}</span>}
             </span>
           )}
         </button>

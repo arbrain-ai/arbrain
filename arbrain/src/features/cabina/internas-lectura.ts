@@ -13,9 +13,10 @@
  */
 import { modelDisplayName } from '../chat/stores/model-store'
 import type { TareaInterna, TipoInterna } from './trabajos-modelo'
+import { tr, trMarca } from '@/shared/i18n'
 
 /** Cómo se llama cada tipo para quien no construye software. */
-export const TIPO_LEGIBLE: Record<TipoInterna, string> = { subagente: 'Agente', comando: 'Comando', workflow: 'Flujo de trabajo', otra: 'Tarea' }
+export const TIPO_LEGIBLE: Record<TipoInterna, string> = { subagente: trMarca('Agente'), comando: trMarca('Comando'), workflow: trMarca('Flujo de trabajo'), otra: trMarca('Tarea') }
 
 /** «45 s», «12 min», «1 h 05 min». */
 export function duracionCorta(ms: number): string {
@@ -46,7 +47,7 @@ export function tiempoDe(t: TareaInterna, ahora = Date.now()): number | null {
 }
 
 /** El rótulo de la ficha: lo que lleva corriendo, o lo que tardó. */
-export const tiempoRotulo = (t: Pick<TareaInterna, 'estado'>): string => t.estado === 'trabajando' ? 'Lleva' : 'Tardó'
+export const tiempoRotulo = (t: Pick<TareaInterna, 'estado'>): string => t.estado === 'trabajando' ? tr('Lleva') : tr('Tardó')
 
 /** Tokens en contexto: el de su última llamada si hay transcripción; si no, lo que reportó el SDK. */
 export const contextoDe = (t: TareaInterna): number | null => t.contexto ?? t.tokens ?? null
@@ -55,41 +56,41 @@ export const modeloLegible = (t: Pick<TareaInterna, 'modelo'>, respaldo?: string
 
 /** Una herramienta de Bash según lo que dice su descripción o comando. */
 function actividadDeBash(texto = ''): string {
-  if (/\b(vitest|jest|pytest|playwright|tsx --test|node --test|npm (run )?test|pnpm test|tests?)\b/i.test(texto)) return 'corriendo pruebas'
-  if (/\b(tsc|typecheck|type-check|type check|eslint|lint)\b/i.test(texto)) return 'revisando tipos'
-  if (/\b(build|compil\w*|bundle)\b/i.test(texto)) return 'compilando'
-  if (/\b(git|gh pr|commit|push)\b/i.test(texto)) return 'trabajando con Git'
-  if (/\b(curl|fetch|http|api|request)\b/i.test(texto)) return 'consultando un servicio'
-  return 'corriendo un comando'
+  if (/\b(vitest|jest|pytest|playwright|tsx --test|node --test|npm (run )?test|pnpm test|tests?)\b/i.test(texto)) return trMarca('corriendo pruebas')
+  if (/\b(tsc|typecheck|type-check|type check|eslint|lint)\b/i.test(texto)) return trMarca('revisando tipos')
+  if (/\b(build|compil\w*|bundle)\b/i.test(texto)) return trMarca('compilando')
+  if (/\b(git|gh pr|commit|push)\b/i.test(texto)) return trMarca('trabajando con Git')
+  if (/\b(curl|fetch|http|api|request)\b/i.test(texto)) return trMarca('consultando un servicio')
+  return trMarca('corriendo un comando')
 }
 
 const SDK_VERBO: [RegExp, string][] = [
-  [/^(fetching|searching the web)\b/i, 'buscando en la web'],
-  [/^(reading|read|searching|search|grep|globbing|listing)\b/i, 'revisando código'],
-  [/^(editing|edit|updating|update)\b/i, 'editando código'],
-  [/^(writing|write|creating)\b/i, 'escribiendo un archivo'],
+  [/^(fetching|searching the web)\b/i, trMarca('buscando en la web')],
+  [/^(reading|read|searching|search|grep|globbing|listing)\b/i, trMarca('revisando código')],
+  [/^(editing|edit|updating|update)\b/i, trMarca('editando código')],
+  [/^(writing|write|creating)\b/i, trMarca('escribiendo un archivo')],
 ]
 
 /** Lo que hace AHORA en español. `null` si no hay pista (la vista dice solo «Trabajando»). */
 export function actividadLegible(t: Pick<TareaInterna, 'ultimaHerramienta' | 'actividad' | 'tipo'>): string | null {
   const h = t.ultimaHerramienta ?? ''
-  if (/^(Read|Glob|Grep|LS|NotebookRead)$/.test(h)) return 'revisando código'
-  if (/^(Edit|MultiEdit|NotebookEdit)$/.test(h)) return 'editando código'
-  if (h === 'Write') return 'escribiendo un archivo'
-  if (h === 'Bash') return actividadDeBash(t.actividad)
-  if (h === 'WebSearch') return 'buscando en la web'
-  if (h === 'WebFetch') return 'leyendo una página web'
-  if (h === 'Agent' || h === 'Task') return 'delegando en otro agente'
-  if (h === 'TodoWrite') return 'ordenando su plan'
-  if (h === 'Skill') return 'consultando una skill'
-  if (h === 'ToolSearch') return 'buscando herramientas'
-  if (/^mcp__claude-in-chrome__/.test(h)) return 'usando el navegador'
-  if (/^mcp__/.test(h)) return 'usando una herramienta conectada'
+  if (/^(Read|Glob|Grep|LS|NotebookRead)$/.test(h)) return tr('revisando código')
+  if (/^(Edit|MultiEdit|NotebookEdit)$/.test(h)) return tr('editando código')
+  if (h === 'Write') return tr('escribiendo un archivo')
+  if (h === 'Bash') return tr(actividadDeBash(t.actividad))
+  if (h === 'WebSearch') return tr('buscando en la web')
+  if (h === 'WebFetch') return tr('leyendo una página web')
+  if (h === 'Agent' || h === 'Task') return tr('delegando en otro agente')
+  if (h === 'TodoWrite') return tr('ordenando su plan')
+  if (h === 'Skill') return tr('consultando una skill')
+  if (h === 'ToolSearch') return tr('buscando herramientas')
+  if (/^mcp__claude-in-chrome__/.test(h)) return tr('usando el navegador')
+  if (/^mcp__/.test(h)) return tr('usando una herramienta conectada')
   if (t.actividad) {
-    if (/^Running\b/i.test(t.actividad)) return actividadDeBash(t.actividad)
-    for (const [r, txt] of SDK_VERBO) if (r.test(t.actividad)) return txt
+    if (/^Running\b/i.test(t.actividad)) return tr(actividadDeBash(t.actividad))
+    for (const [r, txt] of SDK_VERBO) if (r.test(t.actividad)) return tr(txt)
   }
-  return t.tipo === 'comando' ? 'en segundo plano' : null
+  return t.tipo === 'comando' ? tr('en segundo plano') : null
 }
 
 const COMANDO = /^(cd |npx |npm |pnpm |yarn |node |python3? |bash |sh |cat |for |while |git |curl |tsx |\.\/|\/|[A-Z_]+=)|&&|\|\||\n|\$\(/
@@ -99,8 +100,8 @@ export function tituloLegible(t: Pick<TareaInterna, 'descripcion' | 'tipo'>): st
   if (t.tipo !== 'comando' || !COMANDO.test(d)) return d
   const corto = d.replace(/^cd\s+\S+\s*&&\s*/, '').split('\n')[0].replace(/\s+/g, ' ').trim().slice(0, 64)
   const que = actividadDeBash(d)
-  const rotulo = que === 'corriendo pruebas' ? 'Pruebas' : que === 'revisando tipos' ? 'Revisión de tipos' : que === 'compilando' ? 'Compilación' : que === 'trabajando con Git' ? 'Git' : null
-  return rotulo ? `${rotulo}: ${corto}` : `Comando: ${corto}`
+  const rotulo = que === 'corriendo pruebas' ? trMarca('Pruebas') : que === 'revisando tipos' ? trMarca('Revisión de tipos') : que === 'compilando' ? trMarca('Compilación') : que === 'trabajando con Git' ? 'Git' : null
+  return rotulo ? `${tr(rotulo)}: ${corto}` : tr('Comando: {corto}', { corto })
 }
 
 /** La primera idea de un texto largo, sin markdown, para la segunda línea de una fila. */
@@ -118,11 +119,11 @@ export interface DatoInterna { clave: 'tiempo' | 'contexto' | 'modelo'; texto: s
 export function datosInterna(t: TareaInterna, ahora = Date.now()): DatoInterna[] {
   const out: DatoInterna[] = []
   const ms = tiempoDe(t, ahora)
-  if (ms != null) out.push({ clave: 'tiempo', texto: duracionCorta(ms), ayuda: t.estado === 'trabajando' ? 'Lleva corriendo' : 'Lo que tardó' })
+  if (ms != null) out.push({ clave: 'tiempo', texto: duracionCorta(ms), ayuda: t.estado === 'trabajando' ? tr('Lleva corriendo') : tr('Lo que tardó') })
   const c = contextoDe(t)
-  if (c) out.push({ clave: 'contexto', texto: `${tokensCortos(c)} tokens`, ayuda: 'Contexto que lleva consumido' })
+  if (c) out.push({ clave: 'contexto', texto: `${tokensCortos(c)} tokens`, ayuda: tr('Contexto que lleva consumido') })
   const m = modeloLegible(t)
-  if (m) out.push({ clave: 'modelo', texto: m, ayuda: 'Modelo que está usando' })
+  if (m) out.push({ clave: 'modelo', texto: m, ayuda: tr('Modelo que está usando') })
   return out
 }
 
@@ -130,7 +131,7 @@ export function datosInterna(t: TareaInterna, ahora = Date.now()): DatoInterna[]
 export function lineaDeFila(t: TareaInterna): string | null {
   if (t.estado === 'trabajando') {
     const a = t.resumen && t.resumen.length < 160 ? t.resumen : actividadLegible(t)
-    return a ? `Ahora: ${a}` : null
+    return a ? tr('Ahora: {a}', { a }) : null
   }
   if (t.estado === 'completada') return resultadoCorto(t.resumen)
   return resultadoCorto(t.nota ?? t.resumen)
@@ -145,24 +146,24 @@ export function herramientasEnPalabras(h: readonly { nombre: string; n: number }
   for (const x of h) suma.set(nombreHerramienta(x.nombre), (suma.get(nombreHerramienta(x.nombre)) ?? 0) + x.n)
   const lista = [...suma].sort((a, b) => b[1] - a[1])
   const texto = lista.slice(0, max).map(([n, c]) => `${n} ×${c}`).join(' · ')
-  return lista.length > max ? `${texto} · +${lista.length - max} más` : texto
+  return lista.length > max ? tr('{texto} · +{n} más', { texto, n: lista.length - max }) : texto
 }
 
 /** Una acción del agente en palabras: «Leyó PanelDerecho.tsx», «Corrió: Typecheck arbrain». */
 export function accionEnPalabras(a: { herramienta: string; objetivo?: string }): string {
   const o = a.objetivo
   switch (a.herramienta) {
-    case 'Read': return o ? `Leyó ${o}` : 'Leyó un archivo'
-    case 'Edit': case 'MultiEdit': case 'NotebookEdit': return o ? `Editó ${o}` : 'Editó un archivo'
-    case 'Write': return o ? `Escribió ${o}` : 'Escribió un archivo'
-    case 'Grep': case 'Glob': return o ? `Buscó «${o}» en el código` : 'Buscó en el código'
-    case 'Bash': return o ? `Corrió: ${o}` : 'Corrió un comando'
-    case 'WebSearch': return o ? `Buscó en la web «${o}»` : 'Buscó en la web'
-    case 'WebFetch': return o ? `Abrió una página de ${o}` : 'Abrió una página web'
-    case 'Agent': case 'Task': return o ? `Delegó: ${o}` : 'Delegó en otro agente'
-    case 'Skill': return o ? `Consultó la skill ${o}` : 'Consultó una skill'
-    case 'TodoWrite': return 'Actualizó su plan'
-    case 'ToolSearch': return 'Buscó herramientas'
-    default: return a.herramienta.startsWith('mcp__') ? `Usó ${nombreHerramienta(a.herramienta)}` : `Usó ${a.herramienta}`
+    case 'Read': return o ? tr('Leyó {o}', { o }) : tr('Leyó un archivo')
+    case 'Edit': case 'MultiEdit': case 'NotebookEdit': return o ? tr('Editó {o}', { o }) : tr('Editó un archivo')
+    case 'Write': return o ? tr('Escribió {o}', { o }) : tr('Escribió un archivo')
+    case 'Grep': case 'Glob': return o ? tr('Buscó «{o}» en el código', { o }) : tr('Buscó en el código')
+    case 'Bash': return o ? tr('Corrió: {o}', { o }) : tr('Corrió un comando')
+    case 'WebSearch': return o ? tr('Buscó en la web «{o}»', { o }) : tr('Buscó en la web')
+    case 'WebFetch': return o ? tr('Abrió una página de {o}', { o }) : tr('Abrió una página web')
+    case 'Agent': case 'Task': return o ? tr('Delegó: {o}', { o }) : tr('Delegó en otro agente')
+    case 'Skill': return o ? tr('Consultó la skill {o}', { o }) : tr('Consultó una skill')
+    case 'TodoWrite': return tr('Actualizó su plan')
+    case 'ToolSearch': return tr('Buscó herramientas')
+    default: return tr('Usó {h}', { h: a.herramienta.startsWith('mcp__') ? nombreHerramienta(a.herramienta) : a.herramienta })
   }
 }

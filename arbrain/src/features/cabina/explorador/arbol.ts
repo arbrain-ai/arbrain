@@ -7,6 +7,7 @@
  * Siempre se esconden node_modules, .git, .next y lo que parece credencial; el servidor vuelve a validarlo al abrir.
  */
 import { pareceSecreto } from '../documento/ruta'
+import { localeIntl, tr, trn } from '@/shared/i18n'
 
 /** Carpetas y archivos que nunca salen, aunque git no los ignore. */
 export const OCULTAS_SIEMPRE = new Set(['node_modules', '.git', '.next', '.turbo', '.vercel', '.DS_Store'])
@@ -24,12 +25,12 @@ export function visible(rel: string): boolean {
 export function relativaSegura(pedida: string | null | undefined): { rel: string } | { error: string } {
   const p = (pedida ?? '').trim()
   if (!p || p === '.' || p === '/') return { rel: '' }
-  if (p.length > 1000 || p.includes('\0')) return { error: 'Ruta inválida.' }
-  if (p.startsWith('/') || p.startsWith('~') || /^[A-Za-z]:/.test(p) || p.includes('\\')) return { error: 'La ruta va relativa a la raíz del explorador.' }
+  if (p.length > 1000 || p.includes('\0')) return { error: tr('Ruta inválida.') }
+  if (p.startsWith('/') || p.startsWith('~') || /^[A-Za-z]:/.test(p) || p.includes('\\')) return { error: tr('La ruta va relativa a la raíz del explorador.') }
   const partes = p.split('/').filter(x => x && x !== '.')
-  if (partes.includes('..')) return { error: 'La ruta no puede subir con «..».' }
+  if (partes.includes('..')) return { error: tr('La ruta no puede subir con «..».') }
   const rel = partes.join('/')
-  if (!visible(rel)) return { error: 'Eso no se muestra en el explorador.' }
+  if (!visible(rel)) return { error: tr('Eso no se muestra en el explorador.') }
   return { rel }
 }
 
@@ -162,5 +163,5 @@ export function lenguajeDe(nombre: string): string | undefined {
 export const absoluta = (raiz: string, rel: string) => rel ? `${raiz.replace(/\/+$/, '')}/${rel}` : raiz
 
 export function pesoArchivos(n: number): string {
-  return `${n.toLocaleString('es-MX')} ${n === 1 ? 'archivo' : 'archivos'}`
+  return trn(n, '{n} archivo', '{n} archivos', { n: n.toLocaleString(localeIntl()) })
 }

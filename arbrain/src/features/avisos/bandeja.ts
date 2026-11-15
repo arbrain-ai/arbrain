@@ -20,6 +20,9 @@ export type AccionAviso =
   | { tipo: 'borrador'; etiqueta: string }
   | { tipo: 'abrir'; etiqueta: string; url: string }
   | { tipo: 'visto'; etiqueta: string }
+  /** Sí · No de una tarjeta de la bandeja de decisiones (/decisiones del daemon): el mismo toque que en la bandeja. */
+  | { tipo: 'si'; etiqueta: string }
+  | { tipo: 'no'; etiqueta: string }
 
 export interface AvisoFila {
   id: string
@@ -63,6 +66,26 @@ export interface AvisoVista {
   /** Enlace profundo al mensaje exacto de la persona en arbrain.ai (29 oct: «que abra exactamente el campo»). */
   origen: string | null
   acciones: AccionAviso[]
+  /** La tarjeta de la bandeja de decisiones (`cf_…`) que esta vista muestra en vivo: no es una fila de `avisos`. */
+  tarjeta?: string
+}
+
+/**
+ * Lo que la campana necesita de una tarjeta pendiente de la bandeja de decisiones (autonomía v2, 3 nov 2026; la fuente es
+ * `GET /decisiones` del daemon, server/src/autonomia/bandeja.ts). Las decisiones que Levy sube (publicar un video, mandar
+ * un mensaje, pagar) viven ahí y no en `avisos`: la campana las lee en vivo para que «Te toca decidir» las cuente todas.
+ */
+export interface TarjetaPendiente {
+  id: string
+  estado?: string
+  tipo: 'permiso' | 'manos' | 'decision'
+  categoria: 'enviar' | 'pagar' | 'borrar' | 'publicar' | 'otra'
+  titulo: string
+  recomendacion?: string
+  recomienda?: 'si' | 'no'
+  botonSi?: string
+  creada: number
+  de?: string
 }
 
 export interface Bandeja {
@@ -95,6 +118,17 @@ const RIESGO = new Set(['vigia-seguridad', 'arbrain-ht-servidor', 'servidores', 
 const RE_DECIDIR = /\/decidir\/([A-Za-z0-9_-]{20,})(?:[/?#]|$)/
 export function tokenDecidir(url: string | null | undefined): string | null {
   return url ? url.match(RE_DECIDIR)?.[1] ?? null : null
+}
+
+/** Dónde se decide una tarjeta con todo su detalle (el mismo enlace del push al teléfono). */
+export const RUTA_DECISIONES = '/telefono/decisiones'
+/** Las filas de `avisos` que el daemon escribe al subir una tarjeta (`avisarTarjetaAlTelefono`). */
+export const FUENTE_BANDEJA = 'bandeja:decisiones'
+
+/** La tarjeta `cf_…` de una fila de la campana que avisó de ella, o null. */
+export function tarjetaDeAviso(a: Pick<AvisoFila, 'source' | 'url' | 'clave'>): string | null {
+  if (a.source !== FUENTE_BANDEJA) return null
+  return (a.clave ?? '').match(/^decision-(cf_[0-9a-f]{12})$/)?.[1] ?? a.url?.match(/[?&]id=(cf_[0-9a-f]{12})(?:&|$)/)?.[1] ?? null
 }
 
 const RE_POST = /\/community\?post=([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:[&#]|$)/i
@@ -241,6 +275,17 @@ export function presentar(a: AvisoFila, estado?: EstadoDecision | null): Forma {
     return { grupo: 'saber', titulo: titulo0.replace(/^Asistencia de la clase: /, 'Asistencia · '), frase: null, cita: null, acciones: abrir(a.url) }
   }
 
+  if (a.source === FUENTE_BANDEJA) {
+    // Sin la bandeja viva (daemon caído): el aviso de la tarjeta sigue pidiendo decisión y abre su página. Con la bandeja
+    // viva, armarBandeja muestra la tarjeta misma y esta fila no se pinta.
+    const id = tarjetaDeAviso(a)
+    const que = (a.body ?? '').split(/\.\s+Levy recomienda|\.\s+Sin tu toque/)[0].trim()
+    return {
+      grupo: 'decidir', titulo: que ? recortar(que, 140) : titulo0, frase: titulo0.replace(/^Levy espera tu toque:\s*/, 'Espera tu toque: '), cita: null,
+      acciones: [{ tipo: 'abrir', etiqueta: 'Decidir', url: id ? `${RUTA_DECISIONES}?id=${id}` : (enlaceUtil(a.url) ?? RUTA_DECISIONES) }], vigenciaH: 48,
+    }
+  }
+
   const sub = titulo0.match(/^Un subagente espera tu decisión · (.+)$/)
   if (sub) return { grupo: 'decidir', titulo: sub[1], frase: 'Un subagente espera tu decisión.', cita: null, acciones: [...abrir(a.url ?? '/', 'Abrir'), visto], vigenciaH: 48 }
   if (a.source === 'guardia:cola') {
@@ -320,13 +365,42 @@ export function motivoDeCierre(a: AvisoFila, filas: AvisoFila[], estados: Readon
   return null
 }
 
-/** Arma la campana: agrupa, ordena (lo más nuevo arriba), cierra lo resuelto y cuenta solo decisiones pendientes. */
+/** Una tarjeta de la bandeja de decisiones, como la ve la campana: qué, la recomendación de Levy y Sí · No · Ver detalle. */
+export function vistaDeTarjeta(t: TarjetaPendiente): AvisoVista {
+  const rec = t.recomendacion || t.recomienda
+    ? `${t.recomienda === 'no' ? 'Levy recomienda que no' : 'Levy recomienda que sí'}${t.recomendacion ? `: ${t.recomendacion.replace(/^(s[ií]|no)\s*[:,.-]\s*/i, '')}` : '.'}`
+    : null
+  const detalle: AccionAviso = { tipo: 'abrir', etiqueta: 'Ver detalle', url: `${RUTA_DECISIONES}?id=${t.id}` }
+  const si: AccionAviso = { tipo: 'si', etiqueta: t.botonSi || 'Sí' }, no: AccionAviso = { tipo: 'no', etiqueta: 'No' }
+  // «Córrelo tú» (manos) no se aprueba desde una bandeja: se corre desde su tarjeta en el chat (el daemon lo repite).
+  const acciones: AccionAviso[] = t.tipo === 'manos' ? [{ ...detalle, etiqueta: 'Abrir' }]
+    // La que Levy recomienda va primero y encendida (como en la bandeja); sin recomendación, Sí primero.
+    : [...(t.recomienda === 'no' ? [no, si] : [si, no]), detalle]
+  return {
+    id: t.id, created_at: new Date(t.creada).toISOString(), kind: 'agente', source: FUENTE_BANDEJA, url: detalle.url, read_at: null,
+    grupo: 'decidir', titulo: recortar(t.titulo, 160), frase: rec ? recortar(rec, 200) : t.de ?? null, cita: null, borrador: null, origen: null,
+    acciones, tarjeta: t.id,
+  }
+}
+
+/**
+ * Arma la campana: agrupa, ordena (lo más nuevo arriba), cierra lo resuelto y cuenta solo decisiones pendientes.
+ * `tarjetas`: las pendientes de la bandeja de decisiones, leídas en vivo; van todas a «Te toca decidir» y sus filas de aviso
+ * no se repiten (se cierran solas cuando la tarjeta ya no espera). `null` = no se pudo leer la bandeja: las filas siguen.
+ */
 export function armarBandeja(filas: AvisoFila[], estados: ReadonlyMap<string, EstadoDecision>, ahora: Date, topeSaber = 20,
-  publicados: ReadonlySet<string> = new Set()): Bandeja {
+  publicados: ReadonlySet<string> = new Set(), tarjetas: readonly TarjetaPendiente[] | null = null): Bandeja {
   const orden = [...filas].sort((x, y) => Date.parse(y.created_at) - Date.parse(x.created_at))
   const out: Bandeja = { decidir: [], urgente: [], saber: [], pendientes: 0, cerrar: [] }
+  const vivas = tarjetas ? new Set(tarjetas.map(t => t.id)) : null
   for (const a of orden) {
     if (a.resuelto_at) continue
+    const deTarjeta = tarjetaDeAviso(a)
+    if (deTarjeta && vivas) {
+      // La tarjeta viva se pinta abajo; si ya no espera (decidida, vencida), su aviso se cerró solo.
+      if (!vivas.has(deTarjeta)) out.cerrar.push({ id: a.id, por: 'decidido' })
+      continue
+    }
     const por = motivoDeCierre(a, orden, estados, publicados)
     if (por) { out.cerrar.push({ id: a.id, por }); continue }
     const token = tokenDecidir(a.url)
@@ -348,6 +422,10 @@ export function armarBandeja(filas: AvisoFila[], estados: ReadonlyMap<string, Es
       ...forma, grupo, borrador, origen, acciones: conOrigen.map(x => x.tipo === 'borrador' && !borrador && !forma.cita ? { tipo: 'abrir', etiqueta: x.etiqueta, url: a.url ?? '/' } : x),
     }
     out[grupo].push(vista)
+  }
+  if (tarjetas?.length) {
+    out.decidir.push(...tarjetas.map(vistaDeTarjeta))
+    out.decidir.sort((x, y) => Date.parse(y.created_at) - Date.parse(x.created_at))
   }
   out.saber = out.saber.slice(0, topeSaber)
   out.pendientes = out.decidir.length

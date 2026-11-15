@@ -14,6 +14,7 @@ import { releer, useFuente } from '../datos'
 import { usePanelFijadas, type Fijada } from './fijadas'
 import { mostrarPanel } from './ventanas'
 import { entradaDe } from './guardado'
+import { tr } from '@/shared/i18n/tr'
 
 export interface Entrada {
   id: string; nombre: string; input: MostrarInput; conversacion?: string
@@ -32,7 +33,7 @@ async function pedir(cuerpo: Record<string, unknown>): Promise<Entrada> {
   const r = await fetch(URL_ARCHIVERO, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cuerpo) })
   const body = await r.json().catch(() => ({})) as { entrada?: Entrada; error?: string }
   void releer(URL_ARCHIVERO)
-  if (!r.ok || !body.entrada) throw new Error(body.error ?? `El archivero respondió ${r.status}.`)
+  if (!r.ok || !body.entrada) throw new Error(body.error ?? tr('El archivero respondió {estado}.', { estado: r.status }))
   return body.entrada
 }
 
@@ -60,7 +61,7 @@ export function useGuardado(f: Fijada) {
       await releer(URL_ARCHIVERO)
       // La marca local decide si se cierra sola al cambiar de conversación: guardada, se queda.
       usePanelFijadas.getState().marcarGuardada(f.id, quiero)
-    } catch (e) { setError(e instanceof Error ? e.message : 'No se pudo usar el archivero.') }
+    } catch (e) { setError(e instanceof Error ? e.message : tr('No se pudo usar el archivero.')) }
     finally { setOptimista(null) }
   }
   return { guardada, alternar, ocupado: optimista !== null, error }

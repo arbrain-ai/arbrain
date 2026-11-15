@@ -44,44 +44,58 @@ export function clasificarFalloDeCuenta(f: { status?: unknown; error?: unknown; 
   return null
 }
 
+// ── Idioma (13 nov 2026, «Arbrain en inglés») ────────────────────────────────────────────────────────────────────
+// Este archivo no importa nada (la web lo reexporta tal cual): el traductor llega como parámetro (`op.tr`, el `tr` de
+// i18n/tr.ts en el daemon) y, sin él, el texto sale en español. `trMarca` local: solo marca la llave para el catálogo.
+type Traductor = (texto: string, vars?: Record<string, string | number>) => string
+const sinTraducir: Traductor = (texto, vars) => !vars ? texto
+  : texto.replace(/\{(\w+)\}/g, (todo, k: string) => (k in vars ? String(vars[k]) : todo))
+const trMarca = <T extends string>(texto: T): T => texto
+
 /** Inicio fijo del aviso de «falta conectar un modelo» (cliente/llaves.ts › MENSAJE_FALTA_LLAVE): la web lo reconoce. */
-export const INICIO_FALTA_LLAVE = 'Levy todavía no está conectado a un modelo.'
+export const INICIO_FALTA_LLAVE = trMarca('Levy todavía no está conectado a un modelo.')
+/**
+ * El mismo inicio con English en Ajustes. Debe ser EXACTO el inicio de la traducción de `MENSAJE_FALTA_LLAVE` en el
+ * catálogo (server/src/i18n/en.json; lo verifica sin-saldo.test.ts): la web reconoce el aviso en los dos idiomas.
+ */
+export const INICIO_FALTA_LLAVE_EN = "Levy isn't connected to a model yet."
 
 /** ¿El turno no salió porque no hay llave ni sesión? Solo mira el aviso del daemon (diagnóstico de un error). */
 export function esFaltaLlave(msg: { error?: boolean; diagnostic?: string }): boolean {
-  return !!msg.error && typeof msg.diagnostic === 'string' && msg.diagnostic.startsWith(INICIO_FALTA_LLAVE)
+  return !!msg.error && typeof msg.diagnostic === 'string' && (msg.diagnostic.startsWith(INICIO_FALTA_LLAVE) || msg.diagnostic.startsWith(INICIO_FALTA_LLAVE_EN))
 }
 
 /** Inicio fijo del aviso de llave rechazada: la web lo reconoce por aquí (no por el detalle del proveedor). */
-export const INICIO_LLAVE_RECHAZADA = 'Tu llave no funcionó:'
-
-const nombreProveedor = (p: string | null | undefined) => (p === 'anthropic' ? 'Anthropic' : p === 'openrouter' ? 'OpenRouter' : 'tu proveedor')
+export const INICIO_LLAVE_RECHAZADA = trMarca('Tu llave no funcionó:')
+/** Su traducción EXACTA en el catálogo (lo verifica sin-saldo.test.ts): la web la reconoce en los dos idiomas. */
+export const INICIO_LLAVE_RECHAZADA_EN = "Your key didn't work:"
 
 /**
  * Texto del chat cuando el turno se corta por la cuenta. El detalle técnico va al final y en una línea propia: sirve
  * para soporte y conserva el «402»/«billing» que reconoce `esSinSaldo` (así el chat ofrece «Recargar»).
  */
-export function mensajeFalloDeCuenta(tipo: FalloDeCuenta, proveedor: string | null | undefined, detalle: string, op: { openrouterGuardada?: boolean } = {}): string {
-  const donde = nombreProveedor(proveedor)
+export function mensajeFalloDeCuenta(tipo: FalloDeCuenta, proveedor: string | null | undefined, detalle: string, op: { openrouterGuardada?: boolean; tr?: Traductor } = {}): string {
+  const tr = op.tr ?? sinTraducir
+  const donde = proveedor === 'anthropic' ? 'Anthropic' : proveedor === 'openrouter' ? 'OpenRouter' : tr('tu proveedor')
   const d = detalle.replace(/\s+/g, ' ').trim().slice(0, 300)
   // 7 nov 2026 (duda de un fundador): con las dos llaves guardadas el chat usa SIEMPRE la de Anthropic
   // (cliente/proveedor.ts) y la de OpenRouter se queda sin usar. Si la de Anthropic falla, se dice cómo pasar a la otra.
   const otra = proveedor === 'anthropic' && op.openrouterGuardada
-    ? ' Tu llave de OpenRouter también está guardada, pero mientras exista la de Anthropic Levy usa esa. Para hablar con OpenRouter, quita la de Anthropic en Ajustes › Llaves (Arbrain se reinicia solo).'
+    ? ` ${tr('Tu llave de OpenRouter también está guardada, pero mientras exista la de Anthropic Levy usa esa. Para hablar con OpenRouter, quita la de Anthropic en Ajustes › Llaves (Arbrain se reinicia solo).')}`
     : ''
-  const cola = `${otra}${d ? `\n\nDetalle técnico: ${d}` : ''}`
+  const cola = `${otra}${d ? `\n\n${tr('Detalle técnico: {detalle}', { detalle: d })}` : ''}`
   // Motor «Mi Claude Code» (cliente/suscripcion.ts): no hay llave que recargar ni pegar; la sesión es la de su terminal.
   if (proveedor === 'suscripcion') {
-    if (tipo === 'sin_saldo') return `Tu plan de Claude no dejó responder a Levy (límite de uso o plan inactivo). Espera a que se reinicie tu límite o revisa tu plan en claude.ai; también puedes conectar una llave en Ajustes › Llaves.${cola}`
-    return `Tu Claude Code no tiene la sesión iniciada (o venció), por eso Levy no pudo responder. Abre Ajustes › Llaves, pulsa «Iniciar sesión con Claude», entra con tu cuenta en el navegador y pulsa «Reintentar».${cola}`
+    if (tipo === 'sin_saldo') return `${tr('Tu plan de Claude no dejó responder a Levy (límite de uso o plan inactivo). Espera a que se reinicie tu límite o revisa tu plan en claude.ai; también puedes conectar una llave en Ajustes › Llaves.')}${cola}`
+    return `${tr('Tu Claude Code no tiene la sesión iniciada (o venció), por eso Levy no pudo responder. Abre Ajustes › Llaves, pulsa «Iniciar sesión con Claude», entra con tu cuenta en el navegador y pulsa «Reintentar».')}${cola}`
   }
   if (tipo === 'sin_saldo') {
-    return `Tu cuenta de ${donde} se quedó sin crédito, por eso Levy no pudo responder. Recarga crédito en ${donde} y pulsa «Reintentar»; tu mensaje sigue aquí.${cola}`
+    return `${tr('Tu cuenta de {proveedor} se quedó sin crédito, por eso Levy no pudo responder. Recarga crédito en {proveedor} y pulsa «Reintentar»; tu mensaje sigue aquí.', { proveedor: donde })}${cola}`
   }
-  return `${INICIO_LLAVE_RECHAZADA} ${donde} la rechazó (no es válida, venció o se revocó), por eso Levy no pudo responder. Abre Ajustes › Llaves y vuelve a «Conectar con OpenRouter» o pega una llave nueva; después pulsa «Reintentar».${cola}`
+  return `${tr(INICIO_LLAVE_RECHAZADA)} ${tr('{proveedor} la rechazó (no es válida, venció o se revocó), por eso Levy no pudo responder. Abre Ajustes › Llaves y vuelve a «Conectar con OpenRouter» o pega una llave nueva; después pulsa «Reintentar».', { proveedor: donde })}${cola}`
 }
 
 /** ¿El turno del chat falló porque la llave fue rechazada? Solo mira el aviso del daemon (diagnóstico de un error). */
 export function esLlaveRechazada(msg: { error?: boolean; diagnostic?: string }): boolean {
-  return !!msg.error && typeof msg.diagnostic === 'string' && msg.diagnostic.startsWith(INICIO_LLAVE_RECHAZADA)
+  return !!msg.error && typeof msg.diagnostic === 'string' && (msg.diagnostic.startsWith(INICIO_LLAVE_RECHAZADA) || msg.diagnostic.startsWith(INICIO_LLAVE_RECHAZADA_EN))
 }

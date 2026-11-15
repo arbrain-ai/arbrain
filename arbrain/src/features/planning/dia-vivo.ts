@@ -3,6 +3,7 @@ import type { PlanEvent, PlanTask } from './types'
 import { tituloVisible } from './ajenos'
 import type { Goal } from '@/features/goals/model'
 import { TRAMO } from './semana-horas'
+import { tr } from '@/shared/i18n'
 
 /**
  * Modelo de la hoja del día (Calendario › Día, 5 oct 2026): lo que trae la Cabina v2 al calendario. Puro y sin React:
@@ -35,7 +36,7 @@ export function duracion(min: number): string {
 }
 
 /** «en 40 min», «en 2 h», «en 1 h 15 min». */
-export const faltan = (min: number) => `en ${duracion(Math.max(1, min))}`
+export const faltan = (min: number) => tr('en {duracion}', { duracion: duracion(Math.max(1, min)) })
 
 /** Tramo visible del riel en minutos del día: de 06:00 (o antes si hay algo antes) a 22:00 (o después), en horas cerradas. */
 export function tramoRiel(bloques: Bloque[], dia: Date): { desde: number; hasta: number } {

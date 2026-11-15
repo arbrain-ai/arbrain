@@ -41,10 +41,10 @@ test('fuera del chat: sin píldora ni botón flotante; la franja de pausa sigue 
   assert.ok(!/data-pildora-autonomo|data-boton-pausa|aria-label="Pausar todo"|colocarBotonPausa|Posición del botón/.test(ui))
   assert.match(ui, /data-franja-pausa/)
   assert.match(ui, /Levy está en pausa: no corre ningún turno, rutina ni herramienta/)
-  assert.match(ui, /void fijar\(false\)\} disabled=\{ocupado\}[^>]*>\s*\{ocupado \? <Loader2[^}]*\} Reanudar/)
+  assert.match(ui, /void fijar\(false\)\} disabled=\{ocupado\}[^>]*>\s*\{ocupado \? <Loader2[^}]*\} \{tr\('Reanudar'\)\}/)
   assert.match(ui, /volver\('pausa'\)/)
   // Ajustes › Permisos y seguridad sigue con su «Pausar todo» y dice dónde está ahora.
-  assert.match(ui, /data-donde-pausa>\{DONDE_PAUSAR\}/)
+  assert.match(ui, /data-donde-pausa>\{tr\(DONDE_PAUSAR\)\}/)
   assert.match(DONDE_PAUSAR, /botón del modelo/)
   for (const r of ['src/components/ActualizacionDesktop.tsx', 'src/shared/components/ColumnaConversaciones.tsx']) assert.ok(!/data-evita-pausa/.test(fuente(r)), r)
 })

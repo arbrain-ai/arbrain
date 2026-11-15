@@ -9,6 +9,7 @@ import type { CronRun, CronSchedule, CronSnapshot } from '@/features/planning/ty
 import { CATEGORIAS, RUTINAS, nombreRutina, type Categoria, type Rutina } from './catalogo'
 import { estado as estadoBase, resumen } from './model'
 import { fmtTokens, type Rendimiento } from './rinde'
+import { localeIntl, tr } from '@/shared/i18n'
 
 // ── El horario en el reloj de 24 h ──
 
@@ -16,7 +17,8 @@ export interface Hora { h: number; m: number }
 export type Ritmo = 'continua' | 'diaria' | 'semanal' | 'mensual' | 'otra'
 export interface Horario { horas: Hora[]; ritmo: Ritmo; cadaMin?: number; dias?: string }
 
-const DOW = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb']
+// Día corto de la semana en el idioma activo (13 nov 2026): «dom», «lun»… en español; «Sun», «Mon»… en inglés. El 1 ene 2023 fue domingo.
+const DOW = (d: number) => new Intl.DateTimeFormat(localeIntl(), { weekday: 'short', timeZone: 'UTC' }).format(Date.UTC(2023, 0, 1 + d))
 const lista = (c: string) => /^\d+(,\d+)*$/.test(c) ? c.split(',').map(Number) : null
 
 /** «5 3 * * *» → 03:05 diaria; «0 7 * * 0» → 07:00 los domingos; «*\/10 * * * *» → continua. Lo que no se entiende: `otra`. */
@@ -34,9 +36,9 @@ export function horario(schedule: string | null | undefined): Horario {
   const horas = hs.flatMap(h => ms.map(m => ({ h, m }))).sort((a, b) => a.h * 60 + a.m - (b.h * 60 + b.m))
   if (dom === '*' && dow === '*') return { horas, ritmo: 'diaria' }
   const dows = lista(dow)
-  if (dom === '*' && dows) return { horas, ritmo: 'semanal', dias: dows.map(d => DOW[d % 7]).join(' · ') }
+  if (dom === '*' && dows) return { horas, ritmo: 'semanal', dias: dows.map(d => DOW(d % 7)).join(' · ') }
   const doms = lista(dom)
-  if (doms && dow === '*') return { horas, ritmo: 'mensual', dias: `día ${doms.join(', ')}` }
+  if (doms && dow === '*') return { horas, ritmo: 'mensual', dias: tr('día {dias}', { dias: doms.join(', ') }) }
   return { horas, ritmo: 'otra' }
 }
 
@@ -73,17 +75,17 @@ const AVISO = /^\s*(⚠️|🔴|❌)|\bROJO\b|no responde|c[oó]digo (de salida 
 
 export function estadoViva(job: CronSchedule, runs: CronRun[], ahora: number): EstadoViva {
   const e = estadoBase(job, runs)
-  if (e.tono === 'pausada') return { tono: 'pausada', texto: 'En pausa', ms: e.ms }
-  if (e.tono === 'error') return { tono: 'falla', texto: 'Falló', ms: e.ms }
-  if (e.tono === 'curso') return { tono: 'curso', texto: 'Trabajando', ms: e.ms }
+  if (e.tono === 'pausada') return { tono: 'pausada', texto: tr('En pausa'), ms: e.ms }
+  if (e.tono === 'error') return { tono: 'falla', texto: tr('Falló'), ms: e.ms }
+  if (e.tono === 'curso') return { tono: 'curso', texto: tr('Trabajando'), ms: e.ms }
   const hueco = huecoEsperado(horario(job.schedule))
   const ultima = Math.max(job.last_run ? job.last_run * 1000 : 0, ...runs.filter(r => r.job_id === job.id).map(r => Date.parse(r.created_at)))
   // Atrasada: activa y sin correr en hueco y medio (más una hora de holgura). Sin hueco conocido, no se juzga.
-  if (hueco && ultima && ahora - ultima > hueco * 1.5 + 3_600_000) return { tono: 'atrasada', texto: 'No ha corrido a su hora', ms: ultima }
+  if (hueco && ultima && ahora - ultima > hueco * 1.5 + 3_600_000) return { tono: 'atrasada', texto: tr('No ha corrido a su hora'), ms: ultima }
   if (e.tono === 'sin-dato') return { tono: 'sin-dato', texto: e.texto, ms: e.ms }
   // Solo el encabezado del reporte: un informe largo puede citar «ROJO» de otra cosa (el semanal audita a las demás).
-  if (job.last_result && AVISO.test(job.last_result.slice(0, 160))) return { tono: 'aviso', texto: 'Corrió, pero avisó algo', ms: e.ms }
-  return { tono: 'ok', texto: 'Salió bien', ms: e.ms }
+  if (job.last_result && AVISO.test(job.last_result.slice(0, 160))) return { tono: 'aviso', texto: tr('Corrió, pero avisó algo'), ms: e.ms }
+  return { tono: 'ok', texto: tr('Salió bien'), ms: e.ms }
 }
 
 // ── Historial ──
@@ -103,16 +105,16 @@ export interface Costo { tipo: 'programa' | 'tokens' | 'sin-dato'; tokens: numbe
 export function costoDe(info: Rutina | undefined, r: Rendimiento | undefined): Costo {
   const tokens = r?.tokens ?? null, porCorrida = r?.tokensPorCorrida ?? null
   if (info?.motor === 'programa') return { tipo: 'programa', tokens, porCorrida,
-    nota: tokens ? `En 30 días midió ${fmtTokens(tokens)} tokens de cuando lo envolvía un modelo${info.programaDesde ? ` (hasta el ${info.programaDesde})` : ''}.` : null }
-  if (tokens != null && tokens > 0) return { tipo: 'tokens', tokens, porCorrida, nota: r && r.medidas < r.corridas ? `Medidas ${r.medidas} de ${r.corridas} corridas.` : null }
+    nota: tokens ? (info.programaDesde ? tr('En 30 días midió {tokens} tokens de cuando lo envolvía un modelo (hasta el {fecha}).', { tokens: fmtTokens(tokens), fecha: info.programaDesde }) : tr('En 30 días midió {tokens} tokens de cuando lo envolvía un modelo.', { tokens: fmtTokens(tokens) })) : null }
+  if (tokens != null && tokens > 0) return { tipo: 'tokens', tokens, porCorrida, nota: r && r.medidas < r.corridas ? tr('Medidas {medidas} de {corridas} corridas.', { medidas: r.medidas, corridas: r.corridas }) : null }
   if (tokens === 0) return { tipo: 'programa', tokens: 0, porCorrida: 0, nota: null }
   return { tipo: 'sin-dato', tokens: null, porCorrida: null, nota: null }
 }
 
 /** Lo que se nota: nadie usa lo que produce, quien lo usa está en pausa, o falla más de lo que entrega. */
 export function noRinde(info: Rutina | undefined, r: Rendimiento | undefined, pausadas: Set<string>): string | null {
-  if (info?.para === 'nadie' && !info.seguro) return 'Nadie usa lo que produce.'
-  if (info?.consumidor && pausadas.has(info.consumidor)) return `Lo usa «${nombreRutina(info.consumidor)}», que está en pausa.`
+  if (info?.para === 'nadie' && !info.seguro) return tr('Nadie usa lo que produce.')
+  if (info?.consumidor && pausadas.has(info.consumidor)) return tr('Lo usa «{nombre}», que está en pausa.', { nombre: nombreRutina(info.consumidor) })
   if (r?.tono === 'no-rinde') return r.motivo
   return null
 }
@@ -163,12 +165,12 @@ export function lectura(activas: Fila[]): Lectura {
     .sort((a, b) => GRAVEDAD[a.estado.tono]! - GRAVEDAD[b.estado.tono]! || ORDEN_CAT.get(a.categoria)! - ORDEN_CAT.get(b.categoria)!)
   const grave = graves[0] ?? null
   const base = { trabajan: activas.length, fallaron, atrasadas, avisos, sinDato, grave }
-  if (!activas.length) return { ...base, tono: 'sin-dato', palabra: 'Sin rutinas a la vista' }
-  if (fallaron) return { ...base, tono: 'mal', palabra: fallaron === 1 ? `Falló ${grave!.nombre}` : `Fallaron ${fallaron}` }
-  if (atrasadas) return { ...base, tono: 'atencion', palabra: atrasadas === 1 ? `${grave!.nombre} no corrió a su hora` : `${atrasadas} no corrieron a su hora` }
-  if (avisos) return { ...base, tono: 'atencion', palabra: avisos === 1 ? `${grave!.nombre} avisó algo` : `${avisos} avisaron algo` }
-  if (sinDato) return { ...base, tono: 'sin-dato', palabra: `Corren; ${sinDato} sin dato` }
-  return { ...base, tono: 'bien', palabra: 'Todo en orden' }
+  if (!activas.length) return { ...base, tono: 'sin-dato', palabra: tr('Sin rutinas a la vista') }
+  if (fallaron) return { ...base, tono: 'mal', palabra: fallaron === 1 ? tr('Falló {nombre}', { nombre: grave!.nombre }) : tr('Fallaron {n}', { n: fallaron }) }
+  if (atrasadas) return { ...base, tono: 'atencion', palabra: atrasadas === 1 ? tr('{nombre} no corrió a su hora', { nombre: grave!.nombre }) : tr('{n} no corrieron a su hora', { n: atrasadas }) }
+  if (avisos) return { ...base, tono: 'atencion', palabra: avisos === 1 ? tr('{nombre} avisó algo', { nombre: grave!.nombre }) : tr('{n} avisaron algo', { n: avisos }) }
+  if (sinDato) return { ...base, tono: 'sin-dato', palabra: tr('Corren; {n} sin dato', { n: sinDato }) }
+  return { ...base, tono: 'bien', palabra: tr('Todo en orden') }
 }
 
 /** La próxima rutina que toca (por el `next_run` del scheduler). */

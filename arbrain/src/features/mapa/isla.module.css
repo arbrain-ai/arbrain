@@ -1,0 +1,105 @@
+/* Mapa v16 · la materia común de las islas (14 nov 2026). La misma familia que Business Intelligence («En calma»),
+   Finanzas y Estrategia: placas con bisel (luz arriba, sombra abajo), una luna que respira arriba del cuarto, tinta morada
+   para lo que piensa y oro para lo que importa. Paleta: núcleo de marca (diseno-de-marca/references/nucleo.md) por los
+   tokens de la app (app/lenguaje.css); el tema es el del LIENZO (data-tema), no el de la app. */
+.isla {
+  position: relative; isolation: isolate; overflow: hidden; box-sizing: border-box;
+  width: var(--ancho, 1440px); height: var(--alto, 900px);
+  display: flex; flex-direction: column; gap: 30px; padding: 60px 68px 52px;
+  border-radius: 28px; background: var(--i-fondo);
+}
+/* el ámbito: los tokens de la isla para un bloque montado suelto (en la rejilla del MOTOR) */
+.ambito { position: relative; width: 100%; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; min-width: 0; }
+.isla, .ambito {
+  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', system-ui, sans-serif);
+  font-size: 17px; line-height: 1.45; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+  color: var(--i-tinta);
+  /* claro (por defecto) */
+  --i-fondo: linear-gradient(180deg, #ffffff, #fbfaf7);
+  --i-tinta: #111114; --i-tinta-2: #3f3f49; --i-tinta-3: #6b6b76; --i-tenue: #a1a1aa;
+  --i-linea: rgba(15, 17, 21, 0.09); --i-linea-2: rgba(15, 17, 21, 0.16);
+  --i-placa-arriba: #ffffff; --i-placa-abajo: #f6f6f8; --i-bisel: rgba(255, 255, 255, 0.9); --i-sombra: rgba(15, 17, 21, 0.10);
+  --i-mor: #8c27f1; --i-mor-rgb: 140, 39, 241; --i-mor-tinta: #7419d1; --i-mor-velo: #f6f0ff;
+  --i-oro: #ff9101; --i-oro-rgb: 255, 145, 1; --i-oro-tinta: #a35c00; --i-oro-velo: #fff6e8;
+  --i-rojo: #dc2626; --i-ok: #047857;
+  --i-brillo: 0.35;
+  --i-serif: var(--serif-ui, ui-serif, 'New York', 'Iowan Old Style', Georgia, serif);
+  --i-curva: cubic-bezier(0.22, 1, 0.36, 1); --i-aterriza: cubic-bezier(0.34, 1.32, 0.64, 1);
+  --aliento: 0.5;
+}
+.isla[data-tema=oscuro], .ambito[data-tema=oscuro] {
+  --i-fondo: linear-gradient(180deg, #121119, #0c0b11);
+  --i-tinta: #f6f7fb; --i-tinta-2: #c9cbd6; --i-tinta-3: #9599a6; --i-tenue: #5d6070;
+  --i-linea: rgba(255, 255, 255, 0.07); --i-linea-2: rgba(255, 255, 255, 0.13);
+  --i-placa-arriba: #201d29; --i-placa-abajo: #19171f; --i-bisel: rgba(255, 255, 255, 0.06); --i-sombra: rgba(0, 0, 0, 0.55);
+  --i-mor-tinta: #c7a6ff; --i-mor-velo: #1b1330;
+  --i-oro-tinta: #ffb64d; --i-oro-velo: #241c0d;
+  --i-rojo: #f0676b; --i-ok: #6fd3a4;
+  --i-brillo: 1;
+}
+/* La luna: luz de calma arriba del cuarto (BI). El acento de la isla decide su color; respira con --aliento. */
+.luna { position: absolute; z-index: -1; inset: -120px -80px auto; height: 720px; pointer-events: none;
+  background: radial-gradient(55% 60% at 50% 0%, rgba(var(--luna-rgb, var(--i-mor-rgb)), calc((0.05 + var(--aliento) * 0.06) * (0.6 + var(--i-brillo) * 0.6))), transparent 72%); }
+.isla[data-acento=oro] { --luna-rgb: var(--i-oro-rgb); }
+.isla[data-acento=neutro] .luna { display: none; }
+.isla[data-modo=cerca] .luna { animation: respiraLuna 7s ease-in-out infinite; }
+@keyframes respiraLuna { 0%, 100% { opacity: 0.75; } 50% { opacity: 1; } }
+
+/* De lejos: nada se mueve (la foto que pinta el lienzo al pasar). */
+.isla[data-modo=lejos] *, .isla[data-modo=lejos] *::before, .isla[data-modo=lejos] *::after,
+.ambito[data-modo=lejos] *, .ambito[data-modo=lejos] *::before, .ambito[data-modo=lejos] *::after { animation: none !important; transition: none !important; }
+
+.fila { display: flex; gap: 40px; min-height: 0; }
+.celda { min-width: 0; display: flex; flex-direction: column; }
+
+/* ── piezas comunes ── */
+.ceja { margin: 0; font-size: 13px; font-weight: 750; letter-spacing: 0.16em; text-transform: uppercase; color: var(--i-tinta-3); }
+.ceja[data-tono=oro] { color: var(--i-oro-tinta); }
+.ceja[data-tono=morado] { color: var(--i-mor-tinta); }
+.titulo { margin: 0; font-family: var(--i-serif); font-weight: 600; letter-spacing: -0.015em; line-height: 1.02; color: var(--i-tinta); text-wrap: balance; }
+.firma { margin: 0; font-family: var(--i-serif); font-style: italic; font-weight: 500; line-height: 1.32; color: var(--i-tinta); text-wrap: pretty; }
+.glosa { margin: 0; font-style: italic; color: var(--i-tinta-3); line-height: 1.45; }
+.cuerpo { margin: 0; color: var(--i-tinta-2); line-height: 1.5; }
+
+.sello { display: inline-flex; align-items: center; height: 24px; padding: 0 11px; border-radius: 12px; white-space: nowrap; flex: none;
+  font-size: 11px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; border: 1.5px solid currentColor; color: var(--i-tinta-3); }
+.sello[data-estado=firmado] { color: var(--i-oro-tinta); background: rgba(var(--i-oro-rgb), 0.12); }
+.sello[data-estado=firmado][data-tono=morado] { color: var(--i-mor-tinta); background: rgba(var(--i-mor-rgb), 0.12); }
+.sello[data-estado=hoy] { color: #fff; background: var(--i-mor); border-color: var(--i-mor); }
+.sello[data-estado=abierto] { border-style: dashed; color: var(--i-oro-tinta); }
+.sello[data-estado=pendiente] { border-style: dashed; color: var(--i-mor-tinta); }
+.sello[data-estado=idea] { border-style: dotted; color: var(--i-tinta-3); }
+.sello[data-estado=rojo] { color: var(--i-rojo); }
+.sello[data-estado=con-datos] { color: var(--i-mor-tinta); background: rgba(var(--i-mor-rgb), 0.12); }
+
+/* Botón a destino: una tecla de la app (placa con bisel), con su glifo en un disco. */
+.botones { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.boton { appearance: none; cursor: pointer; display: inline-flex; align-items: center; gap: 11px; height: 50px; padding: 0 20px 0 7px; border-radius: 25px;
+  font: inherit; font-size: 16px; font-weight: 700; letter-spacing: 0.005em; white-space: nowrap; color: var(--i-tinta);
+  border: 1px solid var(--i-linea-2); background: linear-gradient(180deg, var(--i-placa-arriba), var(--i-placa-abajo));
+  box-shadow: inset 0 1px 0 var(--i-bisel), 0 8px 20px -14px var(--i-sombra);
+  transition: transform 0.24s var(--i-aterriza), box-shadow 0.2s ease, border-color 0.2s ease; }
+.boton:hover { transform: translateY(-1px); border-color: rgba(var(--i-mor-rgb), 0.55); box-shadow: inset 0 1px 0 var(--i-bisel), 0 12px 26px -14px rgba(var(--i-mor-rgb), calc(0.4 + var(--i-brillo) * 0.3)); }
+.boton:active { transform: scale(0.97); transition-duration: 90ms; }
+.boton:focus-visible { outline: 2px solid var(--i-mor); outline-offset: 2px; }
+.boton .disco { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; flex: none; color: #fff;
+  background: radial-gradient(circle at 35% 30%, #a96bff, var(--i-mor) 70%); box-shadow: 0 0 calc(14px * var(--i-brillo)) rgba(var(--i-mor-rgb), 0.45); }
+.boton[data-tono=oro] .disco { color: #1a1205; background: radial-gradient(circle at 35% 30%, #ffc266, var(--i-oro) 70%); box-shadow: 0 0 calc(14px * var(--i-brillo)) rgba(var(--i-oro-rgb), 0.45); }
+.boton[data-tono=oro]:hover { border-color: rgba(var(--i-oro-rgb), 0.6); }
+.boton .disco img { width: 22px; height: 22px; object-fit: contain; }
+.boton .disco[data-logo] { background: #fff; box-shadow: 0 0 0 1px var(--i-linea-2); }
+.boton .donde { font-size: 12px; font-weight: 600; color: var(--i-tinta-3); }
+
+/* El punto que respira: un órgano vivo. */
+.respira { position: relative; width: 11px; height: 11px; border-radius: 50%; background: var(--i-mor); flex: none; }
+.respira::after { content: ''; position: absolute; inset: -6px; border-radius: 50%; border: 1.5px solid var(--i-mor); opacity: 0; }
+:global([data-modo=cerca]) .respira::after { animation: onda 2.8s ease-out infinite; }
+.respira[data-tono=oro] { background: var(--i-oro); } .respira[data-tono=oro]::after { border-color: var(--i-oro); }
+.respira[data-apagado] { background: transparent; border: 1.5px dashed var(--i-tenue); } .respira[data-apagado]::after { display: none; }
+@keyframes onda { 0% { transform: scale(0.6); opacity: 0.9; } 100% { transform: scale(2.3); opacity: 0; } }
+
+/* Un número que llega con un latido (solo de cerca). */
+.isla[data-modo=cerca] [data-late], .ambito[data-modo=cerca] [data-late] { animation: late 1.1s var(--i-curva); }
+@keyframes late { 0% { transform: scale(0.94); filter: blur(2px); opacity: 0.3; } 45% { transform: scale(1.03); filter: none; opacity: 1; } 100% { transform: none; } }
+
+.hueco { padding: 18px; border-radius: 14px; border: 1.5px dashed var(--i-linea-2); color: var(--i-tinta-3); font-size: 14px; }

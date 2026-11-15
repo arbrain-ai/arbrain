@@ -14,6 +14,7 @@
 import { esEdicionCliente, textoFaltaLlave, textoMotorApiApagado } from '../edicion.js'
 import { ESPACIO_ABLITERATED, TARIFA_ABLITERATED, destinoAbliterated, motivoNoDisponible } from '../chat-runtime/abliterated-chat.js'
 import type Database from 'better-sqlite3'
+import { tr, trMarca } from '../i18n/tr.js'
 import { REGISTRO, llavePresente, motorApiEncendido, proveedor, type Ruta } from './registro.js'
 
 export interface EntradaCatalogo {
@@ -41,24 +42,24 @@ export interface EntradaCatalogo {
 export const ID_ABLITERATED = 'deepseek-v4.1-flash-abliterated'
 
 export const CATALOGO: EntradaCatalogo[] = [
-  { id: 'opus-5.5', nombre: 'Opus 5.5', laboratorio: 'Anthropic', descripcion: 'El más capaz para el trabajo de todos los días', puesto: 1, openrouterId: 'anthropic/claude-opus-5.5', via: 'suscripcion', claude: ['claude-opus-5-5[1m]', 'claude-opus-5-5'] },
-  { id: 'fable-5.2', nombre: 'Fable 5.2', laboratorio: 'Anthropic', descripcion: 'Para lo más difícil y largo; gasta más suscripción', puesto: null, openrouterId: 'anthropic/claude-fable-5.2', via: 'suscripcion', claude: ['claude-fable-5-2[1m]', 'claude-fable-5-2'] },
-  { id: 'fable-5.1', nombre: 'Fable 5.1', laboratorio: 'Anthropic', descripcion: 'Para lo más difícil y largo; gasta más suscripción', puesto: 2, openrouterId: 'anthropic/claude-fable-5.1', via: 'suscripcion', claude: ['claude-fable-5-1[1m]', 'claude-fable-5-1'] },
-  { id: 'gpt-6-astra', nombre: 'GPT-6 Astra', laboratorio: 'OpenAI', descripcion: 'El tope de OpenAI; caro por token', puesto: 3, openrouterId: 'openai/gpt-6-astra', via: 'openrouter', ruta: 'gpt-6-astra@openrouter' },
-  { id: 'gemini-4-argon', nombre: 'Gemini 4 Argon', laboratorio: 'Google', descripcion: 'El más capaz de Google', puesto: 4, openrouterId: 'google/gemini-4-argon', via: 'openrouter', ruta: 'gemini-4-argon@openrouter' },
-  { id: 'gpt-6.1-sol', nombre: 'GPT-6.1 Sol', laboratorio: 'OpenAI', descripcion: 'Equilibrio de OpenAI entre capacidad y costo', puesto: 5, openrouterId: 'openai/gpt-6.1-sol', via: 'openrouter', ruta: 'gpt-6.1-sol@openrouter' },
-  { id: 'muse-spark-1.3', nombre: 'Muse Spark 1.3', laboratorio: 'Meta', descripcion: 'El modelo de frontera de Meta', puesto: 6, openrouterId: 'meta/muse-spark-1.3', via: 'openrouter', ruta: 'muse-spark-1.3@openrouter' },
-  { id: 'grok-4.7', nombre: 'Grok 4.7', laboratorio: 'xAI', descripcion: 'El de xAI, con ventana de 500 mil tokens', puesto: 7, openrouterId: 'x-ai/grok-4.7', via: 'openrouter', ruta: 'grok-4.7@openrouter' },
-  { id: 'mimo-v2.6-pro', nombre: 'MiMo-V2.6-Pro', laboratorio: 'Xiaomi', descripcion: 'Abierto de Xiaomi, muy barato para su nivel', puesto: 8, openrouterId: 'xiaomi/mimo-v2.6-pro', via: 'openrouter', ruta: 'mimo-v2.6-pro@openrouter' },
-  { id: 'glm-5.3', nombre: 'GLM-5.3', laboratorio: 'Z.ai', descripcion: 'Abierto de Z.ai, fuerte en código', puesto: 9, openrouterId: 'z-ai/glm-5.3', via: 'openrouter', ruta: 'glm-5.3@openrouter' },
-  { id: 'deepseek-v4.1-flash', nombre: 'DeepSeek V4.1 Flash', laboratorio: 'DeepSeek', descripcion: 'Rápido y casi gratis; ventana de un millón', puesto: 10, openrouterId: 'deepseek/deepseek-v4.1-flash', via: 'openrouter', ruta: 'deepseek-v4.1-flash@openrouter' },
-  { id: 'kimi-k3', nombre: 'Kimi K3', laboratorio: 'Moonshot', descripcion: 'Abierto de Moonshot, fuerte en agentes y código; ventana de un millón', puesto: null, openrouterId: 'moonshotai/kimi-k3', via: 'openrouter', ruta: 'kimi-k3@openrouter' },
-  { id: 'sonnet-5.5', nombre: 'Sonnet 5.5', laboratorio: 'Anthropic', descripcion: 'Rápido para tareas de rutina', puesto: null, openrouterId: 'anthropic/claude-sonnet-5.5', via: 'suscripcion', claude: ['claude-sonnet-5-5[1m]', 'claude-sonnet-5-5'] },
-  { id: 'haiku-5.5', nombre: 'Haiku 5.5', laboratorio: 'Anthropic', descripcion: 'El rápido y barato de Anthropic; ventana de un millón', puesto: null, openrouterId: 'anthropic/claude-haiku-5.5', via: 'suscripcion', claude: ['claude-haiku-5-5[1m]', 'claude-haiku-5-5'] },
+  { id: 'opus-5.5', nombre: 'Opus 5.5', laboratorio: 'Anthropic', descripcion: trMarca('El más capaz para el trabajo de todos los días'), puesto: 1, openrouterId: 'anthropic/claude-opus-5.5', via: 'suscripcion', claude: ['claude-opus-5-5[1m]', 'claude-opus-5-5'] },
+  { id: 'fable-5.2', nombre: 'Fable 5.2', laboratorio: 'Anthropic', descripcion: trMarca('Para lo más difícil y largo; gasta más suscripción'), puesto: null, openrouterId: 'anthropic/claude-fable-5.2', via: 'suscripcion', claude: ['claude-fable-5-2[1m]', 'claude-fable-5-2'] },
+  { id: 'fable-5.1', nombre: 'Fable 5.1', laboratorio: 'Anthropic', descripcion: trMarca('Para lo más difícil y largo; gasta más suscripción'), puesto: 2, openrouterId: 'anthropic/claude-fable-5.1', via: 'suscripcion', claude: ['claude-fable-5-1[1m]', 'claude-fable-5-1'] },
+  { id: 'gpt-6-astra', nombre: 'GPT-6 Astra', laboratorio: 'OpenAI', descripcion: trMarca('El tope de OpenAI; caro por token'), puesto: 3, openrouterId: 'openai/gpt-6-astra', via: 'openrouter', ruta: 'gpt-6-astra@openrouter' },
+  { id: 'gemini-4-argon', nombre: 'Gemini 4 Argon', laboratorio: 'Google', descripcion: trMarca('El más capaz de Google'), puesto: 4, openrouterId: 'google/gemini-4-argon', via: 'openrouter', ruta: 'gemini-4-argon@openrouter' },
+  { id: 'gpt-6.1-sol', nombre: 'GPT-6.1 Sol', laboratorio: 'OpenAI', descripcion: trMarca('Equilibrio de OpenAI entre capacidad y costo'), puesto: 5, openrouterId: 'openai/gpt-6.1-sol', via: 'openrouter', ruta: 'gpt-6.1-sol@openrouter' },
+  { id: 'muse-spark-1.3', nombre: 'Muse Spark 1.3', laboratorio: 'Meta', descripcion: trMarca('El modelo de frontera de Meta'), puesto: 6, openrouterId: 'meta/muse-spark-1.3', via: 'openrouter', ruta: 'muse-spark-1.3@openrouter' },
+  { id: 'grok-4.7', nombre: 'Grok 4.7', laboratorio: 'xAI', descripcion: trMarca('El de xAI, con ventana de 500 mil tokens'), puesto: 7, openrouterId: 'x-ai/grok-4.7', via: 'openrouter', ruta: 'grok-4.7@openrouter' },
+  { id: 'mimo-v2.6-pro', nombre: 'MiMo-V2.6-Pro', laboratorio: 'Xiaomi', descripcion: trMarca('Abierto de Xiaomi, muy barato para su nivel'), puesto: 8, openrouterId: 'xiaomi/mimo-v2.6-pro', via: 'openrouter', ruta: 'mimo-v2.6-pro@openrouter' },
+  { id: 'glm-5.3', nombre: 'GLM-5.3', laboratorio: 'Z.ai', descripcion: trMarca('Abierto de Z.ai, fuerte en código'), puesto: 9, openrouterId: 'z-ai/glm-5.3', via: 'openrouter', ruta: 'glm-5.3@openrouter' },
+  { id: 'deepseek-v4.1-flash', nombre: 'DeepSeek V4.1 Flash', laboratorio: 'DeepSeek', descripcion: trMarca('Rápido y casi gratis; ventana de un millón'), puesto: 10, openrouterId: 'deepseek/deepseek-v4.1-flash', via: 'openrouter', ruta: 'deepseek-v4.1-flash@openrouter' },
+  { id: 'kimi-k3', nombre: 'Kimi K3', laboratorio: 'Moonshot', descripcion: trMarca('Abierto de Moonshot, fuerte en agentes y código; ventana de un millón'), puesto: null, openrouterId: 'moonshotai/kimi-k3', via: 'openrouter', ruta: 'kimi-k3@openrouter' },
+  { id: 'sonnet-5.5', nombre: 'Sonnet 5.5', laboratorio: 'Anthropic', descripcion: trMarca('Rápido para tareas de rutina'), puesto: null, openrouterId: 'anthropic/claude-sonnet-5.5', via: 'suscripcion', claude: ['claude-sonnet-5-5[1m]', 'claude-sonnet-5-5'] },
+  { id: 'haiku-5.5', nombre: 'Haiku 5.5', laboratorio: 'Anthropic', descripcion: trMarca('El rápido y barato de Anthropic; ventana de un millón'), puesto: null, openrouterId: 'anthropic/claude-haiku-5.5', via: 'suscripcion', claude: ['claude-haiku-5-5[1m]', 'claude-haiku-5-5'] },
   // Sin filtro (3 nov 2026): el mismo Claude Code contra api.abliteration.ai o nuestro pod (chat-runtime/abliterated-chat.ts).
   // No es Claude: va en su grupo, siempre visible en la instalación original y oculto en la del alumno.
-  { id: ID_ABLITERATED, nombre: 'DeepSeek V4.1 Flash · abliterated', laboratorio: 'DeepSeek', descripcion: 'Sin filtro y no es Claude; los frenos del código siguen', puesto: null, openrouterId: '', via: 'abliterated' },
-  { id: 'gpt-6-luna', nombre: 'GPT-6 Luna', laboratorio: 'OpenAI', descripcion: 'El ligero de OpenAI; centavos por millón', puesto: null, openrouterId: 'openai/gpt-6-luna', via: 'openrouter', ruta: 'gpt-6-luna@openrouter' },
+  { id: ID_ABLITERATED, nombre: 'DeepSeek V4.1 Flash · abliterated', laboratorio: 'DeepSeek', descripcion: trMarca('Sin filtro y no es Claude; los frenos del código siguen'), puesto: null, openrouterId: '', via: 'abliterated' },
+  { id: 'gpt-6-luna', nombre: 'GPT-6 Luna', laboratorio: 'OpenAI', descripcion: trMarca('El ligero de OpenAI; centavos por millón'), puesto: null, openrouterId: 'openai/gpt-6-luna', via: 'openrouter', ruta: 'gpt-6-luna@openrouter' },
 ]
 
 /** Encendidos mientras Daniel no toque ningún interruptor. */
@@ -82,7 +83,7 @@ const porMillon = (v: unknown): number | null => {
 
 export function leerModelosOpenRouter(json: unknown): Map<string, ModeloOpenRouter> {
   const data = (json as { data?: unknown })?.data
-  if (!Array.isArray(data)) throw new Error('OpenRouter respondió sin lista de modelos.')
+  if (!Array.isArray(data)) throw new Error(tr('OpenRouter respondió sin lista de modelos.'))
   const mapa = new Map<string, ModeloOpenRouter>()
   for (const m of data as Array<Record<string, unknown>>) {
     if (typeof m?.id !== 'string') continue
@@ -98,12 +99,12 @@ export function consultarOpenRouter(fetcher: typeof fetch = fetch, ahora = Date.
   const consultadoEn = new Date(ahora).toISOString()
   const valor = fetcher('https://openrouter.ai/api/v1/models', { signal: AbortSignal.timeout(10_000) })
     .then(async r => {
-      if (!r.ok) throw new Error(`OpenRouter respondió ${r.status}.`)
+      if (!r.ok) throw new Error(tr('OpenRouter respondió {status}.', { status: r.status }))
       return { consultadoEn, modelos: leerModelosOpenRouter(await r.json()), error: null }
     })
     .catch((e: unknown) => {
       cache = null
-      return { consultadoEn, modelos: null, error: e instanceof Error ? e.message : 'No se pudo consultar OpenRouter.' }
+      return { consultadoEn, modelos: null, error: e instanceof Error ? e.message : tr('No se pudo consultar OpenRouter.') }
     })
   cache = { expira: ahora + HORA, valor }
   return valor
@@ -124,7 +125,7 @@ export function leerHabilitados(db: Database.Database): string[] {
 }
 
 export function guardarHabilitado(db: Database.Database, id: string, habilitado: boolean): string[] {
-  if (!CATALOGO.some(e => e.id === id)) throw new Error('Ese modelo no está en el catálogo.')
+  if (!CATALOGO.some(e => e.id === id)) throw new Error(tr('Ese modelo no está en el catálogo.'))
   db.exec('CREATE TABLE IF NOT EXISTS preferencia_motor (clave TEXT PRIMARY KEY, valor_json TEXT NOT NULL, updated_at INTEGER NOT NULL)')
   const actuales = new Set(leerHabilitados(db))
   if (habilitado) actuales.add(id); else actuales.delete(id)
@@ -189,16 +190,16 @@ export function catalogoPublico(env: EntornoCatalogo) {
     }
     if (e.via === 'suscripcion') {
       const modelo = env.resolverClaude(e.claude ?? [])
-      const motivo = modelo ? null : env.errorClaude ? `No se pudo leer el catálogo de Claude: ${env.errorClaude}` : 'Tu suscripción de Claude no ofrece este modelo hoy.'
+      const motivo = modelo ? null : env.errorClaude ? tr('No se pudo leer el catálogo de Claude: {error}', { error: env.errorClaude }) : tr('Tu suscripción de Claude no ofrece este modelo hoy.')
       return { ...base, cuenta: 'default', modelo, disponible: !!modelo, motivo }
     }
     const ruta = rutaDeEntrada(e)
-    const motivo = !ruta ? 'No tiene ruta en el registro de modelos.'
-      : ruta.estado === 'desactivada' ? 'Ruta desactivada en el registro.'
-      : existe === false ? `No existe en el catálogo de OpenRouter (${e.openrouterId}, consultado ${env.openrouter.consultadoEn.slice(0, 16).replace('T', ' ')} UTC).`
-      : existe === null ? `No se pudo verificar en OpenRouter: ${env.openrouter.error ?? 'sin respuesta'}.`
-      : !motorApi ? textoMotorApiApagado('El motor por API está apagado (ARBRAIN_MOTOR_API).')
-      : !llave ? textoFaltaLlave('OPENROUTER_API_KEY', 'Falta OPENROUTER_API_KEY en arbrain/server/.env.')
+    const motivo = !ruta ? tr('No tiene ruta en el registro de modelos.')
+      : ruta.estado === 'desactivada' ? tr('Ruta desactivada en el registro.')
+      : existe === false ? tr('No existe en el catálogo de OpenRouter ({id}, consultado {fecha} UTC).', { id: e.openrouterId, fecha: env.openrouter.consultadoEn.slice(0, 16).replace('T', ' ') })
+      : existe === null ? tr('No se pudo verificar en OpenRouter: {error}.', { error: env.openrouter.error ?? tr('sin respuesta') })
+      : !motorApi ? tr(textoMotorApiApagado(trMarca('El motor por API está apagado (ARBRAIN_MOTOR_API).')))
+      : !llave ? tr(textoFaltaLlave('OPENROUTER_API_KEY', trMarca('Falta OPENROUTER_API_KEY en arbrain/server/.env.')))
       : null
     return { ...base, cuenta: ruta?.cuenta ?? e.id, modelo: ruta?.modelId ?? null, disponible: !motivo, motivo }
   })

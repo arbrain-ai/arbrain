@@ -11,6 +11,7 @@ import { dirConfigArbrain, raizWorkspace } from '@/lib/rutas-instalacion'
 import { esEdicionCliente } from '@/lib/edicion'
 import { instalacion, NOMBRE_DUENO, SEGUNDA } from '@/config'
 import { PlumaLocal } from './local'
+import { tr } from '@/shared/i18n'
 
 export async function planningOwner() {
   const principal = await requireChatPrincipal()
@@ -33,7 +34,7 @@ export async function planningViewer(): Promise<{ ownerId: string; perfil?: stri
 }
 
 export function planningError(error: unknown) {
-  return Response.json({ error: error instanceof Error ? error.message : 'No se pudo consultar la planificación.' },
+  return Response.json({ error: error instanceof Error ? error.message : tr('No se pudo consultar la planificación.') },
     { status: error instanceof ChatAccessError ? error.status : 503, headers: { 'Cache-Control': 'no-store' } })
 }
 
@@ -47,7 +48,7 @@ export function checkMutationOrigin(request: Request) {
   const protocolo = llegaPorTelefono(request.headers.get('host'), request.headers.get('x-forwarded-proto')) ? 'https:' : requestUrl.protocol
   const expected = `${protocolo}//${request.headers.get('host') ?? requestUrl.host}`
   if ((origin && origin !== expected) || request.headers.get('sec-fetch-site') === 'cross-site') {
-    throw new ChatAccessError('Origen de escritura no autorizado.', 403)
+    throw new ChatAccessError(tr('Origen de escritura no autorizado.'), 403)
   }
 }
 

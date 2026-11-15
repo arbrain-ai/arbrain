@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import { strict as assert } from 'node:assert'
 import { mejorVozEspanol } from '../../src/features/chat/lib/chat-speech'
-import { consejoSinVozEspanol, idiomaDeRespaldo, idiomaPreferido } from '../../src/features/chat/lib/voz-sistema'
+import { consejoSinVozEspanol, DICTADO_BPS_LIGERO, dictadoLigero, idiomaDeRespaldo, idiomaPreferido, lineaDictado, opcionesGrabacion } from '../../src/features/chat/lib/voz-sistema'
 
 // Grupal del 23 oct 2026: «la voz por defecto en Windows es fea». Fuera de Apple se elige la mejor voz en español.
 const v = (name: string, lang: string, extra: { default?: boolean } = {}) => ({ name, lang, localService: true, ...extra })
@@ -56,4 +56,32 @@ test('sin voz en español, Ajustes › Voz dice dónde instalarla en SU sistema'
   assert.match(consejoSinVozEspanol('windows'), /Configuración › Hora e idioma › Voz/)
   assert.match(consejoSinVozEspanol('mac'), /Contenido hablado/)
   assert.doesNotMatch(consejoSinVozEspanol('windows'), /macOS|Mac\b/)
+})
+
+// ── Dictado ligero (12 nov 2026): datos móviles del teléfono ─────────────────────────────────────────────────────────
+test('el dictado va a 32 kbps solo en un cliente remoto fuera de la app de escritorio', () => {
+  assert.equal(DICTADO_BPS_LIGERO, 32_000)
+  assert.equal(dictadoLigero('servidor.ejemplo.lan', false), true) // el teléfono desde fuera
+  assert.equal(dictadoLigero('localhost', false), false)
+  assert.equal(dictadoLigero('127.0.0.1', false), false)
+  assert.equal(dictadoLigero('tauri.localhost', false), false)
+  assert.equal(dictadoLigero('servidor.ejemplo.lan', true), false) // la app de la Mac, aunque sea remota
+  assert.deepEqual(opcionesGrabacion('audio/mp4', true), { mimeType: 'audio/mp4', audioBitsPerSecond: 32_000 })
+  assert.deepEqual(opcionesGrabacion('audio/mp4', false), { mimeType: 'audio/mp4' })
+  assert.deepEqual(opcionesGrabacion(undefined, true), { audioBitsPerSecond: 32_000 })
+  assert.equal(opcionesGrabacion(undefined, false), undefined)
+})
+
+test('la bitácora del dictado: peso, duración y bitrate; nunca el texto', () => {
+  const j = JSON.parse(lineaDictado({ bytes: 120_000, tipo: 'audio/mp4', segundos: '30.004', bps_pedido: '32000', bps_real: '32000', ligero: '1' }, 'iPhone', new Date('2026-11-12T18:00:00Z')))
+  assert.equal(j.bytes, 120_000)
+  assert.equal(j.segundos, 30)
+  assert.equal(j.kbps_efectivo, 32)
+  assert.equal(j.bps_real, 32_000)
+  assert.equal(j.ligero, true)
+  const sin = JSON.parse(lineaDictado({ bytes: 5000, tipo: 'audio/webm', segundos: 'x', bps_real: undefined }, '', new Date()))
+  assert.equal(sin.segundos, null)
+  assert.equal(sin.kbps_efectivo, null)
+  assert.equal(sin.bps_pedido, null)
+  assert.equal(sin.ligero, false)
 })

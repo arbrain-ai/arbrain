@@ -21,6 +21,7 @@ import { join, sep } from 'node:path'
 import { TIPOS_DOCUMENTO, extensionDe, nombreSeguro } from '@/features/chat/lib/adjuntos'
 import { tipoPorBytes, EXTENSION_DE_TIPO } from '@/features/chat/lib/image-upload'
 import { dirDatosWeb } from './rutas-instalacion'
+import { tr } from '@/shared/i18n'
 
 export const MAX_ADJUNTO_BYTES = 10 * 1024 * 1024
 export const MAX_CARPETA_ADJUNTOS_BYTES = 1024 * 1024 * 1024
@@ -80,8 +81,8 @@ function carpetaLista(dir: string) {
  */
 export function guardarAdjuntoLocal(archivo: { nombre: string; bytes: Uint8Array }, dir = carpetaAdjuntos()): string {
   const { nombre, bytes } = archivo
-  if (bytes.byteLength === 0) throw new AdjuntoRechazado(400, 'sin_archivo', 'El archivo llegó vacío')
-  if (bytes.byteLength > MAX_ADJUNTO_BYTES) throw new AdjuntoRechazado(413, 'demasiado_grande', `El archivo pesa ${(bytes.byteLength / 1048576).toFixed(1)} MB y el máximo es 10 MB`)
+  if (bytes.byteLength === 0) throw new AdjuntoRechazado(400, 'sin_archivo', tr('El archivo llegó vacío'))
+  if (bytes.byteLength > MAX_ADJUNTO_BYTES) throw new AdjuntoRechazado(413, 'demasiado_grande', tr('El archivo pesa {mb} MB y el máximo es 10 MB', { mb: (bytes.byteLength / 1048576).toFixed(1) }))
   const tipoImagen = tipoPorBytes(bytes)
   const extImagen = tipoImagen ? EXTENSION_DE_TIPO[tipoImagen] : undefined
   const extDoc = extensionDe(nombre)
@@ -91,7 +92,7 @@ export function guardarAdjuntoLocal(archivo: { nombre: string; bytes: Uint8Array
   else throw new AdjuntoRechazado(400, 'tipo_invalido', 'Invalid file type')
   carpetaLista(dir)
   if (bytesEnCarpeta(dir) + bytes.byteLength > MAX_CARPETA_ADJUNTOS_BYTES) {
-    throw new AdjuntoRechazado(507, 'carpeta_llena', 'La carpeta de adjuntos llegó a 1 GB. Borra adjuntos viejos de la carpeta de datos de Arbrain y vuelve a enviar')
+    throw new AdjuntoRechazado(507, 'carpeta_llena', tr('La carpeta de adjuntos llegó a 1 GB. Borra adjuntos viejos de la carpeta de datos de Arbrain y vuelve a enviar'))
   }
   const final = `chat-${Date.now()}-${randomBytes(3).toString('hex')}${sufijo}`
   if (!nombreAdjuntoValido(final)) throw new AdjuntoRechazado(400, 'tipo_invalido', 'Invalid file type')

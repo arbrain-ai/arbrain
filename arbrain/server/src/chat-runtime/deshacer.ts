@@ -18,6 +18,7 @@ import { randomUUID } from 'node:crypto'
 import { copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
 import { dirname, isAbsolute, join } from 'node:path'
 import type { TurnIdentity, TurnRecord } from './journal.js'
+import { tr } from '../i18n/tr.js'
 
 export function checkpointsActivos(env: NodeJS.ProcessEnv = process.env): boolean {
   const v = (env.ARBRAIN_CHECKPOINTS ?? '').trim().toLowerCase()
@@ -73,20 +74,20 @@ async function conRebobinador<T>(deps: DeshacerDeps, id: TurnIdentity, sesion: s
 
 /** Vista previa (dryRun) o deshacer real del turno `id`: los archivos vuelven a como estaban antes de él. */
 export async function deshacerDesde(deps: DeshacerDeps, id: TurnIdentity, opciones: { dryRun: boolean }): Promise<VistaDeshacer> {
-  if (!(deps.activo ?? checkpointsActivos)()) return no('apagado', 'Deshacer está apagado en esta instalación (ARBRAIN_CHECKPOINTS=0).')
+  if (!(deps.activo ?? checkpointsActivos)()) return no('apagado', tr('Deshacer está apagado en esta instalación (ARBRAIN_CHECKPOINTS=0).'))
   const punto = puntoDeRestauracion(deps.turno(id))
-  if (!punto) return no('sin_punto', 'Este mensaje no tiene punto de restauración (es anterior a la función, de Codex o no llegó al motor).')
-  if (deps.ocupada(id)) return no('ocupada', 'Levy está trabajando en esta conversación; deshaz cuando termine el turno.')
+  if (!punto) return no('sin_punto', tr('Este mensaje no tiene punto de restauración (es anterior a la función, de Codex o no llegó al motor).'))
+  if (deps.ocupada(id)) return no('ocupada', tr('Levy está trabajando en esta conversación; deshaz cuando termine el turno.'))
   return conRebobinador(deps, id, punto.sesion, async (q) => {
     const vista: RewindFilesResult = await q.rewindFiles(punto.mensaje, { dryRun: true })
-    if (!vista.canRewind) return no('sdk', vista.error ?? 'El motor no pudo preparar la restauración.')
+    if (!vista.canRewind) return no('sdk', vista.error ?? tr('El motor no pudo preparar la restauración.'))
     const archivos = vista.filesChanged ?? []
     const base = { archivos, inserciones: vista.insertions ?? 0, borrados: vista.deletions ?? 0 }
     if (opciones.dryRun || !archivos.length) return { ok: true, ...base }
     // Antes de tocar nada: el estado de ahora, para poder rehacer.
     const respaldoId = respaldar(deps.dirRespaldos, archivos, { turnId: id.turnId, conversationId: id.conversationId })
     const real = await q.rewindFiles(punto.mensaje)
-    if (!real.canRewind) return { ...no('sdk', real.error ?? 'El motor no pudo restaurar los archivos.'), respaldoId }
+    if (!real.canRewind) return { ...no('sdk', real.error ?? tr('El motor no pudo restaurar los archivos.')), respaldoId }
     return { ok: true, ...base, respaldoId }
   })
 }
@@ -119,12 +120,12 @@ function apartar(de: string, a: string): void {
 
 /** Devuelve los archivos al estado que tenían justo antes de «Deshacer». Idempotente por respaldo. */
 export function rehacer(dir: string, respaldoId: string, origen: { conversationId: string }): { ok: boolean; archivos: string[]; error?: string } {
-  if (!UUID.test(respaldoId)) return { ok: false, archivos: [], error: 'Respaldo inválido.' }
+  if (!UUID.test(respaldoId)) return { ok: false, archivos: [], error: tr('Respaldo inválido.') }
   const carpeta = join(dir, respaldoId)
   const ruta = join(carpeta, 'manifiesto.json')
-  if (!existsSync(ruta)) return { ok: false, archivos: [], error: 'No encontré ese respaldo.' }
+  if (!existsSync(ruta)) return { ok: false, archivos: [], error: tr('No encontré ese respaldo.') }
   const m = JSON.parse(readFileSync(ruta, 'utf8')) as Manifiesto
-  if (m.conversationId !== origen.conversationId) return { ok: false, archivos: [], error: 'Ese respaldo es de otra conversación.' }
+  if (m.conversationId !== origen.conversationId) return { ok: false, archivos: [], error: tr('Ese respaldo es de otra conversación.') }
   if (m.rehecho) return { ok: true, archivos: m.entradas.map(e => e.ruta) }
   m.entradas.forEach((e, i) => {
     if (e.existia && e.copia) {

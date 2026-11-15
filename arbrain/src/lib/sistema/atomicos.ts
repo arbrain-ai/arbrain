@@ -1,3 +1,4 @@
+import { tr, trMarca } from '@/shared/i18n'
 /**
  * Los principios de Atomic Habits de la fila «Hábitos de hoy» (22 oct 2026): la identidad en una línea («Soy alguien que…») y,
  * por hábito, la señal (hora sugerida) y la versión de 2 minutos. `sistema_habitos` no tiene dónde guardarlos, así que viven en
@@ -11,14 +12,14 @@
  * reemplaza la regla del 25 oct («en su app cada hábito se ve con su nombre real»).
  * 28 oct 07:59, Daniel: «🔒 Privado» despierta curiosidad; se llama «Hábito 3», sin candado. El alias viejo «Privado» cuenta como vacío.
  */
-export const NOMBRE_PRIVADO = 'Hábito 3'
+export const NOMBRE_PRIVADO = trMarca('Hábito 3')
 /** El nombre neutro de un hábito privado sin alias propio. */
-export const aliasPorDefecto = (_posicion?: number) => NOMBRE_PRIVADO
+export const aliasPorDefecto = (_posicion?: number) => tr(NOMBRE_PRIVADO)
 /** El nombre que se pinta: el real, o el alias («Hábito 3» si no tiene) si el hábito es privado y no se está revelando. */
 export function nombrePublico(nombre: string, p: PrincipioHabito | undefined, _posicion?: number, revelado = false): string {
   if (!p?.privado || revelado) return nombre
   const alias = p.alias?.trim().replace(/^🔒\s*/u, '')
-  return alias && !/^privado$/iu.test(alias) ? alias : NOMBRE_PRIVADO
+  return alias && !/^privado$/iu.test(alias) ? alias : tr(NOMBRE_PRIVADO)
 }
 /** Igual que `nombrePublico`, para quien no sabe la posición. `_compartiendo` queda por compatibilidad: ya no cambia nada. */
 export const nombreEnPantalla = (nombre: string, p: PrincipioHabito | undefined, _compartiendo?: boolean) => nombrePublico(nombre, p)
@@ -55,28 +56,28 @@ export function aplicarCambio(actual: Atomicos, body: Record<string, unknown>, a
   let algo = false
   if ('identidad' in body) {
     const t = texto(body.identidad)
-    if (t === null) return 'La identidad debe ser texto.'
+    if (t === null) return tr('La identidad debe ser texto.')
     siguiente.identidad = t; algo = true
   }
   if ('clave' in body) {
     const clave = body.clave
-    if (typeof clave !== 'string' || !/^[a-z0-9_]{1,60}$/.test(clave)) return 'Hábito inválido.'
+    if (typeof clave !== 'string' || !/^[a-z0-9_]{1,60}$/.test(clave)) return tr('Hábito inválido.')
     const previo = siguiente.habitos[clave] ?? { senal: '', dosMinutos: '' }, nuevo = { ...previo }
     for (const campo of ['senal', 'dosMinutos'] as const) if (campo in body) {
       const t = texto(body[campo])
-      if (t === null) return 'La señal y la versión de 2 minutos deben ser texto.'
+      if (t === null) return tr('La señal y la versión de 2 minutos deben ser texto.')
       nuevo[campo] = t; algo = true
     }
     if ('alias' in body) {
       const t = texto(body.alias)
-      if (t === null) return 'El nombre visible debe ser texto.'
+      if (t === null) return tr('El nombre visible debe ser texto.')
       nuevo.alias = t; algo = true
     }
     if ('privado' in body) {
-      if (typeof body.privado !== 'boolean') return 'Privado debe ser sí o no.'
+      if (typeof body.privado !== 'boolean') return tr('Privado debe ser sí o no.')
       nuevo.privado = body.privado; algo = true
     }
     siguiente.habitos[clave] = nuevo
   }
-  return algo ? siguiente : 'Nada que guardar.'
+  return algo ? siguiente : tr('Nada que guardar.')
 }

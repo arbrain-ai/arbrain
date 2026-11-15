@@ -1,0 +1,62 @@
+/* Marketing › Canal de Levy (9 nov 2026). La vara de Business Intelligence: mismos tokens, la luz fría arriba, serif en la
+   cabeza y placas con bisel. Una sola columna de números que se lee como embudo: cuatro por fila en el panel (520), dos en el
+   teléfono, las siete en una línea en «Ampliar». Lo que aún no llega va apagado, con su fuente: nunca como 0. */
+.canal { container-type: inline-size; position: relative; isolation: isolate; display: flex; flex-direction: column; gap: 14px; min-width: 0; padding-bottom: 6px;
+  --placa-arriba: var(--l-gris-16, #fff); --placa-abajo: var(--l-gris-14, #f6f6f8); --bisel: rgba(var(--l-luz-rgb, 255, 255, 255), 0.9); --tinta: var(--l-tinta-morado, var(--brand)); }
+:global(.dark) .canal { --placa-arriba: var(--l-gris-5, #201d29); --placa-abajo: var(--l-gris-4, #19171f); --bisel: rgba(255, 255, 255, 0.06); --tinta: var(--l-tinta-morado-clara, #c7a6ff); }
+.luna { position: absolute; z-index: -1; inset: -40px 0 auto; height: 320px; pointer-events: none; background: radial-gradient(60% 70% at 50% 0%, rgba(var(--brand-rgb), 0.09), transparent 70%); }
+:global(.dark) .luna { background: radial-gradient(60% 70% at 50% 0%, rgba(var(--brand-rgb), 0.18), transparent 72%); }
+
+.barra { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.volver { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px 0 10px; border-radius: 999px; border: 1px solid var(--border); background: linear-gradient(180deg, var(--placa-arriba), var(--placa-abajo)); box-shadow: inset 0 1px 0 var(--bisel); color: var(--foreground); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.volver:hover { border-color: color-mix(in srgb, var(--brand) 40%, transparent); }
+.volver:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.sello { font-size: 11.5px; font-weight: 600; color: var(--muted); }
+
+.cabeza { display: flex; flex-direction: column; gap: 6px; padding: 4px 2px 2px; }
+.ceja { margin: 0; font-size: 11px; font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.ceja b { font-weight: 650; color: var(--tinta); }
+.palabra { margin: 2px 0 0; font-family: var(--serif-ui, serif); font-size: 30px; line-height: 1.08; font-weight: 600; letter-spacing: -0.02em; color: var(--foreground); text-wrap: balance; }
+.grande .palabra { font-size: 40px; }
+.lectura { margin: 2px 0 0; font-size: 14.5px; line-height: 1.5; color: var(--foreground); opacity: 0.88; text-wrap: pretty; max-width: 66ch; }
+.lectura span { display: inline-block; margin-right: 7px; padding: 0 7px; border-radius: 999px; font-size: 10.5px; font-weight: 700; line-height: 18px; vertical-align: 1px; color: var(--tinta); background: rgba(var(--l-velo-morado-rgb, var(--brand-rgb)), 0.1); box-shadow: inset 0 0 0 1px rgba(var(--brand-rgb), 0.14); }
+.aviso { margin: 0; font-size: 12px; line-height: 1.45; color: var(--muted); overflow-wrap: anywhere; }
+
+.placa { display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 13px 14px 12px; border-radius: 16px; border: 1px solid var(--border-subtle, var(--border)); background: linear-gradient(180deg, var(--placa-arriba), var(--placa-abajo)); box-shadow: inset 0 1px 0 var(--bisel), 0 1px 1px rgba(var(--l-sombra-rgb, 15, 17, 21), 0.08), 0 10px 22px -16px rgba(var(--l-sombra-rgb, 15, 17, 21), 0.55); }
+.semana { border-color: color-mix(in srgb, var(--brand) 32%, transparent); box-shadow: inset 0 1px 0 var(--bisel), 0 12px 30px -20px rgba(var(--brand-rgb), 0.75); }
+.placa[data-estado=programado] { border-style: dashed; background: color-mix(in srgb, var(--card) 60%, transparent); box-shadow: none; }
+
+.etiqueta { display: flex; align-items: baseline; gap: 8px; margin: 0; font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.etiqueta small { font-size: 11.5px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--foreground); opacity: 0.75; }
+.etiquetaSuelta { padding: 2px 2px 8px; }
+
+.celdas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 14px; margin: 0; }
+@container (min-width: 460px) { .celdas { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@container (min-width: 860px) { .celdas { grid-template-columns: repeat(7, minmax(0, 1fr)); } }
+.celda { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.celda dt { display: flex; align-items: center; justify-content: space-between; gap: 4px; font-size: 11px; font-weight: 600; line-height: 1.25; color: var(--muted); }
+.flecha { flex: none; color: color-mix(in srgb, var(--muted) 55%, transparent); }
+.celda dd { margin: 0; }
+.valor { font-size: 21px; font-weight: 680; line-height: 1.12; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: var(--foreground); }
+.celdas[data-grande] .valor { font-size: 25px; }
+.grande .valor { font-size: 24px; }
+.grande .celdas[data-grande] .valor { font-size: 29px; }
+.celda[data-espera] .valor, .celdas[data-grande] .celda[data-espera] .valor { font-size: 13.5px; font-weight: 550; line-height: 1.5; letter-spacing: 0; color: var(--muted); }
+.fuente { font-size: 10.5px; line-height: 1.3; color: color-mix(in srgb, var(--muted) 88%, transparent); overflow-wrap: anywhere; }
+
+.videos { list-style: none; display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; }
+.videoCabeza { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 3px 12px; min-width: 0; }
+.titulo { display: inline-flex; align-items: center; gap: 6px; min-width: 0; font-family: var(--serif-ui, serif); font-size: 16.5px; font-weight: 620; line-height: 1.25; color: var(--foreground); text-decoration: none; text-wrap: balance; }
+a.titulo:hover { color: var(--tinta); }
+a.titulo:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 4px; }
+a.titulo svg { flex: none; color: var(--muted); }
+.meta { font-size: 11.5px; font-weight: 600; color: var(--muted); }
+
+.vacio { display: flex; flex-direction: column; gap: 8px; padding: 13px 14px; border-radius: 14px; border: 1px dashed color-mix(in srgb, var(--muted) 55%, transparent); }
+.vacio p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--foreground); text-wrap: pretty; }
+.vacio b { font-weight: 650; }
+.orden { display: flex; flex-wrap: wrap; gap: 5px 6px; margin: 0; padding: 0; list-style: none; counter-reset: paso; }
+.orden li { counter-increment: paso; padding: 3px 9px 3px 7px; border-radius: 999px; font-size: 11.5px; font-weight: 600; color: var(--foreground); border: 1px solid var(--border-subtle, var(--border)); background: color-mix(in srgb, var(--card) 70%, transparent); }
+.orden li::before { content: counter(paso); margin-right: 6px; font-size: 10.5px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--tinta); }
+
+.pie { margin: 2px 0 0; font-size: 12px; line-height: 1.45; color: var(--muted); text-wrap: pretty; }

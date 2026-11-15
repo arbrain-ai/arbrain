@@ -1,4 +1,5 @@
 'use client'
+import { tr, trMarca } from '@/shared/i18n'
 import { useState } from 'react'
 import { Bot, Loader2, Check, Wrench, ChevronRight, X, AlertTriangle, Clock } from 'lucide-react'
 import type { ToolCall, ToolOutput } from '../hooks/useChat'
@@ -11,17 +12,17 @@ import { CuerpoDiff } from './DiffEdicion'
 import { useTapar } from '@/shared/stores/modo-directo-store'
 
 const TOOL_LABELS: Record<string, string> = {
-  Read: 'Leyendo archivo',
-  Write: 'Escribiendo archivo',
-  Edit: 'Editando archivo',
-  Bash: 'Ejecutando comando',
-  Glob: 'Buscando archivos',
-  Grep: 'Buscando en codigo',
-  WebSearch: 'Buscando en web',
-  WebFetch: 'Cargando pagina',
-  Agent: 'Delegando a subagente',
-  Skill: 'Ejecutando skill',
-  TodoWrite: 'Actualizando TODOs',
+  Read: trMarca('Leyendo archivo'),
+  Write: trMarca('Escribiendo archivo'),
+  Edit: trMarca('Editando archivo'),
+  Bash: trMarca('Ejecutando comando'),
+  Glob: trMarca('Buscando archivos'),
+  Grep: trMarca('Buscando en codigo'),
+  WebSearch: trMarca('Buscando en web'),
+  WebFetch: trMarca('Cargando pagina'),
+  Agent: trMarca('Delegando a subagente'),
+  Skill: trMarca('Ejecutando skill'),
+  TodoWrite: trMarca('Actualizando TODOs'),
 }
 
 function getToolLabel(toolName: string): string {
@@ -30,7 +31,7 @@ function getToolLabel(toolName: string): string {
     const parts = toolName.split('__')
     return parts.length >= 3 ? `${parts[1]}: ${parts.slice(2).join(' ')}` : toolName
   }
-  return TOOL_LABELS[toolName] ?? toolName
+  return TOOL_LABELS[toolName] ? tr(TOOL_LABELS[toolName]) : toolName
 }
 
 // "850ms" · "3.2s" · "1m 12s"
@@ -44,9 +45,9 @@ function formatDuration(ms: number): string {
 
 // Clasificación del SDK cuando la tool NO se ejecutó (tool_result_meta 0.3.216+)
 const KIND_LABELS: Record<string, string> = {
-  denied: 'denegada',
-  interrupted: 'interrumpida',
-  cancelled: 'cancelada',
+  denied: trMarca('denegada'),
+  interrupted: trMarca('interrumpida'),
+  cancelled: trMarca('cancelada'),
 }
 
 // Input parseado a campos legibles. El input llega como JSON (a veces parcial):
@@ -91,10 +92,10 @@ function MiniaturasDe({ llamadas }: { llamadas: LlamadaRastro[] }) {
 
 function ImagenLeida({ ruta, onFalla }: { ruta: string; onFalla: () => void }) {
   const [abierta, setAbierta] = useState(false)
-  const nombre = ruta.split('/').pop() ?? 'imagen'
+  const nombre = ruta.split('/').pop() ?? tr('imagen')
   return (
     <>
-      <button type="button" onClick={() => setAbierta(true)} title="Ver en grande" className={h.imagenLeida}>
+      <button type="button" onClick={() => setAbierta(true)} title={tr('Ver en grande')} className={h.imagenLeida}>
         <img src={localImageUrl(ruta)} alt={nombre} loading="lazy" decoding="async" draggable={false} onError={onFalla} />
       </button>
       {abierta && <ImageLightbox src={localImageUrl(ruta, true)} alt={nombre} onClose={() => setAbierta(false)} />}
@@ -115,7 +116,7 @@ function ToolDetailCard({ tool, input: inputCrudo, output: outputCrudo, onClose 
   const input = inputCrudo && tapar(inputCrudo)
   const output = outputCrudo && outputCrudo.content ? { ...outputCrudo, content: tapar(outputCrudo.content) } : outputCrudo
   const fields = parseInputFields(input)
-  const kindLabel = output?.kind ? (KIND_LABELS[output.kind] ?? output.kind) : null
+  const kindLabel = output?.kind ? (KIND_LABELS[output.kind] ? tr(KIND_LABELS[output.kind]) : output.kind) : null
   const failed = output?.isError || !!kindLabel
   const [imagenFalla, setImagenFalla] = useState(false)
   const imagen = !failed && !imagenFalla && output?.content?.includes('[imagen]') ? imagenLeida(tool.toolName, input) : null
@@ -162,7 +163,7 @@ function ToolDetailCard({ tool, input: inputCrudo, output: outputCrudo, onClose 
         <CuerpoDiff e={edicion} />
         {(fields || input) && <button type="button" onClick={() => setCrudo(c => !c)} aria-expanded={crudo}
           className="text-[11px] text-slate-500 dark:text-muted/70 hover:text-foreground/80 transition-colors">
-          {crudo ? 'Ocultar el input crudo' : 'Ver el input crudo'}
+          {crudo ? tr('Ocultar el input crudo') : tr('Ver el input crudo')}
         </button>}
       </div>}
 
@@ -203,7 +204,7 @@ function ToolDetailCard({ tool, input: inputCrudo, output: outputCrudo, onClose 
           }`}>{output.content}</pre>
         ) : (
           <p className="text-[10px] text-slate-500 dark:text-muted/60 italic">
-            {tool.status === 'running' ? 'Esperando output…' : 'Sin output capturado (turno previo a la actualización o tool sin salida).'}
+            {tool.status === 'running' ? tr('Esperando output…') : tr('Sin output capturado (turno previo a la actualización o tool sin salida).')}
           </p>
         )}
       </div>
@@ -238,8 +239,8 @@ export function GruposHerramientas({ grupos, soloUno }: {
       <ul className={h.bandeja} data-herramientas>
         <li data-grupo={enCurso.clave}>
           <button type="button" onClick={() => setDetalle(abierta ? null : l.tool.toolId)} aria-expanded={abierta} data-estado="corriendo" className={h.paso}>
-            {enCurso.agente ? <Bot className={h.icono} aria-label="Agente trabajando" /> : <span className={h.punto} aria-hidden />}
-            <span className={h.accion}>{l.especifica ? l.etiqueta : l.unidad}</span>
+            {enCurso.agente ? <Bot className={h.icono} aria-label={tr('Agente trabajando')} /> : <span className={h.punto} aria-hidden />}
+            <span className={h.accion}>{tr(l.especifica ? l.etiqueta : l.unidad)}</span>
             <MiniaturasDe llamadas={[l]} />
             {l.detalle && <span className={h.detalle}>{l.detalle}</span>}
           </button>
@@ -260,14 +261,14 @@ export function GruposHerramientas({ grupos, soloUno }: {
             <button type="button" onClick={() => uno ? setDetalle(abierto ? null : g.llamadas[0].tool.toolId) : alternar(g.id)}
               aria-expanded={abierto} data-estado={g.estado} className={h.paso}>
               {g.agente
-                ? <Bot className={h.icono} aria-label={g.estado === 'corriendo' ? 'Agente trabajando' : 'Agente'} />
+                ? <Bot className={h.icono} aria-label={g.estado === 'corriendo' ? tr('Agente trabajando') : tr('Agente')} />
                 : <span className={h.punto} aria-hidden />}
-              <span className={`${h.accion} ${h.accionLarga}`}>{g.etiqueta}</span>
+              <span className={`${h.accion} ${h.accionLarga}`}>{tr(g.etiqueta)}</span>
               <MiniaturasDe llamadas={g.llamadas} />
               {g.cuenta
-                ? <span className={h.cuenta}>· {g.cuenta}</span>
+                ? <span className={h.cuenta}>· {tr(g.cuenta)}</span>
                 : g.llamadas[0].detalle && <span className={h.detalle}>{g.llamadas[0].detalle}</span>}
-              {g.estado === 'error' && <AlertTriangle className={h.icono} data-falla aria-label="Falló" />}
+              {g.estado === 'error' && <AlertTriangle className={h.icono} data-falla aria-label={tr('Falló')} />}
               {!uno && <ChevronRight aria-hidden className={`${h.icono} ${h.flecha}`} />}
             </button>
             {uno && abierto && <ToolDetailCard tool={g.llamadas[0].tool} input={g.llamadas[0].input} output={g.llamadas[0].output} onClose={() => setDetalle(null)} />}
@@ -281,10 +282,10 @@ export function GruposHerramientas({ grupos, soloUno }: {
                         data-estado={l.estado} className={`${h.paso} ${h.pasoLlamada}`}>
                         <span className={h.punto} aria-hidden />
                         {/* Dentro del grupo la intención ya está dicha: cada llamada dice qué es o lo suyo propio. */}
-                        <span className={h.accion}>{l.especifica ? l.etiqueta : l.unidad}</span>
+                        <span className={h.accion}>{tr(l.especifica ? l.etiqueta : l.unidad)}</span>
                         <MiniaturasDe llamadas={[l]} />
                         {l.detalle && <span className={h.detalle}>{l.detalle}</span>}
-                        {l.estado === 'error' && <AlertTriangle className={h.icono} data-falla aria-label="Falló" />}
+                        {l.estado === 'error' && <AlertTriangle className={h.icono} data-falla aria-label={tr('Falló')} />}
                       </button>
                       {abiertaLlamada && <ToolDetailCard tool={l.tool} input={l.input} output={l.output} onClose={() => setDetalle(null)} />}
                     </li>
@@ -303,7 +304,7 @@ export function StreamingIndicator() {
   return (
     <span className="inline-flex items-center gap-1.5 text-[10px] text-muted/60">
       <Wrench size={10} className="animate-pulse" />
-      Procesando...
+      {tr('Procesando...')}
     </span>
   )
 }

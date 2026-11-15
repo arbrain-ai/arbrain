@@ -11,48 +11,22 @@ import { createHash, createHmac, timingSafeEqual } from 'node:crypto'
 import { execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { readdir, readFile, realpath, stat, writeFile } from 'node:fs/promises'
-import { homedir } from 'node:os'
 import path from 'node:path'
-import { alcanceDeAssets, resolverRuta, rutaPermitida, tipoDocumento, type Raices, type TipoDocumento } from '@/features/cabina/documento/ruta'
-import { esEdicionCliente } from '@/lib/edicion'
-import { raizWorkspace } from '@/lib/rutas-instalacion'
+import { alcanceDeAssets, rutaPermitida, tipoDocumento, type TipoDocumento } from '@/features/cabina/documento/ruta'
 import { secretoDeFirma } from '@/lib/secreto-firma'
 
-const CANDIDATAS = [process.env.BUSINESS_OS_ROOT, path.join(homedir(), 'Developer/artificial-brain'), path.join(homedir(), 'Developer/business-os'), path.join(process.cwd(), '..')].filter(Boolean) as string[]
-/**
- * El repo vivo (el mismo que lee el Taller): donde Levy escribe, no la copia que sirve la web.
- * Edición cliente: solo el workspace del alumno (`ARBRAIN_HOME`), también como «home»: nada fuera de su cerebro.
- */
-export function raices(): Raices {
-  if (esEdicionCliente()) { const ws = path.resolve(raizWorkspace()); return { repo: ws, home: ws } }
-  const repo = CANDIDATAS.find(r => existsSync(path.join(r, '.claude', 'memory', 'MEMORY.md'))) ?? CANDIDATAS[0]
-  return { repo: path.resolve(repo), home: homedir() }
-}
-
-export class ErrorDocumento extends Error { constructor(msg: string, public status = 400) { super(msg) } }
-
-/** Ruta pedida → ruta real en disco, validada antes y después de seguir enlaces. */
-export async function resolverEnDisco(pedida: string): Promise<{ abs: string; real: string; tipo: TipoDocumento }> {
-  const r = raices()
-  const res = resolverRuta(pedida, r)
-  if ('error' in res) throw new ErrorDocumento(res.error, 403)
-  let real: string
-  try { real = await realpath(res.abs) } catch { throw new ErrorDocumento('Ese archivo ya no existe.', 404) }
-  const repoReal = await realpath(r.repo).catch(() => r.repo)
-  if (rutaPermitida(real, r) && rutaPermitida(real, { ...r, repo: repoReal })) throw new ErrorDocumento('El enlace apunta fuera de lo permitido.', 403)
-  const info = await stat(real)
-  // Una carpeta se abre como entrega (8 oct 2026, visor único).
-  if (info.isDirectory()) return { abs: res.abs, real, tipo: 'carpeta' }
-  if (!info.isFile()) throw new ErrorDocumento('Eso no es un archivo ni una carpeta.', 400)
-  return { abs: res.abs, real, tipo: tipoDocumento(real) }
-}
+// Raíces y validación con disco viven en documento-disco.ts (sin `server-only`, para que la descarga se pruebe con la MISMA
+// validación, 12 nov 2026); aquí se re-exportan para quien ya las importaba de este módulo.
+export { ErrorDocumento, raices, resolverEnDisco } from './documento-disco'
+import { ErrorDocumento, raices } from './documento-disco'
+import { tr } from '@/shared/i18n'
 
 export const huella = (texto: string | Buffer) => createHash('sha256').update(texto).digest('hex').slice(0, 24)
 export const MAX_TEXTO = 1_000_000
 
 export async function leerTexto(real: string) {
   const [buf, info] = await Promise.all([readFile(real), stat(real)])
-  if (buf.length > MAX_TEXTO) throw new ErrorDocumento('El archivo es demasiado grande para el panel (más de 1 MB).', 413)
+  if (buf.length > MAX_TEXTO) throw new ErrorDocumento(tr('El archivo es demasiado grande para el panel (más de 1 MB).'), 413)
   return { texto: buf.toString('utf8'), hash: huella(buf), mtime: info.mtime.toISOString(), bytes: buf.length }
 }
 
@@ -60,7 +34,7 @@ export async function leerTexto(real: string) {
 export async function guardarTexto(real: string, texto: string, base: string) {
   const actual = await readFile(real)
   if (huella(actual) !== base) return { conflicto: true as const }
-  if (Buffer.byteLength(texto) > MAX_TEXTO) throw new ErrorDocumento('Demasiado texto para guardar desde el panel.', 413)
+  if (Buffer.byteLength(texto) > MAX_TEXTO) throw new ErrorDocumento(tr('Demasiado texto para guardar desde el panel.'), 413)
   await writeFile(real, texto, 'utf8')
   const info = await stat(real)
   return { conflicto: false as const, hash: huella(Buffer.from(texto, 'utf8')), mtime: info.mtime.toISOString() }
@@ -133,7 +107,7 @@ function sondarSinCache(real: string): Promise<SondaMedio | null> {
 
 export type ClaseArchivo = 'video' | 'audio' | 'imagen' | 'pdf' | 'documento' | 'carpeta' | 'otro'
 export interface ItemCarpeta { nombre: string; ruta: string; relativa: string; clase: ClaseArchivo; bytes: number; mtime: string; url?: string }
-const CLASE: Partial<Record<TipoDocumento, ClaseArchivo>> = { video: 'video', audio: 'audio', imagen: 'imagen', pdf: 'pdf', md: 'documento', txt: 'documento', html: 'documento', mermaid: 'documento' }
+const CLASE: Partial<Record<TipoDocumento, ClaseArchivo>> = { video: 'video', audio: 'audio', imagen: 'imagen', pdf: 'pdf', md: 'documento', txt: 'documento', html: 'documento', mermaid: 'documento', docx: 'documento', xlsx: 'documento', csv: 'documento' }
 const MAX_ITEMS = 240, PROFUNDIDAD = 3
 const SALTAR = /^(node_modules|\.git|__pycache__|\.DS_Store|work|build|tmp|cache)$/i
 

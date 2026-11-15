@@ -12,18 +12,18 @@ export interface MostrarEnLienzo {
   herramientas: boolean
   /** La barra de abajo: guardado, deshacer/rehacer, vista, zoom, encuadrar, descargar, atajos. */
   barraInferior: boolean
-  /** El índice «Todo 1 2 3 4». El velo del capítulo abierto no depende de esto. */
+  /** La barra de temas y el minipanel de capítulos (13 nov 2026). El velo del capítulo abierto no depende de esto. */
   capitulos: boolean
   /** El minimapa de la esquina inferior izquierda (2 nov 2026, Daniel: presentar a puro lápiz sin estorbos). */
   minimapa: boolean
   /** El bloque − % + y encuadrar dentro de la barra inferior. Sin barra inferior no se ve de todos modos. */
   zoom: boolean
-  /** La caja «Pídele a Levy» de la esquina (7 nov 2026): el pedido va al chat con el id del lienzo. Se apaga para grabar. */
-  pideALevy: boolean
+  // «Pídele a Levy» (7 nov 2026) salió del lienzo el 13 nov: Daniel le habla a Levy en la otra pantalla. Un valor
+  // guardado con esa clave se ignora al leer.
 }
 
 export const MOSTRAR_POR_DEFECTO: Readonly<MostrarEnLienzo> = {
-  herramientas: false, barraInferior: false, capitulos: true, minimapa: true, zoom: true, pideALevy: true,
+  herramientas: false, barraInferior: false, capitulos: true, minimapa: true, zoom: true,
 }
 const CLAVES = Object.keys(MOSTRAR_POR_DEFECTO) as Array<keyof MostrarEnLienzo>
 export const CLAVE_MOSTRAR = 'arbrain.lienzo.mostrar'

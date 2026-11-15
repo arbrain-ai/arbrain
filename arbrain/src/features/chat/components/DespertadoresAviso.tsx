@@ -5,6 +5,7 @@
  * («⏰ 2 despertadores · el próximo a las 14:05»), qué dice cada uno y puede cancelarlo.
  * Se refresca cada 10 s y cuando termina un turno (el turno pudo crear o consumir uno).
  */
+import { tr, trn, localeIntl } from '@/shared/i18n'
 import { useCallback, useEffect, useState } from 'react'
 import { AlarmClock, X } from 'lucide-react'
 import { tocaLeerAhora } from '@/shared/lib/reposo'
@@ -12,12 +13,12 @@ import { zonaDueno } from '@/shared/lib/zona-dueno'
 
 export interface DespertadorDto { id: string; texto: string; dueAt: number; cadaMs: number | null; restantes: number | null; estado: string }
 
-const hora = (ms: number) => new Date(ms).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', timeZone: zonaDueno() })
+const hora = (ms: number) => new Date(ms).toLocaleTimeString(localeIntl(), { hour: '2-digit', minute: '2-digit', timeZone: zonaDueno() })
 
 export function resumenDespertadores(lista: DespertadorDto[]): string | null {
   const pendientes = lista.filter(d => d.estado === 'pendiente').sort((a, b) => a.dueAt - b.dueAt)
   if (!pendientes.length) return null
-  return `${pendientes.length === 1 ? '1 despertador' : `${pendientes.length} despertadores`} · el próximo a las ${hora(pendientes[0].dueAt)}`
+  return trn(pendientes.length, '1 despertador · el próximo a las {hora}', '{n} despertadores · el próximo a las {hora}', { hora: hora(pendientes[0].dueAt) })
 }
 
 export function DespertadoresAviso({ conversationId, account, refrescar }: { conversationId?: string | null; account?: string | null; refrescar?: unknown }) {
@@ -45,7 +46,7 @@ export function DespertadoresAviso({ conversationId, account, refrescar }: { con
   }
   return (
     <div data-testid="despertadores-aviso" className="mx-auto mb-1.5 w-full max-w-3xl px-1">
-      <button type="button" onClick={() => setAbierto(v => !v)} title="Despertadores que Levy programó en esta conversación"
+      <button type="button" onClick={() => setAbierto(v => !v)} title={tr('Despertadores que Levy programó en esta conversación')}
         className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-[11px] text-muted hover:text-foreground transition-colors">
         <AlarmClock size={12} className="text-brand-ink" />
         <span>{resumen}</span>
@@ -55,8 +56,8 @@ export function DespertadoresAviso({ conversationId, account, refrescar }: { con
           {lista.filter(d => d.estado === 'pendiente').sort((a, b) => a.dueAt - b.dueAt).map(d => (
             <li key={d.id} className="flex items-start gap-2">
               <span className="shrink-0 font-mono text-[11px] text-brand-ink">{hora(d.dueAt)}</span>
-              <span className="min-w-0 flex-1 text-foreground/90">{d.texto}{d.cadaMs ? <span className="text-muted"> · cada {Math.round(d.cadaMs / 60_000)} min{d.restantes ? `, quedan ${d.restantes}` : ''}</span> : null}</span>
-              <button type="button" onClick={() => void cancelar(d.id)} aria-label={`Cancelar despertador ${d.id}`} title="Cancelar" className="shrink-0 rounded p-0.5 text-muted hover:text-foreground"><X size={12} /></button>
+              <span className="min-w-0 flex-1 text-foreground/90">{d.texto}{d.cadaMs ? <span className="text-muted"> · {d.restantes ? tr('cada {min} min, quedan {n}', { min: Math.round(d.cadaMs / 60_000), n: d.restantes }) : tr('cada {min} min', { min: Math.round(d.cadaMs / 60_000) })}</span> : null}</span>
+              <button type="button" onClick={() => void cancelar(d.id)} aria-label={tr('Cancelar despertador {id}', { id: d.id })} title={tr('Cancelar')} className="shrink-0 rounded p-0.5 text-muted hover:text-foreground"><X size={12} /></button>
             </li>
           ))}
         </ul>

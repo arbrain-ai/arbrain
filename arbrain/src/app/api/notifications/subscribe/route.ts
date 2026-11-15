@@ -5,6 +5,7 @@ import { esFallaDeAuth, respuestaServicioCaido } from '@/lib/infra-errores'
 import { almacenSupabase } from '@/features/notifications/lib/almacenSupabase'
 import { altaSuscripcion, bajaSuscripcion, estadoSuscripcion, type Respuesta } from '@/features/notifications/lib/pushServidor'
 import { clavePublicaVapid } from '@/features/notifications/lib/vapid'
+import { tr } from '@/shared/i18n'
 
 /**
  * Suscripción push de ESTE dispositivo (Ajustes › Notificaciones, 12 oct 2026). El destinatario sale de la sesión;
@@ -26,7 +27,7 @@ async function conAlmacen(fn: (usuario: string | null, almacen: ReturnType<typeo
     return responder(await fn(usuario, almacenSupabase(createServiceClient())))
   } catch (err) {
     console.error('notifications/subscribe:', err instanceof Error ? err.message : err)
-    return NextResponse.json({ error: 'No se pudo guardar este dispositivo. Intenta de nuevo.' }, { status: 500 })
+    return NextResponse.json({ error: tr('No se pudo guardar este dispositivo. Intenta de nuevo.') }, { status: 500 })
   }
 }
 

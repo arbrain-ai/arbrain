@@ -15,6 +15,7 @@ import { urlPanel } from '../panel/datos'
 import type { Trabajos } from '../trabajos-modelo'
 import { agenteParaRuta, agentesAbiertos, comentarios, comentariosAlChat, mandarComentarios, textoBoton, textoBotonLevy, useComentarios, type AgenteAbierto, type ComentarioPendiente } from './comentarios'
 import c from './comentarios.module.css'
+import { tr } from '@/shared/i18n'
 
 export interface Objetivo { ruta: string; linea?: number; cita?: string }
 export interface Pista { rama?: string; carpeta?: string }
@@ -39,12 +40,12 @@ export function Redactor({ objetivo, pista, agentes, onCerrar }: { objetivo: Obj
   }
   return <form className={c.redactor} data-redactor onSubmit={e => { e.preventDefault(); agregar() }}>
     <p className={c.donde}><MessageSquarePlus size={13} aria-hidden /><b>{donde(objetivo)}</b>{objetivo.cita && <q>{corta(objetivo.cita, 140)}</q>}</p>
-    <textarea ref={caja} value={texto} onChange={e => setTexto(e.target.value)} rows={3} placeholder="Qué quieres que cambie aquí" aria-label="Tu comentario"
+    <textarea ref={caja} value={texto} onChange={e => setTexto(e.target.value)} rows={3} placeholder={tr('Qué quieres que cambie aquí')} aria-label={tr('Tu comentario')}
       onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); agregar() } if (e.key === 'Escape') { e.preventDefault(); onCerrar() } }} />
     <div className={c.pie}>
-      <button type="submit" className={c.fuerte} disabled={!texto.trim()}>Agregar comentario</button>
-      <button type="button" className={c.boton} onClick={onCerrar}>Cancelar</button>
-      <small>⌘↵ agrega · no se envía hasta que mandes el lote</small>
+      <button type="submit" className={c.fuerte} disabled={!texto.trim()}>{tr('Agregar comentario')}</button>
+      <button type="button" className={c.boton} onClick={onCerrar}>{tr('Cancelar')}</button>
+      <small>{tr('⌘↵ agrega · no se envía hasta que mandes el lote')}</small>
     </div>
   </form>
 }
@@ -58,12 +59,12 @@ export function Bandeja({ agentes, solo, demo }: { agentes: AgenteAbierto[]; sol
   const router = useRouter()
   if (!lista.length && !nota) return null
   // Edición cliente (30 oct 2026): sin agentes en terminales; un solo grupo que va a su chat con Levy, como borrador.
-  if (esEdicionCliente() && !demo) return <section className={c.bandeja} data-bandeja-comentarios aria-label="Comentarios por mandar">
+  if (esEdicionCliente() && !demo) return <section className={c.bandeja} data-bandeja-comentarios aria-label={tr('Comentarios por mandar')}>
     {lista.length > 0 && <div className={c.grupo}>
       <ol className={c.lista}>{lista.map((x, i) => <li key={x.id}>
         <span className={c.num}>{i + 1}</span>
         <div><p className={c.donde}><b>{donde(x)}</b>{x.cita && <q>{corta(x.cita, 90)}</q>}</p><p className={c.texto}>{x.texto}</p></div>
-        <button type="button" className={c.quitar} onClick={() => comentarios.quitar(x.id)} aria-label={`Quitar el comentario ${i + 1}`} title="Quitar"><X size={13} aria-hidden /></button>
+        <button type="button" className={c.quitar} onClick={() => comentarios.quitar(x.id)} aria-label={tr('Quitar el comentario {n}', { n: i + 1 })} title={tr('Quitar')}><X size={13} aria-hidden /></button>
       </li>)}</ol>
       <button type="button" className={c.mandar} onClick={() => setNota({ texto: comentariosAlChat(lista, url => router.push(url)) })}><Send size={13} aria-hidden />{textoBotonLevy(lista.length)}</button>
     </div>}
@@ -72,30 +73,30 @@ export function Bandeja({ agentes, solo, demo }: { agentes: AgenteAbierto[]; sol
   const grupos = new Map<number | 'sin', ComentarioPendiente[]>()
   for (const x of lista) { const k = x.agente != null && agentes.some(a => a.id === x.agente) ? x.agente : 'sin'; grupos.set(k, [...(grupos.get(k) ?? []), x]) }
   const mandar = async (agente: number, cs: ComentarioPendiente[]) => {
-    if (demo) { setNota({ texto: `Ejemplo: aquí saldrían ${cs.length} comentarios en un solo mensaje.` }); return }
+    if (demo) { setNota({ texto: tr('Ejemplo: aquí saldrían {n} comentarios en un solo mensaje.', { n: cs.length }) }); return }
     setOcupado(agente); setNota(null)
-    try { setNota({ texto: await mandarComentarios(agente, cs) }) } catch (e) { setNota({ texto: e instanceof Error ? e.message : 'No se pudo.', error: true }) } finally { setOcupado(null) }
+    try { setNota({ texto: await mandarComentarios(agente, cs) }) } catch (e) { setNota({ texto: e instanceof Error ? tr(e.message) : tr('No se pudo.'), error: true }) } finally { setOcupado(null) }
   }
-  return <section className={c.bandeja} data-bandeja-comentarios aria-label="Comentarios por mandar">
+  return <section className={c.bandeja} data-bandeja-comentarios aria-label={tr('Comentarios por mandar')}>
     {[...grupos].map(([k, cs]) => {
       const a = k === 'sin' ? null : agentes.find(x => x.id === k)!
       return <div key={String(k)} className={c.grupo}>
         <ol className={c.lista}>{cs.map((x, i) => <li key={x.id}>
           <span className={c.num}>{i + 1}</span>
           <div><p className={c.donde}><b>{donde(x)}</b>{x.cita && <q>{corta(x.cita, 90)}</q>}</p><p className={c.texto}>{x.texto}</p></div>
-          <button type="button" className={c.quitar} onClick={() => comentarios.quitar(x.id)} aria-label={`Quitar el comentario ${i + 1}`} title="Quitar"><X size={13} aria-hidden /></button>
+          <button type="button" className={c.quitar} onClick={() => comentarios.quitar(x.id)} aria-label={tr('Quitar el comentario {n}', { n: i + 1 })} title={tr('Quitar')}><X size={13} aria-hidden /></button>
         </li>)}</ol>
         {a ? <button type="button" className={c.mandar} disabled={ocupado != null} onClick={() => void mandar(a.id, cs)}>
-          <Send size={13} aria-hidden />{ocupado === a.id ? 'Mandando…' : textoBoton(cs.length, a.nombre)}
+          <Send size={13} aria-hidden />{ocupado === a.id ? tr('Mandando…') : textoBoton(cs.length, a.nombre)}
         </button>
-          : <label className={c.elegir}>¿Para qué agente?
+          : <label className={c.elegir}>{tr('¿Para qué agente?')}
             <select defaultValue="" onChange={e => { const id = Number(e.target.value); if (id) comentarios.asignar(cs.map(x => x.id), id) }}>
-              <option value="" disabled>{agentes.length ? 'Elige un agente abierto' : 'No hay agentes abiertos'}</option>
+              <option value="" disabled>{agentes.length ? tr('Elige un agente abierto') : tr('No hay agentes abiertos')}</option>
               {agentes.map(x => <option key={x.id} value={x.id}>{x.nombre}</option>)}
             </select>
           </label>}
       </div>
     })}
-    {nota && <p className={c.nota} data-error={nota.error || undefined} role="status">{nota.texto}</p>}
+    {nota && <p className={c.nota} data-error={nota.error || undefined} role="status">{tr(nota.texto)}</p>}
   </section>
 }

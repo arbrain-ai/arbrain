@@ -25,6 +25,7 @@
  */
 
 import type { CanvasElement, Camera } from '../model/element'
+import { trMarca } from '@/shared/i18n'
 
 export interface SaveResult {
   ok: boolean
@@ -157,7 +158,7 @@ export class Autosave {
           return
         }
         if (!res.ok || typeof res.version !== 'number') {
-          const mensaje = res.error ?? 'el servidor no confirmo el guardado'
+          const mensaje = res.error ?? trMarca('el servidor no confirmo el guardado')
           const espera = res.reintentaEn ?? this.options.retryMs ?? 2000
           if (res.transitorio && ++this.transitorios < TRANSITORIOS_TOLERADOS) {
             this.options.onStatus?.({ kind: 'sincronizando', mensaje })

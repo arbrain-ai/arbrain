@@ -3,6 +3,7 @@ import { closeSync, existsSync, openSync, readSync, readdirSync, realpathSync } 
 import { join, relative, isAbsolute } from 'node:path'
 import { createHash } from 'node:crypto'
 import { controlAccess, scopedControls, type ControlScope } from './scoped-controls.js'
+import { tr } from '../i18n/tr.js'
 class NativeControlProofError extends Error {}
 export interface NativeControlEvidence extends ControlScope {
   kind: 'claude-transcript-and-bindings'
@@ -17,7 +18,7 @@ export interface NativeControlEvidence extends ControlScope {
  * No transcript text, prompts or credentials leave this function. */
 function inspectNativeControls(db: Database.Database, scope: ControlScope, roots: Record<string, string>): NativeControlEvidence {
   const id = scope.conversationId?.match(/^sdk:([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})$/i)?.[1]
-  if (!id || !['default', 'bro'].includes(scope.account)) throw new NativeControlProofError('No se pudo verificar la procedencia de los ajustes nativos.')
+  if (!id || !['default', 'bro'].includes(scope.account)) throw new NativeControlProofError(tr('No se pudo verificar la procedencia de los ajustes nativos.'))
   const candidates: Array<{ account: string; path: string }> = []
   for (const account of ['default', 'bro']) {
     const root = roots[account]
@@ -28,15 +29,15 @@ function inspectNativeControls(db: Database.Database, scope: ControlScope, roots
       const file = join(root, project.name, `${id}.jsonl`)
       if (!existsSync(file)) continue
       const resolved = realpathSync(file), rel = relative(resolvedRoot, resolved)
-      if (isAbsolute(rel) || rel === '..' || rel.startsWith('../')) throw new NativeControlProofError('La sesión nativa sale de la raíz de su cuenta.')
+      if (isAbsolute(rel) || rel === '..' || rel.startsWith('../')) throw new NativeControlProofError(tr('La sesión nativa sale de la raíz de su cuenta.'))
       candidates.push({ account, path: resolved })
     }
   }
-  if (candidates.length !== 1 || candidates[0].account !== scope.account) throw new NativeControlProofError('La sesión nativa no tiene una única cuenta verificable.')
+  if (candidates.length !== 1 || candidates[0].account !== scope.account) throw new NativeControlProofError(tr('La sesión nativa no tiene una única cuenta verificable.'))
   const bindings = db.prepare('SELECT chat_id FROM sessions WHERE session_id=?').all(id) as Array<{ chat_id: string }>
   const bindingAccount = (key: string) => key.includes('::') ? key.slice(key.lastIndexOf('::') + 2) : 'default'
   if (!bindings.length || !bindings.some(row => row.chat_id === `${scope.conversationId}${scope.account === 'default' ? '' : `::${scope.account}`}`)
-    || bindings.some(row => bindingAccount(row.chat_id) !== scope.account)) throw new NativeControlProofError('Los vínculos guardados no confirman la cuenta de la sesión nativa.')
+    || bindings.some(row => bindingAccount(row.chat_id) !== scope.account)) throw new NativeControlProofError(tr('Los vínculos guardados no confirman la cuenta de la sesión nativa.'))
   const fd = openSync(candidates[0].path, 'r')
   let matchingMetadata = 0
   try {
@@ -50,11 +51,11 @@ function inspectNativeControls(db: Database.Database, scope: ControlScope, roots
       let row: Record<string, unknown>
       try { row = JSON.parse(line) } catch { continue }
       if (row?.sessionId === undefined) continue
-      if (row.sessionId !== id) throw new NativeControlProofError('Los metadatos de la sesión nativa no coinciden con su identidad.')
+      if (row.sessionId !== id) throw new NativeControlProofError(tr('Los metadatos de la sesión nativa no coinciden con su identidad.'))
       matchingMetadata++
     }
   } finally { closeSync(fd) }
-  if (!matchingMetadata) throw new NativeControlProofError('No se encontraron metadatos verificables en la sesión nativa.')
+  if (!matchingMetadata) throw new NativeControlProofError(tr('No se encontraron metadatos verificables en la sesión nativa.'))
   return { ...scope, kind: 'claude-transcript-and-bindings', transcriptPathHash: createHash('sha256').update(candidates[0].path).digest('hex'), matchingMetadata, bindingCount: bindings.length, observedAt: new Date().toISOString() }
 }
 
@@ -62,7 +63,7 @@ export function proveNativeControls(db: Database.Database, scope: ControlScope, 
   try { return inspectNativeControls(db, scope, roots) }
   catch (error) {
     if (error instanceof NativeControlProofError) throw error
-    throw new NativeControlProofError('No se pudieron leer los metadatos de la sesión nativa. No se importaron sus ajustes.')
+    throw new NativeControlProofError(tr('No se pudieron leer los metadatos de la sesión nativa. No se importaron sus ajustes.'))
   }
 }
 

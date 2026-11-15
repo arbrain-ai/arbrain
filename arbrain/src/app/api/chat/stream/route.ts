@@ -8,6 +8,7 @@ import { capital, NOMBRE_DUENO } from '@/config'
 import { msjMotorCaido } from '@/lib/infra-errores'
 import { esEdicionCliente } from '@/lib/edicion'
 import { puenteDeConversacion } from '@/lib/espejo-conversaciones'
+import { tr } from '@/shared/i18n'
 
 // Turnos largos de Levy (deep work multi-minuto): sin esto, la función muere en
 // el límite default de Vercel y corta el stream aunque la app siga abierta.
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
     } else {
       // Native-only conversations still require host-side binding; keep their
       // explicit routing separate from persisted MC conversations during migration.
-      if (chatSessionId ? !principal.personalOwner : !principal.owner) throw new ChatAccessError('Las sesiones nativas requieren acceso del propietario.', 403)
+      if (chatSessionId ? !principal.personalOwner : !principal.owner) throw new ChatAccessError(tr('Las sesiones nativas requieren acceso del propietario.'), 403)
       scope = { owner: principal.id, account: accountId(body['account']), conversationId: chatSessionId }
     }
   } catch (error) { return chatAccessResponse(error) }
@@ -171,7 +172,7 @@ export async function POST(request: Request) {
     if (!upstream.ok || !upstream.body) {
       // SIEMPRE JSON: si el tunel murio, ngrok contesta HTML y el cliente
       // terminaba mostrando "Error desconocido" (incidente 2 sep 2026).
-      return upstreamError(upstream, 'el chat')
+      return upstreamError(upstream, tr('el chat'))
     }
 
     if (body.acceptOnly === true || body.inyectar === true) return new Response(upstream.body, { status: upstream.status, headers: { 'Content-Type': upstream.headers.get('Content-Type') ?? 'application/json' } })

@@ -7,6 +7,8 @@
  *                     ↘ error → quieta, con lo escrito intacto
  */
 
+import { tr } from '@/shared/i18n'
+
 export type FaseEntrada = 'quieta' | 'entrando' | 'lenta' | 'adentro' | 'error'
 
 /** A partir de aquí «entrando» dice que la red va lenta y que sigue intentando: el silencio parece cuelgue. */
@@ -30,12 +32,12 @@ export function destinoSeguro(next: string | null | undefined): string {
  */
 export function mensajeDeError(crudo: string | null | undefined): { texto: string; campo: 'email' | 'password' | null } {
   const m = (crudo ?? '').trim()
-  if (!m) return { texto: 'No se pudo entrar. Vuelve a intentarlo.', campo: null }
-  if (/invalid login credentials|invalid.*password|wrong password/i.test(m)) return { texto: 'El correo o la contraseña no coinciden.', campo: 'password' }
-  if (/email not confirmed/i.test(m)) return { texto: 'Este correo aún no está confirmado. Revisa tu bandeja.', campo: 'email' }
-  if (/not authorized|access denied|unauthorized/i.test(m)) return { texto: 'Este correo no tiene acceso a Arbrain.', campo: 'email' }
+  if (!m) return { texto: tr('No se pudo entrar. Vuelve a intentarlo.'), campo: null }
+  if (/invalid login credentials|invalid.*password|wrong password/i.test(m)) return { texto: tr('El correo o la contraseña no coinciden.'), campo: 'password' }
+  if (/email not confirmed/i.test(m)) return { texto: tr('Este correo aún no está confirmado. Revisa tu bandeja.'), campo: 'email' }
+  if (/not authorized|access denied|unauthorized/i.test(m)) return { texto: tr('Este correo no tiene acceso a Arbrain.'), campo: 'email' }
   if (/failed to fetch|networkerror|network request failed|load failed|fetch failed|timeout|timed out/i.test(m)) {
-    return { texto: 'Arbrain no respondió. Revisa tu conexión y vuelve a intentarlo; lo que escribiste sigue aquí.', campo: null }
+    return { texto: tr('Arbrain no respondió. Revisa tu conexión y vuelve a intentarlo; lo que escribiste sigue aquí.'), campo: null }
   }
   return { texto: m, campo: null }
 }

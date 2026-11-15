@@ -7,6 +7,7 @@ import { filtroCuentas } from '@/features/chat/lib/recientes-cuentas'
 import { ownerIds } from '@/features/avisos/server'
 import { HILOS_RUTINAS, IDS_HILOS_RUTINAS } from '@/shared/constants/rutinas-hilos'
 import { mezclarSesionesSdk, type SdkConversacionDto } from '@/features/chat/lib/sesiones-sdk'
+import { tr } from '@/shared/i18n'
 
 async function requireChatUser() {
   try { return { user: await requireChatPrincipal(), error: null } }
@@ -259,7 +260,7 @@ const MAX_FIJADAS_ORDEN = 100
 
 async function guardarOrdenFijadas(user: Awaited<ReturnType<typeof requireChatPrincipal>>, ids: unknown[]) {
   if (ids.length === 0 || ids.length > MAX_FIJADAS_ORDEN || new Set(ids).size !== ids.length || !ids.every((id) => typeof id === 'string' && UUID.test(id))) {
-    return Response.json({ error: 'ordenFijadas inválido' }, { status: 400 })
+    return Response.json({ error: tr('ordenFijadas inválido') }, { status: 400 })
   }
   const lista = ids as string[]
   try { await Promise.all(lista.map((id) => resolveChatConversation(user, id))) } catch (error) { return chatAccessResponse(error) }

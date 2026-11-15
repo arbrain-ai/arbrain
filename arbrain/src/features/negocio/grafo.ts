@@ -15,6 +15,7 @@
  */
 import dagre from 'dagre'
 import { agrupar, esPiso, porConstruir, type Arista, type Embudo, type Etapa, type Grupo, type InfoEmbudo } from './embudo'
+import { tr } from '@/shared/i18n'
 
 export type Orientacion = 'ancho' | 'estrecho'
 export interface Rect { x: number; y: number; w: number; h: number }
@@ -71,7 +72,7 @@ export function construirGrafo(e: Embudo, o: Orientacion): Grafo {
 
   // 1. Dónde va cada embudo. Estrecho: uno debajo de otro, en el orden declarado. Ancho: dagre, por la escalera de
   //    valor (el giro de vuelta no cuenta: subiría lo que va abajo).
-  const { embudos, rangoDe } = o === 'estrecho' ? enColumna(grupos, o) : porEscalera(grupos, e, embudoDe, o)
+  const { embudos, rangoDe } = o === 'estrecho' ? enColumna(grupos, e, embudoDe, o) : porEscalera(grupos, e, embudoDe, o)
   const nRangos = Math.max(...rangoDe.values()) + 1
   const filas = Array.from({ length: nRangos }, (_, i) => {
     const en = embudos.filter(b => rangoDe.get(b.id) === i)
@@ -98,7 +99,7 @@ export function construirGrafo(e: Embudo, o: Orientacion): Grafo {
     const GS = marco.get(S.embudo)!, GT = marco.get(T.embudo)!
     const puntos = S.embudo === T.embudo && a.tipo === 'flujo' ? rutaFlujo(S, T, o) : rutaEntre(S, T, GS, GT, rangoDe, filas, embudos, o)
     const opera = S.etapa.opera_hoy && T.etapa.opera_hoy
-    const etiqueta = a.tipo === 'flujo' ? null : (a.accion ?? (a.tipo === 'volante' ? 'De vuelta al inicio' : 'Sube'))
+    const etiqueta = a.tipo === 'flujo' ? null : (a.accion ?? (a.tipo === 'volante' ? tr('De vuelta al inicio') : tr('Sube')))
     aristas.push({ id: `${a.desde}->${a.hacia}`, desde: a.desde, hacia: a.hacia, tipo: a.tipo, arista: a, porConstruir: /construir/i.test(a.estado) || !opera, puntos, etiqueta, ancla: null })
   }
   colocarEtiquetas(aristas, embudos.map(b => b.rect))
@@ -118,14 +119,30 @@ export function construirGrafo(e: Embudo, o: Orientacion): Grafo {
   }
 }
 
-/** Estrecho: una columna, en el orden declarado; cada embudo es su propio rango. */
-function enColumna(grupos: Grupo[], o: Orientacion): { embudos: NodoEmbudo[]; rangoDe: Map<string, number> } {
+/**
+ * Estrecho: una columna, en el orden declarado; cada embudo es su propio rango. El pasillo de arriba de cada embudo
+ * crece con las etiquetas de la escalera que bajan a él: caben dos por renglón doble (arriba y abajo de la línea) y cada
+ * par extra suma un renglón a cada lado, para que ninguna se quede sin pasillo.
+ */
+function enColumna(grupos: Grupo[], e: Embudo, embudoDe: Map<string, Grupo>, o: Orientacion): { embudos: NodoEmbudo[]; rangoDe: Map<string, number> } {
   const m = MEDIDAS[o]
+  const indice = new Map(grupos.map((gr, i) => [gr.info.id, i]))
+  const llegan = new Map<string, number>()
+  for (const a of e.aristas) {
+    const S = embudoDe.get(a.desde), T = embudoDe.get(a.hacia)
+    if (a.tipo === 'flujo' || !S || !T || indice.get(S.info.id)! >= indice.get(T.info.id)!) continue
+    llegan.set(T.info.id, (llegan.get(T.info.id) ?? 0) + 1)
+  }
+  const pasilloSobre = (id: string) => {
+    const pares = Math.ceil((llegan.get(id) ?? 0) / 2)
+    return pares <= 1 ? m.rangos : Math.max(m.rangos, 2 * (ETIQUETA_H / 2 + AIRE_ETIQUETA + RENGLON / 2 + RENGLON * (pares - 1)))
+  }
   let y = 0
-  const embudos = grupos.map(gr => {
+  const embudos = grupos.map((gr, i) => {
+    if (i > 0) y += pasilloSobre(gr.info.id)
     const t = tamanoEmbudo(gr.etapas.length, o)
     const b: NodoEmbudo = { id: gr.info.id, rect: { x: 0, y, w: t.w, h: t.h }, info: gr.info, piso: esPiso(gr.info), porConstruir: porConstruir(gr.info), etapas: gr.etapas.map(et => et.id) }
-    y += t.h + m.rangos
+    y += t.h
     return b
   })
   return { embudos, rangoDe: new Map(embudos.map((b, i) => [b.id, i])) }
@@ -243,10 +260,12 @@ export function limpiar(p: Punto[]): Punto[] {
 
 /** Caja aproximada de una etiqueta a zoom 1 (10.5 px, Inter): la usa el acomodo y la pinta el componente. */
 export const cajaEtiqueta = (texto: string, centro: Punto): Rect => {
-  const w = Math.round(texto.length * 5.9 + 18), h = 20
+  const w = Math.round(texto.length * 5.9 + 18), h = ETIQUETA_H
   return { x: centro.x - w / 2, y: centro.y - h / 2, w, h }
 }
-const choca = (a: Rect, b: Rect, aire = 3) => a.x < der(b) + aire && der(a) + aire > b.x && a.y < abajo(b) + aire && abajo(a) + aire > b.y
+/** Alto de una etiqueta, aire mínimo contra lo que la rodea y distancia entre renglones de etiquetas en un pasillo. */
+const ETIQUETA_H = 20, AIRE_ETIQUETA = 3, RENGLON = 24
+const choca = (a: Rect, b: Rect, aire = AIRE_ETIQUETA) => a.x < der(b) + aire && der(a) + aire > b.x && a.y < abajo(b) + aire && abajo(a) + aire > b.y
 
 /**
  * Cada etiqueta en un pasillo: sobre un tramo de su arista (primero los horizontales, del más largo al más corto, al
@@ -260,8 +279,9 @@ function colocarEtiquetas(aristas: Trazo[], obstaculos: Rect[]) {
     const tramos = t.puntos.slice(1).map((b, i) => ({ a: t.puntos[i], b, h: Math.abs(t.puntos[i].y - b.y) < 0.5, l: Math.abs(t.puntos[i].x - b.x) + Math.abs(t.puntos[i].y - b.y) }))
       .sort((x, y) => Number(y.h) - Number(x.h) || y.l - x.l)
     let ancla: Punto | null = null
-    // Sobre un horizontal, la etiqueta va arriba de la línea (o abajo): dos aristas que comparten pasillo caben las dos.
-    buscar: for (const s of tramos) for (const dy of s.h ? [-12, 12, 0] : [0]) for (const f of [0.5, 0.35, 0.65, 0.22, 0.78]) {
+    // Sobre un horizontal, la etiqueta va arriba de la línea (o abajo): dos aristas que comparten pasillo caben las dos;
+    // si el pasillo es más alto (estrecho, más de dos etiquetas), renglones más lejos de la línea.
+    buscar: for (const s of tramos) for (const dy of s.h ? [-12, 12, -36, 36, -60, 60, 0] : [0]) for (const f of [0.5, 0.35, 0.65, 0.22, 0.78]) {
       const c = { x: s.a.x + (s.b.x - s.a.x) * f, y: s.a.y + (s.b.y - s.a.y) * f + dy }
       const caja = cajaEtiqueta(t.etiqueta, c)
       if (obstaculos.some(r => choca(caja, r)) || puestas.some(r => choca(caja, r))) continue

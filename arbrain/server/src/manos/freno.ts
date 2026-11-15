@@ -25,6 +25,8 @@ import { citaCubre, nombraAccion } from './cubre.js'
 import { esNavegador, juzgarAbrir, juzgarCliente, type JuicioCliente } from './freno-cliente.js'
 import { dominioProtegido } from './juicio-url.js'
 import { esEdicionCliente } from '../edicion.js'
+import { trMarca } from '../i18n/tr.js'
+import { resumenTarjetaManos } from './motivo-persona.js'
 import { claseDeEnvio, esCredencialEnAjustes } from '../autonomia/clase.js'
 import { anotarHechoSolo, claseDeCategoria, frenoApagado, modoDe } from '../autonomia/politica.js'
 import type { Adaptador, ContextoAccion, Expectativa, Objetivo, Observacion, PedidoActuar, PedidoObservar, ResultadoAccion, ResultadoVerificar, Ventana, App } from './contrato.js'
@@ -76,19 +78,19 @@ export const BUNDLES_NAVEGADOR = new Set(['com.google.chrome', 'com.google.chrom
  */
 export function datoSensible(texto: string, c: ContextoAccion): string | undefined {
   const t = texto.trim()
-  if (c.elemento?.subrol === 'AXSecureTextField') return 'contraseña (campo seguro)'
+  if (c.elemento?.subrol === 'AXSecureTextField') return trMarca('contraseña (campo seguro)')
   const pistas = [c.elemento?.titulo, c.elemento?.descripcion, c.elemento?.placeholder, c.elemento?.dom_id, c.elemento?.identificador].filter(Boolean).join(' ')
   if (/(contrase[nñ]a|password|passcode|\bpin\b|cvv|cvc|token|api.?key|secret|clave)/i.test(pistas)) return `campo de ${pistas.slice(0, 40)}`
-  if (/\b(?:\d[ -]?){13,19}\b/.test(t) && luhn(t.replace(/\D/g, '').slice(0, 19))) return 'número de tarjeta'
-  if (/\b\d{18}\b/.test(t.replace(/[ -]/g, ''))) return 'CLABE o cuenta bancaria'
-  if (/\b(sk|pk|rk)[-_][A-Za-z0-9_-]{20,}|\bgh[pousr]_[A-Za-z0-9]{20,}|\bAKIA[0-9A-Z]{16}\b|\bey[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}/.test(t)) return 'llave o token'
+  if (/\b(?:\d[ -]?){13,19}\b/.test(t) && luhn(t.replace(/\D/g, '').slice(0, 19))) return trMarca('número de tarjeta')
+  if (/\b\d{18}\b/.test(t.replace(/[ -]/g, ''))) return trMarca('CLABE o cuenta bancaria')
+  if (/\b(sk|pk|rk)[-_][A-Za-z0-9_-]{20,}|\bgh[pousr]_[A-Za-z0-9]{20,}|\bAKIA[0-9A-Z]{16}\b|\bey[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}/.test(t)) return trMarca('llave o token')
   if (/\b[A-Z]{4}\d{6}[HM][A-Z]{5}[A-Z0-9]\d\b/i.test(t)) return 'CURP'
   if (/\b[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}\b/i.test(t) && /rfc/i.test(pistas + t)) return 'RFC'
   const web = c.dentro_de?.includes('web')
   // A13 (0.2.15): su propio teléfono o correo (Ajustes › Tus datos) no es «transmitir datos»: mandarse algo a sí misma.
   if (web && esDatoPropio(t)) return undefined
-  if (web && /[\w.+-]+@[\w-]+\.[\w.]+/.test(t)) return 'correo electrónico en un formulario web'
-  if (web && /(\+?\d[\d ()-]{8,}\d)/.test(t) && t.replace(/\D/g, '').length >= 10) return 'teléfono en un formulario web'
+  if (web && /[\w.+-]+@[\w-]+\.[\w.]+/.test(t)) return trMarca('correo electrónico en un formulario web')
+  if (web && /(\+?\d[\d ()-]{8,}\d)/.test(t) && t.replace(/\D/g, '').length >= 10) return trMarca('teléfono en un formulario web')
   return undefined
 }
 function luhn(n: string): boolean {
@@ -210,7 +212,7 @@ export function juzgar(p: PedidoActuar, c: ContextoAccion, propias: Set<number> 
   // Pestañas de Daniel: en un navegador solo se opera la ventana propia (abierta por `navegar`) salvo mención explícita.
   // Excepto el panel de archivos que nació de una pestaña propia y la ventana que Daniel nombró en su cita.
   if (BUNDLES_NAVEGADOR.has((c.bundle ?? '').toLowerCase()) && ventanaAjena && !op.pestanaAutorizada && !panelDeArchivosPropio(p, c, propias)) {
-    return { irreversible: true, categoria: 'pestana_de_daniel', motivo: `la ventana ${p.ventana ?? '(sin id)'} del navegador no la abrieron las manos: son pestañas de ${DUENO}` }
+    return { irreversible: true, categoria: 'pestana_de_daniel', motivo: `la ventana ${p.ventana ?? trMarca('(sin id)')} del navegador no la abrieron las manos: son pestañas de ${DUENO}` }
   }
   if (p.accion === 'escribir' || p.accion === 'valor') {
     const d = datoSensible(p.texto ?? p.valor ?? '', c)
@@ -219,36 +221,36 @@ export function juzgar(p: PedidoActuar, c: ContextoAccion, propias: Set<number> 
 
   if (p.accion === 'tecla') {
     // Salir de la app: ⌘Q, ⌥⌘Esc (forzar salida), ⇧⌘Q (cerrar sesión).
-    if (mods.has('cmd') && tecla === 'q') return { irreversible: true, categoria: 'salir', motivo: mods.has('shift') ? '⇧⌘Q cierra la sesión de macOS' : '⌘Q sale de la app (y puede perder lo no guardado)' }
-    if (mods.has('cmd') && mods.has('option') && (tecla === 'escape' || tecla === 'esc')) return { irreversible: true, categoria: 'salir', motivo: '⌥⌘Esc fuerza la salida de apps' }
+    if (mods.has('cmd') && tecla === 'q') return { irreversible: true, categoria: 'salir', motivo: mods.has('shift') ? trMarca('⇧⌘Q cierra la sesión de macOS') : trMarca('⌘Q sale de la app (y puede perder lo no guardado)') }
+    if (mods.has('cmd') && mods.has('option') && (tecla === 'escape' || tecla === 'esc')) return { irreversible: true, categoria: 'salir', motivo: trMarca('⌥⌘Esc fuerza la salida de apps') }
     // Windows: Alt+F4 cierra la ventana (y la app si es la última). Solo las propias.
-    if (win && mods.has('option') && tecla === 'f4') return ventanaAjena ? { irreversible: true, categoria: 'ventana_de_daniel', motivo: 'Alt+F4 cerraría una ventana que no abrieron las manos en esta sesión' } : { irreversible: false, motivo: 'Alt+F4 sobre una ventana propia' }
+    if (win && mods.has('option') && tecla === 'f4') return ventanaAjena ? { irreversible: true, categoria: 'ventana_de_daniel', motivo: trMarca('Alt+F4 cerraría una ventana que no abrieron las manos en esta sesión') } : { irreversible: false, motivo: 'Alt+F4 sobre una ventana propia' }
     // Esconder, minimizar o cerrar ventanas de Daniel (regla del 2 oct): solo las propias. En Windows Ctrl+H/M no esconden nada.
     if (!win && mods.has('cmd') && (tecla === 'h' || tecla === 'm') && !mods.has('shift')) return { irreversible: true, categoria: 'ventana_de_daniel', motivo: `⌘${tecla.toUpperCase()} ${tecla === 'h' ? 'esconde la app' : 'minimiza la ventana'} de ${DUENO}` }
-    if (mods.has('cmd') && tecla === 'w' && ventanaAjena) return { irreversible: true, categoria: 'ventana_de_daniel', motivo: '⌘W cerraría una ventana que no abrieron las manos en esta sesión' }
+    if (mods.has('cmd') && tecla === 'w' && ventanaAjena) return { irreversible: true, categoria: 'ventana_de_daniel', motivo: trMarca('⌘W cerraría una ventana que no abrieron las manos en esta sesión') }
     // Borrar: ⌘⌫ (a la papelera), ⇧⌘⌫ (vaciar), Supr/⌫ sobre una lista. En un campo de texto ⌫ es editar (se deshace).
     if ((tecla === 'delete' || tecla === 'borrar' || tecla === 'forwarddelete' || tecla === 'suprimir') && mods.has('cmd')) {
       if (esTexto && !mods.has('shift')) return PASA
-      return { irreversible: true, categoria: 'borrar', motivo: mods.has('shift') ? '⇧⌘⌫ vacía la papelera' : '⌘⌫ manda a la papelera o borra el elemento' }
+      return { irreversible: true, categoria: 'borrar', motivo: mods.has('shift') ? trMarca('⇧⌘⌫ vacía la papelera') : trMarca('⌘⌫ manda a la papelera o borra el elemento') }
     }
     if ((tecla === 'delete' || tecla === 'forwarddelete' || tecla === 'suprimir' || tecla === 'borrar') && !esTexto && e && /^(AXRow|AXCell|AXOutline|AXTable|AXList|AXGroup|AXImage)$/.test(e.rol)) {
       return { irreversible: true, categoria: 'borrar', motivo: `${tecla} sobre un ${e.rol} borra el elemento seleccionado` }
     }
     // Espacio sobre un botón enfocado es un clic: se juzga como tal.
-    if ((tecla === 'space' || tecla === 'espacio') && e && !esTexto && ROLES_BOTON.test(e.rol)) return juzgarBoton(etiquetaDe(c), c, 'Espacio sobre')
+    if ((tecla === 'space' || tecla === 'espacio') && e && !esTexto && ROLES_BOTON.test(e.rol)) return juzgarBoton(etiquetaDe(c), c, trMarca('Espacio sobre'))
     if (tecla === 'return' || tecla === 'enter') {
       if (esTexto) {
         const tipo = tipoCampo(c)
         if (tipo === 'busqueda' && !mods.has('cmd')) return { irreversible: false, motivo: 'Enter en un campo de búsqueda o barra de direcciones navega' }
         if (tipo === 'compositor' || mods.has('cmd')) return { irreversible: true, categoria: 'enviar', motivo: `${mods.has('cmd') ? '⌘Enter' : 'Enter'} en un campo de ${enChat(c) ? 'chat' : 'mensaje'} lo envía` }
-        if (tipo === 'formulario_web') return { irreversible: true, categoria: 'enviar', motivo: 'Enter en un campo de una página envía el formulario' }
-        if (c.dialogo?.boton_defecto) return juzgarBoton(c.dialogo.boton_defecto, c, 'Enter presiona el botón por defecto')
+        if (tipo === 'formulario_web') return { irreversible: true, categoria: 'enviar', motivo: trMarca('Enter en un campo de una página envía el formulario') }
+        if (c.dialogo?.boton_defecto) return juzgarBoton(c.dialogo.boton_defecto, c, trMarca('Enter presiona el botón por defecto'))
         return { irreversible: false, motivo: 'Enter en un campo nativo sin envío' }
       }
-      if (e && ROLES_BOTON.test(e.rol)) return juzgarBoton(etiquetaDe(c), c, 'Enter sobre')
+      if (e && ROLES_BOTON.test(e.rol)) return juzgarBoton(etiquetaDe(c), c, trMarca('Enter sobre'))
       const defecto = c.dialogo?.boton_defecto ?? c.boton_defecto_ventana
-      if (defecto) return juzgarBoton(defecto, c, 'Enter presiona el botón por defecto')
-      if (enChat(c)) return { irreversible: true, categoria: 'enviar', motivo: 'Enter en una app de chat sin saber qué campo tiene el foco' }
+      if (defecto) return juzgarBoton(defecto, c, trMarca('Enter presiona el botón por defecto'))
+      if (enChat(c)) return { irreversible: true, categoria: 'enviar', motivo: trMarca('Enter en una app de chat sin saber qué campo tiene el foco') }
       return { irreversible: false, motivo: 'Enter sin botón por defecto ni campo de envío' }
     }
     // Atajos de menú con ⌘: el menú dice qué hacen; los irreversibles por letra ya están arriba.
@@ -257,7 +259,7 @@ export function juzgar(p: PedidoActuar, c: ContextoAccion, propias: Set<number> 
 
   if (p.accion === 'escribir') {
     // Un salto de línea al final de lo escrito en un compositor es un Enter.
-    if (/[\r\n]\s*$/.test(p.texto ?? '') && esTexto && tipoCampo(c) === 'compositor') return { irreversible: true, categoria: 'enviar', motivo: 'el texto termina en salto de línea dentro de un campo de mensaje: lo envía' }
+    if (/[\r\n]\s*$/.test(p.texto ?? '') && esTexto && tipoCampo(c) === 'compositor') return { irreversible: true, categoria: 'enviar', motivo: trMarca('el texto termina en salto de línea dentro de un campo de mensaje: lo envía') }
     return PASA
   }
 
@@ -592,8 +594,9 @@ export class Freno implements Adaptador {
     }
     const tarjeta = modo === 'preguntar' || modo === 'carpeta' || regla !== null
     if (tarjeta) {
-      const motivo = regla === 'R5' ? `envío a un grupo o lista (${envioMasivo(c)}): ${f.freno.motivo}` : regla === 'R6' ? `destino que no salió de tu mensaje tras leer la pantalla: ${f.freno.motivo}` : regla === 'pedido' ? `no lo pediste en el chat: ${f.freno.motivo}` : f.freno.motivo
-      const humana = await confirmacionHumana({ categoria: categoriaDe(f.freno.categoria, f.freno.motivo), resumen: `${motivo}${c.app ? ` en ${c.app}` : ''}`.slice(0, 280), herramienta: `manos:${p.accion}`, partes: [c.app ?? p.app ?? null, f.freno.motivo, etiquetaDe(c) || c.elemento?.rol || null, p.texto ?? p.valor ?? null, p.tecla ? [...(p.modificadores ?? []), p.tecla].join('+') : null] })
+      // Lo que lee la persona en su tarjeta, en su idioma (motivo-persona.ts); la categoría se juzga con el motivo de siempre.
+      const motivo = resumenTarjetaManos(f.freno.motivo, { regla, grupo: regla === 'R5' ? envioMasivo(c) : null, app: c.app })
+      const humana = await confirmacionHumana({ categoria: categoriaDe(f.freno.categoria, f.freno.motivo), resumen: motivo.slice(0, 280), herramienta: `manos:${p.accion}`, partes: [c.app ?? p.app ?? null, f.freno.motivo, etiquetaDe(c) || c.elemento?.rol || null, p.texto ?? p.valor ?? null, p.tecla ? [...(p.modificadores ?? []), p.tecla].join('+') : null] })
       if (!humana.ok) { this.ultimo = { categoria: f.freno.categoria, motivo: 'sin confirmación humana', paso: false, bloqueo: true }; return { ok: false, efecto: 'bloqueado', freno: { ...f.freno, paso: false }, detalle: humana.detalle } }
     }
     const r = await this.adoptandoNuevas(p, () => this.interno.actuar(p))

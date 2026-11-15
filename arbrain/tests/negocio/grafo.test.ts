@@ -111,22 +111,22 @@ test('el embudo de Daniel: la escalera completa en el dibujo', { skip: !hayEjemp
   for (const o of MODOS) {
     const g = construirGrafo(e, o)
     const y = (id: string) => g.embudos.find(b => b.id === id)!.rect.y
-    // Canal de Levy arriba; el repo debajo de él y el canal de Daniel a su lado; luego la gratuita, SaaS Factory y el
-    // Acompañamiento al fondo. Nadie lo escribió a mano: sale de las aristas `upsell`.
-    assert.ok(y('Levy') < y('Repo'), `${o}: el canal de Levy sube al repo`)
-    if (o === 'ancho') assert.equal(y('Daniel'), y('Repo'), 'ancho: tu canal va al lado del repo (lo decide dagre por la escalera)')
-    else assert.deepEqual(g.embudos.map(b => b.id), (e.embudos ?? []).map(b => b.id), 'estrecho: una columna en el orden declarado')
-    assert.ok(y('Repo') < y('Gratuita') && y('Gratuita') < y('SFC') && y('SFC') < y('Acompañamiento'), `${o}: la escalera baja hasta el Acompañamiento`)
+    // Tu show, el canal de Levy y el repo arriba (los tres mandan a la página); Tráfico propio debajo de los tres; luego
+    // SaaS Factory (debajo también de la gratuita) y el Acompañamiento al fondo. Nadie lo escribió a mano: en ancho sale
+    // de las aristas `upsell` (dagre); en estrecho, del orden declarado.
+    for (const id of ['Daniel', 'Levy', 'Repo']) assert.ok(y(id) < y('Lista'), `${o}: ${id} sube a la página`)
+    if (o === 'estrecho') assert.deepEqual(g.embudos.map(b => b.id), (e.embudos ?? []).map(b => b.id), 'estrecho: una columna en el orden declarado')
+    assert.ok(y('Lista') < y('SFC') && y('Gratuita') < y('SFC') && y('SFC') < y('Acompañamiento'), `${o}: la escalera baja hasta el Acompañamiento`)
     // El giro de vuelta (casos → contenido) sube rodeando el dibujo por la izquierda.
     const giro = g.aristas.find(t => t.tipo === 'volante')!
-    assert.equal(giro.desde, 'ht.expansion'); assert.equal(giro.hacia, 'lt.adquisicion')
+    assert.equal(giro.desde, 'ht.expansion'); assert.equal(giro.hacia, 'daniel.adquisicion')
     const izquierda = Math.min(...g.embudos.filter(b => ['SFC', 'Acompañamiento'].includes(b.id)).map(b => b.rect.x))
     assert.ok(Math.min(...giro.puntos.map(p => p.x)) < izquierda, `${o}: el giro rodea por la izquierda`)
     // Las etiquetas importantes se leen en el dibujo.
-    for (const accion of ['la escalera sube: masterclass', 'del repo a la comunidad', 'casos → contenido']) assert.ok(g.aristas.some(t => t.etiqueta === accion && t.ancla), `${o}: falta la etiqueta «${accion}»`)
+    for (const accion of ['la escalera sube: masterclass', 'del video a la página del regalo', 'casos → tu show']) assert.ok(g.aristas.some(t => t.etiqueta === accion && t.ancla), `${o}: falta la etiqueta «${accion}»`)
     assert.ok(g.aristas.every(t => !t.etiqueta || t.ancla), `${o}: cada etiqueta de la escalera encuentra su pasillo`)
-    // El cuello (Casos) es una etapa del dibujo con su marca.
-    assert.ok(g.etapas.find(n => n.id === 'ht.expansion')!.etapa.cuello.es)
+    // El cuello (convertir cada video en contactos tuyos) es una etapa del dibujo con su marca.
+    assert.ok(g.etapas.find(n => n.id === 'lista.conversion')!.etapa.cuello.es)
   }
 })
 

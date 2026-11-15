@@ -9,6 +9,7 @@
 import { useEffect, useSyncExternalStore } from 'react'
 import { alVolver, tocaLeerAhora } from '@/shared/lib/reposo'
 import { apiPermitidaEnCliente, esEdicionCliente } from '@/lib/edicion'
+import { tr } from '@/shared/i18n/tr'
 
 interface Entrada { data?: unknown; error?: string; cargando: boolean; leidoEn?: number; viejo: boolean; promesa?: Promise<void>; version: number }
 const entradas = new Map<string, Entrada>()
@@ -32,16 +33,16 @@ async function leer(url: string) {
       // Edición cliente (27 oct 2026, fundador en el teléfono): una fuente fuera de APIS_CLIENTE siempre da 404 en el
       // proxy. Sin red, y con leidoEn para que el sondeo no la vuelva a pedir cada pulso.
       if (esEdicionCliente() && !apiPermitidaEnCliente(new URL(url, 'http://x').pathname)) {
-        entradas.set(url, { ...entrada(url), cargando: false, leidoEn: Date.now(), viejo: false, error: 'No disponible en esta edición.', version: entrada(url).version + 1 })
+        entradas.set(url, { ...entrada(url), cargando: false, leidoEn: Date.now(), viejo: false, error: tr('No disponible en esta edición.'), version: entrada(url).version + 1 })
         return
       }
       const r = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(100_000) })
       const body = await r.json().catch(() => ({}))
-      if (!r.ok || body?.ok === false) throw new Error(body?.error ?? `La fuente respondió ${r.status}.`)
+      if (!r.ok || body?.ok === false) throw new Error(body?.error ?? tr('La fuente respondió {estado}.', { estado: r.status }))
       entradas.set(url, { data: body, cargando: false, leidoEn: Date.now(), viejo: false, version: entrada(url).version + 1 })
     } catch (err) {
       const prev = entrada(url)
-      entradas.set(url, { ...prev, promesa: undefined, cargando: false, viejo: false, error: err instanceof Error ? err.message : 'No se pudo leer la fuente.', version: prev.version + 1 })
+      entradas.set(url, { ...prev, promesa: undefined, cargando: false, viejo: false, error: err instanceof Error ? err.message : tr('No se pudo leer la fuente.'), version: prev.version + 1 })
     } finally {
       const cur = entrada(url); if (cur.promesa) entradas.set(url, { ...cur, promesa: undefined })
       avisar(url)

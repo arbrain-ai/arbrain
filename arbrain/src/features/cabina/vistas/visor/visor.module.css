@@ -1,9 +1,13 @@
 /* Visor único (8 oct 2026): PDF, video, audio, imágenes y carpeta de entrega. Controles quietos, el contenido manda. */
 .aviso { margin: 0; padding: 7px 10px; border-radius: 8px; font-size: 12.5px; line-height: 1.4; color: var(--foreground); background: rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.1); border: 1px solid var(--l-borde-ambar, rgba(var(--gold-rgb), 0.25)); }
+.aviso:has(a[data-descargar]) { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 
 /* Botones comunes */
 .icono, .mini, .marcar, .lado, .enviar, .secundario, .volver, .velocidad { font: inherit; cursor: pointer; }
 .icono { display: inline-grid; place-items: center; width: 28px; height: 28px; border: 0; border-radius: 7px; background: none; color: var(--foreground); }
+a.icono { text-decoration: none; } /* «Descargar» es un enlace (12 nov 2026) con la cara de los botones */
+/* Con el dedo, al menos el control de la escala nueva del chat (--tam-control, 36 px); el del video ya mide 40. */
+@media (pointer: coarse) { a.icono[data-descargar] { min-width: var(--tam-control, 36px); min-height: var(--tam-control, 36px); } }
 .icono:hover, .mini:hover { background: rgba(var(--l-sombra-rgb, 127, 127, 127), 0.16); }
 .icono[aria-pressed='true'] { background: rgba(var(--brand-rgb), 0.16); color: var(--l-tinta-morado, var(--brand)); }
 .icono:disabled, .mini:disabled { opacity: 0.35; cursor: default; }
@@ -25,6 +29,43 @@
 .busqueda input::-webkit-search-cancel-button { display: none; }
 .cuenta { font-size: 11.5px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .cuerpoPdf { flex: 1; min-height: 0; display: flex; }
+/* Lector de libros (14 nov 2026): lateral con índice o páginas, capítulo en curso, papel y lo leído. */
+.capitulo { max-width: min(30vw, 300px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--muted); animation: entraCapitulo 420ms var(--mov-curva, ease); }
+@keyframes entraCapitulo { from { opacity: 0; transform: translateY(3px); } }
+@media (max-width: 720px) { .capitulo { display: none; } }
+.papel { display: inline-flex; padding: 2px; border-radius: 9px; background: color-mix(in srgb, var(--card) 88%, var(--foreground) 12%); border: 1px solid color-mix(in srgb, var(--border) 70%, transparent); }
+.papel button { display: inline-grid; place-items: center; width: 26px; height: 24px; border: 0; border-radius: 7px; background: none; color: var(--muted); cursor: pointer; transition: color 180ms, background 180ms; }
+.papel button[aria-checked='true'] { background: var(--card); color: rgb(var(--gold-rgb)); box-shadow: 0 1px 2px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.16); }
+.papel button:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+.leido { position: relative; z-index: 2; display: block; height: 2px; margin-bottom: -2px; background: linear-gradient(90deg, rgba(var(--gold-rgb), 0.5), rgb(var(--gold-rgb))); box-shadow: 0 0 8px rgba(var(--gold-rgb), 0.55); transform-origin: left; transition: transform 260ms var(--mov-curva, ease); }
+.lateral { flex: 0 0 124px; min-height: 0; display: flex; flex-direction: column; border-right: 1px solid var(--border); background: color-mix(in srgb, var(--card) 90%, var(--foreground) 10%); transition: flex-basis 320ms var(--mov-curva, ease); }
+.lateral[data-vista='indice'] { flex-basis: 252px; }
+.lateral .miniaturas { flex: 1 1 auto; border-right: 0; background: none; }
+.lateralTabs { flex: none; display: grid; grid-template-columns: 1fr 1fr; gap: 2px; margin: 8px 8px 2px; padding: 2px; border-radius: 9px; background: color-mix(in srgb, var(--card) 80%, var(--foreground) 20%); }
+.lateralTabs button { height: 24px; border: 0; border-radius: 7px; background: none; color: var(--muted); font: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer; }
+.lateralTabs button[aria-selected='true'] { background: var(--card); color: var(--foreground); box-shadow: 0 1px 2px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.16); }
+.indicePdf { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 6px 6px 24px; }
+.indicePdf ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; }
+.indicePdf li { position: relative; animation: entraCapitulo 480ms var(--mov-curva, ease) backwards; animation-delay: calc(var(--i, 0) * 18ms); }
+.indicePdf button { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; width: 100%; padding: 5px 8px 5px calc(12px + var(--sangria, 0px)); border: 0; border-radius: 7px; background: none; color: var(--muted); font: inherit; font-size: 12.5px; line-height: 1.35; text-align: left; cursor: pointer; transition: color 200ms, background 200ms; }
+.indicePdf button span { min-width: 0; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.indicePdf button small { flex: none; font-size: 10.5px; font-variant-numeric: tabular-nums; opacity: 0.75; }
+.indicePdf button:hover:not(:disabled) { background: color-mix(in srgb, var(--foreground) 6%, transparent); color: var(--foreground); }
+.indicePdf button:disabled { cursor: default; opacity: 0.6; }
+.indicePdf li[data-nivel='0'] button { color: var(--foreground); font-weight: 600; }
+.indicePdf li[data-nivel='1'] { --sangria: 12px; }
+.indicePdf li[data-nivel='2'] { --sangria: 24px; }
+.indicePdf li[data-actual] button { color: var(--foreground); background: rgba(var(--gold-rgb), 0.1); }
+.indicePdf li::before { content: ''; position: absolute; left: 2px; top: 7px; bottom: 7px; width: 2px; border-radius: 2px; background: rgb(var(--gold-rgb)); box-shadow: 0 0 8px rgba(var(--gold-rgb), 0.7); transform: scaleY(0); transition: transform 320ms var(--mov-curva, ease); }
+.indicePdf li[data-actual]::before { transform: scaleY(1); }
+.paginas[data-papel='sepia'] { background: color-mix(in srgb, var(--l-ambar-7, #8a6a3b) 16%, var(--card)); }
+.paginas[data-papel='sepia'] .pagina canvas { filter: sepia(0.34) saturate(1.12) brightness(0.97) contrast(0.98); }
+.paginas[data-papel='noche'] { background: var(--l-gris-1, #09090b); }
+.paginas[data-papel='noche'] .pagina { background: var(--l-gris-3, #131318); box-shadow: 0 0 0 1px rgba(var(--l-luz-rgb, 255, 255, 255), 0.05), 0 18px 44px -18px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.9); }
+.paginas[data-papel='noche'] .pagina canvas { filter: invert(0.9) hue-rotate(180deg) contrast(0.92) brightness(1.04); }
+.paginas[data-papel='noche'] .numero { color: rgba(var(--l-luz-rgb, 255, 255, 255), 0.3); }
+.pagina canvas { transition: filter 420ms ease; }
+@media (prefers-reduced-motion: reduce) { .capitulo, .indicePdf li { animation: none; } .leido, .lateral, .pagina canvas { transition: none; } }
 .miniaturas { flex: 0 0 124px; overflow-y: auto; overflow-x: hidden; padding: 10px 8px; display: flex; flex-direction: column; align-items: center; gap: 10px; border-right: 1px solid var(--border); background: color-mix(in srgb, var(--card) 90%, var(--foreground) 10%); }
 .miniatura { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 3px; border: 2px solid transparent; border-radius: 7px; background: none; cursor: pointer; color: var(--muted); font: inherit; font-size: 10.5px; }
 .miniatura canvas { display: block; background: var(--l-gris-16, #fff); box-shadow: 0 1px 4px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.35); }
@@ -214,7 +255,9 @@
 .galeria { display: flex; flex-direction: column; gap: 8px; outline: 0; }
 .imagenGrande { display: block; width: 100%; padding: 0; border: 0; background: none; cursor: zoom-in; }
 .imagenGrande img { display: block; max-width: 100%; max-height: 62vh; margin: 0 auto; border-radius: 10px; }
-.pieGaleria { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); }
+.pieGaleria { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+/* «Descargar» (12 nov 2026) a la derecha del contador, sin empujar el nombre. */
+.pieAcciones { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .pieGaleria b { color: var(--foreground); font-weight: 600; }
 .contador { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .tira { display: flex; align-items: center; gap: 4px; }

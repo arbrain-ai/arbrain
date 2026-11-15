@@ -7,7 +7,7 @@ const ids = (q: string) => buscarAjustes(q).flatMap((g) => g.secciones.map((s) =
 test('la nav agrupa: El negocio primero, luego Tú, Arbrain, Esta computadora', () => {
   assert.deepEqual(GRUPOS.map((g) => [g.titulo, g.secciones.join(',')]), [
     ['El negocio', 'norte,equipo,clientes,oferta,embudo'],
-    ['Tú', 'cuenta,apariencia,avisos,directo'],
+    ['Tú', 'cuenta,apariencia,idioma,avisos,directo'],
     ['Arbrain', 'modelo,autonomia,panel,atajos'],
     ['Esta computadora', 'mac'],
   ])
@@ -43,4 +43,13 @@ test('buscador: sin consulta devuelve todo; filtra secciones y ajustes sin acent
 
 test('buscar por nombre de grupo muestra sus secciones enteras', () => {
   assert.deepEqual(ids('esta computadora'), ['mac'])
+})
+
+test('Idioma (13 nov 2026): existe en la nav, se encuentra buscando en inglés o en español y por alias', () => {
+  assert.equal(seccionDeUrl('idioma'), 'idioma')
+  assert.equal(seccionDeUrl('language'), 'idioma')
+  const ids = (q: string) => buscarAjustes(q).flatMap((g) => g.secciones.map((s) => s.seccion.id))
+  assert.ok(ids('idioma').includes('idioma'))
+  assert.ok(ids('english').includes('idioma'))
+  assert.ok(ids('language').includes('idioma'))
 })

@@ -15,6 +15,8 @@ import { casillaDeTecla, cuentaRegresiva, diasTira, estadoCelda, noSeRompe, porc
 import { EVENTO_HABITOS, tomarPedidoHabitos } from './habitos-pedido'
 import { temporadaDeHabitos, type TemporadaHabitos } from './periodo-premio'
 import { useTemporada } from './useTemporada'
+import { localeIntl, tr, trn, trNodos } from '@/shared/i18n'
+import { localeFechas } from '@/shared/i18n/fechas'
 import s from './habitos-hoy.module.css'
 
 /**
@@ -150,66 +152,68 @@ export function HabitosHoy({ dia, today, habits, donde, especial = {}, i = 6, te
   const semana = temporada ? semanaDeHoy(semanas, today) : null
   const pctSemana = semana ? porcentajeSemana(semana, visibles, marca, today, inicio) : null
   const tira = diasTira(dia)
-  const fechaLarga = (f: string) => new Date(`${f}T12:00:00`).toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })
-  const estadoTexto = (m: Marca) => m === true ? 'cumplido' : m === false ? 'no cumplido' : 'sin registro'
+  const fechaLarga = (f: string) => new Date(`${f}T12:00:00`).toLocaleDateString(localeIntl(), { weekday: 'long', day: 'numeric', month: 'long' })
+  const estadoTexto = (m: Marca) => m === true ? tr('cumplido') : m === false ? tr('no cumplido') : tr('sin registro')
+  const titulo = esHoy ? tr('Hábitos de hoy') : tr('Hábitos de ese día')
+  const rotuloCasilla = (ver: string, m: Marca, r: number, n: number) => `${ver}: ${estadoTexto(m)}${r ? tr(', racha de {racha}', { racha: textoRacha(r) }) : ''}${tr('. Tecla {tecla}', { tecla: n + 1 })}`
 
-  if (minimo) return <section ref={raiz} className={`${s.hoy} ${mov.entra}`} style={escalon(i)} aria-label={esHoy ? 'Hábitos de hoy' : 'Hábitos de ese día'}
+  if (minimo) return <section ref={raiz} className={`${s.hoy} ${mov.entra}`} style={escalon(i)} aria-label={titulo}
     data-habitos data-minimo data-donde={donde} data-completo={(lista.length > 0 && hechos === lista.length) || undefined} tabIndex={-1} onKeyDown={teclaFila}>
     <header className={s.cabeza}>
-      <h3>{esHoy ? 'Hábitos de hoy' : 'Hábitos de ese día'}</h3>
-      {habits.data && <span className={s.cuenta}><b>{hechos}</b> de {lista.length}</span>}
+      <h3>{titulo}</h3>
+      {habits.data && <span className={s.cuenta}>{trNodos('{hechos} de {total}', { hechos: <b>{hechos}</b>, total: lista.length })}</span>}
     </header>
-    {!habits.data ? <p className={s.vacio}>{habits.loading ? 'Leyendo tus hábitos…' : habits.error ?? 'No se pudieron leer los hábitos.'}</p>
-      : !lista.length ? <p className={s.vacio}>Aún no tienes hábitos activos.</p>
-      : <ul className={s.lineas} role="group" aria-label={`Hábitos: ${hechos} de ${lista.length} cumplidos`}>
+    {!habits.data ? <p className={s.vacio}>{habits.loading ? tr('Leyendo tus hábitos…') : habits.error != null ? tr(habits.error) : tr('No se pudieron leer los hábitos.')}</p>
+      : !lista.length ? <p className={s.vacio}>{tr('Aún no tienes hábitos activos.')}</p>
+      : <ul className={s.lineas} role="group" aria-label={tr('{titulo}: {hechos} de {total} cumplidos', { titulo: tr('Hábitos'), hechos, total: lista.length })}>
         {lista.map((x, n) => {
           const m = marca(dia, x.clave), hecho = m === true, r = rachaActual(f => marca(f, x.clave), dia, inicio)
           const critico = esHoy && noSeRompe(f => marca(f, x.clave), dia, inicio), ver = nombre(x)
           return <li key={x.clave} className={s.linea} data-estado={hecho ? 'hecho' : m === false && !especial[x.clave] ? 'fallado' : 'vacio'} data-critico={critico || undefined}>
             <button className={s.tocarLinea} data-casilla={x.clave} data-estado={hecho ? 'hecho' : 'vacio'} aria-pressed={hecho} onClick={() => alternar(x)}
-              aria-label={`${ver}: ${estadoTexto(m)}${r ? `, racha de ${textoRacha(r)}` : ''}. Tecla ${n + 1}`}>
+              aria-label={rotuloCasilla(ver, m, r, n)}>
               {/* La casilla del objetivo llega como cumplido sí/no: «no» ahí es «aún no», no un registro de fallo. */}
               <span className={s.marcaMini} aria-hidden>{hecho ? <svg viewBox="0 0 12 12" className={recien === x.clave ? mov.palomita : undefined}><path d="M2.5 6.2 5 8.6l4.6-5.2" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg> : m === false && !especial[x.clave] ? '×' : null}</span>
               <NombreHabito clave={x.clave} nombre={x.nombre} p={x.p} tocable={false} className={s.nombreMini} />
             </button>
             <span className={s.puntosRacha} aria-hidden>{diasTira(dia, 7).map(f => <i key={f} data-estado={estadoCelda(marca(f, x.clave), f, today, inicio)} />)}</span>
-            <span className={s.rachaMini}>{critico ? <span className={s.noSeRompe}>no se rompe</span> : r > 0 ? <><Flame size={11} aria-hidden />{r}</> : null}</span>
+            <span className={s.rachaMini}>{critico ? <span className={s.noSeRompe}>{tr('no se rompe')}</span> : r > 0 ? <><Flame size={11} aria-hidden />{r}</> : null}</span>
             <kbd className={s.tecla} aria-hidden>{n + 1}</kbd>
           </li>
         })}
       </ul>}
     {(habits.error && habits.data) || (habits.pending.length > 0 && !habits.saving) ? <p className={s.aviso} role="status">
-      <span>{habits.error ?? 'Hay una marca sin confirmar.'}</span>
-      {habits.pending.length > 0 && !habits.saving && <button onClick={() => void habits.retry()}>Reintentar</button>}
+      <span>{habits.error != null ? tr(habits.error) : tr('Hay una marca sin confirmar.')}</span>
+      {habits.pending.length > 0 && !habits.saving && <button onClick={() => void habits.retry()}>{tr('Reintentar')}</button>}
     </p> : ultimo && habits.canUndo ? <p className={s.deshacer} role="status">
-        <span>{ultimo.hecho ? 'Marcado' : 'Sin marca'}: «{ultimo.nombre}»</span>
-        <button onClick={() => { habits.undoLast(); setUltimo(null) }}>Deshacer</button>
+        <span>{ultimo.hecho ? tr('Marcado: «{nombre}»', { nombre: ultimo.nombre }) : tr('Sin marca: «{nombre}»', { nombre: ultimo.nombre })}</span>
+        <button onClick={() => { habits.undoLast(); setUltimo(null) }}>{tr('Deshacer')}</button>
       </p> : null}
   </section>
 
-  return <section ref={raiz} className={`${s.hoy} ${mov.entra}`} style={escalon(i)} aria-label={esHoy ? 'Hábitos de hoy' : 'Hábitos de ese día'}
+  return <section ref={raiz} className={`${s.hoy} ${mov.entra}`} style={escalon(i)} aria-label={titulo}
     data-habitos data-habitos-hoy data-donde={donde} data-completo={(lista.length > 0 && hechos === lista.length) || undefined} tabIndex={-1} onKeyDown={teclaFila}>
     <header className={s.cabeza}>
-      <h3>{esHoy ? 'Hábitos de hoy' : 'Hábitos de ese día'}</h3>
-      {habits.data && <span className={s.cuenta}><b>{hechos}</b> de {lista.length}</span>}
+      <h3>{titulo}</h3>
+      {habits.data && <span className={s.cuenta}>{trNodos('{hechos} de {total}', { hechos: <b>{hechos}</b>, total: lista.length })}</span>}
       <div className={s.acciones}>
-        {temporada && <button className={s.accion} onClick={() => setVerTemporada(v => !v)} aria-pressed={verTemporada} title={`Toda la temporada: ${temporada.nombre}`}>
+        {temporada && <button className={s.accion} onClick={() => setVerTemporada(v => !v)} aria-pressed={verTemporada} title={tr('Toda la temporada: {nombre}', { nombre: temporada.nombre })}>
           <CalendarRange size={13} aria-hidden /><span>{temporada.nombre}</span></button>}
         <button className={s.accion} data-solo-icono onClick={() => presentacion.alternar()} aria-pressed={presentacion.activo}
-          title={presentacion.activo ? 'Pantalla compartida: el cursor no destapa nombres, solo un toque largo. Toca para salir' : 'Pantalla compartida: que el cursor no destape nombres'}
-          aria-label={presentacion.activo ? 'Salir del modo presentación' : 'Modo presentación'}>{presentacion.activo ? <EyeOff size={13} aria-hidden /> : <Eye size={13} aria-hidden />}</button>
-        <button className={s.accion} data-solo-icono onClick={() => setAjustar(v => !v)} aria-pressed={ajustar} title="Ajustar señal, versión de 2 minutos y privacidad" aria-label="Ajustar los hábitos"><Pencil size={13} aria-hidden /></button>
+          title={presentacion.activo ? tr('Pantalla compartida: el cursor no destapa nombres, solo un toque largo. Toca para salir') : tr('Pantalla compartida: que el cursor no destape nombres')}
+          aria-label={presentacion.activo ? tr('Salir del modo presentación') : tr('Modo presentación')}>{presentacion.activo ? <EyeOff size={13} aria-hidden /> : <Eye size={13} aria-hidden />}</button>
+        <button className={s.accion} data-solo-icono onClick={() => setAjustar(v => !v)} aria-pressed={ajustar} title={tr('Ajustar señal, versión de 2 minutos y privacidad')} aria-label={tr('Ajustar los hábitos')}><Pencil size={13} aria-hidden /></button>
       </div>
     </header>
 
     <Identidad texto={atomicos.data?.identidad ?? propuesta?.identidad ?? ''} guardar={t => atomicos.guardar({ identidad: t })} />
     {cuenta && !temporadaArriba && <p className={s.temporada}><Trophy size={12} aria-hidden /><span>{temporada!.nombre} · {cuenta.texto}</span>
-      {pctSemana && <span className={s.pct} title={`${pctSemana.hechos} de ${pctSemana.posibles} casillas esta semana`}>Semana {pctSemana.pct}%</span>}</p>}
+      {pctSemana && <span className={s.pct} title={tr('{hechos} de {posibles} casillas esta semana', { hechos: pctSemana.hechos, posibles: pctSemana.posibles })}>{tr('Semana {pct}%', { pct: pctSemana.pct })}</span>}</p>}
 
-    {!habits.data ? <p className={s.vacio}>{habits.loading ? 'Leyendo tus hábitos…' : habits.error ?? 'No se pudieron leer los hábitos.'}</p>
-      : !lista.length ? <p className={s.vacio}>Aún no tienes hábitos activos.</p>
+    {!habits.data ? <p className={s.vacio}>{habits.loading ? tr('Leyendo tus hábitos…') : habits.error != null ? tr(habits.error) : tr('No se pudieron leer los hábitos.')}</p>
+      : !lista.length ? <p className={s.vacio}>{tr('Aún no tienes hábitos activos.')}</p>
       : <>
-        <div className={s.casillas} role="group" aria-label={`Hábitos: ${hechos} de ${lista.length} cumplidos`}>
+        <div className={s.casillas} role="group" aria-label={tr('{titulo}: {hechos} de {total} cumplidos', { titulo: tr('Hábitos'), hechos, total: lista.length })}>
           {lista.map((x, n) => {
             const m = marca(dia, x.clave), hecho = m === true, r = rachaActual(f => marca(f, x.clave), dia, inicio)
             const critico = esHoy && noSeRompe(f => marca(f, x.clave), dia, inicio)
@@ -218,19 +222,19 @@ export function HabitosHoy({ dia, today, habits, donde, especial = {}, i = 6, te
               <button className={s.tocar} data-casilla={x.clave} data-estado={hecho ? 'hecho' : 'vacio'} aria-pressed={hecho}
                 onClick={() => { if (largo.current) { largo.current = false; return } alternar(x) }} {...(privado ? revelar(x) : {})}
                 onContextMenu={privado ? e => e.preventDefault() : undefined}
-                aria-label={`${ver}: ${estadoTexto(m)}${r ? `, racha de ${textoRacha(r)}` : ''}. Tecla ${n + 1}`}>
+                aria-label={rotuloCasilla(ver, m, r, n)}>
                 <span className={s.marca} aria-hidden>{hecho ? <svg viewBox="0 0 12 12" className={recien === x.clave ? mov.palomita : undefined}><path d="M2.5 6.2 5 8.6l4.6-5.2" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" /></svg> : m === false ? '×' : null}</span>
                 <span className={s.nombre}>{ver}</span>
               </button>
               {ajustar ? <AjustesHabito clave={x.clave} p={x.p} posicion={x.posicion} guardar={atomicos.guardar} />
                 : (!privado || revelado === x.clave) && (x.p?.senal || x.p?.dosMinutos) ? <p className={s.principios}>
                   {x.p?.senal && <span className={s.senal}>{x.p.senal}</span>}
-                  {x.p?.dosMinutos && <span className={s.dos}><b>2 min</b> {x.p.dosMinutos}</span>}
+                  {x.p?.dosMinutos && <span className={s.dos}><b>{tr('2 min')}</b> {x.p.dosMinutos}</span>}
                 </p> : null}
               <p className={s.pie}>
-                {critico ? <span className={s.noSeRompe}>Hoy es el día que no se rompe</span>
+                {critico ? <span className={s.noSeRompe}>{tr('Hoy es el día que no se rompe')}</span>
                   : r > 0 ? <span className={s.racha}><Flame size={12} aria-hidden />{textoRacha(r)}</span>
-                  : <span className={s.sinRacha}>{inicio && dia < inicio ? 'Empieza mañana' : 'Sin racha aún'}</span>}
+                  : <span className={s.sinRacha}>{inicio && dia < inicio ? tr('Empieza mañana') : tr('Sin racha aún')}</span>}
                 <kbd className={s.tecla} aria-hidden>{n + 1}</kbd>
               </p>
             </div>
@@ -238,13 +242,13 @@ export function HabitosHoy({ dia, today, habits, donde, especial = {}, i = 6, te
         </div>
 
         {/* La tira: los últimos 30 días de cada hábito, hoy a la derecha. Tocar un día ya vivido corrige su registro. */}
-        <div className={s.tira} role="table" aria-label="Los últimos 30 días">
+        <div className={s.tira} role="table" aria-label={tr('Los últimos 30 días')}>
           {lista.map(x => <div key={x.clave} className={s.tiraFila} role="row">
             <span className={s.tiraNombre} role="rowheader"><NombreHabito clave={x.clave} nombre={x.nombre} p={x.p} /></span>
             <span className={s.tiraDias}>{tira.map(f => {
               const e = estadoCelda(marca(f, x.clave), f, today, inicio)
               return <button key={f} role="cell" className={s.celda} data-estado={e} data-hoy={f === today || undefined} disabled={e === 'fuera' || e === 'futuro'}
-                aria-label={`${nombre(x)}, ${fechaLarga(f)}: ${e === 'fuera' ? 'antes de empezar' : estadoTexto(marca(f, x.clave))}`}
+                aria-label={`${nombre(x)}, ${fechaLarga(f)}: ${e === 'fuera' ? tr('antes de empezar') : estadoTexto(marca(f, x.clave))}`}
                 onClick={() => f === dia ? alternar(x) : habits.mark(f, x.clave, siguienteMarca(marca(f, x.clave)))} />
             })}</span>
           </div>)}
@@ -254,12 +258,12 @@ export function HabitosHoy({ dia, today, habits, donde, especial = {}, i = 6, te
       </>}
 
     {(habits.error && habits.data) || (habits.pending.length > 0 && !habits.saving) ? <p className={s.aviso} role="status">
-      <span>{habits.error ?? 'Hay una marca sin confirmar.'}</span>
-      {habits.pending.length > 0 && !habits.saving && <button onClick={() => void habits.retry()}>Reintentar</button>}
-    </p> : atomicos.error ? <p className={s.aviso} role="status"><span>{atomicos.error}</span></p>
+      <span>{habits.error != null ? tr(habits.error) : tr('Hay una marca sin confirmar.')}</span>
+      {habits.pending.length > 0 && !habits.saving && <button onClick={() => void habits.retry()}>{tr('Reintentar')}</button>}
+    </p> : atomicos.error ? <p className={s.aviso} role="status"><span>{tr(atomicos.error)}</span></p>
       : ultimo && habits.canUndo ? <p className={s.deshacer} role="status">
-        <span>{ultimo.hecho ? 'Marcado' : 'Sin marca'}: «{ultimo.nombre}»</span>
-        <button onClick={() => { habits.undoLast(); setUltimo(null) }}>Deshacer</button>
+        <span>{ultimo.hecho ? tr('Marcado: «{nombre}»', { nombre: ultimo.nombre }) : tr('Sin marca: «{nombre}»', { nombre: ultimo.nombre })}</span>
+        <button onClick={() => { habits.undoLast(); setUltimo(null) }}>{tr('Deshacer')}</button>
       </p> : null}
   </section>
 }
@@ -272,10 +276,10 @@ function Identidad({ texto, guardar }: { texto: string; guardar: (t: string) => 
   useEffect(() => { if (!editando) setBorrador(texto) }, [texto, editando])
   const cerrar = (guarda: boolean) => { setEditando(false); if (guarda && borrador.trim() !== texto) guardar(borrador.trim()) }
   return editando
-    ? <input className={s.identidadCampo} value={borrador} autoFocus maxLength={140} placeholder="Soy alguien que…" aria-label="Tu identidad: soy alguien que…"
+    ? <input className={s.identidadCampo} value={borrador} autoFocus maxLength={140} placeholder={tr('Soy alguien que…')} aria-label={tr('Tu identidad: soy alguien que…')}
       onChange={e => setBorrador(e.target.value)} onBlur={() => cerrar(true)}
       onKeyDown={e => { e.stopPropagation(); if (e.key === 'Enter') cerrar(true); if (e.key === 'Escape') { setBorrador(texto); setEditando(false) } }} />
-    : <button className={s.identidad} onClick={() => setEditando(true)} title="Toca para editar tu identidad">{texto || 'Soy alguien que…'}</button>
+    : <button className={s.identidad} onClick={() => setEditando(true)} title={tr('Toca para editar tu identidad')}>{texto || tr('Soy alguien que…')}</button>
 }
 
 function AjustesHabito({ clave, p, posicion, guardar }: { clave: string; p?: PrincipioHabito; posicion: number; guardar: (c: { clave: string } & Partial<PrincipioHabito>) => void }) {
@@ -283,10 +287,10 @@ function AjustesHabito({ clave, p, posicion, guardar }: { clave: string; p?: Pri
     <input defaultValue={p?.[k] ?? ''} placeholder={ph} maxLength={140} onKeyDown={e => { e.stopPropagation(); if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
       onBlur={e => { const v = e.target.value.trim(); if (v !== (p?.[k] ?? '')) guardar({ clave, [k]: v }) }} /></label>
   return <div className={s.ajustes}>
-    {campo('senal', 'Señal', 'Hora y momento')}
-    {campo('dosMinutos', '2 min', 'La versión mínima')}
-    <label className={s.ajusteCheck}><input type="checkbox" checked={!!p?.privado} onChange={e => guardar({ clave, privado: e.target.checked })} /><span>Privado</span></label>
-    {p?.privado && campo('alias', 'Se ve como', NOMBRE_PRIVADO)}
+    {campo('senal', tr('Señal'), tr('Hora y momento'))}
+    {campo('dosMinutos', tr('2 min'), tr('La versión mínima'))}
+    <label className={s.ajusteCheck}><input type="checkbox" checked={!!p?.privado} onChange={e => guardar({ clave, privado: e.target.checked })} /><span>{tr('Privado')}</span></label>
+    {p?.privado && campo('alias', tr('Se ve como'), tr(NOMBRE_PRIVADO))}
   </div>
 }
 
@@ -298,16 +302,16 @@ function Temporada({ temporada, semanas, lista, nombre, marca, today, inicio }: 
 }) {
   const claves = lista.map(x => x.clave)
   const total = Math.round((Date.parse(`${temporada.hasta}T12:00:00Z`) - Date.parse(`${today}T12:00:00Z`)) / 86_400_000)
-  return <div className={s.cuadricula} aria-label={`${temporada.nombre}: del ${temporada.desde} al ${temporada.hasta}`}>
+  return <div className={s.cuadricula} aria-label={tr('{nombre}: del {desde} al {hasta}', { nombre: temporada.nombre, desde: temporada.desde, hasta: temporada.hasta })}>
     <div className={s.cuadriculaCabeza}>
-      <b>{total > 0 ? total : 0}</b><span>{total === 1 ? 'día' : 'días'} para {temporada.premio}</span>
+      <b>{total > 0 ? total : 0}</b><span>{trn(total, 'día para {premio}', 'días para {premio}', { premio: temporada.premio })}</span>
       <span className={s.leyendaMini}>{lista.map((x, k) => <i key={x.clave} data-n={k}>{nombre(x)}</i>)}</span>
     </div>
-    <div className={s.semanaFila} aria-hidden><span />{['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((d, k) => <span key={k} className={s.dow}>{d}</span>)}<span className={s.dow}>%</span></div>
+    <div className={s.semanaFila} aria-hidden><span />{([1, 2, 3, 4, 5, 6, 0] as const).map((d, k) => <span key={k} className={s.dow}>{localeFechas().localize.day(d, { width: 'narrow' }).toUpperCase()}</span>)}<span className={s.dow}>%</span></div>
     {semanas.map((sem, k) => {
       const pct = porcentajeSemana(sem, claves, marca, today, inicio)
       return <div key={k} className={s.semanaFila}>
-        <span className={s.semanaNum}>S{k + 1}</span>
+        <span className={s.semanaNum}>{tr('S{n}', { n: k + 1 })}</span>
         {sem.map((f, j) => f ? <span key={f} className={s.dia} data-hoy={f === today || undefined} data-futuro={f > today || undefined} data-fuera={(inicio && f < inicio) || undefined} data-premio={f === temporada.hasta || undefined}
           title={f === temporada.hasta ? temporada.premio : undefined}>
           <small>{Number(f.slice(-2))}</small>
@@ -317,7 +321,7 @@ function Temporada({ temporada, semanas, lista, nombre, marca, today, inicio }: 
         <span className={s.semanaPct}>{pct ? `${pct.pct}%` : '—'}</span>
       </div>
     })}
-    <p className={s.nota}>Cuenta desde el {Number(inicio?.slice(-2) ?? temporada.desde.slice(-2))} de {new Date(`${inicio ?? temporada.desde}T12:00:00`).toLocaleDateString('es-MX', { month: 'long' })}; lo de antes no se rellena. Cada barra es un hábito.</p>
+    <p className={s.nota}>{tr('Cuenta desde el {dia} de {mes}; lo de antes no se rellena. Cada barra es un hábito.', { dia: Number(inicio?.slice(-2) ?? temporada.desde.slice(-2)), mes: new Date(`${inicio ?? temporada.desde}T12:00:00`).toLocaleDateString(localeIntl(), { month: 'long' }) })}</p>
   </div>
 }
 

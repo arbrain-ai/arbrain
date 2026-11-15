@@ -7,6 +7,8 @@
  * opencode) lo toma como un pegado y deja el Enter como salto de línea en vez de enviar.
  */
 
+import { tr } from '@/shared/i18n'
+
 /** Lo que se escribe en la PTY: una línea, sin control ni saltos. Vacío = nada que mandar. */
 export function lineaParaAgente(texto: string): string {
   return texto.replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 4000)
@@ -21,12 +23,12 @@ export const PAUSA_ENTER_MS = 150
 /** Manda la respuesta: texto, pausa, Enter. Devuelve el motivo si el motor no la aceptó. */
 export async function enviarRespuesta(texto: string, escribir: Escribir, pausa: (ms: number) => Promise<void> = ms => new Promise(r => setTimeout(r, ms))): Promise<{ ok: true } | { ok: false; error: string }> {
   const linea = lineaParaAgente(texto)
-  if (!linea) return { ok: false, error: 'Escribe la respuesta.' }
+  if (!linea) return { ok: false, error: tr('Escribe la respuesta.') }
   const a = await escribir(linea)
-  if (!a.ok) return { ok: false, error: a.error ?? 'El motor no aceptó la respuesta.' }
+  if (!a.ok) return { ok: false, error: a.error ?? tr('El motor no aceptó la respuesta.') }
   await pausa(PAUSA_ENTER_MS)
   const b = await escribir(ENTER)
-  return b.ok ? { ok: true } : { ok: false, error: b.error ?? 'El motor no aceptó el Enter.' }
+  return b.ok ? { ok: true } : { ok: false, error: b.error ?? tr('El motor no aceptó el Enter.') }
 }
 
 /** Escritura real: el endpoint de la terminal viva. */
@@ -36,5 +38,5 @@ export const escribirEnTerminal = (id: number): Escribir => async datos => {
     if (r.ok) return { ok: true }
     const j = await r.json().catch(() => ({})) as { error?: string }
     return { ok: false, error: j.error }
-  } catch { return { ok: false, error: 'Sin conexión con el Studio.' } }
+  } catch { return { ok: false, error: tr('Sin conexión con el Studio.') } }
 }

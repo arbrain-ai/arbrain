@@ -8,10 +8,13 @@
  * Aquí viven los tipos y las reglas de lectura que comparten; ninguna de las dos
  * superficies decide por su cuenta qué es un agente o en qué estado está.
  */
+import { tr, trMarca } from '@/shared/i18n'
 
 export interface Subagente { id: number; nombre: string; harness: string; encargo: string; cwd: string; creado: string; modelo?: string; /** Esfuerzo PEDIDO (lo medido va en `Conversacion.coherencia`). */ esfuerzo?: string; tokens?: number | null; permisos?: 'bypass' | 'auto' | 'acceptEdits'; entrega?: 'entregado' | 'pendiente' | 'falló'; entregaNota?: string
   /** Conversación del chat desde la que Levy lo lanzó (3 oct 2026); null o ausente = «Sin conversación». */
   origen?: string | null
+  /** ISO: el dueño lo dio por «Recibido» desde el Taller (11 nov 2026). Sale de su grupo y queda en «Recibidos». */
+  recibido?: string
   /** Pregunta abierta que vio el servidor (caja con «?», AskUserQuestion o permiso, 5 oct 2026): primero la atiende Levy. */
   pregunta?: { texto: string; tipo: 'dialogo' | 'pregunta'; desde: number }
   /** ISO: Levy no la atendió a tiempo (o su conversación ya no existe) y subió a Daniel. */
@@ -110,7 +113,7 @@ export const esAgente = (t: Terminal) => !!t.subagente || !!t.conversacion || t.
 export const preguntaAlgo = (t: Terminal) => !!t.conversacion?.pregunta && t.estado === 'esperando' || !!t.subagente?.pregunta
 /** La pregunta de un subagente de Levy es primero de Levy (5 oct 2026): a Daniel solo le toca si subió (`escalado`). */
 export const esperaALevy = (t: Terminal) => !!t.subagente && !t.subagente.escalado && preguntaAlgo(t)
-export const estadoEnPalabras = (t: Terminal) => esperaALevy(t) ? 'Le preguntó a Levy' : preguntaAlgo(t) ? 'Te pregunta algo' : t.estado === 'trabajando' ? 'Trabajando' : t.estado === 'esperando' ? 'Terminó' : 'Terminal lista'
+export const estadoEnPalabras = (t: Terminal) => esperaALevy(t) ? tr('Le preguntó a Levy') : preguntaAlgo(t) ? tr('Te pregunta algo') : t.estado === 'trabajando' ? tr('Trabajando') : t.estado === 'esperando' ? tr('Terminó') : tr('Terminal lista')
 /** Lo último que dijo el agente según su conversación real (no la pantalla). */
 export const ultimaRespuesta = (t: Terminal) => t.conversacion ? [...t.conversacion.mensajes].reverse().find(m => m.rol === 'assistant' && m.texto) ?? null : null
 
@@ -124,7 +127,7 @@ export function lineaLimpia(a: string | null | undefined): string | null {
   return l.length >= 3 ? l : null
 }
 
-export const ESTADO_INTERNA: Record<EstadoInterna, string> = { trabajando: 'Trabajando', completada: 'Terminó', 'falló': 'Falló', detenida: 'Detenida' }
+export const ESTADO_INTERNA: Record<EstadoInterna, string> = { trabajando: trMarca('Trabajando'), completada: trMarca('Terminó'), 'falló': trMarca('Falló'), detenida: trMarca('Detenida') }
 export const hoyMx = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' })
 export const esDeHoy = (iso: string) => new Date(iso).toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' }) === hoyMx()
 
@@ -153,11 +156,11 @@ export function trabajandoEn(d: Trabajos | undefined, conversacion: string | nul
 /** De dónde salió la lectura, para decirlo en una línea. */
 export function fuenteEnPalabras(d: Trabajos, cliente = false): string {
   // Edición cliente (29 oct 2026): sus subagentes los lee su propia Arbrain; no hay motor, SFTerm ni Studio.
-  if (cliente) return 'tu Arbrain'
-  if (d.fuente === 'motor') return 'motor de Arbrain'
-  if (d.fuente === 'sfterm-gate') return 'terminal de respaldo (el motor no respondió)'
-  if (d.fuente === 'ninguna') return 'sin terminales: ni el motor ni el respaldo respondieron'
-  return d.sfterm ? 'terminal de respaldo' : 'sin terminales'
+  if (cliente) return tr('tu Arbrain')
+  if (d.fuente === 'motor') return tr('motor de Arbrain')
+  if (d.fuente === 'sfterm-gate') return tr('terminal de respaldo (el motor no respondió)')
+  if (d.fuente === 'ninguna') return tr('sin terminales: ni el motor ni el respaldo respondieron')
+  return d.sfterm ? tr('terminal de respaldo') : tr('sin terminales')
 }
 /** Dónde vive una terminal, para la ficha. */
-export const dondeVive = (t: Terminal) => t.origen === 'sin-pantalla' ? 'Proceso propio, sin pantalla' : t.origen === 'motor' ? 'Motor de Arbrain' : t.origen === 'sfterm-ptyd' ? 'Abierta en SFTerm, la lleva el motor' : 'SFTerm'
+export const dondeVive = (t: Terminal) => t.origen === 'sin-pantalla' ? tr('Proceso propio, sin pantalla') : t.origen === 'motor' ? tr('Motor de Arbrain') : t.origen === 'sfterm-ptyd' ? tr('Abierta en SFTerm, la lleva el motor') : 'SFTerm'

@@ -15,6 +15,7 @@ import { readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { authenticateDraw3 } from '@/lib/draw3-auth'
 import { ErrorDocumento, resolverEnDisco } from '@/lib/cabina/documento-server'
+import { tr } from '@/shared/i18n'
 
 export const runtime = 'nodejs'
 
@@ -29,19 +30,19 @@ const no = (status: number, error: string) =>
   NextResponse.json({ ok: false, error }, { status, headers: { 'Cache-Control': 'no-store' } })
 
 export async function GET(request: Request) {
-  if (!await authenticateDraw3(request)) return no(401, 'no autorizado')
+  if (!await authenticateDraw3(request)) return no(401, tr('no autorizado'))
   const pedida = new URL(request.url).searchParams.get('ruta') ?? ''
   let real: string
   try {
     real = (await resolverEnDisco(pedida)).real
   } catch (e) {
-    return e instanceof ErrorDocumento ? no(e.status, e.message) : no(500, 'no se pudo resolver la ruta')
+    return e instanceof ErrorDocumento ? no(e.status, e.message) : no(500, tr('no se pudo resolver la ruta'))
   }
   const tipo = TIPOS[path.extname(real).slice(1).toLowerCase()]
-  if (!tipo) return no(415, 'Esa ruta no es una imagen.')
+  if (!tipo) return no(415, tr('Esa ruta no es una imagen.'))
   const info = await stat(real).catch(() => null)
-  if (!info?.isFile()) return no(404, 'Esa imagen ya no existe.')
-  if (info.size > MAXIMO) return no(413, 'La imagen es demasiado grande para el lienzo.')
+  if (!info?.isFile()) return no(404, tr('Esa imagen ya no existe.'))
+  if (info.size > MAXIMO) return no(413, tr('La imagen es demasiado grande para el lienzo.'))
 
   const cuerpo = await readFile(real)
   return new NextResponse(new Uint8Array(cuerpo), {

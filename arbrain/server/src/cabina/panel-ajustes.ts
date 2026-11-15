@@ -16,6 +16,7 @@ import { DIR_ARBRAIN } from '../edicion.js'
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import path from 'node:path'
+import { tr } from '../i18n/tr.js'
 
 export const ARCHIVO = () => process.env.ARBRAIN_PANEL_AJUSTES || path.join(DIR_ARBRAIN(), 'panel-ajustes.json')
 
@@ -103,7 +104,7 @@ export function aplicar(c: Cambio, por: string, o: { archivo?: string; ahora?: D
   let donde = previo.donde
   if (c.restablecer) { orden = [...SECCIONES]; ocultas = [...OCULTAS_POR_DEFECTO]; donde = DONDE_POR_DEFECTO }
   if (c.orden !== undefined) {
-    if (!Array.isArray(c.orden)) throw new Error('orden debe ser una lista de secciones.')
+    if (!Array.isArray(c.orden)) throw new Error(tr('orden debe ser una lista de secciones.'))
     // Lo que se nombra va primero, en ese orden; lo que no, detrás y en el orden que ya tenía.
     const nombradas = [...new Set(ids(c.orden, 'orden'))]
     orden = [...nombradas, ...previo.orden.filter(s => !nombradas.includes(s))]
@@ -142,10 +143,10 @@ export function accionPanelAjustes(o: Record<string, unknown>): { ajustes: Ajust
     if (accion === 'leer') return leer()
     if (accion === 'migrar') { const r = migrar(o.orden); return { ...r, existe: true } }
     if (accion === 'guardar') {
-      if (o.orden === undefined && o.ocultas === undefined && o.donde === undefined) return { error: 'guardar necesita orden, ocultas y/o donde.', status: 400 }
+      if (o.orden === undefined && o.ocultas === undefined && o.donde === undefined) return { error: tr('guardar necesita orden, ocultas y/o donde.'), status: 400 }
       return { ajustes: aplicar({ orden: o.orden, ocultas: o.ocultas as unknown[] | undefined, donde: o.donde }, `${DUENO_M} · Ajustes`), existe: true }
     }
     if (accion === 'restablecer') return { ajustes: aplicar({ restablecer: true }, `${DUENO_M} · Ajustes`), existe: true }
-    return { error: 'accion debe ser leer, migrar, guardar o restablecer.', status: 400 }
-  } catch (error) { return { error: error instanceof Error ? error.message : 'No se pudo guardar.', status: 400 } }
+    return { error: tr('accion debe ser leer, migrar, guardar o restablecer.'), status: 400 }
+  } catch (error) { return { error: error instanceof Error ? error.message : tr('No se pudo guardar.'), status: 400 } }
 }

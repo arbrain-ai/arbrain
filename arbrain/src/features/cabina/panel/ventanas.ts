@@ -20,6 +20,7 @@
 import { create } from 'zustand'
 import { isDesktopRuntime } from '@/lib/local-first/runtime'
 import { useLayoutStore } from '@/shared/stores/layout-store'
+import { tr } from '@/shared/i18n/tr'
 import type { Fijada } from './fijadas'
 import { esquinaDeVentana, rectEnPantalla, type Blanco, type EstadoFantasma, type Punto, type Rect } from './arrastre-geom'
 import type { Medida } from './destino-levy'
@@ -227,7 +228,7 @@ export async function sacarAVentanaNueva(clave: string, cursor?: Punto) {
     const ok = await abrirVentana(etiquetaDeVentana(id), rutaDeVentana(id), 'Arbrain', cursor)
     if (!ok) {
       puerto.mover(clave, origen)
-      avisarError(isDesktopRuntime() ? 'La app no pudo abrir la ventana. Vuelve a intentarlo.' : 'El navegador bloqueó la ventana nueva. Permite las ventanas emergentes de Arbrain y vuelve a intentarlo.')
+      avisarError(isDesktopRuntime() ? tr('La app no pudo abrir la ventana. Vuelve a intentarlo.') : tr('El navegador bloqueó la ventana nueva. Permite las ventanas emergentes de Arbrain y vuelve a intentarlo.'))
       return false
     }
     return true

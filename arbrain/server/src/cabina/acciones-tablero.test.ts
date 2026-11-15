@@ -23,6 +23,19 @@ describe('acciones del tablero', () => {
     const puerto = { detener: async () => { throw new Error('Ese subagente no es de Levy, no es sin pantalla o ya se cerró.') }, retomar: vi.fn() }
     expect(await accionTablero({ accion: 'detener', agente: 7 }, puerto)).toEqual({ ok: false, status: 409, error: 'Ese subagente no es de Levy, no es sin pantalla o ya se cerró.' })
   })
+  it('cerrar y recibido (11 nov 2026): validan, usan la vía de la Cabina y recibido es reversible', async () => {
+    expect(pedidoTablero({ que: 'cerrar', agente: 12 })).toEqual({ accion: 'cerrar', agente: 12 })
+    expect(pedidoTablero({ que: 'recibido', agente: 12 })).toEqual({ accion: 'recibido', agente: 12, si: true })
+    expect(pedidoTablero({ que: 'recibido', agente: 12, si: false })).toEqual({ accion: 'recibido', agente: 12, si: false })
+    expect(pedidoTablero({ que: 'cerrar', agente: 0 })).toEqual({ error: 'Falta el agente.' })
+    const puerto = { detener: vi.fn(), retomar: vi.fn(), cerrar: vi.fn(async () => {}), recibido: vi.fn(async () => {}) }
+    expect(await accionTablero({ accion: 'cerrar', agente: 12 }, puerto)).toMatchObject({ ok: true, texto: expect.stringMatching(/conversación y sus archivos quedan en disco/) })
+    expect(puerto.cerrar).toHaveBeenCalledWith(12)
+    expect(await accionTablero({ accion: 'recibido', agente: 12, si: true }, puerto)).toMatchObject({ ok: true, texto: expect.stringMatching(/Recibidos/) })
+    expect(await accionTablero({ accion: 'recibido', agente: 12, si: false }, puerto)).toEqual({ ok: true, texto: 'De vuelta en su lista.' })
+    expect(puerto.recibido.mock.calls).toEqual([[12, true], [12, false]])
+    expect(puerto.detener).not.toHaveBeenCalled()
+  })
   it('responder con esfuerzo («Reintentar con más esfuerzo», 29 oct 2026) lo valida y lo pasa a retomar', async () => {
     expect(pedidoTablero({ que: 'responder', agente: 3, texto: 'otra vez', esfuerzo: 'high' })).toEqual({ accion: 'responder', agente: 3, texto: 'otra vez', esfuerzo: 'high' })
     expect(pedidoTablero({ que: 'responder', agente: 3, texto: 'otra vez', esfuerzo: 'turbo' })).toMatchObject({ error: expect.stringMatching(/Esfuerzo desconocido/) })

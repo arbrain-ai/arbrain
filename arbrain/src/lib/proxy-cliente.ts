@@ -22,14 +22,16 @@ import { isDesktopAuthBypassRequest, sameSecret } from '@/lib/desktop-auth'
 import { apiPermitidaEnCliente, paginaPermitidaEnCliente } from '@/lib/edicion'
 import { esModoServidor } from '@/lib/modo-servidor'
 import { llegaPorTelefono } from '@/features/telefono/host-telefono'
+import { tr, trMarca } from '@/shared/i18n'
 
 // `/api/mi-marca`: colores, logo y nombre del dueño (lib/mi-marca.ts), sin datos; la pantalla de entrada también los lleva.
 // `/api/chat/archivo/f`: un archivo del chat por su enlace firmado (T6, 29 oct 2026); la firma es la sesión de ese archivo.
+// `/api/cabina/documento/descargar`: «Descargar» del visor (12 nov 2026), igual: la firma (emitida con sesión) es la de ese archivo.
 // `/api/cabina/conversacion`: la llama el daemon con su Bearer (como `chat/complete`); la ruta lo compara en tiempo constante.
 // `/api/notifications/send` (v0.2.18): lo llama el daemon con SU token, sin cookie; la ruta exige ese Bearer exacto y
 // rechaza la sesión y el pase de agente (features/notifications/lib/avisosAlumno.ts).
-const SIN_SESION_API = ['/api/desktop', '/api/chat/complete', '/api/cabina/conversacion', '/api/cabina/conversaciones', '/api/llaves/openrouter/callback', '/api/mi-marca', '/api/chat/archivo/f', '/api/notifications/send']
-const NO_DISPONIBLE = 'No disponible en esta edición.'
+const SIN_SESION_API = ['/api/desktop', '/api/chat/complete', '/api/cabina/conversacion', '/api/cabina/conversaciones', '/api/llaves/openrouter/callback', '/api/mi-marca', '/api/chat/archivo/f', '/api/cabina/documento/descargar', '/api/notifications/send']
+const NO_DISPONIBLE = trMarca('No disponible en esta edición.')
 const NOCACHE = { 'Cache-Control': 'no-store' }
 
 const empieza = (ruta: string, prefijo: string) => ruta === prefijo || ruta.startsWith(`${prefijo}/`)
@@ -45,7 +47,7 @@ export function decidirCliente(ruta: string, conSesion: boolean, modoServidor = 
     if (!apiPermitidaEnCliente(ruta)) return { tipo: 'json', status: 404, error: NO_DISPONIBLE }
     if (SIN_SESION_API.some((p) => empieza(ruta, p))) return { tipo: 'pasa' }
     if (conSesion) return { tipo: 'pasa' }
-    return { tipo: 'json', status: 401, error: modoServidor ? 'Tu sesión venció. Recarga la página y entra con tu contraseña.' : 'Abre Arbrain desde la app.' }
+    return { tipo: 'json', status: 401, error: modoServidor ? trMarca('Tu sesión venció. Recarga la página y entra con tu contraseña.') : trMarca('Abre Arbrain desde la app.') }
   }
   if (empieza(ruta, '/sin-sesion')) return conSesion ? { tipo: 'redirige', a: '/chat' } : { tipo: 'pasa' }
   // Archivos de public/ (manual, fuentes, caras de Levy): sin datos, pasan.
@@ -110,18 +112,18 @@ export function proxyCliente(request: NextRequest) {
   // Teléfono (23 oct 2026): además del loopback, el Host *.ts.net de esta máquina, solo encendido y solo por HTTPS de
   // `tailscale serve` (features/telefono/host-telefono.ts). Apagado, ese Host recibe 421 como cualquier otro.
   const telefono = llegaPorTelefono(request.headers.get('host'), request.headers.get('x-forwarded-proto'))
-  if (!telefono && !hostDeLaApp(request.headers.get('host'))) return NextResponse.json({ error: 'Host no permitido.' }, { status: 421, headers: NOCACHE })
+  if (!telefono && !hostDeLaApp(request.headers.get('host'))) return NextResponse.json({ error: tr('Host no permitido.') }, { status: 421, headers: NOCACHE })
   const ruta = request.nextUrl.pathname
   if (esModoServidor() && escrituraDeOtroOrigen(request.method, ruta, {
     origin: request.headers.get('origin'),
     secFetchSite: request.headers.get('sec-fetch-site'),
     authorization: request.headers.get('authorization'),
     host: request.headers.get('host'),
-  }, telefono ? 'https:' : request.nextUrl.protocol)) return NextResponse.json({ error: 'Origen no autorizado.' }, { status: 403, headers: NOCACHE })
+  }, telefono ? 'https:' : request.nextUrl.protocol)) return NextResponse.json({ error: tr('Origen no autorizado.') }, { status: 403, headers: NOCACHE })
   const conSesion = isDesktopAuthBypassRequest(request) || bearerDelDaemon(ruta, request.headers.get('authorization'))
   const decision = decidirCliente(ruta, conSesion)
   if (decision.tipo === 'pasa') return NextResponse.next({ request })
-  if (decision.tipo === 'json') return NextResponse.json({ error: decision.error }, { status: decision.status, headers: NOCACHE })
+  if (decision.tipo === 'json') return NextResponse.json({ error: tr(decision.error) }, { status: decision.status, headers: NOCACHE })
   const url = new URL(decision.a, request.url)
   return NextResponse.redirect(url)
 }

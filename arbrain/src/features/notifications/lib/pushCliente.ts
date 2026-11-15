@@ -6,6 +6,7 @@
  */
 import { claveDistinta, esHostLocal, type EntornoPush, type PermisoPush } from './soportePush'
 import { esEdicionCliente } from '@/lib/edicion'
+import { tr } from '@/shared/i18n'
 
 export const VAPID_PUBLICA = (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? '').trim()
 
@@ -72,7 +73,7 @@ async function swListo(ms = 8000): Promise<ServiceWorkerRegistration> {
   if (!existente && !esDevLocal()) await navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' })
   return Promise.race([
     navigator.serviceWorker.ready,
-    new Promise<never>((_, rej) => setTimeout(() => rej(new Error('El servicio de notificaciones no arrancó. Cierra Arbrain, ábrelo y vuelve a intentar.')), ms)),
+    new Promise<never>((_, rej) => setTimeout(() => rej(new Error(tr('El servicio de notificaciones no arrancó. Cierra Arbrain, ábrelo y vuelve a intentar.'))), ms)),
   ])
 }
 
@@ -85,7 +86,7 @@ export async function suscripcionDelNavegador(): Promise<PushSubscription | null
 
 async function leerError(res: Response): Promise<string> {
   const j = await res.json().catch(() => null) as { error?: string } | null
-  return j?.error || `El servidor respondió ${res.status}`
+  return j?.error || tr('El servidor respondió {estado}', { estado: res.status })
 }
 
 /** Registra la suscripción a nombre de la sesión. Lanza si el servidor no la guardó (antes se ignoraba). */
@@ -115,7 +116,7 @@ export async function activarEnDispositivo(): Promise<PermisoPush> {
   if (permiso !== 'granted') permiso = (await Notification.requestPermission()) as PermisoPush
   if (permiso !== 'granted') return permiso
   const clave = await cargarClave()
-  if (!clave) throw new Error('Las notificaciones no están configuradas en este servidor.')
+  if (!clave) throw new Error(tr('Las notificaciones no están configuradas en este servidor.'))
   const reg = await swListo()
   // Una suscripción vieja hecha con otra clave VAPID hace fallar subscribe(): se reemplaza.
   const previa = await reg.pushManager.getSubscription()
@@ -146,11 +147,11 @@ export async function pedirPrueba(): Promise<{ ok: boolean; mensaje: string }> {
     const res = await fetch('/api/notifications/prueba', { method: 'POST', credentials: 'same-origin' })
     const j = await res.json().catch(() => ({})) as { enviadas?: number; error?: string }
     if (res.ok && (j.enviadas ?? 0) > 0) {
-      return { ok: true, mensaje: j.enviadas! > 1 ? `Enviada a tus ${j.enviadas} dispositivos. Llega en unos segundos.` : 'Enviada. Llega en unos segundos, también con Arbrain cerrado.' }
+      return { ok: true, mensaje: j.enviadas! > 1 ? tr('Enviada a tus {n} dispositivos. Llega en unos segundos.', { n: j.enviadas }) : tr('Enviada. Llega en unos segundos, también con Arbrain cerrado.') }
     }
-    return { ok: false, mensaje: j.error || 'No se pudo enviar la prueba.' }
+    return { ok: false, mensaje: j.error ? tr(j.error) : tr('No se pudo enviar la prueba.') }
   } catch {
-    return { ok: false, mensaje: 'Sin conexión con Arbrain. Revisa tu internet.' }
+    return { ok: false, mensaje: tr('Sin conexión con Arbrain. Revisa tu internet.') }
   }
 }
 

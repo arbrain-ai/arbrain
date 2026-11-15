@@ -11,6 +11,7 @@ import {
   CLAVE_ESTADO, esRutaDeVentana, evaluarDespliegue, hayQueAplicar, leerEstado, momentoSeguro, rutaPorRestaurar, scrollTopRestaurado,
   serializarEstado, textoDespliegue, textoFinDespliegue, type EstadoUI,
 } from '@/lib/actualizacion'
+import { tr } from '@/shared/i18n'
 
 /**
  * Actualizar sin cortar (4 oct 2026, «quítame a mí del medio»). Dos fuentes de «versión nueva»:
@@ -291,11 +292,11 @@ export function ActualizacionDesktop() {
         type="button"
         disabled={aplicando}
         onClick={() => void aplicar(true)}
-        title="Hay una versión nueva. Se aplica sola cuando no estés usando la ventana; tu conversación, borrador y paneles vuelven tal cual."
+        title={tr('Hay una versión nueva. Se aplica sola cuando no estés usando la ventana; tu conversación, borrador y paneles vuelven tal cual.')}
         className="flex items-center gap-2 rounded-full border border-border-subtle bg-card/90 px-3 py-1.5 text-[11px] text-muted shadow-lg backdrop-blur transition-colors hover:bg-card-hover disabled:opacity-60"
       >
         <span aria-hidden className="size-1.5 rounded-full bg-brand" />
-        {aplicando ? (progreso ?? 'Reiniciando…') : <>Versión nueva lista <span className="text-muted/50">·</span> <span className="text-brand-ink">Reiniciar</span></>}
+        {aplicando ? (progreso ? tr(progreso) : tr('Reiniciando…')) : <>{tr('Versión nueva lista')} <span className="text-muted/50">·</span> <span className="text-brand-ink">{tr('Reiniciar')}</span></>}
       </button>
     </div>
   )

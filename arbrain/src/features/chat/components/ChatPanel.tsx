@@ -1,5 +1,6 @@
 'use client'
 
+import { tr, trn, localeIntl } from '@/shared/i18n'
 import { FileAttachmentCard } from './FileAttachmentCard'
 import { LevyFace } from './LevyFace'
 import { Retrato } from '@/shared/components/Retrato'
@@ -147,10 +148,10 @@ function UserImageAttachment({ src }: { src: string }) {
           <button
             key={i}
             onClick={() => setLightboxUrl(url)}
-            aria-label={`Abrir imagen ${i + 1}`}
+            aria-label={tr('Abrir imagen {n}', { n: i + 1 })}
             className="group/img relative block size-24 md:size-32 shrink-0 overflow-hidden rounded-xl border border-border bg-card cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
           >
-            <MiniaturaAdjunta url={url} alt={`Imagen ${i + 1}`} />
+            <MiniaturaAdjunta url={url} alt={tr('Imagen {n}', { n: i + 1 })} />
             <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/20 transition-colors flex items-center justify-center">
               <span className="opacity-0 group-hover/img:opacity-100 transition-opacity text-foreground/85">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/><line x1="11" x2="11" y1="8" y2="14"/><line x1="8" x2="14" y1="11" y2="11"/></svg>
@@ -159,7 +160,7 @@ function UserImageAttachment({ src }: { src: string }) {
           </button>
         ))}
       </div>
-      {lightboxUrl && <ImageLightbox src={lightboxUrl} alt="Imagen adjunta" onClose={() => setLightboxUrl(null)} />}
+      {lightboxUrl && <ImageLightbox src={lightboxUrl} alt={tr('Imagen adjunta')} onClose={() => setLightboxUrl(null)} />}
     </>
   )
 }
@@ -195,10 +196,10 @@ function DocumentoPendiente({ nombre, bytes, onRemove }: { nombre: string; bytes
     <div className="relative my-2 flex max-w-60 items-center gap-2 rounded-xl border border-border bg-card py-2 pl-2.5 pr-10">
       <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10"><FileText size={16} className="text-primary" /></div>
       <div className="min-w-0">
-        <p className="truncate text-[13px] font-medium text-foreground/85">{nombre}</p>
-        {bytes != null && <p className="text-[10px] text-muted/80">{formatoBytes(bytes)}</p>}
+        <p className="truncate text-[length:var(--tam-paso)] font-medium text-foreground/85">{nombre}</p>
+        {bytes != null && <p className="text-[length:var(--tam-texto-meta)] text-muted/80">{formatoBytes(bytes)}</p>}
       </div>
-      <button type="button" className="absolute right-1 top-1/2 -translate-y-1/2 flex size-8 items-center justify-center rounded-full border border-border bg-card" aria-label={`Quitar ${nombre}`} onClick={onRemove}><X size={16} /></button>
+      <button type="button" className="absolute right-1 top-1/2 -translate-y-1/2 flex size-8 items-center justify-center rounded-full border border-border bg-card" aria-label={tr('Quitar {nombre}', { nombre })} onClick={onRemove}><X size={16} /></button>
     </div>
   )
 }
@@ -226,23 +227,23 @@ function MenuAdjuntar({ disabled, onFotos, onDocumentos, onConsejo }: { disabled
         type="button"
         onClick={() => setAbierto(v => !v)}
         disabled={disabled}
-        title="Adjuntar"
-        aria-label="Adjuntar fotos o documentos"
+        title={tr('Adjuntar')}
+        aria-label={tr('Adjuntar fotos o documentos')}
         aria-haspopup="menu"
         aria-expanded={abierto}
-        className="icon-btn shrink-0 !size-11 md:!size-8 !rounded-full disabled:opacity-30"
+        className="icon-btn shrink-0 !size-11 md:!size-[var(--tam-control)] !rounded-full disabled:opacity-30"
       >
         <Plus size={17} className={`transition-transform duration-150 ${abierto ? 'rotate-45' : ''}`} />
       </button>
       {abierto && (
-        <PopoverAnclado ancla={boton} panelRef={menu} ancho={240} role="menu" aria-label="Adjuntar" className="rounded-xl border border-border bg-card p-1 shadow-xl overflow-y-auto overscroll-contain">
+        <PopoverAnclado ancla={boton} panelRef={menu} ancho={240} role="menu" aria-label={tr('Adjuntar')} className="rounded-xl border border-border bg-card p-1 shadow-xl overflow-y-auto overscroll-contain">
           <button type="button" role="menuitem" className={opcion} onClick={() => elegir(onFotos)}>
             <ImageIcon size={16} className="shrink-0 text-primary" />
-            <span>Fotos e imágenes</span>
+            <span>{tr('Fotos e imágenes')}</span>
           </button>
           <button type="button" role="menuitem" className={opcion} onClick={() => elegir(onDocumentos)}>
             <FileText size={16} className="shrink-0 text-primary" />
-            <span className="flex flex-col"><span>Documentos</span><span className="text-[11px] text-muted">PDF, Word, Excel, CSV, texto</span></span>
+            <span className="flex flex-col"><span>{tr('Documentos')}</span><span className="text-[11px] text-muted">{tr('PDF, Word, Excel, CSV, texto')}</span></span>
           </button>
           {onConsejo && (
             <button type="button" role="menuitem" className={`${opcion} border-t border-border-subtle`} onClick={() => elegir(onConsejo)}>
@@ -301,7 +302,7 @@ export const MessageBubble = memo(function MessageBubble({ msg, isFresh = false,
   const conTexto = !isUser && msg.metadata?.jobId !== 'evening-reflection'
     && !(msg.metadata?.reporteVivo && !msg.metadata.reporteConTexto && msg.toolCalls?.length)
     && !!respuesta && !(msg.error && msg.diagnostic && respuesta.trim() === msg.diagnostic.trim())
-  const time = msg.timestamp.toLocaleTimeString('es-MX', {
+  const time = msg.timestamp.toLocaleTimeString(localeIntl(), {
     hour: '2-digit',
     minute: '2-digit',
   })
@@ -320,7 +321,7 @@ export const MessageBubble = memo(function MessageBubble({ msg, isFresh = false,
         <div className="w-full max-w-[85%] rounded-xl border border-border bg-card px-3 py-2 text-[13px]">
           <div className="mb-1 flex items-center gap-1.5 text-[11px] text-muted">
             <MessagesSquare size={11} className="shrink-0 text-brand-ink" />
-            <span className="truncate">{msg.metadata.origen.etiqueta ?? 'Levy, desde otra conversación'}</span>
+            <span className="truncate">{msg.metadata.origen.etiqueta ? tr(msg.metadata.origen.etiqueta) : tr('Levy, desde otra conversación')}</span>
             <span className="text-muted/70">{time}</span>
           </div>
           <p className="whitespace-pre-wrap break-words text-foreground">{cuerpo}</p>
@@ -335,7 +336,7 @@ export const MessageBubble = memo(function MessageBubble({ msg, isFresh = false,
       <div data-testid="despertador-disparado" className={`flex justify-center ${isFresh ? 'msg-enter' : ''}`}>
         <span className="inline-flex max-w-[85%] items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-[11px] text-muted">
           <AlarmClock size={11} className="shrink-0 text-brand-ink" />
-          <span className="truncate">{msg.metadata.origen.despertadorId?.startsWith('s-') ? 'Subagente' : 'Despertador'} · {msg.metadata.origen.etiqueta ?? msg.content}</span>
+          <span className="truncate">{msg.metadata.origen.despertadorId?.startsWith('s-') ? tr('Subagente') : tr('Despertador')} · {msg.metadata.origen.etiqueta ?? msg.content}</span>
           <span className="text-muted/70">{time}</span>
         </span>
       </div>
@@ -376,8 +377,8 @@ export const MessageBubble = memo(function MessageBubble({ msg, isFresh = false,
           {onEdit && !isVoiceNote && !isCommand && (
             <button
               onClick={() => onEdit(msg)}
-              title="Editar mensaje (rebobina la conversación aquí)"
-              aria-label="Editar mensaje"
+              title={tr('Editar mensaje (rebobina la conversación aquí)')}
+              aria-label={tr('Editar mensaje')}
               className="p-1 rounded-md text-muted/70 hover:text-foreground hover:bg-white/10 transition-colors"
             >
               <Pencil size={12} />
@@ -404,7 +405,7 @@ export const MessageBubble = memo(function MessageBubble({ msg, isFresh = false,
           <div data-testid="despertar-espontaneo" className="flex items-center gap-1.5 mb-1.5">
             <span className="inline-flex max-w-full items-center gap-1 px-2 py-0.5 rounded-full bg-card border border-border text-[10px] font-medium text-muted">
               <BellRing size={10} className="shrink-0 text-brand-ink" />
-              <span className="truncate">{msg.metadata.origen.etiqueta ?? 'Levy retomó por su cuenta'}</span>
+              <span className="truncate">{msg.metadata.origen.etiqueta ? tr(msg.metadata.origen.etiqueta) : tr('Levy retomó por su cuenta')}</span>
             </span>
           </div>
         )}
@@ -413,7 +414,7 @@ export const MessageBubble = memo(function MessageBubble({ msg, isFresh = false,
           <div aria-hidden className="flex items-center gap-1.5 mb-1.5">
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-card border border-border text-[10px] font-medium text-muted">
               <Clock size={10} />
-              {msg.metadata.jobLabel ?? msg.metadata.jobId ?? 'Cron'}
+              {tr(msg.metadata.jobLabel ?? msg.metadata.jobId ?? 'Cron')}
             </span>
           </div>
         )}
@@ -464,18 +465,18 @@ export const MessageBubble = memo(function MessageBubble({ msg, isFresh = false,
           <div role="status" className="chat-falla">
             <AlertCircle size={15} aria-hidden />
             <div>
-              <b>{msg.diagnostic ? 'Este turno no terminó.' : 'No se completó.'}</b>
-              {msg.diagnostic && <p>{msg.diagnostic}</p>}
-              {retryText && onRetry && <button onClick={() => onRetry(retryText)} className="pg-boton">Reintentar</button>}
+              <b>{msg.diagnostic ? tr('Este turno no terminó.') : tr('No se completó.')}</b>
+              {msg.diagnostic && <p>{tr(msg.diagnostic)}</p>}
+              {retryText && onRetry && <button onClick={() => onRetry(retryText)} className="pg-boton">{tr('Reintentar')}</button>}
             </div>
           </div>
         ) : msg.diagnostic && (
           <p role="status" className="mt-2 text-sm leading-relaxed text-muted">
-            {msg.diagnostic}
+            {tr(msg.diagnostic)}
           </p>
         )}
         {msg.branch && (
-          <p className="mt-2 flex items-center gap-1.5 text-[12px] italic text-muted/70"><GitBranch size={12} className="shrink-0" aria-hidden />Continuación desde un mensaje editado. El historial anterior se conserva.</p>
+          <p className="mt-2 flex items-center gap-1.5 text-[12px] italic text-muted/70"><GitBranch size={12} className="shrink-0" aria-hidden />{tr('Continuación desde un mensaje editado. El historial anterior se conserva.')}</p>
         )}
 
         {/* Botón Play (27 oct 2026, edición cliente): lo que Levy necesita que apruebes, en el hilo del turno vivo. */}
@@ -508,8 +509,8 @@ export const MessageBubble = memo(function MessageBubble({ msg, isFresh = false,
             className="mt-1.5 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-400/10 text-amber-500/90 border border-amber-400/20"
             title={
               msg.downgrade.refusal
-                ? `${modelDisplayName(msg.downgrade.from) ?? msg.downgrade.from} declinó por seguridad${msg.downgrade.category ? ` (${msg.downgrade.category})` : ''} — ${modelDisplayName(msg.downgrade.to) ?? msg.downgrade.to} respondió este turno.`
-                : `${modelDisplayName(msg.downgrade.from) ?? msg.downgrade.from} no estaba disponible — ${modelDisplayName(msg.downgrade.to) ?? msg.downgrade.to} respondió este turno.`
+                ? tr('{de} declinó por seguridad{categoria} — {a} respondió este turno.', { de: modelDisplayName(msg.downgrade.from) ?? msg.downgrade.from, categoria: msg.downgrade.category ? ` (${msg.downgrade.category})` : '', a: modelDisplayName(msg.downgrade.to) ?? msg.downgrade.to })
+                : tr('{de} no estaba disponible — {a} respondió este turno.', { de: modelDisplayName(msg.downgrade.from) ?? msg.downgrade.from, a: modelDisplayName(msg.downgrade.to) ?? msg.downgrade.to })
             }
           >
             <ShieldAlert size={11} className="shrink-0" />
@@ -518,7 +519,7 @@ export const MessageBubble = memo(function MessageBubble({ msg, isFresh = false,
               {' → '}
               {modelDisplayName(msg.downgrade.to) ?? msg.downgrade.to}
               {' · '}
-              {msg.downgrade.refusal ? 'seguridad' : 'capacidad'}
+              {msg.downgrade.refusal ? tr('seguridad') : tr('capacidad')}
             </span>
           </div>
         )}
@@ -655,16 +656,16 @@ const MESSAGES_PAGE_SIZE = 30
 /** Saludo de la hora local, como lo haría una persona (no «Hola» a las 11 p. m.). */
 function saludoPorHora(d = new Date()) {
   const h = d.getHours()
-  return h < 5 ? 'Buenas noches' : h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches'
+  return h < 5 ? tr('Buenas noches') : h < 12 ? tr('Buenos días') : h < 19 ? tr('Buenas tardes') : tr('Buenas noches')
 }
 
 // Documento: se lee a memoria (mismo motivo que las imágenes) y se valida el peso; no se transforma.
 async function prepararDocumento(file: File): Promise<File> {
   const nombre = file.name || 'documento'
-  if (file.size > LIMITE_SUBIDA_BYTES) throw new ErrorImagen('demasiado-grande', `«${nombre}» pesa ${formatoBytes(file.size)} y el máximo es ${formatoBytes(LIMITE_SUBIDA_BYTES)}. Divídelo o exporta solo las páginas que necesitas.`)
+  if (file.size > LIMITE_SUBIDA_BYTES) throw new ErrorImagen('demasiado-grande', tr('«{nombre}» pesa {peso} y el máximo es {maximo}. Divídelo o exporta solo las páginas que necesitas.', { nombre, peso: formatoBytes(file.size), maximo: formatoBytes(LIMITE_SUBIDA_BYTES) }))
   let bytes: ArrayBuffer
-  try { bytes = await file.arrayBuffer() } catch { throw new ErrorImagen('ilegible', `No pude leer «${nombre}»: el sistema ya no lo tiene disponible. Vuelve a adjuntarlo.`) }
-  if (bytes.byteLength === 0) throw new ErrorImagen('ilegible', `«${nombre}» está vacío. Revisa el archivo y vuelve a adjuntarlo.`)
+  try { bytes = await file.arrayBuffer() } catch { throw new ErrorImagen('ilegible', tr('No pude leer «{nombre}»: el sistema ya no lo tiene disponible. Vuelve a adjuntarlo.', { nombre })) }
+  if (bytes.byteLength === 0) throw new ErrorImagen('ilegible', tr('«{nombre}» está vacío. Revisa el archivo y vuelve a adjuntarlo.', { nombre }))
   return new File([bytes], nombre, { type: file.type })
 }
 
@@ -1003,10 +1004,13 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
   // Anchos del chat (globals.css · .chat-area): el ancho útil del hilo, sin la
   // barra de scroll, se publica como --chat-w para que la prosa, el composer y
   // el carril ancho se calculen sobre el espacio real (sidebar abierto o no).
+  // Encabezado angosto (11 nov 2026, escala del chat): bajo 640 px (el chat a 520 junto al panel) la píldora de subagentes
+  // pasa a su forma compacta (solo el número) para no tapar «Levy». Solo cambia al cruzar el umbral.
+  const [encabezadoAngosto, setEncabezadoAngosto] = useState(false)
   useLayoutEffect(() => {
     const hilo = messagesContainerRef.current, area = chatAreaRef.current
     if (!hilo || !area || typeof ResizeObserver === 'undefined') return
-    const medir = () => area.style.setProperty('--chat-w', `${hilo.clientWidth}px`)
+    const medir = () => { area.style.setProperty('--chat-w', `${hilo.clientWidth}px`); setEncabezadoAngosto(area.clientWidth < 640) }
     medir()
     // El hilo cambia de alto cuando el composer crece al escribir: si hay una lectura en voz
     // alta, la frase activa se recoloca dentro de la zona que sigue visible.
@@ -1528,7 +1532,9 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
         // No se pudo leer (base, daemon o red caídos): lo pintado se queda, la caché no se pisa y se dice la causa.
         // 12 oct 2026: con PostgREST muerto, las conversaciones se veían vacías y se invitaba a borrarlas.
         if (errorCarga) {
-          showChatError(`No pude cargar esta conversación ahora: ${errorCarga}. ${painted ? 'Lo que ves es lo último guardado en este dispositivo; ' : ''}vuelve a abrirla en un momento.`)
+          showChatError(painted
+            ? tr('No pude cargar esta conversación ahora: {error}. Lo que ves es lo último guardado en este dispositivo; vuelve a abrirla en un momento.', { error: tr(errorCarga) })
+            : tr('No pude cargar esta conversación ahora: {error}. vuelve a abrirla en un momento.', { error: tr(errorCarga) }))
           return
         }
         // Turno a medio responder que restauré desde memoria (volví a una
@@ -1553,7 +1559,7 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
         // proxy devuelve [] en el catch). Antes moría en silencio y el chat se
         // quedaba en el estado vacío sin explicación — avisar al user.
         if (session.isSDKOnly && fresh.length === 0 && !painted) {
-          showChatError('No pude cargar esta conversación — el daemon no respondió. Reintenta en un momento.')
+          showChatError(tr('No pude cargar esta conversación — el daemon no respondió. Reintenta en un momento.'))
         }
         // Sesión MC VACÍA (0 filas y sin más páginas) = sesión fantasma: el turno
         // que la creó nunca se completó (incidente 17-18 jul: daemon caído 38h).
@@ -1562,7 +1568,7 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
         // su primer turno EN VUELO también tiene 0 filas y no es fantasma.
         if (!session.isSDKOnly && fresh.length === 0 && !hasMore && !painted
           && Date.now() - new Date(session.created_at).getTime() > 15 * 60_000) {
-          showChatError('Esta conversación está vacía: su primer turno nunca llegó a completarse (probablemente el daemon estaba caído al enviarlo). Puedes borrarla desde el menú ⋯ del sidebar.')
+          showChatError(tr('Esta conversación está vacía: su primer turno nunca llegó a completarse (probablemente el daemon estaba caído al enviarlo). Puedes borrarla desde el menú ⋯ del sidebar.'))
         }
         cacheSnapshot('chat', `chat:messages:${session.id}`, { messages: fresh, hasMore }).catch(() => {})
       } finally {
@@ -1600,7 +1606,7 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
         const nowIso = new Date().toISOString()
         void handleSelectSession({
           id: targetId,
-          title: 'Conversación',
+          title: tr('Conversación'),
           is_favorite: false,
           profile_id: null,
           created_at: nowIso,
@@ -1668,7 +1674,7 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
         const combo = await history.fetchSessionWithMessages(targetId, { limit: MESSAGES_PAGE_SIZE })
         if (seq !== selectSeqRef.current) return
         if (!combo) {
-          if (!painted) showChatError('No pude cargar esa conversación. Reintenta en un momento.')
+          if (!painted) showChatError(tr('No pude cargar esa conversación. Reintenta en un momento.'))
           return
         }
         setActiveSession(combo.session)
@@ -1688,7 +1694,7 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
         // Mismo aviso de sesión fantasma que handleSelectSession (deep-link path).
         if (combo.messages.length === 0 && !combo.hasMore && !painted
           && Date.now() - new Date(combo.session.created_at).getTime() > 15 * 60_000) {
-          showChatError('Esta conversación está vacía: su primer turno nunca llegó a completarse (probablemente el daemon estaba caído al enviarlo). Puedes borrarla desde el menú ⋯ del sidebar.')
+          showChatError(tr('Esta conversación está vacía: su primer turno nunca llegó a completarse (probablemente el daemon estaba caído al enviarlo). Puedes borrarla desde el menú ⋯ del sidebar.'))
         }
         cacheSnapshot('chat', `chat:messages:${targetId}`, { messages: combo.messages, hasMore: combo.hasMore }).catch(() => {})
       } finally {
@@ -2023,14 +2029,14 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
       for (const file of files) {
         try {
           const esDoc = esDocumentoAceptado(file)
-          if (!esDoc && !esArchivoDeImagen(file)) throw new ErrorImagen('formato', `«${file.name || 'archivo'}» no es un formato que pueda adjuntar: imágenes (PNG, JPG, WebP, GIF, HEIC) o documentos (PDF, Word, Excel, PowerPoint, CSV, texto).`)
+          if (!esDoc && !esArchivoDeImagen(file)) throw new ErrorImagen('formato', tr('«{nombre}» no es un formato que pueda adjuntar: imágenes (PNG, JPG, WebP, GIF, HEIC) o documentos (PDF, Word, Excel, PowerPoint, CSV, texto).', { nombre: file.name || tr('archivo') }))
           const borrador = composerDrafts.entry(key, EMPTY_CHAT_DRAFT).value, actuales = borrador.imageFiles.length + borrador.imagenesSubidas.length
-          if (actuales >= MAX_IMAGES) throw new ErrorImagen('demasiado-grande', `Máximo ${MAX_IMAGES} archivos por mensaje; quita alguno para adjuntar «${file.name || 'otro'}».`)
+          if (actuales >= MAX_IMAGES) throw new ErrorImagen('demasiado-grande', tr('Máximo {max} archivos por mensaje; quita alguno para adjuntar «{nombre}».', { max: MAX_IMAGES, nombre: file.name || tr('otro') }))
           const lista = esDoc ? await prepararDocumento(file) : await prepararImagen(file, esTelefonoAhora() ? PERFIL_DATOS_MOVILES : PERFIL_NORMAL)
           composerDrafts.update(key, EMPTY_CHAT_DRAFT, cur => cur.imageFiles.length + cur.imagenesSubidas.length >= MAX_IMAGES ? cur : { ...cur, imageFiles: [...cur.imageFiles, lista] })
           if (draftScope.current === scope) textareaRef.current?.focus()
         } catch (e) {
-          if (draftScope.current === scope) showChatError(e instanceof ErrorImagen ? e.message : `No pude preparar «${file.name || 'la imagen'}»: ${e instanceof Error ? e.message : 'error desconocido'}. Vuelve a adjuntarla.`, 12000)
+          if (draftScope.current === scope) showChatError(e instanceof ErrorImagen ? tr(e.message) : tr('No pude preparar «{nombre}»: {error}. Vuelve a adjuntarla.', { nombre: file.name || tr('la imagen'), error: e instanceof Error ? tr(e.message) : tr('error desconocido') }), 12000)
         } finally { preparandoRef.current = Math.max(0, preparandoRef.current - 1); setPreparingImages(n => Math.max(0, n - 1)) }
       }
     })
@@ -2056,14 +2062,14 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
     if(path) {
       e.preventDefault()
       const scope = draftScope.current
-      void readPastedImage(path).then(file=>{if(draftScope.current===scope)attachImages([file])}).catch(error=>{if(draftScope.current===scope)showChatError(String(error?.message??error))})
+      void readPastedImage(path).then(file=>{if(draftScope.current===scope)attachImages([file])}).catch(error=>{if(draftScope.current===scope)showChatError(tr(String(error?.message??error)))})
       return
     }
     if (!isLongText(content)) return
     e.preventDefault()
     const next = [...textFiles, pastedTextFile(content, textFiles)]
     const error = textAttachmentError(next)
-    if (error) { showChatError(error); return }
+    if (error) { showChatError(tr(error)); return }
     setTextFiles(next)
     // Pasting replaces a selection, while unrelated instructions stay in the composer.
     const el = e.currentTarget
@@ -2169,7 +2175,7 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
     const trabajando = loading || ocupado() || enviandoRef.current
     // El mismo texto de un turno que sigue sin resolverse no abre otro: duplicaría el trabajo (2 oct 2026).
     if (!desdeCola && !editando && fotos.length === 0 && subidas.length === 0 && repiteTurnoEnCurso(messages, msg)) {
-      showChatError('Ese mismo mensaje ya va en camino y Levy lo está trabajando. Su respuesta aparece aquí al terminar.', 8000)
+      showChatError(tr('Ese mismo mensaje ya va en camino y Levy lo está trabajando. Su respuesta aparece aquí al terminar.'), 8000)
       return
     }
     const destino = destinoDelEnvio({
@@ -2178,7 +2184,7 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
       filaEsperando: !desdeCola && cola.esperando(),
     })
     if (destino === 'nada') {
-      if (editando && trabajando) showChatError('Para editar un mensaje anterior espera a que Levy termine; lo que escribas nuevo sí entra a la fila.')
+      if (editando && trabajando) showChatError(tr('Para editar un mensaje anterior espera a que Levy termine; lo que escribas nuevo sí entra a la fila.'))
       return
     }
     const vaciarCaja = () => {
@@ -2529,7 +2535,7 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
     // antes una nota de voz en conversación nueva caía a la sesión global 'mc-web'.
     const sessionPromise = activeSession?.id
       ? undefined
-      : history.createSession(transcription.slice(0, 80) || 'Nota de voz')
+      : history.createSession(transcription.slice(0, 80) || tr('Nota de voz'))
           .then((newSession) => {
             activeSessionRef.current = newSession
             setActiveSession(newSession)
@@ -2875,13 +2881,13 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
     setMetaAccionando(true)
     try {
       const r = await fetch('/api/chat/meta', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ session: sesionMeta, account: account ?? 'default', accion }) })
-      if (!r.ok) throw new Error((await r.json().catch(() => null))?.error || 'No se pudo cambiar la meta.')
+      if (!r.ok) throw new Error((await r.json().catch(() => null))?.error || tr('No se pudo cambiar la meta.'))
       if (accion === 'quitar') {
         setMetaServidor({ sesion: sesionMeta, estado: 'quitada' })
         // El CLI es el dueño de la meta: `/goal clear` la borra de verdad. Con Levy trabajando entra a la fila y sale al terminar.
         handleSendRef.current('/goal clear')
       } else setMetaServidor(accion === 'pausar' ? { sesion: sesionMeta, estado: 'pausada' } : null)
-    } catch (e) { showChatError(e instanceof Error ? e.message : 'No se pudo cambiar la meta.') }
+    } catch (e) { showChatError(e instanceof Error ? tr(e.message) : tr('No se pudo cambiar la meta.')) }
     finally { setMetaAccionando(false) }
   }
 
@@ -2919,7 +2925,7 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
       alCambiar: (estado, intento) => setSalida({ estado, intento }),
       alAtorarse: () => {
         console.warn('[chat/fila] no pudo salir sola tras reintentar; queda en pausa')
-        showChatError('La fila no pudo salir sola y quedó en pausa arriba de la caja. Toca «Enviar» para mandarla.', 12000)
+        showChatError(tr('La fila no pudo salir sola y quedó en pausa arriba de la caja. Toca «Enviar» para mandarla.'), 12000)
       },
     })
   }
@@ -2935,7 +2941,7 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
       salio: id => colaRef.current.quitar(id),
       devolver: (id, motivo) => {
         colaRef.current.delServidorAlDispositivo(id)
-        if (motivo === 'rechazado') showChatError('El mensaje con fotos no pudo quedar en el servidor: está en pausa arriba de la caja. Toca «Enviar» para mandarlo.', 12000)
+        if (motivo === 'rechazado') showChatError(tr('El mensaje con fotos no pudo quedar en el servidor: está en pausa arriba de la caja. Toca «Enviar» para mandarlo.'), 12000)
       },
       alCambiar: estados => setEstadosServidor(estados),
     })
@@ -2965,12 +2971,12 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
     if (r?.retirada) return true
     if (r && (r.estado === 'requeued' || r.estado === 'sent')) {
       colaRef.current.quitar(id)
-      showChatError('Ese mensaje ya salió hacia Levy; ya no se puede editar ni quitar.', 8000)
+      showChatError(tr('Ese mensaje ya salió hacia Levy; ya no se puede editar ni quitar.'), 8000)
       return false
     }
     // Sin respuesta del servidor: se queda donde estaba (y se sigue vigilando), nunca a medias.
     filaServidorRef.current?.observar({ conversacion, pendientes: colaRef.current.items.filter(x => x.servidor).map(x => ({ id: x.id, texto: x.texto, imagenes: x.imagenes })), turnoEnCurso })
-    showChatError('No pude retirar ese mensaje del servidor. Sigue en la fila; inténtalo de nuevo.', 8000)
+    showChatError(tr('No pude retirar ese mensaje del servidor. Sigue en la fila; inténtalo de nuevo.'), 8000)
     return false
   }, [activeSession?.id, retirarDeFilaServidor, showChatError, turnoEnCurso])
   const quitarDeFila = useCallback((id: string) => {
@@ -2993,7 +2999,7 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
   const editarDeFila = useCallback((id?: string) => {
     if (!composerDraft.ready) return // Con el borrador aún cargando, escribir lo pisaría: la fila no se toca.
     // Editar un mensaje anterior reenvía solo texto: sus fotos se perderían. Se queda en la fila hasta terminar.
-    if (composerDraft.value.editingMsgId) { showChatError('Termina o cancela la edición del mensaje anterior antes de traer uno de la fila.'); return }
+    if (composerDraft.value.editingMsgId) { showChatError(tr('Termina o cancela la edición del mensaje anterior antes de traer uno de la fila.')); return }
     const traer = (cual?: string) => {
       const item = colaRef.current.sacar(cual); if (!item) return
       composerDrafts.update(composerKeyRef.current, EMPTY_CHAT_DRAFT, cur => devolverAlComposer(cur, item))
@@ -3209,7 +3215,7 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
             un iPhone en horizontal mide ≥ 768 px de ancho y `md:flex` la prendía junto al Header global (cabecera doble);
             esa clase la apaga con el mismo criterio de «teléfono» que usa el shell (CONSULTA_TELEFONO). */}
         <div data-cabecera-chat className="solo-escritorio titanium-header shrink-0 relative hidden md:flex items-center justify-end px-4 py-3 border-b border-border-subtle z-10">
-          <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2.5 pointer-events-auto select-none">
+          <div className="absolute left-1/2 -translate-x-1/2 flex w-max items-center gap-2.5 pointer-events-auto select-none">
             {/* 4 oct 2026, pedido del dueño: todo el bloque de Levy (foto + nombre) es un solo botón,
                 hablar con Levy en persona (avatar 3D con voz, pestaña Live). La lista de conversaciones
                 es la barra izquierda; cuenta y modelo viven en la píldora del composer. */}
@@ -3219,26 +3225,26 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
               onFocus={() => window.dispatchEvent(new Event('openclaw:prepare-live'))}
               onTouchStart={() => window.dispatchEvent(new Event('openclaw:prepare-live'))}
               className="flex items-center gap-2.5 rounded-lg px-2 py-1 hover:bg-card-hover active:scale-[0.98] transition-all"
-              title="Hablar con Levy en persona"
-              aria-label="Hablar con Levy en persona"
+              title={tr('Hablar con Levy en persona')}
+              aria-label={tr('Hablar con Levy en persona')}
             >
               <span className="relative shrink-0">
                 <Retrato agente="levy" size={32} prioridad className="w-8 h-8 rounded-full object-cover border border-primary/40 shadow-depth-rest-soft" />
                 <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-success border border-background" />
               </span>
-              <span className="text-sm font-semibold text-foreground">Levy</span>
+              <span className="text-[length:var(--tam-prosa-sans)] font-semibold text-foreground">Levy</span>
             </button>
-            <AgentesTrabajando />
+            <AgentesTrabajando compacta={encabezadoAngosto} />
           </div>
 
           <div className="flex items-center gap-1.5">
             <button
               onClick={() => handleNewChat()}
-              title="Nueva conversación"
-              aria-label="Nueva conversación"
-              className="icon-btn size-8"
+              title={tr('Nueva conversación')}
+              aria-label={tr('Nueva conversación')}
+              className="icon-btn"
             >
-              <Plus size={14} />
+              <Plus size={17} />
             </button>
             {headerAction}
           </div>
@@ -3266,7 +3272,7 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
         {connection !== 'online' && (
           <div role="status" data-connection={connection} className="shrink-0 flex items-center justify-center gap-1.5 px-4 py-1.5 bg-amber-500/10 border-b border-amber-500/20 text-[11px] text-amber-200">
             <span className={`w-1.5 h-1.5 rounded-full ${connection === 'offline' ? 'bg-amber-400' : 'bg-amber-300 motion-safe:animate-pulse'}`} />
-            <span>{connection === 'offline' ? 'Sin conexión · lo enviado sigue trabajando en el servidor' : 'Reconectando con el servidor…'}{account !== 'default' && <span className="text-amber-200/70"> · {account}</span>}</span>
+            <span>{connection === 'offline' ? tr('Sin conexión · lo enviado sigue trabajando en el servidor') : tr('Reconectando con el servidor…')}{account !== 'default' && <span className="text-amber-200/70"> · {account}</span>}</span>
             {/* «Reintentar» (29 oct 2026): enciende el motor si no responde y recarga; uno sano nunca se reinicia. */}
             <BotonReintentar className="ml-2 border-amber-300/40 text-amber-100 hover:bg-amber-500/20" />
           </div>
@@ -3318,7 +3324,7 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
                 </div>
                 <div className="chat-vacio-atajos">
                   {/* Edición cliente: los pedidos del alumno (su cerebro está vacío; sin agenda, métricas ni YouTube). */}
-                  {(EDICION_CLIENTE ? PEDIDOS_BIENVENIDA.map(p => ({ label: p.etiqueta, prompt: p.texto })) : [
+                  {(EDICION_CLIENTE ? PEDIDOS_BIENVENIDA.map(p => ({ label: tr(p.etiqueta), prompt: tr(p.texto) })) : [
                     { label: 'Mi día', prompt: '¿Qué tengo hoy? Muéstrame el día.' },
                     { label: 'El negocio', prompt: '¿Cómo van las métricas del negocio hoy?' },
                     { label: 'Lo que llegó', prompt: 'Resume lo más importante de mis últimos reportes.' },
@@ -3342,7 +3348,7 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
                       disabled={loadingOlder}
                       className="px-3 py-1.5 rounded-full text-[11px] font-medium text-muted/80 bg-card hover:bg-card-hover border border-border-subtle transition-colors disabled:opacity-50"
                     >
-                      {loadingOlder ? 'Cargando…' : 'Ver mensajes anteriores'}
+                      {loadingOlder ? tr('Cargando…') : tr('Ver mensajes anteriores')}
                     </button>
                   </div>
                 )}
@@ -3351,17 +3357,17 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
                 {/* Edición cliente (v1.1): bajo el primer mensaje de Levy, sus tres pedidos son botones de un clic que
                     envían ese mensaje tal cual. Desaparecen en cuanto la persona escribe o toca uno. */}
                 {EDICION_CLIENTE && !loading && soloBienvenida(messages) && !tourEnCurso && (
-                  <div role="group" aria-label="Para empezar" className="flex flex-wrap gap-2 pt-3" data-pedidos-bienvenida>
+                  <div role="group" aria-label={tr('Para empezar')} className="flex flex-wrap gap-2 pt-3" data-pedidos-bienvenida>
                     {PEDIDOS_BIENVENIDA.map((p) => (
                       <button
                         key={p.texto}
                         type="button"
-                        onClick={() => handleSend(p.texto)}
-                        title={p.para.charAt(0).toUpperCase() + p.para.slice(1)}
+                        onClick={() => handleSend(tr(p.texto))}
+                        title={tr(p.para).charAt(0).toUpperCase() + tr(p.para).slice(1)}
                         className="min-h-10 max-w-full rounded-full border border-brand/25 bg-brand/[0.08] px-3.5 py-2 text-left text-[13px] text-brand-ink
                           hover:border-brand/45 hover:bg-brand/15 active:scale-[0.98] transition-all duration-150 focus-visible:outline-2 focus-visible:outline-brand"
                       >
-                        {p.texto}
+                        {tr(p.texto)}
                       </button>
                     ))}
                   </div>
@@ -3411,7 +3417,7 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
                   className="pointer-events-auto -translate-y-full
                     icon-btn rounded-full
                     hover:bg-card-hover active:scale-90"
-                  title="Ir al final"
+                  title={tr('Ir al final')}
                 >
                   <ChevronDown size={16} />
                 </button>
@@ -3490,14 +3496,14 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
                 <div className="mb-2 flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg bg-brand/[0.08] border border-brand/25 text-[12px]">
                   <span className="flex items-center gap-1.5 text-brand min-w-0">
                     <Pencil size={12} className="shrink-0" />
-                    <span className="truncate">Editando mensaje · se descarta lo que sigue</span>
+                    <span className="truncate">{tr('Editando mensaje · se descarta lo que sigue')}</span>
                   </span>
                   <button
                     onClick={handleCancelEdit}
                     className="shrink-0 text-muted hover:text-foreground transition-colors"
-                    title="Cancelar edición (Esc)"
+                    title={tr('Cancelar edición (Esc)')}
                   >
-                    Cancelar
+                    {tr('Cancelar')}
                   </button>
                 </div>
               )}
@@ -3507,25 +3513,25 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
                   <span className="bg-gradient-to-r from-pink-400 via-violet-400 via-cyan-400 to-amber-400 bg-clip-text text-transparent font-bold tracking-wider">
                     ULTRATHINK
                   </span>
-                  <span className="text-muted">· thinking max activado</span>
+                  <span className="text-muted">{tr('· thinking max activado')}</span>
                 </div>
               )}
 
               {hasUltracodeWord(input) && (
                 <div className="mb-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium border border-brand/30 bg-brand/10 align-middle">
                   <span className="text-brand-ink font-bold tracking-wider">ULTRACODE</span>
-                  <span className="text-muted">· orquestación multi-agente este turno</span>
+                  <span className="text-muted">{tr('· orquestación multi-agente este turno')}</span>
                 </div>
               )}
 
-              {composerDraft.error && <p role="alert" className="text-sm text-amber-600">{composerDraft.error}</p>}
+              {composerDraft.error && <p role="alert" className="text-sm text-amber-600">{tr(composerDraft.error)}</p>}
               {chatError && (
                 <div className="mb-2 px-3 py-2 rounded-xl bg-error/10 border border-error/25 text-[12px] text-error flex items-center justify-between gap-3">
-                  <span className="leading-snug">{chatError}</span>
+                  <span className="leading-snug">{tr(chatError)}</span>
                   <button
                     onClick={() => setChatError(null)}
                     className="shrink-0 text-error/60 hover:text-error transition-colors"
-                    aria-label="Cerrar"
+                    aria-label={tr('Cerrar')}
                   >
                     <X size={12} />
                   </button>
@@ -3549,12 +3555,12 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
               {/* Los que regresaron de la fila (ya subidos) van primero: así salen. */}
               {imagenesSubidas.map((url,i)=>{const quitar=()=>setImagenesSubidas(prev=>prev.filter((_,j)=>j!==i)); return esUrlDeDocumento(url)
                 ? <DocumentoPendiente key={`s${i}`} nombre={nombreDesdeUrl(url)} onRemove={quitar}/>
-                : <ImageAttachmentCard compact key={`s${i}`} file={{name:`Imagen ${i+1}`,content:urlPublicaDeStorage(url)}} onRemove={quitar}/>})}
+                : <ImageAttachmentCard compact key={`s${i}`} file={{name:tr('Imagen {n}', { n: i+1 }),content:urlPublicaDeStorage(url)}} onRemove={quitar}/>})}
               {pendingImages.map((img,i)=>esDocumentoAceptado(img.file)
                 ? <DocumentoPendiente key={i} nombre={img.file.name} bytes={img.file.size} onRemove={()=>removePendingImage(i)}/>
                 : <ImageAttachmentCard compact key={i} file={{name:img.file.name,content:img.previewUrl}} onRemove={()=>removePendingImage(i)}/>)}
-              {preparingImages>0&&<span role="status" className="text-xs text-muted self-center">Preparando {preparingImages===1?'archivo':'archivos'}…</span>}
-              {uploadingImage&&<span role="status" className="text-xs text-muted self-center">Subiendo archivos…</span>}
+              {preparingImages>0&&<span role="status" className="text-xs text-muted self-center">{trn(preparingImages, 'Preparando archivo…', 'Preparando archivos…')}</span>}
+              {uploadingImage&&<span role="status" className="text-xs text-muted self-center">{tr('Subiendo archivos…')}</span>}
                 </div>}
                 {/* Controles fijos debajo del texto. */}
                 <div className={composerUI.controls}>
@@ -3571,16 +3577,16 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
                     ref={modelChipRef}
                     onClick={() => setShowModelPicker((v) => !v)}
                     aria-haspopup="dialog"
-                    aria-label={EDICION_CLIENTE ? 'Modelo, permisos y Pausar todo' : 'Cambiar modelo y cuenta'}
+                    aria-label={EDICION_CLIENTE ? tr('Modelo, permisos y Pausar todo') : 'Cambiar modelo y cuenta'}
                     aria-expanded={showModelPicker}
-                    title={EDICION_CLIENTE ? 'Modelo, Autónomo o Preguntar, y Pausar todo' : 'Cambiar modelo y cuenta'}
+                    title={EDICION_CLIENTE ? tr('Modelo, Autónomo o Preguntar, y Pausar todo') : 'Cambiar modelo y cuenta'}
                     className={account === 'abliterated' ? `${composerUI.model} ${composerUI.sinFiltro}` : composerUI.model}
                     data-sin-filtro={account === 'abliterated' || undefined}
                   >
                     {/* Autónomo (30 oct 2026): un punto discreto; el modo y «Pausar todo» se cambian en este menú. */}
                     {EDICION_CLIENTE && <PuntoAutonomo />}
-                    <span className="text-[12.5px] font-medium truncate">
-                      {account === 'abliterated' ? 'DeepSeek abliterated · sin filtro' : <>{modelDisplayName(currentModel) ?? 'Modelo'} · {CHAT_TABS.find(t => t.id === account)?.label ?? account}</>}
+                    <span className="text-[length:var(--tam-texto-control)] font-medium truncate">
+                      {account === 'abliterated' ? 'DeepSeek abliterated · sin filtro' : <>{modelDisplayName(currentModel) ?? tr('Modelo')} · {CHAT_TABS.find(t => t.id === account)?.label ?? account}</>}
                     </span>
                     <ChevronDown size={11} className="shrink-0 text-muted/70" />
                   </button>
@@ -3590,10 +3596,10 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
                     ref={effortChipRef}
                     data-effort-chip
                     onClick={() => setShowEffortSlider((v) => !v)}
-                    aria-label="Nivel de esfuerzo"
+                    aria-label={tr('Nivel de esfuerzo')}
                     aria-expanded={showEffortSlider}
-                    title="Configurar razonamiento"
-                    className={`shrink-0 flex items-center min-h-11 min-w-11 md:min-h-8 md:min-w-0 rounded-full px-3 border text-[12px] font-medium transition-colors select-none ${
+                    title={tr('Configurar razonamiento')}
+                    className={`shrink-0 flex items-center min-h-11 min-w-11 md:min-h-[var(--tam-control)] md:min-w-0 rounded-full px-3.5 border text-[length:var(--tam-texto-control)] font-medium transition-colors select-none ${
                       ultracode
                         ? 'bg-brand/10 border-brand/40 text-brand-ink'
                         : 'bg-card border-border text-foreground/70 hover:text-foreground hover:bg-card-hover'
@@ -3618,14 +3624,14 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
                     <div
                       ref={overlayRef}
                       aria-hidden
-                      className="pointer-events-none absolute inset-0 whitespace-pre-wrap break-words text-[15px] md:text-sm leading-snug py-1 overflow-hidden"
+                      className="pointer-events-none absolute inset-0 whitespace-pre-wrap break-words text-[length:var(--tam-entrada)] leading-[1.55] px-1.5 py-1 overflow-hidden"
                     >
                       <HighlightedInputOverlay value={input} />
                     </div>
                   )}
                   <textarea
                     ref={textareaRef}
-                    aria-label="Mensaje"
+                    aria-label={tr('Mensaje')}
                     // Región scrolleable propia: el textarea largo scrollea con
                     // el dedo (max-h 200px) y permite selección de texto en móvil.
                     // Exenta del preventDefault global de touchmove (dashboard-shell).
@@ -3637,10 +3643,10 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
                     onScroll={(e) => {
                       if (overlayRef.current) overlayRef.current.scrollTop = e.currentTarget.scrollTop
                     }}
-                    placeholder={textFiles.length > 0 ? '¿Qué hacemos con el texto?' : pendingImages.length + imagenesSubidas.length > 0 ? 'Agrega un mensaje o envía...' : 'Mensaje...'}
+                    placeholder={textFiles.length > 0 ? tr('¿Qué hacemos con el texto?') : pendingImages.length + imagenesSubidas.length > 0 ? tr('Agrega un mensaje o envía...') : tr('Mensaje...')}
                     rows={1}
                     disabled={loadingSession}
-                    className="chat-input-scroll relative w-full bg-transparent text-[15px] md:text-sm placeholder:text-muted/50 resize-none outline-none min-h-[28px] leading-snug py-1 disabled:opacity-50"
+                    className="chat-input-scroll relative w-full bg-transparent text-[length:var(--tam-entrada)] placeholder:text-muted/50 resize-none outline-none min-h-[28px] leading-snug py-1 disabled:opacity-50"
                     style={showOverlay ? {
                       // Hide the textarea's own glyphs only while the rainbow overlay
                       // is mounted on top. Caret stays visible via caretColor.
@@ -3662,8 +3668,8 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
                     onPointerUp={endHoldStop}
                     onPointerLeave={endHoldStop}
                     onPointerCancel={endHoldStop}
-                    title="Tap: pausar · Mantén presionado: descartar el turno"
-                    aria-label="Detener respuesta. Tap para pausar, mantén presionado para descartar el turno."
+                    title={tr('Tap: pausar · Mantén presionado: descartar el turno')}
+                    aria-label={tr('Detener respuesta. Tap para pausar, mantén presionado para descartar el turno.')}
                     data-armado={detenerListo || undefined}
                     className={`${botonEnviar.enviar} ${botonEnviar.detener} ${detenerListo ? '' : 'opacity-40'} ${holdingStop ? botonEnviar.sosteniendo : ''}`}
                   >
@@ -3691,8 +3697,8 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
                     }}
                     onClick={() => handleSend()}
                     disabled={!composerDraft.ready || loadingSession}
-                    aria-label="Enviar"
-                    title={loading ? 'Enviar: sale cuando Levy termine (Enter)' : 'Enviar (Enter)'}
+                    aria-label={tr('Enviar')}
+                    title={loading ? tr('Enviar: sale cuando Levy termine (Enter)') : tr('Enviar (Enter)')}
                     className={botonEnviar.enviar}
                   >
                     <ArrowUp strokeWidth={2.5} aria-hidden />
@@ -3701,10 +3707,10 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
                   // Edición cliente sin llave de Groq (21 oct 2026): el micrófono lleva a Ajustes › Voz, que explica cómo
                   // conseguirla gratis. Con la llave, el dictado de abajo transcribe en SU daemon.
                   <button type="button" onClick={irAjustesVoz} disabled={loadingSession}
-                    aria-label="Dictar: agrega tu llave de Groq (gratis) en Ajustes › Voz"
-                    title="Para dictar, agrega tu llave de Groq (gratis) en Ajustes › Voz"
-                    className="shrink-0 w-11 h-11 md:w-8 md:h-8 rounded-xl flex items-center justify-center transition-all text-muted/80 hover:text-foreground/70 hover:bg-card-hover disabled:opacity-50">
-                    <Mic size={16} className="md:w-[13px] md:h-[13px]" />
+                    aria-label={tr('Dictar: agrega tu llave de Groq (gratis) en Ajustes › Voz')}
+                    title={tr('Para dictar, agrega tu llave de Groq (gratis) en Ajustes › Voz')}
+                    className="shrink-0 w-11 h-11 md:w-[var(--tam-control)] md:h-[var(--tam-control)] rounded-xl flex items-center justify-center transition-all text-muted/80 hover:text-foreground/70 hover:bg-card-hover disabled:opacity-50">
+                    <Mic size={16} className="md:w-[15px] md:h-[15px]" />
                   </button>
                 ) : (
                   <VoiceInput
@@ -3712,6 +3718,7 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
                     disabled={loadingSession}
                     soloTexto={EDICION_CLIENTE}
                     onSinConfigurar={EDICION_CLIENTE ? irAjustesVoz : undefined}
+                    ligero
                   />
                 )}
                 </div>

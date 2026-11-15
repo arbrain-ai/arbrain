@@ -1,6 +1,7 @@
 import { DESKTOP_SESSION_COOKIE, isClientEdition, isDesktopSecret, isLocalHostname } from '@/lib/desktop-auth'
 import { destinoSeguro } from '@/features/auth/entrada'
 import { esModoServidor } from '@/lib/modo-servidor'
+import { tr } from '@/shared/i18n'
 
 // Entrada de la app de escritorio en la edición cliente (seguridad, 10 oct 2026; AUDITORIA I5).
 // La app abre `/api/desktop/sesion?t=<secreto>&a=<ruta>` en su primera carga: si el secreto por instalación coincide,
@@ -17,7 +18,7 @@ export async function GET(request: Request) {
   const url = new URL(request.url)
   const host = (request.headers.get('host') ?? '').replace(/:\d+$/, '').replace(/^\[|\]$/g, '')
   if (!isLocalHostname(host) || !isDesktopSecret(url.searchParams.get('t'))) {
-    return new Response('No autorizado.', { status: 403, headers: { 'Cache-Control': 'no-store' } })
+    return new Response(tr('No autorizado.'), { status: 403, headers: { 'Cache-Control': 'no-store' } })
   }
   const destino = destinoSeguro(url.searchParams.get('a'))
   // Cookie de sesión (sin Max-Age): el secreto es por apertura (CONTRATO-DAEMON v2) y así el webview no lo escribe en su

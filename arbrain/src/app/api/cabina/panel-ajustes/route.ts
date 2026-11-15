@@ -1,6 +1,7 @@
 import { planningOwner, planningError, checkMutationOrigin } from '@/lib/planning/server'
 import { getSchedulerUrl, CLAUDECLAW_TOKEN } from '@/lib/claudeclaw'
 import { sinRespuestaDelServidor } from '@/lib/edicion'
+import { tr } from '@/shared/i18n'
 
 // Ajustes del panel derecho (6 oct 2026): qué secciones salen en el «+» y en qué orden. La config vive en el Studio
 // (~/.config/arbrain/panel-ajustes.json) y la escribe una sola implementación, la del daemon
@@ -16,7 +17,7 @@ async function alDaemon(cuerpo: Record<string, unknown>) {
     method: 'POST', headers: { Authorization: `Bearer ${CLAUDECLAW_TOKEN}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ que: 'panel-ajustes', ...cuerpo }), signal: AbortSignal.timeout(10_000), cache: 'no-store',
   })
-  const body = await res.json().catch(() => ({ error: sinRespuestaDelServidor() }))
+  const body = await res.json().catch(() => ({ error: tr(sinRespuestaDelServidor()) }))
   return Response.json(body, { status: res.status, headers: NO_CACHE })
 }
 
@@ -30,7 +31,7 @@ export async function POST(request: Request) {
     await planningOwner()
     checkMutationOrigin(request)
     const body = await request.json().catch(() => null) as Record<string, unknown> | null
-    if (!body || typeof body.accion !== 'string' || !ACCIONES.has(body.accion)) return Response.json({ error: 'accion debe ser migrar, guardar o restablecer.' }, { status: 400, headers: NO_CACHE })
+    if (!body || typeof body.accion !== 'string' || !ACCIONES.has(body.accion)) return Response.json({ error: tr('accion debe ser migrar, guardar o restablecer.') }, { status: 400, headers: NO_CACHE })
     const { accion, orden, ocultas, donde } = body
     return await alDaemon({ accion, orden, ocultas, donde })
   } catch (error) { return planningError(error) }

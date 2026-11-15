@@ -12,6 +12,7 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname, isAbsolute, join } from 'node:path'
 import { normalizarTemporada, type DocTemporada } from '@/features/planning/temporada'
+import { tr } from '@/shared/i18n'
 
 /** La ruta dentro del cerebro del alumno. */
 export const RUTA_TEMPORADA_LOCAL = '.claude/plan/temporada.json'
@@ -26,7 +27,7 @@ export function dondeTemporada(opciones: { cliente: boolean; raiz?: () => string
     return { tipo: 'archivo', ruta: forzado }
   }
   if (opciones.cliente) {
-    if (!opciones.raiz) throw new Error('Falta la raíz del cerebro para la temporada.')
+    if (!opciones.raiz) throw new Error(tr('Falta la raíz del cerebro para la temporada.'))
     return { tipo: 'archivo', ruta: join(opciones.raiz(), RUTA_TEMPORADA_LOCAL) }
   }
   return { tipo: 'instalacion' }

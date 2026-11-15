@@ -23,26 +23,31 @@
  * segundo plano, tareas rápidas de Levy, comandos terminados y lo de hace más de 24 h) va plegado en «Más actividad».
  * Las cinco columnas del spec siguen en el modelo (y «murió» se sigue detectando); solo cambia cómo se nombran. El
  * detalle técnico (código de salida, modelo, latido) vive tras «Ver detalles».
+ *
+ * Recibido (11 nov 2026, Daniel: «un botón de palomita como recibido… para que no se acumulen»): un encargo terminado que
+ * el dueño marcó sale de su grupo y va a «Recibidos», dentro de «Más actividad». Si después vuelve a trabajar (un turno
+ * nuevo escribe en su bitácora después de la marca), regresa solo a su grupo: la marca vale para lo que ya vio.
  */
 import { esAgente, esProceso, preguntaAlgo, esperaALevy, ultimaRespuesta, type CambiosRama, type Coherencia, type Columna, type EstadoTablero, type Juicio, type Preparando, type TareaInterna, type Terminal, type Trabajos, type Veredicto } from './trabajos-modelo'
 import { agenteTerminado, resumenInterna, resumenTerminal, unaLinea } from './terminados'
 import { actividadLegible, tituloLegible } from './internas-lectura'
+import { localeIntl, tr, trMarca, trn } from '@/shared/i18n'
 
 export type { Columna }
 export const ORDEN_COLUMNAS: Columna[] = ['te-espera', 'trabajando', 'listo', 'falló', 'murió']
 /** Cómo se nombra cada estado del modelo. «Falló» y «murió» existen en el modelo; en pantalla se dicen como lo que te toca. */
 export const COLUMNA: Record<Columna, { titulo: string; singular: string; plural: string }> = {
-  'te-espera': { titulo: 'Te pregunta algo', singular: 'te pregunta algo', plural: 'te preguntan algo' },
-  trabajando: { titulo: 'Trabajando', singular: 'trabajando', plural: 'trabajando' },
-  listo: { titulo: 'Listo', singular: 'listo', plural: 'listos' },
-  'falló': { titulo: 'No pudo terminar', singular: 'no pudo terminar', plural: 'no pudieron terminar' },
-  'murió': { titulo: 'Se detuvo sin terminar', singular: 'se detuvo', plural: 'se detuvieron' },
+  'te-espera': { titulo: trMarca('Te pregunta algo'), singular: trMarca('te pregunta algo'), plural: trMarca('te preguntan algo') },
+  trabajando: { titulo: trMarca('Trabajando'), singular: trMarca('trabajando'), plural: trMarca('trabajando') },
+  listo: { titulo: trMarca('Listo'), singular: trMarca('listo'), plural: trMarca('listos') },
+  'falló': { titulo: trMarca('No pudo terminar'), singular: trMarca('no pudo terminar'), plural: trMarca('no pudieron terminar') },
+  'murió': { titulo: trMarca('Se detuvo sin terminar'), singular: trMarca('se detuvo'), plural: trMarca('se detuvieron') },
 }
 
 /** Los tres grupos visibles (ronda 4). «Te espera» = todo lo que necesita una decisión tuya. */
 export type Grupo = 'te-espera' | 'trabajando' | 'listo'
 export const ORDEN_GRUPOS: Grupo[] = ['te-espera', 'trabajando', 'listo']
-export const GRUPO: Record<Grupo, string> = { 'te-espera': 'Te espera', trabajando: 'Trabajando', listo: 'Listo' }
+export const GRUPO: Record<Grupo, string> = { 'te-espera': trMarca('Te espera'), trabajando: trMarca('Trabajando'), listo: trMarca('Listo') }
 export const GRUPO_DE: Record<Columna, Grupo> = { 'te-espera': 'te-espera', 'falló': 'te-espera', 'murió': 'te-espera', trabajando: 'trabajando', listo: 'listo' }
 /** Los renglones de un grupo, en orden de urgencia: primero las preguntas, luego lo que no pudo terminar, luego lo detenido. */
 export function filasDeGrupo(t: Tablero, g: Grupo): FilaTablero[] {
@@ -50,31 +55,31 @@ export function filasDeGrupo(t: Tablero, g: Grupo): FilaTablero[] {
 }
 
 /** El veredicto del juez en palabras de dueño: qué pasó y, si hace falta, qué te toca. Sin siglas. */
-export const VEREDICTO: Record<Veredicto, string> = { cumple: 'Cumple lo pedido', 'no-cumple': 'Le faltó algo · revísalo', 'no-verificable': 'No se pudo comprobar · revísalo tú', 'sin-dod': 'Revísalo tú' }
+export const VEREDICTO: Record<Veredicto, string> = { cumple: trMarca('Cumple lo pedido'), 'no-cumple': trMarca('Le faltó algo · revísalo'), 'no-verificable': trMarca('No se pudo comprobar · revísalo tú'), 'sin-dod': trMarca('Revísalo tú') }
 /** Por qué el juez dijo lo que dijo, para el título del veredicto (sin «DoD» ni «criterio»). */
 export const VEREDICTO_POR_QUE: Record<Veredicto, string> = {
-  cumple: 'Otro agente, que no vio el trabajo, revisó la entrega contra lo pedido.',
-  'no-cumple': 'Otro agente, que no vio el trabajo, revisó la entrega y le faltó algo de lo pedido.',
-  'no-verificable': 'Otro agente no pudo comprobar la entrega con lo que dejó.',
-  'sin-dod': 'El encargo no decía cuándo estaba terminado: nadie lo pudo comprobar por ti.',
+  cumple: trMarca('Otro agente, que no vio el trabajo, revisó la entrega contra lo pedido.'),
+  'no-cumple': trMarca('Otro agente, que no vio el trabajo, revisó la entrega y le faltó algo de lo pedido.'),
+  'no-verificable': trMarca('Otro agente no pudo comprobar la entrega con lo que dejó.'),
+  'sin-dod': trMarca('El encargo no decía cuándo estaba terminado: nadie lo pudo comprobar por ti.'),
 }
 /** Lo que se lee mientras el juez no revisa el turno. */
-export const SIN_REVISAR = 'Por revisar'
+export const SIN_REVISAR = trMarca('Por revisar')
 
 /** Por qué no pudo terminar, en palabras de dueño. El texto técnico se queda en «Ver detalles». */
 const RAZONES: [RegExp, string][] = [
-  [/encargo nunca le llegó/i, 'el encargo no le llegó'],
-  [/\b(vitest|jest|pytest|tests?|pruebas?)\b/i, 'falló al probar'],
-  [/\b(typecheck|tsc|compila\w*)\b/i, 'el código no compila'],
-  [/\b(build|construi\w*)\b/i, 'falló al armar la app'],
-  [/ENOSPC|espacio en disco|no space|disk full/i, 'se quedó sin espacio en disco'],
-  [/llave|api key|\btoken\b|\b40[13]\b|unauthori[sz]ed|venci[óo]/i, 'una llave de acceso venció o no sirve'],
-  [/ECONN|ETIMEDOUT|network|sin conexión|timeout/i, 'no pudo conectarse'],
+  [/encargo nunca le llegó/i, trMarca('el encargo no le llegó')],
+  [/\b(vitest|jest|pytest|tests?|pruebas?)\b/i, trMarca('falló al probar')],
+  [/\b(typecheck|tsc|compila\w*)\b/i, trMarca('el código no compila')],
+  [/\b(build|construi\w*)\b/i, trMarca('falló al armar la app')],
+  [/ENOSPC|espacio en disco|no space|disk full/i, trMarca('se quedó sin espacio en disco')],
+  [/llave|api key|\btoken\b|\b40[13]\b|unauthori[sz]ed|venci[óo]/i, trMarca('una llave de acceso venció o no sirve')],
+  [/ECONN|ETIMEDOUT|network|sin conexión|timeout/i, trMarca('no pudo conectarse')],
 ]
 export function razonHumana(texto: string | null | undefined): string {
   const s = texto ?? ''
-  for (const [re, r] of RAZONES) if (re.test(s)) return r
-  return 'algo salió mal'
+  for (const [re, r] of RAZONES) if (re.test(s)) return tr(r)
+  return tr('algo salió mal')
 }
 
 /** Ventana de «reciente»: lo terminado hace más de esto sale de los grupos y va a «Anteriores» (dentro de «Más actividad»). */
@@ -121,47 +126,51 @@ export interface FilaTablero {
   perfil?: 'total' | 'codigo' | 'lectura' | null
   /** El encargo salió de un plan versionado: su ruta y el commit aprobado. */
   plan?: { ruta: string; commit: string | null } | null
+  /** ms epoch en que el dueño lo marcó «Recibido»; null si no. */
+  recibido?: number | null
+  /** Su última respuesta completa (la que el visor resume); null si no dijo nada. */
+  respuesta?: string | null
 }
 
 /** El perfil en palabras para el detalle del renglón. */
-export const PERFIL_EN_PALABRAS = { total: 'Total: sin preguntas, con la lista negra encima', codigo: 'Código: escribe solo en su carpeta', lectura: 'Lectura: no escribe fuera de /tmp ni publica' } as const
+export const PERFIL_EN_PALABRAS = { total: trMarca('Total: sin preguntas, con la lista negra encima'), codigo: trMarca('Código: escribe solo en su carpeta'), lectura: trMarca('Lectura: no escribe fuera de /tmp ni publica') } as const
 
 const MAYUS = (x: string) => x.charAt(0).toUpperCase() + x.slice(1)
 /** Respaldo para el servidor viejo: su `ultimaAccion` viene en pasado («corrió un comando», «editó src/a.ts»). */
 const PASADO: [RegExp, (m: RegExpExecArray) => string][] = [
-  [/^corrió un comando$/, () => 'Corriendo un comando'],
-  [/^editó\s*(.*)$/, m => m[1] ? `Editando ${m[1].split('/').at(-1)}` : 'Editando un archivo'],
-  [/^escribió\s*(.*)$/, m => m[1] ? `Escribiendo ${m[1].split('/').at(-1)}` : 'Escribiendo un archivo'],
-  [/^leyó una página$/, () => 'Leyendo una página web'],
-  [/^leyó\s*(.*)$/, m => m[1] ? `Leyendo ${m[1].split('/').at(-1)}` : 'Leyendo un archivo'],
-  [/^buscó en la web$/, () => 'Buscando en la web'],
-  [/^buscó( archivos)?$/, () => 'Buscando en el código'],
-  [/^lanzó un agente$/, () => 'Pidiendo ayuda a otro agente'],
-  [/^anotó pendientes$/, () => 'Ordenando sus pendientes'],
+  [/^corrió un comando$/, () => tr('Corriendo un comando')],
+  [/^editó\s*(.*)$/, m => m[1] ? tr('Editando {archivo}', { archivo: m[1].split('/').at(-1) }) : tr('Editando un archivo')],
+  [/^escribió\s*(.*)$/, m => m[1] ? tr('Escribiendo {archivo}', { archivo: m[1].split('/').at(-1) }) : tr('Escribiendo un archivo')],
+  [/^leyó una página$/, () => tr('Leyendo una página web')],
+  [/^leyó\s*(.*)$/, m => m[1] ? tr('Leyendo {archivo}', { archivo: m[1].split('/').at(-1) }) : tr('Leyendo un archivo')],
+  [/^buscó en la web$/, () => tr('Buscando en la web')],
+  [/^buscó( archivos)?$/, () => tr('Buscando en el código')],
+  [/^lanzó un agente$/, () => tr('Pidiendo ayuda a otro agente')],
+  [/^anotó pendientes$/, () => tr('Ordenando sus pendientes')],
   // inglés del motor de pantalla: Bash(...), Read(...)
-  [/^Bash\b/, () => 'Corriendo un comando'], [/^(Edit|Write|MultiEdit)\b/, () => 'Editando un archivo'], [/^Read\b/, () => 'Leyendo un archivo'], [/^(Grep|Glob)\b/, () => 'Buscando en el código'],
+  [/^Bash\b/, () => tr('Corriendo un comando')], [/^(Edit|Write|MultiEdit)\b/, () => tr('Editando un archivo')], [/^Read\b/, () => tr('Leyendo un archivo')], [/^(Grep|Glob)\b/, () => tr('Buscando en el código')],
 ]
 export function pasoDesdeAccion(accion: string | null | undefined): string | null {
   const a = (accion ?? '').trim()
   if (!a) return null
   for (const [re, f] of PASADO) { const m = re.exec(a); if (m) return f(m) }
   // una herramienta de MCP sin traducción («web abrir»): se dice que la usa, sin inventar qué hizo
-  return /^[a-z][a-z ]{2,40}$/.test(a) ? `Usando ${a}` : null
+  return /^[a-z][a-z ]{2,40}$/.test(a) ? tr('Usando {herramienta}', { herramienta: a }) : null
 }
 
 /** Qué hace o qué hizo, en español y en una frase, según su estado. */
 export function pasoDe(t: Terminal, columna: Columna, conLevy: boolean): string {
   const dijo = unaLinea(ultimaRespuesta(t)?.texto) ?? unaLinea(t.ultimas.at(-1))
-  if (columna === 'trabajando') return t.tablero?.paso ?? pasoDesdeAccion(t.ultimaAccion) ?? (t.tablero?.latido.ultimaEscritura == null ? 'Arrancando' : 'Pensando')
-  if (columna === 'te-espera') return conLevy ? `Levy lo está atendiendo${dijo ? `: ${dijo}` : ''}` : dijo ?? 'Te hizo una pregunta'
-  if (columna === 'falló') return `No pudo terminar: ${razonHumana([t.conversacion?.error, t.tablero?.motivo, dijo].filter(Boolean).join(' '))}`
+  if (columna === 'trabajando') return t.tablero?.paso ?? pasoDesdeAccion(t.ultimaAccion) ?? (t.tablero?.latido.ultimaEscritura == null ? tr('Arrancando') : tr('Pensando'))
+  if (columna === 'te-espera') return conLevy ? (dijo ? tr('Levy lo está atendiendo: {dijo}', { dijo }) : tr('Levy lo está atendiendo')) : dijo ?? tr('Te hizo una pregunta')
+  if (columna === 'falló') return tr('No pudo terminar: {razon}', { razon: razonHumana([t.conversacion?.error, t.tablero?.motivo, dijo].filter(Boolean).join(' ')) })
   if (columna === 'murió') {
     const m = t.tablero?.motivo ?? ''
-    if (/nunca arrancó/i.test(m)) return 'No llegó a arrancar'
+    if (/nunca arrancó/i.test(m)) return tr('No llegó a arrancar')
     const callado = /no escribe nada hace (.+)$/i.exec(m)
-    return callado ? `Dejó de dar señales hace ${callado[1]}` : 'Se detuvo sin terminar'
+    return callado ? tr('Dejó de dar señales hace {tiempo}', { tiempo: callado[1] }) : tr('Se detuvo sin terminar')
   }
-  return dijo ?? 'Terminó sin dejar un mensaje'
+  return dijo ?? tr('Terminó sin dejar un mensaje')
 }
 
 const URL_RE = /https?:\/\/[^\s)>\]`'"«»]+/g
@@ -174,7 +183,7 @@ export function entregablesDe(texto: string | null | undefined, max = 3): Entreg
   const meter = (i: number, e: Entregable) => { if (!vistos.has(e.valor)) { vistos.add(e.valor); out.push({ i, e }) } }
   for (const m of s.matchAll(URL_RE)) { const v = m[0].replace(/[.,;:]+$/, ''); meter(m.index ?? 0, { tipo: 'enlace', valor: v, etiqueta: recortarMedio(v.replace(/^https?:\/\//, '').replace(/\/$/, ''), 24) }) }
   const sinUrls = s.replace(URL_RE, u => ' '.repeat(u.length))
-  for (const m of sinUrls.matchAll(COMMIT_RE)) meter(m.index ?? 0, { tipo: 'commit', valor: m[1], etiqueta: 'Cambios guardados' })
+  for (const m of sinUrls.matchAll(COMMIT_RE)) meter(m.index ?? 0, { tipo: 'commit', valor: m[1], etiqueta: tr('Cambios guardados') })
   for (const m of sinUrls.matchAll(RUTA_RE)) { const v = m[0].replace(/[.,;:]+$/, ''); meter(m.index ?? 0, { tipo: 'archivo', valor: v, etiqueta: recortarMedio(v.split('/').at(-1) ?? v) }) }
   return out.sort((a, b) => a.i - b.i).slice(0, max).map(x => x.e)
 }
@@ -187,7 +196,7 @@ export function filaDe(t: Terminal): FilaTablero {
   const textoFinal = [ultimaRespuesta(t)?.texto, ...t.ultimas].filter(Boolean).join('\n')
   const desde = t.tablero?.desde ?? (Date.parse(s.creado) || Date.now())
   return {
-    id: t.id, tipo: 'encargo', nombre: s.nombre, columna, motivo: t.tablero?.motivo ?? (columna === 'trabajando' ? 'Trabajando' : columna === 'te-espera' ? 'Te pregunta algo' : columna === 'falló' ? t.conversacion?.error ?? 'Falló' : 'Terminó su turno'),
+    id: t.id, tipo: 'encargo', nombre: s.nombre, columna, motivo: t.tablero?.motivo ?? (columna === 'trabajando' ? tr('Trabajando') : columna === 'te-espera' ? tr('Te pregunta algo') : columna === 'falló' ? t.conversacion?.error ?? tr('Falló') : tr('Terminó su turno')),
     // el modelo que corre (lo reportó el CLI) manda sobre el pedido; si no lo reportó, el pedido
     harness: s.harness, modelo: t.conversacion?.coherencia?.modelo.efectivo ?? s.modelo ?? t.conversacion?.modelo ?? null, creado: s.creado, origen: s.origen ?? null, cwd: t.cwd,
     paso: pasoDe(t, columna, conLevy),
@@ -197,17 +206,28 @@ export function filaDe(t: Terminal): FilaTablero {
     puedeDetener: t.origen === 'sin-pantalla' && (t.estado === 'trabajando' || !!t.tablero?.latido.procesoVivo) && columna !== 'listo' && columna !== 'falló',
     coherencia: t.conversacion?.coherencia ?? null, cambios: t.cambios ?? null,
     perfil: s.perfil ?? 'total', plan: s.plan ?? null,
+    recibido: s.recibido ? Date.parse(s.recibido) || null : null, respuesta: textoFinal || null,
   }
 }
+
+/** Margen para «volvió a trabajar después de la marca»: la bitácora puede escribir su cierre unos segundos después. */
+const MARGEN_RECIBIDO_MS = 60_000
+/** ¿Va en «Recibidos»? Solo un encargo que no trabaja ni pregunta y no dio señal nueva después de la marca. */
+export function estaRecibido(f: Pick<FilaTablero, 'recibido' | 'columna' | 'fin'>): boolean {
+  if (!f.recibido || f.columna === 'trabajando' || f.columna === 'te-espera') return false
+  return f.fin <= f.recibido + MARGEN_RECIBIDO_MS
+}
+/** Las acciones de cierre («Recibido», «Cerrar» y «Ver resultados») van en un encargo que ya no trabaja. */
+export const terminoSuEncargo = (f: Pick<FilaTablero, 'tipo' | 'columna' | 'id'>) => f.tipo === 'encargo' && typeof f.id === 'number' && f.columna !== 'trabajando' && f.columna !== 'te-espera'
 
 /** Una sesión de agente que abriste tú (no la lanzó Levy): misma forma de renglón, sin juez ni acciones. */
 export function filaDeSesion(t: Terminal): FilaTablero {
   const columna: Columna = preguntaAlgo(t) ? 'te-espera' : t.estado === 'trabajando' ? 'trabajando' : t.conversacion?.error ? 'falló' : 'listo'
   const desde = t.tablero?.desde ?? Date.now()
   return {
-    id: t.id, tipo: 'tuya', nombre: t.conversacion?.titulo || t.titulo, columna, motivo: columna === 'trabajando' ? 'Trabajando' : 'Sesión abierta por ti',
+    id: t.id, tipo: 'tuya', nombre: t.conversacion?.titulo || t.titulo, columna, motivo: columna === 'trabajando' ? tr('Trabajando') : tr('Sesión abierta por ti'),
     harness: t.proc, modelo: t.conversacion?.modelo ?? null, creado: new Date(desde).toISOString(), origen: null, cwd: t.cwd,
-    paso: columna === 'trabajando' ? pasoDesdeAccion(t.ultimaAccion) ?? 'Trabajando' : columna === 'te-espera' ? unaLinea(ultimaRespuesta(t)?.texto) ?? 'Te hizo una pregunta' : resumenTerminal(t),
+    paso: columna === 'trabajando' ? pasoDesdeAccion(t.ultimaAccion) ?? tr('Trabajando') : columna === 'te-espera' ? unaLinea(ultimaRespuesta(t)?.texto) ?? tr('Te hizo una pregunta') : resumenTerminal(t),
     linea: unaLinea(ultimaRespuesta(t)?.texto) ?? null, latido: t.tablero?.latido ?? null, desde, fin: t.tablero?.latido.ultimaEscritura ?? desde,
     juicio: null, entregables: [], conLevy: false, puedeDetener: false, coherencia: null, cambios: t.cambios ?? null,
   }
@@ -221,12 +241,12 @@ export function filaDeInterna(x: TareaInterna): FilaTablero {
   const nombre = tituloLegible(x)
   // La segunda línea no repite el título (muchos comandos solo traen su descripción): entonces dice cómo terminó.
   const dijo = resumenInterna(x)
-  const cerro = dijo && dijo !== unaLinea(nombre) && dijo !== nombre ? dijo : columna === 'listo' ? 'Terminó' : columna === 'falló' ? 'No pudo terminar' : 'Se detuvo antes de terminar'
+  const cerro = dijo && dijo !== unaLinea(nombre) && dijo !== nombre ? dijo : columna === 'listo' ? tr('Terminó') : columna === 'falló' ? tr('No pudo terminar') : tr('Se detuvo antes de terminar')
   return {
     id: x.id, tipo: esProceso(x) ? 'proceso' : 'interna', nombre, columna,
-    motivo: columna === 'trabajando' ? 'Trabajando' : columna === 'listo' ? 'Terminó' : columna === 'falló' ? 'No pudo terminar' : 'Se detuvo',
+    motivo: columna === 'trabajando' ? tr('Trabajando') : columna === 'listo' ? tr('Terminó') : columna === 'falló' ? tr('No pudo terminar') : tr('Se detuvo'),
     harness: 'claude', modelo: x.modelo ?? null, creado: new Date(desde).toISOString(), origen: x.conversacion || null, cwd: '',
-    paso: columna === 'trabajando' ? (act ? MAYUS(act) : 'Trabajando') : cerro,
+    paso: columna === 'trabajando' ? (act ? MAYUS(act) : tr('Trabajando')) : cerro,
     linea: null, latido: null, desde, fin: Date.parse(x.fin ?? x.actualizado) || desde,
     juicio: null, entregables: [], conLevy: false, puedeDetener: false, coherencia: null, cambios: null,
   }
@@ -239,9 +259,9 @@ export function filaDeInterna(x: TareaInterna): FilaTablero {
 export function filaDePreparando(x: Preparando): FilaTablero {
   const desde = Date.parse(x.desde) || Date.now()
   return {
-    id: `preparando:${x.clave}`, tipo: 'preparando', nombre: x.nombre, columna: 'trabajando', motivo: 'Preparando',
+    id: `preparando:${x.clave}`, tipo: 'preparando', nombre: x.nombre, columna: 'trabajando', motivo: tr('Preparando'),
     harness: x.harness, modelo: null, creado: x.desde, origen: x.origen, cwd: '',
-    paso: x.aislamiento === 'worktree' ? 'Preparando su copia del código' : 'Preparando su carpeta',
+    paso: x.aislamiento === 'worktree' ? tr('Preparando su copia del código') : tr('Preparando su carpeta'),
     linea: null, latido: null, desde, fin: desde, juicio: null, entregables: [], conLevy: false, puedeDetener: false, coherencia: null, cambios: null,
   }
 }
@@ -255,6 +275,8 @@ export interface Tablero extends Record<Columna, FilaTablero[]> {
   comandosHechos: FilaTablero[]
   /** Encargos que terminaron, fallaron o murieron hace más de 24 h (pliegue «Anteriores»; no suman a ninguna pestaña). */
   anteriores: FilaTablero[]
+  /** Encargos que el dueño marcó «Recibido» (11 nov 2026): en «Más actividad», no suman a ningún grupo. */
+  recibidos: FilaTablero[]
 }
 const abierta = (c: Columna) => c === 'te-espera' || c === 'trabajando'
 /**
@@ -263,7 +285,7 @@ const abierta = (c: Columna) => c === 'te-espera' || c === 'trabajando'
  * servidor lo dejaba en `te-espera` 21 días después de que su proceso terminó). Va a «Anteriores», en «Más actividad».
  */
 const sigueViva = (f: FilaTablero) => abierta(f.columna) && (f.latido == null || f.latido.procesoVivo)
-const vacio = (): Tablero => ({ 'te-espera': [], trabajando: [], listo: [], 'falló': [], 'murió': [], cortas: [], procesos: [], comandosHechos: [], anteriores: [] })
+const vacio = (): Tablero => ({ 'te-espera': [], trabajando: [], listo: [], 'falló': [], 'murió': [], cortas: [], procesos: [], comandosHechos: [], anteriores: [], recibidos: [] })
 
 /**
  * Todo lo que es un agente, por columna; lo más reciente primero. `conversacion` filtra por origen (la píldora del chat):
@@ -280,7 +302,8 @@ export function armarTablero(d: Trabajos | undefined, conversacion?: string | nu
     if (term.subagente) {
       if (!deAqui(term.subagente.origen)) continue
       const f = filaDe(term)
-      if (reciente(f) || sigueViva(f)) t[f.columna].push(f); else t.anteriores.push(f)
+      if (estaRecibido(f)) t.recibidos.push(f)
+      else if (reciente(f) || sigueViva(f)) t[f.columna].push(f); else t.anteriores.push(f)
     } else if (conversacion === undefined && esAgente(term)) {
       const f = filaDeSesion(term)
       if (!agenteTerminado(term)) t[f.columna].push(f); else if (reciente(f)) t.cortas.push(f)
@@ -298,6 +321,7 @@ export function armarTablero(d: Trabajos | undefined, conversacion?: string | nu
   for (const c of ORDEN_COLUMNAS) t[c].sort(nuevo)
   t.procesos.sort(nuevo)
   for (const l of [t.cortas, t.comandosHechos, t.anteriores]) l.sort((a, b) => b.fin - a.fin)
+  t.recibidos.sort((a, b) => (b.recibido ?? 0) - (a.recibido ?? 0))
   return t
 }
 
@@ -309,14 +333,14 @@ export function armarTablero(d: Trabajos | undefined, conversacion?: string | nu
  */
 export interface Cuentas {
   trabajando: number; teEspera: number; preguntan: number; fallo: number; murio: number; listos: number; cortas: number
-  procesos: number; comandosHechos: number; anteriores: number; espera: number; mas: number
+  procesos: number; comandosHechos: number; anteriores: number; recibidos: number; espera: number; mas: number
 }
 export function cuentas(t: Tablero): Cuentas {
   const n = (c: Columna) => t[c].length
   return {
     trabajando: n('trabajando'), teEspera: n('te-espera'), preguntan: t['te-espera'].filter(f => !f.conLevy).length,
-    fallo: n('falló'), murio: n('murió'), listos: n('listo'), cortas: t.cortas.length, procesos: t.procesos.length, comandosHechos: t.comandosHechos.length, anteriores: t.anteriores.length,
-    espera: n('te-espera') + n('falló') + n('murió'), mas: t.procesos.length + t.cortas.length + t.comandosHechos.length + t.anteriores.length,
+    fallo: n('falló'), murio: n('murió'), listos: n('listo'), cortas: t.cortas.length, procesos: t.procesos.length, comandosHechos: t.comandosHechos.length, anteriores: t.anteriores.length, recibidos: t.recibidos.length,
+    espera: n('te-espera') + n('falló') + n('murió'), mas: t.procesos.length + t.cortas.length + t.comandosHechos.length + t.anteriores.length + t.recibidos.length,
   }
 }
 export const totalTablero = (t: Tablero) => { const c = cuentas(t); return c.espera + c.trabajando + c.listos + c.mas }
@@ -334,10 +358,10 @@ export type PartePildora = 'trabajando' | 'pregunta' | 'sin-terminar' | 'listo'
 export function resumenPildora(t: Tablero): { parte: PartePildora; n: number; texto: string }[] {
   const sin = t['falló'].length + t['murió'].length
   const partes: { parte: PartePildora; n: number; texto: (n: number) => string }[] = [
-    { parte: 'trabajando', n: t.trabajando.length, texto: n => `${n} trabajando` },
-    { parte: 'pregunta', n: t['te-espera'].length, texto: n => `${n} ${n === 1 ? 'te pregunta algo' : 'te preguntan algo'}` },
-    { parte: 'sin-terminar', n: sin, texto: n => `${n} sin terminar` },
-    { parte: 'listo', n: t.listo.length, texto: n => `${n} ${n === 1 ? 'listo' : 'listos'}` },
+    { parte: 'trabajando', n: t.trabajando.length, texto: n => tr('{n} trabajando', { n }) },
+    { parte: 'pregunta', n: t['te-espera'].length, texto: n => trn(n, '{n} te pregunta algo', '{n} te preguntan algo') },
+    { parte: 'sin-terminar', n: sin, texto: n => tr('{n} sin terminar', { n }) },
+    { parte: 'listo', n: t.listo.length, texto: n => trn(n, '{n} listo', '{n} listos') },
   ]
   return partes.filter(p => p.n).map(p => ({ parte: p.parte, n: p.n, texto: p.texto(p.n) }))
 }
@@ -356,10 +380,11 @@ export function laten(f: Pick<FilaTablero, 'latido' | 'columna'>, ahora = Date.n
 export function latidoEnPalabras(f: Pick<FilaTablero, 'latido' | 'columna'>, ahora = Date.now()): string | null {
   const l = f.latido
   if (!l) return null
-  if (l.ultimaEscritura == null) return l.procesoVivo ? 'proceso vivo, sin bitácora aún' : 'sin proceso ni bitácora'
+  if (l.ultimaEscritura == null) return l.procesoVivo ? tr('proceso vivo, sin bitácora aún') : tr('sin proceso ni bitácora')
   const edad = Math.max(0, ahora - l.ultimaEscritura)
-  if (f.columna === 'trabajando' || f.columna === 'te-espera') return `${edad > l.umbralMs ? 'sin latido' : 'latido'} hace ${duracion(edad)}${l.procesoVivo ? '' : ' · proceso terminado'}`
-  return `última escritura hace ${duracion(edad)}${l.procesoVivo ? ' · proceso vivo' : ' · proceso terminado'}`
+  const tiempo = duracion(edad)
+  if (f.columna === 'trabajando' || f.columna === 'te-espera') return [edad > l.umbralMs ? tr('sin latido hace {tiempo}', { tiempo }) : tr('latido hace {tiempo}', { tiempo }), l.procesoVivo ? null : tr('proceso terminado')].filter(Boolean).join(' · ')
+  return `${tr('última escritura hace {tiempo}', { tiempo })} · ${l.procesoVivo ? tr('proceso vivo') : tr('proceso terminado')}`
 }
 
 /** La señal de vida en humano para el renglón: «hace 40 s» si es reciente, «sin señales hace 8 min» si no. */
@@ -367,14 +392,14 @@ export function senal(f: Pick<FilaTablero, 'latido' | 'columna'>, ahora = Date.n
   const u = f.latido?.ultimaEscritura
   if (f.columna !== 'trabajando' || u == null) return null
   const edad = Math.max(0, ahora - u)
-  return edad < LATIDO_FRESCO_MS ? null : `sin señales hace ${duracion(edad)}`
+  return edad < LATIDO_FRESCO_MS ? null : tr('sin señales hace {tiempo}', { tiempo: duracion(edad) })
 }
 
 /** El tiempo del renglón: trabajando = cuánto lleva; lo demás = hace cuánto pasó. */
 export function tiempoDe(f: Pick<FilaTablero, 'columna' | 'desde' | 'fin'>, ahora = Date.now()): { texto: string; titulo: string } {
-  if (f.columna === 'trabajando') return { texto: duracion(Math.max(0, ahora - f.desde)), titulo: `Lleva ${duracion(Math.max(0, ahora - f.desde))} en este turno` }
+  if (f.columna === 'trabajando') return { texto: duracion(Math.max(0, ahora - f.desde)), titulo: tr('Lleva {tiempo} en este turno', { tiempo: duracion(Math.max(0, ahora - f.desde)) }) }
   const t = duracion(Math.max(0, ahora - f.fin))
-  return { texto: t, titulo: `Hace ${t}` }
+  return { texto: t, titulo: tr('Hace {tiempo}', { tiempo: t }) }
 }
 
 // ── Modelo, esfuerzo y cambios del agente (29 oct 2026, benchmark de orquestación: brechas 1, 4 y 5) ──
@@ -383,10 +408,10 @@ export function tiempoDe(f: Pick<FilaTablero, 'columna' | 'desde' | 'fin'>, ahor
 export function esfuerzoEnPalabras(c: Coherencia | null): string | null {
   const e = c?.esfuerzo
   if (!e) return null
-  if (e.estado === 'coincide') return `esfuerzo ${e.efectivo}`
-  if (e.estado === 'distinto') return `esfuerzo ${e.efectivo} (pediste ${e.pedido})`
-  if (e.estado === 'sin-medir') return `esfuerzo ${e.pedido} (pedido, sin medir)`
-  return e.efectivo ? `esfuerzo ${e.efectivo} (el de su configuración)` : null
+  if (e.estado === 'coincide') return tr('esfuerzo {nivel}', { nivel: e.efectivo })
+  if (e.estado === 'distinto') return tr('esfuerzo {nivel} (pediste {pedido})', { nivel: e.efectivo, pedido: e.pedido })
+  if (e.estado === 'sin-medir') return tr('esfuerzo {nivel} (pedido, sin medir)', { nivel: e.pedido })
+  return e.efectivo ? tr('esfuerzo {nivel} (el de su configuración)', { nivel: e.efectivo }) : null
 }
 
 const NIVELES = ['low', 'medium', 'high', 'xhigh', 'max'] as const
@@ -403,8 +428,8 @@ export function esfuerzoReintento(f: Pick<FilaTablero, 'harness' | 'coherencia'>
 
 /** «+120 −8 en 4 archivos»; sin cambios aún, lo dice. */
 export function cambiosEnPalabras(c: CambiosRama): string {
-  if (!c.archivos) return 'Sin cambios todavía'
-  return `+${c.mas.toLocaleString('es-MX')} −${c.menos.toLocaleString('es-MX')} en ${c.archivos} ${c.archivos === 1 ? 'archivo' : 'archivos'}`
+  if (!c.archivos) return tr('Sin cambios todavía')
+  return trn(c.archivos, '+{mas} −{menos} en {n} archivo', '+{mas} −{menos} en {n} archivos', { mas: c.mas.toLocaleString(localeIntl()), menos: c.menos.toLocaleString(localeIntl()) })
 }
 
 /** Conversaciones del demo (29 oct): tres conversaciones y algo sin conversación, para ver los grupos. Títulos en

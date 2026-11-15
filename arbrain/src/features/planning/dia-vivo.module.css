@@ -218,6 +218,12 @@
 .miniHora time { position: absolute; left: 0; top: -5px; width: 24px; font-size: 9.5px; line-height: 1; font-variant-numeric: tabular-nums; color: var(--muted); text-align: right; }
 .miniBloques { position: absolute; inset: 0 0 0 32px; list-style: none; margin: 0; padding: 0; pointer-events: none; }
 .miniBloques li { position: absolute; padding: 0 0 0 2px; pointer-events: auto; }
+/* Arrastrar a otra hora (11 nov 2026): la mano como en la Semana; el original queda tenue y el fantasma (semana-horas › .fantasma)
+   dice dónde cae, encima de todo y sin recibir el puntero. */
+.miniBloques button[data-movible] { cursor: grab; -webkit-user-select: none; user-select: none; }
+.areaAgenda[data-arrastrando], .areaAgenda[data-arrastrando] .miniBloques button { cursor: grabbing; }
+.miniBloques li[data-tomado] { opacity: .42; }
+.miniFantasmas { position: absolute; inset: 0 0 0 32px; z-index: 6; pointer-events: none; }
 /* Zonas de mi vida (28 oct 2026, campos-fondo.ts): el mismo tinte por categoría que la Semana (semana-horas.module.css › .campo),
    sin texto: el nombre, al pasar el cursor. Bloque = tinte con filo; ventana (la comida) = riel al borde. Debajo de bandas y tarjetas. */
 .miniCampo { position: absolute; z-index: 0; --t: 7%; }

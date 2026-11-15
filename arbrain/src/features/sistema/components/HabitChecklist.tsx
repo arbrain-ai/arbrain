@@ -12,6 +12,7 @@ import { type Seccion, SECCION_LABEL, SECCION_ORDER, localDate } from '../types'
 import { useHabitRecords } from '../useHabitRecords'
 import { NombreHabito } from '../NombreHabito'
 import { esHabitoPrivado } from '../privacidad-habitos'
+import { tr } from '@/shared/i18n'
 
 interface HabitRow {
   clave: string
@@ -76,7 +77,7 @@ export function HabitChecklist({ date }: { date?: string }) {
 
   const toggle = (clave: string) => records.toggle(fecha, clave)
 
-  if (loading) return <div className="text-xs text-muted/60 py-2">Cargando hábitos…</div>
+  if (loading) return <div className="text-xs text-muted/60 py-2">{tr('Cargando hábitos…')}</div>
   if (!habitos.length) return null
 
   const doneCount = done.size
@@ -85,7 +86,7 @@ export function HabitChecklist({ date }: { date?: string }) {
   return (
     <div className="rounded-xl border border-border-subtle bg-card/40 p-3 my-1 max-w-md">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-semibold">🌙 Cierre del día</span>
+        <span className="text-sm font-semibold">🌙 {tr('Cierre del día')}</span>
         <span className="text-[11px] font-mono text-muted">{doneCount}/{total}</span>
       </div>
 
@@ -95,7 +96,7 @@ export function HabitChecklist({ date }: { date?: string }) {
         return (
           <div key={sec} className="mb-1.5">
             <p className="text-[10px] uppercase tracking-wider text-muted/60 italic mb-0.5">
-              {SECCION_ICON[sec]} {SECCION_LABEL[sec]}
+              {SECCION_ICON[sec]} {tr(SECCION_LABEL[sec])}
             </p>
             {items.map((h) => {
               const checked = done.has(h.clave)
@@ -125,18 +126,18 @@ export function HabitChecklist({ date }: { date?: string }) {
 
       <div aria-live="polite" className="text-xs text-muted">
         {records.error ?? records.notice}
-        {!!records.pending.length && !records.saving && <button onClick={() => void records.retry()}>Reintentar marca</button>}
-        {records.canUndo && <button onClick={records.undoLast}>Deshacer</button>}
+        {!!records.pending.length && !records.saving && <button onClick={() => void records.retry()}>{tr('Reintentar marca')}</button>}
+        {records.canUndo && <button onClick={records.undoLast}>{tr('Deshacer')}</button>}
       </div>
       <div className="mt-2 pt-2 border-t border-border-subtle text-xs text-muted">
-        <p className="mb-1.5">☀️ ¿Cuál es tu objetivo #1 de mañana?</p>
+        <p className="mb-1.5">☀️ {tr('¿Cuál es tu objetivo #1 de mañana?')}</p>
         <div className="flex items-center gap-2">
           <input
             type="text"
             value={objetivo}
             onChange={(e) => { setObjetivo(e.target.value); setObjetivoEstado('idle') }}
             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void guardarObjetivo() } }}
-            placeholder="Escríbelo y queda registrado…"
+            placeholder={tr('Escríbelo y queda registrado…')}
             className="flex-1 min-w-0 bg-card/60 border border-border-subtle rounded-lg px-2.5 py-1.5 text-sm text-foreground placeholder:text-muted/50 focus:outline-none focus:border-primary/60"
           />
           <button
@@ -145,14 +146,14 @@ export function HabitChecklist({ date }: { date?: string }) {
             disabled={!objetivo.trim() || objetivoEstado === 'saving' || objetivoEstado === 'saved'}
             className="shrink-0 px-2.5 py-1.5 rounded-lg text-sm bg-primary/90 text-white disabled:opacity-40 hover:bg-primary transition-colors touch-manipulation"
           >
-            {objetivoEstado === 'saved' ? '✓' : objetivoEstado === 'saving' ? '…' : 'Guardar'}
+            {objetivoEstado === 'saved' ? '✓' : objetivoEstado === 'saving' ? '…' : tr('Guardar')}
           </button>
         </div>
         {objetivoEstado === 'saved' && (
-          <p className="text-[11px] text-muted/60 italic mt-1">🎯 Registrado como tu prioridad de mañana.</p>
+          <p className="text-[11px] text-muted/60 italic mt-1">🎯 {tr('Registrado como tu prioridad de mañana.')}</p>
         )}
         {objetivoEstado === 'error' && (
-          <p className="text-[11px] text-red-400 mt-1">No se pudo guardar — reintenta.</p>
+          <p className="text-[11px] text-red-400 mt-1">{tr('No se pudo guardar — reintenta.')}</p>
         )}
       </div>
     </div>

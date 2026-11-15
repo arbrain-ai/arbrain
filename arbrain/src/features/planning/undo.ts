@@ -1,5 +1,6 @@
 import { eventData, mutationFor, taskData } from './model'
 import type { MutationResult, PlanEvent, PlanItem, PlanMutation, PlanTask } from './types'
+import { tr } from '@/shared/i18n'
 
 /** Deshacer (⌘Z) del calendario. Cada acción propia que el proveedor confirmó deja su inversa; deshacer la
  *  manda por la misma vía (`/api/planning` → `mc-event.py`). La inversa se arma con la lectura de AHORA
@@ -15,7 +16,7 @@ export interface UndoEntry {
 }
 
 export const UNDO_LIMIT = 50
-const quote = (title: string) => `«${title.length > 40 ? title.slice(0, 39) + '…' : title}»`
+const quote = (title: string) => tr('«{titulo}»', { titulo: title.length > 40 ? title.slice(0, 39) + '…' : title })
 const resolve = (aliases: Aliases, id: string) => aliases.get(id) ?? id
 const findEvent = (items: readonly PlanItem[], aliases: Aliases, ref: Pick<PlanEvent, 'externalId' | 'account' | 'calendarId'>) => {
   const externalId = resolve(aliases, ref.externalId)
@@ -33,7 +34,7 @@ export function inverseFor(op: PlanMutation, before: PlanItem | undefined, resul
     if (op.action === 'create') {
       const created = result.event
       if (!created) return null
-      return { label: `Creación de ${quote(created.title)}`, build: (items, aliases) => {
+      return { label: tr('Creación de {titulo}', { titulo: quote(created.title) }), build: (items, aliases) => {
         const current = findEvent(items, aliases, created) ?? created
         return mutationFor(current, op.ownerId, {}, 'delete')
       } }
@@ -41,7 +42,7 @@ export function inverseFor(op: PlanMutation, before: PlanItem | undefined, resul
     if (!before || before.kind !== 'event') return null
     if (op.action === 'update') {
       const prior = before
-      return { label: `Cambio de ${quote(title)}`, build: (items, aliases) => {
+      return { label: tr('Cambio de {titulo}', { titulo: quote(title) }), build: (items, aliases) => {
         // Fuera de la ventana cargada se usa el etag con el que el proveedor confirmó el cambio.
         const current = findEvent(items, aliases, prior) ?? result.event
         return current ? mutationFor(current, op.ownerId, eventData(prior)) : null
@@ -50,8 +51,8 @@ export function inverseFor(op: PlanMutation, before: PlanItem | undefined, resul
     if (op.action === 'delete') {
       const prior = before
       // Una ocurrencia borrada de una serie queda cancelada en Google; el contrato de escritura no la revive.
-      if (prior.recurringEventId) return { label: `Borrado de ${quote(title)}`, irreversible: 'Esa ocurrencia de una serie no se puede restaurar desde aquí.', build: () => null }
-      return { label: `Borrado de ${quote(title)}`,
+      if (prior.recurringEventId) return { label: tr('Borrado de {titulo}', { titulo: quote(title) }), irreversible: tr('Esa ocurrencia de una serie no se puede restaurar desde aquí.'), build: () => null }
+      return { label: tr('Borrado de {titulo}', { titulo: quote(title) }),
         build: () => ({ ownerId: op.ownerId, requestId: crypto.randomUUID(), kind: 'event', action: 'create', account: prior.account, calendarId: prior.calendarId, data: eventData(prior) }),
         after: (res, aliases) => { if (res.event) aliases.set(prior.externalId, res.event.externalId) } }
     }
@@ -59,23 +60,23 @@ export function inverseFor(op: PlanMutation, before: PlanItem | undefined, resul
   }
   if (op.kind === 'task') {
     // Inversa de «reabrir» (solo nace al deshacer un completar): volver a completarla.
-    if (op.action === 'reopen' && op.externalId) { const externalId = op.externalId; return { label: `Reabrir ${quote(title)}`, build: () => mutationFor({ kind: 'task', externalId, updatedAt: null } as PlanTask, op.ownerId, {}, 'complete') } }
-    if (op.action === 'create') return { label: `Creación de ${quote(title)}`, irreversible: 'Una tarea nueva no se borra desde aquí: complétala o muévela.', build: () => null }
+    if (op.action === 'reopen' && op.externalId) { const externalId = op.externalId; return { label: tr('Reabrir {titulo}', { titulo: quote(title) }), build: () => mutationFor({ kind: 'task', externalId, updatedAt: null } as PlanTask, op.ownerId, {}, 'complete') } }
+    if (op.action === 'create') return { label: tr('Creación de {titulo}', { titulo: quote(title) }), irreversible: tr('Una tarea nueva no se borra desde aquí: complétala o muévela.'), build: () => null }
     if (!before || before.kind !== 'task') return null
     const prior = before
-    if (op.action === 'update') return { label: `Cambio de ${quote(title)}`, build: (items, aliases) => {
+    if (op.action === 'update') return { label: tr('Cambio de {titulo}', { titulo: quote(title) }), build: (items, aliases) => {
       const current = findTask(items, aliases, prior.externalId)
       return mutationFor(current ?? { ...prior, updatedAt: null }, op.ownerId, taskData(prior))
     } }
     // Cambio de proyecto desde el detalle: la inversa la regresa a su proyecto anterior.
     if (op.action === 'move' && typeof op.data?.projectId === 'string' && prior.projectId) {
       const projectId = prior.projectId
-      return { label: `Mover ${quote(title)}`, build: (items, aliases) => mutationFor(findTask(items, aliases, prior.externalId) ?? { ...prior, updatedAt: null }, op.ownerId, { projectId }, 'move') }
+      return { label: tr('Mover {titulo}', { titulo: quote(title) }), build: (items, aliases) => mutationFor(findTask(items, aliases, prior.externalId) ?? { ...prior, updatedAt: null }, op.ownerId, { projectId }, 'move') }
     }
     if (op.action === 'complete') {
       // Una repetición completada avanza su fecha; Todoist no la «reabre», y no se altera sin avisar.
-      if (prior.recurring) return { label: `Completar ${quote(title)}`, irreversible: 'Una tarea recurrente ya avanzó a su próxima fecha.', build: () => null }
-      return { label: `Completar ${quote(title)}`, build: () => mutationFor({ ...prior, updatedAt: null }, op.ownerId, {}, 'reopen') }
+      if (prior.recurring) return { label: tr('Completar {titulo}', { titulo: quote(title) }), irreversible: tr('Una tarea recurrente ya avanzó a su próxima fecha.'), build: () => null }
+      return { label: tr('Completar {titulo}', { titulo: quote(title) }), build: () => mutationFor({ ...prior, updatedAt: null }, op.ownerId, {}, 'reopen') }
     }
   }
   return null

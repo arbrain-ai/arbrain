@@ -2,6 +2,8 @@
 // GET /limits y el texto de «se restablece». Los datos son del proveedor
 // (Claude: usage del Agent SDK; Codex: account/rateLimits/read); lo que falta
 // llega como null o available=false y la UI dice «sin dato», nunca un cero.
+import { localeIntl, tr } from '@/shared/i18n'
+
 export interface VentanaLimite {
   id: string
   label: string
@@ -24,7 +26,7 @@ export interface LimitesPlan {
 /** Valida lo que llega por red: sin el contrato exacto, la UI no pinta nada inventado. */
 export function limitesDeRespuesta(data: unknown): LimitesPlan {
   const raiz = data as Partial<LimitesPlan> | null
-  if (!raiz || typeof raiz !== 'object' || typeof raiz.available !== 'boolean' || !Array.isArray(raiz.windows)) throw new Error('Respuesta de límites no válida.')
+  if (!raiz || typeof raiz !== 'object' || typeof raiz.available !== 'boolean' || !Array.isArray(raiz.windows)) throw new Error(tr('Respuesta de límites no válida.'))
   const windows = raiz.windows.flatMap((raw): VentanaLimite[] => {
     const v = raw as Partial<VentanaLimite> | null
     if (!v || typeof v.id !== 'string' || typeof v.label !== 'string') return []
@@ -53,13 +55,13 @@ export function textoReinicio(resetsAt: string | null, ahora: Date = new Date(),
   const objetivo = Date.parse(resetsAt)
   if (!Number.isFinite(objetivo)) return null
   const minutos = Math.ceil((objetivo - ahora.getTime()) / 60_000)
-  if (minutos <= 0) return 'Reinicia ahora'
-  const partes = new Intl.DateTimeFormat('es-MX', { weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23', ...(zonaHoraria && { timeZone: zonaHoraria }) }).formatToParts(new Date(objetivo))
+  if (minutos <= 0) return tr('Reinicia ahora')
+  const partes = new Intl.DateTimeFormat(localeIntl(), { weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23', ...(zonaHoraria && { timeZone: zonaHoraria }) }).formatToParts(new Date(objetivo))
   const parte = (tipo: string) => partes.find(p => p.type === tipo)?.value ?? ''
   const hora = `${parte('hour')}:${parte('minute')}`
-  if (minutos >= 24 * 60) return `Reinicia ${parte('weekday').replace('.', '')} ${hora}`
+  if (minutos >= 24 * 60) return tr('Reinicia {dia} {hora}', { dia: parte('weekday').replace('.', ''), hora })
   const horas = Math.floor(minutos / 60), resto = minutos % 60
-  return `Reinicia ${hora} · en ${horas ? `${horas} h${resto ? ` ${resto} min` : ''}` : `${resto} min`}`
+  return tr('Reinicia {hora} · en {falta}', { hora, falta: horas ? `${horas} h${resto ? ` ${resto} min` : ''}` : `${resto} min` })
 }
 
 /** Qué cuentas consulta el panel para una conversación: la de Claude de esa conversación (o la de
@@ -73,7 +75,7 @@ export function cuentasDeLimites(account: string): { claude: 'default' | 'bro'; 
 /** Hace cuánto se leyó el dato, para no presentar una lectura vieja como actual. */
 export function textoObservado(observedAt: string, ahora: Date = new Date()): string {
   const segundos = Math.max(0, Math.round((ahora.getTime() - Date.parse(observedAt)) / 1000))
-  if (segundos < 90) return 'Actualizado ahora'
+  if (segundos < 90) return tr('Actualizado ahora')
   const minutos = Math.round(segundos / 60)
-  return minutos < 60 ? `Actualizado hace ${minutos} min` : `Actualizado hace ${Math.round(minutos / 60)} h`
+  return minutos < 60 ? tr('Actualizado hace {n} min', { n: minutos }) : tr('Actualizado hace {n} h', { n: Math.round(minutos / 60) })
 }

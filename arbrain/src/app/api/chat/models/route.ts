@@ -1,6 +1,7 @@
 import { requireChatPrincipal, resolveChatConversation, chatAccessResponse } from '@/lib/chat-access'
 import { accountId, ChatAccessError } from '@/lib/chat-access-policy'
 import { getClaudeclawUrl, CLAUDECLAW_TOKEN, upstreamError } from '@/lib/claudeclaw'
+import { tr } from '@/shared/i18n'
 
 export async function GET(req: Request) {
   const src = new URL(req.url).searchParams
@@ -15,7 +16,7 @@ export async function GET(req: Request) {
       params.set('ownerId', scope.owner)
       params.set('verifiedConversation', '1')
     } else {
-      if (session?.startsWith('sdk:') ? !principal.personalOwner : !principal.owner) throw new ChatAccessError('Se requiere una conversación propia.', 403)
+      if (session?.startsWith('sdk:') ? !principal.personalOwner : !principal.owner) throw new ChatAccessError(tr('Se requiere una conversación propia.'), 403)
       if (session) params.set('session', session)
       if (session?.startsWith('sdk:')) params.set('verifiedNativeOwner', '1')
       params.set('account', accountId(src.get('account')))
@@ -32,14 +33,14 @@ export async function GET(req: Request) {
     })
 
     if (!upstream.ok) {
-      return upstreamError(upstream, 'el catalogo de modelos')
+      return upstreamError(upstream, tr('el catalogo de modelos'))
     }
 
     const data = await upstream.json()
     return Response.json(data)
   } catch {
     return Response.json(
-      { error: 'No pude alcanzar el daemon (ClaudeClaw).', code: 'DAEMON_UNREACHABLE' },
+      { error: tr('No pude alcanzar el daemon (ClaudeClaw).'), code: 'DAEMON_UNREACHABLE' },
       { status: 503 },
     )
   }

@@ -14,6 +14,7 @@ import {LevyFace} from '@/features/chat/components/LevyFace'
 import {Levy3D} from '@/features/chat/components/Levy3D'
 import dynamic from 'next/dynamic'
 import {levy4Activo,usarLevy4} from '@/features/chat/lib/levy4'
+import {CARA_LIVE_EVENTO,caraLive,fijarCaraLive,type CaraLive} from '@/features/chat/lib/levy-vivo'
 import {clipboardImages,localImagePath,readPastedImage} from '@/features/chat/lib/image-paste'
 import {esArchivoDeImagen,prepararImagen} from '@/features/chat/lib/image-prepare'
 import {ErrorImagen,mensajeFallosSubida,subirImagen,PERFIL_DATOS_MOVILES,PERFIL_NORMAL,type FalloSubida} from '@/features/chat/lib/image-upload'
@@ -29,19 +30,22 @@ const OCUPADO=/trabajo en curso/i
 const REINTENTOS=3
 const MAX_IMAGENES=10
 type Vista='3d'|'2d'
-const VISTA_KEY='arbrain.live.vista'
-const vistaGuardada=():Vista=>{try{return localStorage.getItem(VISTA_KEY)==='2d'?'2d':'3d'}catch{return '3d'}}
+// Qué Levy monta Live (13 nov 2026, Daniel: «esto del levy 2D metelo al live de tu foto de perfil»): por defecto el 2D de
+// los videos; el 3D y el 2D anterior se eligen en Ajustes › Apariencia o con el botón 2D/3D de aquí (ver levy-vivo.ts).
+const vistaDe=(c:CaraLive):Vista=>c==='3d'?'3d':'2d'
 type Pedido={text:string;imagenes?:string[]}
 // Levy v4 (bandera `levy4`, apagada por defecto, ver chat/lib/levy4.ts): solo se descarga con la bandera encendida.
 const Levy3DV4=dynamic(()=>import('@/features/chat/components/Levy3DV4').then(m=>m.Levy3DV4),{ssr:false})
 export function LiveWorkspace({controller,onClose}:{controller:LiveChatController|null;onClose:()=>void}){
- const [agente,setAgente]=useState<AgenteId>(agenteActivo),[avatar3d,setAvatar3d]=useState(true),[ready,setReady]=useState(false),[vista,setVista]=useState<Vista>('3d')
- // La elección 2D/3D se recuerda; se lee tras montar para no desajustar la hidratación.
- useEffect(()=>{const v=vistaGuardada();setVista(v);if(v==='2d')setReady(true)},[])
+ const [agente,setAgente]=useState<AgenteId>(agenteActivo),[avatar3d,setAvatar3d]=useState(true),[ready,setReady]=useState(false),[cara,setCara]=useState<CaraLive>('videos')
+ const vista=vistaDe(cara)
+ // La elección se recuerda; se lee tras montar para no desajustar la hidratación, y sigue a Ajustes si cambia con Live abierto.
+ useEffect(()=>{const leer=()=>{const c=caraLive();setCara(c);setReady(vistaDe(c)==='2d');if(c==='3d')setAvatar3d(true)};leer();window.addEventListener(CARA_LIVE_EVENTO,leer);return()=>window.removeEventListener(CARA_LIVE_EVENTO,leer)},[])
  // Bandera Levy v4: se lee al montar (localStorage), nunca en el servidor; apagada, Live monta el Levy3D de siempre.
  const [levy4,setLevy4]=useState(false)
  useEffect(()=>{setLevy4(levy4Activo())},[])
- const cambiarVista=()=>{const v:Vista=vista==='3d'?'2d':'3d';setVista(v);setReady(v==='2d'?true:false);if(v==='3d')setAvatar3d(true);try{localStorage.setItem(VISTA_KEY,v)}catch{}}
+ // El botón alterna 3D ↔ 2D; el 2D al que vuelve es el de los videos (el anterior solo se elige en Ajustes).
+ const cambiarVista=()=>fijarCaraLive(vista==='3d'?'videos':'3d')
  const [dictando,setDictando]=useState(false)
  // Cámara opcional: encendida, cada envío adjunta UN cuadro actual (ver camera/frame.ts); nada se graba.
  const camara=useLiveCamera(),[menuCamara,setMenuCamara]=useState(false)
@@ -159,7 +163,7 @@ export function LiveWorkspace({controller,onClose}:{controller:LiveChatControlle
  return <div ref={root} className={`${styles.root} ${expanded?styles.expanded:''}`} onDragOver={e=>{if(hayImagenes(e)){e.preventDefault();setArrastrando(true)}}} onDragLeave={e=>{if(e.currentTarget===e.target)setArrastrando(false)}} onDrop={soltar} data-live-workspace data-live-state={status} data-live-agent={agente} data-live-ready={ready}>
   <div className={styles.stage}>
    <img className={styles.poster} src={info.retrato} alt="" aria-hidden draggable={false}/>
-   {avatar3d&&vista==='3d'?usarLevy4(levy4,agente)?<Levy3DV4 key={`${agente}-v4`} fill voiceRef={voice.player} status={status} label={`${info.nombre} en 3D`} onReady={()=>setReady(true)} onFail={()=>setAvatar3d(false)} className={styles.avatar}/>:<Levy3D key={agente} fill voiceRef={voice.player} status={status} model={info.modelo} look={info.look} label={`${info.nombre} en 3D`} onReady={()=>setReady(true)} onFail={()=>setAvatar3d(false)} className={styles.avatar}/>:<LevyFace key={agente} agent={agente} framing="camera" voiceRef={voice.player} status={status==='transcribing'?'thinking':status==='idle'&&(dictando||draft.trim())?'listening':status} className={styles.fallback}/>}
+   {avatar3d&&vista==='3d'?usarLevy4(levy4,agente)?<Levy3DV4 key={`${agente}-v4`} fill voiceRef={voice.player} status={status} label={`${info.nombre} en 3D`} onReady={()=>setReady(true)} onFail={()=>setAvatar3d(false)} className={styles.avatar}/>:<Levy3D key={agente} fill voiceRef={voice.player} status={status} model={info.modelo} look={info.look} label={`${info.nombre} en 3D`} onReady={()=>setReady(true)} onFail={()=>setAvatar3d(false)} className={styles.avatar}/>:<LevyFace key={agente} agent={agente} vivo={cara==='videos'} framing="camera" voiceRef={voice.player} status={status==='transcribing'?'thinking':status==='idle'&&(dictando||draft.trim())?'listening':status} className={styles.fallback}/>}
   </div>
   <div className={styles.topLeft}><button onClick={()=>{voice.stop();onClose()}} aria-label="Volver al chat" title="Volver al chat"><ArrowLeft size={18}/></button></div>
   <video ref={camara.video} className={`${styles.preview} ${camara.encendida&&camara.lista?styles.previewOn:''}`} muted playsInline aria-hidden data-live-camera-preview/>

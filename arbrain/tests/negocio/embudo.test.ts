@@ -50,17 +50,20 @@ test('el embudo de Daniel, primer ejemplo del estándar: pisos arriba, escalera 
   assert.ok(v.ok, v.ok ? '' : v.errores.join('\n'))
   const e = v.embudo
   const grupos = agrupar(e)
-  assert.deepEqual(grupos.map(g => g.info.nombre), ['Canal de Levy', 'Canal de Daniel', 'Repo Arbrain', 'Comunidad gratuita', 'SaaS Factory', 'Acompañamiento Arbrain'])
-  assert.deepEqual(grupos.map(g => esPiso(g.info)), [true, true, true, true, false, false])
-  assert.ok(grupos.filter(g => esPiso(g.info)).every(g => porConstruir(g.info)), 'los cuatro pisos van marcados por construir')
-  assert.equal(resumenGrupos(grupos), '4 pisos y 2 embudos encadenados')
-  assert.deepEqual(grupos.slice(4).map(g => g.etapas.length), [6, 6])
-  assert.deepEqual(grupos[4].etapas.map(et => et.orden), [1, 2, 3, 4, 5, 6])
-  assert.equal(cuelloDe(e)?.id, 'ht.expansion')
-  // La escalera de valor: la gratuita sube a las dos ofertas; SaaS Factory, al Acompañamiento.
-  assert.deepEqual(subidasDe(e, grupos[3]).map(s => s.hacia), ['SaaS Factory', 'Acompañamiento Arbrain'])
-  assert.deepEqual(subidasDe(e, grupos[4]).map(s => s.hacia), ['Acompañamiento Arbrain'])
-  assert.deepEqual(subidasDe(e, grupos[0]).map(s => s.hacia), ['Repo Arbrain'])
+  // El embudo vigente (10 y 11 nov): un show, una página, una lista. El orden declarado es el de arriba abajo, así que
+  // todo lo que sube a «Tráfico propio» va antes que él.
+  assert.deepEqual(grupos.map(g => g.info.nombre), ['Tu show', 'Canal de Levy', 'Repo Arbrain', 'Tráfico propio', 'Comunidad gratuita', 'SaaS Factory', 'Acompañamiento Arbrain'])
+  assert.deepEqual(grupos.map(g => esPiso(g.info)), [true, true, true, true, true, false, false])
+  assert.deepEqual(grupos.filter(g => esPiso(g.info) && !porConstruir(g.info)).map(g => g.info.nombre), ['Repo Arbrain'], 'de los pisos, solo el repo opera hoy')
+  assert.equal(resumenGrupos(grupos), '5 pisos y 2 embudos encadenados')
+  assert.deepEqual(grupos.slice(5).map(g => g.etapas.length), [6, 6])
+  assert.deepEqual(grupos[5].etapas.map(et => et.orden), [1, 2, 3, 4, 5, 6])
+  assert.equal(cuelloDe(e)?.id, 'lista.conversion', 'el cuello: convertir cada video en contactos tuyos')
+  // La escalera de valor: el show, el canal de Levy y el repo mandan a la página; la página y la gratuita suben a las dos
+  // ofertas; SaaS Factory, al Acompañamiento.
+  for (const i of [0, 1, 2]) assert.deepEqual(subidasDe(e, grupos[i]).map(s => s.hacia), ['Tráfico propio'], `${grupos[i].info.nombre} sube a la página`)
+  for (const i of [3, 4]) assert.deepEqual(subidasDe(e, grupos[i]).map(s => s.hacia), ['SaaS Factory', 'Acompañamiento Arbrain'])
+  assert.deepEqual(subidasDe(e, grupos[5]).map(s => s.hacia), ['Acompañamiento Arbrain'])
   assert.equal(puentes(e).volante[0].estado, 'por construir')
   // Cada número: fuente, frecuencia y dueño; sin cifra sin fecha; sin medición, qué lo mediría.
   for (const et of e.etapas) {
@@ -252,7 +255,7 @@ test('apagado, la API responde { activo: false } antes de leer nada, y la vista 
   assert.match(ruta, /export async function GET\(\) \{\n {2}if \(!panelNegocioEncendido\(\)\) return APAGADO\(\)/)
   assert.match(ruta, /const APAGADO = \(\) => Response\.json\(\{ activo: false \}/)
   // La vista: sin `activo`, devuelve el libro de siempre antes de pintar nada nuevo (en el alumno, que está apagado).
-  assert.match(leer('src/features/cabina/vistas/Negocio.tsx'), /if \(!sistema\?\.activo\) return esEdicionCliente\(\) \? <p[^>]*>Tu negocio está apagado[^<]*<\/p> : <LibroNegocio seccion=\{seccion\} grande=\{grande\} \/>/)
+  assert.match(leer('src/features/cabina/vistas/Negocio.tsx'), /if \(!sistema\?\.activo\) return esEdicionCliente\(\) \? <p[^>]*>\{tr\('Tu negocio está apagado[^<]*'\)\}<\/p> : <LibroNegocio seccion=\{seccion\} grande=\{grande\} \/>/)
 })
 
 test('Tu negocio tiene sección propia: el teléfono y los enlaces directos abren /negocio, no Memoria', async () => {

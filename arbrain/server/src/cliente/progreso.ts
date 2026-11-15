@@ -28,6 +28,7 @@ import { diaLocal } from './cohorte.js'
 import { adoptarLegado, existeCerebro, sembrarExpediente, urlExpediente, validarRemoto, type Siembra } from './expediente.js'
 import { escribirCamino, enlace, urlCamino, validarCamino, type Resultado as ResultadoCamino } from './camino.js'
 import { sembrarRetrato } from './retrato.js'
+import { tr } from '../i18n/tr.js'
 import type { Resultado as ResultadoSiembra } from './expediente.js'
 
 export const URL_POR_OMISION = 'https://arbrain.ai/api/progreso'
@@ -201,23 +202,23 @@ export class Progreso {
   private guardar(c: ConfigProgreso) { escribirPrivado(this.ruta, c) }
 
   conectar(token: unknown, url?: unknown, compartirTexto?: unknown): { ok: true } | { ok: false; error: string } {
-    if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{20,120}$/.test(token.trim())) return { ok: false, error: 'Pega el token tal cual lo copiaste de tu perfil (empieza con arb_).' }
+    if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{20,120}$/.test(token.trim())) return { ok: false, error: tr('Pega el token tal cual lo copiaste de tu perfil (empieza con arb_).') }
     const u = url === undefined || url === null || url === '' ? URL_POR_OMISION : url
-    if (!urlValida(u)) return { ok: false, error: 'La dirección debe empezar con https://.' }
+    if (!urlValida(u)) return { ok: false, error: tr('La dirección debe empezar con https://.') }
     this.guardar({ token: token.trim(), url: String(u).trim(), compartirTexto: compartirTexto === true })
     return { ok: true }
   }
 
   ajustes(c: Record<string, unknown>): { ok: true } | { ok: false; error: string } {
     const actual = this.config()
-    if (!actual) return { ok: false, error: 'Primero conecta tu token.' }
-    if (c.url !== undefined) { if (!urlValida(c.url)) return { ok: false, error: 'La dirección debe empezar con https://.' }; actual.url = String(c.url).trim() }
+    if (!actual) return { ok: false, error: tr('Primero conecta tu token.') }
+    if (c.url !== undefined) { if (!urlValida(c.url)) return { ok: false, error: tr('La dirección debe empezar con https://.') }; actual.url = String(c.url).trim() }
     if (c.compartir_texto !== undefined) actual.compartirTexto = c.compartir_texto === true
     if (c.manual !== undefined) {
       const m = (c.manual && typeof c.manual === 'object' ? c.manual : {}) as Record<string, unknown>
       const n = (v: unknown) => v === null || v === '' || v === undefined ? null : Number.isInteger(Number(v)) && Number(v) >= 0 && Number(v) <= 10_000 ? Number(v) : NaN
       const ofertas = n(m.ofertas), conversaciones = n(m.conversaciones_venta)
-      if (Number.isNaN(ofertas) || Number.isNaN(conversaciones)) return { ok: false, error: 'Ofertas y conversaciones de venta: números enteros.' }
+      if (Number.isNaN(ofertas) || Number.isNaN(conversaciones)) return { ok: false, error: tr('Ofertas y conversaciones de venta: números enteros.') }
       actual.manual = { semana: semanaIso(diaLocal(this.ahora())), ofertas, conversaciones_venta: conversaciones }
     }
     this.guardar(actual)
@@ -302,7 +303,7 @@ export class Progreso {
       const j = await r.json().catch(() => ({})) as { error?: unknown }
       if (r.ok) resultado = 'enviado'
       else { resultado = r.status === 401 || r.status === 403 ? 'rechazado' : 'fallo'; detalle = typeof j.error === 'string' ? j.error.slice(0, 200) : `HTTP ${r.status}` }
-    } catch (e) { detalle = e instanceof Error ? e.message.slice(0, 200) : 'sin red' }
+    } catch (e) { detalle = e instanceof Error ? e.message.slice(0, 200) : tr('sin red') }
     const fresca = this.config() // pudo desconectarse mientras se enviaba
     if (fresca) this.guardar({ ...fresca, ultimoIntento: this.ahora(), ultimoResultado: resultado === 'enviado' ? 'enviado' : `${resultado}: ${detalle ?? ''}`.trim(), ...(resultado === 'enviado' ? { ultimoEnvio: this.ahora() } : {}) })
     return detalle ? { resultado, detalle } : { resultado }
@@ -333,7 +334,7 @@ export class Progreso {
         // Con el expediente llega también el borrador de su retrato, si el retrato sigue pendiente (retrato.ts).
         out = e ? { resultado: 'sembrado', siembra: { ...sembrarExpediente(raiz, e), retrato: sembrarRetrato(raiz, e, diaLocal(this.ahora())) } } : { resultado: 'sin_expediente' }
       }
-    } catch (e) { out = { resultado: 'fallo', detalle: e instanceof Error ? e.message.slice(0, 200) : 'sin red' } }
+    } catch (e) { out = { resultado: 'fallo', detalle: e instanceof Error ? e.message.slice(0, 200) : tr('sin red') } }
     const fresca = this.config()
     if (fresca) {
       // Un 404 de cualquier tipo cuenta como intento del día: no se insiste cada hora.
@@ -367,9 +368,9 @@ export class Progreso {
       else if (!r.ok) out = { resultado: 'fallo', detalle: `HTTP ${r.status}` }
       else {
         const camino = validarCamino(j, new URL(c.url).origin)
-        out = camino ? { resultado: 'escrito', camino: escribirCamino(raiz, camino, hoy).camino } : { resultado: 'fallo', detalle: 'respuesta sin el contrato v1' }
+        out = camino ? { resultado: 'escrito', camino: escribirCamino(raiz, camino, hoy).camino } : { resultado: 'fallo', detalle: tr('respuesta sin el contrato v1') }
       }
-    } catch (e) { out = { resultado: 'fallo', detalle: e instanceof Error ? e.message.slice(0, 200) : 'sin red' } }
+    } catch (e) { out = { resultado: 'fallo', detalle: e instanceof Error ? e.message.slice(0, 200) : tr('sin red') } }
     const fresca = this.config()
     if (fresca) {
       const bien = out.resultado === 'escrito'
@@ -397,7 +398,7 @@ export class Progreso {
   async vincular(url?: unknown, fetcher: typeof fetch = fetch): Promise<{ resultado: 'no_cliente' | 'esperando' | 'sin_ruta' | 'fallo'; detalle?: string; vinculo?: Vinculo }> {
     if (!esEdicionCliente()) return { resultado: 'no_cliente' }
     const base = url === undefined || url === null || url === '' ? (this.config()?.url ?? URL_POR_OMISION) : url
-    if (!urlValida(base)) return { resultado: 'fallo', detalle: 'La dirección debe empezar con https://.' }
+    if (!urlValida(base)) return { resultado: 'fallo', detalle: tr('La dirección debe empezar con https://.') }
     const b = String(base).trim().replace(/\/+$/, '')
     try {
       const r = await fetcher(`${b}/vincular`, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ v: 1, version_cerebro: versionCerebro(this.raiz()), sistema: process.platform }), signal: AbortSignal.timeout(15_000) })
@@ -407,10 +408,10 @@ export class Progreso {
       const dispositivo = typeof j.codigo_dispositivo === 'string' && /^[A-Za-z0-9_-]{32,128}$/.test(j.codigo_dispositivo) ? j.codigo_dispositivo : null
       const codigo = typeof j.codigo_usuario === 'string' && /^[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(j.codigo_usuario) ? j.codigo_usuario : null
       const pagina = enlace(j.url, new URL(b).origin)
-      if (!dispositivo || !codigo || !pagina) return { resultado: 'fallo', detalle: 'respuesta sin el contrato del vínculo' }
+      if (!dispositivo || !codigo || !pagina) return { resultado: 'fallo', detalle: tr('respuesta sin el contrato del vínculo') }
       this.vinculo = { estado: 'esperando', codigo, url: pagina, expira: this.ahora() + entre(j.expira_en, VINCULO_EXPIRA) * 1000, dispositivo, intervalo: entre(j.intervalo, VINCULO_INTERVALO), base: b }
       return { resultado: 'esperando', vinculo: this.vinculoVisible()! }
-    } catch (e) { return { resultado: 'fallo', detalle: e instanceof Error ? e.message.slice(0, 200) : 'sin red' } }
+    } catch (e) { return { resultado: 'fallo', detalle: e instanceof Error ? e.message.slice(0, 200) : tr('sin red') } }
   }
 
   /**
@@ -429,13 +430,13 @@ export class Progreso {
       if (r.status === 403) { v.estado = 'rechazado'; v.detalle = typeof j?.error === 'string' ? j.error.slice(0, 200) : undefined; return v.estado }
       if (r.ok && typeof j?.token === 'string') {
         const c = this.conectar(j.token, v.base, this.config()?.compartirTexto === true)
-        if (!c.ok) { v.estado = 'rechazado'; v.detalle = 'arbrain.ai mandó un token con otra forma'; return v.estado }
+        if (!c.ok) { v.estado = 'rechazado'; v.detalle = tr('arbrain.ai mandó un token con otra forma'); return v.estado }
         v.estado = 'conectado'
         await Promise.all([this.traerExpediente(true, fetcher), this.traerCamino(true, fetcher)])
         return v.estado
       }
       v.detalle = r.status === 202 || j?.estado === 'pendiente' ? undefined : `HTTP ${r.status}`
-    } catch (e) { v.detalle = e instanceof Error ? e.message.slice(0, 200) : 'sin red' }
+    } catch (e) { v.detalle = e instanceof Error ? e.message.slice(0, 200) : tr('sin red') }
     return v.estado
   }
 

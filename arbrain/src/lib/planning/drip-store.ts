@@ -12,6 +12,7 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname, isAbsolute, join } from 'node:path'
 import { DOC_VACIO, normalizarDoc, type DocDrip } from '@/features/planning/drip'
+import { tr } from '@/shared/i18n'
 
 /** La clave en `app_config` (instalación de Daniel). */
 export const CLAVE_DRIP = 'planning:drip'
@@ -28,7 +29,7 @@ export function dondeDrip(opciones: { cliente: boolean; raiz?: () => string }, e
     return { tipo: 'archivo', ruta: forzado }
   }
   if (opciones.cliente) {
-    if (!opciones.raiz) throw new Error('Falta la raíz del cerebro para el almacén DRIP.')
+    if (!opciones.raiz) throw new Error(tr('Falta la raíz del cerebro para el almacén DRIP.'))
     return { tipo: 'archivo', ruta: join(opciones.raiz(), RUTA_DRIP_LOCAL) }
   }
   return { tipo: 'supabase', clave: CLAVE_DRIP }

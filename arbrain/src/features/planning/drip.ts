@@ -1,6 +1,7 @@
 import { categoriaDe, esCompromiso, type Categoria } from './categorias'
 import { tituloBase } from './rutinas'
 import { aplicarCambioSemana, normalizarSemana, type SemanaPerfecta } from './semana-perfecta'
+import { enIngles, localeIntl, tr, trMarca } from '@/shared/i18n'
 
 /**
  * DRIP (24 oct 2026, Daniel: «cada evento se clasifica SOLO por DRIP (Producir / Invertir / Reemplazar / Delegar; Levy lo infiere,
@@ -48,10 +49,10 @@ export interface DefCuadrante {
  * Delegar, un gris pizarra que se lee como «esto no es tuyo».
  */
 export const CUADRANTES: readonly DefCuadrante[] = [
-  { id: 'producir', nombre: 'Producir', letra: 'P', color: '#a8733a', paga: true, enciende: true, lema: 'Te paga y te enciende: aquí quieres vivir' },
-  { id: 'invertir', nombre: 'Invertir', letra: 'I', color: '#8c27f1', paga: false, enciende: true, lema: 'Te enciende y paga después: siempre algo aquí' },
-  { id: 'reemplazar', nombre: 'Reemplazar', letra: 'R', color: '#b23a4a', paga: true, enciende: false, lema: 'Te paga pero te drena: que lo haga alguien con tu método' },
-  { id: 'delegar', nombre: 'Delegar', letra: 'D', color: '#7c8594', paga: false, enciende: false, lema: 'Ni te paga ni te enciende: sácalo de tu agenda' },
+  { id: 'producir', nombre: trMarca('Producir'), letra: 'P', color: '#a8733a', paga: true, enciende: true, lema: trMarca('Te paga y te enciende: aquí quieres vivir') },
+  { id: 'invertir', nombre: trMarca('Invertir'), letra: 'I', color: '#8c27f1', paga: false, enciende: true, lema: trMarca('Te enciende y paga después: siempre algo aquí') },
+  { id: 'reemplazar', nombre: trMarca('Reemplazar'), letra: 'R', color: '#b23a4a', paga: true, enciende: false, lema: trMarca('Te paga pero te drena: que lo haga alguien con tu método') },
+  { id: 'delegar', nombre: trMarca('Delegar'), letra: 'D', color: '#7c8594', paga: false, enciende: false, lema: trMarca('Ni te paga ni te enciende: sácalo de tu agenda') },
 ]
 export const DRIP: Record<Cuadrante, DefCuadrante> = Object.fromEntries(CUADRANTES.map(c => [c.id, c])) as Record<Cuadrante, DefCuadrante>
 export const esCuadrante = (x: unknown): x is Cuadrante => typeof x === 'string' && x in DRIP
@@ -91,24 +92,24 @@ function palabras(lista: string): RegExp {
  */
 export const REGLAS_DRIP: readonly { id: string; re: RegExp; cuadrante: Cuadrante; porque: string }[] = [
   // Delegar fuerte: administración, cobranza, trámites, mantenimiento, logística (p. 51–52: «facturación y cobranza, organizar viajes»).
-  { id: 'administrativo', cuadrante: 'delegar', porque: 'administración, cobranza o logística',
+  { id: 'administrativo', cuadrante: 'delegar', porque: trMarca('administración, cobranza o logística'),
     re: palabras('cobros?|cobranza|factura\\w*|pagos?|pagar|tr[aá]mites?|impi|registro de marca|licencia|reiniciar|reservar|agendar|agenda de|transcript\\w*|revisi[oó]n t[eé]cnica|instalar|instalaci[oó]n|limpiar lo acumulado|organizar|migrar|bandeja de entrada|inbox|correos|escribir a|p[oó]sters?|imprimir|recoger|mandados?|comprar|cotizar') },
   // Producir fuerte: entregar a tus clientes (clases, uno a uno, fases del programa) y crear la pieza (grabar, guion, pitch, deep work).
-  { id: 'entregar', cuadrante: 'producir', porque: 'entregar a tus clientes',
+  { id: 'entregar', cuadrante: 'producir', porque: trMarca('entregar a tus clientes'),
     re: palabras('nivel \\d+|videollamada de comunidad|kickoff|clase del|uno a uno|1 ?a ?1 con cliente|demo day|fase \\d+|classroom|mentor[ií]a (?:a|con) clientes?|sesi[oó]n con cliente|diagn[oó]stico con') },
-  { id: 'crear', cuadrante: 'producir', porque: 'crear la pieza que vende',
+  { id: 'crear', cuadrante: 'producir', porque: trMarca('crear la pieza que vende'),
     re: palabras('deep work|trabajo fuerte|grabar|grabaci[oó]n|vsl\\d*|guion|gui[oó]n|vlog|pitch|ensayo|presentador|firmar|firmas|estrategia|blueprint|arquitectura|producto|c[aá]mara') },
   // Reemplazar fuerte: operar ventas y difusión; vale dinero, pero con un método otra persona (o Levy) lo hace (p. 53: «ventas, marketing, onboarding»).
-  { id: 'operar-ventas', cuadrante: 'reemplazar', porque: 'operar ventas o difusión con un método repetible',
+  { id: 'operar-ventas', cuadrante: 'reemplazar', porque: trMarca('operar ventas o difusión con un método repetible'),
     re: palabras('brief|briefing|setter|seguimientos?|aplicantes|prospecci[oó]n|prospectar|mensajes?|notas de voz|invitaci[oó]n(?:es)?|invitar|publicar|post|subir|responder|contestar|respuestas|anunciar|replay|calientes|avisar|trabajo light|llamada ·|llamada de venta|llamadas de venta|cierre de venta|onboarding de clientes?|soporte') },
   // Invertir: vida (ejercicio, pareja, familia, comer, dormir), aprender y planear (p. 55–56: «ejercicio, pasatiempos, familia; formación»).
-  { id: 'vida', cuadrante: 'invertir', porque: 'tu energía y tu gente',
+  { id: 'vida', cuadrante: 'invertir', porque: trMarca('tu energía y tu gente'),
     re: palabras('gym|gimnasio|sauna|nataci[oó]n|correr|caminata|caminar|yoga|ejercicio|familia|hermanos?|pap[aá]|mam[aá]|pareja|hijos?|desayuno|comida|almuerzo|cena|ducha|siesta|descanso|dormir|despierto|despertar|rutina|vacaciones|premio|monterrey|viaje|vuelo|doctor|m[eé]dico|dentista|terapia|cumplea[nñ]os|boda|corte de pelo|starbucks|caf[eé]|cierre del d[ií]a') },
-  { id: 'aprender', cuadrante: 'invertir', porque: 'aprender o planear tu siguiente paso',
+  { id: 'aprender', cuadrante: 'invertir', porque: trMarca('aprender o planear tu siguiente paso'),
     re: palabras('estudiar|leer|lectura|libro|curso|aprender|roleplays?|cheat sheet|chuleta|accelerator|mentor|mentor[ií]a|planeaci[oó]n|planeacion|planear|bajar a tierra|revisi[oó]n semanal|armar la semana|la semana con horas') },
   // Lo general de cada uno, después de lo fuerte.
-  { id: 'ensenar', cuadrante: 'producir', porque: 'enseñar o entregar', re: palabras('clase|grupal|masterclass|taller|workshop|sesi[oó]n|entregar|m[oó]dulos?|lecciones|demo|deck') },
-  { id: 'revisar', cuadrante: 'reemplazar', porque: 'revisar el trabajo de otros', re: palabras('revisar|supervisar|corregir|checar|qa|nutrici[oó]n|correo|newsletter|edici[oó]n|editar|miniaturas?') },
+  { id: 'ensenar', cuadrante: 'producir', porque: trMarca('enseñar o entregar'), re: palabras('clase|grupal|masterclass|taller|workshop|sesi[oó]n|entregar|m[oó]dulos?|lecciones|demo|deck') },
+  { id: 'revisar', cuadrante: 'reemplazar', porque: trMarca('revisar el trabajo de otros'), re: palabras('revisar|supervisar|corregir|checar|qa|nutrici[oó]n|correo|newsletter|edici[oó]n|editar|miniaturas?') },
 ]
 
 /** Emojis que DRIP lee sin dudar (los demás los decide la palabra o la categoría). */
@@ -130,9 +131,9 @@ function emojiInicial(titulo: string): string | null {
 /** Lo que Levy infiere de un evento, sin correcciones. Determinista: el mismo evento da siempre lo mismo. */
 export function inferirDrip(e: EventoDrip, calendario?: string | null): Inferencia {
   const marca = MARCA_DRIP.exec(e.description ?? '')
-  if (marca) return { cuadrante: marca[1].toLowerCase() as Cuadrante, origen: 'descripcion', porque: 'marcado en la descripción' }
+  if (marca) return { cuadrante: marca[1].toLowerCase() as Cuadrante, origen: 'descripcion', porque: trMarca('marcado en la descripción') }
   const emoji = emojiInicial(e.title ?? '')
-  if (emoji && EMOJIS_DRIP[emoji]) return { cuadrante: EMOJIS_DRIP[emoji], origen: 'emoji', porque: 'su emoji' }
+  if (emoji && EMOJIS_DRIP[emoji]) return { cuadrante: EMOJIS_DRIP[emoji], origen: 'emoji', porque: trMarca('su emoji') }
   const titulo = (e.title ?? '').replace(/^\s*✓\s*/, '')
   for (const r of REGLAS_DRIP) if (r.re.test(titulo)) return { cuadrante: r.cuadrante, origen: 'regla', porque: r.porque }
   const cat = categoriaDe({ title: e.title, description: e.description, colorId: e.colorId }, calendario)
@@ -352,25 +353,25 @@ export function aplicarCambioDrip(doc: DocDrip, cambio: unknown, ahora = new Dat
   const por = texto(c.por, 40) || 'persona'
   switch (c.accion) {
     case 'corregir': {
-      if (!claves.length) return 'Falta la serie o el título del evento.'
-      if (c.cuadrante !== null && !esCuadrante(c.cuadrante)) return 'Cuadrante inválido: producir, invertir, reemplazar o delegar.'
+      if (!claves.length) return trMarca('Falta la serie o el título del evento.')
+      if (c.cuadrante !== null && !esCuadrante(c.cuadrante)) return trMarca('Cuadrante inválido: producir, invertir, reemplazar o delegar.')
       for (const k of claves) { if (c.cuadrante === null) delete n.correcciones[k]; else n.correcciones[k] = { cuadrante: c.cuadrante, titulo: texto(c.titulo), en: ahora, por } }
       return n
     }
     case 'delegar': {
-      if (!claves.length) return 'Falta la serie o el título del evento.'
+      if (!claves.length) return trMarca('Falta la serie o el título del evento.')
       for (const k of claves) { if (c.activo === false) delete n.delegados[k]; else n.delegados[k] = { a: texto(c.a, 60) || 'Levy', titulo: texto(c.titulo), desde: ahora, por } }
       return n
     }
     case 'tarifa': {
       if (c.monto === null) { n.tarifa = null; return n }
-      if (typeof c.monto !== 'number' || !(c.monto > 0) || c.monto >= 1e6) return 'La tarifa es un número mayor que cero (lo que te paga tu empresa al año ÷ 8,000).'
+      if (typeof c.monto !== 'number' || !(c.monto > 0) || c.monto >= 1e6) return trMarca('La tarifa es un número mayor que cero (lo que te paga tu empresa al año ÷ 8,000).')
       n.tarifa = { monto: Math.round(c.monto * 100) / 100, moneda: texto(c.moneda, 8) || doc.tarifa?.moneda || 'USD' }
       return n
     }
     case 'foto': {
       const f = leerFoto(c.foto)
-      if (!f) return 'Foto del plan inválida.'
+      if (!f) return trMarca('Foto del plan inválida.')
       // La foto es del plan: la primera se queda. Una segunda lectura de la misma semana no la reemplaza.
       if (!n.fotos[f.lunes]) n.fotos[f.lunes] = f
       const viejas = Object.keys(n.fotos).sort().slice(0, -FOTOS_MAX)
@@ -378,7 +379,7 @@ export function aplicarCambioDrip(doc: DocDrip, cambio: unknown, ahora = new Dat
       return n
     }
     case 'manana': {
-      if (!esFecha(c.dia)) return 'Día inválido.'
+      if (!esFecha(c.dia)) return trMarca('Día inválido.')
       if (c.aceptada === false) delete n.mananas[c.dia]; else n.mananas[c.dia] = ahora
       for (const k of Object.keys(n.mananas).sort().slice(0, -MANANAS_MAX)) delete n.mananas[k]
       return n
@@ -389,7 +390,7 @@ export function aplicarCambioDrip(doc: DocDrip, cambio: unknown, ahora = new Dat
       n.semana = semana
       return n
     }
-    default: return 'Acción inválida: corregir, delegar, tarifa, foto, manana o semana.'
+    default: return trMarca('Acción inválida: corregir, delegar, tarifa, foto, manana o semana.')
   }
 }
 
@@ -428,7 +429,7 @@ export function leerDrip(e: EventoDrip, calendario: string | null | undefined, d
   const { serie, titulo } = clavesDe(e)
   const claves = [serie, titulo].filter((k): k is string => !!k)
   const corr = doc ? claves.map(k => doc.correcciones[k]).find(Boolean) : undefined
-  const base: Inferencia = corr ? { cuadrante: corr.cuadrante, origen: 'corregido', porque: corr.por === 'levy' ? 'corregido por Levy' : 'lo corregiste tú' } : inf
+  const base: Inferencia = corr ? { cuadrante: corr.cuadrante, origen: 'corregido', porque: corr.por === 'levy' ? trMarca('corregido por Levy') : trMarca('lo corregiste tú') } : inf
   const marca = RE_DELEGADO.exec(e.description ?? '')
   const deleg = doc ? claves.map(k => doc.delegados[k]).find(d => d && Date.parse(d.desde) <= Date.parse(e.end)) : undefined
   return { ...base, inferido: inf.cuadrante, claves, delegable: esDelegable(base.cuadrante),
@@ -471,11 +472,11 @@ export function formatoHorasDrip(h: number | null): string {
   if (h <= 0) return '0 h'
   if (h < 1) return `${Math.round(h * 60)} min`
   const r = Math.round(h * 2) / 2
-  return `${String(r).replace('.', ',')} h`
+  return `${enIngles() ? String(r) : String(r).replace('.', ',')} h`
 }
 /** «$112» con la moneda de la tarifa (sin decimales). */
 export function formatoDinero(monto: number, moneda: string): string {
-  try { return new Intl.NumberFormat('es-MX', { style: 'currency', currency: moneda, currencyDisplay: 'narrowSymbol', maximumFractionDigits: 0 }).format(monto) } catch { return `${Math.round(monto)} ${moneda}` }
+  try { return new Intl.NumberFormat(localeIntl(), { style: 'currency', currency: moneda, currencyDisplay: 'narrowSymbol', maximumFractionDigits: 0 }).format(monto) } catch { return `${Math.round(monto)} ${moneda}` }
 }
 
 /* ── El comparador del domingo ───────────────────────────────────────────────────────────────────────────────────────── */
@@ -484,11 +485,11 @@ export type IdAsesino = 'staller' | 'speed' | 'supervisor' | 'saver' | 'self'
 export interface Asesino { id: IdAsesino; nombre: string; libro: string; que: string }
 /** Los 5 Time Assassins (p. 77–85). La señal es INFERENCIA nuestra sobre el calendario, no un diagnóstico de la persona. */
 export const ASESINOS: readonly Asesino[] = [
-  { id: 'staller', nombre: 'El que pospone', libro: 'The Staller', que: 'Duda en las decisiones grandes y las patea a la semana siguiente.' },
-  { id: 'speed', nombre: 'El acelerado', libro: 'The Speed Demon', que: 'Decide rápido y vuelve al mismo problema.' },
-  { id: 'supervisor', nombre: 'El supervisor', libro: 'The Supervisor', que: 'Revisa y rehace lo que ya delegó.' },
-  { id: 'saver', nombre: 'El ahorrador', libro: 'The Saver', que: 'Hace él mismo lo que podría pagar para recuperar horas.' },
-  { id: 'self', nombre: 'El que se escapa', libro: 'The Self-Medicator', que: 'Tras un golpe o un logro, las mañanas se le van.' },
+  { id: 'staller', nombre: trMarca('El que pospone'), libro: 'The Staller', que: trMarca('Duda en las decisiones grandes y las patea a la semana siguiente.') },
+  { id: 'speed', nombre: trMarca('El acelerado'), libro: 'The Speed Demon', que: trMarca('Decide rápido y vuelve al mismo problema.') },
+  { id: 'supervisor', nombre: trMarca('El supervisor'), libro: 'The Supervisor', que: trMarca('Revisa y rehace lo que ya delegó.') },
+  { id: 'saver', nombre: trMarca('El ahorrador'), libro: 'The Saver', que: trMarca('Hace él mismo lo que podría pagar para recuperar horas.') },
+  { id: 'self', nombre: trMarca('El que se escapa'), libro: 'The Self-Medicator', que: trMarca('Tras un golpe o un logro, las mañanas se le van.') },
 ]
 
 export interface Senal { id: IdAsesino; fuerza: number; texto: string }
@@ -540,17 +541,17 @@ export function comparar(foto: FotoSemana | null, real: readonly BloqueDrip[], d
   // The Staller: Producir que se pospone o se cae (p. 78: «posponer semana tras semana»).
   // Lo que toca a Producir pesa 1.5×: es lo que el sistema protege primero.
   const pateados = cayeron.length + pospuestos.length
-  if (pateados >= 2) senales.push({ id: 'staller', fuerza: 1.5 * pateados / 2, texto: `${pateados} bloques de Producir se pospusieron o se cayeron.` })
+  if (pateados >= 2) senales.push({ id: 'staller', fuerza: 1.5 * pateados / 2, texto: tr('{n} bloques de Producir se pospusieron o se cayeron.', { n: pateados }) })
   // The Speed Demon: entra lo que no estaba y vuelve el mismo tipo de problema (p. 81).
   const rehacer = semanaR.filter(b => RE_REHACER.test(b.titulo))
   if (nuevos.length >= 5 || rehacer.length >= 2) senales.push({ id: 'speed', fuerza: Math.max(nuevos.length / 5, rehacer.length / 2),
-    texto: rehacer.length >= 2 ? `${rehacer.length} bloques de rehacer o cambiar algo que ya estaba.` : `${nuevos.length} bloques entraron sin estar en el plan.` })
+    texto: rehacer.length >= 2 ? tr('{n} bloques de rehacer o cambiar algo que ya estaba.', { n: rehacer.length }) : tr('{n} bloques entraron sin estar en el plan.', { n: nuevos.length }) })
   // The Supervisor: horas revisando o rehaciendo trabajo de otros.
   const hRevisar = horasUnion(semanaR.filter(b => RE_REVISAR.test(b.titulo) && b.cuadrante !== 'invertir'), desde, hasta)
-  if (hRevisar >= 2) senales.push({ id: 'supervisor', fuerza: hRevisar / 2, texto: `${formatoHorasDrip(hRevisar)} revisando o corrigiendo trabajo.` })
+  if (hRevisar >= 2) senales.push({ id: 'supervisor', fuerza: hRevisar / 2, texto: tr('{horas} revisando o corrigiendo trabajo.', { horas: formatoHorasDrip(hRevisar) }) })
   // The Saver: horas de Delegar que siguen siendo tuyas (p. 85).
   const hDelegarTuyas = horasUnion(semanaR.filter(b => b.cuadrante === 'delegar' && !b.delegadoA), desde, hasta)
-  if (hDelegarTuyas >= 2) senales.push({ id: 'saver', fuerza: hDelegarTuyas / 2, texto: `${formatoHorasDrip(hDelegarTuyas)} de Delegar siguen en tu agenda.` })
+  if (hDelegarTuyas >= 2) senales.push({ id: 'saver', fuerza: hDelegarTuyas / 2, texto: tr('{horas} de Delegar siguen en tu agenda.', { horas: formatoHorasDrip(hDelegarTuyas) }) })
   // The Self-Medicator: SOLO el patrón de agenda (sin juzgar la causa ni leer salud): mañanas cuyo primer bloque planeado se perdió o se recorrió.
   if (foto) {
     const mananas = new Map<string, BloqueFoto>()
@@ -558,7 +559,7 @@ export function comparar(foto: FotoSemana | null, real: readonly BloqueDrip[], d
       const d = diaDe(t), x = mananas.get(d); if (!x || Date.parse(x.inicio) > t) mananas.set(d, b) }
     let perdidas = 0
     for (const b of mananas.values()) { const r = porId.get(b.id); if (!r || r.inicio > Date.parse(b.inicio) + 30 * 60_000) perdidas++ }
-    if (perdidas >= 2) senales.push({ id: 'self', fuerza: perdidas / 2, texto: `${perdidas} mañanas tu primer bloque se perdió o se recorrió.` })
+    if (perdidas >= 2) senales.push({ id: 'self', fuerza: perdidas / 2, texto: tr('{n} mañanas tu primer bloque se perdió o se recorrió.', { n: perdidas }) })
   }
   senales.sort((a, b) => b.fuerza - a.fuerza)
   return { desdePlan, plan, real: horasPorCuadrante(realR, desdePlan, hasta), semana: horasPorCuadrante(semanaR, desde, hasta), cayeron, pospuestos, nuevos, senales, dominante: senales[0] ?? null }
@@ -580,16 +581,16 @@ export function proponer(siguiente: readonly BloqueDrip[], dominante: IdAsesino 
   const producir = tocable.filter(b => b.cuadrante === 'producir' && !b.protegido).sort((a, b) => dur(b) - dur(a) || a.inicio - b.inicio)
   if ((dominante === 'saver' || dominante === 'supervisor') && delegables[0]) {
     const b = delegables[0]
-    return { tipo: 'delegar', bloque: b, texto: `Marca «${limpiar(b.titulo)}» como de Levy`, porque: 'Lo que te drena y paga poco no debería seguir en tu agenda.' }
+    return { tipo: 'delegar', bloque: b, texto: tr('Marca «{titulo}» como de Levy', { titulo: limpiar(b.titulo) }), porque: tr('Lo que te drena y paga poco no debería seguir en tu agenda.') }
   }
   if (producir[0]) {
     const b = producir[0]
-    return { tipo: 'proteger', bloque: b, texto: `Protege «${limpiar(b.titulo)}»`, porque: dominante === 'staller' || dominante === 'self'
-      ? 'Esta semana el Producir se movió; protegido, nada nuevo entra encima.' : 'Es tu bloque de Producir más largo: lo que te paga y te enciende va primero.' }
+    return { tipo: 'proteger', bloque: b, texto: tr('Protege «{titulo}»', { titulo: limpiar(b.titulo) }), porque: dominante === 'staller' || dominante === 'self'
+      ? tr('Esta semana el Producir se movió; protegido, nada nuevo entra encima.') : tr('Es tu bloque de Producir más largo: lo que te paga y te enciende va primero.') }
   }
   if (delegables[0]) {
     const b = delegables[0]
-    return { tipo: 'delegar', bloque: b, texto: `Marca «${limpiar(b.titulo)}» como de Levy`, porque: 'No hay Producir por proteger; empieza por sacar lo que te drena.' }
+    return { tipo: 'delegar', bloque: b, texto: tr('Marca «{titulo}» como de Levy', { titulo: limpiar(b.titulo) }), porque: tr('No hay Producir por proteger; empieza por sacar lo que te drena.') }
   }
   return null
 }

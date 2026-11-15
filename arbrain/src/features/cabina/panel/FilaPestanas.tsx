@@ -22,6 +22,7 @@ import { TALLER, TAREAS } from './pestanas-fuera'
 import { LARGA_MOVIMIENTO, LARGA_MS, useVistaTelefono, verPestanaEnTelefono, volverALevy } from './telefono-pestanas'
 import s from './panel.module.css'
 import f from './fila-pestanas.module.css'
+import { tr } from '@/shared/i18n'
 
 /** Cierra una pestaña desde el teléfono. Si era la que se veía, se vuelve a Levy (el chat, donde estaba). */
 export function cerrarPestanaEnTelefono(clave: string, estabaViendola: boolean) {
@@ -131,23 +132,23 @@ export function FilaPestanas() {
   }
 
   return <div className="relative z-10 flex h-10 shrink-0 items-center gap-1 border-b border-border-subtle bg-surface pl-2.5 pr-2" data-fila-pestanas>
-    <nav ref={tiraRef} className={f.tira} role="tablist" aria-label="Pestañas abiertas">
+    <nav ref={tiraRef} className={f.tira} role="tablist" aria-label={tr('Pestañas abiertas')}>
       {claves.map(clave => {
         const fijada = fijadas.find(x => x.id === clave)
         if (clave !== TAREAS && clave !== TALLER && !fijada) return null
-        const nombre = clave === TAREAS ? 'Tareas' : clave === TALLER ? 'Taller' : nombrePestana(fijada!)
+        const nombre = clave === TAREAS ? tr('Tareas') : clave === TALLER ? tr('Taller') : nombrePestana(fijada!)
         const anclada = ancladas.includes(clave)
         // 6 oct 2026 (Daniel: «no hay forma de cerrar los paneles desde el móvil, se acumulan»): la pestaña a la vista lleva
         // una × sutil; al cerrarla se ve la vecina (sin pestañas, de vuelta al chat). Las demás: tocarlas primero o mantener.
         const conX = activa === clave && !anclada
         return <span key={clave} className={f.envoltura} data-con-x={conX || undefined} data-anclada={anclada || undefined} data-fija={clave === TALLER || undefined}><button role="tab" className={f.pestana} data-clave={clave} data-anclada={anclada || undefined}
-          aria-selected={activa === clave} aria-label={anclada ? `${nombre} (fijada)` : undefined}
+          aria-selected={activa === clave} aria-label={anclada ? tr('{nombre} (fijada)', { nombre }) : undefined}
           onPointerDown={alBajar(clave)} onPointerMove={alMover} onPointerUp={alSoltar(clave)} onPointerCancel={alAnular} onPointerLeave={alSalir}
           onClick={alTocar(clave)} onContextMenu={e => e.preventDefault()}>
           {clave === TAREAS ? <ListChecks size={14} aria-hidden /> : clave === TALLER ? <Hammer size={13} aria-hidden /> : <IconoVista vista={fijada!.input.vista} size={13} />}
           <span>{nombre}</span>
         </button>
-        {conX && <button className={f.cerrar} aria-label={`Cerrar ${nombre}`} title="Cerrar"
+        {conX && <button className={f.cerrar} aria-label={tr('Cerrar {nombre}', { nombre })} title={tr('Cerrar')}
           onClick={() => usePanelFijadas.getState().cerrar(clave)}><X size={12} strokeWidth={2.2} aria-hidden /></button>}
         </span>
       })}
@@ -209,15 +210,15 @@ export function MenuMantener({ x, y, fijada, onCerrar, onListo }: { x: number; y
   }, [onListo])
   const z = zoomUI(), ancho = 190
   const left = aFijo(Math.max(8, Math.min(x, window.innerWidth - ancho * z - 8)), z), top = aFijo(y + 6, z)
-  return createPortal(<div ref={ref} className={`${s.menuPestana} ${f.menu}`} style={{ left, top, width: ancho }} role="menu" aria-label="Pestaña">
+  return createPortal(<div ref={ref} className={`${s.menuPestana} ${f.menu}`} style={{ left, top, width: ancho }} role="menu" aria-label={tr('Pestaña')}>
     {fijada && guardable(fijada) && <ItemGuardar f={fijada} onListo={onListo} />}
-    <button role="menuitem" onClick={onCerrar}><X size={14} aria-hidden />Cerrar</button>
+    <button role="menuitem" onClick={onCerrar}><X size={14} aria-hidden />{tr('Cerrar')}</button>
   </div>, document.body)
 }
 
 function ItemGuardar({ f: fijada, onListo }: { f: Fijada; onListo: () => void }) {
   const { guardada, alternar, ocupado } = useGuardado(fijada)
   return <button role="menuitem" disabled={ocupado} onClick={() => { void alternar(); onListo() }}>
-    {guardada ? <BookmarkCheck size={14} aria-hidden /> : <Bookmark size={14} aria-hidden />}{guardada ? 'Quitar de Guardadas' : 'Guardar'}
+    {guardada ? <BookmarkCheck size={14} aria-hidden /> : <Bookmark size={14} aria-hidden />}{guardada ? tr('Quitar de Guardadas') : tr('Guardar')}
   </button>
 }

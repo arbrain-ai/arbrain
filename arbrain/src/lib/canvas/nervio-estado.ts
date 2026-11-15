@@ -15,6 +15,7 @@ import {
   claveFuente, evaluarLaunchd, formatear, leerLaunchctl, leerRuta,
   type EstadoVivo, type FuenteEstado, type LecturaLaunchd,
 } from '@/features/canvas/model/nervio'
+import { tr } from '@/shared/i18n'
 
 const TTL: Record<FuenteEstado['tipo'], number> = { launchd: 15_000, json: 30_000 }
 const cache = new Map<string, { t: number; v: Promise<EstadoVivo> }>()
@@ -74,16 +75,16 @@ async function medirLaunchd(f: Extract<FuenteEstado, { tipo: 'launchd' }>, ahora
 
 async function medirJson(f: Extract<FuenteEstado, { tipo: 'json' }>, hosts: readonly string[]): Promise<Omit<EstadoVivo, 'medidoEn'>> {
   const u = new URL(f.url)
-  if (!hosts.some(h => u.hostname === h || u.hostname.endsWith(`.${h}`))) return { semaforo: 'gris', texto: 'fuente no permitida', detalle: `${u.hostname} no es un dominio propio` }
+  if (!hosts.some(h => u.hostname === h || u.hostname.endsWith(`.${h}`))) return { semaforo: 'gris', texto: tr('fuente no permitida'), detalle: tr('{host} no es un dominio propio', { host: u.hostname }) }
   try {
     const r = await fetch(u.href, { signal: AbortSignal.timeout(4000), cache: 'no-store', headers: { Accept: 'application/json' } })
-    if (!r.ok) return { semaforo: 'rojo', texto: `responde ${r.status}`, detalle: u.href }
+    if (!r.ok) return { semaforo: 'rojo', texto: tr('responde {estado}', { estado: r.status }), detalle: u.href }
     const j = await r.json() as unknown
     const texto = formatear(f, leerRuta(j, f.valor), f.total ? leerRuta(j, f.total) : undefined)
-    if (texto == null) return { semaforo: 'gris', texto: 'sin dato', detalle: `la respuesta no trae «${f.valor}»` }
+    if (texto == null) return { semaforo: 'gris', texto: tr('sin dato'), detalle: tr('la respuesta no trae «{valor}»', { valor: f.valor }) }
     return { semaforo: 'verde', texto, detalle: u.host + u.pathname }
   } catch (e) {
-    return { semaforo: 'rojo', texto: 'no responde', detalle: e instanceof Error ? e.message.slice(0, 120) : null }
+    return { semaforo: 'rojo', texto: tr('no responde'), detalle: e instanceof Error ? e.message.slice(0, 120) : null }
   }
 }
 
@@ -95,7 +96,7 @@ export async function medirFuente(f: FuenteEstado, o: OpcionesEstado): Promise<E
   const v = (async (): Promise<EstadoVivo> => {
     const t = ahora()
     const r = f.tipo === 'launchd'
-      ? (o.launchd ? await medirLaunchd(f, t) : { semaforo: 'gris' as const, texto: 'sin dato aquí', detalle: 'launchd solo se lee en el Studio' })
+      ? (o.launchd ? await medirLaunchd(f, t) : { semaforo: 'gris' as const, texto: tr('sin dato aquí'), detalle: tr('launchd solo se lee en el Studio') })
       : await medirJson(f, o.hosts)
     return { ...r, medidoEn: new Date(t).toISOString() }
   })()

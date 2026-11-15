@@ -17,6 +17,7 @@ import { homedir } from 'node:os'
 import path from 'node:path'
 import { randomBytes } from 'node:crypto'
 import { REPO, validarDocumento } from './documento.js'
+import { tr, trMarca } from '../i18n/tr.js'
 
 export const ARCHIVO = () => process.env.ARBRAIN_ARCHIVERO || path.join(DIR_ARBRAIN(), 'archivero.json')
 
@@ -47,7 +48,7 @@ const CAMPOS: (keyof VistaGuardada)[] = ['vista', 'alcance', 'fecha', 'paginaId'
 export function limpiarVista(raw: Record<string, unknown>): VistaGuardada {
   const v: Record<string, unknown> = {}
   for (const c of CAMPOS) if (raw[c] != null && raw[c] !== '') v[c] = raw[c]
-  if (typeof v.vista !== 'string') throw new Error('La entrada necesita vista.')
+  if (typeof v.vista !== 'string') throw new Error(tr('La entrada necesita vista.'))
   return v as unknown as VistaGuardada
 }
 
@@ -57,8 +58,9 @@ export const claveDe = (i: VistaGuardada) => i.vista === 'calendario' || (i.vist
   : i.vista === 'lienzo' ? `lienzo|${i.paginaId}`
   : [i.vista, i.alcance, i.fecha, i.seccion, i.paginaId, i.agenteId].join('|')
 
-const NOMBRE: Record<string, string> = { calendario: 'Calendario', objetivos: 'Objetivos', centro: 'Command center', lienzo: 'Lienzo', reporte: 'Lo que llegó', negocio: 'Negocio', estrategia: 'Estrategia', bi: 'Business Intelligence', cohorte: 'Cohorte', trabajos: 'Trabajos', finanzas: 'Finanzas', contenido: 'Contenido', rutinas: 'Rutinas', servidores: 'Servidores', memoria: 'Memoria y contexto', salud: 'Salud', masterclass: 'Masterclass', explorador: 'Archivos', documento: 'Documento' }
-export const nombreDe = (i: VistaGuardada) => i.titulo || (i.vista === 'documento' ? path.basename(i.ruta ?? '') : i.vista === 'negocio' && i.seccion ? i.seccion : NOMBRE[i.vista] ?? i.vista)
+// Idioma (13 nov 2026): marcados aquí y traducidos al nombrar la entrada (el nombre se guarda en el idioma de ese momento).
+const NOMBRE: Record<string, string> = { calendario: trMarca('Calendario'), objetivos: trMarca('Objetivos'), centro: 'Command center', lienzo: trMarca('Lienzo'), reporte: trMarca('Lo que llegó'), negocio: trMarca('Negocio'), estrategia: trMarca('Estrategia'), bi: 'Business Intelligence', cohorte: trMarca('Cohorte'), trabajos: trMarca('Trabajos'), finanzas: trMarca('Finanzas'), contenido: trMarca('Contenido'), rutinas: trMarca('Rutinas'), servidores: trMarca('Servidores'), memoria: trMarca('Memoria y contexto'), salud: trMarca('Salud'), masterclass: 'Masterclass', explorador: trMarca('Archivos'), documento: trMarca('Documento') }
+export const nombreDe = (i: VistaGuardada) => i.titulo || (i.vista === 'documento' ? path.basename(i.ruta ?? '') : i.vista === 'negocio' && i.seccion ? i.seccion : NOMBRE[i.vista] ? tr(NOMBRE[i.vista]) : i.vista)
 
 export function leer(archivo = ARCHIVO()): Libro {
   try {
@@ -90,7 +92,7 @@ export function copiarDeTmp(abs: string, repo = REPO): string {
     if (!existsSync(destino)) copyFileSync(abs, destino)
     return path.relative(repo, destino)
   }
-  throw new Error('Demasiadas copias con ese nombre en docs/guardados/.')
+  throw new Error(tr('Demasiadas copias con ese nombre en docs/guardados/.'))
 }
 
 export interface GuardarOpciones { nombre?: string; conversacion?: string; archivo?: string; repo?: string; ahora?: Date }
@@ -100,7 +102,7 @@ export function guardar(raw: Record<string, unknown>, o: GuardarOpciones = {}): 
   const input = limpiarVista(raw)
   let rutaOriginal: string | undefined
   if (input.vista === 'documento') {
-    if (!input.ruta) throw new Error('Para guardar un documento hace falta su ruta.')
+    if (!input.ruta) throw new Error(tr('Para guardar un documento hace falta su ruta.'))
     const doc = validarDocumento(input.ruta)
     if ('error' in doc) throw new Error(doc.error)
     const real = (() => { try { return realpathSync(doc.abs) } catch { return doc.abs } })()
@@ -180,13 +182,14 @@ export function accionArchivero(o: Record<string, unknown>): { entradas: Entrada
   try {
     if (accion === 'listar') return { entradas: leer().entradas }
     if (accion === 'guardar') {
-      if (!o.input || typeof o.input !== 'object') return { error: 'guardar necesita input.', status: 400 }
+      if (!o.input || typeof o.input !== 'object') return { error: tr('guardar necesita input.'), status: 400 }
       return { entrada: guardar(o.input as Record<string, unknown>, { nombre: typeof o.nombre === 'string' ? o.nombre : undefined, conversacion: typeof o.conversacion === 'string' ? o.conversacion : undefined }) }
     }
     const id = typeof o.id === 'string' ? o.id : ''
-    if (!id) return { error: 'Falta id.', status: 400 }
+    if (!id) return { error: tr('Falta id.'), status: 400 }
     const e = accion === 'sacar' ? sacar(id) : accion === 'abierta' ? marcarAbierta(id) : undefined
-    if (accion !== 'sacar' && accion !== 'abierta') return { error: 'accion debe ser listar, guardar, sacar o abierta.', status: 400 }
-    return e ? { entrada: e } : { error: 'No está en el archivero.', status: 404 }
-  } catch (error) { return { error: error instanceof Error ? error.message : 'No se pudo usar el archivero.', status: 400 } }
+    if (accion !== 'sacar' && accion !== 'abierta') return { error: tr('accion debe ser listar, guardar, sacar o abierta.'), status: 400 }
+    // La web lo reconoce por su texto (panel/archivero.ts › useGuardado): viaja en español, marcado, y se traduce al pintarse.
+    return e ? { entrada: e } : { error: trMarca('No está en el archivero.'), status: 404 }
+  } catch (error) { return { error: error instanceof Error ? error.message : tr('No se pudo usar el archivero.'), status: 400 } }
 }

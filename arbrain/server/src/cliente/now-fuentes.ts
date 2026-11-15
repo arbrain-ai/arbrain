@@ -23,6 +23,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileS
 import { homedir, userInfo } from 'node:os'
 import { delimiter, join, resolve } from 'node:path'
 import { DIR_ARBRAIN } from '../edicion.js'
+import { tr } from '../i18n/tr.js'
 
 export interface EventoExterno { titulo: string; inicio: string; fin?: string; todoElDia: boolean }
 /** `fecha`: `YYYY-MM-DD`, hora de pared `YYYY-MM-DDTHH:MM[:SS]` o instante con `Z`/desfase (como la da Todoist). */
@@ -201,7 +202,7 @@ async function eventosGoogle(d: Dependencias, bin: string, cuenta: { correo: str
     if (Array.isArray(e.attendees) && e.attendees.some((a: any) => a?.self && a.responseStatus === 'declined')) continue
     const ini = e.start?.dateTime ?? e.start?.date, fin = e.end?.dateTime ?? e.end?.date
     if (typeof ini !== 'string') continue
-    out.push({ titulo: texto(e.summary, 120) || '(sin título)', inicio: ini, ...(typeof fin === 'string' ? { fin } : {}), todoElDia: !e.start?.dateTime })
+    out.push({ titulo: texto(e.summary, 120) || tr('(sin título)'), inicio: ini, ...(typeof fin === 'string' ? { fin } : {}), todoElDia: !e.start?.dateTime })
   }
   return { ok: true, datos: out.slice(0, 500) }
 }
@@ -223,7 +224,7 @@ async function tareasTodoist(d: Dependencias, token: string): Promise<Resultado<
       for (const t of Array.isArray(c.results) ? c.results as Record<string, any>[] : []) {
         const fecha = t?.due?.datetime ?? t?.due?.date
         if (!t || t.checked === true || t.is_deleted === true || typeof fecha !== 'string') continue
-        out.push({ titulo: texto(t.content, 120) || '(sin título)', fecha: fecha.trim() })
+        out.push({ titulo: texto(t.content, 120) || tr('(sin título)'), fecha: fecha.trim() })
       }
       cursor = typeof c.next_cursor === 'string' && c.next_cursor ? c.next_cursor : null
       if (!cursor) return { ok: true, datos: out.slice(0, 1000) }

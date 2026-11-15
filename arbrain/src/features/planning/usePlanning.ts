@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { mergeSnapshot, optimisticTask } from './model'
 import { bufferedRange, coversRange, type ReadRange } from './read-window'
 import type { MutationResult, PlanMutation, PlanningSnapshot } from './types'
+import { tr } from '@/shared/i18n'
 
 type CachedRead = {snapshot:PlanningSnapshot;at:number;range:ReadRange}
 // Memory only, partitioned by the authenticated UI identity. A new route can
@@ -77,7 +78,7 @@ export function usePlanning(range: ReadRange, bufferDays = 0) {
       if (!alive.current || sequence !== seq.current || version !== epoch.current || sharedVersion !== (scopeRef.current ? sessionEpochs.get(scopeRef.current) ?? 0 : 0) || !coversRange(job.range,rangeRef.current)) return
       if (!ok) {
         if (status === 401 || status === 403) {snapshotRef.current=null;setSnapshot(null);cache.current.clear()}
-        throw new Error(body.error ?? 'No se pudo leer la planificación.')
+        throw new Error(body.error ? tr(body.error) : tr('No se pudo leer la planificación.'))
       }
       if (body.ownerId !== snapshotRef.current?.ownerId) {
         cache.current.clear(); pendingRef.current=null;setPending(null)
@@ -99,7 +100,7 @@ export function usePlanning(range: ReadRange, bufferDays = 0) {
         } catch { /* Storage never authorizes a new request. */ }
       }
     } catch (err) {
-      if(sequence===seq.current)setReadError(err instanceof Error?err.message:'No se pudo conectar.')
+      if(sequence===seq.current)setReadError(err instanceof Error?tr(err.message):tr('No se pudo conectar.'))
     } finally {if(sequence===seq.current){fetching.current=false;setLoading(false)}}
   }, [])
 
@@ -163,7 +164,7 @@ export function usePlanning(range: ReadRange, bufferDays = 0) {
   const ejecutar = (operation: PlanMutation) => ejecutarRef.current(operation)
   ejecutarRef.current = async (operation: PlanMutation): Promise<MutationResult> => {
     const retrying = pendingRef.current?.requestId === operation.requestId
-    if (mutationBusy.current) throw new Error('Hay una operación en curso.')
+    if (mutationBusy.current) throw new Error(tr('Hay una operación en curso.'))
     // Una edición nueva del MISMO elemento sustituye a su actualización pendiente: describe el estado completo deseado
     // y el etag/updatedAt del proveedor impide pisar un cambio ajeno. Crear, borrar o completar siguen exigiendo resolverlo.
     const p = pendingRef.current
@@ -176,7 +177,7 @@ export function usePlanning(range: ReadRange, bufferDays = 0) {
     if (p && p.requestId !== operation.requestId && !sustituye) {
       try { await ejecutarRef.current(p) } catch (err) { if (pendingRef.current) throw err }
     }
-    if (operation.ownerId !== snapshotRef.current?.ownerId) throw new Error('La identidad cambió. Vuelve a abrir el calendario.')
+    if (operation.ownerId !== snapshotRef.current?.ownerId) throw new Error(tr('La identidad cambió. Vuelve a abrir el calendario.'))
     const before = snapshotRef.current
     const mutationScope=scopeRef.current
     if(mutationScope)sessionEpochs.set(mutationScope,(sessionEpochs.get(mutationScope)??0)+1)
@@ -197,7 +198,7 @@ export function usePlanning(range: ReadRange, bufferDays = 0) {
           pendingRef.current = null; setPending(null)
           try { localStorage.removeItem(`arbrain:planning:pending:${operation.ownerId}`) } catch { /* noop */ }
         }
-        throw new Error(result.error ?? 'El proveedor no confirmó el cambio.')
+        throw new Error(result.error ? tr(result.error) : tr('El proveedor no confirmó el cambio.'))
       }
       if(snapshotRef.current?.ownerId!==operation.ownerId){
         try{localStorage.removeItem(`arbrain:planning:pending:${operation.ownerId}`)}catch{}
@@ -218,7 +219,7 @@ export function usePlanning(range: ReadRange, bufferDays = 0) {
       return result
     } catch (err) {
       if(before && snapshotRef.current?.ownerId===operation.ownerId){snapshotRef.current=before;setSnapshot(before)}
-      setMutationError(err instanceof Error ? err.message : 'No se pudo confirmar el cambio.')
+      setMutationError(err instanceof Error ? tr(err.message) : tr('No se pudo confirmar el cambio.'))
       throw err
     } finally {
       mutationBusy.current = false; epoch.current++; setSaving(false)

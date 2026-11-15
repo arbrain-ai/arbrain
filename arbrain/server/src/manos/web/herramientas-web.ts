@@ -13,6 +13,7 @@
  *   web_verificar comprueba URL, título, texto o estado del video sin pantalla
  */
 import { DUENO, DUENO_M, ejemploPerfilChrome, perfilesChrome, AGENTE } from '../../dueno.js'
+import { tr } from '../../i18n/tr.js'
 import { confirmacionHumana, categoriaDe, pedirToque, pideToque } from '../confirmacion-humana.js'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -323,7 +324,7 @@ export async function ejecutarWeb(nombre: string, args: any, s: SesionWeb, bitac
  */
 export interface MarcoWeb { detenida?: string; parar(): void; alDetener?: (motivo: string) => void; fijarPaso(paso: string): void }
 
-export function sostenerMarcoWeb(s: SesionWeb, texto = `${AGENTE} está trabajando en esta pestaña`): MarcoWeb {
+export function sostenerMarcoWeb(s: SesionWeb, texto = tr('{agente} está trabajando en esta pestaña', { agente: AGENTE })): MarcoWeb {
   const inicio = Date.now()
   let paso = ''
   let enVuelo = false

@@ -2,6 +2,7 @@ import type { ChatSession } from '../hooks/useChatHistory'
 import { esProtegida } from './atajos-conversacion'
 import { esHiloRutina } from '@/shared/constants/rutinas-hilos'
 import { hayNoVisto } from './session-status'
+import { enIngles, localeIntl, tr, trn } from '@/shared/i18n'
 
 /** Instante de una conversación en «Recientes»: su último mensaje; sin mensajes, su última edición. */
 export const momento = (s: ChatSession) => Date.parse(s.last_message_at ?? s.updated_at) || 0
@@ -68,11 +69,13 @@ export function diasAtras(ms: number, ahora: number): number {
 /** «Hoy», «Ayer», «Hace 2 días» y luego la fecha corta («lun 28 sept»; con año si no es el actual). */
 export function etiquetaDia(ms: number, ahora: number): string {
   const dias = diasAtras(ms, ahora)
-  if (dias === 0) return 'Hoy'
-  if (dias === 1) return 'Ayer'
-  if (dias === 2) return 'Hace 2 días'
+  if (dias === 0) return tr('Hoy')
+  if (dias === 1) return tr('Ayer')
+  if (dias === 2) return tr('Hace 2 días')
   const d = new Date(ms)
   const anio = d.getFullYear() !== new Date(ahora).getFullYear() ? ` ${d.getFullYear()}` : ''
+  // Inglés: «Mon, Sep 28» de Intl (las abreviaturas a mano son del español y «mar» sería martes y marzo a la vez).
+  if (enIngles()) return d.toLocaleDateString(localeIntl(), { weekday: 'short', month: 'short', day: 'numeric', ...(anio && { year: 'numeric' }) })
   return `${DIAS[d.getDay()]} ${d.getDate()} ${MESES[d.getMonth()]}${anio}`
 }
 
@@ -198,7 +201,7 @@ export function sacarReportes(fijadas: ChatSession[]): { fijadas: ChatSession[];
 /** Hora del último resultado en la fila de un hilo: «14:05» si es de hoy; si no, el día corto («ayer», «lun 28 sept»). */
 export function horaDelUltimo(ms: number, ahora: number): string {
   if (!ms) return ''
-  if (diasAtras(ms, ahora) === 0) return new Date(ms).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false })
+  if (diasAtras(ms, ahora) === 0) return new Date(ms).toLocaleTimeString(localeIntl(), { hour: '2-digit', minute: '2-digit', hour12: false })
   return etiquetaDia(ms, ahora).toLowerCase()
 }
 
@@ -212,6 +215,6 @@ export const pideDecision = (s: ChatSession): boolean => !!s.ends_question && ha
 /** Texto de la cabecera de la carpeta: «2 te necesitan» o «al día» si todo está gris. */
 export function resumenRutinas(morados: number): { texto: string; alDia: boolean } {
   return morados > 0
-    ? { texto: morados === 1 ? '1 te necesita' : `${morados} te necesitan`, alDia: false }
-    : { texto: 'al día', alDia: true }
+    ? { texto: trn(morados, '1 te necesita', '{n} te necesitan'), alDia: false }
+    : { texto: tr('al día'), alDia: true }
 }

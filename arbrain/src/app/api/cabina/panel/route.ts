@@ -3,6 +3,7 @@ import { getSchedulerUrl, CLAUDECLAW_TOKEN } from '@/lib/claudeclaw'
 import { describirEquipo } from '@/features/cabina/panel/equipo-ua'
 import { capital, NOMBRE_DUENO } from '@/config'
 import { sinRespuestaDelServidor } from '@/lib/edicion'
+import { tr } from '@/shared/i18n'
 
 // Bus del panel (4 oct 2026): la app reporta sus pestañas abiertas y recibe lo que Levy pide con
 // `mostrar {fijar|soltar|guardar}`; responde con un acuse. La lógica vive en el daemon
@@ -26,7 +27,7 @@ export async function POST(request: Request) {
       method: 'POST', headers: { Authorization: `Bearer ${CLAUDECLAW_TOKEN}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ que: 'panel', clientId, etiqueta, pestanas, casa, activa, acuses, ajustesRev, dispositivo, conversacion, escribio, casaEn, compartido, sabe, usuario: capital(NOMBRE_DUENO()), equipo: describirEquipo(request.headers.get('user-agent'), request.headers.get('host')) }), signal: AbortSignal.timeout(8_000), cache: 'no-store',
     })
-    const out = await res.json().catch(() => ({ error: sinRespuestaDelServidor() }))
+    const out = await res.json().catch(() => ({ error: tr(sinRespuestaDelServidor()) }))
     return Response.json(out, { status: res.status, headers: NO_CACHE })
   } catch (error) { return planningError(error) }
 }

@@ -1,3 +1,5 @@
+import { tr } from '@/shared/i18n'
+
 /** A pasted path is a user-selected attachment, never an instruction for an agent to read disk. */
 export function localImagePath(raw: string): string | null {
   let value = raw.trim()
@@ -15,7 +17,7 @@ export function clipboardImages(data: Pick<DataTransfer, 'items'>): File[] {
 }
 
 export async function readPastedImage(path: string): Promise<File> {
-  if (!('__TAURI_INTERNALS__' in window || '__TAURI__' in window)) throw new Error('Esa ruta pertenece a tu Mac. Adjunta la imagen con el clip o copia la imagen, no su ruta.')
+  if (!('__TAURI_INTERNALS__' in window || '__TAURI__' in window)) throw new Error(tr('Esa ruta pertenece a tu Mac. Adjunta la imagen con el clip o copia la imagen, no su ruta.'))
   const { invoke } = await import('@tauri-apps/api/core')
   const image = await invoke<{ name: string; mime: string; bytes: number[] }>('read_chat_image', { path })
   return new File([new Uint8Array(image.bytes)], image.name, { type: image.mime })

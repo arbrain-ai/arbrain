@@ -16,25 +16,26 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { authenticateDraw3 } from '@/lib/draw3-auth'
 import { migrarDesdeV3 } from '@/features/canvas/model/migrar-v3'
 import { SCHEMA_V4 } from '@/features/canvas/model/schema'
+import { tr } from '@/shared/i18n'
 
 export const runtime = 'nodejs'
 interface Ctx { params: Promise<{ id: string }> }
 
 export async function POST(request: Request, { params }: Ctx) {
   if (!await authenticateDraw3(request)) {
-    return NextResponse.json({ ok: false, error: 'no autorizado' }, { status: 401 })
+    return NextResponse.json({ ok: false, error: tr('no autorizado') }, { status: 401 })
   }
   const { id } = await params
   const db = createServiceClient()
   const { data: fila } = await db.from('draw')
     .select('page_elements, agent_version').eq('page_id', id).maybeSingle()
-  if (!fila) return NextResponse.json({ ok: false, error: 'no existe' }, { status: 404 })
+  if (!fila) return NextResponse.json({ ok: false, error: tr('no existe') }, { status: 404 })
 
   const doc = fila.page_elements as {
     schemaVersion?: number; elements?: unknown[]; camera?: unknown; v3Original?: unknown
   } | null
   if (doc?.schemaVersion === SCHEMA_V4) {
-    return NextResponse.json({ ok: false, error: 'esta pagina ya es del v4' }, { status: 409 })
+    return NextResponse.json({ ok: false, error: tr('esta pagina ya es del v4') }, { status: 409 })
   }
 
   const { elements, informe } = migrarDesdeV3(doc?.elements ?? [])
@@ -55,7 +56,7 @@ export async function POST(request: Request, { params }: Ctx) {
   }).eq('page_id', id).select('page_id')
 
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
-  if (!escrito?.length) return NextResponse.json({ ok: false, error: 'no se escribio ninguna fila' }, { status: 404 })
+  if (!escrito?.length) return NextResponse.json({ ok: false, error: tr('no se escribio ninguna fila') }, { status: 404 })
 
   return NextResponse.json({ ok: true, version: siguiente, informe, elementos: elements.length })
 }

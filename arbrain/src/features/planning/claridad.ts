@@ -3,6 +3,7 @@ import type { Goal } from '@/features/goals/model'
 import type { Bloque } from './dia-vivo'
 import type { PlanEvent, PlanTask } from './types'
 import { tituloVisible } from './ajenos'
+import { tr, trMarca } from '@/shared/i18n'
 
 /**
  * Semana y Mes con claridad (6 oct 2026). Lógica pura, sin React. Lo que responde cada vista lo firmó Daniel:
@@ -65,10 +66,10 @@ export function diasHasta(hoy: string, dia: string): number {
 
 /** «Faltan 11 días», «Mañana», «Hoy», «Hace 3 días». */
 export function faltanTexto(n: number): string {
-  if (n === 0) return 'Hoy'
-  if (n === 1) return 'Mañana'
-  if (n > 1) return `Faltan ${n} días`
-  return n === -1 ? 'Ayer' : `Hace ${-n} días`
+  if (n === 0) return tr('Hoy')
+  if (n === 1) return tr('Mañana')
+  if (n > 1) return tr('Faltan {n} días', { n })
+  return n === -1 ? tr('Ayer') : tr('Hace {n} días', { n: -n })
 }
 
 export type EstadoSemana = 'hecha' | 'en-curso' | 'pendiente' | 'sin-cerrar' | 'sin-objetivo'
@@ -82,7 +83,7 @@ export function estadoSemana(goal: Pick<Goal, 'status'> | null, lunes: string, h
   return goal ? 'sin-cerrar' : 'sin-objetivo'
 }
 
-export const ROTULO_SEMANA: Record<EstadoSemana, string> = { hecha: 'Hecha', 'en-curso': 'En curso', pendiente: 'Pendiente', 'sin-cerrar': 'Sin cerrar', 'sin-objetivo': 'Sin objetivo' }
+export const ROTULO_SEMANA: Record<EstadoSemana, string> = { hecha: trMarca('Hecha'), 'en-curso': trMarca('En curso'), pendiente: trMarca('Pendiente'), 'sin-cerrar': trMarca('Sin cerrar'), 'sin-objetivo': trMarca('Sin objetivo') }
 
 /**
  * Uno o dos compromisos del día: primero lo que no se repite y tiene hora (lo que Daniel agendó a propósito), luego las tareas P1/P2.

@@ -26,6 +26,8 @@ import {
   type AccionBitacora, type CarpetaAbierta, type EstadoPermisosLevy, type ModoPermisos, type RespuestaGasto, type ViaConsentimiento,
 } from '../lib/seguridad'
 import { EVENTO_PERMISOS, pedir, useModoGlobal, usePausa } from './estado-seguridad'
+import { tr } from '@/shared/i18n'
+import { trNodos } from '@/shared/i18n'
 
 /** La franja de pausa (con «Reanudar») y, una vez, la tarjeta de migración. Pausar y el modo viven en el menú del modelo. */
 export function FrenoGeneral() {
@@ -41,14 +43,14 @@ export function FrenoGeneral() {
     {pausa.pausado && (
       <div role="status" aria-live="polite" data-franja-pausa className="fixed left-1/2 top-14 z-[101] flex max-w-[min(44rem,calc(100vw-2rem))] -translate-x-1/2 flex-wrap items-center gap-3 rounded-xl border border-amber-400/40 bg-amber-950/80 px-4 py-2.5 text-[13px] text-amber-50 shadow-lg backdrop-blur-xl">
         <OctagonPause className="size-4 shrink-0" aria-hidden />
-        <span className="min-w-0">Levy está en pausa: no corre ningún turno, rutina ni herramienta.{error ? ` ${error}` : ''}</span>
+        <span className="min-w-0">{tr('Levy está en pausa: no corre ningún turno, rutina ni herramienta.')}{error ? ` ${tr(error)}` : ''}</span>
         {modo.autonomo && (
           <button type="button" onClick={() => volver('pausa')} disabled={modo.ocupado} className="btn-secondary shrink-0 !px-3 !py-1.5 text-[12.5px]" title={avisoAutonomo(modo.desde)}>
-            {modo.ocupado ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <ShieldCheck className="size-3.5" aria-hidden />} Volver a que me pregunte
+            {modo.ocupado ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <ShieldCheck className="size-3.5" aria-hidden />} {tr('Volver a que me pregunte')}
           </button>
         )}
         <button type="button" onClick={() => void fijar(false)} disabled={ocupado} className="btn-secondary shrink-0 !px-3 !py-1.5 text-[12.5px]">
-          {ocupado ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Play className="size-3.5" aria-hidden />} Reanudar
+          {ocupado ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Play className="size-3.5" aria-hidden />} {tr('Reanudar')}
         </button>
       </div>
     )}
@@ -67,13 +69,13 @@ function TarjetaMigracion({ estado, mandar }: { estado: EstadoPermisosLevy; mand
   const [error, setError] = useState<string | null>(null)
   if (!estado.texto) return null
   const porque = estado.reaceptar
-    ? 'El texto del modo Autónomo cambió. Para seguir en Autónomo tienes que leer y aceptar la versión nueva; si no, Levy queda en «Automático en mi carpeta».'
+    ? tr('El texto del modo Autónomo cambió. Para seguir en Autónomo tienes que leer y aceptar la versión nueva; si no, Levy queda en «Automático en mi carpeta».')
     : estado.migracion === 'sinFreno'
-      ? 'Tenías «Sin preguntar» con el freno quitado. Esa opción se retiró: ahora existe el modo Autónomo, que hace lo mismo con una red mínima y un texto que aceptas. Mientras decides, Levy está en «Automático en mi carpeta».'
-      : 'Tenías «Sin preguntar». Esa opción se retiró: ahora existe el modo Autónomo, que hace lo mismo con una red mínima y un texto que aceptas. Mientras decides, Levy está en «Automático en mi carpeta».'
+      ? tr('Tenías «Sin preguntar» con el freno quitado. Esa opción se retiró: ahora existe el modo Autónomo, que hace lo mismo con una red mínima y un texto que aceptas. Mientras decides, Levy está en «Automático en mi carpeta».')
+      : tr('Tenías «Sin preguntar». Esa opción se retiró: ahora existe el modo Autónomo, que hace lo mismo con una red mínima y un texto que aceptas. Mientras decides, Levy está en «Automático en mi carpeta».')
   const aceptar = async () => {
     setOcupado('aceptar'); setError(null)
-    if (!(await mandar(cuerpoAceptacion(estado.texto!, estado.reaceptar ? 'version' : 'migracion')))) setError('No se pudo guardar. Reintenta.')
+    if (!(await mandar(cuerpoAceptacion(estado.texto!, estado.reaceptar ? 'version' : 'migracion')))) setError(tr('No se pudo guardar. Reintenta.'))
     setOcupado(null)
   }
   const despues = async () => { setOcupado('despues'); await mandar({ decidirDespues: true }); setOcupado(null) }
@@ -83,15 +85,15 @@ function TarjetaMigracion({ estado, mandar }: { estado: EstadoPermisosLevy; mand
         <div className="flex items-start gap-3">
           <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand/15 text-brand-ink" aria-hidden><Sparkles className="size-5" /></span>
           <div className="min-w-0">
-            <h2 id="migracion-titulo" className="text-[16px] font-semibold leading-snug tracking-tight text-foreground">¿Cómo quieres que trabaje tu cerebro?</h2>
+            <h2 id="migracion-titulo" className="text-[16px] font-semibold leading-snug tracking-tight text-foreground">{tr('¿Cómo quieres que trabaje tu cerebro?')}</h2>
             <p className="mt-1 text-[13px] leading-relaxed text-muted">{porque}</p>
           </div>
         </div>
         <ConsentimientoAutonomia texto={estado.texto} marcadas={casillas} onMarcadas={setCasillas} deshabilitado={!!ocupado} />
         {error && <p role="alert" className="text-[12.5px] text-error">{error}</p>}
         <div className="flex flex-wrap justify-end gap-2">
-          <button type="button" onClick={() => void despues()} disabled={!!ocupado} className="btn-secondary min-h-11 !px-4">{ocupado === 'despues' ? <Loader2 className="size-4 animate-spin" aria-hidden /> : 'Decidir después'}</button>
-          <button type="button" onClick={() => void aceptar()} disabled={!listoParaAceptar(casillas) || !!ocupado} className="btn-primary min-h-11 !px-4">{ocupado === 'aceptar' ? <Loader2 className="size-4 animate-spin" aria-hidden /> : 'Empezar en modo autónomo'}</button>
+          <button type="button" onClick={() => void despues()} disabled={!!ocupado} className="btn-secondary min-h-11 !px-4">{ocupado === 'despues' ? <Loader2 className="size-4 animate-spin" aria-hidden /> : tr('Decidir después')}</button>
+          <button type="button" onClick={() => void aceptar()} disabled={!listoParaAceptar(casillas) || !!ocupado} className="btn-primary min-h-11 !px-4">{ocupado === 'aceptar' ? <Loader2 className="size-4 animate-spin" aria-hidden /> : tr('Empezar en modo autónomo')}</button>
         </div>
       </div>
     </div>
@@ -126,11 +128,11 @@ export function TopeDeGasto({ compacto = false }: { compacto?: boolean }) {
   useEffect(() => { void leer() }, [leer])
   const r = resumenGasto(g?.openrouter.gasto ?? null)
   return (
-    <Tarjeta titulo="Ponle tope a tu gasto" icono={Wallet} accion={g?.openrouter.conectada ? (
-      <button type="button" onClick={() => void leer()} className="icon-btn-ghost grid size-8 place-items-center" aria-label="Actualizar gasto">{cargando ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <RefreshCw className="size-3.5" aria-hidden />}</button>
+    <Tarjeta titulo={tr('Ponle tope a tu gasto')} icono={Wallet} accion={g?.openrouter.conectada ? (
+      <button type="button" onClick={() => void leer()} className="icon-btn-ghost grid size-8 place-items-center" aria-label={tr('Actualizar gasto')}>{cargando ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <RefreshCw className="size-3.5" aria-hidden />}</button>
     ) : undefined}>
       <p className="text-[13px] leading-relaxed text-muted">
-        Levy usa tu llave y cada respuesta cuesta. Ponle un límite de crédito para que, pase lo que pase (un error, una rutina que se repite, alguien que use tu llave), nunca gaste más de lo que decidas.
+        {tr('Levy usa tu llave y cada respuesta cuesta. Ponle un límite de crédito para que, pase lo que pase (un error, una rutina que se repite, alguien que use tu llave), nunca gaste más de lo que decidas.')}
       </p>
       {r && (
         <div className="mt-3">
@@ -138,18 +140,18 @@ export function TopeDeGasto({ compacto = false }: { compacto?: boolean }) {
           {r.porcentaje !== null && (
             <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-foreground/10" aria-hidden><div className={`h-full ${r.porcentaje >= 80 ? 'bg-red-400' : 'bg-brand'}`} style={{ width: `${r.porcentaje}%` }} /></div>
           )}
-          {r.sinLimite && <p className="mt-1 text-[12.5px] text-amber-300">Tu llave no tiene límite. Recomendado: ponle uno ahora (por ejemplo, US$10 al mes).</p>}
+          {r.sinLimite && <p className="mt-1 text-[12.5px] text-amber-300">{tr('Tu llave no tiene límite. Recomendado: ponle uno ahora (por ejemplo, US$10 al mes).')}</p>}
         </div>
       )}
-      {g?.openrouter.error && <p className="mt-2 text-[12.5px] text-muted">{g.openrouter.error}</p>}
+      {g?.openrouter.error && <p className="mt-2 text-[12.5px] text-muted">{tr(g.openrouter.error)}</p>}
       {compacto ? (
         <p className="mt-2 text-[12.5px] text-muted">
-          <Enlace url={ENLACES_TOPE.openrouterLlaves}>Límite en OpenRouter</Enlace> · <Enlace url={ENLACES_TOPE.anthropicLimite}>Límite en Anthropic</Enlace>
+          <Enlace url={ENLACES_TOPE.openrouterLlaves}>{tr('Límite en OpenRouter')}</Enlace> · <Enlace url={ENLACES_TOPE.anthropicLimite}>{tr('Límite en Anthropic')}</Enlace>
         </p>
       ) : (
         <ol className="mt-3 space-y-1.5 text-[12.5px] leading-relaxed text-muted">
-          <li><b className="text-foreground/90">OpenRouter:</b> abre tus llaves, pulsa la de Arbrain y fija su «credit limit» (puede reiniciarse cada día, semana o mes). <Enlace url={ENLACES_TOPE.openrouterLlaves}>Abrir mis llaves</Enlace></li>
-          <li><b className="text-foreground/90">Anthropic:</b> en la consola, Settings › Billing › Spend limits, fija tu límite mensual. Anthropic no deja ver el gasto con una llave normal: revísalo en su consola. <Enlace url={ENLACES_TOPE.anthropicLimite}>Poner límite</Enlace> · <Enlace url={ENLACES_TOPE.anthropicUso}>Ver uso</Enlace></li>
+          <li><b className="text-foreground/90">OpenRouter:</b> {tr('abre tus llaves, pulsa la de Arbrain y fija su «credit limit» (puede reiniciarse cada día, semana o mes).')} <Enlace url={ENLACES_TOPE.openrouterLlaves}>{tr('Abrir mis llaves')}</Enlace></li>
+          <li><b className="text-foreground/90">Anthropic:</b> {tr('en la consola, Settings › Billing › Spend limits, fija tu límite mensual. Anthropic no deja ver el gasto con una llave normal: revísalo en su consola.')} <Enlace url={ENLACES_TOPE.anthropicLimite}>{tr('Poner límite')}</Enlace> · <Enlace url={ENLACES_TOPE.anthropicUso}>{tr('Ver uso')}</Enlace></li>
         </ol>
       )}
     </Tarjeta>
@@ -160,7 +162,7 @@ export function TopeDeGasto({ compacto = false }: { compacto?: boolean }) {
 function usePermisos() {
   const [estado, setEstado] = useState<EstadoPermisosLevy | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const leer = useCallback(async () => { try { setEstado(await pedir<EstadoPermisosLevy>('/api/seguridad/permisos')) } catch (e) { setError(e instanceof Error ? e.message : 'No se pudo leer.') } }, [])
+  const leer = useCallback(async () => { try { setEstado(await pedir<EstadoPermisosLevy>('/api/seguridad/permisos')) } catch (e) { setError(e instanceof Error ? tr(e.message) : tr('No se pudo leer.')) } }, [])
   useEffect(() => {
     void leer()
     const alCambiar = () => void leer()
@@ -170,7 +172,7 @@ function usePermisos() {
   const mandar = useCallback(async (cuerpo: Record<string, unknown>) => {
     setError(null)
     try { setEstado(await pedir<EstadoPermisosLevy>('/api/seguridad/permisos', { method: 'POST', body: JSON.stringify(cuerpo) })); window.dispatchEvent(new Event(EVENTO_PERMISOS)); return true }
-    catch (e) { setError(e instanceof Error ? e.message : 'No se pudo.'); return false }
+    catch (e) { setError(e instanceof Error ? tr(e.message) : tr('No se pudo.')); return false }
   }, [])
   return { estado, error, mandar }
 }
@@ -186,16 +188,16 @@ function AvisosArriba({ p }: { p: Permisos }) {
       {e.modo === 'autonomo' && (
         <div role="status" className="flex flex-wrap items-center gap-3 rounded-2xl border border-brand/40 bg-brand/[0.08] px-4 py-3 text-[13px] text-foreground/90">
           <Sparkles className="size-4 shrink-0 text-brand-ink" aria-hidden />
-          <span className="min-w-0 flex-1">{avisoAutonomo(e.consentimiento?.ts)} {RED_MINIMA}</span>
+          <span className="min-w-0 flex-1">{avisoAutonomo(e.consentimiento?.ts)} {tr(RED_MINIMA)}</span>
           <button type="button" disabled={ocupado} onClick={async () => { setOcupado(true); await p.mandar({ modo: 'carpeta', via: 'ajustes' }); setOcupado(false) }} className="btn-secondary shrink-0 !px-3 !py-1.5 text-[12.5px]">
-            {ocupado && <Loader2 className="size-3.5 animate-spin" aria-hidden />} Volver a preguntar
+            {ocupado && <Loader2 className="size-3.5 animate-spin" aria-hidden />} {tr('Volver a preguntar')}
           </button>
         </div>
       )}
       {(e.avisos ?? []).map(a => (
         <div key={a.id} role="alert" className="rounded-2xl border border-amber-400/50 bg-amber-950/40 px-4 py-3 text-[13px] text-amber-50" data-aviso-permisos={a.id}>
-          <p className="flex items-start gap-2"><ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden /><span>{a.texto}</span></p>
-          <p className="mt-1 pl-6 text-[12.5px] text-amber-200">{a.como}</p>
+          <p className="flex items-start gap-2"><ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden /><span>{tr(a.texto)}</span></p>
+          <p className="mt-1 pl-6 text-[12.5px] text-amber-200">{tr(a.como)}</p>
         </div>
       ))}
     </>
@@ -227,8 +229,8 @@ function ModoDePermisos({ p }: { p: Permisos }) {
   }
   const retirar = async () => { setOcupado('retirar'); await p.mandar({ retirar: true, via: 'ajustes' }); setOcupado(null) }
   return (
-    <Tarjeta titulo="Cuánto te pregunta Levy" icono={ShieldCheck}>
-      <div role="radiogroup" aria-label="Nivel de permisos" className="space-y-2">
+    <Tarjeta titulo={tr('Cuánto te pregunta Levy')} icono={ShieldCheck}>
+      <div role="radiogroup" aria-label={tr('Nivel de permisos')} className="space-y-2">
         {FICHAS_MODO.map(f => {
           const activo = estado?.modo === f.modo
           const abierto = f.modo === 'autonomo' && aceptando && !activo
@@ -238,16 +240,16 @@ function ModoDePermisos({ p }: { p: Permisos }) {
                 className={`flex w-full items-start gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors ${activo ? 'border-brand/60 bg-brand/10' : 'border-border-subtle hover:border-foreground/25'}`}>
                 <span aria-hidden className={`mt-1 grid size-3.5 shrink-0 place-items-center rounded-full border ${activo ? 'border-brand' : 'border-foreground/30'}`}>{activo && <span className="size-1.5 rounded-full bg-brand" />}</span>
                 <span className="min-w-0">
-                  <span className="flex items-center gap-2 text-[13px] font-semibold text-foreground">{f.nombre}{f.recomendado && <span className="rounded-full bg-foreground/10 px-1.5 text-[10.5px] font-medium text-muted">recomendado</span>}{ocupado === f.modo && <Loader2 className="size-3 animate-spin" aria-hidden />}</span>
-                  <span className="mt-0.5 block text-[12.5px] leading-relaxed text-muted">{f.detalle}</span>
+                  <span className="flex items-center gap-2 text-[13px] font-semibold text-foreground">{tr(f.nombre)}{f.recomendado && <span className="rounded-full bg-foreground/10 px-1.5 text-[10.5px] font-medium text-muted">{tr('recomendado')}</span>}{ocupado === f.modo && <Loader2 className="size-3 animate-spin" aria-hidden />}</span>
+                  <span className="mt-0.5 block text-[12.5px] leading-relaxed text-muted">{tr(f.detalle)}</span>
                 </span>
               </button>
               {abierto && estado?.texto && (
                 <div className="mt-2 space-y-3 rounded-xl border border-brand/30 bg-brand/[0.05] p-3">
                   <ConsentimientoAutonomia texto={estado.texto} marcadas={casillas} onMarcadas={setCasillas} deshabilitado={!!ocupado} />
                   <div className="flex flex-wrap justify-end gap-2">
-                    <button type="button" onClick={() => { setAceptando(false); setCasillas(CASILLAS_VACIAS) }} disabled={!!ocupado} className="btn-secondary !px-3 !py-2 text-[13px]">Cancelar</button>
-                    <button type="button" onClick={() => void aceptar()} disabled={!listoParaAceptar(casillas) || !!ocupado} className="btn-primary !px-3 !py-2 text-[13px]">{ocupado === 'autonomo' && <Loader2 className="size-3.5 animate-spin" aria-hidden />} Empezar en modo autónomo</button>
+                    <button type="button" onClick={() => { setAceptando(false); setCasillas(CASILLAS_VACIAS) }} disabled={!!ocupado} className="btn-secondary !px-3 !py-2 text-[13px]">{tr('Cancelar')}</button>
+                    <button type="button" onClick={() => void aceptar()} disabled={!listoParaAceptar(casillas) || !!ocupado} className="btn-primary !px-3 !py-2 text-[13px]">{ocupado === 'autonomo' && <Loader2 className="size-3.5 animate-spin" aria-hidden />} {tr('Empezar en modo autónomo')}</button>
                   </div>
                 </div>
               )}
@@ -258,16 +260,16 @@ function ModoDePermisos({ p }: { p: Permisos }) {
       {estado?.consentimiento && (
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border-subtle px-3 py-2 text-[12.5px] text-muted" data-consentimiento-guardado>
           <span>
-            Aceptaste el modo Autónomo el {horaDe(estado.consentimiento.ts)} (texto {estado.consentimiento.version}{estado.consentimiento.app ? `, Arbrain ${estado.consentimiento.app}` : ''}, por {estado.consentimiento.via}).
-            {estado.reaceptar ? ' El texto cambió: vuelve a aceptarlo para seguir en Autónomo.' : ''}
+            {tr('Aceptaste el modo Autónomo el {fecha} (texto {version}{app}, por {via}).', { fecha: horaDe(estado.consentimiento.ts), version: estado.consentimiento.version, app: estado.consentimiento.app ? `, Arbrain ${estado.consentimiento.app}` : '', via: estado.consentimiento.via })}
+            {estado.reaceptar ? ` ${tr('El texto cambió: vuelve a aceptarlo para seguir en Autónomo.')}` : ''}
           </span>
-          <button type="button" onClick={() => void retirar()} disabled={!!ocupado} className="btn-secondary shrink-0 !px-2.5 !py-1 text-[12px]">{ocupado === 'retirar' && <Loader2 className="size-3 animate-spin" aria-hidden />} Retirar mi consentimiento</button>
+          <button type="button" onClick={() => void retirar()} disabled={!!ocupado} className="btn-secondary shrink-0 !px-2.5 !py-1 text-[12px]">{ocupado === 'retirar' && <Loader2 className="size-3 animate-spin" aria-hidden />} {tr('Retirar mi consentimiento')}</button>
         </div>
       )}
       <p className="mt-3 text-[12.5px] leading-relaxed text-muted">
-        <b className="text-foreground/90">En cualquier nivel</b>, mover dinero, comprar y operar valores o cripto nunca se hace; tus llaves, contraseñas, navegadores y carteras nunca se tocan; y Levy no puede cambiar este ajuste: solo tú, aquí. En «{NOMBRE_MODO.preguntar}» y «{NOMBRE_MODO.carpeta}», enviar, borrar y publicar te piden tu clic, y si Levy acaba de leer algo de internet, un correo o un archivo de afuera, vuelve a preguntarte antes de actuar. En «{NOMBRE_MODO.autonomo}» solo queda la red mínima. Las rutinas automáticas corren con tu nivel, pero lo que quieran enviar o publicar sin ti delante queda como borrador en «Mientras no estabas».
+        {trNodos('{nivel}, mover dinero, comprar y operar valores o cripto nunca se hace; tus llaves, contraseñas, navegadores y carteras nunca se tocan; y Levy no puede cambiar este ajuste: solo tú, aquí. En «{preguntar}» y «{carpeta}», enviar, borrar y publicar te piden tu clic, y si Levy acaba de leer algo de internet, un correo o un archivo de afuera, vuelve a preguntarte antes de actuar. En «{autonomo}» solo queda la red mínima. Las rutinas automáticas corren con tu nivel, pero lo que quieran enviar o publicar sin ti delante queda como borrador en «Mientras no estabas».', { nivel: <b className="text-foreground/90">{tr('En cualquier nivel')}</b>, preguntar: tr(NOMBRE_MODO.preguntar), carpeta: tr(NOMBRE_MODO.carpeta), autonomo: tr(NOMBRE_MODO.autonomo) })}
       </p>
-      {estado && !estado.sandbox && estado.modo === 'autonomo' && <p className="mt-2 text-[12.5px] text-amber-700 dark:text-amber-300">En esta computadora no hay caja de arena: en Autónomo los comandos corren directo en tu computadora.</p>}
+      {estado && !estado.sandbox && estado.modo === 'autonomo' && <p className="mt-2 text-[12.5px] text-amber-700 dark:text-amber-300">{tr('En esta computadora no hay caja de arena: en Autónomo los comandos corren directo en tu computadora.')}</p>}
       {error && <p className="mt-2 text-[12.5px] text-red-300" role="alert">{error}</p>}
     </Tarjeta>
   )
@@ -288,19 +290,19 @@ function TusDatos({ p }: { p: Permisos }) {
   const guardar = async () => { setOcupado(true); setListo(await p.mandar({ misDatos: { telefono, correo } })); setOcupado(false) }
   if (!p.estado) return null
   return (
-    <Tarjeta titulo="Tus datos para mandarte mensajes" icono={ShieldCheck}>
-      <p className="text-[12.5px] leading-relaxed text-muted">Cuando le pidas «mándame un mensaje a mi número», Levy usa estos sin preguntarte. Un número o correo que no sea tuyo ni salga de tu mensaje te lo sigue enseñando antes.</p>
+    <Tarjeta titulo={tr('Tus datos para mandarte mensajes')} icono={ShieldCheck}>
+      <p className="text-[12.5px] leading-relaxed text-muted">{tr('Cuando le pidas «mándame un mensaje a mi número», Levy usa estos sin preguntarte. Un número o correo que no sea tuyo ni salga de tu mensaje te lo sigue enseñando antes.')}</p>
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
-        <label className="text-[12px] text-muted">Tu teléfono con lada
+        <label className="text-[12px] text-muted">{tr('Tu teléfono con lada')}
           <input value={telefono} onChange={e => { setTelefono(e.target.value); setListo(false) }} inputMode="tel" autoComplete="tel" placeholder="+52 443 000 0000" className="input-field mt-1 min-h-10 w-full px-3 text-[13px]" data-mis-datos="telefono" />
         </label>
-        <label className="text-[12px] text-muted">Tu correo
-          <input value={correo} onChange={e => { setCorreo(e.target.value); setListo(false) }} inputMode="email" autoComplete="email" placeholder="tu@correo.com" className="input-field mt-1 min-h-10 w-full px-3 text-[13px]" data-mis-datos="correo" />
+        <label className="text-[12px] text-muted">{tr('Tu correo')}
+          <input value={correo} onChange={e => { setCorreo(e.target.value); setListo(false) }} inputMode="email" autoComplete="email" placeholder={tr('tu@correo.com')} className="input-field mt-1 min-h-10 w-full px-3 text-[13px]" data-mis-datos="correo" />
         </label>
       </div>
       <div className="mt-2 flex items-center justify-end gap-2">
-        {listo && !cambiado && <span className="text-[12px] text-muted" role="status">Guardado</span>}
-        <button type="button" onClick={() => void guardar()} disabled={ocupado || !cambiado} className="btn-secondary !px-3 !py-1.5 text-[12.5px]">{ocupado && <Loader2 className="size-3.5 animate-spin" aria-hidden />} Guardar</button>
+        {listo && !cambiado && <span className="text-[12px] text-muted" role="status">{tr('Guardado')}</span>}
+        <button type="button" onClick={() => void guardar()} disabled={ocupado || !cambiado} className="btn-secondary !px-3 !py-1.5 text-[12.5px]">{ocupado && <Loader2 className="size-3.5 animate-spin" aria-hidden />} {tr('Guardar')}</button>
       </div>
     </Tarjeta>
   )
@@ -312,37 +314,37 @@ function Carpetas() {
   const [seguro, setSeguro] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [ocupado, setOcupado] = useState(false)
-  const leer = useCallback(async () => { try { setCarpetas((await pedir<{ carpetas: CarpetaAbierta[] }>('/api/seguridad/carpetas')).carpetas) } catch (e) { setError(e instanceof Error ? e.message : 'No se pudo leer.') } }, [])
+  const leer = useCallback(async () => { try { setCarpetas((await pedir<{ carpetas: CarpetaAbierta[] }>('/api/seguridad/carpetas')).carpetas) } catch (e) { setError(e instanceof Error ? tr(e.message) : tr('No se pudo leer.')) } }, [])
   useEffect(() => { void leer() }, [leer])
   const mandar = async (accion: 'abrir' | 'cerrar', r: string) => {
     setOcupado(true); setError(null)
     try { setCarpetas((await pedir<{ carpetas: CarpetaAbierta[] }>('/api/seguridad/carpetas', { method: 'POST', body: JSON.stringify({ accion, ruta: r }) })).carpetas); if (accion === 'abrir') { setRuta(''); setSeguro(false) } }
-    catch (e) { setError(e instanceof Error ? e.message : 'No se pudo.') }
+    catch (e) { setError(e instanceof Error ? tr(e.message) : tr('No se pudo.')) }
     finally { setOcupado(false) }
   }
   return (
-    <Tarjeta titulo="Carpetas a las que tu cerebro puede entrar" icono={FolderOpen}>
+    <Tarjeta titulo={tr('Carpetas a las que tu cerebro puede entrar')} icono={FolderOpen}>
       <p className="text-[13px] leading-relaxed text-muted">
-        Levy trabaja dentro de tu cerebro de Arbrain. Si necesita otra carpeta (un proyecto, tus documentos de clientes), agrégala aquí, una por una: podrá leerla sin preguntarte y escribir en ella según el nivel de arriba (en «Preguntar siempre» te pide permiso). Fuera de estas carpetas nunca escribe. Nunca entra a tus llaves, contraseñas, navegadores ni carteras, aunque agregues su carpeta.
+        {tr('Levy trabaja dentro de tu cerebro de Arbrain. Si necesita otra carpeta (un proyecto, tus documentos de clientes), agrégala aquí, una por una: podrá leerla sin preguntarte y escribir en ella según el nivel de arriba (en «Preguntar siempre» te pide permiso). Fuera de estas carpetas nunca escribe. Nunca entra a tus llaves, contraseñas, navegadores ni carteras, aunque agregues su carpeta.')}
       </p>
       <ul className="mt-3 space-y-1.5">
-        {carpetas?.length === 0 && <li className="text-[12.5px] text-muted">Ninguna. Levy solo ve tu cerebro.</li>}
+        {carpetas?.length === 0 && <li className="text-[12.5px] text-muted">{tr('Ninguna. Levy solo ve tu cerebro.')}</li>}
         {carpetas?.map(c => (
           <li key={c.ruta} className="flex items-center justify-between gap-2 rounded-lg bg-foreground/[0.04] px-3 py-2">
             <code className="min-w-0 truncate text-[12px] text-foreground/90" title={c.ruta}>{c.ruta}</code>
-            <button type="button" onClick={() => void mandar('cerrar', c.ruta)} disabled={ocupado} className="btn-secondary shrink-0 !px-2.5 !py-1 text-[12px]"><X className="size-3" aria-hidden /> Quitar</button>
+            <button type="button" onClick={() => void mandar('cerrar', c.ruta)} disabled={ocupado} className="btn-secondary shrink-0 !px-2.5 !py-1 text-[12px]"><X className="size-3" aria-hidden /> {tr('Quitar')}</button>
           </li>
         ))}
       </ul>
       <form className="mt-3 space-y-2" onSubmit={(e) => { e.preventDefault(); if (ruta.trim() && seguro) void mandar('abrir', ruta.trim()) }}>
-        <label className="block text-[12.5px] text-muted">Ruta de la carpeta
-          <input value={ruta} onChange={(e) => setRuta(e.target.value)} placeholder="~/Documents/MiProyecto" className="input-field mt-1 min-h-10 w-full px-3 text-[13px]" spellCheck={false} autoComplete="off" />
+        <label className="block text-[12.5px] text-muted">{tr('Ruta de la carpeta')}
+          <input value={ruta} onChange={(e) => setRuta(e.target.value)} placeholder={tr('~/Documents/MiProyecto')} className="input-field mt-1 min-h-10 w-full px-3 text-[13px]" spellCheck={false} autoComplete="off" />
         </label>
         <label className="flex items-start gap-2 text-[12.5px] text-muted">
           <input type="checkbox" checked={seguro} onChange={(e) => setSeguro(e.target.checked)} className="mt-0.5" />
-          <span>Entiendo que Levy podrá leer todo lo que hay en esta carpeta.</span>
+          <span>{tr('Entiendo que Levy podrá leer todo lo que hay en esta carpeta.')}</span>
         </label>
-        <button type="submit" disabled={!ruta.trim() || !seguro || ocupado} className="btn-secondary !px-3 !py-2 text-[13px]"><FolderPlus className="size-3.5" aria-hidden /> Agregar carpeta</button>
+        <button type="submit" disabled={!ruta.trim() || !seguro || ocupado} className="btn-secondary !px-3 !py-2 text-[13px]"><FolderPlus className="size-3.5" aria-hidden /> {tr('Agregar carpeta')}</button>
       </form>
       {error && <p className="mt-2 text-[12.5px] text-red-300" role="alert">{error}</p>}
     </Tarjeta>
@@ -352,7 +354,7 @@ function Carpetas() {
 function LoQueHizoLevy() {
   const [acciones, setAcciones] = useState<AccionBitacora[] | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const leer = useCallback(async () => { try { setAcciones((await pedir<{ acciones: AccionBitacora[] }>('/api/seguridad/bitacora?limite=200')).acciones); setError(null) } catch (e) { setError(e instanceof Error ? e.message : 'No se pudo leer.') } }, [])
+  const leer = useCallback(async () => { try { setAcciones((await pedir<{ acciones: AccionBitacora[] }>('/api/seguridad/bitacora?limite=200')).acciones); setError(null) } catch (e) { setError(e instanceof Error ? tr(e.message) : tr('No se pudo leer.')) } }, [])
   useEffect(() => {
     void leer()
     const t = window.setInterval(() => { if (document.visibilityState === 'visible') void leer() }, 5_000)
@@ -360,10 +362,10 @@ function LoQueHizoLevy() {
   }, [leer])
   const tono = { ok: 'text-success', aviso: 'text-amber-300', freno: 'text-red-300' } as const
   return (
-    <Tarjeta titulo="Lo que hizo Levy" icono={ScrollText}>
-      <p className="text-[13px] leading-relaxed text-muted">Cada acción con efecto (escribir, ejecutar comandos, abrir páginas, lo que te pidió confirmar y lo que Arbrain bloqueó). Queda solo en tu computadora, sin llaves ni contraseñas.</p>
+    <Tarjeta titulo={tr('Lo que hizo Levy')} icono={ScrollText}>
+      <p className="text-[13px] leading-relaxed text-muted">{tr('Cada acción con efecto (escribir, ejecutar comandos, abrir páginas, lo que te pidió confirmar y lo que Arbrain bloqueó). Queda solo en tu computadora, sin llaves ni contraseñas.')}</p>
       {error && <p className="mt-2 text-[12.5px] text-red-300">{error}</p>}
-      {acciones?.length === 0 && <p className="mt-3 text-[12.5px] text-muted">Todavía nada.</p>}
+      {acciones?.length === 0 && <p className="mt-3 text-[12.5px] text-muted">{tr('Todavía nada.')}</p>}
       {!!acciones?.length && (
         <ol className="mt-3 max-h-[28rem] space-y-1 overflow-y-auto pr-1">
           {acciones.map(a => {
@@ -373,11 +375,11 @@ function LoQueHizoLevy() {
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px]">
                   <time className="tabular-nums text-muted" dateTime={new Date(a.ts).toISOString()}>{horaDe(a.ts)}</time>
                   <span className="font-medium text-foreground/90">{nombreHerramienta(a.herramienta)}</span>
-                  {a.origen === 'cron' && <span className="rounded-full bg-foreground/10 px-1.5 text-[10.5px] text-muted">rutina</span>}
-                  <span className={`ml-auto ${tono[e.tono]}`}>{e.texto}</span>
+                  {a.origen === 'cron' && <span className="rounded-full bg-foreground/10 px-1.5 text-[10.5px] text-muted">{tr('rutina')}</span>}
+                  <span className={`ml-auto ${tono[e.tono]}`}>{tr(e.texto)}</span>
                 </div>
                 <code className="mt-1 block whitespace-pre-wrap break-all text-[11.5px] leading-snug text-foreground/75">{a.que}</code>
-                {a.motivo && (a.decision !== 'hecho' || a.motivo.startsWith('sin preguntar')) && <p className="mt-0.5 text-[11.5px] text-muted">{a.motivo}</p>}
+                {a.motivo && (a.decision !== 'hecho' || a.motivo.startsWith('sin preguntar') || a.motivo.startsWith(tr('sin preguntar'))) && <p className="mt-0.5 text-[11.5px] text-muted">{tr(a.motivo)}</p>}
               </li>
             )
           })}
@@ -390,18 +392,18 @@ function LoQueHizoLevy() {
 function Freno() {
   const { pausa, ocupado, error, fijar } = usePausa(2_000)
   return (
-    <Tarjeta titulo="Pausar todo" icono={OctagonPause}>
-      <p className="text-[13px] leading-relaxed text-muted" data-donde-pausa>{DONDE_PAUSAR}</p>
+    <Tarjeta titulo={tr('Pausar todo')} icono={OctagonPause}>
+      <p className="text-[13px] leading-relaxed text-muted" data-donde-pausa>{tr(DONDE_PAUSAR)}</p>
       <div className="mt-3 flex items-center gap-3">
         {pausa?.pausado ? (
-          <button type="button" onClick={() => void fijar(false)} disabled={ocupado} className="btn-secondary !px-3 !py-2 text-[13px]"><Play className="size-3.5" aria-hidden /> Reanudar</button>
+          <button type="button" onClick={() => void fijar(false)} disabled={ocupado} className="btn-secondary !px-3 !py-2 text-[13px]"><Play className="size-3.5" aria-hidden /> {tr('Reanudar')}</button>
         ) : (
-          <button type="button" onClick={() => void fijar(true)} disabled={ocupado || !pausa} className="btn-secondary !border-red-400/40 !px-3 !py-2 text-[13px] text-red-300"><OctagonPause className="size-3.5" aria-hidden /> Pausar todo</button>
+          <button type="button" onClick={() => void fijar(true)} disabled={ocupado || !pausa} className="btn-secondary !border-red-400/40 !px-3 !py-2 text-[13px] text-red-300"><OctagonPause className="size-3.5" aria-hidden /> {tr('Pausar todo')}</button>
         )}
-        <span className="text-[12.5px] text-muted" role="status">{pausa ? (pausa.pausado ? `En pausa desde ${pausa.desde ? horaDe(pausa.desde) : 'hace un momento'}.` : 'Levy está activo.') : 'Consultando…'}</span>
+        <span className="text-[12.5px] text-muted" role="status">{pausa ? (pausa.pausado ? (pausa.desde ? tr('En pausa desde {hora}.', { hora: horaDe(pausa.desde) }) : tr('En pausa desde hace un momento.')) : tr('Levy está activo.')) : tr('Consultando…')}</span>
       </div>
       {error && <p className="mt-2 text-[12.5px] text-red-300" role="alert">{error}</p>}
-      <p className="mt-2 text-[12px] text-muted">En pausa, la franja con «Reanudar» siempre se ve completa arriba.</p>
+      <p className="mt-2 text-[12px] text-muted">{tr('En pausa, la franja con «Reanudar» siempre se ve completa arriba.')}</p>
     </Tarjeta>
   )
 }

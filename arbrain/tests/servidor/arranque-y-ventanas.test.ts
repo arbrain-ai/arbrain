@@ -215,5 +215,5 @@ test('la espera explicada ofrece Reintentar solo si no hay conexión o el motor 
   assert.equal(esperaPideReintento({ ok: true, etapas: { daemon: { ok: false } } }), true)
   assert.equal(esperaPideReintento({ ok: true, etapas: { daemon: { ok: true }, supabase: { ok: false } } }), false)
   const panel = fuente('src/features/chat/components/ChatPanel.tsx')
-  assert.match(panel, /Reconectando con el servidor…'\}[\s\S]{0,400}<BotonReintentar/)
+  assert.match(panel, /Reconectando con el servidor…'\)\}[\s\S]{0,400}<BotonReintentar/)
 })

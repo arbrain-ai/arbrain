@@ -12,6 +12,7 @@ import {
 import { calcular, columnasPedidas, ErrorFuente, rangoPedido, type Lote } from './calculo'
 import { leerFuente, leerLlaves } from './fuentes/leer'
 import { sumarDias, type RespuestaConsulta } from './modelo'
+import { tr } from '../../shared/i18n/tr'
 
 export interface EstadoFuentes { existe: boolean; archivo: ArchivoFuentes | null; errores: string[] }
 
@@ -20,7 +21,7 @@ export async function leerArchivoFuentes(raiz: string): Promise<EstadoFuentes> {
   let crudo: unknown
   try { crudo = JSON.parse(await readFile(path.join(raiz, RUTA_FUENTES), 'utf8')) } catch (e) {
     if ((e as NodeJS.ErrnoException)?.code === 'ENOENT') return { existe: false, archivo: null, errores: [] }
-    return { existe: true, archivo: null, errores: ['El archivo de fuentes no es JSON válido.'] }
+    return { existe: true, archivo: null, errores: [tr('El archivo de fuentes no es JSON válido.')] }
   }
   const v = validarFuentes(crudo)
   return { existe: true, archivo: v.archivo, errores: v.errores }
@@ -46,9 +47,9 @@ export async function ejecutarGenerico(raiz: string, id: string, ventana: Ventan
   const archivo = estado.archivo
   const c = consultaEn(catalogoGenerico(archivo), id)
   const forma = formaDe(id)
-  if (!c || !forma) throw new ErrorFuente(`«${id}» no está en el catálogo.`)
-  if (!c.ventanas.includes(ventana)) throw new ErrorFuente(`«${id}» se consulta en ${c.ventanas.join(', ')} días.`)
-  if (!archivo || !c.conectada) throw new ErrorFuente(`«${c.nombre}» todavía no tiene fuente. ${c.falta ?? ''}`.trim())
+  if (!c || !forma) throw new ErrorFuente(tr('«{id}» no está en el catálogo.', { id }))
+  if (!c.ventanas.includes(ventana)) throw new ErrorFuente(tr('«{id}» se consulta en {ventanas} días.', { id, ventanas: c.ventanas.join(', ') }))
+  if (!archivo || !c.conectada) throw new ErrorFuente(tr('«{nombre}» todavía no tiene fuente. {falta}', { nombre: c.nombre, falta: c.falta ?? '' }).trim())
   const zona = archivo.zona ?? ZONA_POR_DEFECTO
   const ayer = sumarDias(diaCivil(op.ahora ?? new Date(), zona), -1)
   const mapeo = archivo.consultas[id]

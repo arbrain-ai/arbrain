@@ -18,6 +18,7 @@
  *  · Plegado por omisión: un grupo que no es el abierto y no tiene nada que hacer (solo listos) se pliega.
  */
 import { ORDEN_COLUMNAS, duracion, type Columna, type FilaTablero, type Tablero } from './tablero-modelo'
+import { tr, trn } from '@/shared/i18n'
 
 /** Orden de lectura dentro de un grupo (Daniel, 29 oct: «trabajando, te espera, falló, listo»). */
 export const ORDEN_EN_GRUPO: Columna[] = ['trabajando', 'te-espera', 'falló', 'murió', 'listo']
@@ -61,10 +62,10 @@ export const VENTANA_MIN_MS = 10 * 60_000
 
 export function resumenGrupo(c: GrupoConversacion['cuenta']): GrupoConversacion['resumen'] {
   const partes: { parte: ParteResumen; n: number; texto: (n: number) => string }[] = [
-    { parte: 'trabajando', n: c.trabajando, texto: n => `${n} trabajando` },
-    { parte: 'te-espera', n: c.teEspera, texto: n => `${n} ${n === 1 ? 'te espera' : 'te esperan'}` },
-    { parte: 'sin-terminar', n: c.sinTerminar, texto: n => `${n} sin terminar` },
-    { parte: 'listo', n: c.listos, texto: n => `${n} ${n === 1 ? 'listo' : 'listos'}` },
+    { parte: 'trabajando', n: c.trabajando, texto: n => tr('{n} trabajando', { n }) },
+    { parte: 'te-espera', n: c.teEspera, texto: n => trn(n, '{n} te espera', '{n} te esperan') },
+    { parte: 'sin-terminar', n: c.sinTerminar, texto: n => tr('{n} sin terminar', { n }) },
+    { parte: 'listo', n: c.listos, texto: n => trn(n, '{n} listo', '{n} listos') },
   ]
   return partes.filter(p => p.n).map(p => ({ parte: p.parte, n: p.n, texto: p.texto(p.n) }))
 }
@@ -83,8 +84,8 @@ export function lineaDeTiempo(filas: FilaTablero[], ahora: number): GrupoConvers
     const ancho = Math.min(1 - x, Math.max(0.03, (b - a) / total))
     return { clave: claveFila(f), nombre: f.nombre, columna: f.columna, x: Math.min(x, 0.97), ancho, abierto: abierta(f) }
   })
-  return { desde, hasta, tramos, ocultos: filas.length - visibles.length, escala: `hace ${duracion(hasta - desde)}`,
-    titulo: `Desde hace ${duracion(hasta - desde)} hasta ahora (la raya de la derecha) · un carril por agente: lleno = trabajando, contorno = te espera, punteado = sin terminar, gris = listo` }
+  return { desde, hasta, tramos, ocultos: filas.length - visibles.length, escala: tr('hace {tiempo}', { tiempo: duracion(hasta - desde) }),
+    titulo: tr('Desde hace {tiempo} hasta ahora (la raya de la derecha) · un carril por agente: lleno = trabajando, contorno = te espera, punteado = sin terminar, gris = listo', { tiempo: duracion(hasta - desde) }) }
 }
 
 /**

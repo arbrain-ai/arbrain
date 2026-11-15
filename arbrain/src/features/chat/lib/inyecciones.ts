@@ -10,6 +10,7 @@
  * Funciones puras: el hook y el panel las usan; las pruebas viven en tests/chat/inyecciones.test.ts.
  */
 import type { ChatMessage } from '../hooks/useChat'
+import { tr, trMarca } from '@/shared/i18n'
 
 /** enviando = el cliente lo mandó; entrando = el host lo registró contra el turno; leido = el motor lo tomó;
  *  en_fila = el host lo dejó como turno normal (no había turno vivo que alcanzar). */
@@ -215,16 +216,16 @@ export function ubicarNotas(notas: NotaInyectada[] | undefined, herramientasVisi
 }
 
 export const ETIQUETA_ESTADO: Record<EstadoInyeccion, string> = {
-  enviando: 'enviando…',
-  entrando: 'entrando…',
-  leido: 'leído',
-  en_fila: 'en fila · sale cuando Levy termine',
+  enviando: trMarca('enviando…'),
+  entrando: trMarca('entrando…'),
+  leido: trMarca('leído'),
+  en_fila: trMarca('en fila · sale cuando Levy termine'),
 }
 
 /** Lo que la nota dice A LA VISTA (1 nov 2026, el dueño: «esta ui de leído no me encanta… sé que lo lees»). Leído no
  *  se escribe: que Levy siga y lo conteste ya lo dice. Solo se ve lo que aún pide atención (sale, entra, espera). */
 export function etiquetaVisible(estado: EstadoInyeccion): string | null {
-  return estado === 'leido' ? null : ETIQUETA_ESTADO[estado]
+  return estado === 'leido' ? null : tr(ETIQUETA_ESTADO[estado])
 }
 
 /** Filas `user` que el webhook de completion guarda por cada inyección leída, en orden de llegada al motor.

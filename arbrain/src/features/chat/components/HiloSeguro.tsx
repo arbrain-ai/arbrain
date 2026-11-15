@@ -1,4 +1,5 @@
 'use client'
+import { tr } from '@/shared/i18n'
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { reportarHilo } from '../lib/hilo-vigia'
 
@@ -32,14 +33,14 @@ export class HiloSeguro extends Component<{ sessionId: string | null; children: 
     if (!this.state.error) return <div key={this.state.intento} className="contents">{this.props.children}</div>
     return (
       <div role="alert" data-hilo-error className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-        <p className="text-sm text-foreground">No pude mostrar esta conversación</p>
-        <p className="max-w-md text-[12px] text-muted">{this.state.error}</p>
+        <p className="text-sm text-foreground">{tr('No pude mostrar esta conversación')}</p>
+        <p className="max-w-md text-[12px] text-muted">{tr(this.state.error)}</p>
         <button
           type="button"
           onClick={() => this.setState((s) => ({ error: null, intento: s.intento + 1 }))}
           className="rounded-full border border-border-subtle bg-card px-3.5 py-1.5 text-[13px] text-foreground hover:bg-card-hover"
         >
-          Reintentar
+          {tr('Reintentar')}
         </button>
       </div>
     )

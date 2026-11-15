@@ -26,6 +26,7 @@ import { confirmacionesDelDaemon } from './cliente/confirmaciones.js'
 import { zonaDueno } from './zona.js'
 import { carpetaOriginal } from './dueno.js'
 import { faltaLlaveClaude, MENSAJE_FALTA_LLAVE } from './cliente/llaves.js'
+import { tr } from './i18n/tr.js'
 import { motorSuscripcion, MENSAJE_RUTINAS } from './cliente/suscripcion.js'
 import { rutinasConLlaveTope } from './cliente/rutinas-llave.js'
 import { MENSAJE_PAUSA, pausado } from './cliente/pausa.js'
@@ -132,20 +133,21 @@ export async function executeCronJob(task: ScheduledTask, opts?: { manual?: bool
     let usage: AgentUsage | undefined
     // Edición cliente: ningún script de Daniel (python3/bash) aunque una tarea del alumno se llame igual.
     const rawScript = esEdicionCliente() ? undefined : RAW_SCRIPT_JOBS[task.id]
-    if (!rawScript && faltaLlaveClaude()) throw new Error(MENSAJE_FALTA_LLAVE)
+    // Idioma (13 nov 2026): el error queda en la pestaña Rutinas y en el aviso al teléfono tal cual, así que sale ya traducido.
+    if (!rawScript && faltaLlaveClaude()) throw new Error(tr(MENSAJE_FALTA_LLAVE))
     // Motor «Mi Claude Code»: el plan de la persona es para su uso directo; las rutinas en segundo plano no lo gastan.
     // Salvo que haya una llave de OpenRouter con tope verificado (`nube.sh llave`): entonces la rutina va por ella.
-    if (!rawScript && motorSuscripcion() && !rutinasConLlaveTope()) throw new Error(MENSAJE_RUTINAS)
-    if (esEdicionCliente() && pausado()) throw new Error(MENSAJE_PAUSA)
+    if (!rawScript && motorSuscripcion() && !rutinasConLlaveTope()) throw new Error(tr(MENSAJE_RUTINAS))
+    if (esEdicionCliente() && pausado()) throw new Error(tr(MENSAJE_PAUSA))
     // Modo espejo (beta): ¿esta máquina sigue mandando en origin, la llave tiene tope, ya salió hoy? Apagado = sin efecto.
     if (!rawScript && esEdicionCliente()) {
       const espejo = await cercaEspejo(task.id)
       if (!espejo.correr && espejo.tipo === 'omitir') {
-        updateTaskAfterRun(task.id, espejo.motivo ?? '(omitida por el espejo)', nextRun)
+        updateTaskAfterRun(task.id, espejo.motivo ? tr(espejo.motivo) : tr('(omitida por el espejo)'), nextRun)
         opsLogger.log('cron_done', 'cron', { jobId: task.id, manual, omitida: espejo.codigo, folio: espejo.folio })
         return
       }
-      if (!espejo.correr) throw new Error(espejo.motivo ?? 'El espejo no dejó correr esta rutina.')
+      if (!espejo.correr) throw new Error(espejo.motivo ? tr(espejo.motivo) : tr('El espejo no dejó correr esta rutina.'))
     }
     if (rawScript) {
       // Script directo: sin capa de agente externa no hay OAuth/limits/timeout ajenos.
@@ -434,7 +436,7 @@ export async function runDueTasks(): Promise<void> {
 }
 
 /** Nombre de la rutina para la cola del Taller: su id en palabras («brief-de-la-manana» → «Brief de la manana»). */
-const tituloRutina = (id: string): string => { const t = id.replace(/[-_]+/g, ' ').trim(); return t ? t[0].toUpperCase() + t.slice(1) : 'Rutina' }
+const tituloRutina = (id: string): string => { const t = id.replace(/[-_]+/g, ' ').trim(); return t ? t[0].toUpperCase() + t.slice(1) : tr('Rutina') }
 
 /**
  * Cola por memoria + modo espejo: una rutina que lleva un rato esperando aire se le ofrece UNA vez a la otra máquina

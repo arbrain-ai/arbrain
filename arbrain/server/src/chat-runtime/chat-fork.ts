@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import type Database from 'better-sqlite3'
 import { scopedControls } from './scoped-controls.js'
 import { cuentasChat, rutasApi } from '../modelos/registro.js'
+import { tr } from '../i18n/tr.js'
 
 /**
  * Bifurcar una conversación (1 oct 2026): crea la sesión NATIVA del motor que respalda a la copia, para que
@@ -59,11 +60,11 @@ export const claveSesion = (s: ForkScope) => `${s.owner}:${s.conversationId}::${
 const claveLegada = (s: ForkScope) => (s.account === 'default' ? s.conversationId : `${s.conversationId}::${s.account}`)
 
 export function validarFork(req: ForkRequest): void {
-  if (!req.owner?.trim() || req.owner.trim() !== req.owner) throw new ForkRejected(400, 'Falta el propietario de la conversación.')
-  if (!ACCOUNTS.has(req.account)) throw new ForkRejected(400, 'Cuenta no válida para bifurcar.')
-  if (!UUID.test(req.sourceId) || !UUID.test(req.forkId)) throw new ForkRejected(400, 'Identificadores de conversación no válidos.')
-  if (req.sourceId.toLowerCase() === req.forkId.toLowerCase()) throw new ForkRejected(400, 'La copia no puede tener el mismo id que la original.')
-  if (!req.title?.trim()) throw new ForkRejected(400, 'Falta el título de la copia.')
+  if (!req.owner?.trim() || req.owner.trim() !== req.owner) throw new ForkRejected(400, tr('Falta el propietario de la conversación.'))
+  if (!ACCOUNTS.has(req.account)) throw new ForkRejected(400, tr('Cuenta no válida para bifurcar.'))
+  if (!UUID.test(req.sourceId) || !UUID.test(req.forkId)) throw new ForkRejected(400, tr('Identificadores de conversación no válidos.'))
+  if (req.sourceId.toLowerCase() === req.forkId.toLowerCase()) throw new ForkRejected(400, tr('La copia no puede tener el mismo id que la original.'))
+  if (!req.title?.trim()) throw new ForkRejected(400, tr('Falta el título de la copia.'))
 }
 
 export async function forkConversation(req: ForkRequest, deps: ForkDeps): Promise<ForkResult> {
@@ -76,7 +77,7 @@ export async function forkConversation(req: ForkRequest, deps: ForkDeps): Promis
   if (yaLigada) return { engine: CODEX.has(req.account) ? 'codex' : 'claude', nativeId: yaLigada, reused: true, controlsCopied: false }
 
   const estado = deps.latestStatus(origen)
-  if (estado && !TERMINALES.has(estado)) throw new ForkRejected(409, 'Esta conversación tiene un turno en curso. Espera a que termine para bifurcarla.')
+  if (estado && !TERMINALES.has(estado)) throw new ForkRejected(409, tr('Esta conversación tiene un turno en curso. Espera a que termine para bifurcarla.'))
 
   const nativeId = deps.getSession(claveSesion(origen)) ?? deps.getSession(claveLegada(origen))
   if (!nativeId) return { engine: 'none', nativeId: null, reused: false, controlsCopied: false }
@@ -89,7 +90,7 @@ export async function forkConversation(req: ForkRequest, deps: ForkDeps): Promis
     if (error instanceof ForkRejected) throw error
     throw new ForkRejected(502, `El motor no pudo bifurcar la conversación: ${error instanceof Error ? error.message : 'error desconocido'}`)
   }
-  if (!nuevo || nuevo === nativeId) throw new ForkRejected(502, 'El motor no confirmó una sesión independiente para la copia.')
+  if (!nuevo || nuevo === nativeId) throw new ForkRejected(502, tr('El motor no confirmó una sesión independiente para la copia.'))
   deps.setSession(claveSesion(copia), nuevo)
 
   // Los ajustes (modelo, esfuerzo) acompañan a la copia; si no se pueden copiar, hereda los de fábrica y la copia sigue válida.
@@ -127,14 +128,14 @@ export function forkClaudeEnHijo(nativeId: string, title: string, configDir: str
       if (error) {
         let detalle = ''
         try { detalle = String((JSON.parse(stderr) as { error?: unknown }).error ?? '') } catch { detalle = stderr.trim().split('\n').filter(Boolean).slice(-1).join(' ') }
-        reject(new Error(detalle || 'falló el proceso de bifurcación'))
+        reject(new Error(detalle || tr('falló el proceso de bifurcación')))
         return
       }
       try {
         const id = (JSON.parse(stdout) as { sessionId?: unknown }).sessionId
         if (typeof id === 'string' && UUID.test(id)) resolve(id)
-        else reject(new Error('el SDK no devolvió el id de la copia'))
-      } catch { reject(new Error('respuesta ilegible del proceso de bifurcación')) }
+        else reject(new Error(tr('el SDK no devolvió el id de la copia')))
+      } catch { reject(new Error(tr('respuesta ilegible del proceso de bifurcación'))) }
     })
   })
 }

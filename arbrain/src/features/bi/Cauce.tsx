@@ -11,6 +11,7 @@ import { cuelloDe, fechaCorta, type Embudo, type Etapa } from '@/features/negoci
 import { prefiereQuieto } from '@/shared/movimiento'
 import { useAncho } from './Graficas'
 import c from './bi.module.css'
+import { tr } from '@/shared/i18n'
 
 const GOTAS = 22
 
@@ -62,9 +63,9 @@ export function Cauce({ embudo, abrir }: { embudo: Embudo | null; abrir?: () => 
   }, [cuello, W, xc]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!embudo) return null
-  if (!cuello) return <section className={c.cuello} data-sin-cuello aria-label="El cuello">
-    <p className={c.cuelloCeja}>El cuello</p>
-    <p className={c.cuelloFrase}>Tu embudo todavía no marca un cuello de botella. Pídeselo a Levy: «¿cuál es el cuello de mi negocio?».</p>
+  if (!cuello) return <section className={c.cuello} data-sin-cuello aria-label={tr('El cuello')}>
+    <p className={c.cuelloCeja}>{tr('El cuello')}</p>
+    <p className={c.cuelloFrase}>{tr('Tu embudo todavía no marca un cuello de botella. Pídeselo a Levy: «¿cuál es el cuello de mi negocio?».')}</p>
   </section>
 
   // El contorno del cauce: arriba y abajo, muestreado.
@@ -74,10 +75,10 @@ export function Cauce({ embudo, abrir }: { embudo: Embudo | null; abrir?: () => 
   // Rótulos en dos filas (pares abajo, nones arriba) para que quepan los seis desde 300 px.
   const visibles = (i: number) => i === 0 || i === iCuello || i === n - 1 || W >= 300
   const ancla = (i: number) => (i === 0 ? 'start' : i === n - 1 && iCuello !== n - 1 ? 'end' : 'middle')
-  return <section className={c.cuello} aria-label={`El cuello: ${cuello.nombre}`}>
+  return <section className={c.cuello} aria-label={tr('El cuello: {etapa}', { etapa: cuello.nombre })}>
     <header className={c.cuelloCabeza}>
-      <p className={c.cuelloCeja}>El cuello · <span>{nombreEmbudo}</span></p>
-      {abrir && <button type="button" className={c.cuelloAbrir} onClick={abrir}>El sistema<ChevronRight size={13} aria-hidden /></button>}
+      <p className={c.cuelloCeja}>{tr('El cuello')} · <span>{nombreEmbudo}</span></p>
+      {abrir && <button type="button" className={c.cuelloAbrir} onClick={abrir}>{tr('El sistema')}<ChevronRight size={13} aria-hidden /></button>}
     </header>
     <div ref={ref} className={c.cauce}>
       <svg width={W} height={H} aria-hidden>
@@ -101,6 +102,6 @@ export function Cauce({ embudo, abrir }: { embudo: Embudo | null; abrir?: () => 
       </svg>
     </div>
     <p className={c.cuelloFrase}><b style={{ '--c': 'var(--bi-placer)' } as CSSProperties}>{cuello.nombre}.</b> {cuello.cuello.frase}</p>
-    {cuello.cuello.evidencia && <p className={c.cuelloEvidencia}>Lo marcó tu embudo · {fechaCorta(cuello.cuello.evidencia.fecha)}</p>}
+    {cuello.cuello.evidencia && <p className={c.cuelloEvidencia}>{tr('Lo marcó tu embudo · {fecha}', { fecha: fechaCorta(cuello.cuello.evidencia.fecha) })}</p>}
   </section>
 }

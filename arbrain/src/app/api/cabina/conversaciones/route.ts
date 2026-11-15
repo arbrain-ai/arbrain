@@ -1,6 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/service'
 import { sameSecret } from '@/lib/desktop-auth'
 import { COLUMNAS_ORDEN, cambioDe, leerOrden, unirSinRepetir } from '@/features/cabina/conversaciones-orquesta'
+import { tr } from '@/shared/i18n'
 
 // Orquestar conversaciones existentes (6 nov 2026): la herramienta `conversacion` de la Cabina (accion listar, renombrar,
 // fijar, desfijar) deja la orden en el agent-server (server/src/cabina/conversaciones.ts) y su pulso la manda aquí,
@@ -38,7 +39,7 @@ export async function POST(request: Request) {
 
   const actual = await service.from('chat_sessions').select(COLUMNAS_ORDEN).eq('id', orden.id).eq('profile_id', orden.ownerId).maybeSingle()
   if (actual.error) return Response.json({ error: actual.error.message }, { status: 500 })
-  if (!actual.data) return Response.json({ error: 'Conversación no encontrada (o no es de este dueño).' }, { status: 404 })
+  if (!actual.data) return Response.json({ error: tr('Conversación no encontrada (o no es de este dueño).') }, { status: 404 })
   const cambio = cambioDe(orden, actual.data as unknown as Fila)
   if (!cambio) return Response.json({ conversacion: actual.data })
   const { data, error } = await service.from('chat_sessions').update(cambio).eq('id', orden.id).eq('profile_id', orden.ownerId).select(COLUMNAS_ORDEN).single()

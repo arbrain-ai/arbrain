@@ -1,3 +1,5 @@
+import { tr, localeIntl } from '@/shared/i18n'
+
 interface Props {
   date: Date
 }
@@ -8,12 +10,12 @@ function getLabel(date: Date): string {
   const target = new Date(date.getFullYear(), date.getMonth(), date.getDate())
   const diff = Math.floor((today.getTime() - target.getTime()) / 86_400_000)
 
-  if (diff === 0) return 'Hoy'
-  if (diff === 1) return 'Ayer'
+  if (diff === 0) return tr('Hoy')
+  if (diff === 1) return tr('Ayer')
   if (diff < 7) {
-    return target.toLocaleDateString('es-MX', { weekday: 'long' })
+    return target.toLocaleDateString(localeIntl(), { weekday: 'long' })
   }
-  return target.toLocaleDateString('es-MX', {
+  return target.toLocaleDateString(localeIntl(), {
     day: 'numeric',
     month: 'long',
     year: now.getFullYear() !== date.getFullYear() ? 'numeric' : undefined,

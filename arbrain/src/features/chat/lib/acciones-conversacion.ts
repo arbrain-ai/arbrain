@@ -3,6 +3,7 @@ import type { ChatSession } from '../hooks/useChatHistory'
 import { EVENTO_CAMBIO_SESION, type CambioSesion } from './cambios-sesion'
 import { marcarAMano, olvidarAMano } from './no-leida-a-mano'
 import { mostrarAviso, ocultarAviso } from './aviso-efimero'
+import { tr } from '@/shared/i18n'
 
 /**
  * Acciones del menú «⋯» de una conversación (1 oct 2026), compartidas por «Recientes» y «Ver todas».
@@ -27,9 +28,9 @@ async function patch(id: string, cuerpo: Record<string, unknown>): Promise<strin
     })
     if (r.ok) return null
     const j = await r.json().catch(() => null) as { error?: string } | null
-    return j?.error ?? `El servidor respondió ${r.status}`
+    return j?.error ? tr(j.error) : tr('El servidor respondió {estado}', { estado: r.status })
   } catch {
-    return 'Sin conexión con el servidor'
+    return tr('Sin conexión con el servidor')
   }
 }
 
@@ -39,7 +40,7 @@ export async function fijar(s: ChatSession): Promise<void> {
   // le quita la estrella: una favorita siempre está fijada.
   parche(s.id, { is_favorite: valor, pinned_position: null, ...(valor ? {} : { is_starred: false }) })
   const error = await patch(s.id, { is_favorite: valor })
-  if (error) { parche(s.id, { is_favorite: !valor, pinned_position: s.pinned_position ?? null, is_starred: !!s.is_starred }); mostrarAviso(`No se pudo ${valor ? 'fijar' : 'desfijar'}: ${error}`, 'error'); return }
+  if (error) { parche(s.id, { is_favorite: !valor, pinned_position: s.pinned_position ?? null, is_starred: !!s.is_starred }); mostrarAviso(valor ? tr('No se pudo fijar: {error}', { error }) : tr('No se pudo desfijar: {error}', { error }), 'error'); return }
   // «Ver todas» y cualquier lista que no escuche `session-changed` se enteran por el aviso de siempre.
   window.dispatchEvent(new CustomEvent('openclaw:session-pinned', { detail: { id: s.id, fijada: valor } }))
 }
@@ -61,7 +62,7 @@ export async function favorita(s: ChatSession): Promise<void> {
   if (error) {
     for (const id of previas) parche(id, { is_starred: true })
     parche(s.id, { is_starred: !!s.is_starred, is_favorite: s.is_favorite, pinned_position: s.pinned_position ?? null })
-    mostrarAviso(`No se pudo ${valor ? 'marcar como favorita' : 'quitar de favoritas'}: ${error}`, 'error')
+    mostrarAviso(valor ? tr('No se pudo marcar como favorita: {error}', { error }) : tr('No se pudo quitar de favoritas: {error}', { error }), 'error')
     return
   }
   // La base pudo apagar alguna que esta ventana no tenía cargada: también se apaga aquí.
@@ -86,10 +87,10 @@ async function patchEstrella(id: string, valor: boolean): Promise<{ error: strin
       body: JSON.stringify({ sessionId: id, is_starred: valor }),
     })
     const j = await r.json().catch(() => null) as { error?: string; desmarcadas?: unknown } | null
-    if (!r.ok) return { error: j?.error ?? `El servidor respondió ${r.status}`, desmarcadas: [] }
+    if (!r.ok) return { error: j?.error ? tr(j.error) : tr('El servidor respondió {estado}', { estado: r.status }), desmarcadas: [] }
     return { error: null, desmarcadas: Array.isArray(j?.desmarcadas) ? j.desmarcadas.filter((x): x is string => typeof x === 'string') : [] }
   } catch {
-    return { error: 'Sin conexión con el servidor', desmarcadas: [] }
+    return { error: tr('Sin conexión con el servidor'), desmarcadas: [] }
   }
 }
 
@@ -135,13 +136,13 @@ export async function guardarOrdenFijadas(orden: string[], previas: ChatSession[
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ordenFijadas: orden }),
     })
-    if (!r.ok) error = (await r.json().catch(() => null) as { error?: string } | null)?.error ?? `El servidor respondió ${r.status}`
+    if (!r.ok) { const e = (await r.json().catch(() => null) as { error?: string } | null)?.error; error = e ? tr(e) : tr('El servidor respondió {estado}', { estado: r.status }) }
   } catch {
-    error = 'Sin conexión con el servidor'
+    error = tr('Sin conexión con el servidor')
   }
   if (error) {
     for (const s of previas) parche(s.id, { is_favorite: s.is_favorite, pinned_position: s.pinned_position ?? null })
-    mostrarAviso(`No se pudo acomodar las fijadas: ${error}`, 'error')
+    mostrarAviso(tr('No se pudo acomodar las fijadas: {error}', { error }), 'error')
     return
   }
   const nuevas = previas.filter((s) => !s.is_favorite)
@@ -155,7 +156,7 @@ export async function marcarNoLeida(s: ChatSession): Promise<void> {
   if (error) {
     olvidarAMano(s.id)
     parche(s.id, { last_read_at: s.last_read_at ?? null })
-    mostrarAviso(`No se pudo marcar como no leída: ${error}`, 'error')
+    mostrarAviso(tr('No se pudo marcar como no leída: {error}', { error }), 'error')
   }
 }
 
@@ -163,7 +164,7 @@ export async function marcarLeida(s: ChatSession): Promise<void> {
   olvidarAMano(s.id)
   parche(s.id, { last_read_at: new Date().toISOString() })
   const error = await patch(s.id, { markRead: true })
-  if (error) { parche(s.id, { last_read_at: s.last_read_at ?? null }); mostrarAviso(`No se pudo marcar como leída: ${error}`, 'error') }
+  if (error) { parche(s.id, { last_read_at: s.last_read_at ?? null }); mostrarAviso(tr('No se pudo marcar como leída: {error}', { error }), 'error') }
 }
 
 export async function renombrar(s: ChatSession, titulo: string): Promise<void> {
@@ -171,16 +172,16 @@ export async function renombrar(s: ChatSession, titulo: string): Promise<void> {
   if (!nuevo || nuevo === s.title) return
   parche(s.id, { title: nuevo })
   const error = await patch(s.id, { title: nuevo })
-  if (error) { parche(s.id, { title: s.title }); mostrarAviso(`No se pudo cambiar el nombre: ${error}`, 'error') }
+  if (error) { parche(s.id, { title: s.title }); mostrarAviso(tr('No se pudo cambiar el nombre: {error}', { error }), 'error') }
 }
 
 /** Archivar o desarchivar. Espera al servidor: si la conversación está abierta, ChatPanel la cierra al quitarla. */
 export async function archivar(s: ChatSession, archivada: boolean): Promise<void> {
   const error = await patch(s.id, { archived: archivada })
-  if (error) { mostrarAviso(`No se pudo ${archivada ? 'archivar' : 'desarchivar'}: ${error}`, 'error'); return }
+  if (error) { mostrarAviso(archivada ? tr('No se pudo archivar: {error}', { error }) : tr('No se pudo desarchivar: {error}', { error }), 'error'); return }
   if (archivada) {
     emitirCambio({ tipo: 'quitada', id: s.id, motivo: 'archivada' })
-    mostrarAviso('Conversación archivada. La encuentras en «Archivadas» de «Ver todas».', 'ok')
+    mostrarAviso(tr('Conversación archivada. La encuentras en «Archivadas» de «Ver todas».'), 'ok')
   } else {
     emitirCambio({ tipo: 'agregada', sesion: { ...s, archived_at: null } })
   }
@@ -195,10 +196,10 @@ export async function eliminar(s: ChatSession): Promise<void> {
     })
     if (!r.ok) {
       const j = await r.json().catch(() => null) as { error?: string } | null
-      throw new Error(j?.error ?? `El servidor respondió ${r.status}`)
+      throw new Error(j?.error ? tr(j.error) : tr('El servidor respondió {estado}', { estado: r.status }))
     }
   } catch (error) {
-    mostrarAviso(`No se pudo eliminar: ${error instanceof Error ? error.message : 'error desconocido'}`, 'error')
+    mostrarAviso(tr('No se pudo eliminar: {error}', { error: error instanceof Error ? error.message : tr('error desconocido') }), 'error')
     return
   }
   olvidarAMano(s.id)
@@ -214,7 +215,7 @@ export interface ResultadoBifurcar { sesion: ChatSession; contextoMotor: boolean
 export async function bifurcar(s: ChatSession): Promise<ResultadoBifurcar | null> {
   if (bifurcando.has(s.id)) return null
   bifurcando.add(s.id)
-  mostrarAviso('Bifurcando conversación…', 'info', 0)
+  mostrarAviso(tr('Bifurcando conversación…'), 'info', 0)
   try {
     const r = await fetch(`/api/chat/sessions/${encodeURIComponent(s.id)}/fork`, {
       method: 'POST',
@@ -223,18 +224,18 @@ export async function bifurcar(s: ChatSession): Promise<ResultadoBifurcar | null
     })
     const j = await r.json().catch(() => null) as { session?: ChatSession; contextoMotor?: boolean; error?: string } | null
     if (!r.ok || !j?.session) {
-      mostrarAviso(j?.error ?? `No se pudo bifurcar (el servidor respondió ${r.status}).`, 'error', 7000)
+      mostrarAviso(j?.error ? tr(j.error) : tr('No se pudo bifurcar (el servidor respondió {estado}).', { estado: r.status }), 'error', 7000)
       return null
     }
     emitirCambio({ tipo: 'agregada', sesion: j.session })
     if (j.contextoMotor === false) {
-      mostrarAviso('Bifurcada. Esta conversación aún no tenía contexto en el motor: Levy verá el historial pero no lo recordará.', 'info', 8000)
+      mostrarAviso(tr('Bifurcada. Esta conversación aún no tenía contexto en el motor: Levy verá el historial pero no lo recordará.'), 'info', 8000)
     } else {
       ocultarAviso()
     }
     return { sesion: j.session, contextoMotor: j.contextoMotor !== false }
   } catch {
-    mostrarAviso('No se pudo bifurcar: sin conexión con el servidor.', 'error', 7000)
+    mostrarAviso(tr('No se pudo bifurcar: sin conexión con el servidor.'), 'error', 7000)
     return null
   } finally {
     bifurcando.delete(s.id)

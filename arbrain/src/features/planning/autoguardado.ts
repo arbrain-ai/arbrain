@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { mutationFor } from './model'
 import type { MutationResult, PlanItem, PlanMutation, PlanningSnapshot } from './types'
+import { tr } from '@/shared/i18n'
 
 /**
  * Autoguardado de la hoja de detalle (5 oct 2026, bug de Daniel: cambió el título de un evento, dio «Listo» y Google nunca
@@ -80,7 +81,7 @@ export class Guardian {
     if (!e) return true
     if (!e.sucia) return e.fase !== 'error'
     const owner = this.o.ownerId()
-    if (!owner) { e.fase = 'error'; e.error = 'Sin identidad: vuelve a abrir el calendario.'; this.o.onCambio(); return false }
+    if (!owner) { e.fase = 'error'; e.error = tr('Sin identidad: vuelve a abrir el calendario.'); this.o.onCambio(); return false }
     const data = e.data, mover = e.mover
     e.sucia = false; e.fase = 'guardando'; e.error = undefined; this.o.onCambio()
     try {
@@ -98,7 +99,7 @@ export class Guardian {
       this.o.onCambio()
       return true
     } catch (err) {
-      const mensaje = err instanceof Error ? err.message : 'El proveedor no confirmó el cambio.'
+      const mensaje = err instanceof Error ? tr(err.message) : tr('El proveedor no confirmó el cambio.')
       if (e.sucia) { this.o.onCambio(); return false } // llegó otra edición encima: su propia escritura decide
       e.fase = 'error'; e.error = mensaje; e.capa = null
       this.o.onCambio()

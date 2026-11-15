@@ -2,13 +2,15 @@ import { requireChatPrincipal, chatAccessResponse } from '@/lib/chat-access'
 import { checkMutationOrigin } from '@/lib/planning/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { esEdicionCliente } from '@/lib/edicion'
-import { armarBandeja, postDeRecap, type AvisoFila, type EstadoDecision } from '@/features/avisos/bandeja'
+import { armarBandeja, postDeRecap, type AvisoFila, type EstadoDecision, type TarjetaPendiente } from '@/features/avisos/bandeja'
 import { estadosDecisiones, recapsPublicados } from '@/features/avisos/decisiones'
+import { pendientesDeLaBandeja } from '@/features/decisiones/server'
 
 // La campana (25 sep 2026; decisiones, no reportes, 29 oct). Lee y marca `avisos` del principal por el servidor:
 // funciona igual en la PWA (sesión Supabase) y en el escritorio (bypass local), sin exponer la tabla al navegador.
 // La telemetría vive en `bitacora` y nunca sale por aquí. Cada lectura arma la bandeja (features/avisos/bandeja.ts):
-// «Te toca decidir», «Urgente» y «Para saber»; lo que se resolvió solo queda cerrado con su motivo.
+// «Te toca decidir», «Urgente» y «Para saber»; lo que se resolvió solo queda cerrado con su motivo. «Te toca decidir» trae
+// también, en vivo, todas las tarjetas que esperan en la bandeja de decisiones del daemon (13 nov 2026).
 
 const noStore = { 'Cache-Control': 'no-store' }
 const COLUMNAS = 'id,created_at,kind,source,title,body,url,read_at'
@@ -36,21 +38,25 @@ async function cerrar(supabase: Service, userId: string, cierres: { id: string; 
   await supabase.from('avisos').update({ read_at: ahora }).eq('user_id', userId).in('id', ids).is('read_at', null)
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const principal = await requireChatPrincipal()
     const supabase = createServiceClient()
     const filas = await abiertos(supabase, principal.id)
     const cliente = esEdicionCliente()
     const recaps = filas.map(postDeRecap).filter((x): x is string => !!x)
-    const [estados, publicados]: [Map<string, EstadoDecision>, Set<string>] = cliente ? [new Map(), new Set()]
-      : await Promise.all([estadosDecisiones(filas.map(f => f.url)), recapsPublicados(recaps)])
-    const b = armarBandeja(filas, estados, new Date(), 20, publicados)
+    const [estados, publicados, tarjetas]: [Map<string, EstadoDecision>, Set<string>, TarjetaPendiente[] | null] = await Promise.all([
+      cliente ? new Map<string, EstadoDecision>() : estadosDecisiones(filas.map(f => f.url)),
+      cliente ? new Set<string>() : recapsPublicados(recaps),
+      pendientesDeLaBandeja(request),
+    ])
+    const b = armarBandeja(filas, estados, new Date(), 20, publicados, tarjetas)
     if (b.cerrar.length && 'resuelto_at' in (filas[0] ?? {})) await cerrar(supabase, principal.id, b.cerrar).catch(() => undefined)
     return Response.json({
       decidir: b.decidir, urgente: b.urgente, saber: b.saber, pendientes: b.pendientes,
       // Compatibilidad: `avisos` (todo lo abierto) y `unread`, que ahora es el número de la campana.
-      avisos: [...b.decidir, ...b.urgente, ...b.saber].map(v => ({ ...v, title: v.titulo, body: v.frase })), unread: b.pendientes,
+      // Solo filas de `avisos` (las tarjetas de la bandeja no se marcan leídas aquí: se deciden).
+      avisos: [...b.decidir, ...b.urgente, ...b.saber].filter(v => !v.tarjeta).map(v => ({ ...v, title: v.titulo, body: v.frase })), unread: b.pendientes,
     }, { headers: noStore })
   } catch (error) {
     if (error instanceof Error && !('status' in error)) {

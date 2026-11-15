@@ -23,6 +23,8 @@
  * Puro: sin React, sin DOM y sin red (tests/canvas/nervio.test.ts).
  */
 
+import { tr } from '@/shared/i18n'
+
 export type Semaforo = 'verde' | 'ambar' | 'rojo' | 'gris'
 
 export type FuenteEstado =
@@ -177,12 +179,12 @@ export function duracionTexto(s: number | null | undefined): string | null {
 export function haceTexto(ms: number | null | undefined, ahora: number): string | null {
   if (ms == null || !Number.isFinite(ms)) return null
   const s = Math.max(0, Math.round((ahora - ms) / 1000))
-  if (s < 45) return 'hace segundos'
+  if (s < 45) return tr('hace segundos')
   const m = Math.round(s / 60)
-  if (m < 60) return `hace ${m} min`
+  if (m < 60) return tr('hace {m} min', { m })
   const h = Math.round(m / 60)
-  if (h < 36) return `hace ${h} h`
-  return `hace ${Math.round(h / 24)} días`
+  if (h < 36) return tr('hace {h} h', { h })
+  return tr('hace {d} días', { d: Math.round(h / 24) })
 }
 
 export interface RotuloNervio {
@@ -203,19 +205,19 @@ const FLECHA = ' ↗'
 export function rotuloDe(n: Nervio, accion: AccionNervio, vivo: VivoNervio | undefined, etiquetaEnlace: string | null): RotuloNervio {
   const est = n.estado ? vivo?.estados.get(claveFuente(n.estado)) : undefined
   const semaforo: Semaforo | null = n.estado ? (est?.semaforo ?? 'gris') : null
-  const estadoTxt = n.estado ? (est?.texto ?? 'midiendo…') : null
+  const estadoTxt = n.estado ? (est?.texto ?? tr('midiendo…')) : null
   let accionTxt: string
   let glifo: RotuloNervio['glifo'] = null
   if (accion === 'medio') {
     const m = n.medio ? vivo?.medios.get(claveMedio(n.medio)) : undefined
     const dur = m?.ok ? duracionTexto(m.duracion) : null
-    accionTxt = [n.rotulo ?? n.medio?.titulo ?? 'Reproducir', m && !m.ok ? 'sin archivo' : dur].filter(Boolean).join(' · ')
+    accionTxt = [n.rotulo ?? n.medio?.titulo ?? tr('Reproducir'), m && !m.ok ? tr('sin archivo') : dur].filter(Boolean).join(' · ')
     glifo = 'play'
   } else if (accion === 'previa') {
-    accionTxt = (n.rotulo ?? 'Vista previa')
+    accionTxt = (n.rotulo ?? tr('Vista previa'))
     glifo = 'previa'
   } else if (accion === 'enlace') {
-    accionTxt = n.rotulo ? n.rotulo + FLECHA : (etiquetaEnlace ?? 'Abrir' + FLECHA)
+    accionTxt = n.rotulo ? n.rotulo + FLECHA : (etiquetaEnlace ?? tr('Abrir') + FLECHA)
   } else {
     accionTxt = n.rotulo ?? ''
   }
@@ -268,16 +270,16 @@ export interface LecturaLaunchd {
  * Gris: no hay forma de saberlo (sin log). Un proceso cargado no prueba que produzca: por eso manda el log.
  */
 export function evaluarLaunchd(l: LecturaLaunchd, ahora: number): Omit<EstadoVivo, 'medidoEn'> {
-  if (!l.cargado) return { semaforo: 'rojo', texto: 'no está cargada', detalle: 'launchctl no la conoce: no corre.' }
-  if (l.codigo != null && l.codigo !== 0 && !l.corriendo) return { semaforo: 'rojo', texto: `falló (código ${l.codigo})`, detalle: l.linea }
-  if (l.ultima == null) return { semaforo: 'gris', texto: 'sin corridas registradas', detalle: null }
+  if (!l.cargado) return { semaforo: 'rojo', texto: tr('no está cargada'), detalle: tr('launchctl no la conoce: no corre.') }
+  if (l.codigo != null && l.codigo !== 0 && !l.corriendo) return { semaforo: 'rojo', texto: tr('falló (código {codigo})', { codigo: l.codigo }), detalle: l.linea }
+  if (l.ultima == null) return { semaforo: 'gris', texto: tr('sin corridas registradas'), detalle: null }
   const limite = l.atrasoS ? l.atrasoS * 1000 : null
   const hace = haceTexto(l.ultima, ahora)!
-  if (limite != null && ahora - l.ultima > limite) return { semaforo: 'ambar', texto: `sin correr ${hace.replace('hace ', 'desde hace ')}`, detalle: l.linea }
+  if (limite != null && ahora - l.ultima > limite) return { semaforo: 'ambar', texto: tr('sin correr {hace}', { hace: hace.replace('hace ', 'desde hace ') }), detalle: l.linea }
   if (l.error != null && l.bytesError > 0 && l.error > l.ultima + 1000 && (limite == null || ahora - l.error < limite)) {
-    return { semaforo: 'ambar', texto: `errores ${haceTexto(l.error, ahora)}`, detalle: l.linea }
+    return { semaforo: 'ambar', texto: tr('errores {hace}', { hace: haceTexto(l.error, ahora) }), detalle: l.linea }
   }
-  return { semaforo: 'verde', texto: l.corriendo ? 'corriendo ahora' : hace, detalle: l.linea }
+  return { semaforo: 'verde', texto: l.corriendo ? tr('corriendo ahora') : hace, detalle: l.linea }
 }
 
 /** `launchctl list <label>` → lo que importa. Sin la línea de PID, no corre ahora. */

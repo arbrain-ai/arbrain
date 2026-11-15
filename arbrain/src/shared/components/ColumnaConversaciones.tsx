@@ -5,6 +5,7 @@ import { RecientesNav } from '@/features/chat/components/RecientesNav'
 import { useNuevoChat } from '@/shared/hooks/useNuevoChat'
 import { useLayoutStore } from '@/shared/stores/layout-store'
 import { AccionesBarra } from '@/shared/components/AccionesBarra'
+import { tr } from '@/shared/i18n'
 
 interface Props {
   /** Se llama al elegir algo (conversación, «Nuevo chat», «Ver todas»): el cajón del teléfono se cierra con esto. */
@@ -24,7 +25,8 @@ export function ColumnaConversaciones({ onElegir, tactil = false }: Props) {
   const nuevoChat = useNuevoChat()
   const pathname = usePathname()
   const router = useRouter()
-  const alto = tactil ? 'min-h-11 text-[15px]' : 'min-h-9 text-[13px]'
+  // Escritorio: la escala del chat (--tam-* en globals.css, 11 nov 2026).
+  const alto = tactil ? 'min-h-11 text-[15px]' : 'min-h-[var(--tam-fila)] text-[length:var(--tam-texto)]'
 
   const verTodas = () => {
     onElegir?.()
@@ -40,22 +42,22 @@ export function ColumnaConversaciones({ onElegir, tactil = false }: Props) {
             type="button"
             onClick={() => { onElegir?.(); nuevoChat() }}
             className={`${alto} flex min-w-0 flex-1 items-center gap-2.5 rounded-xl px-2.5 font-medium text-foreground transition-colors hover:bg-foreground/[0.06] active:bg-foreground/[0.08] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand`}
-            title="Nuevo chat con Levy"
-            aria-label="Nuevo chat"
+            title={tr('Nuevo chat con Levy')}
+            aria-label={tr('Nuevo chat')}
           >
-            <span className={`grid shrink-0 place-items-center rounded-lg bg-brand/12 text-brand-ink ${tactil ? 'size-7' : 'size-6'}`} aria-hidden>
-              <SquarePen className={tactil ? 'size-4' : 'size-3.5'} />
+            <span className="grid shrink-0 place-items-center rounded-lg bg-brand/12 text-brand-ink size-7" aria-hidden>
+              <SquarePen className="size-4" />
             </span>
-            <span className="truncate">Nuevo chat</span>
+            <span className="truncate">{tr('Nuevo chat')}</span>
           </button>
           <button
             type="button"
             onClick={verTodas}
-            className={`grid shrink-0 place-items-center rounded-xl text-muted transition-colors hover:bg-foreground/[0.06] hover:text-foreground focus-visible:outline-2 focus-visible:outline-brand ${tactil ? 'size-11' : 'size-9'}`}
-            title="Ver todas las conversaciones"
-            aria-label="Ver todas las conversaciones"
+            className={`grid shrink-0 place-items-center rounded-xl text-muted transition-colors hover:bg-foreground/[0.06] hover:text-foreground focus-visible:outline-2 focus-visible:outline-brand ${tactil ? 'size-11' : 'size-[var(--tam-fila)]'}`}
+            title={tr('Ver todas las conversaciones')}
+            aria-label={tr('Ver todas las conversaciones')}
           >
-            <History className={tactil ? 'size-[18px]' : 'size-4'} aria-hidden />
+            <History className="size-[var(--tam-icono)]" aria-hidden />
           </button>
         </div>
         {/* Loops · Habilidades · Artefactos salieron de aquí (5 nov 2026, el dueño: «me importan las conversaciones. todo va en

@@ -12,6 +12,7 @@ import {
   ErrorImagen, MAX_ENTRADA_BYTES, MAX_LADO_IMAGEN, PRESUPUESTO_BYTES, dimensionesDestino, formatoBytes,
   necesitaRecompresion, nombreConTipo, tipoPorBytes, TIPOS_SUBIBLES, PERFIL_NORMAL, type PerfilImagen,
 } from './image-upload'
+import { tr } from '@/shared/i18n'
 
 type Decodificada = { dibujar: (ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D, ancho: number, alto: number) => void; ancho: number; alto: number; cerrar: () => void }
 
@@ -33,8 +34,8 @@ async function decodificar(bytes: ArrayBuffer, tipo: string, nombre: string): Pr
   } catch {
     const heic = tipo === 'image/heic'
     throw new ErrorImagen('formato', heic
-      ? `«${nombre}» es HEIC y este navegador no lo abre. Pásala a JPG (en Fotos: Archivo > Exportar) o adjunta una captura.`
-      : `No pude abrir «${nombre}» como imagen: el archivo está dañado o el formato no es compatible. Adjunta otra, o pega una captura nueva.`)
+      ? tr('«{nombre}» es HEIC y este navegador no lo abre. Pásala a JPG (en Fotos: Archivo > Exportar) o adjunta una captura.', { nombre })
+      : tr('No pude abrir «{nombre}» como imagen: el archivo está dañado o el formato no es compatible. Adjunta otra, o pega una captura nueva.', { nombre }))
   } finally { URL.revokeObjectURL(url) }
 }
 
@@ -72,7 +73,7 @@ async function recomprimir(d: Decodificada, nombre: string, perfil: PerfilImagen
       if (blob && blob.size > 0 && blob.size <= PRESUPUESTO_BYTES) return blob
     }
   }
-  throw new ErrorImagen('compresion', `No logré reducir «${nombre}» por debajo de ${formatoBytes(PRESUPUESTO_BYTES)}. Adjunta una captura de menos área o menos resolución.`)
+  throw new ErrorImagen('compresion', tr('No logré reducir «{nombre}» por debajo de {limite}. Adjunta una captura de menos área o menos resolución.', { nombre, limite: formatoBytes(PRESUPUESTO_BYTES) }))
 }
 
 export function esArchivoDeImagen(file: File): boolean {
@@ -85,13 +86,13 @@ export function esArchivoDeImagen(file: File): boolean {
  */
 export async function prepararImagen(file: File, perfil: PerfilImagen = PERFIL_NORMAL): Promise<File> {
   const nombre = file.name || 'imagen'
-  if (file.size > MAX_ENTRADA_BYTES) throw new ErrorImagen('demasiado-grande', `«${nombre}» pesa ${formatoBytes(file.size)}; puedo preparar imágenes de hasta ${formatoBytes(MAX_ENTRADA_BYTES)}. Recórtala o baja la resolución.`)
+  if (file.size > MAX_ENTRADA_BYTES) throw new ErrorImagen('demasiado-grande', tr('«{nombre}» pesa {peso}; puedo preparar imágenes de hasta {limite}. Recórtala o baja la resolución.', { nombre, peso: formatoBytes(file.size), limite: formatoBytes(MAX_ENTRADA_BYTES) }))
   let bytes: ArrayBuffer
   try { bytes = await file.arrayBuffer() } catch {
-    throw new ErrorImagen('ilegible', `No pude leer «${nombre}»: el sistema ya no la tiene disponible. Pasa con las capturas flotantes de macOS cuando se cierran, o con archivos movidos. Vuelve a copiarla y pégala (Cmd+V) o adjúntala con el clip.`)
+    throw new ErrorImagen('ilegible', tr('No pude leer «{nombre}»: el sistema ya no la tiene disponible. Pasa con las capturas flotantes de macOS cuando se cierran, o con archivos movidos. Vuelve a copiarla y pégala (Cmd+V) o adjúntala con el clip.', { nombre }))
   }
   if (bytes.byteLength === 0 || (file.size > 0 && bytes.byteLength !== file.size)) {
-    throw new ErrorImagen('ilegible', `«${nombre}» llegó vacía o incompleta (${formatoBytes(bytes.byteLength)} de ${formatoBytes(file.size)}). Vuelve a copiarla y pégala (Cmd+V) o adjúntala con el clip.`)
+    throw new ErrorImagen('ilegible', tr('«{nombre}» llegó vacía o incompleta ({llego} de {total}). Vuelve a copiarla y pégala (Cmd+V) o adjúntala con el clip.', { nombre, llego: formatoBytes(bytes.byteLength), total: formatoBytes(file.size) }))
   }
   const tipo = tipoPorBytes(new Uint8Array(bytes, 0, Math.min(16, bytes.byteLength))) ?? file.type
   const d = await decodificar(bytes, tipo, nombre)

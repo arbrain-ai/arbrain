@@ -1,4 +1,5 @@
 'use client'
+import { tr } from '@/shared/i18n'
 import { useCallback, useEffect, useState } from 'react'
 import { Archive, ArrowLeft, MessageSquare, Plus } from 'lucide-react'
 import type { ChatSession } from '../hooks/useChatHistory'
@@ -66,11 +67,11 @@ export function ChatSessions({
       {/* Header */}
       <div className="shrink-0 flex items-center justify-between px-3 py-3 border-b border-border-subtle">
         <span className="text-[10px] uppercase tracking-widest text-muted/80 font-semibold">
-          {enArchivadas ? 'Archivadas' : crons ? 'Crons' : 'Todas las conversaciones'}
+          {enArchivadas ? tr('Archivadas') : crons ? 'Crons' : tr('Todas las conversaciones')}
         </span>
         <button
           onClick={onNew}
-          title="Nueva conversación"
+          title={tr('Nueva conversación')}
           className="icon-btn size-7"
         >
           <Plus size={13} />
@@ -82,7 +83,7 @@ export function ChatSessions({
       {cronsTabEnabled && (
         <div className="shrink-0 px-2.5 py-2 border-b border-border-subtle">
           <ChatAccountTabs
-            options={[{ id: 'default', label: 'Conversaciones', sublabel: 'Las conversaciones de la cuenta activa' }, tabs[1]]}
+            options={[{ id: 'default', label: tr('Conversaciones'), sublabel: tr('Las conversaciones de la cuenta activa') }, tabs[1]]}
             active={crons ? 'crons' : 'default'}
             onSelect={(t) => onCrons(t === 'crons')}
           />
@@ -100,7 +101,7 @@ export function ChatSessions({
         ) : !lista || lista.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-2 px-3 py-8 text-center">
             {enArchivadas ? <Archive size={20} className="text-muted/40" /> : <MessageSquare size={20} className="text-muted/40" />}
-            <p className="text-[11px] text-muted/70">{!enArchivadas && error ? `No pude cargar tus conversaciones: ${error}. Reintentando solo…` : enArchivadas ? 'Sin conversaciones archivadas' : 'Sin historial'}</p>
+            <p className="text-[11px] text-muted/70">{!enArchivadas && error ? tr('No pude cargar tus conversaciones: {error}. Reintentando solo…', { error: tr(error) }) : enArchivadas ? tr('Sin conversaciones archivadas') : tr('Sin historial')}</p>
           </div>
         ) : (
           lista.map((session) => (
@@ -124,15 +125,15 @@ export function ChatSessions({
             className="nav-item w-full min-h-11 text-xs md:min-h-8"
           >
             {enArchivadas ? <ArrowLeft className="size-3.5 shrink-0" aria-hidden /> : <Archive className="size-3.5 shrink-0" aria-hidden />}
-            <span>{enArchivadas ? 'Volver a las conversaciones' : 'Archivadas'}</span>
+            <span>{enArchivadas ? tr('Volver a las conversaciones') : tr('Archivadas')}</span>
           </button>
         </div>
       )}
 
       {/* Pestaña Crons (2 oct 2026): el interruptor vive donde se usa. Por aparato (localStorage). */}
       <div className="shrink-0 flex items-center justify-between gap-2 border-t border-border-subtle pl-3.5 pr-1.5">
-        <span className="text-xs text-muted" title="Las sesiones que abren los cron jobs y procesos de fondo">Pestaña Crons</span>
-        <Interruptor activo={cronsTabEnabled} onCambio={setCronsTabEnabled} etiqueta="Mostrar la pestaña Crons en las conversaciones" />
+        <span className="text-xs text-muted" title={tr('Las sesiones que abren los cron jobs y procesos de fondo')}>{tr('Pestaña Crons')}</span>
+        <Interruptor activo={cronsTabEnabled} onCambio={setCronsTabEnabled} etiqueta={tr('Mostrar la pestaña Crons en las conversaciones')} />
       </div>
     </div>
   )

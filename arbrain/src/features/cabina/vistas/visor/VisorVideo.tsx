@@ -35,10 +35,12 @@ import { registrarVisor, type VisorConEspacio } from './espacio'
 import { BotonVelocidad } from './Velocidad'
 import { useMiniaturas } from './useMiniaturas'
 import tecla from '@/features/chat/components/boton-enviar.module.css'
+import { BotonDescargar } from './BotonDescargar'
 import v from './visor.module.css'
+import { tr } from '@/shared/i18n'
 
 export interface Sonda { ancho: number | null; alto: number | null; fps: number | null; duracion: number | null }
-export interface VersionVideo { ruta: string; archivo: string; url?: string; sonda?: Sonda | null; hash?: string; error?: string }
+export interface VersionVideo { ruta: string; archivo: string; url?: string; descarga?: string; sonda?: Sonda | null; hash?: string; error?: string }
 
 const proporcion = (s?: Sonda | null) => s?.ancho && s?.alto ? s.ancho / s.alto : 16 / 9
 
@@ -73,6 +75,9 @@ export function VisorVideo({ versiones, tiempoInicial, grande, clave, alReintent
   const [modo, setModo] = useState<Modo | null>(null)
   const [borrador, setBorrador] = useState<number | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
+  // En el teléfono el video no se baja hasta que Daniel le da play (13 nov 2026: sus datos de Telcel se acababan y
+  // preload «auto» bajaba el archivo entero con solo abrirse la vista). En el escritorio sigue precargando para editar.
+  const [telefono] = useState(() => typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches)
   const raiz = useRef<HTMLDivElement>(null)
   const videos = useRef<(HTMLVideoElement | null)[]>([])
   const barra = useRef<HTMLDivElement>(null)
@@ -232,7 +237,7 @@ export function VisorVideo({ versiones, tiempoInicial, grande, clave, alReintent
   const crearMarca = (nota: string, enviarYa: boolean) => {
     if (borrador == null || !actual) return
     const nueva = agregar({ tiempo: borrador, nota: nota.trim(), version: actual.archivo, ruta: actual.ruta })
-    if (enviarYa) { enviar([nueva]); avisar('Levy recibió el instante') }
+    if (enviarYa) { enviar([nueva]); avisar(tr('Levy recibió el instante')) }
     setBorrador(null); raiz.current?.focus()
   }
   const saltarAMarca = (m: Marca) => {
@@ -434,7 +439,7 @@ export function VisorVideo({ versiones, tiempoInicial, grande, clave, alReintent
   const escalaVista = pantalla ? 1.5 : 1
   const escalaRef = useRef(escalaVista); escalaRef.current = escalaVista
 
-  if (!actual) return <p className={v.aviso} role="alert">{fallidas[0]?.error ?? 'No se pudo abrir el video.'}</p>
+  if (!actual) return <p className={v.aviso} role="alert">{fallidas[0]?.error ? tr(fallidas[0].error) : tr('No se pudo abrir el video.')}</p>
   // El alto sigue a lo que se ve: un horizontal no deja franjas negras enormes; un vertical (los cortos 9:16) toma la pantalla
   // menos sus controles, sin pasarse de ella. Siempre en px de la interfaz (÷ zoom): ver altoDeEscenario.
   const vertical = !comparando && proporcion(actual.sonda) < 0.9
@@ -444,13 +449,13 @@ export function VisorVideo({ versiones, tiempoInicial, grande, clave, alReintent
   const Reproducir = reproduciendo ? Pause : Play
 
   return <div ref={raiz} className={v.video} data-grande={grande || undefined} data-pantalla={pantalla || undefined} data-quieto={mandoOculto || undefined}
-    tabIndex={0} onKeyDown={alTeclado} role="group" aria-label={`Video ${actual.archivo}`}
+    tabIndex={0} onKeyDown={alTeclado} role="group" aria-label={tr('Video {archivo}', { archivo: actual.archivo })}
     onPointerMove={pantalla ? despertar : undefined} onFocus={tocar} onPointerDownCapture={e => { tocar(); focoAlTocar(e); if (pantalla) despertar() }}>
-    {!pantalla && fallidas.map(f => <p key={f.ruta} className={v.aviso}>{f.archivo}: {f.error}</p>)}
-    {lista.length > 1 && <div className={v.versiones} role="tablist" aria-label="Versiones" {...sobre}>
+    {!pantalla && fallidas.map(f => <p key={f.ruta} className={v.aviso}>{f.archivo}: {tr(f.error ?? '')}</p>)}
+    {lista.length > 1 && <div className={v.versiones} role="tablist" aria-label={tr('Versiones')} {...sobre}>
       {lista.map((x, i) => <button key={x.ruta} type="button" role="tab" aria-selected={i === a} data-derecha={comparando && i === b || undefined}
         onClick={() => comparando && i !== a ? setB(i) : elegirVersion(i)} title={`${x.archivo} (${i + 1})`}>{x.archivo.replace(/\.[^.]+$/, '')}</button>)}
-      <button type="button" className={v.lado} aria-pressed={comparando} onClick={alternarLado} title="Dos versiones lado a lado (C)"><Columns2 size={14} aria-hidden />Lado a lado</button>
+      <button type="button" className={v.lado} aria-pressed={comparando} onClick={alternarLado} title={tr('Dos versiones lado a lado (C)')}><Columns2 size={14} aria-hidden />{tr('Lado a lado')}</button>
     </div>}
 
     <div ref={escenaRef} className={v.escena} data-dos={comparando || undefined} style={altoEscena ? { height: altoEscena } : undefined}>
@@ -459,7 +464,7 @@ export function VisorVideo({ versiones, tiempoInicial, grande, clave, alReintent
         return <figure key={x.ruta} className={v.cuadro} data-oculto={!visible || undefined} data-maestro={visible && comparando && i === a || undefined} aria-hidden={!visible}>
           {visible && comparando && <figcaption>{x.archivo}</figcaption>}
           <div className={v.pantalla}>
-            <video ref={el => { videos.current[i] = el }} src={x.url} muted playsInline preload={visible ? 'auto' : 'metadata'}
+            <video ref={el => { videos.current[i] = el }} src={x.url} muted playsInline preload={visible && !telefono ? 'auto' : 'metadata'}
               onLoadedMetadata={e => { const dv = e.currentTarget.duration; setDuraciones(d => ({ ...d, [i]: dv })) }}
               onTimeUpdate={() => { if (i === a) sincronizar() }} onSeeked={() => { if (i === a) { sincronizar(); alTerminarEspera() } }}
               onSeeking={() => { if (i === a) alEmpezarEspera() }} onWaiting={() => { if (i === a) alEmpezarEspera() }}
@@ -471,19 +476,19 @@ export function VisorVideo({ versiones, tiempoInicial, grande, clave, alReintent
         </figure>
       })}
       {/* En pausa, la tecla grande al centro: el primer toque del teléfono cae aquí. */}
-      {!reproduciendo && !comparando && <button type="button" className={`${tecla.enviar} ${v.teclaCentro}`} onClick={reproducir} aria-label="Reproducir"><Play aria-hidden /></button>}
+      {!reproduciendo && !comparando && <button type="button" className={`${tecla.enviar} ${v.teclaCentro}`} onClick={reproducir} aria-label={tr('Reproducir')}><Play aria-hidden /></button>}
       {aviso && <div className={v.toast} role="status">{aviso}</div>}
-      {espera && !falla && <div className={v.espera} role="status" aria-live="polite"><i aria-hidden /><span>Cargando…</span></div>}
-      {falla && <div className={v.falla} role="alert"><span>{falla}</span><button type="button" className={v.secundario} onClick={recuperar}>Reintentar</button></div>}
+      {espera && !falla && <div className={v.espera} role="status" aria-live="polite"><i aria-hidden /><span>{tr('Cargando…')}</span></div>}
+      {falla && <div className={v.falla} role="alert"><span>{falla}</span><button type="button" className={v.secundario} onClick={recuperar}>{tr('Reintentar')}</button></div>}
     </div>
 
     <div className={v.mando} {...sobre}>
-      <div ref={barra} className={v.barraTiempo} data-arrastrando={arrastrando || undefined} role="slider" aria-label="Posición" aria-valuemin={0} aria-valuemax={Math.round(dur)} aria-valuenow={Math.round(t)} aria-valuetext={formatoTiempo(t)}
+      <div ref={barra} className={v.barraTiempo} data-arrastrando={arrastrando || undefined} role="slider" aria-label={tr('Posición')} aria-valuemin={0} aria-valuemax={Math.round(dur)} aria-valuenow={Math.round(t)} aria-valuetext={formatoTiempo(t)}
         tabIndex={-1} onPointerDown={alBajar} onPointerMove={alMover} onPointerUp={e => { alSoltar(); if (e.pointerType !== 'mouse') ocultarVista() }} onPointerCancel={() => { alSoltar(); ocultarVista() }} onPointerLeave={() => { if (!arrastre.current) ocultarVista() }}>
         <i className={v.pista} />
         <i className={v.relleno} />
         {marcas.filter(m => m.ruta === actual.ruta).map(m => <button key={m.id} type="button" className={v.bandera} data-enviada={m.enviada || undefined} style={{ left: `${dur ? (m.tiempo / dur) * 100 : 0}%` }}
-          title={`${formatoTiempo(m.tiempo, { fps })} · ${m.nota || 'sin nota'}`} aria-label={`Marca en ${formatoTiempo(m.tiempo)}`} onPointerDown={e => e.stopPropagation()} onClick={() => irA(m.tiempo)} />)}
+          title={`${formatoTiempo(m.tiempo, { fps })} · ${m.nota || tr('sin nota')}`} aria-label={tr('Marca en {tiempo}', { tiempo: formatoTiempo(m.tiempo) })} onPointerDown={e => e.stopPropagation()} onClick={() => irA(m.tiempo)} />)}
         <b className={v.perilla} />
         <div ref={vista} className={v.vista} aria-hidden>
           {miniaturas && <i ref={cuadroVista} className={v.vistaCuadro} style={{ width: miniaturas.ancho * escalaVista, height: miniaturas.alto * escalaVista, backgroundImage: `url("${miniaturas.hoja}")`, backgroundSize: `${miniaturas.cols * miniaturas.ancho * escalaVista}px ${miniaturas.filas * miniaturas.alto * escalaVista}px` }} />}
@@ -491,16 +496,17 @@ export function VisorVideo({ versiones, tiempoInicial, grande, clave, alReintent
         </div>
       </div>
       <div className={v.controles}>
-        <button type="button" className={`${tecla.enviar} ${v.tecla}`} onClick={alternar} aria-label={reproduciendo ? 'Pausar' : 'Reproducir'} title="Reproducir o pausar (espacio)"><Reproducir aria-hidden /></button>
+        <button type="button" className={`${tecla.enviar} ${v.tecla}`} onClick={alternar} aria-label={reproduciendo ? tr('Pausar') : tr('Reproducir')} title={tr('Reproducir o pausar (espacio)')}><Reproducir aria-hidden /></button>
         <span className={v.tiempo}><b>{formatoTiempo(t)}</b><i> / {formatoTiempo(dur)}</i></span>
         <span className={v.empuje} aria-hidden />
-        <BotonVelocidad vel={vel} alCambiar={cambiarVelocidad} atajos="L acelera" />
-        <button type="button" className={v.icono} aria-pressed={!mudo} onClick={alternarSonido} aria-label={mudo ? 'Activar sonido' : 'Silenciar'} title="Sonido (S): abre silenciado">{mudo ? <VolumeX aria-hidden /> : <Volume2 aria-hidden />}</button>
-        <button type="button" className={v.icono} onClick={() => void alternarPantalla()} aria-label={pantalla ? 'Salir de pantalla completa' : 'Pantalla completa'} title={pantalla ? 'Salir (F o Esc)' : 'Pantalla completa (F)'}>{pantalla ? <Minimize aria-hidden /> : <Maximize aria-hidden />}</button>
+        <BotonVelocidad vel={vel} alCambiar={cambiarVelocidad} atajos={tr('L acelera')} />
+        <BotonDescargar url={actual.descarga} nombre={actual.archivo} className={v.icono} />
+        <button type="button" className={v.icono} aria-pressed={!mudo} onClick={alternarSonido} aria-label={mudo ? tr('Activar sonido') : tr('Silenciar')} title={tr('Sonido (S): abre silenciado')}>{mudo ? <VolumeX aria-hidden /> : <Volume2 aria-hidden />}</button>
+        <button type="button" className={v.icono} onClick={() => void alternarPantalla()} aria-label={pantalla ? tr('Salir de pantalla completa') : tr('Pantalla completa')} title={pantalla ? tr('Salir (F o Esc)') : tr('Pantalla completa (F)')}>{pantalla ? <Minimize aria-hidden /> : <Maximize aria-hidden />}</button>
       </div>
     </div>
 
     {borrador != null && <div className={v.sitioComposer} {...sobre}><ComposerMarca tiempo={borrador} fps={fps} version={actual.archivo} alEnviar={nota => crearMarca(nota, true)} alGuardar={nota => crearMarca(nota, false)} alCerrar={() => { setBorrador(null); raiz.current?.focus() }} /></div>}
-    {!pantalla && marcas.length > 0 && <ListaMarcas marcas={marcas} fps={fps} versionActual={actual.archivo} alSaltar={saltarAMarca} alQuitar={quitar} alEnviar={ms => { enviar(ms); avisar(ms.length > 1 ? `Levy recibió ${ms.length} instantes` : 'Levy recibió el instante') }} />}
+    {!pantalla && marcas.length > 0 && <ListaMarcas marcas={marcas} fps={fps} versionActual={actual.archivo} alSaltar={saltarAMarca} alQuitar={quitar} alEnviar={ms => { enviar(ms); avisar(ms.length > 1 ? tr('Levy recibió {n} instantes', { n: ms.length }) : tr('Levy recibió el instante')) }} />}
   </div>
 }

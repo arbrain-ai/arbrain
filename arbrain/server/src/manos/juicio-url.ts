@@ -29,6 +29,7 @@ import { citaCubre } from './cubre.js'
 import { anotarHechoSolo, claseDeCategoria, frenoApagado } from '../autonomia/politica.js'
 import { hostDe as host, hostNombradoEnVoz, parsearUrl as parsear, senalExfiltracion } from '../cliente/url.js'
 import { sitioSensible } from '../cabina/chrome-guard.js'
+import { motivoParaPersona } from './motivo-persona.js'
 
 /**
  * Dominios donde un agente nunca navega en la edición cliente (sufijos de host, sin `www.`), además de los sitios de
@@ -168,7 +169,7 @@ export async function frenarNavegacion(url: string, herramienta: HerramientaNave
     if (!cita && !autonomo) return { ok: false, categoria: j.categoria, texto: `FRENO (url_con_efecto): ${j.motivo}. ${esEdicionCliente() ? 'Dile a la persona en una línea qué quieres abrir y espera su respuesta en el chat (sus palabras cuentan solas como cita).' : 'Pide el pedido explícito de la persona y repite con confirmacion = su cita textual.'}` }
   }
   const humana = await confirmacionHumana({
-    categoria: categoriaDe(j.categoria, j.motivo), resumen: `${herramienta}: ${j.motivo}`.slice(0, 280),
+    categoria: categoriaDe(j.categoria, j.motivo), resumen: `${herramienta}: ${motivoParaPersona(j.motivo)}`.slice(0, 280),
     herramienta: `${herramienta === 'navegar' ? 'manos' : 'web'}:${herramienta}`, partes: [url, ...extra],
   })
   if (!humana.ok) return { ok: false, categoria: j.categoria, texto: humana.detalle }

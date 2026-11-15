@@ -9,6 +9,7 @@ import { esEdicionCliente } from '@/lib/edicion'
 import { LOCAL_DESKTOP_USER_ID } from '@/lib/desktop-auth'
 import { almacenAlumno } from '@/features/notifications/lib/almacenSupabase'
 import { avisoRespuestaLarga, debeAvisarRespuesta, entregarAvisoAlumno } from '@/features/notifications/lib/avisosAlumno'
+import { tr } from '@/shared/i18n'
 
 const OPENCLAW_GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN
 
@@ -90,7 +91,7 @@ export async function POST(req: NextRequest) {
     && payload.startedAt > 1_600_000_000_000 && payload.startedAt <= Date.now() + 60_000
     ? Math.floor(payload.startedAt) : null
 
-  const finalContent = assistantMessage || payload.error || (payload.terminalStatus === 'interrupted' ? 'Turno interrumpido.' : 'El turno terminó sin respuesta.')
+  const finalContent = assistantMessage || payload.error || (payload.terminalStatus === 'interrupted' ? 'Turno interrumpido.' : tr('El turno terminó sin respuesta.'))
   const supabase = createServiceClient()
   let sessionId = chatSessionId
   let saved = false
@@ -170,7 +171,7 @@ export async function POST(req: NextRequest) {
             // The conversation was deleted after the turn ran: nothing to attach
             // the result to. 410 tells the daemon's outbox to stop retrying.
             console.warn('[chat/complete] conversation gone', { turnId, sessionId })
-            return NextResponse.json({ error: 'La conversación ya no existe.', code: 'SESSION_GONE' }, { status: 410 })
+            return NextResponse.json({ error: tr('La conversación ya no existe.'), code: 'SESSION_GONE' }, { status: 410 })
           }
           if (insertError) {
             console.error('[chat/complete] insert failed', { turnId, role: row.role, error: insertError.message })
@@ -186,7 +187,7 @@ export async function POST(req: NextRequest) {
         const { error: insertError } = await supabase.from('chat_messages').insert(row)
         if (!insertError) { saved = true; continue }
         if (insertError.code === '23505') continue
-        if (insertError.code === '23503') return NextResponse.json({ error: 'La conversación ya no existe.', code: 'SESSION_GONE' }, { status: 410 })
+        if (insertError.code === '23503') return NextResponse.json({ error: tr('La conversación ya no existe.'), code: 'SESSION_GONE' }, { status: 410 })
         console.error('[chat/complete] injected insert failed', { turnId, injected: row.metadata.turnId, error: insertError.message })
         return NextResponse.json({ error: insertError.message }, { status: 500 })
       }
@@ -301,7 +302,7 @@ export async function POST(req: NextRequest) {
       const preview = assistantMessage.replace(/\s+/g, ' ').trim().slice(0, 120)
       const payloadStr = JSON.stringify({
         title: 'Levy',
-        body: preview || 'Tu respuesta esta lista',
+        body: preview || tr('Tu respuesta esta lista'),
         url: deepLinkUrl,
         tag,
         icon: '/icon-192.png',

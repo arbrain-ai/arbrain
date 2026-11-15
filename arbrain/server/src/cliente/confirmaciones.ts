@@ -15,6 +15,7 @@ import { createHash, randomBytes } from 'node:crypto'
 import type Database from 'better-sqlite3'
 import { avisoPatron, botonConsecuencia, frasePatron } from './frase-humana.js'
 import { venceSegunTexto, type MotivoCaducidad } from '../autonomia/caducidad.js'
+import { tr, trMarca } from '../i18n/tr.js'
 
 export type CategoriaConfirmacion = 'enviar' | 'pagar' | 'borrar' | 'publicar' | 'otra'
 /**
@@ -96,7 +97,17 @@ export interface Confirmacion {
   persona?: string
   /** Vista previa (ruta absoluta de una imagen local; la web la sirve por /api/local-image): la miniatura de lo que se publica. */
   imagen?: string
+  /** El órgano del negocio que toca (mapa v16, 14 nov 2026): la tarjeta aparece sobre ese órgano del mapa (`ORGANOS_TARJETA`). */
+  organo?: OrganoTarjeta
 }
+
+/**
+ * Los órganos del mapa del negocio (los mismos de `features/negocio/pulso.ts` en la web). Una tarjeta DECLARA cuál toca
+ * (`--organo` al subirla); el mapa la pinta sobre ese órgano, sin adivinar por palabras.
+ */
+export const ORGANOS_TARJETA = ['marketing', 'venta', 'comprador', 'entrega', 'finanzas', 'sistemas'] as const
+export type OrganoTarjeta = (typeof ORGANOS_TARJETA)[number]
+export const organoValido = (x: unknown): OrganoTarjeta | null => (typeof x === 'string' && (ORGANOS_TARJETA as readonly string[]).includes(x) ? x as OrganoTarjeta : null)
 
 /** Conversación de la app donde vive el turno (la misma forma que un despertador). */
 export interface ConversacionConfirmacion { owner: string; account: string; conversationId: string }
@@ -131,6 +142,8 @@ export interface PedidoConfirmacion {
   persona?: string
   /** Vista previa: ruta absoluta de una imagen (png, jpg, webp). Otra cosa se ignora. */
   imagen?: string
+  /** El órgano que toca (uno de `ORGANOS_TARJETA`); otra cosa se ignora. */
+  organo?: string
 }
 
 /** El límite pedido, si es un instante futuro y no pasa del tope de su vida normal; si no, null (rige la vida normal). */
@@ -199,9 +212,10 @@ interface Fila {
   titulo: string | null; recomendacion: string | null; recomienda: string | null; respuesta: string | null; usos: number | null
   persona?: string | null
   imagen?: string | null
+  organo?: string | null
 }
 const COLUMNAS_PLAY = [['tipo', 'TEXT'], ['frase', 'TEXT'], ['patron', 'TEXT'], ['comentario', 'TEXT'], ['alcance', 'TEXT'], ['terminal', 'INTEGER'], ['salida', 'TEXT'], ['codigo', 'INTEGER'], ['sesion', 'TEXT'], ['conversacion', 'TEXT'], ['cola', 'INTEGER'],
-  ['titulo', 'TEXT'], ['recomendacion', 'TEXT'], ['recomienda', 'TEXT'], ['respuesta', 'TEXT'], ['usos', 'INTEGER'], ['persona', 'TEXT'], ['imagen', 'TEXT']] as const
+  ['titulo', 'TEXT'], ['recomendacion', 'TEXT'], ['recomienda', 'TEXT'], ['respuesta', 'TEXT'], ['usos', 'INTEGER'], ['persona', 'TEXT'], ['imagen', 'TEXT'], ['organo', 'TEXT']] as const
 
 const leerConversacion = (s: string | null): ConversacionConfirmacion | null => {
   try {
@@ -239,6 +253,7 @@ const publica = (f: Fila): Confirmacion => ({
   ...(f.usos ? { usos: f.usos } : {}),
   ...(f.persona ? { persona: f.persona } : {}),
   ...(f.imagen ? { imagen: f.imagen } : {}),
+  ...(organoValido(f.organo) ? { organo: organoValido(f.organo)! } : {}),
 })
 
 /** Una vista previa válida: ruta absoluta a una imagen, sin `..` ni controles (la web vuelve a juzgarla al servirla). */
@@ -372,7 +387,7 @@ export class Confirmaciones {
   /** Crea (o reutiliza, si la misma acción ya espera) una confirmación pendiente. */
   pedir(p: PedidoConfirmacion): Confirmacion {
     // Nunca se guarda un literal recortado: se aprobaría sobre texto incompleto (la política ya niega lo que no cabe).
-    if (p.literal && String(p.literal).length > 4000) throw new Error('Literal demasiado largo para que la persona lo revise completo.')
+    if (p.literal && String(p.literal).length > 4000) throw new Error(tr('Literal demasiado largo para que la persona lo revise completo.'))
     this.vencer()
     const categoria = CATEGORIAS.has(p.categoria) ? p.categoria : 'otra'
     const origen = ORIGENES.has(p.origen) ? p.origen : 'agente'
@@ -381,7 +396,7 @@ export class Confirmaciones {
     // Una decisión que Levy vuelve a subir con otra recomendación o texto la actualiza en su lugar (no se apila).
     if (viva && p.tipo === 'decision' && (viva.estado === 'pendiente' || viva.estado === 'en_cola')) {
       const expira = limiteDe(p.expira, ahora, viva.creada + (viva.estado === 'en_cola' ? VIDA_COLA_MS : VIDA_PENDIENTE_MS)) ?? viva.expira
-      this.db.prepare(`UPDATE confirmaciones SET titulo = ?, recomendacion = ?, recomienda = ?, detalle = ?, expira = ? WHERE id = ?`).run(p.titulo ? String(p.titulo).slice(0, 160) : viva.titulo, p.recomendacion ? String(p.recomendacion).slice(0, 600) : viva.recomendacion, p.recomienda === 'si' || p.recomienda === 'no' ? p.recomienda : viva.recomienda, p.detalle ? String(p.detalle).slice(0, 2000) : viva.detalle, expira, viva.id)
+      this.db.prepare(`UPDATE confirmaciones SET titulo = ?, recomendacion = ?, recomienda = ?, detalle = ?, expira = ?, organo = ? WHERE id = ?`).run(p.titulo ? String(p.titulo).slice(0, 160) : viva.titulo, p.recomendacion ? String(p.recomendacion).slice(0, 600) : viva.recomendacion, p.recomienda === 'si' || p.recomienda === 'no' ? p.recomienda : viva.recomienda, p.detalle ? String(p.detalle).slice(0, 2000) : viva.detalle, expira, organoValido(p.organo) ?? viva.organo ?? null, viva.id)
       return this.get(viva.id)!
     }
     // La misma acción ya estaba en la cola y el agente la vuelve a pedir: vuelve a ser una pendiente que un turno espera
@@ -393,7 +408,7 @@ export class Confirmaciones {
     if (viva) return publica(viva)
     const f: Fila = {
       id: `cf_${randomBytes(6).toString('hex')}`, estado: p.enCola ? 'en_cola' : 'pendiente', categoria, origen,
-      resumen: String(p.resumen ?? '').slice(0, 300) || 'Acción irreversible', detalle: p.detalle ? String(p.detalle).slice(0, 2000) : null,
+      resumen: String(p.resumen ?? '').slice(0, 300) || tr('Acción irreversible'), detalle: p.detalle ? String(p.detalle).slice(0, 2000) : null,
       herramienta: p.herramienta ? String(p.herramienta).slice(0, 120) : null,
       literal: p.literal ? String(p.literal) : null, avisos: p.avisos?.length ? JSON.stringify(p.avisos.map(String).slice(0, 8)) : null,
       creada_por: p.creadaPor === 'peticion' ? 'peticion' : 'guardia', huella: String(p.huella).slice(0, 160),
@@ -407,9 +422,10 @@ export class Confirmaciones {
       recomienda: p.recomienda === 'si' || p.recomienda === 'no' ? p.recomienda : null, respuesta: null, usos: null,
       persona: typeof p.persona === 'string' && p.persona.trim() ? p.persona.replace(/\s+/g, ' ').trim().slice(0, 60) : null,
       imagen: imagenValida(p.imagen),
+      organo: organoValido(p.organo),
     }
-    this.db.prepare(`INSERT INTO confirmaciones (id, estado, categoria, origen, resumen, detalle, herramienta, literal, avisos, creada_por, huella, creada, expira, resuelta, tipo, frase, patron, comentario, alcance, terminal, salida, codigo, sesion, conversacion, cola, titulo, recomendacion, recomienda, respuesta, usos, persona, imagen)
-      VALUES (@id, @estado, @categoria, @origen, @resumen, @detalle, @herramienta, @literal, @avisos, @creada_por, @huella, @creada, @expira, @resuelta, @tipo, @frase, @patron, @comentario, @alcance, @terminal, @salida, @codigo, @sesion, @conversacion, @cola, @titulo, @recomendacion, @recomienda, @respuesta, @usos, @persona, @imagen)`).run(f)
+    this.db.prepare(`INSERT INTO confirmaciones (id, estado, categoria, origen, resumen, detalle, herramienta, literal, avisos, creada_por, huella, creada, expira, resuelta, tipo, frase, patron, comentario, alcance, terminal, salida, codigo, sesion, conversacion, cola, titulo, recomendacion, recomienda, respuesta, usos, persona, imagen, organo)
+      VALUES (@id, @estado, @categoria, @origen, @resumen, @detalle, @herramienta, @literal, @avisos, @creada_por, @huella, @creada, @expira, @resuelta, @tipo, @frase, @patron, @comentario, @alcance, @terminal, @salida, @codigo, @sesion, @conversacion, @cola, @titulo, @recomendacion, @recomienda, @respuesta, @usos, @persona, @imagen, @organo)`).run(f)
     const c = publica(f)
     this.avisar('pendiente', c)
     return c
@@ -423,15 +439,15 @@ export class Confirmaciones {
   resolver(id: string, decision: unknown, extras: ExtrasDecision = {}): { ok: true; confirmacion: Confirmacion } | { ok: false; status: number; error: string } {
     // Bandeja (autonomía v2): «otro» = no lo que se pidió, sino lo que la persona escribe. Nunca ejecuta la acción.
     const otro = decision === 'otro'
-    if (otro && !limpiarComentario(extras.comentario)) return { ok: false, status: 400, error: '«Otro» necesita que escribas qué quieres en su lugar.' }
+    if (otro && !limpiarComentario(extras.comentario)) return { ok: false, status: 400, error: tr('«Otro» necesita que escribas qué quieres en su lugar.') }
     if (otro) decision = 'rechazar'
-    if (decision !== 'permitir' && decision !== 'rechazar') return { ok: false, status: 400, error: 'decision debe ser «permitir», «rechazar» u «otro».' }
+    if (decision !== 'permitir' && decision !== 'rechazar') return { ok: false, status: 400, error: tr('decision debe ser «permitir», «rechazar» u «otro».') }
     const actual = this.get(id)
-    if (!actual) return { ok: false, status: 404, error: 'No existe esa confirmación.' }
-    if (actual.estado !== 'pendiente' && actual.estado !== 'en_cola') return { ok: false, status: 409, error: `La confirmación ya está ${actual.estado}.` }
-    if (decision === 'permitir' && actual.tipo === 'manos') return { ok: false, status: 409, error: 'Esto no lo corre el agente: córrelo tú desde la tarjeta o recházalo.' }
+    if (!actual) return { ok: false, status: 404, error: tr('No existe esa confirmación.') }
+    if (actual.estado !== 'pendiente' && actual.estado !== 'en_cola') return { ok: false, status: 409, error: tr('La confirmación ya está {estado}.', { estado: tr(actual.estado) }) }
+    if (decision === 'permitir' && actual.tipo === 'manos') return { ok: false, status: 409, error: tr('Esto no lo corre el agente: córrelo tú desde la tarjeta o recházalo.') }
     const alcance: AlcanceConfirmacion = extras.alcance === 'siempre' ? 'siempre' : 'una'
-    if (decision === 'permitir' && alcance === 'siempre' && !actual.patron) return { ok: false, status: 409, error: 'Esta acción no se puede aprobar para siempre: solo una vez.' }
+    if (decision === 'permitir' && alcance === 'siempre' && !actual.patron) return { ok: false, status: 409, error: tr('Esta acción no se puede aprobar para siempre: solo una vez.') }
     const comentario = limpiarComentario(extras.comentario) || null
     const ahora = this.ahora()
     const estado: EstadoConfirmacion = decision === 'permitir' ? 'permitida' : 'rechazada'
@@ -442,7 +458,7 @@ export class Confirmaciones {
     const cambio = this.db.prepare(`UPDATE confirmaciones SET estado = ?, resuelta = ?, expira = ?, comentario = ?, alcance = ?, respuesta = ? WHERE id = ? AND estado = ?`)
       // Un Sí nunca estira una decisión atada a una hora: si la hora llega antes de que Levy la use, vence igual.
       .run(estado, ahora, estado === 'permitida' ? Math.min(ahora + vida, actual.tipo === 'decision' ? actual.expira : Infinity) : actual.expira, comentario, decision === 'permitir' ? alcance : null, respuesta, id, actual.estado).changes
-    if (cambio !== 1) return { ok: false, status: 409, error: 'La confirmación cambió mientras tanto.' }
+    if (cambio !== 1) return { ok: false, status: 409, error: tr('La confirmación cambió mientras tanto.') }
     const c = this.get(id)!
     this.avisar('resuelta', c)
     // Una decisión de Levy nadie la espera en el momento: su respuesta siempre vuelve a su conversación.
@@ -490,14 +506,14 @@ export class Confirmaciones {
   /** «Córrelo tú»: la persona apretó el botón. Pasa a `corriendo` (con su terminal) si seguía pendiente. */
   empezarCorrida(id: string, terminal: number, extras: ExtrasDecision = {}, vidaMs = VIDA_CORRIDA_MS): { ok: true; confirmacion: Confirmacion } | { ok: false; status: number; error: string } {
     const actual = this.get(id)
-    if (!actual) return { ok: false, status: 404, error: 'No existe esa confirmación.' }
-    if (actual.tipo !== 'manos') return { ok: false, status: 409, error: 'Esta confirmación no es para correrla tú.' }
-    if (actual.estado !== 'pendiente' && actual.estado !== 'en_cola') return { ok: false, status: 409, error: `La confirmación ya está ${actual.estado}.` }
+    if (!actual) return { ok: false, status: 404, error: tr('No existe esa confirmación.') }
+    if (actual.tipo !== 'manos') return { ok: false, status: 409, error: tr('Esta confirmación no es para correrla tú.') }
+    if (actual.estado !== 'pendiente' && actual.estado !== 'en_cola') return { ok: false, status: 409, error: tr('La confirmación ya está {estado}.', { estado: tr(actual.estado) }) }
     const ahora = this.ahora()
     // Desde la cola, `cola` queda marcada: al terminar, la salida va al agente por su conversación (nadie la espera).
     const ok = this.db.prepare(`UPDATE confirmaciones SET estado = 'corriendo', resuelta = ?, expira = ?, terminal = ?, comentario = ? WHERE id = ? AND estado IN ('pendiente','en_cola')`)
       .run(ahora, ahora + vidaMs, terminal, limpiarComentario(extras.comentario) || null, id).changes === 1
-    if (!ok) return { ok: false, status: 409, error: 'La confirmación cambió mientras tanto.' }
+    if (!ok) return { ok: false, status: 409, error: tr('La confirmación cambió mientras tanto.') }
     const c = this.get(id)!
     this.avisar('resuelta', c)
     return { ok: true, confirmacion: c }
@@ -555,8 +571,8 @@ export function pedidoManos(cuerpo: Record<string, unknown>): { error: string; s
   const motivo = typeof cuerpo.motivo === 'string' ? cuerpo.motivo.replace(/\s+/g, ' ').trim().slice(0, 200) : ''
   return {
     herramienta, literal, categoria, huella: huellaManos(herramienta, cuerpo.partes),
-    resumen: `Levy usando tu computadora: ${literal.slice(0, 160)}`,
-    ...(motivo ? { detalle: `Motivo que declaró quien la pidió (sin verificar): ${motivo}` } : {}),
+    resumen: tr('Levy usando tu computadora: {accion}', { accion: literal.slice(0, 160) }),
+    ...(motivo ? { detalle: tr('Motivo que declaró quien la pidió (sin verificar): {motivo}', { motivo }) } : {}),
   }
 }
 
@@ -575,22 +591,22 @@ export function vistaParaPase(c: Confirmacion | null): { id: string; estado: Est
 export interface AccionIrreversible { categoria: CategoriaConfirmacion; resumen: string; detalle?: string }
 
 const BASH_IRREVERSIBLE: Array<{ re: RegExp; categoria: CategoriaConfirmacion; que: string }> = [
-  { re: /\bgit\s+push\b/, categoria: 'publicar', que: 'Subir cambios (git push)' },
-  { re: /\b(?:npm|pnpm|yarn|bun)\s+publish\b|\bcargo\s+publish\b|\btwine\s+upload\b|\bgem\s+push\b/, categoria: 'publicar', que: 'Publicar un paquete' },
-  { re: /\bgh\s+(?:release\s+create|pr\s+(?:create|merge)|repo\s+(?:create|delete)|issue\s+create|gist\s+create)\b/, categoria: 'publicar', que: 'Publicar en GitHub' },
-  { re: /\b(?:vercel|netlify|firebase|fly|flyctl|wrangler|railway)\b[^|;&]*\b(?:deploy|publish|--prod)\b|\bdocker\s+push\b/, categoria: 'publicar', que: 'Desplegar o publicar' },
-  { re: /(?:^|[;&|(]\s*|\s)(?:rm|rmdir|unlink|shred|trash)\s+\S/, categoria: 'borrar', que: 'Borrar archivos' },
-  { re: /\bfind\b[^|;&]*\s-delete\b|\bgit\s+branch\s+-D\b|\bRemove-Item\b|(?:^|[;&|]\s*)(?:del|rd)\s+\S/i, categoria: 'borrar', que: 'Borrar archivos o ramas' },
-  { re: /\b(?:sendmail|mailx?|mutt)\b|\bgog\s+gmail\s+send\b/, categoria: 'enviar', que: 'Enviar un correo' },
-  { re: /\bcurl\b[^|;&]*(?:\s-X\s*(?:POST|PUT|PATCH|DELETE)\b|\s--request\s+(?:POST|PUT|PATCH|DELETE)\b|\s(?:-d|--data(?:-\w+)?|-F|--form|--json)\s)|\bwget\b[^|;&]*--post-(?:data|file)\b|\bInvoke-(?:WebRequest|RestMethod)\b[^|;&]*-Method\s+(?:Post|Put|Patch|Delete)\b/i, categoria: 'enviar', que: 'Enviar datos a internet' },
-  { re: /\bstripe\b[^|;&]*\b(?:create|pay|confirm|capture|refund|refunds|payouts|transfers|charges|payment_intents)\b/, categoria: 'pagar', que: 'Cobrar o pagar' },
+  { re: /\bgit\s+push\b/, categoria: 'publicar', que: trMarca('Subir cambios (git push)') },
+  { re: /\b(?:npm|pnpm|yarn|bun)\s+publish\b|\bcargo\s+publish\b|\btwine\s+upload\b|\bgem\s+push\b/, categoria: 'publicar', que: trMarca('Publicar un paquete') },
+  { re: /\bgh\s+(?:release\s+create|pr\s+(?:create|merge)|repo\s+(?:create|delete)|issue\s+create|gist\s+create)\b/, categoria: 'publicar', que: trMarca('Publicar en GitHub') },
+  { re: /\b(?:vercel|netlify|firebase|fly|flyctl|wrangler|railway)\b[^|;&]*\b(?:deploy|publish|--prod)\b|\bdocker\s+push\b/, categoria: 'publicar', que: trMarca('Desplegar o publicar') },
+  { re: /(?:^|[;&|(]\s*|\s)(?:rm|rmdir|unlink|shred|trash)\s+\S/, categoria: 'borrar', que: trMarca('Borrar archivos') },
+  { re: /\bfind\b[^|;&]*\s-delete\b|\bgit\s+branch\s+-D\b|\bRemove-Item\b|(?:^|[;&|]\s*)(?:del|rd)\s+\S/i, categoria: 'borrar', que: trMarca('Borrar archivos o ramas') },
+  { re: /\b(?:sendmail|mailx?|mutt)\b|\bgog\s+gmail\s+send\b/, categoria: 'enviar', que: trMarca('Enviar un correo') },
+  { re: /\bcurl\b[^|;&]*(?:\s-X\s*(?:POST|PUT|PATCH|DELETE)\b|\s--request\s+(?:POST|PUT|PATCH|DELETE)\b|\s(?:-d|--data(?:-\w+)?|-F|--form|--json)\s)|\bwget\b[^|;&]*--post-(?:data|file)\b|\bInvoke-(?:WebRequest|RestMethod)\b[^|;&]*-Method\s+(?:Post|Put|Patch|Delete)\b/i, categoria: 'enviar', que: trMarca('Enviar datos a internet') },
+  { re: /\bstripe\b[^|;&]*\b(?:create|pay|confirm|capture|refund|refunds|payouts|transfers|charges|payment_intents)\b/, categoria: 'pagar', que: trMarca('Cobrar o pagar') },
 ]
 
 const MCP_IRREVERSIBLE: Array<{ re: RegExp; categoria: CategoriaConfirmacion; que: string }> = [
-  { re: /(?:^|_)(?:pay|payment|pagar|pago|charge|cobrar|cobro|purchase|comprar|checkout|transfer|transferir|refund)(?:_|$)/i, categoria: 'pagar', que: 'Pagar o cobrar' },
-  { re: /(?:^|_)(?:publish|publicar|post|tweet|deploy|release|share|compartir)(?:_|$)/i, categoria: 'publicar', que: 'Publicar' },
-  { re: /(?:^|_)(?:send|enviar|reply|responder|forward|reenviar|invite|invitar)(?:_|$)/i, categoria: 'enviar', que: 'Enviar' },
-  { re: /(?:^|_)(?:delete|borrar|eliminar|remove|trash|destroy|drop|purge)(?:_|$)/i, categoria: 'borrar', que: 'Borrar' },
+  { re: /(?:^|_)(?:pay|payment|pagar|pago|charge|cobrar|cobro|purchase|comprar|checkout|transfer|transferir|refund)(?:_|$)/i, categoria: 'pagar', que: trMarca('Pagar o cobrar') },
+  { re: /(?:^|_)(?:publish|publicar|post|tweet|deploy|release|share|compartir)(?:_|$)/i, categoria: 'publicar', que: trMarca('Publicar') },
+  { re: /(?:^|_)(?:send|enviar|reply|responder|forward|reenviar|invite|invitar)(?:_|$)/i, categoria: 'enviar', que: trMarca('Enviar') },
+  { re: /(?:^|_)(?:delete|borrar|eliminar|remove|trash|destroy|drop|purge)(?:_|$)/i, categoria: 'borrar', que: trMarca('Borrar') },
 ]
 
 /** ¿Esta herramienta, con este input, envía, paga, borra o publica? Pura. */
@@ -598,14 +614,14 @@ export function accionIrreversible(herramienta: string, input: unknown): AccionI
   const i = (input ?? {}) as Record<string, unknown>
   if (herramienta === 'Bash' || /(^|__)(bash|shell|exec)$/i.test(herramienta)) {
     const cmd = typeof i.command === 'string' ? i.command : typeof i.cmd === 'string' ? i.cmd : ''
-    for (const p of BASH_IRREVERSIBLE) if (p.re.test(cmd)) return { categoria: p.categoria, resumen: `${p.que}: ${cmd.replace(/\s+/g, ' ').trim().slice(0, 160)}`, detalle: cmd.slice(0, 2000) }
+    for (const p of BASH_IRREVERSIBLE) if (p.re.test(cmd)) return { categoria: p.categoria, resumen: `${tr(p.que)}: ${cmd.replace(/\s+/g, ' ').trim().slice(0, 160)}`, detalle: cmd.slice(0, 2000) }
     return null
   }
   if (herramienta.startsWith('mcp__')) {
     const accion = herramienta.split('__').slice(2).join('__')
     // Las herramientas propias de Arbrain (cabina, manos) tienen su propio freno.
     if (/^mcp__(?:cabina|manos|live)__/.test(herramienta)) return null
-    for (const p of MCP_IRREVERSIBLE) if (p.re.test(accion)) return { categoria: p.categoria, resumen: `${p.que}: ${herramienta}`, detalle: JSON.stringify(input ?? {}).slice(0, 2000) }
+    for (const p of MCP_IRREVERSIBLE) if (p.re.test(accion)) return { categoria: p.categoria, resumen: `${tr(p.que)}: ${herramienta}`, detalle: JSON.stringify(input ?? {}).slice(0, 2000) }
   }
   return null
 }

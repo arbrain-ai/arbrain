@@ -47,7 +47,7 @@ test('«Nuevo»: corrió bien después de la última vez que lo vio; un fallo o 
 
 test('la pestaña: sección «De Arbrain», Activar en un clic, probar sin activar y aviso de la suscripción', () => {
   const vista = readFileSync(join(__dirname, '../../src/features/rutinas/RutinasCliente.tsx'), 'utf8')
-  assert.match(vista, />De Arbrain</)
+  assert.match(vista, />\{tr\('De Arbrain'\)\}</)
   assert.match(vista, /Vienen en pausa: actívalas en un clic/)
   assert.match(vista, /'Activar'/)
   assert.match(vista, /'Probar una vez'/)
@@ -71,7 +71,7 @@ test('resumen acorta una ruta relativa a su nombre, sin pegar el primer tramo (�
 
 test('«Lo que hizo» muestra la ruta exacta que anotó el daemon, no una carpeta armada en la web', () => {
   const vista = readFileSync(join(__dirname, '../../src/features/rutinas/RutinasCliente.tsx'), 'utf8')
-  assert.match(vista, /title=\{r\.reporte\}>Reporte completo en \{lugarReporte\(r\.reporte\)\}/)
+  assert.match(vista, /title=\{r\.reporte\}>\{tr\('Reporte completo en \{lugar\}\.', \{ lugar: tr\(lugarReporte\(r\.reporte\)\) \}\)\}/)
   assert.doesNotMatch(vista, /\{r\.carpeta\}\//)
 })
 
@@ -82,5 +82,5 @@ test('al dueño se le dice «tus reportes», nunca «.claude/reportes/» (Daniel
   assert.equal(lugarReporte('.claude\\reportes\\semanal\\2026-11-01.md'), 'tus reportes › semanal › 2026-11-01')
   assert.equal(lugarReporte('otra/carpeta/x.md'), 'otra/carpeta/x.md')
   const vista = readFileSync(join(__dirname, '../../src/features/rutinas/RutinasCliente.tsx'), 'utf8')
-  assert.match(vista, /Su reporte quedará en \$\{lugarReporte\(r\.carpeta\)\}/)
+  assert.match(vista, /Su reporte quedará en \{lugar\}\.', \{ lugar: tr\(lugarReporte\(r\.carpeta\)\) \}/)
 })

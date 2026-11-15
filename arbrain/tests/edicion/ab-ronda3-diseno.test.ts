@@ -50,7 +50,7 @@ test('3 · bienvenida: los pedidos van solo en los botones, con una línea que i
   for (const p of PEDIDOS_BIENVENIDA) { assert.ok(!m.includes(p.texto), p.texto); assert.ok(!m.includes(p.para), p.para) }
   assert.match(m, /toca uno de los botones de abajo o escríbeme lo tuyo/)
   // El «para qué» de cada pedido viaja en el botón.
-  assert.match(fuente('src/features/chat/components/ChatPanel.tsx'), /onClick=\{\(\) => handleSend\(p\.texto\)\}\s*title=\{p\.para/)
+  assert.match(fuente('src/features/chat/components/ChatPanel.tsx'), /onClick=\{\(\) => handleSend\(tr\(p\.texto\)\)\}\s*title=\{tr\(p\.para\)/)
 })
 
 test('4 · nombre: el que dio la persona; sin nombre, «Tú» en el pie y Levy saluda sin nombre', () => {

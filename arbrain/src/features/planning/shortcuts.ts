@@ -1,4 +1,5 @@
 import type { CalendarMode } from './types'
+import { trMarca } from '@/shared/i18n'
 
 /** Atajos de la sección Calendario (los de sfcal que Daniel ya tiene en los dedos). Teclas sin modificador, salvo
  *  ⌘Z. No chocan con los globales: Ctrl+1…7 son las áreas, Ctrl+D/W/M llevan al Calendario del panel en su escala
@@ -30,17 +31,17 @@ export function calendarAction(e: KeyLike): CalendarAction | null {
 }
 
 export const CALENDAR_SHORTCUTS: { teclas: string[]; accion: string }[] = [
-  { teclas: ['D', 'S', 'M', 'H'], accion: 'Día · Semana · Mes · Hábitos (repetir la activa lleva a hoy)' },
-  { teclas: ['←', '→'], accion: 'Semana: un día antes o después (también deslizando). Día y Mes: su periodo' },
-  { teclas: ['Y', 'A', '7'], accion: 'Año · Agenda · Rutinas' },
-  { teclas: ['T', '.'], accion: 'Ir a hoy y a la hora actual' },
-  { teclas: ['1', '2', '3'], accion: 'Con el foco en los hábitos del Día: marcan su casilla' },
-  { teclas: ['1', '2', '3', '4'], accion: 'Con el mouse sobre una tarea del Hoy: su prioridad, como en Todoist (también la bandera o clic derecho)' },
-  { teclas: ['E'], accion: 'Evento nuevo (también N)' },
-  { teclas: ['R'], accion: 'Tarea nueva' },
-  { teclas: ['Supr'], accion: 'Borrar el evento seleccionado' },
-  { teclas: ['⌘', 'Z'], accion: 'Deshacer la última acción' },
-  { teclas: ['⇧', '⌘', 'Z'], accion: 'Rehacer lo deshecho' },
-  { teclas: ['⌥', '↑', '↓'], accion: 'Mover 15 min el bloque con el foco (⌥ ← → un día)' },
-  { teclas: ['Esc'], accion: 'Cancelar el arrastre o cerrar el editor' },
+  { teclas: ['D', 'S', 'M', 'H'], accion: trMarca('Día · Semana · Mes · Hábitos (repetir la activa lleva a hoy)') },
+  { teclas: ['←', '→'], accion: trMarca('Semana: un día antes o después (también deslizando). Día y Mes: su periodo') },
+  { teclas: ['Y', 'A', '7'], accion: trMarca('Año · Agenda · Rutinas') },
+  { teclas: ['T', '.'], accion: trMarca('Ir a hoy y a la hora actual') },
+  { teclas: ['1', '2', '3'], accion: trMarca('Con el foco en los hábitos del Día: marcan su casilla') },
+  { teclas: ['1', '2', '3', '4'], accion: trMarca('Con el mouse sobre una tarea del Hoy: su prioridad, como en Todoist (también la bandera o clic derecho)') },
+  { teclas: ['E'], accion: trMarca('Evento nuevo (también N)') },
+  { teclas: ['R'], accion: trMarca('Tarea nueva') },
+  { teclas: [trMarca('Supr')], accion: trMarca('Borrar el evento seleccionado') },
+  { teclas: ['⌘', 'Z'], accion: trMarca('Deshacer la última acción') },
+  { teclas: ['⇧', '⌘', 'Z'], accion: trMarca('Rehacer lo deshecho') },
+  { teclas: ['⌥', '↑', '↓'], accion: trMarca('Mover 15 min el bloque con el foco (⌥ ← → un día)') },
+  { teclas: ['Esc'], accion: trMarca('Cancelar el arrastre o cerrar el editor') },
 ]

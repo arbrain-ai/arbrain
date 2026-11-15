@@ -25,7 +25,7 @@ test('el selector usa la primitiva anclada al chip, con lista de scroll interno 
   assert.match(picker, /<PopoverAnclado[\s\S]*ancla=\{ancla\}/)
   assert.match(picker, /className=\{css\.lista\} data-popover-scroll/)
   assert.ok(!/w-full bg-card\/96/.test(picker), 'ya no ocupa todo el ancho del chat')
-  assert.equal(picker.match(/Otro motor: abre una conversación nueva<\/p>/g)?.length, 1)
+  assert.equal(picker.match(/Otro motor: abre una conversación nueva'\)\}<\/p>/g)?.length, 1)
   const chat = readFileSync(new URL('../../src/features/chat/components/ChatPanel.tsx', import.meta.url), 'utf8')
   assert.match(chat, /ancla=\{modelChipRef\}/)
   assert.match(chat, /ref=\{modelChipRef\}/)

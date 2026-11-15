@@ -9,6 +9,7 @@
 export type { Subagente, EstadoTerminal, Terminal, Servidor, Servicio, Trabajos, TareaInterna, Proceso, AreaServicio } from '../trabajos-modelo'
 export { esAgente } from '../trabajos-modelo'
 import { urlTrabajos, type EstadoTerminal, type Servidor, type Terminal } from '../trabajos-modelo'
+import { tr } from '@/shared/i18n/tr'
 
 /** Lista: 6 líneas por terminal (la MISMA URL que la vista «trabajos»: una lectura para las dos).
  *  Con una terminal abierta: 30 (el tope del Studio). */
@@ -16,7 +17,7 @@ export const urlPanel = (detalle: boolean) => urlTrabajos(detalle ? 30 : 6)
 
 /** El nombre que le dio Levy; si no, el título de SFTerm sin el glifo de su spinner (◐ ◑ ✳ …);
  *  si tampoco, qué corre y dónde. Nunca «#11»: el número es del motor, no del dueño. */
-export const nombreTerminal = (t: Terminal) => t.subagente?.nombre ?? (t.titulo.replace(/^[^\p{L}\p{N}~/]+/u, '').trim() || `${programa(t)} en ${t.cwd.split('/').filter(Boolean).at(-1) ?? 'tu carpeta'}`)
+export const nombreTerminal = (t: Terminal) => t.subagente?.nombre ?? (t.titulo.replace(/^[^\p{L}\p{N}~/]+/u, '').trim() || tr('{programa} en {carpeta}', { programa: programa(t), carpeta: t.cwd.split('/').filter(Boolean).at(-1) ?? tr('tu carpeta') }))
 const programa = (t: Terminal) => { const p = (t.subagente?.harness ?? t.proc).toLowerCase(); return p === 'claude' ? 'Claude' : p === 'codex' ? 'Codex' : /^(zsh|bash|fish|sh)$/.test(p) ? 'Terminal' : p }
 /** La última acción del agente en palabras del dueño: «Editó Cabina.tsx», no «Update(src/…)». */
 export function accionLegible(a: string | null): string | null {
@@ -25,24 +26,24 @@ export function accionLegible(a: string | null): string | null {
   if (!m) return a
   const [, herramienta, arg = ''] = m, archivo = arg.split(/[\s,)]/)[0].split('/').filter(Boolean).at(-1) ?? ''
   switch (herramienta) {
-    case 'Bash': return 'Ejecutó un comando'
-    case 'Read': return archivo ? `Leyó ${archivo}` : 'Leyó un archivo'
-    case 'Edit': case 'Update': case 'MultiEdit': return archivo ? `Editó ${archivo}` : 'Editó un archivo'
-    case 'Write': return archivo ? `Escribió ${archivo}` : 'Escribió un archivo'
-    case 'Grep': case 'Glob': case 'Search': return 'Buscó en el código'
-    case 'WebFetch': case 'WebSearch': return 'Investigó en la web'
-    case 'Task': case 'Agent': return 'Lanzó un subagente'
-    default: return /^mcp__/.test(herramienta) ? `Usó ${herramienta.split('__').at(-1)}` : a
+    case 'Bash': return tr('Ejecutó un comando')
+    case 'Read': return archivo ? tr('Leyó {archivo}', { archivo }) : tr('Leyó un archivo')
+    case 'Edit': case 'Update': case 'MultiEdit': return archivo ? tr('Editó {archivo}', { archivo }) : tr('Editó un archivo')
+    case 'Write': return archivo ? tr('Escribió {archivo}', { archivo }) : tr('Escribió un archivo')
+    case 'Grep': case 'Glob': case 'Search': return tr('Buscó en el código')
+    case 'WebFetch': case 'WebSearch': return tr('Investigó en la web')
+    case 'Task': case 'Agent': return tr('Lanzó un subagente')
+    default: return /^mcp__/.test(herramienta) ? tr('Usó {herramienta}', { herramienta: herramienta.split('__').at(-1) }) : a
   }
 }
 export const servicioCorto = (label: string) => label.replace(/^com\.(claudeclaw|levy|arbrain)\./, '')
 
 export function hace(iso: string | number) {
   const s = Math.max(0, Math.round((Date.now() - (typeof iso === 'number' ? iso : Date.parse(iso))) / 1000))
-  if (s < 10) return 'ahora'
-  if (s < 60) return `hace ${s} s`
+  if (s < 10) return tr('ahora')
+  if (s < 60) return tr('hace {n} s', { n: s })
   const m = Math.round(s / 60)
-  return m < 60 ? `hace ${m} min` : m < 1440 ? `hace ${Math.round(m / 60)} h` : `hace ${Math.round(m / 1440)} d`
+  return m < 60 ? tr('hace {n} min', { n: m }) : m < 1440 ? tr('hace {n} h', { n: Math.round(m / 60) }) : tr('hace {n} d', { n: Math.round(m / 1440) })
 }
 
 /** Orden de lectura: lo que trabaja arriba, luego lo que espera, al final las shells. */

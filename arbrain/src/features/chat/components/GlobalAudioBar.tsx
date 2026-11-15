@@ -1,5 +1,6 @@
 'use client'
 
+import { tr } from '@/shared/i18n'
 import { useRef, useCallback } from 'react'
 import { Play, Pause, RotateCcw, RotateCw, X, Zap } from 'lucide-react'
 import { useAudio } from '../contexts/AudioContext'
@@ -89,7 +90,7 @@ export function GlobalAudioBar() {
         </span>
       }
       velocidad={
-        <button onClick={cycleSpeed} className={`${BTN_VELOCIDAD} ${speedColor}`} title="Velocidad">
+        <button onClick={cycleSpeed} className={`${BTN_VELOCIDAD} ${speedColor}`} title={tr('Velocidad')}>
           <Zap size={11} />
           {speedLabel}
         </button>
@@ -112,7 +113,7 @@ export function GlobalAudioBar() {
         </>
       }
       derecha={
-        <button onClick={reset} className={BTN_CERRAR} title="Cerrar">
+        <button onClick={reset} className={BTN_CERRAR} title={tr('Cerrar')}>
           <X size={18} />
         </button>
       }

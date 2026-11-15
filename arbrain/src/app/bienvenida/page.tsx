@@ -4,8 +4,12 @@ import { esEdicionCliente } from '@/lib/edicion'
 import { isDesktopAuthBypassFromHeaders } from '@/lib/desktop-auth-server'
 import { irABienvenida, reaceptacionCorta } from '@/features/primer-arranque/lib/estado'
 import { PrimerArranque } from '@/features/primer-arranque/components/PrimerArranque'
+import { tr } from '@/shared/i18n'
 
-export const metadata: Metadata = { title: 'Bienvenida · Arbrain' }
+// Función (no constante): el título nace en el idioma de cada petición.
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: tr('Bienvenida · Arbrain') }
+}
 export const dynamic = 'force-dynamic'
 
 /** Primer arranque de la edición cliente (11 oct 2026). En la instalación de Daniel no existe. */

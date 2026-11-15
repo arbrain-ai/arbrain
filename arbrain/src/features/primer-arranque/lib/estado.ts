@@ -7,6 +7,7 @@
 import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { dirDatosWeb } from '@/lib/rutas-instalacion'
+import { tr } from '@/shared/i18n'
 import { VERSION_TEXTOS } from '../textos/legales'
 import { esReaceptacion } from './pasos'
 
@@ -35,7 +36,7 @@ export const rutaPrimerArranque = ruta
  */
 export class PrimerArranqueIlegible extends Error {
   constructor(readonly ruta: string, readonly causa: string) {
-    super(`No pude leer el estado de tu bienvenida (${ruta}): ${causa}`)
+    super(tr('No pude leer el estado de tu bienvenida ({ruta}): {causa}', { ruta, causa }))
     this.name = 'PrimerArranqueIlegible'
   }
 }

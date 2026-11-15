@@ -28,9 +28,13 @@ import { centroDe, estaGirado } from '../model/rotate'
 import { imagenParaPintar, imageState } from './images'
 import { GREEKING_PX, anchoGreeking, enGreeking } from './greeking'
 import { ordenPorZ } from '../model/orden'
+import type { PinturaIsla } from '../islas/useIslas'
+import { iniciarCuadroIslas, pintarIslaRapida } from '../islas/bloques/pintar'
+import { aliento, puntoEn } from '../islas/eventos'
 import { cartuchoDeMarco } from './titulo-marco'
 import { pastillasDe, FUENTE_PASTILLA, PASTILLA, type Pastilla } from '../model/enlace'
 import { COLOR_SEMAFORO, type VivoNervio } from '../model/nervio'
+import { tr } from '@/shared/i18n'
 
 /**
  * CACHE DE MEDIDAS. `measureText` por renglon en cada cuadro (subrayados, resaltados, las barras del nivel de
@@ -115,6 +119,18 @@ export interface RenderState {
   enlaceVivo?: string | null
   /** Estados y medios de los nodos con nervio (ui/useNervio.ts), para calcular las pastillas si no vienen dadas. */
   vivo?: VivoNervio
+  /**
+   * Mapa v16: la foto de cada ISLA (islas/useIslas.ts). null = el embed no es isla y se pinta como siempre (un hueco por
+   * donde se ve su iframe). Una isla se pinta con su foto: debajo de su iframe cuando está despierta (sin destello al
+   * despertar) y sola cuando duerme o la cámara se mueve.
+   */
+  isla?: (el: EmbedElement) => PinturaIsla | null
+  /**
+   * Mapa v16 · el SISTEMA NERVIOSO: impulsos de eventos reales viajando por los hilos (islas/eventos.ts) y el halo breve
+   * de la isla que los recibió. Solo existen mientras hay un evento en vuelo.
+   */
+  impulsos?: Array<{ puntos: Array<{ x: number; y: number }>; u: number; dolor?: boolean; texto: string }>
+  halos?: Array<{ x: number; y: number; width: number; height: number; fuerza: number; dolor: boolean }>
 }
 
 function applyStroke(ctx: CanvasRenderingContext2D, s: { color: string; width: number; style: string }, zoom: number): void {
@@ -625,7 +641,7 @@ function drawImage(ctx: CanvasRenderingContext2D, el: ImageElement, theme: Theme
   ctx.fillStyle = theme.text.caption
   ctx.font = cssFont({ family: 'montserrat', weight: 600, size: 13 })
   ctx.textAlign = 'center'
-  ctx.fillText(roto ? 'imagen no disponible' : 'cargando…', el.x + el.width / 2, el.y + el.height / 2)
+  ctx.fillText(roto ? tr('imagen no disponible') : tr('cargando…'), el.x + el.width / 2, el.y + el.height / 2)
   ctx.textAlign = 'left'
   ctx.restore()
 }
@@ -700,12 +716,107 @@ function drawTable(ctx: CanvasRenderingContext2D, el: TableElement, theme: Theme
  * con z mayor pintan ENCIMA de contenido vivo — un video o un mapa anotable a
  * mano. Dibujar el contenido en el canvas seria imposible (es otro documento).
  */
-function drawEmbed(ctx: CanvasRenderingContext2D, el: EmbedElement, theme: Theme): void {
+function drawEmbed(ctx: CanvasRenderingContext2D, el: EmbedElement, theme: Theme, isla?: PinturaIsla | null, zoom = 1, dpr = 1): void {
+  if (isla?.tipo === 'receta') { pintarIslaRapida(ctx, el, isla.isla, isla.leer, theme.name === 'claro' ? 'claro' : 'oscuro', zoom, dpr, isla.version); return }
+  if (isla?.tipo === 'rota') { drawIsla(ctx, el, theme, { poster: null, titulo: isla.errores[0] ?? isla.titulo }, zoom); return }
+  if (isla) { drawIsla(ctx, el, theme, isla, zoom); return }
   ctx.save()
   // clearRect abre el agujero por donde se ve el iframe de abajo.
   ctx.clearRect(el.x, el.y, el.width, el.height)
   ctx.strokeStyle = el.interactive ? theme.accent : theme.roles.card.stroke.color
   ctx.lineWidth = el.interactive ? 2.5 : 1.5
+  ctx.setLineDash([])
+  roundRect(ctx, el.x, el.y, el.width, el.height, 8)
+  ctx.stroke()
+  ctx.restore()
+}
+
+const ORO_IMPULSO = '#ff9101', DOLOR_IMPULSO = '#e0484d'
+/**
+ * Los impulsos del sistema nervioso: una chispa que acelera y frena por el hilo (con estela) y, al salir, el nombre del
+ * evento con su fuente; y el halo de la isla que lo recibió. Tamaños en px de PANTALLA (se dividen por el zoom).
+ */
+function drawNervio(ctx: CanvasRenderingContext2D, state: RenderState, zoom: number): void {
+  const z = Math.max(zoom, 0.02)
+  ctx.save()
+  ctx.setTransform(ctx.getTransform())
+  for (const h of state.halos ?? []) {
+    if (h.fuerza <= 0.01) continue
+    const c = h.dolor ? DOLOR_IMPULSO : ORO_IMPULSO
+    ctx.globalAlpha = 0.85 * h.fuerza
+    ctx.strokeStyle = c
+    ctx.lineWidth = 3 / z
+    ctx.shadowColor = c
+    ctx.shadowBlur = 24 * h.fuerza
+    const m = 6 / z
+    ctx.beginPath()
+    if (typeof ctx.roundRect === 'function') ctx.roundRect(h.x - m, h.y - m, h.width + 2 * m, h.height + 2 * m, 18 / z + 8)
+    else ctx.rect(h.x - m, h.y - m, h.width + 2 * m, h.height + 2 * m)
+    ctx.stroke()
+  }
+  ctx.shadowBlur = 0
+  for (const im of state.impulsos ?? []) {
+    const c = im.dolor ? DOLOR_IMPULSO : ORO_IMPULSO
+    const u = aliento(Math.min(1, im.u))
+    const fade = Math.min(1, im.u * 6, (1 - im.u) * 5)
+    for (let k = 4; k >= 0; k--) {
+      const p = puntoEn(im.puntos, u - k * 0.025)
+      if (!p) continue
+      const r = (k === 0 ? 7 : 5 - k * 0.8) / z
+      ctx.globalAlpha = fade * (k === 0 ? 1 : 0.5 - k * 0.09)
+      const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * 3)
+      g.addColorStop(0, c); g.addColorStop(0.35, c); g.addColorStop(1, 'rgba(255,145,1,0)')
+      ctx.fillStyle = k === 0 ? g : c
+      ctx.beginPath(); ctx.arc(p.x, p.y, k === 0 ? r * 3 : r, 0, Math.PI * 2); ctx.fill()
+    }
+    // El nombre del evento, junto a su origen, mientras sale.
+    const o = im.puntos[0]
+    if (o && im.u < 0.75 && im.texto) {
+      ctx.globalAlpha = Math.min(1, (0.75 - im.u) * 4) * fade
+      ctx.font = `600 ${12 / z}px Inter, system-ui, sans-serif`
+      const w = ctx.measureText(im.texto).width + 16 / z, h = 22 / z
+      ctx.fillStyle = 'rgba(15,15,20,0.82)'
+      ctx.beginPath()
+      if (typeof ctx.roundRect === 'function') ctx.roundRect(o.x + 10 / z, o.y - h - 8 / z, w, h, h / 2); else ctx.rect(o.x + 10 / z, o.y - h - 8 / z, w, h)
+      ctx.fill()
+      ctx.fillStyle = c
+      ctx.textBaseline = 'middle'
+      ctx.textAlign = 'left'
+      ctx.fillText(im.texto, o.x + 18 / z, o.y - h / 2 - 8 / z)
+    }
+  }
+  ctx.restore()
+}
+
+/**
+ * Una ISLA del mapa v16 vista como foto: un `drawImage` del bitmap que la isla mandó (barato a cualquier zoom, a 60 fps).
+ * Sin foto todavía, su tarjeta con el título (nunca un hueco en blanco). Lejos, el suavizado sube para que la foto
+ * reducida no centellee al moverse.
+ */
+function drawIsla(ctx: CanvasRenderingContext2D, el: EmbedElement, theme: Theme, isla: { poster: CanvasImageSource | null; titulo: string }, zoom: number): void {
+  ctx.save()
+  roundRect(ctx, el.x, el.y, el.width, el.height, 8)
+  ctx.clip()
+  if (isla.poster) {
+    const reducida = zoom * el.width < 0.6 * (('width' in isla.poster ? Number(isla.poster.width) : 0) || el.width)
+    ctx.imageSmoothingEnabled = true
+    ctx.imageSmoothingQuality = reducida ? 'medium' : 'low'
+    ctx.drawImage(isla.poster, el.x, el.y, el.width, el.height)
+  } else {
+    ctx.fillStyle = theme.roles.card.fill
+    ctx.fillRect(el.x, el.y, el.width, el.height)
+    const px = Math.max(10, Math.min(el.width / 18, 34 / Math.max(zoom, 0.05)))
+    ctx.fillStyle = theme.text.caption
+    ctx.font = `600 ${px}px CanvasSans, system-ui, sans-serif`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(isla.titulo, el.x + el.width / 2, el.y + el.height / 2, el.width * 0.86)
+  }
+  ctx.restore()
+  ctx.save()
+  ctx.strokeStyle = theme.roles.card.stroke.color
+  ctx.globalAlpha *= 0.55
+  ctx.lineWidth = 1 / Math.max(zoom, 0.05)
   ctx.setLineDash([])
   roundRect(ctx, el.x, el.y, el.width, el.height, 8)
   ctx.stroke()
@@ -958,6 +1069,7 @@ export function render(canvas: HTMLCanvasElement, state: RenderState): { drawn: 
   const ctx = canvas.getContext('2d')
   if (!ctx) return { drawn: 0, culled: 0 }
   const { camera, theme, viewport: vp } = state
+  iniciarCuadroIslas()
 
   const pxW = Math.round(vp.width * vp.dpr)
   const pxH = Math.round(vp.height * vp.dpr)
@@ -1030,7 +1142,7 @@ export function render(canvas: HTMLCanvasElement, state: RenderState): { drawn: 
       case 'frame': drawFrame(ctx, el, theme, camera.zoom); break
       case 'image': drawImage(ctx, el, theme, el.width * camera.zoom * vp.dpr); break
       case 'table': drawTable(ctx, el, theme); break
-      case 'embed': drawEmbed(ctx, el, theme); break
+      case 'embed': drawEmbed(ctx, el, theme, state.isla?.(el), camera.zoom, vp.dpr); break
       case 'code': drawCode(ctx, el, theme); break
     }
     if (girado) ctx.restore()
@@ -1184,5 +1296,6 @@ export function render(canvas: HTMLCanvasElement, state: RenderState): { drawn: 
     ctx.restore()
   }
 
+    if (state.halos?.length || state.impulsos?.length) drawNervio(ctx, state, camera.zoom)
   return { drawn, culled }
 }

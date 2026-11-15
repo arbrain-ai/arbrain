@@ -21,13 +21,13 @@ export function FileAttachmentCard({ attachment }: { attachment: FileAttachmentM
       download={attachment.filename}
       className="flex items-center gap-2.5 mt-2 px-3 py-2 rounded-xl bg-code-bg border border-code-border hover:bg-card-active hover:border-primary/30 transition-all group/file"
     >
-      <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/15 flex items-center justify-center shrink-0 group-hover/file:bg-primary/20 transition-colors">
+      <div className="w-9 h-9 rounded-lg bg-primary/10 border border-primary/15 flex items-center justify-center shrink-0 group-hover/file:bg-primary/20 transition-colors">
         <Icon size={15} className="text-primary" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[13px] text-foreground/85 font-medium truncate">{attachment.filename}</p>
+        <p className="text-[length:var(--tam-paso)] text-foreground/85 font-medium truncate">{attachment.filename}</p>
         {sizeLabel && (
-          <p className="text-[10px] text-muted/80">{sizeLabel}</p>
+          <p className="text-[length:var(--tam-texto-meta)] text-muted/80">{sizeLabel}</p>
         )}
       </div>
       <Download size={14} className="text-muted/60 group-hover/file:text-primary transition-colors shrink-0" />

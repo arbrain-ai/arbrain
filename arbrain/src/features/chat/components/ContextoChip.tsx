@@ -1,4 +1,5 @@
 'use client'
+import { tr, trMarca } from '@/shared/i18n'
 import { useEffect, useRef, type Ref, type RefObject } from 'react'
 import { X } from 'lucide-react'
 import { PopoverAnclado } from '@/shared/components/PopoverAnclado'
@@ -17,21 +18,21 @@ export function ContextoChip({ contexto, open, onToggle, ref }: { contexto: Cont
   const { pct, uso, linea } = contexto
   const r = 6.5, c = 2 * Math.PI * r
   return <button ref={ref} type="button" data-contexto-chip data-contexto-pct={pct == null ? '' : pct.toFixed(1)} onClick={onToggle}
-    aria-label={`Contexto de la conversación: ${linea}`} aria-expanded={open} aria-haspopup="dialog" title={linea}
-    className="shrink-0 flex items-center gap-1 min-h-11 md:min-h-8 rounded-full px-2 text-[11.5px] font-medium tabular-nums text-muted hover:text-foreground hover:bg-card-hover transition-colors select-none">
+    aria-label={tr('Contexto de la conversación: {linea}', { linea: tr(linea) })} aria-expanded={open} aria-haspopup="dialog" title={tr(linea)}
+    className="shrink-0 flex items-center gap-1 min-h-11 md:min-h-[var(--tam-control)] rounded-full px-2.5 text-[length:var(--tam-texto-control)] font-medium tabular-nums text-muted hover:text-foreground hover:bg-card-hover transition-colors select-none">
     {pct != null && <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden className={COLOR[nivelPct(pct)]}>
       <circle cx="8" cy="8" r={r} fill="none" stroke="currentColor" strokeOpacity={0.22} strokeWidth="2.25" />
       {/* Con uso real pero <1 % se pinta un trazo mínimo para que no parezca vacío. */}
       <circle cx="8" cy="8" r={r} fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round"
         strokeDasharray={`${Math.max(pct > 0 ? 1.2 : 0, (pct / 100) * c)} ${c}`} transform="rotate(-90 8 8)" />
     </svg>}
-    <span>{pct != null ? textoPct(pct) : uso.tokens != null ? `${tokensCortos(uso.tokens)}` : nombreModelo(uso.modelo)}</span>
+    <span>{pct != null ? textoPct(pct) : uso.tokens != null ? `${tokensCortos(uso.tokens)}` : tr(nombreModelo(uso.modelo) ?? '')}</span>
   </button>
 }
 
 function Fila({ k, v }: { k: string; v: string | null }) {
   if (!v) return null
-  return <div className="flex items-baseline justify-between gap-4 text-sm"><dt className="text-muted">{k}</dt><dd className="text-right tabular-nums">{v}</dd></div>
+  return <div className="flex items-baseline justify-between gap-4 text-sm"><dt className="text-muted">{tr(k)}</dt><dd className="text-right tabular-nums">{v}</dd></div>
 }
 
 /** Detalle del indicador, anclado al anillo con la primitiva de la barra (1 nov 2026: antes iba pegado arriba de la caja con 70dvh y se
@@ -48,24 +49,24 @@ export function ContextoDetalle({ contexto, account, onClose, ancla }: { context
     return () => document.removeEventListener('pointerdown', fuera)
   }, [onClose])
   const { uso, pct, usado, ventana } = contexto
-  return <PopoverAnclado ancla={ancla} panelRef={ref} ancho={320} role="dialog" aria-label="Contexto de la conversación" tabIndex={-1} data-contexto-detalle
+  return <PopoverAnclado ancla={ancla} panelRef={ref} ancho={320} role="dialog" aria-label={tr('Contexto de la conversación')} tabIndex={-1} data-contexto-detalle
     onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); onClose() } }}
     className="rounded-2xl border border-border bg-card p-4 shadow-xl outline-none overflow-y-auto overscroll-contain">
     <div className="flex items-center justify-between gap-3">
-      <h2 className="text-sm font-semibold">Contexto de la conversación</h2>
-      <button type="button" aria-label="Cerrar" onClick={onClose} className="-mr-2 -mt-2 min-h-11 min-w-11 flex items-center justify-center rounded-xl hover:bg-foreground/5"><X size={18} /></button>
+      <h2 className="text-sm font-semibold">{tr('Contexto de la conversación')}</h2>
+      <button type="button" aria-label={tr('Cerrar')} onClick={onClose} className="-mr-2 -mt-2 min-h-11 min-w-11 flex items-center justify-center rounded-xl hover:bg-foreground/5"><X size={18} /></button>
     </div>
-    {pct != null && <div role="progressbar" aria-label="Ventana usada" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(pct)} className="mt-2 h-1.5 rounded-full bg-foreground/10 overflow-hidden">
+    {pct != null && <div role="progressbar" aria-label={tr('Ventana usada')} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(pct)} className="mt-2 h-1.5 rounded-full bg-foreground/10 overflow-hidden">
       <div className={`h-full rounded-full ${{ ok: 'bg-brand', aviso: 'bg-amber-500', alto: 'bg-red-500', 'sin-dato': '' }[nivelPct(pct)]}`} style={{ width: `${Math.max(pct > 0 ? 2 : 0, pct)}%` }} />
     </div>}
     <dl className="mt-3 space-y-1.5">
-      <Fila k="Ventana" v={pct != null && ventana ? `${textoPct(pct)} de ${ventanaCorta(ventana)}` : null} />
-      <Fila k="En uso" v={usado != null && ventana ? `${tokensCortos(usado)} de ${tokensCortos(ventana)} tokens` : null} />
-      <Fila k="Modelo" v={nombreModelo(uso.modelo)} />
-      <Fila k="Esfuerzo" v={nombreEsfuerzo(uso.esfuerzo)} />
-      <Fila k="Último turno" v={uso.tokens != null ? `${tokensCortos(uso.tokens)} tokens` : null} />
+      <Fila k={trMarca('Ventana')} v={pct != null && ventana ? tr('{pct} de {ventana}', { pct: textoPct(pct), ventana: ventanaCorta(ventana) }) : null} />
+      <Fila k={trMarca('En uso')} v={usado != null && ventana ? tr('{usado} de {ventana} tokens', { usado: tokensCortos(usado), ventana: tokensCortos(ventana) }) : null} />
+      <Fila k={trMarca('Modelo')} v={nombreModelo(uso.modelo)} />
+      <Fila k={trMarca('Esfuerzo')} v={nombreEsfuerzo(uso.esfuerzo) ? tr(nombreEsfuerzo(uso.esfuerzo)!) : null} />
+      <Fila k={trMarca('Último turno')} v={uso.tokens != null ? tr('{n} tokens', { n: tokensCortos(uso.tokens) }) : null} />
     </dl>
-    <p className="mt-3 text-[11px] text-muted/80">Lo reportó el motor al terminar la última respuesta.</p>
+    <p className="mt-3 text-[11px] text-muted/80">{tr('Lo reportó el motor al terminar la última respuesta.')}</p>
     <LimitesPlan account={account} />
   </PopoverAnclado>
 }

@@ -13,6 +13,7 @@
  * Nunca devuelve la llave ni la escribe en ningún registro. Instalación de Daniel: no se usa.
  */
 import { secreto } from './cofre.js'
+import { tr } from '../i18n/tr.js'
 
 export const ENLACES_GASTO = {
   openrouterLlaves: 'https://openrouter.ai/settings/keys',
@@ -65,8 +66,8 @@ export async function consultarGasto(f: typeof fetch = fetch, ahora = Date.now()
     try {
       const res = await f('https://openrouter.ai/api/v1/key', { headers: { Authorization: `Bearer ${llaveOr}` }, signal: AbortSignal.timeout(8_000) })
       if (res.ok) r.openrouter.gasto = leerRespuestaOpenRouter(await res.json())
-      else r.openrouter.error = res.status === 401 ? 'OpenRouter no reconoce la llave.' : `OpenRouter respondió ${res.status}.`
-    } catch { r.openrouter.error = 'No se pudo consultar OpenRouter (¿sin internet?).' }
+      else r.openrouter.error = res.status === 401 ? tr('OpenRouter no reconoce la llave.') : tr('OpenRouter respondió {status}.', { status: res.status })
+    } catch { r.openrouter.error = tr('No se pudo consultar OpenRouter (¿sin internet?).') }
   }
   cache = { t: ahora, r }
   return r

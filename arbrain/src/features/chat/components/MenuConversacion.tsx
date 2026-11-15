@@ -1,4 +1,5 @@
 'use client'
+import { tr } from '@/shared/i18n'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { Archive, ArchiveRestore, GitFork, Mail, MailOpen, MoreHorizontal, Pencil, Pin, PinOff, Star, StarOff, Trash2, type LucideIcon } from 'lucide-react'
@@ -116,7 +117,7 @@ export function MenuConversacion({ sesion, control, clase }: { sesion: ChatSessi
   const boton = useRef<HTMLButtonElement>(null)
   const menu = useRef<HTMLDivElement>(null)
   const [coords, setCoords] = useState<{ left: number; top: number; arriba: boolean } | null>(null)
-  const titulo = textMessageTitle(sesion.title) || 'Conversación'
+  const titulo = tr(textMessageTitle(sesion.title) || 'Conversación')
 
   // El UI tiene CSS `zoom` en <html> (--ui-zoom): getBoundingClientRect da coordenadas de pantalla y un `left/top`
   // fijo se reinterpreta con zoom. Mismo ajuste que la campana de avisos (NotificationBell).
@@ -208,8 +209,8 @@ export function MenuConversacion({ sesion, control, clase }: { sesion: ChatSessi
         onKeyDown={(e) => { if (e.key === 'ArrowDown' && !abierto) { e.preventDefault(); setAbierto(true) } }}
         aria-haspopup="menu"
         aria-expanded={abierto}
-        aria-label={`Más opciones de ${titulo}`}
-        title="Más opciones"
+        aria-label={tr('Más opciones de {titulo}', { titulo })}
+        title={tr('Más opciones')}
         className={clase}
       >
         <MoreHorizontal className="size-4" aria-hidden />
@@ -219,7 +220,7 @@ export function MenuConversacion({ sesion, control, clase }: { sesion: ChatSessi
         <div
           ref={menu}
           role="menu"
-          aria-label={`Opciones de ${titulo}`}
+          aria-label={tr('Opciones de {titulo}', { titulo })}
           className="titanium-panel overflow-hidden p-1"
           // position/zIndex inline: `.titanium-panel` define position:relative sin @layer y le ganaría a las utilidades.
           style={{
@@ -243,12 +244,12 @@ export function MenuConversacion({ sesion, control, clase }: { sesion: ChatSessi
                   role="menuitem"
                   aria-disabled={o.deshabilitada || undefined}
                   aria-keyshortcuts={o.letra}
-                  title={o.motivo}
+                  title={o.motivo ? tr(o.motivo) : undefined}
                   onClick={() => { if (!o.deshabilitada) ejecutar(o.id) }}
                   className={`titanium-menu-item w-full max-md:!min-h-11 ${o.peligro ? 'titanium-menu-item-danger !text-error' : ''} ${o.deshabilitada ? 'cursor-not-allowed opacity-45 hover:!bg-transparent hover:!text-muted' : ''}`}
                 >
                   <Icono className="size-4 shrink-0 md:size-3.5" aria-hidden />
-                  <span className="min-w-0 flex-1 truncate text-left">{o.etiqueta}</span>
+                  <span className="min-w-0 flex-1 truncate text-left">{tr(o.etiqueta)}</span>
                   <kbd className="ml-2 shrink-0 rounded border border-border-subtle bg-card-hover px-1.5 py-px font-mono text-[10px] leading-4 text-muted" aria-hidden>{o.letra}</kbd>
                 </button>
               </div>
@@ -297,15 +298,15 @@ function DialogoEliminar({ titulo, onCancelar, onConfirmar }: { titulo: string; 
       onKeyDown={alTeclado}
     >
       <div role="alertdialog" aria-modal="true" aria-labelledby="eliminar-titulo" aria-describedby="eliminar-detalle" className="titanium-panel w-full max-w-sm p-5" style={{ position: 'relative' }}>
-        <h2 id="eliminar-titulo" className="text-base font-semibold text-foreground">¿Eliminar esta conversación?</h2>
-        <p className="mt-2 line-clamp-2 break-words text-sm text-foreground/80">«{titulo}»</p>
-        <p id="eliminar-detalle" className="mt-1 text-sm text-error">Se borra con todos sus mensajes y no se puede deshacer.</p>
+        <h2 id="eliminar-titulo" className="text-base font-semibold text-foreground">{tr('¿Eliminar esta conversación?')}</h2>
+        <p className="mt-2 line-clamp-2 break-words text-sm text-foreground/80">{tr('«{titulo}»', { titulo })}</p>
+        <p id="eliminar-detalle" className="mt-1 text-sm text-error">{tr('Se borra con todos sus mensajes y no se puede deshacer.')}</p>
         <div className="mt-5 flex justify-end gap-2">
           <button ref={cancelar} type="button" onClick={onCancelar} className="min-h-11 rounded-lg border border-border-subtle bg-card px-4 text-sm text-foreground transition-colors hover:bg-card-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand md:min-h-9">
-            Cancelar
+            {tr('Cancelar')}
           </button>
           <button ref={confirmar} type="button" onClick={onConfirmar} className="btn-danger min-h-11 px-4 text-sm md:min-h-9">
-            Eliminar
+            {tr('Eliminar')}
           </button>
         </div>
       </div>

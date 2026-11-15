@@ -9,6 +9,7 @@
  * catálogo vigente y no saben cuál es.
  * Lógica pura (sin React ni fs): la usan la vista, la API, la CLI de Levy y node:test.
  */
+import { localeIntl, tr, trMarcas } from '../../shared/i18n/tr'
 
 export type Tipo = 'linea' | 'acumulado' | 'barras' | 'embudo' | 'proporcion'
 /** Hacia dónde es bueno que se mueva el número: decide si salirse del corredor es placer (oro) o dolor (rojo). */
@@ -62,21 +63,21 @@ export const consultaEn = (catalogo: readonly Consulta[], id: string): Consulta 
 export const esDinero = (c: Pick<Consulta, 'unidad'>) => c.unidad === 'usd' || c.unidad === 'dinero'
 
 /** Las unidades en palabras para una cifra («personas», «pagos»); singular cuando toca. */
-const PALABRA: Record<Unidad, [string, string]> = {
-  personas: ['persona', 'personas'], usd: ['dólar', 'dólares'], pagos: ['pago', 'pagos'], suscripciones: ['suscripción', 'suscripciones'],
-  bajas: ['baja', 'bajas'], miembros: ['miembro', 'miembros'], lecciones: ['lección', 'lecciones'],
-  vistas: ['vista', 'vistas'], clics: ['clic', 'clics'], altas: ['alta neta', 'altas netas'], dinero: ['peso', 'pesos'],
-  ventas: ['venta', 'ventas'], clientes: ['cliente', 'clientes'], registros: ['registro', 'registros'],
+const PALABRA: Record<Unidad, readonly [string, string]> = {
+  personas: trMarcas(['persona', 'personas'] as const), usd: trMarcas(['dólar', 'dólares'] as const), pagos: trMarcas(['pago', 'pagos'] as const), suscripciones: trMarcas(['suscripción', 'suscripciones'] as const),
+  bajas: trMarcas(['baja', 'bajas'] as const), miembros: trMarcas(['miembro', 'miembros'] as const), lecciones: trMarcas(['lección', 'lecciones'] as const),
+  vistas: trMarcas(['vista', 'vistas'] as const), clics: trMarcas(['clic', 'clics'] as const), altas: trMarcas(['alta neta', 'altas netas'] as const), dinero: trMarcas(['peso', 'pesos'] as const),
+  ventas: trMarcas(['venta', 'ventas'] as const), clientes: trMarcas(['cliente', 'clientes'] as const), registros: trMarcas(['registro', 'registros'] as const),
 }
-export const palabra = (u: Unidad, n: number, propias?: readonly [string, string]) => (propias ?? PALABRA[u])[Math.abs(Math.round(n)) === 1 ? 0 : 1]
+export const palabra = (u: Unidad, n: number, propias?: readonly [string, string]) => tr((propias ?? PALABRA[u])[Math.abs(Math.round(n)) === 1 ? 0 : 1])
 
 /** Una cifra como la lee una persona: «1,240», «$8,512 USD». Todo lo que no es dinero se cuenta en enteros (no hay 5.7 pagos). */
 export function cifra(n: number, u: Unidad, moneda = 'USD'): string {
-  if (u === 'usd') return `$${Math.round(n).toLocaleString('es-MX')} USD`
-  if (u === 'dinero') return `$${Math.round(n).toLocaleString('es-MX')} ${moneda}`
+  if (u === 'usd') return `$${Math.round(n).toLocaleString(localeIntl())} USD`
+  if (u === 'dinero') return `$${Math.round(n).toLocaleString(localeIntl())} ${moneda}`
   // Altas netas: el signo dice si creció o se encogió («+3», «−2»).
-  if (u === 'altas') return `${Math.round(n) > 0 ? '+' : Math.round(n) < 0 ? '−' : ''}${Math.abs(Math.round(n)).toLocaleString('es-MX')}`
-  return Math.round(n).toLocaleString('es-MX')
+  if (u === 'altas') return `${Math.round(n) > 0 ? '+' : Math.round(n) < 0 ? '−' : ''}${Math.abs(Math.round(n)).toLocaleString(localeIntl())}`
+  return Math.round(n).toLocaleString(localeIntl())
 }
 /** La cifra y la palabra con lo que dice la consulta (su moneda, sus palabras). */
 export const cifraDe = (n: number, c: Pick<Consulta, 'unidad' | 'moneda'>) => cifra(n, c.unidad, c.moneda)

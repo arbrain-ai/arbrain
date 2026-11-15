@@ -11,6 +11,10 @@
  *  · comentarios = (29 oct 2026, idea 3 del reporte de Warp, sala limpia) lo que el dueño anotó sobre el entregable
  *               (archivo y línea de un diff, o un párrafo de un documento) viaja JUNTO en un solo mensaje por la misma
  *               vía que responder: el agente atiende el lote en un turno.
+ *  · cerrar  = (11 nov 2026, Daniel: «un botón de eliminar para que no se acumulen») lo mismo que la herramienta `cerrar`
+ *               de la Cabina (cuerpo.ts › cerrar): libera su lugar, su conversación queda en disco y nunca borra archivos.
+ *  · recibido = (11 nov 2026, «un botón de palomita como recibido») lo saca de «Trabajando para ti» y lo deja en
+ *               «Recibidos»; `si: false` lo devuelve. Solo cambia una marca del registro (cuerpo.ts › marcarRecibido).
  *  · correr-plan / descartar-plan = el plan versionado (plan.ts): correrlo lo aprueba (commit) y lanza el subagente;
  *               descartarlo lo marca en el archivo, nunca lo borra.
  */
@@ -27,7 +31,7 @@ export interface ComentarioEntregable {
   /** Lo que el dueño pide. */
   texto: string
 }
-export type PedidoTablero = { accion: 'detener'; agente: number } | { accion: 'responder'; agente: number; texto: string; esfuerzo?: string }
+export type PedidoTablero = { accion: 'detener'; agente: number } | { accion: 'cerrar'; agente: number } | { accion: 'recibido'; agente: number; si: boolean } | { accion: 'responder'; agente: number; texto: string; esfuerzo?: string }
   | { accion: 'comentarios'; agente: number; comentarios: ComentarioEntregable[] }
   | { accion: 'correr-plan'; ruta: string } | { accion: 'descartar-plan'; ruta: string }
 
@@ -76,6 +80,8 @@ export function pedidoTablero(p: Record<string, unknown>): PedidoTablero | { err
   const agente = Number(p.agente)
   if (!Number.isInteger(agente) || agente <= 0) return { error: 'Falta el agente.' }
   if (p.que === 'detener') return { accion: 'detener', agente }
+  if (p.que === 'cerrar') return { accion: 'cerrar', agente }
+  if (p.que === 'recibido') return { accion: 'recibido', agente, si: p.si !== false }
   if (p.que === 'responder') {
     const texto = typeof p.texto === 'string' ? p.texto.trim() : ''
     if (!texto) return { error: 'Escribe el mensaje para el agente.' }
@@ -100,6 +106,8 @@ export const mensajeDelDueno = (texto: string) => `[Mensaje de ${DUENO_M} desde 
 
 export interface PuertoTablero {
   detener(id: number): Promise<{ estaba: boolean }>
+  cerrar?(id: number): Promise<void>
+  recibido?(id: number, si: boolean): Promise<void>
   retomar(id: number, texto: string, cambio?: { esfuerzo?: string }): Promise<{ encolado: boolean; confirmado: boolean; enVivo?: boolean }>
   correrPlan?(ruta: string): Promise<{ id: number; commit: string | null; aviso?: string }>
   descartarPlan?(ruta: string): Promise<{ commit: string | null }>
@@ -108,6 +116,8 @@ export interface PuertoTablero {
 export async function accionTablero(p: PedidoTablero, puerto?: PuertoTablero): Promise<{ ok: true; texto: string } | { ok: false; status: number; error: string }> {
   const real = puerto ?? {
     detener: async (id: number) => (await import('./sin-pantalla.js')).detenerSubagente(id),
+    cerrar: async (id: number) => (await import('./cuerpo.js')).cerrar(id),
+    recibido: async (id: number, si: boolean) => (await import('./cuerpo.js')).marcarRecibido(id, si),
     retomar: async (id: number, texto: string, cambio?: { esfuerzo?: string }) => (await import('./cuerpo.js')).retomar(id, texto, cambio),
     correrPlan: async (ruta: string) => { const { sub, plan } = await (await import('./plan.js')).correrPlan(ruta); return { id: sub.id, commit: plan.commit, ...(plan.aviso ? { aviso: plan.aviso } : {}) } },
     descartarPlan: async (ruta: string) => (await import('./plan.js')).descartarPlan(ruta),
@@ -126,6 +136,14 @@ export async function accionTablero(p: PedidoTablero, puerto?: PuertoTablero): P
       const n = p.comentarios.length, cuantos = `${n} ${n === 1 ? 'comentario' : 'comentarios'}`
       const texto = r.enVivo ? `Le llegaron tus ${cuantos} a su turno en curso.` : r.encolado ? `Tus ${cuantos} quedaron en su cola: los toma al terminar el paso.` : r.confirmado ? `Le llegaron tus ${cuantos}: empezó un turno para atenderlos.` : 'Se enviaron, pero no pude confirmar que le llegaran.'
       return { ok: true, texto }
+    }
+    if (p.accion === 'cerrar') {
+      await real.cerrar!(p.agente)
+      return { ok: true, texto: 'Cerrado. Salió de la lista; su conversación y sus archivos quedan en disco.' }
+    }
+    if (p.accion === 'recibido') {
+      await real.recibido!(p.agente, p.si)
+      return { ok: true, texto: p.si ? 'Recibido. Quedó en «Recibidos», dentro de «Más actividad».' : 'De vuelta en su lista.' }
     }
     if (p.accion === 'detener') {
       const r = await real.detener(p.agente)

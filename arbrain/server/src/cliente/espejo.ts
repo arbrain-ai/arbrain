@@ -8,6 +8,7 @@
  */
 import { spawn } from 'node:child_process'
 import { secreto } from './cofre.js'
+import { trMarca } from '../i18n/tr.js'
 
 export interface VeredictoEspejo {
   correr: boolean
@@ -38,10 +39,10 @@ export function cercaEspejo(rutina: string, env: NodeJS.ProcessEnv = process.env
     let listo = false
     const fallo = (motivo: string) => { if (!listo) { listo = true; ok({ correr: false, tipo: 'aviso', codigo: 'cerca_fallo', motivo }) } }
     const hijo = spawn(env.ARBRAIN_NODE_BINARY || process.execPath, args, { cwd: env.ARBRAIN_HOME || undefined, env: entornoCerca(env), stdio: ['pipe', 'pipe', 'ignore'], windowsHide: true })
-    const reloj = setTimeout(() => { hijo.kill(); fallo('La cerca del espejo no respondió a tiempo; la rutina no corrió.') }, plazoMs)
+    const reloj = setTimeout(() => { hijo.kill(); fallo(trMarca('La cerca del espejo no respondió a tiempo; la rutina no corrió.')) }, plazoMs)
     hijo.stdout.setEncoding('utf8')
     hijo.stdout.on('data', (c: string) => { salida += c })
-    hijo.on('error', () => { clearTimeout(reloj); fallo('No pude consultar la cerca del espejo; la rutina no corrió.') })
+    hijo.on('error', () => { clearTimeout(reloj); fallo(trMarca('No pude consultar la cerca del espejo; la rutina no corrió.')) })
     hijo.on('close', () => {
       clearTimeout(reloj)
       if (listo) return
@@ -49,7 +50,7 @@ export function cercaEspejo(rutina: string, env: NodeJS.ProcessEnv = process.env
         const r = JSON.parse(salida.trim().split('\n').pop() ?? '') as VeredictoEspejo
         listo = true
         ok({ correr: r.correr === true, tipo: r.tipo, codigo: r.codigo, motivo: r.motivo, folio: r.folio })
-      } catch { fallo('La cerca del espejo respondió algo que no entiendo; la rutina no corrió.') }
+      } catch { fallo(trMarca('La cerca del espejo respondió algo que no entiendo; la rutina no corrió.')) }
     })
     hijo.stdin.on('error', () => { /* la cerca terminó antes de leer */ })
     hijo.stdin.end(llave + '\n')

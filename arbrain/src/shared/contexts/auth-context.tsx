@@ -16,6 +16,7 @@ import type { Profile, UserRole } from '@/types/database'
 import { instalacion } from '@/config'
 import { esEdicionCliente } from '@/lib/edicion'
 import { nombreVisible } from '@/features/primer-arranque/textos/bienvenida'
+import { tr } from '@/shared/i18n'
 
 const LOCAL_DESKTOP_PROFILE: Profile = {
   id: LOCAL_DESKTOP_USER_ID,
@@ -248,10 +249,10 @@ function AvisoPerfil({ reintentando, onReintentar }: { reintentando: boolean; on
       className="fixed inset-x-0 bottom-4 z-[100] mx-auto flex w-fit max-w-[calc(100vw-2rem)] items-center gap-3 rounded-full border border-border-subtle bg-surface/95 px-4 py-2 text-sm text-foreground shadow-depth-rest-soft backdrop-blur-xl"
       style={{ marginBottom: 'env(safe-area-inset-bottom)' }}
     >
-      <span>{reintentando ? 'Cargando tu perfil…' : 'No pude cargar tu perfil. Reintento solo.'}</span>
+      <span>{reintentando ? tr('Cargando tu perfil…') : tr('No pude cargar tu perfil. Reintento solo.')}</span>
       {!reintentando && (
         <button type="button" onClick={onReintentar} className="font-medium text-foreground/80 underline-offset-2 hover:underline">
-          Reintentar ya
+          {tr('Reintentar ya')}
         </button>
       )}
     </div>

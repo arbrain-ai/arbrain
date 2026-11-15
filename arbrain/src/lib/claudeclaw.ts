@@ -2,6 +2,7 @@ import 'server-only'
 import { createClient } from '@supabase/supabase-js'
 import { esEdicionCliente } from '@/lib/edicion'
 import { msjMotorCaido } from '@/lib/infra-errores'
+import { tr } from '@/shared/i18n'
 
 // SSOT de la URL del daemon ClaudeClaw.
 //
@@ -264,7 +265,7 @@ function refreshSchedulerUrl(): Promise<string> {
 export async function upstreamError(upstream: Response, what: string): Promise<Response> {
   if (upstream.status === 401) {
     return Response.json({
-      error: 'Arbrain no pudo autenticarse con el servidor del chat. Revisa la credencial del puente; no es el inicio de sesión de tu cuenta de IA.',
+      error: tr('Arbrain no pudo autenticarse con el servidor del chat. Revisa la credencial del puente; no es el inicio de sesión de tu cuenta de IA.'),
       code: 'DAEMON_AUTH_FAILED',
     }, { status: 502 })
   }
@@ -292,7 +293,7 @@ export async function upstreamError(upstream: Response, what: string): Promise<R
     return Response.json(JSON.parse(text), { status: upstream.status })
   } catch {
     return Response.json(
-      { error: text.slice(0, 400) || `${what} fallo con HTTP ${upstream.status}`, code: 'UPSTREAM_ERROR' },
+      { error: text.slice(0, 400) || tr('{que} fallo con HTTP {estado}', { que: what, estado: upstream.status }), code: 'UPSTREAM_ERROR' },
       { status: upstream.status },
     )
   }

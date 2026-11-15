@@ -2,16 +2,16 @@ import { test } from 'node:test'
 import { strict as assert } from 'node:assert'
 import { MOSTRAR_POR_DEFECTO, igual, interpretar, serializar } from '../../src/features/canvas/state/mostrar-en-lienzo'
 
-test('por defecto: sin herramientas ni barra inferior, con capítulos, minimapa, zoom y «Pídele a Levy»', () => {
-  assert.deepEqual(MOSTRAR_POR_DEFECTO, { herramientas: false, barraInferior: false, capitulos: true, minimapa: true, zoom: true, pideALevy: true })
+test('por defecto: sin herramientas ni barra inferior, con capítulos, minimapa y zoom (sin «Pídele a Levy» desde el 13 nov)', () => {
+  assert.deepEqual(MOSTRAR_POR_DEFECTO, { herramientas: false, barraInferior: false, capitulos: true, minimapa: true, zoom: true })
   assert.deepEqual(interpretar(null), MOSTRAR_POR_DEFECTO)
   assert.deepEqual(interpretar(''), MOSTRAR_POR_DEFECTO)
 })
 
 test('lo guardado vuelve igual (ida y vuelta)', () => {
   for (const m of [
-    { herramientas: true, barraInferior: true, capitulos: false, minimapa: false, zoom: false, pideALevy: false },
-    { herramientas: false, barraInferior: true, capitulos: true, minimapa: true, zoom: false, pideALevy: true },
+    { herramientas: true, barraInferior: true, capitulos: false, minimapa: false, zoom: false },
+    { herramientas: false, barraInferior: true, capitulos: true, minimapa: true, zoom: false },
   ]) assert.deepEqual(interpretar(serializar(m)), m)
 })
 
@@ -34,4 +34,8 @@ test('igual compara por contenido', () => {
   assert.ok(!igual(MOSTRAR_POR_DEFECTO, { ...MOSTRAR_POR_DEFECTO, capitulos: false }))
   assert.ok(!igual(MOSTRAR_POR_DEFECTO, { ...MOSTRAR_POR_DEFECTO, minimapa: false }))
   assert.ok(!igual(MOSTRAR_POR_DEFECTO, { ...MOSTRAR_POR_DEFECTO, zoom: false }))
+})
+
+test('un «pideALevy» guardado de antes se ignora (salió del lienzo el 13 nov)', () => {
+  assert.deepEqual(interpretar('{"pideALevy":true,"minimapa":false}'), { ...MOSTRAR_POR_DEFECTO, minimapa: false })
 })

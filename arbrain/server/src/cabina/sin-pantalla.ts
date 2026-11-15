@@ -33,6 +33,7 @@ import type { Harness } from '../motor/lector.js'
 import { extraerDoD } from './juez.js'
 import { estadoTablero, pasoEnHumano, type Hechos } from './tablero.js'
 import { notaAutoria } from './autoria.js'
+import { NOTA_EVIDENCIA } from './evidencia.js'
 import { adaptador, aplicarLinea, bitacoraVacia, coherencia, NOMBRES, respuestaDe, tokensDe, type Adaptador, type Bitacora, type Coherencia } from './harness/index.js'
 import { resolverEleccion } from './catalogo-delegar.js'
 import { cambiosDeRama, prepararAislamiento, type Aislamiento, type CambiosRama, type PuertoAislamiento } from './aislamiento.js'
@@ -405,7 +406,7 @@ export async function delegarSinPantalla(p: PedidoDelegar, o: { aislar?: PuertoA
     const sesion = ad.sesionPropia ? randomUUID() : undefined
     const permisos = permisosDefault()
     const skills = preludioSkills(cwd)
-    const encargo = p.encargo + (skills?.texto ?? '') + notaAutoria(p.nombre) + NOTA_SIN_PANTALLA
+    const encargo = p.encargo + (skills?.texto ?? '') + notaAutoria(p.nombre) + NOTA_EVIDENCIA + NOTA_SIN_PANTALLA
     const dod = extraerDoD(p.encargo)
     let sub: Subagente | null = null
     // id, registro y proceso bajo el mismo candado: dos delegar a la vez no comparten id ni bitácora

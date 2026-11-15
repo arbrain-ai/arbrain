@@ -8,8 +8,10 @@ import { VistaDia } from './Dia'
 import { VistaSemana } from './Semana'
 import s from '../cabina.module.css'
 import l from '../luz.module.css'
+import { localeIntl, tr, trn } from '@/shared/i18n'
 
-const DIAS = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
+/** Iniciales de lunes a domingo en el idioma activo (es-MX: L M M J V S D). */
+const inicialesDias = () => { const f = new Intl.DateTimeFormat(localeIntl(), { weekday: 'narrow', timeZone: 'UTC' }); return [1, 2, 3, 4, 5, 6, 7].map(d => f.format(new Date(Date.UTC(2024, 0, d)))) }
 
 export function urlCalendario(alcance: Alcance, fecha: string) {
   const { desde, hasta } = rangoCalendario(alcance, fecha)
@@ -42,9 +44,9 @@ export function VistaCalendario({ alcance = 'semana', fecha, grande }: { alcance
   const [elegido, setElegido] = useState<string | null>(null)
   const caidas = data?.health.filter(h => h.state !== 'fresh') ?? []
 
-  if (!data) return <div className={s.cargando} aria-busy="true">{error ? <p className={s.aviso}>{error}</p> : 'Leyendo tu calendario…'}</div>
+  if (!data) return <div className={s.cargando} aria-busy="true">{error ? <p className={s.aviso}>{error}</p> : tr('Leyendo tu calendario…')}</div>
 
-  const aviso = <>{caidas.length > 0 && <p className={s.aviso}>{caidas.length === 1 ? 'Una fuente' : `${caidas.length} fuentes`} sin leer ahora; lo que ves puede estar incompleto.</p>}{error && <p className={s.aviso}>{error} Se muestra la última lectura.</p>}</>
+  const aviso = <>{caidas.length > 0 && <p className={s.aviso}>{trn(caidas.length, 'Una fuente sin leer ahora; lo que ves puede estar incompleto.', '{n} fuentes sin leer ahora; lo que ves puede estar incompleto.')}</p>}{error && <p className={s.aviso}>{tr('{error} Se muestra la última lectura.', { error })}</p>}</>
 
   if (alcance === 'dia') return <div className={s.cal} data-refreshing={cargando || undefined}>{aviso}<VistaDia data={data} dia={ancla} /></div>
   if (alcance === 'semana') return <div className={s.cal} data-refreshing={cargando || undefined}>{aviso}<VistaSemana data={data} ancla={ancla} grande={grande} /></div>
@@ -66,8 +68,8 @@ export function VistaCalendario({ alcance = 'semana', fecha, grande }: { alcance
       <p className={l.ceja}>{etiquetaDia(inicioMes(ancla), { year: 'numeric' })}{resumenMes ? <> · {resumenMes}</> : null}</p>
       <h3 className={`${l.titular} ${l.serif}`} style={{ textTransform: 'capitalize' }}>{etiquetaDia(inicioMes(ancla), { month: 'long' })}</h3>
     </div>
-    <div className={s.mes} role="grid" aria-label="Mes">
-      <div className={s.filaDias}>{DIAS.map((d, i) => <span key={i} className={s.cabDia} role="columnheader">{d}</span>)}</div>
+    <div className={s.mes} role="grid" aria-label={tr('Mes')}>
+      <div className={s.filaDias}>{inicialesDias().map((d, i) => <span key={i} className={s.cabDia} role="columnheader">{d}</span>)}</div>
       {semanas.map(sem => {
         const fin = sumarDias(sem[0], 7)
         const barras = tramos.filter(t => t.desde < fin && t.hasta > sem[0])
@@ -81,7 +83,7 @@ export function VistaCalendario({ alcance = 'semana', fecha, grande }: { alcance
               <span className={s.num}>{Number(d.slice(8))}</span>
               <span className={s.chips}>{ev.slice(0, max).map(it => <Chip key={it.id} it={it} />)}{ev.length > max && <span className={s.mas}>+{ev.length - max}</span>}</span>
               <span className={s.puntos} aria-hidden>{ev.slice(0, 3).map(it => <i key={it.id} style={{ background: it.color }} />)}</span>
-              {tareas > 0 && <span className={s.rutina} title={`${tareas} ${tareas === 1 ? 'tarea' : 'tareas'}${rutina ? ` · ${rutina} bloques de rutina` : ''}`}>{tareas} {tareas === 1 ? 'tarea' : 'tareas'}</span>}
+              {tareas > 0 && <span className={s.rutina} title={`${trn(tareas, '{n} tarea', '{n} tareas')}${rutina ? ` · ${tr('{n} bloques de rutina', { n: rutina })}` : ''}`}>{trn(tareas, '{n} tarea', '{n} tareas')}</span>}
             </button> })}</div>
         </div> })}
     </div>
@@ -99,8 +101,8 @@ function Destacados({ dias, mapa, tramos, multi }: { dias: string[]; mapa: Map<s
   for (const d of dias) for (const it of (mapa.get(d) ?? []).filter(i => !i.tarea && i.peso < 3 && !multi.has(i.id))) filas.push({ clave: d + it.id, cuando: `${corta(d)}${it.hora ? ` · ${it.hora}` : ''}`, titulo: it.titulo, color: it.color })
   filas.sort((a, b) => a.clave.localeCompare(b.clave))
   if (!filas.length) return null
-  return <section className={s.destacados} aria-label="Lo que destaca del mes">
-    <h4>Lo que destaca</h4>
+  return <section className={s.destacados} aria-label={tr('Lo que destaca del mes')}>
+    <h4>{tr('Lo que destaca')}</h4>
     {filas.slice(0, 8).map(f => <p key={f.clave}><i style={{ background: f.color }} aria-hidden /><b>{f.cuando}</b><span>{f.titulo}</span></p>)}
   </section>
 }
@@ -112,6 +114,6 @@ export function resumenCalendario(snap: PlanningSnapshot | undefined, alcance: A
   const { mapa } = porDia(snap)
   let unicos = 0, tareas = 0
   for (const [d, items] of mapa) if (d >= desde && d < hasta) for (const it of items) { if (it.tarea) tareas++; else if (!it.recurrente && !it.objetivo) unicos++ }
-  const partes = [unicos ? `${unicos} ${unicos === 1 ? 'compromiso' : 'compromisos'} fuera de la rutina` : 'solo rutina', tareas ? `${tareas} ${tareas === 1 ? 'tarea' : 'tareas'}` : 'sin tareas con fecha']
+  const partes = [unicos ? trn(unicos, '{n} compromiso fuera de la rutina', '{n} compromisos fuera de la rutina') : tr('solo rutina'), tareas ? trn(tareas, '{n} tarea', '{n} tareas') : tr('sin tareas con fecha')]
   return partes.join(' · ')
 }

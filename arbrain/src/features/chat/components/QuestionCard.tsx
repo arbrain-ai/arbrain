@@ -1,4 +1,5 @@
 'use client'
+import { tr } from '@/shared/i18n'
 import { useState } from 'react'
 import { Check, CircleHelp, Loader2, PenLine } from 'lucide-react'
 import type { QuestionPrompt, UserQuestion } from '../hooks/useChat'
@@ -21,7 +22,7 @@ function SelectedChips({ q, answer }: { q: UserQuestion; answer?: string }) {
       {answer.split(', ').map((a) => (
         <span
           key={a}
-          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] bg-gold/10 border border-gold/25 text-gold-dark dark:text-gold-bright"
+          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[length:var(--tam-texto-meta)] bg-gold/10 border border-gold/25 text-gold-dark dark:text-gold-bright"
         >
           <Check size={10} className="shrink-0" />
           {a}
@@ -105,7 +106,7 @@ export function QuestionCard({ prompt, onAnswer }: Props) {
                     {q.header}
                   </span>
                 )}
-                <p className="text-[13px] font-medium text-foreground leading-snug">{q.question}</p>
+                <p className="text-[length:var(--tam-texto)] font-medium text-foreground leading-snug">{q.question}</p>
               </div>
             </div>
 
@@ -131,13 +132,13 @@ export function QuestionCard({ prompt, onAnswer }: Props) {
                             {isSelected && <Check size={9} className="text-white" />}
                           </span>
                         )}
-                        <span className="text-[13px] text-foreground">{etiquetaVisible(opt.label)}</span>
+                        <span className="text-[length:var(--tam-texto)] text-foreground">{etiquetaVisible(opt.label)}</span>
                         {esRecomendada(opt.label) && (
-                          <span data-testid="opcion-recomendada" className="ml-auto shrink-0 px-1.5 py-px rounded-full bg-brand/15 border border-brand/30 text-[9px] font-semibold uppercase tracking-wider text-brand-ink">Recomendada</span>
+                          <span data-testid="opcion-recomendada" className="ml-auto shrink-0 px-1.5 py-px rounded-full bg-brand/15 border border-brand/30 text-[9px] font-semibold uppercase tracking-wider text-brand-ink">{tr('Recomendada')}</span>
                         )}
                       </span>
                       {opt.description && (
-                        <span className="block mt-0.5 text-[11px] text-muted/80 leading-snug">{opt.description}</span>
+                        <span className="block mt-0.5 text-[length:var(--tam-texto-meta)] text-muted/80 leading-snug">{opt.description}</span>
                       )}
                     </button>
                   )
@@ -148,10 +149,10 @@ export function QuestionCard({ prompt, onAnswer }: Props) {
                   <button
                     onClick={() => setOtherOpen((p) => ({ ...p, [qIdx]: true }))}
                     disabled={submitting}
-                    className="self-start inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] text-muted/80 hover:text-foreground border border-dashed border-border-accent hover:border-brand/40 transition-colors"
+                    className="self-start inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[length:var(--tam-texto-control)] text-muted/80 hover:text-foreground border border-dashed border-border-accent hover:border-brand/40 transition-colors"
                   >
                     <PenLine size={11} />
-                    Otra respuesta
+                    {tr('Otra respuesta')}
                   </button>
                 ) : (
                   <div className="flex items-center gap-1.5">
@@ -162,16 +163,16 @@ export function QuestionCard({ prompt, onAnswer }: Props) {
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && isSingle && otherText[qIdx]?.trim()) void submit(selected)
                       }}
-                      placeholder="Escribe tu respuesta…"
-                      className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-card border border-border text-[13px] text-foreground placeholder:text-muted/50 outline-none focus:border-brand/40"
+                      placeholder={tr('Escribe tu respuesta…')}
+                      className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-card border border-border text-[length:var(--tam-texto)] text-foreground placeholder:text-muted/50 outline-none focus:border-brand/40"
                     />
                     {isSingle && (
                       <button
                         onClick={() => otherText[qIdx]?.trim() && void submit(selected)}
                         disabled={submitting || !otherText[qIdx]?.trim()}
-                        className="shrink-0 px-3 py-2 rounded-lg text-[12px] font-medium bg-brand/20 border border-brand/40 text-brand-ink disabled:opacity-40 transition-colors"
+                        className="shrink-0 px-3 py-2 rounded-lg text-[length:var(--tam-texto-control)] font-medium bg-brand/20 border border-brand/40 text-brand-ink disabled:opacity-40 transition-colors"
                       >
-                        Enviar
+                        {tr('Enviar')}
                       </button>
                     )}
                   </div>
@@ -191,24 +192,24 @@ export function QuestionCard({ prompt, onAnswer }: Props) {
           <button
             onClick={() => void onAnswer(requestId, null)}
             disabled={submitting}
-            className="text-[11px] text-muted/70 hover:text-muted transition-colors"
+            className="text-[length:var(--tam-texto-meta)] text-muted/70 hover:text-muted transition-colors"
           >
-            Saltar
+            {tr('Saltar')}
           </button>
           {!isSingle && (
             <button
               onClick={() => void submit(selected)}
               disabled={submitting || !allAnswered}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[12px] font-semibold bg-brand/25 border border-brand/50 text-foreground hover:bg-brand/35 disabled:opacity-40 transition-all active:scale-[0.98]"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-[length:var(--tam-texto-control)] font-semibold bg-brand/25 border border-brand/50 text-foreground hover:bg-brand/35 disabled:opacity-40 transition-all active:scale-[0.98]"
             >
               {submitting ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
-              Responder
+              {tr('Responder')}
             </button>
           )}
         </div>
       ) : status !== 'answered' ? (
-        <p className="px-3.5 pb-2.5 pl-9 text-[10px] text-muted/60 italic">
-          {status === 'skipped' ? 'Saltada — Levy continuó con su criterio.' : 'Expiró sin respuesta — Levy continuó con su criterio.'}
+        <p className="px-3.5 pb-2.5 pl-9 text-[length:var(--tam-texto-meta)] text-muted/60 italic">
+          {status === 'skipped' ? tr('Saltada — Levy continuó con su criterio.') : tr('Expiró sin respuesta — Levy continuó con su criterio.')}
         </p>
       ) : null}
     </div>

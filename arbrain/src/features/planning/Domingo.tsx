@@ -1,7 +1,9 @@
 'use client'
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { addDays, format, parseISO } from 'date-fns'
-import { es } from 'date-fns/locale'
+import { localeFechas } from '@/shared/i18n/fechas'
+import { enIngles, tr, trn } from '@/shared/i18n'
+import { trNodos } from '@/shared/i18n'
 import { ArrowRight, Check, ChevronLeft, ChevronRight, Lock, Send, Undo2, X } from 'lucide-react'
 import type { GoalSnapshot } from '@/features/goals/model'
 import { useHabitRecords } from '@/features/sistema/useHabitRecords'
@@ -12,7 +14,7 @@ import type { LecturaInterrupciones } from './interrupciones'
 import type { PlanningSnapshot } from './types'
 import s from './domingo.module.css'
 
-const dia = (t: number | string) => format(typeof t === 'number' ? t : parseISO(t), 'EEE d', { locale: es }).replace('.', '')
+const dia = (t: number | string) => format(typeof t === 'number' ? t : parseISO(t), 'EEE d', { locale: localeFechas() }).replace('.', '')
 const hm = (t: number) => format(t, 'HH:mm')
 const sinEmoji = (t: string) => t.replace(/^[\p{Extended_Pictographic}️‍\s]+/u, '').trim()
 
@@ -96,7 +98,7 @@ export function Domingo({ lunes, bloques, goals, snapshot, doc, ahora, tomarFoto
     let vivo = true; setInterrup(null)
     const q = new URLSearchParams({ desde: new Date(desde).toISOString(), hasta: new Date(Math.max(corte, desde + 60_000)).toISOString() })
     fetch(`/api/planning/interrupciones?${q}`, { cache: 'no-store', signal: AbortSignal.timeout(20_000) }).then(r => r.ok ? r.json() : Promise.reject())
-      .then((b: LecturaInterrupciones) => { if (vivo) setInterrup(b) }).catch(() => { if (vivo) setInterrup({ medido: false, motivo: 'No pude leer los avisos.' }) })
+      .then((b: LecturaInterrupciones) => { if (vivo) setInterrup(b) }).catch(() => { if (vivo) setInterrup({ medido: false, motivo: tr('No pude leer los avisos.') }) })
     return () => { vivo = false }
   }, [desde, corte])
 
@@ -114,7 +116,7 @@ export function Domingo({ lunes, bloques, goals, snapshot, doc, ahora, tomarFoto
   const aplicarla = async () => {
     if (!propuesta) return
     setEstado('aplicando'); setError(null)
-    try { await aplicar(propuesta); setEstado('aplicada') } catch (e) { setEstado('error'); setError(e instanceof Error ? e.message : 'Google no confirmó.') }
+    try { await aplicar(propuesta); setEstado('aplicada') } catch (e) { setEstado('error'); setError(e instanceof Error ? e.message : tr('Google no confirmó.')) }
   }
 
   useEffect(() => {
@@ -122,87 +124,90 @@ export function Domingo({ lunes, bloques, goals, snapshot, doc, ahora, tomarFoto
     document.addEventListener('keydown', esc); return () => document.removeEventListener('keydown', esc)
   }, [onCerrar])
 
-  const rango = `${format(parseISO(lunes), 'd', { locale: es })} – ${format(addDays(parseISO(lunes), 6), "d 'de' MMMM", { locale: es })}`
+  // En inglés el mes va primero: «November 9 – 15» (o «October 30 – November 5»).
+  const lun = parseISO(lunes), dom = addDays(lun, 6)
+  const rango = enIngles() ? `${format(lun, 'MMMM d', { locale: localeFechas() })} – ${format(dom, lun.getMonth() === dom.getMonth() ? 'd' : 'MMMM d', { locale: localeFechas() })}`
+    : `${format(lun, 'd', { locale: localeFechas() })} – ${format(dom, "d 'de' MMMM", { locale: localeFechas() })}`
   const parcial = Boolean(foto) && tarde
-  return <div className={s.capa} role="dialog" aria-modal="true" aria-label={`Revisión del domingo, semana del ${rango}`}>
+  return <div className={s.capa} role="dialog" aria-modal="true" aria-label={tr('Revisión del domingo, semana del {rango}', { rango })}>
     <div className={s.pantalla}>
       <header className={s.cabeza}>
         <div className={s.titulo}>
-          <p className={s.ceja}>Revisión del domingo · el circuito</p>
-          <h2><button className={s.flecha} onClick={() => onLunes(-7)} aria-label="Semana anterior"><ChevronLeft size={16} /></button>
-            <span>Semana del {rango}</span>
-            <button className={s.flecha} onClick={() => onLunes(7)} aria-label="Semana siguiente"><ChevronRight size={16} /></button></h2>
-          {goal && <p className={s.objetivo}><span>Objetivo</span>{goal.title}</p>}
+          <p className={s.ceja}>{tr('Revisión del domingo · el circuito')}</p>
+          <h2><button className={s.flecha} onClick={() => onLunes(-7)} aria-label={tr('Semana anterior')}><ChevronLeft size={16} /></button>
+            <span>{tr('Semana del {rango}', { rango })}</span>
+            <button className={s.flecha} onClick={() => onLunes(7)} aria-label={tr('Semana siguiente')}><ChevronRight size={16} /></button></h2>
+          {goal && <p className={s.objetivo}><span>{tr('Objetivo')}</span>{goal.title}</p>}
         </div>
-        <button className={s.cerrar} onClick={onCerrar} aria-label="Cerrar la revisión (Esc)"><X size={18} /></button>
+        <button className={s.cerrar} onClick={onCerrar} aria-label={tr('Cerrar la revisión (Esc)')}><X size={18} /></button>
       </header>
 
       <ol className={s.circuito}>
         {/* 1 · SENSOR */}
         <li className={s.etapa} data-etapa="sensor" style={{ '--i': 0 } as CSSProperties}>
-          <h3><b>1</b>Sensor<small>Levy lee lo real</small></h3>
+          <h3><b>1</b>{tr('Sensor')}<small>{tr('Levy lee lo real')}</small></h3>
           {/* Una frase, no un tablero (crítico A/B, ronda 1): lo que Levy leyó, sin juicio. */}
-          <p className={s.leido}>{leido ? <>Leí <b>{enSemana.length} bloques</b> de tu calendario</> : <>Aún no leo esta semana</>}
-            {entregables && entregables.length > 0 && <>, <b>{entregables.filter(e => e.hecho).length} de {entregables.length}</b> entregables</>}
-            {casillas && <>, <b>{casillas.k} de {casillas.n}</b> casillas de hábitos</>}
-            {tareasHechas !== null && <> y <b>{tareasHechas}</b> {tareasHechas === 1 ? 'tarea hecha' : 'tareas hechas'}</>}.</p>
+          <p className={s.leido}>{leido ? <>{trNodos('Leí {bloques} de tu calendario', { bloques: <b>{tr('{n} bloques', { n: enSemana.length })}</b> })}</> : <>{tr('Aún no leo esta semana')}</>}
+            {entregables && entregables.length > 0 && <>, {trNodos('{cuenta} entregables', { cuenta: <b>{tr('{k} de {n}', { k: entregables.filter(e => e.hecho).length, n: entregables.length })}</b> })}</>}
+            {casillas && <>, {trNodos('{cuenta} casillas de hábitos', { cuenta: <b>{tr('{k} de {n}', { k: casillas.k, n: casillas.n })}</b> })}</>}
+            {tareasHechas !== null && <> {tareasHechas === 1 ? trNodos('y {n} tarea hecha', { n: <b>{tareasHechas}</b> }) : trNodos('y {n} tareas hechas', { n: <b>{tareasHechas}</b> })}</>}.</p>
           <p className={s.foto} data-estado={fotoTomada}>
-            {fotoTomada === 'previa' && foto ? <>Referencia: la foto del plan del {dia(foto.tomada)}, {hm(tomada!)}{parcial ? '. Se tomó tarde: lo de antes no se compara' : ''}.</>
-              : fotoTomada === 'nueva' ? <>No había foto del plan: <b>la guardé ahora</b>{tarde ? '. Esta semana se compara desde aquí; la que viene, completa' : ''}.</>
-              : fotoTomada === 'sin' ? <>Sin foto del plan: no pude guardarla.</> : <>Leyendo la foto del plan…</>}
+            {fotoTomada === 'previa' && foto ? <>{tr('Referencia: la foto del plan del {dia}, {hora}', { dia: dia(foto.tomada), hora: hm(tomada!) })}{parcial ? `. ${tr('Se tomó tarde: lo de antes no se compara')}` : ''}.</>
+              : fotoTomada === 'nueva' ? <>{trNodos('No había foto del plan: {guardada}', { guardada: <b>{tr('la guardé ahora')}</b> })}{tarde ? `. ${tr('Esta semana se compara desde aquí; la que viene, completa')}` : ''}.</>
+              : fotoTomada === 'sin' ? <>{tr('Sin foto del plan: no pude guardarla.')}</> : <>{tr('Leyendo la foto del plan…')}</>}
           </p>
         </li>
 
         {/* 2 · COMPARADOR */}
         <li className={s.etapa} data-etapa="comparador" style={{ '--i': 1 } as CSSProperties}>
-          <h3><b>2</b>Comparador<small>real contra la referencia</small></h3>
+          <h3><b>2</b>{tr('Comparador')}<small>{tr('real contra la referencia')}</small></h3>
           {/* Los tres números del domingo (25 oct 2026, firmado): Producir, interrupciones en R/D y la tasa de recompra. Sin medición, «sin medir». */}
           <div className={s.grande} data-tres>
-            <p className={s.cifra} style={{ '--c': DRIP.producir.color } as CSSProperties}><span>{formatoHorasDrip(leido ? c.semana.producir : null)}</span><small>de Producir en tu calendario{c.plan && !tarde ? ` de ${formatoHorasDrip(c.plan.producir)} planeadas` : ''}</small></p>
-            <p className={s.cifra} title={interrup?.medido ? 'Avisos de tus rutinas que pidieron tu decisión, clasificados por DRIP. Las preguntas dentro del chat aún no se miden.' : undefined}>
-              {interrup === null ? <><span>…</span><small>interrupciones</small></>
-                : interrup.medido ? <><span>{interrup.rd}</span><small>{interrup.rd === 1 ? 'interrupción' : 'interrupciones'} en Reemplazar o Delegar · de {interrup.total} {interrup.total === 1 ? 'aviso que pidió' : 'avisos que pidieron'} tu decisión{interrup.ejemplos[0] ? ` (p. ej. «${interrup.ejemplos[0]}»)` : ''}. Las del chat: sin medir</small></>
-                : <><span className={s.sinMedir}>sin medir</span><small>interrupciones en Reemplazar o Delegar · {interrup.motivo}</small></>}
+            <p className={s.cifra} style={{ '--c': DRIP.producir.color } as CSSProperties}><span>{formatoHorasDrip(leido ? c.semana.producir : null)}</span><small>{tr('de Producir en tu calendario')}{c.plan && !tarde ? ` ${tr('de {horas} planeadas', { horas: formatoHorasDrip(c.plan.producir) })}` : ''}</small></p>
+            <p className={s.cifra} title={interrup?.medido ? tr('Avisos de tus rutinas que pidieron tu decisión, clasificados por DRIP. Las preguntas dentro del chat aún no se miden.') : undefined}>
+              {interrup === null ? <><span>…</span><small>{tr('interrupciones')}</small></>
+                : interrup.medido ? <><span>{interrup.rd}</span><small>{trn(interrup.rd, 'interrupción en Reemplazar o Delegar', 'interrupciones en Reemplazar o Delegar')} · {trn(interrup.total, 'de {n} aviso que pidió tu decisión', 'de {n} avisos que pidieron tu decisión')}{interrup.ejemplos[0] ? ` ${tr('(p. ej. «{ejemplo}»)', { ejemplo: interrup.ejemplos[0] })}` : ''}. {tr('Las del chat: sin medir')}</small></>
+                : <><span className={s.sinMedir}>{tr('sin medir')}</span><small>{tr('interrupciones en Reemplazar o Delegar')} · {tr(interrup.motivo)}</small></>}
             </p>
             <TasaRecompra doc={doc} poner={ponerTarifa} recompradas={recompradas} dinero={dinero} />
           </div>
           {/* El desvío, no dos barras iguales: solo lo que se movió entre plan y real (crítico A/B, ronda 1). */}
-          {tarde && <p className={s.desde}>{sinTramo ? 'Plan contra real empieza con la próxima foto (el lunes).' : `Plan contra real desde el ${dia(c.desdePlan)}, ${hm(c.desdePlan)}`}</p>}
-          {!sinTramo && c.plan && (desvios.length ? <ul className={s.desvios} aria-label="Desvío entre plan y real">{desvios.map(d => <li key={d.q.id} data-signo={d.h > 0 ? '+' : '-'} style={{ '--c': d.q.color, '--w': `${Math.min(100, Math.abs(d.h) / maxDesvio * 100)}%` } as CSSProperties}>
-              <span>{d.q.nombre}</span><i aria-hidden /><b>{d.h > 0 ? '+' : '−'}{formatoHorasDrip(Math.abs(d.h))}</b></li>)}</ul>
-            : <p className={s.igual}>Tu calendario no se movió contra el plan: nada se cayó ni se pospuso. (Mide lo agendado, no lo hecho.)</p>)}
+          {tarde && <p className={s.desde}>{sinTramo ? tr('Plan contra real empieza con la próxima foto (el lunes).') : tr('Plan contra real desde el {dia}, {hora}', { dia: dia(c.desdePlan), hora: hm(c.desdePlan) })}</p>}
+          {!sinTramo && c.plan && (desvios.length ? <ul className={s.desvios} aria-label={tr('Desvío entre plan y real')}>{desvios.map(d => <li key={d.q.id} data-signo={d.h > 0 ? '+' : '-'} style={{ '--c': d.q.color, '--w': `${Math.min(100, Math.abs(d.h) / maxDesvio * 100)}%` } as CSSProperties}>
+              <span>{tr(d.q.nombre)}</span><i aria-hidden /><b>{d.h > 0 ? '+' : '−'}{formatoHorasDrip(Math.abs(d.h))}</b></li>)}</ul>
+            : <p className={s.igual}>{tr('Tu calendario no se movió contra el plan: nada se cayó ni se pospuso. (Mide lo agendado, no lo hecho.)')}</p>)}
           {(c.cayeron.length > 0 || c.pospuestos.length > 0) && <ul className={s.diferencias}>
-            {c.cayeron.slice(0, 2).map(b => <li key={b.id}><span data-tipo="cayo">se cayó</span>{sinEmoji(b.titulo)}<small>{dia(b.inicio)}</small></li>)}
-            {c.pospuestos.slice(0, 2).map(p => <li key={p.antes.id}><span data-tipo="pospuesto">se movió</span>{sinEmoji(p.antes.titulo)}<small>{dia(p.antes.inicio)} → {dia(p.ahora.inicio)}</small></li>)}
+            {c.cayeron.slice(0, 2).map(b => <li key={b.id}><span data-tipo="cayo">{tr('se cayó')}</span>{sinEmoji(b.titulo)}<small>{dia(b.inicio)}</small></li>)}
+            {c.pospuestos.slice(0, 2).map(p => <li key={p.antes.id}><span data-tipo="pospuesto">{tr('se movió')}</span>{sinEmoji(p.antes.titulo)}<small>{dia(p.antes.inicio)} → {dia(p.ahora.inicio)}</small></li>)}
           </ul>}
-          {maxH === 1 && !leido && <p className={s.nota}>Abre esta semana en el calendario para que Levy la lea.</p>}
+          {maxH === 1 && !leido && <p className={s.nota}>{tr('Abre esta semana en el calendario para que Levy la lea.')}</p>}
         </li>
 
         {/* 3 · ATENUADOR */}
         <li className={s.etapa} data-etapa="atenuador" style={{ '--i': 2 } as CSSProperties}>
-          <h3><b>3</b>Atenuador<small>qué se coló y qué se pliega</small></h3>
+          <h3><b>3</b>{tr('Atenuador')}<small>{tr('qué se coló y qué se pliega')}</small></h3>
           {/* Solo el que apareció (crítico A/B, ronda 1); los cinco de Martell quedan como cinco puntos, uno encendido. */}
-          <p className={s.subrotulo}>Asesino del tiempo <span className={s.cinco} aria-hidden>{ASESINOS.map(a => <i key={a.id} data-on={c.dominante?.id === a.id || undefined} title={`${a.nombre} (${a.libro})`} />)}</span></p>
-          {dominante ? <p className={s.asesino}><b>{dominante.nombre}</b><small>{dominante.libro}</small></p> : null}
-          <p className={s.senal}>{c.dominante ? <>{c.dominante.texto}<small> Una señal de tu calendario, no un diagnóstico.</small></> : foto ? 'Ninguno de los cinco apareció esta semana.' : 'Sin foto del plan, solo se ven las señales de Delegar y de revisar.'}</p>
-          <p className={s.pliegaLinea}>El sistema ya pliega {rutinasPlegadas} rutinas del Mes{protegidos ? `, protege ${protegidos}` : ''}{delegados ? ` y ${delegados} son de alguien más` : ''}.</p>
+          <p className={s.subrotulo}>{tr('Asesino del tiempo')} <span className={s.cinco} aria-hidden>{ASESINOS.map(a => <i key={a.id} data-on={c.dominante?.id === a.id || undefined} title={`${tr(a.nombre)} (${a.libro})`} />)}</span></p>
+          {dominante ? <p className={s.asesino}><b>{tr(dominante.nombre)}</b><small>{dominante.libro}</small></p> : null}
+          <p className={s.senal}>{c.dominante ? <>{c.dominante.texto}<small> {tr('Una señal de tu calendario, no un diagnóstico.')}</small></> : foto ? tr('Ninguno de los cinco apareció esta semana.') : tr('Sin foto del plan, solo se ven las señales de Delegar y de revisar.')}</p>
+          <p className={s.pliegaLinea}>{tr('El sistema ya pliega {n} rutinas del Mes', { n: rutinasPlegadas })}{protegidos ? `, ${tr('protege {n}', { n: protegidos })}` : ''}{delegados ? ` ${tr('y {n} son de alguien más', { n: delegados })}` : ''}.</p>
         </li>
 
         {/* 4 · ACTUADOR */}
         <li className={s.etapa} data-etapa="actuador" style={{ '--i': 3 } as CSSProperties}>
-          <h3><b>4</b>Actuador<small>un ajuste, un toque</small></h3>
+          <h3><b>4</b>{tr('Actuador')}<small>{tr('un ajuste, un toque')}</small></h3>
           {propuesta ? <div className={s.propuesta} data-estado={estado} style={{ '--c': DRIP[propuesta.bloque.cuadrante as Cuadrante].color } as CSSProperties}>
             <p className={s.verbo}>{propuesta.tipo === 'proteger' ? <Lock size={14} aria-hidden /> : <Send size={14} aria-hidden />}{propuesta.texto}</p>
             <p className={s.bloque}><i aria-hidden /><span>{sinEmoji(propuesta.bloque.titulo)}</span><small>{dia(propuesta.bloque.inicio)} · {hm(propuesta.bloque.inicio)}–{hm(propuesta.bloque.fin)}</small></p>
             <p className={s.porque}>{propuesta.porque}</p>
-            {estado === 'aplicada' ? <p className={s.hecho}><Check size={14} aria-hidden />Aplicado en tu calendario<button onClick={() => { deshacer(); setEstado('listo') }}><Undo2 size={13} aria-hidden />Deshacer</button></p>
-              : <button className={s.aplicar} disabled={!pluma || estado === 'aplicando'} onClick={() => void aplicarla()}>{estado === 'aplicando' ? 'Aplicando…' : <>Aplicar<ArrowRight size={14} aria-hidden /></>}</button>}
+            {estado === 'aplicada' ? <p className={s.hecho}><Check size={14} aria-hidden />{tr('Aplicado en tu calendario')}<button onClick={() => { deshacer(); setEstado('listo') }}><Undo2 size={13} aria-hidden />{tr('Deshacer')}</button></p>
+              : <button className={s.aplicar} disabled={!pluma || estado === 'aplicando'} onClick={() => void aplicarla()}>{estado === 'aplicando' ? tr('Aplicando…') : <>{tr('Aplicar')}<ArrowRight size={14} aria-hidden /></>}</button>}
             {error && <p className={s.error} role="alert">{error}</p>}
-            <p className={s.nota}>Se escribe por la misma pluma del calendario; ⌘Z lo deshace.</p>
-          </div> : <p className={s.nota}>{leidaSiguiente ? 'Nada que ajustar: la semana que viene no tiene un bloque de Producir sin proteger ni algo delegable tuyo.' : 'Para proponer, Levy necesita leer la semana que viene: ábrela en el calendario.'}</p>}
+            <p className={s.nota}>{tr('Se escribe por la misma pluma del calendario; ⌘Z lo deshace.')}</p>
+          </div> : <p className={s.nota}>{leidaSiguiente ? tr('Nada que ajustar: la semana que viene no tiene un bloque de Producir sin proteger ni algo delegable tuyo.') : tr('Para proponer, Levy necesita leer la semana que viene: ábrela en el calendario.')}</p>}
         </li>
       </ol>
-      <p className={s.lazo} aria-hidden><span>la semana que viene, Levy vuelve a leer</span></p>
+      <p className={s.lazo} aria-hidden><span>{tr('la semana que viene, Levy vuelve a leer')}</span></p>
     </div>
   </div>
 }
@@ -227,8 +232,8 @@ function TasaRecompra({ doc, poner, recompradas, dinero }: { doc: DocDripVista |
   return <div className={s.cifra} data-tasa>
     {poner ? <label className={s.tasa}><span className={s.tasaSigno} aria-hidden>$</span>
       <input inputMode="decimal" placeholder="—" value={valor} onChange={ev => setValor(ev.target.value.replace(/[^\d.]/g, ''))} onBlur={() => void confirmar()} onKeyDown={ev => { if (ev.key === 'Enter') (ev.target as HTMLInputElement).blur() }}
-        aria-label="Tasa de recompra por hora" /></label>
+        aria-label={tr('Tasa de recompra por hora')} /></label>
       : <span>{doc?.tarifa ? formatoDinero(doc.tarifa.monto, moneda) : '—'}</span>}
-    <small>{moneda}/h tasa de recompra (al año ÷ 8,000){doc?.tarifa && !doc.tarifaPropia ? ' · la de tu instalación' : ''}{!doc?.tarifa ? ' · sin fijar' : ''} · {formatoHorasDrip(recompradas)} recompradas{dinero ? ` = ${dinero}` : ''}{estado === 'guardando' ? ' · guardando…' : estado === 'error' ? ' · no se guardó' : ''}</small>
+    <small>{moneda}/h {tr('tasa de recompra (al año ÷ 8,000)')}{doc?.tarifa && !doc.tarifaPropia ? ` · ${tr('la de tu instalación')}` : ''}{!doc?.tarifa ? ` · ${tr('sin fijar')}` : ''} · {tr('{horas} recompradas', { horas: formatoHorasDrip(recompradas) })}{dinero ? ` = ${dinero}` : ''}{estado === 'guardando' ? ` · ${tr('guardando…')}` : estado === 'error' ? ` · ${tr('no se guardó')}` : ''}</small>
   </div>
 }

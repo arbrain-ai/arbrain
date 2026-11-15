@@ -8,6 +8,7 @@ import { motorSuscripcion } from '../cliente/suscripcion.js'
 import { dirClaudeAlternaO } from '../cuentas-alternas.js'
 import { ESPACIO_ABLITERATED, entornoAbliterated } from './abliterated-chat.js'
 import { logger } from '../logger.js'
+import { tr } from '../i18n/tr.js'
 
 class Mailbox<T> implements AsyncIterable<T> {
   private values: T[] = []
@@ -68,7 +69,7 @@ export function requireClaudeSubscription(account: AccountInfo, cliente = esEdic
   // instalación original, que la sesión sea de suscripción: nunca se cobra por API sin que la persona lo sepa.
   if (cliente && !suscripcion) return
   if (account.apiProvider !== 'firstParty' || !account.subscriptionType || account.tokenSource === 'none' || (account.apiKeySource && account.apiKeySource !== 'none')) {
-    throw new Error('La sesión no confirmó autenticación por suscripción Claude. No se envió ningún prompt.')
+    throw new Error(tr('La sesión no confirmó autenticación por suscripción Claude. No se envió ningún prompt.'))
   }
 }
 
@@ -368,7 +369,7 @@ export class ClaudeInteractiveSession {
       if (signal?.aborted) throw new ClaudeSubmissionCancelled('Cancelado antes de enviar al SDK.')
       await Promise.race([this.active.spontaneous.done, new Promise(resolve => setTimeout(resolve, 250))])
     }
-    if (this.active) throw new Error('Esta conversación ya tiene un turno en curso.')
+    if (this.active) throw new Error(tr('Esta conversación ya tiene un turno en curso.'))
     if (this.ended) throw this.failure ?? new Error('Claude session closed')
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) throw new Error('Stable UUID required before Claude submission')
     const active = { id, output: new Mailbox<SDKMessage>(), terminal: false, submitted: false, detached: false, observer: new AbortController() }

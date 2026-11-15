@@ -8,9 +8,11 @@ import { useEffect, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { ImagenRapida } from '@/shared/components/ImagenRapida'
 import { urlVariante, type MetaImagen } from '@/lib/imagenes/variantes'
+import { BotonDescargar } from './BotonDescargar'
+import { tr } from '@/shared/i18n'
 import v from './visor.module.css'
 
-export interface ImagenItem { nombre: string; ruta: string; url: string; imagen: MetaImagen | null }
+export interface ImagenItem { nombre: string; ruta: string; url: string; descarga?: string; imagen: MetaImagen | null }
 
 export function Galeria({ hermanas, total, rutaActual, comparada, abrirGrande }: {
   hermanas: ImagenItem[]; total: number; rutaActual: string; comparada?: { ruta: string; archivo: string; url: string; imagen: MetaImagen | null } | { error: string }
@@ -24,25 +26,28 @@ export function Galeria({ hermanas, total, rutaActual, comparada, abrirGrande }:
   if (!act) return null
   const ir = (d: number) => setI(x => Math.min(hermanas.length - 1, Math.max(0, x + d)))
   const dosEnUna = comparada && 'url' in comparada && i === inicial ? comparada : null
-  return <div ref={raiz} className={v.galeria} tabIndex={0} aria-label="Imágenes" onKeyDown={e => { if (e.key === 'ArrowRight') { e.preventDefault(); ir(1) } else if (e.key === 'ArrowLeft') { e.preventDefault(); ir(-1) } }}>
+  return <div ref={raiz} className={v.galeria} tabIndex={0} aria-label={tr('Imágenes')} onKeyDown={e => { if (e.key === 'ArrowRight') { e.preventDefault(); ir(1) } else if (e.key === 'ArrowLeft') { e.preventDefault(); ir(-1) } }}>
     {comparada && 'error' in comparada && <p className={v.aviso}>{comparada.error}</p>}
     {dosEnUna ? <Deslizador antes={{ ...act }} despues={{ nombre: dosEnUna.archivo, ruta: dosEnUna.ruta, url: dosEnUna.url, imagen: dosEnUna.imagen }} />
-      : <button type="button" className={v.imagenGrande} onClick={() => abrirGrande(act)} aria-label={`Ampliar ${act.nombre}`}>
+      : <button type="button" className={v.imagenGrande} onClick={() => abrirGrande(act)} aria-label={tr('Ampliar {nombre}', { nombre: act.nombre })}>
         {act.imagen ? <ImagenRapida meta={act.imagen} alt={act.nombre} altoMax="62vh" style={{ margin: '0 auto', borderRadius: 10 }} /> : <img src={act.url} alt={act.nombre} />}
       </button>}
     <div className={v.pieGaleria}>
-      <span><b>{dosEnUna ? `${act.nombre} contra ${dosEnUna.archivo}` : act.nombre}</b>{act.imagen && !dosEnUna ? ` · ${act.imagen.ancho}×${act.imagen.alto}` : ''}</span>
-      {hermanas.length > 1 && <span className={v.contador}>{inicial === i && total > hermanas.length ? '' : ''}{i + 1} de {hermanas.length}{total > hermanas.length ? ` (carpeta: ${total})` : ''}</span>}
+      <span><b>{dosEnUna ? tr('{a} contra {b}', { a: act.nombre, b: dosEnUna.archivo }) : act.nombre}</b>{act.imagen && !dosEnUna ? ` · ${act.imagen.ancho}×${act.imagen.alto}` : ''}</span>
+      <span className={v.pieAcciones}>
+        {hermanas.length > 1 && <span className={v.contador}>{inicial === i && total > hermanas.length ? '' : ''}{tr('{i} de {n}', { i: i + 1, n: hermanas.length })}{total > hermanas.length ? ` ${tr('(carpeta: {total})', { total })}` : ''}</span>}
+        <BotonDescargar url={act.descarga} nombre={act.nombre} className={v.icono} />
+      </span>
     </div>
     {hermanas.length > 1 && <div className={v.tira}>
-      <button type="button" className={v.mini} onClick={() => ir(-1)} disabled={i === 0} aria-label="Imagen anterior"><ChevronLeft size={15} aria-hidden /></button>
-      <div className={v.miniaturasImg} role="listbox" aria-label="Imágenes de la carpeta">
+      <button type="button" className={v.mini} onClick={() => ir(-1)} disabled={i === 0} aria-label={tr('Imagen anterior')}><ChevronLeft size={15} aria-hidden /></button>
+      <div className={v.miniaturasImg} role="listbox" aria-label={tr('Imágenes de la carpeta')}>
         {hermanas.map((h, k) => <button key={h.ruta} type="button" role="option" aria-selected={k === i} data-actual={k === i || undefined} onClick={() => setI(k)} title={h.nombre}
           ref={el => { if (el && k === i) el.scrollIntoView({ block: 'nearest', inline: 'center' }) }}>
           {h.imagen ? <img src={urlVariante(h.imagen.hash, 160, 'webp')} alt="" loading="lazy" style={{ backgroundColor: h.imagen.color }} /> : <img src={h.url} alt="" loading="lazy" />}
         </button>)}
       </div>
-      <button type="button" className={v.mini} onClick={() => ir(1)} disabled={i === hermanas.length - 1} aria-label="Imagen siguiente"><ChevronRight size={15} aria-hidden /></button>
+      <button type="button" className={v.mini} onClick={() => ir(1)} disabled={i === hermanas.length - 1} aria-label={tr('Imagen siguiente')}><ChevronRight size={15} aria-hidden /></button>
     </div>}
   </div>
 }
@@ -60,7 +65,7 @@ function Deslizador({ antes, despues }: { antes: ImagenItem; despues: ImagenItem
       <img src={antes.url} alt={antes.nombre} draggable={false} />
       <div className={v.encima} style={{ clipPath: `inset(0 0 0 ${x}%)` }}><img src={despues.url} alt={despues.nombre} draggable={false} /></div>
       <span className={v.etiquetaIzq}>{antes.nombre}</span><span className={v.etiquetaDer}>{despues.nombre}</span>
-      <div className={v.linea} style={{ left: `${x}%` }} role="slider" tabIndex={0} aria-label="Comparar imágenes" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(x)}
+      <div className={v.linea} style={{ left: `${x}%` }} role="slider" tabIndex={0} aria-label={tr('Comparar imágenes')} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(x)}
         onKeyDown={e => { if (e.key === 'ArrowLeft') setX(p => Math.max(0, p - 2)); else if (e.key === 'ArrowRight') setX(p => Math.min(100, p + 2)) }}><i /></div>
     </div>
   </div>

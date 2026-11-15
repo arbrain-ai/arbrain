@@ -10,9 +10,10 @@ import type { ChatMessage } from '@/features/chat/hooks/useChat'
 import { DUENO, NOMBRE_SEGUNDA, SEGUNDA } from '@/config'
 import { zonaDueno, ZONA_ORIGINAL } from '@/shared/lib/zona-dueno'
 import { civilMidnight } from '@/features/sistema/calendar-days'
+import { localeIntl, tr, trMarca } from '@/shared/i18n/tr'
 
 export type Vista = 'calendario' | 'objetivos' | 'centro' | 'lienzo' | 'reporte' | 'negocio' | 'estrategia' | 'bi' | 'trabajos' | 'finanzas' | 'contenido' | 'rutinas' | 'servidores' | 'memoria' | 'equipo' | 'documento' | 'diario' | 'salud' | 'masterclass' | 'explorador' | 'cohorte' | 'casa' | 'perro' | 'historia'
-export type SeccionNegocio = 'avatar' | 'oferta' | 'embudo' | 'sistema'
+export type SeccionNegocio = 'avatar' | 'oferta' | 'embudo' | 'sistema' | 'canal-levy'
 export type Destino = 'calendario' | 'objetivos' | 'hoy' | 'centro' | 'contenido' | 'lienzo' | 'rutinas' | 'finanzas' | 'sfcal' | 'sfmap' | 'reporte' | 'negocio' | 'trabajos'
 export type Alcance = 'dia' | 'semana' | 'mes'
 /** De quién es el reporte de la mañana (vista diario). */
@@ -52,7 +53,7 @@ const VISTAS: readonly Vista[] = ['calendario', 'objetivos', 'centro', 'lienzo',
  * panel desde fuera (almacén, otras ventanas, el servidor, el bus) pasa por aquí; lo desconocido se ignora, no truena.
  */
 export const esVistaConocida = (v: unknown): v is Vista => (VISTAS as readonly unknown[]).includes(v)
-const SECCIONES: readonly SeccionNegocio[] = ['avatar', 'oferta', 'embudo', 'sistema']
+const SECCIONES: readonly SeccionNegocio[] = ['avatar', 'oferta', 'embudo', 'sistema', 'canal-levy']
 const DESTINOS: readonly Destino[] = ['calendario', 'objetivos', 'hoy', 'centro', 'contenido', 'lienzo', 'rutinas', 'finanzas', 'sfcal', 'sfmap', 'reporte', 'negocio', 'trabajos']
 const ALCANCES: readonly Alcance[] = ['dia', 'semana', 'mes']
 const DATE = /^\d{4}-\d{2}-\d{2}$/
@@ -154,7 +155,7 @@ export function isoMx(day: string, zona = zonaDueno()): string {
 }
 
 export function etiquetaDia(day: string, o: Intl.DateTimeFormatOptions) {
-  return new Date(day + 'T12:00:00Z').toLocaleDateString('es-MX', { ...o, timeZone: 'UTC' })
+  return new Date(day + 'T12:00:00Z').toLocaleDateString(localeIntl(), { ...o, timeZone: 'UTC' })
 }
 export function tituloPeriodo(a: Alcance, anchor: string) {
   if (a === 'mes') return etiquetaDia(inicioMes(anchor), { month: 'long', year: 'numeric' })
@@ -214,30 +215,31 @@ export function seccionDe(i: Pick<MostrarInput, 'vista' | 'alcance' | 'fecha' | 
   return rutaDe({ destino: i.vista, alcance: i.alcance, fecha: i.fecha, paginaId: i.paginaId, zona: i.zona })
 }
 
+/** Marcados para el catálogo (13 nov 2026): se pintan con `tr(NOMBRE[x])`. */
 export const NOMBRE: Record<Destino | Vista, string> = {
-  calendario: 'Calendario', objetivos: 'Objetivos', hoy: 'Hoy', centro: 'Command Center', contenido: 'Contenido',
-  lienzo: 'Lienzo', rutinas: 'Rutinas', finanzas: 'Finanzas', sfcal: 'Calendario', sfmap: 'Lienzo',
-  reporte: 'Lo que llegó', negocio: 'Tu negocio', estrategia: 'Estrategia', bi: 'Business Intelligence', trabajos: 'Trabajos en el Studio', servidores: 'Servidores', memoria: 'Memoria', equipo: 'Equipo', documento: 'Documento', diario: 'Reporte diario', salud: 'Salud', masterclass: 'Masterclass', explorador: 'Archivos', cohorte: 'Cohorte', casa: 'Casa', perro: 'Perro', historia: 'Historia',
+  calendario: trMarca('Calendario'), objetivos: trMarca('Objetivos'), hoy: trMarca('Hoy'), centro: 'Command Center', contenido: trMarca('Contenido'),
+  lienzo: trMarca('Lienzo'), rutinas: trMarca('Rutinas'), finanzas: trMarca('Finanzas'), sfcal: trMarca('Calendario'), sfmap: trMarca('Lienzo'),
+  reporte: trMarca('Lo que llegó'), negocio: trMarca('Tu negocio'), estrategia: trMarca('Estrategia'), bi: 'Business Intelligence', trabajos: trMarca('Trabajos en el Studio'), servidores: trMarca('Servidores'), memoria: trMarca('Memoria'), equipo: trMarca('Equipo'), documento: trMarca('Documento'), diario: trMarca('Reporte diario'), salud: trMarca('Salud'), masterclass: 'Masterclass', explorador: trMarca('Archivos'), cohorte: trMarca('Cohorte'), casa: trMarca('Casa'), perro: trMarca('Perro'), historia: trMarca('Historia'),
 }
 
 /** Nombre de un documento: el título que le dio Levy o el nombre del archivo. */
-export const nombreDocumento = (i: MostrarInput) => i.titulo || (i.ruta ?? '').split('/').pop() || 'Documento'
+export const nombreDocumento = (i: MostrarInput) => i.titulo || (i.ruta ?? '').split('/').pop() || tr('Documento')
 
 /** Resumen estático de una invocación (lo que se ve cuando la vista está colapsada). */
 export function resumen(i: MostrarInput): string {
   const a = i.alcance ?? (i.vista === 'calendario' ? 'semana' : 'mes'), f = i.fecha ?? hoyCivil()
-  if (i.vista === 'calendario' || i.vista === 'objetivos') return `${NOMBRE[i.vista]} · ${tituloPeriodo(a, f)}`
-  if (i.vista === 'lienzo') return `Lienzo${i.titulo ? ` · ${i.titulo}` : ''}`
+  if (i.vista === 'calendario' || i.vista === 'objetivos') return `${tr(NOMBRE[i.vista])} · ${tituloPeriodo(a, f)}`
+  if (i.vista === 'lienzo') return `${tr('Lienzo')}${i.titulo ? ` · ${i.titulo}` : ''}`
   if (i.vista === 'reporte') return i.titulo ?? 'Lo que llegó'
-  if (i.vista === 'negocio') return i.titulo ?? `Tu negocio${i.seccion ? ` · ${i.seccion}` : ''}`
-  if (i.vista === 'estrategia') return i.titulo ?? 'Estrategia · quién compra, contra quién y hacia dónde va'
-  if (i.vista === 'bi') return i.titulo ?? 'Business Intelligence · tu negocio te habla'
+  if (i.vista === 'negocio') return i.titulo ?? `${tr('Tu negocio')}${i.seccion ? ` · ${i.seccion}` : ''}`
+  if (i.vista === 'estrategia') return i.titulo ?? tr('Estrategia · quién compra, contra quién y hacia dónde va')
+  if (i.vista === 'bi') return i.titulo ?? tr('Business Intelligence · tu negocio te habla')
   if (i.vista === 'trabajos') return i.titulo ?? 'Trabajos en el Studio'
   if (i.vista === 'finanzas') return i.titulo ?? 'Finanzas · últimos 30 días'
   if (i.vista === 'contenido') return i.titulo ?? 'Contenido · YouTube'
-  if (i.vista === 'rutinas') return i.titulo ?? 'Rutinas · lo que corre solo'
-  if (i.vista === 'servidores') return i.titulo ?? 'Computadora · ¿está todo prendido?'
-  if (i.vista === 'memoria') return i.titulo ?? 'Memoria · lo que tu cerebro sabe de ti'
+  if (i.vista === 'rutinas') return i.titulo ?? tr('Rutinas · lo que corre solo')
+  if (i.vista === 'servidores') return i.titulo ?? tr('Computadora · ¿está todo prendido?')
+  if (i.vista === 'memoria') return i.titulo ?? tr('Memoria · lo que tu cerebro sabe de ti')
   if (i.vista === 'equipo') return i.titulo ?? 'Equipo · quién lleva qué'
   if (i.vista === 'salud') return i.titulo ?? 'Salud · cómo está tu cuerpo hoy'
   if (i.vista === 'masterclass') return i.titulo ?? 'Masterclass · sábado 17 de octubre'
@@ -246,7 +248,7 @@ export function resumen(i: MostrarInput): string {
   if (i.vista === 'perro') return i.titulo ?? 'Perro · cámara, mapa y STOP'
   if (i.vista === 'historia') return i.titulo ?? 'Historia · lo que cambió en tu cerebro'
   if (i.vista === 'documento') return nombreDocumento(i)
-  if (i.vista === 'explorador') return i.titulo ?? 'Archivos · el árbol del repo'
+  if (i.vista === 'explorador') return i.titulo ?? tr('Archivos · el árbol del repo')
   if (i.vista === 'diario') return i.titulo ?? `${i.quien === SEGUNDA() ? `Reporte de ${NOMBRE_SEGUNDA()}` : 'Reporte diario'} · ${tituloPeriodo('dia', f)}`
   return 'Command Center · el negocio hoy'
 }

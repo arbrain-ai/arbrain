@@ -16,6 +16,7 @@ import { usePanelFijadas } from './fijadas'
 import { mostrarPanel } from './ventanas'
 import { accionDeTecla, CLAVE_RECUERDO, distanciaAlFondo, leerRecuerdo, scrollParaDistancia } from './pantalla-completa'
 import s from './panel.module.css'
+import { tr } from '@/shared/i18n'
 
 const escritorio = () => typeof window !== 'undefined' && !window.matchMedia('(max-width: 767px), (pointer: coarse) and (max-height: 600px)').matches
 
@@ -153,7 +154,7 @@ export function PantallaCompleta() {
 
   return <>
     {!levy && <button className={s.levyBoton} onClick={() => useLayoutStore.getState().setLevyFlotante(true)} data-testid="levy-flotante-abrir"
-      title="Hablar con Levy sin salir (⌘J)" aria-label="Hablar con Levy">
+      title={tr('Hablar con Levy sin salir (⌘J)')} aria-label={tr('Hablar con Levy')}>
       <MessageCircle size={16} aria-hidden /><span>Levy</span><kbd>⌘J</kbd>
     </button>}
     {main && createPortal(<CabeceraLevy onVolver={salir} />, main)}
@@ -166,8 +167,8 @@ function CabeceraLevy({ onVolver }: { onVolver: () => void }) {
   return <div className={s.levyCabecera} data-cabecera-levy>
     <MessageCircle size={14} aria-hidden />
     <b>Levy</b>{conversacion && <TituloHilo id={conversacion} />}
-    <button className={s.levyAccion} onClick={onVolver} title="Volver al chat completo (Esc · ⌘.)" data-testid="levy-flotante-volver">Chat completo</button>
-    <button className={s.icono} onClick={() => useLayoutStore.getState().setLevyFlotante(false)} title="Esconder a Levy (⌘J · Esc)" aria-label="Esconder a Levy" data-testid="levy-flotante-cerrar"><X size={14} /></button>
+    <button className={s.levyAccion} onClick={onVolver} title={tr('Volver al chat completo (Esc · ⌘.)')} data-testid="levy-flotante-volver">{tr('Chat completo')}</button>
+    <button className={s.icono} onClick={() => useLayoutStore.getState().setLevyFlotante(false)} title={tr('Esconder a Levy (⌘J · Esc)')} aria-label={tr('Esconder a Levy')} data-testid="levy-flotante-cerrar"><X size={14} /></button>
   </div>
 }
 
@@ -179,7 +180,7 @@ function TituloHilo({ id }: { id: string }) {
 /** «Volver», arriba a la izquierda del panel en pantalla completa: siempre a la vista, al mismo lugar de antes. */
 export function BotonVolver() {
   const router = useRouter()
-  return <button className={s.volver} onClick={() => volver(router.push)} data-testid="pantalla-completa-volver" title="Volver al chat (Esc · ⌘.)">
-    <ArrowLeft size={14} aria-hidden /><span>Volver</span><kbd>Esc</kbd>
+  return <button className={s.volver} onClick={() => volver(router.push)} data-testid="pantalla-completa-volver" title={tr('Volver al chat (Esc · ⌘.)')}>
+    <ArrowLeft size={14} aria-hidden /><span>{tr('Volver')}</span><kbd>Esc</kbd>
   </button>
 }

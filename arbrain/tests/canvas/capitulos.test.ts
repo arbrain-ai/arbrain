@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import { strict as assert } from 'node:assert'
 import {
   capitulosDe, ordenDeLectura, tituloDe, camaraDeCapitulo, bajarEnCapitulo, capituloBajo, vuelo, duracionDeVuelo,
+  temasDe, temaDeCapitulo, SIN_TEMA, SIN_TITULO,
 } from '../../src/features/canvas/layout/capitulos'
 import { AnimadorCamara } from '../../src/features/canvas/input/navegacion'
 import type { CanvasElement, Camera } from '../../src/features/canvas/model/element'
@@ -12,6 +13,7 @@ const marco = (id: string, x: number, y: number, w: number, h: number, title = '
 const texto = (id: string, x: number, y: number, size: number, text: string, w = 400) =>
   ({ ...base, id, type: 'text', text, lines: [text], align: 'left', style: { size, family: 'montserrat', weight: 700 },
      x, y, width: w, height: size * 1.2 }) as unknown as CanvasElement
+const aMano = (e: CanvasElement) => ({ ...e, autor: 'humano' }) as CanvasElement
 const caja = (id: string, x: number, y: number, w = 200, h = 100) =>
   ({ ...base, id, type: 'shape', shape: 'rect', role: 'card', x, y, width: w, height: h }) as unknown as CanvasElement
 
@@ -110,4 +112,109 @@ test('el animador acepta un trayecto propio', () => {
   assert.deepEqual(cam, { x: 7, y: 7, zoom: 1.5 })
   t = 100; cuadros.shift()!()
   assert.deepEqual(cam, { x: 100, y: 0, zoom: 1 })
+})
+
+// ── temas (13 nov 2026: «pocos temas, toggles, numerados a la derecha») ──
+const conTema = (e: CanvasElement, tema: string) => ({ ...e, tema }) as CanvasElement
+
+test('temas: cada capítulo toma el tema que más se repite en lo que contiene; la sección puede declarar el suyo', () => {
+  const isla = Array.from({ length: 8 }, (_, i) => conTema(caja(`of:${i}`, 2300 + (i % 4) * 260, 100 + Math.floor(i / 4) * 300), 'La oferta'))
+  const els = [
+    marco('m1', 0, 0, 1000, 1200),
+    conTema(caja('a', 100, 100), 'Arriba'), conTema(caja('b', 400, 100), 'Arriba'), caja('mano', 700, 100),
+    marco('m2', 1100, 0, 1000, 1200),
+    conTema(caja('c', 1200, 100), 'Arriba'), conTema(caja('d', 1500, 100), 'La oferta'), conTema(caja('e', 1800, 100), 'Arriba'),
+    ...isla,
+    conTema(marco('m4', 3500, 0, 1000, 1200), 'El programa'),
+    conTema(caja('f', 3600, 100), 'La oferta'),               // la sección declara: manda sobre lo que contiene
+  ]
+  const caps = capitulosDe(els)
+  assert.deepEqual(caps.map(c => c.tema), ['Arriba', 'Arriba', 'La oferta', 'El programa'])
+  const temas = temasDe(caps)
+  assert.deepEqual(temas.map(t => [t.nombre, t.caps]), [['Arriba', [0, 1]], ['La oferta', [2]], ['El programa', [3]]])
+  assert.deepEqual(temas[0].caja, { x: 0, y: 0, width: 2100, height: 1200 })
+  assert.equal(temaDeCapitulo(temas, 1), 0)
+  assert.equal(temaDeCapitulo(temas, 3), 2)
+  assert.equal(temaDeCapitulo(temas, 9), null)
+})
+
+test('temas: sin ningún tema declarado (o con uno solo) el índice es la tira de números de antes', () => {
+  const cap = (id: string, tema?: string) => ({ id, titulo: id, caja: { x: 0, y: 0, width: 10, height: 10 }, ...(tema ? { tema } : {}) })
+  assert.deepEqual(temasDe([cap('a'), cap('b')]), [])
+  assert.deepEqual(temasDe([cap('a', 'X'), cap('b', 'X')]), [])
+  assert.deepEqual(capitulosDe([marco('m1', 0, 0, 500, 500), marco('m2', 600, 0, 500, 500)]).map(c => 'tema' in c), [false, false])
+})
+
+test('temas: lo que no declara tema va al final, en «Otros»; un tema que reaparece junta sus capítulos', () => {
+  const cap = (id: string, tema?: string) => ({ id, titulo: id, caja: { x: 0, y: 0, width: 10, height: 10 }, ...(tema ? { tema } : {}) })
+  const temas = temasDe([cap('a'), cap('b', 'X'), cap('c', 'Y'), cap('d', 'X')])
+  assert.deepEqual(temas.map(t => [t.nombre, t.caps]), [['X', [1, 3]], ['Y', [2]], [SIN_TEMA, [0]]])
+})
+
+test('capítulo bajo la cámara: dentro de una isla que envuelve a otro, gana el más chico; el actual se queda si sigue dentro', () => {
+  const cap = (id: string, x: number, y: number, w: number, h: number) => ({ id, titulo: id, caja: { x, y, width: w, height: h } })
+  const caps = [cap('isla', 0, 0, 1000, 1000), cap('dentro', 600, 100, 200, 200), cap('otro', 2000, 0, 100, 100)]
+  assert.equal(capituloBajo({ x: 700, y: 200, zoom: 1 }, caps), 1)
+  assert.equal(capituloBajo({ x: 100, y: 800, zoom: 1 }, caps), 0)
+  assert.equal(capituloBajo({ x: 700, y: 200, zoom: 1 }, caps, 0), 0)        // ya leía la isla: no salta
+  assert.equal(capituloBajo({ x: 2050, y: 50, zoom: 1 }, caps, 1), 2)        // salió del actual: el que lo contiene
+})
+
+test('nombres (13 nov): «Escribe aquí» de la mano no nombra ni une capítulos, y el elemento queda intacto', () => {
+  // Dos filas de tarjetas sueltas y, entre ellas y justo encima de la segunda, un «Escribe aquít» que Daniel dejó.
+  const fila = (p: string, x: number) => Array.from({ length: 6 }, (_, i) => caja(`${p}:${i}`, x + (i % 3) * 260, 300 + Math.floor(i / 3) * 160))
+  const borrador = aMano(texto('text-mano', 900, 200, 24, 'Escribe aquít', 420))
+  const antes = JSON.stringify(borrador)
+  const els = [
+    marco('m', 0, -2000, 1000, 1200, 'Arriba'),
+    texto('a:t', 0, 260, 60, 'El embudo', 300), ...fila('a', 0),
+    texto('b:t', 1200, 260, 60, 'Tus números', 300), ...fila('b', 1200),
+    borrador,
+  ]
+  const caps = capitulosDe(els)
+  assert.deepEqual(caps.map(c => c.titulo), ['Arriba', 'El embudo', 'Tus números'])
+  assert.ok(!caps.some(c => /escribe aqu/i.test(c.titulo)))
+  assert.equal(JSON.stringify(borrador), antes)
+})
+
+test('nombres: un número o un símbolo no es nombre; una cita tampoco; manda el rótulo sobre la frase larga', () => {
+  const zona = { x: 0, y: 0, width: 1000, height: 1000 }
+  assert.equal(tituloDe(zona, [texto('n', 0, 10, 110, 'B'), texto('s', 0, 60, 90, '$'), texto('o', 0, 120, 58, 'Sistemas')]), 'Sistemas')
+  assert.equal(tituloDe(zona, [texto('q', 0, 10, 300, '«Automatizar la economía en español»', 900), texto('n', 0, 120, 170, 'Mi para qué')]), 'Mi para qué')
+  assert.equal(tituloDe(zona, [
+    texto('k', 0, 10, 28, 'LA META'),
+    texto('t', 0, 50, 38, 'Antes de cualquier piso nuevo, convertir cada video en contactos tuyos', 900),
+  ]), 'La meta')
+  // Sin rótulo, la frase larga se corta en una palabra.
+  const largo = tituloDe(zona, [texto('t', 0, 50, 38, 'Tu cerebro trabajando para ti todos los días y tus primeros clientes en noventa días.', 900)])
+  assert.ok(largo.endsWith('…') && largo.length <= 47, largo)
+  assert.equal(tituloDe(zona, [texto('n', 0, 10, 64, '5')]), SIN_TITULO)
+})
+
+test('nombres: en una isla manda lo suyo; tarjetas hermanas del mismo tamaño y renglón se nombran juntas', () => {
+  const zona = { x: 0, y: 0, width: 3000, height: 800 }
+  assert.equal(tituloDe(zona, [
+    texto('k', 0, 0, 64, 'IR A'), texto('b', 1400, 400, 92, 'La estrategia'), texto('a', 0, 400, 92, 'La competencia'),
+  ], undefined, { miembros: new Set(['k', 'a', 'b']) }), 'La competencia · La estrategia')
+})
+
+test('nombres: lo escrito a mano solo nombra si nada más lo hace; el titular del vecino no nombra a una sección', () => {
+  const zona = { x: 0, y: 0, width: 1000, height: 1000 }
+  assert.equal(tituloDe(zona, [aMano(texto('h', 0, 10, 200, 'Mi garabato')), texto('g', 0, 100, 60, 'La parte')]), 'La parte')
+  assert.equal(tituloDe(zona, [aMano(texto('h', 0, 10, 200, 'Mi garabato'))]), 'Mi garabato')
+  // «El timonel» (de la isla de arriba) cae en la franja de la sección «la meta»: con `ajenos`, no la nombra.
+  const els = [texto('vecino', 0, -120, 96, 'El timonel'), texto('k', 0, 20, 28, 'LA META')]
+  assert.equal(tituloDe(zona, els), 'El timonel')
+  assert.equal(tituloDe(zona, els, undefined, { ajenos: new Set(['vecino']) }), 'La meta')
+})
+
+test('capítulos: una sección chica y sin nombre dentro de una isla es detalle de esa parte, no capítulo', () => {
+  const isla = Array.from({ length: 12 }, (_, i) => caja(`cj:${i}`, 2300 + (i % 4) * 260, 100 + Math.floor(i / 4) * 300))
+  const els = [
+    marco('m1', 0, 0, 1000, 1200), texto('t1', 40, 40, 150, 'La oferta'),
+    texto('it', 2300, 40, 120, 'La escalera', 600), ...isla,
+    marco('det', 2600, 450, 200, 150), texto('det:n', 2650, 480, 64, '5', 60),     // el recuadro «5» de una escala
+    marco('m3', 3500, 0, 1000, 1200, 'El plan'),
+  ]
+  assert.deepEqual(capitulosDe(els).map(c => c.titulo), ['La oferta', 'La escalera', 'El plan'])
 })

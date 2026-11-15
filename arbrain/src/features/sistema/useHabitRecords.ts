@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { civilToday } from './calendar-days'
 import { zonaDueno } from '@/shared/lib/zona-dueno'
+import { tr } from '@/shared/i18n'
 import type { Habito, Reflexion } from './types'
 
 export interface HabitDefinition extends Habito { activo: boolean; created_at: string }
@@ -52,7 +53,7 @@ export function useHabitRecords(range: { date: string; from: string; to: string;
     try {
       if (queue.current.length) localStorage.setItem(storageKey(owner), JSON.stringify(queue.current))
       else localStorage.removeItem(storageKey(owner))
-    } catch { setNotice('El navegador no pudo guardar el envío pendiente. Mantén esta vista abierta.') }
+    } catch { setNotice(tr('El navegador no pudo guardar el envío pendiente. Mantén esta vista abierta.')) }
   }, [])
 
   const refresh = useCallback(async () => {
@@ -65,7 +66,7 @@ export function useHabitRecords(range: { date: string; from: string; to: string;
       if (!mounted.current || sequence !== readSeq.current || version !== epoch.current) return
       if (!response.ok) {
         if ([401,403].includes(response.status)) { actual.current = null; setData(null); queue.current = []; setPending([]); setUndo(null) }
-        throw new Error(result.error ?? 'No se pudieron leer los hábitos.')
+        throw new Error(result.error ?? tr('No se pudieron leer los hábitos.'))
       }
       if (actual.current?.owner !== result.owner) {
         queue.current = []; setUndo(null)
@@ -74,13 +75,13 @@ export function useHabitRecords(range: { date: string; from: string; to: string;
           if (Array.isArray(recovered) && recovered.every(c => c.owner === result.owner && typeof c.requestId === 'string' && typeof c.clave === 'string')) queue.current = recovered
         } catch { /* malformed storage never becomes a request */ }
         failed.current = queue.current.length > 0
-        if (failed.current) setNotice('Hay una marca pendiente de confirmar. Reintenta para conocer su resultado.')
+        if (failed.current) setNotice(tr('Hay una marca pendiente de confirmar. Reintenta para conocer su resultado.'))
         setPending([...queue.current])
       }
       actual.current = result; setData(result); setLoading(false)
       if (!failed.current) setError(null)
     } catch (err) {
-      if (sequence === readSeq.current && mounted.current) { setError(err instanceof Error ? err.message : 'Sin conexión.'); setLoading(false) }
+      if (sequence === readSeq.current && mounted.current) { setError(err instanceof Error ? err.message : tr('Sin conexión.')); setLoading(false) }
     }
   }, [])
   useEffect(() => { setLoading(true); void refresh() }, [range.date, range.from, range.to, range.timeZone, refresh])
@@ -98,7 +99,7 @@ export function useHabitRecords(range: { date: string; from: string; to: string;
     try {
       while (queue.current.length) {
         const command = queue.current[0]
-        if (command.owner !== actual.current?.owner) throw new Error('La identidad cambió. Abre de nuevo la vista.')
+        if (command.owner !== actual.current?.owner) throw new Error(tr('La identidad cambió. Abre de nuevo la vista.'))
         if (command.expectedRevision === undefined) {
           const known = [...actual.current.records, ...actual.current.checks].find(r => r.fecha === command.date && r.habito_clave === command.clave)
           command.expectedRevision = known?.revision ?? 0
@@ -110,7 +111,7 @@ export function useHabitRecords(range: { date: string; from: string; to: string;
           if ([400,404,409,413,422].includes(response.status)) {
             queue.current = []; setUndo(null); persist()
           }
-          throw new Error(response.status === 409 ? 'El hábito cambió en otra pantalla. Revisa su estado antes de volver a marcar.' : result.error ?? 'No se pudo confirmar la marca.')
+          throw new Error(response.status === 409 ? tr('El hábito cambió en otra pantalla. Revisa su estado antes de volver a marcar.') : result.error ?? tr('No se pudo confirmar la marca.'))
         }
         if (actual.current?.owner !== command.owner) return
         const row: HabitRecord = result.record
@@ -119,11 +120,11 @@ export function useHabitRecords(range: { date: string; from: string; to: string;
           checks: row.fecha === actual.current.date ? replace(actual.current.checks) : actual.current.checks }
         if (mounted.current) setData(actual.current)
         queue.current.shift(); persist()
-        setNotice(command.hecho === true ? 'Hábito marcado.' : command.hecho === false ? 'Registrado como no cumplido.' : 'Marca retirada: sin registro.')
+        setNotice(command.hecho === true ? tr('Hábito marcado.') : command.hecho === false ? tr('Registrado como no cumplido.') : tr('Marca retirada: sin registro.'))
       }
     } catch (err) {
       failed.current = true
-      setError(err instanceof Error ? err.message : 'No se pudo confirmar la marca. Reintenta el mismo envío.')
+      setError(err instanceof Error ? err.message : tr('No se pudo confirmar la marca. Reintenta el mismo envío.'))
     } finally {
       busy.current = false; epoch.current++; setSaving(false); setPending([...queue.current]); void refresh()
     }

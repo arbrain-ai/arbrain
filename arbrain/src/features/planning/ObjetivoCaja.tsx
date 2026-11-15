@@ -5,6 +5,8 @@ import { Plus } from 'lucide-react'
 import { conEntregable, conNuevoEntregable, entregablesDe } from './claridad'
 import { esc } from './vivo-piezas'
 import c from './claridad.module.css'
+import { tr, trMarca } from '@/shared/i18n'
+import { trNodos } from '@/shared/i18n'
 
 /**
  * El objetivo del Día, de la Semana o del Mes (6 oct 2026; el Día desde el 10 oct): texto negro sobre el recuadro amarillo de la marca, el mismo en las escalas.
@@ -27,15 +29,15 @@ export function ObjetivoCaja({ rotulo, titulo, vacio, leyendo, cuenta, marca, ch
   onPlegar?: () => void
 }) {
   const plegable = Boolean(onPlegar), cerrada = plegable && plegada
-  const texto = leyendo ? 'Leyendo tu objetivo…' : titulo ?? vacio
+  const texto = leyendo ? tr('Leyendo tu objetivo…') : titulo ?? tr(vacio)
   const derecha = <>
-    {cuenta && cuenta.n > 0 && <span className={c.cuenta}><Cifra valor={cuenta.k} clave={cuenta.clave} formato={n => String(Math.round(n))} /> de {cuenta.n}{cuenta.unidad ? ` ${cuenta.unidad}` : ''}</span>}
+    {cuenta && cuenta.n > 0 && <span className={c.cuenta}>{cuenta.unidad ? trNodos('{k} de {n} {unidad}', { k: <Cifra valor={cuenta.k} clave={cuenta.clave} formato={n => String(Math.round(n))} />, n: String(cuenta.n), unidad: tr(cuenta.unidad) }) : trNodos('{k} de {n}', { k: <Cifra valor={cuenta.k} clave={cuenta.clave} formato={n => String(Math.round(n))} />, n: String(cuenta.n) })}</span>}
     {!cuenta && marca && <span className={c.cuenta}>{marca}</span>}
   </>
-  const cuerpo = leyendo ? <p className={c.cajaVacia}>Leyendo tu objetivo…</p> : titulo ? <h2>{titulo}</h2> : <p className={c.cajaVacia}>{vacio}</p>
+  const cuerpo = leyendo ? <p className={c.cajaVacia}>{tr('Leyendo tu objetivo…')}</p> : titulo ? <h2>{titulo}</h2> : <p className={c.cajaVacia}>{tr(vacio)}</p>
   return <section className={`${c.objetivo} ${c.entra}`} style={esc(i)} data-vacio={!titulo || undefined} data-plegable={plegable || undefined} data-plegada={cerrada || undefined}>
     <div className={c.caja}>
-      {plegable ? <button className={c.cabeza} onClick={onPlegar} aria-expanded={!cerrada} title={cerrada ? 'Abrir el objetivo' : 'Plegar a una línea'}>
+      {plegable ? <button className={c.cabeza} onClick={onPlegar} aria-expanded={!cerrada} title={cerrada ? tr('Abrir el objetivo') : tr('Plegar a una línea')}>
           <span className={c.rotulo}>{rotulo}</span>
           <span className={c.lineaTitulo} aria-hidden={!cerrada}>{texto}</span>
           {derecha}
@@ -54,22 +56,22 @@ export function ObjetivoCaja({ rotulo, titulo, vacio, leyendo, cuenta, marca, ch
  * de objetivos, o la descripción de la tarea o del evento del día. Lo marcado se ve al instante; los toques seguidos se guardan
  * en fila, cada uno con todo lo marcado hasta ese momento. «Agregar» suma una casilla al final sin mover las de arriba.
  */
-export function Entregables({ texto, guardar, i0 = 1, nombre = 'Entregables', vacio = 'Sin casillas todavía.' }: {
+export function Entregables({ texto, guardar, i0 = 1, nombre = trMarca('Entregables'), vacio = trMarca('Sin casillas todavía.') }: {
   texto: string; guardar?: (texto: string) => Promise<unknown>; i0?: number; nombre?: string; vacio?: string
 }) {
   const { items, resto, alternar, agregar, fallo } = useCasillas(texto, guardar)
   return <>
-    {items.length > 0 && <ul className={c.entregables} aria-label={nombre}>
+    {items.length > 0 && <ul className={c.entregables} aria-label={tr(nombre)}>
       {items.map((e, n) => <li key={e.linea} className={c.entra} style={esc(i0 + n)}>
         <button role="checkbox" aria-checked={e.hecho} data-hecha={e.hecho || undefined} disabled={!guardar} onClick={() => alternar(e.linea, !e.hecho)}
-          title={guardar ? (e.hecho ? 'Desmarcar' : 'Marcar como hecho') : undefined}>
+          title={guardar ? (e.hecho ? tr('Desmarcar') : tr('Marcar como hecho')) : undefined}>
           <span className={c.casilla} aria-hidden><Palomita /></span><span className={c.entregableTexto}>{e.texto}</span>
         </button>
       </li>)}
     </ul>}
     {resto && <p className={c.prosa}>{resto}</p>}
-    {!items.length && !guardar && !resto && <p className={c.cajaVacia}>{vacio}</p>}
-    {guardar && <Agregar vacio={!items.length ? vacio : null} onAgregar={agregar} i={i0 + items.length} />}
+    {!items.length && !guardar && !resto && <p className={c.cajaVacia}>{tr(vacio)}</p>}
+    {guardar && <Agregar vacio={!items.length ? tr(vacio) : null} onAgregar={agregar} i={i0 + items.length} />}
     {fallo && <p className={c.fallo} role="alert">{fallo}</p>}
   </>
 }
@@ -100,7 +102,7 @@ export function useCasillas(texto: string, guardar?: (texto: string) => Promise<
     if (!guardar) return
     setFallo(null); enVuelo.current++
     cola.current = cola.current.then(() => guardar(siguiente))
-      .catch(e => { deshacer(); setFallo(e instanceof Error ? e.message : 'No se pudo guardar.') })
+      .catch(e => { deshacer(); setFallo(e instanceof Error ? tr(e.message) : tr('No se pudo guardar.')) })
       .finally(() => { enVuelo.current-- })
   }
   function alternar(linea: number, hecho: boolean) {
@@ -126,9 +128,9 @@ export function Agregar({ vacio, onAgregar, i }: { vacio: string | null; onAgreg
     {abierta ? <form onSubmit={e => { e.preventDefault(); onAgregar(valor); setValor('') }}>
         <span className={c.casilla} aria-hidden />
         <input autoFocus value={valor} onChange={e => setValor(e.target.value)} onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); cerrar() } }}
-          onBlur={() => { if (!valor.trim()) cerrar() }} placeholder="Qué tiene que pasar…" aria-label="Casilla nueva" maxLength={200} />
+          onBlur={() => { if (!valor.trim()) cerrar() }} placeholder={tr('Qué tiene que pasar…')} aria-label={tr('Casilla nueva')} maxLength={200} />
       </form>
-      : <button onClick={() => setAbierta(true)}><Plus size={13} aria-hidden />Agregar</button>}
+      : <button onClick={() => setAbierta(true)}><Plus size={13} aria-hidden />{tr('Agregar')}</button>}
   </div>
 }
 

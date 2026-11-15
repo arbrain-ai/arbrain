@@ -7,6 +7,7 @@
 import { useEffect, useState } from 'react'
 import { MessagesSquare } from 'lucide-react'
 import { horaCorta } from './conectar-ui'
+import { tr } from '@/shared/i18n'
 
 interface Estado {
   activo: boolean
@@ -20,12 +21,13 @@ interface Estado {
 export function textoConversaciones(e: Estado, ahora = new Date()): { texto: string; detalle: string | null; bien: boolean } | null {
   if (!e.activo) return null
   const otras = (e.maquinas ?? []).filter((m) => m !== e.host)
-  const donde = otras.length ? `en ${e.host} y ${otras.join(', ')}` : `en ${e.host}; tu otra máquina se suma al conversar allá`
+  const donde = otras.length ? tr('en {host} y {otras}', { host: e.host, otras: otras.join(', ') }) : tr('en {host}; tu otra máquina se suma al conversar allá', { host: e.host })
+  const texto = tr('Tus conversaciones son una sola lista {donde}.', { donde })
   const s = e.ultimaSync
-  if (!s) return { texto: `Tus conversaciones son una sola lista ${donde}.`, detalle: 'Se ponen al día en cuanto conversas o abres la lista.', bien: true }
+  if (!s) return { texto, detalle: tr('Se ponen al día en cuanto conversas o abres la lista.'), bien: true }
   const cuando = horaCorta(s.en, true, ahora)
-  if (s.codigo === 'ok') return { texto: `Tus conversaciones son una sola lista ${donde}.`, detalle: `Al día desde las ${cuando}.${e.aviso ? ` ${e.aviso}` : ''}`, bien: !e.aviso }
-  return { texto: `Tus conversaciones son una sola lista ${donde}.`, detalle: `La última vez (${cuando}) no se pudieron poner al día: ${s.motivo || s.codigo}. Lo tuyo queda guardado aquí y se reintenta solo.`, bien: false }
+  if (s.codigo === 'ok') return { texto, detalle: `${tr('Al día desde las {hora}.', { hora: cuando })}${e.aviso ? ` ${tr(e.aviso)}` : ''}`, bien: !e.aviso }
+  return { texto, detalle: tr('La última vez ({hora}) no se pudieron poner al día: {motivo}. Lo tuyo queda guardado aquí y se reintenta solo.', { hora: cuando, motivo: s.motivo ? tr(s.motivo) : s.codigo }), bien: false }
 }
 
 export function LineaConversaciones() {

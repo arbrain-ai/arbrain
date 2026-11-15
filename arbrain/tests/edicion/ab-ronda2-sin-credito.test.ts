@@ -70,13 +70,13 @@ test('primer arranque: la prueba de la llave llega a todo el arranque', () => {
   const p = fuente('src/features/primer-arranque/components/PrimerArranque.tsx')
   assert.match(p, /const pruebaLlave = usePruebaConexion\(\)/)
   assert.match(p, /<PanelLlaves onEstado=\{setLlaves\} control=\{pruebaLlave\} \/>/)
-  assert.match(p, /paso === 'llaves' && sinCredito \? 'Continuar sin crédito'/)
-  assert.match(p, /sinCredito \? <Resumen tono="alerta"><b[^>]*>Conectado, falta crédito\.<\/b>/)
+  assert.match(p, /paso === 'llaves' && sinCredito \? (tr\()?'Continuar sin crédito'/)
+  assert.match(p, /sinCredito \? <Resumen tono="alerta"><b[^>]*>(\{tr\(')?Conectado, falta crédito\.('\)\})?<\/b>/)
   assert.match(p, /\{sinCredito && \([\s\S]*?<PasoRecarga cobra=\{llaves\.cobra\}/)
   assert.match(p, /useReprobarAlVolver\(paso === 'listo' && sinCredito, pruebaLlave\.probar\)/)
   assert.ok(!/'Levy conectado con tu llave'\s*:\s*'Sin llave/.test(p), 'ya no hay palomita verde por existir la llave')
   // Lo que no existe no lleva palomita (secundaria #3 del A/B).
-  assert.match(p, /<Resumen tono="neutro">Computer use no está disponible en este sistema/)
+  assert.match(p, /<Resumen tono="neutro">(\{tr\(')?Computer use no está disponible en este sistema/)
   // La bienvenida ya no promete «Claude con tu cuenta».
   assert.match(p, /con tu propia cuenta: tu Claude Code/)
   assert.ok(!/Hablas con Claude con tu propia cuenta/.test(p))
@@ -114,7 +114,7 @@ test('B2: tras 20 s esperando, «¿Cancelaste en OpenRouter?» con Reintentar', 
   assert.equal(AVISO_SIN_RESPUESTA_MS, 20_000)
   const panel = fuente('src/features/primer-arranque/components/PanelLlaves.tsx')
   assert.match(panel, /setTimeout\(\(\) => setSinRespuesta\(true\), AVISO_SIN_RESPUESTA_MS\)/)
-  assert.match(panel, /¿Cancelaste en OpenRouter\?\s*<button[^>]*onClick=\{\(\) => void conectar\(\)\}/)
+  assert.match(panel, /¿Cancelaste en OpenRouter\?('\)\})?\s*<button[^>]*onClick=\{\(\) => void conectar\(\)\}/)
 })
 
 test('B1: la regla estricta del regreso va DESPUÉS de la general en next.config (la última gana)', () => {

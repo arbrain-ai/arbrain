@@ -1,15 +1,16 @@
 import { addDays, addMinutes, format, parseISO } from 'date-fns'
 import type { PlanEvent, PlanItem, PlanMutation, PlanTask, PlanningSnapshot } from './types'
+import { trMarca } from '@/shared/i18n'
 
 export const MODES = [
-  { id: 'day', label: 'Día', calendar: 'timeGridDay' },
-  { id: 'week', label: 'Semana', calendar: 'timeGridWeek' },
-  { id: 'month', label: 'Mes', calendar: 'dayGridMonth' },
-  { id: 'year', label: 'Año', calendar: null },
-  { id: 'agenda', label: 'Agenda', calendar: 'rollingAgenda' },
-  { id: 'crons', label: 'Rutinas', calendar: null },
+  { id: 'day', label: trMarca('Día'), calendar: 'timeGridDay' },
+  { id: 'week', label: trMarca('Semana'), calendar: 'timeGridWeek' },
+  { id: 'month', label: trMarca('Mes'), calendar: 'dayGridMonth' },
+  { id: 'year', label: trMarca('Año'), calendar: null },
+  { id: 'agenda', label: trMarca('Agenda'), calendar: 'rollingAgenda' },
+  { id: 'crons', label: trMarca('Rutinas'), calendar: null },
   // La cuarta escala (25 oct 2026, Daniel: «con Ctrl+H accedo a ella y es la de hábitos a través del tiempo»): superficie propia.
-  { id: 'habits', label: 'Hábitos', calendar: null },
+  { id: 'habits', label: trMarca('Hábitos'), calendar: null },
 ] as const
 
 export function localInput(date: Date) { return format(date, "yyyy-MM-dd'T'HH:mm") }

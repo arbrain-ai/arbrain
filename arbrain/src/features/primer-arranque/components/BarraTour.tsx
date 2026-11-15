@@ -8,6 +8,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { PlanTour } from '../lib/tour'
 import { mostrarDestino } from '../lib/tour-mostrar'
+import { tr } from '@/shared/i18n'
+import { trNodos } from '@/shared/i18n'
 
 export interface MensajeTour { id: string; role: 'assistant'; content: string; created_at: string; metadata: { source: string; capitulo: string; mostrar: string | null } }
 
@@ -41,7 +43,7 @@ export function BarraTour({ sesionId, onMensaje, onEnCurso }: {
     try {
       const r = await fetch('/api/primer-arranque/tour', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accion, sesion: sesionId }) })
       const j = await r.json().catch(() => ({})) as { plan?: PlanTour | null; sesion?: string; mensaje?: MensajeTour | null; error?: string }
-      if (!r.ok) throw new Error(j.error ?? 'No pude seguir con el recorrido.')
+      if (!r.ok) throw new Error(j.error ?? tr('No pude seguir con el recorrido.'))
       setPlan(j.plan ?? null)
       if (j.mensaje) {
         // Sin conversación abierta, el capítulo nació en una nueva: se abre ahí.
@@ -49,38 +51,38 @@ export function BarraTour({ sesionId, onMensaje, onEnCurso }: {
         onMensaje(j.mensaje)
         mostrarDestino(j.mensaje.metadata.mostrar)
       }
-    } catch (e) { setError(e instanceof Error ? e.message : 'No pude seguir con el recorrido.') } finally { setOcupado(false) }
+    } catch (e) { setError(e instanceof Error ? e.message : tr('No pude seguir con el recorrido.')) } finally { setOcupado(false) }
   }, [sesionId, onMensaje])
 
   if (!plan) return null
-  const n = `${Math.min(plan.hechos + 1, plan.total)} de ${plan.total}`
+  const n = tr('{n} de {total}', { n: Math.min(plan.hechos + 1, plan.total), total: plan.total })
 
   return (
-    <div role="group" aria-label="Recorrido de bienvenida" aria-live="polite" className="pt-3" data-tour-bienvenida={plan.enCurso ? (plan.pausado ? 'pausado' : 'en-curso') : 'oferta'}>
+    <div role="group" aria-label={tr('Recorrido de bienvenida')} aria-live="polite" className="pt-3" data-tour-bienvenida={plan.enCurso ? (plan.pausado ? 'pausado' : 'en-curso') : 'oferta'}>
       {!plan.enCurso && (
         <p className="pb-2 text-[13px] text-muted">
           {plan.modo === 'novedades'
-            ? <>Novedades en tu Arbrain: <b className="font-medium text-foreground">{plan.pendientes.join(', ')}</b>. Te las enseño en un minuto, una sola vez.</>
-            : <>Levy te enseña la app en unos tres minutos, por capítulos. Se ve una sola vez.</>}
+            ? trNodos('Novedades en tu Arbrain: {lista}. Te las enseño en un minuto, una sola vez.', { lista: <b className="font-medium text-foreground">{plan.pendientes.map(p => tr(p)).join(', ')}</b> })
+            : tr('Levy te enseña la app en unos tres minutos, por capítulos. Se ve una sola vez.')}
         </p>
       )}
       <div className="flex flex-wrap items-center gap-2">
         {!plan.enCurso && <>
-          <button type="button" className={PRINCIPAL} disabled={ocupado} onClick={() => void pedir('siguiente')}>{plan.modo === 'novedades' ? 'Ver las novedades' : 'Empezar el recorrido'}</button>
-          <button type="button" className={DISCRETO} disabled={ocupado} onClick={() => void pedir('saltar')}>Ahora no (no vuelve)</button>
+          <button type="button" className={PRINCIPAL} disabled={ocupado} onClick={() => void pedir('siguiente')}>{plan.modo === 'novedades' ? tr('Ver las novedades') : tr('Empezar el recorrido')}</button>
+          <button type="button" className={DISCRETO} disabled={ocupado} onClick={() => void pedir('saltar')}>{tr('Ahora no (no vuelve)')}</button>
         </>}
         {plan.enCurso && plan.pausado && <>
-          <button type="button" className={PRINCIPAL} disabled={ocupado} onClick={() => void pedir('siguiente')}>Retomar el recorrido · {n}</button>
-          <button type="button" className={DISCRETO} disabled={ocupado} onClick={() => void pedir('saltar')}>Saltar el resto</button>
+          <button type="button" className={PRINCIPAL} disabled={ocupado} onClick={() => void pedir('siguiente')}>{tr('Retomar el recorrido · {n}', { n })}</button>
+          <button type="button" className={DISCRETO} disabled={ocupado} onClick={() => void pedir('saltar')}>{tr('Saltar el resto')}</button>
         </>}
         {plan.enCurso && !plan.pausado && <>
-          {plan.siguiente && <button type="button" className={PRINCIPAL} disabled={ocupado} onClick={() => void pedir('siguiente')}>Siguiente: {plan.siguiente.titulo} <span className="text-brand-ink/60">· {n}</span></button>}
-          {plan.ultimo?.mostrar && <button type="button" className={SECUNDARIO} onClick={() => mostrarDestino(plan.ultimo?.mostrar)}>Muéstramelo</button>}
-          <button type="button" className={DISCRETO} disabled={ocupado} onClick={() => void pedir('pausar')}>Pausar</button>
-          <button type="button" className={DISCRETO} disabled={ocupado} onClick={() => void pedir('saltar')}>Saltar el recorrido</button>
+          {plan.siguiente && <button type="button" className={PRINCIPAL} disabled={ocupado} onClick={() => void pedir('siguiente')}>{tr('Siguiente: {titulo}', { titulo: tr(plan.siguiente.titulo) })} <span className="text-brand-ink/60">· {n}</span></button>}
+          {plan.ultimo?.mostrar && <button type="button" className={SECUNDARIO} onClick={() => mostrarDestino(plan.ultimo?.mostrar)}>{tr('Muéstramelo')}</button>}
+          <button type="button" className={DISCRETO} disabled={ocupado} onClick={() => void pedir('pausar')}>{tr('Pausar')}</button>
+          <button type="button" className={DISCRETO} disabled={ocupado} onClick={() => void pedir('saltar')}>{tr('Saltar el recorrido')}</button>
         </>}
       </div>
-      {error && <p role="alert" className="pt-2 text-[12.5px] text-amber-600 dark:text-amber-400">{error}</p>}
+      {error && <p role="alert" className="pt-2 text-[12.5px] text-amber-600 dark:text-amber-400">{tr(error)}</p>}
     </div>
   )
 }

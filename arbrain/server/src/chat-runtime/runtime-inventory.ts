@@ -3,6 +3,7 @@ import type { Connection } from './codex-pool.js'
 import { ClaudeInteractiveSession, requireClaudeSubscription } from './claude-session.js'
 import { randomUUID } from 'node:crypto'
 import { esCuentaApi } from '../modelos/registro.js'
+import { tr, trn } from '../i18n/tr.js'
 
 export type InventoryKind = 'skills' | 'mcp'
 export interface RuntimeInventory {
@@ -40,7 +41,7 @@ export class ClaudeInventoryDiscovery {
     const key = JSON.stringify([cwd, account])
     let pending = this.pending.get(key)
     if (!pending) {
-      if (this.pending.size >= this.limit) throw new Error('Descubrimiento Claude ocupado. Reintenta cuando termine la consulta actual.')
+      if (this.pending.size >= this.limit) throw new Error(tr('Descubrimiento Claude ocupado. Reintenta cuando termine la consulta actual.'))
       pending = Promise.resolve().then(() => this.load(cwd, account)).finally(() => this.pending.delete(key))
       this.pending.set(key, pending)
     }
@@ -105,23 +106,23 @@ export async function readCodexInventory(client: Pick<Connection, 'request'>, cw
 
 const plain = (value: string) => value.replace(/[\r\n\t]/g, ' ').replace(/[\\`*_{}\[\]()<>#+.!|~-]/g, '\\$&')
 export function renderRuntimeInventory(inventory: RuntimeInventory): string {
-  const title = inventory.kind === 'skills' ? 'Skills/comandos anunciados' : 'Integraciones MCP'
-  const origin = inventory.source === 'conversation' ? 'proceso de esta conversación' : 'consulta aislada de la cuenta y workspace'
-  const lines = [`**${title} · ${plain(inventory.account)}**`, '', `Fuente: ${origin}. Consulta: ${inventory.observedAt}.`, '']
+  const title = inventory.kind === 'skills' ? tr('Skills/comandos anunciados') : tr('Integraciones MCP')
+  const origin = inventory.source === 'conversation' ? tr('proceso de esta conversación') : tr('consulta aislada de la cuenta y workspace')
+  const lines = [`**${title} · ${plain(inventory.account)}**`, '', tr('Fuente: {origen}. Consulta: {fecha}.', { origen: origin, fecha: inventory.observedAt }), '']
   for (const entry of inventory.entries) {
     const details: string[] = []
-    if (entry.enabled !== undefined) details.push(entry.enabled ? 'habilitada' : 'deshabilitada')
-    if (inventory.kind === 'mcp') details.push(`estado: ${entry.status ? plain(entry.status) : 'desconocido'}`)
-    if (entry.scope) details.push(`origen: ${plain(entry.scope)}`)
-    if (entry.auth) details.push(`autenticación: ${plain(entry.auth)}`)
-    if (entry.toolCount !== undefined) details.push(`${entry.toolCount} herramientas anunciadas`)
+    if (entry.enabled !== undefined) details.push(entry.enabled ? tr('habilitada') : tr('deshabilitada'))
+    if (inventory.kind === 'mcp') details.push(tr('estado: {estado}', { estado: entry.status ? plain(entry.status) : tr('desconocido') }))
+    if (entry.scope) details.push(tr('origen: {origen}', { origen: plain(entry.scope) }))
+    if (entry.auth) details.push(tr('autenticación: {estado}', { estado: plain(entry.auth) }))
+    if (entry.toolCount !== undefined) details.push(trn(entry.toolCount, '1 herramienta anunciada', '{n} herramientas anunciadas'))
     if (entry.description) details.push(plain(entry.description.slice(0, 240)))
     if (entry.path) details.push(plain(entry.path))
     lines.push(`- **${plain(entry.name)}**${details.length ? ': ' + details.join(' · ') : ''}`)
   }
-  if (!inventory.entries.length) lines.push('El runtime no devolvió entradas en esta consulta.')
-  if (inventory.loadErrors) lines.push('', `${inventory.loadErrors} errores de carga reportados por el runtime.`)
-  lines.push('', 'Este inventario no prueba ejecución de skills ni herramientas. Un estado de autenticación no implica conexión activa.')
-  if (inventory.account === 'default' || inventory.account === 'bro') lines.push('La lista de skills/comandos de una conversación corresponde a su inicialización; no se reinicia una conversación para refrescarla. Las herramientas Google Calendar/Gmail/Drive claude_ai siguen restringidas por el adaptador.')
+  if (!inventory.entries.length) lines.push(tr('El runtime no devolvió entradas en esta consulta.'))
+  if (inventory.loadErrors) lines.push('', tr('{n} errores de carga reportados por el runtime.', { n: inventory.loadErrors }))
+  lines.push('', tr('Este inventario no prueba ejecución de skills ni herramientas. Un estado de autenticación no implica conexión activa.'))
+  if (inventory.account === 'default' || inventory.account === 'bro') lines.push(tr('La lista de skills/comandos de una conversación corresponde a su inicialización; no se reinicia una conversación para refrescarla. Las herramientas Google Calendar/Gmail/Drive claude_ai siguen restringidas por el adaptador.'))
   return lines.join('\n')
 }

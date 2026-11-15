@@ -9,6 +9,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from
 import { cifraDe, type Consulta } from './catalogo'
 import { diaYMes, type Lectura, type PuntoLeido, type Tono } from './modelo'
 import g from './graficas.module.css'
+import { tr } from '@/shared/i18n'
 
 /** El ancho real del contenedor: el texto del SVG se queda a su tamaño (nada de viewBox que lo encoja en el teléfono). */
 export function useAncho<T extends HTMLElement>(inicial = 480) {
@@ -160,7 +161,7 @@ export function Acumulado({ c, lectura, dibuja, alto = 168 }: { c: Pick<Consulta
       <text x={x(15)} y={H - 5} textAnchor="middle" className={g.eje}>15</text>
       <text x={x(31)} y={H - 5} textAnchor="end" className={g.eje}>31</text>
     </svg>
-    <p className={g.leyenda}><i className={g.llave} data-oro />{m.etiquetaEste}<i className={g.llave} data-sombra />{m.etiquetaAnterior}, a la misma altura del mes</p>
+    <p className={g.leyenda}><i className={g.llave} data-oro />{m.etiquetaEste}<i className={g.llave} data-sombra />{tr('{mes}, a la misma altura del mes', { mes: m.etiquetaAnterior })}</p>
   </div>
 }
 
@@ -190,7 +191,7 @@ export function Proporcion({ c, lectura, dibuja }: { c: Consulta; lectura: Lectu
       {barras.map((b, i) => <span key={b.id} data-i={i} style={{ '--w': `${(b.valor / total) * 100}%`, '--i': i } as CSSProperties} />)}
     </div>
     <ul className={g.partes}>
-      {barras.map((b, i) => <li key={b.id} data-i={i}><i aria-hidden /><span>{b.etiqueta}</span><b>{Math.round((b.valor / total) * 100)} %</b><small>{cifraDe(b.valor, c)}</small></li>)}
+      {barras.map((b, i) => <li key={b.id} data-i={i}><i aria-hidden /><span>{b.etiqueta}</span><b>{tr('{p} %', { p: Math.round((b.valor / total) * 100) })}</b><small>{cifraDe(b.valor, c)}</small></li>)}
     </ul>
   </div>
 }
@@ -202,14 +203,14 @@ export function Embudo({ c, lectura, dibuja }: { c: Consulta; lectura: Lectura; 
   const peor = lectura.anotacion?.indice
   return <ol className={`${g.embudo} ${dibuja ? g.dibuja : ''}`}>
     {pasos.map((p, i) => <li key={p.etiqueta} style={{ '--i': i, '--w': `${Math.max(1.2, Math.sqrt(p.valor / primero) * 100)}%` } as CSSProperties} data-peor={i === peor || undefined}>
-      {i > 0 && <span className={g.paso} data-peor={i === peor || undefined}>{p.paso === null ? '—' : `pasa ${Math.round(p.paso * 100)} %`}{i === peor ? ' · aquí se cae' : ''}</span>}
+      {i > 0 && <span className={g.paso} data-peor={i === peor || undefined}>{p.paso === null ? '—' : tr('pasa {pct}', { pct: tr('{p} %', { p: Math.round(p.paso * 100) }) })}{i === peor ? ` · ${tr('aquí se cae')}` : ''}</span>}
       <span className={g.embudoFila}>
         <span className={g.embudoEtiqueta}>{p.etiqueta}</span>
         <span className={g.embudoCarril}><span className={g.embudoBarra} /></span>
         <b className={g.embudoValor}>{cifraDe(p.valor, c)}</b>
       </span>
     </li>)}
-    <li className={g.escala} aria-hidden>Ancho en raíz cuadrada: los pasos chicos se siguen viendo.</li>
+    <li className={g.escala} aria-hidden>{tr('Ancho en raíz cuadrada: los pasos chicos se siguen viendo.')}</li>
   </ol>
 }
 

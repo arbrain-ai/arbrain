@@ -1,4 +1,5 @@
 'use client'
+import { tr } from '@/shared/i18n'
 import { Fragment, useEffect, useRef, type RefObject } from 'react'
 import {
   Trash2, Minimize2, Activity, CheckSquare, Bot, BarChart2, HelpCircle, Cpu,
@@ -94,7 +95,7 @@ export function CommandPalette({ comandos, selectedIndex, onSelect, onClose, anc
         <div className="w-4 h-4 rounded-md bg-brand/15 flex items-center justify-center">
           <span className="text-[9px] font-bold text-brand-ink leading-none">/</span>
         </div>
-        <span className="text-[10px] text-muted uppercase tracking-widest font-semibold">Comandos</span>
+        <span className="text-[10px] text-muted uppercase tracking-widest font-semibold">{tr('Comandos')}</span>
         <span className="text-[10px] text-muted/60 font-mono">{comandos.length}</span>
         <span className="ml-auto text-[9px] text-muted/60 hidden sm:block font-mono">
           ↑↓ · Tab/Enter · Esc
@@ -105,12 +106,12 @@ export function CommandPalette({ comandos, selectedIndex, onSelect, onClose, anc
       <ul
         ref={listRef}
         role="listbox"
-        aria-label="Comandos de Levy"
+        aria-label={tr('Comandos de Levy')}
         data-popover-scroll
         className="py-1 min-h-0 flex-1 overflow-y-auto overscroll-contain"
       >
         {!comandos.length && (
-          <li className="px-3.5 py-6 text-center text-[12px] text-muted" role="presentation">Sin coincidencias</li>
+          <li className="px-3.5 py-6 text-center text-[12px] text-muted" role="presentation">{tr('Sin coincidencias')}</li>
         )}
         {comandos.map((cmd, i) => {
           const { icon: Icon, iconClass } = iconoDeComando(cmd)
@@ -141,12 +142,12 @@ export function CommandPalette({ comandos, selectedIndex, onSelect, onClose, anc
                     <span className={`flex items-baseline gap-2 text-[13px] font-mono font-semibold transition-colors ${active ? 'text-foreground' : 'text-foreground/80'}`}>
                       <span className="truncate">{cmd.name}</span>
                       {cmd.argumentHint && (
-                        <span className="text-[10px] font-normal text-muted/60 truncate">{cmd.argumentHint}</span>
+                        <span className="text-[10px] font-normal text-muted/60 truncate">{tr(cmd.argumentHint)}</span>
                       )}
                     </span>
                     {cmd.description && (
                       <span className={`block text-[11px] truncate mt-0.5 transition-colors ${active ? 'text-muted' : 'text-muted/80'}`}>
-                        {cmd.description}
+                        {tr(cmd.description)}
                       </span>
                     )}
                   </div>

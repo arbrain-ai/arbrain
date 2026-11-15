@@ -29,6 +29,7 @@ import { ALLOWED_CHAT_ID, PROJECT_ROOT } from '../config.js'
 import { avisarSistema } from './aviso-sistema.js'
 import { avisoRutina, sinNovedad, type FinRutina } from './avisos-telefono.js'
 import { pausado } from './pausa.js'
+import { tr, trMarca } from '../i18n/tr.js'
 
 /** Sube cuando el catálogo agrega rutinas. Nunca se reusa un id. */
 export const VERSION_CATALOGO = 1
@@ -54,8 +55,8 @@ const SIN_NOVEDAD = 'Si no hay nada que reportar, no escribas el archivo y respo
 export const CATALOGO: readonly Precargada[] = [
   {
     id: 'arbrain-reporte-manana', desde: 1, schedule: '0 7 * * 1-5', archivo: '.claude/reportes/diario/{dia}-manana.md',
-    nombre: 'Reporte de la mañana',
-    paraQue: 'Antes de empezar, tu día en una página: agenda, el objetivo del día y las 3 tareas que más mueven tu meta.',
+    nombre: trMarca('Reporte de la mañana'),
+    paraQue: trMarca('Antes de empezar, tu día en una página: agenda, el objetivo del día y las 3 tareas que más mueven tu meta.'),
     prompt: `Reporte de la mañana
 
 El día del dueño en una página.
@@ -68,8 +69,8 @@ ${CIERRE}`,
   },
   {
     id: 'arbrain-cierre-dia', desde: 1, schedule: '0 19 * * 1-5', archivo: '.claude/reportes/diario/{dia}-cierre.md',
-    nombre: 'Cierre del día',
-    paraQue: 'Al final del día, lo planeado contra lo que pasó y las 3 primeras cosas de mañana. Cierras la cabeza y duermes.',
+    nombre: trMarca('Cierre del día'),
+    paraQue: trMarca('Al final del día, lo planeado contra lo que pasó y las 3 primeras cosas de mañana. Cierras la cabeza y duermes.'),
     prompt: `Cierre del día
 
 Lo planeado contra lo que pasó hoy.
@@ -82,8 +83,8 @@ ${CIERRE}`,
   },
   {
     id: 'arbrain-revision-semanal', desde: 1, schedule: '0 18 * * 0', archivo: '.claude/reportes/semanal/{dia}.md',
-    nombre: 'Revisión de la semana',
-    paraQue: 'Cada domingo, qué avanzó hacia tu meta, qué se atoró y UNA cosa en la que enfocarte la semana que viene.',
+    nombre: trMarca('Revisión de la semana'),
+    paraQue: trMarca('Cada domingo, qué avanzó hacia tu meta, qué se atoró y UNA cosa en la que enfocarte la semana que viene.'),
     prompt: `Revisión de la semana
 
 Qué avanzó, qué se atoró y el foco de la semana que viene.
@@ -96,8 +97,8 @@ ${CIERRE}`,
   },
   {
     id: 'arbrain-reporte-mensual', desde: 1, schedule: '0 8 1 * *', archivo: '.claude/reportes/mensual/{mes}.md',
-    nombre: 'Reporte del mes',
-    paraQue: 'El día 1, tu avance contra tu meta a 90 días: dónde vas, si a este ritmo llegas y qué tiene que pasar este mes.',
+    nombre: trMarca('Reporte del mes'),
+    paraQue: trMarca('El día 1, tu avance contra tu meta a 90 días: dónde vas, si a este ritmo llegas y qué tiene que pasar este mes.'),
     prompt: `Reporte del mes
 
 El avance contra la meta a 90 días.
@@ -110,8 +111,8 @@ ${CIERRE}`,
   },
   {
     id: 'arbrain-prepara-reuniones', desde: 1, schedule: '30 7 * * 1-5', archivo: '.claude/reportes/reuniones/{dia}.md',
-    nombre: 'Prepara tus reuniones',
-    paraQue: 'Cada mañana, un brief por reunión con cliente o prospecto: qué quiere, qué se prometió y 3 preguntas. Llegas con contexto, no con un «¿cómo vas?».',
+    nombre: trMarca('Prepara tus reuniones'),
+    paraQue: trMarca('Cada mañana, un brief por reunión con cliente o prospecto: qué quiere, qué se prometió y 3 preguntas. Llegas con contexto, no con un «¿cómo vas?».'),
     prompt: `Prepara tus reuniones
 
 Un brief por cada reunión de hoy con un cliente o prospecto.
@@ -124,8 +125,8 @@ ${CIERRE}`,
   },
   {
     id: 'arbrain-seguimiento-clientes', desde: 1, schedule: '0 9 * * 2,4', archivo: '.claude/reportes/seguimiento/{dia}.md',
-    nombre: 'Seguimiento de clientes',
-    paraQue: 'Martes y jueves, quién espera algo de ti, quién te debe respuesta y quién se está enfriando, con un borrador corto para cada uno. Tú los revisas y los mandas.',
+    nombre: trMarca('Seguimiento de clientes'),
+    paraQue: trMarca('Martes y jueves, quién espera algo de ti, quién te debe respuesta y quién se está enfriando, con un borrador corto para cada uno. Tú los revisas y los mandas.'),
     prompt: `Seguimiento de clientes
 
 Que ningún cliente ni prospecto se enfríe.
@@ -138,8 +139,8 @@ ${CIERRE}`,
   },
   {
     id: 'arbrain-ideas-contenido', desde: 1, schedule: '0 8 * * 1', archivo: '.claude/reportes/contenido/{dia}.md',
-    nombre: 'Ideas para publicar',
-    paraQue: 'Cada lunes, 3 ideas para publicar desde tus años de oficio, en tu voz. Tu experiencia es lo que te diferencia: así la ven tus próximos clientes.',
+    nombre: trMarca('Ideas para publicar'),
+    paraQue: trMarca('Cada lunes, 3 ideas para publicar desde tus años de oficio, en tu voz. Tu experiencia es lo que te diferencia: así la ven tus próximos clientes.'),
     prompt: `Ideas para publicar
 
 Tres ideas para publicar esta semana desde el oficio del dueño.
@@ -221,7 +222,7 @@ export function pulirResultado(id: string, texto: string): string {
   if (!esPrecargada(id) || !texto.trim() || sinNovedad(texto)) return texto
   const frases = texto.split(/\n+/).flatMap(l => l.split(/(?<=[.!?…])\s+(?=[A-ZÁÉÍÓÚÑ¿¡])/))
   const quedan = frases.map(f => f.trim()).filter(f => f && !RUTA.test(f))
-  return quedan.length ? quedan.join('\n') : 'Tu reporte está listo.'
+  return quedan.length ? quedan.join('\n') : tr('Tu reporte está listo.')
 }
 
 export interface MetaPrecargada { nombre: string; paraQue: string; carpeta: string; reporte: string | null }

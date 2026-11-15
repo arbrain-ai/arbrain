@@ -40,7 +40,13 @@ import {
   AnimadorCamara, DetectorRueda, deltasEnPx, factorDeRueda, siguienteNivel, zoomA, accionZoomDeTecla, suaveDoble,
 } from '@/features/canvas/input/navegacion'
 import { Paginas, ANCHO_RIEL } from '@/features/canvas/ui/Paginas'
-import { DocEmbed, esEmbedDoc } from '@/features/canvas/ui/DocEmbed'
+import { DocEmbed, IslaEmbed, IslaNativaEmbed, esEmbedDoc } from '@/features/canvas/ui/DocEmbed'
+import { useIslas } from '@/features/canvas/islas/useIslas'
+import { buscarCapitulo, type DestinoIsla } from '@/features/canvas/islas/destinos'
+import { pedirSegmentoTaller } from '@/features/cabina/panel/taller-segmento'
+import { ventanaPropia } from '@/features/cabina/panel/fijadas'
+import { PRINCIPAL } from '@/features/cabina/panel/pestanas-fuera'
+import { esDeArbrain } from '@/features/canvas/model/enlace'
 import { leerLigaDoc, type LigaDoc } from '@/features/canvas/model/doc'
 import { conInteraccion } from '@/features/canvas/model/vista-embed'
 import { usePanelFijadas } from '@/features/cabina/panel/fijadas'
@@ -51,7 +57,6 @@ import * as Nube from '@/features/canvas/state/nube'
 import { programarMiniatura } from '@/features/canvas/state/miniaturas'
 import { guardarReciente } from '@/features/canvas/state/recientes-lienzos'
 import { SelectorLienzo } from '@/features/canvas/ui/lienzos/SelectorLienzo'
-import { PideALevy } from '@/features/canvas/ui/PideALevy'
 import { EVENTO_SELECTOR_LIENZO } from '@/shared/navigation/atajos-ctrl'
 import { factorPaneo, factorZoom } from '@/features/canvas/input/sensibilidad'
 import { History } from '@/features/canvas/state/history'
@@ -69,11 +74,12 @@ import * as Ico from '@/features/canvas/ui/icons'
 import { aplicarTipografia, estiloComun, tieneTexto, type TipografiaPatch } from '@/features/canvas/model/typography'
 import { AlignBar } from '@/features/canvas/ui/AlignBar'
 import { Minimap } from '@/features/canvas/ui/Minimap'
-import { Capitulos } from '@/features/canvas/ui/Capitulos'
+import { Capitulos, ANCHO_PANEL } from '@/features/canvas/ui/Capitulos'
+import { leerPlegado, guardarPlegado } from '@/features/canvas/state/panel-capitulos'
 import { MostrarEnLienzo } from '@/features/canvas/ui/MostrarEnLienzo'
 import { useMostrarEnLienzo } from '@/features/canvas/ui/useMostrarEnLienzo'
-import { capitulosDe, cajaDeTodo, camaraDeCapitulo, bajarEnCapitulo, capituloBajo, vuelo, duracionDeVuelo, type Capitulo } from '@/features/canvas/layout/capitulos'
-import { anotarCuadro, anotarReact } from '@/features/canvas/render/sonda'
+import { capitulosDe, cajaDeTodo, camaraDeCapitulo, bajarEnCapitulo, capituloBajo, vuelo, duracionDeVuelo, temasDe, temaDeCapitulo, type Capitulo } from '@/features/canvas/layout/capitulos'
+import { anotarCuadro, anotarIsla, anotarReact, exponerCamara } from '@/features/canvas/render/sonda'
 import { useCamaraViva, ConCamara } from '@/features/canvas/ui/CamaraViva'
 import { ordenPorZDesc } from '@/features/canvas/model/orden'
 import { align, distribute } from '@/features/canvas/model/align'
@@ -86,6 +92,7 @@ import { disposicionVisor } from '@/features/canvas/model/visor-disposicion'
 import { abrirEnNavegador } from '@/lib/navegador'
 import { claveFuente, claveMedio, leerNervio, type VivoNervio } from '@/features/canvas/model/nervio'
 import type { Pastilla } from '@/features/canvas/model/enlace'
+import { tr, trMarca, trMarcas } from '@/shared/i18n'
 
 const EDICION_CLIENTE = esEdicionCliente()
 
@@ -124,10 +131,10 @@ const FLECHAS: Record<string, [number, number]> = {
 const LAB = 'lab'
 
 const TABLA_DEMO = [
-  ['Frente', 'Sensor', 'Estado'],
-  ['Cadencia', 'videos/semana', 'en marcha'],
-  ['MRR', 'Polar', 'plano'],
-  ['Comunidad', 'autores/sem', 'subiendo'],
+  trMarcas(['Frente', 'Sensor', 'Estado']),
+  trMarcas(['Cadencia', 'videos/semana', 'en marcha']),
+  trMarcas(['MRR', 'Polar', 'plano']),
+  trMarcas(['Comunidad', 'autores/sem', 'subiendo']),
 ]
 
 interface JudgeInfo {
@@ -159,6 +166,9 @@ export interface PizarraProps {
   /** La pizarra cambió de lienzo por dentro (selector del título, riel): quien la aloja actualiza su pestaña, sin abrir otra. */
   alCambiarPagina?: (id: string, nombre: string | null) => void
 }
+
+/** Lo que la cámara necesita de una rueda: un WheelEvent del lienzo o la que reenvía una isla despierta. */
+type RuedaLienzo = Pick<WheelEvent, 'deltaX' | 'deltaY' | 'deltaMode' | 'ctrlKey' | 'metaKey' | 'shiftKey' | 'clientX' | 'clientY'> & { wheelDeltaY?: number }
 
 /** Techo de DPR mientras la cámara se mueve (ver `pintarRef`). */
 const DPR_GESTO = 2
@@ -213,6 +223,12 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
   const [editingId, setEditingId] = useState<string | null>(null)
   /** Embeds que se pueden tocar ahora. Estado de VISTA: nunca entra al documento (model/vista-embed.ts). */
   const [embedsActivos, setEmbedsActivos] = useState<ReadonlySet<string>>(() => new Set())
+  /**
+   * Página TABLERO (mapa v16, 14 nov 2026; Daniel: «sí, escóndelos en el mapa nuevo»): bandera de la página (`settings`),
+   * no del aparato. Esconde el lápiz y las herramientas de dibujo, y sus atajos; en las demás páginas siguen.
+   */
+  const [tablero, setTablero] = useState(false)
+  const tableroRef = useRef(false); tableroRef.current = tablero
   const [rubber, setRubber] = useState<{ x: number; y: number; width: number; height: number } | null>(null)
   const [draft, setDraft] = useState<CanvasElement | null>(null)
   const [judgeInfo, setJudgeInfo] = useState<JudgeInfo | null>(null)
@@ -275,6 +291,55 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
   /** EL SISTEMA NERVIOSO (14 oct 2026, model/nervio.ts): estados y medios vivos de los nodos conectados de la página. */
   const vivo = useNervio(elements, !!paginaId)
   const vivoRef = useRef<VivoNervio>(vivo); vivoRef.current = vivo
+  /**
+   * MAPA v16 · LAS ISLAS (14 nov 2026; Daniel: «¿sabes qué es esto? un sistema nervioso vivo»). Cada `doc:…html` con
+   * `isla.json` es una isla: foto de lejos o en movimiento, viva de cerca y en reposo, con botones que abren su destino
+   * (lista blanca en islas/destinos.ts) y números vivos de las fuentes de la app (islas/fuentes.ts).
+   */
+  const irCapituloRef = useRef<(i: number) => void>(() => {})
+  const pedirCuadroRef = useRef<() => void>(() => {})
+  const abrirDestinoIsla = useCallback((d: DestinoIsla) => {
+    anotarIsla('abrir', { destino: d })
+    switch (d.tipo) {
+      case 'panel':
+        void resolverDestino().then(destino => {
+          const id = usePanelFijadas.getState().fijar(`isla:${d.clave}`, d.input, true, { ventana: destino.ventana })
+          mostrarPanel(id)
+        })
+        return
+      case 'casa': {
+        if (d.segmento) pedirSegmentoTaller(d.segmento)
+        const st = usePanelFijadas.getState()
+        st.abrirCasa(d.casa)
+        const v = ventanaPropia()
+        if (v !== PRINCIPAL) st.moverAVentana(d.casa, v)
+        mostrarPanel(d.casa)
+        return
+      }
+      case 'doc': abrirEnlace(`doc:${d.ruta}${d.fragmento ? `#${d.fragmento}` : ''}`, alAbrirDocRef.current); return
+      // Una URL propia (Studio, dominio de la instalación) abre su vista en el panel; una de fuera, el navegador (opener).
+      case 'url': abrirEnlace(d.url, alAbrirDocRef.current); return
+      case 'capitulo': { const i = buscarCapitulo(capitulosRef.current, d.capitulo); if (i >= 0) irCapituloRef.current(i); return }
+      case 'pagina': abrirEnlace(`page:${d.paginaId}`, alAbrirDocRef.current); return
+    }
+  }, [])
+  useEffect(() => exponerCamara(camViva), [camViva])
+  const islas = useIslas({
+    elements, camViva, viewport, modo: themeName,
+    abrir: abrirDestinoIsla,
+    esPropia: u => esDeArbrain(u, window.location.origin),
+    rueda: (m, frame) => {
+      const r = frame.getBoundingClientRect(), k = r.width / Math.max(1, frame.offsetWidth)
+      ruedaIslaRef.current({ deltaX: m.deltaX, deltaY: m.deltaY, deltaMode: m.deltaMode, ctrlKey: m.ctrlKey, metaKey: m.metaKey,
+        shiftKey: m.shiftKey, clientX: r.left + m.x * k, clientY: r.top + m.y * k, ...(m.wheelDeltaY !== undefined ? { wheelDeltaY: m.wheelDeltaY } : {}) })
+    },
+    gesto: (m, frame) => {
+      const r = frame.getBoundingClientRect(), k = r.width / Math.max(1, frame.offsetWidth)
+      gestoIslaRef.current(m.fase, m.escala, r.left + m.x * k, r.top + m.y * k)
+    },
+    alPintar: () => setImgTick(n => n + 1),
+    pedirCuadro: () => pedirCuadroRef.current(),
+  })
   /** El visor que abrió un nodo con nervio (video pausado y silenciado, vista previa o último evento). */
   const [visor, setVisor] = useState<VisorAbierto | null>(null)
   useEffect(() => { setVisor(null) }, [paginaId])
@@ -451,9 +516,12 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
     let vivo = true
     setCargado(false)
     setEmbedsActivos(new Set())   // la vista es de la pagina que se deja
+    setTablero(false)
     Nube.cargarPagina(paginaId)
       .then(pag => {
         if (!vivo) return
+        setTablero(!!pag.tablero)
+        if (pag.tablero) setTool(t => (t === 'select' || t === 'pan' ? t : 'select'))
         setElements(pag.elements)
         prevElementsRef.current = pag.elements
         dueñoRef.current = paginaId          // estos elementos son de ESTA pagina
@@ -693,7 +761,7 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
        * acuerde del orden de los efectos.
        */
       if (dueñoRef.current !== id) {
-        return { ok: false, error: 'los elementos no son de esta página; no se escribe' }
+        return { ok: false, error: trMarca('los elementos no son de esta página; no se escribe') }
       }
       // El cajon local es del banco de pruebas: las paginas de la nube cargan de la nube. Escribir aqui cada
       // pagina (8-13 MB con imagenes) solo pisaba el banco con el contenido de la ultima pagina abierta.
@@ -724,7 +792,7 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
         if (!r.ok) {
           versionNubeRef.current = r.remoto.version
           baseNubeRef.current = r.remoto.elements
-          return { ok: false, transitorio: true, error: 'chocó con otro guardado: se reintenta en la siguiente vuelta', reintentaEn: Nube.SONDEO_MS }
+          return { ok: false, transitorio: true, error: trMarca('chocó con otro guardado: se reintenta en la siguiente vuelta'), reintentaEn: Nube.SONDEO_MS }
         }
         versionNubeRef.current = r.version
         baseNubeRef.current = r.guardados
@@ -733,7 +801,7 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
         programarMiniatura(id, () => paginaIdRef.current === id ? { elements: elementsRef.current, theme: THEMES[themeNameRef.current] } : null)
         return { ok: true, version: r.version }
       } catch (e) {
-        return { ok: false, error: e instanceof Error ? e.message : 'no se pudo guardar en la nube' }
+        return { ok: false, error: e instanceof Error ? e.message : trMarca('no se pudo guardar en la nube') }
       }
     }
     const a = new Autosave(LAB, guardar, { debounceMs: 700, onStatus: setSaveStatus })
@@ -792,7 +860,7 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
      * en rojo cuando el sistema esta haciendo justo lo correcto.
      */
     if (sinConvertirRef.current) {
-      setSaveStatus({ kind: 'bloqueado', motivo: 'Es del canvas anterior — conviértela para poder guardar' })
+      setSaveStatus({ kind: 'bloqueado', motivo: trMarca('Es del canvas anterior — conviértela para poder guardar') })
       return
     }
     /**
@@ -927,21 +995,42 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
   const [capitulo, setCapitulo] = useState<number | null>(null)
   const capituloRef = useRef(capitulo); capituloRef.current = capitulo
   const [vueloMs, setVueloMs] = useState(0)
+  /**
+   * Los temas (13 nov 2026): los capitulos agrupados por su `tema`. `tema` es el desplegado en el indice; con un
+   * capitulo abierto es SIEMPRE el suyo, y sin capitulo el velo enmarca el tema entero.
+   */
+  const temas = useMemo(() => temasDe(capitulos), [capitulos])
+  const temasRef = useRef(temas); temasRef.current = temas
+  const [tema, setTema] = useState<number | null>(null)
+  const temaRef = useRef(tema); temaRef.current = tema
   useEffect(() => {
     const r = setTimeout(() => setCapitulos(prev => {
       const nuevos = capitulosDe(elements)
       // Mismo relato = mismo arreglo: el velo no vuelve a viajar por una edicion que no movio ningun capitulo.
-      const igual = nuevos.length === prev.length && nuevos.every((c, i) => c.id === prev[i].id && c.titulo === prev[i].titulo
+      const igual = nuevos.length === prev.length && nuevos.every((c, i) => c.id === prev[i].id && c.titulo === prev[i].titulo && c.tema === prev[i].tema
         && c.caja.x === prev[i].caja.x && c.caja.y === prev[i].caja.y && c.caja.width === prev[i].caja.width && c.caja.height === prev[i].caja.height)
       return igual ? prev : nuevos
     }), 250)
     return () => clearTimeout(r)
   }, [elements])
   // Otra pagina, otro relato: se abre en la vista de siempre.
-  useEffect(() => { setCapitulo(null) }, [paginaId])
+  useEffect(() => { setCapitulo(null); setTema(null) }, [paginaId])
   useEffect(() => { if (capitulo != null && capitulo >= capitulos.length) setCapitulo(null) }, [capitulo, capitulos.length])
-  /** El indice vive encima de la barra de estado: el capitulo se encuadra sin quedar debajo de el. */
-  const CHROME_CAPITULO = { ...CHROME, bottom: CHROME.bottom + 44 }
+  useEffect(() => { if (tema != null && tema >= temas.length) setTema(null) }, [tema, temas.length])
+  /**
+   * El minipanel de capitulos (13 nov 2026): plegado o abierto, se recuerda por dispositivo. Nace con el valor de
+   * siempre y lee lo guardado al montar (localStorage no existe en el servidor).
+   */
+  const [panelPlegado, setPanelPlegado] = useState(false)
+  useEffect(() => { setPanelPlegado(leerPlegado(window.innerWidth < 720)) }, [])
+  const plegarPanel = useCallback((v: boolean) => { setPanelPlegado(v); guardarPlegado(v) }, [])
+  /**
+   * El indice vive encima de la barra de estado: el capitulo se encuadra sin quedar debajo de el. Con el minipanel
+   * abierto en pantalla ancha, tampoco debajo de el. Ref: los vuelos se arman en callbacks estables.
+   */
+  const panelAbierto = mostrar.capitulos && !panelPlegado && viewport.width >= 720
+  const CHROME_CAPITULO = { ...CHROME, bottom: CHROME.bottom + 44, right: panelAbierto ? ANCHO_PANEL + 28 : CHROME.right }
+  const chromeCapRef = useRef(CHROME_CAPITULO); chromeCapRef.current = CHROME_CAPITULO
   const volarA = useCallback((destino: Camera) => {
     const vp = vpRef.current
     const a = animRef.current!.destino()
@@ -951,32 +1040,57 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
     animRef.current!.ir(b, ms, suaveDoble, (x, y, t) => vuelo(x, y, t, vp.width))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+  irCapituloRef.current = (i: number) => irCapitulo(i)
   const irCapitulo = useCallback((i: number) => {
     const c = capitulosRef.current[i]
     if (!c) return
     setCapitulo(i)
-    volarA(camaraDeCapitulo(c.caja, vpRef.current, CHROME_CAPITULO))
+    setTema(temaDeCapitulo(temasRef.current, i))
+    volarA(camaraDeCapitulo(c.caja, vpRef.current, chromeCapRef.current))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [volarA])
+  /** Un tema: el mismo vuelo, al tema entero. Tocar el que ya está desplegado y sin capitulo lo pliega (vista completa). */
+  const irTema = useCallback((k: number) => {
+    const tm = temasRef.current[k]
+    if (!tm) return
+    if (temaRef.current === k && capituloRef.current == null) { verTodoRef.current(); return }
+    setCapitulo(null)
+    setTema(k)
+    volarA(fitBounds(tm.caja, vpRef.current, 48, chromeCapRef.current))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [volarA])
   const verTodo = useCallback(() => {
     const caps = capitulosRef.current
     setCapitulo(null)
-    if (caps.length) volarA(fitBounds(cajaDeTodo(caps), vpRef.current, 48, CHROME_CAPITULO))
+    setTema(null)
+    if (caps.length) volarA(fitBounds(cajaDeTodo(caps), vpRef.current, 48, chromeCapRef.current))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [volarA])
+  const verTodoRef = useRef(verTodo); verTodoRef.current = verTodo
   /**
    * La mano tambien lee: si paneas hasta otro capitulo y te detienes, el capitulo abierto pasa a ser ese (la
    * ventana se desliza hasta el). Alejarte hasta ver el lienzo de lejos cierra el capitulo, sin pedirlo.
    */
   useEffect(() => {
     const i = capituloRef.current
-    if (i == null || animRef.current?.animando()) return
+    if (animRef.current?.animando()) return
     const caps = capitulosRef.current
+    // Un tema entero abierto: alejarte mucho mas alla de el lo cierra.
+    if (i == null) {
+      const tm = temaRef.current != null ? temasRef.current[temaRef.current] : null
+      if (tm && camera.zoom < fitBounds(tm.caja, vpRef.current, 48, chromeCapRef.current).zoom * 0.45) setTema(null)
+      return
+    }
     const c = caps[i]
     if (!c) return
-    if (camera.zoom < camaraDeCapitulo(c.caja, vpRef.current, CHROME_CAPITULO).zoom * 0.45) { setCapitulo(null); return }
-    const bajo = capituloBajo(camera, caps)
-    if (bajo != null && bajo !== i) { setVueloMs(420); setCapitulo(bajo) }
+    if (camera.zoom < camaraDeCapitulo(c.caja, vpRef.current, chromeCapRef.current).zoom * 0.45) { setCapitulo(null); return }
+    // Lo que se mira es el centro del área útil (sin el chrome: el índice abajo, el minipanel a la derecha), no el de
+    // la pantalla: con el panel abierto, un capítulo plano («El gran dominó», 291 de alto) quedaba fuera del centro
+    // de la pantalla y la barra saltaba a la isla que lo envuelve (13 nov 2026).
+    const ch = chromeCapRef.current
+    const mirada = { ...camera, x: camera.x + ((ch.left ?? 0) - (ch.right ?? 0)) / 2 / camera.zoom, y: camera.y + ((ch.top ?? 0) - (ch.bottom ?? 0)) / 2 / camera.zoom }
+    const bajo = capituloBajo(mirada, caps, i)
+    if (bajo != null && bajo !== i) { setVueloMs(420); setCapitulo(bajo); setTema(temaDeCapitulo(temasRef.current, bajo)) }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [camera])
 
@@ -1094,14 +1208,14 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
   const crearEnPunto = useCallback((t: Tool, world: { x: number; y: number }) => {
     const z = siguienteZ()
     const nuevo =
-      t === 'sticky' ? createSticky(browserMeasureContext, world, 'Nota nueva', z)
-      : t === 'table' ? createTable(browserMeasureContext, world, TABLA_DEMO, z)
+      t === 'sticky' ? createSticky(browserMeasureContext, world, tr('Nota nueva'), z)
+      : t === 'table' ? createTable(browserMeasureContext, world, TABLA_DEMO.map(f => f.map(c => tr(c))), z)
       // Ejemplo de embebido: el conectoma de muestra que viaja con la app, en el origen actual (sin puerto fijo).
       : t === 'embed' ? createEmbed(world, `${typeof window === 'undefined' ? '' : window.location.origin}/conectoma/index.html?g=vsm`, z)
       : t === 'code' ? createCode(world,
-          'const moat = contexto   // el modelo es commodity\nfunction compilar(spec) {\n  const caja = medir(spec.titulo)\n  return distribuir(caja, 1.5)\n}',
+          tr('const moat = contexto   // el modelo es commodity\nfunction compilar(spec) {\n  const caja = medir(spec.titulo)\n  return distribuir(caja, 1.5)\n}'),
           'ts', z)
-      : createText(browserMeasureContext, world, 'Escribe aquí', z)
+      : createText(browserMeasureContext, world, tr('Escribe aquí'), z)
     setElements(prev => [...prev, nuevo])
     setSelectedId(nuevo.id)
     setTool('select')   // tras crear, se vuelve al puntero: nadie quiere 8 notas seguidas
@@ -1584,11 +1698,11 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
       onRubber: (_t, box) => setRubber(box),
       onCreateBox: (t, box) => {
         const nuevo = t === 'section'
-          ? createSection(box)
+          ? createSection(box, tr('Sección'))
           : t === 'text'
           // El arrastre define la COLUMNA del texto, no su caja: el alto lo
           // pone el contenido, porque un bloque de texto crece hacia abajo.
-          ? createText(browserMeasureContext, box, 'Escribe aquí', siguienteZ(), box.width)
+          ? createText(browserMeasureContext, box, tr('Escribe aquí'), siguienteZ(), box.width)
           : createShape(browserMeasureContext, t as ShapeTool, box, siguienteZ())
         setElements(prev => [...prev, nuevo])
         setSelectedId(nuevo.id)
@@ -1790,6 +1904,8 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
 
       if (mod) return
       const t = TOOL_SHORTCUTS[e.key.toLowerCase()]
+      // En una página tablero solo se elige entre seleccionar y la mano: el lápiz y las herramientas no están.
+      if (t && tableroRef.current && t !== 'select' && t !== 'pan') return
       if (t) { e.preventDefault(); setTool(t) }
     }
     window.addEventListener('keydown', onKey)
@@ -1837,22 +1953,31 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
                    || foco.isContentEditable || foco.hasAttribute('data-canvas-editing'))) return
       if (selRef.current.size > 0 || editingRef.current) return
       const i = capituloRef.current
+      const tms = temasRef.current
+      const tm = temaRef.current != null ? tms[temaRef.current] : null
       const d = /^(Digit|Numpad)([1-9])$/.exec(e.code)?.[2] ?? (/^[1-9]$/.test(e.key) ? e.key : null)
       let hecho = true
-      if (d && Number(d) <= caps.length) irCapitulo(Number(d) - 1)
-      else if (e.key === 'ArrowRight') irCapitulo(i == null ? 0 : Math.min(caps.length - 1, i + 1))
-      else if (e.key === 'ArrowLeft') irCapitulo(i == null ? caps.length - 1 : Math.max(0, i - 1))
+      // Con temas, los numeros son los que se ven: el capitulo del tema desplegado o, sin tema, el tema.
+      if (d && tms.length) {
+        if (tm && Number(d) <= tm.caps.length) irCapitulo(tm.caps[Number(d) - 1])
+        else if (!tm && Number(d) <= tms.length) irTema(Number(d) - 1)
+        else hecho = false
+      }
+      else if (d && Number(d) <= caps.length) irCapitulo(Number(d) - 1)
+      else if (e.key === 'ArrowRight') irCapitulo(i == null ? (tm ? tm.caps[0] : 0) : Math.min(caps.length - 1, i + 1))
+      else if (e.key === 'ArrowLeft') irCapitulo(i == null ? (tm ? tm.caps[tm.caps.length - 1] : caps.length - 1) : Math.max(0, i - 1))
       else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && i != null) {
-        const dest = bajarEnCapitulo(animRef.current!.destino(), caps[i].caja, vpRef.current, e.key === 'ArrowDown' ? 1 : -1, CHROME_CAPITULO)
+        const dest = bajarEnCapitulo(animRef.current!.destino(), caps[i].caja, vpRef.current, e.key === 'ArrowDown' ? 1 : -1, chromeCapRef.current)
         irCamara(dest, 420, suaveDoble)
-      } else if (e.key === 'Escape' && i != null) verTodo()
+      } else if (e.key === 'Escape' && i != null && tm) irTema(temaRef.current!)
+      else if (e.key === 'Escape' && (i != null || tm)) verTodo()
       else hecho = false
       if (hecho) e.preventDefault()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [teclaMia, irCapitulo, verTodo, irCamara])
+  }, [teclaMia, irCapitulo, irTema, verTodo, irCamara])
 
   /** ⌘ abajo enseña la mano: ⌘+arrastrar mueve el lienzo (input/pointers.ts). */
   const [metaAbajo, setMetaAbajo] = useState(false)
@@ -1964,6 +2089,7 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
     if (cuadroRef.current) return
     cuadroRef.current = requestAnimationFrame(() => { cuadroRef.current = 0; pintarRef.current() })
   }, [])
+  pedirCuadroRef.current = pedirCuadro
   useEffect(() => () => { if (cuadroRef.current) cancelAnimationFrame(cuadroRef.current) }, [])
   useEffect(() => camViva.suscribir(pedirCuadro), [camViva, pedirCuadro])
   useEffect(() => {
@@ -1992,12 +2118,36 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
         hover: editingId ? null : hoverId,
         enlaceVivo: enlaceVivo?.id ?? null,
         vivo,
+        isla: islas.pintura,
+        ...nervioDelCuadro(),
         conManijas: tool === 'select' && !editingId,
       })
       anotarCuadro({ t: t0, ms: performance.now() - t0, drawn: r.drawn, dpr: vp.dpr })
+      // Un impulso en vuelo pide el siguiente cuadro; sin impulsos, el lienzo vuelve a pintar solo cuando algo cambia.
+      if (enVuelo) pedirCuadro()
+    }
+    /** Impulsos y halos de ESTE cuadro, con la ruta de cada hilo y la caja de cada isla. */
+    let enVuelo = false
+    function nervioDelCuadro() {
+      const ahora = performance.now()
+      const imp = islas.impulsos(ahora), hal = islas.halos(ahora)
+      enVuelo = imp.length > 0 || hal.length > 0
+      if (!enVuelo) return {}
+      const porId = new Map(visibles.map(e => [e.id, e]))
+      return {
+        // El nombre del evento va UNA vez (en su primer hilo), no en cada hilo que sale del órgano.
+        impulsos: imp.flatMap((i, k) => {
+          const c = porId.get(i.conector)
+          if (!c || c.type !== 'connector' || c.points.length < 2) return []
+          const puntos = i.reverso ? [...c.points].reverse() : c.points
+          const primero = imp.findIndex(x => x.evento === i.evento) === k
+          return [{ puntos, u: i.u, dolor: !!i.evento.dolor, texto: primero ? `${i.evento.texto} · ${i.evento.fuente}` : '' }]
+        }),
+        halos: hal.flatMap(h => { const e = porId.get(h.elId); return e ? [{ x: e.x, y: e.y, width: e.width, height: e.height, fuerza: h.fuerza, dolor: h.dolor }] : [] }),
+      }
     }
     pedirCuadro()
-  }, [elements, t, viewport, fontsReady, draft, selectedIds, rubber, editingId, background, imgTick, marquee, tool, conectando, guias, puertosVista, hoverId, enlaceVivo, embedsActivos, pedirCuadro, camRef, camViva, grupoAbierto, vivo])
+  }, [elements, t, viewport, fontsReady, draft, selectedIds, rubber, editingId, background, imgTick, marquee, tool, conectando, guias, puertosVista, hoverId, enlaceVivo, embedsActivos, pedirCuadro, camRef, camViva, grupoAbierto, vivo, islas])
 
   // ── eventos ────────────────────────────────────────────────────────────────
   /**
@@ -2121,6 +2271,8 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
    *   · raton: rueda = paneo vertical animado; ⇧ = horizontal; ⌘ = zoom a escalones animados bajo el cursor
    */
   const detectorRef = useRef(new DetectorRueda())
+  const ruedaIslaRef = useRef<(e: RuedaLienzo) => void>(() => {})
+  const gestoIslaRef = useRef<(fase: 'ini' | 'mov' | 'fin', escala: number, clientX: number, clientY: number) => void>(() => {})
   useEffect(() => {
     const el = wrapRef.current
     if (!el) return
@@ -2130,6 +2282,10 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
       if ((e.target as HTMLElement | null)?.closest?.('[data-canvas-scroll]')) return
       e.preventDefault()
       e.stopPropagation()
+      aplicarRueda(e)
+    }
+    /** La rueda, venga del lienzo o reenviada por una isla despierta (mapa v16): la misma cámara, el mismo gesto. */
+    const aplicarRueda = (e: RuedaLienzo) => {
       const ahora = performance.now()
       if (ahora - ultimaRueda > 300) rectRef.current = null   // rafaga nueva: se vuelve a medir
       ultimaRueda = ahora
@@ -2185,6 +2341,14 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
       setCamera(c => zoomAt(c, vpRef.current, punto, f))
     }
     const alTerminarGesto = (e: Event) => { e.preventDefault(); pellizcoWebKit = false; escalaPrevia = 1 }
+    // Mapa v16: la rueda y el pellizco que una isla despierta reenvía (ya en coordenadas de la pantalla) entran por aquí.
+    ruedaIslaRef.current = aplicarRueda
+    gestoIslaRef.current = (fase, escala, clientX, clientY) => {
+      const sinDefecto = { preventDefault() {} }
+      if (fase === 'ini') alEmpezarGesto(sinDefecto as unknown as Event)
+      else if (fase === 'mov') alCambiarGesto({ ...sinDefecto, scale: escala, clientX, clientY } as unknown as Event)
+      else alTerminarGesto(sinDefecto as unknown as Event)
+    }
     // El boton del medio: sin esto Windows y Linux abren el autodesplazamiento, y sobre un enlace abre pestaña.
     const sinAuto = (e: MouseEvent) => { if (e.button === 1) e.preventDefault() }
     el.addEventListener('wheel', onWheel, { passive: false })
@@ -2229,15 +2393,15 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
     if (!m.sobre) {
       // SOBRE EL VACIO: lo que se puede traer aqui.
       return [
-        { id: 'nota', label: 'Nota', icon: Ico.IconSticky, onPick: () => crearEnPunto('sticky', m.world) },
-        { id: 'texto', label: 'Bloque de texto', icon: Ico.IconText, onPick: () => crearEnPunto('text', m.world) },
-        { id: 'tabla', label: 'Tabla', icon: Ico.IconTable, onPick: () => crearEnPunto('table', m.world) },
-        { id: 'codigo', label: 'Bloque de código', icon: Ico.IconCode, onPick: () => crearEnPunto('code', m.world) },
-        { id: 'pegar', label: 'Pegar aquí', atajo: '⌘V', icon: Ico.IconDuplicate, corte: true,
+        { id: 'nota', label: trMarca('Nota'), icon: Ico.IconSticky, onPick: () => crearEnPunto('sticky', m.world) },
+        { id: 'texto', label: trMarca('Bloque de texto'), icon: Ico.IconText, onPick: () => crearEnPunto('text', m.world) },
+        { id: 'tabla', label: trMarca('Tabla'), icon: Ico.IconTable, onPick: () => crearEnPunto('table', m.world) },
+        { id: 'codigo', label: trMarca('Bloque de código'), icon: Ico.IconCode, onPick: () => crearEnPunto('code', m.world) },
+        { id: 'pegar', label: trMarca('Pegar aquí'), atajo: '⌘V', icon: Ico.IconDuplicate, corte: true,
           onPick: () => pegarEn(m.world) },
-        { id: 'todo', label: 'Seleccionar todo', atajo: '⌘A', icon: Ico.IconLayers, corte: true,
+        { id: 'todo', label: trMarca('Seleccionar todo'), atajo: '⌘A', icon: Ico.IconLayers, corte: true,
           onPick: () => setSelectedIds(new Set(elementsRef.current.map(el => el.id))) },
-        { id: 'encuadrar', label: 'Encuadrar todo', atajo: '⌘1', icon: Ico.IconFit, onPick: () => encuadrar('todo') },
+        { id: 'encuadrar', label: trMarca('Encuadrar todo'), atajo: '⌘1', icon: Ico.IconFit, onPick: () => encuadrar('todo') },
       ]
     }
 
@@ -2246,42 +2410,42 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
     const acciones: AccionMenu[] = []
 
     if (el && (el.type === 'text' || el.type === 'shape' || el.type === 'frame')) {
-      acciones.push({ id: 'editar', label: 'Editar texto', atajo: '⏎', icon: Ico.IconPencilEdit,
+      acciones.push({ id: 'editar', label: trMarca('Editar texto'), atajo: '⏎', icon: Ico.IconPencilEdit,
         onPick: () => setEditingId(el.id) })
     }
-    acciones.push({ id: 'dup', label: 'Duplicar', atajo: '⌘D', icon: Ico.IconDuplicate, onPick: ops.duplicar })
+    acciones.push({ id: 'dup', label: trMarca('Duplicar'), atajo: '⌘D', icon: Ico.IconDuplicate, onPick: ops.duplicar })
 
     // EL DIAGRAMA COMO PIEZA. Daniel: "poder seleccionar el diagrama".
     if (el?.origin?.regionId) {
-      acciones.push({ id: 'region', label: 'Seleccionar el diagrama', atajo: '⌘⇧A', icon: Ico.IconLayers,
+      acciones.push({ id: 'region', label: trMarca('Seleccionar el diagrama'), atajo: '⌘⇧A', icon: Ico.IconLayers,
         corte: true, onPick: () => ops.seleccionarRegion(el.id) })
       if (seleccionados.some(e => e.origin?.pinned)) {
-        acciones.push({ id: 'soltar', label: 'Devolver al compilador', icon: Ico.IconCloud,
+        acciones.push({ id: 'soltar', label: trMarca('Devolver al compilador'), icon: Ico.IconCloud,
           onPick: ops.soltarAlCompilador })
       }
     }
 
     if (sel.size > 1) {
       acciones.push(esGrupo(elementsRef.current, sel)
-        ? { id: 'desagrupar', label: 'Desagrupar', atajo: '⌘⇧G', icon: Ico.IconGroup, corte: true, onPick: ops.desagrupar }
-        : { id: 'agrupar', label: 'Agrupar', atajo: '⌘G', icon: Ico.IconGroup, corte: true, onPick: ops.agrupar })
+        ? { id: 'desagrupar', label: trMarca('Desagrupar'), atajo: '⌘⇧G', icon: Ico.IconGroup, corte: true, onPick: ops.desagrupar }
+        : { id: 'agrupar', label: trMarca('Agrupar'), atajo: '⌘G', icon: Ico.IconGroup, corte: true, onPick: ops.agrupar })
     }
 
     acciones.push(
-      { id: 'frente', label: 'Traer al frente', atajo: '⌥⌘]', icon: Ico.IconBringFront, corte: true, onPick: ops.alFrente },
-      { id: 'subir', label: 'Subir un paso', atajo: '⌘]', onPick: ops.subir },
-      { id: 'bajar', label: 'Bajar un paso', atajo: '⌘[', onPick: ops.bajar },
-      { id: 'fondo', label: 'Enviar al fondo', atajo: '⌥⌘[', icon: Ico.IconSendBack, onPick: ops.alFondo },
-      { id: 'lock', label: bloqueados ? 'Desbloquear' : 'Bloquear', atajo: '⌘⇧L', corte: true,
+      { id: 'frente', label: trMarca('Traer al frente'), atajo: '⌥⌘]', icon: Ico.IconBringFront, corte: true, onPick: ops.alFrente },
+      { id: 'subir', label: trMarca('Subir un paso'), atajo: '⌘]', onPick: ops.subir },
+      { id: 'bajar', label: trMarca('Bajar un paso'), atajo: '⌘[', onPick: ops.bajar },
+      { id: 'fondo', label: trMarca('Enviar al fondo'), atajo: '⌥⌘[', icon: Ico.IconSendBack, onPick: ops.alFondo },
+      { id: 'lock', label: bloqueados ? trMarca('Desbloquear') : trMarca('Bloquear'), atajo: '⌘⇧L', corte: true,
         icon: bloqueados ? Ico.IconUnlock : Ico.IconLock, onPick: () => ops.bloquear(!bloqueados) },
-      { id: 'borrar', label: 'Eliminar', atajo: '⌫', icon: Ico.IconTrash, corte: true, peligro: true, onPick: ops.borrar },
+      { id: 'borrar', label: trMarca('Eliminar'), atajo: '⌫', icon: Ico.IconTrash, corte: true, peligro: true, onPick: ops.borrar },
     )
     return acciones
   }, [ops, crearEnPunto, encuadrar])
 
   /** Como se llama lo que esta abierto. Sin pagina, es el banco de pruebas. */
   const nombreLienzo = useMemo(
-    () => paginas.find(x => x.id === paginaId)?.nombre ?? 'Banco de pruebas',
+    () => paginas.find(x => x.id === paginaId)?.nombre ?? tr('Banco de pruebas'),
     [paginas, paginaId])
 
   /**
@@ -2308,7 +2472,7 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
       setDepth({ undo: 0, redo: 0 })
       await refrescarArbol()
     } catch (e) {
-      setSaveStatus({ kind: 'error', mensaje: e instanceof Error ? e.message : 'no se pudo convertir', reintentaEn: 0 })
+      setSaveStatus({ kind: 'error', mensaje: e instanceof Error ? e.message : trMarca('no se pudo convertir'), reintentaEn: 0 })
     }
   }, [refrescarArbol])
 
@@ -2467,8 +2631,16 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
           void insertarImagen(file, screenToWorld(puntoLocal(e.clientX, e.clientY, r, vpRef.current.width, vpRef.current.height), camRef.current, vpRef.current))
         }}>
 
+        {/* Mapa v16: las ISLAS no siguen a la cámara por cuadro (despiertan solo en reposo); el canvas pinta su foto. */}
+        {elements.map(e => {
+          if (e.type !== 'embed') return null
+          const nativa = islas.nativaDe(e.id)
+          if (nativa) return <IslaNativaEmbed key={e.id} el={e} nativa={nativa} islas={islas} camViva={camViva} viewport={viewport} />
+          const info = islas.infoDe(e)
+          return info ? <IslaEmbed key={e.id} el={e} info={info} islas={islas} camViva={camViva} viewport={viewport} temaInicial={themeName} /> : null
+        })}
         {/* Los embeds viven DEBAJO del canvas; el motor perfora su ventana. */}
-        <ConCamara viva={camViva}>{camera => conInteraccion(elements.filter(e => e.type === 'embed'), embedsActivos).map(e => {
+        <ConCamara viva={camViva}>{camera => conInteraccion(elements.filter(e => e.type === 'embed' && !islas.esIsla(e.id)), embedsActivos).map(e => {
           // `doc:` es un documento del repo (contrato de sfmap), no una URL.
           if (e.type === 'embed' && esEmbedDoc(e)) return <DocEmbed key={e.id} el={e} camera={camera} viewport={viewport} theme={t} />
           const tl = worldToScreen({ x: e.x, y: e.y }, camera, viewport)
@@ -2525,8 +2697,10 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
       })()}
 
       {capitulos.length >= 2 && (
-        <Capitulos capitulos={capitulos} activo={capitulo} vueloMs={vueloMs} theme={t} camara={camViva}
-          viewport={viewport} angosto={viewport.width < 720} indice={mostrar.capitulos} sobreBarra={mostrar.barraInferior} onIr={irCapitulo} onTodo={verTodo} />
+        <Capitulos capitulos={capitulos} activo={capitulo} temas={temas} tema={tema} vueloMs={vueloMs} theme={t} camara={camViva}
+          viewport={viewport} angosto={viewport.width < 720} indice={mostrar.capitulos} sobreBarra={mostrar.barraInferior}
+          plegado={panelPlegado} onPlegar={plegarPanel}
+          onIr={irCapitulo} onTema={irTema} onTodo={verTodo} />
       )}
 
       <Paginas
@@ -2547,7 +2721,7 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
 
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none',
                     transform: railAbierto ? `translateX(${ANCHO_RIEL}px)` : 'none', transition: 'transform .16s ease' }}>
-        {mostrar.herramientas && <div style={{ pointerEvents: 'auto' }}>
+        {mostrar.herramientas && !tablero && <div style={{ pointerEvents: 'auto' }}>
           <Toolbar tool={tool} theme={t} onPick={setTool} tinta={tinta} onTinta={setTinta} />
         </div>}
       </div>
@@ -2649,12 +2823,12 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
           <span style={{ color: t.accent, display: 'grid' }}><Ico.IconCloud size={18} /></span>
           <div style={{ display: 'grid', gap: 2 }}>
             <strong style={{ color: t.text.title, font: '700 12.5px CanvasSans, system-ui' }}>
-              Esto viene del canvas anterior
+              {tr('Esto viene del canvas anterior')}
             </strong>
             <span style={{ color: t.text.caption, font: '500 12px CanvasSans, system-ui' }}>
-              Lo que ves ya es la conversión — {sinConvertir.entraron} elementos.
-              {sinConvertir.perdidos.length > 0 && ` ${sinConvertir.perdidos.length} no entraron.`}
-              {' '}Nada se ha escrito todavía, y no se guardará hasta que conviertas.
+              {tr('Lo que ves ya es la conversión — {n} elementos.', { n: sinConvertir.entraron })}
+              {sinConvertir.perdidos.length > 0 && ` ${tr('{n} no entraron.', { n: sinConvertir.perdidos.length })}`}
+              {' '}{tr('Nada se ha escrito todavía, y no se guardará hasta que conviertas.')}
             </span>
             {sinConvertir.aproximados.length > 0 && (
               <span style={{ color: t.text.caption, font: '500 11.5px CanvasSans, system-ui', opacity: .85 }}>
@@ -2667,7 +2841,7 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
               flexShrink: 0, padding: '8px 14px', borderRadius: 9, border: 'none', cursor: 'pointer',
               background: t.accent, color: '#fff', font: '700 12.5px CanvasSans, system-ui',
             }}>
-            Convertir
+            {tr('Convertir')}
           </button>
         </div>
       )}
@@ -2679,10 +2853,6 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
           acciones={accionesMenu(menu)} />
       )}
 
-      {/* «Pídele a Levy» (7 nov 2026): el pedido va al chat con el id de ESTE lienzo. Sin página (banco) no hay a quién referirse. */}
-      {mostrar.pideALevy && paginaId && <PideALevy theme={t} paginaId={paginaId} nombre={paginas.find(x => x.id === paginaId)?.nombre ?? ''}
-        abajo={mostrar.barraInferior ? 64 : (capitulos.length >= 2 && viewport.width < 720 ? 58 : 14)} angosto={viewport.width < 720}
-        antesDeIr={() => autosaveRef.current?.flush() ?? Promise.resolve()} />}
 
       {mostrar.barraInferior && <StatusBar
         angosto={viewport.width < 720} mostrarZoom={mostrar.zoom}
@@ -2726,8 +2896,8 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
         font: '600 12px CanvasSans, system-ui', color: t.text.caption,
         transform: railAbierto ? `translateX(${ANCHO_RIEL}px)` : 'none', transition: 'transform .16s ease',
       }}>
-        <button onClick={() => setRailAbierto(v => !v)} aria-label="Lienzos"
-          title={railAbierto ? 'Ocultar lienzos' : 'Lienzos'}
+        <button onClick={() => setRailAbierto(v => !v)} aria-label={tr('Lienzos')}
+          title={railAbierto ? tr('Ocultar lienzos') : tr('Lienzos')}
           style={{
             width: 30, height: 30, borderRadius: 8, border: 'none', cursor: 'pointer',
             display: 'grid', placeItems: 'center',
@@ -2769,8 +2939,8 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
           <button type="button" data-selector-lienzo aria-haspopup="dialog" aria-expanded={selectorAbierto}
             onClick={() => setSelectorAbierto(v => !v)}
             onDoubleClick={() => { setSelectorAbierto(false); setEditandoNombre(true) }}
-            title={paginaId ? 'Cambiar de lienzo (Ctrl+L) · doble clic para renombrar'
-                            : 'Cambiar de lienzo (Ctrl+L) · doble clic para nombrarlo — se guarda como lienzo con lo que hay dentro'}
+            title={paginaId ? tr('Cambiar de lienzo (Ctrl+L) · doble clic para renombrar')
+                            : tr('Cambiar de lienzo (Ctrl+L) · doble clic para nombrarlo — se guarda como lienzo con lo que hay dentro')}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 6px 2px 4px', maxWidth: 280, minWidth: 0, flexShrink: 1, border: 'none', borderRadius: 7,
               background: selectorAbierto ? t.roles.sticky.fill : 'transparent', cursor: 'pointer',
@@ -2783,7 +2953,7 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
         {!compacta && <span style={{ opacity: .55 }}>·</span>}
         {!compacta && <span style={{ padding: '0 4px' }}>{elements.length}</span>}
         {(!compacta || fails.length > 0 || warns.length > 0) && <span title={fails.length ? fails.map(f => f.message).join('\n')
-                     : warns.length ? warns.map(f => f.message).join('\n') : 'el compilador no encontro nada'}
+                     : warns.length ? warns.map(f => f.message).join('\n') : tr('el compilador no encontro nada')}
           style={{
             padding: '0 6px', borderRadius: 6, cursor: fails.length || warns.length ? 'help' : 'default',
             color: fails.length ? t.roles.risk.stroke.color : warns.length ? '#d97706' : '#16a34a',

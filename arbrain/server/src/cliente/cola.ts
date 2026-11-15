@@ -21,6 +21,7 @@
 import type { Confirmacion, ConversacionConfirmacion } from './confirmaciones.js'
 import { VIDA_APROBACION_COLA_MS } from './confirmaciones.js'
 import { avisoCola, mandarAviso, type DestinoAvisos, type ResultadoAviso } from './avisos-telefono.js'
+import { tr } from '../i18n/tr.js'
 
 /** Direcciones desactivadas: `https://x` → `https[:]//x` (se leen, no se siguen ni cuentan como escritas por la persona). */
 export const sinEnlaces = (t: string) => t.replace(/\b([a-z][a-z0-9+.-]{1,15}):\/\//gi, '$1[:]//').replace(/\bwww\./gi, 'www[.]')
@@ -81,7 +82,7 @@ export function retomarEnConversacion(deps: DepsRetomar) {
     if (!texto) return
     // Rutinas: no hay conversación; la aprobación queda vigente para la siguiente corrida de la misma rutina.
     if (!scope) { deps.registrar?.({ evento: 'cola_sin_conversacion', confirmacion: c.id, estado: c.estado }); return }
-    if (c.estado === 'corrida' && c.sesion) deps.marcarContaminada?.(c.sesion, 'la salida de un comando que corriste tú en tu terminal')
+    if (c.estado === 'corrida' && c.sesion) deps.marcarContaminada?.(c.sesion, tr('la salida de un comando que corriste tú en tu terminal'))
     try { deps.avisar(scope, texto); deps.registrar?.({ evento: 'cola_retomada', confirmacion: c.id, estado: c.estado, conversacion: scope.conversationId }) }
     catch (e) { deps.registrar?.({ evento: 'cola_sin_retomar', confirmacion: c.id, error: e instanceof Error ? e.message : String(e) }) }
   }

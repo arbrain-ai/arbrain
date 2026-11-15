@@ -26,6 +26,7 @@ import { hace } from './datos'
 import s from './panel.module.css'
 import w from './taller.module.css'
 import n from './habilidades-embudo.module.css'
+import { localeIntl, tr, trMarca } from '@/shared/i18n'
 
 interface Archivo { ruta: string; titulo: string; detalle: string | null; grupo: 'memoria' | 'skills' | 'documentos'; editado: string }
 interface Instruccion { ruta: string; titulo: string; detalle: string; editado: string; bytes: number }
@@ -46,10 +47,10 @@ type Parte = 'cerebro' | 'memorias' | 'skills' | 'documentos' | 'instrucciones' 
 /** La parte de Memoria que se abre al montar (la recuerda el Taller; /segundo-cerebro la pide en `cerebro`). */
 export const LLAVE_PARTE_MEMORIA = 'arbrain.taller.memoria'
 const PARTES: { id: Parte; nombre: string; Icono: LucideIcon }[] = [
-  { id: 'cerebro', nombre: 'Ver tu cerebro', Icono: Orbit },
-  { id: 'memorias', nombre: 'Memorias', Icono: BrainCircuit }, { id: 'skills', nombre: 'Habilidades', Icono: Wand2 },
-  { id: 'documentos', nombre: 'Documentos', Icono: BookOpen }, { id: 'instrucciones', nombre: 'Instrucciones', Icono: ScrollText },
-  { id: 'contexto', nombre: 'Contexto', Icono: Gauge },
+  { id: 'cerebro', nombre: trMarca('Ver tu cerebro'), Icono: Orbit },
+  { id: 'memorias', nombre: trMarca('Memorias'), Icono: BrainCircuit }, { id: 'skills', nombre: trMarca('Habilidades'), Icono: Wand2 },
+  { id: 'documentos', nombre: trMarca('Documentos'), Icono: BookOpen }, { id: 'instrucciones', nombre: trMarca('Instrucciones'), Icono: ScrollText },
+  { id: 'contexto', nombre: trMarca('Contexto'), Icono: Gauge },
 ]
 const LLAVE = LLAVE_PARTE_MEMORIA
 const leerParte = (): Parte => { try { const v = localStorage.getItem(LLAVE); return PARTES.some(p => p.id === v) ? v as Parte : 'memorias' } catch { return 'memorias' } }
@@ -72,21 +73,21 @@ export function MemoriaTaller() {
   const nSkills = a ? a.totales?.skills ?? a.archivos.filter(x => x.grupo === 'skills').length : null
   const nDocs = a ? a.totales?.documentos ?? a.archivos.filter(x => x.grupo === 'documentos').length : null
   const cifras: { n: number | null; nombre: [string, string]; semana: number; parte: Parte }[] = [
-    { n: nMem, nombre: ['memoria', 'memorias'], semana: memSemana, parte: 'memorias' },
-    { n: nSkills, nombre: ['habilidad', 'habilidades'], semana: a?.semana?.skills ?? 0, parte: 'skills' },
-    { n: nDocs, nombre: ['documento', 'documentos'], semana: a?.semana?.documentos ?? 0, parte: 'documentos' },
+    { n: nMem, nombre: [tr('memoria'), tr('memorias')], semana: memSemana, parte: 'memorias' },
+    { n: nSkills, nombre: [tr('habilidad'), tr('habilidades')], semana: a?.semana?.skills ?? 0, parte: 'skills' },
+    { n: nDocs, nombre: [tr('documento'), tr('documentos')], semana: a?.semana?.documentos ?? 0, parte: 'documentos' },
   ]
   return <div className={w.vista}>
-    <section className={`${w.cerebro} ${mov.entra}`} style={escalon(1)} aria-label="Tu cerebro">
-      <p className={w.cerebroTitular}>Lo que tu cerebro sabe de ti</p>
+    <section className={`${w.cerebro} ${mov.entra}`} style={escalon(1)} aria-label={tr('Tu cerebro')}>
+      <p className={w.cerebroTitular}>{tr('Lo que tu cerebro sabe de ti')}</p>
       <div className={w.cerebroCifras}>{cifras.map((c, i) => <button key={c.parte} className={w.cerebroCifra} onClick={() => elegir(c.parte)} aria-pressed={parte === c.parte} style={escalon(i + 2)}>
-        <Cifra valor={c.n} clave={`cerebro-${c.parte}`} formato={x => Math.round(x).toLocaleString('es-MX')} className={w.cerebroNumero} />
+        <Cifra valor={c.n} clave={`cerebro-${c.parte}`} formato={x => Math.round(x).toLocaleString(localeIntl())} className={w.cerebroNumero} />
         <span>{c.n === 1 ? c.nombre[0] : c.nombre[1]}</span>
-        {c.semana > 0 && <small title="Nuevas o editadas en los últimos 7 días">{c.semana} recientes</small>}
+        {c.semana > 0 && <small title={tr('Nuevas o editadas en los últimos 7 días')}>{tr('{n} recientes', { n: c.semana })}</small>}
       </button>)}</div>
     </section>
-    <div className={w.partes} role="tablist" aria-label="Qué ver de tu memoria">
-      {PARTES.map(p => <button key={p.id} role="tab" aria-selected={parte === p.id} onClick={() => elegir(p.id)}><p.Icono size={13} aria-hidden /><span>{p.nombre}</span></button>)}
+    <div className={w.partes} role="tablist" aria-label={tr('Qué ver de tu memoria')}>
+      {PARTES.map(p => <button key={p.id} role="tab" aria-selected={parte === p.id} onClick={() => elegir(p.id)}><p.Icono size={13} aria-hidden /><span>{tr(p.nombre)}</span></button>)}
     </div>
     {parte === 'cerebro' ? <div className={w.incrustada}><VerTuCerebro /></div>
       : parte === 'memorias' ? <div className={w.incrustada}><Memoria grande /></div>
@@ -98,7 +99,7 @@ export function MemoriaTaller() {
 }
 
 function Cargando({ error }: { error?: string }) {
-  return <div className={s.cargando} aria-busy={!error}>{error ? <><b>No se pudo leer</b><span>{error}</span></> : <><span className={s.brillo} /><span className={s.brillo} /></>}</div>
+  return <div className={s.cargando} aria-busy={!error}>{error ? <><b>{tr('No se pudo leer')}</b><span>{error}</span></> : <><span className={s.brillo} /><span className={s.brillo} /></>}</div>
 }
 
 function ListaArchivos({ data, error, grupo, embudo, pedida }: { data: FotoArchivos | undefined; error?: string; grupo: 'skills' | 'documentos'; embudo?: Embudo | null; pedida?: { ruta: string; n: number } | null }) {
@@ -108,20 +109,20 @@ function ListaArchivos({ data, error, grupo, embudo, pedida }: { data: FotoArchi
   useEffect(() => { if (pedida) setAbierto(pedida.ruta) }, [pedida])
   const q = filtro.trim().toLowerCase()
   const lista = useMemo(() => (data?.archivos ?? []).filter(a => a.grupo === grupo && (!q || a.titulo.toLowerCase().includes(q) || a.ruta.toLowerCase().includes(q) || a.detalle?.toLowerCase().includes(q))), [data, grupo, q])
-  if (abierto) return <Lector ruta={abierto} volver={() => setAbierto(null)} etiqueta={grupo === 'skills' ? 'Habilidades' : 'Documentos'} embudo={embudo} />
+  if (abierto) return <Lector ruta={abierto} volver={() => setAbierto(null)} etiqueta={grupo === 'skills' ? tr('Habilidades') : tr('Documentos')} embudo={embudo} />
   if (!data) return <Cargando error={error} />
-  if (!data.raiz) return <p className={w.nota}>El cerebro no está montado en esta máquina. En el Studio aquí ves memoria, habilidades y documentos.</p>
+  if (!data.raiz) return <p className={w.nota}>{tr('El cerebro no está montado en esta máquina. En el Studio aquí ves memoria, habilidades y documentos.')}</p>
   const ver = q || todos ? lista : lista.slice(0, 12)
   const Icono = grupo === 'skills' ? Wand2 : FileText
   return <>
-    <label className={w.buscar}><Search size={14} aria-hidden /><input placeholder={grupo === 'skills' ? 'Buscar una habilidad' : 'Buscar en los documentos del negocio'} value={filtro} onChange={e => setFiltro(e.target.value)} aria-label="Buscar" /></label>
-    {!lista.length ? <p className={w.nota}>Nada coincide con «{filtro}».</p> : <section className={`${w.tarjeta} ${mov.entra}`} style={escalon(1)}>
+    <label className={w.buscar}><Search size={14} aria-hidden /><input placeholder={grupo === 'skills' ? tr('Buscar una habilidad') : tr('Buscar en los documentos del negocio')} value={filtro} onChange={e => setFiltro(e.target.value)} aria-label={tr('Buscar')} /></label>
+    {!lista.length ? <p className={w.nota}>{tr('Nada coincide con «{consulta}».', { consulta: filtro })}</p> : <section className={`${w.tarjeta} ${mov.entra}`} style={escalon(1)}>
       <div className={s.lista}>{ver.map(a => <button key={a.ruta} className={s.fila} onClick={() => setAbierto(a.ruta)} title={a.ruta}>
         <span className={s.marca}><Icono size={13} className={s.iconoArchivo} aria-hidden /></span>
         <span className={s.filaTexto}><span className={s.filaNombre}>{a.titulo}</span>{a.detalle && <span className={s.filaMeta}>{a.detalle}</span>}{embudo && <EtapasFila etapas={etapasDeSkill(embudo, a.titulo)} />}</span>
         <span className={s.filaEstado}>{hace(a.editado)}</span>
       </button>)}</div>
-      {lista.length > ver.length && <button className={s.mas} onClick={() => setTodos(true)}>Ver las {lista.length}</button>}
+      {lista.length > ver.length && <button className={s.mas} onClick={() => setTodos(true)}>{tr('Ver las {n}', { n: lista.length })}</button>}
     </section>}
   </>
 }
@@ -130,12 +131,12 @@ const kb = (b: number) => b < 1024 ? `${b} bytes` : `${(b / 1024).toFixed(1)} KB
 
 function Instrucciones({ data, error }: { data: FotoArchivos | undefined; error?: string }) {
   const [abierta, setAbierta] = useState<Instruccion | null>(null)
-  if (abierta) return <Lector ruta={abierta.ruta} volver={() => setAbierta(null)} etiqueta="Instrucciones" titulo={abierta.titulo} />
+  if (abierta) return <Lector ruta={abierta.ruta} volver={() => setAbierta(null)} etiqueta={tr('Instrucciones')} titulo={abierta.titulo} />
   if (!data) return <Cargando error={error} />
   const lista = data.instrucciones ?? []
-  if (!lista.length) return <p className={w.nota}>Las instrucciones viven en el Studio; aquí no están montadas.</p>
+  if (!lista.length) return <p className={w.nota}>{tr('Las instrucciones viven en el Studio; aquí no están montadas.')}</p>
   return <>
-    <p className={w.nota}>Esto entra completo en cada conversación, antes de tu primer mensaje. Es lo que me hace Levy y no un asistente cualquiera.</p>
+    <p className={w.nota}>{tr('Esto entra completo en cada conversación, antes de tu primer mensaje. Es lo que me hace Levy y no un asistente cualquiera.')}</p>
     <div className={w.instrucciones}>{lista.map((x, i) => <button key={x.ruta} className={`${w.instruccion} ${mov.entra}`} style={escalon(i + 1)} onClick={() => setAbierta(x)}>
       <span className={w.instruccionNumero}>{i + 1}</span>
       <span className={w.instruccionTexto}><b>{x.titulo}</b><span>{x.detalle}</span><code>{x.ruta.replace(/^\.claude\//, '')} · {kb(x.bytes)} · {hace(x.editado)}</code></span>
@@ -153,17 +154,17 @@ function Lector({ ruta, volver, etiqueta, titulo, embudo }: { ruta: string; volv
   }, [volver])
   const texto = data?.texto.replace(/^---\n[\s\S]*?\n---\n/, '') ?? ''
   const corregir = () => {
-    const cita = `Sobre \`${ruta}\`: `
+    const cita = tr('Sobre {ruta}: ', { ruta: `\`${ruta}\`` })
     if (window.location.pathname.startsWith('/chat')) window.dispatchEvent(new CustomEvent('cabina:redactar', { detail: { texto: cita } }))
     else { try { sessionStorage.setItem('cabina:redactar', cita) } catch { /* modo privado */ } window.location.assign('/chat') }
   }
   return <div className={`${w.lector} ${mov.aparece}`}>
     <div className={w.lectorBarra}>
-      <button onClick={volver} title="Volver (Esc)"><ArrowLeft size={14} aria-hidden />{etiqueta}</button>
-      <button onClick={corregir} title="Deja la cita en la caja del chat para que digas qué cambiar"><PenLine size={14} aria-hidden />Corregir esto</button>
+      <button onClick={volver} title={tr('Volver (Esc)')}><ArrowLeft size={14} aria-hidden />{etiqueta}</button>
+      <button onClick={corregir} title={tr('Deja la cita en la caja del chat para que digas qué cambiar')}><PenLine size={14} aria-hidden />{tr('Corregir esto')}</button>
     </div>
     <p className={w.lectorTitulo}>{titulo ?? ruta.split('/').at(-1)}</p>
-    <p className={w.lectorMeta}><code>{ruta}</code>{data ? ` · editado ${hace(data.editado)}` : ''}</p>
+    <p className={w.lectorMeta}><code>{ruta}</code>{data ? ` · ${tr('editado {cuando}', { cuando: hace(data.editado) })}` : ''}</p>
     {embudo && skillDeRuta(ruta) && <EnTuEmbudo embudo={embudo} etapas={etapasDeSkill(embudo, skillDeRuta(ruta)!)} />}
     {error ? <p className={s.aviso}>{error}</p> : !data ? <Cargando /> : <div className={`${s.lectura} ${w.lectorTexto}`}><MarkdownMessage content={texto} /></div>}
   </div>
@@ -177,11 +178,11 @@ function EtapasFila({ etapas }: { etapas: ReturnType<typeof etapasDeSkill> }) {
 
 /** En la lectura de una habilidad: sus etapas, cada una con el enlace a Tu negocio. */
 function EnTuEmbudo({ embudo, etapas }: { embudo: Embudo; etapas: ReturnType<typeof etapasDeSkill> }) {
-  return <div className={n.bloque} aria-label="En tu embudo">
-    <p className={n.etiqueta}>En tu embudo</p>
-    {!etapas.length ? <p className={n.nada}>Esta habilidad todavía no cuelga de ninguna etapa de tu negocio.</p>
+  return <div className={n.bloque} aria-label={tr('En tu embudo')}>
+    <p className={n.etiqueta}>{tr('En tu embudo')}</p>
+    {!etapas.length ? <p className={n.nada}>{tr('Esta habilidad todavía no cuelga de ninguna etapa de tu negocio.')}</p>
       : <ul className={n.lista}>{etapas.map(et => <li key={et.id}>
-        <button className={n.etapa} onClick={() => abrirEtapaNegocio(et.id)} title="Ver la etapa en Tu negocio">
+        <button className={n.etapa} onClick={() => abrirEtapaNegocio(et.id)} title={tr('Ver la etapa en Tu negocio')}>
           <span className={n.donde}>{nombreEmbudo(embudo, et.embudo)} · {et.etapa}</span><b>{et.nombre}</b><ChevronRight size={13} aria-hidden />
         </button>
       </li>)}</ul>}

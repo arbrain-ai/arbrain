@@ -38,6 +38,7 @@ import { EXT_EJECUTABLE } from './hooks-proyecto.js'
 import { reglaQueAplica, reglasSiempre, type ReglaSiempre } from './reglas-siempre.js'
 import { HERRAMIENTAS_CICLO_SUBAGENTE, motivoSubagenteCliente } from './subagentes-sdk.js'
 import { decidirActualizar } from './actualizar-arbrain.js'
+import { tr, trMarca } from '../i18n/tr.js'
 
 export type DecisionPolitica =
   | {
@@ -284,7 +285,7 @@ export function ancestroSensible(real: string, ctx: ContextoPolitica): string | 
   for (const r of raices) if (r && r !== real && dentroDe(r, real)) return r
   return null
 }
-const MOTIVO_ANCESTRO = (ruta: string, sensible: string) => `buscar de forma recursiva en ${ruta} recorre también ${sensible} (llaves, sesiones o datos de la app); busca en una carpeta más concreta`
+const MOTIVO_ANCESTRO = (ruta: string, sensible: string) => tr('buscar de forma recursiva en {ruta} recorre también {sensible} (llaves, sesiones o datos de la app); busca en una carpeta más concreta', { ruta, sensible })
 
 /**
  * ¿Un recorrido cuya raíz es `root` (puede llevar comodines o no existir) llega a una carpeta sensible? (hallazgo
@@ -310,27 +311,27 @@ const partes = (p: string) => p.split(/[\\/]+/).filter(Boolean)
 export function motivoRutaSecreta(real: string, ctx: ContextoPolitica): string | null {
   const ps = partes(real)
   const nombre = ps[ps.length - 1] ?? ''
-  if (ARCHIVO_SECRETO.test(nombre) && !/\.(example|sample|template)$/i.test(nombre) && !/^\.env\.(example|sample|template)\b/i.test(nombre)) return `archivo con secretos (${nombre})`
+  if (ARCHIVO_SECRETO.test(nombre) && !/\.(example|sample|template)$/i.test(nombre) && !/^\.env\.(example|sample|template)\b/i.test(nombre)) return tr('archivo con secretos ({nombre})', { nombre })
   const bajas = ps.map(x => x.toLowerCase())
-  for (const seq of SECUENCIAS_SECRETAS) if (contieneSecuencia(bajas, seq)) return `perfil de navegador, gestor de contraseñas, cartera o credenciales del sistema (${seq.join('/')})`
+  for (const seq of SECUENCIAS_SECRETAS) if (contieneSecuencia(bajas, seq)) return tr('perfil de navegador, gestor de contraseñas, cartera o credenciales del sistema ({ruta})', { ruta: seq.join('/') })
   for (let i = 0; i < ps.length; i++) {
     const a = ps[i].toLowerCase()
-    if (CARPETA_SECRETA.has(a)) return `carpeta con llaves o credenciales (${ps[i]})`
-    if (PAR_SECRETO.has(`${a}/${(ps[i + 1] ?? '').toLowerCase()}`)) return `carpeta con llaves o credenciales (${ps[i]}/${ps[i + 1]})`
+    if (CARPETA_SECRETA.has(a)) return tr('carpeta con llaves o credenciales ({ruta})', { ruta: ps[i] })
+    if (PAR_SECRETO.has(`${a}/${(ps[i + 1] ?? '').toLowerCase()}`)) return tr('carpeta con llaves o credenciales ({ruta})', { ruta: `${ps[i]}/${ps[i + 1]}` })
   }
-  if (/^\/proc\/[^/]+\/(environ|cmdline|mem|maps|auxv)$/.test(real.replace(/\\/g, '/'))) return 'entorno o memoria de un proceso'
+  if (/^\/proc\/[^/]+\/(environ|cmdline|mem|maps|auxv)$/.test(real.replace(/\\/g, '/'))) return tr('entorno o memoria de un proceso')
   // Seguridad noche 21 oct (M3): la carpeta personal de Claude Code y de Codex (sesión OAuth en Linux y Windows, historial de
   // TODAS las conversaciones del usuario en `projects/`, ajustes y ganchos personales). Solo la del usuario: el `.claude/`
   // del cerebro es otra cosa y tiene su propia regla (`nivelProteccion`).
-  for (const d of CARPETAS_DE_SESION) if (dentroDe(real, join(ctx.usuario, d))) return `sesión e historial de ${d === '.codex' ? 'Codex' : 'Claude Code'} del usuario (~/${d})`
+  for (const d of CARPETAS_DE_SESION) if (dentroDe(real, join(ctx.usuario, d))) return tr('sesión e historial de {app} del usuario (~/{carpeta})', { app: d === '.codex' ? 'Codex' : 'Claude Code', carpeta: d })
   // Red team 4 M4-3: el socket del motor de terminales (una terminal sin guardia ni sandbox), donde esté.
-  if (/^motor\.sock$/i.test(nombre)) return 'socket del motor de terminales de la app'
+  if (/^motor\.sock$/i.test(nombre)) return tr('socket del motor de terminales de la app')
   // Red team 4 L4-1: la carpeta de git del cerebro (config con remotos y credenciales) y los ajustes locales del agente.
-  if (ps.some(x => x.toLowerCase() === '.git')) return 'carpeta de git del cerebro (puede guardar credenciales de remotos)'
-  if (/^settings\.local\.json$/i.test(nombre) && ps.some(x => x.toLowerCase() === '.claude')) return 'ajustes locales del agente (.claude/settings.local.json)'
+  if (ps.some(x => x.toLowerCase() === '.git')) return tr('carpeta de git del cerebro (puede guardar credenciales de remotos)')
+  if (/^settings\.local\.json$/i.test(nombre) && ps.some(x => x.toLowerCase() === '.claude')) return tr('ajustes locales del agente (.claude/settings.local.json)')
   const lecturaPermitida = ctx.lecturaExtra.some(r => dentroDe(real, r))
-  for (const p of ctx.protegidas) if (!lecturaPermitida && dentroDe(real, p)) return 'carpeta de datos de la app (interruptores, voz, bases)'
-  if (ARCHIVO_DE_LA_APP.test(nombre) && !dentroDe(real, ctx.home)) return 'archivo de configuración de la app'
+  for (const p of ctx.protegidas) if (!lecturaPermitida && dentroDe(real, p)) return tr('carpeta de datos de la app (interruptores, voz, bases)')
+  if (ARCHIVO_DE_LA_APP.test(nombre) && !dentroDe(real, ctx.home)) return tr('archivo de configuración de la app')
   return null
 }
 
@@ -423,7 +424,7 @@ const negar = (motivo: string): DecisionPolitica => ({ tipo: 'negar', motivo })
 export const LITERAL_MAX = 4000
 const confirmar = (categoria: CategoriaConfirmacion, resumen: string, literal: string, avisos: string[] = []): DecisionPolitica =>
   literal.length > LITERAL_MAX
-    ? { tipo: 'negar', motivo: `la acción es demasiado larga para que la persona la revise completa (${literal.length} caracteres, máximo ${LITERAL_MAX}); divídela en pasos más chicos` }
+    ? { tipo: 'negar', motivo: tr('la acción es demasiado larga para que la persona la revise completa ({n} caracteres, máximo {max}); divídela en pasos más chicos', { n: literal.length, max: LITERAL_MAX }) }
     : { tipo: 'confirmar', categoria, resumen, literal, avisos }
 
 /** Una tarjeta de la red mínima de Autónomo, con la regla que la sostiene. */
@@ -462,7 +463,7 @@ export function decidirHerramienta(herramienta: string, input: unknown, ctx: Con
   return ctx.contaminada ? conSalidaAutonomo(endurecerContaminada(d, herramienta, input, ctx)) : aplicarModo(d, ctx, herramienta, input)
 }
 
-const avisoAutonomo = (nivel: 'carpeta' | 'autonomo') => `para que no te pregunte esto, en ${DONDE_PERMISOS} elige «${NOMBRE_MODO[nivel]}»`
+const avisoAutonomo = (nivel: 'carpeta' | 'autonomo') => tr('para que no te pregunte esto, en {donde} elige «{modo}»', { donde: tr(DONDE_PERMISOS), modo: tr(NOMBRE_MODO[nivel]) })
 /** Opciones para resolver la ruta de una regla de «Escribir» igual que la política (`~`, relativas, realpath). */
 const opcionesRegla = (ctx: ContextoPolitica) => ({ home: ctx.home, rutaReal: (v: string) => rutaReal(expandirRuta(v, ctx)) })
 
@@ -577,10 +578,10 @@ const RM_RECURSIVO = (args: string[]) => args.some(w => w === '--recursive' || /
  * antes, en `DESTRUCTIVOS`.)
  */
 export function borradoMasivo(cmd: string, ctx: ContextoPolitica): string | null {
-  if (/\bfind\b[^|;&]*\s-delete\b/.test(cmd)) return 'borrar con find -delete no se puede acotar: borra archivo por archivo o pídele a la persona que lo haga'
-  if (/(?:^|[;&|]\s*)(?:del|erase|rd|rmdir)\s+\/[sq]/i.test(cmd)) return 'borrado recursivo del Explorador (del /s, rd /s)'
+  if (/\bfind\b[^|;&]*\s-delete\b/.test(cmd)) return tr('borrar con find -delete no se puede acotar: borra archivo por archivo o pídele a la persona que lo haga')
+  if (/(?:^|[;&|]\s*)(?:del|erase|rd|rmdir)\s+\/[sq]/i.test(cmd)) return tr('borrado recursivo del Explorador (del /s, rd /s)')
   const a = analizarShell(cmd, ctx.usuario)
-  if (!a.ok) return /\brm\s+-[a-zA-Z]*[rR]/.test(cmd) ? 'rm -r dentro de un comando que no se puede verificar entero' : null
+  if (!a.ok) return /\brm\s+-[a-zA-Z]*[rR]/.test(cmd) ? tr('rm -r dentro de un comando que no se puede verificar entero') : null
   const cwds = [ctx.cwd]
   const raices = [ctx.home, ...(ctx.abiertas ?? [])]
   for (const c of a.comandos) {
@@ -593,19 +594,19 @@ export function borradoMasivo(cmd: string, ctx: ContextoPolitica): string | null
     const recursivo = base === 'rm' && RM_RECURSIVO(args)
     let total = 0
     for (const r of rutas) {
-      if (/\$/.test(r)) return `rm con una ruta que no se puede verificar (${r})`
+      if (/\$/.test(r)) return tr('rm con una ruta que no se puede verificar ({ruta})', { ruta: r })
       const cwd = cwds[cwds.length - 1]
       const lista = expandirComodin(r, ctx, cwd)
-      if (lista === null) return `borrar «${r}» alcanza demasiados archivos (más de 500)`
+      if (lista === null) return tr('borrar «{ruta}» alcanza demasiados archivos (más de 500)', { ruta: r })
       total += lista.length
       for (const ruta of lista) {
         const real = rutaReal(expandirRuta(ruta, ctx, cwd))
         const raiz = raices.find(x => dentroDe(real, x))
-        if (!raiz) return `borrar fuera de tu cerebro y de tus carpetas abiertas (${real})`
-        if (recursivo && real === raiz) return `rm -r de ${real === ctx.home ? 'la carpeta entera de tu cerebro' : `una carpeta abierta entera (${real})`}`
+        if (!raiz) return tr('borrar fuera de tu cerebro y de tus carpetas abiertas ({ruta})', { ruta: real })
+        if (recursivo && real === raiz) return real === ctx.home ? tr('rm -r de la carpeta entera de tu cerebro') : tr('rm -r de una carpeta abierta entera ({ruta})', { ruta: real })
       }
     }
-    if (total > MAX_BORRADO_AUTONOMO) return `borrar ${total} archivos en un paso (tope ${MAX_BORRADO_AUTONOMO}): hazlo por partes o que lo haga la persona`
+    if (total > MAX_BORRADO_AUTONOMO) return tr('borrar {n} archivos en un paso (tope {tope}): hazlo por partes o que lo haga la persona', { n: total, tope: MAX_BORRADO_AUTONOMO })
     if (recursivo) {
       for (const r of rutas) {
         const cwd = cwds[cwds.length - 1]
@@ -613,7 +614,7 @@ export function borradoMasivo(cmd: string, ctx: ContextoPolitica): string | null
           const real = rutaReal(expandirRuta(ruta, ctx, cwd))
           let n = 0
           try { n = globSync(join(real, '**', '*')).length } catch { n = 0 }
-          if (n > MAX_BORRADO_AUTONOMO) return `rm -r de ${real} borra ${n} archivos (tope ${MAX_BORRADO_AUTONOMO}): hazlo por partes o que lo haga la persona`
+          if (n > MAX_BORRADO_AUTONOMO) return tr('rm -r de {ruta} borra {n} archivos (tope {tope}): hazlo por partes o que lo haga la persona', { ruta: real, n, tope: MAX_BORRADO_AUTONOMO })
         }
       }
     }
@@ -637,16 +638,16 @@ export function aplicarAutonomo(d: DecisionPolitica, herramienta: string, input:
   const i = (input && typeof input === 'object' ? input : {}) as Record<string, unknown>
   const leyoAfuera = !!ctx.contaminada || !!ctx.leyoPantalla
   const egreso = leyoAfuera ? egresoContaminado(i, ctx) : null
-  const avisoR6 = `${ctx.contaminada ? avisoContaminada(ctx.contaminada.fuente) : 'esta conversación leyó la pantalla o una nota escrita tras leer afuera'}: confirma solo si TÚ lo pediste`
+  const avisoR6 = tr('{aviso}: confirma solo si TÚ lo pediste', { aviso: ctx.contaminada ? avisoContaminada(ctx.contaminada.fuente) : tr('esta conversación leyó la pantalla o una nota escrita tras leer afuera') })
   // R6 sobre cualquier cosa que corra o se confirme: una dirección que no apareció en lo que pidió ni leyó, o datos
   // codificados, hacia afuera (`curl -T`, un MCP con una URL, las manos navegando a un sitio que nadie nombró).
-  if (egreso) return tarjeta('enviar', `Usar ${herramienta} con una dirección o datos que pueden salir, tras leer afuera`, `${herramienta} ${JSON.stringify(i)}`, [avisoR6, egreso], 'R6')
+  if (egreso) return tarjeta('enviar', tr('Usar {herramienta} con una dirección o datos que pueden salir, tras leer afuera', { herramienta }), `${herramienta} ${JSON.stringify(i)}`, [avisoR6, egreso], 'R6')
   if (d.tipo === 'permitir') {
     if (ctx.contaminada && herramienta === 'WebFetch') {
       const url = normalizarUrl(typeof i.url === 'string' ? i.url.trim() : '')
       const u = typeof i.url === 'string' ? parsearUrl(i.url.trim()) : null
       const nombrada = !!u && !!ctx.voz?.length && hostNombradoEnVoz(hostDe(u), ctx.voz) && !u.search && !u.hash && u.pathname.length <= 32
-      if ((!url || !ctx.urlsVistas?.has(url)) && !nombrada) return tarjeta('enviar', 'Abrir una dirección que no apareció en lo que leíste ni en lo que pediste', `WebFetch ${JSON.stringify(i)}`, [avisoR6, 'una dirección nueva puede llevarse en su ruta datos de esta conversación'], 'R6')
+      if ((!url || !ctx.urlsVistas?.has(url)) && !nombrada) return tarjeta('enviar', tr('Abrir una dirección que no apareció en lo que leíste ni en lo que pediste'), `WebFetch ${JSON.stringify(i)}`, [avisoR6, tr('una dirección nueva puede llevarse en su ruta datos de esta conversación')], 'R6')
     }
     return d
   }
@@ -655,22 +656,22 @@ export function aplicarAutonomo(d: DecisionPolitica, herramienta: string, input:
   if (d.categoria === 'pagar') return negar(MENSAJE_DINERO(herramienta))
   const permitido: DecisionPolitica = { tipo: 'permitir', porModo: 'autonomo' }
   if (d.categoria === 'borrar') {
-    if (herramienta === 'Bash') { const m = borradoMasivo(String(i.command ?? ''), ctx); if (m) return negar(`borrado masivo: ${m}`) }
-    else if (herramienta.startsWith('mcp__')) { const n = Math.max(...Object.values(i).map(v => Array.isArray(v) ? v.length : 0), 0); if (n > MAX_BORRADO_AUTONOMO) return negar(`borrado masivo: ${n} elementos en un paso (tope ${MAX_BORRADO_AUTONOMO})`) }
+    if (herramienta === 'Bash') { const m = borradoMasivo(String(i.command ?? ''), ctx); if (m) return negar(tr('borrado masivo: {motivo}', { motivo: m })) }
+    else if (herramienta.startsWith('mcp__')) { const n = Math.max(...Object.values(i).map(v => Array.isArray(v) ? v.length : 0), 0); if (n > MAX_BORRADO_AUTONOMO) return negar(tr('borrado masivo: {n} elementos en un paso (tope {tope})', { n, tope: MAX_BORRADO_AUTONOMO })) }
     return permitido
   }
   if (d.categoria === 'enviar' || d.categoria === 'publicar') {
     const { destinos, cuantos, masivo } = destinosDe(input)
-    const etiqueta = (regla: 'R5' | 'R6' | 'pedido' | 'borrador', aviso: string, resumen = c.resumen): DecisionPolitica => ({ ...c, resumen, avisos: [aviso, ...c.avisos.filter(a => !a.startsWith('para que no te pregunte'))], regla })
+    const etiqueta = (regla: 'R5' | 'R6' | 'pedido' | 'borrador', aviso: string, resumen = c.resumen): DecisionPolitica => ({ ...c, resumen, avisos: [aviso, ...c.avisos.filter(a => !a.startsWith('para que no te pregunte') && a !== avisoAutonomo('autonomo') && a !== avisoAutonomo('carpeta'))], regla })
     // Rutinas: lo que sale a terceros queda como borrador, listo para un clic en «Mientras no estabas».
-    if (ctx.rutina) return etiqueta('borrador', 'borrador de tu rutina: no se envió; sale con tu clic', `Borrador de tu rutina: ${c.resumen}`)
-    if (masivo || cuantos > MAX_DESTINATARIOS_AUTONOMO || destinos.length > MAX_DESTINATARIOS_AUTONOMO) return etiqueta('R5', `envío masivo (${masivo ? `a ${masivo}` : `${Math.max(cuantos, destinos.length)} destinatarios`}): revisa a quién y qué antes de que salga`)
+    if (ctx.rutina) return etiqueta('borrador', tr('borrador de tu rutina: no se envió; sale con tu clic'), tr('Borrador de tu rutina: {resumen}', { resumen: c.resumen }))
+    if (masivo || cuantos > MAX_DESTINATARIOS_AUTONOMO || destinos.length > MAX_DESTINATARIOS_AUTONOMO) return etiqueta('R5', masivo ? tr('envío masivo (a {grupo}): revisa a quién y qué antes de que salga', { grupo: masivo }) : tr('envío masivo ({n} destinatarios): revisa a quién y qué antes de que salga', { n: Math.max(cuantos, destinos.length) }))
     const noPedidos = leyoAfuera ? destinos.filter(x => !destinoEnVoz(x, ctx.voz)) : []
-    if (noPedidos.length) return etiqueta('R6', `${avisoR6}; el destino ${noPedidos[0]} no salió de tu mensaje`)
+    if (noPedidos.length) return etiqueta('R6', tr('{aviso}; el destino {destino} no salió de tu mensaje', { aviso: avisoR6, destino: noPedidos[0] }))
     // Datos a internet por Bash (curl POST): rutinario en trabajo técnico; solo tras leer afuera exige que la persona lo pida.
     const tecnico = herramienta === 'Bash' && /\b(curl|wget|Invoke-(?:WebRequest|RestMethod))\b/i.test(String(i.command ?? ''))
     if (tecnico && !leyoAfuera) return permitido
-    if (!cubiertoPorLaPersona(d.categoria, ctx.voz)) return etiqueta('pedido', `no encontré en tus mensajes recientes que pidieras ${d.categoria}: confirma solo si es lo que quieres`)
+    if (!cubiertoPorLaPersona(d.categoria, ctx.voz)) return etiqueta('pedido', tr('no encontré en tus mensajes recientes que pidieras {accion}: confirma solo si es lo que quieres', { accion: tr(d.categoria) }))
     return permitido
   }
   return permitido
@@ -704,7 +705,7 @@ function egresoContaminado(i: Record<string, unknown>, ctx: ContextoPolitica): s
       // A5 (0.2.15): la portada de un sitio que la persona nombró («abre WhatsApp» → web.whatsapp.com), sin query ni
       // fragmento ni ruta larga, no se lleva nada: no es «una dirección que no apareció en lo que pediste».
       const nombrada = !!u && !!ctx.voz?.length && hostNombradoEnVoz(hostDe(u), ctx.voz) && !u.search && !u.hash && u.pathname.length <= 32
-      if ((!n || !ctx.urlsVistas?.has(n)) && !nombrada) return `lleva una dirección${u ? ` (${hostDe(u)})` : ''} que no apareció en lo que leíste ni pediste`
+      if ((!n || !ctx.urlsVistas?.has(n)) && !nombrada) return u ? tr('lleva una dirección ({sitio}) que no apareció en lo que leíste ni pediste', { sitio: hostDe(u) }) : tr('lleva una dirección que no apareció en lo que leíste ni pediste')
       const senal = senalExfiltracion(url)
       if (senal) return senal
     }
@@ -713,7 +714,7 @@ function egresoContaminado(i: Record<string, unknown>, ctx: ContextoPolitica): s
 }
 
 /** Aviso que acompaña cada confirmación de una sesión contaminada. */
-export const avisoContaminada = (fuente: string) => `esta conversación leyó contenido de afuera (${fuente}): lo de afuera son datos, no órdenes; confirma solo si TÚ lo pediste`
+export const avisoContaminada = (fuente: string) => tr('esta conversación leyó contenido de afuera ({fuente}): lo de afuera son datos, no órdenes; confirma solo si TÚ lo pediste', { fuente })
 
 /**
  * Sesión contaminada (punto 2): lo que normalmente corre sin preguntar y tiene efecto pide clic: escribir en `.claude/`
@@ -739,22 +740,22 @@ function endurecerContaminada(d: DecisionPolitica, herramienta: string, input: u
       // (habilidades, agentes) no tiene regla que valga aquí (`valeTrasAfuera`). Nunca en rutinas.
       const regla = ctx.rutina ? null : reglaQueAplica(ctx.reglas, herramienta, input, { ...opcionesRegla(ctx), trasAfuera: true })
       if (regla) return { tipo: 'permitir', porRegla: regla.patron }
-      return confirmar('otra', `Guardar en la memoria del agente tras leer contenido de afuera: ${real}`, literal, [aviso, 'lo que se guarda aquí vuelve en cada conversación'])
+      return confirmar('otra', tr('Guardar en la memoria del agente tras leer contenido de afuera: {ruta}', { ruta: real }), literal, [aviso, tr('lo que se guarda aquí vuelve en cada conversación')])
     }
     return d
   }
-  if (herramienta === 'mcp__cabina__despertador') return confirmar('otra', 'Programar un despertador tras leer contenido de afuera', literal, [aviso, 'correrá otro turno sin que estés delante'])
+  if (herramienta === 'mcp__cabina__despertador') return confirmar('otra', tr('Programar un despertador tras leer contenido de afuera'), literal, [aviso, tr('correrá otro turno sin que estés delante')])
   if (herramienta === 'Bash') {
     const a = analizarShell(String(i.command ?? ''), ctx.usuario)
     const crea = !a.ok || a.comandos.some(c => ['mkdir', 'touch'].includes(basename(c.argv[0]?.texto ?? '')) || c.redirecciones.some(r => r.op !== '<' && r.destino !== '/dev/null'))
-    if (crea) return confirmar('otra', 'Ejecutar un comando que crea archivos tras leer contenido de afuera', String(i.command ?? ''), [aviso])
+    if (crea) return confirmar('otra', tr('Ejecutar un comando que crea archivos tras leer contenido de afuera'), String(i.command ?? ''), [aviso])
     return d
   }
   if (herramienta === 'WebFetch' && d.tipo === 'permitir') {
     // Dominio aprobado ya no basta: la página que inyectó suele ser de ese mismo dominio.
     const url = normalizarUrl(typeof i.url === 'string' ? i.url.trim() : '')
-    if (!url || !ctx.urlsVistas?.has(url)) return confirmar('enviar', 'Abrir una dirección que no apareció en lo que leíste ni en lo que pediste', literal, [aviso, 'una dirección nueva puede llevarse en su ruta datos de esta conversación'])
-    if ((ctx.webSinClic ?? 0) >= MAX_WEB_SIN_CLIC_CONTAMINADA) return confirmar('enviar', `Abrir otra página más (van ${ctx.webSinClic} sin preguntar desde que leíste contenido de afuera)`, literal, [aviso, 'qué páginas abre y en qué orden también puede llevarse datos'])
+    if (!url || !ctx.urlsVistas?.has(url)) return confirmar('enviar', tr('Abrir una dirección que no apareció en lo que leíste ni en lo que pediste'), literal, [aviso, tr('una dirección nueva puede llevarse en su ruta datos de esta conversación')])
+    if ((ctx.webSinClic ?? 0) >= MAX_WEB_SIN_CLIC_CONTAMINADA) return confirmar('enviar', tr('Abrir otra página más (van {n} sin preguntar desde que leíste contenido de afuera)', { n: ctx.webSinClic }), literal, [aviso, tr('qué páginas abre y en qué orden también puede llevarse datos')])
     return d
   }
   if (LECTURA.has(herramienta) || herramienta === 'WebFetch') return d
@@ -764,7 +765,7 @@ function endurecerContaminada(d: DecisionPolitica, herramienta: string, input: u
   const egreso = egresoContaminado(i, ctx)
   if (herramienta === 'WebSearch') {
     const q = typeof i.query === 'string' ? i.query : ''
-    if (egreso || q.length > 160) return confirmar('enviar', 'Buscar en internet un texto que puede llevar datos tras leer contenido de afuera', literal, [aviso, egreso ?? 'el texto de búsqueda sale al buscador'])
+    if (egreso || q.length > 160) return confirmar('enviar', tr('Buscar en internet un texto que puede llevar datos tras leer contenido de afuera'), literal, [aviso, egreso ?? tr('el texto de búsqueda sale al buscador')])
     return d
   }
   if (INOCUAS.has(herramienta) && !egreso) return d
@@ -774,9 +775,9 @@ function endurecerContaminada(d: DecisionPolitica, herramienta: string, input: u
     // no viste) sube a tarjeta.
     if ((servidor === 'cabina' || servidor === 'live' || servidor === 'manos' || mcpDeLectura(resto.join('__'))) && !egreso) return d
   }
-  if (egreso) return confirmar('enviar', `Usar ${herramienta} con una dirección o datos que pueden salir, tras leer contenido de afuera`, literal, [aviso, egreso])
+  if (egreso) return confirmar('enviar', tr('Usar {herramienta} con una dirección o datos que pueden salir, tras leer contenido de afuera', { herramienta }), literal, [aviso, egreso])
   if (INOCUAS.has(herramienta)) return d
-  return confirmar('otra', `Usar ${herramienta} tras leer contenido de afuera`, literal, [aviso])
+  return confirmar('otra', tr('Usar {herramienta} tras leer contenido de afuera', { herramienta }), literal, [aviso])
 }
 
 /**
@@ -797,13 +798,13 @@ export function efectoSinPreguntar(herramienta: string, input: unknown): boolean
 /** ¿El resultado de esta herramienta mete contenido de afuera en la conversación? Devuelve la fuente o null. */
 export function fuenteExterna(herramienta: string, input: unknown, ctx: ContextoPolitica): string | null {
   const i = (input && typeof input === 'object' ? input : {}) as Record<string, unknown>
-  if (herramienta === 'WebFetch') { const u = typeof i.url === 'string' ? parsearUrl(i.url) : null; return `una página web${u ? ` (${hostDe(u)})` : ''}` }
-  if (herramienta === 'WebSearch') return 'resultados de búsqueda en internet'
+  if (herramienta === 'WebFetch') { const u = typeof i.url === 'string' ? parsearUrl(i.url) : null; return u ? tr('una página web ({sitio})', { sitio: hostDe(u) }) : tr('una página web') }
+  if (herramienta === 'WebSearch') return tr('resultados de búsqueda en internet')
   if (herramienta.startsWith('mcp__')) {
     const servidor = herramienta.split('__')[1] ?? ''
     // A1 (0.2.15): lo que ven las manos es «leyó pantalla» (`fuenteLigera`), no contenido de afuera que endurezca todo.
     if (servidor === 'cabina' || servidor === 'live' || servidor === 'manos') return null
-    return /mail|gmail|outlook|correo|inbox|imap/i.test(herramienta) ? `correo (${servidor})` : `un servicio conectado (${servidor})`
+    return /mail|gmail|outlook|correo|inbox|imap/i.test(herramienta) ? tr('correo ({servidor})', { servidor }) : tr('un servicio conectado ({servidor})', { servidor })
   }
   if (LECTURA.has(herramienta)) {
     const v = CAMPOS_RUTA.map(c => i[c]).find(x => typeof x === 'string' && x) as string | undefined
@@ -818,7 +819,7 @@ export function fuenteExterna(herramienta: string, input: unknown, ctx: Contexto
       const base = basename(c.argv[0]?.texto ?? '')
       // Hallazgo 6: la salida de red solo cuenta por el PROGRAMA (argv[0]), no por una palabra suelta del comando
       // (`grep npx notas` leía notas, no la red). git solo con fetch/pull/clone.
-      if (base === 'git' ? c.argv.slice(1).some(w => /^(fetch|pull|clone)$/.test(w.texto)) : PROGRAMAS_RED.test(base)) return 'la salida de un comando con internet'
+      if (base === 'git' ? c.argv.slice(1).some(w => /^(fetch|pull|clone)$/.test(w.texto)) : PROGRAMAS_RED.test(base)) return tr('la salida de un comando con internet')
       // `cat`/`grep` de un adjunto o una descarga: lo mismo que Read. Solo palabras que parecen ruta y existen. (Las notas
       // propias marcadas por procedencia van en `fuenteLigera`, hallazgo 2 acotado a la R6.)
       for (const w of [...c.argv.slice(1).map(x => x.texto), ...c.redirecciones.filter(r => r.op === '<').map(r => r.destino)]) {
@@ -841,17 +842,17 @@ const INSTRUCCIONES_AJENAS = /^(readme|claude|agents|contributing|security|gemin
  * intento anterior lo frenaba todo); solo alimenta la R6 de Autónomo. Devuelve la fuente o null.
  */
 export function fuenteLigera(herramienta: string, input: unknown, ctx: ContextoPolitica): string | null {
-  if (/^mcp__manos__(observar|verificar|ventanas|apps)$/.test(herramienta)) return 'la pantalla (manos)'
+  if (/^mcp__manos__(observar|verificar|ventanas|apps)$/.test(herramienta)) return tr('la pantalla (manos)')
   const i = (input && typeof input === 'object' ? input : {}) as Record<string, unknown>
   if (LECTURA.has(herramienta) && ctx.procedencia) {
     if (herramienta === 'Grep' || herramienta === 'Glob') {
       const raiz = typeof i.path === 'string' && i.path ? i.path : (herramienta === 'Glob' && typeof i.pattern === 'string' ? (i.pattern.split(/[*?[{]/)[0] || ctx.cwd) : ctx.cwd)
       const f = ctx.procedencia.bajo(rutaReal(expandirRuta(raiz, ctx)))
-      if (f) return `una nota escrita tras leer contenido de afuera (de ${f})`
+      if (f) return tr('una nota escrita tras leer contenido de afuera (de {fuente})', { fuente: f })
     }
     const v = CAMPOS_RUTA.map(c => i[c]).find(x => typeof x === 'string' && x) as string | undefined
     const marcada = v ? ctx.procedencia.de(rutaReal(expandirRuta(v, ctx))) : null
-    if (marcada) return `una nota escrita tras leer contenido de afuera (de ${marcada})`
+    if (marcada) return tr('una nota escrita tras leer contenido de afuera (de {fuente})', { fuente: marcada })
   }
   if (herramienta === 'Bash' && typeof i.command === 'string' && ctx.procedencia) {
     const a = analizarShell(i.command, ctx.usuario)
@@ -862,14 +863,14 @@ export function fuenteLigera(herramienta: string, input: unknown, ctx: ContextoP
         const raices = rutasRecursivas(base, c.argv.slice(1).map(w => w.texto))
         for (const r of (raices.length ? raices : ['.'])) {
           const f = ctx.procedencia.bajo(rutaReal(expandirRuta((r.split(/[*?[{]/)[0] || '.'), ctx)))
-          if (f) return `una nota escrita tras leer contenido de afuera (de ${f})`
+          if (f) return tr('una nota escrita tras leer contenido de afuera (de {fuente})', { fuente: f })
         }
       }
       for (const w of [...c.argv.slice(1).map(x => x.texto), ...c.redirecciones.filter(r => r.op === '<').map(r => r.destino)]) {
         if (w.startsWith('-') || (!/[\\/.]/.test(w))) continue
         const real = rutaReal(expandirRuta(w, ctx))
         const f = existsSync(real) ? ctx.procedencia.de(real) : null
-        if (f) return `una nota escrita tras leer contenido de afuera (de ${f})`
+        if (f) return tr('una nota escrita tras leer contenido de afuera (de {fuente})', { fuente: f })
       }
     }
   }
@@ -881,16 +882,16 @@ function fuenteDeArchivo(real: string, ctx: ContextoPolitica): string | null {
   // v0.2.6: un adjunto del chat (imagen, PDF o texto que subió la persona) puede traer órdenes escritas dentro.
   if (ctx.adjuntos && dentroDe(real, ctx.adjuntos)) {
     const nombre = basename(real).replace(/^web-\d+-(chat-\d+-[0-9a-f]+-?)?/, '')
-    return `un adjunto del chat (${nombre && !nombre.startsWith('.') ? nombre : basename(real)})`
+    return tr('un adjunto del chat ({nombre})', { nombre: nombre && !nombre.startsWith('.') ? nombre : basename(real) })
   }
-  if (/\.(pdf|eml|msg|mbox|html?|mhtml|docx?|xlsx?|pptx?|rtf|epub|odt)$/i.test(real)) return `un archivo ${real.split('.').pop()!.toUpperCase()} (${basename(real)})`
-  if (partes(real).some(p => /^(downloads|descargas)$/i.test(p))) return `un archivo descargado (${basename(real)})`
+  if (/\.(pdf|eml|msg|mbox|html?|mhtml|docx?|xlsx?|pptx?|rtf|epub|odt)$/i.test(real)) return tr('un archivo {tipo} ({nombre})', { tipo: real.split('.').pop()!.toUpperCase(), nombre: basename(real) })
+  if (partes(real).some(p => /^(downloads|descargas)$/i.test(p))) return tr('un archivo descargado ({nombre})', { nombre: basename(real) })
   // Las carpetas que la persona abrió son suyas (salvo descargas y documentos, arriba); lo demás de fuera, externo.
   const enAbierta = (ctx.abiertas ?? []).some(r => dentroDe(real, r))
-  if (!dentroDe(real, ctx.home) && !enAbierta) return `un archivo fuera de tu cerebro (${basename(real)})`
+  if (!dentroDe(real, ctx.home) && !enAbierta) return tr('un archivo fuera de tu cerebro ({nombre})', { nombre: basename(real) })
   // Seguridad noche 21 oct: en una carpeta abierta (un repo clonado de otros), los archivos que se escriben PARA agentes
   // o para quien llega (README, CLAUDE.md, AGENTS.md, reglas de Cursor/Copilot, issues guardados) son de afuera.
-  if (enAbierta && INSTRUCCIONES_AJENAS.test(basename(real))) return `instrucciones de un proyecto que abriste (${basename(real)})`
+  if (enAbierta && INSTRUCCIONES_AJENAS.test(basename(real))) return tr('instrucciones de un proyecto que abriste ({nombre})', { nombre: basename(real) })
   return null
 }
 
@@ -909,8 +910,8 @@ function decidirSinContexto(herramienta: string, input: unknown, ctx: ContextoPo
     // PowerShell en Windows (29 oct 2026): lo que borra, envía o publica es freno igual que en Bash (`Remove-Item`,
     // `Invoke-WebRequest -Method Post`, `git push`), no una tarjeta rutinaria con «Una vez».
     const irr = accionIrreversible('Bash', { command: cmd })
-    if (irr?.categoria === 'pagar') return negar(MENSAJE_DINERO('el comando'))
-    return confirmar(irr?.categoria ?? 'otra', irr ? irr.resumen : `Ejecutar un comando (${herramienta})`, `${herramienta} ${JSON.stringify(i)}`)
+    if (irr?.categoria === 'pagar') return negar(MENSAJE_DINERO(tr('el comando')))
+    return confirmar(irr?.categoria ?? 'otra', irr ? irr.resumen : tr('Ejecutar un comando ({motivo})', { motivo: herramienta }), `${herramienta} ${JSON.stringify(i)}`)
   }
 
   if (LECTURA.has(herramienta)) {
@@ -918,21 +919,21 @@ function decidirSinContexto(herramienta: string, input: unknown, ctx: ContextoPo
       const v = i[campo]
       if (typeof v !== 'string' || !v) continue
       const r = veredictoRuta(v, 'leer', ctx)
-      if (r.tipo === 'secreta') return negar(`${herramienta} sobre ${r.motivo}`)
+      if (r.tipo === 'secreta') return negar(tr('{herramienta} sobre {motivo}', { herramienta, motivo: r.motivo }))
       if (r.tipo === 'fuera' && RECORRE.has(herramienta)) { const s = ancestroSensible(r.ruta, ctx); if (s) return negar(MOTIVO_ANCESTRO(r.ruta, s)) }
-      if (r.tipo === 'fuera') return confirmar('otra', `Leer fuera de tu cerebro: ${r.ruta}`, `${herramienta} ${r.ruta}`)
+      if (r.tipo === 'fuera') return confirmar('otra', tr('Leer fuera de tu cerebro: {ruta}', { ruta: r.ruta }), `${herramienta} ${r.ruta}`)
     }
     for (const campo of ['pattern', 'glob']) {
       const v = i[campo]
       if (typeof v !== 'string' || !v) continue
       if (herramienta === 'Grep' && campo === 'pattern') continue // en Grep, pattern es la expresión a buscar
-      if (/(^|[\\/])(\.env|\.ssh|\.aws|\.gnupg|\.kube|\.docker|id_rsa|id_ed25519)/i.test(v) || /\.(pem|key|p12|pfx)\b/i.test(v)) return negar('buscar archivos de secretos')
+      if (/(^|[\\/])(\.env|\.ssh|\.aws|\.gnupg|\.kube|\.docker|id_rsa|id_ed25519)/i.test(v) || /\.(pem|key|p12|pfx)\b/i.test(v)) return negar(tr('buscar archivos de secretos'))
       if (campo === 'pattern' && (isAbsolute(v) || v.startsWith('~') || /(^|[\\/])\.\.([\\/]|$)/.test(v))) {
         const fijo = v.split(/[*?[{]/)[0] || '/'
         const r = veredictoRuta(fijo, 'leer', ctx)
-        if (r.tipo === 'secreta') return negar(`${herramienta} sobre ${r.motivo}`)
+        if (r.tipo === 'secreta') return negar(tr('{herramienta} sobre {motivo}', { herramienta, motivo: r.motivo }))
         if (r.tipo === 'fuera') { const s = ancestroSensible(r.ruta, ctx); if (s) return negar(MOTIVO_ANCESTRO(v, s)) }
-        if (r.tipo === 'fuera') return confirmar('otra', `Buscar fuera de tu cerebro: ${v}`, `${herramienta} ${v}`)
+        if (r.tipo === 'fuera') return confirmar('otra', tr('Buscar fuera de tu cerebro: {ruta}', { ruta: v }), `${herramienta} ${v}`)
       }
     }
     return { tipo: 'permitir' }
@@ -940,17 +941,17 @@ function decidirSinContexto(herramienta: string, input: unknown, ctx: ContextoPo
 
   if (ESCRITURA.has(herramienta)) {
     const v = CAMPOS_RUTA.map(c => i[c]).find(x => typeof x === 'string' && x) as string | undefined
-    if (!v) return negar(`${herramienta} sin ruta`)
+    if (!v) return negar(tr('{herramienta} sin ruta', { herramienta }))
     const r = veredictoRuta(v, 'escribir', ctx)
-    if (r.tipo === 'secreta') return negar(`${herramienta} sobre ${r.motivo}`)
-    if (r.tipo === 'fuera') return negar(`${herramienta} fuera de tu cerebro (${r.ruta}): los agentes solo escriben dentro de la carpeta de Arbrain y de las carpetas que la persona abrió. Si la persona quiere que trabajes ahí, guíala a abrir esa carpeta en ${DONDE_CARPETAS}`)
-    if (r.tipo === 'abierta') return relajar(confirmar('otra', `Escribir en una carpeta que abriste: ${r.ruta}`, `${herramienta} ${r.ruta}\n${JSON.stringify(i, null, 1)}`, ['escribe fuera de tu cerebro, en una carpeta que abriste']), 'carpeta')
-    if (r.tipo === 'protegida' && r.nivel === 'negar') return negar(`${herramienta} sobre ${r.ruta}: ${MOTIVO_AJUSTES}`)
+    if (r.tipo === 'secreta') return negar(tr('{herramienta} sobre {motivo}', { herramienta, motivo: r.motivo }))
+    if (r.tipo === 'fuera') return negar(tr('{herramienta} fuera de tu cerebro ({ruta}): los agentes solo escriben dentro de la carpeta de Arbrain y de las carpetas que la persona abrió. Si la persona quiere que trabajes ahí, guíala a abrir esa carpeta en {donde}', { herramienta, ruta: r.ruta, donde: tr(DONDE_CARPETAS) }))
+    if (r.tipo === 'abierta') return relajar(confirmar('otra', tr('Escribir en una carpeta que abriste: {ruta}', { ruta: r.ruta }), `${herramienta} ${r.ruta}\n${JSON.stringify(i, null, 1)}`, [tr('escribe fuera de tu cerebro, en una carpeta que abriste')]), 'carpeta')
+    if (r.tipo === 'protegida' && r.nivel === 'negar') return negar(tr('{herramienta} sobre {ruta}: {motivo}', { herramienta, ruta: r.ruta, motivo: MOTIVO_AJUSTES() }))
     if (r.tipo === 'protegida') {
       // Una rutina escribe lo que el cerebro genera (now.md, reportes): no es una acción externa ni configura al agente.
       if (ctx.rutina && generadoPorRutina(r.ruta, ctx.home)) return { tipo: 'permitir', generado: true }
       // El literal es la entrada COMPLETA de la herramienta (sin recortes): es lo que de verdad se escribe.
-      const d = confirmar('otra', `Cambiar la configuración del agente: ${r.ruta}`, `${herramienta} ${r.ruta}\n${JSON.stringify(i, null, 1)}`, ['este archivo cambia lo que el agente puede hacer'])
+      const d = confirmar('otra', tr('Cambiar la configuración del agente: {ruta}', { ruta: r.ruta }), `${herramienta} ${r.ruta}\n${JSON.stringify(i, null, 1)}`, [tr('este archivo cambia lo que el agente puede hacer')])
       return configuracionEnTexto(r.ruta, ctx.home) ? relajar(d, 'carpeta') : d
     }
     return { tipo: 'permitir' }
@@ -961,34 +962,34 @@ function decidirSinContexto(herramienta: string, input: unknown, ctx: ContextoPo
   if (herramienta.startsWith('mcp__')) {
     const [, servidor = '', ...resto] = herramienta.split('__')
     const accion = resto.join('__')
-    if (servidor === 'cabina') return CABINA_SUBAGENTES.has(accion) ? negar('delegar de la Cabina lanza procesos aparte y no existe en esta edición; usa la herramienta Agent (subagente bajo tu misma guardia)') : { tipo: 'permitir' }
+    if (servidor === 'cabina') return CABINA_SUBAGENTES.has(accion) ? negar(tr('delegar de la Cabina lanza procesos aparte y no existe en esta edición; usa la herramienta Agent (subagente bajo tu misma guardia)')) : { tipo: 'permitir' }
     if (servidor === 'live') return { tipo: 'permitir' }
     // 0.1.2: computer use en macOS y Windows. El MCP de manos trae su propio freno (freno-cliente.ts, juicio-url.ts,
     // cita + clic I8) y su interruptor; aquí solo se niega donde no existe (Linux), como segunda capa del MCP vacío.
-    if (servidor === 'manos') return computerUseDisponible() ? { tipo: 'permitir' } : negar('computer use no está disponible en este sistema')
+    if (servidor === 'manos') return computerUseDisponible() ? { tipo: 'permitir' } : negar(tr('computer use no está disponible en este sistema'))
     // Un servidor de terceros lee lo que se le pasa por ruta (adjuntos, «subir archivo»): una ruta a un secreto se niega,
     // ni con clic ni con el freno quitado (red team del freno quitado, 23 oct 2026).
     const secretoMcp = rutaSecretaEnInput(input, ctx)
-    if (secretoMcp) return negar(`${herramienta} con una ruta a ${secretoMcp}`)
+    if (secretoMcp) return negar(tr('{herramienta} con una ruta a {motivo}', { herramienta, motivo: secretoMcp }))
     const irr = accionIrreversible(herramienta, input)
     const literal = `${herramienta} ${JSON.stringify(input ?? {})}`
     // Nada de dinero en la v1 (12 oct 2026): pagar o cobrar, o cualquier escritura en un servidor de pagos/banca, ni con clic.
     if (irr?.categoria === 'pagar') return negar(MENSAJE_DINERO(herramienta))
-    if (MCP_DINERO.test(servidor) && !mcpDeLectura(accion)) return negar(MENSAJE_DINERO(`el servidor ${servidor}`))
+    if (MCP_DINERO.test(servidor) && !mcpDeLectura(accion)) return negar(MENSAJE_DINERO(tr('el servidor {servidor}', { servidor })))
     const valores = valoresEnMcp(servidor, accion, mcpDeLectura(accion))
     if (valores) return negar(MENSAJE_DINERO(valores))
     const dineroMcp = dineroEnTexto(JSON.stringify(input ?? {}))
     if (dineroMcp) return negar(MENSAJE_DINERO(dineroMcp))
     if (irr) return confirmar(irr.categoria, irr.resumen, literal)
     if (mcpDeLectura(accion)) return { tipo: 'permitir' }
-    return confirmar('otra', `Usar ${herramienta}`, literal)
+    return confirmar('otra', tr('Usar {herramienta}', { herramienta }), literal)
   }
 
   // Subagentes del SDK (29 oct 2026, subagentes-sdk.ts): corren en esta sesión, bajo esta misma política; se niega lo
   // que los sacaría de ella (nube, worktree, definición propia).
   if (herramienta === 'Agent' || herramienta === 'Task') { const m = motivoSubagenteCliente(input); if (m) return negar(m) }
   if (INOCUAS.has(herramienta)) return { tipo: 'permitir' }
-  return confirmar('otra', `Usar la herramienta ${herramienta}`, `${herramienta} ${JSON.stringify(input ?? {})}`)
+  return confirmar('otra', tr('Usar la herramienta {herramienta}', { herramienta }), `${herramienta} ${JSON.stringify(input ?? {})}`)
 }
 
 /** ¿Un valor de texto es, entero, una ruta (absoluta, relativa con ./, con ~ o variables, file://) o el nombre de un secreto? */
@@ -1055,15 +1056,15 @@ export function _dominiosWebParaPruebas(): Set<string> { return DOMINIOS_WEB }
 function decidirWebFetch(i: Record<string, unknown>, ctx: ContextoPolitica): DecisionPolitica {
   const url = typeof i.url === 'string' ? i.url.trim() : ''
   const u = url ? parsearUrl(url) : null
-  if (!u) return negar('WebFetch sin una URL válida')
-  if (!/^https?:$/.test(u.protocol)) return negar(`WebFetch solo abre http(s) (${u.protocol})`)
+  if (!u) return negar(tr('WebFetch sin una URL válida'))
+  if (!/^https?:$/.test(u.protocol)) return negar(tr('WebFetch solo abre http(s) ({protocolo})', { protocolo: u.protocol }))
   const host = hostDe(u)
   const dinero = destinoDeDinero(url)
   if (dinero) return negar(MENSAJE_DINERO(dinero))
   const literal = `WebFetch ${JSON.stringify(i)}`
   const senal = senalExfiltracion(url)
-  if (senal) return confirmar('enviar', `Abrir una página que puede llevarse datos: ${host}`, literal, [senal, 'puede usar internet'])
-  if (!(ctx.dominiosWeb ?? DOMINIOS_WEB).has(host)) return confirmar('otra', `Leer una página de un dominio nuevo: ${host}`, literal, ['puede usar internet', `si lo permites, ${host} queda aprobado para esta sesión`])
+  if (senal) return confirmar('enviar', tr('Abrir una página que puede llevarse datos: {sitio}', { sitio: host }), literal, [senal, tr('puede usar internet')])
+  if (!(ctx.dominiosWeb ?? DOMINIOS_WEB).has(host)) return confirmar('otra', tr('Leer una página de un dominio nuevo: {sitio}', { sitio: host }), literal, [tr('puede usar internet'), tr('si lo permites, {sitio} queda aprobado para esta sesión', { sitio: host })])
   return { tipo: 'permitir' }
 }
 
@@ -1071,22 +1072,22 @@ function decidirWebFetch(i: Record<string, unknown>, ctx: ContextoPolitica): Dec
 
 /** Destructivo sin vuelta: se niega aunque la persona lo aprobaría (I4: rm -rf, push forzado, curl | sh, sudo…). */
 const DESTRUCTIVOS: Array<{ re: RegExp; motivo: string }> = [
-  { re: /\brm\s+(?:-[a-zA-Z]*r[a-zA-Z]*f|-[a-zA-Z]*f[a-zA-Z]*r|(?:-[a-zA-Z]+\s+)*(?:-r|-R|--recursive)\s+(?:-[a-zA-Z]+\s+)*(?:-f|--force)|(?:-[a-zA-Z]+\s+)*(?:-f|--force)\s+(?:-[a-zA-Z]+\s+)*(?:-r|-R|--recursive))\b/, motivo: 'borrado recursivo forzado (rm -rf)' },
-  { re: /\brm\s+(?:-[a-zA-Z]+\s+)*(?:\/|~|\$HOME)(?:\s|$|\/?\*)/, motivo: 'borrar la raíz o la carpeta personal' },
-  { re: /\bgit\b[^|;&]*\bpush\b[^|;&]*(?:\s--force(?:-with-lease)?\b|\s-f\b|\s\+\S)/, motivo: 'git push forzado' },
-  { re: /\bgit\b[^|;&]*\breset\s+[^|;&]*--hard\b/, motivo: 'git reset --hard (pierde cambios)' },
-  { re: /\bgit\b[^|;&]*\bclean\s+[^|;&]*-[a-zA-Z]*f/, motivo: 'git clean -f (borra archivos sin rastrear)' },
-  { re: /\b(?:curl|wget)\b[^|;&]*\|\s*(?:sudo\s+)?(?:ba|z|da|k)?sh\b|\b(?:curl|wget)\b[^|;&]*\|\s*(?:python3?|node|perl|ruby)\b/, motivo: 'ejecutar un script bajado de internet (curl | sh)' },
+  { re: /\brm\s+(?:-[a-zA-Z]*r[a-zA-Z]*f|-[a-zA-Z]*f[a-zA-Z]*r|(?:-[a-zA-Z]+\s+)*(?:-r|-R|--recursive)\s+(?:-[a-zA-Z]+\s+)*(?:-f|--force)|(?:-[a-zA-Z]+\s+)*(?:-f|--force)\s+(?:-[a-zA-Z]+\s+)*(?:-r|-R|--recursive))\b/, motivo: trMarca('borrado recursivo forzado (rm -rf)') },
+  { re: /\brm\s+(?:-[a-zA-Z]+\s+)*(?:\/|~|\$HOME)(?:\s|$|\/?\*)/, motivo: trMarca('borrar la raíz o la carpeta personal') },
+  { re: /\bgit\b[^|;&]*\bpush\b[^|;&]*(?:\s--force(?:-with-lease)?\b|\s-f\b|\s\+\S)/, motivo: trMarca('git push forzado') },
+  { re: /\bgit\b[^|;&]*\breset\s+[^|;&]*--hard\b/, motivo: trMarca('git reset --hard (pierde cambios)') },
+  { re: /\bgit\b[^|;&]*\bclean\s+[^|;&]*-[a-zA-Z]*f/, motivo: trMarca('git clean -f (borra archivos sin rastrear)') },
+  { re: /\b(?:curl|wget)\b[^|;&]*\|\s*(?:sudo\s+)?(?:ba|z|da|k)?sh\b|\b(?:curl|wget)\b[^|;&]*\|\s*(?:python3?|node|perl|ruby)\b/, motivo: trMarca('ejecutar un script bajado de internet (curl | sh)') },
   { re: /(?:^|[;&|]\s*|\s)sudo\s/, motivo: 'sudo' },
-  { re: /\b(?:mkfs(?:\.\w+)?|diskutil\s+(?:erase\w*|zeroDisk|secureErase|partitionDisk))\b|\bdd\s+[^|;&]*of=\/dev\//, motivo: 'formatear o sobrescribir un disco' },
-  { re: /\bchmod\s+-R\s+0?777\s+(?:\/|~)/, motivo: 'abrir permisos de todo el disco' },
-  { re: /\bjq\b[^|;&]*?(?:[^\w$.]env\b|\$ENV\b)/, motivo: 'volcar las variables de entorno (jq env / $ENV)' },
-  { re: /\bgit\b[^|;&]*\s--no-index\b/, motivo: 'git --no-index lee archivos fuera del repositorio' },
+  { re: /\b(?:mkfs(?:\.\w+)?|diskutil\s+(?:erase\w*|zeroDisk|secureErase|partitionDisk))\b|\bdd\s+[^|;&]*of=\/dev\//, motivo: trMarca('formatear o sobrescribir un disco') },
+  { re: /\bchmod\s+-R\s+0?777\s+(?:\/|~)/, motivo: trMarca('abrir permisos de todo el disco') },
+  { re: /\bjq\b[^|;&]*?(?:[^\w$.]env\b|\$ENV\b)/, motivo: trMarca('volcar las variables de entorno (jq env / $ENV)') },
+  { re: /\bgit\b[^|;&]*\s--no-index\b/, motivo: trMarca('git --no-index lee archivos fuera del repositorio') },
   // Matar por patrón (30 oct 2026, el candado-matar de la instalación original): un patrón no sabe de quién es un proceso, y
   // Arbrain, su chat y su Levy son `node`, `next-server`, `claude` y `python`. `pkill -f` o `killall node` tumba su propio
   // Arbrain a media respuesta. Cerrar una app por su nombre (`killall Safari`) sigue; un proceso propio, `kill <pid>`.
-  { re: /\b(?:pkill|killall)\b[^|;&]*(?:\s-[a-zA-Z0-9]*f[a-zA-Z0-9]*(?=\s|$)|\s--full\b|\b(?:node|next|next-server|server\.js|arbrain|claude|python3?|tsx|npm|npx|bun|deno)\b)/i, motivo: 'matar procesos por patrón puede cerrar tu propio Arbrain (node, next-server, claude, python): termina solo el proceso que lanzaste, con kill <pid>' },
-  { re: /\btaskkill\b[^|;&]*\/im\s+"?(?:node|python|claude|arbrain)|\bStop-Process\b[^|;&]*-Name\s+"?(?:node|python|claude|arbrain)/i, motivo: 'matar procesos por nombre puede cerrar tu propio Arbrain (node, python, claude): termina solo el proceso que lanzaste, por su PID' },
+  { re: /\b(?:pkill|killall)\b[^|;&]*(?:\s-[a-zA-Z0-9]*f[a-zA-Z0-9]*(?=\s|$)|\s--full\b|\b(?:node|next|next-server|server\.js|arbrain|claude|python3?|tsx|npm|npx|bun|deno)\b)/i, motivo: trMarca('matar procesos por patrón puede cerrar tu propio Arbrain (node, next-server, claude, python): termina solo el proceso que lanzaste, con kill <pid>') },
+  { re: /\btaskkill\b[^|;&]*\/im\s+"?(?:node|python|claude|arbrain)|\bStop-Process\b[^|;&]*-Name\s+"?(?:node|python|claude|arbrain)/i, motivo: trMarca('matar procesos por nombre puede cerrar tu propio Arbrain (node, python, claude): termina solo el proceso que lanzaste, por su PID') },
 ]
 
 /** Nombres de programas que vuelcan el entorno, los procesos o el llavero: nunca, ni con clic. */
@@ -1103,15 +1104,15 @@ export function motivoSecretoEnTexto(cmd: string, ctx: ContextoPolitica): string
 }
 
 function motivoSecretoEnPlano(plano: string, ctx: ContextoPolitica): string | null {
-  if (/\b(printenv|security\s+(-\S+\s+)*(find-|dump-|export|unlock|show-))/i.test(plano)) return 'leer el entorno o el llavero'
-  if (/(^|[\s;&|(`])ps(\s|$)/.test(plano)) return 'listar procesos (ps puede ver llaves en el entorno de otros procesos)'
-  if (/\/proc\/[^\s/]+\/(environ|cmdline|mem)\b/.test(plano)) return 'entorno o memoria de un proceso'
-  if (/\b(ARBRAIN_DATA_DIR|ARBRAIN_CONFIG_DIR|CLAUDE_CONFIG_DIR|ARBRAIN_UPLOADS_DIR)\b/.test(plano)) return 'carpeta de datos de la app'
+  if (/\b(printenv|security\s+(-\S+\s+)*(find-|dump-|export|unlock|show-))/i.test(plano)) return tr('leer el entorno o el llavero')
+  if (/(^|[\s;&|(`])ps(\s|$)/.test(plano)) return tr('listar procesos (ps puede ver llaves en el entorno de otros procesos)')
+  if (/\/proc\/[^\s/]+\/(environ|cmdline|mem)\b/.test(plano)) return tr('entorno o memoria de un proceso')
+  if (/\b(ARBRAIN_DATA_DIR|ARBRAIN_CONFIG_DIR|CLAUDE_CONFIG_DIR|ARBRAIN_UPLOADS_DIR)\b/.test(plano)) return tr('carpeta de datos de la app')
   // Red team 4 M4-3: nombrar el socket del motor (o su variable, o su token) ya es intentar abrir una terminal sin guardia.
-  if (/motor\.sock|\bARBRAIN_MOTOR_(SOCK|TOKEN)\b/i.test(plano)) return 'socket del motor de terminales de la app'
-  if (/\b(computer-use|voz)\.json\b/i.test(plano)) return 'archivo de configuración de la app'
-  if (TEXTO_PERFIL_SECRETO.test(plano)) return 'perfil de navegador, gestor de contraseñas, cartera o credenciales del sistema'
-  for (const p of ctx.protegidas) if (p && plano.includes(p)) return 'carpeta de datos de la app'
+  if (/motor\.sock|\bARBRAIN_MOTOR_(SOCK|TOKEN)\b/i.test(plano)) return tr('socket del motor de terminales de la app')
+  if (/\b(computer-use|voz)\.json\b/i.test(plano)) return tr('archivo de configuración de la app')
+  if (TEXTO_PERFIL_SECRETO.test(plano)) return tr('perfil de navegador, gestor de contraseñas, cartera o credenciales del sistema')
+  for (const p of ctx.protegidas) if (p && plano.includes(p)) return tr('carpeta de datos de la app')
   // Candidatos a ruta: secuencias sin separadores de shell; con ~, $HOME y ${HOME} normalizados.
   const candidatos = plano.replace(/\$\{HOME\}|\$HOME/g, ctx.usuario).replace(/\$\{TMPDIR\}|\$TMPDIR\b/g, tmpdir()).split(/[\s;|&<>()`=,]+/).filter(Boolean)
   for (const c of candidatos) {
@@ -1127,17 +1128,17 @@ function motivoSecretoEnPlano(plano: string, ctx: ContextoPolitica): string | nu
 }
 
 const AVISOS: Array<[RegExp, string]> = [
-  [/\b(curl|wget|nc|ncat|netcat|ssh|scp|sftp|rsync|ftp|telnet|gh|git\s+(\S+\s+)*(push|fetch|pull|clone|remote)|npm|npx|pnpm|yarn|pip3?|brew|osascript|open)\b/, 'puede usar internet o abrir otras apps'],
-  [/\b(node|python3?|ruby|perl|php|deno|bun|osascript|bash|sh|zsh|eval|exec|source)\b/, 'ejecuta código'],
-  [/\b(base64|xxd\s+-r|openssl\s+enc)\b/, 'decodifica texto: puede esconder lo que de verdad hace'],
-  [/\b(rm|rmdir|unlink|shred|trash|mv|truncate)\b/, 'puede borrar o mover archivos'],
+  [/\b(curl|wget|nc|ncat|netcat|ssh|scp|sftp|rsync|ftp|telnet|gh|git\s+(\S+\s+)*(push|fetch|pull|clone|remote)|npm|npx|pnpm|yarn|pip3?|brew|osascript|open)\b/, trMarca('puede usar internet o abrir otras apps')],
+  [/\b(node|python3?|ruby|perl|php|deno|bun|osascript|bash|sh|zsh|eval|exec|source)\b/, trMarca('ejecuta código')],
+  [/\b(base64|xxd\s+-r|openssl\s+enc)\b/, trMarca('decodifica texto: puede esconder lo que de verdad hace')],
+  [/\b(rm|rmdir|unlink|shred|trash|mv|truncate)\b/, trMarca('puede borrar o mover archivos')],
 ]
-const avisosDe = (cmd: string) => AVISOS.filter(([re]) => re.test(cmd)).map(([, t]) => t)
+const avisosDe = (cmd: string) => AVISOS.filter(([re]) => re.test(cmd)).map(([, t]) => tr(t))
 
 type Clase = { tipo: 'lectura' } | { tipo: 'escritura-local' } | { tipo: 'otro'; motivo: string }
 
 /** Validadores de los programas de solo lectura. Devuelven null si el uso es de solo lectura, o el motivo. */
-const sinOpciones = (prohibidas: RegExp) => (args: string[]) => { const m = args.find(a => prohibidas.test(a)); return m ? `opción ${m}` : null }
+const sinOpciones = (prohibidas: RegExp) => (args: string[]) => { const m = args.find(a => prohibidas.test(a)); return m ? tr('opción {opcion}', { opcion: m }) : null }
 
 /**
  * Red team 3 A-6: opciones que convierten una «lectura» en escritura o en ejecutar otro programa, vistas como las ve
@@ -1155,15 +1156,15 @@ interface OpcionesPeligrosas { cortas?: string; largas: string[]; conArg?: strin
 function opcionPeligrosa(args: string[], o: OpcionesPeligrosas): string | null {
   for (const a of args) {
     if (a === '--') break
-    if (o.exactas?.test(a)) return `opción ${a}`
+    if (o.exactas?.test(a)) return tr('opción {opcion}', { opcion: a })
     if (a.startsWith('--')) {
       const nombre = a.slice(2).split('=')[0].toLowerCase()
-      if (nombre && o.largas.some(l => l.startsWith(nombre))) return `opción ${a}`
+      if (nombre && o.largas.some(l => l.startsWith(nombre))) return tr('opción {opcion}', { opcion: a })
       continue
     }
     if (a.length > 1 && a.startsWith('-') && o.cortas) {
       for (const letra of a.slice(1)) {
-        if (o.cortas.includes(letra)) return `opción ${a}`
+        if (o.cortas.includes(letra)) return tr('opción {opcion}', { opcion: a })
         if (o.conArg?.includes(letra)) break
       }
     }
@@ -1171,7 +1172,7 @@ function opcionPeligrosa(args: string[], o: OpcionesPeligrosas): string | null {
   return null
 }
 const sinPeligrosas = (o: OpcionesPeligrosas) => (args: string[]) => opcionPeligrosa(args, o)
-const maxPosicionales = (n: number) => (args: string[]) => args.filter(a => !a.startsWith('-')).length > n ? 'escribe un archivo de salida' : null
+const maxPosicionales = (n: number) => (args: string[]) => args.filter(a => !a.startsWith('-')).length > n ? tr('escribe un archivo de salida') : null
 const libre = () => null
 
 const SOLO_LECTURA: Record<string, (args: string[]) => string | null> = {
@@ -1190,7 +1191,7 @@ const SOLO_LECTURA: Record<string, (args: string[]) => string | null> = {
   // sort: -o escribe; --compress-program ejecuta; -T escribe temporales donde diga.
   sort: sinPeligrosas({ cortas: 'oT', largas: ['output', 'compress-program', 'temporary-directory'] }),
   uniq: maxPosicionales(1),
-  xxd: (a) => a.some(x => /^-r/.test(x)) ? 'opción -r' : maxPosicionales(1)(a),
+  xxd: (a) => a.some(x => /^-r/.test(x)) ? tr('opción {opcion}', { opcion: '-r' }) : maxPosicionales(1)(a),
   find: sinOpciones(/^-(exec|execdir|ok|okdir|delete|fprint|fprint0|fprintf|fls)$/),
 }
 /** Subcomandos de git de solo lectura y opciones que ejecutan programas o escriben. */
@@ -1207,14 +1208,14 @@ const GIT_PROHIBIDAS: OpcionesPeligrosas = {
 }
 function claseGit(args: string[]): string | null {
   const sub = args[0]
-  if (!sub || sub.startsWith('-')) return 'git con opciones globales'
+  if (!sub || sub.startsWith('-')) return tr('git con opciones globales')
   if (!GIT_LECTURA.has(sub)) return `git ${sub}`
   const resto = args.slice(1)
   const m = opcionPeligrosa(resto, GIT_PROHIBIDAS)
   if (m) return `git ${sub} ${m}`
   const posicionales = resto.filter(a => !a.startsWith('-'))
-  if (sub === 'branch' && (posicionales.length || resto.some(a => /^-(d|D|m|M|c|C|f|u)$|^--(delete|move|copy|force|set-upstream|unset-upstream|edit-description)/.test(a)))) return 'git branch que cambia ramas'
-  if (sub === 'tag' && (posicionales.length && !resto.some(a => /^(-l|--list)$/.test(a)) || resto.some(a => /^-(d|a|s|f|u|m)$|^--(delete|annotate|sign|force|message)/.test(a)))) return 'git tag que crea o borra'
+  if (sub === 'branch' && (posicionales.length || resto.some(a => /^-(d|D|m|M|c|C|f|u)$|^--(delete|move|copy|force|set-upstream|unset-upstream|edit-description)/.test(a)))) return tr('git branch que cambia ramas')
+  if (sub === 'tag' && (posicionales.length && !resto.some(a => /^(-l|--list)$/.test(a)) || resto.some(a => /^-(d|a|s|f|u|m)$|^--(delete|annotate|sign|force|message)/.test(a)))) return tr('git tag que crea o borra')
   if (sub === 'remote' && posicionales.length && !['show', 'get-url'].includes(posicionales[0])) return `git remote ${posicionales[0]}`
   if (sub === 'reflog' && posicionales[0] && ['expire', 'delete'].includes(posicionales[0])) return `git reflog ${posicionales[0]}`
   return null
@@ -1265,7 +1266,7 @@ function expandirComodin(patron: string, ctx: ContextoPolitica, cwd: string): st
  * Por qué el agente nunca escribe sus ajustes ni sus ganchos (los ejecuta Arbrain fuera del sandbox) y a dónde guía a la
  * persona: sus permisos se cambian en Ajustes, nunca los cambia el propio agente.
  */
-const MOTIVO_AJUSTES = `los ajustes, los ganchos y git del cerebro los ejecuta Arbrain fuera del sandbox y ningún agente cambia sus propios permisos. Si la persona quiere que preguntes menos o que entres a otra carpeta, guíala a ${DONDE_PERMISOS} (modo de permisos y carpetas); si quiere editar ese archivo, lo hace ella a mano`
+const MOTIVO_AJUSTES = () => tr('los ajustes, los ganchos y git del cerebro los ejecuta Arbrain fuera del sandbox y ningún agente cambia sus propios permisos. Si la persona quiere que preguntes menos o que entres a otra carpeta, guíala a {donde} (modo de permisos y carpetas); si quiere editar ese archivo, lo hace ella a mano', { donde: tr(DONDE_PERMISOS) })
 
 /**
  * Configuración del agente que es TEXTO (instrucciones y skills en Markdown dentro de `.claude/`, CLAUDE.md, AGENTS.md):
@@ -1280,7 +1281,7 @@ function configuracionEnTexto(real: string, home: string): boolean {
   return rel.startsWith('.claude/') && /\.(md|markdown|txt)$/.test(rel)
 }
 
-const MOTIVO_PROTEGIDA = (ruta: string) => `escribir en ${ruta}: ${MOTIVO_AJUSTES}`
+const MOTIVO_PROTEGIDA = (ruta: string) => tr('escribir en {ruta}: {motivo}', { ruta, motivo: MOTIVO_AJUSTES() })
 /** Texto crudo que nombra lo que se niega (para comandos que el analizador no entiende). */
 const TOCA_PROTEGIDA = /(^|[\s'"=:/])\.claude[\\/]+(hooks|settings(\.local)?\.json)\b|(^|[\s'"=:/])\.git([\\/]|\s|$|['"])/i
 
@@ -1299,7 +1300,7 @@ function necesitaManos(cmd: string, i: Record<string, unknown>, ctx: ContextoPol
   if (!a.ok || a.comandos.length !== 1) return null
   if (LOGIN.test(cmd)) {
     if (dineroEnTexto(cmd)) return null
-    return { tipo: 'negar', motivo: 'iniciar sesión en un servicio necesita tus manos (abre el navegador o pide tu contraseña)', manos: true }
+    return { tipo: 'negar', motivo: tr('iniciar sesión en un servicio necesita tus manos (abre el navegador o pide tu contraseña)'), manos: true }
   }
   const s = SUDO.exec(cmd)
   if (!s) return null
@@ -1307,13 +1308,13 @@ function necesitaManos(cmd: string, i: Record<string, unknown>, ctx: ContextoPol
   if (/^sudo\b/.test(interior)) return null
   const d = decidirBash({ ...i, command: interior, dangerouslyDisableSandbox: true }, { ...ctx, modo: 'preguntar', reglas: [] })
   if (d.tipo === 'negar' || (d.tipo === 'confirmar' && FRENO.has(d.categoria))) return null
-  return { tipo: 'negar', motivo: 'sudo pide tu contraseña de administrador: el agente no la tiene ni debe tenerla', manos: true }
+  return { tipo: 'negar', motivo: tr('sudo pide tu contraseña de administrador: el agente no la tiene ni debe tenerla'), manos: true }
 }
 
 function decidirBash(i: Record<string, unknown>, ctx: ContextoPolitica): DecisionPolitica {
   const cmd = typeof i.command === 'string' ? i.command : ''
-  if (!cmd.trim()) return negar('comando vacío')
-  if (cmd.length > LITERAL_MAX) return negar('comando demasiado largo para que la persona lo revise; divídelo en pasos')
+  if (!cmd.trim()) return negar(tr('comando vacío'))
+  if (cmd.length > LITERAL_MAX) return negar(tr('comando demasiado largo para que la persona lo revise; divídelo en pasos'))
   const m = motivoSecretoEnTexto(cmd, ctx)
   if (m) return negar(m)
   // «Actualiza mi Arbrain» en un paso: el script firmado, una tarjeta como mucho (actualizar-arbrain.ts).
@@ -1321,22 +1322,22 @@ function decidirBash(i: Record<string, unknown>, ctx: ContextoPolitica): Decisio
   if (actualizar) return actualizar
   const manos = necesitaManos(cmd, i, ctx)
   if (manos) return manos
-  for (const p of DESTRUCTIVOS) if (p.re.test(cmd)) return negar(p.motivo)
+  for (const p of DESTRUCTIVOS) if (p.re.test(cmd)) return negar(tr(p.motivo))
   const dinero = dineroEnTexto(cmd)
   if (dinero) return negar(MENSAJE_DINERO(dinero))
-  if (accionIrreversible('Bash', { command: cmd })?.categoria === 'pagar') return negar(MENSAJE_DINERO('el comando'))
+  if (accionIrreversible('Bash', { command: cmd })?.categoria === 'pagar') return negar(MENSAJE_DINERO(tr('el comando')))
   const valores = valoresEnBash(cmd)
   if (valores) return negar(MENSAJE_DINERO(valores))
 
   const sinSandbox = i.dangerouslyDisableSandbox === true
   const irr = accionIrreversible('Bash', { command: cmd })
   const avisos = avisosDe(cmd)
-  const pedir = (motivo: string): DecisionPolitica => confirmar(irr?.categoria ?? 'otra', irr ? irr.resumen : `Ejecutar un comando (${motivo})`, cmd, [...avisos, ...(sinSandbox ? ['corre fuera del sandbox'] : [])])
+  const pedir = (motivo: string): DecisionPolitica => confirmar(irr?.categoria ?? 'otra', irr ? irr.resumen : tr('Ejecutar un comando ({motivo})', { motivo }), cmd, [...avisos, ...(sinSandbox ? [tr('corre fuera del sandbox')] : [])])
 
   const a = analizarShell(cmd, ctx.usuario)
   if (!a.ok) {
     if (TOCA_PROTEGIDA.test(cmd)) return negar(MOTIVO_PROTEGIDA('.claude/settings, .claude/hooks o .git'))
-    return pedir(`Arbrain no puede analizarlo: ${a.motivo}`)
+    return pedir(tr('Arbrain no puede analizarlo: {motivo}', { motivo: a.motivo }))
   }
 
   // Carpetas posibles del turno: la de partida y las de cada `cd` (sobreaproximación: con tuberías un cd no persiste).
@@ -1351,7 +1352,7 @@ function decidirBash(i: Record<string, unknown>, ctx: ContextoPolitica): Decisio
     const r = revisarComando(c, ctx, cwds)
     if (r.tipo === 'negar') return negar(r.motivo)
     if (r.clase.tipo === 'otro') { noLectura(r.clase.motivo); soloEnSuCarpeta = false }
-    else if (r.clase.tipo === 'escritura-local' && !ctx.sandbox) noLectura('crea archivos')
+    else if (r.clase.tipo === 'escritura-local' && !ctx.sandbox) noLectura(tr('crea archivos'))
   }
   if (!soloLectura) {
     // Red team 2 C-1: un comando que escribe no puede tocar ajustes, ganchos ni git del cerebro (ni con clic: corre fuera
@@ -1368,10 +1369,10 @@ function decidirBash(i: Record<string, unknown>, ctx: ContextoPolitica): Decisio
     return soloEnSuCarpeta && !sinSandbox ? relajar(d, 'carpeta') : d
   }
   if (!ctx.sandbox) {
-    const d = confirmar('otra', 'Ejecutar un comando de solo lectura (este sistema no tiene sandbox para Bash)', cmd, avisos)
+    const d = confirmar('otra', tr('Ejecutar un comando de solo lectura (este sistema no tiene sandbox para Bash)'), cmd, avisos)
     return sinSandbox ? d : relajar(d, 'carpeta')
   }
-  if (sinSandbox) return pedir('pide correr fuera del sandbox')
+  if (sinSandbox) return pedir(tr('pide correr fuera del sandbox'))
   return { tipo: 'permitir' }
 }
 
@@ -1385,16 +1386,16 @@ function revisarComando(c: ComandoSimple, ctx: ContextoPolitica, cwds: string[])
       if (v.tipo === 'secreta') return { tipo: 'negar', motivo: v.motivo }
       if (v.tipo === 'protegida' && v.nivel === 'negar') return { tipo: 'negar', motivo: MOTIVO_PROTEGIDA(r.destino) }
     }
-    if (r.op !== '<' && r.destino !== '/dev/null') clase = { tipo: 'otro', motivo: `escribe en ${r.destino}` }
-    if (r.op === '<' && cwds.some(cwd => veredictoRuta(r.destino, 'leer', ctx, cwd).tipo !== 'ok')) clase = { tipo: 'otro', motivo: `lee fuera de tu cerebro (${r.destino})` }
+    if (r.op !== '<' && r.destino !== '/dev/null') clase = { tipo: 'otro', motivo: tr('escribe en {ruta}', { ruta: r.destino }) }
+    if (r.op === '<' && cwds.some(cwd => veredictoRuta(r.destino, 'leer', ctx, cwd).tipo !== 'ok')) clase = { tipo: 'otro', motivo: tr('lee fuera de tu cerebro ({ruta})', { ruta: r.destino }) }
   }
   if (!c.argv.length) return { tipo: 'ok', clase }
   const nombre = c.argv[0].texto
   const args = c.argv.slice(1).map(w => w.texto)
-  if (c.argv[0].comodin) return { tipo: 'ok', clase: { tipo: 'otro', motivo: 'comodín en el nombre del programa' } }
+  if (c.argv[0].comodin) return { tipo: 'ok', clase: { tipo: 'otro', motivo: tr('comodín en el nombre del programa') } }
   const base = basename(nombre)
-  if (VOLCADORES.has(base)) return { tipo: 'negar', motivo: `${base} puede exponer llaves, contraseñas o el entorno de otros procesos` }
-  if ((base === 'env' || base === 'export' || base === 'set' || base === 'declare' || base === 'typeset') && args.every(a => a.startsWith('-'))) return { tipo: 'negar', motivo: 'volcar las variables de entorno' }
+  if (VOLCADORES.has(base)) return { tipo: 'negar', motivo: tr('{programa} puede exponer llaves, contraseñas o el entorno de otros procesos', { programa: base }) }
+  if ((base === 'env' || base === 'export' || base === 'set' || base === 'declare' || base === 'typeset') && args.every(a => a.startsWith('-'))) return { tipo: 'negar', motivo: tr('volcar las variables de entorno') }
 
   // Toda palabra que pueda ser ruta: ningún secreto, en ninguna carpeta posible del turno.
   for (const w of c.argv.slice(1)) {
@@ -1405,7 +1406,7 @@ function revisarComando(c: ComandoSimple, ctx: ContextoPolitica, cwds: string[])
         // Comodín con demasiadas coincidencias: si su raíz toca una carpeta sensible, negar (con o sin `**`, hallazgo 4).
         const s = raizRecorreSensible(t, ctx, cwd)
         if (s) return { tipo: 'negar', motivo: MOTIVO_ANCESTRO(t, s) }
-        clase = { tipo: 'otro', motivo: 'comodín que no se pudo expandir' }; continue
+        clase = { tipo: 'otro', motivo: tr('comodín que no se pudo expandir') }; continue
       }
       for (const ruta of lista) {
         const m = motivoRutaSecreta(expandirRuta(ruta, ctx, cwd), ctx) ?? motivoRutaSecreta(rutaReal(expandirRuta(ruta, ctx, cwd)), ctx)
@@ -1414,10 +1415,10 @@ function revisarComando(c: ComandoSimple, ctx: ContextoPolitica, cwds: string[])
     }
   }
   if (clase.tipo === 'otro') return { tipo: 'ok', clase }
-  if (nombre.includes('/') || nombre.includes('\\')) return { tipo: 'ok', clase: { tipo: 'otro', motivo: `programa por ruta (${nombre})` } }
+  if (nombre.includes('/') || nombre.includes('\\')) return { tipo: 'ok', clase: { tipo: 'otro', motivo: tr('programa por ruta ({programa})', { programa: nombre }) } }
 
   if (base === 'cd') {
-    if (args.length > 1 || args[0] === '-') return { tipo: 'ok', clase: { tipo: 'otro', motivo: 'cd con opciones' } }
+    if (args.length > 1 || args[0] === '-') return { tipo: 'ok', clase: { tipo: 'otro', motivo: tr('cd con opciones') } }
     const destino = args[0] ?? ctx.usuario
     const nuevos: string[] = []
     let fuera = false
@@ -1429,21 +1430,21 @@ function revisarComando(c: ComandoSimple, ctx: ContextoPolitica, cwds: string[])
     }
     // M1: la carpeta nueva cuenta para lo que sigue aunque esté fuera (`cd ~ && rg x` recorre ~).
     cwds.push(...nuevos)
-    return { tipo: 'ok', clase: fuera ? { tipo: 'otro', motivo: `cd fuera de tu cerebro (${destino})` } : { tipo: 'lectura' } }
+    return { tipo: 'ok', clase: fuera ? { tipo: 'otro', motivo: tr('cd fuera de tu cerebro ({ruta})', { ruta: destino }) } : { tipo: 'lectura' } }
   }
   if (base === 'mkdir' || base === 'touch') {
     const posicionales = args.filter(a => !a.startsWith('-'))
-    if (args.some(a => a.startsWith('-') && !/^-p$|^--parents$/.test(a)) || !posicionales.length) return { tipo: 'ok', clase: { tipo: 'otro', motivo: `${base} con opciones` } }
+    if (args.some(a => a.startsWith('-') && !/^-p$|^--parents$/.test(a)) || !posicionales.length) return { tipo: 'ok', clase: { tipo: 'otro', motivo: tr('{programa} con opciones', { programa: base }) } }
     for (const cwd of cwds) for (const p of posicionales) {
       const v = veredictoRuta(p, 'escribir', ctx, cwd)
       if (v.tipo === 'secreta') return { tipo: 'negar', motivo: v.motivo }
       if (v.tipo === 'protegida' && v.nivel === 'negar') return { tipo: 'negar', motivo: MOTIVO_PROTEGIDA(p) }
-      if (v.tipo !== 'ok') return { tipo: 'ok', clase: { tipo: 'otro', motivo: `${base} fuera de tu cerebro o en su configuración (${p})` } }
+      if (v.tipo !== 'ok') return { tipo: 'ok', clase: { tipo: 'otro', motivo: tr('{programa} fuera de tu cerebro o en su configuración ({ruta})', { programa: base, ruta: p }) } }
     }
     return { tipo: 'ok', clase: { tipo: 'escritura-local' } }
   }
-  if (base === 'jq' && args.some(x => /(^|[^\w$.])env\b|\$ENV\b/.test(x))) return { tipo: 'negar', motivo: 'volcar las variables de entorno (jq env / $ENV)' }
-  if (base === 'git' && args.some(x => /^--no-index\b/.test(x))) return { tipo: 'negar', motivo: 'git --no-index lee archivos fuera del repositorio' }
+  if (base === 'jq' && args.some(x => /(^|[^\w$.])env\b|\$ENV\b/.test(x))) return { tipo: 'negar', motivo: tr('volcar las variables de entorno (jq env / $ENV)') }
+  if (base === 'git' && args.some(x => /^--no-index\b/.test(x))) return { tipo: 'negar', motivo: tr('git --no-index lee archivos fuera del repositorio') }
   // M1: un recorrido recursivo cuya raíz contiene llaves, sesiones o datos de la app se niega (lo aprobado corre fuera
   // del sandbox, donde nada impide leerlos). Sin ruta explícita recorre la carpeta del turno.
   if (esRecursivo(base, args)) {
@@ -1463,7 +1464,7 @@ function revisarComando(c: ComandoSimple, ctx: ContextoPolitica, cwds: string[])
     for (const ruta of lista) {
       const v = veredictoRuta(ruta, 'leer', ctx, cwd)
       if (v.tipo === 'secreta') return { tipo: 'negar', motivo: v.motivo }
-      if (v.tipo === 'fuera') return { tipo: 'ok', clase: { tipo: 'otro', motivo: `lee fuera de tu cerebro (${v.ruta})` } }
+      if (v.tipo === 'fuera') return { tipo: 'ok', clase: { tipo: 'otro', motivo: tr('lee fuera de tu cerebro ({ruta})', { ruta: v.ruta }) } }
     }
   }
   return { tipo: 'ok', clase: { tipo: 'lectura' } }

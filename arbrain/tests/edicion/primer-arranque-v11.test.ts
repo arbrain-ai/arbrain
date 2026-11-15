@@ -27,7 +27,7 @@ test('1 · los tres pedidos del primer mensaje son botones que envían ese texto
   assert.ok(!soloBienvenida([]))
   const chat = fuente('src/features/chat/components/ChatPanel.tsx')
   assert.match(chat, /EDICION_CLIENTE && !loading && soloBienvenida\(messages\)/)
-  assert.match(chat, /onClick=\{\(\) => handleSend\(p\.texto\)\}/)
+  assert.match(chat, /onClick=\{\(\) => handleSend\(tr\(p\.texto\)\)\}/)
   // El estado vacío del alumno ya no ofrece «Mi día», métricas ni YouTube; el de Daniel sigue igual.
   assert.match(chat, /EDICION_CLIENTE \? PEDIDOS_BIENVENIDA\.map/)
   assert.match(chat, /'Ideas de video'/)

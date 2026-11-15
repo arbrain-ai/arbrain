@@ -8,6 +8,7 @@
  *   · Un encargo de las manos en curso (5 nov 2026) suma debajo su reloj, su paso, «Detener» y «Tomar el control».
  * Todo con data-tts-exclude: voz, lector y copiar leen solo la respuesta.
  */
+import { tr } from '@/shared/i18n'
 import { useEffect, useId, useMemo, useState } from 'react'
 import { ChevronRight, Bot } from 'lucide-react'
 import type { ChatMessage } from '../hooks/useChat'
@@ -29,11 +30,11 @@ type Conexion = 'online' | 'offline' | 'reconnecting'
 
 /** Qué dice la línea viva: los estados de espera del chat mandan; si no, lo que deriva lib/rastro. */
 export function etiquetaViva(msg: ChatMessage, connection: Conexion = 'online', grupos = agruparHerramientas(msg)): string {
-  if (connection === 'offline') return 'Sin conexión · Levy sigue trabajando en el servidor'
-  if (connection === 'reconnecting') return 'Reconectando con el servidor'
-  if (msg.status === 'esperando_tareas' && !msg.content) return 'En fila · sale cuando terminen las tareas de Levy'
-  if (msg.status === 'en_fila_turno' && !msg.content) return etiquetaFila(msg.fila)
-  return lineaViva(msg, grupos)
+  if (connection === 'offline') return tr('Sin conexión · Levy sigue trabajando en el servidor')
+  if (connection === 'reconnecting') return tr('Reconectando con el servidor')
+  if (msg.status === 'esperando_tareas' && !msg.content) return tr('En fila · sale cuando terminen las tareas de Levy')
+  if (msg.status === 'en_fila_turno' && !msg.content) return tr(etiquetaFila(msg.fila))
+  return tr(lineaViva(msg, grupos))
 }
 
 /** ¿El turno espera algo (pregunta, fila, red) en vez de trabajar? Entonces el giro se queda quieto. */
@@ -46,8 +47,8 @@ function MencionAgentes({ msg }: { msg: ChatMessage }) {
   if (msg.tasks?.some(esViva)) return <AgentTaskCards tasks={msg.tasks} soloVivas />
   const n = agentesTrabajando(msg)
   if (!n) return null
-  return <button type="button" onClick={abrirTallerDelPanel} title="Verlos en el Taller" className={h.agentes}>
-    <Bot size={13} aria-hidden />{textoAgentes(n)}<ChevronRight size={13} aria-hidden />
+  return <button type="button" onClick={abrirTallerDelPanel} title={tr('Verlos en el Taller')} className={h.agentes}>
+    <Bot size={13} aria-hidden />{tr(textoAgentes(n))}<ChevronRight size={13} aria-hidden />
   </button>
 }
 
@@ -59,9 +60,9 @@ function MencionAgentes({ msg }: { msg: ChatMessage }) {
 function LineaDelegados({ msg }: { msg: ChatMessage }) {
   const d = useMemo(() => delegadosDe(msg), [msg])
   if (!d) return null
-  return <button type="button" onClick={abrirTallerDelPanel} title="Verlos en el Taller" className={h.delegados} data-delegados={d.estado}>
+  return <button type="button" onClick={abrirTallerDelPanel} title={tr('Verlos en el Taller')} className={h.delegados} data-delegados={d.estado}>
     <span className={h.puntoEstado} data-estado={d.estado} aria-hidden />
-    <span className={h.abrirTexto}>{textoDelegados(d)}</span>
+    <span className={h.abrirTexto}>{tr(textoDelegados(d))}</span>
     <ChevronRight size={13} aria-hidden />
   </button>
 }
@@ -108,17 +109,17 @@ export function Razonamiento({ msg, connection = 'online' }: { msg: ChatMessage;
       <button type="button" className={`${h.abrir} ${vivo ? h.abrirVivo : ''}`} aria-expanded={abierto} aria-controls={id} onClick={() => setAbierto(a => !a)}>
         {vivo && <span className={h.giro} data-quieto={quieto ? '' : undefined} aria-hidden />}
         <span className={vivo ? h.linea : h.abrirTexto} {...(vivo ? { role: 'status', 'aria-live': 'polite' as const } : {})}>
-          {vivo ? etiquetaViva(msg, connection) : 'Razonamiento'}
+          {vivo ? etiquetaViva(msg, connection) : tr('Razonamiento')}
         </span>
         {conReloj && <span className={h.fijaMeta}><RelojTurno inicio={inicioTurno(msg)} /></span>}
         <ChevronRight aria-hidden className={h.flecha} />
       </button>
       {/* Encargo de las manos en curso: su reloj, su paso y el freno, a la vista aunque el rastro siga plegado. */}
       {vivo && <EncargosEnVivo msg={msg} />}
-      {espera && <p role="status" data-espera-explicada className="-mt-1 mb-2 text-[12px] text-muted">{espera.texto}{espera.reintentar && <> <BotonReintentar className="ml-1 align-baseline" /></>}</p>}
-      {abierto && <div id={id} role="region" aria-label="Razonamiento y herramientas de Levy" className={h.cuerpo}>
+      {espera && <p role="status" data-espera-explicada className="-mt-1 mb-2 text-[12px] text-muted">{tr(espera.texto)}{espera.reintentar && <> <BotonReintentar className="ml-1 align-baseline" /></>}</p>}
+      {abierto && <div id={id} role="region" aria-label={tr('Razonamiento y herramientas de Levy')} className={h.cuerpo}>
         <LineaDeTiempo msg={msg} tareas={vivo ? msg.tasks?.filter(t => !esViva(t)) : msg.tasks} />
-        {vivo && !razonamiento && !pasos && <p className={h.resumenes}>Todavía no hay razonamiento ni herramientas.</p>}
+        {vivo && !razonamiento && !pasos && <p className={h.resumenes}>{tr('Todavía no hay razonamiento ni herramientas.')}</p>}
       </div>}
       <LineaDelegados msg={msg} />
       {vivo && (msg.tasks?.some(esViva) || !delegadosDe(msg)) && <MencionAgentes msg={msg} />}
@@ -157,10 +158,10 @@ export function LineaFija({ msg, connection = 'online', siempre = false }: { msg
   const conReloj = msg.status !== 'en_fila_turno' && msg.status !== 'esperando_tareas'
   const irAlTurno = () => document.querySelector(`[data-rastro-vivo="${CSS.escape(msg.id)}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })
   return (
-    <button type="button" className={h.fija} onClick={irAlTurno} data-linea-fija data-tts-exclude aria-label={`Levy: ${etiquetaViva(msg, connection)}. Ir al turno`}>
+    <button type="button" className={h.fija} onClick={irAlTurno} data-linea-fija data-tts-exclude aria-label={tr('Levy: {estado}. Ir al turno', { estado: etiquetaViva(msg, connection) })}>
       <span className={h.giro} data-quieto={enEspera(msg, connection) ? '' : undefined} aria-hidden />
       <span className={h.linea}>{etiquetaViva(msg, connection)}</span>
-      {pasos > 0 && <span className={h.fijaMeta}>· {textoPasos(pasos)}</span>}
+      {pasos > 0 && <span className={h.fijaMeta}>· {tr(textoPasos(pasos))}</span>}
       {conReloj && <span className={h.fijaMeta}><RelojTurno inicio={inicioTurno(msg)} /></span>}
     </button>
   )
@@ -171,7 +172,7 @@ export function LineaReenganche({ inicio }: { inicio?: number }) {
   return (
     <div className={h.fija} style={{ cursor: "default" }} role="status" aria-live="polite" data-linea-reenganche data-tts-exclude>
       <span className={h.giro} aria-hidden />
-      <span className={h.linea}>Levy está trabajando · reconectando</span>
+      <span className={h.linea}>{tr('Levy está trabajando · reconectando')}</span>
       {inicio !== undefined && <span className={h.fijaMeta}><RelojTurno inicio={inicio} /></span>}
     </div>
   )

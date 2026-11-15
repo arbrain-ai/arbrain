@@ -4,6 +4,7 @@
  * versión de demostración con DeshacerApiContext (sin red, sin tocar archivos).
  */
 import { createContext, useContext } from 'react'
+import { tr } from '@/shared/i18n'
 
 export interface VistaDeshacer {
   ok: boolean
@@ -25,7 +26,7 @@ export interface DeshacerApi {
 async function pedir<T>(cuerpo: Record<string, unknown>): Promise<T> {
   const r = await fetch('/api/chat/deshacer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cuerpo) })
   const data = await r.json().catch(() => ({})) as T & { error?: string }
-  if (!r.ok && !(data as { error?: string }).error) return { ok: false, archivos: [], inserciones: 0, borrados: 0, error: `No se pudo (${r.status}).` } as T
+  if (!r.ok && !(data as { error?: string }).error) return { ok: false, archivos: [], inserciones: 0, borrados: 0, error: tr('No se pudo ({estado}).', { estado: r.status }) } as T
   return data
 }
 

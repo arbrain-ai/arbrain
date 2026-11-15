@@ -17,13 +17,14 @@ import { AudioBarFrame, BTN_CERRAR, BTN_PLAY, BTN_SALTO, BTN_VELOCIDAD, TXT_CONT
 import { alternarLectura, guardarVelocidad, idLector, sePuedeEscuchar, usePreparando, type ResultadoLector } from '../documento/lector-documento'
 import type { Fijada } from './fijadas'
 import s from './panel.module.css'
+import { tr, trMarca } from '@/shared/i18n'
 
 const ESQUINA = 15 // px desde el borde derecho del marco: donde el documento pone su botón «tema» (14 px + borde)
 
 const AVISO: Partial<Record<ResultadoLector, string>> = {
-  vacio: 'No encontré texto que leer en este documento.',
-  'sin-fuente': 'Espera a que el documento termine de abrirse (o sal del modo edición).',
-  'sin-respuesta': 'El documento no respondió. Vuelve a abrirlo e intenta otra vez.',
+  vacio: trMarca('No encontré texto que leer en este documento.'),
+  'sin-fuente': trMarca('Espera a que el documento termine de abrirse (o sal del modo edición).'),
+  'sin-respuesta': trMarca('El documento no respondió. Vuelve a abrirlo e intenta otra vez.'),
 }
 
 const fmt = (r: number) => r.toFixed(2).replace(/\.?0+$/, '') + 'x'
@@ -61,30 +62,30 @@ export function EscucharDocumento({ f }: { f: Fijada }) {
 
   if (f.input.vista !== 'documento' || !sePuedeEscuchar(f.input.ruta) || !chatSpeech) return null
 
-  const alternar = async () => { setAviso(null); const r = await alternarLectura(f.id); setAviso(AVISO[r] ?? null) }
+  const alternar = async () => { setAviso(null); const r = await alternarLectura(f.id); const a = AVISO[r]; setAviso(a ? tr(a) : null) }
   const velocidad = () => { chatSpeech.cycleRate(); guardarVelocidad(chatSpeech.getState().rate) }
   const pct = total > 0 ? ((idx + 1) / total) * 100 : 0
   const colorVel = rate === 1 ? 'text-muted' : rate >= 1.75 ? 'text-amber-400' : 'text-brand-ink'
   return <div className={s.escucharFlota} data-leyendo={activo || undefined} style={{ '--ancla': ancla || ESQUINA } as React.CSSProperties}>
     {/* En reposo: solo el botón discreto, junto a «tema». */}
     {!activo && <button className={s.escucharBoton} onClick={() => void alternar()}
-      title={aviso ?? (preparando ? 'Preparando el texto… (clic para cancelar)' : 'Escuchar este documento (voz del dispositivo)')}
-      aria-label="Escuchar documento">
+      title={aviso ?? (preparando ? tr('Preparando el texto… (clic para cancelar)') : tr('Escuchar este documento (voz del dispositivo)'))}
+      aria-label={tr('Escuchar documento')}>
       {preparando ? <Loader2 size={13} aria-hidden className="animate-spin" /> : <Volume2 size={13} aria-hidden />}
     </button>}
     {/* Al darle play: la barra del chat (mismo marco y botones), en una franja propia sobre el documento. */}
-    {activo && <div className={s.escucharBarra} role="group" aria-label="Lectura del documento">
+    {activo && <div className={s.escucharBarra} role="group" aria-label={tr('Lectura del documento')}>
       <AudioBarFrame
-        izquierda={<span className={TXT_CONTADOR} title="Párrafo">{idx + 1}/{total}</span>}
-        velocidad={<button onClick={velocidad} className={`${BTN_VELOCIDAD} ${colorVel}`} title="Velocidad (se recuerda)" aria-label={`Velocidad ${fmt(rate)}`}><Zap size={11} aria-hidden />{fmt(rate)}</button>}
+        izquierda={<span className={TXT_CONTADOR} title={tr('Párrafo')}>{idx + 1}/{total}</span>}
+        velocidad={<button onClick={velocidad} className={`${BTN_VELOCIDAD} ${colorVel}`} title={tr('Velocidad (se recuerda)')} aria-label={tr('Velocidad {valor}', { valor: fmt(rate) })}><Zap size={11} aria-hidden />{fmt(rate)}</button>}
         controles={<>
-          <button onClick={() => chatSpeech.prev()} className={BTN_SALTO} title="Párrafo anterior" aria-label="Párrafo anterior"><SkipBack size={18} aria-hidden /></button>
-          <button onClick={() => chatSpeech.pauseResume()} className={BTN_PLAY} title={pausado ? 'Reanudar (Ctrl+Espacio)' : 'Pausar (Ctrl+Espacio)'} aria-label={pausado ? 'Reanudar lectura' : 'Pausar lectura'}>
+          <button onClick={() => chatSpeech.prev()} className={BTN_SALTO} title={tr('Párrafo anterior')} aria-label={tr('Párrafo anterior')}><SkipBack size={18} aria-hidden /></button>
+          <button onClick={() => chatSpeech.pauseResume()} className={BTN_PLAY} title={pausado ? tr('Reanudar (Ctrl+Espacio)') : tr('Pausar (Ctrl+Espacio)')} aria-label={pausado ? tr('Reanudar lectura') : tr('Pausar lectura')}>
             {pausado ? <Play size={20} aria-hidden className="fill-current ml-0.5" /> : <Pause size={20} aria-hidden className="fill-current" />}
           </button>
-          <button onClick={() => chatSpeech.next()} className={BTN_SALTO} title="Párrafo siguiente" aria-label="Párrafo siguiente"><SkipForward size={18} aria-hidden /></button>
+          <button onClick={() => chatSpeech.next()} className={BTN_SALTO} title={tr('Párrafo siguiente')} aria-label={tr('Párrafo siguiente')}><SkipForward size={18} aria-hidden /></button>
         </>}
-        derecha={<button onClick={() => chatSpeech.stop()} className={BTN_CERRAR} title="Detener la lectura" aria-label="Detener lectura"><X size={18} aria-hidden /></button>}
+        derecha={<button onClick={() => chatSpeech.stop()} className={BTN_CERRAR} title={tr('Detener la lectura')} aria-label={tr('Detener lectura')}><X size={18} aria-hidden /></button>}
         progreso={<div className="pointer-events-none absolute inset-x-0 bottom-0 h-[3px] bg-card-active">
           <div className="h-full rounded-r-full bg-gradient-to-r from-brand to-brand-ink" style={{ width: `${pct}%`, transition: 'width 200ms' }} />
         </div>}

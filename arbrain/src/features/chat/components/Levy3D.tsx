@@ -12,6 +12,7 @@ import type { LivePcmPlayer } from '@/features/live/voice/player'
 import { energyAt } from '@/features/chat/lib/levy-lipsync'
 import type { Bone, Mesh, Object3D } from 'three'
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { tr } from '@/shared/i18n'
 
 export const LEVY_3D_URL = '/levy-3d/levy-v3-2-2-n34.glb'
 
@@ -114,7 +115,7 @@ const GAZE: Record<Levy3DPhase, { x: number; y: number; breath: number; follow: 
   esperando: { x: 0.2, y: 0.7, breath: 0.8, follow: 0 },
 }
 
-export function Levy3D({ className = '', status = 'idle', phase = 'reposo', voiceRef, onReady, onFail, model: modelUrl = LEVY_3D_URL, look = LOOK_LEVY, fill = false, label = 'Levy en 3D' }: {
+export function Levy3D({ className = '', status = 'idle', phase = 'reposo', voiceRef, onReady, onFail, model: modelUrl = LEVY_3D_URL, look = LOOK_LEVY, fill = false, label = tr('Levy en 3D') }: {
   className?: string
   /** URL del GLB (mismo rig Mixamo + ARKit/visemas que Levy). */
   model?: string

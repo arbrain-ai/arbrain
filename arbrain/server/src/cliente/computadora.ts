@@ -21,6 +21,7 @@ import { execFile } from 'node:child_process'
 import { cpus, freemem, homedir, platform as plataformaOs, totalmem } from 'node:os'
 import { statfsSync } from 'node:fs'
 import { basename } from 'node:path'
+import { tr, trn, trMarca } from '../i18n/tr.js'
 
 export type Plataforma = 'mac' | 'windows' | 'otra'
 export type Semaforo = 'verde' | 'amarillo' | 'rojo'
@@ -199,8 +200,9 @@ export function bundleDe(ruta: string): string | null {
 
 const esDeArbrain = (ruta: string | null) => !!ruta && /[\\/][^\\/]*arbrain[^\\/]*[\\/]/i.test(ruta)
 const nombreMotor = (nombre: string) => /^claude$/i.test(nombre) ? 'Claude Code' : nombre
-const SIEMPRE_ABIERTO = 'Es Arbrain: lo necesitas abierto para hablar con Levy.'
-const DEL_MOTOR = 'Lo usan Arbrain y Levy por dentro.'
+// Idioma (13 nov 2026): el motivo viaja en español y la web lo traduce al pintarlo (`tr(a.motivo)`).
+const SIEMPRE_ABIERTO = trMarca('Es Arbrain: lo necesitas abierto para hablar con Levy.')
+const DEL_MOTOR = trMarca('Lo usan Arbrain y Levy por dentro.')
 
 /** Agrupa por app y decide si cada grupo se puede cerrar. Ordenado de más a menos memoria. Pura. */
 export function agrupar(procesos: Proceso[], ctx: Contexto): GrupoApp[] {
@@ -211,17 +213,17 @@ export function agrupar(procesos: Proceso[], ctx: Contexto): GrupoApp[] {
     if (ctx.plataforma === 'mac') {
       const ruta = p.ruta ?? ''
       const b = bundleDe(ruta)
-      nombre = b ? basename(b, '.app') : basename(ruta) || `Proceso ${p.pid}`
+      nombre = b ? basename(b, '.app') : basename(ruta) || tr('Proceso {pid}', { pid: p.pid })
       id = b ?? ruta
       bundle = b ?? undefined
       if (esDeArbrain(ruta) || /^arbrain$/i.test(nombre)) { nombre = 'Arbrain'; id = 'arbrain'; razon = SIEMPRE_ABIERTO }
       else if (NUNCA.test(nombre)) { id = `motor:${nombre.toLowerCase()}`; nombre = nombreMotor(nombre); razon = DEL_MOTOR }
       else if (ctx.protegidos.has(p.pid)) razon = DEL_MOTOR
-      else if (p.uid !== ctx.uid) razon = 'Es del sistema o de otro usuario.'
-      else if (SISTEMA_MAC.test(ruta)) razon = 'Es parte de macOS.'
-      else if (!b || !APPS_MAC.test(b)) razon = 'Es un proceso de fondo, no una app.'
+      else if (p.uid !== ctx.uid) razon = trMarca('Es del sistema o de otro usuario.')
+      else if (SISTEMA_MAC.test(ruta)) razon = trMarca('Es parte de macOS.')
+      else if (!b || !APPS_MAC.test(b)) razon = trMarca('Es un proceso de fondo, no una app.')
     } else {
-      const base = (p.nombre ?? (p.ruta ? basename(p.ruta).replace(/\.exe$/i, '') : '')) || `Proceso ${p.pid}`
+      const base = (p.nombre ?? (p.ruta ? basename(p.ruta).replace(/\.exe$/i, '') : '')) || tr('Proceso {pid}', { pid: p.pid })
       const clave = base.toLowerCase()
       id = clave
       nombre = NOMBRES_WIN[clave] ?? p.descripcion ?? base
@@ -229,10 +231,10 @@ export function agrupar(procesos: Proceso[], ctx: Contexto): GrupoApp[] {
       if (esDeArbrain(ruta) || /^arbrain$/i.test(base)) { nombre = 'Arbrain'; id = 'arbrain'; razon = SIEMPRE_ABIERTO }
       else if (NUNCA.test(base)) { nombre = nombreMotor(base); id = `motor:${clave}`; razon = DEL_MOTOR }
       else if (ctx.protegidos.has(p.pid)) razon = DEL_MOTOR
-      else if (SISTEMA_WIN.has(clave)) razon = 'Es parte de Windows.'
-      else if (!ruta) razon = 'Es del sistema o de otro usuario.'
-      else if (/^[a-z]:\\windows\\/i.test(ruta)) razon = 'Es parte de Windows.'
-      else if (ctx.sesion !== undefined && p.sesion !== ctx.sesion) razon = 'Es de otro usuario.'
+      else if (SISTEMA_WIN.has(clave)) razon = trMarca('Es parte de Windows.')
+      else if (!ruta) razon = trMarca('Es del sistema o de otro usuario.')
+      else if (/^[a-z]:\\windows\\/i.test(ruta)) razon = trMarca('Es parte de Windows.')
+      else if (ctx.sesion !== undefined && p.sesion !== ctx.sesion) razon = trMarca('Es de otro usuario.')
     }
     const g = grupos.get(id) ?? { id, nombre, memoriaMb: 0, procesos: 0, pids: [], cerrable: true, razones: new Set<string>(), ...(bundle ? { bundle } : {}) }
     g.memoriaMb += p.memoriaKb / 1024
@@ -280,17 +282,17 @@ export function consejos(f: { plataforma: Plataforma; memoria: { total: number; 
   if (apretada) {
     const nav = f.apps.find(a => NAVEGADOR.test(a.nombre))
     lista.push(nav
-      ? `Cierra las pestañas de ${nav.nombre} que no estés usando: cada pestaña guarda su página en memoria.`
-      : 'Cierra las apps que no estés usando: abajo ves cuáles ocupan más.')
+      ? tr('Cierra las pestañas de {navegador} que no estés usando: cada pestaña guarda su página en memoria.', { navegador: nav.nombre })
+      : tr('Cierra las apps que no estés usando: abajo ves cuáles ocupan más.'))
   }
-  if (f.memoria && f.memoria.total <= 8.5 * GB) lista.push('Con 8 GB de memoria, deja abierta una sola app pesada además de Arbrain (por ejemplo, Chrome con muchas pestañas, Zoom o un editor de video).')
-  else if (f.memoria?.semaforo === 'rojo') lista.push('Si sigue lenta, reinicia la computadora: libera la memoria que las apps no devolvieron.')
-  if (f.discoLibre !== null && f.discoLibre < 10 * GB) lista.push(f.plataforma === 'windows' ? 'Te queda poco disco: vacía la Papelera de reciclaje y borra descargas viejas.' : 'Te queda poco disco: vacía la Papelera y borra descargas viejas.')
-  if (f.procesador !== null && f.procesador >= 85) lista.push('El procesador va al tope: espera a que termine lo que está corriendo o cierra la app que más trabaja.')
+  if (f.memoria && f.memoria.total <= 8.5 * GB) lista.push(tr('Con 8 GB de memoria, deja abierta una sola app pesada además de Arbrain (por ejemplo, Chrome con muchas pestañas, Zoom o un editor de video).'))
+  else if (f.memoria?.semaforo === 'rojo') lista.push(tr('Si sigue lenta, reinicia la computadora: libera la memoria que las apps no devolvieron.'))
+  if (f.discoLibre !== null && f.discoLibre < 10 * GB) lista.push(f.plataforma === 'windows' ? tr('Te queda poco disco: vacía la Papelera de reciclaje y borra descargas viejas.') : tr('Te queda poco disco: vacía la Papelera y borra descargas viejas.'))
+  if (f.procesador !== null && f.procesador >= 85) lista.push(tr('El procesador va al tope: espera a que termine lo que está corriendo o cierra la app que más trabaja.'))
   if (f.sueno.puedeDormirse && f.tieneRutinas) {
     lista.push(f.plataforma === 'windows'
-      ? 'Tu computadora puede suspenderse y tus rutinas no corren mientras duerme. Para evitarlo: Configuración › Sistema › Inicio/apagado y suspensión (o «Energía»), y en «Cuando esté conectado, suspender después de» elige «Nunca». Déjala conectada.'
-      : 'Tu Mac puede dormirse y tus rutinas no corren mientras duerme. Para evitarlo: Ajustes del Sistema › Batería › Opciones (en una Mac de escritorio: Ajustes del Sistema › Energía) y activa «Evitar el reposo automático cuando la pantalla esté apagada». Si es laptop, déjala conectada.')
+      ? tr('Tu computadora puede suspenderse y tus rutinas no corren mientras duerme. Para evitarlo: Configuración › Sistema › Inicio/apagado y suspensión (o «Energía»), y en «Cuando esté conectado, suspender después de» elige «Nunca». Déjala conectada.')
+      : tr('Tu Mac puede dormirse y tus rutinas no corren mientras duerme. Para evitarlo: Ajustes del Sistema › Batería › Opciones (en una Mac de escritorio: Ajustes del Sistema › Energía) y activa «Evitar el reposo automático cuando la pantalla esté apagada». Si es laptop, déjala conectada.'))
   }
   return lista
 }
@@ -429,12 +431,12 @@ async function grupoVivo(d: Deps, id: string): Promise<GrupoApp | undefined> {
 
 /** Cierra una app: amable y espera hasta `esperaMs`; con `forzar`, forzar salida. Vuelve a leer los procesos antes de actuar. */
 export async function cerrarApp(d: Deps, id: unknown, opciones: { forzar: boolean; esperaMs?: number }): Promise<ResultadoCierre> {
-  if (typeof id !== 'string' || !ID_VALIDO.test(id)) return { ok: false, status: 400, error: 'Falta qué app cerrar.' }
-  if (d.plataforma === 'otra') return { ok: false, status: 400, error: 'En esta computadora no puedo cerrar apps desde aquí.' }
+  if (typeof id !== 'string' || !ID_VALIDO.test(id)) return { ok: false, status: 400, error: tr('Falta qué app cerrar.') }
+  if (d.plataforma === 'otra') return { ok: false, status: 400, error: tr('En esta computadora no puedo cerrar apps desde aquí.') }
   let g: GrupoApp | undefined
-  try { g = await grupoVivo(d, id) } catch { return { ok: false, status: 503, error: 'No pude leer las apps abiertas. Intenta de nuevo.' } }
-  if (!g) return { ok: true, cerrada: true, nombre: id, mensaje: 'Esa app ya estaba cerrada.' }
-  if (!g.cerrable) return { ok: false, status: 403, error: `No se puede cerrar ${g.nombre}: ${(g.motivo ?? '').replace(/\.$/, '').toLowerCase()}.` }
+  try { g = await grupoVivo(d, id) } catch { return { ok: false, status: 503, error: tr('No pude leer las apps abiertas. Intenta de nuevo.') } }
+  if (!g) return { ok: true, cerrada: true, nombre: id, mensaje: tr('Esa app ya estaba cerrada.') }
+  if (!g.cerrable) return { ok: false, status: 403, error: tr('No se puede cerrar {app}: {motivo}.', { app: g.nombre, motivo: tr(g.motivo ?? '').replace(/\.$/, '').toLowerCase() }) }
   const tam = g.memoriaMb >= 1024 ? `${(g.memoriaMb / 1024).toFixed(1)} GB` : `${g.memoriaMb} MB`
   const pidsArg = g.pids.map(String)
   try {
@@ -448,16 +450,17 @@ export async function cerrarApp(d: Deps, id: unknown, opciones: { forzar: boolea
       await d.ejecutar('taskkill', g.pids.flatMap(p => ['/PID', String(p)]))
     }
   } catch { /* un proceso que ya terminó hace fallar al comando: se comprueba abajo */ }
-  d.anotar?.(`${opciones.forzar ? 'Forzar salida de' : 'Cerrar'} «${g.nombre}» (${g.procesos} ${g.procesos === 1 ? 'proceso' : 'procesos'}, ${tam})`, 'Lo pediste en Taller › Computadora.')
+  const cuantos = trn(g.procesos, '1 proceso', '{n} procesos')
+  d.anotar?.(opciones.forzar ? tr('Forzar salida de «{app}» ({procesos}, {tam})', { app: g.nombre, procesos: cuantos, tam }) : tr('Cerrar «{app}» ({procesos}, {tam})', { app: g.nombre, procesos: cuantos, tam }), tr('Lo pediste en Taller › Computadora.'))
   const espera = opciones.esperaMs ?? (opciones.forzar ? 1500 : 6000)
   for (let t = 0; t < espera; t += 500) {
     await d.esperar(500)
     const sigue = await grupoVivo(d, id).catch(() => undefined)
-    if (!sigue) return { ok: true, cerrada: true, nombre: g.nombre, mensaje: `${g.nombre} se cerró.` }
+    if (!sigue) return { ok: true, cerrada: true, nombre: g.nombre, mensaje: tr('{app} se cerró.', { app: g.nombre }) }
   }
   return opciones.forzar
-    ? { ok: true, cerrada: false, nombre: g.nombre, mensaje: `${g.nombre} sigue abierta. Reinicia la computadora si no responde.` }
-    : { ok: true, cerrada: false, nombre: g.nombre, puedeForzar: true, mensaje: `${g.nombre} no se cerró. Puede estar esperando que guardes algo: revísala, o fuerza la salida (se pierde lo que no hayas guardado).` }
+    ? { ok: true, cerrada: false, nombre: g.nombre, mensaje: tr('{app} sigue abierta. Reinicia la computadora si no responde.', { app: g.nombre }) }
+    : { ok: true, cerrada: false, nombre: g.nombre, puedeForzar: true, mensaje: tr('{app} no se cerró. Puede estar esperando que guardes algo: revísala, o fuerza la salida (se pierde lo que no hayas guardado).', { app: g.nombre }) }
 }
 
 export interface Respuesta { status: number; cuerpo: Record<string, unknown> }
@@ -466,7 +469,7 @@ export interface Respuesta { status: number; cuerpo: Record<string, unknown> }
 export async function atenderComputadora(metodo: string | undefined, ruta: string, cuerpo: Record<string, unknown>, opciones: { secretoApp: boolean; deps: Deps }): Promise<Respuesta | null> {
   if (ruta === '/computadora' && metodo === 'GET') return { status: 200, cuerpo: { ...(await leerComputadora(opciones.deps)) } }
   if (metodo !== 'POST' || (ruta !== '/computadora/cerrar' && ruta !== '/computadora/forzar')) return null
-  if (!opciones.secretoApp) return { status: 403, cuerpo: { error: 'Solo tú, desde la app, puedes cerrar apps.' } }
+  if (!opciones.secretoApp) return { status: 403, cuerpo: { error: tr('Solo tú, desde la app, puedes cerrar apps.') } }
   const r = await cerrarApp(opciones.deps, cuerpo.id, { forzar: ruta === '/computadora/forzar' })
   return r.ok ? { status: 200, cuerpo: r } : { status: r.status, cuerpo: { error: r.error } }
 }

@@ -10,7 +10,8 @@ import listPlugin from '@fullcalendar/list'
 import esLocale from '@fullcalendar/core/locales/es'
 import type { DatesSetArg, EventInput } from '@fullcalendar/core'
 import { addDays, addMinutes, addYears, format, parseISO, startOfDay, startOfWeek } from 'date-fns'
-import { es } from 'date-fns/locale'
+import { localeFechas } from '@/shared/i18n/fechas'
+import { enIngles, localeIntl, tr, trn } from '@/shared/i18n'
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Circle, Loader2, Newspaper, Plus, Repeat2, ScrollText, X } from 'lucide-react'
 import { usePlanning } from './usePlanning'
 import { useGoals } from '@/features/goals/useGoals'
@@ -21,6 +22,8 @@ import { DiaVivo } from './DiaVivo'
 import { destinoAlSoltarToque, ejeDeRueda, ejeDeToque } from './carril-logica'
 import { Carril } from './Carril'
 import { conMarca } from './dia-vivo'
+import { guardaInvitados } from './arrastre-dia'
+import { ConfirmarMover } from './ConfirmarMover'
 import { SemanaClara } from './SemanaClara'
 import { PulsoHoy } from './useEncuadre'
 import { datosDeMovimiento, diasVisibles, inicioDeVentana, lunesDe, moverDias } from './semana-horas'
@@ -69,7 +72,7 @@ const PAUSA_GESTO = 160
 const UMBRAL_RUEDA = 120
 /** La zona horaria del equipo, corta («GMT-6»), para la esquina de la rejilla. */
 function zonaCorta(): string {
-  try { return new Intl.DateTimeFormat('es-MX', { timeZoneName: 'shortOffset' }).formatToParts(new Date()).find(p => p.type === 'timeZoneName')?.value ?? '' } catch { return '' }
+  try { return new Intl.DateTimeFormat(localeIntl(), { timeZoneName: 'shortOffset' }).formatToParts(new Date()).find(p => p.type === 'timeZoneName')?.value ?? '' } catch { return '' }
 }
 
 /** `inicio` (2 oct 2026): la pestaña Calendario del panel, desprendida a su ventana, abre el editor en
@@ -158,7 +161,7 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
   /** Mover la ventana de la Semana `dias` días (← → uno; las flechas de la barra, siete). */
   const deslizarSemana = useCallback((dias: number) => setVentanaSemana(v => { const finde = ajustesRef.current.finDeSemana
     return { ...v, inicio: moverDias(v.inicio ?? inicioDeVentana(dayKey(anchorRef.current), dayKey(new Date()), v.n, finde), dias, finde) } }), [])
-  const [title, setTitle] = useState('Tu semana')
+  const [title, setTitle] = useState(() => tr('Tu semana'))
   const [range, setRange] = useState(() => ({ from: startOfDay(new Date()).toISOString(), to: addDays(startOfDay(new Date()), 7).toISOString() }))
   // La cuadrícula del Mes con N semanas (el engrane): el mes que manda (título, objetivo, recorrido) es el del centro de lo visible.
   const semanasMes = mode === 'month' && ajustes.mesVista === 'cuadricula' ? ajustes.mesSemanas : 0
@@ -178,6 +181,8 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
   const [showUnscheduled, setShowUnscheduled] = useState(false)
   const [selection, setSelection] = useState<EditorSelection | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  /** Un evento con invitados soltado en otra hora: espera el sí de Daniel (arrastre-dia.ts › `guardaInvitados`). */
+  const [porConfirmar, setPorConfirmar] = useState<{ item: PlanItem; inicio: Date; fin: Date; texto: string } | null>(null)
   // Aviso con «Deshacer» (completar o borrar desde la hoja de detalle): el botón corre el mismo ⌘Z.
   const [noticeUndo, setNoticeUndo] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
@@ -214,7 +219,7 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
   const commitRef = useRef<(op: PlanMutation) => Promise<MutationResult>>(null!)
   const [fallo, setFallo] = useState<{ texto: string; reintentar: () => void } | null>(null)
   const auto = useAutoguardado({ ownerId: leido?.ownerId, escribir: op => commitRef.current(op),
-    onFallo: (titulo, mensaje, reintentar) => setFallo({ texto: `No se guardó «${titulo}»: ${mensaje} Volvió a como está en Google.`, reintentar }) })
+    onFallo: (titulo, mensaje, reintentar) => setFallo({ texto: tr('No se guardó «{titulo}»: {mensaje} Volvió a como está en Google.', { titulo, mensaje }), reintentar }) })
   const snapshot = useMemo(() => leido ? auto.aplicar(leido) : leido, [leido, auto])
   const dataRef = useRef(leido)
   const goalsLeidos = useGoals()
@@ -319,9 +324,9 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
       const s = parseISO(e.start).getTime(), f = parseISO(e.end).getTime()
       return s < to && (f > from || (f === s && s >= from))
     }).map(e => ({ item: e as PlanItem, allDay: e.allDay, at: parseISO(e.start).getTime(), color: colorEvento(e) as string | null,
-      time: e.allDay ? 'Todo el día' : `${format(parseISO(e.start), 'HH:mm')} – ${format(parseISO(e.end), 'HH:mm')}` }))
+      time: e.allDay ? tr('Todo el día') : `${format(parseISO(e.start), 'HH:mm')} – ${format(parseISO(e.end), 'HH:mm')}` }))
     const tasks = visibleTasks.filter(t => t.due && !t.completed && dayKey(parseISO(t.due)) === key).map(t => ({ item: t as PlanItem, allDay: !hasTime(t.due), at: parseISO(t.due!).getTime(),
-      color: null as string | null, time: hasTime(t.due) ? format(parseISO(t.due!), 'HH:mm') : 'Tarea' }))
+      color: null as string | null, time: hasTime(t.due) ? format(parseISO(t.due!), 'HH:mm') : tr('Tarea') }))
     return [...events, ...tasks].sort((a, b) => Number(b.allDay) - Number(a.allDay) || a.at - b.at)
   }, [monthDay, presentedEvents, visibleTasks, eventoVisible, colorEvento])
 
@@ -400,11 +405,11 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
     while (enVuelo.current.size) await Promise.allSettled([...enVuelo.current])
     const entry = dir === 'undo' ? history.pop() : history.popRedo()
     const put = (e: typeof entry) => { if (!e) return; if (dir === 'undo') history.restore(e); else history.restoreRedo(e) }
-    if (!entry) { setNotice(dir === 'undo' ? 'No hay nada que deshacer.' : 'No hay nada que rehacer.'); return }
-    if (entry.irreversible) { setNotice(`No se puede deshacer: ${entry.label}. ${entry.irreversible}`); return }
+    if (!entry) { setNotice(dir === 'undo' ? tr('No hay nada que deshacer.') : tr('No hay nada que rehacer.')); return }
+    if (entry.irreversible) { setNotice(tr('No se puede deshacer: {accion}. {motivo}', { accion: entry.label, motivo: entry.irreversible })); return }
     const data = dataRef.current
     const op = entry.build(data ? [...data.events, ...data.tasks] : [], history.aliases)
-    if (!op) { setNotice(`No se pudo ${dir === 'undo' ? 'deshacer' : 'rehacer'} ${entry.label}: ya no está en el calendario.`); return }
+    if (!op) { setNotice(dir === 'undo' ? tr('No se pudo deshacer {accion}: ya no está en el calendario.', { accion: entry.label }) : tr('No se pudo rehacer {accion}: ya no está en el calendario.', { accion: entry.label })); return }
     const before = lookup(op)
     setNoticeUndo(false)
     try {
@@ -415,8 +420,8 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
       const counter = inverseFor(op, before, result)
       const inverse = counter && !counter.irreversible ? { ...counter, label: entry.label } : null
       if (dir === 'undo') history.pushRedo(inverse); else history.pushUndo(inverse)
-      setNotice(`${dir === 'undo' ? 'Deshecho' : 'Rehecho'}: ${entry.label}.`)
-    } catch (err) { put(entry); setNotice(`No se pudo ${dir === 'undo' ? 'deshacer' : 'rehacer'}: ${err instanceof Error ? err.message : 'el proveedor no confirmó.'}`) }
+      setNotice(dir === 'undo' ? tr('Deshecho: {accion}.', { accion: entry.label }) : tr('Rehecho: {accion}.', { accion: entry.label }))
+    } catch (err) { put(entry); const motivo = err instanceof Error ? err.message : tr('el proveedor no confirmó.'); setNotice(dir === 'undo' ? tr('No se pudo deshacer: {motivo}', { motivo }) : tr('No se pudo rehacer: {motivo}', { motivo })) }
   }, [history, mutate, lookup, lecturaNueva])
   const step = useCallback((dir: 'undo' | 'redo') => {
     const run = () => paso(dir)
@@ -443,22 +448,22 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
   /** El evento vivo (la última lectura con la capa optimista): proteger y delegar escriben sobre su etag de ahora. */
   const eventoVivo = useCallback((e: PlanEvent) => presentedEvents.find(x => x.id === e.id) ?? e, [presentedEvents])
   const titular = (t: string) => t.replace(/^[\p{Extended_Pictographic}️‍\s]+/u, '').trim()
-  const escribirDescripcionEvento = useCallback((e: PlanEvent, description: string) => snapshot ? commit(mutationFor(e, snapshot.ownerId, { ...eventData(e), description })) : Promise.reject(new Error('Sin lectura')), [snapshot, commit])
+  const escribirDescripcionEvento = useCallback((e: PlanEvent, description: string) => snapshot ? commit(mutationFor(e, snapshot.ownerId, { ...eventData(e), description })) : Promise.reject(new Error(tr('Sin lectura'))), [snapshot, commit])
   const proteger = useCallback(async (e0: PlanEvent, si: boolean) => {
     const e = eventoVivo(e0)
     await escribirDescripcionEvento(e, conProtegido(e.description, si))
-    setNotice(si ? `«${titular(e.title)}» quedó protegido.` : `«${titular(e.title)}» ya no está protegido.`); setNoticeUndo(true)
+    setNotice(si ? tr('«{titulo}» quedó protegido.', { titulo: titular(e.title) }) : tr('«{titulo}» ya no está protegido.', { titulo: titular(e.title) })); setNoticeUndo(true)
   }, [eventoVivo, escribirDescripcionEvento])
   const corregir = useCallback(async (e: PlanEvent, c: Cuadrante | null) => {
     await drip.cambiar({ accion: 'corregir', claves: lecturaDe(e).claves, titulo: e.title, cuadrante: c })
-    setNotice(c ? `«${titular(e.title)}» es ${DRIP[c].nombre}. Levy lo recordará.` : `«${titular(e.title)}» vuelve a lo que infiere Levy.`)
+    setNotice(c ? tr('«{titulo}» es {cuadrante}. Levy lo recordará.', { titulo: titular(e.title), cuadrante: tr(DRIP[c].nombre) }) : tr('«{titulo}» vuelve a lo que infiere Levy.', { titulo: titular(e.title) }))
   }, [drip, lecturaDe])
   const delegar = useCallback(async (e0: PlanEvent, activo: boolean) => {
     const e = eventoVivo(e0)
     await drip.cambiar({ accion: 'delegar', claves: lecturaDe(e).claves, titulo: e.title, a: 'Levy', activo })
     // Recuperar también quita la marca `[delegado: …]` de la descripción, si la tenía (por la pluma, con ⌘Z).
     if (!activo && /\[delegado/i.test(e.description) && e.editable) await escribirDescripcionEvento(e, conDelegado(e.description, null))
-    setNotice(activo ? `«${titular(e.title)}» es de Levy${onConversar ? ': el encargo quedó en el chat' : ''}.` : `«${titular(e.title)}» vuelve a ser tuyo.`)
+    setNotice(activo ? onConversar ? tr('«{titulo}» es de Levy: el encargo quedó en el chat.', { titulo: titular(e.title) }) : tr('«{titulo}» es de Levy.', { titulo: titular(e.title) }) : tr('«{titulo}» vuelve a ser tuyo.', { titulo: titular(e.title) }))
   }, [drip, lecturaDe, eventoVivo, escribirDescripcionEvento, onConversar])
   // La foto del plan (la referencia del domingo): la primera vez que se lee una semana entera, se guarda lo que había.
   const fotos = useRef(new Map<string, Promise<import('./drip').FotoSemana | null>>())
@@ -487,7 +492,7 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
   }, [donde, tick])
   const aplicarPropuesta = useCallback(async (p: Propuesta) => {
     const e = presentedEvents.find(x => x.id === p.bloque.id)
-    if (!e) throw new Error('Ese bloque ya no está en tu calendario.')
+    if (!e) throw new Error(tr('Ese bloque ya no está en tu calendario.'))
     await escribirDescripcionEvento(e, p.tipo === 'proteger' ? conProtegido(e.description, true) : conDelegado(e.description, 'Levy'))
   }, [presentedEvents, escribirDescripcionEvento])
   const gobierno = useMemo<Gobierno>(() => ({ lectura: lecturaDe, ocultas: ocultosDrip, alternar: alternarDrip, numeros, doc: drip.doc, corregir, delegar,
@@ -836,7 +841,7 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
     }
     try {
       await commit(mutationFor(item, snapshot.ownerId, data))
-      setNotice(item.kind === 'event' && item.recurringEventId ? 'Esta ocurrencia se actualizó.' : 'Horario actualizado.')
+      setNotice(item.kind === 'event' && item.recurringEventId ? tr('Esta ocurrencia se actualizó.') : tr('Horario actualizado.'))
     } catch { /* hook preserves error and exact request for retry */ }
   }
 
@@ -891,30 +896,34 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
       } catch { setNotice(`Aún no hay un plan de ${plan.mes}.`) }
     }
   }
-  const titulo = mode === 'crons' ? `${format(parseISO(range.from), "d MMM", { locale: es })} – ${format(new Date(Date.parse(range.to)-1), "d MMM yyyy", { locale: es })}` : tituloAngosto(mode, mode === 'month' ? fechaMes : anchor, range)
-  const vistaActual = MODES.find(m => m.id === mode)?.label ?? ''
+  const titulo = mode === 'crons' ? `${format(parseISO(range.from), tr("d MMM"), { locale: localeFechas() })} – ${format(new Date(Date.parse(range.to)-1), tr("d MMM yyyy"), { locale: localeFechas() })}` : tituloAngosto(mode, mode === 'month' ? fechaMes : anchor, range)
+  const vistaActual = tr(MODES.find(m => m.id === mode)?.label ?? '')
   // Lo que las cuatro hojas vivas reciben igual: mismas plumas (commit con ⌘Z), mismos filtros, mismo editor.
   const comunes = { goals: { data: goalsLeidos.data, error: goalsLeidos.error }, snapshot: snapshot ?? null, eventos: presentedEvents, visible: visibleSemanaDia, color: colorEvento,
     // Completar no espera a nadie (5 oct 2026): la fila de escrituras las serializa y un envío sin confirmar se reenvía solo.
     cargando: loading, ocupado: !snapshot, todoistCaido: !ajeno && Boolean(snapshot) && snapshot!.health.find(h => h.id === 'todoist')?.state !== 'fresh',
     onModo: undefined, onConversar, donde, leyenda: leyendaVista,
-    onAbrir: (item: PlanItem) => setSelection({ item }), onCompletar: (t: PlanTask) => snapshot ? commit(mutationFor(t, snapshot.ownerId, {}, 'complete')) : Promise.reject(new Error('Sin lectura')),
+    onAbrir: (item: PlanItem) => setSelection({ item }), onCompletar: (t: PlanTask) => snapshot ? commit(mutationFor(t, snapshot.ownerId, {}, 'complete')) : Promise.reject(new Error(tr('Sin lectura'))),
     // La prioridad como en Todoist (8 nov 2026): la misma pluma, con ⌘Z. Todoist exige el título en cada update.
-    onPrioridad: (t: PlanTask, priority: 1 | 2 | 3 | 4) => snapshot ? commit(mutationFor(t, snapshot.ownerId, { title: t.title, priority })) : Promise.reject(new Error('Sin lectura')),
+    onPrioridad: (t: PlanTask, priority: 1 | 2 | 3 | 4) => snapshot ? commit(mutationFor(t, snapshot.ownerId, { title: t.title, priority })) : Promise.reject(new Error(tr('Sin lectura'))),
     onNueva: () => setSelection({ kind: 'task', allDay: true }), onObjetivo: (ev: PlanEvent, cumplido: boolean) => marcarObjetivo(ev, cumplido) }
 
   // La estrella del objetivo del día: `✓` al inicio del título del evento «Objetivo del dia», por la misma pluma (con ⌘Z).
-  const marcarObjetivo = (ev: PlanEvent, cumplido: boolean) => snapshot ? commit(mutationFor(ev, snapshot.ownerId, { ...eventData(ev), title: conMarca(ev.title, cumplido) })) : Promise.reject(new Error('Sin lectura'))
+  const marcarObjetivo = (ev: PlanEvent, cumplido: boolean) => snapshot ? commit(mutationFor(ev, snapshot.ownerId, { ...eventData(ev), title: conMarca(ev.title, cumplido) })) : Promise.reject(new Error(tr('Sin lectura')))
   // Las casillas del objetivo del día cuando viven en la descripción de su tarea o evento (10 oct 2026): misma pluma, con ⌘Z.
-  const escribirDescripcion = (item: PlanItem, description: string) => !snapshot ? Promise.reject(new Error('Sin lectura'))
+  const escribirDescripcion = (item: PlanItem, description: string) => !snapshot ? Promise.reject(new Error(tr('Sin lectura')))
     : commit(mutationFor(item, snapshot.ownerId, item.kind === 'event' ? { ...eventData(item), description } : { title: item.title, description }))
   // La rejilla de la Semana mueve y estira por el guardián del autoguardado: se ve al instante, se escribe por la misma pluma
   // (commit con ⌘Z) y, si Google no confirma, el bloque vuelve a su hora y el aviso lo dice con «Reintentar».
-  const moverEnRejilla = async (item: PlanItem, inicio: Date, fin: Date) => {
+  // El Día arrastra por aquí también (11 nov 2026). Con invitados no se mueve en silencio: el aviso pregunta y, sin su sí, se queda.
+  const moverEnRejilla = async (item: PlanItem, inicio: Date, fin: Date, confirmado = false) => {
     if (item.kind === 'event' && !item.editable) return
+    const guarda = confirmado ? null : guardaInvitados(item, inicio)
+    if (guarda) { setNotice(null); setPorConfirmar({ item, inicio, fin, texto: guarda.texto }); return }
     auto.editar({ item, data: datosDeMovimiento(item, inicio, fin) })
     if (await auto.vaciar(item.id)) {
-      setNotice(`${item.kind === 'event' && item.recurringEventId ? 'Esta ocurrencia' : `«${item.title}»`} quedó el ${format(inicio, "EEEE d 'a las' HH:mm", { locale: es })}.`)
+      const cuando = format(inicio, tr("EEEE d 'a las' HH:mm"), { locale: localeFechas() })
+      setNotice(item.kind === 'event' && item.recurringEventId ? tr('Esta ocurrencia quedó el {cuando}.', { cuando }) : tr('«{titulo}» quedó el {cuando}.', { titulo: item.title, cuando }))
       setNoticeUndo(true)
     }
   }
@@ -928,29 +937,29 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
   const hoyClave = dayKey(new Date())
   const enHoy = mode === 'week' ? visibles.includes(hoyClave)
     : Date.now() >= Date.parse(range.from) && Date.now() < Date.parse(range.to) && mode !== 'year' && mode !== 'crons'
-  const tituloBarra = mode === 'week' ? tituloVentana(visibles[0], visibles.length, undefined, visibles.at(-1)) : mode === 'habits' ? 'Hábitos' : compacto || mode === 'crons' || mode === 'year' || mode === 'month' ? titulo : mode === 'day' ? format(anchor, "EEEE d 'de' MMMM", { locale: es }) : title
+  const tituloBarra = mode === 'week' ? tituloVentana(visibles[0], visibles.length, undefined, visibles.at(-1)) : mode === 'habits' ? tr('Hábitos') : compacto || mode === 'crons' || mode === 'year' || mode === 'month' ? titulo : mode === 'day' ? format(anchor, tr("EEEE d 'de' MMMM"), { locale: localeFechas() }) : title
   // Lo que el engrane muestra como «días a la vista»: lo elegido o, si no, lo que se ve (sin fines de semana, 5 columnas son 7 días).
   const diasActual = ventanaSemana.n
 
   return <PulsoHoy.Provider value={pulsoHoy}><GobiernoCtx.Provider value={gobierno}><div ref={raiz} className={styles.root} style={{ '--plan-pegado': `${altoBarra}px` } as CSSProperties} data-planning-calendar data-donde={donde} data-dos-columnas={dosColumnasVista ? mode : undefined} data-mes-piedras={mode === 'month' && !compacto ? '' : undefined} data-unificada={alcance ? '' : undefined} data-ventana={mode === 'week' ? `${ventanaSemana.inicio ?? '-'}:${ventanaSemana.n}` : undefined} tabIndex={donde === 'panel' ? -1 : undefined}>
-    <h1 className={styles.srOnly}>Calendario</h1>
+    <h1 className={styles.srOnly}>{tr('Calendario')}</h1>
     {/* UNA fila (5 oct 2026, «los botones deben ser súper sutiles, que ocupen el menor espacio»): Hoy · ‹ › · fecha ▾ · D 4 S M · +.
         La fecha abre lo demás: ir a fecha, Año · Agenda · Rutinas, calendarios, panel de tareas, atajos y actualizar. */}
     <div ref={barraRef} className={styles.barra} data-ancho={compacto ? undefined : ''}>
-      <button className={styles.today} data-en-hoy={enHoy || undefined} onClick={goToday} title="Ir a hoy y a la hora actual (T)">Hoy</button>
-      <button className={styles.iconButton} aria-label="Período anterior" onClick={() => navigate(-1)}><ChevronLeft size={17} /></button><button className={styles.iconButton} aria-label="Período siguiente" onClick={() => navigate(1)}><ChevronRight size={17} /></button>
+      <button className={styles.today} data-en-hoy={enHoy || undefined} onClick={goToday} title={tr('Ir a hoy y a la hora actual (T)')}>{tr('Hoy')}</button>
+      <button className={styles.iconButton} aria-label={tr('Período anterior')} onClick={() => navigate(-1)}><ChevronLeft size={17} /></button><button className={styles.iconButton} aria-label={tr('Período siguiente')} onClick={() => navigate(1)}><ChevronRight size={17} /></button>
       <span data-more-menu className={styles.vistaWrap}>
-        <button className={styles.vistaTitulo} aria-haspopup="menu" aria-expanded={moreOpen} aria-label={`${tituloBarra}: ir a fecha y más vistas (${vistaActual})`} onClick={() => setMoreOpen(v => !v)}><span>{tituloBarra}</span><ChevronDown size={13} aria-hidden /></button>
+        <button className={styles.vistaTitulo} aria-haspopup="menu" aria-expanded={moreOpen} aria-label={tr('{titulo}: ir a fecha y más vistas ({vista})', { titulo: tituloBarra, vista: vistaActual })} onClick={() => setMoreOpen(v => !v)}><span>{tituloBarra}</span><ChevronDown size={13} aria-hidden /></button>
         {moreOpen && <div className={styles.vistaMenu} role="menu">
           <div className={styles.vistaPie} data-arriba>
-            <label>Ir a fecha<input aria-label="Ir a fecha" type="date" value={dayKey(anchor)} onChange={e => { irAFecha(e.target.value); setMoreOpen(false) }} /></label>
+            <label>{tr('Ir a fecha')}<input aria-label={tr('Ir a fecha')} type="date" value={dayKey(anchor)} onChange={e => { irAFecha(e.target.value); setMoreOpen(false) }} /></label>
           </div>
-          <div className={styles.vistaLista} role="group" aria-label="Más vistas">{MODOS_CALENDARIO.filter(m => !ESCALAS_BARRA.includes(m.id)).map(m => <button role="menuitemradio" aria-checked={mode === m.id} key={m.id} onClick={() => { escala(m.id); setMoreOpen(false) }}>{m.label}{mode === m.id ? <Check size={14} aria-hidden /> : <kbd aria-hidden>{TECLA[m.id]}</kbd>}</button>)}</div>
+          <div className={styles.vistaLista} role="group" aria-label={tr('Más vistas')}>{MODOS_CALENDARIO.filter(m => !ESCALAS_BARRA.includes(m.id)).map(m => <button role="menuitemradio" aria-checked={mode === m.id} key={m.id} onClick={() => { escala(m.id); setMoreOpen(false) }}>{tr(m.label)}{mode === m.id ? <Check size={14} aria-hidden /> : <kbd aria-hidden>{TECLA[m.id]}</kbd>}</button>)}</div>
         </div>}
       </span>
-      <div className={styles.escala} role="tablist" aria-label="Escala del calendario">{ESCALAS_BARRA.map(m => { const def = MODES.find(x => x.id === m)!
-        return <button key={m} role="tab" aria-label={def.label} aria-selected={mode === m} aria-keyshortcuts={TECLA[m]} title={mode === m ? `${def.label}: ir a hoy` : `${def.label} (${TECLA[m]})`} onClick={() => accionDeEscala(mode, m) === 'hoy' ? goToday() : escala(m)}>{LETRA[m]}</button> })}</div>
-      {mode !== 'crons' && <button className={styles.iconButton} aria-label="Evento nuevo" title="Nuevo (N)" disabled={!snapshot} onClick={() => setSelection({ start: new Date() })}><Plus size={17} /></button>}
+      <div className={styles.escala} role="tablist" aria-label={tr('Escala del calendario')}>{ESCALAS_BARRA.map(m => { const def = MODES.find(x => x.id === m)!
+        return <button key={m} role="tab" aria-label={tr(def.label)} aria-selected={mode === m} aria-keyshortcuts={TECLA[m]} title={mode === m ? tr('{vista}: ir a hoy', { vista: tr(def.label) }) : `${tr(def.label)} (${TECLA[m]})`} onClick={() => accionDeEscala(mode, m) === 'hoy' ? goToday() : escala(m)}>{LETRA[m]}</button> })}</div>
+      {mode !== 'crons' && <button className={styles.iconButton} aria-label={tr('Evento nuevo')} title={tr('Nuevo (N)')} disabled={!snapshot} onClick={() => setSelection({ start: new Date() })}><Plus size={17} /></button>}
       {/* Un solo engrane (10 oct 2026), la misma hoja en Día, Semana y Mes: días, Enfoque, cómo se ve cada escala, horas, calendarios, categorías. */}
       <Engrane ajustes={ajustes} poner={poner} diasActual={diasActual} leyenda={leyenda} matriz={<LeyendaDrip enBarra />} drip={{ ocultas: ocultosDrip, alternar: alternarDrip, tarifa: drip.doc?.tarifa ?? null, propia: drip.doc?.tarifaPropia ?? false, bloquesPerfectos: drip.doc?.semana?.bloques.length ?? 0, poner: (m, mon) => drip.cambiar({ accion: 'tarifa', monto: m, moneda: mon }) }} acciones={{
         onFiltros: mode !== 'crons' ? () => setFilterOpen(v => !v) : undefined,
@@ -958,20 +967,21 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
         onAtajos: !compacto ? () => setHelpOpen(true) : undefined,
         onActualizar: () => { if (mode === 'crons') setCronReload(n => n + 1); else if (mode === 'year') void yearEvents.reload(); else void refresh() },
         actualizando: mode !== 'crons' && (mode === 'year' ? yearEvents.loading : loading) }} />
-      {helpOpen && <div className={styles.shortcutHelp} role="dialog" aria-label="Atajos del calendario"><h3>ATAJOS DEL CALENDARIO<button className={styles.iconButton} aria-label="Cerrar atajos" onClick={() => setHelpOpen(false)}><X size={13} /></button></h3>{CALENDAR_SHORTCUTS.map(a => <div key={a.accion}><span>{a.accion}</span><span>{a.teclas.map(k => <kbd key={k}>{k}</kbd>)}</span></div>)}</div>}
-      <span className={styles.srOnly} role="status">{saving ? 'Guardando' : loading ? 'Actualizando' : readError ? 'Sin conexión' : snapshot?.health.some(h => h.state !== 'fresh') ? 'Lectura parcial' : snapshot ? 'Al día' : 'Conectando'}</span>
+      {helpOpen && <div className={styles.shortcutHelp} role="dialog" aria-label={tr('Atajos del calendario')}><h3>{tr('ATAJOS DEL CALENDARIO')}<button className={styles.iconButton} aria-label={tr('Cerrar atajos')} onClick={() => setHelpOpen(false)}><X size={13} /></button></h3>{CALENDAR_SHORTCUTS.map(a => <div key={a.accion}><span>{tr(a.accion)}</span><span>{a.teclas.map(k => <kbd key={k}>{tr(k)}</kbd>)}</span></div>)}</div>}
+      <span className={styles.srOnly} role="status">{saving ? tr('Guardando') : loading ? tr('Actualizando') : readError ? tr('Sin conexión') : snapshot?.health.some(h => h.state !== 'fresh') ? tr('Lectura parcial') : snapshot ? tr('Al día') : tr('Conectando')}</span>
     </div>
     {filterOpen && mode !== 'crons' && <div className={styles.filters}>
-      <div className={styles.sourceFilters}><strong>Calendarios</strong>{snapshot?.sources.filter(s => !s.objective).map(s => <label key={s.id}><input type="checkbox" checked={enabled.has(s.id)} onChange={() => { const next = new Set(enabled); next.has(s.id) ? next.delete(s.id) : next.add(s.id); setSources([...next]) }} />{s.title}</label>)}</div>
-      <label>Proyecto<select aria-label="Proyecto" value={project} onChange={e => setProject(e.target.value)}><option value="">Todos</option>{snapshot?.projects.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}</select></label>
-      <label>Prioridad<select aria-label="Prioridad" value={priority} onChange={e => setPriority(Number(e.target.value))}><option value={0}>Todas</option>{[1, 2, 3, 4].map(p => <option key={p} value={p}>P{p}</option>)}</select></label>
-      <span className={styles.note}>{snapshot ? snapshot.tasks.length - visibleTasks.length : 0} tareas ocultas por filtros</span>
-      <button className={styles.textButton} onClick={() => { setSources(null); setProject(''); setPriority(0) }}>Restablecer</button>
+      <div className={styles.sourceFilters}><strong>{tr('Calendarios')}</strong>{snapshot?.sources.filter(s => !s.objective).map(s => <label key={s.id}><input type="checkbox" checked={enabled.has(s.id)} onChange={() => { const next = new Set(enabled); next.has(s.id) ? next.delete(s.id) : next.add(s.id); setSources([...next]) }} />{s.title}</label>)}</div>
+      <label>{tr('Proyecto')}<select aria-label={tr('Proyecto')} value={project} onChange={e => setProject(e.target.value)}><option value="">{tr('Todos')}</option>{snapshot?.projects.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}</select></label>
+      <label>{tr('Prioridad')}<select aria-label={tr('Prioridad')} value={priority} onChange={e => setPriority(Number(e.target.value))}><option value={0}>{tr('Todas')}</option>{[1, 2, 3, 4].map(p => <option key={p} value={p}>P{p}</option>)}</select></label>
+      <span className={styles.note}>{trn(snapshot ? snapshot.tasks.length - visibleTasks.length : 0, '{n} tarea oculta por filtros', '{n} tareas ocultas por filtros')}</span>
+      <button className={styles.textButton} onClick={() => { setSources(null); setProject(''); setPriority(0) }}>{tr('Restablecer')}</button>
     </div>}
-    {esViva(mode) ? <div ref={escena} key={claveEscena} className={vivas.escena} data-mov={mov ?? undefined}>{mode === 'day' ? <Carril fecha={anchor} clave={dayKey} mover={addDays} onIr={irDia} etiqueta="Días: desliza para cambiar de día"
+    {esViva(mode) ? <div ref={escena} key={claveEscena} className={vivas.escena} data-mov={mov ?? undefined}>{mode === 'day' ? <Carril fecha={anchor} clave={dayKey} mover={addDays} onIr={irDia} etiqueta={tr('Días: desliza para cambiar de día')}
       render={(f, central) => <DiaVivo fecha={f} central={central} {...comunes} rejilla={rejilla} onRejilla={alternarRejilla} onObjetivo={marcarObjetivo} guardarObjetivo={goalsLeidos.save} onDescripcion={escribirDescripcion} enfoque={ajustes.enfoque} plegado={plegado} dosColumnas={dosColumnas}
-        onNueva={semilla => setSelection(semilla ?? { kind: 'task', allDay: true })} onReabrir={t => snapshot ? commit(mutationFor(t, snapshot.ownerId, {}, 'reopen')) : Promise.reject(new Error('Sin lectura'))}
-        tareas={tareasDelDia(visibleTasks, dayKey(f), dayKey(new Date()), zonaPlan)} onDeshacer={() => void step('undo')} />} />
+        onNueva={semilla => setSelection(semilla ?? { kind: 'task', allDay: true })} onReabrir={t => snapshot ? commit(mutationFor(t, snapshot.ownerId, {}, 'reopen')) : Promise.reject(new Error(tr('Sin lectura')))}
+        tareas={tareasDelDia(visibleTasks, dayKey(f), dayKey(new Date()), zonaPlan)} onDeshacer={() => void step('undo')}
+        onMover={snapshot && !pending ? (ev, inicio, fin) => void moverEnRejilla(ev, inicio, fin) : undefined} />} />
       : mode === 'month' ? <MesClaro fecha={fechaMes} eventos={eventosMes} programa={programa} onDia={dia => transicion(() => aplicarVista(dia, 'day'))} goals={comunes.goals} snapshot={comunes.snapshot} cargando={loading} angosto={compacto} cuadricula={rejilla} enfoque={ajustes.enfoque} plegado={plegado} dosColumnas={dosColumnasVista} guardarObjetivo={goalsLeidos.save}
         onConversar={onConversar} onSemana={lunes => transicion(() => aplicarVista(lunes, 'week'))} />
       : <SemanaClara fecha={anchor} ventana={ventanaSemana} onVentana={onVentana} {...comunes} guardarObjetivo={goalsLeidos.save} tareas={visibleTasks} zona={zonaPlan}
@@ -983,21 +993,24 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
     : alcance && !ajeno && <PlanPeriodo alcance={alcance} fecha={dayKey(anchor)} tareas={tareasPeriodo} snapshot={snapshot ?? null} cargando={loading} ocupado={!snapshot} todoistCaido={Boolean(snapshot) && snapshot!.health.find(h => h.id === 'todoist')?.state !== 'fresh'}
       modo={mode} onModo={undefined} onConversar={onConversar}
       onAbrirTarea={t => setSelection({ item: t })} onCompletar={t => snapshot && void commit(mutationFor(t, snapshot.ownerId, {}, 'complete')).catch(() => {})} onNueva={() => setSelection({ kind: 'task', allDay: true })} />}
-    {!isOwnSurface(mode) && (error || (pending && !saving) || snapshot?.health.some(h => h.state !== 'fresh')) && <div className={styles.banner} role="status"><span>{error ?? (pending ? 'Hay un envío pendiente de confirmar. Su borrador está guardado.' : (snapshot?.health.find(h => h.id === 'calendario-json' && h.state !== 'fresh')?.message ?? 'Algunas fuentes no respondieron. Se conserva la última lectura disponible.'))}</span>{pending && <button disabled={saving} onClick={() => void mutate(pending).catch(() => {})}>Reintentar envío</button>}{!pending && <button onClick={() => void refresh()}>Reintentar lectura</button>}</div>}
-    {fallo && <div className={styles.notice} role="alert" data-hoja-ignora data-fallo><X size={14} /> {fallo.texto}<button className={styles.noticeUndo} onClick={() => { const f = fallo; setFallo(null); f.reintentar() }}>Reintentar</button><button className={styles.noticeUndo} aria-label="Cerrar aviso" onClick={() => setFallo(null)}><X size={12} /></button></div>}
-    {mode !== 'crons' && notice && (noticeUndo ? <div className={styles.notice} role="status" data-hoja-ignora><Check size={14} /> {notice}<button className={styles.noticeUndo} onClick={() => { setNotice(null); void step('undo') }}>Deshacer</button></div>
+    {!isOwnSurface(mode) && (error || (pending && !saving) || snapshot?.health.some(h => h.state !== 'fresh')) && <div className={styles.banner} role="status"><span>{error ?? (pending ? tr('Hay un envío pendiente de confirmar. Su borrador está guardado.') : (snapshot?.health.find(h => h.id === 'calendario-json' && h.state !== 'fresh')?.message ?? tr('Algunas fuentes no respondieron. Se conserva la última lectura disponible.')))}</span>{pending && <button disabled={saving} onClick={() => void mutate(pending).catch(() => {})}>{tr('Reintentar envío')}</button>}{!pending && <button onClick={() => void refresh()}>{tr('Reintentar lectura')}</button>}</div>}
+    {fallo && <div className={styles.notice} role="alert" data-hoja-ignora data-fallo><X size={14} /> {fallo.texto}<button className={styles.noticeUndo} onClick={() => { const f = fallo; setFallo(null); f.reintentar() }}>{tr('Reintentar')}</button><button className={styles.noticeUndo} aria-label={tr('Cerrar aviso')} onClick={() => setFallo(null)}><X size={12} /></button></div>}
+    {porConfirmar && <ConfirmarMover texto={porConfirmar.texto}
+      onMover={() => { const p = porConfirmar; setPorConfirmar(null); void moverEnRejilla(p.item, p.inicio, p.fin, true) }}
+      onDejar={() => { setPorConfirmar(null); setNotice(tr('«{titulo}» se quedó a su hora.', { titulo: porConfirmar.item.title })) }} />}
+    {!porConfirmar && mode !== 'crons' && notice && (noticeUndo ? <div className={styles.notice} role="status" data-hoja-ignora><Check size={14} /> {notice}<button className={styles.noticeUndo} onClick={() => { setNotice(null); void step('undo') }}>{tr('Deshacer')}</button></div>
       : <button className={styles.notice} onClick={() => setNotice(null)}><Check size={14} /> {notice}</button>)}
     <div className={styles.workspace} data-oculta={rejillaOculta || undefined} inert={rejillaOculta || undefined}>
       <main ref={calendarPane} className={styles.calendarPane} data-mode={mode} data-lista={compacto && diaMes ? '' : undefined}>
-        <div ref={calendarGeometry} className={styles.calendarGeometry}>{mode === 'habits' ? <HabitosTiempo donde={donde} /> : mode === 'crons' ? <CronsView range={range} onRangeChange={changeCronRange} calendarRef={calendar} reloadKey={cronReload}/> : mode === 'year' ? <YearView year={anchor.getFullYear()} events={yearVisible} today={dayKey(new Date())} loading={yearEvents.loading} failed={yearEvents.failed} onPick={pickDay} onRetry={() => void yearEvents.reload()} /> : <FullCalendar ref={calendar} plugins={PLUGINS} locale={esLocale} locales={LOCALES} initialDate={initialDate.current} initialView={vistaFC(mode) ?? 'timeGridWeek'}
+        <div ref={calendarGeometry} className={styles.calendarGeometry}>{mode === 'habits' ? <HabitosTiempo donde={donde} /> : mode === 'crons' ? <CronsView range={range} onRangeChange={changeCronRange} calendarRef={calendar} reloadKey={cronReload}/> : mode === 'year' ? <YearView year={anchor.getFullYear()} events={yearVisible} today={dayKey(new Date())} loading={yearEvents.loading} failed={yearEvents.failed} onPick={pickDay} onRetry={() => void yearEvents.reload()} /> : <FullCalendar ref={calendar} plugins={PLUGINS} locale={enIngles() ? 'en' : esLocale} locales={LOCALES} initialDate={initialDate.current} initialView={vistaFC(mode) ?? 'timeGridWeek'}
           views={VIEWS} headerToolbar={false} height="100%" timeZone="local" firstDay={1}
-          dayHeaderContent={arg => esMesFC(arg.view.type) ? compacto ? <span className={styles.diaInicial}>{DIAS_INICIAL[arg.dow]}</span> : <span>{arg.text}</span> : compacto ? <span className={styles.diaApilado}><small>{format(arg.date, 'EEE', { locale: es }).replace('.', '')}</small><strong>{format(arg.date, 'd')}</strong></span> : <span>{format(arg.date, 'EEE', { locale: es })} {!esMesFC(arg.view.type) && <strong>{format(arg.date, 'd')}</strong>}</span>}
+          dayHeaderContent={arg => esMesFC(arg.view.type) ? compacto ? <span className={styles.diaInicial}>{enIngles() ? format(arg.date, 'EEEEE', { locale: localeFechas() }) : DIAS_INICIAL[arg.dow]}</span> : <span>{arg.text}</span> : compacto ? <span className={styles.diaApilado}><small>{format(arg.date, 'EEE', { locale: localeFechas() }).replace('.', '')}</small><strong>{format(arg.date, 'd')}</strong></span> : <span>{format(arg.date, 'EEE', { locale: localeFechas() })} {!esMesFC(arg.view.type) && <strong>{format(arg.date, 'd')}</strong>}</span>}
           dayCellContent={arg => { if (compacto && esMesFC(arg.view.type)) return <span className={styles.celdaMes}><b>{arg.date.getDate()}</b></span>
             const marcas = mode === 'month' && esMesFC(arg.view.type) ? marcasPorDia.get(dayKey(arg.date)) : undefined
             return marcas ? <>{marcas.map(e => <span key={e.id} className={styles.marcaDia} title={e.title} onClick={ev => { ev.preventDefault(); ev.stopPropagation(); setSelection({ item: e }) }}>{e.title}</span>)}<span>{arg.dayNumberText}</span></> : arg.dayNumberText }}
           weekNumbers={mode === 'month' && dosColumnas && Boolean(programa)} weekNumberContent={arg => semanaDelPrograma(dayKey(arg.date), programa) ?? ''}
           dayCellClassNames={arg => esMesFC(arg.view.type) && diaMes && dayKey(arg.date) === dayKey(diaMes) ? [styles.diaElegido] : []}
-          nowIndicator allDaySlot={!compacto || eventInputs.some(e => e.allDay && Date.parse(String(e.start)) < Date.parse(range.to) && Date.parse(String(e.end ?? e.start)) > Date.parse(range.from))} allDayText="Sin hora" slotMinTime="00:00:00" slotMaxTime="24:00:00" scrollTime="06:00:00" scrollTimeReset={false}
+          nowIndicator allDaySlot={!compacto || eventInputs.some(e => e.allDay && Date.parse(String(e.start)) < Date.parse(range.to) && Date.parse(String(e.end ?? e.start)) > Date.parse(range.from))} allDayText={tr('Sin hora')} slotMinTime="00:00:00" slotMaxTime="24:00:00" scrollTime="06:00:00" scrollTimeReset={false}
           nowIndicatorContent={arg => arg.isAxis ? <span className={styles.nowTime}>{format(arg.date, 'HH:mm')}</span> : null}
           slotDuration="00:30:00" snapDuration="00:15:00" slotLabelFormat={compacto ? { hour: 'numeric', hour12: false } : { hour: 'numeric', minute: '2-digit', hour12: false }} eventTimeFormat={{ hour: 'numeric', minute: '2-digit', hour12: false }}
           events={eventInputs} datesSet={onDates} dayMaxEvents={compacto || (dosColumnas && mode === 'month') ? true : 3} eventOrder={esMesFC(vistaMes) && mode === 'month' ? 'peso,start,-duration,title' : 'start,-duration,allDay,title'} eventDisplay={compacto ? 'block' : 'auto'} fixedWeekCount={!compacto && !dosColumnas} moreLinkContent={arg => `+${arg.num}`} moreLinkClick={arg => { if (compacto) setDiaMes(arg.date); else return 'popover' }} dateClick={arg => { if (compacto && esMesFC(arg.view.type)) setDiaMes(arg.date) }} eventMinHeight={0} eventShortHeight={32} selectMinDistance={6} expandRows stickyHeaderDates weekends={mode !== 'month' || ajustes.finDeSemana}
@@ -1013,36 +1026,36 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
             if (compacto && esMesFC(arg.view.type)) return <span className={styles.chip}>{arg.event.title}</span>
             // Cuadrícula del Mes, ancha o no (24 oct 2026, Preloaded Year; 25 oct, también la del engrane): cada piedra en UNA línea, solo su título (la hora vive en la Semana y
             // en el detalle; el título entero, al pasar el cursor). Caben las del día sin «+N» de más.
-            if (mode === 'month' && esMesFC(arg.view.type)) return <span className={styles.piedra}>{!arg.event.allDay && arg.timeText && <time>{arg.timeText}</time>}<span>{arg.event.allDay ? arg.event.title : sinEmojiInicial(arg.event.title)}</span>{arg.event.extendedProps.protegido && <Lock size={9} aria-label="protegido" />}</span>
+            if (mode === 'month' && esMesFC(arg.view.type)) return <span className={styles.piedra}>{!arg.event.allDay && arg.timeText && <time>{arg.timeText}</time>}<span>{arg.event.allDay ? arg.event.title : sinEmojiInicial(arg.event.title)}</span>{arg.event.extendedProps.protegido && <Lock size={9} aria-label={tr('protegido')} />}</span>
             const minutes = arg.event.start && arg.event.end ? (arg.event.end.getTime() - arg.event.start.getTime()) / 60_000 : 60
             const compact = !arg.event.allDay && minutes <= 30 && !arg.view.type.startsWith('list') && arg.view.type !== 'rollingAgenda'
             return <div className={`${styles.eventContent} ${compact ? styles.eventCompact : ''}`}><div className={styles.eventMeta}>{arg.event.extendedProps.kind === 'task' ? <Circle size={10} /> : null}{arg.timeText && <span>{arg.timeText}</span>}{arg.event.extendedProps.recurring && <Repeat2 size={10} />}</div><strong>{arg.event.title}</strong></div>
           }}
-          noEventsContent="No hay elementos en este período." />}</div>
-        {mode === 'month' && compacto && diaMes && <section className={styles.monthAgenda} aria-label={`Agenda del ${format(monthDay, "d 'de' MMMM", { locale: es })}`}>
-          <header><h2>{format(monthDay, "EEEE d 'de' MMMM", { locale: es })}</h2>{dayKey(monthDay) === dayKey(new Date()) && <span>hoy</span>}
-            <button className={styles.iconButton} aria-label="Cerrar la lista del día" onClick={() => setDiaMes(null)}><X size={16} /></button><button className={styles.iconButton} aria-label="Evento nuevo este día" disabled={!snapshot || Boolean(pending)} onClick={() => setSelection({ start: startOfDay(monthDay), end: addDays(startOfDay(monthDay), 1), allDay: true, freshRange: true })}><Plus size={17} /></button></header>
-          {dayItems.length === 0 ? <p className={styles.empty}>Nada este día.</p> : <ul>{dayItems.map(d => <li key={d.item.id}><button onClick={() => setSelection({ item: d.item })}>
+          noEventsContent={tr('No hay elementos en este período.')} />}</div>
+        {mode === 'month' && compacto && diaMes && <section className={styles.monthAgenda} aria-label={tr('Agenda del {fecha}', { fecha: format(monthDay, tr("d 'de' MMMM"), { locale: localeFechas() }) })}>
+          <header><h2>{format(monthDay, tr("EEEE d 'de' MMMM"), { locale: localeFechas() })}</h2>{dayKey(monthDay) === dayKey(new Date()) && <span>{tr('hoy')}</span>}
+            <button className={styles.iconButton} aria-label={tr('Cerrar la lista del día')} onClick={() => setDiaMes(null)}><X size={16} /></button><button className={styles.iconButton} aria-label={tr('Evento nuevo este día')} disabled={!snapshot || Boolean(pending)} onClick={() => setSelection({ start: startOfDay(monthDay), end: addDays(startOfDay(monthDay), 1), allDay: true, freshRange: true })}><Plus size={17} /></button></header>
+          {dayItems.length === 0 ? <p className={styles.empty}>{tr('Nada este día.')}</p> : <ul>{dayItems.map(d => <li key={d.item.id}><button onClick={() => setSelection({ item: d.item })}>
             <i style={{ background: d.item.kind === 'task' ? undefined : d.color ?? undefined }} data-task={d.item.kind === 'task' ? '' : undefined} data-p1={d.item.kind === 'task' && d.item.priority === 1 ? '' : undefined} aria-hidden />
-            <span><b>{d.item.title}</b><small>{d.time}{d.item.kind === 'event' && d.item.recurringEventId ? ' · se repite' : ''}</small></span></button></li>)}</ul>}
+            <span><b>{d.item.title}</b><small>{d.time}{d.item.kind === 'event' && d.item.recurringEventId ? ' · ' + tr('se repite') : ''}</small></span></button></li>)}</ul>}
         </section>}
-        {loading && !snapshot && !isOwnSurface(mode) && <div className={styles.loadingOverlay}><Loader2 className={styles.spin} size={20} /><span>Conectando tu agenda y tus tareas…</span></div>}
+        {loading && !snapshot && !isOwnSurface(mode) && <div className={styles.loadingOverlay}><Loader2 className={styles.spin} size={20} /><span>{tr('Conectando tu agenda y tus tareas…')}</span></div>}
       </main>
       {tasksOpen && !compacto && !isOwnSurface(mode) && <aside className={styles.taskRail}>
-        <header><div><span className={styles.eyebrow}>TODOIST</span><h2>Por hacer</h2></div><button className={styles.iconButton} aria-label="Crear tarea" onClick={() => setSelection({ kind: 'task', allDay: true })} disabled={!snapshot || Boolean(pending)}><Plus size={17} /></button></header>
-        <p className={styles.railHint}>Arrastra a tu agenda para darle hora.</p>
-        <button className={styles.textButton} style={{ alignSelf: 'flex-start', margin: '0 14px 12px' }} onClick={() => setShowUnscheduled(v => !v)} aria-pressed={showUnscheduled}>{showUnscheduled ? 'Ocultar sin fecha' : 'Añadir sin fecha'} · {visibleTasks.filter(t => !t.due).length}</button>
+        <header><div><span className={styles.eyebrow}>TODOIST</span><h2>{tr('Por hacer')}</h2></div><button className={styles.iconButton} aria-label={tr('Crear tarea')} onClick={() => setSelection({ kind: 'task', allDay: true })} disabled={!snapshot || Boolean(pending)}><Plus size={17} /></button></header>
+        <p className={styles.railHint}>{tr('Arrastra a tu agenda para darle hora.')}</p>
+        <button className={styles.textButton} style={{ alignSelf: 'flex-start', margin: '0 14px 12px' }} onClick={() => setShowUnscheduled(v => !v)} aria-pressed={showUnscheduled}>{showUnscheduled ? tr('Ocultar sin fecha') : tr('Añadir sin fecha')} · {visibleTasks.filter(t => !t.due).length}</button>
         <div className={styles.taskList} ref={rail}>{railTasks.map(t => <div className={styles.taskCard} data-plan-task={t.id} data-priority={t.priority} key={t.id}>
-          <button className={styles.taskCheck} aria-label={`Completar ${t.title}`} onClick={() => snapshot && void commit(mutationFor(t, snapshot.ownerId, {}, 'complete')).catch(() => {})}><Circle size={16} /></button>
-          <button className={styles.taskBody} onClick={() => setSelection({ item: t })}><strong>{t.title}</strong><span>{snapshot?.projects.find(p => p.id === t.projectId)?.title ?? 'Bandeja de entrada'}</span><small>{t.due ? format(new Date(t.due.includes('T') ? t.due : t.due + 'T12:00:00'), hasTime(t.due) ? "d MMM · HH:mm" : 'd MMM', { locale: es }) : 'Sin fecha'}{t.recurring && ' · Recurrente'}</small></button>
+          <button className={styles.taskCheck} aria-label={tr('Completar {titulo}', { titulo: t.title })} onClick={() => snapshot && void commit(mutationFor(t, snapshot.ownerId, {}, 'complete')).catch(() => {})}><Circle size={16} /></button>
+          <button className={styles.taskBody} onClick={() => setSelection({ item: t })}><strong>{t.title}</strong><span>{snapshot?.projects.find(p => p.id === t.projectId)?.title ?? tr('Bandeja de entrada')}</span><small>{t.due ? format(new Date(t.due.includes('T') ? t.due : t.due + 'T12:00:00'), hasTime(t.due) ? tr("d MMM · HH:mm") : tr('d MMM'), { locale: localeFechas() }) : tr('Sin fecha')}{t.recurring && ' · ' + tr('Recurrente')}</small></button>
         </div>)}</div>
-        {!loading && snapshot && railTasks.length === 0 && <p className={styles.empty}>{snapshot.health.find(h => h.id === 'todoist')?.state !== 'fresh' ? 'No se pudo leer Todoist.' : 'No hay tareas en esta selección.'}</p>}
-        <footer><span>{railTasks.length} en esta selección</span><span>{timeZone.split('/').at(-1)?.replaceAll('_', ' ')}</span></footer>
+        {!loading && snapshot && railTasks.length === 0 && <p className={styles.empty}>{snapshot.health.find(h => h.id === 'todoist')?.state !== 'fresh' ? tr('No se pudo leer Todoist.') : tr('No hay tareas en esta selección.')}</p>}
+        <footer><span>{tr('{n} en esta selección', { n: railTasks.length })}</span><span>{timeZone.split('/').at(-1)?.replaceAll('_', ' ')}</span></footer>
       </aside>}
     </div>
-    {(accesos.length > 0 || (esViva(mode) && !ajeno)) && <nav className={styles.accesos} aria-label="Reporte de este periodo">{accesos.map(a => <button key={a.id} data-acceso={a.id} onClick={() => void irAcceso(a)}>{a.id === 'reporte' ? <Newspaper size={14} aria-hidden /> : <ScrollText size={14} aria-hidden />}<span>{a.etiqueta}</span></button>)}
+    {(accesos.length > 0 || (esViva(mode) && !ajeno)) && <nav className={styles.accesos} aria-label={tr('Reporte de este periodo')}>{accesos.map(a => <button key={a.id} data-acceso={a.id} onClick={() => void irAcceso(a)}>{a.id === 'reporte' ? <Newspaper size={14} aria-hidden /> : <ScrollText size={14} aria-hidden />}<span>{tr(a.etiqueta)}</span></button>)}
       {/* La revisión del domingo (24 oct 2026): plan contra real de la semana, como el circuito; abierta sola los domingos. */}
-      {esViva(mode) && !ajeno && <button data-acceso="domingo" onClick={() => setDomingo(lunesDe(dayKey(mode === 'week' ? parseISO(inicioVisible) : anchor)))}><CalendarCheck2 size={14} aria-hidden /><span>Revisión del domingo</span></button>}</nav>}
+      {esViva(mode) && !ajeno && <button data-acceso="domingo" onClick={() => setDomingo(lunesDe(dayKey(mode === 'week' ? parseISO(inicioVisible) : anchor)))}><CalendarCheck2 size={14} aria-hidden /><span>{tr('Revisión del domingo')}</span></button>}</nav>}
     {domingo && !ajeno && <Domingo lunes={domingo} bloques={bloquesDrip} goals={goalsLeidos.data} snapshot={snapshot ?? null} doc={drip.doc} ahora={Date.now()} tomarFoto={tomarFoto} pluma={Boolean(snapshot)} ponerTarifa={(m, mon) => drip.cambiar({ accion: 'tarifa', monto: m, moneda: mon })}
       rutinasPlegadas={(() => { const l = parseISO(domingo).getTime(), f = addDays(parseISO(domingo), 7).getTime(); return presentedEvents.filter(e => fueraMes.has(e.id) && Date.parse(e.start) >= l && Date.parse(e.start) < f).length })()}
       aplicar={aplicarPropuesta} deshacer={() => void step('undo')} onCerrar={() => setDomingo(null)} onLunes={d => setDomingo(x => x ? dayKey(addDays(parseISO(x), d)) : x)} />}

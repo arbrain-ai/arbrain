@@ -1,7 +1,7 @@
 import type { NextConfig } from 'next'
 import { INSTALACION } from './src/config/instalacion'
 import { aplicarMarcador } from './src/lib/edicion'
-import { CSP_CALLBACK, RUTA_CALLBACK } from './src/features/primer-arranque/lib/openrouter-pkce'
+import { CSP_CALLBACK, RUTA_CALLBACK } from './src/features/primer-arranque/lib/openrouter-rutas'
 import { guardiaDev } from './src/config/guardia-dev'
 
 // Edición cliente (empaquetado del alumno, 11 oct 2026; docs/builds/empaquetado-2026-10-11/MAPA-WEB.md): se decide al

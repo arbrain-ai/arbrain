@@ -11,13 +11,14 @@ import { LayoutTemplate, Presentation, Square, X } from 'lucide-react'
 import type { Carpeta, ModoNuevo, PaginaResumen } from '../../state/nube'
 import { destinosDePagina, plantillasDisponibles } from '../../state/vista-lienzos'
 import { Miniatura } from './Miniatura'
+import { tr, trMarca } from '@/shared/i18n'
 import css from './lienzos.module.css'
 
 type Modo = ModoNuevo['modo']
 const MODOS: { modo: Modo; etiqueta: string; nota: string; icono: React.ReactNode }[] = [
-  { modo: 'blanco', etiqueta: 'En blanco', nota: 'Un lienzo vacío para dibujar a mano o pedírselo a Levy.', icono: <Square size={16} aria-hidden /> },
-  { modo: 'clase', etiqueta: 'Clase', nota: 'Título y tres bloques: qué van a aprender, cómo funciona y qué hacen hoy.', icono: <Presentation size={16} aria-hidden /> },
-  { modo: 'plantilla', etiqueta: 'Desde plantilla', nota: 'Una copia de la plantilla, con tu nombre y en tu carpeta.', icono: <LayoutTemplate size={16} aria-hidden /> },
+  { modo: 'blanco', etiqueta: trMarca('En blanco'), nota: trMarca('Un lienzo vacío para dibujar a mano o pedírselo a Levy.'), icono: <Square size={16} aria-hidden /> },
+  { modo: 'clase', etiqueta: trMarca('Clase'), nota: trMarca('Título y tres bloques: qué van a aprender, cómo funciona y qué hacen hoy.'), icono: <Presentation size={16} aria-hidden /> },
+  { modo: 'plantilla', etiqueta: trMarca('Desde plantilla'), nota: trMarca('Una copia de la plantilla, con tu nombre y en tu carpeta.'), icono: <LayoutTemplate size={16} aria-hidden /> },
 ]
 
 interface Props {
@@ -48,36 +49,36 @@ export function NuevoLienzo({ paginas, carpetas, carpeta, onCrear, onCerrar }: P
     if (ok) onCerrar()
   }
 
-  return <form className={css.nuevo} aria-label="Lienzo nuevo" data-capa-hija="" onSubmit={e => { e.preventDefault(); void crear() }}
+  return <form className={css.nuevo} aria-label={tr('Lienzo nuevo')} data-capa-hija="" onSubmit={e => { e.preventDefault(); void crear() }}
     onKeyDown={e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onCerrar() } }}>
     <div className={css.nuevoCabeza}>
-      <span>Lienzo nuevo</span>
-      <button type="button" onClick={onCerrar} aria-label="Cerrar" title="Cerrar (Esc)"><X size={14} aria-hidden /></button>
+      <span>{tr('Lienzo nuevo')}</span>
+      <button type="button" onClick={onCerrar} aria-label={tr('Cerrar')} title={tr('Cerrar (Esc)')}><X size={14} aria-hidden /></button>
     </div>
     <input className={css.campo} autoFocus value={nombre} onChange={e => setNombre(e.target.value)}
-      placeholder="¿Cómo se llama?" aria-label="Nombre del lienzo nuevo" maxLength={140} />
-    <div className={css.modos} role="radiogroup" aria-label="Cómo nace">
+      placeholder={tr('¿Cómo se llama?')} aria-label={tr('Nombre del lienzo nuevo')} maxLength={140} />
+    <div className={css.modos} role="radiogroup" aria-label={tr('Cómo nace')}>
       {MODOS.map(m => <button key={m.modo} type="button" role="radio" aria-checked={modo === m.modo} className={css.modo}
-        data-activo={modo === m.modo ? '' : undefined} onClick={() => setModo(m.modo)}>{m.icono}<span>{m.etiqueta}</span></button>)}
+        data-activo={modo === m.modo ? '' : undefined} onClick={() => setModo(m.modo)}>{m.icono}<span>{tr(m.etiqueta)}</span></button>)}
     </div>
-    <p className={css.nuevoNota}>{MODOS.find(m => m.modo === modo)!.nota}</p>
+    <p className={css.nuevoNota}>{tr(MODOS.find(m => m.modo === modo)!.nota)}</p>
     {modo === 'plantilla' && (plantillas.length
-      ? <div className={css.plantillas} role="radiogroup" aria-label="Plantilla">
+      ? <div className={css.plantillas} role="radiogroup" aria-label={tr('Plantilla')}>
           {plantillas.map(x => <button key={x.id} type="button" role="radio" aria-checked={elegida === x.id} className={css.plantilla}
             data-activo={elegida === x.id ? '' : undefined} onClick={() => setDesde(x.id)}>
             <Miniatura url={x.miniatura} /><span title={x.nombre}>{x.nombre}</span>
           </button>)}
         </div>
-      : <p className={css.nuevoNota}>Aún no hay plantillas. Ponle «Plantilla» en el nombre a un lienzo y saldrá aquí.</p>)}
+      : <p className={css.nuevoNota}>{tr('Aún no hay plantillas. Ponle «Plantilla» en el nombre a un lienzo y saldrá aquí.')}</p>)}
     <label className={css.destino}>
-      <span>En</span>
-      <select value={destino ?? ''} onChange={e => setDestino(e.target.value || null)} aria-label="Carpeta del lienzo nuevo">
-        {destinos.map(d => <option key={d.id ?? 'raiz'} value={d.id ?? ''}>{d.etiqueta}</option>)}
+      <span>{tr('En')}</span>
+      <select value={destino ?? ''} onChange={e => setDestino(e.target.value || null)} aria-label={tr('Carpeta del lienzo nuevo')}>
+        {destinos.map(d => <option key={d.id ?? 'raiz'} value={d.id ?? ''}>{tr(d.etiqueta)}</option>)}
       </select>
     </label>
     <div className={css.nuevoPie}>
-      <button type="button" onClick={onCerrar}>Cancelar</button>
-      <button type="submit" data-primario="" disabled={!listo}>{creando ? 'Creando…' : 'Crear lienzo'}</button>
+      <button type="button" onClick={onCerrar}>{tr('Cancelar')}</button>
+      <button type="submit" data-primario="" disabled={!listo}>{creando ? tr('Creando…') : tr('Crear lienzo')}</button>
     </div>
   </form>
 }

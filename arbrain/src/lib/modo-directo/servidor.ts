@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { getSchedulerUrl, CLAUDECLAW_TOKEN } from '@/lib/claudeclaw'
 import { sinRespuestaDelServidor } from '@/lib/edicion'
+import { tr } from '@/shared/i18n'
 import { dirConfigArbrain } from '@/lib/rutas-instalacion'
 import { OCULTO_POR_DIRECTO, velo, type Diccionario, type Velo } from './reglas'
 
@@ -17,7 +18,7 @@ async function alDaemon(cuerpo: Record<string, unknown>): Promise<{ status: numb
     method: 'POST', headers: { Authorization: `Bearer ${CLAUDECLAW_TOKEN}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ que: 'modo-directo', ...cuerpo }), signal: AbortSignal.timeout(6_000), cache: 'no-store',
   })
-  const body = await res.json().catch(() => ({ error: sinRespuestaDelServidor() })) as Record<string, unknown>
+  const body = await res.json().catch(() => ({ error: tr(sinRespuestaDelServidor()) })) as Record<string, unknown>
   return { status: res.status, body }
 }
 
@@ -31,14 +32,14 @@ export async function leerDirectoDelDaemon() {
   try { return await alDaemon({ accion: 'leer' }) }
   catch {
     const local = leerArchivoLocal()
-    if (local === null) return { status: 502, body: { error: sinRespuestaDelServidor() } }
+    if (local === null) return { status: 502, body: { error: tr(sinRespuestaDelServidor()) } }
     return { status: 200, body: { estado: { version: 1, prendido: local }, sinDaemon: true } }
   }
 }
 
 export async function ponerDirectoEnDaemon(prendido: boolean) {
   try { return await alDaemon({ accion: 'poner', prendido }) }
-  catch { return { status: 502, body: { error: sinRespuestaDelServidor() } } }
+  catch { return { status: 502, body: { error: tr(sinRespuestaDelServidor()) } } }
 }
 
 let cache: { en: number; prendido: boolean; velo: Velo | null } | null = null

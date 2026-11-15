@@ -1,7 +1,7 @@
 'use client'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { estiloEvento } from '@/lib/calendar/contraste'
-import { CHIP_MIN, COLUMNA_COMPACTA, columnasDeBarra, DIAS_VISTA, TRAMO, altoHora, anchoVisible, asiento, columnaCercana, columnaEntera, columnasDe, escalaVisual, diaEnHoras, diasAuto, diasDelRiel, diasVisibles, esArrastre, estirar, habil, hhmm, inicioDeVentana, instante, lineasDeTitulo, lugarEnColumna, repartir, lineasNecesarias, medianoche, minutoDelDia, primerDiaVisible, rangoCrear, ranura, reencuadrar, soltar, sumarDia, type Bloque, type DiasVista, type Pieza } from './semana-horas'
+import { CHIP_MIN, COLUMNA_COMPACTA, columnasDeBarra, DIAS_VISTA, TRAMO, altoHora, anchoVisible, asiento, columnaCercana, columnaEntera, columnasDe, escalaVisual, esAngosto, diaEnHoras, diasAuto, diasDelRiel, diasVisibles, esArrastre, estirar, habil, hhmm, inicioDeVentana, instante, lineasDeTitulo, lugarEnColumna, repartir, lineasNecesarias, medianoche, minutoDelDia, primerDiaVisible, rangoCrear, ranura, reencuadrar, soltar, sumarDia, type Bloque, type DiasVista, type Pieza } from './semana-horas'
 import { diasAlSoltarRiel, ejeDeRueda, ejeDeToque, FRENO_RUEDA, velocidad } from './carril-logica'
 import { encuadreDe } from './encuadre'
 import { useEncuadre } from './useEncuadre'
@@ -12,6 +12,7 @@ import { franjasDelDia, resumenCampo, tituloZona } from './campos-fondo'
 import { DEF } from './categorias'
 import { useZonas } from './useZonas'
 import type { CampoFondo } from '@/config/tipos'
+import { localeIntl, tr } from '@/shared/i18n'
 import h from './semana-horas.module.css'
 
 /** Un gesto que empieza en el hueco de la columna o sobre una zona de fondo (que solo está para decir su nombre al pasar). */
@@ -81,10 +82,8 @@ function scrollVertical(el: HTMLElement | null): HTMLElement | null {
   }
   return (document.scrollingElement as HTMLElement | null) ?? null
 }
-const DIA_CORTO = new Intl.DateTimeFormat('es-MX', { weekday: 'short' })
-const etiquetaCorta = (dia: string) => DIA_CORTO.format(new Date(dia + 'T12:00:00')).replace('.', '')
-const DIA_LARGO = new Intl.DateTimeFormat('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })
-const etiquetaLarga = (dia: string) => DIA_LARGO.format(new Date(dia + 'T12:00:00'))
+const etiquetaCorta = (dia: string) => new Date(dia + 'T12:00:00').toLocaleDateString(localeIntl(), { weekday: 'short' }).replace('.', '')
+const etiquetaLarga = (dia: string) => new Date(dia + 'T12:00:00').toLocaleDateString(localeIntl(), { weekday: 'long', day: 'numeric', month: 'long' })
 /** «30 min», «1 h», «1 h 45». */
 const duracion = (min: number) => { const m = Math.round(min), hh = Math.floor(m / 60), mm = m % 60; return hh ? `${hh} h${mm ? ` ${mm}` : ''}` : `${mm} min` }
 const ESTRELLA = <svg viewBox="0 0 24 24" aria-hidden><path d="M12 2.8l2.75 5.6 6.15.9-4.45 4.33 1.05 6.12L12 16.87l-5.5 2.88 1.05-6.12L3.1 9.3l6.15-.9z" /></svg>
@@ -160,7 +159,10 @@ export function SemanaHoras({ dias: diasFijos, semana, inicio, onVentana, sinBar
   const raiz = useRef<HTMLDivElement>(null), riel = useRef<HTMLDivElement>(null), cabecera = useRef<HTMLDivElement>(null)
   const columnas = useRef<(HTMLDivElement | null)[]>([])
   const [ancho, setAncho] = useState(0)
-  const angosto = ancho > 0 && ancho < ANGOSTO
+  // Con holgura (12 nov 2026, `esAngosto`): la barra de scroll que aparece y desaparece ya no la hace saltar de ancha a angosta en bucle.
+  const fueAngosto = useRef(false)
+  const angosto = esAngosto(ancho, fueAngosto.current, ANGOSTO)
+  fueAngosto.current = angosto
   const [elegidos, setElegidos] = useDiasVista(donde)
   const controlado = diasVista !== undefined
   const canalPx = angosto ? CANAL_ANGOSTO : 44
@@ -565,13 +567,13 @@ export function SemanaHoras({ dias: diasFijos, semana, inicio, onVentana, sinBar
   const conFranja = dias.some(d => (todoElDia.get(d)?.length ?? 0) > 0 || estrellas?.get(d))
   // Las barras de varios días, recortadas a lo visible: columna de inicio y de fin (1-based) y si siguen fuera.
   const tramos = barras.flatMap(b => { const c = columnasDeBarra(dias, b.desde, b.hasta); return c ? [{ ...b, ...c }] : [] })
-  const etiquetaGrid = `Semana en horas, de las ${hhmm(tramo.desde * 60)} a las ${hhmm(tramo.hasta * 60)}`
+  const etiquetaGrid = tr('Semana en horas, de las {desde} a las {hasta}', { desde: hhmm(tramo.desde * 60), hasta: hhmm(tramo.hasta * 60) })
 
   return <div ref={raiz} className={h.rejilla} style={estilo} data-angosto={angosto || undefined} data-desliza={desliza || undefined} data-asentada={asentada || undefined} data-denso={denso || undefined} data-minimo={minimo || undefined} data-compacta={compacta || undefined} data-amplia={amplia || undefined} data-llenar={llenar || undefined} data-arrastrando={gesto?.activo || undefined} data-creando={gesto?.activo && gesto.modo === 'crear' || undefined}>
     {!sinBarra && (barra || (angosto && !controlado)) && <div className={h.barra}>
       <div className={h.barraIzq}>{barra}</div>
-      {angosto && !controlado && <div className={h.diasVista} role="radiogroup" aria-label="Días a la vista">
-        {DIAS_VISTA.filter(n => n > 1).map(n => <button key={n} role="radio" aria-checked={nDias === n} onClick={() => setElegidos(n as DiasVista)} title={`${n} días a la vista`}>{n}</button>)}
+      {angosto && !controlado && <div className={h.diasVista} role="radiogroup" aria-label={tr('Días a la vista')}>
+        {DIAS_VISTA.filter(n => n > 1).map(n => <button key={n} role="radio" aria-checked={nDias === n} onClick={() => setElegidos(n as DiasVista)} title={tr('{n} días a la vista', { n })}>{n}</button>)}
       </div>}
     </div>}
     <div role="grid" aria-label={etiquetaGrid} className={h.tabla}>
@@ -582,19 +584,19 @@ export function SemanaHoras({ dias: diasFijos, semana, inicio, onVentana, sinBar
           {/* Encabezado: día, número, hoy. Un toque abre ese Día. */}
           <div className={`${h.esquina} ${h.cab}`} aria-hidden>{zona && <span className={h.zona}>{zona}</span>}</div>
           {dias.map((d, i) => <button key={d} role="columnheader" className={h.cab} data-hoy={d === hoy || undefined} data-pasado={d < hoy || undefined}
-            style={{ '--i': i } as CSSProperties} onClick={() => onDia?.(d)} aria-label={`Abrir el ${etiquetaLarga(d)}`}>
+            style={{ '--i': i } as CSSProperties} onClick={() => onDia?.(d)} aria-label={tr('Abrir el {dia}', { dia: etiquetaLarga(d) })}>
             <small>{minimo ? etiquetaCorta(d).slice(0, 2) : etiquetaCorta(d)}</small><b>{Number(d.slice(8))}</b>
           </button>)}
 
           {/* La franja: la ⭐ del día y lo de día completo. Plegada, una línea por día; un toque la abre (y la esquina la vuelve a plegar). */}
           <div className={`${h.esquina} ${h.franja}`}>
-            {onTodoElDia && conFranja && <button className={h.plegar} onClick={onTodoElDia} aria-expanded={!plegada} aria-label={plegada ? 'Abrir lo de día completo' : 'Plegar lo de día completo'}
-              title={plegada ? 'Ver todo lo de día completo' : 'Plegar a una línea'}><svg viewBox="0 0 12 12" aria-hidden><path d="M3 4.5 6 7.5 9 4.5" /></svg></button>}
+            {onTodoElDia && conFranja && <button className={h.plegar} onClick={onTodoElDia} aria-expanded={!plegada} aria-label={plegada ? tr('Abrir lo de día completo') : tr('Plegar lo de día completo')}
+              title={plegada ? tr('Ver todo lo de día completo') : tr('Plegar a una línea')}><svg viewBox="0 0 12 12" aria-hidden><path d="M3 4.5 6 7.5 9 4.5" /></svg></button>}
           </div>
           {dias.map(d => { const e = estrellas?.get(d) ?? null, marcas = todoElDia.get(d) ?? [], total = marcas.length + (e ? 1 : 0)
             const resumen = plegada && total > 1
             return <div key={d} className={h.franja} data-hoy={d === hoy || undefined} data-pasado={d < hoy || undefined} data-resumen={resumen || undefined}>
-              {resumen ? <button className={h.franjaLinea} onClick={onTodoElDia} aria-label={`${total} de día completo el ${etiquetaLarga(d)}: abrir`}>
+              {resumen ? <button className={h.franjaLinea} onClick={onTodoElDia} aria-label={tr('{n} de día completo el {dia}: abrir', { n: total, dia: etiquetaLarga(d) })}>
                   {e ? <span className={h.estrella} data-cumplido={e.cumplido || undefined}>{ESTRELLA}<span>{e.titulo}</span></span>
                     : <span className={`${h.marca} ev-color`} style={estiloEvento(marcas[0].color) as CSSProperties}><span>{marcas[0].titulo}</span></span>}
                   <b className={h.mas}>+{total - 1}</b>
@@ -626,11 +628,11 @@ export function SemanaHoras({ dias: diasFijos, semana, inicio, onVentana, sinBar
           </div>
           {dias.map((d, i) => { const { piezas, antes, despues, bandas = [], chips = [] } = porDia.get(d)!, esHoy = d === hoy
             return <div key={d} ref={el => { columnas.current[i] = el }} role="gridcell" className={h.columna} data-hoy={esHoy || undefined} data-pasado={d < hoy || undefined}
-              aria-label={`${etiquetaLarga(d)}: ${piezas.length + antes.length + despues.length} bloques${chips.length ? `, ${chips.reduce((n, g) => n + g.bloques.length, 0)} tareas` : ''}`}
+              aria-label={chips.length ? tr('{dia}: {bloques} bloques, {tareas} tareas', { dia: etiquetaLarga(d), bloques: piezas.length + antes.length + despues.length, tareas: chips.reduce((n, g) => n + g.bloques.length, 0) }) : tr('{dia}: {bloques} bloques', { dia: etiquetaLarga(d), bloques: piezas.length + antes.length + despues.length })}
               onClick={minimo ? () => onDia?.(d) : undefined} onDoubleClick={e => crearEn(e, d)} onPointerDown={e => empezarCrear(e, d)} onContextMenu={e => { if (gestoRef.current) e.preventDefault() }} data-crea={onCrear && !minimo ? '' : undefined}>
               {esHoy && ahoraMin > tramo.desde * 60 && <i className={h.vivido} style={{ height: y(Math.min(ahoraMin, tramo.hasta * 60)) }} aria-hidden />}
               {antes.length > 0 && <button className={h.fuera} data-lado="antes" onClick={() => onDia?.(d)} title={antes.map(b => `${hhmm(minutoDelDia(b.inicio, d))} ${b.titulo}`).join('\n')}>
-                ↑ {minimo ? antes.length : antes.length === 1 ? `${hhmm(minutoDelDia(antes[0].inicio, d))} ${antes[0].titulo}` : `${antes.length} antes de las ${tramo.desde}`}</button>}
+                ↑ {minimo ? antes.length : antes.length === 1 ? `${hhmm(minutoDelDia(antes[0].inicio, d))} ${antes[0].titulo}` : tr('{n} antes de las {hora}', { n: antes.length, hora: tramo.desde })}</button>}
               {/* Zonas de mi vida (28 oct 2026): cada zona tiñe el fondo con el color de su categoría, sin texto; su nombre y sus horas,
                   al pasar el cursor. Las ventanas (la comida) son un riel al borde para leerse junto a la zona que pisan. Nunca tapan: lo
                   real va encima y, si una llamada pisa el trabajo profundo, su título lo dice («7 h · 1 h con llamadas»). */}
@@ -649,12 +651,12 @@ export function SemanaHoras({ dias: diasFijos, semana, inicio, onVentana, sinBar
               {/* La Semana Perfecta (25 oct 2026): el ritmo ideal en fantasma, debajo de las bandas y de las tarjetas. Lo real tapa lo ideal. */}
               {fantasmasAntesDe(perfecta, d, corteRutina).filter(f => f.hasta > tramo.desde * 60 && f.desde < tramo.hasta * 60).map((f, k) => { const a = Math.max(f.desde, tramo.desde * 60), z = Math.min(f.hasta, tramo.hasta * 60)
                 return <div key={`p${k}`} className={h.perfecta} data-c={f.cuadrante} style={{ '--c': DRIP[f.cuadrante].color, top: y(a), height: `calc(${(z - a) / 60} * var(--hora) - 1px)` } as CSSProperties}
-                  title={`Semana perfecta · ${hhmmP(f.desde)}–${hhmmP(f.hasta)} · ${f.titulo} (${DRIP[f.cuadrante].nombre})`} aria-hidden>
+                  title={tr('Semana perfecta · {desde}–{hasta} · {titulo} ({cuadrante})', { desde: hhmmP(f.desde), hasta: hhmmP(f.hasta), titulo: f.titulo, cuadrante: tr(DRIP[f.cuadrante].nombre) })} aria-hidden>
                   {/* El nombre solo donde nada real lo tapa (las tarjetas son translúcidas: dos textos encimados no se leen). */}
                   {!minimo && !piezas.some(p => p.desde < a + 20 && p.hasta > a) && <span>{f.titulo}</span>}</div> })}
               {/* Ventanas de disponibilidad: banda de fondo detrás de las tarjetas (no ocupa columna ni tapa el arrastre para crear). */}
               {bandas.map(p => <div key={p.bloque.id} className={`${h.banda} ev-color`} style={{ ...estiloEvento(p.bloque.color), top: y(p.desde), height: `calc(${(p.hasta - p.desde) / 60} * var(--hora) - 1px)` } as CSSProperties}>
-                <button onClick={() => onAbrir?.(p.bloque)} title={`${hhmm(p.desde)} – ${hhmm(p.hasta)} · ${p.bloque.titulo}`} aria-label={`Ventana de ${hhmm(p.desde)} a ${hhmm(p.hasta)}, ${p.bloque.titulo}`}>{minimo ? '' : p.bloque.titulo}</button>
+                <button onClick={() => onAbrir?.(p.bloque)} title={`${hhmm(p.desde)} – ${hhmm(p.hasta)} · ${p.bloque.titulo}`} aria-label={tr('Ventana de {desde} a {hasta}, {titulo}', { desde: hhmm(p.desde), hasta: hhmm(p.hasta), titulo: p.bloque.titulo })}>{minimo ? '' : p.bloque.titulo}</button>
               </div>)}
               {piezas.map(p => { const b = p.bloque, enGesto = gesto?.activo && gesto.bloque.id === b.id, dur = p.hasta - p.desde, corto = dur <= 35
                 const ini = b.inicio < medianoche(d) ? null : hhmm(minutoDelDia(b.inicio, d)), fin = hhmm(minutoDelDia(b.fin, d))
@@ -679,17 +681,17 @@ export function SemanaHoras({ dias: diasFijos, semana, inicio, onVentana, sinBar
                   {b.seccion && !diminuto && <svg className={h.icoSeccion} viewBox="0 0 16 16" aria-hidden><path d={SECCION[b.seccion].icono} /></svg>}
                   <button className={h.cuerpo} data-planning-id={b.id} data-movible={b.movible && onMover && !minimo ? '' : undefined}
                     onPointerDown={e => tomar(e, p, 'mover')} onClick={() => { if (minimo) onDia?.(d); else if (Date.now() - recienSoltado.current > 250) onAbrir?.(b) }} onKeyDown={e => teclaBloque(e, p)}
-                    aria-label={`${b.titulo}${b.brief ? ' (con brief)' : ''}, ${ini ?? 'desde antes'} a ${fin}${b.movible && onMover ? '. Arrastra para moverlo; Opción y flechas lo mueven.' : ''}`}>
+                    aria-label={`${b.brief ? tr('{titulo} (con brief), {inicio} a {fin}', { titulo: b.titulo, inicio: ini ?? tr('desde antes'), fin }) : tr('{titulo}, {inicio} a {fin}', { titulo: b.titulo, inicio: ini ?? tr('desde antes'), fin })}${b.movible && onMover ? tr('. Arrastra para moverlo; Opción y flechas lo mueven.') : ''}`}>
                     {corto ? <span className={h.linea}><strong>{texto}</strong>{ini && !estrecho && !minimo && <time>{ini}</time>}</span>
-                      : <><strong>{texto}</strong>{conHora && <time>{ini ? (horaCorta ? ini : `${ini} – ${fin}`) : `hasta ${fin}`}</time>}</>}
+                      : <><strong>{texto}</strong>{conHora && <time>{ini ? (horaCorta ? ini : `${ini} – ${fin}`) : tr('hasta {fin}', { fin })}</time>}</>}
                   </button>
                   {/* El brief de la misma persona vive en la tarjeta de su llamada: un toque al 📋 lo abre. */}
                   {/* DRIP (24 oct 2026): lo delegable lleva su etiqueta; lo de alguien más dice de quién; lo protegido, su candado. */}
                   {!diminuto && !minimo && (b.protegido || b.delegable) && <span className={h.dripTag} data-tipo={b.protegido ? 'protegido' : b.delegadoA ? 'delegado' : 'delegable'} data-solo-icono={estrecho || corto || undefined}
-                    title={b.protegido ? 'Protegido: nada nuevo entra encima' : b.delegadoA ? `De ${b.delegadoA}` : 'Delegable: tócalo y «Delegar a Levy»'}>
+                    title={b.protegido ? tr('Protegido: nada nuevo entra encima') : b.delegadoA ? tr('De {nombre}', { nombre: b.delegadoA }) : tr('Delegable: tócalo y «Delegar a Levy»')}>
                     {b.protegido ? <svg viewBox="0 0 12 12" aria-hidden><rect x="2.5" y="5.2" width="7" height="5.3" rx="1.3" /><path d="M4.2 5.2V3.9a1.8 1.8 0 0 1 3.6 0v1.3" fill="none" /></svg>
-                      : <span>{b.delegadoA ? b.delegadoA : estrecho || corto ? 'D' : 'delegable'}</span>}</span>}
-                  {b.brief && !minimo && onAbrir && <button className={h.brief} onPointerDown={e => e.stopPropagation()} onClick={() => onAbrir(b.brief!)} title={b.brief.titulo} aria-label={`Abrir ${b.brief.titulo}`}>📋</button>}
+                      : <span>{b.delegadoA ? b.delegadoA : estrecho || corto ? 'D' : tr('delegable')}</span>}</span>}
+                  {b.brief && !minimo && onAbrir && <button className={h.brief} onPointerDown={e => e.stopPropagation()} onClick={() => onAbrir(b.brief!)} title={b.brief.titulo} aria-label={tr('Abrir {titulo}', { titulo: b.brief.titulo })}>📋</button>}
                   {b.movible && onEstirar && !p.sigueAbajo && dur >= 30 && <span className={h.borde} onPointerDown={e => tomar(e, p, 'estirar')} aria-hidden />}
                 </div> })}
               {/* Tareas con hora sin duración (19 oct 2026): un chip en el borde derecho; las que caen juntas, uno con su cuenta. */}
@@ -698,11 +700,11 @@ export function SemanaHoras({ dias: diasFijos, semana, inicio, onVentana, sinBar
                 return <button key={g.bloques[0].id} className={h.chip} data-p1={g.bloques.some(b => b.prioridad) || undefined} data-varias={una ? undefined : ''} data-pasado={g.bloques.every(b => b.inicio + CHIP_MIN * 60_000 <= ahora) || undefined}
                   style={{ top: y(g.desde) }} title={lista} onPointerDown={e => e.stopPropagation()}
                   onClick={() => { if (una && !minimo && onAbrir) onAbrir(una); else onDia?.(d) }}
-                  aria-label={una ? `Tarea: ${una.titulo}, ${hhmm(g.desde)}` : `${g.bloques.length} tareas desde las ${hhmm(g.desde)}: abrir el día`}>{una ? null : g.bloques.length}</button> })}
+                  aria-label={una ? tr('Tarea: {titulo}, {hora}', { titulo: una.titulo, hora: hhmm(g.desde) }) : tr('{n} tareas desde las {hora}: abrir el día', { n: g.bloques.length, hora: hhmm(g.desde) })}>{una ? null : g.bloques.length}</button> })}
               {fantasma && fantasma.dia === d && <div className={h.fantasma} data-igual={fantasma.igual || undefined} data-nuevo={'nuevo' in fantasma || undefined} role="status" aria-live="polite" style={{ top: y(fantasma.desde), height: `calc(${(fantasma.hasta - fantasma.desde) / 60} * var(--hora) - 2px)` }}>
                 <time>{hhmm(fantasma.desde)} – {hhmm(fantasma.hasta)}<small> · {duracion(fantasma.hasta - fantasma.desde)}</small></time></div>}
               {despues.length > 0 && <button className={h.fuera} data-lado="despues" onClick={() => onDia?.(d)} title={despues.map(b => `${hhmm(minutoDelDia(b.inicio, d))} ${b.titulo}`).join('\n')}>
-                ↓ {minimo ? despues.length : despues.length === 1 ? `${hhmm(minutoDelDia(despues[0].inicio, d))} ${despues[0].titulo}` : `${despues.length} después de las ${tramo.hasta}`}</button>}
+                ↓ {minimo ? despues.length : despues.length === 1 ? `${hhmm(minutoDelDia(despues[0].inicio, d))} ${despues[0].titulo}` : tr('{n} después de las {hora}', { n: despues.length, hora: tramo.hasta })}</button>}
             </div> })}
         </div>
       </div>

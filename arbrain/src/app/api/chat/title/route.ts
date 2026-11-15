@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireChatPrincipal, chatAccessResponse } from '@/lib/chat-access'
+import { tr } from '@/shared/i18n'
 
 export async function POST(req: Request) {
   // Misma puerta que el resto del chat: base o Auth caídas = 503 con causa, nunca 401/403 (12 oct 2026).
@@ -7,7 +8,7 @@ export async function POST(req: Request) {
 
   const { message } = await req.json() as { message?: string }
   if (typeof message !== 'string' || !message.trim()) {
-    return NextResponse.json({ title: 'Nueva conversación' })
+    return NextResponse.json({ title: tr('Nueva conversación') })
   }
 
   // Compatibility for older clients: titles never trigger an extra billed

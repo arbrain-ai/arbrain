@@ -1,6 +1,8 @@
 import { addDays, format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import type { CalendarMode } from './types'
+import { enIngles, tr, trMarca } from '@/shared/i18n'
+import { localeFechas } from '@/shared/i18n/fechas'
 
 /** Vistas sincronizadas (4 oct 2026): cada vista del calendario ofrece los accesos de SU horizonte, con las mismas fechas. */
 export type AlcanceObjetivos = 'dia' | 'semana' | 'mes'
@@ -10,9 +12,9 @@ export type AlcanceObjetivos = 'dia' | 'semana' | 'mes'
 export type Acceso = { id: 'reporte' | 'plan'; etiqueta: string; job?: string }
 
 const REPORTE: Record<AlcanceObjetivos, { job: string; etiqueta: string }> = {
-  dia: { job: 'morning-briefing', etiqueta: 'Reporte diario' },
-  semana: { job: 'business-council', etiqueta: 'Reporte semanal' },
-  mes: { job: 'monthly-review', etiqueta: 'Reporte mensual' },
+  dia: { job: 'morning-briefing', etiqueta: trMarca('Reporte diario') },
+  semana: { job: 'business-council', etiqueta: trMarca('Reporte semanal') },
+  mes: { job: 'monthly-review', etiqueta: trMarca('Reporte mensual') },
 }
 
 /** Día y 4 días miran el día; Semana y Agenda (siete días corridos), la semana; Mes, el mes. Año y Rutinas no tienen. */
@@ -28,12 +30,12 @@ export function accesosDe(mode: CalendarMode): Acceso[] {
   const alcance = alcanceDeModo(mode)
   if (!alcance) return []
   const r = REPORTE[alcance]
-  return [{ id: 'reporte', etiqueta: r.etiqueta, job: r.job }, ...(alcance === 'mes' ? [{ id: 'plan' as const, etiqueta: 'Plan del mes' }] : [])]
+  return [{ id: 'reporte', etiqueta: r.etiqueta, job: r.job }, ...(alcance === 'mes' ? [{ id: 'plan' as const, etiqueta: trMarca('Plan del mes') }] : [])]
 }
 
 /** La escala (Día · Semana · Mes) que corresponde a cada vista, para el selector de tres. */
 export const ESCALAS: { alcance: AlcanceObjetivos; modo: CalendarMode; etiqueta: string }[] = [
-  { alcance: 'dia', modo: 'day', etiqueta: 'Día' }, { alcance: 'semana', modo: 'week', etiqueta: 'Semana' }, { alcance: 'mes', modo: 'month', etiqueta: 'Mes' },
+  { alcance: 'dia', modo: 'day', etiqueta: trMarca('Día') }, { alcance: 'semana', modo: 'week', etiqueta: trMarca('Semana') }, { alcance: 'mes', modo: 'month', etiqueta: trMarca('Mes') },
 ]
 
 /** El plan del mes vive en docs/guardados/plan-<mes>-<año>/index.html (p. ej. plan-octubre-2026). */
@@ -45,13 +47,18 @@ export function planDelMes(fecha: Date): { ruta: string; titulo: string; mes: st
 /** Título de UNA línea de la barra angosta: «octubre», «28 sep – 4 oct», «dom 4 oct». El año solo si no es el actual. */
 export function tituloAngosto(mode: CalendarMode, ancla: Date, rango: { from: string; to: string }, hoy = new Date()): string {
   const quita = (t: string) => t.replace(/\./g, '')
-  if (mode === 'month') return format(ancla, 'LLLL', { locale: es }) + (ancla.getFullYear() === hoy.getFullYear() ? '' : ` ${ancla.getFullYear()}`)
+  if (mode === 'month') return format(ancla, 'LLLL', { locale: localeFechas() }) + (ancla.getFullYear() === hoy.getFullYear() ? '' : ` ${ancla.getFullYear()}`)
   if (mode === 'year') return String(ancla.getFullYear())
-  if (mode === 'day') return quita(format(ancla, 'EEE d MMM', { locale: es })) + (ancla.getFullYear() === hoy.getFullYear() ? '' : ` ${ancla.getFullYear()}`)
+  if (mode === 'day') return quita(format(ancla, tr('EEE d MMM'), { locale: localeFechas() })) + (ancla.getFullYear() === hoy.getFullYear() ? '' : ` ${ancla.getFullYear()}`)
   const a = new Date(rango.from), b = new Date(Date.parse(rango.to) - 1)
   const mismoMes = a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear()
-  const texto = mismoMes ? `${format(a, 'd')} – ${quita(format(b, 'd MMM', { locale: es }))}` : `${quita(format(a, 'd MMM', { locale: es }))} – ${quita(format(b, 'd MMM', { locale: es }))}`
+  const texto = enIngles() ? rangoEn(a, b, mismoMes) : mismoMes ? `${format(a, 'd')} – ${quita(format(b, 'd MMM', { locale: es }))}` : `${quita(format(a, 'd MMM', { locale: es }))} – ${quita(format(b, 'd MMM', { locale: es }))}`
   return b.getFullYear() === hoy.getFullYear() ? texto : `${texto} ${b.getFullYear()}`
+}
+
+/** En inglés el mes va antes del día y una sola vez si se repite: «Oct 8 – 14», «Sep 29 – Oct 5». */
+function rangoEn(a: Date, b: Date, mismoMes: boolean): string {
+  return `${format(a, 'MMM d', { locale: localeFechas() })} – ${format(b, mismoMes ? 'd' : 'MMM d', { locale: localeFechas() })}`
 }
 
 /** El título de la Semana deslizante: el rango que se ve de verdad («8 – 14 oct», «29 sep – 5 oct»; con año si no es este). */
@@ -60,7 +67,7 @@ export function tituloVentana(desde: string, n: number, hoy = new Date(), hasta?
   // `hasta`: el último día visible cuando no son corridos (sin fines de semana).
   const a = parseISO(desde), b = hasta ? parseISO(hasta) : addDays(a, n - 1)
   const mismoMes = a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear()
-  const texto = n <= 1 || desde === hasta ? quita(format(a, 'd MMM', { locale: es })) : mismoMes ? `${format(a, 'd')} – ${quita(format(b, 'd MMM', { locale: es }))}` : `${quita(format(a, 'd MMM', { locale: es }))} – ${quita(format(b, 'd MMM', { locale: es }))}`
+  const texto = n <= 1 || desde === hasta ? quita(format(a, tr('d MMM'), { locale: localeFechas() })) : enIngles() ? rangoEn(a, b, mismoMes) : mismoMes ? `${format(a, 'd')} – ${quita(format(b, 'd MMM', { locale: es }))}` : `${quita(format(a, 'd MMM', { locale: es }))} – ${quita(format(b, 'd MMM', { locale: es }))}`
   return b.getFullYear() === hoy.getFullYear() ? texto : `${texto} ${b.getFullYear()}`
 }
 

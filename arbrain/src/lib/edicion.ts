@@ -175,6 +175,8 @@ export const APIS_CLIENTE = [
   // Avisos de Levy en tu teléfono (v0.2.18, un fundador con iPhone): suscribir este dispositivo y la prueba, con la
   // sesión del dueño; `send`, solo con el token de SU daemon (avisosAlumno.ts). Sin la campana del negocio original.
   '/api/notifications/subscribe', '/api/notifications/prueba', '/api/notifications/send',
+  // Ajustes › Idioma (13 nov 2026): Español o English para la interfaz, las fechas, el agente y la voz (lib/idioma-servidor.ts).
+  '/api/idioma',
 ] as const
 
 function coincidePrefijo(ruta: string, prefijo: string) {

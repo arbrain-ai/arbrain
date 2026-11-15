@@ -11,6 +11,7 @@
 import net from 'node:net'
 import tls from 'node:tls'
 import { createHash, createHmac, pbkdf2Sync, randomBytes, timingSafeEqual } from 'node:crypto'
+import { localeIntl, tr, trMarca } from '../../../shared/i18n/tr'
 
 export interface ConexionPg { host: string; port: number; user: string; password: string | null; database: string; ssl: 'disable' | 'prefer' | 'require' }
 export interface ResultadoPg { columnas: string[]; filas: (string | null)[][] }
@@ -22,19 +23,19 @@ const decodifica = (s: string) => { try { return decodeURIComponent(s) } catch {
 /** postgres://usuario:contraseña@host:puerto/base?sslmode=… → la conexión. Los errores nunca repiten la contraseña. */
 export function parsearUrlPg(url: string): ConexionPg {
   const t = (url ?? '').trim()
-  if (!/^postgres(?:ql)?:\/\//i.test(t)) throw new Error('La URL de Postgres debe empezar con postgres:// o postgresql://.')
+  if (!/^postgres(?:ql)?:\/\//i.test(t)) throw new Error(tr('La URL de Postgres debe empezar con postgres:// o postgresql://.'))
   let u: URL
-  try { u = new URL(t) } catch { throw new Error('La URL de Postgres no se entiende: revisa que sea postgres://usuario:contraseña@host:puerto/base (los caracteres raros de la contraseña van con %).') }
+  try { u = new URL(t) } catch { throw new Error(tr('La URL de Postgres no se entiende: revisa que sea postgres://usuario:contraseña@host:puerto/base (los caracteres raros de la contraseña van con %).')) }
   const host = u.hostname.replace(/^\[|\]$/g, '')
-  if (!host) throw new Error('La URL de Postgres no trae host.')
+  if (!host) throw new Error(tr('La URL de Postgres no trae host.'))
   const user = decodifica(u.username)
-  if (!user) throw new Error('La URL de Postgres no trae usuario (postgres://usuario:contraseña@host/base).')
+  if (!user) throw new Error(tr('La URL de Postgres no trae usuario (postgres://usuario:contraseña@host/base).'))
   const port = u.port ? Number(u.port) : 5432
-  if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('El puerto de la URL de Postgres no es válido.')
+  if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error(tr('El puerto de la URL de Postgres no es válido.'))
   const base = decodifica(u.pathname.replace(/^\//, ''))
   const modo = (u.searchParams.get('sslmode') ?? 'prefer').trim().toLowerCase()
   const ssl = SSL[modo]
-  if (!ssl) throw new Error(`sslmode «${modo}» no existe; usa disable, prefer, require, verify-ca o verify-full.`)
+  if (!ssl) throw new Error(tr('sslmode «{modo}» no existe; usa disable, prefer, require, verify-ca o verify-full.', { modo }))
   return { host, port, user, password: u.password ? decodifica(u.password) : null, database: base || user, ssl }
 }
 
@@ -55,7 +56,7 @@ class Cable {
   conecta(s: net.Socket) {
     const datos = (d: Buffer) => { this.trozos.push(d); this.total += d.length; this.avisa() }
     const error = (e: Error) => this.falla(e)
-    const cierre = () => this.falla(new Error('Postgres cerró la conexión antes de terminar.'))
+    const cierre = () => this.falla(new Error(tr('Postgres cerró la conexión antes de terminar.')))
     s.on('data', datos); s.on('error', error); s.on('close', cierre)
     this.soltar = () => { s.off('data', datos); s.off('close', cierre) } // el 'error' se queda: un socket sin oyente tumba el proceso
   }
@@ -93,7 +94,7 @@ class Cable {
         const c = this.toma(5)
         if (c) {
           const largo = c.readInt32BE(1)
-          if (largo < 4 || largo > 0x40000000) throw new Error('Postgres mandó un mensaje que no se entiende (¿de verdad es un Postgres en ese puerto?).')
+          if (largo < 4 || largo > 0x40000000) throw new Error(tr('Postgres mandó un mensaje que no se entiende (¿de verdad es un Postgres en ese puerto?).'))
           this.cabecera = { tipo: String.fromCharCode(c[0]), largo: largo - 4 }
         }
       }
@@ -135,7 +136,7 @@ function campos(b: Buffer): Record<string, string> {
   }
   return out
 }
-const errorPg = (b: Buffer) => { const f = campos(b); return new Error(`Postgres: ${f.M ?? 'error sin mensaje'} (${f.C ?? '?'})`) }
+const errorPg = (b: Buffer) => { const f = campos(b); return new Error(`Postgres: ${f.M ?? tr('error sin mensaje')} (${f.C ?? '?'})`) }
 
 // ── Autenticación ──
 
@@ -154,7 +155,7 @@ function saslprep(p: string): string {
   return mapeada
 }
 
-const sinContrasena = () => new Error('Postgres pide contraseña y la URL no la trae.')
+const sinContrasena = () => new Error(tr('Postgres pide contraseña y la URL no la trae.'))
 
 async function autentica(cable: Cable, enviar: (b: Buffer) => void, c: ConexionPg): Promise<void> {
   let scram: { primeraDesnuda: string; clientNonce: string; firmaServidor?: Buffer } | null = null
@@ -162,10 +163,10 @@ async function autentica(cable: Cable, enviar: (b: Buffer) => void, c: ConexionP
     const m = await cable.mensaje()
     if (m.tipo === 'E') throw errorPg(m.cuerpo)
     if (m.tipo === 'N' || m.tipo === 'v') continue
-    if (m.tipo !== 'R') throw new Error(`Postgres respondió algo inesperado al saludar (mensaje «${m.tipo}»).`)
+    if (m.tipo !== 'R') throw new Error(tr('Postgres respondió algo inesperado al saludar (mensaje «{tipo}»).', { tipo: m.tipo }))
     const codigo = m.cuerpo.readInt32BE(0)
     if (codigo === 0) {
-      if (scram && !scram.firmaServidor) throw new Error('Postgres no completó la verificación SCRAM.')
+      if (scram && !scram.firmaServidor) throw new Error(tr('Postgres no completó la verificación SCRAM.'))
       return
     }
     if (codigo === 3) {
@@ -178,8 +179,8 @@ async function autentica(cable: Cable, enviar: (b: Buffer) => void, c: ConexionP
     } else if (codigo === 10) {
       const mecanismos = m.cuerpo.toString('utf8', 4).split('\0').filter(Boolean)
       if (!mecanismos.includes('SCRAM-SHA-256')) {
-        if (mecanismos.includes('SCRAM-SHA-256-PLUS')) throw new Error('Postgres solo acepta SCRAM-SHA-256-PLUS (con channel binding), que este cliente no implementa; permite SCRAM-SHA-256 en el servidor.')
-        throw new Error(`Postgres pide un método SASL que no sé usar (${mecanismos.join(', ') || 'ninguno'}).`)
+        if (mecanismos.includes('SCRAM-SHA-256-PLUS')) throw new Error(tr('Postgres solo acepta SCRAM-SHA-256-PLUS (con channel binding), que este cliente no implementa; permite SCRAM-SHA-256 en el servidor.'))
+        throw new Error(tr('Postgres pide un método SASL que no sé usar ({mecanismos}).', { mecanismos: mecanismos.join(', ') || tr('ninguno') }))
       }
       if (c.password === null) throw sinContrasena()
       const clientNonce = randomBytes(18).toString('base64')
@@ -189,12 +190,12 @@ async function autentica(cable: Cable, enviar: (b: Buffer) => void, c: ConexionP
       enviar(msg('p', cstr('SCRAM-SHA-256'), int32(datos.length), datos))
       scram = { primeraDesnuda, clientNonce }
     } else if (codigo === 11) {
-      if (!scram || c.password === null) throw new Error('Postgres siguió un SCRAM que no empezó.')
+      if (!scram || c.password === null) throw new Error(tr('Postgres siguió un SCRAM que no empezó.'))
       const primeraServidor = m.cuerpo.toString('utf8', 4)
       const attrs = Object.fromEntries(primeraServidor.split(',').map(p => [p.slice(0, 1), p.slice(2)]))
       const nonce = attrs.r ?? '', iter = Number(attrs.i)
-      if (!nonce.startsWith(scram.clientNonce) || nonce.length <= scram.clientNonce.length) throw new Error('Postgres devolvió un nonce SCRAM que no corresponde.')
-      if (!attrs.s || !Number.isInteger(iter) || iter < 1) throw new Error('Postgres mandó un desafío SCRAM incompleto.')
+      if (!nonce.startsWith(scram.clientNonce) || nonce.length <= scram.clientNonce.length) throw new Error(tr('Postgres devolvió un nonce SCRAM que no corresponde.'))
+      if (!attrs.s || !Number.isInteger(iter) || iter < 1) throw new Error(tr('Postgres mandó un desafío SCRAM incompleto.'))
       const salada = pbkdf2Sync(saslprep(c.password), Buffer.from(attrs.s, 'base64'), iter, 32, 'sha256')
       const clientKey = hmac(salada, 'Client Key')
       const sinPrueba = `c=biws,r=${nonce}` // biws = base64(«n,,»): sin channel binding
@@ -205,15 +206,15 @@ async function autentica(cable: Cable, enviar: (b: Buffer) => void, c: ConexionP
       scram.firmaServidor = hmac(hmac(salada, 'Server Key'), authMessage)
       enviar(msg('p', Buffer.from(`${sinPrueba},p=${prueba.toString('base64')}`, 'utf8')))
     } else if (codigo === 12) {
-      if (!scram?.firmaServidor) throw new Error('Postgres cerró un SCRAM que no empezó.')
+      if (!scram?.firmaServidor) throw new Error(tr('Postgres cerró un SCRAM que no empezó.'))
       const final = m.cuerpo.toString('utf8', 4)
-      if (final.startsWith('e=')) throw new Error(`Postgres rechazó el SCRAM: ${final.slice(2)}.`)
+      if (final.startsWith('e=')) throw new Error(tr('Postgres rechazó el SCRAM: {motivo}.', { motivo: final.slice(2) }))
       const v = /(?:^|,)v=([^,]*)/.exec(final)?.[1]
       const recibida = v ? Buffer.from(v, 'base64') : Buffer.alloc(0)
       // La prueba de que el servidor también conoce la contraseña: si no coincide, no es el Postgres que dice ser.
-      if (recibida.length !== scram.firmaServidor.length || !timingSafeEqual(recibida, scram.firmaServidor)) throw new Error('La firma SCRAM del servidor no coincide: no es el Postgres que dice ser. Me desconecto.')
+      if (recibida.length !== scram.firmaServidor.length || !timingSafeEqual(recibida, scram.firmaServidor)) throw new Error(tr('La firma SCRAM del servidor no coincide: no es el Postgres que dice ser. Me desconecto.'))
     } else {
-      throw new Error(`Postgres pide un método de autenticación que no sé usar (código ${codigo}); usa scram-sha-256, md5 o password.`)
+      throw new Error(tr('Postgres pide un método de autenticación que no sé usar (código {codigo}); usa scram-sha-256, md5 o password.', { codigo }))
     }
   }
 }
@@ -243,7 +244,7 @@ function columnasDe(b: Buffer): string[] {
 }
 
 async function corre(cable: Cable, enviar: (b: Buffer) => void, sql: string): Promise<ResultadoPg[]> {
-  if (sql.includes('\0')) throw new Error('La consulta trae un carácter nulo.')
+  if (sql.includes('\0')) throw new Error(tr('La consulta trae un carácter nulo.'))
   enviar(msg('Q', cstr(sql)))
   const resultados: ResultadoPg[] = []
   let actual: ResultadoPg | null = null
@@ -266,15 +267,15 @@ async function corre(cable: Cable, enviar: (b: Buffer) => void, sql: string): Pr
 
 const lugar = (c: ConexionPg) => `${net.isIPv6(c.host) ? `[${c.host}]` : c.host}:${c.port}`
 const RAZONES: Record<string, string> = {
-  ECONNREFUSED: 'nadie escucha en ese puerto',
-  ENOTFOUND: 'ese host no existe',
-  EAI_AGAIN: 'no se pudo resolver el host (¿hay internet?)',
-  ETIMEDOUT: 'no contestó a tiempo',
-  EHOSTUNREACH: 'el host no es alcanzable',
-  ENETUNREACH: 'la red no es alcanzable',
-  ECONNRESET: 'el servidor cortó la conexión',
+  ECONNREFUSED: trMarca('nadie escucha en ese puerto'),
+  ENOTFOUND: trMarca('ese host no existe'),
+  EAI_AGAIN: trMarca('no se pudo resolver el host (¿hay internet?)'),
+  ETIMEDOUT: trMarca('no contestó a tiempo'),
+  EHOSTUNREACH: trMarca('el host no es alcanzable'),
+  ENETUNREACH: trMarca('la red no es alcanzable'),
+  ECONNRESET: trMarca('el servidor cortó la conexión'),
 }
-const razon = (e: NodeJS.ErrnoException) => (e.code && RAZONES[e.code]) || e.message
+const razon = (e: NodeJS.ErrnoException) => (e.code && RAZONES[e.code] ? tr(RAZONES[e.code]) : '') || e.message
 
 /**
  * Abre, autentica, corre `sql` por consulta simple y cierra. Devuelve una tabla por cada sentencia que trajo filas (las que
@@ -287,7 +288,7 @@ export async function consultarPg(url: string, sql: string, op: { timeoutMs?: nu
   let conectado = false
   let socket: net.Socket = net.connect({ host: c.host, port: c.port })
   // El error de conexión se dice en palabras; va primero para ganarle al mensaje crudo de Node.
-  socket.prependOnceListener('error', (e: NodeJS.ErrnoException) => { if (!conectado) cable.falla(new Error(`No se pudo conectar a ${lugar(c)}: ${razon(e)}.`)) })
+  socket.prependOnceListener('error', (e: NodeJS.ErrnoException) => { if (!conectado) cable.falla(new Error(tr('No se pudo conectar a {lugar}: {razon}.', { lugar: lugar(c), razon: razon(e) }))) })
   socket.once('connect', () => { conectado = true })
   socket.setNoDelay(true)
   cable.conecta(socket)
@@ -299,8 +300,11 @@ export async function consultarPg(url: string, sql: string, op: { timeoutMs?: nu
     const s = socket
     setTimeout(() => s.destroy(), 1000).unref()
   }
+  // El error del reloj se reconoce por identidad (13 nov 2026): su texto cambia con el idioma.
+  let errorTiempo: Error | null = null
   const reloj = setTimeout(() => {
-    cable.falla(new Error(`Postgres no respondió en ${(ms / 1000).toLocaleString('es-MX', { maximumFractionDigits: 1 })} s.`))
+    errorTiempo = new Error(tr('Postgres no respondió en {s} s.', { s: (ms / 1000).toLocaleString(localeIntl(), { maximumFractionDigits: 1 }) }))
+    cable.falla(errorTiempo)
     socket.destroy()
   }, ms)
   try {
@@ -309,20 +313,20 @@ export async function consultarPg(url: string, sql: string, op: { timeoutMs?: nu
       const r = String.fromCharCode((await cable.bytes(1))[0])
       if (r === 'S') {
         // Bytes en claro detrás de la «S» serían inyección antes del cifrado (CVE-2021-23222): se corta.
-        if (cable.pendientes > 0) throw new Error('Postgres mandó datos sin cifrar antes de TLS; me desconecto.')
+        if (cable.pendientes > 0) throw new Error(tr('Postgres mandó datos sin cifrar antes de TLS; me desconecto.'))
         cable.desconecta()
         const seguro = tls.connect({ socket, servername: net.isIP(c.host) ? undefined : c.host, rejectUnauthorized: false })
         socket = seguro
         cable.conecta(seguro)
         await new Promise<void>((ok, mal) => {
           seguro.once('secureConnect', () => ok())
-          seguro.once('error', e => mal(new Error(`Falló el cifrado TLS con ${lugar(c)}: ${e.message}`)))
-          seguro.once('close', () => mal(cable.error ?? new Error(`${lugar(c)} cerró la conexión durante TLS.`)))
+          seguro.once('error', e => mal(new Error(tr('Falló el cifrado TLS con {lugar}: {error}', { lugar: lugar(c), error: e.message }))))
+          seguro.once('close', () => mal(cable.error ?? new Error(tr('{lugar} cerró la conexión durante TLS.', { lugar: lugar(c) }))))
         })
       } else if (r === 'N') {
-        if (c.ssl === 'require') throw new Error(`${lugar(c)} no acepta SSL y la URL pide sslmode=require; usa sslmode=prefer solo si confías en la red.`)
+        if (c.ssl === 'require') throw new Error(tr('{lugar} no acepta SSL y la URL pide sslmode=require; usa sslmode=prefer solo si confías en la red.', { lugar: lugar(c) }))
       } else {
-        throw new Error(`${lugar(c)} no respondió como Postgres al pedir SSL.`)
+        throw new Error(tr('{lugar} no respondió como Postgres al pedir SSL.', { lugar: lugar(c) }))
       }
     }
 
@@ -340,7 +344,7 @@ export async function consultarPg(url: string, sql: string, op: { timeoutMs?: nu
   } catch (e) {
     cierra()
     // Si ya venció el tiempo, ese es el error que cuenta (lo demás es su eco).
-    const final = cable.error && /no respondió en/.test(cable.error.message) ? cable.error : e
+    const final = cable.error && (cable.error === errorTiempo || /no respondió en/.test(cable.error.message)) ? cable.error : e
     const m = final instanceof Error ? final.message : String(final)
     // Defensa final: si un mensaje externo trae la contraseña tal cual, se tapa.
     throw new Error(c.password && c.password.length >= 4 ? m.split(c.password).join('•••') : m)

@@ -18,6 +18,7 @@ import { releer, useFuente } from '../datos'
 import { escuchar as escucharPagina } from '@/features/canvas/state/nube'
 import { camaraPara, limites, resolverZona, type Camara } from './zona'
 import s from '../cabina.module.css'
+import { tr } from '@/shared/i18n'
 
 interface Pagina { ok: boolean; pagina: { id: string; nombre: string; elements: CanvasElement[]; actualizado?: string; version?: number } }
 export const urlLienzo = (id: string) => `/api/canvas/pages/${encodeURIComponent(id)}`
@@ -103,10 +104,10 @@ export function VistaLienzo({ paginaId, zona, grande }: { paginaId: string; zona
   }, [elementos, encuadre, ancho, alto, listo, tick])
 
   return <div ref={caja} className={s.lienzo} data-tick={tick}>
-    {!data && <div className={s.cargando} aria-busy="true">{error ? <p className={s.aviso}>{error}</p> : 'Abriendo el lienzo…'}</div>}
-    {data && !elementos.length && <p className={s.vacio}>La página «{data.pagina.nombre}» está vacía.</p>}
-    {encuadre?.perdida && <p className={s.aviso}>No encontré «{zona}» en este lienzo: lo muestro completo.</p>}
-    {data && elementos.length > 0 && <canvas ref={lienzo} style={{ width: ancho, height: alto }} role="img" aria-label={`Lienzo: ${data.pagina.nombre}`} />}
+    {!data && <div className={s.cargando} aria-busy="true">{error ? <p className={s.aviso}>{error}</p> : tr('Abriendo el lienzo…')}</div>}
+    {data && !elementos.length && <p className={s.vacio}>{tr('La página «{nombre}» está vacía.', { nombre: data.pagina.nombre })}</p>}
+    {encuadre?.perdida && <p className={s.aviso}>{tr('No encontré «{zona}» en este lienzo: lo muestro completo.', { zona })}</p>}
+    {data && elementos.length > 0 && <canvas ref={lienzo} style={{ width: ancho, height: alto }} role="img" aria-label={tr('Lienzo: {nombre}', { nombre: data.pagina.nombre })} />}
     {encuadre?.recortado && <span className={s.desvanecido} aria-hidden />}
   </div>
 }

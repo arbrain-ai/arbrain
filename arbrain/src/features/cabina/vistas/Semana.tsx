@@ -23,6 +23,7 @@ import { escalon } from '../movimiento'
 import { porDia, bandaDe, rutinaDe, sinEmoji } from './agenda'
 import { VistaDia } from './Dia'
 import l from '../luz.module.css'
+import { tr } from '@/shared/i18n'
 
 const semanaIso = (d: string) => {
   const t = new Date(d + 'T12:00:00Z'); const dia = (t.getUTCDay() + 6) % 7
@@ -34,7 +35,7 @@ const semanaIso = (d: string) => {
 async function escribir(op: PlanMutation): Promise<MutationResult> {
   const r = await fetch('/api/planning', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(op), signal: AbortSignal.timeout(100_000) })
   const b = await r.json().catch(() => ({}))
-  if (!r.ok) throw new Error(b?.error ?? 'Google no confirmó el cambio.')
+  if (!r.ok) throw new Error(b?.error ?? tr('Google no confirmó el cambio.'))
   refrescarCabina(1200)
   return b as MutationResult
 }
@@ -49,7 +50,7 @@ export function VistaSemana({ data, ancla, grande }: { data: PlanningSnapshot; a
   const [elegido, setElegido] = useState<string | null>(null)
   const alternarDia = (d: string) => setElegido(e => e === d ? null : d)
   const auto = useAutoguardado({ ownerId: data.ownerId, escribir,
-    onFallo: (titulo, mensaje, reintentar) => setAviso({ texto: `No se guardó «${titulo}»: ${mensaje} Volvió a como está en Google.`, reintentar }) })
+    onFallo: (titulo, mensaje, reintentar) => setAviso({ texto: tr('No se guardó «{titulo}»: {mensaje} Volvió a como está en Google.', { titulo, mensaje }), reintentar }) })
   const vivo = useMemo(() => auto.aplicar(data), [auto, data])
   const { bandas } = useMemo(() => porDia(vivo), [vivo])
   const meta = bandaDe(bandas, desde)
@@ -82,12 +83,12 @@ export function VistaSemana({ data, ancla, grande }: { data: PlanningSnapshot; a
 
   return <div>
     <div className={`${l.cabMeta} ${l.entra}`} style={{ ...escalon(0), display: 'flex', alignItems: 'center', gap: 10 }}>
-      <p className={l.ceja} style={{ flex: '1 1 auto', margin: 0 }}>Semana {semanaIso(desde)} · {etiquetaDia(desde, { day: 'numeric', month: 'short' })} – {etiquetaDia(fin, { day: 'numeric', month: 'short' })}</p>
+      <p className={l.ceja} style={{ flex: '1 1 auto', margin: 0 }}>{tr('Semana {n}', { n: semanaIso(desde) })} · {etiquetaDia(desde, { day: 'numeric', month: 'short' })} – {etiquetaDia(fin, { day: 'numeric', month: 'short' })}</p>
       <SelectorVista vista={vista} onVista={setVista} />
     </div>
     {meta && <div className={`${l.todoElDia} ${l.entra}`} style={escalon(1)}><span className={l.pastilla} title={meta.titulo}><i aria-hidden /><span>{meta.titulo}</span></span></div>}
     {aviso && <p className={l.entra} role="alert" style={{ margin: '8px 0 0', fontSize: 12.5, color: 'var(--l-tinta-rojo, var(--danger, #d14343))' }}>{aviso.texto}
-      {aviso.reintentar && <> <button type="button" onClick={() => { const r = aviso.reintentar!; setAviso(null); r() }} style={{ border: 0, background: 'none', color: 'inherit', font: 'inherit', fontWeight: 700, textDecoration: 'underline', cursor: 'pointer' }}>Reintentar</button></>}</p>}
+      {aviso.reintentar && <> <button type="button" onClick={() => { const r = aviso.reintentar!; setAviso(null); r() }} style={{ border: 0, background: 'none', color: 'inherit', font: 'inherit', fontWeight: 700, textDecoration: 'underline', cursor: 'pointer' }}>{tr('Reintentar')}</button></>}</p>}
     {vista === 'horas'
       ? <div className={l.entra} style={{ ...escalon(2), marginTop: 10 }}>
           <SemanaHoras dias={dias} hoy={hoy} ahora={ahora} bloques={bloques} todoElDia={todoElDia} estrellas={estrellas} donde="chat"
@@ -115,7 +116,7 @@ function AgendaSemana({ data, dias, hoy, grande, elegido, onDia }: { data: Plann
   const rutina = useMemo(() => rutinaDe(mapa, dias), [mapa, dias])
   const max = grande ? 8 : 4
   return <>
-    {rutina.lista.length > 0 && <p className={`${l.rutina} ${l.entra}`} style={escalon(2)}><b>Cada día</b>{' '}
+    {rutina.lista.length > 0 && <p className={`${l.rutina} ${l.entra}`} style={escalon(2)}><b>{tr('Cada día')}</b>{' '}
       {rutina.lista.map(r => <span key={r.hora + r.titulo}>{r.hora} {sinEmoji(r.titulo).replace(/\s+[—-].*$/, '')}</span>)}</p>}
     <div className={l.semana}>
       {dias.map((d, i) => {
@@ -125,15 +126,15 @@ function AgendaSemana({ data, dias, hoy, grande, elegido, onDia }: { data: Plann
         const tareas = items.filter(it => it.tarea).sort((a, b) => (a.tarea!.priority || 4) - (b.tarea!.priority || 4))
         return <button key={d} className={`${l.dia} ${l.entra}`} style={escalon(3 + i)} onClick={() => onDia(d)}
           aria-pressed={elegido === d} data-hoy={d === hoy || undefined} data-pasado={d < hoy || undefined}
-          aria-label={`${etiquetaDia(d, { weekday: 'long', day: 'numeric' })}: ${distinto.length} fuera de rutina, ${tareas.length} tareas`}>
+          aria-label={tr('{dia}: {n} fuera de rutina, {tareas} tareas', { dia: etiquetaDia(d, { weekday: 'long', day: 'numeric' }), n: distinto.length, tareas: tareas.length })}>
           <span className={l.diaCab}><span>{etiquetaDia(d, { weekday: 'short' }).replace('.', '')}</span><strong>{etiquetaDia(d, { day: 'numeric' })}</strong></span>
           {objetivos.map(it => <span key={it.id} className={l.objDia} title={it.titulo}>{it.titulo}</span>)}
           {distinto.slice(0, max).map(it => <span key={it.id} className={l.evento} style={{ ['--c' as string]: it.color }}>
             {it.hora && <b>{it.hora}</b>}<span>{it.titulo}</span></span>)}
-          {distinto.length > max && <span className={l.mas}>+{distinto.length - max} más</span>}
+          {distinto.length > max && <span className={l.mas}>{tr('+{n} más', { n: distinto.length - max })}</span>}
           {tareas.length > 0 && <span className={l.pila}>
             {tareas.slice(0, 3).map(t => <span key={t.id} className={l.mini} data-prio={t.tarea!.priority === 1 ? 1 : undefined}><i aria-hidden /><span>{sinEmoji(t.titulo)}</span></span>)}
-            {tareas.length > 3 && <span className={l.mas}>+{tareas.length - 3} tareas</span>}
+            {tareas.length > 3 && <span className={l.mas}>{tr('+{n} tareas', { n: tareas.length - 3 })}</span>}
           </span>}
         </button>
       })}

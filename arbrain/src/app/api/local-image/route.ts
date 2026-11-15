@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/server'
 import { hasRole } from '@/lib/auth-utils'
 import { esEdicionCliente } from '@/lib/edicion'
 import { raizWorkspace } from '@/lib/rutas-instalacion'
+import { tr } from '@/shared/i18n'
 
 // Sirve imágenes locales que Levy referencia en el chat (markdown con ruta de disco).
 // Mismo origen y cookie de sesión que el resto de /api: funciona en <img> (web, PWA y escritorio).
@@ -51,26 +52,26 @@ export async function GET(req: NextRequest) {
 
   const raw = req.nextUrl.searchParams.get('path')
   if (!raw || raw.includes('\0')) return fail(400, 'path requerido')
-  if (raw.split(/[\\/]/).includes('..')) return fail(400, 'ruta no permitida')
+  if (raw.split(/[\\/]/).includes('..')) return fail(400, tr('ruta no permitida'))
 
   const ext = extname(raw).toLowerCase()
   const mime = EXT_MIME[ext]
-  if (!mime) return fail(415, 'solo imágenes')
+  if (!mime) return fail(415, tr('solo imágenes'))
 
   let real: string
   try {
     real = await realpath(resolve(REPO_ROOT(), raw)) // absoluta se respeta; relativa cuelga del repo
   } catch {
-    return fail(404, 'no existe')
+    return fail(404, tr('no existe'))
   }
   const roots = await Promise.all(ALLOWED_ROOTS().map((r) => realpath(r).catch(() => null)))
-  if (!roots.some((r) => r && underRoot(real, r))) return fail(403, 'fuera de la lista blanca')
+  if (!roots.some((r) => r && underRoot(real, r))) return fail(403, tr('fuera de la lista blanca'))
   const segs = real.split(sep)
-  if (segs.slice(0, -1).some((s) => DENY_SEGMENTS.has(s) || oculta(s)) || basename(real).startsWith('.')) return fail(403, 'ruta no permitida')
-  if (!EXT_MIME[extname(real).toLowerCase()]) return fail(415, 'solo imágenes')
+  if (segs.slice(0, -1).some((s) => DENY_SEGMENTS.has(s) || oculta(s)) || basename(real).startsWith('.')) return fail(403, tr('ruta no permitida'))
+  if (!EXT_MIME[extname(real).toLowerCase()]) return fail(415, tr('solo imágenes'))
 
   const st = await stat(real).catch(() => null)
-  if (!st?.isFile()) return fail(404, 'no existe')
+  if (!st?.isFile()) return fail(404, tr('no existe'))
   if (st.size > MAX_BYTES) return fail(413, 'demasiado grande')
 
   const full = req.nextUrl.searchParams.get('full') === '1'
@@ -103,6 +104,6 @@ export async function GET(req: NextRequest) {
     }
     return new NextResponse(new Uint8Array(body), { headers: { ...headers, 'Content-Type': type, 'Content-Length': String(body.length) } })
   } catch {
-    return fail(500, 'no se pudo leer la imagen')
+    return fail(500, tr('no se pudo leer la imagen'))
   }
 }

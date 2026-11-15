@@ -18,6 +18,7 @@
  * final en disco (0600, local) sí incluye el resultado y la pregunta que redactó el cerebro, igual que la respuesta.
  */
 import { AGENTE, DUENO, DUENO_M, ejemploPerfilChrome } from '../dueno.js'
+import { tr } from '../i18n/tr.js'
 import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
@@ -216,7 +217,7 @@ async function encargarSinSoltar(args: any, deps: DepsEncargar, idDado?: string)
   const lineas: string[] = []
   const pedirFn = deps.pedir ?? (await import('./cerebro.js')).pedir
   // La franja para la conversación: qué decir y dónde dejar «detener» o «control» (ordenEnDisco).
-  const franja = { texto: `${process.env.MANOS_NOMBRE_AGENTE || AGENTE} está trabajando`, orden: `${id}.detener`, valores: ['detener', 'control'] }
+  const franja = { texto: tr('{agente} está trabajando', { agente: process.env.MANOS_NOMBRE_AGENTE || AGENTE }), orden: `${id}.detener`, valores: ['detener', 'control'] }
   // Reloj (5 nov 2026, Daniel: «incluso si pudieras poner un temporizador»): desde cuándo corre y qué hace ahora, en
   // palabras, para que el chat cuente los segundos solo y diga el paso sin leer texto de las apps.
   const inicio = new Date().toISOString()

@@ -13,6 +13,7 @@
  */
 import { RUTA_EMBUDO, validarEmbudo, type Embudo } from '@/features/negocio/embudo'
 import { esEdicionCliente } from '@/lib/edicion'
+import { tr, trMarca, trn } from '@/shared/i18n'
 
 /**
  * El interruptor. Daniel, 5 nov 19:42, a «¿lo enciendo para la cohorte en la próxima versión del alumno?»: «me gusta!».
@@ -65,11 +66,11 @@ export interface DefPaso {
 }
 
 export const PASOS: readonly DefPaso[] = [
-  { id: 'negocio', titulo: 'Quién eres y tu negocio', que: 'Tu oficio, a quién sirves hoy, tu equipo y qué te quita más tiempo.', deja: 'Tu ficha de negocio, en tu memoria.' },
-  { id: 'oferta', titulo: 'Tu oferta y tu nicho', que: 'La industria que ya conoces por dentro, tu cliente ideal y qué le prometes.', deja: 'Tu oferta escrita: promesa, entrega, precio y garantía.' },
-  { id: 'embudo', titulo: 'Tu embudo', que: 'Cómo llega, compra y se queda tu cliente, etapa por etapa, y dónde se atora.', deja: 'Tu embudo completo, con quién mueve cada etapa.' },
-  { id: 'rutinas', titulo: 'Tus primeras 2 rutinas', que: 'Qué revisión quieres que corra sola: el resumen de la mañana y una para tu cuello.', deja: 'Dos rutinas trabajando para ti, sin que se lo pidas.' },
-  { id: 'habilidades', titulo: 'Tu primera habilidad', que: 'El proceso que más repites en tu cuello, escrito para que tu equipo y tu Levy lo hagan igual.', deja: 'Una habilidad tuya, colgada de su etapa del embudo.' },
+  { id: 'negocio', titulo: trMarca('Quién eres y tu negocio'), que: trMarca('Tu oficio, a quién sirves hoy, tu equipo y qué te quita más tiempo.'), deja: trMarca('Tu ficha de negocio, en tu memoria.') },
+  { id: 'oferta', titulo: trMarca('Tu oferta y tu nicho'), que: trMarca('La industria que ya conoces por dentro, tu cliente ideal y qué le prometes.'), deja: trMarca('Tu oferta escrita: promesa, entrega, precio y garantía.') },
+  { id: 'embudo', titulo: trMarca('Tu embudo'), que: trMarca('Cómo llega, compra y se queda tu cliente, etapa por etapa, y dónde se atora.'), deja: trMarca('Tu embudo completo, con quién mueve cada etapa.') },
+  { id: 'rutinas', titulo: trMarca('Tus primeras 2 rutinas'), que: trMarca('Qué revisión quieres que corra sola: el resumen de la mañana y una para tu cuello.'), deja: trMarca('Dos rutinas trabajando para ti, sin que se lo pidas.') },
+  { id: 'habilidades', titulo: trMarca('Tu primera habilidad'), que: trMarca('El proceso que más repites en tu cuello, escrito para que tu equipo y tu Levy lo hagan igual.'), deja: trMarca('Una habilidad tuya, colgada de su etapa del embudo.') },
 ]
 
 // ── Lo que se lee (servidor.ts lo junta; aquí solo se juzga) ──
@@ -101,8 +102,6 @@ export interface Paso extends DefPaso {
 }
 export interface Avance { pasos: Paso[]; hechos: number; total: number; completo: boolean; siguiente: IdPaso | null }
 
-const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`
-
 /** Las skills del embudo que cuentan para el paso 5: tuyas (no de Arbrain) y que existen. */
 export function habilidadesPropias(embudo: Embudo | null, enDisco: string[]): string[] {
   if (!embudo) return []
@@ -126,17 +125,17 @@ export function evaluar(s: Senales): Avance {
     embudo: s.embudo.estado === 'ok'
       ? { estado: 'hecho', detalle: resumenEmbudo(s.embudo.embudo) }
       : s.embudo.estado === 'invalido'
-        ? { estado: 'revisar', detalle: `Levy lo escribió, pero tiene ${plural(s.embudo.errores.length, 'detalle', 'detalles')} por corregir.`, errores: s.embudo.errores }
+        ? { estado: 'revisar', detalle: trn(s.embudo.errores.length, 'Levy lo escribió, pero tiene {n} detalle por corregir.', 'Levy lo escribió, pero tiene {n} detalles por corregir.'), errores: s.embudo.errores }
         : { estado: 'pendiente', detalle: null },
     rutinas: !s.rutinas
-      ? { estado: 'sin-dato', detalle: 'Tu Arbrain no respondió: no puedo ver tus rutinas ahora.' }
+      ? { estado: 'sin-dato', detalle: tr('Tu Arbrain no respondió: no puedo ver tus rutinas ahora.') }
       : s.rutinas.activas.length >= RUTINAS_META
-        ? { estado: 'hecho', detalle: s.rutinas.activas.slice(0, 3).map(r => r.titulo).join(' · ') }
-        : { estado: 'pendiente', detalle: s.rutinas.activas.length ? `${s.rutinas.activas.length} de ${RUTINAS_META} activa: ${s.rutinas.activas[0].titulo}` : null },
+        ? { estado: 'hecho', detalle: s.rutinas.activas.slice(0, 3).map(r => tr(r.titulo)).join(' · ') }
+        : { estado: 'pendiente', detalle: s.rutinas.activas.length ? tr('{n} de {meta} activa: {titulo}', { n: s.rutinas.activas.length, meta: RUTINAS_META, titulo: tr(s.rutinas.activas[0].titulo) }) : null },
     habilidades: (() => {
       const propias = habilidadesPropias(embudo, s.skillsEnDisco)
       if (propias.length) return { estado: 'hecho' as const, detalle: propias.join(' · ') }
-      if (!embudo) return { estado: 'pendiente' as const, detalle: 'Va después de tu embudo: cuelga de una de sus etapas.' }
+      if (!embudo) return { estado: 'pendiente' as const, detalle: tr('Va después de tu embudo: cuelga de una de sus etapas.') }
       return { estado: 'pendiente' as const, detalle: null }
     })(),
   }
@@ -150,7 +149,7 @@ export function evaluar(s: Senales): Avance {
 
 function ficha(n: number | null): Pick<Paso, 'estado' | 'detalle'> {
   if (n == null) return { estado: 'pendiente', detalle: null }
-  if (n < MINIMO_FICHA) return { estado: 'pendiente', detalle: 'Empezada: le falta lo esencial.' }
+  if (n < MINIMO_FICHA) return { estado: 'pendiente', detalle: tr('Empezada: le falta lo esencial.') }
   return { estado: 'hecho', detalle: null }
 }
 
@@ -158,9 +157,9 @@ function resumenEmbudo(e: Embudo): string {
   const cuello = e.etapas.find(et => et.cuello.es)
   const embudos = e.embudos?.length ?? 1
   return [
-    embudos > 1 ? `${embudos} embudos` : null,
-    plural(e.etapas.length, 'etapa', 'etapas'),
-    cuello ? `se atora en ${cuello.etapa}` : 'sin cuello marcado',
+    embudos > 1 ? tr('{n} embudos', { n: embudos }) : null,
+    trn(e.etapas.length, '{n} etapa', '{n} etapas'),
+    cuello ? tr('se atora en {etapa}', { etapa: tr(cuello.etapa) }) : tr('sin cuello marcado'),
   ].filter(Boolean).join(' · ')
 }
 
@@ -168,7 +167,7 @@ function resumenEmbudo(e: Embudo): string {
 export function leerEmbudo(texto: string | null): LecturaEmbudo {
   if (texto == null) return { estado: 'falta' }
   let crudo: unknown
-  try { crudo = JSON.parse(texto.replace(/^﻿/, '')) } catch { return { estado: 'invalido', errores: ['El archivo del embudo no es JSON válido.'] } }
+  try { crudo = JSON.parse(texto.replace(/^﻿/, '')) } catch { return { estado: 'invalido', errores: [tr('El archivo del embudo no es JSON válido.')] } }
   const v = validarEmbudo(crudo)
   return v.ok ? { estado: 'ok', embudo: v.embudo } : { estado: 'invalido', errores: v.errores.slice(0, 12) }
 }
@@ -182,28 +181,31 @@ export function leerEmbudo(texto: string | null): LecturaEmbudo {
 export function mensajePaso(id: IdPaso, extra?: { errores?: string[] }): string {
   const p = PASOS.findIndex(x => x.id === id)
   const def = PASOS[p]
-  const base = `${p === 0 ? 'Empecemos' : 'Sigamos con'} mi primer día, paso ${p + 1} de ${PASOS.length}: ${def.titulo.toLowerCase()}. Antes lee la guía de mi primer día (\`${RUTA_GUIA}\`) y lo que ya sabes de mí.`
+  // Se ve como el mensaje de la persona en su chat: va en su idioma (la ruta de la guía, tal cual).
+  const vars = { n: p + 1, total: PASOS.length, titulo: tr(def.titulo).toLowerCase(), ruta: RUTA_GUIA }
+  const base = p === 0
+    ? tr('Empecemos mi primer día, paso {n} de {total}: {titulo}. Antes lee la guía de mi primer día (`{ruta}`) y lo que ya sabes de mí.', vars)
+    : tr('Sigamos con mi primer día, paso {n} de {total}: {titulo}. Antes lee la guía de mi primer día (`{ruta}`) y lo que ya sabes de mí.', vars)
   const pedido: Record<IdPaso, string> = {
-    negocio: 'Entrevístame una pregunta a la vez, no inventes nada y enséñame la ficha antes de guardarla.',
-    oferta: 'Ayúdame a elegir el nicho que ya conozco por dentro y a escribir mi oferta. Una pregunta a la vez; enséñamela antes de guardarla.',
-    embudo: 'Arma mi embudo con lo que ya escribimos de mi negocio y mi oferta, valídalo con el esquema de la guía y enséñamelo etapa por etapa antes de guardarlo.',
-    rutinas: 'Propónme mis dos primeras rutinas (el resumen de la mañana y una para la etapa donde se atora mi negocio). Créalas y dime cuál tengo que activar.',
-    habilidades: 'Escojamos el proceso que más repito en la etapa donde se atora mi negocio y conviértelo en mi primera habilidad, colgada de esa etapa en mi embudo.',
+    negocio: tr('Entrevístame una pregunta a la vez, no inventes nada y enséñame la ficha antes de guardarla.'),
+    oferta: tr('Ayúdame a elegir el nicho que ya conozco por dentro y a escribir mi oferta. Una pregunta a la vez; enséñamela antes de guardarla.'),
+    embudo: tr('Arma mi embudo con lo que ya escribimos de mi negocio y mi oferta, valídalo con el esquema de la guía y enséñamelo etapa por etapa antes de guardarlo.'),
+    rutinas: tr('Propónme mis dos primeras rutinas (el resumen de la mañana y una para la etapa donde se atora mi negocio). Créalas y dime cuál tengo que activar.'),
+    habilidades: tr('Escojamos el proceso que más repito en la etapa donde se atora mi negocio y conviértelo en mi primera habilidad, colgada de esa etapa en mi embudo.'),
   }
-  const errores = extra?.errores?.length ? ` La app marca esto en mi embudo: ${extra.errores.slice(0, 6).join(' ')} Corrígelo.` : ''
+  const errores = extra?.errores?.length ? ` ${tr('La app marca esto en mi embudo: {errores} Corrígelo.', { errores: extra.errores.slice(0, 6).join(' ') })}` : ''
   return `${base} ${pedido[id]}${errores}`
 }
 
 /** El mensaje de Levy que abre el primer día en el chat (lo publica la app una sola vez, al ofrecerlo). */
 export function mensajeOferta(nombre: string | null): string {
-  const hola = nombre ? `${nombre}, ya` : 'Ya'
   return [
-    `${hola} conoces la app. Ahora pongamos tu negocio dentro de tu cerebro: es tu primer día.`,
+    nombre ? tr('{nombre}, ya conoces la app. Ahora pongamos tu negocio dentro de tu cerebro: es tu primer día.', { nombre }) : tr('Ya conoces la app. Ahora pongamos tu negocio dentro de tu cerebro: es tu primer día.'),
     '',
-    'Son cinco pasos y cada uno deja algo escrito en tu memoria:',
-    ...PASOS.map((p, i) => `${i + 1}. **${p.titulo}.** ${p.que}`),
+    tr('Son cinco pasos y cada uno deja algo escrito en tu memoria:'),
+    ...PASOS.map((p, i) => `${i + 1}. **${tr(p.titulo)}.** ${tr(p.que)}`),
     '',
-    'A la derecha, en el **Taller › Tu primer día**, ves el avance. Toca **Empezar con Levy** en el paso 1 o escríbeme «empecemos mi primer día». Lo que hagamos aquí es justo lo que después le vas a instalar a tu primer cliente.',
+    tr('A la derecha, en el **Taller › Tu primer día**, ves el avance. Toca **Empezar con Levy** en el paso 1 o escríbeme «empecemos mi primer día». Lo que hagamos aquí es justo lo que después le vas a instalar a tu primer cliente.'),
   ].join('\n')
 }
 

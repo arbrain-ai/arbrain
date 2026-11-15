@@ -47,6 +47,7 @@ import { capital, NOMBRE_DUENO } from '@/config'
 import { esEdicionCliente } from '@/lib/edicion'
 import { textoTallerVacio } from './taller-vacio'
 import { ColaMemoriaTaller } from './ColaMemoriaTaller'
+import { tr, trn, trNodos } from '@/shared/i18n'
 
 // ── Íconos de las pestañas y de las áreas ──
 export const ICONO_SEGMENTO: Record<SegmentoTaller, LucideIcon> = { terminales: Bot, historia: GitBranch, rutinas: Repeat, memoria: BrainCircuit, maquina: Server, registro: ScrollText, 'primer-dia': Sunrise }
@@ -84,31 +85,31 @@ export function PulsoTaller({ data: real, onIr }: { data: Trabajos | undefined; 
   const rutinas = useFuente<CronSnapshot>(urlRutinas()).data
   const { datos: data } = useDatosTaller(real)
   const n = cuentasTaller(data, rutinas)
-  if (!n) return <div className={w.pulso} data-tono="cargando" aria-busy="true"><span className={w.pulsoLuz} /><div><p className={w.pulsoTitular}>{esEdicionCliente() ? 'Mirando tu Arbrain…' : 'Mirando el Studio…'}</p></div></div>
+  if (!n) return <div className={w.pulso} data-tono="cargando" aria-busy="true"><span className={w.pulsoLuz} /><div><p className={w.pulsoTitular}>{tr(esEdicionCliente() ? 'Mirando tu Arbrain…' : 'Mirando el Studio…')}</p></div></div>
   // Ronda 4 (crítico ciego, 27 oct): una rutina o un servicio que falló no es peligro, es aviso. Una sola línea neutra
   // con ícono y «Ver», sin rojo. Arriba solo va lo que te toca: cuántos trabajan y cuántos te esperan.
   const avisos: { texto: string; ir: SegmentoTaller }[] = []
-  if (n.rutinasFallidas) avisos.push({ texto: `${n.rutinasFallidas} ${n.rutinasFallidas === 1 ? 'rutina' : 'rutinas'}`, ir: 'rutinas' })
-  if (n.fallas) avisos.push({ texto: `${n.fallas} ${n.fallas === 1 ? 'servicio' : 'servicios'}`, ir: 'maquina' })
-  if (n.huerfanos) avisos.push({ texto: `${n.huerfanos} ${n.huerfanos === 1 ? 'programa abierto sin usar' : 'programas abiertos sin usar'}`, ir: 'maquina' })
-  if (n.fallasMenores) avisos.push({ texto: `${n.fallasMenores} ${n.fallasMenores === 1 ? 'aviso menor' : 'avisos menores'}`, ir: 'maquina' })
+  if (n.rutinasFallidas) avisos.push({ texto: trn(n.rutinasFallidas, '{n} rutina', '{n} rutinas'), ir: 'rutinas' })
+  if (n.fallas) avisos.push({ texto: trn(n.fallas, '{n} servicio', '{n} servicios'), ir: 'maquina' })
+  if (n.huerfanos) avisos.push({ texto: trn(n.huerfanos, '{n} programa abierto sin usar', '{n} programas abiertos sin usar'), ir: 'maquina' })
+  if (n.fallasMenores) avisos.push({ texto: trn(n.fallasMenores, '{n} aviso menor', '{n} avisos menores'), ir: 'maquina' })
   const lista = avisos.map(a => a.texto)
-  const enFrase = lista.length > 1 ? `${lista.slice(0, -1).join(', ')} y ${lista.at(-1)}` : lista[0]
+  const enFrase = lista.length > 1 ? tr('{lista} y {ultimo}', { lista: lista.slice(0, -1).join(', '), ultimo: lista.at(-1) }) : lista[0]
   return <div className={`${w.pulso} ${tb.pulsoSobrio} ${mov.entra}`} style={escalon(0)} data-tono="ok" role="status">
     {/* 28 oct 2026: «regresa al morado… el icono estático». La luz morada no late; solo respiran los renglones. */}
     <span className={`${w.pulsoLuz} ${tb.luzSobria}`} data-vivo={n.trabajando > 0 || undefined} aria-hidden />
     <div className={w.pulsoTexto}>
       <p className={w.pulsoTitular}>
         {n.trabajando
-          ? <button type="button" className={w.pulsoIr} onClick={() => onIr('terminales')} title="Ver quién trabaja · Taller › Agentes"><Cifra valor={n.trabajando} clave="taller-trabajando" formato={x => String(Math.round(x))} /> {n.trabajando === n.preparando ? (n.trabajando === 1 ? 'agente preparándose' : 'agentes preparándose') : n.trabajando === 1 ? 'agente trabajando' : 'agentes trabajando'} para ti</button>
-          : 'Nadie trabaja ahora'}
+          ? <button type="button" className={w.pulsoIr} onClick={() => onIr('terminales')} title={tr('Ver quién trabaja · Taller › Agentes')}>{(() => { const cifra = { n: <Cifra valor={n.trabajando} clave="taller-trabajando" formato={x => String(Math.round(x))} /> }; return n.trabajando === n.preparando ? (n.trabajando === 1 ? trNodos('{n} agente preparándose para ti', cifra) : trNodos('{n} agentes preparándose para ti', cifra)) : n.trabajando === 1 ? trNodos('{n} agente trabajando para ti', cifra) : trNodos('{n} agentes trabajando para ti', cifra) })()}</button>
+          : tr('Nadie trabaja ahora')}
       </p>
       <p className={tb.pulsoNotas}>
         {n.espera
-          ? <button type="button" className={tb.pulsoNota} onClick={() => onIr('terminales')} title="Ver qué te toca · Taller › Agentes">{n.espera} {n.espera === 1 ? 'te espera' : 'te esperan'}</button>
-          : !avisos.length && <span><Check size={13} aria-hidden />Todo en orden · {n.servicios} servicios corriendo</span>}
+          ? <button type="button" className={tb.pulsoNota} onClick={() => onIr('terminales')} title={tr('Ver qué te toca · Taller › Agentes')}>{trn(n.espera, '{n} te espera', '{n} te esperan')}</button>
+          : !avisos.length && <span><Check size={13} aria-hidden />{tr('Todo en orden · {n} servicios corriendo', { n: n.servicios })}</span>}
       </p>
-      {avisos.length > 0 && <p className={tb.pulsoFalla}><Info size={13} aria-hidden />Para revisar: {enFrase} · <button type="button" onClick={() => onIr(avisos[0].ir)}>Ver</button></p>}
+      {avisos.length > 0 && <p className={tb.pulsoFalla}><Info size={13} aria-hidden />{trNodos('Para revisar: {lista} · {ver}', { lista: enFrase, ver: <button type="button" onClick={() => onIr(avisos[0].ir)}>{tr('Ver')}</button> })}</p>}
     </div>
   </div>
 }
@@ -139,14 +140,14 @@ export function SegmentosTaller({ vista, elegir, data, segmentos: base }: { vist
     e.preventDefault(); elegir(segmentos[a].id)
     enfocarSel(e)
   }
-  return <div ref={fila} className={w.segmentos} role="tablist" aria-label="Taller" onKeyDown={teclas}>
+  return <div ref={fila} className={w.segmentos} role="tablist" aria-label={tr('Taller')} onKeyDown={teclas}>
     {segmentos.map((t, i) => {
       const Icono = ICONO_SEGMENTO[t.id], k = cuenta(t.id), a = alerta(t.id)
-      return <button key={t.id} role="tab" aria-selected={vista === t.id} tabIndex={vista === t.id ? 0 : -1} className={w.segmento} onClick={() => elegir(t.id)} title={`${t.etiqueta} · ${t.pregunta} (arrástrala para moverla)`}
+      return <button key={t.id} role="tab" aria-selected={vista === t.id} tabIndex={vista === t.id ? 0 : -1} className={w.segmento} onClick={() => elegir(t.id)} title={tr('{etiqueta} · {pregunta} (arrástrala para moverla)', { etiqueta: tr(t.etiqueta), pregunta: tr(t.pregunta) })}
         aria-keyshortcuts="Alt+ArrowLeft Alt+ArrowRight"
         onPointerDown={e => { if (fila.current && e.pointerType !== 'touch') arrastrarFila(e, { lista: fila.current, selector: ':scope > [role="tab"]', desde: i, eje: 'x', alSoltar: d => mover(t.id, d) }) }}>
-        <span className={w.segIcono}><Icono size={15} aria-hidden />{a && <i className={w.segAlerta} data-tono={a} aria-label="pide atención" />}</span>
-        <span className={w.segEtiqueta}>{t.etiqueta}</span>
+        <span className={w.segIcono}><Icono size={15} aria-hidden />{a && <i className={w.segAlerta} data-tono={a} aria-label={tr('pide atención')} />}</span>
+        <span className={w.segEtiqueta}>{tr(t.etiqueta)}</span>
         {k != null && <small className={w.segCuenta}>{k}</small>}
       </button>
     })}
@@ -170,7 +171,7 @@ export function AgentesTaller({ data: real, onAbrir, onAbrirInterna }: { data: T
   const vacio = textoTallerVacio(esEdicionCliente(), data)
   return <div className={w.vista}>
     <div className={w.cabecera}>
-      <h3 className={w.ceja}>Trabajando para ti</h3>
+      <h3 className={w.ceja}>{tr('Trabajando para ti')}</h3>
       <NuevoAgente />
     </div>
     {/* Cola por memoria (5 nov 2026): lo que espera aire para salir, arriba de lo que ya trabaja. Solo si algo espera. */}
@@ -181,7 +182,7 @@ export function AgentesTaller({ data: real, onAbrir, onAbrirInterna }: { data: T
       <p><b>{vacio.titulo}</b> {vacio.cuerpo}</p>
     </div>}
     {shells.length > 0 && <details className={w.pliegue}>
-      <summary><ChevronRight size={12} aria-hidden /><SquareTerminal size={12} aria-hidden />Terminales<small>{shells.length}</small></summary>
+      <summary><ChevronRight size={12} aria-hidden /><SquareTerminal size={12} aria-hidden />{tr('Terminales')}<small>{shells.length}</small></summary>
       <div className={s.lista}>{shells.map(t => <FilaTerminal key={t.id} t={t} onAbrir={onAbrir} />)}</div>
     </details>}
   </div>
@@ -190,7 +191,7 @@ export function AgentesTaller({ data: real, onAbrir, onAbrirInterna }: { data: T
 function FilaTerminal({ t, onAbrir }: { t: Terminal; onAbrir: (id: number) => void }) {
   const linea = lineaLimpia(accionLegible(t.ultimaAccion)) ?? (t.estado === 'terminal' ? t.ultimas.at(-1) ?? null : null)
   return (
-    <button className={s.fila} data-estado={t.estado} onClick={() => onAbrir(t.id)} title="Ver su terminal">
+    <button className={s.fila} data-estado={t.estado} onClick={() => onAbrir(t.id)} title={tr('Ver su terminal')}>
       <span className={s.marca}><IconoTipo tipo={tipoTerminal(t)} estado={estadoTerminal(t)} /></span>
       <span className={s.filaTexto}>
         <span className={s.filaNombre}>{nombreTerminal(t)}</span>
@@ -219,17 +220,17 @@ function NuevoAgente() {
     setTimeout(() => setEnviado(false), 6000)
   }
   if (!abierto) return enviado
-    ? <span className={`${w.nuevoListo} ${mov.aparece}`}><Check size={12} aria-hidden />Levy lo recibió en el chat</span>
-    : <button className={w.nuevo} onClick={() => { setAbierto(true); setEnviado(false) }}><Plus size={13} aria-hidden />Nuevo agente</button>
+    ? <span className={`${w.nuevoListo} ${mov.aparece}`}><Check size={12} aria-hidden />{tr('Levy lo recibió en el chat')}</span>
+    : <button className={w.nuevo} onClick={() => { setAbierto(true); setEnviado(false) }}><Plus size={13} aria-hidden />{tr('Nuevo agente')}</button>
   return <form className={`${s.nuevoCaja} ${w.nuevoCaja} ${mov.aparece}`} onSubmit={e => { e.preventDefault(); pasar() }}>
-    <label htmlFor="nuevo-agente">¿Qué quieres que haga?</label>
+    <label htmlFor="nuevo-agente">{tr('¿Qué quieres que haga?')}</label>
     <textarea id="nuevo-agente" ref={caja} value={texto} onChange={e => setTexto(e.target.value)} rows={3}
-      placeholder="Ej.: revisa los comentarios de YouTube de esta semana y dime cuáles contestar"
+      placeholder={tr('Ej.: revisa los comentarios de YouTube de esta semana y dime cuáles contestar')}
       onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); pasar() } if (e.key === 'Escape') { e.preventDefault(); setAbierto(false) } }} />
-    <p>Se lo pasas a Levy en el chat. Él arma el encargo y lanza el agente.</p>
+    <p>{tr('Se lo pasas a Levy en el chat. Él arma el encargo y lanza el agente.')}</p>
     <div className={s.nuevoAcciones}>
-      <button type="button" className={s.nuevoCancelar} onClick={() => setAbierto(false)}>Cancelar</button>
-      <button type="submit" className={s.nuevoEnviar} disabled={!texto.trim()}>Pasárselo a Levy</button>
+      <button type="button" className={s.nuevoCancelar} onClick={() => setAbierto(false)}>{tr('Cancelar')}</button>
+      <button type="submit" className={s.nuevoEnviar} disabled={!texto.trim()}>{tr('Pasárselo a Levy')}</button>
     </div>
   </form>
 }

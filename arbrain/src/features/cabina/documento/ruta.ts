@@ -3,12 +3,14 @@
  * Espejo de arbrain/server/src/cabina/documento.ts (la herramienta valida antes; esta API vuelve a
  * validar porque es la que lee y escribe). Puro: sin fs, para poder probarlo y usarlo en el cliente.
  */
-export type TipoDocumento = 'md' | 'txt' | 'html' | 'mermaid' | 'imagen' | 'video' | 'audio' | 'pdf' | 'carpeta' | 'codigo' | 'otro'
+import { tr } from '@/shared/i18n'
+export type TipoDocumento = 'md' | 'txt' | 'html' | 'mermaid' | 'imagen' | 'video' | 'audio' | 'pdf' | 'docx' | 'xlsx' | 'csv' | 'carpeta' | 'codigo' | 'otro'
 
 const EXT: Record<string, TipoDocumento> = {
   md: 'md', markdown: 'md', txt: 'txt', html: 'html', htm: 'html', mmd: 'mermaid', mermaid: 'mermaid',
   png: 'imagen', jpg: 'imagen', jpeg: 'imagen', webp: 'imagen', gif: 'imagen', svg: 'imagen', avif: 'imagen',
   mp4: 'video', webm: 'video', mov: 'video', m4v: 'video',
+  docx: 'docx', xlsx: 'xlsx', xlsm: 'xlsx', csv: 'csv', tsv: 'csv',
   pdf: 'pdf', mp3: 'audio', wav: 'audio', m4a: 'audio', aac: 'audio', ogg: 'audio', oga: 'audio', opus: 'audio', flac: 'audio', aif: 'audio', aiff: 'audio',
 }
 const CODIGO = /^(ts|tsx|js|jsx|mjs|cjs|py|swift|json|jsonc|yaml|yml|toml|sh|zsh|bash|rb|go|rs|java|kt|c|h|cpp|hpp|m|mm|css|scss|sql|plist|xml|lock|env|ini|cfg|conf|vue|svelte|php|lua|dart|r|ipynb)$/
@@ -37,18 +39,18 @@ const dentro = (abs: string, base: string) => abs === base || abs.startsWith(bas
 
 /** ¿Una ruta absoluta (ya resuelta) está en las raíces permitidas y lejos de credenciales? null = sí. */
 export function rutaPermitida(abs: string, r: Raices): string | null {
-  if (!permitidas(r).some(b => dentro(abs, b))) return 'Solo se muestran archivos del repo, de ~/Developer, de /tmp o de las carpetas del dueño (Movies, Desktop, Downloads, Documents, Pictures, Music).'
+  if (!permitidas(r).some(b => dentro(abs, b))) return tr('Solo se muestran archivos del repo, de ~/Developer, de /tmp o de las carpetas del dueño (Movies, Desktop, Downloads, Documents, Pictures, Music).')
   const partes = abs.split('/')
-  if (partes.some(p => CARPETA_VETADA.test(p))) return 'Esa carpeta guarda credenciales: no se muestra.'
-  if (NOMBRE_VETADO.test(partes[partes.length - 1] ?? '')) return 'Ese archivo parece una llave o credencial: no se muestra.'
+  if (partes.some(p => CARPETA_VETADA.test(p))) return tr('Esa carpeta guarda credenciales: no se muestra.')
+  if (NOMBRE_VETADO.test(partes[partes.length - 1] ?? '')) return tr('Ese archivo parece una llave o credencial: no se muestra.')
   return null
 }
 
 /** Relativa al repo, `~/…` o absoluta → absoluta permitida, o un error legible. */
 export function resolverRuta(pedida: string, r: Raices): { abs: string } | { error: string } {
   const p = pedida.trim()
-  if (!p || p.length > 1000 || p.includes('\0')) return { error: 'Ruta inválida.' }
-  if (p.split(/[\\/]/).includes('..')) return { error: 'La ruta no puede subir con «..».' }
+  if (!p || p.length > 1000 || p.includes('\0')) return { error: tr('Ruta inválida.') }
+  if (p.split(/[\\/]/).includes('..')) return { error: tr('La ruta no puede subir con «..».') }
   const abs = normal(p.startsWith('~/') ? `${r.home}/${p.slice(2)}` : p.startsWith('/') ? p : `${r.repo}/${p}`)
   const error = rutaPermitida(abs, r)
   return error ? { error } : { abs }

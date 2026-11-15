@@ -38,12 +38,33 @@ const idiomasSistema = (): readonly string[] =>
  * dentro de cada nivel de calidad su región va primero (en España, la voz de España antes que la de México).
  */
 export function mejorVozEspanol<V extends { name: string; lang: string; localService?: boolean; default?: boolean }>(voces: readonly V[], idioma: string | null = null): V | null {
-  const es = voces.filter((v) => /^es([-_]|$)/i.test(v.lang))
+  // Nunca una voz novedad (Abuela, Eddy, Flo…: voz-sistema.ts › esVozNovedad), aunque sea la única en español.
+  const es = voces.filter((v) => /^es([-_]|$)/i.test(v.lang) && !esVozNovedad(v))
   if (!es.length) return null
   const calidad = (v: V) => /(natural|neural|online|wavenet|enhanced|mejorad|premium)/i.test(v.name) ? 0 : /google/i.test(v.name) ? 1 : 2
   const suya = idioma?.toLowerCase().replace('_', '-') ?? null
   const region = (v: V) => { const l = v.lang.toLowerCase().replace('_', '-'); return l === suya ? -1 : l === 'es-mx' ? 0 : l === 'es-us' || l === 'es-419' ? 1 : l === 'es-es' ? 3 : 2 }
   return [...es].sort((a, b) => calidad(a) - calidad(b) || region(a) - region(b) || Number(!!b.default) - Number(!!a.default))[0]
+}
+
+/**
+ * La mejor voz en inglés del sistema (13 nov 2026, Ajustes › Idioma en English). Mismo criterio que la española:
+ * neuronales/naturales y mejoradas primero (en Apple, las «Premium»/«Enhanced» descargadas; Siri si se expone), luego
+ * Google, luego el resto (las voces viejas y robóticas de Apple, Fred, Ralph, Kathy…, al final); dentro de cada nivel, el
+ * inglés del sistema de la persona, después en-US, en-GB y otros. Las voces novedad nunca. Ninguna en inglés: null (el caller fija `lang` y el sistema decide). Pura.
+ */
+export function mejorVozIngles<V extends { name: string; lang: string; localService?: boolean; default?: boolean }>(voces: readonly V[], idioma: string | null = null): V | null {
+  const en = voces.filter((v) => /^en([-_]|$)/i.test(v.lang) && !esVozNovedad(v))
+  if (!en.length) return null
+  const calidad = (v: V) => /(natural|neural|online|wavenet|enhanced|mejorad|premium|siri)/i.test(v.name) ? 0 : /google/i.test(v.name) ? 1 : /^(fred|ralph|kathy|junior|princess|agnes|bruce|vicki|victoria)\b/i.test(v.name) ? 3 : 2
+  const suya = idioma?.toLowerCase().replace('_', '-') ?? null
+  const region = (v: V) => { const l = v.lang.toLowerCase().replace('_', '-'); return l === suya ? -1 : l === 'en-us' ? 0 : l === 'en-gb' ? 1 : 2 }
+  return [...en].sort((a, b) => calidad(a) - calidad(b) || region(a) - region(b) || Number(!!b.localService) - Number(!!a.localService) || Number(!!b.default) - Number(!!a.default))[0]
+}
+
+/** ¿Un toque debe devolver la lectura a la voz del servidor? Solo si cayó a la del navegador por el audio local. Pura. */
+export function debeRecuperarVoz(fallaLocal: boolean, disponible: boolean): boolean {
+  return fallaLocal && !disponible
 }
 
 // Velocidad REAL (la hornea el servidor, atempo sin cambiar el tono). Del 23 oct al 5 nov llegó a 3x (la voz de WebKit,
@@ -72,6 +93,9 @@ const PRECARGA = 3
 export const ESPERAS_REINTENTO_MS = [250, 500, 750, 1000, 1000]
 /** Con la voz del navegador tras una caída: cada cuánto se vuelve a preguntar al servidor (sondeaServidor). */
 const SONDEO_MS = 2000
+// Reubicar un mensaje que React volvió a montar (reubicarOSuspender): cada cuánto y cuántas veces antes de darlo por ido.
+const REUBICAR_CADA_MS = 200
+const REUBICAR_INTENTOS = 10
 
 // ---- Texto HABLADO vs texto VISIBLE ----
 // La voz no debe verbalizar lo que no es prosa: un emoji suena como "marca de verificación",
@@ -93,27 +117,41 @@ const NOISE: Array<{ re: RegExp; say: string | ((m: RegExpExecArray) => string);
   // "24/7" y "60/90 min" y los leía como "una ruta". El `[\w.~-]*` inicial absorbe tanto
   // la barra de "/Users/..." como el "agent-server" de "arbrain/server/scripts/x/y.py".
   // Palabras sueltas entre barras («lunes/miércoles/viernes», «LT/HT/cohorte») no son ruta (31 oct 2026): se leen.
-  { re: /[\w.~-]*(?:\/[\w.~-]+){2,}/gu, say: ' una ruta ', si: esRuta },
+  { re: /[\w.~-]*(?:\/[\w.~-]+){2,}/gu, say: trMarca(' una ruta '), si: esRuta },
   // Ruta de UNA barra con pinta de archivo ("project/comentario-ia-2026-09-22.md"). Medido
   // el 23 sep: la voz la deletreaba guion por guion durante 7s y el vigilante la cortaba
   // a media palabra. El filtro deja pasar "80/20", "LT/HT" o "input/output".
-  { re: /[\w.~-]+\/[\w.~-]+/gu, say: ' una ruta ', si: (m) => m.length >= 10 && /\p{L}/u.test(m) && /[-_]|\.\w{1,4}\.?$/.test(m) },
-  { re: /\b[\w-]+\.(?:ts|tsx|js|jsx|py|md|css|json|sh|html|sql|yml|yaml)\b/gu, say: ' un archivo ' },
+  { re: /[\w.~-]+\/[\w.~-]+/gu, say: trMarca(' una ruta '), si: (m) => m.length >= 10 && /\p{L}/u.test(m) && /[-_]|\.\w{1,4}\.?$/.test(m) },
+  { re: /\b[\w-]+\.(?:ts|tsx|js|jsx|py|md|css|json|sh|html|sql|yml|yaml)\b/gu, say: trMarca(' un archivo ') },
   // Pictogramas (emoji, dingbats, variation selectors, ZWJ, keycaps): fuera, no se dicen.
   { re: /[\p{Extended_Pictographic}\u{FE0F}\u{200D}\u{20E3}]/gu, say: '' },
-  { re: /[→⇒➜►]/gu, say: ' hacia ' },
-  { re: /[←⇐◄]/gu, say: ' desde ' },
-  { re: /§\s*(?=\d)/gu, say: ' sección ' },
+  { re: /[→⇒➜►]/gu, say: trMarca(' hacia ') },
+  { re: /[←⇐◄]/gu, say: trMarca(' desde ') },
+  { re: /§\s*(?=\d)/gu, say: trMarca(' sección ') },
   { re: /[·•▍|§#*_`]/gu, say: ' ' },
   // Comillas/guillemets: la voz no las verbaliza pero sí le tropieza la prosodia en citas.
   { re: /[«»“”„‟‹›"']/gu, say: ' ' },
 ]
 
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
-/** «31/10/2026» → «31 de octubre de 2026» (también 10/31/2026, la forma de EE. UU.). Si no es fecha, los números. */
+/** Sustitución hablada en el idioma de Ajustes, con sus espacios de relleno intactos. */
+function hablado(say: string): string {
+  return say.trim() ? tr(say) : say
+}
+
+/**
+ * «31/10/2026» → «31 de octubre de 2026» (también 10/31/2026, la forma de EE. UU.). Si no es fecha, los números.
+ * En inglés (13 nov 2026), mes primero: «10/31/2026» → «October 31, 2026»; un día mayor que 12 delante fija el orden.
+ */
 function fechaHablada(m: RegExpExecArray): string {
   const a = Number(m[1]), b = Number(m[2]), y = m[3]
+  if (enIngles()) {
+    if (a >= 1 && a <= 12 && b >= 1 && b <= 31) return ` ${MONTHS[a - 1]} ${b}, ${y} `
+    if (b >= 1 && b <= 12 && a >= 1 && a <= 31) return ` ${MONTHS[b - 1]} ${a}, ${y} `
+    return ` ${m[1]} ${m[2]} ${y} `
+  }
   const anio = y.length === 2 ? `del ${y}` : `de ${y}`
   if (b >= 1 && b <= 12 && a >= 1 && a <= 31) return ` ${a} de ${MESES[b - 1]} ${anio} `
   if (a >= 1 && a <= 12 && b >= 1 && b <= 31) return ` ${b} de ${MESES[a - 1]} ${anio} `
@@ -152,7 +190,8 @@ export function buildSpoken(text: string): { spoken: string; map: number[] } {
         continue
       }
       if (si && !si(m[0])) continue
-      hits.push({ start: m.index, end: m.index + m[0].length, say: typeof say === 'string' ? say : say(m) })
+      // Lo que se dice en lugar de la ruta, el archivo o la flecha va en el idioma de Ajustes (13 nov 2026).
+      hits.push({ start: m.index, end: m.index + m[0].length, say: typeof say === 'string' ? hablado(say) : say(m) })
     }
   }
   hits.sort((a, b) => a.start - b.start || b.end - a.end)
@@ -193,14 +232,15 @@ import { anclarElemento, deslizarScroll, escalaRect, fijarScroll } from './despl
 import { FIN_GESTO_MS, TECLAS_DE_SCROLL, Seguimiento } from './seguimiento'
 import { sonda } from './tts-probe'
 import { URL_RE, filtrarBloques, type BloqueLector } from './lector-filtro'
-import { MARCA_PROPIO, SELECTOR_BLOQUES, tramosPropios, type NodoLector } from './lector-bloques'
+import { MARCA_PROPIO, SELECTOR_BLOQUES, contieneFirmas, firmaDeTexto, tramosPropios, type NodoLector } from './lector-bloques'
 import { MemoriaLector, huellaDeTexto, resolverPosicion, type PosicionLector } from './lector-posicion'
 import { FallaVoz, VozServidor, type AudioTramo } from './voz-servidor'
 import { registrarLector } from './lector-registro'
 import { palabraEn, tiemposDeMarcas } from './marcas-voz'
 import { tiemposDelAudio } from './tiempos-estimados'
 import { ResaltadoUnico } from './resaltado'
-import { idiomaDeRespaldo, idiomaPreferido } from './voz-sistema'
+import { esVozNovedad, idiomaDeRespaldo, idiomaPreferido, idiomaPreferidoIngles } from './voz-sistema'
+import { enIngles, tr, trMarca } from '@/shared/i18n'
 import { elegirResumen, type BloqueResumen } from './resumen-hablado'
 
 type StateCb = (playing: boolean) => void
@@ -563,10 +603,10 @@ class ChatSpeechController {
     const resumen = !!opciones?.resumen && !selectedText?.trim() && !externo
     if (this.curId === id) {
       const mismoModo = this.resumen === resumen
-      this.stop()
+      this.stop(true, mismoModo ? 'boton' : 'otro-modo')
       if (mismoModo) return // mismo botón = detener; el otro botón del mismo mensaje cambia de modo
     }
-    this.stop()
+    this.stop(true, 'otra-lectura')
     this.curId = id
     this.sesion = this.resolverSesion?.() ?? null
     this.huella = externo ? '' : huellaDeTexto(el.textContent || '')
@@ -599,6 +639,7 @@ class ChatSpeechController {
     this.idx = 0
     this.paused = false
     this.voz.reintentar() // un fallo de la lectura anterior no condena a esta a la voz del navegador
+    this.fallaLocal = false
     this.vozVuelve = false
     this.servidorListo = false
     this.motor = null
@@ -702,10 +743,9 @@ class ChatSpeechController {
     if (!this.curId || typeof document === 'undefined') return false
     const vivo = this.container?.isConnected && (this.extracto || this.blocks.every((b) => b.isConnected || b === this.cierre))
     if (vivo) return true
-    const iguales = (el: HTMLElement) => {
-      const t = Array.from(el.querySelectorAll(SELECTOR_BLOQUES)).map((b) => firmaDe(b as HTMLElement)).filter(Boolean)
-      return this.firma.length > 0 && this.firma.every((f) => t.includes(f))
-    }
+    // Por texto, no bloque contra bloque: la prosa propia de un <li> con sub-lista no es un bloque del nodo recién pintado
+    // (12 nov 2026, ver contieneFirmas en lector-bloques.ts).
+    const iguales = (el: HTMLElement) => contieneFirmas(this.firma, el.textContent)
     let el = document.querySelector<HTMLElement>(`[data-tts-content="${CSS.escape(this.curId)}"]`)
     let id = this.curId
     if (!el || (!this.extracto && !iguales(el))) {
@@ -813,8 +853,12 @@ class ChatSpeechController {
   }
 
   private currentVoice(): SpeechSynthesisVoice | null {
-    if (!this.synth || isIOS) return null
-    const es = this.synth.getVoices().filter((v) => v.lang.toLowerCase().startsWith('es'))
+    if (!this.synth) return null
+    // Ajustes › Idioma en English (13 nov 2026): la voz del sistema casi siempre es española en la Mac de quien habla
+    // español, así que aquí sí se elige por nombre una voz inglesa (también en Apple y en iOS, que sí las exponen).
+    if (enIngles()) return mejorVozIngles(this.synth.getVoices(), idiomaPreferidoIngles(idiomasSistema()))
+    if (isIOS) return null
+    const es = this.synth.getVoices().filter((v) => v.lang.toLowerCase().startsWith('es') && !esVozNovedad(v))
     // Preferir voces locales (las mejoradas descargadas lo son) igual que el lector de libros.
     const local = es.filter((v) => v.localService)
     const pool = local.length ? local : es
@@ -1059,7 +1103,7 @@ class ChatSpeechController {
   private speakBlock(motivo = 'bloque'): void {
     if (!this.synth) return
     const el = this.blocks[this.idx]
-    if (!el) return this.stop()
+    if (!el) return this.stop(true, 'fin')
     this.revealBlock(el)
     // Tras una caída del servidor, el párrafo vuelve a su voz en cuanto el sondeo respondió (sondeaServidor).
     if (!this.voz.disponible && this.vozVuelve && this.servidorListo) {
@@ -1106,7 +1150,7 @@ class ChatSpeechController {
         if (this.relocate()) {
           const s = sents[cursor]
           this.startOffset = s ? s.start : null
-          if (!s) { if (this.idx < this.blocks.length - 1) this.idx++; else return this.stop() }
+          if (!s) { if (this.idx < this.blocks.length - 1) this.idx++; else return this.stop(true, 'fin') }
           return this.speakBlock()
         }
       }
@@ -1116,7 +1160,7 @@ class ChatSpeechController {
         if (this.idx < this.blocks.length - 1) {
           this.idx++
           this.speakBlock()
-        } else this.stop()
+        } else this.stop(true, 'fin')
         return
       }
       const isFirst = cursor === si
@@ -1138,7 +1182,7 @@ class ChatSpeechController {
       if (v) {
         u.voice = v
         u.lang = v.lang
-      } else u.lang = idiomaDeRespaldo(idiomasSistema())
+      } else u.lang = idiomaDeRespaldo(idiomasSistema(), esApple) // Apple: es-MX = Juan (voz-sistema.ts, 12 nov)
       u.rate = RATES[this.rateIdx]
       const primera = /\S+/.exec(spoken)
 
@@ -1243,7 +1287,27 @@ class ChatSpeechController {
 
   private marcarToque(tipo: string) {
     this.toque = { t: this.now(), tipo }
+    this.recuperaVozEnToque()
   }
+
+  /**
+   * UN TOQUE DEVUELVE LA VOZ DEL SERVIDOR (12 nov 2026). A las 07:36:23 el contexto de Web Audio de la app se quedó
+   * suspendido a media lectura (lector.jsonl: `falla · contexto suspendido · servidor: false`; el servidor respondía en
+   * 64–84 ms) y la lectura siguió con la voz del navegador. Como la falla no era del servidor no había sondeo de vuelta, y
+   * los 8 toques siguientes (tap, reanudar, a 1.5x y 2x hasta las 07:37:35) siguieron en esa voz. Un contexto suspendido
+   * solo se reanuda dentro de un gesto: cada toque (tap, reanudar, salto) lo desbloquea y vuelve a la voz del servidor.
+   * Una caída del SERVIDOR no entra aquí: esa vuelve sola con sondeaServidor (sin esperar los reintentos en cada toque).
+   */
+  private recuperaVozEnToque() {
+    if (!debeRecuperarVoz(this.fallaLocal, this.voz.disponible)) return
+    this.fallaLocal = false
+    this.vozVuelve = false
+    this.servidorListo = false
+    this.voz.reintentar()
+    this.voz.desbloquear()
+  }
+  // La lectura cayó a la voz del navegador por el audio de ESTE equipo (contexto suspendido, Web Audio), no por el servidor.
+  private fallaLocal = false
 
   /** El primer audio del gesto ya sale por la bocina: a la bitácora (lector-registro.ts). `atras`: hace cuántos ms. */
   private primerAudio(motor: 'servidor' | 'navegador', atras = 0, extra: Record<string, unknown> = {}) {
@@ -1307,7 +1371,7 @@ class ChatSpeechController {
         this.idx++
         return this.speakBlock()
       }
-      return this.stop()
+      return this.stop(true, 'fin')
     }
     // Palabra de arranque: la que contiene el offset pedido (tap, reanudar), o la primera.
     let w0 = 0
@@ -1358,7 +1422,7 @@ class ChatSpeechController {
       if (this.idx < this.blocks.length - 1) {
         this.idx++
         this.speakBlock()
-      } else this.stop()
+      } else this.stop(true, 'fin')
     }
     const precarga = (t: number) => {
       const v = RATES[this.rateIdx]
@@ -1381,6 +1445,7 @@ class ChatSpeechController {
       // Una edición sin voz de servidor (alumno sin llave) no es una falla: es su voz de siempre.
       if (!/sin_voz_servidor/.test(motivo)) registrarLector({ tipo: 'falla', motivo, servidor: !!o.servidor, velocidad: RATES[this.rateIdx] })
       this.vozVuelve = !!o.servidor
+      this.fallaLocal = !o.servidor
       this.servidorListo = false
       this.voz.disponible = false
       this.paraAudio()
@@ -1786,13 +1851,30 @@ class ChatSpeechController {
   }
 
   /** Pausa y guarda el punto (cambio de conversación, mensaje que sale de pantalla): NO olvida. */
-  suspend() {
+  suspend(motivo = 'suspender') {
     if (!this.curId) return
     this.guardaPunto(true)
-    this.stop(false)
+    this.stop(false, motivo)
   }
 
-  /** `olvidar` (por defecto sí): parar es gesto explícito o fin de lectura, la próxima empieza de cero. */
+  /**
+   * REACT DESMONTÓ EL BOTÓN DEL MENSAJE QUE SE LEE (12 nov 2026, Daniel: «pongo pausa y desaparece la línea de audio»).
+   * Desmontar no es desaparecer: el id local `a-…` pasa al de la base y React vuelve a pintar el mensaje. Se reubica en
+   * el nodo nuevo; si aún no está pintado (markdown diferido, LazyMessage), se reintenta ~2 s. Solo si el mensaje de
+   * verdad ya no está, se suspende (guarda el punto). Antes un solo intento a los 120 ms y, con una lista anidada, la
+   * firma no casaba nunca (ver contieneFirmas): la barra se cerraba en pausa o leyendo, sin que nadie tocara la ✕.
+   */
+  reubicarOSuspender(id: string) {
+    let intentos = 0
+    const intenta = () => {
+      if (this.curId !== id) return // ya se reubicó (cambió el id), se cerró o se lee otro mensaje
+      if (this.relocate()) return
+      if (++intentos < REUBICAR_INTENTOS) { setTimeout(intenta, REUBICAR_CADA_MS); return }
+      this.suspend('mensaje-fuera')
+    }
+    setTimeout(intenta, 120)
+  }
+
   /** Recoloca el bloque activo en la zona visible (p. ej. el composer cambió de alto). */
   reajustar() {
     // En pausa no se recoloca nada: Daniel está leyendo o moviéndose por el hilo, no siguiendo la voz.
@@ -1800,7 +1882,11 @@ class ChatSpeechController {
     if (el && this.getState().active && !this.paused && this.seg.lleva) this.revealBlock(el)
   }
 
-  stop(olvidar = true) {
+  /** `olvidar` (por defecto sí): parar es gesto explícito o fin de lectura, la próxima empieza de cero. `motivo` va a la
+   *  bitácora (lector.jsonl, `cierre`): quién cerró la barra. Sin motivo es la ✕ de la barra. */
+  stop(olvidar = true, motivo = 'x') {
+    // Cada cierre de la barra deja rastro: el 12 nov la bitácora solo tenía primeros audios y no se podía saber quién la cerró.
+    if (this.curId) registrarLector({ tipo: 'cierre', motivo, en_pausa: this.paused, parrafo: this.idx + 1, total: this.blocks.length })
     if (olvidar && this.sesion && this.curId && this.memoria.obtener(this.sesion)?.msgId === this.curId)
       this.memoria.olvidar(this.sesion)
     this.sesion = null
@@ -1814,6 +1900,7 @@ class ChatSpeechController {
     this.startOffset = null
     this.toque = null
     this.vozVuelve = false
+    this.fallaLocal = false
     this.servidorListo = false
     if (this.sondeoTimer) { clearTimeout(this.sondeoTimer); this.sondeoTimer = null }
     this.paraAudio()
@@ -1947,7 +2034,7 @@ export function tramosDesde(spoken: string, words: Array<{ from: number; to: num
 
 /** Firma corta de un párrafo: estable entre renders, distinta entre mensajes. */
 function firmaDe(el: HTMLElement): string {
-  return (el.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 80)
+  return firmaDeTexto(el.textContent)
 }
 
 export const chatSpeech =

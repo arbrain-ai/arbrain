@@ -10,6 +10,7 @@
 import { esDeHoy, esProceso, type EstadoInterna, type TareaInterna, type Terminal } from './trabajos-modelo'
 import { agenteTerminado } from './terminados'
 import { textMessageTitle } from '../chat/lib/text-attachments'
+import { tr } from '@/shared/i18n'
 
 /** Un trabajo que corre pesa más que uno que falló, que uno detenido, que uno terminado. */
 const PESO: Record<EstadoInterna, number> = { trabajando: 0, 'falló': 1, detenida: 2, completada: 3 }
@@ -145,4 +146,4 @@ export function tituloDe(id: string, listas: readonly (readonly ConversacionConT
 }
 
 /** Cuando ninguna lista la conoce: rótulo honesto con el inicio del id, para distinguir una de otra. */
-export const sinTitulo = (id: string) => id ? `Otra conversación · ${sinPrefijo(id).slice(0, 6)}` : 'Otra conversación'
+export const sinTitulo = (id: string) => id ? tr('Otra conversación · {id}', { id: sinPrefijo(id).slice(0, 6) }) : tr('Otra conversación')

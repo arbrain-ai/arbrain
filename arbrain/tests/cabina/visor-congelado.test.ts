@@ -47,8 +47,8 @@ test('si el servidor firma otro enlace, el video vuelve a su segundo y a su play
 test('cargando y fallas se ven: Cargando…, el motivo y Reintentar (que además vuelve a pedir el documento)', () => {
   assert.match(visor, /onWaiting=\{\(\) => \{ if \(i === a\) alEmpezarEspera\(\) \}\}/)
   assert.match(visor, /onError=\{e => \{ if \(i === a\) alFallar\(e\.currentTarget\) \}\}/)
-  assert.match(visor, /Cargando…/)
-  assert.match(visor, /onClick=\{recuperar\}>Reintentar/)
+  assert.match(visor, /tr\('Cargando…'\)/)
+  assert.match(visor, /onClick=\{recuperar\}>\{tr\('Reintentar'\)\}/)
   assert.match(visor, /alReintentar\?\.\(\)/)
   assert.match(documento, /alReintentar=\{\(\) => \{ void releer\(url\) \}\}/)
 })

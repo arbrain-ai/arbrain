@@ -14,6 +14,34 @@ export function levyVivoActivo(): boolean {
   } catch { return false }
 }
 
+// Levy en Live (13 nov 2026, Daniel: «esto del levy 2D metelo al live de tu foto de perfil»). Desde hoy Live, el que se abre
+// desde la foto de perfil, arranca con el Levy 2D de los videos: la cara oficial con chip Arbrain, la boca por el atlas
+// horneado con LivePortrait y el movimiento del 3D (lo que antes pedía `?levyVivo=1`). Lo de antes queda en Ajustes ›
+// Apariencia › «Levy en Live»: el 3D (lo que Live abría hasta hoy) o el 2D anterior (chip «sf», boca paramétrica).
+// Clave nueva a propósito: la vieja `arbrain.live.vista` guardaba «3d» por defecto y taparía el cambio que pidió Daniel.
+export type CaraLive = 'videos' | '3d' | '2d-anterior'
+export const CARA_LIVE_CLAVE = 'arbrain.live.cara'
+export const CARA_LIVE_EVENTO = 'arbrain:cara-live'
+export const CARAS_LIVE: ReadonlyArray<{ id: CaraLive; nombre: string; detalle: string }> = [
+  { id: 'videos', nombre: 'De los videos', detalle: 'La cara oficial en 2D, con la boca y el movimiento de los videos' },
+  { id: '3d', nombre: '3D', detalle: 'El avatar 3D que Live abría antes' },
+  { id: '2d-anterior', nombre: '2D anterior', detalle: 'El retrato 2D de antes (chip «sf»)' },
+]
+
+/** Lo que monta Live. Sin nada guardado (o en el servidor), el Levy de los videos. */
+export function caraLive(): CaraLive {
+  if (typeof window === 'undefined') return 'videos'
+  try {
+    const v = window.localStorage.getItem(CARA_LIVE_CLAVE)
+    return v === '3d' || v === '2d-anterior' ? v : 'videos'
+  } catch { return 'videos' }
+}
+
+export function fijarCaraLive(c: CaraLive): void {
+  try { window.localStorage.setItem(CARA_LIVE_CLAVE, c) } catch { /* sin almacenamiento: vale solo esta vez */ }
+  try { window.dispatchEvent(new CustomEvent(CARA_LIVE_EVENTO, { detail: c })) } catch { /* sin ventana */ }
+}
+
 /** Separa objetos JSON de nivel superior en un flujo de texto (ElevenLabs manda uno por línea; no se depende del salto). */
 export class SeparadorJson {
   private resto = ''

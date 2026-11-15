@@ -3,6 +3,7 @@ import { useCallback, useSyncExternalStore } from 'react'
 import { instalacion } from '@/config'
 import type { CampoFondo } from '@/config/tipos'
 import { aplicarCambioZonas, normalizarZonas, zonasEfectivas, zonasEncendidas, type CambioZonas, type DocZonas, type Zona } from './zonas'
+import { tr } from '@/shared/i18n'
 
 /**
  * Las Zonas de mi vida en la app (28 oct 2026). UNA lectura compartida por todas las superficies (la Semana, el Día, el panel, el
@@ -28,9 +29,9 @@ async function leer() {
     const b = await r.json()
     // Sin acceso (29 oct 2026: la segunda persona en su propio calendario): las zonas de fábrica son las del dueño, no las suyas.
     if (r.status === 403) return poner({ doc: null, zonas: [], encendidas: [], error: null })
-    if (!r.ok) throw new Error(b.error ?? 'No se pudieron leer tus zonas.')
+    if (!r.ok) throw new Error(b.error ? tr(b.error) : tr('No se pudieron leer tus zonas.'))
     poner(desde(normalizarZonas(b)))
-  } catch (e) { poner({ ...estado, error: e instanceof Error ? e.message : 'No se pudieron leer tus zonas.' }) }
+  } catch (e) { poner({ ...estado, error: e instanceof Error ? e.message : tr('No se pudieron leer tus zonas.') }) }
 }
 
 function suscribir(o: () => void) {
@@ -46,15 +47,15 @@ function suscribir(o: () => void) {
 export async function cambiarZonas(cambio: CambioZonas): Promise<void> {
   const antes = estado
   const local = aplicarCambioZonas(antes.doc ?? normalizarZonas(null), cambio, FABRICA)
-  if (typeof local === 'string') throw new Error(local)
+  if (typeof local === 'string') throw new Error(tr(local))
   poner(desde(local))
   try {
     const r = await fetch('/api/planning/zonas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cambio), signal: AbortSignal.timeout(30_000) })
     const b = await r.json()
-    if (!r.ok) throw new Error(b.error ?? 'No se guardó.')
+    if (!r.ok) throw new Error(b.error ? tr(b.error) : tr('No se guardó.'))
     poner(desde(normalizarZonas(b)))
   } catch (e) {
-    const m = e instanceof Error ? e.message : 'No se guardó.'
+    const m = e instanceof Error ? e.message : tr('No se guardó.')
     poner({ ...antes, error: m }); throw new Error(m)
   }
 }

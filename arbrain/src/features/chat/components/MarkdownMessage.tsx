@@ -1,4 +1,6 @@
 'use client'
+import { trNodos } from '@/shared/i18n'
+import { tr } from '@/shared/i18n'
 import { useRef, useState, useId, useCallback, useEffect, memo, isValidElement, createContext, useContext } from 'react'
 import ReactMarkdown, { defaultUrlTransform } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -74,7 +76,7 @@ function TablaMd({ children }: { children?: ReactNode }) {
   const ancho = useContext(MsgAnchoContext)
   const caja = (
     <div className={`overflow-x-auto rounded-xl border border-border ${ancho ? 'chat-fit' : 'my-3'}`}>
-      <table className="min-w-full text-xs">{children}</table>
+      <table className="min-w-full text-[length:var(--tam-paso-detalle)]">{children}</table>
     </div>
   )
   return ancho ? <div className="chat-wide my-3">{caja}</div> : caja
@@ -162,7 +164,7 @@ function CodeBlock({ className, children }: ComponentPropsWithoutRef<'code'>) {
             onClick={() => setWrap((w) => !w)}
             className={`flex items-center gap-1 text-[10px] transition-colors ${wrap ? 'text-muted/80 hover:text-foreground/75' : 'text-brand-ink'}`}
             aria-pressed={!wrap}
-            title={wrap ? 'Desactivar ajuste de línea' : 'Ajustar líneas'}
+            title={wrap ? tr('Desactivar ajuste de línea') : tr('Ajustar líneas')}
           >
             <WrapText size={11} />
             <span>{wrap ? 'Wrap' : 'Scroll'}</span>
@@ -174,18 +176,18 @@ function CodeBlock({ className, children }: ComponentPropsWithoutRef<'code'>) {
             {copied ? (
               <>
                 <Check size={11} className="text-gold-dark dark:text-gold-bright" />
-                <span className="text-gold-dark dark:text-gold-bright">Copiado</span>
+                <span className="text-gold-dark dark:text-gold-bright">{tr('Copiado')}</span>
               </>
             ) : (
               <>
                 <Copy size={11} />
-                <span>Copiar</span>
+                <span>{tr('Copiar')}</span>
               </>
             )}
           </button>
         </div>
       </div>
-      <pre ref={preRef} className={`px-4 py-3 text-xs leading-relaxed ${wrap ? 'whitespace-pre-wrap break-words' : 'overflow-x-auto'}`}>
+      <pre ref={preRef} className={`px-4 py-3 text-[length:var(--tam-paso-detalle)] leading-relaxed ${wrap ? 'whitespace-pre-wrap break-words' : 'overflow-x-auto'}`}>
         <code className={className}>{children}</code>
       </pre>
     </div>
@@ -205,8 +207,10 @@ function ImagenRemotaBloqueada({ src, dominio, alt }: { src: string; dominio: st
   return (
     <span className="my-2 inline-flex max-w-full flex-wrap items-center gap-1.5 rounded-xl border border-border-subtle bg-card/60 px-3 py-2 text-xs text-muted">
       <ZoomIn size={12} aria-hidden />
-      <span>{alt ? `«${alt}»: imagen` : 'Imagen'} de <strong className="font-medium text-foreground/80">{dominio}</strong> sin cargar. Arbrain no carga imágenes de internet por su cuenta.</span>
-      <a href={src} target="_blank" rel="noopener noreferrer" className="text-brand-ink underline underline-offset-2 hover:opacity-80">Abrir en el navegador</a>
+      <span>{alt
+        ? trNodos('«{alt}»: imagen de {dominio} sin cargar. Arbrain no carga imágenes de internet por su cuenta.', { alt, dominio: <strong className="font-medium text-foreground/80">{dominio}</strong> })
+        : trNodos('Imagen de {dominio} sin cargar. Arbrain no carga imágenes de internet por su cuenta.', { dominio: <strong className="font-medium text-foreground/80">{dominio}</strong> })}</span>
+      <a href={src} target="_blank" rel="noopener noreferrer" className="text-brand-ink underline underline-offset-2 hover:opacity-80">{tr('Abrir en el navegador')}</a>
     </span>
   )
 }
@@ -235,7 +239,7 @@ function ChatImageCargada({ src: srcCrudo, alt }: { src?: string; alt?: string }
     return (
       <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-card/60 border border-border-subtle text-muted/70 text-xs">
         <ZoomIn size={12} />
-        {error ? 'Imagen no disponible' : 'Sin imagen'}
+        {error ? tr('Imagen no disponible') : tr('Sin imagen')}
       </span>
     )
   }
@@ -264,7 +268,7 @@ function ChatImageCargada({ src: srcCrudo, alt }: { src?: string; alt?: string }
         <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-2.5">
           <span className="flex items-center gap-1 px-2 py-1 rounded-full bg-black/40 text-foreground/85 text-[10px]">
             <ZoomIn size={10} />
-            Ampliar
+            {tr('Ampliar')}
           </span>
         </div>
       </button>
@@ -291,12 +295,12 @@ export function ThinkingBlock({ text, label, streaming = false, waiting = false,
 }) {
   const [open, setOpen] = useState(false)
   const detailsId = useId()
-  const shownLabel = label ?? (streaming ? (text ? 'Razonando' : 'Preparando respuesta') : 'Resumen de razonamiento')
+  const shownLabel = label ? tr(label) : (streaming ? (text ? tr('Razonando') : tr('Preparando respuesta')) : tr('Resumen de razonamiento'))
   // «Preparando respuesta» sin señales más de 25 s: se dice qué pasa (resiliencia, 12 oct 2026).
   const espera = useEsperaExplicada(streaming && !waiting && !text && !label)
   return <div data-chat-activity data-tts-exclude className="mb-2 font-sans">
     <button type="button" onClick={() => setOpen(value => !value)} aria-expanded={open} aria-controls={detailsId}
-      className="group/activity min-h-11 min-w-11 flex max-w-full items-center gap-2.5 rounded-xl px-2 -ml-2 text-[13px] text-muted hover:bg-foreground/5 hover:text-foreground focus-visible:outline-2 focus-visible:outline-brand focus-visible:outline-offset-2 transition-colors motion-reduce:transition-none">
+      className="group/activity min-h-11 min-w-11 flex max-w-full items-center gap-2.5 rounded-xl px-2 -ml-2 text-[length:var(--tam-paso)] text-muted hover:bg-foreground/5 hover:text-foreground focus-visible:outline-2 focus-visible:outline-brand focus-visible:outline-offset-2 transition-colors motion-reduce:transition-none">
       <span aria-hidden className="relative flex h-4 w-4 shrink-0 items-center justify-center">
         {streaming && !waiting ? <><span className="absolute inset-0 rounded-full border-2 border-brand/20" />
           <span data-activity-motion className="absolute inset-0 rounded-full border-2 border-transparent border-t-brand motion-safe:animate-spin" /></>
@@ -306,10 +310,10 @@ export function ThinkingBlock({ text, label, streaming = false, waiting = false,
       {tiempo}
       <ChevronDown aria-hidden size={15} className={`shrink-0 text-muted/60 transition-transform motion-reduce:transition-none ${open ? 'rotate-180' : ''}`} />
     </button>
-    {espera && <p role="status" data-espera-explicada className="-mt-1 mb-2 text-[12px] text-muted">{espera.texto}{espera.reintentar && <> <BotonReintentar className="ml-1 align-baseline" /></>}</p>}
-    {open && <div id={detailsId} role="region" aria-label="Detalle de actividad" aria-live="off"
-      className="mt-1 mb-3 ml-2 border-l border-border pl-4 pr-2 text-[13px] text-muted leading-relaxed whitespace-pre-wrap break-words">
-      {text || detail || (streaming ? 'Todavía no hay un resumen de razonamiento disponible.' : 'No se recibió un resumen de razonamiento para este turno.')}
+    {espera && <p role="status" data-espera-explicada className="-mt-1 mb-2 text-[12px] text-muted">{tr(espera.texto)}{espera.reintentar && <> <BotonReintentar className="ml-1 align-baseline" /></>}</p>}
+    {open && <div id={detailsId} role="region" aria-label={tr('Detalle de actividad')} aria-live="off"
+      className="mt-1 mb-3 ml-2 border-l border-border pl-4 pr-2 text-[length:var(--tam-paso)] text-muted leading-relaxed whitespace-pre-wrap break-words">
+      {text || (detail ? tr(detail) : streaming ? tr('Todavía no hay un resumen de razonamiento disponible.') : tr('No se recibió un resumen de razonamiento para este turno.'))}
     </div>}
   </div>
 }
@@ -400,9 +404,9 @@ export const MarkdownMessage = memo(function MarkdownMessage({
           p: ({ children }) => (
             <p className="mb-3 last:mb-0 whitespace-pre-wrap break-words">{children}</p>
           ),
-          h1: ({ children }) => <h1 className="text-[22px] font-bold text-foreground mt-6 mb-2 first:mt-0">{children}</h1>,
-          h2: ({ children }) => <h2 className="text-[19px] font-semibold text-foreground mt-5 mb-1.5 first:mt-0">{children}</h2>,
-          h3: ({ children }) => <h3 className="text-[17px] font-semibold text-foreground/85 mt-4 mb-1 first:mt-0">{children}</h3>,
+          h1: ({ children }) => <h1 className="text-[length:calc(var(--tam-prosa)+6px)] font-bold text-foreground mt-6 mb-2 first:mt-0">{children}</h1>,
+          h2: ({ children }) => <h2 className="text-[length:calc(var(--tam-prosa)+3px)] font-semibold text-foreground mt-5 mb-1.5 first:mt-0">{children}</h2>,
+          h3: ({ children }) => <h3 className="text-[length:calc(var(--tam-prosa)+1px)] font-semibold text-foreground/85 mt-4 mb-1 first:mt-0">{children}</h3>,
           ul: ({ children }) => <ul className="chat-lista mb-3 last:mb-0 pl-6 space-y-1.5 list-disc list-outside">{children}</ul>,
           ol: ({ children }) => <ol className="chat-lista mb-3 last:mb-0 pl-6 space-y-1.5 list-decimal list-outside">{children}</ol>,
           li: ({ children }) => <li className="pl-1 leading-relaxed">{children}</li>,

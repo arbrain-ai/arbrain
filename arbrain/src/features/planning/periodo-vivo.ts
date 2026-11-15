@@ -4,6 +4,7 @@ import { focusFor } from '@/features/goals/hoy-model'
 import { bloquesDelDia, type Bloque } from './dia-vivo'
 import type { CalendarMode, PlanEvent, PlanTask, PlanningSnapshot } from './types'
 import { tituloVisible } from './ajenos'
+import { tr } from '@/shared/i18n'
 
 /**
  * Modelo de las escalas vivas (Calendario › 4 días, Semana y Mes, 5 oct 2026). Puro y sin React.
@@ -44,7 +45,7 @@ export function objetivoDe(goals: Goal[], snapshot: PlanningSnapshot | null, hor
 
 /** El rótulo del estado, el mismo en todas las escalas: «Acordado» no se dice (es lo normal); lo demás sí. */
 export const rotuloEstado = (o: Pick<ObjetivoPeriodo, 'estado' | 'origen'>) =>
-  o.estado && o.estado !== 'agreed' ? statusLabels[o.estado] : o.origen === 'calendario' ? 'Calendario' : null
+  o.estado && o.estado !== 'agreed' ? tr(statusLabels[o.estado]) : o.origen === 'calendario' ? tr('Calendario') : null
 
 /** Días civiles [desde, hasta). */
 export function diasEntre(desde: string, hasta: string): string[] {
@@ -195,5 +196,5 @@ export function hitosDe(agenda: Agenda, color: (e: PlanEvent) => string | null):
 /** «hoy», «mañana», «en 12 días», «hace 3 días». */
 export function cuentaA(dia: string, hoy: string): string {
   const n = dia >= hoy ? diasEntre(hoy, dia).length : -diasEntre(dia, hoy).length
-  return n === 0 ? 'hoy' : n === 1 ? 'mañana' : n === -1 ? 'ayer' : n > 0 ? `en ${n} días` : `hace ${-n} días`
+  return n === 0 ? tr('hoy') : n === 1 ? tr('mañana') : n === -1 ? tr('ayer') : n > 0 ? tr('en {n} días', { n }) : tr('hace {n} días', { n: -n })
 }

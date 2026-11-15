@@ -7,6 +7,7 @@ import { toChatAccount, type ChatAccount } from '../stores/account-store'
 import { useRecientesStore } from '../stores/recientes-store'
 import { detectEndsQuestion } from '../lib/session-status'
 import { esDeArbrain } from '../lib/recientes-lista'
+import { tr } from '@/shared/i18n'
 import { aplicarCambioALista, EVENTO_CAMBIO_SESION, type CambioSesion } from '../lib/cambios-sesion'
 import { fijarHijosVivos, fijarTurnosActivos, suscribirTurnosActivos, versionTurnosActivos, type TurnoActivoDto, type HijoDto } from '../lib/turnos-activos'
 import { sonda } from '../lib/tts-probe'
@@ -80,7 +81,7 @@ const TURNOS_POLL_MS = 6_000
 /** Causa legible de una respuesta fallida: el `error` del servidor (ya en español) o el código. */
 export async function motivoDeFalla(res: Response): Promise<string> {
   const json = await res.json().catch(() => null) as { error?: unknown } | null
-  return typeof json?.error === 'string' && json.error.trim() ? json.error : `el servidor respondió ${res.status}`
+  return typeof json?.error === 'string' && json.error.trim() ? tr(json.error) : tr('el servidor respondió {estado}', { estado: res.status })
 }
 
 /** Vista del sidebar: conversaciones reales o sesiones de crons/fondo. */
@@ -174,7 +175,7 @@ export function useChatHistory(account: ChatAccount = 'default', view: ChatHisto
         cacheSnapshot('chat', cacheKey, mapped).catch(() => {})
       } catch (e) {
         // Un hipo del daemon NO debe borrar la lista pintada: se conserva y se dice.
-        if (!opts?.silent) setLoadError(e instanceof Error ? e.message : 'no se pudo leer')
+        if (!opts?.silent) setLoadError(e instanceof Error ? e.message : tr('no se pudo leer'))
       } finally {
         setLoading(false)
       }
@@ -186,10 +187,10 @@ export function useChatHistory(account: ChatAccount = 'default', view: ChatHisto
     // conversaciones con abliterated models». Igual que la barra lateral (recientes-cuentas.ts, 1 oct: «por ahora no
     // ocupamos un filtro»); abrir una de otra cuenta ya resincroniza la cuenta activa (handleSelectSession).
     const mcRes = await fetch(`/api/chat/sessions?source=mc&limit=40&sort=last_message`, { cache: 'no-store' }).catch(() => null)
-    if (!mcRes) { setLoading(false); setLoadError('sin conexión con el servidor'); return }
+    if (!mcRes) { setLoading(false); setLoadError(tr('sin conexión con el servidor')); return }
     const mcJson = await mcRes.json().catch(() => ({})) as { sessions?: ChatSession[]; error?: string }
     // Falla = conservar lo pintado y decirlo; nunca una lista vacía (12 oct 2026).
-    if (!mcRes.ok) { setLoading(false); if (!opts?.silent) setLoadError(mcJson.error ?? `el servidor respondió ${mcRes.status}`); return }
+    if (!mcRes.ok) { setLoading(false); if (!opts?.silent) setLoadError(mcJson.error ? tr(mcJson.error) : tr('el servidor respondió {estado}', { estado: mcRes.status })); return }
     setLoadError(null)
     const mcSessions = (mcJson.sessions as ChatSession[]) ?? []
 
@@ -264,7 +265,7 @@ export function useChatHistory(account: ChatAccount = 'default', view: ChatHisto
     if (firstMessage.trimStart().startsWith('/') && isOnline()) {
       const response = await fetch('/api/chat/sessions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: firstMessage.slice(0, 55), account }) })
       const body = await response.json()
-      if (!response.ok || !body.session) throw new Error(body.error ?? 'No se pudo crear la conversación del comando.')
+      if (!response.ok || !body.session) throw new Error(body.error ? tr(body.error) : tr('No se pudo crear la conversación del comando.'))
       setSessions(previous => [body.session, ...previous])
       return body.session
     }
@@ -491,7 +492,7 @@ export function useChatHistory(account: ChatAccount = 'default', view: ChatHisto
         const SDK_RENDER_CAP = 200
         const sliced = result.length > SDK_RENDER_CAP ? result.slice(-SDK_RENDER_CAP) : result
         return { messages: sliced, hasMore: false }
-      } catch { return { messages: [], hasMore: false, error: 'sin conexión con el servidor' } }
+      } catch { return { messages: [], hasMore: false, error: tr('sin conexión con el servidor') } }
     }
 
     // MC sessions: load through the local/server auth layer (paginado por cursor).
@@ -502,7 +503,7 @@ export function useChatHistory(account: ChatAccount = 'default', view: ChatHisto
     // conserva y no se propaga un rechazo sin manejar; el reconcile vuelve a
     // intentarlo al recuperar conexión.
     let res: Response
-    try { res = await fetch(`/api/chat/sessions/${encodeURIComponent(sessionId)}/messages?${params}`, { cache: 'no-store' }) } catch { return { messages: [], hasMore: false, error: 'sin conexión con el servidor' } }
+    try { res = await fetch(`/api/chat/sessions/${encodeURIComponent(sessionId)}/messages?${params}`, { cache: 'no-store' }) } catch { return { messages: [], hasMore: false, error: tr('sin conexión con el servidor') } }
     if (!res.ok) return { messages: [], hasMore: false, error: await motivoDeFalla(res) }
     const json = await res.json().catch(() => ({})) as { messages?: PersistedMessage[]; hasMore?: boolean }
     return { messages: (json.messages as PersistedMessage[]) ?? [], hasMore: json.hasMore ?? false }

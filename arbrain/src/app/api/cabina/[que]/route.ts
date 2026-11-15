@@ -2,6 +2,7 @@ import { planningOwner, planningError, checkMutationOrigin } from '@/lib/plannin
 import { getSchedulerUrl, CLAUDECLAW_TOKEN } from '@/lib/claudeclaw'
 import { sinRespuestaDelServidor } from '@/lib/edicion'
 import { createServiceClient } from '@/lib/supabase/service'
+import { tr } from '@/shared/i18n'
 
 // Vistas del Studio (goal 2): «negocio» (libro del negocio con fechas reales de
 // revisión), «trabajos» (terminales del motor de Arbrain, servidores y servicios) y
@@ -31,7 +32,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ que:
       body: JSON.stringify({ que, conTexto: q.get('texto') === '1', lineas: Number(q.get('lineas')) || undefined, ...(que === 'servidores' ? { ahora: q.get('ahora') === '1' } : {}), ...(que === 'memoria' && q.get('leer') ? { leer: q.get('leer')!.slice(0, 300) } : {}), ...(que === 'contexto' ? { conversacion: q.get('conversacion')?.slice(0, 80) || undefined, medir: q.get('medir') === '1' } : {}), ...(que === 'salida' ? { tarea: (q.get('tarea') ?? '').slice(0, 120) } : {}), ...(que === 'actividad' ? actividad(q) : {}) }),
       signal: AbortSignal.timeout(40_000), cache: 'no-store',
     })
-    const body = await res.json().catch(() => ({ error: sinRespuestaDelServidor() }))
+    const body = await res.json().catch(() => ({ error: tr(sinRespuestaDelServidor()) }))
     if (que === 'trabajos' && res.ok) await sinTrabajosAjenos(body, dueno)
     return Response.json(body, { status: res.status, headers: { 'Cache-Control': 'no-store' } })
   } catch (error) { return planningError(error) }
@@ -60,17 +61,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ que
     const { que } = await params
     // Tablero de agentes (27 oct 2026): Detener y Responder a un subagente de Levy. El agent-server re-verifica que sea
     // suyo y siga abierto, y usa la misma vía que Levy (detener / retomar).
-    if (que === 'detener' || que === 'responder') {
+    // Cerrar y Recibido (11 nov 2026): cerrar = la herramienta `cerrar` de la Cabina; recibido = una marca reversible (`si`).
+    if (que === 'detener' || que === 'responder' || que === 'cerrar' || que === 'recibido') {
       checkMutationOrigin(request)
-      const { agente, texto, esfuerzo } = await request.json().catch(() => ({})) as { agente?: unknown; texto?: unknown; esfuerzo?: unknown }
-      if (typeof agente !== 'number' || !Number.isInteger(agente) || agente <= 0) return Response.json({ error: 'Falta el agente.' }, { status: 400 })
-      if (que === 'responder' && (typeof texto !== 'string' || !texto.trim() || texto.length > 4000)) return Response.json({ error: 'Escribe el mensaje (máximo 4,000 caracteres).' }, { status: 400 })
+      const { agente, texto, esfuerzo, si } = await request.json().catch(() => ({})) as { agente?: unknown; texto?: unknown; esfuerzo?: unknown; si?: unknown }
+      if (typeof agente !== 'number' || !Number.isInteger(agente) || agente <= 0) return Response.json({ error: tr('Falta el agente.') }, { status: 400 })
+      if (que === 'responder' && (typeof texto !== 'string' || !texto.trim() || texto.length > 4000)) return Response.json({ error: tr('Escribe el mensaje (máximo 4,000 caracteres).') }, { status: 400 })
       const res = await fetch(`${await getSchedulerUrl()}/cabina`, {
         method: 'POST', headers: { Authorization: `Bearer ${CLAUDECLAW_TOKEN}`, 'Content-Type': 'application/json' },
         // esfuerzo («Reintentar con más esfuerzo»): el agent-server lo valida contra su lista y el catálogo vivo
-        body: JSON.stringify({ que, agente, ...(que === 'responder' ? { texto, ...(typeof esfuerzo === 'string' ? { esfuerzo: esfuerzo.slice(0, 20) } : {}) } : {}) }), signal: AbortSignal.timeout(45_000), cache: 'no-store',
+        body: JSON.stringify({ que, agente, ...(que === 'recibido' ? { si: si !== false } : {}), ...(que === 'responder' ? { texto, ...(typeof esfuerzo === 'string' ? { esfuerzo: esfuerzo.slice(0, 20) } : {}) } : {}) }), signal: AbortSignal.timeout(45_000), cache: 'no-store',
       })
-      const body = await res.json().catch(() => ({ error: sinRespuestaDelServidor() }))
+      const body = await res.json().catch(() => ({ error: tr(sinRespuestaDelServidor()) }))
       return Response.json(body, { status: res.status, headers: { 'Cache-Control': 'no-store' } })
     }
     // Comentarios en lote sobre el entregable (29 oct 2026) y planes versionados (correr o descartar): el agent-server valida
@@ -80,23 +82,23 @@ export async function POST(request: Request, { params }: { params: Promise<{ que
       const crudo = await request.text()
       if (crudo.length > 64_000) return Response.json({ error: 'Demasiado grande.' }, { status: 413 })
       const cuerpo = (() => { try { return JSON.parse(crudo) as Record<string, unknown> } catch { return null } })()
-      if (!cuerpo || typeof cuerpo !== 'object') return Response.json({ error: 'Se espera JSON.' }, { status: 400 })
+      if (!cuerpo || typeof cuerpo !== 'object') return Response.json({ error: tr('Se espera JSON.') }, { status: 400 })
       const res = await fetch(`${await getSchedulerUrl()}/cabina`, {
         method: 'POST', headers: { Authorization: `Bearer ${CLAUDECLAW_TOKEN}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(que === 'comentarios' ? { que, agente: cuerpo.agente, comentarios: cuerpo.comentarios } : { que, ruta: cuerpo.ruta }),
         signal: AbortSignal.timeout(60_000), cache: 'no-store',
       })
-      const body = await res.json().catch(() => ({ error: sinRespuestaDelServidor() }))
+      const body = await res.json().catch(() => ({ error: tr(sinRespuestaDelServidor()) }))
       return Response.json(body, { status: res.status, headers: { 'Cache-Control': 'no-store' } })
     }
-    if (que !== 'apagar') return Response.json({ error: 'Acción desconocida.' }, { status: 404 })
+    if (que !== 'apagar') return Response.json({ error: tr('Acción desconocida.') }, { status: 404 })
     const { firma } = await request.json().catch(() => ({})) as { firma?: unknown }
-    if (typeof firma !== 'string' || !/^\d+:\d+$/.test(firma)) return Response.json({ error: 'Falta la firma del proceso.' }, { status: 400 })
+    if (typeof firma !== 'string' || !/^\d+:\d+$/.test(firma)) return Response.json({ error: tr('Falta la firma del proceso.') }, { status: 400 })
     const res = await fetch(`${await getSchedulerUrl()}/cabina`, {
       method: 'POST', headers: { Authorization: `Bearer ${CLAUDECLAW_TOKEN}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ que: 'apagar', firma }), signal: AbortSignal.timeout(30_000), cache: 'no-store',
     })
-    const body = await res.json().catch(() => ({ error: sinRespuestaDelServidor() }))
+    const body = await res.json().catch(() => ({ error: tr(sinRespuestaDelServidor()) }))
     return Response.json(body, { status: res.status, headers: { 'Cache-Control': 'no-store' } })
   } catch (error) { return planningError(error) }
 }

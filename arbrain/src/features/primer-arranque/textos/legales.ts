@@ -7,6 +7,7 @@
  *
  * Formato: párrafos separados por línea en blanco; una línea que empieza con «## » es un subtítulo y «- » una viñeta.
  */
+import { trMarca } from '@/shared/i18n'
 
 // «b» (11 oct 2026, noche): la v1 sale sin computer use (DECISIONES #11); los términos ya no lo ofrecen.
 // 17 oct 2026 (0.1.2): computer use vuelve en macOS y Windows; los términos dicen cómo funciona y quién responde.
@@ -14,7 +15,7 @@
 // de permisos. El modo Autónomo tiene su propio texto y su propia aceptación (server/src/cliente/consentimiento-autonomia.ts).
 // 31 oct 2026: versión final tras la revisión legal; deja de ser borrador.
 export const VERSION_TEXTOS = '2026-10-31'
-export const AVISO_VERSION = 'Versión del 31 de octubre de 2026. Si cambian, Arbrain te los vuelve a pedir.'
+export const AVISO_VERSION = trMarca('Versión del 31 de octubre de 2026. Si cambian, Arbrain te los vuelve a pedir.')
 
 /**
  * El responsable (LFPDPPP art. 15-I) y titular de la marca. Correo confirmado por el titular el 1 nov 2026; domicilio: decidió no publicarlo
@@ -34,8 +35,8 @@ export interface DocumentoLegal { id: 'privacidad' | 'terminos' | 'licencia'; ti
 
 export const PRIVACIDAD: DocumentoLegal = {
   id: 'privacidad',
-  titulo: 'Aviso de privacidad',
-  resumen: 'Tu cerebro vive en tu computadora. Sin tu permiso explícito no sale nada.',
+  titulo: trMarca('Aviso de privacidad'),
+  resumen: trMarca('Tu cerebro vive en tu computadora. Sin tu permiso explícito no sale nada.'),
   cuerpo: `## Quién es responsable
 ${RESPONSABLE.nombre}, persona física${RESPONSABLE.domicilio ? `, con domicilio en ${RESPONSABLE.domicilio}` : ''} («nosotros»), es responsable de los datos personales que Arbrain nos envía por tu decisión, conforme a la Ley Federal de Protección de Datos Personales en Posesión de los Particulares (publicada en el Diario Oficial de la Federación el 20 de marzo de 2025).
 
@@ -97,8 +98,8 @@ Si cambia, Arbrain te muestra la versión nueva y te pide aceptarla antes de seg
 
 export const TERMINOS: DocumentoLegal = {
   id: 'terminos',
-  titulo: 'Términos de uso',
-  resumen: 'Tú controlas a tus agentes y eres responsable de lo que autorizas.',
+  titulo: trMarca('Términos de uso'),
+  resumen: trMarca('Tú controlas a tus agentes y eres responsable de lo que autorizas.'),
   cuerpo: `## Quién te da Arbrain
 Arbrain es software de código abierto publicado por ${RESPONSABLE.nombre} («nosotros»). Estos términos regulan el uso de la app. El Acompañamiento Arbrain es un servicio aparte, con su propio acuerdo; en lo que ese acuerdo regule, manda el acuerdo.
 
@@ -142,8 +143,8 @@ Dudas y aclaraciones: ${ESCRIBENOS}. Para reportar una falla de seguridad, sigue
 
 export const LICENCIA: DocumentoLegal = {
   id: 'licencia',
-  titulo: 'Licencia',
-  resumen: 'Código abierto bajo Apache-2.0: úsalo, modifícalo y compártelo. La marca Arbrain no va incluida.',
+  titulo: trMarca('Licencia'),
+  resumen: trMarca('Código abierto bajo Apache-2.0: úsalo, modifícalo y compártelo. La marca Arbrain no va incluida.'),
   cuerpo: `## Lo que recibes
 Arbrain es software de código abierto bajo la licencia Apache License 2.0 (el archivo LICENSE.txt que viaja con la app). Recibes el código y el derecho a usarlo, copiarlo, modificarlo y distribuirlo, también con fines comerciales, en los términos de esa licencia. Los componentes de terceros que incluye conservan sus propias licencias (archivo NOTICE).
 

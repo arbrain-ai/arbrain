@@ -15,12 +15,12 @@ test('el botón «Ir al final» vive dentro del contenedor con scroll del hilo',
   assert.ok(inicioHilo > 0 && fondo > inicioHilo)
   // El cierre del contenedor del hilo es el primer `</div>` a su sangría tras el ancla del fondo.
   const cierreHilo = panel.indexOf('\n          </div>', fondo)
-  const boton = panel.indexOf('title="Ir al final"')
+  const boton = panel.indexOf("title={tr('Ir al final')}")
   assert.ok(boton > fondo && boton < cierreHilo, '«Ir al final» debe estar entre el ancla del fondo y el cierre del hilo')
 })
 
 test('el botón se pega al fondo con sticky y una fila de alto 0, nunca absoluto encima del hilo', () => {
-  const boton = panel.indexOf('title="Ir al final"')
+  const boton = panel.indexOf("title={tr('Ir al final')}")
   const tramo = panel.slice(panel.lastIndexOf('{showScrollBtn && (', boton), boton)
   assert.match(tramo, /sticky bottom-3/)
   assert.match(tramo, /\bh-0\b/)

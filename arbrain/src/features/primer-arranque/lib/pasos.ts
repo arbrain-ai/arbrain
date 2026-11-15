@@ -7,9 +7,11 @@
  * que decide en una pantalla cuánto pregunta Levy (Autónomo recomendado, con su consentimiento) y, donde existe,
  * computer use.
  */
+import { trMarca } from '@/shared/i18n'
+
 export const PASOS = ['bienvenida', 'legal', 'llaves', 'autonomia', 'monitoreo', 'donde', 'listo'] as const
 export type Paso = typeof PASOS[number]
-export const ETIQUETA: Record<Paso, string> = { bienvenida: 'Bienvenida', legal: 'Privacidad', llaves: 'Llaves', autonomia: 'Autonomía', monitoreo: 'Monitoreo', donde: 'Dónde vive', listo: 'Listo' }
+export const ETIQUETA: Record<Paso, string> = { bienvenida: trMarca('Bienvenida'), legal: trMarca('Privacidad'), llaves: trMarca('Llaves'), autonomia: trMarca('Autonomía'), monitoreo: trMarca('Monitoreo'), donde: trMarca('Dónde vive'), listo: trMarca('Listo') }
 
 /**
  * Pasos que de verdad se muestran (v1.1, A/B del primer arranque › secundaria 4). El monitoreo solo pregunta cuando

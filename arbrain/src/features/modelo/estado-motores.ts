@@ -7,6 +7,8 @@
  * pasos verificables en español, sin depender del texto de `motivo`, que es para logs.
  */
 
+import { tr, trMarca } from '@/shared/i18n'
+
 export interface RutaPublica { id: string; nombre: string; modelId: string; cuenta: string; proveedorId: string; disponible: boolean; motivo: string | null; estado: string }
 export interface ProveedorPublico { id: string; nombre: string; auth: { kind: string; variable?: string; presente?: boolean; cuentas?: string[] } }
 export interface Registro { motorApi: boolean; rutas: RutaPublica[]; proveedores: ProveedorPublico[] }
@@ -36,55 +38,55 @@ export interface EstadoMotor {
 export const MOTOR_CLAUDE: EstadoMotor = {
   id: 'default',
   titulo: 'Claude',
-  detalle: 'Tu suscripción Max · Claude Code SDK',
+  detalle: trMarca('Tu suscripción Max · Claude Code SDK'),
   disponible: true,
-  etiqueta: 'Activo',
+  etiqueta: trMarca('Activo'),
   pasos: [],
   queFalta: null,
 }
 
-const REINICIO = 'Lo hace Levy, junto con el reinicio del servidor del chat (com.claudeclaw.app).'
+const REINICIO = trMarca('Lo hace Levy, junto con el reinicio del servidor del chat (com.claudeclaw.app).')
 
 /** Cada ruta por API del registro (hoy, DeepSeek por OpenRouter con Codex como arnés). */
 export function motoresPorApi(registro: Registro | null, estado: EstadoRegistro): EstadoMotor[] {
   if (estado === 'cargando') {
-    return [{ id: 'deepseek', titulo: 'DeepSeek', detalle: 'OpenRouter · Codex como arnés', disponible: false, etiqueta: 'Comprobando…', pasos: [], queFalta: null }]
+    return [{ id: 'deepseek', titulo: 'DeepSeek', detalle: trMarca('OpenRouter · Codex como arnés'), disponible: false, etiqueta: trMarca('Comprobando…'), pasos: [], queFalta: null }]
   }
   if (estado !== 'ok' || !registro) {
     const viejo = estado === 'viejo'
     return [{
       id: 'deepseek',
       titulo: 'DeepSeek',
-      detalle: 'OpenRouter · Codex como arnés',
+      detalle: trMarca('OpenRouter · Codex como arnés'),
       disponible: false,
-      etiqueta: 'Bloqueado',
-      pasos: [{ ok: false, texto: viejo ? 'El servidor del chat corre una versión anterior: todavía no publica el registro de motores.' : 'No hubo respuesta del servidor del chat al pedir el registro de motores.' }],
-      queFalta: viejo ? `Falta que el servidor del chat tome la versión nueva. ${REINICIO}` : 'Revisar que el servidor del chat esté en línea.',
+      etiqueta: trMarca('Bloqueado'),
+      pasos: [{ ok: false, texto: viejo ? tr('El servidor del chat corre una versión anterior: todavía no publica el registro de motores.') : tr('No hubo respuesta del servidor del chat al pedir el registro de motores.') }],
+      queFalta: viejo ? tr('Falta que el servidor del chat tome la versión nueva. {reinicio}', { reinicio: tr(REINICIO) }) : tr('Revisar que el servidor del chat esté en línea.'),
     }]
   }
   return registro.rutas.map((r) => {
     const p = registro.proveedores.find((x) => x.id === r.proveedorId)
-    const variable = p?.auth.variable ?? 'la llave'
+    const variable = p?.auth.variable ?? tr('la llave')
     const llave = p?.auth.kind !== 'api-key' ? true : p.auth.presente === true
     const activa = r.estado !== 'desactivada'
     const pasos: Paso[] = [
-      { ok: true, texto: 'El servidor del chat publica el registro de motores.' },
-      { ok: llave, texto: llave ? `La llave ${variable} está en arbrain/server/.env.` : `Falta la llave ${variable} en arbrain/server/.env del Studio.` },
-      { ok: registro.motorApi, texto: registro.motorApi ? 'El motor por API está encendido (ARBRAIN_MOTOR_API=1).' : 'El motor por API está apagado: falta ARBRAIN_MOTOR_API=1 en arbrain/server/.env.' },
-      { ok: activa, texto: activa ? `La ruta está activa (${r.estado === 'experimental' ? 'experimental' : r.estado}).` : 'La ruta está desactivada en el registro.' },
+      { ok: true, texto: tr('El servidor del chat publica el registro de motores.') },
+      { ok: llave, texto: llave ? tr('La llave {variable} está en arbrain/server/.env.', { variable }) : tr('Falta la llave {variable} en arbrain/server/.env del Studio.', { variable }) },
+      { ok: registro.motorApi, texto: registro.motorApi ? tr('El motor por API está encendido (ARBRAIN_MOTOR_API=1).') : tr('El motor por API está apagado: falta ARBRAIN_MOTOR_API=1 en arbrain/server/.env.') },
+      { ok: activa, texto: activa ? tr('La ruta está activa ({estado}).', { estado: r.estado === 'experimental' ? tr('experimental') : r.estado }) : tr('La ruta está desactivada en el registro.') },
     ]
     const disponible = r.disponible && llave && registro.motorApi && activa
     const queFalta = disponible ? null
-      : !llave ? `Falta poner ${variable} en arbrain/server/.env del Studio. ${REINICIO}`
-      : !registro.motorApi ? `Falta encender el interruptor ARBRAIN_MOTOR_API=1 en arbrain/server/.env del Studio. ${REINICIO}`
-      : !activa ? 'La ruta está desactivada en el registro de modelos del daemon.'
-      : r.motivo ?? 'El servidor la marca como no disponible.'
+      : !llave ? tr('Falta poner {variable} en arbrain/server/.env del Studio. {reinicio}', { variable, reinicio: tr(REINICIO) })
+      : !registro.motorApi ? tr('Falta encender el interruptor ARBRAIN_MOTOR_API=1 en arbrain/server/.env del Studio. {reinicio}', { reinicio: tr(REINICIO) })
+      : !activa ? tr('La ruta está desactivada en el registro de modelos del daemon.')
+      : r.motivo ?? tr('El servidor la marca como no disponible.')
     return {
       id: r.cuenta,
       titulo: r.nombre,
-      detalle: `${p?.nombre ?? r.proveedorId} · Codex como arnés · se paga por uso`,
+      detalle: tr('{proveedor} · Codex como arnés · se paga por uso', { proveedor: p?.nombre ?? r.proveedorId }),
       disponible,
-      etiqueta: disponible ? (r.estado === 'experimental' ? 'Activo · experimental' : 'Activo') : 'Bloqueado',
+      etiqueta: disponible ? (r.estado === 'experimental' ? trMarca('Activo · experimental') : trMarca('Activo')) : trMarca('Bloqueado'),
       pasos,
       queFalta,
     }
@@ -95,11 +97,11 @@ export function motoresPorApi(registro: Registro | null, estado: EstadoRegistro)
  *  todavía apunta a GPT, esa fila marcada como sin suscripción para poder salir de ella. */
 export function opcionesNuevas(motores: EstadoMotor[], guardado: string | null): Array<{ id: string | null; titulo: string; detalle: string; disponible: boolean; aviso: string | null }> {
   const filas: Array<{ id: string | null; titulo: string; detalle: string; disponible: boolean; aviso: string | null }> = [
-    { id: null, titulo: 'Como está', detalle: 'Sin preferencia: la conversación nueva nace en el espacio activo, con su modelo y esfuerzo de siempre.', disponible: true, aviso: null },
-    ...motores.map((m) => ({ id: m.id, titulo: m.titulo, detalle: m.detalle, disponible: m.disponible, aviso: m.disponible ? null : m.etiqueta === 'Comprobando…' ? null : 'Bloqueado: el motor de arriba dice qué falta.' })),
+    { id: null, titulo: trMarca('Como está'), detalle: trMarca('Sin preferencia: la conversación nueva nace en el espacio activo, con su modelo y esfuerzo de siempre.'), disponible: true, aviso: null },
+    ...motores.map((m) => ({ id: m.id, titulo: m.titulo, detalle: m.detalle, disponible: m.disponible, aviso: m.disponible ? null : m.etiqueta === 'Comprobando…' ? null : trMarca('Bloqueado: el motor de arriba dice qué falta.') })),
   ]
   if (esCuentaGpt(guardado)) {
-    filas.push({ id: guardado, titulo: 'GPT (guardado antes)', detalle: 'OpenAI ya no tiene suscripción: elige Claude o DeepSeek y guarda.', disponible: false, aviso: 'Sin suscripción de OpenAI.' })
+    filas.push({ id: guardado, titulo: trMarca('GPT (guardado antes)'), detalle: trMarca('OpenAI ya no tiene suscripción: elige Claude o DeepSeek y guarda.'), disponible: false, aviso: trMarca('Sin suscripción de OpenAI.') })
   }
   return filas
 }

@@ -7,6 +7,7 @@
  */
 import { esAgente, preguntaAlgo, ultimaRespuesta, type TareaInterna, type Terminal } from './trabajos-modelo'
 import { lineaDeFila } from './internas-lectura'
+import { tr } from '@/shared/i18n'
 
 /** Un agente vivo: trabaja, o terminó con una pregunta que Daniel o Levy aún no contestan. */
 export const agenteVivo = (t: Terminal) => t.estado === 'trabajando' || preguntaAlgo(t)
@@ -24,11 +25,11 @@ export function unaLinea(texto: string | null | undefined, max = MAX): string | 
 
 /** El resumen de una línea de un agente terminado: lo último que dijo; si no, su última acción o su encargo. */
 export function resumenTerminal(t: Terminal): string {
-  return unaLinea(ultimaRespuesta(t)?.texto) ?? unaLinea(t.ultimaAccion) ?? unaLinea(t.subagente?.encargo) ?? unaLinea(t.conversacion?.titulo) ?? 'Terminó sin dejar un mensaje.'
+  return unaLinea(ultimaRespuesta(t)?.texto) ?? unaLinea(t.ultimaAccion) ?? unaLinea(t.subagente?.encargo) ?? unaLinea(t.conversacion?.titulo) ?? tr('Terminó sin dejar un mensaje.')
 }
 /** Lo mismo para una tarea interna de un turno de Levy. */
 export function resumenInterna(t: TareaInterna): string {
-  return unaLinea(t.resumen) ?? unaLinea(lineaDeFila(t)) ?? unaLinea(t.nota) ?? unaLinea(t.detalle) ?? unaLinea(t.descripcion) ?? 'Sin resumen.'
+  return unaLinea(t.resumen) ?? unaLinea(lineaDeFila(t)) ?? unaLinea(t.nota) ?? unaLinea(t.detalle) ?? unaLinea(t.descripcion) ?? tr('Sin resumen.')
 }
 
 /** Cuándo terminó, para ordenar: lo más reciente primero. */

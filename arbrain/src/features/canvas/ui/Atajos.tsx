@@ -17,59 +17,60 @@
 import { useEffect, useState } from 'react'
 import { leerSensibilidad, guardarSensibilidad, SENSIBILIDAD_MIN, SENSIBILIDAD_MAX } from '../input/sensibilidad'
 import type { Theme } from '../theme/tokens'
+import { tr, trMarca } from '@/shared/i18n'
 
 interface Props { theme: Theme; onClose: () => void }
 
 const GRUPOS: Array<{ titulo: string; filas: Array<[string, string]> }> = [
-  { titulo: 'Herramientas', filas: [
-    ['V', 'Seleccionar'], ['H', 'Mano'], ['N', 'Nota'], ['T', 'Texto'],
-    ['R', 'Rectángulo'], ['O', 'Círculo'], ['C', 'Conector'], ['S', 'Sección'],
-    ['P', 'Lápiz'], ['M', 'Marcador'], ['E', 'Goma'],
+  { titulo: trMarca('Herramientas'), filas: [
+    ['V', trMarca('Seleccionar')], ['H', trMarca('Mano')], ['N', trMarca('Nota')], ['T', trMarca('Texto')],
+    ['R', trMarca('Rectángulo')], ['O', trMarca('Círculo')], ['C', trMarca('Conector')], ['S', trMarca('Sección')],
+    ['P', trMarca('Lápiz')], ['M', trMarca('Marcador')], ['E', trMarca('Goma')],
   ]},
-  { titulo: 'Moverse', filas: [
-    ['Espacio + arrastrar', 'Mover el lienzo, con cualquier herramienta'],
-    ['Rueda presionada + arrastrar', 'Mover el lienzo'],
-    ['⌘ + arrastrar', 'Mover el lienzo (⌘ + clic quieto abre el enlace)'],
-    ['H', 'Herramienta mano'],
-    ['Dos dedos', 'Mover el lienzo (trackpad)'],
-    ['Rueda / ⇧ + rueda', 'Mover arriba y abajo / a los lados'],
+  { titulo: trMarca('Moverse'), filas: [
+    [trMarca('Espacio + arrastrar'), trMarca('Mover el lienzo, con cualquier herramienta')],
+    [trMarca('Rueda presionada + arrastrar'), trMarca('Mover el lienzo')],
+    [trMarca('⌘ + arrastrar'), trMarca('Mover el lienzo (⌘ + clic quieto abre el enlace)')],
+    ['H', trMarca('Herramienta mano')],
+    [trMarca('Dos dedos'), trMarca('Mover el lienzo (trackpad)')],
+    [trMarca('Rueda / ⇧ + rueda'), trMarca('Mover arriba y abajo / a los lados')],
   ]},
-  { titulo: 'Zoom', filas: [
-    ['Pellizcar', 'Acercar y alejar (trackpad)'],
-    ['⌘ + rueda', 'Acercar y alejar bajo el cursor'],
-    ['⌘+ / ⌘−', 'Acercar / alejar un nivel'],
-    ['⌘0 · ⇧0 · 0', 'Volver al 100%'],
-    ['⌘1 · ⇧1', 'Encuadrar todo'],
-    ['⌘2 · ⇧2', 'Encuadrar la selección'],
+  { titulo: trMarca('Zoom'), filas: [
+    [trMarca('Pellizcar'), trMarca('Acercar y alejar (trackpad)')],
+    [trMarca('⌘ + rueda'), trMarca('Acercar y alejar bajo el cursor')],
+    ['⌘+ / ⌘−', trMarca('Acercar / alejar un nivel')],
+    ['⌘0 · ⇧0 · 0', trMarca('Volver al 100%')],
+    ['⌘1 · ⇧1', trMarca('Encuadrar todo')],
+    ['⌘2 · ⇧2', trMarca('Encuadrar la selección')],
   ]},
-  { titulo: 'Capítulos', filas: [
-    ['← / →', 'Capítulo anterior / siguiente (sin selección)'],
-    ['1 – 9', 'Ir a un capítulo'],
-    ['↓ / ↑', 'Bajar y subir dentro del capítulo'],
-    ['Esc', 'Vista completa'],
+  { titulo: trMarca('Capítulos'), filas: [
+    ['← / →', trMarca('Capítulo anterior / siguiente (sin selección)')],
+    ['1 – 9', trMarca('Ir a un capítulo')],
+    ['↓ / ↑', trMarca('Bajar y subir dentro del capítulo')],
+    ['Esc', trMarca('Vista completa')],
   ] },
-  { titulo: 'Seleccionar', filas: [
-    ['Clic', 'Elegir'], ['⇧ + clic', 'Sumar a la selección'],
-    ['Arrastrar en vacío', 'Marquesina'], ['⌘A', 'Todo'],
-    ['⌘⇧A', 'El diagrama entero, desde una de sus piezas'],
-    ['Esc', 'Soltar la selección'],
+  { titulo: trMarca('Seleccionar'), filas: [
+    [trMarca('Clic'), trMarca('Elegir')], [trMarca('⇧ + clic'), trMarca('Sumar a la selección')],
+    [trMarca('Arrastrar en vacío'), trMarca('Marquesina')], ['⌘A', trMarca('Todo')],
+    ['⌘⇧A', trMarca('El diagrama entero, desde una de sus piezas')],
+    ['Esc', trMarca('Soltar la selección')],
   ]},
-  { titulo: 'Editar', filas: [
-    ['⌘Z / ⇧⌘Z', 'Deshacer / rehacer'],
-    ['⌘C / ⌘X / ⌘V', 'Copiar / cortar / pegar'],
-    ['⌘D', 'Duplicar'], ['⌥ + arrastrar', 'Duplicar arrastrando'],
-    ['⌫', 'Eliminar'], ['Flechas', 'Empujar 1px · 10 con ⇧'],
-    ['Doble clic', 'Editar el texto'],
+  { titulo: trMarca('Editar'), filas: [
+    ['⌘Z / ⇧⌘Z', trMarca('Deshacer / rehacer')],
+    ['⌘C / ⌘X / ⌘V', trMarca('Copiar / cortar / pegar')],
+    ['⌘D', trMarca('Duplicar')], [trMarca('⌥ + arrastrar'), trMarca('Duplicar arrastrando')],
+    ['⌫', trMarca('Eliminar')], [trMarca('Flechas'), trMarca('Empujar 1px · 10 con ⇧')],
+    [trMarca('Doble clic'), trMarca('Editar el texto')],
   ]},
-  { titulo: 'Dar forma', filas: [
-    ['⌘B / ⌘I / ⌘U', 'Negrita / cursiva / subrayado'],
-    ['⌘G / ⌘⇧G', 'Agrupar / desagrupar'],
-    ['Doble clic · Esc', 'Entrar a un miembro del grupo · volver al grupo'],
-    ['⌘] / ⌘[', 'Subir / bajar un paso'],
-    ['⌥⌘] / ⌥⌘[', 'Al frente / al fondo'],
-    ['⌘⇧L', 'Bloquear / desbloquear'],
-    ['⇧ al redimensionar', 'Mantener la proporción'],
-    ['⇧ al girar', 'Escalones de 15°'],
+  { titulo: trMarca('Dar forma'), filas: [
+    ['⌘B / ⌘I / ⌘U', trMarca('Negrita / cursiva / subrayado')],
+    ['⌘G / ⌘⇧G', trMarca('Agrupar / desagrupar')],
+    [trMarca('Doble clic · Esc'), trMarca('Entrar a un miembro del grupo · volver al grupo')],
+    ['⌘] / ⌘[', trMarca('Subir / bajar un paso')],
+    ['⌥⌘] / ⌥⌘[', trMarca('Al frente / al fondo')],
+    ['⌘⇧L', trMarca('Bloquear / desbloquear')],
+    [trMarca('⇧ al redimensionar'), trMarca('Mantener la proporción')],
+    [trMarca('⇧ al girar'), trMarca('Escalones de 15°')],
   ]},
 ]
 
@@ -95,9 +96,9 @@ export function Atajos({ theme: t, onClose }: Props) {
           boxShadow: t.name === 'oscuro' ? '0 24px 70px rgba(0,0,0,.7)' : '0 24px 70px rgba(15,15,25,.22)',
         }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 16 }}>
-          <strong style={{ font: '900 20px CanvasSlab, Georgia, serif', color: t.text.title }}>Atajos</strong>
+          <strong style={{ font: '900 20px CanvasSlab, Georgia, serif', color: t.text.title }}>{tr('Atajos')}</strong>
           <span style={{ font: '600 12px CanvasSans, system-ui', color: t.text.caption }}>
-            ? para abrir · Esc para cerrar
+            {tr('? para abrir · Esc para cerrar')}
           </span>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '18px 30px' }}>
@@ -106,7 +107,7 @@ export function Atajos({ theme: t, onClose }: Props) {
               <div style={{
                 font: '700 10.5px CanvasSans, system-ui', letterSpacing: .7, textTransform: 'uppercase',
                 color: t.accent, marginBottom: 7,
-              }}>{g.titulo}</div>
+              }}>{tr(g.titulo)}</div>
               {g.filas.map(([tecla, que]) => (
                 <div key={tecla} style={{
                   display: 'flex', alignItems: 'baseline', gap: 10, padding: '3px 0',
@@ -117,8 +118,8 @@ export function Atajos({ theme: t, onClose }: Props) {
                     font: '700 11px CanvasMono, ui-monospace, monospace',
                     background: t.name === 'oscuro' ? 'rgba(255,255,255,.07)' : 'rgba(15,15,25,.055)',
                     border: `1px solid ${t.roles.card.stroke.color}`, color: t.text.title,
-                  }}>{tecla}</kbd>
-                  <span style={{ color: t.text.caption }}>{que}</span>
+                  }}>{tr(tecla)}</kbd>
+                  <span style={{ color: t.text.caption }}>{tr(que)}</span>
                 </div>
               ))}
             </div>
@@ -141,7 +142,7 @@ function Sensibilidades({ theme: t }: { theme: Theme }) {
       font: '600 12.5px CanvasSans, system-ui', color: t.text.body }}>
       <span title={ayuda}>{titulo}</span>
       <input type="range" min={SENSIBILIDAD_MIN} max={SENSIBILIDAD_MAX} step={0.05} value={s[clave]}
-        aria-label={`Sensibilidad de ${titulo.toLowerCase()}`}
+        aria-label={tr('Sensibilidad de {que}', { que: titulo.toLowerCase() })}
         onChange={e => setS(guardarSensibilidad({ [clave]: Number(e.target.value) }))}
         style={{ accentColor: t.accent, width: '100%' }} />
       <span style={{ font: '700 11px CanvasMono, ui-monospace, monospace', color: t.text.caption, textAlign: 'right' }}>
@@ -153,19 +154,19 @@ function Sensibilidades({ theme: t }: { theme: Theme }) {
     <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${t.roles.card.stroke.color}` }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 10 }}>
         <div style={{ font: '700 10.5px CanvasSans, system-ui', letterSpacing: .7, textTransform: 'uppercase', color: t.accent }}>
-          Sensibilidad
+          {tr('Sensibilidad')}
         </div>
         {(s.paneo !== 1 || s.zoom !== 1) && (
           <button type="button" onClick={() => setS(guardarSensibilidad({ paneo: 1, zoom: 1 }))}
             style={{ font: '600 11.5px CanvasSans, system-ui', color: t.text.caption, background: 'none', border: 0,
               cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>
-            Volver a 1×
+            {tr('Volver a 1×')}
           </button>
         )}
       </div>
       <div style={{ display: 'grid', gap: 8, maxWidth: 520 }}>
-        {fila('paneo', 'Desplazar', 'Dos dedos, rueda y ⇧ + rueda')}
-        {fila('zoom', 'Zoom', 'Pellizcar y ⌘ + rueda, bajo el cursor')}
+        {fila('paneo', tr('Desplazar'), tr('Dos dedos, rueda y ⇧ + rueda'))}
+        {fila('zoom', tr('Zoom'), tr('Pellizcar y ⌘ + rueda, bajo el cursor'))}
       </div>
     </div>
   )

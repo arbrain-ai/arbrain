@@ -13,6 +13,7 @@ import path from 'node:path'
 import sharp from 'sharp'
 import { anchoAceptado, esOptimizable, HASH_VALIDO, type FormatoVariante, type MetaImagen } from './variantes'
 import { instalacion } from '@/config'
+import { tr } from '@/shared/i18n'
 
 export type Origen = { archivo: string } | { url: string }
 interface Ficha extends MetaImagen { origen: Origen }
@@ -75,7 +76,7 @@ async function descargar(url: string): Promise<Buffer> {
       return buf
     } catch (e) { ultimo = e }
   }
-  throw ultimo instanceof Error ? ultimo : new Error('No se pudo descargar la imagen.')
+  throw ultimo instanceof Error ? ultimo : new Error(tr('No se pudo descargar la imagen.'))
 }
 
 async function leerOrigen(origen: Origen): Promise<Buffer> {
@@ -106,7 +107,7 @@ async function fichar(buf: Buffer, origen: Origen): Promise<MetaImagen> {
   const o = (m as { autoOrient?: { width: number; height: number } }).autoOrient
   const ancho = o?.width ?? m.width ?? 0
   const alto = o?.height ?? m.height ?? 0
-  if (!ancho || !alto) throw new Error('No es una imagen legible.')
+  if (!ancho || !alto) throw new Error(tr('No es una imagen legible.'))
   const [mini, stats] = await Promise.all([
     sharp(buf, { failOn: 'none', limitInputPixels: 300e6 }).rotate().resize({ width: 24 }).webp({ quality: 40 }).toBuffer(),
     img.stats(),

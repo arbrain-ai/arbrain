@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { ChatJournal, type TurnIdentity, type TurnRecord } from './journal.js'
 import { esperaAlTurno, posicionesEnTexto, view, type ChatInjections, type Injection, type PosicionEnTexto } from './inyecciones.js'
+import { tr } from '../i18n/tr.js'
 
 export class JobRejected extends Error {}
 
@@ -252,7 +253,7 @@ export class ChatSupervisor {
       // Includes storage failures after a provider accepted work. Never rerun automatically.
       try {
         this.journal.transition(turn, 'uncertain')
-        emit({ type: 'execution_uncertain', message: 'No se pudo confirmar el resultado del turno. Se requiere recuperar el estado del motor antes de reenviarlo.' })
+        emit({ type: 'execution_uncertain', message: tr('No se pudo confirmar el resultado del turno. Se requiere recuperar el estado del motor antes de reenviarlo.') })
       } catch (storageError) { this.options.onError?.(storageError) }
       this.options.onError?.(error)
     } finally {

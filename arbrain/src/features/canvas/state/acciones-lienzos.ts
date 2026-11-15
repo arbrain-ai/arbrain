@@ -14,6 +14,7 @@ import { alMiniatura, rellenarMiniaturas } from './miniaturas'
 import { carpetaArchivada, conSubcarpetas } from './vista-lienzos'
 import { GRUPO_GENERAL, ordenAlFinal } from './organizacion'
 import type { Theme } from '../theme/tokens'
+import { tr } from '@/shared/i18n'
 
 const cola = new Map<string, Promise<unknown>>()
 const enCola = <T,>(clave: string, trabajo: () => Promise<T>): Promise<T> => {
@@ -62,7 +63,7 @@ export function useAccionesLienzos(e: EstadoLienzos): AccionesLienzos {
     aplicar()
     enCola(clave, escribir).then(() => ref.current.alTerminar?.()).catch(err => {
       deshacer()
-      setFallo(err instanceof Error ? err.message : 'No se pudo guardar.')
+      setFallo(err instanceof Error ? err.message : tr('No se pudo guardar.'))
     })
   }, [])
 
@@ -92,7 +93,7 @@ export function useAccionesLienzos(e: EstadoLienzos): AccionesLienzos {
     duplicarPagina: id => {
       setFallo(null)
       enCola(id, () => Nube.duplicarPagina(id)).then(p => { ref.current.setPaginas(ps => [p, ...ps]); ref.current.alTerminar?.() })
-        .catch(err => setFallo(err instanceof Error ? err.message : 'No se pudo duplicar.'))
+        .catch(err => setFallo(err instanceof Error ? err.message : tr('No se pudo duplicar.')))
     },
     alternarFijado: x => {
       const antes = x.fijado
@@ -112,7 +113,7 @@ export function useAccionesLienzos(e: EstadoLienzos): AccionesLienzos {
       setFallo(null)
       enCola(id, () => Nube.borrarPagina(id)).then(() => {
         ref.current.setPaginas(ps => ps.filter(x => x.id !== id)); ref.current.alBorrarPagina?.(id); ref.current.alTerminar?.()
-      }).catch(err => setFallo(err instanceof Error ? err.message : 'No se pudo eliminar.'))
+      }).catch(err => setFallo(err instanceof Error ? err.message : tr('No se pudo eliminar.')))
     },
     archivarCarpeta: (c, si) => {
       const todas = new Set(conSubcarpetas(ref.current.carpetas, c.id))
@@ -134,13 +135,13 @@ export function useAccionesLienzos(e: EstadoLienzos): AccionesLienzos {
         ref.current.setCarpetas(cs => cs.filter(c => c.id !== id).map(c => c.madre === id ? { ...c, madre: null } : c))
         ref.current.setPaginas(ps => ps.map(x => x.folderId === id ? { ...x, folderId: null } : x))
         ref.current.alTerminar?.()
-      }).catch(err => setFallo(err instanceof Error ? err.message : 'No se pudo eliminar la carpeta.'))
+      }).catch(err => setFallo(err instanceof Error ? err.message : tr('No se pudo eliminar la carpeta.')))
     },
     nuevaCarpeta: (nombre, madre) => {
       const limpio = nombre.trim(); if (!limpio) return
       setFallo(null)
       Nube.crearCarpeta(limpio, madre).then(c => { ref.current.setCarpetas(cs => [...cs, c]); ref.current.alTerminar?.() })
-        .catch(err => setFallo(err instanceof Error ? err.message : 'No se pudo crear la carpeta.'))
+        .catch(err => setFallo(err instanceof Error ? err.message : tr('No se pudo crear la carpeta.')))
     },
     crearLienzo: async (nombre, folderId, modo) => {
       setFallo(null)
@@ -148,7 +149,7 @@ export function useAccionesLienzos(e: EstadoLienzos): AccionesLienzos {
         const p = await Nube.crearLienzo(nombre.trim(), folderId, modo)
         ref.current.setPaginas(ps => [p, ...ps]); ref.current.alTerminar?.()
         return p
-      } catch (err) { setFallo(err instanceof Error ? err.message : 'No se pudo crear el lienzo.'); return null }
+      } catch (err) { setFallo(err instanceof Error ? err.message : tr('No se pudo crear el lienzo.')); return null }
     },
   }
 

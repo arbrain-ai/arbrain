@@ -14,6 +14,7 @@ import { ArrowLeft } from 'lucide-react'
 import { URL_EMBUDO, type RespuestaEmbudo } from '@/features/negocio/embudo'
 import s from '../cabina.module.css'
 import l from '@/features/rutinas/loops.module.css'
+import { localeIntl, tr, trn } from '@/shared/i18n'
 
 const MarkdownMessage = dynamic(() => import('@/features/chat/components/MarkdownMessage').then(m => m.MarkdownMessage), { loading: () => <p className={s.vacio}>…</p> })
 
@@ -24,10 +25,10 @@ export interface Datos { tarjetas: Tarjeta[]; indice: string; leidoEn: string }
 export const urlNegocio = (texto?: boolean) => `/api/cabina/negocio${texto ? '?texto=1' : ''}`
 
 function revision(f: Fuente) {
-  if (!f.revisado) return 'sin fecha de revisión'
+  if (!f.revisado) return tr('sin fecha de revisión')
   const d = new Date(f.revisado), dias = Math.floor((Date.now() - d.getTime()) / 86400_000)
-  const fecha = d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', timeZone: 'America/Mexico_City' })
-  return `revisado ${fecha}${dias > 0 ? ` · hace ${dias} ${dias === 1 ? 'día' : 'días'}` : ' · hoy'}${f.origenFecha === 'local' ? ' (sin commit)' : ''}`
+  const fecha = d.toLocaleDateString(localeIntl(), { day: 'numeric', month: 'short', timeZone: 'America/Mexico_City' })
+  return `${tr('revisado {fecha}', { fecha })}${dias > 0 ? ` · ${trn(dias, 'hace {n} día', 'hace {n} días')}` : ` · ${tr('hoy')}`}${f.origenFecha === 'local' ? ` ${tr('(sin commit)')}` : ''}`
 }
 
 /**
@@ -46,12 +47,12 @@ export function VistaNegocio({ seccion, grande }: { seccion?: SeccionNegocio; gr
     return escucharPedido(EVENTO_ETAPA_NEGOCIO, () => setParte('etapas'))
   }, [])
   // Mientras llega el interruptor no se asoma el libro (antes parpadeaba un instante antes del panel).
-  if (!sistema && !lectura.error) return <div className={s.cargando} aria-busy="true">Abriendo tu negocio…</div>
+  if (!sistema && !lectura.error) return <div className={s.cargando} aria-busy="true">{tr('Abriendo tu negocio…')}</div>
   // En la edición del alumno no existe el libro del autor: apagado (ARBRAIN_PANEL_NEGOCIO=0), lo dice y ya.
-  if (!sistema?.activo) return esEdicionCliente() ? <p className={s.aviso}>Tu negocio está apagado en esta instalación (ARBRAIN_PANEL_NEGOCIO=0).</p> : <LibroNegocio seccion={seccion} grande={grande} />
-  if (parte === 'pulso') return <ElPulso embudo={sistema.embudo} grande={grande} inicio={seccion === 'avatar' ? 'comprador' : undefined} verEtapas={() => setParte('etapas')} />
+  if (!sistema?.activo) return esEdicionCliente() ? <p className={s.aviso}>{tr('Tu negocio está apagado en esta instalación (ARBRAIN_PANEL_NEGOCIO=0).')}</p> : <LibroNegocio seccion={seccion} grande={grande} />
+  if (parte === 'pulso') return <ElPulso embudo={sistema.embudo} grande={grande} inicio={seccion === 'avatar' ? 'comprador' : seccion === 'canal-levy' ? 'canal-levy' : undefined} verEtapas={() => setParte('etapas')} />
   return <div className={l.loops}>
-    <button type="button" className={pv.volver} onClick={() => setParte('pulso')} style={{ alignSelf: 'flex-start' }}><ArrowLeft size={14} aria-hidden />El pulso</button>
+    <button type="button" className={pv.volver} onClick={() => setParte('pulso')} style={{ alignSelf: 'flex-start' }}><ArrowLeft size={14} aria-hidden />{tr('El pulso')}</button>
     <PanelEmbudo datos={sistema} grande={grande} />
   </div>
 }
@@ -59,33 +60,33 @@ export function VistaNegocio({ seccion, grande }: { seccion?: SeccionNegocio; gr
 /** El libro del negocio: avatar, oferta, embudo y sistema, cada uno con su canónico y su fecha. */
 function LibroNegocio({ seccion, grande }: { seccion?: SeccionNegocio; grande?: boolean }) {
   const { data, error } = useFuente<Datos>(urlNegocio(grande))
-  if (!data) return <div className={s.cargando} aria-busy="true">{error ? <p className={s.aviso}>{error}</p> : 'Abriendo el libro del negocio…'}</div>
+  if (!data) return <div className={s.cargando} aria-busy="true">{error ? <p className={s.aviso}>{error}</p> : tr('Abriendo el libro del negocio…')}</div>
   const orden = seccion ? [...data.tarjetas].sort((a, b) => Number(b.seccion === seccion) - Number(a.seccion === seccion)) : data.tarjetas
   return <div className={`${s.negocio} ${grande ? s.negocioGrande : ''}`}>
     {orden.map(t => <section key={t.seccion} className={`${s.tarjetaNegocio} ${t.seccion === seccion ? s.enfocada : ''}`} aria-label={t.titulo}>
       <h4>{t.titulo}</h4>
       {t.fuentes.map(f => <div key={f.ruta} className={s.fuenteNegocio}>
         {t.fuentes.length > 1 && <span className={s.etiquetaFuente}>{f.etiqueta}</span>}
-        {!f.existe ? <p className={s.aviso}>Falta el documento ({f.ruta}).</p> : <>
+        {!f.existe ? <p className={s.aviso}>{tr('Falta el documento ({ruta}).', { ruta: f.ruta })}</p> : <>
           {f.titular && <p className={s.titularNegocio}>{f.titular}</p>}
           <p className={s.resumenNegocio}>{f.resumen || f.titulo}</p>
           <p className={s.revision}>
-            <span className={f.viejo ? s.viejo : ''}>{f.viejo ? 'Por revisar · ' : ''}{revision(f)}</span>
+            <span className={f.viejo ? s.viejo : ''}>{f.viejo ? `${tr('Por revisar')} · ` : ''}{revision(f)}</span>
             <code title={f.ruta}>{f.ruta.split('/').pop()}</code>
           </p>
-          {grande && f.texto && <details className={s.canonico}><summary>Leer completo</summary><MarkdownMessage content={f.texto} /></details>}
+          {grande && f.texto && <details className={s.canonico}><summary>{tr('Leer completo')}</summary><MarkdownMessage content={f.texto} /></details>}
         </>}
       </div>)}
       {t.lienzo && <p className={s.revision}>
-        <Link className={s.accionSec} href={rutaDe({ destino: 'lienzo', paginaId: t.lienzo.paginaId })}>Mapa «{t.lienzo.nombre}»</Link>
+        <Link className={s.accionSec} href={rutaDe({ destino: 'lienzo', paginaId: t.lienzo.paginaId })}>{tr('Mapa «{nombre}»', { nombre: t.lienzo.nombre })}</Link>
       </p>}
     </section>)}
-    <p className={s.fuente}>Índice: {data.indice}. Cada tarjeta lee su documento al abrirse; «por revisar» = más de 21 días sin cambios.</p>
+    <p className={s.fuente}>{tr('Índice: {indice}. Cada tarjeta lee su documento al abrirse; «por revisar» = más de 21 días sin cambios.', { indice: data.indice })}</p>
   </div>
 }
 
 export function resumenNegocio(d: Datos | undefined) {
   if (!d) return null
   const viejos = d.tarjetas.flatMap(t => t.fuentes).filter(f => f.viejo).length
-  return viejos ? `${viejos} ${viejos === 1 ? 'documento' : 'documentos'} por revisar` : 'todo revisado'
+  return viejos ? trn(viejos, '{n} documento por revisar', '{n} documentos por revisar') : tr('todo revisado')
 }

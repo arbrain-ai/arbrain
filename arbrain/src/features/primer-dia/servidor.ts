@@ -10,6 +10,7 @@ import { raizWorkspace } from '@/lib/rutas-instalacion'
 import { separarRutinas, type ListaRutinas } from '@/lib/rutinas-cliente'
 import { createServiceClient } from '@/lib/supabase/service'
 import { LOCAL_DESKTOP_USER_ID } from '@/lib/desktop-auth'
+import { tr } from '@/shared/i18n'
 import { guardarPrimerArranque, leerPrimerArranque } from '@/features/primer-arranque/lib/estado'
 import { textoGuia } from './guia'
 import {
@@ -85,7 +86,7 @@ export async function publicarOferta(texto: string, sesion: string | null, cread
   let id = sesion
   if (!id) {
     id = randomUUID()
-    const s = await db.from('chat_sessions').insert({ id, title: 'Tu primer día', profile_id: LOCAL_DESKTOP_USER_ID, account: null, last_message_at: creadoEn.toISOString(), is_favorite: false, archived_at: null })
+    const s = await db.from('chat_sessions').insert({ id, title: tr('Tu primer día'), profile_id: LOCAL_DESKTOP_USER_ID, account: null, last_message_at: creadoEn.toISOString(), is_favorite: false, archived_at: null })
     if (s.error) throw new Error(s.error.message)
   }
   const m = await db.from('chat_messages').insert({ id: randomUUID(), session_id: id, role: 'assistant', content: texto, created_at: creadoEn.toISOString(), metadata: { source: 'primer-dia' } })

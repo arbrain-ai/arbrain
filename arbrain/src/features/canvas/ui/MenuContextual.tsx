@@ -17,6 +17,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Theme } from '../theme/tokens'
 import * as I from './icons'
+import { tr } from '@/shared/i18n'
 
 export interface AccionMenu {
   id: string
@@ -94,7 +95,7 @@ export function MenuContextual({ x, y, theme: t, acciones, onClose }: Props) {
             <span style={{ width: 16, display: 'grid', placeItems: 'center', opacity: .85 }}>
               {a.icon ? a.icon({ size: 15 }) : null}
             </span>
-            <span style={{ flex: 1 }}>{a.label}</span>
+            <span style={{ flex: 1 }}>{tr(a.label)}</span>
             {a.atajo && <span style={{ color: t.text.caption, font: '500 11px CanvasSans, system-ui' }}>{a.atajo}</span>}
           </button>
         </div>

@@ -13,6 +13,7 @@ import type {
 } from './types'
 
 import { confirmedDraftPayload } from '@/features/chat/lib/offline-envelope'
+import { tr } from '@/shared/i18n'
 
 interface BrowserLocalState {
   tasks: LocalTaskRecord[]
@@ -220,7 +221,7 @@ export async function markSyncQueueItem(input: MarkSyncQueueItemInput) {
     if (!item) throw new Error(`Sync queue item not found: ${input.id}`)
     if (item.status === 'cancelled') return item
     if (input.confirmedSelection) {
-      if (item.entityType !== 'chat_prompt' || !['pending', 'failed'].includes(item.status) || input.status !== 'pending') throw new Error('El borrador ya no admite confirmar ajustes.')
+      if (item.entityType !== 'chat_prompt' || !['pending', 'failed'].includes(item.status) || input.status !== 'pending') throw new Error(tr('El borrador ya no admite confirmar ajustes.'))
       item.payloadJson = confirmedDraftPayload(item.payloadJson, input.confirmedSelection.localOwner, input.confirmedSelection.intent)
     }
     if (input.status === 'cancelled') {

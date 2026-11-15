@@ -1,6 +1,7 @@
 import type { ChatSession } from '../hooks/useChatHistory'
 import { hayNoVisto } from './session-status'
 import { esHiloRutina } from '@/shared/constants/rutinas-hilos'
+import { tr } from '@/shared/i18n'
 
 /**
  * Opciones del menú «⋯» de una conversación y su letra de atajo (1 oct 2026, como Claude Desktop). UNA sola
@@ -33,27 +34,27 @@ export const tieneMenu = (s: Pick<ChatSession, 'isSDKOnly' | 'pendingCreation'>)
 
 /** Favorita ≠ fijada (Daniel, 4 oct 2026): la estrella es aparte; marcarla también fija. */
 const opcionFavorita = (s: ChatSession): OpcionMenu =>
-  ({ id: 'favorita', letra: 'S', etiqueta: s.is_starred ? 'Quitar de favoritas' : 'Marcar como favorita' })
+  ({ id: 'favorita', letra: 'S', etiqueta: s.is_starred ? tr('Quitar de favoritas') : tr('Marcar como favorita') })
 
 export function opcionesMenu(s: ChatSession): OpcionMenu[] {
   // Los hilos de la carpeta «Rutinas» son fijos (su id lo usa el webhook de los crons): solo leído/no leído.
   if (esHiloRutina(s)) {
     return [hayNoVisto(s)
-      ? { id: 'no-leida', letra: 'U', etiqueta: 'Marcar como leído' }
-      : { id: 'no-leida', letra: 'U', etiqueta: 'Marcar como no leído', deshabilitada: s.last_role !== 'assistant', motivo: s.last_role === 'assistant' ? undefined : 'Solo cuando Levy respondió al final' }]
+      ? { id: 'no-leida', letra: 'U', etiqueta: tr('Marcar como leído') }
+      : { id: 'no-leida', letra: 'U', etiqueta: tr('Marcar como no leído'), deshabilitada: s.last_role !== 'assistant', motivo: s.last_role === 'assistant' ? undefined : tr('Solo cuando Levy respondió al final') }]
   }
   if (esProtegida(s)) {
     // Fijado: solo leído/no leído. Un duplicado viejo sin fijar puede fijarse, nunca desfijarse el vigente.
-    if (!s.is_favorite) return [{ id: 'fijar', letra: 'P', etiqueta: 'Fijar' }]
+    if (!s.is_favorite) return [{ id: 'fijar', letra: 'P', etiqueta: tr('Fijar') }]
     return [opcionFavorita(s), hayNoVisto(s)
-      ? { id: 'no-leida', letra: 'U', etiqueta: 'Marcar como leído' }
-      : { id: 'no-leida', letra: 'U', etiqueta: 'Marcar como no leído', deshabilitada: s.last_role !== 'assistant', motivo: s.last_role === 'assistant' ? undefined : 'Solo cuando Levy respondió al final' }]
+      ? { id: 'no-leida', letra: 'U', etiqueta: tr('Marcar como leído') }
+      : { id: 'no-leida', letra: 'U', etiqueta: tr('Marcar como no leído'), deshabilitada: s.last_role !== 'assistant', motivo: s.last_role === 'assistant' ? undefined : tr('Solo cuando Levy respondió al final') }]
   }
 
   if (s.archived_at) {
     return [
-      { id: 'archivar', letra: 'A', etiqueta: 'Desarchivar' },
-      { id: 'eliminar', letra: 'D', etiqueta: 'Eliminar', peligro: true, separador: true },
+      { id: 'archivar', letra: 'A', etiqueta: tr('Desarchivar') },
+      { id: 'eliminar', letra: 'D', etiqueta: tr('Eliminar'), peligro: true, separador: true },
     ]
   }
 
@@ -61,19 +62,19 @@ export function opcionesMenu(s: ChatSession): OpcionMenu[] {
   // «No leído» solo se nota si Levy habló al final: el semáforo morado es «terminó y no la has visto».
   const puedeMarcarNoLeida = s.last_role === 'assistant'
   return [
-    { id: 'fijar', letra: 'P', etiqueta: s.is_favorite ? 'Desfijar' : 'Fijar' },
+    { id: 'fijar', letra: 'P', etiqueta: s.is_favorite ? tr('Desfijar') : tr('Fijar') },
     opcionFavorita(s),
     sinVer
-      ? { id: 'no-leida', letra: 'U', etiqueta: 'Marcar como leído' }
+      ? { id: 'no-leida', letra: 'U', etiqueta: tr('Marcar como leído') }
       : {
-          id: 'no-leida', letra: 'U', etiqueta: 'Marcar como no leído',
+          id: 'no-leida', letra: 'U', etiqueta: tr('Marcar como no leído'),
           deshabilitada: !puedeMarcarNoLeida,
-          motivo: puedeMarcarNoLeida ? undefined : 'Solo cuando Levy respondió al final',
+          motivo: puedeMarcarNoLeida ? undefined : tr('Solo cuando Levy respondió al final'),
         },
-    { id: 'renombrar', letra: 'R', etiqueta: 'Cambiar nombre' },
-    { id: 'bifurcar', letra: 'F', etiqueta: 'Bifurcar' },
-    { id: 'archivar', letra: 'A', etiqueta: 'Archivar' },
-    { id: 'eliminar', letra: 'D', etiqueta: 'Eliminar', peligro: true, separador: true },
+    { id: 'renombrar', letra: 'R', etiqueta: tr('Cambiar nombre') },
+    { id: 'bifurcar', letra: 'F', etiqueta: tr('Bifurcar') },
+    { id: 'archivar', letra: 'A', etiqueta: tr('Archivar') },
+    { id: 'eliminar', letra: 'D', etiqueta: tr('Eliminar'), peligro: true, separador: true },
   ]
 }
 

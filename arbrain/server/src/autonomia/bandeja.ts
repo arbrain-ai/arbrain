@@ -20,9 +20,10 @@ import { dirname, join } from 'node:path'
 import type Database from 'better-sqlite3'
 import { DIR_ARBRAIN, esEdicionCliente } from '../edicion.js'
 import { diaCivil, instanteDeHoraCivil, zonaDueno } from '../zona.js'
-import { pedidoManos, VIDA_COLA_MS, vistaParaPase, type CategoriaConfirmacion, type Confirmacion, type Confirmaciones, type ConversacionConfirmacion } from '../cliente/confirmaciones.js'
+import { organoValido, pedidoManos, VIDA_COLA_MS, vistaParaPase, type CategoriaConfirmacion, type Confirmacion, type Confirmaciones, type ConversacionConfirmacion, type OrganoTarjeta } from '../cliente/confirmaciones.js'
 import { lineaCaducada, personaDe, type MotivoCaducidad } from './caducidad.js'
 import { plataformaCohorte, soporteDe } from './soporte.js'
+import { tr } from '../i18n/tr.js'
 import { anotarHechoSolo, CLASES, DIR_HECHO_SOLO, esClase, esModo, esPreset, fijarPolitica, INFO_CLASE, INFO_PRESET, NOMBRE_PRESET, PRESETS, politicaVigente, SIEMPRE_SUYO, SOLO_ORIGINAL, type Clase, type HechoSolo, type Modo } from './politica.js'
 
 // ---------- El secreto de decidir (instalación original) ----------
@@ -98,7 +99,13 @@ export interface TarjetaBandeja {
   persona?: string
   /** Vista previa de lo que se publica (ruta de una imagen local; la web la sirve por /api/local-image). */
   imagen?: string
+  /** El órgano del negocio que toca (mapa v16, 14 nov 2026): el mapa la pinta sobre ese órgano. La declara quien la sube
+   *  (`decidir --organo`); si no la declara, la da su categoría (`ORGANO_DE_CATEGORIA`); si tampoco, vive solo en la bandeja. */
+  organo?: OrganoTarjeta
 }
+/** El órgano por defecto de una tarjeta que no lo declara: publicar es de Marketing y pagar de Finanzas. Contactar y borrar
+ *  pueden ser de cualquiera: sin declarar, no se pintan sobre ningún órgano (nunca se adivina por palabras). */
+export const ORGANO_DE_CATEGORIA: Partial<Record<CategoriaConfirmacion, OrganoTarjeta>> = { publicar: 'marketing', pagar: 'finanzas' }
 /** Lo que nunca se aprueba en lote (3 nov 2026, Daniel vio un «Sí a las 6» que incluía contactar personas). */
 export const UNA_POR_UNA: readonly CategoriaConfirmacion[] = ['enviar', 'pagar']
 export function tarjeta(c: Confirmacion): TarjetaBandeja {
@@ -115,6 +122,7 @@ export function tarjeta(c: Confirmacion): TarjetaBandeja {
     ...(UNA_POR_UNA.includes(c.categoria) ? { unaPorUna: true } : {}),
     ...((c.persona ?? (c.categoria === 'enviar' ? personaDe(c.titulo || c.resumen) : null)) ? { persona: c.persona ?? personaDe(c.titulo || c.resumen)! } : {}),
     ...(c.imagen ? { imagen: c.imagen } : {}),
+    ...((c.organo ?? ORGANO_DE_CATEGORIA[c.categoria]) ? { organo: c.organo ?? ORGANO_DE_CATEGORIA[c.categoria]! } : {}),
   }
 }
 
@@ -192,7 +200,7 @@ export async function rutasBandeja(metodo: string, ruta: string, cuerpo: Record<
     if (metodo === 'GET') { d.enviar(200, politicaParaLaApp()); return true }
     if (metodo === 'POST') {
       // Un agente no cambia su propia autonomía: solo la persona, desde su app.
-      if (!d.puedeDecidir()) { d.enviar(403, { error: 'Solo tú, desde Arbrain, cambias la política de autonomía.' }); return true }
+      if (!d.puedeDecidir()) { d.enviar(403, { error: tr('Solo tú, desde Arbrain, cambias la política de autonomía.') }); return true }
       if (!esPreset(cuerpo.preset)) { d.enviar(400, { error: `preset: ${PRESETS.join(', ')}` }); return true }
       const ajustes: Partial<Record<Clase, Modo>> = {}
       for (const [c, m] of Object.entries((cuerpo.ajustes ?? {}) as Record<string, unknown>)) if (esClase(c) && esModo(m)) ajustes[c] = m
@@ -202,24 +210,24 @@ export async function rutasBandeja(metodo: string, ruta: string, cuerpo: Record<
       return true
     }
   }
-  if (!store) { d.enviar(503, { error: 'La bandeja no está iniciada.' }); return true }
+  if (!store) { d.enviar(503, { error: tr('La bandeja no está iniciada.') }); return true }
 
   if (metodo === 'GET' && ruta === '/decisiones') { d.enviar(200, vistaBandeja(store)); return true }
 
   if (metodo === 'POST' && (ruta === '/decisiones/resolver' || ruta === '/decisiones/lote')) {
-    if (!d.puedeDecidir()) { d.enviar(403, { error: 'Solo tú decides, desde Arbrain o tu teléfono.' }); return true }
+    if (!d.puedeDecidir()) { d.enviar(403, { error: tr('Solo tú decides, desde Arbrain o tu teléfono.') }); return true }
     const respuesta = cuerpo.respuesta
     if (respuesta !== 'si' && respuesta !== 'no' && respuesta !== 'otro') { d.enviar(400, { error: 'respuesta: si, no u otro' }); return true }
     const decision = respuesta === 'si' ? 'permitir' : respuesta === 'no' ? 'rechazar' : 'otro'
     const ids = ruta === '/decisiones/lote' ? (Array.isArray(cuerpo.ids) ? cuerpo.ids : []).filter((x): x is string => typeof x === 'string' && /^cf_[0-9a-f]{12}$/.test(x)).slice(0, 50) : [String(cuerpo.id ?? '')]
-    if (!ids.length || (ruta === '/decisiones/lote' && respuesta === 'otro')) { d.enviar(400, { error: ruta === '/decisiones/lote' ? 'ids requeridos; «Otro» va de una en una.' : 'id requerido' }); return true }
+    if (!ids.length || (ruta === '/decisiones/lote' && respuesta === 'otro')) { d.enviar(400, { error: ruta === '/decisiones/lote' ? tr('ids requeridos; «Otro» va de una en una.') : 'id requerido' }); return true }
     const hechas: TarjetaBandeja[] = [], errores: { id: string; error: string }[] = []
     for (const id of ids) {
       const c = store.get(id)
       // «Córrelo tú» (tipo manos) no se aprueba desde la bandeja: lo corre la persona en su terminal (la tarjeta del hilo).
-      if (c?.tipo === 'manos' && respuesta === 'si') { errores.push({ id, error: 'Esto lo corres tú desde su tarjeta en el chat.' }); continue }
+      if (c?.tipo === 'manos' && respuesta === 'si') { errores.push({ id, error: tr('Esto lo corres tú desde su tarjeta en el chat.') }); continue }
       // «Sí a todas» nunca contacta personas ni paga: esas van una por una (el lote las rechaza aunque la app las mande).
-      if (ruta === '/decisiones/lote' && respuesta === 'si' && c && UNA_POR_UNA.includes(c.categoria)) { errores.push({ id, error: 'Contactar y pagar van una por una.' }); continue }
+      if (ruta === '/decisiones/lote' && respuesta === 'si' && c && UNA_POR_UNA.includes(c.categoria)) { errores.push({ id, error: tr('Contactar y pagar van una por una.') }); continue }
       const r = store.resolver(id, decision, { comentario: cuerpo.comentario })
       if (r.ok) hechas.push(tarjeta(r.confirmacion)); else errores.push({ id, error: r.error })
     }
@@ -253,6 +261,8 @@ export async function rutasBandeja(metodo: string, ruta: string, cuerpo: Record<
       ...(texto(cuerpo.persona, 60) ? { persona: texto(cuerpo.persona, 60) } : {}),
       // Vista previa (7 nov 2026, cola de publicación): la miniatura de lo que se publicaría.
       ...(typeof cuerpo.imagen === 'string' ? { imagen: cuerpo.imagen } : {}),
+      // El órgano que toca (mapa v16): la tarjeta aparece sobre él en el mapa.
+      ...(organoValido(cuerpo.organo) ? { organo: organoValido(cuerpo.organo)! } : {}),
     })
     d.enviar(200, { id: c.id, estado: c.estado, conversacion: !!scope, ...(expira ? { vence: c.expira } : {}), ...(soporte ? { soporte } : {}) })
     return true
@@ -268,19 +278,19 @@ export async function rutasBandeja(metodo: string, ruta: string, cuerpo: Record<
   }
 
   if (metodo === 'POST' && ruta === '/autonomia/deshacer') {
-    if (!d.puedeDecidir()) { d.enviar(403, { error: 'Solo tú pides deshacer, desde Arbrain.' }); return true }
+    if (!d.puedeDecidir()) { d.enviar(403, { error: tr('Solo tú pides deshacer, desde Arbrain.') }); return true }
     const dia = typeof cuerpo.dia === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(cuerpo.dia) ? cuerpo.dia : diaCivil(Date.now())
     const h = leerHechoSolo(dia).find(x => x.ts === cuerpo.ts)
     const scope = h ? scopeValido(h.conversacion) ?? (d.db && h.sesion ? scopeDeSesion(d.db(), h.sesion) : null) : null
-    if (!h) { d.enviar(404, { error: 'No encontré esa acción.' }); return true }
-    if (!scope || !d.deshacer) { d.enviar(409, { error: h.deshacer ? `Deshazlo así: ${h.deshacer}.` : 'Esta acción no sabe deshacerse sola.' }); return true }
+    if (!h) { d.enviar(404, { error: tr('No encontré esa acción.') }); return true }
+    if (!scope || !d.deshacer) { d.enviar(409, { error: h.deshacer ? tr('Deshazlo así: {como}.', { como: h.deshacer }) : tr('Esta acción no sabe deshacerse sola.') }); return true }
     d.deshacer(h, scope)
     d.enviar(200, { ok: true })
     return true
   }
 
   const m = ruta.match(/^\/decisiones\/(cf_[0-9a-f]{12})$/)
-  if (metodo === 'GET' && m) { const c = store.get(m[1]); d.enviar(c ? 200 : 404, c ? tarjeta(c) : { error: 'No existe esa decisión.' }); return true }
+  if (metodo === 'GET' && m) { const c = store.get(m[1]); d.enviar(c ? 200 : 404, c ? tarjeta(c) : { error: tr('No existe esa decisión.') }); return true }
 
   // ---- Instalación original: lo que el MCP de manos pide (en el alumno vive en las rutas del cliente) ----
   if (esManos) {

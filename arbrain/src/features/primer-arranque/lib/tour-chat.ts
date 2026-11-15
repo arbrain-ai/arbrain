@@ -5,6 +5,7 @@
 import { randomUUID } from 'node:crypto'
 import { createServiceClient } from '@/lib/supabase/service'
 import { LOCAL_DESKTOP_USER_ID } from '@/lib/desktop-auth'
+import { tr } from '@/shared/i18n'
 import { FUENTE_TOUR } from './tour'
 import type { Entrega } from './tour-servidor'
 
@@ -14,7 +15,7 @@ export async function publicarCapitulo(entrega: Entrega, sesion: string | null, 
   let id = sesion
   if (!id) {
     id = randomUUID()
-    const s = await db.from('chat_sessions').insert({ id, title: 'Recorrido de Levy', profile_id: LOCAL_DESKTOP_USER_ID, account: null, last_message_at: creadoEn.toISOString(), is_favorite: false, archived_at: null })
+    const s = await db.from('chat_sessions').insert({ id, title: tr('Recorrido de Levy'), profile_id: LOCAL_DESKTOP_USER_ID, account: null, last_message_at: creadoEn.toISOString(), is_favorite: false, archived_at: null })
     if (s.error) throw new Error(s.error.message)
   }
   const fila = { id: randomUUID(), session_id: id, role: 'assistant', content: entrega.texto, created_at: creadoEn.toISOString(), metadata: { source: FUENTE_TOUR, capitulo: entrega.capitulo.id, mostrar: entrega.capitulo.mostrar } }

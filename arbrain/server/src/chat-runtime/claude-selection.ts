@@ -5,6 +5,7 @@ import { findClaudeModel, pinnedClaudeModel, getClaudeCatalog, readClaudeSetting
 import { nearestEffort } from './effort-control.js'
 import { esEdicionCliente } from '../edicion.js'
 import { ESPACIO_ABLITERATED, destinoAbliterated, motivoNoDisponible } from './abliterated-chat.js'
+import { tr } from '../i18n/tr.js'
 
 export interface ClaudeSelection {
   account: string
@@ -19,9 +20,9 @@ export interface ClaudeSelection {
 }
 type Settings = Awaited<ReturnType<typeof readClaudeSettings>>
 function requireKnownSettings(settings: Settings): void {
-  if (settings.unresolvedPolicy) throw new Error('La política Claude no se pudo resolver; no se enviará con ajustes supuestos.')
-  if (settings.unresolvedModel) throw new Error('Una variable de entorno impide confirmar el modelo Claude; no se enviará con ajustes supuestos.')
-  if (settings.unresolvedEffort) throw new Error('Una variable de entorno impide confirmar un esfuerzo compatible; no se enviará con ajustes supuestos.')
+  if (settings.unresolvedPolicy) throw new Error(tr('La política Claude no se pudo resolver; no se enviará con ajustes supuestos.'))
+  if (settings.unresolvedModel) throw new Error(tr('Una variable de entorno impide confirmar el modelo Claude; no se enviará con ajustes supuestos.'))
+  if (settings.unresolvedEffort) throw new Error(tr('Una variable de entorno impide confirmar un esfuerzo compatible; no se enviará con ajustes supuestos.'))
 }
 /**
  * 3 oct 2026: el SDK 0.3.288 dejó de anunciar `opus[1m]` (Opus 5.5 quedó en una
@@ -73,7 +74,7 @@ export function freezeClaudeSelection(account: string, overrides: SessionOverrid
     if (casa) { source = requestedModel ? `casa:no-disponible:${requestedModel}` : 'casa'; requestedModel = casa.value; row = casa }
   }
   const model = row && pinnedClaudeModel(row)
-  if (!requestedModel || !row || !model) throw new Error('No se pudo confirmar el modelo Claude. Elige un modelo disponible en esta cuenta.')
+  if (!requestedModel || !row || !model) throw new Error(tr('No se pudo confirmar el modelo Claude. Elige un modelo disponible en esta cuenta.'))
   // 2 oct 2026: sin elección, el default es «medium» (o el nivel anunciado más
   // cercano), no el esfuerzo configurado de la cuenta (xhigh). Un override
   // guardado que este modelo ya no anuncia (cambio de modelo) cae al default en
@@ -84,14 +85,14 @@ export function freezeClaudeSelection(account: string, overrides: SessionOverrid
   let effort = chosenEffort ?? nearestEffort(levels)
   // SDK declares standing Ultracode as xhigh plus workflow orchestration.
   if (overrides.ultracode) {
-    if (chosenEffort && chosenEffort !== 'xhigh') throw new Error('Ultracode requiere xhigh; desactívalo para elegir otro esfuerzo.')
+    if (chosenEffort && chosenEffort !== 'xhigh') throw new Error(tr('Ultracode requiere xhigh; desactívalo para elegir otro esfuerzo.'))
     effort = 'xhigh'
   }
   if (!row.supportedEffortLevels?.length && row.supportsEffort !== true) {
-    if (chosenEffort || overrides.ultracode) throw new Error('Este modelo Claude no anuncia soporte para el esfuerzo elegido.')
+    if (chosenEffort || overrides.ultracode) throw new Error(tr('Este modelo Claude no anuncia soporte para el esfuerzo elegido.'))
     effort = null
   } else if (!effort || !row.supportedEffortLevels?.includes(effort as EffortLevel)) {
-    throw new Error('No se pudo confirmar un esfuerzo compatible. Elige uno anunciado por este modelo Claude.')
+    throw new Error(tr('No se pudo confirmar un esfuerzo compatible. Elige uno anunciado por este modelo Claude.'))
   }
   const selection: ClaudeSelection = { account, requestedModel, model, effort: effort as EffortLevel | null, fast: overrides.fast, ultracode: overrides.ultracode, adaptiveThinking: row.supportsAdaptiveThinking === true, observedAt: new Date().toISOString(), source }
   checkClaudeSelection(selection, account, catalog)
@@ -108,14 +109,14 @@ export function checkClaudeSelection(selection: ClaudeSelection, account: string
     ? catalog.models.filter(m => m.value !== 'default' && pinnedClaudeModel(m)?.replace(/\[[^\]]+\]$/, '') === selection.model)
     : []
   if (candidates.length > 1 && candidates.some(m => (selection.effort && !m.supportedEffortLevels?.includes(selection.effort)) || (selection.fast && m.supportsFastMode !== true) || (selection.adaptiveThinking && m.supportsAdaptiveThinking !== true))) {
-    throw new Error('Las variantes del catálogo Claude no confirman las mismas capacidades requeridas; no se sustituirá.')
+    throw new Error(tr('Las variantes del catálogo Claude no confirman las mismas capacidades requeridas; no se sustituirá.'))
   }
   const row = exact ?? candidates[0]
-  if (!row || (exact && pinnedClaudeModel(exact) !== selection.model)) throw new Error('El modelo Claude aceptado ya no está disponible; no se sustituirá.')
-  if (selection.effort && !row.supportedEffortLevels?.includes(selection.effort)) throw new Error('El esfuerzo Claude aceptado ya no está disponible.')
-  if (selection.fast && row.supportsFastMode !== true) throw new Error('Fast no está anunciado para este modelo Claude; no se cambiará de modelo.')
-  if (selection.ultracode && selection.effort !== 'xhigh') throw new Error('Ultracode requiere xhigh.')
-  if (selection.adaptiveThinking && row.supportsAdaptiveThinking !== true) throw new Error('El modo de pensamiento Claude aceptado ya no está disponible.')
+  if (!row || (exact && pinnedClaudeModel(exact) !== selection.model)) throw new Error(tr('El modelo Claude aceptado ya no está disponible; no se sustituirá.'))
+  if (selection.effort && !row.supportedEffortLevels?.includes(selection.effort)) throw new Error(tr('El esfuerzo Claude aceptado ya no está disponible.'))
+  if (selection.fast && row.supportsFastMode !== true) throw new Error(tr('Fast no está anunciado para este modelo Claude; no se cambiará de modelo.'))
+  if (selection.ultracode && selection.effort !== 'xhigh') throw new Error(tr('Ultracode requiere xhigh.'))
+  if (selection.adaptiveThinking && row.supportsAdaptiveThinking !== true) throw new Error(tr('El modo de pensamiento Claude aceptado ya no está disponible.'))
   return row
 }
 /**

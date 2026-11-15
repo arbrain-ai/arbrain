@@ -1,4 +1,5 @@
 import { zonaDueno } from '@/shared/lib/zona-dueno'
+import { tr } from '@/shared/i18n'
 
 /**
  * Civil dates stay independent of DST-length days. The zone is the owner's (shared/lib/zona-dueno.ts): the original install's
@@ -20,14 +21,14 @@ export function isCivilDate(value: unknown): value is string {
 }
 
 export function shiftDay(date: string, days: number): string {
-  if (!isCivilDate(date) || !Number.isInteger(days)) throw new Error('Fecha inválida.')
+  if (!isCivilDate(date) || !Number.isInteger(days)) throw new Error(tr('Fecha inválida.'))
   const d = new Date(`${date}T12:00:00Z`)
   d.setUTCDate(d.getUTCDate() + days)
   return d.toISOString().slice(0, 10)
 }
 
 export function civilMidnight(date: string, timeZone = zonaDueno()): Date {
-  if (!isCivilDate(date)) throw new Error('Fecha inválida.')
+  if (!isCivilDate(date)) throw new Error(tr('Fecha inválida.'))
   const target = Date.parse(`${date}T00:00:00Z`)
   let value = target
   const formatter = new Intl.DateTimeFormat('en-CA', { timeZone, year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit', hourCycle:'h23' })
@@ -39,7 +40,7 @@ export function civilMidnight(date: string, timeZone = zonaDueno()): Date {
     if (!delta) return new Date(value)
     value += delta
   }
-  throw new Error('No se pudo resolver el inicio del día en esta zona.')
+  throw new Error(tr('No se pudo resolver el inicio del día en esta zona.'))
 }
 
 export function habitRange(params: URLSearchParams, now = new Date()) {
@@ -47,9 +48,9 @@ export function habitRange(params: URLSearchParams, now = new Date()) {
   const today = civilToday(timeZone, now) // Intl validates IANA timezone.
   const date = params.get('date') ?? today
   const days = Number(params.get('days') ?? '1')
-  if (!isCivilDate(date) || !Number.isInteger(days) || days < 0 || days > 366) throw new Error('Rango inválido (máximo 366 días).')
+  if (!isCivilDate(date) || !Number.isInteger(days) || days < 0 || days > 366) throw new Error(tr('Rango inválido (máximo 366 días).'))
   const from = params.get('from') ?? shiftDay(date, -Math.max(0, days - 1))
   const to = params.get('to') ?? date
-  if (!isCivilDate(from) || !isCivilDate(to) || from > to || shiftDay(from, 365) < to) throw new Error('Rango inválido (máximo 366 días).')
+  if (!isCivilDate(from) || !isCivilDate(to) || from > to || shiftDay(from, 365) < to) throw new Error(tr('Rango inválido (máximo 366 días).'))
   return { date, from, to, today, timeZone }
 }

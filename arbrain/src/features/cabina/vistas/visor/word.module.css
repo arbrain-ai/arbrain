@@ -1,0 +1,88 @@
+/* Visor de Word (14 nov 2026). Las hojas del documento sobre un escritorio en penumbra: el papel es el que brilla.
+   Comparte el lenguaje del visor de PDF (barra, botones) y el papel claro, sepia o noche (Papel.tsx). */
+.word {
+  --w-escritorio: color-mix(in srgb, var(--foreground) 9%, var(--card));
+  --w-oro: var(--gold-rgb, 255, 145, 1);
+  position: relative; display: flex; flex-direction: column; height: 560px; min-width: 0;
+  border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--card);
+}
+:global(.dark) .word { --w-escritorio: color-mix(in srgb, var(--l-gris-0, #050507) 70%, var(--card)); }
+.word[data-grande] { height: calc((100vh - 170px) / var(--ui-zoom, 1)); min-height: 420px; }
+
+.barra { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; padding: 6px 8px; border-bottom: 1px solid var(--border); background: color-mix(in srgb, var(--card) 94%, var(--foreground) 6%); min-width: 0; }
+.busqueda.busqueda { margin-left: auto; }
+.paginas { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; padding: 0 2px; }
+.vista, .papel { display: inline-flex; padding: 2px; border-radius: 9px; background: color-mix(in srgb, var(--card) 88%, var(--foreground) 12%); border: 1px solid color-mix(in srgb, var(--border) 70%, transparent); }
+.vista button, .papel button { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 9px; border: 0; border-radius: 7px; background: none; color: var(--muted); font: inherit; font-size: 12px; font-weight: 550; cursor: pointer; transition: color 180ms, background 180ms, box-shadow 180ms; }
+.papel button { padding: 0 7px; }
+.vista button[aria-checked='true'], .papel button[aria-checked='true'] { background: var(--card); color: var(--foreground); box-shadow: 0 1px 2px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.16); }
+.papel button[aria-checked='true'] { color: rgb(var(--w-oro)); }
+.vista button:focus-visible, .papel button:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+@media (max-width: 560px) { .vista button { font-size: 0; gap: 0; } }
+
+/* Lo leído: una línea de oro que avanza bajo la barra. */
+.progreso { position: relative; z-index: 2; display: block; height: 2px; margin-bottom: -2px; background: linear-gradient(90deg, rgba(var(--w-oro), 0.55), rgb(var(--w-oro))); box-shadow: 0 0 8px rgba(var(--w-oro), 0.6); transform-origin: left; transition: transform 140ms linear; }
+
+.cuerpo { flex: 1; min-height: 0; display: flex; }
+
+/* Índice: sigue la lectura con una luz al costado. */
+.indice { flex: 0 0 240px; min-width: 0; overflow-y: auto; overscroll-behavior: contain; padding: 14px 8px 24px; border-right: 1px solid var(--border); background: color-mix(in srgb, var(--card) 93%, var(--foreground) 7%); }
+.indiceTitulo { margin: 0 10px 8px; font-size: 10.5px; font-weight: 650; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); }
+.indice ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; }
+.indice li { position: relative; animation: wSubir 520ms var(--mov-curva, cubic-bezier(0.16, 1, 0.3, 1)) backwards; animation-delay: calc(var(--i, 0) * 22ms + 120ms); }
+.indice li button { display: block; width: 100%; padding: 5px 10px 5px calc(12px + var(--sangria, 0px)); border: 0; border-radius: 7px; background: none; color: var(--muted); font: inherit; font-size: 12.5px; line-height: 1.35; text-align: left; cursor: pointer; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; transition: color 200ms, background 200ms; }
+.indice li[data-nivel='0'] button, .indice li[data-nivel='1'] button { color: var(--foreground); font-weight: 600; }
+.indice li[data-nivel='2'] { --sangria: 12px; }
+.indice li[data-nivel='3'] { --sangria: 24px; }
+.indice li[data-nivel='4'] { --sangria: 34px; }
+.indice li[data-nivel='3'] button, .indice li[data-nivel='4'] button { font-size: 12px; }
+.indice li button:hover { background: color-mix(in srgb, var(--foreground) 6%, transparent); color: var(--foreground); }
+.indice li[data-actual] button { color: var(--foreground); background: rgba(var(--w-oro), 0.09); }
+.indice li::before { content: ''; position: absolute; left: 2px; top: 7px; bottom: 7px; width: 2px; border-radius: 2px; background: rgb(var(--w-oro)); box-shadow: 0 0 8px rgba(var(--w-oro), 0.7); transform: scaleY(0); transition: transform 320ms var(--mov-curva, ease); }
+.indice li[data-actual]::before { transform: scaleY(1); }
+
+/* ── El escritorio y sus hojas ── */
+.escritorio { position: relative; flex: 1; min-width: 0; overflow: auto; overscroll-behavior: contain; outline: 0; background: var(--w-escritorio); padding: 26px 0 48px;
+  background-image: radial-gradient(ellipse 70% 40% at 50% 0%, color-mix(in srgb, var(--card) 60%, transparent), transparent 70%); background-attachment: local; transition: background-color 400ms; }
+.escritorio[data-papel='sepia'] { --w-escritorio: color-mix(in srgb, var(--l-ambar-7, #8a6a3b) 16%, var(--card)); }
+.escritorio[data-papel='noche'] { --w-escritorio: var(--l-gris-1, #09090b); background-image: none; }
+.hoja { opacity: 0; transition: opacity 360ms ease-out; }
+.hoja[data-listo] { opacity: 1; }
+/* El envoltorio de docx-preview trae fondo gris y relleno: aquí manda el escritorio. */
+.hoja.hoja > div { display: flex; flex-direction: column; align-items: center; gap: 24px; padding: 0 !important; background: transparent !important; }
+.hoja.hoja > div > section { margin: 0 !important; flex: none; border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.06), 0 2px 4px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.12), 0 22px 56px -22px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.55);
+  animation: wHoja 680ms var(--mov-curva, cubic-bezier(0.16, 1, 0.3, 1)) backwards; transition: filter 420ms ease; }
+.hoja.hoja > div > section:nth-child(2) { animation-delay: 70ms; }
+.hoja.hoja > div > section:nth-child(n + 3) { animation-delay: 140ms; }
+@keyframes wHoja { from { opacity: 0; transform: translateY(14px) scale(0.985); } }
+@keyframes wSubir { from { opacity: 0; transform: translateY(5px); } }
+.hoja a[data-externo], .hoja a[href^='#'] { cursor: pointer; }
+.hoja ::selection { background: rgba(var(--brand-rgb), 0.3); }
+.hoja [data-titulo] { scroll-margin-top: 24px; border-radius: 3px; }
+
+/* Papel: sepia para leer largo; noche invierte la hoja y vuelve a invertir sus imágenes (quedan como son). */
+.escritorio[data-papel='sepia'] .hoja.hoja > div > section { filter: sepia(0.34) saturate(1.12) brightness(0.97) contrast(0.98); }
+.escritorio[data-papel='noche'] .hoja.hoja > div > section { filter: invert(0.9) hue-rotate(180deg) contrast(0.92) brightness(1.04); box-shadow: 0 0 0 1px rgba(var(--l-luz-rgb, 255, 255, 255), 0.05), 0 22px 56px -22px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.9); }
+.escritorio[data-papel='noche'] .hoja section img, .escritorio[data-papel='noche'] .hoja section svg image { filter: invert(1) hue-rotate(180deg); }
+
+/* Lectura: el texto se acomoda al panel; la hoja deja de ser carta. */
+.escritorio[data-lectura] { padding: 14px 10px 40px; }
+.escritorio[data-lectura] .hoja.hoja > div > section { width: 100% !important; max-width: 780px; min-height: 0 !important; padding: clamp(18px, 4vw, 44px) clamp(16px, 5vw, 56px) !important; border-radius: 10px; }
+.escritorio[data-lectura] .hoja section img { max-width: 100%; height: auto; }
+.escritorio[data-lectura] .hoja section table { max-width: 100%; }
+
+/* Mientras abre: una hoja fantasma que respira. */
+.cargando { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 14px; font-size: 13px; color: var(--muted); }
+.hojaFantasma { display: grid; align-content: start; gap: 9px; width: 230px; height: 298px; padding: 30px 26px; border-radius: 3px; background: color-mix(in srgb, var(--card) 85%, var(--l-gris-16, #fff) 15%); box-shadow: 0 22px 50px -24px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.5); animation: wHoja 700ms var(--mov-curva, ease); }
+:global(.dark) .hojaFantasma { background: color-mix(in srgb, var(--card) 80%, var(--l-gris-16, #fff) 6%); }
+.hojaFantasma i { display: block; height: 7px; border-radius: 3px; background: linear-gradient(90deg, color-mix(in srgb, var(--foreground) 8%, transparent), color-mix(in srgb, var(--foreground) 16%, transparent), color-mix(in srgb, var(--foreground) 8%, transparent)); background-size: 220% 100%; animation: wBrillo 1.4s ease-in-out infinite; animation-delay: calc(var(--i) * 80ms); }
+.hojaFantasma i:first-child { width: 62%; height: 12px; margin-bottom: 8px; background-color: rgba(var(--w-oro), 0.14); }
+.hojaFantasma i:nth-child(4n) { width: 74%; }
+.hojaFantasma i:nth-child(5) { margin-top: 10px; }
+@keyframes wBrillo { from { background-position: 120% 0; } to { background-position: -120% 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .hoja.hoja > div > section, .indice li, .hojaFantasma, .hojaFantasma i { animation: none !important; }
+  .progreso, .indice li::before, .hoja { transition: none; }
+}

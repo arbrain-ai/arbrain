@@ -1,4 +1,5 @@
 'use client'
+import { tr } from '@/shared/i18n'
 import { useEffect, useSyncExternalStore } from 'react'
 import { SkipBack, SkipForward, Play, Pause, X, Zap } from 'lucide-react'
 import { chatSpeech, type SpeechState } from '../lib/chat-speech'
@@ -60,7 +61,7 @@ export function BarraDelLector({ state, avisoGroq }: { state: SpeechState; aviso
   return (
     <AudioBarFrame
       izquierda={
-        <span className={TXT_CONTADOR} title="Párrafo">
+        <span className={TXT_CONTADOR} title={tr('Párrafo')}>
           {state.idx + 1}/{state.total}
         </span>
       }
@@ -68,7 +69,7 @@ export function BarraDelLector({ state, avisoGroq }: { state: SpeechState; aviso
         <button
           onClick={() => chatSpeech.cycleRate()}
           className={`${BTN_VELOCIDAD} ${speedColor}`}
-          title="Velocidad"
+          title={tr('Velocidad')}
         >
           <Zap size={11} />
           {fmtRate(state.rate)}
@@ -79,14 +80,14 @@ export function BarraDelLector({ state, avisoGroq }: { state: SpeechState; aviso
           <button
             onClick={() => chatSpeech.prev()}
             className={BTN_SALTO}
-            title="Párrafo anterior"
+            title={tr('Párrafo anterior')}
           >
             <SkipBack size={18} />
           </button>
           <button
             onClick={() => chatSpeech.pauseResume()}
             className={BTN_PLAY}
-            title={state.paused ? 'Reanudar (Ctrl+Espacio)' : 'Pausar (Ctrl+Espacio)'}
+            title={state.paused ? tr('Reanudar (Ctrl+Espacio)') : tr('Pausar (Ctrl+Espacio)')}
           >
             {state.paused ? (
               <Play size={20} className="fill-current ml-0.5" />
@@ -97,14 +98,14 @@ export function BarraDelLector({ state, avisoGroq }: { state: SpeechState; aviso
           <button
             onClick={() => chatSpeech.next()}
             className={BTN_SALTO}
-            title="Párrafo siguiente"
+            title={tr('Párrafo siguiente')}
           >
             <SkipForward size={18} />
           </button>
         </>
       }
       derecha={
-        <button onClick={() => chatSpeech.stop()} className={BTN_CERRAR} title="Cerrar">
+        <button onClick={() => chatSpeech.stop()} className={BTN_CERRAR} title={tr('Cerrar')}>
           <X size={18} />
         </button>
       }
@@ -127,8 +128,7 @@ export function BarraDelLector({ state, avisoGroq }: { state: SpeechState; aviso
         avisoGroq ? (
           <div className="chat-prose flex flex-wrap items-center justify-center gap-x-3 gap-y-1 px-4 pb-2.5 text-center" role="status">
             <p className="text-[11px] leading-snug text-muted">
-              Con una llave gratis de Groq, el resaltado sigue la voz palabra por palabra. Créala en console.groq.com/keys
-              y pégala en Arbrain › Ajustes › Voz (nunca en el chat).
+              {tr('Con una llave gratis de Groq, el resaltado sigue la voz palabra por palabra. Créala en console.groq.com/keys y pégala en Arbrain › Ajustes › Voz (nunca en el chat).')}
             </p>
             <span className="flex gap-2">
               <button
@@ -140,18 +140,17 @@ export function BarraDelLector({ state, avisoGroq }: { state: SpeechState; aviso
                   useAjustes.getState().abrir('voz')
                 }}
               >
-                Abrir Ajustes › Voz
+                {tr('Abrir Ajustes › Voz')}
               </button>
               <button type="button" className="text-[11px] text-muted hover:text-foreground/75" onClick={cerrarAvisoGroq}>
-                Ahora no
+                {tr('Ahora no')}
               </button>
             </span>
           </div>
         ) : !state.paused && !state.despierto && tactil() ? (
           <div className="chat-prose px-4 pb-2.5 text-center">
             <p className="text-[10px] text-amber-500/80 leading-snug">
-              No pude mantener la pantalla encendida (¿Modo de Bajo Consumo?). Si se apaga,
-              la voz sigue pero el resaltado se queda atrás.
+              {tr('No pude mantener la pantalla encendida (¿Modo de Bajo Consumo?). Si se apaga, la voz sigue pero el resaltado se queda atrás.')}
             </p>
           </div>
         ) : null

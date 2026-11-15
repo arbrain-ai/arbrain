@@ -24,7 +24,7 @@ export function LectorPosicion({ sessionId, messageIds }: { sessionId?: string |
     chatSpeech.registrarSesion(() => sesionRef.current)
     return () => {
       chatSpeech.registrarSesion(null)
-      chatSpeech.suspend() // el chat se desmonta (otra sección): el punto queda guardado
+      chatSpeech.suspend('desmonte') // el chat se desmonta (otra sección): el punto queda guardado
     }
   }, [])
 
@@ -32,7 +32,7 @@ export function LectorPosicion({ sessionId, messageIds }: { sessionId?: string |
   useEffect(() => {
     if (!chatSpeech) return
     const dueña = chatSpeech.sesionDeLectura()
-    if (dueña && dueña !== (sessionId ?? null)) chatSpeech.suspend()
+    if (dueña && dueña !== (sessionId ?? null)) chatSpeech.suspend('otra-conversacion')
   }, [sessionId])
 
   // Volver a la conversación (o recargar): dejar la barra en el punto guardado.

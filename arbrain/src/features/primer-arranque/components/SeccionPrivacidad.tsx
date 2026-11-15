@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react'
 import { DocumentosLegales } from './DocumentosLegales'
 import { PanelMonitoreo } from './PanelMonitoreo'
 import { PanelConexionArbrain } from './PanelConexionArbrain'
+import { tr } from '@/shared/i18n'
 
 export function SeccionPrivacidad() {
   // El monitoreo anterior solo tiene sentido con un destino horneado o un consentimiento dado; si no, confunde.
@@ -18,19 +19,19 @@ export function SeccionPrivacidad() {
   return (
     <div className="space-y-6">
       <section>
-        <h3 className="mb-1 text-sm font-semibold text-foreground/90">Conectar con arbrain.ai (opcional)</h3>
-        <p className="mb-3 text-xs leading-snug text-muted">Tu Arbrain le manda a tu programa una señal mínima de tu avance, una vez al día, solo si lo conectas. Tus conversaciones nunca salen.</p>
+        <h3 className="mb-1 text-sm font-semibold text-foreground/90">{tr('Conectar con arbrain.ai (opcional)')}</h3>
+        <p className="mb-3 text-xs leading-snug text-muted">{tr('Tu Arbrain le manda a tu programa una señal mínima de tu avance, una vez al día, solo si lo conectas. Tus conversaciones nunca salen.')}</p>
         <PanelConexionArbrain />
       </section>
       {conMonitoreo && (
         <section>
-          <h3 className="mb-1 text-sm font-semibold text-foreground/90">Monitoreo del programa</h3>
-          <p className="mb-3 text-xs leading-snug text-muted">Solo cifras de tu avance, una vez al día, y solo si lo activas. Tus conversaciones nunca salen.</p>
+          <h3 className="mb-1 text-sm font-semibold text-foreground/90">{tr('Monitoreo del programa')}</h3>
+          <p className="mb-3 text-xs leading-snug text-muted">{tr('Solo cifras de tu avance, una vez al día, y solo si lo activas. Tus conversaciones nunca salen.')}</p>
           <PanelMonitoreo />
         </section>
       )}
       <section>
-        <h3 className="mb-3 text-sm font-semibold text-foreground/90">Lo que aceptaste</h3>
+        <h3 className="mb-3 text-sm font-semibold text-foreground/90">{tr('Lo que aceptaste')}</h3>
         <DocumentosLegales />
       </section>
     </div>

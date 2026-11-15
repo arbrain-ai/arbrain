@@ -53,6 +53,10 @@
 .pantallaBtn { position: absolute; right: 10px; bottom: 10px; z-index: 2; display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; border: 1px solid rgba(var(--l-luz-rgb, 255, 255, 255), 0.18); border-radius: 999px;
   background: rgba(var(--l-sombra-rgb, 0, 0, 0), 0.72); color: var(--l-gris-16, #fff); font-size: 12.5px; font-weight: 500; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); cursor: pointer; opacity: 0.85; transition: opacity 0.15s; }
 .pantallaBtn:hover { opacity: 1; }
+/* «Descargar» junto a «Pantalla completa» (12 nov 2026): los dos en una fila en la esquina del marco. */
+.accionesMarco { position: absolute; right: 10px; bottom: 10px; z-index: 2; display: inline-flex; align-items: center; gap: 8px; }
+.accionesMarco .pantallaBtn { position: static; }
+a.editar, a.pantallaBtn { text-decoration: none; }
 /* La X de salir (29 oct 2026: «cuando quise salir no vi ningún botón»): fija arriba a la derecha, fuera del notch, de 44 px
    y con contraste alto sobre cualquier lámina. Un toque arriba del deck la hace latir para que se encuentre. */
 .salirPantalla { position: fixed; top: max(10px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); z-index: 2147483647; display: grid; place-items: center;

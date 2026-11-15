@@ -64,6 +64,7 @@ import { invocacionVetadaDirecto } from '@/lib/modo-directo/reglas'
 import { useDirecto, useModoDirecto } from '@/shared/stores/modo-directo-store'
 import s from './cabina.module.css'
 import l from './luz.module.css'
+import { localeIntl, tr, trMarca } from '@/shared/i18n'
 
 // El perro (cámara, 3D) solo carga al pedirse: Cabina viaja en el layout de toda la app.
 const VistaPerro = dynamic(() => import('@/features/perro/VistaPerro').then(m => m.VistaPerro), { ssr: false })
@@ -97,9 +98,9 @@ export const ICONO = { calendario: CalendarDays, objetivos: Target, centro: Gaug
 /** Una vista que falla se queda en SU tarjeta: nunca tumba el hilo. */
 class Aislada extends Component<{ children: ReactNode }, { error: string | null }> {
   state = { error: null as string | null }
-  static getDerivedStateFromError(e: unknown) { return { error: e instanceof Error ? e.message : 'Error desconocido' } }
+  static getDerivedStateFromError(e: unknown) { return { error: e instanceof Error ? e.message : tr('Error desconocido') } }
   componentDidCatch(e: unknown) { console.error('[cabina] la vista falló', e) }
-  render() { return this.state.error ? <p className={s.aviso}>Esta vista no se pudo pintar ({this.state.error}). La conversación sigue intacta; «Abrir completo» lleva a la sección.</p> : this.props.children }
+  render() { return this.state.error ? <p className={s.aviso}>{tr('Esta vista no se pudo pintar ({error}). La conversación sigue intacta; «Abrir completo» lleva a la sección.', { error: this.state.error })}</p> : this.props.children }
 }
 
 export function Cuerpo(props: { input: MostrarInput; grande?: boolean }) { return <Aislada><CuerpoDirecto {...props} /></Aislada> }
@@ -184,9 +185,9 @@ export function titulo(input: MostrarInput) {
   if (input.vista === 'documento') return nombreDocumento(input)
   if (input.titulo) return input.titulo
   const a = input.alcance ?? (input.vista === 'calendario' ? 'semana' : 'mes'), f = input.fecha ?? hoyCivil()
-  if (input.vista === 'calendario' || input.vista === 'objetivos') return `${NOMBRE[input.vista]} · ${tituloPeriodo(a, f)}`
-  if (input.vista === 'negocio' && input.seccion) return `${NOMBRE.negocio} · ${input.seccion}`
-  return NOMBRE[input.vista]
+  if (input.vista === 'calendario' || input.vista === 'objetivos') return `${tr(NOMBRE[input.vista])} · ${tituloPeriodo(a, f)}`
+  if (input.vista === 'negocio' && input.seccion) return `${tr(NOMBRE.negocio)} · ${input.seccion}`
+  return tr(NOMBRE[input.vista])
 }
 
 /** Las vistas v2 traen su propio encabezado editorial (la fecha, la meta, la cifra):
@@ -252,9 +253,9 @@ function useAltoSostenido(id: string, visible: boolean) {
 /** Guardar una vista en el archivero («+ › Guardadas»): mismo tamaño y lugar que Expandir, a su izquierda. */
 export function GuardarVista({ guardada, ocupado, onAlternar }: { guardada: boolean; ocupado?: boolean; onAlternar: () => void }) {
   // Alterna en sitio (4 oct 2026): la vista no se cierra; guardada, el mismo botón la quita de «+ › Guardadas».
-  const t = guardada ? 'Guardada en «+ › Guardadas» · clic para quitarla' : 'Guardar en «+ › Guardadas» (la vista sigue abierta)'
+  const t = guardada ? tr('Guardada en «+ › Guardadas» · clic para quitarla') : tr('Guardar en «+ › Guardadas» (la vista sigue abierta)')
   return <button className={s.icono} data-guardada={guardada || undefined} onClick={onAlternar} disabled={ocupado} aria-busy={ocupado || undefined}
-    title={t} aria-label={guardada ? 'Quitar de Guardadas' : 'Guardar'} aria-pressed={guardada}>
+    title={t} aria-label={guardada ? tr('Quitar de Guardadas') : tr('Guardar')} aria-pressed={guardada}>
     {guardada ? <BookmarkCheck size={14} aria-hidden /> : <Bookmark size={14} aria-hidden />}
   </button>
 }
@@ -266,14 +267,14 @@ const enShell = () => pantallaCompletaDisponible() && !!document.querySelector('
 export function AbrirCompleto({ input, compacto, alExpandir, enSeccion }: { input: MostrarInput; compacto?: boolean; alExpandir?: () => void; enSeccion?: boolean }) {
   const ruta = seccionDe(input)
   if (!ruta) return null
-  const nombre = NOMBRE[input.vista]
-  const contenido = compacto ? (enSeccion ? <ArrowUpRight size={14} aria-hidden /> : <Maximize2 size={14} aria-hidden />) : <>Ir a {nombre} <ArrowUpRight size={13} aria-hidden /></>
+  const nombre = tr(NOMBRE[input.vista])
+  const contenido = compacto ? (enSeccion ? <ArrowUpRight size={14} aria-hidden /> : <Maximize2 size={14} aria-hidden />) : <>{tr('Ir a {nombre}', { nombre })} <ArrowUpRight size={13} aria-hidden /></>
   // En el teléfono el panel es una hoja encima: se cierra para dejar ver la sección.
   const alIr = (e: React.MouseEvent) => {
     if (enShell()) { e.preventDefault(); verEnPantallaCompleta(input); return }
     alExpandir?.(); if (window.matchMedia('(max-width: 767px)').matches) useLayoutStore.getState().setPanelDerecho(false)
   }
-  const props = { className: compacto ? s.icono : s.accion, title: enSeccion ? 'Abrir en su sección (la pestaña sigue abierta aquí)' : `${nombre} a pantalla completa (Levy sigue a la mano con ⌘J)`, 'aria-label': enSeccion ? `Abrir en ${nombre}` : `${nombre} a pantalla completa`, onClick: alIr }
+  const props = { className: compacto ? s.icono : s.accion, title: enSeccion ? tr('Abrir en su sección (la pestaña sigue abierta aquí)') : tr('{nombre} a pantalla completa (Levy sigue a la mano con ⌘J)', { nombre }), 'aria-label': enSeccion ? tr('Abrir en {nombre}', { nombre }) : tr('{nombre} a pantalla completa', { nombre }), onClick: alIr }
   return <>
     {/* Una ruta de API (el reporte) no es página: se sigue con navegación completa. */}
     {ruta.startsWith('/api/') ? <a href={ruta} {...props}>{contenido}</a> : <Link href={ruta} {...props}>{contenido}</Link>}
@@ -290,7 +291,7 @@ function Panel({ input, onClose }: { input: MostrarInput; onClose: () => void })
   return createPortal(<div className={s.velo} onClick={onClose}>
     <div className={s.panel} role="dialog" aria-modal="true" aria-label={titulo(input)} onClick={e => e.stopPropagation()}>
       <header className={s.cabecera}><Icono size={15} aria-hidden /><h3>{titulo(input)}</h3>
-        <button className={s.cerrar} onClick={onClose} aria-label="Cerrar"><X size={16} /></button></header>
+        <button className={s.cerrar} onClick={onClose} aria-label={tr('Cerrar')}><X size={16} /></button></header>
       {input.enfoque && <p className={s.enfoque}>{input.enfoque}</p>}
       <div className={s.panelCuerpo}><Cuerpo input={input} grande /></div>
       <footer className={s.pie}><AbrirCompleto input={input} /></footer>
@@ -325,10 +326,10 @@ function BotonFijar({ inv, input }: { inv: Extract<Invocacion, { verbo: 'mostrar
   const f = fijadaDe(fijadas, inv.toolId, input)
   // Una vista que ya vive en su propia ventana (se arrastró fuera del panel) se trae al frente, no se quita. (1 oct 2026)
   if (f && fuera.includes(f.id)) return <button className={s.icono} data-fijada onClick={() => mostrarPanel(f.id)}
-    title="Está en su propia ventana: traerla al frente" aria-label="Traer al frente la ventana de esta vista"><PinOff size={14} aria-hidden /></button>
+    title={tr('Está en su propia ventana: traerla al frente')} aria-label={tr('Traer al frente la ventana de esta vista')}><PinOff size={14} aria-hidden /></button>
   if (f) return <button className={s.icono} data-fijada onClick={() => abierto && activa === f.id ? soltar(f.id) : mostrarPanel(f.id)}
-    title={abierto && activa === f.id ? 'Quitar del panel' : 'Ver en el panel'} aria-label={abierto && activa === f.id ? 'Quitar del panel' : 'Ver en el panel'}><PinOff size={14} aria-hidden /></button>
-  return <button className={s.icono} onClick={() => mostrarPanel(fijar(inv.toolId, input))} title="Fijar en el panel" aria-label="Fijar en el panel"><Pin size={14} aria-hidden /></button>
+    title={abierto && activa === f.id ? tr('Quitar del panel') : tr('Ver en el panel')} aria-label={abierto && activa === f.id ? tr('Quitar del panel') : tr('Ver en el panel')}><PinOff size={14} aria-hidden /></button>
+  return <button className={s.icono} onClick={() => mostrarPanel(fijar(inv.toolId, input))} title={tr('Fijar en el panel')} aria-label={tr('Fijar en el panel')}><Pin size={14} aria-hidden /></button>
 }
 
 /** Línea del hilo que nombra una vista fijada (se conserva para el diseño v2; ya no es el defecto). */
@@ -342,15 +343,15 @@ export function LineaEnPanel({ inv, input, vivo }: { inv: Extract<Invocacion, { 
   const aLaVista = !!f && (fuera.includes(f.id) || (abierto && activa === f.id))
   const Icono = ICONO[input.vista], dato = datoCache(input)
   return <button className={s.enPanel} data-cabina-vista={input.vista} data-cabina-estado="en-panel" data-a-la-vista={aLaVista || undefined}
-    onClick={() => mostrarPanel(fijar(inv.toolId, input, true, origenDeLevy(input)))} aria-label={`Ver en el panel: ${input.titulo ?? resumen(input)}`}>
+    onClick={() => mostrarPanel(fijar(inv.toolId, input, true, origenDeLevy(input)))} aria-label={tr('Ver en el panel: {titulo}', { titulo: input.titulo ?? resumen(input) })}>
     <span className={s.colapsadaIcono}><Icono size={14} aria-hidden /></span>
     <span className={s.colapsadaTexto}><span>{input.titulo ?? resumen(input)}</span>{dato && <small>{dato}</small>}</span>
-    <em>{aLaVista ? 'En el panel' : 'Ver en el panel'} <ChevronRight size={13} aria-hidden /></em>
+    <em>{aLaVista ? tr('En el panel') : tr('Ver en el panel')} <ChevronRight size={13} aria-hidden /></em>
   </button>
 }
 
 /** Lo técnico vive en el Taller: la línea del hilo lo nombra y lo abre (al nacer en un turno vivo, solo). */
-const TALLER_PESTANA: Partial<Record<string, string>> = { servidores: 'Computadora', rutinas: 'Rutinas', memoria: 'Memoria', historia: 'Historia' }
+const TALLER_PESTANA: Partial<Record<string, string>> = { servidores: trMarca('Computadora'), rutinas: trMarca('Rutinas'), memoria: trMarca('Memoria'), historia: trMarca('Historia') }
 function LineaTaller({ inv, input, vivo }: { inv: Extract<Invocacion, { verbo: 'mostrar' }>; input: MostrarInput; vivo: boolean }) {
   const fijar = usePanelFijadas(st => st.fijar)
   const abrir = useCallback(() => { mostrarPanel(fijar(inv.toolId, input)); useLayoutStore.getState().setPanelDerecho(true) }, [fijar, inv.toolId, input])
@@ -359,11 +360,11 @@ function LineaTaller({ inv, input, vivo }: { inv: Extract<Invocacion, { verbo: '
     fijadasVivas.add(inv.toolId); abrir()
   }, [vivo, inv.status, inv.toolId, abrir])
   const Icono = ICONO[input.vista], dato = datoCache(input)
-  const pestana = TALLER_PESTANA[input.vista] ?? 'Computadora'
-  return <button className={s.enPanel} data-cabina-vista={input.vista} data-cabina-estado="en-taller" onClick={abrir} aria-label={`Ver en el Taller: ${pestana}`}>
+  const pestana = tr(TALLER_PESTANA[input.vista] ?? trMarca('Computadora'))
+  return <button className={s.enPanel} data-cabina-vista={input.vista} data-cabina-estado="en-taller" onClick={abrir} aria-label={tr('Ver en el Taller: {pestana}', { pestana })}>
     <span className={s.colapsadaIcono}><Icono size={14} aria-hidden /></span>
     <span className={s.colapsadaTexto}><span>{input.titulo ?? resumen(input)}</span>{dato && <small>{dato}</small>}</span>
-    <em>Ver en el Taller <ChevronRight size={13} aria-hidden /></em>
+    <em>{tr('Ver en el Taller')} <ChevronRight size={13} aria-hidden /></em>
   </button>
 }
 
@@ -376,15 +377,15 @@ function LineaSoltada({ inv, input, vivo }: { inv: Extract<Invocacion, { verbo: 
     soltadasVivas.add(inv.toolId); soltarComo(input)
   }, [vivo, inv.status, inv.toolId, input, soltarComo])
   const Icono = ICONO[input.vista]
-  return <p className={s.preparando} data-cabina-vista={input.vista} data-cabina-estado="soltada"><Icono size={13} aria-hidden /> Levy quitó «{titulo(input)}» del panel.</p>
+  return <p className={s.preparando} data-cabina-vista={input.vista} data-cabina-estado="soltada"><Icono size={13} aria-hidden /> {tr('Levy quitó «{titulo}» del panel.', { titulo: titulo(input) })}</p>
 }
 
 /** La misma vista ya vive en una pestaña del panel: en el hilo, un chip que la enfoca. */
 function AbiertaEnPanel({ id, input }: { id: string; input: MostrarInput }) {
   const Icono = ICONO[input.vista]
   return <button className={s.abiertaEnPanel} data-cabina-vista={input.vista} data-cabina-estado="abierta-en-panel" onClick={() => mostrarPanel(id)}
-    title="Ya está abierta en una pestaña del panel: llevarte a ella" aria-label={`${titulo(input)}: abierta a la izquierda. Ir a su pestaña`}>
-    <Icono size={13} aria-hidden /><span>{titulo(input)}</span><small>Abierta a la izquierda</small><em><i aria-hidden>·</i> Ir <ArrowUpRight size={12} aria-hidden /></em>
+    title={tr('Ya está abierta en una pestaña del panel: llevarte a ella')} aria-label={tr('{titulo}: abierta a la izquierda. Ir a su pestaña', { titulo: titulo(input) })}>
+    <Icono size={13} aria-hidden /><span>{titulo(input)}</span><small>{tr('Abierta a la izquierda')}</small><em><i aria-hidden>·</i> {tr('Ir')} <ArrowUpRight size={12} aria-hidden /></em>
   </button>
 }
 
@@ -401,9 +402,9 @@ function VistaViva({ inv, streaming }: { inv: Extract<Invocacion, { verbo: 'most
   const fijadas = usePanelFijadas(st => st.fijadas), cargarFijadas = usePanelFijadas(st => st.cargar)
   useEffect(() => { if (!isMobile) cargarFijadas() }, [isMobile, cargarFijadas])
 
-  if (inv.error) return <p className={s.error}><AlertTriangle size={13} aria-hidden /> Levy intentó mostrar una vista y falló: {inv.error}</p>
+  if (inv.error) return <p className={s.error}><AlertTriangle size={13} aria-hidden /> {tr('Levy intentó mostrar una vista y falló: {error}', { error: inv.error })}</p>
   if (!inv.input) return inv.status === 'running'
-    ? <div className={s.preparando}><Loader2 size={13} className="animate-spin" aria-hidden /> Preparando la vista…</div>
+    ? <div className={s.preparando}><Loader2 size={13} className="animate-spin" aria-hidden /> {tr('Preparando la vista…')}</div>
     : null
   const input = inv.input, Icono = ICONO[input.vista]
   if (input.soltar) return <LineaSoltada inv={inv} input={input} vivo={vivo} />
@@ -420,21 +421,21 @@ function VistaViva({ inv, streaming }: { inv: Extract<Invocacion, { verbo: 'most
 
   if (!activa) {
     const dato = datoCache(input)
-    return <button className={s.colapsada} onClick={() => setTocada(true)} data-cabina-vista={input.vista} data-cabina-estado="colapsada" aria-label={`Ver de nuevo: ${input.titulo ?? resumen(input)}`}>
+    return <button className={s.colapsada} onClick={() => setTocada(true)} data-cabina-vista={input.vista} data-cabina-estado="colapsada" aria-label={tr('Ver de nuevo: {titulo}', { titulo: input.titulo ?? resumen(input) })}>
       <span className={s.colapsadaIcono}><Icono size={14} aria-hidden /></span>
       <span className={s.colapsadaTexto}><span>{input.titulo ?? resumen(input)}</span>{dato && <small>{dato}</small>}</span>
-      <em>Ver <ChevronRight size={13} aria-hidden /></em>
+      <em>{tr('Ver')} <ChevronRight size={13} aria-hidden /></em>
     </button>
   }
 
   return <section ref={ref} className={s.marco} data-cabina-vista={input.vista} data-cabina-estado={visible ? 'montada' : 'dormida'} aria-label={titulo(input)}>
-    <header className={s.cabecera}><Icono size={14} aria-hidden /><h3>{conHeroe(input) ? NOMBRE[input.vista] : titulo(input)}</h3>
+    <header className={s.cabecera}><Icono size={14} aria-hidden /><h3>{conHeroe(input) ? tr(NOMBRE[input.vista]) : titulo(input)}</h3>
       <span className={s.acciones}>
         {!isMobile && <BotonFijar inv={inv} input={input} />}
         {/* Expandir lleva a la sección; solo lo que no tiene sección se amplía encima. */}
         {seccionDe(input)
           ? <AbrirCompleto input={input} compacto />
-          : <button className={s.icono} onClick={() => enShell() ? verEnPantallaCompleta(input) : setAmpliada(true)} title="Ampliar" aria-label="Ampliar la vista"><Maximize2 size={14} aria-hidden /></button>}
+          : <button className={s.icono} onClick={() => enShell() ? verEnPantallaCompleta(input) : setAmpliada(true)} title={tr('Ampliar')} aria-label={tr('Ampliar la vista')}><Maximize2 size={14} aria-hidden /></button>}
       </span>
     </header>
     {input.enfoque && <p className={`${s.enfoque} ${l.serif}`}>{input.enfoque}</p>}
@@ -470,15 +471,15 @@ function Llevar({ inv, streaming }: { inv: Extract<Invocacion, { verbo: 'abrir' 
     return () => clearTimeout(t)
   }, [cuenta, input, ir])
 
-  if (inv.error) return <p className={s.error}><AlertTriangle size={13} aria-hidden /> No se pudo preparar la navegación: {inv.error}</p>
+  if (inv.error) return <p className={s.error}><AlertTriangle size={13} aria-hidden /> {tr('No se pudo preparar la navegación: {error}', { error: inv.error })}</p>
   if (!input) return null
-  const fecha = input.fecha ? ` · ${new Date(input.fecha + 'T12:00:00Z').toLocaleDateString('es-MX', { day: 'numeric', month: 'short', timeZone: 'UTC' })}` : ''
+  const fecha = input.fecha ? ` · ${new Date(input.fecha + 'T12:00:00Z').toLocaleDateString(localeIntl(), { day: 'numeric', month: 'short', timeZone: 'UTC' })}` : ''
   return <div className={s.llevar} data-cabina-abrir={input.destino}>
     <Navigation size={14} aria-hidden />
-    <span>{cuenta !== null ? `Te llevo a ${NOMBRE[input.destino]}${fecha} en ${cuenta}…` : `${NOMBRE[input.destino]}${fecha}`}{input.motivo && <small>{input.motivo}</small>}</span>
+    <span>{cuenta !== null ? tr('Te llevo a {destino}{fecha} en {n}…', { destino: tr(NOMBRE[input.destino]), fecha, n: cuenta }) : `${tr(NOMBRE[input.destino])}${fecha}`}{input.motivo && <small>{input.motivo}</small>}</span>
     {cuenta !== null
-      ? <button className={s.accionSec} onClick={() => { abrirEjecutado(inv.toolId); setCuenta(null) }}>Cancelar</button>
-      : <button className={s.accion} onClick={() => void ir(input)}>Ir <ArrowUpRight size={13} aria-hidden /></button>}
+      ? <button className={s.accionSec} onClick={() => { abrirEjecutado(inv.toolId); setCuenta(null) }}>{tr('Cancelar')}</button>
+      : <button className={s.accion} onClick={() => void ir(input)}>{tr('Ir')} <ArrowUpRight size={13} aria-hidden /></button>}
   </div>
 }
 

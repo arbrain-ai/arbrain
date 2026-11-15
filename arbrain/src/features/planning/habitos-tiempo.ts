@@ -1,4 +1,7 @@
+import type { Day, Month } from 'date-fns'
 import { shiftDay } from '@/features/sistema/calendar-days'
+import { enIngles, tr } from '@/shared/i18n'
+import { localeFechas } from '@/shared/i18n/fechas'
 import type { Marca } from './habitos-dia'
 import { estadoCelda, semanasTemporada, type EstadoCelda } from './habitos-hoy'
 
@@ -55,6 +58,8 @@ export const estadoTiempo = (m: Marca, fecha: string, hoy: string, inicio: strin
   inicio && fecha < inicio && fecha <= hoy && (m === true || m === false) ? (m ? 'hecho' : 'fallado') : estadoCelda(m, fecha, hoy, inicio)
 
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
+/** El mes corto en el idioma activo («oct» o «Oct»). */
+const mesCorto = (i: number) => enIngles() ? localeFechas().localize.month(i as Month, { width: 'abbreviated' }) : MESES[i]
 /** El rótulo de mes arriba de la primera semana que lo trae (solo esa: «oct», «nov»). */
 export function rotulosDeMes(semanas: (string | null)[][]): (string | null)[] {
   let anterior = ''
@@ -63,7 +68,7 @@ export function rotulosDeMes(semanas: (string | null)[][]): (string | null)[] {
     const mes = f ? f.slice(0, 7) : ''
     if (!mes || mes === anterior) return null
     anterior = mes
-    return MESES[Number(mes.slice(5, 7)) - 1]
+    return mesCorto(Number(mes.slice(5, 7)) - 1)
   })
 }
 
@@ -126,17 +131,19 @@ export function diasDeTabla(hoy: string, periodo: { desde: string; hasta: string
 }
 
 const DOW_CORTO = ['D', 'L', 'M', 'X', 'J', 'V', 'S']
+/** La inicial del día en el idioma activo («L» o «Mo»). */
+const dowCorto = (d: number) => enIngles() ? localeFechas().localize.day(d as Day, { width: 'short' }) : DOW_CORTO[d]
 /** El rótulo de la fila para leerse en teléfono: «L 26». El mes solo en la primera fila y en cada día 1: «D 25 oct», «D 1 nov». */
 export function rotuloDia(f: string, primera: boolean): { dia: string; mes: string | null } {
   const dow = new Date(`${f}T12:00:00Z`).getUTCDay(), n = Number(f.slice(8, 10))
-  return { dia: `${DOW_CORTO[dow]} ${n}`, mes: primera || n === 1 ? MESES[Number(f.slice(5, 7)) - 1] : null }
+  return { dia: `${dowCorto(dow)} ${n}`, mes: primera || n === 1 ? mesCorto(Number(f.slice(5, 7)) - 1) : null }
 }
 
 /** La línea sobria de arriba: «Monk mode · Día 1 de 30 · 25 oct → Monterrey». Antes del día 1, «Empieza en N días». */
 export function lineaPeriodo(nombre: string | null | undefined, p: { desde: string; hasta: string; premio: string }, dia: { estado: string; dia: number | null; total: number; empieza: number }): string {
-  const cuenta = dia.estado === 'antes' ? (dia.empieza === 1 ? 'Empieza mañana' : `Empieza en ${dia.empieza} días`)
-    : dia.estado === 'pasado' ? 'Cerrado' : dia.estado === 'cierre' ? 'Hoy se cierra' : `Día ${dia.dia} de ${dia.total}`
-  const inicio = `${Number(p.desde.slice(8, 10))} ${MESES[Number(p.desde.slice(5, 7)) - 1]}`
+  const cuenta = dia.estado === 'antes' ? (dia.empieza === 1 ? tr('Empieza mañana') : tr('Empieza en {n} días', { n: dia.empieza }))
+    : dia.estado === 'pasado' ? tr('Cerrado') : dia.estado === 'cierre' ? tr('Hoy se cierra') : tr('Día {dia} de {total}', { dia: dia.dia, total: dia.total })
+  const inicio = tr('{dia} {mes}', { dia: Number(p.desde.slice(8, 10)), mes: mesCorto(Number(p.desde.slice(5, 7)) - 1) })
   return [nombre?.trim(), cuenta, `${inicio} → ${p.premio}`].filter(Boolean).join(' · ')
 }
 

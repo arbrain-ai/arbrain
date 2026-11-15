@@ -5,6 +5,7 @@
  * Contrato: ninguna falla dice «no se pudo» a secas. Cada una nombra la imagen, la causa y lo que Daniel
  * puede hacer, y las que son del camino (red, servidor reiniciando) se reintentan una vez solas.
  */
+import { tr } from '@/shared/i18n'
 
 /** Lado mayor al que se reduce una captura antes de subirla (dos monitores pueden pasar de 8960 px). */
 export const MAX_LADO_IMAGEN = 4096
@@ -109,17 +110,17 @@ const dormir = (ms: number) => new Promise<void>(r => setTimeout(r, ms))
 /** Traduce lo que respondió (o no respondió) el camino a una causa que Daniel pueda actuar. */
 export function describirFalloSubida(i: { nombre: string; bytes: number; estado?: number; codigo?: string; mensajeServidor?: string; red?: 'sin-conexion' | 'timeout' }): FalloSubida {
   const base = { nombre: i.nombre, bytes: i.bytes, estado: i.estado, codigo: i.codigo }
-  if (i.red === 'timeout') return { ...base, reintentable: true, motivo: 'la subida tardó más de lo permitido con la conexión actual. Espera a tener mejor señal y vuelve a enviar.' }
-  if (i.red === 'sin-conexion') return { ...base, reintentable: true, motivo: 'no hubo conexión con el servidor (red caída o el servidor no responde). Revisa tu conexión y vuelve a enviar.' }
+  if (i.red === 'timeout') return { ...base, reintentable: true, motivo: tr('la subida tardó más de lo permitido con la conexión actual. Espera a tener mejor señal y vuelve a enviar.') }
+  if (i.red === 'sin-conexion') return { ...base, reintentable: true, motivo: tr('no hubo conexión con el servidor (red caída o el servidor no responde). Revisa tu conexión y vuelve a enviar.') }
   const e = i.estado ?? 0
-  if (e === 401 || e === 403) return { ...base, reintentable: false, motivo: 'tu sesión expiró. Recarga la app (Cmd+R en escritorio), inicia sesión de nuevo y vuelve a enviar.' }
-  if (e === 413 || i.codigo === 'demasiado_grande') return { ...base, reintentable: false, motivo: `pesa más de lo que acepta el servidor (hasta ${formatoBytes(LIMITE_SUBIDA_BYTES)}). Quítalo y adjunta una versión más ligera (una captura de menos área, o solo las páginas que necesitas).` }
-  if (i.codigo === 'tipo_invalido') return { ...base, reintentable: false, motivo: 'el servidor no admite ese formato; acepta imágenes (PNG, JPG, WebP, GIF) y documentos (PDF, Word, Excel, PowerPoint, CSV, texto). Conviértelo y vuelve a adjuntarlo.' }
+  if (e === 401 || e === 403) return { ...base, reintentable: false, motivo: tr('tu sesión expiró. Recarga la app (Cmd+R en escritorio), inicia sesión de nuevo y vuelve a enviar.') }
+  if (e === 413 || i.codigo === 'demasiado_grande') return { ...base, reintentable: false, motivo: tr('pesa más de lo que acepta el servidor (hasta {limite}). Quítalo y adjunta una versión más ligera (una captura de menos área, o solo las páginas que necesitas).', { limite: formatoBytes(LIMITE_SUBIDA_BYTES) }) }
+  if (i.codigo === 'tipo_invalido') return { ...base, reintentable: false, motivo: tr('el servidor no admite ese formato; acepta imágenes (PNG, JPG, WebP, GIF) y documentos (PDF, Word, Excel, PowerPoint, CSV, texto). Conviértelo y vuelve a adjuntarlo.') }
   // Un 400 sin `code` no lo dio nuestra ruta (siempre lo manda): es el servidor HTTP rechazando un envío que se cortó a medias.
-  if (i.codigo === 'cuerpo_incompleto' || (e === 400 && !i.codigo)) return { ...base, reintentable: true, motivo: 'se cortó en el camino al servidor (se interrumpió la conexión o el archivo dejó de estar disponible). Vuelve a pegar o adjuntar el archivo.' }
-  if (e === 502 || e === 503 || e === 504) return { ...base, reintentable: true, motivo: `el servidor no respondió (código ${e}); suele ser un reinicio o un deploy de unos segundos. Espera un minuto y vuelve a enviar.` }
-  if (e >= 500) return { ...base, reintentable: true, motivo: `el servidor falló al guardarlo (código ${e}${i.mensajeServidor ? `: ${i.mensajeServidor}` : ''}). Vuelve a enviar; si se repite, avísale a Levy con este mensaje.` }
-  return { ...base, reintentable: false, motivo: `el servidor la rechazó (código ${e || '?'}${i.mensajeServidor ? `: ${i.mensajeServidor}` : ''}). Quítalo y vuelve a adjuntarlo.` }
+  if (i.codigo === 'cuerpo_incompleto' || (e === 400 && !i.codigo)) return { ...base, reintentable: true, motivo: tr('se cortó en el camino al servidor (se interrumpió la conexión o el archivo dejó de estar disponible). Vuelve a pegar o adjuntar el archivo.') }
+  if (e === 502 || e === 503 || e === 504) return { ...base, reintentable: true, motivo: tr('el servidor no respondió (código {codigo}); suele ser un reinicio o un deploy de unos segundos. Espera un minuto y vuelve a enviar.', { codigo: e }) }
+  if (e >= 500) return { ...base, reintentable: true, motivo: tr('el servidor falló al guardarlo (código {codigo}{detalle}). Vuelve a enviar; si se repite, avísale a Levy con este mensaje.', { codigo: e, detalle: i.mensajeServidor ? `: ${tr(i.mensajeServidor)}` : '' }) }
+  return { ...base, reintentable: false, motivo: tr('el servidor la rechazó (código {codigo}{detalle}). Quítalo y vuelve a adjuntarlo.', { codigo: e || '?', detalle: i.mensajeServidor ? `: ${tr(i.mensajeServidor)}` : '' }) }
 }
 
 async function leerRespuesta(res: Response): Promise<{ url?: string; error?: string; code?: string }> {
@@ -140,7 +141,7 @@ export async function subirImagen(file: File, opciones: OpcionesSubida = {}): Pr
       const res = await fetchFn(endpoint, { method: 'POST', body: form, signal: control.signal })
       const cuerpo = await leerRespuesta(res)
       if (res.ok && typeof cuerpo.url === 'string' && cuerpo.url) return { ok: true, url: cuerpo.url, intentos: n }
-      ultimo = describirFalloSubida({ nombre: file.name, bytes: file.size, estado: res.ok ? 502 : res.status, codigo: cuerpo.code, mensajeServidor: res.ok ? 'respuesta sin URL' : cuerpo.error })
+      ultimo = describirFalloSubida({ nombre: file.name, bytes: file.size, estado: res.ok ? 502 : res.status, codigo: cuerpo.code, mensajeServidor: res.ok ? tr('respuesta sin URL') : cuerpo.error })
     } catch (e) {
       const abortada = control.signal.aborted || (e instanceof Error && e.name === 'AbortError')
       ultimo = describirFalloSubida({ nombre: file.name, bytes: file.size, red: abortada ? 'timeout' : 'sin-conexion' })
@@ -153,10 +154,10 @@ export async function subirImagen(file: File, opciones: OpcionesSubida = {}): Pr
 
 /** Mensaje único para el aviso del chat cuando alguna imagen no subió. */
 export function mensajeFallosSubida(fallos: FalloSubida[], total: number, subidas: number): string {
-  const nombre = (f: FalloSubida) => `«${f.nombre}» (${formatoBytes(f.bytes)})`
-  if (fallos.length === 1 && total === 1) return `No se pudo subir ${nombre(fallos[0])}: ${fallos[0].motivo} Tu mensaje volvió a la caja.`
-  const cabeza = subidas === 0 ? `No se subió ninguno de los ${total} archivos` : `Subieron ${subidas} de ${total} archivos y no se mandó nada para no dejarte un mensaje incompleto`
+  const nombre = (f: FalloSubida) => tr('«{nombre}» ({peso})', { nombre: f.nombre, peso: formatoBytes(f.bytes) })
+  if (fallos.length === 1 && total === 1) return tr('No se pudo subir {archivo}: {motivo} Tu mensaje volvió a la caja.', { archivo: nombre(fallos[0]), motivo: fallos[0].motivo })
+  const cabeza = subidas === 0 ? tr('No se subió ninguno de los {total} archivos', { total }) : tr('Subieron {subidas} de {total} archivos y no se mandó nada para no dejarte un mensaje incompleto', { subidas, total })
   const motivos = new Set(fallos.map(f => f.motivo))
-  if (motivos.size === 1) return `${cabeza}: ${fallos.map(nombre).join(', ')}. Causa: ${fallos[0].motivo} Tu mensaje volvió a la caja.`
-  return `${cabeza}. ${fallos.map(f => `${nombre(f)}: ${f.motivo}`).join(' ')} Tu mensaje volvió a la caja.`
+  if (motivos.size === 1) return tr('{cabeza}: {archivos}. Causa: {motivo} Tu mensaje volvió a la caja.', { cabeza, archivos: fallos.map(nombre).join(', '), motivo: fallos[0].motivo })
+  return tr('{cabeza}. {detalle} Tu mensaje volvió a la caja.', { cabeza, detalle: fallos.map(f => `${nombre(f)}: ${f.motivo}`).join(' ') })
 }

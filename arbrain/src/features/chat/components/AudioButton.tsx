@@ -1,4 +1,5 @@
 'use client'
+import { tr } from '@/shared/i18n'
 import { useEffect, useRef, useSyncExternalStore } from 'react'
 import { Volume2, Square, AudioLines } from 'lucide-react'
 import { chatSpeech } from '../lib/chat-speech'
@@ -77,9 +78,8 @@ export function AudioButton({ messageId, selectionEnabled = false, label, resume
     () => () => {
       // Un solo dueño de la limpieza por mensaje: el botón completo (el de resumen va junto a él, se monta y desmonta a la par).
       if (resumen || !chatSpeech?.isActive(messageId)) return
-      setTimeout(() => {
-        if (chatSpeech.isActive(messageId) && !chatSpeech.relocate()) chatSpeech.suspend()
-      }, 120)
+      // El motor se reubica en el mensaje nuevo (reintenta ~2 s) y solo suspende si de verdad ya no está (12 nov 2026).
+      chatSpeech.reubicarOSuspender(messageId)
     },
     [messageId, resumen],
   )
@@ -117,10 +117,10 @@ export function AudioButton({ messageId, selectionEnabled = false, label, resume
       <button
         type="button"
         data-escuchar-resumen
-        aria-label={active ? 'Detener resumen' : 'Escuchar resumen'}
+        aria-label={active ? tr('Detener resumen') : tr('Escuchar resumen')}
         onPointerEnter={anticipar}
         onClick={handleClick}
-        title={active ? 'Detener' : 'Escuchar resumen (el principio, cerca de un minuto)'}
+        title={active ? tr('Detener') : tr('Escuchar resumen (el principio, cerca de un minuto)')}
         className={`
           flex items-center gap-1 min-h-[36px] md:min-h-0 px-2 py-2 md:px-1 md:py-1 rounded-lg md:rounded transition-colors text-[11px]
           ${active ? 'text-violet-400 hover:text-violet-300' : 'text-muted/70 hover:text-foreground/70'}
@@ -128,7 +128,7 @@ export function AudioButton({ messageId, selectionEnabled = false, label, resume
         `}
       >
         {active ? <Square size={13} /> : <AudioLines size={13} />}
-        <span>Resumen</span>
+        <span>{tr('Resumen')}</span>
       </button>
     )
   }
@@ -136,12 +136,12 @@ export function AudioButton({ messageId, selectionEnabled = false, label, resume
   return (
     <button
       type="button"
-      aria-label={active ? `Detener ${label ?? 'lectura'}` : label ? `Escuchar ${label} o su selección` : 'Escuchar (voz del dispositivo)'}
+      aria-label={active ? tr('Detener {que}', { que: label ? tr(label) : tr('lectura') }) : label ? tr('Escuchar {que} o su selección', { que: tr(label) }) : tr('Escuchar (voz del dispositivo)')}
       ref={boton}
       onPointerDown={(e) => { if (selectionEnabled) e.preventDefault(); if (e.pointerType !== 'mouse') anticipar() }}
       onPointerEnter={anticipar}
       onClick={handleClick}
-      title={active ? 'Detener' : 'Escuchar (voz del dispositivo)'}
+      title={active ? tr('Detener') : tr('Escuchar (voz del dispositivo)')}
       className={`
         flex items-center justify-center min-w-[36px] min-h-[36px] md:min-w-0 md:min-h-0 p-2 md:p-1 rounded-lg md:rounded transition-colors
         ${active ? 'text-violet-400 hover:text-violet-300' : 'text-muted/70 hover:text-foreground/70'}

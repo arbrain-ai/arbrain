@@ -28,6 +28,7 @@ import { ClicOArrastre } from '../../state/clic-o-arrastre'
 import { MenuLienzo, type Objetivo } from './MenuLienzo'
 import { NuevoLienzo } from './NuevoLienzo'
 import { Miniatura } from './Miniatura'
+import { localeIntl, tr, trn } from '@/shared/i18n'
 import css from './lienzos.module.css'
 
 interface Props {
@@ -50,14 +51,14 @@ interface Props {
   estado?: string | null
 }
 
-const fechaCorta = (iso: string) => new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
-const elementos = (n: number) => `${n.toLocaleString('es-MX')} ${n === 1 ? 'elemento' : 'elementos'}`
+const fechaCorta = (iso: string) => new Date(iso).toLocaleDateString(localeIntl(), { day: 'numeric', month: 'short' })
+const elementos = (n: number) => trn(n, '{cuantos} elemento', '{cuantos} elementos', { cuantos: n.toLocaleString(localeIntl()) })
 
 /** Nombre en el sitio: Enter confirma, Escape cancela, salir del campo confirma (como en el riel de siempre). */
 function Nombre({ valor, onListo, onFin, placeholder }: { valor: string; onListo: (v: string) => void; onFin: () => void; placeholder?: string }) {
   const cancelado = useRef(false)
   const fin = (v: string) => { if (!cancelado.current && v.trim() && v.trim() !== valor) onListo(v.trim()); onFin() }
-  return <input className={css.nombre} data-capa-hija="" autoFocus defaultValue={valor} aria-label={placeholder ?? 'Nombre'} placeholder={placeholder} onFocus={e => e.currentTarget.select()}
+  return <input className={css.nombre} data-capa-hija="" autoFocus defaultValue={valor} aria-label={placeholder ?? tr('Nombre')} placeholder={placeholder} onFocus={e => e.currentTarget.select()}
     onPointerDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}
     onBlur={e => fin(e.target.value)}
     onKeyDown={e => {
@@ -150,7 +151,7 @@ export function ArbolLienzos({ paginas, carpetas, activa, a, onAbrir, variante, 
   const filaBorrador = (madre: string | null) => borrador && borrador.madre === madre && <div className={css.carpeta} data-borrador="">
     <div className={css.carpetaCuerpo}>
       <ChevronRight size={13} className={css.chevron} aria-hidden style={{ visibility: 'hidden' }} /><FolderOpen size={15} aria-hidden />
-      <Nombre valor="" placeholder="Nombre de la carpeta" onListo={nom => a.nuevaCarpeta(nom, madre)} onFin={() => setBorrador(null)} />
+      <Nombre valor="" placeholder={tr('Nombre de la carpeta')} onListo={nom => a.nuevaCarpeta(nom, madre)} onFin={() => setBorrador(null)} />
     </div>
   </div>
 
@@ -179,11 +180,11 @@ export function ArbolLienzos({ paginas, carpetas, activa, a, onAbrir, variante, 
         <span className={css.texto}>
           {editandoEsta
             ? <Nombre valor={x.nombre} onListo={n => a.renombrarPagina(x.id, n)} onFin={() => setEditando(null)} />
-            : <b title={x.nombre}>{x.nombre}{abiertas?.has(x.id) && <i className={css.yaAbierta}>abierta</i>}{!x.esV4 && <i className={css.v3} title="Creado con el canvas anterior">v3</i>}</b>}
+            : <b title={x.nombre}>{x.nombre}{abiertas?.has(x.id) && <i className={css.yaAbierta}>{tr('abierta')}</i>}{!x.esV4 && <i className={css.v3} title={tr('Creado con el canvas anterior')}>v3</i>}</b>}
           <small>{elementos(x.elementos)} · {fechaCorta(x.actualizado)}</small>
         </span>
       </div>
-      <button type="button" data-lz-mas className={css.mas} aria-label={`Más acciones de ${x.nombre}`} aria-haspopup="menu" aria-expanded={idMenu === x.id}
+      <button type="button" data-lz-mas className={css.mas} aria-label={tr('Más acciones de {nombre}', { nombre: x.nombre })} aria-haspopup="menu" aria-expanded={idMenu === x.id}
         onClick={e => abrirMenu(objetivo, e.currentTarget.getBoundingClientRect())}><Ellipsis size={16} aria-hidden /></button>
     </div>
   }
@@ -215,17 +216,17 @@ export function ArbolLienzos({ paginas, carpetas, activa, a, onAbrir, variante, 
           <ChevronRight size={13} className={css.chevron} data-abierto={abre ? '' : undefined} aria-hidden />
           {abre ? <FolderOpen size={15} aria-hidden /> : <Folder size={15} aria-hidden />}
           {edit ? <Nombre valor={c.nombre} onListo={nom => a.renombrarCarpeta(c.id, nom)} onFin={() => setEditando(null)} /> : <span title={c.nombre}>{c.nombre}</span>}
-          {esCarpetaFijada(c) && !archivo && <Pin size={11} className={css.fijada} aria-label="Fijada" />}
+          {esCarpetaFijada(c) && !archivo && <Pin size={11} className={css.fijada} aria-label={tr('Fijada')} />}
           <span className={css.cuenta}>{cuenta(n) || ''}</span>
         </div>
-        <button type="button" data-lz-mas className={css.mas} aria-label={`Más acciones de la carpeta ${c.nombre}`} aria-haspopup="menu" aria-expanded={idMenu === c.id}
+        <button type="button" data-lz-mas className={css.mas} aria-label={tr('Más acciones de la carpeta {nombre}', { nombre: c.nombre })} aria-haspopup="menu" aria-expanded={idMenu === c.id}
           onClick={e => abrirMenu(objetivo, e.currentTarget.getBoundingClientRect())}><Ellipsis size={16} aria-hidden /></button>
       </div>
       {abre && <div className={css.hijos}>
         {!archivo && filaBorrador(c.id)}
         {n.hijas.map(h => filaCarpeta(h, nivel + 1, archivo))}
         {n.paginas.map(x => filaPagina(x, archivo))}
-        {n.paginas.length === 0 && n.hijas.length === 0 && borrador?.madre !== c.id && <p className={css.vacia}>vacía</p>}
+        {n.paginas.length === 0 && n.hijas.length === 0 && borrador?.madre !== c.id && <p className={css.vacia}>{tr('vacía')}</p>}
       </div>}
     </div>
   }
@@ -265,8 +266,8 @@ export function ArbolLienzos({ paginas, carpetas, activa, a, onAbrir, variante, 
   return <div ref={raiz} className={css.raiz} data-variante={variante} style={vars}>
     <div className={css.barra}>
       <button type="button" className={css.nuevoBoton} data-nuevo-lienzo aria-expanded={!!nuevo}
-        onClick={() => nuevo ? setNuevo(null) : abrirNuevo(carpetaAbierta)}><Plus size={15} aria-hidden /> Nuevo lienzo</button>
-      <button type="button" className={css.iconoBoton} onClick={() => nuevaCarpeta(null)} aria-label="Carpeta nueva" title="Carpeta nueva"><FolderPlus size={15} aria-hidden /></button>
+        onClick={() => nuevo ? setNuevo(null) : abrirNuevo(carpetaAbierta)}><Plus size={15} aria-hidden /> {tr('Nuevo lienzo')}</button>
+      <button type="button" className={css.iconoBoton} onClick={() => nuevaCarpeta(null)} aria-label={tr('Carpeta nueva')} title={tr('Carpeta nueva')}><FolderPlus size={15} aria-hidden /></button>
     </div>
     {nuevo && <NuevoLienzo key={nuevo.carpeta ?? 'raiz'} paginas={paginas} carpetas={carpetas} carpeta={nuevo.carpeta} onCerrar={() => setNuevo(null)}
       onCrear={async (nombre, fid, modo) => {
@@ -277,29 +278,29 @@ export function ArbolLienzos({ paginas, carpetas, activa, a, onAbrir, variante, 
         return true
       }} />}
     <label className={css.buscar}><Search size={13} aria-hidden />
-      <input autoFocus={autoFoco} value={busqueda} onChange={e => { setBusqueda(e.target.value); setCursor(null) }} onKeyDown={alTeclearBuscador} placeholder="Buscar un lienzo" aria-label="Buscar un lienzo" /></label>
-    {estado && <p className={css.aviso}>{estado}</p>}
-    {a.fallo && <p className={css.aviso} role="alert">No quedó guardado: {a.fallo}</p>}
-    {!estado && !hayVivas && !hayArchivo && !filasRecientes.length && <p className={css.aviso}>{buscando ? 'Ningún lienzo se llama así.' : 'Todavía no hay lienzos.'}</p>}
+      <input autoFocus={autoFoco} value={busqueda} onChange={e => { setBusqueda(e.target.value); setCursor(null) }} onKeyDown={alTeclearBuscador} placeholder={tr('Buscar un lienzo')} aria-label={tr('Buscar un lienzo')} /></label>
+    {estado && <p className={css.aviso}>{tr(estado)}</p>}
+    {a.fallo && <p className={css.aviso} role="alert">{tr('No quedó guardado: {fallo}', { fallo: tr(a.fallo) })}</p>}
+    {!estado && !hayVivas && !hayArchivo && !filasRecientes.length && <p className={css.aviso}>{buscando ? tr('Ningún lienzo se llama así.') : tr('Todavía no hay lienzos.')}</p>}
 
-    {filasRecientes.length > 0 && <section aria-label="Recientes">
-      <p className={css.ceja}>Recientes</p>
+    {filasRecientes.length > 0 && <section aria-label={tr('Recientes')}>
+      <p className={css.ceja}>{tr('Recientes')}</p>
       {filasRecientes.map(x => filaPagina(x, false, 'r:'))}
     </section>}
 
-    {hayFijados && <section aria-label="Fijados">
-      <p className={css.ceja} data-fijados=""><Pin size={11} aria-hidden /> Fijados</p>
+    {hayFijados && <section aria-label={tr('Fijados')}>
+      <p className={css.ceja} data-fijados=""><Pin size={11} aria-hidden /> {tr('Fijados')}</p>
       {v.fijados.carpetas.map(n => filaCarpeta(n, 0))}
       {v.fijados.paginas.map(x => filaPagina(x))}
     </section>}
 
-    {(v.raiz.length > 0 || borrador?.madre === null) && <section aria-label="Carpetas">
-      {hayFijados && <p className={css.ceja}>Carpetas</p>}
+    {(v.raiz.length > 0 || borrador?.madre === null) && <section aria-label={tr('Carpetas')}>
+      {hayFijados && <p className={css.ceja}>{tr('Carpetas')}</p>}
       {filaBorrador(null)}
       {v.raiz.map(n => filaCarpeta(n, 0))}
     </section>}
 
-    {(v.sueltas.length > 0 || (vivasConCarpeta && !buscando && hayVivas)) && <section aria-label="Sin carpeta">
+    {(v.sueltas.length > 0 || (vivasConCarpeta && !buscando && hayVivas)) && <section aria-label={tr('Sin carpeta')}>
       {/* Con nombre y como destino: sacar un lienzo de su carpeta es soltarlo AQUÍ, nunca en un hueco cualquiera. */}
       <p className={css.ceja} data-suelta={sobre === '__raiz__' ? 'encima' : undefined}
         onDragOver={e => { e.preventDefault(); e.stopPropagation(); setSobre('__raiz__') }}
@@ -309,13 +310,13 @@ export function ArbolLienzos({ paginas, carpetas, activa, a, onAbrir, variante, 
           const pid = e.dataTransfer.getData('text/pagina'); if (pid) a.moverPagina(pid, null)
           const cid = e.dataTransfer.getData('text/carpeta'); if (cid && carpetas.find(c => c.id === cid)?.madre) a.anidarCarpeta(cid, null)
           setSobre(null); arrastre.current = null
-        }}>Sin carpeta<small>{v.sueltas.length || ''}</small></p>
+        }}>{tr('Sin carpeta')}<small>{v.sueltas.length || ''}</small></p>
       {v.sueltas.map(x => filaPagina(x))}
     </section>}
 
-    {hayArchivo && <section className={css.archivados} aria-label="Archivados">
+    {hayArchivo && <section className={css.archivados} aria-label={tr('Archivados')}>
       <button className={css.pliegue} onClick={() => setVerArchivados(s => !s)} aria-expanded={verArchivados || buscando}>
-        <ChevronRight size={12} aria-hidden data-abierto={verArchivados || buscando ? '' : undefined} /><Archive size={11} aria-hidden /> Archivados<small>{v.archivados.cuenta}</small>
+        <ChevronRight size={12} aria-hidden data-abierto={verArchivados || buscando ? '' : undefined} /><Archive size={11} aria-hidden /> {tr('Archivados')}<small>{v.archivados.cuenta}</small>
       </button>
       {(verArchivados || buscando) && <>
         {v.archivados.carpetas.map(n => filaCarpeta(n, 0, true))}

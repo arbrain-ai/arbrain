@@ -5,12 +5,13 @@
 // (o la persona); nunca 401/403/404, lista vacía ni «no existe». Los textos viven aquí para que todas las rutas digan lo
 // mismo y la edición del alumno nunca mencione el Studio, ngrok ni túneles.
 import { esEdicionCliente } from '@/lib/edicion'
+import { tr, trMarca } from '@/shared/i18n'
 
-export const MSJ_BASE_CAIDA = 'La base de Arbrain no responde ahora; Arbrain reintenta solo. Nada de lo tuyo se perdió.'
+export const MSJ_BASE_CAIDA = trMarca('La base de Arbrain no responde ahora; Arbrain reintenta solo. Nada de lo tuyo se perdió.')
 
 export function msjMotorCaido(cliente = esEdicionCliente()): string {
   return cliente
-    ? 'El motor de Arbrain no responde; se está reiniciando solo. Tu mensaje queda guardado y sale en cuanto vuelva. Si pasa más de un minuto, cierra y abre Arbrain.'
+    ? tr('El motor de Arbrain no responde; se está reiniciando solo. Tu mensaje queda guardado y sale en cuanto vuelva. Si pasa más de un minuto, cierra y abre Arbrain.')
     : 'No pude alcanzar el daemon (ClaudeClaw). Revisa que esté arriba en el Mac Studio y que el túnel siga vivo; tu mensaje queda guardado y se reintenta solo.'
 }
 
@@ -22,5 +23,5 @@ export function esFallaDeAuth(error: unknown): boolean {
 }
 
 export function respuestaServicioCaido(mensaje = MSJ_BASE_CAIDA, code = 'SERVICIO_NO_DISPONIBLE'): Response {
-  return Response.json({ error: mensaje, code, reintentable: true }, { status: 503, headers: { 'Retry-After': '5' } })
+  return Response.json({ error: tr(mensaje), code, reintentable: true }, { status: 503, headers: { 'Retry-After': '5' } })
 }

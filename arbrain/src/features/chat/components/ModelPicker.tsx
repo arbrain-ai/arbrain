@@ -1,4 +1,5 @@
 'use client'
+import { tr } from '@/shared/i18n'
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { Loader2, Check, MessageSquarePlus, SlidersHorizontal } from 'lucide-react'
 import { useAjustes } from '@/shared/stores/ajustes-store'
@@ -57,9 +58,9 @@ export function ModelPicker({ onSelect, onClose, account, modeloActual, conversa
         const data = await r.json().catch(() => ({}))
         if (r.ok && Array.isArray(data.modelos)) return { catalogo: data as Catalogo, aviso: null }
         // 404: el servidor del chat corre la versión anterior. El selector sigue con Claude mientras se reinicia.
-        if (r.status !== 404) throw new Error(data.error ?? `No se pudo cargar el catálogo (${r.status})`)
+        if (r.status !== 404) throw new Error(data.error ? tr(data.error) : tr('No se pudo cargar el catálogo ({estado})', { estado: r.status }))
         const viejo = await fetch('/api/chat/models', { cache: 'no-store', signal: controller.signal }).then((x) => x.json()).catch(() => ({}))
-        return { catalogo: catalogoDeRespaldo(Array.isArray(viejo.models) ? viejo.models : []), aviso: 'Los modelos por OpenRouter llegan cuando se reinicie el servidor del chat.' }
+        return { catalogo: catalogoDeRespaldo(Array.isArray(viejo.models) ? viejo.models : []), aviso: tr('Los modelos por OpenRouter llegan cuando se reinicie el servidor del chat.') }
       })
       .then(({ catalogo, aviso }) => {
         if (!active) return
@@ -67,7 +68,7 @@ export function ModelPicker({ onSelect, onClose, account, modeloActual, conversa
       })
       .catch((e) => {
         if (!active || controller.signal.aborted) return
-        setError(e instanceof Error ? e.message : 'No hubo respuesta del servidor'); setLoading(false)
+        setError(e instanceof Error ? e.message : tr('No hubo respuesta del servidor')); setLoading(false)
       })
     return () => { active = false; controller.abort() }
   }, [])
@@ -124,7 +125,7 @@ export function ModelPicker({ onSelect, onClose, account, modeloActual, conversa
           data-activa={activa || undefined}
           data-sin-filtro={sinFiltro || undefined}
           disabled={!m.disponible}
-          title={!m.disponible ? (m.motivo ?? 'No disponible') : nueva ? 'Otro motor: abre una conversación nueva' : undefined}
+          title={!m.disponible ? (m.motivo ? tr(m.motivo) : tr('No disponible')) : nueva ? tr('Otro motor: abre una conversación nueva') : undefined}
           onFocus={() => setSelectedIndex(i)}
           onMouseDown={(e) => e.preventDefault()}
           onMouseMove={() => { if (!activa) setSelectedIndex(i) }}
@@ -132,12 +133,12 @@ export function ModelPicker({ onSelect, onClose, account, modeloActual, conversa
           className={css.fila}
         >
           <span className="min-w-0 flex-1">
-            <span className={css.nombre}>{m.nombre}{sinFiltro && <span className={css.noEsClaude}>no es Claude</span>}</span>
-            <span className={css.descripcion}>{m.disponible ? m.descripcion : m.motivo}</span>
+            <span className={css.nombre}>{m.nombre}{sinFiltro && <span className={css.noEsClaude}>{tr('no es Claude')}</span>}</span>
+            <span className={css.descripcion}>{tr((m.disponible ? m.descripcion : m.motivo) ?? '')}</span>
           </span>
-          {precio && <span className={css.precio} title="USD por millón de tokens: entrada / salida (OpenRouter)">{precio}</span>}
-          {nueva && <span className="sr-only">. Abre una conversación nueva</span>}
-          <span className={css.marca} aria-hidden={!actual}>{actual && <Check size={14} strokeWidth={2.25} aria-label="Modelo activo" />}</span>
+          {precio && <span className={css.precio} title={tr('USD por millón de tokens: entrada / salida (OpenRouter)')}>{precio}</span>}
+          {nueva && <span className="sr-only">{tr('. Abre una conversación nueva')}</span>}
+          <span className={css.marca} aria-hidden={!actual}>{actual && <Check size={14} strokeWidth={2.25} aria-label={tr('Modelo activo')} />}</span>
         </button>
       </li>
     )
@@ -152,7 +153,7 @@ export function ModelPicker({ onSelect, onClose, account, modeloActual, conversa
         {columna && <span className={css.cejaColumna}>{columna}</span>}
       </div>
       {abreNueva(lista) && (
-        <p className={css.pista}><MessageSquarePlus size={11} aria-hidden /> Otro motor: abre una conversación nueva</p>
+        <p className={css.pista}><MessageSquarePlus size={11} aria-hidden /> {tr('Otro motor: abre una conversación nueva')}</p>
       )}
       <ul>{lista.map((m, i) => fila(m, desde + i))}</ul>
     </li>
@@ -165,7 +166,7 @@ export function ModelPicker({ onSelect, onClose, account, modeloActual, conversa
       ancho={ANCHO_POPOVER}
       altoMax={ALTO_IDEAL}
       role="dialog"
-      aria-label="Elegir modelo"
+      aria-label={tr('Elegir modelo')}
       aria-busy={loading}
       data-selector-modelos
       className={css.panel}
@@ -180,29 +181,29 @@ export function ModelPicker({ onSelect, onClose, account, modeloActual, conversa
       {loading ? (
         <div className="flex items-center justify-center gap-2 py-6 text-muted/80">
           <Loader2 size={14} className="animate-spin" />
-          <span className="text-xs">Cargando modelos…</span>
+          <span className="text-xs">{tr('Cargando modelos…')}</span>
         </div>
       ) : !filas.length ? (
         <div className="px-4 py-5 text-center">
-          <p className="text-xs text-muted/80">{error ? 'No se pudieron cargar los modelos' : 'No hay modelos encendidos'}</p>
-          <p className="mt-1.5 text-[11px] leading-snug text-muted/60">{error ?? 'Enciéndelos en Configuración → Modelos.'}</p>
+          <p className="text-xs text-muted/80">{error ? tr('No se pudieron cargar los modelos') : tr('No hay modelos encendidos')}</p>
+          <p className="mt-1.5 text-[11px] leading-snug text-muted/60">{error ? tr(error) : tr('Enciéndelos en Configuración → Modelos.')}</p>
         </div>
       ) : (
         <ul ref={listRef} className={css.lista} data-popover-scroll>
-          {grupo('Claude · tu suscripción', grupos.claude, 0)}
-          {grupo('OpenRouter · pagas por uso', grupos.openrouter, grupos.claude.length, '$ / millón')}
-          {grupo('Sin filtro · abliteration.ai', grupos.abliterated, grupos.claude.length + grupos.openrouter.length, '$ / millón')}
+          {grupo(tr('Claude · tu suscripción'), grupos.claude, 0)}
+          {grupo(tr('OpenRouter · pagas por uso'), grupos.openrouter, grupos.claude.length, tr('$ / millón'))}
+          {grupo(tr('Sin filtro · abliteration.ai'), grupos.abliterated, grupos.claude.length + grupos.openrouter.length, tr('$ / millón'))}
         </ul>
       )}
 
       {EDICION_CLIENTE && <PermisosEnModelo onClose={onClose} />}
 
       <div className={css.pie}>
-        {aviso ? <span className="flex-1 leading-snug">{aviso}</span> : (
-          <span className={css.teclas} aria-hidden><kbd>↑</kbd><kbd>↓</kbd> elegir · <kbd>Enter</kbd> · <kbd>Esc</kbd></span>
+        {aviso ? <span className="flex-1 leading-snug">{tr(aviso)}</span> : (
+          <span className={css.teclas} aria-hidden><kbd>↑</kbd><kbd>↓</kbd> {tr('elegir')} · <kbd>Enter</kbd> · <kbd>Esc</kbd></span>
         )}
         <button type="button" onClick={() => { onClose(); useAjustes.getState().abrir('modelo') }} className={css.mas}>
-          <SlidersHorizontal size={11} aria-hidden /> Más modelos
+          <SlidersHorizontal size={11} aria-hidden /> {tr('Más modelos')}
         </button>
       </div>
     </PopoverAnclado>

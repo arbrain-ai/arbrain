@@ -24,6 +24,7 @@ import { createHash } from 'node:crypto'
 import { appendFileSync, closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { pareceSecreto, taparValor } from './reglas'
+import { tr } from '@/shared/i18n'
 
 export type Fila = Record<string, unknown>
 export interface AlmacenCrudo { leer(tabla: string): Fila[]; escribir(tabla: string, filas: Fila[]): void }
@@ -135,7 +136,7 @@ export function exportar(ctx: Contexto): ResultadoExportar {
     if (!faltan.length) continue
     // Si de golpe falta más de la mitad (base reinstalada, dañada o leída a medias), no se borra nada en la otra.
     if (faltan.length > 20 && faltan.length > Object.keys(conocidas).length / 2) {
-      r.aviso = `Faltan ${faltan.length} filas de ${t} en esta máquina de golpe: no las borré en tu otra máquina. Si fue a propósito, bórralas allá también.`
+      r.aviso = tr('Faltan {n} filas de {tabla} en esta máquina de golpe: no las borré en tu otra máquina. Si fue a propósito, bórralas allá también.', { n: faltan.length, tabla: t })
       continue
     }
     for (const id of faltan) {

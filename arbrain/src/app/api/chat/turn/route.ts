@@ -1,6 +1,7 @@
 import { requireChatPrincipal, resolveChatConversation, chatAccessResponse } from '@/lib/chat-access'
 import { accountId, ChatAccessError } from '@/lib/chat-access-policy'
 import { getClaudeclawUrl, CLAUDECLAW_TOKEN, upstreamError } from '@/lib/claudeclaw'
+import { tr } from '@/shared/i18n'
 
 export async function POST(request: Request) {
   let body: { chatSessionId?: string; turnId?: string; cursor?: number; account?: string }
@@ -21,7 +22,7 @@ export async function POST(request: Request) {
       body: JSON.stringify({ ownerId: scope.owner, account: scope.account, chatSessionId: scope.conversationId, turnId: body.turnId, cursor: body.cursor }),
       signal: AbortSignal.timeout(15_000),
     })
-    if (!response.ok) return upstreamError(response, 'la recuperación del turno')
+    if (!response.ok) return upstreamError(response, tr('la recuperación del turno'))
     return Response.json(await response.json())
-  } catch { return Response.json({ error: 'No se pudo recuperar el turno. Su ejecución no se ha reenviado.' }, { status: 503 }) }
+  } catch { return Response.json({ error: tr('No se pudo recuperar el turno. Su ejecución no se ha reenviado.') }, { status: 503 }) }
 }

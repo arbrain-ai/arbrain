@@ -2,6 +2,7 @@
 
 import { Clock, Moon, Sparkles, Sun } from 'lucide-react'
 import { useTheme } from '@/shared/contexts/theme-context'
+import { tr, trMarca } from '@/shared/i18n'
 
 const iconByTheme = {
   dark: Moon,
@@ -10,9 +11,9 @@ const iconByTheme = {
 }
 
 const labelByTheme = {
-  dark: 'Oscuro',
-  light: 'Claro',
-  auto: 'Automático por hora',
+  dark: trMarca('Oscuro'),
+  light: trMarca('Claro'),
+  auto: trMarca('Automático por hora'),
 }
 
 export function ThemeToggle({ compact = false, binary = false, ghost = false }: { compact?: boolean; binary?: boolean; ghost?: boolean }) {
@@ -21,15 +22,15 @@ export function ThemeToggle({ compact = false, binary = false, ghost = false }: 
   // ambos — identico al atajo Cmd+Option+T. En modo ciclo muestra los 3 estados.
   const displayKey = binary ? resolvedTheme : theme
   const Icon = iconByTheme[displayKey]
-  const label = labelByTheme[displayKey]
+  const label = tr(labelByTheme[displayKey])
 
   return (
     <button
       type="button"
       onClick={binary ? toggleTheme : cycleTheme}
       className={compact ? `${ghost ? 'icon-btn-ghost' : 'icon-btn'} size-9` : 'nav-item w-full'}
-      title={binary ? `Tema: ${label} · T / ⌘⌥T` : `Tema: ${label} (${labelByTheme[resolvedTheme]}) · toca para cambiar`}
-      aria-label={`Tema: ${label}`}
+      title={binary ? tr('Tema: {tema} · T / ⌘⌥T', { tema: label }) : tr('Tema: {tema} ({resuelto}) · toca para cambiar', { tema: label, resuelto: tr(labelByTheme[resolvedTheme]) })}
+      aria-label={tr('Tema: {tema}', { tema: label })}
     >
       <Icon className="size-[18px] md:size-[15px]" />
       {!compact && <span>{label}</span>}
@@ -48,10 +49,10 @@ export function EstiloToggle() {
       aria-checked={unificado}
       onClick={toggleEstilo}
       className="nav-item w-full"
-      title="Estilo de la interfaz · ⇧T"
+      title={tr('Estilo de la interfaz · ⇧T')}
     >
       <Sparkles className="size-[18px] md:size-[15px]" />
-      <span>{unificado ? 'Unificado' : 'Actual'}</span>
+      <span>{unificado ? tr('Unificado') : tr('Actual')}</span>
     </button>
   )
 }

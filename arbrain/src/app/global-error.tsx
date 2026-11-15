@@ -7,13 +7,14 @@
 import { useEffect } from 'react'
 import { codigoDeError, MENSAJE_ERROR, PaginaError } from '@/components/PaginaError'
 import { recargarSiHayVersionNueva, reportarErrorDePantalla } from '@/lib/desfase-version'
+import { idiomaActual, trMarca } from '@/shared/i18n'
 
 export default function ErrorGlobal({ error }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => { console.error('[arbrain] error global', error); reportarErrorDePantalla(error, 'global'); void recargarSiHayVersionNueva() }, [error])
   return (
-    <html lang="es">
+    <html lang={idiomaActual()}>
       <body style={{ margin: 0 }}>
-        <PaginaError titulo="Arbrain tuvo un problema" mensaje={MENSAJE_ERROR} codigo={codigoDeError(error)} limpiar />
+        <PaginaError titulo={trMarca('Arbrain tuvo un problema')} mensaje={MENSAJE_ERROR} codigo={codigoDeError(error)} limpiar />
       </body>
     </html>
   )

@@ -3,6 +3,7 @@ import { tokenDaemon } from '@/lib/daemon-local'
 import { cookieSesion, crearFreno, esModoServidor, origenDeEntrada, paseValido, urlControl } from '@/lib/modo-servidor'
 import { llegaPorTelefono } from '@/features/telefono/host-telefono'
 import { pareceCodigo } from '@/features/telefono/codigo'
+import { tr } from '@/shared/i18n'
 
 // Entrada por navegador del modo servidor (21 oct 2026; docs/builds/modo-servidor-2026-10-21/REPORTE.md).
 //   GET  ?pase=<64 hex>   el supervisor abre el navegador con un pase de un solo uso y 2 minutos; se canjea con él.
@@ -80,7 +81,7 @@ export async function POST(request: Request) {
   if (!disponible(request)) return new Response(null, { status: 404 })
   // Un formulario de otro sitio no puede iniciar sesión aquí: si el navegador manda Origin, debe ser esta misma web.
   // `Origin: null` también se rechaza (v0.2.2, Bajo 1): antes pasaba y cualquiera podía quemar el freno. Ver origenDeEntrada.
-  if (!origenDeEntrada(request.headers.get('origin'), request.headers.get('host'))) return new Response('Origen no autorizado.', { status: 403, headers: NOCACHE })
+  if (!origenDeEntrada(request.headers.get('origin'), request.headers.get('host'))) return new Response(tr('Origen no autorizado.'), { status: 403, headers: NOCACHE })
   if (freno.bloqueado()) return ir('/sin-sesion?e=espera')
   let dada = ''
   try { dada = String((await request.formData()).get('contrasena') ?? '').trim().toLowerCase() } catch { /* cuerpo ilegible = contraseña vacía */ }

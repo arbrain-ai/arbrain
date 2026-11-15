@@ -1,3 +1,4 @@
+import { tr } from '@/shared/i18n'
 import type { ChatIntent } from './offline-envelope'
 export type SelectionScope = { localOwner: string; account: string; conversationId: string | null }
 /** localStorage is the shared truth between tabs of one origin; memory only
@@ -15,7 +16,7 @@ const announce = () => { try { window.dispatchEvent(new Event(SELECTION_CHANGED)
 function validate(value: unknown, scope: SelectionScope): ChatIntent {
   const v = value as ChatIntent | undefined
   if (!v || v.version !== 1 || !v.owner || !v.model || v.account !== scope.account || v.conversationId !== scope.conversationId
-    || !(v.effort === null || typeof v.effort === 'string') || typeof v.fast !== 'boolean' || typeof v.ultracode !== 'boolean' || !Number.isFinite(Date.parse(v.observedAt))) throw new Error('No se pudo confirmar la selección de esta conversación.')
+    || !(v.effort === null || typeof v.effort === 'string') || typeof v.fast !== 'boolean' || typeof v.ultracode !== 'boolean' || !Number.isFinite(Date.parse(v.observedAt))) throw new Error(tr('No se pudo confirmar la selección de esta conversación.'))
   return { ...v }
 }
 let listening = false
@@ -78,9 +79,9 @@ export function refreshSelection(scope: SelectionScope): Promise<ChatIntent> {
     const response = await fetch(`/api/chat/selection?${params}`, { signal: AbortSignal.timeout(25_000), cache: 'no-store' })
     const data = await response.json().catch(() => null)
     // El código viaja con el error (22 oct 2026): `falta_llave` no es un borrador por confirmar, es «conecta tu modelo».
-    if (!response.ok) throw Object.assign(new Error(data?.error ?? 'No se pudieron consultar los ajustes.'), { code: typeof data?.code === 'string' ? data.code : undefined })
+    if (!response.ok) throw Object.assign(new Error(data?.error ? tr(data.error) : tr('No se pudieron consultar los ajustes.')), { code: typeof data?.code === 'string' ? data.code : undefined })
     const intent = validate(data?.intent, scope)
-    if ((revisions.get(key) ?? 0) !== revision) throw new Error('Los ajustes cambiaron durante la consulta.')
+    if ((revisions.get(key) ?? 0) !== revision) throw new Error(tr('Los ajustes cambiaron durante la consulta.'))
     memory.set(key, intent)
     try { localStorage.setItem(key, JSON.stringify(intent)) } catch { /* Draft envelope will retain the selection independently. */ }
     announce()

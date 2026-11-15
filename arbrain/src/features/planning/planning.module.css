@@ -272,7 +272,9 @@
 
 /* Vista unificada Calendario + Objetivos (4 oct 2026): objetivo y tareas del periodo arriba, el calendario en medio, el reporte al pie.
    La raíz desplaza en vertical (el calendario conserva su alto) y nunca en horizontal. */
-.root[data-unificada] { overflow-y:auto; overflow-x:hidden; }
+/* El canal de la barra, siempre reservado (12 nov 2026, «parpadea y se mueve bien raro»): con barras clásicas de macOS el ancho ya no
+   depende de si hay scroll, y lo que mide su ancho (angosto, días a la vista, el contenedor `planning`) no puede entrar en bucle con su alto. */
+.root[data-unificada] { overflow-y:auto; overflow-x:hidden; scrollbar-gutter:stable; }
 .root[data-unificada] .workspace { flex:1 0 560px; }
 .plan { flex:0 0 auto; display:flex; flex-direction:column; gap:12px; padding:12px 26px 14px; border-bottom:1px solid var(--plan-line); min-width:0; }
 .escalas { display:flex; gap:2px; padding:3px; border:1px solid var(--plan-line); border-radius:999px; background:var(--surface); }

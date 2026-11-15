@@ -22,6 +22,7 @@ import { useBandeja } from './useBandeja'
 import { agruparPorPersona, enOrden, etiquetaCategoria, lineaRecomendacion, recomendadas, tituloEnGrupo, unaPorUna, urlVistaPrevia, type Tarjeta } from './lib/bandeja'
 import tecla from '@/features/chat/components/boton-enviar.module.css'
 import s from './franja-decisiones.module.css'
+import { localeIntl, tr, trn } from '@/shared/i18n'
 
 /** El aviso de la tarjeta o el push piden traer la sección a la vista (y el Día puede montarse después: se recuerda unos segundos).
  *  Con `id`, además abre esa decisión. Se guarda «hora|id». */
@@ -43,10 +44,10 @@ function leerPedido(dentroDeMs = 8_000): string | null {
   } catch { return null }
 }
 
-const horaCorta = (t: number) => new Date(t).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false })
+const horaCorta = (t: number) => new Date(t).toLocaleTimeString(localeIntl(), { hour: '2-digit', minute: '2-digit', hour12: false })
 /** «12:00» si vence hoy; «jue 12:00» si es otro día. */
 const cuandoVence = (t: number) => new Date(t).toDateString() === new Date().toDateString() ? horaCorta(t)
-  : `${new Date(t).toLocaleDateString('es-MX', { weekday: 'short' }).replace('.', '')} ${horaCorta(t)}`
+  : `${new Date(t).toLocaleDateString(localeIntl(), { weekday: 'short' }).replace('.', '')} ${horaCorta(t)}`
 
 type Bandeja = ReturnType<typeof useBandeja>
 
@@ -54,8 +55,8 @@ type Bandeja = ReturnType<typeof useBandeja>
 export function AvisoDecisiones({ n }: { n: number }) {
   if (!n) return null
   return <button type="button" className={s.aviso} onClick={() => pedirEnfocarDecisiones()} data-aviso-decisiones
-    title="Decisiones que esperan tu toque" aria-label={`${n} ${n === 1 ? 'decisión te espera' : 'decisiones te esperan'}`}>
-    <i aria-hidden /><b>{n}</b> {n === 1 ? 'te espera' : 'te esperan'}
+    title={tr('Decisiones que esperan tu toque')} aria-label={trn(n, '{n} decisión te espera', '{n} decisiones te esperan')}>
+    <i aria-hidden /><b>{n}</b> {n === 1 ? tr('te espera') : tr('te esperan')}
   </button>
 }
 
@@ -91,21 +92,21 @@ export function SeccionDecisiones({ b }: { b: Bandeja }) {
   const fila = (t: Tarjeta, enGrupo: boolean) => <Fila key={t.id} t={t} enGrupo={enGrupo} abierta={abierta === t.id} onAbrir={() => setAbierta(abierta === t.id ? null : t.id)}
     ocupado={b.ocupado === t.id || b.ocupado === 'lote'} onResponder={(r, c) => b.resolver(t.id, r, c)} />
   return <section ref={caja} className={s.seccion} data-enfocada={enfocada || undefined} data-franja-decisiones
-    aria-label={`Esperan tu toque: ${pendientes.length}`}>
+    aria-label={tr('Esperan tu toque: {n}', { n: pendientes.length })}>
     <header className={s.cabeza}>
-      <span className={s.rotulo}>Esperan tu toque</span>{pendientes.length > 0 && <b className={s.n}>{pendientes.length}</b>}
+      <span className={s.rotulo}>{tr('Esperan tu toque')}</span>{pendientes.length > 0 && <b className={s.n}>{pendientes.length}</b>}
       {lote.length > 1 && <button className={s.todas} disabled={!!b.ocupado} onClick={() => void b.lote(lote.map(t => t.id), 'si')}
-        title="Las que recomiendo y no contactan personas ni pagan. Contactar y pagar van una por una.">Sí a todas · {lote.length}</button>}
+        title={tr('Las que recomiendo y no contactan personas ni pagan. Contactar y pagar van una por una.')}>{tr('Sí a todas · {n}', { n: lote.length })}</button>}
     </header>
     <ul className={s.filas}>
       {grupos.map(g => g.tarjetas.length > 1 && g.persona
         ? <li key={g.clave} className={s.grupo} data-persona={g.persona}>
-          <div className={s.persona}><span className={s.inicial} aria-hidden>{g.persona.slice(0, 1).toUpperCase()}</span><b>{g.persona}</b><span>{g.tarjetas.length} acciones</span></div>
+          <div className={s.persona}><span className={s.inicial} aria-hidden>{g.persona.slice(0, 1).toUpperCase()}</span><b>{g.persona}</b><span>{tr('{n} acciones', { n: g.tarjetas.length })}</span></div>
           <ul className={s.acciones}>{g.tarjetas.map(t => fila(t, true))}</ul>
         </li>
         : fila(g.tarjetas[0], false))}
     </ul>
-    {b.error && <p className={s.error} role="alert">{b.error}</p>}
+    {b.error && <p className={s.error} role="alert">{tr(b.error)}</p>}
   </section>
 }
 
@@ -120,12 +121,12 @@ function Fila({ t, enGrupo, abierta, ocupado, onAbrir, onResponder }: {
   const prende = t.recomienda === 'no' ? 'no' : 'si'
   return <li className={s.fila} data-abierta={abierta || undefined} data-recomienda={t.recomienda ?? undefined} data-decision={t.id}>
     <div className={s.linea}>
-      <button className={s.cuerpo} onClick={onAbrir} aria-expanded={abierta} title={abierta ? 'Plegar' : 'Qué sale exactamente y Otro'}>
+      <button className={s.cuerpo} onClick={onAbrir} aria-expanded={abierta} title={abierta ? tr('Plegar') : tr('Qué sale exactamente y Otro')}>
         <span className={s.texto}>
           <span className={s.titulo} title={t.titulo}>{titulo}</span>
           <span className={s.meta}>
             <span className={s.categoria} data-categoria={t.categoria}>{etiquetaCategoria(t.categoria)}</span>
-            {t.vence && <time className={s.vence} title="A esta hora ya no aplica y vence sola">vence {cuandoVence(t.vence)}</time>}
+            {t.vence && <time className={s.vence} title={tr('A esta hora ya no aplica y vence sola')}>{tr('vence {cuando}', { cuando: cuandoVence(t.vence) })}</time>}
             {rec && <span className={s.rec} data-tono={t.recomienda === 'no' ? 'no' : 'si'}><b>Levy</b> {rec}</span>}
           </span>
         </span>
@@ -133,23 +134,23 @@ function Fila({ t, enGrupo, abierta, ocupado, onAbrir, onResponder }: {
       </button>
       <span className={s.botones}>
         {!manos && <button className={`${tecla.enviar} ${s.tecla}`} data-apagada={prende !== 'si' || undefined} disabled={ocupado} onClick={() => void onResponder('si')}
-          aria-label={`Sí: ${t.titulo}`} data-respuesta="si" title={unaPorUna(t) ? 'Esta va sola: contacta a alguien o paga' : undefined}>
-          <Check size={13} strokeWidth={2.5} aria-hidden />{t.botonSi ?? 'Sí'}</button>}
+          aria-label={tr('Sí: {titulo}', { titulo: t.titulo })} data-respuesta="si" title={unaPorUna(t) ? tr('Esta va sola: contacta a alguien o paga') : undefined}>
+          <Check size={13} strokeWidth={2.5} aria-hidden />{t.botonSi ? tr(t.botonSi) : tr('Sí')}</button>}
         <button className={`${tecla.enviar} ${s.tecla}`} data-apagada={prende !== 'no' || undefined} disabled={ocupado} onClick={() => void onResponder('no')}
-          aria-label={`No: ${t.titulo}`} data-respuesta="no"><X size={13} strokeWidth={2.5} aria-hidden />No</button>
+          aria-label={tr('No: {titulo}', { titulo: t.titulo })} data-respuesta="no"><X size={13} strokeWidth={2.5} aria-hidden />{tr('No')}</button>
       </span>
     </div>
     {abierta && <div className={s.detalle}>
-      {vista && <img className={s.vista} src={vista} alt="Vista previa de lo que se publica" loading="lazy" />}
-      {exacto && <><h4>Qué sale exactamente</h4><pre>{exacto}</pre></>}
-      {manos && <p className={s.nota}>Esto lo corres tú desde su tarjeta en el chat.</p>}
+      {vista && <img className={s.vista} src={vista} alt={tr('Vista previa de lo que se publica')} loading="lazy" />}
+      {exacto && <><h4>{tr('Qué sale exactamente')}</h4><pre>{exacto}</pre></>}
+      {manos && <p className={s.nota}>{tr('Esto lo corres tú desde su tarjeta en el chat.')}</p>}
       {!manos && (otro
         ? <form className={s.otro} onSubmit={e => { e.preventDefault(); if (texto.trim()) void onResponder('otro', texto.trim()).then(ok => { if (ok) { setOtro(false); setTexto('') } }) }}>
-          <textarea autoFocus rows={2} value={texto} onChange={e => setTexto(e.target.value)} placeholder="¿Qué quieres en su lugar?" aria-label="Qué quieres en su lugar" />
-          <div><button type="button" className={s.sutil} onClick={() => setOtro(false)}>Cancelar</button>
-            <button type="submit" className={`${tecla.enviar} ${s.tecla}`} disabled={!texto.trim() || ocupado}>Mandar a Levy</button></div>
+          <textarea autoFocus rows={2} value={texto} onChange={e => setTexto(e.target.value)} placeholder={tr('¿Qué quieres en su lugar?')} aria-label={tr('Qué quieres en su lugar')} />
+          <div><button type="button" className={s.sutil} onClick={() => setOtro(false)}>{tr('Cancelar')}</button>
+            <button type="submit" className={`${tecla.enviar} ${s.tecla}`} disabled={!texto.trim() || ocupado}>{tr('Mandar a Levy')}</button></div>
         </form>
-        : <button className={s.sutil} onClick={() => setOtro(true)} data-respuesta="otro"><MessageSquare size={13} aria-hidden />Otro</button>)}
+        : <button className={s.sutil} onClick={() => setOtro(true)} data-respuesta="otro"><MessageSquare size={13} aria-hidden />{tr('Otro')}</button>)}
     </div>}
   </li>
 }

@@ -13,6 +13,7 @@
 import { sinRespuestaDelServidor } from '@/lib/edicion'
 import { useSyncExternalStore } from 'react'
 import type { Trabajos } from '../trabajos-modelo'
+import { tr, trn } from '@/shared/i18n'
 
 export interface ComentarioPendiente {
   id: string
@@ -76,7 +77,9 @@ export function envioDe(cs: ComentarioPendiente[]): { ruta: string; linea?: numb
 }
 
 /** «Mandar 4 comentarios a «armar la app»». */
-export const textoBoton = (n: number, nombre?: string) => `Mandar ${n} ${n === 1 ? 'comentario' : 'comentarios'}${nombre ? ` a «${nombre}»` : ''}`
+export const textoBoton = (n: number, nombre?: string) => nombre
+  ? trn(n, 'Mandar 1 comentario a «{nombre}»', 'Mandar {n} comentarios a «{nombre}»', { nombre })
+  : trn(n, 'Mandar 1 comentario', 'Mandar {n} comentarios')
 
 // ── Edición cliente (30 oct 2026): el lote va a SU chat con Levy, como borrador ──
 /** Evento que recibe el chat abierto para dejar un borrador en su caja (ChatPanel). Nunca envía. */
@@ -92,7 +95,7 @@ export function mensajeParaLevy(cs: ComentarioPendiente[]): string {
 }
 
 /** «Mandar 3 comentarios a Levy» (cliente). */
-export const textoBotonLevy = (n: number) => `Mandar ${n} ${n === 1 ? 'comentario' : 'comentarios'} a Levy`
+export const textoBotonLevy = (n: number) => trn(n, 'Mandar 1 comentario a Levy', 'Mandar {n} comentarios a Levy')
 
 /** Deja el lote en el chat: si ya está abierto, por el evento; si no, abre `/chat?draft=`. Quita los pendientes. */
 export function comentariosAlChat(cs: ComentarioPendiente[], ir: (url: string) => void): string {
@@ -100,7 +103,7 @@ export function comentariosAlChat(cs: ComentarioPendiente[], ir: (url: string) =
   if (globalThis.location?.pathname === '/chat') globalThis.dispatchEvent?.(new CustomEvent(EVENTO_BORRADOR_CHAT, { detail: texto }))
   else ir(`/chat?draft=${encodeURIComponent(texto)}`)
   comentarios.quitarVarios(cs.map(c => c.id))
-  return 'Quedaron en tu chat con Levy como borrador: revísalos y mándalos.'
+  return tr('Quedaron en tu chat con Levy como borrador: revísalos y mándalos.')
 }
 
 // ── Almacén (localStorage, compartido entre vistas) ──
@@ -139,7 +142,7 @@ export function useComentarios(): ComentarioPendiente[] {
 export async function mandarComentarios(agente: number, cs: ComentarioPendiente[]): Promise<string> {
   const r = await fetch('/api/cabina/comentarios', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ agente, comentarios: envioDe(cs) }), signal: AbortSignal.timeout(60_000) })
   const b = await r.json().catch(() => ({})) as { texto?: string; error?: string }
-  if (!r.ok) throw new Error(b.error ?? sinRespuestaDelServidor())
+  if (!r.ok) throw new Error(b.error ?? tr(sinRespuestaDelServidor()))
   comentarios.quitarVarios(cs.map(c => c.id))
-  return b.texto ?? 'Enviados.'
+  return b.texto ?? tr('Enviados.')
 }

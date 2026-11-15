@@ -4,6 +4,7 @@ import { consumoDe, contextoEnPalabras, tokensCortos, ventanaCorta } from './con
 import { nombreEsfuerzo } from '@/shared/lib/uso-modelo'
 import type { Terminal } from '../trabajos-modelo'
 import c from './consumo.module.css'
+import { localeIntl, tr } from '@/shared/i18n'
 
 function Barra({ pct }: { pct: number }) {
   return <span className={c.barra} data-alto={pct >= 70 || undefined} aria-hidden><i style={{ width: `${Math.min(100, Math.max(2, pct))}%` }} /></span>
@@ -27,9 +28,9 @@ export function FichaConsumo({ t }: { t: Terminal }) {
   const k = consumoDe(t)
   if (!k.modelo && k.tokens == null && k.ctxPct == null) return null
   return <dl className={c.ficha} data-consumo>
-    {k.modelo && <div><dt>Modelo</dt><dd><span className={c.modelo}>{k.modelo}</span></dd></div>}
-    {k.esfuerzo && <div><dt>Esfuerzo</dt><dd>{nombreEsfuerzo(k.esfuerzo)}</dd></div>}
-    {k.tokens != null && <div><dt>Tokens consumidos</dt><dd>{k.tokens.toLocaleString('es-MX')}</dd></div>}
-    {k.ctxPct != null && <div><dt>Contexto usado</dt><dd><Barra pct={k.ctxPct} />{k.ctxPct} %{k.ventana && <small>de {ventanaCorta(k.ventana)}</small>}</dd></div>}
+    {k.modelo && <div><dt>{tr('Modelo')}</dt><dd><span className={c.modelo}>{k.modelo}</span></dd></div>}
+    {k.esfuerzo && <div><dt>{tr('Esfuerzo')}</dt><dd>{nombreEsfuerzo(k.esfuerzo)}</dd></div>}
+    {k.tokens != null && <div><dt>{tr('Tokens consumidos')}</dt><dd>{k.tokens.toLocaleString(localeIntl())}</dd></div>}
+    {k.ctxPct != null && <div><dt>{tr('Contexto usado')}</dt><dd><Barra pct={k.ctxPct} />{k.ctxPct} %{k.ventana && <small>{tr('de {ventana}', { ventana: ventanaCorta(k.ventana) })}</small>}</dd></div>}
   </dl>
 }

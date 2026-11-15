@@ -120,6 +120,17 @@
 }
 .accionSuave:hover, .accionSuave[aria-expanded='true'] { background: var(--placa-hover); }
 .accionSuave:focus-visible { outline: 2px solid var(--morado); outline-offset: 1px; }
+/* Recibido y Cerrar (11 nov 2026): dos acciones a la vista en lo que terminó, sin texto para no empujar el nombre. */
+.accionIconoBoton {
+  flex: none; width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid var(--borde); border-radius: var(--l-radio-control, 8px);
+  background: transparent; color: var(--tinta-2); cursor: pointer; transition: background var(--dur) var(--curva), color var(--dur) var(--curva);
+}
+.accionIconoBoton:hover, .accionIconoBoton[aria-expanded='true'] { background: var(--placa-hover); color: var(--tinta-1); }
+.accionIconoBoton[data-accion='recibido']:hover { color: var(--morado); border-color: color-mix(in srgb, var(--morado) 45%, transparent); }
+.accionIconoBoton:focus-visible { outline: 2px solid var(--morado); outline-offset: 1px; }
+.accionIconoBoton:disabled { opacity: 0.55; cursor: default; }
+.accionConIcono { display: inline-flex; align-items: center; gap: 5px; }
+.accionConIcono svg { flex: none; color: var(--tinta-2); }
 .accionesDetalle { justify-content: flex-start; margin: 0; padding: 0 12px 10px 38px; }
 .menuCaja { position: relative; flex: none; }
 .mas { width: 28px; height: 28px; display: grid; place-items: center; border: 0; border-radius: var(--l-radio-control, 8px); background: transparent; color: var(--tinta-2); cursor: pointer; }

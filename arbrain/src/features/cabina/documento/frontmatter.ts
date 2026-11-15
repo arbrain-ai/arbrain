@@ -5,9 +5,10 @@
  * feed-sfc (post del feed de SaaS Factory). Para sumar otro destino (youtube-miniatura, whatsapp,
  * correo): agregarlo a DESTINOS con su adaptador y su componente en Documento.tsx (PREVIAS).
  */
+import { trMarca } from '@/shared/i18n'
 export type DestinoDocumento = 'feed-sfc'
 export const DESTINOS: Record<DestinoDocumento, { nombre: string }> = {
-  'feed-sfc': { nombre: 'Feed de SaaS Factory' },
+  'feed-sfc': { nombre: trMarca('Feed de SaaS Factory') },
 }
 export const esDestino = (d: string | undefined): d is DestinoDocumento => !!d && d in DESTINOS
 

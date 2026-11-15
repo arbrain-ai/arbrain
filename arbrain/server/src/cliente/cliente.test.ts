@@ -142,7 +142,7 @@ describe('rutas solo de Daniel (contrato §8)', () => {
     expect(rutaSoloDaniel('POST', '/cabina', { que: 'trabajos' })).toBe(false)
     expect(rutaSoloDaniel('POST', '/cabina', { que: 'salida' })).toBe(false)
     // Lo que lanza o toca subagentes de `delegar` (procesos aparte, red team A1) sigue fuera.
-    for (const que of ['actividad', 'detener', 'responder', 'comentarios', 'correr-plan', 'descartar-plan', 'guardian-disco', 'apagar']) expect(rutaSoloDaniel('POST', '/cabina', { que })).toBe(true)
+    for (const que of ['actividad', 'detener', 'cerrar', 'recibido', 'responder', 'comentarios', 'correr-plan', 'descartar-plan', 'guardian-disco', 'apagar']) expect(rutaSoloDaniel('POST', '/cabina', { que })).toBe(true)
     expect(rutaSoloDaniel('POST', '/cabina', { que: 'panel' })).toBe(false)
     expect(rutaSoloDaniel('POST', '/cabina', { que: 'memoria' })).toBe(false)
     expect(rutaSoloDaniel('POST', '/chat/stream', {})).toBe(false)

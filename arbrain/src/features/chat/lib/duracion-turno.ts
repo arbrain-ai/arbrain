@@ -7,6 +7,7 @@
  * - Al terminar: la duración que reportó el motor (`usage.durationMs`), la misma del tooltip de la hora.
  * - Debajo de UMBRAL_MS no se pinta nada: lo rápido no necesita reloj.
  */
+import { tr } from '@/shared/i18n'
 
 export const UMBRAL_MS = 10_000
 
@@ -49,5 +50,5 @@ export function duracionLegible(ms: number): string {
 export function etiquetaTrabajo(msg: MensajeConTiempo): string | null {
   const ms = msg.usage?.durationMs
   if (!valido(ms) || ms < UMBRAL_MS) return null
-  return `Trabajó ${duracionLegible(ms)}`
+  return tr('Trabajó {duracion}', { duracion: duracionLegible(ms) })
 }

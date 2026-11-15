@@ -25,6 +25,7 @@ import { appendFileSync, mkdirSync, readFileSync, renameSync, statSync, writeFil
 import { dirname, join } from 'node:path'
 import { DIR_ARBRAIN, esEdicionCliente } from '../edicion.js'
 import { diaCivil, instanteDeHoraCivil, zonaDueno } from '../zona.js'
+import { trMarca } from '../i18n/tr.js'
 
 export type Clase = 'configurar' | 'agenda' | 'cohorte' | 'soporte' | 'borrar_prueba' | 'contactar' | 'pagar' | 'borrar' | 'publicar' | 'legal'
 export type Modo = 'hacer' | 'tocar' | 'nunca'
@@ -39,29 +40,29 @@ export const esModo = (v: unknown): v is Modo => typeof v === 'string' && (MODOS
 
 /** Lo que ve la persona (Ajustes, tarjetas, el archivo) y lo que lee Levy. `firmado`: la línea de lo que la persona firmó. */
 export const INFO_CLASE: Record<Clase, { nombre: string; que: string; irreversible: boolean; firmado?: string }> = {
-  configurar: { nombre: 'Configurar servicios', irreversible: false, que: 'Crear cuentas, llaves API y configuraciones en servicios que pediste (p. ej. «Create key» en una consola).' },
-  agenda: { nombre: 'Tu agenda', irreversible: false, que: 'Mover tu agenda, choques incluidos. Si moverla implica escribirle a otra persona, cuenta como contactar.' },
-  cohorte: { nombre: 'Classroom de la cohorte', irreversible: false, que: 'Publicar o esconder en el classroom de la cohorte lo que ya existe; subir clips.' },
+  configurar: { nombre: trMarca('Configurar servicios'), irreversible: false, que: trMarca('Crear cuentas, llaves API y configuraciones en servicios que pediste (p. ej. «Create key» en una consola).') },
+  agenda: { nombre: trMarca('Tu agenda'), irreversible: false, que: trMarca('Mover tu agenda, choques incluidos. Si moverla implica escribirle a otra persona, cuenta como contactar.') },
+  cohorte: { nombre: trMarca('Classroom de la cohorte'), irreversible: false, que: trMarca('Publicar o esconder en el classroom de la cohorte lo que ya existe; subir clips.') },
   // 4 nov 2026: las dudas técnicas de los alumnos no le llegan al dueño como «contactar» (caso real: un alumno, 32 h trabado).
   // Reversible a efectos del freno SOLO con todas las señales a favor (autonomia/clase.ts · claseDeSoporte); si no, contactar.
   // La plataforma y la línea de lo firmado son de la instalación (autonomia/soporte.ts · plataformaCohorte).
-  soporte: { nombre: 'Soporte técnico a la cohorte', irreversible: false, que: 'Responder dudas técnicas o de uso de los alumnos dentro de la plataforma de la cohorte (posts, comentarios y DMs). Nunca por WhatsApp, correo ni fuera de la cohorte, ni promesas, precios, reembolsos, cobranza o mensajes delicados: eso sigue siendo contactar.' },
-  borrar_prueba: { nombre: 'Borrar lo de prueba', irreversible: false, que: 'Borrar recursos de prueba que creó Levy.' },
-  contactar: { nombre: 'Contactar personas', irreversible: true, que: 'WhatsApp, DM, correo, comentarios con mención, invitaciones a terceros, formularios de contacto.' },
-  pagar: { nombre: 'Pagar', irreversible: true, que: 'Comprar, pagar, suscribirse, transferir, escribir datos de pago.' },
-  borrar: { nombre: 'Borrar', irreversible: true, que: 'Borrar lo que no es de prueba (archivos, mensajes, cuentas, registros).' },
-  publicar: { nombre: 'Publicar fuera de la cohorte', irreversible: true, que: 'Posts, videos, tuits y cualquier publicación que ven personas fuera de la cohorte.' },
-  legal: { nombre: 'Términos legales', irreversible: true, que: 'Aceptar o firmar contratos y términos legales.' },
+  soporte: { nombre: trMarca('Soporte técnico a la cohorte'), irreversible: false, que: trMarca('Responder dudas técnicas o de uso de los alumnos dentro de la plataforma de la cohorte (posts, comentarios y DMs). Nunca por WhatsApp, correo ni fuera de la cohorte, ni promesas, precios, reembolsos, cobranza o mensajes delicados: eso sigue siendo contactar.') },
+  borrar_prueba: { nombre: trMarca('Borrar lo de prueba'), irreversible: false, que: trMarca('Borrar recursos de prueba que creó Levy.') },
+  contactar: { nombre: trMarca('Contactar personas'), irreversible: true, que: trMarca('WhatsApp, DM, correo, comentarios con mención, invitaciones a terceros, formularios de contacto.') },
+  pagar: { nombre: trMarca('Pagar'), irreversible: true, que: trMarca('Comprar, pagar, suscribirse, transferir, escribir datos de pago.') },
+  borrar: { nombre: trMarca('Borrar'), irreversible: true, que: trMarca('Borrar lo que no es de prueba (archivos, mensajes, cuentas, registros).') },
+  publicar: { nombre: trMarca('Publicar fuera de la cohorte'), irreversible: true, que: trMarca('Posts, videos, tuits y cualquier publicación que ven personas fuera de la cohorte.') },
+  legal: { nombre: trMarca('Términos legales'), irreversible: true, que: trMarca('Aceptar o firmar contratos y términos legales.') },
 }
 
 /** Siempre de la persona, en cualquier preset: Levy lo redacta como ella lo diría y le pide el toque. */
-export const SIEMPRE_SUYO = ['promesas a personas', 'precios', 'reembolsos', 'cobranza', 'mensajes delicados o personales'] as const
+export const SIEMPRE_SUYO = [trMarca('promesas a personas'), trMarca('precios'), trMarca('reembolsos'), trMarca('cobranza'), trMarca('mensajes delicados o personales')] as const
 
-export const NOMBRE_PRESET: Record<Preset, string> = { cauteloso: 'Cauteloso', equilibrado: 'Equilibrado', piloto: 'Piloto automático' }
+export const NOMBRE_PRESET: Record<Preset, string> = { cauteloso: trMarca('Cauteloso'), equilibrado: trMarca('Equilibrado'), piloto: trMarca('Piloto automático') }
 export const INFO_PRESET: Record<Preset, string> = {
-  cauteloso: 'Todo lo que tiene efecto afuera espera tu toque, también configurar servicios.',
-  equilibrado: 'Configura servicios y mueve tu agenda solo; el classroom, lo de prueba y lo irreversible esperan tu toque.',
-  piloto: 'Todo lo reversible lo hace solo y te avisa; solo lo irreversible espera tu toque.',
+  cauteloso: trMarca('Todo lo que tiene efecto afuera espera tu toque, también configurar servicios.'),
+  equilibrado: trMarca('Configura servicios y mueve tu agenda solo; el classroom, lo de prueba y lo irreversible esperan tu toque.'),
+  piloto: trMarca('Todo lo reversible lo hace solo y te avisa; solo lo irreversible espera tu toque.'),
 }
 
 // Soporte nace en «tocar» en los tres presets: la enciende la persona en Ajustes › Autonomía (un agente no cambia su propia autonomía).

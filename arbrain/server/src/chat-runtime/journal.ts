@@ -1,6 +1,7 @@
 import { DUENO, DUENO_M } from '../dueno.js'
 import Database from 'better-sqlite3'
 import { createHash } from 'node:crypto'
+import { tr } from '../i18n/tr.js'
 
 export interface TurnIdentity { owner: string; account: string; conversationId: string; turnId: string }
 export type TurnStatus = 'queued' | 'dispatching' | 'running' | 'waiting' | 'uncertain' | 'completed' | 'failed' | 'interrupted'
@@ -213,10 +214,10 @@ export class ChatJournal {
       const input = turn.input as Record<string, unknown>
       const partial = this.partialText(id)
       const kind = cause(row.worker_id)
-      const why = kind === 'reboot' ? 'El Mac se reinició' : kind === 'runner' ? 'Se cayó el proceso que ejecutaba la respuesta' : 'El servidor se reinició'
+      const why = kind === 'reboot' ? tr('El Mac se reinició') : kind === 'runner' ? tr('Se cayó el proceso que ejecutaba la respuesta') : tr('El servidor se reinició')
       const error = partial
-        ? `${why} mientras Levy respondía. Arriba queda lo que alcanzó a escribir; lo demás se perdió y no se reconstruye. Reenvía el mensaje para retomarlo.`
-        : `${why} mientras se generaba esta respuesta. Reenvía el mensaje si la necesitas.`
+        ? tr('{causa} mientras Levy respondía. Arriba queda lo que alcanzó a escribir; lo demás se perdió y no se reconstruye. Reenvía el mensaje para retomarlo.', { causa: why })
+        : tr('{causa} mientras se generaba esta respuesta. Reenvía el mensaje si la necesitas.', { causa: why })
       const text = partial ? `${partial}\n\n_(${error})_` : ''
       const snapshot = { status: 'interrupted', text, error }
       const payload = { chatSessionId: turn.conversationId, turnId: turn.turnId, ownerId: turn.owner, account: turn.account,

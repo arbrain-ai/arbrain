@@ -24,6 +24,7 @@ import { promisify } from 'node:util'
 import Database from 'better-sqlite3'
 import { PROJECT_ROOT, STORE_DIR } from '../config.js'
 import { logger } from '../logger.js'
+import { tr } from '../i18n/tr.js'
 
 const run = promisify(execFile)
 const MEMORIA = join(PROJECT_ROOT, '.claude', 'memory')
@@ -136,9 +137,9 @@ export async function memoria(): Promise<{ archivos: ArchivoMemoria[]; raiz: str
 
 /** Un archivo de memoria para leer. Nunca fuera de .claude/memory, nunca un secreto. */
 export function leerMemoria(ruta: string): { ruta: string; texto: string; oculto: boolean; bytes: number } | { error: string; status: number } {
-  if (typeof ruta !== 'string' || !ruta.endsWith('.md') || ruta.includes('..') || ruta.startsWith('/') || ruta.includes('\0')) return { error: 'Ruta inválida.', status: 400 }
+  if (typeof ruta !== 'string' || !ruta.endsWith('.md') || ruta.includes('..') || ruta.startsWith('/') || ruta.includes('\0')) return { error: tr('Ruta inválida.'), status: 400 }
   const abs = join(MEMORIA, ruta)
-  if (!abs.startsWith(MEMORIA + sep) || !existsSync(abs)) return { error: 'No existe esa memoria.', status: 404 }
+  if (!abs.startsWith(MEMORIA + sep) || !existsSync(abs)) return { error: tr('No existe esa memoria.'), status: 404 }
   const bytes = statSync(abs).size
   if (esSecreto(ruta)) return { ruta, texto: '', oculto: true, bytes }
   return { ruta, texto: tachar(readFileSync(abs, 'utf8')), oculto: false, bytes }
@@ -392,7 +393,7 @@ const conTotal = (l: Llamada | undefined | null) => l ? { ...l, total: totalEntr
 export function partesDeInyeccion(texto: string): { nombre: string; caracteres: number }[] {
   const partes: { nombre: string; caracteres: number }[] = []
   for (const trozo of texto.split(/\n\n(?=RUTAS POR INTENCI|🧠 recall|AGENDA COMPARTIDA)/)) {
-    const nombre = trozo.startsWith('RUTAS POR INTENCI') ? 'Rutas por intención' : trozo.startsWith('🧠 recall') ? 'Recall de memoria' : trozo.startsWith('AGENDA COMPARTIDA') ? 'Agenda del turno' : 'Otro'
+    const nombre = trozo.startsWith('RUTAS POR INTENCI') ? tr('Rutas por intención') : trozo.startsWith('🧠 recall') ? tr('Recall de memoria') : trozo.startsWith('AGENDA COMPARTIDA') ? tr('Agenda del turno') : tr('Otro')
     partes.push({ nombre, caracteres: trozo.length })
   }
   return partes
@@ -456,9 +457,9 @@ export async function anatomia(o: {
   let sonda = desgloseTurno ? null : leerSonda()
   if (!desgloseTurno && (o.medir || !sonda || Date.now() - Date.parse(sonda.en) > 6 * 3600_000)) sonda = (await medirSonda()) ?? sonda
   const desglose = desgloseTurno ? { fuente: 'turno' as const, ...desgloseTurno } : sonda ? { fuente: 'sonda' as const, en: sonda.en, datos: sonda.desglose } : null
-  const ventana = ventanaTurno ? { ...ventanaTurno, fuente: 'modelUsage.contextWindow del último turno guardado' }
-    : desglose?.datos.ventana ? { tokens: desglose.datos.ventana, modelo: desglose.datos.modelo, fuente: 'getContextUsage del SDK (ventana de autocompactación)' }
-    : { tokens: null, modelo: conversacion?.modelo ?? null, fuente: 'sin dato' }
+  const ventana = ventanaTurno ? { ...ventanaTurno, fuente: tr('modelUsage.contextWindow del último turno guardado') }
+    : desglose?.datos.ventana ? { tokens: desglose.datos.ventana, modelo: desglose.datos.modelo, fuente: tr('getContextUsage del SDK (ventana de autocompactación)') }
+    : { tokens: null, modelo: conversacion?.modelo ?? null, fuente: tr('sin dato') }
   const archivos = archivosFijos()
   // Razón tokens/carácter MEDIDA en CLAUDE.md (conteo del SDK ÷ caracteres): solo para estimar lo que no se cuenta.
   const claude = desglose?.datos.memoria.find(m => m.ruta === 'CLAUDE.md')

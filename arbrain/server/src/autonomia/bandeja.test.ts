@@ -168,6 +168,19 @@ describe('bandeja: decisiones atadas a una hora (3 nov 2026)', () => {
     expect(s.usarDecision(c.id, 'enviar')).toBeNull()
   })
 
+  it('mapa v16: la tarjeta DECLARA su órgano (--organo); sin él, publicar es Marketing y pagar Finanzas; lo inválido se ignora', async () => {
+    const a = await http('/decisiones/pedir', { titulo: 'Avisar a Juan de su segundo pago', categoria: 'enviar', organo: 'venta' })
+    const b = await http('/decisiones/pedir', { titulo: 'Publicar el video del martes', categoria: 'publicar' })
+    const c = await http('/decisiones/pedir', { titulo: 'Recargar OpenRouter', categoria: 'pagar' })
+    const d = await http('/decisiones/pedir', { titulo: 'Borrar la carpeta vieja', categoria: 'borrar', organo: 'cocina' })
+    const v = (await http('/decisiones')).j.pendientes as Array<{ id: string; organo?: string }>
+    const de = (id: string) => v.find(x => x.id === id)?.organo
+    expect([de(a.j.id), de(b.j.id), de(c.j.id), de(d.j.id)]).toEqual(['venta', 'marketing', 'finanzas', undefined])
+    // La misma decisión subida otra vez con su órgano lo conserva en su lugar.
+    await http('/decisiones/pedir', { titulo: 'Borrar la carpeta vieja', categoria: 'borrar', organo: 'sistemas' })
+    expect(((await http('/decisiones')).j.pendientes as Array<{ id: string; organo?: string }>).find(x => x.id === d.j.id)?.organo).toBe('sistemas')
+  })
+
   it('por la ruta: --expira llega, la tarjeta dice cuándo vence y la vista lista las vencidas de hoy', async () => {
     const p = await http('/decisiones/pedir', { titulo: 'Llamar a Zutano a la 1 pm', categoria: 'enviar', expira: Date.now() + 60_000 })
     expect(p.status).toBe(200)

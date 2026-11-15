@@ -1,6 +1,7 @@
 import { requireChatPrincipal, chatAccessResponse } from '@/lib/chat-access'
 import { accountId } from '@/lib/chat-access-policy'
 import { getClaudeclawUrl, CLAUDECLAW_TOKEN, upstreamError } from '@/lib/claudeclaw'
+import { tr } from '@/shared/i18n'
 
 /** Catálogo de comandos de la paleta «/»: lo que el SDK de Claude Code expone (nativos, skills,
  * plugins, agentes) más los modos y comandos locales de Arbrain. El daemon lo cachea. */
@@ -9,7 +10,7 @@ export async function GET(req: Request) {
   const params = new URLSearchParams()
   try {
     const principal = await requireChatPrincipal()
-    if (!principal.owner) return Response.json({ error: 'Se requiere una sesión propia.' }, { status: 403 })
+    if (!principal.owner) return Response.json({ error: tr('Se requiere una sesión propia.') }, { status: 403 })
     params.set('account', accountId(src.get('account')))
     params.set('ownerId', principal.id)
   } catch (error) { return chatAccessResponse(error) }
@@ -20,11 +21,11 @@ export async function GET(req: Request) {
       headers: { Authorization: `Bearer ${CLAUDECLAW_TOKEN}` },
       signal: AbortSignal.timeout(20_000),
     })
-    if (!upstream.ok) return upstreamError(upstream, 'el catálogo de comandos')
+    if (!upstream.ok) return upstreamError(upstream, tr('el catálogo de comandos'))
     return Response.json(await upstream.json())
   } catch {
     return Response.json(
-      { error: 'No pude alcanzar el daemon (ClaudeClaw).', code: 'DAEMON_UNREACHABLE' },
+      { error: tr('No pude alcanzar el daemon (ClaudeClaw).'), code: 'DAEMON_UNREACHABLE' },
       { status: 503 },
     )
   }

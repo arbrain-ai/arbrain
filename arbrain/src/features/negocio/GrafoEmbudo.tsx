@@ -19,6 +19,7 @@ import '@xyflow/react/dist/base.css'
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Maximize, Repeat, Wand2 } from 'lucide-react'
 import type { Embudo } from './embudo'
+import { tr } from '@/shared/i18n'
 import { cajaEtiqueta, construirGrafo, orientacionPara, trazoSvg, type Grafo, type NodoEmbudo, type NodoEtapa, type Orientacion, type Punto, type Trazo } from './grafo'
 import e from './panel-embudo.module.css'
 
@@ -44,15 +45,15 @@ function VistaEtapa({ data }: NodeProps<NodoEtapaRF>) {
     <button
       type="button" className={e.nodo} data-o={data.o} data-hoy={et.opera_hoy || undefined} data-cuello={et.cuello.es || undefined}
       data-elegida={elegida || undefined} aria-pressed={elegida}
-      aria-label={`${et.etapa}: ${et.nombre}${et.cuello.es ? ', cuello de botella' : ''}${et.opera_hoy ? '' : ', por construir'}`}
+      aria-label={`${tr(et.etapa)}: ${et.nombre}${et.cuello.es ? `, ${tr('cuello de botella')}` : ''}${et.opera_hoy ? '' : `, ${tr('por construir')}`}`}
       onClick={() => elegir(elegida ? null : { tipo: 'etapa', id: et.id })} onFocus={() => alEnfocar(et.id)}
     >
-      <span className={e.nodoCeja}>{et.orden} · {et.etapa}{et.cuello.es && <i className={e.luz} aria-hidden />}</span>
+      <span className={e.nodoCeja}>{et.orden} · {tr(et.etapa)}{et.cuello.es && <i className={e.luz} aria-hidden />}</span>
       <span className={e.nodoNombre}>{et.nombre}</span>
       <span className={e.nodoPie} aria-hidden>
         {et.skills.length > 0 && <span><Wand2 size={11} />{et.skills.length}</span>}
         {et.rutinas.length > 0 && <span><Repeat size={11} />{et.rutinas.length}</span>}
-        {!et.opera_hoy && <span className={e.porConstruir}>por construir</span>}
+        {!et.opera_hoy && <span className={e.porConstruir}>{tr('por construir')}</span>}
       </span>
     </button>
     <Handle type="source" position={Position.Bottom} className={e.asa} isConnectable={false} />
@@ -67,7 +68,7 @@ function VistaMarco({ data }: NodeProps<NodoEmbudoRF>) {
     <button type="button" className={e.marcoCabeza} aria-pressed={elegido} onClick={() => elegir(elegido ? null : { tipo: 'embudo', id: b.id })} title={b.info.frase}>
       {b.info.kicker && <span className={e.marcoCeja}>{b.info.kicker}</span>}
       <span className={e.marcoNombre}>{b.info.nombre}</span>
-      {b.porConstruir && <span className={e.porConstruir}>Por construir</span>}
+      {b.porConstruir && <span className={e.porConstruir}>{tr('Por construir')}</span>}
     </button>
   </div>
 }
@@ -208,7 +209,7 @@ function Lienzo({ embudo, sel, elegir, enfocar, grande, alCambiarModo, ancho }: 
   const contexto = useMemo(() => ({ sel, elegir, alEnfocar: (id: string) => { if (o === 'ancho') traer(id, false) } }), [sel, elegir, o, traer])
 
   return <Eleccion.Provider value={contexto}>
-    <div ref={raiz} className={e.grafo} data-o={o} data-quieto={!suelto || undefined} style={{ height: alto }} role="group" aria-label={`El sistema de ${embudo.negocio}: ${grafo.embudos.length} embudos y ${grafo.etapas.length} etapas`}>
+    <div ref={raiz} className={e.grafo} data-o={o} data-quieto={!suelto || undefined} style={{ height: alto }} role="group" aria-label={tr('El sistema de {negocio}: {embudos} embudos y {etapas} etapas', { negocio: embudo.negocio, embudos: grafo.embudos.length, etapas: grafo.etapas.length })}>
       <ReactFlow
         nodes={nodos} edges={aristas} nodeTypes={TIPOS_NODO} edgeTypes={TIPOS_ARISTA}
         defaultViewport={encuadre} minZoom={ZOOM_MIN} maxZoom={ZOOM_MAX}
@@ -218,8 +219,8 @@ function Lienzo({ embudo, sel, elegir, enfocar, grande, alCambiarModo, ancho }: 
         proOptions={{ hideAttribution: false }}
       >
         <Background variant={BackgroundVariant.Dots} gap={22} size={1.2} />
-        <Controls showInteractive={false} showFitView={false} position="bottom-left" aria-label="Acercar, alejar y encuadrar">
-          <ControlButton onClick={encuadrar} title="Encuadrar todo" aria-label="Encuadrar todo"><Maximize size={13} /></ControlButton>
+        <Controls showInteractive={false} showFitView={false} position="bottom-left" aria-label={tr('Acercar, alejar y encuadrar')}>
+          <ControlButton onClick={encuadrar} title={tr('Encuadrar todo')} aria-label={tr('Encuadrar todo')}><Maximize size={13} /></ControlButton>
         </Controls>
       </ReactFlow>
     </div>

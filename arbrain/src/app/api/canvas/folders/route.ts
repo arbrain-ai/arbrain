@@ -22,6 +22,7 @@ import { puedeAnidar, puedeSerMadre, type CarpetaPlana } from '@/features/canvas
 import { conSubcarpetas } from '@/features/canvas/state/vista-lienzos'
 import { conArchivado } from '@/features/canvas/state/organizacion'
 import { instalacion } from '@/config'
+import { tr } from '@/shared/i18n'
 
 export const runtime = 'nodejs'
 // Dueño de los lienzos: la persona dueña de esta instalación (config/instalacion.ts).
@@ -38,27 +39,27 @@ async function leerCarpetas(db: Db): Promise<CarpetaPlana[]> {
 
 export async function GET(request: Request) {
   if (!await authenticateDraw3(request)) {
-    return NextResponse.json({ ok: false, error: 'no autorizado' }, { status: 401 })
+    return NextResponse.json({ ok: false, error: tr('no autorizado') }, { status: 401 })
   }
   try {
     return NextResponse.json({ ok: true, carpetas: await leerCarpetas(createServiceClient()) })
   } catch (e) {
-    return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : 'no se leyeron' }, { status: 500 })
+    return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : tr('no se leyeron') }, { status: 500 })
   }
 }
 
 export async function POST(request: Request) {
   if (!await authenticateDraw3(request)) {
-    return NextResponse.json({ ok: false, error: 'no autorizado' }, { status: 401 })
+    return NextResponse.json({ ok: false, error: tr('no autorizado') }, { status: 401 })
   }
   const body = await request.json().catch(() => ({})) as { nombre?: string; madre?: string | null }
   // Una carpeta nace con nombre (7 nov 2026): las «Carpeta nueva» vacías se quedaban para siempre en el árbol.
-  if (!body.nombre?.trim()) return NextResponse.json({ ok: false, error: 'la carpeta necesita un nombre' }, { status: 400 })
+  if (!body.nombre?.trim()) return NextResponse.json({ ok: false, error: tr('la carpeta necesita un nombre') }, { status: 400 })
   const db = createServiceClient()
   if (body.madre) {
     const carpetas = await leerCarpetas(db).catch(() => [])
     if (!puedeSerMadre(carpetas, body.madre)) {
-      return NextResponse.json({ ok: false, error: 'solo hay un nivel: esa carpeta no puede tener subcarpetas' }, { status: 400 })
+      return NextResponse.json({ ok: false, error: tr('solo hay un nivel: esa carpeta no puede tener subcarpetas') }, { status: 400 })
     }
   }
   const { data: ultimas } = await db.from('draw_folders')
@@ -74,7 +75,7 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   if (!await authenticateDraw3(request)) {
-    return NextResponse.json({ ok: false, error: 'no autorizado' }, { status: 401 })
+    return NextResponse.json({ ok: false, error: tr('no autorizado') }, { status: 401 })
   }
   const body = await request.json().catch(() => null) as
     { accion?: 'renombrar' | 'borrar' | 'mover' | 'anidar' | 'renombrarPagina' | 'archivar'; id?: string; nombre?: string; paginaId?: string; folderId?: string | null; madre?: string | null; archivar?: boolean } | null
@@ -82,11 +83,11 @@ export async function PATCH(request: Request) {
   const db = createServiceClient()
 
   if (body.accion === 'renombrar') {
-    if (!body.id || !body.nombre?.trim()) return NextResponse.json({ ok: false, error: 'falta id o nombre' }, { status: 400 })
+    if (!body.id || !body.nombre?.trim()) return NextResponse.json({ ok: false, error: tr('falta id o nombre') }, { status: 400 })
     const { data, error } = await db.from('draw_folders')
       .update({ name: body.nombre.trim() }).eq('id', body.id).eq('user_id', OWNER).select('id')
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
-    if (!data?.length) return NextResponse.json({ ok: false, error: 'no existe' }, { status: 404 })
+    if (!data?.length) return NextResponse.json({ ok: false, error: tr('no existe') }, { status: 404 })
     return NextResponse.json({ ok: true })
   }
 
@@ -96,10 +97,10 @@ export async function PATCH(request: Request) {
    * subcarpeta cuya madre sigue archivada sale a la raíz al restaurarse, porque si no volvería a quedar oculta.
    */
   if (body.accion === 'archivar') {
-    if (!body.id || typeof body.archivar !== 'boolean') return NextResponse.json({ ok: false, error: 'falta id o archivar' }, { status: 400 })
+    if (!body.id || typeof body.archivar !== 'boolean') return NextResponse.json({ ok: false, error: tr('falta id o archivar') }, { status: 400 })
     const carpetas = await leerCarpetas(db).catch(() => [] as CarpetaPlana[])
     const objetivo = carpetas.find(c => c.id === body.id)
-    if (!objetivo) return NextResponse.json({ ok: false, error: 'no existe' }, { status: 404 })
+    if (!objetivo) return NextResponse.json({ ok: false, error: tr('no existe') }, { status: 404 })
     const todas = conSubcarpetas(carpetas, body.id)
     const ahora = new Date().toISOString()
     if (body.archivar) {
@@ -139,7 +140,7 @@ export async function PATCH(request: Request) {
       .update({ folder_id: body.folderId ?? null, updated_at: new Date().toISOString() })
       .eq('page_id', body.paginaId).select('page_id')
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
-    if (!data?.length) return NextResponse.json({ ok: false, error: 'no existe la pagina' }, { status: 404 })
+    if (!data?.length) return NextResponse.json({ ok: false, error: tr('no existe la pagina') }, { status: 404 })
     return NextResponse.json({ ok: true })
   }
 
@@ -151,7 +152,7 @@ export async function PATCH(request: Request) {
     const { data, error } = await db.from('draw_folders')
       .update({ parent_id: madre }).eq('id', body.id).eq('user_id', OWNER).select('id')
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
-    if (!data?.length) return NextResponse.json({ ok: false, error: 'no existe' }, { status: 404 })
+    if (!data?.length) return NextResponse.json({ ok: false, error: tr('no existe') }, { status: 404 })
     return NextResponse.json({ ok: true })
   }
 
@@ -164,12 +165,12 @@ export async function PATCH(request: Request) {
    * el nombre, como hace sfmap.
    */
   if (body.accion === 'renombrarPagina') {
-    if (!body.paginaId || !body.nombre?.trim()) return NextResponse.json({ ok: false, error: 'falta paginaId o nombre' }, { status: 400 })
+    if (!body.paginaId || !body.nombre?.trim()) return NextResponse.json({ ok: false, error: tr('falta paginaId o nombre') }, { status: 400 })
     const { data, error } = await db.from('draw')
       .update({ name: body.nombre.trim(), updated_at: new Date().toISOString() })
       .eq('page_id', body.paginaId).eq('user_id', OWNER).select('page_id')
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
-    if (!data?.length) return NextResponse.json({ ok: false, error: 'no existe la pagina' }, { status: 404 })
+    if (!data?.length) return NextResponse.json({ ok: false, error: tr('no existe la pagina') }, { status: 404 })
     return NextResponse.json({ ok: true })
   }
 

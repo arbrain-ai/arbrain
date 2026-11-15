@@ -8,6 +8,7 @@
 import { create } from 'zustand'
 import { esEdicionCliente } from '@/lib/edicion'
 import { escuchar, publicar } from './ventanas'
+import { trMarca } from '@/shared/i18n'
 
 /**
  * Cuatro pestañas desde el 5 oct 2026 (Daniel, 18:11: «el Taller es tu cerebro por dentro»), cada una responde una pregunta:
@@ -17,13 +18,13 @@ import { escuchar, publicar } from './ventanas'
  */
 export type SegmentoTaller = 'terminales' | 'historia' | 'rutinas' | 'memoria' | 'maquina' | 'registro' | 'primer-dia'
 const TODOS: { id: SegmentoTaller; etiqueta: string; pregunta: string }[] = [
-  { id: 'terminales', etiqueta: 'Agentes', pregunta: '¿Quién está trabajando para mí ahora?' },
+  { id: 'terminales', etiqueta: trMarca('Agentes'), pregunta: trMarca('¿Quién está trabajando para mí ahora?') },
   // Historia (28 oct 2026, Daniel: «cómo podemos obtener lo mejor de ambos mundos con vistas en el taller… así como VS Code, con
   // ramas y todo»): dejó de ser pestaña suelta del panel; arriba lo del dueño, debajo el historial de git para aprenderlo.
-  { id: 'historia', etiqueta: 'Historia', pregunta: '¿Qué cambió en mi cerebro y quién lo hizo?' },
-  { id: 'rutinas', etiqueta: 'Rutinas', pregunta: '¿Qué corre solo y cómo le fue?' },
-  { id: 'memoria', etiqueta: 'Memoria', pregunta: '¿Qué sabe mi cerebro de mí?' },
-  { id: 'maquina', etiqueta: 'Computadora', pregunta: '¿Está todo prendido?' },
+  { id: 'historia', etiqueta: trMarca('Historia'), pregunta: trMarca('¿Qué cambió en mi cerebro y quién lo hizo?') },
+  { id: 'rutinas', etiqueta: trMarca('Rutinas'), pregunta: trMarca('¿Qué corre solo y cómo le fue?') },
+  { id: 'memoria', etiqueta: trMarca('Memoria'), pregunta: trMarca('¿Qué sabe mi cerebro de mí?') },
+  { id: 'maquina', etiqueta: trMarca('Computadora'), pregunta: trMarca('¿Está todo prendido?') },
 ]
 /**
  * Edición cliente: Agentes, Rutinas, Memoria y Computadora. Revisado el 22 oct 2026 (prueba de Windows de Daniel: «no veo
@@ -40,7 +41,7 @@ const TODOS: { id: SegmentoTaller; etiqueta: string; pregunta: string }[] = [
 const CLIENTE = esEdicionCliente()
 export const SEGMENTOS_CLIENTE: readonly SegmentoTaller[] = ['terminales', 'rutinas', 'memoria', 'maquina']
 /** En cliente, Computadora responde otra pregunta: la del alumno no es «¿está todo prendido?» sino si su máquina aguanta. */
-const PREGUNTA_CLIENTE: Partial<Record<SegmentoTaller, string>> = { maquina: '¿Cómo va mi computadora?' }
+const PREGUNTA_CLIENTE: Partial<Record<SegmentoTaller, string>> = { maquina: trMarca('¿Cómo va mi computadora?') }
 export const SEGMENTOS_TALLER = CLIENTE
   ? TODOS.filter(t => SEGMENTOS_CLIENTE.includes(t.id)).map(t => ({ ...t, pregunta: PREGUNTA_CLIENTE[t.id] ?? t.pregunta }))
   : TODOS
@@ -49,7 +50,7 @@ export const SEGMENTOS_TALLER = CLIENTE
  * pestaña aparece al frente solo cuando `/api/primer-dia` responde activo (bandera encendida, edición del alumno, sin ocultar).
  * Apagada, un pedido de este segmento cae en Agentes, como cualquier otro que no existe.
  */
-export const SEGMENTO_PRIMER_DIA = { id: 'primer-dia' as const, etiqueta: 'Tu primer día', pregunta: '¿Qué le falta a mi negocio para vivir en mi cerebro?' }
+export const SEGMENTO_PRIMER_DIA = { id: 'primer-dia' as const, etiqueta: trMarca('Tu primer día'), pregunta: trMarca('¿Qué le falta a mi negocio para vivir en mi cerebro?') }
 const ALIAS: Record<string, SegmentoTaller> = { agentes: 'terminales', servidores: 'maquina', servicios: 'maquina', archivos: 'memoria' }
 /** El segmento al que lleva un id (nuevo o viejo); null si no es del Taller. */
 export function aSegmento(v: unknown): SegmentoTaller | null {

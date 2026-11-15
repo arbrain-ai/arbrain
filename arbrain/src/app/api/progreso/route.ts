@@ -1,4 +1,5 @@
 import { alDaemon, NOCACHE, soloAppCliente } from '@/lib/daemon-local'
+import { tr } from '@/shared/i18n'
 
 // Conectar con arbrain.ai (puente de seguimiento, 21 oct 2026): estado + vista previa exacta (GET) y
 // vincular (conectar de un clic) / conectar / ajustes / enviar / desconectar (POST {accion}). Todas menos desconectar
@@ -19,7 +20,7 @@ export async function POST(request: Request) {
   if (no) return no
   const body = await request.json().catch(() => ({})) as Record<string, unknown>
   const accion = String(body.accion ?? '')
-  if (!ACCIONES.has(accion)) return Response.json({ error: 'accion: vincular, conectar, ajustes, enviar o desconectar.' }, { status: 400, headers: NOCACHE })
+  if (!ACCIONES.has(accion)) return Response.json({ error: tr('accion: vincular, conectar, ajustes, enviar o desconectar.') }, { status: 400, headers: NOCACHE })
   const { accion: _a, ...resto } = body
   void _a
   return alDaemon(`/progreso/${accion}`, { method: 'POST', confirmar: accion !== 'desconectar', body: JSON.stringify(resto), plazoMs: 20_000 })

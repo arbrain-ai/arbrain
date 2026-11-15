@@ -2,6 +2,7 @@
 // Consultar nunca muestra diálogos; pedir solo ocurre por un clic o cuando una función lo
 // necesita en ese momento (`asegurarPermiso`), y solo si macOS aún no decidió.
 import { isDesktopRuntime } from '@/lib/local-first/runtime'
+import { trMarca } from '@/shared/i18n'
 
 export type PermisoId =
   | 'microfono' | 'voz' | 'accesibilidad' | 'pantalla' | 'automatizacion'
@@ -40,15 +41,15 @@ export interface FichaPermiso {
 
 /** Qué es y para qué lo usa Arbrain, en una línea. El orden de aquí es el de la pantalla. */
 export const FICHAS: Record<PermisoId, FichaPermiso> = {
-  microfono: { titulo: 'Micrófono', para: 'Hablarle a Levy y dictar notas de voz en el chat.', grupo: 'voz' },
-  voz: { titulo: 'Reconocimiento de voz', para: 'Escuchar «Oye Levy» y transcribir lo que dices.', grupo: 'voz' },
-  accesibilidad: { titulo: 'Accesibilidad', para: 'Que Levy opere otras apps por ti: clics, teclas y ventanas.', grupo: 'operar' },
-  pantalla: { titulo: 'Grabación de pantalla', para: 'Que Levy vea lo que tienes abierto cuando le pides ayuda con ello.', grupo: 'operar' },
-  automatizacion: { titulo: 'Automatización', para: 'Controlar System Events y Chrome con AppleScript para tareas repetidas.', grupo: 'operar' },
-  entrada: { titulo: 'Monitoreo de entrada', para: 'Atajos de teclado globales aunque Arbrain no esté al frente.', grupo: 'operar' },
-  notificaciones: { titulo: 'Notificaciones', para: 'Avisarte cuando un agente termina o un cron necesita tu decisión.', grupo: 'avisos' },
-  disco: { titulo: 'Acceso total al disco', para: 'Leer tus carpetas (Documentos, Escritorio, Descargas) sin preguntar una por una.', grupo: 'avisos' },
-  camara: { titulo: 'Cámara', para: 'Sin uso hoy: Arbrain no la pide.', grupo: 'sin_uso' },
+  microfono: { titulo: trMarca('Micrófono'), para: trMarca('Hablarle a Levy y dictar notas de voz en el chat.'), grupo: 'voz' },
+  voz: { titulo: trMarca('Reconocimiento de voz'), para: trMarca('Escuchar «Oye Levy» y transcribir lo que dices.'), grupo: 'voz' },
+  accesibilidad: { titulo: trMarca('Accesibilidad'), para: trMarca('Que Levy opere otras apps por ti: clics, teclas y ventanas.'), grupo: 'operar' },
+  pantalla: { titulo: trMarca('Grabación de pantalla'), para: trMarca('Que Levy vea lo que tienes abierto cuando le pides ayuda con ello.'), grupo: 'operar' },
+  automatizacion: { titulo: trMarca('Automatización'), para: trMarca('Controlar System Events y Chrome con AppleScript para tareas repetidas.'), grupo: 'operar' },
+  entrada: { titulo: trMarca('Monitoreo de entrada'), para: trMarca('Atajos de teclado globales aunque Arbrain no esté al frente.'), grupo: 'operar' },
+  notificaciones: { titulo: trMarca('Notificaciones'), para: trMarca('Avisarte cuando un agente termina o un cron necesita tu decisión.'), grupo: 'avisos' },
+  disco: { titulo: trMarca('Acceso total al disco'), para: trMarca('Leer tus carpetas (Documentos, Escritorio, Descargas) sin preguntar una por una.'), grupo: 'avisos' },
+  camara: { titulo: trMarca('Cámara'), para: trMarca('Sin uso hoy: Arbrain no la pide.'), grupo: 'sin_uso' },
 }
 
 /**
@@ -57,7 +58,7 @@ export const FICHAS: Record<PermisoId, FichaPermiso> = {
  * Grabación de pantalla a su nombre la primera vez que lo enciendes. Por eso para Arbrain van a «Sin uso» y no se
  * ofrece «Permitir» (darlos aquí no enciende nada). La instalación original los ve como siempre.
  */
-export const PARA_OPERAR_EN_CLIENTE = 'Arbrain no lo usa: computer use lo pide a nombre de «ArbrainManos» la primera vez que lo enciendes.'
+export const PARA_OPERAR_EN_CLIENTE = trMarca('Arbrain no lo usa: computer use lo pide a nombre de «ArbrainManos» la primera vez que lo enciendes.')
 
 export function fichaEnEdicion(id: PermisoId, cliente: boolean): FichaPermiso {
   const f = FICHAS[id]
@@ -66,10 +67,10 @@ export function fichaEnEdicion(id: PermisoId, cliente: boolean): FichaPermiso {
 }
 
 export const GRUPOS: Array<{ id: FichaPermiso['grupo']; titulo: string }> = [
-  { id: 'voz', titulo: 'Para hablar con Levy' },
-  { id: 'operar', titulo: 'Para que Levy opere tu Mac' },
-  { id: 'avisos', titulo: 'Avisos y archivos' },
-  { id: 'sin_uso', titulo: 'Sin uso' },
+  { id: 'voz', titulo: trMarca('Para hablar con Levy') },
+  { id: 'operar', titulo: trMarca('Para que Levy opere tu Mac') },
+  { id: 'avisos', titulo: trMarca('Avisos y archivos') },
+  { id: 'sin_uso', titulo: trMarca('Sin uso') },
 ]
 
 async function invoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {

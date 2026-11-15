@@ -12,12 +12,13 @@ import { arrastrarFila } from '@/features/cabina/panel/arrastre-lista'
 import { DONDE_POR_DEFECTO, moverEnMenu, OCULTAS_POR_DEFECTO, SECCIONES_MENU, type Donde } from '@/features/cabina/panel/menu-orden'
 import { usePanelAjustes } from '@/features/cabina/panel/panel-ajustes'
 import { IconoSeccion, nombreSeccion, notaSeccion } from '@/features/cabina/panel/Secciones'
+import { tr, trMarca } from '@/shared/i18n'
 
 /** «Dónde abre Levy» (7 oct 2026): cuál de las ventanas de Arbrain recibe lo que Levy abre. Izquierda/derecha se miden en la pantalla, no por número de ventana. */
 const OPCIONES_DONDE: { id: Donde; titulo: string; nota: string }[] = [
-  { id: 'izquierda', titulo: 'La de la izquierda', nota: 'La ventana que esté más a la izquierda de la pantalla' },
-  { id: 'derecha', titulo: 'La de la derecha', nota: 'La que esté más a la derecha' },
-  { id: 'principal', titulo: 'El panel principal', nota: 'Siempre el panel de la ventana principal' },
+  { id: 'izquierda', titulo: trMarca('La de la izquierda'), nota: trMarca('La ventana que esté más a la izquierda de la pantalla') },
+  { id: 'derecha', titulo: trMarca('La de la derecha'), nota: trMarca('La que esté más a la derecha') },
+  { id: 'principal', titulo: trMarca('El panel principal'), nota: trMarca('Siempre el panel de la ventana principal') },
 ]
 
 export function SeccionPanel() {
@@ -47,10 +48,10 @@ export function SeccionPanel() {
     <div className="space-y-4" data-seccion-panel>
       <section className="solid-card overflow-hidden" data-donde-abre-levy>
         <div className="border-b border-border-subtle px-4 py-3 sm:px-5">
-          <h3 className="text-sm font-semibold text-foreground/90">Dónde abre Levy</h3>
-          <p className="mt-0.5 text-xs leading-snug text-muted">Lo que Levy abre (documentos, videos, vistas) cae en esa ventana. Si no existe, cae en el panel principal. La otra conserva lo tuyo, como el Día y el Taller.</p>
+          <h3 className="text-sm font-semibold text-foreground/90">{tr('Dónde abre Levy')}</h3>
+          <p className="mt-0.5 text-xs leading-snug text-muted">{tr('Lo que Levy abre (documentos, videos, vistas) cae en esa ventana. Si no existe, cae en el panel principal. La otra conserva lo tuyo, como el Día y el Taller.')}</p>
         </div>
-        <div role="radiogroup" aria-label="Dónde abre Levy" className="grid gap-2 p-3 sm:grid-cols-3 sm:p-4">
+        <div role="radiogroup" aria-label={tr('Dónde abre Levy')} className="grid gap-2 p-3 sm:grid-cols-3 sm:p-4">
           {OPCIONES_DONDE.map(o => {
             const activa = donde === o.id
             return (
@@ -63,8 +64,8 @@ export function SeccionPanel() {
                 onClick={() => { if (!activa) void guardar({ donde: o.id }) }}
                 className={`min-h-11 rounded-lg border px-3 py-2 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand ${activa ? 'border-primary/60 bg-primary/10' : 'border-border-subtle hover:bg-card-hover'}`}
               >
-                <span className="block text-[13.5px] font-medium text-foreground">{o.titulo}</span>
-                <span className="block text-xs leading-snug text-muted">{o.nota}</span>
+                <span className="block text-[13.5px] font-medium text-foreground">{tr(o.titulo)}</span>
+                <span className="block text-xs leading-snug text-muted">{tr(o.nota)}</span>
               </button>
             )
           })}
@@ -73,20 +74,20 @@ export function SeccionPanel() {
       <section className="solid-card overflow-hidden">
         <div className="flex items-center justify-between gap-4 border-b border-border-subtle px-4 py-3 sm:px-5">
           <div className="min-w-0">
-            <h3 className="text-sm font-semibold text-foreground/90">Secciones del «+»</h3>
-            <p className="mt-0.5 text-xs leading-snug text-muted">Arrastra para ordenar. Lo que apagues deja de salir en el «+» y su pestaña se cierra. Levy puede cambiarlo en vivo.</p>
+            <h3 className="text-sm font-semibold text-foreground/90">{tr('Secciones del «+»')}</h3>
+            <p className="mt-0.5 text-xs leading-snug text-muted">{tr('Arrastra para ordenar. Lo que apagues deja de salir en el «+» y su pestaña se cierra. Levy puede cambiarlo en vivo.')}</p>
           </div>
           <button
             type="button"
             onClick={() => { void restablecer() }}
             disabled={deFabrica}
             className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg border border-border-subtle px-3 text-xs text-foreground/80 transition-colors hover:bg-card-hover focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand disabled:opacity-40"
-            title="Volver al orden de siempre, con Equipo y Lo que llegó fuera del «+», y que Levy abra en la ventana de la izquierda"
+            title={tr('Volver al orden de siempre, con Equipo y Lo que llegó fuera del «+», y que Levy abra en la ventana de la izquierda')}
           >
-            <RotateCcw className="size-3.5" aria-hidden /> Restablecer
+            <RotateCcw className="size-3.5" aria-hidden /> {tr('Restablecer')}
           </button>
         </div>
-        <ul ref={lista} className="divide-y divide-border-subtle" aria-label="Secciones del panel">
+        <ul ref={lista} className="divide-y divide-border-subtle" aria-label={tr('Secciones del panel')}>
           {orden.map(id => {
             const visible = !ocultas.includes(id)
             return (
@@ -96,8 +97,8 @@ export function SeccionPanel() {
                   data-manija
                   onPointerDown={arrastrar(id)}
                   onKeyDown={teclas(id)}
-                  aria-label={`Mover ${nombreSeccion(id)} (flechas arriba y abajo)`}
-                  title="Arrastra para acomodar · ↑ ↓ con el teclado"
+                  aria-label={tr('Mover {seccion} (flechas arriba y abajo)', { seccion: tr(nombreSeccion(id)) })}
+                  title={tr('Arrastra para acomodar · ↑ ↓ con el teclado')}
                   className="grid size-9 shrink-0 cursor-grab touch-none place-items-center rounded-md text-muted hover:bg-card-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-brand"
                 >
                   <GripVertical className="size-4" aria-hidden />
@@ -105,16 +106,16 @@ export function SeccionPanel() {
                 <span className={`flex min-w-0 flex-1 items-center gap-2 ${visible ? '' : 'opacity-55'}`}>
                   <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-foreground/5 text-foreground"><IconoSeccion id={id} /></span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[13.5px] font-medium text-foreground">{nombreSeccion(id)}</span>
-                    <span className="block truncate text-xs text-muted">{notaSeccion(id)}</span>
+                    <span className="block truncate text-[13.5px] font-medium text-foreground">{tr(nombreSeccion(id))}</span>
+                    <span className="block truncate text-xs text-muted">{tr(notaSeccion(id))}</span>
                   </span>
                 </span>
-                <Interruptor activo={visible} onCambio={mostrar => alternar(id, mostrar)} etiqueta={visible ? `Ocultar ${nombreSeccion(id)} del «+»` : `Mostrar ${nombreSeccion(id)} en el «+»`} />
+                <Interruptor activo={visible} onCambio={mostrar => alternar(id, mostrar)} etiqueta={visible ? tr('Ocultar {seccion} del «+»', { seccion: tr(nombreSeccion(id)) }) : tr('Mostrar {seccion} en el «+»', { seccion: tr(nombreSeccion(id)) })} />
               </li>
             )
           })}
         </ul>
-        {error && <p role="alert" className="border-t border-border-subtle px-4 py-2 text-xs text-red-500 sm:px-5">No quedó guardado: {error}</p>}
+        {error && <p role="alert" className="border-t border-border-subtle px-4 py-2 text-xs text-red-500 sm:px-5">{tr('No quedó guardado: {error}', { error })}</p>}
       </section>
     </div>
   )

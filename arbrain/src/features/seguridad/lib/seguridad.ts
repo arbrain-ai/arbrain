@@ -4,6 +4,8 @@
  * node:test). Los datos vienen del daemon ya redactados; aquí solo se dan forma y textos.
  */
 
+import { localeIntl, tr, trMarca } from '@/shared/i18n'
+
 export type DecisionBitacora = 'hecho' | 'confirmado' | 'rechazado' | 'vencido' | 'sin_respuesta' | 'negado' | 'pausado'
 
 export interface AccionBitacora {
@@ -44,20 +46,20 @@ export interface EstadoPermisosLevy {
   misDatos?: { telefono: string; correo: string }
 }
 
-export const NOMBRE_MODO: Record<ModoPermisos, string> = { preguntar: 'Preguntar siempre', carpeta: 'Automático en mi carpeta', autonomo: 'Autónomo' }
+export const NOMBRE_MODO: Record<ModoPermisos, string> = { preguntar: trMarca('Preguntar siempre'), carpeta: trMarca('Automático en mi carpeta'), autonomo: trMarca('Autónomo') }
 
 /** Lo que ni Autónomo deja pasar, en una línea (para el menú del modelo, Ajustes y la franja de pausa). */
-export const RED_MINIMA = 'Dinero, tus secretos, sus propios permisos y los borrados grandes se niegan solos; mandar a muchas personas, o a alguien que no nombraste, te lo enseña antes.'
+export const RED_MINIMA = trMarca('Dinero, tus secretos, sus propios permisos y los borrados grandes se niegan solos; mandar a muchas personas, o a alguien que no nombraste, te lo enseña antes.')
 
 export const FICHAS_MODO: ReadonlyArray<{ modo: ModoPermisos; nombre: string; detalle: string; recomendado?: boolean }> = [
-  { modo: 'autonomo', nombre: 'Autónomo', recomendado: true, detalle: 'Hace lo que le pides sin pedirte un clic en cada paso. Nunca toca tu dinero ni tus contraseñas, no borra en masa y te enseña antes de mandar algo a muchas personas o a alguien que no nombraste.' },
-  { modo: 'carpeta', nombre: 'Automático en mi carpeta', detalle: 'Trabaja solo dentro de tu cerebro y de tus carpetas agregadas: lee, busca, crea y edita archivos, y ajusta sus instrucciones y skills. Te pregunta antes de lo que sale de tu computadora: comandos que instalan o usan internet, páginas nuevas, enviar, borrar y publicar.' },
-  { modo: 'preguntar', nombre: 'Preguntar siempre', detalle: 'Te pide tu clic para casi todo lo que no sea leer y escribir notas dentro de tu cerebro. Ideal para tus primeros días.' },
+  { modo: 'autonomo', nombre: trMarca('Autónomo'), recomendado: true, detalle: trMarca('Hace lo que le pides sin pedirte un clic en cada paso. Nunca toca tu dinero ni tus contraseñas, no borra en masa y te enseña antes de mandar algo a muchas personas o a alguien que no nombraste.') },
+  { modo: 'carpeta', nombre: trMarca('Automático en mi carpeta'), detalle: trMarca('Trabaja solo dentro de tu cerebro y de tus carpetas agregadas: lee, busca, crea y edita archivos, y ajusta sus instrucciones y skills. Te pregunta antes de lo que sale de tu computadora: comandos que instalan o usan internet, páginas nuevas, enviar, borrar y publicar.') },
+  { modo: 'preguntar', nombre: trMarca('Preguntar siempre'), detalle: trMarca('Te pide tu clic para casi todo lo que no sea leer y escribir notas dentro de tu cerebro. Ideal para tus primeros días.') },
 ]
 
 /** Aviso que se ve mientras Autónomo está activo (Ajustes, el menú del modelo y la franja de pausa). */
 export function avisoAutonomo(desde: number | null | undefined, ahora = Date.now()): string {
-  return `Modo Autónomo${desde ? ` desde ${horaDe(desde, ahora)}` : ''}: Levy actúa sin preguntarte, salvo la red mínima.`
+  return desde ? tr('Modo Autónomo desde {hora}: Levy actúa sin preguntarte, salvo la red mínima.', { hora: horaDe(desde, ahora) }) : tr('Modo Autónomo: Levy actúa sin preguntarte, salvo la red mínima.')
 }
 
 /** ¿El consentimiento guardado vale para el texto que empaqueta esta versión? Si no, hay que volver a aceptar. */
@@ -87,13 +89,13 @@ export function accionAlElegirLado(lado: LadoPermisos, e: Pick<EstadoPermisosLev
 
 /** Una línea bajo los dos lados: qué hace el modo en el que está. */
 export const LINEA_MODO: Record<ModoPermisos, string> = {
-  autonomo: 'Actúa sin pedirte un clic en cada paso, salvo la red mínima.',
-  carpeta: 'Trabaja en tu carpeta y te pregunta antes de lo que sale de tu computadora.',
-  preguntar: 'Te pide tu clic para casi todo.',
+  autonomo: trMarca('Actúa sin pedirte un clic en cada paso, salvo la red mínima.'),
+  carpeta: trMarca('Trabaja en tu carpeta y te pregunta antes de lo que sale de tu computadora.'),
+  preguntar: trMarca('Te pide tu clic para casi todo.'),
 }
 
 /** Dónde están «Pausar todo» y el modo (Ajustes y la bienvenida lo dicen igual). */
-export const DONDE_PAUSAR = 'Detiene en el acto lo que Levy esté haciendo (respuestas, rutinas, comandos) y no deja empezar nada hasta que reanudes. También está en el chat: toca el botón del modelo (abajo, junto a donde escribes) y elige «Pausar todo»; ahí mismo cambias entre Autónomo y Preguntar.'
+export const DONDE_PAUSAR = trMarca('Detiene en el acto lo que Levy esté haciendo (respuestas, rutinas, comandos) y no deja empezar nada hasta que reanudes. También está en el chat: toca el botón del modelo (abajo, junto a donde escribes) y elige «Pausar todo»; ahí mismo cambias entre Autónomo y Preguntar.')
 
 export interface CarpetaAbierta { ruta: string; abierta: number }
 
@@ -115,22 +117,22 @@ export const ENLACES_TOPE = {
 } as const
 
 export const ETIQUETA_DECISION: Record<DecisionBitacora, { texto: string; tono: 'ok' | 'aviso' | 'freno' }> = {
-  hecho: { texto: 'Hecho sin preguntar', tono: 'ok' },
-  confirmado: { texto: 'Lo confirmaste', tono: 'ok' },
-  rechazado: { texto: 'Lo rechazaste', tono: 'freno' },
-  vencido: { texto: 'Venció sin respuesta', tono: 'aviso' },
-  sin_respuesta: { texto: 'Esperó tu respuesta (no se hizo)', tono: 'aviso' },
-  negado: { texto: 'Bloqueado por Arbrain', tono: 'freno' },
-  pausado: { texto: 'En pausa', tono: 'aviso' },
+  hecho: { texto: trMarca('Hecho sin preguntar'), tono: 'ok' },
+  confirmado: { texto: trMarca('Lo confirmaste'), tono: 'ok' },
+  rechazado: { texto: trMarca('Lo rechazaste'), tono: 'freno' },
+  vencido: { texto: trMarca('Venció sin respuesta'), tono: 'aviso' },
+  sin_respuesta: { texto: trMarca('Esperó tu respuesta (no se hizo)'), tono: 'aviso' },
+  negado: { texto: trMarca('Bloqueado por Arbrain'), tono: 'freno' },
+  pausado: { texto: trMarca('En pausa'), tono: 'aviso' },
 }
 
 /** Nombre humano de la herramienta. */
 export function nombreHerramienta(h: string): string {
   const fijo: Record<string, string> = {
-    Bash: 'Terminal', Write: 'Escribir archivo', Edit: 'Editar archivo', MultiEdit: 'Editar archivo', NotebookEdit: 'Editar cuaderno',
-    WebFetch: 'Abrir página', Read: 'Leer archivo', Arbrain: 'Arbrain', mcp__cabina__despertador: 'Despertador',
+    Bash: trMarca('Terminal'), Write: trMarca('Escribir archivo'), Edit: trMarca('Editar archivo'), MultiEdit: trMarca('Editar archivo'), NotebookEdit: trMarca('Editar cuaderno'),
+    WebFetch: trMarca('Abrir página'), Read: trMarca('Leer archivo'), Arbrain: 'Arbrain', mcp__cabina__despertador: trMarca('Despertador'), Computadora: trMarca('Computadora'),
   }
-  if (fijo[h]) return fijo[h]
+  if (fijo[h]) return tr(fijo[h])
   const m = /^mcp__([^_]+(?:_[^_]+)*)__(.+)$/.exec(h)
   return m ? `${m[1]} · ${m[2].replace(/_/g, ' ')}` : h
 }
@@ -138,8 +140,8 @@ export function nombreHerramienta(h: string): string {
 /** Hora local corta; si no es de hoy, con la fecha. */
 export function horaDe(ts: number, ahora = Date.now()): string {
   const d = new Date(ts), hoy = new Date(ahora)
-  const hora = d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
-  return d.toDateString() === hoy.toDateString() ? hora : `${d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })} · ${hora}`
+  const hora = d.toLocaleTimeString(localeIntl(), { hour: '2-digit', minute: '2-digit' })
+  return d.toDateString() === hoy.toDateString() ? hora : `${d.toLocaleDateString(localeIntl(), { day: 'numeric', month: 'short' })} · ${hora}`
 }
 
 /** Dinero de OpenRouter (créditos en dólares). */
@@ -151,9 +153,9 @@ export function usd(n: number | null | undefined): string {
 /** Resumen en una línea del gasto de la llave de OpenRouter, o null si no hay dato. */
 export function resumenGasto(g: GastoOpenRouter | null): { linea: string; sinLimite: boolean; porcentaje: number | null } | null {
   if (!g) return null
-  const reinicio = g.reinicio === 'daily' ? ' al día' : g.reinicio === 'weekly' ? ' a la semana' : g.reinicio === 'monthly' ? ' al mes' : ''
-  if (g.limite === null) return { linea: `Llevas ${usd(g.usado)} con esta llave${g.usadoMes !== null ? ` (${usd(g.usadoMes)} este mes)` : ''}. No tiene límite.`, sinLimite: true, porcentaje: null }
+  const reinicio = g.reinicio === 'daily' ? tr(' al día') : g.reinicio === 'weekly' ? tr(' a la semana') : g.reinicio === 'monthly' ? tr(' al mes') : ''
+  if (g.limite === null) return { linea: g.usadoMes !== null ? tr('Llevas {usado} con esta llave ({mes} este mes). No tiene límite.', { usado: usd(g.usado), mes: usd(g.usadoMes) }) : tr('Llevas {usado} con esta llave. No tiene límite.', { usado: usd(g.usado) }), sinLimite: true, porcentaje: null }
   const usadoPeriodo = g.restante !== null ? Math.max(0, g.limite - g.restante) : g.usado
   const porcentaje = g.limite > 0 ? Math.min(100, Math.round((usadoPeriodo / g.limite) * 100)) : 100
-  return { linea: `Llevas ${usd(usadoPeriodo)} de ${usd(g.limite)}${reinicio}. Te quedan ${usd(g.restante)}.`, sinLimite: false, porcentaje }
+  return { linea: tr('Llevas {usado} de {limite}{reinicio}. Te quedan {restante}.', { usado: usd(usadoPeriodo), limite: usd(g.limite), reinicio, restante: usd(g.restante) }), sinLimite: false, porcentaje }
 }

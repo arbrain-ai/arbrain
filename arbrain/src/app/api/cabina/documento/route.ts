@@ -8,6 +8,8 @@ import { partirFrontmatter } from '@/features/cabina/documento/frontmatter'
 import { registrarArchivo } from '@/lib/imagenes/optimizar'
 import { rutaSensibleDirecto } from '@/lib/modo-directo/reglas'
 import { directoPrendido, respuestaOculta } from '@/lib/modo-directo/servidor'
+import { esDescargable, urlDescargaDocumento } from '@/lib/cabina/descarga-documento'
+import { tr } from '@/shared/i18n'
 
 // Vista «documento» del panel (3 oct 2026): lee un archivo permitido para pintarlo, lo guarda
 // (solo .md/.txt, sin pisar cambios ajenos) y da la versión contra la que marcar cambios.
@@ -40,7 +42,7 @@ async function portada(imagen: string | undefined, real: string) {
 /** Un video con lo que el visor necesita antes de cargarlo: fps (pasos de fotograma exactos), proporción y duración. */
 async function medio(real: string, pedida: string) {
   const [info, sonda] = await Promise.all([stat(real), sondear(real)])
-  return { ruta: real, pedida, archivo: path.basename(real), url: urlCruda(real), sonda, hash: `${info.size}-${info.mtimeMs}`, mtime: info.mtime.toISOString() }
+  return { ruta: real, pedida, archivo: path.basename(real), url: urlCruda(real), descarga: urlDescargaDocumento(real), sonda, hash: `${info.size}-${info.mtimeMs}`, mtime: info.mtime.toISOString() }
 }
 
 /** Una carpeta como entrega: lo que ella misma dice (entrega.json) o, si no, lo que se deduce por nombre. */
@@ -59,7 +61,8 @@ export async function GET(request: Request) {
     const doc = await resolverEnDisco(pedida)
     // Modo directo (7 nov 2026): con la transmisión prendida no salen .env, llaves ni rutas sensibles (lib/modo-directo/reglas.ts).
     if ((rutaSensibleDirecto(pedida) || rutaSensibleDirecto(doc.real)) && await directoPrendido()) return respuestaOculta('Ese archivo')
-    const base = { ruta: pedida, archivo: path.basename(doc.real), tipo: doc.tipo, editable: editable(doc.tipo) }
+    // «Descargar» (12 nov 2026): el enlace firmado a ESTE archivo, solo para lo que el visor pinta (lib/cabina/descarga-documento.ts).
+    const base = { ruta: pedida, archivo: path.basename(doc.real), tipo: doc.tipo, editable: editable(doc.tipo), ...(esDescargable(doc.tipo) ? { descarga: urlDescargaDocumento(doc.real) } : {}) }
     // Código y texto sin extensión conocida (8 oct 2026): solo con `codigo=1`, lo que pide el explorador de archivos, y solo
     // si es texto (sin bytes nulos) de hasta 1 MB. Se lee, nunca se edita: `editable` sigue en false.
     if (doc.tipo === 'codigo' || doc.tipo === 'otro') {
@@ -76,14 +79,14 @@ export async function GET(request: Request) {
       for (const o of otras) {
         try {
           const v = await resolverEnDisco(o)
-          if (v.tipo !== 'video') throw new ErrorDocumento('Solo se comparan videos con videos.')
+          if (v.tipo !== 'video') throw new ErrorDocumento(tr('Solo se comparan videos con videos.'))
           if (!quiero.includes(v.real)) { quiero.push(v.real); versiones.push(await medio(v.real, o)) }
-        } catch (e) { versiones.push({ ruta: o, archivo: path.basename(o), error: e instanceof Error ? e.message : 'No se pudo abrir esta versión.' }) }
+        } catch (e) { versiones.push({ ruta: o, archivo: path.basename(o), error: e instanceof Error ? e.message : tr('No se pudo abrir esta versión.') }) }
       }
       const info = await stat(doc.real)
       return Response.json({ ...base, url: urlCruda(doc.real), mtime: info.mtime.toISOString(), hash: `${info.size}-${info.mtimeMs}`, versiones }, { headers: NO_CACHE })
     }
-    if (doc.tipo === 'imagen' || doc.tipo === 'audio' || doc.tipo === 'pdf' || doc.tipo === 'html') {
+    if (doc.tipo === 'imagen' || doc.tipo === 'audio' || doc.tipo === 'pdf' || doc.tipo === 'html' || doc.tipo === 'docx' || doc.tipo === 'xlsx' || doc.tipo === 'csv') {
       const info = await stat(doc.real)
       const imagen = doc.tipo === 'imagen' ? await ficha(doc.real) : undefined
       const extra: Record<string, unknown> = {}
@@ -91,12 +94,12 @@ export async function GET(request: Request) {
         const hermanas = await hermanasImagen(doc.real)
         const i = Math.max(0, hermanas.findIndex(h => h.ruta === doc.real))
         const ventana = hermanas.slice(Math.max(0, i - 12), i + 13)
-        extra.hermanas = await Promise.all(ventana.map(async h => ({ nombre: h.nombre, ruta: h.ruta, url: urlCruda(h.ruta, path.dirname(h.ruta)), imagen: await ficha(h.ruta) })))
+        extra.hermanas = await Promise.all(ventana.map(async h => ({ nombre: h.nombre, ruta: h.ruta, url: urlCruda(h.ruta, path.dirname(h.ruta)), descarga: urlDescargaDocumento(h.ruta), imagen: await ficha(h.ruta) })))
         extra.totalHermanas = hermanas.length
         const otra = q.get('comparar')
         if (otra) {
-          try { const v = await resolverEnDisco(otra); if (v.tipo !== 'imagen') throw new ErrorDocumento('Solo se comparan imágenes con imágenes.'); extra.comparada = { ruta: v.real, archivo: path.basename(v.real), url: urlCruda(v.real), imagen: await ficha(v.real) } }
-          catch (e) { extra.comparada = { error: e instanceof Error ? e.message : 'No se pudo abrir la otra imagen.' } }
+          try { const v = await resolverEnDisco(otra); if (v.tipo !== 'imagen') throw new ErrorDocumento(tr('Solo se comparan imágenes con imágenes.')); extra.comparada = { ruta: v.real, archivo: path.basename(v.real), url: urlCruda(v.real), imagen: await ficha(v.real) } }
+          catch (e) { extra.comparada = { error: e instanceof Error ? e.message : tr('No se pudo abrir la otra imagen.') } }
         }
       }
       if (doc.tipo === 'audio') extra.sonda = await sondear(doc.real)
@@ -108,10 +111,10 @@ export async function GET(request: Request) {
     let comparado: { texto: string; etiqueta: string } | { error: string } | undefined
     if (comparar === 'HEAD') {
       const texto = await versionHead(doc.real)
-      comparado = texto == null ? { error: 'Ese archivo no tiene versión en git (HEAD) para comparar.' } : { texto, etiqueta: 'el último commit' }
+      comparado = texto == null ? { error: tr('Ese archivo no tiene versión en git (HEAD) para comparar.') } : { texto, etiqueta: tr('el último commit') }
     } else if (comparar) {
-      try { const otra = await resolverEnDisco(comparar); comparado = editable(otra.tipo) ? { texto: (await leerTexto(otra.real)).texto, etiqueta: path.basename(otra.real) } : { error: 'Solo se comparan .md y .txt.' } }
-      catch (e) { comparado = { error: e instanceof Error ? e.message : 'No se pudo leer la otra versión.' } }
+      try { const otra = await resolverEnDisco(comparar); comparado = editable(otra.tipo) ? { texto: (await leerTexto(otra.real)).texto, etiqueta: path.basename(otra.real) } : { error: tr('Solo se comparan .md y .txt.') } }
+      catch (e) { comparado = { error: e instanceof Error ? e.message : tr('No se pudo leer la otra versión.') } }
     }
     const tapa = await portada(datos.imagen, doc.real)
     return Response.json({ ...base, ...leido, frontmatter: datos, portada: tapa?.url ?? null, portadaImagen: tapa?.imagen ?? null, comparado }, { headers: NO_CACHE })
@@ -123,11 +126,11 @@ export async function PUT(request: Request) {
     await planningOwner()
     checkMutationOrigin(request)
     const body = await request.json().catch(() => null) as { ruta?: unknown; texto?: unknown; base?: unknown } | null
-    if (!body || typeof body.ruta !== 'string' || typeof body.texto !== 'string' || typeof body.base !== 'string') throw new ErrorDocumento('Se espera { ruta, texto, base }.')
+    if (!body || typeof body.ruta !== 'string' || typeof body.texto !== 'string' || typeof body.base !== 'string') throw new ErrorDocumento(tr('Se espera { ruta, texto, base }.'))
     const doc = await resolverEnDisco(body.ruta)
-    if (!editable(doc.tipo)) throw new ErrorDocumento('Desde el panel solo se editan .md y .txt.', 403)
+    if (!editable(doc.tipo)) throw new ErrorDocumento(tr('Desde el panel solo se editan .md y .txt.'), 403)
     const r = await guardarTexto(doc.real, body.texto, body.base)
-    if (r.conflicto) return Response.json({ error: 'El archivo cambió mientras editabas.', conflicto: true }, { status: 409, headers: NO_CACHE })
+    if (r.conflicto) return Response.json({ error: tr('El archivo cambió mientras editabas.'), conflicto: true }, { status: 409, headers: NO_CACHE })
     return Response.json({ ok: true, hash: r.hash, mtime: r.mtime }, { headers: NO_CACHE })
   } catch (error) { return fallo(error) }
 }

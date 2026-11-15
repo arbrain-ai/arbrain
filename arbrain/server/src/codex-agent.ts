@@ -19,12 +19,13 @@ import { entornoDeRuta, homeDeRuta, prepararHome } from './modelos/codex-proveed
 import type { SSEEvent, OpsSource, SessionOverrides } from './agent.js'
 import { esEdicionCliente, textoMotorApiApagado } from './edicion.js'
 import { CUENTA_ALTERNA_NO_DISPONIBLE, dirCodexAlterna } from './cuentas-alternas.js'
+import { tr, trMarca } from './i18n/tr.js'
 
 /** Edición cliente (AUDITORIA I4): Codex escribe solo en el workspace. La instalación de Daniel, acceso total como siempre. */
 const sandboxCodex = () => (esEdicionCliente() ? 'workspace-write' : 'danger-full-access') as 'workspace-write' | 'danger-full-access'
 
 /** Edición cliente: Codex no corre (no pasa por la guardia de los agentes). */
-export const MENSAJE_CODEX_CLIENTE = 'Codex no está disponible en esta edición: la guardia de Arbrain (tu confirmación, secretos negados, contenido de afuera tratado como datos) solo cubre a Claude.'
+export const MENSAJE_CODEX_CLIENTE = trMarca('Codex no está disponible en esta edición: la guardia de Arbrain (tu confirmación, secretos negados, contenido de afuera tratado como datos) solo cubre a Claude.')
 
 /** Identificador del espacio en el chat (chat_sessions.account, body.account). */
 export const CODEX_ACCOUNT = 'codex'
@@ -60,7 +61,7 @@ export function codexHomeFor(account?: string | null): string {
   if (account === CODEX_YT_ACCOUNT) {
     const yt = codexAccountHomes()[CODEX_YT_ACCOUNT]
     // Edición cliente: la cuenta alterna no existe; nunca se cae al ~/.codex principal en silencio.
-    if (!yt) throw new Error(CUENTA_ALTERNA_NO_DISPONIBLE)
+    if (!yt) throw new Error(tr(CUENTA_ALTERNA_NO_DISPONIBLE))
     return yt
   }
   return DEFAULT_CODEX_HOME
@@ -187,7 +188,7 @@ export function codexRuntime(): CodexRuntimePool {
 /** Bifurca el hilo Codex de una conversación (menú «⋯ → Bifurcar», 1 oct 2026): devuelve el id del hilo nuevo,
  *  con toda la historia del original. Mismos parámetros de ejecución que un turno normal de esa cuenta. */
 export async function forkCodexThread(threadId: string, account: string): Promise<string> {
-  if (esEdicionCliente()) throw new Error(MENSAJE_CODEX_CLIENTE)
+  if (esEdicionCliente()) throw new Error(tr(MENSAJE_CODEX_CLIENTE))
   const pool = codexRuntime()
   const model = codexCurrentModel(account)
   const runtimeModel = await pool.validateSelection(account, { model, effort: configEffort(codexHomeFor(account)) })
@@ -226,7 +227,7 @@ export async function* runCodexStream(
 ): AsyncGenerator<SSEEvent> {
   // Seguridad noche 21 oct (carril 2): en la edición cliente Codex correría con `approvalPolicy: 'never'` y sin la guardia
   // de Arbrain (confirmación humana, secretos negados, contenido de afuera = datos). Hasta que tenga su propia guardia, no corre.
-  if (esEdicionCliente()) { yield { type: 'error', message: MENSAJE_CODEX_CLIENTE }; return }
+  if (esEdicionCliente()) { yield { type: 'error', message: tr(MENSAJE_CODEX_CLIENTE) }; return }
   const pool = codexRuntime()
   const home = codexHomeFor(account)
   const model = selection ? selection.model : codexCurrentModel(account, overrides?.model)

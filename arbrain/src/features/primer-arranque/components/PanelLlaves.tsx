@@ -25,6 +25,8 @@ import {
   reprobarAlVolver, textoConectado, validarLlave, type EstadoLlaves, type EstadoSuscripcion, type NombreLlave, type PruebaLlave,
 } from '../lib/llaves'
 import { TopeDeGasto } from '@/features/seguridad/components/Seguridad'
+import { tr, trMarca, trMarcas } from '@/shared/i18n'
+import { trNodos } from '@/shared/i18n'
 
 type Modo = 'openrouter' | 'api'
 
@@ -34,21 +36,21 @@ type Modo = 'openrouter' | 'api'
  */
 const OPCIONES: Record<Modo, { titulo: string; resumen: string; etiqueta?: string; pasos: string[]; placeholder: string; tipo: 'claude' | 'openrouter'; nombre: NombreLlave }> = {
   openrouter: {
-    titulo: 'Pegar una llave de OpenRouter', resumen: 'Si ya tienes una llave «sk-or-» creada a mano.',
-    pasos: [
+    titulo: trMarca('Pegar una llave de OpenRouter'), resumen: trMarca('Si ya tienes una llave «sk-or-» creada a mano.'),
+    pasos: trMarcas([
       'Entra a openrouter.ai, crea tu cuenta y agrega crédito.',
       'Ve a «Keys» y crea una llave nueva. Ponle un nombre como «Arbrain».',
       'Cópiala y pégala aquí. Empieza con «sk-or-».',
-    ],
+    ]),
     placeholder: 'sk-or-v1-…', tipo: 'openrouter', nombre: 'OPENROUTER_API_KEY',
   },
   api: {
-    titulo: 'API key de Anthropic', resumen: 'Directo con Anthropic; pagas solo lo que usas.',
-    pasos: [
+    titulo: trMarca('API key de Anthropic'), resumen: trMarca('Directo con Anthropic; pagas solo lo que usas.'),
+    pasos: trMarcas([
       'Entra a console.anthropic.com e inicia sesión (o crea tu cuenta).',
       'Ve a «API keys» y crea una nueva. Ponle un nombre como «Arbrain».',
       'Cópiala y pégala aquí. Empieza con «sk-ant-».',
-    ],
+    ]),
     placeholder: 'sk-ant-api03-…', tipo: 'claude', nombre: 'ANTHROPIC_API_KEY',
   },
 }
@@ -59,7 +61,7 @@ function useLlaves() {
   const [error, setError] = useState<string | null>(null)
   const recargar = useCallback(async () => {
     if (!hayApp()) return
-    try { setEstado(await llavesEstado()); setError(null) } catch (e) { setError(e instanceof Error ? e.message : 'No pude leer el llavero.') }
+    try { setEstado(await llavesEstado()); setError(null) } catch (e) { setError(e instanceof Error ? e.message : tr('No pude leer el llavero.')) }
   }, [])
   useEffect(() => { void recargar() }, [recargar])
   return { estado, setEstado, error, setError, recargar }
@@ -170,12 +172,12 @@ export function PanelLlaves({ onEstado, compacto = false, control }: { onEstado?
   useReprobarAlVolver(app && listo && reprobarAlVolver(prueba), probar)
 
   if (!app) {
-    return <Aviso tono="info">Las llaves se guardan desde la app de Arbrain, en el llavero de tu sistema. Ábrela para continuar; este navegador no puede guardarlas.</Aviso>
+    return <Aviso tono="info">{tr('Las llaves se guardan desde la app de Arbrain, en el llavero de tu sistema. Ábrela para continuar; este navegador no puede guardarlas.')}</Aviso>
   }
   if (estado && !estado.disponible) {
-    return <Aviso tono="alerta">Tu sistema no tiene un llavero disponible{estado.error ? ` (${estado.error})` : ''}. En Linux instala GNOME Keyring o KWallet y vuelve a abrir Arbrain. Por seguridad, Arbrain no guarda llaves en archivos.</Aviso>
+    return <Aviso tono="alerta">{estado.error ? tr('Tu sistema no tiene un llavero disponible ({error}). En Linux instala GNOME Keyring o KWallet y vuelve a abrir Arbrain. Por seguridad, Arbrain no guarda llaves en archivos.', { error: estado.error }) : tr('Tu sistema no tiene un llavero disponible. En Linux instala GNOME Keyring o KWallet y vuelve a abrir Arbrain. Por seguridad, Arbrain no guarda llaves en archivos.')}</Aviso>
   }
-  const almacen = NOMBRE_ALMACEN[estado?.almacen ?? ''] ?? 'el llavero de tu sistema'
+  const almacen = tr(NOMBRE_ALMACEN[estado?.almacen ?? ''] ?? trMarca('el llavero de tu sistema'))
   const actual = OPCIONES[modo]
   const conOpenRouter = !!llaveDe(estado, 'OPENROUTER_API_KEY')?.presente
   const alGuardar = (e: EstadoLlaves) => { setEstado(e); setPrueba(null); void probar() }
@@ -186,8 +188,8 @@ export function PanelLlaves({ onEstado, compacto = false, control }: { onEstado?
         <p className="flex items-start gap-2 text-[13px] leading-relaxed text-muted">
           <ShieldCheck className="mt-0.5 size-4 shrink-0 text-brand-ink" aria-hidden />
           <span>{estado?.almacen === 'archivo-local'
-            ? <>Se guardan en {almacen} (solo tu usuario lo lee y los agentes no tienen acceso), nunca en esta pantalla. Arbrain solo las usa para hablar con el modelo en tu nombre.</>
-            : <>Se guardan en {almacen}, nunca en un archivo ni en esta pantalla. Arbrain solo las usa para hablar con el modelo en tu nombre.</>}</span>
+            ? tr('Se guardan en {almacen} (solo tu usuario lo lee y los agentes no tienen acceso), nunca en esta pantalla. Arbrain solo las usa para hablar con el modelo en tu nombre.', { almacen })
+            : tr('Se guardan en {almacen}, nunca en un archivo ni en esta pantalla. Arbrain solo las usa para hablar con el modelo en tu nombre.', { almacen })}</span>
         </p>
       )}
 
@@ -195,11 +197,11 @@ export function PanelLlaves({ onEstado, compacto = false, control }: { onEstado?
         onProbar={probar} onCambio={() => { setPrueba(null); void sub.recargar(true).then(() => probar()) }} onError={setError} />
 
       {guardadas.length > 0 && (
-        <section className="rounded-2xl border border-border-subtle bg-surface/70 p-4" aria-label="Llaves guardadas">
+        <section className="rounded-2xl border border-border-subtle bg-surface/70 p-4" aria-label={tr('Llaves guardadas')}>
           <ul className="space-y-2">
             {guardadas.map(m => (
               <li key={m} className="flex flex-wrap items-center justify-between gap-2">
-                <span className="min-w-0 text-[13.5px] font-medium text-foreground">{m === 'openrouter' ? 'Cuenta de OpenRouter' : OPCIONES[m].titulo}</span>
+                <span className="min-w-0 text-[13.5px] font-medium text-foreground">{m === 'openrouter' ? tr('Cuenta de OpenRouter') : tr(OPCIONES[m].titulo)}</span>
                 <span className="flex items-center gap-1.5">
                   <EstadoGuardada vista={llaveDe(estado, OPCIONES[m].nombre)?.vista ?? null} />
                   <BotonQuitar nombre={OPCIONES[m].nombre} onHecho={(e) => { setEstado(e); setPrueba(null); if (m === 'openrouter') setConectada(null) }} onError={setError} />
@@ -209,11 +211,11 @@ export function PanelLlaves({ onEstado, compacto = false, control }: { onEstado?
           </ul>
           {conectada && conOpenRouter && <p className="mt-2 flex items-center gap-2 text-[13px] text-foreground/90" role="status"><Check className="size-4 shrink-0 text-success" aria-hidden /> {conectada}</p>}
           {!conSuscripcion && <button type="button" className="btn-secondary mt-3 !px-3 !py-2 text-[13px]" onClick={probar} disabled={probando}>
-            {probando ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Zap className="size-3.5" aria-hidden />} Probar conexión
+            {probando ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Zap className="size-3.5" aria-hidden />} {tr('Probar conexión')}
           </button>}
-          {probando && !conSuscripcion && <p className="mt-2 text-[12.5px] text-muted" role="status">Probando con un mensaje corto al modelo…</p>}
+          {probando && !conSuscripcion && <p className="mt-2 text-[12.5px] text-muted" role="status">{tr('Probando con un mensaje corto al modelo…')}</p>}
           {prueba && !conSuscripcion && <ResultadoPrueba prueba={prueba} cobra={cobra} onReintentar={probar} probando={probando} />}
-          {conSuscripcion && <p className="mt-2 text-[12.5px] text-muted">Guardada, pero sin usar: Levy habla con tu Claude Code.</p>}
+          {conSuscripcion && <p className="mt-2 text-[12.5px] text-muted">{tr('Guardada, pero sin usar: Levy habla con tu Claude Code.')}</p>}
         </section>
       )}
 
@@ -223,11 +225,11 @@ export function PanelLlaves({ onEstado, compacto = false, control }: { onEstado?
 
       <details className="group rounded-2xl border border-border-subtle bg-surface/70">
         <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 text-[13.5px] font-medium text-foreground/90 [&::-webkit-details-marker]:hidden">
-          <span>Otras formas de conectar <span className="font-normal text-muted">(pegar una llave)</span></span>
+          <span>{tr('Otras formas de conectar')} <span className="font-normal text-muted">{tr('(pegar una llave)')}</span></span>
           <ChevronDown className="size-4 shrink-0 text-muted transition-transform group-open:rotate-180" aria-hidden />
         </summary>
         <div className="px-4 pb-4">
-          <div role="radiogroup" aria-label="Otra forma de conectar" className="grid gap-2">
+          <div role="radiogroup" aria-label={tr('Otra forma de conectar')} className="grid gap-2">
             {ORDEN.map(m => {
               const o = OPCIONES[m], activa = modo === m, ya = guardadas.includes(m)
               return (
@@ -235,25 +237,25 @@ export function PanelLlaves({ onEstado, compacto = false, control }: { onEstado?
                   className={`flex w-full items-start gap-3 rounded-xl border px-3.5 py-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-brand ${activa ? 'border-brand/60 bg-brand/[0.07]' : 'border-border-subtle hover:bg-foreground/[0.03]'}`}>
                   <span className={`mt-0.5 grid size-4 shrink-0 place-items-center rounded-full border ${activa ? 'border-brand bg-brand' : 'border-foreground/25'}`} aria-hidden>{activa && <span className="size-1.5 rounded-full bg-white" />}</span>
                   <span className="min-w-0">
-                    <span className="flex flex-wrap items-center gap-2 text-[13.5px] font-semibold text-foreground">{o.titulo}
-                      {o.etiqueta && <span className="rounded-full bg-brand/12 px-2 py-0.5 text-[11px] font-medium text-brand-ink">{o.etiqueta}</span>}
-                      {ya && <span className="rounded-full bg-success/12 px-2 py-0.5 text-[11px] font-medium text-success">Guardada</span>}
+                    <span className="flex flex-wrap items-center gap-2 text-[13.5px] font-semibold text-foreground">{tr(o.titulo)}
+                      {o.etiqueta && <span className="rounded-full bg-brand/12 px-2 py-0.5 text-[11px] font-medium text-brand-ink">{tr(o.etiqueta)}</span>}
+                      {ya && <span className="rounded-full bg-success/12 px-2 py-0.5 text-[11px] font-medium text-success">{tr('Guardada')}</span>}
                     </span>
-                    <span className="mt-0.5 block text-[12.5px] leading-snug text-muted">{o.resumen}</span>
+                    <span className="mt-0.5 block text-[12.5px] leading-snug text-muted">{tr(o.resumen)}</span>
                   </span>
                 </button>
               )
             })}
           </div>
           {guardadas.includes(modo) ? (
-            <p className="mt-3 text-[12.5px] text-muted">Ya tienes esta llave guardada. Para cambiarla, quítala arriba y pega la nueva.</p>
+            <p className="mt-3 text-[12.5px] text-muted">{tr('Ya tienes esta llave guardada. Para cambiarla, quítala arriba y pega la nueva.')}</p>
           ) : <>
             <ol className="mt-4 space-y-1.5 text-[13px] leading-relaxed text-muted">
               {actual.pasos.map((p, i) => (
-                <li key={i} className="flex gap-2"><span className="mt-px grid size-5 shrink-0 place-items-center rounded-full bg-brand/12 text-[11px] font-semibold text-brand-ink">{i + 1}</span><span>{p}</span></li>
+                <li key={i} className="flex gap-2"><span className="mt-px grid size-5 shrink-0 place-items-center rounded-full bg-brand/12 text-[11px] font-semibold text-brand-ink">{i + 1}</span><span>{tr(p)}</span></li>
               ))}
             </ol>
-            <CampoLlave key={modo} placeholder={actual.placeholder} etiqueta={actual.titulo} tipo={actual.tipo}
+            <CampoLlave key={modo} placeholder={actual.placeholder} etiqueta={tr(actual.titulo)} tipo={actual.tipo}
               onGuardada={alGuardar} onError={setError} />
           </>}
         </div>
@@ -262,7 +264,7 @@ export function PanelLlaves({ onEstado, compacto = false, control }: { onEstado?
       {/* Seguridad del alumno (12 oct 2026): tope de gasto de la llave, en el primer arranque y en Ajustes › Llaves. */}
       {conLlave && !conSuscripcion && <TopeDeGasto compacto={compacto} />}
 
-      {error && <Aviso tono="alerta">{error}</Aviso>}
+      {error && <Aviso tono="alerta">{tr(error)}</Aviso>}
     </div>
   )
 }
@@ -291,46 +293,46 @@ function MiClaudeCode({ sub, buscando, onRecargar, onLogin, prueba, probando, on
   const plan = nombrePlan(sub.plan)
   const cambiar = async (motor: 'suscripcion' | 'llave') => {
     setCambiando(true); onError(null)
-    try { await elegirMotor(motor); onCambio() } catch (e) { onError(e instanceof Error ? e.message : 'No pude cambiar con qué habla Levy.'); void onRecargar(true) } finally { setCambiando(false) }
+    try { await elegirMotor(motor); onCambio() } catch (e) { onError(e instanceof Error ? e.message : tr('No pude cambiar con qué habla Levy.')); void onRecargar(true) } finally { setCambiando(false) }
   }
   const entrar = async () => {
     setAbriendo(true); onError(null)
-    try { onLogin(await iniciarSesionClaude()) } catch (e) { onError(e instanceof Error ? e.message : 'No pude abrir el inicio de sesión de Claude.') } finally { setAbriendo(false) }
+    try { onLogin(await iniciarSesionClaude()) } catch (e) { onError(e instanceof Error ? e.message : tr('No pude abrir el inicio de sesión de Claude.')) } finally { setAbriendo(false) }
   }
   const esperando = sub.login?.estado === 'esperando'
   const botonEntrar = (principal: boolean) => (
     <button type="button" className={`${principal ? 'btn-primary min-h-11 !px-5 text-[14.5px]' : 'btn-secondary !px-3 !py-2 text-[13px]'} justify-center`} onClick={() => void entrar()} disabled={abriendo || esperando}>
-      {abriendo || esperando ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Terminal className="size-4" aria-hidden />} {esperando ? 'Esperando tu inicio de sesión…' : 'Iniciar sesión con Claude'}
+      {abriendo || esperando ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Terminal className="size-4" aria-hidden />} {esperando ? tr('Esperando tu inicio de sesión…') : tr('Iniciar sesión con Claude')}
     </button>
   )
   const revisar = (
     <button type="button" className="min-h-10 rounded-lg px-3 text-[13px] text-muted hover:bg-foreground/[0.06] hover:text-foreground" onClick={() => void onRecargar(true)} disabled={buscando}>
-      {buscando ? 'Revisando…' : 'Revisar de nuevo'}
+      {buscando ? tr('Revisando…') : tr('Revisar de nuevo')}
     </button>
   )
-  const privacidad = <p className="mt-2 text-[12.5px] leading-relaxed text-muted">Arbrain no ve ni guarda tu sesión: la abre tu propio Claude Code. Tampoco le pasa llaves de API, aunque tengas <code className="font-mono">ANTHROPIC_API_KEY</code> en tu sistema: así usa tu plan y no te cobra aparte. Las rutinas automáticas no corren con tu plan.</p>
+  const privacidad = <p className="mt-2 text-[12.5px] leading-relaxed text-muted">{trNodos('Arbrain no ve ni guarda tu sesión: la abre tu propio Claude Code. Tampoco le pasa llaves de API, aunque tengas {variable} en tu sistema: así usa tu plan y no te cobra aparte. Las rutinas automáticas no corren con tu plan.', { variable: <code className="font-mono">ANTHROPIC_API_KEY</code> })}</p>
 
   if (sub.activo) {
     return (
-      <section className="rounded-2xl border border-brand/40 bg-brand/[0.06] p-4" aria-label="Mi Claude Code">
-        <h3 className="flex flex-wrap items-center gap-2 text-sm font-semibold text-foreground"><Terminal className="size-4 text-brand-ink" aria-hidden /> Mi Claude Code
-          <span className="rounded-full bg-success/12 px-2 py-0.5 text-[11px] font-medium text-success">En uso</span></h3>
-        <p className="mt-1 text-[13px] leading-relaxed text-foreground/90">Levy habla con tu Claude Code{plan ? ` y tu plan ${plan}` : ' y tu suscripción'}.</p>
-        {!sub.sesion && <Aviso tono="alerta" className="mt-3">{esperando ? sub.login?.mensaje : sub.mensaje ?? 'Tu Claude Code no tiene la sesión iniciada.'}</Aviso>}
+      <section className="rounded-2xl border border-brand/40 bg-brand/[0.06] p-4" aria-label={tr('Mi Claude Code')}>
+        <h3 className="flex flex-wrap items-center gap-2 text-sm font-semibold text-foreground"><Terminal className="size-4 text-brand-ink" aria-hidden /> {tr('Mi Claude Code')}
+          <span className="rounded-full bg-success/12 px-2 py-0.5 text-[11px] font-medium text-success">{tr('En uso')}</span></h3>
+        <p className="mt-1 text-[13px] leading-relaxed text-foreground/90">{plan ? tr('Levy habla con tu Claude Code y tu plan {plan}.', { plan }) : tr('Levy habla con tu Claude Code y tu suscripción.')}</p>
+        {!sub.sesion && <Aviso tono="alerta" className="mt-3">{tr(esperando ? sub.login?.mensaje ?? '' : sub.mensaje ?? trMarca('Tu Claude Code no tiene la sesión iniciada.'))}</Aviso>}
         {privacidad}
         <div className="mt-3 flex flex-wrap gap-2">
           <button type="button" className="btn-secondary !px-3 !py-2 text-[13px]" onClick={() => void onProbar()} disabled={probando}>
-            {probando ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Zap className="size-3.5" aria-hidden />} Probar conexión
+            {probando ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Zap className="size-3.5" aria-hidden />} {tr('Probar conexión')}
           </button>
           {!sub.sesion && botonEntrar(false)}
           <button type="button" className="min-h-10 rounded-lg px-3 text-[13px] text-muted hover:bg-foreground/[0.06] hover:text-foreground" onClick={() => void cambiar('llave')} disabled={cambiando}>
-            {cambiando ? 'Cambiando…' : 'Usar una llave en su lugar'}
+            {cambiando ? tr('Cambiando…') : tr('Usar una llave en su lugar')}
           </button>
         </div>
-        {probando && <p className="mt-2 text-[12.5px] text-muted" role="status">Probando con un mensaje corto a tu Claude Code…</p>}
+        {probando && <p className="mt-2 text-[12.5px] text-muted" role="status">{tr('Probando con un mensaje corto a tu Claude Code…')}</p>}
         {prueba && (prueba.ok
-          ? <p className="mt-3 flex items-center gap-2 text-[13px] text-success" role="status"><Check className="size-4" aria-hidden /> Conexión lista: tu Claude Code respondió{prueba.ms ? ` en ${(prueba.ms / 1000).toFixed(1)} s` : ''}.</p>
-          : <Aviso tono="alerta" className="mt-3">{(prueba.code && MENSAJE_PRUEBA[prueba.code]) || prueba.error || 'No pude probar la conexión.'}</Aviso>)}
+          ? <p className="mt-3 flex items-center gap-2 text-[13px] text-success" role="status"><Check className="size-4" aria-hidden /> {prueba.ms ? tr('Conexión lista: tu Claude Code respondió en {s} s.', { s: (prueba.ms / 1000).toFixed(1) }) : tr('Conexión lista: tu Claude Code respondió.')}</p>
+          : <Aviso tono="alerta" className="mt-3">{tr((prueba.code && MENSAJE_PRUEBA[prueba.code]) || prueba.error || trMarca('No pude probar la conexión.'))}</Aviso>)}
       </section>
     )
   }
@@ -338,13 +340,13 @@ function MiClaudeCode({ sub, buscando, onRecargar, onLogin, prueba, probando, on
   if (sub.sesion) {
     // Con sesión pero sin conectar: la persona eligió antes «usar una llave» (o ya tiene una). Un clic lo cambia.
     return (
-      <section className="rounded-2xl border border-brand/40 bg-brand/[0.06] p-4" aria-label="Mi Claude Code">
-        <h3 className="flex flex-wrap items-center gap-2 text-sm font-semibold text-foreground"><Terminal className="size-4 text-brand-ink" aria-hidden /> Usa tu Claude Code
-          <span className="rounded-full bg-brand/12 px-2 py-0.5 text-[11px] font-medium text-brand-ink">Recomendado si tienes Pro o Max</span></h3>
-        <p className="mt-1 text-[13px] leading-relaxed text-foreground/90">Encontré tu Claude Code con tu sesión iniciada{plan ? ` (plan ${plan})` : ''}. Levy puede hablar con él y usar lo que ya pagas, sin llaves.</p>
+      <section className="rounded-2xl border border-brand/40 bg-brand/[0.06] p-4" aria-label={tr('Mi Claude Code')}>
+        <h3 className="flex flex-wrap items-center gap-2 text-sm font-semibold text-foreground"><Terminal className="size-4 text-brand-ink" aria-hidden /> {tr('Usa tu Claude Code')}
+          <span className="rounded-full bg-brand/12 px-2 py-0.5 text-[11px] font-medium text-brand-ink">{tr('Recomendado si tienes Pro o Max')}</span></h3>
+        <p className="mt-1 text-[13px] leading-relaxed text-foreground/90">{plan ? tr('Encontré tu Claude Code con tu sesión iniciada (plan {plan}). Levy puede hablar con él y usar lo que ya pagas, sin llaves.', { plan }) : tr('Encontré tu Claude Code con tu sesión iniciada. Levy puede hablar con él y usar lo que ya pagas, sin llaves.')}</p>
         {privacidad}
         <button type="button" className="btn-primary mt-3 min-h-11 w-full justify-center !px-5 text-[14.5px] sm:w-auto" onClick={() => void cambiar('suscripcion')} disabled={cambiando}>
-          {cambiando ? <><Loader2 className="size-4 animate-spin" aria-hidden /> Conectando…</> : <><Terminal className="size-4" aria-hidden /> Usar mi Claude Code</>}
+          {cambiando ? <><Loader2 className="size-4 animate-spin" aria-hidden /> {tr('Conectando…')}</> : <><Terminal className="size-4" aria-hidden /> {tr('Usar mi Claude Code')}</>}
         </button>
       </section>
     )
@@ -353,16 +355,16 @@ function MiClaudeCode({ sub, buscando, onRecargar, onLogin, prueba, probando, on
   // Sin sesión (o sin Claude Code): un botón y una línea de qué falta. Nada que copiar en una terminal.
   const linea = esperando ? sub.login?.mensaje : sub.login?.estado === 'fallo' ? sub.login.mensaje : sub.mensaje
   return (
-    <section className="rounded-2xl border border-border-subtle bg-surface/70 p-4" aria-label="Mi Claude Code">
-      <h3 className="flex flex-wrap items-center gap-2 text-sm font-semibold text-foreground"><Terminal className="size-4 text-brand-ink" aria-hidden /> ¿Pagas Claude Pro o Max?
-        <span className="font-normal text-muted">Usa tu cuenta</span></h3>
-      {linea && <p className="mt-1 text-[13px] leading-relaxed text-foreground/90" role="status" data-suscripcion-code={sub.code}>{linea}</p>}
-      {!sub.instalado && !esperando && <p className="mt-1 text-[12.5px] text-muted">El botón instala Claude Code (el instalador oficial de Anthropic) y abre tu navegador para entrar.</p>}
+    <section className="rounded-2xl border border-border-subtle bg-surface/70 p-4" aria-label={tr('Mi Claude Code')}>
+      <h3 className="flex flex-wrap items-center gap-2 text-sm font-semibold text-foreground"><Terminal className="size-4 text-brand-ink" aria-hidden /> {tr('¿Pagas Claude Pro o Max?')}
+        <span className="font-normal text-muted">{tr('Usa tu cuenta')}</span></h3>
+      {linea && <p className="mt-1 text-[13px] leading-relaxed text-foreground/90" role="status" data-suscripcion-code={sub.code}>{tr(linea)}</p>}
+      {!sub.instalado && !esperando && <p className="mt-1 text-[12.5px] text-muted">{tr('El botón instala Claude Code (el instalador oficial de Anthropic) y abre tu navegador para entrar.')}</p>}
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {botonEntrar(true)}
         {revisar}
       </div>
-      {sub.codex?.sesion && <p className="mt-2 text-[12.5px] text-muted">También encontré Codex con tu cuenta de ChatGPT; Arbrain todavía no lo usa (llega cuando tenga la misma guardia que Claude).</p>}
+      {sub.codex?.sesion && <p className="mt-2 text-[12.5px] text-muted">{tr('También encontré Codex con tu cuenta de ChatGPT; Arbrain todavía no lo usa (llega cuando tenga la misma guardia que Claude).')}</p>}
     </section>
   )
 }
@@ -395,36 +397,36 @@ function ConectarOpenRouter({ principal, onGuardada, onError }: { principal: boo
     if (!r.ok) { if (control.current === c) setFase('inicio'); if (r.code !== 'cancelado') setFallo(r.error); return }
     setFase('guardando')
     try {
-      if (!validarLlave(r.llave, 'openrouter').ok) throw new Error('OpenRouter entregó una llave con un formato inesperado. Prueba con «Otras formas».')
+      if (!validarLlave(r.llave, 'openrouter').ok) throw new Error(tr('OpenRouter entregó una llave con un formato inesperado. Prueba con «Otras formas».'))
       const conectado = textoConectado(r.llave)
       onGuardada(await llaveGuardar('OPENROUTER_API_KEY', r.llave), conectado)
-    } catch (e) { setFallo(e instanceof Error ? e.message : 'No pude guardar la llave en el llavero.') } finally { setFase('inicio') }
+    } catch (e) { setFallo(e instanceof Error ? e.message : tr('No pude guardar la llave en el llavero.')) } finally { setFase('inicio') }
   }
 
   return (
-    <section className={`rounded-2xl border p-4 ${principal ? 'border-brand/40 bg-brand/[0.06]' : 'border-border-subtle bg-surface/70'}`} aria-label="Conectar con OpenRouter">
-      <h3 className="text-sm font-semibold text-foreground">Conecta tu cuenta de OpenRouter</h3>
-      <p className="mt-1 text-[13px] leading-relaxed text-muted">Un clic: se abre tu navegador, inicias sesión o creas tu cuenta, autorizas y vuelves. Sin copiar ni pegar llaves. Con esa cuenta Levy habla con Claude y con otros modelos; pagas lo que usas.</p>
+    <section className={`rounded-2xl border p-4 ${principal ? 'border-brand/40 bg-brand/[0.06]' : 'border-border-subtle bg-surface/70'}`} aria-label={tr('Conectar con OpenRouter')}>
+      <h3 className="text-sm font-semibold text-foreground">{tr('Conecta tu cuenta de OpenRouter')}</h3>
+      <p className="mt-1 text-[13px] leading-relaxed text-muted">{tr('Un clic: se abre tu navegador, inicias sesión o creas tu cuenta, autorizas y vuelves. Sin copiar ni pegar llaves. Con esa cuenta Levy habla con Claude y con otros modelos; pagas lo que usas.')}</p>
       {fase === 'esperando' ? (
         <div className="mt-3 space-y-2" role="status" aria-live="polite">
-          <p className="flex items-center gap-2 text-[13.5px] text-foreground"><Loader2 className="size-4 animate-spin text-brand-ink" aria-hidden /> Esperando a que autorices en tu navegador…</p>
+          <p className="flex items-center gap-2 text-[13.5px] text-foreground"><Loader2 className="size-4 animate-spin text-brand-ink" aria-hidden /> {tr('Esperando a que autorices en tu navegador…')}</p>
           {sinRespuesta && (
             <p className="flex flex-wrap items-center gap-2 text-[13px] text-muted">
-              ¿Cancelaste en OpenRouter?
-              <button type="button" className="btn-secondary min-h-9 !px-3 text-[13px]" onClick={() => void conectar()}><RefreshCw className="size-3.5" aria-hidden /> Reintentar</button>
+              {tr('¿Cancelaste en OpenRouter?')}
+              <button type="button" className="btn-secondary min-h-9 !px-3 text-[13px]" onClick={() => void conectar()}><RefreshCw className="size-3.5" aria-hidden /> {tr('Reintentar')}</button>
             </p>
           )}
           <div className="flex flex-wrap gap-2">
-            {url && <button type="button" className="btn-secondary min-h-10 !px-3 text-[13px]" onClick={() => { void abrirEnNavegador(url).catch(() => {}) }}><ExternalLink className="size-3.5" aria-hidden /> Abrir de nuevo</button>}
-            <button type="button" className="min-h-10 rounded-lg px-3 text-[13px] text-muted hover:bg-foreground/[0.06] hover:text-foreground" onClick={() => { control.current?.abort(); setFase('inicio') }}>Cancelar</button>
+            {url && <button type="button" className="btn-secondary min-h-10 !px-3 text-[13px]" onClick={() => { void abrirEnNavegador(url).catch(() => {}) }}><ExternalLink className="size-3.5" aria-hidden /> {tr('Abrir de nuevo')}</button>}
+            <button type="button" className="min-h-10 rounded-lg px-3 text-[13px] text-muted hover:bg-foreground/[0.06] hover:text-foreground" onClick={() => { control.current?.abort(); setFase('inicio') }}>{tr('Cancelar')}</button>
           </div>
         </div>
       ) : (
         <button type="button" className={`${principal ? 'btn-primary' : 'btn-secondary'} mt-3 min-h-11 w-full justify-center !px-5 text-[14.5px] sm:w-auto`} onClick={() => void conectar()} disabled={fase === 'guardando'}>
-          {fase === 'guardando' ? <><Loader2 className="size-4 animate-spin" aria-hidden /> Guardando en el llavero…</> : <><ExternalLink className="size-4" aria-hidden /> Conectar con OpenRouter</>}
+          {fase === 'guardando' ? <><Loader2 className="size-4 animate-spin" aria-hidden /> {tr('Guardando en el llavero…')}</> : <><ExternalLink className="size-4" aria-hidden /> {tr('Conectar con OpenRouter')}</>}
         </button>
       )}
-      {fallo && <Aviso tono="alerta" className="mt-3">{fallo}</Aviso>}
+      {fallo && <Aviso tono="alerta" className="mt-3">{tr(fallo)}</Aviso>}
     </section>
   )
 }
@@ -445,7 +447,7 @@ function CampoLlave({ placeholder, etiqueta, tipo, onGuardada, onError }: { plac
       const e = await llaveGuardar(v.nombre, valor)
       setValor('') // fuera de la memoria de la pantalla en cuanto llega al llavero
       onGuardada(e)
-    } catch (e) { onError(e instanceof Error ? e.message : 'No pude guardar la llave.') } finally { setGuardando(false) }
+    } catch (e) { onError(e instanceof Error ? e.message : tr('No pude guardar la llave.')) } finally { setGuardando(false) }
   }
   return (
     <form className="mt-3" onSubmit={(e) => { e.preventDefault(); void guardar() }}>
@@ -458,16 +460,16 @@ function CampoLlave({ placeholder, etiqueta, tipo, onGuardada, onError }: { plac
             aria-invalid={tocado && veredicto?.ok === false} aria-describedby={`llave-${tipo}-ayuda`}
             className="input-field min-h-11 !pl-9 !pr-10 font-mono text-[13px]" />
           <button type="button" onClick={() => setVer(v => !v)} className="absolute right-1.5 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-lg text-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-brand"
-            aria-label={ver ? 'Ocultar la llave' : 'Mostrar la llave'}>
+            aria-label={ver ? tr('Ocultar la llave') : tr('Mostrar la llave')}>
             {ver ? <EyeOff className="size-4" aria-hidden /> : <Eye className="size-4" aria-hidden />}
           </button>
         </div>
         <button type="submit" className="btn-primary min-h-11 shrink-0 !px-4" disabled={!valor || guardando || (veredicto?.ok === false)}>
-          {guardando ? <Loader2 className="size-4 animate-spin" aria-hidden /> : 'Guardar'}
+          {guardando ? <Loader2 className="size-4 animate-spin" aria-hidden /> : tr('Guardar')}
         </button>
       </div>
       <p id={`llave-${tipo}-ayuda`} className={`mt-1.5 min-h-[1.25rem] text-[12px] ${tocado && veredicto?.ok === false ? 'text-error' : 'text-muted'}`} aria-live="polite">
-        {tocado && veredicto?.ok === false ? veredicto.error : veredicto?.ok ? 'Formato correcto. Se guarda en el llavero, no aquí.' : ''}
+        {tocado && veredicto?.ok === false ? veredicto.error : veredicto?.ok ? tr('Formato correcto. Se guarda en el llavero, no aquí.') : ''}
       </p>
     </form>
   )
@@ -476,15 +478,15 @@ function CampoLlave({ placeholder, etiqueta, tipo, onGuardada, onError }: { plac
 export function BotonQuitar({ nombre, onHecho, onError }: { nombre: NombreLlave; onHecho: (e: EstadoLlaves) => void; onError: (m: string | null) => void }) {
   const [seguro, setSeguro] = useState(false)
   const [ocupado, setOcupado] = useState(false)
-  if (!seguro) return <button type="button" className="inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 text-[13px] text-muted hover:bg-foreground/[0.06] hover:text-foreground" onClick={() => setSeguro(true)}><Trash2 className="size-3.5" aria-hidden /> Quitar</button>
+  if (!seguro) return <button type="button" className="inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 text-[13px] text-muted hover:bg-foreground/[0.06] hover:text-foreground" onClick={() => setSeguro(true)}><Trash2 className="size-3.5" aria-hidden /> {tr('Quitar')}</button>
   return (
     <span className="inline-flex items-center gap-1.5 text-[13px]">
-      <span className="text-muted">¿Quitarla del llavero?</span>
+      <span className="text-muted">{tr('¿Quitarla del llavero?')}</span>
       <button type="button" disabled={ocupado} className="min-h-9 rounded-lg bg-error/12 px-2.5 font-medium text-error hover:bg-error/20" onClick={async () => {
         setOcupado(true)
-        try { onHecho(await llaveBorrar(nombre)) } catch (e) { onError(e instanceof Error ? e.message : 'No pude quitarla.') } finally { setOcupado(false); setSeguro(false) }
-      }}>Quitar</button>
-      <button type="button" className="min-h-9 rounded-lg px-2.5 text-muted hover:text-foreground" onClick={() => setSeguro(false)}>Cancelar</button>
+        try { onHecho(await llaveBorrar(nombre)) } catch (e) { onError(e instanceof Error ? e.message : tr('No pude quitarla.')) } finally { setOcupado(false); setSeguro(false) }
+      }}>{tr('Quitar')}</button>
+      <button type="button" className="min-h-9 rounded-lg px-2.5 text-muted hover:text-foreground" onClick={() => setSeguro(false)}>{tr('Cancelar')}</button>
     </span>
   )
 }
@@ -492,25 +494,25 @@ export function BotonQuitar({ nombre, onHecho, onError }: { nombre: NombreLlave;
 export function EstadoGuardada({ vista }: { vista: string | null }) {
   return (
     <span className="inline-flex min-w-0 items-center gap-1.5 rounded-full bg-success/10 px-2.5 py-1 text-[12px] font-medium text-success">
-      <Check className="size-3.5 shrink-0" aria-hidden /> <span className="truncate">Guardada{vista ? ` · ${vista}` : ''}</span>
+      <Check className="size-3.5 shrink-0" aria-hidden /> <span className="truncate">{tr('Guardada')}{vista ? ` · ${vista}` : ''}</span>
     </span>
   )
 }
 
 const MENSAJE_PRUEBA: Record<string, string> = {
-  falta_llave: 'Tu Arbrain todavía no ve la llave. Espera unos segundos y prueba de nuevo.',
-  llave_invalida: 'La llave no es válida o venció. Revísala y pégala de nuevo.',
-  sin_saldo: 'La llave funciona, pero tu cuenta no tiene saldo o crédito. Recarga en tu proveedor (OpenRouter o Anthropic).',
-  saturado: 'Claude está saturado en este momento. Tu llave está bien; prueba en un minuto.',
-  sin_red: 'No hay conexión a internet o algo la bloquea.',
-  tiempo: 'Claude tardó demasiado en responder. Prueba de nuevo.',
-  sin_sesion: 'Tu Claude Code no tiene la sesión iniciada. Pulsa «Iniciar sesión con Claude» en Ajustes › Llaves, entra con tu cuenta en el navegador y prueba de nuevo.',
+  falta_llave: trMarca('Tu Arbrain todavía no ve la llave. Espera unos segundos y prueba de nuevo.'),
+  llave_invalida: trMarca('La llave no es válida o venció. Revísala y pégala de nuevo.'),
+  sin_saldo: trMarca('La llave funciona, pero tu cuenta no tiene saldo o crédito. Recarga en tu proveedor (OpenRouter o Anthropic).'),
+  saturado: trMarca('Claude está saturado en este momento. Tu llave está bien; prueba en un minuto.'),
+  sin_red: trMarca('No hay conexión a internet o algo la bloquea.'),
+  tiempo: trMarca('Claude tardó demasiado en responder. Prueba de nuevo.'),
+  sin_sesion: trMarca('Tu Claude Code no tiene la sesión iniciada. Pulsa «Iniciar sesión con Claude» en Ajustes › Llaves, entra con tu cuenta en el navegador y prueba de nuevo.'),
 }
 
 function ResultadoPrueba({ prueba, cobra, onReintentar, probando }: { prueba: PruebaLlave; cobra: 'openrouter' | 'anthropic'; onReintentar: () => void; probando: boolean }) {
-  if (prueba.ok) return <p className="mt-3 flex items-center gap-2 text-[13px] text-success" role="status"><Check className="size-4" aria-hidden /> Conexión lista: el modelo respondió{prueba.ms ? ` en ${(prueba.ms / 1000).toFixed(1)} s` : ''}.</p>
+  if (prueba.ok) return <p className="mt-3 flex items-center gap-2 text-[13px] text-success" role="status"><Check className="size-4" aria-hidden /> {prueba.ms ? tr('Conexión lista: el modelo respondió en {s} s.', { s: (prueba.ms / 1000).toFixed(1) }) : tr('Conexión lista: el modelo respondió.')}</p>
   if (prueba.code === 'sin_saldo') return <PasoRecarga cobra={cobra} onReintentar={onReintentar} probando={probando} />
-  return <Aviso tono="alerta" className="mt-3">{(prueba.code && MENSAJE_PRUEBA[prueba.code]) || prueba.error || 'No pude probar la conexión.'}</Aviso>
+  return <Aviso tono="alerta" className="mt-3">{tr((prueba.code && MENSAJE_PRUEBA[prueba.code]) || prueba.error || trMarca('No pude probar la conexión.'))}</Aviso>
 }
 
 /**
@@ -523,18 +525,18 @@ export function PasoRecarga({ cobra, onReintentar, probando, className = 'mt-3' 
   const donde = cobra === 'openrouter' ? 'OpenRouter' : 'Anthropic'
   return (
     <div className={`${className} rounded-xl bg-warning/10 px-3.5 py-3 text-left text-[13px] leading-relaxed text-foreground`} role="status">
-      <p className="flex items-start gap-2 font-medium"><TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden /> Tu cuenta quedó conectada, pero todavía no tiene crédito.</p>
+      <p className="flex items-start gap-2 font-medium"><TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden /> {tr('Tu cuenta quedó conectada, pero todavía no tiene crédito.')}</p>
       <ol className="mt-2 space-y-2 pl-6">
         <li className="list-decimal">
-          Recarga crédito en {donde} con tu tarjeta.
-          <button type="button" className="btn-primary ml-0 mt-1.5 flex min-h-10 !px-3 text-[13px]" onClick={() => { setError(null); void abrirEnNavegador(RECARGAR[cobra]).catch(e => setError(e instanceof Error ? e.message : 'No pude abrir tu navegador.')) }}>
-            <ExternalLink className="size-3.5" aria-hidden /> Recargar crédito en {donde}
+          {tr('Recarga crédito en {donde} con tu tarjeta.', { donde })}
+          <button type="button" className="btn-primary ml-0 mt-1.5 flex min-h-10 !px-3 text-[13px]" onClick={() => { setError(null); void abrirEnNavegador(RECARGAR[cobra]).catch(e => setError(e instanceof Error ? e.message : tr('No pude abrir tu navegador.'))) }}>
+            <ExternalLink className="size-3.5" aria-hidden /> {tr('Recargar crédito en {donde}', { donde })}
           </button>
         </li>
         <li className="list-decimal">
-          Vuelve aquí y prueba de nuevo.
+          {tr('Vuelve aquí y prueba de nuevo.')}
           <button type="button" className="btn-secondary mt-1.5 flex min-h-10 !px-3 text-[13px]" onClick={onReintentar} disabled={probando}>
-            {probando ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <RefreshCw className="size-3.5" aria-hidden />} Ya recargué, probar de nuevo
+            {probando ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <RefreshCw className="size-3.5" aria-hidden />} {tr('Ya recargué, probar de nuevo')}
           </button>
         </li>
       </ol>

@@ -4,6 +4,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { TIPOS_DOCUMENTO, extensionDe, nombreSeguro, urlPublicaDeStorage } from '@/features/chat/lib/adjuntos'
 import { esEdicionCliente } from '@/lib/edicion'
 import { AdjuntoRechazado, RUTA_API_ADJUNTO, guardarAdjuntoLocal } from '@/lib/adjuntos-locales'
+import { tr } from '@/shared/i18n'
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
 // El cuerpo trae el archivo más el sobre multipart: se corta antes de leerlo, con un mensaje claro.
@@ -25,7 +26,7 @@ export async function POST(req: NextRequest) {
 
     const declarado = Number(req.headers.get('content-length') ?? 0)
     if (declarado > MAX_BODY_SIZE) {
-      return fallo(413, 'demasiado_grande', `La imagen pesa ${(declarado / 1048576).toFixed(1)} MB y el máximo es 10 MB`)
+      return fallo(413, 'demasiado_grande', tr('La imagen pesa {mb} MB y el máximo es 10 MB', { mb: (declarado / 1048576).toFixed(1) }))
     }
 
     let formData: FormData
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest) {
       // El cuerpo llegó cortado o ilegible (conexión interrumpida, archivo que el sistema borró a mitad del
       // envío). Antes salía como 500 «Upload failed»; es un problema del envío, no del servidor.
       console.warn('[storage/upload] Cuerpo incompleto o ilegible', { contentLength: declarado, contentType: req.headers.get('content-type')?.split(';')[0] })
-      return fallo(400, 'cuerpo_incompleto', 'La imagen llegó incompleta al servidor')
+      return fallo(400, 'cuerpo_incompleto', tr('La imagen llegó incompleta al servidor'))
     }
     const file = formData.get('file') as File | null
 
@@ -52,7 +53,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (file.size > MAX_FILE_SIZE) {
-      return fallo(413, 'demasiado_grande', `${esDocumento ? 'El archivo' : 'La imagen'} pesa ${(file.size / 1048576).toFixed(1)} MB y el máximo es 10 MB`)
+      return fallo(413, 'demasiado_grande', esDocumento ? tr('El archivo pesa {mb} MB y el máximo es 10 MB', { mb: (file.size / 1048576).toFixed(1) }) : tr('La imagen pesa {mb} MB y el máximo es 10 MB', { mb: (file.size / 1048576).toFixed(1) }))
     }
 
     // Edición cliente (v0.2.6): sin Supabase. Se guarda en la carpeta de datos de la web y la URL es de esta misma app
@@ -64,7 +65,7 @@ export async function POST(req: NextRequest) {
       } catch (e) {
         if (e instanceof AdjuntoRechazado) return fallo(e.status, e.code, e.message)
         console.error('[storage/upload] Adjunto local falló:', e instanceof Error ? e.message : e)
-        return fallo(500, 'almacenamiento', 'No se pudo guardar el adjunto en la carpeta de datos de Arbrain')
+        return fallo(500, 'almacenamiento', tr('No se pudo guardar el adjunto en la carpeta de datos de Arbrain'))
       }
     }
 

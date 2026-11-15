@@ -12,6 +12,7 @@
 import { HISTORIA, sumarDias, type Barra, type Datos, type Punto } from './modelo'
 import type { Ventana } from './catalogo'
 import type { Filtro, FormatoFecha, Forma, Fuente, Mapeo } from './generico'
+import { localeIntl, tr, trn } from '../../shared/i18n/tr'
 
 export type Celda = string | number | boolean | null
 /** Lo que trae un adaptador: columnas y filas tal cual; `extremos` (primer y último valor de la fecha) si es una base. */
@@ -29,7 +30,7 @@ export class ErrorFuente extends Error {}
 
 function col(lote: Lote, fuente: Fuente, nombre: string): number {
   const i = indiceColumna(lote.columnas, nombre)
-  if (i < 0) throw new ErrorFuente(`La fuente «${fuente.id}» no tiene la columna «${nombre}». Trae: ${lote.columnas.slice(0, 20).map(c => `«${c}»`).join(', ')}${lote.columnas.length > 20 ? '…' : ''}.`)
+  if (i < 0) throw new ErrorFuente(tr('La fuente «{fuente}» no tiene la columna «{columna}». Trae: {columnas}.', { fuente: fuente.id, columna: nombre, columnas: `${lote.columnas.slice(0, 20).map(c => tr('«{texto}»', { texto: c })).join(', ')}${lote.columnas.length > 20 ? '…' : ''}` }))
   return i
 }
 
@@ -136,16 +137,16 @@ export interface ArgsCalculo {
 export function calcular(a: ArgsCalculo): Calculo {
   const leidas = new Map(a.fuentes.map(f => {
     const lote = a.lotes[f.id]
-    if (!lote) throw new ErrorFuente(`La fuente «${f.id}» no se leyó.`)
+    if (!lote) throw new ErrorFuente(tr('La fuente «{fuente}» no se leyó.', { fuente: f.id }))
     return [f.id, leerLote(f, lote, a.ayer, a.zona)] as const
   }))
   const avisos: string[] = []
   for (const l of leidas.values()) {
-    if (l.sinFecha) avisos.push(`${l.sinFecha.toLocaleString('es-MX')} ${l.sinFecha === 1 ? 'fila' : 'filas'} de «${l.fuente.nombre ?? l.fuente.id}» sin fecha legible: no se cuentan.`)
-    if (l.lote.viva && l.ultimoDia && l.ultimoDia < sumarDias(a.ayer, -3)) avisos.push(`«${l.fuente.nombre ?? l.fuente.id}» no trae registros desde el ${l.ultimoDia}: si dejó de llenarse, los ceros no son reales.`)
+    if (l.sinFecha) avisos.push(trn(l.sinFecha, '{n} fila de «{fuente}» sin fecha legible: no se cuentan.', '{n} filas de «{fuente}» sin fecha legible: no se cuentan.', { n: l.sinFecha.toLocaleString(localeIntl()), fuente: l.fuente.nombre ?? l.fuente.id }))
+    if (l.lote.viva && l.ultimoDia && l.ultimoDia < sumarDias(a.ayer, -3)) avisos.push(tr('«{fuente}» no trae registros desde el {fecha}: si dejó de llenarse, los ceros no son reales.', { fuente: l.fuente.nombre ?? l.fuente.id, fecha: l.ultimoDia }))
   }
   const hastas = [...leidas.values()].map(l => l.hasta).filter((h): h is string => !!h)
-  if (!hastas.length) return { datos: vacio(a.forma), hasta: a.ayer, aviso: 'La fuente no trae filas con fecha todavía.' }
+  if (!hastas.length) return { datos: vacio(a.forma), hasta: a.ayer, aviso: tr('La fuente no trae filas con fecha todavía.') }
   const hasta = hastas.sort()[0]
   const aviso = avisos.join(' ') || undefined
   const m = a.mapeo
@@ -197,7 +198,7 @@ export function calcular(a: ArgsCalculo): Calculo {
     }
     const orden = [...por.entries()].map(([k, e]) => ({ id: k, etiqueta: e.etiqueta, valor: redondo(e.valor) })).sort((x, y) => y.valor - x.valor)
     const otros = orden.slice(8).reduce((s, b) => s + b.valor, 0)
-    const resto = otros || sinDato ? { id: 'otros', etiqueta: otros && sinDato ? 'Otros o sin dato' : otros ? 'Otros' : 'Sin dato en la fuente', valor: redondo(otros + sinDato) } : undefined
+    const resto = otros || sinDato ? { id: 'otros', etiqueta: otros && sinDato ? tr('Otros o sin dato') : otros ? tr('Otros') : tr('Sin dato en la fuente'), valor: redondo(otros + sinDato) } : undefined
     return { datos: { forma: 'barras', barras: orden.slice(0, 8), ...(resto ? { resto } : {}) }, hasta, aviso }
   }
 

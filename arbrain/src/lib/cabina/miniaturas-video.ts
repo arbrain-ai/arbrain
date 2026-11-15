@@ -17,6 +17,7 @@ import { mkdir, readFile, readdir, rename, rm, stat, unlink, writeFile } from 'n
 import { setPriority, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { argsMiniaturas, planMiniaturas, type PlanMiniaturas } from '@/features/cabina/documento/medio'
+import { tr } from '@/shared/i18n'
 
 /** El servicio web del Studio corre con un PATH mínimo de launchd (sin Homebrew): igual que ffprobe en documento-server. */
 const FFMPEG = ['/opt/homebrew/bin/ffmpeg', '/usr/local/bin/ffmpeg'].find(p => existsSync(p)) ?? 'ffmpeg'
@@ -43,7 +44,7 @@ async function generar(real: string, clave: string, sondar: Sondar): Promise<voi
   const { jpg, meta } = rutas(clave)
   const sonda = await sondar(real)
   const plan = planMiniaturas(sonda?.duracion ?? 0, sonda?.ancho && sonda?.alto ? sonda.ancho / sonda.alto : 16 / 9)
-  if (!plan) throw new Error('No se pudo leer la duración del video.')
+  if (!plan) throw new Error(tr('No se pudo leer la duración del video.'))
   await mkdir(carpetaMiniaturas(), { recursive: true })
   const tmp = join(carpetaMiniaturas(), `${clave}.${process.pid}.tmp.jpg`)
   await new Promise<void>((resolve, reject) => {

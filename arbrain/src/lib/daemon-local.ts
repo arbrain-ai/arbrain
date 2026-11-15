@@ -8,15 +8,16 @@ import { esEdicionCliente } from '@/lib/edicion'
 import { checkMutationOrigin } from '@/lib/planning/server'
 import { ChatAccessError } from '@/lib/chat-access-policy'
 import { urlDaemonCliente } from '@/lib/claudeclaw'
+import { tr } from '@/shared/i18n'
 
 export const NOCACHE = { 'Cache-Control': 'no-store' }
 
 /** Rutas solo de la edición cliente y solo para la app (cookie del secreto por instalación). */
 export async function soloAppCliente(request?: Request, mutacion = false): Promise<Response | null> {
-  if (!esEdicionCliente()) return Response.json({ error: 'No disponible en esta edición.' }, { status: 404, headers: NOCACHE })
-  if (!(await isDesktopAuthBypassFromHeaders())) return Response.json({ error: 'Abre Arbrain desde la app.' }, { status: 401, headers: NOCACHE })
+  if (!esEdicionCliente()) return Response.json({ error: tr('No disponible en esta edición.') }, { status: 404, headers: NOCACHE })
+  if (!(await isDesktopAuthBypassFromHeaders())) return Response.json({ error: tr('Abre Arbrain desde la app.') }, { status: 401, headers: NOCACHE })
   if (mutacion && request) {
-    try { checkMutationOrigin(request) } catch (e) { return Response.json({ error: e instanceof ChatAccessError ? e.message : 'Origen no autorizado.' }, { status: 403, headers: NOCACHE }) }
+    try { checkMutationOrigin(request) } catch (e) { return Response.json({ error: e instanceof ChatAccessError ? e.message : tr('Origen no autorizado.') }, { status: 403, headers: NOCACHE }) }
   }
   return null
 }
@@ -32,13 +33,13 @@ export function tokenConfirmar(): string {
 
 export async function alDaemon(ruta: string, init: RequestInit & { confirmar?: boolean; plazoMs?: number } = {}): Promise<Response> {
   const token = tokenDaemon()
-  if (!token) return Response.json({ error: 'La app no le pasó a la web la llave de su servidor local. Cierra y abre Arbrain.' }, { status: 503, headers: NOCACHE })
+  if (!token) return Response.json({ error: tr('La app no le pasó a la web la llave de su servidor local. Cierra y abre Arbrain.') }, { status: 503, headers: NOCACHE })
   const headers = new Headers(init.headers)
   headers.set('Authorization', `Bearer ${token}`)
   if (init.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
   if (init.confirmar) {
     const c = tokenConfirmar()
-    if (!c) return Response.json({ error: 'Esta copia de Arbrain no puede aprobar acciones (falta el secreto de la app).' }, { status: 503, headers: NOCACHE })
+    if (!c) return Response.json({ error: tr('Esta copia de Arbrain no puede aprobar acciones (falta el secreto de la app).') }, { status: 503, headers: NOCACHE })
     headers.set('X-Arbrain-Confirmar', c)
   }
   // Una lectura que cae por la red ANTES de recibir respuesta (en Windows, el socket keep-alive que el daemon ya cerró)
@@ -54,6 +55,6 @@ export async function alDaemon(ruta: string, init: RequestInit & { confirmar?: b
     const texto = await r.text()
     return new Response(texto || '{}', { status: r.status, headers: { 'Content-Type': r.headers.get('content-type') ?? 'application/json', ...NOCACHE } })
   } catch {
-    return Response.json({ error: 'Tu Arbrain local no responde. Si acabas de cambiar una llave, espera unos segundos.', code: 'sin_daemon' }, { status: 502, headers: NOCACHE })
+    return Response.json({ error: tr('Tu Arbrain local no responde. Si acabas de cambiar una llave, espera unos segundos.'), code: 'sin_daemon' }, { status: 502, headers: NOCACHE })
   }
 }

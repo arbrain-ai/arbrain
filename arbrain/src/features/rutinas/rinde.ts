@@ -7,6 +7,8 @@
 // Moneda: TOKENS, no dólares (con suscripción es tarifa plana; el costUsd del SDK es nocional, ver metabolismo/route.ts).
 // Una corrida sin `usage` es «sin dato», nunca cero. Las corridas sin modelo (scripts directos) tampoco tienen tokens.
 
+import { tr } from '@/shared/i18n'
+
 export interface CorridaRinde { job: string; status: string; at: string; tokens: number | null }
 export interface TareaRinde { id: string; schedule: string; status: 'active' | 'paused'; last_run: number | null; last_result: string | null }
 export interface PropuestaRinde {
@@ -98,19 +100,19 @@ export function leerRendimiento(tareas: TareaRinde[], corridas: CorridaRinde[], 
       parte: tokens != null && totalMedido > 0 ? tokens / totalMedido : null,
       esperadas, tono: 'sin-dato', motivo: '', propuestas: deJob(id),
     }
-    if (status === 'paused') { r.tono = 'pausada'; r.motivo = ultima ? `En pausa; corrió por última vez hace ${Math.round((ahora - ultima) / DIA)} días.` : 'En pausa.' }
+    if (status === 'paused') { r.tono = 'pausada'; r.motivo = ultima ? tr('En pausa; corrió por última vez hace {n} días.', { n: Math.round((ahora - ultima) / DIA) }) : tr('En pausa.') }
     else if (cs.length >= 3 && errores / cs.length >= 0.6) {
       r.tono = 'no-rinde'
       const ultimaBien = [...cs].sort((x, y) => y.at.localeCompare(x.at))[0]
-      r.motivo = `Falló ${errores} de ${cs.length} veces en 30 días: gasta turnos sin entregar.${FALLA(ultimaBien.status) ? '' : ' La última salió bien: quizá ya se arregló.'}`
+      r.motivo = tr('Falló {errores} de {total} veces en 30 días: gasta turnos sin entregar.', { errores, total: cs.length }) + (FALLA(ultimaBien.status) ? '' : ` ${tr('La última salió bien: quizá ya se arregló.')}`)
     }
     else if (cs.length === 0 && esperadas != null && esperadas >= 2 && (!ultima || ahora - ultima > 2 * (30 * DIA / esperadas))) {
-      r.tono = 'no-rinde'; r.motivo = ultima ? `Está activa pero no corre desde hace ${Math.round((ahora - ultima) / DIA)} días.` : 'Está activa pero no ha corrido en 30 días.'
+      r.tono = 'no-rinde'; r.motivo = ultima ? tr('Está activa pero no corre desde hace {n} días.', { n: Math.round((ahora - ultima) / DIA) }) : tr('Está activa pero no ha corrido en 30 días.')
     }
-    else if (cs.length === 0) { r.tono = 'sin-dato'; r.motivo = ultima ? 'Corre, pero sus corridas no quedan en la bitácora.' : 'Todavía no le toca correr en esta ventana.' }
+    else if (cs.length === 0) { r.tono = 'sin-dato'; r.motivo = ultima ? tr('Corre, pero sus corridas no quedan en la bitácora.') : tr('Todavía no le toca correr en esta ventana.') }
     else {
       r.tono = 'rinde'
-      r.motivo = errores ? `Entregó ${cs.length - errores} de ${cs.length} veces (${pct(errores / cs.length)} de fallos).` : `Entregó las ${cs.length} veces.`
+      r.motivo = errores ? tr('Entregó {bien} de {total} veces ({pct} de fallos).', { bien: cs.length - errores, total: cs.length, pct: pct(errores / cs.length) }) : tr('Entregó las {n} veces.', { n: cs.length })
     }
     out.push(r)
   }
@@ -120,7 +122,7 @@ export function leerRendimiento(tareas: TareaRinde[], corridas: CorridaRinde[], 
 
 /** «152.6 M», «58 K», «549». null = «sin dato». */
 export function fmtTokens(n: number | null | undefined): string {
-  if (n == null) return 'sin dato'
+  if (n == null) return tr('sin dato')
   if (n >= 1e6) return `${(n / 1e6).toFixed(n >= 1e7 ? 0 : 1)} M`
   if (n >= 1e3) return `${Math.round(n / 1e3)} K`
   return String(Math.round(n))

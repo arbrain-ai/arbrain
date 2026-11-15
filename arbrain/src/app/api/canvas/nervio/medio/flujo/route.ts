@@ -8,18 +8,19 @@
 import { authenticateDraw3 } from '@/lib/draw3-auth'
 import { ErrorMedio, resolverArchivo, responderArchivo } from '@/lib/canvas/nervio-medios'
 import { esEdicionCliente } from '@/lib/edicion'
+import { tr } from '@/shared/i18n'
 
 export const runtime = 'nodejs'
 const no = (status: number, msg: string) => new Response(msg, { status, headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' } })
 
 export async function GET(request: Request) {
-  if (!await authenticateDraw3(request)) return no(401, 'no autorizado')
-  if (esEdicionCliente()) return no(404, 'No existe en esta edición.')
+  if (!await authenticateDraw3(request)) return no(401, tr('no autorizado'))
+  if (esEdicionCliente()) return no(404, tr('No existe en esta edición.'))
   const m = new URL(request.url).searchParams.get('m') ?? ''
-  if (m.includes('*')) return no(400, 'Pide la ruta concreta.')
+  if (m.includes('*')) return no(400, tr('Pide la ruta concreta.'))
   try {
     return responderArchivo(await resolverArchivo(m), request.headers.get('range'))
   } catch (e) {
-    return e instanceof ErrorMedio ? no(e.status, e.message) : no(500, 'no se pudo leer el medio')
+    return e instanceof ErrorMedio ? no(e.status, e.message) : no(500, tr('no se pudo leer el medio'))
   }
 }

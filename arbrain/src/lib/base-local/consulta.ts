@@ -12,6 +12,7 @@
  *
  * Módulo puro: sin node:* (lo usa también el navegador con su almacén inerte).
  */
+import { tr, trMarca } from '@/shared/i18n'
 
 export type Fila = Record<string, unknown>
 
@@ -336,7 +337,7 @@ export class ConsultaLocal implements PromiseLike<Resultado> {
       if (this.limite !== null) filas = filas.slice(0, this.limite)
       return this.dar(filas, 200, total)
     }
-    if (!this.almacen.escribible) return this.fallo(errorLocal('Esta copia no guarda datos aquí.', 'LOCAL_RO'), 403)
+    if (!this.almacen.escribible) return this.fallo(errorLocal(tr('Esta copia no guarda datos aquí.'), 'LOCAL_RO'), 403)
     const ahora = new Date().toISOString()
     if (this.op === 'insert' || this.op === 'upsert') {
       const nuevas = [...todas]
@@ -389,7 +390,7 @@ export class ConsultaLocal implements PromiseLike<Resultado> {
 
 // ── Cliente con forma de Supabase ─────────────────────────────────────────────────────────────────────────────────
 
-const SIN_SUPABASE = 'Esta función no existe en tu edición de Arbrain.'
+const SIN_SUPABASE = trMarca('Esta función no existe en tu edición de Arbrain.')
 
 function canalInerte() {
   const canal = {

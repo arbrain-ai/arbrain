@@ -1,4 +1,5 @@
 'use client'
+import { tr } from '@/shared/i18n'
 import { Loader2, Check, Circle } from 'lucide-react'
 import type { TodoItem } from '../hooks/useChat'
 
@@ -19,7 +20,7 @@ export function TodoListWidget({ todos }: { todos: TodoItem[] }) {
       <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border-subtle bg-card/40">
         <div className="w-1 h-1 rounded-full bg-brand animate-pulse" />
         <span className="text-[10px] font-mono uppercase tracking-wider text-muted/80">
-          Plan
+          {tr('Plan')}
         </span>
         <span className="text-[10px] text-muted/60 ml-auto font-mono">
           {done}/{total}

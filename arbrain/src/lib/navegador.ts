@@ -1,5 +1,8 @@
 import { isDesktopRuntime } from '@/lib/local-first/runtime'
 
+/** Una ruta de la app («/telefono/decisiones?id=…»), no una URL de otro sitio (ni «//otro.sitio», que el navegador lee como externa). */
+export const esInterna = (url: string) => url.startsWith('/') && !url.startsWith('//')
+
 /**
  * Abre una URL de fuera en el navegador predeterminado del sistema.
  * En la app de escritorio (Tauri) `window.open` no hace nada: el WKWebView ignora ventanas nuevas. Ahí va por el opener

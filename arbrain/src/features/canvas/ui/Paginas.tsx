@@ -20,6 +20,7 @@ import { useAccionesLienzos } from '../state/acciones-lienzos'
 import { ArbolLienzos } from './lienzos/ArbolLienzos'
 import { varsDeTema } from './lienzos/vars-tema'
 import * as I from './icons'
+import { tr } from '@/shared/i18n'
 
 interface Props {
   theme: Theme
@@ -58,8 +59,8 @@ export function Paginas(p: Props) {
     }}>
       {/* El boton para ABRIR no vive aqui: es el icono de carpeta de la barra del titulo, pegado al nombre del lienzo. */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '10px 10px 6px' }}>
-        <strong style={{ flex: 1, font: '900 13px CanvasSlab, Georgia, serif', color: t.text.title }}>Lienzos</strong>
-        <button onClick={() => p.onAbrir(false)} title="Ocultar" style={iconBtn(t)}><I.IconChevron size={16} /></button>
+        <strong style={{ flex: 1, font: '900 13px CanvasSlab, Georgia, serif', color: t.text.title }}>{tr('Lienzos')}</strong>
+        <button onClick={() => p.onAbrir(false)} title={tr('Ocultar')} style={iconBtn(t)}><I.IconChevron size={16} /></button>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '0 6px 12px' }}>
         <ArbolLienzos variante="riel" vars={vars} paginas={p.paginas} carpetas={p.carpetas} activa={p.activa} a={a}

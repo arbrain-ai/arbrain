@@ -4,6 +4,7 @@ import { CUADRANTES, DRIP, esCuadrante, type Cuadrante, type LecturaDrip, type T
 import type { DocDripVista } from './useDrip'
 import type { PlanEvent } from './types'
 import s from './drip.module.css'
+import { tr } from '@/shared/i18n'
 
 /**
  * El gobierno del tiempo (24 oct 2026, Daniel: «el circuito cibernético de Martell: Levy como sensor, comparador, atenuador y
@@ -73,13 +74,13 @@ const MATRIZ: Cuadrante[] = ['reemplazar', 'producir', 'delegar', 'invertir']
 export function LeyendaDrip({ enBarra = false }: { enBarra?: boolean }) {
   const g = useGobierno()
   if (!g) return null
-  return <div className={s.leyenda} data-en-barra={enBarra || undefined} role="group" aria-label="DRIP: Producir, Invertir, Reemplazar, Delegar. Arriba te paga; a la derecha te enciende.">
-    <span className={s.eje} aria-hidden><span>te paga</span><span>paga poco</span></span>
+  return <div className={s.leyenda} data-en-barra={enBarra || undefined} role="group" aria-label={tr('DRIP: Producir, Invertir, Reemplazar, Delegar. Arriba te paga; a la derecha te enciende.')}>
+    <span className={s.eje} aria-hidden><span>{tr('te paga')}</span><span>{tr('paga poco')}</span></span>
     <div className={s.matriz}>
       {MATRIZ.map(c => { const d = DRIP[c], oculto = g.ocultas.has(c)
         return <button key={c} className={s.celda} data-c={c} aria-pressed={!oculto} data-oculto={oculto || undefined} style={{ '--c': d.color } as CSSProperties}
-          onClick={() => g.alternar(c)} title={`${d.nombre}: ${d.lema}. ${oculto ? 'Toca para mostrar' : 'Toca para ocultar'}.`}>
-          <i aria-hidden /><span>{d.nombre}</span></button> })}
+          onClick={() => g.alternar(c)} title={`${tr(d.nombre)}: ${tr(d.lema)}. ${oculto ? tr('Toca para mostrar') : tr('Toca para ocultar')}.`}>
+          <i aria-hidden /><span>{tr(d.nombre)}</span></button> })}
     </div>
   </div>
 }

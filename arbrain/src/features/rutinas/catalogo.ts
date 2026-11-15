@@ -1,5 +1,6 @@
 import { capital, DUENO, NOMBRE_SEGUNDA, SEGUNDA } from '@/config'
 import { JOB_CIERRE_SEGUNDA, JOB_REPORTE_SEGUNDA } from '@/shared/constants/reporte-vivo'
+import { trMarca } from '@/shared/i18n'
 // Rutinas, no cronjobs (25 sep 2026). Lo que corre solo, contado como lo entiende
 // un dueño de negocio: qué hace y para qué le sirve, sin nombres de scripts ni
 // jerga. La identidad sigue siendo el id del scheduler (claudeclaw /schedule); si
@@ -15,18 +16,18 @@ export type Categoria = 'dinero' | 'miembros' | 'contenido' | 'dia' | 'memoria' 
 export interface CategoriaDef { id: Categoria; nombre: string; porque: string }
 
 export const CATEGORIAS: CategoriaDef[] = [
-  { id: 'dinero', nombre: 'Dinero y cobro', porque: 'Polar es la fuente del dinero. Si esto falla, decides con cifras falsas o alguien pierde acceso pagado.' },
-  { id: 'miembros', nombre: 'Miembros y comunidad', porque: 'Lo que los miembros tocan o reciben. Protegerlos es parte del producto.' },
-  { id: 'contenido', nombre: 'Contenido y audiencia', porque: 'YouTube es tu canal de adquisición: esto mide y responde a tu audiencia.' },
-  { id: 'dia', nombre: 'Tu día', porque: 'Lo que te llega a ti: reportes, agenda, foco y correo.' },
-  { id: 'memoria', nombre: 'Memoria y cerebro', porque: 'Lo que hace que Levy recuerde y no se mienta sobre sí mismo.' },
-  { id: 'maquina', nombre: 'Máquina', porque: 'Respaldos y vigilancia. Sin esto se cae todo lo de arriba; no aporta valor por sí mismo.' },
+  { id: 'dinero', nombre: trMarca('Dinero y cobro'), porque: trMarca('Polar es la fuente del dinero. Si esto falla, decides con cifras falsas o alguien pierde acceso pagado.') },
+  { id: 'miembros', nombre: trMarca('Miembros y comunidad'), porque: trMarca('Lo que los miembros tocan o reciben. Protegerlos es parte del producto.') },
+  { id: 'contenido', nombre: trMarca('Contenido y audiencia'), porque: trMarca('YouTube es tu canal de adquisición: esto mide y responde a tu audiencia.') },
+  { id: 'dia', nombre: trMarca('Tu día'), porque: trMarca('Lo que te llega a ti: reportes, agenda, foco y correo.') },
+  { id: 'memoria', nombre: trMarca('Memoria y cerebro'), porque: trMarca('Lo que hace que Levy recuerde y no se mienta sobre sí mismo.') },
+  { id: 'maquina', nombre: trMarca('Máquina'), porque: trMarca('Respaldos y vigilancia. Sin esto se cae todo lo de arriba; no aporta valor por sí mismo.') },
 ]
 
 /** Quién usa lo que la rutina produce. `nadie` es lo que se nota. */
 /** Las personas son las de la instalación (`DUENO()`, `SEGUNDA()`); el resto, destinos fijos. */
 export type Para = string
-export const PARA: Record<Para, string> = { [DUENO()]: 'Tú', [SEGUNDA()]: capital(NOMBRE_SEGUNDA()), miembros: 'Miembros', audiencia: 'Tu audiencia', levy: 'Levy', rutina: 'Otra rutina', nadie: 'Nadie' }
+export const PARA: Record<Para, string> = { [DUENO()]: trMarca('Tú'), [SEGUNDA()]: capital(NOMBRE_SEGUNDA()), miembros: trMarca('Miembros'), audiencia: trMarca('Tu audiencia'), levy: 'Levy', rutina: trMarca('Otra rutina'), nadie: trMarca('Nadie') }
 
 export interface Rutina {
   nombre: string

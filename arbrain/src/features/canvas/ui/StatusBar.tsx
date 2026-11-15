@@ -19,6 +19,7 @@ import type { AutosaveStatus } from '../state/autosave'
 import * as I from './icons'
 import { useZoomVivo, type CamaraViva } from './CamaraViva'
 import { bordeInferior } from './Capitulos'
+import { tr, trMarca } from '@/shared/i18n'
 
 interface Props {
   theme: Theme
@@ -47,9 +48,9 @@ interface Props {
 }
 
 const VISTAS: Array<{ kind: BackgroundKind; label: string; icon: (p: { size?: number }) => React.ReactElement }> = [
-  { kind: 'liso', label: 'Liso', icon: I.IconGridNone },
-  { kind: 'puntos', label: 'Puntos', icon: I.IconGridDots },
-  { kind: 'cuadricula', label: 'Cuadrícula', icon: I.IconGridLines },
+  { kind: 'liso', label: trMarca('Liso'), icon: I.IconGridNone },
+  { kind: 'puntos', label: trMarca('Puntos'), icon: I.IconGridDots },
+  { kind: 'cuadricula', label: trMarca('Cuadrícula'), icon: I.IconGridLines },
 ]
 
 const NIVELES = [0.1, 0.25, 0.5, 1, 2, 4]
@@ -110,8 +111,8 @@ export function StatusBar(p: Props) {
       {/* Estado del guardado: texto plano, sin icono que llame la atencion.
           Solo se pone rojo cuando algo falla de verdad. */}
       <span
-        title={p.save.kind === 'error' || p.save.kind === 'sincronizando' ? p.save.mensaje
-               : p.save.kind === 'bloqueado' ? p.save.motivo : undefined}
+        title={p.save.kind === 'error' || p.save.kind === 'sincronizando' ? tr(p.save.mensaje)
+               : p.save.kind === 'bloqueado' ? tr(p.save.motivo) : undefined}
         style={{
           padding: p.angosto ? '0 6px' : '0 10px', color: p.save.kind === 'error' ? theme_error(t) : t.text.caption,
           whiteSpace: 'nowrap',
@@ -124,12 +125,12 @@ export function StatusBar(p: Props) {
       </span>
       {sep}
 
-      <button title="Deshacer (⌘Z)" onClick={p.onUndo} disabled={!p.canUndo}
+      <button title={tr('Deshacer (⌘Z)')} onClick={p.onUndo} disabled={!p.canUndo}
         style={btn({ opacity: p.canUndo ? 1 : .35, cursor: p.canUndo ? 'pointer' : 'default' })}
         onPointerEnter={e => p.canUndo && hover(true)(e)} onPointerLeave={hover(false)}>
         <I.IconUndo size={18} />
       </button>
-      <button title="Rehacer (⇧⌘Z)" onClick={p.onRedo} disabled={!p.canRedo}
+      <button title={tr('Rehacer (⇧⌘Z)')} onClick={p.onRedo} disabled={!p.canRedo}
         style={btn({ opacity: p.canRedo ? 1 : .35, cursor: p.canRedo ? 'pointer' : 'default' })}
         onPointerEnter={e => p.canRedo && hover(true)(e)} onPointerLeave={hover(false)}>
         <I.IconRedo size={18} />
@@ -138,7 +139,7 @@ export function StatusBar(p: Props) {
 
       {/* VISTA del lienzo: liso, puntos, cuadricula */}
       <div style={{ position: 'relative' }}>
-        <button title="Vista del lienzo" data-vista onClick={() => { setVistaAbierta(v => !v); setZoomAbierto(false) }}
+        <button title={tr('Vista del lienzo')} data-vista onClick={() => { setVistaAbierta(v => !v); setZoomAbierto(false) }}
           style={btn()} onPointerEnter={hover(true)} onPointerLeave={hover(false)}>
           <VistaIcon size={18} />
         </button>
@@ -153,7 +154,7 @@ export function StatusBar(p: Props) {
                   style={fila(t, act)}
                   onPointerEnter={e => { if (!act) e.currentTarget.style.background = t.roles.sticky.fill }}
                   onPointerLeave={e => { if (!act) e.currentTarget.style.background = 'transparent' }}>
-                  <Icon size={16} /> <span>{v.label}</span>
+                  <Icon size={16} /> <span>{tr(v.label)}</span>
                 </button>
               )
             })}
@@ -163,11 +164,11 @@ export function StatusBar(p: Props) {
       {sep}
 
       {p.mostrarZoom !== false && <>
-        <button title="Alejar" onClick={() => p.onZoom(1 / 1.2)} style={btn()}
+        <button title={tr('Alejar')} onClick={() => p.onZoom(1 / 1.2)} style={btn()}
           onPointerEnter={hover(true)} onPointerLeave={hover(false)}><I.IconMinus size={16} /></button>
 
         <div style={{ position: 'relative' }}>
-          <button title="Nivel de zoom" data-zoom onClick={() => { setZoomAbierto(z => !z); setVistaAbierta(false) }}
+          <button title={tr('Nivel de zoom')} data-zoom onClick={() => { setZoomAbierto(z => !z); setVistaAbierta(false) }}
             style={{ ...btn({ width: p.angosto ? 46 : 56 }), font: 'inherit' }}
             onPointerEnter={hover(true)} onPointerLeave={hover(false)}>
             <PorcentajeZoom camara={p.camara} zoom={p.zoom} />
@@ -186,9 +187,9 @@ export function StatusBar(p: Props) {
           )}
         </div>
 
-        <button title="Acercar" onClick={() => p.onZoom(1.2)} style={btn()}
+        <button title={tr('Acercar')} onClick={() => p.onZoom(1.2)} style={btn()}
           onPointerEnter={hover(true)} onPointerLeave={hover(false)}><I.IconPlus size={16} /></button>
-        <button title="Encuadrar (⇧1)" data-fit onClick={p.onFit} style={btn()}
+        <button title={tr('Encuadrar (⇧1)')} data-fit onClick={p.onFit} style={btn()}
           onPointerEnter={hover(true)} onPointerLeave={hover(false)}><I.IconFit size={17} /></button>
         {sep}
       </>}
@@ -205,7 +206,7 @@ export function StatusBar(p: Props) {
         una opcion que aparece y desaparece nunca se aprende.
       */}
       <div style={{ position: 'relative' }} ref={exportRef}>
-        <button title="Exportar" data-export onClick={() => setMenuExport(v => !v)}
+        <button title={tr('Exportar')} data-export onClick={() => setMenuExport(v => !v)}
           style={{ ...btn(), background: menuExport ? theme_suave(t) : 'transparent' }}
           onPointerEnter={hover(true)} onPointerLeave={hover(false)}>
           <I.IconDownload size={17} />
@@ -218,8 +219,8 @@ export function StatusBar(p: Props) {
             boxShadow: t.name === 'oscuro' ? '0 14px 40px rgba(0,0,0,.6)' : '0 14px 40px rgba(15,15,25,.16)',
           }}>
             {([
-              { id: 'todo', label: 'Exportar el lienzo', icon: I.IconImage, off: false, sel: false },
-              { id: 'sel', label: 'Exportar la selección', icon: I.IconFit, off: !p.haySeleccion, sel: true },
+              { id: 'todo', label: trMarca('Exportar el lienzo'), icon: I.IconImage, off: false, sel: false },
+              { id: 'sel', label: trMarca('Exportar la selección'), icon: I.IconFit, off: !p.haySeleccion, sel: true },
             ] as const).map(o => (
               <button key={o.id} data-export-opcion={o.id} disabled={o.off}
                 onClick={() => { p.onExport(o.sel); setMenuExport(false) }}
@@ -233,7 +234,7 @@ export function StatusBar(p: Props) {
                   font: '600 12.5px CanvasSans, system-ui',
                 }}>
                 <o.icon size={15} />
-                <span style={{ flex: 1 }}>{o.label}</span>
+                <span style={{ flex: 1 }}>{tr(o.label)}</span>
                 <span style={{ font: '500 11px CanvasSans', color: t.text.caption }}>PNG</span>
               </button>
             ))}
@@ -245,12 +246,12 @@ export function StatusBar(p: Props) {
       {/* La hoja de atajos necesita una PUERTA visible. Un atajo que solo se
           abre con su propio atajo es un chiste: quien no lo sabe, no lo
           descubre. */}
-      <button title="Atajos (?)" data-atajos-abrir onClick={p.onAtajos} style={btn()}
+      <button title={tr('Atajos (?)')} data-atajos-abrir onClick={p.onAtajos} style={btn()}
         onPointerEnter={hover(true)} onPointerLeave={hover(false)}>
         <span style={{ font: '800 13px CanvasSans, system-ui' }}>?</span>
       </button>
 
-      {p.onTheme && <button title={t.name === 'claro' ? 'Tema oscuro' : 'Tema claro'} data-theme-toggle onClick={p.onTheme}
+      {p.onTheme && <button title={t.name === 'claro' ? tr('Tema oscuro') : tr('Tema claro')} data-theme-toggle onClick={p.onTheme}
         style={btn()} onPointerEnter={hover(true)} onPointerLeave={hover(false)}>
         {t.name === 'claro' ? <I.IconMoon size={17} /> : <I.IconSun size={17} />}
       </button>}
@@ -259,14 +260,14 @@ export function StatusBar(p: Props) {
 }
 
 const textoGuardado = (save: AutosaveStatus) =>
-  save.kind === 'limpio' ? (save.version ? `guardado v${save.version}` : 'al día')
-  : save.kind === 'guardando' ? 'guardando…'
-  : save.kind === 'sucio' ? 'sin guardar'
+  save.kind === 'limpio' ? (save.version ? tr('guardado v{version}', { version: save.version }) : tr('al día'))
+  : save.kind === 'guardando' ? tr('guardando…')
+  : save.kind === 'sucio' ? tr('sin guardar')
   // 'bloqueado' NO es rojo: el sistema esta haciendo lo correcto.
-  : save.kind === 'bloqueado' ? 'sin convertir'
+  : save.kind === 'bloqueado' ? tr('sin convertir')
   // Choque con otro escritor que se reintenta solo: tampoco es rojo.
-  : save.kind === 'sincronizando' ? 'sincronizando…'
-  : 'error al guardar'
+  : save.kind === 'sincronizando' ? tr('sincronizando…')
+  : tr('error al guardar')
 
 const theme_error = (t: Theme) => t.roles.risk.stroke.color
 const theme_suave = (t: Theme) => t.name === 'oscuro' ? 'rgba(255,255,255,.07)' : 'rgba(15,15,25,.055)'

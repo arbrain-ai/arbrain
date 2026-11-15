@@ -7,6 +7,7 @@
  *    assets · .mmd como diagrama · imágenes · video pausado y sin sonido · código: nunca.
  *  · Visor único (8 oct 2026): también .pdf (VisorPdf), video con versiones y marcas (VisorVideo), audio con forma de onda
  *    (VisorAudio), imágenes con su carpeta y comparador (Galeria) y una CARPETA como entrega (VisorEntrega). Todo en ./visor/.
+ *  · Documentos de oficina (14 nov 2026): Word .docx (VisorWord) y Excel .xlsx / .csv / .tsv (VisorTabla), con carga diferida.
  *  · Se relee cada 3 s mientras está montada; un cambio en disco se ve solo.
  *  · Editar .md/.txt con guarda de concurrencia: si el archivo cambió mientras editabas, no se pisa.
  *  · `destino:` en el frontmatter abre «Así se verá» (hoy feed-sfc); `compararCon` abre los cambios marcados.
@@ -26,11 +27,14 @@ import type { TipoDocumento } from '../documento/ruta'
 import { ImagenRapida } from '@/shared/components/ImagenRapida'
 import { anchoVariante, urlVariante, type MetaImagen } from '@/lib/imagenes/variantes'
 import { VisorPdf } from './visor/VisorPdf'
+import { VisorWord } from './visor/VisorWord'
+import { VisorTabla } from './visor/VisorTabla'
 import { VisorVideo, type VersionVideo } from './visor/VisorVideo'
 import { VisorAudio } from './visor/VisorAudio'
 import { VisorEntrega, type Entrega } from './visor/VisorEntrega'
 import { Galeria, type ImagenItem } from './visor/Galeria'
 import { Codigo } from './visor/Codigo'
+import { BotonDescargar } from './visor/BotonDescargar'
 import d from './documento.module.css'
 import { Bandeja, Redactor, useAgentesAbiertos, type Objetivo } from '../documento/ComentariosEntregable'
 import { lineaDeCita, useComentarios, type AgenteAbierto } from '../documento/comentarios'
@@ -39,6 +43,7 @@ import { capital, instalacion, NOMBRE_DUENO } from '@/config'
 import { OcultoPorDirecto } from '@/features/modo-directo/ModoDirecto'
 import { invocacionVetadaDirecto } from '@/lib/modo-directo/reglas'
 import { useDirecto } from '@/shared/stores/modo-directo-store'
+import { localeIntl, tr, trn } from '@/shared/i18n'
 
 interface Doc {
   ruta: string; archivo: string; tipo: TipoDocumento; editable: boolean
@@ -56,6 +61,8 @@ interface Doc {
   items?: Entrega['items']; recortado?: boolean; manifiesto?: Entrega['manifiesto']
   /** Código o texto sin formato conocido pedido desde el explorador que resultó ser binario. */
   binario?: boolean; bytes?: number
+  /** «Descargar» (12 nov 2026): enlace firmado al original, como adjunto (lib/cabina/descarga-documento.ts). */
+  descarga?: string
 }
 type Modo = 'previa' | 'texto' | 'cambios'
 
@@ -65,7 +72,7 @@ export const urlDocumento = (ruta: string, comparar?: string, versiones?: string
 /** Modo directo (7 nov 2026): `.env`, llaves y rutas sensibles no se piden ni se pintan (también los que se abren desde una carpeta). */
 export function VistaDocumento({ input, grande }: { input: MostrarInput; grande?: boolean }) {
   const directo = useDirecto()
-  if (directo && invocacionVetadaDirecto({ ruta: input.ruta, compararCon: input.compararCon, versiones: input.versiones })) return <OcultoPorDirecto que="Ese archivo" compacto={!grande} />
+  if (directo && invocacionVetadaDirecto({ ruta: input.ruta, compararCon: input.compararCon, versiones: input.versiones })) return <OcultoPorDirecto que={tr('Ese archivo')} compacto={!grande} />
   return <VistaDocumentoLibre input={input} grande={grande} />
 }
 
@@ -78,20 +85,22 @@ function VistaDocumentoLibre({ input, grande }: { input: MostrarInput; grande?: 
   const [editando, setEditando] = useState<{ texto: string; base: string } | null>(null)
   const actual: Modo = modo ?? (input.compararCon ? 'cambios' : destino ? 'previa' : 'texto')
 
-  if (!data) return <div className={d.cargando} aria-busy="true">{error ? <p className={d.aviso}>{error}</p> : 'Abriendo el documento…'}</div>
+  if (!data) return <div className={d.cargando} aria-busy="true">{error ? <p className={d.aviso}>{tr(error)}</p> : tr('Abriendo el documento…')}</div>
   // Desde el explorador de archivos (8 oct 2026), el código y el texto sin formato conocido se leen: solo lectura, con color.
   if ((data.tipo === 'codigo' || data.tipo === 'otro') && input.explorador && data.texto != null) return <ZoomDoc clave={`doc:${input.ruta}`}><Codigo texto={data.texto} archivo={data.archivo} bytes={data.bytes} /></ZoomDoc>
-  if (data.binario) return <p className={d.codigo}><Code2 size={15} aria-hidden />Es un archivo binario: no se puede leer como texto.</p>
-  if (data.tipo === 'codigo' || data.tipo === 'otro') return <p className={d.codigo}><Code2 size={15} aria-hidden />{data.tipo === 'codigo' ? 'Es código: aquí no se enseña. Pídeselo a Levy en palabras.' : 'Este formato no se puede mostrar en el panel.'}</p>
+  if (data.binario) return <p className={d.codigo}><Code2 size={15} aria-hidden />{tr('Es un archivo binario: no se puede leer como texto.')}</p>
+  if (data.tipo === 'codigo' || data.tipo === 'otro') return <p className={d.codigo}><Code2 size={15} aria-hidden />{data.tipo === 'codigo' ? tr('Es código: aquí no se enseña. Pídeselo a Levy en palabras.') : tr('Este formato no se puede mostrar en el panel.')}</p>
   if (data.tipo === 'imagen') return <Imagen data={data} nombre={input.titulo ?? data.archivo} />
-  if (data.tipo === 'pdf') return <VisorPdf key={data.ruta} url={data.url!} archivo={data.archivo} ruta={input.ruta!} grande={grande} />
-  if (data.tipo === 'audio') return <VisorAudio url={data.url!} ruta={input.ruta!} archivo={data.archivo} tiempoInicial={input.tiempo} clave={input.ruta!} />
+  if (data.tipo === 'pdf') return <VisorPdf key={data.ruta} url={data.url!} archivo={data.archivo} ruta={input.ruta!} grande={grande} descarga={data.descarga} />
+  if (data.tipo === 'docx') return <VisorWord key={data.ruta} url={data.url!} archivo={data.archivo} ruta={input.ruta!} hash={data.hash} bytes={data.bytes} grande={grande} descarga={data.descarga} />
+  if (data.tipo === 'xlsx' || data.tipo === 'csv') return <VisorTabla key={data.ruta} url={data.url!} tipo={data.tipo} archivo={data.archivo} ruta={input.ruta!} hash={data.hash} bytes={data.bytes} grande={grande} descarga={data.descarga} />
+  if (data.tipo === 'audio') return <VisorAudio url={data.url!} ruta={input.ruta!} archivo={data.archivo} tiempoInicial={input.tiempo} clave={input.ruta!} descarga={data.descarga} />
   // Nunca autoplay con sonido: arranca pausado y silenciado; Daniel le da play si quiere.
   if (data.tipo === 'video') return <VisorVideo versiones={data.versiones ?? []} tiempoInicial={input.tiempo} grande={grande} clave={input.ruta!} alReintentar={() => { void releer(url) }} />
   if (data.tipo === 'carpeta') return <VisorEntrega data={{ archivo: data.archivo, ruta: input.ruta!, items: data.items ?? [], recortado: !!data.recortado, manifiesto: data.manifiesto ?? null }} grande={grande}
     abrir={sub => <VistaDocumento input={sub} grande={grande} />} />
-  if (data.tipo === 'html') return <MarcoHtml key={data.hash} clave={`doc:${input.ruta}`} url={data.url!} titulo={input.titulo ?? data.archivo} grande={grande} />
-  if (data.tipo === 'mermaid') return <ZoomDoc clave={`doc:${input.ruta}`}><div className={d.lienzo}><MermaidDiagram code={data.texto ?? ''} /></div></ZoomDoc>
+  if (data.tipo === 'html') return <MarcoHtml key={data.hash} clave={`doc:${input.ruta}`} url={data.url!} titulo={input.titulo ?? data.archivo} grande={grande} descarga={data.descarga} archivo={data.archivo} />
+  if (data.tipo === 'mermaid') return <ZoomDoc clave={`doc:${input.ruta}`}><div className={d.doc}><div className={d.barra}><BotonDescargar url={data.descarga} nombre={data.archivo} className={d.editar} conTexto tamano={13} /></div><div className={d.lienzo}><MermaidDiagram code={data.texto ?? ''} /></div></div></ZoomDoc>
 
   const texto = data.texto ?? ''
   return <ZoomDoc clave={`doc:${input.ruta}`}><CuerpoTexto data={data} input={input} url={url} destino={destino} actual={actual} setModo={setModo} editando={editando} setEditando={setEditando} /></ZoomDoc>
@@ -135,24 +144,25 @@ function CuerpoTexto({ data, input, url, destino, actual, setModo, editando, set
     for (const m of mios) { const c = (m.cita ?? '').replace(/\s+/g, ' ').trim().slice(0, 60); const el = c && blo.find(b => (b.textContent ?? '').replace(/\s+/g, ' ').trim().startsWith(c)); if (el) el.setAttribute('data-comentado', '') }
   })
   const opciones: { modo: Modo; nombre: string; Icono: typeof Eye }[] = [
-    ...(destino ? [{ modo: 'previa' as const, nombre: 'Así se verá', Icono: Eye }] : []),
-    { modo: 'texto', nombre: 'Texto', Icono: FileText },
-    ...(input.compararCon ? [{ modo: 'cambios' as const, nombre: 'Cambios', Icono: GitCompare }] : []),
+    ...(destino ? [{ modo: 'previa' as const, nombre: tr('Así se verá'), Icono: Eye }] : []),
+    { modo: 'texto', nombre: tr('Texto'), Icono: FileText },
+    ...(input.compararCon ? [{ modo: 'cambios' as const, nombre: tr('Cambios'), Icono: GitCompare }] : []),
   ]
   return <div className={d.doc}>
     <div className={d.barra}>
-      {opciones.length > 1 && !editando && <div className={d.conmutador} role="tablist" aria-label="Cómo verlo">
+      {opciones.length > 1 && !editando && <div className={d.conmutador} role="tablist" aria-label={tr('Cómo verlo')}>
         {opciones.map(o => <button key={o.modo} role="tab" aria-selected={actual === o.modo} onClick={() => setModo(o.modo)}><o.Icono size={13} aria-hidden />{o.nombre}</button>)}
       </div>}
-      {destino && actual === 'previa' && !editando && <span className={d.destino}>{DESTINOS[destino].nombre} · borrador, no publicado</span>}
+      {destino && actual === 'previa' && !editando && <span className={d.destino}>{tr('{destino} · borrador, no publicado', { destino: tr(DESTINOS[destino].nombre) })}</span>}
       {/* «Comentar» a la izquierda de «Editar»: la esquina la ocupa el botón flotante de «Escuchar» */}
       {/* Edición cliente (30 oct 2026): los comentarios no van a agentes en terminales (no los tiene); la bandeja los deja
           como borrador en su chat con Levy (ComentariosEntregable › Bandeja). */}
       {!editando && actual !== 'previa' && <button className={d.editar} aria-pressed={comentando} data-comentar onClick={() => { setComentando(!comentando); setObjetivo(null) }}
-        title="Toca un párrafo para comentarlo; los comentarios se mandan juntos al agente"><MessageSquarePlus size={13} aria-hidden />{comentando ? 'Listo' : 'Comentar'}</button>}
-      {data.editable && !editando && <button className={d.editar} style={actual !== 'previa' ? { marginLeft: 0 } : undefined} onClick={() => setEditando({ texto, base: data.hash! })}><Pencil size={13} aria-hidden />Editar</button>}
+        title={tr('Toca un párrafo para comentarlo; los comentarios se mandan juntos al agente')}><MessageSquarePlus size={13} aria-hidden />{comentando ? tr('Listo') : tr('Comentar')}</button>}
+      {data.editable && !editando && <button className={d.editar} style={actual !== 'previa' ? { marginLeft: 0 } : undefined} onClick={() => setEditando({ texto, base: data.hash! })}><Pencil size={13} aria-hidden />{tr('Editar')}</button>}
+      {!editando && <BotonDescargar url={data.descarga} nombre={data.archivo} className={d.editar} conTexto tamano={13} style={actual !== 'previa' || data.editable ? { marginLeft: 0 } : undefined} />}
     </div>
-    {comentando && !objetivo && <p className={d.meta}><span>Toca el párrafo que quieres comentar.</span></p>}
+    {comentando && !objetivo && <p className={d.meta}><span>{tr('Toca el párrafo que quieres comentar.')}</span></p>}
     {editando ? <Editor ruta={input.ruta!} url={url} inicial={editando} enDisco={data.hash!} onSalir={() => setEditando(null)} />
       : actual === 'previa' && destino ? <Previa destino={destino} doc={data} />
       : actual === 'cambios' ? <Cambios doc={data} />
@@ -164,7 +174,7 @@ function CuerpoTexto({ data, input, url, destino, actual, setModo, editando, set
 
 /** HTML aislado que sigue el tema de la app: nace con `?tema=` y, si cambia (a mano o por hora), recibe
  *  `postMessage` sin recargarse. El servidor le inyecta `html[data-tema]` (documento/tema-html.ts). */
-function MarcoHtml({ clave, url, titulo, grande }: { clave: string; url: string; titulo: string; grande?: boolean }) {
+function MarcoHtml({ clave, url, titulo, grande, descarga, archivo }: { clave: string; url: string; titulo: string; grande?: boolean; descarga?: string; archivo?: string }) {
   const { resolvedTheme } = useTheme()
   const tema = resolvedTheme === 'light' ? 'claro' : 'oscuro'
   const inicial = useRef(tema)
@@ -197,13 +207,16 @@ function MarcoHtml({ clave, url, titulo, grande }: { clave: string; url: string;
     ro.observe(el); return () => ro.disconnect()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-  const salida = <button type="button" className={d.salirPantalla} onClick={pantalla.salir} aria-label="Salir de pantalla completa" title="Salir (desliza hacia abajo o doble toque arriba)"
+  const salida = <button type="button" className={d.salirPantalla} onClick={pantalla.salir} aria-label={tr('Salir de pantalla completa')} title={tr('Salir (desliza hacia abajo o doble toque arriba)')}
     data-pantalla-marco data-llamada={pantalla.llamada || undefined}><X size={22} strokeWidth={2.5} aria-hidden /></button>
   return <>
     <div ref={caja} className={d.htmlMarco} data-grande={grande || undefined} data-pantalla={pantalla.activa || undefined} data-pantalla-marco={pantalla.activa || undefined}>
       <iframe ref={marco} className={d.html} data-lector src={`${url}?tema=${inicial.current}`} sandbox="allow-scripts" title={titulo}
         onLoad={() => { enviar({ tipo: 'arbrain-tema', tema }); enviar({ tipo: 'arbrain-zoom', zoom: pantalla.activa ? 1 : zoom }); enviar({ tipo: 'arbrain-pantalla', on: pantalla.activa }) }} />
-      {!pantalla.activa && <button type="button" className={d.pantallaBtn} onClick={pantalla.entrar} title="Pantalla completa (o gira el teléfono)"><Maximize2 size={14} aria-hidden /><span>Pantalla completa</span></button>}
+      {!pantalla.activa && <div className={d.accionesMarco}>
+        <BotonDescargar url={descarga} nombre={archivo ?? titulo} className={d.pantallaBtn} conTexto tamano={14} />
+        <button type="button" className={d.pantallaBtn} onClick={pantalla.entrar} title={tr('Pantalla completa (o gira el teléfono)')}><Maximize2 size={14} aria-hidden /><span>{tr('Pantalla completa')}</span></button>
+      </div>}
       {pantalla.activa && pantalla.nativa && salida}
     </div>
     {/* Sin API nativa (iPhone) la X vive en <body>, fuera de cualquier ancestro que la recorte: nunca queda atrapado. */}
@@ -347,7 +360,7 @@ function Txt({ texto }: { texto: string }) {
  *  abre la original completa. Desde el 8 oct: las demás de su carpeta a un lado (← →) y, con `compararCon`, un deslizador. */
 function Imagen({ data, nombre }: { data: Doc; nombre: string }) {
   const [abierta, setAbierta] = useState<ImagenItem | null>(null)
-  const unica: ImagenItem = { nombre: data.archivo, ruta: data.ruta, url: data.url!, imagen: data.imagen ?? null }
+  const unica: ImagenItem = { nombre: data.archivo, ruta: data.ruta, url: data.url!, descarga: data.descarga, imagen: data.imagen ?? null }
   const hermanas = data.hermanas?.length ? data.hermanas : [unica]
   return <figure className={d.medio}>
     <Galeria hermanas={hermanas} total={data.totalHermanas ?? hermanas.length} rutaActual={hermanas.find(h => h.nombre === data.archivo)?.ruta ?? data.ruta} comparada={data.comparada} abrirGrande={setAbierta} />
@@ -378,8 +391,8 @@ function VisorImagen({ url, meta, nombre, onCerrar }: { url: string; meta: MetaI
     <div className={d.visorBarra}>
       <span>{nombre}</span>
       <div>
-        {zoom.scale !== 1 && <button type="button" onClick={zoom.reset} aria-label="Restablecer zoom"><RotateCcw size={16} aria-hidden /></button>}
-        <button type="button" onClick={onCerrar} aria-label="Cerrar"><X size={20} aria-hidden /></button>
+        {zoom.scale !== 1 && <button type="button" onClick={zoom.reset} aria-label={tr('Restablecer zoom')}><RotateCcw size={16} aria-hidden /></button>}
+        <button type="button" onClick={onCerrar} aria-label={tr('Cerrar')}><X size={20} aria-hidden /></button>
       </div>
     </div>
     <div ref={marco} className={d.visorLienzo} style={{ touchAction: 'none', cursor: zoom.scale > 1 ? 'grab' : 'zoom-in' }}
@@ -388,7 +401,7 @@ function VisorImagen({ url, meta, nombre, onCerrar }: { url: string; meta: MetaI
         <img src={url} alt={nombre} draggable={false} width={meta?.ancho} height={meta?.alto} style={fondoDeVisor(meta)} />
       </div>
     </div>
-    <p className={d.visorPie}>{tactil ? 'Pellizca para zoom · arrastra para mover · doble toque restablece' : 'Rueda para zoom · arrastra para mover · Esc cierra'}</p>
+    <p className={d.visorPie}>{tactil ? tr('Pellizca para zoom · arrastra para mover · doble toque restablece') : tr('Rueda para zoom · arrastra para mover · Esc cierra')}</p>
   </div>, document.body)
 }
 
@@ -412,9 +425,9 @@ function Editor({ ruta, url, inicial, enDisco, onSalir }: { ruta: string; url: s
       const r = await fetch('/api/cabina/documento', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ruta, texto, base: inicial.base }) })
       const body = await r.json().catch(() => ({}))
       if (r.status === 409) { setEstado('conflicto'); return }
-      if (!r.ok) { setEstado({ error: body.error ?? `No se pudo guardar (${r.status}).` }); return }
+      if (!r.ok) { setEstado({ error: body.error ? tr(body.error) : tr('No se pudo guardar ({estado}).', { estado: r.status }) }); return }
       await releer(url); onSalir()
-    } catch (e) { setEstado({ error: e instanceof Error ? e.message : 'No se pudo guardar.' }) }
+    } catch (e) { setEstado({ error: e instanceof Error ? e.message : tr('No se pudo guardar.') }) }
   }
   useEffect(() => {
     const k = (e: KeyboardEvent) => { if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); void guardar() } }
@@ -422,14 +435,14 @@ function Editor({ ruta, url, inicial, enDisco, onSalir }: { ruta: string; url: s
   })
   const conflicto = estado === 'conflicto' || cambioFuera
   return <div className={d.editor}>
-    {conflicto && <p className={d.aviso}>Cambió mientras editabas (lo tocó Levy u otra ventana). Guardar no pisa su versión.
-      <button className={d.enlace} onClick={() => { void releer(url).then(onSalir) }}><RotateCcw size={12} aria-hidden />Recargar (pierdes lo que escribiste aquí)</button></p>}
+    {conflicto && <p className={d.aviso}>{tr('Cambió mientras editabas (lo tocó Levy u otra ventana). Guardar no pisa su versión.')}
+      <button className={d.enlace} onClick={() => { void releer(url).then(onSalir) }}><RotateCcw size={12} aria-hidden />{tr('Recargar (pierdes lo que escribiste aquí)')}</button></p>}
     {typeof estado === 'object' && <p className={d.aviso}>{estado.error}</p>}
-    <textarea value={texto} onChange={e => setTexto(e.target.value)} spellCheck lang="es" autoFocus aria-label="Texto del documento" />
+    <textarea value={texto} onChange={e => setTexto(e.target.value)} spellCheck lang="es" autoFocus aria-label={tr('Texto del documento')} />
     <div className={d.pieEditor}>
-      <button className={d.guardar} onClick={() => void guardar()} disabled={estado === 'guardando' || texto === inicial.texto}><Check size={13} aria-hidden />{estado === 'guardando' ? 'Guardando…' : 'Guardar'}</button>
-      <button className={d.cancelar} onClick={onSalir}>Cancelar</button>
-      <small>⌘S guarda</small>
+      <button className={d.guardar} onClick={() => void guardar()} disabled={estado === 'guardando' || texto === inicial.texto}><Check size={13} aria-hidden />{estado === 'guardando' ? tr('Guardando…') : tr('Guardar')}</button>
+      <button className={d.cancelar} onClick={onSalir}>{tr('Cancelar')}</button>
+      <small>{tr('⌘S guarda')}</small>
     </div>
   </div>
 }
@@ -437,12 +450,12 @@ function Editor({ ruta, url, inicial, enDisco, onSalir }: { ruta: string; url: s
 function Cambios({ doc }: { doc: Doc }) {
   const c = doc.comparado
   const piezas = useMemo(() => c && 'texto' in c ? diffPalabras(c.texto, doc.texto ?? '') : null, [c, doc.texto])
-  if (!c) return <p className={d.aviso}>Sin versión para comparar.</p>
-  if ('error' in c) return <p className={d.aviso}>{c.error}</p>
+  if (!c) return <p className={d.aviso}>{tr('Sin versión para comparar.')}</p>
+  if ('error' in c) return <p className={d.aviso}>{tr(c.error)}</p>
   const n = contarCambios(piezas!)
   return <div className={d.cambios}>
-    <p className={d.meta}><span>{n === 0 ? `Sin cambios contra ${c.etiqueta}.` : `${n} ${n === 1 ? 'cambio' : 'cambios'} contra ${c.etiqueta}`}</span><span className={d.leyenda}><del>quitado</del> <ins>agregado</ins></span></p>
-    <div className={d.diff}>{plegar(piezas!).map((p, i) => p.tipo === 'pliegue' ? <span key={i} className={d.pliegue}>… {p.omitido.toLocaleString('es-MX')} caracteres sin cambios …</span>
+    <p className={d.meta}><span>{n === 0 ? tr('Sin cambios contra {etiqueta}.', { etiqueta: tr(c.etiqueta) }) : trn(n, '1 cambio contra {etiqueta}', '{n} cambios contra {etiqueta}', { etiqueta: tr(c.etiqueta) })}</span><span className={d.leyenda}><del>{tr('quitado')}</del> <ins>{tr('agregado')}</ins></span></p>
+    <div className={d.diff}>{plegar(piezas!).map((p, i) => p.tipo === 'pliegue' ? <span key={i} className={d.pliegue}>{tr('… {n} caracteres sin cambios …', { n: p.omitido.toLocaleString(localeIntl()) })}</span>
       : p.tipo === 'quitado' ? <del key={i}>{p.texto}</del> : p.tipo === 'agregado' ? <ins key={i}>{p.texto}</ins> : <span key={i}>{p.texto}</span>)}</div>
   </div>
 }
@@ -471,7 +484,7 @@ function PreviaFeed({ doc }: { doc: Doc }) {
     </div>
   </div>
   return <div className={d.sfc}>
-    <p className={d.sfcEtiqueta}>En el feed</p>
+    <p className={d.sfcEtiqueta}>{tr('En el feed')}</p>
     <article className={d.sfcTarjeta}>
       {cabeza(false)}
       <div className={d.sfcFila}>
@@ -483,13 +496,13 @@ function PreviaFeed({ doc }: { doc: Doc }) {
       </div>
       <div className={d.sfcAcciones}><span>👍 0</span><span>💬 0</span><span className={d.sfcNuevo}>Nuevo</span></div>
     </article>
-    <p className={d.sfcEtiqueta}>Al abrirlo</p>
+    <p className={d.sfcEtiqueta}>{tr('Al abrirlo')}</p>
     <article className={`${d.sfcTarjeta} ${d.sfcAbierto}`}>
       {cabeza(true)}
       <h2 className={d.sfcTituloAbierto}>{post.titulo || 'Sin título'}</h2>
       <div className={d.sfcCuerpo}>{parrafos(post.contenido).map((p, i) => <p key={i}><Trozos trozos={p} /></p>)}</div>
       {doc.portada && <span className={d.sfcPortada}>{doc.portadaImagen ? <ImagenRapida meta={doc.portadaImagen} alt="Portada del post" altoMax="250px" style={{ borderRadius: 8 }} /> : <img src={doc.portada} alt="Portada del post" />}</span>}
-      {!doc.portada && doc.frontmatter?.imagen && <p className={d.aviso}>No encontré la imagen «{doc.frontmatter.imagen}».</p>}
+      {!doc.portada && doc.frontmatter?.imagen && <p className={d.aviso}>{tr('No encontré la imagen «{imagen}».', { imagen: doc.frontmatter.imagen })}</p>}
       <div className={d.sfcPie}><span>👍 Like</span><span>💬 0 comments</span><span>🔖 Guardar</span></div>
     </article>
   </div>

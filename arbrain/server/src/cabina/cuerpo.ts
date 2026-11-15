@@ -48,6 +48,7 @@ import type { CambiosRama } from './aislamiento.js'
 import { ES_DEL_NEGOCIO, explicar, ficha, type AreaServicio } from './servicios-legibles.js'
 import { DIR_ARBRAIN, esEdicionCliente } from '../edicion.js'
 import { notaAutoria } from './autoria.js'
+import { NOTA_EVIDENCIA } from './evidencia.js'
 
 const run = promisify(execFile)
 const GATE = join(homedir(), 'Developer/software/sfterm/scripts/gate.py')
@@ -91,7 +92,7 @@ export function tachar(texto: string): string {
 export interface SubagenteOrigen { owner: string; account: string; conversationId: string }
 /** Pregunta abierta del subagente (5 oct 2026): la ve primero Levy; a Daniel solo sube si Levy no la atiende. */
 export interface PreguntaAbierta { texto: string; tipo: 'dialogo' | 'pregunta'; firma: string; desde: number }
-export interface Subagente { /** Cuenta de Claude en la que nació (harness claude, 3 nov 2026); su sesión vive en esa carpeta. */ cuenta?: 'default' | 'bro'; /** Perfil de permisos (29 oct 2026, perfiles.ts); sin campo = total. */ perfil?: import('./perfiles.js').Perfil; /** El CLI no acepta la guardia: corre sin lista negra (gemini, qwen, opencode en total). */ sinGuardia?: boolean; /** Plan versionado del que salió el encargo (plan.ts): ruta en el repo y commit aprobado. */ plan?: { ruta: string; commit: string | null }; avisarA?: SubagenteOrigen; avisadoHasta?: number; avisadoFin?: string; fin?: string; id: number; nombre: string; harness: string; encargo: string; cwd: string; creado: string; modelo?: string; esfuerzo?: string; cerrado?: string; motor?: boolean; pid?: number; sesion?: string; tokens?: number | null; permisos?: Permisos; entrega?: 'entregado' | 'pendiente' | 'falló'; entregaNota?: string; espera?: string; aviso?: string
+export interface Subagente { /** «Recibido» desde el Taller (11 nov 2026): cuándo el dueño lo dio por visto; sale de «Trabajando para ti» y queda en «Recibidos». Reversible. */ recibido?: string; /** Cuenta de Claude en la que nació (harness claude, 3 nov 2026); su sesión vive en esa carpeta. */ cuenta?: 'default' | 'bro'; /** Perfil de permisos (29 oct 2026, perfiles.ts); sin campo = total. */ perfil?: import('./perfiles.js').Perfil; /** El CLI no acepta la guardia: corre sin lista negra (gemini, qwen, opencode en total). */ sinGuardia?: boolean; /** Plan versionado del que salió el encargo (plan.ts): ruta en el repo y commit aprobado. */ plan?: { ruta: string; commit: string | null }; avisarA?: SubagenteOrigen; avisadoHasta?: number; avisadoFin?: string; fin?: string; id: number; nombre: string; harness: string; encargo: string; cwd: string; creado: string; modelo?: string; esfuerzo?: string; cerrado?: string; motor?: boolean; pid?: number; sesion?: string; tokens?: number | null; permisos?: Permisos; entrega?: 'entregado' | 'pendiente' | 'falló'; entregaNota?: string; espera?: string; aviso?: string
   /** Conversación del chat desde la que Levy lo lanzó (3 oct 2026); null = no se pudo saber. */
   origen?: string | null
   pregunta?: PreguntaAbierta
@@ -299,12 +300,12 @@ export async function delegar(p: import('./sin-pantalla.js').PedidoDelegar): Pro
   const sesion = p.harness === 'claude' ? randomUUID() : undefined
   const permisos = permisosDefault()
   const skills = preludioSkills(p.cwd)
-  const { id, pid } = await motor.spawn({ cwd: p.cwd, command: comando(p.harness, modelo, p.encargo + (skills?.texto ?? '') + notaAutoria(p.nombre), sesion, permisos) })
+  const { id, pid } = await motor.spawn({ cwd: p.cwd, command: comando(p.harness, modelo, p.encargo + (skills?.texto ?? '') + notaAutoria(p.nombre) + NOTA_EVIDENCIA, sesion, permisos) })
   // Registro ANTES de entregar: si la entrega tropieza, retomar y cerrar siguen siendo de Levy (#11).
   const sub: Subagente = { id, nombre: p.nombre.slice(0, 80), harness: p.harness, encargo: p.encargo.slice(0, 2000), cwd: p.cwd, creado: new Date().toISOString(), motor: true, pid, permisos, entrega: 'pendiente', ...(skills ? { aviso: skills.aviso } : {}), ...(sesion ? { sesion } : {}), ...(modelo ? { modelo } : {}), ...(p.avisarA ? { avisarA: p.avisarA } : {}) }
   await mutarRegistro(l => [...l, sub])
   olvidarFoto()
-  return terminarEntrega(sub, entregarPorMotor({ ...sub, encargo: p.encargo + (skills?.texto ?? '') + notaAutoria(p.nombre) }))
+  return terminarEntrega(sub, entregarPorMotor({ ...sub, encargo: p.encargo + (skills?.texto ?? '') + notaAutoria(p.nombre) + NOTA_EVIDENCIA }))
 }
 
 async function delegarPorGate(p: { nombre: string; harness: Subagente['harness']; encargo: string; cwd: string }, modelo: string | null, registro: Subagente[]): Promise<Subagente> {
@@ -314,7 +315,7 @@ async function delegarPorGate(p: { nombre: string; harness: Subagente['harness']
   const sub: Subagente = { id, nombre: p.nombre.slice(0, 80), harness: p.harness, encargo: p.encargo.slice(0, 2000), cwd: p.cwd, creado: new Date().toISOString(), permisos, entrega: 'pendiente', ...(skills ? { aviso: skills.aviso } : {}), ...(modelo ? { modelo } : {}) }
   await mutarRegistro(l => [...l, sub])
   olvidarFoto()
-  return terminarEntrega(sub, entregarPorGate({ ...sub, encargo: p.encargo + (skills?.texto ?? '') + notaAutoria(p.nombre) }))
+  return terminarEntrega(sub, entregarPorGate({ ...sub, encargo: p.encargo + (skills?.texto ?? '') + notaAutoria(p.nombre) + NOTA_EVIDENCIA }))
 }
 
 /** Espera la entrega hasta `ESPERA_ENTREGA_MS`; si tarda más, sigue sola en segundo plano
@@ -606,6 +607,23 @@ export async function cerrar(id: number): Promise<void> {
   const wt = join(dirname(fileURLToPath(import.meta.url)), '../../scripts/worktrees/wt.sh')
   // la raíz del worktree, no su subcarpeta (con aislamiento el cwd puede ser wt-x/arbrain y wt.sh exige la raíz)
   execFile('/bin/bash', [wt, 'cerrar', worktreeDe(sub.cwd)?.raiz ?? sub.cwd, '--si-limpio'], { timeout: 120_000 }, () => { /* mejor esfuerzo */ })
+}
+
+/**
+ * «Recibido» (11 nov 2026, Daniel: «un botón de palomita como recibido… para que no se acumulen»): marca o desmarca al
+ * subagente en el registro. No toca su proceso, su sesión ni su carpeta; solo dice en qué lista del Taller va.
+ */
+export async function marcarRecibido(id: number, si: boolean): Promise<void> {
+  let hubo = false
+  await mutarRegistro(l => l.map(s => {
+    if (s.id !== id || s.cerrado) return s
+    hubo = true
+    if (si) return { ...s, recibido: new Date().toISOString() }
+    const { recibido: _, ...resto } = s
+    return resto
+  }))
+  if (!hubo) throw new Error('Ese agente no es de Levy o ya se cerró.')
+  olvidarFoto()
 }
 
 // ── Lectura para la vista «trabajos» ──

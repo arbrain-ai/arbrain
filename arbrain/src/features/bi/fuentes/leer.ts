@@ -17,6 +17,7 @@ import { ErrorFuente, indiceColumna, type Celda, type Lote } from '../calculo'
 import { parsearCsv } from './csv'
 import { leerXlsx, serialAFecha } from './xlsx'
 import { consultarPg } from './pg'
+import { localeIntl, tr } from '../../../shared/i18n/tr'
 
 /** Más que esto en el rango de una consulta no es un tablero: es un almacén. Se pide una vista que agrupe por día. */
 export const MAXIMO_FILAS = 200_000
@@ -44,7 +45,7 @@ export function rutaArchivo(f: Fuente, raiz: string): string {
   const r = f.ruta ?? ''
   const abs = path.isAbsolute(r) ? path.normalize(r) : path.resolve(raiz, r)
   const ext = EXTENSIONES[f.tipo === 'excel' ? 'excel' : 'csv']
-  if (!ext.some(x => abs.toLowerCase().endsWith(x))) throw new ErrorFuente(`«${f.id}»: solo se leen archivos ${ext.join(', ')}.`)
+  if (!ext.some(x => abs.toLowerCase().endsWith(x))) throw new ErrorFuente(tr('«{id}»: solo se leen archivos {ext}.', { id: f.id, ext: ext.join(', ') }))
   return abs
 }
 
@@ -53,9 +54,9 @@ const cacheArchivos = new Map<string, { firma: string; lote: Lote }>()
 async function leerArchivo(f: Fuente, raiz: string): Promise<Lote> {
   const ruta = rutaArchivo(f, raiz)
   let s
-  try { s = await stat(ruta) } catch { throw new ErrorFuente(`No encuentro el archivo de «${f.id}» (${f.ruta}). Ponlo ahí o corrige «ruta».`) }
-  if (!s.isFile()) throw new ErrorFuente(`«${f.ruta}» no es un archivo.`)
-  if (s.size > MAXIMO_BYTES) throw new ErrorFuente(`«${f.ruta}» pesa más de 60 MB: exporta solo los últimos meses o conecta la base.`)
+  try { s = await stat(ruta) } catch { throw new ErrorFuente(tr('No encuentro el archivo de «{id}» ({ruta}). Ponlo ahí o corrige «ruta».', { id: f.id, ruta: f.ruta })) }
+  if (!s.isFile()) throw new ErrorFuente(tr('«{ruta}» no es un archivo.', { ruta: f.ruta }))
+  if (s.size > MAXIMO_BYTES) throw new ErrorFuente(tr('«{ruta}» pesa más de 60 MB: exporta solo los últimos meses o conecta la base.', { ruta: f.ruta }))
   const firma = `${f.tipo}:${f.hoja ?? ''}:${f.separador ?? ''}:${s.mtimeMs}:${s.size}:${f.fecha}`
   const ya = cacheArchivos.get(ruta)
   if (ya && ya.firma === firma) return ya.lote
@@ -76,7 +77,7 @@ async function leerArchivo(f: Fuente, raiz: string): Promise<Lote> {
     const tabla = parsearCsv(buf.toString('utf8'), f.separador)
     lote = { columnas: tabla.columnas, filas: tabla.filas, viva: false }
   }
-  if (lote.filas.length > MAXIMO_FILAS * 5) throw new ErrorFuente(`«${f.ruta}» trae más de ${(MAXIMO_FILAS * 5).toLocaleString('es-MX')} filas: exporta solo los últimos meses.`)
+  if (lote.filas.length > MAXIMO_FILAS * 5) throw new ErrorFuente(tr('«{ruta}» trae más de {n} filas: exporta solo los últimos meses.', { ruta: f.ruta, n: (MAXIMO_FILAS * 5).toLocaleString(localeIntl()) }))
   cacheArchivos.set(ruta, { firma, lote })
   return lote
 }
@@ -84,12 +85,12 @@ async function leerArchivo(f: Fuente, raiz: string): Promise<Lote> {
 const cita = (id: string) => `"${id}"`
 const llaveDe = (p: Pedido, nombre: string | undefined, f: Fuente) => {
   const v = nombre ? p.llaves[nombre] : undefined
-  if (!v) throw new ErrorFuente(`Falta la llave ${nombre} de «${f.id}»: ponla en ${RUTA_LLAVES} (una línea ${nombre}=…). Nunca en la memoria.`)
+  if (!v) throw new ErrorFuente(tr('Falta la llave {nombre} de «{id}»: ponla en {ruta} (una línea {nombre}=…). Nunca en la memoria.', { nombre, id: f.id, ruta: RUTA_LLAVES }))
   return v
 }
 
 async function leerPostgres(f: Fuente, p: Pedido): Promise<Lote> {
-  if (!DIA.test(p.desde) || !DIA.test(p.hastaExclusivo)) throw new ErrorFuente('Rango de días inválido.')
+  if (!DIA.test(p.desde) || !DIA.test(p.hastaExclusivo)) throw new ErrorFuente(tr('Rango de días inválido.'))
   const tabla = f.tabla!.split('.').map(cita).join('.')
   const fecha = cita(f.fecha)
   const sql = [
@@ -99,8 +100,8 @@ async function leerPostgres(f: Fuente, p: Pedido): Promise<Lote> {
     'COMMIT',
   ].join('; ')
   const [extremos, filas] = await consultarPg(llaveDe(p, f.conexion, f), `${sql};`, { timeoutMs: 25_000 })
-  if (!extremos || !filas) throw new ErrorFuente(`Postgres no devolvió las filas de «${f.id}».`)
-  if (filas.filas.length > MAXIMO_FILAS) throw new ErrorFuente(`«${f.tabla}» trae más de ${MAXIMO_FILAS.toLocaleString('es-MX')} filas en la ventana: crea una vista que agrupe por día y conéctala en su lugar.`)
+  if (!extremos || !filas) throw new ErrorFuente(tr('Postgres no devolvió las filas de «{id}».', { id: f.id }))
+  if (filas.filas.length > MAXIMO_FILAS) throw new ErrorFuente(tr('«{tabla}» trae más de {n} filas en la ventana: crea una vista que agrupe por día y conéctala en su lugar.', { tabla: f.tabla, n: MAXIMO_FILAS.toLocaleString(localeIntl()) }))
   return { columnas: p.columnas, filas: filas.filas, viva: true, extremos: [extremos.filas[0]?.[0] ?? null, extremos.filas[0]?.[1] ?? null] }
 }
 
@@ -111,7 +112,7 @@ async function leerSupabase(f: Fuente, p: Pedido): Promise<Lote> {
   })
   const [esquema, nombre] = f.tabla!.includes('.') ? f.tabla!.split('.') : [null, f.tabla!]
   const desde = () => (esquema ? sb.schema(esquema) : sb).from(nombre)
-  const falla = (e: { message?: string } | null) => { if (e) throw new ErrorFuente(`Supabase (${f.id}): ${e.message ?? 'no respondió'}.`) }
+  const falla = (e: { message?: string } | null) => { if (e) throw new ErrorFuente(`Supabase (${f.id}): ${e.message ?? tr('no respondió')}.`) }
   const extremo = async (asc: boolean) => {
     const { data, error } = await desde().select(f.fecha).not(f.fecha, 'is', null).order(f.fecha, { ascending: asc }).limit(1)
     falla(error)
@@ -123,7 +124,7 @@ async function leerSupabase(f: Fuente, p: Pedido): Promise<Lote> {
     const { data, error } = await desde().select(p.columnas.join(',')).gte(f.fecha, p.desde).lt(f.fecha, p.hastaExclusivo).order(f.fecha, { ascending: true }).range(pagina * 1000, pagina * 1000 + 999)
     falla(error)
     for (const r of (data ?? []) as unknown as Record<string, unknown>[]) filas.push(p.columnas.map(c => celda(r[c])))
-    if (filas.length > MAXIMO_FILAS) throw new ErrorFuente(`«${f.tabla}» trae más de ${MAXIMO_FILAS.toLocaleString('es-MX')} filas en la ventana: crea una vista que agrupe por día y conéctala en su lugar.`)
+    if (filas.length > MAXIMO_FILAS) throw new ErrorFuente(tr('«{tabla}» trae más de {n} filas en la ventana: crea una vista que agrupe por día y conéctala en su lugar.', { tabla: f.tabla, n: MAXIMO_FILAS.toLocaleString(localeIntl()) }))
     if (!data || data.length < 1000) break
   }
   return { columnas: p.columnas, filas, viva: true, extremos: [celda(primero), celda(ultimo)] }
@@ -140,6 +141,6 @@ export async function leerFuente(f: Fuente, p: Pedido): Promise<Lote> {
     if (e instanceof ErrorFuente) throw e
     const msj = e instanceof Error ? e.message : String(e)
     // Por si una librería repite la URL: nada que se parezca a una llave sale en el mensaje.
-    throw new ErrorFuente(`«${f.id}» no respondió: ${Object.values(p.llaves).reduce((t, v) => (v.length > 6 ? t.split(v).join('…') : t), msj)}`)
+    throw new ErrorFuente(tr('«{id}» no respondió: {error}', { id: f.id, error: Object.values(p.llaves).reduce((t, v) => (v.length > 6 ? t.split(v).join('…') : t), msj) }))
   }
 }

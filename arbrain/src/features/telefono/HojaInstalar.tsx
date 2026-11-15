@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react'
 import { Download, Share, Smartphone, X } from 'lucide-react'
 import { esEdicionCliente } from '@/lib/edicion'
 import { pasosInstalar, plataformaDe, type Plataforma } from './conectar-ui'
+import { tr } from '@/shared/i18n'
 
 const CLAVE = 'arbrain:hoja-instalar:vista'
 const CLIENTE = esEdicionCliente()
@@ -42,10 +43,10 @@ export function HojaInstalar() {
         <div className="flex items-start gap-3">
           <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-brand/12 text-brand-ink"><Smartphone className="size-4.5" aria-hidden /></span>
           <div className="min-w-0 flex-1">
-            <h2 id="hoja-instalar-titulo" className="text-[15px] font-semibold text-foreground">Ponlo en tu pantalla de inicio</h2>
-            <p className="text-[13px] text-muted">Así abres a tu Levy con un toque, como cualquier app, sin volver a escanear.</p>
+            <h2 id="hoja-instalar-titulo" className="text-[15px] font-semibold text-foreground">{tr('Ponlo en tu pantalla de inicio')}</h2>
+            <p className="text-[13px] text-muted">{tr('Así abres a tu Levy con un toque, como cualquier app, sin volver a escanear.')}</p>
           </div>
-          <button type="button" className="rounded-lg p-1 text-muted hover:text-foreground" aria-label="Cerrar" onClick={cerrar}><X className="size-4" aria-hidden /></button>
+          <button type="button" className="rounded-lg p-1 text-muted hover:text-foreground" aria-label={tr('Cerrar')} onClick={cerrar}><X className="size-4" aria-hidden /></button>
         </div>
         <ol className="mt-3 space-y-1.5 text-[13.5px] leading-relaxed text-foreground/90">
           {pasosInstalar(plataforma).map((p, i) => (
@@ -54,11 +55,11 @@ export function HojaInstalar() {
         </ol>
         <div className="mt-3 flex items-center gap-2">
           {aviso ? (
-            <button type="button" className="btn-primary !px-3 !py-1.5 text-[13px]" onClick={() => { void aviso.prompt().finally(cerrar) }}><Download className="size-3.5" aria-hidden /> Instalar</button>
+            <button type="button" className="btn-primary !px-3 !py-1.5 text-[13px]" onClick={() => { void aviso.prompt().finally(cerrar) }}><Download className="size-3.5" aria-hidden /> {tr('Instalar')}</button>
           ) : plataforma === 'ios' ? (
-            <span className="inline-flex items-center gap-1 text-[12.5px] text-muted"><Share className="size-3.5" aria-hidden /> Busca este icono abajo en Safari</span>
+            <span className="inline-flex items-center gap-1 text-[12.5px] text-muted"><Share className="size-3.5" aria-hidden /> {tr('Busca este icono abajo en Safari')}</span>
           ) : null}
-          <button type="button" className="ml-auto text-[13px] text-muted hover:text-foreground" onClick={cerrar}>Ahora no</button>
+          <button type="button" className="ml-auto text-[13px] text-muted hover:text-foreground" onClick={cerrar}>{tr('Ahora no')}</button>
         </div>
       </div>
     </div>

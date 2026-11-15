@@ -41,7 +41,7 @@ import { PrimerDia, usePrimerDia } from '@/features/primer-dia/PrimerDia'
 import { useAtenderPedidos, useGuardado } from './archivero'
 import { useAtenderPanel } from './bus'
 import { atenderVentana, coordinarPrincipal, devolverAlPanel, llevarA, puedeDesprender, sacarAVentanaNueva, seguirLlegadas, useHueco, useVentanas } from './ventanas'
-import { indiceEnOrden, nombreVentana, pestanaActiva, PRINCIPAL, TALLER, TAREAS, tiraDe, todasLasClaves, ventanaDe, ventanasCon } from './pestanas-fuera'
+import { indiceEnOrden, pestanaActiva, PRINCIPAL, TALLER, TAREAS, tiraDe, todasLasClaves, ventanaDe, ventanasCon } from './pestanas-fuera'
 import { arrastrarPestana } from './arrastre'
 import { Division } from './VentanaDividida'
 import { useDivision, useDivisiones } from './division-store'
@@ -74,6 +74,7 @@ import w from './taller.module.css'
 import { esEdicionCliente, sinRespuestaDelServidor } from '@/lib/edicion'
 import { zonaDueno } from '@/shared/lib/zona-dueno'
 import { useSoySegunda } from './segunda'
+import { localeIntl, tr, trn } from '@/shared/i18n'
 
 const CLAVE = 'arbrain.panelDerecho'
 const MIN = 320, CHAT_MIN = 520
@@ -186,11 +187,11 @@ function Lateral({ onCerrar }: { onCerrar: () => void }) {
   }
 
   return (
-    <aside ref={ref} className={s.lateral} data-panel-derecho data-arrastrando={arrastrando || undefined} style={{ width: ancho ?? undefined, visibility: ancho == null ? 'hidden' : undefined }} aria-label="Panel de tareas">
+    <aside ref={ref} className={s.lateral} data-panel-derecho data-arrastrando={arrastrando || undefined} style={{ width: ancho ?? undefined, visibility: ancho == null ? 'hidden' : undefined }} aria-label={tr('Panel de tareas')}>
       <div
         className={s.divisor} role="separator" aria-orientation="vertical" tabIndex={0}
-        aria-label="Cambiar el ancho del panel" aria-valuenow={ancho ?? undefined} aria-valuemin={MIN}
-        title="Arrastra para cambiar el ancho · doble clic para volver al tamaño inicial"
+        aria-label={tr('Cambiar el ancho del panel')} aria-valuenow={ancho ?? undefined} aria-valuemin={MIN}
+        title={tr('Arrastra para cambiar el ancho · doble clic para volver al tamaño inicial')}
         onPointerDown={empezar} onKeyDown={teclas} onDoubleClick={() => fijar(anchoInicial())}
       />
       <Contenido modo="lateral" onCerrar={onCerrar} />
@@ -312,7 +313,8 @@ export function Contenido({ onCerrar, modo, ventana = PRINCIPAL }: { onCerrar: (
     ventana, alReordenar: i => reordenar(clave, indiceEnOrden(orden, deTira.filter(c => c !== TALLER), clave, i)),
     division: telefono ? undefined : { estado: dividido ? estadoDiv : null, visible: actual, tira: dentro, cortes: division.cortes, aplicar: colocarDivision, claseSombra: s.sombraDivision },
   })
-  const sugerencia = (t: string) => `${t} · arrástrala para acomodarla, a otra ventana${puede ? ' o fuera para abrirla en una ventana nueva' : ''} · clic derecho: fijar · ⌥← ⌥→`
+  const sugerencia = (t: string) => puede ? tr('{titulo} · arrástrala para acomodarla, a otra ventana o fuera para abrirla en una ventana nueva · clic derecho: fijar · ⌥← ⌥→', { titulo: t }) : tr('{titulo} · arrástrala para acomodarla, a otra ventana · clic derecho: fijar · ⌥← ⌥→', { titulo: t })
+  const sugerenciaTaller = (t: string) => puede ? tr('{titulo} · arrástrala a otra ventana o fuera para abrirla en una ventana nueva', { titulo: t }) : tr('{titulo} · arrástrala a otra ventana', { titulo: t })
   const menuDe = (clave: string) => (e: React.MouseEvent) => { e.preventDefault(); setMenu({ clave, x: e.clientX, y: e.clientY }) }
   const teclas = (clave: string) => (e: React.KeyboardEvent) => {
     if (!e.altKey || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return
@@ -329,11 +331,11 @@ export function Contenido({ onCerrar, modo, ventana = PRINCIPAL }: { onCerrar: (
   // Una pestaña de una tira (la de la ventana o la de un grupo). `activaAqui`: la que se ve en esa tira.
   const pestanaDe = (clave: string, activaAqui: boolean, deTira: string[], alElegir: () => void) => {
     const anclada = ancladas.includes(clave)
-    if (clave === TAREAS) return <Pestana key={clave} clave={clave} activa={activaAqui} nombre="Tareas" icono={<ListChecks size={14} aria-hidden />} anclada={anclada}
+    if (clave === TAREAS) return <Pestana key={clave} clave={clave} activa={activaAqui} nombre={tr('Tareas')} icono={<ListChecks size={14} aria-hidden />} anclada={anclada}
       onElegir={alElegir} onCerrar={() => cerrarPestana(clave)} onArrastrar={arrastrar(clave, deTira)} onTeclas={teclas(clave)} onMenu={menuDe(clave)} sugerencia={sugerencia} />
-    if (clave === TALLER) return <Pestana key={clave} clave={TALLER} activa={activaAqui} nombre="Taller" icono={<Hammer size={13} aria-hidden />} taller
-      titulo="Taller: terminales, servidores, servicios y archivos" onElegir={alElegir} onCerrar={() => cerrarPestana(TALLER)}
-      onArrastrar={arrastrar(TALLER, deTira)} onMenu={menuDe(TALLER)} sugerencia={t => `${t} · arrástrala a otra ventana${puede ? ' o fuera para abrirla en una ventana nueva' : ''}`} />
+    if (clave === TALLER) return <Pestana key={clave} clave={TALLER} activa={activaAqui} nombre={tr('Taller')} icono={<Hammer size={13} aria-hidden />} taller
+      titulo={tr('Taller: terminales, servidores, servicios y archivos')} onElegir={alElegir} onCerrar={() => cerrarPestana(TALLER)}
+      onArrastrar={arrastrar(TALLER, deTira)} onMenu={menuDe(TALLER)} sugerencia={sugerenciaTaller} />
     const f = fijadas.find(x => x.id === clave)
     if (!f) return null
     return <Pestana key={clave} clave={clave} activa={activaAqui} nombre={nombrePestana(f)} icono={<IconoVista vista={f.input.vista} size={13} />} titulo={titulo(f.input)} anclada={anclada}
@@ -351,7 +353,7 @@ export function Contenido({ onCerrar, modo, ventana = PRINCIPAL }: { onCerrar: (
     const fijadaAqui = fijadas.find(f => f.id === visibleAqui)
     return <header className={s.cabecera} data-cabecera-grupo data-ranura={r}>
       {r === 0 && enfoque && <BotonVolver />}
-      <nav className={s.pestanas} role="tablist" aria-label="Pestañas de esta parte" style={{ flex: '0 1 auto' }} data-tira>
+      <nav className={s.pestanas} role="tablist" aria-label={tr('Pestañas de esta parte')} style={{ flex: '0 1 auto' }} data-tira>
         {delGrupo.filter(c => c !== TALLER).map(c => pestanaDe(c, c === visibleAqui, delGrupo, () => activar(c)))}
       </nav>
       <MenuSecciones />
@@ -365,10 +367,10 @@ export function Contenido({ onCerrar, modo, ventana = PRINCIPAL }: { onCerrar: (
     <div className={s.contenido}>
       {!dividido && <header className={s.cabecera}>
         {enfoque && <BotonVolver />}
-        <nav ref={tiraRef} className={s.pestanas} role="tablist" aria-label="Qué ver" style={{ flex: '0 1 auto' }} data-tira>
+        <nav ref={tiraRef} className={s.pestanas} role="tablist" aria-label={tr('Qué ver')} style={{ flex: '0 1 auto' }} data-tira>
           {tira.map(clave => {
             const anclada = ancladas.includes(clave)
-            if (clave === TAREAS) return <Pestana key={clave} clave={clave} activa={actual === clave} nombre="Tareas" icono={<ListChecks size={14} aria-hidden />} anclada={anclada}
+            if (clave === TAREAS) return <Pestana key={clave} clave={clave} activa={actual === clave} nombre={tr('Tareas')} icono={<ListChecks size={14} aria-hidden />} anclada={anclada}
               onElegir={() => activar(clave)} onCerrar={() => cerrarPestana(clave)} onArrastrar={arrastrar(clave)} onTeclas={teclas(clave)} onMenu={menuDe(clave)} sugerencia={sugerencia} />
             const f = fijadas.find(x => x.id === clave)
             if (!f) return null
@@ -380,9 +382,9 @@ export function Contenido({ onCerrar, modo, ventana = PRINCIPAL }: { onCerrar: (
         {/* El «+» va justo después de las pestañas y fuera de la tira que se desplaza: en el teléfono siempre se ve. */}
         <MenuSecciones />
         {fijada && <AccionesVista key={fijada.id} f={fijada} />}
-        {dentro.includes(TALLER) && <Pestana clave={TALLER} activa={actual === TALLER} nombre="Taller" icono={<Hammer size={13} aria-hidden />} taller
-          titulo="Taller: terminales, servidores, servicios y archivos" onElegir={() => activar(TALLER)} onCerrar={() => cerrarPestana(TALLER)}
-          onArrastrar={arrastrar(TALLER)} onMenu={menuDe(TALLER)} sugerencia={t => `${t} · arrástrala a otra ventana${puede ? ' o fuera para abrirla en una ventana nueva' : ''}`} />}
+        {dentro.includes(TALLER) && <Pestana clave={TALLER} activa={actual === TALLER} nombre={tr('Taller')} icono={<Hammer size={13} aria-hidden />} taller
+          titulo={tr('Taller: terminales, servidores, servicios y archivos')} onElegir={() => activar(TALLER)} onCerrar={() => cerrarPestana(TALLER)}
+          onArrastrar={arrastrar(TALLER)} onMenu={menuDe(TALLER)} sugerencia={sugerenciaTaller} />}
         <ControlesPanel modo={modo} ventana={ventana} />
       </header>}
       {menu && <MenuPestana {...menu} ventana={ventana} anclada={ancladas.includes(menu.clave)} puede={puede} enVentana={enVentana}
@@ -410,9 +412,9 @@ export function Contenido({ onCerrar, modo, ventana = PRINCIPAL }: { onCerrar: (
  */
 export function PestanaDelFantasma({ clave }: { clave: string }) {
   const f = usePanelFijadas(st => st.fijadas.find(x => x.id === clave))
-  const [nombre, icono] = clave === TAREAS ? ['Tareas', <ListChecks key="i" size={14} aria-hidden />]
-    : clave === TALLER ? ['Taller', <Hammer key="i" size={13} aria-hidden />]
-    : f ? [nombrePestana(f), <IconoVista key="i" vista={f.input.vista} size={13} />] : ['Pestaña', null]
+  const [nombre, icono] = clave === TAREAS ? [tr('Tareas'), <ListChecks key="i" size={14} aria-hidden />]
+    : clave === TALLER ? [tr('Taller'), <Hammer key="i" size={13} aria-hidden />]
+    : f ? [nombrePestana(f), <IconoVista key="i" vista={f.input.vista} size={13} />] : [tr('Pestaña'), null]
   return <span className={`${s.pestana} ${s.pestanaDelFantasma}`} aria-hidden>{icono}<span>{nombre}</span></span>
 }
 
@@ -431,12 +433,12 @@ function Pestana({ clave, nombre, icono, titulo: t, activa, onElegir, onCerrar, 
   onArrastrar?: (e: React.PointerEvent<HTMLElement>) => void; onTeclas?: (e: React.KeyboardEvent) => void; sugerencia: (t: string) => string; taller?: boolean; anclada?: boolean
 }) {
   return <span className={s.fijada} data-clave={clave} data-activa={activa || undefined} data-anclada={anclada || undefined}>
-    <button role="tab" aria-selected={activa} aria-label={anclada ? `${nombre} (fijada)` : taller ? nombre : undefined} className={`${s.pestana}${taller ? ` ${s.pestanaTaller}` : ''}`} data-arrastrable={onArrastrar ? '' : undefined}
+    <button role="tab" aria-selected={activa} aria-label={anclada ? tr('{nombre} (fijada)', { nombre }) : taller ? nombre : undefined} className={`${s.pestana}${taller ? ` ${s.pestanaTaller}` : ''}`} data-arrastrable={onArrastrar ? '' : undefined}
       onClick={onElegir} onPointerDown={onArrastrar} onKeyDown={onTeclas} onContextMenu={onMenu} title={sugerencia(t ?? nombre)}>
       {icono}<span>{nombre}</span>
     </button>
     {!anclada && <span className={s.accionesPestana}>
-      <button className={s.soltar} onClick={onCerrar} aria-label={`Cerrar ${nombre}`} title="Cerrar (vuelve desde «+»)"><X size={11} /></button>
+      <button className={s.soltar} onClick={onCerrar} aria-label={tr('Cerrar {nombre}', { nombre })} title={tr('Cerrar (vuelve desde «+»)')}><X size={11} /></button>
     </span>}
   </span>
 }
@@ -478,12 +480,12 @@ function MenuPestana({ clave, x, y, ventana, anclada, puede, enVentana, onAnclar
   const hacer = (f: () => void) => () => { onListo(); f() }
   const z = zoomUI(), ancho = 230
   const left = aFijo(Math.min(x, window.innerWidth - ancho * z - 8), z), top = aFijo(Math.min(y, window.innerHeight - 200 * z), z)
-  return createPortal(<div ref={ref} className={s.menuPestana} style={{ left, top, width: ancho }} role="menu" aria-label="Pestaña">
-    {clave !== TALLER && <button role="menuitem" onClick={hacer(() => onAnclar(!anclada))}>{anclada ? <PinOff size={14} aria-hidden /> : <Pin size={14} aria-hidden />}{anclada ? 'Desfijar pestaña' : 'Fijar pestaña'}</button>}
-    {puede && <button role="menuitem" onClick={hacer(() => void sacarAVentanaNueva(clave))}><AppWindow size={14} aria-hidden />Mover a una ventana nueva</button>}
-    {otras.map(v => <button key={v} role="menuitem" onClick={hacer(() => llevarA(clave, v))}><AppWindow size={14} aria-hidden />Mover {v === PRINCIPAL ? 'al panel principal' : `a la ${nombreVentana(v)}`}</button>)}
-    {ventana !== PRINCIPAL && <button role="menuitem" onClick={hacer(() => devolverAlPanel(ventana))} title="⌘⌥B"><PanelRightClose size={14} aria-hidden />Devolver todas al panel principal</button>}
-    <button role="menuitem" onClick={hacer(onCerrarPestana)}><X size={14} aria-hidden />Cerrar pestaña</button>
+  return createPortal(<div ref={ref} className={s.menuPestana} style={{ left, top, width: ancho }} role="menu" aria-label={tr('Pestaña')}>
+    {clave !== TALLER && <button role="menuitem" onClick={hacer(() => onAnclar(!anclada))}>{anclada ? <PinOff size={14} aria-hidden /> : <Pin size={14} aria-hidden />}{anclada ? tr('Desfijar pestaña') : tr('Fijar pestaña')}</button>}
+    {puede && <button role="menuitem" onClick={hacer(() => void sacarAVentanaNueva(clave))}><AppWindow size={14} aria-hidden />{tr('Mover a una ventana nueva')}</button>}
+    {otras.map(v => <button key={v} role="menuitem" onClick={hacer(() => llevarA(clave, v))}><AppWindow size={14} aria-hidden />{v === PRINCIPAL ? tr('Mover al panel principal') : tr('Mover a la ventana {n}', { n: v.replace(/^ventana-/, '') })}</button>)}
+    {ventana !== PRINCIPAL && <button role="menuitem" onClick={hacer(() => devolverAlPanel(ventana))} title="⌘⌥B"><PanelRightClose size={14} aria-hidden />{tr('Devolver todas al panel principal')}</button>}
+    <button role="menuitem" onClick={hacer(onCerrarPestana)}><X size={14} aria-hidden />{tr('Cerrar pestaña')}</button>
   </div>, document.body)
 }
 
@@ -525,8 +527,8 @@ export const VistaFijada = memo(function VistaFijada({ f, oculta = false }: { f:
 function PanelVacio() {
   return <div className={s.cuerpo} role="tabpanel">
     <div className={s.vacioPanel}>
-      <h2>El panel está vacío</h2>
-      <p>Abre lo que quieras tener a la vista mientras conversas. También puedes pedírselo a Levy.</p>
+      <h2>{tr('El panel está vacío')}</h2>
+      <p>{tr('Abre lo que quieras tener a la vista mientras conversas. También puedes pedírselo a Levy.')}</p>
       <OpcionesPanel grande />
     </div>
   </div>
@@ -556,17 +558,17 @@ export function Tareas() {
       {/* Autonomía v2 (3 nov 2026): la bandeja única. Lo irreversible espera aquí tu toque; debajo, lo que Levy hizo solo. */}
       <Bandeja />
 
-      {decidir > 0 && <Seccion titulo="Espera tu decisión" n={decidir} tono="oro">
+      {decidir > 0 && <Seccion titulo={tr('Espera tu decisión')} n={decidir} tono="oro">
         {piden.map(t => <Fila key={t.id}
           marca={<IconoTipo tipo={tipoTerminal(t)} estado="pregunta" />}
-          titulo={nombreTerminal(t)} linea={`Te pregunta: ${resumenRespuesta(t) ?? 'ábrelo para contestarle'}`} lineaTono="oro"
+          titulo={nombreTerminal(t)} linea={tr('Te pregunta: {pregunta}', { pregunta: resumenRespuesta(t) ?? tr('ábrelo para contestarle') })} lineaTono="oro"
           dueno={t.subagente ? 'Levy' : harness(t)} cuando={t.subagente ? hace(t.subagente.creado) : undefined} onClick={() => abrir(t)} flecha
-          accion={<button className={s.accionFila} onClick={e => { e.stopPropagation(); marcarRevisado(firmaRevision(t)) }} title="Ya lo revisé">Visto</button>} />)}
+          accion={<button className={s.accionFila} onClick={e => { e.stopPropagation(); marcarRevisado(firmaRevision(t)) }} title={tr('Ya lo revisé')}>{tr('Visto')}</button>} />)}
         {sinLeer.map(a => <Fila key={a.id}
           marca={<span className={s.marcaAviso}><Bell size={12} /></span>}
           titulo={a.title} linea={lineaAviso(a.body)} dueno={DUENO_AVISO[a.kind] ?? 'Levy'} cuando={hace(a.created_at)} flecha={!!a.url}
           onClick={a.url ? () => a.url!.startsWith('/') ? router.push(a.url!) : void abrirEnNavegador(a.url!) : undefined}
-          accion={<button className={s.accionFila} onClick={e => { e.stopPropagation(); void marcarLeido(a) }} title="Ya lo vi">Leído</button>} />)}
+          accion={<button className={s.accionFila} onClick={e => { e.stopPropagation(); void marcarLeido(a) }} title={tr('Ya lo vi')}>{tr('Leído')}</button>} />)}
       </Seccion>}
 
       {/* Los agentes viven en la píldora junto a «Levy» y en el Taller (5 oct 2026): aquí no se repiten. */}
@@ -577,8 +579,8 @@ export function Tareas() {
 }
 
 function Resumen({ decidir, tuyas, hechas }: { decidir: number; tuyas: number; hechas: number }) {
-  const partes = [decidir && `${decidir} ${decidir === 1 ? 'espera' : 'esperan'} tu decisión`, tuyas && `${tuyas} tuyas hoy`, hechas && `${hechas} ${hechas === 1 ? 'hecha' : 'hechas'}`].filter(Boolean)
-  const fecha = new Date().toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', timeZone: zonaDueno() })
+  const partes = [decidir && trn(decidir, '{n} espera tu decisión', '{n} esperan tu decisión'), tuyas && tr('{n} tuyas hoy', { n: tuyas }), hechas && trn(hechas, '{n} hecha', '{n} hechas')].filter(Boolean)
+  const fecha = new Date().toLocaleDateString(localeIntl(), { weekday: 'long', day: 'numeric', month: 'long', timeZone: zonaDueno() })
   return <div className={s.resumen}><h2>{fecha.charAt(0).toUpperCase() + fecha.slice(1)}</h2>{partes.length > 0 && <p>{partes.join(' · ')}</p>}</div>
 }
 
@@ -634,7 +636,7 @@ function Pie({ leidoEn, error, data }: { leidoEn?: number; error?: string; data?
   const respaldo = !cliente && data && data.fuente && data.fuente !== 'motor'
   return <footer className={s.pie}>
     <span className={s.vivo} data-error={error ? '' : undefined} data-respaldo={respaldo || undefined} aria-hidden />
-    <span>{error ? (cliente ? 'Sin conexión con tu Arbrain' : 'Sin conexión con el Studio') : leidoEn ? `En vivo · ${data ? fuenteEnPalabras(data, cliente) : cliente ? 'tu Arbrain' : 'Studio'} · leído ${hace(leidoEn)}` : 'Leyendo…'}</span>
+    <span>{error ? (cliente ? tr('Sin conexión con tu Arbrain') : tr('Sin conexión con el Studio')) : leidoEn ? tr('En vivo · {fuente} · leído {hace}', { fuente: data ? fuenteEnPalabras(data, cliente) : cliente ? tr('tu Arbrain') : 'Studio', hace: hace(leidoEn) }) : tr('Leyendo…')}</span>
   </footer>
 }
 
@@ -651,25 +653,25 @@ function DetalleTerminal({ id, onVolver }: { id: number; onVolver: () => void })
     window.addEventListener('keydown', esc); return () => window.removeEventListener('keydown', esc)
   }, [onVolver])
 
-  const estado = !t ? (data ? 'Esta terminal ya se cerró.' : 'Leyendo…')
-    : esperaALevy(t) ? 'Le preguntó a Levy: él la contesta (si no, te llega en unos minutos)'
-    : preguntaAlgo(t) ? (t.subagente?.escaladoPor ? `Te pregunta algo (${t.subagente.escaladoPor.toLowerCase()}): contéstale abajo` : 'Te pregunta algo: contéstale abajo')
-    : t.estado === 'trabajando' ? `Trabajando${lineaLimpia(t.actividad) ? ` · ${lineaLimpia(t.actividad)}` : ''}`
-    : t.estado === 'esperando' ? 'Terminó' : 'Terminal lista'
-  const quien = t ? (t.subagente ? `Lo lanzó Levy ${hace(t.subagente.creado)}` : esAgente(t) ? `${harness(t)} · tuya` : 'Tuya') : null
+  const estado = !t ? (data ? tr('Esta terminal ya se cerró.') : tr('Leyendo…'))
+    : esperaALevy(t) ? tr('Le preguntó a Levy: él la contesta (si no, te llega en unos minutos)')
+    : preguntaAlgo(t) ? (t.subagente?.escaladoPor ? tr('Te pregunta algo ({motivo}): contéstale abajo', { motivo: t.subagente.escaladoPor.toLowerCase() }) : tr('Te pregunta algo: contéstale abajo'))
+    : t.estado === 'trabajando' ? `${tr('Trabajando')}${lineaLimpia(t.actividad) ? ` · ${lineaLimpia(t.actividad)}` : ''}`
+    : t.estado === 'esperando' ? tr('Terminó') : tr('Terminal lista')
+  const quien = t ? (t.subagente ? tr('Lo lanzó Levy {hace}', { hace: hace(t.subagente.creado) }) : esAgente(t) ? `${harness(t)} · ${tr('tuya')}` : tr('Tuya')) : null
   return <div className={s.detalle} data-viva>
     <div className={s.fijadaCabecera}>
-      <button className={s.icono} onClick={onVolver} aria-label="Volver" title="Volver (Esc)"><ArrowLeft size={15} /></button>
+      <button className={s.icono} onClick={onVolver} aria-label={tr('Volver')} title={tr('Volver (Esc)')}><ArrowLeft size={15} /></button>
       {t && <IconoTipo tipo={tipoTerminal(t)} estado={estadoTerminal(t)} grande />}
       <div className={s.detalleTitulo}>
-        <b>{t ? nombreTerminal(t) : 'Terminal'}</b>
-        <span>{t ? `${NOMBRE_TIPO[tipoTerminal(t)]} · ${estado}` : estado}</span>
+        <b>{t ? nombreTerminal(t) : tr('Terminal')}</b>
+        <span>{t ? `${tr(NOMBRE_TIPO[tipoTerminal(t)])} · ${estado}` : estado}</span>
       </div>
     </div>
     {t && <p className={s.vivaMeta}>{[quien, t.cwd.split('/').filter(Boolean).at(-1), dondeVive(t)].filter(Boolean).join(' · ')}</p>}
     {t && esAgente(t) && <FichaConsumo t={t} />}
-    {t?.subagente && <details className={s.encargoPlegado}><summary>Su encargo</summary><p>{t.subagente.encargo}</p></details>}
-    {t?.subagente?.entrega && t.subagente.entrega !== 'entregado' && <p className={s.aviso}>{t.subagente.entrega === 'pendiente' ? 'El encargo se está entregando: el CLI aún arrancaba.' : `El encargo no se confirmó (${t.subagente.entregaNota ?? 'sin detalle'}). Pídele a Levy que lo retome.`}</p>}
+    {t?.subagente && <details className={s.encargoPlegado}><summary>{tr('Su encargo')}</summary><p>{t.subagente.encargo}</p></details>}
+    {t?.subagente?.entrega && t.subagente.entrega !== 'entregado' && <p className={s.aviso}>{t.subagente.entrega === 'pendiente' ? tr('El encargo se está entregando: el CLI aún arrancaba.') : tr('El encargo no se confirmó ({nota}). Pídele a Levy que lo retome.', { nota: t.subagente.entregaNota ?? tr('sin detalle') })}</p>}
     {/* La salida de «1 pregunta» (8 nov 2026): contestarle o soltarla desde aquí, sin teclear en la terminal cruda. */}
     {t && preguntaAlgo(t) && !esperaALevy(t) && <ResponderAgente id={t.id} pregunta={textoPregunta(t)}
       puedeEscribir={!soloLectura && t.origen !== 'sin-pantalla'} dialogo={t.subagente?.pregunta?.tipo === 'dialogo'} onVisto={() => marcarRevisado(firmaRevision(t))} />}
@@ -677,11 +679,11 @@ function DetalleTerminal({ id, onVolver }: { id: number; onVolver: () => void })
       {/* Sin pantalla (6 oct 2026): no hay PTY; desde el 7 oct se ve trabajar con su actividad leída de la bitácora. */}
       <ActividadViva agente={t.id} cwd={t.cwd} />
       {t.conversacion?.error && <p className={s.aviso}>{t.conversacion.error}</p>}
-      <p className={s.vivaPie}><span>En vivo desde su bitácora: corre como proceso propio y termina al responder. Para entrar a mano, pídele a Levy que lo abra en interactivo.</span></p>
+      <p className={s.vivaPie}><span>{tr('En vivo desde su bitácora: corre como proceso propio y termina al responder. Para entrar a mano, pídele a Levy que lo abra en interactivo.')}</span></p>
     </> : <>
     {(t || !data) && <TerminalViva id={id} onEstado={e => setSoloLectura(!!e.soloLectura)} />}
     <p className={s.vivaPie}>
-      <span>{soloLectura ? 'Solo lectura: esta terminal no acepta escritura desde aquí.' : 'En vivo desde el motor de Arbrain. Escribe directo en la terminal.'}</span>
+      <span>{soloLectura ? tr('Solo lectura: esta terminal no acepta escritura desde aquí.') : tr('En vivo desde el motor de Arbrain. Escribe directo en la terminal.')}</span>
     </p>
     </>}
   </div>
@@ -723,12 +725,12 @@ export function TallerPanel() {
       // Rutinas, la vista viva (10 oct 2026): una sola vista con «cómo van» y «qué rinde» juntas; lo programado del Studio, al fondo.
       // Edición cliente (T8, 29 oct 2026): las rutinas de SU daemon, con crear, pausar y borrar (features/rutinas/RutinasCliente.tsx).
       : vista === 'rutinas' && esEdicionCliente() ? <RutinasCliente />
-      : vista === 'rutinas' ? <div className={w.rutinas}><VistaRutinasViva fondo={data && <div className={w.vista}><ProgramadosStudio lista={data.servicios} /><p className={w.nota}><button className={w.enlace} onClick={() => elegir('registro')}>Registro de turnos y errores</button></p></div>} /></div>
+      : vista === 'rutinas' ? <div className={w.rutinas}><VistaRutinasViva fondo={data && <div className={w.vista}><ProgramadosStudio lista={data.servicios} /><p className={w.nota}><button className={w.enlace} onClick={() => elegir('registro')}>{tr('Registro de turnos y errores')}</button></p></div>} /></div>
       // Edición cliente (T16, 29 oct 2026): SU computadora (memoria, disco, reposo, cerrar apps), no el Studio de Daniel.
       : vista === 'maquina' && esEdicionCliente() ? <ComputadoraCliente />
       : vista === 'maquina' ? <MaquinaTaller data={data} onRegistro={() => elegir('registro')} />
       // El registro ya no es pestaña (5 oct 2026): sus errores se ven donde ocurren; el rastro fino queda detrás de un enlace.
-      : vista === 'registro' ? <><div className={w.registroVolver}><button className={w.enlace} onClick={() => elegir('maquina')}>← Volver a Computadora</button></div><Registro /></>
+      : vista === 'registro' ? <><div className={w.registroVolver}><button className={w.enlace} onClick={() => elegir('maquina')}>{tr('← Volver a Computadora')}</button></div><Registro /></>
       : !data ? <Cargando error={lectura.error} />
       : detalle != null ? <DetalleTerminal id={detalle} onVolver={() => setDetalle(null)} /> : interna != null ? <DetalleInterna id={interna} onVolver={() => setInterna(null)} /> : <AgentesTaller data={data} onAbrir={setDetalle} onAbrirInterna={setInterna} />}
     {(vista === 'terminales' || (vista === 'maquina' && !esEdicionCliente())) && detalle == null && <Pie leidoEn={lectura.leidoEn} error={lectura.error} data={data} />}

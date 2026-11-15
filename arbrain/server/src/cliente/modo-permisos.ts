@@ -25,6 +25,7 @@ import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'no
 import { dirname, join } from 'node:path'
 import { DIR_ARBRAIN } from '../edicion.js'
 import { aceptacionCoincide, VERSION_AUTONOMIA } from './consentimiento-autonomia.js'
+import { tr, trMarca } from '../i18n/tr.js'
 
 export type ModoPermisos = 'preguntar' | 'carpeta' | 'autonomo'
 export const MODOS: readonly ModoPermisos[] = ['preguntar', 'carpeta', 'autonomo']
@@ -35,14 +36,14 @@ export const esModo = (v: unknown): v is ModoPermisos => typeof v === 'string' &
 
 /** Nombre que ve la persona en Ajustes (y que el agente usa para guiarla). */
 export const NOMBRE_MODO: Record<ModoPermisos, string> = {
-  preguntar: 'Preguntar siempre',
-  carpeta: 'Automático en mi carpeta',
-  autonomo: 'Autónomo',
+  preguntar: trMarca('Preguntar siempre'),
+  carpeta: trMarca('Automático en mi carpeta'),
+  autonomo: trMarca('Autónomo'),
 }
 
 /** Dónde se cambia, en las palabras de la app. */
-export const DONDE_PERMISOS = 'Ajustes › Permisos y seguridad'
-export const DONDE_CARPETAS = 'Ajustes › Permisos y seguridad › Carpetas a las que tu cerebro puede entrar'
+export const DONDE_PERMISOS = trMarca('Ajustes › Permisos y seguridad')
+export const DONDE_CARPETAS = trMarca('Ajustes › Permisos y seguridad › Carpetas a las que tu cerebro puede entrar')
 
 /** Por dónde llegó una aceptación o un cambio (queda en el registro). */
 export type ViaConsentimiento = 'bienvenida' | 'ajustes' | 'pildora' | 'pausa' | 'migracion' | 'version' | 'modelo' | 'api'
@@ -174,7 +175,7 @@ const actual = (): Guardado => { const e = estadoPermisos(); return { modo: e.mo
 /** A13: guarda el teléfono y el correo de la persona (Ajustes). Lo llama la ruta del daemon con el secreto de la app. */
 export function guardarMisDatos(v: unknown, ahora = Date.now()): { ok: true; estado: EstadoPermisos } | { ok: false; error: string } {
   const d = normalizarMisDatos(v)
-  if (!d) return { ok: false, error: 'Escribe tu teléfono con lada (8 a 15 dígitos) y un correo válido, o déjalos vacíos.' }
+  if (!d) return { ok: false, error: tr('Escribe tu teléfono con lada (8 a 15 dígitos) y un correo válido, o déjalos vacíos.') }
   escribir({ ...actual(), misDatos: d }, ahora)
   return { ok: true, estado: estadoPermisos() }
 }
@@ -200,11 +201,11 @@ export function cambiarModoPermisos(modo: ModoPermisos, op: { acepto?: Aceptacio
   if (modo === 'autonomo') {
     const vigente = consentimiento && aceptacionCoincide(consentimiento.version, consentimiento.sha256)
     if (op.acepto) {
-      if (!aceptacionCoincide(op.acepto.version, op.acepto.sha256)) return { ok: false, status: 409, code: 'version', error: `El texto que aceptaste no es el de esta versión de Arbrain (${VERSION_AUTONOMIA}). Recarga y vuelve a leerlo.` }
+      if (!aceptacionCoincide(op.acepto.version, op.acepto.sha256)) return { ok: false, status: 409, code: 'version', error: tr('El texto que aceptaste no es el de esta versión de Arbrain ({version}). Recarga y vuelve a leerlo.', { version: VERSION_AUTONOMIA }) }
       consentimiento = { ts: ahora, version: String(op.acepto.version), sha256: String(op.acepto.sha256), app: texto(op.acepto.app), so: texto(op.acepto.so), via }
       historial.push({ ts: ahora, accion: 'aceptado', modo, texto: { version: consentimiento.version, sha256: consentimiento.sha256 }, app: consentimiento.app, so: consentimiento.so, via })
     } else if (!vigente) {
-      return { ok: false, status: 409, code: 'consentimiento', error: 'El modo Autónomo necesita que leas y aceptes su texto (dos casillas). Ábrelo en Ajustes › Permisos y seguridad.' }
+      return { ok: false, status: 409, code: 'consentimiento', error: tr('El modo Autónomo necesita que leas y aceptes su texto (dos casillas). Ábrelo en Ajustes › Permisos y seguridad.') }
     }
   }
   // Con una re-aceptación o migración pendiente, «carpeta» ya es el modo efectivo pero el archivo aún dice Autónomo (o

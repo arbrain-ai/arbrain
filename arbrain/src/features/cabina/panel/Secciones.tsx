@@ -46,6 +46,7 @@ import p from './secciones.module.css'
 import { zonaDueno } from '@/shared/lib/zona-dueno'
 import { OcultoPorDirecto } from '@/features/modo-directo/ModoDirecto'
 import { useDirecto } from '@/shared/stores/modo-directo-store'
+import { localeIntl, tr, trMarca } from '@/shared/i18n'
 
 // El calendario (FullCalendar) y la pizarra (motor del lienzo) solo cargan al abrir su pestaña (6 oct 2026): este
 // archivo lo importa el layout de toda la app y los arrastraba a cada ruta aunque nadie abriera esas pestañas.
@@ -64,38 +65,40 @@ export function IconoVista({ vista, size = 14 }: { vista: Vista; size?: number }
 
 /** Lo que el «+» ofrece, en el orden en que Daniel las usa (Calendario arriba, 5 oct 2026). Tareas y Taller también: ninguna pestaña es obligatoria (3 oct 2026). */
 type Opcion = { vista: Vista; nota: string } | { casa: 'tareas' | 'taller'; nota: string }
+// Las notas van marcadas para el catálogo (13 nov 2026): se pintan con `tr(nota)`.
 const OPCIONES: Opcion[] = [
-  { vista: 'calendario', nota: 'Objetivo, tareas y agenda del día, la semana o el mes' },
-  { casa: 'tareas', nota: 'Lo que espera tu decisión y tus tareas de hoy' },
+  { vista: 'calendario', nota: trMarca('Objetivo, tareas y agenda del día, la semana o el mes') },
+  { casa: 'tareas', nota: trMarca('Lo que espera tu decisión y tus tareas de hoy') },
   // Cohorte (1 nov 2026, de cero): el tablero del director técnico, quién te necesita esta semana y para qué.
-  { vista: 'cohorte', nota: 'Quién te necesita esta semana y para qué, con la ficha de cada fundador' },
-  { vista: 'lienzo', nota: 'Tus mapas y pizarras' },
-  { vista: 'negocio', nota: 'Avatar, oferta, embudo y sistema' },
+  { vista: 'cohorte', nota: trMarca('Quién te necesita esta semana y para qué, con la ficha de cada fundador') },
+  { vista: 'lienzo', nota: trMarca('Tus mapas y pizarras') },
+  { vista: 'negocio', nota: trMarca('Avatar, oferta, embudo y sistema') },
   // Estrategia (8 nov 2026): la investigación de mercado con el lenguaje de Contenido; El pulso la abre desde su tarjeta.
-  { vista: 'estrategia', nota: 'Quién te compra, contra quién te comparan y hacia dónde va' },
+  { vista: 'estrategia', nota: trMarca('Quién te compra, contra quién te comparan y hacia dónde va') },
   // Business Intelligence (7 nov 2026): se le pregunta en español; la alarma de Beer y el cuello siempre a la vista.
-  { vista: 'bi', nota: 'Pregúntale a tu negocio: gráficas vivas, la alarma y el cuello' },
+  { vista: 'bi', nota: trMarca('Pregúntale a tu negocio: gráficas vivas, la alarma y el cuello') },
   // Masterclass sale del «+» (11 oct 2026): vive en Guardadas, abajo; Levy la abre con `mostrar {vista:'masterclass'}`.
-  { vista: 'reporte', nota: 'Avisos y reportes de los crons' },
-  { vista: 'centro', nota: 'Abre Finanzas · Lo que entra' },
-  { vista: 'equipo', nota: 'Organigrama: qué le llega a cada quien y su último movimiento' },
-  { vista: 'salud', nota: 'Tu cuerpo hoy desde el reloj, contra tu propio normal' },
-  { vista: 'contenido', nota: 'Videos del mes contra la meta' },
-  { vista: 'finanzas', nota: 'Lo que entra (Polar), lo registrado y runway' },
+  { vista: 'reporte', nota: trMarca('Avisos y reportes de los crons') },
+  { vista: 'centro', nota: trMarca('Abre Finanzas · Lo que entra') },
+  { vista: 'equipo', nota: trMarca('Organigrama: qué le llega a cada quien y su último movimiento') },
+  { vista: 'salud', nota: trMarca('Tu cuerpo hoy desde el reloj, contra tu propio normal') },
+  { vista: 'contenido', nota: trMarca('Videos del mes contra la meta') },
+  { vista: 'finanzas', nota: trMarca('Lo que entra (Polar), lo registrado y runway') },
   // La historia de tu cerebro (27 oct 2026) salió del «+» el 28 oct: vive en Taller › Historia.
   // Explorador de archivos (8 oct 2026, Daniel: «principalmente por control»). Visible por defecto; quien no lo quiera lo apaga en Ajustes › Panel.
-  { vista: 'explorador', nota: 'El árbol del repo: abre cualquier archivo en solo lectura' },
+  { vista: 'explorador', nota: trMarca('El árbol del repo: abre cualquier archivo en solo lectura') },
   // El «+» queda solo con negocio y vida (5 oct 2026, Daniel 18:11): Rutinas, Memoria y Servidores viven en el Taller.
   // Casa salió de aquí el 27 oct 2026 (Daniel: «porque esta este de casa arriba… todo bien organizado»): su único hogar en el
   // «+» es «Entorno físico», al pie, junto con Perro.
-  { casa: 'taller', nota: 'Tu cerebro por dentro: agentes, historia, rutinas, memoria y máquina' },
+  { casa: 'taller', nota: trMarca('Tu cerebro por dentro: agentes, historia, rutinas, memoria y máquina') },
 ]
 const idOpcion = (o: Opcion) => 'casa' in o ? o.casa : o.vista
 // Las ids del «+» son las de SECCIONES_MENU (menu-orden.ts); un test vigila que no se separen de las del servidor.
 const OPCION_DE = new Map<string, Opcion>(OPCIONES.map(o => [idOpcion(o), o]))
 
-/** Nombre, ícono y nota de una sección del «+», para el menú y para Ajustes › Panel (6 oct 2026). */
-export const nombreSeccion = (id: string) => { const o = OPCION_DE.get(id); return !o ? id : 'casa' in o ? (o.casa === 'tareas' ? 'Tareas' : 'Taller') : NOMBRE[o.vista] }
+/** Nombre, ícono y nota de una sección del «+», para el menú y para Ajustes › Panel (6 oct 2026). En español (son llaves
+ *  del catálogo): quien los pinta los pasa por `tr()`. */
+export const nombreSeccion = (id: string) => { const o = OPCION_DE.get(id); return !o ? id : 'casa' in o ? (o.casa === 'tareas' ? trMarca('Tareas') : trMarca('Taller')) : NOMBRE[o.vista] }
 export const notaSeccion = (id: string) => OPCION_DE.get(id)?.nota ?? ''
 export function IconoSeccion({ id, size = 16 }: { id: string; size?: number }) {
   const o = OPCION_DE.get(id)
@@ -103,7 +106,7 @@ export function IconoSeccion({ id, size = 16 }: { id: string; size?: number }) {
   return 'casa' in o ? (o.casa === 'tareas' ? <ListChecks size={size} aria-hidden /> : <Hammer size={size - 1} aria-hidden />) : <IconoVista vista={o.vista} size={size} />
 }
 
-const ALCANCES_CAL: { id: Alcance; nombre: string }[] = [{ id: 'dia', nombre: 'Día' }, { id: 'semana', nombre: 'Semana' }, { id: 'mes', nombre: 'Mes' }]
+const ALCANCES_CAL: { id: Alcance; nombre: string }[] = [{ id: 'dia', nombre: trMarca('Día') }, { id: 'semana', nombre: trMarca('Semana') }, { id: 'mes', nombre: trMarca('Mes') }]
 
 type PaginaResumen = NubeResumen
 
@@ -151,8 +154,8 @@ export function MenuSecciones({ clase }: { clase?: string } = {}) {
   }, [abierto])
   return <>
     <button ref={boton} className={clase ?? p.mas} onClick={() => abierto ? cerrar() : setAbierto(true)} aria-haspopup="menu" aria-expanded={abierto}
-      aria-label="Abrir una pestaña en el panel" title="Abrir una pestaña o algo guardado"><Plus size={15} /></button>
-    {abierto && pos && createPortal(<div ref={menu} className={p.menu} style={{ top: pos.top, left: pos.left }} role="menu" aria-label="Abrir en el panel">
+      aria-label={tr('Abrir una pestaña en el panel')} title={tr('Abrir una pestaña o algo guardado')}><Plus size={15} /></button>
+    {abierto && pos && createPortal(<div ref={menu} className={p.menu} style={{ top: pos.top, left: pos.left }} role="menu" aria-label={tr('Abrir en el panel')}>
       <OpcionesPanel onElegido={cerrar} />
     </div>, document.body)}
   </>
@@ -195,30 +198,30 @@ export function OpcionesPanel({ grande, onElegido }: { grande?: boolean; onElegi
   }
   if (paso === 'lienzos') return <ElegirLienzo onVolver={() => setPaso('secciones')} onElegir={pg => { abrirSeccion({ vista: 'lienzo', paginaId: pg.id, titulo: pg.nombre }); listo() }} />
   return <div ref={cajaRef} className={p.opciones} data-grande={grande || undefined}>
-    {!grande && <p className={p.menuCeja}>Abrir en el panel</p>}
+    {!grande && <p className={p.menuCeja}>{tr('Abrir en el panel')}</p>}
     {opciones.map(o => {
-      const nombre = nombreSeccion(idOpcion(o))
+      const nombre = tr(nombreSeccion(idOpcion(o)))
       const icono = <IconoSeccion id={idOpcion(o)} />
       const yaEsta = abierta(o)
       const id = idOpcion(o)
       return <div key={nombre} className={p.menuFilaCaja} data-opcion={id}>
         <button className={p.manija} data-manija onPointerDown={arrastrar(id)} onKeyDown={teclas(id)} onClick={e => e.stopPropagation()}
-          aria-label={`Mover ${nombre} (flechas arriba y abajo)`} title="Arrastra para acomodar · ↑ ↓ con el teclado"><GripVertical size={14} aria-hidden /></button>
+          aria-label={tr('Mover {seccion} (flechas arriba y abajo)', { seccion: nombre })} title={tr('Arrastra para acomodar · ↑ ↓ con el teclado')}><GripVertical size={14} aria-hidden /></button>
         <button role="menuitem" className={p.menuFila} onClick={() => elegir(o)}>
           <span className={p.menuIcono}>{icono}</span>
-          <span className={p.menuTexto}><b>{nombre}{yaEsta && <i className={p.yaAbierta}>abierta</i>}</b><small>{o.nota}</small></span>
+          <span className={p.menuTexto}><b>{nombre}{yaEsta && <i className={p.yaAbierta}>{tr('abierta')}</i>}</b><small>{tr(o.nota)}</small></span>
         </button>
-        {'vista' in o && o.vista === 'calendario' && <span className={p.alcances} role="group" aria-label="Abrir el calendario en">
-          {ALCANCES_CAL.map(a => <button key={a.id} role="menuitem" onClick={() => elegir(o, a.id)} title={`Calendario · ${a.nombre}`}>{a.nombre}</button>)}
+        {'vista' in o && o.vista === 'calendario' && <span className={p.alcances} role="group" aria-label={tr('Abrir el calendario en')}>
+          {ALCANCES_CAL.map(a => <button key={a.id} role="menuitem" onClick={() => elegir(o, a.id)} title={`${tr('Calendario')} · ${tr(a.nombre)}`}>{tr(a.nombre)}</button>)}
         </span>}
       </div>
     })}
-    <button type="button" className={p.ajustesPanel} onClick={() => { onElegido?.(); useAjustes.getState().abrir('panel') }} title="Elegir qué secciones salen aquí, su orden y el organigrama del Equipo">
-      <SlidersHorizontal size={12} aria-hidden /> Ajustes del panel
+    <button type="button" className={p.ajustesPanel} onClick={() => { onElegido?.(); useAjustes.getState().abrir('panel') }} title={tr('Elegir qué secciones salen aquí, su orden y el organigrama del Equipo')}>
+      <SlidersHorizontal size={12} aria-hidden /> {tr('Ajustes del panel')}
     </button>
     <Guardadas onElegido={listo} />
     <EntornoFisico onElegido={listo} />
-    {!grande && <p className={p.menuPie}>O pídeselo a Levy: «ábreme el perro en el panel».</p>}
+    {!grande && <p className={p.menuPie}>{tr('O pídeselo a Levy: «ábreme el perro en el panel».')}</p>}
   </div>
 }
 
@@ -231,12 +234,12 @@ function EntornoFisico({ onElegido }: { onElegido: () => void }) {
   const { visibles } = useAccesosCasa()
   const fijadas = usePanelFijadas(st => st.fijadas)
   if (!visibles.length) return null
-  return <section className={p.guardadas} aria-label="Entorno físico" data-entorno-fisico>
-    <p className={p.menuCeja}>Entorno físico</p>
+  return <section className={p.guardadas} aria-label={tr('Entorno físico')} data-entorno-fisico>
+    <p className={p.menuCeja}>{tr('Entorno físico')}</p>
     {visibles.map(({ vista, label, nota, icon: Icono }) => <div key={vista} className={p.menuFilaCaja} data-entorno={vista}>
-      <button role="menuitem" className={p.menuFila} onClick={() => { abrirSeccion({ vista }); onElegido() }} title={`Abrir ${label} en el panel`}>
+      <button role="menuitem" className={p.menuFila} onClick={() => { abrirSeccion({ vista }); onElegido() }} title={tr('Abrir {nombre} en el panel', { nombre: label })}>
         <span className={p.menuIcono}><Icono size={16} aria-hidden /></span>
-        <span className={p.menuTexto}><b>{label}{fijadas.some(f => f.input.vista === vista) && <i className={p.yaAbierta}>abierta</i>}</b><small>{nota}</small></span>
+        <span className={p.menuTexto}><b>{label}{fijadas.some(f => f.input.vista === vista) && <i className={p.yaAbierta}>{tr('abierta')}</i>}</b><small>{nota}</small></span>
       </button>
     </div>)}
   </section>
@@ -247,24 +250,24 @@ function Guardadas({ onElegido }: { onElegido: () => void }) {
   const { data, error } = useArchivero()
   const [quitando, setQuitando] = useState<string | null>(null)
   const entradas = data?.entradas ?? []
-  return <section className={p.guardadas} aria-label="Guardadas">
-    <p className={p.menuCeja}><Bookmark size={11} aria-hidden /> Guardadas{entradas.length > 0 && <small>{entradas.length}</small>}</p>
-    {error && !data && <p className={p.menuPie}>No se pudo leer el archivero: {error}</p>}
-    {data && !entradas.length && <p className={p.menuPie}>Nada guardado. Pasa el mouse por una pestaña y toca el marcador para guardarla aquí.</p>}
+  return <section className={p.guardadas} aria-label={tr('Guardadas')}>
+    <p className={p.menuCeja}><Bookmark size={11} aria-hidden /> {tr('Guardadas')}{entradas.length > 0 && <small>{entradas.length}</small>}</p>
+    {error && !data && <p className={p.menuPie}>{tr('No se pudo leer el archivero: {error}', { error: tr(error) })}</p>}
+    {data && !entradas.length && <p className={p.menuPie}>{tr('Nada guardado. Pasa el mouse por una pestaña y toca el marcador para guardarla aquí.')}</p>}
     {entradas.map(e => <div key={e.id} className={p.menuFilaCaja}>
       <button role="menuitem" className={p.menuFila} onClick={() => { reabrir(e); onElegido() }} title={e.input.vista === 'documento' ? e.input.ruta : undefined}>
         <span className={p.menuIcono}><IconoVista vista={e.input.vista} size={15} /></span>
-        <span className={p.menuTexto}><b>{e.nombre}</b><small><OrigenGuardada e={e} /></small></span>
+        <span className={p.menuTexto}><b>{tr(e.nombre)}</b><small><OrigenGuardada e={e} /></small></span>
       </button>
       <button className={p.quitarGuardada} disabled={quitando === e.id} onClick={() => { setQuitando(e.id); void sacarDelArchivero(e.id).finally(() => setQuitando(null)) }}
-        aria-label={`Quitar ${e.nombre} de Guardadas`} title="Quitar de Guardadas (no borra el archivo)"><X size={12} /></button>
+        aria-label={tr('Quitar {nombre} de Guardadas', { nombre: e.nombre })} title={tr('Quitar de Guardadas (no borra el archivo)')}><X size={12} /></button>
     </div>)}
   </section>
 }
 
 function OrigenGuardada({ e }: { e: Entrada }) {
-  const fecha = new Date(e.guardadaEn).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', timeZone: zonaDueno() })
-  return <>{e.conversacion ? <TituloDe id={e.conversacion} /> : 'Sin conversación'} · {fecha}</>
+  const fecha = new Date(e.guardadaEn).toLocaleDateString(localeIntl(), { day: 'numeric', month: 'short', timeZone: zonaDueno() })
+  return <>{e.conversacion ? <TituloDe id={e.conversacion} /> : tr('Sin conversación')} · {fecha}</>
 }
 function TituloDe({ id }: { id: string }) { return <>{useTituloConversacion(id)}</> }
 
@@ -295,12 +298,12 @@ function ElegirLienzo({ onVolver, onElegir }: { onVolver: () => void; onElegir: 
 
   return <>
     <div className={p.menuCabecera}>
-      <button className={p.menuVolver} onClick={onVolver} aria-label="Volver a las secciones"><ArrowLeft size={14} /></button>
-      <IconoVista vista="lienzo" size={14} /><b>¿Qué lienzo?</b>
+      <button className={p.menuVolver} onClick={onVolver} aria-label={tr('Volver a las secciones')}><ArrowLeft size={14} /></button>
+      <IconoVista vista="lienzo" size={14} /><b>{tr('¿Qué lienzo?')}</b>
     </div>
     <div className={p.lienzos}>
       <ArbolLienzos variante="panel" autoFoco paginas={paginas} carpetas={carpetas} a={a} abiertas={abiertas} onAbrir={onElegir}
-        estado={!data ? (error ?? 'Leyendo tus lienzos…') : null} />
+        estado={!data ? (error ?? tr('Leyendo tus lienzos…')) : null} />
     </div>
   </>
 }

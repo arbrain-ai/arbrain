@@ -9,6 +9,7 @@ import { useState } from 'react'
 import { ChevronDown, ScrollText } from 'lucide-react'
 import { Texto } from '@/features/primer-arranque/components/DocumentosLegales'
 import type { TextoAutonomia } from '../lib/seguridad'
+import { tr } from '@/shared/i18n'
 
 export type Casillas = [boolean, boolean]
 export const CASILLAS_VACIAS: Casillas = [false, false]
@@ -32,9 +33,9 @@ export function ConsentimientoAutonomia({ texto, marcadas, onMarcadas, abiertoIn
           <ScrollText className="size-4 shrink-0 text-brand-ink" aria-hidden />
           <span className="min-w-0 flex-1">
             <span className="block text-sm font-semibold text-foreground">{texto.titulo}</span>
-            <span className="block text-[12.5px] leading-snug text-muted">Versión del texto: {texto.version}</span>
+            <span className="block text-[12.5px] leading-snug text-muted">{tr('Versión del texto: {version}', { version: texto.version })}</span>
           </span>
-          <span className="shrink-0 text-[12px] text-muted">{abierto ? 'Cerrar' : 'Leer qué significa'}</span>
+          <span className="shrink-0 text-[12px] text-muted">{abierto ? tr('Cerrar') : tr('Leer qué significa')}</span>
           <ChevronDown className={`size-4 shrink-0 text-muted transition-transform ${abierto ? 'rotate-180' : ''}`} aria-hidden />
         </button>
         {abierto && (
@@ -43,7 +44,7 @@ export function ConsentimientoAutonomia({ texto, marcadas, onMarcadas, abiertoIn
           </div>
         )}
       </section>
-      <div className="space-y-2" role="group" aria-label="Para aceptar el modo autónomo">
+      <div className="space-y-2" role="group" aria-label={tr('Para aceptar el modo autónomo')}>
         {texto.casillas.map((c, i) => (
           <label key={i} className="flex cursor-pointer items-start gap-3 rounded-2xl border border-border-subtle bg-surface/70 p-3">
             <input type="checkbox" checked={marcadas[i]} disabled={deshabilitado} onChange={e => { const m: Casillas = [marcadas[0], marcadas[1]]; m[i] = e.target.checked; onMarcadas(m) }} className="mt-0.5 size-4 shrink-0 accent-[var(--brand)]" />

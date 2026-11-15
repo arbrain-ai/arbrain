@@ -6,6 +6,7 @@
  * laboratorio.
  */
 import type { ChatMessage } from '../hooks/useChat'
+import { tr, trn, trMarca, trMarcas } from '@/shared/i18n'
 
 export type ClaseArchivo = 'memoria' | 'skill' | 'documento' | 'codigo'
 export type LineaDiff = { tipo: 'igual' | 'agregada' | 'quitada'; texto: string }
@@ -63,25 +64,25 @@ export function temaDelCodigo(contenido: string | undefined): string | null {
 /** El papel del archivo de código, dicho en humano: «la pantalla», «la prueba», «el estilo»… */
 function papelDelCodigo(ruta: string): string {
   const base = ruta.split('/').pop() ?? ''
-  if (/\.(test|spec)\.[jt]sx?$|\/tests?\//.test(ruta)) return 'la prueba'
-  if (/\.(css|scss)$/.test(base)) return 'el estilo'
-  if (/\/app\/(.+\/)?page\.tsx$/.test(ruta)) return 'la página'
-  if (/\/api\/.+\/route\.[jt]s$/.test(ruta)) return 'la conexión del servidor'
-  if (/\.tsx$/.test(base)) return 'la pantalla'
-  if (/\.json$/.test(base)) return 'los ajustes'
-  if (/\.(py|sh|mjs)$/.test(base) || /\/scripts\//.test(ruta)) return 'el script'
-  return 'el código'
+  if (/\.(test|spec)\.[jt]sx?$|\/tests?\//.test(ruta)) return trMarca('la prueba')
+  if (/\.(css|scss)$/.test(base)) return trMarca('el estilo')
+  if (/\/app\/(.+\/)?page\.tsx$/.test(ruta)) return trMarca('la página')
+  if (/\/api\/.+\/route\.[jt]s$/.test(ruta)) return trMarca('la conexión del servidor')
+  if (/\.tsx$/.test(base)) return trMarca('la pantalla')
+  if (/\.json$/.test(base)) return trMarca('los ajustes')
+  if (/\.(py|sh|mjs)$/.test(base) || /\/scripts\//.test(ruta)) return trMarca('el script')
+  return trMarca('el código')
 }
 
 /** Los archivos que tienen nombre propio en la vida de Levy. */
 const CONOCIDOS: Array<[RegExp, ClaseArchivo, string]> = [
-  [/\.claude\/memory\/MEMORY\.md$/, 'memoria', 'tu memoria esencial'],
-  [/\.claude\/memory\/MEMORY-indice\.md$/, 'memoria', 'el índice de tus memorias'],
-  [/\.claude\/memory\/MEMORY-user\.md$/, 'memoria', 'tu memoria sobre quién eres'],
-  [/\.claude\/memory\/RETRATO\.md$/, 'memoria', 'tu retrato'],
-  [/(^|\/)(CLAUDE|AGENTS)\.md$/, 'documento', 'las instrucciones de Levy'],
-  [/\.claude\/now\.md$/, 'documento', 'tu resumen de hoy'],
-  [/\.claude\/settings(\.local)?\.json$/, 'codigo', 'los ajustes de Levy'],
+  [/\.claude\/memory\/MEMORY\.md$/, 'memoria', trMarca('tu memoria esencial')],
+  [/\.claude\/memory\/MEMORY-indice\.md$/, 'memoria', trMarca('el índice de tus memorias')],
+  [/\.claude\/memory\/MEMORY-user\.md$/, 'memoria', trMarca('tu memoria sobre quién eres')],
+  [/\.claude\/memory\/RETRATO\.md$/, 'memoria', trMarca('tu retrato')],
+  [/(^|\/)(CLAUDE|AGENTS)\.md$/, 'documento', trMarca('las instrucciones de Levy')],
+  [/\.claude\/now\.md$/, 'documento', trMarca('tu resumen de hoy')],
+  [/\.claude\/settings(\.local)?\.json$/, 'codigo', trMarca('los ajustes de Levy')],
 ]
 
 /**
@@ -90,21 +91,21 @@ const CONOCIDOS: Array<[RegExp, ClaseArchivo, string]> = [
  * ubicación». `contenido` (el de un Write) deja decir de qué trata el código.
  */
 export function claseDe(ruta: string, contenido?: string): { clase: ClaseArchivo; lugar: string } {
-  for (const [re, clase, lugar] of CONOCIDOS) if (re.test(ruta)) return { clase, lugar }
+  for (const [re, clase, lugar] of CONOCIDOS) if (re.test(ruta)) return { clase, lugar: tr(lugar) }
   const skill = /\.claude\/skills\/([^/]+)\//.exec(ruta)?.[1]
   if (skill) {
     const resto = ruta.split(`/skills/${skill}/`)[1] ?? ''
-    if (/^SKILL\.md$/i.test(resto)) return { clase: 'skill', lugar: `la skill «${skill}»` }
-    const que = /^scripts\//.test(resto) ? 'el script' : TEXTO.test(resto) ? 'la guía' : 'el archivo'
-    return { clase: 'skill', lugar: `${que} «${nombreLegible(resto)}» de la skill «${skill}»` }
+    if (/^SKILL\.md$/i.test(resto)) return { clase: 'skill', lugar: tr('la skill «{skill}»', { skill }) }
+    const que = /^scripts\//.test(resto) ? tr('el script') : TEXTO.test(resto) ? tr('la guía') : tr('el archivo')
+    return { clase: 'skill', lugar: tr('{que} «{nombre}» de la skill «{skill}»', { que, nombre: nombreLegible(resto), skill }) }
   }
-  if (/\.claude\/memory\//.test(ruta) || /(^|\/)MEMORY[-\w]*\.md$/.test(ruta)) return { clase: 'memoria', lugar: `tu memoria sobre «${nombreLegible(ruta)}»` }
-  if (TEXTO.test(ruta)) return { clase: 'documento', lugar: `el documento «${nombreLegible(ruta)}»` }
+  if (/\.claude\/memory\//.test(ruta) || /(^|\/)MEMORY[-\w]*\.md$/.test(ruta)) return { clase: 'memoria', lugar: tr('tu memoria sobre «{nombre}»', { nombre: nombreLegible(ruta) }) }
+  if (TEXTO.test(ruta)) return { clase: 'documento', lugar: tr('el documento «{nombre}»', { nombre: nombreLegible(ruta) }) }
   const base = ruta.split('/').pop() ?? ruta
   const generico = /^(index|page|route|layout)\.[jt]sx?$/.test(base) ? nombreLegible(ruta.split('/').slice(-2, -1)[0] ?? base) : nombreLegible(base)
   const papel = papelDelCodigo(ruta)
   const tema = temaDelCodigo(contenido)
-  return { clase: 'codigo', lugar: tema ? `${papel === 'el código' ? 'el código' : papel} de «${tema}»` : `${papel} «${generico}»` }
+  return { clase: 'codigo', lugar: tema ? tr('{papel} de «{tema}»', { papel: tr(papel), tema }) : tr('{papel} «{nombre}»', { papel: tr(papel), nombre: generico }) }
 }
 
 /** Ruta corta para «Ver ubicación»: desde `.claude/` o desde la carpeta del proyecto. */
@@ -290,19 +291,18 @@ export function edicionDe(tool: { toolId: string; toolName: string }, crudo: str
   }
 }
 
-const lineasDe = (n: number) => `${n} ${n === 1 ? 'línea' : 'líneas'}`
-/** «de la skill» / «del archivo». */
-const de = (lugar: string) => lugar.startsWith('el ') ? `del ${lugar.slice(3)}` : `de ${lugar}`
-const a = (lugar: string) => lugar.startsWith('el ') ? `al ${lugar.slice(3)}` : `a ${lugar}`
+const lineasDe = (n: number) => trn(n, '{n} línea', '{n} líneas')
 
 /** La frase humana de una edición: «cambió 3 líneas en tu memoria «llamadas cohorte»». */
 export function resumenHumano(e: Edicion): string {
-  if (e.fallo) return `intentó cambiar ${e.lugar}, pero no se aplicó`
-  if (e.incompleto && !e.agregadas && !e.quitadas) return `cambió ${e.lugar}`
-  if (e.escrito) return `escribió ${e.lugar} (${lineasDe(e.agregadas)})`
-  if (!e.quitadas) return `agregó ${lineasDe(e.agregadas)} ${a(e.lugar)}`
-  if (!e.agregadas) return `quitó ${lineasDe(e.quitadas)} ${de(e.lugar)}`
-  return `cambió ${lineasDe(Math.max(e.agregadas, e.quitadas))} en ${e.lugar}`
+  if (e.fallo) return tr('intentó cambiar {lugar}, pero no se aplicó', { lugar: e.lugar })
+  if (e.incompleto && !e.agregadas && !e.quitadas) return tr('cambió {lugar}', { lugar: e.lugar })
+  if (e.escrito) return tr('escribió {lugar} ({lineas})', { lugar: e.lugar, lineas: lineasDe(e.agregadas) })
+  // «al archivo» / «del archivo»: la contracción del español va en su propia frase (en inglés el lugar nunca empieza con «el »).
+  const el = e.lugar.startsWith('el ')
+  if (!e.quitadas) return el ? tr('agregó {lineas} al {lugar}', { lineas: lineasDe(e.agregadas), lugar: e.lugar.slice(3) }) : tr('agregó {lineas} a {lugar}', { lineas: lineasDe(e.agregadas), lugar: e.lugar })
+  if (!e.agregadas) return el ? tr('quitó {lineas} del {lugar}', { lineas: lineasDe(e.quitadas), lugar: e.lugar.slice(3) }) : tr('quitó {lineas} de {lugar}', { lineas: lineasDe(e.quitadas), lugar: e.lugar })
+  return tr('cambió {lineas} en {lugar}', { lineas: lineasDe(Math.max(e.agregadas, e.quitadas)), lugar: e.lugar })
 }
 
 /** La nota de arriba del código, completa («Recordatorio del seguimiento a fundadores: media hora antes de cada grupal.»). */
@@ -347,17 +347,19 @@ function valoresCambiados(lineas: LineaDiff[]): Array<[string, string]> | null {
  * código». Con Write se dice para qué sirve según su propia nota de arriba; con Edit, qué valor cambió o qué partes.
  */
 export function fraseCodigo(e: Edicion): string {
-  if (e.fallo) return 'Este cambio no se aplicó: el código quedó como estaba.'
+  if (e.fallo) return tr('Este cambio no se aplicó: el código quedó como estaba.')
   if (e.escrito) {
     const nota = notaDelCodigo(e.cambios[0]?.despues)
-    const tam = `Levy escribió este archivo completo (${lineasDe(e.agregadas)}).`
-    return nota ? `${tam} Su nota de arriba dice para qué sirve: «${nota.replace(/[«»]/g, '"')}»` : `${tam} No trae una nota que diga para qué sirve.`
+    const tam = tr('Levy escribió este archivo completo ({lineas}).', { lineas: lineasDe(e.agregadas) })
+    return nota ? tr('{tam} Su nota de arriba dice para qué sirve: «{nota}»', { tam, nota: nota.replace(/[«»]/g, '"') }) : tr('{tam} No trae una nota que diga para qué sirve.', { tam })
   }
   const valores = valoresCambiados(e.lineas)
-  if (valores) return valores.map(([u, v]) => `Cambió un valor: donde decía «${u}» ahora dice «${v}».`).join(' ')
+  if (valores) return valores.map(([u, v]) => tr('Cambió un valor: donde decía «{antes}» ahora dice «{despues}».', { antes: u, despues: v })).join(' ')
   const partes = partesTocadas(e.lineas)
-  const cuanto = !e.quitadas ? `Agregó ${lineasDe(e.agregadas)}` : !e.agregadas ? `Quitó ${lineasDe(e.quitadas)}` : `Cambió ${lineasDe(Math.max(e.agregadas, e.quitadas))}`
-  return partes.length ? `${cuanto} en ${partes.length === 1 ? 'la parte' : 'las partes'} ${lista(partes.map(p => `«${p}»`))}.` : `${cuanto} de código.`
+  const cuanto = !e.quitadas ? tr('Agregó {lineas}', { lineas: lineasDe(e.agregadas) }) : !e.agregadas ? tr('Quitó {lineas}', { lineas: lineasDe(e.quitadas) }) : tr('Cambió {lineas}', { lineas: lineasDe(Math.max(e.agregadas, e.quitadas)) })
+  if (!partes.length) return tr('{cuanto} de código.', { cuanto })
+  const nombres = lista(partes.map(p => tr('«{parte}»', { parte: p })))
+  return partes.length === 1 ? tr('{cuanto} en la parte {partes}.', { cuanto, partes: nombres }) : tr('{cuanto} en las partes {partes}.', { cuanto, partes: nombres })
 }
 
 /** Las ediciones del turno en el orden en que ocurrieron. */
@@ -402,9 +404,9 @@ export function porArchivo(ediciones: Edicion[]): Edicion[] {
 }
 
 const CLASES: Record<ClaseArchivo, [string, string]> = {
-  memoria: ['memoria', 'memorias'], skill: ['skill', 'skills'], documento: ['documento', 'documentos'], codigo: ['archivo de código', 'archivos de código'],
+  memoria: trMarcas(['memoria', 'memorias']), skill: trMarcas(['skill', 'skills']), documento: trMarcas(['documento', 'documentos']), codigo: trMarcas(['archivo de código', 'archivos de código']),
 }
-const lista = (xs: string[]) => xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} y ${xs[xs.length - 1]}`
+const lista = (xs: string[]) => xs.length < 2 ? xs.join('') : tr('{a} y {b}', { a: xs.slice(0, -1).join(', '), b: xs[xs.length - 1] })
 
 /**
  * La fila que cierra el turno: «Levy cambió 2 memorias y 1 skill». Cuenta archivos distintos (las skills, por skill:
@@ -412,7 +414,7 @@ const lista = (xs: string[]) => xs.length < 2 ? xs.join('') : `${xs.slice(0, -1)
  */
 export function resumenTurno(ediciones: Edicion[]): string {
   const vale = porArchivo(ediciones).filter(e => !e.fallo)
-  if (!vale.length) return ediciones.length ? 'Levy intentó cambiar archivos, pero no se aplicó' : ''
+  if (!vale.length) return ediciones.length ? tr('Levy intentó cambiar archivos, pero no se aplicó') : ''
   const cuenta = new Map<ClaseArchivo, Set<string>>()
   for (const e of vale) {
     const k = e.clase === 'skill' ? (/\.claude\/skills\/([^/]+)\//.exec(e.ruta)?.[1] ?? e.ruta) : e.ruta
@@ -421,17 +423,15 @@ export function resumenTurno(ediciones: Edicion[]): string {
   }
   const partes = (['memoria', 'skill', 'documento', 'codigo'] as ClaseArchivo[]).filter(c => cuenta.has(c)).map(c => {
     const n = cuenta.get(c)!.size
-    return `${n} ${CLASES[c][n === 1 ? 0 : 1]}`
+    return `${n} ${tr(CLASES[c][n === 1 ? 0 : 1])}`
   })
-  return `Levy cambió ${lista(partes)}`
+  return tr('Levy cambió {lista}', { lista: lista(partes) })
 }
 
 /** Cómo se nombra una ruta de la vista previa de «Deshacer»: con el nombre que ya tiene en el turno, si lo tiene. */
 export function lugarDeRuta(ruta: string, ediciones: Edicion[] = []): string {
   return porArchivo(ediciones).find(e => e.ruta === ruta)?.lugar ?? claseDe(ruta).lugar
 }
-
-const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`
 
 /**
  * La frase del diálogo de «Deshacer» (ronda 3): qué pasa con tus archivos, en una sola oración. El SDK cuenta, al
@@ -441,19 +441,22 @@ const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno
  */
 export function fraseDeshacer(v: { archivos: string[]; inserciones: number; borrados: number }, ediciones: Edicion[] = [], cuando?: string): string {
   const n = v.archivos.length
-  if (!n) return 'Tus archivos ya están como antes de este turno.'
-  const quien = n === 1 ? lugarDeRuta(v.archivos[0], ediciones) : `estos ${n} archivos`
-  const sujeto = n === 1 ? `${quien[0].toUpperCase()}${quien.slice(1)} vuelve a como estaba` : `Tus ${n} archivos vuelven a como estaban`
-  const antes = `antes de este turno${cuando ? ` (tu mensaje de las ${cuando})` : ''}`
+  if (!n) return tr('Tus archivos ya están como antes de este turno.')
+  const quien = n === 1 ? lugarDeRuta(v.archivos[0], ediciones) : tr('estos {n} archivos', { n })
+  const sujeto = n === 1 ? tr('{lugar} vuelve a como estaba', { lugar: `${quien[0].toUpperCase()}${quien.slice(1)}` }) : tr('Tus {n} archivos vuelven a como estaban', { n })
+  const antes = cuando ? tr('antes de este turno (tu mensaje de las {hora})', { hora: cuando }) : tr('antes de este turno')
   const partes = [
-    v.borrados ? `se ${v.borrados === 1 ? 'quita' : 'quitan'} ${plural(v.borrados, 'línea', 'líneas')} que Levy agregó` : '',
-    v.inserciones ? `${v.inserciones === 1 ? 'regresa' : 'regresan'} ${v.borrados ? v.inserciones : plural(v.inserciones, 'línea', 'líneas')} que ${v.borrados ? '' : 'Levy '}cambió` : '',
+    v.borrados ? trn(v.borrados, 'se quita {n} línea que Levy agregó', 'se quitan {n} líneas que Levy agregó') : '',
+    v.inserciones ? (v.borrados ? trn(v.inserciones, 'regresa {n} que cambió', 'regresan {n} que cambió') : trn(v.inserciones, 'regresa {n} línea que Levy cambió', 'regresan {n} líneas que Levy cambió')) : '',
   ].filter(Boolean)
-  return `${sujeto} ${antes}${partes.length ? `: ${partes.join(' y ')}` : ''}.`
+  if (!partes.length) return tr('{sujeto} {antes}.', { sujeto, antes })
+  return tr('{sujeto} {antes}: {cambios}.', { sujeto, antes, cambios: partes.length === 2 ? tr('{a} y {b}', { a: partes[0], b: partes[1] }) : partes[0] })
 }
 
 /** La fila del turno después de deshacer: «Deshiciste lo que Levy cambió: 1 memoria, 1 skill y 1 archivo de código». */
 export function resumenDeshecho(ediciones: Edicion[]): string {
   const r = resumenTurno(ediciones)
-  return r.startsWith('Levy cambió ') ? `Deshiciste lo que Levy cambió: ${r.slice('Levy cambió '.length)}` : r
+  // El prefijo sale del mismo texto que arma resumenTurno, en el idioma activo («Levy cambió » / «Levy changed »).
+  const prefijo = tr('Levy cambió {lista}', { lista: '' })
+  return r.startsWith(prefijo) ? tr('Deshiciste lo que Levy cambió: {lista}', { lista: r.slice(prefijo.length) }) : r
 }

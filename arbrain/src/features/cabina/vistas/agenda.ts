@@ -10,6 +10,7 @@ import { esFase, esMecanicaAlumno } from '@/features/planning/drip'
 import { tituloVisible } from '@/features/planning/ajenos'
 import { refrescarCabina } from '../datos'
 import { zonaCabina, sumarDias } from '../model'
+import { tr } from '@/shared/i18n'
 
 export interface Item { id: string; titulo: string; hora?: string; inicio?: number; fin?: number; orden: number; color: string; peso: number; objetivo: boolean; url?: string; tarea?: PlanTask; recurrente?: boolean }
 export interface Banda { id: string; titulo: string; desde: string; hasta: string; color: string }
@@ -31,7 +32,7 @@ const minutosDe = enZona('en-GB', { hour: '2-digit', minute: '2-digit', hour12: 
 /** Minutos desde la medianoche civil del dueño. */
 export function minutosCiviles(ms: number) { const [h, m] = minutosDe.format(new Date(ms)).split(':').map(Number); return (h % 24) * 60 + m }
 export function duracion(min: number) { if (min < 60) return `${min} min`; const h = Math.floor(min / 60), m = min % 60; return m ? `${h} h ${m} min` : `${h} h` }
-export function faltan(min: number) { return min < 1 ? 'ya' : min < 60 ? `en ${min} min` : `en ${duracion(min)}` }
+export function faltan(min: number) { return min < 1 ? tr('ya') : min < 60 ? tr('en {n} min', { n: min }) : tr('en {duracion}', { duracion: duracion(min) }) }
 
 /** Agrupa eventos y tareas por día civil. Las metas de varios días (calendarios de
  *  objetivos) no se repiten en cada celda: van como bandas. */
@@ -44,7 +45,7 @@ export function porDia(snap: PlanningSnapshot | undefined) {
     // «🔓 Abre … en el classroom» es para los alumnos: no se pinta en el calendario de Daniel (drip.ts `esMecanicaAlumno`).
     if (esMecanicaAlumno(e)) continue
     const f = fuentes.get(e.sourceId)
-    const base = { id: e.id, titulo: tituloVisible(e, '(sin título)'), color: f?.color ?? 'var(--brand)', objetivo: !!f?.objective, url: e.url, recurrente: !!e.recurringEventId }
+    const base = { id: e.id, titulo: tituloVisible(e, tr('(sin título)')), color: f?.color ?? 'var(--brand)', objetivo: !!f?.objective, url: e.url, recurrente: !!e.recurringEventId }
     if (e.allDay && f?.objective && sumarDias(e.start.slice(0, 10), 1) < e.end.slice(0, 10)) {
       bandas.push({ id: e.id, titulo: tituloVisible(e), desde: e.start.slice(0, 10), hasta: e.end.slice(0, 10), color: f.color ?? 'var(--gold)' })
       continue
@@ -112,7 +113,7 @@ export async function mutarTarea(t: PlanTask, ownerId: string, accion: 'complete
   const op = accion === 'reopen' ? { ...base, updatedAt: undefined } : base
   const r = await fetch('/api/planning', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(op), signal: AbortSignal.timeout(100_000) })
   const b = await r.json().catch(() => ({}))
-  if (!r.ok) throw new Error(b?.error ?? 'Todoist no confirmó el cambio.')
+  if (!r.ok) throw new Error(b?.error ?? tr('Todoist no confirmó el cambio.'))
   refrescarCabina(1200)
   return b
 }

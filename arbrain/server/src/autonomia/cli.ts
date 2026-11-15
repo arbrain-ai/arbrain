@@ -5,7 +5,7 @@
  *   tsx src/autonomia/cli.ts hoy               «Lo que hice solo» de hoy
  *   tsx src/autonomia/cli.ts apagar-freno <AAAA-MM-DDTHH:MM> --por «cita textual del dueño»   apaga el freno ENTERO hasta esa hora local
  *   tsx src/autonomia/cli.ts encender-freno    lo vuelve a encender antes de tiempo
- *   tsx src/autonomia/cli.ts decidir --titulo «…» --recomienda si|no --recomendacion «…» [--detalle «texto exacto»] [--categoria enviar|pagar|borrar|publicar|otra] [--expira 13:00|2026-11-04T13:00] [--persona Fulano]
+ *   tsx src/autonomia/cli.ts decidir --titulo «…» --recomienda si|no --recomendacion «…» [--detalle «texto exacto»] [--categoria enviar|pagar|borrar|publicar|otra] [--expira 13:00|2026-11-04T13:00] [--persona Fulano] [--organo marketing|venta|comprador|entrega|finanzas|sistemas]
  *   tsx src/autonomia/cli.ts decision <cf_id>  cómo quedó una decisión
  *   tsx src/autonomia/cli.ts anotar --clase configurar --que «…» [--deshacer «…»]   una línea en «Lo que hice solo»
  *   tsx src/autonomia/cli.ts soporte --url <hilo de la plataforma de la cohorte> --persona Fulano --texto «…» [--pregunta «…»] [--recomendacion «…»]

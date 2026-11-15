@@ -6,6 +6,7 @@
  * Puro: sin React ni red.
  */
 import { NOMBRE_DUENO } from '@/config'
+import { tr, trn } from '@/shared/i18n'
 
 export type EstadoMeta = 'en_curso' | 'esperando' | 'pausada' | 'cumplida' | 'quitada'
 
@@ -20,28 +21,28 @@ export interface MetaTurno {
   frenada?: 'repeticion' | 'pausa'
 }
 
-const nombre = () => { try { return NOMBRE_DUENO() } catch { return 'ti' } }
+const nombre = () => { try { return NOMBRE_DUENO() } catch { return tr('ti') } }
 
 /** Estado en palabras para el chip. */
 export function estadoEnPalabras(estado: EstadoMeta): string {
   switch (estado) {
-    case 'en_curso': return 'en curso'
-    case 'esperando': return `esperando a ${nombre()}`
-    case 'pausada': return 'en pausa'
-    case 'cumplida': return 'cumplida'
-    case 'quitada': return 'quitada'
+    case 'en_curso': return tr('en curso')
+    case 'esperando': return tr('esperando a {nombre}', { nombre: nombre() })
+    case 'pausada': return tr('en pausa')
+    case 'cumplida': return tr('cumplida')
+    case 'quitada': return tr('quitada')
   }
 }
 
 /** «Meta: 6 revisiones · sin cumplir · espera a Daniel». El renglón del bloque plegado bajo la respuesta. */
 export function resumenMeta(meta: MetaTurno, enVivo = false): string {
   const n = meta.revisiones
-  const partes = [`Meta: ${n} ${n === 1 ? 'revisión' : 'revisiones'}`]
-  if (meta.estado === 'cumplida') partes.push('cumplida')
-  else if (enVivo && meta.estado === 'en_curso') partes.push('revisando')
-  else partes.push('sin cumplir')
-  if (meta.estado === 'esperando') partes.push(`espera a ${nombre()}`)
-  else if (meta.estado === 'pausada') partes.push('en pausa')
+  const partes = [trn(n, 'Meta: {n} revisión', 'Meta: {n} revisiones')]
+  if (meta.estado === 'cumplida') partes.push(tr('cumplida'))
+  else if (enVivo && meta.estado === 'en_curso') partes.push(tr('revisando'))
+  else partes.push(tr('sin cumplir'))
+  if (meta.estado === 'esperando') partes.push(tr('espera a {nombre}', { nombre: nombre() }))
+  else if (meta.estado === 'pausada') partes.push(tr('en pausa'))
   return partes.join(' · ')
 }
 

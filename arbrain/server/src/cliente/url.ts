@@ -2,6 +2,7 @@
  * Señales de exfiltración en una URL (red team 2 M-5 y A-2, 11 oct 2026). Pura: la usan la política de los agentes
  * (WebFetch) y el freno de navegación de manos (`navegar`, `web_abrir`, `web_navegar`).
  */
+import { tr } from '../i18n/tr.js'
 
 /** Largo a partir del cual una query o un fragmento puede llevar datos (≈ una línea de texto). */
 export const QUERY_MAX = 64
@@ -43,15 +44,15 @@ export function senalExfiltracion(url: string): string | null {
   const u = parsearUrl(url)
   if (!u) return null
   const query = u.search.replace(/^\?/, ''), frag = u.hash.replace(/^#/, '')
-  if (query.length > QUERY_MAX) return `la URL lleva ${query.length} caracteres de datos en la query`
-  if (frag.length > QUERY_MAX) return `la URL lleva ${frag.length} caracteres de datos en el fragmento`
+  if (query.length > QUERY_MAX) return tr('la URL lleva {n} caracteres de datos en la query', { n: query.length })
+  if (frag.length > QUERY_MAX) return tr('la URL lleva {n} caracteres de datos en el fragmento', { n: frag.length })
   const datos = decodificar(`${query} ${frag}`)
   const b = BASE64.exec(datos)?.[0]
-  if (b && mezcla(b)) return 'la URL lleva datos que parecen codificados (base64)'
-  if (HEX.test(datos)) return 'la URL lleva datos que parecen codificados (hex)'
+  if (b && mezcla(b)) return tr('la URL lleva datos que parecen codificados (base64)')
+  if (HEX.test(datos)) return tr('la URL lleva datos que parecen codificados (hex)')
   const ruta = decodificar(u.pathname)
   const pb = PATH_LARGO_B64.exec(ruta)?.[0]
-  if ((pb && mezcla(pb)) || PATH_LARGO_HEX.test(ruta)) return 'la ruta de la URL lleva datos que parecen codificados'
-  if ((u.username || u.password)) return 'la URL lleva usuario o contraseña'
+  if ((pb && mezcla(pb)) || PATH_LARGO_HEX.test(ruta)) return tr('la ruta de la URL lleva datos que parecen codificados')
+  if ((u.username || u.password)) return tr('la URL lleva usuario o contraseña')
   return null
 }

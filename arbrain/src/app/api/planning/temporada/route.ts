@@ -5,6 +5,7 @@ import { raizWorkspace } from '@/lib/rutas-instalacion'
 import { instalacion } from '@/config'
 import { fijarTemporada, sinTemporada, temporadaVigente, type DocTemporada } from '@/features/planning/temporada'
 import { dondeTemporada, escribirArchivoTemporada, leerArchivoTemporada, type DondeTemporada } from '@/lib/planning/temporada-store'
+import { tr } from '@/shared/i18n'
 
 export const runtime = 'nodejs'
 const headers = { 'Cache-Control': 'no-store' }
@@ -35,13 +36,13 @@ export async function POST(request: Request) {
     await planningOwner()
     checkMutationOrigin(request)
     const d = donde()
-    if (d.tipo !== 'archivo') throw new ChatAccessError('En esta instalación la temporada vive en src/config/instalacion.ts.', 409)
+    if (d.tipo !== 'archivo') throw new ChatAccessError(tr('En esta instalación la temporada vive en src/config/instalacion.ts.'), 409)
     const raw = await request.text()
     if (raw.length > 20_000) throw new ChatAccessError('Demasiado grande.', 413)
     let body: Record<string, unknown>
     try { const b = JSON.parse(raw); if (!b || typeof b !== 'object' || Array.isArray(b)) throw new Error(); body = b }
-    catch { throw new ChatAccessError('JSON inválido.', 400) }
-    const doc = body.accion === 'quitar' ? sinTemporada() : body.accion === 'fijar' ? fijarTemporada(body) : 'Acción inválida: fijar o quitar.'
+    catch { throw new ChatAccessError(tr('JSON inválido.'), 400) }
+    const doc = body.accion === 'quitar' ? sinTemporada() : body.accion === 'fijar' ? fijarTemporada(body) : tr('Acción inválida: fijar o quitar.')
     if (typeof doc === 'string') throw new ChatAccessError(doc, 400)
     escribirArchivoTemporada(d.ruta, doc)
     return Response.json(respuesta(doc, d), { headers })

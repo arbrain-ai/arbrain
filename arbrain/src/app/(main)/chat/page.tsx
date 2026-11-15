@@ -15,6 +15,7 @@ import { useAccountStore } from '@/features/chat/stores/account-store'
 import { precargarAvatar } from '@/features/chat/components/Levy3D'
 import { AGENTES } from '@/features/live/agents'
 import { agenteActivo } from '@/features/live/agent-state'
+import { caraLive } from '@/features/chat/lib/levy-vivo'
 import { redGratis } from '@/features/live/precarga'
 import { esTelefonoAhora } from '@/shared/hooks/useMediaQuery'
 import { esEdicionCliente } from '@/lib/edicion'
@@ -63,7 +64,8 @@ function ChatTabs() {
       void import('@/features/live/components/LiveWorkspace')
       // Teléfono (11 oct 2026, datos móviles): rozar «Levy» al hacer scroll bajaba 29-35 MB sin abrir Live. Ahí el
       // avatar espera a que Live se abra de verdad (y desde entonces queda en la caché del service worker).
-      if (!esTelefonoAhora()) precargarAvatar(AGENTES[agenteActivo()].modelo)
+      // Desde el 13 nov Live abre con el Levy 2D de los videos (~1,2 MB): el 3D solo se precarga si se eligió en Ajustes.
+      if (!esTelefonoAhora() && caraLive() === '3d') precargarAvatar(AGENTES[agenteActivo()].modelo)
     }
     window.addEventListener('openclaw:prepare-live', preparar)
     let t: number | undefined

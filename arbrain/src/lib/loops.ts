@@ -5,6 +5,7 @@
  */
 import type { Tarjeta } from '@/features/decisiones/lib/bandeja'
 import { resumen } from '@/features/rutinas/model'
+import { localeIntl, tr, trMarca } from '@/shared/i18n'
 
 export type Prioridad = 1 | 2 | 3
 export type ModoLoop = 'pregunta-antes' | 'lo-haces-tu' | 'solo-revisa'
@@ -31,23 +32,25 @@ export interface VistaLoops {
 }
 
 export const PRIORIDAD: Record<Prioridad, { corta: string; nombre: string; que: string }> = {
-  1: { corta: 'P1', nombre: 'Esencial', que: 'todo negocio los quiere' },
-  2: { corta: 'P2', nombre: 'Recomendado', que: 'casi todos los usan' },
-  3: { corta: 'P3', nombre: 'Útil', que: 'depende de tu negocio' },
+  // Idioma (13 nov 2026): `nombre` y `que` se traducen al pintarse (`tr(p.nombre)`).
+  1: { corta: 'P1', nombre: trMarca('Esencial'), que: trMarca('todo negocio los quiere') },
+  2: { corta: 'P2', nombre: trMarca('Recomendado'), que: trMarca('casi todos los usan') },
+  3: { corta: 'P3', nombre: trMarca('Útil'), que: trMarca('depende de tu negocio') },
 }
 
 const MODELO: Record<PlantillaVista['modelo'], string> = { haiku: 'Haiku', sonnet: 'Sonnet', opus: 'Opus' }
-const ESFUERZO: Record<PlantillaVista['esfuerzo'], string> = { low: 'bajo', medium: 'medio', high: 'alto' }
+const ESFUERZO: Record<PlantillaVista['esfuerzo'], string> = { low: trMarca('bajo'), medium: trMarca('medio'), high: trMarca('alto') }
 /** «Sonnet · medio»: con qué modelo y cuánto piensa (es lo que de verdad corre). */
-export const chipModelo = (p: Pick<PlantillaVista, 'modelo' | 'esfuerzo'>) => `${MODELO[p.modelo]} · ${ESFUERZO[p.esfuerzo]}`
+export const chipModelo = (p: Pick<PlantillaVista, 'modelo' | 'esfuerzo'>) => `${MODELO[p.modelo]} · ${tr(ESFUERZO[p.esfuerzo])}`
 
-const VERBO: Record<Toca, string> = { contactar: 'contactar', pagar: 'pagar', publicar: 'publicar' }
-const TU: Record<Toca, string> = { contactar: 'tú contactas', pagar: 'tú pagas', publicar: 'tú publicas' }
+// Idioma (13 nov 2026): frases enteras por acción (mismo texto que antes), para traducirlas sin partirlas.
+const PREGUNTA: Record<Toca, string> = { contactar: trMarca('Pregunta antes de contactar'), pagar: trMarca('Pregunta antes de pagar'), publicar: trMarca('Pregunta antes de publicar') }
+const LISTO: Record<Toca, string> = { contactar: trMarca('Te deja listo el texto; tú contactas'), pagar: trMarca('Te deja listo el pago; tú pagas'), publicar: trMarca('Te deja listo el texto; tú publicas') }
 /** Cómo trata lo irreversible, en una frase corta para el chip. */
 export function chipModo(p: Pick<PlantillaVista, 'modo' | 'toca'>): string {
-  if (p.modo === 'solo-revisa' || !p.toca) return 'Solo revisa'
-  if (p.modo === 'lo-haces-tu') return `Te deja listo ${p.toca === 'pagar' ? 'el pago' : 'el texto'}; ${TU[p.toca]}`
-  return `Pregunta antes de ${VERBO[p.toca]}`
+  if (p.modo === 'solo-revisa' || !p.toca) return tr('Solo revisa')
+  if (p.modo === 'lo-haces-tu') return tr(LISTO[p.toca])
+  return tr(PREGUNTA[p.toca])
 }
 
 /** Las plantillas por prioridad, P1 primero, en el orden del catálogo. Pura. */
@@ -66,7 +69,7 @@ export function porDia(corridas: CorridaVista[], ahora: number, tz = 'America/Me
   }
   return [...grupos.entries()].map(([dia, items]) => ({
     dia, items,
-    titulo: dia === hoy ? 'Hoy' : dia === ayer ? 'Ayer' : new Date(items[0].corrida).toLocaleDateString('es-MX', { timeZone: tz, weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, ''),
+    titulo: dia === hoy ? tr('Hoy') : dia === ayer ? tr('Ayer') : new Date(items[0].corrida).toLocaleDateString(localeIntl(), { timeZone: tz, weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, ''),
   }))
 }
 
@@ -75,12 +78,12 @@ export const esperaTuToque = (c: CorridaVista) => !!c.tarjeta && (c.tarjeta.esta
 
 /** Lo que dice cada corrida en la línea de tiempo. Pura. */
 export function estadoCorrida(c: CorridaVista): { tono: 'ok' | 'excepcion' | 'decidida' | 'fallo' | 'sin-dato'; texto: string } {
-  if (c.estado === 'en-orden') return { tono: 'ok', texto: 'Se archivó sola' }
-  if (c.estado === 'fallo') return { tono: 'fallo', texto: 'Falló' }
-  if (c.estado === 'sin-contrato') return { tono: 'sin-dato', texto: 'No supe leer su resultado' }
-  if (esperaTuToque(c)) return { tono: 'excepcion', texto: 'Espera tu toque' }
+  if (c.estado === 'en-orden') return { tono: 'ok', texto: tr('Se archivó sola') }
+  if (c.estado === 'fallo') return { tono: 'fallo', texto: tr('Falló') }
+  if (c.estado === 'sin-contrato') return { tono: 'sin-dato', texto: tr('No supe leer su resultado') }
+  if (esperaTuToque(c)) return { tono: 'excepcion', texto: tr('Espera tu toque') }
   const r = c.respuesta ?? c.tarjeta?.respuesta
-  return { tono: 'decidida', texto: r === 'si' ? 'Dijiste Sí' : r === 'no' ? 'Dijiste No' : r === 'otro' ? 'Pediste otra cosa' : 'Decidida' }
+  return { tono: 'decidida', texto: r === 'si' ? tr('Dijiste Sí') : r === 'no' ? tr('Dijiste No') : r === 'otro' ? tr('Pediste otra cosa') : tr('Decidida') }
 }
 
 /** Qué porcentaje de las corridas se resolvió sin ti. null sin corridas (sin dato no es 100 %). Pura. */
@@ -107,16 +110,18 @@ export function ultimaLinea(resultado: string | null): { tono: 'ok' | 'excepcion
   if (!t) return null
   // El tono sale del texto crudo; lo que se muestra se corta en fin de frase con «…» (resumen de Rutinas), nunca a media palabra.
   const corto = (x: string) => resumen(x, 220) ?? x
-  if (/^en orden:/i.test(t)) return { tono: 'ok', texto: corto(t) }
-  if (/^subió a tu bandeja:/i.test(t)) return { tono: 'excepcion', texto: corto(t) }
-  if (/^error:/i.test(t)) return { tono: 'fallo', texto: `Falló: ${corto(t.replace(/^error:\s*/i, ''))}` }
+  // El daemon escribe el prefijo en el idioma de Ajustes del momento (cliente/loops.ts): se reconocen los dos.
+  const empieza = (es: string) => t.toLowerCase().startsWith(es.toLowerCase()) || t.toLowerCase().startsWith(tr(es).toLowerCase())
+  if (empieza('En orden:')) return { tono: 'ok', texto: corto(t) }
+  if (empieza('Subió a tu bandeja:')) return { tono: 'excepcion', texto: corto(t) }
+  if (/^error:/i.test(t)) return { tono: 'fallo', texto: tr('Falló: {detalle}', { detalle: corto(t.replace(/^error:\s*/i, '')) }) }
   return { tono: 'sin-dato', texto: corto(t) }
 }
 
 /** El cuerpo que llega del navegador para agregar: solo el id de la plantilla. Pura. */
 export function cuerpoAgregar(j: unknown): { plantilla: string } | { error: string } {
   const o = (j && typeof j === 'object' ? j : {}) as Record<string, unknown>
-  return typeof o.plantilla === 'string' && /^[a-z0-9-]{1,60}$/.test(o.plantilla) ? { plantilla: o.plantilla } : { error: 'Falta qué plantilla agregar.' }
+  return typeof o.plantilla === 'string' && /^[a-z0-9-]{1,60}$/.test(o.plantilla) ? { plantilla: o.plantilla } : { error: tr('Falta qué plantilla agregar.') }
 }
 
 /** Los ids de rutina que son loops (para no repetirlos en «Tus rutinas» cuando la pestaña de loops está a la vista). */

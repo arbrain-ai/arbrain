@@ -6,12 +6,13 @@
  */
 
 import type { CanvasElement } from './element'
+import { trMarca, trn } from '@/shared/i18n'
 
 export type CategoriaElemento = 'nota' | 'texto' | 'figura' | 'conector' | 'imagen' | 'marco' | 'trazo' | 'otro'
 
 export const ROTULO_CATEGORIA: Record<CategoriaElemento, [string, string]> = {
-  nota: ['nota', 'notas'], texto: ['texto', 'textos'], figura: ['figura', 'figuras'], conector: ['conector', 'conectores'],
-  imagen: ['imagen', 'imágenes'], marco: ['marco', 'marcos'], trazo: ['trazo', 'trazos'], otro: ['otro', 'otros'],
+  nota: ['nota', trMarca('notas')], texto: ['texto', trMarca('textos')], figura: ['figura', trMarca('figuras')], conector: ['conector', trMarca('conectores')],
+  imagen: ['imagen', trMarca('imágenes')], marco: ['marco', trMarca('marcos')], trazo: ['trazo', trMarca('trazos')], otro: ['otro', trMarca('otros')],
 }
 
 export function categoriaDe(el: CanvasElement): CategoriaElemento {
@@ -44,5 +45,5 @@ export function filtrarPorCategoria(els: CanvasElement[], categoria: CategoriaEl
 }
 
 export function textoObjetos(n: number): string {
-  return `${n} ${n === 1 ? 'objeto' : 'objetos'}`
+  return trn(n, '{n} objeto', '{n} objetos')
 }

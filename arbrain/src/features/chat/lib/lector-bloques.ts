@@ -60,3 +60,22 @@ export function tramosPropios(el: NodoLector): NodoLector[][] {
   cierra()
   return tramos
 }
+
+/** Firma de un texto: espacios colapsados, sin orillas, sus primeros 80 caracteres. Estable entre renders. */
+export function firmaDeTexto(t: string | null | undefined): string {
+  return (t || '').replace(/\s+/g, ' ').trim().slice(0, 80)
+}
+
+/**
+ * ¿Este texto es el mensaje que se leía? (12 nov 2026, «pongo pausa y desaparece la línea de audio»). Cuando React vuelve
+ * a montar el mensaje (su id local `a-…` pasa al de la base), el lector lo reencuentra por la firma de sus párrafos. Antes
+ * se comparaba firma contra firma de cada `p, li…` del nodo nuevo, pero la prosa propia de un `<li>` con sub-lista
+ * («**Capa uno, quién eres:**») se lee envuelta en un `<span data-lector-propio>` que el nodo recién pintado aún no tiene:
+ * su firma no era la de ningún bloque nuevo, el lector no se reubicaba y la barra se cerraba. Ahora basta con que cada
+ * firma aparezca en el texto del candidato (colapsado igual): un párrafo es un tramo contiguo de su mensaje. Pura.
+ */
+export function contieneFirmas(firmas: readonly string[], texto: string | null | undefined): boolean {
+  if (!firmas.length) return false
+  const t = (texto || '').replace(/\s+/g, ' ')
+  return firmas.every((f) => !!f && t.includes(f))
+}

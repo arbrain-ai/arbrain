@@ -11,6 +11,8 @@
  * valide con la MISMA regla que la interfaz ofrece.
  */
 
+import { trMarca } from '@/shared/i18n'
+
 /** `archivada`: ISO de cuando se archivó (`draw_folders.archived_at`). Una subcarpeta de una archivada lo está también. */
 export interface CarpetaPlana { id: string; nombre: string; orden: number; madre: string | null; archivada?: string | null }
 export interface PaginaEnArbol { id: string; folderId: string | null }
@@ -57,13 +59,13 @@ export function arbolCarpetas<P extends PaginaEnArbol>(
  */
 export function puedeAnidar(carpetas: CarpetaPlana[], id: string, madre: string | null): string | null {
   const c = carpetas.find(x => x.id === id)
-  if (!c) return 'esa carpeta no existe'
+  if (!c) return trMarca('esa carpeta no existe')
   if (madre === null) return null
-  if (madre === id) return 'una carpeta no puede ir dentro de sí misma'
+  if (madre === id) return trMarca('una carpeta no puede ir dentro de sí misma')
   const m = carpetas.find(x => x.id === madre)
-  if (!m) return 'la carpeta de destino no existe'
-  if (m.madre) return 'solo hay un nivel: esa carpeta ya está dentro de otra'
-  if (carpetas.some(x => x.madre === id)) return 'tiene subcarpetas: solo hay un nivel'
+  if (!m) return trMarca('la carpeta de destino no existe')
+  if (m.madre) return trMarca('solo hay un nivel: esa carpeta ya está dentro de otra')
+  if (carpetas.some(x => x.madre === id)) return trMarca('tiene subcarpetas: solo hay un nivel')
   return null
 }
 

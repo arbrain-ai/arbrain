@@ -11,6 +11,7 @@ import { Check, Copy, Lock, WrapText } from 'lucide-react'
 import { lenguajeDe } from '../../explorador/arbol'
 import { escaparHtml, lineasHtml } from '../../explorador/codigo'
 import { pesoLegible } from '../../documento/medio'
+import { localeIntl, tr, trn } from '@/shared/i18n'
 import 'highlight.js/styles/github-dark-dimmed.css'
 import c from './codigo.module.css'
 
@@ -46,15 +47,15 @@ export function Codigo({ texto, archivo, bytes }: { texto: string; archivo: stri
 
   return <div className={c.codigo} data-ajustar={ajustar || undefined}>
     <div className={c.barra}>
-      <span className={c.lenguaje}>{lenguaje ?? 'texto'}</span>
-      <span className={c.dato}>{lineas.toLocaleString('es-MX')} {lineas === 1 ? 'línea' : 'líneas'}{bytes != null ? ` · ${pesoLegible(bytes)}` : ''}</span>
-      <span className={c.solo}><Lock size={11} aria-hidden />Solo lectura</span>
+      <span className={c.lenguaje}>{lenguaje ?? tr('texto')}</span>
+      <span className={c.dato}>{trn(lineas, '{n} línea', '{n} líneas', { n: lineas.toLocaleString(localeIntl()) })}{bytes != null ? ` · ${pesoLegible(bytes)}` : ''}</span>
+      <span className={c.solo}><Lock size={11} aria-hidden />{tr('Solo lectura')}</span>
       <span className={c.acciones}>
-        <button onClick={() => setAjustar(a => !a)} aria-pressed={ajustar} title={ajustar ? 'Las líneas largas se ajustan al ancho · clic para dejarlas en un renglón con scroll' : 'Ajustar las líneas largas al ancho'}><WrapText size={12} aria-hidden />Ajustar</button>
-        <button onClick={copiar} title="Copiar todo el archivo">{copiado ? <><Check size={12} aria-hidden />Copiado</> : <><Copy size={12} aria-hidden />Copiar</>}</button>
+        <button onClick={() => setAjustar(a => !a)} aria-pressed={ajustar} title={ajustar ? tr('Las líneas largas se ajustan al ancho · clic para dejarlas en un renglón con scroll') : tr('Ajustar las líneas largas al ancho')}><WrapText size={12} aria-hidden />{tr('Ajustar')}</button>
+        <button onClick={copiar} title={tr('Copiar todo el archivo')}>{copiado ? <><Check size={12} aria-hidden />{tr('Copiado')}</> : <><Copy size={12} aria-hidden />{tr('Copiar')}</>}</button>
       </span>
     </div>
-    {texto.length > TOPE_COLOR && lenguaje && <p className={c.aviso}>Archivo grande: sin color para no trabar el panel.</p>}
+    {texto.length > TOPE_COLOR && lenguaje && <p className={c.aviso}>{tr('Archivo grande: sin color para no trabar el panel.')}</p>}
     <div className={c.cuerpo}>
       <div className={c.lineas} style={{ ['--digitos' as string]: String(lineas).length }}>
         {filas.map((h, i) => <div key={i} className={c.linea}><span className={c.n} aria-hidden>{i + 1}</span><code dangerouslySetInnerHTML={{ __html: h || ' ' }} /></div>)}

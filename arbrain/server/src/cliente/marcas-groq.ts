@@ -16,6 +16,7 @@
  * Todo lo de aquí es puro salvo `transcribirConTiempos` (la llamada a Groq). Nunca se registra la llave ni el cuerpo
  * crudo del proveedor.
  */
+import { idiomaInstalacion, type Idioma } from '../idioma.js'
 
 /** `[desde, largo, ms]` de una palabra del texto, como `X-Marcas`. */
 export type Marca = [number, number, number]
@@ -349,11 +350,11 @@ export const MODELO_TIEMPOS = 'whisper-large-v3'
  * Palabras con su inicio y fin en `audio` (un WAV). `null` si Groq falla, tarda o no da palabras: el lector sigue con su
  * respaldo. Nunca devuelve la llave ni el cuerpo crudo del proveedor.
  */
-export async function transcribirConTiempos(audio: Buffer, llave: string, transport: typeof fetch = fetch, espera = 8_000): Promise<{ palabras: PalabraGroq[] } | { error: string; status?: number }> {
+export async function transcribirConTiempos(audio: Buffer, llave: string, transport: typeof fetch = fetch, espera = 8_000, idioma: Idioma = idiomaInstalacion()): Promise<{ palabras: PalabraGroq[] } | { error: string; status?: number }> {
   const fd = new FormData()
   fd.set('file', new Blob([new Uint8Array(audio)], { type: 'audio/wav' }), 'voz.wav')
   fd.set('model', MODELO_TIEMPOS)
-  fd.set('language', 'es')
+  fd.set('language', idioma) // Ajustes › Idioma (13 nov 2026): la voz inglesa se mide en inglés
   fd.set('response_format', 'verbose_json')
   fd.append('timestamp_granularities[]', 'word')
   fd.set('temperature', '0')

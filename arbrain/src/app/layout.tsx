@@ -15,6 +15,8 @@ import { ZONA_ORIGINAL } from '@/shared/lib/zona-dueno'
 import { MiMarca } from '@/components/MiMarca'
 import { ModoDirecto } from '@/features/modo-directo/ModoDirecto'
 import { cubrirDirectoScript } from '@/lib/modo-directo/cubrir'
+import { connection } from 'next/server'
+import { idiomaActual, tr } from '@/shared/i18n/tr'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -77,19 +79,23 @@ const themeInitScript = `
 // Daniel en su iPhone: el claro con «tu Arbrain» no coincidía con la marca). La instalación original no cambia.
 const CLIENTE = esEdicionCliente()
 
-export const metadata: Metadata = {
-  title: 'Arbrain',
-  description: 'AI-powered business dashboard',
-  manifest: CLIENTE ? '/manifest-cliente.json' : '/manifest.json',
-  icons: {
-    icon: '/icon-192.png',
-    apple: '/apple-touch-icon.png',
-  },
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: 'black-translucent',
-    title: CLIENTE ? 'Tu Arbrain' : 'Arbrain',
-  },
+// Idioma (13 nov 2026): los metadatos se piden en cada petición para que el nombre en el teléfono siga al idioma.
+export async function generateMetadata(): Promise<Metadata> {
+  await connection()
+  return {
+    title: 'Arbrain',
+    description: 'AI-powered business dashboard',
+    manifest: CLIENTE ? '/manifest-cliente.json' : '/manifest.json',
+    icons: {
+      icon: '/icon-192.png',
+      apple: '/apple-touch-icon.png',
+    },
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: 'black-translucent',
+      title: CLIENTE ? tr('Tu Arbrain') : 'Arbrain',
+    },
+  }
 }
 
 export const viewport: Viewport = {
@@ -108,13 +114,17 @@ export const viewport: Viewport = {
   // (resizes-visual) + the JS --app-h keyboard handling is the working setup.
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  // Idioma de la instalación (13 nov 2026; shared/i18n): se lee del disco en cada petición (nunca en el build) y va en
+  // `lang`; el navegador lo toma de ahí para `tr()`, así servidor y cliente pintan lo mismo. Cambiarlo recarga la página.
+  await connection()
+  const idioma = idiomaActual()
   return (
-    <html lang="es" className={`${inter.variable} ${jetbrainsMono.variable} ${robotoSlab.variable} ${montserrat.variable}`} suppressHydrationWarning>
+    <html lang={idioma} className={`${inter.variable} ${jetbrainsMono.variable} ${robotoSlab.variable} ${montserrat.variable}`} suppressHydrationWarning>
       <head>
         {/* Modo directo: si este equipo transmite, la página nace cubierta hasta que el velo esté puesto (cero cuadros sin tapar).
             Solo en la instalación original: en la edición cliente no existe /api/modo-directo y no se podría apagar (v0.2.24). */}

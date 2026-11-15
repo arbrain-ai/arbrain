@@ -18,6 +18,7 @@ import { basename, join } from 'node:path'
 import { dirDatosWeb } from '@/lib/rutas-instalacion'
 import type { Almacen, Fila } from './consulta'
 import { alEscribir, alLeer, esTablaDeChat } from '@/lib/espejo-conversaciones/pulso'
+import { tr } from '@/shared/i18n'
 
 const POSIX = process.platform !== 'win32'
 
@@ -30,7 +31,7 @@ const POSIX = process.platform !== 'win32'
 export class BaseLocalDanada extends Error {
   readonly code = 'LOCAL_DANADA'
   constructor(readonly tabla: string, detalle: string) {
-    super(`La base local de Arbrain está dañada (${tabla}): ${detalle}. Tus datos no se tocaron. Reinicia Arbrain; si sigue igual, escríbenos.`)
+    super(tr('La base local de Arbrain está dañada ({tabla}): {detalle}. Tus datos no se tocaron. Reinicia Arbrain; si sigue igual, escríbenos.', { tabla, detalle }))
     this.name = 'BaseLocalDanada'
   }
 }
@@ -40,12 +41,12 @@ function leerFilas(p: string): { filas: Fila[] } | { falta: true } | { error: st
   let texto: string
   try { texto = readFileSync(p, 'utf8') } catch (e) {
     const code = (e as NodeJS.ErrnoException).code
-    return code === 'ENOENT' ? { falta: true } : { error: code ?? (e instanceof Error ? e.message : 'no se pudo leer') }
+    return code === 'ENOENT' ? { falta: true } : { error: code ?? (e instanceof Error ? e.message : tr('no se pudo leer')) }
   }
   try {
     const crudo = JSON.parse(texto)
-    return Array.isArray(crudo) ? { filas: crudo } : { error: 'el archivo no contiene filas' }
-  } catch { return { error: 'el archivo no es JSON válido' } }
+    return Array.isArray(crudo) ? { filas: crudo } : { error: tr('el archivo no contiene filas') }
+  } catch { return { error: tr('el archivo no es JSON válido') } }
 }
 
 /** Deja `dir` en 0700 y sus `.json` en 0600 si existen y están más abiertos. Nunca lanza. */
@@ -77,7 +78,7 @@ export function almacenArchivos(carpetaPropia?: string): Almacen {
   const firma = (p: string) => {
     try { const s = statSync(p); return `${s.mtimeMs}:${s.size}` } catch (e) {
       if ((e as NodeJS.ErrnoException).code === 'ENOENT') return 'nada'
-      throw new BaseLocalDanada(basename(p, '.json'), (e as NodeJS.ErrnoException).code ?? 'no se pudo consultar el archivo')
+      throw new BaseLocalDanada(basename(p, '.json'), (e as NodeJS.ErrnoException).code ?? tr('no se pudo consultar el archivo'))
     }
   }
   /** Tablas cuyo archivo principal está dañado y se leyeron de la copia: su `.bak` no se renueva con lo dañado. */

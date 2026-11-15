@@ -1,4 +1,4 @@
-import { createReadStream } from 'node:fs'
+import { flujoArchivo } from '@/lib/flujo-archivo'
 import { readFile, realpath, stat } from 'node:fs/promises'
 import { raices, verificar } from '@/lib/cabina/documento-server'
 import { rutaPermitida } from '@/features/cabina/documento/ruta'
@@ -7,6 +7,7 @@ import { cspCrudo } from '@/features/cabina/documento/csp-crudo'
 import { rutaSensibleDirecto, velarHtml } from '@/lib/modo-directo/reglas'
 import { estadoDirecto } from '@/lib/modo-directo/servidor'
 import { estadoMiniaturas, hojaMiniaturas } from '@/lib/cabina/miniaturas-video'
+import { tr } from '@/shared/i18n'
 
 // Archivos de la vista «documento» servidos con su carpeta (3 oct 2026): el HTML del iframe aislado
 // y sus assets relativos, imágenes y video (con Range: WebKit no reproduce mp4 sin él). Sin cookie
@@ -19,39 +20,30 @@ const TIPOS: Record<string, string> = {
   json: 'application/json', svg: 'image/svg+xml', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif', avif: 'image/avif', ico: 'image/x-icon',
   mp4: 'video/mp4', m4v: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime', mp3: 'audio/mpeg', wav: 'audio/wav', m4a: 'audio/mp4', ogg: 'audio/ogg',
   woff: 'font/woff', woff2: 'font/woff2', ttf: 'font/ttf', otf: 'font/otf', txt: 'text/plain; charset=utf-8', md: 'text/plain; charset=utf-8', pdf: 'application/pdf', wasm: 'application/wasm',
+  csv: 'text/csv; charset=utf-8', tsv: 'text/tab-separated-values; charset=utf-8', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', xlsm: 'application/vnd.ms-excel.sheet.macroEnabled.12',
 }
+/** Lo que se puede leer desde otro origen sin riesgo: no ejecuta nada al abrirse. */
+const INERTES = new Set(['css', 'woff', 'woff2', 'ttf', 'otf', 'png', 'jpg', 'jpeg', 'webp', 'gif', 'avif', 'json', 'txt'])
 const no = (status: number, msg: string) => new Response(msg, { status, headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' } })
-/** Un archivo como flujo web que tolera que el navegador cancele a medias (un video que salta de un punto a otro cancela
- *  la petición anterior cada vez): con `Readable.toWeb` eso lanzaba «Controller is already closed» como excepción sin atrapar. */
-function flujo(ruta: string, rango?: { start: number; end: number }): ReadableStream<Uint8Array> {
-  const rs = createReadStream(ruta, rango)
-  return new ReadableStream<Uint8Array>({
-    start(c) {
-      rs.on('data', chunk => { try { c.enqueue(chunk as Buffer); if ((c.desiredSize ?? 1) <= 0) rs.pause() } catch { rs.destroy() } })
-      rs.on('end', () => { try { c.close() } catch { /* ya cancelado */ } })
-      rs.on('error', e => { try { c.error(e) } catch { /* ya cancelado */ } })
-    },
-    pull() { rs.resume() },
-    cancel() { rs.destroy() },
-  })
-}
+const flujo = flujoArchivo
 const dentro = (abs: string, base: string) => abs === base || abs.startsWith(base.endsWith('/') ? base : base + '/')
 
 export async function GET(request: Request, { params }: { params: Promise<{ token: string; ruta: string[] }> }) {
   const { token, ruta } = await params
   const alcance = verificar(token)
-  if (!alcance) return no(403, 'Enlace vencido: vuelve a abrir el documento.')
+  if (!alcance) return no(403, tr('Enlace vencido: vuelve a abrir el documento.'))
   const pedida = '/' + ruta.map(decodeURIComponent).join('/')
-  if (pedida.split('/').includes('..') || !dentro(pedida, alcance)) return no(403, 'Fuera de la carpeta del documento.')
+  if (pedida.split('/').includes('..') || !dentro(pedida, alcance)) return no(403, tr('Fuera de la carpeta del documento.'))
   let real: string
-  try { real = await realpath(pedida) } catch { return no(404, 'No existe.') }
+  try { real = await realpath(pedida) } catch { return no(404, tr('No existe.')) }
   const r = raices()
-  if (rutaPermitida(real, r) && rutaPermitida(real, { ...r, repo: await realpath(r.repo).catch(() => r.repo) })) return no(403, 'No permitido.')
+  if (rutaPermitida(real, r) && rutaPermitida(real, { ...r, repo: await realpath(r.repo).catch(() => r.repo) })) return no(403, tr('No permitido.'))
   // Modo directo (7 nov 2026): lo sensible no sale y el texto de los .html se enmascara (el iframe queda fuera del velo de la app).
   const directo = await estadoDirecto()
-  if (directo.prendido && (rutaSensibleDirecto(pedida) || rutaSensibleDirecto(real))) return no(423, 'Oculto por modo directo.')
+  if (directo.prendido && (rutaSensibleDirecto(pedida) || rutaSensibleDirecto(real))) return no(423, tr('Oculto por modo directo.'))
   const info = await stat(real).catch(() => null)
-  if (!info?.isFile()) return no(404, 'No existe.')
+  if (!info?.isFile()) return no(404, tr('No existe.'))
   const ext = real.slice(real.lastIndexOf('.') + 1).toLowerCase()
   const headers: Record<string, string> = { 'Content-Type': TIPOS[ext] ?? 'application/octet-stream', 'Cache-Control': 'private, max-age=60', 'Accept-Ranges': 'bytes', 'X-Content-Type-Options': 'nosniff' }
   const csp = cspCrudo(ext)
@@ -62,7 +54,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
   if (miniaturas && ['mp4', 'm4v', 'webm', 'mov'].includes(ext)) {
     if (miniaturas === 'img') {
       const hoja = await hojaMiniaturas(real, info)
-      return hoja ? new Response(new Uint8Array(hoja), { headers: { 'Content-Type': 'image/jpeg', 'Content-Length': String(hoja.byteLength), 'Cache-Control': 'private, max-age=86400', 'X-Content-Type-Options': 'nosniff' } }) : no(404, 'Aún no hay miniaturas.')
+      return hoja ? new Response(new Uint8Array(hoja), { headers: { 'Content-Type': 'image/jpeg', 'Content-Length': String(hoja.byteLength), 'Cache-Control': 'private, max-age=86400', 'X-Content-Type-Options': 'nosniff' } }) : no(404, tr('Aún no hay miniaturas.'))
     }
     return Response.json(await estadoMiniaturas(real, info), { headers: { 'Cache-Control': 'no-store' } })
   }
@@ -73,6 +65,19 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
     const cuerpo = directo.prendido ? velarHtml(tematizado, directo.velo) : tematizado
     // Sin caché: si el modo directo se prende, la siguiente carga ya sale enmascarada.
     return new Response(cuerpo, { headers: { ...headers, 'Cache-Control': 'no-store', 'Content-Length': String(Buffer.byteLength(cuerpo)) } })
+  }
+  // Assets INERTES (estilos, letras, imágenes, JSON): CORS abierto y revalidación barata (14 nov 2026, mapa v16). Las islas
+  // corren con origen opaco y su foto (SVG foreignObject) necesita LEER sus estilos, letras e imágenes para incrustarlos. No
+  // abre nada: esta ruta no usa cookie, la firma de la URL es la única llave y quien tiene la URL ya puede bajarlo. Los
+  // activos (HTML, SVG, JS) no lo llevan.
+  if (INERTES.has(ext)) {
+    headers['Access-Control-Allow-Origin'] = '*'
+    headers['Cross-Origin-Resource-Policy'] = 'cross-origin'
+  }
+  const etiqueta = `"${info.size.toString(36)}-${Math.floor(info.mtimeMs).toString(36)}"`
+  headers['ETag'] = etiqueta
+  if (!request.headers.get('range') && request.headers.get('if-none-match') === etiqueta) {
+    return new Response(null, { status: 304, headers: { ETag: etiqueta, 'Cache-Control': headers['Cache-Control'], ...(INERTES.has(ext) ? { 'Access-Control-Allow-Origin': '*' } : {}) } })
   }
   const rango = /^bytes=(\d*)-(\d*)$/.exec(request.headers.get('range') ?? '')
   if (rango && (rango[1] || rango[2])) {

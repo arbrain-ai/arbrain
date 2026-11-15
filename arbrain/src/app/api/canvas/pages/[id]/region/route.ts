@@ -31,13 +31,14 @@ import { judge } from '@/features/canvas/audit/judge'
 import { THEMES, coloresParaJuez, type ThemeName } from '@/features/canvas/theme/tokens'
 import type { CanvasElement } from '@/features/canvas/model/element'
 import { SCHEMA_V4 } from '@/features/canvas/model/schema'
+import { tr } from '@/shared/i18n'
 
 export const runtime = 'nodejs'
 interface Ctx { params: Promise<{ id: string }> }
 
 export async function POST(request: Request, { params }: Ctx) {
   if (!await authenticateDraw3(request)) {
-    return NextResponse.json({ ok: false, error: 'no autorizado' }, { status: 401 })
+    return NextResponse.json({ ok: false, error: tr('no autorizado') }, { status: 401 })
   }
   const { id } = await params
   const body = await request.json().catch(() => null) as
@@ -50,7 +51,7 @@ export async function POST(request: Request, { params }: Ctx) {
   const db = createServiceClient()
   const { data: fila } = await db.from('draw')
     .select('page_elements, agent_version').eq('page_id', id).maybeSingle()
-  if (!fila) return NextResponse.json({ ok: false, error: 'no existe la pagina' }, { status: 404 })
+  if (!fila) return NextResponse.json({ ok: false, error: tr('no existe la pagina') }, { status: 404 })
 
   const doc = fila.page_elements as {
     schemaVersion?: number; elements?: CanvasElement[]; camera?: unknown
@@ -60,7 +61,7 @@ export async function POST(request: Request, { params }: Ctx) {
   // Interpretar geometria del v3 como si fuera del v4 llenaria el lienzo de
   // basura y nadie sabria de donde salio.
   if (doc && doc.schemaVersion !== undefined && doc.schemaVersion !== SCHEMA_V4) {
-    return NextResponse.json({ ok: false, error: `la pagina es del esquema ${doc.schemaVersion}, no del 4` }, { status: 409 })
+    return NextResponse.json({ ok: false, error: tr('la pagina es del esquema {esquema}, no del 4', { esquema: doc.schemaVersion }) }, { status: 409 })
   }
   const existentes = doc?.elements ?? []
 
@@ -94,7 +95,7 @@ export async function POST(request: Request, { params }: Ctx) {
     updated_at: new Date().toISOString(),
   }).eq('page_id', id).select('page_id')
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
-  if (!escrito?.length) return NextResponse.json({ ok: false, error: 'no se escribio ninguna fila' }, { status: 404 })
+  if (!escrito?.length) return NextResponse.json({ ok: false, error: tr('no se escribio ninguna fila') }, { status: 404 })
 
   const url = process.env.SUPABASE_URL_INTERNA || process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY

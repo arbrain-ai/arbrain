@@ -1,4 +1,5 @@
 import { instalacion } from '@/config'
+import { tr } from '@/shared/i18n'
 /**
  * Documentos adjuntos del chat (2 oct 2026, la socia: «subir los estados de cuenta»).
  *
@@ -96,7 +97,7 @@ export function separarAdjuntos(lista: string | undefined | null): { imagenes: s
 
 /** Texto por defecto cuando el mensaje sale sin texto. */
 export function mensajePorDefecto(imagenes: number, documentos: number): string {
-  if (documentos === 0) return imagenes > 1 ? `Analiza estas ${imagenes} imágenes` : 'Analiza esta imagen'
-  if (imagenes === 0) return documentos > 1 ? `Analiza estos ${documentos} documentos` : 'Analiza este documento'
-  return 'Analiza estos archivos'
+  if (documentos === 0) return imagenes > 1 ? tr('Analiza estas {n} imágenes', { n: imagenes }) : tr('Analiza esta imagen')
+  if (imagenes === 0) return documentos > 1 ? tr('Analiza estos {n} documentos', { n: documentos }) : tr('Analiza este documento')
+  return tr('Analiza estos archivos')
 }

@@ -14,6 +14,7 @@
  * Quien ya usaba Arbrain antes de que existiera el recorrido (integración, 1 nov 2026: «como alumno que actualiza, solo
  * Novedades») da por vistos los capítulos `conocidos:` del guion; los demás le llegan como Novedades (`tourDe`).
  */
+import { tr } from '@/shared/i18n'
 
 export interface Capitulo { id: string; titulo: string; mostrar: string | null; texto: string }
 export interface Guion {
@@ -212,8 +213,8 @@ export function manualesDelIndice(md: string): Manual[] {
 
 /** Lista de manuales para el chat: solo sus títulos. Sin índice, lo dice sin rutas. */
 export function textoManuales(m: Manual[] | null): string {
-  if (!m) return '_Ahora no encontré tus manuales. Pídeme «muéstrame los manuales» y los busco._'
-  if (!m.length) return '_Todavía no tienes manuales._'
+  if (!m) return tr('_Ahora no encontré tus manuales. Pídeme «muéstrame los manuales» y los busco._')
+  if (!m.length) return tr('_Todavía no tienes manuales._')
   return m.map(x => `- ${x.titulo}`).join('\n')
 }
 
@@ -222,23 +223,25 @@ export interface RutinaResumen { titulo: string; cuando: string; activa: boolean
 
 /** Las rutinas de `GET /schedule` en palabras: qué, cuándo y si espera tu «Activar». */
 export function textoRutinas(r: RutinaResumen[] | null): string {
-  if (!r) return '_Ahora no pude leer tus rutinas; las ves en Taller › Rutinas._'
-  if (!r.length) return '_Aún no tienes rutinas. Pídemelas así: «cada mañana a las 7 resúmeme mi día»._'
+  if (!r) return tr('_Ahora no pude leer tus rutinas; las ves en Taller › Rutinas._')
+  if (!r.length) return tr('_Aún no tienes rutinas. Pídemelas así: «cada mañana a las 7 resúmeme mi día»._')
   const corto = (s: string) => { const t = s.replace(/\s+/g, ' ').trim(); return t.length > 70 ? `${t.slice(0, 67).trimEnd()}…` : t }
-  return r.map(x => `- **${corto(x.titulo)}** · ${x.cuando} · ${x.activa ? 'activa' : 'en pausa'}`).join('\n')
+  return r.map(x => `- **${corto(tr(x.titulo))}** · ${tr(x.cuando)} · ${x.activa ? tr('activa') : tr('en pausa')}`).join('\n')
 }
 
 /** El texto final de un capítulo: datos vivos dentro y, en novedades, el encabezado la primera vez. */
 export function textoCapitulo(c: Capitulo, datos: { manuales?: string; rutinas?: string; nombre?: string | null }, extra: { novedades?: boolean; primero?: boolean; ultimo?: boolean } = {}): string {
   const nombre = datos.nombre?.trim().split(/\s+/)[0] ?? ''
-  let t = c.texto
+  // El texto y el título del guion incorporado se traducen enteros (llave = el capítulo tal cual); uno editado por el
+  // dueño no está en el catálogo y sale como lo escribió.
+  let t = tr(c.texto)
     .replace(/\{\{manuales\}\}/g, datos.manuales ?? textoManuales(null))
     .replace(/\{\{rutinas\}\}/g, datos.rutinas ?? textoRutinas(null))
     .replace(/\{\{nombre\}\}/g, nombre)
     .replace(/ ,/g, ',')
-  t = `**${c.titulo}**\n\n${t}`
-  if (extra.novedades && extra.primero) t = `**Novedades de esta versión de tu Arbrain.** Ya conoces lo demás; esto es lo nuevo.\n\n${t}`
-  if (extra.novedades && extra.ultimo) t += '\n\nEso es todo lo nuevo.'
+  t = `**${tr(c.titulo)}**\n\n${t}`
+  if (extra.novedades && extra.primero) t = `${tr('**Novedades de esta versión de tu Arbrain.** Ya conoces lo demás; esto es lo nuevo.')}\n\n${t}`
+  if (extra.novedades && extra.ultimo) t += `\n\n${tr('Eso es todo lo nuevo.')}`
   return t
 }
 

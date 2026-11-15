@@ -1,4 +1,5 @@
 import { alDaemon, NOCACHE, soloAppCliente } from '@/lib/daemon-local'
+import { tr } from '@/shared/i18n'
 
 // Modo de permisos de Levy (grupal 23 oct 2026; Autónomo con consentimiento, 0.2.15): «Preguntar siempre», «Automático
 // en mi carpeta» o «Autónomo». Aflojar lleva el secreto de confirmar (lo pone este servidor, nunca el navegador); volver
@@ -30,7 +31,7 @@ export async function POST(request: Request) {
   }
   if (body.decidirDespues === true) return alDaemon('/permisos', { method: 'POST', body: JSON.stringify({ decidirDespues: true }) })
   if (typeof body.modo !== 'string' || !MODOS.has(body.modo)) {
-    return Response.json({ error: 'Petición inválida.' }, { status: 400, headers: NOCACHE })
+    return Response.json({ error: tr('Petición inválida.') }, { status: 400, headers: NOCACHE })
   }
   const a = body.acepto && typeof body.acepto === 'object' ? body.acepto as Record<string, unknown> : null
   const acepto = a && typeof a.version === 'string' && typeof a.sha256 === 'string' && a.version.length <= 80 && a.sha256.length <= 64 ? { version: a.version, sha256: a.sha256 } : undefined

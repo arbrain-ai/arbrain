@@ -12,6 +12,7 @@ import { randomBytes } from 'node:crypto'
 import type { Confirmacion, Confirmaciones } from './confirmaciones.js'
 import { VIDA_CORRIDA_MS } from './confirmaciones.js'
 import { motor } from '../motor/cliente.js'
+import { tr } from '../i18n/tr.js'
 
 /**
  * ¿Responde el motor de terminales? Sin él, «Córrelo tú» no tiene dónde correr (modo servidor: el motor es de la app de
@@ -62,13 +63,13 @@ export function leerFin(pantalla: string, nonce: string): { salida: string; codi
  */
 export async function empezarCorrelo(store: Confirmaciones, id: string, extras: { comentario?: unknown }, op: OpcionesCorrelo): Promise<{ ok: true; confirmacion: Confirmacion } | { ok: false; status: number; error: string }> {
   const c = store.get(id)
-  if (!c) return { ok: false, status: 404, error: 'No existe esa confirmación.' }
-  if (c.tipo !== 'manos' || !c.literal) return { ok: false, status: 409, error: 'Esta confirmación no es para correrla tú.' }
-  if (c.estado !== 'pendiente' && c.estado !== 'en_cola') return { ok: false, status: 409, error: `La confirmación ya está ${c.estado}.` }
+  if (!c) return { ok: false, status: 404, error: tr('No existe esa confirmación.') }
+  if (c.tipo !== 'manos' || !c.literal) return { ok: false, status: 409, error: tr('Esta confirmación no es para correrla tú.') }
+  if (c.estado !== 'pendiente' && c.estado !== 'en_cola') return { ok: false, status: 409, error: tr('La confirmación ya está {estado}.', { estado: tr(c.estado) }) }
   const nonce = randomBytes(8).toString('hex')
   let term: { id: number }
   try { term = await op.motor.spawn({ cwd: op.cwd, command: comandoConMarca(c.literal, nonce), cols: 100, rows: 24 }) }
-  catch (e) { return { ok: false, status: 503, error: `No pude abrir la terminal: ${e instanceof Error ? e.message : String(e)}` } }
+  catch (e) { return { ok: false, status: 503, error: tr('No pude abrir la terminal: {detalle}', { detalle: e instanceof Error ? e.message : String(e) }) } }
   const r = store.empezarCorrida(id, term.id, extras)
   if (!r.ok) { void op.motor.kill(term.id).catch(() => {}); return r }
   void vigilar(store, id, term.id, nonce, op)

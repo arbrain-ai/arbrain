@@ -10,14 +10,14 @@ import { useEffect, useRef, useState } from 'react'
 import type { Theme } from '../theme/tokens'
 import { useMostrarEnLienzo } from './useMostrarEnLienzo'
 import type { MostrarEnLienzo as Mostrar } from '../state/mostrar-en-lienzo'
+import { tr, trMarca } from '@/shared/i18n'
 
 const FILAS: Array<{ clave: keyof Mostrar; titulo: string; detalle: string }> = [
-  { clave: 'herramientas', titulo: 'Herramientas', detalle: 'La barra de la izquierda' },
-  { clave: 'barraInferior', titulo: 'Barra inferior', detalle: 'Guardado, deshacer, zoom, descargar' },
-  { clave: 'zoom', titulo: 'Zoom', detalle: 'El − % + de la barra inferior' },
-  { clave: 'capitulos', titulo: 'Capítulos', detalle: 'Todo · 1 2 3 4' },
-  { clave: 'minimapa', titulo: 'Minimapa', detalle: 'El mapa chico de la esquina' },
-  { clave: 'pideALevy', titulo: 'Pídele a Levy', detalle: 'La caja que manda tu pedido al chat' },
+  { clave: 'herramientas', titulo: trMarca('Herramientas'), detalle: trMarca('La barra de la izquierda') },
+  { clave: 'barraInferior', titulo: trMarca('Barra inferior'), detalle: trMarca('Guardado, deshacer, zoom, descargar') },
+  { clave: 'zoom', titulo: trMarca('Zoom'), detalle: trMarca('El − % + de la barra inferior') },
+  { clave: 'capitulos', titulo: trMarca('Capítulos'), detalle: trMarca('Todo · tus temas y sus capítulos') },
+  { clave: 'minimapa', titulo: trMarca('Minimapa'), detalle: trMarca('El mapa chico de la esquina') },
 ]
 
 export function MostrarEnLienzo({ theme: t }: { theme: Theme }) {
@@ -38,8 +38,8 @@ export function MostrarEnLienzo({ theme: t }: { theme: Theme }) {
   // Sin `position: relative`: el popover se ancla a la barra del título entera, no al ⚙︎, para no salirse por la derecha.
   return (
     <div ref={ref} style={{ display: 'flex', flexShrink: 0 }}>
-      <button type="button" data-mostrar-lienzo aria-label="Mostrar en el lienzo" aria-haspopup="dialog" aria-expanded={abierto}
-        title="Mostrar en el lienzo" onClick={() => setAbierto(v => !v)}
+      <button type="button" data-mostrar-lienzo aria-label={tr('Mostrar en el lienzo')} aria-haspopup="dialog" aria-expanded={abierto}
+        title={tr('Mostrar en el lienzo')} onClick={() => setAbierto(v => !v)}
         style={{
           width: 26, height: 26, borderRadius: 7, border: 'none', cursor: 'pointer', display: 'grid', placeItems: 'center',
           background: abierto ? t.roles.sticky.fill : 'transparent', color: t.text.caption, opacity: abierto ? 1 : .7,
@@ -50,14 +50,14 @@ export function MostrarEnLienzo({ theme: t }: { theme: Theme }) {
         </svg>
       </button>
       {abierto && (
-        <div role="dialog" aria-label="Mostrar en el lienzo" data-mostrar-lienzo-popover style={{
+        <div role="dialog" aria-label={tr('Mostrar en el lienzo')} data-mostrar-lienzo-popover style={{
           position: 'absolute', top: 'calc(100% + 8px)', left: 0, width: 'min(270px, calc(100vw - 28px))', padding: 6, zIndex: 70,
           borderRadius: 12, background: t.roles.card.fill, border: `1px solid ${t.roles.card.stroke.color}`,
           boxShadow: oscuro ? '0 14px 40px rgba(0,0,0,.6)' : '0 14px 40px rgba(15,15,25,.16)',
           font: '600 12.5px CanvasSans, system-ui', color: t.text.body,
         }}>
           <div style={{ padding: '6px 8px 8px', font: '700 11px CanvasSans, system-ui', letterSpacing: .4, textTransform: 'uppercase', color: t.text.caption }}>
-            Mostrar en el lienzo
+            {tr('Mostrar en el lienzo')}
           </div>
           {FILAS.map(f => (
             <button key={f.clave} type="button" role="switch" aria-checked={m[f.clave]} data-mostrar={f.clave}
@@ -67,8 +67,8 @@ export function MostrarEnLienzo({ theme: t }: { theme: Theme }) {
                 background: 'transparent', cursor: 'pointer', textAlign: 'left', font: 'inherit', color: 'inherit',
               }}>
               <span style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ display: 'block', color: t.text.title }}>{f.titulo}</span>
-                <span style={{ display: 'block', font: '500 11px CanvasSans, system-ui', color: t.text.caption }}>{f.detalle}</span>
+                <span style={{ display: 'block', color: t.text.title }}>{tr(f.titulo)}</span>
+                <span style={{ display: 'block', font: '500 11px CanvasSans, system-ui', color: t.text.caption }}>{tr(f.detalle)}</span>
               </span>
               <span aria-hidden style={{
                 position: 'relative', flexShrink: 0, width: 34, height: 20, borderRadius: 10,

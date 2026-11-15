@@ -50,7 +50,7 @@ test('lo que venció (4 nov 2026, 19:31): sale de la lista en el acto y vive sol
   assert.match(franja, /const hay = pendientes\.length > 0/)
   assert.doesNotMatch(franja, /vencidas|data-vencida|ya no aplica<\/em>/)
   // El historial sí lo cuenta: «Decidiste hoy · N ya no aplica».
-  assert.match(f('features/decisiones/Bandeja.tsx'), /v\.vencidasHoy\?\.length \? ` · \$\{v\.vencidasHoy\.length\} ya no aplica/)
+  assert.match(f('features/decisiones/Bandeja.tsx'), /v\.vencidasHoy\?\.length \? ` · \$\{(v\.vencidasHoy\.length\} |trn\(v\.vencidasHoy\.length, '\{n\} )ya no aplica/)
 })
 
 test('«Esperan tu toque» vive DENTRO de la tarjeta HOY (4 nov 2026), junto a las tareas; es el único lugar con «N te esperan»', () => {

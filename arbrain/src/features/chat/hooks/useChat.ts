@@ -14,6 +14,7 @@ import type { MetaTurno } from '../lib/meta'
 import { anotarHerramienta, anotarPensamiento, type PasoCronologia } from '../lib/rastro'
 import { offlineEnvelope, type ChatIntent } from '../lib/offline-envelope'
 import { effortLabel } from '../lib/effort-labels'
+import { tr, trMarca } from '@/shared/i18n'
 import { cachedSelection, refreshSelection, invalidateSelection, selectionIsStale, selectionRevision, SELECTION_CHANGED } from '../lib/selection-cache'
 import { useAuth } from '@/hooks/useAuth'
 import { marcarAbrirVivo, verboDe } from '@/features/cabina/model'
@@ -374,8 +375,8 @@ export function useChat({ sessionId, onSave, onRestoreInput, isSessionActive, ac
   const avisarSinSeguimiento = useCallback((assistantId: string) => {
     setMessages(prev => prev.map(m => m.id === assistantId && !m.streaming && !m.error && !m.diagnostic?.startsWith('Turno')
       ? { ...m, status: null, diagnostic: m.content.trim()
-        ? 'Se cortó la conexión con este turno antes de su final. La respuesta completa queda guardada y aparece aquí al terminar.'
-        : 'No pude seguir este turno en vivo. Levy sigue en el servidor: su respuesta aparece aquí al terminar; si no llega, recarga la conversación.' }
+        ? trMarca('Se cortó la conexión con este turno antes de su final. La respuesta completa queda guardada y aparece aquí al terminar.')
+        : trMarca('No pude seguir este turno en vivo. Levy sigue en el servidor: su respuesta aparece aquí al terminar; si no llega, recarga la conversación.') }
       : m))
   }, [])
   const { currentModel, currentEffort, ultracode, setCurrentEffort, setUltracode: setUltracodeView, bindStreamSettings } = useChatSettings({ owner: profile?.id, sessionId, account, pending: pendingCreation })
@@ -471,7 +472,7 @@ export function useChat({ sessionId, onSave, onRestoreInput, isSessionActive, ac
         ? { ...m, streaming: false, status: null, diagnostic, ...(terminalStatus ? { terminalStatus, questionPrompts: settleQuestions(m.questionPrompts) } : {}) }
         : m))
     }
-    show('Solicitando detener…')
+    show(trMarca('Solicitando detener…'))
     submission?.controller.abort()
     if (activeSubmissionRef.current === submission) {
       abortRef.current = null
@@ -480,11 +481,11 @@ export function useChat({ sessionId, onSave, onRestoreInput, isSessionActive, ac
     try {
       if (pending?.queueId) await cancelQueuedChat(pending.queueId)
     } catch {
-      show('No se pudo confirmar la cancelación local. El envío podría seguir pendiente.')
+      show(trMarca('No se pudo confirmar la cancelación local. El envío podría seguir pendiente.'))
       // Still ask the host: a local storage failure must not suppress a stop.
     }
     if (!targetSession || !targetTurn) {
-      show('Envío cancelado antes de salir del dispositivo.', 'interrupted')
+      show(trMarca('Envío cancelado antes de salir del dispositivo.'), 'interrupted')
       return
     }
     try {
@@ -496,17 +497,17 @@ export function useChat({ sessionId, onSave, onRestoreInput, isSessionActive, ac
       })
       const receipt = await response.json()
       if (!response.ok || receipt.ok !== true || receipt.turnId !== targetTurn) throw new Error('Unconfirmed cancellation')
-      if (receipt.status === 'cancelled_before_acceptance') show('Envío cancelado antes de iniciar.', 'interrupted')
-      else if (receipt.status === 'interrupted') show('Turno detenido. Lo ya ejecutado se conserva.', 'interrupted')
-      else if (receipt.status === 'completed' || receipt.status === 'failed') show('El turno ya había terminado. Recupera la conversación para ver su resultado.', receipt.status)
+      if (receipt.status === 'cancelled_before_acceptance') show(trMarca('Envío cancelado antes de iniciar.'), 'interrupted')
+      else if (receipt.status === 'interrupted') show(trMarca('Turno detenido. Lo ya ejecutado se conserva.'), 'interrupted')
+      else if (receipt.status === 'completed' || receipt.status === 'failed') show(trMarca('El turno ya había terminado. Recupera la conversación para ver su resultado.'), receipt.status)
       else {
-        show('El servidor recibió la solicitud de detener. Falta confirmar que terminó.')
+        show(trMarca('El servidor recibió la solicitud de detener. Falta confirmar que terminó.'))
         const status = await confirmStopped({ chatSessionId: targetSession, turnId: targetTurn, account: account ?? 'default' })
-        if (status === 'interrupted') show('Turno detenido. Lo ya ejecutado se conserva.', 'interrupted')
-        else if (status) show('El turno ya había terminado. Lo ejecutado se conserva.', status)
+        if (status === 'interrupted') show(trMarca('Turno detenido. Lo ya ejecutado se conserva.'), 'interrupted')
+        else if (status) show(trMarca('El turno ya había terminado. Lo ejecutado se conserva.'), status)
       }
     } catch {
-      show('No se pudo confirmar que el servidor se detuvo. El trabajo podría continuar; recupera la conversación antes de repetirlo.')
+      show(trMarca('No se pudo confirmar que el servidor se detuvo. El trabajo podría continuar; recupera la conversación antes de repetirlo.'))
     }
   }, [account, onRestoreInput, setLoading])
 
@@ -1062,8 +1063,8 @@ export function useChat({ sessionId, onSave, onRestoreInput, isSessionActive, ac
                   ? {
                       ...m,
                       content: event.effort
-                        ? `Esfuerzo cambiado a **${effortLabel(event.effort)}**`
-                        : 'Este modelo no ofrece niveles de esfuerzo',
+                        ? tr('Esfuerzo cambiado a **{nivel}**', { nivel: effortLabel(event.effort) })
+                        : tr('Este modelo no ofrece niveles de esfuerzo'),
                       streaming: false,
                     }
                   : m
@@ -1095,7 +1096,7 @@ export function useChat({ sessionId, onSave, onRestoreInput, isSessionActive, ac
 
           case 'interrupt':
             questionPrompts = settleQuestions(withQuestionOverrides(questionPrompts))
-            setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, questionPrompts, status: null, diagnostic: 'Turno interrumpido.' } : m))
+            setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, questionPrompts, status: null, diagnostic: trMarca('Turno interrumpido.') } : m))
             break
 
           case 'error':
@@ -1107,7 +1108,7 @@ export function useChat({ sessionId, onSave, onRestoreInput, isSessionActive, ac
             setMessages((prev) =>
               prev.map((m) =>
                 m.id === assistantId
-                  ? { ...m, questionPrompts, content: accumulatedText || event.message || 'Error del agente', diagnostic: event.message, error: true, streaming: false }
+                  ? { ...m, questionPrompts, content: accumulatedText || event.message || tr('Error del agente'), diagnostic: event.message, error: true, streaming: false }
                   : m
               )
             )
@@ -1406,7 +1407,7 @@ export function useChat({ sessionId, onSave, onRestoreInput, isSessionActive, ac
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantId
-              ? { ...m, content: 'No se pudo crear la sesión. Intenta de nuevo.', error: true, streaming: false }
+              ? { ...m, content: tr('No se pudo crear la sesión. Intenta de nuevo.'), error: true, streaming: false }
               : m
           )
         )
@@ -1440,7 +1441,7 @@ export function useChat({ sessionId, onSave, onRestoreInput, isSessionActive, ac
         if (!response.ok) throw new Error('No se pudo confirmar la conversación del comando.')
         createConversation = false
       } catch {
-        setMessages(previous => previous.map(message => message.id === assistantId ? { ...message, content: 'No se pudo confirmar la conversación del comando. El ajuste no se aplicó.', error: true, streaming: false } : message))
+        setMessages(previous => previous.map(message => message.id === assistantId ? { ...message, content: tr('No se pudo confirmar la conversación del comando. El ajuste no se aplicó.'), error: true, streaming: false } : message))
         if (isCurrent()) setLoading(false)
         return
       }
@@ -1470,9 +1471,9 @@ export function useChat({ sessionId, onSave, onRestoreInput, isSessionActive, ac
           return
         }
       } catch (error) {
-        const reason = error instanceof Error ? error.message : typeof error === 'string' ? error : 'motivo desconocido'
+        const reason = error instanceof Error ? error.message : typeof error === 'string' ? error : tr('motivo desconocido')
         setMessages(previous => previous.map(message => message.id === assistantId ? {
-          ...message, content: `No se pudo guardar el envío en este dispositivo (${reason}). Tu texto se conserva aquí; no se envió al motor.`, error: true, streaming: false,
+          ...message, content: tr('No se pudo guardar el envío en este dispositivo ({motivo}). Tu texto se conserva aquí; no se envió al motor.', { motivo: reason }), error: true, streaming: false,
         } : message))
         if (isCurrent()) setLoading(false)
         return
@@ -1531,7 +1532,7 @@ export function useChat({ sessionId, onSave, onRestoreInput, isSessionActive, ac
                   // Online: the durable dispatch attaches within a second and the
                   // activity row takes over. Offline: the draft card is the single
                   // representation (no duplicate status prose).
-                  diagnostic: isOnline() ? 'Enviando el mensaje guardado…' : undefined,
+                  diagnostic: isOnline() ? trMarca('Enviando el mensaje guardado…') : undefined,
                   streaming: false,
                   status: null,
                 }
@@ -1542,7 +1543,7 @@ export function useChat({ sessionId, onSave, onRestoreInput, isSessionActive, ac
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantId
-              ? { ...m, content: 'No se pudo guardar el mensaje localmente.', error: true, streaming: false }
+              ? { ...m, content: tr('No se pudo guardar el mensaje localmente.'), error: true, streaming: false }
               : m
           )
         )
@@ -1638,14 +1639,14 @@ export function useChat({ sessionId, onSave, onRestoreInput, isSessionActive, ac
       }
 
       if (!res.ok || !res.body) {
-        const data = await res.json().catch(() => ({ error: 'Error desconocido' }))
+        const data = await res.json().catch(() => ({ error: trMarca('Error desconocido') }))
         // Falla pasajera con el mensaje ya guardado: se dice que sale solo (reintento-envios.ts), no «envíalo de nuevo».
         const saleSolo = !!queuedSubmission && !!submittedIntent && esStatusTransitorio(res.status)
-        const causa = data.error || 'Error de conexion'
+        const causa = data.error || trMarca('Error de conexion')
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantId
-              ? { ...m, content: saleSolo && !/guardado/i.test(causa) ? `${causa} Tu mensaje está guardado y se envía solo en cuanto Arbrain responda.` : causa, error: true, streaming: false }
+              ? { ...m, content: saleSolo && !/guardado/i.test(causa) ? tr('{causa} Tu mensaje está guardado y se envía solo en cuanto Arbrain responda.', { causa: tr(causa) }) : tr(causa), error: true, streaming: false }
               : m
           )
         )
@@ -1694,7 +1695,7 @@ export function useChat({ sessionId, onSave, onRestoreInput, isSessionActive, ac
         // Red caída: el parcial NO se presenta como respuesta terminada. El
         // diagnóstico dice que el host sigue y que el reenganche la completa.
         const dropDiagnostic = isNetworkDrop
-          ? (isOnline() ? 'Conexión interrumpida. Levy sigue trabajando en el servidor; reconectando…' : 'Sin conexión. Levy sigue trabajando en el servidor; la respuesta se completa al reconectar.')
+          ? (isOnline() ? trMarca('Conexión interrumpida. Levy sigue trabajando en el servidor; reconectando…') : trMarca('Sin conexión. Levy sigue trabajando en el servidor; la respuesta se completa al reconectar.'))
           : undefined
         setMessages((prev) =>
           prev.map((m) =>
@@ -1706,7 +1707,7 @@ export function useChat({ sessionId, onSave, onRestoreInput, isSessionActive, ac
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantId
-              ? { ...m, content: 'La conexion se interrumpio. Envia el mensaje de nuevo.', error: true, streaming: false }
+              ? { ...m, content: tr('La conexion se interrumpio. Envia el mensaje de nuevo.'), error: true, streaming: false }
               : m
           )
         )
@@ -1997,7 +1998,7 @@ export function useChat({ sessionId, onSave, onRestoreInput, isSessionActive, ac
       body: JSON.stringify({ session: targetSession, account: account ?? 'default', ...change }),
     })
     const data = await response.json().catch(() => null)
-    if (!response.ok) throw new Error(data?.error || 'No se pudo cambiar el esfuerzo.')
+    if (!response.ok) throw new Error(data?.error ? tr(data.error) : tr('No se pudo cambiar el esfuerzo.'))
     if (data && Object.hasOwn(data, 'current') && (data.current === null || typeof data.current === 'string')) setCurrentEffort(data.current)
     if (typeof data?.ultracode === 'boolean') setUltracodeView(data.ultracode)
     // La selección cacheada llevaría el nivel viejo al próximo turno: se descarta y se relee.

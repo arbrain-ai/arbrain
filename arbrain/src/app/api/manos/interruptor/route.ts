@@ -7,6 +7,7 @@ import { edicionCliente, fijarComputerUse, fijarComputerUseCliente, leerComputer
 import { computerUseDisponible, decisionInterruptorCliente, ESTADO_CLIENTE_SIN_COMPUTER_USE, plataformaServidor } from '@/features/permisos/lib/disponibilidad'
 import { estadoSandbox } from '@/features/permisos/lib/sandbox-server'
 import { pantallaVirtualServidor } from '@/features/permisos/lib/pantalla-server'
+import { tr } from '@/shared/i18n'
 
 // Interruptor de computer use (10 oct 2026, AUDITORIA I7): GET = estado; POST { encendido } = decisión de la persona.
 // Instalación original: el archivo de config que leen las manos. Edición cliente (contrato v3 §6.2, red team M1): el
@@ -28,7 +29,7 @@ const conComputerUse = () => computerUseDisponible(true, plataforma(), pantallaV
 async function soloDueno() {
   if (await isDesktopAuthBypassFromHeaders()) return
   const principal = await requireChatPrincipal()
-  if (!principal.owner) throw new ChatAccessError('Solo la dueña o el dueño de esta Mac decide sobre computer use.', 403)
+  if (!principal.owner) throw new ChatAccessError(tr('Solo la dueña o el dueño de esta Mac decide sobre computer use.'), 403)
 }
 
 export async function GET() {
@@ -56,7 +57,7 @@ export async function POST(request: Request) {
       if (d.error) return Response.json({ error: d.error }, { status: d.status, headers: NOCACHE })
       return Response.json({ ...ESTADO_CLIENTE_SIN_COMPUTER_USE, plataforma: plataforma(), sandbox: estadoSandbox() }, { headers: NOCACHE })
     }
-    if (typeof body.encendido !== 'boolean') return Response.json({ error: 'encendido debe ser true o false' }, { status: 400, headers: NOCACHE })
+    if (typeof body.encendido !== 'boolean') return Response.json({ error: tr('encendido debe ser true o false') }, { status: 400, headers: NOCACHE })
     // Encender lleva el secreto de confirmar del daemon (v3 §6.2); el navegador nunca lo ve.
     const r = await fijarComputerUseCliente(alDaemon, body.encendido)
     if ('error' in r) return r.error
@@ -66,7 +67,7 @@ export async function POST(request: Request) {
     checkMutationOrigin(request)
     await soloDueno()
     const body = await request.json().catch(() => ({})) as { encendido?: unknown }
-    if (typeof body.encendido !== 'boolean') return Response.json({ error: 'encendido debe ser true o false' }, { status: 400, headers: NOCACHE })
+    if (typeof body.encendido !== 'boolean') return Response.json({ error: tr('encendido debe ser true o false') }, { status: 400, headers: NOCACHE })
     return Response.json(fijarComputerUse(body.encendido), { headers: NOCACHE })
   } catch (error) { return planningError(error) }
 }

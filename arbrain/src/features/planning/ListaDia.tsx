@@ -2,7 +2,8 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import { format, parseISO } from 'date-fns'
-import { es } from 'date-fns/locale'
+import { tr, trMarca } from '@/shared/i18n'
+import { localeFechas } from '@/shared/i18n/fechas'
 import { Check, Flag, Plus, Repeat2 } from 'lucide-react'
 import { Palomita } from '@/shared/movimiento'
 import type { ItemDia } from './lista-dia'
@@ -26,18 +27,18 @@ export const horaDeMinuto = (m: number) => `${String(Math.floor(m / 60)).padStar
  * pinta aparte: la fila es la tarea y su tooltip dice que cerrarla marca el criterio.
  */
 export type Prioridad = 1 | 2 | 3 | 4
-export const PRIORIDADES: { p: Prioridad; nombre: string }[] = [{ p: 1, nombre: 'Prioridad 1' }, { p: 2, nombre: 'Prioridad 2' }, { p: 3, nombre: 'Prioridad 3' }, { p: 4, nombre: 'Prioridad 4' }]
+export const PRIORIDADES: { p: Prioridad; nombre: string }[] = [{ p: 1, nombre: trMarca('Prioridad 1') }, { p: 2, nombre: trMarca('Prioridad 2') }, { p: 3, nombre: trMarca('Prioridad 3') }, { p: 4, nombre: trMarca('Prioridad 4') }]
 /** La prioridad de una tecla («1»…«4») sin modificadores, o null. */
 export const prioridadDeTecla = (e: { key: string; metaKey: boolean; ctrlKey: boolean; altKey: boolean; shiftKey: boolean }): Prioridad | null =>
   !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && /^[1-4]$/.test(e.key) ? Number(e.key) as Prioridad : null
 
 /** La pista de cada forma (8 nov 2026, «¿por qué unas son cuadradas y otras círculo?»). */
 export function pistaDeMarca(it: ItemDia, sePuede: boolean): string {
-  if (it.origen === 'casilla') return `Criterio del objetivo del día${sePuede ? (it.hecho ? ' · tocar para desmarcar' : ' · tocar para marcar') : ''}`
+  if (it.origen === 'casilla') return !sePuede ? tr('Criterio del objetivo del día') : it.hecho ? tr('Criterio del objetivo del día · tocar para desmarcar') : tr('Criterio del objetivo del día · tocar para marcar')
   const t = it.tarea
-  const accion = !sePuede ? (it.fija ? ' · repetición ya hecha: Todoist programó la siguiente' : '') : it.hecho ? ' · tocar para reabrir' : ' · tocar para completar'
-  const criterio = it.criterio ? `\nTambién marca el criterio: «${it.criterio.texto}»` : ''
-  return `Tarea de Todoist${t ? ` · Prioridad ${t.priority}` : ''}${accion}${criterio}`
+  const accion = !sePuede ? (it.fija ? ` · ${tr('repetición ya hecha: Todoist programó la siguiente')}` : '') : ` · ${it.hecho ? tr('tocar para reabrir') : tr('tocar para completar')}`
+  const criterio = it.criterio ? `\n${tr('También marca el criterio: «{texto}»', { texto: it.criterio.texto })}` : ''
+  return `${t ? tr('Tarea de Todoist · Prioridad {p}', { p: t.priority }) : tr('Tarea de Todoist')}${accion}${criterio}`
 }
 export function ListaDia({ items, alternar, puede, evento, resaltado, onResaltar, onAbrir, onPrioridad, onNueva, onAgregar, fallo, i0 = 2 }: {
   items: ItemDia[]
@@ -92,14 +93,14 @@ export function ListaDia({ items, alternar, puede, evento, resaltado, onResaltar
     return () => { document.removeEventListener('pointerdown', fuera); document.removeEventListener('keydown', esc, true); window.removeEventListener('scroll', cerrar, true); window.removeEventListener('resize', cerrar) }
   }, [menu])
   return <div className={s.lista}>
-    {items.length > 0 && <ul aria-label="Lo de hoy">
+    {items.length > 0 && <ul aria-label={tr('Lo de hoy')}>
       {items.map((it, n) => {
         const donde = evento.get(it.id), t = it.tarea, sePuede = puede(it), conMenu = Boolean(t && onPrioridad && !it.hecho)
         const meta = <>
-          {it.vencida && t?.due && <span className={s.vencio} title="Vencida">{format(parseISO(t.due), 'd MMM', { locale: es })}</span>}
+          {it.vencida && t?.due && <span className={s.vencio} title={tr('Vencida')}>{format(parseISO(t.due), tr('d MMM'), { locale: localeFechas() })}</span>}
           {it.minuto != null && !it.vencida && <time>{horaDeMinuto(it.minuto)}{donde && <small> · {donde}</small>}</time>}
           {it.minuto == null && donde && <time><small>{donde}</small></time>}
-          {t?.recurring && <Repeat2 size={11} aria-label="Se repite" />}
+          {t?.recurring && <Repeat2 size={11} aria-label={tr('Se repite')} />}
         </>
         return <li key={it.id} className={s.entra} style={esc(i0 + n)} data-hecho={it.hecho || undefined} data-origen={it.origen} data-vencida={it.vencida || undefined}
           data-p={t?.priority} data-criterio={it.criterio ? '' : undefined} data-menu-abierto={menu?.id === it.id || undefined}
@@ -108,17 +109,17 @@ export function ListaDia({ items, alternar, puede, evento, resaltado, onResaltar
           onFocus={() => { encima.current = it.id }} onBlur={() => { if (encima.current === it.id) encima.current = null }}
           onContextMenu={conMenu ? e => { e.preventDefault(); setMenu(it.id, e.clientX, e.clientY) } : undefined}>
           <button className={s.marca} role="checkbox" aria-checked={it.hecho} disabled={!sePuede} onClick={() => alternar(it)}
-            aria-label={`${it.hecho ? 'Reabrir' : 'Marcar'}: ${it.texto}`} title={pistaDeMarca(it, sePuede)}>
+            aria-label={it.hecho ? tr('Reabrir: {texto}', { texto: it.texto }) : tr('Marcar: {texto}', { texto: it.texto })} title={pistaDeMarca(it, sePuede)}>
             <i aria-hidden><Palomita /></i>
           </button>
           {t ? <button className={s.cuerpo} onClick={() => onAbrir(t)} title={it.texto}><span className={s.texto}>{it.texto}</span>{meta}</button>
             : <button className={s.cuerpo} onClick={() => alternar(it)} disabled={!sePuede} title={it.texto}><span className={s.texto}>{it.texto}</span>{meta}</button>}
-          {conMenu && <button className={s.bandera} data-menu-prioridad aria-label={`Prioridad: P${t!.priority}`} aria-haspopup="menu" aria-expanded={menu?.id === it.id}
-            title="Prioridad (1–4 con el mouse encima, o clic derecho)" onClick={e => setMenu(menu?.id === it.id ? null : it.id, 0, 0, e.currentTarget)}><Flag size={13} aria-hidden /></button>}
-          {menu?.id === it.id && t && createPortal(<div className={`${s.menu} ${s.lista}`} style={menu.lugar} role="menu" aria-label="Prioridad" data-menu-prioridad>
+          {conMenu && <button className={s.bandera} data-menu-prioridad aria-label={tr('Prioridad: P{p}', { p: t!.priority })} aria-haspopup="menu" aria-expanded={menu?.id === it.id}
+            title={tr('Prioridad (1–4 con el mouse encima, o clic derecho)')} onClick={e => setMenu(menu?.id === it.id ? null : it.id, 0, 0, e.currentTarget)}><Flag size={13} aria-hidden /></button>}
+          {menu?.id === it.id && t && createPortal(<div className={`${s.menu} ${s.lista}`} style={menu.lugar} role="menu" aria-label={tr('Prioridad')} data-menu-prioridad>
             {PRIORIDADES.map(o => <button key={o.p} type="button" role="menuitemradio" aria-checked={t.priority === o.p} data-p={o.p}
               onClick={() => { onPrioridad?.(t, o.p); setMenu(null) }}>
-              <Flag size={14} aria-hidden /><span>{o.nombre}</span>{t.priority === o.p ? <Check size={13} aria-hidden /> : <kbd>{o.p}</kbd>}
+              <Flag size={14} aria-hidden /><span>{tr(o.nombre)}</span>{t.priority === o.p ? <Check size={13} aria-hidden /> : <kbd>{o.p}</kbd>}
             </button>)}
           </div>, document.body)}
         </li>
@@ -126,7 +127,7 @@ export function ListaDia({ items, alternar, puede, evento, resaltado, onResaltar
     </ul>}
     {(onAgregar || onNueva) && <div className={s.pie}>
       {onAgregar && <Agregar vacio={null} onAgregar={onAgregar} i={i0 + items.length} />}
-      {onNueva && <button className={s.nueva} onClick={onNueva} title="Tarea nueva en Todoist"><Plus size={13} aria-hidden />Tarea</button>}
+      {onNueva && <button className={s.nueva} onClick={onNueva} title={tr('Tarea nueva en Todoist')}><Plus size={13} aria-hidden />{tr('Tarea')}</button>}
     </div>}
     {fallo && <p className={s.fallo} role="alert">{fallo}</p>}
   </div>

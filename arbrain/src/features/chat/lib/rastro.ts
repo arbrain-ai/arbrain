@@ -12,6 +12,7 @@ import type { ChatMessage, ToolCall, ToolOutput } from '../hooks/useChat'
 import { esHerramientaCabina } from '@/features/cabina/model'
 import { esViva } from './tareas-turno'
 import { pedidoDeInput } from '@/features/manos/lib/encargos'
+import { tr, trn, trMarca, trMarcas } from '@/shared/i18n'
 
 export type EstadoPaso = 'corriendo' | 'error' | 'listo'
 
@@ -121,27 +122,29 @@ export function fraseDeDescripcion(descripcion: string | undefined | null): Fras
 /** Una ruta o un comando → la zona del cerebro que toca, en palabras. `null` si no se reconoce. */
 export function zonaDe(texto: string): string | null {
   const t = texto
-  if (/\.claude\/memory\b|MEMORY[-\w]*\.md/.test(t)) return 'la memoria'
-  if (/\.claude\/skills\b|SKILL\.md/.test(t)) return 'las skills'
-  if (/\.claude\/(daily|diario)\b/.test(t)) return 'el diario'
-  if (/\.claude\/(plan|now\.md)/.test(t)) return 'el plan'
-  if (/\/logs?\/|\.log\b|\.janitor\.log/.test(t)) return 'los registros'
-  if (/workspace\/uploads\//.test(t)) return 'tus adjuntos'
-  if (/arbrain\/agent-server\b/.test(t)) return 'el motor de Levy'
-  if (/arbrain\/server\b/.test(t)) return 'el código del servidor'
-  if (/arbrain\/(src|tests|scripts)\b/.test(t)) return 'el código de la app'
-  if (/contenido\/youtube\b/.test(t)) return 'el material de YouTube'
-  if (/\bdocs\//.test(t)) return 'los documentos'
+  if (/\.claude\/memory\b|MEMORY[-\w]*\.md/.test(t)) return trMarca('la memoria')
+  if (/\.claude\/skills\b|SKILL\.md/.test(t)) return trMarca('las skills')
+  if (/\.claude\/(daily|diario)\b/.test(t)) return trMarca('el diario')
+  if (/\.claude\/(plan|now\.md)/.test(t)) return trMarca('el plan')
+  if (/\/logs?\/|\.log\b|\.janitor\.log/.test(t)) return trMarca('los registros')
+  if (/workspace\/uploads\//.test(t)) return trMarca('tus adjuntos')
+  if (/arbrain\/agent-server\b/.test(t)) return trMarca('el motor de Levy')
+  if (/arbrain\/server\b/.test(t)) return trMarca('el código del servidor')
+  if (/arbrain\/(src|tests|scripts)\b/.test(t)) return trMarca('el código de la app')
+  if (/contenido\/youtube\b/.test(t)) return trMarca('el material de YouTube')
+  if (/\bdocs\//.test(t)) return trMarca('los documentos')
   const app = /Developer\/software\/([\w.-]+)/.exec(t)?.[1]
-  if (app) return `la app ${app}`
-  if (/(^|\s|'|")\/tmp\//.test(t)) return 'los archivos temporales'
-  if (/artificial-brain\/arbrain\b/.test(t)) return 'el código de Arbrain'
-  if (/artificial-brain\b|business-os\b/.test(t)) return 'el cerebro'
+  if (app) return tr('la app {app}', { app })
+  if (/(^|\s|'|")\/tmp\//.test(t)) return trMarca('los archivos temporales')
+  if (/artificial-brain\/arbrain\b/.test(t)) return trMarca('el código de Arbrain')
+  if (/artificial-brain\b|business-os\b/.test(t)) return trMarca('el cerebro')
   return null
 }
 
-/** «de el código» → «del código». */
-const deZona = (zona: string) => zona.startsWith('el ') ? `del ${zona.slice(3)}` : `de ${zona}`
+/** Una zona en el idioma activo al pintar («la memoria» → «memory»). La zona en español sigue siendo la llave del grupo. */
+const zonaTr = (zona: string) => { const app = /^la app (.+)$/.exec(zona)?.[1]; return app ? tr('la app {app}', { app }) : tr(zona) }
+/** «de el código» → «del código» (contracción del español; en inglés no aparece). */
+const contraer = (texto: string) => texto.replace(/\bde el /, 'del ')
 
 const nombreArchivo = (ruta: string) => ruta.split('/').filter(Boolean).at(-1) ?? ruta
 
@@ -168,29 +171,29 @@ interface Intencion {
   detalle: string | null
 }
 
-const COMANDO: [string, string] = ['comando', 'comandos']
-const ARCHIVO: [string, string] = ['archivo', 'archivos']
-const PASO: [string, string] = ['paso', 'pasos']
-const BUSQUEDA: [string, string] = ['búsqueda', 'búsquedas']
+const COMANDO: [string, string] = trMarcas(['comando', 'comandos'])
+const ARCHIVO: [string, string] = trMarcas(['archivo', 'archivos'])
+const PASO: [string, string] = trMarcas(['paso', 'pasos'])
+const BUSQUEDA: [string, string] = trMarcas(['búsqueda', 'búsquedas'])
 
 const corto = (s: string, max: number) => s.length > max ? `${s.slice(0, max - 1)}…` : s
 
 /** Familias de comandos de Bash, en orden: la primera que reconoce el comando (o su descripción) manda. */
 const FAMILIAS_BASH: { re: RegExp; clave: string; pasado: string; presente: string }[] = [
-  { re: /\b(vitest|jest|pytest|playwright|tsx --test|node --test|npm (run )?test|pnpm test|npm run e2e)\b/, clave: 'pruebas', pasado: 'Corrió las pruebas', presente: 'Corriendo las pruebas' },
-  { re: /\b(tsc|typecheck|eslint|npm run lint)\b/, clave: 'tipos', pasado: 'Revisó los tipos', presente: 'Revisando los tipos' },
-  { re: /\b(next build|npm run build|vite build|npm run desktop|xcodebuild|cargo build)\b/, clave: 'compilar', pasado: 'Compiló la app', presente: 'Compilando la app' },
-  { re: /mc-event\.py|gog\s+calendar|scripts\/calendar\/|calendar\/v3/, clave: 'calendario', pasado: 'Revisó el calendario', presente: 'Revisando el calendario' },
-  { re: /api\.todoist|todoist\.com|scripts\/\S*todoist|todoist[-_][\w-]*\.(py|sh|ts)/i, clave: 'todoist', pasado: 'Revisó Todoist', presente: 'Revisando Todoist' },
-  { re: /gog\s+(gmail|mail)|gmail\.googleapis/i, clave: 'correo', pasado: 'Revisó el correo', presente: 'Revisando el correo' },
-  { re: /gog\s+drive|drive\.google|googleapis\.com\/drive/i, clave: 'drive', pasado: 'Revisó Drive', presente: 'Revisando Drive' },
-  { re: /\b(psql|supabase|sqlite3|rest\/v1)\b/, clave: 'base', pasado: 'Consultó la base de datos', presente: 'Consultando la base de datos' },
-  { re: /\bgit\s+(commit|push|merge|rebase|cherry-pick)\b/, clave: 'git-guardar', pasado: 'Guardó los cambios en Git', presente: 'Guardando los cambios en Git' },
-  { re: /\b(git|gh)\s/, clave: 'git', pasado: 'Revisó el repositorio', presente: 'Revisando el repositorio' },
-  { re: /\b(df|du)\s|janitor|diskutil/, clave: 'disco', pasado: 'Revisó el disco', presente: 'Revisando el disco' },
-  { re: /\b(ps|pgrep|pkill|kill|launchctl|lsof|top|vm_stat|memory_pressure)\b/, clave: 'procesos', pasado: 'Revisó los procesos', presente: 'Revisando los procesos' },
-  { re: /\b(npm (i|install|ci)|pnpm (i|install|add)|brew install|pip3? install)\b/, clave: 'instalar', pasado: 'Instaló dependencias', presente: 'Instalando dependencias' },
-  { re: /\bcurl\b|https?:\/\//, clave: 'servicio', pasado: 'Consultó un servicio', presente: 'Consultando un servicio' },
+  { re: /\b(vitest|jest|pytest|playwright|tsx --test|node --test|npm (run )?test|pnpm test|npm run e2e)\b/, clave: 'pruebas', pasado: trMarca('Corrió las pruebas'), presente: trMarca('Corriendo las pruebas') },
+  { re: /\b(tsc|typecheck|eslint|npm run lint)\b/, clave: 'tipos', pasado: trMarca('Revisó los tipos'), presente: trMarca('Revisando los tipos') },
+  { re: /\b(next build|npm run build|vite build|npm run desktop|xcodebuild|cargo build)\b/, clave: 'compilar', pasado: trMarca('Compiló la app'), presente: trMarca('Compilando la app') },
+  { re: /mc-event\.py|gog\s+calendar|scripts\/calendar\/|calendar\/v3/, clave: 'calendario', pasado: trMarca('Revisó el calendario'), presente: trMarca('Revisando el calendario') },
+  { re: /api\.todoist|todoist\.com|scripts\/\S*todoist|todoist[-_][\w-]*\.(py|sh|ts)/i, clave: 'todoist', pasado: trMarca('Revisó Todoist'), presente: trMarca('Revisando Todoist') },
+  { re: /gog\s+(gmail|mail)|gmail\.googleapis/i, clave: 'correo', pasado: trMarca('Revisó el correo'), presente: trMarca('Revisando el correo') },
+  { re: /gog\s+drive|drive\.google|googleapis\.com\/drive/i, clave: 'drive', pasado: trMarca('Revisó Drive'), presente: trMarca('Revisando Drive') },
+  { re: /\b(psql|supabase|sqlite3|rest\/v1)\b/, clave: 'base', pasado: trMarca('Consultó la base de datos'), presente: trMarca('Consultando la base de datos') },
+  { re: /\bgit\s+(commit|push|merge|rebase|cherry-pick)\b/, clave: 'git-guardar', pasado: trMarca('Guardó los cambios en Git'), presente: trMarca('Guardando los cambios en Git') },
+  { re: /\b(git|gh)\s/, clave: 'git', pasado: trMarca('Revisó el repositorio'), presente: trMarca('Revisando el repositorio') },
+  { re: /\b(df|du)\s|janitor|diskutil/, clave: 'disco', pasado: trMarca('Revisó el disco'), presente: trMarca('Revisando el disco') },
+  { re: /\b(ps|pgrep|pkill|kill|launchctl|lsof|top|vm_stat|memory_pressure)\b/, clave: 'procesos', pasado: trMarca('Revisó los procesos'), presente: trMarca('Revisando los procesos') },
+  { re: /\b(npm (i|install|ci)|pnpm (i|install|add)|brew install|pip3? install)\b/, clave: 'instalar', pasado: trMarca('Instaló dependencias'), presente: trMarca('Instalando dependencias') },
+  { re: /\bcurl\b|https?:\/\//, clave: 'servicio', pasado: trMarca('Consultó un servicio'), presente: trMarca('Consultando un servicio') },
 ]
 
 /** Cuántas de FAMILIAS_BASH ganan aunque el comando empiece leyendo (pruebas … base de datos). */
@@ -207,44 +210,44 @@ function intencionBash(input: Record<string, unknown> | null, crudo: string | un
   const detalle = nucleo ? corto(nucleo.replace(/\s+/g, ' '), 90) : null
   const base = { unidad: COMANDO, propia, detalle }
   const zona = zonaDe(cmd)
-  const familia = (f: typeof FAMILIAS_BASH[number]): Intencion => ({ ...base, clave: `bash:${f.clave}`, pasado: f.pasado, presente: f.presente })
+  const familia = (f: typeof FAMILIAS_BASH[number]): Intencion => ({ ...base, clave: `bash:${f.clave}`, pasado: tr(f.pasado), presente: tr(f.presente) })
   // Primero las familias que nombran un servicio o una verificación (pruebas, calendario, correo…); luego, si el
   // comando empieza leyendo archivos, es una lectura aunque al final mire `git status`; luego el resto.
   const fuertes = FAMILIAS_BASH.slice(0, FUERTES)
   for (const f of fuertes) if (f.re.test(nucleo)) return familia(f)
   if (SOLO_LECTURA.test(nucleo)) {
     return zona
-      ? { ...base, clave: `leer:${zona}`, pasado: `Revisó ${zona}`, presente: `Revisando ${zona}` }
-      : { ...base, clave: 'leer:archivos', pasado: 'Revisó archivos', presente: 'Revisando archivos' }
+      ? { ...base, clave: `leer:${zona}`, pasado: tr('Revisó {zona}', { zona: zonaTr(zona) }), presente: tr('Revisando {zona}', { zona: zonaTr(zona) }) }
+      : { ...base, clave: 'leer:archivos', pasado: tr('Revisó archivos'), presente: tr('Revisando archivos') }
   }
   for (const f of FAMILIAS_BASH.slice(FUERTES)) if (f.re.test(nucleo)) return familia(f)
   const carpeta = /scripts\/([\w-]+)/.exec(cmd)?.[1]
   if (/^(python3?|node|tsx|bash|sh|zsh|npx)\s/.test(nucleo) && (carpeta || zona)) {
-    const de = carpeta ? `de ${carpeta}` : deZona(zona!)
-    return { ...base, clave: `script:${carpeta ?? zona}`, pasado: `Corrió scripts ${de}`, presente: `Corriendo un script ${de}` }
+    const lugar = carpeta ?? zonaTr(zona!)
+    return { ...base, clave: `script:${carpeta ?? zona}`, pasado: contraer(tr('Corrió scripts de {lugar}', { lugar })), presente: contraer(tr('Corriendo un script de {lugar}', { lugar })) }
   }
-  return { ...base, clave: 'bash:otro', pasado: 'Corrió comandos', presente: 'Corriendo un comando' }
+  return { ...base, clave: 'bash:otro', pasado: tr('Corrió comandos'), presente: tr('Corriendo un comando') }
 }
 
 /** Servidores MCP conocidos, en palabras de Daniel. */
 const MCP: Record<string, { pasado: string; presente: string; clave?: string }> = {
-  supabase: { pasado: 'Consultó la base de datos', presente: 'Consultando la base de datos', clave: 'bash:base' },
-  polar: { pasado: 'Consultó Polar', presente: 'Consultando Polar' },
-  claude_ai_Gmail: { pasado: 'Revisó el correo', presente: 'Revisando el correo', clave: 'bash:correo' },
-  gmail: { pasado: 'Revisó el correo', presente: 'Revisando el correo', clave: 'bash:correo' },
-  claude_ai_Google_Calendar: { pasado: 'Revisó el calendario', presente: 'Revisando el calendario', clave: 'bash:calendario' },
-  google_calendar: { pasado: 'Revisó el calendario', presente: 'Revisando el calendario', clave: 'bash:calendario' },
-  claude_ai_Google_Drive: { pasado: 'Revisó Drive', presente: 'Revisando Drive', clave: 'bash:drive' },
-  google: { pasado: 'Usó Google', presente: 'Usando Google' },
-  'google-workspace': { pasado: 'Usó Google', presente: 'Usando Google' },
-  claude_ai_vidIQ_for_Claude: { pasado: 'Consultó YouTube', presente: 'Consultando YouTube' },
-  claude_ai_Canva: { pasado: 'Trabajó en Canva', presente: 'Trabajando en Canva' },
-  claude_ai_Claude_Docs: { pasado: 'Trabajó en un documento', presente: 'Trabajando en un documento' },
-  claude_ai_Notion: { pasado: 'Revisó Notion', presente: 'Revisando Notion' },
-  claude_ai_Linear: { pasado: 'Revisó Linear', presente: 'Revisando Linear' },
-  claude_ai_Fireflies: { pasado: 'Revisó las reuniones grabadas', presente: 'Revisando las reuniones grabadas' },
-  'claude-in-chrome': { pasado: 'Usó el navegador', presente: 'Usando el navegador', clave: 'manos:web' },
-  todoist: { pasado: 'Revisó Todoist', presente: 'Revisando Todoist', clave: 'bash:todoist' },
+  supabase: { pasado: trMarca('Consultó la base de datos'), presente: trMarca('Consultando la base de datos'), clave: 'bash:base' },
+  polar: { pasado: trMarca('Consultó Polar'), presente: trMarca('Consultando Polar') },
+  claude_ai_Gmail: { pasado: trMarca('Revisó el correo'), presente: trMarca('Revisando el correo'), clave: 'bash:correo' },
+  gmail: { pasado: trMarca('Revisó el correo'), presente: trMarca('Revisando el correo'), clave: 'bash:correo' },
+  claude_ai_Google_Calendar: { pasado: trMarca('Revisó el calendario'), presente: trMarca('Revisando el calendario'), clave: 'bash:calendario' },
+  google_calendar: { pasado: trMarca('Revisó el calendario'), presente: trMarca('Revisando el calendario'), clave: 'bash:calendario' },
+  claude_ai_Google_Drive: { pasado: trMarca('Revisó Drive'), presente: trMarca('Revisando Drive'), clave: 'bash:drive' },
+  google: { pasado: trMarca('Usó Google'), presente: trMarca('Usando Google') },
+  'google-workspace': { pasado: trMarca('Usó Google'), presente: trMarca('Usando Google') },
+  claude_ai_vidIQ_for_Claude: { pasado: trMarca('Consultó YouTube'), presente: trMarca('Consultando YouTube') },
+  claude_ai_Canva: { pasado: trMarca('Trabajó en Canva'), presente: trMarca('Trabajando en Canva') },
+  claude_ai_Claude_Docs: { pasado: trMarca('Trabajó en un documento'), presente: trMarca('Trabajando en un documento') },
+  claude_ai_Notion: { pasado: trMarca('Revisó Notion'), presente: trMarca('Revisando Notion') },
+  claude_ai_Linear: { pasado: trMarca('Revisó Linear'), presente: trMarca('Revisando Linear') },
+  claude_ai_Fireflies: { pasado: trMarca('Revisó las reuniones grabadas'), presente: trMarca('Revisando las reuniones grabadas') },
+  'claude-in-chrome': { pasado: trMarca('Usó el navegador'), presente: trMarca('Usando el navegador'), clave: 'manos:web' },
+  todoist: { pasado: trMarca('Revisó Todoist'), presente: trMarca('Revisando Todoist'), clave: 'bash:todoist' },
 }
 
 /** `mcp__servidor__herramienta` (Claude) o `servidor_herramienta` (Codex, solo para los servidores propios). */
@@ -277,45 +280,50 @@ function intencionDe(tool: ToolCall, crudo: string | undefined): Intencion {
     const zona = zonaDe(ruta) ?? (patron ? zonaDe(patron) : null)
     const unidad = n === 'Read' ? ARCHIVO : BUSQUEDA
     const detalle = n === 'Read' ? (ruta ? ruta.split('/').slice(-2).join('/') : null) : (patron ? corto(patron, 60) : null)
-    const propia: Frase | null = n === 'Read' && zona === 'tus adjuntos' ? { pasado: 'Miró tu adjunto', presente: 'Mirando tu adjunto' }
-      : n === 'Read' && ruta ? { pasado: `Leyó ${nombreArchivo(ruta)}`, presente: `Leyendo ${nombreArchivo(ruta)}` }
-      : n === 'Grep' && patron ? { pasado: `Buscó «${corto(patron, 40)}»${zona ? ` en ${zona}` : ''}`, presente: `Buscando «${corto(patron, 40)}»${zona ? ` en ${zona}` : ''}` }
+    const buscado = patron ? corto(patron, 40) : ''
+    const propia: Frase | null = n === 'Read' && zona === 'tus adjuntos' ? { pasado: tr('Miró tu adjunto'), presente: tr('Mirando tu adjunto') }
+      : n === 'Read' && ruta ? { pasado: tr('Leyó {archivo}', { archivo: nombreArchivo(ruta) }), presente: tr('Leyendo {archivo}', { archivo: nombreArchivo(ruta) }) }
+      : n === 'Grep' && patron ? (zona
+        ? { pasado: tr('Buscó «{patron}» en {zona}', { patron: buscado, zona: zonaTr(zona) }), presente: tr('Buscando «{patron}» en {zona}', { patron: buscado, zona: zonaTr(zona) }) }
+        : { pasado: tr('Buscó «{patron}»', { patron: buscado }), presente: tr('Buscando «{patron}»', { patron: buscado }) })
       : null
     return zona
-      ? { clave: `leer:${zona}`, pasado: `Revisó ${zona}`, presente: `Revisando ${zona}`, unidad, propia, detalle }
-      : { clave: 'leer:archivos', pasado: n === 'Read' ? 'Leyó archivos' : 'Buscó en los archivos', presente: n === 'Read' ? 'Leyendo archivos' : 'Buscando en los archivos', unidad, propia, detalle }
+      ? { clave: `leer:${zona}`, pasado: tr('Revisó {zona}', { zona: zonaTr(zona) }), presente: tr('Revisando {zona}', { zona: zonaTr(zona) }), unidad, propia, detalle }
+      : { clave: 'leer:archivos', pasado: n === 'Read' ? tr('Leyó archivos') : tr('Buscó en los archivos'), presente: n === 'Read' ? tr('Leyendo archivos') : tr('Buscando en los archivos'), unidad, propia, detalle }
   }
 
   if (n === 'Edit' || n === 'Write' || n === 'MultiEdit' || n === 'NotebookEdit') {
     const ruta = campo('file_path') ?? campo('notebook_path') ?? ''
     const zona = zonaDe(ruta)
-    const verbo: [string, string] = n === 'Write' ? ['Escribió', 'Escribiendo'] : ['Editó', 'Editando']
-    const propia = ruta ? { pasado: `${verbo[0]} ${nombreArchivo(ruta)}`, presente: `${verbo[1]} ${nombreArchivo(ruta)}` } : null
-    return { clave: `editar:${zona ?? 'archivos'}`, pasado: zona ? `Editó ${zona}` : 'Editó archivos', presente: zona ? `Editando ${zona}` : 'Editando archivos', unidad: ARCHIVO, propia, detalle: ruta ? ruta.split('/').slice(-2).join('/') : null }
+    const archivo = nombreArchivo(ruta)
+    const propia = ruta ? (n === 'Write'
+      ? { pasado: tr('Escribió {archivo}', { archivo }), presente: tr('Escribiendo {archivo}', { archivo }) }
+      : { pasado: tr('Editó {archivo}', { archivo }), presente: tr('Editando {archivo}', { archivo }) }) : null
+    return { clave: `editar:${zona ?? 'archivos'}`, pasado: zona ? tr('Editó {zona}', { zona: zonaTr(zona) }) : tr('Editó archivos'), presente: zona ? tr('Editando {zona}', { zona: zonaTr(zona) }) : tr('Editando archivos'), unidad: ARCHIVO, propia, detalle: ruta ? ruta.split('/').slice(-2).join('/') : null }
   }
 
   if (n === 'WebSearch' || n === 'WebFetch') {
     const q = campo('query'), url = campo('url')
     let host: string | null = null
     try { host = url ? new URL(url).hostname.replace(/^www\./, '') : null } catch { host = null }
-    const propia = n === 'WebSearch' && q ? { pasado: `Buscó «${corto(q, 48)}»`, presente: `Buscando «${corto(q, 48)}»` }
-      : host ? { pasado: `Leyó ${host}`, presente: `Leyendo ${host}` } : null
-    return { clave: 'web', pasado: 'Investigó en la web', presente: 'Investigando en la web', unidad: n === 'WebSearch' ? BUSQUEDA : ['página', 'páginas'], propia, detalle: q ? corto(q, 60) : url ? corto(url, 60) : null }
+    const propia = n === 'WebSearch' && q ? { pasado: tr('Buscó «{patron}»', { patron: corto(q, 48) }), presente: tr('Buscando «{patron}»', { patron: corto(q, 48) }) }
+      : host ? { pasado: tr('Leyó {archivo}', { archivo: host }), presente: tr('Leyendo {archivo}', { archivo: host }) } : null
+    return { clave: 'web', pasado: tr('Investigó en la web'), presente: tr('Investigando en la web'), unidad: n === 'WebSearch' ? BUSQUEDA : trMarcas(['página', 'páginas']), propia, detalle: q ? corto(q, 60) : url ? corto(url, 60) : null }
   }
 
   if (n === 'Agent' || n === 'Task' || n === 'Workflow') {
     const d = campo('description') ?? campo('name')
-    return { clave: 'agentes', pasado: 'Delegó en agentes', presente: 'Delegando en un agente', unidad: ['agente', 'agentes'], agente: true, propia: d ? { pasado: `Delegó: ${corto(d, 60)}`, presente: `Delegando: ${corto(d, 60)}` } : null, detalle: d ? corto(d, 60) : null }
+    return { clave: 'agentes', pasado: tr('Delegó en agentes'), presente: tr('Delegando en un agente'), unidad: trMarcas(['agente', 'agentes']), agente: true, propia: d ? { pasado: tr('Delegó: {tarea}', { tarea: corto(d, 60) }), presente: tr('Delegando: {tarea}', { tarea: corto(d, 60) }) } : null, detalle: d ? corto(d, 60) : null }
   }
   if (n === 'SendMessage' || n === 'TaskStop' || n === 'TaskOutput') {
-    return { clave: 'agentes', pasado: 'Coordinó a sus agentes', presente: 'Coordinando a sus agentes', unidad: PASO, agente: true, propia: null, detalle: null }
+    return { clave: 'agentes', pasado: tr('Coordinó a sus agentes'), presente: tr('Coordinando a sus agentes'), unidad: PASO, agente: true, propia: null, detalle: null }
   }
-  if (n === 'TodoWrite') return { clave: 'plan', pasado: 'Ordenó su plan', presente: 'Ordenando su plan', unidad: ['cambio', 'cambios'], propia: null, detalle: null }
+  if (n === 'TodoWrite') return { clave: 'plan', pasado: tr('Ordenó su plan'), presente: tr('Ordenando su plan'), unidad: trMarcas(['cambio', 'cambios']), propia: null, detalle: null }
   if (n === 'Skill') {
     const s = campo('skill') ?? campo('name')
-    return { clave: 'skill', pasado: 'Consultó skills', presente: 'Consultando una skill', unidad: ['skill', 'skills'], propia: s ? { pasado: `Consultó la skill ${s}`, presente: `Consultando la skill ${s}` } : null, detalle: s }
+    return { clave: 'skill', pasado: tr('Consultó skills'), presente: tr('Consultando una skill'), unidad: trMarcas(['skill', 'skills']), propia: s ? { pasado: tr('Consultó la skill {skill}', { skill: s }), presente: tr('Consultando la skill {skill}', { skill: s }) } : null, detalle: s }
   }
-  if (n === 'AskUserQuestion') return { clave: 'pregunta', pasado: 'Te hizo una pregunta', presente: 'Preparando una pregunta', unidad: ['pregunta', 'preguntas'], propia: null, detalle: null }
+  if (n === 'AskUserQuestion') return { clave: 'pregunta', pasado: tr('Te hizo una pregunta'), presente: tr('Preparando una pregunta'), unidad: trMarcas(['pregunta', 'preguntas']), propia: null, detalle: null }
 
   const mcp = partesMcp(n)
   if (mcp) {
@@ -324,33 +332,33 @@ function intencionDe(tool: ToolCall, crudo: string | undefined): Intencion {
     if (servidor === 'cabina') {
       if (/^(delegar|retomar|cerrar|detener|atender)$/.test(herramienta)) {
         const nombre = campo('nombre')
-        const verbos: Record<string, [string, string]> = { delegar: ['Delegó en agentes', 'Delegando en un agente'], retomar: ['Retomó a un agente', 'Retomando a un agente'], cerrar: ['Cerró agentes', 'Cerrando un agente'], detener: ['Detuvo a un agente', 'Deteniendo a un agente'], atender: ['Atendió a sus agentes', 'Atendiendo a sus agentes'] }
+        const verbos: Record<string, [string, string]> = { delegar: [tr('Delegó en agentes'), tr('Delegando en un agente')], retomar: [tr('Retomó a un agente'), tr('Retomando a un agente')], cerrar: [tr('Cerró agentes'), tr('Cerrando un agente')], detener: [tr('Detuvo a un agente'), tr('Deteniendo a un agente')], atender: [tr('Atendió a sus agentes'), tr('Atendiendo a sus agentes')] }
         const [p, pr] = verbos[herramienta]
-        return { clave: 'agentes', pasado: p, presente: pr, unidad: herramienta === 'delegar' ? ['agente', 'agentes'] : PASO, agente: true, propia: herramienta === 'delegar' && nombre ? { pasado: `Delegó: ${corto(nombre, 60)}`, presente: `Delegando: ${corto(nombre, 60)}` } : null, detalle: nombre ? corto(nombre, 60) : primero }
+        return { clave: 'agentes', pasado: p, presente: pr, unidad: herramienta === 'delegar' ? trMarcas(['agente', 'agentes']) : PASO, agente: true, propia: herramienta === 'delegar' && nombre ? { pasado: tr('Delegó: {tarea}', { tarea: corto(nombre, 60) }), presente: tr('Delegando: {tarea}', { tarea: corto(nombre, 60) }) } : null, detalle: nombre ? corto(nombre, 60) : primero }
       }
-      if (herramienta === 'despertador') return { clave: 'cabina:despertador', pasado: 'Programó un despertador', presente: 'Programando un despertador', unidad: ['despertador', 'despertadores'], propia: null, detalle: primero }
-      return { clave: 'cabina', pasado: 'Usó la Cabina', presente: 'Usando la Cabina', unidad: PASO, propia: null, detalle: primero }
+      if (herramienta === 'despertador') return { clave: 'cabina:despertador', pasado: tr('Programó un despertador'), presente: tr('Programando un despertador'), unidad: trMarcas(['despertador', 'despertadores']), propia: null, detalle: primero }
+      return { clave: 'cabina', pasado: tr('Usó la Cabina'), presente: tr('Usando la Cabina'), unidad: PASO, propia: null, detalle: primero }
     }
     if (servidor === 'manos') {
       if (herramienta === 'encargar') {
         const pedido = campo('pedido')
-        return { clave: 'manos:encargar', pasado: 'Encargó una tarea en pantalla', presente: 'Haciendo una tarea en pantalla', unidad: ['encargo', 'encargos'], propia: null, detalle: pedido ? corto(pedido, 70) : primero }
+        return { clave: 'manos:encargar', pasado: tr('Encargó una tarea en pantalla'), presente: tr('Haciendo una tarea en pantalla'), unidad: trMarcas(['encargo', 'encargos']), propia: null, detalle: pedido ? corto(pedido, 70) : primero }
       }
-      if (/^web_/.test(herramienta)) return { clave: 'manos:web', pasado: 'Navegó en la web', presente: 'Navegando en la web', unidad: PASO, propia: null, detalle: campo('url') ?? primero }
-      return { clave: 'manos:pantalla', pasado: 'Operó la computadora', presente: 'Operando la computadora', unidad: PASO, propia: null, detalle: primero }
+      if (/^web_/.test(herramienta)) return { clave: 'manos:web', pasado: tr('Navegó en la web'), presente: tr('Navegando en la web'), unidad: PASO, propia: null, detalle: campo('url') ?? primero }
+      return { clave: 'manos:pantalla', pasado: tr('Operó la computadora'), presente: tr('Operando la computadora'), unidad: PASO, propia: null, detalle: primero }
     }
     const conocido = MCP[servidor]
-    if (conocido) return { clave: conocido.clave ?? `mcp:${servidor}`, pasado: conocido.pasado, presente: conocido.presente, unidad: PASO, propia: null, detalle: primero }
+    if (conocido) return { clave: conocido.clave ?? `mcp:${servidor}`, pasado: tr(conocido.pasado), presente: tr(conocido.presente), unidad: PASO, propia: null, detalle: primero }
     const legible = servidorLegible(servidor)
-    return { clave: `mcp:${servidor}`, pasado: `Usó ${legible}`, presente: `Usando ${legible}`, unidad: PASO, propia: null, detalle: primero }
+    return { clave: `mcp:${servidor}`, pasado: tr('Usó {herramienta}', { herramienta: legible }), presente: tr('Usando {herramienta}', { herramienta: legible }), unidad: PASO, propia: null, detalle: primero }
   }
 
-  return { clave: `tool:${n}`, pasado: `Usó ${n}`, presente: `Usando ${n}`, unidad: PASO, propia: null, detalle: null }
+  return { clave: `tool:${n}`, pasado: tr('Usó {herramienta}', { herramienta: n }), presente: tr('Usando {herramienta}', { herramienta: n }), unidad: PASO, propia: null, detalle: null }
 }
 
 // ─── Agrupar ────────────────────────────────────────────────────────────────
 
-const plural = (n: number, [uno, varios]: [string, string]) => `${n} ${n === 1 ? uno : varios}`
+const plural = (n: number, [uno, varios]: [string, string]) => `${n} ${tr(n === 1 ? uno : varios)}`
 
 function estadoDe(tool: ToolCall, output: ToolOutput | undefined): EstadoPaso {
   if (tool.status === 'running') return 'corriendo'
@@ -365,10 +373,10 @@ const zonaDeClave = (clave: string) => { const z = clave.split(':').slice(1).joi
 function listaZonas(todas: string[]): string {
   // «el código del servidor» + «el código de la app» = el mismo repositorio: se dice una vez.
   const codigo = todas.filter(z => z.startsWith('el código'))
-  const zonas = codigo.length > 1 ? [...todas.filter(z => !z.startsWith('el código')), 'el código de Arbrain'] : todas
-  if (zonas.length <= 1) return zonas[0] ?? 'archivos'
-  if (zonas.length === 2) return `${zonas[0]} y ${zonas[1]}`
-  return `${zonas[0]}, ${zonas[1]} y más`
+  const zonas = codigo.length > 1 ? [...todas.filter(z => !z.startsWith('el código')), trMarca('el código de Arbrain')] : todas
+  if (zonas.length <= 1) return zonas[0] ? zonaTr(zonas[0]) : tr('archivos')
+  if (zonas.length === 2) return tr('{a} y {b}', { a: zonaTr(zonas[0]), b: zonaTr(zonas[1]) })
+  return tr('{a}, {b} y más', { a: zonaTr(zonas[0]), b: zonaTr(zonas[1]) })
 }
 
 /** Las herramientas del turno, en orden, agrupadas por intención cuando son consecutivas. */
@@ -382,7 +390,7 @@ export function agruparHerramientas(msg: Pick<ChatMessage, 'toolCalls' | 'toolIn
     const estado = estadoDe(tool, output)
     const llamada: LlamadaRastro = {
       tool, input, output, estado, detalle: it.detalle, especifica: !!it.propia,
-      unidad: it.unidad[0].charAt(0).toUpperCase() + it.unidad[0].slice(1),
+      unidad: tr(it.unidad[0]).charAt(0).toUpperCase() + tr(it.unidad[0]).slice(1),
       etiqueta: estado === 'corriendo' ? (it.propia?.presente ?? it.presente) : (it.propia?.pasado ?? it.pasado),
     }
     const clave = fusionDe(it.clave)
@@ -398,9 +406,10 @@ export function agruparHerramientas(msg: Pick<ChatMessage, 'toolCalls' | 'toolIn
     let base: Frase = { pasado: primera.pasado, presente: primera.presente }
     if ((clave === 'leer' || clave === 'editar') && n > 1) {
       const zonas = [...new Set(intenciones.map(i => zonaDeClave(i.clave)).filter((z): z is string => !!z))]
-      const [p, pr] = clave === 'leer' ? ['Revisó', 'Revisando'] : ['Editó', 'Editando']
       const lista = listaZonas(zonas)
-      base = { pasado: `${p} ${lista}`, presente: `${pr} ${lista}` }
+      base = clave === 'leer'
+        ? { pasado: tr('Revisó {zona}', { zona: lista }), presente: tr('Revisando {zona}', { zona: lista }) }
+        : { pasado: tr('Editó {zona}', { zona: lista }), presente: tr('Editando {zona}', { zona: lista }) }
     }
     let etiqueta: string
     if (estado === 'corriendo') {
@@ -460,22 +469,22 @@ export function agentesTrabajando(msg: Pick<ChatMessage, 'tasks' | 'toolCalls'>)
 }
 
 /** «2 agentes trabajando» · «1 agente trabajando». */
-export const textoAgentes = (n: number) => `${plural(n, ['agente', 'agentes'])} trabajando`
+export const textoAgentes = (n: number) => trn(n, '{n} agente trabajando', '{n} agentes trabajando')
 
 /**
  * Una línea en español de qué hace Levy AHORA. Del grupo en curso si hay herramienta corriendo; si escribe, lo dice;
  * si solo piensa, «Pensando cómo responder» (o «el siguiente paso» si ya usó herramientas). Nunca texto del SDK.
  */
 export function lineaViva(msg: Pick<ChatMessage, 'toolCalls' | 'toolInputs' | 'toolOutputs' | 'content' | 'status' | 'tasks' | 'streaming' | 'questionPrompts'> & { thinking?: string }, grupos = agruparHerramientas(msg)): string {
-  if (msg.questionPrompts?.some(q => q.status === 'pending')) return 'Esperando tu respuesta'
-  if (msg.status === 'compacting') return 'Organizando el contexto'
+  if (msg.questionPrompts?.some(q => q.status === 'pending')) return tr('Esperando tu respuesta')
+  if (msg.status === 'compacting') return tr('Organizando el contexto')
   const enCurso = grupos.find(g => g.estado === 'corriendo')
   if (enCurso) return enCurso.etiqueta.replace(/…$/, '')
   const respuesta = separarRazonamiento({ content: msg.content ?? '' }).respuesta.trim()
-  if (respuesta) return 'Escribiendo la respuesta'
+  if (respuesta) return tr('Escribiendo la respuesta')
   const agentes = agentesTrabajando(msg)
-  if (agentes) return `Esperando a ${agentes === 1 ? 'su agente' : `sus ${agentes} agentes`}`
-  return grupos.length ? 'Pensando el siguiente paso' : 'Pensando cómo responder'
+  if (agentes) return agentes === 1 ? tr('Esperando a su agente') : tr('Esperando a sus {n} agentes', { n: agentes })
+  return grupos.length ? tr('Pensando el siguiente paso') : tr('Pensando cómo responder')
 }
 
 /** ¿Hay algo que poner en «Cómo lo hice»? (razonamiento, plan, herramientas, tareas o resúmenes del SDK). */
@@ -601,10 +610,10 @@ export function delegadosDe(msg: Pick<ChatMessage, 'toolCalls' | 'toolInputs' | 
 
 /** «Lanzó 2 subagentes · Goal UX, Harness» · «Lanzando un subagente · Goal UX». */
 export function textoDelegados(d: Delegados): string {
-  const verbo = d.estado === 'corriendo' ? (d.total === 1 ? 'Lanzando un subagente' : `Lanzando ${d.total} subagentes`)
-    : d.estado === 'error' ? (d.total === 1 ? 'No pudo lanzar el subagente' : `No pudo lanzar los ${d.total} subagentes`)
-    : d.total === 1 ? 'Lanzó un subagente' : `Lanzó ${d.total} subagentes`
-  const nombres = d.nombres.length > 3 ? [...d.nombres.slice(0, 3), `${d.nombres.length - 3} más`] : d.nombres
+  const verbo = d.estado === 'corriendo' ? (d.total === 1 ? tr('Lanzando un subagente') : tr('Lanzando {n} subagentes', { n: d.total }))
+    : d.estado === 'error' ? (d.total === 1 ? tr('No pudo lanzar el subagente') : tr('No pudo lanzar los {n} subagentes', { n: d.total }))
+    : d.total === 1 ? tr('Lanzó un subagente') : tr('Lanzó {n} subagentes', { n: d.total })
+  const nombres = d.nombres.length > 3 ? [...d.nombres.slice(0, 3), tr('{n} más', { n: d.nombres.length - 3 })] : d.nombres
   return nombres.length ? `${verbo} · ${nombres.join(', ')}` : verbo
 }
 

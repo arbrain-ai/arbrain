@@ -10,6 +10,7 @@
 
 import type { Theme } from '../theme/tokens'
 import type { AlignAxis, DistributeAxis } from '../model/align'
+import { tr, trMarca } from '@/shared/i18n'
 
 interface Props {
   theme: Theme
@@ -46,8 +47,8 @@ const DistIcon = ({ axis }: { axis: DistributeAxis }) => (
 
 const ALINEAR: AlignAxis[] = ['izquierda', 'centro-h', 'derecha', 'arriba', 'centro-v', 'abajo']
 const NOMBRE: Record<AlignAxis, string> = {
-  izquierda: 'Alinear a la izquierda', 'centro-h': 'Centrar horizontalmente', derecha: 'Alinear a la derecha',
-  arriba: 'Alinear arriba', 'centro-v': 'Centrar verticalmente', abajo: 'Alinear abajo',
+  izquierda: trMarca('Alinear a la izquierda'), 'centro-h': trMarca('Centrar horizontalmente'), derecha: trMarca('Alinear a la derecha'),
+  arriba: trMarca('Alinear arriba'), 'centro-v': trMarca('Centrar verticalmente'), abajo: trMarca('Alinear abajo'),
 }
 
 export function AlignBar({ theme: t, cuantos, onAlign, onDistribute }: Props) {
@@ -68,10 +69,10 @@ export function AlignBar({ theme: t, cuantos, onAlign, onDistribute }: Props) {
       boxShadow: t.name === 'oscuro' ? '0 8px 28px rgba(0,0,0,.55)' : '0 8px 28px rgba(15,15,25,.10)',
       font: '600 12px CanvasSans, system-ui', color: t.text.caption,
     }}>
-      <span style={{ padding: '0 8px', whiteSpace: 'nowrap' }}>{cuantos} seleccionados</span>
+      <span style={{ padding: '0 8px', whiteSpace: 'nowrap' }}>{tr('{cuantos} seleccionados', { cuantos })}</span>
       <div style={{ width: 1, height: 20, background: t.roles.card.stroke.color, opacity: .7, margin: '0 2px' }} />
       {ALINEAR.map(a => (
-        <button key={a} title={NOMBRE[a]} data-alinear={a} onClick={() => onAlign(a)} style={btn}
+        <button key={a} title={tr(NOMBRE[a])} data-alinear={a} onClick={() => onAlign(a)} style={btn}
           onPointerEnter={hover(true)} onPointerLeave={hover(false)}>
           <AlignIcon axis={a} />
         </button>
@@ -80,7 +81,7 @@ export function AlignBar({ theme: t, cuantos, onAlign, onDistribute }: Props) {
       {/* Distribuir necesita TRES: con dos no hay nada que repartir, y el boton
           se deshabilita en vez de mentir que hizo algo. */}
       {(['horizontal', 'vertical'] as DistributeAxis[]).map(a => (
-        <button key={a} title={`Distribuir ${a === 'horizontal' ? 'horizontalmente' : 'verticalmente'}`}
+        <button key={a} title={a === 'horizontal' ? tr('Distribuir horizontalmente') : tr('Distribuir verticalmente')}
           data-distribuir={a} onClick={() => onDistribute(a)} disabled={cuantos < 3}
           style={{ ...btn, opacity: cuantos < 3 ? .3 : 1, cursor: cuantos < 3 ? 'default' : 'pointer' }}
           onPointerEnter={e => cuantos >= 3 && hover(true)(e)} onPointerLeave={hover(false)}>

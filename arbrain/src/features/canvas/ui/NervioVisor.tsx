@@ -19,6 +19,7 @@ import type { Camera, CanvasElement } from '../model/element'
 import type { Theme } from '../theme/tokens'
 import { worldToScreen, type Viewport } from '../render/viewport'
 import { COLOR_SEMAFORO, duracionTexto, haceTexto, type AccionNervio, type EstadoVivo, type MedioResuelto, type Nervio } from '../model/nervio'
+import { tr } from '@/shared/i18n'
 import { AIRE, BISEL, TELEFONO, disposicionVisor, encajarEscritorio, encajarTelefono, type ModoPrevia } from '../model/visor-disposicion'
 
 export { anchoVisor } from '../model/visor-disposicion'
@@ -98,7 +99,7 @@ export function NervioVisor({ el, nervio, accion, t0, medio, estado, camera, vie
     d = `M ${a.x} ${a.y} C ${a.x} ${a.y - dy}, ${b.x} ${b.y + dy}, ${b.x} ${b.y}`
   }
 
-  const titulo = nervio?.rotulo ?? nervio?.medio?.titulo ?? ('name' in el && typeof (el as { name?: unknown }).name === 'string' ? (el as { name: string }).name : 'Nodo')
+  const titulo = nervio?.rotulo ?? nervio?.medio?.titulo ?? ('name' in el && typeof (el as { name?: unknown }).name === 'string' ? (el as { name: string }).name : tr('Nodo'))
   const marcar = () => {
     const ms = Math.round(performance.now() - t0)
     setPrimerCuadro(ms)
@@ -152,26 +153,26 @@ export function NervioVisor({ el, nervio, accion, t0, medio, estado, camera, vie
           </div>
           {abrir && accion !== 'enlace' && (
             <button type="button" data-nervio-abrir={abrir.fuera ? 'navegador' : 'arbrain'} onClick={abrir.ir}
-              title={abrir.fuera ? `Abrir ${el.link ?? ''} en tu navegador` : undefined} style={boton(borde, fg)}>
-              {abrir.fuera ? (w < 400 ? 'Navegador ↗' : 'Abrir en el navegador ↗') : abrir.etiqueta}
+              title={abrir.fuera ? tr('Abrir {url} en tu navegador', { url: el.link ?? '' }) : undefined} style={boton(borde, fg)}>
+              {abrir.fuera ? (w < 400 ? tr('Navegador ↗') : tr('Abrir en el navegador ↗')) : abrir.etiqueta}
             </button>
           )}
-          <button type="button" aria-label="Cerrar" onClick={onCerrar} style={{ ...boton(borde, fg), width: 28, padding: 0 }}>×</button>
+          <button type="button" aria-label={tr('Cerrar')} onClick={onCerrar} style={{ ...boton(borde, fg), width: 28, padding: 0 }}>×</button>
         </div>
 
         <div ref={cuerpoRef} data-nervio-cuerpo style={accion === 'previa'
           ? { flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden', background: oscuro ? 'rgba(255,255,255,0.035)' : 'rgba(39,18,62,0.045)' }
           : { flex: '0 1 auto', minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
         {accion === 'medio' && (
-          !medio ? <div style={{ padding: 16, color: tenue }}>Buscando el medio…</div>
-          : !medio.ok ? <div style={{ padding: 16, color: COLOR_SEMAFORO.rojo }}>Sin medio: {medio.error}</div>
+          !medio ? <div style={{ padding: 16, color: tenue }}>{tr('Buscando el medio…')}</div>
+          : !medio.ok ? <div style={{ padding: 16, color: COLOR_SEMAFORO.rojo }}>{tr('Sin medio: {error}', { error: medio.error ? tr(medio.error) : '' })}</div>
           : medio.tipo === 'embed'
             ? <iframe key={medio.url} src={medio.url} title={titulo} onLoad={marcar} allow="fullscreen; picture-in-picture"
                 style={{ display: 'block', width: '100%', aspectRatio: '16 / 9', border: 'none', background: '#000' }} />
             : medio.clase === 'audio'
               ? <audio key={medio.url} src={medio.url} controls muted preload="auto" onLoadedData={marcar} style={{ display: 'block', width: '100%', padding: 12, boxSizing: 'border-box' }} />
               : <video key={medio.url} src={medio.url} controls muted playsInline preload="auto"
-                  onLoadedData={marcar} onError={() => setFallo('El reproductor no pudo leer el archivo.')}
+                  onLoadedData={marcar} onError={() => setFallo(tr('El reproductor no pudo leer el archivo.'))}
                   style={{ display: 'block', width: '100%', maxHeight: Math.max(160, disp.maxHeight - 90), objectFit: 'contain', aspectRatio: medio.ancho && medio.alto ? `${medio.ancho} / ${medio.alto}` : '16 / 9', background: '#000' }} />
         )}
         {accion === 'previa' && el.link && cuerpo && cuerpo.height > 0 && (
@@ -179,8 +180,8 @@ export function NervioVisor({ el, nervio, accion, t0, medio, estado, camera, vie
         )}
         {accion === 'estado' && (
           <div style={{ padding: '12px 14px', display: 'grid', gap: 6 }}>
-            <div style={{ color: tenue, fontSize: 12 }}>Último evento</div>
-            <div style={{ font: '500 12.5px ui-monospace, "JetBrains Mono", monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{estado?.detalle ?? 'sin dato'}</div>
+            <div style={{ color: tenue, fontSize: 12 }}>{tr('Último evento')}</div>
+            <div style={{ font: '500 12.5px ui-monospace, "JetBrains Mono", monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{estado?.detalle ?? tr('sin dato')}</div>
           </div>
         )}
         </div>
@@ -188,14 +189,14 @@ export function NervioVisor({ el, nervio, accion, t0, medio, estado, camera, vie
         {(medida || primerCuadro != null || fallo || (estado && accion !== 'estado') || accion === 'previa') && (
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '6px 14px', minHeight: 34, boxSizing: 'border-box', borderTop: `1px solid ${borde}`, color: tenue, fontSize: 11.5, fontVariantNumeric: 'tabular-nums', flex: 'none' }}>
             {accion === 'previa' && (
-              <div role="radiogroup" aria-label="Vista previa como" style={{ display: 'inline-flex', flex: 'none', padding: 2, gap: 2, borderRadius: 8, border: `1px solid ${borde}` }}>
+              <div role="radiogroup" aria-label={tr('Vista previa como')} style={{ display: 'inline-flex', flex: 'none', padding: 2, gap: 2, borderRadius: 8, border: `1px solid ${borde}` }}>
                 {(['telefono', 'escritorio'] as const).map(m => (
                   <button key={m} type="button" role="radio" aria-checked={modo === m} data-nervio-modo={m} onClick={() => elegirModo(m)}
                     style={{ height: 22, padding: '0 8px', borderRadius: 6, border: 'none', cursor: 'pointer',
                       font: '600 11.5px Inter, ui-sans-serif, system-ui, sans-serif',
                       background: modo === m ? (oscuro ? 'rgba(201,162,255,0.18)' : 'rgba(124,58,237,0.10)') : 'transparent',
                       color: modo === m ? acento : tenue }}>
-                    {m === 'telefono' ? 'Teléfono' : 'Escritorio'}
+                    {m === 'telefono' ? tr('Teléfono') : tr('Escritorio')}
                   </button>
                 ))}
               </div>
@@ -203,8 +204,8 @@ export function NervioVisor({ el, nervio, accion, t0, medio, estado, camera, vie
             <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {fallo ?? (medida || (estado?.detalle ?? ''))}
             </span>
-            {estado && w >= 420 && <span title={estado.medidoEn} style={{ flex: 'none' }}>{haceTexto(Date.parse(estado.medidoEn), Date.now())?.replace('hace segundos', 'medido ahora') ?? ''}</span>}
-            {primerCuadro != null && <span style={{ color: acento, fontWeight: 600, flex: 'none', whiteSpace: 'nowrap' }}>{accion === 'medio' ? 'primer cuadro' : 'cargó'} en {primerCuadro} ms</span>}
+            {estado && w >= 420 && <span title={estado.medidoEn} style={{ flex: 'none' }}>{haceTexto(Date.parse(estado.medidoEn), Date.now())?.replace(tr('hace segundos'), tr('medido ahora')) ?? ''}</span>}
+            {primerCuadro != null && <span style={{ color: acento, fontWeight: 600, flex: 'none', whiteSpace: 'nowrap' }}>{accion === 'medio' ? tr('primer cuadro en {ms} ms', { ms: primerCuadro }) : tr('cargó en {ms} ms', { ms: primerCuadro })}</span>}
           </div>
         )}
       </div>

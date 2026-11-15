@@ -1,6 +1,7 @@
 import { requireChatPrincipal, resolveChatConversation, chatAccessResponse } from '@/lib/chat-access'
 import { accountId, ChatAccessError } from '@/lib/chat-access-policy'
 import { getClaudeclawUrl, CLAUDECLAW_TOKEN, upstreamError } from '@/lib/claudeclaw'
+import { tr } from '@/shared/i18n'
 
 /** Alcance verificado de la petición (dueño, conversación, cuenta): lo comparten GET y POST. */
 async function alcance(src: URLSearchParams): Promise<URLSearchParams> {
@@ -14,7 +15,7 @@ async function alcance(src: URLSearchParams): Promise<URLSearchParams> {
     params.set('ownerId', scope.owner)
     params.set('verifiedConversation', '1')
   } else {
-    if (session?.startsWith('sdk:') ? !principal.personalOwner : !principal.owner) throw new ChatAccessError('Se requiere una conversación propia.', 403)
+    if (session?.startsWith('sdk:') ? !principal.personalOwner : !principal.owner) throw new ChatAccessError(tr('Se requiere una conversación propia.'), 403)
     if (session) params.set('session', session)
     if (session?.startsWith('sdk:')) params.set('verifiedNativeOwner', '1')
     params.set('account', accountId(src.get('account')))
@@ -37,14 +38,14 @@ export async function GET(req: Request) {
     })
 
     if (!upstream.ok) {
-      return upstreamError(upstream, 'los controles de esfuerzo')
+      return upstreamError(upstream, tr('los controles de esfuerzo'))
     }
 
     const data = await upstream.json()
     return Response.json(data)
   } catch {
     return Response.json(
-      { error: 'No pude alcanzar el daemon (ClaudeClaw).', code: 'DAEMON_UNREACHABLE' },
+      { error: tr('No pude alcanzar el daemon (ClaudeClaw).'), code: 'DAEMON_UNREACHABLE' },
       { status: 503 },
     )
   }
@@ -58,7 +59,7 @@ export async function POST(req: Request) {
   const session = typeof body?.session === 'string' ? body.session.trim() : ''
   const effort = typeof body?.effort === 'string' ? body.effort.trim() : ''
   const ultracode = typeof body?.ultracode === 'boolean' ? body.ultracode : null
-  if (!session || (!effort && ultracode === null)) return Response.json({ error: 'Falta la conversación o el esfuerzo a aplicar.' }, { status: 400 })
+  if (!session || (!effort && ultracode === null)) return Response.json({ error: tr('Falta la conversación o el esfuerzo a aplicar.') }, { status: 400 })
   let params: URLSearchParams
   try { params = await alcance(new URLSearchParams({ session, ...(typeof body?.account === 'string' && { account: body.account }) })) } catch (error) { return chatAccessResponse(error) }
 
@@ -74,9 +75,9 @@ export async function POST(req: Request) {
       }),
       signal: AbortSignal.timeout(20_000),
     })
-    if (!upstream.ok) return upstreamError(upstream, 'el cambio de esfuerzo')
+    if (!upstream.ok) return upstreamError(upstream, tr('el cambio de esfuerzo'))
     return Response.json(await upstream.json())
   } catch {
-    return Response.json({ error: 'No pude alcanzar el daemon (ClaudeClaw).', code: 'DAEMON_UNREACHABLE' }, { status: 503 })
+    return Response.json({ error: tr('No pude alcanzar el daemon (ClaudeClaw).'), code: 'DAEMON_UNREACHABLE' }, { status: 503 })
   }
 }

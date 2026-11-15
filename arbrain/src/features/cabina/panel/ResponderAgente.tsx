@@ -9,6 +9,7 @@ import { useState } from 'react'
 import { Send } from 'lucide-react'
 import s from './panel.module.css'
 import { enviarRespuesta, escribirEnTerminal } from './responder-terminal'
+import { tr } from '@/shared/i18n'
 
 export interface ResponderProps {
   id: number
@@ -35,21 +36,21 @@ export function ResponderAgente({ id, pregunta, puedeEscribir, dialogo, onVisto 
     setTexto(''); setEstado({ fase: 'enviado' }); onVisto()
   }
 
-  return <section className={s.responder} aria-label="Contestarle al agente" data-testid="responder-agente">
+  return <section className={s.responder} aria-label={tr('Contestarle al agente')} data-testid="responder-agente">
     {pregunta && <p className={s.responderPregunta}>{pregunta}</p>}
-    {dialogo && <p className={s.responderNota}>Pide elegir una opción: tócala en la terminal de abajo.</p>}
+    {dialogo && <p className={s.responderNota}>{tr('Pide elegir una opción: tócala en la terminal de abajo.')}</p>}
     {escribe && <form className={s.responderForma} onSubmit={e => { e.preventDefault(); void enviar() }}>
       <input className={s.responderCampo} value={texto} onChange={e => { setTexto(e.target.value); if (estado.fase !== 'quieta') setEstado({ fase: 'quieta' }) }}
-        placeholder="Contéstale…" aria-label="Tu respuesta" enterKeyHint="send" autoComplete="off" autoCorrect="off" inputMode="text" />
-      <button type="submit" className={s.responderEnviar} disabled={!texto.trim() || estado.fase === 'enviando'} aria-label="Enviar respuesta">
-        <Send size={14} /><span>{estado.fase === 'enviando' ? 'Enviando' : 'Contestar'}</span>
+        placeholder={tr('Contéstale…')} aria-label={tr('Tu respuesta')} enterKeyHint="send" autoComplete="off" autoCorrect="off" inputMode="text" />
+      <button type="submit" className={s.responderEnviar} disabled={!texto.trim() || estado.fase === 'enviando'} aria-label={tr('Enviar respuesta')}>
+        <Send size={14} /><span>{estado.fase === 'enviando' ? tr('Enviando') : tr('Contestar')}</span>
       </button>
     </form>}
     <div className={s.responderPie}>
       <span role="status" data-error={estado.fase === 'error' || undefined}>
-        {estado.fase === 'enviado' ? 'Enviado.' : estado.fase === 'error' ? estado.msg : !puedeEscribir ? 'Esta terminal no acepta escritura desde aquí.' : ''}
+        {estado.fase === 'enviado' ? tr('Enviado.') : estado.fase === 'error' ? (estado.msg ? tr(estado.msg) : estado.msg) : !puedeEscribir ? tr('Esta terminal no acepta escritura desde aquí.') : ''}
       </span>
-      <button type="button" className={s.responderVisto} onClick={onVisto} title="Ya lo revisé: quita el aviso">Visto</button>
+      <button type="button" className={s.responderVisto} onClick={onVisto} title={tr('Ya lo revisé: quita el aviso')}>{tr('Visto')}</button>
     </div>
   </section>
 }

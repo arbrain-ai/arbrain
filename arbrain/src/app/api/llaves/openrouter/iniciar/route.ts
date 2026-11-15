@@ -1,5 +1,6 @@
 import { NOCACHE, soloAppCliente } from '@/lib/daemon-local'
 import { flujoOpenRouter } from '@/features/primer-arranque/lib/openrouter-pkce'
+import { tr } from '@/shared/i18n'
 
 // «Conectar con OpenRouter» (v1.1): nace un intento PKCE y sale la URL que la app abre en el navegador del sistema.
 // El `code_verifier` se queda en la memoria de este servidor; la URL solo lleva el desafío y el `state`.
@@ -21,6 +22,6 @@ export async function POST(request: Request) {
     const { url, state, expira } = flujoOpenRouter().iniciar(puertoPropio(request))
     return Response.json({ url, state, expira }, { headers: NOCACHE })
   } catch (e) {
-    return Response.json({ error: e instanceof Error ? e.message : 'No pude preparar la conexión.' }, { status: 500, headers: NOCACHE })
+    return Response.json({ error: e instanceof Error ? e.message : tr('No pude preparar la conexión.') }, { status: 500, headers: NOCACHE })
   }
 }

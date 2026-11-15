@@ -9,6 +9,7 @@ import { Check, Flag, Send, X } from 'lucide-react'
 import { formatoTiempo, mensajeMarca, mensajeMarcas, type Marca } from '../../documento/medio'
 import { pedirALevy } from '../../documento/enviar'
 import v from './visor.module.css'
+import { tr, trMarcas, trn } from '@/shared/i18n'
 
 const llave = (clave: string) => `arbrain-marcas:${clave}`
 const leer = (clave: string): Marca[] => { try { const j = JSON.parse(window.localStorage.getItem(llave(clave)) ?? '[]'); return Array.isArray(j) ? j.filter(m => m && typeof m.tiempo === 'number' && typeof m.ruta === 'string') : [] } catch { return [] } }
@@ -33,7 +34,7 @@ export function useMarcas(clave: string, tipo: 'Video' | 'Audio' = 'Video') {
   return { marcas, agregar, quitar, editar, enviar }
 }
 
-const ATAJOS = ['quita esto', 'más rápido aquí', 'recorta aquí', 'subtítulo aquí', 'acércate aquí']
+const ATAJOS = trMarcas(['quita esto', 'más rápido aquí', 'recorta aquí', 'subtítulo aquí', 'acércate aquí'])
 
 /** El cuadro que aparece al marcar: el instante, una línea para decir qué hacer y atajos de lo más pedido. */
 export function ComposerMarca({ tiempo, fps, version, alEnviar, alGuardar, alCerrar }: {
@@ -45,14 +46,14 @@ export function ComposerMarca({ tiempo, fps, version, alEnviar, alGuardar, alCer
   return <form className={v.composer} onSubmit={e => { e.preventDefault(); alEnviar(nota) }}
     onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); alCerrar() } }}>
     <div className={v.composerCabeza}>
-      <Flag size={13} aria-hidden /><b>{formatoTiempo(tiempo, { fps, fotogramas: true })}</b><span>en {version}</span>
-      <button type="button" className={v.mini} aria-label="Cerrar" onClick={alCerrar}><X size={13} aria-hidden /></button>
+      <Flag size={13} aria-hidden /><b>{formatoTiempo(tiempo, { fps, fotogramas: true })}</b><span>{tr('en {version}', { version })}</span>
+      <button type="button" className={v.mini} aria-label={tr('Cerrar')} onClick={alCerrar}><X size={13} aria-hidden /></button>
     </div>
-    <div className={v.atajos}>{ATAJOS.map(a => <button key={a} type="button" onClick={() => { setNota(a); campo.current?.focus() }}>{a}</button>)}</div>
+    <div className={v.atajos}>{ATAJOS.map(a => <button key={a} type="button" onClick={() => { setNota(tr(a)); campo.current?.focus() }}>{tr(a)}</button>)}</div>
     <div className={v.composerFila}>
-      <input ref={campo} value={nota} onChange={e => setNota(e.target.value)} placeholder="¿Qué hacemos aquí? (Enter envía a Levy)" aria-label="Qué hacer en este instante" />
-      <button type="submit" className={v.enviar}><Send size={13} aria-hidden />Enviar a Levy</button>
-      <button type="button" className={v.secundario} onClick={() => alGuardar(nota)}>Solo marcar</button>
+      <input ref={campo} value={nota} onChange={e => setNota(e.target.value)} placeholder={tr('¿Qué hacemos aquí? (Enter envía a Levy)')} aria-label={tr('Qué hacer en este instante')} />
+      <button type="submit" className={v.enviar}><Send size={13} aria-hidden />{tr('Enviar a Levy')}</button>
+      <button type="button" className={v.secundario} onClick={() => alGuardar(nota)}>{tr('Solo marcar')}</button>
     </div>
   </form>
 }
@@ -64,18 +65,18 @@ export function ListaMarcas({ marcas, fps, versionActual, alSaltar, alQuitar, al
   if (!marcas.length) return null
   const pendientes = marcas.filter(m => !m.enviada)
   const orden = [...marcas].sort((a, b) => a.version.localeCompare(b.version, 'es', { numeric: true }) || a.tiempo - b.tiempo)
-  return <section className={v.marcas} aria-label="Marcas">
+  return <section className={v.marcas} aria-label={tr('Marcas')}>
     <header>
-      <b>{marcas.length === 1 ? '1 marca' : `${marcas.length} marcas`}</b>
-      {pendientes.length > 1 && <button type="button" className={v.enviar} onClick={() => alEnviar(pendientes)}><Send size={12} aria-hidden />Enviar las {pendientes.length} a Levy</button>}
+      <b>{trn(marcas.length, '1 marca', '{n} marcas')}</b>
+      {pendientes.length > 1 && <button type="button" className={v.enviar} onClick={() => alEnviar(pendientes)}><Send size={12} aria-hidden />{tr('Enviar las {n} a Levy', { n: pendientes.length })}</button>}
     </header>
     <ul>
       {orden.map(m => <li key={m.id} data-enviada={m.enviada || undefined} data-otra={m.version !== versionActual || undefined}>
-        <button type="button" className={v.salto} onClick={() => alSaltar(m)} title="Ir a este instante">
-          <code>{formatoTiempo(m.tiempo, { fps, fotogramas: true })}</code><span className={v.versionMarca}>{m.version}</span><span className={v.nota}>{m.nota || 'sin nota'}</span>
+        <button type="button" className={v.salto} onClick={() => alSaltar(m)} title={tr('Ir a este instante')}>
+          <code>{formatoTiempo(m.tiempo, { fps, fotogramas: true })}</code><span className={v.versionMarca}>{m.version}</span><span className={v.nota}>{m.nota || tr('sin nota')}</span>
         </button>
-        {m.enviada ? <span className={v.listo}><Check size={12} aria-hidden />enviada</span> : <button type="button" className={v.mini} aria-label="Enviar a Levy" title="Enviar a Levy" onClick={() => alEnviar([m])}><Send size={12} aria-hidden /></button>}
-        <button type="button" className={v.mini} aria-label="Quitar marca" title="Quitar" onClick={() => alQuitar(m.id)}><X size={12} aria-hidden /></button>
+        {m.enviada ? <span className={v.listo}><Check size={12} aria-hidden />{tr('enviada')}</span> : <button type="button" className={v.mini} aria-label={tr('Enviar a Levy')} title={tr('Enviar a Levy')} onClick={() => alEnviar([m])}><Send size={12} aria-hidden /></button>}
+        <button type="button" className={v.mini} aria-label={tr('Quitar marca')} title={tr('Quitar')} onClick={() => alQuitar(m.id)}><X size={12} aria-hidden /></button>
       </li>)}
     </ul>
   </section>

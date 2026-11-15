@@ -24,5 +24,7 @@ export const config = {
     '/api/storage/adjunto/:path*',
     // Archivos del chat (T6): el nombre al final (`propuesta.png`) también lo sacaría del proxy y de su regla de Host.
     '/api/chat/archivo/:path*',
+    // Descarga del visor (12 nov 2026): `foto.png` al final también la sacaría del proxy; aquí pasa por su Host y su lista blanca.
+    '/api/cabina/documento/descargar/:path*',
   ],
 }

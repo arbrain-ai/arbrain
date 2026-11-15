@@ -9,6 +9,7 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname, isAbsolute, join } from 'node:path'
 import { DOC_ZONAS_VACIO, normalizarZonas, type DocZonas } from '@/features/planning/zonas'
+import { tr } from '@/shared/i18n'
 
 export const CLAVE_ZONAS = 'planning:zonas'
 export const RUTA_ZONAS_LOCAL = '.claude/plan/zonas.json'
@@ -22,7 +23,7 @@ export function dondeZonas(opciones: { cliente: boolean; raiz?: () => string }, 
     return { tipo: 'archivo', ruta: forzado }
   }
   if (opciones.cliente) {
-    if (!opciones.raiz) throw new Error('Falta la raíz del cerebro para las zonas.')
+    if (!opciones.raiz) throw new Error(tr('Falta la raíz del cerebro para las zonas.'))
     return { tipo: 'archivo', ruta: join(opciones.raiz(), RUTA_ZONAS_LOCAL) }
   }
   return { tipo: 'supabase', clave: CLAVE_ZONAS }

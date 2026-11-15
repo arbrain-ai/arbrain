@@ -15,6 +15,7 @@
 import { useSyncExternalStore } from 'react'
 import { vivasParaLaPersona, type Confirmacion, type EstadoSandbox } from './confirmacion'
 import type { PedidoApp } from './permiso-app'
+import { tr } from '@/shared/i18n'
 
 const SONDEO_MS = 1500
 const SONDEO_OCULTO_MS = 5000
@@ -51,7 +52,7 @@ export function avisarSiTapada(vivas: Confirmacion[], visible = typeof document 
   for (const c of nuevas) avisadas.add(c.id)
   if (visible || !nuevas.length) return []
   if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-    for (const c of nuevas) { try { new Notification('Levy espera tu clic', { body: (c.frase || c.resumen).slice(0, 160), tag: `arbrain-pendiente-${c.id}` }) } catch { /* sin notificaciones del navegador: el daemon manda la del sistema */ } }
+    for (const c of nuevas) { try { new Notification(tr('Levy espera tu clic'), { body: tr(c.frase || c.resumen).slice(0, 160), tag: `arbrain-pendiente-${c.id}` }) } catch { /* sin notificaciones del navegador: el daemon manda la del sistema */ } }
   }
   if (avisadas.size > 500) avisadas.clear()
   return nuevas.map(c => c.id)

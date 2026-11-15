@@ -7,6 +7,7 @@ import { requireChatPrincipal, chatAccessResponse } from '@/lib/chat-access'
 import { esEdicionCliente } from '@/lib/edicion'
 import { urlDaemonCliente } from '@/lib/claudeclaw'
 import { tokenDaemon } from '@/lib/daemon-local'
+import { tr } from '@/shared/i18n'
 
 // TTS = Kokoro local (open source) a traves de claudeclaw, reusando el mismo
 // tunel/CLAUDECLAW_URL que el chat. Funciona en desktop (localhost) y web (tunel).
@@ -69,7 +70,7 @@ async function ttsCliente(req: NextRequest): Promise<Response> {
     })
   } catch {
     if (req.signal.aborted) return new NextResponse(null, { status: 499 })
-    return NextResponse.json({ error: 'Tu Arbrain no respondió.', code: 'sin_daemon' }, { status: 503 })
+    return NextResponse.json({ error: tr('Tu Arbrain no respondió.'), code: 'sin_daemon' }, { status: 503 })
   }
 }
 
@@ -122,7 +123,7 @@ export async function POST(req: NextRequest) {
   } catch {
     if (req.signal.aborted) return new NextResponse(null, { status: 499 })
     // Daemon reiniciándose (31 oct 2026, 08:31:22: «other side closed»): 503 explícito; el lector reintenta el tramo.
-    return NextResponse.json({ error: 'La voz no respondió.', code: 'sin_daemon' }, { status: 503 })
+    return NextResponse.json({ error: tr('La voz no respondió.'), code: 'sin_daemon' }, { status: 503 })
   }
 
   if (!res.ok) {

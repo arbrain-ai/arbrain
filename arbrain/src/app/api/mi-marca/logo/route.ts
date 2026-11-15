@@ -1,13 +1,14 @@
 // Mi marca (lib/mi-marca.ts): `mi-marca/logo.svg|png|webp` del dueño. Un SVG puede traer scripts: se sirve con una CSP
 // que no deja correr nada y en caja de arena, por si alguien lo abre directo.
 import { dirMiMarca, leerLogo } from '@/lib/mi-marca'
+import { tr } from '@/shared/i18n'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export async function GET() {
   const logo = await leerLogo(dirMiMarca())
-  if (!logo) return Response.json({ error: 'Sin logo en mi-marca/.' }, { status: 404, headers: { 'Cache-Control': 'no-store' } })
+  if (!logo) return Response.json({ error: tr('Sin logo en mi-marca/.') }, { status: 404, headers: { 'Cache-Control': 'no-store' } })
   return new Response(new Uint8Array(logo.buf), {
     headers: {
       'Content-Type': logo.tipo,

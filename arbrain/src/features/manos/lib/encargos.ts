@@ -8,6 +8,7 @@
  * orden de la franja («detener» o «control»; la lee `encargar.ts › ordenEnDisco`).
  */
 import { reloj } from '@/features/chat/lib/duracion-turno'
+import { trMarca } from '@/shared/i18n'
 
 /** Forma del id que genera `encargar.ts` (`enc-<base36>-<6 hex>`). Nada fuera de ella llega a una ruta en disco. */
 export const ID_ENCARGO = /^enc-[a-z0-9]+-[0-9a-f]{6}$/
@@ -94,12 +95,12 @@ export function relojEncargo(e: EncargoVivo, ahora: number): string | null {
 }
 
 const FINALES: Record<string, string> = {
-  hecho: 'Terminó', fallo: 'No pudo terminar', requiere_confirmacion: 'Espera tu toque', aclaracion: 'Necesita una aclaración',
+  hecho: trMarca('Terminó'), fallo: trMarca('No pudo terminar'), requiere_confirmacion: trMarca('Espera tu toque'), aclaracion: trMarca('Necesita una aclaración'),
 }
 
 /** Qué hace ahora: el paso; terminado, cómo acabó. */
 export function textoPaso(e: EncargoVivo): string | null {
-  if (!estaVivo(e)) return FINALES[e.estado] ?? 'Terminó'
+  if (!estaVivo(e)) return FINALES[e.estado] ?? trMarca('Terminó')
   return e.paso
 }
 
@@ -153,12 +154,12 @@ export function validarOrden(cuerpo: unknown, leer: (id: string) => EncargoVivo 
   const o = cuerpo && typeof cuerpo === 'object' && !Array.isArray(cuerpo) ? cuerpo as Record<string, unknown> : null
   if (!o) return { ok: false, status: 400, error: 'Falta { id, orden }.' }
   const id = typeof o.id === 'string' ? o.id : ''
-  if (!ID_ENCARGO.test(id)) return { ok: false, status: 400, error: 'Encargo inválido.' }
+  if (!ID_ENCARGO.test(id)) return { ok: false, status: 400, error: trMarca('Encargo inválido.') }
   const orden = (ORDENES as readonly unknown[]).includes(o.orden) ? o.orden as OrdenEncargo : null
-  if (!orden) return { ok: false, status: 400, error: 'Orden inválida: detener o control.' }
+  if (!orden) return { ok: false, status: 400, error: trMarca('Orden inválida: detener o control.') }
   const e = leer(id)
-  if (!e) return { ok: false, status: 404, error: 'Ese encargo ya no existe.' }
-  if (!estaVivo(e)) return { ok: false, status: 409, error: 'Ese encargo ya terminó.' }
-  if (e.valores.length && !e.valores.includes(orden)) return { ok: false, status: 409, error: 'Ese encargo no acepta esa orden ahora.' }
+  if (!e) return { ok: false, status: 404, error: trMarca('Ese encargo ya no existe.') }
+  if (!estaVivo(e)) return { ok: false, status: 409, error: trMarca('Ese encargo ya terminó.') }
+  if (e.valores.length && !e.valores.includes(orden)) return { ok: false, status: 409, error: trMarca('Ese encargo no acepta esa orden ahora.') }
   return { ok: true, id, orden }
 }

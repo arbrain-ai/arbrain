@@ -8,6 +8,7 @@ import { isEmailAllowed, getRoleForEmail } from '@/lib/auth-config'
 import { checkRateLimit, recordAttempt } from '@/lib/rate-limit'
 import { destinoSeguro, mensajeDeError } from '@/features/auth/entrada'
 import { instalacion } from '@/config'
+import { trn } from '@/shared/i18n'
 
 function getClientIp(headersList: Headers): string {
   const forwarded = headersList.get('x-forwarded-for')
@@ -23,7 +24,7 @@ export async function login(formData: FormData): Promise<{ error: string; campo?
 
   const { allowed, retryAfterDays } = await checkRateLimit(ip)
   if (!allowed) {
-    return { error: `Demasiados intentos desde esta red. Prueba de nuevo en ${retryAfterDays} día${retryAfterDays !== 1 ? 's' : ''}.` }
+    return { error: trn(retryAfterDays, 'Demasiados intentos desde esta red. Prueba de nuevo en {n} día.', 'Demasiados intentos desde esta red. Prueba de nuevo en {n} días.') }
   }
 
   const email = (formData.get('email') as string).toLowerCase().trim()

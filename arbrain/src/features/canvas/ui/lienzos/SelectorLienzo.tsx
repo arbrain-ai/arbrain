@@ -12,6 +12,7 @@ import type { Carpeta, PaginaResumen } from '../../state/nube'
 import { useAccionesLienzos } from '../../state/acciones-lienzos'
 import { ArbolLienzos } from './ArbolLienzos'
 import { varsDeTema } from './vars-tema'
+import { tr } from '@/shared/i18n'
 
 interface Props {
   theme: Theme
@@ -46,7 +47,7 @@ export function SelectorLienzo(p: Props) {
   }, [p])
 
   const t = p.theme
-  return <div ref={raiz} role="dialog" aria-label="Cambiar de lienzo" style={{
+  return <div ref={raiz} role="dialog" aria-label={tr('Cambiar de lienzo')} style={{
     position: 'absolute', left: p.izquierda, top: 62, zIndex: 60,
     width: `min(380px, calc(100% - ${p.izquierda + 14}px))`, maxHeight: 'calc(100% - 150px)', overflowY: 'auto', padding: 8,
     borderRadius: 12, background: t.roles.card.fill, border: `1px solid ${t.roles.card.stroke.color}`,
@@ -55,6 +56,6 @@ export function SelectorLienzo(p: Props) {
   }}>
     <ArbolLienzos variante="riel" vars={varsDeTema(t)} autoFoco teclado
       paginas={p.paginas} carpetas={p.carpetas} activa={p.activa} a={a} onAbrir={x => p.onElegir(x.id)} />
-    <p style={{ margin: '8px 6px 2px', font: '500 11px CanvasSans, system-ui', color: t.text.caption }}>↑↓ recorre · Enter abre · Esc cierra · Ctrl+L</p>
+    <p style={{ margin: '8px 6px 2px', font: '500 11px CanvasSans, system-ui', color: t.text.caption }}>{tr('↑↓ recorre · Enter abre · Esc cierra · Ctrl+L')}</p>
   </div>
 }

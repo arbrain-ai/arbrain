@@ -6,6 +6,8 @@
  * (Enter o Espacio sobre «Siempre» no cuentan: solo un clic real), y Escape es «No», salvo que la persona esté
  * escribiendo en otro campo (el Escape del chat no le niega nada a Levy).
  */
+import { trMarca } from '@/shared/i18n'
+
 export type DecisionApp = 'siempre' | 'conversacion' | 'no'
 
 /** Lo que manda el daemon (`cliente/permisos-app.ts › PedidoApp`). */
@@ -43,4 +45,4 @@ export function campoAjeno(objetivo: EventTarget | null, tarjeta: Element | null
 }
 
 /** Frase del para qué: el agente la declara; si no dijo nada, se dice así. */
-export const frasePara = (p: Pick<PedidoApp, 'para'>) => p.para ? p.para : 'Levy no dijo para qué.'
+export const frasePara = (p: Pick<PedidoApp, 'para'>) => p.para ? p.para : trMarca('Levy no dijo para qué.')

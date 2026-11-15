@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { tr } from '@/shared/i18n'
 import { isNonDefaultAccount, type ChatAccount } from '@/features/chat/stores/account-store'
 
 /**
@@ -25,7 +26,7 @@ export function cuentaPreferida(p: PreferenciaMotor | null): ChatAccount | null 
 }
 
 async function leerRespuesta(r: Response): Promise<{ preferencia?: PreferenciaMotor; error?: string }> {
-  return r.json().catch(() => ({ error: `Respuesta inválida (${r.status})` }))
+  return r.json().catch(() => ({ error: tr('Respuesta inválida ({estado})', { estado: r.status }) }))
 }
 
 export const usePreferenciaMotor = create<Estado>((set) => ({
@@ -38,16 +39,16 @@ export const usePreferenciaMotor = create<Estado>((set) => ({
       const data = await leerRespuesta(r)
       // 404: el servidor del chat todavía corre el código anterior (se activa al reiniciarlo).
       if (r.status === 404) { set({ estado: 'sin-servidor', error: null, preferencia: null }); return }
-      if (!r.ok || !data.preferencia) { set({ estado: 'error', error: data.error ?? `No se pudo leer (${r.status})` }); return }
+      if (!r.ok || !data.preferencia) { set({ estado: 'error', error: data.error ?? tr('No se pudo leer ({estado})', { estado: r.status }) }); return }
       set({ preferencia: data.preferencia, estado: 'lista', error: null })
     } catch {
-      set({ estado: 'error', error: 'Sin conexión con el servidor del chat.' })
+      set({ estado: 'error', error: tr('Sin conexión con el servidor del chat.') })
     }
   },
   guardar: async (p) => {
     const r = await fetch('/api/chat/preferencia-motor', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p) })
     const data = await leerRespuesta(r)
-    if (!r.ok || !data.preferencia) throw new Error(data.error ?? `No se pudo guardar (${r.status})`)
+    if (!r.ok || !data.preferencia) throw new Error(data.error ?? tr('No se pudo guardar ({estado})', { estado: r.status }))
     set({ preferencia: data.preferencia, estado: 'lista', error: null })
   },
 }))

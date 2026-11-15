@@ -5,6 +5,7 @@ import { reencolarAviso } from './journal.js'
 import { setSpontaneousAdopter, takeSpontaneous, type SpontaneousOffer } from './spontaneous.js'
 import type { ChatSupervisor } from './supervisor.js'
 import type { ChatJobInput } from './chat-job.js'
+import { tr } from '../i18n/tr.js'
 
 /** Cuánto espera una respuesta espontánea a que se cierre el turno anterior de su conversación. */
 const ESPERA_MAX_MS = 10 * 60_000
@@ -20,11 +21,11 @@ export function etiquetaDespertar(prelude: SDKMessage[]): { label: string; aviso
       ? [{ taskId: m.task_id, status: m.status, summary: typeof m.summary === 'string' ? m.summary.slice(0, 300) : undefined }]
       : []
   })
-  if (!avisos.length) return { label: 'Levy retomó por su cuenta', avisos }
-  const verbo = (s?: string) => s === 'failed' ? 'falló' : s === 'stopped' ? 'se detuvo' : 'terminó'
+  if (!avisos.length) return { label: tr('Levy retomó por su cuenta'), avisos }
   const ultimo = avisos[avisos.length - 1]
-  const que = ultimo.summary ? `«${ultimo.summary.length > 90 ? ultimo.summary.slice(0, 89) + '…' : ultimo.summary}»` : 'una tarea en segundo plano'
-  const label = `Aviso: ${que} ${verbo(ultimo.status)}` + (avisos.length > 1 ? ` (+${avisos.length - 1})` : '')
+  const que = ultimo.summary ? `«${ultimo.summary.length > 90 ? ultimo.summary.slice(0, 89) + '…' : ultimo.summary}»` : tr('una tarea en segundo plano')
+  const frase = ultimo.status === 'failed' ? tr('Aviso: {tarea} falló', { tarea: que }) : ultimo.status === 'stopped' ? tr('Aviso: {tarea} se detuvo', { tarea: que }) : tr('Aviso: {tarea} terminó', { tarea: que })
+  const label = frase + (avisos.length > 1 ? ` (+${avisos.length - 1})` : '')
   return { label, avisos }
 }
 

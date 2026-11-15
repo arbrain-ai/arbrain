@@ -17,12 +17,13 @@
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { esEdicionCliente } from './edicion'
+import { tr } from '@/shared/i18n'
 
 type Env = Record<string, string | undefined>
 
 export class ConfiguracionFaltante extends Error {
   constructor(readonly variable: string) {
-    super(`Falta ${variable}: la app de Arbrain debe pasarla al servidor local. Cierra y vuelve a abrir Arbrain; si sigue, reinstala.`)
+    super(tr('Falta {variable}: la app de Arbrain debe pasarla al servidor local. Cierra y vuelve a abrir Arbrain; si sigue, reinstala.', { variable }))
     this.name = 'ConfiguracionFaltante'
   }
 }

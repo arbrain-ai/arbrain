@@ -25,6 +25,8 @@
  * botones se arman tras un instante, y el navegador nunca manda el comando ni el patrón: los pone el daemon.
  * Color: neutros de base; ámbar solo para la acción principal de lo rutinario; rojo solo para peligro (el freno).
  */
+import { trNodos } from '@/shared/i18n'
+import { tr, trMarca } from '@/shared/i18n'
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { AlertTriangle, ArrowUp, Check, ChevronDown, CircleAlert, Clock, Hand, Loader2, LockKeyhole, Play, Repeat, Settings2, ShieldAlert, Terminal, X } from 'lucide-react'
 import { avisosDe, cuerpoDecision, desdeCuando, esClicHumano, fraseManos, literalVisible, piezasLiteral, resumenCorrida, sugerenciaModo, vaEnElHilo, type Confirmacion } from '@/features/permisos/lib/confirmacion'
@@ -38,12 +40,12 @@ import { useTapar } from '@/shared/stores/modo-directo-store'
 
 const ARMADO_MS = 700
 const PELIGRO: Partial<Record<Confirmacion['categoria'], string>> = {
-  borrar: 'Borra archivos: no van a la papelera.',
-  enviar: 'Sale de tu computadora: un mensaje o datos que llegan a otra persona o servicio.',
-  publicar: 'Lo publica: otras personas lo van a poder ver.',
-  pagar: 'Mueve dinero.',
+  borrar: trMarca('Borra archivos: no van a la papelera.'),
+  enviar: trMarca('Sale de tu computadora: un mensaje o datos que llegan a otra persona o servicio.'),
+  publicar: trMarca('Lo publica: otras personas lo van a poder ver.'),
+  pagar: trMarca('Mueve dinero.'),
 }
-const SI_PELIGRO: Partial<Record<Confirmacion['categoria'], string>> = { borrar: 'Sí, borrar', enviar: 'Sí, enviarlo', publicar: 'Sí, publicarlo', pagar: 'Sí, pagar' }
+const SI_PELIGRO: Partial<Record<Confirmacion['categoria'], string>> = { borrar: trMarca('Sí, borrar'), enviar: trMarca('Sí, enviarlo'), publicar: trMarca('Sí, publicarlo'), pagar: trMarca('Sí, pagar') }
 
 /** Las tarjetas de este turno vivo. Mientras están montadas, el diálogo global no pinta lo que pidió Levy. */
 export function TarjetasDelTurno() {
@@ -55,7 +57,7 @@ export function TarjetasDelTurno() {
   if (!aqui.length && !apps.length) return null
   // Permiso por app (1 nov 2026): primero la app (Levy espera para entrar); solo la primera atiende Escape.
   return (
-    <div className={s.pila} aria-label="Levy espera tu decisión">
+    <div className={s.pila} aria-label={tr('Levy espera tu decisión')}>
       {apps.map((p, i) => <TarjetaPermisoApp key={p.id} p={p} escape={i === 0} />)}
       {aqui.map(c => <TarjetaComando key={c.id} c={c} />)}
     </div>
@@ -64,8 +66,8 @@ export function TarjetasDelTurno() {
 
 /** «Tu Mac» o «Tu computadora», según el navegador (solo en el cliente; antes de montar, la forma neutra). */
 function useEquipo(): string {
-  const [equipo, setEquipo] = useState('Tu computadora')
-  useEffect(() => { if (/Mac/i.test(navigator.userAgent)) setEquipo('Tu Mac') }, [])
+  const [equipo, setEquipo] = useState<string>(trMarca('Tu computadora'))
+  useEffect(() => { if (/Mac/i.test(navigator.userAgent)) setEquipo(trMarca('Tu Mac')) }, [])
   return equipo
 }
 
@@ -89,7 +91,7 @@ function ComandoPlegado({ texto, bash, etiqueta, foco = false }: { texto: string
   const [ver, setVer] = useState(false)
   return <div className={s.plegado}>
     <button type="button" className={s.verComando} onClick={() => setVer(v => !v)} aria-expanded={ver} data-ver-comando>
-      <ChevronDown size={13} aria-hidden data-abierta={ver ? 'si' : undefined} className={s.flechita} /> {ver ? 'Ocultar el comando' : 'Ver el comando'}
+      <ChevronDown size={13} aria-hidden data-abierta={ver ? 'si' : undefined} className={s.flechita} /> {ver ? tr('Ocultar el comando') : tr('Ver el comando')}
     </button>
     {ver && <Literal texto={texto} bash={bash} etiqueta={etiqueta} foco={foco} />}
   </div>
@@ -113,9 +115,9 @@ export function useDecision(c: Confirmacion, texto = '') {
     try {
       const r = await fetch('/api/confirmaciones/resolver', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cuerpo) })
       const j = await r.json().catch(() => ({})) as Confirmacion & { error?: string }
-      if (!r.ok && r.status !== 404 && r.status !== 409) throw new Error(j.error ?? 'No pude enviar tu decisión.')
+      if (!r.ok && r.status !== 404 && r.status !== 409) throw new Error(j.error ?? tr('No pude enviar tu decisión.'))
       olvidar(c.id, r.ok ? j : undefined)
-    } catch (e) { setError(e instanceof Error ? e.message : 'No pude enviar tu decisión.'); setOcupado(null) }
+    } catch (e) { setError(e instanceof Error ? e.message : tr('No pude enviar tu decisión.')); setOcupado(null) }
   }, [c.id, texto])
   const alClic = (d: Decision) => (e: React.MouseEvent<HTMLButtonElement>) => {
     if (d !== 'no' && !esClicHumano({ detail: e.detail, isTrusted: e.nativeEvent.isTrusted })) return
@@ -133,8 +135,9 @@ export function TarjetaComando({ c, incrustada = false }: { c: Confirmacion; inc
   const avisos = avisosDe(c).filter(a => !/para que no te pregunte esto/.test(a))
   const peligro = PELIGRO[c.categoria]
   const rutina = c.origen === 'cron'
-  const quien = rutina ? 'Una rutina tuya' : 'Levy'
-  const titulo = manos ? 'Esto necesita tus manos' : c.herramienta === 'Bash' ? `${quien} quiere correr un comando` : `${quien} necesita tu permiso`
+  const titulo = manos ? tr('Esto necesita tus manos')
+    : c.herramienta === 'Bash' ? (rutina ? tr('Una rutina tuya quiere correr un comando') : tr('Levy quiere correr un comando'))
+    : rutina ? tr('Una rutina tuya necesita tu permiso') : tr('Levy necesita tu permiso')
   const Icono = manos ? Hand : peligro ? ShieldAlert : Terminal
   const enCola = c.estado === 'en_cola' && c.enColaDesde ? desdeCuando(c.enColaDesde) : null
   const modoSugerido = sugerenciaModo(c)
@@ -147,60 +150,59 @@ export function TarjetaComando({ c, incrustada = false }: { c: Confirmacion; inc
   if (manos && (c.estado === 'corrida' || (c.estado === 'corriendo' && typeof c.terminal === 'number'))) return <TarjetaCorriendo c={c} incrustada={incrustada} />
 
   const conTexto = texto.trim().length > 0
-  const etiquetaNo = manos ? 'No, gracias' : peligro ? 'No, no lo hagas' : 'No'
+  const etiquetaNo = manos ? tr('No, gracias') : peligro ? tr('No, no lo hagas') : tr('No')
 
   return (
-    <section className={s.tarjeta} data-peligro={peligro ? 'si' : undefined} data-cola={enCola ? 'si' : undefined} data-incrustada={incrustada ? 'si' : undefined} aria-labelledby={incrustada ? undefined : `tc-${c.id}`} aria-label={incrustada ? (c.frase || c.resumen) : undefined}>
+    <section className={s.tarjeta} data-peligro={peligro ? 'si' : undefined} data-cola={enCola ? 'si' : undefined} data-incrustada={incrustada ? 'si' : undefined} aria-labelledby={incrustada ? undefined : `tc-${c.id}`} aria-label={incrustada ? tr(c.frase || c.resumen) : undefined}>
       {!incrustada && <header className={s.cabeza}>
         <span className={s.icono} aria-hidden><Icono size={16} /></span>
         <div className={s.titulos}>
           <h3 id={`tc-${c.id}`} className={s.titulo}>{titulo}</h3>
-          <p className={s.frase}>{c.frase || c.resumen}</p>
+          <p className={s.frase}>{tr(c.frase || c.resumen)}</p>
         </div>
-        {enCola && <span className={s.vence} title="Nada pasa sin tu clic: te espera aquí hasta que decidas"><Clock size={12} aria-hidden /> En tu cola {enCola}</span>}
+        {enCola && <span className={s.vence} title={tr('Nada pasa sin tu clic: te espera aquí hasta que decidas')}><Clock size={12} aria-hidden /> {tr('En tu cola {cuando}', { cuando: tr(enCola) })}</span>}
       </header>}
 
-      {peligro && <p className={s.peligro} role="note"><AlertTriangle size={13} aria-hidden /> {peligro} Esto siempre pide tu clic.</p>}
+      {peligro && <p className={s.peligro} role="note"><AlertTriangle size={13} aria-hidden /> {tr(peligro)} {tr('Esto siempre pide tu clic.')}</p>}
 
       {literal ? (
-        <ComandoPlegado texto={literal} bash={c.herramienta === 'Bash'} etiqueta="Comando exacto" foco />
-      ) : <p className={s.nota}>El servidor no mandó el comando exacto. Si no sabes qué hace, di que no.</p>}
+        <ComandoPlegado texto={literal} bash={c.herramienta === 'Bash'} etiqueta={tr('Comando exacto')} foco />
+      ) : <p className={s.nota}>{tr('El servidor no mandó el comando exacto. Si no sabes qué hace, di que no.')}</p>}
 
       {avisos.length > 0 && (
-        <ul className={s.avisos} aria-label="Avisos">
-          {avisos.map(a => <li key={a}>{a}</li>)}
+        <ul className={s.avisos} aria-label={tr('Avisos')}>
+          {avisos.map(a => <li key={a}>{tr(a)}</li>)}
         </ul>
       )}
 
       {manos && (
         <p className={s.explica}>
-          Levy no puede escribir tu contraseña ni iniciar sesión por ti, y está bien que sea así. Si lo corres tú, se abre una terminal aquí mismo:
-          escribe lo que te pida (la contraseña no se ve mientras la escribes, es normal). Levy no la ve; solo recibe lo que salga.
+          {tr('Levy no puede escribir tu contraseña ni iniciar sesión por ti, y está bien que sea así. Si lo corres tú, se abre una terminal aquí mismo: escribe lo que te pida (la contraseña no se ve mientras la escribes, es normal). Levy no la ve; solo recibe lo que salga.')}
         </p>
       )}
 
-      {error && <p role="alert" className={s.error}>{error}</p>}
+      {error && <p role="alert" className={s.error}>{tr(error)}</p>}
 
       <div className={s.botones} data-peligro={peligro ? 'si' : undefined}>
         {manos ? (
-          <button type="button" className={s.principal} disabled={!armado || !!ocupado} onClick={alClic('correr')} title="Solo con un clic: el teclado no corre comandos">
-            {ocupado === 'correr' ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <Play size={15} aria-hidden />} Correrlo en mi terminal
+          <button type="button" className={s.principal} disabled={!armado || !!ocupado} onClick={alClic('correr')} title={tr('Solo con un clic: el teclado no corre comandos')}>
+            {ocupado === 'correr' ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <Play size={15} aria-hidden />} {tr('Correrlo en mi terminal')}
           </button>
         ) : peligro ? null : (
           <>
-            <button type="button" className={s.principal} disabled={!armado || !!ocupado} onClick={alClic('una')} title="Solo con un clic: el teclado no aprueba acciones">
-              {ocupado === 'una' ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <Play size={15} aria-hidden />} Una vez
+            <button type="button" className={s.principal} disabled={!armado || !!ocupado} onClick={alClic('una')} title={tr('Solo con un clic: el teclado no aprueba acciones')}>
+              {ocupado === 'una' ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <Play size={15} aria-hidden />} {tr('Una vez')}
             </button>
             {c.patron && (
-              <button type="button" className={s.secundario} disabled={!armado || !!ocupado} onClick={alClic('siempre')} title={`Guarda la regla «${c.patron}»: esto ya no te pregunta`}>
-                {ocupado === 'siempre' ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <Repeat size={15} aria-hidden />} {c.patronFrase || 'Permitir siempre este tipo de comando'}
+              <button type="button" className={s.secundario} disabled={!armado || !!ocupado} onClick={alClic('siempre')} title={tr('Guarda la regla «{patron}»: esto ya no te pregunta', { patron: c.patron })}>
+                {ocupado === 'siempre' ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <Repeat size={15} aria-hidden />} {c.patronFrase ? tr(c.patronFrase) : tr('Permitir siempre este tipo de comando')}
               </button>
             )}
           </>
         )}
         {peligro && (
-          <button type="button" className={s.consecuencia} disabled={!armado || !!ocupado} onClick={alClic('una')} title="Solo con un clic: el teclado no aprueba acciones">
-            {ocupado === 'una' ? <Loader2 size={15} className="animate-spin" aria-hidden /> : null} {c.botonSi || SI_PELIGRO[c.categoria] || 'Sí, hacerlo'}
+          <button type="button" className={s.consecuencia} disabled={!armado || !!ocupado} onClick={alClic('una')} title={tr('Solo con un clic: el teclado no aprueba acciones')}>
+            {ocupado === 'una' ? <Loader2 size={15} className="animate-spin" aria-hidden /> : null} {tr(c.botonSi || SI_PELIGRO[c.categoria] || 'Sí, hacerlo')}
           </button>
         )}
         <button type="button" className={peligro ? s.noDominante : s.secundario} disabled={!!ocupado} onClick={alClic('no')}>
@@ -211,20 +213,20 @@ export function TarjetaComando({ c, incrustada = false }: { c: Confirmacion; inc
       <div className={s.rechazo} data-lleno={conTexto ? 'si' : undefined}>
         <textarea
           value={texto} onChange={e => setTexto(e.target.value)} onKeyDown={alTeclear} maxLength={500} rows={1}
-          aria-label={manos ? 'Escribe por qué no y Levy no lo pide' : 'Escribe qué prefieres y Levy no lo hace'}
-          placeholder={manos ? '¿No lo quieres correr? Dile por qué…' : '¿Prefieres otra cosa? Escríbela y Levy no lo hace…'}
+          aria-label={manos ? tr('Escribe por qué no y Levy no lo pide') : tr('Escribe qué prefieres y Levy no lo hace')}
+          placeholder={manos ? tr('¿No lo quieres correr? Dile por qué…') : tr('¿Prefieres otra cosa? Escríbela y Levy no lo hace…')}
         />
-        <button type="button" className={s.mandar} disabled={!conTexto || !!ocupado} onClick={alClic('no')} aria-label="Decir que no y mandarle esto a Levy" title="Decir que no y mandarle esto a Levy (Enter)">
+        <button type="button" className={s.mandar} disabled={!conTexto || !!ocupado} onClick={alClic('no')} aria-label={tr('Decir que no y mandarle esto a Levy')} title={tr('Decir que no y mandarle esto a Levy (Enter)')}>
           {ocupado === 'no' && conTexto ? <Loader2 size={14} className="animate-spin" aria-hidden /> : <ArrowUp size={14} aria-hidden />}
         </button>
       </div>
-      {conTexto && !peligro && !manos && <p className={s.pie}>Enter manda tu «no» con esta razón. Si mejor apruebas, el texto viaja con tu sí.</p>}
-      {!manos && !peligro && c.patron && !conTexto && <p className={s.pie}>«Permitir siempre» guarda la regla <code>{c.patron}</code> en Ajustes › Permisos y seguridad, donde la ves y la quitas.</p>}
-      {!manos && !peligro && c.patron && c.patronAviso && <p className={s.pie} data-patron-aviso role="note">{c.patronAviso}</p>}
+      {conTexto && !peligro && !manos && <p className={s.pie}>{tr('Enter manda tu «no» con esta razón. Si mejor apruebas, el texto viaja con tu sí.')}</p>}
+      {!manos && !peligro && c.patron && !conTexto && <p className={s.pie}>{trNodos('«Permitir siempre» guarda la regla {patron} en Ajustes › Permisos y seguridad, donde la ves y la quitas.', { patron: <code>{c.patron}</code> })}</p>}
+      {!manos && !peligro && c.patron && c.patronAviso && <p className={s.pie} data-patron-aviso role="note">{tr(c.patronAviso)}</p>}
       {!manos && !rutina && modoSugerido && (
         <p className={s.pie} data-sugerencia-modo>
-          <button type="button" className={s.verComando} onClick={() => useAjustes.getState().abrir('seguridad')} title="Abre Ajustes › Permisos y seguridad: ahí eliges cuánto te pregunta Levy (no aprueba esta acción)">
-            <Settings2 size={13} aria-hidden /> Que no me pregunte: modo {modoSugerido}
+          <button type="button" className={s.verComando} onClick={() => useAjustes.getState().abrir('seguridad')} title={tr('Abre Ajustes › Permisos y seguridad: ahí eliges cuánto te pregunta Levy (no aprueba esta acción)')}>
+            <Settings2 size={13} aria-hidden /> {tr('Que no me pregunte: modo {modo}', { modo: tr(modoSugerido) })}
           </button>
         </p>
       )}
@@ -246,25 +248,25 @@ function TarjetaCorriendo({ c, incrustada = false }: { c: Confirmacion; incrusta
   const fin = terminada || finLocal
   const demo = c.id.startsWith('cf_demo')
   useEffect(() => { if (!fin) caja.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }) }, [fin])
-  const r = terminada ? resumenCorrida(c) : { ok: null, titulo: 'Terminó', frase: 'Se lo estoy pasando a Levy con lo que salió.' }
+  const r = terminada ? resumenCorrida(c) : { ok: null, titulo: tr('Terminó'), frase: tr('Se lo estoy pasando a Levy con lo que salió.') }
   const IconoFin = r.ok === false ? CircleAlert : Check
   const equipo = useEquipo()
   const calida = fraseManos(c, equipo)
   return (
-    <section className={s.tarjeta} data-corriendo={fin ? undefined : 'si'} data-fin={fin ? (r.ok === false ? 'error' : 'ok') : undefined} data-incrustada={incrustada ? 'si' : undefined} aria-live="polite" aria-label={fin ? r.titulo : 'Corriendo en tu terminal'}>
+    <section className={s.tarjeta} data-corriendo={fin ? undefined : 'si'} data-fin={fin ? (r.ok === false ? 'error' : 'ok') : undefined} data-incrustada={incrustada ? 'si' : undefined} aria-live="polite" aria-label={fin ? tr(r.titulo) : tr('Corriendo en tu terminal')}>
       <header className={s.cabeza}>
         <span className={s.icono} data-fin={fin ? (r.ok === false ? 'error' : 'ok') : undefined} aria-hidden>{fin ? <IconoFin size={16} /> : <Loader2 size={16} className="animate-spin" />}</span>
         <div className={s.titulos}>
-          <p className={s.frase}>{fin ? r.titulo : 'Corriendo en tu terminal'}</p>
-          <p className={s.subtitulo}>{fin ? r.frase : 'Mientras escribes la contraseña no se ve nada: es normal.'}</p>
+          <p className={s.frase}>{fin ? tr(r.titulo) : tr('Corriendo en tu terminal')}</p>
+          <p className={s.subtitulo}>{fin ? tr(r.frase) : tr('Mientras escribes la contraseña no se ve nada: es normal.')}</p>
         </div>
       </header>
       {/* Ronda 4: primero qué va a pasar y por qué se pide tu contraseña, en una frase cálida; debajo, la terminal. */}
-      {!fin && calida && <p className={s.calida} data-calida><LockKeyhole size={15} aria-hidden /><span>{calida}</span></p>}
-      {fin && c.literal && <ComandoPlegado texto={c.literal} bash etiqueta="Comando" />}
+      {!fin && calida && <p className={s.calida} data-calida><LockKeyhole size={15} aria-hidden /><span>{tr(calida)}</span></p>}
+      {fin && c.literal && <ComandoPlegado texto={c.literal} bash etiqueta={tr('Comando')} />}
       {!fin && (
         <div className={s.terminalMarco}>
-          <span className={s.terminalRotulo} aria-hidden><Terminal size={12} /> Tu terminal · escribe aquí</span>
+          <span className={s.terminalRotulo} aria-hidden><Terminal size={12} /> {tr('Tu terminal · escribe aquí')}</span>
           <div ref={caja} className={s.terminal}>
             {c.terminal != null && c.terminal >= 0 && !demo ? (
               <Suspense fallback={null}><PtyPanel id={c.terminal} visible activa onFin={() => setFinLocal(true)} onTitulo={() => {}} /></Suspense>
@@ -272,17 +274,17 @@ function TarjetaCorriendo({ c, incrustada = false }: { c: Confirmacion; incrusta
               <pre className={s.terminalDemo}>{tapar(c.salida ?? '')}<span className={s.cursor} aria-hidden /></pre>
             )}
           </div>
-          {c.literal && <ComandoPlegado texto={c.literal} bash etiqueta="Lo que se corre" />}
+          {c.literal && <ComandoPlegado texto={c.literal} bash etiqueta={tr('Lo que se corre')} />}
         </div>
       )}
       {fin && (
         <div className={s.fin}>
           {terminada && c.salida && (
             <button type="button" className={s.enlace} onClick={() => setVerSalida(v => !v)} aria-expanded={verSalida}>
-              <ChevronDown size={13} aria-hidden data-abierta={verSalida ? 'si' : undefined} className={s.flechita} /> {verSalida ? 'Ocultar lo que salió' : 'Ver lo que salió'}
+              <ChevronDown size={13} aria-hidden data-abierta={verSalida ? 'si' : undefined} className={s.flechita} /> {verSalida ? tr('Ocultar lo que salió') : tr('Ver lo que salió')}
             </button>
           )}
-          {terminada && <button type="button" className={s.secundario} onClick={() => descartarTerminada(c.id)}>Entendido</button>}
+          {terminada && <button type="button" className={s.secundario} onClick={() => descartarTerminada(c.id)}>{tr('Entendido')}</button>}
         </div>
       )}
       {fin && verSalida && c.salida && <pre className={s.salida}>{tapar(c.salida)}</pre>}

@@ -1,6 +1,7 @@
 import { planningOwner, planningError, checkMutationOrigin } from '@/lib/planning/server'
 import { getSchedulerUrl, CLAUDECLAW_TOKEN } from '@/lib/claudeclaw'
 import { sinRespuestaDelServidor } from '@/lib/edicion'
+import { tr } from '@/shared/i18n'
 
 // Archivero del panel derecho (3 oct 2026): «+ › Guardadas». La lista vive en el Studio
 // (~/.config/arbrain/archivero.json) y la escribe una sola implementación, la del daemon
@@ -16,7 +17,7 @@ async function alDaemon(cuerpo: Record<string, unknown>) {
     method: 'POST', headers: { Authorization: `Bearer ${CLAUDECLAW_TOKEN}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ que: 'archivero', ...cuerpo }), signal: AbortSignal.timeout(15_000), cache: 'no-store',
   })
-  const body = await res.json().catch(() => ({ error: sinRespuestaDelServidor() }))
+  const body = await res.json().catch(() => ({ error: tr(sinRespuestaDelServidor()) }))
   return Response.json(body, { status: res.status, headers: NO_CACHE })
 }
 
@@ -30,7 +31,7 @@ export async function POST(request: Request) {
     await planningOwner()
     checkMutationOrigin(request)
     const body = await request.json().catch(() => null) as Record<string, unknown> | null
-    if (!body || typeof body.accion !== 'string' || !ACCIONES.has(body.accion)) return Response.json({ error: 'accion debe ser guardar, sacar o abierta.' }, { status: 400, headers: NO_CACHE })
+    if (!body || typeof body.accion !== 'string' || !ACCIONES.has(body.accion)) return Response.json({ error: tr('accion debe ser guardar, sacar o abierta.') }, { status: 400, headers: NO_CACHE })
     const { accion, id, input, nombre, conversacion } = body
     return await alDaemon({ accion, id, input, nombre, conversacion })
   } catch (error) { return planningError(error) }

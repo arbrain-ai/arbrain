@@ -20,6 +20,7 @@
  * PURO, sin DOM: testeable en node.
  */
 import { filtrarBloques, pareceTabla, sinUrls, type BloqueLector } from './lector-filtro'
+import { tr, trMarca } from '@/shared/i18n'
 
 /** ~170 palabras por minuto en español a velocidad 1: 190 palabras ≈ 70 s. */
 export const TOPE_PALABRAS = 190
@@ -28,7 +29,7 @@ export const UMBRAL_PALABRAS = 280
 /** Lista con más puntos que esto es «larga»: solo entran sus primeros PUNTOS_DE_LISTA_LARGA. */
 export const LISTA_CORTA = 4
 export const PUNTOS_DE_LISTA_LARGA = 2
-export const CIERRE_RESUMEN = 'El resto está en pantalla.'
+export const CIERRE_RESUMEN = trMarca('El resto está en pantalla.')
 
 export interface BloqueResumen extends BloqueLector {
   /** vive dentro de un bloque de código (<pre> o ```) */
@@ -86,7 +87,7 @@ export function elegirResumen(bloques: BloqueResumen[], tope = TOPE_PALABRAS, um
     indices: finales.map((e) => e.i),
     palabras: dichas,
     totalPalabras,
-    cierre: finales.length < candidatos.length ? CIERRE_RESUMEN : null,
+    cierre: finales.length < candidatos.length ? tr(CIERRE_RESUMEN) : null,
   }
 }
 
@@ -111,7 +112,7 @@ export function bloquesResumenDeMarkdown(md: string): BloqueResumen[] {
   for (const raw of md.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').split('\n')) {
     const l = raw.trim()
     if (/^(```|~~~)/.test(l)) {
-      if (codigo) { out.push({ texto: codigo.join('\n') || 'código', enCodigo: true }); codigo = null }
+      if (codigo) { out.push({ texto: codigo.join('\n') || tr('código'), enCodigo: true }); codigo = null }
       else { cierra(); lista = null; codigo = [] }
       continue
     }
@@ -138,7 +139,7 @@ export function bloquesResumenDeMarkdown(md: string): BloqueResumen[] {
     blancoTrasLista = false
     parrafo.push(l)
   }
-  if (codigo) out.push({ texto: codigo.join('\n') || 'código', enCodigo: true })
+  if (codigo) out.push({ texto: codigo.join('\n') || tr('código'), enCodigo: true })
   cierra()
   const leibles = new Set(filtrarBloques(out))
   // Lo que filtrarBloques descarta (fuentes, tablas, URLs sueltas) sale; el código se queda marcado (no se lee igual).

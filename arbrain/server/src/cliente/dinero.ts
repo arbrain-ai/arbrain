@@ -11,6 +11,7 @@
  * propia lista en `manos/juicio-url.ts`).
  */
 import { hostDe, parsearUrl } from './url.js'
+import { tr } from '../i18n/tr.js'
 
 /** Bancos (MX, LatAm, US, Europa), casas de bolsa, exchanges, impuestos: todo el dominio, también la documentación. */
 export const DOMINIOS_DINERO_TOTAL = [
@@ -109,7 +110,7 @@ export function dineroEnTexto(texto: string): string | null {
 export const MCP_DINERO = /^(stripe|paypal|mercado[-_]?pago|mercadopago|polar|lemon[-_]?squeezy|paddle|gumroad|square|adyen|plaid|wise|revolut|coinbase|binance|kraken|bitso|conekta|openpay|clip|shopify|bank|banco|banking|wallet|crypto)/i
 
 export const MENSAJE_DINERO = (donde: string) =>
-  `Arbrain no maneja dinero en esta versión: ${donde} es banca, pagos, cobros, impuestos o criptomonedas. Ni con permiso: la persona lo hace ella misma, directo en el sitio o en la app de su banco`
+  tr('Arbrain no maneja dinero en esta versión: {donde} es banca, pagos, cobros, impuestos o criptomonedas. Ni con permiso: la persona lo hace ella misma, directo en el sitio o en la app de su banco', { donde })
 
 /**
  * Operar valores (23 oct 2026, con el interruptor «Quitar también el freno»): comprar, vender u operar acciones,
@@ -124,13 +125,13 @@ const ACCION_VALORES = /(?:^|_)(?:buy|sell|comprar|vender|trade|trading|stake|un
 export function valoresEnMcp(servidor: string, accion: string, deLectura: boolean): string | null {
   if (deLectura) return null
   const a = accion.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase()
-  if (MCP_VALORES.test(servidor)) return `el servidor ${servidor} (operar valores o cripto)`
-  if (ACCION_VALORES.test(a)) return `${servidor} · ${accion} (comprar, vender u operar valores, o mover fondos)`
+  if (MCP_VALORES.test(servidor)) return tr('el servidor {servidor} (operar valores o cripto)', { servidor })
+  if (ACCION_VALORES.test(a)) return tr('{servidor} · {accion} (comprar, vender u operar valores, o mover fondos)', { servidor, accion })
   return null
 }
 
 /** Programas de línea de comandos que mueven fondos de una cartera o envían órdenes. Pura. */
 const BASH_VALORES = /\b(?:solana\s+(?:transfer|pay)|spl-token\s+(?:transfer|mint)|cast\s+(?:send|publish)|bitcoin-cli\b[^|;&]*\bsend\w*|electrum\b[^|;&]*\b(?:payto|broadcast)|lncli\s+(?:sendpayment|payinvoice|sendcoins)|near\s+send|sui\s+client\s+(?:transfer|pay)|aptos\s+account\s+transfer|ccxt\b|freqtrade\b[^|;&]*\btrade\b)/i
 export function valoresEnBash(cmd: string): string | null {
-  return BASH_VALORES.test(cmd) ? 'el comando (mover fondos de una cartera u operar valores)' : null
+  return BASH_VALORES.test(cmd) ? tr('el comando (mover fondos de una cartera u operar valores)') : null
 }

@@ -16,6 +16,8 @@ import { releer, useFuente } from '@/features/cabina/datos'
 import { DIAS_SEMANA, TIPOS_CUANDO, lugarReporte, reporteNuevo, separarRutinas, validarFormulario, type Formulario, type ListaRutinas, type RutinaDaemon, type VistaRutina } from '@/lib/rutinas-cliente'
 import { esRutinaLoop, type VistaLoops } from '@/lib/loops'
 import { LoopsNegocio, SelectorRutinasLoops, URL_LOOPS } from './LoopsNegocio'
+import { tr, trn } from '@/shared/i18n'
+import { trNodos } from '@/shared/i18n'
 import c from './rutinas-cliente.module.css'
 
 const URL_RUTINAS = '/api/rutinas'
@@ -56,15 +58,15 @@ async function pedir(url: string, init: RequestInit): Promise<string | null> {
     const r = await fetch(url, { ...init, headers: { 'Content-Type': 'application/json' }, cache: 'no-store' })
     if (r.ok) return null
     const j = await r.json().catch(() => ({})) as { error?: string }
-    return j.error ?? 'No se pudo. Intenta de nuevo.'
-  } catch { return 'Tu Arbrain local no responde. Intenta en unos segundos.' }
+    return j.error ? tr(j.error) : tr('No se pudo. Intenta de nuevo.')
+  } catch { return tr('Tu Arbrain local no responde. Intenta en unos segundos.') }
 }
 
 function RutinasDelDueno({ incrustada = false, sinLoops = false }: { incrustada?: boolean; sinLoops?: boolean }) {
   const { data, error } = useFuente<ListaRutinas>(URL_RUTINAS, 30_000)
   const [creando, setCreando] = useState(false)
   const [vistos, marcarVisto] = useVistos()
-  if (!data) return <div className={incrustada ? undefined : c.vista} aria-busy="true"><p className={c.nota}>{error ?? 'Leyendo tus rutinas…'}</p></div>
+  if (!data) return <div className={incrustada ? undefined : c.vista} aria-busy="true"><p className={c.nota}>{error ?? tr('Leyendo tus rutinas…')}</p></div>
   const ahora = Date.now()
   const { propias: todas, deArbrain } = separarRutinas(data, ahora)
   // Con la pestaña de loops a la vista, los loops viven allá y no se repiten aquí.
@@ -73,21 +75,21 @@ function RutinasDelDueno({ incrustada = false, sinLoops = false }: { incrustada?
   const nuevos = deArbrain.filter(r => { const t = porId.get(r.id); return !!t && reporteNuevo(t, vistos) })
   return <div className={incrustada ? c.incrustada : c.vista}>
     <div className={c.cabecera}>
-      <p className={c.ceja}>Lo que corre solo</p>
-      {!creando && <button type="button" className={c.nueva} onClick={() => setCreando(true)}><Plus size={14} aria-hidden />Nueva rutina</button>}
+      <p className={c.ceja}>{tr('Lo que corre solo')}</p>
+      {!creando && <button type="button" className={c.nueva} onClick={() => setCreando(true)}><Plus size={14} aria-hidden />{tr('Nueva rutina')}</button>}
     </div>
-    {data.aviso && <p className={c.aviso} role="status">{data.aviso}</p>}
+    {data.aviso && <p className={c.aviso} role="status">{tr(data.aviso)}</p>}
     {creando && <NuevaRutina alTerminar={() => setCreando(false)} />}
     {lista.length === 0 && !creando && <Vacia onCrear={() => setCreando(true)} conArbrain={deArbrain.length > 0} />}
     {lista.length > 0 && <ul className={c.lista}>{lista.map(r => <Fila key={r.id} r={r} />)}</ul>}
-    {lista.length > 0 && <p className={c.nota}>Tu computadora debe estar encendida para que corran. También puedes pedírselas a Levy en el chat.</p>}
+    {lista.length > 0 && <p className={c.nota}>{tr('Tu computadora debe estar encendida para que corran. También puedes pedírselas a Levy en el chat.')}</p>}
     {deArbrain.length > 0 && <section className={c.arbrain} aria-labelledby="rutinas-de-arbrain">
       <div className={c.cabecera}>
-        <p className={c.ceja} id="rutinas-de-arbrain">De Arbrain</p>
-        {nuevos.length > 0 && <span className={c.nuevo} role="status">{nuevos.length === 1 ? '1 reporte nuevo' : `${nuevos.length} reportes nuevos`}</span>}
+        <p className={c.ceja} id="rutinas-de-arbrain">{tr('De Arbrain')}</p>
+        {nuevos.length > 0 && <span className={c.nuevo} role="status">{trn(nuevos.length, '1 reporte nuevo', '{n} reportes nuevos')}</span>}
       </div>
-      <p className={c.nota}>Rutinas que Arbrain preparó para ti. Vienen en pausa: actívalas en un clic. Cada una deja su reporte en tu cerebro y te avisa al terminar, en tu computadora y en tu teléfono si lo conectaste.</p>
-      {data.suscripcion && <p className={c.aviso} role="note">Con tu suscripción de Claude estas rutinas no corren solas, ni siquiera al probarlas: la suscripción es para tu uso directo. Para que corran, conecta una llave en Ajustes › Llaves.</p>}
+      <p className={c.nota}>{tr('Rutinas que Arbrain preparó para ti. Vienen en pausa: actívalas en un clic. Cada una deja su reporte en tu cerebro y te avisa al terminar, en tu computadora y en tu teléfono si lo conectaste.')}</p>
+      {data.suscripcion && <p className={c.aviso} role="note">{tr('Con tu suscripción de Claude estas rutinas no corren solas, ni siquiera al probarlas: la suscripción es para tu uso directo. Para que corran, conecta una llave en Ajustes › Llaves.')}</p>}
       <ul className={c.lista}>{deArbrain.map(r => <Fila key={r.id} r={r} nuevo={nuevos.includes(r)} alVer={() => marcarVisto(r.id, porId.get(r.id)?.last_run ?? 0)} />)}</ul>
     </section>}
   </div>
@@ -96,14 +98,14 @@ function RutinasDelDueno({ incrustada = false, sinLoops = false }: { incrustada?
 function Vacia({ onCrear, conArbrain }: { onCrear: () => void; conArbrain: boolean }) {
   // Con las «De Arbrain» abajo, el vacío no se explica entero: basta con decir que puede crear la suya.
   if (conArbrain) return <div className={c.vacia}>
-    <p><b>Aún no tienes rutinas propias.</b> Abajo están las de Arbrain, listas para activar. También puedes crear la tuya o pedírsela a Levy en el chat.</p>
-    <button type="button" className={c.nueva} onClick={onCrear}><Plus size={14} aria-hidden />Crear mi primera rutina</button>
+    <p>{trNodos('{titulo} Abajo están las de Arbrain, listas para activar. También puedes crear la tuya o pedírsela a Levy en el chat.', { titulo: <b>{tr('Aún no tienes rutinas propias.')}</b> })}</p>
+    <button type="button" className={c.nueva} onClick={onCrear}><Plus size={14} aria-hidden />{tr('Crear mi primera rutina')}</button>
   </div>
   return <div className={c.vacia}>
-    <p><b>Aún no tienes rutinas.</b> Una rutina es algo que Levy hace solo, a la hora que digas: un resumen de tu día cada mañana, revisar tus pendientes cada lunes.</p>
-    <p>Créala aquí o pídesela a Levy en el chat, por ejemplo: <q>cada mañana a las 7 resúmeme mi día</q>.</p>
-    <p className={c.nota}>Corren en tu computadora: debe estar encendida a esa hora.</p>
-    <button type="button" className={c.nueva} onClick={onCrear}><Plus size={14} aria-hidden />Crear mi primera rutina</button>
+    <p>{trNodos('{titulo} Una rutina es algo que Levy hace solo, a la hora que digas: un resumen de tu día cada mañana, revisar tus pendientes cada lunes.', { titulo: <b>{tr('Aún no tienes rutinas.')}</b> })}</p>
+    <p>{trNodos('Créala aquí o pídesela a Levy en el chat, por ejemplo: {ejemplo}.', { ejemplo: <q>{tr('cada mañana a las 7 resúmeme mi día')}</q> })}</p>
+    <p className={c.nota}>{tr('Corren en tu computadora: debe estar encendida a esa hora.')}</p>
+    <button type="button" className={c.nueva} onClick={onCrear}><Plus size={14} aria-hidden />{tr('Crear mi primera rutina')}</button>
   </div>
 }
 
@@ -126,35 +128,35 @@ function Fila({ r, nuevo = false, alVer }: { r: VistaRutina; nuevo?: boolean; al
   const activar = !r.activa && (r.deArbrain || (r.deLevy && !r.ultima))
   return <li className={c.fila} data-tono={tono} data-arbrain={r.deArbrain || undefined}>
     <div className={c.encabezado}>
-      <strong className={c.titulo} title={r.texto}>{r.titulo}</strong>
-      {nuevo && <span className={c.nuevo}>Nuevo</span>}
-      {r.deArbrain && <span className={c.sello}>De Arbrain</span>}
-      <span className={c.estado}>{r.activa ? 'Activa' : 'En pausa'}</span>
+      <strong className={c.titulo} title={r.texto}>{tr(r.titulo)}</strong>
+      {nuevo && <span className={c.nuevo}>{tr('Nuevo')}</span>}
+      {r.deArbrain && <span className={c.sello}>{tr('De Arbrain')}</span>}
+      <span className={c.estado}>{r.activa ? tr('Activa') : tr('En pausa')}</span>
     </div>
-    {r.paraQue && <p className={c.paraQue}>{r.paraQue}</p>}
-    <p className={c.cuando}>{r.cuando} · {r.activa ? `próxima: ${r.proxima}` : 'no corre hasta que la actives'}</p>
-    {r.deLevy && !r.activa && <p className={c.levy}><Sparkles size={12} aria-hidden />La propuso Levy. Revisa qué hace y pulsa «Activar» para que corra.</p>}
+    {r.paraQue && <p className={c.paraQue}>{tr(r.paraQue)}</p>}
+    <p className={c.cuando}>{tr(r.cuando)} · {r.activa ? tr('próxima: {cuando}', { cuando: tr(r.proxima) }) : tr('no corre hasta que la actives')}</p>
+    {r.deLevy && !r.activa && <p className={c.levy}><Sparkles size={12} aria-hidden />{tr('La propuso Levy. Revisa qué hace y pulsa «Activar» para que corra.')}</p>}
     {r.ultima
-      ? <p className={c.ultima}>Última: {r.ultima}{r.fallo ? ' · falló' : ''}</p>
-      : <p className={c.ultima}>Todavía no ha corrido.{r.carpeta ? ` Su reporte quedará en ${lugarReporte(r.carpeta)}.` : ''}</p>}
+      ? <p className={c.ultima}>{r.fallo ? tr('Última: {cuando} · falló', { cuando: r.ultima }) : tr('Última: {cuando}', { cuando: r.ultima })}</p>
+      : <p className={c.ultima}>{r.carpeta ? tr('Todavía no ha corrido. Su reporte quedará en {lugar}.', { lugar: tr(lugarReporte(r.carpeta)) }) : tr('Todavía no ha corrido.')}</p>}
     {r.resultado && <details className={c.resultado} onToggle={e => { if ((e.currentTarget as HTMLDetailsElement).open) alVer?.() }}>
-      <summary>{r.fallo ? 'Qué pasó' : 'Lo que hizo'}</summary><p>{r.resultado}</p>
-      {r.reporte && !r.fallo && <p className={c.ultima} title={r.reporte}>Reporte completo en {lugarReporte(r.reporte)}.</p>}
+      <summary>{r.fallo ? tr('Qué pasó') : tr('Lo que hizo')}</summary><p>{r.resultado}</p>
+      {r.reporte && !r.fallo && <p className={c.ultima} title={r.reporte}>{tr('Reporte completo en {lugar}.', { lugar: tr(lugarReporte(r.reporte)) })}</p>}
     </details>}
-    {probada && <p className={c.ultima}>Corriendo ahora. El resultado aparece aquí al terminar.</p>}
+    {probada && <p className={c.ultima}>{tr('Corriendo ahora. El resultado aparece aquí al terminar.')}</p>}
     {error && <p className={c.error} role="alert">{error}</p>}
     {borrar
-      ? <div className={c.botones} role="group" aria-label="Confirmar borrado">
-          <span className={c.pregunta}>{r.deArbrain ? '¿Borrar esta rutina? No volverá a aparecer; si solo no la quieres ahora, déjala en pausa.' : '¿Borrar esta rutina? No se puede deshacer.'}</span>
-          <button type="button" className={c.peligro} disabled={ocupado} onClick={() => accion('borrar')}>Sí, borrar</button>
-          <button type="button" className={c.boton} disabled={ocupado} onClick={() => setBorrar(false)}>Cancelar</button>
+      ? <div className={c.botones} role="group" aria-label={tr('Confirmar borrado')}>
+          <span className={c.pregunta}>{r.deArbrain ? tr('¿Borrar esta rutina? No volverá a aparecer; si solo no la quieres ahora, déjala en pausa.') : tr('¿Borrar esta rutina? No se puede deshacer.')}</span>
+          <button type="button" className={c.peligro} disabled={ocupado} onClick={() => accion('borrar')}>{tr('Sí, borrar')}</button>
+          <button type="button" className={c.boton} disabled={ocupado} onClick={() => setBorrar(false)}>{tr('Cancelar')}</button>
         </div>
       : <div className={c.botones}>
           {r.activa
-            ? <button type="button" className={c.boton} disabled={ocupado} onClick={() => accion('pausar')}><Pause size={13} aria-hidden />Pausar</button>
-            : <button type="button" className={r.deArbrain ? c.nueva : c.boton} disabled={ocupado} onClick={() => accion('reanudar')}><Play size={13} aria-hidden />{activar ? 'Activar' : 'Reanudar'}</button>}
-          {(r.activa || r.deArbrain) && <button type="button" className={c.boton} disabled={ocupado} onClick={() => accion('probar')} title={r.activa ? 'La corre una vez ahora, sin cambiar su horario' : 'La corre una vez ahora para que veas su reporte; sigue en pausa'}><Zap size={13} aria-hidden />{r.activa ? 'Probar ahora' : 'Probar una vez'}</button>}
-          <button type="button" className={c.boton} disabled={ocupado} onClick={() => setBorrar(true)}><Trash2 size={13} aria-hidden />Borrar</button>
+            ? <button type="button" className={c.boton} disabled={ocupado} onClick={() => accion('pausar')}><Pause size={13} aria-hidden />{tr('Pausar')}</button>
+            : <button type="button" className={r.deArbrain ? c.nueva : c.boton} disabled={ocupado} onClick={() => accion('reanudar')}><Play size={13} aria-hidden />{activar ? tr('Activar') : tr('Reanudar')}</button>}
+          {(r.activa || r.deArbrain) && <button type="button" className={c.boton} disabled={ocupado} onClick={() => accion('probar')} title={r.activa ? tr('La corre una vez ahora, sin cambiar su horario') : tr('La corre una vez ahora para que veas su reporte; sigue en pausa')}><Zap size={13} aria-hidden />{r.activa ? tr('Probar ahora') : tr('Probar una vez')}</button>}
+          <button type="button" className={c.boton} disabled={ocupado} onClick={() => setBorrar(true)}><Trash2 size={13} aria-hidden />{tr('Borrar')}</button>
         </div>}
   </li>
 }
@@ -167,7 +169,7 @@ function NuevaRutina({ alTerminar }: { alTerminar: () => void }) {
   const guardar = async (e: React.FormEvent) => {
     e.preventDefault()
     const v = validarFormulario(f)
-    if (!v.ok) { setError(v.error); return }
+    if (!v.ok) { setError(tr(v.error)); return }
     setOcupado(true)
     const err = await pedir(URL_RUTINAS, { method: 'POST', body: JSON.stringify({ prompt: v.prompt, schedule: v.schedule }) })
     setOcupado(false)
@@ -178,33 +180,33 @@ function NuevaRutina({ alTerminar }: { alTerminar: () => void }) {
   const conHora = f.tipo === 'diario' || f.tipo === 'entre-semana' || f.tipo === 'semanal'
   return <form className={c.formulario} onSubmit={guardar}>
     <label className={c.campo}>
-      <span>¿Qué quieres que haga?</span>
-      <textarea rows={3} value={f.que} maxLength={2000} placeholder="Resúmeme mi día: lo que tengo en el calendario y mis pendientes." onChange={e => cambiar({ que: e.target.value })} autoFocus />
+      <span>{tr('¿Qué quieres que haga?')}</span>
+      <textarea rows={3} value={f.que} maxLength={2000} placeholder={tr('Resúmeme mi día: lo que tengo en el calendario y mis pendientes.')} onChange={e => cambiar({ que: e.target.value })} autoFocus />
     </label>
     <label className={c.campo}>
-      <span>¿Cuándo?</span>
+      <span>{tr('¿Cuándo?')}</span>
       <select value={f.tipo} onChange={e => cambiar({ tipo: e.target.value as Formulario['tipo'] })}>
-        {TIPOS_CUANDO.map(t => <option key={t.id} value={t.id}>{t.etiqueta}</option>)}
+        {TIPOS_CUANDO.map(t => <option key={t.id} value={t.id}>{tr(t.etiqueta)}</option>)}
       </select>
     </label>
     {f.tipo === 'semanal' && <label className={c.campo}>
-      <span>Día</span>
+      <span>{tr('Día')}</span>
       <select value={f.dia} onChange={e => cambiar({ dia: Number(e.target.value) })}>
-        {[1, 2, 3, 4, 5, 6, 0].map(d => <option key={d} value={d}>{DIAS_SEMANA[d]}</option>)}
+        {[1, 2, 3, 4, 5, 6, 0].map(d => <option key={d} value={d}>{tr(DIAS_SEMANA[d])}</option>)}
       </select>
     </label>}
     {conHora && <label className={c.campo}>
-      <span>Hora</span>
+      <span>{tr('Hora')}</span>
       <input type="time" value={f.hora} onChange={e => cambiar({ hora: e.target.value })} />
     </label>}
     {f.tipo === 'avanzado' && <label className={c.campo}>
-      <span>Cron (minuto hora día mes día-de-la-semana)</span>
+      <span>{tr('Cron (minuto hora día mes día-de-la-semana)')}</span>
       <input type="text" value={f.cron} placeholder="30 7 * * 1-5" spellCheck={false} onChange={e => cambiar({ cron: e.target.value })} />
     </label>}
     {error && <p className={c.error} role="alert">{error}</p>}
     <div className={c.botones}>
-      <button type="submit" className={c.nueva} disabled={ocupado}>{ocupado ? 'Creando…' : 'Crear rutina'}</button>
-      <button type="button" className={c.boton} disabled={ocupado} onClick={alTerminar}>Cancelar</button>
+      <button type="submit" className={c.nueva} disabled={ocupado}>{ocupado ? tr('Creando…') : tr('Crear rutina')}</button>
+      <button type="button" className={c.boton} disabled={ocupado} onClick={alTerminar}>{tr('Cancelar')}</button>
     </div>
   </form>
 }

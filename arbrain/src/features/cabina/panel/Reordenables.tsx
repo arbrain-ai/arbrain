@@ -13,6 +13,7 @@ import { GripVertical } from 'lucide-react'
 import { arrastrarFila } from './arrastre-lista'
 import { indiceCompleto, useOrdenTaller, type ListaTaller } from './orden-taller'
 import o from './reordenables.module.css'
+import { tr } from '@/shared/i18n'
 
 export interface Reordenable { id: string; nombre: string; nodo: ReactNode }
 
@@ -45,7 +46,7 @@ export function Reordenables({ lista, items, className }: { lista: ListaTaller; 
     caja.current?.querySelectorAll<HTMLElement>(':scope > [data-orden]').forEach(n => m.set(n.dataset.orden!, n.getBoundingClientRect()))
     antes.current = m
   }
-  const anunciar = (id: string, pos: number) => setAviso(`${porId.get(id)?.nombre ?? id}: ahora es la ${pos + 1} de ${visibles.length}.`)
+  const anunciar = (id: string, pos: number) => setAviso(tr('{nombre}: ahora es la {pos} de {total}.', { nombre: porId.get(id)?.nombre ?? id, pos: pos + 1, total: visibles.length }))
   const llevar = (id: string, destino: number) => { mover(id, indiceCompleto(orden, visibles, id, destino)); anunciar(id, destino) }
 
   return <div ref={caja} className={`${o.lista}${className ? ` ${className}` : ''}`}>
@@ -53,8 +54,8 @@ export function Reordenables({ lista, items, className }: { lista: ListaTaller; 
       const it = porId.get(id)!
       return <div key={id} data-orden={id} className={o.item}>
         <button type="button" className={o.manija} data-manija={id}
-          aria-label={`Mover «${it.nombre}» (${i + 1} de ${visibles.length}). Arrástrala o usa las flechas arriba y abajo.`}
-          title={`Agarra para mover «${it.nombre}»`}
+          aria-label={tr('Mover «{nombre}» ({pos} de {total}). Arrástrala o usa las flechas arriba y abajo.', { nombre: it.nombre, pos: i + 1, total: visibles.length })}
+          title={tr('Agarra para mover «{nombre}»', { nombre: it.nombre })}
           onPointerDown={e => { if (caja.current) arrastrarFila(e, { lista: caja.current, selector: ':scope > [data-orden]', desde: i, alSoltar: d => llevar(id, d) }) }}
           onKeyDown={e => {
             const a = e.key === 'ArrowUp' ? i - 1 : e.key === 'ArrowDown' ? i + 1 : e.key === 'Home' ? 0 : e.key === 'End' ? visibles.length - 1 : null

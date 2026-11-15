@@ -18,6 +18,7 @@ import { resolverRuta, rutaPermitida } from '@/features/cabina/documento/ruta'
 import { OCULTAS_SIEMPRE, sinEnlacesInternos, visible } from '@/features/cabina/explorador/arbol'
 import { raices } from './documento-server'
 import { dirConfigArbrain } from '@/lib/rutas-instalacion'
+import { tr } from '@/shared/i18n'
 
 export const ARCHIVO_CONFIG = () => path.join(dirConfigArbrain(), 'explorador.json')
 const VIDA_MS = 10_000
@@ -41,13 +42,13 @@ export async function raizExplorador(): Promise<Raiz> {
   const pedida = pedidaPorConfig()
   if (!pedida) return porDefecto
   const res = resolverRuta(pedida, r)
-  if ('error' in res) return { ...porDefecto, aviso: `La raíz configurada no se puede usar (${res.error}). Muestro el repo.` }
+  if ('error' in res) return { ...porDefecto, aviso: tr('La raíz configurada no se puede usar ({error}). Muestro el repo.', { error: res.error }) }
   try {
     const real = await realpath(res.abs)
-    if (rutaPermitida(real, r) && rutaPermitida(real, { ...r, repo })) return { ...porDefecto, aviso: 'La raíz configurada apunta fuera de lo permitido. Muestro el repo.' }
-    if (!(await stat(real)).isDirectory()) return { ...porDefecto, aviso: 'La raíz configurada no es una carpeta. Muestro el repo.' }
+    if (rutaPermitida(real, r) && rutaPermitida(real, { ...r, repo })) return { ...porDefecto, aviso: tr('La raíz configurada apunta fuera de lo permitido. Muestro el repo.') }
+    if (!(await stat(real)).isDirectory()) return { ...porDefecto, aviso: tr('La raíz configurada no es una carpeta. Muestro el repo.') }
     return { ruta: real, nombre: path.basename(real) }
-  } catch { return { ...porDefecto, aviso: 'La raíz configurada ya no existe. Muestro el repo.' } }
+  } catch { return { ...porDefecto, aviso: tr('La raíz configurada ya no existe. Muestro el repo.') } }
 }
 
 function git(raiz: string, args: string[]): Promise<string | null> {

@@ -1,5 +1,6 @@
 import { esEspacioClaude } from '@/shared/lib/espacios-chat'
 import { nombreModelo } from '@/shared/lib/uso-modelo'
+import { trMarca } from '@/shared/i18n'
 
 /**
  * Catálogo del selector de modelos (2 oct 2026). La verdad vive en el daemon (`/modelos/catalogo`): qué modelos
@@ -76,8 +77,8 @@ export function modelosDelSelector(c: Catalogo | null): { claude: ModeloCatalogo
 export function catalogoDeRespaldo(lista: Array<{ value: string; displayName: string; description?: string }>): Catalogo {
   const elegir = (re: RegExp) => lista.find(m => re.test(m.value) && /\[1m\]/.test(m.value)) ?? lista.find(m => re.test(m.value))
   const filas: Array<[RegExp, string, string, string]> = [
-    [/opus/i, 'opus-5.5', 'Opus 5.5', 'El más capaz para el trabajo de todos los días'],
-    [/sonnet/i, 'sonnet-5.5', 'Sonnet 5.5', 'Rápido para tareas de rutina'],
+    [/opus/i, 'opus-5.5', 'Opus 5.5', trMarca('El más capaz para el trabajo de todos los días')],
+    [/sonnet/i, 'sonnet-5.5', 'Sonnet 5.5', trMarca('Rápido para tareas de rutina')],
   ]
   const modelos = filas.flatMap(([re, id, nombre, descripcion]) => {
     const fila = elegir(re)

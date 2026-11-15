@@ -6,7 +6,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
 import {
-  ESQUEMA_MERCADO, fechaHumana, fraseRumbo, iniciales, leerMercado, lineaDe, marcaDe, nombreCorto, ocultarEnDirecto, ofertasDePago, RUTA_MERCADO, sinFirmar, titularDe, tramos, VISTAS,
+  ESQUEMA_MERCADO, fechaHumana, leerPedidoEstrategia, pedidoEstrategia, VIGENCIA_PEDIDO_MS, fraseRumbo, iniciales, leerMercado, lineaDe, marcaDe, nombreCorto, ocultarEnDirecto, ofertasDePago, RUTA_MERCADO, sinFirmar, titularDe, tramos, VISTAS,
 } from '../../src/features/negocio/estrategia'
 
 const raiz = (p: string) => new URL(`../../../${p}`, import.meta.url)
@@ -106,7 +106,7 @@ test('fechas humanas y ofertas de pago', () => {
 
 test('la tarjeta va en El pulso, encima de los seis órganos', () => {
   const src = leer('src/features/negocio/ElPulso.tsx')
-  const tarjeta = src.indexOf('<TarjetaEstrategia'), organos = src.indexOf('aria-label="Los seis órganos"')
+  const tarjeta = src.indexOf('<TarjetaEstrategia'), organos = src.search(/aria-label=(?:"Los seis órganos"|\{tr\('Los seis órganos'\)\})/)
   assert.ok(tarjeta > 0 && organos > tarjeta)
   const tarjeta_ = leer('src/features/negocio/TarjetaEstrategia.tsx')
   assert.match(tarjeta_, /Conecta tu investigación/)
@@ -212,4 +212,14 @@ test('v2: nada nace invisible (la captura de las 10:26 salió en blanco antes de
   for (const f of ['src/features/negocio/estrategia-panel.module.css', 'src/features/negocio/estrategia-seccion.module.css']) {
     for (const [, cuerpo] of leer(f).matchAll(/@keyframes\s+\w+\s*\{([^@]*?)\}\s*\}/g)) assert.doesNotMatch(cuerpo, /opacity:\s*0[;\s}]/, `${f}: un keyframe parte de opacidad 0`)
   }
+})
+
+test('el pedido de una tarjeta de Estrategia vale unos segundos y solo con una vista conocida (11 nov 2026)', () => {
+  const t = 1_762_870_000_000
+  assert.equal(leerPedidoEstrategia(pedidoEstrategia('decides', t), t + 500), 'decides')
+  // Una llave que nadie tomó no baja a una tarjeta días después.
+  assert.equal(leerPedidoEstrategia(pedidoEstrategia('decides', t), t + VIGENCIA_PEDIDO_MS), null)
+  assert.equal(leerPedidoEstrategia('decides', t), null)
+  assert.equal(leerPedidoEstrategia(`otra@${t}`, t), null)
+  assert.equal(leerPedidoEstrategia(null, t), null)
 })

@@ -13,6 +13,8 @@ import { MENSAJE_PAUSA, pausado, registrarEnCurso } from './cliente/pausa.js'
 import { modeloParaProveedor } from './cliente/proveedor.js'
 import { SeguidorMeta, EstadoMetas, estadoMetas, leerRevision, comandoMetaNativo, type VistaMeta } from './chat-runtime/meta-claude.js'
 import { esEdicionCliente } from './edicion.js'
+import { opcionesIdioma } from './idioma.js'
+import { tr } from './i18n/tr.js'
 import { modoPermisosSdk } from './cliente/permisos-sdk.js'
 import { esAutonomo } from './cliente/modo-permisos.js'
 import { entornoClaude } from './cliente/cofre.js'
@@ -408,14 +410,14 @@ export function errTextDeResultConError(sdkErrors: string[], result: unknown): s
 /** Texto para el dueño cuando un turno muere. El `[ede_diagnostic]` del SDK queda en el
  *  log (ops_events); en el chat se dice qué pasó y qué hacer. */
 export function mensajeDeTurnoMuerto(errText: string | undefined, subtype: string | undefined, porTecho: boolean): string {
-  if (porTecho) return 'El turno llegó al techo de tiempo configurado (ARBRAIN_TECHO_TURNO_MS) y se detuvo. Lo hecho hasta aquí quedó en disco; escribe «sigue» y Levy continúa desde donde quedó.'
+  if (porTecho) return tr('El turno llegó al techo de tiempo configurado (ARBRAIN_TECHO_TURNO_MS) y se detuvo. Lo hecho hasta aquí quedó en disco; escribe «sigue» y Levy continúa desde donde quedó.')
   if (errText && /\[ede_diagnostic\][^\n]*stop_reason=tool_use/.test(errText)) {
-    return 'El turno se cortó a media herramienta (el proceso del agente se detuvo antes de recibir el resultado). Lo hecho hasta aquí quedó en disco; escribe «sigue» y Levy continúa desde donde quedó.'
+    return tr('El turno se cortó a media herramienta (el proceso del agente se detuvo antes de recibir el resultado). Lo hecho hasta aquí quedó en disco; escribe «sigue» y Levy continúa desde donde quedó.')
   }
   if (errText && /more images than the limit/i.test(errText)) {
-    return 'Este modelo acepta máximo 4 imágenes por conversación y esta ya tiene más (capturas de pantalla incluidas). Abre un chat nuevo y pega ahí lo que necesitas; esta conversación ya no puede seguir con este modelo.'
+    return tr('Este modelo acepta máximo 4 imágenes por conversación y esta ya tiene más (capturas de pantalla incluidas). Abre un chat nuevo y pega ahí lo que necesitas; esta conversación ya no puede seguir con este modelo.')
   }
-  return errText ? `El turno murió del lado del agente: ${errText}` : `El turno terminó sin respuesta (${subtype ?? 'error'}).`
+  return errText ? tr('El turno murió del lado del agente: {error}', { error: errText }) : tr('El turno terminó sin respuesta ({tipo}).', { tipo: subtype ?? 'error' })
 }
 
 configurarBitacora(path.join(STORE_DIR, 'chrome-sitios.jsonl'))
@@ -453,9 +455,9 @@ export async function* runAgentStream(
     adopted?: { events: AsyncIterable<unknown>; interrupt: () => Promise<void>; bindCanUseTool: (fn: Options['canUseTool']) => void } },
 ): AsyncGenerator<SSEEvent> {
   // BYOK (empaquetado, 11 oct 2026; contrato §4): en la edición cliente, sin llave del alumno no se lanza el CLI.
-  if (faltaLlaveClaude()) { yield { type: 'error', message: MENSAJE_FALTA_LLAVE }; return }
+  if (faltaLlaveClaude()) { yield { type: 'error', message: tr(MENSAJE_FALTA_LLAVE) }; return }
   // «Pausar todo» (seguridad del alumno, 12 oct 2026): en pausa no arranca ningún turno. Daniel: nunca pausado.
-  if (esEdicionCliente() && pausado()) { yield { type: 'error', message: MENSAJE_PAUSA }; return }
+  if (esEdicionCliente() && pausado()) { yield { type: 'error', message: tr(MENSAJE_PAUSA) }; return }
   let turnResolvedModelId: string | null = null
   let turnContextWindowSize: number | null = null
   let turnContextTokens: number | null = null
@@ -475,7 +477,7 @@ export async function* runAgentStream(
   // el daemon heredara CLAUDE_CONFIG_DIR del entorno.
   const accountConfigDir = account ? accountConfigDirs()[account] : defaultAccountConfigDir()
   // Edición cliente: la cuenta alterna no existe; nunca se cae a otra carpeta en silencio.
-  if (account === 'bro' && !accountConfigDir) throw new Error(CUENTA_ALTERNA_NO_DISPONIBLE)
+  if (account === 'bro' && !accountConfigDir) throw new Error(tr(CUENTA_ALTERNA_NO_DISPONIBLE))
   // Edición cliente (contrato v2): llaves solo para el CLI y scrub para Bash/hooks/MCP (cliente/cofre.ts). Daniel: igual.
   const queryEnv: Record<string, string> = {
     ...entornoClaude(process.env, esEdicionCliente()),
@@ -487,7 +489,7 @@ export async function* runAgentStream(
   // Espacio «abliterated»: su endpoint, su token y su carpeta; ninguna credencial de Anthropic (lanza si falta la llave).
   const abliterated = esEspacioAbliterated(account) ? destinoAbliterated() : null
   if (abliterated) {
-    if (!accountConfigDir) throw new Error(CUENTA_ALTERNA_NO_DISPONIBLE)
+    if (!accountConfigDir) throw new Error(tr(CUENTA_ALTERNA_NO_DISPONIBLE))
     // abliteration.ai rechaza requests con más de 4 imágenes: el CLI pasa por un proxy local que deja las 4 recientes.
     const proxy = abliterated.destino === 'abliteration.ai' ? await urlProxyAbliterated(abliterated.baseUrl) : undefined
     const solo = entornoAbliterated(queryEnv, abliterated, proxy)
@@ -588,7 +590,7 @@ export async function* runAgentStream(
     try { const e = estadoLlaves(); proveedor = e.proveedor; openrouterGuardada = e.openrouter } catch { /* sin proveedor: texto genérico */ }
     logger.warn({ tipo: f.tipo, detalle: f.detalle.slice(0, 300), account }, 'turno cortado: la cuenta de la llave falló')
     opsLogger.log('agent_error', source, { error: f.detalle.slice(0, 300), subtype: f.tipo, account }, streamSessionId)
-    return { type: 'error' as const, message: mensajeFalloDeCuenta(f.tipo, proveedor, f.detalle, { openrouterGuardada }) }
+    return { type: 'error' as const, message: mensajeFalloDeCuenta(f.tipo, proveedor, f.detalle, { openrouterGuardada, tr }) }
   }
   const textoFalloCuenta = (texto: string): FalloDeCuenta | null => (esEdicionCliente() ? clasificarFalloDeCuenta({ texto }) : null)
   // La meta (`/goal`) de Claude, solo en turnos del chat (27 oct 2026, chat-runtime/meta-claude.ts). Que Daniel
@@ -627,6 +629,9 @@ export async function* runAgentStream(
     const modoSdk = modoPermisosSdk({ cliente: esEdicionCliente(), denyTools: !!denyTools, live: !!durable?.live, autonomo: esEdicionCliente() && esAutonomo() })
     const queryOptions: Options = {
         cwd: PROJECT_ROOT,
+        // Ajustes › Idioma (13 nov 2026): con English, una instrucción de sistema para contestar en inglés; con español,
+        // nada (la sesión de siempre). Ver idioma.ts.
+        ...opcionesIdioma(),
         // Cabina: las manos de Levy sobre la interfaz de Arbrain (vistas vivas y
         // navegación). Solo turnos del chat web (durable) y nunca en síntesis.
         // stdio = JSON puro: no rompe la firma del pool entre turnos.
@@ -1392,12 +1397,12 @@ export async function* runAgentStream(
     } else if (ac.signal.aborted) {
       yield { type: 'interrupt' }
     } else if (msg.includes('abort')) {
-      yield { type: 'error', message: 'Abortado.' }
+      yield { type: 'error', message: tr('Abortado.') }
     } else if (/usage policy|unable to respond to this request/i.test(msg)) {
       // Bloqueo duro de política de uso (ej. el clasificador de Fable no pudo
       // reencaminar y devolvió error en vez de delegar). Mensaje limpio en vez
       // del stack de API + Request ID (que igual queda en ops_events para debug).
-      yield { type: 'error', message: 'No puedo responder a eso: la petición viola la política de uso de Anthropic. Reformúlala o cambia de modelo.' }
+      yield { type: 'error', message: tr('No puedo responder a eso: la petición viola la política de uso de Anthropic. Reformúlala o cambia de modelo.') }
     } else {
       yield { type: 'error', message: msg }
     }
@@ -1472,6 +1477,8 @@ export async function runAgent(
       options: {
         cwd: PROJECT_ROOT,
         resume: sessionId,
+        // Rutinas en el idioma de Ajustes (13 nov 2026): lo que escriben (now.md, reportes, avisos) lo lee la persona.
+        ...opcionesIdioma(),
         // Cron skips user settings — ~/.claude/settings.json has
         // `permissions.allow: ["Bash(file:*)"]` which gates curl/python/gog/etc
         // behind manual approval, dead-ending non-interactive jobs. Skills
@@ -1624,9 +1631,9 @@ export async function runAgent(
     }, newSessionId)
     let wrapped: Error
     if (ac.signal.aborted || msg.includes('abort')) {
-      wrapped = new Error('Me tardé demasiado pensando. Intenta de nuevo con un mensaje más corto o haz /newchat.')
+      wrapped = new Error(tr('Me tardé demasiado pensando. Intenta de nuevo con un mensaje más corto o haz /newchat.'))
     } else if (msg.includes('timeout') || msg.includes('Timeout')) {
-      wrapped = new Error('Se agotó el tiempo de respuesta. Intenta de nuevo.')
+      wrapped = new Error(tr('Se agotó el tiempo de respuesta. Intenta de nuevo.'))
     } else {
       wrapped = err instanceof Error ? err : new Error(msg)
     }

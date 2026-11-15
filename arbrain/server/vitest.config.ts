@@ -13,9 +13,10 @@ export default defineConfig({
   test: {
     // La copia del alumno trae `arbrain/EDICION` = cliente (carril O): sin esto, sus pruebas correrían como cliente y
     // las que describen la instalación original fallarían. Las pruebas fijan su edición; la variable del que corre manda.
+    // Idioma (13 nov 2026): las pruebas describen los textos en español aunque la máquina tenga English en Ajustes.
     // La política de autonomía real de quien corre las pruebas no entra (sin archivo, rige el preset de la edición) y una
     // tarjeta de prueba nunca llega al daemon real por su `.env` (ARBRAIN_TOQUE_SIN_ENV).
-    env: { ARBRAIN_EDICION: process.env.ARBRAIN_EDICION || 'original', ARBRAIN_POLITICA_AUTONOMIA: join(tmpdir(), 'arbrain-pruebas-sin-politica', 'politica.json'), ARBRAIN_HECHO_SOLO_DIR: join(tmpdir(), 'arbrain-pruebas-hecho-solo'), ARBRAIN_TOQUE_SIN_ENV: '1' },
+    env: { ARBRAIN_EDICION: process.env.ARBRAIN_EDICION || 'original', ARBRAIN_IDIOMA: process.env.ARBRAIN_IDIOMA || 'es', ARBRAIN_POLITICA_AUTONOMIA: join(tmpdir(), 'arbrain-pruebas-sin-politica', 'politica.json'), ARBRAIN_HECHO_SOLO_DIR: join(tmpdir(), 'arbrain-pruebas-hecho-solo'), ARBRAIN_TOQUE_SIN_ENV: '1' },
     exclude: [...configDefaults.exclude, ...(WEB_INSTALADA ? [] : PRUEBAS_CON_WEB)],
   },
   // PostCSS en línea (vacío): sin esto Vite busca `arbrain/postcss.config.js` y exige las dependencias de la web

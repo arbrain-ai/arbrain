@@ -29,6 +29,7 @@ import { inputArchivo, planApertura } from '../explorador/abrir'
 import { carpetaDeFoco } from '../explorador/abrir-carpeta'
 import l from '../luz.module.css'
 import x from './explorador.module.css'
+import { localeIntl, tr, trn } from '@/shared/i18n'
 
 const URL_BASE = '/api/cabina/explorador'
 const urlDir = (dir: string) => `${URL_BASE}?dir=${encodeURIComponent(dir)}`
@@ -38,7 +39,7 @@ const URL_ABRIR = `${URL_BASE}/abrir`
 /** Cómo se llama el gestor de archivos aquí (solo para el texto: el servidor decide el comando). */
 function nombreGestor(): string {
   const ua = typeof navigator === 'undefined' ? '' : navigator.userAgent
-  return /Windows/i.test(ua) ? 'el Explorador' : /Mac OS X|Macintosh/i.test(ua) ? 'el Finder' : 'el gestor de archivos'
+  return /Windows/i.test(ua) ? tr('el Explorador') : /Mac OS X|Macintosh/i.test(ua) ? tr('el Finder') : tr('el gestor de archivos')
 }
 
 /** Pide al servidor abrir `dir` (relativa a la raíz) en el gestor de archivos del sistema. Devuelve el error en una línea, o null. */
@@ -47,8 +48,8 @@ async function abrirCarpeta(dir: string): Promise<string | null> {
     const r = await fetch(URL_ABRIR, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dir }) })
     if (r.ok) return null
     const j = await r.json().catch(() => null) as { error?: string } | null
-    return j?.error ?? `No se pudo abrir la carpeta (código ${r.status}).`
-  } catch { return 'No se pudo abrir la carpeta: el servidor no respondió.' }
+    return j?.error ?? tr('No se pudo abrir la carpeta (código {codigo}).', { codigo: r.status })
+  } catch { return tr('No se pudo abrir la carpeta: el servidor no respondió.') }
 }
 
 interface Carpeta { raiz: { nombre: string; ruta: string }; total: number; deGit: boolean; aviso?: string; dir: string; abs: string; entradas: Entrada[] }
@@ -58,7 +59,7 @@ interface Busqueda { consulta: string; resultados: Resultado[]; total: number }
 const ICONO: Record<Clase, typeof File> = {
   md: FileText, texto: FileText, codigo: FileCode2, datos: FileJson, config: FileCog, imagen: FileImage, video: FileVideo, audio: FileAudio, pdf: FileType2, html: Globe, otro: File,
 }
-const entero = (n: number) => Math.round(n).toLocaleString('es-MX')
+const entero = (n: number) => Math.round(n).toLocaleString(localeIntl())
 
 // ── Lo abierto, por raíz, en este dispositivo ──
 function leerAbiertas(raiz: string): Set<string> {
@@ -159,7 +160,7 @@ export function VistaExplorador({ grande }: { grande?: boolean }) {
   const abrirEnSistema = async () => {
     const dir = carpetaVista(), nombre = dir ? dir.split('/').pop() : raiz?.raiz.nombre
     const error = await abrirCarpeta(dir)
-    setAvisoAbrir(error ? { texto: error, error: true } : { texto: `«${nombre}» abierta en ${nombreGestor()}.` })
+    setAvisoAbrir(error ? { texto: error, error: true } : { texto: tr('«{nombre}» abierta en {gestor}.', { nombre, gestor: nombreGestor() }) })
   }
   useEffect(() => { if (!avisoAbrir) return; const t = setTimeout(() => setAvisoAbrir(null), avisoAbrir.error ? 8000 : 3500); return () => clearTimeout(t) }, [avisoAbrir])
 
@@ -204,38 +205,38 @@ export function VistaExplorador({ grande }: { grande?: boolean }) {
   return <div className={x.explorador} data-grande={grande || undefined} onKeyDown={teclaRaiz}>
     <header className={`${x.cabeza} ${mov.entra}`} style={escalon(0)}>
       <div className={x.cabezaFila}>
-        <p className={l.ceja}>Archivos · <b>{raiz?.raiz.nombre ?? '…'}</b></p>
+        <p className={l.ceja}>{tr('Archivos')} · <b>{raiz?.raiz.nombre ?? '…'}</b></p>
         <span className={x.acciones}>
-          {actualRel && <button className={x.accion} onClick={() => revelar(actualRel)} title="Ubicar en el árbol el archivo que tienes abierto" aria-label="Ubicar el archivo abierto"><Crosshair size={14} aria-hidden /></button>}
-          <button className={x.accion} onClick={plegarTodo} disabled={!abiertas.size} title="Plegar todas las carpetas" aria-label="Plegar todo"><ChevronsDownUp size={14} aria-hidden /></button>
-          <button className={x.accion} onClick={() => { void releer(urlDir('')); for (const d of abiertas) void releer(urlDir(d)) }} title="Volver a leer el disco" aria-label="Recargar"><RefreshCw size={13} aria-hidden /></button>
+          {actualRel && <button className={x.accion} onClick={() => revelar(actualRel)} title={tr('Ubicar en el árbol el archivo que tienes abierto')} aria-label={tr('Ubicar el archivo abierto')}><Crosshair size={14} aria-hidden /></button>}
+          <button className={x.accion} onClick={plegarTodo} disabled={!abiertas.size} title={tr('Plegar todas las carpetas')} aria-label={tr('Plegar todo')}><ChevronsDownUp size={14} aria-hidden /></button>
+          <button className={x.accion} onClick={() => { void releer(urlDir('')); for (const d of abiertas) void releer(urlDir(d)) }} title={tr('Volver a leer el disco')} aria-label={tr('Recargar')}><RefreshCw size={13} aria-hidden /></button>
         </span>
       </div>
       <div className={x.totalFila}>
         <p className={x.total}>
-          {raiz ? <><b><Cifra valor={raiz.total} clave={`explorador-${raiz.raiz.ruta}`} formato={entero} /></b> {raiz.total === 1 ? 'archivo' : 'archivos'}{raiz.deGit ? ' · respeta .gitignore' : ''}</> : ' '}
+          {raiz ? <><b><Cifra valor={raiz.total} clave={`explorador-${raiz.raiz.ruta}`} formato={entero} /></b> {raiz.total === 1 ? tr('archivo') : tr('archivos')}{raiz.deGit ? ` · ${tr('respeta .gitignore')}` : ''}</> : ' '}
         </p>
         {/* En la fila de la cuenta y con su nombre: es la salida al Explorer o al Finder; en la cabecera no cabía en un panel angosto. */}
         <button className={`${x.accion} ${x.accionTexto}`} onClick={() => void abrirEnSistema()} disabled={!raiz}
-          title={`Abrir en ${nombreGestor()} la carpeta que estás viendo (la de la fila elegida, o la raíz)`} aria-label="Abrir carpeta en el gestor de archivos">
-          <FolderOutput size={14} aria-hidden /><span>Abrir carpeta</span>
+          title={tr('Abrir en {gestor} la carpeta que estás viendo (la de la fila elegida, o la raíz)', { gestor: nombreGestor() })} aria-label={tr('Abrir carpeta en el gestor de archivos')}>
+          <FolderOutput size={14} aria-hidden /><span>{tr('Abrir carpeta')}</span>
         </button>
       </div>
       <label className={x.buscador}>
         <Search size={14} aria-hidden />
-        <input ref={buscador} value={consulta} onChange={e => setConsulta(e.target.value)} placeholder="Buscar por nombre" spellCheck={false} aria-label="Buscar archivos por nombre"
+        <input ref={buscador} value={consulta} onChange={e => setConsulta(e.target.value)} placeholder={tr('Buscar por nombre')} spellCheck={false} aria-label={tr('Buscar archivos por nombre')}
           onKeyDown={e => {
             if (e.key === 'Escape' && consulta) { e.preventDefault(); e.stopPropagation(); setConsulta('') }
             else if (e.key === 'ArrowDown') { e.preventDefault(); arbol.current?.querySelector<HTMLElement>('[data-fila]')?.focus() }
             else if (e.key === 'Enter') { e.preventDefault(); arbol.current?.querySelector<HTMLElement>('[data-fila]')?.click() }
           }} />
-        {consulta ? <button className={x.limpiar} onClick={() => { setConsulta(''); buscador.current?.focus() }} aria-label="Limpiar la búsqueda"><X size={13} aria-hidden /></button> : <kbd className={x.tecla}>/</kbd>}
+        {consulta ? <button className={x.limpiar} onClick={() => { setConsulta(''); buscador.current?.focus() }} aria-label={tr('Limpiar la búsqueda')}><X size={13} aria-hidden /></button> : <kbd className={x.tecla}>/</kbd>}
       </label>
       {raiz?.aviso && <p className={`${l.aviso} ${mov.aparece}`}>{raiz.aviso}</p>}
       {avisoAbrir && <p className={`${x.avisoAbrir} ${mov.aparece}`} data-error={avisoAbrir.error || undefined} role="status">{avisoAbrir.texto}</p>}
     </header>
 
-    <div ref={arbol} className={x.arbol} role="tree" aria-label={`Archivos de ${raiz?.raiz.nombre ?? 'la raíz'}`}>
+    <div ref={arbol} className={x.arbol} role="tree" aria-label={tr('Archivos de {nombre}', { nombre: raiz?.raiz.nombre ?? tr('la raíz') })}>
       {!raiz ? <Cargando error={raizLectura.error} />
         : consulta.trim() ? <Resultados consulta={consulta} raiz={raiz.raiz.ruta} enPanel={enPanel} actual={actual} onCarpeta={rel => revelar(rel, true)} onTecla={(e, el) => {
           if (e.key === 'ArrowDown') { e.preventDefault(); moverFoco(el, 1) } else if (e.key === 'ArrowUp') { e.preventDefault(); const filas = arbol.current?.querySelectorAll('[data-fila]'); if (filas?.[0] === el) buscador.current?.focus(); else moverFoco(el, -1) }
@@ -243,13 +244,13 @@ export function VistaExplorador({ grande }: { grande?: boolean }) {
         : <Nivel dir="" nivel={1} entradas={raiz.entradas} raiz={raiz.raiz.ruta} abiertas={abiertas} alternar={alternar} foco={foco ?? raiz.entradas[0]?.ruta ?? null} setFoco={setFoco}
           enPanel={enPanel} actual={actual} teclaFila={teclaFila} />}
     </div>
-    <p className={x.pie}>Un clic abre la vista previa · doble clic la deja fija · solo lectura para el código</p>
+    <p className={x.pie}>{tr('Un clic abre la vista previa · doble clic la deja fija · solo lectura para el código')}</p>
   </div>
 }
 
 function Cargando({ error }: { error?: string }) {
-  if (error) return <p className={`${l.aviso} ${mov.aparece}`}>No pude leer los archivos: {error}</p>
-  return <div className={x.cargando} aria-label="Leyendo los archivos"><span /><span /><span /><span /><span /></div>
+  if (error) return <p className={`${l.aviso} ${mov.aparece}`}>{tr('No pude leer los archivos: {error}', { error })}</p>
+  return <div className={x.cargando} aria-label={tr('Leyendo los archivos')}><span /><span /><span /><span /><span /></div>
 }
 
 interface PropsNivel {
@@ -260,7 +261,7 @@ interface PropsNivel {
 
 /** Las filas de una carpeta; cada subcarpeta abierta pide lo suyo al servidor (perezoso) y se pinta debajo. */
 function Nivel(p: PropsNivel) {
-  if (!p.entradas.length) return <p className={x.vacio} style={{ ['--nivel' as string]: p.nivel }}>Carpeta vacía</p>
+  if (!p.entradas.length) return <p className={x.vacio} style={{ ['--nivel' as string]: p.nivel }}>{tr('Carpeta vacía')}</p>
   return <>{p.entradas.map((ent, k) => <Rama key={ent.ruta} {...p} ent={ent} k={k} />)}</>
 }
 
@@ -281,7 +282,7 @@ function Hijos(p: Omit<PropsNivel, 'entradas'>) {
   return <div role="group" className={x.grupo} style={{ ['--nivel' as string]: p.nivel }}>
     {data ? <Nivel {...p} entradas={data.entradas} />
       : error ? <p className={x.vacio} style={{ ['--nivel' as string]: p.nivel }}>{error}</p>
-      : <p className={`${x.vacio} ${x.leyendo}`} style={{ ['--nivel' as string]: p.nivel }}>Leyendo…</p>}
+      : <p className={`${x.vacio} ${x.leyendo}`} style={{ ['--nivel' as string]: p.nivel }}>{tr('Leyendo…')}</p>}
   </div>
 }
 
@@ -299,11 +300,11 @@ function Fila({ ent, nivel, k, abierta, enfocable, enPanel, actual, onClick, onD
     data-fila={ent.ruta} data-tipo={ent.tipo} data-actual={actual || undefined} data-en-panel={enPanel || undefined}
     aria-level={nivel} aria-expanded={ent.tipo === 'carpeta' ? abierta : undefined} aria-selected={actual}
     tabIndex={enfocable ? 0 : -1} onClick={onClick} onDoubleClick={onDoble} onKeyDown={onTecla} onFocus={onFoco}
-    title={ent.tipo === 'carpeta' ? `${ent.ruta} · ${ent.n ?? 0} archivos` : ent.ruta}>
+    title={ent.tipo === 'carpeta' ? `${ent.ruta} · ${tr('{n} archivos', { n: ent.n ?? 0 })}` : ent.ruta}>
     <span className={x.chevron} data-abierta={abierta || undefined} aria-hidden>{ent.tipo === 'carpeta' && <ChevronRight size={13} />}</span>
     <IconoEntrada ent={ent} abierta={abierta} />
     <span className={x.nombre}>{ent.nombre}</span>
-    {ent.tipo === 'carpeta' ? <small className={x.cuenta}>{ent.n?.toLocaleString('es-MX')}</small> : enPanel && <i className={x.punto} aria-label="abierto en el panel" />}
+    {ent.tipo === 'carpeta' ? <small className={x.cuenta}>{ent.n?.toLocaleString(localeIntl())}</small> : enPanel && <i className={x.punto} aria-label={tr('abierto en el panel')} />}
   </button>
 }
 
@@ -318,10 +319,10 @@ function Resultados({ consulta, raiz, enPanel, actual, onCarpeta, onTecla }: {
   const lista = data && data.consulta === q ? data : null
   if (error && !lista) return <p className={l.aviso}>{error}</p>
   if (!lista) return <Cargando />
-  if (!lista.resultados.length) return <p className={x.sinNada}>Nada se llama «{q}».</p>
+  if (!lista.resultados.length) return <p className={x.sinNada}>{tr('Nada se llama «{consulta}».', { consulta: q })}</p>
   const n = lista.resultados.length
   return <>
-    <p className={x.cuantos}>{n < lista.total ? `Los ${n} más cercanos de ${lista.total.toLocaleString('es-MX')}` : `${n} ${n === 1 ? 'resultado' : 'resultados'}`}</p>
+    <p className={x.cuantos}>{n < lista.total ? tr('Los {n} más cercanos de {total}', { n, total: lista.total.toLocaleString(localeIntl()) }) : trn(n, '{n} resultado', '{n} resultados')}</p>
     {lista.resultados.map((r, k) => {
       const abs = absoluta(raiz, r.ruta), carpeta = r.ruta.includes('/') ? r.ruta.slice(0, r.ruta.lastIndexOf('/')) : ''
       return <button key={r.ruta} type="button" role="treeitem" aria-level={1} className={`${x.fila} ${x.resultado} ${mov.entra}`} style={{ ...escalon(Math.min(k, 10)), ['--nivel' as string]: 1 }}

@@ -3,6 +3,7 @@
 // ayuda» con «Reintentar». Lo pinta la ventana leyendo la app nativa por IPC (`salud_app`, src-tauri/src/lib.rs), así
 // funciona aunque el servidor web o el motor estén caídos. En la instalación original el comando no existe: no pinta.
 import { useEffect, useState } from 'react'
+import { tr } from '@/shared/i18n'
 
 type SaludApp = { estado: 'ok' | 'reparando' | 'ayuda'; mensaje: string | null; accion: 'reintentar' | null }
 
@@ -34,11 +35,11 @@ export function EstadoArbrain() {
   return <div role={ayuda ? 'alert' : 'status'} data-estado-arbrain={salud.estado}
     className={`fixed left-1/2 top-3 z-[100] flex max-w-[min(42rem,calc(100vw-2rem))] -translate-x-1/2 items-center gap-3 rounded-xl border px-4 py-2.5 text-[13px] shadow-lg backdrop-blur-xl ${ayuda ? 'border-red-400/40 bg-red-950/70 text-red-100' : 'border-border-subtle bg-[var(--glass-bg)] text-foreground'}`}>
     {!ayuda && <span aria-hidden className="h-3 w-3 shrink-0 rounded-full border-2 border-brand/30 border-t-brand motion-safe:animate-spin" />}
-    <span>{salud.mensaje}</span>
+    <span>{tr(salud.mensaje)}</span>
     {salud.accion === 'reintentar' && <button type="button" disabled={reintentando}
       className="min-h-9 shrink-0 rounded-lg border border-current/40 px-3 disabled:opacity-50"
       onClick={() => { setReintentando(true); void invocar('salud_reintentar').catch(() => {}).finally(() => setTimeout(() => setReintentando(false), 3_000)) }}>
-      {reintentando ? 'Reintentando…' : 'Reintentar'}
+      {reintentando ? tr('Reintentando…') : tr('Reintentar')}
     </button>}
   </div>
 }

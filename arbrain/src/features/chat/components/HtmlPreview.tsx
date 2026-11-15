@@ -1,4 +1,5 @@
 'use client'
+import { tr } from '@/shared/i18n'
 import { memo, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
@@ -78,8 +79,8 @@ function CopyBtn({ code }: { code: string }) {
       className="hidden sm:flex items-center gap-1 text-[10px] text-muted/70 hover:text-foreground/70 transition-colors"
     >
       {copied
-        ? <><Check size={11} className="text-gold-dark dark:text-gold-bright" /><span className="text-gold-dark dark:text-gold-bright">Copiado</span></>
-        : <><Copy size={11} /><span>Copiar</span></>
+        ? <><Check size={11} className="text-gold-dark dark:text-gold-bright" /><span className="text-gold-dark dark:text-gold-bright">{tr('Copiado')}</span></>
+        : <><Copy size={11} /><span>{tr('Copiar')}</span></>
       }
     </button>
   )
@@ -104,7 +105,7 @@ function FullscreenHtml({ srcDoc, onClose }: { srcDoc: string; onClose: () => vo
       >
         <div className="flex items-center gap-2 text-muted">
           <AppWindow size={14} className="text-violet-400" />
-          <span className="text-xs font-medium">Vista HTML</span>
+          <span className="text-xs font-medium">{tr('Vista HTML')}</span>
         </div>
         <button
           onClick={onClose}
@@ -116,7 +117,7 @@ function FullscreenHtml({ srcDoc, onClose }: { srcDoc: string; onClose: () => vo
       <iframe
         srcDoc={srcDoc}
         sandbox="allow-scripts"
-        title="Vista HTML"
+        title={tr('Vista HTML')}
         className="flex-1 w-full border-0 bg-[var(--l-gris-2,#0d0d12)]"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       />
@@ -173,10 +174,10 @@ export const HtmlPreview = memo(function HtmlPreview({ code }: { code: string })
           <button
             onClick={() => setView((v) => (v === 'vista' ? 'codigo' : 'vista'))}
             className="flex items-center gap-1 p-2.5 sm:p-1 rounded-lg hover:bg-card-active text-muted/70 hover:text-foreground/70 transition-colors active:scale-90"
-            title={view === 'vista' ? 'Ver código' : 'Ver render'}
+            title={view === 'vista' ? tr('Ver código') : tr('Ver render')}
           >
             {view === 'vista' ? <Code2 size={13} /> : <Eye size={13} />}
-            <span className="text-[10px] hidden sm:inline">{view === 'vista' ? 'Código' : 'Vista'}</span>
+            <span className="text-[10px] hidden sm:inline">{view === 'vista' ? tr('Código') : tr('Vista')}</span>
           </button>
           <div className="w-px h-3 bg-card-active mx-0.5 sm:mx-1 hidden sm:block" />
           <CopyBtn code={code} />
@@ -185,7 +186,7 @@ export const HtmlPreview = memo(function HtmlPreview({ code }: { code: string })
             onClick={() => { setEncendida(true); setFullscreen(true) }}
             disabled={!srcDoc}
             className="p-2.5 sm:p-1 rounded-lg hover:bg-card-active text-muted/70 hover:text-foreground/70 transition-colors active:scale-90 disabled:opacity-30"
-            title="Pantalla completa"
+            title={tr('Pantalla completa')}
           >
             <Maximize2 size={13} />
           </button>
@@ -199,15 +200,15 @@ export const HtmlPreview = memo(function HtmlPreview({ code }: { code: string })
             className={`w-full ${IFRAME_H} bg-[var(--l-gris-2,#0d0d12)] flex flex-col items-center justify-center gap-2 px-6 text-center text-muted/70 hover:text-muted transition-colors`}
           >
             <AppWindow size={20} className="text-violet-400/50" />
-            <span className="text-[12px] font-medium">Vista con código · toca para ejecutarla</span>
-            <span className="text-[11px] text-muted/60 max-w-sm">Ejecútala si tú la pediste. Corre aislada y sin internet; puedes ver su código antes con «Código».</span>
+            <span className="text-[12px] font-medium">{tr('Vista con código · toca para ejecutarla')}</span>
+            <span className="text-[11px] text-muted/60 max-w-sm">{tr('Ejecútala si tú la pediste. Corre aislada y sin internet; puedes ver su código antes con «Código».')}</span>
           </button>
         ) : srcDoc ? (
           near ? (
             <iframe
               srcDoc={srcDoc}
               sandbox="allow-scripts"
-              title="Vista HTML"
+              title={tr('Vista HTML')}
               className={`w-full ${IFRAME_H} border-0 bg-[var(--l-gris-2,#0d0d12)]`}
             />
           ) : (
@@ -218,12 +219,12 @@ export const HtmlPreview = memo(function HtmlPreview({ code }: { code: string })
               className={`w-full ${IFRAME_H} bg-[var(--l-gris-2,#0d0d12)] flex flex-col items-center justify-center gap-2 text-muted/60 hover:text-muted/80 transition-colors`}
             >
               <AppWindow size={20} className="text-violet-400/40" />
-              <span className="text-[11px]">Vista en pausa · toca o acércate para verla</span>
+              <span className="text-[11px]">{tr('Vista en pausa · toca o acércate para verla')}</span>
             </button>
           )
         ) : (
           <div className="h-[120px] flex items-center justify-center text-xs text-muted/70">
-            Preparando vista…
+            {tr('Preparando vista…')}
           </div>
         )
       ) : (

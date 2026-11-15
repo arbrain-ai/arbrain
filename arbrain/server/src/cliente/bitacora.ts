@@ -10,6 +10,7 @@
  * (`MAX_FILAS`) y lo de los últimos `DIAS_RETENCION` días.
  */
 import type Database from 'better-sqlite3'
+import { tr } from '../i18n/tr.js'
 
 export type DecisionBitacora = 'hecho' | 'confirmado' | 'rechazado' | 'vencido' | 'sin_respuesta' | 'negado' | 'pausado'
 
@@ -56,8 +57,8 @@ export function queDe(herramienta: string, input: unknown): string {
   if (typeof i.command === 'string') que = i.command
   else if (typeof i.url === 'string') que = i.url
   else if (ruta) {
-    const tam = typeof i.content === 'string' ? ` (${i.content.length} caracteres)` : typeof i.new_string === 'string' ? ' (edición)' : ''
-    que = `${ruta}${tam}`
+    // Idioma: «Lo que hizo Levy» pinta `que` tal cual; el tamaño va en el idioma de Ajustes al anotarse.
+    que = typeof i.content === 'string' ? tr('{ruta} ({n} caracteres)', { ruta, n: i.content.length }) : typeof i.new_string === 'string' ? tr('{ruta} (edición)', { ruta }) : ruta
   } else {
     const { content: _c, ...resto } = i
     que = JSON.stringify(resto)

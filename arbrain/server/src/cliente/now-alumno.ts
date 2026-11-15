@@ -29,7 +29,8 @@ import { createHash } from 'node:crypto'
 import { existsSync, readdirSync, readFileSync, renameSync, unlinkSync, watch, writeFileSync, type FSWatcher } from 'node:fs'
 import { join } from 'node:path'
 import { esEdicionCliente } from '../edicion.js'
-import { leerFuentes, sincronizarFuentes, type Dependencias, type Fuentes, type Lectura } from './now-fuentes.js'
+import { leerFuentes, sincronizarFuentes, type Dependencias, type Fuentes, type Lectura, type Motivo } from './now-fuentes.js'
+import { idiomaActual, tr, trMarca } from '../i18n/tr.js'
 
 export const RUTA_NOW = '.claude/now.md'
 const RUTA_CAL = '.claude/plan/calendario.json'
@@ -79,8 +80,15 @@ const esDia = (s: unknown): s is string => typeof s === 'string' && /^\d{4}-\d{2
 const dow = (d: string) => new Date(`${d}T12:00:00Z`).getUTCDay()
 const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
-const diaLargo = (d: string) => `${DIAS[dow(d)]} ${Number(d.slice(8))} de ${MESES[Number(d.slice(5, 7)) - 1]} ${d.slice(0, 4)}`
-const diaCorto = (d: string) => `${DIAS[dow(d)].slice(0, 3)} ${Number(d.slice(8))}`
+// Idioma (13 nov 2026): con English, los nombres de días y meses salen de Intl. `MESES` en español sigue leyendo
+// objetivos.md (`## Noviembre 2026`) y armando el sello «Generado por Arbrain el…», que lee agenda-context.py.
+const enIngles = () => idiomaActual() === 'en'
+const fechaEn = (d: string, o: Intl.DateTimeFormatOptions) => new Date(`${d}T12:00:00Z`).toLocaleDateString('en-US', { ...o, timeZone: 'UTC' })
+const diaLargo = (d: string) => enIngles() ? fechaEn(d, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : `${DIAS[dow(d)]} ${Number(d.slice(8))} de ${MESES[Number(d.slice(5, 7)) - 1]} ${d.slice(0, 4)}`
+const diaCorto = (d: string) => enIngles() ? `${fechaEn(d, { weekday: 'short' })} ${Number(d.slice(8))}` : `${DIAS[dow(d)].slice(0, 3)} ${Number(d.slice(8))}`
+/** «sáb 31» en español; «Sat 31» en inglés (allá los días van con mayúscula). */
+const diaCortoEnFrase = (d: string) => enIngles() ? diaCorto(d) : diaCorto(d).toLowerCase()
+const mesCorto = (d: string) => enIngles() ? fechaEn(d, { month: 'short' }) : MESES[Number(d.slice(5, 7)) - 1].slice(0, 3)
 const horaCorta = (t: number, tz: string) => paredEn(new Date(t), tz).hora.slice(0, 5)
 
 // ── Lectura tolerante ──────────────────────────────────────────────────────────────────────────────────────────────
@@ -141,7 +149,7 @@ export function eventosEntre(cal: Record<string, unknown> | null, desde: string,
   for (const crudo of eventos) {
     if (!crudo || typeof crudo !== 'object' || Array.isArray(crudo)) continue
     const o = crudo as Record<string, unknown>
-    const titulo = linea(primero(o, 'titulo', 'title', 'nombre', 'summary'), 80) || 'Sin título'
+    const titulo = linea(primero(o, 'titulo', 'title', 'nombre', 'summary'), 80) || tr('Sin título')
     const ini = primero(o, 'inicio', 'start', 'desde', 'fecha'), finC = primero(o, 'fin', 'end', 'hasta')
     if (typeof ini !== 'string') continue
     const zona = zonaValida(o.zona) ? o.zona : zonaCal
@@ -184,8 +192,8 @@ function tareasPendientes(cal: Record<string, unknown> | null, tz: string): Tare
     const t = crudo as Record<string, unknown>
     if (t.hecha === true || typeof t.fecha !== 'string') continue
     const f = t.fecha.trim()
-    if (esDia(f)) out.push({ titulo: linea(t.titulo, 80) || 'Sin título', dia: f, hora: null })
-    else if (!Number.isNaN(Date.parse(f))) { const w = paredEn(new Date(Date.parse(f)), tz); out.push({ titulo: linea(t.titulo, 80) || 'Sin título', dia: w.dia, hora: w.hora.slice(0, 5) }) }
+    if (esDia(f)) out.push({ titulo: linea(t.titulo, 80) || tr('Sin título'), dia: f, hora: null })
+    else if (!Number.isNaN(Date.parse(f))) { const w = paredEn(new Date(Date.parse(f)), tz); out.push({ titulo: linea(t.titulo, 80) || tr('Sin título'), dia: w.dia, hora: w.hora.slice(0, 5) }) }
   }
   return out.sort((a, b) => (a.dia + (a.hora ?? '')).localeCompare(b.dia + (b.hora ?? '')))
 }
@@ -197,7 +205,7 @@ function tareasTodoist(f: Fuentes, tz: string): TareaVista[] {
   const out: TareaVista[] = []
   for (const t of f.todoist?.datos ?? []) {
     const fecha = t.fecha.replace(/\.\d+(?=Z|[+-]\d{2}:?\d{2}$|$)/i, '')
-    const titulo = linea(t.titulo, 80) || 'Sin título'
+    const titulo = linea(t.titulo, 80) || tr('Sin título')
     if (esDia(fecha)) { out.push({ titulo, dia: fecha, hora: null, origen: 'todoist' }); continue }
     const ms = instanteLibre(fecha, tz)
     if (Number.isNaN(ms)) continue
@@ -217,20 +225,28 @@ function sinRepetir(e: Ocurrencia[]): Ocurrencia[] {
  * Líneas de estado de las fuentes conectadas. Sin hora mientras están al día (el archivo no cambia cada 20 minutos);
  * con la fecha de la última lectura buena cuando una falla: esa fecha tampoco se mueve mientras dure la falla.
  */
+/** Los motivos de falla son identificadores (now-fuentes.ts › Motivo); a la persona le llegan traducidos. */
+const MOTIVO_VISTA: Record<Motivo, string> = {
+  'tiempo agotado': trMarca('tiempo agotado'), 'no respondió': trMarca('no respondió'),
+  'llave rechazada': trMarca('llave rechazada'), 'respuesta ilegible': trMarca('respuesta ilegible'),
+}
+const motivoVista = (m: Motivo) => tr(MOTIVO_VISTA[m] ?? m)
+
 function lineasFuentes(f: Fuentes, tz: string): string[] {
   const cuando = (iso: string | null) => {
-    if (!iso) return 'todavía sin una lectura buena'
+    if (!iso) return tr('todavía sin una lectura buena')
     const w = paredEn(new Date(iso), tz)
-    return `muestro lo último bueno, del ${diaCorto(w.dia).toLowerCase()} ${MESES[Number(w.dia.slice(5, 7)) - 1].slice(0, 3)}, ${w.hora.slice(0, 5)}`
+    return tr('muestro lo último bueno, del {dia} {mes}, {hora}', { dia: diaCortoEnFrase(w.dia), mes: mesCorto(w.dia), hora: w.hora.slice(0, 5) })
   }
   const alDia: string[] = [], fallas: string[] = []
   const cuentas = Object.entries(f.google), ok = cuentas.filter(([, l]) => !l.fallo).length
-  if (ok) alDia.push(`Google Calendar${cuentas.length === 1 ? '' : ok === cuentas.length ? ` (${ok} cuentas)` : ` (${ok} de ${cuentas.length} cuentas)`}`)
-  for (const [correo, l] of cuentas) if (l.fallo) fallas.push(`> Google Calendar (${linea(correo, 80)}): ${l.fallo}; ${cuando(l.leido)}.`)
+  if (ok) alDia.push(cuentas.length === 1 ? 'Google Calendar' : ok === cuentas.length ? tr('Google Calendar ({n} cuentas)', { n: ok }) : tr('Google Calendar ({ok} de {total} cuentas)', { ok, total: cuentas.length }))
+  for (const [correo, l] of cuentas) if (l.fallo) fallas.push(`> Google Calendar (${linea(correo, 80)}): ${motivoVista(l.fallo)}; ${cuando(l.leido)}.`)
   const td: Lectura<unknown> | null = f.todoist
   if (td && !td.fallo) alDia.push('Todoist')
-  if (td?.fallo) fallas.push(`> Todoist: ${td.fallo}; ${cuando(td.leido)}.`)
-  return [...(alDia.length ? [`> Al día con ${alDia.join(' y ')}.`] : []), ...fallas]
+  if (td?.fallo) fallas.push(`> Todoist: ${motivoVista(td.fallo)}; ${cuando(td.leido)}.`)
+  const conY = (xs: string[]) => xs.length === 1 ? xs[0] : tr('{lista} y {ultimo}', { lista: xs.slice(0, -1).join(', '), ultimo: xs[xs.length - 1] })
+  return [...(alDia.length ? [tr('> Al día con {fuentes}.', { fuentes: conY(alDia) })] : []), ...fallas]
 }
 
 // ── Objetivos (registro arbrain-objectives-v1 y texto heredado; misma forma que objectives_store.py) ───────────────
@@ -307,7 +323,8 @@ function habitosDe(raiz: string, hoy: string): string | null {
   if (!activos.length) return null
   return activos.slice(0, 8).map(h => {
     const v = reg?.[h.clave as string]?.hecho
-    return `${linea(h.nombre, 60) || h.clave} (${v === true ? 'hecho' : v === false ? 'no' : 'pendiente'})`
+    const habito = linea(h.nombre, 60) || h.clave as string
+    return v === true ? tr('{habito} (hecho)', { habito }) : v === false ? tr('{habito} (no)', { habito }) : tr('{habito} (pendiente)', { habito })
   }).join(' · ')
 }
 
@@ -326,46 +343,47 @@ export function generarNow(raiz: string, ahora = new Date(), tz = zonaDelSistema
   const tareas = [...tareasPendientes(cal, tz), ...tareasTodoist(fuentes, tz)].filter(t => t.dia < fin)
     .sort((a, b) => (a.dia + (a.hora ?? '')).localeCompare(b.dia + (b.hora ?? '')))
   const de = (t: TareaVista) => t.origen === 'todoist' ? ' · Todoist' : ''
-  const ev = (e: Ocurrencia) => e.todoElDia ? `\`todo el día\` ${e.titulo}` : `\`${horaCorta(e.inicio, tz)}\` ${e.titulo}${e.fin - e.inicio >= 30 * 60_000 ? ` (hasta ${horaCorta(e.fin, tz)})` : ''}`
+  const ev = (e: Ocurrencia) => e.todoElDia ? `\`${tr('todo el día')}\` ${e.titulo}` : `\`${horaCorta(e.inicio, tz)}\` ${e.titulo}${e.fin - e.inicio >= 30 * 60_000 ? ` ${tr('(hasta {hora})', { hora: horaCorta(e.fin, tz) })}` : ''}`
 
   const l: string[] = [
-    '# Ahora',
+    `# ${tr('Ahora')}`,
     '',
     `> **${diaLargo(hoy)}** (${tz})`,
-    '> Lo arma Arbrain con tu calendario, tus objetivos y tus hábitos. Si algo está mal, corrige la fuente (Calendario u',
-    '> Objetivos) y se regenera solo. Si prefieres escribirlo tú, pon `<!-- manual -->` en la primera línea y Arbrain ya no lo toca.',
+    tr('> Lo arma Arbrain con tu calendario, tus objetivos y tus hábitos. Si algo está mal, corrige la fuente (Calendario u'),
+    tr('> Objetivos) y se regenera solo. Si prefieres escribirlo tú, pon `<!-- manual -->` en la primera línea y Arbrain ya no lo toca.'),
     ...lineasFuentes(fuentes, tz),
     '',
-    '## Hitos',
-    ...(meta ? [`- **Meta a 90 días:** ${meta}`] : []),
-    ...(camino ? [`- **Dónde voy en el programa:** ${camino}`] : []),
-    `- **Mes:** ${hitos.mes ?? '_(sin objetivo del mes; pídeselo a Levy: «planeemos el mes»)_'}`,
-    `- **Semana:** ${hitos.semana ?? '_(sin foco de la semana)_'}`,
-    ...(hitos.dia.length ? ['- **Hoy:**', ...hitos.dia.slice(0, 8).map(d => `    - [${d.hecho ? 'x' : ' '}] ${d.texto}`)] : ['- **Hoy:** _(sin objetivo del día)_']),
+    `## ${tr('Hitos')}`,
+    ...(meta ? [tr('- **Meta a 90 días:** {meta}', { meta })] : []),
+    ...(camino ? [tr('- **Dónde voy en el programa:** {camino}', { camino })] : []),
+    hitos.mes ? tr('- **Mes:** {mes}', { mes: hitos.mes }) : tr('- **Mes:** _(sin objetivo del mes; pídeselo a Levy: «planeemos el mes»)_'),
+    hitos.semana ? tr('- **Semana:** {semana}', { semana: hitos.semana }) : tr('- **Semana:** _(sin foco de la semana)_'),
+    ...(hitos.dia.length ? [tr('- **Hoy:**'), ...hitos.dia.slice(0, 8).map(d => `    - [${d.hecho ? 'x' : ' '}] ${d.texto}`)] : [tr('- **Hoy:** _(sin objetivo del día)_')]),
     '',
-    '## Hoy',
+    `## ${tr('Hoy')}`,
   ]
   const deHoy = eventos.filter(e => e.dia === hoy)
   const vencidas = tareas.filter(t => t.dia < hoy), tareasHoy = tareas.filter(t => t.dia === hoy)
   for (const e of deHoy.slice(0, MAX_EVENTOS_DIA)) l.push(`- ${ev(e)}`)
-  if (deHoy.length > MAX_EVENTOS_DIA) l.push(`- _y ${deHoy.length - MAX_EVENTOS_DIA} más en tu calendario_`)
+  if (deHoy.length > MAX_EVENTOS_DIA) l.push(tr('- _y {n} más en tu calendario_', { n: deHoy.length - MAX_EVENTOS_DIA }))
   for (const t of tareasHoy.slice(0, 8)) l.push(`- [ ] ${t.hora ? `\`${t.hora}\` ` : ''}${t.titulo}${de(t)}`)
-  if (tareasHoy.length > 8) l.push(`- _y ${tareasHoy.length - 8} tareas más para hoy_`)
-  for (const t of vencidas.slice(0, 5)) l.push(`- [ ] ${t.titulo}${de(t)} _(venció el ${diaCorto(t.dia).toLowerCase()})_`)
-  if (vencidas.length > 5) l.push(`- _y ${vencidas.length - 5} tareas vencidas más_`)
-  if (habitos) l.push(`- Hábitos: ${habitos}`)
-  if (!deHoy.length && !tareasHoy.length && !vencidas.length) l.push('_Nada agendado._')
-  l.push('', '## Esta semana')
+  if (tareasHoy.length > 8) l.push(tr('- _y {n} tareas más para hoy_', { n: tareasHoy.length - 8 }))
+  for (const t of vencidas.slice(0, 5)) l.push(`- [ ] ${t.titulo}${de(t)} ${tr('_(venció el {dia})_', { dia: diaCortoEnFrase(t.dia) })}`)
+  if (vencidas.length > 5) l.push(tr('- _y {n} tareas vencidas más_', { n: vencidas.length - 5 }))
+  if (habitos) l.push(tr('- Hábitos: {habitos}', { habitos }))
+  if (!deHoy.length && !tareasHoy.length && !vencidas.length) l.push(tr('_Nada agendado._'))
+  l.push('', `## ${tr('Esta semana')}`)
   let alguno = false
   for (let i = 1; i <= DIAS_SEMANA; i++) {
     const d = sumarDia(hoy, i)
-    const cosas = [...eventos.filter(e => e.dia === d).map(ev), ...tareas.filter(t => t.dia === d).map(t => `tarea: ${t.titulo}${de(t)}`)]
+    const cosas = [...eventos.filter(e => e.dia === d).map(ev), ...tareas.filter(t => t.dia === d).map(t => tr('tarea: {titulo}', { titulo: `${t.titulo}${de(t)}` }))]
     if (!cosas.length) continue
     alguno = true
-    l.push(`- **${diaCorto(d)}:** ${cosas.slice(0, 6).join(' · ')}${cosas.length > 6 ? ` · y ${cosas.length - 6} más` : ''}`)
+    l.push(`- **${diaCorto(d)}:** ${cosas.slice(0, 6).join(' · ')}${cosas.length > 6 ? ` · ${tr('y {n} más', { n: cosas.length - 6 })}` : ''}`)
   }
-  if (!alguno) l.push('_Nada agendado._')
+  if (!alguno) l.push(tr('_Nada agendado._'))
   const w = paredEn(ahora, tz)
+  // El sello se queda en español en los dos idiomas: lo leen `SELLO` (aquí) y agenda-context.py para juzgar la frescura.
   l.push('', '---', `> Generado por Arbrain el ${Number(w.dia.slice(8))} ${MESES[Number(w.dia.slice(5, 7)) - 1].slice(0, 3)} ${w.dia.slice(0, 4)}, ${w.hora.slice(0, 5)} (${tz}).`)
   return l.join('\n') + '\n'
 }

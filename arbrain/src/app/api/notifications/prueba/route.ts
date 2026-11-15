@@ -10,6 +10,7 @@ import { esEdicionCliente } from '@/lib/edicion'
 import { almacenAlumno } from '@/features/notifications/lib/almacenSupabase'
 import { dirMiMarca, leerMiMarca } from '@/lib/mi-marca'
 import { leerPrimerArranque } from '@/features/primer-arranque/lib/estado'
+import { tr } from '@/shared/i18n'
 
 /**
  * «Enviarme una prueba» de Ajustes › Notificaciones (12 oct 2026). Sin parámetros de destinatario: va SOLO a los
@@ -47,6 +48,6 @@ export async function POST() {
     return NextResponse.json(r.json, { status: r.status, headers: r.headers })
   } catch (err) {
     console.error('notifications/prueba:', err instanceof Error ? err.message : err)
-    return NextResponse.json({ error: 'No se pudo enviar la prueba. Intenta de nuevo.' }, { status: 500 })
+    return NextResponse.json({ error: tr('No se pudo enviar la prueba. Intenta de nuevo.') }, { status: 500 })
   }
 }

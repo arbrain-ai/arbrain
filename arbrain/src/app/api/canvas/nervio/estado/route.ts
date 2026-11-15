@@ -10,12 +10,13 @@ import { claveFuente, fuenteValida, type EstadoVivo } from '@/features/canvas/mo
 import { medirFuente } from '@/lib/canvas/nervio-estado'
 import { instalacion } from '@/config'
 import { esEdicionCliente } from '@/lib/edicion'
+import { tr } from '@/shared/i18n'
 
 export const runtime = 'nodejs'
 const NO_CACHE = { 'Cache-Control': 'no-store' }
 
 export async function POST(request: Request) {
-  if (!await authenticateDraw3(request)) return NextResponse.json({ ok: false, error: 'no autorizado' }, { status: 401, headers: NO_CACHE })
+  if (!await authenticateDraw3(request)) return NextResponse.json({ ok: false, error: tr('no autorizado') }, { status: 401, headers: NO_CACHE })
   const body = await request.json().catch(() => null) as { fuentes?: unknown[] } | null
   const fuentes = (Array.isArray(body?.fuentes) ? body!.fuentes : []).slice(0, 40).map(fuenteValida).filter(f => !!f)
   const opciones = { hosts: instalacion().dominiosPropios, launchd: process.platform === 'darwin' && !esEdicionCliente() }

@@ -3,7 +3,9 @@ import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from
 import { escalon, mov } from '@/shared/movimiento'
 import { estiloEvento } from '@/lib/calendar/contraste'
 import { format, parseISO } from 'date-fns'
-import { es } from 'date-fns/locale'
+import { tr } from '@/shared/i18n'
+import { localeFechas } from '@/shared/i18n/fechas'
+import { trNodos } from '@/shared/i18n'
 import { MessageCircle, Repeat2 } from 'lucide-react'
 import { hasTime } from './model'
 import { rotuloEstado, type ObjetivoPeriodo } from './periodo-vivo'
@@ -34,7 +36,7 @@ export function Estrella({ cumplido, onCumplir, titulo }: { cumplido: boolean; o
   const [recien, setRecien] = useState(false)
   useEffect(() => { if (!recien) return; const t = setTimeout(() => setRecien(false), 1100); return () => clearTimeout(t) }, [recien])
   return <button className={d.estrella} data-cumplido={cumplido || undefined} data-recien={recien || undefined} aria-pressed={cumplido}
-    aria-label={cumplido ? `Objetivo cumplido: ${titulo}. Tocar para desmarcar` : `Marcar como cumplido: ${titulo}`} title={cumplido ? 'Cumplido · tocar para desmarcar' : 'Marcar como cumplido'}
+    aria-label={cumplido ? tr('Objetivo cumplido: {titulo}. Tocar para desmarcar', { titulo }) : tr('Marcar como cumplido: {titulo}', { titulo })} title={cumplido ? tr('Cumplido · tocar para desmarcar') : tr('Marcar como cumplido')}
     onClick={() => { if (!cumplido) setRecien(true); onCumplir() }}>
     <svg viewBox="0 0 24 24" aria-hidden><path d="M12 2.8l2.75 5.6 6.15.9-4.45 4.33 1.05 6.12L12 16.87l-5.5 2.88 1.05-6.12L3.1 9.3l6.15-.9z" /></svg>
     {recien && <span className={d.chispas} aria-hidden>{Array.from({ length: 8 }, (_, n) => <i key={n} style={{ ['--a' as string]: `${n * 45}deg` } as CSSProperties} />)}</span>}
@@ -82,13 +84,13 @@ export function FilaTarea({ t, i, hecha, ocupado, proyecto, objetivo, vencida, o
 }) {
   const conHora = hasTime(t.due), inicio = t.due ? parseISO(t.due) : null
   return <div className={`${d.fila} ${d.entra}`} style={esc(i)} data-hecha={hecha || undefined} data-prio={t.priority < 3 ? t.priority : undefined} data-objetivo={objetivo || undefined} data-vencida={vencida || undefined}>
-    <button className={d.check} onClick={onCompletar} disabled={hecha || ocupado} aria-label={`Completar ${t.title}`} title={objetivo ? 'Cumplir el objetivo (completa la tarea)' : 'Completar en Todoist'}>{CHECK}</button>
+    <button className={d.check} onClick={onCompletar} disabled={hecha || ocupado} aria-label={tr('Completar {titulo}', { titulo: t.title })} title={objetivo ? tr('Cumplir el objetivo (completa la tarea)') : tr('Completar en Todoist')}>{CHECK}</button>
     <button className={d.filaCuerpo} onClick={onAbrir} title={proyecto ? `${t.title} · ${proyecto}` : t.title}>
       <span className={d.filaTitulo}>{t.title}</span>
-      {vencida && inicio && <span className={d.vencio} title="Vencida">{format(inicio, 'd MMM', { locale: es })}</span>}
+      {vencida && inicio && <span className={d.vencio} title={tr('Vencida')}>{format(inicio, tr('d MMM'), { locale: localeFechas() })}</span>}
       {conHora && inicio && !vencida && <time className={d.horaTarea} dateTime={t.due!}>{format(inicio, 'HH:mm')}{t.durationMinutes ? <small> · {duracion(t.durationMinutes)}</small> : null}</time>}
       {t.priority === 1 && !objetivo && <span className={d.prio} data-prio={1}>P1</span>}
-      {t.recurring && <Repeat2 size={11} aria-label="Se repite" />}
+      {t.recurring && <Repeat2 size={11} aria-label={tr('Se repite')} />}
     </button>
   </div>
 }
@@ -96,8 +98,8 @@ export function FilaTarea({ t, i, hecha, ocupado, proyecto, objetivo, vencida, o
 /** «Hecha: … · Deshacer» (7 s), el mismo en todas las escalas. */
 export function AvisoHecha({ ultima, onDeshacer }: { ultima: PlanTask | null; onDeshacer: () => void }) {
   if (!ultima) return null
-  return <p className={d.deshacer} role="status"><span>Hecha: «{ultima.title}»{ultima.recurring ? ' · su próxima repetición quedó programada' : ''}</span>
-    {!ultima.recurring && <button onClick={onDeshacer}>Deshacer</button>}</p>
+  return <p className={d.deshacer} role="status"><span>{ultima.recurring ? tr('Hecha: «{titulo}» · su próxima repetición quedó programada', { titulo: ultima.title }) : tr('Hecha: «{titulo}»', { titulo: ultima.title })}</span>
+    {!ultima.recurring && <button onClick={onDeshacer}>{tr('Deshacer')}</button>}</p>
 }
 
 /** Los colores de un evento con contraste medido (el mismo cálculo de la rejilla), para claro y oscuro. Va con la clase global `ev-color`. */
@@ -121,11 +123,11 @@ export function TarjetaAhora({ actual, sigue, ahora, onAbrir, className }: {
   const b = actual ?? sigue
   if (!b) return null
   return <button className={`${d.enCurso} ${className ?? ''}`} data-proximo={actual ? undefined : true} style={{ ['--c' as string]: b.color ?? 'var(--gold)' }} onClick={() => onAbrir(b.evento)}>
-    <span className={d.enCursoCeja}><b>{actual ? 'Ahora' : 'Luego'}</b> · {hora(b.inicio)} – {hora(b.fin)}</span>
+    <span className={d.enCursoCeja}><b>{actual ? tr('Ahora') : tr('Luego')}</b> · {hora(b.inicio)} – {hora(b.fin)}</span>
     <strong>{b.titulo}</strong>
     {actual && <span className={d.barra} aria-hidden><i style={{ width: `${Math.round(avance(actual, ahora) * 100)}%` }} /></span>}
     <small>{actual
-      ? <>Quedan {duracion((actual.fin - ahora) / 60000)}{sigue ? <> · luego <em>{sinEmoji(sigue.titulo)}</em> a las {hora(sigue.inicio)}</> : ''}</>
-      : <>Empieza {faltan((b.inicio - ahora) / 60000)} · dura {duracion((b.fin - b.inicio) / 60000)}</>}</small>
+      ? <>{sigue ? trNodos('Quedan {duracion} · luego {titulo} a las {hora}', { duracion: duracion((actual.fin - ahora) / 60000), titulo: <em>{sinEmoji(sigue.titulo)}</em>, hora: hora(sigue.inicio) }) : tr('Quedan {duracion}', { duracion: duracion((actual.fin - ahora) / 60000) })}</>
+      : <>{tr('Empieza {cuando} · dura {duracion}', { cuando: faltan((b.inicio - ahora) / 60000), duracion: duracion((b.fin - b.inicio) / 60000) })}</>}</small>
   </button>
 }

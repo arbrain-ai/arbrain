@@ -16,12 +16,13 @@ import { esEdicionCliente } from '../edicion.js'
  * cliente el daemon viaja dentro de la app y no hay repo alrededor: la raíz es el workspace del alumno (ARBRAIN_HOME). */
 export const REPO = esEdicionCliente() && process.env.ARBRAIN_HOME ? path.resolve(process.env.ARBRAIN_HOME) : path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..')
 
-export type TipoDocumento = 'md' | 'txt' | 'html' | 'mermaid' | 'imagen' | 'video' | 'audio' | 'pdf' | 'carpeta' | 'codigo' | 'otro'
+export type TipoDocumento = 'md' | 'txt' | 'html' | 'mermaid' | 'imagen' | 'video' | 'audio' | 'pdf' | 'docx' | 'xlsx' | 'csv' | 'carpeta' | 'codigo' | 'otro'
 
 const EXT: Record<string, TipoDocumento> = {
   md: 'md', markdown: 'md', txt: 'txt', html: 'html', htm: 'html', mmd: 'mermaid', mermaid: 'mermaid',
   png: 'imagen', jpg: 'imagen', jpeg: 'imagen', webp: 'imagen', gif: 'imagen', svg: 'imagen', avif: 'imagen',
   mp4: 'video', webm: 'video', mov: 'video', m4v: 'video',
+  docx: 'docx', xlsx: 'xlsx', xlsm: 'xlsx', csv: 'csv', tsv: 'csv',
   pdf: 'pdf', mp3: 'audio', wav: 'audio', m4a: 'audio', aac: 'audio', ogg: 'audio', oga: 'audio', opus: 'audio', flac: 'audio', aif: 'audio', aiff: 'audio',
 }
 const CODIGO = /^(ts|tsx|js|jsx|mjs|cjs|py|swift|json|jsonc|yaml|yml|toml|sh|zsh|bash|rb|go|rs|java|kt|c|h|cpp|hpp|m|mm|css|scss|sql|plist|xml|lock|env|ini|cfg|conf|vue|svelte|php|lua|dart|r|ipynb)$/
@@ -70,6 +71,6 @@ export function validarDocumento(pedida: string): { abs: string; tipo: TipoDocum
   if (!statSync(real).isFile()) return { error: 'Eso no es un archivo ni una carpeta.' }
   const tipo = tipoDocumento(real)
   if (tipo === 'codigo') return { error: `Es código: el panel no enseña código a ${DUENO}. Cuéntaselo tú en palabras.` }
-  if (tipo === 'otro') return { error: 'El panel muestra .md, .txt, .html, .mmd, .pdf, imágenes, video, audio y carpetas; ese formato no.' }
+  if (tipo === 'otro') return { error: 'El panel muestra .md, .txt, .html, .mmd, .pdf, Word (.docx), Excel (.xlsx), .csv, imágenes, video, audio y carpetas; ese formato no.' }
   return { abs: r.abs, tipo }
 }

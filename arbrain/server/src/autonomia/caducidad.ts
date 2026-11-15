@@ -11,6 +11,7 @@
  * bandeja no cambia: contactar, pagar, borrar y publicar siguen siendo de la persona.
  */
 import { diaCivil, instanteDeHoraCivil, zonaDueno } from '../zona.js'
+import { tr, trMarca } from '../i18n/tr.js'
 
 const DIA_MS = 24 * 3_600_000
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
@@ -86,12 +87,12 @@ export function venceSegunTexto(texto: string, creada: number, zona = zonaDueno(
 
 /** Por qué caducó (la línea de «Lo que hice solo»). */
 export type MotivoCaducidad = 'hora' | 'encargo' | 'tope'
-export const FRASE_MOTIVO: Record<MotivoCaducidad, string> = { hora: 'ya pasó su momento', encargo: 'su encargo terminó', tope: '48 h sin tu toque' }
+export const FRASE_MOTIVO: Record<MotivoCaducidad, string> = { hora: trMarca('ya pasó su momento'), encargo: trMarca('su encargo terminó'), tope: trMarca('48 h sin tu toque') }
 
-const VERBO_SIN: Record<string, string> = { enviar: 'sin enviar', pagar: 'sin pagar', borrar: 'sin borrar', publicar: 'sin publicar', otra: 'sin hacerse' }
+const VERBO_SIN: Record<string, string> = { enviar: trMarca('sin enviar'), pagar: trMarca('sin pagar'), borrar: trMarca('sin borrar'), publicar: trMarca('sin publicar'), otra: trMarca('sin hacerse') }
 /** «Caducó sin enviar: WhatsApp a Fulano… (ya pasó su momento)». */
 export function lineaCaducada(titulo: string, categoria: string, motivo: MotivoCaducidad): string {
-  return `Caducó ${VERBO_SIN[categoria] ?? 'sin hacerse'}: ${titulo.replace(/\s+/g, ' ').trim().slice(0, 160)} (${FRASE_MOTIVO[motivo]})`
+  return tr('Caducó {sin}: {titulo} ({motivo})', { sin: tr(VERBO_SIN[categoria] ?? 'sin hacerse'), titulo: titulo.replace(/\s+/g, ' ').trim().slice(0, 160), motivo: tr(FRASE_MOTIVO[motivo]) })
 }
 
 /**

@@ -5,6 +5,7 @@ import { planningOwner, planningError } from '@/lib/planning/server'
 import { instalacion } from '@/config'
 import { esEdicionCliente } from '@/lib/edicion'
 import { raizWorkspace } from '@/lib/rutas-instalacion'
+import { tr, trMarca } from '@/shared/i18n'
 
 // Taller del panel derecho (1 oct 2026): los archivos del cerebro, no todo el
 // repo. Memoria, skills y documentos del negocio, de solo lectura y desde el
@@ -28,9 +29,9 @@ const PERMITIDAS: { grupo: Grupo; dir: string; profundo: boolean }[] = [
 const VETADO = /(^|\/)(credenciales|secret|\.env)|credenciales-operativas/i
 /** «Instrucciones que tengo detrás» (5 oct 2026): lo que entra en CADA conversación, en lectura. Solo estos tres. */
 const INSTRUCCIONES: { ruta: string; titulo: string; detalle: string }[] = [
-  { ruta: 'CLAUDE.md', titulo: 'Las reglas que gobiernan siempre', detalle: 'Quién soy, cómo trabajo contigo y las reglas que no se rompen' },
-  { ruta: '.claude/memory/MEMORY.md', titulo: 'La esencia de lo que sé de ti', detalle: 'Tu forma de decidir y las reglas vivas que aprendí contigo' },
-  { ruta: '.claude/now.md', titulo: 'Tu agenda de ahora', detalle: 'Hitos, el día, la semana y tus tareas; se genera sola' },
+  { ruta: 'CLAUDE.md', titulo: trMarca('Las reglas que gobiernan siempre'), detalle: trMarca('Quién soy, cómo trabajo contigo y las reglas que no se rompen') },
+  { ruta: '.claude/memory/MEMORY.md', titulo: trMarca('La esencia de lo que sé de ti'), detalle: trMarca('Tu forma de decidir y las reglas vivas que aprendí contigo') },
+  { ruta: '.claude/now.md', titulo: trMarca('Tu agenda de ahora'), detalle: trMarca('Hitos, el día, la semana y tus tareas; se genera sola') },
 ]
 const SEMANA_MS = 7 * 86_400_000
 
@@ -65,7 +66,7 @@ export async function GET(request: Request) {
       const limpia = path.normalize(pedida).replace(/^(\.\.(\/|\\|$))+/, '')
       const ok = limpia.endsWith('.md') && !VETADO.test(limpia) && (PERMITIDAS.some(p => limpia.startsWith(p.dir + '/')) || INSTRUCCIONES.some(x => x.ruta === limpia))
       const abs = path.join(base, limpia)
-      if (!ok || !abs.startsWith(base + path.sep)) return Response.json({ error: 'Ese archivo no es del cerebro.' }, { status: 403 })
+      if (!ok || !abs.startsWith(base + path.sep)) return Response.json({ error: tr('Ese archivo no es del cerebro.') }, { status: 403 })
       const [texto, info] = await Promise.all([readFile(abs, 'utf8'), stat(abs)])
       return Response.json({ ruta: limpia, texto: texto.slice(0, 200_000), editado: info.mtime.toISOString() }, { headers: { 'Cache-Control': 'no-store' } })
     }
@@ -90,7 +91,7 @@ export async function GET(request: Request) {
     }
     const instrucciones = (await Promise.all(INSTRUCCIONES.map(async x => {
       const info = await stat(path.join(base, x.ruta)).catch(() => null)
-      return info ? { ...x, editado: info.mtime.toISOString(), bytes: info.size } : null
+      return info ? { ...x, titulo: tr(x.titulo), detalle: tr(x.detalle), editado: info.mtime.toISOString(), bytes: info.size } : null
     }))).filter(Boolean)
     return Response.json({ archivos, raiz: path.basename(base), totales, semana, instrucciones }, { headers: { 'Cache-Control': 'no-store' } })
   } catch (error) { return planningError(error) }

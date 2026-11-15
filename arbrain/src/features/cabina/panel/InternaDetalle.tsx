@@ -21,6 +21,8 @@ import { hace, urlPanel } from './datos'
 import { IconoTipo, estadoInterna, tipoInterna } from './Tipo'
 import s from './panel.module.css'
 import i from './internas.module.css'
+import { localeIntl, tr } from '@/shared/i18n'
+import { trNodos } from '@/shared/i18n'
 
 const ICONO_DATO = { tiempo: Clock, contexto: Gauge, modelo: Cpu } as const
 
@@ -40,14 +42,14 @@ export function FilaInterna({ t, onAbrir }: { t: TareaInterna; onAbrir: (id: str
   const estado = estadoInterna(t)
   const linea = lineaDeFila(t)
   return (
-    <button className={s.fila} data-estado={estado} onClick={() => onAbrir(t.id)} title="Ver qué está haciendo">
+    <button className={s.fila} data-estado={estado} onClick={() => onAbrir(t.id)} title={tr('Ver qué está haciendo')}>
       <span className={s.marca}><IconoTipo tipo={tipoInterna(t)} estado={estado} /></span>
       <span className={s.filaTexto}>
         <span className={i.nombre}>{tituloLegible(t)}</span>
         {linea && <span className={i.actividad} data-vivo={t.estado === 'trabajando' || undefined}>{linea}</span>}
         <DatosInterna t={t} />
       </span>
-      <span className={`${s.filaEstado} ${i.estado}`} data-falla={t.estado === 'falló' || undefined}>{ESTADO_INTERNA[t.estado]}</span>
+      <span className={`${s.filaEstado} ${i.estado}`} data-falla={t.estado === 'falló' || undefined}>{tr(ESTADO_INTERNA[t.estado])}</span>
       <ChevronRight size={14} className={s.flecha} aria-hidden />
     </button>
   )
@@ -58,7 +60,9 @@ function Origen({ t }: { t: TareaInterna }) {
   const titulo = useTituloConversacion(t.conversacion)
   const abrir = useAbrirConversacion()
   return <p className={i.origen}>
-    Lo lanzó Levy {hace(t.desde)}{t.conversacion ? <> en <button onClick={() => abrir(t.conversacion)} title={`Abrir «${titulo}» en el chat`}>{titulo}</button></> : null}.
+    {t.conversacion
+      ? trNodos('Lo lanzó Levy {cuando} en {conversacion}.', { cuando: hace(t.desde), conversacion: <button onClick={() => abrir(t.conversacion)} title={tr('Abrir «{titulo}» en el chat', { titulo })}>{titulo}</button> })
+      : tr('Lo lanzó Levy {cuando}.', { cuando: hace(t.desde) })}
   </p>
 }
 
@@ -83,7 +87,7 @@ export function DetalleInterna({ id, onVolver }: { id: string; onVolver: () => v
   }, [onVolver])
 
   const det = salida.data?.detalle
-  const titulo = t ? tituloLegible(t) : salida.data?.descripcion ?? 'Tarea de Levy'
+  const titulo = t ? tituloLegible(t) : salida.data?.descripcion ?? tr('Tarea de Levy')
   const esAgente = t?.tipo === 'subagente'
   const actividad = t && trabajando ? actividadLegible(t) : null
   const ms = t ? tiempoDe(t, ahora) : null
@@ -96,58 +100,58 @@ export function DetalleInterna({ id, onVolver }: { id: string; onVolver: () => v
 
   return <div className={s.detalle}>
     <div className={s.fijadaCabecera}>
-      <button className={s.icono} onClick={onVolver} aria-label="Volver" title="Volver (Esc)"><ArrowLeft size={15} /></button>
+      <button className={s.icono} onClick={onVolver} aria-label={tr('Volver')} title={tr('Volver (Esc)')}><ArrowLeft size={15} /></button>
       {t && <IconoTipo tipo={tipoInterna(t)} estado={estadoInterna(t)} grande />}
       <div className={s.detalleTitulo}>
         <b className={i.titulo} title={titulo}>{titulo}</b>
-        <span>{t ? `${TIPO_LEGIBLE[t.tipo]} de Levy` : 'Leyendo…'}</span>
+        <span>{t ? tr('{tipo} de Levy', { tipo: tr(TIPO_LEGIBLE[t.tipo]) }) : tr('Leyendo…')}</span>
       </div>
     </div>
 
     {t && <dl className={i.ficha}>
-      <div><dt>Estado</dt><dd>{ESTADO_INTERNA[t.estado]}</dd></div>
-      <div><dt>{tiempoRotulo(t)}</dt><dd>{ms != null ? duracionCorta(ms) : 'sin dato'}</dd></div>
+      <div><dt>{tr('Estado')}</dt><dd>{tr(ESTADO_INTERNA[t.estado])}</dd></div>
+      <div><dt>{tiempoRotulo(t)}</dt><dd>{ms != null ? duracionCorta(ms) : tr('sin dato')}</dd></div>
       {esAgente
         ? <>
-          <div><dt>Contexto</dt><dd data-sin={contexto ? undefined : true} title={contexto ? `${contexto.toLocaleString('es-MX')} tokens` : undefined}>{contexto ? `${tokensCortos(contexto)} tokens` : 'sin dato'}</dd></div>
-          <div><dt>Modelo</dt><dd data-sin={modelo ? undefined : true}>{modelo ?? 'sin dato'}</dd></div>
+          <div><dt>{tr('Contexto')}</dt><dd data-sin={contexto ? undefined : true} title={contexto ? `${contexto.toLocaleString(localeIntl())} tokens` : undefined}>{contexto ? `${tokensCortos(contexto)} tokens` : tr('sin dato')}</dd></div>
+          <div><dt>{tr('Modelo')}</dt><dd data-sin={modelo ? undefined : true}>{modelo ?? tr('sin dato')}</dd></div>
         </>
-        : <div><dt>Dónde</dt><dd>{t.segundoPlano ? 'Segundo plano' : 'En el turno'}</dd></div>}
+        : <div><dt>{tr('Dónde')}</dt><dd>{t.segundoPlano ? tr('Segundo plano') : tr('En el turno')}</dd></div>}
     </dl>}
     {t && <Origen t={t} />}
-    {!t && <p className={s.nota}>{lista.data || lecturaEnCache<Trabajos>(urlPanel(false)) ? 'Esta tarea ya no está en el registro de hoy.' : 'Leyendo…'}</p>}
+    {!t && <p className={s.nota}>{lista.data || lecturaEnCache<Trabajos>(urlPanel(false)) ? tr('Esta tarea ya no está en el registro de hoy.') : tr('Leyendo…')}</p>}
 
-    {actividad && <p className={i.ahora}><i className={s.punto} data-estado="trabajando" aria-hidden />Ahora: {actividad}</p>}
-    {t && (t.estado === 'falló' || t.estado === 'detenida') && (t.nota || t.estado === 'falló') && <p className={i.aviso} data-falla={t.estado === 'falló' || undefined}>{t.nota ?? resultadoCorto(t.resumen) ?? 'Falló sin dejar un motivo.'}</p>}
+    {actividad && <p className={i.ahora}><i className={s.punto} data-estado="trabajando" aria-hidden />{tr('Ahora: {a}', { a: actividad })}</p>}
+    {t && (t.estado === 'falló' || t.estado === 'detenida') && (t.nota || t.estado === 'falló') && <p className={i.aviso} data-falla={t.estado === 'falló' || undefined}>{t.nota ?? resultadoCorto(t.resumen) ?? tr('Falló sin dejar un motivo.')}</p>}
 
-    {esAgente && trabajando && dicho.length > 0 && <section className={i.bloque} aria-label="Lo último que dijo">
-      <h4>Lo último que dijo</h4>
+    {esAgente && trabajando && dicho.length > 0 && <section className={i.bloque} aria-label={tr('Lo último que dijo')}>
+      <h4>{tr('Lo último que dijo')}</h4>
       <div className={i.dicho}>{dicho.map((x, k) => <div key={k}><MarkdownMessage content={x} /></div>)}</div>
     </section>}
-    {esAgente && !trabajando && final && <section className={i.bloque} aria-label="Resultado">
-      <h4>{t?.estado === 'falló' ? 'Lo último que dijo' : 'Resultado'}</h4>
+    {esAgente && !trabajando && final && <section className={i.bloque} aria-label={tr('Resultado')}>
+      <h4>{t?.estado === 'falló' ? tr('Lo último que dijo') : tr('Resultado')}</h4>
       <div className={i.resultado}><MarkdownMessage content={final} /></div>
     </section>}
-    {esAgente && trabajando && dicho.length === 0 && !salida.error && <p className={s.nota}>{salida.data ? 'Todavía no ha dicho nada: está leyendo y preparando.' : 'Leyendo lo que ha dicho…'}</p>}
+    {esAgente && trabajando && dicho.length === 0 && !salida.error && <p className={s.nota}>{salida.data ? tr('Todavía no ha dicho nada: está leyendo y preparando.') : tr('Leyendo lo que ha dicho…')}</p>}
 
-    {det?.encargo && <Plegado titulo="Su encargo completo"><p className={i.encargo}>{det.encargo}</p></Plegado>}
+    {det?.encargo && <Plegado titulo={tr('Su encargo completo')}><p className={i.encargo}>{det.encargo}</p></Plegado>}
 
     {/* Un comando no «dice» nada: lo que imprime es lo que importa, a la vista. */}
-    {t && !esAgente && <section className={i.bloque} aria-label="Salida">
-      <h4>Lo que va imprimiendo</h4>
-      <pre ref={pre} className={s.terminal} style={{ margin: 0 }}>{salida.data?.texto || (salida.error ? `Sin salida: ${salida.error}` : 'Leyendo la salida…')}</pre>
+    {t && !esAgente && <section className={i.bloque} aria-label={tr('Salida')}>
+      <h4>{tr('Lo que va imprimiendo')}</h4>
+      <pre ref={pre} className={s.terminal} style={{ margin: 0 }}>{salida.data?.texto || (salida.error ? tr('Sin salida: {error}', { error: salida.error }) : tr('Leyendo la salida…'))}</pre>
     </section>}
 
-    {esAgente && <Plegado titulo="Ver detalle técnico">
+    {esAgente && <Plegado titulo={tr('Ver detalle técnico')}>
       {det
         ? <>
-          <p className={i.herramientas}>{herramientasEnPalabras(det.herramientas) || 'Aún no ha usado herramientas.'}{det.usos ? ` · ${det.usos} en total${det.parcial ? ' (solo las últimas)' : ''}` : ''}</p>
-          {det.acciones.length > 0 && <ul className={i.acciones} aria-label="Sus últimas acciones">{det.acciones.slice(-8).map((a, k) => <li key={k} title={accionEnPalabras(a)}>{accionEnPalabras(a)}</li>)}</ul>}
+          <p className={i.herramientas}>{herramientasEnPalabras(det.herramientas) || tr('Aún no ha usado herramientas.')}{det.usos ? ` · ${det.parcial ? tr('{n} en total (solo las últimas)', { n: det.usos }) : tr('{n} en total', { n: det.usos })}` : ''}</p>
+          {det.acciones.length > 0 && <ul className={i.acciones} aria-label={tr('Sus últimas acciones')}>{det.acciones.slice(-8).map((a, k) => <li key={k} title={accionEnPalabras(a)}>{accionEnPalabras(a)}</li>)}</ul>}
         </>
-        : <pre ref={pre} className={`${s.terminal} ${i.salida}`}>{salida.data?.texto || (salida.error ? `Sin salida: ${salida.error}` : 'Leyendo la salida…')}</pre>}
+        : <pre ref={pre} className={`${s.terminal} ${i.salida}`}>{salida.data?.texto || (salida.error ? tr('Sin salida: {error}', { error: salida.error }) : tr('Leyendo la salida…'))}</pre>}
       <p className={i.pie}>
-        {sinTranscripcion ? (salida.data?.fuente === 'resultado' ? 'Lo que devolvió al terminar.' : 'Su transcripción no está en disco: esto es lo que reportó al terminar.') : 'Sacado de su transcripción, sin secretos.'}
-        {trabajando ? ' Se relee cada 2.5 s.' : ''}
+        {sinTranscripcion ? (salida.data?.fuente === 'resultado' ? tr('Lo que devolvió al terminar.') : tr('Su transcripción no está en disco: esto es lo que reportó al terminar.')) : tr('Sacado de su transcripción, sin secretos.')}
+        {trabajando ? ` ${tr('Se relee cada 2.5 s.')}` : ''}
       </p>
     </Plegado>}
   </div>

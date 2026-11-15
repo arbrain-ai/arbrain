@@ -5,7 +5,7 @@
 //
 // Encender en un navegador: abrir cualquier página con `?levy4=1` (queda guardado en localStorage); `?levy4=0` la apaga.
 // O a mano: localStorage.setItem('arbrain-levy4', '1').
-import { levyVivoActivo } from './levy-vivo.ts'
+import { caraLive, levyVivoActivo } from './levy-vivo.ts'
 
 export const LEVY4_CLAVE = 'arbrain-levy4'
 /** GLB de c06 (harness/variantes/c06/levy-v4.glb de la noche, sha256 b39dfe8a…): n34 → identidad r5 → boca. */
@@ -20,9 +20,10 @@ export function levy4Activo(): boolean {
   } catch { return false }
 }
 
-/** La voz de Live pide la alineación por carácter con «Levy vivo» (2D) o con Levy v4 (3D). Sin ninguna, como siempre. */
+/** La voz de Live pide la alineación por carácter cuando la cara la usa: el Levy de los videos (default de Live desde el
+ *  13 nov), la bandera «Levy vivo» o Levy v4 (3D). Con el 3D o el 2D anterior elegidos en Ajustes, PCM crudo como antes. */
 export function pedirAlineacion(): boolean {
-  return levyVivoActivo() || levy4Activo()
+  return caraLive() === 'videos' || levyVivoActivo() || levy4Activo()
 }
 
 /** Qué 3D monta Live: el v4 solo para Levy y solo con la bandera; todo lo demás, el Levy3D de siempre. */

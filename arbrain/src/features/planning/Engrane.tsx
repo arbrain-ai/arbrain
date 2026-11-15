@@ -8,6 +8,7 @@ import { ListaCalendarios, type ControlLeyenda } from './Leyenda'
 import { ZonasDeMiVida } from './ZonasDeMiVida'
 import { DIAS_VISTA, type DiasVista } from './semana-horas'
 import e from './engrane.module.css'
+import { tr, trMarca } from '@/shared/i18n'
 
 /**
  * El engrane (10 oct 2026, Daniel: «en lugar de tener un botón de enfoque, otro de horas, otro de agenda, deberíamos tener un
@@ -56,55 +57,55 @@ export function Engrane({ ajustes, poner, diasActual, leyenda, drip, matriz, acc
   const horas = Array.from({ length: 25 }, (_, h) => h)
 
   return <span ref={raiz} className={e.wrap} data-more-menu>
-    <button className={e.boton} aria-label="Ajustes del calendario" aria-haspopup="dialog" aria-expanded={abierto} title="Ajustes del calendario" onClick={() => setAbierto(v => !v)}><Settings size={16} aria-hidden /></button>
-    {abierto && <div className={e.hoja} role="dialog" aria-label="Ajustes del calendario">
+    <button className={e.boton} aria-label={tr('Ajustes del calendario')} aria-haspopup="dialog" aria-expanded={abierto} title={tr('Ajustes del calendario')} onClick={() => setAbierto(v => !v)}><Settings size={16} aria-hidden /></button>
+    {abierto && <div className={e.hoja} role="dialog" aria-label={tr('Ajustes del calendario')}>
       {/* Una sola hoja para Día, Semana y Mes (10 oct 2026, el dueño: «en pro de no repetir detalles»): los mismos ajustes, en el mismo
           orden, sin importar la escala. Cada uno vale para todas las vistas donde tiene sentido. */}
-      <Seccion titulo="Vista">
-        <Fila etiqueta={<>Días a la vista{ajustes.dias === null && diasActual > 0 && <small>{diasActual} por el ancho</small>}</>}>
+      <Seccion titulo={tr('Vista')}>
+        <Fila etiqueta={<>{tr('Días a la vista')}{ajustes.dias === null && diasActual > 0 && <small>{tr('{n} por el ancho', { n: diasActual })}</small>}</>}>
           <Segmentos valor={ajustes.dias ?? 'auto'} opciones={[{ v: 'auto' as const, t: 'Auto' }, ...DIAS_VISTA.map(n => ({ v: n, t: String(n) }))]}
-            onCambio={n => poner({ dias: n === 'auto' ? null : n as DiasVista })} nombre="Días a la vista" />
+            onCambio={n => poner({ dias: n === 'auto' ? null : n as DiasVista })} nombre={tr('Días a la vista')} />
         </Fila>
-        <Interruptor etiqueta="Enfoque" ayuda="Sin categorías ni subtítulos; las horas más altas" valor={ajustes.enfoque} onCambio={v => poner({ enfoque: v })} />
-        <Interruptor etiqueta="Fines de semana" valor={ajustes.finDeSemana} onCambio={v => poner({ finDeSemana: v })} />
+        <Interruptor etiqueta={tr('Enfoque')} ayuda={tr('Sin categorías ni subtítulos; las horas más altas')} valor={ajustes.enfoque} onCambio={v => poner({ enfoque: v })} />
+        <Interruptor etiqueta={tr('Fines de semana')} valor={ajustes.finDeSemana} onCambio={v => poner({ finDeSemana: v })} />
         {/* Pantalla compartida (25 oct 2026, pedido del dueño): Arbrain no sabe cuándo se graba o se comparte, así que es un interruptor
             de este equipo (el mismo modo presentación de «Hábitos de hoy»). Prendido, un hábito privado se ve como «Hábito privado». */}
-        <Interruptor etiqueta="Pantalla compartida" ayuda="Al grabar o compartir: los hábitos privados se ven como «Hábito privado»" valor={presentacion.activo} onCambio={v => { if (v !== presentacion.activo) presentacion.alternar() }} />
-        <Fila etiqueta="Semana"><Segmentos valor={ajustes.vistaSemana} opciones={[{ v: 'horas', t: 'Horas' }, { v: 'agenda', t: 'Agenda' }]} onCambio={v => poner({ vistaSemana: v })} nombre="Ver la semana como" /></Fila>
-        <Fila etiqueta="Mes"><Segmentos valor={ajustes.mesVista} opciones={[{ v: 'recorrido', t: 'Recorrido' }, { v: 'cuadricula', t: 'Cuadrícula' }]} onCambio={v => poner({ mesVista: v })} nombre="Ver el mes como" /></Fila>
-        {ajustes.mesVista === 'cuadricula' && <Fila etiqueta="Semanas del mes"><Segmentos valor={ajustes.mesSemanas} opciones={SEMANAS_MES.map(n => ({ v: n, t: n ? String(n) : 'Mes' }))} onCambio={n => poner({ mesSemanas: n })} nombre="Semanas a la vista" /></Fila>}
+        <Interruptor etiqueta={tr('Pantalla compartida')} ayuda={tr('Al grabar o compartir: los hábitos privados se ven como «Hábito privado»')} valor={presentacion.activo} onCambio={v => { if (v !== presentacion.activo) presentacion.alternar() }} />
+        <Fila etiqueta={tr('Semana')}><Segmentos valor={ajustes.vistaSemana} opciones={[{ v: 'horas', t: trMarca('Horas') }, { v: 'agenda', t: trMarca('Agenda') }]} onCambio={v => poner({ vistaSemana: v })} nombre={tr('Ver la semana como')} /></Fila>
+        <Fila etiqueta={tr('Mes')}><Segmentos valor={ajustes.mesVista} opciones={[{ v: 'recorrido', t: trMarca('Recorrido') }, { v: 'cuadricula', t: trMarca('Cuadrícula') }]} onCambio={v => poner({ mesVista: v })} nombre={tr('Ver el mes como')} /></Fila>
+        {ajustes.mesVista === 'cuadricula' && <Fila etiqueta={tr('Semanas del mes')}><Segmentos valor={ajustes.mesSemanas} opciones={SEMANAS_MES.map(n => ({ v: n, t: n ? String(n) : trMarca('Mes') }))} onCambio={n => poner({ mesSemanas: n })} nombre={tr('Semanas a la vista')} /></Fila>}
       </Seccion>
-      <Seccion titulo="Horas">
-        <Fila etiqueta="Rango">
+      <Seccion titulo={tr('Horas')}>
+        <Fila etiqueta={tr('Rango')}>
           <span className={e.rango}>
-            <select aria-label="Desde" value={ajustes.desde} onChange={ev => poner({ desde: Number(ev.target.value) })}>{horas.slice(0, 21).map(h => <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>)}</select>
+            <select aria-label={tr('Desde')} value={ajustes.desde} onChange={ev => poner({ desde: Number(ev.target.value) })}>{horas.slice(0, 21).map(h => <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>)}</select>
             <span aria-hidden>–</span>
-            <select aria-label="Hasta" value={ajustes.hasta} onChange={ev => poner({ hasta: Number(ev.target.value) })}>{horas.slice(4).map(h => <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>)}</select>
+            <select aria-label={tr('Hasta')} value={ajustes.hasta} onChange={ev => poner({ hasta: Number(ev.target.value) })}>{horas.slice(4).map(h => <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>)}</select>
           </span>
         </Fila>
-        <Fila etiqueta="Densidad"><Segmentos valor={ajustes.densidad} opciones={[{ v: 'comoda', t: 'Cómoda' }, { v: 'compacta', t: 'Compacta' }]} onCambio={v => poner({ densidad: v })} nombre="Densidad" /></Fila>
-        <Interruptor etiqueta="Zona horaria" ayuda="En la esquina de las horas" valor={ajustes.zona} onCambio={v => poner({ zona: v })} />
+        <Fila etiqueta={tr('Densidad')}><Segmentos valor={ajustes.densidad} opciones={[{ v: 'comoda', t: trMarca('Cómoda') }, { v: 'compacta', t: trMarca('Compacta') }]} onCambio={v => poner({ densidad: v })} nombre={tr('Densidad')} /></Fila>
+        <Interruptor etiqueta={tr('Zona horaria')} ayuda={tr('En la esquina de las horas')} valor={ajustes.zona} onCambio={v => poner({ zona: v })} />
       </Seccion>
       {/* Zonas de mi vida (28 oct 2026, pedido del dueño: «en algún panel en la config activar y desactivar ciertas zonas de mi vida»): el fondo
           de Día y Semana. Cada zona con su interruptor, sus horas y su color (el de una categoría). Se guarda por persona (useZonas). */}
       <ZonasDeMiVida />
-      {leyenda.calendarios && leyenda.alternarCalendario && <Seccion titulo="Calendarios"><div className={e.calendarios}><ListaCalendarios calendarios={leyenda.calendarios} alternar={leyenda.alternarCalendario} poner={leyenda.ponerCalendarios} /></div></Seccion>}
+      {leyenda.calendarios && leyenda.alternarCalendario && <Seccion titulo={tr('Calendarios')}><div className={e.calendarios}><ListaCalendarios calendarios={leyenda.calendarios} alternar={leyenda.alternarCalendario} poner={leyenda.ponerCalendarios} /></div></Seccion>}
       {/* DRIP (24 oct 2026): reemplaza las categorías como color. Cuadrantes a la vista y la tarifa de recompra.
           La matriz vive aquí desde el 25 oct 2026 (pedido del dueño: «la matriz va dentro del botón de config»): la barra queda en Hoy · ‹ › ·
           fecha · D S M · + · engrane. Sin gobierno (la vista del chat), las cuatro pastillas de antes. */}
       <Seccion titulo="DRIP">
         {drip && (matriz ?? <div className={e.categorias}>{CUADRANTES.map(c => { const oculta = drip.ocultas.has(c.id)
-          return <button key={c.id} aria-pressed={!oculta} data-oculta={oculta || undefined} style={{ '--c': c.color } as CSSProperties} onClick={() => drip.alternar(c.id)} title={c.lema}><i aria-hidden />{c.nombre}</button> })}</div>)}
+          return <button key={c.id} aria-pressed={!oculta} data-oculta={oculta || undefined} style={{ '--c': c.color } as CSSProperties} onClick={() => drip.alternar(c.id)} title={tr(c.lema)}><i aria-hidden />{tr(c.nombre)}</button> })}</div>)}
         {drip && <TarifaRecompra drip={drip} />}
-        {drip && <Interruptor etiqueta="Semana perfecta" ayuda={drip.bloquesPerfectos ? `${drip.bloquesPerfectos} bloques en fantasma detrás de tu semana` : 'Sin diseñar: dile a Levy «armemos mi semana perfecta»'} valor={ajustes.semanaPerfecta} onCambio={v => poner({ semanaPerfecta: v })} />}
-        <Interruptor etiqueta="Rutina a futuro" ayuda="Día y Semana: lo que falta de tu rutina. Lo que ya pasó y tus compromisos se ven siempre" valor={ajustes.rutinaFutura} onCambio={v => poner({ rutinaFutura: v })} />
-        <Interruptor etiqueta="Eventos rechazados" ayuda="Los que rechazaste en Google" valor={ajustes.rechazados} onCambio={v => poner({ rechazados: v })} />
+        {drip && <Interruptor etiqueta={tr('Semana perfecta')} ayuda={drip.bloquesPerfectos ? tr('{n} bloques en fantasma detrás de tu semana', { n: drip.bloquesPerfectos }) : tr('Sin diseñar: dile a Levy «armemos mi semana perfecta»')} valor={ajustes.semanaPerfecta} onCambio={v => poner({ semanaPerfecta: v })} />}
+        <Interruptor etiqueta={tr('Rutina a futuro')} ayuda={tr('Día y Semana: lo que falta de tu rutina. Lo que ya pasó y tus compromisos se ven siempre')} valor={ajustes.rutinaFutura} onCambio={v => poner({ rutinaFutura: v })} />
+        <Interruptor etiqueta={tr('Eventos rechazados')} ayuda={tr('Los que rechazaste en Google')} valor={ajustes.rechazados} onCambio={v => poner({ rechazados: v })} />
       </Seccion>
       <div className={e.pie}>
-        {acciones.onFiltros && <button onClick={cerrarY(acciones.onFiltros)}><Filter size={14} aria-hidden />Filtros de tareas</button>}
-        {acciones.tareas && <button role="menuitemcheckbox" aria-checked={acciones.tareas.abierto} onClick={cerrarY(acciones.tareas.alternar)}><PanelRightOpen size={14} aria-hidden />Panel de tareas</button>}
-        {acciones.onAtajos && <button onClick={cerrarY(acciones.onAtajos)}><Keyboard size={14} aria-hidden />Atajos</button>}
-        <button disabled={acciones.actualizando} onClick={cerrarY(acciones.onActualizar)}><RefreshCw size={14} aria-hidden />Actualizar</button>
+        {acciones.onFiltros && <button onClick={cerrarY(acciones.onFiltros)}><Filter size={14} aria-hidden />{tr('Filtros de tareas')}</button>}
+        {acciones.tareas && <button role="menuitemcheckbox" aria-checked={acciones.tareas.abierto} onClick={cerrarY(acciones.tareas.alternar)}><PanelRightOpen size={14} aria-hidden />{tr('Panel de tareas')}</button>}
+        {acciones.onAtajos && <button onClick={cerrarY(acciones.onAtajos)}><Keyboard size={14} aria-hidden />{tr('Atajos')}</button>}
+        <button disabled={acciones.actualizando} onClick={cerrarY(acciones.onActualizar)}><RefreshCw size={14} aria-hidden />{tr('Actualizar')}</button>
       </div>
     </div>}
   </span>
@@ -118,7 +119,7 @@ function Fila({ etiqueta, children }: { etiqueta: ReactNode; children: ReactNode
 }
 function Segmentos<T extends string | number>({ valor, opciones, onCambio, nombre }: { valor: T; opciones: { v: T; t: string }[]; onCambio: (v: T) => void; nombre: string }) {
   return <span className={e.segmentos} role="radiogroup" aria-label={nombre}>
-    {opciones.map(o => <button key={String(o.v)} role="radio" aria-checked={o.v === valor} onClick={() => onCambio(o.v)}>{o.t}</button>)}
+    {opciones.map(o => <button key={String(o.v)} role="radio" aria-checked={o.v === valor} onClick={() => onCambio(o.v)}>{tr(o.t)}</button>)}
   </span>
 }
 function Interruptor({ etiqueta, ayuda, valor, onCambio }: { etiqueta: string; ayuda?: string; valor: boolean; onCambio: (v: boolean) => void }) {
@@ -145,13 +146,13 @@ function TarifaRecompra({ drip }: { drip: DripEngrane }) {
   const desdeAnual = (v: string) => { setAnual(v); const n = Number(v.replace(/[^\d.]/g, '')); if (n > 0) setHora(String(Math.round(n / 8000 * 100) / 100)) }
   const confirmar = () => { const n = Number(hora); if (!hora.trim()) void guardar(null); else if (n > 0) void guardar(n) }
   return <div className={e.tarifa}>
-    <span className={e.tarifaRotulo}><b>Tarifa de recompra</b><small>Lo que te paga tu empresa al año ÷ 8,000{drip.tarifa && !drip.propia ? ' · la de tu instalación' : ''}</small></span>
+    <span className={e.tarifaRotulo}><b>{tr('Tarifa de recompra')}</b><small>{tr('Lo que te paga tu empresa al año ÷ 8,000')}{drip.tarifa && !drip.propia ? ` · ${tr('la de tu instalación')}` : ''}</small></span>
     <span className={e.tarifaCampos}>
-      <label><small>Al año</small><input inputMode="decimal" placeholder="200000" value={anual} onChange={ev => desdeAnual(ev.target.value)} onBlur={confirmar} onKeyDown={ev => { if (ev.key === 'Enter') confirmar() }} aria-label="Lo que te paga tu empresa al año" /></label>
+      <label><small>{tr('Al año')}</small><input inputMode="decimal" placeholder="200000" value={anual} onChange={ev => desdeAnual(ev.target.value)} onBlur={confirmar} onKeyDown={ev => { if (ev.key === 'Enter') confirmar() }} aria-label={tr('Lo que te paga tu empresa al año')} /></label>
       <span aria-hidden>÷ 8,000 =</span>
-      <label><small>Por hora</small><input inputMode="decimal" placeholder="—" value={hora} onChange={ev => setHora(ev.target.value.replace(/[^\d.]/g, ''))} onBlur={confirmar} onKeyDown={ev => { if (ev.key === 'Enter') confirmar() }} aria-label="Tarifa de recompra por hora" /></label>
-      <select aria-label="Moneda" value={moneda} onChange={ev => { setMoneda(ev.target.value); if (Number(hora) > 0) void guardar(Number(hora), ev.target.value) }}>{['USD', 'MXN', 'EUR', 'COP', 'ARS', 'CLP'].map(m => <option key={m}>{m}</option>)}</select>
+      <label><small>{tr('Por hora')}</small><input inputMode="decimal" placeholder="—" value={hora} onChange={ev => setHora(ev.target.value.replace(/[^\d.]/g, ''))} onBlur={confirmar} onKeyDown={ev => { if (ev.key === 'Enter') confirmar() }} aria-label={tr('Tarifa de recompra por hora')} /></label>
+      <select aria-label={tr('Moneda')} value={moneda} onChange={ev => { setMoneda(ev.target.value); if (Number(hora) > 0) void guardar(Number(hora), ev.target.value) }}>{['USD', 'MXN', 'EUR', 'COP', 'ARS', 'CLP'].map(m => <option key={m}>{m}</option>)}</select>
     </span>
-    <small className={e.tarifaEstado} role="status">{estado === 'guardando' ? 'Guardando…' : estado === 'guardado' ? 'Guardada.' : estado === 'error' ? 'No se guardó. Reintenta.' : ''}</small>
+    <small className={e.tarifaEstado} role="status">{estado === 'guardando' ? tr('Guardando…') : estado === 'guardado' ? tr('Guardada.') : estado === 'error' ? tr('No se guardó. Reintenta.') : ''}</small>
   </div>
 }

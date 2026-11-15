@@ -23,6 +23,7 @@ import { randomBytes } from 'node:crypto'
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { DIR_ARBRAIN } from '../edicion.js'
+import { tr } from '../i18n/tr.js'
 
 export type DecisionApp = 'siempre' | 'conversacion' | 'no'
 /** La app tal como la identifica el adaptador: `clave` estable (bundle id o ejecutable) y su nombre visible. */
@@ -158,10 +159,10 @@ export class PermisosApp {
 
   /** Decisión de la persona (quien llama ya verificó el secreto de la app). */
   resolver(id: unknown, decision: unknown): { ok: true; pedido: PedidoApp } | { ok: false; status: number; error: string } {
-    if (decision !== 'siempre' && decision !== 'conversacion' && decision !== 'no') return { ok: false, status: 400, error: 'decision: «siempre», «conversacion» o «no».' }
+    if (decision !== 'siempre' && decision !== 'conversacion' && decision !== 'no') return { ok: false, status: 400, error: tr('decision: «siempre», «conversacion» o «no».') }
     const x = typeof id === 'string' && ID_PEDIDO_APP.test(id) ? this.get(id) : null
-    if (!x) return { ok: false, status: 404, error: 'No existe ese pedido de permiso.' }
-    if (x.estado !== 'pendiente') return { ok: false, status: 409, error: `Ese pedido ya está ${x.estado}.` }
+    if (!x) return { ok: false, status: 404, error: tr('No existe ese pedido de permiso.') }
+    if (x.estado !== 'pendiente') return { ok: false, status: 409, error: tr('Ese pedido ya está {estado}.', { estado: tr(x.estado) }) }
     const c = this.conv(x.conversacion)
     if (!this.porConversacion.has(c)) this.porConversacion.set(c, new Map())
     if (decision === 'siempre') {

@@ -6,11 +6,12 @@
  */
 import { useCallback, useEffect, useState } from 'react'
 import type { EstadoPausa, EstadoPermisosLevy } from '../lib/seguridad'
+import { tr } from '@/shared/i18n'
 
 export async function pedir<T>(url: string, init?: RequestInit): Promise<T> {
   const r = await fetch(url, { cache: 'no-store', ...init, headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) } })
   const j = await r.json().catch(() => ({})) as T & { error?: string }
-  if (!r.ok) throw new Error(j.error || `Error ${r.status}`)
+  if (!r.ok) throw new Error(j.error || tr('Error {estado}', { estado: r.status }))
   return j
 }
 
@@ -36,7 +37,7 @@ export function usePausa(cadaMs = 3_000, activo = true) {
   const fijar = useCallback(async (pausado: boolean) => {
     setOcupado(true); setError(null)
     try { setPausa(await pedir<EstadoPausa>('/api/seguridad/pausa', { method: 'POST', body: JSON.stringify({ pausado }) })); window.dispatchEvent(new Event(EVENTO_PAUSA)); return true }
-    catch (e) { setError(e instanceof Error ? e.message : 'No se pudo.'); return false }
+    catch (e) { setError(tr(e instanceof Error ? e.message : 'No se pudo.')); return false }
     finally { setOcupado(false) }
   }, [])
   return { pausa, ocupado, error, fijar }
@@ -59,7 +60,7 @@ export function useModoGlobal(cadaMs = 10_000, activo = true) {
   const mandar = useCallback(async (cuerpo: Record<string, unknown>) => {
     setOcupado(true); setError(null)
     try { setEstado(await pedir<EstadoPermisosLevy>('/api/seguridad/permisos', { method: 'POST', body: JSON.stringify(cuerpo) })); window.dispatchEvent(new Event(EVENTO_PERMISOS)); return true }
-    catch (e) { setError(e instanceof Error ? e.message : 'No se pudo.'); return false }
+    catch (e) { setError(tr(e instanceof Error ? e.message : 'No se pudo.')); return false }
     finally { setOcupado(false) }
   }, [])
   return { estado, autonomo: estado?.modo === 'autonomo', desde: estado?.consentimiento?.ts ?? null, ocupado, error, mandar }

@@ -22,6 +22,7 @@
 import { esEdicionCliente } from '../edicion.js'
 import type { ContextoAccion, PedidoActuar } from './contrato.js'
 import { dominioProtegido } from './juicio-url.js'
+import { trMarca } from '../i18n/tr.js'
 
 /** Lo que el alumno tiene en 0.1.2 (sin encargar/decidir: salen a OpenRouter; sin recetas: pgrep/defaults; sin lienzo ni web). */
 export const HERRAMIENTAS_CLIENTE = new Set(['observar', 'actuar', 'navegar', 'mostrar', 'apps', 'ventanas', 'verificar'])
@@ -126,11 +127,11 @@ export function juzgarCliente(p: PedidoActuar, c: ContextoAccion, cliente = esEd
 
   if (esExplorador(c) || esExplorador({ app: p.app })) {
     if (escribe) return duro('explorador', 'en el Explorador de Windows las manos no escriben: su barra de direcciones ejecuta comandos')
-    if (p.accion === 'tecla' && /^(return|enter)$/.test(tecla)) return conClic('ejecutar', 'Enter en el Explorador abre (o ejecuta) lo seleccionado')
-    if (p.accion === 'click' && e && /^(AXRow|AXCell|AXImage|AXGroup|AXStaticText|AXButton)$/.test(e.rol) && (EJECUTABLE.test(pistas) || !pistas)) return conClic('ejecutar', `abrir «${pistas || 'un elemento sin nombre'}» desde el Explorador puede ejecutarlo`)
+    if (p.accion === 'tecla' && /^(return|enter)$/.test(tecla)) return conClic('ejecutar', trMarca('Enter en el Explorador abre (o ejecuta) lo seleccionado'))
+    if (p.accion === 'click' && e && /^(AXRow|AXCell|AXImage|AXGroup|AXStaticText|AXButton)$/.test(e.rol) && (EJECUTABLE.test(pistas) || !pistas)) return conClic('ejecutar', `abrir «${pistas || trMarca('un elemento sin nombre')}» desde el Explorador puede ejecutarlo`)
   }
   if (esFinder(c) || esFinder({ app: p.app })) {
-    if (p.accion === 'tecla' && mods.some(m => /cmd|command/.test(m)) && /^(o|down|abajo)$/.test(tecla)) return conClic('ejecutar', '⌘O / ⌘↓ en Finder abre (o ejecuta) lo seleccionado')
+    if (p.accion === 'tecla' && mods.some(m => /cmd|command/.test(m)) && /^(o|down|abajo)$/.test(tecla)) return conClic('ejecutar', trMarca('⌘O / ⌘↓ en Finder abre (o ejecuta) lo seleccionado'))
     if (p.accion === 'click' && e && /^(AXRow|AXCell|AXImage|AXGroup|AXStaticText)$/.test(e.rol) && EJECUTABLE.test(pistas)) return conClic('ejecutar', `abrir «${pistas}» desde Finder puede ejecutarlo`)
   }
 

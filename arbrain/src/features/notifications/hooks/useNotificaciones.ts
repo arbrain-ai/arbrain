@@ -1,5 +1,6 @@
 'use client'
 import { useCallback, useEffect, useState } from 'react'
+import { tr } from '@/shared/i18n'
 import { estadoPush, mensajeDeError, type EstadoPush } from '../lib/soportePush'
 import {
   activarEnDispositivo, cargarClave, desactivarEnDispositivo, estadoEnServidor, leerEntorno, pedirPrueba, permisoActual,
@@ -53,7 +54,7 @@ export function useNotificaciones() {
       const permiso = await activarEnDispositivo()
       if (permiso === 'granted') { setEstado('activo'); await revisar(); return true }
       setEstado(estadoPush(leerEntorno(false)))
-      if (permiso === 'denied') setError('Bloqueaste las notificaciones. Actívalas en los ajustes del teléfono y vuelve aquí.')
+      if (permiso === 'denied') setError(tr('Bloqueaste las notificaciones. Actívalas en los ajustes del teléfono y vuelve aquí.'))
       return false
     } catch (e) {
       setError(mensajeDeError(e))
@@ -72,7 +73,7 @@ export function useNotificaciones() {
       setEstado(estadoPush(leerEntorno(false)))
       setDispositivos((d) => (d && d > 0 ? d - 1 : d))
     } catch (e) {
-      setError(e instanceof Error && e.message ? e.message : 'No se pudo desactivar. Intenta de nuevo.')
+      setError(tr(e instanceof Error && e.message ? e.message : 'No se pudo desactivar. Intenta de nuevo.'))
     } finally {
       setOcupado(false)
     }

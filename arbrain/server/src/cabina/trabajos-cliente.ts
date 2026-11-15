@@ -13,12 +13,13 @@
  * existen, y siguen fuera.
  */
 import type { Trabajos } from './cuerpo.js'
-import { internas, type TareaInterna } from './internos.js'
+import { internas, tituloParaApp, type TareaInterna } from './internos.js'
+import { tr } from '../i18n/tr.js'
 
 /** Lo que sale hacia la app: sin el resultado completo (va por `salida`) y sin secretos en los textos. */
 export function internaParaLista(t: TareaInterna, tachar: (s: string) => string): TareaInterna {
   return {
-    ...t, descripcion: tachar(t.descripcion),
+    ...t, descripcion: tachar(tituloParaApp(t.descripcion)),
     ...(t.actividad ? { actividad: tachar(t.actividad) } : {}),
     ...(t.resumen ? { resumen: tachar(t.resumen).slice(0, 300) } : {}),
     ...(t.resultado ? { resultado: undefined } : {}),
@@ -28,7 +29,7 @@ export function internaParaLista(t: TareaInterna, tachar: (s: string) => string)
 export async function trabajosCliente(o: { leer?: () => Promise<TareaInterna[]>; tachar?: (s: string) => string } = {}): Promise<Trabajos> {
   const tachar = o.tachar ?? (await import('./cuerpo.js')).tachar
   let error: string | undefined
-  const lista = await (o.leer ?? internas)().catch((e: unknown) => { error = `no se pudo leer el registro de subagentes: ${e instanceof Error ? e.message : e}`; return [] as TareaInterna[] })
+  const lista = await (o.leer ?? internas)().catch((e: unknown) => { error = tr('no se pudo leer el registro de subagentes: {error}', { error: e instanceof Error ? e.message : String(e) }); return [] as TareaInterna[] })
   return {
     fuente: 'ninguna', sfterm: false,
     internas: lista.map(t => internaParaLista(t, tachar)),

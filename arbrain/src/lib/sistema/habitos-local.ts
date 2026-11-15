@@ -17,6 +17,7 @@ import { dirname, join } from 'node:path'
 import { ChatAccessError } from '@/lib/chat-access-policy'
 import { civilToday, habitRange, isCivilDate } from '@/features/sistema/calendar-days'
 import { zonaDueno } from '@/shared/lib/zona-dueno'
+import { tr } from '@/shared/i18n'
 
 export const RUTA_HABITOS = '.claude/plan/habitos.json'
 const SECCIONES = ['ancla', 'cuerpo', 'mente', 'nutricion'] as const
@@ -43,14 +44,14 @@ export interface HabitosArchivo {
 /** La semilla: solo «Objetivo del día», activo. El resto lo crea el alumno. */
 export const habitosSemilla = (ahora = new Date().toISOString()): HabitosArchivo => ({
   _como_se_usa: INSTRUCTIVO, version: 1,
-  habitos: [{ clave: 'objetivo_dia', nombre: 'Objetivo del día', seccion: 'ancla', icono: null, orden: 0, activo: true, creado: ahora }],
+  habitos: [{ clave: 'objetivo_dia', nombre: tr('Objetivo del día'), seccion: 'ancla', icono: null, orden: 0, activo: true, creado: ahora }],
   registro: {}, reflexion: {},
 })
 
 const err = (m: string, s = 400) => new ChatAccessError(m, s)
 
 function leerTexto(ruta: string): string | null {
-  try { return readFileSync(ruta, 'utf8') } catch (e) { if ((e as NodeJS.ErrnoException).code === 'ENOENT') return null; throw err('No se pudieron leer tus hábitos. No significa que no tengas.', 503) }
+  try { return readFileSync(ruta, 'utf8') } catch (e) { if ((e as NodeJS.ErrnoException).code === 'ENOENT') return null; throw err(tr('No se pudieron leer tus hábitos. No significa que no tengas.'), 503) }
 }
 function escribirAtomico(ruta: string, contenido: string) {
   mkdirSync(dirname(ruta), { recursive: true })
@@ -61,8 +62,8 @@ function escribirAtomico(ruta: string, contenido: string) {
 export function decodificarHabitos(texto: string | null): HabitosArchivo {
   if (texto === null || !texto.trim()) return habitosSemilla()
   let d: HabitosArchivo
-  try { d = JSON.parse(texto) } catch { throw err('habitos.json no es JSON válido. Corrígelo (o pídeselo a Levy); no se sobrescribió.', 409) }
-  if (!d || typeof d !== 'object' || !Array.isArray(d.habitos)) throw err('habitos.json no tiene «habitos». No se sobrescribió.', 409)
+  try { d = JSON.parse(texto) } catch { throw err(tr('habitos.json no es JSON válido. Corrígelo (o pídeselo a Levy); no se sobrescribió.'), 409) }
+  if (!d || typeof d !== 'object' || !Array.isArray(d.habitos)) throw err(tr('habitos.json no tiene «habitos». No se sobrescribió.'), 409)
   if (!d.registro || typeof d.registro !== 'object') d.registro = {}
   return d
 }
@@ -85,7 +86,7 @@ export class HabitosLocales {
 
   leer(params: URLSearchParams) {
     let rango: ReturnType<typeof habitRange>
-    try { rango = habitRange(params) } catch { throw err('Fecha, zona horaria o rango inválido.', 400) }
+    try { rango = habitRange(params) } catch { throw err(tr('Fecha, zona horaria o rango inválido.'), 400) }
     const d = decodificarHabitos(leerTexto(this.ruta))
     const catalog = d.habitos.filter(h => h && typeof h.clave === 'string').map(definicion).sort((a, b) => a.orden - b.orden || a.clave.localeCompare(b.clave))
     const records = Object.entries(d.registro).filter(([f]) => isCivilDate(f) && f >= rango.from && f <= rango.to).sort(([a], [b]) => a.localeCompare(b))
@@ -105,35 +106,35 @@ export class HabitosLocales {
   escribir(body: Record<string, unknown>): Promise<{ status: number; cuerpo: Record<string, unknown> }> {
     return enFila(() => {
       let today: string
-      try { today = civilToday(typeof body.timeZone === 'string' ? body.timeZone : zonaDueno()) } catch { throw err('Zona horaria inválida.', 400) }
+      try { today = civilToday(typeof body.timeZone === 'string' ? body.timeZone : zonaDueno()) } catch { throw err(tr('Zona horaria inválida.'), 400) }
       const fecha = body.date ?? today
-      if (!isCivilDate(fecha)) throw err('Fecha inválida.', 400)
+      if (!isCivilDate(fecha)) throw err(tr('Fecha inválida.'), 400)
       const original = leerTexto(this.ruta)
       const d = decodificarHabitos(original)
       const ahora = new Date().toISOString()
       if (body.tipo === 'reflexion') {
         const campo = body.campo as typeof REFLEXION[number]
-        if (!REFLEXION.includes(campo) || typeof body.valor !== 'string' || body.valor.length > 8000) throw err('Campo o reflexión inválidos.', 400)
+        if (!REFLEXION.includes(campo) || typeof body.valor !== 'string' || body.valor.length > 8000) throw err(tr('Campo o reflexión inválidos.'), 400)
         d.reflexion ??= {}
         d.reflexion[fecha] = { ...(d.reflexion[fecha] ?? {}), [campo]: body.valor }
         this.guardar(original, d)
         return { status: 200, cuerpo: { ok: true } }
       }
       if (typeof body.clave !== 'string' || !body.clave || body.clave.length > 100 || (body.hecho !== true && body.hecho !== false && body.hecho !== null)) {
-        throw err('Hábito/estado inválido: usa true, false o null.', 400)
+        throw err(tr('Hábito/estado inválido: usa true, false o null.'), 400)
       }
       const fuente = String(body.source ?? 'manual')
-      if (!(FUENTES as readonly string[]).includes(fuente)) throw err('Procedencia inválida.', 400)
+      if (!(FUENTES as readonly string[]).includes(fuente)) throw err(tr('Procedencia inválida.'), 400)
       const evidencia = body.evidence ?? null
-      if (evidencia !== null && (typeof evidencia !== 'string' || evidencia.length > 2000)) throw err('Evidencia inválida.', 400)
-      if (['diary', 'sfcal-import'].includes(fuente) && !(typeof evidencia === 'string' && evidencia.trim())) throw err('Falta la evidencia de origen.', 400)
-      if (body.owner !== undefined && body.owner !== this.owner) throw err('El registro pertenece a otra identidad.', 409)
+      if (evidencia !== null && (typeof evidencia !== 'string' || evidencia.length > 2000)) throw err(tr('Evidencia inválida.'), 400)
+      if (['diary', 'sfcal-import'].includes(fuente) && !(typeof evidencia === 'string' && evidencia.trim())) throw err(tr('Falta la evidencia de origen.'), 400)
+      if (body.owner !== undefined && body.owner !== this.owner) throw err(tr('El registro pertenece a otra identidad.'), 409)
       const requestId = body.requestId ?? randomUUID()
-      if (typeof requestId !== 'string' || !UUID.test(requestId)) throw err('Identificador inválido.', 400)
+      if (typeof requestId !== 'string' || !UUID.test(requestId)) throw err(tr('Identificador inválido.'), 400)
       const actual = d.registro[fecha]?.[body.clave]
       let esperada = body.expectedRevision
       if (esperada === undefined && body.requestId === undefined && fuente === 'manual') esperada = actual?.revision ?? 0
-      if (!Number.isSafeInteger(esperada) || Number(esperada) < 0) throw err('Falta una revisión válida del registro.', 400)
+      if (!Number.isSafeInteger(esperada) || Number(esperada) < 0) throw err(tr('Falta una revisión válida del registro.'), 400)
       if (!d.habitos.some(h => h.clave === body.clave)) return { status: 404, cuerpo: { error: 'unknown_habit', status: 404 } }
       if (actual && actual.requestId === requestId) {
         if (actual.hecho !== body.hecho || actual.fuente !== fuente || actual.evidencia !== evidencia) return { status: 409, cuerpo: { error: 'request_reused', status: 409 } }
@@ -151,7 +152,7 @@ export class HabitosLocales {
   }
 
   private guardar(original: string | null, d: HabitosArchivo) {
-    if (leerTexto(this.ruta) !== original) throw err('Tus hábitos cambiaron mientras guardabas (¿Levy los estaba editando?). Recarga y vuelve a marcar.', 409)
+    if (leerTexto(this.ruta) !== original) throw err(tr('Tus hábitos cambiaron mientras guardabas (¿Levy los estaba editando?). Recarga y vuelve a marcar.'), 409)
     if (original === null) d._como_se_usa ??= INSTRUCTIVO
     escribirAtomico(this.ruta, JSON.stringify(d, null, 2) + '\n')
   }

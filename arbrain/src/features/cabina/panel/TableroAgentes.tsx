@@ -27,14 +27,20 @@
  * los grupos de estado ceden a un grupo por la conversación que lanzó a sus agentes (`tablero-por-conversacion.ts`), la
  * abierta primero y marcada, «Sin conversación» al final. Dentro, el orden por estado de la ronda 4. Cada grupo dice en
  * una línea qué tiene («2 trabajando · 1 te espera») y dibuja su línea de tiempo; se pliega y recuerda el pliegue.
+ *
+ * Recibido, Cerrar y Ver resultados (11 nov 2026, Daniel: «aquellos que terminaron su encargo… un botón de eliminar para
+ * que no se acumulen o un botón de palomita como recibido, un visor de sus resultados»): cada encargo terminado lleva a la
+ * vista la palomita (lo pasa a «Recibidos», reversible) y la X (la herramienta `cerrar` de la Cabina: libera su lugar, su
+ * conversación queda en disco, nunca borra archivos). «Ver resultados» abre el visor de su evidencia (VisorResultados).
+ * `?ver-resultados=<agente>&cwd=<carpeta>` abre el visor directo (capturas y enlaces de Levy).
  */
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
-import { ArrowUpRight, Check, ChevronDown, ChevronRight, ChevronsUp, CircleAlert, CirclePause, Clock, Copy, Ellipsis, ExternalLink, GitBranch, GitCommitHorizontal, GitCompare, FileText, Hourglass, MessageCircleQuestionMark, MessageSquarePlus, NotebookPen, Play, Reply, RotateCcw, Square, UserRoundCheck, X, type LucideIcon } from 'lucide-react'
+import { ArrowUpRight, Check, ChevronDown, Images, Undo2, ChevronRight, ChevronsUp, CircleAlert, CirclePause, Clock, Copy, Ellipsis, ExternalLink, GitBranch, GitCommitHorizontal, GitCompare, FileText, Hourglass, MessageCircleQuestionMark, MessageSquarePlus, NotebookPen, Play, Reply, RotateCcw, Square, UserRoundCheck, X, type LucideIcon } from 'lucide-react'
 import { escalon, mov } from '@/shared/movimiento'
 import { releer } from '../datos'
 import { useAbrirConversacion, useConversacionActiva, useTituloConversacion } from '../conversaciones'
 import {
-  COLUMNA, DEMO_TITULOS, PERFIL_EN_PALABRAS, SIN_REVISAR, VEREDICTO, VEREDICTO_POR_QUE, armarTablero, cambiosEnPalabras, cuentas, demoTablero, esfuerzoEnPalabras, esfuerzoReintento, laten, latidoEnPalabras, senal, tiempoDe, totalTablero,
+  COLUMNA, DEMO_TITULOS, PERFIL_EN_PALABRAS, SIN_REVISAR, VEREDICTO, VEREDICTO_POR_QUE, armarTablero, cambiosEnPalabras, cuentas, demoTablero, esfuerzoEnPalabras, esfuerzoReintento, estaRecibido, laten, latidoEnPalabras, senal, terminoSuEncargo, tiempoDe, totalTablero,
   type Entregable, type FilaTablero,
 } from '../tablero-modelo'
 import { agruparPorConversacion, claveFila, type GrupoConversacion } from '../tablero-por-conversacion'
@@ -46,6 +52,8 @@ import { AgenteRespira } from './AgenteRespira'
 import { pedirSegmentoTaller } from './taller-segmento'
 import { pedirCarrilHistoria } from '@/features/historia/carril-pedido'
 import { sinRespuestaDelServidor } from '@/lib/edicion'
+import { VisorResultados, type PedidoVisor } from './VisorResultados'
+import { tr, trn } from '@/shared/i18n'
 
 const modelo = (f: FilaTablero) => {
   // «claude-opus-5-5» → «Opus 5.5»; los ids de otros proveedores se dejan como los publica su CLI
@@ -87,12 +95,12 @@ function useAhora(ms = 15_000) {
   return ahora
 }
 
-async function accion(que: 'detener' | 'responder', agente: number, texto?: string, esfuerzo?: string): Promise<string> {
-  const r = await fetch(`/api/cabina/${que}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ agente, ...(texto ? { texto } : {}), ...(esfuerzo ? { esfuerzo } : {}) }), signal: AbortSignal.timeout(50_000) })
+async function accion(que: 'detener' | 'responder' | 'cerrar' | 'recibido', agente: number, texto?: string, esfuerzo?: string, si?: boolean): Promise<string> {
+  const r = await fetch(`/api/cabina/${que}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ agente, ...(texto ? { texto } : {}), ...(esfuerzo ? { esfuerzo } : {}), ...(si != null ? { si } : {}) }), signal: AbortSignal.timeout(50_000) })
   const b = await r.json().catch(() => ({})) as { texto?: string; error?: string }
   if (!r.ok) throw new Error(b.error ?? sinRespuestaDelServidor())
   void releer(urlPanel(false))
-  return b.texto ?? 'Hecho.'
+  return b.texto ? tr(b.texto) : tr('Hecho.')
 }
 
 /** Retomar un agente que se detuvo: la misma vía que «Responder», con un mensaje fijo. */
@@ -113,25 +121,39 @@ export function TableroAgentes({ data, onAbrir, onAbrirInterna, demo = false }: 
   const grupos = agruparPorConversacion(tablero, { activa: demo ? 'demo-cohorte' : activa, ahora })
   // Lo plegado: cuatro listas que no son trabajo para ti ahora mismo, en una sola fila.
   const mas = [
-    { clave: 'procesos', titulo: 'Comandos corriendo en segundo plano', lista: tablero.procesos },
-    { clave: 'cortas', titulo: 'Tareas rápidas de Levy y sesiones tuyas', lista: tablero.cortas },
-    { clave: 'comandos', titulo: 'Comandos que terminaron', lista: tablero.comandosHechos },
-    { clave: 'anteriores', titulo: 'Hace más de un día', lista: tablero.anteriores },
+    { clave: 'procesos', titulo: tr('Comandos corriendo en segundo plano'), lista: tablero.procesos },
+    { clave: 'cortas', titulo: tr('Tareas rápidas de Levy y sesiones tuyas'), lista: tablero.cortas },
+    { clave: 'comandos', titulo: tr('Comandos que terminaron'), lista: tablero.comandosHechos },
+    { clave: 'anteriores', titulo: tr('Hace más de un día'), lista: tablero.anteriores },
+    { clave: 'recibidos', titulo: tr('Recibidos'), lista: tablero.recibidos },
   ].filter(x => x.lista.length)
-  return <div className={t.tablero} aria-label="Agentes de Levy por conversación">
-    {demo && <p className={t.demo} role="note">Modo demostración: datos de ejemplo para la captura. Los botones no hacen nada.</p>}
+  return <div className={t.tablero} aria-label={tr('Agentes de Levy por conversación')}>
+    {demo && <p className={t.demo} role="note">{tr('Modo demostración: datos de ejemplo para la captura. Los botones no hacen nada.')}</p>}
     {planes.length > 0 && <PlanesPorCorrer planes={planes} demo={demo} />}
     {grupos.map((g, k) => <GrupoConversacionVista key={g.conversacion || 'sin-conversacion'} g={g} i={k + 1} demo={demo} ahora={ahora} onAbrir={abrir} />)}
-    {!grupos.length && <p className={t.vacio}>Nadie trabaja ni te espera ahora.</p>}
+    {!grupos.length && <p className={t.vacio}>{tr('Nadie trabaja ni te espera ahora.')}</p>}
     {mas.length > 0 && <details className={t.pliegue} data-grupo="mas">
-      <summary><ChevronRight size={13} aria-hidden />Más actividad<small>{n.mas}</small></summary>
+      <summary><ChevronRight size={13} aria-hidden />{tr('Más actividad')}<small>{n.mas}</small></summary>
       {mas.map(x => <div key={x.clave} className={t.subgrupo} data-columna={x.clave}>
         <h5 className={t.subgrupoCabeza}>{x.titulo}<small>{x.lista.length}</small></h5>
         {filas(x.lista, true)}
       </div>)}
     </details>}
-    {n.listos > 0 && <p className={t.honesto}>Algo pasa a «Listo» solo cuando terminó, y otro agente que no vio el trabajo revisa si cumple lo pedido.</p>}
+    {n.listos > 0 && <p className={t.honesto}>{tr('Algo pasa a «Listo» solo cuando terminó, y otro agente que no vio el trabajo revisa si cumple lo pedido.')}</p>}
+    <VisorPorEnlace />
   </div>
+}
+
+/** `?ver-resultados=<agente>&cwd=<carpeta>[&nombre=…]`: el visor abierto directo, también para un agente que ya se cerró. */
+function VisorPorEnlace() {
+  const [pedido, setPedido] = useState<PedidoVisor | null>(null)
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search)
+    const agente = Number(q.get('ver-resultados'))
+    if (!Number.isInteger(agente) || agente <= 0) return
+    setPedido({ agente, cwd: q.get('cwd') ?? '', nombre: q.get('nombre') ?? tr('Agente {n}', { n: agente }) })
+  }, [])
+  return pedido && <VisorResultados pedido={pedido} onCerrar={() => setPedido(null)} />
 }
 
 /** Lo que el dueño plegó o desplegó a mano, por conversación. Sin elección, manda `plegadoInicial`. */
@@ -150,7 +172,7 @@ function guardarPlegado(id: string, plegado: boolean) {
  */
 function GrupoConversacionVista({ g, i, demo, ahora, onAbrir }: { g: GrupoConversacion; i: number; demo: boolean; ahora: number; onAbrir: (f: FilaTablero) => void }) {
   const tituloVivo = useTituloConversacion(g.conversacion && !demo ? g.conversacion : '')
-  const titulo = !g.conversacion ? 'Sin conversación' : demo ? DEMO_TITULOS[g.conversacion] ?? tituloVivo : tituloVivo
+  const titulo = !g.conversacion ? tr('Sin conversación') : demo ? DEMO_TITULOS[g.conversacion] ?? tituloVivo : tituloVivo
   const abrirConv = useAbrirConversacion()
   const id = g.conversacion || '-'
   const cuerpo = useId()
@@ -166,16 +188,16 @@ function GrupoConversacionVista({ g, i, demo, ahora, onAbrir }: { g: GrupoConver
   }, [plegado])
   const [resaltado, setResaltado] = useState<string | null>(null)
   const alternar = () => { const v = !plegado; setElegido(v); guardarPlegado(id, v) }
-  return <section className={`${t.conv} ${mov.entra}`} style={escalon(i)} data-activa={g.activa || undefined} data-plegado={plegado || undefined} aria-label={g.activa ? `Esta conversación: ${titulo}` : titulo}>
+  return <section className={`${t.conv} ${mov.entra}`} style={escalon(i)} data-activa={g.activa || undefined} data-plegado={plegado || undefined} aria-label={g.activa ? tr('Esta conversación: {titulo}', { titulo }) : titulo}>
     <div className={t.convCabeza}>
-      <button type="button" className={t.convPliegue} aria-expanded={!plegado} aria-controls={cuerpo} aria-label={`${plegado ? 'Desplegar' : 'Plegar'} «${titulo}»`} onClick={alternar}><ChevronRight size={13} aria-hidden /></button>
+      <button type="button" className={t.convPliegue} aria-expanded={!plegado} aria-controls={cuerpo} aria-label={plegado ? tr('Desplegar «{titulo}»', { titulo }) : tr('Plegar «{titulo}»', { titulo })} onClick={alternar}><ChevronRight size={13} aria-hidden /></button>
       {g.conversacion
-        ? <button type="button" className={t.convTitulo} onClick={() => { if (!demo) abrirConv(g.conversacion) }} title={g.activa ? `«${titulo}»: la conversación que tienes abierta` : `Abrir «${titulo}» en el chat`}>
+        ? <button type="button" className={t.convTitulo} onClick={() => { if (!demo) abrirConv(g.conversacion) }} title={g.activa ? tr('«{titulo}»: la conversación que tienes abierta', { titulo }) : tr('Abrir «{titulo}» en el chat', { titulo })}>
           <span className={t.convTituloTexto}>{titulo}</span>{!g.activa && <ArrowUpRight size={12} className={t.convIr} aria-hidden />}
         </button>
-        : <span className={t.convTitulo} data-sin title="Crons, sesiones que abriste a mano y registros sin conversación"><span className={t.convTituloTexto}>{titulo}</span></span>}
-      {g.activa && <span className={t.convAqui}>Esta conversación</span>}
-      <span className={t.convCuenta} title={`${g.filas.length} ${g.filas.length === 1 ? 'agente' : 'agentes'} en este grupo`}>{g.filas.length}</span>
+        : <span className={t.convTitulo} data-sin title={tr('Crons, sesiones que abriste a mano y registros sin conversación')}><span className={t.convTituloTexto}>{titulo}</span></span>}
+      {g.activa && <span className={t.convAqui}>{tr('Esta conversación')}</span>}
+      <span className={t.convCuenta} title={trn(g.filas.length, '{n} agente en este grupo', '{n} agentes en este grupo')}>{g.filas.length}</span>
     </div>
     <div className={t.convResumen} onClick={alternar}>
       <span className={t.convPartes}>{g.resumen.map(p => <span key={p.parte} className={t.convParte} data-parte={p.parte}><i aria-hidden />{p.texto}</span>)}</span>
@@ -197,7 +219,7 @@ function LineaGrupo({ linea, resaltado, onResaltar }: { linea: GrupoConversacion
     <small className={t.lineaEscala} aria-hidden>{linea.escala}</small>
     <span className={t.carriles}>{linea.tramos.map(x => <span key={x.clave} className={t.carril}>
       <i className={t.tramo} data-columna={x.columna} data-abierto={x.abierto || undefined} data-resaltado={resaltado === x.clave || undefined}
-        style={{ left: `${x.x * 100}%`, width: `${x.ancho * 100}%` }} title={`${x.nombre} · ${COLUMNA[x.columna].singular}`}
+        style={{ left: `${x.x * 100}%`, width: `${x.ancho * 100}%` }} title={`${x.nombre} · ${tr(COLUMNA[x.columna].singular)}`}
         onPointerEnter={() => onResaltar(x.clave)} onPointerLeave={() => onResaltar(null)} />
     </span>)}</span>
     {linea.ocultos > 0 && <small className={t.lineaMas}>+{linea.ocultos}</small>}
@@ -216,18 +238,18 @@ function Forma({ f, ahora }: { f: FilaTablero; ahora: number }) {
 }
 
 function Insignia({ f }: { f: FilaTablero }) {
-  if (!f.juicio) return <span className={t.insignia} data-veredicto="pendiente" title="Otro agente todavía no revisa si cumple lo pedido">{SIN_REVISAR}</span>
-  return <span className={t.insignia} data-veredicto={f.juicio.veredicto} title={`${VEREDICTO_POR_QUE[f.juicio.veredicto]} ${f.juicio.razon}`}>
-    {f.juicio.veredicto === 'no-cumple' && <CircleAlert size={12} aria-hidden />}{VEREDICTO[f.juicio.veredicto]}
+  if (!f.juicio) return <span className={t.insignia} data-veredicto="pendiente" title={tr('Otro agente todavía no revisa si cumple lo pedido')}>{tr(SIN_REVISAR)}</span>
+  return <span className={t.insignia} data-veredicto={f.juicio.veredicto} title={`${tr(VEREDICTO_POR_QUE[f.juicio.veredicto])} ${f.juicio.razon}`}>
+    {f.juicio.veredicto === 'no-cumple' && <CircleAlert size={12} aria-hidden />}{tr(VEREDICTO[f.juicio.veredicto])}
   </span>
 }
 
 function Pieza({ e, demo, onNota }: { e: Entregable; demo: boolean; onNota: (texto: string) => void }) {
   if (e.tipo === 'enlace') return <a className={t.pieza} href={demo ? undefined : e.valor} target="_blank" rel="noopener noreferrer" title={e.valor} onClick={ev => ev.stopPropagation()}><ExternalLink size={11} aria-hidden /><span className={t.piezaTexto}>{e.etiqueta}</span></a>
   const Icono = e.tipo === 'commit' ? GitCommitHorizontal : FileText
-  return <button type="button" className={t.pieza} title={e.tipo === 'commit' ? `Sus cambios quedaron guardados (${e.valor}) · clic para copiar la referencia` : `${e.valor} · clic para copiar`} onClick={ev => {
+  return <button type="button" className={t.pieza} title={e.tipo === 'commit' ? tr('Sus cambios quedaron guardados ({ref}) · clic para copiar la referencia', { ref: e.valor }) : tr('{ruta} · clic para copiar', { ruta: e.valor })} onClick={ev => {
     ev.stopPropagation()
-    void navigator.clipboard?.writeText(e.valor).then(() => onNota(e.tipo === 'commit' ? 'Referencia copiada.' : 'Ruta copiada.'), () => onNota(e.valor))
+    void navigator.clipboard?.writeText(e.valor).then(() => onNota(e.tipo === 'commit' ? tr('Referencia copiada.') : tr('Ruta copiada.')), () => onNota(e.valor))
   }}><Icono size={11} aria-hidden /><span className={t.piezaTexto}>{e.etiqueta}</span><Copy size={10} className={t.copiar} aria-hidden /></button>
 }
 
@@ -238,7 +260,8 @@ function Renglon({ f, onAbrir, demo, ahora, quieto = false, entrada, resaltado, 
   entrada?: number; resaltado?: boolean; onResaltar?: (on: boolean) => void
 }) {
   const desde = useTituloConversacion(f.origen && !demo ? f.origen : '')
-  const [modo, setModo] = useState<'nada' | 'responder' | 'detener' | 'detalle' | 'retomar'>('nada')
+  const [modo, setModo] = useState<'nada' | 'responder' | 'detener' | 'detalle' | 'retomar' | 'cerrar'>('nada')
+  const [visor, setVisor] = useState(false)
   const [menu, setMenu] = useState(false)
   const [texto, setTexto] = useState('')
   const [ocupado, setOcupado] = useState(false)
@@ -258,29 +281,34 @@ function Renglon({ f, onAbrir, demo, ahora, quieto = false, entrada, resaltado, 
   const encargo = f.tipo === 'encargo' && typeof f.id === 'number'
   const teEspera = encargo && f.columna === 'te-espera' && !f.conLevy
   const sinTerminar = encargo && !quieto && (f.columna === 'falló' || f.columna === 'murió')
-  const correr = async (que: 'detener' | 'responder', fijo?: string, esfuerzo?: string) => {
-    if (demo || typeof f.id !== 'number') { setModo('nada'); return }
+  // Lo que terminó su encargo: Recibido y Cerrar siempre a la vista; «Ver resultados» a la vista si está listo.
+  const cierre = terminoSuEncargo(f)
+  const recibido = estaRecibido(f)
+  const correr = async (que: 'detener' | 'responder' | 'cerrar' | 'recibido', fijo?: string, esfuerzo?: string, si?: boolean) => {
+    if (demo || typeof f.id !== 'number') { setModo('nada'); if (demo && (que === 'cerrar' || que === 'recibido')) setNota({ texto: tr('Ejemplo: aquí se marcaría.') }); return }
     setOcupado(true); setNota(null)
-    try { setNota({ texto: await accion(que, f.id, que === 'responder' ? fijo ?? texto.trim() : undefined, esfuerzo) }); setTexto(''); setModo('nada') }
-    catch (e) { setNota({ texto: e instanceof Error ? e.message : 'No se pudo.', error: true }) }
+    try { setNota({ texto: await accion(que, f.id, que === 'responder' ? fijo ?? texto.trim() : undefined, esfuerzo, si) }); setTexto(''); setModo('nada') }
+    catch (e) { setNota({ texto: e instanceof Error ? e.message : tr('No se pudo.'), error: true }) }
     finally { setOcupado(false) }
   }
+  const verResultados = () => { setMenu(false); setVisor(true) }
   const elegir = (m: typeof modo) => { setMenu(false); setNota(null); setModo(x => x === m ? 'nada' : m) }
   // Un turno nuevo en la misma sesión, un nivel de esfuerzo arriba: para lo que falló o no cumplió lo pedido
   const subir = encargo && (f.columna === 'falló' || f.juicio?.veredicto === 'no-cumple') ? esfuerzoReintento(f) : null
   const desajuste = encargo ? f.coherencia?.desajuste ?? null : null
   const opciones: { etiqueta: string; icono: LucideIcon; hacer: () => void; peligro?: boolean }[] = [
-    { etiqueta: encargo ? 'Abrir su conversación' : 'Ver lo que hizo', icono: ArrowUpRight, hacer: () => { setMenu(false); onAbrir(f) } },
-    ...(teEspera || !encargo ? [] : [{ etiqueta: 'Mandarle un mensaje', icono: Reply, hacer: () => elegir('responder') }]),
-    ...(f.columna === 'falló' && encargo ? [{ etiqueta: 'Que lo intente otra vez', icono: RotateCcw, hacer: () => { setMenu(false); void correr('responder', MENSAJE_RETOMAR) } }] : []),
-    ...(subir ? [{ etiqueta: `Reintentar con más esfuerzo (${subir})`, icono: ChevronsUp, hacer: () => { setMenu(false); void correr('responder', MENSAJE_RETOMAR, subir) } }] : []),
-    ...(f.cambios ? [{ etiqueta: 'Ver cambios', icono: GitBranch, hacer: () => { setMenu(false); verCambios(f.cambios!.rama) } }] : []),
+    { etiqueta: encargo ? tr('Abrir su conversación') : tr('Ver lo que hizo'), icono: ArrowUpRight, hacer: () => { setMenu(false); onAbrir(f) } },
+    ...(cierre ? [{ etiqueta: tr('Ver resultados'), icono: Images, hacer: verResultados }] : []),
+    ...(teEspera || !encargo ? [] : [{ etiqueta: tr('Mandarle un mensaje'), icono: Reply, hacer: () => elegir('responder') }]),
+    ...(f.columna === 'falló' && encargo ? [{ etiqueta: tr('Que lo intente otra vez'), icono: RotateCcw, hacer: () => { setMenu(false); void correr('responder', MENSAJE_RETOMAR) } }] : []),
+    ...(subir ? [{ etiqueta: tr('Reintentar con más esfuerzo ({nivel})', { nivel: subir }), icono: ChevronsUp, hacer: () => { setMenu(false); void correr('responder', MENSAJE_RETOMAR, subir) } }] : []),
+    ...(f.cambios ? [{ etiqueta: tr('Ver cambios'), icono: GitBranch, hacer: () => { setMenu(false); verCambios(f.cambios!.rama) } }] : []),
     // Comentar el entregable (29 oct 2026): el documento que entregó (párrafo por párrafo) o su diff (línea por línea); el
     // lote le llega junto por la misma vía que «Responder».
-    ...(encargo && archivoEntregado(f) ? [{ etiqueta: 'Comentar su entregable', icono: MessageSquarePlus, hacer: () => { setMenu(false); abrirSeccion({ vista: 'documento', ruta: archivoEntregado(f)!, titulo: `Entregable · ${f.nombre}` }) } }] : []),
-    ...(f.cambios && encargo ? [{ etiqueta: 'Comentar sus cambios', icono: MessageSquarePlus, hacer: () => { setMenu(false); verCambios(f.cambios!.rama) } }] : []),
-    { etiqueta: modo === 'detalle' ? 'Ocultar detalles' : 'Ver detalles', icono: ChevronDown, hacer: () => elegir('detalle') },
-    ...(f.puedeDetener ? [{ etiqueta: 'Detener este paso', icono: Square, hacer: () => elegir('detener'), peligro: true }] : []),
+    ...(encargo && archivoEntregado(f) ? [{ etiqueta: tr('Comentar su entregable'), icono: MessageSquarePlus, hacer: () => { setMenu(false); abrirSeccion({ vista: 'documento', ruta: archivoEntregado(f)!, titulo: tr('Entregable · {nombre}', { nombre: f.nombre }) }) } }] : []),
+    ...(f.cambios && encargo ? [{ etiqueta: tr('Comentar sus cambios'), icono: MessageSquarePlus, hacer: () => { setMenu(false); verCambios(f.cambios!.rama) } }] : []),
+    { etiqueta: modo === 'detalle' ? tr('Ocultar detalles') : tr('Ver detalles'), icono: ChevronDown, hacer: () => elegir('detalle') },
+    ...(f.puedeDetener ? [{ etiqueta: tr('Detener este paso'), icono: Square, hacer: () => elegir('detener'), peligro: true }] : []),
   ]
   const segunda: ReactNode = f.columna === 'listo' && encargo
     ? <span className={t.entrega}><Insignia f={f} />{f.entregables.map(e => <Pieza key={e.valor} e={e} demo={demo} onNota={x => setNota({ texto: x })} />)}{!f.entregables.length && <span className={t.paso}>{f.paso}</span>}</span>
@@ -289,64 +317,78 @@ function Renglon({ f, onAbrir, demo, ahora, quieto = false, entrada, resaltado, 
     data-columna={f.columna} data-abierto={modo !== 'nada' || undefined} data-resaltado={resaltado || undefined}
     onPointerEnter={onResaltar && (() => onResaltar(true))} onPointerLeave={onResaltar && (() => onResaltar(false))}>
     <div className={t.fila}>
-      <button type="button" className={t.principal} onClick={() => onAbrir(f)} title={`${f.nombre} · ${encargo ? 'ver su conversación' : 'ver lo que hizo'}`}>
+      <button type="button" className={t.principal} onClick={() => onAbrir(f)} title={`${f.nombre} · ${encargo ? tr('ver su conversación') : tr('ver lo que hizo')}`}>
         <span className={t.marca}><Forma f={f} ahora={ahora} /></span>
         <span className={t.textos}>
-          <span className={t.nombreLinea}><span className={t.nombre}>{f.nombre}</span>{desajuste && <span className={t.desajuste} title="Su CLI reporta que corre otra cosa que lo que se pidió">{desajuste}</span>}</span>
+          <span className={t.nombreLinea}><span className={t.nombre}>{f.nombre}</span>{desajuste && <span className={t.desajuste} title={tr('Su CLI reporta que corre otra cosa que lo que se pidió')}>{desajuste}</span>}</span>
           {segunda}
         </span>
       </button>
       <span className={t.tiempo} title={tiempo.titulo}>{tiempo.texto}</span>
-      {teEspera && <button type="button" className={t.responderAmbar} onClick={() => elegir('responder')} title="Contestarle (por la misma vía que Levy)">Responder</button>}
-      {sinTerminar && f.columna === 'falló' && <button type="button" className={t.accionSuave} onClick={() => elegir('detalle')} aria-expanded={modo === 'detalle'}>Ver qué pasó</button>}
-      {sinTerminar && f.columna === 'murió' && <button type="button" className={t.accionSuave} onClick={() => elegir('retomar')} aria-expanded={modo === 'retomar'}>¿Lo retomo?</button>}
+      {teEspera && <button type="button" className={t.responderAmbar} onClick={() => elegir('responder')} title={tr('Contestarle (por la misma vía que Levy)')}>{tr('Responder')}</button>}
+      {sinTerminar && f.columna === 'falló' && <button type="button" className={t.accionSuave} onClick={() => elegir('detalle')} aria-expanded={modo === 'detalle'}>{tr('Ver qué pasó')}</button>}
+      {sinTerminar && f.columna === 'murió' && <button type="button" className={t.accionSuave} onClick={() => elegir('retomar')} aria-expanded={modo === 'retomar'}>{tr('¿Lo retomo?')}</button>}
+      {cierre && f.columna === 'listo' && <button type="button" className={`${t.accionSuave} ${t.accionConIcono}`} onClick={verResultados} title={tr('Lo que entregó: imágenes, videos, documentos y gráficas')}><Images size={13} aria-hidden />{tr('Ver resultados')}</button>}
+      {cierre && (recibido
+        ? <button type="button" className={t.accionIconoBoton} onClick={() => void correr('recibido', undefined, undefined, false)} disabled={ocupado} aria-label={tr('Devolver {nombre} a su lista', { nombre: f.nombre })} title={tr('Devolverlo a su lista')}><Undo2 size={14} aria-hidden /></button>
+        : <button type="button" className={t.accionIconoBoton} data-accion="recibido" onClick={() => void correr('recibido', undefined, undefined, true)} disabled={ocupado} aria-label={tr('Recibido: {nombre}', { nombre: f.nombre })} title={tr('Recibido: sale de «Trabajando para ti» y queda en «Recibidos» (se puede devolver)')}><Check size={15} aria-hidden /></button>)}
+      {cierre && <button type="button" className={t.accionIconoBoton} data-accion="cerrar" onClick={() => elegir('cerrar')} aria-expanded={modo === 'cerrar'} aria-label={tr('Cerrar {nombre}', { nombre: f.nombre })} title={tr('Cerrarlo: sale de la lista y libera su lugar. Su conversación y sus archivos quedan en disco.')}><X size={15} aria-hidden /></button>}
       <div className={t.menuCaja}>
-        <button type="button" className={t.mas} aria-haspopup="menu" aria-expanded={menu} aria-label={`Más acciones para ${f.nombre}`} onClick={() => setMenu(x => !x)}><Ellipsis size={15} aria-hidden /></button>
+        <button type="button" className={t.mas} aria-haspopup="menu" aria-expanded={menu} aria-label={tr('Más acciones para {nombre}', { nombre: f.nombre })} onClick={() => setMenu(x => !x)}><Ellipsis size={15} aria-hidden /></button>
         {menu && <div className={`${t.menu} ${mov.aparece}`} role="menu">
           {opciones.map(o => <button key={o.etiqueta} type="button" role="menuitem" className={t.menuItem} data-peligro={o.peligro || undefined} onClick={o.hacer}><o.icono size={13} aria-hidden />{o.etiqueta}</button>)}
         </div>}
       </div>
     </div>
     {modo === 'detalle' && <dl className={`${t.detalle} ${mov.aparece}`}>
-      <div><dt>{f.columna === 'falló' ? 'Qué pasó' : 'Estado'}</dt><dd>{!encargo ? f.motivo : f.conLevy && f.columna === 'te-espera' ? `Con Levy · ${f.motivo}` : f.columna === 'falló' ? f.motivo : `${COLUMNA[f.columna].titulo} · ${f.motivo}`}</dd></div>
-      <div><dt>Empezó</dt><dd>{hace(f.creado)}{!demo && desde && f.origen ? ` · desde «${desde}»` : ''}</dd></div>
-      <div><dt>Quién</dt><dd>{f.tipo === 'preparando' ? 'Encargo de Levy que todavía prepara su copia' : f.tipo === 'interna' ? 'Tarea dentro de un turno de Levy' : f.tipo === 'tuya' ? 'Sesión abierta por ti' : f.tipo === 'proceso' ? 'Comando en segundo plano' : modelo(f)}</dd></div>
-      {desajuste && <div><dt>Ojo</dt><dd className={t.ambar}>{desajuste}. Lo reportó su CLI: corre con eso, no con lo pedido.</dd></div>}
-      {f.perfil && <div><dt>Permisos</dt><dd>{PERFIL_EN_PALABRAS[f.perfil]}</dd></div>}
-      {f.plan && <div><dt>Plan</dt><dd className={t.cambios}><span>{f.plan.ruta.split('/').pop()}{f.plan.commit ? ` · aprobado en ${f.plan.commit.slice(0, 7)}` : ''}</span>
-        <button type="button" className={t.enlace} onClick={() => abrirSeccion({ vista: 'documento', ruta: f.plan!.ruta, titulo: `Plan · ${f.nombre}` })}><NotebookPen size={12} aria-hidden />Ver lo pedido</button></dd></div>}
-      {f.cambios && <div><dt>Cambios</dt><dd className={t.cambios}><span>{cambiosEnPalabras(f.cambios)}</span><button type="button" className={t.enlace} onClick={() => verCambios(f.cambios!.rama)}><GitBranch size={12} aria-hidden />Ver cambios</button></dd></div>}
-      {latidoEnPalabras(f, ahora) && <div><dt>Señal</dt><dd>{latidoEnPalabras(f, ahora)}</dd></div>}
-      {f.juicio && <div><dt>Revisión</dt><dd>{VEREDICTO[f.juicio.veredicto]} · {f.juicio.razon}</dd></div>}
-      {f.linea && f.linea !== f.paso && <div><dt>Dijo</dt><dd>{f.linea}</dd></div>}
-      {f.cwd && <div><dt>Carpeta</dt><dd>{f.cwd}</dd></div>}
+      <div><dt>{f.columna === 'falló' ? tr('Qué pasó') : tr('Estado')}</dt><dd>{!encargo ? f.motivo : f.conLevy && f.columna === 'te-espera' ? tr('Con Levy · {motivo}', { motivo: f.motivo }) : f.columna === 'falló' ? f.motivo : `${tr(COLUMNA[f.columna].titulo)} · ${f.motivo}`}</dd></div>
+      <div><dt>{tr('Empezó')}</dt><dd>{hace(f.creado)}{!demo && desde && f.origen ? ` · ${tr('desde «{conversacion}»', { conversacion: desde })}` : ''}</dd></div>
+      <div><dt>{tr('Quién')}</dt><dd>{f.tipo === 'preparando' ? tr('Encargo de Levy que todavía prepara su copia') : f.tipo === 'interna' ? tr('Tarea dentro de un turno de Levy') : f.tipo === 'tuya' ? tr('Sesión abierta por ti') : f.tipo === 'proceso' ? tr('Comando en segundo plano') : modelo(f)}</dd></div>
+      {desajuste && <div><dt>{tr('Ojo')}</dt><dd className={t.ambar}>{tr('{desajuste}. Lo reportó su CLI: corre con eso, no con lo pedido.', { desajuste })}</dd></div>}
+      {f.perfil && <div><dt>{tr('Permisos')}</dt><dd>{tr(PERFIL_EN_PALABRAS[f.perfil])}</dd></div>}
+      {f.plan && <div><dt>{tr('Plan')}</dt><dd className={t.cambios}><span>{f.plan.ruta.split('/').pop()}{f.plan.commit ? ` · ${tr('aprobado en {commit}', { commit: f.plan.commit.slice(0, 7) })}` : ''}</span>
+        <button type="button" className={t.enlace} onClick={() => abrirSeccion({ vista: 'documento', ruta: f.plan!.ruta, titulo: tr('Plan · {nombre}', { nombre: f.nombre }) })}><NotebookPen size={12} aria-hidden />{tr('Ver lo pedido')}</button></dd></div>}
+      {f.cambios && <div><dt>{tr('Cambios')}</dt><dd className={t.cambios}><span>{cambiosEnPalabras(f.cambios)}</span><button type="button" className={t.enlace} onClick={() => verCambios(f.cambios!.rama)}><GitBranch size={12} aria-hidden />{tr('Ver cambios')}</button></dd></div>}
+      {latidoEnPalabras(f, ahora) && <div><dt>{tr('Señal')}</dt><dd>{latidoEnPalabras(f, ahora)}</dd></div>}
+      {f.juicio && <div><dt>{tr('Revisión')}</dt><dd>{tr(VEREDICTO[f.juicio.veredicto])} · {f.juicio.razon}</dd></div>}
+      {f.linea && f.linea !== f.paso && <div><dt>{tr('Dijo')}</dt><dd>{f.linea}</dd></div>}
+      {f.cwd && <div><dt>{tr('Carpeta')}</dt><dd>{f.cwd}</dd></div>}
     </dl>}
     {modo === 'responder' && <form className={t.responder} onSubmit={e => { e.preventDefault(); if (texto.trim()) void correr('responder') }}>
-      <label htmlFor={`resp-${f.id}`}>Mensaje para el agente</label>
-      <textarea id={`resp-${f.id}`} ref={caja} rows={2} value={texto} onChange={e => setTexto(e.target.value)} placeholder="Ej.: usa la rama B y vuelve a correr las pruebas"
+      <label htmlFor={`resp-${f.id}`}>{tr('Mensaje para el agente')}</label>
+      <textarea id={`resp-${f.id}`} ref={caja} rows={2} value={texto} onChange={e => setTexto(e.target.value)} placeholder={tr('Ej.: usa la rama B y vuelve a correr las pruebas')}
         onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); if (texto.trim()) void correr('responder') } if (e.key === 'Escape') { e.preventDefault(); setModo('nada') } }} />
       <div className={t.acciones}>
-        <button type="button" className={t.boton} onClick={() => setModo('nada')} disabled={ocupado}>Cancelar</button>
-        <button type="submit" className={t.botonFuerte} disabled={ocupado || !texto.trim()}>{ocupado ? 'Enviando…' : 'Enviar'}</button>
+        <button type="button" className={t.boton} onClick={() => setModo('nada')} disabled={ocupado}>{tr('Cancelar')}</button>
+        <button type="submit" className={t.botonFuerte} disabled={ocupado || !texto.trim()}>{ocupado ? tr('Enviando…') : tr('Enviar')}</button>
       </div>
     </form>}
     {modo === 'detalle' && f.columna === 'falló' && encargo && <div className={`${t.acciones} ${t.accionesDetalle}`}>
-      <button type="button" className={t.boton} onClick={() => onAbrir(f)}><ArrowUpRight size={12} aria-hidden />Abrir su conversación</button>
-      {subir && <button type="button" className={t.boton} onClick={() => void correr('responder', MENSAJE_RETOMAR, subir)} disabled={ocupado} title={`Un turno nuevo en su misma sesión, con esfuerzo ${subir}`}><ChevronsUp size={12} aria-hidden />Reintentar con más esfuerzo</button>}
-      <button type="button" className={t.botonFuerte} onClick={() => void correr('responder', MENSAJE_RETOMAR)} disabled={ocupado}><RotateCcw size={12} aria-hidden />{ocupado ? 'Enviando…' : 'Que lo intente otra vez'}</button>
+      <button type="button" className={t.boton} onClick={() => onAbrir(f)}><ArrowUpRight size={12} aria-hidden />{tr('Abrir su conversación')}</button>
+      {subir && <button type="button" className={t.boton} onClick={() => void correr('responder', MENSAJE_RETOMAR, subir)} disabled={ocupado} title={tr('Un turno nuevo en su misma sesión, con esfuerzo {nivel}', { nivel: subir })}><ChevronsUp size={12} aria-hidden />{tr('Reintentar con más esfuerzo')}</button>}
+      <button type="button" className={t.botonFuerte} onClick={() => void correr('responder', MENSAJE_RETOMAR)} disabled={ocupado}><RotateCcw size={12} aria-hidden />{ocupado ? tr('Enviando…') : tr('Que lo intente otra vez')}</button>
     </div>}
-    {modo === 'retomar' && <div className={t.confirma} role="group" aria-label="Confirmar retomar">
-      <span>Le pido que retome donde se quedó y termine el encargo.</span>
+    {modo === 'retomar' && <div className={t.confirma} role="group" aria-label={tr('Confirmar retomar')}>
+      <span>{tr('Le pido que retome donde se quedó y termine el encargo.')}</span>
       <div className={t.acciones}>
-        <button type="button" className={t.boton} onClick={() => setModo('nada')} disabled={ocupado}>Ahora no</button>
-        <button type="button" className={t.botonFuerte} onClick={() => void correr('responder', MENSAJE_RETOMAR)} disabled={ocupado}>{ocupado ? 'Enviando…' : 'Sí, retómalo'}</button>
+        <button type="button" className={t.boton} onClick={() => setModo('nada')} disabled={ocupado}>{tr('Ahora no')}</button>
+        <button type="button" className={t.botonFuerte} onClick={() => void correr('responder', MENSAJE_RETOMAR)} disabled={ocupado}>{ocupado ? tr('Enviando…') : tr('Sí, retómalo')}</button>
       </div>
     </div>}
-    {modo === 'detener' && <div className={t.confirma} role="group" aria-label="Confirmar detener">
-      <span>¿Lo detengo? Su sesión sigue y un mensaje lo reanuda.</span>
+    {modo === 'cerrar' && <div className={t.confirma} role="group" aria-label={tr('Confirmar cerrar')}>
+      <span>{tr('¿Lo cierro? Sale de la lista y libera su lugar. Su conversación y sus archivos quedan en disco; no se borra nada.')}</span>
       <div className={t.acciones}>
-        <button type="button" className={t.boton} onClick={() => setModo('nada')} disabled={ocupado}>No</button>
-        <button type="button" className={t.botonPeligro} onClick={() => void correr('detener')} disabled={ocupado}>{ocupado ? 'Deteniendo…' : 'Sí, detener'}</button>
+        <button type="button" className={t.boton} onClick={() => setModo('nada')} disabled={ocupado}>{tr('No')}</button>
+        <button type="button" className={t.botonFuerte} onClick={() => void correr('cerrar')} disabled={ocupado} autoFocus>{ocupado ? tr('Cerrando…') : tr('Sí, cerrarlo')}</button>
+      </div>
+    </div>}
+    {visor && typeof f.id === 'number' && <VisorResultados pedido={{ agente: demo ? null : f.id, cwd: f.cwd, nombre: f.nombre, respuesta: f.respuesta, fila: f }} onCerrar={() => setVisor(false)}
+      recibido={recibido} onRecibido={recibido ? undefined : () => correr('recibido', undefined, undefined, true).then(() => setVisor(false))} />}
+    {modo === 'detener' && <div className={t.confirma} role="group" aria-label={tr('Confirmar detener')}>
+      <span>{tr('¿Lo detengo? Su sesión sigue y un mensaje lo reanuda.')}</span>
+      <div className={t.acciones}>
+        <button type="button" className={t.boton} onClick={() => setModo('nada')} disabled={ocupado}>{tr('No')}</button>
+        <button type="button" className={t.botonPeligro} onClick={() => void correr('detener')} disabled={ocupado}>{ocupado ? tr('Deteniendo…') : tr('Sí, detener')}</button>
       </div>
     </div>}
     {nota && <p className={`${t.nota} ${mov.aparece}`} data-error={nota.error || undefined} role="status">{nota.texto}</p>}
@@ -360,35 +402,35 @@ function PlanesPorCorrer({ planes, demo }: { planes: PlanPendiente[]; demo: bool
   const [nota, setNota] = useState<Record<string, { texto: string; error?: boolean }>>({})
   const [ocupado, setOcupado] = useState<string | null>(null)
   const [descartar, setDescartar] = useState<string | null>(null)
-  const abrir = (p: PlanPendiente, comparar?: boolean) => abrirSeccion({ vista: 'documento', ruta: p.abs, titulo: `Plan · ${p.nombre}`, ...(comparar ? { compararCon: 'HEAD' } : {}) })
+  const abrir = (p: PlanPendiente, comparar?: boolean) => abrirSeccion({ vista: 'documento', ruta: p.abs, titulo: tr('Plan · {nombre}', { nombre: p.nombre }), ...(comparar ? { compararCon: 'HEAD' } : {}) })
   const hacer = async (que: 'correr-plan' | 'descartar-plan', p: PlanPendiente) => {
-    if (demo) { setNota(n => ({ ...n, [p.ruta]: { texto: 'Ejemplo: aquí correría el plan.' } })); return }
+    if (demo) { setNota(n => ({ ...n, [p.ruta]: { texto: tr('Ejemplo: aquí correría el plan.') } })); return }
     setOcupado(p.ruta)
     try {
       const r = await fetch(`/api/cabina/${que}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ruta: p.ruta }), signal: AbortSignal.timeout(60_000) })
       const b = await r.json().catch(() => ({})) as { texto?: string; error?: string }
       if (!r.ok) throw new Error(b.error ?? sinRespuestaDelServidor())
-      setNota(n => ({ ...n, [p.ruta]: { texto: b.texto ?? 'Hecho.' } })); void releer(urlPanel(false))
-    } catch (e) { setNota(n => ({ ...n, [p.ruta]: { texto: e instanceof Error ? e.message : 'No se pudo.', error: true } })) } finally { setOcupado(null); setDescartar(null) }
+      setNota(n => ({ ...n, [p.ruta]: { texto: b.texto ? tr(b.texto) : tr('Hecho.') } })); void releer(urlPanel(false))
+    } catch (e) { setNota(n => ({ ...n, [p.ruta]: { texto: e instanceof Error ? e.message : tr('No se pudo.'), error: true } })) } finally { setOcupado(null); setDescartar(null) }
   }
-  return <section className={t.grupo} data-grupo="planes" aria-label="Planes por correr">
-    <h4 className={t.grupoCabeza}>Planes por correr<small>{planes.length}</small></h4>
+  return <section className={t.grupo} data-grupo="planes" aria-label={tr('Planes por correr')}>
+    <h4 className={t.grupoCabeza}>{tr('Planes por correr')}<small>{planes.length}</small></h4>
     <div className={t.planes}>{planes.map(p => <article key={p.ruta} className={t.plan} data-plan>
       <div className={t.planCabeza}>
         <NotebookPen size={14} aria-hidden className={t.planIcono} />
         <div className={t.planTexto}>
-          <button type="button" className={t.planNombre} onClick={() => abrir(p)} title="Abrir para leerlo o editarlo">{p.nombre}</button>
+          <button type="button" className={t.planNombre} onClick={() => abrir(p)} title={tr('Abrir para leerlo o editarlo')}>{p.nombre}</button>
           <p className={t.planResumen}>{p.resumen}</p>
-          <p className={t.planMeta}>{p.harness} · {PERFIL_EN_PALABRAS[p.perfil].split(':')[0]}{p.propuesto ? ` · propuesto ${hace(p.propuesto)}` : ''}</p>
+          <p className={t.planMeta}>{p.harness} · {tr(PERFIL_EN_PALABRAS[p.perfil]).split(':')[0]}{p.propuesto ? ` · ${tr('propuesto {cuando}', { cuando: hace(p.propuesto) })}` : ''}</p>
         </div>
       </div>
       <div className={t.planAcciones}>
-        <button type="button" className={t.botonFuerte} disabled={ocupado === p.ruta} onClick={() => void hacer('correr-plan', p)}><Play size={12} aria-hidden />{ocupado === p.ruta ? 'Lanzando…' : 'Correr'}</button>
-        <button type="button" className={t.boton} onClick={() => abrir(p)}><NotebookPen size={12} aria-hidden />Leer y editar</button>
-        <button type="button" className={t.boton} onClick={() => abrir(p, true)} title="Lo que cambiaste contra lo que propuso Levy"><GitCompare size={12} aria-hidden />Tus cambios</button>
+        <button type="button" className={t.botonFuerte} disabled={ocupado === p.ruta} onClick={() => void hacer('correr-plan', p)}><Play size={12} aria-hidden />{ocupado === p.ruta ? tr('Lanzando…') : tr('Correr')}</button>
+        <button type="button" className={t.boton} onClick={() => abrir(p)}><NotebookPen size={12} aria-hidden />{tr('Leer y editar')}</button>
+        <button type="button" className={t.boton} onClick={() => abrir(p, true)} title={tr('Lo que cambiaste contra lo que propuso Levy')}><GitCompare size={12} aria-hidden />{tr('Tus cambios')}</button>
         {descartar === p.ruta
-          ? <><button type="button" className={t.botonPeligro} onClick={() => void hacer('descartar-plan', p)}>Sí, descartar</button><button type="button" className={t.boton} onClick={() => setDescartar(null)}>No</button></>
-          : <button type="button" className={t.accionSuave} onClick={() => setDescartar(p.ruta)}>Descartar</button>}
+          ? <><button type="button" className={t.botonPeligro} onClick={() => void hacer('descartar-plan', p)}>{tr('Sí, descartar')}</button><button type="button" className={t.boton} onClick={() => setDescartar(null)}>{tr('No')}</button></>
+          : <button type="button" className={t.accionSuave} onClick={() => setDescartar(p.ruta)}>{tr('Descartar')}</button>}
       </div>
       {nota[p.ruta] && <p className={t.planNota} data-error={nota[p.ruta].error || undefined} role="status">{nota[p.ruta].texto}</p>}
     </article>)}</div>

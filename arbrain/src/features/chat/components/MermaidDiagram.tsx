@@ -1,4 +1,5 @@
 'use client'
+import { tr } from '@/shared/i18n'
 import { esEdicionCliente } from '@/lib/edicion'
 import { memo, useEffect, useRef, useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
@@ -409,8 +410,8 @@ function CopyButton({ code, className = '' }: { code: string; className?: string
       className={`flex items-center gap-1 text-[10px] transition-colors ${className}`}
     >
       {copied
-        ? <><Check size={11} className="text-gold-dark dark:text-gold-bright" /><span className="text-gold-dark dark:text-gold-bright">Copiado</span></>
-        : <><Copy size={11} /><span>Copiar</span></>
+        ? <><Check size={11} className="text-gold-dark dark:text-gold-bright" /><span className="text-gold-dark dark:text-gold-bright">{tr('Copiado')}</span></>
+        : <><Copy size={11} /><span>{tr('Copiar')}</span></>
       }
     </button>
   )
@@ -456,7 +457,7 @@ function FullscreenModal({ code, svg, onClose }: FullscreenProps) {
       >
         <div className="flex items-center gap-2 text-muted">
           <GitBranch size={14} className="text-violet-400" />
-          <span className="text-xs font-medium">Diagrama</span>
+          <span className="text-xs font-medium">{tr('Diagrama')}</span>
         </div>
         <div className="flex items-center gap-1 sm:gap-2">
           <CopyButton code={code} className="text-muted/80 hover:text-foreground/70 hidden sm:flex" />
@@ -465,7 +466,7 @@ function FullscreenModal({ code, svg, onClose }: FullscreenProps) {
             <button onClick={zoom.zoomOut} className="p-2.5 sm:p-1.5 rounded-lg hover:bg-card-active text-muted hover:text-foreground/75 transition-colors active:scale-90"><ZoomOut size={16} /></button>
             <span className="text-[11px] sm:text-[10px] text-muted/70 w-10 text-center font-mono">{Math.round(zoom.scale * 100)}%</span>
             <button onClick={zoom.zoomIn} className="p-2.5 sm:p-1.5 rounded-lg hover:bg-card-active text-muted hover:text-foreground/75 transition-colors active:scale-90"><ZoomIn size={16} /></button>
-            <button onClick={zoom.reset} className="p-2.5 sm:p-1.5 rounded-lg hover:bg-card-active text-muted hover:text-foreground/75 transition-colors active:scale-90" title="Reset zoom"><RotateCcw size={14} /></button>
+            <button onClick={zoom.reset} className="p-2.5 sm:p-1.5 rounded-lg hover:bg-card-active text-muted hover:text-foreground/75 transition-colors active:scale-90" title={tr('Reset zoom')}><RotateCcw size={14} /></button>
           </div>
           <button
             onClick={onClose}
@@ -502,8 +503,8 @@ function FullscreenModal({ code, svg, onClose }: FullscreenProps) {
         style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}
       >
         {isTouch
-          ? 'Pellizca para zoom \u00b7 Arrastra para mover \u00b7 Doble tap = reset'
-          : 'Scroll = zoom \u00b7 Arrastra para mover \u00b7 ESC para cerrar'
+          ? tr('Pellizca para zoom · Arrastra para mover · Doble tap = reset')
+          : tr('Scroll = zoom · Arrastra para mover · ESC para cerrar')
         }
       </div>
     </div>,
@@ -536,12 +537,12 @@ export const MermaidDiagram = memo(function MermaidDiagram({ code }: { code: str
               <span className="text-[10px] text-muted/60 w-8 text-center font-mono">{Math.round(zoom.scale * 100)}%</span>
               <button onClick={zoom.zoomIn} disabled={zoom.scale >= 6} className="p-2.5 sm:p-1 rounded-lg hover:bg-card-active text-muted/70 hover:text-foreground/70 transition-colors disabled:opacity-30 active:scale-90"><ZoomIn size={13} /></button>
               {zoom.scale !== 1 && (
-                <button onClick={zoom.reset} className="p-2.5 sm:p-1 rounded-lg hover:bg-card-active text-muted/70 hover:text-foreground/70 transition-colors active:scale-90" title="Reset"><RotateCcw size={12} /></button>
+                <button onClick={zoom.reset} className="p-2.5 sm:p-1 rounded-lg hover:bg-card-active text-muted/70 hover:text-foreground/70 transition-colors active:scale-90" title={tr('Reset')}><RotateCcw size={12} /></button>
               )}
               <div className="w-px h-3 bg-card-active mx-0.5 sm:mx-1" />
               <CopyButton code={code} className="text-muted/70 hover:text-foreground/70 hidden sm:flex" />
               <div className="w-px h-3 bg-card-active mx-0.5 sm:mx-1 hidden sm:block" />
-              <button onClick={() => setFullscreen(true)} className="p-2.5 sm:p-1 rounded-lg hover:bg-card-active text-muted/70 hover:text-foreground/70 transition-colors active:scale-90" title="Pantalla completa"><Maximize2 size={13} /></button>
+              <button onClick={() => setFullscreen(true)} className="p-2.5 sm:p-1 rounded-lg hover:bg-card-active text-muted/70 hover:text-foreground/70 transition-colors active:scale-90" title={tr('Pantalla completa')}><Maximize2 size={13} /></button>
             </>
           )}
         </div>
@@ -559,14 +560,14 @@ export const MermaidDiagram = memo(function MermaidDiagram({ code }: { code: str
         {loading && (
           <div className="flex items-center gap-2 text-muted/80">
             <Loader2 size={14} className="animate-spin" />
-            <span className="text-xs">Renderizando diagrama...</span>
+            <span className="text-xs">{tr('Renderizando diagrama...')}</span>
           </div>
         )}
 
         {error && !loading && (
           <div className="flex flex-col items-center gap-2 px-6 text-center">
             <AlertTriangle size={16} className="text-amber-400/60" />
-            <p className="text-[11px] text-muted/80">Error de sintaxis en el diagrama</p>
+            <p className="text-[11px] text-muted/80">{tr('Error de sintaxis en el diagrama')}</p>
             <pre className="text-[10px] text-red-400/50 font-mono max-w-xs overflow-auto">{error}</pre>
           </div>
         )}
@@ -590,19 +591,19 @@ export const MermaidDiagram = memo(function MermaidDiagram({ code }: { code: str
         <div className="px-3 sm:px-3.5 py-1.5 border-t border-border-subtle text-[9px] text-muted/40 flex items-center justify-center gap-2 sm:gap-3">
           {isTouch ? (
             <>
-              <span>Pellizca = zoom</span>
+              <span>{tr('Pellizca = zoom')}</span>
               <span>&middot;</span>
-              <span>Arrastra = mover</span>
+              <span>{tr('Arrastra = mover')}</span>
               <span>&middot;</span>
-              <span>Doble tap = reset</span>
+              <span>{tr('Doble tap = reset')}</span>
             </>
           ) : (
             <>
-              <span>Scroll = zoom</span>
+              <span>{tr('Scroll = zoom')}</span>
               <span>&middot;</span>
-              <span>Arrastra = mover</span>
+              <span>{tr('Arrastra = mover')}</span>
               <span>&middot;</span>
-              <span>Doble click = reset</span>
+              <span>{tr('Doble click = reset')}</span>
             </>
           )}
         </div>

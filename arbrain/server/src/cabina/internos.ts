@@ -20,6 +20,7 @@ import { homedir, tmpdir } from 'node:os'
 import { basename, dirname, join, sep } from 'node:path'
 import { cierresRecientes, type Cierres } from './internos-cierre.js'
 import { carpetasClaude } from '../cuentas-alternas.js'
+import { tr, trMarca } from '../i18n/tr.js'
 
 export type TipoInterna = 'subagente' | 'comando' | 'workflow' | 'otra'
 export type EstadoInterna = 'trabajando' | 'completada' | 'falló' | 'detenida'
@@ -124,7 +125,10 @@ interface Contexto { conversationId: string; turnId: string }
  *  lanzó la tarea, la primera que llega en `task_started`. Después el SDK reescribe `description` en
  *  cada `task_progress` / `task_updated` con la última acción («Running Typecheck arbrain»): eso es la
  *  ACTIVIDAD, no la tarea, y va en otro campo. Solo si la tarea nació sin descripción se adopta la primera. */
-const SIN_TITULO = 'Tarea de Levy'
+// Se guarda en español (se compara aquí abajo) y se traduce al salir hacia la app (`tituloParaApp`).
+export const SIN_TITULO = trMarca('Tarea de Levy')
+/** El título tal como lo ve la persona: el de la tarea, o «Tarea de Levy» en su idioma si nació sin descripción. */
+export const tituloParaApp = (descripcion: string) => descripcion === SIN_TITULO ? tr(SIN_TITULO) : descripcion
 function descripcionNueva(id: string, d: unknown): Partial<TareaInterna> {
   const nueva = typeof d === 'string' ? d.trim().slice(0, 240) : ''
   if (!nueva) return {}
@@ -144,7 +148,7 @@ export function observarEvento(ctx: Contexto, e: Record<string, unknown>) {
       if (toolUseId) porToolUse.set(toolUseId, e.taskId)
       poner(e.taskId, {}, () => ({
         id: e.taskId as string, tipo: tipoDe(e.taskType as string | undefined, e.subagentType as string | undefined),
-        descripcion: recorta(e.description, 240) || 'Tarea de Levy', detalle: recorta(e.workflowName ?? e.subagentType, 60),
+        descripcion: recorta(e.description, 240) || SIN_TITULO, detalle: recorta(e.workflowName ?? e.subagentType, 60),
         estado: 'trabajando', desde: ahora, actualizado: ahora, conversacion: ctx.conversationId, turno: ctx.turnId, toolUseId, padre: recorta(e.parentTaskId, 120), pid: process.pid,
       }))
     } else if (tipo === 'task_progress' && typeof e.taskId === 'string') {
@@ -389,7 +393,7 @@ export async function internas(): Promise<TareaInterna[]> {
   try { l = JSON.parse(await readFile(archivo(), 'utf8')) } catch { return [] }
   // lo que este proceso aún no escribe también cuenta
   if (tareas) { const m = new Map(l.map(t => [t.id, t])); for (const t of tareas.values()) m.set(t.id, t); l = [...m.values()] }
-  let vistas = podar(l).map(t => t.estado === 'trabajando' && !vive(t.pid) ? { ...t, estado: 'detenida' as const, nota: t.nota ?? 'se detuvo cuando se reinició el agent-server' } : t)
+  let vistas = podar(l).map(t => t.estado === 'trabajando' && !vive(t.pid) ? { ...t, estado: 'detenida' as const, nota: t.nota ?? tr('se detuvo cuando se reinició el agent-server') } : t)
   vistas = await cerrarLoNotificado(vistas)
   return Promise.all(vistas.map(enriquecer))
 }
@@ -405,7 +409,7 @@ export async function cerrarLoNotificado(l: TareaInterna[], leer: (desdeMs: numb
     const status = c.notificadas.get(t.id)
     if (status && status !== 'running' && status !== 'pending') {
       const estado = ESTADO_SDK[status] ?? 'completada'
-      return { ...t, estado, nota: t.nota ?? (status === 'stopped' || status === 'killed' ? 'se detuvo (la sesión lo cerró sin terminar)' : undefined) }
+      return { ...t, estado, nota: t.nota ?? (status === 'stopped' || status === 'killed' ? tr('se detuvo (la sesión lo cerró sin terminar)') : undefined) }
     }
     const r = t.toolUseId ? c.resultados.get(t.toolUseId) : undefined
     // Un resultado que NO es el aviso de «corre en segundo plano» es el fin del comando o del subagente.
@@ -444,8 +448,8 @@ export interface SalidaInterna {
  *  un subagente) se traduce a su texto; lo demás se devuelve tal cual. */
 export async function salidaDe(id: string, lineas = 60, tachar: (s: string) => string = s => s): Promise<SalidaInterna> {
   const t = (await internas()).find(x => x.id === id)
-  if (!t) throw new Error('Esa tarea no está en el registro de hoy.')
-  const base = { id: t.id, descripcion: t.descripcion, estado: t.estado }
+  if (!t) throw new Error(tr('Esa tarea no está en el registro de hoy.'))
+  const base = { id: t.id, descripcion: tituloParaApp(t.descripcion), estado: t.estado }
   const real = t.salida ? await realpath(t.salida).catch(() => null) : null
   const legible = !!real && permitida(real) && /\.(output|jsonl|log|txt)$/.test(real)
   const transcripcion = legible && real!.endsWith('.jsonl') ? real! : await rutaTranscripcion(t).catch(() => null)
@@ -472,7 +476,7 @@ export async function salidaDe(id: string, lineas = 60, tachar: (s: string) => s
     } finally { await fh.close() }
   }
   if (t.resultado) return { ...base, texto: tachar(t.resultado.split('\n').slice(-lineas).join('\n')), fuente: 'resultado' }
-  return { ...base, texto: tachar(t.resumen ?? 'Sin salida registrada todavía.'), fuente: 'resumen' }
+  return { ...base, texto: tachar(t.resumen ?? tr('Sin salida registrada todavía.')), fuente: 'resumen' }
 }
 
 export function textoDeTranscripcion(jsonl: string): string {
@@ -484,7 +488,7 @@ export function textoDeTranscripcion(jsonl: string): string {
       if (m.type !== 'assistant' || !Array.isArray(m.message?.content)) continue
       for (const b of m.message.content as { type?: string; text?: string; name?: string }[]) {
         if (b.type === 'text' && b.text?.trim()) out.push(b.text.trim())
-        else if (b.type === 'tool_use' && b.name) out.push(`· usó ${b.name}`)
+        else if (b.type === 'tool_use' && b.name) out.push(tr('· usó {herramienta}', { herramienta: b.name }))
       }
     } catch { /* línea cortada */ }
   }

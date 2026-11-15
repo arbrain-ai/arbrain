@@ -1,6 +1,7 @@
 import { instalacion } from '@/config'
 import { shiftDay } from '@/features/sistema/calendar-days'
 import type { Marca } from './habitos-dia'
+import { tr, trn } from '@/shared/i18n'
 
 /**
  * «Hábitos de hoy» (22 oct 2026, Daniel entrando al monk mode hasta Monterrey): tres casillas grandes al pie del Día, con racha,
@@ -78,15 +79,15 @@ export function cuentaRegresiva(hoy: string, t: { arranque: string; hasta: strin
   const total = dias(t.arranque, t.hasta) + 1
   if (hoy < t.arranque) {
     const n = dias(hoy, t.arranque)
-    return { dia: null, total, texto: `Empieza ${n === 1 ? 'mañana' : `en ${n} días`} · ${dias(hoy, t.hasta)} días para ${t.premio}` }
+    return { dia: null, total, texto: n === 1 ? tr('Empieza mañana · {dias} días para {premio}', { dias: dias(hoy, t.hasta), premio: t.premio }) : tr('Empieza en {n} días · {dias} días para {premio}', { n, dias: dias(hoy, t.hasta), premio: t.premio }) }
   }
-  if (hoy > t.hasta) return { dia: total, total, texto: `Temporada cerrada · ${t.premio}` }
+  if (hoy > t.hasta) return { dia: total, total, texto: tr('Temporada cerrada · {premio}', { premio: t.premio }) }
   const dia = dias(t.arranque, hoy) + 1, faltan = dias(hoy, t.hasta)
-  return { dia, total, texto: faltan === 0 ? `Día ${dia} de ${total} · hoy es ${t.premio}` : `Día ${dia} de ${total} · ${faltan === 1 ? 'falta 1 día' : `faltan ${faltan} días`} para ${t.premio}` }
+  return { dia, total, texto: faltan === 0 ? tr('Día {dia} de {total} · hoy es {premio}', { dia, total, premio: t.premio }) : faltan === 1 ? tr('Día {dia} de {total} · falta 1 día para {premio}', { dia, total, premio: t.premio }) : tr('Día {dia} de {total} · faltan {faltan} días para {premio}', { dia, total, faltan, premio: t.premio }) }
 }
 
 /** «1 día», «12 días». */
-export const textoRacha = (n: number) => `${n} ${n === 1 ? 'día' : 'días'}`
+export const textoRacha = (n: number) => trn(n, '1 día', '{n} días')
 
 /** Dentro de la fila, el dígito 1…9 marca la casilla de esa posición (el orden de `sistema_habitos`). */
 export function casillaDeTecla(e: Pick<KeyboardEvent, 'code' | 'key' | 'ctrlKey' | 'metaKey' | 'altKey' | 'shiftKey' | 'repeat' | 'isComposing'>, total: number): number | null {

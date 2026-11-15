@@ -10,6 +10,7 @@ import { esEdicionCliente } from '@/lib/edicion'
 import { LOCAL_DESKTOP_USER_ID } from '@/lib/desktop-auth'
 import { almacenAlumno } from '@/features/notifications/lib/almacenSupabase'
 import { rutaSendAlumno } from '@/features/notifications/lib/avisosAlumno'
+import { tr } from '@/shared/i18n'
 
 const OPENCLAW_GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN
 
@@ -46,7 +47,7 @@ async function sendAlumno(req: NextRequest) {
     return NextResponse.json(r.json, { status: r.status, headers: { 'Cache-Control': 'no-store' } })
   } catch (err) {
     console.error('notifications/send (cliente):', err instanceof Error ? err.message : err)
-    return NextResponse.json({ error: 'No se pudo enviar el aviso.' }, { status: 500 })
+    return NextResponse.json({ error: tr('No se pudo enviar el aviso.') }, { status: 500 })
   }
 }
 

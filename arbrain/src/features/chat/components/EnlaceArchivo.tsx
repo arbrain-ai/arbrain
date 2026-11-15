@@ -1,4 +1,5 @@
 'use client'
+import { tr } from '@/shared/i18n'
 import { useEffect, useState, type MouseEvent, type ReactNode } from 'react'
 import { Download, FileText } from 'lucide-react'
 import { urlDescarga, urlFirmarArchivo, type ArchivoFirmado } from '@/lib/archivos-chat'
@@ -25,9 +26,9 @@ function pedir(ruta: string): Promise<Estado> {
       if (r.ok && typeof j.url === 'string') return { tipo: 'listo', archivo: j as ArchivoFirmado } as Estado
       // Un error de red o de sesión no se queda en caché: el siguiente pintado lo reintenta.
       if (r.status >= 500 || r.status === 401) cache.delete(ruta)
-      return { tipo: 'error', motivo: j.error || 'No se pudo abrir este archivo.' } as Estado
+      return { tipo: 'error', motivo: j.error || tr('No se pudo abrir este archivo.') } as Estado
     })
-    .catch(() => { cache.delete(ruta); return { tipo: 'error', motivo: 'Sin conexión con tu Arbrain.' } as Estado })
+    .catch(() => { cache.delete(ruta); return { tipo: 'error', motivo: tr('Sin conexión con tu Arbrain.') } as Estado })
   cache.set(ruta, { en: Date.now(), p })
   return p
 }
@@ -60,7 +61,7 @@ export function EnlaceArchivo({ ruta, children, codigo = false }: { ruta: string
     : children
 
   if (estado.tipo !== 'listo') {
-    const titulo = estado.tipo === 'error' ? estado.motivo : 'Preparando el archivo…'
+    const titulo = estado.tipo === 'error' ? tr(estado.motivo) : tr('Preparando el archivo…')
     return <span title={titulo} className={codigo ? 'text-foreground/85' : 'text-foreground/85 underline decoration-dotted underline-offset-2'}>{cuerpo}</span>
   }
 
@@ -73,7 +74,7 @@ export function EnlaceArchivo({ ruta, children, codigo = false }: { ruta: string
         target="_blank"
         rel="noopener noreferrer"
         onClick={(e) => abrirFuera(e, ver ? url : descarga)}
-        title={ver ? `Abrir ${nombre}` : `Descargar ${nombre}`}
+        title={ver ? tr('Abrir {nombre}', { nombre }) : tr('Descargar {nombre}', { nombre })}
         className={`${CLASE_ENLACE} ${codigo ? 'no-underline' : ''} min-w-0`}
       >
         {codigo ? <span className="inline-flex items-center gap-1"><FileText size={12} aria-hidden className="shrink-0 self-center" />{cuerpo}</span> : cuerpo}
@@ -84,8 +85,8 @@ export function EnlaceArchivo({ ruta, children, codigo = false }: { ruta: string
           download={nombre}
           rel="noopener noreferrer"
           onClick={(e) => abrirFuera(e, descarga)}
-          aria-label={`Descargar ${nombre}`}
-          title={`Descargar ${nombre}`}
+          aria-label={tr('Descargar {nombre}', { nombre })}
+          title={tr('Descargar {nombre}', { nombre })}
           className="inline-flex items-center self-center rounded-md p-0.5 text-muted/80 hover:text-foreground hover:bg-card-active transition-colors"
         >
           <Download size={13} aria-hidden />

@@ -2,14 +2,16 @@
    Luminorphism: morado para el chasis (selección, foco), oro para lo que importa (Editar, Hoy). */
 .logo { display: block; flex-shrink: 0; border-radius: 4px; object-fit: contain; }
 
-/* El «+» al final de la tira de pestañas */
+/* El «+» al final de la tira de pestañas. 11 nov 2026: sin el cuadro punteado (se leía como caja vacía); es un botón de ícono
+   quieto, como los de Claude Desktop, que se ilumina al pasar el mouse o con su menú abierto. */
 .mas {
   margin-right: auto; /* empuja Taller y cerrar al extremo, como el «+» de un navegador */
-  display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0;
-  border: 1px dashed rgba(var(--foreground-rgb), 0.18); background: transparent; color: var(--muted); cursor: pointer;
-  transition: background 120ms, color 120ms, border-color 120ms;
+  display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; flex-shrink: 0; margin-left: 2px;
+  border: 0; background: transparent; color: var(--muted); cursor: pointer;
+  transition: background 120ms, color 120ms;
 }
-.mas:hover, .mas[aria-expanded='true'] { color: var(--foreground); border-color: rgba(var(--brand-rgb), 0.5); background: rgba(var(--brand-rgb), 0.1); }
+.mas:hover { color: var(--foreground); background: rgba(var(--foreground-rgb), 0.06); }
+.mas[aria-expanded='true'] { color: var(--brand-ink); background: rgba(var(--brand-rgb), 0.1); }
 .mas:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
 
 .menu {

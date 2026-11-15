@@ -37,6 +37,7 @@ import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'no
 import { dirname, join } from 'node:path'
 import { DIR_ARBRAIN } from '../edicion.js'
 import { hostDe, parsearUrl } from './url.js'
+import { tr } from '../i18n/tr.js'
 
 /** Familia de la regla: a qué herramientas aplica. Las viejas (antes del 29 oct) son todas `Bash`. */
 export type FamiliaRegla = 'Bash' | 'PowerShell' | 'MCP' | 'Escribir' | 'WebFetch'
@@ -292,12 +293,12 @@ export const agregarRegla = (patron: string, ejemplo: string, ahora = Date.now()
 
 /** Guarda la regla (si ya existe el mismo patrón en la misma familia, devuelve la que había). Lanza si no es válida. */
 export function agregarReglaDe(familia: FamiliaRegla, patron: string, ejemplo: string, ahora = Date.now()): ReglaSiempre {
-  if (!FAMILIAS.has(familia) || !patronValido(patron, familia)) throw new Error('Ese patrón no se puede guardar.')
+  if (!FAMILIAS.has(familia) || !patronValido(patron, familia)) throw new Error(tr('Ese patrón no se puede guardar.'))
   const reglas = leer()
   const p = patron.trim()
   const ya = reglas.find(r => r.patron === p && r.herramienta === familia)
   if (ya) return ya
-  if (reglas.length >= MAX_REGLAS) throw new Error(`Ya tienes ${MAX_REGLAS} reglas guardadas; quita alguna en Ajustes › Permisos.`)
+  if (reglas.length >= MAX_REGLAS) throw new Error(tr('Ya tienes {max} reglas guardadas; quita alguna en Ajustes › Permisos.', { max: MAX_REGLAS }))
   const r: ReglaSiempre = { id: `rg_${randomBytes(5).toString('hex')}`, herramienta: familia, patron: p, creada: ahora, ejemplo: ejemplo.slice(0, 400) }
   escribir([...reglas, r])
   return r

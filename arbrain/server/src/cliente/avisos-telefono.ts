@@ -15,6 +15,7 @@
  * Ningún texto lleva literales de comandos ni direcciones: la notificación se ve en la pantalla bloqueada.
  */
 import type { Confirmacion } from './confirmaciones.js'
+import { tr } from '../i18n/tr.js'
 
 export interface AvisoTelefono { title: string; body: string; url: string; tag: string; kind: 'cola' | 'rutina' }
 export type ResultadoAviso = 'enviado' | 'repetido' | 'sin_configurar' | 'fallo'
@@ -35,10 +36,10 @@ export const URL_RUTINAS = '/chat?panel=taller&taller=rutinas'
 
 /** 1. Algo entró a la cola: Levy siguió con lo demás y espera tu decisión. */
 export function avisoCola(c: Pick<Confirmacion, 'id' | 'frase' | 'resumen' | 'conversacion'>): AvisoTelefono {
-  const que = linea(c.frase || c.resumen || 'Una acción', 140).replace(/\.+$/, '')
+  const que = linea(c.frase || c.resumen || tr('Una acción'), 140).replace(/\.+$/, '')
   return {
-    title: 'Levy espera tu decisión',
-    body: `${que}${/[…!?]$/.test(que) ? '' : '.'} Siguió con lo demás; cuando decidas, lo retoma.`,
+    title: tr('Levy espera tu decisión'),
+    body: tr('{que} Siguió con lo demás; cuando decidas, lo retoma.', { que: `${que}${/[…!?]$/.test(que) ? '' : '.'}` }),
     url: urlConversacion(c.conversacion),
     tag: `cola-${c.id}`,
     kind: 'cola',
@@ -48,7 +49,8 @@ export function avisoCola(c: Pick<Confirmacion, 'id' | 'frase' | 'resumen' | 'co
 /** El nombre de una rutina para una persona: su primera línea, sin el prefijo del agente. */
 export function nombreRutina(prompt: string): string {
   const primera = prompt.replace(/^\s*🤖\s*\[[^\]]*\]\s*/u, '').split(/\r?\n/).find((l) => l.trim()) ?? ''
-  return linea(primera, 60) || 'Tu rutina'
+  // Idioma: el nombre de una precargada es su primera línea (catálogo); el de una rutina propia queda como la escribió.
+  return tr(linea(primera, 60)) || tr('Tu rutina')
 }
 
 export interface FinRutina { id: string; prompt: string; ok: boolean; texto?: string; error?: string; corrida?: number }
@@ -61,11 +63,11 @@ export function avisoRutina(r: FinRutina): AvisoTelefono {
   const nombre = nombreRutina(r.prompt)
   const base = { url: URL_RUTINAS, tag: `rutina-${r.id}-${r.corrida ?? 0}`, kind: 'rutina' as const }
   if (!r.ok) {
-    const error = linea(r.error || 'Algo falló', 120).replace(/^Error:\s*/i, '').replace(/\.+$/, '')
-    return { ...base, title: `Tu rutina no terminó: ${nombre}`, body: `${error}${/[…!?]$/.test(error) ? '' : '.'} Ábrela en Taller › Rutinas para ver qué pasó.` }
+    const error = linea(r.error || tr('Algo falló'), 120).replace(/^Error:\s*/i, '').replace(/\.+$/, '')
+    return { ...base, title: tr('Tu rutina no terminó: {nombre}', { nombre }), body: tr('{error} Ábrela en Taller › Rutinas para ver qué pasó.', { error: `${error}${/[…!?]$/.test(error) ? '' : '.'}` }) }
   }
   const resumen = linea(r.texto ?? '', 140)
-  return { ...base, title: `Tu rutina terminó: ${nombre}`, body: resumen || 'Terminó sin dejar texto. Ábrela en Taller › Rutinas.' }
+  return { ...base, title: tr('Tu rutina terminó: {nombre}', { nombre }), body: resumen || tr('Terminó sin dejar texto. Ábrela en Taller › Rutinas.') }
 }
 
 // ── Entrega (a la web de la persona) ─────────────────────────────────────────────────────────────────────────────

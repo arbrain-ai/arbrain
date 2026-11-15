@@ -15,6 +15,7 @@ import type { Consulta, Ventana } from './catalogo'
 import { catalogoGenerico } from './generico'
 import { ejecutarGenerico, leerArchivoFuentes, type EstadoFuentes } from './motor'
 import type { RespuestaConsulta } from './modelo'
+import { tr } from '@/shared/i18n'
 import { CATALOGO_AUTOR } from './autor/catalogo'
 import { ejecutarAutor } from './autor/servidor'
 
@@ -37,6 +38,6 @@ export async function catalogoVigente(raiz: string | null): Promise<Vigente> {
 /** Corre UNA consulta del catálogo vigente. Lo que no está en el catálogo no se corre. */
 export async function ejecutar(id: string, ventana: Ventana, raiz: string | null): Promise<RespuestaConsulta> {
   if (catalogoDelAutor()) return ejecutarAutor(id, ventana, raiz)
-  if (!raiz) throw new Error('No se encontró la raíz del cerebro.')
+  if (!raiz) throw new Error(tr('No se encontró la raíz del cerebro.'))
   return ejecutarGenerico(raiz, id, ventana)
 }

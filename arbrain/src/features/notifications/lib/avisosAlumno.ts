@@ -12,6 +12,7 @@
  */
 import { sameSecret } from '@/lib/desktop-auth'
 import { crearLimitador, entregar, type AlmacenPush, type Enviar, type Respuesta } from './pushServidor'
+import { tr } from '@/shared/i18n'
 
 export type TipoAviso = 'cola' | 'rutina' | 'respuesta' | 'otro'
 export interface AvisoAlumno { title: string; body: string; url: string; tag: string; kind: TipoAviso }
@@ -154,7 +155,7 @@ export function avisoRespuestaLarga(p: { sessionId?: string | null; turnId: stri
   const url = p.sessionId && /^[A-Za-z0-9:_-]{1,128}$/.test(p.sessionId) ? `/chat?session=${encodeURIComponent(p.sessionId)}` : '/chat'
   const tag = `respuesta-${p.turnId.replace(/[^A-Za-z0-9:_.-]/g, '').slice(0, 120) || 'turno'}`
   if (p.terminalStatus === 'failed') {
-    return { title: 'Tu respuesta se detuvo', body: 'Levy no pudo terminar. Abre la conversación para ver qué pasó y pedírselo de nuevo.', url, tag, kind: 'respuesta' }
+    return { title: tr('Tu respuesta se detuvo'), body: tr('Levy no pudo terminar. Abre la conversación para ver qué pasó y pedírselo de nuevo.'), url, tag, kind: 'respuesta' }
   }
-  return { title: 'Levy terminó tu respuesta', body: vistaPrevia(p.assistantMessage ?? '') || 'Ya está lista en tu conversación.', url, tag, kind: 'respuesta' }
+  return { title: tr('Levy terminó tu respuesta'), body: vistaPrevia(p.assistantMessage ?? '') || tr('Ya está lista en tu conversación.'), url, tag, kind: 'respuesta' }
 }

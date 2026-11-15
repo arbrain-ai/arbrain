@@ -13,6 +13,7 @@ import { escalon } from '../movimiento'
 import { type Item, porDia, bandaDe, tareasDe, atrasada, minutosCiviles, duracion, faltan, mutarTarea, sinEmoji } from './agenda'
 import l from '../luz.module.css'
 import { zonaDueno } from '@/shared/lib/zona-dueno'
+import { localeIntl, tr, trn, trNodos } from '@/shared/i18n'
 
 function useAhora(activo: boolean) {
   const [ahora, setAhora] = useState(() => Date.now())
@@ -25,14 +26,14 @@ function useAhora(activo: boolean) {
 }
 
 /** Reloj en la zona del dueño (instalación original: México; alumno: la suya). */
-const relojFmt = { format: (d: Date | number) => new Intl.DateTimeFormat('es-MX', { timeZone: zonaDueno(), hour: '2-digit', minute: '2-digit', hour12: false }).format(d) }
+const relojFmt = { format: (d: Date | number) => new Intl.DateTimeFormat(localeIntl(), { timeZone: zonaDueno(), hour: '2-digit', minute: '2-digit', hour12: false }).format(d) }
 
 export function Reloj({ eventos, ahora }: { eventos: Item[]; ahora: number }) {
   const actual = eventos.find(e => e.inicio! <= ahora && ahora < e.fin!)
   const sigue = eventos.find(e => e.inicio! > ahora)
-  let linea: React.ReactNode = eventos.length ? 'Tu agenda de hoy terminó.' : 'Nada agendado hoy.'
-  if (actual) linea = <>Ahora · <em>{sinEmoji(actual.titulo)}</em> · quedan {duracion(Math.max(1, Math.round((actual.fin! - ahora) / 60000)))}</>
-  else if (sigue) linea = <>Sigue · <em>{sinEmoji(sigue.titulo)}</em> {faltan(Math.round((sigue.inicio! - ahora) / 60000))}</>
+  let linea: React.ReactNode = eventos.length ? tr('Tu agenda de hoy terminó.') : tr('Nada agendado hoy.')
+  if (actual) linea = trNodos('Ahora · {titulo} · quedan {duracion}', { titulo: <em>{sinEmoji(actual.titulo)}</em>, duracion: duracion(Math.max(1, Math.round((actual.fin! - ahora) / 60000))) })
+  else if (sigue) linea = trNodos('Sigue · {titulo} {cuando}', { titulo: <em>{sinEmoji(sigue.titulo)}</em>, cuando: faltan(Math.round((sigue.inicio! - ahora) / 60000)) })
   return <div className={`${l.reloj} ${l.entra}`} style={escalon(1)}><strong>{relojFmt.format(ahora)}</strong><span>{linea}</span></div>
 }
 
@@ -69,7 +70,7 @@ export function Agenda({ eventos, dia, hoy, ahora }: { eventos: Item[]; dia: str
   const plegar = terminados.length >= 3 && !verTerminados
   const filas: React.ReactNode[] = []
   if (terminados.length >= 3) filas.push(<button key="terminados" type="button" className={`${l.plegados} ${l.entra}`} style={escalon(3)} aria-expanded={verTerminados} onClick={() => setVerTerminados(v => !v)}>
-    {verTerminados ? 'Ocultar lo terminado' : `${terminados.length} bloques terminados`}<span aria-hidden>{verTerminados ? '−' : '+'}</span>
+    {verTerminados ? tr('Ocultar lo terminado') : tr('{n} bloques terminados', { n: terminados.length })}<span aria-hidden>{verTerminados ? '−' : '+'}</span>
   </button>)
   let lineaPuesta = !esHoy || !!actual
   eventos.forEach((e, i) => {
@@ -81,7 +82,7 @@ export function Agenda({ eventos, dia, hoy, ahora }: { eventos: Item[]; dia: str
     const yaPaso = pasado || (esHoy && e.fin! <= ahora)
     filas.push(<p key={e.id} className={`${l.fila} ${l.entra}`} style={{ ...escalon(3 + i), ['--c' as string]: e.color }}
       data-pasado={yaPaso || undefined} data-ahora={e === actual || undefined}>
-      <b>{e.hora}</b><i aria-hidden /><span title={e.titulo}>{e.titulo}{e === actual && <span className={l.etiqueta}>ahora</span>}{e === sigue && <span className={`${l.etiqueta} ${l.etiquetaSigue}`}>sigue</span>}</span>
+      <b>{e.hora}</b><i aria-hidden /><span title={e.titulo}>{e.titulo}{e === actual && <span className={l.etiqueta}>{tr('ahora')}</span>}{e === sigue && <span className={`${l.etiqueta} ${l.etiquetaSigue}`}>{tr('sigue')}</span>}</span>
       <small>{duracion(Math.round((e.fin! - e.inicio!) / 60000))}</small>
     </p>)
   })
@@ -103,31 +104,31 @@ export function PostIts({ tareas, dia, ownerId, proyectos, compacto }: { tareas:
     if (!ownerId || hechas[t.id]) return
     setError(null); setHechas(h => ({ ...h, [t.id]: 'enviando' }))
     try { await mutarTarea(t, ownerId, 'complete'); setHechas(h => ({ ...h, [t.id]: 'hecha' })); setUltima(t) }
-    catch (e) { setHechas(h => { const n = { ...h }; delete n[t.id]; return n }); setError(e instanceof Error ? e.message : 'Todoist no confirmó el cambio.') }
+    catch (e) { setHechas(h => { const n = { ...h }; delete n[t.id]; return n }); setError(e instanceof Error ? e.message : tr('Todoist no confirmó el cambio.')) }
   }
   async function deshacer(t: PlanTask) {
     setUltima(null)
     try { await mutarTarea(t, ownerId!, 'reopen'); setHechas(h => { const n = { ...h }; delete n[t.id]; return n }) }
-    catch (e) { setError(e instanceof Error ? e.message : 'No pude reabrirla; ábrela en Todoist.') }
+    catch (e) { setError(e instanceof Error ? e.message : tr('No pude reabrirla; ábrela en Todoist.')) }
   }
-  if (!tareas.length) return <p className={l.vacio}>Sin tareas con fecha {compacto ? 'ese día' : 'para hoy'}.</p>
+  if (!tareas.length) return <p className={l.vacio}>{compacto ? tr('Sin tareas con fecha ese día.') : tr('Sin tareas con fecha para hoy.')}</p>
   return <>
     {error && <p className={l.aviso} role="alert">{error}</p>}
     <div className={l.postits}>
       {visibles.map((t, i) => { const estado = hechas[t.id], proyecto = t.projectId ? proyectos.get(t.projectId) : undefined
         return <article key={t.id} className={`${l.postit} ${estado ? l.postitHecho : ''} ${l.entra}`} style={escalon(i)} data-prio={t.priority && t.priority < 3 ? t.priority : undefined}>
-          <button className={l.check} onClick={() => void palomear(t)} disabled={!ownerId || !!estado} aria-label={`Completar «${t.title}»`} title={ownerId ? 'Completar en Todoist' : 'Sin identidad para escribir'}>{CHECK}</button>
+          <button className={l.check} onClick={() => void palomear(t)} disabled={!ownerId || !!estado} aria-label={tr('Completar «{titulo}»', { titulo: t.title })} title={ownerId ? tr('Completar en Todoist') : tr('Sin identidad para escribir')}>{CHECK}</button>
           <p className={l.postitTitulo}>{t.url ? <a href={t.url} target="_blank" rel="noreferrer">{t.title}</a> : t.title}</p>
           <p className={l.postitMeta}>
             {t.priority && t.priority < 3 && <span className={l.prio} data-prio={t.priority}>P{t.priority}</span>}
             {proyecto && <span>{proyecto}</span>}
-            {atrasada(t, dia) && <span className={l.atrasada}>atrasada</span>}
-            {t.recurring && <span title={t.recurrenceText ?? 'Se repite'}>↻</span>}
+            {atrasada(t, dia) && <span className={l.atrasada}>{tr('atrasada')}</span>}
+            {t.recurring && <span title={t.recurrenceText ?? tr('Se repite')}>↻</span>}
           </p>
         </article> })}
     </div>
-    {ultima && <p className={l.deshacer} role="status"><span>Hecha: «{ultima.title}»{ultima.recurring ? ' · su próxima repetición quedó programada' : ''}</span>
-      {!ultima.recurring && <button className={l.enlace} onClick={() => void deshacer(ultima)}>Deshacer</button>}</p>}
+    {ultima && <p className={l.deshacer} role="status"><span>{ultima.recurring ? tr('Hecha: «{titulo}» · su próxima repetición quedó programada', { titulo: ultima.title }) : tr('Hecha: «{titulo}»', { titulo: ultima.title })}</span>
+      {!ultima.recurring && <button className={l.enlace} onClick={() => void deshacer(ultima)}>{tr('Deshacer')}</button>}</p>}
   </>
 }
 
@@ -142,12 +143,12 @@ export function VistaDia({ data, dia }: { data: PlanningSnapshot; dia: string })
   const tareas = useMemo(() => tareasDe(data, dia, hoy), [data, dia, hoy])
   const proyectos = useMemo(() => new Map(data.projects.map(p => [p.id, p.title])), [data.projects])
   const hechasHoy = esHoy ? (data.completedTasks ?? []).filter(t => t.completedAt && hoyCivil(new Date(t.completedAt)) === dia).length : 0
-  const relativo = esHoy ? 'Hoy' : dia === hoyCivil(new Date(Date.now() + 86400000)) ? 'Mañana' : dia === hoyCivil(new Date(Date.now() - 86400000)) ? 'Ayer' : etiquetaDia(dia, { weekday: 'long' })
+  const relativo = esHoy ? tr('Hoy') : dia === hoyCivil(new Date(Date.now() + 86400000)) ? tr('Mañana') : dia === hoyCivil(new Date(Date.now() - 86400000)) ? tr('Ayer') : etiquetaDia(dia, { weekday: 'long' })
   return <div>
     <div className={l.heroe}>
       <div className={l.entra} style={escalon(0)}>
         <p className={l.ceja}>{relativo === etiquetaDia(dia, { weekday: 'long' }) ? relativo : <><b>{relativo}</b> · {etiquetaDia(dia, { weekday: 'long' })}</>}</p>
-        <h3 className={`${l.titular} ${l.serif}`}>{etiquetaDia(dia, { day: 'numeric' })} <small>de {etiquetaDia(dia, { month: 'long' })}</small></h3>
+        <h3 className={`${l.titular} ${l.serif}`}>{etiquetaDia(dia, { day: 'numeric' })} <small>{tr('de {mes}', { mes: etiquetaDia(dia, { month: 'long' }) })}</small></h3>
       </div>
       {esHoy && <Reloj eventos={eventos} ahora={ahora} />}
     </div>
@@ -157,11 +158,11 @@ export function VistaDia({ data, dia }: { data: PlanningSnapshot; dia: string })
       {todoElDia.map(e => <span key={e.id} className={l.pastilla} title={e.titulo}><i aria-hidden style={{ background: e.color }} /><span>{e.titulo}</span></span>)}
     </div>}
     <div className={l.diaCuerpo}>
-      <section aria-label="Agenda">
-        {eventos.length ? <Agenda eventos={eventos} dia={dia} hoy={hoy} ahora={ahora} /> : <p className={l.vacio}>Nada agendado {esHoy ? 'hoy' : 'ese día'}.</p>}
+      <section aria-label={tr('Agenda')}>
+        {eventos.length ? <Agenda eventos={eventos} dia={dia} hoy={hoy} ahora={ahora} /> : <p className={l.vacio}>{esHoy ? tr('Nada agendado hoy.') : tr('Nada agendado ese día.')}</p>}
       </section>
-      <section aria-label="Tareas">
-        <div className={l.seccion}><h4>{esHoy ? 'Tareas de hoy' : 'Tareas del día'}</h4><small>{tareas.length || ''}</small>{hechasHoy > 0 && <small className={l.derecha}>{hechasHoy} {hechasHoy === 1 ? 'hecha' : 'hechas'} hoy</small>}</div>
+      <section aria-label={tr('Tareas')}>
+        <div className={l.seccion}><h4>{esHoy ? tr('Tareas de hoy') : tr('Tareas del día')}</h4><small>{tareas.length || ''}</small>{hechasHoy > 0 && <small className={l.derecha}>{trn(hechasHoy, '{n} hecha hoy', '{n} hechas hoy')}</small>}</div>
         <PostIts tareas={tareas} dia={dia} ownerId={data.ownerId} proyectos={proyectos} />
       </section>
     </div>

@@ -1,3 +1,5 @@
+import { tr } from '@/shared/i18n'
+
 /** Text stays verbatim. These are presentation containers, never a token-saving summary. */
 export interface TextAttachment { name: string; content: string }
 export const MAX_TEXT_CHARACTERS = 100_000
@@ -9,13 +11,14 @@ export function isLongText(text: string): boolean {
 
 export function pastedTextFile(content: string, existing: ReadonlyArray<{ name: string }>): TextAttachment {
   let n = 1
-  while (existing.some(f => f.name === `Texto pegado${n === 1 ? '' : ` ${n}`}.txt`)) n++
-  return { name: `Texto pegado${n === 1 ? '' : ` ${n}`}.txt`, content }
+  const base = tr('Texto pegado')
+  while (existing.some(f => f.name === `${base}${n === 1 ? '' : ` ${n}`}.txt`)) n++
+  return { name: `${base}${n === 1 ? '' : ` ${n}`}.txt`, content }
 }
 
 export function textAttachmentError(files: readonly TextAttachment[]): string | null {
-  if (files.length > MAX_TEXT_FILES) return 'Puedes adjuntar hasta cinco textos por mensaje.'
-  if (files.some(f => f.content.length > MAX_TEXT_CHARACTERS)) return 'Cada texto puede tener hasta 100 000 caracteres. Divide el documento antes de adjuntarlo.'
+  if (files.length > MAX_TEXT_FILES) return tr('Puedes adjuntar hasta cinco textos por mensaje.')
+  if (files.some(f => f.content.length > MAX_TEXT_CHARACTERS)) return tr('Cada texto puede tener hasta 100 000 caracteres. Divide el documento antes de adjuntarlo.')
   return null
 }
 
@@ -26,7 +29,7 @@ const START = '[Archivo de texto adjunto · arbrain/v1 '
 const END = '\n[Fin del archivo de texto adjunto]'
 export function textMessageTitle(raw: string): string {
   const marker = raw.indexOf(START)
-  return marker < 0 ? raw : raw.slice(0, marker).trim() || 'Texto adjunto'
+  return marker < 0 ? raw : raw.slice(0, marker).trim() || tr('Texto adjunto')
 }
 export function copyableUserText(raw: string): string {
   const {text, files} = decodeTextAttachments(raw)

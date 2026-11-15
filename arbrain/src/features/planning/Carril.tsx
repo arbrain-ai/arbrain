@@ -2,6 +2,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { curvaCasa, destinoAlSoltar, destinoAlSoltarToque, ejeDeRueda, ejeDeToque, recentrar, velocidad } from './carril-logica'
+import { tr } from '@/shared/i18n'
 import c from './carril.module.css'
 
 /** Asentar la hoja al soltar: lo que tarda la curva de la casa en llegar (la entrada de escena usa 340 ms). */
@@ -173,7 +174,7 @@ export function Carril({ fecha, clave, mover, onIr, render, etiqueta }: {
   useEffect(() => () => { cancelAnimationFrame(cuadro.current); clearTimeout(retiro.current) }, [])
 
   const hojas = vecinas ? [-1, 0, 1] : [0]
-  return <div ref={marco} className={c.marco} data-carril role="region" aria-roledescription="carrusel" aria-label={etiqueta}>
+  return <div ref={marco} className={c.marco} data-carril role="region" aria-roledescription={tr('carrusel')} aria-label={etiqueta}>
     <div ref={pista} className={c.pista}>
       {hojas.map(n => {
         const f = n ? mover(centro, n) : centro, k = clave(f)

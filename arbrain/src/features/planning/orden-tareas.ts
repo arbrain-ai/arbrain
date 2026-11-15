@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { taskDay } from '@/features/goals/model'
 import type { PlanTask } from './types'
+import { tr, trMarca } from '@/shared/i18n'
 
 /**
  * El orden de las tareas (18 oct 2026, Daniel: «organiza las tareas por hora del día, permite cambiar el filtro entre
@@ -13,12 +14,12 @@ import type { PlanTask } from './types'
  */
 export type OrdenTareas = 'hora' | 'prioridad' | 'proyecto'
 export const ORDENES: { id: OrdenTareas; etiqueta: string }[] = [
-  { id: 'hora', etiqueta: 'Hora' }, { id: 'prioridad', etiqueta: 'Prioridad' }, { id: 'proyecto', etiqueta: 'Proyecto' },
+  { id: 'hora', etiqueta: trMarca('Hora') }, { id: 'prioridad', etiqueta: trMarca('Prioridad') }, { id: 'proyecto', etiqueta: trMarca('Proyecto') },
 ]
 export const CLAVE_ORDEN = 'arbrain.tareas.orden'
 export const esOrden = (v: unknown): v is OrdenTareas => ORDENES.some(o => o.id === v)
 export const siguienteOrden = (o: OrdenTareas): OrdenTareas => ORDENES[(ORDENES.findIndex(x => x.id === o) + 1) % ORDENES.length].id
-export const etiquetaOrden = (o: OrdenTareas) => ORDENES.find(x => x.id === o)!.etiqueta
+export const etiquetaOrden = (o: OrdenTareas) => tr(ORDENES.find(x => x.id === o)!.etiqueta)
 
 export interface GrupoTareas { id: string; titulo: string | null; tareas: PlanTask[] }
 
@@ -65,7 +66,7 @@ export function ordenarTareas(tareas: PlanTask[], orden: OrdenTareas, { zona, pr
   const grupos = new Map<string, PlanTask[]>()
   for (const t of tareas) { const k = t.projectId && pos.has(t.projectId) ? t.projectId : '—'; grupos.set(k, [...(grupos.get(k) ?? []), t]) }
   return [...grupos].sort(([a], [b]) => (pos.get(a)?.i ?? 1e6) - (pos.get(b)?.i ?? 1e6))
-    .map(([k, ts]) => ({ id: `proyecto:${k}`, titulo: pos.get(k)?.titulo ?? 'Sin proyecto', tareas: ts.sort(cmp) }))
+    .map(([k, ts]) => ({ id: `proyecto:${k}`, titulo: pos.get(k)?.titulo ?? tr('Sin proyecto'), tareas: ts.sort(cmp) }))
 }
 
 /**

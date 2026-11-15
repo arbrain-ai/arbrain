@@ -8,6 +8,8 @@
  * existe `PushManager`, así que el estado correcto no es «no soportado» sino «instálala primero».
  */
 
+import { tr } from '@/shared/i18n'
+
 export type PermisoPush = 'default' | 'granted' | 'denied'
 
 export type EstadoPush =
@@ -97,16 +99,16 @@ export function estadoPush(e: EntornoPush): EstadoPush {
 /** Una línea de estado bajo el título de la sección. */
 export function resumenEstado(estado: EstadoPush | 'cargando'): string {
   switch (estado) {
-    case 'cargando': return 'Revisando este dispositivo…'
-    case 'activo': return 'Activas en este dispositivo'
-    case 'listo': return 'Apagadas en este dispositivo'
+    case 'cargando': return tr('Revisando este dispositivo…')
+    case 'activo': return tr('Activas en este dispositivo')
+    case 'listo': return tr('Apagadas en este dispositivo')
     case 'ios-instalar':
-    case 'navegador-interno': return 'En iPhone funcionan con Arbrain en tu pantalla de inicio'
-    case 'bloqueado': return 'Bloqueadas en este dispositivo'
-    case 'ios-actualizar': return 'Tu iPhone necesita iOS 16.4 o más'
-    case 'no-soportado': return 'Este dispositivo no recibe notificaciones'
-    case 'sin-configurar': return 'Todavía no están disponibles en este servidor'
-    case 'en-computadora': return 'Se activan en tu teléfono'
+    case 'navegador-interno': return tr('En iPhone funcionan con Arbrain en tu pantalla de inicio')
+    case 'bloqueado': return tr('Bloqueadas en este dispositivo')
+    case 'ios-actualizar': return tr('Tu iPhone necesita iOS 16.4 o más')
+    case 'no-soportado': return tr('Este dispositivo no recibe notificaciones')
+    case 'sin-configurar': return tr('Todavía no están disponibles en este servidor')
+    case 'en-computadora': return tr('Se activan en tu teléfono')
   }
 }
 
@@ -129,11 +131,11 @@ export function mensajeDeError(e: unknown): string {
   const nombre = (e as { name?: unknown } | null)?.name
   const texto = e instanceof Error ? e.message : ''
   if (nombre === 'NotAllowedError' || /permission denied/i.test(texto)) {
-    return 'El teléfono no dejó activar las notificaciones. Revisa el permiso de Arbrain en Ajustes y vuelve a intentar.'
+    return tr('El teléfono no dejó activar las notificaciones. Revisa el permiso de Arbrain en Ajustes y vuelve a intentar.')
   }
   if (nombre === 'AbortError' || /push service/i.test(texto)) {
-    return 'Este navegador no tiene servicio de notificaciones ahora. Intenta desde Arbrain en tu pantalla de inicio.'
+    return tr('Este navegador no tiene servicio de notificaciones ahora. Intenta desde Arbrain en tu pantalla de inicio.')
   }
-  if (nombre === 'InvalidStateError') return 'Hay una activación vieja en este dispositivo. Desactiva y vuelve a activar.'
-  return texto && /[áéíóúñ¿]/i.test(texto) ? texto : 'No se pudo activar. Intenta de nuevo en un momento.'
+  if (nombre === 'InvalidStateError') return tr('Hay una activación vieja en este dispositivo. Desactiva y vuelve a activar.')
+  return texto && /[áéíóúñ¿]/i.test(texto) ? tr(texto) : tr('No se pudo activar. Intenta de nuevo en un momento.')
 }

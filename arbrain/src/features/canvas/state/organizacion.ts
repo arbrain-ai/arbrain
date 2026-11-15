@@ -8,6 +8,7 @@
  *                      La carpeta es la ÚNICA fuente de quién es del grupo (antes era una semilla por título en el código).
  *   settings.fijado    { grupo, orden }   fijado a mano en «Fijados» (lo que no está en una carpeta fijada)
  *   settings.archivado ISO                archivado en esa fecha (nada se borra)
+ *   settings.tablero   true               página TABLERO (mapa v16, 14 nov 2026): sin lápiz ni herramientas de dibujo
  *
  * Ni el guardado de la mano ni el del compilador tocan `settings`.
  */
@@ -56,3 +57,17 @@ export const enCarpetaFijada = (folderId: string | null, carpetas: { id: string;
 /** Dónde queda un lienzo recién fijado a mano: al final de «Fijados». */
 export const ordenAlFinal = (paginas: ConOrg[], grupo = GRUPO_GENERAL) =>
   paginas.reduce((m, x) => x.fijado?.grupo === grupo ? Math.max(m, x.fijado.orden + 1) : m, 0)
+
+/**
+ * Página TABLERO (mapa v16, 14 nov 2026). Daniel: «honestamente ya no utilizo modificaciones manuales como el lápiz» y «sí,
+ * escóndelos en el mapa nuevo». Una bandera de la PÁGINA (no del aparato): en esa página el lienzo esconde el lápiz y las
+ * herramientas de dibujo; en las demás siguen. Vive en `settings` como fijar y archivar: no sube la versión.
+ */
+export const leerTablero = (settings: unknown): boolean =>
+  !!settings && typeof settings === 'object' && (settings as Record<string, unknown>).tablero === true
+
+export function conTablero(settings: unknown, tablero: boolean): Record<string, unknown> {
+  const base = { ...(settings && typeof settings === 'object' ? settings as Record<string, unknown> : {}) }
+  if (tablero) base.tablero = true; else delete base.tablero
+  return base
+}

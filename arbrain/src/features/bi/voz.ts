@@ -4,6 +4,8 @@
  * luz va a lo que suena: cada tramo es su propio audio, así que el foco cambia cuando ese audio EMPIEZA (sincronía exacta,
  * sin estimar palabras). Voz del servidor (la de Levy) con Web Audio; si no hay, la voz del navegador en español.
  */
+import { enIngles, localeIntl } from '@/shared/i18n'
+
 export interface Tramo { texto: string; foco: string | null }
 
 type PedirVoz = ((texto: string, signal: AbortSignal) => Promise<ArrayBuffer | null>) | null
@@ -13,9 +15,11 @@ function vozNavegador(texto: string, signal: AbortSignal): Promise<void> {
     const s = typeof window !== 'undefined' ? window.speechSynthesis : undefined
     if (!s) return setTimeout(resolve, Math.min(9000, texto.length * 55))
     const u = new SpeechSynthesisUtterance(texto)
-    const voces = s.getVoices().filter(v => /^es/i.test(v.lang))
-    u.voice = voces.find(v => /juan/i.test(v.name)) ?? voces.find(v => /es[-_]MX/i.test(v.lang)) ?? voces[0] ?? null
-    u.lang = u.voice?.lang ?? 'es-MX'
+    // En inglés (13 nov 2026), una voz inglesa del sistema; en español, Juan o la de México, como siempre.
+    const ingles = enIngles()
+    const voces = s.getVoices().filter(v => (ingles ? /^en/i : /^es/i).test(v.lang))
+    u.voice = (ingles ? undefined : voces.find(v => /juan/i.test(v.name))) ?? voces.find(v => (ingles ? /en[-_]US/i : /es[-_]MX/i).test(v.lang)) ?? voces[0] ?? null
+    u.lang = u.voice?.lang ?? localeIntl()
     u.rate = 1.15
     const fin = () => { signal.removeEventListener('abort', corta); resolve() }
     const corta = () => { s.cancel(); fin() }

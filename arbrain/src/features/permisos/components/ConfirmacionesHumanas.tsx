@@ -23,6 +23,8 @@ import { createPortal } from 'react-dom'
 import { AlertTriangle, CreditCard, Loader2, Send, ShieldAlert, Terminal, Trash2, Upload } from 'lucide-react'
 import { avisoSinSandbox, avisosDe, esClicHumano, etiquetaOrigen, literalVisible, vaEnElHilo, type Confirmacion, type EstadoSandbox } from '../lib/confirmacion'
 import { olvidar, usePendientes } from '../lib/pendientes'
+import { tr, trMarca } from '@/shared/i18n'
+import { trNodos } from '@/shared/i18n'
 // La cola (ronda 2) trae la tarjeta del hilo y su CSS: se carga aparte, así este diálogo sigue ligero.
 const ContadorCola = lazy(() => import('./ColaDeAprobaciones').then(m => ({ default: m.ContadorCola })))
 // La tarjeta de permiso por app (1 nov 2026) usa el CSS de la tarjeta del hilo: también aparte.
@@ -31,7 +33,7 @@ const TarjetaPermisoApp = lazy(() => import('./TarjetaPermisoApp').then(m => ({ 
 export type { Confirmacion } from '../lib/confirmacion'
 export { ordenarPendientes } from '../lib/confirmacion'
 
-const VERBO: Record<Confirmacion['categoria'], string> = { enviar: 'enviar', pagar: 'pagar', borrar: 'borrar', publicar: 'publicar', otra: 'hacer algo que necesita tu permiso' }
+const VERBO: Record<Confirmacion['categoria'], string> = { enviar: trMarca('enviar'), pagar: trMarca('pagar'), borrar: trMarca('borrar'), publicar: trMarca('publicar'), otra: trMarca('hacer algo que necesita tu permiso') }
 const ICONO = { enviar: Send, pagar: CreditCard, borrar: Trash2, publicar: Upload, otra: ShieldAlert } as const
 const ARMADO_MS = 700
 const VISTO_SIN_SANDBOX = 'arbrain.aviso-sin-sandbox.visto'
@@ -53,7 +55,7 @@ export function ConfirmacionesHumanas() {
     <Suspense fallback={null}><ContadorCola /></Suspense>
     {/* Permiso por app (1 nov 2026) sin un hilo vivo a la vista: la tarjeta flota abajo a la derecha, sin tapar la app. */}
     {hilosVivos === 0 && apps[0] && !actual && createPortal(
-      <div className="fixed bottom-4 right-4 z-[390] w-[min(440px,calc(100vw-2rem))]" role="region" aria-label="Levy espera tu decisión">
+      <div className="fixed bottom-4 right-4 z-[390] w-[min(440px,calc(100vw-2rem))]" role="region" aria-label={tr('Levy espera tu decisión')}>
         <Suspense fallback={null}><TarjetaPermisoApp key={apps[0].id} p={apps[0]} /></Suspense>
       </div>, document.body)}
     {actual && createPortal(<DialogoConfirmacion key={actual.id} c={actual} sandbox={sandbox} restantes={aqui.length - 1} alResolver={() => olvidar(actual.id)} alCerrar={() => setCerradas(s => new Set([...s, actual.id]))} />, document.body)}
@@ -89,9 +91,9 @@ export function DialogoConfirmacion({ c, sandbox, restantes, alResolver, alCerra
     setOcupado(decision); setError(null)
     try {
       const r = await fetch('/api/confirmaciones/resolver', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: c.id, decision }) })
-      if (!r.ok && r.status !== 404 && r.status !== 409) throw new Error((await r.json().catch(() => ({}))).error ?? 'No pude enviar tu decisión.')
+      if (!r.ok && r.status !== 404 && r.status !== 409) throw new Error((await r.json().catch(() => ({}))).error ?? trMarca('No pude enviar tu decisión.'))
       alResolver()
-    } catch (e) { setError(e instanceof Error ? e.message : 'No pude enviar tu decisión.'); setOcupado(null) }
+    } catch (e) { setError(e instanceof Error ? tr(e.message) : tr('No pude enviar tu decisión.')); setOcupado(null) }
   }, [c.id, alResolver])
 
   // A7 (0.2.15): Escape cierra el diálogo; la pendiente no se rechaza (sigue en la cola). Antes, un Escape en cualquier
@@ -108,56 +110,56 @@ export function DialogoConfirmacion({ c, sandbox, restantes, alResolver, alCerra
         <div className="flex items-start gap-3">
           <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-warning/15 text-warning" aria-hidden><Icono className="size-5" /></span>
           <div className="min-w-0">
-            <h2 id="cf-titulo" className="text-[16px] font-semibold leading-snug tracking-tight text-foreground [overflow-wrap:anywhere]">{c.resumen || '¿Permitir esta acción?'}</h2>
-            <p id="cf-quien" className="mt-0.5 text-[13px] text-muted">{origen.quien} quiere {VERBO[c.categoria] ?? VERBO.otra}. No pasa sin tu clic.</p>
+            <h2 id="cf-titulo" className="text-[16px] font-semibold leading-snug tracking-tight text-foreground [overflow-wrap:anywhere]">{c.resumen ? tr(c.resumen) : tr('¿Permitir esta acción?')}</h2>
+            <p id="cf-quien" className="mt-0.5 text-[13px] text-muted">{tr('{quien} quiere {verbo}. No pasa sin tu clic.', { quien: origen.quien, verbo: tr(VERBO[c.categoria] ?? VERBO.otra) })}</p>
           </div>
         </div>
 
         {(origen.marcas.length > 0 || avisos.length > 0) && (
-          <ul className="mt-3 flex flex-wrap gap-1.5" aria-label="Origen y avisos">
+          <ul className="mt-3 flex flex-wrap gap-1.5" aria-label={tr('Origen y avisos')}>
             {origen.marcas.map(m => (
               <li key={`o-${m}`} className={`rounded-full border px-2 py-0.5 text-[11.5px] font-medium ${origen.sinVerificar ? 'border-warning/40 bg-warning/10 text-warning' : 'border-brand/35 bg-brand/10 text-foreground/85'}`}>{m}</li>
             ))}
             {avisos.map(a => (
               <li key={`a-${a}`} className="flex items-center gap-1 rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-[11.5px] text-warning">
-                <AlertTriangle className="size-3 shrink-0" aria-hidden />{a}
+                <AlertTriangle className="size-3 shrink-0" aria-hidden />{tr(a)}
               </li>
             ))}
           </ul>
         )}
 
         <div className="mt-3 min-h-0">
-          <p className="mb-1 text-[12px] font-medium text-muted">{literal ? 'Esto es exactamente lo que se va a ejecutar:' : 'El servidor no mandó el comando exacto. Si no sabes qué hace, rechaza.'}</p>
+          <p className="mb-1 text-[12px] font-medium text-muted">{literal ? tr('Esto es exactamente lo que se va a ejecutar:') : tr('El servidor no mandó el comando exacto. Si no sabes qué hace, rechaza.')}</p>
           {literal && (
-            <pre id="cf-literal" tabIndex={0} aria-label="Comando exacto que se va a ejecutar"
+            <pre id="cf-literal" tabIndex={0} aria-label={tr('Comando exacto que se va a ejecutar')}
               className="max-h-[40vh] overflow-auto whitespace-pre-wrap break-all rounded-lg border border-border-subtle bg-foreground/[0.05] p-3 font-mono text-[12px] leading-relaxed text-foreground select-text">{literal}</pre>
           )}
         </div>
 
         {c.detalle && (
           <details className="mt-2 text-[12.5px] text-muted">
-            <summary className="cursor-pointer select-none py-1">Detalle</summary>
-            <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-foreground/[0.05] p-3 font-mono text-[11.5px] leading-relaxed text-foreground/85">{c.detalle}</pre>
+            <summary className="cursor-pointer select-none py-1">{tr('Detalle')}</summary>
+            <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-foreground/[0.05] p-3 font-mono text-[11.5px] leading-relaxed text-foreground/85">{tr(c.detalle)}</pre>
           </details>
         )}
 
         {sinSandbox && sandbox && (
           <p role="note" className={`mt-3 rounded-lg border border-border-subtle bg-surface/80 px-3 py-2 text-[12.5px] leading-snug text-foreground/85 ${sinSandbox === 'primera' ? '' : 'text-muted'}`}>
-            {sinSandbox === 'primera' ? avisoSinSandbox(sandbox) : 'Sin sandbox en este equipo: cada comando de terminal pide tu clic.'}
+            {sinSandbox === 'primera' ? avisoSinSandbox(sandbox) : tr('Sin sandbox en este equipo: cada comando de terminal pide tu clic.')}
           </p>
         )}
 
         <p className="mt-3 text-[12px] text-muted">
-          {c.herramienta ? <>Herramienta: <span className="font-mono">{c.herramienta}</span> · </> : null}Si no decides ahora, queda en tu cola: nada pasa sin tu clic. Escape cierra sin decidir.{restantes > 0 ? ` Hay ${restantes} más esperando.` : ''}
+          {c.herramienta ? <>{trNodos('Herramienta: {herramienta}', { herramienta: <span className="font-mono">{c.herramienta}</span> })} · </> : null}{tr('Si no decides ahora, queda en tu cola: nada pasa sin tu clic. Escape cierra sin decidir.')}{restantes > 0 ? ` ${tr('Hay {n} más esperando.', { n: restantes })}` : ''}
         </p>
         {error && <p role="alert" className="mt-2 text-[12.5px] text-error">{error}</p>}
         <div className="mt-4 flex flex-wrap justify-end gap-2">
           <button ref={rechazarRef} type="button" disabled={!!ocupado} onClick={() => void resolver('rechazar')} className="btn-secondary min-h-11 !px-4">
-            {ocupado === 'rechazar' ? <Loader2 className="size-4 animate-spin" aria-hidden /> : 'Rechazar'}
+            {ocupado === 'rechazar' ? <Loader2 className="size-4 animate-spin" aria-hidden /> : tr('Rechazar')}
           </button>
           <button type="button" disabled={!armado || !!ocupado} onClick={(e) => { if (!esClicHumano({ detail: e.detail, isTrusted: e.nativeEvent.isTrusted })) return; void resolver('permitir') }} className="btn-primary min-h-11 !px-4"
-            title="Solo con un clic: el teclado no aprueba acciones">
-            {ocupado === 'permitir' ? <Loader2 className="size-4 animate-spin" aria-hidden /> : (c.botonSi || 'Permitir esta acción')}
+            title={tr('Solo con un clic: el teclado no aprueba acciones')}>
+            {ocupado === 'permitir' ? <Loader2 className="size-4 animate-spin" aria-hidden /> : tr(c.botonSi || 'Permitir esta acción')}
           </button>
         </div>
       </div>

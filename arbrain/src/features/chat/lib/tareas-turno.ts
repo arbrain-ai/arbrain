@@ -7,6 +7,7 @@
 // `stopped` son «detenida» (no un fallo), `paused` sigue contando como trabajando.
 import type { AgentTask } from '../hooks/useChat'
 import type { TareaInterna } from '@/features/cabina/trabajos-modelo'
+import { tr, trMarcas } from '@/shared/i18n'
 
 export type ClaseTarea = 'subagente' | 'comando' | 'workflow' | 'otra'
 export type FaseTarea = 'viva' | 'hecha' | 'fallo' | 'detenida'
@@ -30,13 +31,14 @@ export function faseDeTarea(t: AgentTask): FaseTarea {
 
 export const esViva = (t: AgentTask) => faseDeTarea(t) === 'viva'
 
-/** Título de respaldo cuando el SDK no trajo descripción (mismas palabras que el panel). */
+/** Título de respaldo cuando el SDK no trajo descripción (mismas palabras que el panel). Getters: salen en el idioma
+ * activo al pintar, no congelados al cargar el módulo. */
 export const ETIQUETA_CLASE: Record<ClaseTarea, string> = {
-  subagente: 'Subagente', comando: 'Comando en segundo plano', workflow: 'Workflow', otra: 'Tarea',
+  get subagente() { return tr('Subagente') }, get comando() { return tr('Comando en segundo plano') }, get workflow() { return tr('Workflow') }, get otra() { return tr('Tarea') },
 }
 
 const NOMBRE: Record<ClaseTarea, [string, string]> = {
-  subagente: ['subagente', 'subagentes'], comando: ['comando', 'comandos'], workflow: ['workflow', 'workflows'], otra: ['tarea', 'tareas'],
+  subagente: trMarcas(['subagente', 'subagentes']), comando: trMarcas(['comando', 'comandos']), workflow: trMarcas(['workflow', 'workflows']), otra: trMarcas(['tarea', 'tareas']),
 }
 const ORDEN: ClaseTarea[] = ['subagente', 'comando', 'workflow', 'otra']
 
@@ -44,9 +46,9 @@ const ORDEN: ClaseTarea[] = ['subagente', 'comando', 'workflow', 'otra']
 export function textoVivas(tareas: AgentTask[]): string {
   const cuenta: Record<ClaseTarea, number> = { subagente: 0, comando: 0, workflow: 0, otra: 0 }
   for (const t of tareas) if (esViva(t)) cuenta[claseDeTarea(t)]++
-  const partes = ORDEN.filter((c) => cuenta[c] > 0).map((c) => `${cuenta[c]} ${NOMBRE[c][cuenta[c] === 1 ? 0 : 1]}`)
-  const lista = partes.length > 1 ? `${partes.slice(0, -1).join(', ')} y ${partes[partes.length - 1]}` : (partes[0] ?? '')
-  return `${lista} trabajando`
+  const partes = ORDEN.filter((c) => cuenta[c] > 0).map((c) => `${cuenta[c]} ${tr(NOMBRE[c][cuenta[c] === 1 ? 0 : 1])}`)
+  const lista = partes.length > 1 ? tr('{a} y {b}', { a: partes.slice(0, -1).join(', '), b: partes[partes.length - 1] }) : (partes[0] ?? '')
+  return tr('{lista} trabajando', { lista })
 }
 
 const DEL_PANEL: Record<TareaInterna['estado'], AgentTask['status']> = {

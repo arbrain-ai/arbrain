@@ -13,6 +13,7 @@ import { authenticateDraw3 } from '@/lib/draw3-auth'
 import { esEdicionCliente } from '@/lib/edicion'
 import { dirDatosWeb } from '@/lib/rutas-instalacion'
 import { createServiceClient } from '@/lib/supabase/service'
+import { tr } from '@/shared/i18n'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -32,18 +33,18 @@ async function archivoDe(id: string): Promise<string | null> {
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  if (!esEdicionCliente()) return no(404, 'no existe')
-  if (!(await authenticateDraw3(request))) return no(401, 'no autorizado')
+  if (!esEdicionCliente()) return no(404, tr('no existe'))
+  if (!(await authenticateDraw3(request))) return no(401, tr('no autorizado'))
   const { id } = await params
-  if (!ID.test(id)) return no(400, 'id inválido')
+  if (!ID.test(id)) return no(400, tr('id inválido'))
   const body = await request.json().catch(() => null) as { dataUrl?: string } | null
   const m = /^data:image\/(webp|png|jpeg);base64,(.+)$/.exec(body?.dataUrl ?? '')
-  if (!m) return no(400, 'dataUrl debe ser una imagen base64 (webp, png o jpeg)')
+  if (!m) return no(400, tr('dataUrl debe ser una imagen base64 (webp, png o jpeg)'))
   const bytes = Buffer.from(m[2], 'base64')
-  if (bytes.byteLength > MAX_BYTES) return no(413, `miniatura demasiado grande (${bytes.byteLength} bytes, máximo ${MAX_BYTES})`)
+  if (bytes.byteLength > MAX_BYTES) return no(413, tr('miniatura demasiado grande ({bytes} bytes, máximo {max})', { bytes: bytes.byteLength, max: MAX_BYTES }))
   const db = createServiceClient()
   const { data: fila } = await db.from('draw').select('page_id').eq('page_id', id).eq('is_deleted', false).maybeSingle()
-  if (!fila) return no(404, 'no existe')
+  if (!fila) return no(404, tr('no existe'))
   await mkdir(dirMiniaturas(), { recursive: true })
   const previa = await archivoDe(id)
   if (previa && !previa.endsWith(`.${m[1]}`)) await rm(previa, { force: true })
@@ -55,12 +56,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 }
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  if (!esEdicionCliente()) return no(404, 'no existe')
-  if (!(await authenticateDraw3(request))) return no(401, 'no autorizado')
+  if (!esEdicionCliente()) return no(404, tr('no existe'))
+  if (!(await authenticateDraw3(request))) return no(401, tr('no autorizado'))
   const { id } = await params
-  if (!ID.test(id)) return no(400, 'id inválido')
+  if (!ID.test(id)) return no(400, tr('id inválido'))
   const archivo = await archivoDe(id)
-  if (!archivo) return no(404, 'sin miniatura')
+  if (!archivo) return no(404, tr('sin miniatura'))
   const ext = path.extname(archivo).slice(1)
   return new NextResponse(new Uint8Array(await readFile(archivo)), { headers: { 'Content-Type': TIPOS[ext], 'Cache-Control': 'private, max-age=31536000, immutable' } })
 }

@@ -10,7 +10,9 @@
 import { spawn } from 'node:child_process'
 
 const args = process.argv.slice(2)
-const env = { ...process.env, ARBRAIN_EDICION: process.env.ARBRAIN_EDICION || 'original' }
+// Idioma (13 nov 2026): las pruebas describen los textos en español; el idioma que la máquina tenga guardado en Ajustes no
+// las cambia (`ARBRAIN_IDIOMA=en npm test` las corre en inglés a propósito).
+const env = { ...process.env, ARBRAIN_EDICION: process.env.ARBRAIN_EDICION || 'original', ARBRAIN_IDIOMA: process.env.ARBRAIN_IDIOMA || 'es' }
 const hijo = spawn('npx', ['--yes', 'tsx', '--test', ...(args.length ? args : ['tests/**/*.test.ts'])], {
   env,
   stdio: 'inherit',

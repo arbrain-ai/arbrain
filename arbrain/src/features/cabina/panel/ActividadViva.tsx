@@ -10,6 +10,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ArrowDown } from 'lucide-react'
 import { aplicar, duracion, enQue, relativa, urlActividad, vacia, type Actividad, type Lectura, type Resultado, type Visible } from './actividad-modelo'
 import a from './actividad.module.css'
+import { tr } from '@/shared/i18n'
 
 const VIVO_MS = 1000, QUIETO_MS = 6000
 
@@ -34,7 +35,7 @@ export function ActividadViva({ agente, cwd }: { agente: number; cwd: string }) 
           const r = await fetch(urlActividad(agente, ref.current), { cache: 'no-store' })
           const j = await r.json() as Lectura & { error?: string }
           if (!vivo) return
-          if (!r.ok) setError(j.error ?? 'No se pudo leer su actividad.')
+          if (!r.ok) setError(j.error ? tr(j.error) : tr('No se pudo leer su actividad.'))
           else {
             setError(null)
             if (j.encargo) setEncargo(j.encargo)
@@ -42,7 +43,7 @@ export function ActividadViva({ agente, cwd }: { agente: number; cwd: string }) 
             for (const p of j.pasos) if (p.k === 'herramienta' && !vistas.current.has(p.id)) vistas.current.set(p.id, n)
             setAct(prev => aplicar(prev, j, n))
           }
-        } catch { if (vivo) setError('Sin conexión con el Studio.') }
+        } catch { if (vivo) setError(tr('Sin conexión con el Studio.')) }
       }
       if (vivo) t = setTimeout(ciclo, ref.current.corriendo || ref.current.offset == null ? VIVO_MS : QUIETO_MS)
     }
@@ -75,29 +76,29 @@ export function ActividadViva({ agente, cwd }: { agente: number; cwd: string }) 
 
   return <div className={a.marco}>
     <div ref={caja} className={a.caja} onScroll={alDesplazar} aria-live="off">
-      {act.recortado && <p className={a.recorte}>Sus pasos más recientes. Lo anterior sigue en su bitácora.</p>}
-      {cargando && <p className={a.nota}>Leyendo lo que está haciendo…</p>}
-      {!cargando && act.pasos.length === 0 && encargo && <Bloque titulo="Encargo de Levy" texto={encargo} />}
+      {act.recortado && <p className={a.recorte}>{tr('Sus pasos más recientes. Lo anterior sigue en su bitácora.')}</p>}
+      {cargando && <p className={a.nota}>{tr('Leyendo lo que está haciendo…')}</p>}
+      {!cargando && act.pasos.length === 0 && encargo && <Bloque titulo={tr('Encargo de Levy')} texto={encargo} />}
       {act.pasos.map((p, i) => <PasoVista key={i} p={p} ultimo={i === ultimo} act={act} cwd={cwd} ahora={ahora} vistas={vistas.current} />)}
       {act.corriendo && <div className={a.vivo} data-tipo={ahoraEn.tipo}>
         <span className={a.chispa} aria-hidden>✻</span>
         <span className={a.vivoTexto}>{ahoraEn.texto}</span>
-        {quieto >= 8 && ahoraEn.tipo !== 'herramienta' && <span className={a.vivoQuieto}>· sin novedad hace {duracion(quieto)}</span>}
+        {quieto >= 8 && ahoraEn.tipo !== 'herramienta' && <span className={a.vivoQuieto}>· {tr('sin novedad hace {tiempo}', { tiempo: duracion(quieto) })}</span>}
         <span className={a.cursor} aria-hidden />
       </div>}
       {error && <p className={a.falla}>{error}</p>}
     </div>
-    {lejos && <button className={a.alFinal} onClick={alFinal}><ArrowDown size={13} aria-hidden />{act.corriendo ? 'En vivo' : 'Al final'}</button>}
+    {lejos && <button className={a.alFinal} onClick={alFinal}><ArrowDown size={13} aria-hidden />{act.corriendo ? tr('En vivo') : tr('Al final')}</button>}
   </div>
 }
 
 function PasoVista({ p, ultimo, act, cwd, ahora, vistas }: { p: Visible; ultimo: boolean; act: Actividad; cwd: string; ahora: number; vistas: Map<string, number> }) {
   switch (p.k) {
-    case 'encargo': return <Bloque titulo={p.n > 1 ? `Turno ${p.n} · Levy le escribió` : 'Encargo de Levy'} texto={p.texto} />
-    case 'entrada': return <div className={a.entrada}><b>Levy, a mitad del paso</b><p>{p.texto}</p></div>
+    case 'encargo': return <Bloque titulo={p.n > 1 ? tr('Turno {n} · Levy le escribió', { n: p.n }) : tr('Encargo de Levy')} texto={p.texto} />
+    case 'entrada': return <div className={a.entrada}><b>{tr('Levy, a mitad del paso')}</b><p>{p.texto}</p></div>
     case 'texto': return <p className={a.texto} data-sub={p.sub || undefined}>{p.texto}</p>
     case 'pensando': return null
-    case 'fin': return <div className={a.fin} data-falla={p.codigo !== 0 && !p.detenido || undefined}><span>{p.detenido ? 'Levy detuvo el paso' : p.codigo === 0 ? 'Terminó su turno' : `Salió con código ${p.codigo}`}</span></div>
+    case 'fin': return <div className={a.fin} data-falla={p.codigo !== 0 && !p.detenido || undefined}><span>{p.detenido ? tr('Levy detuvo el paso') : p.codigo === 0 ? tr('Terminó su turno') : tr('Salió con código {codigo}', { codigo: p.codigo })}</span></div>
     case 'error': return <p className={a.falla}>{p.texto}</p>
     case 'herramienta': return <Herramienta p={p} res={act.resultados[p.id]} seg={act.progreso[p.id]} corriendo={act.corriendo} ultimo={ultimo} cwd={cwd} ahora={ahora} desde={vistas.get(p.id)} />
   }
@@ -116,7 +117,7 @@ function Herramienta({ p, res, seg, corriendo, ultimo, cwd, ahora, desde }: { p:
     <span className={a.punto} aria-hidden />
     <div className={a.herCuerpo}>
       <div className={a.herCab}>
-        <b>{p.que}</b>
+        <b>{tr(p.que)}</b>
         {p.cambio && (p.cambio.pone > 0 || p.cambio.quita > 0) && <span className={a.cambio}>{p.cambio.pone > 0 && <ins>+{p.cambio.pone}</ins>}{p.cambio.quita > 0 && <del>−{p.cambio.quita}</del>}</span>}
         {enCurso && tiempo >= 2 && <span className={a.reloj}>{duracion(tiempo)}</span>}
       </div>
@@ -128,12 +129,12 @@ function Herramienta({ p, res, seg, corriendo, ultimo, cwd, ahora, desde }: { p:
 
 function Salida({ r, nombre }: { r: Resultado; nombre: string }) {
   const [abierta, setAbierta] = useState(false)
-  if (nombre === 'Read' && r.ok) return <span className={a.resumen}>{r.lineas} líneas</span>
-  if (!r.salida) return r.codigo && r.codigo !== 0 ? <span className={a.resumen} data-falla>salió con código {r.codigo}</span> : null
+  if (nombre === 'Read' && r.ok) return <span className={a.resumen}>{tr('{n} líneas', { n: r.lineas })}</span>
+  if (!r.salida) return r.codigo && r.codigo !== 0 ? <span className={a.resumen} data-falla>{tr('salió con código {codigo}', { codigo: r.codigo })}</span> : null
   const lineas = r.salida.split('\n').length
   const plegable = lineas > 5
-  return <pre className={a.salida} data-falla={!r.ok || undefined} data-plegado={plegable && !abierta || undefined} onClick={plegable ? () => setAbierta(v => !v) : undefined} title={plegable ? (abierta ? 'Plegar' : 'Ver más') : undefined}>
-    {r.salida}{r.codigo != null && r.codigo !== 0 ? `\n(salió con código ${r.codigo})` : ''}
+  return <pre className={a.salida} data-falla={!r.ok || undefined} data-plegado={plegable && !abierta || undefined} onClick={plegable ? () => setAbierta(v => !v) : undefined} title={plegable ? (abierta ? tr('Plegar') : tr('Ver más')) : undefined}>
+    {r.salida}{r.codigo != null && r.codigo !== 0 ? `\n(${tr('salió con código {codigo}', { codigo: r.codigo })})` : ''}
   </pre>
 }
 
@@ -143,7 +144,7 @@ function Bloque({ titulo, texto }: { titulo: string; texto: string }) {
   return <div className={a.encargo}>
     <span className={a.turno}>{titulo}</span>
     <p data-plegado={largo && !abierto || undefined}>{texto}</p>
-    {largo && <button className={a.enlace} onClick={() => setAbierto(v => !v)}>{abierto ? 'Plegar' : 'Ver completo'}</button>}
+    {largo && <button className={a.enlace} onClick={() => setAbierto(v => !v)}>{abierto ? tr('Plegar') : tr('Ver completo')}</button>}
   </div>
 }
 

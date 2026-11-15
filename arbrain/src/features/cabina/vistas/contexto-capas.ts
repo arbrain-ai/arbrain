@@ -4,6 +4,7 @@
  * «contado» = conteo de tokens del SDK (getContextUsage / `/context`); «por diferencia» = medido menos contado;
  * «estimado» = caracteres × la razón tokens/carácter que el SDK midió en CLAUDE.md.
  */
+import { tr, trMarca, trMarcas } from '@/shared/i18n'
 
 export type Capa = 'esencia' | 'indice' | 'user' | 'feedback' | 'project' | 'reference'
 export interface ArchivoMemoria {
@@ -43,15 +44,17 @@ export interface Anatomia {
 }
 
 export type Fuente = 'medido' | 'contado' | 'por diferencia' | 'estimado'
+/** Las fuentes, marcadas para el catálogo: se pintan con `tr(fuente)`. */
+export const NOMBRES_FUENTE = trMarcas(['medido', 'contado', 'por diferencia', 'estimado'] as const)
 export interface Segmento { id: 'proveedor' | 'memoria' | 'skills' | 'mcp' | 'historial' | 'reserva' | 'libre'; nombre: string; tokens: number; fuente: Fuente; nota: string }
 
 export const CAPAS_MEMORIA: { id: Capa; nombre: string; nota: string }[] = [
-  { id: 'user', nombre: 'Identidad', nota: 'quién eres, cómo trabajas, tu historia' },
-  { id: 'feedback', nombre: 'Correcciones', nota: 'lo que me corregiste y por qué' },
-  { id: 'project', nombre: 'Proyectos', nota: 'decisiones y estado de iniciativas, con fecha' },
-  { id: 'reference', nombre: 'Referencias', nota: 'dónde vive cada cosa fuera de aquí' },
-  { id: 'indice', nombre: 'Índices', nota: 'el mapa que usa el recall' },
-  { id: 'esencia', nombre: 'Esencia', nota: 'entra en TODA conversación' },
+  { id: 'user', nombre: trMarca('Identidad'), nota: trMarca('quién eres, cómo trabajas, tu historia') },
+  { id: 'feedback', nombre: trMarca('Correcciones'), nota: trMarca('lo que me corregiste y por qué') },
+  { id: 'project', nombre: trMarca('Proyectos'), nota: trMarca('decisiones y estado de iniciativas, con fecha') },
+  { id: 'reference', nombre: trMarca('Referencias'), nota: trMarca('dónde vive cada cosa fuera de aquí') },
+  { id: 'indice', nombre: trMarca('Índices'), nota: trMarca('el mapa que usa el recall') },
+  { id: 'esencia', nombre: trMarca('Esencia'), nota: trMarca('entra en TODA conversación') },
 ]
 
 /** Razón tokens/carácter cuando el SDK aún no la midió: la de CLAUDE.md medida el 4 oct 2026 (3,995 / 9,049). */
@@ -80,15 +83,15 @@ export function capas(a: Anatomia): { ventana: number | null; usado: number; fue
   const ventana = a.ventana.tokens
   const reserva = ventana ? Math.min(cat(d, 'Autocompact buffer'), Math.max(0, ventana - usado)) : 0
   const segmentos: Segmento[] = [
-    { id: 'proveedor', nombre: 'Proveedor · system prompt y herramientas', tokens: proveedor.tokens, fuente: proveedor.fuente, nota: proveedor.nota },
-    { id: 'memoria', nombre: 'CLAUDE.md + esencia + agenda', tokens: memoria, fuente: 'contado', nota: 'los archivos que se importan siempre' },
-    { id: 'skills', nombre: 'Descripciones de skills', tokens: skills + agentes, fuente: 'contado', nota: 'solo nombre y descripción; el cuerpo se lee a demanda' },
-    { id: 'mcp', nombre: 'Herramientas MCP cargadas', tokens: mcp, fuente: 'contado', nota: 'esquemas e instrucciones de los servidores MCP' },
-    { id: 'historial', nombre: 'Esta conversación', tokens: historial, fuente: c?.ultima ? 'por diferencia' : 'contado', nota: 'tus mensajes, mis respuestas, herramientas y lo inyectado en cada turno' },
+    { id: 'proveedor', nombre: tr('Proveedor · system prompt y herramientas'), tokens: proveedor.tokens, fuente: proveedor.fuente, nota: proveedor.nota },
+    { id: 'memoria', nombre: tr('CLAUDE.md + esencia + agenda'), tokens: memoria, fuente: 'contado', nota: 'los archivos que se importan siempre' },
+    { id: 'skills', nombre: tr('Descripciones de skills'), tokens: skills + agentes, fuente: 'contado', nota: 'solo nombre y descripción; el cuerpo se lee a demanda' },
+    { id: 'mcp', nombre: tr('Herramientas MCP cargadas'), tokens: mcp, fuente: 'contado', nota: 'esquemas e instrucciones de los servidores MCP' },
+    { id: 'historial', nombre: tr('Esta conversación'), tokens: historial, fuente: c?.ultima ? 'por diferencia' : 'contado', nota: 'tus mensajes, mis respuestas, herramientas y lo inyectado en cada turno' },
   ]
   if (ventana) {
-    segmentos.push({ id: 'reserva', nombre: 'Reserva de compactación', tokens: reserva, fuente: 'contado', nota: 'al llegar aquí el SDK resume la conversación' })
-    segmentos.push({ id: 'libre', nombre: 'Libre', tokens: Math.max(0, ventana - usado - reserva), fuente: 'por diferencia', nota: 'ventana menos lo usado y la reserva' })
+    segmentos.push({ id: 'reserva', nombre: tr('Reserva de compactación'), tokens: reserva, fuente: 'contado', nota: 'al llegar aquí el SDK resume la conversación' })
+    segmentos.push({ id: 'libre', nombre: tr('Libre'), tokens: Math.max(0, ventana - usado - reserva), fuente: 'por diferencia', nota: 'ventana menos lo usado y la reserva' })
   }
   return { ventana, usado, fuenteUsado, segmentos }
 }

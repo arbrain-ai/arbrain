@@ -3,6 +3,8 @@
  * de `/api/cabina/actividad` (contrato en arbrain/server/src/cabina/actividad.ts). Sin React, con pruebas.
  */
 
+import { tr } from '@/shared/i18n'
+
 export type Paso =
   | { k: 'encargo'; texto: string; n: number }
   | { k: 'entrada'; texto: string }
@@ -78,7 +80,7 @@ export const miles = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(n >= 10_00
 export function enQue(a: Actividad): { tipo: 'pensando' | 'herramienta' | 'escribiendo' | 'quieto'; texto: string } {
   if (!a.corriendo) return { tipo: 'quieto', texto: '' }
   const ult = a.pasos.at(-1)
-  if (ult?.k === 'pensando') return { tipo: 'pensando', texto: ult.tokens ? `Pensando · ${miles(ult.tokens)} tokens` : 'Pensando' }
+  if (ult?.k === 'pensando') return { tipo: 'pensando', texto: ult.tokens ? tr('Pensando · {n} tokens', { n: miles(ult.tokens) }) : tr('Pensando') }
   if (ult?.k === 'herramienta' && !a.resultados[ult.id]) return { tipo: 'herramienta', texto: ult.que }
-  return { tipo: 'escribiendo', texto: 'Trabajando' }
+  return { tipo: 'escribiendo', texto: tr('Trabajando') }
 }

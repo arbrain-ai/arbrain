@@ -11,6 +11,7 @@
 import { useRef, type ReactNode } from 'react'
 import { limitarCorte, type Celdas, type Cortes, type Ranura } from './division'
 import s from './panel.module.css'
+import { tr } from '@/shared/i18n'
 
 interface Props {
   celdas: Celdas
@@ -66,7 +67,7 @@ export function Division({ celdas, foco, cortes, vista, cabecera, onFoco, onCort
       {partida
         ? <>
           <div className={s.filaDivision} style={{ flex: `0 0 ${cortes.y[col] * 100}%` }}>{parte(col as Ranura)}</div>
-          <div className={s.divisorFila} role="separator" aria-orientation="horizontal" aria-label="Cambiar el alto" title="Arrastra para cambiar el alto · doble clic: mitad y mitad" onPointerDown={arrastrar(col)} onDoubleClick={mitad(col)} />
+          <div className={s.divisorFila} role="separator" aria-orientation="horizontal" aria-label={tr('Cambiar el alto')} title={tr('Arrastra para cambiar el alto · doble clic: mitad y mitad')} onPointerDown={arrastrar(col)} onDoubleClick={mitad(col)} />
           <div className={s.filaDivision} style={{ flex: 1 }}>{parte((col + 2) as Ranura)}</div>
         </>
         : parte((arriba ? col : col + 2) as Ranura)}
@@ -75,7 +76,7 @@ export function Division({ celdas, foco, cortes, vista, cabecera, onFoco, onCort
 
   return <div ref={raiz} className={s.division} data-dividida data-derecha-oculta={oculta || undefined}>
     {columna(0)}
-    {dos && <div className={s.divisorColumna} hidden={oculta} role="separator" aria-orientation="vertical" aria-label="Cambiar el ancho" title="Arrastra para cambiar el ancho · doble clic: mitad y mitad" onPointerDown={arrastrar('x')} onDoubleClick={mitad('x')} />}
+    {dos && <div className={s.divisorColumna} hidden={oculta} role="separator" aria-orientation="vertical" aria-label={tr('Cambiar el ancho')} title={tr('Arrastra para cambiar el ancho · doble clic: mitad y mitad')} onPointerDown={arrastrar('x')} onDoubleClick={mitad('x')} />}
     {columna(1)}
   </div>
 }

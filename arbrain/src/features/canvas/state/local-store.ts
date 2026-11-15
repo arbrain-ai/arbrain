@@ -18,6 +18,7 @@
 
 import type { SaveFn, SaveResult } from './autosave'
 import type { CanvasElement, Camera } from '../model/element'
+import { trMarca } from '@/shared/i18n'
 
 const DB = 'canvas-v4'
 const STORE = 'documentos'
@@ -38,7 +39,7 @@ function abrir(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: 'pageId' })
     }
     req.onsuccess = () => resolve(req.result)
-    req.onerror = () => reject(req.error ?? new Error('no se pudo abrir la base local'))
+    req.onerror = () => reject(req.error ?? new Error(trMarca('no se pudo abrir la base local')))
   })
 }
 
@@ -47,7 +48,7 @@ function tx<T>(modo: IDBTransactionMode, fn: (store: IDBObjectStore) => IDBReque
     const t = db.transaction(STORE, modo)
     const req = fn(t.objectStore(STORE))
     req.onsuccess = () => resolve(req.result)
-    req.onerror = () => reject(req.error ?? new Error('fallo la operacion local'))
+    req.onerror = () => reject(req.error ?? new Error(trMarca('fallo la operacion local')))
   }))
 }
 
@@ -66,7 +67,7 @@ export const saveLocal: SaveFn = async ({ pageId, elements, camera, baseVersion 
     await tx('readwrite', s => s.put(doc))
     const leido = await tx<Guardado | undefined>('readonly', s => s.get(pageId))
     if (!leido || leido.version !== version) {
-      return { ok: false, error: 'el guardado no se pudo verificar al releer' }
+      return { ok: false, error: trMarca('el guardado no se pudo verificar al releer') }
     }
     return { ok: true, version }
   } catch (e) {

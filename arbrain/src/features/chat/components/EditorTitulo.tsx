@@ -1,4 +1,5 @@
 'use client'
+import { tr } from '@/shared/i18n'
 import { useEffect, useRef, useState } from 'react'
 
 /**
@@ -38,7 +39,7 @@ export function EditorTitulo({ valor, onConfirmar, onCancelar, className = '' }:
       }}
       onBlur={() => terminar(true)}
       onClick={(e) => e.stopPropagation()}
-      aria-label="Nombre de la conversación"
+      aria-label={tr('Nombre de la conversación')}
       maxLength={200}
       className={`input-field px-1.5 py-0.5 text-xs ${className}`}
     />

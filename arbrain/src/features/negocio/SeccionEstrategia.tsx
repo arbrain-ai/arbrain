@@ -29,8 +29,10 @@ import { ArrowUpRight, ChevronDown, Compass, EyeOff, X } from 'lucide-react'
 import { useFuente } from '@/features/cabina/datos'
 import { esEdicionCliente } from '@/lib/edicion'
 import { escucharPedido, tomarPedido } from '@/shared/navigation/ir-a'
+import { localeIntl, tr, trMarca, trn } from '@/shared/i18n'
+import { trNodos } from '@/shared/i18n'
 import {
-  alcanceDe, audiencia, directos, dominio, esVista, EVENTO_VISTA_ESTRATEGIA, fechaHumana, fraseRumbo, iniciales, lineaDe, LLAVE_VISTA_ESTRATEGIA, marcaDe,
+  alcanceDe, audiencia, directos, dominio, esVista, EVENTO_VISTA_ESTRATEGIA, fechaHumana, fraseRumbo, iniciales, leerPedidoEstrategia, lineaDe, LLAVE_VISTA_ESTRATEGIA, marcaDe,
   nombreCorto, ofertasDePago, pie, sinFirmar, titularDe, tramos, URL_ESTRATEGIA,
   type Borrador, type Competidor, type ContraQuien, type Escalon as EscalonT, type Evidencia, type HaciaDonde, type Imagen, type Linea, type LoQueDecides, type Mercado,
   type Peldano, type QuienCompra, type Referente, type RespuestaEstrategia, type Segmento, type Vista,
@@ -43,24 +45,28 @@ import v from './estrategia-panel.module.css'
 const mayus = (t: string) => (t ? t[0].toLocaleUpperCase('es') + t.slice(1) : t)
 /** El precio de la tarjeta, corto: sin paréntesis ni la letra pequeña que sigue a «;», «,» o «con». */
 const corto = (precio: string) => precio.split(/\s\(|;\s|,\s|\scon\s/)[0]
-const numero = (n: number) => n.toLocaleString('es-MX')
+const numero = (n: number) => n.toLocaleString(localeIntl())
 
 const PREGUNTAS: Record<Vista, string> = {
-  compra: '¿Quién te compra?',
-  contra: '¿Contra quién te comparan?',
-  rumbo: '¿Hacia dónde va el mercado?',
-  decides: '¿Qué decides tú?',
+  compra: trMarca('¿Quién te compra?'),
+  contra: trMarca('¿Contra quién te comparan?'),
+  rumbo: trMarca('¿Hacia dónde va el mercado?'),
+  decides: trMarca('¿Qué decides tú?'),
 }
 
 export function Estrategia({ grande }: { grande?: boolean }) {
   const { data, error } = useFuente<RespuestaEstrategia>(URL_ESTRATEGIA)
   const raiz = useRef<HTMLDivElement>(null)
-  const [pedida, setPedida] = useState<Vista | null>(null)
+  // El pedido lleva un contador: pedir otra vez la misma tarjeta (ya abierta la sección) vuelve a bajar a ella.
+  const [pedido, setPedido] = useState<{ vista: Vista; n: number } | null>(null)
+  const pedida = pedido?.vista ?? null
   // El pedido de la tarjeta de El pulso: al montarse lo toma; ya montada, lo escucha. La sección baja a esa tarjeta.
   useEffect(() => {
-    const p = tomarPedido(LLAVE_VISTA_ESTRATEGIA)
-    if (esVista(p)) setPedida(p)
-    return escucharPedido(EVENTO_VISTA_ESTRATEGIA, y => { if (esVista(y)) { tomarPedido(LLAVE_VISTA_ESTRATEGIA); setPedida(y) } })
+    const pedir = (y: Vista) => setPedido(p => ({ vista: y, n: (p?.n ?? 0) + 1 }))
+    const p = leerPedidoEstrategia(tomarPedido(LLAVE_VISTA_ESTRATEGIA))
+    if (p) pedir(p)
+    // El evento no consume la llave: si esta instancia está por desmontarse (abrir la sección la vuelve a montar), la nueva la lee.
+    return escucharPedido(EVENTO_VISTA_ESTRATEGIA, y => { if (esVista(y)) pedir(y) })
   }, [])
 
   const on = data?.activo ? data : null
@@ -73,10 +79,20 @@ export function Estrategia({ grande }: { grande?: boolean }) {
   else if (!on || !datos) estado = 'error'
   else estado = 'lista'
 
+  // 11 nov 2026: con Estrategia ya abierta en otra pestaña, el pedido llega en el mismo cuadro en que la pestaña todavía está
+  // oculta (abrirEstrategia la trae al frente en ese clic) y scrollIntoView no hacía nada: «Lo que decides» se quedaba
+  // arriba. Se espera a que la tarjeta se vea (hasta ~1 s) y entonces se baja.
   useEffect(() => {
-    if (!pedida || estado !== 'lista') return
-    raiz.current?.querySelector(`[data-tarjeta="${pedida}"]`)?.scrollIntoView?.({ block: 'start', behavior: 'smooth' })
-  }, [pedida, estado])
+    if (!pedido || estado !== 'lista') return
+    let raf = 0, intentos = 0
+    const bajar = () => {
+      const t = raiz.current?.querySelector<HTMLElement>(`[data-tarjeta="${pedido.vista}"]`)
+      if (t && t.getClientRects().length) { t.scrollIntoView?.({ block: 'start', behavior: 'smooth' }); return }
+      if (++intentos < 60) raf = requestAnimationFrame(bajar)
+    }
+    raf = requestAnimationFrame(bajar)
+    return () => cancelAnimationFrame(raf)
+  }, [pedido, estado])
 
   const pendientes = datos ? sinFirmar(datos.lo_que_decides) : 0
   const precio = datos ? lineaDe(datos.cabeza, 'precio') : null
@@ -84,52 +100,52 @@ export function Estrategia({ grande }: { grande?: boolean }) {
     <div className={v.luna} aria-hidden />
     <header className={v.cabeza}>
       <div className={v.cejaFila}>
-        <p className={v.ceja}>Estrategia{datos?.actualizado ? <> · <b>{fechaHumana(datos.actualizado)}</b></> : null}</p>
+        <p className={v.ceja}>{tr('Estrategia')}{datos?.actualizado ? <> · <b>{fechaHumana(datos.actualizado)}</b></> : null}</p>
         {estado === 'lista' && datos?.lo_que_decides && !on?.oculto.includes('decides') && <span className={v.pulso} data-pendiente={pendientes > 0 || undefined}>
-          <i aria-hidden />{pendientes > 0 ? `${pendientes} sin firmar` : 'todo firmado'}
+          <i aria-hidden />{pendientes > 0 ? tr('{n} sin firmar', { n: pendientes }) : tr('todo firmado')}
         </span>}
       </div>
-      <h3 className={v.palabra}>{estado === 'lista' && datos ? titularDe(datos) : estado === 'leyendo' ? 'Leyendo tu mercado' : 'Tu mercado'}</h3>
+      <h3 className={v.palabra}>{estado === 'lista' && datos ? titularDe(datos) : estado === 'leyendo' ? tr('Leyendo tu mercado') : tr('Tu mercado')}</h3>
       {estado === 'lista' && precio && <p className={v.frase}>{precio.respuesta}<small>{pie(precio, datos?.actualizado)}</small></p>}
-      {estado === 'leyendo' && <p className={v.frase} aria-busy="true">Quién te compra, contra quién te comparan, hacia dónde va y lo que decides. Un momento.</p>}
+      {estado === 'leyendo' && <p className={v.frase} aria-busy="true">{tr('Quién te compra, contra quién te comparan, hacia dónde va y lo que decides. Un momento.')}</p>}
     </header>
 
-    {estado === 'apagado' && <p className={l.aviso}>Tu negocio está apagado en esta instalación (ARBRAIN_PANEL_NEGOCIO=0).</p>}
+    {estado === 'apagado' && <p className={l.aviso}>{tr('Tu negocio está apagado en esta instalación (ARBRAIN_PANEL_NEGOCIO=0).')}</p>}
     {estado === 'vacia' && <Vacia />}
-    {estado === 'error' && <p className={l.aviso}>{error ? `No se pudo leer ahora: ${error}` : 'La investigación no se pudo leer.'}{on?.errores?.slice(0, 3).map(y => <span key={y} className={x.errorLinea}>{y}</span>)}</p>}
+    {estado === 'error' && <p className={l.aviso}>{error ? tr('No se pudo leer ahora: {error}', { error }) : tr('La investigación no se pudo leer.')}{on?.errores?.slice(0, 3).map(y => <span key={y} className={x.errorLinea}>{y}</span>)}</p>}
 
     {estado === 'lista' && on && datos && <>
-      {on.directo && <p className={x.directo}><EyeOff size={12} aria-hidden />En directo: tus números quedan fuera; lo público se ve.</p>}
+      {on.directo && <p className={x.directo}><EyeOff size={12} aria-hidden />{tr('En directo: tus números quedan fuera; lo público se ve.')}</p>}
       <div className={v.rejilla}>
         <Tarjeta id="compra" n={1} oculto={on.oculto.includes('compra')} pedida={pedida === 'compra'}
           frase={lineaDe(datos.cabeza, 'compra')} ref_={datos.actualizado}
           figura={datos.quien_compra && <FiguraCompra q={datos.quien_compra} />}
-          detalle={datos.quien_compra && { cuantos: datos.quien_compra.escalones.reduce((s, y) => s + y.segmentos.length, 0), que: 'segmentos', cuerpo: <Compra q={datos.quien_compra} ref_={datos.actualizado} /> }} />
+          detalle={datos.quien_compra && { cuantos: datos.quien_compra.escalones.reduce((s, y) => s + y.segmentos.length, 0), que: tr('segmentos'), cuerpo: <Compra q={datos.quien_compra} ref_={datos.actualizado} /> }} />
         <Tarjeta id="contra" n={2} oculto={on.oculto.includes('contra')} pedida={pedida === 'contra'}
           frase={lineaDe(datos.cabeza, 'contra')} ref_={datos.actualizado}
           figura={datos.contra_quien && <FiguraContra c={datos.contra_quien} ref_={datos.actualizado} />}
-          detalle={datos.contra_quien && { cuantos: datos.contra_quien.hispanos.length + datos.contra_quien.anglos.length, que: 'competidores y referentes', cuerpo: <Contra c={datos.contra_quien} ref_={datos.actualizado} /> }} />
+          detalle={datos.contra_quien && { cuantos: datos.contra_quien.hispanos.length + datos.contra_quien.anglos.length, que: tr('competidores y referentes'), cuerpo: <Contra c={datos.contra_quien} ref_={datos.actualizado} /> }} />
         <Tarjeta id="rumbo" n={3} oculto={on.oculto.includes('rumbo')} pedida={pedida === 'rumbo'}
           frase={datos.hacia_donde && { texto: fraseRumbo(datos.hacia_donde), pie: pie(datos.hacia_donde, datos.actualizado) }} ref_={datos.actualizado}
           figura={datos.hacia_donde && <FiguraRumbo h={datos.hacia_donde} />}
-          detalle={datos.hacia_donde && { cuantos: datos.hacia_donde.tendencias.length, que: 'tendencias', cuerpo: <Rumbo h={datos.hacia_donde} ref_={datos.actualizado} /> }} />
+          detalle={datos.hacia_donde && { cuantos: datos.hacia_donde.tendencias.length, que: tr('tendencias'), cuerpo: <Rumbo h={datos.hacia_donde} ref_={datos.actualizado} /> }} />
         <Tarjeta id="decides" n={4} oculto={on.oculto.includes('decides')} pedida={pedida === 'decides'}
           frase={null} ref_={datos.actualizado}
           figura={datos.lo_que_decides && <FiguraDecides d={datos.lo_que_decides} ref_={datos.actualizado} />}
-          detalle={datos.lo_que_decides && { cuantos: datos.lo_que_decides.avatares.length + (datos.lo_que_decides.posicionamiento ? 1 : 0), que: 'borradores con su evidencia', cuerpo: <Decides d={datos.lo_que_decides} ref_={datos.actualizado} /> }} />
+          detalle={datos.lo_que_decides && { cuantos: datos.lo_que_decides.avatares.length + (datos.lo_que_decides.posicionamiento ? 1 : 0), que: tr('borradores con su evidencia'), cuerpo: <Decides d={datos.lo_que_decides} ref_={datos.actualizado} /> }} />
       </div>
-      {on.errores?.length ? <p className={x.avisoErrores}>{on.errores.length} {on.errores.length === 1 ? 'pieza no se pudo leer' : 'piezas no se pudieron leer'}: {on.errores[0]}</p> : null}
-      <footer className={v.pie}>Fuente: tu investigación de mercado (mercado.json). Cada número trae la suya; lo que dice «sin firmar» es propuesta de Levy, no decisión.</footer>
+      {on.errores?.length ? <p className={x.avisoErrores}>{trn(on.errores.length, '{n} pieza no se pudo leer: {error}', '{n} piezas no se pudieron leer: {error}', { error: on.errores[0] })}</p> : null}
+      <footer className={v.pie}>{tr('Fuente: tu investigación de mercado (mercado.json). Cada número trae la suya; lo que dice «sin firmar» es propuesta de Levy, no decisión.')}</footer>
     </>}
   </div>
 }
 
 function Vacia() {
-  return <section className={x.vacia} aria-label="Conecta tu investigación">
+  return <section className={x.vacia} aria-label={tr('Conecta tu investigación')}>
     <span className={x.vaciaIcono} aria-hidden><Compass size={22} strokeWidth={2} /></span>
-    <h3>Conecta tu investigación</h3>
-    <p>Pídele a Levy que investigue tu mercado: quién te compra de verdad, contra quién te comparan, a qué precio y hacia dónde va. Aparece aquí en cuanto exista <code>mercado.json</code> en tu cerebro.</p>
-    <p className={l.fuente}>Nada se inventa mientras tanto.</p>
+    <h3>{tr('Conecta tu investigación')}</h3>
+    <p>{trNodos('Pídele a Levy que investigue tu mercado: quién te compra de verdad, contra quién te comparan, a qué precio y hacia dónde va. Aparece aquí en cuanto exista {archivo} en tu cerebro.', { archivo: <code>mercado.json</code> })}</p>
+    <p className={l.fuente}>{tr('Nada se inventa mientras tanto.')}</p>
   </section>
 }
 
@@ -146,15 +162,15 @@ function Tarjeta({ id, n, oculto, pedida, frase, figura, detalle, ref_ }: {
   useEffect(() => { if (pedida) setAbierto(false) }, [pedida])
   const texto = frase ? ('respuesta' in frase ? frase.respuesta : frase.texto) : null
   const pieFrase = frase ? ('respuesta' in frase ? pie(frase, ref_) : frase.pie) : null
-  return <article className={v.tarjeta} data-tarjeta={id} data-pedida={pedida || undefined} aria-label={PREGUNTAS[id]}>
+  return <article className={v.tarjeta} data-tarjeta={id} data-pedida={pedida || undefined} aria-label={tr(PREGUNTAS[id])}>
     <p className={v.indice}><span>{String(n).padStart(2, '0')}</span></p>
-    <h4 className={v.pregunta}>{PREGUNTAS[id]}</h4>
-    {oculto ? <p className={x.oculto}><EyeOff size={14} aria-hidden />Oculto en directo: esta parte trae números de tu negocio.</p> : !figura ? <p className={l.vacio}>Tu investigación no trae esta parte todavía.</p> : <>
+    <h4 className={v.pregunta}>{tr(PREGUNTAS[id])}</h4>
+    {oculto ? <p className={x.oculto}><EyeOff size={14} aria-hidden />{tr('Oculto en directo: esta parte trae números de tu negocio.')}</p> : !figura ? <p className={l.vacio}>{tr('Tu investigación no trae esta parte todavía.')}</p> : <>
       <div className={v.figura}>{figura}</div>
       {texto && <p className={v.lectura}><b>Levy</b>{texto}</p>}
       {pieFrase && <p className={v.fuente}>{pieFrase}</p>}
       {detalle && <details className={v.detalle} open={abierto} onToggle={ev => setAbierto((ev.currentTarget as HTMLDetailsElement).open)}>
-        <summary><ChevronDown size={14} aria-hidden />Ver el detalle<small>{detalle.cuantos} {detalle.que}</small></summary>
+        <summary><ChevronDown size={14} aria-hidden />{tr('Ver el detalle')}<small>{detalle.cuantos} {detalle.que}</small></summary>
         {abierto && <div className={v.detalleCuerpo}>{detalle.cuerpo}</div>}
       </details>}
     </>}
@@ -173,14 +189,14 @@ function FiguraCompra({ q }: { q: QuienCompra }) {
 function BarraEscalon({ esc }: { esc: EscalonT }) {
   const ts = tramos(esc)
   return <section className={v.escalon} aria-label={esc.nombre}>
-    <p className={v.escalonCabeza}><b>{esc.nombre}</b>{ts.find(t => t.unidad) && <small>en {ts.find(t => t.unidad)!.unidad}</small>}</p>
-    <div className={v.barra} role="img" aria-label={ts.map(t => `${t.nombre}: ${t.valor === null ? 'sin dato' : `${numero(t.valor)} ${t.unidad ?? ''}`}`).join('; ')}>
+    <p className={v.escalonCabeza}><b>{esc.nombre}</b>{ts.find(t => t.unidad) && <small>{tr('en {unidad}', { unidad: ts.find(t => t.unidad)!.unidad })}</small>}</p>
+    <div className={v.barra} role="img" aria-label={ts.map(t => `${t.nombre}: ${t.valor === null ? tr('sin dato') : `${numero(t.valor)} ${t.unidad ?? ''}`}`).join('; ')}>
       {ts.map((t, k) => t.valor === null
-        ? <i key={t.nombre} data-sin-dato title={`${t.nombre}: sin dato`} />
+        ? <i key={t.nombre} data-sin-dato title={tr('{nombre}: sin dato', { nombre: t.nombre })} />
         : <i key={t.nombre} data-k={k} style={{ flexGrow: Math.max(t.parte, 0.02) }} title={`${t.nombre}: ${numero(t.valor)} ${t.unidad ?? ''}`} />)}
     </div>
     <ul className={v.leyenda}>{ts.map((t, k) => <li key={t.nombre} data-k={t.valor === null ? undefined : k}>
-      <i aria-hidden /><b>{t.valor === null ? 'Sin dato' : numero(t.valor)}</b><span>{t.nombre}</span>
+      <i aria-hidden /><b>{t.valor === null ? tr('Sin dato') : numero(t.valor)}</b><span>{t.nombre}</span>
     </li>)}</ul>
   </section>
 }
@@ -196,27 +212,27 @@ function FiguraContra({ c, ref_ }: { c: ContraQuien; ref_: string | null }) {
   const dir = directos(c.hispanos)
   return <div className={v.contra}>
     {esc && esc.peldanos.length > 0 && <>
-      <div className={v.peldanos} role="tablist" aria-label="Peldaños de precio">
+      <div className={v.peldanos} role="tablist" aria-label={tr('Peldaños de precio')}>
         {esc.peldanos.map((y, i) => {
           const hisp = y.quienes.filter(q => q.mercado === 'hispano').length, angl = y.quienes.length - hisp
           const alto = 46 + Math.round((i / Math.max(1, esc.peldanos.length - 1)) * 74)
           return <button key={y.id} type="button" role="tab" aria-selected={sel === i} onClick={() => setSel(i)} title={`${y.nombre} · ${y.rango}`}
             data-hueco={y.hueco || undefined} data-tu={y.tu ? '' : undefined} style={{ height: alto }}>
-            {y.hueco && <span className={v.huecoEtiqueta}>El hueco</span>}
+            {y.hueco && <span className={v.huecoEtiqueta}>{tr('El hueco')}</span>}
             <span className={v.puntos} aria-hidden>
               {Array.from({ length: hisp }, (_, k) => <b key={`h${k}`} />)}
               {Array.from({ length: angl }, (_, k) => <b key={`a${k}`} data-anglo />)}
             </span>
-            {y.tu && <span className={v.tu} aria-label="Tú">Tú</span>}
+            {y.tu && <span className={v.tu} aria-label={tr('Tú')}>{tr('Tú')}</span>}
           </button>
         })}
       </div>
       <Peldano p={esc.peldanos[sel] ?? esc.peldanos[0]} ref_={ref_} />
-      <p className={v.leyendaEscalera}><i className={v.lHisp} aria-hidden />En español <i className={v.lAngl} aria-hidden />En inglés <i className={v.lTu} aria-hidden />Tú <i className={v.lHueco} aria-hidden />El hueco</p>
+      <p className={v.leyendaEscalera}><i className={v.lHisp} aria-hidden />{tr('En español')} <i className={v.lAngl} aria-hidden />{tr('En inglés')} <i className={v.lTu} aria-hidden />{tr('Tú')} <i className={v.lHueco} aria-hidden />{tr('El hueco')}</p>
     </>}
-    {dir.length > 0 && <div className={v.caras} aria-label={`${dir.length} directos en español`}>
+    {dir.length > 0 && <div className={v.caras} aria-label={tr('{n} directos en español', { n: dir.length })}>
       <span className={v.carasFila}>{dir.slice(0, 12).map(y => <span key={y.nombre} className={v.cara} title={y.nombre}><Cara nombre={y.nombre} imagen={y.imagen} chica /></span>)}</span>
-      <small>{dir.length} directos en español · {c.anglos.length} referentes en inglés</small>
+      <small>{tr('{n} directos en español', { n: dir.length })} · {tr('{n} referentes en inglés', { n: c.anglos.length })}</small>
     </div>}
   </div>
 }
@@ -224,10 +240,10 @@ function FiguraContra({ c, ref_ }: { c: ContraQuien; ref_: string | null }) {
 function Peldano({ p, ref_ }: { p: Peldano; ref_: string | null }) {
   return <div className={v.peldano} data-hueco={p.hueco || undefined} aria-live="polite">
     <p className={v.peldanoCabeza}><b>{p.nombre}</b><span>{p.rango}</span></p>
-    {p.tu ? <p className={v.peldanoTu}><i aria-hidden /><span><b>Tú:</b> {p.tu.texto}</span></p>
-      : <p className={v.peldanoQuienes}>{p.quienes.length ? `${p.quienes.length} cobran aquí: ${p.quienes.slice(0, 3).map(q => nombreCorto(q.nombre)).join(', ')}${p.quienes.length > 3 ? '…' : ''}` : 'Nadie publica precio aquí.'}</p>}
+    {p.tu ? <p className={v.peldanoTu}><i aria-hidden /><span><b>{tr('Tú:')}</b> {p.tu.texto}</span></p>
+      : <p className={v.peldanoQuienes}>{p.quienes.length ? tr('{n} cobran aquí: {nombres}', { n: p.quienes.length, nombres: `${p.quienes.slice(0, 3).map(q => nombreCorto(q.nombre)).join(', ')}${p.quienes.length > 3 ? '…' : ''}` }) : tr('Nadie publica precio aquí.')}</p>}
     <details className={v.peldanoMas}>
-      <summary>Quién cobra aquí y de dónde sale</summary>
+      <summary>{tr('Quién cobra aquí y de dónde sale')}</summary>
       <Lectura p={p} ref_={ref_} />
     </details>
   </div>
@@ -250,19 +266,19 @@ function FiguraRumbo({ h }: { h: HaciaDonde }) {
   }
   const t = h.tendencias[sel]
   return <div className={v.rumbo}>
-    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${n} tendencias en inglés que cruzan al español en 6 a 12 meses; ${s} señales ya se mueven en español`}>
+    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={tr('{n} tendencias en inglés que cruzan al español en 6 a 12 meses; {s} señales ya se mueven en español', { n, s })}>
       <rect className={v.franja} x={banda.x} y={yEsp - 24} width={banda.w} height={48} rx={12} />
       <line className={v.carril} x1={20} x2={W - 8} y1={yIng} y2={yIng} />
       <line className={v.carril} x1={20} x2={W - 8} y1={yEsp} y2={yEsp} />
-      <text className={v.etiqueta} x={20} y={yIng - 14}>En inglés · hoy</text>
-      <text className={v.etiqueta} x={20} y={yEsp + 32}>En español</text>
-      <text className={v.etiqueta} x={banda.x + banda.w / 2} y={yEsp + 38} textAnchor="middle">en 6 a 12 meses</text>
+      <text className={v.etiqueta} x={20} y={yIng - 14}>{tr('En inglés · hoy')}</text>
+      <text className={v.etiqueta} x={20} y={yEsp + 32}>{tr('En español')}</text>
+      <text className={v.etiqueta} x={banda.x + banda.w / 2} y={yEsp + 38} textAnchor="middle">{tr('en 6 a 12 meses')}</text>
       {h.tendencias.map((_, k) => {
         const a = { x: xHoy(k), y: yIng }, b = enBanda(k)
         return <path key={`c${k}`} className={v.cruce} data-sel={sel === k || undefined} d={`M${a.x},${a.y} C${a.x + 110},${a.y + 10} ${b.x - 120},${b.y - 10} ${b.x},${b.y}`} />
       })}
       {h.senales_hispanas?.lista.map((y, k) => <circle key={`s${k}`} className={v.senal} cx={30 + k * 14} cy={yEsp} r={5}><title>{y.texto}</title></circle>)}
-      {s > 0 && <text className={v.etiquetaFuerte} x={30 + s * 14 + 4} y={yEsp + 4}>{s} ya aquí</text>}
+      {s > 0 && <text className={v.etiquetaFuerte} x={30 + s * 14 + 4} y={yEsp + 4}>{tr('{n} ya aquí', { n: s })}</text>}
       {h.tendencias.map((y, k) => {
         const a = { x: xHoy(k), y: yIng }, b = enBanda(k)
         return <g key={`t${k}`} className={v.tendencia} data-sel={sel === k || undefined} onClick={() => setSel(k)} role="button" tabIndex={0} aria-label={`${k + 1}. ${y.tendencia}`}
@@ -276,14 +292,14 @@ function FiguraRumbo({ h }: { h: HaciaDonde }) {
     </svg>
     {t && <div className={v.tendenciaSel}>
       <p><span>{String(sel + 1).padStart(2, '0')}</span>{t.tendencia}</p>
-      {t.en_espanol && <p className={v.enEspanol}><b>En español</b>{t.en_espanol}</p>}
+      {t.en_espanol && <p className={v.enEspanol}><b>{tr('En español')}</b>{t.en_espanol}</p>}
     </div>}
   </div>
 }
 
 /** Lo que decides: un sello por pieza (los avatares por escalón y la frase). Punteado = sin firmar; lleno = firmado con su fecha. */
 function FiguraDecides({ d, ref_ }: { d: LoQueDecides; ref_: string | null }) {
-  const piezas = [...d.avatares.map(a => ({ nombre: a.escalon, b: a as Borrador })), ...(d.posicionamiento ? [{ nombre: 'La frase', b: d.posicionamiento }] : [])]
+  const piezas = [...d.avatares.map(a => ({ nombre: a.escalon, b: a as Borrador })), ...(d.posicionamiento ? [{ nombre: tr('La frase'), b: d.posicionamiento }] : [])]
   const firmados = piezas.filter(y => y.b.estado === 'firmado').length
   const p = d.posicionamiento
   return <div className={v.decides}>
@@ -292,11 +308,11 @@ function FiguraDecides({ d, ref_ }: { d: LoQueDecides; ref_: string | null }) {
         <i aria-hidden>{y.b.estado === 'firmado' ? '✓' : iniciales(y.nombre)}</i>
         <small>{nombreCorto(y.nombre).replace(/^Audiencia de /, '')}</small>
       </span>)}
-      <span className={v.cuenta}><b>{firmados} de {piezas.length}</b><small>firmados</small></span>
+      <span className={v.cuenta}><b>{tr('{a} de {b}', { a: firmados, b: piezas.length })}</b><small>{tr('firmados')}</small></span>
     </div>
     {p && <blockquote className={v.posicionamiento} data-firmado={p.estado === 'firmado' || undefined}>
       <p>«{p.estado === 'firmado' && p.firmado?.texto ? p.firmado.texto : p.borrador}»</p>
-      <footer><span className={x.firma}>{p.estado === 'firmado' ? `Firmada ${fechaHumana(p.firmado!.fecha, ref_)}` : 'Borrador de Levy · sin firmar'}</span></footer>
+      <footer><span className={x.firma}>{p.estado === 'firmado' ? tr('Firmada {fecha}', { fecha: fechaHumana(p.firmado!.fecha, ref_) }) : tr('Borrador de Levy · sin firmar')}</span></footer>
     </blockquote>}
     {d.estado !== 'firmado' && d.como_firmar && <p className={v.fuente}>{d.como_firmar}</p>}
   </div>
@@ -312,7 +328,7 @@ function ListaEvidencia({ xs, ref_ }: { xs: Evidencia[]; ref_: string | null }) 
   if (!xs.length) return null
   return <ul className={e.evidencia}>{xs.map((y, i) => <li key={i} data-tipo={y.tipo}>
     {y.tipo === 'cita' ? <blockquote>«{y.texto}»</blockquote> : <span>{y.texto}</span>}
-    <small>{y.lectura ? 'Lectura · ' : ''}{pie(y, ref_)}</small>
+    <small>{y.lectura ? `${tr('Lectura')} · ` : ''}{pie(y, ref_)}</small>
   </li>)}</ul>
 }
 
@@ -330,7 +346,7 @@ function Compra({ q, ref_ }: { q: QuienCompra; ref_: string | null }) {
   return <div className={x.vista}>
     {q.escalones.map(esc => <Escalon key={esc.id} esc={esc} ref_={ref_} />)}
     {q.huecos.length > 0 && <details className={e.plegable}>
-      <summary>Lo que estos datos no dicen <small>{q.huecos.length}</small></summary>
+      <summary>{tr('Lo que estos datos no dicen')} <small>{q.huecos.length}</small></summary>
       <ul className={e.lista}>{q.huecos.map(h => <li key={h}>{h}</li>)}</ul>
     </details>}
     <p className={l.fuente}>{pie(q, ref_)}</p>
@@ -351,10 +367,10 @@ function Escalon({ esc, ref_ }: { esc: QuienCompra['escalones'][number]; ref_: s
       <DetalleSegmento s={s} ref_={ref_} cerrar={() => setAbierto(null)} />
     </div>}
     {esc.separa.length > 0 && <details className={e.plegable}>
-      <summary>Qué separa al que compra <small>{esc.separa.length}</small></summary>
+      <summary>{tr('Qué separa al que compra')} <small>{esc.separa.length}</small></summary>
       <ul className={e.lista}>{esc.separa.map(y => <li key={y.texto}>{y.texto}{y.evidencia && <small className={x.letraChica}>{y.evidencia}</small>}</li>)}</ul>
     </details>}
-    {esc.ventana && <p className={l.fuente}>Ventana: {esc.ventana}</p>}
+    {esc.ventana && <p className={l.fuente}>{tr('Ventana: {ventana}', { ventana: esc.ventana })}</p>}
   </section>
 }
 
@@ -362,19 +378,19 @@ function TarjetaSegmento({ s, max, abierta, tocar }: { s: Segmento; max: number;
   const ancho = s.tamano ? Math.max(4, Math.round((s.tamano.valor / max) * 100)) : 0
   return <button type="button" className={x.segmento} aria-expanded={abierta} data-abierta={abierta || undefined} onClick={tocar}>
     {s.tamano ? <span className={x.segCifra}><strong>{numero(s.tamano.valor)}</strong><small>{s.tamano.unidad}</small></span>
-      : <span className={x.segCifra} data-sin-dato><strong>Sin dato</strong></span>}
+      : <span className={x.segCifra} data-sin-dato><strong>{tr('Sin dato')}</strong></span>}
     {s.tamano && <span className={x.medidor} aria-hidden><i style={{ width: `${ancho}%` }} /></span>}
     <b className={x.segNombre}>{s.nombre}</b>
-    {s.quiere && <span className={x.segQuiere}><em>Quiere</em> {s.quiere}</span>}
+    {s.quiere && <span className={x.segQuiere}><em>{tr('Quiere')}</em> {s.quiere}</span>}
   </button>
 }
 
 function DetalleSegmento({ s, ref_, cerrar }: { s: Segmento; ref_: string | null; cerrar: () => void }) {
-  const campos: [string, string | null][] = [['Quién', s.quien], ['Quiere', s.quiere], ['Teme', s.teme], ['Intentó antes', s.intento_antes], ['Paga', s.paga]]
+  const campos: [string, string | null][] = [[tr('Quién'), s.quien], [tr('Quiere'), s.quiere], [tr('Teme'), s.teme], [tr('Intentó antes'), s.intento_antes], [tr('Paga'), s.paga]]
   return <>
     <header className={x.detalleCabeza}>
       <span><b>{s.nombre}</b>{s.tamano && <small>{numero(s.tamano.valor)} {s.tamano.unidad}{s.tamano.que ? ` · ${s.tamano.que}` : ''} · {pie(s.tamano, ref_)}</small>}</span>
-      <button type="button" className={x.cerrar} onClick={cerrar} aria-label="Cerrar"><X size={15} aria-hidden /></button>
+      <button type="button" className={x.cerrar} onClick={cerrar} aria-label={tr('Cerrar')}><X size={15} aria-hidden /></button>
     </header>
     <dl className={e.campos}>{campos.filter(([, v]) => v).map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>
     <ListaEvidencia xs={s.evidencia} ref_={ref_} />
@@ -391,44 +407,44 @@ function Contra({ c, ref_ }: { c: ContraQuien; ref_: string | null }) {
   const primera = c.anglos.filter(y => y.nivel !== 'segunda fila')
   const segunda = c.anglos.filter(y => y.nivel === 'segunda fila')
   return <div className={x.vista}>
-    {dir.length > 0 && <Cuadricula titulo="Directos en español" nota={`${dir.length} de ${c.hispanos.length}`} fichas={dir.map(y => ({ tipo: 'hispano', c: y }))} ref_={ref_} />}
-    {primera.length > 0 && <Cuadricula titulo="Referentes en inglés" nota="Lo que hacen que el mercado hispano todavía no" fichas={primera.map(y => ({ tipo: 'anglo', c: y }))} ref_={ref_} />}
+    {dir.length > 0 && <Cuadricula titulo={tr('Directos en español')} nota={tr('{a} de {b}', { a: dir.length, b: c.hispanos.length })} fichas={dir.map(y => ({ tipo: 'hispano', c: y }))} ref_={ref_} />}
+    {primera.length > 0 && <Cuadricula titulo={tr('Referentes en inglés')} nota={tr('Lo que hacen que el mercado hispano todavía no')} fichas={primera.map(y => ({ tipo: 'anglo', c: y }))} ref_={ref_} />}
     {resto.length > 0 && <details className={e.plegable}>
-      <summary>Alcance, alternativas y contraste en español <small>{resto.length}</small></summary>
+      <summary>{tr('Alcance, alternativas y contraste en español')} <small>{resto.length}</small></summary>
       <Cuadricula fichas={resto.map(y => ({ tipo: 'hispano', c: y }))} ref_={ref_} />
     </details>}
     {segunda.length > 0 && <details className={e.plegable}>
-      <summary>Segunda fila en inglés <small>{segunda.length}</small></summary>
+      <summary>{tr('Segunda fila en inglés')} <small>{segunda.length}</small></summary>
       <Cuadricula fichas={segunda.map(y => ({ tipo: 'anglo', c: y }))} ref_={ref_} />
     </details>}
 
-    {c.comparan && <section aria-label="Contra qué te comparan">
-      <Titulo>Contra qué te comparan</Titulo>
+    {c.comparan && <section aria-label={tr('Contra qué te comparan')}>
+      <Titulo>{tr('Contra qué te comparan')}</Titulo>
       <dl className={e.comparan}>{c.comparan.filas.map(f => <div key={f.escalon}><dt>{f.escalon}</dt><dd>{f.contra}</dd></div>)}</dl>
       <p className={l.fuente}>{pie(c.comparan, ref_)}</p>
     </section>}
 
-    {(c.hueco.length > 0 || c.dato_promesa) && <section aria-label="Dónde está el hueco">
-      <Titulo nota="Inferencia de la investigación, no dato">Dónde está el hueco</Titulo>
+    {(c.hueco.length > 0 || c.dato_promesa) && <section aria-label={tr('Dónde está el hueco')}>
+      <Titulo nota={tr('Inferencia de la investigación, no dato')}>{tr('Dónde está el hueco')}</Titulo>
       <ul className={e.lista}>{c.hueco.map(h => <li key={h}>{mayus(h.replace(/^Inferencia:\s*/i, ''))}</li>)}</ul>
-      {c.dato_promesa && <p className={e.dato}><b>Dato:</b> {c.dato_promesa.texto}<small>{pie(c.dato_promesa, ref_)}</small></p>}
+      {c.dato_promesa && <p className={e.dato}><b>{tr('Dato:')}</b> {c.dato_promesa.texto}<small>{pie(c.dato_promesa, ref_)}</small></p>}
       {c.saturado.length > 0 && <details className={e.plegable}>
-        <summary>Dónde está saturado <small>{c.saturado.length}</small></summary>
+        <summary>{tr('Dónde está saturado')} <small>{c.saturado.length}</small></summary>
         <ul className={e.lista}>{c.saturado.map(h => <li key={h}>{h}</li>)}</ul>
       </details>}
     </section>}
 
-    {c.voz_publica && c.voz_publica.citas.length > 0 && <section aria-label="La voz del que no compró">
-      <Titulo nota="Fuentes públicas, sin nombres">La voz del que no compró</Titulo>
+    {c.voz_publica && c.voz_publica.citas.length > 0 && <section aria-label={tr('La voz del que no compró')}>
+      <Titulo nota={tr('Fuentes públicas, sin nombres')}>{tr('La voz del que no compró')}</Titulo>
       <ul className={e.evidencia}>{c.voz_publica.citas.map(y => <li key={y.texto} data-tipo="cita"><blockquote>«{y.texto}»</blockquote><small>{pie(y, ref_)}</small></li>)}</ul>
       {c.voz_publica.falta && <p className={l.fuente}>{c.voz_publica.falta}</p>}
     </section>}
 
     {c.limites.length > 0 && <details className={e.plegable}>
-      <summary>Límites de esta parte <small>{c.limites.length}</small></summary>
+      <summary>{tr('Límites de esta parte')} <small>{c.limites.length}</small></summary>
       <ul className={e.lista}>{c.limites.map(h => <li key={h}>{h}</li>)}</ul>
     </details>}
-    <p className={l.fuente}>{pie(c, ref_)}{c.convencion ? `. Convención: ${c.convencion}` : ''}</p>
+    <p className={l.fuente}>{pie(c, ref_)}{c.convencion ? `. ${tr('Convención: {convencion}', { convencion: c.convencion })}` : ''}</p>
   </div>
 }
 
@@ -440,11 +456,11 @@ function Lectura({ p, ref_ }: { p: Peldano; ref_: string | null }) {
   </span>)
   const hisp = linea('hispano'), angl = linea('anglo')
   return <div className={x.lectura} data-hueco={p.hueco || undefined} aria-live="polite">
-    <p className={x.lecturaCabeza}><b>{p.nombre}</b><span>{p.rango}</span>{p.hueco && <em>El hueco</em>}</p>
-    {hisp.length > 0 && <p className={x.quienes}><span>Español</span>{hisp}</p>}
-    {angl.length > 0 && <p className={x.quienes}><span>Inglés</span>{angl}</p>}
-    {!p.quienes.length && <p className={x.nadie}>Nadie publica precio aquí.</p>}
-    {p.tu && <p className={x.tu}><i aria-hidden /><span><b>Tú:</b> {p.tu.texto}<small>{pie(p.tu, ref_)}</small></span></p>}
+    <p className={x.lecturaCabeza}><b>{p.nombre}</b><span>{p.rango}</span>{p.hueco && <em>{tr('El hueco')}</em>}</p>
+    {hisp.length > 0 && <p className={x.quienes}><span>{tr('Español')}</span>{hisp}</p>}
+    {angl.length > 0 && <p className={x.quienes}><span>{tr('Inglés')}</span>{angl}</p>}
+    {!p.quienes.length && <p className={x.nadie}>{tr('Nadie publica precio aquí.')}</p>}
+    {p.tu && <p className={x.tu}><i aria-hidden /><span><b>{tr('Tú:')}</b> {p.tu.texto}<small>{pie(p.tu, ref_)}</small></span></p>}
     {p.nota && <p className={l.fuente}>{p.nota}</p>}
     {comun && <p className={l.fuente}>{comun.split('|')[0]} · {fechaHumana(comun.split('|')[1], ref_)}</p>}
   </div>
@@ -499,7 +515,7 @@ function TarjetaFicha({ f, abierta, tocar }: { f: Ficha; abierta: boolean; tocar
     </span>
     <strong>{nombreCorto(f.c.nombre)}</strong>
     {marca && <small className={x.marca}>{marca}</small>}
-    <small>{a ? `${audiencia(a)} · ${a.tipo.replace(/_/g, ' ')}` : 'audiencia sin dato'}</small>
+    <small>{a ? `${audiencia(a)} · ${a.tipo.replace(/_/g, ' ')}` : tr('audiencia sin dato')}</small>
   </button>
 }
 
@@ -508,24 +524,24 @@ function DetalleFicha({ f, ref_, cerrar }: { f: Ficha; ref_: string | null; cerr
   return <>
     <header className={x.detalleCabeza}>
       <span><b>{c.nombre}</b><small>{f.tipo === 'hispano' ? [f.c.rol, f.c.pais && f.c.pais !== 'no verificado' ? f.c.pais : null].filter(Boolean).join(' · ') : [f.c.nivel, f.c.categoria].filter(Boolean).join(' · ')}</small></span>
-      <button type="button" className={x.cerrar} onClick={cerrar} aria-label="Cerrar"><X size={15} aria-hidden /></button>
+      <button type="button" className={x.cerrar} onClick={cerrar} aria-label={tr('Cerrar')}><X size={15} aria-hidden /></button>
     </header>
     {pago.length > 0 && <ul className={e.ofertas}>{pago.map(o => <li key={o.oferta}>
       <span><b>{o.precio}</b> · {o.oferta}</span>
       {o.promesa && o.promesa !== '—' && <small>{o.promesa}</small>}
     </li>)}</ul>}
     <dl className={e.campos}>
-      {c.avatar && <div><dt>A quién</dt><dd>{c.avatar}</dd></div>}
-      {f.tipo === 'hispano' && f.c.hueco && <div><dt>Su hueco</dt><dd>{f.c.hueco}</dd></div>}
-      {f.tipo === 'anglo' && f.c.adelanto && <div><dt>Lo que hace que aquí no</dt><dd>{f.c.adelanto.replace(/^\(lectura\)\s*/i, '')}</dd></div>}
-      {f.tipo === 'anglo' && f.c.no_copiar && <div><dt>No copiar</dt><dd>{f.c.no_copiar}</dd></div>}
+      {c.avatar && <div><dt>{tr('A quién')}</dt><dd>{c.avatar}</dd></div>}
+      {f.tipo === 'hispano' && f.c.hueco && <div><dt>{tr('Su hueco')}</dt><dd>{f.c.hueco}</dd></div>}
+      {f.tipo === 'anglo' && f.c.adelanto && <div><dt>{tr('Lo que hace que aquí no')}</dt><dd>{f.c.adelanto.replace(/^\(lectura\)\s*/i, '')}</dd></div>}
+      {f.tipo === 'anglo' && f.c.no_copiar && <div><dt>{tr('No copiar')}</dt><dd>{f.c.no_copiar}</dd></div>}
     </dl>
     {f.tipo === 'hispano' && f.c.voz.length > 0 && <ul className={e.evidencia}>{f.c.voz.map(v => <li key={v} data-tipo="cita"><span>{v}</span></li>)}</ul>}
     {c.canales.length > 0 && <ul className={e.canales}>{c.canales.map(y => <li key={`${y.tipo}-${y.valor}`}>
       <span>{y.tipo.replace(/_/g, ' ')}</span> {y.url ? <a href={y.url} target="_blank" rel="noreferrer">{y.valor}</a> : <b>{y.valor}</b>}
       <small>{y.fuente} · {fechaHumana(y.fecha, ref_)}{y.nota ? ` · ${y.nota}` : ''}</small>
     </li>)}</ul>}
-    {c.imagen && <p className={l.fuente}>Imagen: {c.imagen.fuente}{c.imagen.de && <> · <a className={x.enlace} href={c.imagen.de} target="_blank" rel="noreferrer">{dominio(c.imagen.de)}<ArrowUpRight size={11} aria-hidden /></a></>} · {fechaHumana(c.imagen.fecha, ref_)}</p>}
+    {c.imagen && <p className={l.fuente}>{tr('Imagen: {fuente}', { fuente: c.imagen.fuente })}{c.imagen.de && <> · <a className={x.enlace} href={c.imagen.de} target="_blank" rel="noreferrer">{dominio(c.imagen.de)}<ArrowUpRight size={11} aria-hidden /></a></>} · {fechaHumana(c.imagen.fecha, ref_)}</p>}
   </>
 }
 
@@ -533,13 +549,13 @@ function DetalleFicha({ f, ref_, cerrar }: { f: Ficha; ref_: string | null; cerr
 
 function Rumbo({ h, ref_ }: { h: HaciaDonde; ref_: string | null }) {
   return <div className={x.vista}>
-    <Titulo nota="Y lo que anticipa en español en 6 a 12 meses">Lo que ya pasa en inglés</Titulo>
+    <Titulo nota={tr('Y lo que anticipa en español en 6 a 12 meses')}>{tr('Lo que ya pasa en inglés')}</Titulo>
     <ol className={x.tendencias}>{h.tendencias.map((t, i) => <li key={t.tendencia} className={x.tendencia}>
       <span className={x.indice} aria-hidden>{String(i + 1).padStart(2, '0')}</span>
       <p className={x.tendTitulo}>{t.tendencia}</p>
-      {t.en_espanol && <p className={x.enEspanol}><span>En español</span>{t.en_espanol}</p>}
+      {t.en_espanol && <p className={x.enEspanol}><span>{tr('En español')}</span>{t.en_espanol}</p>}
       {(t.evidencia || t.fuentes.length > 0) && <details className={x.tendMas}>
-        <summary>Evidencia{t.fuentes.length ? ` · ${t.fuentes.length} ${t.fuentes.length === 1 ? 'fuente' : 'fuentes'}` : ''}</summary>
+        <summary>{tr('Evidencia')}{t.fuentes.length ? ` · ${trn(t.fuentes.length, '{n} fuente', '{n} fuentes')}` : ''}</summary>
         {t.evidencia && <p>{t.evidencia}</p>}
         {t.fuentes.length > 0 && <p className={e.enlaces}>{t.fuentes.map(u => /^https?:\/\//.test(u)
           ? <a key={u} href={u} target="_blank" rel="noreferrer">{dominio(u)}</a>
@@ -547,15 +563,15 @@ function Rumbo({ h, ref_ }: { h: HaciaDonde; ref_: string | null }) {
       </details>}
     </li>)}</ol>
     <p className={l.fuente}>{pie(h, ref_)}</p>
-    {h.senales_hispanas && <section aria-label="Lo que ya se mueve en español">
-      <Titulo>Lo que ya se mueve en español</Titulo>
+    {h.senales_hispanas && <section aria-label={tr('Lo que ya se mueve en español')}>
+      <Titulo>{tr('Lo que ya se mueve en español')}</Titulo>
       <ul className={e.evidencia}>{h.senales_hispanas.lista.map(s => <li key={s.texto} data-tipo="dato"><span>{s.texto}</span><small>{pie(s, ref_)}</small></li>)}</ul>
     </section>}
-    {h.dos_avatares && <section aria-label="Dos avatares que no se mezclan">
-      <Titulo nota="Así partió la categoría el mercado anglo">Dos avatares que no se mezclan</Titulo>
+    {h.dos_avatares && <section aria-label={tr('Dos avatares que no se mezclan')}>
+      <Titulo nota={tr('Así partió la categoría el mercado anglo')}>{tr('Dos avatares que no se mezclan')}</Titulo>
       <div className={x.dos}>
-        <div><span>El que vende IA</span><p>{h.dos_avatares.el_que_vende}</p></div>
-        <div><span>El dueño que la usa</span><p>{h.dos_avatares.el_dueno_que_usa}</p></div>
+        <div><span>{tr('El que vende IA')}</span><p>{h.dos_avatares.el_que_vende}</p></div>
+        <div><span>{tr('El dueño que la usa')}</span><p>{h.dos_avatares.el_dueno_que_usa}</p></div>
       </div>
       {h.dos_avatares.donde_caes && <p className={e.dato}>{h.dos_avatares.donde_caes}</p>}
     </section>}
@@ -565,16 +581,16 @@ function Rumbo({ h, ref_ }: { h: HaciaDonde; ref_: string | null }) {
 // ── 4. Lo que decides ──
 
 function Decides({ d, ref_ }: { d: LoQueDecides; ref_: string | null }) {
-  const piezas = useMemo(() => [...d.avatares.map(a => ({ titulo: a.escalon, tipo: 'Avatar', b: a as Borrador })), ...(d.posicionamiento ? [{ titulo: 'Posicionamiento', tipo: 'Frase', b: d.posicionamiento }] : [])], [d])
+  const piezas = useMemo(() => [...d.avatares.map(a => ({ titulo: a.escalon, tipo: tr('Avatar'), b: a as Borrador })), ...(d.posicionamiento ? [{ titulo: tr('Posicionamiento'), tipo: tr('Frase'), b: d.posicionamiento }] : [])], [d])
   return <div className={x.vista}>
     <div className={x.propuesta} data-firmado={d.estado === 'firmado' || undefined}>
-      <p className={x.propuestaTitulo}>{d.estado === 'firmado' ? 'Firmado' : 'Propuesta de Levy, sin firmar'}</p>
+      <p className={x.propuestaTitulo}>{d.estado === 'firmado' ? tr('Firmado') : tr('Propuesta de Levy, sin firmar')}</p>
       {d.para_que && <p>{d.para_que}</p>}
       {d.estado !== 'firmado' && d.como_firmar && <p className={x.comoFirmar}>{d.como_firmar}</p>}
     </div>
     <ul className={x.borradores}>{piezas.map((y, i) => <li key={`${y.tipo}-${y.titulo}`}><TarjetaBorrador tipo={y.tipo} titulo={y.titulo} b={y.b} ref_={ref_} /></li>)}</ul>
-    {d.no_se_reabre.length > 0 && <section aria-label="Lo firmado que esto no toca">
-      <Titulo>Lo firmado que esto no toca</Titulo>
+    {d.no_se_reabre.length > 0 && <section aria-label={tr('Lo firmado que esto no toca')}>
+      <Titulo>{tr('Lo firmado que esto no toca')}</Titulo>
       <ul className={e.lista}>{d.no_se_reabre.map(y => <li key={y}>{y}</li>)}</ul>
     </section>}
     <p className={l.fuente}>{pie(d, ref_)}</p>
@@ -586,13 +602,13 @@ function TarjetaBorrador({ tipo, titulo, b, ref_ }: { tipo: string; titulo: stri
   return <article className={x.borrador} data-estado={b.estado} aria-label={`${tipo} · ${titulo}`}>
     <p className={x.borradorCabeza}>
       <span className={x.borradorTipo}>{tipo} · <b>{titulo}</b></span>
-      <span className={x.firma}>{firmado ? `Firmado ${fechaHumana(b.firmado!.fecha, ref_)}` : 'Sin firmar'}</span>
+      <span className={x.firma}>{firmado ? tr('Firmado {fecha}', { fecha: fechaHumana(b.firmado!.fecha, ref_) }) : tr('Sin firmar')}</span>
     </p>
     <p className={x.frase}>{firmado && b.firmado?.texto ? b.firmado.texto : b.borrador}</p>
-    {b.por_que && <p className={x.porQue}><b>Por qué:</b> {b.por_que}</p>}
-    {b.no_es && <p className={x.porQue}><b>No es:</b> {b.no_es}</p>}
+    {b.por_que && <p className={x.porQue}><b>{tr('Por qué:')}</b> {b.por_que}</p>}
+    {b.no_es && <p className={x.porQue}><b>{tr('No es:')}</b> {b.no_es}</p>}
     {b.evidencia.length > 0 && <details className={x.tendMas}>
-      <summary>Evidencia · {b.evidencia.length}</summary>
+      <summary>{tr('Evidencia')} · {b.evidencia.length}</summary>
       <ListaEvidencia xs={b.evidencia} ref_={ref_} />
     </details>}
   </article>

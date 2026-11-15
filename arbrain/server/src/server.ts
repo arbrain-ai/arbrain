@@ -117,6 +117,7 @@ import { esCuentaApi, esCuentaChat, motorApiEncendido, registroPublico } from '.
 import { catalogoPublico, consultarOpenRouter, guardarHabilitado, leerHabilitados } from './modelos/catalogo.js'
 import { guardarPreferencia, leerPreferencia, preferenciaVacia } from './modelos/preferencia.js'
 import { dirClaudeAlterna } from './cuentas-alternas.js'
+import { idiomaActual, tr } from './i18n/tr.js'
 
 /** Proyectos de la cuenta alterna de Claude (`account: 'bro'`) si esta instalación la tiene; en cliente, ninguno. */
 const proyectosAlternos = (): Record<string, string> => { const d = dirClaudeAlterna(); return d ? { bro: join(d, 'projects') } : {} }
@@ -357,14 +358,17 @@ function cronToHuman(cron: string): string {
   const [min, hour, dom, , dow] = parts
   const pad = (s: string) => s.padStart(2, '0')
 
-  if (hour.startsWith('*/')) return `cada ${hour.slice(2)}h`
-  if (min.startsWith('*/')) return `cada ${min.slice(2)}min`
+  if (hour.startsWith('*/')) return tr('cada {n}h', { n: hour.slice(2) })
+  if (min.startsWith('*/')) return tr('cada {n}min', { n: min.slice(2) })
 
-  const days = ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab']
+  // Idioma (13 nov 2026): en inglés, los días cortos los da Intl (el 4 ene 2026 fue domingo); en español, los de siempre.
+  const days = idiomaActual() === 'en'
+    ? Array.from({ length: 7 }, (_, d) => new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'UTC' }).format(Date.UTC(2026, 0, 4 + d)))
+    : ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab']
   if (dow !== '*') return `${days[parseInt(dow)] ?? dow} ${pad(hour)}:${pad(min)}`
-  if (dom !== '*') return `dia ${dom} del mes ${pad(hour)}:${pad(min)}`
+  if (dom !== '*') return tr('dia {dia} del mes {hora}', { dia: dom, hora: `${pad(hour)}:${pad(min)}` })
 
-  return `${pad(hour)}:${pad(min)} diario`
+  return tr('{hora} diario', { hora: `${pad(hour)}:${pad(min)}` })
 }
 
 // ─── Slash command builders (/skills, /memory, /mcp, /todos) ────────────────
@@ -382,12 +386,12 @@ async function buildRuntimeInventoryText(kind: InventoryKind, owner: unknown, co
 
 function buildMemoryText(): string {
   const memoryFile = join(PROJECT_ROOT, '.claude', 'memory', 'MEMORY.md')
-  if (!existsSync(memoryFile)) return '**Memoria:** MEMORY.md no encontrado.\n'
+  if (!existsSync(memoryFile)) return `${tr('**Memoria:** MEMORY.md no encontrado.')}\n`
   try {
     const raw = readFileSync(memoryFile, 'utf-8')
-    return raw.length > 4500 ? raw.slice(0, 4500) + '\n\n_…(truncado, ver `.claude/memory/MEMORY.md` completo)_' : raw
+    return raw.length > 4500 ? raw.slice(0, 4500) + `\n\n${tr('_…(truncado, ver `.claude/memory/MEMORY.md` completo)_')}` : raw
   } catch (err) {
-    return `**Memoria:** error leyendo MEMORY.md (${String(err).slice(0, 80)})`
+    return tr('**Memoria:** error leyendo MEMORY.md ({error})', { error: String(err).slice(0, 80) })
   }
 }
 
@@ -424,7 +428,7 @@ async function effortLevelsFor(account: string, ov: { model?: string | null }): 
   if (isCodexAccount(account)) return (await codexRuntime().validateSelection(account, { model: codexCurrentModel(account, ov.model ?? null) })).supportedEfforts
   const catalog = await claudeCatalog.read(account)
   const model = findClaudeModel(catalog.models, ov.model ?? catalog.configuredModel)
-  if (!model) throw new Error('Selecciona un modelo explícito antes de cambiar su esfuerzo; el default aún no está confirmado.')
+  if (!model) throw new Error(tr('Selecciona un modelo explícito antes de cambiar su esfuerzo; el default aún no está confirmado.'))
   return model.supportedEffortLevels ?? []
 }
 
@@ -450,7 +454,7 @@ async function buildConversationStatus(ownerId: unknown, chatSessionId: string |
       quota = { state: 'unavailable', reason: err instanceof Error ? err.message.slice(0, 160) : 'sin respuesta del runtime' }
     }
   } else {
-    quota = { state: 'unsupported', reason: 'los límites del plan de Claude están en el panel de contexto de la barra de escribir (Límites del plan)' }
+    quota = { state: 'unsupported', reason: tr('los límites del plan de Claude están en el panel de contexto de la barra de escribir (Límites del plan)') }
   }
   return buildChatStatus({
     account, engine: openai ? 'openai' : 'claude',
@@ -471,38 +475,38 @@ function buildStatusText(sessionKey: string, ov = getChatOverrides(sessionKey)):
   const ctx = getContextInfo()
   const cronJobs = listTasks().filter(t => t.status === 'active' && !t.id.includes('-migrated'))
 
-  let s = '**Estado de Levy**\n\n'
+  let s = `${tr('**Estado de Levy**')}\n\n`
 
   // Model
   if (modelDisplayName && model) {
-    s += `**Modelo:** ${modelDisplayName} (\`${model}\`)${ov.model ? ' — pick de esta conversación' : ''}\n`
+    s += `${ov.model ? tr('**Modelo:** {nombre} (`{modelo}`) — pick de esta conversación', { nombre: modelDisplayName, modelo: model }) : tr('**Modelo:** {nombre} (`{modelo}`)', { nombre: modelDisplayName, modelo: model })}\n`
   } else if (model) {
-    s += `**Modelo:** \`${model}\`\n`
+    s += `${tr('**Modelo:** `{modelo}`', { modelo: model })}\n`
   } else {
-    s += '**Modelo:** sin datos (envia un mensaje primero)\n'
+    s += `${tr('**Modelo:** sin datos (envia un mensaje primero)')}\n`
   }
 
   // Reasoning effort
-  s += `**Esfuerzo:** ${ov.effort ?? `${DEFAULT_CHAT_EFFORT} (por defecto)`}\n`
+  s += `${ov.effort ? tr('**Esfuerzo:** {esfuerzo}', { esfuerzo: ov.effort }) : tr('**Esfuerzo:** {esfuerzo} (por defecto)', { esfuerzo: DEFAULT_CHAT_EFFORT })}\n`
 
   // Flag settings de la conversación (SDK 0.3.201)
-  s += `**Fast mode:** ${ov.fast ? 'ON (2.5x velocidad, 2x rate)' : 'off'}\n`
-  s += `**Ultracode:** ${ov.ultracode ? 'ON (xhigh + workflows en cada turno)' : 'off (keyword "ultracode" activa por mensaje)'}\n`
+  s += `**Fast mode:** ${ov.fast ? tr('ON (2.5x velocidad, 2x rate)') : 'off'}\n`
+  s += `**Ultracode:** ${ov.ultracode ? tr('ON (xhigh + workflows en cada turno)') : tr('off (keyword "ultracode" activa por mensaje)')}\n`
 
   // Context window
   if (ctx.used != null && ctx.total != null) {
     const free = ctx.total - ctx.used
     const pctFree = Math.round((free / ctx.total) * 100)
-    s += `**Contexto:** ~${fmtTokens(ctx.used)} / ${fmtTokens(ctx.total)} tokens (${pctFree}% libre)\n`
+    s += `${tr('**Contexto:** ~{usado} / {total} tokens ({libre}% libre)', { usado: fmtTokens(ctx.used), total: fmtTokens(ctx.total), libre: pctFree })}\n`
   } else if (ctx.used != null) {
-    s += `**Contexto:** ~${fmtTokens(ctx.used)} tokens usados\n`
+    s += `${tr('**Contexto:** ~{usado} tokens usados', { usado: fmtTokens(ctx.used) })}\n`
   } else {
-    s += '**Contexto:** sin datos\n'
+    s += `${tr('**Contexto:** sin datos')}\n`
   }
   s += '\n'
 
   // Cron jobs
-  s += `**${cronJobs.length} Cron Jobs Activos:**\n`
+  s += `${tr('**{n} Cron Jobs Activos:**', { n: cronJobs.length })}\n`
   cronJobs.forEach((cron, i) => {
     const label = CRON_LABELS[cron.id] ?? cron.id
     const sched = cronToHuman(cron.schedule)
@@ -517,8 +521,8 @@ function buildStatusText(sessionKey: string, ov = getChatOverrides(sessionKey)):
     const label = CRON_LABELS[lastRun.id] ?? lastRun.id
     const snippet = lastRun.last_result
       ? lastRun.last_result.slice(0, 80).replace(/\n/g, ' ')
-      : 'sin resultado'
-    s += `\n**Ultimo job:** ${label} → ${snippet}${(lastRun.last_result?.length ?? 0) > 80 ? '...' : ''}`
+      : tr('sin resultado')
+    s += `\n${tr('**Ultimo job:** {nombre} → {resumen}', { nombre: label, resumen: `${snippet}${(lastRun.last_result?.length ?? 0) > 80 ? '...' : ''}` })}`
   }
 
   return s
@@ -528,11 +532,11 @@ function buildUsageText(): string {
   const fmtUsd = (n: number) => `$${n.toFixed(2)}`
   const d7 = getUsageSummary(Date.now() - 86_400_000 * 7)
   const d30 = getUsageSummary(Date.now() - 86_400_000 * 30)
-  let s = '**Uso de Levy** (queries locales via ClaudeClaw)\n\n'
-  s += '| Ventana | Costo | Input | Output | Queries |\n|---|---|---|---|---|\n'
-  s += `| 7 dias | ${fmtUsd(d7.totalCostUsd)} | ${fmtTokens(d7.totalInputTokens)} | ${fmtTokens(d7.totalOutputTokens)} | ${d7.totalQueries} |\n`
-  s += `| 30 dias | ${fmtUsd(d30.totalCostUsd)} | ${fmtTokens(d30.totalInputTokens)} | ${fmtTokens(d30.totalOutputTokens)} | ${d30.totalQueries} |\n`
-  s += `\n_Duracion promedio (30d): ${(d30.avgDurationMs / 1000).toFixed(1)}s por query._`
+  let s = `${tr('**Uso de Levy** (queries locales via ClaudeClaw)')}\n\n`
+  s += `${tr('| Ventana | Costo | Input | Output | Queries |')}\n|---|---|---|---|---|\n`
+  s += `| ${tr('7 dias')} | ${fmtUsd(d7.totalCostUsd)} | ${fmtTokens(d7.totalInputTokens)} | ${fmtTokens(d7.totalOutputTokens)} | ${d7.totalQueries} |\n`
+  s += `| ${tr('30 dias')} | ${fmtUsd(d30.totalCostUsd)} | ${fmtTokens(d30.totalInputTokens)} | ${fmtTokens(d30.totalOutputTokens)} | ${d30.totalQueries} |\n`
+  s += `\n${tr('_Duracion promedio (30d): {segundos}s por query._', { segundos: (d30.avgDurationMs / 1000).toFixed(1) })}`
   return s
 }
 
@@ -876,7 +880,7 @@ async function rutasCliente(req: IncomingMessage, res: ServerResponse, ruta: str
   if (req.method === 'POST' && ruta === '/llaves/suscripcion/login') {
     // Botón «Iniciar sesión con Claude»: el login OFICIAL del CLI (instala Claude Code antes si falta). Arbrain no ve
     // la página, el código ni el token; al terminar, si no hay llave, se conecta solo.
-    if (!secretoApp()) { sendJSON(res, 403, { error: 'Solo la app puede iniciar sesión.' }); return true }
+    if (!secretoApp()) { sendJSON(res, 403, { error: tr('Solo la app puede iniciar sesión.') }); return true }
     const { conectarSuscripcionSiHay, iniciarSesionClaude } = await import('./cliente/suscripcion.js')
     const configDir = process.env.ARBRAIN_CONFIG_DIR
     const login = iniciarSesionClaude({ alTerminar: () => { void conectarSuscripcionSiHay({ sinLlave: faltaLlaveClaude(), configDir, fresco: true }).catch(() => {}) } })
@@ -887,13 +891,13 @@ async function rutasCliente(req: IncomingMessage, res: ServerResponse, ruta: str
     // Elegir el motor del chat. Se aplica al reiniciar el daemon (la app lo reinicia al recibir `reiniciar: true`).
     const { detectarSuscripcion, guardarMotorElegido } = await import('./cliente/suscripcion.js')
     const motor = cuerpo.motor
-    if (motor !== 'suscripcion' && motor !== 'llave') { sendJSON(res, 400, { error: 'motor debe ser «suscripcion» o «llave»' }); return true }
+    if (motor !== 'suscripcion' && motor !== 'llave') { sendJSON(res, 400, { error: tr('motor debe ser «suscripcion» o «llave»') }); return true }
     if (motor === 'suscripcion') {
       const d = await detectarSuscripcion({ fresco: true })
-      if (!d.sesion) { sendJSON(res, 409, { error: d.mensaje ?? 'Tu Claude Code no tiene sesión iniciada.', code: d.code ?? 'sin_sesion', estado: d }); return true }
+      if (!d.sesion) { sendJSON(res, 409, { error: tr(d.mensaje ?? 'Tu Claude Code no tiene sesión iniciada.'), code: d.code ?? 'sin_sesion', estado: d }); return true }
     }
     const dir = process.env.ARBRAIN_CONFIG_DIR
-    if (!dir) { sendJSON(res, 500, { error: 'Falta la carpeta de configuración del daemon.' }); return true }
+    if (!dir) { sendJSON(res, 500, { error: tr('Falta la carpeta de configuración del daemon.') }); return true }
     // Sin llave no hay vía de API que quitar: se aplica en caliente y la pantalla no reinicia el daemon.
     const { activarSuscripcionEnCaliente } = await import('./cliente/suscripcion.js')
     if (motor === 'suscripcion' && activarSuscripcionEnCaliente(dir, faltaLlaveClaude())) { sendJSON(res, 200, { ok: true, motor, reiniciar: false }); return true }
@@ -908,19 +912,19 @@ async function rutasCliente(req: IncomingMessage, res: ServerResponse, ruta: str
   }
   if (ruta === '/permisos/reglas' || ruta === '/permisos/reglas/quitar') {
     // «Siempre este patrón»: visibles y revocables en Ajustes › Permisos. Solo la app (un agente no se quita ni se pone reglas).
-    if (!secretoApp()) { sendJSON(res, 403, { error: 'Solo la app puede ver o quitar reglas.' }); return true }
+    if (!secretoApp()) { sendJSON(res, 403, { error: tr('Solo la app puede ver o quitar reglas.') }); return true }
     if (req.method === 'GET' && ruta === '/permisos/reglas') { sendJSON(res, 200, listarReglas()); return true }
     if (req.method === 'POST' && ruta === '/permisos/reglas/quitar') { const r = revocarRegla(cuerpo.id); sendJSON(res, r.status, r.ok ? { ok: true, ...listarReglas() } : { error: r.error }); return true }
-    sendJSON(res, 404, { error: 'Ruta desconocida.' })
+    sendJSON(res, 404, { error: tr('Ruta desconocida.') })
     return true
   }
   if (ruta === '/confirmaciones' || ruta.startsWith('/confirmaciones/')) {
     const store = confirmacionesDelDaemon()
-    if (!store) { sendJSON(res, 503, { error: 'Confirmaciones no iniciadas.' }); return true }
+    if (!store) { sendJSON(res, 503, { error: tr('Confirmaciones no iniciadas.') }); return true }
     // `apps` (1 nov 2026): las tarjetas de permiso por app viajan en el mismo sondeo que las confirmaciones.
     if (req.method === 'GET' && ruta === '/confirmaciones') { sendJSON(res, 200, { pendientes: store.pendientes(), terminadas: store.terminadas(), sandbox: sandboxActivo(), apps: permisosAppDelDaemon().pendientes() }); return true }
     if (req.method === 'POST' && ruta === '/confirmaciones/resolver') {
-      if (!secretoApp()) { sendJSON(res, 403, { error: 'Solo la app puede resolver una confirmación.' }); return true }
+      if (!secretoApp()) { sendJSON(res, 403, { error: tr('Solo la app puede resolver una confirmación.') }); return true }
       // Botón Play: comentario, «Siempre este patrón» y «Córrelo tú» (cliente/tarjeta.ts).
       const r = await resolverTarjeta(store, cuerpo, () => ({ motor: motorPty, cwd: process.env.ARBRAIN_HOME || PROJECT_ROOT, registrar: e => logger.info(e, 'córrelo tú') }))
       sendJSON(res, r.ok ? 200 : r.status, r.ok ? { ...r.confirmacion, ...(r.regla ? { regla: r.regla } : {}) } : { error: r.error })
@@ -929,7 +933,7 @@ async function rutasCliente(req: IncomingMessage, res: ServerResponse, ruta: str
     if (req.method === 'POST' && (ruta === '/confirmaciones/pedir' || ruta === '/confirmaciones/consumir') && (!computerUseDisponible() || (esEdicionCliente() && !computerUseEncendido()))) {
       // El único que pide es el MCP de manos. Sin computer use (Linux) o con el interruptor apagado, nadie fabrica
       // diálogos «Levy usando tu computadora» (un agente con el pase podía llenar la pantalla de pendientes falsos).
-      sendJSON(res, 403, { error: computerUseDisponible() ? 'Computer use está apagado.' : 'Computer use no está disponible en este sistema.', code: computerUseDisponible() ? 'apagado' : 'no_disponible' })
+      sendJSON(res, 403, { error: computerUseDisponible() ? tr('Computer use está apagado.') : tr('Computer use no está disponible en este sistema.'), code: computerUseDisponible() ? 'apagado' : 'no_disponible' })
       return true
     }
     if (req.method === 'POST' && ruta === '/confirmaciones/encolar') {
@@ -937,7 +941,7 @@ async function rutasCliente(req: IncomingMessage, res: ServerResponse, ruta: str
       // estabas») en vez de vencer. Solo la propia pendiente de manos; con el pase basta (no aprueba nada).
       const id = typeof cuerpo.id === 'string' && /^cf_[0-9a-f]{12}$/.test(cuerpo.id) ? cuerpo.id : null
       const c = id ? store.get(id) : null
-      if (!c || c.origen !== 'manos') { sendJSON(res, 404, { error: 'No existe esa confirmación de manos.' }); return true }
+      if (!c || c.origen !== 'manos') { sendJSON(res, 404, { error: tr('No existe esa confirmación de manos.') }); return true }
       sendJSON(res, 200, store.encolar(id!) ?? c)
       return true
     }
@@ -956,10 +960,10 @@ async function rutasCliente(req: IncomingMessage, res: ServerResponse, ruta: str
       const conPase = !isTokenValid((req.headers['authorization'] ?? '').replace('Bearer ', ''))
       const c = store.get(m[1])
       const vista = conPase ? vistaParaPase(c) : c
-      sendJSON(res, vista ? 200 : 404, vista ?? { error: 'No existe esa confirmación.' })
+      sendJSON(res, vista ? 200 : 404, vista ?? { error: tr('No existe esa confirmación.') })
       return true
     }
-    sendJSON(res, 404, { error: 'Ruta desconocida.' })
+    sendJSON(res, 404, { error: tr('Ruta desconocida.') })
     return true
   }
   if (req.method === 'POST' && ruta === '/manos/turno') {
@@ -976,23 +980,23 @@ async function rutasCliente(req: IncomingMessage, res: ServerResponse, ruta: str
     if (req.method === 'GET' && ruta === '/manos/apps') { sendJSON(res, 200, { pendientes: store.pendientes(), siempre: store.siempre() }); return true }
     if (req.method === 'POST' && ruta === '/manos/apps/pedir') {
       // Sin computer use (Linux) o con el interruptor apagado nadie fabrica tarjetas (como /confirmaciones/pedir).
-      if (!computerUseDisponible() || !computerUseEncendido()) { sendJSON(res, 403, { error: computerUseDisponible() ? 'Computer use está apagado.' : 'Computer use no está disponible en este sistema.', code: computerUseDisponible() ? 'apagado' : 'no_disponible' }); return true }
+      if (!computerUseDisponible() || !computerUseEncendido()) { sendJSON(res, 403, { error: computerUseDisponible() ? tr('Computer use está apagado.') : tr('Computer use no está disponible en este sistema.'), code: computerUseDisponible() ? 'apagado' : 'no_disponible' }); return true }
       const app = appObjetivo(cuerpo.app)
-      if (!app) { sendJSON(res, 400, { error: 'app ({ clave, nombre }) requerida.' }); return true }
+      if (!app) { sendJSON(res, 400, { error: tr('app ({ clave, nombre }) requerida.') }); return true }
       const antes = new Set(store.pendientes().map(p => p.id))
       const r = store.pedir({ app, para: cuerpo.para, conversacion: cuerpo.conversacion })
       if (r.estado === 'pendiente' && !antes.has(r.id)) {
         opsLogger.log('confirmacion_pendiente', 'system', { id: r.id, tipo: 'app', app: app.nombre })
-        avisarSistema(r.id, 'Levy quiere usar una app', `¿Puede Levy usar ${app.nombre}? Decide en Arbrain: siempre, solo esta conversación o no.`)
+        avisarSistema(r.id, tr('Levy quiere usar una app'), tr('¿Puede Levy usar {app}? Decide en Arbrain: siempre, solo esta conversación o no.', { app: app.nombre }))
       }
       sendJSON(res, 200, r)
       return true
     }
     if (req.method === 'POST' && ruta === '/manos/apps/resolver') {
-      if (!secretoApp()) { sendJSON(res, 403, { error: 'Solo la persona, desde la app, decide qué apps puede usar Levy.' }); return true }
+      if (!secretoApp()) { sendJSON(res, 403, { error: tr('Solo la persona, desde la app, decide qué apps puede usar Levy.') }); return true }
       const r = store.resolver(cuerpo.id, cuerpo.decision)
       if (!r.ok) { sendJSON(res, r.status, { error: r.error }); return true }
-      anotar(`${r.pedido.app.nombre}: ${r.pedido.decision === 'siempre' ? 'Levy puede usarla siempre' : r.pedido.decision === 'conversacion' ? 'Levy puede usarla en esta conversación' : 'Levy no puede usarla en esta conversación'}`)
+      anotar(`${r.pedido.app.nombre}: ${r.pedido.decision === 'siempre' ? tr('Levy puede usarla siempre') : r.pedido.decision === 'conversacion' ? tr('Levy puede usarla en esta conversación') : tr('Levy no puede usarla en esta conversación')}`)
       opsLogger.log('confirmacion_resuelta', 'system', { id: r.pedido.id, tipo: 'app', app: r.pedido.app.nombre, decision: r.pedido.decision })
       sendJSON(res, 200, { ...r.pedido, siempre: store.siempre() })
       return true
@@ -1000,13 +1004,13 @@ async function rutasCliente(req: IncomingMessage, res: ServerResponse, ruta: str
     if (req.method === 'POST' && ruta === '/manos/apps/quitar') {
       // Quitar es más estricto (vuelve a preguntar): no exige el secreto, pero el pase no llega aquí (cofre.ts).
       const quitada = store.quitar(cuerpo.clave)
-      if (quitada) anotar(`Levy vuelve a preguntar antes de usar ${String(cuerpo.nombre ?? cuerpo.clave).slice(0, 80)}`)
-      sendJSON(res, quitada ? 200 : 404, quitada ? { ok: true, siempre: store.siempre() } : { error: 'Esa app ya no estaba en la lista.' })
+      if (quitada) anotar(tr('Levy vuelve a preguntar antes de usar {app}', { app: String(cuerpo.nombre ?? cuerpo.clave).slice(0, 80) }))
+      sendJSON(res, quitada ? 200 : 404, quitada ? { ok: true, siempre: store.siempre() } : { error: tr('Esa app ya no estaba en la lista.') })
       return true
     }
     const m = ruta.match(/^\/manos\/apps\/(pa_[0-9a-f]{12})$/)
-    if (req.method === 'GET' && m) { const e = store.estadoDe(m[1]); sendJSON(res, e ? 200 : 404, e ?? { error: 'No existe ese pedido de permiso.' }); return true }
-    sendJSON(res, 404, { error: 'Ruta desconocida.' })
+    if (req.method === 'GET' && m) { const e = store.estadoDe(m[1]); sendJSON(res, e ? 200 : 404, e ?? { error: tr('No existe ese pedido de permiso.') }); return true }
+    sendJSON(res, 404, { error: tr('Ruta desconocida.') })
     return true
   }
   if (req.method === 'GET' && ruta === '/manos/estado') {
@@ -1018,7 +1022,7 @@ async function rutasCliente(req: IncomingMessage, res: ServerResponse, ruta: str
   if (ruta === '/manos/interruptor' && !computerUseDisponible()) {
     // Linux cliente: no hay interruptor. Leer dice «apagado, no disponible»; cualquier POST, 403.
     if (req.method === 'GET') { sendJSON(res, 200, { encendido: false, disponible: false, decision: null }); return true }
-    sendJSON(res, 403, { error: 'Computer use no está disponible en este sistema.', code: 'no_disponible' })
+    sendJSON(res, 403, { error: tr('Computer use no está disponible en este sistema.'), code: 'no_disponible' })
     return true
   }
   if (ruta === '/manos/interruptor') {
@@ -1027,8 +1031,8 @@ async function rutasCliente(req: IncomingMessage, res: ServerResponse, ruta: str
     const { leerInterruptor, fijarInterruptor } = await import('./manos/politica.js')
     if (req.method === 'GET') { sendJSON(res, 200, { encendido: computerUseEncendido(), disponible: true, decision: leerInterruptor() }); return true }
     if (req.method === 'POST') {
-      if (typeof cuerpo.encendido !== 'boolean') { sendJSON(res, 400, { error: 'encendido (boolean) requerido.' }); return true }
-      if (cuerpo.encendido && !secretoApp()) { sendJSON(res, 403, { error: 'Solo la persona, desde la app, puede encender computer use.' }); return true }
+      if (typeof cuerpo.encendido !== 'boolean') { sendJSON(res, 400, { error: tr('encendido (boolean) requerido.') }); return true }
+      if (cuerpo.encendido && !secretoApp()) { sendJSON(res, 403, { error: tr('Solo la persona, desde la app, puede encender computer use.') }); return true }
       sendJSON(res, 200, { encendido: fijarInterruptor(cuerpo.encendido, 'app').encendido })
       return true
     }
@@ -1036,7 +1040,7 @@ async function rutasCliente(req: IncomingMessage, res: ServerResponse, ruta: str
   // «Lo que hizo Levy» y «Pausar todo» (seguridad del alumno, 12 oct 2026). Solo la app (el pase recibe 403 antes).
   if (req.method === 'GET' && ruta === '/bitacora') {
     const b = bitacoraDelDaemon()
-    if (!b) { sendJSON(res, 503, { error: 'Bitácora no iniciada.' }); return true }
+    if (!b) { sendJSON(res, 503, { error: tr('Bitácora no iniciada.') }); return true }
     const limite = Number(new URL(req.url ?? '/', 'http://x').searchParams.get('limite') ?? 200)
     sendJSON(res, 200, { acciones: b.ultimas(limite), pausa: estadoPausa() })
     return true
@@ -1059,16 +1063,16 @@ async function rutasCliente(req: IncomingMessage, res: ServerResponse, ruta: str
     if (req.method === 'POST' && cuerpo.retirar === true) {
       const antes = estadoPermisos()
       const r = retirarConsentimiento({ via: cuerpo.via })
-      if (r.ok && r.cambio) anotar(`Consentimiento del modo «${NOMBRE_MODO.autonomo}» retirado (${antes.consentimiento ? `texto ${antes.consentimiento.version}` : 'sin texto guardado'}): Levy queda en «${NOMBRE_MODO.carpeta}»`)
+      if (r.ok && r.cambio) anotar(tr('Consentimiento del modo «{modo}» retirado ({texto}): Levy queda en «{nuevo}»', { modo: tr(NOMBRE_MODO.autonomo), texto: antes.consentimiento ? tr('texto {version}', { version: antes.consentimiento.version }) : tr('sin texto guardado'), nuevo: tr(NOMBRE_MODO.carpeta) }))
       sendJSON(res, r.ok ? 200 : r.status, r.ok ? respuesta() : { error: r.error })
       return true
     }
     if (req.method === 'POST' && cuerpo.misDatos !== undefined) {
       // A13: un destino «propio» deja pasar envíos sin tarjeta R6; solo la persona desde la app lo guarda, nunca un agente.
-      if (!secretoApp()) { sendJSON(res, 403, { error: 'Solo la persona, desde la app, puede guardar sus datos.' }); return true }
+      if (!secretoApp()) { sendJSON(res, 403, { error: tr('Solo la persona, desde la app, puede guardar sus datos.') }); return true }
       const r = guardarMisDatos(cuerpo.misDatos)
       if (!r.ok) { sendJSON(res, 400, { error: r.error }); return true }
-      anotar(`Tus datos para mandarte mensajes: ${r.estado.misDatos.telefono ? 'teléfono guardado' : 'sin teléfono'}, ${r.estado.misDatos.correo ? 'correo guardado' : 'sin correo'}`)
+      anotar(tr('Tus datos para mandarte mensajes: {telefono}, {correo}', { telefono: r.estado.misDatos.telefono ? tr('teléfono guardado') : tr('sin teléfono'), correo: r.estado.misDatos.correo ? tr('correo guardado') : tr('sin correo') }))
       sendJSON(res, 200, respuesta())
       return true
     }
@@ -1078,15 +1082,15 @@ async function rutasCliente(req: IncomingMessage, res: ServerResponse, ruta: str
       return true
     }
     if (req.method === 'POST') {
-      if (!esModo(cuerpo.modo)) { sendJSON(res, 400, { error: 'modo: «preguntar», «carpeta» o «autonomo».' }); return true }
-      if (cuerpo.modo !== 'preguntar' && !secretoApp()) { sendJSON(res, 403, { error: 'Solo la persona, desde la app, puede cambiar los permisos de Levy.' }); return true }
+      if (!esModo(cuerpo.modo)) { sendJSON(res, 400, { error: tr('modo: «preguntar», «carpeta» o «autonomo».') }); return true }
+      if (cuerpo.modo !== 'preguntar' && !secretoApp()) { sendJSON(res, 403, { error: tr('Solo la persona, desde la app, puede cambiar los permisos de Levy.') }); return true }
       const antes = estadoPermisos()
       const acepto = cuerpo.acepto && typeof cuerpo.acepto === 'object' ? cuerpo.acepto as Record<string, unknown> : null
       const r = cambiarModoPermisos(cuerpo.modo, { via: cuerpo.via, ...(acepto ? { acepto: { version: acepto.version, sha256: acepto.sha256, app: cuerpo.app, so: process.platform } } : {}) })
       if (!r.ok) { sendJSON(res, r.status, { error: r.error, code: r.code, texto: textoAutonomia() }); return true }
       const e = r.estado
-      if (acepto && e.consentimiento && e.modo === 'autonomo') anotar(`Modo «${NOMBRE_MODO.autonomo}» aceptado (texto ${e.consentimiento.version}, huella ${e.consentimiento.sha256.slice(0, 12)}…, Arbrain ${e.consentimiento.app || '?'}, ${e.consentimiento.so}, por ${e.consentimiento.via}): Levy actúa sin pedir clic salvo la red mínima (dinero, secretos, su gobierno, borrados masivos, envíos masivos y destinos no pedidos tras leer afuera)`)
-      else if (antes.modo !== e.modo) anotar(`Permisos de Levy: «${NOMBRE_MODO[antes.modo]}» → «${NOMBRE_MODO[e.modo]}»${typeof cuerpo.via === 'string' ? ` (desde ${cuerpo.via})` : ''}`)
+      if (acepto && e.consentimiento && e.modo === 'autonomo') anotar(tr('Modo «{modo}» aceptado (texto {version}, huella {huella}…, Arbrain {app}, {so}, por {via}): Levy actúa sin pedir clic salvo la red mínima (dinero, secretos, su gobierno, borrados masivos, envíos masivos y destinos no pedidos tras leer afuera)', { modo: tr(NOMBRE_MODO.autonomo), version: e.consentimiento.version, huella: e.consentimiento.sha256.slice(0, 12), app: e.consentimiento.app || '?', so: e.consentimiento.so, via: e.consentimiento.via }))
+      else if (antes.modo !== e.modo) anotar(typeof cuerpo.via === 'string' ? tr('Permisos de Levy: «{antes}» → «{ahora}» (desde {via})', { antes: tr(NOMBRE_MODO[antes.modo]), ahora: tr(NOMBRE_MODO[e.modo]), via: cuerpo.via }) : tr('Permisos de Levy: «{antes}» → «{ahora}»', { antes: tr(NOMBRE_MODO[antes.modo]), ahora: tr(NOMBRE_MODO[e.modo]) }))
       sendJSON(res, 200, respuesta())
       return true
     }
@@ -1095,20 +1099,20 @@ async function rutasCliente(req: IncomingMessage, res: ServerResponse, ruta: str
   if (ruta === '/carpetas') {
     if (req.method === 'GET') { sendJSON(res, 200, { carpetas: carpetasAbiertas() }); return true }
     if (req.method === 'POST' && cuerpo.accion === 'abrir') {
-      if (!secretoApp()) { sendJSON(res, 403, { error: 'Solo la persona, desde la app, puede abrir una carpeta.' }); return true }
+      if (!secretoApp()) { sendJSON(res, 403, { error: tr('Solo la persona, desde la app, puede abrir una carpeta.') }); return true }
       const ctx = contextoPolitica()
       const r = abrirCarpeta(cuerpo.ruta, { usuario: ctx.usuario, home: ctx.home, protegidas: ctx.protegidas, motivoSecreto: real => motivoRutaSecreta(real, { ...ctx, lecturaExtra: [] }) })
-      if (r.ok) bitacoraDelDaemon()?.anotar({ herramienta: 'Arbrain', que: `Abrir carpeta para Levy: ${String(cuerpo.ruta)}`, decision: 'confirmado' })
+      if (r.ok) bitacoraDelDaemon()?.anotar({ herramienta: 'Arbrain', que: tr('Abrir carpeta para Levy: {ruta}', { ruta: String(cuerpo.ruta) }), decision: 'confirmado' })
       sendJSON(res, r.ok ? 200 : 400, r.ok ? { carpetas: r.carpetas } : { error: r.error })
       return true
     }
     if (req.method === 'POST' && cuerpo.accion === 'cerrar') {
       const carpetas = cerrarCarpeta(cuerpo.ruta)
-      bitacoraDelDaemon()?.anotar({ herramienta: 'Arbrain', que: `Cerrar carpeta: ${String(cuerpo.ruta)}`, decision: 'hecho' })
+      bitacoraDelDaemon()?.anotar({ herramienta: 'Arbrain', que: tr('Cerrar carpeta: {ruta}', { ruta: String(cuerpo.ruta) }), decision: 'hecho' })
       sendJSON(res, 200, { carpetas })
       return true
     }
-    sendJSON(res, 400, { error: 'accion: «abrir» o «cerrar».' })
+    sendJSON(res, 400, { error: tr('accion: «abrir» o «cerrar».') })
     return true
   }
   // Tope de gasto (punto 3): lo que el proveedor deja ver con la llave del alumno (OpenRouter /api/v1/key).
@@ -1120,17 +1124,17 @@ async function rutasCliente(req: IncomingMessage, res: ServerResponse, ruta: str
   if (ruta === '/pausa') {
     if (req.method === 'GET') { sendJSON(res, 200, estadoPausa()); return true }
     if (req.method === 'POST') {
-      if (typeof cuerpo.pausado !== 'boolean') { sendJSON(res, 400, { error: 'pausado (boolean) requerido.' }); return true }
+      if (typeof cuerpo.pausado !== 'boolean') { sendJSON(res, 400, { error: tr('pausado (boolean) requerido.') }); return true }
       if (cuerpo.pausado) {
         const detenidos = pausar()
-        bitacoraDelDaemon()?.anotar({ herramienta: 'Arbrain', que: `Pausar todo (${detenidos} en curso detenidos)`, decision: 'pausado' })
+        bitacoraDelDaemon()?.anotar({ herramienta: 'Arbrain', que: tr('Pausar todo ({n} en curso detenidos)', { n: detenidos }), decision: 'pausado' })
         sendJSON(res, 200, { ...estadoPausa(), detenidos })
         return true
       }
       // Reanudar es de la persona (secreto de la app), nunca de un agente.
-      if (!secretoApp()) { sendJSON(res, 403, { error: 'Solo la persona, desde la app, puede reanudar.' }); return true }
+      if (!secretoApp()) { sendJSON(res, 403, { error: tr('Solo la persona, desde la app, puede reanudar.') }); return true }
       reanudar()
-      bitacoraDelDaemon()?.anotar({ herramienta: 'Arbrain', que: 'Reanudar', decision: 'hecho' })
+      bitacoraDelDaemon()?.anotar({ herramienta: 'Arbrain', que: tr('Reanudar'), decision: 'hecho' })
       sendJSON(res, 200, estadoPausa())
       return true
     }
@@ -1139,20 +1143,20 @@ async function rutasCliente(req: IncomingMessage, res: ServerResponse, ruta: str
   // ajustar exigen el secreto de la app (el modelo no puede activarlo); desconectar, cualquiera.
   if (ruta === '/progreso' || ruta.startsWith('/progreso/')) {
     const p = progresoDelDaemon()
-    if (!p) { sendJSON(res, 503, { error: 'Conexión con arbrain.ai no iniciada.' }); return true }
+    if (!p) { sendJSON(res, 503, { error: tr('Conexión con arbrain.ai no iniciada.') }); return true }
     if (req.method === 'GET' && ruta === '/progreso') { sendJSON(res, 200, p.resumen()); return true }
     if (req.method === 'POST' && ruta === '/progreso/desconectar') { p.desconectar(); sendJSON(res, 200, p.resumen()); return true }
     // Conectar de un clic (1 nov 2026): pide el vínculo a arbrain.ai y espera en segundo plano a que el alumno lo
     // confirme en su navegador; el token llega directo de arbrain.ai al daemon. Solo la persona, desde la app.
     if (req.method === 'POST' && ruta === '/progreso/vincular') {
-      if (!secretoApp()) { sendJSON(res, 403, { error: 'Solo la persona, desde la app, puede conectar.' }); return true }
+      if (!secretoApp()) { sendJSON(res, 403, { error: tr('Solo la persona, desde la app, puede conectar.') }); return true }
       const r = await p.vincular(cuerpo.url)
       if (r.resultado === 'esperando') void p.esperarVinculo().then(v => logger.info({ estado: v }, 'progreso: vínculo de un clic'))
       sendJSON(res, 200, { resultado: r.resultado, ...(r.detalle ? { detalle: r.detalle } : {}), ...p.resumen() })
       return true
     }
     if (req.method === 'POST' && (ruta === '/progreso/conectar' || ruta === '/progreso/ajustes' || ruta === '/progreso/enviar')) {
-      if (!secretoApp()) { sendJSON(res, 403, { error: 'Solo la persona, desde la app, puede conectar o enviar.' }); return true }
+      if (!secretoApp()) { sendJSON(res, 403, { error: tr('Solo la persona, desde la app, puede conectar o enviar.') }); return true }
       // «Enviar ahora» también trae el expediente (en paralelo: los dos plazos caben en el de la ruta).
       if (ruta === '/progreso/enviar') { const [r, e, k] = await Promise.all([p.enviar(true), p.traerExpediente(true), p.traerCamino(true)]); sendJSON(res, 200, { ...r, expediente_ahora: e.resultado, camino_ahora: k.resultado, ...p.resumen() }); return true }
       const r = ruta === '/progreso/conectar' ? p.conectar(cuerpo.token, cuerpo.url, cuerpo.compartir_texto) : p.ajustes(cuerpo)
@@ -1165,17 +1169,17 @@ async function rutasCliente(req: IncomingMessage, res: ServerResponse, ruta: str
       sendJSON(res, r.ok ? 200 : 400, r.ok ? p.resumen() : { error: r.error })
       return true
     }
-    sendJSON(res, 404, { error: 'Ruta desconocida.' })
+    sendJSON(res, 404, { error: tr('Ruta desconocida.') })
     return true
   }
   if (ruta === '/cohorte' || ruta.startsWith('/cohorte/')) {
     const c = cohorteDelDaemon()
-    if (!c) { sendJSON(res, 503, { error: 'Cohorte no iniciada.' }); return true }
+    if (!c) { sendJSON(res, 503, { error: tr('Cohorte no iniciada.') }); return true }
     if (req.method === 'GET' && ruta === '/cohorte') { sendJSON(res, 200, c.resumen()); return true }
     if (req.method === 'POST' && ruta === '/cohorte/consentimiento') {
       const acepto = cuerpo.acepto === true
       // Dar el consentimiento es de la persona (secreto de la app); quitarlo, de cualquiera.
-      if (acepto && !secretoApp()) { sendJSON(res, 403, { error: 'Solo la persona, desde la app, puede dar su consentimiento.' }); return true }
+      if (acepto && !secretoApp()) { sendJSON(res, 403, { error: tr('Solo la persona, desde la app, puede dar su consentimiento.') }); return true }
       c.fijarConsentimiento(acepto)
       if (acepto) void c.enviar().then(r => logger.info({ resultado: r }, 'cohorte: envío tras consentimiento'))
       sendJSON(res, 200, c.resumen())
@@ -1186,7 +1190,7 @@ async function rutasCliente(req: IncomingMessage, res: ServerResponse, ruta: str
       sendJSON(res, r.ok ? 200 : 400, r.ok ? r : { error: r.error })
       return true
     }
-    sendJSON(res, 404, { error: 'Ruta desconocida.' })
+    sendJSON(res, 404, { error: tr('Ruta desconocida.') })
     return true
   }
   return false
@@ -1197,7 +1201,7 @@ async function rutasCliente(req: IncomingMessage, res: ServerResponse, ruta: str
 async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
   setCORSHeaders(res)
   // Seguridad del alumno (12 oct 2026): contra DNS rebinding, el daemon cliente solo atiende su propio Host de loopback.
-  if (esEdicionCliente() && !hostLocalValido(req.headers.host, PORT)) { sendJSON(res, 403, { error: 'Host no permitido.' }); return }
+  if (esEdicionCliente() && !hostLocalValido(req.headers.host, PORT)) { sendJSON(res, 403, { error: tr('Host no permitido.') }); return }
 
   if (req.method === 'OPTIONS') {
     res.writeHead(204)
@@ -1232,9 +1236,9 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     // Red team 3 A-4: autorizar y despachar sobre la MISMA ruta. Una ruta no canónica (`..`, `//`, `%2e`, `#`…) no
     // la manda nadie legítimo: 403 para todos, antes de la lista del pase y del router.
     const ruta = rutaCanonica(req.url)
-    if (ruta === null) { sendJSON(res, 403, { error: 'Ruta no canónica.' }); return }
+    if (ruta === null) { sendJSON(res, 403, { error: tr('Ruta no canónica.') }); return }
     if (conPase && rutaSoloApp(req.method, ruta)) {
-      sendJSON(res, 403, { error: 'Solo la app puede usar esta ruta.' })
+      sendJSON(res, 403, { error: tr('Solo la app puede usar esta ruta.') })
       return
     }
   }
@@ -1257,12 +1261,12 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     const ac = new AbortController(); res.on('close', () => ac.abort())
     try {
       const chunks: Buffer[] = []; let size = 0
-      for await (const chunk of req) { const bytes = Buffer.from(chunk); size += bytes.length; if (size > 26 * 1024 * 1024) throw new TranscriptionError('audio_too_large', 'La grabación supera el límite.', 413); chunks.push(bytes) }
+      for await (const chunk of req) { const bytes = Buffer.from(chunk); size += bytes.length; if (size > 26 * 1024 * 1024) throw new TranscriptionError('audio_too_large', tr('La grabación supera el límite.'), 413); chunks.push(bytes) }
       const form = await new Request('http://localhost/live/transcribe', { method: 'POST', headers: { 'Content-Type': req.headers['content-type'] ?? '' }, body: new Uint8Array(Buffer.concat(chunks)) }).formData()
-      const audio = form.get('audio'); if (!(audio instanceof Blob)) throw new TranscriptionError('missing_audio', 'Falta la grabación.', 400)
-      sendJSON(res, 200, await transcribe(audio, proveedoresVoz(esEdicionCliente(), readEnvFile), ac.signal))
+      const audio = form.get('audio'); if (!(audio instanceof Blob)) throw new TranscriptionError('missing_audio', tr('Falta la grabación.'), 400)
+      sendJSON(res, 200, await transcribe(audio, proveedoresVoz(esEdicionCliente(), readEnvFile), ac.signal, fetch, idiomaActual()))
     } catch (error) {
-      if (!res.destroyed) sendJSON(res, error instanceof TranscriptionError ? error.status : 400, { error: error instanceof TranscriptionError ? error.message : 'No se pudo leer la grabación.', code: error instanceof TranscriptionError ? error.code : 'invalid_audio' })
+      if (!res.destroyed) sendJSON(res, error instanceof TranscriptionError ? error.status : 400, { error: error instanceof TranscriptionError ? tr(error.clave, error.vars) : tr('No se pudo leer la grabación.'), code: error instanceof TranscriptionError ? error.code : 'invalid_audio' })
     }
     return
   }
@@ -1277,7 +1281,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
   const reqPath = reqUrl.pathname
   if (esEdicionCliente()) {
     // Contrato §8: lo que solo existe en la instalación de Daniel no se importa ni se ejecuta.
-    if (rutaSoloDaniel(req.method, reqPath, parsed)) { sendJSON(res, 404, { error: MENSAJE_NO_DISPONIBLE }); return }
+    if (rutaSoloDaniel(req.method, reqPath, parsed)) { sendJSON(res, 404, { error: tr(MENSAJE_NO_DISPONIBLE) }); return }
     if (await rutasCliente(req, res, reqPath, parsed)) return
   }
   // Autonomía v2: la bandeja de decisiones única (las dos ediciones) y las confirmaciones de manos en la original.
@@ -1327,8 +1331,8 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     // dispositivo. Tras la misma autenticación bearer del daemon.
     try {
       if (parsed.que === 'negocio') { const { libroDelNegocio } = await import('./cabina/negocio.js'); sendJSON(res, 200, await libroDelNegocio({ conTexto: parsed.conTexto === true })); return }
-      if (parsed.que === 'salida' && typeof parsed.tarea === 'string') { const { salidaDe } = await import('./cabina/internos.js'); const { tachar } = await import('./cabina/cuerpo.js'); try { sendJSON(res, 200, await salidaDe(parsed.tarea, typeof parsed.lineas === 'number' ? Math.min(Math.max(parsed.lineas, 5), 200) : 80, tachar)) } catch (e) { sendJSON(res, 404, { error: e instanceof Error ? e.message : 'Sin salida.' }) } return }
-      if (parsed.que === 'panel') { const { sincronizar } = await import('./cabina/panel-bus.js'); try { sendJSON(res, 200, sincronizar(parsed as unknown as import('./cabina/panel-bus.js').Sincronizacion)) } catch (e) { sendJSON(res, 400, { error: e instanceof Error ? e.message : 'Sincronización inválida.' }) } return }
+      if (parsed.que === 'salida' && typeof parsed.tarea === 'string') { const { salidaDe } = await import('./cabina/internos.js'); const { tachar } = await import('./cabina/cuerpo.js'); try { sendJSON(res, 200, await salidaDe(parsed.tarea, typeof parsed.lineas === 'number' ? Math.min(Math.max(parsed.lineas, 5), 200) : 80, tachar)) } catch (e) { sendJSON(res, 404, { error: e instanceof Error ? e.message : tr('Sin salida.') }) } return }
+      if (parsed.que === 'panel') { const { sincronizar } = await import('./cabina/panel-bus.js'); try { sendJSON(res, 200, sincronizar(parsed as unknown as import('./cabina/panel-bus.js').Sincronizacion)) } catch (e) { sendJSON(res, 400, { error: e instanceof Error ? e.message : tr('Sincronización inválida.') }) } return }
       if (parsed.que === 'panel-ajustes') { const { accionPanelAjustes } = await import('./cabina/panel-ajustes.js'); const r = accionPanelAjustes(parsed); sendJSON(res, 'error' in r ? r.status : 200, 'error' in r ? { error: r.error } : r); return }
       // Modo directo (7 nov 2026): el interruptor de Ajustes y ⌘⇧D; con el modo prendido, `leer` trae los nombres que la app tapa.
       if (parsed.que === 'modo-directo') { const { accionModoDirecto } = await import('./cabina/modo-directo.js'); const r = accionModoDirecto(parsed); sendJSON(res, 'error' in r ? r.status : 200, 'error' in r ? { error: r.error } : r); return }
@@ -1371,7 +1375,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
         sendJSON(res, r ? 200 : 404, r ?? { error: 'Ese agente no corre sin pantalla.' }); return
       }
       // Tablero de agentes (27 oct 2026): Detener y Responder desde el Taller, por la misma vía que usa Levy.
-      if (parsed.que === 'detener' || parsed.que === 'responder' || parsed.que === 'comentarios' || parsed.que === 'correr-plan' || parsed.que === 'descartar-plan') {
+      if (parsed.que === 'detener' || parsed.que === 'cerrar' || parsed.que === 'recibido' || parsed.que === 'responder' || parsed.que === 'comentarios' || parsed.que === 'correr-plan' || parsed.que === 'descartar-plan') {
         const { pedidoTablero, accionTablero } = await import('./cabina/acciones-tablero.js')
         const pedido = pedidoTablero(parsed)
         if ('error' in pedido) { sendJSON(res, 400, { error: pedido.error }); return }
@@ -1389,8 +1393,8 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
       // Edición cliente (29 oct 2026): solo SUS subagentes del SDK y comandos de fondo (cabina/trabajos-cliente.ts).
       if (parsed.que === 'trabajos' && esEdicionCliente()) { const { trabajosCliente } = await import('./cabina/trabajos-cliente.js'); sendJSON(res, 200, await trabajosCliente()); return }
       if (parsed.que === 'trabajos') { const { trabajos } = await import('./cabina/cuerpo.js'); sendJSON(res, 200, await trabajos(typeof parsed.lineas === 'number' ? Math.min(Math.max(parsed.lineas, 2), 30) : 6)); return }
-      sendJSON(res, 400, { error: 'Vista desconocida.' })
-    } catch (error) { sendJSON(res, 503, { error: error instanceof Error ? error.message : 'No se pudo leer la vista.' }) }
+      sendJSON(res, 400, { error: tr('Vista desconocida.') })
+    } catch (error) { sendJSON(res, 503, { error: error instanceof Error ? error.message : tr('No se pudo leer la vista.') }) }
     return
   }
   if (req.method === 'POST' && reqPath === '/planning') {
@@ -1412,7 +1416,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
         { default: join(homedir(), '.claude', 'projects'), ...proyectosAlternos() })
       access.read()
       readQueryControls = access.read
-    } catch (error) { sendJSON(res, 409, { error: error instanceof Error ? error.message : 'No se pudieron resolver los ajustes.' }); return }
+    } catch (error) { sendJSON(res, 409, { error: error instanceof Error ? error.message : tr('No se pudieron resolver los ajustes.') }); return }
   }
 
   // GET /modelos/registro — registro de modelos y proveedores (motor estándar, 2 oct 2026). Solo nombres de
@@ -1428,7 +1432,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
   if (reqPath === '/modelos/catalogo' && (req.method === 'GET' || req.method === 'POST')) {
     try {
       let errorClaude: string | null = null
-      const claude = await claudeCatalog.read('default').catch((e: unknown) => { errorClaude = e instanceof Error ? e.message : 'sin respuesta'; return null })
+      const claude = await claudeCatalog.read('default').catch((e: unknown) => { errorClaude = e instanceof Error ? e.message : tr('sin respuesta'); return null })
       const entorno = {
         openrouter: await consultarOpenRouter(), habilitados: leerHabilitados(getDb()), errorClaude,
         resolverClaude: (candidatos: string[]) => {
@@ -1441,12 +1445,12 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
         const id = typeof parsed.id === 'string' ? parsed.id : ''
         const habilitado = parsed.habilitado === true
         const actual = catalogoPublico(entorno).modelos.find(m => m.id === id)
-        if (!actual) throw new Error('Ese modelo no está en el catálogo.')
-        if (habilitado && !actual.disponible) throw new Error(actual.motivo ?? 'Ese modelo no está disponible.')
+        if (!actual) throw new Error(tr('Ese modelo no está en el catálogo.'))
+        if (habilitado && !actual.disponible) throw new Error(actual.motivo ?? tr('Ese modelo no está disponible.'))
         entorno.habilitados = guardarHabilitado(getDb(), id, habilitado)
       }
       sendJSON(res, 200, catalogoPublico(entorno))
-    } catch (error) { sendJSON(res, 409, { error: error instanceof Error ? error.message : 'No se pudo leer el catálogo de modelos.' }) }
+    } catch (error) { sendJSON(res, 409, { error: error instanceof Error ? error.message : tr('No se pudo leer el catálogo de modelos.') }) }
     return
   }
 
@@ -1460,8 +1464,8 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
       const modelo = typeof parsed.modelo === 'string' && parsed.modelo && parsed.modelo !== 'default' ? parsed.modelo : null
       const esfuerzo = typeof parsed.esfuerzo === 'string' && parsed.esfuerzo && parsed.esfuerzo !== 'default' ? parsed.esfuerzo : null
       if (motor === null) { sendJSON(res, 200, { preferencia: guardarPreferencia(getDb(), preferenciaVacia()) }); return }
-      if (!esCuentaChat(motor)) throw new Error('Ese motor no existe.')
-      if (esCuentaApi(motor) && !motorApiEncendido()) throw new Error('El motor por API está apagado (ARBRAIN_MOTOR_API).')
+      if (!esCuentaChat(motor)) throw new Error(tr('Ese motor no existe.'))
+      if (esCuentaApi(motor) && !motorApiEncendido()) throw new Error(tr('El motor por API está apagado (ARBRAIN_MOTOR_API).'))
       let niveles: string[]
       if (isCodexAccount(motor)) {
         const modelos = await codexRuntime().models(motor)
@@ -1471,12 +1475,12 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
       } else {
         const catalog = await claudeCatalog.read(motor)
         const elegido = findClaudeModel(catalog.models, modelo ?? catalog.configuredModel)
-        if (!elegido || (modelo && elegido.value === 'default')) throw new Error('Ese modelo no está disponible en esta cuenta.')
+        if (!elegido || (modelo && elegido.value === 'default')) throw new Error(tr('Ese modelo no está disponible en esta cuenta.'))
         niveles = elegido.supportedEffortLevels ?? []
       }
-      if (esfuerzo && !niveles.includes(esfuerzo)) throw new Error('Ese esfuerzo no lo anuncia el modelo elegido.')
+      if (esfuerzo && !niveles.includes(esfuerzo)) throw new Error(tr('Ese esfuerzo no lo anuncia el modelo elegido.'))
       sendJSON(res, 200, { preferencia: guardarPreferencia(getDb(), { motor, modelo, esfuerzo }) })
-    } catch (error) { sendJSON(res, 409, { error: error instanceof Error ? error.message : 'No se pudo guardar la preferencia.' }) }
+    } catch (error) { sendJSON(res, 409, { error: error instanceof Error ? error.message : tr('No se pudo guardar la preferencia.') }) }
     return
   }
 
@@ -1487,12 +1491,12 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     if (!owner?.trim() || !esCuentaChat(account)) { sendJSON(res, 400, { error: 'Selection requires an explicit owner and known account.' }); return }
     // Prueba en Windows del 22 oct 2026 (punto 11): sin llave ni sesión, el catálogo de Claude no existe y esto decía
     // «No se pudo confirmar el modelo Claude». Se dice lo que de verdad falta, con su código, y la web lo muestra.
-    if (esCuentaClaude(account) && await faltaLlaveTrasConectar()) { sendJSON(res, 409, { error: MENSAJE_FALTA_LLAVE, code: CODIGO_FALTA_LLAVE }); return }
+    if (esCuentaClaude(account) && await faltaLlaveTrasConectar()) { sendJSON(res, 409, { error: tr(MENSAJE_FALTA_LLAVE), code: CODIGO_FALTA_LLAVE }); return }
     try {
       const intent = await captureChatIntent({ owner, account, conversationId }, readQueryControls,
         overrides => isCodexAccount(account) ? resolveCodexSelection(account, overrides as SessionOverrides) : resolveClaudeSelection(PROJECT_ROOT, account, overrides as SessionOverrides))
       sendJSON(res, 200, { intent })
-    } catch (error) { sendJSON(res, 409, { error: error instanceof Error ? error.message : 'No se pudo confirmar la selección.' }) }
+    } catch (error) { sendJSON(res, 409, { error: error instanceof Error ? error.message : tr('No se pudo confirmar la selección.') }) }
     return
   }
 
@@ -1527,9 +1531,9 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
       const override = readQueryControls().model
       const selected = findClaudeModel(catalog.models, override ?? catalog.configuredModel)
       const models = catalog.models.filter(model => model.value !== 'default').map(model => ({ ...model, supportedEfforts: model.supportedEffortLevels ?? [], contextWindow: null, contextSource: 'unavailable' }))
-      models.push({ value: 'default', displayName: 'Default de esta cuenta', description: 'Respeta la configuración de Claude. El modelo aplicado se confirma al ejecutar.', supportedEfforts: [], contextWindow: null, contextSource: 'unavailable' })
+      models.push({ value: 'default', displayName: tr('Default de esta cuenta'), description: tr('Respeta la configuración de Claude. El modelo aplicado se confirma al ejecutar.'), supportedEfforts: [], contextWindow: null, contextSource: 'unavailable' })
       sendJSON(res, 200, { models, current: override ? selected?.value ?? override : 'default', source: 'runtime', observedAt: catalog.observedAt })
-    } catch (error) { sendJSON(res, 503, { error: error instanceof Error ? error.message : 'No se pudo consultar Claude.' }) }
+    } catch (error) { sendJSON(res, 503, { error: error instanceof Error ? error.message : tr('No se pudo consultar Claude.') }) }
     return
   }
 
@@ -1558,7 +1562,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
       const catalog = await claudeCatalog.read(modelAccount ?? 'default')
       const selected = findClaudeModel(catalog.models, override ?? catalog.configuredModel)
       sendJSON(res, 200, { model: selected?.resolvedModel ?? override ?? null, override, displayName: selected?.displayName ?? (override ? modelDisplay(override) : null), default: findClaudeModel(catalog.models, catalog.configuredModel)?.resolvedModel ?? null, defaultDisplayName: null, source: 'runtime-settings', defaultPending: !selected })
-    } catch (error) { sendJSON(res, 503, { error: error instanceof Error ? error.message : 'No se pudo consultar Claude.' }) }
+    } catch (error) { sendJSON(res, 503, { error: error instanceof Error ? error.message : tr('No se pudo consultar Claude.') }) }
     return
   }
 
@@ -1573,11 +1577,11 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     const fuente = req.method === 'GET' ? Object.fromEntries(reqUrl.searchParams) as Record<string, unknown> : parsed
     const session = typeof fuente.session === 'string' ? fuente.session.trim() : ''
     const owner = typeof fuente.ownerId === 'string' ? fuente.ownerId.trim() : ''
-    if (!session || !owner) { sendJSON(res, 400, { error: 'Falta la conversación.' }); return }
+    if (!session || !owner) { sendJSON(res, 400, { error: tr('Falta la conversación.') }); return }
     const clave = EstadoMetas.clave({ owner, account: typeof fuente.account === 'string' && fuente.account ? fuente.account : 'default', conversationId: session })
     if (req.method === 'GET') { sendJSON(res, 200, { meta: estadoMetas.get(clave) }); return }
     const accion = parsed.accion
-    if (accion !== 'pausar' && accion !== 'reanudar' && accion !== 'quitar') { sendJSON(res, 400, { error: 'accion debe ser pausar, reanudar o quitar.' }); return }
+    if (accion !== 'pausar' && accion !== 'reanudar' && accion !== 'quitar') { sendJSON(res, 400, { error: tr('accion debe ser pausar, reanudar o quitar.') }); return }
     sendJSON(res, 200, { meta: estadoMetas.poner(clave, accion === 'reanudar' ? 'en_curso' : 'pausada') })
     return
   }
@@ -1586,7 +1590,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     const account = typeof parsed.account === 'string' && parsed.account ? parsed.account : 'default'
     const raw = typeof parsed.effort === 'string' ? parsed.effort.trim().toLowerCase() : ''
     const ultracode = typeof parsed.ultracode === 'boolean' ? parsed.ultracode : null
-    if (!session || (!raw && ultracode === null)) { sendJSON(res, 400, { error: 'Falta la conversación o el esfuerzo a aplicar.' }); return }
+    if (!session || (!raw && ultracode === null)) { sendJSON(res, 400, { error: tr('Falta la conversación o el esfuerzo a aplicar.') }); return }
     try {
       const controls = typeof parsed.ownerId === 'string' && parsed.ownerId.trim()
         ? nativeAwareControlAccess(getDb(), { owner: parsed.ownerId, account, conversationId: session }, { key: session, verifiedConversation: parsed.verifiedConversation === true }, parsed.verifiedNativeOwner === true,
@@ -1599,7 +1603,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
       sendJSON(res, 200, { current: effectiveEffort(updated.effort, levels), ultracode: updated.ultracode })
     } catch (error) {
       logger.error({ err: error }, 'POST /efforts error')
-      sendJSON(res, 409, { error: error instanceof Error ? error.message : 'No se pudo cambiar el esfuerzo.' })
+      sendJSON(res, 409, { error: error instanceof Error ? error.message : tr('No se pudo cambiar el esfuerzo.') })
     }
     return
   }
@@ -1608,14 +1612,14 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
   // de escribir, 2 oct 2026). Solo datos del proveedor; sin dato = available:false + motivo.
   if (req.method === 'GET' && reqPath === '/limits') {
     const account = reqUrl.searchParams.get('account') ?? 'default'
-    if (!['default', 'bro', 'codex', 'yt'].includes(account)) { sendJSON(res, 400, { error: 'Cuenta sin límites de plan (las cuentas por API no tienen suscripción).' }); return }
+    if (!['default', 'bro', 'codex', 'yt'].includes(account)) { sendJSON(res, 400, { error: tr('Cuenta sin límites de plan (las cuentas por API no tienen suscripción).') }); return }
     const codex = isCodexAccount(account)
     try {
       sendJSON(res, 200, codex
         ? await readCodexPlanLimits(account, async () => (await codexRuntime().connection(account)).request('account/rateLimits/read', {}, 8_000))
         : await readClaudePlanLimits(PROJECT_ROOT, account))
     } catch (error) {
-      sendJSON(res, 200, unavailableLimits(account, codex ? 'codex' : 'claude', error instanceof Error ? error.message.slice(0, 200) : 'No se pudo consultar al proveedor.'))
+      sendJSON(res, 200, unavailableLimits(account, codex ? 'codex' : 'claude', error instanceof Error ? error.message.slice(0, 200) : tr('No se pudo consultar al proveedor.')))
     }
     return
   }
@@ -1639,7 +1643,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
       const model = findClaudeModel(catalog.models, ov.model ?? catalog.configuredModel)
       const levels = model ? (model.supportedEffortLevels ?? []) : null
       sendJSON(res, 200, { efforts: (model?.supportedEffortLevels ?? []).map(value => ({ value, displayName: value })), current: effectiveEffort(ov.effort, levels), fast: ov.fast, ultracode: ov.ultracode, supportsUltracode: true, ultracodeSource: 'legacy', needsModelSelection: !model, defaultEffort: levels ? nearestEffort(levels) : DEFAULT_CHAT_EFFORT, defaultSource: 'app', defaultAvailable: true, source: 'runtime', observedAt: catalog.observedAt })
-    } catch (error) { sendJSON(res, 503, { error: error instanceof Error ? error.message : 'No se pudo consultar Claude.' }) }
+    } catch (error) { sendJSON(res, 503, { error: error instanceof Error ? error.message : tr('No se pudo consultar Claude.') }) }
     return
   }
 
@@ -1750,7 +1754,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     const account = reqUrl.searchParams.get('account')?.trim() || 'default'
     if (!esCuentaChat(account)) { sendJSON(res, 400, { error: 'Unknown chat account' }); return }
     try { sendJSON(res, 200, await commandCatalog.get(account)) }
-    catch (err) { logger.error({ err, account }, 'command catalog error'); sendJSON(res, 500, { error: 'No se pudo armar el catálogo de comandos.' }) }
+    catch (err) { logger.error({ err, account }, 'command catalog error'); sendJSON(res, 500, { error: tr('No se pudo armar el catálogo de comandos.') }) }
     return
   }
 
@@ -1781,7 +1785,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
       const { llaveLemonfox } = await import('./cliente/cofre.js')
       const leido = text.slice(0, 5000)
       const r = await hablarLemonfox(leido, tempo, llaveLemonfox(), fetch, { marcas: parsed['marcas'] === true, llaveGroq: llaveVoz() })
-      if (!r) { sendJSON(res, 503, { error: 'Sin voz de servidor: la app lee con la voz del sistema.', code: 'sin_voz_servidor' }); return }
+      if (!r) { sendJSON(res, 503, { error: tr('Sin voz de servidor: la app lee con la voz del sistema.'), code: 'sin_voz_servidor' }); return }
       if (!r.ok) { sendJSON(res, r.status, { error: r.error, code: 'voz_proveedor' }); return }
       const tabla = r.marcas ? JSON.stringify({ v: 1, n: leido.length, m: r.marcas }) : ''
       res.writeHead(200, {
@@ -1865,7 +1869,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
         if (typeof id !== 'string' || !id) { sendJSON(res, 400, { error: 'id requerido' }); return }
         sendJSON(res, 200, { ok: despertadores!.cancelar(scope, id) })
       } else sendJSON(res, 200, { despertadores: despertadores!.listar(scope) })
-    } catch (error) { sendJSON(res, error instanceof DespertadorInvalido ? 400 : 500, { error: error instanceof Error ? error.message : 'No se pudo leer los despertadores.' }) }
+    } catch (error) { sendJSON(res, error instanceof DespertadorInvalido ? 400 : 500, { error: error instanceof Error ? error.message : tr('No se pudo leer los despertadores.') }) }
     return
   }
 
@@ -1899,7 +1903,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
       sendJSON(res, 200, result)
     } catch (error) {
       if (error instanceof ForkRejected) sendJSON(res, error.status, { error: error.message })
-      else sendJSON(res, 500, { error: error instanceof Error ? error.message : 'No se pudo bifurcar la conversación' })
+      else sendJSON(res, 500, { error: error instanceof Error ? error.message : tr('No se pudo bifurcar la conversación') })
     }
     return
   }
@@ -1913,7 +1917,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     const dirRespaldos = join(STORE_DIR, 'deshacer')
     if (req.url === '/chat/rehacer') {
       if (typeof respaldoId !== 'string') { sendJSON(res, 400, { error: 'respaldoId es obligatorio' }); return }
-      try { sendJSON(res, 200, rehacer(dirRespaldos, respaldoId, scope)) } catch (error) { sendJSON(res, 500, { ok: false, error: error instanceof Error ? error.message : 'No se pudo rehacer' }) }
+      try { sendJSON(res, 200, rehacer(dirRespaldos, respaldoId, scope)) } catch (error) { sendJSON(res, 500, { ok: false, error: error instanceof Error ? error.message : tr('No se pudo rehacer') }) }
       return
     }
     if (typeof turnId !== 'string' || !turnId) { sendJSON(res, 400, { error: 'turnId es obligatorio' }); return }
@@ -1936,7 +1940,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
       sendJSON(res, 200, vista)
     } catch (error) {
       logger.warn({ err: error, turnId }, 'deshacer: falló')
-      sendJSON(res, 500, { ok: false, archivos: [], inserciones: 0, borrados: 0, motivo: 'sdk', error: error instanceof Error ? error.message : 'No se pudo deshacer' })
+      sendJSON(res, 500, { ok: false, archivos: [], inserciones: 0, borrados: 0, motivo: 'sdk', error: error instanceof Error ? error.message : tr('No se pudo deshacer') })
     }
     return
   }
@@ -2025,7 +2029,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     // BYOK (contrato §4): en la edición cliente, sin llave de Claude no se lanza el agente; error claro y se cierra.
     if (esCuentaClaude(parsed['account']) && await faltaLlaveTrasConectar()) {
       res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive', 'Access-Control-Allow-Origin': ALLOWED_ORIGIN, 'Access-Control-Allow-Headers': 'Content-Type, Authorization' })
-      res.write(`data: ${JSON.stringify({ type: 'error', code: CODIGO_FALTA_LLAVE, message: MENSAJE_FALTA_LLAVE })}\n\n`)
+      res.write(`data: ${JSON.stringify({ type: 'error', code: CODIGO_FALTA_LLAVE, message: tr(MENSAJE_FALTA_LLAVE) })}\n\n`)
       res.end()
       return
     }
@@ -2052,7 +2056,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
           { key: sessionKey, verifiedConversation: parsed.verifiedConversation === true }, parsed.verifiedNativeOwner === true,
           { default: proyectosClaudeDefault(), ...proyectosAlternos() })
         : { read: () => getChatOverrides(sessionKey), patch: (patch: Parameters<typeof setChatOverrides>[1]) => setChatOverrides(sessionKey, patch) }
-    } catch (error) { sendJSON(res, 409, { error: error instanceof Error ? error.message : 'No se pudieron verificar los ajustes.' }); return }
+    } catch (error) { sendJSON(res, 409, { error: error instanceof Error ? error.message : tr('No se pudieron verificar los ajustes.') }); return }
     const modelMatch = message.match(/^\/model\s+(.+)$/i)
     if (modelMatch) {
       const modelName = modelMatch[1].trim()
@@ -2074,7 +2078,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
         })
         const engine = spaceIsCodex ? 'OpenAI (Codex)' : 'Anthropic (Claude)'
         const other = spaceIsCodex ? 'Anthropic' : 'OpenAI'
-        const text = `**${modelName}** es un modelo de ${other} y esta conversación corre en ${engine}. El modelo no cambió. Para usarlo, abre una conversación en el espacio del otro motor.`
+        const text = tr('**{modelo}** es un modelo de {otro} y esta conversación corre en {motor}. El modelo no cambió. Para usarlo, abre una conversación en el espacio del otro motor.', { modelo: modelName, otro: other, motor: engine })
         res.write(`data: ${JSON.stringify({ type: 'text_delta', text })}\n\n`)
         res.write(`data: ${JSON.stringify({ type: 'result', text })}\n\n`)
         res.end()
@@ -2112,8 +2116,8 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
           }
           const defDisplay = def ? modelDisplay(def) : null
           const text = defDisplay
-            ? `Modelo reseteado al **default del sistema** (${defDisplay}) en esta conversación. Aplica desde tu próximo mensaje.`
-            : 'Modelo reseteado al **default del sistema** en esta conversación. El próximo mensaje lo resuelve y el header lo refleja.'
+            ? tr('Modelo reseteado al **default del sistema** ({modelo}) en esta conversación. Aplica desde tu próximo mensaje.', { modelo: defDisplay })
+            : tr('Modelo reseteado al **default del sistema** en esta conversación. El próximo mensaje lo resuelve y el header lo refleja.')
           res.write(`data: ${JSON.stringify({ type: 'model_changed', model: null, resolved: def, display: defDisplay })}\n\n`)
           res.write(`data: ${JSON.stringify({ type: 'text_delta', text })}\n\n`)
           res.write(`data: ${JSON.stringify({ type: 'result', text })}\n\n`)
@@ -2121,8 +2125,8 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
           const display = modelDisplay(modelName)
           const known = modelBase(modelName) in MODEL_DISPLAY_NAMES
           const text = known
-            ? `Modelo cambiado a **${display}** para esta conversación. Aplica desde tu próximo mensaje. Las demás conversaciones no cambian.`
-            : `Modelo cambiado a **${display}** para esta conversación. La selección fue validada con el runtime de esta cuenta.`
+            ? tr('Modelo cambiado a **{modelo}** para esta conversación. Aplica desde tu próximo mensaje. Las demás conversaciones no cambian.', { modelo: display })
+            : tr('Modelo cambiado a **{modelo}** para esta conversación. La selección fue validada con el runtime de esta cuenta.', { modelo: display })
           res.write(`data: ${JSON.stringify({ type: 'model_changed', model: modelName, display })}\n\n`)
           res.write(`data: ${JSON.stringify({ type: 'text_delta', text })}\n\n`)
           res.write(`data: ${JSON.stringify({ type: 'result', text })}\n\n`)
@@ -2161,8 +2165,8 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
         const shown = updated.effort ?? effectiveEffort(null, await effortLevelsFor(chatAccount, updated).catch(() => null))
         res.write(`data: ${JSON.stringify({ type: 'effort_changed', effort: shown })}\n\n`)
         const text = updated.effort
-          ? `Esfuerzo cambiado a **${updated.effort}** para esta conversación. Aplica desde el próximo mensaje.`
-          : `Esfuerzo vuelto al valor por defecto (**${shown ?? DEFAULT_CHAT_EFFORT}**) en esta conversación.`
+          ? tr('Esfuerzo cambiado a **{esfuerzo}** para esta conversación. Aplica desde el próximo mensaje.', { esfuerzo: updated.effort })
+          : tr('Esfuerzo vuelto al valor por defecto (**{esfuerzo}**) en esta conversación.', { esfuerzo: shown ?? DEFAULT_CHAT_EFFORT })
         res.write(`data: ${JSON.stringify({ type: 'text_delta', text })}\n\n`)
         res.write(`data: ${JSON.stringify({ type: 'result', text })}\n\n`)
       } catch (err) {
@@ -2193,7 +2197,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
         const ov = controls.read()
         const current = flag === 'fast' ? ov.fast : ov.ultracode
         const next = explicit ? explicit === 'on' : !current
-        if (flag === 'ultracode' && next && isCodexAccount(String(parsed.account))) throw new Error('Ultracode no está disponible en OpenAI. Puedes desactivarlo; ultra es un nivel de esfuerzo distinto.')
+        if (flag === 'ultracode' && next && isCodexAccount(String(parsed.account))) throw new Error(tr('Ultracode no está disponible en OpenAI. Puedes desactivarlo; ultra es un nivel de esfuerzo distinto.'))
         if (flag === 'fast') {
           await changeChatControls(controls.read, async current => {
             const enabled = explicit ? explicit === 'on' : !current.fast
@@ -2206,8 +2210,8 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
           }, controls.patch)
           res.write(`data: ${JSON.stringify({ type: 'fast_changed', enabled: next })}\n\n`)
           const text = next
-            ? 'Fast **ON** para los próximos mensajes de esta conversación. La disponibilidad y el consumo dependen del modelo y la cuenta; no se garantiza una velocidad fija.'
-            : 'Fast mode **off** en esta conversación. Velocidad estandar.'
+            ? tr('Fast **ON** para los próximos mensajes de esta conversación. La disponibilidad y el consumo dependen del modelo y la cuenta; no se garantiza una velocidad fija.')
+            : tr('Fast mode **off** en esta conversación. Velocidad estandar.')
           res.write(`data: ${JSON.stringify({ type: 'text_delta', text })}\n\n`)
           res.write(`data: ${JSON.stringify({ type: 'result', text })}\n\n`)
         } else {
@@ -2218,8 +2222,8 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
           if (updated.ultracode) res.write(`data: ${JSON.stringify({ type: 'effort_changed', effort: updated.effort })}\n\n`)
           res.write(`data: ${JSON.stringify({ type: 'ultracode_changed', enabled: next })}\n\n`)
           const text = next
-            ? 'Ultracode **ON** para esta conversación — esfuerzo xhigh + orquestacion dynamic-workflow en cada turno (requiere modelo xhigh: Opus/Fable). Ojo: consume muchos mas tokens. `/ultracode` de nuevo para apagarlo.\n\nTip: sin standing mode, escribir la palabra **ultracode** dentro de un mensaje activa workflows solo para ese turno.'
-            : 'Ultracode **off** en esta conversación. La palabra **ultracode** en un mensaje sigue activando workflows por turno.'
+            ? tr('Ultracode **ON** para esta conversación — esfuerzo xhigh + orquestacion dynamic-workflow en cada turno (requiere modelo xhigh: Opus/Fable). Ojo: consume muchos mas tokens. `/ultracode` de nuevo para apagarlo.\n\nTip: sin standing mode, escribir la palabra **ultracode** dentro de un mensaje activa workflows solo para ese turno.')
+            : tr('Ultracode **off** en esta conversación. La palabra **ultracode** en un mensaje sigue activando workflows por turno.')
           res.write(`data: ${JSON.stringify({ type: 'text_delta', text })}\n\n`)
           res.write(`data: ${JSON.stringify({ type: 'result', text })}\n\n`)
         }
@@ -2267,7 +2271,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
         res.write(`data: ${JSON.stringify({ type: 'result', text })}\n\n`)
       } catch (err) {
         logger.error({ err, command: message }, 'local command build error')
-        res.write(`data: ${JSON.stringify({ type: 'error', message: `Error generando ${message}` })}\n\n`)
+        res.write(`data: ${JSON.stringify({ type: 'error', message: tr('Error generando {comando}', { comando: message }) })}\n\n`)
       } finally {
         res.write('data: [DONE]\n\n')
         res.end()
@@ -2453,8 +2457,8 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
       clearInterval(safetyTimeout)
       logger.warn({ sessionKey, idleMs: idle, totalMs: total }, 'safety watchdog interrupting stuck/runaway turn')
       emit({ type: 'error', message: idle >= IDLE_LIMIT_MS
-        ? 'El agente llevaba 30 minutos sin actividad y fue interrumpido.'
-        : 'El turno excedió el techo de tiempo configurado (ARBRAIN_TECHO_TURNO_MS) y fue interrumpido.' })
+        ? tr('El agente llevaba 30 minutos sin actividad y fue interrumpido.')
+        : tr('El turno excedió el techo de tiempo configurado (ARBRAIN_TECHO_TURNO_MS) y fue interrumpido.') })
       // interrupt() detiene el subproceso CLI; ac.abort() SIEMPRE marca la
       // cancelación como intencional para agent.ts (mensaje limpio, sin crudo).
       if (stream.query) {
@@ -2661,7 +2665,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
           // If context is null (cleared during compact but no post-compact assistant message arrived),
           // tell user compaction ran but we don't have the new size yet — next message will show it
           const compactNote = ctx.used == null
-            ? '**Compactacion:** ejecutada. El nuevo tamano de contexto se mostrara en el siguiente mensaje.\n\n'
+            ? `${tr('**Compactacion:** ejecutada. El nuevo tamano de contexto se mostrara en el siguiente mensaje.')}\n\n`
             : ''
           const combined = resultText.trim()
             ? resultText.trim() + '\n\n---\n\n' + compactNote + statusText
@@ -2827,7 +2831,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
       return
     }
     message = validateInput(message, 'web-chat-legacy')
-    if (await faltaLlaveTrasConectar()) { sendJSON(res, 412, { error: MENSAJE_FALTA_LLAVE, code: CODIGO_FALTA_LLAVE }); return }
+    if (await faltaLlaveTrasConectar()) { sendJSON(res, 412, { error: tr(MENSAJE_FALTA_LLAVE), code: CODIGO_FALTA_LLAVE }); return }
     registrarVoz(message)
 
     try {
@@ -2990,7 +2994,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     const url = new URL(req.url, `http://localhost:${PORT}`)
     const target = fsResolveSafe(url.searchParams.get('path') ?? url.searchParams.get('root'))
     if (!target) {
-      sendJSON(res, 400, { error: esEdicionCliente() ? 'path requerido, dentro del workspace, existente y sin secretos' : 'path requerido, dentro de $HOME y existente' })
+      sendJSON(res, 400, { error: esEdicionCliente() ? tr('path requerido, dentro del workspace, existente y sin secretos') : 'path requerido, dentro de $HOME y existente' })
       return
     }
     try {
@@ -3017,7 +3021,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
       if (url.pathname === '/fs/read') {
         const st = statSync(target)
         if (!st.isFile()) {
-          sendJSON(res, 400, { error: 'no es un archivo' })
+          sendJSON(res, 400, { error: tr('no es un archivo') })
           return
         }
         const buf = readFileSync(target)
@@ -3176,7 +3180,7 @@ export function startMCServer(): void {
       })
       // A6 (0.2.15): una pendiente nueva avisa con una notificación del sistema (llega aunque Arbrain esté tapada).
       if (tipo === 'pendiente') {
-        const r = avisarSistema(c.id, 'Levy espera tu clic', `${(c.frase || c.resumen).replace(/\s+/g, ' ').slice(0, 160)}. Si no decides, queda en tu cola.`)
+        const r = avisarSistema(c.id, tr('Levy espera tu clic'), tr('{accion}. Si no decides, queda en tu cola.', { accion: (c.frase || c.resumen).replace(/\s+/g, ' ').slice(0, 160) }))
         if (r === 'enviado') logger.info({ confirmacion: c.id }, 'pendiente: aviso del sistema')
       }
       // Cola de aprobaciones (ronda 2): lo que entra a la cola avisa al teléfono si la instalación tiene avisos.

@@ -84,6 +84,12 @@ interface Base {
    * crudo de cada elemento).
    */
   autor?: string
+  /**
+   * TEMA del relato (13 nov 2026, Daniel: «yo lo veo como pocos temas, toggles, numerados a la derecha»). El nombre de
+   * la parte grande del lienzo a la que pertenece («La oferta», «El programa»). Lo pone el generador en lo que posee;
+   * el índice de capítulos agrupa por él (`layout/capitulos.ts › temasDe`). Ausente = sin tema declarado.
+   */
+  tema?: string
   /** Version por elemento, para concurrencia optimista. */
   version: number
   createdAt: number
@@ -339,6 +345,12 @@ export interface EmbedElement extends Base {
   url: string
   /** true mientras el usuario esta interactuando con el contenido de adentro. */
   interactive: boolean
+  /**
+   * Mapa v16 (14 nov 2026): una ISLA NATIVA. La receta `arbrain.isla/v1` (islas/receta.ts) dentro del elemento, o
+   * `"doc:…/receta.json"` (un archivo del repo que el lienzo relee en vivo). Se pinta con bloques de la app, no con `url`
+   * (que dice `isla:<id>` para que una app vieja no pinte nada raro). Llega sin validar: leerlo con `prepararIsla`.
+   */
+  isla?: unknown
 }
 
 export type CanvasElement =

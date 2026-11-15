@@ -7,7 +7,7 @@ import { useCallback, useLayoutEffect, useState } from 'react'
  * derecho: arrastrar el borde, flechas con el foco en el divisor, doble clic vuelve al tamaño inicial.
  * Se recuerda en este equipo (localStorage).
  */
-export const BARRA_INICIAL = 240
+export const BARRA_INICIAL = 272 // 240 → 272 (11 nov 2026): la escala del chat (--tam-* en globals.css) sube la letra de las filas.
 export const BARRA_MIN = 200
 export const BARRA_MAX = 440
 const CLAVE = 'barra-lateral:ancho'

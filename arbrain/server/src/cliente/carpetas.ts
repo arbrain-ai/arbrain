@@ -14,6 +14,7 @@ import { existsSync, mkdirSync, readFileSync, realpathSync, statSync, writeFileS
 import { dirname, isAbsolute, join, resolve, sep } from 'node:path'
 import { homedir } from 'node:os'
 import { DIR_ARBRAIN } from '../edicion.js'
+import { tr } from '../i18n/tr.js'
 
 export interface CarpetaAbierta { ruta: string; abierta: number }
 
@@ -57,23 +58,23 @@ export interface ValidarOpciones {
 /** ¿Se puede abrir esta carpeta? Devuelve la ruta real o el motivo para no abrirla. */
 export function validarCarpeta(entrada: unknown, op: ValidarOpciones): { ok: true; ruta: string } | { ok: false; error: string } {
   const usuario = op.usuario ?? homedir()
-  if (typeof entrada !== 'string' || !entrada.trim()) return { ok: false, error: 'Escribe la ruta de la carpeta.' }
+  if (typeof entrada !== 'string' || !entrada.trim()) return { ok: false, error: tr('Escribe la ruta de la carpeta.') }
   const cruda = entrada.trim().replace(/^~(?=$|[\\/])/, usuario)
-  if (!isAbsolute(cruda)) return { ok: false, error: 'Usa la ruta completa de la carpeta (por ejemplo ~/Documents/MiProyecto).' }
+  if (!isAbsolute(cruda)) return { ok: false, error: tr('Usa la ruta completa de la carpeta (por ejemplo ~/Documents/MiProyecto).') }
   let real: string
-  try { real = realpathSync.native(resolve(cruda)) } catch { return { ok: false, error: 'Esa carpeta no existe.' } }
-  try { if (!statSync(real).isDirectory()) return { ok: false, error: 'Eso es un archivo; abre la carpeta que lo contiene.' } } catch { return { ok: false, error: 'No se pudo leer esa carpeta.' } }
+  try { real = realpathSync.native(resolve(cruda)) } catch { return { ok: false, error: tr('Esa carpeta no existe.') } }
+  try { if (!statSync(real).isDirectory()) return { ok: false, error: tr('Eso es un archivo; abre la carpeta que lo contiene.') } } catch { return { ok: false, error: tr('No se pudo leer esa carpeta.') } }
   let usuarioReal = usuario
   try { usuarioReal = realpathSync.native(usuario) } catch { /* tal cual */ }
-  if (real === resolve('/') || /^[A-Za-z]:\\?$/.test(real)) return { ok: false, error: 'No se puede abrir el disco entero.' }
-  if (dentroDe(usuarioReal, real)) return { ok: false, error: 'No se puede abrir tu carpeta personal entera: abre solo la carpeta del proyecto que necesitas.' }
-  for (const s of SISTEMA) if (dentroDe(real, s) && !dentroDe(real, usuarioReal)) return { ok: false, error: 'Es una carpeta del sistema.' }
-  if (/^[A-Za-z]:\\(Windows|Program Files|ProgramData)/i.test(real)) return { ok: false, error: 'Es una carpeta del sistema.' }
-  for (const d of DEL_USUARIO_PROHIBIDAS) if (dentroDe(real, join(usuarioReal, d))) return { ok: false, error: `Las carpetas dentro de ${d} guardan configuración y datos de otras apps: no se abren.` }
-  for (const p of op.protegidas) if (p && (dentroDe(real, p) || dentroDe(p, real))) return { ok: false, error: 'Es (o contiene) la carpeta de datos de Arbrain.' }
-  if (dentroDe(real, op.home)) return { ok: false, error: 'Esa carpeta ya está dentro de tu cerebro.' }
+  if (real === resolve('/') || /^[A-Za-z]:\\?$/.test(real)) return { ok: false, error: tr('No se puede abrir el disco entero.') }
+  if (dentroDe(usuarioReal, real)) return { ok: false, error: tr('No se puede abrir tu carpeta personal entera: abre solo la carpeta del proyecto que necesitas.') }
+  for (const s of SISTEMA) if (dentroDe(real, s) && !dentroDe(real, usuarioReal)) return { ok: false, error: tr('Es una carpeta del sistema.') }
+  if (/^[A-Za-z]:\\(Windows|Program Files|ProgramData)/i.test(real)) return { ok: false, error: tr('Es una carpeta del sistema.') }
+  for (const d of DEL_USUARIO_PROHIBIDAS) if (dentroDe(real, join(usuarioReal, d))) return { ok: false, error: tr('Las carpetas dentro de {carpeta} guardan configuración y datos de otras apps: no se abren.', { carpeta: d }) }
+  for (const p of op.protegidas) if (p && (dentroDe(real, p) || dentroDe(p, real))) return { ok: false, error: tr('Es (o contiene) la carpeta de datos de Arbrain.') }
+  if (dentroDe(real, op.home)) return { ok: false, error: tr('Esa carpeta ya está dentro de tu cerebro.') }
   const secreto = op.motivoSecreto(real)
-  if (secreto) return { ok: false, error: `No se puede abrir: ${secreto}.` }
+  if (secreto) return { ok: false, error: tr('No se puede abrir: {motivo}.', { motivo: secreto }) }
   return { ok: true, ruta: real }
 }
 
@@ -81,7 +82,7 @@ export function abrirCarpeta(entrada: unknown, op: ValidarOpciones, ahora = Date
   const v = validarCarpeta(entrada, op)
   if (!v.ok) return v
   const lista = carpetasAbiertas().filter(c => c.ruta !== v.ruta)
-  if (lista.length >= 20) return { ok: false, error: 'Ya tienes 20 carpetas abiertas; cierra alguna primero.' }
+  if (lista.length >= 20) return { ok: false, error: tr('Ya tienes 20 carpetas abiertas; cierra alguna primero.') }
   guardar([...lista, { ruta: v.ruta, abierta: ahora }])
   return { ok: true, carpetas: carpetasAbiertas() }
 }

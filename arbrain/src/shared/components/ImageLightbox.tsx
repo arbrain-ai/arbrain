@@ -22,6 +22,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Maximize2, X, ZoomIn } from 'lucide-react'
+import { tr } from '@/shared/i18n'
 
 type Size = { w: number; h: number }
 /** Zoom absoluto (1 = 1 px de imagen por px de pantalla) y posición de la esquina superior izquierda. */
@@ -325,7 +326,7 @@ export function ImageLightbox({ src, alt, onClose }: { src: string; alt: string;
       {/* Close button */}
       <button
         onClick={(e) => { e.stopPropagation(); onClose() }}
-        aria-label="Cerrar"
+        aria-label={tr('Cerrar')}
         className="absolute z-10 p-2.5 rounded-full bg-card border border-border-subtle text-foreground/75 hover:text-foreground hover:bg-card-active transition-all active:scale-90"
         style={{ top: 'max(1rem, env(safe-area-inset-top))', right: 'max(1rem, env(safe-area-inset-right))' }}
       >
@@ -355,14 +356,14 @@ export function ImageLightbox({ src, alt, onClose }: { src: string; alt: string;
               className="flex items-center gap-1 pl-1.5 ml-0.5 border-l border-border-subtle text-foreground/75 hover:text-foreground"
             >
               <Maximize2 size={11} />
-              Encajar
+              {tr('Encajar')}
             </button>
           </>
         ) : (
           <>
             <ZoomIn size={12} />
-            <span className="hidden md:inline">Scroll para zoom</span>
-            <span className="md:hidden">Pellizca para zoom</span>
+            <span className="hidden md:inline">{tr('Scroll para zoom')}</span>
+            <span className="md:hidden">{tr('Pellizca para zoom')}</span>
           </>
         )}
       </div>

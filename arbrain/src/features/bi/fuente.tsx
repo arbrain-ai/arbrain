@@ -10,6 +10,7 @@ import { pedirALevy } from '@/features/cabina/documento/enviar'
 import { URL_EMBUDO, type RespuestaEmbudo } from '@/features/negocio/embudo'
 import type { Consulta, Ventana } from './catalogo'
 import { mensajeParaLevy, type Accion, type Grafica, type RespuestaConsulta } from './modelo'
+import { tr } from '@/shared/i18n'
 
 /** Cómo está el archivo de fuentes del dueño (solo con el catálogo genérico). */
 export interface EstadoFuentesBI { ruta: string; existe: boolean; errores: string[]; negocio?: string }
@@ -50,7 +51,7 @@ const API: FuenteBI = {
     const r = await fetch(URL_BI, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(a) }).catch(() => null)
     const body = await r?.json().catch(() => null)
     await releer(URL_BI)
-    return r?.ok && body?.ok ? null : body?.error ?? 'No se pudo guardar.'
+    return r?.ok && body?.ok ? null : body?.error ?? tr('No se pudo guardar.')
   },
   preguntar: texto => pedirALevy(mensajeParaLevy(texto)) as 'enviado' | 'camino-al-chat' | 'banco',
   conversar: texto => { pedirALevy(texto) },

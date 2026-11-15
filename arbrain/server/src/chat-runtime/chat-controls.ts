@@ -1,4 +1,5 @@
 import type { ChatOverrides } from '../db.js'
+import { tr } from '../i18n/tr.js'
 
 /** Metadata reads may yield. Do not commit a plan validated against settings
  * another command has replaced while that read was in flight. */
@@ -11,13 +12,13 @@ export async function changeChatControls(
   const patch = await plan({ ...before })
   const current = read()
   if (current.model !== before.model || current.effort !== before.effort || current.fast !== before.fast || current.ultracode !== before.ultracode) {
-    throw new Error('Los ajustes cambiaron durante la validación. Repite la orden con los ajustes actuales.')
+    throw new Error(tr('Los ajustes cambiaron durante la validación. Repite la orden con los ajustes actuales.'))
   }
   return commit(patch, before)
 }
 
 export function effortControlPatch(current: ChatOverrides, raw: string, available: string[]): Partial<ChatOverrides> {
-  if (current.ultracode && raw !== 'xhigh') throw new Error('Ultracode mantiene xhigh. Desactívalo con /ultracode off antes de elegir otro esfuerzo o default.')
+  if (current.ultracode && raw !== 'xhigh') throw new Error(tr('Ultracode mantiene xhigh. Desactívalo con /ultracode off antes de elegir otro esfuerzo o default.'))
   if (['default', 'auto', 'reset'].includes(raw)) return { effort: null }
   if (!available.includes(raw)) throw new Error(`Esfuerzo no disponible: ${raw}. Opciones: ${available.join(', ')} o default.`)
   return { effort: raw }

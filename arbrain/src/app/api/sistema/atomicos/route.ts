@@ -7,6 +7,7 @@ import { esEdicionCliente } from '@/lib/edicion'
 import { raizWorkspace } from '@/lib/rutas-instalacion'
 import { instalacion } from '@/config'
 import { aplicarCambio, claveAtomicos, conPropuesta, type Atomicos } from '@/lib/sistema/atomicos'
+import { tr } from '@/shared/i18n'
 
 /** Identidad, señal y versión de 2 minutos de la fila «Hábitos de hoy» (reglas en `lib/sistema/atomicos.ts`). */
 const headers = { 'Cache-Control': 'no-store' }
@@ -19,7 +20,7 @@ async function leer(owner: string): Promise<Partial<Atomicos> | null> {
     try { return JSON.parse(readFileSync(ruta, 'utf8')) } catch { return null }
   }
   const { data, error } = await createServiceClient().from('app_config').select('value').eq('key', claveAtomicos(owner)).maybeSingle()
-  if (error) throw new Error('No se pudieron leer tus principios de hábitos.')
+  if (error) throw new Error(tr('No se pudieron leer tus principios de hábitos.'))
   try { return data?.value ? JSON.parse(data.value) : null } catch { return null }
 }
 
@@ -32,7 +33,7 @@ async function guardar(owner: string, doc: Atomicos) {
   }
   const { error } = await createServiceClient().from('app_config')
     .upsert({ key: claveAtomicos(owner), value: JSON.stringify(doc), updated_at: doc.actualizado }, { onConflict: 'key' })
-  if (error) throw new Error('No se pudo guardar. Reintenta.')
+  if (error) throw new Error(tr('No se pudo guardar. Reintenta.'))
 }
 
 export async function GET() {
@@ -50,7 +51,7 @@ export async function POST(request: Request) {
     if (raw.length > 4096) throw new ChatAccessError('Demasiado largo.', 413)
     let body: Record<string, unknown>
     try { body = JSON.parse(raw); if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error() }
-    catch { throw new ChatAccessError('JSON inválido.', 400) }
+    catch { throw new ChatAccessError(tr('JSON inválido.'), 400) }
     const actual = conPropuesta(await leer(owner), instalacion().habitosAtomicos)
     const siguiente = aplicarCambio(actual, body)
     if (typeof siguiente === 'string') throw new ChatAccessError(siguiente, 400)

@@ -2,10 +2,14 @@
 /** Los tres textos legales con su resumen y el texto completo plegable (primer arranque y Ajustes › Privacidad). */
 import { useState } from 'react'
 import { ChevronDown, FileText } from 'lucide-react'
-import { AVISO_VERSION, DOCUMENTOS_LEGALES, type DocumentoLegal } from '../textos/legales'
+import { tr } from '@/shared/i18n'
+import { AVISO_VERSION as AVISO_VERSION_ES, DOCUMENTOS_LEGALES, type DocumentoLegal } from '../textos/legales'
 
 export function DocumentosLegales({ abierto: inicial = null }: { abierto?: DocumentoLegal['id'] | null }) {
   const [abierto, setAbierto] = useState<DocumentoLegal['id'] | null>(inicial)
+  // En inglés, cada documento es una traducción de cortesía (la llave del catálogo es el texto español completo: si el
+  // español cambia, sale el español, nunca una traducción vieja). Manda siempre el español.
+  const AVISO_VERSION = tr(AVISO_VERSION_ES)
   return (
     <div className="space-y-2">
       <p className="inline-flex items-center gap-1.5 rounded-full bg-foreground/[0.05] px-2.5 py-1 text-[11.5px] font-medium text-muted">{AVISO_VERSION}</p>
@@ -17,15 +21,15 @@ export function DocumentosLegales({ abierto: inicial = null }: { abierto?: Docum
               className="flex min-h-14 w-full items-center gap-3 rounded-2xl px-4 py-2.5 text-left hover:bg-foreground/[0.03] focus-visible:outline-2 focus-visible:outline-brand">
               <FileText className="size-4 shrink-0 text-brand-ink" aria-hidden />
               <span className="min-w-0 flex-1">
-                <span className="block text-sm font-semibold text-foreground">{d.titulo}</span>
-                <span className="block text-[12.5px] leading-snug text-muted">{d.resumen}</span>
+                <span className="block text-sm font-semibold text-foreground">{tr(d.titulo)}</span>
+                <span className="block text-[12.5px] leading-snug text-muted">{tr(d.resumen)}</span>
               </span>
-              <span className="shrink-0 text-[12px] text-muted">{abiertoEste ? 'Cerrar' : 'Leer'}</span>
+              <span className="shrink-0 text-[12px] text-muted">{abiertoEste ? tr('Cerrar') : tr('Leer')}</span>
               <ChevronDown className={`size-4 shrink-0 text-muted transition-transform ${abiertoEste ? 'rotate-180' : ''}`} aria-hidden />
             </button>
             {abiertoEste && (
-              <div id={`legal-${d.id}`} className="max-h-72 overflow-y-auto overscroll-contain border-t border-border-subtle px-4 py-3" tabIndex={0} aria-label={d.titulo}>
-                <Texto cuerpo={d.cuerpo} />
+              <div id={`legal-${d.id}`} className="max-h-72 overflow-y-auto overscroll-contain border-t border-border-subtle px-4 py-3" tabIndex={0} aria-label={tr(d.titulo)}>
+                <Texto cuerpo={tr(d.cuerpo)} />
               </div>
             )}
           </section>

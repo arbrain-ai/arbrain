@@ -4,6 +4,8 @@
 // Los IDs son rutas relativas a .claude/ (ej. 'memory/user/paraguay.md',
 // 'skills/habit-system/SKILL.md'), salvo los documentos: relativas al repo ('docs/business-os/x.md').
 
+import { trMarca } from '@/shared/i18n'
+
 export type CerebroNodeType =
   | 'user'
   | 'project'
@@ -92,14 +94,14 @@ export const TYPE_META: Record<
   CerebroNodeType,
   { label: string; color: string; group: CerebroCapa; forma: 'circulo' | 'rombo' | 'cuadro' }
 > = {
-  user: { label: 'Sobre ti', color: '#A968F7', group: 'memoria', forma: 'circulo' },
-  project: { label: 'Proyectos', color: '#8B5CF6', group: 'memoria', forma: 'circulo' },
-  feedback: { label: 'Reglas', color: '#C4B5FD', group: 'memoria', forma: 'circulo' },
-  reference: { label: 'Referencias', color: '#7C6BB0', group: 'memoria', forma: 'circulo' },
-  skill: { label: 'Skills', color: '#E4E4E7', group: 'skills', forma: 'rombo' },
-  documento: { label: 'Documentos', color: '#A1A1AA', group: 'documentos', forma: 'cuadro' },
-  concept: { label: 'Conceptos', color: '#71717A', group: 'knowledge', forma: 'circulo' },
-  connection: { label: 'Conexiones', color: '#52525B', group: 'knowledge', forma: 'circulo' },
+  user: { label: trMarca('Sobre ti'), color: '#A968F7', group: 'memoria', forma: 'circulo' },
+  project: { label: trMarca('Proyectos'), color: '#8B5CF6', group: 'memoria', forma: 'circulo' },
+  feedback: { label: trMarca('Reglas'), color: '#C4B5FD', group: 'memoria', forma: 'circulo' },
+  reference: { label: trMarca('Referencias'), color: '#7C6BB0', group: 'memoria', forma: 'circulo' },
+  skill: { label: trMarca('Skills'), color: '#E4E4E7', group: 'skills', forma: 'rombo' },
+  documento: { label: trMarca('Documentos'), color: '#A1A1AA', group: 'documentos', forma: 'cuadro' },
+  concept: { label: trMarca('Conceptos'), color: '#71717A', group: 'knowledge', forma: 'circulo' },
+  connection: { label: trMarca('Conexiones'), color: '#52525B', group: 'knowledge', forma: 'circulo' },
 }
 
 /** Oro: lo que cambió en las últimas 48 h. */
@@ -112,19 +114,19 @@ export const SYNTHESIS_MODES: Record<
   { label: string; hint: string }
 > = {
   brief: {
-    label: 'Brief de decisión',
-    hint: 'Contexto → opciones → recomendación → siguiente acción',
+    label: trMarca('Brief de decisión'),
+    hint: trMarca('Contexto → opciones → recomendación → siguiente acción'),
   },
   simple: {
-    label: 'Explicado simple',
-    hint: 'HTML navegable para que un principiante lo entienda',
+    label: trMarca('Explicado simple'),
+    hint: trMarca('HTML navegable para que un principiante lo entienda'),
   },
   journey: {
-    label: 'Journey',
-    hint: 'Historia cronológica que cruza los nodos elegidos',
+    label: trMarca('Journey'),
+    hint: trMarca('Historia cronológica que cruza los nodos elegidos'),
   },
   contenido: {
-    label: 'Ángulo de contenido',
-    hint: 'Idea de video: hook, tesis, estructura',
+    label: trMarca('Ángulo de contenido'),
+    hint: trMarca('Idea de video: hook, tesis, estructura'),
   },
 }

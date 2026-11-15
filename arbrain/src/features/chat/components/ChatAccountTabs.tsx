@@ -1,4 +1,5 @@
 'use client'
+import { tr } from '@/shared/i18n'
 import type { TabOption, ChatTab } from '../stores/account-store'
 
 export function ChatAccountTabs({ options, active, onSelect }: { options: TabOption[]; active?: ChatTab; onSelect: (tab: ChatTab) => void }) {
@@ -10,7 +11,7 @@ export function ChatAccountTabs({ options, active, onSelect }: { options: TabOpt
               <button
                 key={opt.id}
                 onClick={() => onSelect(opt.id)}
-                title={opt.sublabel}
+                title={opt.sublabel ? tr(opt.sublabel) : undefined}
                 className={`min-h-11 min-w-11 shrink-0 flex-1 flex items-center justify-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition-colors ${
                   selected
                     ? opt.id === 'bro'

@@ -8,6 +8,7 @@
  * Sondea `/api/manos/encargos` cada 1.5 s solo mientras está montado (hay un encargo corriendo en este turno); al terminar
  * la llamada se desmonta y deja de sondear. Si la ruta falla o no hay archivo, no pinta nada: la fila se ve como siempre.
  */
+import { tr, trMarca } from '@/shared/i18n'
 import { useEffect, useMemo, useState } from 'react'
 import type { ChatMessage } from '../hooks/useChat'
 import { agruparHerramientas, encargosCorriendo, type EncargoCorriendo } from '../lib/rastro'
@@ -47,7 +48,7 @@ function useEncargosVivos(cadaMs = CADA_MS): EncargoVivo[] | null {
   return lista
 }
 
-const EN_CAMINO: Record<OrdenEncargo, string> = { detener: 'Deteniendo', control: 'Dejándote la ventana' }
+const EN_CAMINO: Record<OrdenEncargo, string> = { detener: trMarca('Deteniendo'), control: trMarca('Dejándote la ventana') }
 
 /** Una línea: reloj · paso · Detener · Tomar el control. El reloj late solo (no re-renderiza el turno). */
 function LineaEncargo({ e }: { e: EncargoVivo }) {
@@ -68,27 +69,28 @@ function LineaEncargo({ e }: { e: EncargoVivo }) {
       const r = await fetch(RUTA, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: e.id, orden }) })
       if (!r.ok) {
         const j = await r.json().catch(() => ({})) as { error?: unknown }
-        setError(typeof j.error === 'string' ? j.error : 'No se pudo mandar la orden.')
+        setError(typeof j.error === 'string' ? j.error : tr('No se pudo mandar la orden.'))
         setEnviada(null)
       }
-    } catch { setError('Sin conexión con Arbrain.'); setEnviada(null) }
+    } catch { setError(tr('Sin conexión con Arbrain.')); setEnviada(null) }
   }
 
   const reloj = relojEncargo(e, ahora)
-  const paso = error ?? (enviada && corre ? EN_CAMINO[enviada] : textoPaso(e))
+  const pasoCrudo = error ?? (enviada && corre ? EN_CAMINO[enviada] : textoPaso(e))
+  const paso = pasoCrudo ? tr(pasoCrudo) : pasoCrudo
   const botones = corre && !enviada ? e.valores : []
   if (!reloj && !paso && !botones.length) return null
   return (
     <div className={h.encargo} data-encargo={e.id} data-estado={e.estado}>
-      {reloj && <span className={h.encargoReloj} title="Tiempo de este encargo">{reloj}</span>}
+      {reloj && <span className={h.encargoReloj} title={tr('Tiempo de este encargo')}>{reloj}</span>}
       {paso && <>
         {reloj && <span aria-hidden>·</span>}
         <span className={h.encargoPaso} {...(error ? { 'data-error': '' } : {})} role="status" aria-live="polite" title={paso}>{paso}</span>
       </>}
       {!!botones.length && <span className={h.encargoAcciones}>
-        {botones.includes('detener') && <button type="button" className={h.encargoBoton} onClick={() => void mandar('detener')}>Detener</button>}
+        {botones.includes('detener') && <button type="button" className={h.encargoBoton} onClick={() => void mandar('detener')}>{tr('Detener')}</button>}
         {botones.includes('control') && <button type="button" className={h.encargoBoton} onClick={() => void mandar('control')}
-          title="Detiene el encargo y te deja la ventana">Tomar el control</button>}
+          title={tr('Detiene el encargo y te deja la ventana')}>{tr('Tomar el control')}</button>}
       </span>}
     </div>
   )

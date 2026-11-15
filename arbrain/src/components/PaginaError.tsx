@@ -14,6 +14,7 @@ import type { CSSProperties } from 'react'
 import { RotateCw } from 'lucide-react'
 import { salirLimpio } from '@/lib/estado-local'
 import { PantallaSistema } from './PantallaSistema'
+import { tr, trMarca } from '@/shared/i18n'
 
 export interface PaginaErrorProps {
   titulo: string
@@ -53,16 +54,16 @@ export function PaginaError({ titulo, mensaje, codigo, alRecargar, sinRecargar =
     <PantallaSistema style={S.fondo} data-pagina-error>
       <div style={S.tarjeta} className="ps-placa" role="alert">
         <p style={S.marca}>Arbrain</p>
-        <h1 style={S.titulo}>{titulo}</h1>
-        <p style={S.mensaje}>{mensaje}</p>
+        <h1 style={S.titulo}>{tr(titulo)}</h1>
+        <p style={S.mensaje}>{tr(mensaje)}</p>
         <div style={S.acciones}>
-          {!sinRecargar && <button type="button" className="ps-tecla" onClick={recargar}><RotateCw aria-hidden />Recargar</button>}
+          {!sinRecargar && <button type="button" className="ps-tecla" onClick={recargar}><RotateCw aria-hidden />{tr('Recargar')}</button>}
           {/* <a> y no <Link>: tras un error conviene una carga completa, sin el estado que falló. */}
           {/* Sin «Recargar», el inicio es LA acción y lleva la tecla ámbar; con él, es la salida discreta. */}
-          <a href="/" className={sinRecargar ? 'ps-tecla' : 'ps-discreta'} onClick={limpiar ? (e) => { e.preventDefault(); void salirLimpio(true) } : undefined}>Ir al inicio</a>
+          <a href="/" className={sinRecargar ? 'ps-tecla' : 'ps-discreta'} onClick={limpiar ? (e) => { e.preventDefault(); void salirLimpio(true) } : undefined}>{tr('Ir al inicio')}</a>
         </div>
-        {limpiar && <p style={S.nota}>{NOTA_LIMPIAR}</p>}
-        {codigo && <p style={S.codigo} className="ps-codigo">Código para reportar: {codigo}</p>}
+        {limpiar && <p style={S.nota}>{tr(NOTA_LIMPIAR)}</p>}
+        {codigo && <p style={S.codigo} className="ps-codigo">{tr('Código para reportar: {codigo}', { codigo })}</p>}
       </div>
     </PantallaSistema>
   )
@@ -77,6 +78,6 @@ export function codigoDeError(error: (Error & { digest?: string }) | null | unde
 }
 
 /** Lo que hace «Recargar» en una pantalla de error, dicho a la persona (que no tema perder algo). */
-export const NOTA_LIMPIAR = 'Recargar limpia lo que la app recordaba de esta vista (paneles y última conversación abierta). Tus conversaciones, borradores y archivos no se tocan.'
+export const NOTA_LIMPIAR = trMarca('Recargar limpia lo que la app recordaba de esta vista (paneles y última conversación abierta). Tus conversaciones, borradores y archivos no se tocan.')
 
-export const MENSAJE_ERROR = 'Algo falló al mostrar esta pantalla. Recarga la página; si vuelve a pasar, comparte el código de abajo para que lo revisemos.'
+export const MENSAJE_ERROR = trMarca('Algo falló al mostrar esta pantalla. Recarga la página; si vuelve a pasar, comparte el código de abajo para que lo revisemos.')

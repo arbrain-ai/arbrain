@@ -6,6 +6,7 @@ import { getSchedulerUrl, CLAUDECLAW_TOKEN } from '@/lib/claudeclaw'
 import { SEGUNDA_EMAIL } from '@/shared/constants/reporte-vivo'
 import { DUENO, SEGUNDA } from '@/config'
 import { sinRespuestaDelServidor } from '@/lib/edicion'
+import { tr } from '@/shared/i18n'
 
 // Vista viva «diario» (5 oct 2026): Dinero y Lanzamiento (el dueño) o Comunidad y YouTube (la socia), leídos AL ABRIR
 // la vista por el mismo script del cron (`reportes_matutinos.py --json`) en el Studio. Agenda y tareas van por
@@ -35,7 +36,7 @@ export async function GET(request: Request) {
       body: JSON.stringify({ que: 'diario', quien, fecha, fresco: q.get('fresco') === '1' }),
       signal: AbortSignal.timeout(110_000), cache: 'no-store',
     })
-    const body = await res.json().catch(() => ({ error: sinRespuestaDelServidor() }))
+    const body = await res.json().catch(() => ({ error: tr(sinRespuestaDelServidor()) }))
     return Response.json(body, { status: res.status, headers: noStore })
   } catch (error) { return planningError(error) }
 }

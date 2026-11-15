@@ -1,6 +1,7 @@
 // Catálogo de la paleta «/»: base local (los 16 de siempre + modos), lo que entrega el daemon
 // (`GET /api/chat/commands`) y los nombres del evento `init` del SDK. Todo puro y sin React,
 // para que paleta y teclado usen exactamente el mismo filtro.
+import { tr, trMarca } from '@/shared/i18n'
 
 export type SeccionComando = 'modos' | 'arbrain' | 'nativos' | 'skills' | 'agentes'
 export type TipoComando = 'local' | 'sdk' | 'agent' | 'mode'
@@ -18,8 +19,9 @@ export interface ComandoCatalogo {
 }
 
 export const SECCIONES: SeccionComando[] = ['modos', 'arbrain', 'nativos', 'skills', 'agentes']
+/** Se lee al pintar: cada etiqueta sale en el idioma activo (getter, no constante congelada al cargar el módulo). */
 export const ETIQUETA_SECCION: Record<SeccionComando, string> = {
-  modos: 'Modos', arbrain: 'Arbrain', nativos: 'Nativos', skills: 'Skills', agentes: 'Agentes',
+  get modos() { return tr('Modos') }, arbrain: 'Arbrain', get nativos() { return tr('Nativos') }, get skills() { return tr('Skills') }, get agentes() { return tr('Agentes') },
 }
 
 const modo = (name: string, description: string, argumentHint?: string): ComandoCatalogo =>
@@ -29,24 +31,24 @@ const local = (name: string, description: string): ComandoCatalogo =>
 
 /** Base inmediata: la paleta nunca está vacía, ni offline. Orden fijo. */
 export const CATALOGO_BASE: ComandoCatalogo[] = [
-  modo('/goal', 'Objetivo persistente: sigue trabajando hasta cumplir la condición', '<condición>'),
-  modo('/model', 'Cambiar modelo de IA'),
-  modo('/effort', 'Nivel de esfuerzo de razonamiento (low → max)'),
-  modo('/fast', 'Fast mode: ~2.5x velocidad en Opus 4.8 (toggle)'),
-  modo('/ultracode', 'Ultracode: xhigh + workflows multi-agente (toggle)'),
-  modo('/compact', 'Comprime el contexto (reduce tokens usados)'),
-  modo('/context', 'Cuánto contexto se está usando (tokens)'),
-  modo('/loop', 'Repite un prompt en un intervalo', '[intervalo] [prompt]'),
-  local('/clear', 'Nueva conversación — borra el historial'),
-  local('/status', 'Estado de Levy: modelo, tareas activas, sesión'),
-  local('/skills', 'Skills disponibles (.claude/skills/)'),
-  local('/memory', 'Memoria persistente (MEMORY.md)'),
-  local('/mcp', 'Estado de los MCP servers'),
-  local('/todos', 'TODO list activo del agente'),
-  local('/tasks', 'Tareas actuales del Kanban board'),
-  local('/agents', 'Estado en vivo de todos los agentes'),
-  local('/usage', 'Costo y tokens de Levy (7/30 días)'),
-  local('/help', 'Ver todos los comandos disponibles'),
+  modo('/goal', trMarca('Objetivo persistente: sigue trabajando hasta cumplir la condición'), trMarca('<condición>')),
+  modo('/model', trMarca('Cambiar modelo de IA')),
+  modo('/effort', trMarca('Nivel de esfuerzo de razonamiento (low → max)')),
+  modo('/fast', trMarca('Fast mode: ~2.5x velocidad en Opus 4.8 (toggle)')),
+  modo('/ultracode', trMarca('Ultracode: xhigh + workflows multi-agente (toggle)')),
+  modo('/compact', trMarca('Comprime el contexto (reduce tokens usados)')),
+  modo('/context', trMarca('Cuánto contexto se está usando (tokens)')),
+  modo('/loop', trMarca('Repite un prompt en un intervalo'), trMarca('[intervalo] [prompt]')),
+  local('/clear', trMarca('Nueva conversación — borra el historial')),
+  local('/status', trMarca('Estado de Levy: modelo, tareas activas, sesión')),
+  local('/skills', trMarca('Skills disponibles (.claude/skills/)')),
+  local('/memory', trMarca('Memoria persistente (MEMORY.md)')),
+  local('/mcp', trMarca('Estado de los MCP servers')),
+  local('/todos', trMarca('TODO list activo del agente')),
+  local('/tasks', trMarca('Tareas actuales del Kanban board')),
+  local('/agents', trMarca('Estado en vivo de todos los agentes')),
+  local('/usage', trMarca('Costo y tokens de Levy (7/30 días)')),
+  local('/help', trMarca('Ver todos los comandos disponibles')),
 ]
 
 /** Nombres internos del SDK que no sirven en una UI. */
@@ -132,8 +134,12 @@ export function fusionarCatalogo(
       if (d) return d
       return fijos(x.c.section) ? x.i - y.i : NOMBRE_ORDEN(x.c, y.c)
     })
-    .map(({ c }) => c)
+    .map(({ c }) => enIdioma(c))
 }
+
+/** Descripción y pista en el idioma activo (las de la base van marcadas con trMarca; las del daemon pasan igual). */
+const enIdioma = (c: ComandoCatalogo): ComandoCatalogo =>
+  ({ ...c, description: tr(c.description), ...(c.argumentHint && { argumentHint: tr(c.argumentHint) }) })
 
 function plano(s: string): string {
   return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
@@ -186,6 +192,6 @@ export function pideArgumentos(c: ComandoCatalogo): boolean {
 
 /** Texto que queda en el composer al elegir un comando que pide argumentos. */
 export function textoRelleno(c: ComandoCatalogo): string {
-  if (c.section === 'agentes') return `Usa el subagente ${c.name.replace(/^@/, '')} para `
+  if (c.section === 'agentes') return tr('Usa el subagente {nombre} para ', { nombre: c.name.replace(/^@/, '') })
   return `${c.name} `
 }

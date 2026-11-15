@@ -1,4 +1,5 @@
 'use client'
+import { tr, trMarcas } from '@/shared/i18n'
 import { useEffect, useState } from 'react'
 import { CHAT_ACCOUNTS } from '../stores/account-store'
 import { nivelPct, textoPct } from '../lib/contexto-conversacion'
@@ -15,13 +16,13 @@ function Fila({ label, percent, resetsAt, ahora }: { label: string; percent: num
   const reinicio = textoReinicio(resetsAt, ahora)
   return <li data-limite-fila data-limite-pct={percent == null ? '' : String(percent)}>
     <div className="flex items-baseline justify-between gap-3 text-sm">
-      <span className="truncate text-muted">{label}</span>
-      <span className="shrink-0 tabular-nums">{percent == null ? <span className="text-muted">sin dato</span> : `${textoPct(percent)} usado`}</span>
+      <span className="truncate text-muted">{tr(label)}</span>
+      <span className="shrink-0 tabular-nums">{percent == null ? <span className="text-muted">{tr('sin dato')}</span> : tr('{pct} usado', { pct: textoPct(percent) })}</span>
     </div>
-    {percent != null && <div role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(percent)} className="mt-1 h-1 rounded-full bg-foreground/10 overflow-hidden">
+    {percent != null && <div role="progressbar" aria-label={tr(label)} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(percent)} className="mt-1 h-1 rounded-full bg-foreground/10 overflow-hidden">
       <div className={`h-full rounded-full ${BARRA[nivelPct(percent)]}`} style={{ width: `${Math.max(percent > 0 ? 2 : 0, percent)}%` }} />
     </div>}
-    {reinicio && <p className="mt-0.5 text-[11px] text-muted tabular-nums">{reinicio}</p>}
+    {reinicio && <p className="mt-0.5 text-[11px] text-muted tabular-nums">{tr(reinicio)}</p>}
   </li>
 }
 
@@ -34,11 +35,11 @@ function Bloque({ titulo, lectura, filasFijas, ahora }: { titulo: string; lectur
   const motivo = !lectura ? null : lectura.error ?? (limits && !limits.available ? limits.reason : null)
   return <section data-limites-bloque={titulo} className="mt-3">
     <h3 className="text-xs font-semibold text-foreground/80">{encabezado}</h3>
-    {!lectura && <p role="status" className="text-[11px] text-muted">Consultando…</p>}
-    {limits?.reached && <p role="alert" className="text-[11px] text-red-400">Límite alcanzado: {limits.reached}.</p>}
+    {!lectura && <p role="status" className="text-[11px] text-muted">{tr('Consultando…')}</p>}
+    {limits?.reached && <p role="alert" className="text-[11px] text-red-400">{tr('Límite alcanzado: {limite}.', { limite: tr(limits.reached) })}</p>}
     <ul className="mt-1.5 space-y-2">{filas.map(v => <Fila key={v.id} label={v.label} percent={v.percent} resetsAt={v.resetsAt} ahora={ahora} />)}</ul>
-    {motivo && <p className="mt-1 text-[11px] text-muted/80">{motivo}</p>}
-    {limits?.available && <p className="mt-1 text-[11px] text-muted/70">{textoObservado(limits.observedAt, ahora)}</p>}
+    {motivo && <p className="mt-1 text-[11px] text-muted/80">{tr(motivo)}</p>}
+    {limits?.available && <p className="mt-1 text-[11px] text-muted/70">{tr(textoObservado(limits.observedAt, ahora))}</p>}
   </section>
 }
 
@@ -51,8 +52,8 @@ export function LimitesPlan({ account }: { account: string }) {
   if (claude?.oculto) return null
   const mostrarCodex = !codex?.oculto && (cuentas.codexEsLaConversacion || codex?.limits?.available === true)
   return <div data-limites-plan className="border-t border-border mt-4 pt-3">
-    <h2 className="text-sm font-semibold">Límites del plan</h2>
-    <Bloque titulo="Claude" lectura={claude} filasFijas={['Ventana de 5 h', 'Semanal']} ahora={ahora} />
-    {mostrarCodex && <Bloque titulo="Codex" lectura={codex} filasFijas={['Semanal']} ahora={ahora} />}
+    <h2 className="text-sm font-semibold">{tr('Límites del plan')}</h2>
+    <Bloque titulo="Claude" lectura={claude} filasFijas={trMarcas(['Ventana de 5 h', 'Semanal'])} ahora={ahora} />
+    {mostrarCodex && <Bloque titulo="Codex" lectura={codex} filasFijas={trMarcas(['Semanal'])} ahora={ahora} />}
   </div>
 }

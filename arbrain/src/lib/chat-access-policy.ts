@@ -1,5 +1,6 @@
 import { esEspacioChat, espacioDisponible, type EspacioChat } from '@/shared/lib/espacios-chat'
 import { esEdicionCliente } from '@/lib/edicion'
+import { tr } from '@/shared/i18n'
 
 export type AccountId = EspacioChat
 /** `owner`: permisos completos (el dueño y, desde el 4 oct 2026, la socia): conversaciones nuevas, modelo,
@@ -8,25 +9,26 @@ export type AccountId = EspacioChat
 export interface ChatPrincipal { id: string; personalOwner: boolean; owner: boolean }
 export interface ConversationRow { id: string; profile_id: string | null; account: string | null }
 export class ChatAccessError extends Error {
-  constructor(message: string, readonly status: number) { super(message) }
+  // Idioma (13 nov 2026): se traduce al crearse, en la petición; así también las constantes marcadas (MSJ_BASE_CAIDA).
+  constructor(message: string, readonly status: number) { super(tr(message)) }
 }
 
 export function accountId(value: unknown): AccountId {
   if (value == null || value === 'default') return 'default'
   // Edición cliente: las cuentas de la instalación original (segunda cuenta de Claude, Codex) no existen.
-  if (esEspacioChat(value) && !espacioDisponible(value, esEdicionCliente())) throw new ChatAccessError('Cuenta de chat no disponible en esta edición.', 400)
+  if (esEspacioChat(value) && !espacioDisponible(value, esEdicionCliente())) throw new ChatAccessError(tr('Cuenta de chat no disponible en esta edición.'), 400)
   if (esEspacioChat(value)) return value
-  throw new ChatAccessError('Cuenta de chat desconocida.', 400)
+  throw new ChatAccessError(tr('Cuenta de chat desconocida.'), 400)
 }
 
 /** Persisted ownership/account wins over optional client routing fields. */
 export function conversationScope(principal: ChatPrincipal, row: ConversationRow, requestedAccount?: unknown) {
   if (row.profile_id ? row.profile_id !== principal.id : !principal.personalOwner) {
-    throw new ChatAccessError('Conversación no encontrada.', 404)
+    throw new ChatAccessError(tr('Conversación no encontrada.'), 404)
   }
   const account = accountId(row.account)
   if (requestedAccount != null && accountId(requestedAccount) !== account) {
-    throw new ChatAccessError('La cuenta enviada no coincide con la conversación. Recarga su configuración.', 409)
+    throw new ChatAccessError(tr('La cuenta enviada no coincide con la conversación. Recarga su configuración.'), 409)
   }
   return { owner: row.profile_id ?? principal.id, account, conversationId: row.id }
 }

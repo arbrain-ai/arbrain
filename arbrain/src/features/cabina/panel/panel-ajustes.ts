@@ -13,6 +13,7 @@ import { create } from 'zustand'
 import { AJUSTES_POR_DEFECTO, normalizarAjustes, ordenarMenu, recienOcultas, SECCIONES_MENU, type AjustesPanel, type Donde } from './menu-orden'
 import { usePanelFijadas } from './fijadas'
 import { escuchar, publicar } from './ventanas'
+import { tr } from '@/shared/i18n/tr'
 
 export const URL_AJUSTES = '/api/cabina/panel-ajustes'
 /** El orden que Daniel acomodaba en este dispositivo antes de que viviera en el servidor (5 oct 2026). */
@@ -47,7 +48,7 @@ function cerrarSeccionesOcultas(ids: string[]) {
 async function pedir(cuerpo: Record<string, unknown>): Promise<{ ajustes: AjustesPanel; existe: boolean; migrado?: boolean }> {
   const r = await fetch(URL_AJUSTES, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cuerpo) })
   const body = await r.json().catch(() => ({})) as { ajustes?: unknown; existe?: boolean; migrado?: boolean; error?: string }
-  if (!r.ok || !body.ajustes) throw new Error(body.error ?? `Los ajustes del panel respondieron ${r.status}.`)
+  if (!r.ok || !body.ajustes) throw new Error(body.error ?? tr('Los ajustes del panel respondieron {estado}.', { estado: r.status }))
   return { ajustes: normalizarAjustes(body.ajustes), existe: body.existe !== false, migrado: body.migrado }
 }
 

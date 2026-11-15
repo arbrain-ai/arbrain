@@ -9,7 +9,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { RUTA_EMBUDO, validarEmbudo, type Embudo } from '../../src/features/negocio/embudo'
 import {
   canalesDe, FUENTES_COMPRADOR, leerVoz, lienzoSistema, ORGANOS, piezaDe, pulsoComprador, pulsoEntrega, pulsoFinanzas,
-  pulsoMarketing, pulsoSistemas, pulsoVenta, velarVoz, type CohortePulso, type RespuestaComprador,
+  fueraDePolar, pulsoMarketing, pulsoSistemas, pulsoVenta, velarVoz, type CohortePulso, type RespuestaComprador,
 } from '../../src/features/negocio/pulso'
 import { velo } from '../../src/lib/modo-directo/reglas'
 import type { FinancesPayload } from '../../src/features/finances/types/finances'
@@ -45,7 +45,16 @@ test('venta y entrega salen de Cohorte: leyendo, oculto en directo, error sin ce
   assert.equal(sinPolar.estado, 'error'); assert.equal(sinPolar.cifra, undefined)
   const v = pulsoVenta({ data: cohorte({ cuposPagados: 12, llamadas: { total: 20, presento: 15, noLlego: 3, canceladas: 2, porVenir: 0, sinMarca: 0 } }) })
   assert.equal(v.estado, 'numero'); assert.equal(v.cifra, '12'); assert.equal(v.abre, 'cohorte')
-  assert.deepEqual(v.detalle, ['Cupo de 10', '15 de 20 llamadas se presentaron'])
+  // Polar no ve las transferencias: la cifra lo dice y no se afirma como el total; el cupo viejo ya no sale.
+  assert.equal(v.unidad, 'por Polar · transferencias aparte')
+  assert.deepEqual(v.detalle, ['15 de 20 llamadas se presentaron'])
+  const conFuera = pulsoVenta({ data: { ...cohorte({ cuposPagados: 8 }), compromisos: { actualizado: '2026-10-27T12:15:00-06:00', lineas: [
+    { via: 'polar', cobrado: 100, cobradoMxn: 0 }, { via: 'transferencia', cobrado: 100, cobradoMxn: 1800 }, { via: 'transferencia', cobrado: null, cobradoMxn: 900 },
+    { via: 'trueque', cobrado: 0, cobradoMxn: 0 }, { via: 'por-fijar', cobrado: null, cobradoMxn: 0 }, { via: 'transferencia', cobrado: 0, cobradoMxn: 0 },
+  ] } } })
+  assert.equal(conFuera.cifra, '8')
+  assert.equal(conFuera.detalle![0], 'Fuera de Polar: 2 por transferencia · 1 por trueque · 2 por fijar (anotado a mano al 27 oct)')
+  assert.equal(fueraDePolar({ compromisos: null }), null, 'sin archivo: sin dato, no «nadie»')
 
   const sinFundadores = pulsoEntrega({ data: cohorte({ cuposPagados: 0 }) })
   assert.equal(sinFundadores.estado, 'sin-sensor')

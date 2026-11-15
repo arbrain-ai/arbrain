@@ -1,7 +1,6 @@
 'use client'
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { addDays, format, parseISO } from 'date-fns'
-import { es } from 'date-fns/locale'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import type { Goal, GoalSnapshot } from '@/features/goals/model'
 import { dayKey } from './model'
@@ -14,6 +13,8 @@ import { useAhora } from './vivo-piezas'
 import { resumenSemana } from './mes-resumen'
 import type { PlanEvent, PlanningSnapshot } from './types'
 import type { Plegado } from './SemanaClara'
+import { tr } from '@/shared/i18n'
+import { localeFechas } from '@/shared/i18n/fechas'
 import c from './claridad.module.css'
 
 /**
@@ -53,7 +54,7 @@ const quita = (s: string) => s.replace(/\./g, '')
 const sinEmoji = (t: string) => t.replace(/^\s*(?:✓\s*)?(?:[\p{Extended_Pictographic}‍️]+\s*)+/u, '') || t
 function rango(a: string, b: string) {
   const x = parseISO(a), y = parseISO(b)
-  return x.getMonth() === y.getMonth() ? `${format(x, 'd')} – ${format(y, 'd MMM', { locale: es })}`.replace('.', '') : `${quita(format(x, 'd MMM', { locale: es }))} – ${quita(format(y, 'd MMM', { locale: es }))}`
+  return x.getMonth() === y.getMonth() ? tr('{inicio} – {fin} {mes}', { inicio: format(x, 'd'), fin: format(y, 'd'), mes: quita(format(y, 'MMM', { locale: localeFechas() })) }) : `${quita(format(x, tr('d MMM'), { locale: localeFechas() }))} – ${quita(format(y, tr('d MMM'), { locale: localeFechas() }))}`
 }
 /** Primer y último día (inclusive) de un evento, en días civiles. */
 function diasDe(e: PlanEvent): [string, string] {
@@ -84,7 +85,7 @@ export function MesClaro({ goals, fecha, snapshot, cargando, angosto, cuadricula
   const { desde, hasta } = useMemo(() => periodoDeEscala('month', fecha), [fecha])
   const goal = useMemo(() => goals.data?.goals.find(g => g.scope === 'month' && g.start === desde) ?? null, [goals.data, desde])
   const objetivo = useMemo(() => goals.data ? objetivoDe(goals.data.goals, snapshot, 'month', desde) : null, [goals.data, snapshot, desde])
-  const mes = format(parseISO(desde), 'MMMM', { locale: es })
+  const mes = format(parseISO(desde), 'MMMM', { locale: localeFechas() })
 
   const semanas = useMemo(() => {
     const vistos = new Set<string>()
@@ -122,39 +123,39 @@ export function MesClaro({ goals, fecha, snapshot, cargando, angosto, cuadricula
   const alternarSemana = (lunes: string) => setAbiertas(a => { const n = new Set(a); if (n.has(lunes)) n.delete(lunes); else n.add(lunes); return n })
   const criterios = goal ? entregablesDe(goal.success).items : []
   const franja = <FranjaPlan clave="arbrain.calendario.franja-mes-abierta"
-    rotulo={<>Mes<b> · {mes}</b>{goal?.status === 'draft' && <em> · en planificación</em>}</>}
-    titulo={objetivo?.titulo ?? null} vacio={cargando && !goals.data ? 'Leyendo el objetivo…' : 'Sin objetivo para este mes.'}
+    rotulo={<>{tr('Mes')}<b> · {mes}</b>{goal?.status === 'draft' && <em> · {tr('en planificación')}</em>}</>}
+    titulo={objetivo?.titulo ?? null} vacio={cargando && !goals.data ? tr('Leyendo el objetivo…') : tr('Sin objetivo para este mes.')}
     cuenta={criterios.length ? { k: criterios.filter(e => e.hecho).length, n: criterios.length } : null}
     detalle={criterios.length > 0 && <>
       <Segmentos k={criterios.filter(e => e.hecho).length} n={criterios.length} i={0} />
-      <Entregables texto={goal!.success} guardar={guardarObjetivo ? success => guardarObjetivo({ ...goal!, success }) : undefined} i0={1} nombre="Entregables del mes" />
+      <Entregables texto={goal!.success} guardar={guardarObjetivo ? success => guardarObjetivo({ ...goal!, success }) : undefined} i0={1} nombre={tr('Entregables del mes')} />
     </>} />
 
-  return <section className={c.vista} data-angosto={angosto || undefined} data-dos-columnas={dosColumnas || undefined} data-mes-piedras aria-label={`Mes de ${format(parseISO(desde), 'MMMM yyyy', { locale: es })}`}>
+  return <section className={c.vista} data-angosto={angosto || undefined} data-dos-columnas={dosColumnas || undefined} data-mes-piedras aria-label={tr('Mes de {mes}', { mes: format(parseISO(desde), 'MMMM yyyy', { locale: localeFechas() }) })}>
     {franja}
-    {dosColumnas || cuadricula ? null : <ol ref={lista} className={c.mesLista} aria-label="Semanas del mes">{semanas.map(w => {
+    {dosColumnas || cuadricula ? null : <ol ref={lista} className={c.mesLista} aria-label={tr('Semanas del mes')}>{semanas.map(w => {
       const pasada = w.domingo < hoy, actual = w.lunes <= hoy && hoy <= w.domingo
       const abierta = abiertas.has(w.lunes)
       return <li key={w.lunes} className={c.mesSemana} data-pasada={pasada || undefined} data-actual={actual || undefined} data-abierta={abierta || undefined}>
         <header className={c.mesCejaFila}>
           <button type="button" className={c.mesCeja} onClick={onSemana ? () => onSemana(w.lunes) : undefined} disabled={!onSemana}
-            aria-label={`Abrir la semana${w.s ? ` ${w.s}` : ''}${w.fase ? ` (${w.fase})` : ''} del ${rango(w.lunes, w.domingo)}${w.titulo ? `: ${w.titulo}` : ''}`}>
+            aria-label={`${w.s || w.fase ? tr('Abrir la semana {semana} del {rango}', { semana: [w.s, w.fase ? `(${w.fase})` : ''].filter(Boolean).join(' '), rango: rango(w.lunes, w.domingo) }) : tr('Abrir la semana del {rango}', { rango: rango(w.lunes, w.domingo) })}${w.titulo ? `: ${w.titulo}` : ''}`}>
             {(w.s || w.fase) && <span className={c.mesS}>{w.s && <b>{w.s}</b>}{w.s && w.fase && ' · '}{w.fase}</span>}
             <span className={c.mesRango}>{rango(w.lunes, w.domingo)}</span>
             {w.titulo && <span className={c.mesTitulo}>{w.titulo}</span>}
             <ChevronRight size={14} className={c.mesIr} aria-hidden />
           </button>
           {!pasada && <button type="button" className={c.mesPlegar} onClick={() => alternarSemana(w.lunes)} aria-expanded={abierta}
-            aria-label={abierta ? 'Plegar la semana' : `Ver el resumen de la semana${w.resumen ? `: ${w.resumen}` : ''}`}><ChevronDown size={14} aria-hidden /></button>}
+            aria-label={abierta ? tr('Plegar la semana') : `${tr('Ver el resumen de la semana')}${w.resumen ? `: ${w.resumen}` : ''}`}><ChevronDown size={14} aria-hidden /></button>}
         </header>
         {pasada || !abierta ? null : <>
         {w.resumen && <p className={c.mesResumen} data-resumen>{w.resumen}</p>}
-        <div className={c.mesRitmo} role="group" aria-label={`Días de la semana del ${rango(w.lunes, w.domingo)}`}>{w.ritmo.map(d => {
+        <div className={c.mesRitmo} role="group" aria-label={tr('Días de la semana del {rango}', { rango: rango(w.lunes, w.domingo) })}>{w.ritmo.map(d => {
           const fuera = d.dia < desde || d.dia >= hasta
           return <button key={d.dia} className={c.mesDia} onClick={onDia ? () => onDia(d.dia) : undefined} data-hoy={d.dia === hoy || undefined} data-pasado={d.dia < hoy || undefined} data-fuera={fuera || undefined}
-            aria-label={`${format(parseISO(d.dia), "EEEE d 'de' MMMM", { locale: es })}: ${d.chips.length ? d.chips.map(x => sinEmoji(x.evento.title)).join(', ') : 'sin compromisos'}`}
+            aria-label={`${format(parseISO(d.dia), tr("EEEE d 'de' MMMM"), { locale: localeFechas() })}: ${d.chips.length ? d.chips.map(x => sinEmoji(x.evento.title)).join(', ') : tr('sin compromisos')}`}
             title={d.chips.map(x => `${format(parseISO(x.evento.start), 'HH:mm')} ${sinEmoji(x.evento.title)}`).join('\n') || undefined}>
-            <small>{quita(format(parseISO(d.dia), 'EEEEE', { locale: es })).toUpperCase()}</small><b>{format(parseISO(d.dia), 'd')}</b>
+            <small>{quita(format(parseISO(d.dia), 'EEEEE', { locale: localeFechas() })).toUpperCase()}</small><b>{format(parseISO(d.dia), 'd')}</b>
             <span className={c.mesPuntos} aria-hidden>{d.chips.slice(0, 4).map(x => <i key={x.evento.id} data-atencion={x.atencion ?? undefined} style={{ '--c': colorAtencion(x.atencion) } as CSSProperties} />)}</span>
           </button>
         })}</div>

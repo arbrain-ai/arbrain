@@ -4,6 +4,7 @@ import { ChevronDown } from 'lucide-react'
 import { CATEGORIAS, CLAVE_OCULTAS, bloquesDeCalendarios, formatoHoras, guardarOcultas, horasPorCategoria, leerOcultas, type Categoria } from './categorias'
 import type { PlanEvent } from './types'
 import l from './leyenda.module.css'
+import { tr } from '@/shared/i18n'
 
 /**
  * La leyenda de tu forma de trabajo (10 oct 2026, Daniel: «veo rojo pero no veo morado, gris, azul… segmentar por colores»).
@@ -41,12 +42,12 @@ export function useOcultas(): [ReadonlySet<Categoria>, (c: Categoria) => void] {
 export function Leyenda({ ctl, eventos, desde, hasta, periodo }: { ctl: ControlLeyenda; eventos: PlanEvent[]; desde: number; hasta: number; periodo: 'semana' | 'día' }) {
   const horas = useMemo(() => horasPorCategoria(eventos.filter(e => !e.allDay && ctl.porCalendario(e))
     .map(e => ({ inicio: Date.parse(e.start), fin: Date.parse(e.end), categoria: ctl.categoria(e) })), desde, hasta), [eventos, ctl, desde, hasta])
-  return <div className={l.leyenda} role="group" aria-label={`Tipos de trabajo ${periodo === 'día' ? 'del día' : 'de la semana'}`}>
+  return <div className={l.leyenda} role="group" aria-label={periodo === 'día' ? tr('Tipos de trabajo del día') : tr('Tipos de trabajo de la semana')}>
     <div className={l.chips}>
       {CATEGORIAS.map(c => { const oculta = ctl.ocultas.has(c.id)
         return <button key={c.id} className={l.chip} aria-pressed={!oculta} data-oculta={oculta || undefined} style={{ '--c': c.color } as CSSProperties} onClick={() => ctl.alternar(c.id)}
-          title={`${c.nombre}: ${formatoHoras(horas[c.id])} planeadas ${periodo === 'día' ? 'este día' : 'esta semana'}. ${oculta ? 'Toca para mostrar' : 'Toca para ocultar'}.`}>
-          <i aria-hidden /><span className={l.largo}>{c.nombre}</span><span className={l.corto}>{c.corto}</span><b>{formatoHoras(horas[c.id])}</b>
+          title={`${periodo === 'día' ? tr('{nombre}: {horas} planeadas este día.', { nombre: tr(c.nombre), horas: formatoHoras(horas[c.id]) }) : tr('{nombre}: {horas} planeadas esta semana.', { nombre: tr(c.nombre), horas: formatoHoras(horas[c.id]) })} ${oculta ? tr('Toca para mostrar.') : tr('Toca para ocultar.')}`}>
+          <i aria-hidden /><span className={l.largo}>{tr(c.nombre)}</span><span className={l.corto}>{tr(c.corto)}</span><b>{formatoHoras(horas[c.id])}</b>
         </button> })}
     </div>
     {ctl.calendarios && ctl.alternarCalendario && <MenuCalendarios calendarios={ctl.calendarios} alternar={ctl.alternarCalendario} poner={ctl.ponerCalendarios} />}
@@ -61,7 +62,7 @@ function CasillaGrupo({ nombre, calendarios, poner }: { nombre: string; calendar
   useEffect(() => { if (ref.current) ref.current.indeterminate = activos > 0 && activos < calendarios.length }, [activos, calendarios.length])
   return <label className={l.grupo}>
     <input ref={ref} type="checkbox" checked={activos === calendarios.length} onChange={() => poner(calendarios.map(c => c.id), activos < calendarios.length)} />
-    <span>{nombre}</span>
+    <span>{tr(nombre)}</span>
   </label>
 }
 
@@ -78,16 +79,16 @@ function MenuCalendarios({ calendarios, alternar, poner }: { calendarios: Calend
   const apagados = calendarios.filter(c => !c.activo).length
   return <div ref={raiz} className={l.menuWrap} data-more-menu>
     <button className={l.menuBoton} aria-haspopup="true" aria-expanded={abierto} onClick={() => setAbierto(v => !v)}>
-      Calendarios{apagados > 0 && <small>{calendarios.length - apagados}/{calendarios.length}</small>}<ChevronDown size={12} aria-hidden />
+      {tr('Calendarios')}{apagados > 0 && <small>{calendarios.length - apagados}/{calendarios.length}</small>}<ChevronDown size={12} aria-hidden />
     </button>
-    {abierto && <div className={l.menu} role="group" aria-label="Calendarios"><ListaCalendarios calendarios={calendarios} alternar={alternar} poner={poner} /></div>}
+    {abierto && <div className={l.menu} role="group" aria-label={tr('Calendarios')}><ListaCalendarios calendarios={calendarios} alternar={alternar} poner={poner} /></div>}
   </div>
 }
 
 /** Los calendarios de Google por grupo (Trabajo, Vida), con su casilla de grupo: el menú de la leyenda y el engrane. */
 export function ListaCalendarios({ calendarios, alternar, poner }: { calendarios: Calendario[]; alternar: (id: string) => void; poner?: (ids: string[], activo: boolean) => void }) {
-  return <>{bloquesDeCalendarios(calendarios).map(b => <div key={b.id} className={l.bloque} role="group" aria-label={b.nombre}>
-    {poner ? <CasillaGrupo nombre={b.nombre} calendarios={b.calendarios} poner={poner} /> : <span className={l.grupo}>{b.nombre}</span>}
+  return <>{bloquesDeCalendarios(calendarios).map(b => <div key={b.id} className={l.bloque} role="group" aria-label={tr(b.nombre)}>
+    {poner ? <CasillaGrupo nombre={b.nombre} calendarios={b.calendarios} poner={poner} /> : <span className={l.grupo}>{tr(b.nombre)}</span>}
     {b.calendarios.map(c => <label key={c.id}>
       <input type="checkbox" checked={c.activo} onChange={() => alternar(c.id)} />
       <i aria-hidden style={{ background: c.color ?? 'var(--muted)' }} /><span>{c.titulo}</span>

@@ -15,6 +15,7 @@ import type { AccionesLienzos } from '../../state/acciones-lienzos'
 import { puedeSerMadre } from '../../state/carpetas'
 import { destinosDeCarpeta, destinosDePagina, type Destino } from '../../state/vista-lienzos'
 import { aFijo, zoomUI } from '@/shared/lib/zoom-ui'
+import { tr } from '@/shared/i18n'
 import css from './lienzos.module.css'
 
 export type Objetivo =
@@ -94,30 +95,30 @@ export function MenuLienzo(p: Props) {
   const items: Item[] = []
   if (o.tipo === 'pagina') {
     const x = o.pagina
-    if (p.onAbrir) items.push({ clave: 'abrir', etiqueta: 'Abrir', icono: <ExternalLink size={15} />, hacer: cerrando(() => p.onAbrir!(x)) })
-    if (o.archivada) items.push({ clave: 'restaurar', etiqueta: 'Restaurar', icono: <ArchiveRestore size={15} />, hacer: cerrando(() => a.archivarPagina(x, false)) })
-    else items.push({ clave: 'renombrar', etiqueta: 'Renombrar', icono: <Pencil size={15} />, hacer: cerrando(p.onRenombrar) })
-    items.push({ clave: 'mover', etiqueta: 'Mover a…', icono: <FolderInput size={15} />, hacer: () => setVista('mover'), sigue: true })
+    if (p.onAbrir) items.push({ clave: 'abrir', etiqueta: tr('Abrir'), icono: <ExternalLink size={15} />, hacer: cerrando(() => p.onAbrir!(x)) })
+    if (o.archivada) items.push({ clave: 'restaurar', etiqueta: tr('Restaurar'), icono: <ArchiveRestore size={15} />, hacer: cerrando(() => a.archivarPagina(x, false)) })
+    else items.push({ clave: 'renombrar', etiqueta: tr('Renombrar'), icono: <Pencil size={15} />, hacer: cerrando(p.onRenombrar) })
+    items.push({ clave: 'mover', etiqueta: tr('Mover a…'), icono: <FolderInput size={15} />, hacer: () => setVista('mover'), sigue: true })
     if (!o.archivada) {
-      items.push({ clave: 'duplicar', etiqueta: 'Duplicar', icono: <Copy size={15} />, hacer: cerrando(() => a.duplicarPagina(x.id)) })
+      items.push({ clave: 'duplicar', etiqueta: tr('Duplicar'), icono: <Copy size={15} />, hacer: cerrando(() => a.duplicarPagina(x.id)) })
       // En una carpeta fijada el pin no aplica: manda la carpeta (se saca de ella para soltarlo).
       if (!o.enCarpetaFijada) items.push(x.fijado
-        ? { clave: 'fijar', etiqueta: 'Quitar de fijados', icono: <PinOff size={15} />, hacer: cerrando(() => a.alternarFijado(x)) }
-        : { clave: 'fijar', etiqueta: 'Fijar arriba', icono: <Pin size={15} />, hacer: cerrando(() => a.alternarFijado(x)) })
-      items.push({ clave: 'archivar', etiqueta: 'Archivar', icono: <Archive size={15} />, hacer: cerrando(() => a.archivarPagina(x, true)) })
+        ? { clave: 'fijar', etiqueta: tr('Quitar de fijados'), icono: <PinOff size={15} />, hacer: cerrando(() => a.alternarFijado(x)) }
+        : { clave: 'fijar', etiqueta: tr('Fijar arriba'), icono: <Pin size={15} />, hacer: cerrando(() => a.alternarFijado(x)) })
+      items.push({ clave: 'archivar', etiqueta: tr('Archivar'), icono: <Archive size={15} />, hacer: cerrando(() => a.archivarPagina(x, true)) })
     }
-    items.push({ clave: 'eliminar', etiqueta: 'Eliminar', icono: <Trash2 size={15} />, hacer: () => setVista('confirmar'), peligro: true, sigue: true, sepAntes: true })
+    items.push({ clave: 'eliminar', etiqueta: tr('Eliminar'), icono: <Trash2 size={15} />, hacer: () => setVista('confirmar'), peligro: true, sigue: true, sepAntes: true })
   } else {
     const c = o.carpeta
-    if (o.archivada) items.push({ clave: 'restaurar', etiqueta: 'Restaurar carpeta', icono: <ArchiveRestore size={15} />, hacer: cerrando(() => a.archivarCarpeta(c, false)) })
+    if (o.archivada) items.push({ clave: 'restaurar', etiqueta: tr('Restaurar carpeta'), icono: <ArchiveRestore size={15} />, hacer: cerrando(() => a.archivarCarpeta(c, false)) })
     else {
-      if (p.onNuevaPagina) items.push({ clave: 'nueva', etiqueta: 'Lienzo nuevo aquí', icono: <Plus size={15} />, hacer: cerrando(() => p.onNuevaPagina!(c.id)) })
-      if (p.onNuevaSubcarpeta && puedeSerMadre(p.carpetas, c.id)) items.push({ clave: 'sub', etiqueta: 'Subcarpeta nueva', icono: <FolderPlus size={15} />, hacer: cerrando(() => p.onNuevaSubcarpeta!(c.id)) })
-      items.push({ clave: 'renombrar', etiqueta: 'Renombrar', icono: <Pencil size={15} />, hacer: cerrando(p.onRenombrar) })
-      if (destinosDeCarpeta(p.carpetas, c.id).length) items.push({ clave: 'mover', etiqueta: 'Mover a…', icono: <FolderInput size={15} />, hacer: () => setVista('mover'), sigue: true })
-      items.push({ clave: 'archivar', etiqueta: 'Archivar carpeta', icono: <Archive size={15} />, hacer: cerrando(() => a.archivarCarpeta(c, true)) })
+      if (p.onNuevaPagina) items.push({ clave: 'nueva', etiqueta: tr('Lienzo nuevo aquí'), icono: <Plus size={15} />, hacer: cerrando(() => p.onNuevaPagina!(c.id)) })
+      if (p.onNuevaSubcarpeta && puedeSerMadre(p.carpetas, c.id)) items.push({ clave: 'sub', etiqueta: tr('Subcarpeta nueva'), icono: <FolderPlus size={15} />, hacer: cerrando(() => p.onNuevaSubcarpeta!(c.id)) })
+      items.push({ clave: 'renombrar', etiqueta: tr('Renombrar'), icono: <Pencil size={15} />, hacer: cerrando(p.onRenombrar) })
+      if (destinosDeCarpeta(p.carpetas, c.id).length) items.push({ clave: 'mover', etiqueta: tr('Mover a…'), icono: <FolderInput size={15} />, hacer: () => setVista('mover'), sigue: true })
+      items.push({ clave: 'archivar', etiqueta: tr('Archivar carpeta'), icono: <Archive size={15} />, hacer: cerrando(() => a.archivarCarpeta(c, true)) })
     }
-    items.push({ clave: 'eliminar', etiqueta: 'Eliminar carpeta', icono: <Trash2 size={15} />, hacer: () => setVista('confirmar'), peligro: true, sigue: true, sepAntes: true })
+    items.push({ clave: 'eliminar', etiqueta: tr('Eliminar carpeta'), icono: <Trash2 size={15} />, hacer: () => setVista('confirmar'), peligro: true, sigue: true, sepAntes: true })
   }
 
   const destinos: Destino[] = vista !== 'mover' ? [] : o.tipo === 'pagina' ? destinosDePagina(p.carpetas) : destinosDeCarpeta(p.carpetas, o.carpeta.id)
@@ -126,23 +127,23 @@ export function MenuLienzo(p: Props) {
   const eliminar = () => { if (o.tipo === 'pagina') a.borrarPagina(o.pagina.id); else a.borrarCarpeta(o.carpeta.id); p.onCerrar() }
 
   return createPortal(
-    <div ref={caja} className={css.menu} role="menu" data-capa-hija="" aria-label={`Acciones de ${nombre}`} style={{ ...p.vars, left: pos?.left ?? 0, top: pos?.top ?? 0, ...(pos?.maxHeight ? { maxHeight: pos.maxHeight, overflowY: 'auto' as const } : {}), visibility: pos ? 'visible' : 'hidden' }}>
+    <div ref={caja} className={css.menu} role="menu" data-capa-hija="" aria-label={tr('Acciones de {nombre}', { nombre })} style={{ ...p.vars, left: pos?.left ?? 0, top: pos?.top ?? 0, ...(pos?.maxHeight ? { maxHeight: pos.maxHeight, overflowY: 'auto' as const } : {}), visibility: pos ? 'visible' : 'hidden' }}>
       {vista === 'principal' && items.map(i => <div key={i.clave}>
         {i.sepAntes && <div className={css.sep} role="separator" />}
         <button role="menuitem" className={css.item} data-peligro={i.peligro ? '' : undefined} onClick={i.hacer}>{i.icono}<span>{i.etiqueta}</span></button>
       </div>)}
       {vista === 'mover' && <>
-        <div className={css.menuTitulo}><button aria-label="Volver" onClick={() => setVista('principal')}><ArrowLeft size={14} /></button>Mover a…</div>
+        <div className={css.menuTitulo}><button aria-label={tr('Volver')} onClick={() => setVista('principal')}><ArrowLeft size={14} /></button>{tr('Mover a…')}</div>
         {destinos.map(d => <button key={d.id ?? 'raiz'} role="menuitem" className={css.item} disabled={d.id === actual} onClick={() => irA(d)}>
-          <span>{d.etiqueta}</span>{d.id === actual && <Check size={14} aria-label="Está aquí" />}
+          <span>{tr(d.etiqueta)}</span>{d.id === actual && <Check size={14} aria-label={tr('Está aquí')} />}
         </button>)}
       </>}
       {vista === 'confirmar' && <div className={css.confirma}>
-        <p>¿Eliminar «{nombre}»?</p>
+        <p>{tr('¿Eliminar «{nombre}»?', { nombre })}</p>
         <small>{o.tipo === 'pagina'
-          ? 'Sale de tus lienzos. El borrado es suave: el trabajo sigue en la base.'
-          : 'Sus lienzos y subcarpetas salen a la raíz; no se borra ninguno.'}</small>
-        <div><button onClick={() => setVista('principal')}>Cancelar</button><button data-peligro="" onClick={eliminar}>Eliminar</button></div>
+          ? tr('Sale de tus lienzos. El borrado es suave: el trabajo sigue en la base.')
+          : tr('Sus lienzos y subcarpetas salen a la raíz; no se borra ninguno.')}</small>
+        <div><button onClick={() => setVista('principal')}>{tr('Cancelar')}</button><button data-peligro="" onClick={eliminar}>{tr('Eliminar')}</button></div>
       </div>}
     </div>,
     document.body)

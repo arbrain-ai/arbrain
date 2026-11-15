@@ -22,6 +22,7 @@ import { LOOK_LEVY, type Levy3DPhase, type Levy3DStatus } from './Levy3D'
 import { LEVY4_URL } from '@/features/chat/lib/levy4'
 import { asimParpadeo, BOCA_REPOSO, C06, crearIdentidad, FuenteVisemas, nivelParpadeo, ruido3, type Vis } from '@/features/chat/lib/levy4-nucleo'
 import { crearBoca } from '@/features/chat/lib/levy4-boca.js'
+import { tr } from '@/shared/i18n'
 
 const BASELINE_PRESS = 0.1
 const ALL_VISEMES = ['viseme_aa', 'viseme_E', 'viseme_O', 'viseme_I', 'viseme_U', 'viseme_DD', 'viseme_nn']
@@ -34,7 +35,7 @@ const GAZE: Record<Levy3DPhase, { x: number; y: number; breath: number; follow: 
 }
 type BocaV4 = { pesos: (vis: Vis | null, t: number, opts?: object) => { pesos: Record<string, number>; suma: Record<string, number>; hablando: number }; fijarApertura: (ap: number) => void }
 
-export function Levy3DV4({ className = '', status = 'idle', phase = 'reposo', voiceRef, onReady, onFail, model: modelUrl = LEVY4_URL, fill = false, label = 'Levy en 3D' }: {
+export function Levy3DV4({ className = '', status = 'idle', phase = 'reposo', voiceRef, onReady, onFail, model: modelUrl = LEVY4_URL, fill = false, label = tr('Levy en 3D') }: {
   className?: string
   model?: string
   fill?: boolean

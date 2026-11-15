@@ -8,6 +8,8 @@ import { useAtomicos } from '@/features/sistema/useAtomicos'
 import { nombreEnPantalla } from '@/lib/sistema/atomicos'
 import { usePreferencia } from './orden-tareas'
 import s from './franja-plan.module.css'
+import { tr } from '@/shared/i18n'
+import { trNodos } from '@/shared/i18n'
 
 /**
  * El objetivo de cada escala, UN solo esqueleto para Día, Semana y Mes (25 oct 2026, 08:54, Daniel: «el objetivo del mes debe compartir
@@ -57,17 +59,17 @@ export function FranjaPlan({ rotulo, titulo, vacio, cuenta, habitos, detalle, av
     if (recordar) alternarGuardada(); else setSuelta(x => !x)
   }
   const linea = <span className={s.seg} data-objetivo><span className={s.rotulo}>{rotulo}</span>
-    {titulo ? <span className={s.titulo}>{titulo}</span> : <span className={s.vacio}>{vacio}</span>}</span>
+    {titulo ? <span className={s.titulo}>{titulo}</span> : <span className={s.vacio}>{tr(vacio)}</span>}</span>
 
   return <section className={s.franja} data-abierta={abierta || undefined} data-sin-detalle={!conDetalle || undefined} data-vacio={!titulo || undefined}
-    data-objetivo-escala aria-label={habitos ? 'Objetivo y hábitos' : 'Objetivo'}>
+    data-objetivo-escala aria-label={habitos ? tr('Objetivo y hábitos') : tr('Objetivo')}>
     <div className={s.linea}>
-      {conDetalle ? <button className={s.resumen} onClick={alternar} aria-expanded={abierta} title={abierta ? 'Plegar a una línea' : 'Ver el objetivo completo'}>{linea}</button>
+      {conDetalle ? <button className={s.resumen} onClick={alternar} aria-expanded={abierta} title={abierta ? tr('Plegar a una línea') : tr('Ver el objetivo completo')}>{linea}</button>
         : <div className={s.resumen}>{linea}</div>}
-      {cuenta && cuenta.n > 0 && <span className={s.cuenta}><b>{cuenta.k}</b> de {cuenta.n}</span>}
+      {cuenta && cuenta.n > 0 && <span className={s.cuenta}>{trNodos('{k} de {n}', { k: <b>{cuenta.k}</b>, n: cuenta.n })}</span>}
       {aviso}
       {habitos && habitos.dia <= today && <Casillas {...habitos} />}
-      {conDetalle && <button className={s.chevron} onClick={alternar} aria-expanded={abierta} aria-label={abierta ? 'Plegar el objetivo' : 'Abrir el objetivo'}><ChevronDown size={15} aria-hidden /></button>}
+      {conDetalle && <button className={s.chevron} onClick={alternar} aria-expanded={abierta} aria-label={abierta ? tr('Plegar el objetivo') : tr('Abrir el objetivo')}><ChevronDown size={15} aria-hidden /></button>}
     </div>
     {abierta && <div className={s.detalle}>{detalle}</div>}
   </section>
@@ -82,8 +84,8 @@ function Casillas({ dia, habits, especial = {} }: NonNullable<Parameters<typeof 
   if (!lista.length) return null
   const hecho = (clave: string) => especial[clave] ? especial[clave].hecho : habits.record(dia, clave)?.hecho === true
   const n = lista.filter(x => hecho(x.clave)).length
-  return <div className={s.seg} data-habitos role="group" aria-label={`Hábitos de hoy: ${n} de ${lista.length}`}>
-    <i className={s.sep} aria-hidden /><span className={s.rotulo}>Hábitos</span><b className={s.contador}>{n}/{lista.length}</b>
+  return <div className={s.seg} data-habitos role="group" aria-label={tr('Hábitos de hoy: {n} de {total}', { n, total: lista.length })}>
+    <i className={s.sep} aria-hidden /><span className={s.rotulo}>{tr('Hábitos')}</span><b className={s.contador}>{n}/{lista.length}</b>
     {lista.map(x => { const nombre = nombreEnPantalla(x.nombre, x.p), si = hecho(x.clave)
       return <button key={x.clave} className={s.casilla} data-hecho={si || undefined} aria-pressed={si} aria-label={nombre} title={nombre}
         onClick={() => { if (especial[x.clave]?.onToggle) especial[x.clave].onToggle!(); else habits.toggle(dia, x.clave, 'manual') }}>

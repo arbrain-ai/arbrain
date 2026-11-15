@@ -3,6 +3,7 @@
 // señal del turno, se consulta la salud real del chat (`/api/salud/chat`: base, URL del daemon y su /health) y se dice
 // qué pasa con la acción que toca. Cada CONSULTA_CADA_MS se vuelve a mirar mientras siga la espera.
 import { useEffect, useState } from 'react'
+import { tr } from '@/shared/i18n'
 
 export const ESPERA_SIN_EXPLICAR_MS = 25_000
 const CONSULTA_CADA_MS = 10_000
@@ -11,10 +12,10 @@ export type SaludPublica = { ok?: boolean; etapas?: { supabase?: { ok?: boolean 
 
 /** Texto para la persona según la salud del chat (null = la sonda no respondió: el servidor web no está). */
 export function explicarEspera(salud: SaludPublica, segundos: number): string {
-  if (!salud) return 'No hay conexión con Arbrain ahora; se está reparando sola. Tu mensaje está guardado y sale en cuanto vuelva.'
-  if (salud.etapas?.daemon?.ok === false) return 'El motor de Arbrain no responde; se está reiniciando solo. Tu mensaje está guardado y sigue en camino.'
-  if (salud.etapas?.supabase?.ok === false) return 'La base de Arbrain no responde; se reintenta sola. Tu mensaje está guardado.'
-  return `Lleva ${segundos} s preparándose. El motor de Arbrain está activo; algunas respuestas tardan en empezar. Puedes esperar o detenerla.`
+  if (!salud) return tr('No hay conexión con Arbrain ahora; se está reparando sola. Tu mensaje está guardado y sale en cuanto vuelva.')
+  if (salud.etapas?.daemon?.ok === false) return tr('El motor de Arbrain no responde; se está reiniciando solo. Tu mensaje está guardado y sigue en camino.')
+  if (salud.etapas?.supabase?.ok === false) return tr('La base de Arbrain no responde; se reintenta sola. Tu mensaje está guardado.')
+  return tr('Lleva {segundos} s preparándose. El motor de Arbrain está activo; algunas respuestas tardan en empezar. Puedes esperar o detenerla.', { segundos })
 }
 
 /** ¿La espera es porque no hay conexión o el motor no responde? Entonces se ofrece «Reintentar». */

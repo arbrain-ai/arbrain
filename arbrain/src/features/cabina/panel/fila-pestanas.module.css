@@ -15,7 +15,14 @@
 }
 .pestana > span { overflow: hidden; text-overflow: ellipsis; }
 .pestana:active { background: rgba(var(--foreground-rgb), 0.06); }
-.pestana[aria-selected='true'] { color: var(--foreground); background: rgba(var(--brand-rgb), 0.12); font-weight: 600; }
+.pestana > svg { flex-shrink: 0; opacity: 0.72; }
+/* La que se ve sobresale (11 nov 2026, mismo lenguaje que las pestañas del escritorio en panel.module.css): superficie elevada,
+   filo de luz y sombra corta, con el ícono en morado; ya no un relleno lila plano. */
+.pestana[aria-selected='true'] { color: var(--foreground); font-weight: 600; background: var(--card);
+  box-shadow: 0 0 0 1px rgba(var(--foreground-rgb), 0.07), 0 1px 2px rgba(var(--foreground-rgb), 0.06), 0 4px 10px -6px rgba(var(--foreground-rgb), 0.16); }
+:global(.dark) .pestana[aria-selected='true'] { background: color-mix(in srgb, rgb(var(--foreground-rgb)) 8%, transparent);
+  box-shadow: inset 0 1px 0 rgba(var(--foreground-rgb), 0.07), 0 0 0 1px rgba(var(--foreground-rgb), 0.055), 0 2px 6px -2px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.55); }
+.pestana[aria-selected='true'] > svg { opacity: 1; color: var(--brand-ink); }
 .pestana:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
 /* Anclada: solo su ícono, como en el escritorio. */
 .pestana[data-anclada] { padding: 0 10px; gap: 0; }

@@ -24,7 +24,7 @@ test('tres niveles, Autónomo primero y recomendado; los nombres son los del dae
   assert.equal(FICHAS_MODO.filter(f => f.recomendado).length, 1)
   assert.deepEqual(NOMBRE_MODO, { preguntar: 'Preguntar siempre', carpeta: 'Automático en mi carpeta', autonomo: 'Autónomo' })
   const daemon = fuente('server/src/cliente/modo-permisos.ts')
-  for (const [k, v] of Object.entries(NOMBRE_MODO)) assert.match(daemon, new RegExp(`${k}: '${v}'`), k)
+  for (const [k, v] of Object.entries(NOMBRE_MODO)) assert.match(daemon, new RegExp(`${k}: trMarca\\('${v}'\\)`), k)
   assert.match(daemon, /MODO_RECOMENDADO: ModoPermisos = 'autonomo'/)
   assert.match(RED_MINIMA, /Dinero/)
   assert.match(avisoAutonomo(null), /^Modo Autónomo: Levy actúa sin preguntarte, salvo la red mínima\./)
@@ -106,7 +106,7 @@ test('el diálogo de confirmación: Escape cierra sin rechazar (A7), nada «se r
   assert.match(d, /Si no decides ahora, queda en tu cola: nada pasa sin tu clic\. Escape cierra sin decidir\./)
   assert.match(d, /\(c\.botonSi \|\| 'Permitir esta acción'\)/)
   // En el daemon: abrir una página dice «Abrir <host>», no «Sí, enviarlo».
-  assert.match(fuente('server/src/cliente/frase-humana.ts'), /return `Abrir \$\{host/)
+  assert.match(fuente('server/src/cliente/frase-humana.ts'), /return tr\('Abrir \{sitio\}', \{ sitio: host/)
 })
 
 test('A6: el sondeo sigue con la ventana tapada y avisa una vez por pendiente nueva', () => {
@@ -118,7 +118,7 @@ test('A6: el sondeo sigue con la ventana tapada y avisa una vez por pendiente nu
   assert.deepEqual(avisarSiTapada([{ ...base, id: 'cf_2' }], false), ['cf_2'], 'tapada: avisa')
   assert.deepEqual(avisarSiTapada([{ ...base, id: 'cf_2' }], false), [], 'la misma, no dos veces')
   // Y el daemon manda la del sistema al crear la pendiente.
-  assert.match(fuente('server/src/server.ts'), /if \(tipo === 'pendiente'\) \{\n\s+const r = avisarSistema\(c\.id, 'Levy espera tu clic'/)
+  assert.match(fuente('server/src/server.ts'), /if \(tipo === 'pendiente'\) \{\n\s+const r = avisarSistema\(c\.id, (?:tr\()?'Levy espera tu clic'/)
 })
 
 test('textos: la licencia es Apache-2.0 (no «no es una venta del código»), los términos nombran los niveles, y la versión sube', () => {

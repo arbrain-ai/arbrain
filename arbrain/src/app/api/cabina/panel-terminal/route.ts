@@ -4,6 +4,7 @@ import { planningOwner, planningError, checkMutationOrigin } from '@/lib/plannin
 import { MotorError, unaVez } from '@/lib/motor'
 import { esEdicionCliente } from '@/lib/edicion'
 import { raizWorkspace } from '@/lib/rutas-instalacion'
+import { tr } from '@/shared/i18n'
 
 // Terminal inferior de Arbrain (⌘J, 2 oct 2026).
 // GET  = ids de terminales vivas del motor (el panel reconcilia las suyas tras recargar).
@@ -40,11 +41,11 @@ export async function POST(request: Request) {
       return Response.json({ id: r.id, pid: r.pid }, { headers: NOCACHE })
     }
     if (body.op === 'cerrar') {
-      if (typeof body.id !== 'number' || !Number.isInteger(body.id) || body.id < 0) throw new MotorError('Terminal inválida.')
+      if (typeof body.id !== 'number' || !Number.isInteger(body.id) || body.id < 0) throw new MotorError(tr('Terminal inválida.'))
       await unaVez({ op: 'kill', id: body.id })
       return Response.json({ ok: true }, { headers: NOCACHE })
     }
-    throw new MotorError('Nada que hacer.')
+    throw new MotorError(tr('Nada que hacer.'))
   } catch (error) {
     if (error instanceof MotorError) return Response.json({ error: error.message }, { status: 409, headers: NOCACHE })
     return planningError(error)

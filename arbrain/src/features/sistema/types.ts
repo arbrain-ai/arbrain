@@ -1,3 +1,5 @@
+import { trMarca } from '@/shared/i18n'
+
 export type Seccion = 'ancla' | 'cuerpo' | 'mente' | 'nutricion'
 
 export interface Habito {
@@ -26,10 +28,10 @@ export interface CronRun {
 }
 
 export const SECCION_LABEL: Record<Seccion, string> = {
-  ancla: 'Ancla',
-  cuerpo: 'Cuerpo',
-  mente: 'Mente',
-  nutricion: 'Nutrición',
+  ancla: trMarca('Ancla'),
+  cuerpo: trMarca('Cuerpo'),
+  mente: trMarca('Mente'),
+  nutricion: trMarca('Nutrición'),
 }
 
 export const SECCION_ORDER: Seccion[] = ['ancla', 'cuerpo', 'mente', 'nutricion']

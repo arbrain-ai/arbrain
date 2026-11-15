@@ -76,7 +76,7 @@ describe('marca de actividad del lector', () => {
 describe('audio ligero del lector (31 oct 2026)', () => {
   it('un solo ffmpeg hace atempo y Opus; a 1x en WAV no hace falta ffmpeg y el filtro no aparece', () => {
     const opus2x = argsFfmpegLector(22050, 2, 'opus')
-    expect(opus2x).toEqual(expect.arrayContaining(['atempo=2', 'libopus', '40k', 'ogg', 'pipe:0', 'pipe:1']))
+    expect(opus2x).toEqual(expect.arrayContaining(['atempo=2', 'libopus', '24k', 'ogg', 'pipe:0', 'pipe:1']))
     expect(opus2x.indexOf('atempo=2')).toBeLessThan(opus2x.indexOf('libopus'))
     expect(argsFfmpegLector(22050, 1, 'opus')).not.toContain('-filter:a')
     expect(argsFfmpegLector(22050, 1.5, 'wav')).toEqual(expect.arrayContaining(['atempo=1.5', 's16le']))

@@ -13,6 +13,7 @@ import type { Confirmacion, Confirmaciones } from './confirmaciones.js'
 import { agregarReglaDe, familiaDe, patronValido, quitarRegla, reglasSiempre, type ReglaSiempre } from './reglas-siempre.js'
 import { frasePatron } from './frase-humana.js'
 import { empezarCorrelo, type OpcionesCorrelo } from './correlo.js'
+import { tr } from '../i18n/tr.js'
 
 type Respuesta = { ok: true; confirmacion: Confirmacion; regla?: ReglaSiempre } | { ok: false; status: number; error: string }
 
@@ -37,6 +38,6 @@ export async function resolverTarjeta(store: Confirmaciones, cuerpo: Record<stri
 export const listarReglas = () => ({ reglas: reglasSiempre().map(r => ({ ...r, frase: frasePatron(r.patron, r.herramienta) })) })
 
 export function revocarRegla(id: unknown): { ok: boolean; status: number; error?: string } {
-  if (typeof id !== 'string' || !/^rg_[0-9a-f]{6,20}$/.test(id)) return { ok: false, status: 400, error: 'Regla inválida.' }
-  return quitarRegla(id) ? { ok: true, status: 200 } : { ok: false, status: 404, error: 'Esa regla ya no existe.' }
+  if (typeof id !== 'string' || !/^rg_[0-9a-f]{6,20}$/.test(id)) return { ok: false, status: 400, error: tr('Regla inválida.') }
+  return quitarRegla(id) ? { ok: true, status: 200 } : { ok: false, status: 404, error: tr('Esa regla ya no existe.') }
 }

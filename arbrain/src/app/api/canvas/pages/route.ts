@@ -24,15 +24,16 @@ const OWNER = instalacion().idPerfilDueno
 
 /** Solo lo que el v4 entiende. Una pagina del v3 se abre vacia, no rota. */
 import { SCHEMA_V4 } from '@/features/canvas/model/schema'
-import { leerOrganizacion } from '@/features/canvas/state/organizacion'
+import { leerOrganizacion, leerTablero } from '@/features/canvas/state/organizacion'
 import { urlPublicaDeStorage } from '@/features/chat/lib/adjuntos'
 import { instalacion } from '@/config'
 import { plantillaClase } from '@/features/canvas/model/plantilla-clase'
 import { serverMeasureContext } from '@/features/canvas/text/metrics-server'
+import { tr } from '@/shared/i18n'
 
 export async function GET(request: Request) {
   if (!await authenticateDraw3(request)) {
-    return NextResponse.json({ ok: false, error: 'no autorizado' }, { status: 401 })
+    return NextResponse.json({ ok: false, error: tr('no autorizado') }, { status: 401 })
   }
   const db = createServiceClient()
   const { data, error } = await db.from('draw')
@@ -47,12 +48,13 @@ export async function GET(request: Request) {
   const paginas = (data ?? []).map(r => {
     const doc = r.page_elements as { schemaVersion?: number; elements?: unknown[] } | null
     return {
-      id: r.page_id, nombre: r.name ?? 'Sin título', folderId: r.folder_id,
+      id: r.page_id, nombre: r.name ?? tr('Sin título'), folderId: r.folder_id,
       actualizado: r.updated_at, creado: r.created_at, version: r.agent_version ?? 0,
       elementos: Array.isArray(doc?.elements) ? doc.elements.length : 0,
       esV4: doc?.schemaVersion === SCHEMA_V4,
       miniatura: urlPublicaDeStorage((r.thumbnail_url as string | null) ?? undefined) ?? null,
       ...leerOrganizacion(r.settings),
+      ...(leerTablero(r.settings) ? { tablero: true } : {}),
     }
   })
   return NextResponse.json({ ok: true, paginas })
@@ -60,7 +62,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   if (!await authenticateDraw3(request)) {
-    return NextResponse.json({ ok: false, error: 'no autorizado' }, { status: 401 })
+    return NextResponse.json({ ok: false, error: tr('no autorizado') }, { status: 401 })
   }
   // `plantilla: 'clase'` (7 nov 2026): título y tres bloques (model/plantilla-clase.ts). `duplicarDe` con `nombre`/`folderId`
   // es «Desde plantilla» de «＋ Nuevo lienzo»: la copia nace con su nombre y en la carpeta abierta.
@@ -71,10 +73,10 @@ export async function POST(request: Request) {
   if (body.duplicarDe) {
     const { data: o, error: eo } = await db.from('draw').select('name, folder_id, page_elements').eq('page_id', body.duplicarDe).eq('is_deleted', false).maybeSingle()
     if (eo) return NextResponse.json({ ok: false, error: eo.message }, { status: 500 })
-    if (!o) return NextResponse.json({ ok: false, error: 'no existe' }, { status: 404 })
+    if (!o) return NextResponse.json({ ok: false, error: tr('no existe') }, { status: 404 })
     const doc = o.page_elements as { schemaVersion?: number; elements?: unknown[]; camera?: unknown } | null
     const { data, error } = await db.from('draw').insert({
-      user_id: OWNER, name: body.nombre?.trim() || `${o.name ?? 'Sin título'} (copia)`, folder_id: body.folderId !== undefined ? body.folderId : o.folder_id,
+      user_id: OWNER, name: body.nombre?.trim() || `${o.name ?? tr('Sin título')} (copia)`, folder_id: body.folderId !== undefined ? body.folderId : o.folder_id,
       page_elements: { ...(doc ?? {}), regions: undefined }, agent_version: 1, is_deleted: false,
     }).select('page_id, name, folder_id, updated_at, created_at').single()
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 })

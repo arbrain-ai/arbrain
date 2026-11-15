@@ -16,6 +16,7 @@ import { pedirSegmentoTaller } from './taller-segmento'
 import s from './panel.module.css'
 import t from './tablero.module.css'
 import { armarTablero, cuentas, resumenPildora } from '../tablero-modelo'
+import { tr, trn } from '@/shared/i18n'
 
 /** Lleva a Taller › Agentes. Antes solo escribía el recuerdo del segmento: con el Taller ya abierto en otra pestaña (Máquina)
  *  no pasaba nada (15 oct 2026). Ahora cambia el segmento vivo, aquí y en la ventana que tenga el Taller, y luego lo abre. */
@@ -36,18 +37,18 @@ export function AgentesTrabajando({ compacta = false, conversacion: fija }: { co
   const n = cuentas(tablero).trabajando
   const otros = resumenPildora(tablero).filter(p => p.parte === 'listo' || p.parte === 'sin-terminar')
   if (!n && !preguntas && !otros.length) return null
-  const agentes = `${n} ${n === 1 ? 'subagente trabajando' : 'subagentes trabajando'}`
+  const agentes = trn(n, '{n} subagente trabajando', '{n} subagentes trabajando')
   const resto = otros.map(p => p.texto).join(', ')
   return <span className={s.agentesVivos} data-compacta={compacta || undefined}>
     {(n > 0 || otros.length > 0) && <button type="button" onClick={irAAgentes} data-testid="agentes-trabajando"
-      title="Subagentes de esta conversación · ver en el Taller" aria-label={`${n > 0 ? agentes : 'Ningún subagente trabajando'}${resto ? `, ${resto}` : ''} en esta conversación. Abrir el Taller`}>
+      title={tr('Subagentes de esta conversación · ver en el Taller')} aria-label={tr('{estado} en esta conversación. Abrir el Taller', { estado: `${n > 0 ? agentes : tr('Ningún subagente trabajando')}${resto ? `, ${resto}` : ''}` })}>
       {n > 0 && <><i className={s.puntoVivo} aria-hidden /><span>{compacta ? n : agentes}</span></>}
       {!compacta && otros.length > 0 && <span className={t.pildora}>{otros.map(p => <span key={p.parte} className={t.pildoraParte} data-parte={p.parte}><i className={t.punto} aria-hidden />{p.texto}</span>)}</span>}
       {compacta && otros.length > 0 && !n && <span>{otros.reduce((a, p) => a + p.n, 0)}</span>}
     </button>}
     {preguntas > 0 && <button type="button" onClick={() => abrirCasa('tareas')} data-testid="te-pregunta"
-      title="Te preguntan · abrir Tareas" aria-label={`${preguntas} ${preguntas === 1 ? 'pregunta' : 'preguntas'} para ti. Abrir Tareas`}>
-      <span>{preguntas} pregunta{preguntas === 1 ? '' : 'n'}</span>
+      title={tr('Te preguntan · abrir Tareas')} aria-label={trn(preguntas, '{n} pregunta para ti. Abrir Tareas', '{n} preguntas para ti. Abrir Tareas')}>
+      <span>{trn(preguntas, '{n} pregunta', '{n} preguntan')}</span>
     </button>}
   </span>
 }

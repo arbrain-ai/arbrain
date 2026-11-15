@@ -1,5 +1,6 @@
 import { addDays, addMinutes, differenceInMinutes, format, isSameDay, nextMonday, nextSaturday, parseISO, startOfMonth, startOfWeek, subDays } from 'date-fns'
-import { es } from 'date-fns/locale'
+import { tr } from '@/shared/i18n'
+import { localeFechas } from '@/shared/i18n/fechas'
 import { dayKey, hasTime, taskStart } from './model'
 import type { PlanItem, PlanningSnapshot } from './types'
 
@@ -69,9 +70,9 @@ const local = (day: string, time: string) => parseISO(`${day}T${time || '00:00'}
 
 /** Datos para la pluma (`mc-event.py planning`). Lanza un Error legible si el borrador no se puede guardar. */
 export function datosDe(b: Borrador, timeZone: string): Record<string, unknown> {
-  if (!b.title.trim()) throw new Error('Dale un nombre antes de guardar.')
+  if (!b.title.trim()) throw new Error(tr('Dale un nombre antes de guardar.'))
   if (b.kind === 'event') {
-    if (!b.day) throw new Error('Elige un día.')
+    if (!b.day) throw new Error(tr('Elige un día.'))
     if (!b.time) {
       const last = b.endDay && b.endDay >= b.day ? b.endDay : b.day
       return { title: b.title, description: b.description, location: b.location, allDay: true, start: b.day, end: dayKey(addDays(parseISO(last), 1)), timeZone,
@@ -113,14 +114,14 @@ export function datosDeCambio(b: Borrador, base: Borrador, timeZone: string, toc
 
 export interface FechaRapida { id: string; label: string; day: string; hint: string }
 export function fechasRapidas(hoy: Date): FechaRapida[] {
-  const dia = (d: Date) => format(d, 'EEE', { locale: es }).replace('.', '')
+  const dia = (d: Date) => format(d, 'EEE', { locale: localeFechas() }).replace('.', '')
   const sabado = hoy.getDay() === 6 ? hoy : nextSaturday(hoy)
   const lunes = nextMonday(hoy)
   return [
-    { id: 'hoy', label: 'Hoy', day: dayKey(hoy), hint: dia(hoy) },
-    { id: 'manana', label: 'Mañana', day: dayKey(addDays(hoy, 1)), hint: dia(addDays(hoy, 1)) },
-    { id: 'finde', label: 'Este fin', day: dayKey(sabado), hint: format(sabado, 'EEE d', { locale: es }).replace('.', '') },
-    { id: 'semana', label: 'Próx. semana', day: dayKey(lunes), hint: format(lunes, 'EEE d', { locale: es }).replace('.', '') },
+    { id: 'hoy', label: tr('Hoy'), day: dayKey(hoy), hint: dia(hoy) },
+    { id: 'manana', label: tr('Mañana'), day: dayKey(addDays(hoy, 1)), hint: dia(addDays(hoy, 1)) },
+    { id: 'finde', label: tr('Este fin'), day: dayKey(sabado), hint: format(sabado, 'EEE d', { locale: localeFechas() }).replace('.', '') },
+    { id: 'semana', label: tr('Próx. semana'), day: dayKey(lunes), hint: format(lunes, 'EEE d', { locale: localeFechas() }).replace('.', '') },
   ]
 }
 
@@ -132,17 +133,17 @@ export function etiquetaDuracion(minutes: number) {
 
 export type Tono = 'vacia' | 'vencida' | 'hoy' | 'normal'
 export function etiquetaFecha(b: Pick<Borrador, 'kind' | 'day' | 'time' | 'minutes' | 'endDay'>, hoy = new Date()): { texto: string; tono: Tono } {
-  if (!b.day) return { texto: 'Sin fecha', tono: 'vacia' }
+  if (!b.day) return { texto: tr('Sin fecha'), tono: 'vacia' }
   const d = parseISO(b.day)
   const manana = addDays(hoy, 1), ayer = subDays(hoy, 1)
-  const nombre = isSameDay(d, hoy) ? 'Hoy' : isSameDay(d, manana) ? 'Mañana' : isSameDay(d, ayer) ? 'Ayer'
-    : format(d, d.getFullYear() === hoy.getFullYear() ? 'EEE d MMM' : 'EEE d MMM yyyy', { locale: es }).replace(/\./g, '')
+  const nombre = isSameDay(d, hoy) ? tr('Hoy') : isSameDay(d, manana) ? tr('Mañana') : isSameDay(d, ayer) ? tr('Ayer')
+    : format(d, d.getFullYear() === hoy.getFullYear() ? tr('EEE d MMM') : tr('EEE d MMM yyyy'), { locale: localeFechas() }).replace(/\./g, '')
   let texto = nombre
   if (b.time) {
     const fin = addMinutes(local(b.day, b.time), b.minutes)
     texto += b.kind === 'event' || b.minutes ? ` · ${b.time} – ${hora(fin)}` : ` · ${b.time}`
   } else if (b.kind === 'event' && b.endDay && b.endDay > b.day) {
-    texto += ` → ${format(parseISO(b.endDay), 'EEE d MMM', { locale: es }).replace(/\./g, '')}`
+    texto += ` → ${format(parseISO(b.endDay), tr('EEE d MMM'), { locale: localeFechas() }).replace(/\./g, '')}`
   }
   const vencida = b.kind === 'task' && (b.time ? addMinutes(local(b.day, b.time), b.minutes) < hoy : b.day < dayKey(hoy))
   return { texto, tono: vencida ? 'vencida' : isSameDay(d, hoy) ? 'hoy' : 'normal' }
@@ -179,8 +180,8 @@ export function enlaces(textos: string[]): Enlace[] {
       const tipo: Enlace['tipo'] = /meet\.google|zoom\.us|teams\.microsoft/.test(host) ? 'meet'
         : host === 'docs.google.com' ? 'doc' : host === 'drive.google.com' ? 'drive'
         : /youtube\.com|youtu\.be|loom\.com|vimeo\.com/.test(host) ? 'video' : /github\.com|gitlab\.com/.test(host) ? 'codigo' : 'web'
-      const etiqueta = tipo === 'doc' ? (parsed.pathname.includes('/spreadsheets') ? 'Hoja de Google' : parsed.pathname.includes('/presentation') ? 'Presentación de Google' : 'Documento de Google')
-        : tipo === 'drive' ? 'Archivo en Drive' : tipo === 'meet' ? 'Videollamada'
+      const etiqueta = tipo === 'doc' ? (parsed.pathname.includes('/spreadsheets') ? tr('Hoja de Google') : parsed.pathname.includes('/presentation') ? tr('Presentación de Google') : tr('Documento de Google'))
+        : tipo === 'drive' ? tr('Archivo en Drive') : tipo === 'meet' ? tr('Videollamada')
         : tipo === 'codigo' ? parsed.pathname.split('/').filter(Boolean).slice(0, 2).join('/') || host
         : decodeURIComponent(parsed.pathname.split('/').filter(Boolean).at(-1) ?? '').replace(/[-_]+/g, ' ').slice(0, 60) || host
       out.push({ url, host, etiqueta, tipo })

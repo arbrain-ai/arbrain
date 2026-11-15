@@ -1,7 +1,8 @@
 'use client'
 import { useMemo, useState } from 'react'
 import { format, parseISO } from 'date-fns'
-import { es } from 'date-fns/locale'
+import { localeFechas } from '@/shared/i18n/fechas'
+import { tr, trNodos } from '@/shared/i18n'
 import { Check, Circle, MessageCircle, Plus } from 'lucide-react'
 import { useGoals } from '@/features/goals/useGoals'
 import { periodTitle, statusLabels } from '@/features/goals/model'
@@ -40,38 +41,38 @@ export function PlanPeriodo({ alcance, fecha, tareas, snapshot, cargando, ocupad
   const caben = CABEN[alcance], visibles = todas ? tareas : tareas.slice(0, caben)
   const etiqueta = (t: PlanTask) => {
     const d = parseISO(t.due!)
-    return alcance === 'dia' ? (hasTime(t.due) ? format(d, 'HH:mm') : 'Hoy') : `${format(d, 'EEE d', { locale: es }).replace('.', '')}${hasTime(t.due) ? ` · ${format(d, 'HH:mm')}` : ''}`
+    return alcance === 'dia' ? (hasTime(t.due) ? format(d, 'HH:mm') : tr('Hoy')) : `${format(d, 'EEE d', { locale: localeFechas() }).replace('.', '')}${hasTime(t.due) ? ` · ${format(d, 'HH:mm')}` : ''}`
   }
   const conversar = () => onConversar?.(`Planifiquemos ${periodTitle(HORIZONTE[alcance], fecha)}. Lee los objetivos vigentes con mc-event.py planning (objectives-read), las tareas y el calendario. Quiero definir o ajustar este período contigo. No des por acordado un borrador; confirma conmigo el resultado antes de registrarlo.`)
 
-  return <section className={styles.plan} data-alcance={alcance} aria-label="Objetivo y tareas del periodo">
-    {onModo && <div className={styles.escalas} role="group" aria-label="Escala del calendario">
-      {ESCALAS.map(e => <button key={e.modo} aria-pressed={modo === e.modo} onClick={() => onModo(e.modo)}>{e.etiqueta}</button>)}
+  return <section className={styles.plan} data-alcance={alcance} aria-label={tr('Objetivo y tareas del periodo')}>
+    {onModo && <div className={styles.escalas} role="group" aria-label={tr('Escala del calendario')}>
+      {ESCALAS.map(e => <button key={e.modo} aria-pressed={modo === e.modo} onClick={() => onModo(e.modo)}>{tr(e.etiqueta)}</button>)}
     </div>}
     <div className={styles.planBloques}>
       <div className={styles.planBloque} data-bloque="objetivo">
-        <header><h2>{TITULO_OBJETIVO[alcance]}</h2>{onConversar && <button className={styles.planAccion} onClick={conversar} aria-label="Conversar este periodo con Levy"><MessageCircle size={13} aria-hidden /><span>Conversar</span></button>}</header>
-        {!goals.data ? <p className={styles.planVacio}>{goals.error ? 'No se pudo leer el plan.' : 'Leyendo objetivos…'}</p>
+        <header><h2>{tr(TITULO_OBJETIVO[alcance])}</h2>{onConversar && <button className={styles.planAccion} onClick={conversar} aria-label={tr('Conversar este periodo con Levy')}><MessageCircle size={13} aria-hidden /><span>{tr('Conversar')}</span></button>}</header>
+        {!goals.data ? <p className={styles.planVacio}>{goals.error ? tr('No se pudo leer el plan.') : tr('Leyendo objetivos…')}</p>
           : propias.length ? <ul className={styles.objetivos}>{propias.map(g => <li key={g.id} data-state={g.status}>
             <span className={styles.objetivoMarca} aria-hidden>{g.status === 'completed' ? <Check size={11} /> : '•'}</span>
             <span className={styles.objetivoTexto}><b>{g.title}</b>{g.success && alcance !== 'dia' && <small>{g.success}</small>}</span>
-            {g.status !== 'agreed' && <em>{statusLabels[g.status]}</em>}
+            {g.status !== 'agreed' && <em>{tr(statusLabels[g.status])}</em>}
           </li>)}</ul>
           : delCalendario.length ? <ul className={styles.objetivos}>{delCalendario.map(f => <li key={f.id}>
             <span className={styles.objetivoMarca} aria-hidden>•</span>
-            <span className={styles.objetivoTexto}><b>{f.title}</b></span><em>Calendario</em>
+            <span className={styles.objetivoTexto}><b>{f.title}</b></span><em>{tr('Calendario')}</em>
           </li>)}</ul>
-          : manda ? <p className={styles.planVacio}>Sin objetivo propio: manda <b>{manda.title}</b>.</p> : <p className={styles.planVacio}>{TITULO_VACIO[alcance]}</p>}
+          : manda ? <p className={styles.planVacio}>{trNodos('Sin objetivo propio: manda {objetivo}.', { objetivo: <b>{manda.title}</b> })}</p> : <p className={styles.planVacio}>{tr(TITULO_VACIO[alcance])}</p>}
       </div>
       <div className={styles.planBloque} data-bloque="tareas">
-        <header><h2>Tareas</h2>{tareas.length > 0 && <small>{tareas.length}</small>}
-          <button className={styles.planAccion} onClick={onNueva} disabled={!snapshot || ocupado} aria-label="Tarea nueva"><Plus size={14} aria-hidden /></button></header>
-        {tareas.length === 0 ? <p className={styles.planVacio}>{cargando && !snapshot ? 'Leyendo Todoist…' : todoistCaido ? 'Todoist no se pudo leer.' : 'Sin tareas con fecha en este periodo.'}</p>
+        <header><h2>{tr('Tareas')}</h2>{tareas.length > 0 && <small>{tareas.length}</small>}
+          <button className={styles.planAccion} onClick={onNueva} disabled={!snapshot || ocupado} aria-label={tr('Tarea nueva')}><Plus size={14} aria-hidden /></button></header>
+        {tareas.length === 0 ? <p className={styles.planVacio}>{cargando && !snapshot ? tr('Leyendo Todoist…') : todoistCaido ? tr('Todoist no se pudo leer.') : tr('Sin tareas con fecha en este periodo.')}</p>
           : <ul className={styles.tareas}>{visibles.map(t => <li key={t.id} data-p1={t.priority === 1 || undefined}>
-            <button className={styles.tareaCheck} aria-label={`Completar ${t.title}`} disabled={ocupado} onClick={() => onCompletar(t)}><Circle size={22} strokeWidth={2} aria-hidden /></button>
+            <button className={styles.tareaCheck} aria-label={tr('Completar {titulo}', { titulo: t.title })} disabled={ocupado} onClick={() => onCompletar(t)}><Circle size={22} strokeWidth={2} aria-hidden /></button>
             <button className={styles.tareaCuerpo} onClick={() => onAbrirTarea(t)} title={t.title}><span>{t.title}</span><time>{etiqueta(t)}</time></button>
           </li>)}</ul>}
-        {tareas.length > caben && <button className={styles.planMas} onClick={() => setTodas(v => !v)} aria-expanded={todas}>{todas ? 'Ver menos' : `Ver las ${tareas.length}`}</button>}
+        {tareas.length > caben && <button className={styles.planMas} onClick={() => setTodas(v => !v)} aria-expanded={todas}>{todas ? tr('Ver menos') : tr('Ver las {n}', { n: tareas.length })}</button>}
       </div>
     </div>
   </section>

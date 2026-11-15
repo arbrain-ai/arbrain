@@ -41,6 +41,7 @@ import type { TextStyle, FontFamily } from '../text/types'
 import { FAMILIAS, PESOS, type TipografiaPatch } from '../model/typography'
 import { SIN_COLOR, MARCA, PALETA, RELLENOS, RESALTADOS, type Muestra } from './paleta'
 import * as I from './icons'
+import { tr, trn, trMarca } from '@/shared/i18n'
 import { contarPorCategoria, esSeleccionMixta, ROTULO_CATEGORIA, textoObjetos, type CategoriaElemento } from '../model/filtro-seleccion'
 
 /** Alto de la barra. Se usa para decidir si cabe debajo del elemento. */
@@ -133,58 +134,58 @@ interface Props {
  * el modelo estaba bien y lo que fallaba era lo que la pantalla decia.
  */
 const ROLES: Array<{ role: Role; label: string }> = [
-  { role: 'drawn', label: 'A mano' },
-  { role: 'card', label: 'Neutro' }, { role: 'module', label: 'Módulo' },
-  { role: 'form', label: 'Entrada' }, { role: 'callout', label: 'Llamada' },
-  { role: 'deliverable', label: 'Entregable' }, { role: 'trigger', label: 'Disparador' },
-  { role: 'agent', label: 'Agente' }, { role: 'risk', label: 'Riesgo' },
-  { role: 'sticky', label: 'Nota' },
+  { role: 'drawn', label: trMarca('A mano') },
+  { role: 'card', label: trMarca('Neutro') }, { role: 'module', label: trMarca('Módulo') },
+  { role: 'form', label: trMarca('Entrada') }, { role: 'callout', label: trMarca('Llamada') },
+  { role: 'deliverable', label: trMarca('Entregable') }, { role: 'trigger', label: trMarca('Disparador') },
+  { role: 'agent', label: trMarca('Agente') }, { role: 'risk', label: trMarca('Riesgo') },
+  { role: 'sticky', label: trMarca('Nota') },
 ]
 
 const FIGURAS: Array<{ id: ShapeKind; label: string; Icono: (p: { size?: number }) => React.ReactElement }> = [
-  { id: 'rect', label: 'Rectángulo', Icono: I.IconSquare },
-  { id: 'pill', label: 'Píldora', Icono: I.IconPill },
-  { id: 'ellipse', label: 'Elipse', Icono: I.IconCircle },
-  { id: 'diamond', label: 'Rombo', Icono: I.IconDiamond },
-  { id: 'triangle', label: 'Triángulo', Icono: I.IconTriangle },
-  { id: 'hexagon', label: 'Hexágono', Icono: I.IconHexagon },
-  { id: 'star', label: 'Estrella', Icono: I.IconStar },
-  { id: 'arrow', label: 'Flecha', Icono: I.IconArrowShape },
+  { id: 'rect', label: trMarca('Rectángulo'), Icono: I.IconSquare },
+  { id: 'pill', label: trMarca('Píldora'), Icono: I.IconPill },
+  { id: 'ellipse', label: trMarca('Elipse'), Icono: I.IconCircle },
+  { id: 'diamond', label: trMarca('Rombo'), Icono: I.IconDiamond },
+  { id: 'triangle', label: trMarca('Triángulo'), Icono: I.IconTriangle },
+  { id: 'hexagon', label: trMarca('Hexágono'), Icono: I.IconHexagon },
+  { id: 'star', label: trMarca('Estrella'), Icono: I.IconStar },
+  { id: 'arrow', label: trMarca('Flecha'), Icono: I.IconArrowShape },
 ]
 
 const TINTES: SectionTint[] = ['neutro', 'morado', 'ambar', 'verde', 'azul', 'rosa', 'rojo']
 const ETIQUETA_TINTE: Record<SectionTint, string> = {
-  neutro: 'Neutro', morado: 'Morado', ambar: 'Ámbar', verde: 'Verde',
-  azul: 'Azul', rosa: 'Rosa', rojo: 'Rojo',
+  neutro: trMarca('Neutro'), morado: trMarca('Morado'), ambar: trMarca('Ámbar'), verde: trMarca('Verde'),
+  azul: trMarca('Azul'), rosa: trMarca('Rosa'), rojo: trMarca('Rojo'),
 }
 const TINTAS: Array<string | undefined> = [undefined, '#8C27F1', '#dc2626', '#0d9488', '#2563eb', '#d97706']
 
 const PUNTAS: Array<{ id: Arrowhead; label: string }> = [
-  { id: 'ninguna', label: 'Ninguna' }, { id: 'flecha', label: 'Flecha' },
-  { id: 'triangulo', label: 'Triángulo' }, { id: 'rombo', label: 'Rombo' },
-  { id: 'circulo', label: 'Círculo' }, { id: 'barra', label: 'Barra' },
+  { id: 'ninguna', label: trMarca('Ninguna') }, { id: 'flecha', label: trMarca('Flecha') },
+  { id: 'triangulo', label: trMarca('Triángulo') }, { id: 'rombo', label: trMarca('Rombo') },
+  { id: 'circulo', label: trMarca('Círculo') }, { id: 'barra', label: trMarca('Barra') },
 ]
 const RUTAS: Array<{ id: Routing; label: string; icon: (p: { size?: number }) => React.ReactElement }> = [
-  { id: 'ortogonal', label: 'Codos', icon: I.IconRutaCodos },
-  { id: 'recta', label: 'Recta', icon: I.IconRutaRecta },
-  { id: 'curva', label: 'Curva', icon: I.IconRutaCurva },
+  { id: 'ortogonal', label: trMarca('Codos'), icon: I.IconRutaCodos },
+  { id: 'recta', label: trMarca('Recta'), icon: I.IconRutaRecta },
+  { id: 'curva', label: trMarca('Curva'), icon: I.IconRutaCurva },
 ]
 const CLASES: Array<{ id: EdgeKind; label: string }> = [
-  { id: 'flujo', label: 'Flujo' }, { id: 'agente', label: 'Agente' },
-  { id: 'fragil', label: 'Frágil' }, { id: 'hueco', label: 'Hueco' },
+  { id: 'flujo', label: trMarca('Flujo') }, { id: 'agente', label: trMarca('Agente') },
+  { id: 'fragil', label: trMarca('Frágil') }, { id: 'hueco', label: trMarca('Hueco') },
 ]
 const ESTILOS_LINEA: Array<{ id: StrokeStyle; label: string; Icono: (p: { size?: number }) => React.ReactElement }> = [
-  { id: 'solid', label: 'Sólida', Icono: I.IconLineSolid },
-  { id: 'dashed', label: 'Guiones', Icono: I.IconLineDashed },
-  { id: 'dotted', label: 'Puntos', Icono: I.IconLineDotted },
+  { id: 'solid', label: trMarca('Sólida'), Icono: I.IconLineSolid },
+  { id: 'dashed', label: trMarca('Guiones'), Icono: I.IconLineDashed },
+  { id: 'dotted', label: trMarca('Puntos'), Icono: I.IconLineDotted },
 ]
 const CSS_FAMILY: Record<FontFamily, string> = {
   montserrat: 'CanvasSans', 'roboto-slab': 'CanvasSlab',
   caveat: 'CanvasHand', 'jetbrains-mono': 'CanvasMono',
 }
 const NOMBRE_TIPO: Record<string, string> = {
-  shape: 'Figura', text: 'Texto', ink: 'Trazo', connector: 'Conector',
-  frame: 'Sección', image: 'Imagen', table: 'Tabla', embed: 'Embed', code: 'Código',
+  shape: trMarca('Figura'), text: trMarca('Texto'), ink: trMarca('Trazo'), connector: trMarca('Conector'),
+  frame: trMarca('Sección'), image: trMarca('Imagen'), table: trMarca('Tabla'), embed: trMarca('Embed'), code: trMarca('Código'),
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -205,7 +206,7 @@ function Casilla({ m, activo, onPick, redondo, t }: {
   m: Muestra; activo: boolean; onPick: () => void; redondo?: boolean; t: Theme
 }) {
   return (
-    <button type="button" title={m.label} data-muestra={m.id} onClick={onPick}
+    <button type="button" title={tr(m.label)} data-muestra={m.id} onClick={onPick}
       style={{
         width: 24, height: 24, borderRadius: redondo ? 99 : 7, cursor: 'pointer', padding: 0,
         background: m.color ?? `repeating-conic-gradient(${t.text.caption}22 0% 25%, transparent 0% 50%) 50% / 9px 9px`,
@@ -232,7 +233,7 @@ function Paleta({ muestras, valor, onPick, redondo, t }: {
           <Casilla key={m.id} t={t} m={m} activo={valor === m.color} onPick={() => onPick(m.color)} redondo={redondo} />
         ))}
         <span style={{ font: '700 9px CanvasSans, system-ui', letterSpacing: .5,
-                       textTransform: 'uppercase', color: t.text.caption, marginLeft: 2 }}>marca</span>
+                       textTransform: 'uppercase', color: t.text.caption, marginLeft: 2 }}>{tr('marca')}</span>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 24px)', gap: 6 }}>
         {muestras.map(m => (
@@ -439,19 +440,19 @@ export function BarraContextual(p: Props) {
         font: '600 12px CanvasSans, system-ui', color: t.text.body, zIndex: 30, touchAction: 'none',
       }} onPointerDown={e => e.stopPropagation()}>
         <div style={{ position: 'relative' }}>
-          <button type="button" data-filtro title="Quedarte solo con un tipo de objeto" onClick={abrir('filtro')}
+          <button type="button" data-filtro title={tr('Quedarte solo con un tipo de objeto')} onClick={abrir('filtro')}
             data-activo={pop === 'filtro' ? '1' : '0'} style={{ ...btn(pop === 'filtro'), padding: '0 8px' }}
             onPointerEnter={hover(true)} onPointerLeave={hover(false)}>
-            Filtro · {textoObjetos(els.length)}<I.IconChevronDown size={10} />
+            {tr('Filtro · {objetos}', { objetos: textoObjetos(els.length) })}<I.IconChevronDown size={10} />
           </button>
           {pop === 'filtro' && (
             <div style={{ ...panelBase, left: 0, display: 'grid', gap: 2, minWidth: 190 }}>
-              {rotulo('Quedarte solo con')}
+              {rotulo(tr('Quedarte solo con'))}
               {cuentas.map(c => (
                 <button key={c.categoria} type="button" data-filtro-tipo={c.categoria}
                   onClick={() => { p.onFiltrar?.(c.categoria); setPop(null) }}
                   style={{ ...btn(), justifyContent: 'space-between', width: '100%', height: 30, padding: '0 8px' }}>
-                  <span style={{ textTransform: 'capitalize' }}>{ROTULO_CATEGORIA[c.categoria][1]}</span>
+                  <span style={{ textTransform: 'capitalize' }}>{tr(ROTULO_CATEGORIA[c.categoria][1])}</span>
                   <span style={{ color: t.text.caption }}>{c.cuantos}</span>
                 </button>
               ))}
@@ -460,20 +461,20 @@ export function BarraContextual(p: Props) {
         </div>
         {sep}
         <button type="button" data-agrupar={p.hayGrupo ? 'desagrupar' : 'agrupar'}
-          title={p.hayGrupo ? 'Desagrupar (⌘⇧G)' : 'Agrupar (⌘G)'}
+          title={p.hayGrupo ? tr('Desagrupar (⌘⇧G)') : tr('Agrupar (⌘G)')}
           onClick={() => (p.hayGrupo ? p.onDesagrupar : p.onAgrupar)?.()}
           style={{ ...btn(), padding: '0 8px' }}
           onPointerEnter={hover(true)} onPointerLeave={hover(false)}>
-          <I.IconGroup size={16} />{p.hayGrupo ? 'Desagrupar' : 'Agrupar'}
+          <I.IconGroup size={16} />{p.hayGrupo ? tr('Desagrupar') : tr('Agrupar')}
         </button>
-        <button type="button" data-candado title={bloqueado ? 'Desbloquear (⌘⇧L)' : 'Bloquear (⌘⇧L)'}
+        <button type="button" data-candado title={bloqueado ? tr('Desbloquear (⌘⇧L)') : tr('Bloquear (⌘⇧L)')}
           onClick={() => p.onChange({ locked: !bloqueado })}
           data-activo={bloqueado ? '1' : '0'} style={{ ...btn(bloqueado), padding: '0 8px' }}
           onPointerEnter={hover(true)} onPointerLeave={hover(false)}>
-          {bloqueado ? <I.IconLock size={16} /> : <I.IconUnlock size={16} />}{bloqueado ? 'Desbloquear' : 'Bloquear'}
+          {bloqueado ? <I.IconLock size={16} /> : <I.IconUnlock size={16} />}{bloqueado ? tr('Desbloquear') : tr('Bloquear')}
         </button>
         <div style={{ position: 'relative' }}>
-          <button type="button" data-mas title="Más" onClick={abrir('mas')}
+          <button type="button" data-mas title={tr('Más')} onClick={abrir('mas')}
             data-activo={pop === 'mas' ? '1' : '0'} style={btn(pop === 'mas')}
             onPointerEnter={hover(true)} onPointerLeave={hover(false)}>
             <I.IconDots size={17} />
@@ -481,21 +482,21 @@ export function BarraContextual(p: Props) {
           {pop === 'mas' && (
             <div style={{ ...panelBase, right: 0, left: 'auto', display: 'grid', gap: 2, minWidth: 190 }}>
               {([
-                ['Traer al frente', <I.IconBringFront size={16} key="f" />, p.onFront, 'frente'],
-                ['Enviar al fondo', <I.IconSendBack size={16} key="b" />, p.onBack, 'fondo'],
-                ['Duplicar  ⌘D', <I.IconDuplicate size={16} key="d" />, p.onDuplicate, 'duplicar'],
+                [trMarca('Traer al frente'), <I.IconBringFront size={16} key="f" />, p.onFront, 'frente'],
+                [trMarca('Enviar al fondo'), <I.IconSendBack size={16} key="b" />, p.onBack, 'fondo'],
+                [trMarca('Duplicar  ⌘D'), <I.IconDuplicate size={16} key="d" />, p.onDuplicate, 'duplicar'],
               ] as const).map(([label, icono, fn, key]) => (
                 <button key={key} type="button" data-mas-accion={key}
                   onClick={() => { fn(); setPop(null) }}
                   style={{ ...btn(), justifyContent: 'flex-start', width: '100%', height: 30, padding: '0 8px' }}>
-                  {icono}{label}
+                  {icono}{tr(label)}
                 </button>
               ))}
               <div style={{ height: 1, background: t.roles.card.stroke.color, opacity: .7, margin: '3px 0' }} />
               <button type="button" data-borrar onClick={() => { p.onDelete(); setPop(null) }}
                 style={{ ...btn(), justifyContent: 'flex-start', width: '100%', height: 30, padding: '0 8px',
                          color: t.roles.risk.stroke.color }}>
-                <I.IconTrash size={16} />Eliminar  Supr
+                <I.IconTrash size={16} />{tr('Eliminar  Supr')}
               </button>
             </div>
           )}
@@ -525,11 +526,11 @@ export function BarraContextual(p: Props) {
           cosas va a caer el siguiente clic. */}
       {els.length > 1 && <>
         <span style={{ padding: '0 7px 0 4px', color: t.text.caption, whiteSpace: 'nowrap' }}>
-          {els.length} elementos
+          {tr('{n} elementos', { n: els.length })}
         </span>
         {sep}
       </>}
-      {fijado && <span title="Lo tocó tu mano: el compilador ya no lo manda"
+      {fijado && <span title={tr('Lo tocó tu mano: el compilador ya no lo manda')}
         style={{ ...btn(), color: t.accent, cursor: 'default', padding: '0 4px' }}><I.IconPin size={14} /></span>}
 
       {/* ── FIGURA: cambiar de forma ──────────────────────────────────────── */}
@@ -538,17 +539,17 @@ export function BarraContextual(p: Props) {
         const Act = FIGURAS.find(f => f.id === actual)?.Icono ?? I.IconShapes
         return (
           <div style={{ position: 'relative' }}>
-            <button type="button" data-forma title="Cambiar la forma" onClick={abrir('forma')}
+            <button type="button" data-forma title={tr('Cambiar la forma')} onClick={abrir('forma')}
               data-activo={pop === 'forma' ? '1' : '0'} style={btn(pop === 'forma')}
               onPointerEnter={hover(true)} onPointerLeave={hover(false)}>
               <Act size={17} /><I.IconChevronDown size={10} />
             </button>
             {pop === 'forma' && (
               <div style={{ ...panelBase, left: 0, display: 'grid', gap: 8 }}>
-                {rotulo('Forma')}
+                {rotulo(tr('Forma'))}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 34px)', gap: 4 }}>
                   {FIGURAS.map(f => (
-                    <button key={f.id} type="button" data-figura={f.id} title={f.label}
+                    <button key={f.id} type="button" data-figura={f.id} title={tr(f.label)}
                       onClick={() => { p.onChange({ shape: f.id } as Partial<CanvasElement>, e => e.type === 'shape'); setPop(null) }}
                       style={{ ...btn(actual === f.id), width: 34, height: 34, padding: 0 }}>
                       <f.Icono size={18} />
@@ -566,7 +567,7 @@ export function BarraContextual(p: Props) {
         const rol = comun(e => (e as { role?: Role }).role, figuras)
         return (
           <div style={{ position: 'relative' }}>
-            <button type="button" data-inspector-rol title="Rol (decide su color en cualquier tema)"
+            <button type="button" data-inspector-rol title={tr('Rol (decide su color en cualquier tema)')}
               onClick={abrir('rol')} data-activo={pop === 'rol' ? '1' : '0'} style={btn(pop === 'rol')}
               onPointerEnter={hover(true)} onPointerLeave={hover(false)}>
               <span style={{
@@ -574,12 +575,12 @@ export function BarraContextual(p: Props) {
                 background: rol ? estiloDeRol(t, rol).fill : 'transparent',
                 border: `2px ${rol ? estiloDeRol(t, rol).stroke.style : 'dashed'} ${rol ? estiloDeRol(t, rol).stroke.color : t.text.caption}`,
               }} />
-              {rol ? (ROLES.find(r => r.role === rol)?.label ?? rol) : 'Varios'}
+              {rol ? tr(ROLES.find(r => r.role === rol)?.label ?? rol) : tr('Varios')}
               <I.IconChevronDown size={10} />
             </button>
             {pop === 'rol' && (
               <div style={{ ...panelBase, left: 0, display: 'grid', gap: 6, minWidth: 178 }}>
-                {rotulo('Rol')}
+                {rotulo(tr('Rol'))}
                 <div style={{ display: 'grid', gap: 2 }}>
                   {ROLES.map(r => (
                     <button key={r.role} type="button" data-rol={r.role}
@@ -591,7 +592,7 @@ export function BarraContextual(p: Props) {
                         background: t.roles[r.role].fill,
                         border: `2px ${t.roles[r.role].stroke.style} ${t.roles[r.role].stroke.color}`,
                       }} />
-                      {r.label}
+                      {tr(r.label)}
                     </button>
                   ))}
                 </div>
@@ -605,16 +606,16 @@ export function BarraContextual(p: Props) {
       {p.conTexto && <>
         {(figuras.length > 0 || secciones.length > 0) && sep}
         <div style={{ position: 'relative' }}>
-          <button type="button" data-familia title="Tipografía" onClick={abrir('familia')}
+          <button type="button" data-familia title={tr('Tipografía')} onClick={abrir('familia')}
             data-activo={pop === 'familia' ? '1' : '0'}
             style={{ ...btn(pop === 'familia'), fontFamily: familia ? CSS_FAMILY[familia] : undefined, fontSize: 13 }}
             onPointerEnter={hover(true)} onPointerLeave={hover(false)}>
-            {FAMILIAS.find(f => f.id === familia)?.label ?? 'Varias'}
+            {FAMILIAS.find(f => f.id === familia)?.label ?? tr('Varias')}
             <I.IconChevronDown size={10} />
           </button>
           {pop === 'familia' && (
             <div style={{ ...panelBase, left: 0, display: 'grid', gap: 6, minWidth: 190 }}>
-              {rotulo('Tipografía')}
+              {rotulo(tr('Tipografía'))}
               <div style={{ display: 'grid', gap: 2 }}>
                 {FAMILIAS.map(f => (
                   <button key={f.id} type="button" data-tipografia={f.id}
@@ -625,7 +626,7 @@ export function BarraContextual(p: Props) {
                   </button>
                 ))}
               </div>
-              {rotulo('Grosor')}
+              {rotulo(tr('Grosor'))}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
                 {(familia ? PESOS[familia] : PESOS.montserrat).map(w => (
                   <button key={w} type="button" data-peso={w}
@@ -647,33 +648,33 @@ export function BarraContextual(p: Props) {
               const n = Number(e.target.value.replace(/[^\d]/g, ''))
               if (n >= 6 && n <= 400) p.onTipografia({ size: n })
             }}
-            title="Tamaño"
+            title={tr('Tamaño')}
             style={{
               width: 36, height: 28, textAlign: 'center', borderRadius: 7,
               border: `1px solid ${t.roles.card.stroke.color}`, background: t.canvas,
               color: t.text.body, font: '600 12px CanvasSans, system-ui', outline: 'none',
             }} />
           <div style={{ display: 'grid' }}>
-            <button type="button" data-tamano-mas title="Más grande"
+            <button type="button" data-tamano-mas title={tr('Más grande')}
               onClick={() => p.onTipografia({ size: Math.min(400, (tam ?? 20) + 1) })}
               style={{ ...btn(), height: 15, minWidth: 20, padding: 0 }}><I.IconCaretUp size={12} /></button>
-            <button type="button" data-tamano-menos title="Más chico"
+            <button type="button" data-tamano-menos title={tr('Más chico')}
               onClick={() => p.onTipografia({ size: Math.max(6, (tam ?? 20) - 1) })}
               style={{ ...btn(), height: 15, minWidth: 20, padding: 0 }}><I.IconCaretDown size={12} /></button>
           </div>
         </div>
 
-        <button type="button" data-negrita title="Negrita  ⌘B" style={btn((p.estiloTexto.weight ?? 400) >= 600)}
+        <button type="button" data-negrita title={tr('Negrita  ⌘B')} style={btn((p.estiloTexto.weight ?? 400) >= 600)}
           data-activo={(p.estiloTexto.weight ?? 400) >= 600 ? '1' : '0'}
           onPointerEnter={hover(true)} onPointerLeave={hover(false)}
           onClick={() => p.onTipografia({ weight: (p.estiloTexto.weight ?? 400) >= 600 ? 400 : 700 })}>
           <I.IconBold size={15} /></button>
-        <button type="button" data-cursiva title="Cursiva  ⌘I" style={btn(p.estiloTexto.italic === true)}
+        <button type="button" data-cursiva title={tr('Cursiva  ⌘I')} style={btn(p.estiloTexto.italic === true)}
           data-activo={p.estiloTexto.italic ? '1' : '0'}
           onPointerEnter={hover(true)} onPointerLeave={hover(false)}
           onClick={() => p.onTipografia({ italic: !p.estiloTexto.italic })}>
           <I.IconItalic size={15} /></button>
-        <button type="button" data-subrayado title="Subrayado  ⌘U" style={btn(p.estiloTexto.underline === true)}
+        <button type="button" data-subrayado title={tr('Subrayado  ⌘U')} style={btn(p.estiloTexto.underline === true)}
           data-activo={p.estiloTexto.underline ? '1' : '0'}
           onPointerEnter={hover(true)} onPointerLeave={hover(false)}
           onClick={() => p.onTipografia({ underline: !p.estiloTexto.underline })}>
@@ -681,7 +682,7 @@ export function BarraContextual(p: Props) {
 
         {/* ALINEACION — ahora tambien en figuras, no solo en bloques de texto */}
         <div style={{ position: 'relative' }}>
-          <button type="button" data-alinear title="Alineación" onClick={abrir('alinear')}
+          <button type="button" data-alinear title={tr('Alineación')} onClick={abrir('alinear')}
             data-activo={pop === 'alinear' ? '1' : '0'} style={btn(pop === 'alinear')}
             onPointerEnter={hover(true)} onPointerLeave={hover(false)}>
             {alinea === 'left' ? <I.IconAlignLeft size={15} />
@@ -690,9 +691,9 @@ export function BarraContextual(p: Props) {
           </button>
           {pop === 'alinear' && (
             <div style={{ ...panelBase, left: 0, display: 'flex', gap: 3 }}>
-              {([['left', I.IconAlignLeft, 'Izquierda'], ['center', I.IconAlignCenter, 'Centro'],
-                 ['right', I.IconAlignRight, 'Derecha']] as const).map(([a, Icono, label]) => (
-                <button key={a} type="button" data-alinea={a} title={label}
+              {([['left', I.IconAlignLeft, trMarca('Izquierda')], ['center', I.IconAlignCenter, trMarca('Centro')],
+                 ['right', I.IconAlignRight, trMarca('Derecha')]] as const).map(([a, Icono, label]) => (
+                <button key={a} type="button" data-alinea={a} title={tr(label)}
                   onClick={() => { p.onTipografia({ align: a }); setPop(null) }}
                   style={{ ...btn(alinea === a), width: 34, height: 30, padding: 0 }}><Icono size={16} /></button>
               ))}
@@ -702,14 +703,14 @@ export function BarraContextual(p: Props) {
 
         {/* COLOR DE TEXTO */}
         <div style={{ position: 'relative' }}>
-          <button type="button" data-color-texto title="Color del texto" onClick={abrir('texto')}
+          <button type="button" data-color-texto title={tr('Color del texto')} onClick={abrir('texto')}
             data-activo={pop === 'texto' ? '1' : '0'} style={btn(pop === 'texto')}
             onPointerEnter={hover(true)} onPointerLeave={hover(false)}>
             <I.IconTextColor size={17} color={colorTexto ?? t.text.body} />
           </button>
           {pop === 'texto' && (
             <div style={{ ...panelBase, left: -60, display: 'grid', gap: 9 }}>
-              {rotulo('Color del texto')}
+              {rotulo(tr('Color del texto'))}
               <Paleta t={t} muestras={PALETA} valor={colorTexto} onPick={c => setColor({ text: c })} />
             </div>
           )}
@@ -717,14 +718,14 @@ export function BarraContextual(p: Props) {
 
         {/* RESALTADOR */}
         <div style={{ position: 'relative' }}>
-          <button type="button" data-resaltar title="Resaltar" onClick={abrir('resaltar')}
+          <button type="button" data-resaltar title={tr('Resaltar')} onClick={abrir('resaltar')}
             data-activo={pop === 'resaltar' ? '1' : '0'} style={btn(pop === 'resaltar')}
             onPointerEnter={hover(true)} onPointerLeave={hover(false)}>
             <I.IconHighlight size={17} color={resaltado ?? 'transparent'} />
           </button>
           {pop === 'resaltar' && (
             <div style={{ ...panelBase, left: -80, display: 'grid', gap: 9 }}>
-              {rotulo('Resaltado')}
+              {rotulo(tr('Resaltado'))}
               <div style={{ display: 'flex', gap: 6 }}>
                 <Casilla t={t} m={SIN_COLOR} activo={!resaltado} onPick={() => setColor({ highlight: undefined })} />
                 {RESALTADOS.map(m => (
@@ -741,7 +742,7 @@ export function BarraContextual(p: Props) {
       {conTrazo.length > 0 && <>
         {sep}
         <div style={{ position: 'relative' }}>
-          <button type="button" data-contorno title="Contorno" onClick={abrir('contorno')}
+          <button type="button" data-contorno title={tr('Contorno')} onClick={abrir('contorno')}
             data-activo={pop === 'contorno' ? '1' : '0'} style={btn(pop === 'contorno')}
             onPointerEnter={hover(true)} onPointerLeave={hover(false)}>
             <I.IconStroke size={18} color={contorno ?? (figuras[0]
@@ -757,34 +758,34 @@ export function BarraContextual(p: Props) {
                              : (ref.trazo?.radius ?? t.roles.tray.radius)
             return (
               <div style={{ ...panelBase, left: -100, display: 'grid', gap: 11, width: 236 }}>
-                {rotulo('Estilo')}
+                {rotulo(tr('Estilo'))}
                 <div style={{ display: 'flex', gap: 4 }}>
                   {ESTILOS_LINEA.map(l => (
-                    <button key={l.id} type="button" data-linea={l.id} title={l.label}
+                    <button key={l.id} type="button" data-linea={l.id} title={tr(l.label)}
                       onClick={() => setTrazo({ style: l.id })}
                       style={{ ...btn(estiloLinea === l.id || (!estiloLinea && efect.style === l.id)),
                                flex: 1, height: 30 }}><l.Icono size={18} /></button>
                   ))}
                 </div>
                 <label style={{ display: 'grid', gap: 5, font: '600 11px CanvasSans, system-ui', color: t.text.caption }}>
-                  <span>Grosor · {(grosor ?? efect.width).toFixed(1)}</span>
+                  <span>{tr('Grosor · {valor}', { valor: (grosor ?? efect.width).toFixed(1) })}</span>
                   <Deslizador t={t} onGestoInicio={p.onGestoInicio} onGestoFin={p.onGestoFin} data-grosor etiqueta="grosor" min={0} max={12} step={0.5} value={grosor ?? efect.width}
                     onChange={e => setTrazo({ width: Number(e.target.value) })} />
                 </label>
                 <label style={{ display: 'grid', gap: 5, font: '600 11px CanvasSans, system-ui', color: t.text.caption }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <I.IconCorner size={13} /> Esquinas · {Math.round(radio ?? efectRadio)}
+                    <I.IconCorner size={13} /> {tr('Esquinas · {valor}', { valor: Math.round(radio ?? efectRadio) })}
                   </span>
                   <Deslizador t={t} onGestoInicio={p.onGestoInicio} onGestoFin={p.onGestoFin} data-radio etiqueta="esquinas" min={0} max={64} step={1} value={radio ?? efectRadio}
                     onChange={e => setTrazo({ radius: Number(e.target.value) })} />
                 </label>
                 <label style={{ display: 'grid', gap: 5, font: '600 11px CanvasSans, system-ui', color: t.text.caption }}>
-                  <span>Opacidad · {Math.round((comun(e => e.opacity) ?? 1) * 100)}%</span>
+                  <span>{tr('Opacidad · {valor}%', { valor: Math.round((comun(e => e.opacity) ?? 1) * 100) })}</span>
                   <Deslizador t={t} onGestoInicio={p.onGestoInicio} onGestoFin={p.onGestoFin} data-opacidad etiqueta="opacidad" min={0.05} max={1} step={0.05}
                     value={comun(e => e.opacity) ?? 1}
                     onChange={e => p.onChange({ opacity: Number(e.target.value) })} />
                 </label>
-                {rotulo('Color del contorno')}
+                {rotulo(tr('Color del contorno'))}
                 <Paleta t={t} muestras={PALETA} valor={contorno} onPick={c => setColor({ stroke: c })} redondo />
               </div>
             )
@@ -793,19 +794,18 @@ export function BarraContextual(p: Props) {
 
         {figuras.length > 0 && (
           <div style={{ position: 'relative' }}>
-            <button type="button" data-relleno title="Relleno" onClick={abrir('relleno')}
+            <button type="button" data-relleno title={tr('Relleno')} onClick={abrir('relleno')}
               data-activo={pop === 'relleno' ? '1' : '0'} style={btn(pop === 'relleno')}
               onPointerEnter={hover(true)} onPointerLeave={hover(false)}>
               <I.IconFill size={18} color={relleno ?? resolveFill(t, figuras[0].role, figuras[0].color)} />
             </button>
             {pop === 'relleno' && (
               <div style={{ ...panelBase, left: -120, display: 'grid', gap: 9 }}>
-                {rotulo('Relleno')}
+                {rotulo(tr('Relleno'))}
                 <Paleta t={t} muestras={RELLENOS} valor={relleno} onPick={c => setColor({ fill: c })} redondo />
                 <div style={{ font: '500 10px CanvasSans, system-ui', color: t.text.caption,
                               lineHeight: 1.35, maxWidth: 200 }}>
-                  Un color elegido a mano deja de seguir al tema. Vuelve a la
-                  primera casilla para devolvérselo al rol.
+                  {tr('Un color elegido a mano deja de seguir al tema. Vuelve a la primera casilla para devolvérselo al rol.')}
                 </div>
               </div>
             )}
@@ -817,7 +817,7 @@ export function BarraContextual(p: Props) {
       {secciones.length > 0 && <>
         {sep}
         <div style={{ position: 'relative' }}>
-          <button type="button" data-tinte-abrir title="Tinte de la sección" onClick={abrir('tinte')}
+          <button type="button" data-tinte-abrir title={tr('Tinte de la sección')} onClick={abrir('tinte')}
             data-activo={pop === 'tinte' ? '1' : '0'} style={btn(pop === 'tinte')}
             onPointerEnter={hover(true)} onPointerLeave={hover(false)}>
             <span style={{
@@ -829,10 +829,10 @@ export function BarraContextual(p: Props) {
           </button>
           {pop === 'tinte' && (
             <div style={{ ...panelBase, left: -40, display: 'grid', gap: 9 }}>
-              {rotulo('Tinte')}
+              {rotulo(tr('Tinte'))}
               <div style={{ display: 'flex', gap: 5 }}>
                 {TINTES.map(id => (
-                  <button key={id} type="button" data-tinte={id} title={ETIQUETA_TINTE[id]}
+                  <button key={id} type="button" data-tinte={id} title={tr(ETIQUETA_TINTE[id])}
                     onClick={() => p.onChange({ tint: id } as Partial<CanvasElement>, e => e.type === 'frame')}
                     style={{
                       width: 24, height: 24, borderRadius: 7, cursor: 'pointer', padding: 0,
@@ -844,7 +844,7 @@ export function BarraContextual(p: Props) {
               <button type="button" data-recortar
                 onClick={() => p.onChange({ clip: !secciones[0].clip } as Partial<CanvasElement>, e => e.type === 'frame')}
                 style={{ ...btn(secciones[0].clip), justifyContent: 'flex-start', height: 30, padding: '0 8px' }}>
-                <I.IconCrop size={15} /> Recortar lo que sobresale
+                <I.IconCrop size={15} /> {tr('Recortar lo que sobresale')}
               </button>
             </div>
           )}
@@ -857,7 +857,7 @@ export function BarraContextual(p: Props) {
         {TINTAS.map((c, i) => (
           <button key={c ?? 'tema'} type="button" data-tinta={c ?? 'tema'}
             onClick={() => p.onChange({ color: c } as Partial<CanvasElement>, e => e.type === 'ink')}
-            title={c ?? 'Tinta del tema (sigue al claro/oscuro)'}
+            title={c ?? tr('Tinta del tema (sigue al claro/oscuro)')}
             style={{
               width: 24, height: 24, borderRadius: 7, cursor: 'pointer', padding: 0, marginRight: 2,
               background: c ?? t.ink.lapiz,
@@ -869,7 +869,7 @@ export function BarraContextual(p: Props) {
         {sep}
         {[3, 6, 12].map(s => (
           <button key={s} type="button" onClick={() => p.onChange({ size: s } as Partial<CanvasElement>, e => e.type === 'ink')}
-            title={`Grosor ${s}`} style={btn(comun(e => (e as { size?: number }).size) === s)}>
+            title={tr('Grosor {valor}', { valor: s })} style={btn(comun(e => (e as { size?: number }).size) === s)}>
             <span style={{ width: 16, height: Math.max(2, s / 1.6), borderRadius: 99,
                            background: comun(e => (e as { size?: number }).size) === s ? t.accent : t.text.body }} />
           </button>
@@ -887,18 +887,18 @@ export function BarraContextual(p: Props) {
         const menu = (id: string, icono: React.ReactNode, titulo: string,
           opciones: Array<{ id: string; label: string; icono: React.ReactNode; activo: boolean; onPick: () => void }>) => (
           <div style={{ position: 'relative' }}>
-            <button type="button" onClick={abrir(id)} title={titulo} aria-label={titulo}
+            <button type="button" onClick={abrir(id)} title={tr(titulo)} aria-label={tr(titulo)}
               data-activo={pop === id ? '1' : '0'} style={{ ...btn(pop === id), minWidth: 38 }}
               onPointerEnter={hover(true)} onPointerLeave={hover(false)}>
               {icono}<I.IconChevronDown size={10} />
             </button>
             {pop === id && (
               <div style={{ ...panelBase, left: 0, minWidth: 180, display: 'grid', gap: 4 }}>
-                {rotulo(titulo)}
+                {rotulo(tr(titulo))}
                 {opciones.map(o => (
                   <button key={o.id} type="button" onClick={() => { o.onPick(); setPop(null) }}
                     style={{ ...btn(o.activo), justifyContent: 'flex-start', width: '100%', height: 30, padding: '0 8px' }}>
-                    {o.icono}{o.label}
+                    {o.icono}{tr(o.label)}
                   </button>
                 ))}
               </div>
@@ -907,26 +907,26 @@ export function BarraContextual(p: Props) {
         )
         return <>
           {sep}
-          {menu('ruta', <RutaIcono size={17} />, 'Ruta', RUTAS.map(r => ({
+          {menu('ruta', <RutaIcono size={17} />, trMarca('Ruta'), RUTAS.map(r => ({
             id: r.id, label: r.label, activo: ruta === r.id, icono: <r.icon size={18} />,
             onPick: () => p.onChange({ routing: r.id, waypoints: undefined } as Partial<CanvasElement>, e => e.type === 'connector') })))}
-          {menu('clase', <I.IconClase size={17} clase={clase} />, 'Clase de relación', CLASES.map(k => ({
+          {menu('clase', <I.IconClase size={17} clase={clase} />, trMarca('Clase de relación'), CLASES.map(k => ({
             id: k.id, label: k.label, activo: clase === k.id, icono: <I.IconClase size={18} clase={k.id} />,
             onPick: () => p.onChange({ kind: k.id } as Partial<CanvasElement>, e => e.type === 'connector') })))}
           {menu('ini', <span style={{ display: 'grid', transform: 'scaleX(-1)' }}><I.IconPunta size={17} tipo={ini} /></span>,
-            'Punta de inicio', PUNTAS.map(x => ({
+            trMarca('Punta de inicio'), PUNTAS.map(x => ({
               id: x.id, label: x.label, activo: ini === x.id,
               icono: <span style={{ display: 'grid', transform: 'scaleX(-1)' }}><I.IconPunta size={18} tipo={x.id} /></span>,
               onPick: () => p.onChange({ headStart: x.id } as Partial<CanvasElement>, e => e.type === 'connector') })))}
-          {menu('fin', <I.IconPunta size={17} tipo={fin} />, 'Punta de fin', PUNTAS.map(x => ({
+          {menu('fin', <I.IconPunta size={17} tipo={fin} />, trMarca('Punta de fin'), PUNTAS.map(x => ({
             id: x.id, label: x.label, activo: fin === x.id, icono: <I.IconPunta size={18} tipo={x.id} />,
             onPick: () => p.onChange({ headEnd: x.id, arrowEnd: x.id !== 'ninguna' } as Partial<CanvasElement>, e => e.type === 'connector') })))}
           {p.onAnclaje && (() => {
             const fijo = !!(c.fromPort || c.toPort)
             return (
               <button type="button" data-anclaje title={fijo
-                  ? 'Anclaje fijo: la flecha se queda en los lados por donde la conectaste. Clic para soltarla.'
-                  : 'Anclaje libre: el lado se recalcula al mover. Clic para fijarlo donde está ahora.'}
+                  ? tr('Anclaje fijo: la flecha se queda en los lados por donde la conectaste. Clic para soltarla.')
+                  : tr('Anclaje libre: el lado se recalcula al mover. Clic para fijarlo donde está ahora.')}
                 onClick={() => p.onAnclaje?.(!fijo)}
                 data-activo={fijo ? '1' : '0'} style={btn(fijo)}
                 onPointerEnter={hover(true)} onPointerLeave={hover(false)}>
@@ -934,7 +934,7 @@ export function BarraContextual(p: Props) {
               </button>
             )
           })()}
-          <input data-etiqueta value={c.label ?? ''} placeholder="etiqueta…"
+          <input data-etiqueta value={c.label ?? ''} placeholder={tr('etiqueta…')}
             onChange={e => p.onChange({ label: e.target.value } as Partial<CanvasElement>, x => x.type === 'connector')}
             style={{
               width: 100, height: 28, padding: '0 8px', borderRadius: 7, outline: 'none',
@@ -947,7 +947,7 @@ export function BarraContextual(p: Props) {
       {/* ── ENLACE · CANDADO · IA · MAS ───────────────────────────────────── */}
       {sep}
       <div style={{ position: 'relative' }}>
-        <button type="button" data-enlace title={enlace ? `Enlace: ${enlace}` : 'Insertar enlace'}
+        <button type="button" data-enlace title={enlace ? tr('Enlace: {url}', { url: enlace }) : tr('Insertar enlace')}
           onClick={abrir('enlace')} data-activo={pop === 'enlace' || enlace ? '1' : '0'}
           style={btn(pop === 'enlace' || !!enlace)}
           onPointerEnter={hover(true)} onPointerLeave={hover(false)}>
@@ -955,7 +955,7 @@ export function BarraContextual(p: Props) {
         </button>
         {pop === 'enlace' && (
           <div style={{ ...panelBase, left: -110, display: 'grid', gap: 8, width: 268 }}>
-            {rotulo('Enlace')}
+            {rotulo(tr('Enlace'))}
             <input data-enlace-url autoFocus defaultValue={enlace ?? ''} placeholder="https://…"
               onKeyDown={e => {
                 if (e.key === 'Enter') {
@@ -978,16 +978,16 @@ export function BarraContextual(p: Props) {
                   setPop(null)
                 }}
                 style={{ ...btn(true), flex: 1, height: 30, background: t.accent, color: '#fff' }}>
-                Guardar
+                {tr('Guardar')}
               </button>
               {enlace && (
                 <button type="button" data-enlace-quitar
                   onClick={() => { p.onChange({ link: undefined }); setPop(null) }}
-                  style={{ ...btn(), height: 30, color: t.roles.risk.stroke.color }}>Quitar</button>
+                  style={{ ...btn(), height: 30, color: t.roles.risk.stroke.color }}>{tr('Quitar')}</button>
               )}
             </div>
             <div style={{ font: '500 10px CanvasSans, system-ui', color: t.text.caption, lineHeight: 1.35 }}>
-              Aparece una marca en la esquina del elemento. ⌘ + clic lo abre.
+              {tr('Aparece una marca en la esquina del elemento. ⌘ + clic lo abre.')}
             </div>
           </div>
         )}
@@ -995,15 +995,15 @@ export function BarraContextual(p: Props) {
 
       {(p.hayGrupo || els.length > 1) && (
         <button type="button" data-agrupar={p.hayGrupo ? 'desagrupar' : 'agrupar'}
-          title={p.hayGrupo ? 'Desagrupar (⌘⇧G)' : 'Agrupar (⌘G)'}
+          title={p.hayGrupo ? tr('Desagrupar (⌘⇧G)') : tr('Agrupar (⌘G)')}
           onClick={() => (p.hayGrupo ? p.onDesagrupar : p.onAgrupar)?.()}
           style={{ ...btn(), padding: '0 8px' }}
           onPointerEnter={hover(true)} onPointerLeave={hover(false)}>
-          <I.IconGroup size={16} />{p.hayGrupo ? 'Desagrupar' : 'Agrupar'}
+          <I.IconGroup size={16} />{p.hayGrupo ? tr('Desagrupar') : tr('Agrupar')}
         </button>
       )}
 
-      <button type="button" data-candado title={bloqueado ? 'Desbloquear (⌘⇧L)' : 'Bloquear (⌘⇧L)'}
+      <button type="button" data-candado title={bloqueado ? tr('Desbloquear (⌘⇧L)') : tr('Bloquear (⌘⇧L)')}
         onClick={() => p.onChange({ locked: !bloqueado })}
         data-activo={bloqueado ? '1' : '0'} style={btn(bloqueado)}
         onPointerEnter={hover(true)} onPointerLeave={hover(false)}>
@@ -1012,8 +1012,9 @@ export function BarraContextual(p: Props) {
 
       {p.onAcomodar && (
         <button type="button" data-acomodar
-          title={`Acomodar: colocar estas figuras siguiendo sus flechas${
-            p.acomodarBloqueados ? ` · ${p.acomodarBloqueados} bloqueada${p.acomodarBloqueados > 1 ? 's' : ''} no se mover${p.acomodarBloqueados > 1 ? 'án' : 'á'}` : ''}`}
+          title={p.acomodarBloqueados
+            ? trn(p.acomodarBloqueados, 'Acomodar: colocar estas figuras siguiendo sus flechas · {n} bloqueada no se moverá', 'Acomodar: colocar estas figuras siguiendo sus flechas · {n} bloqueadas no se moverán')
+            : tr('Acomodar: colocar estas figuras siguiendo sus flechas')}
           onClick={p.onAcomodar}
           onPointerEnter={e => { e.currentTarget.style.filter = 'brightness(1.12)' }}
           onPointerLeave={e => { e.currentTarget.style.filter = 'none' }}
@@ -1023,7 +1024,7 @@ export function BarraContextual(p: Props) {
       )}
 
       <div style={{ position: 'relative' }}>
-        <button type="button" data-mas title="Más" onClick={abrir('mas')}
+        <button type="button" data-mas title={tr('Más')} onClick={abrir('mas')}
           data-activo={pop === 'mas' ? '1' : '0'} style={btn(pop === 'mas')}
           onPointerEnter={hover(true)} onPointerLeave={hover(false)}>
           <I.IconDots size={17} />
@@ -1031,21 +1032,21 @@ export function BarraContextual(p: Props) {
         {pop === 'mas' && (
           <div style={{ ...panelBase, right: 0, left: 'auto', display: 'grid', gap: 2, minWidth: 190 }}>
             {([
-              ['Traer al frente', <I.IconBringFront size={16} key="f" />, p.onFront, 'frente'],
-              ['Enviar al fondo', <I.IconSendBack size={16} key="b" />, p.onBack, 'fondo'],
-              ['Duplicar  ⌘D', <I.IconDuplicate size={16} key="d" />, p.onDuplicate, 'duplicar'],
+              [trMarca('Traer al frente'), <I.IconBringFront size={16} key="f" />, p.onFront, 'frente'],
+              [trMarca('Enviar al fondo'), <I.IconSendBack size={16} key="b" />, p.onBack, 'fondo'],
+              [trMarca('Duplicar  ⌘D'), <I.IconDuplicate size={16} key="d" />, p.onDuplicate, 'duplicar'],
             ] as const).map(([label, icono, fn, key]) => (
               <button key={key} type="button" data-mas-accion={key}
                 onClick={() => { fn(); setPop(null) }}
                 style={{ ...btn(), justifyContent: 'flex-start', width: '100%', height: 30, padding: '0 8px' }}>
-                {icono}{label}
+                {icono}{tr(label)}
               </button>
             ))}
             <div style={{ height: 1, background: t.roles.card.stroke.color, opacity: .7, margin: '3px 0' }} />
             <button type="button" data-borrar onClick={() => { p.onDelete(); setPop(null) }}
               style={{ ...btn(), justifyContent: 'flex-start', width: '100%', height: 30, padding: '0 8px',
                        color: t.roles.risk.stroke.color }}>
-              <I.IconTrash size={16} />Eliminar  Supr
+              <I.IconTrash size={16} />{tr('Eliminar  Supr')}
             </button>
           </div>
         )}

@@ -2,6 +2,7 @@
 import { useMemo, useState } from 'react'
 import { ChevronRight, Search } from 'lucide-react'
 import { ATAJOS_SHELL, atajosCanvas, filtrarAtajos } from '@/shared/navigation/atajos'
+import { tr } from '@/shared/i18n'
 
 /**
  * Configuración → Atajos (2 oct 2026). Antes la tabla del Canvas vivía abierta al final de Ajustes y ocupaba media
@@ -15,18 +16,18 @@ export function SeccionAtajos() {
   return (
     <div className="space-y-4">
       <label className="relative block">
-        <span className="sr-only">Buscar un atajo</span>
+        <span className="sr-only">{tr('Buscar un atajo')}</span>
         <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted" aria-hidden />
         <input
           type="search"
           value={consulta}
           onChange={(e) => setConsulta(e.target.value)}
-          placeholder="Buscar: «tema», «⌘B», «flecha»…"
+          placeholder={tr('Buscar: «tema», «⌘B», «flecha»…')}
           className="input-field min-h-11 w-full pl-9 pr-3 text-sm"
         />
       </label>
 
-      {grupos.length === 0 && <p className="py-6 text-center text-xs text-muted">Ningún atajo coincide con «{consulta}».</p>}
+      {grupos.length === 0 && <p className="py-6 text-center text-xs text-muted">{tr('Ningún atajo coincide con «{consulta}».', { consulta })}</p>}
 
       <div className="space-y-2">
         {grupos.map((g) => (
@@ -35,18 +36,18 @@ export function SeccionAtajos() {
             <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 px-4 py-2.5 hover:bg-card-hover sm:px-5 [&::-webkit-details-marker]:hidden">
               <ChevronRight className="size-3.5 shrink-0 text-muted transition-transform group-open:rotate-90" aria-hidden />
               <span className="min-w-0 flex-1">
-                <span className="block text-[13px] font-semibold text-foreground/90">{g.titulo}</span>
-                <span className="block text-[11px] text-muted">{g.donde}</span>
+                <span className="block text-[13px] font-semibold text-foreground/90">{tr(g.titulo)}</span>
+                <span className="block text-[11px] text-muted">{tr(g.donde)}</span>
               </span>
               <span className="rounded-full bg-card-hover px-1.5 py-0.5 text-[10px] text-muted/80">{g.atajos.length}</span>
             </summary>
             <ul className="space-y-1 border-t border-border-subtle px-4 py-3 sm:px-5">
               {g.atajos.map((a) => (
                 <li key={`${a.accion}-${a.teclas.join('+')}`} className="flex items-center justify-between gap-3 rounded-lg px-1 py-1">
-                  <span className="text-xs text-foreground/75">{a.accion}</span>
+                  <span className="text-xs text-foreground/75">{tr(a.accion)}</span>
                   <span className="flex shrink-0 items-center gap-1">
                     {a.teclas.map((t) => (
-                      <kbd key={t} className="min-w-6 rounded border border-border bg-card-hover px-1.5 py-0.5 text-center font-mono text-[10px] text-foreground/85">{t}</kbd>
+                      <kbd key={t} className="min-w-6 rounded border border-border bg-card-hover px-1.5 py-0.5 text-center font-mono text-[10px] text-foreground/85">{tr(t)}</kbd>
                     ))}
                   </span>
                 </li>

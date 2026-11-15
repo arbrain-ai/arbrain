@@ -21,6 +21,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { mkdirSync, readFileSync, renameSync, writeFileSync, existsSync, unlinkSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { ChatAccessError } from '@/lib/chat-access-policy'
+import { tr, trn } from '@/shared/i18n'
 
 // ── Archivos ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -58,7 +59,7 @@ export const calendarioVacio = (zona?: string): CalendarioLocal => ({ _como_se_u
 function zonaDelSistema() { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC' } catch { return 'UTC' } }
 
 function leerTexto(ruta: string): string | null {
-  try { return readFileSync(ruta, 'utf8') } catch (e) { if ((e as NodeJS.ErrnoException).code === 'ENOENT') return null; throw new ChatAccessError('No se pudo leer tu calendario local. No significa que esté vacío.', 503) }
+  try { return readFileSync(ruta, 'utf8') } catch (e) { if ((e as NodeJS.ErrnoException).code === 'ENOENT') return null; throw new ChatAccessError(tr('No se pudo leer tu calendario local. No significa que esté vacío.'), 503) }
 }
 
 function escribirAtomico(ruta: string, contenido: string) {
@@ -71,8 +72,8 @@ function escribirAtomico(ruta: string, contenido: string) {
 export function decodificarCalendario(texto: string | null): CalendarioLocal {
   if (texto === null || !texto.trim()) return calendarioVacio()
   let d: CalendarioLocal
-  try { d = JSON.parse(texto) } catch { throw new ChatAccessError('calendario.json no es JSON válido. Corrígelo (o pídeselo a Levy); no se sobrescribió.', 409) }
-  if (!d || typeof d !== 'object' || !Array.isArray(d.eventos) || !Array.isArray(d.tareas)) throw new ChatAccessError('calendario.json no tiene «eventos» y «tareas». No se sobrescribió.', 409)
+  try { d = JSON.parse(texto) } catch { throw new ChatAccessError(tr('calendario.json no es JSON válido. Corrígelo (o pídeselo a Levy); no se sobrescribió.'), 409) }
+  if (!d || typeof d !== 'object' || !Array.isArray(d.eventos) || !Array.isArray(d.tareas)) throw new ChatAccessError(tr('calendario.json no tiene «eventos» y «tareas». No se sobrescribió.'), 409)
   return d
 }
 
@@ -172,7 +173,7 @@ function primero(o: Record<string, unknown>, ...claves: string[]): unknown {
 const tituloDe = (crudo: unknown, i: number) => {
   const o = (crudo && typeof crudo === 'object' ? crudo : {}) as Record<string, unknown>
   const t = primero(o, 'titulo', 'title', 'nombre', 'summary')
-  return typeof t === 'string' && t.trim() ? t.trim().slice(0, 80) : `evento ${i + 1}`
+  return typeof t === 'string' && t.trim() ? t.trim().slice(0, 80) : tr('evento {n}', { n: i + 1 })
 }
 
 /** Un instante escrito a mano: con zona se respeta; sin zona es hora de pared de la zona del calendario. */
@@ -233,7 +234,7 @@ function eventoPlano(e: EventoLocal, zona: string, extra: { externalId?: string;
   const externalId = extra.externalId ?? e.id
   return {
     id: `local:${externalId}`, externalId, kind: 'event' as const, sourceId: FUENTE_LOCAL.id, account: FUENTE_LOCAL.account, calendarId: FUENTE_LOCAL.calendarId,
-    title: e.titulo || 'Sin título', description: e.descripcion ?? '', location: e.lugar ?? '',
+    title: e.titulo || tr('Sin título'), description: e.descripcion ?? '', location: e.lugar ?? '',
     start: extra.inicio ?? e.inicio, end: extra.fin ?? e.fin, allDay: e.todoElDia === true, timeZone: e.zona && zonaValida(e.zona) ? e.zona : zona,
     etag: etagEvento(e), recurringEventId: extra.serie ?? null, recurrence: !extra.serie && e.repetir ? [e.repetir.startsWith('RRULE:') ? e.repetir : `RRULE:${e.repetir}`] : [],
     editable: true, colorId: null, meetUrl: null, attendees: [],
@@ -264,7 +265,7 @@ export function ocurrencias(e: EventoLocal, zonaBase: string, desde: string, has
 
 function tareaPlana(t: TareaLocal, zona: string) {
   return {
-    id: `local:${t.id}`, externalId: t.id, kind: 'task' as const, title: t.titulo || 'Sin título', description: t.descripcion ?? '',
+    id: `local:${t.id}`, externalId: t.id, kind: 'task' as const, title: t.titulo || tr('Sin título'), description: t.descripcion ?? '',
     projectId: 'local', sectionId: null, parentId: null, priority: [1, 2, 3, 4].includes(Number(t.prioridad)) ? Number(t.prioridad) : 4,
     due: t.fecha ?? null, timeZone: zona, recurring: false, recurrenceText: null,
     durationMinutes: typeof t.duracionMin === 'number' ? t.duracionMin : null, durationOrigin: typeof t.duracionMin === 'number' ? 'arbrain' as const : null,
@@ -276,13 +277,13 @@ function tareaPlana(t: TareaLocal, zona: string) {
 
 const err = (m: string, s = 400) => new ChatAccessError(m, s)
 const texto = (v: unknown, campo: string, max: number, requerido = false) => {
-  if (v === undefined || v === null) { if (requerido) throw err(`Falta ${campo}.`); return '' }
-  if (typeof v !== 'string' || v.length > max) throw err(`Campo inválido: ${campo}`)
-  if (requerido && !v.trim()) throw err(`Falta ${campo}.`)
+  if (v === undefined || v === null) { if (requerido) throw err(tr('Falta {campo}.', { campo })); return '' }
+  if (typeof v !== 'string' || v.length > max) throw err(tr('Campo inválido: {campo}', { campo }))
+  if (requerido && !v.trim()) throw err(tr('Falta {campo}.', { campo }))
   return v
 }
 function instante(v: unknown, campo: string) {
-  if (typeof v !== 'string' || Number.isNaN(Date.parse(v))) throw err(`Fecha inválida: ${campo}`)
+  if (typeof v !== 'string' || Number.isNaN(Date.parse(v))) throw err(tr('Fecha inválida: {campo}', { campo }))
   return v
 }
 
@@ -295,8 +296,8 @@ export class PlumaLocal {
 
   snapshot(p: Record<string, unknown>) {
     const desde = instante(p.from, 'from'), hasta = instante(p.to, 'to')
-    if (Date.parse(hasta) <= Date.parse(desde)) throw err('Rango inválido.')
-    if (Date.parse(hasta) - Date.parse(desde) > 65 * 86_400_000) throw err('La ventana de lectura no puede superar 65 días.')
+    if (Date.parse(hasta) <= Date.parse(desde)) throw err(tr('Rango inválido.'))
+    if (Date.parse(hasta) - Date.parse(desde) > 65 * 86_400_000) throw err(tr('La ventana de lectura no puede superar 65 días.'))
     const d = this.leer(), zona = zonaValida(d.zona) ? d.zona : zonaDelSistema(), stamp = new Date().toISOString()
     const ilegibles: string[] = []
     const events = d.eventos.flatMap((crudo, i) => {
@@ -308,13 +309,13 @@ export class PlumaLocal {
     const hechas = p.includeCompleted ? d.tareas.filter(t => t.hecha && t.hechaEn && Date.parse(t.hechaEn) >= Date.parse(desde) && Date.parse(t.hechaEn) < Date.parse(hasta)).map(t => tareaPlana(t, zona)) : []
     const ok = (id: string) => ({ id, state: 'fresh' as const, checkedAt: stamp })
     return {
-      sources: [{ ...FUENTE_LOCAL, title: 'Mi calendario', color: COLOR_LOCAL, timeZone: zona, editable: true, selected: true, objective: false }],
+      sources: [{ ...FUENTE_LOCAL, title: tr('Mi calendario'), color: COLOR_LOCAL, timeZone: zona, editable: true, selected: true, objective: false }],
       events, tasks: pendientes, completedTasks: hechas,
-      projects: [{ id: 'local', title: 'Mi plan', color: null }], sections: [],
+      projects: [{ id: 'local', title: tr('Mi plan'), color: null }], sections: [],
       // `todoist` es la llave de «tareas» que usa la vista (mergeSnapshot, avisos): aquí son las tareas locales.
       health: [ok('local'), ok(FUENTE_LOCAL.id), ok('todoist'), ok('projects'), ok('sections'), ...(p.includeCompleted ? [ok('completed')] : []),
         // Un evento que ni la lectura tolerante entiende no desaparece en silencio: la vista lo dice con su título.
-        ...(ilegibles.length ? [{ id: 'calendario-json', state: 'error' as const, checkedAt: stamp, message: `${ilegibles.length === 1 ? 'Un evento' : `${ilegibles.length} eventos`} de calendario.json no se ${ilegibles.length === 1 ? 'pudo' : 'pudieron'} leer (sin fecha de inicio válida): ${ilegibles.slice(0, 5).map(t => `«${t}»`).join(', ')}${ilegibles.length > 5 ? '…' : ''}. Pídele a Levy que los corrija.` }] : [])],
+        ...(ilegibles.length ? [{ id: 'calendario-json', state: 'error' as const, checkedAt: stamp, message: trn(ilegibles.length, 'Un evento de calendario.json no se pudo leer (sin fecha de inicio válida): {lista}. Pídele a Levy que los corrija.', '{n} eventos de calendario.json no se pudieron leer (sin fecha de inicio válida): {lista}. Pídele a Levy que los corrija.', { lista: `${ilegibles.slice(0, 5).map(t => `«${t}»`).join(', ')}${ilegibles.length > 5 ? '…' : ''}` }) }] : [])],
       loadedAt: stamp, range: { from: desde, to: hasta },
     }
   }
@@ -322,37 +323,37 @@ export class PlumaLocal {
   mutar(p: Record<string, unknown>) {
     return enFila(() => {
       const rid = texto(p.requestId, 'requestId', 36, true)
-      if (!/^[0-9a-f-]{36}$/i.test(rid)) throw err('Identificador de operación inválido.')
+      if (!/^[0-9a-f-]{36}$/i.test(rid)) throw err(tr('Identificador de operación inválido.'))
       const huella = etiquetaDe(canonico(p))
       const original = leerTexto(this.rutaCalendario)
       const d = decodificarCalendario(original)
       if (!original) Object.assign(d, calendarioVacio(zonaDelSistema()))
       const recibos = d.recibos ??= {}
       const previo = recibos[rid]
-      if (previo) { if (previo.huella !== huella) throw err('El reintento cambió el contenido de la operación.', 409); return previo.resultado as Record<string, unknown> }
+      if (previo) { if (previo.huella !== huella) throw err(tr('El reintento cambió el contenido de la operación.'), 409); return previo.resultado as Record<string, unknown> }
       const zona = zonaValida(d.zona) ? d.zona : zonaDelSistema()
-      const resultado = p.kind === 'event' ? this.mutarEvento(d, p, zona) : p.kind === 'task' ? this.mutarTarea(d, p, zona) : (() => { throw err('Tipo de elemento inválido.') })()
+      const resultado = p.kind === 'event' ? this.mutarEvento(d, p, zona) : p.kind === 'task' ? this.mutarTarea(d, p, zona) : (() => { throw err(tr('Tipo de elemento inválido.')) })()
       recibos[rid] = { huella, resultado, en: new Date().toISOString() }
       // Solo los últimos 300 recibos: suficiente para cualquier reintento real.
       const claves = Object.keys(recibos); if (claves.length > 300) for (const k of claves.slice(0, claves.length - 300)) delete recibos[k]
-      if (leerTexto(this.rutaCalendario) !== original) throw err('Tu calendario cambió mientras guardabas (¿Levy lo estaba editando?). Recarga; tu borrador se conserva.', 409)
+      if (leerTexto(this.rutaCalendario) !== original) throw err(tr('Tu calendario cambió mientras guardabas (¿Levy lo estaba editando?). Recarga; tu borrador se conserva.'), 409)
       escribirAtomico(this.rutaCalendario, JSON.stringify(d, null, 2) + '\n')
       return resultado
     })
   }
 
   private mutarEvento(d: CalendarioLocal, p: Record<string, unknown>, zona: string) {
-    if (p.calendarId !== undefined && p.calendarId !== FUENTE_LOCAL.calendarId) throw err('Este calendario no permite editar desde aquí.', 403)
+    if (p.calendarId !== undefined && p.calendarId !== FUENTE_LOCAL.calendarId) throw err(tr('Este calendario no permite editar desde aquí.'), 403)
     const accion = p.action, data = (p.data ?? {}) as Record<string, unknown>
-    if (!['create', 'update', 'delete'].includes(String(accion)) || typeof data !== 'object') throw err('Acción de calendario inválida.')
+    if (!['create', 'update', 'delete'].includes(String(accion)) || typeof data !== 'object') throw err(tr('Acción de calendario inválida.'))
     const ahora = new Date().toISOString()
     const campos = () => {
       const allDay = data.allDay === true
       const inicio = allDay ? data.start : instante(data.start, 'start'), fin = allDay ? data.end : instante(data.end, 'end')
-      if (allDay && (!esDia(inicio) || !esDia(fin) || fin <= inicio)) throw err('Fechas de día completo inválidas.')
-      if (!allDay && Date.parse(fin as string) <= Date.parse(inicio as string)) throw err('El final debe ser después del inicio.')
+      if (allDay && (!esDia(inicio) || !esDia(fin) || fin <= inicio)) throw err(tr('Fechas de día completo inválidas.'))
+      if (!allDay && Date.parse(fin as string) <= Date.parse(inicio as string)) throw err(tr('El final debe ser después del inicio.'))
       const z = data.timeZone === undefined || data.timeZone === null ? undefined : data.timeZone
-      if (z !== undefined && !zonaValida(z)) throw err('Zona horaria inválida.')
+      if (z !== undefined && !zonaValida(z)) throw err(tr('Zona horaria inválida.'))
       return { titulo: texto(data.title, 'title', 1000, true), inicio: inicio as string, fin: fin as string, todoElDia: allDay,
         ...(data.description !== undefined ? { descripcion: texto(data.description, 'description', 20_000) } : {}),
         ...(data.location !== undefined ? { lugar: texto(data.location, 'location', 2_000) } : {}),
@@ -360,7 +361,7 @@ export class PlumaLocal {
     }
     if (accion === 'create') {
       const rec = data.recurrence
-      if (rec !== undefined && (!Array.isArray(rec) || rec.length > 1 || rec.some(r => !reglaValida(r)))) throw err('Regla de repetición inválida.')
+      if (rec !== undefined && (!Array.isArray(rec) || rec.length > 1 || rec.some(r => !reglaValida(r)))) throw err(tr('Regla de repetición inválida.'))
       const e: EventoLocal = { id: 'ev' + String(p.requestId).replaceAll('-', '').slice(0, 20), ...campos(), ...(Array.isArray(rec) && rec[0] ? { repetir: String(rec[0]) } : {}), actualizado: ahora }
       d.eventos.push(e)
       return { ok: true, event: ocurrencias(e, zona, '1970-01-01T00:00:00Z', '2200-01-01T00:00:00Z')[0] ?? eventoPlano(e, zona) }
@@ -369,9 +370,9 @@ export class PlumaLocal {
     const ocurr = /^(.+)_(\d{8})$/.exec(externalId)
     const idx = d.eventos.findIndex(e => e.id === externalId)
     const serie = ocurr && idx < 0 ? d.eventos.find(e => e.id === ocurr[1] && e.repetir) : undefined
-    if (!serie && idx < 0) { if (accion === 'delete') return { ok: true, deletedId: externalId }; throw err('Ese evento ya no existe. Recarga.', 404) }
+    if (!serie && idx < 0) { if (accion === 'delete') return { ok: true, deletedId: externalId }; throw err(tr('Ese evento ya no existe. Recarga.'), 404) }
     const actual = serie ?? d.eventos[idx]
-    if (typeof p.etag === 'string' && p.etag !== etagEvento(actual)) throw err('El evento cambió en otra pantalla. Recarga antes de editar.', 412)
+    if (typeof p.etag === 'string' && p.etag !== etagEvento(actual)) throw err(tr('El evento cambió en otra pantalla. Recarga antes de editar.'), 412)
     if (serie && ocurr) {
       // Una ocurrencia de una serie: se aparta de la serie (omitir ese día) y, si se edita, queda como evento propio.
       const dia = `${ocurr[2].slice(0, 4)}-${ocurr[2].slice(4, 6)}-${ocurr[2].slice(6)}`
@@ -392,10 +393,10 @@ export class PlumaLocal {
     const aplicar = (t: TareaLocal) => {
       if (data.title !== undefined) t.titulo = texto(data.title, 'title', 1000, true)
       if (data.description !== undefined) t.descripcion = texto(data.description, 'description', 20_000)
-      if (data.priority !== undefined) { const n = Number(data.priority); if (![1, 2, 3, 4].includes(n)) throw err('Prioridad inválida.'); t.prioridad = n }
-      if (data.due !== undefined) { if (data.due !== null && !esDia(data.due) && Number.isNaN(Date.parse(String(data.due)))) throw err('Fecha inválida.'); t.fecha = (data.due as string | null) }
-      if (data.durationMinutes !== undefined) { const m = data.durationMinutes; if (m !== null && (typeof m !== 'number' || m < 1 || m > 1440)) throw err('Duración inválida.'); t.duracionMin = m as number | null }
-      if (data.labels !== undefined) { if (!Array.isArray(data.labels) || data.labels.some(l => typeof l !== 'string')) throw err('Etiquetas inválidas.'); t.etiquetas = data.labels as string[] }
+      if (data.priority !== undefined) { const n = Number(data.priority); if (![1, 2, 3, 4].includes(n)) throw err(tr('Prioridad inválida.')); t.prioridad = n }
+      if (data.due !== undefined) { if (data.due !== null && !esDia(data.due) && Number.isNaN(Date.parse(String(data.due)))) throw err(tr('Fecha inválida.')); t.fecha = (data.due as string | null) }
+      if (data.durationMinutes !== undefined) { const m = data.durationMinutes; if (m !== null && (typeof m !== 'number' || m < 1 || m > 1440)) throw err(tr('Duración inválida.')); t.duracionMin = m as number | null }
+      if (data.labels !== undefined) { if (!Array.isArray(data.labels) || data.labels.some(l => typeof l !== 'string')) throw err(tr('Etiquetas inválidas.')); t.etiquetas = data.labels as string[] }
       t.actualizado = ahora
       return t
     }
@@ -406,14 +407,14 @@ export class PlumaLocal {
     }
     const externalId = texto(p.externalId, 'externalId', 300, true)
     const t = d.tareas.find(x => x.id === externalId)
-    if (!t) throw err('Esa tarea ya no existe. Recarga.', 404)
-    if (typeof p.updatedAt === 'string' && t.actualizado && p.updatedAt !== t.actualizado && accion === 'update') throw err('La tarea cambió en otra pantalla. Recarga antes de editar.', 412)
+    if (!t) throw err(tr('Esa tarea ya no existe. Recarga.'), 404)
+    if (typeof p.updatedAt === 'string' && t.actualizado && p.updatedAt !== t.actualizado && accion === 'update') throw err(tr('La tarea cambió en otra pantalla. Recarga antes de editar.'), 412)
     if (accion === 'complete') { t.hecha = true; t.hechaEn = ahora; t.actualizado = ahora; return { ok: true, completedId: externalId, recurring: false } }
     if (accion === 'reopen') { t.hecha = false; t.hechaEn = null; t.actualizado = ahora; return { ok: true, task: tareaPlana(t, zona) } }
     if (accion === 'delete') { d.tareas = d.tareas.filter(x => x !== t); return { ok: true, deletedId: externalId } }
     if (accion === 'move') { t.actualizado = ahora; return { ok: true, task: tareaPlana(t, zona) } }
     if (accion === 'update') return { ok: true, task: tareaPlana(aplicar(t), zona) }
-    throw err('Acción inválida.')
+    throw err(tr('Acción inválida.'))
   }
 
   // ── Objetivos (mismo formato que objectives_store.py) ──
@@ -426,18 +427,18 @@ export class PlumaLocal {
   escribirObjetivo(p: Record<string, unknown>) {
     return enFila(() => {
       const rid = p.requestId
-      if (typeof rid !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rid)) throw err('Solicitud sin identidad válida.')
+      if (typeof rid !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rid)) throw err(tr('Solicitud sin identidad válida.'))
       const huella = createHash('sha256').update(canonico(p)).digest('hex')
       const contenido = leerTexto(this.rutaObjetivos) ?? ''
       const data = decodificarObjetivos(contenido), recibos = data.receipts
-      if (recibos[rid]) { if (recibos[rid] !== huella) throw err('No reutilices una solicitud con otro contenido.', 409); return vistaObjetivos(contenido) }
-      if (p.revision !== sha(contenido)) throw err('El plan cambió en otra conversación. Recarga; tu borrador se conserva.', 409)
+      if (recibos[rid]) { if (recibos[rid] !== huella) throw err(tr('No reutilices una solicitud con otro contenido.'), 409); return vistaObjetivos(contenido) }
+      if (p.revision !== sha(contenido)) throw err(tr('El plan cambió en otra conversación. Recarga; tu borrador se conserva.'), 409)
       const goal = validarObjetivo(p.goal, data.goals)
       data.goals = [...data.goals.filter(g => g.id !== goal.id), goal]
       recibos[rid] = huella
       const registro = '<!-- arbrain-objectives-v1\n' + JSON.stringify(data, null, 2).replaceAll('<', '\\u003c').replaceAll('>', '\\u003e') + '\n-->'
       const salida = MARCA.test(contenido) ? contenido.replace(MARCA, () => registro) : (contenido.trimEnd() ? contenido.trimEnd() + '\n\n' : '# Objetivos\n\n') + registro + '\n'
-      if ((leerTexto(this.rutaObjetivos) ?? '') !== contenido) throw err('El documento cambió mientras guardabas. Recarga.', 409)
+      if ((leerTexto(this.rutaObjetivos) ?? '') !== contenido) throw err(tr('El documento cambió mientras guardabas. Recarga.'), 409)
       escribirAtomico(this.rutaObjetivos, salida)
       return vistaObjetivos(salida)
     })
@@ -460,16 +461,16 @@ const sha = (s: string) => createHash('sha256').update(s, 'utf8').digest('hex')
 type Objetivo = { id: string; scope: 'day' | 'week' | 'month'; start: string; end: string; parentId: string | null; [k: string]: unknown }
 
 export function periodo(scope: unknown, ancla: unknown): [string, string] {
-  if (!esDia(ancla)) throw err('Fecha inválida.')
+  if (!esDia(ancla)) throw err(tr('Fecha inválida.'))
   if (scope === 'day') return [ancla, sumarDia(ancla, 1)]
   if (scope === 'week') { const dow = (new Date(`${ancla}T12:00:00Z`).getUTCDay() + 6) % 7, a = sumarDia(ancla, -dow); return [a, sumarDia(a, 7)] }
   if (scope === 'month') { const a = ancla.slice(0, 8) + '01', n = new Date(`${a}T12:00:00Z`); n.setUTCMonth(n.getUTCMonth() + 1); return [a, n.toISOString().slice(0, 10)] }
-  throw err('Período inválido.')
+  throw err(tr('Período inválido.'))
 }
 
 function decodificarObjetivos(contenido: string): { version: 1; goals: Objetivo[]; receipts: Record<string, string> } {
   const todas = [...contenido.matchAll(MARCA_G)]
-  if (todas.length > 1) throw err('Hay dos registros de objetivos. Revisa el documento antes de editar.', 409)
+  if (todas.length > 1) throw err(tr('Hay dos registros de objetivos. Revisa el documento antes de editar.'), 409)
   if (!todas.length) return { version: 1, goals: [], receipts: {} }
   try {
     const data = JSON.parse(todas[0][1])
@@ -477,7 +478,7 @@ function decodificarObjetivos(contenido: string): { version: 1; goals: Objetivo[
     const ids = data.goals.map((g: Objetivo) => g.id)
     if (ids.some((x: unknown) => typeof x !== 'string') || new Set(ids).size !== ids.length) throw new Error()
     return { version: 1, goals: data.goals, receipts: data.receipts ?? {} }
-  } catch { throw err('El registro de objetivos no se puede leer. No se sobrescribió.', 409) }
+  } catch { throw err(tr('El registro de objetivos no se puede leer. No se sobrescribió.'), 409) }
 }
 
 export function contextoHeredado(contenido: string) {
@@ -511,33 +512,33 @@ export function vistaObjetivos(contenido: string) {
 }
 
 function validarObjetivo(raw: unknown, goals: Objetivo[]): Objetivo {
-  if (!raw || typeof raw !== 'object') throw err('Objetivo inválido.')
+  if (!raw || typeof raw !== 'object') throw err(tr('Objetivo inválido.'))
   const r = raw as Record<string, unknown>
-  const campo = (k: string, max: number, req = false) => { const v = r[k] ?? ''; if (typeof v !== 'string' || v.length > max || (req && !v.trim())) throw err('Campo inválido: ' + k); return v.trim() }
+  const campo = (k: string, max: number, req = false) => { const v = r[k] ?? ''; if (typeof v !== 'string' || v.length > max || (req && !v.trim())) throw err(tr('Campo inválido: {campo}', { campo: k })); return v.trim() }
   const id = campo('id', 80, true)
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) throw err('Identidad de objetivo inválida.')
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) throw err(tr('Identidad de objetivo inválida.'))
   const scope = r.scope as Objetivo['scope'], [a, b] = periodo(scope, r.start)
-  if (a !== r.start || b !== r.end) throw err('El objetivo debe abarcar su día, semana o mes completo.')
+  if (a !== r.start || b !== r.end) throw err(tr('El objetivo debe abarcar su día, semana o mes completo.'))
   const status = r.status
-  if (!['draft', 'agreed', 'completed'].includes(String(status))) throw err('Estado inválido.')
+  if (!['draft', 'agreed', 'completed'].includes(String(status))) throw err(tr('Estado inválido.'))
   const title = campo('title', 500, true), success = campo('success', 4000)
-  if (status !== 'draft' && !success) throw err('Define cómo comprobarás el resultado antes de acordarlo.')
+  if (status !== 'draft' && !success) throw err(tr('Define cómo comprobarás el resultado antes de acordarlo.'))
   const parent = (r.parentId as string) || null
   if (parent) {
     const pa = goals.find(g => g.id === parent), esperado = ({ day: 'week', week: 'month' } as Record<string, string>)[scope]
-    if (!pa || pa.scope !== esperado || !(pa.start < b && a < pa.end)) throw err('El objetivo superior debe ser del período correspondiente.')
+    if (!pa || pa.scope !== esperado || !(pa.start < b && a < pa.end)) throw err(tr('El objetivo superior debe ser del período correspondiente.'))
   }
-  if (scope === 'month' && parent) throw err('Un mes no tiene objetivo superior.')
+  if (scope === 'month' && parent) throw err(tr('Un mes no tiene objetivo superior.'))
   const res: Objetivo = { id, scope, start: a, end: b, title, success, notes: campo('notes', 8000), status, parentId: parent, updatedAt: new Date().toISOString() }
   // Vínculos: en cliente las tareas y eventos son locales (`local:`); se aceptan también los de Google/Todoist para la fase 2.
   for (const [k, prefijos] of [['taskIds', ['local:', 'todoist:']], ['eventIds', ['local:', 'google:']]] as const) {
     const ids = r[k] ?? []
-    if (!Array.isArray(ids) || ids.length > 100 || ids.some(i => typeof i !== 'string' || !prefijos.some(p => i.startsWith(p)) || i.length > 1000)) throw err('Vínculos inválidos.')
+    if (!Array.isArray(ids) || ids.length > 100 || ids.some(i => typeof i !== 'string' || !prefijos.some(p => i.startsWith(p)) || i.length > 1000)) throw err(tr('Vínculos inválidos.'))
     res[k] = [...new Set(ids as string[])]
   }
   const viejo = goals.find(g => g.id === id)
-  if (viejo && (['scope', 'start', 'end'] as const).some(k => viejo[k] !== res[k])) throw err('Conserva el período del objetivo; crea otro para el nuevo período.', 409)
+  if (viejo && (['scope', 'start', 'end'] as const).some(k => viejo[k] !== res[k])) throw err(tr('Conserva el período del objetivo; crea otro para el nuevo período.'), 409)
   res.completionNote = campo('completionNote', 4000)
-  if (status === 'completed' && !res.completionNote) throw err('Escribe qué evidencia confirma el cumplimiento.')
+  if (status === 'completed' && !res.completionNote) throw err(tr('Escribe qué evidencia confirma el cumplimiento.'))
   return res
 }

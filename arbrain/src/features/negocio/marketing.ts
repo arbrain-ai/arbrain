@@ -62,7 +62,7 @@ export function leerMarketing(x: unknown): { archivo: ArchivoMarketing | null; e
 const civil = (f: string) => { const [y, m, d] = f.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d)) }
 export const masDias = (f: string, k: number) => { const d = civil(f); d.setUTCDate(d.getUTCDate() + k); return d.toISOString().slice(0, 10) }
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
-const dm = (f: string) => { const d = civil(f); return `${d.getUTCDate()} ${MESES[d.getUTCMonth()]}` }
+export const dm = (f: string) => { const d = civil(f); return `${d.getUTCDate()} ${MESES[d.getUTCMonth()]}` }
 /** «30 oct – 5 nov». */
 export const rango = (desde: string, hasta: string) => `${dm(desde)} – ${dm(hasta)}`
 
@@ -124,7 +124,7 @@ export function canalPulso(c: CanalSensor, clics: ClicsCanal | null): CanalPulso
   const a = c.analytics, r = c.alcance
   const fa = a?.fuente || 'YouTube Analytics', fr = r?.fuente || 'YouTube Reporting · miniaturas'
   const aHasta = a?.hasta ?? null
-  const algoMedido = !!a?.dias.some(d => d.vistas > 0 || d.subs_ganados > 0) || !!r?.dias.length
+  const algoMedido = !!a?.dias.some(d => d.vistas > 0 || d.subs_ganados > 0) || !!r?.dias.some(d => d.impresiones > 0)
   if (!algoMedido) {
     return { ...base, estado: 'esperando', error: c.estado === 'error' ? c.error : undefined, cifras: [
       { id: 'vistas', etiqueta: 'Vistas', valor: null, fuente: fa, espera: 'Esperando primer dato: el canal todavía no registra vistas.' },

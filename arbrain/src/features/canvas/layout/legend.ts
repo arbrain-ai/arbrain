@@ -19,30 +19,31 @@
 
 import type { Role, EdgeKind } from '../theme/tokens'
 import type { MeasureContext, TextStyle } from '../text/types'
+import { tr, trMarca } from '@/shared/i18n'
 
 /** Que comunica cada rol. En palabras del lector, no del sistema. */
 const SIGNIFICADO: Record<Role, string | null> = {
   card: null,            // la caja neutra no codifica nada: no se explica
   drawn: null,           // autoria, no semantica: la mano no necesita diccionario
-  module: 'módulo con contenido',
-  form: 'entrada / formulario',
-  callout: 'llamada humana',
-  deliverable: 'entregable',
-  trigger: 'disparador',
-  risk: 'riesgo — no tocar',
-  agent: 'agente / automatización',
-  tray: 'fase o territorio',
-  sticky: 'nota',
+  module: trMarca('módulo con contenido'),
+  form: trMarca('entrada / formulario'),
+  callout: trMarca('llamada humana'),
+  deliverable: trMarca('entregable'),
+  trigger: trMarca('disparador'),
+  risk: trMarca('riesgo — no tocar'),
+  agent: trMarca('agente / automatización'),
+  tray: trMarca('fase o territorio'),
+  sticky: trMarca('nota'),
   // El rol `nota` nacio despues que esta leyenda (la adhesiva amarilla, aparte
   // de `sticky` para no amarillear los chips) y aqui faltaba: el Record<Role,...>
   // los exige todos, asi que su ausencia rompia el type check del build.
-  nota: 'nota adhesiva',
+  nota: trMarca('nota adhesiva'),
   // sensor: MISMO fallo que `nota` dos parrafos arriba, tercera repeticion. El rol
   // se enmendo en tokens.ts el 24 ago (opsroom The Machinery v2) y la leyenda no se
   // actualizo, asi que Record<Role,...> dejaba de cumplirse y el type check tumbaba
   // el build entero — con el, cualquier deploy de Vercel. Texto derivado de tokens:
   // "no es lo que se HACE ni lo que EXISTE: es lo que se MIDE".
-  sensor: 'sensor — lo que se mide',
+  sensor: trMarca('sensor — lo que se mide'),
   // widget: CUARTA repeticion del mismo fallo (nota -> sensor -> ... -> widget).
   // El rol nacio con el centro de mando (53ca06c0, tres widgets vivos dentro del
   // mapa del negocio) y la leyenda no se actualizo, asi que Record<Role,...>
@@ -50,15 +51,15 @@ const SIGNIFICADO: Record<Role, string | null> = {
   // documentarlo aqui: el arreglo de verdad es que este Record se derive de los
   // roles de tokens.ts en vez de repetirse a mano. Texto derivado de tokens:
   // "la ventana VIVA a otro sistema... el dato lo pinta la app al vuelo".
-  widget: 'ventana viva a otro sistema',
+  widget: trMarca('ventana viva a otro sistema'),
 }
 
 /** Que comunica cada clase de arista. `flujo` es el default: no se explica. */
 const SIGNIFICADO_ARISTA: Record<EdgeKind, string | null> = {
   flujo: null,
-  agente: 'paso automatizado',
-  fragil: 'relación frágil',
-  hueco: 'declarado, aún hueco',
+  agente: trMarca('paso automatizado'),
+  fragil: trMarca('relación frágil'),
+  hueco: trMarca('declarado, aún hueco'),
 }
 
 export interface LegendItem {
@@ -104,12 +105,12 @@ export function composeLegend(
   const entradas: Array<{ clase: 'caja' | 'arista'; role: Role; edgeKind?: EdgeKind; label: string }> = []
   for (const r of [...new Set(rolesUsados)]) {
     const l = SIGNIFICADO[r]
-    if (l != null) entradas.push({ clase: 'caja', role: r, label: l })
+    if (l != null) entradas.push({ clase: 'caja', role: r, label: tr(l) })
   }
   for (const k of [...new Set(aristasUsadas)]) {
     if (!k) continue
     const l = SIGNIFICADO_ARISTA[k]
-    if (l != null) entradas.push({ clase: 'arista', role: 'card', edgeKind: k, label: l })
+    if (l != null) entradas.push({ clase: 'arista', role: 'card', edgeKind: k, label: tr(l) })
   }
   if (entradas.length === 0) return null
   const unicos = entradas

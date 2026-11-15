@@ -89,11 +89,15 @@ const TEMPO_MAX = 3
 
 /**
  * Formato del audio del lector (31 oct 2026). `wav` para la misma máquina (cero costo de codificar; el peso no importa en
- * localhost). `opus` para el teléfono y cualquier cliente remoto: Ogg Opus a 40 kbps pesa ~11 % del WAV y, medido en el
+ * localhost). `opus` para el teléfono y cualquier cliente remoto: Ogg Opus a 24 kbps (40 hasta el 12 nov) pesa ~7 % del WAV
+ * (~180 KB por minuto de voz a 1x) y, medido en el
  * WKWebView de macOS 27 contra el WAV de la misma síntesis (correlación cruzada), decodifica con 0 muestras de corrimiento
  * y la duración exacta (el `pre-skip` y el recorte final de Ogg sí se respetan): las marcas siguen exactas. AAC metía
  * 60–80 ms de relleno al final y MP3 corría 26 ms el arranque; FLAC es exacto pero solo ahorra ~40 %. Ver
- * docs/builds/tts-saltos-2026-10-31/RESULTADO.md.
+ * docs/builds/tts-saltos-2026-10-31/RESULTADO.md. 12 nov («se me acaban rapidísimo los datos»): 40 → 24 kbps, −38 % por
+ * minuto; medido otra vez en WKWebView de macOS y Safari de iOS 26.5: 0 muestras de corrimiento, duración +0.02 ms,
+ * correlación 0.985 (0.993 a 40k). Los dos se codifican en CELT. La sonda del cliente (`sonda-opus.ts`) usa este mismo
+ * bitrate: si cambia aquí, regenerarla con `node scripts/qa/sonda-opus.mjs` (un test lo vigila).
  */
 export type FormatoLector = 'wav' | 'opus'
 
@@ -167,10 +171,10 @@ export async function synthesizeLector(text: string, tempo: number, formato: For
 /** Argumentos de ffmpeg del lector: PCM s16le mono por stdin → [atempo] → PCM s16le o Ogg Opus por stdout. Pura. */
 export function argsFfmpegLector(sampleRate: number, tempo: number, formato: FormatoLector): string[] {
   const filtro = Math.abs(tempo - 1) > 0.01 ? ['-filter:a', `atempo=${tempo}`] : []
-  // Opus: 24 kHz (lo nativo más cercano a los 22.05 de la voz), 40 kbps y complejidad 0 (codifica ~5x más rápido que la
-  // 10 con la misma correlación contra el WAV, 0.995; medido el 31 oct).
+  // Opus: 24 kHz (lo nativo más cercano a los 22.05 de la voz), 24 kbps (12 nov; antes 40) y complejidad 0 (codifica ~5x
+  // más rápido que la 10 con la misma correlación contra el WAV; medido el 31 oct).
   const salida = formato === 'opus'
-    ? ['-ar', '24000', '-c:a', 'libopus', '-b:a', '40k', '-compression_level', '0', '-f', 'ogg']
+    ? ['-ar', '24000', '-c:a', 'libopus', '-b:a', '24k', '-compression_level', '0', '-f', 'ogg']
     : ['-f', 's16le', '-ac', '1']
   return ['-y', '-loglevel', 'error', '-f', 's16le', '-ar', String(sampleRate), '-ac', '1', '-i', 'pipe:0', ...filtro, ...salida, 'pipe:1']
 }

@@ -13,6 +13,7 @@
  */
 import { arbolCarpetas, puedeAnidar, type CarpetaPlana, type NodoCarpeta } from './carpetas'
 import { GRUPOS_POR_CARPETA, normalizar, type Fijado } from './organizacion'
+import { trMarca } from '@/shared/i18n'
 
 export interface PaginaVista { id: string; nombre: string; folderId: string | null; actualizado: string; fijado: Fijado | null; archivado: string | null }
 
@@ -91,7 +92,7 @@ export interface Destino { id: string | null; etiqueta: string; nivel: number }
 export function destinosDePagina(carpetas: CarpetaPlana[]): Destino[] {
   const vivas = carpetas.filter(c => !carpetaArchivada(carpetas, c.id))
   const { raiz } = arbolCarpetas(vivas, [])
-  return [{ id: null, etiqueta: 'Sin carpeta', nivel: 0 },
+  return [{ id: null, etiqueta: trMarca('Sin carpeta'), nivel: 0 },
     ...raiz.flatMap(n => [{ id: n.carpeta.id, etiqueta: n.carpeta.nombre, nivel: 0 },
       ...n.hijas.map(h => ({ id: h.carpeta.id, etiqueta: `${n.carpeta.nombre} › ${h.carpeta.nombre}`, nivel: 1 }))])]
 }
@@ -100,7 +101,7 @@ export function destinosDePagina(carpetas: CarpetaPlana[]): Destino[] {
 export function destinosDeCarpeta(carpetas: CarpetaPlana[], id: string): Destino[] {
   const c = carpetas.find(x => x.id === id)
   const dentro = carpetas.filter(x => x.id !== c?.madre && !carpetaArchivada(carpetas, x.id) && puedeAnidar(carpetas, id, x.id) === null)
-  return [...(c?.madre ? [{ id: null, etiqueta: 'A la raíz', nivel: 0 }] : []), ...dentro.map(x => ({ id: x.id, etiqueta: x.nombre, nivel: 0 }))]
+  return [...(c?.madre ? [{ id: null, etiqueta: trMarca('A la raíz'), nivel: 0 }] : []), ...dentro.map(x => ({ id: x.id, etiqueta: x.nombre, nivel: 0 }))]
 }
 
 /** La carpeta y sus subcarpetas: lo que archivar o restaurar una carpeta toca. */

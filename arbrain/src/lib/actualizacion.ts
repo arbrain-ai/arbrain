@@ -11,6 +11,7 @@
  * este módulo añade es lo que se perdía: la ruta, la posición del scroll del chat y la garantía de que
  * las escrituras del borrador terminaron ANTES de recargar.
  */
+import { tr } from '@/shared/i18n'
 
 /** Tiempo sin teclado, ratón ni toque para considerar que Daniel no está usando la ventana. */
 export const OCIO_PARA_APLICAR_MS = 120_000
@@ -139,12 +140,12 @@ export function evaluarDespliegue(p: {
 export function textoDespliegue(fase: string | null | undefined, ms = 0): string {
   const s = Math.round(ms / 1000)
   const t = s >= 5 ? ` · ${s < 60 ? `${s} s` : `${Math.floor(s / 60)} min ${String(s % 60).padStart(2, '0')} s`}` : ''
-  if (fase === 'cambiando' || fase === 'esperando') return `Casi listo…${t}`
-  return `Compilando versión nueva…${t}`
+  if (fase === 'cambiando' || fase === 'esperando') return `${tr('Casi listo…')}${t}`
+  return `${tr('Compilando versión nueva…')}${t}`
 }
 
 export function textoFinDespliegue(v: Exclude<ProgresoDespliegue, 'esperar' | 'listo'>): string {
-  if (v === 'fallo') return 'La versión nueva no compiló · sigues en la actual'
-  if (v === 'sinArranque') return 'No arrancó la actualización · reintenta'
-  return 'Tardó demasiado · reintenta'
+  if (v === 'fallo') return tr('La versión nueva no compiló · sigues en la actual')
+  if (v === 'sinArranque') return tr('No arrancó la actualización · reintenta')
+  return tr('Tardó demasiado · reintenta')
 }

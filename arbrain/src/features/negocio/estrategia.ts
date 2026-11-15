@@ -9,6 +9,7 @@
  * descarta y se cuenta como error; nunca se inventa una cifra. Lógica pura (sin React ni fs): la usan la vista, la API y
  * node:test.
  */
+import { enIngles, localeIntl, tr, trMarca, trn } from '@/shared/i18n'
 
 export const ESQUEMA_MERCADO = 'arbrain.mercado/v1'
 /** Ruta del archivo, relativa a la raíz del cerebro (la arma Levy con la investigación de mercado del dueño). */
@@ -16,10 +17,10 @@ export const RUTA_MERCADO = '.claude/memory/project/mi-negocio/mercado.json'
 export const URL_ESTRATEGIA = '/api/negocio/estrategia'
 
 export const VISTAS = [
-  { id: 'compra', nombre: 'Quién compra' },
-  { id: 'contra', nombre: 'Contra quién' },
-  { id: 'rumbo', nombre: 'Hacia dónde va' },
-  { id: 'decides', nombre: 'Lo que decides' },
+  { id: 'compra', nombre: trMarca('Quién compra') },
+  { id: 'contra', nombre: trMarca('Contra quién') },
+  { id: 'rumbo', nombre: trMarca('Hacia dónde va') },
+  { id: 'decides', nombre: trMarca('Lo que decides') },
 ] as const
 export type Vista = (typeof VISTAS)[number]['id']
 
@@ -106,23 +107,23 @@ const textos = (x: unknown): string[] => (Array.isArray(x) ? x.map(texto).filter
 /** Lector con su propia lista de errores: cada pieza descartada deja una línea que dice dónde. */
 class Lector {
   errores: string[] = []
-  falla(donde: string, que: string) { this.errores.push(`${donde}: ${que}`) }
+  falla(donde: string, que: string) { this.errores.push(`${donde}: ${tr(que)}`) }
 
   /** fuente y fecha obligatorias; sin una de las dos, la pieza no se pinta. */
   conFuente(x: Record<string, unknown>, donde: string, heredada?: ConFuente): ConFuente | null {
     const fuente = texto(x.fuente) ?? heredada?.fuente ?? null
     const f = fecha(x.fecha) ?? heredada?.fecha ?? null
-    if (!fuente) { this.falla(donde, 'falta «fuente»'); return null }
-    if (!f) { this.falla(donde, 'falta «fecha» (AAAA-MM-DD)'); return null }
+    if (!fuente) { this.falla(donde, trMarca('falta «fuente»')); return null }
+    if (!f) { this.falla(donde, trMarca('falta «fecha» (AAAA-MM-DD)')); return null }
     return { fuente, fecha: f }
   }
 
   lista<T>(x: unknown, donde: string, uno: (y: Record<string, unknown>, d: string) => T | null): T[] {
     if (x === undefined || x === null) return []
-    if (!Array.isArray(x)) { this.falla(donde, 'no es una lista'); return [] }
+    if (!Array.isArray(x)) { this.falla(donde, trMarca('no es una lista')); return [] }
     const out: T[] = []
     x.forEach((y, i) => {
-      if (!obj(y)) { this.falla(`${donde} ${i + 1}`, 'no es un objeto'); return }
+      if (!obj(y)) { this.falla(`${donde} ${i + 1}`, trMarca('no es un objeto')); return }
       const r = uno(y, `${donde} ${i + 1}`)
       if (r !== null) out.push(r)
     })
@@ -132,7 +133,7 @@ class Lector {
   /** Cada evidencia trae SU fuente y SU fecha: no hereda las del bloque. */
   evidencia(y: Record<string, unknown>, d: string): Evidencia | null {
     const t = texto(y.texto)
-    if (!t) { this.falla(d, 'falta «texto»'); return null }
+    if (!t) { this.falla(d, trMarca('falta «texto»')); return null }
     const cf = this.conFuente(y, d)
     if (!cf) return null
     const tipo = y.tipo === 'cita' || y.tipo === 'limite' ? y.tipo : 'dato'
@@ -141,23 +142,23 @@ class Lector {
 
   canal(y: Record<string, unknown>, d: string): Canal | null {
     const tipo = texto(y.tipo), valor = texto(y.valor)
-    if (!tipo || !valor) { this.falla(d, 'falta «tipo» o «valor»'); return null }
+    if (!tipo || !valor) { this.falla(d, trMarca('falta «tipo» o «valor»')); return null }
     const cf = this.conFuente(y, d)
     return cf && { tipo, valor, url: texto(y.url), nota: texto(y.nota), ...cf }
   }
 
   oferta(y: Record<string, unknown>, d: string): Oferta | null {
     const o = texto(y.oferta), precio = texto(y.precio)
-    if (!o || !precio) { this.falla(d, 'falta «oferta» o «precio»'); return null }
+    if (!o || !precio) { this.falla(d, trMarca('falta «oferta» o «precio»')); return null }
     return { oferta: o, precio, promesa: texto(y.promesa), url: texto(y.url) }
   }
 
   /** Solo https: una imagen por http o con otro esquema no se carga (la app no pide nada inseguro). */
   imagen(y: unknown, d: string): Imagen | null {
     if (y === undefined || y === null) return null
-    if (!obj(y)) { this.falla(d, 'no es un objeto'); return null }
+    if (!obj(y)) { this.falla(d, trMarca('no es un objeto')); return null }
     const url = texto(y.url)
-    if (!url || !/^https:\/\//.test(url)) { this.falla(d, '«url» debe empezar con https://'); return null }
+    if (!url || !/^https:\/\//.test(url)) { this.falla(d, trMarca('«url» debe empezar con https://')); return null }
     const cf = this.conFuente(y, d)
     const de = texto(y.de)
     return cf && { url, de: de && /^https?:\/\//.test(de) ? de : null, forma: y.forma === 'portada' ? 'portada' : 'avatar', ...cf }
@@ -165,7 +166,7 @@ class Lector {
 
   borrador(y: Record<string, unknown>, d: string): Borrador | null {
     const b = texto(y.borrador)
-    if (!b) { this.falla(d, 'falta «borrador»'); return null }
+    if (!b) { this.falla(d, trMarca('falta «borrador»')); return null }
     const f = obj(y.firmado) ? y.firmado : null
     const firmado = f && fecha(f.fecha) ? { fecha: fecha(f.fecha)!, texto: texto(f.texto) } : null
     return {
@@ -183,7 +184,7 @@ function cabeza(l: Lector, x: unknown): Mercado['cabeza'] {
   if (!b) return null
   const lineas = l.lista(x.lineas, 'cabeza › línea', (y, d) => {
     const pregunta = texto(y.pregunta), respuesta = texto(y.respuesta)
-    if (!pregunta || !respuesta) { l.falla(d, 'falta «pregunta» o «respuesta»'); return null }
+    if (!pregunta || !respuesta) { l.falla(d, trMarca('falta «pregunta» o «respuesta»')); return null }
     const cf = l.conFuente(y, d, b)
     return cf && { pregunta, respuesta, propia: y.propia === true, ...cf }
   })
@@ -196,16 +197,16 @@ function quienCompra(l: Lector, x: unknown): QuienCompra | null {
   if (!b) return null
   const escalones = l.lista(x.escalones, 'quién compra › escalón', (e, d) => {
     const nombre = texto(e.nombre)
-    if (!nombre) { l.falla(d, 'falta «nombre»'); return null }
+    if (!nombre) { l.falla(d, trMarca('falta «nombre»')); return null }
     const segmentos = l.lista(e.segmentos, `${nombre} › segmento`, (s, ds) => {
       const n = texto(s.nombre)
-      if (!n) { l.falla(ds, 'falta «nombre»'); return null }
+      if (!n) { l.falla(ds, trMarca('falta «nombre»')); return null }
       let tamano: Segmento['tamano'] = null
       if (obj(s.tamano)) {
         const v = s.tamano.valor
         const cf = l.conFuente(s.tamano, `${ds} › tamaño`)
         if (typeof v === 'number' && Number.isFinite(v) && cf) tamano = { valor: v, unidad: texto(s.tamano.unidad) ?? '', que: texto(s.tamano.que), ...cf }
-        else if (cf) l.falla(`${ds} › tamaño`, '«valor» no es un número')
+        else if (cf) l.falla(`${ds} › tamaño`, trMarca('«valor» no es un número'))
       }
       return {
         nombre: n, quien: texto(s.quien), quiere: texto(s.quiere), teme: texto(s.teme), intento_antes: texto(s.intento_antes), paga: texto(s.paga),
@@ -214,7 +215,7 @@ function quienCompra(l: Lector, x: unknown): QuienCompra | null {
     })
     const separa = l.lista(e.separa, `${nombre} › separa`, (y, dy) => {
       const t = texto(y.texto)
-      if (!t) { l.falla(dy, 'falta «texto»'); return null }
+      if (!t) { l.falla(dy, trMarca('falta «texto»')); return null }
       return { texto: t, evidencia: texto(y.evidencia) }
     })
     return { id: texto(e.id) ?? nombre, nombre, universo: texto(e.universo), ventana: texto(e.ventana), segmentos, separa }
@@ -231,7 +232,7 @@ function contraQuien(l: Lector, x: unknown): ContraQuien | null {
     const cf = l.conFuente(x.comparan, 'contra quién › comparan', b)
     const filas = l.lista(x.comparan.filas, 'comparan › fila', (y, d) => {
       const escalon = texto(y.escalon), contra = texto(y.contra)
-      if (!escalon || !contra) { l.falla(d, 'falta «escalon» o «contra»'); return null }
+      if (!escalon || !contra) { l.falla(d, trMarca('falta «escalon» o «contra»')); return null }
       return { escalon, contra }
     })
     if (cf && filas.length) comparan = { ...cf, filas }
@@ -241,10 +242,10 @@ function contraQuien(l: Lector, x: unknown): ContraQuien | null {
     const cf = l.conFuente(x.escalera, 'escalera', b)
     const peldanos = l.lista(x.escalera.peldanos, 'escalera › peldaño', (y, d) => {
       const nombre = texto(y.nombre), rango = texto(y.rango)
-      if (!nombre || !rango) { l.falla(d, 'falta «nombre» o «rango»'); return null }
+      if (!nombre || !rango) { l.falla(d, trMarca('falta «nombre» o «rango»')); return null }
       const quienes = l.lista(y.quienes, `${nombre} ›`, (q, dq) => {
         const n = texto(q.nombre), precio = texto(q.precio)
-        if (!n || !precio) { l.falla(dq, 'falta «nombre» o «precio»'); return null }
+        if (!n || !precio) { l.falla(dq, trMarca('falta «nombre» o «precio»')); return null }
         const cq = l.conFuente(q, dq)
         return cq && { nombre: n, precio, mercado: q.mercado === 'anglo' ? 'anglo' as const : 'hispano' as const, ...cq }
       })
@@ -261,10 +262,10 @@ function contraQuien(l: Lector, x: unknown): ContraQuien | null {
     const cf = l.conFuente(x.voz_publica, 'voz pública', b)
     const citas = l.lista(x.voz_publica.citas, 'voz pública › cita', (y, d) => {
       const t = texto(y.texto)
-      if (!t) { l.falla(d, 'falta «texto»'); return null }
+      if (!t) { l.falla(d, trMarca('falta «texto»')); return null }
       const donde = texto(y.donde)
       const f = fecha(y.fecha)
-      if (!donde || !f) { l.falla(d, 'falta «donde» o «fecha»'); return null }
+      if (!donde || !f) { l.falla(d, trMarca('falta «donde» o «fecha»')); return null }
       return { texto: t, fuente: donde, fecha: f }
     })
     if (cf) voz = { ...cf, citas, falta: texto(x.voz_publica.falta) }
@@ -272,7 +273,7 @@ function contraQuien(l: Lector, x: unknown): ContraQuien | null {
   const GRUPOS = ['directo', 'alcance', 'alternativa', 'contraste'] as const
   const hispanos = l.lista(x.hispanos, 'competencia hispana', (y, d): Competidor | null => {
     const nombre = texto(y.nombre)
-    if (!nombre) { l.falla(d, 'falta «nombre»'); return null }
+    if (!nombre) { l.falla(d, trMarca('falta «nombre»')); return null }
     const grupo = (GRUPOS as readonly unknown[]).includes(y.grupo) ? y.grupo as Competidor['grupo'] : 'contraste'
     return {
       nombre, grupo, rol: texto(y.rol), pais: texto(y.pais), avatar: texto(y.avatar), hueco: texto(y.hueco), voz: textos(y.voz),
@@ -283,7 +284,7 @@ function contraQuien(l: Lector, x: unknown): ContraQuien | null {
   })
   const anglos = l.lista(x.anglos, 'referentes anglo', (y, d): Referente | null => {
     const nombre = texto(y.nombre)
-    if (!nombre) { l.falla(d, 'falta «nombre»'); return null }
+    if (!nombre) { l.falla(d, trMarca('falta «nombre»')); return null }
     return {
       nombre, nivel: texto(y.nivel), categoria: texto(y.categoria), avatar: texto(y.avatar), adelanto: texto(y.adelanto), no_copiar: texto(y.no_copiar),
       imagen: l.imagen(y.imagen, `${nombre} › imagen`),
@@ -303,7 +304,7 @@ function haciaDonde(l: Lector, x: unknown): HaciaDonde | null {
   if (!b) return null
   const tendencias = l.lista(x.tendencias, 'tendencia', (y, d) => {
     const t = texto(y.tendencia)
-    if (!t) { l.falla(d, 'falta «tendencia»'); return null }
+    if (!t) { l.falla(d, trMarca('falta «tendencia»')); return null }
     return { tendencia: t, evidencia: texto(y.evidencia), en_espanol: texto(y.en_espanol), fuentes: textos(y.fuentes) }
   })
   let dos: HaciaDonde['dos_avatares'] = null
@@ -316,7 +317,7 @@ function haciaDonde(l: Lector, x: unknown): HaciaDonde | null {
     const cf = l.conFuente(x.senales_hispanas, 'señales hispanas', b)
     const lista = l.lista(x.senales_hispanas.lista, 'señal', (y, d) => {
       const t = texto(y.texto)
-      if (!t) { l.falla(d, 'falta «texto»'); return null }
+      if (!t) { l.falla(d, trMarca('falta «texto»')); return null }
       const c = l.conFuente(y, d)
       return c && { texto: t, ...c }
     })
@@ -331,7 +332,7 @@ function loQueDecides(l: Lector, x: unknown): LoQueDecides | null {
   if (!b) return null
   const avatares = l.lista(x.avatares, 'avatar', (y, d) => {
     const escalon = texto(y.escalon)
-    if (!escalon) { l.falla(d, 'falta «escalon»'); return null }
+    if (!escalon) { l.falla(d, trMarca('falta «escalon»')); return null }
     const r = l.borrador(y, `avatar de ${escalon}`)
     return r && { ...r, escalon }
   })
@@ -347,9 +348,9 @@ function loQueDecides(l: Lector, x: unknown): LoQueDecides | null {
 
 /** Lee `mercado.json` con tolerancia. Un esquema distinto se dice, pero se intenta leer igual (el panel muestra lo legible). */
 export function leerMercado(x: unknown): { mercado: Mercado | null; errores: string[] } {
-  if (!obj(x)) return { mercado: null, errores: ['El archivo no es un objeto JSON.'] }
+  if (!obj(x)) return { mercado: null, errores: [tr('El archivo no es un objeto JSON.')] }
   const l = new Lector()
-  if (x.esquema !== ESQUEMA_MERCADO) l.falla('esquema', `se esperaba «${ESQUEMA_MERCADO}»`)
+  if (x.esquema !== ESQUEMA_MERCADO) l.falla('esquema', tr('se esperaba «{esquema}»', { esquema: ESQUEMA_MERCADO }))
   const mercado: Mercado = {
     actualizado: fecha(x.actualizado),
     cabeza: cabeza(l, x.cabeza),
@@ -359,7 +360,7 @@ export function leerMercado(x: unknown): { mercado: Mercado | null; errores: str
     lo_que_decides: loQueDecides(l, x.lo_que_decides),
   }
   const vacio = !mercado.cabeza && !mercado.quien_compra && !mercado.contra_quien && !mercado.hacia_donde && !mercado.lo_que_decides
-  return { mercado: vacio ? null : mercado, errores: vacio ? [...l.errores, 'Ningún bloque se pudo leer.'] : l.errores }
+  return { mercado: vacio ? null : mercado, errores: vacio ? [...l.errores, tr('Ningún bloque se pudo leer.')] : l.errores }
 }
 
 /**
@@ -384,6 +385,8 @@ export function fechaHumana(f: string, ref?: string | null): string {
   const [anio, mes, dia] = f.split('-')
   const nombre = MESES[Number(mes) - 1] ?? mes
   const conAnio = !ref || ref.slice(0, 4) !== anio
+  // En inglés, «Nov 8» / «Oct» / «Nov 8, 2026» con Intl; en español, igual que siempre.
+  if (enIngles()) return new Date(Date.UTC(Number(anio), Number(mes) - 1, dia ? Number(dia) : 1)).toLocaleDateString(localeIntl(), { ...(dia ? { day: 'numeric' } : {}), month: 'short', ...(conAnio ? { year: 'numeric' } : {}), timeZone: 'UTC' })
   return `${dia ? `${Number(dia)} ` : ''}${nombre}${conAnio ? ` ${anio}` : ''}`
 }
 
@@ -425,6 +428,20 @@ export const audiencia = (c: Canal) => c.valor.split(/\s·\s|\s\(/)[0]
 export const LLAVE_VISTA_ESTRATEGIA = 'arbrain.estrategia.vista'
 export const EVENTO_VISTA_ESTRATEGIA = 'arbrain:estrategia-vista'
 export const esVista = (x: unknown): x is Vista => VISTAS.some(v => v.id === x)
+/**
+ * El pedido guardado lleva su hora («decides@1762870000000») y vale unos segundos (11 nov 2026). Abrir la sección cambia
+ * la clave de la pestaña y la vuelve a montar: la instancia vieja oye el evento y la nueva lee la llave al nacer, así que
+ * el evento ya no la consume (antes la vieja se la llevaba y «Lo que decides» se quedaba arriba). La hora evita que una
+ * llave que nadie tomó baje a una tarjeta días después.
+ */
+export const VIGENCIA_PEDIDO_MS = 10_000
+export const pedidoEstrategia = (vista: Vista, ahora = Date.now()) => `${vista}@${ahora}`
+export function leerPedidoEstrategia(valor: string | null, ahora = Date.now()): Vista | null {
+  if (!valor) return null
+  const [vista, t] = valor.split('@')
+  const edad = ahora - Number(t)
+  return esVista(vista) && Number.isFinite(edad) && edad >= 0 && edad < VIGENCIA_PEDIDO_MS ? vista : null
+}
 
 /** Cuántas piezas siguen sin firmar (avatares y posicionamiento). */
 export function sinFirmar(d: LoQueDecides | null): number {
@@ -450,7 +467,7 @@ export function lineaDe(c: Mercado['cabeza'], tema: Tema): Linea | null {
 
 /** El titular sale del dato, no de una redacción: si un peldaño marcado como hueco es también donde estás tú, «Estás en el hueco». */
 export function titularDe(m: Mercado): string {
-  return m.contra_quien?.escalera?.peldanos.some(p => p.hueco && p.tu) ? 'Estás en el hueco' : 'Tu mercado'
+  return m.contra_quien?.escalera?.peldanos.some(p => p.hueco && p.tu) ? tr('Estás en el hueco') : tr('Tu mercado')
 }
 
 /** Los tramos de la barra de un escalón: cada segmento con su parte del total de SUS segmentos (las unidades no se cruzan). */
@@ -462,6 +479,6 @@ export function tramos(e: Escalon): { nombre: string; valor: number | null; unid
 /** La frase de Hacia dónde va: un conteo, no una lectura nueva. */
 export function fraseRumbo(h: HaciaDonde): string {
   const n = h.tendencias.length, s = h.senales_hispanas?.lista.length ?? 0
-  const base = `${n} ${n === 1 ? 'tendencia ya pasa' : 'tendencias ya pasan'} en inglés, cada una con lo que anticipa en español en 6 a 12 meses`
-  return s ? `${base}; ${s} ${s === 1 ? 'señal ya se mueve' : 'señales ya se mueven'} aquí.` : `${base}.`
+  const base = trn(n, '{n} tendencia ya pasa en inglés, cada una con lo que anticipa en español en 6 a 12 meses', '{n} tendencias ya pasan en inglés, cada una con lo que anticipa en español en 6 a 12 meses')
+  return s ? tr('{base}; {senales} aquí.', { base, senales: trn(s, '{n} señal ya se mueve', '{n} señales ya se mueven') }) : `${base}.`
 }

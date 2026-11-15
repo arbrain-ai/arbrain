@@ -4,8 +4,8 @@
 .open { display:flex; flex:1; align-items:center; gap:12px; min-width:0; padding:13px; text-align:left; cursor:pointer; }
 .icon { display:grid; place-items:center; width:38px; height:44px; flex-shrink:0; border-radius:9px; background:rgba(var(--l-velo-morado-rgb, var(--brand-rgb)), 0.09); color:var(--l-tinta-morado, var(--primary)); }
 .info { display:flex; flex-direction:column; gap:4px; min-width:0; }
-.info strong { font-size:13px; font-weight:550; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.info small { font-size:11px; color:var(--muted); white-space:nowrap; }
+.info strong { font-size:var(--tam-paso); font-weight:550; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.info small { font-size:var(--tam-texto-meta); color:var(--muted); white-space:nowrap; }
 .remove { align-self:stretch; display:grid; place-items:center; min-width:40px; cursor:pointer; color:var(--muted); }
 .remove:hover { color:var(--foreground); background:var(--card-hover); }
 .dialog { position:fixed; inset:0; margin:auto; width:min(860px,calc(100vw - 40px)); height:min(800px,calc(100dvh - 64px)); max-width:none; max-height:none; border:1px solid var(--border); border-radius:20px; padding:0; background:var(--background); color:var(--foreground); box-shadow:0 24px 100px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.467); overflow:hidden; }

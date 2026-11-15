@@ -1,5 +1,6 @@
 import { requireChatPrincipal, resolveChatConversation, chatAccessResponse } from '@/lib/chat-access'
 import { getClaudeclawUrl, CLAUDECLAW_TOKEN, upstreamError } from '@/lib/claudeclaw'
+import { tr } from '@/shared/i18n'
 
 /**
  * La meta (`/goal`) de una conversación de Claude desde el chip del chat (27 oct 2026): pausar, reanudar o quitar
@@ -22,10 +23,10 @@ export async function GET(req: Request) {
     const upstream = await fetch(`${await getClaudeclawUrl()}/chat/meta?${new URLSearchParams(params)}`, {
       headers: { Authorization: `Bearer ${CLAUDECLAW_TOKEN}` }, signal: AbortSignal.timeout(10_000),
     })
-    if (!upstream.ok) return upstreamError(upstream, 'la meta de la conversación')
+    if (!upstream.ok) return upstreamError(upstream, tr('la meta de la conversación'))
     return Response.json(await upstream.json())
   } catch {
-    return Response.json({ error: 'No pude alcanzar el daemon (ClaudeClaw).', code: 'DAEMON_UNREACHABLE' }, { status: 503 })
+    return Response.json({ error: tr('No pude alcanzar el daemon (ClaudeClaw).'), code: 'DAEMON_UNREACHABLE' }, { status: 503 })
   }
 }
 
@@ -33,7 +34,7 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => null) as { session?: unknown; account?: unknown; accion?: unknown } | null
   const session = typeof body?.session === 'string' ? body.session.trim() : ''
   const accion = body?.accion
-  if (!session || (accion !== 'pausar' && accion !== 'reanudar' && accion !== 'quitar')) return Response.json({ error: 'Falta la conversación o la acción (pausar, reanudar, quitar).' }, { status: 400 })
+  if (!session || (accion !== 'pausar' && accion !== 'reanudar' && accion !== 'quitar')) return Response.json({ error: tr('Falta la conversación o la acción (pausar, reanudar, quitar).') }, { status: 400 })
   let params
   try { params = await alcance(session, body?.account) } catch (error) { return chatAccessResponse(error) }
   try {
@@ -41,9 +42,9 @@ export async function POST(req: Request) {
       method: 'POST', headers: { Authorization: `Bearer ${CLAUDECLAW_TOKEN}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...params, accion }), signal: AbortSignal.timeout(10_000),
     })
-    if (!upstream.ok) return upstreamError(upstream, 'la meta de la conversación')
+    if (!upstream.ok) return upstreamError(upstream, tr('la meta de la conversación'))
     return Response.json(await upstream.json())
   } catch {
-    return Response.json({ error: 'No pude alcanzar el daemon (ClaudeClaw).', code: 'DAEMON_UNREACHABLE' }, { status: 503 })
+    return Response.json({ error: tr('No pude alcanzar el daemon (ClaudeClaw).'), code: 'DAEMON_UNREACHABLE' }, { status: 503 })
   }
 }

@@ -1,6 +1,7 @@
 'use client'
 // «Reintentar» (29 oct 2026, cohorte): en el aviso de conexión del chat y en la espera explicada cuando el motor no
 // responde. Enciende el motor si no contesta y recarga; uno sano nunca se reinicia (lib/reintentar-conexion.ts).
+import { tr } from '@/shared/i18n'
 import { useState } from 'react'
 import { daemonEstado, daemonReiniciar, esperarDaemon, hayApp } from '@/features/primer-arranque/lib/llaves'
 import { reintentarConexion } from '../lib/reintentar-conexion'
@@ -19,7 +20,7 @@ export function BotonReintentar({ className = '' }: { className?: string }) {
       }}
       className={`rounded-full border border-border px-2 py-0.5 text-[11px] hover:bg-card-hover disabled:opacity-60 ${className}`}
     >
-      {ocupado ? 'Reintentando…' : 'Reintentar'}
+      {ocupado ? tr('Reintentando…') : tr('Reintentar')}
     </button>
   )
 }

@@ -9,6 +9,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CanvasElement } from '../model/element'
 import { claveFuente, claveMedio, necesidades, type EstadoVivo, type MedioResuelto, type VivoNervio } from '../model/nervio'
+import { trMarca } from '@/shared/i18n'
 
 export const CADA_ESTADO_MS = 60_000
 export const CADA_MEDIO_MS = 5 * 60_000
@@ -50,7 +51,7 @@ export function useNervio(elements: readonly CanvasElement[], activo: boolean): 
       const pares = await Promise.all(necRef.current.medios.map(async m => {
         const q = new URLSearchParams(m.src.map(s => ['src', s]))
         try { return [claveMedio(m), await (await fetch(`/api/canvas/nervio/medio?${q}`)).json() as MedioResuelto] as const }
-        catch { return [claveMedio(m), { ok: false, error: 'sin conexión' } as MedioResuelto] as const }
+        catch { return [claveMedio(m), { ok: false, error: trMarca('sin conexión') } as MedioResuelto] as const }
       }))
       if (vivoEf) setVivo(v => ({ ...v, medios: new Map(pares), version: v.version + 1 }))
     }

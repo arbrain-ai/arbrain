@@ -29,6 +29,7 @@ import { dirConfigArbrain, raizWorkspace } from '@/lib/rutas-instalacion'
 import { secretoDeFirma } from '@/lib/secreto-firma'
 import { extensionDe, nombreArchivo } from '@/lib/archivos-chat'
 import { cspCrudo } from '@/features/cabina/documento/csp-crudo'
+import { tr } from '@/shared/i18n'
 
 type Env = Record<string, string | undefined>
 
@@ -87,9 +88,9 @@ const VETADAS = new Set(['.git', 'node_modules', 'Keychains'])
 function motivoVeto(real: string, raiz: string): string | null {
   const rel = path.relative(raiz, real).split(path.sep).filter(Boolean)
   const carpetas = rel.slice(0, -1), nombre = rel[rel.length - 1] ?? ''
-  if (carpetas.some(s => VETADAS.has(s) || (s.startsWith('.') && !OCULTAS_OK.has(s)))) return 'Esa carpeta no se comparte desde el chat.'
-  if (nombre.startsWith('.')) return 'Los archivos ocultos no se comparten desde el chat.'
-  if (pareceSecreto(rel.join('/'))) return 'Ese archivo parece una llave o credencial: no se comparte.'
+  if (carpetas.some(s => VETADAS.has(s) || (s.startsWith('.') && !OCULTAS_OK.has(s)))) return tr('Esa carpeta no se comparte desde el chat.')
+  if (nombre.startsWith('.')) return tr('Los archivos ocultos no se comparten desde el chat.')
+  if (pareceSecreto(rel.join('/'))) return tr('Ese archivo parece una llave o credencial: no se comparte.')
   return null
 }
 
@@ -102,25 +103,25 @@ export interface ArchivoResuelto { real: string; nombre: string; bytes: number; 
 export async function resolverArchivoChat(pedida: string, op: OpcionesArchivo = {}): Promise<ArchivoResuelto> {
   const home = op.home ?? homedir()
   const p = (pedida ?? '').trim()
-  if (!p || p.length > 1000 || p.includes('\0')) throw new ErrorArchivo('Ruta inválida.', 400)
-  if (p.split(/[\\/]/).includes('..')) throw new ErrorArchivo('La ruta no puede subir con «..».', 400)
+  if (!p || p.length > 1000 || p.includes('\0')) throw new ErrorArchivo(tr('Ruta inválida.'), 400)
+  if (p.split(/[\\/]/).includes('..')) throw new ErrorArchivo(tr('La ruta no puede subir con «..».'), 400)
   const abs = path.resolve(p.startsWith('~/') || p.startsWith('~\\') ? path.join(home, p.slice(2)) : path.isAbsolute(p) || /^[A-Za-z]:[\\/]/.test(p) ? p : path.join(baseRelativas(op), p))
   const raices = raicesArchivos(op)
   // Primera puerta, sin disco: que ni siquiera se pregunte por algo fuera.
-  if (!raices.some(r => dentroDe(abs, path.resolve(r)))) throw new ErrorArchivo('Ese archivo está fuera de tu cerebro y de las carpetas que abriste para Levy.')
+  if (!raices.some(r => dentroDe(abs, path.resolve(r)))) throw new ErrorArchivo(tr('Ese archivo está fuera de tu cerebro y de las carpetas que abriste para Levy.'))
   let real: string
-  try { real = await realpath(abs) } catch { throw new ErrorArchivo('Ese archivo ya no existe.', 404) }
+  try { real = await realpath(abs) } catch { throw new ErrorArchivo(tr('Ese archivo ya no existe.'), 404) }
   // Segunda puerta, con disco: el destino real (un enlace simbólico no saca a nadie de la raíz).
   const reales = (await Promise.all(raices.map(r => realpath(r).catch(() => null)))).filter((r): r is string => !!r)
   const raiz = reales.filter(r => dentroDe(real, r)).sort((a, b) => b.length - a.length)[0]
-  if (!raiz) throw new ErrorArchivo('Ese archivo está fuera de tu cerebro y de las carpetas que abriste para Levy.')
+  if (!raiz) throw new ErrorArchivo(tr('Ese archivo está fuera de tu cerebro y de las carpetas que abriste para Levy.'))
   const prot = await Promise.all(protegidas(op).map(d => realpath(d).catch(() => d)))
-  if (prot.some(d => dentroDe(real, d))) throw new ErrorArchivo('Esa es la carpeta interna de Arbrain: no se comparte.')
+  if (prot.some(d => dentroDe(real, d))) throw new ErrorArchivo(tr('Esa es la carpeta interna de Arbrain: no se comparte.'))
   const veto = motivoVeto(real, raiz)
   if (veto) throw new ErrorArchivo(veto)
   const info = await stat(real).catch(() => null)
-  if (!info) throw new ErrorArchivo('Ese archivo ya no existe.', 404)
-  if (!info.isFile()) throw new ErrorArchivo('Eso es una carpeta, no un archivo.', 400)
+  if (!info) throw new ErrorArchivo(tr('Ese archivo ya no existe.'), 404)
+  if (!info.isFile()) throw new ErrorArchivo(tr('Eso es una carpeta, no un archivo.'), 400)
   return { real, nombre: nombreArchivo(real), bytes: info.size, mtimeMs: info.mtimeMs }
 }
 

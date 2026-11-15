@@ -1,15 +1,17 @@
 'use client'
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { createPortal } from 'react-dom'
-import { Bell, ChevronLeft, ChevronRight, Compass, Cpu, Gauge, Filter, Flame, KeyRound, Keyboard, Laptop, Lock, Mic, Palette, PanelRight, Radio, Search, Server, ShieldHalf, Smartphone, Tag, Target, UserCircle, Users, X, type LucideIcon } from 'lucide-react'
+import { Bell, ChevronLeft, ChevronRight, Compass, Cpu, Gauge, Filter, Flame, KeyRound, Keyboard, Languages, Laptop, Lock, Mic, Palette, PanelRight, Radio, Search, Server, ShieldHalf, Smartphone, Tag, Target, UserCircle, Users, X, type LucideIcon } from 'lucide-react'
 import { SeccionModelo } from '@/features/modelo/SeccionModelo'
 import { useAjustes } from '@/shared/stores/ajustes-store'
 import { useIsMobile } from '@/shared/hooks/useMediaQuery'
 import { buscarAjustes, defDe, type IdSeccion } from '../secciones'
-import { SeccionApariencia, SeccionAvisos, SeccionCuenta, SeccionEstilo, SeccionMac } from './Secciones'
+import { SeccionApariencia, SeccionAvisos, SeccionCuenta, SeccionEstilo, SeccionLevyLive, SeccionMac } from './Secciones'
 import { SeccionTelefono } from '@/features/telefono/SeccionTelefono'
 import { SeccionMaquinas } from '@/features/telefono/SeccionMaquinas'
 import { SeccionAtajos } from './SeccionAtajos'
+import { SeccionIdioma } from './SeccionIdioma'
+import { tr } from '@/shared/i18n/tr'
 import { SeccionPanel } from './SeccionPanel'
 import { PanelLlaves } from '@/features/primer-arranque/components/PanelLlaves'
 import { PanelVoz } from '@/features/primer-arranque/components/PanelVoz'
@@ -18,11 +20,15 @@ import { SeccionPrivacidad } from '@/features/primer-arranque/components/Seccion
 import { SeccionSeguridad } from '@/features/seguridad/components/Seguridad'
 import { SeccionAutonomia } from '@/features/decisiones/SeccionAutonomia'
 import { SeccionDirecto } from '@/features/modo-directo/ModoDirecto'
+import { esEdicionCliente } from '@/lib/edicion'
 import { SeccionClientes, SeccionEmbudo, SeccionEquipo, SeccionNorte, SeccionOferta } from './SeccionesNegocio'
+
+/** Edición cliente: sin Live (chat/page.tsx), así que tampoco su ajuste de cara. */
+const CLIENTE_LIVE = esEdicionCliente()
 
 const ICONOS: Record<IdSeccion, LucideIcon> = {
   norte: Compass, equipo: Users, clientes: Target, oferta: Tag, embudo: Filter,
-  cuenta: UserCircle, apariencia: Palette, avisos: Bell, modelo: Cpu, panel: PanelRight, atajos: Keyboard, mac: Laptop, llaves: KeyRound, voz: Mic, sinfiltro: Flame, privacidad: Lock, seguridad: ShieldHalf, telefono: Smartphone, maquinas: Server, autonomia: Gauge, directo: Radio,
+  cuenta: UserCircle, apariencia: Palette, avisos: Bell, modelo: Cpu, panel: PanelRight, atajos: Keyboard, mac: Laptop, llaves: KeyRound, voz: Mic, sinfiltro: Flame, privacidad: Lock, seguridad: ShieldHalf, telefono: Smartphone, maquinas: Server, autonomia: Gauge, directo: Radio, idioma: Languages,
 }
 
 const FOCOS = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])'
@@ -99,10 +105,10 @@ function Ventana({ seccion, enLista }: { seccion: IdSeccion; enLista: boolean })
   }
 
   const nav = (
-    <nav aria-label="Secciones de ajustes" className="flex min-h-0 flex-1 flex-col">
+    <nav aria-label={tr('Secciones de ajustes')} className="flex min-h-0 flex-1 flex-col">
       <div className="px-3 pb-2 pt-1 md:pt-4">
         <label className="relative block">
-          <span className="sr-only">Buscar en ajustes</span>
+          <span className="sr-only">{tr('Buscar en ajustes')}</span>
           <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted" aria-hidden />
           <input
             ref={buscador}
@@ -110,16 +116,16 @@ function Ventana({ seccion, enLista }: { seccion: IdSeccion; enLista: boolean })
             value={consulta}
             onChange={(e) => setConsulta(e.target.value)}
             onKeyDown={alBuscador}
-            placeholder="Buscar en ajustes"
+            placeholder={tr('Buscar en ajustes')}
             className="input-field min-h-10 w-full pl-9 pr-3 text-[13px]"
           />
         </label>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-4">
-        {resultados.length === 0 && <p className="px-2 py-6 text-center text-xs text-muted">Nada coincide con «{consulta}».</p>}
+        {resultados.length === 0 && <p className="px-2 py-6 text-center text-xs text-muted">{tr('Nada coincide con «{consulta}».', { consulta })}</p>}
         {resultados.map(({ grupo, secciones }) => (
           <div key={grupo.id} className="mt-3 first:mt-1">
-            <h2 className="px-2.5 pb-1 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-muted/70">{grupo.titulo}</h2>
+            <h2 className="px-2.5 pb-1 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-muted/70">{tr(grupo.titulo)}</h2>
             <ul className="space-y-0.5">
               {secciones.map(({ seccion: s, coincidencias }) => {
                 const Icono = ICONOS[s.id]
@@ -136,7 +142,7 @@ function Ventana({ seccion, enLista }: { seccion: IdSeccion; enLista: boolean })
                     >
                       <Icono className={`size-4 shrink-0 ${activa ? 'text-brand-ink' : 'text-muted'}`} aria-hidden />
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[13px] font-medium">{s.nombre}</span>
+                        <span className="block truncate text-[13px] font-medium">{tr(s.nombre)}</span>
                         {coincidencias.length > 0 && <span className="block truncate text-[11px] text-muted">{coincidencias.join(' · ')}</span>}
                       </span>
                       {movil && <ChevronRight className="size-4 shrink-0 text-muted/60" aria-hidden />}
@@ -164,7 +170,7 @@ function Ventana({ seccion, enLista }: { seccion: IdSeccion; enLista: boolean })
         ref={tarjeta}
         role="dialog"
         aria-modal="true"
-        aria-label="Ajustes"
+        aria-label={tr('Ajustes')}
         tabIndex={-1}
         data-ajustes
         style={{ boxShadow: '0 40px 100px -24px rgba(0,0,0,0.6), 0 0 0 1px rgba(var(--brand-rgb), 0.14), inset 0 1px 0 rgba(255,255,255,0.07)' }}
@@ -176,7 +182,7 @@ function Ventana({ seccion, enLista }: { seccion: IdSeccion; enLista: boolean })
           <div className={`relative flex min-h-0 flex-col md:w-72 md:shrink-0 md:border-r md:border-border-subtle md:bg-background/35 ${movil ? 'w-full' : ''}`}>
             {movil && (
               <div className="flex items-center justify-between px-4 pb-1 pt-3">
-                <h1 className="font-sans text-xl font-semibold tracking-tight text-foreground">Ajustes</h1>
+                <h1 className="font-sans text-xl font-semibold tracking-tight text-foreground">{tr('Ajustes')}</h1>
                 <BotonCerrar onClick={cerrar} />
               </div>
             )}
@@ -188,13 +194,13 @@ function Ventana({ seccion, enLista }: { seccion: IdSeccion; enLista: boolean })
           <section aria-labelledby="ajustes-titulo" className="relative flex min-w-0 flex-1 flex-col">
             <header className="flex shrink-0 items-start gap-2 px-4 pb-3 pt-3 sm:px-8 md:pt-6">
               {movil && (
-                <button type="button" onClick={() => useAjustes.setState({ enLista: true })} aria-label="Volver a la lista de ajustes" className="icon-btn-ghost -ml-2 grid size-11 shrink-0 place-items-center">
+                <button type="button" onClick={() => useAjustes.setState({ enLista: true })} aria-label={tr('Volver a la lista de ajustes')} className="icon-btn-ghost -ml-2 grid size-11 shrink-0 place-items-center">
                   <ChevronLeft className="size-5" aria-hidden />
                 </button>
               )}
               <div className="min-w-0 flex-1 pt-1.5 md:pt-0">
-                <h2 id="ajustes-titulo" className="font-sans text-lg font-semibold tracking-tight text-foreground md:text-xl">{actual.nombre}</h2>
-                <p className="mt-0.5 text-xs leading-relaxed text-muted">{actual.detalle}.</p>
+                <h2 id="ajustes-titulo" className="font-sans text-lg font-semibold tracking-tight text-foreground md:text-xl">{tr(actual.nombre)}</h2>
+                <p className="mt-0.5 text-xs leading-relaxed text-muted">{tr(actual.detalle)}.</p>
               </div>
               <BotonCerrar onClick={cerrar} />
             </header>
@@ -206,7 +212,7 @@ function Ventana({ seccion, enLista }: { seccion: IdSeccion; enLista: boolean })
                 {seccion === 'oferta' && <SeccionOferta />}
                 {seccion === 'embudo' && <SeccionEmbudo />}
                 {seccion === 'modelo' && <SeccionModelo />}
-                {seccion === 'apariencia' && <><SeccionApariencia /><SeccionEstilo /></>}
+                {seccion === 'apariencia' && <><SeccionApariencia /><SeccionEstilo />{!CLIENTE_LIVE && <SeccionLevyLive />}</>}
                 {seccion === 'cuenta' && <SeccionCuenta />}
                 {seccion === 'avisos' && <SeccionAvisos />}
                 {seccion === 'mac' && <SeccionMac />}
@@ -221,6 +227,7 @@ function Ventana({ seccion, enLista }: { seccion: IdSeccion; enLista: boolean })
                 {seccion === 'maquinas' && <SeccionMaquinas />}
                 {seccion === 'autonomia' && <SeccionAutonomia />}
                 {seccion === 'directo' && <SeccionDirecto />}
+                {seccion === 'idioma' && <SeccionIdioma />}
               </div>
             </div>
           </section>
@@ -232,7 +239,7 @@ function Ventana({ seccion, enLista }: { seccion: IdSeccion; enLista: boolean })
 
 function BotonCerrar({ onClick }: { onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} aria-label="Cerrar ajustes" title="Cerrar (Esc)" className="icon-btn-ghost grid size-11 shrink-0 place-items-center md:size-9">
+    <button type="button" onClick={onClick} aria-label={tr('Cerrar ajustes')} title={tr('Cerrar (Esc)')} className="icon-btn-ghost grid size-11 shrink-0 place-items-center md:size-9">
       <X className="size-5 md:size-4" aria-hidden />
     </button>
   )

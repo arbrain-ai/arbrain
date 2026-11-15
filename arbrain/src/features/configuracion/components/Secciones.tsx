@@ -4,7 +4,7 @@
  * página vieja de /settings con el mismo comportamiento, en español y sin lo que pertenece a otra parte
  * (etiquetas → Board, pestaña Crons → lista de conversaciones del chat). Censo: docs/builds/configuracion-orden-2026-10-02.
  */
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { ArrowRight, CalendarDays, Camera, Loader2, Mail, Shield } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
@@ -14,6 +14,8 @@ import { CentroPermisos } from '@/features/permisos/components/CentroPermisos'
 import { TarjetaComputerUse } from '@/features/permisos/components/ComputerUse'
 import { esEdicionCliente } from '@/lib/edicion'
 import { SincronizacionAvanzada } from '@/shared/components/SincronizacionAvanzada'
+import { CARA_LIVE_EVENTO, CARAS_LIVE, caraLive, fijarCaraLive, type CaraLive } from '@/features/chat/lib/levy-vivo'
+import { tr } from '@/shared/i18n'
 
 function Tarjeta({ titulo, detalle, children, accion }: { titulo: string; detalle?: string; children?: React.ReactNode; accion?: React.ReactNode }) {
   return (
@@ -33,8 +35,8 @@ function Tarjeta({ titulo, detalle, children, accion }: { titulo: string; detall
 export function SeccionApariencia() {
   return (
     <Tarjeta
-      titulo="Tema"
-      detalle="Oscuro, claro o el del sistema. También con el botón de la luna al pie de la barra lateral o la tecla T."
+      titulo={tr('Tema')}
+      detalle={tr('Oscuro, claro o el del sistema. También con el botón de la luna al pie de la barra lateral o la tecla T.')}
       accion={<div className="w-36 shrink-0"><ThemeToggle /></div>}
     />
   )
@@ -44,10 +46,33 @@ export function SeccionApariencia() {
 export function SeccionEstilo() {
   return (
     <Tarjeta
-      titulo="Estilo"
-      detalle="Actual: el de hoy. Unificado: un solo lenguaje nacido del botón de enviar (neutros, una sola luz ámbar, morado legible). También con ⇧T."
+      titulo={tr('Estilo')}
+      detalle={tr('Actual: el de hoy. Unificado: un solo lenguaje nacido del botón de enviar (neutros, una sola luz ámbar, morado legible). También con ⇧T.')}
       accion={<div className="w-36 shrink-0"><EstiloToggle /></div>}
     />
+  )
+}
+
+/** Levy en Live (13 nov 2026): por defecto el 2D de los videos; aquí se vuelve al 3D o al 2D de antes. */
+export function SeccionLevyLive() {
+  const [cara, setCara] = useState<CaraLive>('videos')
+  useEffect(() => {
+    const leer = () => setCara(caraLive())
+    leer(); window.addEventListener(CARA_LIVE_EVENTO, leer)
+    return () => window.removeEventListener(CARA_LIVE_EVENTO, leer)
+  }, [])
+  const actual = CARAS_LIVE.find((c) => c.id === cara) ?? CARAS_LIVE[0]
+  return (
+    <Tarjeta titulo="Levy en Live" detalle={`Al tocar la foto de Levy. ${actual.detalle}.`}>
+      <div role="radiogroup" aria-label="Levy en Live" className="grid grid-cols-3 gap-2">
+        {CARAS_LIVE.map((c) => (
+          <button key={c.id} type="button" role="radio" aria-checked={cara === c.id} onClick={() => fijarCaraLive(c.id)}
+            className={`nav-item w-full justify-center ${cara === c.id ? 'nav-item-active' : ''}`} title={c.detalle}>
+            <span>{c.nombre}</span>
+          </button>
+        ))}
+      </div>
+    </Tarjeta>
   )
 }
 

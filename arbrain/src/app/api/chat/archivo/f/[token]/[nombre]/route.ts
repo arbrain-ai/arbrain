@@ -1,6 +1,7 @@
-import { createReadStream } from 'node:fs'
+import { flujoArchivo } from '@/lib/flujo-archivo'
 import { cabecerasArchivo, ErrorArchivo, resolverArchivoChat, verificarArchivo } from '@/lib/archivos-chat-server'
 import { nombreArchivo } from '@/lib/archivos-chat'
+import { tr } from '@/shared/i18n'
 
 // Un archivo que Levy generó, servido por su enlace firmado (29 oct 2026, T6; lib/archivos-chat-server.ts). Sin cookie a
 // propósito: lo abre el navegador del sistema (app de escritorio) o Safari (app del teléfono). La firma dice qué archivo
@@ -12,37 +13,25 @@ export const dynamic = 'force-dynamic'
 
 const no = (status: number, msg: string) => new Response(msg, { status, headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } })
 
-/** Flujo que tolera que el navegador cancele a medias (un video que salta), como la ruta `crudo` de la vista documento. */
-function flujo(ruta: string, rango?: { start: number; end: number }): ReadableStream<Uint8Array> {
-  const rs = createReadStream(ruta, rango)
-  return new ReadableStream<Uint8Array>({
-    start(c) {
-      rs.on('data', chunk => { try { c.enqueue(chunk as Buffer); if ((c.desiredSize ?? 1) <= 0) rs.pause() } catch { rs.destroy() } })
-      rs.on('end', () => { try { c.close() } catch { /* ya cancelado */ } })
-      rs.on('error', e => { try { c.error(e) } catch { /* ya cancelado */ } })
-    },
-    pull() { rs.resume() },
-    cancel() { rs.destroy() },
-  })
-}
+const flujo = flujoArchivo
 
 export async function GET(request: Request, { params }: { params: Promise<{ token: string; nombre: string }> }) {
   const { token, nombre } = await params
   const firmada = verificarArchivo(token)
-  if (!firmada) return no(403, 'Este enlace ya venció. Vuelve al chat de Arbrain y tócalo otra vez.')
+  if (!firmada) return no(403, tr('Este enlace ya venció. Vuelve al chat de Arbrain y tócalo otra vez.'))
   // El nombre de la URL es solo para que el navegador proponga bien el archivo; tiene que ser el del archivo firmado
   // (así una página HTML no pide «assets» que acaben sirviendo otra cosa).
   let pedido = nombre
   try { pedido = decodeURIComponent(nombre) } catch { /* tal cual */ }
-  if (pedido !== nombreArchivo(firmada) && nombre !== nombreArchivo(firmada)) return no(404, 'No existe.')
+  if (pedido !== nombreArchivo(firmada) && nombre !== nombreArchivo(firmada)) return no(404, tr('No existe.'))
   let real: string, bytes: number
   try {
     const a = await resolverArchivoChat(firmada)
-    if (a.real !== firmada) return no(403, 'No permitido.')
+    if (a.real !== firmada) return no(403, tr('No permitido.'))
     real = a.real; bytes = a.bytes
   } catch (e) {
     if (e instanceof ErrorArchivo) return no(e.status, e.message)
-    return no(500, 'No se pudo leer el archivo.')
+    return no(500, tr('No se pudo leer el archivo.'))
   }
   const c = cabecerasArchivo(nombreArchivo(real), new URL(request.url).searchParams.get('descargar') === '1')
   const headers: Record<string, string> = {

@@ -66,7 +66,7 @@ test('historial: una lectura fallida nunca se pinta vacía ni pisa la caché', (
   assert.doesNotMatch(h, /if \(!opts\?\.silent\) setSessions\(\[\]\)/)
   assert.match(h, /if \(!mcRes\.ok\) \{ setLoading\(false\); if \(!opts\?\.silent\) setLoadError/)
   const p = src('src/features/chat/components/ChatPanel.tsx')
-  assert.match(p, /if \(errorCarga\) \{\s*showChatError\(`No pude cargar esta conversación ahora/)
+  assert.match(p, /if \(errorCarga\) \{\s*showChatError\(painted\s*\? tr\('No pude cargar esta conversación ahora/)
   const r = src('src/features/chat/components/RecientesNav.tsx')
   assert.match(r, /if \(!r\.ok\) throw new Error/)
   assert.match(r, /\{!falla && grupos\.length === 0 && fijadas\.length === 0 && \(/)

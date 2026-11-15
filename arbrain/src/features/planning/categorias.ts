@@ -1,4 +1,5 @@
 import { instalacion, NOMBRE_SEGUNDA } from '@/config'
+import { enIngles, trMarca } from '@/shared/i18n'
 
 /** La segunda persona de la instalación, como aparece en títulos de calendario (en minúsculas, lista para regex). */
 const PERSONA = NOMBRE_SEGUNDA().toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -33,11 +34,11 @@ export interface DefCategoria {
 
 /** Las cinco, en el orden de la leyenda. Ámbar = el oro de la marca; morado = el morado de la marca (nucleo.md). */
 export const CATEGORIAS: readonly DefCategoria[] = [
-  { id: 'crear', nombre: 'Crear', corto: 'Crear', color: '#e5484d', colorId: '11' },
-  { id: 'vender', nombre: 'Vender', corto: 'Vender', color: '#1f9d63', colorId: '10' },
-  { id: 'ensenar', nombre: 'Enseñar y comunidad', corto: 'Enseñar', color: '#8c27f1', colorId: '3' },
-  { id: 'construir', nombre: 'Construir', corto: 'Construir', color: '#e8c03a', colorId: '5' },
-  { id: 'vida', nombre: 'Vida', corto: 'Vida', color: '#9a8f80', colorId: '8' },
+  { id: 'crear', nombre: trMarca('Crear'), corto: trMarca('Crear'), color: '#e5484d', colorId: '11' },
+  { id: 'vender', nombre: trMarca('Vender'), corto: trMarca('Vender'), color: '#1f9d63', colorId: '10' },
+  { id: 'ensenar', nombre: trMarca('Enseñar y comunidad'), corto: trMarca('Enseñar'), color: '#8c27f1', colorId: '3' },
+  { id: 'construir', nombre: trMarca('Construir'), corto: trMarca('Construir'), color: '#e8c03a', colorId: '5' },
+  { id: 'vida', nombre: trMarca('Vida'), corto: trMarca('Vida'), color: '#9a8f80', colorId: '8' },
 ]
 export const DEF: Record<Categoria, DefCategoria> = Object.fromEntries(CATEGORIAS.map(c => [c.id, c])) as Record<Categoria, DefCategoria>
 export const esCategoria = (x: unknown): x is Categoria => typeof x === 'string' && x in DEF
@@ -99,8 +100,8 @@ export const POR_CALENDARIO: readonly [RegExp, Categoria][] = [
  */
 export type GrupoCalendario = 'trabajo' | 'vida'
 export const GRUPOS_CALENDARIO: readonly { id: GrupoCalendario; nombre: string; titulos: readonly string[] }[] = [
-  { id: 'trabajo', nombre: 'Trabajo', titulos: ['trabajo duro', 'trabajo compartido', ...[instalacion().correoNegocio, instalacion().correoDueno].filter(Boolean)] },
-  { id: 'vida', nombre: 'Vida', titulos: ['comidas', `tiempo con ${PERSONA}`, 'ejercicio', 'transporte'] },
+  { id: 'trabajo', nombre: trMarca('Trabajo'), titulos: ['trabajo duro', 'trabajo compartido', ...[instalacion().correoNegocio, instalacion().correoDueno].filter(Boolean)] },
+  { id: 'vida', nombre: trMarca('Vida'), titulos: ['comidas', `tiempo con ${PERSONA}`, 'ejercicio', 'transporte'] },
 ]
 export function grupoDeCalendario(titulo: string | null | undefined): GrupoCalendario | null {
   const t = (titulo ?? '').trim().toLowerCase()
@@ -112,7 +113,7 @@ export function bloquesDeCalendarios<C extends { titulo: string; color: string |
   const bloques = GRUPOS_CALENDARIO.map(g => ({ id: g.id as GrupoCalendario | 'otros', nombre: g.nombre,
     calendarios: calendarios.filter(c => grupoDeCalendario(c.titulo) === g.id).map(c => g.id === 'vida' ? { ...c, color: DEF.vida.color } : c) }))
   const otros = calendarios.filter(c => !grupoDeCalendario(c.titulo))
-  return [...bloques, { id: 'otros' as const, nombre: 'Otros', calendarios: otros }].filter(b => b.calendarios.length > 0)
+  return [...bloques, { id: 'otros' as const, nombre: trMarca('Otros'), calendarios: otros }].filter(b => b.calendarios.length > 0)
 }
 
 export type Origen = 'color' | 'emoji' | 'titulo' | 'descripcion' | 'calendario' | 'defecto'
@@ -169,7 +170,7 @@ export function formatoHoras(h: number): string {
   if (h <= 0) return '—'
   if (h < 1) return `${Math.round(h * 60)} min`
   const r = Math.round(h * 2) / 2
-  return `${String(r).replace('.', ',')} h`
+  return `${enIngles() ? String(r) : String(r).replace('.', ',')} h`
 }
 
 /** Preferencia de la leyenda: qué categorías están ocultas (localStorage, igual en la sección, el panel y el chat). */

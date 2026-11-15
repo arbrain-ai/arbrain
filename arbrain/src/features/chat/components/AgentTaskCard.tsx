@@ -1,4 +1,5 @@
 'use client'
+import { tr, trn } from '@/shared/i18n'
 import { useRef, useState } from 'react'
 import { Check, ChevronDown, ChevronRight, GitBranch, SquareTerminal, Workflow, CircleDot, X, Square } from 'lucide-react'
 import type { AgentTask } from '../hooks/useChat'
@@ -46,9 +47,9 @@ function FilaTarea({ task }: { task: AgentTask }) {
   const detalle = texto && texto !== titulo ? texto : null
   const meta = [
     clase === 'workflow' ? task.workflowName : clase === 'subagente' ? task.subagentType : null,
-    task.totalTokens != null ? `${fmtTokens(task.totalTokens)} tokens` : null,
-    task.toolUses ? `${task.toolUses} herramientas` : null,
-    fase === 'detenida' ? 'detenida' : null,
+    task.totalTokens != null ? tr('{n} tokens', { n: fmtTokens(task.totalTokens) }) : null,
+    task.toolUses ? trn(task.toolUses, '1 herramienta', '{n} herramientas') : null,
+    fase === 'detenida' ? tr('detenida') : null,
   ].filter(Boolean).join(' · ')
   const falla = fase === 'fallo'
   const Raiz = detalle ? 'button' : 'div'
@@ -68,7 +69,7 @@ function FilaTarea({ task }: { task: AgentTask }) {
       {(meta || detalle) && (
         <span className="mt-0.5 block pl-[34px] text-[10px] text-muted/80">
           {meta && <span className="block font-mono truncate">{meta}</span>}
-          {detalle && <span className={abierta ? 'block' : 'line-clamp-2'}>{detalle}</span>}
+          {detalle && <span className={abierta ? 'block' : 'line-clamp-2'}>{tr(detalle)}</span>}
         </span>
       )}
     </Raiz>
@@ -101,11 +102,11 @@ export function AgentTaskCards({ tasks, soloVivas = false }: { tasks: AgentTask[
     // aria-hidden: chrome del turno — iOS Speak Screen solo debe leer la respuesta
     <div aria-hidden className="flex flex-wrap items-center gap-x-1.5 my-1.5 max-md:my-0" data-tts-exclude>
       {vivas.length > 0 && (
-        <button type="button" onClick={abrirTallerDelPanel} title="Verlos en el Taller" className={BOTON}>
+        <button type="button" onClick={abrirTallerDelPanel} title={tr('Verlos en el Taller')} className={BOTON}>
           {/* 28 oct 2026: la pastilla morada de antes, con punto quieto en vez del giro. */}
           <span className={`${PASTILLA} bg-brand/10 border-brand/25 text-brand-ink group-hover:border-brand/45`}>
             <span className="size-1.5 rounded-full bg-brand shrink-0" aria-hidden />
-            {textoVivas(vivas)}
+            {tr(textoVivas(vivas))}
             <ChevronRight size={10} className="shrink-0" />
           </span>
         </button>
@@ -114,8 +115,8 @@ export function AgentTaskCards({ tasks, soloVivas = false }: { tasks: AgentTask[
         <button type="button" onClick={() => setAbierto((a) => !a)} aria-expanded={abierto} className={BOTON}>
           <span className={`${PASTILLA} bg-card border-border-subtle text-muted group-hover:text-foreground/75 group-hover:border-border`}>
             <Check size={10} className="shrink-0" />
-            {hechas.length} {hechas.length === 1 ? 'tarea' : 'tareas'}
-            {fallaron > 0 && <span className="text-error">· {fallaron} {fallaron === 1 ? 'falló' : 'fallaron'}</span>}
+            {trn(hechas.length, '1 tarea', '{n} tareas')}
+            {fallaron > 0 && <span className="text-error">· {trn(fallaron, '1 falló', '{n} fallaron')}</span>}
             <ChevronDown size={10} className={`shrink-0 transition-transform ${abierto ? 'rotate-180' : ''}`} />
           </span>
         </button>

@@ -4,6 +4,7 @@ import type Database from 'better-sqlite3'
 import { randomUUID } from 'node:crypto'
 import type { ChatJournal } from './journal.js'
 import type { ChatJobInput } from './chat-job.js'
+import { tr } from '../i18n/tr.js'
 
 /**
  * Despertadores de Levy (chat vivo, 3 oct 2026).
@@ -253,7 +254,7 @@ function decode(row: Record<string, unknown>): Despertador {
 /** Etiqueta del chip en la web: el texto del despertador, o solo la cabecera del aviso de un subagente. */
 export function etiquetaDespertador(d: { texto: string; tipo?: string; desde?: { titulo?: string } }): string {
   // Mensaje de otra conversación (6 nov 2026): el chip dice quién lo manda, nunca que lo escribió el dueño.
-  if (d.tipo === 'conversacion') return `Levy, desde «${(d.desde?.titulo ?? 'otra conversación').slice(0, 120)}»`
+  if (d.tipo === 'conversacion') return tr('Levy, desde «{titulo}»', { titulo: (d.desde?.titulo ?? tr('otra conversación')).slice(0, 120) })
   return d.tipo === 'subagente' || d.tipo === 'confirmacion' ? d.texto.split('\n')[0].slice(0, 160) : d.texto
 }
 

@@ -11,6 +11,7 @@ import {
   type EstadoPermiso, type EstadoPermisos, type Identidad, type Permiso, type PermisoId,
 } from '../lib/permisos'
 import { permisosFueraDeMac, plataformaDe } from '@/features/chat/lib/voz-sistema'
+import { tr, trMarca } from '@/shared/i18n'
 
 const CLIENTE = esEdicionCliente()
 const ficha = (id: PermisoId) => fichaEnEdicion(id, CLIENTE)
@@ -21,11 +22,11 @@ const ICONOS: Record<PermisoId, LucideIcon> = {
 }
 
 const PILDORA: Record<EstadoPermiso, { texto: string; clase: string }> = {
-  concedido: { texto: 'Permitido', clase: 'bg-emerald-500/12 text-emerald-400 border-emerald-500/30' },
-  pendiente: { texto: 'Sin permitir', clase: 'bg-amber-500/10 text-amber-400 border-amber-500/30' },
-  denegado: { texto: 'Negado', clase: 'bg-red-500/10 text-red-400 border-red-500/30' },
-  restringido: { texto: 'Restringido', clase: 'bg-card-hover text-muted border-border-subtle' },
-  sin_dato: { texto: 'Sin dato', clase: 'bg-card-hover text-muted border-border-subtle' },
+  concedido: { texto: trMarca('Permitido'), clase: 'bg-emerald-500/12 text-emerald-400 border-emerald-500/30' },
+  pendiente: { texto: trMarca('Sin permitir'), clase: 'bg-amber-500/10 text-amber-400 border-amber-500/30' },
+  denegado: { texto: trMarca('Negado'), clase: 'bg-red-500/10 text-red-400 border-red-500/30' },
+  restringido: { texto: trMarca('Restringido'), clase: 'bg-card-hover text-muted border-border-subtle' },
+  sin_dato: { texto: trMarca('Sin dato'), clase: 'bg-card-hover text-muted border-border-subtle' },
 }
 
 function Fila({ permiso, ocupado, onPedir, onAbrir }: {
@@ -37,7 +38,7 @@ function Fila({ permiso, ocupado, onPedir, onAbrir }: {
   const f = ficha(permiso.id)
   const Icono = ICONOS[permiso.id]
   const sinUso = f.grupo === 'sin_uso'
-  const pildora = sinUso ? { texto: 'Sin uso', clase: PILDORA.sin_dato.clase } : PILDORA[permiso.estado]
+  const pildora = sinUso ? { texto: trMarca('Sin uso'), clase: PILDORA.sin_dato.clase } : PILDORA[permiso.estado]
   return (
     <div className="flex items-center gap-3 px-4 py-3">
       <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-card-hover border border-border-subtle shrink-0">
@@ -45,11 +46,11 @@ function Fila({ permiso, ocupado, onPedir, onAbrir }: {
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm text-foreground/85">{f.titulo}</span>
-          <span className={`text-[10px] px-1.5 py-0.5 rounded-md border font-medium ${pildora.clase}`}>{pildora.texto}</span>
+          <span className="text-sm text-foreground/85">{tr(f.titulo)}</span>
+          <span className={`text-[10px] px-1.5 py-0.5 rounded-md border font-medium ${pildora.clase}`}>{tr(pildora.texto)}</span>
         </div>
-        <p className="text-xs text-muted/80 mt-0.5">{f.para}</p>
-        {permiso.detalle && !sinUso && <p className="text-[11px] text-muted/60 mt-0.5">{permiso.detalle}</p>}
+        <p className="text-xs text-muted/80 mt-0.5">{tr(f.para)}</p>
+        {permiso.detalle && !sinUso && <p className="text-[11px] text-muted/60 mt-0.5">{tr(permiso.detalle)}</p>}
       </div>
       {!sinUso && (
         <div className="flex items-center gap-1.5 shrink-0">
@@ -60,16 +61,16 @@ function Fila({ permiso, ocupado, onPedir, onAbrir }: {
               disabled={ocupado}
               className="px-2.5 py-1 rounded-lg text-xs font-medium bg-primary/80 text-white hover:bg-primary transition-colors disabled:opacity-40"
             >
-              {ocupado ? <Loader2 size={12} className="animate-spin" /> : 'Permitir'}
+              {ocupado ? <Loader2 size={12} className="animate-spin" /> : tr('Permitir')}
             </button>
           )}
           <button
             type="button"
             onClick={onAbrir}
-            title="Abrir este panel en Ajustes del Sistema"
+            title={tr('Abrir este panel en Ajustes del Sistema')}
             className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs text-foreground/70 border border-border hover:bg-card-hover transition-colors"
           >
-            Ajustes <ExternalLink size={11} />
+            {tr('Ajustes')} <ExternalLink size={11} />
           </button>
         </div>
       )}
@@ -85,15 +86,15 @@ function Firma({ titulo, icono: Icono, identidad, estable, cambia }: {
   cambia: string
 }) {
   const ok = identidad.firma === 'estable'
-  const nombre = identidad.identificador ?? identidad.ruta?.split('/').pop() ?? 'desconocida'
+  const nombre = identidad.identificador ?? identidad.ruta?.split('/').pop() ?? tr('desconocida')
   return (
     <div className="flex items-start gap-3 px-4 py-3">
       <Icono size={15} className={`mt-0.5 shrink-0 ${ok ? 'text-emerald-400' : 'text-amber-400'}`} />
       <div className="min-w-0">
-        <p className="text-sm text-foreground/85">{titulo}</p>
-        <p className="text-xs text-muted/80 mt-0.5">{ok ? estable : cambia}</p>
+        <p className="text-sm text-foreground/85">{tr(titulo)}</p>
+        <p className="text-xs text-muted/80 mt-0.5">{tr(ok ? estable : cambia)}</p>
         <p className="text-[11px] text-muted/60 mt-0.5 font-mono truncate" title={identidad.requisito ?? undefined}>
-          {nombre}{identidad.autoridad ? ` · ${identidad.autoridad}` : ok ? '' : ' · firma ad hoc'}
+          {nombre}{identidad.autoridad ? ` · ${identidad.autoridad}` : ok ? '' : ` · ${tr('firma ad hoc')}`}
         </p>
       </div>
     </div>
@@ -154,9 +155,9 @@ export function CentroPermisos() {
       <section id="permisos" className="solid-card overflow-hidden px-5 py-4">
         <div className="flex items-center gap-2">
           <Mic size={16} className="text-muted" />
-          <h2 className="text-sm font-semibold text-foreground/85">{fuera.titulo}</h2>
+          <h2 className="text-sm font-semibold text-foreground/85">{tr(fuera.titulo)}</h2>
         </div>
-        <p className="text-xs text-muted/80 mt-1 leading-relaxed">{fuera.texto}</p>
+        <p className="text-xs text-muted/80 mt-1 leading-relaxed">{tr(fuera.texto)}</p>
       </section>
     )
   }
@@ -170,14 +171,13 @@ export function CentroPermisos() {
         <div>
           <div className="flex items-center gap-2">
             <ShieldCheck size={16} className="text-muted" />
-            <h2 className="text-sm font-semibold text-foreground/85">Permisos de macOS</h2>
+            <h2 className="text-sm font-semibold text-foreground/85">{tr('Permisos de macOS')}</h2>
             {estado && (
-              <span className="text-[11px] text-muted/80 font-mono">{concedidos} de {usados.length} permitidos</span>
+              <span className="text-[11px] text-muted/80 font-mono">{tr('{concedidos} de {total} permitidos', { concedidos, total: usados.length })}</span>
             )}
           </div>
           <p className="text-xs text-muted/80 mt-1">
-            Lo que Arbrain puede hacer en tu Mac. Nada se pide al abrir la app: cada permiso se pide la primera vez
-            que una función lo necesita, o aquí con «Permitir».
+            {tr('Lo que Arbrain puede hacer en tu Mac. Nada se pide al abrir la app: cada permiso se pide la primera vez que una función lo necesita, o aquí con «Permitir».')}
           </p>
         </div>
         {disponible && (
@@ -185,8 +185,8 @@ export function CentroPermisos() {
             type="button"
             onClick={() => void refrescar()}
             className="p-1.5 rounded-lg text-muted hover:text-foreground/80 hover:bg-card-hover transition-colors"
-            title="Volver a leer los permisos"
-            aria-label="Volver a leer los permisos"
+            title={tr('Volver a leer los permisos')}
+            aria-label={tr('Volver a leer los permisos')}
           >
             <RefreshCw size={14} className={cargando ? 'animate-spin' : ''} />
           </button>
@@ -195,14 +195,14 @@ export function CentroPermisos() {
 
       {disponible === false && (
         <p className="px-5 py-4 text-xs text-muted/80">
-          Disponible en la app de escritorio: el navegador no puede leer los permisos de macOS.
+          {tr('Disponible en la app de escritorio: el navegador no puede leer los permisos de macOS.')}
         </p>
       )}
 
-      {error && <p className="px-5 py-3 text-xs text-red-400 border-b border-border-subtle">{error}</p>}
+      {error && <p className="px-5 py-3 text-xs text-red-400 border-b border-border-subtle">{tr(error)}</p>}
 
       {disponible && !estado && !error && (
-        <div className="px-5 py-6 flex items-center gap-2 text-xs text-muted"><Loader2 size={14} className="animate-spin" /> Leyendo permisos…</div>
+        <div className="px-5 py-6 flex items-center gap-2 text-xs text-muted"><Loader2 size={14} className="animate-spin" /> {tr('Leyendo permisos…')}</div>
       )}
 
       {estado && (
@@ -212,7 +212,7 @@ export function CentroPermisos() {
             if (filas.length === 0) return null
             return (
               <div key={grupo.id}>
-                <p className="px-4 pt-3 pb-1 text-[10px] uppercase tracking-wider text-muted/70 font-mono">{grupo.titulo}</p>
+                <p className="px-4 pt-3 pb-1 text-[10px] uppercase tracking-wider text-muted/70 font-mono">{tr(grupo.titulo)}</p>
                 <div className="divide-y divide-border-subtle/60">
                   {filas.map((p) => (
                     <Fila
@@ -229,23 +229,23 @@ export function CentroPermisos() {
           })}
 
           <div>
-            <p className="px-4 pt-3 pb-1 text-[10px] uppercase tracking-wider text-muted/70 font-mono">Que reinstalar no los borre</p>
+            <p className="px-4 pt-3 pb-1 text-[10px] uppercase tracking-wider text-muted/70 font-mono">{tr('Que reinstalar no los borre')}</p>
             <Firma
               titulo="Arbrain"
               icono={Fingerprint}
               identidad={estado.app}
-              estable="Firma estable: una reinstalación conserva todos los permisos."
-              cambia="Firma ad hoc: macOS trata cada compilación como otra app y vuelve a preguntar todo."
+              estable={trMarca('Firma estable: una reinstalación conserva todos los permisos.')}
+              cambia={trMarca('Firma ad hoc: macOS trata cada compilación como otra app y vuelve a preguntar todo.')}
             />
             {estado.motor && (
               <div className="flex items-start">
                 <div className="flex-1 min-w-0">
                   <Firma
-                    titulo="Terminales y agentes (motor)"
+                    titulo={trMarca('Terminales y agentes (motor)')}
                     icono={TerminalSquare}
                     identidad={estado.motor}
-                    estable="Lo que hacen los agentes en tus terminales se le concede al motor, y su firma es estable."
-                    cambia="Lo que hacen los agentes en tus terminales se le concede al motor, y su firma cambia en cada compilación: por eso macOS vuelve a preguntar."
+                    estable={trMarca('Lo que hacen los agentes en tus terminales se le concede al motor, y su firma es estable.')}
+                    cambia={trMarca('Lo que hacen los agentes en tus terminales se le concede al motor, y su firma cambia en cada compilación: por eso macOS vuelve a preguntar.')}
                   />
                 </div>
                 {estado.motor.firma !== 'estable' && (
@@ -254,7 +254,7 @@ export function CentroPermisos() {
                     onClick={() => void abrirPanel('gestion_apps')}
                     className="m-3 flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs text-foreground/70 border border-border hover:bg-card-hover transition-colors shrink-0"
                   >
-                    <ShieldAlert size={11} /> Ajustes
+                    <ShieldAlert size={11} /> {tr('Ajustes')}
                   </button>
                 )}
               </div>

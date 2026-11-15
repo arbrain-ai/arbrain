@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react'
 import { Check } from 'lucide-react'
 import { hayApp, llavesEstado, quienCobra, reprobarAlVolver } from '../lib/llaves'
 import { PasoRecarga, usePruebaConexion, useReprobarAlVolver } from './PanelLlaves'
+import { tr } from '@/shared/i18n'
 
 export function RecargaEnChat({ onReintentar }: { onReintentar?: () => void }) {
   const [cobra, setCobra] = useState<'openrouter' | 'anthropic'>('openrouter')
@@ -23,8 +24,8 @@ export function RecargaEnChat({ onReintentar }: { onReintentar?: () => void }) {
   if (prueba?.ok) {
     return (
       <div className="mt-2 flex flex-wrap items-center gap-2 text-[13px] text-success" role="status">
-        <Check className="size-4" aria-hidden /> Ya hay crédito en tu cuenta.
-        {onReintentar && <button type="button" onClick={onReintentar} className="pg-boton">Reintentar</button>}
+        <Check className="size-4" aria-hidden /> {tr('Ya hay crédito en tu cuenta.')}
+        {onReintentar && <button type="button" onClick={onReintentar} className="pg-boton">{tr('Reintentar')}</button>}
       </div>
     )
   }

@@ -20,6 +20,7 @@ import { existsSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { expandirRuta, rutaReal, type ContextoPolitica, type DecisionPolitica } from './politica-agentes.js'
+import { tr } from '../i18n/tr.js'
 
 /** Lo que ejecuta el comando de actualizar (rutas relativas a la carpeta del cerebro). */
 export const RUTAS_ACTUALIZADOR = [
@@ -115,9 +116,9 @@ export function decidirActualizar(cmd: string, ctx: ContextoPolitica, env: NodeJ
   if (!actualizadorFirmado(home, env).etiqueta) return null
   if (o.orden === 'revisar' || o.orden === 'estado') return { tipo: 'permitir' }
   const resumen = o.orden === 'aplicar'
-    ? `Actualizar Arbrain a la versión ${o.etiqueta}, firmada por el autor: guarda lo tuyo en un commit, crea una rama de respaldo, mezcla la versión nueva con lo tuyo y reinicia Arbrain`
-    : 'Terminar la actualización de Arbrain: sembrar lo nuevo de la plantilla y reiniciar Arbrain y su app con la versión que ya tienes'
-  return { tipo: 'confirmar', categoria: 'otra', resumen, literal: cmd, avisos: ['nada tuyo se borra: si algo no te gusta, vuelves con la rama de respaldo'], relajable: 'carpeta' }
+    ? tr('Actualizar Arbrain a la versión {version}, firmada por el autor: guarda lo tuyo en un commit, crea una rama de respaldo, mezcla la versión nueva con lo tuyo y reinicia Arbrain', { version: o.etiqueta })
+    : tr('Terminar la actualización de Arbrain: sembrar lo nuevo de la plantilla y reiniciar Arbrain y su app con la versión que ya tienes')
+  return { tipo: 'confirmar', categoria: 'otra', resumen, literal: cmd, avisos: [tr('nada tuyo se borra: si algo no te gusta, vuelves con la rama de respaldo')], relajable: 'carpeta' }
 }
 
 /** Solo pruebas. */

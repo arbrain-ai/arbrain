@@ -1,10 +1,11 @@
 'use client'
+import { tr } from '@/shared/i18n'
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { Mic, Square, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { asegurarPermiso } from '@/features/permisos/lib/permisos'
 import { isDesktopRuntime } from '@/lib/local-first/runtime'
-import { formatoGrabacion, mensajeFalloMicrofono, mensajeFalloTranscripcion, plataformaDe, SIN_PERMISO_MAC, tipoDeGrabacion } from '../lib/voz-sistema'
+import { dictadoLigero, formatoGrabacion, mensajeFalloMicrofono, mensajeFalloTranscripcion, opcionesGrabacion, plataformaDe, SIN_PERMISO_MAC, tipoDeGrabacion } from '../lib/voz-sistema'
 
 type RecordState = 'idle' | 'recording' | 'processing' | 'error'
 
@@ -19,9 +20,11 @@ interface VoiceInputProps {
   onEstado?: (state: RecordState) => void
   /** Edición cliente: la transcripción no está configurada (falta la llave de Groq) → llevar a Ajustes › Voz. */
   onSinConfigurar?: () => void
+  /** Datos móviles (12 nov 2026): en un cliente remoto graba a 32 kbps (voz-sistema › dictadoLigero). Solo el chat. */
+  ligero?: boolean
 }
 
-export function VoiceInput({ onVoiceNote, disabled, soloTexto, etiqueta, onEstado, onSinConfigurar }: VoiceInputProps) {
+export function VoiceInput({ onVoiceNote, disabled, soloTexto, etiqueta, onEstado, onSinConfigurar, ligero }: VoiceInputProps) {
   const [state, setState] = useState<RecordState>('idle')
   const avisar = useRef(onEstado); avisar.current = onEstado
   useEffect(() => { avisar.current?.(state) }, [state])
@@ -30,6 +33,8 @@ export function VoiceInput({ onVoiceNote, disabled, soloTexto, etiqueta, onEstad
   const chunksRef = useRef<BlobPart[]>([])
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  // Medición del dictado (dictado.jsonl): cuánto duró y qué bitrate se pidió.
+  const medidaRef = useRef<{ inicio: number; bpsPedido: number | null }>({ inicio: 0, bpsPedido: null })
   // Qué falló, en una línea con el camino de SU sistema (29 oct 2026, un fundador en Windows: el botón se ponía rojo dos
   // segundos y volvía sin decir nada). Se queda hasta el siguiente intento o 9 s.
   const [aviso, setAviso] = useState<string | null>(null)
@@ -58,7 +63,13 @@ export function VoiceInput({ onVoiceNote, disabled, soloTexto, etiqueta, onEstad
 
       // WebView2, Chrome y Edge graban webm/opus; Safari, mp4. Sin ninguno conocido, el navegador elige el suyo.
       const mimeType = formatoGrabacion((t) => MediaRecorder.isTypeSupported(t))
-      const mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream)
+      const liviano = !!ligero && dictadoLigero(location.hostname, isDesktopRuntime())
+      const opciones = opcionesGrabacion(mimeType, liviano)
+      let mediaRecorder: MediaRecorder
+      let bpsPedido = opciones?.audioBitsPerSecond ?? null
+      try { mediaRecorder = opciones ? new MediaRecorder(stream, opciones) : new MediaRecorder(stream) }
+      catch { mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream); bpsPedido = null } // un tope que no acepte: como antes
+      medidaRef.current = { inicio: performance.now(), bpsPedido }
       mediaRecorderRef.current = mediaRecorder
       chunksRef.current = []
 
@@ -76,7 +87,7 @@ export function VoiceInput({ onVoiceNote, disabled, soloTexto, etiqueta, onEstad
       streamRef.current = null
       fallar(mensajeFalloMicrofono(error, plataformaDe(navigator.userAgent), isDesktopRuntime()))
     }
-  }, [fallar])
+  }, [fallar, ligero])
 
   const sendRecording = useCallback(async () => {
     stopTimer()
@@ -84,6 +95,7 @@ export function VoiceInput({ onVoiceNote, disabled, soloTexto, etiqueta, onEstad
     if (!recorder || recorder.state === 'inactive') return
 
     setState('processing')
+    const segundos = (performance.now() - medidaRef.current.inicio) / 1000
 
     // Stop recorder and collect final chunk
     await new Promise<void>((resolve) => {
@@ -127,6 +139,11 @@ export function VoiceInput({ onVoiceNote, disabled, soloTexto, etiqueta, onEstad
       // 2. Transcribe via Groq Whisper
       const form = new FormData()
       form.append('audio', blob, grabado.nombre)
+      // Para la bitácora del servidor (dictado.jsonl); el peso lo mide él sobre el archivo.
+      form.append('segundos', segundos.toFixed(2))
+      if (medidaRef.current.bpsPedido) form.append('bps_pedido', String(medidaRef.current.bpsPedido))
+      if (recorder.audioBitsPerSecond) form.append('bps_real', String(recorder.audioBitsPerSecond))
+      form.append('ligero', medidaRef.current.bpsPedido ? '1' : '0')
       const res = await fetch('/api/chat/transcribe', { method: 'POST', body: form })
 
       if (!res.ok) {
@@ -143,7 +160,7 @@ export function VoiceInput({ onVoiceNote, disabled, soloTexto, etiqueta, onEstad
       setSeconds(0)
       onVoiceNote(transcription, audioUrl)
     } catch {
-      fallar('No se pudo transcribir. Revisa tu conexión y vuelve a intentarlo.')
+      fallar(tr('No se pudo transcribir. Revisa tu conexión y vuelve a intentarlo.'))
     }
   }, [onVoiceNote, soloTexto, onSinConfigurar, fallar])
 
@@ -177,8 +194,8 @@ export function VoiceInput({ onVoiceNote, disabled, soloTexto, etiqueta, onEstad
         {/* Stop button */}
         <button
           onClick={handleClick}
-          title={soloTexto ? 'Parar y transcribir' : 'Enviar nota de voz'}
-          className="shrink-0 w-11 h-11 md:w-8 md:h-8 rounded-xl flex items-center justify-center bg-red-500/20 text-red-400 ring-1 ring-red-500/40 hover:bg-red-500/30 transition-all"
+          title={soloTexto ? tr('Parar y transcribir') : tr('Enviar nota de voz')}
+          className="shrink-0 w-11 h-11 md:w-[var(--tam-control)] md:h-[var(--tam-control)] rounded-xl flex items-center justify-center bg-red-500/20 text-red-400 ring-1 ring-red-500/40 hover:bg-red-500/30 transition-all"
         >
           <Square size={11} className="fill-current" />
         </button>
@@ -190,16 +207,16 @@ export function VoiceInput({ onVoiceNote, disabled, soloTexto, etiqueta, onEstad
     <span className="relative inline-flex shrink-0">
     {aviso && (
       <span role="alert" className="absolute bottom-full right-0 z-30 mb-2 w-72 max-w-[80vw] rounded-xl border border-border-subtle bg-card px-3 py-2 text-left text-[12px] leading-snug text-foreground/85 shadow-lg">
-        {aviso}
+        {tr(aviso)}
       </span>
     )}
     <button
       onClick={handleClick}
       disabled={disabled || state === 'processing'}
-      aria-label={aviso ?? undefined}
-      title={state === 'processing' ? 'Procesando…' : state === 'error' ? aviso ?? 'Error de micrófono' : etiqueta ?? (soloTexto ? 'Dictar' : 'Grabar nota de voz')}
+      aria-label={aviso ? tr(aviso) : undefined}
+      title={state === 'processing' ? tr('Procesando…') : state === 'error' ? (aviso ? tr(aviso) : tr('Error de micrófono')) : etiqueta ? tr(etiqueta) : (soloTexto ? tr('Dictar') : tr('Grabar nota de voz'))}
       className={`
-        shrink-0 w-11 h-11 md:w-8 md:h-8 rounded-xl flex items-center justify-center transition-all
+        shrink-0 w-11 h-11 md:w-[var(--tam-control)] md:h-[var(--tam-control)] rounded-xl flex items-center justify-center transition-all
         disabled:opacity-50 disabled:cursor-not-allowed
         ${state === 'processing'
           ? 'bg-violet-500/20 text-violet-400'
@@ -210,8 +227,8 @@ export function VoiceInput({ onVoiceNote, disabled, soloTexto, etiqueta, onEstad
       `}
     >
       {state === 'processing'
-        ? <Loader2 size={16} className="animate-spin md:w-[13px] md:h-[13px]" />
-        : <Mic size={16} className="md:w-[13px] md:h-[13px]" />
+        ? <Loader2 size={16} className="animate-spin md:w-[15px] md:h-[15px]" />
+        : <Mic size={16} className="md:w-[15px] md:h-[15px]" />
       }
     </button>
     </span>

@@ -11,8 +11,9 @@
 import { memo } from 'react'
 import { rotuloVelocidad, velocidadEnCiclo } from '../../documento/medio'
 import v from './visor.module.css'
+import { tr } from '@/shared/i18n'
 
 export const BotonVelocidad = memo(function BotonVelocidad({ vel, alCambiar, atajos }: { vel: number; alCambiar: (x: number) => void; atajos?: string }) {
   return <button type="button" className={v.velocidad} onClick={() => alCambiar(velocidadEnCiclo(vel))}
-    aria-label={`Velocidad ${rotuloVelocidad(vel)}`} title={`Velocidad: clic para la siguiente (1× a 2×)${atajos ? ` · ${atajos}` : ''}`}>{rotuloVelocidad(vel)}</button>
+    aria-label={tr('Velocidad {v}', { v: rotuloVelocidad(vel) })} title={`${tr('Velocidad: clic para la siguiente (1× a 2×)')}${atajos ? ` · ${atajos}` : ''}`}>{rotuloVelocidad(vel)}</button>
 })

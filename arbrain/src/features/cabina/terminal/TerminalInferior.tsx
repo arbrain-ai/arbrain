@@ -15,6 +15,7 @@ import { useTerminalPanel, ALTO_INICIAL, ALTO_MIN } from '@/shared/stores/termin
 import { useIsMobile } from '@/shared/hooks/useMediaQuery'
 import { PtyPanel, enfocarTerminal, hayFocoEnTerminal, FUENTE } from './PtyPanel'
 import s from './terminal.module.css'
+import { tr, trMarca } from '@/shared/i18n'
 
 const MARGEN_SUPERIOR = 140 // lo mínimo que se deja al contenido de la página sobre el panel
 
@@ -69,10 +70,10 @@ export function TerminalInferior() {
       const cols = Math.max(20, Math.floor(ancho / (FUENTE.size * 0.6))), rows = Math.max(5, Math.floor(altoCuerpo / (FUENTE.size * FUENTE.lineHeight)))
       const r = await fetch('/api/cabina/panel-terminal', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ op: 'crear', cols, rows }) })
       const j = await r.json().catch(() => ({}))
-      if (!r.ok || typeof j.id !== 'number') throw new Error(j.error ?? 'El motor no abrió la terminal.')
+      if (!r.ok || typeof j.id !== 'number') throw new Error(j.error ?? trMarca('El motor no abrió la terminal.'))
       useTerminalPanel.getState().agregar(j.id)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo abrir la terminal.')
+      setError(e instanceof Error ? e.message : trMarca('No se pudo abrir la terminal.'))
     } finally { setCreando(false) }
   }, [creando, alto])
 
@@ -148,33 +149,33 @@ export function TerminalInferior() {
 
   if (isMobile || !hidratado || (pestanas.length === 0 && !abierto)) return null
 
-  return <section ref={ref} data-terminal-panel aria-label="Terminal" hidden={!abierto}
+  return <section ref={ref} data-terminal-panel aria-label={tr('Terminal')} hidden={!abierto}
     className={`${s.panel} ${arrastrando ? s.arrastrando : ''}`} style={{ height: Math.min(alto || ALTO_INICIAL, 4000) }}>
-    <div role="separator" aria-orientation="horizontal" tabIndex={0} aria-label="Cambiar la altura de la terminal"
+    <div role="separator" aria-orientation="horizontal" tabIndex={0} aria-label={tr('Cambiar la altura de la terminal')}
       aria-valuenow={alto} aria-valuemin={ALTO_MIN}
-      title="Arrastra para cambiar la altura · doble clic para volver al tamaño inicial"
+      title={tr('Arrastra para cambiar la altura · doble clic para volver al tamaño inicial')}
       className={s.divisor} onPointerDown={empezar} onKeyDown={teclas} onDoubleClick={() => fijar(ALTO_INICIAL)}>
       <span aria-hidden />
     </div>
     <header className={s.barra}>
-      <div className={s.pestanas} role="tablist" aria-label="Terminales">
+      <div className={s.pestanas} role="tablist" aria-label={tr('Terminales')}>
         {pestanas.map((p, i) => <div key={p.id} role="tab" aria-selected={p.id === activa} data-activa={p.id === activa || undefined} className={s.pestana}
           onMouseDown={e => { if (e.button === 1) { e.preventDefault(); cerrarPestana(p.id) } }}
           onClick={() => { useTerminalPanel.getState().activar(p.id) }}>
           <TerminalSquare size={12} aria-hidden />
           <span className={s.titulo} title={p.titulo ?? undefined}>{etiqueta(p.titulo, i)}</span>
-          <button className={s.cerrarPestana} aria-label={`Cerrar la terminal ${etiqueta(p.titulo, i)}`} title="Cerrar esta terminal"
+          <button className={s.cerrarPestana} aria-label={tr('Cerrar la terminal {nombre}', { nombre: etiqueta(p.titulo, i) })} title={tr('Cerrar esta terminal')}
             onClick={e => { e.stopPropagation(); cerrarPestana(p.id) }}><X size={12} aria-hidden /></button>
         </div>)}
-        <button className={s.mas} onClick={() => void nueva()} disabled={creando} aria-label="Nueva terminal" title="Nueva terminal"><Plus size={14} aria-hidden /></button>
+        <button className={s.mas} onClick={() => void nueva()} disabled={creando} aria-label={tr('Nueva terminal')} title={tr('Nueva terminal')}><Plus size={14} aria-hidden /></button>
       </div>
       <span className={s.atajo} aria-hidden>⌘J</span>
-      <button className={s.ocultar} onClick={() => useTerminalPanel.getState().cerrar()} aria-label="Ocultar la terminal" title="Ocultar (⌘J) · las terminales siguen vivas"><ChevronDown size={14} aria-hidden /></button>
+      <button className={s.ocultar} onClick={() => useTerminalPanel.getState().cerrar()} aria-label={tr('Ocultar la terminal')} title={tr('Ocultar (⌘J) · las terminales siguen vivas')}><ChevronDown size={14} aria-hidden /></button>
     </header>
     <div className={s.cuerpo}>
       {pestanas.filter(p => vistas.has(p.id) || p.id === activa && abierto).map(p => <PtyPanel key={p.id} id={p.id} visible={abierto} activa={p.id === activa} onFin={terminoSolo} onTitulo={titular} />)}
-      {error && <div className={s.velo} role="alert"><span>{error}</span><button className={s.enlace} onClick={() => void nueva()}>Reintentar</button></div>}
-      {!error && pestanas.length === 0 && <p className={s.velo}>Abriendo una terminal…</p>}
+      {error && <div className={s.velo} role="alert"><span>{tr(error)}</span><button className={s.enlace} onClick={() => void nueva()}>{tr('Reintentar')}</button></div>}
+      {!error && pestanas.length === 0 && <p className={s.velo}>{tr('Abriendo una terminal…')}</p>}
     </div>
   </section>
 }

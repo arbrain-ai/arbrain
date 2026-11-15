@@ -1,6 +1,7 @@
 'use client'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Clase, Modo, Preset, Respuesta, VistaBandeja } from './lib/bandeja'
+import { tr } from '@/shared/i18n'
 
 /** La bandeja viva: se lee cada 5 s mientras la pestaña está a la vista y al volver a ella. `activa` = false: no lee nada
  *  (el Día de otra fecha o el calendario de otra persona montan la misma hoja). */
@@ -17,7 +18,7 @@ export function useBandeja(cadaMs = 5_000, activa = true) {
       if (!vivo.current) return
       if (!r.ok) { setError(String(j.error ?? `HTTP ${r.status}`)); return }
       setVista(j as VistaBandeja); setError(null)
-    } catch (e) { if (vivo.current) setError(e instanceof Error ? e.message : 'sin conexión') }
+    } catch (e) { if (vivo.current) setError(e instanceof Error ? e.message : tr('sin conexión')) }
   }, [])
 
   useEffect(() => {

@@ -7,6 +7,7 @@
  *   · ChipMeta: encima del compositor, la meta activa con su estado y Pausar/Reanudar y Quitar, sin teclear comandos.
  * Todo con data-tts-exclude: voz, lector y copiar leen solo la respuesta.
  */
+import { tr } from '@/shared/i18n'
 import { useId, useState } from 'react'
 import { ChevronRight, Target, Pause, Play, X } from 'lucide-react'
 import { condicionCorta, estadoEnPalabras, resumenMeta, type MetaTurno, type MetaVigente } from '../lib/meta'
@@ -20,19 +21,19 @@ export function VueltasMeta({ meta, streaming = false }: { meta: MetaTurno | nul
     <div className={s.vueltas} data-meta-vueltas data-tts-exclude>
       <button type="button" className={s.abrir} aria-expanded={abierto} aria-controls={id} onClick={() => setAbierto(a => !a)}>
         <Target aria-hidden className={s.icono} />
-        <span className={s.abrirTexto}>{resumenMeta(meta, streaming)}</span>
+        <span className={s.abrirTexto}>{tr(resumenMeta(meta, streaming))}</span>
         <ChevronRight aria-hidden className={s.flecha} />
       </button>
-      {abierto && <div id={id} role="region" aria-label="Revisiones de la meta" className={s.cuerpo}>
-        <p className={s.condicion}>Condición: {condicionCorta(meta.condicion, 400)}</p>
+      {abierto && <div id={id} role="region" aria-label={tr('Revisiones de la meta')} className={s.cuerpo}>
+        <p className={s.condicion}>{tr('Condición: {condicion}', { condicion: condicionCorta(meta.condicion, 400) })}</p>
         {meta.vueltas.map((v, i) => (
           <div key={i} className={s.vuelta}>
-            <p className={s.motivo}>Revisión {i + 1}: {condicionCorta(v.motivo, 280)}</p>
+            <p className={s.motivo}>{tr('Revisión {n}: {motivo}', { n: i + 1, motivo: condicionCorta(v.motivo, 280) })}</p>
             {v.texto.trim() && <p className={s.texto}>{v.texto.trim()}</p>}
           </div>
         ))}
-        {meta.frenada === 'repeticion' && <p className={s.nota}>Arbrain frenó la meta: el mismo veredicto se repitió sin acción nueva. Vuelve a revisarse cuando escribas.</p>}
-        {meta.frenada === 'pausa' && <p className={s.nota}>La meta está en pausa: no se revisa hasta que la reanudes.</p>}
+        {meta.frenada === 'repeticion' && <p className={s.nota}>{tr('Arbrain frenó la meta: el mismo veredicto se repitió sin acción nueva. Vuelve a revisarse cuando escribas.')}</p>}
+        {meta.frenada === 'pausa' && <p className={s.nota}>{tr('La meta está en pausa: no se revisa hasta que la reanudes.')}</p>}
       </div>}
     </div>
   )
@@ -49,16 +50,16 @@ export function ChipMeta({ meta, ocupado = false, onPausar, onReanudar, onQuitar
   const pausada = meta.estado === 'pausada'
   const cerrada = meta.estado === 'cumplida'
   return (
-    <div className={s.chip} data-chip-meta={meta.estado} role="group" aria-label="Meta activa de la conversación">
+    <div className={s.chip} data-chip-meta={meta.estado} role="group" aria-label={tr('Meta activa de la conversación')}>
       <Target aria-hidden className={s.icono} />
-      <span className={s.chipMeta}>Meta</span>
+      <span className={s.chipMeta}>{tr('Meta')}</span>
       <span className={s.chipCondicion} title={meta.condicion}>{condicionCorta(meta.condicion)}</span>
-      <span className={s.estado} data-estado={meta.estado}><span className={s.punto} aria-hidden />{estadoEnPalabras(meta.estado)}</span>
+      <span className={s.estado} data-estado={meta.estado}><span className={s.punto} aria-hidden />{tr(estadoEnPalabras(meta.estado))}</span>
       <span className={s.acciones}>
         {!cerrada && (pausada
-          ? <button type="button" className={s.boton} onClick={onReanudar} disabled={ocupado}><Play size={12} aria-hidden />Reanudar</button>
-          : <button type="button" className={s.boton} onClick={onPausar} disabled={ocupado}><Pause size={12} aria-hidden />Pausar</button>)}
-        <button type="button" className={s.boton} onClick={onQuitar} disabled={ocupado} aria-label="Quitar la meta"><X size={12} aria-hidden />Quitar</button>
+          ? <button type="button" className={s.boton} onClick={onReanudar} disabled={ocupado}><Play size={12} aria-hidden />{tr('Reanudar')}</button>
+          : <button type="button" className={s.boton} onClick={onPausar} disabled={ocupado}><Pause size={12} aria-hidden />{tr('Pausar')}</button>)}
+        <button type="button" className={s.boton} onClick={onQuitar} disabled={ocupado} aria-label={tr('Quitar la meta')}><X size={12} aria-hidden />{tr('Quitar')}</button>
       </span>
     </div>
   )

@@ -9,6 +9,7 @@
 //
 // Sin estado propio: la espera sale de `attempts` y `updatedAt` de la fila (sobrevive a recargar la app).
 import type { SyncQueueItem } from './types'
+import { tr, trMarca } from '@/shared/i18n'
 
 export const SYNC_BASE_MS = 5_000
 export const SYNC_TOPE_MS = 10 * 60_000
@@ -48,13 +49,13 @@ export const conflictosPorResolver = (items: SyncQueueItem[], ahora = Date.now()
 export const irresolubles = (items: SyncQueueItem[]) =>
   items.filter(item => esDeSync(item) && (item.status === 'failed' || item.status === 'conflict') && item.attempts >= INTENTOS_PARA_SUBIR)
 
-const NOMBRE: Record<string, string> = { task: 'una tarea', calendar_event: 'un evento', drawing: 'un lienzo' }
+const NOMBRE: Record<string, string> = { task: trMarca('una tarea'), calendar_event: trMarca('un evento'), drawing: trMarca('un lienzo') }
 /** «No pude subir una tarea tras 8 intentos: <error>». */
 export function fraseIrresoluble(item: SyncQueueItem): { titulo: string; cuerpo: string } {
-  const que = NOMBRE[item.entityType] ?? 'un cambio'
+  const que = tr(NOMBRE[item.entityType] ?? trMarca('un cambio'))
   return {
-    titulo: `No pude sincronizar ${que}`,
-    cuerpo: `Lo intenté ${item.attempts} veces y sigue fallando${item.lastError ? `: ${item.lastError.slice(0, 200)}` : ''}. Tu cambio sigue guardado en este equipo; Levy lo revisa en Ajustes › Avanzado › Sincronización.`,
+    titulo: tr('No pude sincronizar {que}', { que }),
+    cuerpo: tr('Lo intenté {n} veces y sigue fallando{detalle}. Tu cambio sigue guardado en este equipo; Levy lo revisa en Ajustes › Avanzado › Sincronización.', { n: item.attempts, detalle: item.lastError ? `: ${item.lastError.slice(0, 200)}` : '' }),
   }
 }
 

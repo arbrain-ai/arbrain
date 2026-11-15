@@ -54,7 +54,7 @@ test('la UI monta el freno y la sección, y el panel de llaves muestra el tope (
   assert.match(fuente('src/app/(main)/dashboard-shell.tsx'), /EDICION_CLIENTE && <FrenoGeneral \/>/)
   assert.match(fuente('src/features/configuracion/components/ModalAjustes.tsx'), /seccion === 'seguridad' && <SeccionSeguridad \/>/)
   assert.match(fuente('src/features/primer-arranque/components/PanelLlaves.tsx'), /<TopeDeGasto/)
-  assert.match(fuente('src/features/configuracion/secciones.ts'), /secciones: \['llaves', 'voz', 'sinfiltro', 'telefono', 'maquinas', 'avisos', 'seguridad', 'privacidad', 'apariencia'\]/)
+  assert.match(fuente('src/features/configuracion/secciones.ts'), /secciones: \['llaves', 'idioma', 'voz', 'sinfiltro', 'telefono', 'maquinas', 'avisos', 'seguridad', 'privacidad', 'apariencia'\]/)
 })
 
 // v0.2.24: el modo directo es de la instalación original. En la edición cliente no existe /api/modo-directo; prender
@@ -74,7 +74,7 @@ test('autónomo: la web no trae frase ni «Sin preguntar»; los nombres de los n
   const daemon = fuente('server/src/cliente/modo-permisos.ts')
   assert.ok(!('FRASE_SIN_FRENO' in web))
   assert.deepEqual(web.FICHAS_MODO.map(f => f.modo), ['autonomo', 'carpeta', 'preguntar'])
-  for (const f of web.FICHAS_MODO) assert.match(daemon, new RegExp(`${f.modo}: '${f.nombre}'`), f.modo)
+  for (const f of web.FICHAS_MODO) assert.match(daemon, new RegExp(`${f.modo}: trMarca\\('${f.nombre}'\\)`), f.modo)
   assert.match(web.RED_MINIMA, /dinero/i)
 })
 

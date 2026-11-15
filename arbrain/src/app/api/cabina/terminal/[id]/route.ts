@@ -1,6 +1,7 @@
 import { planningOwner, planningError, checkMutationOrigin } from '@/lib/planning/server'
 import { ConexionMotor, MotorError, unaVez } from '@/lib/motor'
 import { recortarReplay } from '@/lib/replay'
+import { tr } from '@/shared/i18n'
 
 // Terminal VIVA del motor dentro del panel (panel-claridad, 1 oct 2026).
 // GET = flujo SSE: replay de la terminal y su salida en vivo (attach del motor).
@@ -12,7 +13,7 @@ export const dynamic = 'force-dynamic'
 
 const idDe = async (params: Promise<{ id: string }>) => {
   const id = Number((await params).id)
-  if (!Number.isInteger(id) || id < 0) throw new MotorError('Terminal inválida.')
+  if (!Number.isInteger(id) || id < 0) throw new MotorError(tr('Terminal inválida.'))
   return id
 }
 
@@ -34,12 +35,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       let replay: Buffer[] | null = []
       conexion.onDatos = (term, bytes) => { if (term !== id) return; if (replay) replay.push(bytes); else mandar({ t: 'datos', b64: bytes.toString('base64') }) }
       conexion.onEvento = e => { if (e.evt === 'exit' && e.id === id) { mandar({ t: 'fin', codigo: e.code ?? null }); terminar() } }
-      conexion.onCierre = () => { mandar({ t: 'error', msg: 'El motor cerró la conexión.' }); terminar() }
+      conexion.onCierre = () => { mandar({ t: 'error', msg: tr('El motor cerró la conexión.') }); terminar() }
       try {
         await conexion.abrir('arbrain-panel')
         const info = await conexion.op({ op: 'info' }, 8000)
         const term = (info.terms as { id: number; readonly: boolean; origin: string }[] | undefined)?.find(t => t.id === id)
-        if (!term) throw new MotorError('Esta terminal ya se cerró.')
+        if (!term) throw new MotorError(tr('Esta terminal ya se cerró.'))
         // El replay llega como DATA antes que la respuesta de attach: se manda «inicio» primero.
         mandar({ t: 'inicio', soloLectura: term.readonly, origen: term.origin })
         const r = await conexion.op({ op: 'attach', id })
@@ -49,7 +50,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         mandar({ t: 'tamano', cols: r.cols, rows: r.rows })
         latido = setInterval(() => { if (vivo) try { ctrl.enqueue(enc.encode(': latido\n\n')) } catch { vivo = false } }, 15_000)
       } catch (e) {
-        mandar({ t: 'error', msg: e instanceof Error ? e.message : 'El motor no respondió.' })
+        mandar({ t: 'error', msg: e instanceof Error ? e.message : tr('El motor no respondió.') })
         terminar()
       }
     },
@@ -65,12 +66,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const id = await idDe(params)
     const body = await request.json().catch(() => ({})) as { datos?: unknown; cols?: unknown; rows?: unknown }
     if (typeof body.datos === 'string') {
-      if (!body.datos || body.datos.length > 16_000) throw new MotorError('Entrada vacía o demasiado larga.')
+      if (!body.datos || body.datos.length > 16_000) throw new MotorError(tr('Entrada vacía o demasiado larga.'))
       await unaVez({ op: 'write', id, data: body.datos })
     } else if (typeof body.cols === 'number' && typeof body.rows === 'number') {
       const cols = Math.round(Math.min(Math.max(body.cols, 20), 400)), rows = Math.round(Math.min(Math.max(body.rows, 5), 200))
       await unaVez({ op: 'resize', id, cols, rows })
-    } else throw new MotorError('Nada que hacer.')
+    } else throw new MotorError(tr('Nada que hacer.'))
     return Response.json({ ok: true }, { headers: { 'Cache-Control': 'no-store' } })
   } catch (error) {
     if (error instanceof MotorError) return Response.json({ error: error.message }, { status: 409, headers: { 'Cache-Control': 'no-store' } })

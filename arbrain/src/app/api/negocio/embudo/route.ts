@@ -5,6 +5,7 @@ import { planningOwner, planningError } from '@/lib/planning/server'
 import { instalacion } from '@/config'
 import { medirFuente } from '@/lib/canvas/nervio-estado'
 import { motorDe, panelNegocioEncendido, RUTA_EMBUDO, validarEmbudo, type RespuestaEmbudo } from '@/features/negocio/embudo'
+import { tr } from '@/shared/i18n'
 
 // Tu negocio › El sistema (4 nov 2026, prototipo detrás de ARBRAIN_PANEL_NEGOCIO=1). Lee el embudo que escribió Levy
 // en la memoria (docs/embudo/README.md) y la última corrida de cada rutina launchd del Studio (las del scheduler las lee
@@ -41,7 +42,7 @@ export async function GET() {
     let crudo: unknown
     try { crudo = JSON.parse(await readFile(path.join(base, RUTA_EMBUDO), 'utf8')) } catch (e) {
       const falta = (e as NodeJS.ErrnoException)?.code === 'ENOENT'
-      return Response.json({ ...vacio, ...(falta ? {} : { errores: ['El archivo del embudo no es JSON válido.'] }) }, { headers: NOCACHE })
+      return Response.json({ ...vacio, ...(falta ? {} : { errores: [tr('El archivo del embudo no es JSON válido.')] }) }, { headers: NOCACHE })
     }
     const v = validarEmbudo(crudo)
     if (!v.ok) return Response.json({ ...vacio, errores: v.errores.slice(0, 12) }, { headers: NOCACHE })

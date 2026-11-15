@@ -34,6 +34,7 @@ import { JobRejected, type JobResult } from './supervisor.js'
 import type { CodexSelection } from './codex-pool.js'
 import type { ClaudeSelection } from './claude-selection.js'
 import type { ChatIntent } from './chat-intent.js'
+import { tr } from '../i18n/tr.js'
 
 export interface ChatJobInput {
   /** Internal target set only by the Consejo orchestrator, never copied from HTTP input. */
@@ -77,8 +78,8 @@ export async function executeChatJob(journal: ChatJournal, turn: TurnRecord, emi
   const native = isCodexAccount(account)
   // El flujo vivo de una respuesta espontánea solo existe en el proceso que la vio nacer.
   const spontaneous = input.spontaneous ? takeSpontaneous(turn.turnId) : undefined
-  if (input.spontaneous && !spontaneous) throw new JobRejected('La respuesta espontánea ya no está disponible en este proceso.')
-  if (!native && input.effort && !['low', 'medium', 'high', 'xhigh', 'max'].includes(input.effort)) throw new JobRejected('El esfuerzo seleccionado no está admitido por el adaptador Claude.')
+  if (input.spontaneous && !spontaneous) throw new JobRejected(tr('La respuesta espontánea ya no está disponible en este proceso.'))
+  if (!native && input.effort && !['low', 'medium', 'high', 'xhigh', 'max'].includes(input.effort)) throw new JobRejected(tr('El esfuerzo seleccionado no está admitido por el adaptador Claude.'))
   const sessionKey = `${turn.owner}:${turn.conversationId}::${turn.account}`
   const legacyKey = account ? `${turn.conversationId}::${account}` : turn.conversationId
   let sessionId = getSession(sessionKey) ?? input.sdkSessionId ?? getSession(legacyKey)
@@ -95,7 +96,7 @@ export async function executeChatJob(journal: ChatJournal, turn: TurnRecord, emi
   if (input.editOriginalText && sessionId) {
     if (!native) {
       const checkpoint = await computeRewindCheckpoint(sessionId, input.editOriginalText, input.editOccurrenceFromEnd ?? 1, account)
-      if (!checkpoint.found) throw new JobRejected('No se encontró el punto de edición; no se enviará con el contexto posterior.')
+      if (!checkpoint.found) throw new JobRejected(tr('No se encontró el punto de edición; no se enviará con el contexto posterior.'))
       rewindUuid = checkpoint.checkpointUuid
       if (!rewindUuid) { sessionId = undefined; freshClaudeSession = true }
     }
@@ -104,9 +105,9 @@ export async function executeChatJob(journal: ChatJournal, turn: TurnRecord, emi
   const imagePaths: string[] = []
   for (const url of input.imageUrl?.split('\n').filter(Boolean) ?? []) {
     const error = validarAdjunto(url)
-    if (error) throw new JobRejected(`Adjunto rechazado: ${error}`)
+    if (error) throw new JobRejected(tr('Adjunto rechazado: {error}', { error }))
     try { imagePaths.push(await downloadFromUrl(url)) }
-    catch { throw new JobRejected('No se pudo descargar un adjunto; el turno no se envió al motor.') }
+    catch { throw new JobRejected(tr('No se pudo descargar un adjunto; el turno no se envió al motor.')) }
   }
   // Imágenes: Claude las lee por ruta; Codex las recibe nativas (-i). Documentos (PDF, Word…): ambos por ruta en el texto.
   const documentPaths = imagePaths.filter(esDocumento)
@@ -286,7 +287,7 @@ export async function executeChatJob(journal: ChatJournal, turn: TurnRecord, emi
       })
     try { for await (const event of iterator) consume(event) }
     finally { capability?.close(); if (live) liveStore().end(liveScope, turn.turnId) }
-  if (uncertain) throw new Error('El resultado de la ejecución nativa es incierto.')
+  if (uncertain) throw new Error(tr('El resultado de la ejecución nativa es incierto.'))
   const status = confirmedInterrupt || (signal.aborted && !sawResult) ? 'interrupted' : confirmedFailure || snapshot.error || !sawResult ? 'failed' : 'completed'
   snapshot.status = status
   if (status === 'completed' && snapshot.text) { try { equipo?.marcar() } catch { /* se reintenta en el siguiente turno */ } }
@@ -296,12 +297,12 @@ export async function executeChatJob(journal: ChatJournal, turn: TurnRecord, emi
     for (const file of paths) {
       try { stagedAttachments.push(await stageAttachment(file, turn.turnId)) }
       catch (error) {
-        const message = error instanceof Error ? error.message : 'No se pudo preparar un adjunto.'
+        const message = error instanceof Error ? error.message : tr('No se pudo preparar un adjunto.')
         snapshot.artifactErrors.push(message)
         emit({ type: 'artifact_error', message })
       }
     }
-    if (paths.length) { snapshot.text = cleanText + (snapshot.artifactErrors.length ? '\n\nNo se pudo preparar uno de los adjuntos. El texto del resultado se conservó.' : ''); emit({ type: 'result', text: snapshot.text, terminalReason: status }) }
+    if (paths.length) { snapshot.text = cleanText + (snapshot.artifactErrors.length ? `\n\n${tr('No se pudo preparar uno de los adjuntos. El texto del resultado se conservó.')}` : ''); emit({ type: 'result', text: snapshot.text, terminalReason: status }) }
   }
   // Auxiliary indexes must not turn a confirmed model result into uncertain
   // execution. Preserve the result and expose the missing side effect durably.
@@ -310,10 +311,10 @@ export async function executeChatJob(journal: ChatJournal, turn: TurnRecord, emi
       const u = snapshot.usage
       saveQueryUsage({ sessionKey, costUsd: Number(u.costUsd), inputTokens: Number(u.inputTokens), outputTokens: Number(u.outputTokens), durationMs: Number(u.durationMs), numTurns: Number(u.numTurns) })
     }
-  } catch { snapshot.persistenceWarnings.push('No se pudo actualizar el índice de uso; el consumo del turno se conserva en su resultado.') }
+  } catch { snapshot.persistenceWarnings.push(tr('No se pudo actualizar el índice de uso; el consumo del turno se conserva en su resultado.')) }
   try {
     if (process.env.ARBRAIN_LIVE_CANARY !== '1' && input.deliveryTarget !== 'consejo' && !spontaneous && !input.despertador && status === 'completed' && snapshot.text) await saveConversationTurn(`${turn.owner}::${turn.account}`, input.message, snapshot.text)
-  } catch { snapshot.persistenceWarnings.push('No se pudo actualizar la memoria semántica; la conversación se conserva en su resultado.') }
+  } catch { snapshot.persistenceWarnings.push(tr('No se pudo actualizar la memoria semántica; la conversación se conserva en su resultado.')) }
   return {
     status, snapshot,
     payload: {

@@ -35,6 +35,7 @@ import { LLAVE_PARTE_MEMORIA } from '@/features/cabina/panel/MemoriaTaller'
 import { OcultoPorDirecto } from '@/features/modo-directo/ModoDirecto'
 import { rutaAppVetadaDirecto } from '@/lib/modo-directo/reglas'
 import { useDirecto } from '@/shared/stores/modo-directo-store'
+import { tr } from '@/shared/i18n'
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const { conversationsDrawerOpen, closeConversationsDrawer, toggleConversationsDrawer, drawFullscreen, libraryOpen, panelDerechoOpen } = useLayoutStore()
@@ -93,7 +94,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   // AI-first: crear tarea = pedírsela a Levy (el chat se abre con el draft listo).
   const askLevy = useAskLevy()
   const handleCreateTask = useCallback(() => {
-    askLevy('Crea una tarea: ')
+    askLevy(tr('Crea una tarea: '))
   }, [askLevy])
 
   const handleShowHelp = useCallback(() => {
@@ -355,8 +356,8 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           <button
             onClick={() => useBarras.getState().alternarConversaciones()}
             className="solo-escritorio icon-btn absolute left-1 top-1/2 z-30 flex size-7 -translate-y-1/2"
-            title="Mostrar las conversaciones (⌘⇧B)"
-            aria-label="Mostrar las conversaciones"
+            title={tr('Mostrar las conversaciones (⌘⇧B)')}
+            aria-label={tr('Mostrar las conversaciones')}
           >
             <ChevronRight size={14} />
           </button>
@@ -364,7 +365,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
         {!isMobile && !drawFullscreen && verConversaciones && (
           <aside
-            aria-label="Conversaciones"
+            aria-label={tr('Conversaciones')}
             className={`solo-escritorio relative z-10 flex shrink-0 flex-col overflow-visible border-r border-border-subtle bg-surface/90 shadow-depth-rest-soft backdrop-blur-xl ${barra.arrastrando ? '' : 'transition-[width] duration-300 ease-in-out'}`}
             style={{ height: alturaEscritorio, width: barra.ancho }}
           >
@@ -372,8 +373,8 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                 su padre). Debajo del botón de esconder (z-20) para que ese siga a mano. */}
             <div
               role="separator" aria-orientation="vertical" tabIndex={0}
-              aria-label="Cambiar el ancho de la columna de conversaciones" aria-valuenow={barra.ancho} aria-valuemin={BARRA_MIN} aria-valuemax={BARRA_MAX}
-              title="Arrastra para cambiar el ancho · doble clic para volver al tamaño inicial"
+              aria-label={tr('Cambiar el ancho de la columna de conversaciones')} aria-valuenow={barra.ancho} aria-valuemin={BARRA_MIN} aria-valuemax={BARRA_MAX}
+              title={tr('Arrastra para cambiar el ancho · doble clic para volver al tamaño inicial')}
               onPointerDown={barra.empezar} onKeyDown={barra.teclas} onDoubleClick={barra.restablecer}
               className="group/divisor absolute -right-[5px] top-0 bottom-0 z-10 w-2.5 cursor-col-resize touch-none outline-none"
             >
@@ -382,8 +383,8 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             <button
               onClick={() => useBarras.getState().alternarConversaciones()}
               className="icon-btn absolute -right-3 top-1/2 z-20 flex size-7 -translate-y-1/2"
-              title="Esconder las conversaciones"
-              aria-label="Esconder las conversaciones"
+              title={tr('Esconder las conversaciones')}
+              aria-label={tr('Esconder las conversaciones')}
             >
               <ChevronLeft size={14} />
             </button>
@@ -399,7 +400,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             <aside
               inert={!conversationsDrawerOpen}
               aria-hidden={!conversationsDrawerOpen}
-              aria-label="Conversaciones"
+              aria-label={tr('Conversaciones')}
               className={`${conversationsDrawerOpen ? cajonAbierto : '-translate-x-full'} ${cajonMovil}`}
               style={{ height: 'var(--app-h, var(--ui-zoomed-app-h, 100dvh))' }}
             >

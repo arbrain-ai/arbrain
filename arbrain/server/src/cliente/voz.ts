@@ -10,6 +10,8 @@
 import { speechProviders, type SpeechProvider } from '../live/transcribe.js'
 import { llaveVoz } from './cofre.js'
 import { a16k, leerWav, marcasLemonfox, transcribirConTiempos, wav, type Marca } from './marcas-groq.js'
+import { idiomaInstalacion, type Idioma } from '../idioma.js'
+import { tr } from '../i18n/tr.js'
 
 export function proveedoresVoz(cliente: boolean, envArchivo: () => Record<string, string | undefined>, llave: string | undefined = llaveVoz()): SpeechProvider[] {
   if (cliente) return speechProviders({ GROQ_API_KEY: llave })
@@ -25,20 +27,20 @@ const MODELOS = 'https://api.groq.com/openai/v1/models'
  * la llave ni el cuerpo crudo del proveedor.
  */
 export async function probarLlaveVoz(llave: string | undefined, transport: typeof fetch = fetch): Promise<PruebaVoz> {
-  if (!llave?.trim()) return { ok: false, code: 'falta_llave', error: 'Tu Arbrain todavía no ve la llave de Groq.' }
+  if (!llave?.trim()) return { ok: false, code: 'falta_llave', error: tr('Tu Arbrain todavía no ve la llave de Groq.') }
   const t0 = Date.now()
   try {
     const r = await transport(MODELOS, { headers: { Authorization: `Bearer ${llave.trim()}` }, signal: AbortSignal.timeout(10_000) })
     await r.body?.cancel().catch(() => {})
     if (r.ok) return { ok: true, ms: Date.now() - t0 }
-    if (r.status === 401 || r.status === 403) return { ok: false, code: 'llave_invalida', error: 'Groq no reconoce esa llave.' }
-    if (r.status === 429) return { ok: false, code: 'saturado', error: 'Groq está ocupado. Tu llave está bien; prueba en un minuto.' }
-    return { ok: false, code: 'error', error: `Groq respondió ${r.status}.` }
+    if (r.status === 401 || r.status === 403) return { ok: false, code: 'llave_invalida', error: tr('Groq no reconoce esa llave.') }
+    if (r.status === 429) return { ok: false, code: 'saturado', error: tr('Groq está ocupado. Tu llave está bien; prueba en un minuto.') }
+    return { ok: false, code: 'error', error: tr('Groq respondió {estado}.', { estado: r.status }) }
   } catch (e) {
     const nombre = (e as Error)?.name
     return nombre === 'TimeoutError' || nombre === 'AbortError'
-      ? { ok: false, code: 'tiempo', error: 'Groq tardó demasiado en responder.' }
-      : { ok: false, code: 'sin_red', error: 'No hay conexión con Groq.' }
+      ? { ok: false, code: 'tiempo', error: tr('Groq tardó demasiado en responder.') }
+      : { ok: false, code: 'sin_red', error: tr('No hay conexión con Groq.') }
   }
 }
 
@@ -50,6 +52,14 @@ export async function probarLlaveVoz(llave: string | undefined, transport: typeo
  * cae a la mejor voz del sistema (chat-speech.ts › currentVoice). Nunca devuelve la llave ni el cuerpo crudo del proveedor.
  */
 export const VOZ_LEMONFOX = 'alex'
+/**
+ * Ajustes › Idioma en English (13 nov 2026): una voz masculina de inglés de EE. UU. de LemonFox (Levy es él), con el
+ * mismo motor. `language` de LemonFox: 'es' o 'en-us'.
+ */
+export const VOZ_LEMONFOX_EN = 'fenrir'
+export function vozLemonfox(idioma: Idioma): { voice: string; language: string } {
+  return idioma === 'en' ? { voice: VOZ_LEMONFOX_EN, language: 'en-us' } : { voice: VOZ_LEMONFOX, language: 'es' }
+}
 const SPEECH = 'https://api.lemonfox.ai/v1/audio/speech'
 
 /**
@@ -66,20 +76,21 @@ export type HablaLemonfox =
  * del archivo es la N que suena; el MP3 mete un relleno de arranque que cada decodificador recorta a su manera) y Groq
  * dice dónde cae cada palabra. Sin llave de Groq, o si no lo pide el lector, el MP3 de siempre.
  */
-export async function hablarLemonfox(texto: string, tempo: number | undefined, llave: string | undefined, transport: typeof fetch = fetch, opciones: { marcas?: boolean; llaveGroq?: string } = {}): Promise<HablaLemonfox | null> {
+export async function hablarLemonfox(texto: string, tempo: number | undefined, llave: string | undefined, transport: typeof fetch = fetch, opciones: { marcas?: boolean; llaveGroq?: string; idioma?: Idioma } = {}): Promise<HablaLemonfox | null> {
   if (!llave?.trim()) return null
   const velocidad = typeof tempo === 'number' && Number.isFinite(tempo) ? Math.min(3, Math.max(0.5, tempo)) : 1
   const conMarcas = !!opciones.marcas && !!opciones.llaveGroq?.trim()
+  const idioma = opciones.idioma ?? idiomaInstalacion()
   try {
     const r = await transport(SPEECH, {
       method: 'POST',
       headers: { Authorization: `Bearer ${llave.trim()}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ input: texto, voice: VOZ_LEMONFOX, language: 'es', speed: velocidad, response_format: conMarcas ? 'wav' : 'mp3' }),
+      body: JSON.stringify({ input: texto, ...vozLemonfox(idioma), speed: velocidad, response_format: conMarcas ? 'wav' : 'mp3' }),
       signal: AbortSignal.timeout(45_000),
     })
     if (!r.ok) {
       await r.body?.cancel().catch(() => {})
-      const error = r.status === 401 || r.status === 403 ? 'LemonFox no reconoce tu llave.' : r.status === 402 ? 'Tu cuenta de LemonFox no tiene saldo.' : r.status === 429 ? 'LemonFox está ocupado.' : `LemonFox respondió ${r.status}.`
+      const error = r.status === 401 || r.status === 403 ? tr('LemonFox no reconoce tu llave.') : r.status === 402 ? tr('Tu cuenta de LemonFox no tiene saldo.') : r.status === 429 ? tr('LemonFox está ocupado.') : tr('LemonFox respondió {estado}.', { estado: r.status })
       return { ok: false, status: r.status === 429 ? 429 : 502, error }
     }
     const audio = Buffer.from(await r.arrayBuffer())
@@ -87,12 +98,12 @@ export async function hablarLemonfox(texto: string, tempo: number | undefined, l
     const pcm = leerWav(audio)
     if (!pcm) return { ok: true, audio, tempo: velocidad, tipo: audio.toString('ascii', 0, 4) === 'RIFF' ? 'audio/wav' : 'audio/mpeg', marcas: null, sinMarcas: 'audio_no_wav' }
     const limpio = wav(pcm.s16, pcm.sr)
-    const g = await transcribirConTiempos(wav(a16k(pcm.pcm, pcm.sr), 16_000), opciones.llaveGroq!, transport)
+    const g = await transcribirConTiempos(wav(a16k(pcm.pcm, pcm.sr), 16_000), opciones.llaveGroq!, transport, undefined, idioma)
     if ('error' in g) return { ok: true, audio: limpio, tempo: velocidad, tipo: 'audio/wav', marcas: null, sinMarcas: g.error }
     const marcas = marcasLemonfox(texto, g.palabras, pcm.pcm, pcm.sr)
     return { ok: true, audio: limpio, tempo: velocidad, tipo: 'audio/wav', marcas, ...(marcas ? {} : { sinMarcas: 'groq_no_reconocio' }) }
   } catch (e) {
     const nombre = (e as Error)?.name
-    return { ok: false, status: 503, error: nombre === 'TimeoutError' || nombre === 'AbortError' ? 'LemonFox tardó demasiado.' : 'No hay conexión con LemonFox.' }
+    return { ok: false, status: 503, error: nombre === 'TimeoutError' || nombre === 'AbortError' ? tr('LemonFox tardó demasiado.') : tr('No hay conexión con LemonFox.') }
   }
 }

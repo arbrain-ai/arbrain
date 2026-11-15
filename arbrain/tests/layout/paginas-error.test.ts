@@ -12,7 +12,7 @@ const APP = join(__dirname, '..', '..', 'src', 'app')
 test('las tres páginas propias existen (sin ellas se ve la página por defecto de Next)', () => {
   for (const f of ['error.tsx', 'global-error.tsx', 'not-found.tsx']) assert.ok(existsSync(join(APP, f)), f)
   const global = readFileSync(join(APP, 'global-error.tsx'), 'utf8')
-  assert.match(global, /<html lang="es">/)
+  assert.match(global, /<html lang=\{idiomaActual\(\)\}>/)
   assert.match(global, /<body/)
   for (const f of ['error.tsx', 'global-error.tsx']) assert.match(readFileSync(join(APP, f), 'utf8'), /^'use client'/)
 })
@@ -68,6 +68,6 @@ test('temaPantallaSistema: claro solo si se eligió a mano y sigue vigente; el t
 test('sin-sesion usa el mismo material: «Entrar» es la tecla ámbar, no el morado plano', () => {
   const f = readFileSync(join(APP, 'sin-sesion', 'page.tsx'), 'utf8')
   assert.match(f, /<PantallaSistema/)
-  assert.match(f, /className="ps-tecla w-full">Entrar</)
+  assert.match(f, /className="ps-tecla w-full">\{tr\('Entrar'\)\}</)
   assert.doesNotMatch(f, /bg-brand/)
 })

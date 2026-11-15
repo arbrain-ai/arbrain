@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { dirname, join } from 'path'
 import { STORE_DIR } from '../config.js'
+import { tr } from '../i18n/tr.js'
 
 /**
  * La meta (`/goal`) de Claude Code vista desde Arbrain (27 oct 2026, Goal UX).
@@ -208,7 +209,7 @@ export function comandoMetaNativo(message: string): { accion: 'quitar' } | { acc
 export function textoComandoLocal(accion: 'pausar' | 'reanudar', estado: EstadoConversacion | null): string {
   const cond = estado?.condicion ? ` «${estado.condicion.length > 140 ? `${estado.condicion.slice(0, 140)}…` : estado.condicion}»` : ''
   return accion === 'pausar'
-    ? `**Meta en pausa**${cond}. No vuelvo a revisarla hasta que la reanudes; tus mensajes se contestan normal.`
-    : `**Meta reanudada**${cond}. Sigo revisándola al terminar cada respuesta.`
+    ? tr('**Meta en pausa**{condicion}. No vuelvo a revisarla hasta que la reanudes; tus mensajes se contestan normal.', { condicion: cond })
+    : tr('**Meta reanudada**{condicion}. Sigo revisándola al terminar cada respuesta.', { condicion: cond })
 }
 

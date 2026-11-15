@@ -86,8 +86,11 @@ const CARA_DE: Record<LoopStatus, [string, { blendWith: string; amount: number }
   speaking: ['calida'],
 }
 
-export function LevyFace({ className = '', status = 'idle', engineRef, segmentsRef, voiceRef, framing = 'portrait', agent = 'levy' }: {
+export function LevyFace({ className = '', status = 'idle', engineRef, segmentsRef, voiceRef, framing = 'portrait', agent = 'levy', vivo: vivoPedido }: {
   agent?: CaraAgente
+  /** La cara de los videos (oficial + atlas + movimiento del 3D). Live la decide por su preferencia (13 nov 2026); sin
+   *  prop, manda la bandera `levyVivo` como antes (el sello del chat y el Command Center no cambian). */
+  vivo?: boolean
   className?: string
   framing?: 'portrait' | 'camera'
   voiceRef?: RefObject<LivePcmPlayer | null>
@@ -97,8 +100,9 @@ export function LevyFace({ className = '', status = 'idle', engineRef, segmentsR
 }) {
   const cara = CARAS[agent]
   // Bandera Levy vivo: se lee al montar (localStorage), nunca en el servidor; apagada todo queda como antes.
-  const [vivoOn, setVivoOn] = useState(false)
-  useEffect(() => { setVivoOn(levyVivoActivo()) }, [])
+  const [banderaVivo, setBanderaVivo] = useState(false)
+  useEffect(() => { setBanderaVivo(levyVivoActivo()) }, [])
+  const vivoOn = vivoPedido ?? banderaVivo
   const vivo = vivoOn ? cara.vivo ?? null : null
   const retrato = vivo?.retrato ?? cara.retrato
   const canvasRef = useRef<HTMLCanvasElement>(null)

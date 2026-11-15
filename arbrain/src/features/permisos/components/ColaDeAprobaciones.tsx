@@ -18,10 +18,10 @@ import { TarjetaComando, useDecision } from '@/features/chat/components/TarjetaC
 import { desdeCuando, enLaCola, resumenCorrida, type Confirmacion } from '../lib/confirmacion'
 import { registrarColaVisible, seVeEnUnHilo, usePendientes } from '../lib/pendientes'
 import s from './cola.module.css'
+import { tr, trn } from '@/shared/i18n'
 
 const VISTAS = 'arbrain.cola.vistas'
-const cuantas = (n: number) => n === 1 ? 'una decisión' : `${n} decisiones`
-const esperan = (n: number) => `Te ${n === 1 ? 'espera' : 'esperan'} ${cuantas(n)}`
+const esperan = (n: number) => trn(n, 'Te espera una decisión', 'Te esperan {n} decisiones')
 /** Ancho desde el que el panel es una columna propia junto al chat (lo empuja); abajo, una pantalla propia. */
 const COLUMNA_DESDE = 1024
 
@@ -51,13 +51,13 @@ export function FichaCola({ c, abierta: abiertaInicial = false }: { c: Confirmac
   const cuando = c.enColaDesde ? desdeCuando(c.enColaDesde) : null
   // Autónomo en rutinas (0.2.15, decisión 5): lo que una rutina quiso enviar o publicar sin la persona delante es un borrador.
   const borrador = c.origen === 'cron' && (c.categoria === 'enviar' || c.categoria === 'publicar')
-  const linea = listo ? fin!.titulo : corriendo ? 'Corriendo en tu terminal' : (c.frase || c.resumen)
-  const sub = listo ? (c.frase || c.resumen) : corriendo ? 'Escribe en el recuadro negro de abajo' : `${borrador ? 'Borrador de tu rutina: sale solo con tu clic' : manos ? 'Necesita tus manos' : peligro ? 'Siempre pide tu clic' : 'Un comando'}${cuando ? ` · ${cuando}` : ''}`
+  const linea = listo ? fin!.titulo : corriendo ? tr('Corriendo en tu terminal') : tr(c.frase || c.resumen)
+  const sub = listo ? tr(c.frase || c.resumen) : corriendo ? tr('Escribe en el recuadro negro de abajo') : `${borrador ? tr('Borrador de tu rutina: sale solo con tu clic') : manos ? tr('Necesita tus manos') : peligro ? tr('Siempre pide tu clic') : tr('Un comando')}${cuando ? ` · ${cuando}` : ''}`
   const rapida = !manos && !peligro && !listo && !corriendo
   return (
     <article className={s.ficha} data-abierta={abierta ? 'si' : undefined} data-peligro={peligro ? 'si' : undefined} data-fin={listo ? (fin?.ok === false ? 'error' : 'ok') : undefined}>
       <div className={s.fila}>
-        <button type="button" className={s.toque} onClick={() => setAbierta(v => !v)} aria-expanded={abierta} aria-label={`${linea}. ${abierta ? 'Cerrar' : 'Ver el detalle'}`}>
+        <button type="button" className={s.toque} onClick={() => setAbierta(v => !v)} aria-expanded={abierta} aria-label={`${linea}. ${abierta ? tr('Cerrar') : tr('Ver el detalle')}`}>
           <span className={s.fichaIcono} aria-hidden><Icono size={15} className={corriendo ? 'animate-spin' : undefined} /></span>
           <span className={s.titulos}>
             <span className={s.fichaLinea}>{linea}</span>
@@ -66,11 +66,11 @@ export function FichaCola({ c, abierta: abiertaInicial = false }: { c: Confirmac
           <ChevronDown size={16} className={s.flecha} data-abierta={abierta ? 'si' : undefined} aria-hidden />
         </button>
         {!abierta && (rapida ? (
-          <button type="button" className={s.accion} disabled={!armado || !!ocupado} onClick={alClic('una')} title="Solo con un clic: el teclado no aprueba acciones">
-            {ocupado === 'una' ? <Loader2 size={14} className="animate-spin" aria-hidden /> : <Play size={14} aria-hidden />} Una vez
+          <button type="button" className={s.accion} disabled={!armado || !!ocupado} onClick={alClic('una')} title={tr('Solo con un clic: el teclado no aprueba acciones')}>
+            {ocupado === 'una' ? <Loader2 size={14} className="animate-spin" aria-hidden /> : <Play size={14} aria-hidden />} {tr('Una vez')}
           </button>
         ) : !listo && !corriendo && (
-          <button type="button" className={s.revisar} onClick={() => setAbierta(true)}>Revisar</button>
+          <button type="button" className={s.revisar} onClick={() => setAbierta(true)}>{tr('Revisar')}</button>
         ))}
       </div>
       {abierta && <div className={s.detalle}><TarjetaComando c={c} incrustada /></div>}
@@ -124,12 +124,12 @@ export function ColaDelHilo({ conversationId }: { conversationId?: string | null
   if (!conversationId || !cola.length) return null
   const vivas = cola.filter(c => c.estado !== 'corrida').length
   return (
-    <section ref={ancla} className={s.hilo} aria-label="Tu cola de aprobaciones en esta conversación">
+    <section ref={ancla} className={s.hilo} aria-label={tr('Tu cola de aprobaciones en esta conversación')}>
       <button type="button" className={s.cabeza} onClick={() => setAbierta(v => !v)} aria-expanded={abierta}>
         <span className={s.icono} aria-hidden><Inbox size={15} /></span>
         <span className={s.titulos}>
-          <span className={s.titulo}>{vivas ? esperan(vivas) : 'Tu cola está al día'}</span>
-          <span className={s.sub}>{vivas ? 'Levy siguió con lo demás. Cuando decidas, retoma esa parte.' : 'Levy ya tiene lo que decidiste.'}</span>
+          <span className={s.titulo}>{vivas ? esperan(vivas) : tr('Tu cola está al día')}</span>
+          <span className={s.sub}>{vivas ? tr('Levy siguió con lo demás. Cuando decidas, retoma esa parte.') : tr('Levy ya tiene lo que decidiste.')}</span>
         </span>
         <ChevronDown size={16} className={s.flecha} data-abierta={abierta ? 'si' : undefined} aria-hidden />
       </button>
@@ -218,10 +218,10 @@ export function ContadorCola() {
   const fija = lugarFranja === document.body
   return createPortal(
     <div className={s.franja} data-fija={fija ? 'si' : undefined}>
-      <button type="button" className={s.franjaBoton} onClick={() => setAbierto(true)} aria-label={`Tu cola: ${esperan(vivas.length)}`}>
+      <button type="button" className={s.franjaBoton} onClick={() => setAbierto(true)} aria-label={tr('Tu cola: {cuantas}', { cuantas: esperan(vivas.length) })}>
         <span className={s.cuenta} aria-hidden>{vivas.length}</span>
-        <span className={s.franjaTexto}>{esperan(vivas.length)} de Levy</span>
-        <span className={s.franjaVer}>Ver</span>
+        <span className={s.franjaTexto}>{tr('{cuantas} de Levy', { cuantas: esperan(vivas.length) })}</span>
+        <span className={s.franjaVer}>{tr('Ver')}</span>
       </button>
     </div>, lugarFranja)
 }
@@ -237,18 +237,18 @@ function PanelCola({ cola, vivas, modo, cerrar }: { cola: Confirmacion[]; vivas:
     <aside className={s.panel} data-modo={modo} role={pantalla ? 'dialog' : 'complementary'} aria-modal={pantalla ? true : undefined} aria-labelledby="cola-titulo">
       <header className={s.panelCabeza}>
         {pantalla
-          ? <button type="button" className={s.cerrar} onClick={cerrar} aria-label="Volver (la cola sigue aquí)"><ArrowLeft size={18} /></button>
+          ? <button type="button" className={s.cerrar} onClick={cerrar} aria-label={tr('Volver (la cola sigue aquí)')}><ArrowLeft size={18} /></button>
           : <span className={s.icono} aria-hidden><Inbox size={16} /></span>}
         <div className={s.titulos}>
-          <h2 id="cola-titulo" className={s.panelTitulo}>Mientras no estabas</h2>
-          <p className={s.sub}>{vivas ? `${esperan(vivas)}. Levy siguió con lo demás; nada de esto se hizo sin ti.` : 'Al día: Levy ya tiene lo que decidiste.'}</p>
+          <h2 id="cola-titulo" className={s.panelTitulo}>{tr('Mientras no estabas')}</h2>
+          <p className={s.sub}>{vivas ? tr('{cuantas}. Levy siguió con lo demás; nada de esto se hizo sin ti.', { cuantas: esperan(vivas) }) : tr('Al día: Levy ya tiene lo que decidiste.')}</p>
         </div>
-        {!pantalla && <button type="button" className={s.cerrar} onClick={cerrar} aria-label="Cerrar la cola (sigue aquí)" title="Luego: la cola sigue aquí"><X size={16} /></button>}
+        {!pantalla && <button type="button" className={s.cerrar} onClick={cerrar} aria-label={tr('Cerrar la cola (sigue aquí)')} title={tr('Luego: la cola sigue aquí')}><X size={16} /></button>}
       </header>
       <div className={s.panelLista}>{cola.map(c => <FichaCola key={c.id} c={c} />)}</div>
       <footer className={s.panelPie}>
-        <button type="button" className={s.luego} onClick={cerrar}>Luego</button>
-        <span>Nada se hace solo: lo que no decidas te espera aquí hasta una semana.</span>
+        <button type="button" className={s.luego} onClick={cerrar}>{tr('Luego')}</button>
+        <span>{tr('Nada se hace solo: lo que no decidas te espera aquí hasta una semana.')}</span>
       </footer>
     </aside>
   )
