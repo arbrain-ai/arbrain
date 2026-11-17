@@ -1,9 +1,9 @@
 {
   "generador": "arbrain/empaquetado/generador",
   "origen": {
-    "ref": "1ef2bd8895852c415378046fc6f25ea2ffbdc74b",
-    "commit": "1ef2bd8895852c415378046fc6f25ea2ffbdc74b",
-    "fecha": "2026-11-16T18:56:24-06:00"
+    "ref": "86af6cbe20bf9bd2bf20540a94a6ced3600ab2cc",
+    "commit": "86af6cbe20bf9bd2bf20540a94a6ced3600ab2cc",
+    "fecha": "2026-11-16T19:05:30-06:00"
   },
   "version": "0.2.28",
   "allowlist": {
@@ -19399,8 +19399,8 @@
       "origen": "arbrain/tests/planning/zonas.test.ts"
     },
     "arbrain/tests/plataforma/lienzo-nunca-en-blanco.test.ts": {
-      "sha256": "e1e6ce678bc1839b36ff782957b1c3d7f2cffd76b02416bf92365e63720adab1",
-      "bytes": 2015,
+      "sha256": "f34e99cb42ba7795ad990f9f2a2d1b1643a6f722fb93b528c27fba674872838c",
+      "bytes": 2355,
       "modo": "644",
       "origen": "arbrain/tests/plataforma/lienzo-nunca-en-blanco.test.ts"
     },

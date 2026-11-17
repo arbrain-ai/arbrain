@@ -5,7 +5,7 @@
  */
 import { test } from 'node:test'
 import { strict as assert } from 'node:assert'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { avisoNoCreeLienzo, avisoNoLeiLienzos } from '../../src/features/canvas/ui/lienzo-avisos'
 
@@ -30,7 +30,10 @@ test('LienzoSeccion pinta el aviso y ya no confunde «no pude leer» con «no ha
 })
 
 test('la skill de lienzos del alumno usa la web de SU Arbrain y su pase, en cualquier sistema', () => {
-  const s = leer('empaquetado/plantillas/skills/canvas/SKILL.md')
+  // En el repo original la skill del alumno vive en empaquetado/plantillas/skills; en la copia del alumno ya es la
+  // .claude/skills de la raíz (el Windows real de la CI corre sobre la copia: ahí la primera ruta no existe).
+  const enRepo = 'empaquetado/plantillas/skills/canvas/SKILL.md'
+  const s = leer(existsSync(path.join(WEB, enRepo)) ? enRepo : '../.claude/skills/canvas/SKILL.md')
   assert.doesNotMatch(s, /localhost:3000/)
   assert.match(s, /\$MISSION_CONTROL_ORIGIN\/api\/canvas/)
   assert.match(s, /Authorization: Bearer \$ARBRAIN_PASE_AGENTE/)
