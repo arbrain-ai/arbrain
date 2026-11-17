@@ -1,6 +1,8 @@
 ---
 name: tour-bienvenida
 description: "El recorrido de bienvenida de Levy en el chat: qué es cada parte de la app, su personalidad, la meta, el retrato, el contexto de hoy, la memoria, los manuales, las rutinas precargadas y el freno, por capítulos y una sola vez. Usar ante «el tour», «el recorrido», «retoma el tour», «otra vez el recorrido», «explícame la app», «qué es cada cosa», «repásame el capítulo de…», «qué hay de nuevo» o «novedades», y para editar el guion (guion.md)."
+metadata:
+  resumen: "El recorrido de bienvenida por tu Arbrain: qué es cada parte y cómo sacarle provecho. Dile «el tour»."
 ---
 
 # Tour de bienvenida

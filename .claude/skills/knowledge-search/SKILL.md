@@ -4,6 +4,7 @@ description: >
   Busca en .claude/knowledge/, el knowledge base compilado automaticamente de conversaciones. Usar cuando se necesite contexto de sesiones pasadas, decisiones previas, patrones, insights, lecciones aprendidas o Q&A compilado, y cuando el dueño diga knowledge, segundo cerebro, busca en el cerebro, que aprendimos, que decidimos, que hablamos de X, historial o decisiones pasadas. No confundir con memory-manager: este es automatico y no curado manualmente.
 allowed-tools: Bash(cat *), Read, Glob, Grep
 metadata:
+  resumen: "Busca en lo que ya platicaron: decisiones, aprendizajes y respuestas de conversaciones pasadas."
   author: levy
   version: "1.0"
   project: artificial-brain

@@ -1,6 +1,8 @@
 ---
 name: goal-compiler
 description: "Convertir una intención ambiciosa en un spec y un prompt verificable para /goal. Usar para compilar o elevar prompts, elegir loop o grafo y definir criterios de calidad con referentes y crítica A/B. Diseña el contrato de ejecución; no ejecuta el proyecto por invocarlo."
+metadata:
+  resumen: "Convierte una idea ambiciosa en un encargo claro y comprobable para que Levy lo trabaje de principio a fin."
 ---
 
 # Goal Compiler — De ambicion vaga a prompt soberano para `/goal`

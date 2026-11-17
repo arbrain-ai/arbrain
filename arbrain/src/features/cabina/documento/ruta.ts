@@ -4,6 +4,7 @@
  * validar porque es la que lee y escribe). Puro: sin fs, para poder probarlo y usarlo en el cliente.
  */
 import { tr } from '@/shared/i18n'
+import { conBarras, dentroDe, esAbsolutaPortable } from '@/lib/ruta-portable'
 export type TipoDocumento = 'md' | 'txt' | 'html' | 'mermaid' | 'imagen' | 'video' | 'audio' | 'pdf' | 'docx' | 'xlsx' | 'csv' | 'carpeta' | 'codigo' | 'otro'
 
 const EXT: Record<string, TipoDocumento> = {
@@ -15,7 +16,7 @@ const EXT: Record<string, TipoDocumento> = {
 }
 const CODIGO = /^(ts|tsx|js|jsx|mjs|cjs|py|swift|json|jsonc|yaml|yml|toml|sh|zsh|bash|rb|go|rs|java|kt|c|h|cpp|hpp|m|mm|css|scss|sql|plist|xml|lock|env|ini|cfg|conf|vue|svelte|php|lua|dart|r|ipynb)$/
 
-const extDe = (ruta: string) => { const b = ruta.split('/').pop() ?? ''; const i = b.lastIndexOf('.'); return i > 0 ? b.slice(i + 1).toLowerCase() : '' }
+const extDe = (ruta: string) => { const b = ruta.split(/[\\/]/).pop() ?? ''; const i = b.lastIndexOf('.'); return i > 0 ? b.slice(i + 1).toLowerCase() : '' }
 export function tipoDocumento(ruta: string): TipoDocumento { const e = extDe(ruta); return EXT[e] ?? (CODIGO.test(e) ? 'codigo' : 'otro') }
 export const editable = (t: TipoDocumento) => t === 'md' || t === 'txt'
 
@@ -24,23 +25,31 @@ const NOMBRE_VETADO = /^\.env|^\.netrc$|^\.npmrc$|^id_(rsa|ed25519|ecdsa|dsa)|\.
 
 /** ¿Alguna parte de la ruta es una carpeta de credenciales o tiene nombre de llave o credencial? Más estricta que `rutaPermitida`, que solo mira el nombre del archivo (también lo usa el explorador, 8 oct 2026) */
 export function pareceSecreto(ruta: string): boolean {
-  const partes = ruta.split('/').filter(Boolean)
+  const partes = ruta.split(/[\\/]/).filter(Boolean)
   return partes.some(p => CARPETA_VETADA.test(p) || NOMBRE_VETADO.test(p))
 }
 
-/** Normaliza una ruta absoluta POSIX sin tocar disco (quita `.` y dobles barras; `..` ya se rechazó). */
-function normal(abs: string) { return '/' + abs.split('/').filter(p => p && p !== '.').join('/') }
+/**
+ * Normaliza una ruta absoluta sin tocar disco (quita `.` y dobles barras; `..` ya se rechazó). POSIX queda `/…`; Windows
+ * (16 nov 2026) queda `C:/…` o `//srv/…` con barras normales (lib/ruta-portable.ts): antes salía `/C:\…` y nada coincidía.
+ */
+function normal(abs: string) {
+  const a = conBarras(abs)
+  const unidad = /^[A-Za-z]:\//.exec(a)?.[0] ?? (a.startsWith('//') ? '//' : '/')
+  return unidad + a.slice(unidad.length).split('/').filter(p => p && p !== '.').join('/')
+}
 
 export interface Raices { repo: string; home: string }
 /** Carpetas del dueño donde viven sus grabaciones, entregas y papeles (8 oct 2026: «ábreme esto» no debe exigir mover el archivo). */
 export const CARPETAS_DEL_DUENO = ['Movies', 'Desktop', 'Downloads', 'Documents', 'Pictures', 'Music']
 export const permitidas = (r: Raices) => [r.repo, `${r.home}/Developer`, '/tmp', '/private/tmp', ...CARPETAS_DEL_DUENO.map(c => `${r.home}/${c}`)]
-const dentro = (abs: string, base: string) => abs === base || abs.startsWith(base.endsWith('/') ? base : base + '/')
+/** Contenida en `base`: en Windows con barras normales y sin distinguir mayúsculas (lib/ruta-portable.ts). */
+const dentro = dentroDe
 
 /** ¿Una ruta absoluta (ya resuelta) está en las raíces permitidas y lejos de credenciales? null = sí. */
 export function rutaPermitida(abs: string, r: Raices): string | null {
   if (!permitidas(r).some(b => dentro(abs, b))) return tr('Solo se muestran archivos del repo, de ~/Developer, de /tmp o de las carpetas del dueño (Movies, Desktop, Downloads, Documents, Pictures, Music).')
-  const partes = abs.split('/')
+  const partes = conBarras(abs).split('/')
   if (partes.some(p => CARPETA_VETADA.test(p))) return tr('Esa carpeta guarda credenciales: no se muestra.')
   if (NOMBRE_VETADO.test(partes[partes.length - 1] ?? '')) return tr('Ese archivo parece una llave o credencial: no se muestra.')
   return null
@@ -51,14 +60,16 @@ export function resolverRuta(pedida: string, r: Raices): { abs: string } | { err
   const p = pedida.trim()
   if (!p || p.length > 1000 || p.includes('\0')) return { error: tr('Ruta inválida.') }
   if (p.split(/[\\/]/).includes('..')) return { error: tr('La ruta no puede subir con «..».') }
-  const abs = normal(p.startsWith('~/') ? `${r.home}/${p.slice(2)}` : p.startsWith('/') ? p : `${r.repo}/${p}`)
+  const abs = normal(p.startsWith('~/') ? `${r.home}/${p.slice(2)}` : esAbsolutaPortable(p) ? p : `${r.repo}/${p}`)
   const error = rutaPermitida(abs, r)
   return error ? { error } : { abs }
 }
 
 /** Hasta dónde puede pedir assets una página HTML: dos carpetas arriba de la suya (los pergaminos
  *  enlazan `../../enactivos/…`), sin pasar de la raíz del proyecto que la contiene. */
-export function alcanceDeAssets(abs: string, r: Raices): string {
+export function alcanceDeAssets(absPedida: string, raices: Raices): string {
+  // Windows: todo con barras normales para cortar por carpeta (lib/ruta-portable.ts).
+  const abs = conBarras(absPedida), r = { repo: conBarras(raices.repo), home: conBarras(raices.home) }
   const dir = abs.slice(0, abs.lastIndexOf('/')) || '/'
   const proyecto = dentro(abs, r.repo) ? r.repo
     : permitidas(r).slice(1).map(b => { if (!dentro(abs, b)) return null; const resto = abs.slice(b.length + 1).split('/'); return resto.length > 1 ? `${b}/${resto[0]}` : b }).find(Boolean) ?? dir

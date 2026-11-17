@@ -20,6 +20,7 @@ import { secretoDeFirma } from '@/lib/secreto-firma'
 export { ErrorDocumento, raices, resolverEnDisco } from './documento-disco'
 import { ErrorDocumento, raices } from './documento-disco'
 import { tr } from '@/shared/i18n'
+import { rutaAUrl } from '@/lib/ruta-portable'
 
 export const huella = (texto: string | Buffer) => createHash('sha256').update(texto).digest('hex').slice(0, 24)
 export const MAX_TEXTO = 1_000_000
@@ -69,7 +70,8 @@ export function verificar(token: string, ahora = Date.now()): string | null {
 
 /** URL servible de un archivo (HTML, imagen, video, portada) con acceso a su carpeta y alrededores. */
 export function urlCruda(real: string, alcance = alcanceDeAssets(real, raices())): string {
-  return `/api/cabina/documento/crudo/${firmar(alcance)}${real.split('/').map(encodeURIComponent).join('/')}`
+  // Windows (16 nov 2026): `C:\\…` viaja como `/C%3A/…`; antes salía pegado al token y el iframe quedaba en blanco.
+  return `/api/cabina/documento/crudo/${firmar(alcance)}${rutaAUrl(real)}`
 }
 
 // ── Visor único (8 oct 2026): sondeo de medios, carpeta de entrega, imágenes hermanas ──

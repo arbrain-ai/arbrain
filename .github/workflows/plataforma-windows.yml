@@ -1,0 +1,61 @@
+# Secciones de la app en Windows (16 nov 2026). Fuente: arbrain/empaquetado/ci/workflows/plataforma-windows.yml del repo
+# fuente; el generador lo copia a .github/workflows/ de la copia del alumno. En la copia no se edita: se regenera.
+#
+# Origen: un fundador en Windows: «algún panel acá, me quedó en blanco y era porque solamente funcionaba para Mac» y «los
+# lienzos todavía no los puedo usar mucho». La validación de rutas del visor, de las piezas del lienzo y del Taller asumía
+# rutas de Mac. Aquí corren en un Windows real las pruebas de arbrain/tests/plataforma, incluida la que crea un cerebro en
+# disco y lo resuelve con realpath (windows-disco-real.test.ts, que en Mac y Linux se salta). Minutos: tres o cuatro.
+name: Arbrain · secciones en Windows
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['ci-**', 'release/**']
+    paths:
+      - 'arbrain/src/features/cabina/documento/**'
+      - 'arbrain/src/features/cabina/archivos-cerebro.ts'
+      - 'arbrain/src/features/canvas/model/doc.ts'
+      - 'arbrain/src/features/canvas/ui/**'
+      - 'arbrain/src/features/pantalla/**'
+      - 'arbrain/src/lib/ruta-portable.ts'
+      - 'arbrain/src/lib/raiz-cerebro.ts'
+      - 'arbrain/src/lib/motor*.ts'
+      - 'arbrain/src/lib/cabina/documento-*.ts'
+      - 'arbrain/src/app/api/cabina/**'
+      - 'arbrain/src/app/api/canvas/**'
+      - 'arbrain/tests/plataforma/**'
+      - '.github/workflows/plataforma-windows.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: plataforma-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  secciones:
+    name: secciones del alumno · windows
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: arbrain/package-lock.json
+
+      - name: Dependencias de la web
+        working-directory: arbrain
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Pruebas por plataforma (rutas reales de Windows)
+        working-directory: arbrain
+        env:
+          ARBRAIN_EDICION: original
+          ARBRAIN_IDIOMA: es
+        run: npx --yes tsx --test "tests/plataforma/*.test.ts"

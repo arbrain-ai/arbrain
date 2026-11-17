@@ -1,6 +1,8 @@
 ---
 name: oferta
 description: "Arma con el dueño su oferta completa en las 11 piezas de una hoja (avatar, promesa, vehículo, nueva oportunidad, dolores y deseos, urgencia y escasez, diferenciación, bonos, garantía, precio, y pitch con su gran dominó) conversando: Levy pregunta, propone y afila; el dueño escribe primero y decide. Guarda en .claude/memory/project/mi-negocio/02-oferta.md. Usar ante «arma mi oferta», «vamos a armar mi oferta», «plantilla de oferta», «el one-sheeter de 11 piezas», «las 11 piezas», «ayúdame con mi promesa», «mi nueva oportunidad», «mi gran dominó», «mis bonos», «mi garantía», «cuánto cobro», «califica mi oferta», «¿mi oferta está lista?», «explícame el gran dominó» (o cualquier pieza) o cuando pegue una plantilla de oferta, llena o a medias."
+metadata:
+  resumen: "Arma contigo tu oferta completa en 11 piezas: avatar, promesa, bonos, garantía, precio y tu pitch."
 ---
 
 # Oferta: las 11 piezas, conversadas

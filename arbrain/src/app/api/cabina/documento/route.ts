@@ -10,6 +10,7 @@ import { rutaSensibleDirecto } from '@/lib/modo-directo/reglas'
 import { directoPrendido, respuestaOculta } from '@/lib/modo-directo/servidor'
 import { esDescargable, urlDescargaDocumento } from '@/lib/cabina/descarga-documento'
 import { tr } from '@/shared/i18n'
+import { esAbsolutaPortable } from '@/lib/ruta-portable'
 
 // Vista «documento» del panel (3 oct 2026): lee un archivo permitido para pintarlo, lo guarda
 // (solo .md/.txt, sin pisar cambios ajenos) y da la versión contra la que marcar cambios.
@@ -29,7 +30,7 @@ function fallo(error: unknown) {
 async function portada(imagen: string | undefined, real: string) {
   if (!imagen) return null
   const r = raices()
-  const candidatas = imagen.startsWith('/') || imagen.startsWith('~/') ? [imagen] : [path.join(path.dirname(real), imagen), imagen]
+  const candidatas = esAbsolutaPortable(imagen) || imagen.startsWith('~/') ? [imagen] : [path.join(path.dirname(real), imagen), imagen]
   for (const c of candidatas) {
     const res = resolverRuta(c, r)
     if ('error' in res || !existsSync(res.abs)) continue

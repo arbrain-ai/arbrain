@@ -1,6 +1,8 @@
 ---
 name: image-generation
 description: "Generar y editar imágenes del dueño con GPT Image 2.5 Sunburst vía OpenRouter. Único modelo; variar quality low, medium o high. Miniaturas, ilustraciones y assets de edición."
+metadata:
+  resumen: "Crea y edita imágenes: miniaturas, ilustraciones y piezas para tus videos y presentaciones."
 ---
 
 # Image Generation · Sunburst

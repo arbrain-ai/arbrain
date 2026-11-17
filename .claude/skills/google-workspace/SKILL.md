@@ -1,6 +1,8 @@
 ---
 name: google-workspace
 description: "Correo, agenda y contactos de Google del dueño con `gog`: qué llegó, qué espera respuesta, qué es ruido, huecos libres, agendar, borradores que él revisa y su resumen del día. Usar ante «¿qué tengo hoy?», «¿qué tengo mañana?», «mi día», «revisa mi correo», «mi bandeja», «¿quién espera respuesta?», «búscame un hueco», «agéndame», «prepárame un borrador», «contéstale a…», «limpia mi bandeja», «ordena mi correo», «mi resumen de la mañana». Nunca envía ni borra: deja borradores y archiva. Conectar Google por primera vez: arbrain/cerebro/manuales/google-calendar-gmail.md."
+metadata:
+  resumen: "Tu correo y tu agenda de Google: qué llegó, qué espera respuesta, huecos libres y borradores que tú revisas."
 ---
 
 # google-workspace · el correo y la agenda del dueño

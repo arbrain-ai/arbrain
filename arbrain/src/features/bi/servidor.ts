@@ -7,10 +7,8 @@ import 'server-only'
  * - En cualquier otra (la del alumno, o la del autor abierta como cliente): el catálogo genérico, conectado a las fuentes que el
  *   dueño declaró en `bi-fuentes.json` (generico.ts, motor.ts). Sin fuentes, el motor está vacío: cada consulta dice qué falta.
  */
-import { existsSync } from 'node:fs'
-import path from 'node:path'
-import { instalacion } from '@/config'
 import { esEdicionCliente } from '@/lib/edicion'
+import { raizCerebro as raizDelCerebro } from '@/lib/raiz-cerebro'
 import type { Consulta, Ventana } from './catalogo'
 import { catalogoGenerico } from './generico'
 import { ejecutarGenerico, leerArchivoFuentes, type EstadoFuentes } from './motor'
@@ -19,9 +17,9 @@ import { tr } from '@/shared/i18n'
 import { CATALOGO_AUTOR } from './autor/catalogo'
 import { ejecutarAutor } from './autor/servidor'
 
-const RAICES = () => [process.env.BUSINESS_OS_ROOT, instalacion().raizRepoRespaldo, path.join(process.cwd(), '..')].filter(Boolean) as string[]
 /** La raíz del cerebro: la primera que tiene `.claude/memory/MEMORY.md` (igual que /api/negocio). */
-export const raizCerebro = () => RAICES().find(r => existsSync(path.join(r, '.claude', 'memory', 'MEMORY.md'))) ?? null
+// En la app instalada del alumno, `ARBRAIN_HOME` (lib/raiz-cerebro.ts, 16 nov 2026).
+export const raizCerebro = () => raizDelCerebro()
 
 /** ¿Rige el catálogo del autor? Solo si su catálogo viajó con consultas y la instalación no es la del alumno. */
 export const catalogoDelAutor = () => CATALOGO_AUTOR.length > 0 && !esEdicionCliente()

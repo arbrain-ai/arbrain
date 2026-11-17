@@ -7,6 +7,8 @@ description: >
   «actualiza mi Arbrain», «jala los últimos cambios», «jala los últimos cambios de Dani», «actualiza Arbrain», «hay
   versión nueva?», «qué trae la nueva versión», «qué versión tengo» o el prompt de instalación cuando Arbrain ya está
   instalado.
+metadata:
+  resumen: "Trae la versión nueva de Arbrain a tu copia sin perder nada tuyo. Dile «actualiza mi Arbrain»."
 ---
 
 # Actualizar Arbrain

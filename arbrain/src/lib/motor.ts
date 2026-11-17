@@ -15,6 +15,7 @@ import { join } from 'node:path'
 import { esEdicionCliente } from '@/lib/edicion'
 import { dirConfigArbrain } from '@/lib/rutas-instalacion'
 import { saludo } from '@/lib/motor-saludo'
+import { avisoSinMotor } from '@/lib/motor-plataforma'
 import { tr } from '@/shared/i18n'
 
 const KIND_CTL = 1
@@ -42,6 +43,9 @@ export class ConexionMotor {
   onCierre: () => void = () => {}
 
   async abrir(cliente: string) {
+    // Windows no tiene motor (16 nov 2026): una frase de persona en vez de «connect ENOENT» (lib/motor-plataforma.ts).
+    const sinMotor = avisoSinMotor(process.platform)
+    if (sinMotor) throw new MotorError(sinMotor)
     await new Promise<void>((resolve, reject) => {
       const s = connect(motorSock())
       s.once('error', e => reject(new MotorError(tr('El motor no responde: {detalle}', { detalle: e.message }))))

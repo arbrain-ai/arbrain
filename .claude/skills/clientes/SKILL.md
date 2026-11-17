@@ -1,6 +1,8 @@
 ---
 name: clientes
 description: "Ficha viva de cada cliente del dueño: quién es, qué quiere, en qué va, qué prometió cada lado y quién espera respuesta de quién, con fecha y fuente. Usar ante «contexto de X», «cómo va X», «qué sabes de X», «guarda lo de mi llamada con X», «prepárame la llamada con X», «quién me debe respuesta», «a quién le debo», «seguimiento de mis clientes», «nuevo cliente» o «tengo un prospecto». Nunca envía mensajes: los propone y el dueño los manda."
+metadata:
+  resumen: "Lleva la ficha de cada cliente: quién es, qué quiere, en qué va y quién le debe respuesta a quién."
 ---
 
 # Clientes: la ficha viva de cada persona

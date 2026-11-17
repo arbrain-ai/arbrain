@@ -4,6 +4,31 @@ Cada versión dice qué trae y qué tienes que hacer tú. Para actualizar, abre 
 «jala los últimos cambios». Las versiones siguen `MAYOR.MENOR.PARCHE`: un cambio en MENOR trae funciones
 nuevas; uno en PARCHE, arreglos.
 
+## v0.2.28 · 16 nov 2026 · Windows sin secciones en blanco, tus habilidades a la vista y «Ver tu cerebro»
+
+**Qué trae**
+- **En Windows, el Lienzo, los documentos y el Taller ya abren.** Las piezas vivas del Lienzo (las páginas HTML que
+  Levy pone dentro de un lienzo), lo que Levy te muestra en el panel, abrir un archivo desde el Explorador y
+  Taller › Memoria (Habilidades, Documentos e Instrucciones) salían en blanco o con un error: Arbrain comparaba las
+  rutas como si tu computadora fuera una Mac. Ya entiende las rutas de Windows (`C:\Users\…`).
+- **Tus habilidades, con nombre y apellido.** Taller › Memoria › Habilidades lista cada habilidad con para qué sirve y
+  si «Viene con Arbrain» o es «Tuya» (las que creaste tú). Sale aunque tu memoria todavía esté vacía, y la cifra de
+  memorias de arriba ya no se queda en «—».
+- **«Ver tu cerebro» funciona.** En Taller › Memoria, el mapa de tu cerebro (memorias, habilidades y documentos) ya se
+  pinta; antes decía «El servidor respondió 404». Si un día no puede leerlo, te dice qué pasó y qué hacer.
+- **Tu negocio, Estrategia y Business Intelligence leen tu cerebro en la app instalada** (Windows y Mac). Buscaban tus
+  archivos en la carpeta equivocada y salían vacíos o con «No se encontró la raíz del cerebro».
+- **Levy vuelve a dibujar en tu Lienzo.** «Dibújame el mapa de mi negocio» crea el lienzo; la habilidad `canvas`
+  apuntaba a una dirección que no era la de tu app.
+- **Una frase en vez de un blanco.** Si el Lienzo no puede leer tus lienzos, lo dice (antes decía «Aún no hay
+  lienzos»). En Windows la terminal de abajo todavía no existe: ahora te lo dice y te da la salida (pedirle el comando
+  a Levy o abrir PowerShell en tu carpeta).
+- **Lo que sigue igual en Windows:** Ajustes › Atajos pinta los símbolos de Mac (`⌘`, `⌥`); es solo la etiqueta.
+
+**Qué tienes que hacer**
+- Actualizar («actualiza mi Arbrain»). No pierdes nada tuyo. Si después de actualizar ves alguna sección en blanco,
+  dile a Levy cuál y en qué sistema estás.
+
 ## v0.2.27 · 15 nov 2026 · Arbrain en inglés
 
 **Qué trae**

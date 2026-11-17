@@ -13,6 +13,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { MonitorPlay, Pause, Play } from 'lucide-react'
 import { tr } from '@/shared/i18n'
+import { textoSinPantalla } from './sin-pantalla'
 
 interface Estado {
   instalada: boolean
@@ -134,7 +135,7 @@ export function VistaPantalla() {
             <p className="max-w-sm text-sm leading-snug text-muted">
               {fase === 'cargando' && tr('Conectando con la pantalla de tu servidor…')}
               {fase === 'apagada' && tr('La pantalla está apagada. Se enciende sola cuando Levy la usa (por ejemplo, cuando le pides abrir un sitio) y se apaga tras un rato sin uso.')}
-              {fase === 'sin_pantalla' && tr('Este Arbrain no tiene pantalla virtual. En tu servidor se instala con: {comando}', { comando: 'bash arbrain/scripts/instalar/nube.sh pantalla' })}
+              {fase === 'sin_pantalla' && textoSinPantalla(typeof navigator === 'undefined' ? '' : navigator.userAgent)}
               {fase === 'error' && (error ? tr(error) : tr('Sin señal de la pantalla.'))}
             </p>
           </div>

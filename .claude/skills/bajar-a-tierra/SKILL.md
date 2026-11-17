@@ -1,6 +1,8 @@
 ---
 name: bajar-a-tierra
 description: "Ritual guiado para bajar la meta a tierra: primero el mes (la meta en número, desde el expediente), luego la semana (3 a 5 resultados) y luego el día (su objetivo y 3 tareas), escrito en objetivos.md, en el calendario local y en los lienzos «Mi plan» y «Calendario de 12 semanas». Si es del programa Cerebro Artificial, además le dice en qué parte exacta de su camino va y su siguiente paso, y le ofrece hacerlo con él (references/mi-camino.md, con el mapa del programa). Usar ante «buenos días», «¿qué sigo?», «¿en qué voy?», «qué me falta», «mi camino», «bájame a tierra el mes», «bájame a tierra la semana», «bájame a tierra el día», «baja mi meta a tierra», «llena mi plan», «planeemos el mes» o «qué hago hoy» sin plan escrito."
+metadata:
+  resumen: "Baja tu meta a tierra: el mes, la semana y el día, con tu objetivo y tus tareas escritos en tu plan."
 ---
 
 # Bajar a tierra: mes → semana → día

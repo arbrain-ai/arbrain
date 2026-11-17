@@ -3,6 +3,7 @@ name: autoresearch
 description: "Auto-optimizacion autonoma de skills con el patron Karpathy: define evals binarias y corre loop genera→evalua→muta→conserva si mejoro. Triggers: optimiza este skill, mejora el skill, autoresearch, self-improve, corre evals, benchmark skill, sube la reliability de X. NO: crear skills nuevas (skill-creator), correr skills normalmente."
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, Agent
 metadata:
+  resumen: "Mejora una de tus habilidades por su cuenta: la prueba, la ajusta y se queda con la versión que mejor funciona."
   author: Levy
   version: "1.0"
   based_on: "karpathy/autoresearch + anthropic/skills/skill-creator"

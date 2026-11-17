@@ -1,6 +1,8 @@
 ---
 name: libro-os
 description: "Leer e internalizar libros, PDFs o cursos completos, página por página, sin sustituirlos por resúmenes de subagentes; destilar conocimiento persistente. También crear, regenerar y publicar libros de estudio HTML en voz de Levy con imágenes y TTS."
+metadata:
+  resumen: "Lee contigo libros, PDFs y cursos completos y guarda lo importante; también arma libros de estudio."
 ---
 
 # libro-os — Leer y Crear libros (input + output unificado)

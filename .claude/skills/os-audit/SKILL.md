@@ -1,6 +1,8 @@
 ---
 name: os-audit
 description: "Auditar en solo lectura Artificial Brain: rutas e índices rotos, instrucciones desactualizadas, duplicidades, trabajo sin publicar y órganos sin resultados recientes. Usar para auditoría, limpieza o verificación tras una migración. Para diagnosticar o reparar servicios, artificial-brain."
+metadata:
+  resumen: "Revisa tu Arbrain sin tocar nada y te dice qué está roto, viejo o repetido."
 ---
 
 # OS Audit — ¿el sistema dice la verdad sobre si mismo?

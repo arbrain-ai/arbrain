@@ -2,6 +2,7 @@
 name: skill-creator
 description: "Convierte un proceso del dueño en una skill propia de su cerebro: lo entrevista (máximo 5 preguntas), escribe la receta con los errores y aprendizajes de la primera vez, la guarda en .claude/skills/ con prefijo mi- y la valida. Usar ante «crea una skill», «hazme una skill», «convierte esto en una skill», «documenta este proceso», «que la próxima vez salga bien», «guarda cómo lo hicimos», «ya lo hicimos dos veces», «mi proceso más odiado» o al terminar por segunda vez la misma tarea. NO: mejorar con evaluaciones una skill que ya funciona (autoresearch)."
 metadata:
+  resumen: "Convierte un proceso tuyo en una habilidad nueva de tu cerebro, para que la próxima vez salga bien a la primera."
   basada_en: "skill-creator de Anthropic (Apache-2.0), adaptada al dueño de Arbrain"
 ---
 

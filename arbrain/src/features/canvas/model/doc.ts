@@ -47,6 +47,12 @@ export const esHTML = (ruta: string) => /\.html?$/i.test(ruta)
 
 /** ¿Una ruta absoluta (ya resuelta en disco) sigue dentro de la raiz? */
 export function dentroDeRaiz(abs: string, raiz: string): boolean {
-  const r = raiz.endsWith('/') ? raiz : raiz + '/'
-  return abs.startsWith(r)
+  // Windows (16 nov 2026, un fundador: «me quedó en blanco… solamente funcionaba para Mac»): `realpath` da `C:\…` y antes
+  // se comparaba contra `raiz + '/'`, así que toda pieza salía «fuera». Con unidad o UNC: barras normales y sin distinguir
+  // mayúsculas (como lib/ruta-portable.ts; aquí en línea porque el banco de piezas lo transpila solo, sin imports).
+  const win = WINDOWS.test(abs) || WINDOWS.test(raiz)
+  const n = (p: string) => win ? p.replace(/\\/g, '/').toLowerCase() : p
+  const a = n(abs), b = n(raiz)
+  return a.startsWith(b.endsWith('/') ? b : b + '/')
 }
+const WINDOWS = /^[A-Za-z]:[\\/]|^\\\\/

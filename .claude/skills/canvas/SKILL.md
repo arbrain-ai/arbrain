@@ -1,6 +1,8 @@
 ---
 name: canvas
 description: Use when the owner asks for a diagram, map, blueprint, flow, journey, system map, conectoma-style graph, or anything drawn on the whiteboard ("dibuja", "haz un mapa de", "diagrama esto", "arma el blueprint", "ponlo en el canvas"), or when touching the whiteboard code in arbrain/src/features/canvas. Canvas v4 compiles semantics into geometry — the agent declares WHAT, never WHERE.
+metadata:
+  resumen: "Dibuja en el lienzo diagramas, mapas, flujos y planos de lo que le pidas."
 ---
 
 # Canvas — el lienzo de Arbrain (v4)
@@ -42,8 +44,14 @@ Antes de insertar un visual, lee completo el estándar visual:
 Devuelve elementos listos + el veredicto del juez. Úsala para previsualizar o
 para generar sin escribir en una página.
 
+La web local de tu Arbrain está en `$MISSION_CONTROL_ORIGIN` y se entra con el pase de agente
+(`$ARBRAIN_PASE_AGENTE`, ya está en tu entorno; nunca lo imprimas). Sin el pase responde 401. Funciona igual en
+Mac, Linux y Windows (en Windows, Claude Code corre estos comandos en Git Bash).
+
 ```bash
-curl -s localhost:3000/api/canvas/compile -H 'content-type: application/json' -d '{
+B="$MISSION_CONTROL_ORIGIN/api/canvas"
+H=(-H "Authorization: Bearer $ARBRAIN_PASE_AGENTE" -H "Content-Type: application/json")
+curl -s -X POST "$B/compile" "${H[@]}" -d '{
   "theme": "claro",
   "targetAspect": 1.6,
   "spec": {
