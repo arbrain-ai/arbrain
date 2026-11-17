@@ -8,6 +8,7 @@ import { rutaSensibleDirecto, velarHtml } from '@/lib/modo-directo/reglas'
 import { estadoDirecto } from '@/lib/modo-directo/servidor'
 import { estadoMiniaturas, hojaMiniaturas } from '@/lib/cabina/miniaturas-video'
 import { tr } from '@/shared/i18n'
+import { dentroDe, urlARuta } from '@/lib/ruta-portable'
 
 // Archivos de la vista «documento» servidos con su carpeta (3 oct 2026): el HTML del iframe aislado
 // y sus assets relativos, imágenes y video (con Range: WebKit no reproduce mp4 sin él). Sin cookie
@@ -27,13 +28,15 @@ const TIPOS: Record<string, string> = {
 const INERTES = new Set(['css', 'woff', 'woff2', 'ttf', 'otf', 'png', 'jpg', 'jpeg', 'webp', 'gif', 'avif', 'json', 'txt'])
 const no = (status: number, msg: string) => new Response(msg, { status, headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' } })
 const flujo = flujoArchivo
-const dentro = (abs: string, base: string) => abs === base || abs.startsWith(base.endsWith('/') ? base : base + '/')
+/** Windows: barras normales y sin distinguir mayúsculas (lib/ruta-portable.ts). */
+const dentro = dentroDe
 
 export async function GET(request: Request, { params }: { params: Promise<{ token: string; ruta: string[] }> }) {
   const { token, ruta } = await params
   const alcance = verificar(token)
   if (!alcance) return no(403, tr('Enlace vencido: vuelve a abrir el documento.'))
-  const pedida = '/' + ruta.map(decodeURIComponent).join('/')
+  // `/C:/Users/x/…` (Windows, urlCruda) vuelve a `C:/Users/x/…`; POSIX no cambia.
+  const pedida = urlARuta('/' + ruta.map(decodeURIComponent).join('/'))
   if (pedida.split('/').includes('..') || !dentro(pedida, alcance)) return no(403, tr('Fuera de la carpeta del documento.'))
   let real: string
   try { real = await realpath(pedida) } catch { return no(404, tr('No existe.')) }

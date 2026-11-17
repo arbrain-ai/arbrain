@@ -22,6 +22,10 @@ export type CerebroEdgeKind = 'link' | 'mention' | 'wiki' | 'connects' | 'tag'
 export type CerebroCapa = 'memoria' | 'skills' | 'documentos' | 'knowledge'
 export const CAPAS_BASE: CerebroCapa[] = ['memoria', 'skills', 'documentos']
 
+/** Lo que pide «Ver tu cerebro» (y lo que la lista blanca del alumno debe dejar pasar: tests/edicion/ver-tu-cerebro-cliente). */
+export const URL_GRAFO = `/api/cerebro/graph?capas=${CAPAS_BASE.join(',')}`
+export const urlNodo = (id: string) => `/api/cerebro/node?id=${encodeURIComponent(id)}`
+
 export interface CerebroNode {
   id: string
   type: CerebroNodeType

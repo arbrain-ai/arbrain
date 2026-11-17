@@ -1,16 +1,16 @@
 {
   "generador": "arbrain/empaquetado/generador",
   "origen": {
-    "ref": "9c96939ab4cd79d09f6c3dec6bbb20a3de8a2f89",
-    "commit": "9c96939ab4cd79d09f6c3dec6bbb20a3de8a2f89",
-    "fecha": "2026-11-15T07:08:26-06:00"
+    "ref": "86af6cbe20bf9bd2bf20540a94a6ced3600ab2cc",
+    "commit": "86af6cbe20bf9bd2bf20540a94a6ced3600ab2cc",
+    "fecha": "2026-11-16T19:05:30-06:00"
   },
-  "version": "0.2.27",
+  "version": "0.2.28",
   "allowlist": {
     "ruta": "docs/builds/empaquetado-2026-10-11/allowlist.yaml",
     "sha256": "12841f27ee12f6965fb20ba28f7257a371c38b990890cf7ff4adfeac811786d1"
   },
-  "conteo": 3322,
+  "conteo": 3344,
   "archivos": {
     ".agents/skills": {
       "enlace": "../.claude/skills",
@@ -179,8 +179,8 @@
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/claude/settings.json"
     },
     ".claude/skills/actualizar-arbrain/SKILL.md": {
-      "sha256": "ce06180af6acfb96441a23f4b22367feda95906b113315ea38397bca4526d516",
-      "bytes": 12453,
+      "sha256": "71e60606300390a42cd81d360f334ba163fa799445c2405d608be53b7f8415c4",
+      "bytes": 12574,
       "modo": "644",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/actualizar-arbrain/SKILL.md"
     },
@@ -191,8 +191,8 @@
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/actualizar-arbrain/verificar.py"
     },
     ".claude/skills/artificial-brain/SKILL.md": {
-      "sha256": "b8b72b582823cfbf1e8ba46986b8fe699dbc6bbaaf255cb6a8107058daf229d6",
-      "bytes": 4457,
+      "sha256": "a153011ad65c9aa1c752b60cf04b9d2f703a1e8b1c158ab396648cba3b544d92",
+      "bytes": 4580,
       "modo": "644",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/artificial-brain/SKILL.md"
     },
@@ -293,8 +293,8 @@
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/artificial-brain/references/tecnica.md"
     },
     ".claude/skills/autoresearch/SKILL.md": {
-      "sha256": "be8990410860a7775fce847a5e25e9069cc9af964006c639e0f043e2c533ecf7",
-      "bytes": 9719,
+      "sha256": "0fc3ec2ee84afdea5fc8ee52c2147642acd9f121f8f91a3f33f884fdee39e2be",
+      "bytes": 9845,
       "modo": "644",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/autoresearch/SKILL.md"
     },
@@ -311,8 +311,8 @@
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/autoresearch/references/loop-protocol.md"
     },
     ".claude/skills/bajar-a-tierra/SKILL.md": {
-      "sha256": "b74c3992b8fae76f52935575a1cbf9c9a67c47c699e984d7906c47aef0847b15",
-      "bytes": 8893,
+      "sha256": "1312e3ca953b1f5b92598b0235102efccc90a89c73b6da1849ad25b05aa05a60",
+      "bytes": 9018,
       "modo": "644",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/bajar-a-tierra/SKILL.md"
     },
@@ -335,14 +335,14 @@
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/bajar-a-tierra/tests/test_plan.py"
     },
     ".claude/skills/canvas/SKILL.md": {
-      "sha256": "888b5715b263738711a3f24abeb37e7f5271e42920f0c6d1c0c558da396df7a1",
-      "bytes": 8696,
+      "sha256": "ba725ee9c5ebec68f412ec03635d0df07958657613014d0ddf35a93ce6287f63",
+      "bytes": 9171,
       "modo": "644",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/canvas/SKILL.md"
     },
     ".claude/skills/clientes/SKILL.md": {
-      "sha256": "437339e38a589710cadc1537138366b9196ad8a5a419489c23fa72af79276c7c",
-      "bytes": 4267,
+      "sha256": "36bdabc139e3fdec22c4c366e3f60657a27134af5b471f4550b0f8958ff78cd1",
+      "bytes": 4394,
       "modo": "644",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/clientes/SKILL.md"
     },
@@ -353,8 +353,8 @@
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/clientes/references/ficha.md"
     },
     ".claude/skills/code-animation/SKILL.md": {
-      "sha256": "c5b2f57424275bbaf4b097ae860b9dc7f63d94b2fb00e8b1306f493216bdd837",
-      "bytes": 4219,
+      "sha256": "00d225afb3b41d56e6ab79eb2e03fce92e6af4638e2f7e87f1fc644438231600",
+      "bytes": 4344,
       "modo": "644",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/code-animation/SKILL.md"
     },
@@ -401,8 +401,8 @@
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/code-animation/scripts/sincronia.py"
     },
     ".claude/skills/goal-compiler/SKILL.md": {
-      "sha256": "e38c479b2ddeca8037c08d40787d419786630f32fb2cc946346cb520d073e82a",
-      "bytes": 22363,
+      "sha256": "771a1bf46058197c0c20e3d18173e2349d704e332ef64825901f367998b0c97e",
+      "bytes": 22494,
       "modo": "644",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/goal-compiler/SKILL.md"
     },
@@ -443,8 +443,8 @@
       "origen": ".claude/skills/goal-compiler/scripts/test_grafo2plan.py"
     },
     ".claude/skills/google-workspace/SKILL.md": {
-      "sha256": "74973645843c292a415f89e588d12fd5ad9965ffd45be34e03514e89725a763c",
-      "bytes": 10572,
+      "sha256": "8ebadb7271faa306807597bf85ac61ae03538caee6af8ba83cfa2f009dd91125",
+      "bytes": 10708,
       "modo": "644",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/google-workspace/SKILL.md"
     },
@@ -461,8 +461,8 @@
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/google-workspace/references/ordenar-la-bandeja.md"
     },
     ".claude/skills/habit-system/SKILL.md": {
-      "sha256": "b539fff24f2779ab18dc96d9496eb76ff037bf23dfc3fbd1cd85079be40cd9b0",
-      "bytes": 8408,
+      "sha256": "1b4c84496c7d3aebc8b740891d25f031737e8d0f3f1aa76355d3378d26971c77",
+      "bytes": 8520,
       "modo": "644",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/habit-system/SKILL.md"
     },
@@ -527,8 +527,8 @@
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/habit-system/scripts/habit_record.py"
     },
     ".claude/skills/image-generation/SKILL.md": {
-      "sha256": "d123bff600440569be87836403588d14524094ee3872b799d98849cd01740d9b",
-      "bytes": 2779,
+      "sha256": "26d2fe616f3751cd6d042ee55611687ff86e4d1cedada991679cb7b80d8fce38",
+      "bytes": 2895,
       "modo": "644",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/image-generation/SKILL.md"
     },
@@ -539,14 +539,14 @@
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/image-generation/references/sunburst.md"
     },
     ".claude/skills/knowledge-search/SKILL.md": {
-      "sha256": "ae3ec31594c9476e402c7abc243df59381fd1d4811a3a9e272d6a9b7dbc01ba5",
-      "bytes": 4256,
+      "sha256": "fe76cbcb5c4e57dee469d538995238f3c8bf5358de3255de6f06990cc5e5386f",
+      "bytes": 4365,
       "modo": "644",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/knowledge-search/SKILL.md"
     },
     ".claude/skills/libro-os/SKILL.md": {
-      "sha256": "5698bce85481d9b806de3d678414abc185059b3346067dfc0b376f132a0b0a31",
-      "bytes": 9157,
+      "sha256": "54b67413cefad3923010b4bc06a860caea14bbed088a62563c8b624541c44b4f",
+      "bytes": 9281,
       "modo": "644",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/libro-os/SKILL.md"
     },
@@ -557,8 +557,8 @@
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/libro-os/references/pdf-deep-read.md"
     },
     ".claude/skills/memory-manager/SKILL.md": {
-      "sha256": "586cafb4d470662c673d95f6ccc9143f04aa4f6bc99ae4d3a27a6a75675f8b84",
-      "bytes": 11203,
+      "sha256": "4a410dec6faf785527d0a3ba048253fa23b159adca2509d729683c4f93ae8f08",
+      "bytes": 11332,
       "modo": "644",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/memory-manager/SKILL.md"
     },
@@ -569,8 +569,8 @@
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/memory-manager/scripts/rotar-indice.py"
     },
     ".claude/skills/oferta/SKILL.md": {
-      "sha256": "e886f437a5f7841e4b803b346d3e4a4559801156a92b402a849b847e32724140",
-      "bytes": 9250,
+      "sha256": "6155030da94ba8d769c91357a3142b9249051167f548cd66d1ab0137f0762881",
+      "bytes": 9373,
       "modo": "644",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/oferta/SKILL.md"
     },
@@ -587,8 +587,8 @@
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/oferta/references/plantilla.md"
     },
     ".claude/skills/os-audit/SKILL.md": {
-      "sha256": "0df5234a9f3988f5d88ade70becd2ea58fee6f59e2b7a66f79bca05ff3931a64",
-      "bytes": 9966,
+      "sha256": "a09d356e1d2d846dd97b5ff4bbf81ba90770cd71eea9bb3722662641b0a9cafb",
+      "bytes": 10067,
       "modo": "644",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/os-audit/SKILL.md"
     },
@@ -605,8 +605,8 @@
       "origen": ".claude/skills/os-audit/scripts/test_index_truth.py"
     },
     ".claude/skills/presentaciones/SKILL.md": {
-      "sha256": "e99fe2105a60349cb43564559ef6357781eb9a373f86c2d671f8a661a847b792",
-      "bytes": 5814,
+      "sha256": "c7781f7af2810569d00182e90c39dfc9703347beaf2ca99ffbdf626bdf82f679",
+      "bytes": 5964,
       "modo": "644",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/presentaciones/SKILL.md"
     },
@@ -791,8 +791,8 @@
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/presentaciones/scripts/verificar.py"
     },
     ".claude/skills/sistema-viable/SKILL.md": {
-      "sha256": "9301c85000287b2dcec79881a4987265d5257f72432a55c1eb9e8719951c4853",
-      "bytes": 8465,
+      "sha256": "5516b607cd7e2276657dfc604a26ca2e365d73e6a1f5d1170a96e38ccd6967f6",
+      "bytes": 8584,
       "modo": "644",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/sistema-viable/SKILL.md"
     },
@@ -815,8 +815,8 @@
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/sistema-viable/references/programas-crisis.md"
     },
     ".claude/skills/skill-creator/SKILL.md": {
-      "sha256": "bbdf94fea17bd3f868df23ecebfe7f9eecc076e02fa616bea6a0985f2b7e0bb0",
-      "bytes": 6835,
+      "sha256": "309f4f4a723c250327c7a6a955eceb236df7fc52824073f42ecf5e18ae3fc1bf",
+      "bytes": 6962,
       "modo": "644",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/skill-creator/SKILL.md"
     },
@@ -845,8 +845,8 @@
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/skill-creator/tests/test_skill_creator.py"
     },
     ".claude/skills/tour-bienvenida/SKILL.md": {
-      "sha256": "6ea765fea7d6752cee430522bd93198fe8a04521cfa796d7f9f8efa7864b0104",
-      "bytes": 2494,
+      "sha256": "d2aaf23baab81a308a420f19a18f1139b588b0f799d3fb6b241fe75ad94c6abd",
+      "bytes": 2623,
       "modo": "644",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/skills/tour-bienvenida/SKILL.md"
     },
@@ -1016,6 +1016,12 @@
       "modo": "644",
       "origen": "arbrain/empaquetado/ci/workflows/modo-servidor.yml"
     },
+    ".github/workflows/plataforma-windows.yml": {
+      "sha256": "bf38de4cc79d1bd9b5319ee6f631422a9115d34cc5fb38b3f9b1418c33c602b4",
+      "bytes": 2394,
+      "modo": "644",
+      "origen": "arbrain/empaquetado/ci/workflows/plataforma-windows.yml"
+    },
     ".github/workflows/procedencia.yml": {
       "sha256": "4f67ff8be99b24ca1724166d3c6d85547fe78e3e68fdef863234dfca1822de0b",
       "bytes": 5737,
@@ -1063,14 +1069,14 @@
       "origen": "allowlist:enlaces"
     },
     "CAPAS.json": {
-      "sha256": "5d93c5a3740362be7f52f7610d83166b83114fcb65de68fadeb4d7a07a29ef8c",
+      "sha256": "d5f1eba948efe22b0db68b81121e068eb3c0df0a7870b7822fdc00090176e12e",
       "bytes": 1422,
       "modo": "644",
       "origen": "distribucion:CAPAS.json"
     },
     "CHANGELOG.md": {
-      "sha256": "edce58e7512de3eab39e6d8f5871095a10c75affdc61901f7098469fd69be12a",
-      "bytes": 80746,
+      "sha256": "0d5cfa7609140c6aa0b070f2772449ae14d527808314ad7c9c9d3962855bbcbe",
+      "bytes": 82829,
       "modo": "644",
       "origen": "distribucion:CHANGELOG.md"
     },
@@ -1123,7 +1129,7 @@
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/TELEFONO.plantilla.md"
     },
     "VERSION": {
-      "sha256": "49183d52c74b9a531afbf60bd254336851b09df2698d4156164845b522b8f708",
+      "sha256": "636418acc9d222c5da1706a876f2052fcc1f1f8599fb131cbeb514344a0dbe93",
       "bytes": 7,
       "modo": "644",
       "origen": "distribucion:VERSION"
@@ -6613,8 +6619,8 @@
       "origen": "arbrain/server/src/guardia-agentes.ts"
     },
     "arbrain/server/src/i18n/en.json": {
-      "sha256": "7d0671dc86e42b84842b6b63010ea47e632965d5d22ac98ef04cfd900e55f0f6",
-      "bytes": 589193,
+      "sha256": "54687a8142ed7a331a8eb3b35ea5970c8052fc4c502c5154b79f4469596339f9",
+      "bytes": 592226,
       "modo": "644",
       "origen": "arbrain/server/src/i18n/en.json"
     },
@@ -8407,8 +8413,8 @@
       "origen": "arbrain/src/app/api/cabina/archivero/route.ts"
     },
     "arbrain/src/app/api/cabina/archivos/route.ts": {
-      "sha256": "3d2b954ca8d1eadf87430c4a65835d2003868aaa7d3c3b08e73c0e6efb731df8",
-      "bytes": 6198,
+      "sha256": "7f5ff320c3f5ee152a7bed03e5c5fce702ab4fa7cb736e019285c6b54bf35212",
+      "bytes": 6242,
       "modo": "644",
       "origen": "arbrain/src/app/api/cabina/archivos/route.ts"
     },
@@ -8437,8 +8443,8 @@
       "origen": "arbrain/src/app/api/cabina/documento/abrir/route.ts"
     },
     "arbrain/src/app/api/cabina/documento/crudo/[token]/[...ruta]/route.ts": {
-      "sha256": "2a917a45ff35ec2fbf45e8ff8cf84c240eb915280894e93232692bd809fa2d06",
-      "bytes": 7191,
+      "sha256": "3e9dce666498503cab52f8fde9d86527109449b749a87ef865eb4f245ca42b7a",
+      "bytes": 7337,
       "modo": "644",
       "origen": "arbrain/src/app/api/cabina/documento/crudo/[token]/[...ruta]/route.ts"
     },
@@ -8449,8 +8455,8 @@
       "origen": "arbrain/src/app/api/cabina/documento/descargar/[token]/[nombre]/route.ts"
     },
     "arbrain/src/app/api/cabina/documento/route.ts": {
-      "sha256": "0735fc0687bcfa56923529056bc2d95f01e70890554fff6dd6df8a0e73009279",
-      "bytes": 9563,
+      "sha256": "faebb635279b880959514d35c0d3279f5106071ce7b7bdba529c4a2b248d3294",
+      "bytes": 9624,
       "modo": "644",
       "origen": "arbrain/src/app/api/cabina/documento/route.ts"
     },
@@ -9283,32 +9289,32 @@
       "origen": "arbrain/src/app/api/monitoreo/route.ts"
     },
     "arbrain/src/app/api/negocio/comprador/route.ts": {
-      "sha256": "ef46305b3f8028fb9aa0cdc225131b2497df5117357fc1a549c633047f565b40",
-      "bytes": 3469,
+      "sha256": "ae7e93c846ccf819d928fcbad7d44f3f8c547ee6e8768c957a6949eef7d8e136",
+      "bytes": 3311,
       "modo": "644",
       "origen": "arbrain/src/app/api/negocio/comprador/route.ts"
     },
     "arbrain/src/app/api/negocio/embudo/route.ts": {
-      "sha256": "6a0738f449388a5b2ef9a5d9d3f3de3caa9c8ba64f5c1cf92e789505a7d0d268",
-      "bytes": 3637,
+      "sha256": "a408be57b0ad2ccda5b031ad6ea799d00a8181187e3f59d72d3e4743d4a2f537",
+      "bytes": 3555,
       "modo": "644",
       "origen": "arbrain/src/app/api/negocio/embudo/route.ts"
     },
     "arbrain/src/app/api/negocio/estrategia/route.ts": {
-      "sha256": "e66f80f9c37bbdc56870a91147954cfd957dcb6f467b91945611cff5f77584c2",
-      "bytes": 2814,
+      "sha256": "7873b189e9a54a47b5298a0937eedfa5cd6c584ef967965cedf24f9015796671",
+      "bytes": 2656,
       "modo": "644",
       "origen": "arbrain/src/app/api/negocio/estrategia/route.ts"
     },
     "arbrain/src/app/api/negocio/marcador-levy/route.ts": {
-      "sha256": "89a8c6f62553b6f988e319610cb525017f53fcb881cb68067aa4881bc69917f9",
-      "bytes": 1422,
+      "sha256": "287a61a70eaba4c41cf1935edb2541193f475d3a4a7f948736bd1c140289b6c6",
+      "bytes": 1235,
       "modo": "644",
       "origen": "arbrain/src/app/api/negocio/marcador-levy/route.ts"
     },
     "arbrain/src/app/api/negocio/marketing/route.ts": {
-      "sha256": "13dc0cf423e5055f193d263a0697a5345324c4ff2757c3a5eb1a26adfcde1265",
-      "bytes": 1509,
+      "sha256": "c0caeec354c07b23ef51c45d7f2d092cf61b41760f0499f9b92d7a19a83f298e",
+      "bytes": 1322,
       "modo": "644",
       "origen": "arbrain/src/app/api/negocio/marketing/route.ts"
     },
@@ -9955,8 +9961,8 @@
       "origen": "arbrain/src/features/bi/motor.ts"
     },
     "arbrain/src/features/bi/servidor.ts": {
-      "sha256": "c1a023e9d14fb1c4a1aa9b7c880fad652424b9fd8e8ae230db64426e7451e742",
-      "bytes": 2748,
+      "sha256": "47108cd98e76ad94f419c121112ab9cd965e778b313e090576109850adeb18a2",
+      "bytes": 2582,
       "modo": "644",
       "origen": "arbrain/src/features/bi/servidor.ts"
     },
@@ -9983,6 +9989,12 @@
       "bytes": 2821,
       "modo": "644",
       "origen": "arbrain/src/features/cabina/alto-sostenido.ts"
+    },
+    "arbrain/src/features/cabina/archivos-cerebro.ts": {
+      "sha256": "b7d8407ae35ce5614eba888ac30bdc49de6cd0bb6043d10e1343675fe93bd2f9",
+      "bytes": 1513,
+      "modo": "644",
+      "origen": "arbrain/src/features/cabina/archivos-cerebro.ts"
     },
     "arbrain/src/features/cabina/cabina.module.css": {
       "sha256": "1ed3227067250bfcd7d3cbbb9b1dbe68a09a8f0d6d8bdef8a2156892bf1eae9f",
@@ -10081,8 +10093,8 @@
       "origen": "arbrain/src/features/cabina/documento/medio.ts"
     },
     "arbrain/src/features/cabina/documento/ruta.ts": {
-      "sha256": "003c06abc298bf62ed663cfb655034ebcbf9c1725663c1c939bebeb0c049985d",
-      "bytes": 5035,
+      "sha256": "697d7976a27a16d412436ba8cc963b459c12413b85d6529eb6c0d6f250ddf8f3",
+      "bytes": 5647,
       "modo": "644",
       "origen": "arbrain/src/features/cabina/documento/ruta.ts"
     },
@@ -10163,6 +10175,12 @@
       "bytes": 941,
       "modo": "644",
       "origen": "arbrain/src/features/cabina/explorador/codigo.ts"
+    },
+    "arbrain/src/features/cabina/habilidades-cerebro.ts": {
+      "sha256": "71c8538ecc70e869147b465e0cda0ee3eb3cb0ebc91fe345c6fb889399f2999c",
+      "bytes": 5190,
+      "modo": "644",
+      "origen": "arbrain/src/features/cabina/habilidades-cerebro.ts"
     },
     "arbrain/src/features/cabina/internas-lectura.ts": {
       "sha256": "4bc9e00c9ef9a3fffcac0cc743a151c671cc45e74ba8f0e1b3fc1d491760a161",
@@ -10267,8 +10285,8 @@
       "origen": "arbrain/src/features/cabina/panel/InternasPorConversacion.tsx"
     },
     "arbrain/src/features/cabina/panel/MemoriaTaller.tsx": {
-      "sha256": "b5e509b944aceaa53545cc6e9818957fe2af96563c5524a6ab92ed948e01489b",
-      "bytes": 14402,
+      "sha256": "e74ba201dc7f02367f669b4238d13dac03c358262a79b1bea0a32bc6e51eb395",
+      "bytes": 15614,
       "modo": "644",
       "origen": "arbrain/src/features/cabina/panel/MemoriaTaller.tsx"
     },
@@ -10699,8 +10717,8 @@
       "origen": "arbrain/src/features/cabina/panel/taller-vacio.ts"
     },
     "arbrain/src/features/cabina/panel/taller.module.css": {
-      "sha256": "b478228dd4a4704d1fd6b27f0dcdc0d06c1da565728871902fea294dfbe93521",
-      "bytes": 29138,
+      "sha256": "287c941151fceb5ace1387749f58c8cd19541da8eb0f0f6301462bb40f3abb6a",
+      "bytes": 29711,
       "modo": "644",
       "origen": "arbrain/src/features/cabina/panel/taller.module.css"
     },
@@ -11509,8 +11527,8 @@
       "origen": "arbrain/src/features/canvas/model/create.ts"
     },
     "arbrain/src/features/canvas/model/doc.ts": {
-      "sha256": "d5e720594f1a4f72705c03ab67c9e46c3c962ea27fa6f6fecc5ab4064edcfb78",
-      "bytes": 2180,
+      "sha256": "fe89f04fe9b1d273087cca91ec13354067fc106d2c800120246aad3fc106258d",
+      "bytes": 2732,
       "modo": "644",
       "origen": "arbrain/src/features/canvas/model/doc.ts"
     },
@@ -11809,8 +11827,8 @@
       "origen": "arbrain/src/features/canvas/ui/DocEmbed.tsx"
     },
     "arbrain/src/features/canvas/ui/LienzoSeccion.tsx": {
-      "sha256": "1ee2228870c3b3c8f48d691c2b2675975b9a0dde19c7d5863ef322f40675016f",
-      "bytes": 4095,
+      "sha256": "54963fcb066c16ecd954519defee2792b3d1bd9be12c627a3a9ae98579d654e3",
+      "bytes": 4729,
       "modo": "644",
       "origen": "arbrain/src/features/canvas/ui/LienzoSeccion.tsx"
     },
@@ -11867,6 +11885,12 @@
       "bytes": 17130,
       "modo": "644",
       "origen": "arbrain/src/features/canvas/ui/icons.tsx"
+    },
+    "arbrain/src/features/canvas/ui/lienzo-avisos.ts": {
+      "sha256": "e6ec20c715f824bc7d2d877c0da53655a485a5ae82357db6d2c4a7ba7a185a6d",
+      "bytes": 1344,
+      "modo": "644",
+      "origen": "arbrain/src/features/canvas/ui/lienzo-avisos.ts"
     },
     "arbrain/src/features/canvas/ui/lienzos/ArbolLienzos.tsx": {
       "sha256": "ab161422aaf1d0dac5d6a370300a40050e01eee15659710158d95af8559255b2",
@@ -11940,6 +11964,12 @@
       "modo": "644",
       "origen": "plantilla-g:arbrain/empaquetado/plantillas/arbrain/src/features/casa/contrato.ts"
     },
+    "arbrain/src/features/cerebro/aviso.ts": {
+      "sha256": "0735909cbeeaf8f86649596d4ff0a0f833138c9417482857836dbd0011cc72f2",
+      "bytes": 2141,
+      "modo": "644",
+      "origen": "arbrain/src/features/cerebro/aviso.ts"
+    },
     "arbrain/src/features/cerebro/components/AccionesRoom.tsx": {
       "sha256": "9eeb00edbb1ed341d294e5b927f60807cc3f1d8df0d9f6a2aa2eb505dccaebef",
       "bytes": 20473,
@@ -11971,8 +12001,8 @@
       "origen": "arbrain/src/features/cerebro/components/MetabolismoRoom.tsx"
     },
     "arbrain/src/features/cerebro/components/NodePanel.tsx": {
-      "sha256": "86d594e5bcf04986b29f463ed0bfc898ab5c21b32319191f5a9bdec513475844",
-      "bytes": 9752,
+      "sha256": "794aa26ef2fc099e9ceff7e6083c0993c7f85f891b6d9d6071e8c8becae6cbe5",
+      "bytes": 9887,
       "modo": "644",
       "origen": "arbrain/src/features/cerebro/components/NodePanel.tsx"
     },
@@ -11989,8 +12019,8 @@
       "origen": "arbrain/src/features/cerebro/components/SynthesisPanel.tsx"
     },
     "arbrain/src/features/cerebro/components/VerTuCerebro.tsx": {
-      "sha256": "fc09bd42aa77041a422f193cf0e27c329cad78e18c6375763d464c14761a3e52",
-      "bytes": 12529,
+      "sha256": "ef2edd27ba479e138e626e21e03248a582fafc99a1417df19c5ef6e7e4551842",
+      "bytes": 13478,
       "modo": "644",
       "origen": "arbrain/src/features/cerebro/components/VerTuCerebro.tsx"
     },
@@ -12007,8 +12037,8 @@
       "origen": "arbrain/src/features/cerebro/components/lienzo-casa.ts"
     },
     "arbrain/src/features/cerebro/server/graph.ts": {
-      "sha256": "331b838ffbfb7b1a12a88bca84ca5c346118b06475c0a40d42edab9cfac5f3e6",
-      "bytes": 28390,
+      "sha256": "4a6033da1a85779994a5d0c4bc0f2d7a802e59352ab078558e482d1971a6a810",
+      "bytes": 29107,
       "modo": "644",
       "origen": "arbrain/src/features/cerebro/server/graph.ts"
     },
@@ -12019,8 +12049,8 @@
       "origen": "arbrain/src/features/cerebro/server/synthesis.ts"
     },
     "arbrain/src/features/cerebro/types.ts": {
-      "sha256": "dd29f861ffa64d42acbe0de7903629edeaeaf9ca4ffd5d029bea9e68991a9f21",
-      "bytes": 4908,
+      "sha256": "64b5a865c43ba15e5234c3cf11a023e780ab01bf39321acf966e95510d49c338",
+      "bytes": 5205,
       "modo": "644",
       "origen": "arbrain/src/features/cerebro/types.ts"
     },
@@ -14539,10 +14569,16 @@
       "origen": "arbrain/src/features/ops/hooks/useOpsLogs.ts"
     },
     "arbrain/src/features/pantalla/VistaPantalla.tsx": {
-      "sha256": "4ce9d5dcdc5ab978b884fea45ffbc57154046cc9a841ccff7709e216e3f126d9",
-      "bytes": 8367,
+      "sha256": "bce808fd4a27a425cfe465bb4392925df79cf33c1bb4a58412a1d49bdf49ab5e",
+      "bytes": 8345,
       "modo": "644",
       "origen": "arbrain/src/features/pantalla/VistaPantalla.tsx"
+    },
+    "arbrain/src/features/pantalla/sin-pantalla.ts": {
+      "sha256": "0f17388820b313db864da2f4738ed4c93a4e372a477fa27b1c31dbe117e037ab",
+      "bytes": 902,
+      "modo": "644",
+      "origen": "arbrain/src/features/pantalla/sin-pantalla.ts"
     },
     "arbrain/src/features/permisos/components/CentroPermisos.tsx": {
       "sha256": "f72113df845e948f973887dcf5b9531ab24db684247186802d3580cb1a275f4f",
@@ -15973,8 +16009,8 @@
       "origen": "arbrain/src/lib/cabina/documento-disco.ts"
     },
     "arbrain/src/lib/cabina/documento-server.ts": {
-      "sha256": "46ff0c2753011b72df0a64b17633c0b630bc15f27f67bf5290e352601c5ecb02",
-      "bytes": 10343,
+      "sha256": "d63331048d6f51139a3b944143326f090b5b33e638b137058f20336d120eb7aa",
+      "bytes": 10477,
       "modo": "644",
       "origen": "arbrain/src/lib/cabina/documento-server.ts"
     },
@@ -16099,8 +16135,8 @@
       "origen": "arbrain/src/lib/draw3-auth.ts"
     },
     "arbrain/src/lib/edicion.ts": {
-      "sha256": "254b6cc0c00edcc72e0a2445b8846d9573f4233267ea0e9c545ef14846562b0a",
-      "bytes": 14275,
+      "sha256": "b77770ddabe25765204080cfaedc9c619127fd83b4214fb27e08826bf51ed308",
+      "bytes": 14693,
       "modo": "644",
       "origen": "arbrain/src/lib/edicion.ts"
     },
@@ -16284,6 +16320,12 @@
       "modo": "644",
       "origen": "arbrain/src/lib/modo-servidor.ts"
     },
+    "arbrain/src/lib/motor-plataforma.ts": {
+      "sha256": "a54a4a56415830e4c512837f684f2c31c8aade148941fa76296fb5117d450f57",
+      "bytes": 833,
+      "modo": "644",
+      "origen": "arbrain/src/lib/motor-plataforma.ts"
+    },
     "arbrain/src/lib/motor-saludo.ts": {
       "sha256": "6da7fd42ebeff50d1a53727b01b53c42c119ef26d0c3689bbc55b8561a0dbc5f",
       "bytes": 586,
@@ -16291,8 +16333,8 @@
       "origen": "arbrain/src/lib/motor-saludo.ts"
     },
     "arbrain/src/lib/motor.ts": {
-      "sha256": "1641234ae0a9c4a0898b1d7c0134ddb0cc485fb9cf0c211c2a9816be43e1004d",
-      "bytes": 4765,
+      "sha256": "e325b9035b0f368ba3db31d91dc4b589cc5b2f77082e79019edee706f7758c50",
+      "bytes": 5044,
       "modo": "644",
       "origen": "arbrain/src/lib/motor.ts"
     },
@@ -16374,6 +16416,12 @@
       "modo": "644",
       "origen": "arbrain/src/lib/proxy-cliente.ts"
     },
+    "arbrain/src/lib/raiz-cerebro.ts": {
+      "sha256": "32577536e3cd6d60fa07bf995a397ecd44e6c3d25a4c112edcc89a768fc7830a",
+      "bytes": 1469,
+      "modo": "644",
+      "origen": "arbrain/src/lib/raiz-cerebro.ts"
+    },
     "arbrain/src/lib/rate-limit.ts": {
       "sha256": "1e47c6795beedef5220e4bb15f0cd76601039002927cc8991d5e3126322974ff",
       "bytes": 1769,
@@ -16385,6 +16433,12 @@
       "bytes": 1520,
       "modo": "644",
       "origen": "arbrain/src/lib/replay.ts"
+    },
+    "arbrain/src/lib/ruta-portable.ts": {
+      "sha256": "5b073f66030b4e96d640e60adff93970b5907046d4091488b3cd086023dab9a3",
+      "bytes": 2998,
+      "modo": "644",
+      "origen": "arbrain/src/lib/ruta-portable.ts"
     },
     "arbrain/src/lib/rutas-instalacion.ts": {
       "sha256": "d00ae3643c8b1d9e4f9ae3ec84a9e96ac5bf2d7426f84ea56c6db2206808ba69",
@@ -17309,6 +17363,12 @@
       "bytes": 2473,
       "modo": "644",
       "origen": "arbrain/tests/cabina/finanzas.test.ts"
+    },
+    "arbrain/tests/cabina/habilidades-alumno.test.ts": {
+      "sha256": "f009420bcd4fbe9d2e85cfc316e22b3f147bc17be17960aab264a47d853f178d",
+      "bytes": 6382,
+      "modo": "644",
+      "origen": "arbrain/tests/cabina/habilidades-alumno.test.ts"
     },
     "arbrain/tests/cabina/imagenes-rapidas.test.ts": {
       "sha256": "a713cafd4682e7f7158f01a9dbc97a4d5d0916f52ee4a3856d3f9a667c43c238",
@@ -18468,6 +18528,12 @@
       "modo": "644",
       "origen": "arbrain/tests/edicion/tour-bienvenida.test.ts"
     },
+    "arbrain/tests/edicion/ver-tu-cerebro-cliente.test.ts": {
+      "sha256": "9bbf64af101efee828ca64ddd0924f211914bc322411160967dfd3d12f6749c7",
+      "bytes": 7241,
+      "modo": "644",
+      "origen": "arbrain/tests/edicion/ver-tu-cerebro-cliente.test.ts"
+    },
     "arbrain/tests/edicion/voz-groq-cliente.test.ts": {
       "sha256": "1f674b755654f670820a07281e71b7d4c0e1680628c4077c8eed1a266195b1eb",
       "bytes": 5587,
@@ -19332,6 +19398,48 @@
       "modo": "644",
       "origen": "arbrain/tests/planning/zonas.test.ts"
     },
+    "arbrain/tests/plataforma/lienzo-nunca-en-blanco.test.ts": {
+      "sha256": "f34e99cb42ba7795ad990f9f2a2d1b1643a6f722fb93b528c27fba674872838c",
+      "bytes": 2355,
+      "modo": "644",
+      "origen": "arbrain/tests/plataforma/lienzo-nunca-en-blanco.test.ts"
+    },
+    "arbrain/tests/plataforma/negocio-raiz-alumno.test.ts": {
+      "sha256": "121bfd086b59d3a241cc3a06a65116a65531f1985d954eb8e5069f5940d3bb91",
+      "bytes": 2370,
+      "modo": "644",
+      "origen": "arbrain/tests/plataforma/negocio-raiz-alumno.test.ts"
+    },
+    "arbrain/tests/plataforma/pantalla-por-sistema.test.ts": {
+      "sha256": "c4e00fb2ce90c7cb0ec93f4e6f45b6dced80fa2b495fc95ffc69df383bcdd86d",
+      "bytes": 1311,
+      "modo": "644",
+      "origen": "arbrain/tests/plataforma/pantalla-por-sistema.test.ts"
+    },
+    "arbrain/tests/plataforma/windows-disco-real.test.ts": {
+      "sha256": "3694a51aa1b2d295c9c9e4960c5f5952497f86d6787988e32ea377181cbd4ed2",
+      "bytes": 2877,
+      "modo": "644",
+      "origen": "arbrain/tests/plataforma/windows-disco-real.test.ts"
+    },
+    "arbrain/tests/plataforma/windows-documentos-lienzo.test.ts": {
+      "sha256": "d3a60d749a6e17961ad0837c5bf45ff7e84cee23783082a1f46ad3a48737ce71",
+      "bytes": 5245,
+      "modo": "644",
+      "origen": "arbrain/tests/plataforma/windows-documentos-lienzo.test.ts"
+    },
+    "arbrain/tests/plataforma/windows-taller-memoria.test.ts": {
+      "sha256": "648f9a1d8212daffa273cff9a844813fdd9d1c079a943431dac8e1adfc214b7a",
+      "bytes": 2379,
+      "modo": "644",
+      "origen": "arbrain/tests/plataforma/windows-taller-memoria.test.ts"
+    },
+    "arbrain/tests/plataforma/windows-terminal.test.ts": {
+      "sha256": "e072c42e2bc3a851a2806f2093856651ead2cef87df73a7602b64c04fe9cc312",
+      "bytes": 1227,
+      "modo": "644",
+      "origen": "arbrain/tests/plataforma/windows-terminal.test.ts"
+    },
     "arbrain/tests/podar-respaldos.test.ts": {
       "sha256": "95a852fe3fac3d67058989ecc0b723ef795759d148132f43c75ec4cf3280d711",
       "bytes": 2550,
@@ -19668,11 +19776,29 @@
       "modo": "644",
       "origen": "arbrain/tests/visual/dirname-shim.ts"
     },
+    "arbrain/tests/visual/dynamic-stub.tsx": {
+      "sha256": "bf4fedf1337f4154aa3d1108433ef3136daf60e9e19448943705d80934694acc",
+      "bytes": 201,
+      "modo": "644",
+      "origen": "arbrain/tests/visual/dynamic-stub.tsx"
+    },
     "arbrain/tests/visual/fixture.tsx": {
       "sha256": "55d45e136b3c09d38eab34dea5918df5cf0d80db0f3775d03ed5786204f60c7a",
       "bytes": 2124,
       "modo": "644",
       "origen": "arbrain/tests/visual/fixture.tsx"
+    },
+    "arbrain/tests/visual/habilidades-alumno-fixture.tsx": {
+      "sha256": "e05ebec749f85527faf9ceb7cbd69e633f2db4c22110bfc30727308d77afdaf4",
+      "bytes": 2482,
+      "modo": "644",
+      "origen": "arbrain/tests/visual/habilidades-alumno-fixture.tsx"
+    },
+    "arbrain/tests/visual/habilidades-alumno.html": {
+      "sha256": "5812d71520028be7e67a8190bf8fd169ee92e3e07f110360d36ae5c01de44420",
+      "bytes": 300,
+      "modo": "644",
+      "origen": "arbrain/tests/visual/habilidades-alumno.html"
     },
     "arbrain/tests/visual/hoy-bandeja-fixture.tsx": {
       "sha256": "ed571abd40eb6dfe3cf12b8d9901f380d015ef10e701197d853861bad15739be",
@@ -19871,6 +19997,12 @@
       "bytes": 1690,
       "modo": "644",
       "origen": "arbrain/tests/visual/vite.config.mts"
+    },
+    "arbrain/tests/visual/vite.habilidades.config.mts": {
+      "sha256": "c37f29a2197ae2e3f2c12ab4f530a67f3f8bcef3a2f997a86d1a3271b3d60a37",
+      "bytes": 668,
+      "modo": "644",
+      "origen": "arbrain/tests/visual/vite.habilidades.config.mts"
     },
     "arbrain/tests/zona-lectura.test.ts": {
       "sha256": "c2a1fb5ed06789aa82eb6e3666d6a55a0c3fe1c99b66d3d94eb22ff8b55b09f4",

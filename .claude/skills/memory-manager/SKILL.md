@@ -2,6 +2,8 @@
 name: memory-manager
 description: >
   Gestiona la memoria persistente curada de Levy en .claude/memory/. Usar siempre que el dueño pida recordar, guardar o consultar contexto; cuando pregunte si recuerdas algo; al inicio de sesiones donde el contexto historico importa; o cuando aparezca una correccion, decision, patron, bug resuelto o aprendizaje que el dueño podria querer versionar. Triggers: recuerda, remember, guarda esto, no olvides, memoria, contexto anterior, conversacion pasada, que sabes de, ultimo que hicimos.
+metadata:
+  resumen: "Guarda y recuerda lo que importa de ti y de tu negocio. Dile «recuerda esto» o «¿qué sabes de…?»."
 ---
 
 # Memory Manager — Sistema de Memoria Persistente de Levy

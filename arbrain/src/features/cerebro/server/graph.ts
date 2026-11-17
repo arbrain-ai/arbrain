@@ -20,6 +20,8 @@ import type {
   CerebroNodeType,
 } from '../types'
 import { instalacion } from '@/config'
+import { esEdicionCliente } from '@/lib/edicion'
+import { raizWorkspace } from '@/lib/rutas-instalacion'
 
 const ROOT_CANDIDATES = [
   process.env.BUSINESS_OS_ROOT,
@@ -28,7 +30,22 @@ const ROOT_CANDIDATES = [
   path.join(process.cwd(), '..', '..'),
 ].filter(Boolean) as string[]
 
+/**
+ * Edición del alumno (16 nov 2026): su cerebro es `ARBRAIN_HOME` y nada más (la web corre desde los recursos de la app,
+ * donde `cwd/..` no es su cerebro; y en una máquina con el repo del autor caía en el del autor). No exige `MEMORY.md`:
+ * un cerebro recién sembrado ya pinta sus habilidades y sus primeras memorias. Sin carpeta, `null` (la pantalla lo dice).
+ */
+function raizDelAlumno(): string | null {
+  try {
+    const raiz = raizWorkspace()
+    return existsSync(raiz) ? raiz : null
+  } catch {
+    return null // ARBRAIN_HOME sin fijar
+  }
+}
+
 function resolveRoot(): string | null {
+  if (esEdicionCliente()) return raizDelAlumno()
   for (const candidate of ROOT_CANDIDATES) {
     if (existsSync(path.join(candidate, '.claude', 'memory', 'MEMORY.md'))) {
       return candidate

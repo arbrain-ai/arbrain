@@ -1,6 +1,8 @@
 ---
 name: habit-system
 description: "Agenda, objetivos de mes, semana y día, hábitos, diario, revisiones y el reflejo en now.md del dueño. Una foto o mención del diario, incluso 'lee mi última nota', dispara el pipeline completo de references/diario.md; no solo lectura. Tareas: casillas en objetivos.md o Todoist si el dueño conecta su token. Usar ante 'qué tengo hoy', 'planea mi semana', 'marca este hábito', 'cómo me fue', 'apúntame esto'."
+metadata:
+  resumen: "Tu agenda, tus objetivos, tus hábitos y tu diario, para que cada día sepas qué sigue."
 ---
 
 # habit-system: el sistema operativo del día del dueño

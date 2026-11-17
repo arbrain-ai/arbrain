@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { planningOwner, planningError } from '@/lib/planning/server'
 import { instalacion } from '@/config'
+import { raizCerebro } from '@/lib/raiz-cerebro'
 import { medirFuente } from '@/lib/canvas/nervio-estado'
 import { motorDe, panelNegocioEncendido, RUTA_EMBUDO, validarEmbudo, type RespuestaEmbudo } from '@/features/negocio/embudo'
 import { tr } from '@/shared/i18n'
@@ -19,8 +20,8 @@ export const dynamic = 'force-dynamic'
 const NOCACHE = { 'Cache-Control': 'no-store' }
 const APAGADO = () => Response.json({ activo: false } satisfies RespuestaEmbudo, { headers: NOCACHE })
 
-const RAICES = () => [process.env.BUSINESS_OS_ROOT, instalacion().raizRepoRespaldo, path.join(process.cwd(), '..')].filter(Boolean) as string[]
-const raiz = () => RAICES().find(r => existsSync(path.join(r, '.claude', 'memory', 'MEMORY.md'))) ?? null
+// En la app instalada del alumno, `ARBRAIN_HOME` (lib/raiz-cerebro.ts, 16 nov 2026).
+const raiz = () => raizCerebro()
 
 /** Las skills vivas: cada carpeta de `.claude/skills/` con su SKILL.md (sigue enlaces). Sin carpeta legible, undefined:
  *  el panel dice que no pudo leerlas en vez de marcar todo «sin revisar». */

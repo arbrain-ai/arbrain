@@ -2,6 +2,8 @@
 name: artificial-brain
 description: >
   Operar y diagnosticar tu Arbrain: la app de escritorio, su daemon local, la memoria, el panel, el chat, las cuatro salas, el lienzo y las llaves (BYOK). Usar ante fallos («Levy no responde», «falta la llave», «no guarda»), preguntas de cómo está cableado o cambios de arquitectura. Para guardar memoria usar memory-manager; para agenda y hábitos, habit-system; para auditoría en solo lectura, os-audit.
+metadata:
+  resumen: "Revisa y arregla tu Arbrain cuando algo falla: la app, la memoria, el chat, el lienzo o tus llaves."
 ---
 
 # Artificial Brain: entrada del sistema

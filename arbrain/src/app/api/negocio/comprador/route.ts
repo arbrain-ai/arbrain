@@ -1,8 +1,7 @@
 import { readFile } from 'node:fs/promises'
-import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { planningOwner, planningError } from '@/lib/planning/server'
-import { instalacion } from '@/config'
+import { raizCerebro } from '@/lib/raiz-cerebro'
 import { esEdicionCliente } from '@/lib/edicion'
 import { estadoDirecto } from '@/lib/modo-directo/servidor'
 import { panelNegocioEncendido } from '@/features/negocio/embudo'
@@ -21,8 +20,8 @@ export const dynamic = 'force-dynamic'
 
 const NOCACHE = { 'Cache-Control': 'no-store' }
 
-const RAICES = () => [process.env.BUSINESS_OS_ROOT, instalacion().raizRepoRespaldo, path.join(process.cwd(), '..')].filter(Boolean) as string[]
-const raiz = () => RAICES().find(r => existsSync(path.join(r, '.claude', 'memory', 'MEMORY.md'))) ?? null
+// En la app instalada del alumno, `ARBRAIN_HOME` (lib/raiz-cerebro.ts, 16 nov 2026).
+const raiz = () => raizCerebro()
 
 async function pieza(base: string, f: { ruta: string; nombre: RegExp; ancla: RegExp }): Promise<Pieza | null> {
   try { return piezaDe(await readFile(path.join(base, f.ruta), 'utf8'), f) } catch { return null }

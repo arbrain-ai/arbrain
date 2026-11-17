@@ -1,6 +1,8 @@
 ---
 name: sistema-viable
 description: "Modelo de Sistema Viable de Stafford Beer: S1–S5, variedad/Ashby, recursión, homeostasis, señales algedónicas, POSIWID y variables críticas. Usar para diagnóstico organizacional, delegación, diseño o poda de órganos y estudio de The Heart of Enterprise. Cableado técnico de Arbrain: artificial-brain."
+metadata:
+  resumen: "Te ayuda a ordenar tu negocio como un sistema: qué hace cada parte, qué delegar y qué sobra."
 ---
 
 # Sistema Viable — el lenguaje de gobierno dueño↔Levy

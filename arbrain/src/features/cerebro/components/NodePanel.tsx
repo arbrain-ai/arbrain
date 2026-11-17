@@ -16,7 +16,7 @@ import {
   X,
 } from 'lucide-react'
 import type { CerebroNodeDetail } from '../types'
-import { TYPE_META } from '../types'
+import { TYPE_META, urlNodo } from '../types'
 
 interface NodePanelProps {
   nodeId: string
@@ -26,6 +26,8 @@ interface NodePanelProps {
   onClose: () => void
   onAddToSlice: (id: string) => void
   onSynthesizeNeighborhood: (id: string) => void
+  /** Sin síntesis (edición del alumno: `sintesisDisponible`), el panel no ofrece sus botones. */
+  conSintesis?: boolean
   inSlice: boolean
 }
 
@@ -37,6 +39,7 @@ export function NodePanel({
   onClose,
   onAddToSlice,
   onSynthesizeNeighborhood,
+  conSintesis = true,
   inSlice,
 }: NodePanelProps) {
   const [detail, setDetail] = useState<CerebroNodeDetail | null>(null)
@@ -47,7 +50,7 @@ export function NodePanel({
     let cancelled = false
     setLoading(true)
     setError(null)
-    fetch(`/api/cerebro/node?id=${encodeURIComponent(nodeId)}`)
+    fetch(urlNodo(nodeId))
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
       .then((d) => {
         if (!cancelled) setDetail(d)
@@ -109,7 +112,7 @@ export function NodePanel({
       </div>
 
       {/* Acciones hacia síntesis */}
-      <div className="flex gap-2 border-b border-border-subtle px-4 py-2">
+      {conSintesis && <div className="flex gap-2 border-b border-border-subtle px-4 py-2">
         <button
           onClick={() => onAddToSlice(nodeId)}
           className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-2 py-1.5 text-[11px] font-semibold transition-colors ${
@@ -129,7 +132,7 @@ export function NodePanel({
           <Sparkles className="size-3.5" />
           Sintetizar vecindario
         </button>
-      </div>
+      </div>}
 
       {/* Body */}
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">

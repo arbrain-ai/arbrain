@@ -1,7 +1,5 @@
-import { existsSync } from 'node:fs'
-import path from 'node:path'
 import { planningOwner, planningError } from '@/lib/planning/server'
-import { instalacion } from '@/config'
+import { raizCerebro } from '@/lib/raiz-cerebro'
 import { esEdicionCliente } from '@/lib/edicion'
 import { panelNegocioEncendido } from '@/features/negocio/embudo'
 import type { RespuestaMarcador } from '@/features/negocio/marcador-levy'
@@ -14,8 +12,8 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 const NOCACHE = { 'Cache-Control': 'no-store' }
-const RAICES = () => [process.env.BUSINESS_OS_ROOT, instalacion().raizRepoRespaldo, path.join(process.cwd(), '..')].filter(Boolean) as string[]
-const raiz = () => RAICES().find(r => existsSync(path.join(r, '.claude', 'memory', 'MEMORY.md'))) ?? null
+// En la app instalada del alumno, `ARBRAIN_HOME` (lib/raiz-cerebro.ts, 16 nov 2026).
+const raiz = () => raizCerebro()
 
 export async function GET() {
   if (!panelNegocioEncendido() || esEdicionCliente()) return Response.json({ activo: false } satisfies RespuestaMarcador, { headers: NOCACHE })

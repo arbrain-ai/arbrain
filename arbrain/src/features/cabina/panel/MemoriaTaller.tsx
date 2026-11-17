@@ -28,7 +28,7 @@ import w from './taller.module.css'
 import n from './habilidades-embudo.module.css'
 import { localeIntl, tr, trMarca } from '@/shared/i18n'
 
-interface Archivo { ruta: string; titulo: string; detalle: string | null; grupo: 'memoria' | 'skills' | 'documentos'; editado: string }
+interface Archivo { ruta: string; titulo: string; detalle: string | null; grupo: 'memoria' | 'skills' | 'documentos'; editado: string; origen?: 'arbrain' | 'tuya' }
 interface Instruccion { ruta: string; titulo: string; detalle: string; editado: string; bytes: number }
 interface FotoArchivos {
   archivos: Archivo[]; raiz: string | null
@@ -56,7 +56,9 @@ const LLAVE = LLAVE_PARTE_MEMORIA
 const leerParte = (): Parte => { try { const v = localStorage.getItem(LLAVE); return PARTES.some(p => p.id === v) ? v as Parte : 'memorias' } catch { return 'memorias' } }
 
 export function MemoriaTaller() {
-  const memoria = useFuente<FotoMemoria>(URL_MEMORIA).data
+  const fuenteMemoria = useFuente<FotoMemoria>(URL_MEMORIA)
+  // `{}` o un error del daemon no tumban la vista (16 nov 2026: «— memorias» en la copia del alumno recién instalada).
+  const memoria = Array.isArray(fuenteMemoria.data?.archivos) ? fuenteMemoria.data : undefined
   const archivos = useFuente<FotoArchivos>(URL_ARCHIVOS)
   const [parte, setParte] = useState<Parte>('memorias')
   // Tu negocio › El sistema (4 nov 2026, detrás de ARBRAIN_PANEL_NEGOCIO=1): de qué etapa cuelga cada habilidad, y la
@@ -68,8 +70,11 @@ export function MemoriaTaller() {
   useEffect(() => escucharPedido(EVENTO_HABILIDAD, r => { tomarPedido(LLAVE_HABILIDAD); setParte('skills'); setPedida({ ruta: r, n: Date.now() }) }), [])
   const elegir = (p: Parte) => { setParte(p); try { localStorage.setItem(LLAVE, p) } catch { /* sin almacenamiento */ } }
   const a = archivos.data
-  const nMem = memoria?.archivos.length ?? null
-  const memSemana = memoria ? memoria.archivos.filter(f => f.fecha && Date.now() - Date.parse(f.fecha) < SEMANA_MS).length : 0
+  // Si la memoria del daemon no respondió (o vino vacía de forma inválida), la cifra es la real de la ruta de archivos,
+  // la misma que lista Habilidades: nunca una raya cuando los archivos están ahí.
+  const sinDaemon = !memoria && (fuenteMemoria.error != null || fuenteMemoria.data != null)
+  const nMem = memoria ? memoria.archivos.length : sinDaemon ? a?.totales?.memoria ?? null : null
+  const memSemana = memoria ? memoria.archivos.filter(f => f.fecha && Date.now() - Date.parse(f.fecha) < SEMANA_MS).length : sinDaemon ? a?.semana?.memoria ?? 0 : 0
   const nSkills = a ? a.totales?.skills ?? a.archivos.filter(x => x.grupo === 'skills').length : null
   const nDocs = a ? a.totales?.documentos ?? a.archivos.filter(x => x.grupo === 'documentos').length : null
   const cifras: { n: number | null; nombre: [string, string]; semana: number; parte: Parte }[] = [
@@ -116,10 +121,12 @@ function ListaArchivos({ data, error, grupo, embudo, pedida }: { data: FotoArchi
   const Icono = grupo === 'skills' ? Wand2 : FileText
   return <>
     <label className={w.buscar}><Search size={14} aria-hidden /><input placeholder={grupo === 'skills' ? tr('Buscar una habilidad') : tr('Buscar en los documentos del negocio')} value={filtro} onChange={e => setFiltro(e.target.value)} aria-label={tr('Buscar')} /></label>
-    {!lista.length ? <p className={w.nota}>{tr('Nada coincide con «{consulta}».', { consulta: filtro })}</p> : <section className={`${w.tarjeta} ${mov.entra}`} style={escalon(1)}>
+    {!lista.length ? <p className={w.nota}>{q ? tr('Nada coincide con «{consulta}».', { consulta: filtro })
+      : grupo === 'skills' ? tr('Aún no hay habilidades en tu cerebro. Pídele a Levy «actualiza mi Arbrain» para traer las que vienen incluidas, o «crea una skill» para hacer la tuya.')
+      : tr('Aún no hay documentos del negocio en tu cerebro.')}</p> : <section className={`${w.tarjeta} ${mov.entra}`} style={escalon(1)}>
       <div className={s.lista}>{ver.map(a => <button key={a.ruta} className={s.fila} onClick={() => setAbierto(a.ruta)} title={a.ruta}>
         <span className={s.marca}><Icono size={13} className={s.iconoArchivo} aria-hidden /></span>
-        <span className={s.filaTexto}><span className={s.filaNombre}>{a.titulo}</span>{a.detalle && <span className={s.filaMeta}>{a.detalle}</span>}{embudo && <EtapasFila etapas={etapasDeSkill(embudo, a.titulo)} />}</span>
+        <span className={s.filaTexto}><span className={s.filaNombre}>{a.titulo}{a.origen && <span className={w.origen} data-origen={a.origen}>{a.origen === 'tuya' ? tr('Tuya') : tr('Viene con Arbrain')}</span>}</span>{a.detalle && <span className={`${s.filaMeta} ${grupo === 'skills' ? w.paraQue : ''}`}>{a.detalle}</span>}{embudo && <EtapasFila etapas={etapasDeSkill(embudo, a.titulo)} />}</span>
         <span className={s.filaEstado}>{hace(a.editado)}</span>
       </button>)}</div>
       {lista.length > ver.length && <button className={s.mas} onClick={() => setTodos(true)}>{tr('Ver las {n}', { n: lista.length })}</button>}
@@ -152,7 +159,8 @@ function Lector({ ruta, volver, etiqueta, titulo, embudo }: { ruta: string; volv
     const esc = (e: KeyboardEvent) => { if (e.key === 'Escape' && !e.defaultPrevented) { e.preventDefault(); volver() } }
     window.addEventListener('keydown', esc); return () => window.removeEventListener('keydown', esc)
   }, [volver])
-  const texto = data?.texto.replace(/^---\n[\s\S]*?\n---\n/, '') ?? ''
+  // CRLF (git en Windows) a LF: si no, cada renglón del archivo sale como salto de línea a media frase.
+  const texto = data?.texto.replace(/\r\n?/g, '\n').replace(/^\uFEFF?---\n[\s\S]*?\n---\n/, '') ?? ''
   const corregir = () => {
     const cita = tr('Sobre {ruta}: ', { ruta: `\`${ruta}\`` })
     if (window.location.pathname.startsWith('/chat')) window.dispatchEvent(new CustomEvent('cabina:redactar', { detail: { texto: cita } }))

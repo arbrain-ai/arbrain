@@ -1,6 +1,8 @@
 ---
 name: presentaciones
 description: "Presentaciones que dejan callada a la sala, en HTML de doble clic: un universo visual propio, una idea por lámina, dibujos que se mueven con cada clic, vista de presentador con notas y reloj. El dueño solo dice de qué es; todo el oficio lo pone el modelo, con su marca. Usar ante «hazme una presentación», «un deck», «slides», «diapositivas», «láminas», «mi clase», «mi pitch», «mi webinar», «mi taller», «una presentación como las de las clases», «la skill de presentaciones», «cómo hago presentaciones», «cámbiale la lámina 5». No es para PowerPoint (.pptx) ni Google Slides."
+metadata:
+  resumen: "Hace presentaciones que dejan callada a la sala, listas para abrir con doble clic: tú dices de qué es y Levy pone el oficio."
 ---
 
 # presentaciones · el dueño dice de qué es, tú pones el oficio
