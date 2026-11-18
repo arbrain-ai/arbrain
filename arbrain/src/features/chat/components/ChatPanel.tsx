@@ -1,6 +1,7 @@
 'use client'
 
-import { tr, trn, localeIntl } from '@/shared/i18n'
+import { tr, trn, trMarca, localeIntl } from '@/shared/i18n'
+import { useMejora } from '@/features/mejoras/lib/mejoras-store'
 import { FileAttachmentCard } from './FileAttachmentCard'
 import { LevyFace } from './LevyFace'
 import { Retrato } from '@/shared/components/Retrato'
@@ -53,6 +54,7 @@ import { chatSpeech } from '../lib/chat-speech'
 import { LectorPosicion } from './LectorPosicion'
 import { TtsProbeOverlay } from './TtsProbeOverlay'
 import { VoiceInput } from './VoiceInput'
+import { EVENTO_ENVIAR_AL_DETENER, leerEnviarAlDetener, unirAlBorrador } from '../lib/nota-voz-borrador'
 import { useLlaveVoz } from '../lib/voz-cliente'
 import { MARCA_DESDE_MIC } from '@/features/primer-arranque/lib/llaves'
 import { BotonReintentar } from './BotonReintentar'
@@ -2558,6 +2560,8 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
   }, [sendMessage, activeSession?.id, inyectar, turnoInyectable])
   // Edición cliente (21 oct 2026): el dictado solo transcribe (no sube audio); sin texto no se manda nada.
   const llaveVoz = useLlaveVoz(EDICION_CLIENTE)
+  // Ajustes › Mejoras › «Micrófono y + mientras trabaja»: apagada, el mic y el «+» esperan a que termine (como antes).
+  const micConTurno = useMejora('mic-con-turno')
   const notaVozCliente = useCallback((texto: string, audioUrl: string) => { if (texto.trim()) handleVoiceNote(texto, audioUrl) }, [handleVoiceNote])
   const irAjustesVoz = useCallback(() => {
     try { sessionStorage.setItem(MARCA_DESDE_MIC, '1') } catch { /* sin storage */ }
@@ -3040,6 +3044,31 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
     }, 900)
     return () => { window.removeEventListener('cabina:redactar', redactar); window.clearTimeout(pendiente) }
   }, [])
+  // Nota de voz como borrador: al detener la grabación, lo dictado queda en la caja (junto a lo escrito, fotos y
+  // archivos) y se manda con Enviar. Enviar al detener es opcional (Ajustes › Voz) y viene apagado. Igual en
+  // computadora y teléfono: es el mismo compositor.
+  // Detrás de Ajustes › Mejoras › «Nota de voz como borrador»: apagada, la nota se envía al detenerla (como antes).
+  const notaBorrador = useMejora('nota-borrador')
+  const [enviarVozAlDetener, setEnviarVozAlDetener] = useState(false)
+  const enviaVoz = !notaBorrador || enviarVozAlDetener
+  useEffect(() => {
+    const leer = () => setEnviarVozAlDetener(leerEnviarAlDetener())
+    leer()
+    window.addEventListener(EVENTO_ENVIAR_AL_DETENER, leer)
+    window.addEventListener('storage', leer)
+    return () => { window.removeEventListener(EVENTO_ENVIAR_AL_DETENER, leer); window.removeEventListener('storage', leer) }
+  }, [])
+  // Ref a la caja de hoy: si escribes mientras se transcribe, lo dictado se suma a lo último escrito (no a lo de antes).
+  const notaVozABorradorRef = useRef<(t: string) => void>(() => {})
+  notaVozABorradorRef.current = (texto: string) => {
+    if (!texto.trim()) return
+    setInput(unirAlBorrador(composerDraft.value.input, texto))
+    requestAnimationFrame(() => { const el = textareaRef.current; if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length) } })
+  }
+  const recibirNotaVoz = useCallback((texto: string, audioUrl: string) => {
+    if (!enviaVoz) { notaVozABorradorRef.current(texto); return }
+    if (EDICION_CLIENTE) notaVozCliente(texto, audioUrl); else handleVoiceNote(texto, audioUrl)
+  }, [enviaVoz, notaVozCliente, handleVoiceNote])
   const onRetryCb = useCallback((text: string) => { handleSendRef.current?.(text) }, [])
 
   // Memoize message list — prevents re-creating/diffing JSX on every keystroke
@@ -3162,6 +3191,28 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
     },
     () => activeSessionRef.current?.id ?? null,
   ), [])
+
+  // El micrófono del redactor: con la mejora va siempre, primero; apagada, solo cuando no hay detener ni enviar.
+  const microfono = EDICION_CLIENTE && llaveVoz !== true ? (
+    // Edición cliente sin llave de Groq (21 oct 2026): el micrófono lleva a Ajustes › Voz, que explica cómo
+    // conseguirla gratis. Con la llave, el dictado de abajo transcribe en SU daemon.
+    <button type="button" onClick={irAjustesVoz} disabled={loadingSession}
+      aria-label={tr('Dictar: agrega tu llave de Groq (gratis) en Ajustes › Voz')}
+      title={tr('Para dictar, agrega tu llave de Groq (gratis) en Ajustes › Voz')}
+      className="shrink-0 w-11 h-11 md:w-[var(--tam-control)] md:h-[var(--tam-control)] rounded-xl flex items-center justify-center transition-all text-muted/80 hover:text-foreground/70 hover:bg-card-hover disabled:opacity-50">
+      <Mic size={16} className="md:w-[15px] md:h-[15px]" />
+    </button>
+  ) : (
+    <VoiceInput
+      onVoiceNote={recibirNotaVoz}
+      disabled={loadingSession}
+      soloTexto={EDICION_CLIENTE || !enviaVoz}
+      enviaAlDetener={enviaVoz}
+      onSinConfigurar={EDICION_CLIENTE ? irAjustesVoz : undefined}
+      etiqueta={micConTurno && loading ? trMarca('Dictar: entra a la fila mientras Levy trabaja') : undefined}
+      ligero
+    />
+  )
 
   const liveActions = useRef({ send: handleSend, interrupt: pauseStreaming, newChat: handleNewChat, answerQuestion })
   liveActions.current = { send: handleSend, interrupt: pauseStreaming, newChat: handleNewChat, answerQuestion }
@@ -3564,9 +3615,10 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
                 </div>}
                 {/* Controles fijos debajo del texto. */}
                 <div className={composerUI.controls}>
-                  {/* Adjuntar: «+» abre fotos o documentos (2 oct 2026). */}
+                  {/* Adjuntar: «+» abre fotos o documentos (2 oct 2026). Sigue activo con Levy trabajando: lo adjunto
+                      sale con la fila, como el texto. */}
                   <MenuAdjuntar
-                    disabled={loading || loadingSession || uploadingImage}
+                    disabled={(loading && !micConTurno) || loadingSession || uploadingImage}
                     onFotos={() => fileInputRef.current?.click()}
                     onDocumentos={() => docInputRef.current?.click()}
                     onConsejo={onConsejo}
@@ -3658,6 +3710,10 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
                 </div>
                 {/* Acción — móvil: extremo derecho de la barra inferior · desktop: fin de fila */}
                 <div className={`${composerUI.action} flex items-center gap-1.5`}>
+                {/* Con la mejora «Micrófono y + mientras trabaja», el micrófono va siempre, primero y en el mismo lugar: no se desmonta a media grabación si arranca un
+                    turno o escribes. Lo dictado con Levy trabajando entra al turno en curso o a la fila (handleVoiceNote),
+                    como el texto. */}
+                {micConTurno && microfono}
                 {/* Un solo botón (1 oct 2026): Levy trabajando + caja vacía = detener; en cuanto
                     hay texto, archivo o foto = enviar (con turno activo, entra a la fila). Recién
                     enviado, detener queda desarmado un instante: un doble clic no interrumpe. */}
@@ -3703,24 +3759,7 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
                   >
                     <ArrowUp strokeWidth={2.5} aria-hidden />
                   </button>
-                ) : EDICION_CLIENTE && llaveVoz !== true ? (
-                  // Edición cliente sin llave de Groq (21 oct 2026): el micrófono lleva a Ajustes › Voz, que explica cómo
-                  // conseguirla gratis. Con la llave, el dictado de abajo transcribe en SU daemon.
-                  <button type="button" onClick={irAjustesVoz} disabled={loadingSession}
-                    aria-label={tr('Dictar: agrega tu llave de Groq (gratis) en Ajustes › Voz')}
-                    title={tr('Para dictar, agrega tu llave de Groq (gratis) en Ajustes › Voz')}
-                    className="shrink-0 w-11 h-11 md:w-[var(--tam-control)] md:h-[var(--tam-control)] rounded-xl flex items-center justify-center transition-all text-muted/80 hover:text-foreground/70 hover:bg-card-hover disabled:opacity-50">
-                    <Mic size={16} className="md:w-[15px] md:h-[15px]" />
-                  </button>
-                ) : (
-                  <VoiceInput
-                    onVoiceNote={EDICION_CLIENTE ? notaVozCliente : handleVoiceNote}
-                    disabled={loadingSession}
-                    soloTexto={EDICION_CLIENTE}
-                    onSinConfigurar={EDICION_CLIENTE ? irAjustesVoz : undefined}
-                    ligero
-                  />
-                )}
+                ) : micConTurno ? null : microfono}
                 </div>
               </div>
             </div>

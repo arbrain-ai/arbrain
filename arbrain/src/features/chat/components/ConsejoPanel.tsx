@@ -5,6 +5,7 @@ import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { MarkdownMessage } from './MarkdownMessage'
 import { VoiceInput } from './VoiceInput'
+import { useMejora } from '@/features/mejoras/lib/mejoras-store'
 import { ConsejoMessageActions } from './ConsejoMessageActions'
 import { ConsejoSettings, type ModelSettings } from './ConsejoSettings'
 import { QuestionCard } from './QuestionCard'
@@ -54,6 +55,7 @@ function lineage(turns: Turn[], branch: string): Turn[] {
 }
 const EMPTY_DRAFT={text:'',attachments:[] as Attachment[],edit:null as Pick<Turn,'id'|'parentId'>|null,references:[] as ResponseRef[],branch:''}
 export function ConsejoPanel({ onAccount }: { onAccount: (account: ChatAccount) => void }) {
+  const notaBorrador = useMejora('nota-borrador')
   const [sessions, setSessions] = useState<Conversation[]>([])
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null)
   const [selected, setSelected] = useState<string | null>(null)
@@ -309,7 +311,7 @@ export function ConsejoPanel({ onAccount }: { onAccount: (account: ChatAccount) 
             <div className={`${styles.composerActions} ${composerUI.toolbar}`}>
               <input ref={file} hidden type="file" multiple accept="image/png,image/jpeg,image/webp,image/gif,.txt,.md,.csv,.json" onChange={e => { void attach(e.target.files) }}/>
               <button type="button" aria-label="Adjuntar archivo" onClick={() => file.current?.click()}><Paperclip size={18}/></button>
-              <VoiceInput onVoiceNote={transcript => setText(old => old ? `${old}\n${transcript}` : transcript)} disabled={busy}/>
+              <VoiceInput enviaAlDetener={!notaBorrador} onVoiceNote={transcript => setText(old => old ? `${old}\n${transcript}` : transcript)} disabled={busy}/>
               <button type="button" className={composerUI.model} aria-label="Modelos y esfuerzo de Consejo" title="Modelos y esfuerzo" onClick={() => setSettingsOpen(true)}><SlidersHorizontal size={18}/><span className="text-xs">Levy · {exactModelLabel(levyModel)}</span></button>
               {running ? <button className="msg-stop-btn" type="button" aria-label="Cancelar turno" disabled={busy} onClick={() => { const active = turns.find(t => ['pending','running'].includes(t.state)); if (active) void action('cancel', active) }}><Square size={14} fill="currentColor"/></button> : <button className={`${styles.send} msg-send-btn`} data-consejo-send type="submit" aria-label="Enviar a Consejo" disabled={!draft.ready || busy || preparingImage || !!pending || (!text.trim() && !attachments.length) || (!edit && !!head && head.state !== 'complete')}><ArrowUp size={20}/></button>}
             </div>

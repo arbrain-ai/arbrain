@@ -4,6 +4,32 @@ Cada versión dice qué trae y qué tienes que hacer tú. Para actualizar, abre 
 «jala los últimos cambios». Las versiones siguen `MAYOR.MENOR.PARCHE`: un cambio en MENOR trae funciones
 nuevas; uno en PARCHE, arreglos.
 
+## v0.2.29 · 18 nov 2026 · Atajos con Ctrl en Windows y cuatro mejoras que tú prendes
+
+**Qué trae**
+- **En Windows (y Linux), los atajos van con Ctrl.** Ajustes › Atajos, la ayuda de `?` y los títulos de los botones
+  dicen Ctrl, Alt y Shift en vez de `⌘`, `⌥` y `⇧`, y los atajos responden: Ctrl+B abre y cierra el panel,
+  Ctrl+Shift+B la barra de conversaciones, Ctrl+Alt+B saca la pestaña del panel a su propia ventana y Ctrl+, abre
+  Ajustes. Antes esperaban la tecla de Windows, que el sistema se queda. Escribiendo, en el Lienzo o en una pizarra,
+  Ctrl+B sigue siendo negrita, y lo que escribes con AltGr (@, #, [, ]) no dispara nada. En Mac todo sigue igual.
+- **Ajustes › Mejoras, nueva sección:** un interruptor por mejora. **Todas vienen apagadas** y, apagadas, Arbrain se
+  queda exactamente como estaba. Lo que prendas vale en todas tus ventanas y en tu teléfono.
+  - **Panel derecho que se pliega:** un asa en el borde para esconderlo y volver a mostrarlo, y la tecla `]` (fuera
+    de un campo de texto), como `[` con las conversaciones.
+  - **Micrófono y «+» mientras trabaja:** dictas o adjuntas sin esperar a que Levy termine; entra a la fila, como lo
+    que escribes.
+  - **Nota de voz como borrador:** al detener la grabación, lo que dijiste queda escrito en tu mensaje para corregirlo,
+    sumarle texto, fotos u otra nota, y lo mandas con Enviar. Si prefieres que se mande sola, en Ajustes › Voz
+    está «Enviar la nota de voz al detenerla».
+  - **Elegir la voz de LemonFox:** con tu llave de LemonFox guardada, en Ajustes › Voz eliges entre sus voces en
+    español (hombre o mujer) la que te lee las respuestas, y la escuchas antes con «Probar» (con la app en español).
+- **El aviso del sistema en Windows ya no se rompe** cuando la respuesta de Levy trae comillas tipográficas (’).
+- Los atajos de Windows y las cuatro mejoras son el aporte de un fundador de la cohorte. Gracias.
+
+**Qué tienes que hacer**
+- Actualizar («actualiza mi Arbrain»). No pierdes nada tuyo.
+- Todo viene apagado: préndelo en Ajustes › Mejoras (Ajustes se abre con Ctrl+, en Windows y con ⌘, en Mac).
+
 ## v0.2.28 · 16 nov 2026 · Windows sin secciones en blanco, tus habilidades a la vista y «Ver tu cerebro»
 
 **Qué trae**

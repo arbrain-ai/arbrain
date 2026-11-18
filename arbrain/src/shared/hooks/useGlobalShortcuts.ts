@@ -17,7 +17,9 @@ import { todasFuera } from '@/features/cabina/panel/pestanas-fuera'
 import { notifyTaskAssigned } from '@/lib/notifications'
 import { useTerminalPanel } from '@/shared/stores/terminal-panel-store'
 import { useAjustes } from '@/shared/stores/ajustes-store'
+import { esAltGr, esMac, modPrincipal } from '@/shared/navigation/teclas-plataforma'
 import type { TaskStatus, TaskPriority, TaskWithAssignees } from '@/types/database'
+import { mejoraActiva } from '@/features/mejoras/lib/mejoras'
 
 const STATUS_CYCLE: TaskStatus[] = ['backlog', 'todo', 'in_progress', 'done']
 
@@ -26,6 +28,20 @@ function isInputFocused(): boolean {
   if (!el) return false
   const tag = el.tagName.toLowerCase()
   return tag === 'input' || tag === 'textarea' || tag === 'select' || (el as HTMLElement).isContentEditable
+}
+
+/** Abre o cierra la columna derecha; con todas sus pestañas en ventanas aparte, las trae al frente. */
+function alternarPanelDerecho() {
+  if (todasFuera(clavesDe(usePanelFijadas.getState()), Object.keys(usePanelFijadas.getState().enVentana))) mostrarPanel()
+  else useLayoutStore.getState().togglePanelDerecho()
+}
+
+/** ¿El foco está en una pizarra (la del lienzo o una pestaña de lienzo en el panel)? Ahí Ctrl+B es su negrita. */
+function focoEnPizarra(): boolean {
+  for (let n = document.activeElement as HTMLElement | null; n && n !== document.body; n = n.parentElement) {
+    if (n.querySelector(':scope > div > canvas[data-canvas-ready]')) return true
+  }
+  return false
 }
 
 interface UseGlobalShortcutsOptions {
@@ -151,7 +167,12 @@ export function useGlobalShortcuts({ onCreateTask, onShowHelp }: UseGlobalShortc
 
       // ⌘J (2 oct 2026, Daniel): abre y cierra la terminal inferior (a pantalla completa trae a Levy: PantallaCompleta lo atiende antes), como en SFTerm y VS Code. Solo con ⌘ (Ctrl+J
       // es el salto de línea de la terminal) y también con el foco dentro de la propia terminal.
-      if (e.code === 'KeyJ' && e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && !isMobile) {
+      // Windows y Linux (17 nov 2026): Ctrl hace de ⌘ (Win+J, Win+B, Win+, son del sistema). Ctrl+J dentro de la
+      // terminal sigue siendo su salto de línea.
+      const mac = esMac()
+      const conMod = modPrincipal(e, mac)
+      if (e.code === 'KeyJ' && conMod && !e.altKey && !e.shiftKey && !isMobile
+        && (mac || !(e.target as Element | null)?.closest?.('.xterm'))) {
         e.preventDefault()
         if (!e.repeat) useTerminalPanel.getState().alternar()
         return
@@ -159,22 +180,23 @@ export function useGlobalShortcuts({ onCreateTask, onShowHelp }: UseGlobalShortc
       // Diseño v2 del panel derecho (1 oct, Daniel): ⌘B abre y cierra el panel de
       // tareas; la barra izquierda pasa a ⌘⇧B. ⌘⌥B saca la pestaña activa a su propia ventana (segunda
       // pantalla) o, si ya no queda ninguna en la columna, las devuelve; con todas fuera, ⌘B trae sus ventanas al frente.
-      if (e.code === 'KeyB' && e.metaKey && !e.ctrlKey && e.altKey && !e.shiftKey) {
+      if (e.code === 'KeyB' && conMod && e.altKey && !e.shiftKey && !esAltGr(e, mac)) {
         e.preventDefault()
         if (!e.repeat) alternarDesprendido()
         return
       }
-      if (e.code === 'KeyB' && e.metaKey && !e.ctrlKey && !e.altKey) {
+      // Fuera de Mac, Ctrl+B a secas es la negrita de un campo y del lienzo (también de una pizarra en una pestaña del
+      // panel): ahí no se toca. Ctrl+Shift+B es la barra.
+      if (e.code === 'KeyB' && conMod && !e.altKey && (mac || e.shiftKey || !(isInputFocused() || pathname === '/lienzo' || focoEnPizarra()))) {
         e.preventDefault()
         if (!e.repeat) {
           if (e.shiftKey) toggleLeftSidebar()
-          else if (todasFuera(clavesDe(usePanelFijadas.getState()), Object.keys(usePanelFijadas.getState().enVentana))) mostrarPanel()
-          else useLayoutStore.getState().togglePanelDerecho()
+          else alternarPanelDerecho()
         }
         return
       }
       // ⌘, (6 oct 2026): abre y cierra Ajustes, la ventana flotante, desde cualquier lugar y también escribiendo (como en Claude y en macOS).
-      if (e.code === 'Comma' && e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
+      if (e.code === 'Comma' && conMod && !e.altKey && !e.shiftKey) {
         e.preventDefault()
         if (!e.repeat && canAccessRoute('/settings', role)) useAjustes.getState().alternar()
         return
@@ -256,6 +278,14 @@ export function useGlobalShortcuts({ onCreateTask, onShowHelp }: UseGlobalShortc
           if (!e.metaKey && !e.ctrlKey) {
             e.preventDefault()
             toggleLeftSidebar()
+          }
+          break
+        case ']':
+          // Simétrico a `[`: pliega y despliega el panel derecho. En teclados latinoamericanos y de España `]` sale con
+          // AltGr, que llega con Ctrl: ese sí cuenta.
+          if (!e.metaKey && (!e.ctrlKey || esAltGr(e, mac)) && !isMobile && mejoraActiva('panel-plegable')) {
+            e.preventDefault()
+            if (!e.repeat) alternarPanelDerecho()
           }
           break
         case 'h':

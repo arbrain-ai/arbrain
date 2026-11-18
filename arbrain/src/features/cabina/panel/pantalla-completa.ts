@@ -12,6 +12,7 @@
  * Este archivo es lo puro (sin tiendas ni DOM), para probarlo con `node --test`.
  */
 import type { AbrirInput, MostrarInput } from '../model'
+import { esMac, modPrincipal } from '@/shared/navigation/teclas-plataforma'
 
 /** La vista del panel a la que equivale un destino de `abrir` (Levy «te lleva»). null = solo existe como ruta. */
 export function vistaDeDestino(d: Pick<AbrirInput, 'destino' | 'alcance' | 'fecha' | 'paginaId' | 'zona'>): MostrarInput | null {
@@ -49,8 +50,9 @@ interface Tecla { code: string; key: string; metaKey: boolean; ctrlKey: boolean;
  *  · Esc: con el foco en Levy flotante, lo esconde; si no, vuelve. Lo que ya atendió Esc (un menú, una selección) manda, y
  *    con el foco dentro de la pestaña el primer Esc es de ella (PantallaCompleta.tsx).
  */
-export function accionDeTecla(e: Tecla, estado: { enfoque: boolean; focoEnLevy: boolean }): AccionTecla {
-  const soloCmd = e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey
+export function accionDeTecla(e: Tecla, estado: { enfoque: boolean; focoEnLevy: boolean }, mac = esMac()): AccionTecla {
+  // Windows y Linux (17 nov 2026): Ctrl hace de ⌘ (Ctrl+. y Ctrl+J); en Mac sigue siendo ⌘.
+  const soloCmd = modPrincipal(e, mac) && !e.altKey && !e.shiftKey
   if (soloCmd && (e.code === 'Period' || e.key === '.')) return 'alternar'
   if (!estado.enfoque) return null
   if (soloCmd && e.code === 'KeyJ') return 'levy'

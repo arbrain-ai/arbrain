@@ -75,7 +75,8 @@ test('ChatPanel: «Escuchar» con la voz del dispositivo en ambas ediciones; mic
   const c = fuente('src/features/chat/components/ChatPanel.tsx')
   assert.ok(!c.includes('{!EDICION_CLIENTE && <AudioButton'))
   assert.match(c, /EDICION_CLIENTE && llaveVoz !== true \?/)
-  assert.match(c, /soloTexto=\{EDICION_CLIENTE\}/)
+  // En la edición cliente sigue sin subir audio; además, la nota que queda como borrador tampoco.
+  assert.match(c, /soloTexto=\{EDICION_CLIENTE( \|\| !enviaVoz)?\}/)
   // AudioButton no usa el TTS del servidor: Web Speech del dispositivo.
   assert.ok(!fuente('src/features/chat/components/AudioButton.tsx').includes('/api/chat/tts'))
 })

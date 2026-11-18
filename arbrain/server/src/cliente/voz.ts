@@ -52,13 +52,20 @@ export async function probarLlaveVoz(llave: string | undefined, transport: typeo
  * cae a la mejor voz del sistema (chat-speech.ts › currentVoice). Nunca devuelve la llave ni el cuerpo crudo del proveedor.
  */
 export const VOZ_LEMONFOX = 'alex'
+/** Las voces en español de LemonFox (lemonfox.ai/apis/text-to-speech, «Spanish»). La app elige una en Ajustes › Voz;
+ *  lo que no esté aquí cae a la de siempre. `noel` venía en la propuesta y salió (18 nov 2026): no se pudo confirmar que
+ *  exista, y una voz que no existe haría fallar «Probar» y la lectura. */
+export const VOCES_LEMONFOX = ['alex', 'dora'] as const
+export function vozLemonfoxElegida(v: unknown): string {
+  return typeof v === 'string' && (VOCES_LEMONFOX as readonly string[]).includes(v) ? v : VOZ_LEMONFOX
+}
 /**
  * Ajustes › Idioma en English (13 nov 2026): una voz masculina de inglés de EE. UU. de LemonFox (Levy es él), con el
- * mismo motor. `language` de LemonFox: 'es' o 'en-us'.
+ * mismo motor. `language` de LemonFox: 'es' o 'en-us'. En español respeta la voz elegida en Ajustes › Voz.
  */
 export const VOZ_LEMONFOX_EN = 'fenrir'
-export function vozLemonfox(idioma: Idioma): { voice: string; language: string } {
-  return idioma === 'en' ? { voice: VOZ_LEMONFOX_EN, language: 'en-us' } : { voice: VOZ_LEMONFOX, language: 'es' }
+export function vozLemonfox(idioma: Idioma, voz?: unknown): { voice: string; language: string } {
+  return idioma === 'en' ? { voice: VOZ_LEMONFOX_EN, language: 'en-us' } : { voice: vozLemonfoxElegida(voz), language: 'es' }
 }
 const SPEECH = 'https://api.lemonfox.ai/v1/audio/speech'
 
@@ -76,7 +83,7 @@ export type HablaLemonfox =
  * del archivo es la N que suena; el MP3 mete un relleno de arranque que cada decodificador recorta a su manera) y Groq
  * dice dónde cae cada palabra. Sin llave de Groq, o si no lo pide el lector, el MP3 de siempre.
  */
-export async function hablarLemonfox(texto: string, tempo: number | undefined, llave: string | undefined, transport: typeof fetch = fetch, opciones: { marcas?: boolean; llaveGroq?: string; idioma?: Idioma } = {}): Promise<HablaLemonfox | null> {
+export async function hablarLemonfox(texto: string, tempo: number | undefined, llave: string | undefined, transport: typeof fetch = fetch, opciones: { marcas?: boolean; llaveGroq?: string; idioma?: Idioma; voz?: string } = {}): Promise<HablaLemonfox | null> {
   if (!llave?.trim()) return null
   const velocidad = typeof tempo === 'number' && Number.isFinite(tempo) ? Math.min(3, Math.max(0.5, tempo)) : 1
   const conMarcas = !!opciones.marcas && !!opciones.llaveGroq?.trim()
@@ -85,7 +92,7 @@ export async function hablarLemonfox(texto: string, tempo: number | undefined, l
     const r = await transport(SPEECH, {
       method: 'POST',
       headers: { Authorization: `Bearer ${llave.trim()}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ input: texto, ...vozLemonfox(idioma), speed: velocidad, response_format: conMarcas ? 'wav' : 'mp3' }),
+      body: JSON.stringify({ input: texto, ...vozLemonfox(idioma, opciones.voz), speed: velocidad, response_format: conMarcas ? 'wav' : 'mp3' }),
       signal: AbortSignal.timeout(45_000),
     })
     if (!r.ok) {

@@ -1,8 +1,10 @@
 'use client'
 import { useMemo, useState } from 'react'
 import { ChevronRight, Search } from 'lucide-react'
-import { ATAJOS_SHELL, atajosCanvas, filtrarAtajos } from '@/shared/navigation/atajos'
+import { ATAJOS_SHELL, atajosCanvas, conMejoras, filtrarAtajos } from '@/shared/navigation/atajos'
+import { useMejora } from '@/features/mejoras/lib/mejoras-store'
 import { tr } from '@/shared/i18n'
+import { etiquetaTecla, useEsMac } from '@/shared/navigation/teclas-plataforma'
 
 /**
  * Configuración → Atajos (2 oct 2026). Antes la tabla del Canvas vivía abierta al final de Ajustes y ocupaba media
@@ -10,7 +12,9 @@ import { tr } from '@/shared/i18n'
  */
 export function SeccionAtajos() {
   const [consulta, setConsulta] = useState('')
-  const grupos = useMemo(() => filtrarAtajos([...ATAJOS_SHELL, ...atajosCanvas()], consulta), [consulta])
+  const mac = useEsMac()
+  const plegable = useMejora('panel-plegable')
+  const grupos = useMemo(() => filtrarAtajos(conMejoras([...ATAJOS_SHELL, ...atajosCanvas()], (id) => id !== 'panel-plegable' || plegable), consulta, mac), [consulta, plegable, mac])
   const buscando = consulta.trim().length > 0
 
   return (
@@ -47,7 +51,7 @@ export function SeccionAtajos() {
                   <span className="text-xs text-foreground/75">{tr(a.accion)}</span>
                   <span className="flex shrink-0 items-center gap-1">
                     {a.teclas.map((t) => (
-                      <kbd key={t} className="min-w-6 rounded border border-border bg-card-hover px-1.5 py-0.5 text-center font-mono text-[10px] text-foreground/85">{tr(t)}</kbd>
+                      <kbd key={t} className="min-w-6 rounded border border-border bg-card-hover px-1.5 py-0.5 text-center font-mono text-[10px] text-foreground/85">{etiquetaTecla(tr(t), mac)}</kbd>
                     ))}
                   </span>
                 </li>
