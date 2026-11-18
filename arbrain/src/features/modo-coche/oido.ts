@@ -9,9 +9,11 @@
  * - La ÉPOCA: cada pausa o cierre sube un número; lo que llegue tarde de una escucha vieja (un micrófono que abrió
  *   después de pausar, una grabación que terminó de juntarse) se tira.
  * - El reloj es un intervalo de 50 ms y no `requestAnimationFrame`: con la pantalla quieta Safari baja los cuadros.
+ * - Por turnos: `entregarYa()` es el toque que manda lo dicho; `soltar()` suelta el micrófono del todo entre turnos (se
+ *   vuelve a pedir al tocar, dentro del gesto); `silencioMs` da más paciencia al silencio en ese modo.
  */
 import { formatoGrabacion, tipoDeGrabacion } from '@/features/chat/lib/voz-sistema'
-import { DetectorHabla } from './vad'
+import { DetectorHabla, SILENCIO_MS } from './vad'
 
 export type Grabacion = { audio: Blob; nombre: string }
 
@@ -24,6 +26,8 @@ type Avisos = {
   alEmpezarDeNuevo?: () => void
   /** No se pudo abrir el micrófono. */
   alFallar: (motivo: string) => void
+  /** Por turnos: tocaste para enviar, pero lo grabado era tan corto que no hay nada que transcribir. */
+  alVacio?: () => void
 }
 
 export class Oido {
@@ -41,6 +45,8 @@ export class Oido {
   private _nivel = 0
   /** ¿Debe estar escuchando? (false mientras suena la voz o con la app oculta). */
   private activo = false
+  /** Cuánto silencio da por terminado lo que dices (3 s fluido, 6 s por turnos). Vale desde la siguiente escucha. */
+  silencioMs = SILENCIO_MS
 
   constructor(ctx: AudioContext, avisos: Avisos) {
     this.ctx = ctx
@@ -105,6 +111,37 @@ export class Oido {
   /** La ✕: ahora sí se suelta el micrófono. */
   cerrar(): void { this.cerrado = true; this.pausar(); this.liberar() }
 
+  /** Por turnos, entre un turno y otro: el micrófono se suelta del todo (el sistema deja de mostrarlo en uso). */
+  soltar(): void { this.pausar(); this.liberar() }
+  /** ¿Está tomado el micrófono (aunque sea en silencio)? */
+  get tomado(): boolean { return this.vivo() }
+
+  /**
+   * Por turnos: tocaste el Orbe para enviar. Lo que llevas dicho sale para transcribir (aunque no hayas callado) y el
+   * micrófono deja de escuchar. Devuelve false si no habías hablado (no hay nada que mandar).
+   */
+  entregarYa(): boolean {
+    const g = this.grabadora
+    const pedazos = this.pedazos
+    if (!g || !this.detector?.hablaVista) return false
+    this.grabadora = null
+    this.detector = null
+    this.epoca++
+    this.activo = false
+    if (this.reloj) clearInterval(this.reloj)
+    this.reloj = null
+    g.onstop = () => {
+      if (this.cerrado) return
+      const { tipo, nombre } = tipoDeGrabacion(g.mimeType)
+      const audio = new Blob(pedazos, { type: tipo })
+      if (audio.size >= 2000) this.avisos.alTerminar({ audio, nombre })
+      else this.avisos.alVacio?.()
+    }
+    if (g.state !== 'inactive') { try { g.stop() } catch { this.avisos.alVacio?.() } } else this.avisos.alVacio?.()
+    this._nivel = 0
+    return true
+  }
+
   /** ¿Hay un micrófono abierto que sirva? (iOS lo corta en una llamada o al cambiar de app). */
   private vivo(): boolean {
     return !!this.stream && this.stream.getAudioTracks().some(t => t.readyState === 'live')
@@ -127,7 +164,7 @@ export class Oido {
     g.ondataavailable = e => { if (e.data.size > 0) pedazos.push(e.data) }
     g.start(250)
     this.grabadora = g
-    this.detector = new DetectorHabla(performance.now())
+    this.detector = new DetectorHabla(performance.now(), this.silencioMs)
   }
 
   /** Cierra la grabación actual; con `entregar`, lo grabado sale para transcribir. Luego empieza otra. */

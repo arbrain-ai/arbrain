@@ -103,7 +103,7 @@
 }
 
 .arriba {
-  margin-top: 3rem;
+  margin-top: 3.4rem;
   text-align: center;
   min-height: 5rem;
   display: flex;
@@ -298,6 +298,59 @@
   transition: opacity 0.2s;
 }
 .mini[data-arriba] .barraMini { top: auto; bottom: calc(100% + 3px); }
+/* El interruptor Fluido / Por turnos: arriba al centro en la pantalla completa; en el mini, una pastilla chica siempre a
+   la vista (arriba a la izquierda), con el color de acento cuando está «por turnos». */
+.modos {
+  position: absolute;
+  top: max(0.85rem, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  border-radius: 9999px;
+  background: rgb(255 255 255 / 0.06);
+  border: 1px solid rgb(255 255 255 / 0.12);
+  z-index: 1;
+}
+.modo,
+.modoMini {
+  appearance: none;
+  border: 0;
+  margin: 0;
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.modo {
+  padding: 0.38rem 0.9rem;
+  border-radius: 9999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgb(234 242 255 / 0.6);
+  background: transparent;
+  transition: background 0.15s, color 0.15s;
+}
+.modo[aria-pressed='true'] { color: #111318; background: #eef1f6; }
+.modo:focus-visible, .modoMini:focus-visible { outline: 2px solid rgb(var(--orbe-principal)); outline-offset: 2px; }
+.modoMini {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 22px;
+  padding: 0 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: rgb(234 242 255 / 0.85);
+  background: rgb(14 16 22 / 0.88);
+  border: 1px solid rgb(255 255 255 / 0.18);
+  opacity: 0.8;
+  transition: opacity 0.15s, background 0.15s;
+}
+.modoMini[data-modo='turnos'] { color: rgb(var(--orbe-acento)); border-color: rgb(var(--orbe-acento) / 0.6); }
+.mini:hover .modoMini { opacity: 1; }
 .controles {
   position: absolute;
   top: 0;

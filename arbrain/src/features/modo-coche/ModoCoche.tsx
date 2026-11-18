@@ -24,6 +24,10 @@
  * esquina y recuerda su lugar; un halo translúcido se enciende y respira con el micrófono abierto. Sigue oyendo y
  * hablando con la ventana tapada, y se pausa solo tras 2 min sin oírte o si escribes en el chat (con un tono que baja).
  * Los colores del Orbe los escoge cada quien (botón de la paleta; orbe/paletas.ts).
+ * FLUIDO o POR TURNOS (interruptor arriba, o la pastilla del mini; se recuerda en `turnos.ts`). Fluido es lo de arriba.
+ * Por turnos, para trabajar tranquilo sin una conversación abierta: tocas → escucha; tocas otra vez → se manda (si se te
+ * olvida, se manda solo a los 6 s de silencio, para que el micrófono nunca quede abierto); la respuesta suena y el Orbe
+ * queda en pausa con el micrófono SUELTO hasta el próximo toque (tampoco hay micrófono tomado mientras trabaja o habla).
  * Seguridad: se esconde con `localStorage['arbrain-modo-coche'] = 'no'`; cualquier error de esta pantalla la cierra y
  * deja el chat como siempre (nada del chat depende de ella).
  */
@@ -32,7 +36,9 @@ import { createPortal } from 'react-dom'
 import { Maximize2, Minimize2, Palette, Sun, X } from 'lucide-react'
 import { usePendientes } from '@/features/permisos/lib/pendientes'
 import type { ChatMessage } from '@/features/chat/hooks/useChat'
-import { NOTA_COCHE, ultimaRespuesta } from './respuesta'
+import { notaDelModo, ultimaRespuesta } from './respuesta'
+import { guardarModo, leerModo, type ModoTurno } from './turnos'
+import { SILENCIO_MS, SILENCIO_TURNOS_MS } from './vad'
 import { callarVoz, decirEnCoche, desbloquearVoz, ponerOyenteVoz, reintentarVoz, vozOcupada } from './voz-coche'
 import { anotar, vaciar } from './bitacora'
 import { conColchon } from './colchon'
@@ -158,6 +164,10 @@ function PantallaCoche({ ctx, trabajando, enviar, cerrar, despierta, renovarDesp
   const lugarRef = useRef(lugar)
   lugarRef.current = lugar
   const escuchaDesdeRef = useRef(0)
+  // Fluido o por turnos: se recuerda en este navegador.
+  const [modo, setModo] = useState<ModoTurno>(() => leerModo())
+  const modoRef = useRef(modo)
+  modoRef.current = modo
   const ultimaVozRef = useRef(0)
 
   const oidoRef = useRef<Oido | null>(null)
@@ -195,6 +205,11 @@ function PantallaCoche({ ctx, trabajando, enviar, cerrar, despierta, renovarDesp
     }
     faseRef.current = f
     setFase(f)
+    // Por turnos: fuera de tu turno el micrófono se suelta del todo (no solo se silencia).
+    if (modoRef.current === 'turnos' && (f === 'pausa' || f === 'procesando' || f === 'habla')) {
+      const oido = oidoRef.current
+      if (oido?.tomado) { oido.soltar(); anotar({ ev: 'mic-suelto', fase: f }) }
+    }
   }
   const despues = (fn: () => void, ms: number) => {
     const t = setTimeout(() => { relojes.current.delete(t); fn() }, ms)
@@ -229,6 +244,7 @@ function PantallaCoche({ ctx, trabajando, enviar, cerrar, despierta, renovarDesp
     const oido = oidoRef.current
     if (!oido) return
     pausadoRef.current = false
+    oido.silencioMs = modoRef.current === 'turnos' ? SILENCIO_TURNOS_MS : SILENCIO_MS
     ponerFase('abriendo')
     let espera = 0
     try { espera = tocarTilin(ctx) } catch { /* sin tilín */ }
@@ -267,6 +283,8 @@ function PantallaCoche({ ctx, trabajando, enviar, cerrar, despierta, renovarDesp
 
   /** Después de un mensaje, de la voz o de un error: tu turno, salvo que lo hayas pausado. */
   const siguienteTurno = useCallback(() => {
+    // Por turnos nada vuelve a escuchar solo: tras la respuesta (o un error) queda en pausa hasta tu toque.
+    if (modoRef.current === 'turnos') pausadoRef.current = true
     anotar({ ev: 'siguiente-turno', de: pausadoRef.current ? 'pausa' : 'escucha' })
     if (pausadoRef.current) { ponerFase('pausa'); return }
     escuchar()
@@ -280,12 +298,13 @@ function PantallaCoche({ ctx, trabajando, enviar, cerrar, despierta, renovarDesp
     const aLaFila = trabajandoRef.current
     respuestaAntesRef.current = ultimaRespuesta(mensajesRef.current)?.id ?? null
     esperaRespuestaRef.current = true
-    enviarRef.current(d.texto, NOTA_COCHE)
+    enviarRef.current(d.texto, notaDelModo(modoRef.current))
     enviadoEnRef.current = performance.now()
     vioTrabajandoRef.current = false
     quietaDesdeRef.current = 0
     // «…bueno, terminamos»: el agente responde y después el Orbe queda en pausa (no vuelve a escuchar solo).
-    if (d.accion === 'enviar-y-pausar') pausadoRef.current = true
+    // Por turnos, siempre: responde y el Orbe queda en pausa hasta el próximo toque.
+    if (d.accion === 'enviar-y-pausar' || modoRef.current === 'turnos') pausadoRef.current = true
     ponerFase('procesando')
     avisar(d.accion === 'enviar-y-pausar' ? 'Enviado. Cuando te responda, queda en pausa.'
       : aLaFila ? 'A la fila del chat: lo lee al terminar (o toca «Enviar ya»)' : 'Enviado', aLaFila ? 5000 : 3000)
@@ -332,7 +351,17 @@ function PantallaCoche({ ctx, trabajando, enviar, cerrar, despierta, renovarDesp
     const oido = new Oido(ctx, {
       alTerminar: g => { void transcribir(g, true) },
       alMirarAdelante: (g, pausa) => { void transcribir(g, false, pausa) },
-      alEmpezarDeNuevo: () => reintentarVoz(),
+      alEmpezarDeNuevo: () => {
+        reintentarVoz()
+        // Por turnos: si tocaste y no se oyó nada (o solo un ruido), no se queda escuchando: vuelve a la pausa.
+        if (vivo && modoRef.current === 'turnos' && faseRef.current === 'escucha') {
+          anotar({ ev: 'sin-voz-turnos' })
+          epocaRef.current++
+          pausar()
+          avisar('No te oí. En pausa: toca el Orbe para hablar.', 5000)
+        }
+      },
+      alVacio: () => { if (vivo) { avisar('No alcancé a oírte; no mandé nada.'); siguienteTurno() } },
       alFallar: motivo => { if (vivo) { anotar({ ev: 'sin-mic' }); ponerFase('sin-mic'); avisar(`${motivo} Toca el Orbe para intentar otra vez.`, 8000) } },
     })
     oidoRef.current = oido
@@ -377,7 +406,7 @@ function PantallaCoche({ ctx, trabajando, enviar, cerrar, despierta, renovarDesp
         void ctx.resume().catch(() => {})
         renovarRef.current()
         oido.reanclar()
-        if (escuchabaAlOcultar && !pausadoRef.current && !vozOcupada()) escuchar()
+        if (escuchabaAlOcultar && !pausadoRef.current && modoRef.current !== 'turnos' && !vozOcupada()) escuchar()
         escuchabaAlOcultar = false
       } else if (faseRef.current === 'escucha' || faseRef.current === 'abriendo') {
         escuchabaAlOcultar = true // iOS no deja grabar en segundo plano: se suelta limpio y vuelve al regresar
@@ -417,7 +446,7 @@ function PantallaCoche({ ctx, trabajando, enviar, cerrar, despierta, renovarDesp
       anotar({ ev: 'cerrar', fase: faseRef.current })
       vaciar()
     }
-  }, [ctx, transcribir, avisar, escuchar, escritorio, cambiarVista])
+  }, [ctx, transcribir, avisar, escuchar, escritorio, cambiarVista, pausar, siguienteTurno])
 
   // Cada 120 ms: tu voz, la barrita del silencio, los segundos de «Procesando» y si ya es tu turno.
   useEffect(() => {
@@ -463,6 +492,13 @@ function PantallaCoche({ ctx, trabajando, enviar, cerrar, despierta, renovarDesp
     // «Enviar ya» y el Stop del chat a la mano). Para pausar: otro toque mientras te escucha, o «terminamos».
     if (f === 'habla') { callarVoz(); setSubtitulo(null); escuchar(); return }
     if (f === 'procesando') { escuchar(); return }
+    if (modoRef.current === 'turnos') {
+      // Por turnos, el segundo toque MANDA lo que dijiste.
+      if (f === 'anotando') { avisar('Ya lo estoy anotando.'); return }
+      if (f === 'escucha' && oidoRef.current?.entregarYa()) { anotar({ ev: 'toque-envia' }); ponerFase('anotando'); return }
+      pausar() // tocaste sin haber hablado: nada que mandar
+      return
+    }
     const borro = (f === 'escucha' && !!oidoRef.current?.hablaVista) || f === 'anotando'
     pausar()
     if (borro) avisar('Borrado. Toca el Orbe para empezar de nuevo.')
@@ -490,12 +526,35 @@ function PantallaCoche({ ctx, trabajando, enviar, cerrar, despierta, renovarDesp
     : fase === 'procesando' ? `Procesando · ${segundos} s`
     : fase === 'habla' ? 'Hablando'
     : 'Sin micrófono'
-  const pista = fase === 'pausa' ? (trabajando ? 'Sigue trabajando y te habla al terminar. Toca el Orbe para hablar.' : 'Toca el Orbe para hablar.')
-    : fase === 'escucha' ? 'Habla con calma. Di «cambio» para enviar ya, o «pausa».'
+  const turnos = modo === 'turnos'
+  const pista = fase === 'pausa' ? (trabajando ? 'Sigue trabajando y te habla al terminar. Toca el Orbe para hablar.'
+      : turnos ? 'Por turnos: toca el Orbe cuando quieras hablar.' : 'Toca el Orbe para hablar.')
+    : fase === 'escucha' ? (turnos ? 'Habla con calma. Toca el Orbe para enviar.' : 'Habla con calma. Di «cambio» para enviar ya, o «pausa».')
     : fase === 'procesando' ? 'Trabajando. Toca el Orbe si quieres agregarle algo.'
     : fase === 'habla' ? 'Toca el Orbe para callarlo y hablar.'
     : fase === 'sin-mic' ? 'Toca el Orbe para intentar otra vez.'
     : ''
+  const etiquetaOrbe = fase === 'pausa' || fase === 'sin-mic' ? 'Hablar' : fase === 'habla' ? 'Callar la voz y hablar'
+    : fase === 'procesando' ? 'Agregar algo' : turnos && fase === 'escucha' ? 'Enviar' : 'Pausar'
+
+  /** El interruptor Fluido / Por turnos. Cambiar a mitad de una escucha no la corta: vale desde lo siguiente. */
+  const cambiarModo = useCallback((m: ModoTurno) => {
+    if (m === modoRef.current) return
+    modoRef.current = m
+    setModo(m)
+    guardarModo(m)
+    const f = faseRef.current
+    anotar({ ev: 'modo', de: m, fase: f })
+    if (m === 'turnos') {
+      pausadoRef.current = true // lo que esté en curso termina en pausa
+      if (f !== 'abriendo' && f !== 'escucha' && f !== 'anotando' && oidoRef.current?.tomado) oidoRef.current.soltar()
+      avisar('Por turnos: después de cada respuesta queda en pausa hasta que lo toques.', 4500)
+    } else {
+      if (f === 'procesando' || f === 'habla') pausadoRef.current = false // responde y vuelve a escucharte solo
+      avisar('Fluido: después de cada respuesta te vuelve a escuchar solo.', 4500)
+    }
+  }, [avisar])
+
   const nivel = useCallback(() => {
     if (faseRef.current === 'habla') {
       const t = (performance.now() - hablaDesde.current) / 1000
@@ -542,10 +601,15 @@ function PantallaCoche({ ctx, trabajando, enviar, cerrar, despierta, renovarDesp
       style={{ ...colores, left: lugar.x, top: lugar.y, width: lugar.lado, height: lugar.lado }}>
       <button type="button" className={s.orbeMini} onClick={clicMini}
         onPointerDown={empezar(false)} onPointerMove={mover} onPointerUp={soltar} onPointerCancel={soltar}
-        aria-label={fase === 'pausa' || fase === 'sin-mic' ? 'Hablar' : fase === 'habla' ? 'Callar la voz y hablar' : fase === 'procesando' ? 'Agregar algo' : 'Pausar'}
+        aria-label={etiquetaOrbe}
         title="Toca para hablar o pausar · arrastra para moverlo">
         <span className={s.anillo} aria-hidden />
         <Orbe estado={medida.tuVoz && fase === 'escucha' ? 'escucha' : orbe} tamano={lugar.lado - 2 * BORDE_MINI} nivel={nivel} />
+      </button>
+      <button type="button" className={s.modoMini} data-modo={modo} onClick={() => cambiarModo(turnos ? 'fluido' : 'turnos')}
+        aria-label={turnos ? 'Modo por turnos (toca para cambiar a fluido)' : 'Modo fluido (toca para cambiar a por turnos)'}
+        title={turnos ? 'Por turnos: queda en pausa tras cada respuesta. Clic: fluido' : 'Fluido: vuelve a escuchar solo. Clic: por turnos'}>
+        {turnos ? 'Turnos' : 'Fluido'}
       </button>
       <div className={s.controles}>
         <button type="button" className={s.control} onClick={() => cambiarVista('completa')} aria-label="Agrandar a pantalla completa" title="Pantalla completa">
@@ -575,6 +639,10 @@ function PantallaCoche({ ctx, trabajando, enviar, cerrar, despierta, renovarDesp
           <Minimize2 size={20} />
         </button>
       )}
+      <div className={s.modos} role="group" aria-label="Cómo conversa el Orbe">
+        <button type="button" className={s.modo} aria-pressed={!turnos} onClick={() => cambiarModo('fluido')}>Fluido</button>
+        <button type="button" className={s.modo} aria-pressed={turnos} onClick={() => cambiarModo('turnos')}>Por turnos</button>
+      </div>
       <div className={s.arriba}>
         <div className={s.estado} aria-live="polite"><span className={s.punto} aria-hidden />{estado}</div>
         {pista && <div className={s.pista}>{pista}</div>}
@@ -583,7 +651,7 @@ function PantallaCoche({ ctx, trabajando, enviar, cerrar, despierta, renovarDesp
         </div>
       </div>
       <button type="button" onClick={tocarOrbe} className={s.orbe}
-        aria-label={fase === 'pausa' || fase === 'sin-mic' ? 'Hablar' : fase === 'habla' ? 'Callar la voz y hablar' : fase === 'procesando' ? 'Agregar algo' : 'Pausar'}>
+        aria-label={etiquetaOrbe}>
         <span className={s.marco}>
           <span className={s.anillo} aria-hidden />
           <Orbe estado={medida.tuVoz && fase === 'escucha' ? 'escucha' : orbe} tamano={tamano} nivel={nivel} />

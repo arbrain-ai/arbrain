@@ -14,6 +14,9 @@
 export const CALIBRA_MS = 300
 /** Silencio que da por terminado el mensaje. */
 export const SILENCIO_MS = 3000
+/** Por turnos: el toque es lo que manda; el silencio es solo la red para que el micrófono no se quede abierto si se te
+ *  olvida tocar. Por eso más paciente: da tiempo de pensar a media idea. */
+export const SILENCIO_TURNOS_MS = 6000
 /** Una pausa así ya puede ser el final («…dale.»): se mira adelante. */
 export const PAUSA_CORTA_MS = 900
 /** Voz mínima (suma de los momentos con voz) para que algo se transcriba. */
@@ -65,6 +68,7 @@ export class DetectorHabla {
   private ultimaVoz = -Infinity
   private ultimaMedicion = 0
   private miroEstaPausa = false
+  private readonly silencioMs: number
   /** Cuántos milisegundos con voz lleva esta escucha. */
   vozMs = 0
   /** Sube cada vez que vuelves a hablar después de una pausa: una mirada adelantada vieja ya no vale. */
@@ -72,8 +76,9 @@ export class DetectorHabla {
   /** ¿Ya hablaste en esta escucha? Sin esto, nada se transcribe. */
   hablaVista = false
 
-  constructor(ahora: number) {
+  constructor(ahora: number, silencioMs = SILENCIO_MS) {
     this.inicio = ahora
+    this.silencioMs = silencioMs
     this.ultimaMedicion = ahora
   }
 
@@ -85,7 +90,7 @@ export class DetectorHabla {
   /** Cuánto del silencio final ya pasó (0 a 1): la barrita que se llena antes de enviar. */
   avanceSilencio(ahora: number): number {
     if (!this.hablaVista || this.inicioSilencio === 0) return 0
-    return Math.min(1, (ahora - this.inicioSilencio) / SILENCIO_MS)
+    return Math.min(1, (ahora - this.inicioSilencio) / this.silencioMs)
   }
 
   /** ¿Sigue la misma pausa en la que se miró adelante? */
@@ -115,7 +120,7 @@ export class DetectorHabla {
     } else if (this.hablaVista && nivel < silencio) {
       if (this.inicioSilencio === 0) this.inicioSilencio = ahora
       const callado = ahora - this.inicioSilencio
-      if (callado > SILENCIO_MS) return this.vozMs >= VOZ_MINIMA_MS ? 'terminaste' : 'empezar-de-nuevo'
+      if (callado > this.silencioMs) return this.vozMs >= VOZ_MINIMA_MS ? 'terminaste' : 'empezar-de-nuevo'
       if (callado > PAUSA_CORTA_MS && !this.miroEstaPausa && this.vozMs >= VOZ_MINIMA_MS) {
         this.miroEstaPausa = true
         return 'mirar-adelante'
