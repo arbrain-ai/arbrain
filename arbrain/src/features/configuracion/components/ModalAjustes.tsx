@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { createPortal } from 'react-dom'
-import { Bell, ChevronLeft, ChevronRight, Compass, Cpu, Gauge, Filter, Flame, KeyRound, Keyboard, Languages, Laptop, Lock, Mic, Palette, PanelRight, Radio, Search, Server, ShieldHalf, Smartphone, Tag, Target, UserCircle, Users, X, type LucideIcon } from 'lucide-react'
+import { Bell, ChevronLeft, ChevronRight, Compass, Cpu, Gauge, Filter, Flame, KeyRound, Keyboard, Languages, Laptop, Lock, Mic, Palette, PanelRight, Radio, Search, Server, ShieldHalf, Sparkles, Smartphone, Tag, Target, UserCircle, Users, X, type LucideIcon } from 'lucide-react'
 import { SeccionModelo } from '@/features/modelo/SeccionModelo'
 import { useAjustes } from '@/shared/stores/ajustes-store'
 import { useIsMobile } from '@/shared/hooks/useMediaQuery'
@@ -13,6 +13,7 @@ import { SeccionAtajos } from './SeccionAtajos'
 import { SeccionIdioma } from './SeccionIdioma'
 import { tr } from '@/shared/i18n/tr'
 import { SeccionPanel } from './SeccionPanel'
+import { SeccionMejoras } from '@/features/mejoras/components/SeccionMejoras'
 import { PanelLlaves } from '@/features/primer-arranque/components/PanelLlaves'
 import { PanelVoz } from '@/features/primer-arranque/components/PanelVoz'
 import { PanelSinFiltro } from '@/features/primer-arranque/components/PanelSinFiltro'
@@ -28,7 +29,7 @@ const CLIENTE_LIVE = esEdicionCliente()
 
 const ICONOS: Record<IdSeccion, LucideIcon> = {
   norte: Compass, equipo: Users, clientes: Target, oferta: Tag, embudo: Filter,
-  cuenta: UserCircle, apariencia: Palette, avisos: Bell, modelo: Cpu, panel: PanelRight, atajos: Keyboard, mac: Laptop, llaves: KeyRound, voz: Mic, sinfiltro: Flame, privacidad: Lock, seguridad: ShieldHalf, telefono: Smartphone, maquinas: Server, autonomia: Gauge, directo: Radio, idioma: Languages,
+  cuenta: UserCircle, apariencia: Palette, avisos: Bell, modelo: Cpu, panel: PanelRight, atajos: Keyboard, mac: Laptop, llaves: KeyRound, voz: Mic, sinfiltro: Flame, privacidad: Lock, seguridad: ShieldHalf, telefono: Smartphone, maquinas: Server, autonomia: Gauge, directo: Radio, idioma: Languages, mejoras: Sparkles,
 }
 
 const FOCOS = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])'
@@ -228,6 +229,7 @@ function Ventana({ seccion, enLista }: { seccion: IdSeccion; enLista: boolean })
                 {seccion === 'autonomia' && <SeccionAutonomia />}
                 {seccion === 'directo' && <SeccionDirecto />}
                 {seccion === 'idioma' && <SeccionIdioma />}
+                {seccion === 'mejoras' && <SeccionMejoras />}
               </div>
             </div>
           </section>

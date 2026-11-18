@@ -22,9 +22,11 @@ interface VoiceInputProps {
   onSinConfigurar?: () => void
   /** Datos móviles (12 nov 2026): en un cliente remoto graba a 32 kbps (voz-sistema › dictadoLigero). Solo el chat. */
   ligero?: boolean
+  /** `false` = al detener, lo dictado queda como borrador en la caja (no se envía). */
+  enviaAlDetener?: boolean
 }
 
-export function VoiceInput({ onVoiceNote, disabled, soloTexto, etiqueta, onEstado, onSinConfigurar, ligero }: VoiceInputProps) {
+export function VoiceInput({ onVoiceNote, disabled, soloTexto, etiqueta, onEstado, onSinConfigurar, ligero, enviaAlDetener = true }: VoiceInputProps) {
   const [state, setState] = useState<RecordState>('idle')
   const avisar = useRef(onEstado); avisar.current = onEstado
   useEffect(() => { avisar.current?.(state) }, [state])
@@ -194,7 +196,8 @@ export function VoiceInput({ onVoiceNote, disabled, soloTexto, etiqueta, onEstad
         {/* Stop button */}
         <button
           onClick={handleClick}
-          title={soloTexto ? tr('Parar y transcribir') : tr('Enviar nota de voz')}
+          title={!enviaAlDetener ? tr('Detener: queda en tu mensaje para enviarlo cuando quieras') : soloTexto ? tr('Parar y transcribir') : tr('Enviar nota de voz')}
+          aria-label={!enviaAlDetener ? tr('Detener la grabación y dejarla en el mensaje') : undefined}
           className="shrink-0 w-11 h-11 md:w-[var(--tam-control)] md:h-[var(--tam-control)] rounded-xl flex items-center justify-center bg-red-500/20 text-red-400 ring-1 ring-red-500/40 hover:bg-red-500/30 transition-all"
         >
           <Square size={11} className="fill-current" />

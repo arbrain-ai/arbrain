@@ -9,7 +9,7 @@ import { tr, trMarca, trMarcas } from '@/shared/i18n/tr'
 
 const CLIENTE = esEdicionCliente()
 
-export type IdSeccion = 'norte' | 'equipo' | 'clientes' | 'oferta' | 'embudo' | 'modelo' | 'apariencia' | 'cuenta' | 'avisos' | 'mac' | 'atajos' | 'panel' | 'llaves' | 'voz' | 'sinfiltro' | 'privacidad' | 'seguridad' | 'telefono' | 'maquinas' | 'autonomia' | 'directo' | 'idioma'
+export type IdSeccion = 'norte' | 'equipo' | 'clientes' | 'oferta' | 'embudo' | 'modelo' | 'apariencia' | 'cuenta' | 'avisos' | 'mac' | 'atajos' | 'panel' | 'llaves' | 'voz' | 'sinfiltro' | 'privacidad' | 'seguridad' | 'telefono' | 'maquinas' | 'autonomia' | 'directo' | 'idioma' | 'mejoras'
 
 export interface DefSeccion { id: IdSeccion; nombre: string; detalle: string; ajustes: string[] }
 export interface DefGrupo { id: string; titulo: string; secciones: IdSeccion[] }
@@ -32,6 +32,8 @@ const TODAS: ReadonlyArray<DefSeccion> = [
   // Autonomía v2 (4 nov 2026): el preset y cada clase (lo hace solo · te pregunta · nunca). Aquí se enciende el soporte a la cohorte.
   { id: 'autonomia', nombre: trMarca('Autonomía'), detalle: trMarca('Qué hace Levy solo y qué espera tu toque'), ajustes: trMarcas(['Autonomía', 'Política de autonomía', 'Cauteloso', 'Equilibrado', 'Piloto automático', 'Lo hace solo', 'Te pregunta', 'Soporte técnico a la cohorte', 'Dudas de los alumnos', 'Configurar servicios', 'Tu agenda', 'Classroom de la cohorte', 'Lo que hice solo']) },
   { id: 'panel', nombre: trMarca('Panel'), detalle: trMarca('Qué secciones salen en el «+» del panel'), ajustes: trMarcas(['Secciones del «+»', 'Ocultar secciones', 'Orden de las secciones', 'Tareas']) },
+  // Ajustes › Mejoras: un interruptor por mejora opcional (features/mejoras); apagada, la app queda como sin ella.
+  { id: 'mejoras', nombre: trMarca('Mejoras'), detalle: trMarca('Mejoras opcionales: prende o apaga cada una'), ajustes: trMarcas(['Mejoras', 'Mejoras opcionales', 'Panel derecho que se pliega', 'Micrófono y «+» mientras trabaja', 'Nota de voz como borrador', 'Elegir la voz de LemonFox']) },
   { id: 'atajos', nombre: trMarca('Atajos'), detalle: trMarca('Teclado de la app y del Canvas'), ajustes: trMarcas(['Atajos de teclado', 'Abrir Ajustes ⌘,', 'Atajos del Canvas', 'Atajos del Calendario']) },
   { id: 'mac', nombre: CLIENTE ? trMarca('Esta computadora') : trMarca('Mac y sistema'), detalle: CLIENTE ? trMarca('Computer use y permisos del sistema') : trMarca('Permisos de macOS y Ops'), ajustes: trMarcas(['Permisos de macOS', 'Micrófono', 'Cámara', 'Grabación de pantalla', 'Accesibilidad', 'Computer use', 'Ops', ...(CLIENTE ? [] : ['Sincronización', 'Cola de sincronización', 'Conflictos', 'Paquete offline', 'Espejo local'])]) },
   // Edición cliente (11 oct 2026): las llaves del alumno (BYOK) y su privacidad.
@@ -53,7 +55,7 @@ const TODAS: ReadonlyArray<DefSeccion> = [
 const GRUPOS_ORIGINAL: ReadonlyArray<DefGrupo> = [
   { id: 'negocio', titulo: trMarca('El negocio'), secciones: ['norte', 'equipo', 'clientes', 'oferta', 'embudo'] },
   { id: 'tu', titulo: trMarca('Tú'), secciones: ['cuenta', 'apariencia', 'idioma', 'avisos', 'directo'] },
-  { id: 'arbrain', titulo: 'Arbrain', secciones: ['modelo', 'autonomia', 'panel', 'atajos'] },
+  { id: 'arbrain', titulo: 'Arbrain', secciones: ['modelo', 'autonomia', 'panel', 'atajos', 'mejoras'] },
   { id: 'computadora', titulo: trMarca('Esta computadora'), secciones: ['mac'] },
 ]
 
@@ -64,7 +66,7 @@ const GRUPOS_ORIGINAL: ReadonlyArray<DefGrupo> = [
  */
 const GRUPOS_CLIENTE: ReadonlyArray<DefGrupo> = [
   { id: 'tu', titulo: trMarca('Tú'), secciones: ['llaves', 'idioma', 'voz', 'sinfiltro', 'telefono', 'maquinas', 'avisos', 'seguridad', 'privacidad', 'apariencia'] },
-  { id: 'arbrain', titulo: 'Arbrain', secciones: ['modelo', 'panel', 'atajos'] },
+  { id: 'arbrain', titulo: 'Arbrain', secciones: ['modelo', 'panel', 'atajos', 'mejoras'] },
   { id: 'computadora', titulo: trMarca('Esta computadora'), secciones: ['mac'] },
 ]
 

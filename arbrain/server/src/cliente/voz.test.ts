@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { entornoClaude, guardarSecretos, llaveVoz, NUNCA_EN_ENTORNO, parsearSecretos, rutaSoloApp, vaciarCofreParaPruebas, vistaConLlaves } from './cofre.js'
 import { estadoLlaves } from './llaves.js'
-import { hablarLemonfox, proveedoresVoz, probarLlaveVoz, VOZ_LEMONFOX } from './voz.js'
+import { hablarLemonfox, proveedoresVoz, probarLlaveVoz, VOZ_LEMONFOX, VOZ_LEMONFOX_EN } from './voz.js'
 import { transcribe } from '../live/transcribe.js'
 
 const GROQ = 'gsk_' + 'p'.repeat(40)
@@ -102,6 +102,18 @@ describe('leer en voz alta con LemonFox (v0.2.10)', () => {
     expect(cuerpo).toMatchObject({ input: 'Hola', voice: VOZ_LEMONFOX, language: 'es', speed: 2, response_format: 'mp3' })
     expect(auth).toBe(`Bearer ${LF}`)
     expect(await hablarLemonfox('Hola', 9, LF, t)).toMatchObject({ ok: true, tempo: 3 })
+  })
+  it('usa la voz elegida si es una de las de español de LemonFox; si no, la de siempre; en inglés, la de inglés', async () => {
+    let cuerpo: Record<string, unknown> = {}
+    const t = (async (_u: string, init: RequestInit) => { cuerpo = JSON.parse(String(init.body)); return new Response(new Uint8Array([1]), { status: 200 }) }) as unknown as typeof fetch
+    await hablarLemonfox('Hola', 1, LF, t, { voz: 'dora', idioma: 'es' })
+    expect(cuerpo.voice).toBe('dora')
+    await hablarLemonfox('Hola', 1, LF, t, { voz: 'noel', idioma: 'es' })
+    expect(cuerpo.voice).toBe(VOZ_LEMONFOX)
+    await hablarLemonfox('Hola', 1, LF, t, { voz: 'otra; inventada', idioma: 'es' })
+    expect(cuerpo.voice).toBe(VOZ_LEMONFOX)
+    await hablarLemonfox('Hello', 1, LF, t, { voz: 'dora', idioma: 'en' })
+    expect(cuerpo.voice).toBe(VOZ_LEMONFOX_EN)
   })
   it('sin llave no llama a nadie (la web usa la voz del sistema); errores sin la llave ni el cuerpo del proveedor', async () => {
     let llamado = false

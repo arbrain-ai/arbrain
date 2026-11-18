@@ -4,13 +4,16 @@ import { ATAJOS_CTRL } from './atajos-ctrl'
 import { CALENDAR_SHORTCUTS } from '@/features/planning/shortcuts'
 import { CANVAS_SHORTCUTS, shortcutsByCategory, type ShortcutCategory } from '@/features/draw3/shortcuts/registry'
 import { tr, trMarca } from '@/shared/i18n'
+import { esMac, etiquetaTecla } from './teclas-plataforma'
+import { mejoraActiva, type Mejora } from '@/features/mejoras/lib/mejoras'
 
 /**
  * Atajos de teclado de Arbrain (2 oct 2026): una sola lista, en español, para el modal de `?` / ⌘⌥S y para
  * Configuración → Atajos. Lo del shell sale de `useGlobalShortcuts` y `dashboard-shell`; lo del Canvas, de su
  * registro (`draw3/shortcuts/registry`). Si un atajo cambia en su manejador, se cambia aquí.
  */
-export interface Atajo { teclas: string[]; accion: string }
+/** `mejora`: el atajo solo existe con esa mejora prendida en Ajustes › Mejoras. */
+export interface Atajo { teclas: string[]; accion: string; mejora?: Mejora }
 export interface GrupoAtajos { id: string; titulo: string; donde: string; atajos: Atajo[] }
 
 export const ATAJOS_SHELL: GrupoAtajos[] = [
@@ -32,6 +35,7 @@ export const ATAJOS_SHELL: GrupoAtajos[] = [
     donde: trMarca('En toda la app'),
     atajos: [
       { teclas: ['⌘', 'B'], accion: trMarca('Mostrar u ocultar el panel de tareas') },
+      { teclas: [']'], accion: trMarca('Plegar o desplegar el panel derecho (fuera de un campo de texto)'), mejora: 'panel-plegable' },
       { teclas: ['⌘', 'B'], accion: trMarca('En una ventana aparte dividida: esconder o mostrar su columna derecha (manda sobre la negrita del lienzo)') },
       { teclas: ['⌘', '⌥', 'B'], accion: trMarca('Sacar la pestaña activa del panel a su ventana, o devolverla') },
       { teclas: ['⌘', '⇧', 'B'], accion: trMarca('Mostrar u ocultar la barra de conversaciones') },
@@ -118,13 +122,19 @@ export function atajosCanvas(): GrupoAtajos[] {
 
 export const TOTAL_ATAJOS_CANVAS = CANVAS_SHORTCUTS.length
 
+/** Quita los atajos de las mejoras apagadas en Ajustes › Mejoras. */
+export function conMejoras(grupos: GrupoAtajos[], activa: (id: Mejora) => boolean = (id) => mejoraActiva(id)): GrupoAtajos[] {
+  return grupos.map((g) => ({ ...g, atajos: g.atajos.filter((a) => !a.mejora || activa(a.mejora)) }))
+}
+
 /** Filtra por acción o tecla, sin distinguir acentos ni mayúsculas. Un grupo sin coincidencias desaparece. */
-export function filtrarAtajos(grupos: GrupoAtajos[], consulta: string): GrupoAtajos[] {
+export function filtrarAtajos(grupos: GrupoAtajos[], consulta: string, mac = esMac()): GrupoAtajos[] {
   const q = normalizar(consulta.trim())
   if (!q) return grupos
   return grupos
     // Busca también en el idioma activo: con la app en inglés, «theme» encuentra «Tema claro u oscuro».
-    .map((g) => ({ ...g, atajos: g.atajos.filter((a) => normalizar(`${a.accion} ${tr(a.accion)} ${a.teclas.join(' ')} ${g.titulo} ${tr(g.titulo)}`).includes(q)) }))
+    // Las teclas también como se ven en este sistema: en Windows, «ctrl b» encuentra «⌘B».
+    .map((g) => ({ ...g, atajos: g.atajos.filter((a) => normalizar(`${a.accion} ${tr(a.accion)} ${a.teclas.join(' ')} ${a.teclas.map((t) => etiquetaTecla(t, mac)).join(' ')} ${g.titulo} ${tr(g.titulo)}`).includes(q)) }))
     .filter((g) => g.atajos.length > 0)
 }
 

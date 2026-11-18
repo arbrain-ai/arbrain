@@ -20,8 +20,9 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { usePathname, useRouter } from 'next/navigation'
-import { AppWindow, ArrowLeft, Bell, ChevronRight, Hammer, ListChecks, PanelRightClose, Pin, PinOff, X } from 'lucide-react'
+import { AppWindow, ArrowLeft, Bell, ChevronLeft, ChevronRight, Hammer, ListChecks, PanelRightClose, Pin, PinOff, X } from 'lucide-react'
 import { useLayoutStore } from '@/shared/stores/layout-store'
+import { useMejora } from '@/features/mejoras/lib/mejoras-store'
 import { ZoomDoc } from '../vistas/Documento'
 import { esTelefonoAhora, useIsMobile } from '@/shared/hooks/useMediaQuery'
 import { useFuente, lecturaEnCache } from '../datos'
@@ -75,6 +76,7 @@ import { esEdicionCliente, sinRespuestaDelServidor } from '@/lib/edicion'
 import { zonaDueno } from '@/shared/lib/zona-dueno'
 import { useSoySegunda } from './segunda'
 import { localeIntl, tr, trn } from '@/shared/i18n'
+import { modPrincipal, textoConAtajos, useEsMac } from '@/shared/navigation/teclas-plataforma'
 
 const CLAVE = 'arbrain.panelDerecho'
 const MIN = 320, CHAT_MIN = 520
@@ -124,16 +126,28 @@ export function PanelDerechoShell() {
   const enfoque = useLayoutStore(st => st.enfoquePanel) && columnaVisible && !isMobile
   useAtajoPantallaCompleta(!isMobile)
   useRecuerdoPantallaCompleta()
+  // Ajustes › Mejoras › Panel derecho que se pliega: apagada, sin asas (como antes).
+  const plegable = useMejora('panel-plegable')
+  const mac = useEsMac()
   const habiaColumna = useRef(false)
   useEffect(() => {
     // Solo al perderla: en la carga la columna aparece un cuadro después del recuerdo y no debe apagarlo.
     if ((habiaColumna.current && !columnaVisible) || isMobile) useLayoutStore.getState().setEnfoquePanel(false)
     habiaColumna.current = columnaVisible
   }, [columnaVisible, isMobile])
-  if (!columnaVisible) return <AtenderPedidos />
+  // Plegado: el asa del borde derecho lo despliega, simétrica a la de las conversaciones.
+  if (!columnaVisible) return <>
+    <AtenderPedidos />
+    {plegable && !isMobile && !drawFullscreen && !sinColumna && <button
+      onClick={() => setPanelDerecho(true)}
+      className="solo-escritorio icon-btn absolute right-1 top-1/2 z-30 flex size-7 -translate-y-1/2"
+      title={textoConAtajos(tr('Mostrar el panel (] o ⌘B)'), mac)} aria-label={tr('Mostrar el panel')}>
+      <ChevronLeft size={14} />
+    </button>}
+  </>
   return isMobile ? <><AtenderPedidos /><PestanaTelefono /></> : <>
     <AtenderPedidos />
-    <Lateral onCerrar={() => setPanelDerecho(false)} />
+    <Lateral onCerrar={() => setPanelDerecho(false)} plegable={plegable} />
     {enfoque && <PantallaCompleta />}
   </>
 }
@@ -145,7 +159,8 @@ function AtenderPedidos() {
   return null
 }
 
-function Lateral({ onCerrar }: { onCerrar: () => void }) {
+function Lateral({ onCerrar, plegable }: { onCerrar: () => void; plegable: boolean }) {
+  const mac = useEsMac()
   const ref = useRef<HTMLElement>(null)
   const [ancho, setAncho] = useState<number | null>(null)
   const [arrastrando, setArrastrando] = useState(false)
@@ -194,6 +209,11 @@ function Lateral({ onCerrar }: { onCerrar: () => void }) {
         title={tr('Arrastra para cambiar el ancho · doble clic para volver al tamaño inicial')}
         onPointerDown={empezar} onKeyDown={teclas} onDoubleClick={() => fijar(anchoInicial())}
       />
+      {/* Plegar, simétrico al de las conversaciones; dentro del borde porque la columna recorta lo que sale. */}
+      {plegable && <button onClick={onCerrar} className="icon-btn absolute left-1 top-1/2 z-30 flex size-7 -translate-y-1/2"
+        title={textoConAtajos(tr('Esconder el panel (] o ⌘B)'), mac)} aria-label={tr('Esconder el panel')}>
+        <ChevronRight size={14} />
+      </button>}
       <Contenido modo="lateral" onCerrar={onCerrar} />
     </aside>
   )
@@ -293,7 +313,7 @@ export function Contenido({ onCerrar, modo, ventana = PRINCIPAL }: { onCerrar: (
     // En captura y deteniéndolo: en esta ventana ⌘B es de la columna antes que de la negrita del lienzo. Sin columna
     // derecha no se toca y la negrita sigue funcionando.
     const k = (e: KeyboardEvent) => {
-      if (e.code !== 'KeyB' || !e.metaKey || e.altKey || e.ctrlKey || e.shiftKey || e.isComposing) return
+      if (e.code !== 'KeyB' || !modPrincipal(e) || e.altKey || e.shiftKey || e.isComposing) return
       if (e.repeat) { if (hayColumnaDerecha(normalizar(useDivisiones.getState().de(ventana), dentroRef.current).celdas)) { e.preventDefault(); e.stopPropagation() } return }
       if (alternarRef.current()) { e.preventDefault(); e.stopPropagation() }
     }
