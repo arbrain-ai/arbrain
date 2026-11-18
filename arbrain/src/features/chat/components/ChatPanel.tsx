@@ -53,6 +53,7 @@ import { chatSpeech } from '../lib/chat-speech'
 import { LectorPosicion } from './LectorPosicion'
 import { TtsProbeOverlay } from './TtsProbeOverlay'
 import { VoiceInput } from './VoiceInput'
+import { BotonModoCoche } from '@/features/modo-coche/ModoCoche'
 import { useLlaveVoz } from '../lib/voz-cliente'
 import { MARCA_DESDE_MIC } from '@/features/primer-arranque/lib/llaves'
 import { BotonReintentar } from './BotonReintentar'
@@ -3713,13 +3714,18 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
                     <Mic size={16} className="md:w-[15px] md:h-[15px]" />
                   </button>
                 ) : (
-                  <VoiceInput
-                    onVoiceNote={EDICION_CLIENTE ? notaVozCliente : handleVoiceNote}
-                    disabled={loadingSession}
-                    soloTexto={EDICION_CLIENTE}
-                    onSinConfigurar={EDICION_CLIENTE ? irAjustesVoz : undefined}
-                    ligero
-                  />
+                  <>
+                    <VoiceInput
+                      onVoiceNote={EDICION_CLIENTE ? notaVozCliente : handleVoiceNote}
+                      disabled={loadingSession}
+                      soloTexto={EDICION_CLIENTE}
+                      onSinConfigurar={EDICION_CLIENTE ? irAjustesVoz : undefined}
+                      ligero
+                    />
+                    {/* Modo coche: hablar con el Orbe sin tocar el micrófono (features/modo-coche). */}
+                    <BotonModoCoche trabajando={turnoEnCurso} mensajes={messages}
+                      enviar={(t, nota) => { void handleSendRef.current(t, { context: nota }) }} />
+                  </>
                 )}
                 </div>
               </div>

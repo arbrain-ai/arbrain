@@ -1,0 +1,384 @@
+/* El modo coche: la pantalla del Orbe. Vidrio oscuro translúcido (se alcanza a ver el chat por debajo); el Orbe NO es
+   translúcido: su pozo oscuro va con él. Espacio seguro del iPhone (notch y barra de abajo).
+   Los colores del Orbe y de su halo salen de la paleta que escoge cada quien: `--orbe-principal` y `--orbe-acento`
+   (tres números «R G B»), que pone ModoCoche.tsx. Los valores de abajo son los de la paleta inicial (Grafito y oro). */
+.boton, .pantalla, .mini { --orbe-principal: 190 198 212; --orbe-acento: 226 176 62; }
+
+.boton,
+.orbe,
+.cerrar,
+.achicar,
+.orbeMini,
+.control {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.boton {
+  flex-shrink: 0;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+}
+@media (min-width: 768px) {
+  .boton { width: 2rem; height: 2rem; }
+}
+.boton:active { transform: scale(0.94); }
+
+/* El Orbe en chiquito: brasa del acento al centro y cáscara del color principal, con los colores de tu paleta. */
+.miniOrbe {
+  width: 1.45rem;
+  height: 1.45rem;
+  border-radius: 9999px;
+  background:
+    radial-gradient(circle at 50% 55%, rgb(255 255 255 / 0.9) 0 6%, rgb(var(--orbe-acento)) 16%, rgb(var(--orbe-acento) / 0) 38%),
+    radial-gradient(circle at 50% 50%, rgb(18 18 22) 0 56%, rgb(var(--orbe-principal) / 0.55) 78%, rgb(var(--orbe-principal) / 0.95) 100%);
+  box-shadow: 0 0 0 1px rgb(var(--orbe-principal) / 0.45), 0 0 10px rgb(var(--orbe-principal) / 0.3);
+}
+
+.pantalla {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1.25rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+  /* El vidrio: oscuro translúcido sobre el chat difuminado. */
+  background: radial-gradient(120% 80% at 50% 45%, rgb(24 24 30 / 0.5) 0%, rgb(10 10 14 / 0.6) 60%, rgb(4 4 6 / 0.7) 100%);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  color: #eaf2ff;
+  font-family: inherit;
+  overscroll-behavior: contain;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.cerrar {
+  position: absolute;
+  top: max(0.75rem, env(safe-area-inset-top));
+  right: max(0.75rem, env(safe-area-inset-right));
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgb(234 242 255 / 0.7);
+  background: rgb(255 255 255 / 0.06);
+  border: 1px solid rgb(255 255 255 / 0.1);
+  z-index: 1;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.achicar {
+  position: absolute;
+  top: max(0.75rem, env(safe-area-inset-top));
+  left: max(0.75rem, env(safe-area-inset-left));
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgb(234 242 255 / 0.7);
+  background: rgb(255 255 255 / 0.06);
+  border: 1px solid rgb(255 255 255 / 0.1);
+  z-index: 1;
+}
+
+.arriba {
+  margin-top: 3rem;
+  text-align: center;
+  min-height: 5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+/* El estado en tamaño normal, con un puntito de color. */
+.estado {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.15rem;
+  font-weight: 600;
+  padding: 0.4rem 0.95rem;
+  border-radius: 9999px;
+  background: rgb(255 255 255 / 0.07);
+  border: 1px solid rgb(255 255 255 / 0.12);
+  font-variant-numeric: tabular-nums;
+}
+.punto {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 9999px;
+  background: #8a97b0;
+}
+[data-fase='escucha'] .punto { background: #eaf2ff; box-shadow: 0 0 8px #eaf2ff; animation: late 1.4s ease-in-out infinite; }
+[data-fase='anotando'] .punto,
+[data-fase='procesando'] .punto { background: rgb(var(--orbe-principal)); box-shadow: 0 0 8px rgb(var(--orbe-principal)); animation: late 0.9s ease-in-out infinite; }
+[data-fase='habla'] .punto { background: rgb(var(--orbe-acento)); box-shadow: 0 0 8px rgb(var(--orbe-acento)); animation: late 0.6s ease-in-out infinite; }
+[data-fase='sin-mic'] .punto { background: #d9264a; }
+.pista {
+  margin-top: 0.55rem;
+  font-size: 0.9rem;
+  color: rgb(234 242 255 / 0.6);
+  max-width: 22rem;
+}
+/* La barrita que se llena mientras callas: al llenarse, se manda. */
+.barra {
+  margin-top: 0.7rem;
+  width: 9rem;
+  height: 4px;
+  border-radius: 9999px;
+  background: rgb(255 255 255 / 0.12);
+  overflow: hidden;
+  transition: opacity 0.2s;
+}
+.relleno {
+  height: 100%;
+  background: #eaf2ff;
+  transform-origin: left center;
+  transition: transform 0.12s linear;
+}
+.despierta {
+  position: absolute;
+  left: max(0.9rem, env(safe-area-inset-left));
+  bottom: max(0.6rem, env(safe-area-inset-bottom));
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.72rem;
+  color: rgb(234 242 255 / 0.45);
+}
+@keyframes late {
+  50% { opacity: 0.45; }
+}
+
+.orbe {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.abajo {
+  width: 100%;
+  max-width: 36rem;
+  min-height: 7.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  text-align: center;
+}
+.subtitulos { width: 100%; }
+.anterior {
+  font-size: 1rem;
+  line-height: 1.35;
+  color: rgb(234 242 255 / 0.4);
+  margin-bottom: 0.3rem;
+}
+.actual {
+  font-size: clamp(1.25rem, 5.2vw, 1.6rem);
+  line-height: 1.35;
+  font-weight: 500;
+  animation: entra 0.22s ease-out both;
+}
+.tarjeta,
+.aviso {
+  font-size: 0.95rem;
+  padding: 0.5rem 0.95rem;
+  border-radius: 9999px;
+  background: rgb(255 255 255 / 0.07);
+  border: 1px solid rgb(255 255 255 / 0.12);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  animation: entra 0.25s ease-out both;
+}
+.tarjeta {
+  color: #ffc58f;
+  border-color: rgb(253 120 6 / 0.45);
+}
+
+@keyframes entra {
+  from { opacity: 0; transform: translateY(4px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .actual, .tarjeta, .aviso, .punto { animation: none !important; }
+}
+
+/* ── El MINI (solo en la computadora): un orbe flotante. Lo distingue el HALO (tenue en pausa; se enciende y respira
+   con el micrófono abierto). Los controles, la esquina para el tamaño y el estado salen al pasar el mouse. ── */
+.mini {
+  position: fixed;
+  z-index: 2147483000;
+  color: #eaf2ff;
+  font-family: inherit;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+.orbeMini {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  cursor: grab;
+  -webkit-tap-highlight-color: transparent;
+}
+.orbeMini:active { cursor: grabbing; }
+.orbeMini:focus-visible { outline: 2px solid rgb(var(--orbe-principal)); outline-offset: 3px; }
+.anillo {
+  /* El HALO translúcido, del color de acento de tu paleta. Siempre está; con el micrófono abierto se enciende y
+     respira; sin micrófono, rojo. */
+  position: absolute;
+  inset: 2px;
+  border-radius: 9999px;
+  pointer-events: none;
+  border: 2px solid rgb(var(--orbe-acento) / 0.32);
+  background: radial-gradient(circle, rgb(var(--orbe-acento) / 0) 58%, rgb(var(--orbe-acento) / 0.1) 68%, rgb(var(--orbe-acento) / 0.16) 100%);
+  box-shadow: 0 0 14px 2px rgb(var(--orbe-acento) / 0.22), inset 0 0 10px rgb(var(--orbe-acento) / 0.14);
+  transition: border-color 0.3s, box-shadow 0.3s, background 0.3s;
+}
+[data-fase='abriendo'] .anillo { border-color: rgb(var(--orbe-acento) / 0.5); }
+[data-fase='escucha'] .anillo {
+  border-color: rgb(var(--orbe-acento) / 0.62);
+  background: radial-gradient(circle, rgb(var(--orbe-acento) / 0) 56%, rgb(var(--orbe-acento) / 0.16) 66%, rgb(var(--orbe-acento) / 0.26) 100%);
+  box-shadow: 0 0 24px 4px rgb(var(--orbe-acento) / 0.45), inset 0 0 14px rgb(var(--orbe-acento) / 0.24);
+  animation: respira 2.2s ease-in-out infinite;
+}
+[data-fase='sin-mic'] .anillo {
+  border-color: rgb(217 38 74 / 0.6);
+  background: radial-gradient(circle, rgb(217 38 74 / 0) 58%, rgb(217 38 74 / 0.12) 100%);
+  box-shadow: 0 0 14px 2px rgb(217 38 74 / 0.3);
+}
+@keyframes respira {
+  50% { box-shadow: 0 0 12px 1px rgb(var(--orbe-acento) / 0.25), inset 0 0 6px rgb(var(--orbe-acento) / 0.12); border-color: rgb(var(--orbe-acento) / 0.4); }
+}
+/* El halo también en pantalla completa: un marco del tamaño del Orbe. */
+.marco {
+  position: relative;
+  display: inline-flex;
+  padding: 10px;
+  border-radius: 9999px;
+}
+/* La barrita del silencio en el mini, siempre a la vista bajo el Orbe. */
+.barraMini {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 3px);
+  width: 56%;
+  height: 4px;
+  transform: translateX(-50%);
+  border-radius: 9999px;
+  background: rgb(18 18 22 / 0.75);
+  border: 1px solid rgb(255 255 255 / 0.14);
+  overflow: hidden;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+.mini[data-arriba] .barraMini { top: auto; bottom: calc(100% + 3px); }
+.controles {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.control {
+  width: 22px;
+  height: 22px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #eaf2ff;
+  background: rgb(18 18 22 / 0.88);
+  border: 1px solid rgb(255 255 255 / 0.18);
+}
+.control:hover { background: rgb(0 90 160 / 0.95); }
+.esquina {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 14px;
+  height: 14px;
+  cursor: nwse-resize;
+  opacity: 0;
+  border-right: 2px solid rgb(234 242 255 / 0.55);
+  border-bottom: 2px solid rgb(234 242 255 / 0.55);
+  border-bottom-right-radius: 5px;
+  transition: opacity 0.15s;
+}
+.etiqueta,
+.avisoMini {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 12px);
+  transform: translateX(-50%);
+  font-size: 0.75rem;
+  line-height: 1.3;
+  padding: 0.22rem 0.65rem;
+  border-radius: 9999px;
+  background: rgb(18 18 22 / 0.9);
+  border: 1px solid rgb(255 255 255 / 0.14);
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+.etiqueta { white-space: nowrap; opacity: 0; transition: opacity 0.15s; }
+.avisoMini { width: max-content; max-width: 15rem; text-align: center; border-radius: 0.8rem; animation: entraMini 0.25s ease-out both; }
+@keyframes entraMini {
+  from { opacity: 0; transform: translate(-50%, 4px); }
+}
+.mini[data-arriba] .etiqueta,
+.mini[data-arriba] .avisoMini { top: auto; bottom: calc(100% + 12px); }
+.mini:hover .controles,
+.mini:focus-within .controles,
+.mini:hover .esquina,
+.mini:hover .etiqueta,
+.mini[data-fase='sin-mic'] .etiqueta { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  [data-fase='escucha'] .anillo, .avisoMini { animation: none !important; }
+}
+
+/* El botón de la paleta (abajo a la derecha): cambia los colores del Orbe y los recuerda en este navegador. */
+.paleta {
+  appearance: none;
+  -webkit-appearance: none;
+  position: absolute;
+  right: max(0.75rem, env(safe-area-inset-right));
+  bottom: max(0.75rem, env(safe-area-inset-bottom));
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: rgb(var(--orbe-acento) / 0.9);
+  background: rgb(255 255 255 / 0.06);
+  border: 1px solid rgb(255 255 255 / 0.1);
+  padding: 0;
+}
