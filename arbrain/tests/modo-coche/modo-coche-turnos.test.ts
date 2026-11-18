@@ -46,3 +46,18 @@ test('la nota cambia con el modo: fluido vuelve a escuchar solo; por turnos qued
   assert.doesNotMatch(NOTA_TURNOS, /vuelve a escuchar solo/)
 })
 
+// ── La voz al celular (complemento de SFlow 2.3) ──
+import { frasesParaTelefono } from '../../src/features/modo-coche/voz-celular'
+import { apiPermitidaEnCliente } from '../../src/lib/edicion'
+
+test('voz al celular: solo las líneas marcadas por SFlow, una frase por línea', () => {
+  assert.deepEqual(frasesParaTelefono('VOZ_EN_TELEFONO: Listo, ya quedó el borrador.'), ['Listo, ya quedó el borrador.'])
+  assert.deepEqual(frasesParaTelefono('otra cosa\nVOZ_EN_TELEFONO: Uno.\nVOZ_EN_TELEFONO: Dos.\n'), ['Uno.', 'Dos.'])
+  assert.deepEqual(frasesParaTelefono('eco "VOZ_EN_TELEFONO: a mitad de línea no cuenta"'), [])
+  assert.deepEqual(frasesParaTelefono('SIN VOZ: SFlow no respondió'), [])
+  assert.deepEqual(frasesParaTelefono(''), [])
+})
+
+test('voz al celular: la ruta del aviso existe en la edición de escritorio (si no, daría 404)', () => {
+  assert.equal(apiPermitidaEnCliente('/api/modo-coche/telefono-activo'), true)
+})

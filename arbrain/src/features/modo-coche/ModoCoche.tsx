@@ -40,6 +40,7 @@ import { notaDelModo, ultimaRespuesta } from './respuesta'
 import { guardarModo, leerModo, type ModoTurno } from './turnos'
 import { SILENCIO_MS, SILENCIO_TURNOS_MS } from './vad'
 import { callarVoz, decirEnCoche, desbloquearVoz, ponerOyenteVoz, reintentarVoz, vozOcupada } from './voz-coche'
+import { iniciarVozCelular } from './voz-celular'
 import { anotar, vaciar } from './bitacora'
 import { conColchon } from './colchon'
 import type { EstadoOrbe } from './orbe/motor'
@@ -103,6 +104,8 @@ export function BotonModoCoche({ trabajando, enviar, mensajes }: {
 }) {
   const disponible = useDisponible()
   const [abierto, setAbierto] = useState(false)
+  // La voz al celular (SFlow 2.3): el celular avisa que lo estás usando, aunque el Orbe esté cerrado.
+  useEffect(() => { iniciarVozCelular() }, [])
   const ctxRef = useRef<AudioContext | null>(null)
   const despiertaRef = useRef<PantallaDespierta | null>(null)
   const [despierta, setDespierta] = useState(false)

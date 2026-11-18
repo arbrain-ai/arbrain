@@ -167,6 +167,19 @@ export function textoHablable(md: string): string {
     .trim()
 }
 
+/**
+ * Una frase suelta (la voz al celular, `voz-celular.ts`): suena aunque el Orbe esté cerrado, en orden con las demás.
+ * Con el Orbe abierto, va en pedazos como sus respuestas.
+ */
+export function decirFrase(frase: string): void {
+  if (typeof window === 'undefined') return
+  const t = frase.replace(/\s+/g, ' ').trim()
+  if (!t) return
+  fila.push(...(oyente?.partir ? oyente.partir(t) : [t]))
+  adelantar()
+  void siguiente()
+}
+
 /** Dice una respuesta dentro del Orbe (en orden, en pedazos). Solo con el modo coche abierto. */
 export function decirEnCoche(respuesta: string): void {
   if (typeof window === 'undefined' || !oyente) return

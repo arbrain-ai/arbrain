@@ -32,6 +32,16 @@
 > Tocar el Orbe mientras habla lo calla y te escucha; mientras trabaja, te escucha para agregarle algo (va a la fila
 > del chat, no lo frena). Una tos o un ruido no se mandan.
 >
+> **Fluido o por turnos.** Arriba del Orbe (o en la pastilla del mini) eliges cómo conversa; se recuerda en ese aparato.
+> - **Fluido** (lo de arriba): tras cada respuesta te vuelve a escuchar solo. Ideal manejando.
+> - **Por turnos**: para trabajar tranquilo sin una conversación abierta. Tocas el Orbe y habla; **tocas otra vez y se
+>   manda** (si se te olvida, se manda solo a los 6 segundos de silencio). La respuesta suena y el Orbe **queda en
+>   pausa, sin micrófono**, hasta que lo vuelvas a tocar. Ni en pausa ni mientras tu agente trabaja hay micrófono tomado.
+>
+> **Cómo te contesta.** Cada mensaje dicho desde el Orbe lleva una nota invisible que le pide a tu agente una respuesta
+> para oírse: corta, conversacional, lo importante primero (qué hizo, cómo quedó y qué necesita de ti), sin tablas,
+> código, rutas ni enlaces. No necesitas skills ni programas extra. Lo que escribes en el chat no cambia.
+>
 > **En la computadora** también hay **mini**: el botón de arriba a la izquierda (o Esc) lo vuelve un orbe flotante que
 > arrastras y agrandas desde la esquina, para ver el chat mientras hablas. Se pausa solo si pasan 2 minutos sin oírte o
 > si empiezas a escribir.
@@ -51,12 +61,20 @@
 > **Con Claude Code y SFlow.** Si además quieres que Claude Code te hable en tu Mac (modo voz y modo demo), instala
 > SFlow con voz: https://github.com/danielsantacolomavalencia-lang/sflow-voz. Es aparte: el modo coche de Arbrain no lo
 > necesita.
+>
+> **La voz que viaja al celular (con SFlow 2.3 o más nuevo).** Si tu agente de Arbrain te habla con el modo voz de SFlow
+> y tú estás usando Arbrain en el celular (iPhone o iPad), la frase suena **en el celular** y la Mac se calla. Gana el
+> aparato que tocaste más reciente; si el celular pasa a segundo plano o lleva 15 minutos sin tocarse, vuelve a hablar
+> la Mac. Suena con tu llave de LemonFox de Arbrain o, sin ella, con la voz del celular. No hay nada que configurar:
+> basta con tener esta versión del modo coche y SFlow 2.3. Para apagarla en un aparato, en la consola del navegador:
+> `localStorage.setItem('arbrain-voz-celular', 'no')`.
 
 ## Problemas conocidos
 
-- **Respuestas de voz muy largas en el iPhone** (más o menos un minuto seguido): en pruebas reales la pantalla se apagó
-  o la página se recargó un par de veces. Si te pasa, vuelve a abrir el Orbe: la respuesta completa queda escrita en el
-  chat. Pídele a tu agente respuestas cortas cuando vas manejando.
+- **«Esta pantalla tuvo un problema… e.terminales.filter» en el iPhone** (y el Orbe se cierra): era una lectura del
+  panel de agentes cortada a la mitad (la red del celular), que tumbaba la pantalla del chat. Esta rama trae el arreglo
+  en un commit aparte (`cabina/datos.ts` y `cabina/trabajos-modelo.ts`); si tu Arbrain ya lo trae del autor, ese commit
+  puede chocar: sáltalo (`git cherry-pick --skip`).
 - **Conversaciones muy largas en el celular:** tras muchas vueltas seguidas el Orbe puede dejar de escuchar. Ciérralo
   con la ✕ y vuelve a abrirlo.
 - **«Terminamos» en una frase larga:** se reconoce cuando va al final y suelto («…y eso es todo. Terminamos.»). Si va
@@ -81,9 +99,10 @@ no toques nada fuera de `~/Arbrain`.
    git fetch https://github.com/danielsantacolomavalencia-lang/arbrain.git modo-coche
    git cherry-pick $(git merge-base HEAD FETCH_HEAD)..FETCH_HEAD
    ```
-   Si choca algún archivo, aborta con `git cherry-pick --abort` y díselo a la persona: su Arbrain tiene cambios propios
-   en el chat y conviene esperar a que el autor lo incluya.
-4. **Comprueba:** `cd arbrain && npm test -- tests/modo-coche/modo-coche.test.ts` (todas en verde).
+   Si choca el commit «Arreglo: la pantalla del chat no se cae…» (el autor ya lo trae), sáltalo con
+   `git cherry-pick --skip` y sigue. Si choca otro archivo, aborta con `git cherry-pick --abort` y díselo a la persona:
+   su Arbrain tiene cambios propios en el chat y conviene esperar a que el autor lo incluya.
+4. **Comprueba:** `cd arbrain && npm test -- tests/modo-coche/modo-coche.test.ts tests/modo-coche/modo-coche-turnos.test.ts` (todas en verde).
 5. **Reinicia Arbrain** para que la app se vuelva a compilar: pídele a la persona que cierre la app Arbrain y la vuelva
    a abrir (si corre como servidor: `npm run servidor -- detener` y `npm run servidor` en `~/Arbrain/arbrain`).
 6. **Llaves:** pregúntale si ya puso su llave de Groq en **Ajustes › Voz** (sin ella no la escucha) y si quiere la de
