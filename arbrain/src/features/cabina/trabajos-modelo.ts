@@ -137,7 +137,7 @@ export function trabajandoAhora(d: Trabajos | undefined) {
   if (!d) return { agentes: 0, procesos: 0, total: 0 }
   const vivas = (d.internas ?? []).filter(t => t.estado === 'trabajando')
   const procesos = vivas.filter(esProceso).length
-  const agentes = d.terminales.filter(t => esAgente(t) && t.estado === 'trabajando').length + vivas.length - procesos
+  const agentes = (d.terminales ?? []).filter(t => esAgente(t) && t.estado === 'trabajando').length + vivas.length - procesos
   return { agentes, procesos, total: agentes + procesos }
 }
 
@@ -147,7 +147,7 @@ export function trabajandoEn(d: Trabajos | undefined, conversacion: string | nul
   if (!d || !conversacion) return 0
   const id = (x: string | null | undefined) => (x ?? '').replace(/^sdk:/, '')
   const esta = id(conversacion)
-  const agentes = d.terminales.filter(t => t.estado === 'trabajando' && id(t.subagente?.origen) === esta).length
+  const agentes = (d.terminales ?? []).filter(t => t.estado === 'trabajando' && id(t.subagente?.origen) === esta).length
   // Solo agentes: los comandos en segundo plano son procesos de esos agentes, no agentes (14 oct 2026).
   const internas = (d.internas ?? []).filter(t => t.estado === 'trabajando' && !esProceso(t) && id(t.conversacion) === esta).length
   return agentes + internas
