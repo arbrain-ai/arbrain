@@ -37,7 +37,10 @@ async function leer(url: string) {
         return
       }
       const r = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(100_000) })
-      const body = await r.json().catch(() => ({}))
+      // Un 200 cuyo cuerpo no se pudo leer (el celular corta la red o congela la página a mitad de la respuesta) no es
+      // una lectura: antes se guardaba `{}` y tumbaba la pantalla del chat ('e.terminales.filter'). Queda la anterior.
+      const body = await r.json().catch(() => (r.ok ? null : {}))
+      if (r.ok && body === null) throw new Error('La fuente respondió algo que no se pudo leer.')
       if (!r.ok || body?.ok === false) throw new Error(body?.error ?? tr('La fuente respondió {estado}.', { estado: r.status }))
       entradas.set(url, { data: body, cargando: false, leidoEn: Date.now(), viejo: false, version: entrada(url).version + 1 })
     } catch (err) {
