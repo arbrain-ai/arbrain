@@ -163,3 +163,19 @@ button.tarjeta:hover .chevron { color: var(--l-tinta-morado, var(--brand)); tran
 :global(.dark) .enlaceCanal svg { color: var(--l-tinta-morado-clara, #c4a1ff); }
 .enlaceCanal:hover { border-color: color-mix(in srgb, var(--brand) 50%, transparent); background: color-mix(in srgb, var(--brand) 9%, transparent); }
 .enlaceCanal:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+/* Lo que pide atención, en una línea bajo la cabeza (15 nov 2026): los órganos que duelen (rojo) y las decisiones que
+   esperan tu toque (oro). Solo aparece si hay algo. */
+.alerta { margin: 4px 0 0; display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; font-weight: 650; line-height: 1.3; }
+.alerta span { display: inline-flex; align-items: center; gap: 6px; }
+.alerta i { width: 7px; height: 7px; border-radius: 999px; }
+.alerta [data-tono=duele] { color: #d13c41; } .alerta [data-tono=duele] i { background: currentColor; box-shadow: 0 0 8px currentColor; }
+:global(.dark) .alerta [data-tono=duele] { color: #f0676b; }
+.alerta [data-tono=toque] { color: color-mix(in srgb, #ff9101 82%, #000); } .alerta [data-tono=toque] i { background: #ff9101; box-shadow: 0 0 8px #ff9101; }
+:global(.dark) .alerta [data-tono=toque] { color: #ffac3d; }
+
+/* El último órgano no queda solo en su fila (15 nov 2026): a dos columnas ocupa la fila entera; a tres, dos lugares. */
+/* Solo cuando Marketing va a lo ancho (quedan cinco): con los seis angostos la rejilla ya cierra pareja. */
+.tarjetas > li[data-ancha]:first-child ~ li:last-child:nth-child(even) { grid-column: 1 / -1; }
+@container (max-width: 400px) { .tarjetas > li[data-ancha]:first-child ~ li:last-child:nth-child(even) { grid-column: auto; } }
+@container (min-width: 820px) { .tarjetas > li[data-ancha]:first-child ~ li:last-child:nth-child(even) { grid-column: span 2; } }

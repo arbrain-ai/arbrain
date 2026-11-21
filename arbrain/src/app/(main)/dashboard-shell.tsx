@@ -15,6 +15,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { RouteGuard } from '@/shared/components/RouteGuard'
 import { KeepAliveRouter } from '@/shared/components/KeepAliveRouter'
 import { SyncAutonomo } from '@/shared/components/SyncAutonomo'
+import { AtiendeEditor } from '@/features/editor/AtiendeEditor'
 import { ZoomController } from '@/shared/components/ZoomController'
 import { LibraryOverlay } from '@/shared/components/LibraryOverlay'
 import { ModalAjustes } from '@/features/configuracion/components/ModalAjustes'
@@ -442,6 +443,8 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           {/* Edición cliente: sin la píldora del espejo local-first (sincroniza con la nube del dueño). */}
           {/* Sin punto verde (4 nov 2026): la sincronización corre sola y no pinta nada; a mano, en Ajustes › Mac y sistema. */}
           {!EDICION_CLIENTE && <SyncAutonomo />}
+          {/* El editor de video (19 nov 2026): ⌘⌥E y «Abrir en el editor» de la galería lo abren en la otra pantalla. */}
+          {!EDICION_CLIENTE && <AtiendeEditor />}
           <KeyboardShortcutsHelp isOpen={helpOpen} onClose={() => setHelpOpen(false)} />
         </>
       )}

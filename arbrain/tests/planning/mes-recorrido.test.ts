@@ -8,20 +8,20 @@ import { colorDePiedra, DRIP, inferirDrip } from '../../src/features/planning/dr
 // 25 oct 2026, Daniel: el Recorrido es el default del Mes en todas las pantallas, y el color de un evento es siempre su DRIP.
 const fuente = (f: string) => sinLenguaje(readFileSync(new URL(`../../src/features/planning/${f}`, import.meta.url), 'utf8'))
 
-test('el Mes abre en Recorrido: default, y lo guardado antes de la versión 3 vuelve a Recorrido una vez', () => {
-  assert.equal(AJUSTES_BASE.mesVista, 'recorrido')
-  assert.equal(VERSION_AJUSTES, 3)
-  // Antes la pantalla ancha mostraba la cuadrícula siempre: lo guardado en v2 no dice qué prefiere.
-  const v2 = leerAjustes(JSON.stringify({ ...AJUSTES_BASE, v: 2, mesVista: 'cuadricula', dias: 7 }))
-  assert.equal(v2.mesVista, 'recorrido')
+// 17 nov 2026, Daniel: «prefiero un calendario mensual normal» (mes-calendario.test.ts): el default vuelve a la cuadrícula, ahora la de
+// MesCalendario a pantalla completa. El Recorrido sigue en el engrane y en lo angosto como estaba.
+test('el Recorrido sigue a un toque en el engrane: elegido después de la versión 4 se respeta', () => {
+  assert.equal(AJUSTES_BASE.mesVista, 'cuadricula')
+  assert.equal(VERSION_AJUSTES, 4)
+  const v2 = leerAjustes(JSON.stringify({ ...AJUSTES_BASE, v: 2, mesVista: 'recorrido', dias: 7 }))
+  assert.equal(v2.mesVista, 'cuadricula')
   assert.equal(v2.dias, 7, 'los días elegidos en v2 se respetan')
-  // Elegida en el engrane después de la v3, la cuadrícula se respeta.
-  assert.equal(leerAjustes(JSON.stringify({ ...AJUSTES_BASE, v: 3, mesVista: 'cuadricula' })).mesVista, 'cuadricula')
+  assert.equal(leerAjustes(JSON.stringify({ ...AJUSTES_BASE, v: 4, mesVista: 'recorrido' })).mesVista, 'recorrido')
 })
 
-test('la pantalla ancha ya no fuerza la cuadrícula: solo el engrane la muestra', () => {
+test('la pantalla ancha muestra el Mes nuevo; la rejilla de FullCalendar del Mes queda para lo angosto', () => {
   const cal = fuente('PlanningCalendar.tsx')
-  assert.match(cal, /const rejillaOculta = esViva\(mode\) && \(mode === 'week' \|\| mode === 'day' \|\| !rejilla\)/)
+  assert.match(cal, /const rejillaOculta = esViva\(mode\) && \(mode === 'week' \|\| mode === 'day' \|\| !rejilla \|\| mesEntero\)/)
   assert.match(cal, /cuadricula=\{rejilla\}/)
   assert.match(cal, /data-dos-columnas=\{dosColumnasVista \? mode : undefined\}/)
 })

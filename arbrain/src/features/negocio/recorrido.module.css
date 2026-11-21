@@ -1,0 +1,425 @@
+/* Tu negocio › El pulso, la portada (17 nov 2026). Una sola pantalla: arriba quién es el negocio y su clima; a la izquierda
+   la estrategia como columna editorial; al centro la frase del día (hecha de datos) y el recorrido de la gente; abajo el
+   riel de lo que corre solo. Sin tarjetas: llaves, líneas finas, cifras grandes y la serif de la marca.
+   Paleta (núcleo de marca §1–2): morado para la estructura y lo que fluye, oro para el cuello, el lazo y lo que espera tu
+   toque; rojo SOLO para lo que duele. El color de identidad de cada órgano (cartel v16) vive solo en su punto.
+   La letra escala con el ancho del panel (cqi): la misma portada a 1440 y a 2048 sin tocar el alto mínimo legible. */
+
+/* ── La página ── */
+.portada { container-type: inline-size; display: grid; min-width: 0; gap: clamp(8px, 0.75cqi, 14px) clamp(18px, 1.7cqi, 34px);
+  grid-template-columns: minmax(240px, 21%) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas: 'cabeza cabeza' 'lado centro';
+  --morado: #8C27F1; --tinta-morado: var(--l-tinta-morado, #7419d1); --oro: #ff9101; --tinta-oro: #b45f00; --dolor: #d13c41; --linea: color-mix(in srgb, var(--foreground) 9%, transparent); }
+:global(.dark) .portada { --morado: #b47dff; --tinta-morado: var(--l-tinta-morado-clara, #c4a1ff); --oro: #ffac3d; --tinta-oro: #ffac3d; --dolor: #f0676b; }
+.portada[data-una-pantalla] { height: var(--alto-pulso); overflow: hidden; }
+
+.cabeza { grid-area: cabeza; display: flex; align-items: center; gap: 6px 18px; flex-wrap: wrap; min-width: 0; padding-bottom: clamp(6px, 0.6cqi, 10px); border-bottom: 3px double color-mix(in srgb, var(--foreground) 22%, transparent); }
+.cabezaQuien { display: flex; align-items: baseline; gap: 14px; min-width: 0; }
+.cabezaQuien h3 { margin: 0; font-family: var(--serif-ui, Georgia, serif); font-size: clamp(22px, 1.75cqi, 34px); line-height: 1.05; font-weight: 600; letter-spacing: -0.015em; color: var(--foreground); white-space: nowrap; }
+.clima { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.clima p { margin: 0; }
+.bajada { font-size: 12px; line-height: 1.35; color: var(--muted); }
+.lienzoChip { position: relative; flex: none; display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px 0 5px; border-radius: 999px; font: inherit; font-size: 12.5px; font-weight: 650; color: var(--foreground); cursor: pointer;
+  border: 1px solid color-mix(in srgb, var(--morado) 42%, transparent);
+  background: linear-gradient(180deg, var(--placa-arriba, var(--card)), var(--placa-abajo, var(--card)));
+  box-shadow: inset 0 1px 0 var(--bisel, rgba(255, 255, 255, 0.6)), 0 8px 18px -12px rgba(var(--brand-rgb), 0.7);
+  transition: transform 240ms cubic-bezier(0.34, 1.32, 0.64, 1), box-shadow 200ms ease; }
+.lienzoChip:not(:disabled):hover { transform: translateY(-1px); box-shadow: inset 0 1px 0 var(--bisel, rgba(255, 255, 255, 0.6)), 0 12px 24px -12px rgba(var(--brand-rgb), 0.85), 0 0 0 3px rgba(var(--brand-rgb), 0.08); }
+.lienzoChip:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
+.lienzoChip:disabled { cursor: default; border-style: dashed; box-shadow: none; background: transparent; color: var(--muted); }
+.lienzoChip > span:first-child { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 999px; color: #fff;
+  background: linear-gradient(140deg, color-mix(in srgb, var(--brand) 80%, #fff), var(--brand) 55%, color-mix(in srgb, var(--brand) 76%, #000)); box-shadow: 0 0 12px rgba(var(--brand-rgb), 0.5); }
+.lienzoChip:disabled > span:first-child { background: color-mix(in srgb, var(--foreground) 8%, transparent); color: var(--muted); box-shadow: none; }
+.lienzoChip small { font-size: 11px; font-weight: 500; color: var(--muted); }
+
+.lado { grid-area: lado; display: flex; flex-direction: column; gap: 10px; min-height: 0; min-width: 0; overflow: hidden; padding-right: clamp(14px, 1.4cqi, 28px); border-right: 1px solid var(--linea); }
+.centro { grid-area: centro; min-height: 0; min-width: 0; display: flex; flex-direction: column; gap: clamp(4px, 0.5cqi, 10px); }
+.titular { margin: 0; font-family: var(--serif-ui, Georgia, serif); font-size: clamp(19px, 1.55cqi, 30px); line-height: 1.18; font-weight: 600; letter-spacing: -0.01em; color: var(--foreground); text-wrap: balance; }
+.titular > span + span::before { content: ' '; }
+.titular em { font-style: italic; color: var(--dolor); }
+.pie { margin-top: auto; display: flex; padding-top: 7px; border-top: 1px solid var(--linea); font-size: 11px; line-height: 1.35; color: var(--muted); }
+.pie button { padding: 0; border: 0; background: none; font: inherit; font-weight: 650; color: var(--tinta-morado); cursor: pointer; text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 35%, transparent); text-underline-offset: 3px; }
+.pie button:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+/* ── El recorrido: seis columnas, una por estación del embudo ── */
+.recorrido { position: relative; flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(0, 1.22fr) minmax(0, 1.22fr) minmax(0, 1fr) minmax(0, 0.88fr) minmax(0, 0.88fr) minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(var(--nervio-min, 150px), 1fr) auto auto; column-gap: clamp(12px, 1.1cqi, 22px); row-gap: 0; }
+
+/* Un órgano ocupa su tramo de columnas y las filas de arriba a su detalle; sus hijos caen en las filas del recorrido. */
+.organo { --acento: var(--morado); --tinta-a: var(--tinta-morado); --oro: #ff9101; --t0: calc(var(--n, 0) * 70ms + 260ms);
+  --id: var(--id-claro, var(--morado));
+  grid-row: 1 / 3; display: grid; grid-template-columns: subgrid; grid-template-rows: subgrid; min-width: 0; pointer-events: none; }
+:global(.dark) .organo, :global(.dark) .voz, :global(.dark) .riel { --id: var(--id-oscuro, var(--morado)); --oro: #ffac3d; }
+.organo > * { pointer-events: auto; min-width: 0; }
+.organo[data-clima=duele] { --acento: var(--dolor); --tinta-a: var(--dolor); }
+
+.llave { grid-row: 1; grid-column: 1 / -1; position: relative; display: flex; align-items: baseline; gap: 2px 10px; flex-wrap: wrap; padding: 9px 2px 5px; }
+.llave::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 6px; border: 1.5px solid color-mix(in srgb, var(--acento) 55%, transparent); border-bottom: 0; border-radius: 5px 5px 0 0; }
+.llaveNombre { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; line-height: 1.1; letter-spacing: 0.15em; text-transform: uppercase; color: var(--tinta-a); white-space: nowrap; }
+.llaveNombre > i, .vozNombre > i { width: 7px; height: 7px; border-radius: 999px; background: var(--id); box-shadow: 0 0 8px color-mix(in srgb, var(--id) 70%, transparent); }
+.llavePregunta { font-family: var(--serif-ui, Georgia, serif); font-style: italic; font-size: clamp(12.5px, 0.9cqi, 15px); line-height: 1.2; color: var(--muted); }
+
+/* El número: lo grande. Se toca (abre su lugar) sin parecer botón: solo la flecha lo dice. */
+.columnaNumero { grid-row: 2; grid-column: 1 / -1; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding-bottom: 8px; min-width: 0; }
+.organo[data-organo=marketing] .columnaNumero { grid-column: 1; }
+.numero { position: relative; align-self: stretch; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 2px 4px 6px 2px; margin: 0; border: 0; border-radius: 12px; background: none; color: var(--foreground); font: inherit; text-align: left; min-width: 0; }
+button.numero { cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background 200ms ease; }
+button.numero:hover { background: color-mix(in srgb, var(--acento) 6%, transparent); }
+button.numero:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+.ir { display: inline-block; vertical-align: -2px; margin-left: 3px; color: var(--muted); transition: transform 200ms ease, color 200ms ease; }
+button.numero:hover .ir { color: var(--tinta-a); transform: translateX(2px); }
+.cifra { font-size: clamp(30px, 2.2cqi, 44px); font-weight: 760; line-height: 1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; color: var(--foreground); white-space: nowrap; }
+.cifra[data-largo] { font-size: clamp(24px, 2cqi, 40px); }
+.cifraUnidad { font-size: 0.42em; font-weight: 700; letter-spacing: 0.02em; margin-left: 0.25em; color: var(--muted); }
+.unidad { font-size: 12.5px; font-weight: 600; line-height: 1.3; color: var(--foreground); opacity: 0.88; text-wrap: pretty; }
+.lineas { display: flex; flex-direction: column; gap: 1px; font-size: 11.5px; line-height: 1.38; color: var(--muted); text-wrap: pretty; }
+.pildoras { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 8px; margin-top: 2px; }
+.toque { display: inline-flex; align-items: center; gap: 6px; height: 21px; padding: 0 9px 0 8px; border-radius: 999px; font-size: 10.5px; font-weight: 750; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; color: #1a0f00;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--oro) 80%, #fff), var(--oro)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 0 14px -3px color-mix(in srgb, var(--oro) 80%, transparent); }
+.toque > i { width: 6px; height: 6px; border-radius: 999px; background: #1a0f00; }
+.sinNumero { display: inline-flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 600; line-height: 1.25; color: var(--muted); }
+.esqueleto { display: block; height: 26px; width: 110px; border-radius: 7px; background: linear-gradient(90deg, color-mix(in srgb, var(--foreground) 6%, transparent), color-mix(in srgb, var(--foreground) 11%, transparent), color-mix(in srgb, var(--foreground) 6%, transparent)); background-size: 200% 100%; animation: brillo 1.4s ease-in-out infinite; }
+@keyframes brillo { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+
+/* La curva de 30 días: su nombre y su ventana escritos; el trazo se dibuja y aterriza en el oro de hoy. */
+.curva { display: flex; flex-direction: column; gap: 2px; width: 100%; margin-top: 3px; }
+.curvaNombre { font-size: 9.5px; font-weight: 750; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.curvaLienzo { position: relative; display: block; height: clamp(22px, 2.2cqi, 40px); }
+.curvaLienzo svg { display: block; width: 100%; height: 100%; overflow: visible; animation: revelar 1100ms cubic-bezier(0.65, 0, 0.35, 1) backwards; animation-delay: calc(var(--t0) + 500ms); }
+.area { fill: color-mix(in srgb, var(--acento) 16%, transparent); }
+.trazo { fill: none; stroke: var(--acento); stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; }
+.hoy { position: absolute; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 999px; background: var(--oro); box-shadow: 0 0 0 2px var(--background), 0 0 10px color-mix(in srgb, var(--oro) 80%, transparent);
+  animation: posar 480ms cubic-bezier(0.34, 1.56, 0.64, 1) backwards; animation-delay: calc(var(--t0) + 1550ms); }
+
+/* El detalle del órgano, pegado a su tramo: lo que lo explica, su meta (o el hueco) y su fuente. */
+.detalle { grid-row: 5; grid-column: 1 / -1; position: relative; min-height: 0; overflow: hidden; border-top: 1px dashed color-mix(in srgb, var(--foreground) 12%, transparent); }
+.detalleCaja { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 8px 2px 4px; }
+/* No cabe: lo secundario espera en segundo plano y «N más» lo dice. Al pasar, enfocar o tocar, el detalle completo sube
+   encima del recorrido (anclado abajo: crece hacia arriba, nunca fuera de la pantalla) sin mover nada. */
+.detalle[data-plegado] [data-segundo], .detalle:is([data-plegado='2'], [data-plegado='3']) [data-tercero], .detalle[data-plegado='3'] [data-cuarto] { display: none; }
+.detalle[data-plegado]:is(:hover, :focus-within, [data-abierto]) { overflow: visible; z-index: 6; }
+.detalle[data-plegado]:is(:hover, :focus-within, [data-abierto]) :is([data-segundo], [data-tercero]) { display: revert; }
+.detalle[data-plegado]:is(:hover, :focus-within, [data-abierto]) .letras[data-cuarto] { display: flex; }
+.detalle[data-plegado]:is(:hover, :focus-within, [data-abierto]) .detalleCaja { position: absolute; left: -10px; right: -10px; bottom: 0; padding: 10px 12px 8px; border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--acento) 30%, var(--border-subtle, var(--border)));
+  background: linear-gradient(180deg, var(--placa-arriba, var(--card)), var(--placa-abajo, var(--card)));
+  box-shadow: inset 0 1px 0 var(--bisel, rgba(255, 255, 255, 0.6)), 0 18px 40px -18px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.55); animation: subir 220ms cubic-bezier(0.16, 1, 0.3, 1); }
+.mas { position: relative; z-index: 2; display: inline-flex; align-items: center; gap: 3px; height: 20px; padding: 0 8px 0 6px; border-radius: 999px; border: 1px solid var(--linea); background: none; color: var(--muted); font: inherit; font-size: 10.5px; font-weight: 650; cursor: pointer; }
+.mas:hover, .mas:focus-visible { color: var(--tinta-a); border-color: color-mix(in srgb, var(--acento) 45%, transparent); }
+.mas:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+.detalle[data-abierto] .mas svg, .detalle:hover .mas svg { transform: rotate(180deg); }
+.detalle[data-midiendo] .mas { display: none; }
+@keyframes subir { from { transform: translateY(6px); opacity: 0.6; } }
+.fuente { font-size: 11px; line-height: 1.35; color: color-mix(in srgb, var(--muted) 90%, transparent); text-wrap: pretty; }
+.nota { font-size: 11.5px; line-height: 1.38; color: var(--muted); text-wrap: pretty; }
+.nota b { font-weight: 700; color: var(--foreground); }
+.falta { font-size: 11.5px; line-height: 1.4; color: var(--foreground); text-wrap: pretty; padding: 5px 8px; border-radius: 8px; border: 1px dashed color-mix(in srgb, var(--muted) 55%, transparent); }
+.falta b { font-weight: 650; }
+.sinMeta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.ponla { position: relative; z-index: 2; display: inline-flex; align-items: baseline; gap: 3px; height: auto; padding: 0; border: 0; background: none;
+  color: var(--tinta-a); font: inherit; font-family: var(--serif-ui, Georgia, serif); font-size: 13px; font-style: italic; font-weight: 600; cursor: pointer; white-space: nowrap;
+  text-decoration: underline dotted; text-decoration-thickness: 1.5px; text-underline-offset: 3px; text-decoration-color: color-mix(in srgb, var(--acento) 60%, transparent); transition: color 160ms ease; }
+.ponla svg { align-self: center; }
+.ponla:hover { color: var(--foreground); text-decoration-style: solid; }
+.ponla:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; border-radius: 4px; }
+.meta { display: flex; flex-direction: column; gap: 3px; width: 100%; }
+.canalLevy { position: relative; z-index: 2; margin-left: auto; display: inline-flex; align-items: center; gap: 6px; min-height: 24px; padding: 2px 7px 2px 9px; border-radius: 999px; white-space: nowrap; border: 1px solid color-mix(in srgb, var(--morado) 32%, transparent); background: color-mix(in srgb, var(--morado) 5%, transparent);
+  color: var(--foreground); font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; transition: border-color 0.18s ease, background 0.18s ease; }
+.canalLevy small { font-size: 10.5px; font-weight: 500; color: var(--muted); }
+.canalLevy svg { color: var(--tinta-morado); }
+.canalLevy:hover { border-color: color-mix(in srgb, var(--morado) 55%, transparent); background: color-mix(in srgb, var(--morado) 10%, transparent); }
+.canalLevy:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.detalleFila { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+
+/* Marketing por canal: una fila por cifra; la letra lleva a su semana y su fuente. */
+.canales { display: flex; flex-direction: column; gap: 4px; width: 100%; }
+.tabla { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 11px; line-height: 1.3; }
+.tabla th, .tabla td { padding: 1.5px 8px 1.5px 0; text-align: left; vertical-align: top; }
+.tabla thead th { font-size: 10.5px; font-weight: 600; line-height: 1.15; color: var(--muted); padding-bottom: 3px; border-bottom: 1px solid var(--linea); vertical-align: bottom; overflow-wrap: normal; word-break: keep-all; hyphens: none; white-space: nowrap; }
+.tabla thead th:first-child { width: 25%; }
+.tabla tbody th { font-size: 11.5px; font-weight: 650; color: var(--foreground); padding-top: 4px; }
+.tabla tbody th small { display: block; font-size: 10px; font-weight: 500; color: var(--muted); }
+.tabla td { padding-top: 1px; }
+.tabla td b { font-size: clamp(14px, 1.05cqi, 18px); font-weight: 720; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; color: var(--foreground); white-space: nowrap; }
+.tabla td sup, .letras sup { font-size: 9.5px; font-weight: 750; color: var(--tinta-morado); margin: 0 3px 0 1px; }
+.tabla td .valor { display: inline; white-space: nowrap; font-size: inherit; color: inherit; }
+.tabla td span:not(.valor) { display: block; font-size: 11px; line-height: 1.3; color: var(--muted); }
+.tabla td[data-espera] b { color: var(--muted); font-weight: 500; }
+.letras { margin: 0; display: flex; flex-wrap: wrap; gap: 0 12px; font-size: 10.5px; line-height: 1.3; color: var(--muted); }
+
+/* Lo que dice tu gente: la burbuja de la confianza, sobre la segunda estación. */
+.voz { --acento: var(--morado); --tinta-a: var(--tinta-morado); --oro: #ff9101; --t0: 330ms; --id: var(--id-claro, var(--morado));
+  grid-row: 2; grid-column: 2; position: relative; align-self: start; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; margin-bottom: 8px;
+  padding: 2px 0 2px 12px; border-left: 2px solid color-mix(in srgb, var(--morado) 55%, transparent); min-width: 0; }
+.voz:has(.cubre:hover) { border-left-color: var(--morado); }
+.vozNombre { display: inline-flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--tinta-morado); white-space: nowrap; }
+.vozPregunta { font-family: var(--serif-ui, Georgia, serif); font-style: italic; font-size: 12px; line-height: 1.2; color: var(--muted); }
+.vozCifra { font-size: 12.5px; font-weight: 600; color: var(--foreground); }
+.vozCifra b { font-size: clamp(22px, 1.7cqi, 32px); font-weight: 760; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.vozCita { font-family: var(--serif-ui, Georgia, serif); font-style: italic; font-size: clamp(13px, 1cqi, 16px); line-height: 1.25; color: var(--foreground); }
+.cubre { position: absolute; inset: 0; z-index: 1; border: 0; padding: 0; margin: 0; background: transparent; border-radius: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.cubre:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+.voz :is(button:not(.cubre)), .riel :is(button:not(.cubre)) { position: relative; z-index: 2; }
+
+/* El nervio y su leyenda: la fila de la gente. */
+.nervioFila { grid-row: 3; grid-column: 1 / -1; position: relative; min-height: 0; display: flex; align-items: stretch; }
+.leyenda { display: flex; flex-wrap: wrap; gap: 2px 12px; margin: 0; padding: 0; list-style: none; font-size: 11px; color: var(--muted); }
+.leyenda li { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+
+/* Cada estación: su nombre y sus etapas, encendidas (punto lleno) o apagadas (hueco; punteado si es por construir). */
+.estacion { grid-row: 4; position: relative; display: flex; flex-direction: column; gap: 3px; padding: 0 0 6px; min-width: 0; }
+.estacionNombre { margin: 0; display: flex; justify-content: space-between; align-items: baseline; gap: 6px; font-size: 10.5px; font-weight: 800; line-height: 1.2; letter-spacing: 0.14em; text-transform: uppercase; color: var(--foreground); }
+.estacionNombre small { font-size: 10.5px; font-weight: 650; letter-spacing: 0; text-transform: none; color: var(--muted); font-variant-numeric: tabular-nums; }
+.estacion[data-cuello] .estacionNombre > span { color: var(--tinta-oro); }
+.etapas { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; }
+.etapa { display: grid; grid-template-columns: 10px minmax(0, 1fr); gap: 6px; align-items: baseline; font-size: 11.5px; line-height: 1.28; color: var(--foreground); }
+.etapa > i, .leyenda i { width: 8px; height: 8px; box-sizing: border-box; border-radius: 999px; align-self: center; background: var(--morado); box-shadow: 0 0 7px color-mix(in srgb, var(--morado) 65%, transparent); }
+.etapa:not([data-encendida]) { color: var(--muted); }
+.etapa:not([data-encendida]) > i, .leyenda i[data-punto=off] { background: transparent; border: 1.5px solid color-mix(in srgb, var(--muted) 85%, transparent); box-shadow: none; }
+.etapa[data-falta=por-construir] > i, .leyenda i[data-punto=construir] { height: 2px; border: 0; border-radius: 1px; background: color-mix(in srgb, var(--muted) 85%, transparent); box-shadow: none; }
+.etapa[data-cuello] > i { width: 8px; height: 8px; border: 1.5px solid var(--dolor); background: transparent; box-shadow: 0 0 6px color-mix(in srgb, var(--dolor) 60%, transparent); }
+.etapa[data-cuello] { color: var(--foreground); }
+.oculto { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.sinEtapas { margin: 0; font-size: 11.5px; color: var(--muted); font-style: italic; }
+
+/* Sistemas: el riel de abajo, lo que corre solo. Una rutina por punto. */
+.riel { --acento: var(--morado); --tinta-a: var(--tinta-morado); --oro: #ff9101; --t0: 700ms; --id: var(--id-claro, var(--morado));
+  grid-row: 5; grid-column: 1 / -1; position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; padding: 8px 2px 2px; border-top: 1px solid var(--linea); min-width: 0; }
+.riel[data-clima=duele] { --acento: var(--dolor); --tinta-a: var(--dolor); }
+.rielCifra { font-size: 12.5px; font-weight: 600; color: var(--foreground); }
+.rielCifra b { font-size: clamp(18px, 1.4cqi, 26px); font-weight: 760; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.rielDetalle { font-size: 11.5px; color: var(--muted); }
+.puntos { display: inline-flex; flex-wrap: wrap; gap: 3px; max-width: 360px; }
+.puntos i { width: 7px; height: 7px; border-radius: 999px; background: var(--morado); opacity: 0.9; animation: posar 420ms cubic-bezier(0.34, 1.56, 0.64, 1) backwards; animation-delay: calc(900ms + var(--k, 0) * 22ms); }
+.puntos i[data-punto=falla] { background: var(--dolor); box-shadow: 0 0 8px var(--dolor); }
+.puntos i[data-punto=espera] { background: transparent; border: 1.5px solid color-mix(in srgb, var(--muted) 80%, transparent); }
+.riel:has(.cubre:hover) .rielCifra b { color: var(--tinta-a); }
+
+@keyframes revelar { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes posar { 0% { transform: scale(0); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .portada *, .portada *::before, .portada *::after { animation: none !important; transition: none !important; }
+}
+
+.sinMetaCorta { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 3px 8px; font-size: 11.5px; line-height: 1.3; color: var(--muted); }
+.sinMetaCorta b { font-weight: 700; color: var(--foreground); }
+/* El acceso al marcador por video, junto al número de Marketing. */
+.cabeza .clima { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; }
+
+/* Ventanas de 1440 (la portada por debajo de ~1700 px): lo mismo, más apretado. Nada se esconde aquí; solo respira menos. */
+@container (max-width: 1700px) {
+  .titular { font-size: clamp(17px, 1.25cqi, 22px); text-wrap: pretty; }
+  .estacionNombre { font-size: 10.5px; letter-spacing: 0.06em; flex-wrap: wrap; }
+  .estacionNombre small { font-size: 10.5px; }
+  .tabla thead th { font-size: 10.5px; }
+  .curvaLienzo { height: 18px; }
+  .curvaNombre { font-size: 10.5px; letter-spacing: 0; text-transform: none; font-weight: 650; }
+  .canalLevy { font-size: 11px; gap: 4px; }
+  .canalLevy small { font-size: 10px; }
+  .recorrido { --nervio-min: 130px; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1.3fr) minmax(0, 1.24fr) minmax(0, 0.72fr) minmax(0, 0.72fr) minmax(0, 1.12fr); column-gap: 12px; }
+  .cifra[data-largo] { font-size: clamp(22px, 1.65cqi, 34px); white-space: normal; }
+  .ponla { font-size: 12.5px; }
+  .puntos i { width: 5px; height: 5px; }
+  .puntos { gap: 2px; }
+  .etapa { line-height: 1.16; }
+  .etapas { gap: 1px; }
+  .ponla { height: 21px; padding: 0 8px; font-size: 10.5px; }
+  .voz .pildoras { gap: 2px 10px; }
+  .vozPregunta { font-size: 11.5px; }
+  .vozCita { font-size: 12.5px; }
+  .llavePregunta { font-size: 12px; }
+  .unidad { font-size: 12px; }
+  .lineas, .nota, .sinMetaCorta { font-size: 11.5px; line-height: 1.3; }
+  .etapa { font-size: 11.5px; }
+  .puntos i { width: 6px; height: 6px; }
+  .riel { gap: 3px 12px; padding-top: 6px; padding-right: 180px; }
+  .climaPalabra, .ponla { font-size: 12.5px; }
+}
+
+/* Fase 2 · la ficha de una estación: sube encima del recorrido, al lado de su estación, sin mover nada ni hacer scroll. */
+.estacion[data-toca] { cursor: pointer; border-radius: 10px; transition: background 180ms ease; }
+.estacion[data-toca]:hover { background: color-mix(in srgb, var(--morado) 5%, transparent); }
+.estacion[data-abierta] { background: color-mix(in srgb, var(--morado) 8%, transparent); }
+.estacionToca { position: absolute; inset: -4px -6px; z-index: 1; border: 0; padding: 0; background: transparent; border-radius: 10px; cursor: pointer; }
+.estacionToca:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.fichaCapa { grid-row: 3 / 6; position: relative; z-index: 8; min-width: 0; pointer-events: none; }
+.ficha { pointer-events: auto; position: absolute; top: 0; width: min(440px, 100%); max-height: 100%; display: flex; flex-direction: column; gap: 8px; padding: 12px 14px 10px; border-radius: 16px; overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--morado) 34%, var(--border-subtle, var(--border)));
+  background: linear-gradient(180deg, var(--placa-arriba, var(--card)), var(--placa-abajo, var(--card)));
+  box-shadow: inset 0 1px 0 var(--bisel, rgba(255, 255, 255, 0.6)), 0 24px 60px -24px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.7), 0 0 0 1px rgba(var(--brand-rgb), 0.06);
+  animation: fichaEntra 260ms cubic-bezier(0.16, 1, 0.3, 1); outline: none; }
+.fichaCabeza { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.fichaCabeza > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.fichaCabeza b { font-size: 11px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--foreground); }
+.fichaCabeza small { font-size: 11.5px; color: var(--muted); }
+.fichaCerrar { flex: none; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; border: 0; background: transparent; color: var(--muted); cursor: pointer; }
+.fichaCerrar:hover { background: color-mix(in srgb, var(--foreground) 7%, transparent); color: var(--foreground); }
+.fichaEtapas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; min-height: 0; overflow: hidden; }
+.fichaEtapa { display: flex; flex-direction: column; gap: 2px; padding-top: 7px; border-top: 1px solid var(--linea); }
+.fichaEtapa:first-child { border-top: 0; padding-top: 0; }
+.fichaEtapaNombre { display: inline-flex; align-items: baseline; gap: 7px; padding: 0; border: 0; background: none; font: inherit; color: var(--foreground); cursor: pointer; text-align: left; }
+.fichaEtapaNombre b { font-size: 12.5px; font-weight: 650; }
+.fichaEtapaNombre small { font-size: 10.5px; color: var(--muted); }
+.fichaEtapaNombre:hover b { color: var(--tinta-morado); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: color-mix(in srgb, currentColor 35%, transparent); }
+.fichaEtapaNombre > i { width: 8px; height: 8px; border-radius: 999px; flex: none; align-self: center; background: var(--morado); box-shadow: 0 0 7px color-mix(in srgb, var(--morado) 65%, transparent); }
+.fichaEtapa:not([data-encendida]) .fichaEtapaNombre > i { background: transparent; border: 1.5px solid color-mix(in srgb, var(--muted) 85%, transparent); box-shadow: none; }
+.fichaEtapa[data-falta=por-construir] .fichaEtapaNombre > i { height: 2px; border: 0; border-radius: 1px; background: color-mix(in srgb, var(--muted) 85%, transparent); }
+.fichaEtapa[data-cuello] .fichaEtapaNombre > i { height: 8px; border: 1.5px solid var(--dolor); background: transparent; }
+.fichaMide { margin: 0 0 0 15px; font-size: 11px; line-height: 1.35; color: var(--muted); text-wrap: pretty; }
+.fichaRutinas { list-style: none; margin: 2px 0 0 15px; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.fichaRutinas li { display: grid; grid-template-columns: 7px minmax(0, 1fr); column-gap: 7px; align-items: baseline; font-size: 11.5px; line-height: 1.3; }
+.fichaRutinas li > i { width: 7px; height: 7px; border-radius: 999px; align-self: center; background: color-mix(in srgb, var(--muted) 70%, transparent); }
+.fichaRutinas li > small { grid-column: 2; font-size: 10.5px; color: var(--muted); }
+.fichaRutinas li[data-tono=ok] > i { background: #3fb27f; }
+.fichaRutinas li[data-tono=curso] > i { background: var(--morado); box-shadow: 0 0 7px var(--morado); }
+.fichaRutinas li[data-tono=error] > i { background: var(--dolor); box-shadow: 0 0 7px var(--dolor); }
+.fichaRutinas li[data-tono=atencion] > i { background: var(--oro); }
+.fichaRutinas li[data-tono=por-construir] > i, .fichaRutinas li[data-tono=pausada] > i { background: transparent; border: 1.5px solid color-mix(in srgb, var(--muted) 70%, transparent); }
+.fichaPie { display: flex; justify-content: flex-end; padding-top: 4px; border-top: 1px solid var(--linea); }
+.fichaPie button { display: inline-flex; align-items: center; gap: 4px; padding: 3px 4px; border: 0; background: none; font: inherit; font-size: 12px; font-weight: 650; color: var(--tinta-morado); cursor: pointer; }
+.fichaPie button:hover { text-decoration: underline; text-underline-offset: 3px; }
+@keyframes fichaEntra { from { opacity: 0; transform: translateY(8px) scale(0.985); } }
+@media (prefers-reduced-motion: reduce) { .ficha { animation: none; } }
+
+/* El clima en una palabra (17 nov 2026, juez 2: la píldora «EN CALMA» se leía como tablero): su punto late y la palabra va
+   en la itálica de las anotaciones del lienzo. Duele, en rojo y con su porqué. */
+.climaPalabra { display: inline-flex; align-items: baseline; gap: 6px; font-family: var(--serif-ui, Georgia, serif); font-size: 13px; font-style: italic; font-weight: 600; color: var(--muted); white-space: nowrap; }
+.climaPalabra > i { position: relative; align-self: center; width: 7px; height: 7px; border-radius: 999px; background: var(--morado); }
+.climaPalabra > i::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: currentColor; opacity: 0; }
+.climaPalabra[data-clima=calma] > i::after, .climaPalabra[data-clima=duele] > i::after { animation: latir 2.8s ease-out infinite; animation-delay: calc(var(--n, 0) * 0.47s); }
+.climaPalabra[data-clima=calma] { color: var(--tinta-morado); }
+.climaPalabra[data-clima=calma] > i { color: var(--morado); }
+.climaPalabra[data-clima=duele] { color: var(--dolor); }
+.climaPalabra[data-clima=duele] > i { background: var(--dolor); color: var(--dolor); box-shadow: 0 0 8px var(--dolor); }
+.climaPalabra[data-clima=duele] > i::after { animation-duration: 2.1s; }
+.climaPalabra em { font-style: italic; font-weight: 500; }
+.climaPalabra:not([data-clima=calma]):not([data-clima=duele]) > i { background: transparent; border: 1.5px solid color-mix(in srgb, var(--muted) 80%, transparent); }
+@keyframes latir { 0% { transform: scale(1); opacity: 0.55; } 70%, 100% { transform: scale(2.8); opacity: 0; } }
+
+/* La voz de tu gente: una cita de periódico (filo morado y serif), no un globo. */
+.vozCita { font-size: clamp(15px, 1.15cqi, 19px); }
+
+/* Sistemas: la vía bajo el recorrido. Cada rutina activa es un durmiente; el rojo, la que falló; hueco, la que no ha corrido. */
+/* La vía de Sistemas, en la gramática del río (17 nov, juez 4): un hilo con una estación chica por rutina activa;
+   rellena la que salió bien, roja la que falló, punteada la que espera su primera corrida. */
+.via { position: relative; display: inline-flex; align-items: center; gap: 4px; height: 16px; padding: 0 8px; }
+.via::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 2px; margin-top: -1px; border-radius: 1px; background: color-mix(in srgb, var(--morado) 40%, transparent); }
+.via i { position: relative; width: 7px; height: 7px; border-radius: 50%; box-sizing: border-box; background: var(--morado); box-shadow: 0 0 0 2px var(--placa-arriba, #fff); animation: posar 420ms cubic-bezier(0.34, 1.56, 0.64, 1) backwards; animation-delay: calc(900ms + var(--k, 0) * 22ms); }
+:global(.dark) .via i { box-shadow: 0 0 0 2px #0d0d12; }
+.via i[data-punto=falla] { width: 10px; height: 10px; background: var(--placa-arriba, #fff); border: 2px solid var(--dolor); box-shadow: 0 0 0 2px var(--placa-arriba, #fff), 0 0 8px var(--dolor); }
+:global(.dark) .via i[data-punto=falla] { background: #0d0d12; box-shadow: 0 0 0 2px #0d0d12, 0 0 8px var(--dolor); }
+.via i[data-punto=espera] { background: transparent; border: 1px dashed color-mix(in srgb, var(--muted) 80%, transparent); }
+.riel { padding-right: 170px; }
+
+@container (max-width: 1700px) { .climaPalabra { font-size: 12.5px; } }
+
+/* El número que cuenta (CifraViva) trae el tamaño de la tarjeta de antes: en la portada hereda el de su estación. */
+.cifra > span, .vozCifra b > span, .rielCifra b > span { font-size: inherit; font-weight: inherit; letter-spacing: inherit; line-height: inherit; }
+
+/* Al pasar, las notas de la tabla vuelven como renglón propio (no pegadas al número a media palabra). */
+.detalle[data-plegado]:is(:hover, :focus-within, [data-abierto]) .tabla td span[data-segundo] { display: block; font-size: 10.5px; overflow-wrap: normal; word-break: keep-all; hyphens: manual; }
+@container (max-width: 1700px) {
+  .tabla th, .tabla td { padding-right: 7px; }
+  .tabla thead th { font-size: 10px; letter-spacing: -0.01em; }
+  .tabla thead th:first-child { width: 25%; }
+  .tabla tbody th { font-size: 11px; }
+  .tabla td b { font-size: 14px; }
+  .detalleCaja { padding-top: 6px; padding-bottom: 1px; gap: 3px; }
+  .estacionNombre { font-size: 10px; letter-spacing: 0.03em; gap: 0 4px; white-space: nowrap; }
+  .estacionNombre small { font-size: 10px; }
+  .letras { font-size: 10px; gap: 0 10px; letter-spacing: -0.005em; }
+  .letras sup { font-size: 9px; }
+}
+
+/* Juez 4 (17 nov): la última caja (Finanzas) abre hacia la izquierda y a lo ancho, dentro del panel; el botón dice
+   «menos» cuando está abierta; con la leyenda de fuentes plegada, sus letras también esperan detrás. */
+.detalle[data-al-final][data-plegado]:is(:hover, :focus-within, [data-abierto]) .detalleCaja { left: auto; right: 0; width: max(calc(100% + 10px), 430px); }
+.mas [data-mas-abierto] { display: none; }
+.detalle:is(:hover, :focus-within, [data-abierto]) .mas [data-mas-cerrado] { display: none; }
+.detalle:is(:hover, :focus-within, [data-abierto]) .mas [data-mas-abierto] { display: inline; }
+.detalle[data-plegado='3'] .tabla sup { display: none; }
+.detalle[data-plegado='3']:is(:hover, :focus-within, [data-abierto]) .tabla sup { display: revert; }
+
+/* Fase 2 · tocar una estación (17 nov). El círculo del río se toca con el ratón; la columna, también con teclado. La
+   ficha baja desde su estación (el pico la señala), encima del recorrido: nada se mueve y nada hace scroll. */
+.estacionPunto { position: absolute; z-index: 2; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 999px; background: transparent; cursor: pointer; }
+.estacionPunto:hover, .estacionPunto[data-abierta] { background: radial-gradient(circle, color-mix(in srgb, var(--morado) 16%, transparent) 0 55%, transparent 70%); }
+.estacion[data-toca] .estacionNombre > span { transition: color 160ms ease; }
+.estacion[data-toca]:hover .estacionNombre > span, .estacion[data-abierta] .estacionNombre > span { color: var(--tinta-morado); }
+.fichaCapa { grid-row: 3 / 6; grid-column: 1 / -1; }
+.ficha { max-height: calc(100% - var(--ficha-top, 0px)); overflow: visible; }
+.ficha::before { content: ''; position: absolute; top: -7px; left: var(--pico, 24px); width: 12px; height: 12px; transform: rotate(45deg);
+  background: var(--placa-arriba, var(--card)); border-left: 1px solid color-mix(in srgb, var(--morado) 34%, var(--border-subtle, var(--border))); border-top: 1px solid color-mix(in srgb, var(--morado) 34%, var(--border-subtle, var(--border))); }
+.ficha[data-columnas] .fichaEtapas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px 18px; }
+.ficha[data-columnas='3'] .fichaEtapas { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.ficha[data-columnas='4'] .fichaEtapas { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.ficha[data-columnas] .fichaEtapa { padding-top: 0; border-top: 0; }
+.fichaCabeza { align-items: center; }
+.fichaOrgano { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 1px; text-align: right; }
+.fichaOrgano small { font-size: 10.5px; color: var(--muted); }
+.fichaOrgano b { font-size: 18px; font-weight: 760; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; text-transform: none; color: var(--foreground); }
+.fichaOrgano b small { font-size: 11px; font-weight: 600; letter-spacing: 0; }
+.fichaVacia { display: flex; flex-direction: column; gap: 6px; font-size: 12px; line-height: 1.4; color: var(--muted); }
+.fichaVacia p { margin: 0; }
+.fichaVacia b { color: var(--foreground); }
+@container (max-width: 1700px) {
+  .ficha { gap: 6px; padding: 10px 12px 8px; }
+  .fichaMide { font-size: 10.5px; }
+  .fichaRutinas li { font-size: 11px; }
+  .fichaRutinas li > small { font-size: 10px; }
+}
+.estacionToca { inset: -4px 0 auto -6px; height: 22px; }
+
+/* Dieta de texto (17 nov 2026, Daniel: «hay mucho texto»). La portada es números y río: bajo cada estación, un punto por
+   etapa y su conteo (el nombre, al pasar y en la ficha); Marketing, dos cifras por canal; el detalle de cada órgano vive
+   en la ficha de su estación, al lado de sus etapas. */
+.etapas { flex-direction: row; flex-wrap: wrap; gap: 7px; padding-top: 3px; }
+.etapa { display: inline-flex; grid-template-columns: none; padding: 3px; margin: -3px; border-radius: 999px; }
+.etapa > i { width: 10px; height: 10px; }
+.etapa[data-cuello] > i { width: 10px; height: 10px; }
+.etapa[data-falta=por-construir] > i { width: 10px; height: 2.5px; }
+.estacion { gap: 5px; padding-bottom: 8px; }
+.estacionNombre { white-space: nowrap; }
+.columnaNumero { gap: 7px; }
+.canalesCortos { list-style: none; margin: 0; padding: 0 0 0 2px; display: flex; flex-direction: column; gap: 3px; font-size: 11px; line-height: 1.3; }
+.ccCanal { display: block; font-weight: 650; color: var(--foreground); }
+.ccCifras { display: block; color: var(--muted); }
+.ccCifras small { font-size: 10.5px; }
+.ccCifras b { font-size: 13px; font-weight: 720; font-variant-numeric: tabular-nums; color: var(--foreground); }
+.ccCifras [data-espera] b { color: var(--muted); font-weight: 500; }
+.canalLevy { margin-left: 0; }
+.voz .falta { margin-top: 2px; }
+.riel { padding-top: 7px; }
+/* La ficha con el detalle del órgano a la izquierda y las etapas a la derecha. */
+.fichaCuerpo { flex: 0 1 auto; display: flex; gap: 18px; min-height: 0; }
+.fichaCuerpo > .fichaEtapas { flex: 1 1 0; min-width: 0; }
+.fichaDetalles { flex: 0 0 auto; width: min(400px, 46%); display: flex; flex-direction: column; gap: 10px; padding-right: 16px; border-right: 1px solid var(--linea); min-width: 0; }
+.ficha[data-con-detalle] .fichaEtapas { align-content: start; }
+.fichaDetalle { --acento: var(--morado); --tinta-a: var(--tinta-morado); --id: var(--id-claro, var(--morado)); display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
+:global(.dark) .fichaDetalle { --id: var(--id-oscuro, var(--morado)); }
+.fichaDetalle[data-clima=duele] { --acento: var(--dolor); }
+.fichaDetalleNombre { margin: 0; display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--tinta-a); }
+.fichaDetalleNombre > i { width: 7px; height: 7px; border-radius: 999px; background: var(--id); }
+.fichaDetalleNombre small { font-size: 11px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--muted); }
+.fichaDetalle .tabla td span:not(.valor) { font-size: 10.5px; }
+.fichaCapa { grid-row: 1 / 6; }
+.ficha[data-subida]::before { display: none; }
+.fichaDetalles:has(.tabla) { width: min(600px, 58%); }
+.fichaDetalle .letras { flex-direction: column; }
+.fichaDetalle .tabla thead th { white-space: normal; }
+/* El botón flotante de Levy vive abajo a la derecha: el riel le guarda su lugar para que no tape la última estación. */
+.riel { min-height: 46px; }
+.fichaDetalle .letras { gap: 4px; line-height: 1.45; }
+/* Un nombre de etapa nunca se parte a media palabra: su embudo baja de renglón. El pie de la ficha va a la izquierda
+   (abajo a la derecha vive el botón flotante de Levy). */
+.fichaEtapaNombre { flex-wrap: wrap; column-gap: 7px; row-gap: 0; }
+.fichaEtapaNombre b { overflow-wrap: normal; word-break: keep-all; hyphens: none; }
+.fichaPie { justify-content: flex-start; }
+/* Juez de la dieta (17 nov): el conteo va pegado a SU estación (no a la de al lado); el cuello se nombra; la ficha baja
+   hasta el fondo del recorrido (no deja asomar Sistemas a medias). */
+.estacionNombre { justify-content: flex-start; gap: 8px; }
+.cuelloNombre { margin: 1px 0 0; font-family: var(--serif-ui, Georgia, serif); font-style: italic; font-size: 12px; line-height: 1.25; color: var(--dolor); text-wrap: pretty; }
+.ficha { min-height: calc(100% - var(--ficha-top, 0px)); }
+/* Segundo juez de la dieta: el titular en renglones parejos (sin «tiene número.» solo abajo). */
+.titular { text-wrap: balance; }
+@container (max-width: 1700px) { .titular { text-wrap: balance; } }

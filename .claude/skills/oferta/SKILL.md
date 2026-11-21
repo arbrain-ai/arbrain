@@ -34,6 +34,7 @@ Lo que ya está escrito se **confirma**, no se vuelve a preguntar. Lee **todo** 
 | Problemas, objeciones o soluciones «cómo X aunque Y» | Dolores y deseos, bonos, diferenciación |
 | Cómo entrega, sus horas, su cupo | Vehículo, urgencia y escasez |
 | Precio, garantía, nombre o bonos ya pensados | Precio, garantía, bonos |
+| `avatar.md`, `mensaje.md` (de `arquitectura-marketing`) | Avatar, dolores y deseos, diferenciación |
 | `voz-del-cliente.json` | Dolores y deseos en palabras textuales de su mercado |
 | `mercado.json` | Diferenciación y precio (competidores, escalera de precios) |
 | `embudo.json` | Dónde se atora su venta hoy |

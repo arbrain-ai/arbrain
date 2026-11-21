@@ -77,7 +77,7 @@ export function pulsoSistemasCliente(l: LecturaDe<ListaRutinas>): Pulso {
   const detalle = [trn(activas.length, 'De {n} rutina activa', 'De {n} rutinas activas')]
   if (fallan) detalle.push(trn(fallan, '{n} falló en su última corrida', '{n} fallaron en su última corrida'))
   if (activas.length > corrieron.length) detalle.push(tr('{n} todavía sin correr', { n: activas.length - corrieron.length }))
-  return { ...base, estado: 'numero', cifra: String(bien), unidad: bien === 1 ? tr('rutina salió bien') : tr('rutinas salieron bien'), detalle }
+  return { ...base, estado: 'numero', cifra: String(bien), unidad: bien === 1 ? tr('rutina salió bien') : tr('rutinas salieron bien'), detalle, riel: { activas: activas.length, bien, fallan } }
 }
 
 /**

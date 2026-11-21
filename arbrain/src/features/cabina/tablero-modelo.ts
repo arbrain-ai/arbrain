@@ -31,6 +31,7 @@
 import { esAgente, esProceso, preguntaAlgo, esperaALevy, ultimaRespuesta, type CambiosRama, type Coherencia, type Columna, type EstadoTablero, type Juicio, type Preparando, type TareaInterna, type Terminal, type Trabajos, type Veredicto } from './trabajos-modelo'
 import { agenteTerminado, resumenInterna, resumenTerminal, unaLinea } from './terminados'
 import { actividadLegible, tituloLegible } from './internas-lectura'
+import { modelDisplayName } from '../chat/stores/model-store'
 import { localeIntl, tr, trMarca, trn } from '@/shared/i18n'
 
 export type { Columna }
@@ -403,6 +404,17 @@ export function tiempoDe(f: Pick<FilaTablero, 'columna' | 'desde' | 'fin'>, ahor
 }
 
 // ── Modelo, esfuerzo y cambios del agente (29 oct 2026, benchmark de orquestación: brechas 1, 4 y 5) ──
+
+/** El modelo del renglón en dos palabras («Opus 5.5»), a la vista sin abrir el detalle (17 nov 2026, Daniel: «que pueda
+ *  ver el modelo que está usando… de forma sutil»). `medido`: lo reportó su CLI o su conversación; un encargo que solo
+ *  trae lo pedido se pinta como pedido, nunca como medido. Un comando no corre con modelo. */
+export function modeloCorto(f: Pick<FilaTablero, 'tipo' | 'modelo' | 'coherencia'>): { texto: string; medido: boolean } | null {
+  if (f.tipo === 'proceso') return null
+  const texto = modelDisplayName(f.modelo)
+  if (!texto) return null
+  const medido = f.coherencia ? f.coherencia.modelo.efectivo != null : f.tipo !== 'encargo' && f.tipo !== 'preparando'
+  return { texto, medido }
+}
 
 /** El esfuerzo en palabras del detalle: lo medido se dice como medido; lo pedido sin medir, como pedido. Nunca al revés. */
 export function esfuerzoEnPalabras(c: Coherencia | null): string | null {

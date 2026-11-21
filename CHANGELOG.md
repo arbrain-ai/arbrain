@@ -4,6 +4,70 @@ Cada versión dice qué trae y qué tienes que hacer tú. Para actualizar, abre 
 «jala los últimos cambios». Las versiones siguen `MAYOR.MENOR.PARCHE`: un cambio en MENOR trae funciones
 nuevas; uno en PARCHE, arreglos.
 
+## v0.2.30 · 21 nov 2026 · La Radiografía de tu cliente, su mapa vivo, nueve habilidades nuevas y la tienda de Extensiones
+
+**Qué trae**
+- **El mapa vivo: «y ahora te lo muestro».** Al terminar la Radiografía, dile a Levy «hazme el mapa vivo de <tu
+  cliente>» y arma en tu Lienzo el negocio del dueño cobrando vida, en cuatro capítulos: su norte (su porqué y su meta,
+  dibujada a escala contra hoy), su sistema nervioso (piensa, siente y se mueve: su gente entrando y, en el cuello,
+  cuántos se le van), su oferta (la escalera de valor y la hoja de 11 piezas) y su vehículo (qué se arregla primero y lo
+  que cuesta no hacerlo). Cada cosa lleva su estado: firmado, abierto, pendiente o idea. Lo que no se sabe se dibuja
+  como hueco, nunca como dato.
+- **Se recorre como una clase.** Los capítulos están en el índice de la derecha; con `⇧P` entras al recorrido y las
+  flechas revelan cada parte y vuelan de un capítulo a otro. Cada capítulo cabe entero en la pantalla, proyectado o
+  compartido. Al acercarte, cada pieza se mueve.
+- **Con los colores y el mundo de tu cliente:** su color, su segundo color y la figura que fluye por su negocio (una
+  tuerca en una ferretería, una gota en una clínica). También sirve para ti: «hazme mi mapa» lo arma con tu embudo y
+  tu oferta.
+- **El mismo estándar para cualquier lienzo:** capítulos de pantalla, recorrido y piezas vivas quedan como base en la
+  skill `canvas`, para un panel, una clase o un proceso.
+- **Imágenes y logos en tus lienzos.** Una ilustración o una foto entra en su capítulo sin deformarse y aparece cuando el
+  recorrido llega; una fila de logos nombra las herramientas o los canales de tu cliente; y una pieza viva puede destapar
+  una imagen o un logo en un paso. Los logos son siempre los archivos reales de cada marca: si falta uno, Levy te lo dice
+  en vez de inventarlo.
+- **La Radiografía, con Levy.** Dile «hazle la radiografía a mi cliente» y Levy te hace las preguntas en orden: qué
+  quiere el dueño, cómo le llegan los clientes, cómo vende, cómo entrega, qué se repite a mano en su equipo y sus
+  números básicos. Sirve en la llamada de diagnóstico de 30 minutos y en una Radiografía completa de varias sesiones;
+  también puedes pegarle tus notas o la transcripción y te pregunta solo lo que falta.
+- **El mapa del sistema de su negocio:** marketing → venta → entrega → números, con el cuello de botella marcado y la
+  evidencia que lo prueba. Queda en la carpeta del cliente y, si usas el Lienzo, Levy lo dibuja ahí.
+- **La página para el dueño:** qué arreglar primero, en qué orden y cuánto le cuesta no arreglarlo (al mes, en 90 días
+  y en un año), con la cuenta a la vista. Lo que no se sabe queda «por medir», nunca inventado. Es un borrador: tú la
+  revisas y la mandas.
+- **Extensiones, la tienda de tu cerebro.** Nueva sección «Extensiones» (también en el «+» del panel): ves el catálogo de
+  Arbrain, qué pide cada extensión antes de instalarla (carpetas, internet, tareas que corren solas, llaves) y la
+  instalas, actualizas o quitas con un clic o pidiéndoselo a Levy. Tus datos viven en tu cerebro: quitar una extensión
+  no los borra. Si una trae tareas automáticas, no se instala sin tu «Sí». Hoy trae dos:
+  - **Competencia:** tu censo de los canales de YouTube de tu nicho. Le dices tu nicho en tus palabras, Levy busca
+    candidatos con tu llave de YouTube, tú marcas cuáles entran, y su panel te dice qué vende cada uno, a qué precio y
+    qué modelo predomina. Se actualiza sola los domingos.
+  - **Mapa de negocio:** la Radiografía y el mapa vivo empaquetados para instalar donde los necesites.
+- **Nueve habilidades nuevas para tu negocio,** cada una lee primero lo que ya sabe de ti y te pregunta una sola vez lo
+  que falta:
+  - **Contacto en frío:** encontrar y calificar prospectos, el regalo que abre la puerta y tus 5 números. Nunca manda
+    nada sin tu sí sobre ese texto.
+  - **Marketing:** tu avatar, tu mensaje, tus ganchos, tu página de ventas y textos con tu voz.
+  - **Tu marca:** tu guía de colores, letras, logo y estilo de imágenes; si no tienes marca, Levy te propone dos
+    direcciones y tú eliges.
+  - **Números del negocio:** conectas tu Stripe, Polar, Hotmart o una hoja de cálculo y Levy mide sin inventar: lo que
+    falta dice «sin dato», nunca cero.
+  - **Finanzas:** tu dinero llevado platicando, en archivos de tu computadora, con su cierre del mes.
+  - **Intel:** tus referentes pasados a texto con cita y minuto exacto, y cómo estudiar a un competidor sin copiarlo.
+  - **Embudos:** el embudo de tus competidores y el tuyo ideal, con evidencia.
+  - **YouTube:** de la idea al guion, el título, la miniatura y lo que aprendes de cada video.
+- **`code-animation` ahora se llama `god-animation`, y creció.** Además de animaciones y páginas vivas: el video que
+  explica un tema (con sus reglas para no inventar nada), los tres cortos verticales de cada video largo y el pergamino,
+  la página que se explica sola. Levy anota cada pieza en `mi-negocio/animaciones/BITACORA.md` y lo que te gusta dos veces
+  lo vuelve regla en `MI-OFICIO.md`, así aprende tu gusto sin que una actualización lo borre.
+
+**Qué tienes que hacer**
+- Actualizar («jala los últimos cambios») y decirle a Levy «prepárame la radiografía de <tu cliente>». Al terminar,
+  «ahora muéstraselo»: abre el mapa en tu Lienzo y recórrelo con el dueño.
+- Para Competencia: en Extensiones, «Instalar», y dile a Levy tu nicho. Te pide tu llave de YouTube (gratis) la
+  primera vez.
+- Si habías cambiado algo dentro de `.claude/skills/code-animation/`, la actualización te lo enseña como choque: pasa
+  tus líneas a `mi-negocio/animaciones/MI-OFICIO.md` y deja que la carpeta vieja se vaya.
+
 ## v0.2.29 · 18 nov 2026 · Atajos con Ctrl en Windows y cuatro mejoras que tú prendes
 
 **Qué trae**

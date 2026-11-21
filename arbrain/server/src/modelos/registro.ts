@@ -92,6 +92,10 @@ export const REGISTRO: Registro = {
     rutaOpenRouter('gpt-6-astra', 'GPT-6 Astra', 'openai/gpt-6-astra', 'gpt-astra', 1_050_000),
     rutaOpenRouter('gpt-6.1-sol', 'GPT-6.1 Sol', 'openai/gpt-6.1-sol', 'gpt-sol', 1_050_000),
     rutaOpenRouter('gemini-4-argon', 'Gemini 4 Argon', 'google/gemini-4-argon', 'gemini', 1_048_576),
+    // 18 nov 2026, Daniel: «por ahora quiero usar la llave gratis de google». Codex ya no habla `wire_api = "chat"` y
+    // Google no sirve Responses (404), así que va por OpenRouter con BYOK: la llave de AI Studio vive en OpenRouter
+    // (Integrations, «Always use this key») y Google la atiende en su plan gratis.
+    rutaOpenRouter('gemini-4-hydrogen', 'Gemini 4 Hydrogen', 'google/gemini-4-hydrogen', 'gemini-hydrogen', 1_048_576),
     rutaOpenRouter('muse-spark-1.3', 'Muse Spark 1.3', 'meta/muse-spark-1.3', 'muse', 1_048_576),
     rutaOpenRouter('grok-4.7', 'Grok 4.7', 'x-ai/grok-4.7', 'grok', 500_000),
     rutaOpenRouter('mimo-v2.6-pro', 'MiMo-V2.6-Pro', 'xiaomi/mimo-v2.6-pro', 'mimo', 1_050_000),

@@ -2,20 +2,33 @@ import { getClaudeclawUrl, CLAUDECLAW_TOKEN } from '@/lib/claudeclaw'
 import { requireChatPrincipal, chatAccessResponse } from '@/lib/chat-access'
 import { speakEleven, warmEleven, elevenKey } from '@/features/live/server/elevenlabs'
 import { normalizeAgent, voiceIdFor } from '@/features/live/voice/voices'
+import { speakLocal } from '@/features/live/server/voz-local'
 export const maxDuration = 120
 let hostUnavailableUntil=0
 /** PCM passthrough: no arrayBuffer, so a first audio chunk does not wait for the last. */
 export async function POST(request: Request) {
   try { await requireChatPrincipal() } catch (error) { return chatAccessResponse(error) }
-  let body: { text?: unknown; speed?: unknown; agent?: unknown; previousText?: unknown; warm?: unknown; alineacion?: unknown }
+  let body: { text?: unknown; speed?: unknown; agent?: unknown; previousText?: unknown; warm?: unknown; alineacion?: unknown; local?: unknown }
   try { body=await request.json() } catch { return Response.json({error:'Solicitud de voz inválida.'},{status:400}) }
-  if (body.warm === true) return Response.json(await warmEleven(),{headers:{'Cache-Control':'no-store'}})
+  // Levy en vivo (bandera `levyEnVivo`, 18 nov 2026): toda la voz es local; ni el calentamiento toca la nube.
+  const local=body.local===true
+  if (body.warm === true) return Response.json(local?{ok:true,local:true}:await warmEleven(),{headers:{'Cache-Control':'no-store'}})
   if (typeof body.text !== 'string' || !body.text.trim() || body.text.length > 1200) return Response.json({error:'La frase debe tener entre 1 y 1200 caracteres.'},{status:400})
   const speed=body.speed ?? 1.75
   if (typeof speed !== 'number' || speed < 0.5 || speed > 3) return Response.json({error:'Velocidad de voz inválida.'},{status:400})
   // Voz principal: ElevenLabs (flash, PCM 24 kHz). Si falla, se agota el saldo o el primer byte pasa de 1.5 s, cae a Apple y luego LemonFox.
   let fallbackReason=''
-  if(elevenKey()){
+  if(local){
+    // Qwen3-TTS en el Studio con el clon del agente (Levy = la voz de los videos), en NDJSON con la alineación por carácter
+    // (estimada al instante, exacta al terminar la frase). Si no responde: la voz de Apple del host, también local.
+    const agent=normalizeAgent(body.agent)
+    const voz=await speakLocal({text:body.text.trim(),agent,signal:request.signal,tempo:Number(process.env.LIVE_LOCAL_TEMPO)||undefined})
+    if(voz.ok)return new Response(voz.body,{headers:{'Content-Type':'application/x-ndjson','X-Sample-Rate':'24000','X-Voice-Provider':'qwen-local','X-Voice-Agent':agent,'X-Voice-Alignment':'chars','X-Provider-First-Byte-Ms':String(voz.headersMs),'Cache-Control':'no-store, no-transform','X-Accel-Buffering':'no'}})
+    if(voz.reason==='cancelado')return new Response(null,{status:499})
+    fallbackReason=voz.reason
+    console.warn('[latencia-live] voz local no disponible, respaldo Apple:',fallbackReason)
+  }
+  else if(elevenKey()){
     const agent=normalizeAgent(body.agent)
     // Levy vivo (bandera del cliente, apagada por defecto): la misma voz con la alineación por carácter, en JSON por línea.
     const alineacion=body.alineacion===true
@@ -35,6 +48,8 @@ export async function POST(request: Request) {
     hostUnavailableUntil=Date.now()+(audio.status===404?30000:5000)
     await audio.body?.cancel()
   }catch{if(request.signal.aborted)return new Response(null,{status:499});hostUnavailableUntil=Date.now()+5000}
+  // En vivo no hay nube: sin voz local ni Apple, el texto queda en pantalla.
+  if(local)return Response.json({error:'La voz local no respondió. El texto sigue disponible.',code:'tts_local_unavailable'},{status:503})
   const key=process.env.LEMONFOX_API_KEY
   if (!key) return Response.json({error:'La voz no está configurada en este servidor.',code:'tts_not_configured'},{status:503})
   const started=Date.now()

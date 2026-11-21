@@ -510,18 +510,18 @@ function FilaReciente({ s, activa, arrastrando, linea, nodo, onAbrir, onArrastre
           {punto}
           {tactil ? (
             <>
-              <span className={`line-clamp-2 min-w-0 flex-1 break-words font-normal ${tono}`}>{titulo}</span>
-              {(cuenta.corta || hora) && (
+              <span className={`line-clamp-2 min-w-0 flex-1 break-words font-normal ${tono}`} style={cuenta.colorNombre ? { color: cuenta.colorNombre } : undefined}>{titulo}</span>
+              {((cuenta.corta && !cuenta.colorNombre) || hora) && (
                 <span className="flex h-[1.375rem] shrink-0 items-center gap-1.5 text-[12.5px] font-normal tabular-nums text-muted">
-                  {cuenta.corta && <span className={`text-[11px] font-medium ${cuenta.texto}`} aria-label={cuenta.etiqueta}>{cuenta.corta}</span>}
+                  {cuenta.corta && !cuenta.colorNombre && <span className={`text-[11px] font-medium ${cuenta.texto}`} aria-label={cuenta.etiqueta}>{cuenta.corta}</span>}
                   {hora}
                 </span>
               )}
             </>
           ) : (
             <span className={`flex min-w-0 flex-1 items-center gap-2 ${menu.abierto ? MASCARA : FILA_MASCARA}`}>
-              <span className="min-w-0 flex-1 truncate">{titulo}</span>
-              {cuenta.corta && <span className={`shrink-0 text-[length:var(--tam-texto-meta)] font-medium ${cuenta.texto}`} aria-label={cuenta.etiqueta}>{cuenta.corta}</span>}
+              <span className="min-w-0 flex-1 truncate" style={cuenta.colorNombre ? { color: cuenta.colorNombre } : undefined}>{titulo}</span>
+              {cuenta.corta && !cuenta.colorNombre && <span className={`shrink-0 text-[length:var(--tam-texto-meta)] font-medium ${cuenta.texto}`} aria-label={cuenta.etiqueta}>{cuenta.corta}</span>}
               {hora && <span className="shrink-0 text-[length:var(--tam-texto-meta)] tabular-nums text-muted/60">{hora}</span>}
             </span>
           )}

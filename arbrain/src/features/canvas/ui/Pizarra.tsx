@@ -42,6 +42,8 @@ import {
 import { Paginas, ANCHO_RIEL } from '@/features/canvas/ui/Paginas'
 import { DocEmbed, IslaEmbed, IslaNativaEmbed, esEmbedDoc } from '@/features/canvas/ui/DocEmbed'
 import { useIslas } from '@/features/canvas/islas/useIslas'
+import { usePiezas, HostPiezas } from '@/features/canvas/piezas/usePiezas'
+import { moverRecorrido, ocultosEnRecorrido } from '@/features/canvas/piezas/recorrido'
 import { buscarCapitulo, type DestinoIsla } from '@/features/canvas/islas/destinos'
 import { pedirSegmentoTaller } from '@/features/cabina/panel/taller-segmento'
 import { ventanaPropia } from '@/features/cabina/panel/fijadas'
@@ -79,6 +81,7 @@ import { leerPlegado, guardarPlegado } from '@/features/canvas/state/panel-capit
 import { MostrarEnLienzo } from '@/features/canvas/ui/MostrarEnLienzo'
 import { useMostrarEnLienzo } from '@/features/canvas/ui/useMostrarEnLienzo'
 import { capitulosDe, cajaDeTodo, camaraDeCapitulo, bajarEnCapitulo, capituloBajo, vuelo, duracionDeVuelo, temasDe, temaDeCapitulo, type Capitulo } from '@/features/canvas/layout/capitulos'
+import { paradasDe, camaraDeParada, CHROME_PARADA } from '@/features/canvas/layout/paradas'
 import { anotarCuadro, anotarIsla, anotarReact, exponerCamara } from '@/features/canvas/render/sonda'
 import { useCamaraViva, ConCamara } from '@/features/canvas/ui/CamaraViva'
 import { ordenPorZDesc } from '@/features/canvas/model/orden'
@@ -273,7 +276,15 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
   /** Ajustes del lapiz, elegidos ANTES de trazar. `color` ausente = tinta del tema. */
   const [tinta, setTinta] = useState<{ color?: string; size: number }>({ size: 4 })
   const [atajos, setAtajos] = useState(false)
-  const [mostrar] = useMostrarEnLienzo()
+  const [mostrarBase] = useMostrarEnLienzo()
+  /**
+   * Lienzo v17 · el RECORRIDO (15 nov 2026; piezas/recorrido.ts): el lienzo como clase. ⇧P (o P en una página tablero, o
+   * el ▶ del minipanel) entra; → y espacio avanzan (primero los pasos de las piezas del capítulo, luego el capítulo), ←
+   * retrocede, Esc sale. Sin cromo: herramientas, minimapa, barra e índice se esconden; el velo del capítulo se queda.
+   */
+  const [recorrido, setRecorrido] = useState(false)
+  const recorridoRef = useRef(recorrido); recorridoRef.current = recorrido
+  const mostrar = useMemo(() => (recorrido ? { ...mostrarBase, herramientas: false, minimapa: false, barraInferior: false, capitulos: false } : mostrarBase), [recorrido, mostrarBase])
   const [editandoNombre, setEditandoNombre] = useState(false)
   /** Pagina del canvas anterior, convertida al leer y AUN NO escrita. */
   const [sinConvertir, setSinConvertir] = useState<Nube.InformeMigracion | null>(null)
@@ -994,6 +1005,15 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
   const capitulosRef = useRef(capitulos); capitulosRef.current = capitulos
   const [capitulo, setCapitulo] = useState<number | null>(null)
   const capituloRef = useRef(capitulo); capituloRef.current = capitulo
+  /**
+   * Las PARADAS INTERIORES del recorrido (17 nov 2026, layout/paradas.ts): por capítulo, las que declaran sus elementos.
+   * `parada` vale solo mientras su capítulo sea el abierto (si la mano cambia de capítulo, deja de contar sola).
+   */
+  const paradas = useMemo(() => paradasDe(elements, capitulos), [elements, capitulos])
+  const paradasRef = useRef(paradas); paradasRef.current = paradas
+  const [parada, setParada] = useState<{ i: number; k: number } | null>(null)
+  const paradaRef = useRef(parada); paradaRef.current = parada
+  const paradaActual = (p: { i: number; k: number } | null, cap: number | null) => (p && cap != null && p.i === cap ? p.k : null)
   const [vueloMs, setVueloMs] = useState(0)
   /**
    * Los temas (13 nov 2026): los capitulos agrupados por su `tema`. `tema` es el desplegado en el indice; con un
@@ -1014,7 +1034,7 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
     return () => clearTimeout(r)
   }, [elements])
   // Otra pagina, otro relato: se abre en la vista de siempre.
-  useEffect(() => { setCapitulo(null); setTema(null) }, [paginaId])
+  useEffect(() => { setCapitulo(null); setTema(null); setParada(null) }, [paginaId])
   useEffect(() => { if (capitulo != null && capitulo >= capitulos.length) setCapitulo(null) }, [capitulo, capitulos.length])
   useEffect(() => { if (tema != null && tema >= temas.length) setTema(null) }, [tema, temas.length])
   /**
@@ -1045,6 +1065,7 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
     const c = capitulosRef.current[i]
     if (!c) return
     setCapitulo(i)
+    setParada(null)
     setTema(temaDeCapitulo(temasRef.current, i))
     volarA(camaraDeCapitulo(c.caja, vpRef.current, chromeCapRef.current))
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1093,6 +1114,88 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
     if (bajo != null && bajo !== i) { setVueloMs(420); setCapitulo(bajo); setTema(temaDeCapitulo(temasRef.current, bajo)) }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [camera])
+
+  /**
+   * LIENZO v17 · LAS PIEZAS LIBRES (15 nov 2026; piezas/usePiezas.tsx, contrato docs/builds/lienzo-v17/MOTOR.md). Código
+   * visual propio dentro del lienzo, en UN host aislado por página: póster de lejos o en movimiento, viva de cerca.
+   */
+  const ocultosRecorrido = useMemo(() => (recorrido ? ocultosEnRecorrido(elements, capitulos, capitulo) : null), [recorrido, elements, capitulos, capitulo])
+  const piezas = usePiezas({
+    elements, camViva, viewport, modo: themeName, recorrido, ocultos: ocultosRecorrido,
+    ir: islas.ir,
+    rueda: (m, frame) => {
+      // m.x/m.y ya vienen en px de cliente desde el borde del host (usePiezas los convierte con la escala que mide).
+      const r = frame.getBoundingClientRect()
+      ruedaIslaRef.current({ deltaX: m.deltaX, deltaY: m.deltaY, deltaMode: m.deltaMode, ctrlKey: m.ctrlKey, metaKey: m.metaKey,
+        shiftKey: m.shiftKey, clientX: r.left + m.x, clientY: r.top + m.y, ...(m.wheelDeltaY !== undefined ? { wheelDeltaY: m.wheelDeltaY } : {}) })
+    },
+    gesto: (m, frame) => { const r = frame.getBoundingClientRect(); gestoIslaRef.current(m.fase, m.escala, r.left + m.x, r.top + m.y) },
+    // Tocar una pieza le da el foco a su host: sus teclas de lienzo (capítulos, recorrido, Esc) vuelven aquí.
+    tecla: m => { window.dispatchEvent(new KeyboardEvent('keydown', { ...m, bubbles: true, cancelable: true })) },
+    alPintar: () => setImgTick(n => n + 1),
+  })
+  const piezasRef = useRef(piezas); piezasRef.current = piezas
+  const moverEnRecorrido = useCallback((dir: 1 | -1) => {
+    const pz = piezasRef.current
+    const k = paradaActual(paradaRef.current, capituloRef.current)
+    const mv = moverRecorrido(dir, capituloRef.current, capitulosRef.current, pz.lista(), pz.pasoDe, paradasRef.current, k)
+    anotarIsla('recorrido', { dir, capitulo: capituloRef.current, parada: k, mv })
+    if (mv.tipo === 'paso') pz.fijarPaso(mv.elId, mv.paso)
+    else if (mv.tipo === 'capitulo') {
+      for (const x of mv.pasos) pz.fijarPaso(x.elId, x.paso)
+      if (mv.parada != null) irParada(mv.i, mv.parada); else irCapitulo(mv.i)
+    } else if (mv.tipo === 'parada') irParada(mv.i, mv.k)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [irCapitulo])
+  /** Una parada interior (k ≥ 0) o, con k = -1, la entrada de su capítulo. */
+  const irParada = (i: number, k: number) => {
+    const c = capitulosRef.current[i], p = paradasRef.current[i]?.[k]
+    if (!c) return
+    setCapitulo(i)
+    setTema(temaDeCapitulo(temasRef.current, i))
+    if (!p) { setParada(null); volarA(camaraDeCapitulo(c.caja, vpRef.current, chromeCapRef.current)); return }
+    setParada({ i, k })
+    volarA(camaraDeParada(p.caja, vpRef.current, CHROME_PARADA))
+  }
+  const entrarRecorrido = useCallback((si: boolean) => {
+    if (si === recorridoRef.current) return
+    if (si) {
+      if (capitulosRef.current.length < 1) return
+      for (const x of piezasRef.current.lista()) piezasRef.current.fijarPaso(x.elId, 0)
+      setParada(null)
+      setRecorrido(true)
+      const mv = moverRecorrido(1, null, capitulosRef.current, piezasRef.current.lista(), piezasRef.current.pasoDe)
+      if (mv.tipo === 'capitulo') irCapitulo(mv.i)
+    } else { setRecorrido(false); setParada(null) }
+  }, [irCapitulo])
+  // Otra página: fuera del recorrido.
+  useEffect(() => { setRecorrido(false) }, [paginaId])
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const foco = document.activeElement as HTMLElement | null
+      if (foco && (foco.tagName === 'INPUT' || foco.tagName === 'TEXTAREA' || foco.tagName === 'SELECT' || foco.isContentEditable || foco.hasAttribute('data-canvas-editing'))) return
+      if (!teclaMia() && !punteroRef.current) return
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+      const esP = e.code === 'KeyP' || e.key === 'p' || e.key === 'P'
+      if (esP && (e.shiftKey || (tableroRef.current && !recorridoRef.current))) {
+        if (editingRef.current || (!recorridoRef.current && selRef.current.size > 0 && !tableroRef.current)) return
+        e.preventDefault(); e.stopImmediatePropagation()
+        entrarRecorrido(!recorridoRef.current)
+        return
+      }
+      if (!recorridoRef.current) return
+      anotarIsla('recorrido-tecla', { key: e.key })
+      let hecho = true
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') moverEnRecorrido(1)
+      else if (e.key === 'ArrowLeft' || e.key === 'PageUp') moverEnRecorrido(-1)
+      else if (e.key === 'Escape') entrarRecorrido(false)
+      else hecho = false
+      if (hecho) { e.preventDefault(); e.stopImmediatePropagation() }
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teclaMia, moverEnRecorrido, entrarRecorrido])
 
   /** Donde esta el puntero sobre el lienzo, si esta encima. El zoom de teclado se ancla ahi; si no, al centro. */
   const punteroRef = useRef<{ x: number; y: number } | null>(null)
@@ -2097,7 +2200,8 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
     if (!canvas || !fontsReady) return
     // El elemento en edicion NO se pinta: el textarea ya lo muestra, y
     // pintarlo tambien deja el texto dos veces, desalineado.
-    const visibles = conInteraccion(editingId ? elements.filter(e => e.id !== editingId) : elements, embedsActivos)
+    const base = ocultosRecorrido?.size ? elements.filter(e => !ocultosRecorrido.has(e.id)) : elements
+    const visibles = conInteraccion(editingId ? base.filter(e => e.id !== editingId) : base, embedsActivos)
     pintarRef.current = () => {
       const t0 = performance.now()
       /**
@@ -2118,7 +2222,7 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
         hover: editingId ? null : hoverId,
         enlaceVivo: enlaceVivo?.id ?? null,
         vivo,
-        isla: islas.pintura,
+        isla: el => piezas.pintura(el) ?? islas.pintura(el),
         ...nervioDelCuadro(),
         conManijas: tool === 'select' && !editingId,
       })
@@ -2147,7 +2251,7 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
       }
     }
     pedirCuadro()
-  }, [elements, t, viewport, fontsReady, draft, selectedIds, rubber, editingId, background, imgTick, marquee, tool, conectando, guias, puertosVista, hoverId, enlaceVivo, embedsActivos, pedirCuadro, camRef, camViva, grupoAbierto, vivo, islas])
+  }, [elements, t, viewport, fontsReady, draft, selectedIds, rubber, editingId, background, imgTick, marquee, tool, conectando, guias, puertosVista, hoverId, enlaceVivo, embedsActivos, pedirCuadro, camRef, camViva, grupoAbierto, vivo, islas, piezas, ocultosRecorrido])
 
   // ── eventos ────────────────────────────────────────────────────────────────
   /**
@@ -2640,7 +2744,9 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
           return info ? <IslaEmbed key={e.id} el={e} info={info} islas={islas} camViva={camViva} viewport={viewport} temaInicial={themeName} /> : null
         })}
         {/* Los embeds viven DEBAJO del canvas; el motor perfora su ventana. */}
-        <ConCamara viva={camViva}>{camera => conInteraccion(elements.filter(e => e.type === 'embed' && !islas.esIsla(e.id)), embedsActivos).map(e => {
+        {/* Lienzo v17: UN host aislado para todas las piezas libres de la página (se muestra solo con piezas vivas). */}
+        <HostPiezas piezas={piezas} viewport={viewport} />
+        <ConCamara viva={camViva}>{camera => conInteraccion(elements.filter(e => e.type === 'embed' && !islas.esIsla(e.id) && !piezas.esPieza(e.id)), embedsActivos).map(e => {
           // `doc:` es un documento del repo (contrato de sfmap), no una URL.
           if (e.type === 'embed' && esEmbedDoc(e)) return <DocEmbed key={e.id} el={e} camera={camera} viewport={viewport} theme={t} />
           const tl = worldToScreen({ x: e.x, y: e.y }, camera, viewport)
@@ -2696,10 +2802,30 @@ export function Pizarra({ pagina, encuadre, incrustada, alAbrirDoc, temaApp, sol
         )}</ConCamara>
       })()}
 
+      {recorrido && (
+        <div data-recorrido="" aria-live="polite" style={{
+          // Al pie: en el recorrido la barra inferior se esconde y arriba vive el nombre de la página.
+          position: 'absolute', bottom: 18, left: '50%', transform: 'translateX(-50%)', zIndex: 40, pointerEvents: 'none',
+          display: 'flex', alignItems: 'center', gap: 10, padding: '7px 14px', borderRadius: 999,
+          background: `color-mix(in srgb, ${t.canvas} 82%, transparent)`, border: `1px solid ${t.roles.card.stroke.color}`,
+          color: t.text.caption, font: '600 12px CanvasSans, system-ui', backdropFilter: 'blur(8px)',
+        }}>
+          <span style={{ width: 6, height: 6, borderRadius: 3, background: '#ff9101' }} />
+          <span style={{ color: t.text.title }}>{capitulo != null && capitulos[capitulo] ? tr(capitulos[capitulo].titulo) : tr('Recorrido')}</span>
+          {(() => {
+            const k = paradaActual(parada, capitulo), ps = capitulo != null ? paradas[capitulo] ?? [] : []
+            return k != null && ps[k] ? <span data-recorrido-parada={k + 1} style={{ color: t.text.title, opacity: .85 }}>
+              {ps[k].titulo ? `· ${tr(ps[k].titulo!)} ` : '· '}<span style={{ fontVariantNumeric: 'tabular-nums', opacity: .8 }}>{`${k + 1}/${ps.length}`}</span></span> : null
+          })()}
+          <span style={{ fontVariantNumeric: 'tabular-nums' }}>{capitulo != null ? `${capitulo + 1} / ${capitulos.length}` : ''}</span>
+          <span style={{ opacity: .7 }}>{tr('← → · Esc para salir')}</span>
+        </div>
+      )}
       {capitulos.length >= 2 && (
         <Capitulos capitulos={capitulos} activo={capitulo} temas={temas} tema={tema} vueloMs={vueloMs} theme={t} camara={camViva}
           viewport={viewport} angosto={viewport.width < 720} indice={mostrar.capitulos} sobreBarra={mostrar.barraInferior}
           plegado={panelPlegado} onPlegar={plegarPanel}
+          recorrido={recorrido} onRecorrido={() => entrarRecorrido(!recorrido)}
           onIr={irCapitulo} onTema={irTema} onTodo={verTodo} />
       )}
 

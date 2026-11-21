@@ -1,6 +1,7 @@
 import type { LiveToolbox } from './live/tools.js'
 import { getCommandCatalog } from './chat-runtime/command-catalog.js'
 import { cabinaMcpConfig, manosMcpConfig } from './cabina/config.js'
+import { editorMcpConfig } from './editor/config.js'
 import { turnosManos } from './cliente/permisos-app.js'
 import { computerUseDisponible } from './manos/politica.js'
 import { chromeHooks, claveConversacion, configurarBitacora } from './cabina/chrome-guard.js'
@@ -618,6 +619,9 @@ export async function* runAgentStream(
     // 0.1.2: en la edición cliente (macOS y Windows) las manos van por código como la Cabina; el interruptor y el freno
     // viven en su proceso (sin el interruptor encendido no lista ninguna herramienta).
     const manos = durable && !denyTools && esEdicionCliente() && computerUseDisponible() ? manosMcpConfig(durable.scope.conversationId) : null
+    // Editor de video (19 nov 2026): el motor Scarlet sin ventana, dirigido por Levy desde el chat. Solo turnos del chat,
+    // nunca síntesis ni crons; LEVY_EDITOR_MCP=0 lo apaga. Ver editor/mcp-stdio.ts y CONTRATO-MOTOR.md de la obra.
+    const editor = durable && !denyTools ? editorMcpConfig(durable.scope.conversationId) : null
     // claude-in-chrome (firmado 1 oct): solo turnos del chat (durable), nunca
     // síntesis ni crons. El guardián de sitios sensibles va como hook PreToolUse,
     // que sí corre con bypassPermissions. LEVY_CHROME=0 lo apaga sin tocar código.
@@ -638,6 +642,7 @@ export async function* runAgentStream(
         ...((durable?.live || (durable && !denyTools && cabina)) ? { mcpServers: {
           ...(durable && !denyTools && cabina ? { cabina } : {}),
           ...(manos ? { manos } : {}),
+          ...(editor ? { editor } : {}),
           ...(durable?.live ? { live: durable.live.mcp() } : {}),
         } } : {}),
         resume: resumeId,

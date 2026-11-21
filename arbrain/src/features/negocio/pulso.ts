@@ -61,6 +61,8 @@ export interface Pulso {
   conecta?: boolean
   /** La pregunta del órgano cuando la del autor no aplica a cualquier negocio. */
   pregunta?: string
+  /** Sistemas (17 nov 2026): las rutinas activas contadas, para dibujar una por punto (las mismas cuentas del detalle). */
+  riel?: { activas: number; bien: number; fallan: number }
 }
 
 /**
@@ -212,7 +214,7 @@ export function pulsoSistemas(crons: LecturaDe<CronSnapshot>, trabajos: LecturaD
       + (trabajos.data.internas ?? []).filter(t => t.estado === 'trabajando').length
     detalle.push(agentes ? `${plural(agentes, 'agente trabajando', 'agentes trabajando')} ahora` : 'Ningún agente trabajando ahora')
   }
-  return { organo: 'sistemas', estado: 'numero', cifra: String(bien), unidad: bien === 1 ? 'rutina salió bien' : 'rutinas salieron bien', detalle, fuente: FUENTE.sistemas, abre: 'taller' }
+  return { organo: 'sistemas', estado: 'numero', cifra: String(bien), unidad: bien === 1 ? 'rutina salió bien' : 'rutinas salieron bien', detalle, fuente: FUENTE.sistemas, abre: 'taller', riel: { activas: activas.length, bien, fallan } }
 }
 
 /** Mente del comprador: cuántas citas reales hay y la objeción que más se repite. Siempre abre su órgano. */

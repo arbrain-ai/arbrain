@@ -21,7 +21,7 @@ la entrego abierta, lista para darla». Háblale en español simple: nada de HTM
 sus notas, ese es el contenido: léelo completo.
 
 **2. Su contenido y su diseño, sin molestarlo.** Lee su memoria (`.claude/memory/`, `project/mi-negocio/`): su negocio, su
-público, cómo habla, qué ofrece. Busca su marca en `mi-marca/` (tema, logo, `marca.json`) y en su memoria. Si tiene, la
+público, cómo habla, qué ofrece. Busca su marca en `mi-marca/` (`guia.md`, la fuente que arma `diseno-de-marca`; tema, logo, `marca.json`) y en su memoria. Si tiene, la
 usas. **Si no tiene, eliges tú** la dirección que mejor le quede a su negocio ([references/diseno.md](references/diseno.md))
 y al final le dices en una línea que la cambias si quiere. Nunca le pongas a escoger colores.
 
@@ -37,7 +37,7 @@ Luego escribe la presentación con tus herramientas de archivos, en `mi-negocio/
 él pida otro lugar): `deck.json` con su título, y una lámina por archivo, `piezas/00.html`, `piezas/01.html`…, con su dibujo
 en `piezas/01.js`. Cómo se escribe todo: [references/gramatica.md](references/gramatica.md). Cómo se inventa un dibujo que
 enseña: [references/enactivos.md](references/enactivos.md). Con su marca, escribe también `tema.css`. Para una animación
-compleja o para exprimir más la forma, también tienes `.claude/skills/code-animation/`.
+compleja o para exprimir más la forma, también tienes `.claude/skills/god-animation/`.
 
 **5. Revisar y criticarte (no se entrega sin esto).** Hay un solo comando, y se corre **siempre exactamente así, sin nada
 antes ni después** (ni `cd`, ni `&&`, ni carpeta como argumento):

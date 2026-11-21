@@ -42,7 +42,8 @@ test('el engrane hereda lo que había en los botones sueltos (Enfoque, Horas/Age
   const a = leerAjustes(null, { dias: '4', vista: 'agenda', enfoque: '1', rejillaMes: '1' })
   assert.deepEqual([a.dias, a.vistaSemana, a.enfoque, a.mesVista], [null, 'agenda', true, 'cuadricula'])
   const b = leerAjustes(null, { dias: '9', vista: null, enfoque: '0', rejillaMes: null })
-  assert.deepEqual([b.dias, b.vistaSemana, b.enfoque, b.mesVista], [null, 'horas', false, 'recorrido'])
+  // 17 nov 2026 (versión 4): el Mes de antes del engrane vuelve a la cuadrícula, como todo lo guardado antes (mes-calendario.test.ts).
+  assert.deepEqual([b.dias, b.vistaSemana, b.enfoque, b.mesVista], [null, 'horas', false, 'cuadricula'])
 })
 
 test('el rango de horas siempre deja al menos cuatro horas', () => {

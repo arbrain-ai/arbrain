@@ -33,7 +33,9 @@ export const SIGMA_MS = 22
 export const FORZADO = 0.95
 
 /** Respuesta de ElevenLabs (`alignment` de with-timestamps): un carácter por posición, tiempos en segundos. */
-export type Alineacion = { chars: string[]; starts: number[]; ends: number[] }
+export type Alineacion = { chars: string[]; starts: number[]; ends: number[]
+  /** Voz local (Levy en vivo): sube cada vez que la alineación se reemplaza entera (estimada → exacta). */
+  rev?: number }
 export type Fonema = { f: string; v: Visema; s: number; e: number; tonica: boolean; amp: number; letra: string; palabra: number; i: number }
 /** Energía del audio a 10 ms (la misma que levy-lipsync calcula del PCM que suena). */
 export type Energia = { rms: ArrayLike<number>; frames: number }

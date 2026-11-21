@@ -4,7 +4,7 @@
  * Cada modelo por OpenRouter vive en el suyo (`~/.codex-<espacio>`): su hilo no se mezcla con otro modelo.
  * Módulo puro: lo usan las rutas del servidor (acceso, borradores sin conexión) y el store del cliente.
  */
-export const ESPACIOS_API = ['deepseek', 'gpt-luna', 'gpt-astra', 'gpt-sol', 'gemini', 'muse', 'grok', 'mimo', 'glm', 'kimi'] as const
+export const ESPACIOS_API = ['deepseek', 'gpt-luna', 'gpt-astra', 'gpt-sol', 'gemini', 'gemini-hydrogen', 'muse', 'grok', 'mimo', 'glm', 'kimi'] as const
 /** DeepSeek V4.1 Flash abliterated (3 nov 2026): el Claude Code del chat contra un endpoint sin filtro. No es Claude. */
 export const ESPACIO_ABLITERATED = 'abliterated' as const
 export const ESPACIOS_NO_DEFAULT = ['bro', 'codex', 'yt', ESPACIO_ABLITERATED, ...ESPACIOS_API] as const

@@ -42,17 +42,20 @@ export interface Ajustes {
  * Versión de lo guardado. La 2 (10 oct 2026) trajo «Auto»: antes no existía y quien eligió 7 en el teléfono lo hizo porque no había
  * otra forma de ver la semana; al migrar, los días vuelven a «Auto» una sola vez. Lo demás se respeta.
  */
-export const VERSION_AJUSTES = 3
+export const VERSION_AJUSTES = 4
 /**
  * La 3 (25 oct 2026, Daniel: «el recorrido es el default en todas las pantallas; la cuadrícula queda como opción en el engrane»):
  * antes la pantalla ancha mostraba la cuadrícula siempre, así que lo guardado no dice qué prefiere; el Mes vuelve a Recorrido una vez.
+ * La 4 (17 nov 2026, Daniel: «esta vista de mes no me ayuda para planificar nada… prefiero un calendario mensual normal»): el Mes es
+ * otra vez la cuadrícula, ahora la de MesCalendario a pantalla completa; lo guardado antes vuelve a ella una vez. El Recorrido sigue en
+ * el engrane.
  */
-const VERSION_DIAS = 2, VERSION_MES = 3
+const VERSION_DIAS = 2, VERSION_MES = 4
 export const SEMANAS_MES = [0, 2, 4, 6] as const
 export type SemanasMes = typeof SEMANAS_MES[number]
 
 export const AJUSTES_BASE: Ajustes = { dias: null, vistaSemana: 'horas', enfoque: false, desde: TRAMO.desde, hasta: TRAMO.hasta, densidad: 'comoda',
-  finDeSemana: true, rechazados: false, zona: false, mesVista: 'recorrido', mesSemanas: 0, abreObjetivo: false, abreTodoElDia: false, semanaPerfecta: true, rutinaFutura: false }
+  finDeSemana: true, rechazados: false, zona: false, mesVista: 'cuadricula', mesSemanas: 0, abreObjetivo: false, abreTodoElDia: false, semanaPerfecta: true, rutinaFutura: false }
 
 /** Lo que había antes del engrane, en sus llaves sueltas: se respeta al migrar. */
 export interface Legado { dias?: string | null; vista?: string | null; enfoque?: string | null; rejillaMes?: string | null }
@@ -64,7 +67,8 @@ export function leerAjustes(crudo: string | null, legado: Legado = {}): Ajustes 
   let g: Record<string, unknown> | null = null
   try { const v = crudo ? JSON.parse(crudo) : null; g = v && typeof v === 'object' && !Array.isArray(v) ? v : null } catch { g = null }
   // Lo de antes del engrane (botones sueltos): los días a la vista no se heredan, nacen en «Auto» (VERSION_AJUSTES).
-  if (!g) return { ...AJUSTES_BASE, vistaSemana: legado.vista === 'agenda' ? 'agenda' : 'horas', enfoque: legado.enfoque === '1', mesVista: legado.rejillaMes === '1' ? 'cuadricula' : 'recorrido' }
+  // El Mes de los botones sueltos (Recorrido o cuadrícula) es anterior a la versión 4: vuelve a la cuadrícula, como todo lo guardado antes.
+  if (!g) return { ...AJUSTES_BASE, vistaSemana: legado.vista === 'agenda' ? 'agenda' : 'horas', enfoque: legado.enfoque === '1' }
   const a: Ajustes = { ...AJUSTES_BASE }
   const version = typeof g.v === 'number' ? g.v : 0
   if (version >= VERSION_DIAS && (g.dias === null || (DIAS_VISTA as readonly unknown[]).includes(g.dias))) a.dias = g.dias as DiasVista | null

@@ -13,6 +13,10 @@ const PATHS = [
   'arbrain/server/scripts/analytics/autoresearch_sensei_results.tsv',
   'arbrain/server/scripts/analytics/autoresearch_trinity_results.tsv',
   'negocio/saas-factory-community',
+  // embudos-estudio (v84): la huella y los cambios de cada domingo quedan versionados.
+  'contenido/youtube/intel/embudos/huellas/', 'contenido/youtube/intel/embudos/cambios/',
+  // laboratorios-vigilante y pagina-lunes (v86): las novedades de los laboratorios y la página de cada lunes.
+  'contenido/youtube/intel/frontera/laboratorios/', 'contenido/youtube/lunes/',
 ]
 // Host that publishes cron outputs: the Arbrain server (Mini until 24 sep 2026, Studio since).
 // Keep in sync with SERVER_SLUG in arbrain/server/scripts/server_host.py.

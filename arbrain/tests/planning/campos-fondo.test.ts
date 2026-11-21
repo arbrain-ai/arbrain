@@ -14,7 +14,7 @@ test('la instalación de Daniel trae sus seis zonas, cada una con su categoría'
   ])
   const miercoles = franjasDelDia(CAMPOS, '2026-10-28')
   assert.deepEqual(miercoles.filter(f => f.clave === 'comida').map(f => [f.desde, f.hasta]), [[540, 1020]])
-  assert.equal(miercoles.filter(f => f.clave === 'profundo').reduce((s, f) => s + f.hasta - f.desde, 0), 8 * 60)
+  assert.equal(miercoles.filter(f => f.clave === 'profundo').reduce((s, f) => s + f.hasta - f.desde, 0), 8 * 60 + 30)
   assert.deepEqual(miercoles.filter(f => f.clave === 'gym').map(f => [f.desde, f.hasta]), [[570, 720]])
   assert.deepEqual(miercoles.filter(f => f.clave === 'noche').map(f => [f.desde, f.hasta]), [[1230, 1260]])
   const sabado = franjasDelDia(CAMPOS, '2026-10-31')
@@ -24,9 +24,9 @@ test('la instalación de Daniel trae sus seis zonas, cada una con su categoría'
 
 test('el sueño cruza la medianoche: su noche en el día en que empieza y su madrugada en el siguiente', () => {
   const sueno = franjasDelDia(CAMPOS, '2026-10-28').filter(f => f.clave === 'sueno')
-  assert.deepEqual(sueno.map(f => [f.desde, f.hasta]), [[0, 330], [1260, 1440]])
-  assert.equal(sueno[0].horario, '21:00–5:30')
-  assert.equal(tituloZona(sueno[0]), 'Sueño · 21:00–5:30')
+  assert.deepEqual(sueno.map(f => [f.desde, f.hasta]), [[0, 300], [1260, 1440]])
+  assert.equal(sueno[0].horario, '21:00–5:00')
+  assert.equal(tituloZona(sueno[0]), 'Sueño · 21:00–5:00')
   // Con días: una noche de viernes pone su madrugada en el sábado; la del domingo no existe si solo es lun a vie.
   const viernes = [{ clave: 'x', titulo: 'X', categoria: 'vida', forma: 'bloque', dias: [5], franjas: [['23:00', '01:00']] }] as const
   assert.deepEqual(franjasDelDia(viernes, '2026-10-30').map(f => [f.desde, f.hasta]), [[1380, 1440]])
@@ -36,12 +36,12 @@ test('el sueño cruza la medianoche: su noche en el día en que empieza y su mad
 
 test('la llamada gana y el campo lo dice, sin contar dos veces lo encimado', () => {
   const f = franjasDelDia(CAMPOS, '2026-10-28')
-  assert.equal(resumenCampo(f, 'profundo', [])!.texto, 'Trabajo profundo · 8 h')
+  assert.equal(resumenCampo(f, 'profundo', [])!.texto, 'Trabajo profundo · 8 h 30')
   // Diagnóstico 14:00–15:00 y otro encimado 14:30–15:45 (15:00–15:30 no es trabajo profundo).
   const r = resumenCampo(f, 'profundo', [{ desde: 840, hasta: 900 }, { desde: 870, hasta: 945 }])!
   assert.equal(r.tapado, 60 + 15)
-  assert.equal(r.texto, 'Trabajo profundo · 6 h 45 · 1 h 15 con llamadas')
-  assert.equal(tituloZona(f.find(x => x.clave === 'profundo')!, r), 'Trabajo profundo · 6:00–9:00, 13:00–15:00, 15:30–18:30 · 6 h 45 · 1 h 15 con llamadas')
+  assert.equal(r.texto, 'Trabajo profundo · 7 h 15 · 1 h 15 con llamadas')
+  assert.equal(tituloZona(f.find(x => x.clave === 'profundo')!, r), 'Trabajo profundo · 5:30–9:00, 13:00–15:00, 15:30–18:30 · 7 h 15 · 1 h 15 con llamadas')
   assert.equal(resumenCampo(f, 'nada', []), null)
 })
 

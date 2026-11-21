@@ -27,7 +27,7 @@ import { DUENO, NOMBRE_SEGUNDA, SEGUNDA } from '@/config'
 type Montos = Record<string, number>
 export interface DatosDueno {
   quien: string; fecha: string; ayer: string; masterclass: string; diasMasterclass: number; leidoEn?: string
-  dinero: null | { altas: number; bajas: number; pidieron_cancelar: number; cobros_n: number; cobros_monto: Montos; cobros_altas: number; cobros_renovaciones: number; reembolsos: Montos; mrr: { activo: number; previo: number | null; cambio: boolean } }
+  dinero: null | { altas: number; bajas: number; pidieron_cancelar: number; cobros_n: number; cobros_monto: Montos; cobros_altas: number; cobros_renovaciones: number; reembolsos: Montos; mrr: { activo: number; previo: number | null; cambio: boolean; cuotas?: number; cuotasFin?: string[] } }
   embudo: { etapa: string; valor: number | null }[]
   notaEmbudo?: string | null
   alarmas: string[]; decision: string | null; limites: string[]
@@ -73,6 +73,14 @@ function Cargando({ lineas = 2 }: { lineas?: number }) {
   return <div className={d.cargando} aria-busy="true" aria-label="Leyendo">{Array.from({ length: lineas }, (_, i) => <span key={i} />)}</div>
 }
 
+const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
+/** «, terminan en ene» o «, terminan entre nov y ene» (el mismo texto que el reporte). */
+function terminan(fines?: string[]) {
+  if (!fines?.length) return ''
+  const [a, b] = [MESES[Number(fines[0].slice(5, 7)) - 1], MESES[Number(fines.at(-1)!.slice(5, 7)) - 1]]
+  return a === b ? `, terminan en ${b}` : `, terminan entre ${a} y ${b}`
+}
+
 function Dinero({ x, i }: { x: DatosDueno | undefined; i: number }) {
   const din = x?.dinero
   const monedas = din ? Object.entries(din.cobros_monto) : []
@@ -94,8 +102,10 @@ function Dinero({ x, i }: { x: DatosDueno | undefined; i: number }) {
       </p>}
       {/* MRR solo si cambió (regla del reporte): el resto de los días no dice nada nuevo. */}
       {din.mrr.cambio && <p className={`${d.mrr} ${mov.aparece}`} style={escalon(i + 3)}>
-        MRR <b>{pesos(din.mrr.activo)}</b>
+        MRR recurrente <b>{pesos(din.mrr.activo)}</b>
         {delta == null ? <small>primera lectura</small> : <small data-signo={delta > 0 ? 'mas' : 'menos'}>{delta > 0 ? '▲' : '▼'} {pesos(Math.abs(delta))} desde ayer</small>}
+        {/* Las cuotas del Acompañamiento no son MRR recurrente (15 nov 2026): aparte, con cuándo terminan. */}
+        {din.mrr.cuotas ? <small>cuotas HT {pesos(din.mrr.cuotas)} (no recurrentes{terminan(din.mrr.cuotasFin)})</small> : null}
       </p>}
     </>}
   </Tarjeta>

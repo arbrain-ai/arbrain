@@ -132,10 +132,11 @@ export interface EventoAgenda extends EventoRutina {
 /** Con otras personas: invitados que no son uno o videollamada. Lo mismo que `esCompromiso` (categorias.ts), sin su dependencia. */
 const conOtros = (e: EventoAgenda) => Boolean(e.meetUrl) || (e.attendees ?? []).some(a => !a.self)
 
-/** Los ids de la rutina en lo leído (conviene pasar más que lo visible: la serie se mide entera). */
-export function rutinaDeAgenda(eventos: readonly EventoAgenda[], diaDe?: (iso: string) => string, calendario: string = CALENDARIO_RUTINA): Set<string> {
+/** Los ids de la rutina en lo leído (conviene pasar más que lo visible: la serie se mide entera). `noNegociables`: el Mes (17 nov
+ *  2026) cuenta también lo «no negociable» como ritmo; en Día y Semana nunca se oculta (default). */
+export function rutinaDeAgenda(eventos: readonly EventoAgenda[], diaDe?: (iso: string) => string, calendario: string = CALENDARIO_RUTINA, { noNegociables = false }: { noNegociables?: boolean } = {}): Set<string> {
   // Lo marcado «no negociable» (secciones.ts) nunca es rutina oculta: despertar y gym se ven siempre.
-  const puede = (e: EventoAgenda) => !e.allDay && Boolean(e.recurringEventId) && !conOtros(e) && !esNoNegociable(e)
+  const puede = (e: EventoAgenda) => !e.allDay && Boolean(e.recurringEventId) && !conOtros(e) && (noNegociables || !esNoNegociable(e))
   const ids = new Set<string>()
   if (!eventos.some(e => e.calendarId === calendario)) {
     const diarias = rutinasDiarias(eventos, diaDe)

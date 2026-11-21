@@ -3,6 +3,7 @@ import { accountId, ChatAccessError } from '@/lib/chat-access-policy'
 import { createServiceClient } from '@/lib/supabase/service'
 import { getClaudeclawUrl, CLAUDECLAW_TOKEN } from '@/lib/claudeclaw'
 import { isNonDefaultAccount } from '@/features/chat/stores/account-store'
+import { SIN_MENSAJES_DIAS, SIN_MENSAJES_MAX, unirSinMensajes } from '@/features/chat/lib/orden-recientes'
 import { filtroCuentas } from '@/features/chat/lib/recientes-cuentas'
 import { ownerIds } from '@/features/avisos/server'
 import { HILOS_RUTINAS, IDS_HILOS_RUTINAS } from '@/shared/constants/rutinas-hilos'
@@ -99,15 +100,31 @@ export async function GET(request: Request) {
     }
     const { data, error } = await query
     if (error) return Response.json({ error: error.message }, { status: 500 })
+    let filas = data ?? []
+    // Las recientes sin mensajes todavía (16 nov 2026, orden-recientes.ts): sin esto una conversación nueva cuyo primer
+    // turno aún no guarda mensajes caía fuera del tope y la lista la mostraba a ratos.
+    const porUltimoMensaje = searchParams.get('sort') === 'last_message'
+    if (porUltimoMensaje && searchParams.get('fijadas') !== '1' && !soloRutinas && !soloArchivadas) {
+      let nuevas = service.from('chat_sessions').select('*')
+        .is('last_message_at', null).is('archived_at', null)
+        .gte('updated_at', new Date(Date.now() - SIN_MENSAJES_DIAS * 86_400_000).toISOString())
+        .order('updated_at', { ascending: false }).limit(SIN_MENSAJES_MAX)
+      nuevas = auth.user!.personalOwner ? nuevas.or(`profile_id.eq.${auth.user!.id},profile_id.is.null`) : nuevas.eq('profile_id', auth.user!.id)
+      if (filtro?.eq) nuevas = nuevas.eq('account', filtro.eq)
+      else if (filtro?.isNull) nuevas = nuevas.is('account', null)
+      else if (filtro?.or) nuevas = nuevas.or(filtro.or)
+      const { data: sinMensajes } = await nuevas
+      if (sinMensajes?.length) filas = unirSinMensajes(filas, sinMensajes, Number(limit) || 30)
+    }
     // Conversaciones solo-SDK que Arbrain conduce (1 oct 2026): sin fila en la base, solo las conoce el
     // journal del daemon. Las fijadas son filas de la base, así que ahí no se mezclan. Si el daemon no
     // responde o es de una versión sin el endpoint, la lista queda como estaba (degrada en silencio).
-    if (searchParams.get('fijadas') === '1' || soloRutinas || soloArchivadas) return Response.json({ sessions: data ?? [] })
+    if (searchParams.get('fijadas') === '1' || soloRutinas || soloArchivadas) return Response.json({ sessions: filas })
     const sdk = await sesionesSdkDelJournal(claudeclawUrl, auth.user!.id)
     return Response.json({
-      sessions: mezclarSesionesSdk(data ?? [], sdk, {
+      sessions: mezclarSesionesSdk(filas, sdk, {
         cuentas: account,
-        porUltimoMensaje: searchParams.get('sort') === 'last_message',
+        porUltimoMensaje,
         limite: Number(limit) || 30,
       }),
     })

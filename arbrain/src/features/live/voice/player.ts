@@ -3,7 +3,10 @@ import { normalizeAgent, type LiveAgent } from './voices.ts'
 import { SeparadorJson, base64ABytes } from '../../chat/lib/levy-vivo.ts'
 import { pedirAlineacion } from '../../chat/lib/levy4.ts'
 import { unirAlineacion, type Alineacion } from '../../chat/lib/levy-visemas.ts'
-export type VoiceTiming = { text: string; firstByteMs: number | null; firstSoundMs: number | null; completed: boolean; failed: string | null; provider?: string | null; fallback?: string | null; firstByteAt?: number | null; firstSoundAt?: number | null }
+import { levyEnVivoActivo } from '../en-vivo/bandera.ts'
+export type VoiceTiming = { text: string; firstByteMs: number | null; firstSoundMs: number | null; completed: boolean; failed: string | null; provider?: string | null; fallback?: string | null; firstByteAt?: number | null; firstSoundAt?: number | null
+  /** Voz local (Levy en vivo): lo que midió el Studio en esta frase (primer audio, generación, alineación, silencio quitado). */
+  servidor?: Record<string, number | null> }
 /** El PCM ya decodificado de una frase (mismas muestras que suenan). La cara lo lee para mover la boca con la
  * energía exacta del instante que suena, sin un segundo analizador ni latencia. */
 export type VoiceTrack = { rate: number; chunks: Float32Array[]; length: number
@@ -56,7 +59,7 @@ export class LivePcmPlayer {
   get turnStartedAt() { return this.turnStarted }
   /** Pre-calienta la conexión servidor→ElevenLabs (no gasta caracteres) y la mantiene caliente mientras Live está abierto. */
   warm() {
-    const ping = () => { void this.transport('/api/live/speech', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ warm: true }) }).then(r => r.body?.cancel()).catch(() => {}) }
+    const ping = () => { void this.transport('/api/live/speech', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ warm: true, ...(levyEnVivoActivo() ? { local: true } : {}) }) }).then(r => r.body?.cancel()).catch(() => {}) }
     ping()
     if (!this.heartbeat) this.heartbeat = setInterval(ping, 20_000)
   }
@@ -90,13 +93,18 @@ export class LivePcmPlayer {
   }
   private dispatch() {
     // Bounded lookahead: at most two sentence requests, and at most ~8s scheduled audio.
-    while(this.networkCount<2 && this.queue.length && this.context && this.nextAt-this.context.currentTime<8){
+    // Voz local (Levy en vivo): una GPU atiende en orden de llegada; con dos pedidos a la vez la segunda frase podía ganarle
+    // el turno a la primera (2.9 s de espera medidos el 18 nov). De una en una: genera 2.7× más rápido de lo que suena.
+    const max=levyEnVivoActivo()?1:2
+    while(this.networkCount<max && this.queue.length && this.context && this.nextAt-this.context.currentTime<8){
       this.networkCount++;this.queue.shift()!()
     }
   }
   private async receive(part:Part,speed:number,generation:number,signal:AbortSignal,agent:LiveAgent,previousText:string){
     try{
-      const response=await this.transport('/api/live/speech',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:part.text,speed,agent,previousText,...(pedirAlineacion()?{alineacion:true}:{})}),signal})
+      // Levy en vivo (bandera, 18 nov 2026): la voz local del Studio, siempre con la alineación para la boca.
+      const local=levyEnVivoActivo()
+      const response=await this.transport('/api/live/speech',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:part.text,speed,agent,previousText,...(pedirAlineacion()||local?{alineacion:true}:{}),...(local?{local:true}:{})}),signal})
       part.timing.provider=response.headers.get('X-Voice-Provider');part.timing.fallback=response.headers.get('X-Voice-Fallback')||null
       if(!response.ok||!response.body){
         const body=await response.json().catch(()=>({})) as {error?:string}
@@ -117,8 +125,11 @@ export class LivePcmPlayer {
           if(part.timing.firstByteMs===null){part.timing.firstByteAt=performance.now();part.timing.firstByteMs=part.timing.firstByteAt-this.turnStarted}
           total+=value.length;if(total>12_000_000)throw new Error('La frase de voz excedió su límite.')
           if(json&&texto){
-            for(const o of json.push(texto.decode(value,{stream:true})) as {audio_base64?:string;alignment?:{characters:string[];character_start_times_seconds:number[];character_end_times_seconds:number[]}|null}[]){
-              if(o.alignment?.characters?.length)part.track.alineacion=unirAlineacion(part.track.alineacion??{chars:[],starts:[],ends:[]},{chars:o.alignment.characters,starts:o.alignment.character_start_times_seconds,ends:o.alignment.character_end_times_seconds},part.track.length/rate)
+            for(const o of json.push(texto.decode(value,{stream:true})) as {audio_base64?:string;reemplaza?:boolean;metricas?:Record<string,number|null>;alignment?:{characters:string[];character_start_times_seconds:number[];character_end_times_seconds:number[]}|null}[]){
+              // Voz local: la alineación llega ENTERA (estimada y luego exacta) y reemplaza a la anterior; `rev` avisa a la cara.
+              if(o.metricas)part.timing.servidor=o.metricas
+              if(o.reemplaza&&o.alignment?.characters?.length)part.track.alineacion={chars:[...o.alignment.characters],starts:[...o.alignment.character_start_times_seconds],ends:[...o.alignment.character_end_times_seconds],rev:(part.track.alineacion?.rev??0)+1}
+              else if(o.alignment?.characters?.length)part.track.alineacion=unirAlineacion(part.track.alineacion??{chars:[],starts:[],ends:[]},{chars:o.alignment.characters,starts:o.alignment.character_start_times_seconds,ends:o.alignment.character_end_times_seconds},part.track.length/rate)
               if(o.audio_base64)audio(base64ABytes(o.audio_base64))
             }
           }else audio(value)

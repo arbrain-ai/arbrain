@@ -126,7 +126,7 @@ test('cartel · NOVA y el timonel salen de su receta y del embudo', () => {
   }
 })
 
-const URLS: UrlsApp = { cohorte: '/c', finanzas: '/f', rutinas: '/r', trabajos: '/t', marketing: '/m', comprador: '/co', embudo: '/e', marcador: '/ml', bi: '/api/bi', bandeja: '/api/decisiones' }
+const URLS: UrlsApp = { cohorte: '/c', finanzas: '/f', rutinas: '/r', trabajos: '/t', marketing: '/m', comprador: '/co', embudo: '/e', marcador: '/ml', bi: '/api/bi', bandeja: '/api/decisiones', mrr: '/api/negocio/mrr' }
 const CTX = { directo: false, cliente: false }
 
 test('fuentes · bi:<consulta> lee el catálogo y la serie como el panel: último día, cifra, puntos y señal', async () => {

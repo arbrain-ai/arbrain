@@ -124,6 +124,7 @@ const POR_LABEL: Record<string, Conocido> = {
   'com.claudeclaw.voz-agentes': { nombre: 'Voz de los agentes', area: 'Voz', que: 'La voz con la que hablan Levy y los agentes' },
   'com.saasfactory.sfremote': { nombre: 'SF Remote', area: 'Apps', que: 'Puente del control remoto en tu tailnet' },
   'com.arbrain.motor': { nombre: 'Motor de Arbrain', area: 'Arbrain', que: 'Las terminales de los agentes', web: false },
+  'com.levy.editor-motor': { nombre: 'Motor del editor de video', area: 'Arbrain', que: 'Corta tus tomas con tu estilo y guarda cada versión (sin ventana, solo en esta Mac)', web: false },
 }
 const POR_COMANDO: [RegExp, Conocido][] = [
   [/src\/manos\/web\/puente\.ts/, { nombre: 'Puente de la extensión Arbrain', area: 'Manos', que: 'Con él Levy usa tu Chrome sin tocar tus pestañas', web: false }],
@@ -133,6 +134,7 @@ const POR_COMANDO: [RegExp, Conocido][] = [
   [/health_receiver\.py/, POR_LABEL['com.claudeclaw.health-receiver']],
   [/voz-agentes\/server\.py/, POR_LABEL['com.claudeclaw.voz-agentes']],
   [/sfremote\/bridge/, POR_LABEL['com.saasfactory.sfremote']],
+  [/arbrain-editor-motor\//, POR_LABEL['com.levy.editor-motor']],
 ]
 /** Puertos que no hablan HTTP aunque el proceso sea genérico. */
 const NO_WEB = new Set([53, 5432, 6543, 54322, 54323, 54390, 4041])

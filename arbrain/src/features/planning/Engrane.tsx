@@ -72,7 +72,7 @@ export function Engrane({ ajustes, poner, diasActual, leyenda, drip, matriz, acc
             de este equipo (el mismo modo presentación de «Hábitos de hoy»). Prendido, un hábito privado se ve como «Hábito privado». */}
         <Interruptor etiqueta={tr('Pantalla compartida')} ayuda={tr('Al grabar o compartir: los hábitos privados se ven como «Hábito privado»')} valor={presentacion.activo} onCambio={v => { if (v !== presentacion.activo) presentacion.alternar() }} />
         <Fila etiqueta={tr('Semana')}><Segmentos valor={ajustes.vistaSemana} opciones={[{ v: 'horas', t: trMarca('Horas') }, { v: 'agenda', t: trMarca('Agenda') }]} onCambio={v => poner({ vistaSemana: v })} nombre={tr('Ver la semana como')} /></Fila>
-        <Fila etiqueta={tr('Mes')}><Segmentos valor={ajustes.mesVista} opciones={[{ v: 'recorrido', t: trMarca('Recorrido') }, { v: 'cuadricula', t: trMarca('Cuadrícula') }]} onCambio={v => poner({ mesVista: v })} nombre={tr('Ver el mes como')} /></Fila>
+        <Fila etiqueta={tr('Mes')}><Segmentos valor={ajustes.mesVista} opciones={[{ v: 'cuadricula', t: trMarca('Calendario') }, { v: 'recorrido', t: trMarca('Recorrido') }]} onCambio={v => poner({ mesVista: v })} nombre={tr('Ver el mes como')} /></Fila>
         {ajustes.mesVista === 'cuadricula' && <Fila etiqueta={tr('Semanas del mes')}><Segmentos valor={ajustes.mesSemanas} opciones={SEMANAS_MES.map(n => ({ v: n, t: n ? String(n) : trMarca('Mes') }))} onCambio={n => poner({ mesSemanas: n })} nombre={tr('Semanas a la vista')} /></Fila>}
       </Seccion>
       <Seccion titulo={tr('Horas')}>

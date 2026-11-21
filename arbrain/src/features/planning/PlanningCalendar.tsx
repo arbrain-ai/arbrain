@@ -1,5 +1,6 @@
 'use client'
 import { estiloEvento } from '@/lib/calendar/contraste'
+import { useIsCoarsePointer, useIsMobile } from '@/shared/hooks/useMediaQuery'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { flushSync } from 'react-dom'
 import FullCalendar from '@fullcalendar/react'
@@ -16,7 +17,7 @@ import { Check, ChevronDown, ChevronLeft, ChevronRight, Circle, Loader2, Newspap
 import { usePlanning } from './usePlanning'
 import { useGoals } from '@/features/goals/useGoals'
 import { dayKey, escalaVigente, eventData, hasTime, isOwnSurface, MODES, mutationFor, taskData, taskEnd } from './model'
-import { accesosDe, accionDeEscala, alcanceDeModo, planDelMes, tituloAngosto, tituloVentana, type Acceso } from './accesos'
+import { accesosDe, accionDeEscala, alcanceDeModo, planDelMes, revisionEnPie, tituloAngosto, tituloVentana, type Acceso } from './accesos'
 import { PlanPeriodo } from './PlanPeriodo'
 import { DiaVivo } from './DiaVivo'
 import { destinoAlSoltarToque, ejeDeRueda, ejeDeToque } from './carril-logica'
@@ -31,6 +32,8 @@ import { rechazado, useAjustes } from './ajustes'
 import { Engrane } from './Engrane'
 import { fechaDeArranque, marcarSesion, nuevoDiaVuelveAHoy, reabrirEnHoy, tocarSesion } from './apertura'
 import { MesClaro } from './MesClaro'
+import { MesCalendario } from './MesCalendario'
+import { moverAlDia } from './mes-calendario'
 import { movimientoEntre } from './periodo-vivo'
 import { debeAvanzarAHoy } from './hoy-vivo'
 import { tareasDelPeriodo, ventanaDelPeriodo } from './plan-periodo'
@@ -144,6 +147,7 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
   }, [])
   const angosto = () => (raiz.current?.clientWidth ?? window.innerWidth) < ANGOSTO
   const [compacto, setCompacto] = useState(false)
+  const telefono = useIsMobile(), tactil = useIsCoarsePointer()
   const [dosColumnas, setDosColumnas] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)
   // Mes angosto: el día tocado, cuya lista completa se abre debajo (null = ninguno, la cuadrícula ocupa todo).
@@ -164,7 +168,8 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
   const [title, setTitle] = useState(() => tr('Tu semana'))
   const [range, setRange] = useState(() => ({ from: startOfDay(new Date()).toISOString(), to: addDays(startOfDay(new Date()), 7).toISOString() }))
   // La cuadrícula del Mes con N semanas (el engrane): el mes que manda (título, objetivo, recorrido) es el del centro de lo visible.
-  const semanasMes = mode === 'month' && ajustes.mesVista === 'cuadricula' ? ajustes.mesSemanas : 0
+  // Las N semanas son de la cuadrícula angosta (FullCalendar); el Mes de la computadora siempre es el mes de calendario (17 nov 2026).
+  const semanasMes = mode === 'month' && ajustes.mesVista === 'cuadricula' && compacto ? ajustes.mesSemanas : 0
   const vistaMes = semanasMes ? `semanas${semanasMes}` : 'dayGridMonth'
   const vistaMesRef = useRef(vistaMes); vistaMesRef.current = vistaMes
   /** La vista de FullCalendar de cada escala (el Mes puede ser de N semanas). */
@@ -182,7 +187,7 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
   const [selection, setSelection] = useState<EditorSelection | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   /** Un evento con invitados soltado en otra hora: espera el sí de Daniel (arrastre-dia.ts › `guardaInvitados`). */
-  const [porConfirmar, setPorConfirmar] = useState<{ item: PlanItem; inicio: Date; fin: Date; texto: string } | null>(null)
+  const [porConfirmar, setPorConfirmar] = useState<{ item: PlanItem; inicio: Date; fin: Date; texto: string; data?: Record<string, unknown>; todoElDia?: boolean } | null>(null)
   // Aviso con «Deshacer» (completar o borrar desde la hoja de detalle): el botón corre el mismo ⌘Z.
   const [noticeUndo, setNoticeUndo] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
@@ -269,6 +274,9 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
   // El Mes en lista por semanas (angosto) y los números de semana del programa (S0…S11), leídos de las propias fases.
   const eventosMes = useMemo(() => presentedEvents.filter(eventoVisible).filter(e => !fueraMes.has(e.id)).map(e => { const piedra = piedraDe(e, lecturaDe(e).cuadrante); return { evento: e, piedra, color: colorEvento(e), atencion: atencionDe(e, piedra) } }), [presentedEvents, eventoVisible, fueraMes, lecturaDe, colorEvento])
   const programa = useMemo(() => semanasDelPrograma(presentedEvents), [presentedEvents])
+  // El Mes nuevo lee lo mismo que el Día: lo visible para pintar y todo lo de los calendarios encendidos para medir el ritmo.
+  const eventosMesVivo = useMemo(() => presentedEvents.filter(eventoVisible), [presentedEvents, eventoVisible])
+  const todosMes = useMemo(() => presentedEvents.filter(porCalendario), [presentedEvents, porCalendario])
   // La cuadrícula del Mes (25 oct 2026, Daniel: «las clases son eventos que no quiero ver», «quiero simplicidad»): solo lo de día
   // completo (fases, hitos, viajes, uno a uno), sin clases, bloques con hora ni tareas. Lo que cae dentro de un viaje (la reunión
   // del 28 en Monterrey) es una marca en su día, no otra cinta apilada.
@@ -301,8 +309,14 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
   // El Día tampoco (18 oct 2026, Daniel vio dos rejillas en «Lun 19 oct»): su agenda es la única rejilla y solo lleva eventos.
   // El Mes abre en Recorrido en todas las pantallas (25 oct 2026, Daniel: «el recorrido es el default»); la cuadrícula, solo si se
   // elige en el engrane. Sin cuadrícula, el Mes no usa el acomodo de dos columnas: el recorrido es la única columna.
-  const rejillaOculta = esViva(mode) && (mode === 'week' || mode === 'day' || !rejilla)
-  const dosColumnasVista = dosColumnas && !(mode === 'month' && !rejilla)
+  // El Mes como calendario de verdad (17 nov 2026, Daniel: «prefiero un calendario mensual normal… sin scroll»): en la computadora la
+  // cuadrícula es MesCalendario, a pantalla completa; la de FullCalendar queda solo para lo angosto (teléfono y panel) si se elige.
+  const mesEntero = mode === 'month' && ajustes.mesVista === 'cuadricula' && !compacto
+  const rejillaOculta = esViva(mode) && (mode === 'week' || mode === 'day' || !rejilla || mesEntero)
+  const dosColumnasVista = dosColumnas && !(mode === 'month' && (!rejilla || mesEntero))
+  // El Día entero sin scroll (16 nov 2026): todo el Día de escritorio, en el panel junto al chat o en la sección. Un teléfono de
+  // verdad (angosto Y táctil) sigue con la página que se desplaza; una ventana angosta de la computadora no es teléfono.
+  const diaEntero = mode === 'day' && !dosColumnas && !(telefono && tactil)
   useEffect(() => {
     if (rejillaOculta) return
     const t = setTimeout(() => calendar.current?.getApi().updateSize(), 30)
@@ -873,6 +887,8 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
   // Calendario de otra persona (29 oct 2026): solo sus calendarios; los reportes, el plan y el Todoist son del dueño.
   const ajeno = Boolean(snapshot?.perfil)
   const accesos = EDICION_CLIENTE || ajeno ? [] : accesosDe(mode).filter(a => a.id !== 'plan' || onAbrirDocumento)
+  // El Día de lunes a sábado va sin pie; el domingo, solo la revisión (16 nov 2026).
+  const conRevision = esViva(mode) && !ajeno && revisionEnPie(mode, anchor)
   const navegar = (url: string) => onNavegar ? onNavegar(url) : window.location.assign(url)
   const alcance = alcanceDeModo(mode)
   const zonaPlan = timeZone
@@ -916,13 +932,14 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
   // La rejilla de la Semana mueve y estira por el guardián del autoguardado: se ve al instante, se escribe por la misma pluma
   // (commit con ⌘Z) y, si Google no confirma, el bloque vuelve a su hora y el aviso lo dice con «Reintentar».
   // El Día arrastra por aquí también (11 nov 2026). Con invitados no se mueve en silencio: el aviso pregunta y, sin su sí, se queda.
-  const moverEnRejilla = async (item: PlanItem, inicio: Date, fin: Date, confirmado = false) => {
+  // El Mes mueve de día a día (17 nov 2026): `data` trae la actualización ya hecha (lo de todo el día conserva cuántos días dura).
+  const moverEnRejilla = async (item: PlanItem, inicio: Date, fin: Date, confirmado = false, data: Record<string, unknown> = datosDeMovimiento(item, inicio, fin), todoElDia = false) => {
     if (item.kind === 'event' && !item.editable) return
-    const guarda = confirmado ? null : guardaInvitados(item, inicio)
-    if (guarda) { setNotice(null); setPorConfirmar({ item, inicio, fin, texto: guarda.texto }); return }
-    auto.editar({ item, data: datosDeMovimiento(item, inicio, fin) })
+    const guarda = confirmado ? null : guardaInvitados(item, inicio, todoElDia)
+    if (guarda) { setNotice(null); setPorConfirmar({ item, inicio, fin, texto: guarda.texto, data, todoElDia }); return }
+    auto.editar({ item, data })
     if (await auto.vaciar(item.id)) {
-      const cuando = format(inicio, tr("EEEE d 'a las' HH:mm"), { locale: localeFechas() })
+      const cuando = format(inicio, todoElDia ? tr("EEEE d 'de' MMMM") : tr("EEEE d 'a las' HH:mm"), { locale: localeFechas() })
       setNotice(item.kind === 'event' && item.recurringEventId ? tr('Esta ocurrencia quedó el {cuando}.', { cuando }) : tr('«{titulo}» quedó el {cuando}.', { titulo: item.title, cuando }))
       setNoticeUndo(true)
     }
@@ -941,7 +958,7 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
   // Lo que el engrane muestra como «días a la vista»: lo elegido o, si no, lo que se ve (sin fines de semana, 5 columnas son 7 días).
   const diasActual = ventanaSemana.n
 
-  return <PulsoHoy.Provider value={pulsoHoy}><GobiernoCtx.Provider value={gobierno}><div ref={raiz} className={styles.root} style={{ '--plan-pegado': `${altoBarra}px` } as CSSProperties} data-planning-calendar data-donde={donde} data-dos-columnas={dosColumnasVista ? mode : undefined} data-mes-piedras={mode === 'month' && !compacto ? '' : undefined} data-unificada={alcance ? '' : undefined} data-ventana={mode === 'week' ? `${ventanaSemana.inicio ?? '-'}:${ventanaSemana.n}` : undefined} tabIndex={donde === 'panel' ? -1 : undefined}>
+  return <PulsoHoy.Provider value={pulsoHoy}><GobiernoCtx.Provider value={gobierno}><div ref={raiz} className={styles.root} style={{ '--plan-pegado': `${altoBarra}px` } as CSSProperties} data-planning-calendar data-donde={donde} data-dos-columnas={dosColumnasVista ? mode : undefined} data-dia-entero={diaEntero ? '' : undefined} data-mes-entero={mesEntero ? '' : undefined} data-mes-piedras={mode === 'month' && !compacto ? '' : undefined} data-unificada={alcance ? '' : undefined} data-ventana={mode === 'week' ? `${ventanaSemana.inicio ?? '-'}:${ventanaSemana.n}` : undefined} tabIndex={donde === 'panel' ? -1 : undefined}>
     <h1 className={styles.srOnly}>{tr('Calendario')}</h1>
     {/* UNA fila (5 oct 2026, «los botones deben ser súper sutiles, que ocupen el menor espacio»): Hoy · ‹ › · fecha ▾ · D 4 S M · +.
         La fecha abre lo demás: ir a fecha, Año · Agenda · Rutinas, calendarios, panel de tareas, atajos y actualizar. */}
@@ -978,10 +995,15 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
       <button className={styles.textButton} onClick={() => { setSources(null); setProject(''); setPriority(0) }}>{tr('Restablecer')}</button>
     </div>}
     {esViva(mode) ? <div ref={escena} key={claveEscena} className={vivas.escena} data-mov={mov ?? undefined}>{mode === 'day' ? <Carril fecha={anchor} clave={dayKey} mover={addDays} onIr={irDia} etiqueta={tr('Días: desliza para cambiar de día')}
-      render={(f, central) => <DiaVivo fecha={f} central={central} {...comunes} rejilla={rejilla} onRejilla={alternarRejilla} onObjetivo={marcarObjetivo} guardarObjetivo={goalsLeidos.save} onDescripcion={escribirDescripcion} enfoque={ajustes.enfoque} plegado={plegado} dosColumnas={dosColumnas}
+      render={(f, central) => <DiaVivo fecha={f} central={central} {...comunes} rejilla={rejilla} onRejilla={alternarRejilla} onObjetivo={marcarObjetivo} guardarObjetivo={goalsLeidos.save} onDescripcion={escribirDescripcion} enfoque={ajustes.enfoque} plegado={plegado} dosColumnas={dosColumnas} entero={diaEntero}
         onNueva={semilla => setSelection(semilla ?? { kind: 'task', allDay: true })} onReabrir={t => snapshot ? commit(mutationFor(t, snapshot.ownerId, {}, 'reopen')) : Promise.reject(new Error(tr('Sin lectura')))}
         tareas={tareasDelDia(visibleTasks, dayKey(f), dayKey(new Date()), zonaPlan)} onDeshacer={() => void step('undo')}
         onMover={snapshot && !pending ? (ev, inicio, fin) => void moverEnRejilla(ev, inicio, fin) : undefined} />} />
+      : mode === 'month' && mesEntero ? <MesCalendario fecha={fechaMes} goals={comunes.goals} snapshot={comunes.snapshot} cargando={loading} guardarObjetivo={goalsLeidos.save}
+        eventos={eventosMesVivo} todos={todosMes} tareas={visibleTasks} zona={zonaPlan} programa={programa}
+        onDia={dia => transicion(() => aplicarVista(dia, 'day'))} onSemana={lunes => transicion(() => aplicarVista(lunes, 'week'))} onAbrir={item => setSelection({ item })}
+        onMover={snapshot && !pending ? (item, hacia) => { const m = moverAlDia(item, hacia); if (m) void moverEnRejilla(item, m.inicio, m.fin, false, m.data, m.todoElDia) } : undefined}
+        onCrear={snapshot && !pending ? dia => setSelection({ start: parseISO(dia), end: addDays(parseISO(dia), 1), allDay: true, freshRange: true }) : undefined} />
       : mode === 'month' ? <MesClaro fecha={fechaMes} eventos={eventosMes} programa={programa} onDia={dia => transicion(() => aplicarVista(dia, 'day'))} goals={comunes.goals} snapshot={comunes.snapshot} cargando={loading} angosto={compacto} cuadricula={rejilla} enfoque={ajustes.enfoque} plegado={plegado} dosColumnas={dosColumnasVista} guardarObjetivo={goalsLeidos.save}
         onConversar={onConversar} onSemana={lunes => transicion(() => aplicarVista(lunes, 'week'))} />
       : <SemanaClara fecha={anchor} ventana={ventanaSemana} onVentana={onVentana} {...comunes} guardarObjetivo={goalsLeidos.save} tareas={visibleTasks} zona={zonaPlan}
@@ -996,7 +1018,7 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
     {!isOwnSurface(mode) && (error || (pending && !saving) || snapshot?.health.some(h => h.state !== 'fresh')) && <div className={styles.banner} role="status"><span>{error ?? (pending ? tr('Hay un envío pendiente de confirmar. Su borrador está guardado.') : (snapshot?.health.find(h => h.id === 'calendario-json' && h.state !== 'fresh')?.message ?? tr('Algunas fuentes no respondieron. Se conserva la última lectura disponible.')))}</span>{pending && <button disabled={saving} onClick={() => void mutate(pending).catch(() => {})}>{tr('Reintentar envío')}</button>}{!pending && <button onClick={() => void refresh()}>{tr('Reintentar lectura')}</button>}</div>}
     {fallo && <div className={styles.notice} role="alert" data-hoja-ignora data-fallo><X size={14} /> {fallo.texto}<button className={styles.noticeUndo} onClick={() => { const f = fallo; setFallo(null); f.reintentar() }}>{tr('Reintentar')}</button><button className={styles.noticeUndo} aria-label={tr('Cerrar aviso')} onClick={() => setFallo(null)}><X size={12} /></button></div>}
     {porConfirmar && <ConfirmarMover texto={porConfirmar.texto}
-      onMover={() => { const p = porConfirmar; setPorConfirmar(null); void moverEnRejilla(p.item, p.inicio, p.fin, true) }}
+      onMover={() => { const p = porConfirmar; setPorConfirmar(null); void moverEnRejilla(p.item, p.inicio, p.fin, true, p.data, p.todoElDia) }}
       onDejar={() => { setPorConfirmar(null); setNotice(tr('«{titulo}» se quedó a su hora.', { titulo: porConfirmar.item.title })) }} />}
     {!porConfirmar && mode !== 'crons' && notice && (noticeUndo ? <div className={styles.notice} role="status" data-hoja-ignora><Check size={14} /> {notice}<button className={styles.noticeUndo} onClick={() => { setNotice(null); void step('undo') }}>{tr('Deshacer')}</button></div>
       : <button className={styles.notice} onClick={() => setNotice(null)}><Check size={14} /> {notice}</button>)}
@@ -1053,9 +1075,9 @@ export function PlanningCalendar({ inicio, donde = 'seccion', onCambio, onConver
         <footer><span>{tr('{n} en esta selección', { n: railTasks.length })}</span><span>{timeZone.split('/').at(-1)?.replaceAll('_', ' ')}</span></footer>
       </aside>}
     </div>
-    {(accesos.length > 0 || (esViva(mode) && !ajeno)) && <nav className={styles.accesos} aria-label={tr('Reporte de este periodo')}>{accesos.map(a => <button key={a.id} data-acceso={a.id} onClick={() => void irAcceso(a)}>{a.id === 'reporte' ? <Newspaper size={14} aria-hidden /> : <ScrollText size={14} aria-hidden />}<span>{tr(a.etiqueta)}</span></button>)}
+    {(accesos.length > 0 || conRevision) && <nav className={styles.accesos} aria-label={tr('Reporte de este periodo')}>{accesos.map(a => <button key={a.id} data-acceso={a.id} onClick={() => void irAcceso(a)}>{a.id === 'reporte' ? <Newspaper size={14} aria-hidden /> : <ScrollText size={14} aria-hidden />}<span>{tr(a.etiqueta)}</span></button>)}
       {/* La revisión del domingo (24 oct 2026): plan contra real de la semana, como el circuito; abierta sola los domingos. */}
-      {esViva(mode) && !ajeno && <button data-acceso="domingo" onClick={() => setDomingo(lunesDe(dayKey(mode === 'week' ? parseISO(inicioVisible) : anchor)))}><CalendarCheck2 size={14} aria-hidden /><span>{tr('Revisión del domingo')}</span></button>}</nav>}
+      {conRevision && <button data-acceso="domingo" onClick={() => setDomingo(lunesDe(dayKey(mode === 'week' ? parseISO(inicioVisible) : anchor)))}><CalendarCheck2 size={14} aria-hidden /><span>{tr('Revisión del domingo')}</span></button>}</nav>}
     {domingo && !ajeno && <Domingo lunes={domingo} bloques={bloquesDrip} goals={goalsLeidos.data} snapshot={snapshot ?? null} doc={drip.doc} ahora={Date.now()} tomarFoto={tomarFoto} pluma={Boolean(snapshot)} ponerTarifa={(m, mon) => drip.cambiar({ accion: 'tarifa', monto: m, moneda: mon })}
       rutinasPlegadas={(() => { const l = parseISO(domingo).getTime(), f = addDays(parseISO(domingo), 7).getTime(); return presentedEvents.filter(e => fueraMes.has(e.id) && Date.parse(e.start) >= l && Date.parse(e.start) < f).length })()}
       aplicar={aplicarPropuesta} deshacer={() => void step('undo')} onCerrar={() => setDomingo(null)} onLunes={d => setDomingo(x => x ? dayKey(addDays(parseISO(x), d)) : x)} />}

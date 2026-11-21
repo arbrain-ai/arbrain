@@ -45,7 +45,7 @@ export type Alcance = typeof ALCANCES[number]
  */
 export const VISTAS_CLIENTE = ['calendario', 'lienzo', 'memoria', 'documento', 'explorador', 'negocio', 'estrategia', 'bi'] as const satisfies readonly Vista[]
 export const DESTINOS_CLIENTE = ['lienzo'] as const satisfies readonly Destino[]
-export const SECCIONES_PANEL_CLIENTE = ['calendario', 'lienzo', 'negocio', 'estrategia', 'bi', 'explorador', 'taller'] as const satisfies readonly (typeof SECCIONES)[number][]
+export const SECCIONES_PANEL_CLIENTE = ['calendario', 'lienzo', 'negocio', 'estrategia', 'bi', 'explorador', 'extensiones', 'taller'] as const satisfies readonly (typeof SECCIONES)[number][]
 /** Vistas de `mostrar` según la edición. */
 export const vistasEdicion = (cliente = esEdicionCliente()): readonly Vista[] => cliente ? VISTAS_CLIENTE : VISTAS
 /** Destinos de `abrir` según la edición. */

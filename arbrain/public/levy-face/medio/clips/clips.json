@@ -1,0 +1,83 @@
+{
+ "escuchar": {
+  "cuadros": 240,
+  "cps": 30,
+  "neutros": [
+   [
+    0,
+    10
+   ],
+   [
+    36,
+    43
+   ],
+   [
+    49,
+    51
+   ],
+   [
+    95,
+    105
+   ],
+   [
+    129,
+    139
+   ],
+   [
+    145,
+    147
+   ],
+   [
+    191,
+    201
+   ],
+   [
+    222,
+    239
+   ]
+  ],
+  "archivo": "escuchar.mp4",
+  "lado": 720,
+  "mov_p95_px_max": 11.6,
+  "mirada_px_max": 1.09
+ },
+ "pensar": {
+  "cuadros": 240,
+  "cps": 30,
+  "neutros": [
+   [
+    0,
+    9
+   ],
+   [
+    57,
+    64
+   ],
+   [
+    70,
+    73
+   ],
+   [
+    119,
+    129
+   ],
+   [
+    177,
+    186
+   ],
+   [
+    191,
+    193
+   ],
+   [
+    234,
+    239
+   ]
+  ],
+  "archivo": "pensar.mp4",
+  "lado": 720,
+  "mov_p95_px_max": 17.55,
+  "mirada_px_max": 6.38
+ },
+ "_": "Clips de Live (18-19 nov 2026): el retrato oficial movido con el campo de LivePortrait (flujo de cada cuadro contra su neutro), color | opacidad lado a lado. «neutros» = tramos [desde, hasta] (cuadros a 30 cps) en los que el clip es el retrato exacto: ahí se cambia al rig sin fundido. Horno: labs/levy-live-como-youtube-2026-11-18/scripts/clips_{controles,hornear}.py."
+}

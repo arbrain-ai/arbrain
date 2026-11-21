@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { Check, ChevronDown } from 'lucide-react'
 import { instalacion } from '@/config'
 import { useCivilClock } from '@/features/sistema/useHabitRecords'
@@ -23,8 +23,11 @@ import { trNodos } from '@/shared/i18n'
  *   no se guarda (4 nov 2026, 19:31: el aviso la dejaba abierta para siempre y en el teléfono tapaba la línea del tiempo).
  * - Sin detalle no hay toggle (antes la Semana vacía tenía un chevron que «no muestra nada»): el título se lee entero en su línea.
  * - La temporada/monk mode vive solo en la vista H (25 oct 2026, 08:10).
+ * - `encima` (16 nov 2026, Daniel con el Día fijado junto al chat: «este toggle en lugar de mandar para abajo, que sea como una pestaña
+ *   que se sobrepone al dar clic»): la franja es SIEMPRE una línea y su detalle se abre como una pestaña flotante encima de lo que sigue
+ *   (la línea del día no se mueve). Se cierra con clic fuera o Esc, nace plegada cada vez y no se guarda en el dispositivo.
  */
-export function FranjaPlan({ rotulo, titulo, vacio, cuenta, habitos, detalle, aviso, abrirSenal = 0, clave = 'arbrain.calendario.franja-abierta', abiertaInicial = false, recordar = true }: {
+export function FranjaPlan({ rotulo, titulo, vacio, cuenta, habitos, detalle, aviso, abrirSenal = 0, clave = 'arbrain.calendario.franja-abierta', abiertaInicial = false, recordar = true, encima = false }: {
   /** «Hoy», «Semana · S4», «Mes · octubre». */
   rotulo: ReactNode
   titulo: string | null
@@ -45,6 +48,8 @@ export function FranjaPlan({ rotulo, titulo, vacio, cuenta, habitos, detalle, av
   abrirSenal?: number
   /** false: el dispositivo no guarda si quedó abierta (nace plegada, o `abiertaInicial`, cada vez). */
   recordar?: boolean
+  /** El detalle se sobrepone como pestaña flotante en vez de empujar lo de abajo (el Día sin scroll). */
+  encima?: boolean
 }) {
   const [guardada, alternarGuardada] = usePreferencia(clave, abiertaInicial)
   const [suelta, setSuelta] = useState(abiertaInicial)
@@ -52,26 +57,68 @@ export function FranjaPlan({ rotulo, titulo, vacio, cuenta, habitos, detalle, av
   // Abierta por la señal: dura hasta que la persona la pliega; nunca se escribe en la preferencia.
   const [porSenal, setPorSenal] = useState(false)
   useEffect(() => { if (abrirSenal) setPorSenal(true) }, [abrirSenal])
+  // Encima: abierta solo mientras se usa (un clic, o la señal «N te esperan»); cerrarla suelta las dos y nada se guarda.
+  const [flota, setFlota] = useState(false)
+  const cerrarFlota = () => { setFlota(false); setPorSenal(false) }
   const { today } = useCivilClock()
-  const conDetalle = Boolean(detalle), abierta = conDetalle && (preferida || porSenal)
+  const conDetalle = Boolean(detalle), abierta = conDetalle && (encima ? flota || porSenal : preferida || porSenal)
   const alternar = () => {
+    if (encima) { if (abierta) cerrarFlota(); else setFlota(true); return }
     if (abierta && porSenal) { setPorSenal(false); if (!preferida) return }
     if (recordar) alternarGuardada(); else setSuelta(x => !x)
   }
+  const raiz = useRef<HTMLElement>(null)
+  const flotando = encima && abierta
+  // La pestaña llega hasta donde termina su marco (la hoja del día), nunca más: lo que no cabe se desplaza dentro de ella. Se mide en
+  // px del documento (offset*), que no cambian con el zoom de la interfaz.
+  const [tope, setTope] = useState<number | null>(null)
+  useLayoutEffect(() => {
+    const el = raiz.current, marco = el?.offsetParent as HTMLElement | null
+    if (!flotando || !el || !marco) { setTope(null); return }
+    const medir = () => setTope(Math.max(160, marco.clientHeight - el.offsetTop - el.offsetHeight - 8))
+    medir()
+    const o = new ResizeObserver(medir); o.observe(marco)
+    return () => o.disconnect()
+  }, [flotando])
+  // Clic fuera o Esc la cierran. Lo que ella misma abrió (la hoja de una tarea, el menú de prioridad) no cuenta como «fuera».
+  useEffect(() => {
+    if (!flotando) return
+    const propio = '[role="dialog"], [role="menu"], [data-menu-prioridad], [data-hoja-ignora]'
+    const fuera = (e: PointerEvent) => {
+      const t = e.target as HTMLElement | null
+      if (!t || raiz.current?.contains(t) || t.closest(propio)) return
+      cerrarFlota()
+    }
+    const tecla = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.isComposing) return
+      const t = e.target as HTMLElement | null
+      // Escribiendo dentro (sumar una casilla): el primer Esc suelta el campo; con una hoja o un menú abiertos, Esc es de ellos.
+      if (t && raiz.current?.contains(t) && t.matches('input, textarea, [contenteditable="true"]')) return
+      if (document.querySelector('[role="dialog"]:not([data-franja-flotante]), [role="menu"]')) return
+      e.preventDefault(); e.stopPropagation(); cerrarFlota()
+    }
+    document.addEventListener('pointerdown', fuera, true); document.addEventListener('keydown', tecla, true)
+    return () => { document.removeEventListener('pointerdown', fuera, true); document.removeEventListener('keydown', tecla, true) }
+  }, [flotando])
   const linea = <span className={s.seg} data-objetivo><span className={s.rotulo}>{rotulo}</span>
     {titulo ? <span className={s.titulo}>{titulo}</span> : <span className={s.vacio}>{tr(vacio)}</span>}</span>
 
-  return <section className={s.franja} data-abierta={abierta || undefined} data-sin-detalle={!conDetalle || undefined} data-vacio={!titulo || undefined}
+  return <section ref={raiz} className={s.franja} data-abierta={(abierta && !encima) || undefined} data-encima={encima || undefined} data-flotando={flotando || undefined}
+    data-sin-detalle={(!conDetalle && !encima) || undefined} data-vacio={!titulo || undefined}
     data-objetivo-escala aria-label={habitos ? tr('Objetivo y hábitos') : tr('Objetivo')}>
     <div className={s.linea}>
-      {conDetalle ? <button className={s.resumen} onClick={alternar} aria-expanded={abierta} title={abierta ? tr('Plegar a una línea') : tr('Ver el objetivo completo')}>{linea}</button>
+      {conDetalle ? <button className={s.resumen} onClick={alternar} aria-expanded={abierta} aria-haspopup={encima ? 'dialog' : undefined}
+        title={abierta ? (encima ? tr('Cerrar (Esc)') : tr('Plegar a una línea')) : encima ? tr('Ver el objetivo y las tareas de hoy') : tr('Ver el objetivo completo')}>{linea}</button>
         : <div className={s.resumen}>{linea}</div>}
       {cuenta && cuenta.n > 0 && <span className={s.cuenta}>{trNodos('{k} de {n}', { k: <b>{cuenta.k}</b>, n: cuenta.n })}</span>}
       {aviso}
       {habitos && habitos.dia <= today && <Casillas {...habitos} />}
       {conDetalle && <button className={s.chevron} onClick={alternar} aria-expanded={abierta} aria-label={abierta ? tr('Plegar el objetivo') : tr('Abrir el objetivo')}><ChevronDown size={15} aria-hidden /></button>}
     </div>
-    {abierta && <div className={s.detalle}>{detalle}</div>}
+    {abierta && (encima ? <div className={s.flotante} role="dialog" aria-label={tr('Objetivo y tareas del día')} data-franja-flotante style={tope ? { maxHeight: tope } : undefined}>
+      {titulo && <p className={s.tituloEntero}>{titulo}</p>}
+      <div className={s.detalle}>{detalle}</div>
+    </div> : <div className={s.detalle}>{detalle}</div>)}
   </section>
 }
 

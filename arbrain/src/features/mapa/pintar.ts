@@ -233,6 +233,11 @@ const metaError: Pintor = (pc, p, c) => {
       ceja(pc, k, c.x + 26 + i * col, c.y + 70, col - 10)
       escribir(pc, val, c.x + 26 + i * col, c.y + 98, col - 10, 44, 32, `800 32px ${SANS}`, color, 1.1)
     })
+  // Lo que NO es meta, dicho aparte (15 nov 2026): las cuotas del Acompañamiento no son MRR recurrente.
+  const ap = obj(p.aparte) && typeof p.aparte.fuente === 'string' ? p.aparte : null
+  const la = ap ? pc.leer(t(ap.fuente)) : undefined
+  const apTexto = ap && la && la.estado === 'ok' ? campoDe(la.valor, t(ap.campo)) : null
+  if (typeof apTexto === 'string' && c.h > 170) escribir(pc, apTexto, c.x + 26, c.y + 162, c.w - 52, c.h - 180, 22, `600 22px ${SANS}`, P.muted, 1.25)
 }
 const tablero = (rotulo: string): Pintor => (pc, p, c) => generico(pc, { ceja: t(p.ceja) || rotulo, texto: '' }, c)
 const timonel: Pintor = (pc, p, c) => {

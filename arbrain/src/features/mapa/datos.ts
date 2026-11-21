@@ -24,6 +24,7 @@ import {
 } from '@/features/negocio/pulso'
 import { URL_MARKETING, type RespuestaMarketing } from '@/features/negocio/marketing'
 import { usePulsosCliente } from '@/features/negocio/usePulsosCliente'
+import { URL_MRR, type RespuestaMrr } from '@/features/negocio/mrr'
 
 const URL_COHORTE = '/api/cohorte'
 const directoRecordado = () => { try { return typeof window !== 'undefined' && window.localStorage.getItem(CLAVE_DIRECTO) === '1' } catch { return false } }
@@ -68,4 +69,10 @@ export function useEmbudo(activo = true): { embudo: Embudo | null; cargando: boo
 export function useCohorte(activo = true) {
   const directo = useDirectoIsla()
   return useFuente<CohortePulso>(activo && !directo && !esEdicionCliente() ? URL_COHORTE : null)
+}
+
+/** Polar en vivo con la definición única del MRR (15 nov 2026): el recurrente y, aparte, las cuotas. Dinero: no en directo. */
+export function useMrr(activo = true) {
+  const directo = useDirectoIsla()
+  return useFuente<RespuestaMrr>(activo && !directo && !esEdicionCliente() ? URL_MRR : null)
 }

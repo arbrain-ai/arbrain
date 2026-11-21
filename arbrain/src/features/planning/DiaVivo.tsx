@@ -22,7 +22,7 @@ import { ListaDia } from './ListaDia'
 import { AvisoDecisiones, enfoquePedido, EVENTO_ENFOCAR_DECISIONES, SeccionDecisiones } from '@/features/decisiones/FranjaDecisiones'
 import { useBandeja } from '@/features/decisiones/useBandeja'
 import { useIsMobile } from '@/shared/hooks/useMediaQuery'
-import { enElTimeline, eventosExplicitos, listaDelDia, type ItemDia } from './lista-dia'
+import { bloquesDeTareas, enElTimeline, eventosExplicitos, listaDelDia, type ItemDia } from './lista-dia'
 import type { EditorSelection } from './PlanEditor'
 import type { PlanEvent, PlanItem, PlanTask, PlanningSnapshot } from './types'
 import type { Plegado } from './SemanaClara'
@@ -49,11 +49,18 @@ import d from './dia-vivo.module.css'
  * 3 nov 2026 (Daniel, 18:43: «quiero unificarlo toda la logica en el toggle… ya viste que se repite lo de la grupal»): UNA sola lista en el
  * toggle de la franja (lista-dia.ts): las casillas del objetivo y las tareas de Todoist del día; marcar cierra en su fuente y marcar otra vez
  * reabre. La sección «Tareas» se fue. Lo ligado a un evento vive dentro de su tarjeta en la agenda; lo suelto con hora, como marca tenue.
+ *
+ * 16 nov 2026 (Daniel, 15:37, con el Día fijado a la derecha del chat: «la vista de calendario la hacemos vertical estática sin scroll bar
+ * vertical para que todo se vea completo… este toggle en lugar de mandar para abajo, que sea como una pestaña que se sobrepone al dar
+ * clic»; y «arraigar los eventos que tenemos, pero también las tareas… generar las horas límite fijas igual para verlo en el calendario»).
+ * Con `entero` (todo el Día de escritorio: panel o sección) la hoja mide el alto que le dan: HOY en UNA línea arriba (su detalle flota
+ * encima, FranjaPlan `encima`), la línea del día entera en medio con las horas comprimidas y los hábitos al pie, sin scroll. Las tareas
+ * de Todoist con hora son bloques propios en su hora (`bloquesDeTareas`). El teléfono sigue como estaba (la página se desplaza).
  */
 /** El hábito que ES el cumplimiento del objetivo del día (plasticidad y rachas lo leen así). Lo marca la estrella. */
 const HABITO_OBJETIVO = 'objetivo_dia'
 
-export function DiaVivo({ goals, guardarObjetivo, onDescripcion, donde, leyenda, fecha, snapshot, eventos, visible, color, tareas, cargando, todoistCaido, ocupado, rejilla, onRejilla, onAbrir, onCompletar, onReabrir, onPrioridad, onDeshacer, onNueva, onObjetivo, onMover, enfoque = false, plegado, central = true, dosColumnas = false }: {
+export function DiaVivo({ goals, guardarObjetivo, onDescripcion, donde, leyenda, fecha, snapshot, eventos, visible, color, tareas, cargando, todoistCaido, ocupado, rejilla, onRejilla, onAbrir, onCompletar, onReabrir, onPrioridad, onDeshacer, onNueva, onObjetivo, onMover, enfoque = false, plegado, central = true, dosColumnas = false, entero = false }: {
   fecha: Date; snapshot: PlanningSnapshot | null; eventos: PlanEvent[]
   /** Los objetivos los lee el calendario UNA vez (5 oct 2026): cambiar de escala o de periodo no relee ni parpadea. */
   goals: { data: GoalSnapshot | null; error: string | null }
@@ -89,6 +96,8 @@ export function DiaVivo({ goals, guardarObjetivo, onDescripcion, donde, leyenda,
   /** Pantalla completa (24 oct 2026): lo importante a la izquierda (temporada, objetivo abierto, ahora, tareas, hábitos) y la agenda
    *  a la derecha, a alto completo y sin scroll. El objetivo va abierto: hay espacio para sus casillas. */
   dosColumnas?: boolean
+  /** El Día de escritorio sin scroll (16 nov 2026): la hoja ocupa el alto del panel, HOY flota encima y las horas se comprimen. */
+  entero?: boolean
 }) {
   /** El objetivo se pliega solo en el orden de siempre; en dos columnas va abierto y sin toque de plegar. */
   const ahora = useAhora()
@@ -153,6 +162,8 @@ export function DiaVivo({ goals, guardarObjetivo, onDescripcion, donde, leyenda,
   const lista = useMemo(() => listaDelDia({ dia, hoy, zona, casillas: pluma.items, abiertas: abiertasDia, completadas: snapshot?.completedTasks ?? [], goals: goals.data?.goals, sin: conHabito ? ancla?.tarea.id : null }),
     [dia, hoy, zona, pluma.items, abiertasDia, snapshot?.completedTasks, goals.data, conHabito, ancla])
   const enAgenda = useMemo(() => enElTimeline(lista, agenda.bloques, startOfDay(fecha).getTime(), eventosExplicitos(goals.data?.goals, dia, agenda.bloques)), [lista, agenda.bloques, fecha, goals.data, dia])
+  // Lo suelto con hora: las tareas de Todoist son bloques en su hora; las casillas del objetivo, la marca tenue de siempre.
+  const sueltas = useMemo(() => bloquesDeTareas(enAgenda.sueltas, startOfDay(fecha).getTime()), [enAgenda.sueltas, fecha])
   const eventoDeItem = useMemo(() => { const m = new Map<string, string>()
     for (const b of agenda.bloques) for (const it of enAgenda.dentro.get(b.id) ?? []) m.set(it.id, sinEmoji(b.corto ?? b.titulo).replace(/^\d{1,2}:\d{2}\s*/, '').split(/\s+[·|:(]\s*/)[0].trim())
     return m }, [agenda.bloques, enAgenda])
@@ -222,8 +233,8 @@ export function DiaVivo({ goals, guardarObjetivo, onDescripcion, donde, leyenda,
   // «Acepto mi día» se fue (25 oct 2026, Daniel: «en teoría ya lo acepté desde antes»): el día se da por aceptado. Proteger el bloque
   // de Producir sigue en su hoja (HojaDrip), un toque sobre el bloque.
   const agendaMini = <div className={d.cuerpo}>
-      <AgendaMini central={central} llenar={dosColumnas} bloques={agenda.bloques} bandas={agenda.bandas} fecha={fecha} ahora={ahora} esHoy={esHoy} pasado={pasado} cargando={cargando && !snapshot}
-        onAbrir={onAbrir} onMover={onMover} pendientes={{ dentro: enAgenda.dentro, sueltas: enAgenda.sueltas, alternar: alternarItem, puede: puedeItem, resaltado, onResaltar: setResaltado }} />
+      <AgendaMini central={central} llenar={dosColumnas || entero} bloques={agenda.bloques} bandas={agenda.bandas} fecha={fecha} ahora={ahora} esHoy={esHoy} pasado={pasado} cargando={cargando && !snapshot}
+        onAbrir={onAbrir} onMover={onMover} pendientes={{ dentro: enAgenda.dentro, sueltas: sueltas.marcas, tareas: sueltas.bloques, alternar: alternarItem, puede: puedeItem, resaltado, onResaltar: setResaltado }} />
     </div>
   const habitos = <>
     {/* Hábitos de hoy, en mínimo (25 oct 2026): una línea por hábito con casilla y racha; su historia vive en la vista H.
@@ -239,7 +250,7 @@ export function DiaVivo({ goals, guardarObjetivo, onDescripcion, donde, leyenda,
     vacio={leyendoObjetivo ? tr('Leyendo el objetivo…') : goals.error && !eventoObjetivo ? tr('No se pudo leer el objetivo.') : tr('Sin objetivo del día.')}
     cuenta={lista.length ? { k: hechasN, n: lista.length } : null} detalle={objetivoDetalle}
     aviso={<AvisoDecisiones n={esperan} />} abrirSenal={abrirHoy}
-    {...(dosColumnas ? { clave: 'arbrain.dia.franja-abierta-dos-columnas', abiertaInicial: true } : { recordar: !telefono })} />
+    {...(dosColumnas ? { clave: 'arbrain.dia.franja-abierta-dos-columnas', abiertaInicial: true } : entero ? { encima: true } : { recordar: !telefono })} />
 
   // Pantalla completa (24 oct 2026, «lo importante al lado izquierdo» y la agenda a la derecha, sin scroll); la franja va encima de las
   // dos columnas (25 oct 2026).
@@ -254,7 +265,7 @@ export function DiaVivo({ goals, guardarObjetivo, onDescripcion, donde, leyenda,
     <div className={d.pieHabitos}>{habitos}</div>
   </section>
 
-  return <section className={d.dia} data-compacta aria-label={etiqueta}>
+  return <section className={d.dia} data-compacta data-entero={entero || undefined} aria-label={etiqueta}>
     {franja}
     {chips}
     {agendaMini}

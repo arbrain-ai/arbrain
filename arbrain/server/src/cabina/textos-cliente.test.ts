@@ -98,11 +98,11 @@ describe('Cabina en la edición cliente', () => {
   it('panel secciones: solo las del alumno (con Tu negocio y Business Intelligence); nombrar otra es error y la lista no enseña las ocultas', async () => {
     const t = await cargar('cliente')
     const leer = await t.ejecutarCabina('panel', { accion: 'secciones' })
-    expect(leer.text).toMatch(/«\+» muestra, en este orden: Calendario, Lienzo, Negocio, Estrategia, Business Intelligence, Archivos, Taller\. Ocultas: ninguna\./)
+    expect(leer.text).toMatch(/«\+» muestra, en este orden: Calendario, Lienzo, Negocio, Estrategia, Business Intelligence, Archivos, Extensiones, Taller\. Ocultas: ninguna\./)
     expect(leer.text).not.toMatch(PROHIBIDO)
     const mal = await t.ejecutarCabina('panel', { accion: 'secciones', ocultar: ['Finanzas'] })
     expect(mal.error).toBe(true)
-    expect(mal.text).toMatch(/no es una sección del «\+» en esta edición\. Son: Calendario, Lienzo, Negocio, Estrategia, Business Intelligence, Archivos, Taller\./)
+    expect(mal.text).toMatch(/no es una sección del «\+» en esta edición\. Son: Calendario, Lienzo, Negocio, Estrategia, Business Intelligence, Archivos, Extensiones, Taller\./)
     const ok = await t.ejecutarCabina('panel', { accion: 'secciones', ocultar: ['Taller'] })
     expect(ok.text).toMatch(/ocultó Taller/)
     expect(ok.text).not.toMatch(PROHIBIDO)

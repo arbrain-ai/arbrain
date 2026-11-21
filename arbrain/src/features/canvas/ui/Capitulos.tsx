@@ -58,6 +58,9 @@ interface Props {
   plegado: boolean
   onPlegar: (plegado: boolean) => void
   onIr: (i: number) => void
+  /** Lienzo v17: el modo recorrido (el lienzo como clase) y su botón ▶ en el minipanel. */
+  recorrido?: boolean
+  onRecorrido?: () => void
   onTema: (k: number) => void
   onTodo: () => void
 }
@@ -282,7 +285,7 @@ function Barra({ activo, temas, tema, theme: t, angosto, onTema, abajo, izquierd
   )
 }
 
-function Panel({ capitulos, activo, temas, tema, theme: t, angosto, plegado, onPlegar, onIr, onTodo, abajo, margen }:
+function Panel({ capitulos, activo, temas, tema, theme: t, angosto, plegado, onPlegar, onIr, onTodo, onRecorrido, abajo, margen }:
   Props & { abajo: string; margen: number }) {
   const e = estilos(t)
   const enTemas = temas.length > 0
@@ -369,6 +372,14 @@ function Panel({ capitulos, activo, temas, tema, theme: t, angosto, plegado, onP
           <button onClick={onTodo} title={tr('Vista completa (Esc)')} aria-label={tr('Vista completa')}
             style={{ ...iconoBoton, background: activo == null ? e.tenue : 'transparent', color: activo == null ? t.text.title : t.text.caption }}>
             <IconoTodo />
+          </button>
+        )}
+        {onRecorrido && (
+          <button data-recorrido-boton onClick={onRecorrido} title={tr('Recorrido: el lienzo como clase (⇧P · ← → · Esc)')} aria-label={tr('Empezar el recorrido')}
+            style={{ ...iconoBoton, color: ORO }}>
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
+              <path d="M3.5 2.2v7.6L9.6 6z" fill="currentColor" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+            </svg>
           </button>
         )}
         <button onClick={() => onPlegar(true)} title={tr('Plegar')} aria-label={tr('Plegar los capítulos')} aria-expanded style={iconoBoton}>

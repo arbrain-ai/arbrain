@@ -33,6 +33,8 @@ import { MENSAJE_PAUSA, pausado } from './cliente/pausa.js'
 import { cercaEspejo, derivarEspejo } from './cliente/espejo.js'
 import { colaActiva, colaDelDaemon, DERIVAR_TRAS_MS, type ColaMemoria } from './cliente/cola-memoria.js'
 import { iniciarNowAlumno, type RelojNow } from './cliente/now-alumno.js'
+import { esTareaExtension, ErrorTareaExtension, type Corrida } from './extensiones/tareas.js'
+import { corridaDelDaemon } from './extensiones/daemon.js'
 
 let schedulerInterval: ReturnType<typeof setInterval> | null = null
 
@@ -113,6 +115,24 @@ export function computeNextRun(cronExpression: string): number {
 }
 
 /**
+ * Ventana del restart guard (15 nov 2026). Antes era fija de 30 min y tumbaba las rutinas de menos de una hora: el pulso
+ * del cuartel (HH:07 y HH:37) se saltaba una sí y una no porque arranca unos segundos tarde, y las de cada 5 y 10 min
+ * corrían cada 30. Ahora es la mitad del periodo de la rutina, con piso de 1 min y techo de 30 min (las de una hora o
+ * más quedan igual que siempre).
+ */
+export function ventanaReinicio(cronExpression: string): number {
+  try {
+    const it = parseExpression(cronExpression, { tz: CRON_TZ })
+    const a = it.next().getTime()
+    const b = it.next().getTime()
+    const periodo = Math.floor((b - a) / 1000)
+    return Math.max(60, Math.min(1800, Math.floor(periodo / 2)))
+  } catch {
+    return 1800
+  }
+}
+
+/**
  * Ejecuta UN cron job end-to-end con instrumentación completa. Compartido por
  * el scheduler (corridas programadas) y el run manual del HTTP bridge
  * (/schedule/:id/run) — así TODA corrida deja el mismo rastro:
@@ -132,7 +152,13 @@ export async function executeCronJob(task: ScheduledTask, opts?: { manual?: bool
     let text: string
     let usage: AgentUsage | undefined
     // Edición cliente: ningún script de Daniel (python3/bash) aunque una tarea del alumno se llame igual.
-    const rawScript = esEdicionCliente() ? undefined : RAW_SCRIPT_JOBS[task.id]
+    // Extensiones (21 nov 2026, SPEC de extensiones §1.2): `ext-<extension>--<tarea>` corre el script que declara la
+    // versión INSTALADA hoy, sin agente y con un entorno mínimo (extensiones/tareas.ts). Vale en las dos ediciones: la dio
+    // de alta el dueño al instalarla desde la tienda, con su «Sí».
+    const corridaExt: Corrida | null = esTareaExtension(task.id) ? corridaDelDaemon(task.id) : null
+    const rawScript = corridaExt
+      ? { cmd: corridaExt.cmd, args: corridaExt.args, timeoutMs: corridaExt.timeoutMs }
+      : esEdicionCliente() ? undefined : RAW_SCRIPT_JOBS[task.id]
     // Idioma (13 nov 2026): el error queda en la pestaña Rutinas y en el aviso al teléfono tal cual, así que sale ya traducido.
     if (!rawScript && faltaLlaveClaude()) throw new Error(tr(MENSAJE_FALTA_LLAVE))
     // Motor «Mi Claude Code»: el plan de la persona es para su uso directo; las rutinas en segundo plano no lo gastan.
@@ -153,7 +179,9 @@ export async function executeCronJob(task: ScheduledTask, opts?: { manual?: bool
       // Script directo: sin capa de agente externa no hay OAuth/limits/timeout ajenos.
       const { stdout, stderr } = await execFileAsync(
         rawScript.cmd, rawScript.args,
-        { timeout: rawScript.timeoutMs, cwd: REPO_ROOT, maxBuffer: 10 * 1024 * 1024, env: configuredCronEnvironment() },
+        corridaExt
+          ? { timeout: rawScript.timeoutMs, cwd: corridaExt.cwd, maxBuffer: 10 * 1024 * 1024, env: corridaExt.env }
+          : { timeout: rawScript.timeoutMs, cwd: REPO_ROOT, maxBuffer: 10 * 1024 * 1024, env: configuredCronEnvironment() },
       ).catch((e: Error & { stdout?: string; stderr?: string; code?: number }) => {
         throw new Error(e.stderr?.trim()?.slice(0, 500) || e.stdout?.trim()?.slice(-500) || `script failed: ${e.message}`)
       })
@@ -244,6 +272,12 @@ export async function executeCronJob(task: ScheduledTask, opts?: { manual?: bool
     await autoCommitCronChanges(task.id)
   } catch (err) {
     logger.error({ err, taskId: task.id }, 'scheduled task error')
+    // Extensión quitada (o versión que ya no declara la tarea): la fila sobra; se borra y no se vuelve a intentar.
+    if (err instanceof ErrorTareaExtension && err.sobra) {
+      deleteTask(task.id)
+      opsLogger.log('cron_error', 'cron', { jobId: task.id, error: String(err), manual, borrada: true })
+      return
+    }
     // Firma Metabolismo (instrumentacion:costo-crons): el usage ya calculado por
     // runAgent NO se descarta en error — se propaga a los 3 canales igual que
     // en el happy path (antes se perdía aunque existía una línea arriba).
@@ -400,17 +434,18 @@ export async function runDueTasks(): Promise<void> {
 
       // Guard 2: CLAIM ATOMICO contra la fila FRESCA (no el snapshot).
       // Solo gana quien encuentre la tarea aun vencida Y sin correr en los
-      // ultimos 30 min (restart guard). Si otro pase ya la reclamo, changes=0.
+      // ultimos ventanaReinicio(schedule) segundos (restart guard: mitad del periodo, tope 30 min). Si otro pase ya la
+      // reclamo, changes=0.
       const claimed = getDb().prepare(
         `UPDATE scheduled_tasks SET next_run = ?, last_run = ?
          WHERE id = ? AND status = 'active' AND next_run <= ?
            AND (last_run IS NULL OR last_run <= ?)`
-      ).run(nextRun, nowEpoch, task.id, nowEpoch, nowEpoch - 1800)
+      ).run(nextRun, nowEpoch, task.id, nowEpoch, nowEpoch - ventanaReinicio(task.schedule))
 
       if (claimed.changes === 0) {
         if (enCola) cola?.soltar(enCola, 'otra corrida la reclamó')
         // Perdio el claim: o ya la corrio/reclamo otro pase, o corrio hace
-        // <30 min (restart guard). Si sigue vencida, avanzar next_run para
+        // dentro de su ventana (restart guard). Si sigue vencida, avanzar next_run para
         // que no quede atorada en el backlog.
         const advanced = getDb().prepare(
           'UPDATE scheduled_tasks SET next_run = ? WHERE id = ? AND next_run <= ?'

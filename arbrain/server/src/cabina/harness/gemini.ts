@@ -3,6 +3,7 @@
  * sesión fijada por Levy (`--session-id <uuid>`) y se reanuda con `-r <uuid>`. `--skip-trust` evita el diálogo de
  * confiar en la carpeta. Sin modelo explícito («auto») la petición falló con «fetch failed»: va uno fijo.
  * La credencial de la casa es GOOGLE_API_KEY; el CLI la quiere como GEMINI_API_KEY.
+ * 18 nov 2026: por defecto Gemini 4 Hydrogen (2.5 Flash quedó retirado el 2 nov); con la llave de AI Studio corre en su plan gratis.
  */
 import { json, modeloSimple, num, obj, str, type Adaptador, type Evento, type Permisos } from './tipos.js'
 import { posicional } from './claude.js'
@@ -15,7 +16,7 @@ const modelo = (m: string | null) => m ? ['-m', m] : []
 export const gemini: Adaptador = {
   nombre: 'gemini',
   binario: 'gemini',
-  modeloDefault: env => env('CABINA_MODELO_GEMINI') || 'gemini-2.5-flash',
+  modeloDefault: env => env('CABINA_MODELO_GEMINI') || 'gemini-4-hydrogen',
   modeloOk: modeloSimple,
   recibeEsfuerzo: false,
   sesionPropia: true,

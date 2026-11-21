@@ -6,8 +6,12 @@ import type { AudioEngine } from '@/features/command-center/lib/audio-engine'
 import type { LoopStatus } from '@/features/command-center/hooks/useVoiceLoop'
 import { align, Calibrador, energyAt, features, timelineMs, type Timeline } from '@/features/chat/lib/levy-lipsync'
 import { fonemas, palabras, pesosAtlas, pista, type Pista } from '@/features/chat/lib/levy-visemas'
+import { canalesEn, esAtlasCanales, pesosCanales, pistaBoca, type PistaBoca } from '@/features/chat/lib/levy-boca'
 import { frasesDe, MovimientoVivo } from '@/features/chat/lib/levy-movimiento'
-import { levyVivoActivo } from '@/features/chat/lib/levy-vivo'
+import { cabezaLPActiva, levyVivoActivo } from '@/features/chat/lib/levy-vivo'
+import { cajaCuerpo, cssMatriz, CuerpoVivo, derivaCamara, MEDIO_CABEZA, MEDIO_CUERPO, MEDIO_FONDO, MEDIO_MATE, RETRATO_EN_CUERPO, transformCuerpo } from '@/features/chat/lib/levy-medio'
+import { clipDeseado, ClipsVivos, CLIPS_URL, type Manifiesto } from '@/features/chat/lib/levy-clips'
+import { BRAZOS_URL, BrazosVivos, type ManifiestoBrazos } from '@/features/chat/lib/levy-brazos'
 import { Retrato } from '@/shared/components/Retrato'
 import { alCambiarEstado, estadoVentana } from '@/shared/lib/reposo'
 
@@ -49,7 +53,9 @@ type Rig = {
   _breathEv: unknown
   /** rig.js (Levy vivo): manifiesto del atlas cuando cargó, y gestos sumados desde fuera. */
   atlas?: { teselas: string[] } | null
-  extra: { headShift?: [number, number]; headRot?: number; parallax?: [number, number]; brow?: [number, number]; blink?: number } | null
+  extra: { headShift?: [number, number]; headRot?: number; parallax?: [number, number]; brow?: [number, number]; blink?: number; cabeza?: [number, number] } | null
+  /** rig.js (atlas de cabeza, prueba): manifiesto cuando cargó (rejilla de giro × inclinación en grados). */
+  cabeza?: { yaw: number[]; pitch: number[] } | null
   emotion: (name: string, options?: { blendWith: string; amount: number }) => void
   pulse: (channel: string, amp: number, dur: number) => void
   set: (name: string, value: unknown) => void
@@ -61,12 +67,23 @@ type Rig = {
   fpsMax: number
   despertar: () => void
 }
-type RigModule = { Rig: new (canvas: HTMLCanvasElement, options: { base: string; geo?: unknown; capas?: { giro?: boolean; cerrado?: boolean; boca?: boolean; brilloOjos?: boolean; cavidadPareja?: boolean; respiracion?: number; torso?: number; atlas?: string } }) => Rig; textToVisemes: (text: string) => Timeline }
+type RigModule = { Rig: new (canvas: HTMLCanvasElement, options: { base: string; geo?: unknown; capas?: { giro?: boolean; cerrado?: boolean; boca?: boolean; brilloOjos?: boolean; cavidadPareja?: boolean; respiracion?: number; torso?: number; atlas?: string; mate?: string; cabeza?: string } }) => Rig; textToVisemes: (text: string) => Timeline }
 type GeometryModule = { default: unknown }
 type Visemes = { textToVisemes: (text: string) => Timeline & { words?: string[] } }
 
+/** Boca de los videos en Live: lo que se pinta en este cuadro se ve en el siguiente refresco (60 Hz). */
+const PANTALLA_S = 1 / 60
 /** Levy vivo: del movimiento del 3D (rad, ceja 0..1) al rig 2D (px de la rejilla de 1080, rad, parallax, ceja del rig). */
 const GANANCIA = { asiente: 60, inclina: 1.5, ladeo: 0.6, giro: 6, ceja: 1.4 }
+/** Atlas de cabeza (prueba): del 3D (grados) a la pose de LivePortrait. El giro del 3D es casi solo ruido (±1°): ×2,5. */
+const GANANCIA_LP = { giro: 2.5, inclina: 1.0 }
+const MEDIO_CABEZA_LP = 'medio/cabeza/cabeza.json'
+/** Grados → coordenada fraccionaria en una rejilla de valores crecientes (fuera de rango, el borde). */
+function indiceRejilla(vals: number[], x: number): number {
+  if (x <= vals[0]) return 0
+  for (let i = 0; i < vals.length - 1; i++) if (x <= vals[i + 1]) return i + (x - vals[i]) / (vals[i + 1] - vals[i])
+  return vals.length - 1
+}
 
 /** Qué cara pone cada estado. El reposo es el retrato tal cual: la meta es el PNG, no una mueca. */
 const CARA_DE: Record<LoopStatus, [string, { blendWith: string; amount: number }?]> = {
@@ -92,7 +109,9 @@ export function LevyFace({ className = '', status = 'idle', engineRef, segmentsR
    *  prop, manda la bandera `levyVivo` como antes (el sello del chat y el Command Center no cambian). */
   vivo?: boolean
   className?: string
-  framing?: 'portrait' | 'camera'
+  /** `medio` (18 nov 2026, «como en YouTube»): plano medio con el cuerpo y el estudio de los videos. Solo Levy con la cara de los
+   *  videos lo tiene; los demás caen al encuadre `camera`. */
+  framing?: 'portrait' | 'camera' | 'medio'
   voiceRef?: RefObject<LivePcmPlayer | null>
   status?: LoopStatus
   engineRef?: RefObject<AudioEngine | null>
@@ -102,10 +121,22 @@ export function LevyFace({ className = '', status = 'idle', engineRef, segmentsR
   // Bandera Levy vivo: se lee al montar (localStorage), nunca en el servidor; apagada todo queda como antes.
   const [banderaVivo, setBanderaVivo] = useState(false)
   useEffect(() => { setBanderaVivo(levyVivoActivo()) }, [])
+  // Atlas de cabeza (prueba, apagada): la cabeza gira e inclina con campos de LivePortrait en vez del parallax de profundidad.
+  const [cabezaLP, setCabezaLP] = useState(false)
+  useEffect(() => { setCabezaLP(cabezaLPActiva()) }, [])
   const vivoOn = vivoPedido ?? banderaVivo
   const vivo = vivoOn ? cara.vivo ?? null : null
   const retrato = vivo?.retrato ?? cara.retrato
+  // Plano medio: la cabeza viva (rig con opacidad) sobre el cuerpo de los videos, en el estudio del canal.
+  const medio = framing === 'medio' && agent === 'levy' && !!vivo
+  const encuadre: 'portrait' | 'camera' | 'medio' = medio ? 'medio' : framing === 'medio' ? 'camera' : framing
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const figuraRef = useRef<HTMLDivElement>(null)
+  const clipRef = useRef<HTMLCanvasElement>(null)
+  const brazosRef = useRef<HTMLCanvasElement>(null)
+  const cuerpoRef = useRef<HTMLImageElement>(null)
+  const fondoRef = useRef<HTMLImageElement>(null)
+  const ladoRef = useRef(0)
   const statusRef = useRef(status)
   const despertarRef = useRef<(() => void) | null>(null)
   const [ready, setReady] = useState(false)
@@ -122,17 +153,29 @@ export function LevyFace({ className = '', status = 'idle', engineRef, segmentsR
   // Pantalla completa sin recortar el retrato: el cuadro se ve entero y a los lados sigue el propio
   // borde del arte, estirado y desvanecido hacia el fondo, sin una costura donde termina el cuadrado.
   useEffect(() => {
-    if (framing !== 'camera') return
+    if (encuadre !== 'camera') return
     let vivo = true
     void ambienteDe(retrato).then(url => { if (vivo) setAmbiente(url) }).catch(() => {})
     return () => { vivo = false }
-  }, [framing, retrato])
+  }, [encuadre, retrato])
+
+  // Plano medio: el lado de la caja del cuerpo en px (la transformación de cada cuadro va en la rejilla de 1024 del cuerpo).
+  useEffect(() => {
+    const el = figuraRef.current
+    if (!medio || !el) return
+    ladoRef.current = el.clientWidth
+    const ro = new ResizeObserver(([e]) => { ladoRef.current = e.contentRect.width })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [medio])
 
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
     let alive = true
     let rig: Rig | undefined
+    let clips: ClipsVivos | null = null
+    let brazos: BrazosVivos | null = null
     let frame = 0
     const motion = window.matchMedia('(prefers-reduced-motion: reduce)')
     let lastPointer = -1e9, pointer: [number, number] = [0, 0]
@@ -154,6 +197,8 @@ export function LevyFace({ className = '', status = 'idle', engineRef, segmentsR
       cancelAnimationFrame(frame); clearTimeout(espera)
       bajaReposo(); bajaReposo = () => {}; despertarRef.current = null
       window.removeEventListener('pointermove', onPointer)
+      if (clips) { clips.dispose(); clips = null; canvas.style.visibility = ''; if (clipRef.current) clipRef.current.style.visibility = '' }
+      if (brazos) { brazos.dispose(); brazos = null; if (brazosRef.current) brazosRef.current.style.visibility = ''; if (cuerpoRef.current) cuerpoRef.current.style.visibility = '' }
       if (rig) { rig.speech = null; rig.dispose(); rig = undefined }
       setReady(false)
     }
@@ -162,19 +207,44 @@ export function LevyFace({ className = '', status = 'idle', engineRef, segmentsR
       if (!alive || motion.matches) return
       // El sello del chat vacío (44 px) no compite con el primer pintado: el retrato ligero ya está puesto y el
       // rig (código + texturas, ~3 MB) entra cuando la página terminó de cargar y el navegador está libre.
-      if (framing === 'portrait') await despuesDeCargar()
+      if (encuadre === 'portrait') await despuesDeCargar()
       if (!alive || motion.matches) return
       try {
-        const [module, visemes, geometry] = await Promise.all([
+        const [module, visemes, geometry, manifiesto, gestosBrazos] = await Promise.all([
           importUrl(`${cara.base}/rig/rig.js`), importUrl<Visemes>(`${cara.base}/rig/visemes.js`), importUrl<GeometryModule>(`${cara.base}/rig/geometry.js`),
+          medio ? fetch(`${CLIPS_URL}/clips.json`).then(r => (r.ok ? r.json() as Promise<Manifiesto> : null)).catch(() => null) : null,
+          medio ? fetch(`${BRAZOS_URL}/gestos.json`).then(r => (r.ok ? r.json() as Promise<ManifiestoBrazos> : null)).catch(() => null) : null,
         ])
         if (!alive || motion.matches || rig) return
-        rig = new module.Rig(canvas, { base: cara.base, geo: { ...(geometry.default as object), art: vivo?.arte ?? cara.arte }, capas: vivo ? { ...CAPAS, atlas: vivo.atlas } : CAPAS })
+        // Plano medio: el lienzo es solo la cabeza (opacidad de los videos, mate.png) y el cuerpo respira entero por fuera, rígido;
+        // sin `torso` el cuello del rig no se desliza contra el cuello del cuerpo en la costura.
+        rig = new module.Rig(canvas, { base: cara.base, geo: { ...(geometry.default as object), art: vivo?.arte ?? cara.arte }, capas: vivo ? { ...CAPAS, atlas: vivo.atlas, ...(medio ? { mate: MEDIO_MATE, torso: 0 } : {}), ...(cabezaLP ? { cabeza: MEDIO_CABEZA_LP } : {}) } : CAPAS })
         ;(canvas as HTMLCanvasElement & { __rig?: Rig }).__rig = rig   // el banco de pruebas lee rig.params
         // La superficie es dueña de la mirada: el puntero manda cuando se mueve, y quieto la mirada
         // regresa a ti (contacto visual), en vez de quedarse clavada en el cuadro de texto.
         rig.pointerLock = true
         window.addEventListener('pointermove', onPointer, { passive: true })
+        // Plano medio: los clips de la cara completa para escuchar y pensar (levy-clips.ts). Se cortan con el rig solo en
+        // cuadros neutros; sin clips (o sin requestVideoFrameCallback) se queda el rig de siempre.
+        const lienzoClip = clipRef.current, figura0 = figuraRef.current
+        if (medio && manifiesto && lienzoClip && figura0) {
+          try {
+            clips = new ClipsVivos(lienzoClip, manifiesto, figura0)
+            clips.onVisible = (v) => { lienzoClip.style.visibility = v ? 'visible' : 'hidden'; canvas.style.visibility = v ? 'hidden' : 'visible' }
+            ;(canvas as HTMLCanvasElement & { __clips?: ClipsVivos }).__clips = clips   // el banco de pruebas lee los cortes
+          } catch (error) { console.warn('[LevyFace] sin clips:', error); clips = null }
+        }
+        // Plano medio: los gestos de brazos del catálogo de los videos (levy-brazos.ts); el cuerpo estático y el clip se cambian en
+        // el reposo, que es el mismo en los dos.
+        const lienzoBrazos = brazosRef.current, cuerpoImg = cuerpoRef.current
+        if (medio && gestosBrazos && lienzoBrazos && cuerpoImg && figura0) {
+          try {
+            brazos = new BrazosVivos(lienzoBrazos, gestosBrazos, figura0)
+            brazos.onVisible = (v) => { lienzoBrazos.style.visibility = v ? 'visible' : 'hidden'; cuerpoImg.style.visibility = v ? 'hidden' : 'visible' }
+            ;(canvas as HTMLCanvasElement & { __brazos?: BrazosVivos }).__brazos = brazos
+          } catch (error) { console.warn('[LevyFace] sin gestos de brazos:', error); brazos = null }
+        }
+        let clipDesde = 0
         let lastStatus: LoopStatus | undefined
         let lastCara: LoopStatus | undefined
         let statusSince = 0
@@ -188,7 +258,10 @@ export function LevyFace({ className = '', status = 'idle', engineRef, segmentsR
         let pensar = { hasta: 0, fuera: false, lado: cara.lado as number }
         // Levy vivo: el movimiento del 3D (cabeza, cejas, parpadeo ~15/min) con el reloj real, frase a frase.
         const mov = vivo ? new MovimientoVivo() : null
-        const frases = new WeakMap<VoiceTrack, { id: string; chars: number }>()
+        // Plano medio: los gestos de cuerpo del catálogo de los videos que caben en una imagen rígida (inclinarse, énfasis).
+        const cuerpo = medio ? new CuerpoVivo() : null
+        let cabeza3d: ReturnType<MovimientoVivo['tick']> | null = null
+        const frases = new WeakMap<VoiceTrack, { id: string; chars: number; rev: number }>()
         let nFrase = 0
         // Eficiencia (6 oct 2026): la cara pintaba 60 cuadros por segundo siempre, también con la app en segundo
         // plano. Quieta y con la app sin foco (u oculta) se duerme del todo; quieta y a la vista, el sello del chat
@@ -208,19 +281,38 @@ export function LevyFace({ className = '', status = 'idle', engineRef, segmentsR
           if (!alive || !rig) return
           if (rig.ready) setReady(true)
           const now = performance.now()
-          const quieta = statusRef.current === 'idle' && !voz && !voiceRef?.current?.position?.track && !rig.speech
+          // El banco de pruebas puede fijar el estado (canvas.__estado) para ver escuchar y pensar sin mandar nada al chat.
+          const estado = (canvas as HTMLCanvasElement & { __estado?: LoopStatus }).__estado ?? statusRef.current
+          const quieta = estado === 'idle' && !voz && !voiceRef?.current?.position?.track && !rig.speech
             && now - lastSpeechEnd > 2500 && now - lastPointer > 2600
           const ventana = estadoVentana()
-          if (ventana === 'oculta' || (ventana === 'sin-foco' && quieta)) { rig.pausado = true; dormida = true; return }
-          const tope = framing === 'portrait' && quieta
+          if (ventana === 'oculta' || (ventana === 'sin-foco' && quieta)) { clips?.dormir(); brazos?.dormir(); rig.pausado = true; dormida = true; return }
+          const tope = encuadre === 'portrait' && quieta
           rig.fpsMax = tope ? 30 : 0
           // Entre cláusulas Live pasa ~60 ms por «pensando» (no hay audio sonando). Sin esta retención la cara
           // saltaba a pensar, subía la ceja y desviaba la mirada a media respuesta (trace iter-25, +0.5 s).
           const hablandoHace = now - Math.max(lastSpeechEnd, voz ? now : -1e9)
-          const state: LoopStatus = statusRef.current === 'thinking' && hablandoHace < 1500 ? 'speaking' : statusRef.current
+          const state: LoopStatus = estado === 'thinking' && hablandoHace < 1500 ? 'speaking' : estado
+          // ---- clips (plano medio) ----
+          // Escuchar y pensar con la cara completa horneada; ninguno mientras haya voz sonando, encargada (aparece en
+          // `timings` antes de sonar) o recién terminada. Antes de entrar, el rig se queda 350 ms en la pose del retrato y
+          // sin parpadeo a medias: el primer cuadro del clip es ese mismo retrato.
+          let enClip = false
+          if (clips) {
+            const v = voiceRef?.current
+            const pendiente = !!v?.timings?.some(t => t.firstSoundAt == null && !t.failed)
+            const deseado = clipDeseado({ estado: state, vozActiva: pendiente || !!v?.position?.track || !!voz || now - lastSpeechEnd < 800 })
+            // en el descanso entre vueltas (levy-clips.ts) el rig hace su propio gesto; al volver, otra vez 350 ms en el retrato
+            const descansa = clips.descansando
+            if (!deseado || descansa) clipDesde = 0; else if (!clipDesde) clipDesde = now
+            const parpado = rig.params.blink as number[] | undefined
+            clips.pedir(deseado, !!clipDesde && now - clipDesde > 350 && (parpado ? Math.max(parpado[0] ?? 0, parpado[1] ?? 0) : 0) < 0.04)
+            enClip = (!!deseado && !descansa) || clips.ocupado
+          }
           // Al cerrar la respuesta se queda ~2.5 s con la calidez del habla (sonrisa mínima) y luego vuelve al
-          // retrato: terminar de hablar y quedar en neutro de golpe se lee frío.
-          const gesto: LoopStatus = state === 'idle' && hablandoHace < 2500 ? 'speaking' : state
+          // retrato: terminar de hablar y quedar en neutro de golpe se lee frío. Con un clip, el rig (escondido) se queda en el
+          // retrato: neutro y mirándote, para que el corte de vuelta no salte.
+          const gesto: LoopStatus = enClip ? 'idle' : state === 'idle' && hablandoHace < 2500 ? 'speaking' : state
           if (gesto !== lastCara) {
             lastCara = gesto
             const [nombre, mezcla] = CARA_DE[gesto] ?? CARA_DE.idle
@@ -256,6 +348,7 @@ export function LevyFace({ className = '', status = 'idle', engineRef, segmentsR
             mirada = moviendo ? pointer : [0, 0]
           }
           rig.mouse = mirada
+          if (enClip) { rig.mouse = [0, 0]; rig.life.mouseIdle = 0; contactoVisual(rig) }
           // Contacto visual sostenido tras una pausa o al terminar: anula por un momento el desvío de mirada
           // espontáneo (la mirada sigue con sus microsacadas porque solo se fija el objetivo, no el ojo).
           if (now < miradaHasta && state !== 'thinking') { rig.mouse = moviendo ? pointer : [0, 0]; rig.life.mouseIdle = 0; (rig.life as { avertS?: { clock: number } }).avertS && contactoVisual(rig) }
@@ -297,19 +390,37 @@ export function LevyFace({ className = '', status = 'idle', engineRef, segmentsR
                 // Ojos al hablar iguales que en reposo (juez iter-04): sin ceja de fondo y con medio acento.
                 browSpeak: 0,
                 get browPulse() { return vivo || (arranque && holder.elapsed < 0.3) ? 0 : 0.5 },
-                // Levy vivo: con la alineación de ElevenLabs la boca son los campos del atlas, en el segundo de audio que
+                // Levy vivo: con la alineación por carácter la boca son los campos del atlas, en el segundo de audio que
                 // suena (holder.elapsed, ya calibrado). La pista se rehace si llega más alineación o más audio.
+                // 18 nov: con el atlas POR CANALES (atlas.json v2) la boca es la de los VIDEOS (levy-boca.ts, puerto de
+                // boca_nueva.py): fonemas → abre, ancho, redondo, cierra → teselas de la rejilla horneada con LivePortrait.
                 pesosAtlas: vivo ? (teselas: string[]) => {
                   const al = track.alineacion
                   if (!al?.chars.length) return null
                   const f = features(track)
-                  if (!cache || cache.chars !== al.chars.length || (f.frames - cache.frames > 50)) {
-                    cache = { chars: al.chars.length, frames: f.frames, pista: pista(fonemas(al, { rms: f.rms, frames: f.frames }), Math.max(f.frames / 100, al.ends[al.ends.length - 1] + 0.3)) }
+                  const dur = Math.max(f.frames / 100, al.ends[al.ends.length - 1] + 0.3)
+                  const man = rig?.atlas
+                  if (esAtlasCanales(man)) {
+                    if (!cacheBoca || cacheBoca.chars !== al.chars.length || cacheBoca.rev !== (al.rev ?? 0) || (f.frames - cacheBoca.frames > 25)) {
+                      cacheBoca = { chars: al.chars.length, rev: al.rev ?? 0, frames: f.frames, pista: pistaBoca(al, { rms: f.rms, frames: f.frames }, dur) }
+                    }
+                    // La hora de la voz se lee AL PINTAR (el rig puede pintar antes que este tick: con holder.elapsed la boca iba
+                    // ~15 ms tarde, medido el 18 nov) y se adelanta un cuadro de pantalla: lo que se pinta ahora se ve en el
+                    // siguiente refresco. Es lo que hace el video, cuyo cuadro muestra la boca del centro de su intervalo.
+                    const pos = voiceRef?.current?.position
+                    const ahora = pos?.track === track ? pos.elapsed + calibrador.offset : holder.elapsed
+                    const c = canalesEn(cacheBoca.pista, ahora + PANTALLA_S)
+                    ;(rig as Rig & { __canales?: unknown }).__canales = c   // el banco de pruebas lee lo que pidió la boca
+                    return pesosCanales(c, man)
+                  }
+                  if (!cache || cache.chars !== al.chars.length || cache.rev !== (al.rev ?? 0) || (f.frames - cache.frames > 50)) {
+                    cache = { chars: al.chars.length, rev: al.rev ?? 0, frames: f.frames, pista: pista(fonemas(al, { rms: f.rms, frames: f.frames }), dur) }
                   }
                   return pesosAtlas(cache.pista, holder.elapsed, teselas)
                 } : undefined,
               }
-              let cache: { chars: number; frames: number; pista: Pista } | null = null
+              let cache: { chars: number; rev: number; frames: number; pista: Pista } | null = null
+              let cacheBoca: { chars: number; rev: number; frames: number; pista: PistaBoca } | null = null
 
               rig.speakTimeline(utt)
               // Una toma de aire por arranque de habla, no una por cláusula: entre cláusulas seguidas no se respira.
@@ -334,13 +445,13 @@ export function LevyFace({ className = '', status = 'idle', engineRef, segmentsR
             if (mov && al?.chars.length) {
               const tr = position.track
               let fr = frases.get(tr)
-              if (!fr) { fr = { id: `f${nFrase++}`, chars: 0 }; frases.set(tr, fr) }
-              if (fr.chars !== al.chars.length) {
-                fr.chars = al.chars.length
+              if (!fr) { fr = { id: `f${nFrase++}`, chars: 0, rev: 0 }; frases.set(tr, fr) }
+              if (fr.chars !== al.chars.length || fr.rev !== (al.rev ?? 0)) {
+                fr.chars = al.chars.length; fr.rev = al.rev ?? 0
                 const energia = (a: number, b: number) => { let s = 0, n = 0; for (let t = a; t <= b; t += 0.01) { s += energyAt(tr, t)[0]; n++ } return n ? s / n : 0 }
                 // en frases de 1.5-3.5 s, como el 3D: cada idea su gesto (la cláusula de Live puede traer varias)
                 const t0 = now / 1000 - voz.elapsed
-                frasesDe(palabras(al)).forEach((f, k) => mov.frase(`${fr!.id}-${k}`, t0, f.texto, f.palabras, energia))
+                frasesDe(palabras(al)).forEach((f, k) => { mov.frase(`${fr!.id}-${k}`, t0, f.texto, f.palabras, energia); cuerpo?.frase(`${fr!.id}-${k}`, t0, f.palabras); brazos?.agenda.frase(`${fr!.id}-${k}`, t0, f.palabras, now / 1000) })
               }
             }
           } else if (voz) {
@@ -375,10 +486,27 @@ export function LevyFace({ className = '', status = 'idle', engineRef, segmentsR
             // Del 3D al rig 2D, como deformación: asentir = la cabeza baja unos px y su profundidad se inclina; ladeo =
             // rotación en el cuello; giro = parallax de profundidad (giro: false sigue, no hay vista ¾ fundida).
             const g = mov.tick(now / 1000)
+            cabeza3d = g
             const inc = g.cabeceo + g.inclina
             // Ganancias medidas con el juez por píxel de v3 sobre la captura (vivo/LEEME.md): la ceja de Levy vive pegada al
             // párpado: el acento se topa en 0.8 (más abre el ojo de sorpresa; hoja de cejas en vivo/hojas).
-            rig.extra = { headShift: [0, inc * GANANCIA.asiente], headRot: g.ladeo * GANANCIA.ladeo, parallax: [g.giro * GANANCIA.giro, inc * GANANCIA.inclina], brow: [Math.min(0.8, g.ceja * GANANCIA.ceja), Math.min(0.8, g.ceja * GANANCIA.ceja) * 0.94], blink: g.parpadeo }
+            const brow: [number, number] = [Math.min(0.8, g.ceja * GANANCIA.ceja), Math.min(0.8, g.ceja * GANANCIA.ceja) * 0.94]
+            const C = rig.cabeza
+            if (C) {
+              // atlas de cabeza (prueba): giro e inclinación del 3D como poses de LivePortrait; el ladeo sigue siendo la rotación del rig
+              rig.extra = { headShift: [0, 0], headRot: g.ladeo * GANANCIA.ladeo, parallax: [0, 0], brow, blink: g.parpadeo,
+                cabeza: [indiceRejilla(C.yaw, g.giro * 57.3 * GANANCIA_LP.giro), indiceRejilla(C.pitch, inc * 57.3 * GANANCIA_LP.inclina)] }
+            } else rig.extra = { headShift: [0, inc * GANANCIA.asiente], headRot: g.ladeo * GANANCIA.ladeo, parallax: [g.giro * GANANCIA.giro, inc * GANANCIA.inclina], brow, blink: g.parpadeo }
+          }
+          brazos?.tick(now / 1000)
+          const figura = figuraRef.current
+          if (medio && figura) {
+            // Plano medio: la figura entera (cuerpo y cabeza juntos, sin costura) respira con el rig, se balancea con la cabeza,
+            // se inclina o marca el énfasis con los gestos de cuerpo y lleva la cámara viva de los videos. Todo rígido.
+            const tt = now / 1000, c = cuerpo ? cuerpo.cuerpo(tt) : { escala: 1, dy: 0 }
+            figura.style.transform = cssMatriz(transformCuerpo({ t: tt, respira: Number(rig.params.breath ?? 0), ladeo: cabeza3d?.ladeo, giro: cabeza3d?.giro, escala: c.escala, dy: c.dy }), ladoRef.current)
+            const fondo = fondoRef.current
+            if (fondo) { const [dx, dy] = derivaCamara(tt), k = 0.15 * ladoRef.current / 1024; fondo.style.transform = `translate(${(dx * k).toFixed(2)}px,${(dy * k).toFixed(2)}px) scale(1.03)` }
           }
           // Con tope, este reloj también duerme entre cuadros (el rig pinta a 30; a 60 solo mantenía vivo el hilo).
           if (tope) espera = setTimeout(() => { frame = requestAnimationFrame(tick) }, 25)
@@ -395,9 +523,32 @@ export function LevyFace({ className = '', status = 'idle', engineRef, segmentsR
       alive = false
       stop()
     }
-  }, [engineRef, segmentsRef, voiceRef, motionRevision, cara, framing, vivo])
+  }, [engineRef, segmentsRef, voiceRef, motionRevision, cara, encuadre, vivo, medio, cabezaLP])
 
-  if (framing === 'camera') {
+  if (encuadre === 'medio') {
+    // Como en YouTube: el estudio de la rotación del canal, el cuerpo de los videos (torso y brazos en reposo, sin cabeza) y la
+    // cabeza viva del rig donde la pone el compositor de los videos. Antes de que cargue el rig, el retrato recortado en su sitio;
+    // al cargar se cambia de golpe, sin fundido (una sola cabeza por cuadro).
+    const caja = cajaCuerpo(), pct = (v: number) => `${(v * 100).toFixed(4)}%`
+    return (
+      <div className={`relative isolate overflow-hidden bg-[#140d08] [container-type:size] ${className}`} role="img" aria-label={cara.nombre} data-levy-face={ready ? 'animated' : 'portrait'} data-levy-encuadre="medio">
+        <img ref={fondoRef} src={MEDIO_FONDO} alt="" aria-hidden="true" draggable={false} className="absolute inset-0 size-full object-cover" style={{ transform: 'scale(1.03)' }} />
+        <div ref={figuraRef} aria-hidden="true" className="absolute [transform-origin:0_0] will-change-transform" style={{ '--u': caja.u, width: caja.lado, height: caja.lado, top: caja.top, left: caja.left } as React.CSSProperties}>
+          <img ref={cuerpoRef} src={MEDIO_CUERPO} alt="" draggable={false} className="absolute inset-0 size-full" />
+          {/* la cabeza va antes en el DOM (el primer canvas de la cara es el rig, como siempre) y encima por z-index */}
+          <div className="absolute z-[2]" style={{ left: pct(RETRATO_EN_CUERPO.x), top: pct(RETRATO_EN_CUERPO.y), width: pct(RETRATO_EN_CUERPO.lado), height: pct(RETRATO_EN_CUERPO.lado) }}>
+            <img src={MEDIO_CABEZA} alt="" draggable={false} className={`absolute inset-0 size-full ${ready ? 'opacity-0' : 'opacity-100'}`} />
+            <canvas key={motionRevision} ref={canvasRef} width={720} height={720} className={`absolute inset-0 size-full ${ready ? 'opacity-100' : 'opacity-0'}`} />
+            {/* clips de escuchar y pensar (levy-clips.ts): se ve este o el rig, nunca los dos */}
+            <canvas key={`clip-${motionRevision}`} ref={clipRef} width={720} height={720} className="invisible absolute inset-0 size-full" />
+          </div>
+          {/* gestos de brazos (levy-brazos.ts): se ve este o el cuerpo estático, nunca los dos; debajo de la cabeza */}
+          <canvas key={`brazos-${motionRevision}`} ref={brazosRef} width={1024} height={1024} className="invisible absolute inset-0 z-[1] size-full" />
+        </div>
+      </div>
+    )
+  }
+  if (encuadre === 'camera') {
     // El cuadro del retrato centrado a toda la altura (o a todo el ancho en vertical), con el ambiente
     // detrás. Imagen fija y lienzo comparten exactamente el mismo cuadro: no hay salto al cargar.
     return (

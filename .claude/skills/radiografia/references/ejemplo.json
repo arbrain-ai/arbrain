@@ -1,0 +1,152 @@
+{
+  "esquema": "arbrain.radiografia/v1",
+  "negocio": "Ferretería La Tuerca",
+  "giro": "ferretería de barrio que también surte a obras pequeñas",
+  "ejemplo": true,
+  "fecha": "2026-11-14",
+  "modo": "completa",
+  "moneda": "EUR",
+  "meta": {
+    "texto": "Pasar de 18,000 a 22,000 EUR de venta al mes en 3 meses sin contratar a nadie, y que la dueña deje de cerrar a las 10 de la noche cuadrando el Excel.",
+    "fuente": "primera sesión de la Radiografía"
+  },
+  "contexto": {
+    "que_vende": "Material de ferretería en mostrador y pedidos a obra",
+    "a_quien": "Vecinos del barrio y contratistas que compran cada semana",
+    "equipo": "La dueña, 2 personas en mostrador y 1 repartidor",
+    "herramientas": ["Excel", "WhatsApp", "libreta de pedidos", "terminal de cobro"]
+  },
+  "etapas": [
+    {
+      "etapa": "Adquisición",
+      "que_pasa": "Llegan por pasar por la calle y por recomendación de contratistas; la ficha de Google lleva un año sin actualizarse.",
+      "opera_hoy": true,
+      "ejecuta": ["dueño"],
+      "numero": {
+        "nombre": "Clientes nuevos por semana",
+        "valor": null,
+        "como_medirlo": "Preguntar en mostrador «¿cómo nos conociste?» y anotarlo en la libreta durante una semana."
+      }
+    },
+    {
+      "etapa": "Nutrición",
+      "que_pasa": "Los contratistas piden precios por WhatsApp; no hay catálogo ni lista de precios que se les mande.",
+      "opera_hoy": true,
+      "ejecuta": ["dueño"],
+      "numero": {
+        "nombre": "Cotizaciones pedidas por semana",
+        "valor": 35,
+        "fuente": "conteo del WhatsApp de la tienda",
+        "medido_en": "2026-11-13",
+        "ventana": "semana del 9 al 13 nov"
+      }
+    },
+    {
+      "etapa": "Conversión",
+      "que_pasa": "La dueña arma cada cotización a mano en Excel cuando tiene tiempo; tarda de 1 a 2 días y nadie da seguimiento.",
+      "opera_hoy": true,
+      "ejecuta": ["dueño"],
+      "numero": {
+        "nombre": "Cotizaciones que se vuelven venta",
+        "valor": "12 de 35",
+        "fuente": "libreta de pedidos contra WhatsApp",
+        "medido_en": "2026-11-13",
+        "ventana": "semana del 9 al 13 nov"
+      }
+    },
+    {
+      "etapa": "Bienvenida",
+      "que_pasa": "No existe: un contratista nuevo no recibe condiciones de crédito, horario de reparto ni lista de precios.",
+      "opera_hoy": false,
+      "ejecuta": ["mostrador"],
+      "numero": {
+        "nombre": "Contratistas nuevos que repiten en 30 días",
+        "valor": null,
+        "como_medirlo": "Anotar en el Excel la fecha del primer y del segundo pedido de cada contratista nuevo."
+      }
+    },
+    {
+      "etapa": "Entrega",
+      "que_pasa": "El repartidor sale con la lista escrita a mano; según él, 1 de cada 10 pedidos sale incompleto.",
+      "opera_hoy": true,
+      "ejecuta": ["repartidor", "mostrador"],
+      "numero": {
+        "nombre": "Pedidos que salen incompletos",
+        "valor": "1 de cada 10",
+        "fuente": "lo que contó el repartidor",
+        "medido_en": "2026-11-13"
+      }
+    },
+    {
+      "etapa": "Expansión",
+      "que_pasa": "Los contratistas vuelven solos; no se les avisa de ofertas ni se les pide que recomienden.",
+      "opera_hoy": true,
+      "ejecuta": ["dueño"],
+      "numero": {
+        "nombre": "Contratistas que compran cada semana",
+        "valor": 12,
+        "fuente": "libreta de pedidos",
+        "medido_en": "2026-11-13"
+      }
+    }
+  ],
+  "tareas_a_mano": [
+    {"id": "t1", "tarea": "Armar cotizaciones en Excel", "etapa": "Conversión", "quien": "dueña", "veces_semana": 35, "minutos": 12, "herramienta": "Excel y WhatsApp", "error": "precios viejos copiados de otra cotización", "fuente": "la dueña cronometró tres"},
+    {"id": "t2", "tarea": "Pasar pedidos de WhatsApp a la libreta", "etapa": "Entrega", "quien": "mostrador", "veces_semana": 40, "minutos": 4, "herramienta": "WhatsApp y libreta", "error": "cantidades mal copiadas", "fuente": "mostrador"},
+    {"id": "t3", "tarea": "Cuadrar caja y Excel al cierre", "etapa": "Entrega", "quien": "dueña", "veces_semana": 6, "minutos": 45, "herramienta": "terminal de cobro y Excel", "error": "diferencias que no se encuentran", "fuente": "la dueña"},
+    {"id": "t4", "tarea": "Revisar existencias a ojo para pedir al proveedor", "etapa": "Entrega", "quien": "dueña", "veces_semana": 2, "minutos": 60, "herramienta": "papel", "error": "se acaban los tornillos de obra", "fuente": "la dueña"},
+    {"id": "t5", "tarea": "Rehacer pedidos que salieron incompletos", "etapa": "Entrega", "quien": "repartidor", "veces_semana": 4, "minutos": 40, "herramienta": "furgoneta", "error": "segundo viaje", "fuente": "el repartidor"}
+  ],
+  "numeros": [
+    {"nombre": "Ventas del mes", "valor": 18000, "unidad": "EUR", "fuente": "terminal de cobro + Excel", "medido_en": "2026-10-31"},
+    {"nombre": "Pedido promedio de contratista", "valor": 150, "unidad": "EUR", "fuente": "libreta de pedidos de octubre", "medido_en": "2026-10-31"},
+    {"nombre": "Margen bruto", "valor": "28 % (lo dijo la dueña)", "fuente": "la dueña, sin estado de resultados", "medido_en": "2026-11-14"},
+    {"nombre": "Costo por hora del equipo", "clave": "costo_hora", "valor": 14, "unidad": "EUR", "fuente": "nómina del mes entre horas trabajadas", "medido_en": "2026-10-31"},
+    {"nombre": "Clientes de mostrador al día", "valor": null}
+  ],
+  "cuello": {
+    "etapa": "Conversión",
+    "frase": "Se piden 35 cotizaciones a la semana y solo 12 se vuelven venta: las demás tardan de 1 a 2 días en salir y nadie les da seguimiento.",
+    "evidencia": "Conteo del WhatsApp contra la libreta de pedidos, semana del 9 al 13 nov. La dueña: «cuando por fin mando el precio, ya compraron en otro lado».",
+    "fecha": "2026-11-14"
+  },
+  "arreglos": [
+    {
+      "id": "a1",
+      "que": "Cotización el mismo día, con lista de precios por tipo de obra",
+      "etapa": "Conversión",
+      "por_que": "Es el cuello: cada día de espera es una venta que se va a otra ferretería.",
+      "esfuerzo": "medio",
+      "tareas": ["t1"],
+      "ventas_perdidas": {
+        "mensual": 2600,
+        "cuenta": "se pierden 23 cotizaciones a la semana; si contestando el mismo día se recuperan 4 (cálculo conservador de la dueña): 4 × 150 EUR × 4.33 semanas ≈ 2,600 EUR"
+      }
+    },
+    {
+      "id": "a2",
+      "que": "Pedidos de WhatsApp directo a una hoja que ve el repartidor",
+      "etapa": "Entrega",
+      "por_que": "Quita la libreta y los pedidos incompletos que obligan a un segundo viaje.",
+      "esfuerzo": "bajo",
+      "tareas": ["t2", "t5"]
+    },
+    {
+      "id": "a3",
+      "que": "Cierre de caja con el reporte de la terminal, sin recapturar",
+      "etapa": "Entrega",
+      "por_que": "La dueña recupera sus noches.",
+      "esfuerzo": "medio",
+      "tareas": ["t3"]
+    },
+    {
+      "id": "a4",
+      "que": "Bienvenida al contratista nuevo: condiciones, horario y lista de precios",
+      "etapa": "Bienvenida",
+      "por_que": "Hoy no existe; un contratista que arranca bien compra cada semana.",
+      "esfuerzo": "bajo",
+      "ventas_perdidas": {"mensual": null}
+    }
+  ],
+  "siguiente_paso": "Empezar por el arreglo 1 en un piloto de 30 días: medimos cuántas cotizaciones se vuelven venta antes (12 de 35) y después."
+}

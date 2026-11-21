@@ -65,6 +65,17 @@ interface Base {
    * el agente; la mano no lo edita. Llega de la nube sin validar: leerlo SIEMPRE con `leerNervio`.
    */
   nervio?: Nervio
+  /**
+   * Lienzo v17 · el RECORRIDO (15 nov 2026): en modo recorrido el elemento no se ve hasta que el recorrido llega a este
+   * capítulo (id del marco o su título, como `lienzo:<capítulo>`). Fuera del recorrido siempre se ve.
+   */
+  aparece?: string
+  /**
+   * PARADAS INTERIORES del recorrido (17 nov 2026, `layout/paradas.ts`): después de entrar a su capítulo, `→` se detiene
+   * en este elemento (o en una zona suya, en fracciones de su caja) en el `orden` declarado. Viven en el elemento para
+   * seguirlo si se mueve. Las escribe un generador; llegan sin validar: leer SIEMPRE con `leerParadas`.
+   */
+  paradas?: ParadaInterior[]
   /** Ausente = elemento libre, puesto por una mano. */
   origin?: Origin
   /**
@@ -94,6 +105,16 @@ interface Base {
   version: number
   createdAt: number
   updatedAt: number
+}
+
+/** Una parada interior del recorrido, anclada al elemento que la declara (`layout/paradas.ts`). */
+export interface ParadaInterior {
+  /** Orden dentro de su capítulo: menor primero. */
+  orden: number
+  /** La zona del elemento en fracciones de su caja (0..1). Ausente = el elemento entero. */
+  zona?: { x: number; y: number; w: number; h: number }
+  /** Nombre corto para el pie del recorrido. */
+  titulo?: string
 }
 
 /**
@@ -351,6 +372,12 @@ export interface EmbedElement extends Base {
    * (que dice `isla:<id>` para que una app vieja no pinte nada raro). Llega sin validar: leerlo con `prepararIsla`.
    */
   isla?: unknown
+  /**
+   * Lienzo v17 (15 nov 2026): una PIEZA LIBRE. `"doc:…/pieza.html"`, el archivo de código visual propio que corre en el host
+   * compartido y aislado de la página (`piezas/usePiezas.tsx`, contrato `docs/builds/lienzo-v17/MOTOR.md`). `url` dice
+   * `pieza:<id>` para que una app vieja no pinte nada raro.
+   */
+  pieza?: string
 }
 
 export type CanvasElement =

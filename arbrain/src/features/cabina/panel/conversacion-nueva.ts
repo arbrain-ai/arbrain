@@ -7,7 +7,8 @@
 import { useRecientesStore } from '@/features/chat/stores/recientes-store'
 
 /** Comandos nuevos del bus que esta web sabe atender: el servidor solo se los manda a quien los declara. */
-export const SABE = ['conversacion'] as const
+/** Los comandos nuevos que esta web sabe atender (el servidor no le manda los que no declara). `editor`: 19 nov 2026. */
+export const SABE = ['conversacion', 'editor'] as const
 
 export interface ConversacionNueva { id: string; titulo: string; abrir: boolean }
 

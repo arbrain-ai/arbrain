@@ -11,6 +11,7 @@
  * no le toca decidir: solo pinta lo que le dan.
  */
 
+import { posterParaPintar } from './poster-niveles'
 import type { CanvasElement, Camera, ShapeElement, InkElement, ConnectorElement, TextElement, FrameElement, ImageElement, TableElement, EmbedElement, CodeElement, BoundText, Arrowhead, ShapeKind } from '../model/element'
 import { bounds } from '../model/element'
 import type { Theme } from '../theme/tokens'
@@ -717,6 +718,7 @@ function drawTable(ctx: CanvasRenderingContext2D, el: TableElement, theme: Theme
  * mano. Dibujar el contenido en el canvas seria imposible (es otro documento).
  */
 function drawEmbed(ctx: CanvasRenderingContext2D, el: EmbedElement, theme: Theme, isla?: PinturaIsla | null, zoom = 1, dpr = 1): void {
+  if (isla?.tipo === 'nada') return
   if (isla?.tipo === 'receta') { pintarIslaRapida(ctx, el, isla.isla, isla.leer, theme.name === 'claro' ? 'claro' : 'oscuro', zoom, dpr, isla.version); return }
   if (isla?.tipo === 'rota') { drawIsla(ctx, el, theme, { poster: null, titulo: isla.errores[0] ?? isla.titulo }, zoom); return }
   if (isla) { drawIsla(ctx, el, theme, isla, zoom); return }
@@ -793,7 +795,7 @@ function drawNervio(ctx: CanvasRenderingContext2D, state: RenderState, zoom: num
  * Sin foto todavía, su tarjeta con el título (nunca un hueco en blanco). Lejos, el suavizado sube para que la foto
  * reducida no centellee al moverse.
  */
-function drawIsla(ctx: CanvasRenderingContext2D, el: EmbedElement, theme: Theme, isla: { poster: CanvasImageSource | null; titulo: string }, zoom: number): void {
+function drawIsla(ctx: CanvasRenderingContext2D, el: EmbedElement, theme: Theme, isla: { poster: CanvasImageSource | null; titulo: string; sinMarco?: boolean }, zoom: number): void {
   ctx.save()
   roundRect(ctx, el.x, el.y, el.width, el.height, 8)
   ctx.clip()
@@ -801,7 +803,9 @@ function drawIsla(ctx: CanvasRenderingContext2D, el: EmbedElement, theme: Theme,
     const reducida = zoom * el.width < 0.6 * (('width' in isla.poster ? Number(isla.poster.width) : 0) || el.width)
     ctx.imageSmoothingEnabled = true
     ctx.imageSmoothingQuality = reducida ? 'medium' : 'low'
-    ctx.drawImage(isla.poster, el.x, el.y, el.width, el.height)
+    // de lejos, la versión reducida del póster (hecha una vez): reducir un bitmap grande cada cuadro es caro en Chromium
+    const img = reducida ? posterParaPintar(isla.poster, zoom * el.width * (globalThis.devicePixelRatio || 1)) : isla.poster
+    ctx.drawImage(img, el.x, el.y, el.width, el.height)
   } else {
     ctx.fillStyle = theme.roles.card.fill
     ctx.fillRect(el.x, el.y, el.width, el.height)
@@ -813,6 +817,7 @@ function drawIsla(ctx: CanvasRenderingContext2D, el: EmbedElement, theme: Theme,
     ctx.fillText(isla.titulo, el.x + el.width / 2, el.y + el.height / 2, el.width * 0.86)
   }
   ctx.restore()
+  if (isla.sinMarco) return                        // pieza transparente con póster: se funde con su tarjeta nativa (v18)
   ctx.save()
   ctx.strokeStyle = theme.roles.card.stroke.color
   ctx.globalAlpha *= 0.55

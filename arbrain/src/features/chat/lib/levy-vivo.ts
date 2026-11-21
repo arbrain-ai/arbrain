@@ -14,31 +14,72 @@ export function levyVivoActivo(): boolean {
   } catch { return false }
 }
 
+// Atlas de cabeza (19 nov 2026, PRUEBA, apagada): la cabeza de la cara de los videos gira e inclina como en LivePortrait, con campos
+// horneados (public/levy-face/medio/cabeza/) en vez del parallax de profundidad. Encender: `?levyCabezaLP=1` (queda guardado;
+// `?levyCabezaLP=0` la apaga) o localStorage.setItem('arbrain-levy-cabeza-lp', '1'). Sin ella, la cabeza de siempre.
+export const CABEZA_LP_CLAVE = 'arbrain-levy-cabeza-lp'
+export function cabezaLPActiva(): boolean {
+  if (typeof window === 'undefined') return false
+  try {
+    const q = new URLSearchParams(window.location.search).get('levyCabezaLP')
+    if (q === '1' || q === '0') window.localStorage.setItem(CABEZA_LP_CLAVE, q)
+    return window.localStorage.getItem(CABEZA_LP_CLAVE) === '1'
+  } catch { return false }
+}
+
 // Levy en Live (13 nov 2026, Daniel: «esto del levy 2D metelo al live de tu foto de perfil»). Desde hoy Live, el que se abre
 // desde la foto de perfil, arranca con el Levy 2D de los videos: la cara oficial con chip Arbrain, la boca por el atlas
 // horneado con LivePortrait y el movimiento del 3D (lo que antes pedía `?levyVivo=1`). Lo de antes queda en Ajustes ›
 // Apariencia › «Levy en Live»: el 3D (lo que Live abría hasta hoy) o el 2D anterior (chip «sf», boca paramétrica).
 // Clave nueva a propósito: la vieja `arbrain.live.vista` guardaba «3d» por defecto y taparía el cambio que pidió Daniel.
-export type CaraLive = 'videos' | '3d' | '2d-anterior'
+//
+// «Como en YouTube» (18 nov 2026, Daniel: «entiende el levy de mi canal de yt… no es un fondo 100% oscuro»): la misma cara de los
+// videos, pero en el plano medio del canal: torso y hombros, el estudio cálido de la rotación y el cuerpo que respira y acompaña
+// (levy-medio.ts). Desde el 19 nov es la de por omisión; «De los videos» (primer plano) sigue igual.
+export type CaraLive = 'videos' | 'youtube' | '3d' | '2d-anterior'
 export const CARA_LIVE_CLAVE = 'arbrain.live.cara'
 export const CARA_LIVE_EVENTO = 'arbrain:cara-live'
+/** El último 2D elegido: el botón 2D/3D de Live vuelve a ese y no siempre al primer plano. */
+export const CARA_LIVE_2D_CLAVE = 'arbrain.live.cara-2d'
 export const CARAS_LIVE: ReadonlyArray<{ id: CaraLive; nombre: string; detalle: string }> = [
-  { id: 'videos', nombre: 'De los videos', detalle: 'La cara oficial en 2D, con la boca y el movimiento de los videos' },
+  { id: 'youtube', nombre: 'Como en YouTube', detalle: 'De cuerpo, en el estudio de tus videos: la misma cara, con torso, fondo y luz del canal' },
+  { id: 'videos', nombre: 'De los videos', detalle: 'La cara oficial de cerca, con la boca y el movimiento de los videos' },
   { id: '3d', nombre: '3D', detalle: 'El avatar 3D que Live abría antes' },
   { id: '2d-anterior', nombre: '2D anterior', detalle: 'El retrato 2D de antes (chip «sf»)' },
 ]
+// 19 nov 2026, 07:18 (Daniel, al abrir Live en primer plano): «wtf el nuevo levy esta gigante!». Desde entonces Live abre
+// «Como en YouTube» si no hay nada elegido; «De los videos» (primer plano) queda a un clic en Ajustes.
+export const CARA_POR_OMISION: CaraLive = 'youtube'
+const esCara = (v: unknown): v is CaraLive => v === 'videos' || v === 'youtube' || v === '3d' || v === '2d-anterior'
 
 /** Lo que monta Live. Sin nada guardado (o en el servidor), el Levy de los videos. */
 export function caraLive(): CaraLive {
-  if (typeof window === 'undefined') return 'videos'
+  if (typeof window === 'undefined') return CARA_POR_OMISION
   try {
     const v = window.localStorage.getItem(CARA_LIVE_CLAVE)
-    return v === '3d' || v === '2d-anterior' ? v : 'videos'
-  } catch { return 'videos' }
+    return esCara(v) ? v : CARA_POR_OMISION
+  } catch { return CARA_POR_OMISION }
+}
+
+/** La cara de los videos con su atlas de bocas (primer plano o como en YouTube): la voz le pide la alineación por carácter. */
+export function caraConAtlas(c: CaraLive): boolean {
+  return c === 'videos' || c === 'youtube'
+}
+
+/** A qué 2D vuelve el botón de Live desde el 3D: el último 2D elegido; sin ninguno, el de los videos. */
+export function ultimaCara2d(): CaraLive {
+  if (typeof window === 'undefined') return CARA_POR_OMISION
+  try {
+    const v = window.localStorage.getItem(CARA_LIVE_2D_CLAVE)
+    return esCara(v) && v !== '3d' ? v : CARA_POR_OMISION
+  } catch { return CARA_POR_OMISION }
 }
 
 export function fijarCaraLive(c: CaraLive): void {
-  try { window.localStorage.setItem(CARA_LIVE_CLAVE, c) } catch { /* sin almacenamiento: vale solo esta vez */ }
+  try {
+    window.localStorage.setItem(CARA_LIVE_CLAVE, c)
+    if (c !== '3d') window.localStorage.setItem(CARA_LIVE_2D_CLAVE, c)
+  } catch { /* sin almacenamiento: vale solo esta vez */ }
   try { window.dispatchEvent(new CustomEvent(CARA_LIVE_EVENTO, { detail: c })) } catch { /* sin ventana */ }
 }
 

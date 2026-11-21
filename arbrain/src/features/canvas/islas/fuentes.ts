@@ -14,6 +14,8 @@
  *   bi:<consulta>      la serie del BI (30 días) leída como la lee el panel: su último valor, su cifra, sus puntos y su
  *                      señal (la alarma de Beer: dolor o placer cuando sale de su corredor)
  *   bandeja:<organo>   las tarjetas de la bandeja que DECLARAN ese órgano (campo `organo`): cuántas esperan y sus títulos
+ *   polar:mrr          Polar en vivo con la definición única (negocio/mrr.ts): el MRR recurrente (el mismo cálculo que la
+ *                      serie `bi:mrr`) y, aparte, las cuotas del Acompañamiento (no recurrentes) con su texto y su fin
  *
  * Puro: las URLs llegan inyectadas (`UrlsApp`, el host las saca de los mismos módulos que los paneles) y la red también
  * (tests/canvas/islas-fuentes.test.ts).
@@ -32,6 +34,7 @@ import { FORMA_FUENTE, type EstadoDato } from './protocolo'
 import { organoDeTarjeta, type Tarjeta } from '@/features/decisiones/lib/bandeja'
 import { consultaEn, cifraDe, esDinero, type Consulta } from '@/features/bi/catalogo'
 import { leer as leerBI, type RespuestaConsulta } from '@/features/bi/modelo'
+import type { RespuestaMrr } from '@/features/negocio/mrr'
 
 /** Lo que el host le manda a la isla por cada fuente. */
 export interface LecturaFuente { estado: EstadoDato; valor: unknown; fecha: string | null; error?: string }
@@ -43,6 +46,8 @@ export interface UrlsApp {
   bi: string
   /** La bandeja de decisiones (`/api/decisiones`). */
   bandeja: string
+  /** El MRR de la meta (`/api/negocio/mrr`). */
+  mrr: string
 }
 
 export interface Contexto {
@@ -60,7 +65,8 @@ interface DefFuente {
 }
 
 const ESTADO_DE_PULSO: Record<Pulso['estado'], EstadoDato> = { numero: 'ok', 'sin-sensor': 'sin-dato', leyendo: 'leyendo', oculto: 'oculto', error: 'error' }
-const dePulso = (p: Pulso): Omit<LecturaFuente, 'fecha'> => ({ estado: ESTADO_DE_PULSO[p.estado], valor: p, ...(p.error ? { error: p.error } : {}) })
+/** El Pulso de un órgano como lectura de fuente (`pulso:<organo>`): lo usan el mapa y el panel Tu negocio. */
+export const dePulso = (p: Pulso): Omit<LecturaFuente, 'fecha'> => ({ estado: ESTADO_DE_PULSO[p.estado], valor: p, ...(p.error ? { error: p.error } : {}) })
 const NO_EDICION = 'No disponible en esta edición.'
 
 const obj = (x: unknown): x is Record<string, unknown> => !!x && typeof x === 'object' && !Array.isArray(x)
@@ -128,6 +134,20 @@ export const FUENTES: Readonly<Record<string, DefFuente>> = {
       const tienes = d.tienes ? d.tienes.mxn : null
       return { estado: 'ok', valor: { entro, salio, tienes, moneda: 'MXN', ventana: '30 días',
         texto: { entro: MXN(entro), salio: typeof salio === 'number' ? MXN(salio) : null, tienes: tienes === null ? null : MXN(tienes) } } }
+    },
+  },
+  'polar:mrr': {
+    lee: c => [c.directo || c.cliente ? null : 'mrr'],
+    calcular: ([l], c) => {
+      if (c.cliente) return { estado: 'sin-dato', valor: null, error: NO_EDICION }
+      if (c.directo) return { estado: 'oculto', valor: null }
+      const p = previo(l); if (p) return p
+      const r = l.data as RespuestaMrr
+      if (!obj(r) || !r.activo) return { estado: 'sin-dato', valor: null, error: NO_EDICION }
+      if ('oculto' in r && r.oculto) return { estado: 'oculto', valor: null }
+      if ('error' in r && r.error) return { estado: 'error', valor: null, error: r.error }
+      if (!('recurrente' in r) || !obj(r.recurrente) || !obj(r.cuotas)) return { estado: 'error', valor: null, error: 'La fuente respondió algo que no se esperaba.' }
+      return { estado: 'ok', valor: { recurrente: r.recurrente, cuotas: r.cuotas, leidoEn: r.leidoEn } }
     },
   },
   'canal-levy': {

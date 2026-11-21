@@ -14,7 +14,7 @@ import { esNoNegociable, SECCION, seccionDe } from './secciones'
 import { franjasDelDia, resumenCampo, tituloZona } from './campos-fondo'
 import { DEF } from './categorias'
 import { useZonas } from './useZonas'
-import type { ItemDia } from './lista-dia'
+import type { BloqueTarea, ItemDia } from './lista-dia'
 import { horaDeMinuto, pistaDeMarca } from './ListaDia'
 import { arrastrableEnDia, soltarEnDia } from './arrastre-dia'
 import { esArrastre, hhmm } from './semana-horas'
@@ -23,11 +23,17 @@ import h from './semana-horas.module.css'
 // La línea de ahora es la de «Tu día» (cabina/luz.module.css): se aplican las dos clases, no se copia el estilo.
 import luz from '@/features/cabina/luz.module.css'
 import { tr } from '@/shared/i18n'
+import { Play } from 'lucide-react'
+import { videoDeEvento } from './enlace-interno'
+import { useAbrirInterno } from './useAbrirInterno'
 
 /** Alto de una hora (10 oct 2026): el día entero de 05 a 22 mide ~510 px y va en el scroll del panel o de la página. */
 const HORA_PX = 30
-/** Con `llenar`, la hora nunca baja de esto aunque la pantalla sea corta (la etiqueta y un bloque de 30 min siguen legibles). */
-const HORA_PX_MIN = 22
+/** Con `llenar`, la hora nunca baja de esto aunque el panel sea corto (un bloque de 30 min sigue siendo una línea legible); más corto
+ *  que eso, la agenda se desplaza dentro de su caja en vez de aplastarse (16 nov 2026: antes 22 px, solo para la pantalla completa). */
+const HORA_PX_MIN = 16
+/** Alto mínimo de una tarea con hora en la línea del día: una línea con su casilla, aunque dure 15 min. */
+const TAREA_PX_MIN = 16
 /** Con el dedo, mover empieza tras mantener presionado esto (igual que la Semana); antes, el dedo desplaza la página. */
 const MANTENER_MS = 320
 /** Un arrastre en curso: el evento, cuántos minutos debajo de su inicio se tomó y el minuto de inicio bajo el puntero. */
@@ -50,9 +56,15 @@ interface Gesto { bloque: BloqueAgenda; agarre: number; minuto: number; x0: numb
  * Desde el 11 nov 2026 (Daniel: «deberia poder agarrar eventos y reposicionarlos a otra hora») un evento con hora y editable se arrastra
  * a otra hora como en la Semana: fantasma con la hora en vivo, redondeo a 15 min, Esc cancela y al soltar va por `onMover` (la misma
  * pluma de la Semana, con ⌘Z y la guarda de invitados). Con el dedo, mantener presionado. Los de todo el día no viven aquí.
+ * Desde el 16 nov 2026 (Daniel: «vertical estática sin scroll bar vertical para que todo se vea completo») con `llenar` el día entero
+ * cabe en el alto que le den (el panel junto al chat, la sección o la pantalla completa): las horas se comprimen. Y las tareas de Todoist
+ * con hora son bloques propios en su hora («generar las horas límite fijas igual para verlo en el calendario»): punteados, con su casilla
+ * (se palomean ahí, la misma pluma que la lista) y sin confundirse con un evento; comparten carril con los eventos que pisan.
  */
 export interface PendientesTimeline {
   dentro: Map<string, ItemDia[]>; sueltas: ItemDia[]
+  /** Tareas de Todoist con hora, cada una un bloque en su hora (`bloquesDeTareas`). */
+  tareas?: BloqueTarea[]
   alternar: (it: ItemDia) => void; puede: (it: ItemDia) => boolean
   resaltado?: string | null; onResaltar?: (id: string | null) => void
 }
@@ -67,7 +79,8 @@ export function AgendaMini({ bloques, bandas = [], fecha, ahora, esHoy, pasado, 
   objetivo?: { tarea: PlanTask; inicio: number; fin: number; hecha: boolean } | null
   /** La hoja de en medio del carril: solo ella encuadra el scroll (las vecinas también se pintan). */
   central?: boolean
-  /** Dos columnas (24 oct 2026): el día entero cabe en el alto que le dan, sin scroll; la hora mide lo que alcance. */
+  /** El día entero cabe en el alto que le dan, sin scroll; la hora mide lo que alcance (dos columnas, 24 oct 2026; todo el Día de
+   *  escritorio, 16 nov 2026). */
   llenar?: boolean
   /** La lista del día en el timeline: sublíneas dentro de su evento y marcas sueltas en su hora. */
   pendientes?: PendientesTimeline
@@ -77,12 +90,14 @@ export function AgendaMini({ bloques, bandas = [], fecha, ahora, esHoy, pasado, 
   // Zonas de mi vida (28 oct 2026): las encendidas de la persona (useZonas), detrás de todo.
   const zonas = useZonas()
   const base = new Date(fecha).setHours(0, 0, 0, 0)
-  const todos = [...bloques, ...bandas, ...(objetivo ? [{ inicio: objetivo.inicio, fin: objetivo.fin }] : [])]
+  const tareasB = pendientes?.tareas ?? []
+  const todos = [...bloques, ...bandas, ...tareasB, ...(objetivo ? [{ inicio: objetivo.inicio, fin: objetivo.fin }] : [])]
   const { desde, hasta } = tramoDia(todos, fecha)
   const horasN = (hasta - desde) / 60
   // Llenar: el alto de la caja se mide y se reparte entre las horas del tramo (5:00 a 22:00 o lo que el día pida).
   const caja = useRef<HTMLDivElement>(null)
   const [altoCaja, setAltoCaja] = useState(0)
+  const abrirInterno = useAbrirInterno()
   useLayoutEffect(() => {
     const el = caja.current
     if (!llenar || !el) { setAltoCaja(0); return }
@@ -92,7 +107,10 @@ export function AgendaMini({ bloques, bandas = [], fecha, ahora, esHoy, pasado, 
     return () => o.disconnect()
   }, [llenar])
   // 14 px: el margen de la rejilla y medio renglón para que la etiqueta de la última hora no se corte.
-  const px = llenar && altoCaja > 0 ? Math.max(HORA_PX_MIN, (altoCaja - 14) / horasN) : HORA_PX
+  const pxJusto = llenar && altoCaja > 0 ? (altoCaja - 14) / horasN : HORA_PX
+  const px = Math.max(HORA_PX_MIN, pxJusto), desborda = llenar && pxJusto < HORA_PX_MIN
+  // Con las horas comprimidas, la etiqueta va cada dos horas (no se enciman).
+  const pasoHora = px < 19 ? 2 : 1
   const y = (t: number) => ((t - base) / 60000 - desde) / 60 * px
   const alto = horasN * px
   // Al abrir, al llegar a otro día o con «Hoy»: hoy, el ahora a un tercio de lo visible; otro día, su primer evento o las 5:30.
@@ -105,7 +123,12 @@ export function AgendaMini({ bloques, bandas = [], fecha, ahora, esHoy, pasado, 
     tapa: () => mini.current ? parseFloat(getComputedStyle(mini.current).getPropertyValue('--plan-pegado')) || 0 : 0,
   })
   const horas = Array.from({ length: horasN + 1 }, (_, i) => desde + i * 60)
-  const lanes = carriles(objetivo ? [...bloques, { id: 'objetivo', titulo: '', inicio: objetivo.inicio, fin: objetivo.fin, color: null, evento: null as unknown as PlanEvent }] : bloques)
+  // Los carriles se reparten entre eventos y tareas con hora. Una tarea ocupa al menos su alto mínimo: dos tareas de 15 min seguidas
+  // (17:30 y 17:45) quedan lado a lado en vez de encimadas cuando la hora mide poco.
+  const sinEvento = null as unknown as PlanEvent, minTareaMs = (TAREA_PX_MIN - 1) / px * 3_600_000
+  const lanes = carriles([...bloques,
+    ...(objetivo ? [{ id: 'objetivo', titulo: '', inicio: objetivo.inicio, fin: objetivo.fin, color: null, evento: sinEvento }] : []),
+    ...tareasB.map(t => ({ id: t.id, titulo: '', inicio: t.inicio, fin: Math.max(t.fin, t.inicio + minTareaMs), color: null, evento: sinEvento }))])
   const ahoraY = esHoy ? y(ahora) : null
   // Campos de fondo: detrás de todo; si una llamada pisa el trabajo profundo, la llamada gana y la etiqueta lo dice.
   const diaClave = `${new Date(base).getFullYear()}-${String(new Date(base).getMonth() + 1).padStart(2, '0')}-${String(new Date(base).getDate()).padStart(2, '0')}`
@@ -119,7 +142,7 @@ export function AgendaMini({ bloques, bandas = [], fecha, ahora, esHoy, pasado, 
   const marcas = (() => { let ultimo = -Infinity
     return (pendientes?.sueltas ?? []).filter(it => it.minuto! >= desde && it.minuto! <= hasta).map(it => {
       const t = base + it.minuto! * 60000, top = Math.max(ultimo + 15, y(t)); ultimo = top
-      return { it, top, encima: bloques.some(b => b.inicio <= t && t < b.fin) } }) })()
+      return { it, top, encima: bloques.some(b => b.inicio <= t && t < b.fin) || tareasB.some(b => b.inicio <= t && t < b.fin) } }) })()
   const marcar = (it: ItemDia, conTexto: boolean, clase: string) => { const p = pendientes!, si = p.puede(it)
     return <button key={it.id} className={clase} data-hecho={it.hecho || undefined} data-origen={it.origen} data-p={it.tarea?.priority} data-resaltado={p.resaltado === it.id || undefined}
       role="checkbox" aria-checked={it.hecho} disabled={!si} onClick={() => p.alternar(it)} onMouseEnter={() => p.onResaltar?.(it.id)} onMouseLeave={() => p.onResaltar?.(null)}
@@ -191,11 +214,11 @@ export function AgendaMini({ bloques, bandas = [], fecha, ahora, esHoy, pasado, 
 
   return <section className={`${d.columna} ${d.areaAgenda}`} aria-label={tr('Agenda')} data-arrastrando={gesto?.activo || undefined}>
     {!todos.length && <p className={d.vacio}>{cargando ? tr('Leyendo tu calendario…') : esHoy ? tr('Nada agendado hoy.') : tr('Nada agendado este día.')}</p>}
-    <div ref={caja} className={`${d.miniCaja} ${d.entra}`} style={esc(3)} data-hoy={esHoy || undefined}>
+    <div ref={caja} className={`${d.miniCaja} ${d.entra}`} style={esc(3)} data-hoy={esHoy || undefined} data-desborda={desborda || undefined} data-px-hora={llenar ? Math.round(px * 10) / 10 : undefined}>
       <div ref={mini} className={d.mini} style={{ height: alto } as CSSProperties} role="presentation">
         {esHoy && ahoraY != null && ahoraY > 0 && <i className={d.miniVivido} style={{ height: Math.min(ahoraY, alto) }} aria-hidden />}
         {horas.map(m => <span key={m} className={d.miniHora} style={{ top: (m - desde) / 60 * px }}>
-          <time hidden={ahoraY != null && Math.abs((m - desde) / 60 * px - ahoraY) < 12}>{String(Math.floor(m / 60) % 24).padStart(2, '0')}</time></span>)}
+          <time hidden={(ahoraY != null && Math.abs((m - desde) / 60 * px - ahoraY) < 12) || (m - desde) / 60 % pasoHora !== 0}>{String(Math.floor(m / 60) % 24).padStart(2, '0')}</time></span>)}
         {/* Zonas de mi vida: tinte del color de su categoría, sin texto; su nombre y sus horas, al pasar el cursor. Fuera del tramo, nada. */}
         {franjas.filter(f => f.hasta > desde && f.desde < hasta).map((f, k) => { const top = y(base + Math.max(f.desde, desde) * 60000), h = y(base + Math.min(f.hasta, hasta) * 60000) - top
           return <div key={`campo${k}`} className={d.miniCampo} data-forma={f.forma} data-campo={f.clave} data-categoria={f.categoria}
@@ -216,6 +239,9 @@ export function AgendaMini({ bloques, bandas = [], fecha, ahora, esHoy, pasado, 
                   {tag === 'protegido' ? <Lock size={9} aria-label={tr('protegido')} /> : tag === 'delegado' ? tr('de {quien}', { quien: l!.delegadoA }) : tr('delegable')}</em>}
               </button>
               {b.brief && <button className={d.miniBrief} onClick={() => onAbrir(b.brief!.evento)} title={b.brief.titulo} aria-label={tr('Abrir {titulo}', { titulo: b.brief.titulo })}>📋</button>}
+              {/* «Ver después» de Contenido (17 nov 2026): un toque al ▶ abre el video en la Sala, dentro de la app; tocar el bloque sigue abriendo su hoja. */}
+              {(() => { const v = typeof window !== 'undefined' && b.evento.kind === 'event' ? videoDeEvento(b.evento, window.location.href) : null
+                return v ? <button className={d.miniVideo} data-con-brief={b.brief ? '' : undefined} data-video-enlace={v} onPointerDown={e => e.stopPropagation()} onClick={e => { abrirInterno(e, v) }} title={tr('Ver el video en Contenido')} aria-label={tr('Ver el video en Contenido')}><Play size={10} fill="currentColor" /></button> : null })()}
               {subs && <div className={d.miniSub} data-sublinea data-corto={c.h < 38 || undefined} role="group" aria-label={tr('Pendientes de {titulo}', { titulo: b.titulo })}>
                 {subs.map(it => marcar(it, c.h >= 38, d.miniSubItem))}</div>}
             </li>
@@ -230,6 +256,23 @@ export function AgendaMini({ bloques, bandas = [], fecha, ahora, esHoy, pasado, 
             </li>
           })()}
         </ol>
+        {tareasB.length > 0 && <ol className={d.miniTareas} aria-label={tr('Tareas con hora')}>
+          {tareasB.map(tb => {
+            const p = pendientes!, it = tb.item, t = it.tarea!, si = p.puede(it)
+            const top = y(tb.inicio), alto = Math.max(TAREA_PX_MIN, y(tb.fin) - top - 1), l = lanes.get(tb.id) ?? { col: 0, cols: 1 }
+            const vencio = !it.hecho && (pasado || (esHoy && tb.fin <= ahora)), dura = Math.round((tb.fin - tb.inicio) / 60000)
+            return <li key={tb.id} style={{ top, height: alto, left: `${l.col / l.cols * 100}%`, width: `calc(${100 / l.cols}% - 2px)` }} data-tarea-bloque data-hecho={it.hecho || undefined}
+              data-p={t.priority} data-vencio={vencio || undefined} data-alto={alto >= 36 ? 'dos' : undefined} data-resaltado={p.resaltado === it.id || undefined}
+              onMouseEnter={() => p.onResaltar?.(it.id)} onMouseLeave={() => p.onResaltar?.(null)}>
+              <button className={d.tareaCasilla} role="checkbox" aria-checked={it.hecho} disabled={!si} onClick={() => p.alternar(it)}
+                aria-label={it.hecho ? tr('Reabrir: {texto}', { texto: it.texto }) : tr('Marcar: {texto}', { texto: it.texto })} title={pistaDeMarca(it, si)}><i aria-hidden /></button>
+              <button className={d.tareaCuerpo} data-planning-id={t.id} onClick={() => onAbrir(t)}
+                title={`${hora(tb.inicio)} – ${hora(tb.fin)} · ${it.texto}\n${tr('Tarea de Todoist · {duracion}', { duracion: duracion(dura) })}`}
+                aria-label={tr('Tarea a las {hora}: {titulo}, {duracion}', { hora: hora(tb.inicio), titulo: it.texto, duracion: duracion(dura) })}>
+                <time>{hora(tb.inicio)}</time><span>{it.texto}</span></button>
+            </li>
+          })}
+        </ol>}
         {fantasma && <div className={d.miniFantasmas} aria-hidden={fantasma.igual || undefined}>
           <div className={h.fantasma} data-igual={fantasma.igual || undefined} role="status" aria-live="polite" style={{ top: fantasma.top, height: fantasma.alto }}>
             <time>{hhmm(fantasma.desde)} – {hhmm(fantasma.hasta)}<small> · {duracion(fantasma.hasta - fantasma.desde)}</small></time></div>

@@ -50,7 +50,8 @@ function entorno(fijadasTras: number, abiertaTras: number | null) {
 }
 
 test('app: pide releer Fijadas y acusa solo cuando la ve ahí', async () => {
-  assert.deepEqual([...SABE], ['conversacion'])
+  // La web declara los comandos nuevos que atiende: la conversación nueva y, desde el 19 nov 2026, abrir el editor.
+  assert.deepEqual([...SABE], ['conversacion', 'editor'])
   const { e, eventos } = entorno(400, null)
   const r = await atenderConversacion({ id: ID, titulo: 'Estilo Fulano', abrir: false }, e)
   assert.deepEqual(eventos, [['openclaw:session-pinned', { id: ID, fijada: true }]])

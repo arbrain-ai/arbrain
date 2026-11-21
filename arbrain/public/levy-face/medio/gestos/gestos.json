@@ -1,0 +1,12 @@
+{
+ "puno": {
+  "archivo": "puno.mp4",
+  "cuadros": 70,
+  "cps": 30,
+  "llega": 15,
+  "pico": 33,
+  "reposo_inicio_dif": 1.0251,
+  "reposo_final_dif": 1.0251
+ },
+ "_": "Gestos de brazos de Live «Como en YouTube» (19 nov 2026): el cuerpo completo cuadro por cuadro con el motor de gestos del canal; color | opacidad lado a lado (el shader premultiplica). El primer y el último cuadro son el reposo exacto de cuerpo.webp: ahí se cambia imagen ↔ clip. «llega» = cuadro en que el gesto alcanza su pose (se arranca para que caiga en la palabra). Horno: labs/levy-live-como-youtube-2026-11-18/scripts/brazos_clips.py."
+}

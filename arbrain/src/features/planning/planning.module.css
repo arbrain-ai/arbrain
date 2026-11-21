@@ -275,6 +275,12 @@
 /* El canal de la barra, siempre reservado (12 nov 2026, «parpadea y se mueve bien raro»): con barras clásicas de macOS el ancho ya no
    depende de si hay scroll, y lo que mide su ancho (angosto, días a la vista, el contenedor `planning`) no puede entrar en bucle con su alto. */
 .root[data-unificada] { overflow-y:auto; overflow-x:hidden; scrollbar-gutter:stable; }
+/* El Día entero (16 nov 2026, Daniel: «vertical estática sin scroll bar vertical para que todo se vea completo»): en escritorio la raíz no
+   desplaza; la hoja del día reparte el alto (HOY en una línea, la línea del día comprimida, los hábitos al pie). dia-vivo.module.css. */
+.root[data-unificada][data-dia-entero] { overflow:hidden; }
+/* El Mes como calendario de verdad (17 nov 2026): la cuadrícula mide el alto que le dan, sin scroll (MesCalendario.tsx). */
+.root[data-unificada][data-mes-entero] { overflow:hidden; }
+.root[data-mes-entero] > .accesos { padding-top:0; padding-bottom:4px; }
 .root[data-unificada] .workspace { flex:1 0 560px; }
 .plan { flex:0 0 auto; display:flex; flex-direction:column; gap:12px; padding:12px 26px 14px; border-bottom:1px solid var(--plan-line); min-width:0; }
 .escalas { display:flex; gap:2px; padding:3px; border:1px solid var(--plan-line); border-radius:999px; background:var(--surface); }

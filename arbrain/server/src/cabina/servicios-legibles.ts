@@ -19,6 +19,7 @@ const FICHA: Record<string, [string, AreaServicio]> = {
   'com.levy.arbrain-web-deploy': ['Despliegue de Arbrain web', 'Arbrain'],
   'com.levy.arbrain-web-vigia': ['Vigía de Arbrain web', 'Arbrain'],
   'com.arbrain.motor': ['Motor de terminales', 'Arbrain'],
+  'com.levy.editor-motor': ['Motor del editor de video', 'Arbrain'],
   'com.claudeclaw.software-sync': ['Sincronización de apps', 'Arbrain'],
   'com.claudeclaw.sync-bajada': ['Sincronización entre máquinas', 'Arbrain'],
   'com.claudeclaw.sistema-janitor': ['Limpieza del sistema', 'Arbrain'],

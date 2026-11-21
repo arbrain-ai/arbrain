@@ -44,9 +44,10 @@ export function listaNombres(nombres: string[], max = 2): string {
  * diciendo quiénes lo verán; sin su sí, el evento se queda donde estaba. Vale para el Día y la Semana (una sola pluma).
  * Google cambia la hora en el calendario de cada invitado (la pluma no les manda correo: `sendUpdates` queda en «none»).
  */
-export function guardaInvitados(item: PlanItem, inicio: Date): { invitados: string[]; texto: string } | null {
+export function guardaInvitados(item: PlanItem, inicio: Date, todoElDia = false): { invitados: string[]; texto: string } | null {
   const invitados = invitadosDe(item)
   if (!invitados.length) return null
-  const cuando = format(inicio, tr("EEEE d 'a las' HH:mm"), { locale: localeFechas() })
+  // Lo de todo el día (el Mes lo mueve de día a día, 17 nov 2026) no tiene hora que decir.
+  const cuando = format(inicio, todoElDia ? tr("EEEE d 'de' MMMM") : tr("EEEE d 'a las' HH:mm"), { locale: localeFechas() })
   return { invitados, texto: tr('«{titulo}» tiene invitados ({invitados}). Si lo mueves al {cuando}, verán la nueva hora en su calendario.', { titulo: item.title, invitados: listaNombres(invitados), cuando }) }
 }

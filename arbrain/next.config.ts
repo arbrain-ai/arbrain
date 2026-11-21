@@ -3,6 +3,7 @@ import { INSTALACION } from './src/config/instalacion'
 import { aplicarMarcador } from './src/lib/edicion'
 import { CSP_CALLBACK, RUTA_CALLBACK } from './src/features/primer-arranque/lib/openrouter-rutas'
 import { guardiaDev } from './src/config/guardia-dev'
+import { CSP_VISTA } from './src/features/chat/lib/html-blindado'
 
 // Edición cliente (empaquetado del alumno, 11 oct 2026; docs/builds/empaquetado-2026-10-11/MAPA-WEB.md): se decide al
 // construir con `ARBRAIN_EDICION=cliente` y se hornea para el navegador. Sin la variable, el build de siempre.
@@ -150,6 +151,10 @@ const nextConfig: NextConfig = {
       { source: '/levy-face/:ruta*', headers: unDia },
       { source: '/agentes-2d/:ruta*', headers: unDia },
       { source: '/agentes-3d/:archivo([^/]+\\.jpg)', headers: unDia },
+      // Paneles de extensiones (21 nov 2026, SPEC docs/builds/extensiones-2026-11-20 §2): DESPUÉS de `/(.*)` para que gane
+      // su CSP en las dos ediciones (en la del alumno la general la pisaba): `sandbox` aunque se abra la URL a nivel
+      // superior (origen opaco, sin su cookie) y la de las vistas, sin red. Mismo valor que `CSP_PANEL` (features/extensiones/crudo.ts).
+      { source: '/api/extensiones/crudo/:ruta*', headers: [{ key: 'Content-Security-Policy', value: `sandbox allow-scripts; ${CSP_VISTA}` }, { key: 'Referrer-Policy', value: 'no-referrer' }] },
       // Regreso de OpenRouter (red team OAuth, B1): DESPUÉS de `/(.*)` para que sus claves ganen («la última gana») y
       // la respuesta real lleve la CSP estricta, sin Referer y sin marcos, no las generales del cliente.
       ...(EDICION_CLIENTE ? [{

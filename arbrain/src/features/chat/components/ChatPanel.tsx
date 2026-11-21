@@ -85,6 +85,7 @@ import { CabinaDelMensaje, CabinaProvider } from '@/features/cabina/Cabina'
 import { esHerramientaCabina } from '@/features/cabina/model'
 import { esPrimerMontajeDelChat, sesionDeEnlaceVigente } from '@/features/chat/lib/conversacion-al-abrir'
 import { AgentesTrabajando } from '@/features/cabina/panel/AgentesTrabajando'
+import { atenderEditor } from '@/features/editor/al-chat'
 import { useColaMensajes } from '../hooks/useColaMensajes'
 import { SalidaDeFila, turnoVivoEnServidor, type EstadoSalida } from '../lib/fila-salida'
 import { FilaServidor, cuerpoDelPendiente, type EstadoItemServidor } from '../lib/fila-servidor'
@@ -3019,13 +3020,15 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
   useEffect(() => {
     const enviar = (e: Event) => { const t = (e as CustomEvent<{ texto?: string }>).detail?.texto; if (t?.trim()) handleSendRef.current?.(t) }
     window.addEventListener('cabina:enviar', enviar)
+    // El editor vive en otra ventana (19 nov 2026): su C llega por el canal de las ventanas y se envía igual.
+    const finEditor = atenderEditor(t => { if (t.trim()) handleSendRef.current?.(t) })
     // Un pedido hecho desde el panel en otra página («Nuevo agente») espera aquí a que el chat abra.
     const pendiente = window.setTimeout(() => {
       let t: string | null = null
       try { t = sessionStorage.getItem('cabina:pendiente'); sessionStorage.removeItem('cabina:pendiente') } catch { /* sin almacenamiento */ }
       if (t?.trim()) handleSendRef.current?.(t)
     }, 900)
-    return () => { window.removeEventListener('cabina:enviar', enviar); window.clearTimeout(pendiente) }
+    return () => { window.removeEventListener('cabina:enviar', enviar); window.clearTimeout(pendiente); finEditor() }
   }, [])
   // «Corregir esto» de la vista Memoria (4 oct 2026): deja la cita en la caja SIN enviar; Daniel termina la frase.
   const redactarRef = useRef<(t: string) => void>(() => {})

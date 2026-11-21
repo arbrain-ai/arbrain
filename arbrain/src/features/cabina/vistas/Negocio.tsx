@@ -50,7 +50,7 @@ export function VistaNegocio({ seccion, grande }: { seccion?: SeccionNegocio; gr
   if (!sistema && !lectura.error) return <div className={s.cargando} aria-busy="true">{tr('Abriendo tu negocio…')}</div>
   // En la edición del alumno no existe el libro del autor: apagado (ARBRAIN_PANEL_NEGOCIO=0), lo dice y ya.
   if (!sistema?.activo) return esEdicionCliente() ? <p className={s.aviso}>{tr('Tu negocio está apagado en esta instalación (ARBRAIN_PANEL_NEGOCIO=0).')}</p> : <LibroNegocio seccion={seccion} grande={grande} />
-  if (parte === 'pulso') return <ElPulso embudo={sistema.embudo} grande={grande} inicio={seccion === 'avatar' ? 'comprador' : seccion === 'canal-levy' ? 'canal-levy' : undefined} verEtapas={() => setParte('etapas')} />
+  if (parte === 'pulso') return <ElPulso embudo={sistema.embudo} launchd={sistema.launchd} grande={grande} inicio={seccion === 'avatar' ? 'comprador' : seccion === 'canal-levy' ? 'canal-levy' : undefined} verEtapas={() => setParte('etapas')} />
   return <div className={l.loops}>
     <button type="button" className={pv.volver} onClick={() => setParte('pulso')} style={{ alignSelf: 'flex-start' }}><ArrowLeft size={14} aria-hidden />{tr('El pulso')}</button>
     <PanelEmbudo datos={sistema} grande={grande} />

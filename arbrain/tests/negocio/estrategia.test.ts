@@ -124,7 +124,7 @@ test('la sección Estrategia: vista del panel, del «+» y de la edición del al
   assert.doesNotMatch(seccion, /role="tablist" aria-label="Estrategia"/, 'sin la tira de pestañas de antes')
   assert.match(leer('src/features/cabina/model.ts'), /'negocio', 'estrategia', 'bi'/)
   assert.match(leer('src/features/cabina/panel/menu-orden.ts'), /'negocio', 'estrategia', 'bi'/)
-  assert.match(leer('src/lib/edicion.ts'), /'negocio', 'estrategia', 'bi', 'explorador', 'taller'/)
+  assert.match(leer('src/lib/edicion.ts'), /'negocio', 'estrategia', 'bi', 'explorador', ('extensiones', )?'taller'/)
   assert.match(leer('src/lib/edicion.ts'), /'\/negocio', '\/estrategia', '\/bi'/)
 })
 
@@ -167,7 +167,8 @@ test('el archivo real, si está en este cerebro: legible entero, con fuente y fe
   assert.ok(fichas.filter(f => f.imagen).length >= 20, 'la mayoría con su imagen pública')
   for (const f of fichas) if (f.imagen) assert.ok(f.imagen.de && f.imagen.fuente && f.imagen.fecha, `${f.nombre}: imagen con su origen`)
   // Solo patrones: ni correos ni teléfonos.
-  const texto = readFileSync(REAL, 'utf8')
+  // Las URLs fuera: la marca de tiempo de una captura de Wayback (/web/20260713194852/) parece un teléfono (15 nov 2026).
+  const texto = readFileSync(REAL, 'utf8').replace(/https?:\/\/[^\s"]+/g, '')
   assert.doesNotMatch(texto, /[\w.+-]+@[\w-]+\.[\w.]+/)
   assert.doesNotMatch(texto, /\+?\d{2}[\s-]?\d{3}[\s-]?\d{3}[\s-]?\d{4}/)
 })

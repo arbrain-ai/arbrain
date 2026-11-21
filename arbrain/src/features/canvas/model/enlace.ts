@@ -24,6 +24,7 @@ export type DestinoEnlace =
 const RUTAS: Record<string, Vista> = {
   '/calendar': 'calendario', '/masterclass': 'masterclass', '/salud': 'salud', '/finanzas': 'finanzas', '/youtube': 'contenido',
   '/lienzo': 'lienzo', '/equipo': 'equipo', '/segundo-cerebro': 'negocio', '/rutinas': 'rutinas', '/memoria': 'memoria', '/servidores': 'servidores',
+  '/extensiones': 'extensiones',
 }
 const MODO: Record<string, MostrarInput['alcance']> = { day: 'dia', week: 'semana', month: 'mes' }
 

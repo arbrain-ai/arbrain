@@ -22,8 +22,9 @@ import { useRecientesStore } from '@/features/chat/stores/recientes-store'
 import { pedidoCompartido, recibirCompartido } from './compartido'
 import type { RespuestaCompartido } from './compartido-puro'
 import { SABE, atenderConversacion, type ConversacionNueva } from './conversacion-nueva'
+import { atenderEditorBus } from '@/features/editor/ventana'
 
-interface Comando { id: string; accion: 'fijar' | 'soltar' | 'guardar' | 'conversacion'; input: MostrarInput; conversacion?: string; sesion?: ConversacionNueva }
+interface Comando { id: string; accion: 'fijar' | 'soltar' | 'guardar' | 'conversacion' | 'editor'; input: MostrarInput; conversacion?: string; sesion?: ConversacionNueva }
 interface Acuse { comando: string; ok: boolean; detalle: string; cerradas: string[]; abiertas: string[]; pestanas: PestanaReporte[]; /** En qué ventana quedó lo que abrió. */ donde?: string }
 /** La ventana que recibe lo que Levy abre, y cómo decirlo. */
 export interface DestinoLevy { ventana: string; texto: string }
@@ -163,6 +164,8 @@ export function useAtenderPanel() {
           }
           aplicados.add(cmd.id); anotarAplicado(cmd.id)
           // La conversación nueva que Levy abrió (31 oct 2026) no toca el panel: Fijadas la pinta y, si la pidió abierta, se abre.
+          // Levy abre el editor (19 nov 2026, contrato del motor §12.3): su ventana en el otro monitor, en ese proyecto.
+          if (cmd.accion === 'editor') { const r = await atenderEditorBus(cmd.input); acuses.push({ comando: cmd.id, ...r, cerradas: [], pestanas: estadoReal().pestanas }); otraVez = true; continue }
           if (cmd.accion === 'conversacion') { const r = await atenderConversacion(cmd.sesion); acuses.push({ comando: cmd.id, ...r, cerradas: [], abiertas: [], pestanas: estadoReal().pestanas }); otraVez = true; continue }
           // Lo que Levy abre cae en la ventana que Daniel eligió (por defecto la de la izquierda): se mide antes de aplicar.
           acuses.push(aplicar(cmd, abreAlgo(cmd) ? await resolverDestino() : undefined)); otraVez = true

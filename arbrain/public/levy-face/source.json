@@ -28,12 +28,33 @@
     "2026-10-04 rig/rig.js: opción `capas` ({giro, cerrado, boca}) para apagar capas pintadas por superficie; Arbrain Live apaga giro (fundido frontal↔¾ = cara doble a media pose) y boca (dientes). Por defecto todo encendido.",
     "2026-10-04 rig/rig.js: el párpado cerrado dibujado entra como cortinilla opaca por encima del filo que baja, no como fundido translúcido (ojo duplicado a medio parpadeo). Ver docs/agents/levy-presencia-noche-2026-10-04/2d.",
     "2026-11-07 rig/rig.js (Levy vivo): capa opcional `atlas` (capas.atlas = ruta del manifiesto, p. ej. 'assets/atlas/atlas.json'): campos de deformación de la boca por visema horneados con LivePortrait sobre la cara oficial; el shader mezcla CAMPOS con los pesos de la voz (utt.pesosAtlas) y muestrea el retrato una vez, con la cavidad como distancia con signo pintada en el morado de cavidadPareja (sin dientes, sin labios dobles a media pose). Y gancho `extra` ({headShift, headRot, parallax, brow, blink}) para sumar gestos de fuera (el movimiento del 3D). Sin capas.atlas ni extra el rig es idéntico al anterior. Ver labs/god-animation/practicas/2026-11-08-levy-unico/vivo/LEEME.md.",
-    "2026-11-07 assets/levy-oficial.webp (la cara oficial con el chip Arbrain, WebP sin pérdida, idéntica píxel a píxel a levy-oficial-arbrain.png) y assets/atlas/atlas.{png,json} (20 teselas). Solo los carga LevyFace con la bandera Levy vivo encendida."
+    "2026-11-07 assets/levy-oficial.webp (la cara oficial con el chip Arbrain, WebP sin pérdida, idéntica píxel a píxel a levy-oficial-arbrain.png) y assets/atlas/atlas.{png,json} (20 teselas). Solo los carga LevyFace con la bandera Levy vivo encendida.",
+    "2026-11-18 rig/rig.js (Levy en vivo, la boca de los videos): con un atlas que trae cavidad «ciruela» e interior_desde, el hueco se pinta con la fórmula de cavidad_viva.py de los videos (ciruela con degradado, lengua y su lomo horneados por pose y mezclados con los mismos pesos; la línea oscura entre los labios se aclara al entreabrir). Sin esos campos, el atlas se pinta como antes.",
+    "2026-11-18 assets/atlas/atlas.{png,json}: atlas POR CANALES (39 poses de LivePortrait con el motor de labios.sh en la rejilla abre × ancho de boca_nueva.py, cierres p/b/m con presión, la ch; región que cubre la quijada; bloque de interior). Lo pesa src/features/chat/lib/levy-boca.ts. Horno: labs/levy-labios-vivo-2026-11-18/scripts.",
+    "2026-11-18 rig/rig.js (Levy en Live «como en YouTube», plano medio): opción `capas.mate` (ruta, relativa a `base`, de la opacidad de la cabeza en la rejilla del retrato). Con ella el lienzo es TRANSPARENTE fuera de la cabeza: color premultiplicado × la opacidad muestreada en la misma coordenada deformada que el color (cabeza, boca, párpados), y esa opacidad sustituye a la matte de la hoja. Sin capas.mate el lienzo es opaco y todo es como antes.",
+    "2026-11-18 medio/ (cuerpo.webp, cabeza.webp, mate.png, fondo-{1,3,4}.webp, medio.json): el plano medio de los videos para Live, sacado de la cadena del canal sin editarla (gestos2d._torso + brazos en reposo, zona de cabeza y sombra del compositor de física, máscara de Apple Vision del retrato oficial, semejanza SIFT base-1.alin.json, rotación de estudios sunburst-f14). Horno: labs/levy-live-como-youtube-2026-11-18/scripts/medio_assets.py. Lo usa LevyFace con framing='medio' (src/features/chat/lib/levy-medio.ts).",
+    "2026-11-18/19 medio/clips/ (escuchar.mp4, pensar.mp4, clips.json): la cara completa para ESCUCHAR y PENSAR en el plano medio, horneada porque LivePortrait no cabe en tiempo real (2,5 cps medidos, labs/levy-live-como-youtube-2026-11-18/B-LIVEPORTRAIT.md). Es el retrato oficial movido con el campo de LivePortrait (flujo DIS de cada cuadro contra su neutro; mirada con la escala del rig; párpado dibujado como cortinilla), color | opacidad lado a lado. En los tramos neutros el clip ES el retrato: LevyFace corta clip ↔ rig solo ahí (src/features/chat/lib/levy-clips.ts). Horno: labs/levy-live-como-youtube-2026-11-18/scripts/clips_{controles,hornear}.py.",
+    "2026-11-19 medio/gestos/ (puno.mp4, gestos.json): el gesto de PUÑO del catálogo de los videos («clave», «nunca», «importante»…), el cuerpo completo cuadro por cuadro con el mismo motor del canal (gestos2d), color | opacidad lado a lado; empieza y termina en el reposo exacto de cuerpo.webp y ahí LevyFace cambia imagen ↔ clip (src/features/chat/lib/levy-brazos.ts). «Abiertas» y «énfasis» se hornean con --todos pero no van en Live: en su encuadre las manos en reposo quedan bajo la barra de escribir. Horno: labs/levy-live-como-youtube-2026-11-18/scripts/brazos_clips.py.",
+    "2026-11-19 rig/rig.js + medio/cabeza/ (PRUEBA, apagada): opción `capas.cabeza` (manifiesto del atlas de cabeza): campos de giro × inclinación horneados con LivePortrait (rejilla 5×5, ±6° × ±5°), 8 bits lineales; el shader lleva cada pixel a la pose neutra antes del resto de la cara (una sola imagen deformada). La pose llega en `extra.cabeza` ([u, v] de la rejilla). Sin la opción el rig es idéntico. LevyFace lo pide solo con la bandera `levyCabezaLP`. Horno: labs/levy-live-como-youtube-2026-11-18/scripts/cabeza_campos.py."
   ],
   "sha256_locales": {
-    "rig/rig.js": "53bfab5439f3bd219d37e94c8b6f1046afa4cac0e5f44dcaa7432dd2aeaf239f",
+    "rig/rig.js": "4b0593830f1a4e6a018697f84c6301822d1527993f6a034218bdfefb0c5965d7",
     "assets/levy-oficial.webp": "baaa9383e87e515714ee2f948a3b0f777289c4f9dc179e085411b7b468f766fc",
-    "assets/atlas/atlas.png": "863932e848080d83d3266bc50fc80ba460f38b258ba0ba585bce198bf8ba5096",
-    "assets/atlas/atlas.json": "62b97800805194803a8c380b92004c552f75b15865e89f808689a893aeb6af6f"
+    "assets/atlas/atlas.png": "983e6e18cf17a8fa014e19e9c584c9a9a773d5316e6b552fc25502a5d32a4d55",
+    "assets/atlas/atlas.json": "3a2a08fa51fa020e4a5f57a85cb7a476f6f27da773e340c406fcbefc702bc84b",
+    "medio/cabeza.webp": "a453daa765103e64d0f89489d9707740062c340dc30fa4817477b79be08a1b9b",
+    "medio/cuerpo.webp": "c63472f4f7313f6d1a4f2a37e09038fecf6b5b95df8b376028c9b40191a8212c",
+    "medio/fondo-1.webp": "3d05bdf5083c5a744083ccfa77b9ad7b42cdd8ac98562669f7ef915c462c78a3",
+    "medio/fondo-3.webp": "fe1cfca91b68d840612fcf671079cf330d3790f166b9d0dc77d14a5e4515aaf2",
+    "medio/fondo-4.webp": "c9b24fb48bea339022955a722fa708f7537d50e9553c0fd7771cb125a3167bed",
+    "medio/mate.png": "49f3eb93a1e677330ee3149a4dfb7c0451a8e6022b1097da54bf5121e943b873",
+    "medio/medio.json": "d382724069a1b1bc2a0e9d0ae6bb692a4b08ebd5889a4fdff809e423602a28a8",
+    "medio/clips/clips.json": "0676c0eccfb8d5267cd0179824ab8b0e3f28dfffbdb081da2eafab8e51fd50dd",
+    "medio/clips/escuchar.mp4": "4432e9fe823fb72ede8fdcd2b993ab0de21b14ab300729c03c3f07a2c066a2af",
+    "medio/clips/pensar.mp4": "dda7c642da7cbf4caec12c1d8aa63e8f14ef32ab91841c8aaf59f1e85e1756e2",
+    "medio/gestos/gestos.json": "228b5a49457fc809b0269ca807030a8619095e7ffc512ed428bac70c5d3cadc3",
+    "medio/gestos/puno.mp4": "46b6e0a817ecfc3a4b4af61e8d821355b999e5b2d487a9c6c3f3f60f56fe7f7d",
+    "medio/cabeza/cabeza.json": "908d76f1be34e188cfb78f0416bcaadacf50c44cd91fdd5fed4ff686757e061b",
+    "medio/cabeza/cabeza.png": "a0badde04503f3e2968d247e5f57702da647dfbcde878f85c78fe1b371505171"
   }
 }

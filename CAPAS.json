@@ -1,6 +1,6 @@
 {
   "_porque": "Contrato de capas de Arbrain. Todo lo que no está en «alumno» lo regenera el autor en cada versión; «alumno» nunca viene en el repo del autor: nace de la semilla y vive en tu rama. Lo leen los prompts de instalación y actualización y la CI.",
-  "version": "0.2.29",
+  "version": "0.2.30",
   "semilla": "arbrain/cerebro/semilla",
   "sembrar": "python3 arbrain/cerebro/sembrar.py",
   "alumno": [
@@ -19,25 +19,35 @@
   "alumno_skills": "toda carpeta de .claude/skills/ que no esté en skills_del_autor",
   "skills_del_autor": [
     "actualizar-arbrain",
+    "arquitectura-marketing",
     "artificial-brain",
     "autoresearch",
     "bajar-a-tierra",
+    "business-intelligence",
     "canvas",
     "clientes",
-    "code-animation",
+    "contacto-en-frio",
+    "diseno-de-marca",
+    "finance-os",
     "goal-compiler",
+    "god-animation",
     "google-workspace",
     "habit-system",
+    "ideal-funnels",
     "image-generation",
+    "intel",
     "knowledge-search",
     "libro-os",
+    "mapa-vivo",
     "memory-manager",
     "oferta",
     "os-audit",
     "presentaciones",
+    "radiografia",
     "sistema-viable",
     "skill-creator",
-    "tour-bienvenida"
+    "tour-bienvenida",
+    "youtube-os"
   ],
   "funciones": {
     "modo_servidor": {

@@ -12,7 +12,7 @@ import { zonaDueno, ZONA_ORIGINAL } from '@/shared/lib/zona-dueno'
 import { civilMidnight } from '@/features/sistema/calendar-days'
 import { localeIntl, tr, trMarca } from '@/shared/i18n/tr'
 
-export type Vista = 'calendario' | 'objetivos' | 'centro' | 'lienzo' | 'reporte' | 'negocio' | 'estrategia' | 'bi' | 'trabajos' | 'finanzas' | 'contenido' | 'rutinas' | 'servidores' | 'memoria' | 'equipo' | 'documento' | 'diario' | 'salud' | 'masterclass' | 'explorador' | 'cohorte' | 'casa' | 'perro' | 'historia'
+export type Vista = 'calendario' | 'objetivos' | 'centro' | 'lienzo' | 'reporte' | 'negocio' | 'estrategia' | 'bi' | 'trabajos' | 'finanzas' | 'contenido' | 'rutinas' | 'servidores' | 'memoria' | 'equipo' | 'documento' | 'diario' | 'salud' | 'masterclass' | 'explorador' | 'cohorte' | 'casa' | 'perro' | 'historia' | 'editor' | 'extensiones'
 export type SeccionNegocio = 'avatar' | 'oferta' | 'embudo' | 'sistema' | 'canal-levy'
 export type Destino = 'calendario' | 'objetivos' | 'hoy' | 'centro' | 'contenido' | 'lienzo' | 'rutinas' | 'finanzas' | 'sfcal' | 'sfmap' | 'reporte' | 'negocio' | 'trabajos'
 export type Alcance = 'dia' | 'semana' | 'mes'
@@ -39,14 +39,16 @@ export interface MostrarInput { vista: Vista; alcance?: Alcance; fecha?: string;
   /** Vista diario (5 oct 2026): el reporte del dueño (por defecto) o el de la socia. */
   quien?: Quien
   /** Vista casa (27 oct 2026): «tu-casa» abre la casa 3D en «Tu casa» dentro de la pestaña; con `repetir`, la repetición del recorrido. */
-  modo?: 'tu-casa'; repetir?: boolean }
+  modo?: 'tu-casa'; repetir?: boolean
+  /** Vista editor (19 nov 2026): el proyecto del motor (prj_…); sin él, la galería. */
+  proyecto?: string }
 export interface AbrirInput { destino: Destino; alcance?: Alcance; fecha?: string; paginaId?: string; zona?: string; motivo?: string }
 
 export type Invocacion =
   | { toolId: string; verbo: 'mostrar'; input: MostrarInput | null; status: 'running' | 'done'; error?: string }
   | { toolId: string; verbo: 'abrir'; input: AbrirInput | null; status: 'running' | 'done'; error?: string }
 
-const VISTAS: readonly Vista[] = ['calendario', 'objetivos', 'centro', 'lienzo', 'reporte', 'negocio', 'estrategia', 'bi', 'trabajos', 'finanzas', 'contenido', 'rutinas', 'servidores', 'memoria', 'equipo', 'documento', 'diario', 'salud', 'masterclass', 'explorador', 'cohorte', 'casa', 'perro', 'historia']
+const VISTAS: readonly Vista[] = ['calendario', 'objetivos', 'centro', 'lienzo', 'reporte', 'negocio', 'estrategia', 'bi', 'trabajos', 'finanzas', 'contenido', 'rutinas', 'servidores', 'memoria', 'equipo', 'documento', 'diario', 'salud', 'masterclass', 'explorador', 'cohorte', 'casa', 'perro', 'historia', 'editor', 'extensiones']
 /**
  * ¿Este build sabe pintar esa vista? (27 oct 2026) Una pestaña fijada con `vista: 'historia'` (nacida en una rama en obra y
  * sincronizada a todos los dispositivos) tumbó la app entera: ICONO['historia'] era undefined (React #130). Lo que entra al
@@ -85,6 +87,7 @@ export function parseMostrar(raw: string | undefined): MostrarInput | null {
     tiempo: o.vista === 'documento' && typeof o.tiempo === 'number' && Number.isFinite(o.tiempo) && o.tiempo >= 0 ? o.tiempo : undefined,
     quien: o.vista === 'diario' && (o.quien === DUENO() || o.quien === SEGUNDA()) ? o.quien : undefined,
     modo: o.vista === 'casa' && o.modo === 'tu-casa' ? 'tu-casa' : undefined, repetir: o.vista === 'casa' && o.repetir === true || undefined,
+    proyecto: o.vista === 'editor' && typeof o.proyecto === 'string' && /^prj_[A-Za-z0-9]{4,40}$/.test(o.proyecto) ? o.proyecto : undefined,
     soltar: o.soltar === true || undefined, pestana: o.soltar === true ? str(o.pestana, 120)?.trim() || undefined : undefined, guardar: o.guardar === true || undefined }
   if (input.vista === 'documento' && !input.ruta) return null
   return input.vista === 'lienzo' && !input.paginaId ? null : input
@@ -187,8 +190,12 @@ export function rutaDe(d: { destino: Destino | Vista; alcance?: Alcance; fecha?:
     case 'cohorte': return '/cohorte'
     case 'casa': return '/casa' + q({ modo: d.modo, repetir: d.repetir ? '1' : undefined })
     case 'perro': return '/perro'
+    // Extensiones (21 nov 2026): la tienda del catálogo curado y el panel de cada extensión instalada.
+    case 'extensiones': return '/extensiones'
     // La historia de tu cerebro (27 oct 2026) vive en Taller › Historia desde el 28 oct: /historia redirige ahí.
     case 'historia': return '/chat?panel=taller&taller=historia'
+    // El editor de video (19 nov 2026): en el escritorio vive en su ventana de la segunda pantalla; esta es su ruta directa.
+    case 'editor': return '/editor' + q({ proyecto: d.paginaId })
     case 'finanzas': return '/finanzas'
     case 'reporte': return '/api/cabina/reporte/abrir'
     // Tu negocio tiene sección propia desde el 5 nov 2026 (el teléfono la abre a lo ancho).
@@ -209,17 +216,17 @@ export function rutaDe(d: { destino: Destino | Vista; alcance?: Alcance; fecha?:
  * (3 oct 2026, «Arbrain, una sola app»: el panel acompaña, expandir va a la sección y nada saca de Arbrain).
  * null = no tiene sección propia: el documento ya está completo en su pestaña y los trabajos viven en el Taller.
  */
-export function seccionDe(i: Pick<MostrarInput, 'vista' | 'alcance' | 'fecha' | 'paginaId' | 'zona'>): string | null {
+export function seccionDe(i: Pick<MostrarInput, 'vista' | 'alcance' | 'fecha' | 'paginaId' | 'zona'> & { proyecto?: string }): string | null {
   // Rutinas, Memoria y Servidores viven en el Taller (5 oct 2026): no tienen sección propia a la cual expandir.
   if (i.vista === 'documento' || i.vista === 'trabajos' || i.vista === 'servidores' || i.vista === 'rutinas' || i.vista === 'memoria' || i.vista === 'historia' || i.vista === 'diario' || i.vista === 'explorador') return null
-  return rutaDe({ destino: i.vista, alcance: i.alcance, fecha: i.fecha, paginaId: i.paginaId, zona: i.zona })
+  return rutaDe({ destino: i.vista, alcance: i.alcance, fecha: i.fecha, paginaId: i.vista === 'editor' ? i.proyecto ?? i.paginaId : i.paginaId, zona: i.zona })
 }
 
 /** Marcados para el catálogo (13 nov 2026): se pintan con `tr(NOMBRE[x])`. */
 export const NOMBRE: Record<Destino | Vista, string> = {
   calendario: trMarca('Calendario'), objetivos: trMarca('Objetivos'), hoy: trMarca('Hoy'), centro: 'Command Center', contenido: trMarca('Contenido'),
   lienzo: trMarca('Lienzo'), rutinas: trMarca('Rutinas'), finanzas: trMarca('Finanzas'), sfcal: trMarca('Calendario'), sfmap: trMarca('Lienzo'),
-  reporte: trMarca('Lo que llegó'), negocio: trMarca('Tu negocio'), estrategia: trMarca('Estrategia'), bi: 'Business Intelligence', trabajos: trMarca('Trabajos en el Studio'), servidores: trMarca('Servidores'), memoria: trMarca('Memoria'), equipo: trMarca('Equipo'), documento: trMarca('Documento'), diario: trMarca('Reporte diario'), salud: trMarca('Salud'), masterclass: 'Masterclass', explorador: trMarca('Archivos'), cohorte: trMarca('Cohorte'), casa: trMarca('Casa'), perro: trMarca('Perro'), historia: trMarca('Historia'),
+  reporte: trMarca('Lo que llegó'), negocio: trMarca('Tu negocio'), estrategia: trMarca('Estrategia'), bi: 'Business Intelligence', trabajos: trMarca('Trabajos en el Studio'), servidores: trMarca('Servidores'), memoria: trMarca('Memoria'), equipo: trMarca('Equipo'), documento: trMarca('Documento'), diario: trMarca('Reporte diario'), salud: trMarca('Salud'), masterclass: 'Masterclass', explorador: trMarca('Archivos'), cohorte: trMarca('Cohorte'), casa: trMarca('Casa'), perro: trMarca('Perro'), historia: trMarca('Historia'), editor: 'Editor', extensiones: trMarca('Extensiones'),
 }
 
 /** Nombre de un documento: el título que le dio Levy o el nombre del archivo. */
@@ -247,6 +254,8 @@ export function resumen(i: MostrarInput): string {
   if (i.vista === 'casa') return i.titulo ?? 'Casa · el perro y los dispositivos'
   if (i.vista === 'perro') return i.titulo ?? 'Perro · cámara, mapa y STOP'
   if (i.vista === 'historia') return i.titulo ?? 'Historia · lo que cambió en tu cerebro'
+  if (i.vista === 'editor') return i.titulo ?? 'Editor · el video en tu otra pantalla'
+  if (i.vista === 'extensiones') return i.titulo ?? tr('Extensiones · lo que le agregas a tu cerebro')
   if (i.vista === 'documento') return nombreDocumento(i)
   if (i.vista === 'explorador') return i.titulo ?? tr('Archivos · el árbol del repo')
   if (i.vista === 'diario') return i.titulo ?? `${i.quien === SEGUNDA() ? `Reporte de ${NOMBRE_SEGUNDA()}` : 'Reporte diario'} · ${tituloPeriodo('dia', f)}`

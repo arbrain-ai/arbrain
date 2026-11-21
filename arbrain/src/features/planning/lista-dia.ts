@@ -159,4 +159,26 @@ export function enElTimeline(items: ItemDia[], bloques: Bloque[], base: number, 
   return { dentro, sueltas: sueltas.sort((a, b) => a.minuto! - b.minuto!) }
 }
 
+/** Lo que dura en la línea del día una tarea con hora a la que Todoist no le guardó duración. */
+export const DURACION_TAREA_MIN = 30
+/** Una tarea de Todoist con hora, como bloque propio en la línea del día (inicio y fin en ms). */
+export interface BloqueTarea { id: string; item: ItemDia; inicio: number; fin: number }
+
+/**
+ * Las tareas con hora en la línea del día (16 nov 2026, Daniel: «arraigar los eventos que tenemos, pero también las tareas… generar las
+ * horas límite fijas igual para verlo en el calendario»). De lo suelto del timeline, cada tarea de Todoist con hora es un bloque propio:
+ * empieza en su hora y dura lo que diga Todoist (o `DURACION_TAREA_MIN`), sin pasar de la medianoche. Las casillas del objetivo con hora
+ * escrita siguen como marca tenue. Lo ligado a un evento no llega aquí: ya vive dentro de su tarjeta (`enElTimeline`).
+ */
+export function bloquesDeTareas(sueltas: ItemDia[], base: number): { bloques: BloqueTarea[]; marcas: ItemDia[] } {
+  const bloques: BloqueTarea[] = [], marcas: ItemDia[] = []
+  for (const it of sueltas) {
+    if (it.origen !== 'tarea' || !it.tarea || it.minuto == null) { marcas.push(it); continue }
+    const dura = it.tarea.durationMinutes && it.tarea.durationMinutes > 0 ? it.tarea.durationMinutes : DURACION_TAREA_MIN
+    const inicio = base + it.minuto * 60_000
+    bloques.push({ id: `tarea:${it.id}`, item: it, inicio, fin: Math.min(base + 1440 * 60_000, inicio + dura * 60_000) })
+  }
+  return { bloques, marcas }
+}
+
 const dayKeyLocal = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`

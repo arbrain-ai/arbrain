@@ -15,7 +15,7 @@ import { Component, createContext, startTransition, useCallback, useContext, use
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { AlertTriangle, ArrowUpRight, BookOpen, ChartSpline, Compass, Bookmark, BookmarkCheck, CalendarDays, Clapperboard, Gauge, Inbox, Loader2, Maximize2, Target, TerminalSquare, Wallet, Shapes, X, Navigation, ChevronRight, Pin, PinOff, FileText, Repeat, Server, BrainCircuit, Network, Sun, Activity, GraduationCap, FolderTree, UsersRound, House, Dog, History } from 'lucide-react'
+import { AlertTriangle, ArrowUpRight, BookOpen, ChartSpline, Compass, Bookmark, BookmarkCheck, CalendarDays, Clapperboard, Gauge, Inbox, Loader2, Maximize2, Target, TerminalSquare, Wallet, Shapes, X, Navigation, ChevronRight, Pin, PinOff, FileText, Repeat, Server, BrainCircuit, Network, Sun, Activity, GraduationCap, FolderTree, UsersRound, House, Dog, History, Film, Puzzle } from 'lucide-react'
 import type { ChatMessage } from '@/features/chat/hooks/useChat'
 import { type Invocacion, type MostrarInput, type AbrirInput, invocacionesDe, sinEcoDeDelegar, rutaDe, seccionDe, resumen, NOMBRE, abrirEsVivo, abrirEjecutado, hoyCivil, tituloPeriodo, nombreDocumento } from './model'
 import { lecturaEnCache } from './datos'
@@ -23,6 +23,7 @@ import { SostenAlto, altoConocido, recordarAlto } from './alto-sostenido'
 import { VistaCalendario, urlCalendario, resumenCalendario } from './vistas/Calendario'
 import { VistaObjetivos, URL_OBJETIVOS, resumenObjetivos } from './vistas/Objetivos'
 import { VistaLienzo } from './vistas/Lienzo'
+import { VistaEditor } from '@/features/editor/VistaEditor'
 import { VistaReporte, urlReporte, resumenReporte } from './vistas/Reporte'
 import { VistaNegocio, urlNegocio, resumenNegocio } from './vistas/Negocio'
 import { VistaBI } from './vistas/BI'
@@ -44,6 +45,7 @@ import { VistaExplorador } from './vistas/Explorador'
 import { VistaCohorte, URL_COHORTE, resumenCohorte } from './vistas/Cohorte'
 import { VistaCasa, URL_CASA, resumenCasa } from '@/features/casa/PanelCasa'
 import { VistaHistoria, URL_HISTORIA, resumenHistoria } from '@/features/historia/Historia'
+import { Tienda as VistaExtensiones } from '@/features/extensiones/ui/Tienda'
 import type { Historia as DatosHistoria } from '@/features/historia/modelo'
 import dynamic from 'next/dynamic'
 import type { EstadoCasa } from '@/features/casa/contrato'
@@ -93,7 +95,7 @@ export function CabinaProvider({ messages, children, sinOptimizar }: { messages:
   return <CabinaCtx.Provider value={value}>{children}</CabinaCtx.Provider>
 }
 
-export const ICONO = { calendario: CalendarDays, objetivos: Target, centro: Gauge, lienzo: Shapes, reporte: Inbox, negocio: BookOpen, estrategia: Compass, bi: ChartSpline, trabajos: TerminalSquare, finanzas: Wallet, contenido: Clapperboard, rutinas: Repeat, servidores: Server, memoria: BrainCircuit, equipo: Network, documento: FileText, diario: Sun, salud: Activity, masterclass: GraduationCap, explorador: FolderTree, cohorte: UsersRound, casa: House, perro: Dog, historia: History }
+export const ICONO = { calendario: CalendarDays, objetivos: Target, centro: Gauge, lienzo: Shapes, reporte: Inbox, negocio: BookOpen, estrategia: Compass, bi: ChartSpline, trabajos: TerminalSquare, finanzas: Wallet, contenido: Clapperboard, rutinas: Repeat, servidores: Server, memoria: BrainCircuit, equipo: Network, documento: FileText, diario: Sun, salud: Activity, masterclass: GraduationCap, explorador: FolderTree, cohorte: UsersRound, casa: House, perro: Dog, historia: History, editor: Film, extensiones: Puzzle }
 
 /** Una vista que falla se queda en SU tarjeta: nunca tumba el hilo. */
 class Aislada extends Component<{ children: ReactNode }, { error: string | null }> {
@@ -154,6 +156,10 @@ function CuerpoVista({ input, grande }: { input: MostrarInput; grande?: boolean 
     case 'historia': return <VistaHistoria grande={grande} />
     // Explorador de archivos (8 oct 2026): el árbol del repo; un clic abre el archivo en su pestaña de documento.
     case 'explorador': return <VistaExplorador grande={grande} />
+    // El editor de video (19 nov 2026): la pestaña lo abre en la otra pantalla; aquí queda el botón para traerlo al frente.
+    case 'editor': return <VistaEditor proyecto={input.proyecto ?? input.paginaId} />
+    // Extensiones (21 nov 2026): la tienda; en el panel, un panel de extensión se abre dentro de la misma pestaña.
+    case 'extensiones': return <VistaExtensiones grande={grande} />
   }
 }
 

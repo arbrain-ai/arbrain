@@ -1292,6 +1292,21 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     registrar: e => logger.info(e, 'autonomía'),
     enviar: (status, cuerpo) => sendJSON(res, status, cuerpo),
   })) return
+  // Extensiones (21 nov 2026, fase 2 del SPEC docs/builds/extensiones-2026-11-20): la tienda (catálogo, instalar,
+  // actualizar, quitar), el alta de sus tareas en este scheduler y los archivos y fuentes `ext:` de sus paneles. Las dos
+  // ediciones; solo la app (el pase de agente no instala nada: por voz, Levy usa `claude plugin` con su freno).
+  if (reqPath === '/extensiones' || reqPath.startsWith('/extensiones/')) {
+    if (conPase) { sendJSON(res, 403, { error: tr('Solo la app puede usar esta ruta.') }); return }
+    const [{ atenderExtensiones }, { depsDelDaemon }] = await Promise.all([import('./extensiones/tienda.js'), import('./extensiones/daemon.js')])
+    const r = await atenderExtensiones(req.method ?? 'GET', reqPath, reqUrl.searchParams, parsed, depsDelDaemon(computeNextRun))
+    if (r) {
+      if ('archivo' in r) {
+        res.writeHead(r.status, { 'Content-Type': r.archivo.tipo, 'Content-Length': r.archivo.bytes.length, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' })
+        res.end(r.archivo.bytes)
+      } else sendJSON(res, r.status, r.json)
+      return
+    }
+  }
   if (req.method === 'POST' && reqPath === '/live/speech') {
     if (typeof parsed.text !== 'string' || !parsed.text.trim() || parsed.text.length > 1200 || typeof parsed.speed !== 'number' || parsed.speed < 0.5 || parsed.speed > 3) { sendJSON(res, 400, { error: 'Frase de voz inválida.' }); return }
     const ac = new AbortController(); res.on('close', () => ac.abort())
