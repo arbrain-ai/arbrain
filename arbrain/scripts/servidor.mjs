@@ -46,6 +46,7 @@ import {
 import { PRELUDIO_WEB } from './servidor/preludio-web.mjs'
 import { armarPaquete, programaYaCompilado } from './servidor/programa.mjs'
 import { apartarMarcadoresVacios } from './servidor/marcadores-sandbox.mjs'
+import { asegurarDependencias } from './servidor/dependencias.mjs'
 import * as telefono from './servidor/telefono.mjs'
 import * as conectar from './servidor/conectar.mjs'
 import { avisoCaida, trasCaida } from './servidor/reintentos.mjs'
@@ -268,16 +269,12 @@ function instalarEn(dir) {
 function instalarDependencias() {
   // `--include=dev` siempre: compilar necesita TypeScript y las herramientas de Next aunque la terminal tenga
   // NODE_ENV=production (con ella, `npm ci` omite las dependencias de desarrollo).
-  if (!existsSync(join(ARBRAIN, 'node_modules', 'next', 'package.json')) || !existsSync(join(ARBRAIN, 'node_modules', 'typescript', 'package.json'))) {
-    registrar('Instalando dependencias de la web (una sola vez, unos minutos)…')
-    const r = instalarEn(ARBRAIN)
-    if (r.codigo !== 0) fallar(`Falló \`npm ${r.orden}\` en arbrain/. Revisa tu conexión y vuelve a correr \`npm run servidor\`.`)
-  }
-  if (!existsSync(join(SERVER, 'node_modules', 'typescript', 'package.json'))) {
-    registrar('Instalando dependencias del daemon…')
-    const r = instalarEn(SERVER)
-    if (r.codigo !== 0) fallar(`Falló \`npm ${r.orden}\` en arbrain/server.`)
-  }
+  // Además de instalar si falta algo, reinstala si el package-lock.json cambió desde la última instalación (una versión
+  // nueva con dependencias nuevas): si no, `next build` falla por «Module not found» (servidor/dependencias.mjs).
+  const web = asegurarDependencias(ARBRAIN, { imprescindibles: ['next', 'typescript'], cual: 'de la web', instalar: instalarEn, registrar })
+  if (web.codigo !== 0) fallar(`Falló \`npm ${web.orden}\` en arbrain/. Revisa tu conexión y vuelve a correr \`npm run servidor\`.`)
+  const daemon = asegurarDependencias(SERVER, { imprescindibles: ['typescript'], cual: 'del daemon', instalar: instalarEn, registrar })
+  if (daemon.codigo !== 0) fallar(`Falló \`npm ${daemon.orden}\` en arbrain/server.`)
 }
 
 const STANDALONE = join(ARBRAIN, '.next', 'standalone')
