@@ -61,6 +61,8 @@ const CLAVE = 'arbrain-modo-coche'
 const VUELVE_MS = 250
 /** El agente terminó (turno cerrado y sin voz por decir) durante este tiempo: tu turno. */
 const QUIETA_MS = 1200
+/** El tilín empieza 30 ms después de pedirlo y la bocina agrega su retraso: el detector lo ignora con esta holgura. */
+const TILIN_HOLGURA_MS = 80
 /** Si el turno nunca se ve empezar (algo raro), a este tiempo se vuelve a escuchar. */
 const SIN_TURNO_MS = 6000
 /** El colchón de silencio dentro de cada frase (Bluetooth del coche). */
@@ -242,27 +244,32 @@ function PantallaCoche({ ctx, trabajando, enviar, cerrar, despierta, renovarDesp
     return () => window.removeEventListener('resize', medir)
   }, [])
 
-  /** Tu turno: tilín y micrófono (cuando el tilín se apaga, para no calibrar el piso de ruido con él). */
+  /**
+   * Tu turno: micrófono y, cuando YA graba, el tilín. Antes era al revés (tilín, 500 ms y recién ahí el micrófono; por
+   * turnos, además, el sistema tardaba en darlo) y lo primero que decías al oír el tilín se perdía (de 0,3 a 1 s). Ahora
+   * el tilín quiere decir «ya te estoy grabando»; el detector no lo toma por tu voz (`ignorar`). El micrófono se pide
+   * aquí mismo, dentro del toque (iOS).
+   */
   const escuchar = useCallback(() => {
     const oido = oidoRef.current
     if (!oido) return
     pausadoRef.current = false
     oido.silencioMs = modoRef.current === 'turnos' ? SILENCIO_TURNOS_MS : SILENCIO_MS
     ponerFase('abriendo')
-    let espera = 0
-    try { espera = tocarTilin(ctx) } catch { /* sin tilín */ }
     const epoca = epocaRef.current
-    despues(() => {
-      if (epoca !== epocaRef.current || faseRef.current !== 'abriendo') return
-      void oido.reanudar().then(() => {
-        // Aunque haya tardado (el iPhone pidió permiso y lo diste después), si sigue siendo tu turno, ya te escucha.
-        if (oido.escuchando && epoca === epocaRef.current && (faseRef.current === 'abriendo' || faseRef.current === 'sin-mic')) ponerFase('escucha')
-      })
-    }, espera)
+    void oido.reanudar().then(grabando => {
+      // Aunque haya tardado (el iPhone pidió permiso y lo diste después), si sigue siendo tu turno, ya te escucha.
+      if (!grabando || epoca !== epocaRef.current || (faseRef.current !== 'abriendo' && faseRef.current !== 'sin-mic')) return
+      let espera = 0
+      try { espera = tocarTilin(ctx) } catch { /* sin tilín */ }
+      oido.ignorar(espera ? espera + TILIN_HOLGURA_MS : 0)
+      anotar({ ev: 'tilin', ms: oido.grabandoHace() })
+      ponerFase('escucha')
+    })
     despues(() => {
       if (epoca === epocaRef.current && faseRef.current === 'abriendo' && !oido.escuchando)
         avisar('Si el iPhone te pide el micrófono, toca «Permitir». Sigo esperando.', 12_000)
-    }, espera + 4000)
+    }, 4000)
   }, [ctx, avisar])
 
   /** Pausa: micrófono cerrado; lo que ibas diciendo se tira. */

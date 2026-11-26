@@ -9,6 +9,12 @@
  *   - En cada pausa de ~0,9 s se avisa una vez («mirar adelante»): ahí se transcribe lo dicho hasta ese momento para
  *     notar «cambio», «dale»… y enviar sin esperar los 3 s.
  *   - Menos de medio segundo de voz en total (una tos, un golpe) no cuenta: se tira sin transcribir.
+ *
+ * Lo primero que dices tras el tilín (antes se perdía): la grabación ya corre ANTES del tilín. El detector no oye el
+ * tilín (`ignorar`: esa ventana no cuenta ni para el piso de ruido ni como voz), pero lo que dices durante y después
+ * del tilín sí queda grabado. Y si ya estabas hablando cuando el detector empieza a evaluar (al acabar el tilín y la
+ * calibración), esa voz continua se le cuenta: un «Termina.» corto dicho encima del tilín no se tira como si fuera una
+ * tos. (La cola del tilín, al cerrar su ventana, queda muy por debajo del umbral de voz: el tilín solo no se cuenta.)
  */
 
 export const CALIBRA_MS = 300
@@ -68,6 +74,10 @@ export class DetectorHabla {
   private ultimaVoz = -Infinity
   private ultimaMedicion = 0
   private miroEstaPausa = false
+  private ignorarHasta = 0
+  private ignorado = 0
+  /** Mediciones que todavía no se pudieron evaluar (el tilín y la calibración). */
+  private sinEvaluar: { t: number; dt: number; nivel: number }[] = []
   private readonly silencioMs: number
   /** Cuántos milisegundos con voz lleva esta escucha. */
   vozMs = 0
@@ -98,16 +108,27 @@ export class DetectorHabla {
     return pausa === this.pausa && this.inicioSilencio !== 0
   }
 
+  /** Lo que suena en esta ventana (el tilín) no es tu voz ni el ruido de la cabina: no se mide. */
+  ignorar(desde: number, ms: number): void {
+    this.ignorarHasta = Math.max(this.ignorarHasta, desde + ms)
+  }
+
   paso(ahora: number, nivel: number): Paso {
-    const pasado = ahora - this.inicio
     const dt = Math.min(200, Math.max(0, ahora - this.ultimaMedicion))
     this.ultimaMedicion = ahora
+    if (ahora < this.ignorarHasta) {
+      this.ignorado += dt
+      if (!this.umbrales) this.sinEvaluar.push({ t: ahora, dt, nivel })
+      return 'sigue'
+    }
+    const pasado = ahora - this.inicio - this.ignorado
     if (!this.umbrales) {
       this.calibracion.push(nivel)
-      if (pasado < CALIBRA_MS) return 'sigue'
+      if (pasado < CALIBRA_MS) { this.sinEvaluar.push({ t: ahora, dt, nivel }); return 'sigue' }
       // Si empiezas a hablar en cuanto suena el tilín, la calibración oye tu voz: se toma lo más bajo (los huecos entre
       // sílabas) y con tope, para que tu voz nunca quede por debajo del umbral.
       this.umbrales = umbralesDesdePiso(Math.min(percentil(this.calibracion, 0.2), PISO_MAX))
+      this.recuperarArranque(this.umbrales.habla)
     }
     const { habla, silencio } = this.umbrales
     if (nivel > habla) {
@@ -129,6 +150,24 @@ export class DetectorHabla {
     if (!this.hablaVista && pasado > SIN_HABLA_MS) return 'empezar-de-nuevo'
     if (pasado > TOPE_MS) return this.vozMs >= VOZ_MINIMA_MS ? 'terminaste' : 'empezar-de-nuevo'
     return 'sigue'
+  }
+
+  /** Ya estabas hablando cuando se empezó a evaluar: la voz continua que venía de antes cuenta (no se tira). */
+  private recuperarArranque(habla: number): void {
+    let voz = 0
+    let ultima = -Infinity
+    for (let i = this.sinEvaluar.length - 1; i >= 0; i--) {
+      const m = this.sinEvaluar[i]
+      if (m.nivel <= habla) break
+      voz += m.dt
+      if (ultima === -Infinity) ultima = m.t
+    }
+    this.sinEvaluar = []
+    if (voz <= 0) return
+    this.hablaVista = true
+    this.pausa++
+    this.vozMs += voz
+    this.ultimaVoz = ultima
   }
 
   /** La app volvió de segundo plano: los relojes se re-anclan (el tiempo oculto no cuenta como silencio). */

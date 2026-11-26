@@ -11,11 +11,21 @@
  * - El reloj es un intervalo de 50 ms y no `requestAnimationFrame`: con la pantalla quieta Safari baja los cuadros.
  * - Por turnos: `entregarYa()` es el toque que manda lo dicho; `soltar()` suelta el micrófono del todo entre turnos (se
  *   vuelve a pedir al tocar, dentro del gesto); `silencioMs` da más paciencia al silencio en ese modo.
+ * - Lo primero que dices tras el tilín: antes el tilín sonaba y el micrófono se abría 500 ms DESPUÉS (y por turnos,
+ *   además, se volvía a pedir al sistema en ese momento): se perdían de 0,3 a 1 s de lo dicho. Ahora `reanudar()`
+ *   termina cuando la grabación YA corre (evento `start` del MediaRecorder, el micrófono entregando sonido y un colchón
+ *   de `PREVIO_MS`); el tilín suena después y `ignorar()` hace que el detector no lo tome por tu voz. Todo lo que digas
+ *   desde que empieza el tilín queda grabado.
  */
 import { formatoGrabacion, tipoDeGrabacion } from '@/features/chat/lib/voz-sistema'
 import { DetectorHabla, SILENCIO_MS } from './vad'
 
 export type Grabacion = { audio: Blob; nombre: string }
+
+/** Grabación corriendo como mínimo esto antes del tilín (el colchón: lo de iOS al cambiar de reproducir a grabar). */
+export const PREVIO_MS = 150
+/** Tope para esperar a que la grabación arranque y el micrófono entregue sonido (no se queda colgado). */
+export const LISTO_MAX_MS = 700
 
 type Avisos = {
   /** Terminaste de hablar: esto se transcribe y se manda. */
@@ -65,9 +75,13 @@ export class Oido {
   /** ¿Sigues callado en la misma pausa en que se miró adelante? */
   sigueLaPausa(pausa: number): boolean { return this.activo && !!this.detector?.sigueLaPausa(pausa) }
 
-  /** La primera vez, dentro del toque (iOS pide el micrófono en el gesto). Luego, al volver de una pausa. */
-  async reanudar(): Promise<void> {
-    if (this.activo || this.cerrado) return
+  /**
+   * La primera vez, dentro del toque (iOS pide el micrófono en el gesto). Luego, al volver de una pausa. Devuelve true
+   * cuando ya se está grabando de verdad (ahí suena el tilín); false si se pausó, se cerró o no hubo micrófono.
+   */
+  async reanudar(): Promise<boolean> {
+    if (this.cerrado) return false
+    if (this.activo) return this.escuchando
     this.activo = true
     const epoca = ++this.epoca
     try {
@@ -75,7 +89,7 @@ export class Oido {
       if (!this.vivo()) {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } })
         this.liberar()
-        if (this.cerrado) { stream.getTracks().forEach(t => t.stop()); return }
+        if (this.cerrado) { stream.getTracks().forEach(t => t.stop()); return false }
         this.stream = stream
         this.pedidos++
         this.fuente = this.ctx.createMediaStreamSource(stream)
@@ -85,16 +99,53 @@ export class Oido {
         this.fuente.connect(this.analizador)
         this.muestras = new Uint8Array(new ArrayBuffer(this.analizador.fftSize))
       }
-      if (epoca !== this.epoca) { this.silenciar(); return } // se pausó mientras el iPhone preguntaba: queda listo y callado
+      if (epoca !== this.epoca) { this.silenciar(); return false } // se pausó mientras el iPhone preguntaba: queda listo y callado
       this.stream?.getAudioTracks().forEach(t => { t.enabled = true })
       this.empezarGrabacion()
       this.reloj = setInterval(() => this.medir(), 50)
+      await this.esperarGrabando()
+      return epoca === this.epoca && this.escuchando
     } catch (e) {
-      if (epoca !== this.epoca) return
+      if (epoca !== this.epoca) return false
       this.activo = false
       this.avisos.alFallar(e instanceof Error && e.name === 'NotAllowedError' ? 'El micrófono no tiene permiso.' : 'No se pudo abrir el micrófono.')
+      return false
     }
   }
+
+  /** Hasta que la grabadora arrancó, el micrófono entrega sonido y pasó el colchón (con tope: nunca se cuelga). */
+  private async esperarGrabando(): Promise<void> {
+    const g = this.grabadora
+    if (!g) return
+    const desde = performance.now()
+    if (g.state !== 'recording' || !this.grabandoDesde) {
+      await new Promise<void>(listo => {
+        const t = setTimeout(listo, LISTO_MAX_MS)
+        g.addEventListener('start', () => { clearTimeout(t); listo() }, { once: true })
+      })
+    }
+    while (this.grabadora === g && performance.now() - desde < LISTO_MAX_MS) {
+      const inicio = this.grabandoDesde || desde
+      if (performance.now() - inicio >= PREVIO_MS && this.hayCorriente()) return
+      await new Promise(f => setTimeout(f, 20))
+    }
+  }
+
+  /** ¿El micrófono ya entrega sonido? (al cambiar la sesión de audio, iOS da ceros los primeros momentos). */
+  private hayCorriente(): boolean {
+    if (!this.analizador || !this.muestras) return true
+    this.analizador.getByteTimeDomainData(this.muestras)
+    for (const v of this.muestras) if (v !== 128) return true
+    return false
+  }
+
+  /** Cuándo empezó a grabar de verdad la grabación actual (0 si todavía no). */
+  private grabandoDesde = 0
+  /** Cuánto lleva grabando la grabación actual (ms). Para la bitácora: el colchón antes del tilín. */
+  grabandoHace(): number { return this.grabandoDesde ? performance.now() - this.grabandoDesde : 0 }
+
+  /** El tilín: el detector no lo toma por tu voz ni por el ruido de la cabina (la grabación sí sigue). */
+  ignorar(ms: number): void { if (ms > 0) this.detector?.ignorar(performance.now(), ms) }
 
   /** Cuántas veces se pidió el micrófono al sistema en esta sesión (debe ser 1). */
   pedidos = 0
@@ -162,6 +213,8 @@ export class Oido {
     const pedazos: BlobPart[] = []
     this.pedazos = pedazos
     g.ondataavailable = e => { if (e.data.size > 0) pedazos.push(e.data) }
+    this.grabandoDesde = 0
+    g.addEventListener('start', () => { if (this.grabadora === g) this.grabandoDesde = performance.now() }, { once: true })
     g.start(250)
     this.grabadora = g
     this.detector = new DetectorHabla(performance.now(), this.silencioMs)
