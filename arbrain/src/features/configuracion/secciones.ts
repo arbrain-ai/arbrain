@@ -9,7 +9,7 @@ import { tr, trMarca, trMarcas } from '@/shared/i18n/tr'
 
 const CLIENTE = esEdicionCliente()
 
-export type IdSeccion = 'norte' | 'equipo' | 'clientes' | 'oferta' | 'embudo' | 'modelo' | 'apariencia' | 'cuenta' | 'avisos' | 'mac' | 'atajos' | 'panel' | 'llaves' | 'voz' | 'sinfiltro' | 'privacidad' | 'seguridad' | 'telefono' | 'maquinas' | 'autonomia' | 'directo' | 'idioma'
+export type IdSeccion = 'norte' | 'equipo' | 'clientes' | 'oferta' | 'embudo' | 'modelo' | 'apariencia' | 'cuenta' | 'avisos' | 'mac' | 'atajos' | 'panel' | 'llaves' | 'voz' | 'sinfiltro' | 'privacidad' | 'seguridad' | 'telefono' | 'maquinas' | 'autonomia' | 'directo' | 'idioma' | 'mejoras'
 
 export interface DefSeccion { id: IdSeccion; nombre: string; detalle: string; ajustes: string[] }
 export interface DefGrupo { id: string; titulo: string; secciones: IdSeccion[] }
@@ -24,7 +24,7 @@ const TODAS: ReadonlyArray<DefSeccion> = [
   // Modo directo (7 nov 2026): antes de grabar o transmitir. Tapa nombres, dinero y secretos; niega Finanzas, Cohorte, Casa y Perro.
   { id: 'directo', nombre: trMarca('Modo directo'), detalle: trMarca('Antes de grabar o transmitir: tapa clientes, dinero y secretos'), ajustes: trMarcas(['Modo directo', 'En directo', 'Transmitir', 'Grabar pantalla', 'Stream', 'Live', 'Directo', 'Ocultar datos', 'Ocultar clientes', 'Ocultar dinero', 'Ocultar secretos', '⌘⇧D']) },
   // Levy en Live (13 nov 2026): qué Levy abre la foto de perfil (el 2D de los videos por defecto, el 3D o el 2D anterior).
-  { id: 'apariencia', nombre: trMarca('Apariencia'), detalle: CLIENTE ? trMarca('Tema claro u oscuro') : trMarca('Tema claro u oscuro y el Levy de Live'), ajustes: trMarcas(['Tema', 'Modo oscuro', 'Modo claro', 'Tema del sistema', ...(CLIENTE ? [] : ['Levy en Live', 'Levy 2D', 'Levy 3D', 'Cara de Levy'])]) },
+  { id: 'apariencia', nombre: trMarca('Apariencia'), detalle: CLIENTE ? trMarca('Tema claro u oscuro') : trMarca('Tema claro u oscuro y el Levy de Live'), ajustes: trMarcas(['Tema', 'Modo oscuro', 'Modo claro', 'Tema del sistema', ...(CLIENTE ? [] : ['Levy en Live', 'Levy 2D', 'Levy 3D', 'Cara de Levy', 'Como en YouTube'])]) },
   // Idioma (13 nov 2026, «Arbrain en inglés»): Español o English para la interfaz, las fechas, el agente y la voz.
   { id: 'idioma', nombre: trMarca('Idioma'), detalle: trMarca('Español o English: la interfaz, las fechas, Levy y su voz'), ajustes: trMarcas(['Idioma', 'Language', 'English', 'Español', 'Inglés', 'Spanish', 'Traducir', 'Translate']) },
   { id: 'avisos', nombre: trMarca('Notificaciones'), detalle: CLIENTE ? trMarca('Los avisos de Levy en tu teléfono: activar, probar y apagar') : trMarca('Reportes y avisos en tu teléfono: activar, probar y apagar'), ajustes: trMarcas(['Activar notificaciones', 'Notificaciones push', 'Avisos en el teléfono', 'Avisos de Levy', 'Enviarme una prueba', 'Desactivar notificaciones', ...(CLIENTE ? ['Rutinas', 'Decisiones pendientes'] : ['Reportes']), 'iPhone', 'Pantalla de inicio']) },
@@ -32,6 +32,8 @@ const TODAS: ReadonlyArray<DefSeccion> = [
   // Autonomía v2 (4 nov 2026): el preset y cada clase (lo hace solo · te pregunta · nunca). Aquí se enciende el soporte a la cohorte.
   { id: 'autonomia', nombre: trMarca('Autonomía'), detalle: trMarca('Qué hace Levy solo y qué espera tu toque'), ajustes: trMarcas(['Autonomía', 'Política de autonomía', 'Cauteloso', 'Equilibrado', 'Piloto automático', 'Lo hace solo', 'Te pregunta', 'Soporte técnico a la cohorte', 'Dudas de los alumnos', 'Configurar servicios', 'Tu agenda', 'Classroom de la cohorte', 'Lo que hice solo']) },
   { id: 'panel', nombre: trMarca('Panel'), detalle: trMarca('Qué secciones salen en el «+» del panel'), ajustes: trMarcas(['Secciones del «+»', 'Ocultar secciones', 'Orden de las secciones', 'Tareas']) },
+  // Ajustes › Mejoras: un interruptor por mejora opcional (features/mejoras); apagada, la app queda como sin ella.
+  { id: 'mejoras', nombre: trMarca('Mejoras'), detalle: trMarca('Mejoras opcionales: prende o apaga cada una'), ajustes: trMarcas(['Mejoras', 'Mejoras opcionales', 'Panel derecho que se pliega', 'Micrófono y «+» mientras trabaja', 'Nota de voz como borrador', 'Elegir la voz de LemonFox']) },
   { id: 'atajos', nombre: trMarca('Atajos'), detalle: trMarca('Teclado de la app y del Canvas'), ajustes: trMarcas(['Atajos de teclado', 'Abrir Ajustes ⌘,', 'Atajos del Canvas', 'Atajos del Calendario']) },
   { id: 'mac', nombre: CLIENTE ? trMarca('Esta computadora') : trMarca('Mac y sistema'), detalle: CLIENTE ? trMarca('Computer use y permisos del sistema') : trMarca('Permisos de macOS y Ops'), ajustes: trMarcas(['Permisos de macOS', 'Micrófono', 'Cámara', 'Grabación de pantalla', 'Accesibilidad', 'Computer use', 'Ops', ...(CLIENTE ? [] : ['Sincronización', 'Cola de sincronización', 'Conflictos', 'Paquete offline', 'Espejo local'])]) },
   // Edición cliente (11 oct 2026): las llaves del alumno (BYOK) y su privacidad.
@@ -53,7 +55,7 @@ const TODAS: ReadonlyArray<DefSeccion> = [
 const GRUPOS_ORIGINAL: ReadonlyArray<DefGrupo> = [
   { id: 'negocio', titulo: trMarca('El negocio'), secciones: ['norte', 'equipo', 'clientes', 'oferta', 'embudo'] },
   { id: 'tu', titulo: trMarca('Tú'), secciones: ['cuenta', 'apariencia', 'idioma', 'avisos', 'directo'] },
-  { id: 'arbrain', titulo: 'Arbrain', secciones: ['modelo', 'autonomia', 'panel', 'atajos'] },
+  { id: 'arbrain', titulo: 'Arbrain', secciones: ['modelo', 'autonomia', 'panel', 'atajos', 'mejoras'] },
   { id: 'computadora', titulo: trMarca('Esta computadora'), secciones: ['mac'] },
 ]
 
@@ -64,7 +66,7 @@ const GRUPOS_ORIGINAL: ReadonlyArray<DefGrupo> = [
  */
 const GRUPOS_CLIENTE: ReadonlyArray<DefGrupo> = [
   { id: 'tu', titulo: trMarca('Tú'), secciones: ['llaves', 'idioma', 'voz', 'sinfiltro', 'telefono', 'maquinas', 'avisos', 'seguridad', 'privacidad', 'apariencia'] },
-  { id: 'arbrain', titulo: 'Arbrain', secciones: ['modelo', 'panel', 'atajos'] },
+  { id: 'arbrain', titulo: 'Arbrain', secciones: ['modelo', 'panel', 'atajos', 'mejoras'] },
   { id: 'computadora', titulo: trMarca('Esta computadora'), secciones: ['mac'] },
 ]
 

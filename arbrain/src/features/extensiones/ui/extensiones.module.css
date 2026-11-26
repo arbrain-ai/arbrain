@@ -1,0 +1,65 @@
+/* Extensiones (21 nov 2026): la tienda y el panel aislado, con la gramática de página v2 (pg-*) y los tokens de la app. */
+.pagina { height: 100%; min-height: 0; display: flex; flex-direction: column; background: var(--background); color: var(--foreground); }
+.paginaScroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: var(--pagina-pad-top) max(var(--pagina-pad-x), calc((100% - min(var(--pagina-max), 1120px)) / 2)) 48px; width: 100%; display: flex; flex-direction: column; gap: 14px; }
+.paginaScroll > :global(.pg-cabecera) { margin-bottom: 2px; }
+.paginaScroll[data-panel] { padding-bottom: 16px; }
+
+.tienda { display: flex; flex-direction: column; gap: 22px; container-type: inline-size; min-width: 0; }
+.grupo { display: flex; flex-direction: column; gap: 10px; }
+.cuenta { font-variant-numeric: tabular-nums; color: var(--muted); font-weight: 550; letter-spacing: 0; }
+.rejilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 12px; }
+.vacio { margin: 0; font-size: 13px; color: var(--muted); }
+.pie { margin: 4px 0 0; max-width: 72ch; font-size: 12.5px; line-height: 1.55; color: var(--muted); }
+
+.tarjeta { display: flex; flex-direction: column; gap: 10px; padding: 16px 18px; background: var(--card); border: 1px solid var(--border-subtle); border-radius: var(--radio-tarjeta); min-width: 0; }
+.tarjeta[data-instalada] { border-color: rgba(var(--brand-rgb), 0.22); }
+.cabeza { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.sello { flex: none; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 11px; color: var(--brand-ink); background: rgba(var(--brand-rgb), 0.1); border: 1px solid rgba(var(--brand-rgb), 0.2); }
+.quien { min-width: 0; flex: 1; }
+.quien h4 { margin: 0; font-family: var(--serif-ui); font-size: 17px; font-weight: 600; line-height: 1.2; color: var(--foreground); }
+.meta { display: block; margin-top: 2px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.insignia { flex: none; font-size: 11px; font-weight: 650; padding: 3px 8px; border-radius: 999px; color: var(--muted); border: 1px solid var(--border-subtle); background: var(--surface, transparent); }
+.insignia[data-tono='nuevo'] { color: var(--l-tinta-ambar, var(--gold-dark)); border-color: var(--l-borde-ambar, rgba(var(--gold-rgb), 0.34)); background: rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.08); }
+.resumen { margin: 0; font-size: 14px; line-height: 1.5; color: var(--foreground); }
+.acerca { margin: 0; font-size: 12.5px; line-height: 1.55; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+.pide { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.pide li { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; line-height: 1; padding: 6px 8px; border-radius: 8px; color: color-mix(in srgb, var(--foreground) 78%, transparent); background: color-mix(in srgb, var(--foreground) 4%, transparent); }
+.pide li svg { color: var(--muted); }
+.pide li[data-falta] { color: var(--l-tinta-ambar, var(--gold-dark)); background: rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), 0.09); }
+
+.aviso { margin: 0; font-size: 13px; line-height: 1.5; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--border-subtle); }
+.aviso[data-tono='ok'] { border-color: color-mix(in srgb, var(--success) 35%, transparent); background: color-mix(in srgb, var(--success) 8%, transparent); }
+.aviso[data-tono='error'] { border-color: color-mix(in srgb, var(--error) 35%, transparent); background: color-mix(in srgb, var(--error) 7%, transparent); }
+
+.botones { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; }
+.primario { color: #fff; background: var(--primary); border-color: transparent; }
+.primario:hover { background: var(--primary-hover, var(--primary)); border-color: transparent; }
+.primario:disabled, .peligro:disabled { opacity: 0.5; cursor: not-allowed; }
+.peligro { color: var(--error); border-color: color-mix(in srgb, var(--error) 35%, transparent); }
+
+.confirmar { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); background: color-mix(in srgb, var(--foreground) 2.5%, var(--card)); }
+.confirmar p { margin: 0; font-size: 13px; line-height: 1.5; }
+.confirmarTitulo { font-weight: 650; }
+.permisos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+.permisos li { display: flex; gap: 8px; font-size: 13px; line-height: 1.45; }
+.permisos li svg { flex: none; margin-top: 2px; color: var(--muted); }
+.permisos code { font-size: 11.5px; padding: 1px 5px; margin: 0 3px 0 0; border-radius: 5px; background: color-mix(in srgb, var(--foreground) 6%, transparent); overflow-wrap: anywhere; }
+.llave { display: flex; flex-direction: column; gap: 4px; }
+.llaveNombre { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 650; font-family: var(--font-mono, ui-monospace, monospace); }
+.llavePara, .llaveComo, .llaveLista { font-size: 12.5px; line-height: 1.45; color: var(--muted); }
+.llave input { height: 34px; padding: 0 10px; border-radius: 9px; font-size: 13px; color: var(--foreground); background: var(--card); border: 1px solid var(--border); }
+.llave input:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.si { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; font-weight: 600; line-height: 1.4; cursor: pointer; }
+.si input { margin-top: 2px; accent-color: var(--primary); }
+.nota { font-size: 12px !important; color: var(--muted); }
+
+/* El panel de una extensión: una tarjeta que ocupa la página; el iframe es la vista aislada. */
+.panel { display: flex; flex-direction: column; gap: 10px; min-height: 0; flex: 1; }
+.panelCabeza { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.panelTitulo { margin: 0; font-family: var(--serif-ui); font-size: 20px; font-weight: 600; }
+.panelNota { font-size: 12px; color: var(--muted); }
+.iframe { flex: 1; min-height: 640px; width: 100%; border: 1px solid var(--border-subtle); border-radius: var(--radio-tarjeta); background: var(--card); color-scheme: normal; }
+.pendiente { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(var(--brand-rgb), 0.3); background: rgba(var(--brand-rgb), 0.07); }
+.pendiente > svg { flex: none; color: var(--brand-ink); }
+.pendiente p { margin: 0; flex: 1; font-size: 13px; line-height: 1.45; }

@@ -14,8 +14,10 @@ export interface ComandoAviso { cmd: string; args: string[] }
 const limpio = (t: string, max: number) => t.replace(/[\u0000-\u001F\u007F]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max)
 /** Dentro de una cadena de AppleScript: comillas y barras escapadas. */
 const applescript = (t: string) => t.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
-/** Dentro de un literal de PowerShell con comillas simples: la comilla simple se duplica. */
-const ps = (t: string) => t.replace(/'/g, "''")
+/** Dentro de un literal de PowerShell con comillas simples: la comilla simple se duplica. PowerShell también cierra esas
+ *  cadenas con las comillas tipográficas ‘ ’ ‚ ‛ (18 nov 2026, hallado al revisar los parches de un fundador): un texto del
+ *  modelo con «don’t» rompía el aviso y abría la puerta a inyectar PowerShell. Se vuelven rectas y luego se duplican. */
+const ps = (t: string) => t.replace(/[\u2018\u2019\u201A\u201B]/g, "'").replace(/'/g, "''")
 
 /** El comando nativo para avisar, o null si la plataforma no tiene uno. Puro. */
 export function comandoAviso(titulo: string, cuerpo: string, plataforma: string = process.platform): ComandoAviso | null {

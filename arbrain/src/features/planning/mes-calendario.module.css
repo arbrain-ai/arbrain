@@ -1,0 +1,151 @@
+/* El Mes como calendario de verdad (17 nov 2026, MesCalendario.tsx). La cuadrícula de siempre a pantalla completa, sin scroll: la
+   meta arriba, el renglón de cada semana con su objetivo a la izquierda y los siete días; lo de varios días es una barra. Paleta: los
+   tokens de la app (oro = lo que importa, morado = lo personal y el viaje, bronce = actuar); claro y oscuro salen de ellos. */
+.mes { --linea: color-mix(in srgb, var(--foreground) 9%, transparent); --serif: ui-serif, 'New York', 'Iowan Old Style', Georgia, serif;
+  --oro-texto: color-mix(in srgb, var(--gold-dark, var(--gold)) 74%, var(--l-gris-0, #000));
+  /* --morado (Invertir: el viaje) y --bronce (Producir: actuar) llegan de DRIP por el estilo del componente: una sola fuente. */
+  --wcol: clamp(168px, 12.5%, 240px);
+  position: relative; flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; gap: 6px; padding: 6px 22px 2px; box-sizing: border-box; }
+:global(.dark) .mes { --oro-texto: var(--gold-bright, var(--gold)); }
+
+/* Sin posición propia: la pestaña flotante de la meta (FranjaPlan `encima`) se mide contra el Mes entero, no contra su línea. */
+.meta { flex: none; }
+/* La meta del mes se lee entera: hasta dos líneas antes de cortarse (a 1440 con la barra lateral abierta no cabe en una). */
+.meta [data-objetivo] { white-space: normal; }
+.meta [data-objetivo] > span:nth-child(2) { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; padding: 4px 0; text-wrap: pretty; }
+.meta > section { margin: 0; }
+.avance { flex: none; display: inline-flex; gap: 14px; margin-left: 12px; font-size: 12px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.avance b { color: var(--oro-texto); font-weight: 750; }
+
+.cabeza { flex: none; display: grid; grid-template-columns: var(--wcol) repeat(7, minmax(0, 1fr)); padding: 0 1px; font-size: 10.5px; font-weight: 700;
+  letter-spacing: .7px; text-transform: uppercase; color: var(--muted); }
+.cabeza > span { padding: 0 10px; white-space: nowrap; overflow: hidden; }
+
+.rejilla { flex: 1 1 0; min-height: 0; display: grid; overflow: hidden; border: 1px solid var(--linea); border-radius: 12px; background: var(--card);
+  box-shadow: 0 1px 2px rgba(var(--l-sombra-rgb, 0, 0, 0), .05); }
+
+/* Una semana: la columna del objetivo y siete días en UNA fila; las barras se montan encima de los días (misma fila, otro carril). */
+.semana { display: grid; grid-template-columns: var(--wcol) repeat(7, minmax(0, 1fr)); grid-template-rows: minmax(0, 1fr); min-height: 0; border-top: 1px solid var(--linea); }
+.semana:first-child { border-top: 0; }
+.semana > * { grid-row: 1; }
+
+.wcol { container: mes-semana / inline-size; grid-column: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 3px; padding: 7px 12px 8px 14px; overflow: hidden;
+  border: 0; border-right: 1px solid var(--linea); background: transparent; color: var(--foreground); font: inherit; text-align: left; cursor: pointer; }
+.wcol:disabled { cursor: default; }
+.wcol:not(:disabled):hover { background: color-mix(in srgb, var(--foreground) 4%, transparent); }
+.wcol:focus-visible { outline: 2px solid var(--purple, var(--l-morado-6, #8c27f1)); outline-offset: -2px; }
+.s { flex: none; font-size: 10.5px; font-weight: 650; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.s b { color: var(--foreground); font-weight: 800; letter-spacing: .3px; }
+.objetivo { min-height: 0; font-family: var(--serif); font-size: 13.5px; line-height: 17px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; text-wrap: pretty; }
+.objetivo[data-vacio] { font-family: inherit; font-size: 11.5px; font-style: italic; color: var(--muted); }
+.carga { flex: none; margin-top: auto; display: flex; flex-direction: column; gap: 4px; font-size: 10.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.carga > span { display: flex; min-width: 0; white-space: nowrap; }
+.carga > span b { flex: none; font-weight: 600; }
+.carga > span em { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-style: normal; }
+/* En la columna angosta (1440 con la barra lateral abierta) la carga dice solo sus horas: las tareas siguen en el detalle. */
+@container mes-semana (max-width: 205px) { .carga > span em { display: none; } }
+.carga i { display: block; height: 6px; border-radius: 3px; background: var(--linea); overflow: hidden; }
+.carga i b { display: block; height: 100%; border-radius: 3px; background: color-mix(in srgb, var(--foreground) 45%, transparent); }
+.semana[data-mas-cargada] .carga i b { background: var(--gold); }
+.semana[data-mas-cargada] .carga > span { color: var(--foreground); }
+.semana[data-mas-cargada] .carga > span b { font-weight: 800; }
+/* La semana actual sin oro (el juez del 17 nov: «el mismo dorado significa dos cosas»): el oro es de hoy y de la semana más cargada. */
+.semana[data-actual] .wcol { background: color-mix(in srgb, var(--foreground) 4.5%, transparent); box-shadow: inset 2px 0 0 color-mix(in srgb, var(--foreground) 50%, transparent); }
+.semana[data-pasada] .wcol { opacity: .62; }
+.semana[data-pasada] .objetivo { -webkit-line-clamp: 1 !important; }
+
+/* Un día. */
+.dia { min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; border-left: 1px solid var(--linea); cursor: pointer; transition: background 120ms; }
+.semana > .dia:nth-child(2) { border-left: 0; }
+.dia[data-finde] { background: color-mix(in srgb, var(--foreground) 2.4%, transparent); }
+.dia[data-fuera] { background: linear-gradient(180deg, color-mix(in srgb, var(--morado) 14%, transparent), color-mix(in srgb, var(--morado) 6%, transparent)); }
+.dia[data-fuera-mes] .numero b { opacity: .45; }
+.dia[data-pasado] .items, .dia[data-pasado] .objetivoDia { opacity: .5; }
+.dia[data-pasado]:hover .items { opacity: .85; }
+.dia[data-hoy] { box-shadow: inset 0 0 0 1.5px rgba(var(--gold-rgb), .55); background: linear-gradient(180deg, rgba(var(--l-velo-ambar-rgb, var(--gold-rgb)), .07), transparent 60%); }
+.dia[data-destino] { background: color-mix(in srgb, var(--purple, var(--l-morado-5, #8b5cf6)) 16%, transparent); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--purple, var(--l-morado-5, #8b5cf6)) 70%, transparent); }
+.dia:not([data-hoy]):hover { background-color: color-mix(in srgb, var(--foreground) 3.5%, transparent); }
+
+.numero { flex: none; height: 24px; display: flex; align-items: center; gap: 4px; padding: 3px 5px 0 6px; box-sizing: border-box; }
+.numero button[data-mes-numero] { display: inline-flex; align-items: baseline; gap: 4px; height: 20px; padding: 0 5px; border: 0; border-radius: 10px; background: none; color: var(--foreground);
+  font: inherit; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; cursor: pointer; }
+.numero button[data-mes-numero]:hover { background: color-mix(in srgb, var(--foreground) 8%, transparent); }
+.numero button[data-mes-numero]:focus-visible { outline: 2px solid var(--purple, var(--l-morado-6, #8c27f1)); outline-offset: 0; }
+.numero small { font-size: 11px; font-weight: 550; color: var(--muted); }
+.dia[data-hoy] .numero button[data-mes-numero] { min-width: 22px; justify-content: center; align-items: center; background: var(--gold); color: var(--l-gris-0, #1a1004); font-weight: 800; }
+.dia[data-hoy] .numero button[data-mes-numero] small { color: color-mix(in srgb, var(--l-gris-0, #1a1004) 70%, transparent); }
+.estrella { font-size: 11px; line-height: 1; color: var(--muted); }
+.estrella[data-hecho] { color: var(--oro-texto); }
+/* Mientras llegan los hábitos, la estrella no dice «sin marcar»: se queda tenue (el juez del 17 nov). */
+.estrella[data-leyendo] { opacity: .3; }
+.crear { margin-left: auto; display: grid; place-items: center; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 6px; background: none; color: var(--muted);
+  opacity: 0; cursor: pointer; transition: opacity 120ms, background 120ms; }
+.dia:hover .crear, .crear:focus-visible { opacity: 1; }
+.crear:hover { background: color-mix(in srgb, var(--foreground) 9%, transparent); color: var(--foreground); }
+
+/* El objetivo del día (de hoy en adelante): una línea en serif con su estrella. */
+.objetivoDia { flex: none; display: flex; align-items: center; gap: 5px; margin: 0; padding: 0 8px 0 9px; height: 16px; min-width: 0; font-family: var(--serif); font-size: 12px; font-style: italic; color: var(--foreground); }
+.objetivoDia b { flex: none; font-style: normal; font-size: 11px; color: var(--oro-texto); }
+.objetivoDia span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.items { flex: 1 1 0; min-height: 0; list-style: none; margin: 0; padding: 0 4px 0 5px; display: flex; flex-direction: column; overflow: hidden; }
+.items li { flex: none; min-width: 0; }
+.item { width: 100%; display: flex; align-items: center; gap: 5px; min-width: 0; height: 16px; padding: 0 4px; border: 0; border-radius: 4px; background: none; color: var(--foreground);
+  font: inherit; font-size: 11.5px; line-height: 16px; text-align: left; white-space: nowrap; cursor: pointer; }
+.item:hover { background: color-mix(in srgb, var(--foreground) 8%, transparent); }
+.item:focus-visible { outline: 2px solid var(--purple, var(--l-morado-6, #8c27f1)); outline-offset: -1px; }
+.item[data-movible] { cursor: grab; touch-action: none; }
+.item > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.item time { flex: none; font-size: 10.5px; font-weight: 550; color: var(--muted); font-variant-numeric: tabular-nums; }
+.item[data-tipo=compromiso] { font-weight: 640; }
+.item[data-tipo=compromiso]::before { content: ''; flex: none; width: 3px; height: 12px; border-radius: 2px; background: color-mix(in srgb, var(--foreground) 32%, transparent); }
+.item[data-tono=accion]::before { background: var(--bronce); }
+.item[data-tono=viaje]::before { background: var(--morado); }
+.item[data-tipo=hito] { height: auto; min-height: 16px; padding: 1px 6px; margin: 1px 0; white-space: normal; font-weight: 700; line-height: 15px;
+  background: color-mix(in srgb, var(--foreground) 7%, transparent); }
+.item[data-tipo=hito] > span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.item[data-tipo=hito][data-tono=viaje] { background: color-mix(in srgb, var(--morado) 24%, transparent); }
+.item[data-tipo=hito][data-tono=accion] { background: color-mix(in srgb, var(--bronce) 22%, transparent); }
+.item[data-tipo=tarea] i { flex: none; width: 10px; height: 10px; box-sizing: border-box; border-radius: 50%; border: 1.5px solid color-mix(in srgb, var(--foreground) 40%, transparent); }
+.item[data-tipo=tarea][data-p='1'] i { border-color: var(--prioridad-1); background: color-mix(in srgb, var(--prioridad-1) 16%, transparent); }
+.item[data-tipo=tarea][data-p='2'] i { border-color: var(--prioridad-2); }
+.item[data-tipo=tarea][data-p='3'] i { border-color: var(--prioridad-3); }
+.item[data-vencida] > span::after { content: ' ·'; color: var(--prioridad-1); font-weight: 800; }
+.item[data-tipo=bloque] { color: var(--muted); }
+/* Un choque de horario: la hora en ámbar (el detalle dice con qué se cruza). */
+.item[data-choque] time { color: var(--prioridad-2); font-weight: 750; }
+.item[data-choque] time::after { content: '!'; margin-left: 1px; }
+.mas { height: 16px; padding: 0 4px; border: 0; border-radius: 4px; background: none; color: var(--muted); font: inherit; font-size: 11px; font-weight: 650; cursor: pointer; }
+.mas:hover { color: var(--foreground); background: color-mix(in srgb, var(--foreground) 8%, transparent); }
+
+/* Lo de varios días: una barra encima de sus días. */
+.barra { align-self: start; z-index: 2; height: 17px; min-width: 0; margin: 0 4px; padding: 0 8px; display: flex; align-items: center; gap: 8px; overflow: hidden;
+  border: 0; border-radius: 5px; font: inherit; font-size: 11px; font-weight: 700; line-height: 17px; text-align: left; white-space: nowrap; cursor: pointer;
+  color: var(--foreground); background: color-mix(in srgb, var(--foreground) 9%, var(--card)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--foreground) 20%, transparent); }
+.barra > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; }
+.barra small { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 11px; font-weight: 550; opacity: .82; }
+.barra[data-tono=viaje] { color: var(--l-gris-16, #fff); background: linear-gradient(90deg, color-mix(in srgb, var(--morado) 72%, var(--card)), color-mix(in srgb, var(--morado) 52%, var(--card))); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--morado) 70%, transparent); }
+.barra[data-tono=accion] { background: color-mix(in srgb, var(--bronce) 22%, var(--card)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bronce) 55%, transparent); }
+.barra[data-antes] { margin-left: 0; border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.barra[data-despues] { margin-right: 0; border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.barra[data-movible] { cursor: grab; touch-action: none; }
+.barra:focus-visible { outline: 2px solid var(--purple, var(--l-morado-6, #8c27f1)); outline-offset: 1px; }
+.semana[data-pasada] .barra { opacity: .55; }
+
+/* El pie: el ritmo de todos los días, dicho una vez, y qué significa la estrella. */
+.pie { flex: none; display: flex; align-items: center; gap: 18px; margin: 0; padding: 0 4px; min-height: 18px; font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; }
+.pie b { color: var(--foreground); font-weight: 650; }
+.pie > span { overflow: hidden; text-overflow: ellipsis; }
+.leyendaEstrella { margin-left: auto; flex: none; }
+.leyendaEstrella b { color: var(--oro-texto); }
+
+/* Arrastrar: el fantasma sigue al puntero. */
+.mes[data-arrastrando], .mes[data-arrastrando] * { cursor: grabbing !important; }
+.fantasma { position: fixed; z-index: 60; pointer-events: none; transform: translate(10px, -50%); max-width: 260px; padding: 3px 10px; border-radius: 6px; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; font-weight: 700; color: var(--foreground); background: var(--card);
+  box-shadow: 0 6px 20px rgba(var(--l-sombra-rgb, 0, 0, 0), .28), inset 0 0 0 1px color-mix(in srgb, var(--purple, var(--l-morado-5, #8b5cf6)) 60%, transparent); }
+.fantasma[data-tono=viaje] { color: var(--l-gris-16, #fff); background: color-mix(in srgb, var(--morado) 70%, var(--card)); }
+
+@media (prefers-reduced-motion: reduce) {
+  .dia, .crear, .mas, .item { transition: none; }
+}

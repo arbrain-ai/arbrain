@@ -1,0 +1,103 @@
+/*
+ * Lienzo v17 · el KIT DE MARCA de las piezas libres (15 nov 2026). Contrato: docs/builds/lienzo-v17/MOTOR.md.
+ * Paleta: núcleo de marca → `.claude/skills/diseno-de-marca/references/nucleo.md` §2 (familia Luminorphism: morado
+ * #8C27F1 y oro #ff9101; fondo near-black #09090b; en claro, la adaptación del lienzo: blanco y crema #faf6ef) y §4 (bisel
+ * titanium). Tipografía §5: Cormorant Garamond (display, itálica para punchlines) e Inter (cuerpo); viajan dentro del
+ * host como letras propias (sin red) y dentro de cada póster.
+ * Cada pieza es `[data-pieza]` con `data-tema="claro|oscuro"`: las variables cambian solas con el tema.
+ */
+[data-pieza] {
+  color-scheme: dark;
+  --ab-serif: "Cormorant Garamond", "Iowan Old Style", Palatino, Georgia, serif;
+  --ab-sans: "Inter", -apple-system, "SF Pro Display", system-ui, sans-serif;
+  --ab-mono: "SF Mono", ui-monospace, Menlo, monospace;
+
+  --ab-oro: #ff9101;
+  --ab-oro-claro: #ffac3d;
+  --ab-oro-oscuro: #cc7301;
+  --ab-oro-suave: #ffb64d;
+  --ab-morado: #8C27F1;
+  --ab-morado-suave: #9d3cf5;
+  --ab-morado-tinta: #c79cff;
+  --ab-fondo: #09090b;
+  --ab-tinta: #0d0d12;
+  --ab-placa: #1a1a1e;
+  --ab-texto: #f7f8f8;
+  --ab-texto-2: #d4d4d8;
+  --ab-tenue: #a1a1aa;
+  --ab-borde: #2c2c34;
+  --ab-borde-luz: #42424c;
+  --ab-ok: #3fb27f;
+  --ab-mal: #e0484d;
+  --ab-brillo: 1;
+  --ab-bisel: inset 0 1px 0 rgba(255, 255, 255, 0.10), inset 0 -1px 0 rgba(0, 0, 0, 0.40);
+  --ab-sombra: 0 24px 60px -24px rgba(0, 0, 0, 0.7);
+}
+[data-pieza][data-tema="claro"] {
+  color-scheme: light;
+  --ab-oro: #e08600;
+  --ab-oro-claro: #ff9101;
+  --ab-oro-oscuro: #9a6206;
+  --ab-oro-suave: #c97a00;
+  --ab-morado: #8C27F1;
+  --ab-morado-suave: #7126c4;
+  --ab-morado-tinta: #7126c4;
+  --ab-fondo: #faf6ef;
+  --ab-tinta: #f3eee4;
+  --ab-placa: #ffffff;
+  --ab-texto: #111114;
+  --ab-texto-2: #3f3f49;
+  --ab-tenue: #6b7280;
+  --ab-borde: #e6e3dc;
+  --ab-borde-luz: #ffffff;
+  --ab-brillo: 0.35;
+  --ab-bisel: inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 0 rgba(17, 17, 20, 0.08);
+  --ab-sombra: 0 20px 50px -28px rgba(60, 40, 10, 0.35);
+}
+
+[data-pieza] {
+  position: absolute; left: 0; top: 0; overflow: hidden; contain: strict;
+  transform-origin: 0 0; box-sizing: border-box;
+  font-family: var(--ab-sans); color: var(--ab-texto);
+  -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+}
+[data-pieza][data-fondo="propio"] { background: var(--ab-fondo); }
+[data-pieza] *, [data-pieza] *::before, [data-pieza] *::after { box-sizing: border-box; }
+[data-pieza][data-dormida], [data-pieza][data-dormida] * { animation-play-state: paused !important; }
+/* Viva = su propia capa de composición: lo que anima adentro se repinta en ella y el compositor la escala (WebKit, si no,
+   rasterizaba cada pieza escalada en cada cuadro: 4 vivas a ~37 fps). Dormida, sin capa (no ocupa memoria de GPU). */
+[data-pieza]:not([data-dormida]) { will-change: transform; }
+
+/* El recorrido: lo que aparece en un paso posterior espera con un fundido. */
+[data-pieza] [data-paso] { transition: opacity 520ms cubic-bezier(.2, .7, .2, 1), transform 520ms cubic-bezier(.2, .7, .2, 1); }
+[data-pieza] [data-paso].ab-espera { opacity: 0 !important; transform: translateY(14px); pointer-events: none; }
+
+/* Clases de marca */
+[data-pieza] .ab-serif { font-family: var(--ab-serif); }
+[data-pieza] .ab-cifra { font-feature-settings: "tnum"; font-variant-numeric: tabular-nums; }
+[data-pieza] .ab-placa {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ab-placa) 92%, white 8%), var(--ab-placa));
+  border: 1px solid var(--ab-borde); border-top-color: var(--ab-borde-luz);
+  border-radius: 18px; box-shadow: var(--ab-bisel), var(--ab-sombra);
+}
+[data-pieza] .ab-boton {
+  appearance: none; cursor: pointer; display: inline-flex; align-items: center; gap: 12px;
+  font: 700 22px/1 var(--ab-sans); letter-spacing: 0.01em; color: var(--ab-texto);
+  padding: 16px 24px; border-radius: 999px; background: transparent;
+  border: 1.5px solid color-mix(in srgb, var(--ab-morado) 70%, transparent);
+  transition: background 160ms, border-color 160ms, transform 160ms;
+}
+[data-pieza] .ab-boton::before {
+  content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--ab-morado); flex: none;
+}
+[data-pieza] .ab-boton.oro { border-color: color-mix(in srgb, var(--ab-oro) 80%, transparent); }
+[data-pieza] .ab-boton.oro::before { background: var(--ab-oro); box-shadow: 0 0 calc(12px * var(--ab-brillo)) var(--ab-oro); }
+[data-pieza] .ab-boton:hover { background: color-mix(in srgb, var(--ab-morado) 14%, transparent); }
+[data-pieza] .ab-boton.oro:hover { background: color-mix(in srgb, var(--ab-oro) 14%, transparent); }
+[data-pieza] .ab-boton:active, [data-pieza] .ab-yendo { transform: scale(0.97); }
+
+/* La pieza con error: se dice en la pieza, Levy lo corrige en el archivo. */
+[data-pieza] .ab-error {
+  position: absolute; left: 24px; right: 24px; bottom: 24px; z-index: 2147483647; padding: 16px 20px; border-radius: 12px;
+  font: 600 18px/1.4 var(--ab-mono); color: #fff; background: rgba(160, 30, 40, 0.92); white-space: pre-wrap;
+}

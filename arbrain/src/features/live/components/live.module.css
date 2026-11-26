@@ -67,3 +67,11 @@
 .previewOn{display:block}
 @media(prefers-reduced-motion:reduce){.rec{animation:none}}
 @media(max-width:650px){.preview{width:92px;height:52px;bottom:auto;top:62px}}
+
+/* Levy en vivo (18 nov 2026, bandera): la onda de manos libres; el anillo sigue el nivel de tu voz. */
+.composer .onda{width:44px;height:44px;padding:0;background:rgba(var(--l-velo-ambar-rgb, 233, 183, 101), 0.122);color:var(--l-tinta-ambar-clara, #f0c987)}
+.composer .ondaOn{background:var(--l-ambar-3, #e9b765);color:var(--l-gris-5, #2a1c0a);box-shadow:0 0 0 calc(2px + var(--nivel, 0) * 10px) rgba(var(--l-ambar-3-rgb, 233, 183, 101), 0.28);transition:box-shadow .08s linear}
+.composer .ondaOn:hover{background:var(--l-ambar-2, #f0c987);color:var(--l-gris-5, #2a1c0a)}
+.presence .modo{margin-left:6px;padding:2px 8px;border:1px solid rgba(var(--l-luz-rgb, 255, 255, 255), 0.18);border-radius:999px;background:none;color:inherit;font:inherit;letter-spacing:inherit;cursor:pointer}
+.presence .modo:hover{border-color:var(--l-borde-ambar, #e9b765)}
+@media(prefers-reduced-motion:reduce){.composer .ondaOn{transition:none}}

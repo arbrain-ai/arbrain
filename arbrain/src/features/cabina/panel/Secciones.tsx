@@ -87,6 +87,8 @@ const OPCIONES: Opcion[] = [
   // La historia de tu cerebro (27 oct 2026) salió del «+» el 28 oct: vive en Taller › Historia.
   // Explorador de archivos (8 oct 2026, Daniel: «principalmente por control»). Visible por defecto; quien no lo quiera lo apaga en Ajustes › Panel.
   { vista: 'explorador', nota: trMarca('El árbol del repo: abre cualquier archivo en solo lectura') },
+  // Extensiones (21 nov 2026): la tienda del catálogo curado (skills, tareas y paneles) y el panel de cada una instalada.
+  { vista: 'extensiones', nota: trMarca('Skills, tareas y paneles del catálogo para tu cerebro') },
   // El «+» queda solo con negocio y vida (5 oct 2026, Daniel 18:11): Rutinas, Memoria y Servidores viven en el Taller.
   // Casa salió de aquí el 27 oct 2026 (Daniel: «porque esta este de casa arriba… todo bien organizado»): su único hogar en el
   // «+» es «Entorno físico», al pie, junto con Perro.

@@ -1292,6 +1292,21 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     registrar: e => logger.info(e, 'autonomía'),
     enviar: (status, cuerpo) => sendJSON(res, status, cuerpo),
   })) return
+  // Extensiones (21 nov 2026, fase 2 del SPEC docs/builds/extensiones-2026-11-20): la tienda (catálogo, instalar,
+  // actualizar, quitar), el alta de sus tareas en este scheduler y los archivos y fuentes `ext:` de sus paneles. Las dos
+  // ediciones; solo la app (el pase de agente no instala nada: por voz, Levy usa `claude plugin` con su freno).
+  if (reqPath === '/extensiones' || reqPath.startsWith('/extensiones/')) {
+    if (conPase) { sendJSON(res, 403, { error: tr('Solo la app puede usar esta ruta.') }); return }
+    const [{ atenderExtensiones }, { depsDelDaemon }] = await Promise.all([import('./extensiones/tienda.js'), import('./extensiones/daemon.js')])
+    const r = await atenderExtensiones(req.method ?? 'GET', reqPath, reqUrl.searchParams, parsed, depsDelDaemon(computeNextRun))
+    if (r) {
+      if ('archivo' in r) {
+        res.writeHead(r.status, { 'Content-Type': r.archivo.tipo, 'Content-Length': r.archivo.bytes.length, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' })
+        res.end(r.archivo.bytes)
+      } else sendJSON(res, r.status, r.json)
+      return
+    }
+  }
   if (req.method === 'POST' && reqPath === '/live/speech') {
     if (typeof parsed.text !== 'string' || !parsed.text.trim() || parsed.text.length > 1200 || typeof parsed.speed !== 'number' || parsed.speed < 0.5 || parsed.speed > 3) { sendJSON(res, 400, { error: 'Frase de voz inválida.' }); return }
     const ac = new AbortController(); res.on('close', () => ac.abort())
@@ -1333,6 +1348,8 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
       if (parsed.que === 'negocio') { const { libroDelNegocio } = await import('./cabina/negocio.js'); sendJSON(res, 200, await libroDelNegocio({ conTexto: parsed.conTexto === true })); return }
       if (parsed.que === 'salida' && typeof parsed.tarea === 'string') { const { salidaDe } = await import('./cabina/internos.js'); const { tachar } = await import('./cabina/cuerpo.js'); try { sendJSON(res, 200, await salidaDe(parsed.tarea, typeof parsed.lineas === 'number' ? Math.min(Math.max(parsed.lineas, 5), 200) : 80, tachar)) } catch (e) { sendJSON(res, 404, { error: e instanceof Error ? e.message : tr('Sin salida.') }) } return }
       if (parsed.que === 'panel') { const { sincronizar } = await import('./cabina/panel-bus.js'); try { sendJSON(res, 200, sincronizar(parsed as unknown as import('./cabina/panel-bus.js').Sincronizacion)) } catch (e) { sendJSON(res, 400, { error: e instanceof Error ? e.message : tr('Sincronización inválida.') }) } return }
+      // Ajustes › Mejoras: un interruptor por mejora opcional (cliente/mejoras.ts).
+      if (parsed.que === 'mejoras') { const { accionMejoras } = await import('./cliente/mejoras.js'); const r = accionMejoras(parsed); sendJSON(res, 'error' in r ? r.status : 200, 'error' in r ? { error: r.error } : r); return }
       if (parsed.que === 'panel-ajustes') { const { accionPanelAjustes } = await import('./cabina/panel-ajustes.js'); const r = accionPanelAjustes(parsed); sendJSON(res, 'error' in r ? r.status : 200, 'error' in r ? { error: r.error } : r); return }
       // Modo directo (7 nov 2026): el interruptor de Ajustes y ⌘⇧D; con el modo prendido, `leer` trae los nombres que la app tapa.
       if (parsed.que === 'modo-directo') { const { accionModoDirecto } = await import('./cabina/modo-directo.js'); const r = accionModoDirecto(parsed); sendJSON(res, 'error' in r ? r.status : 200, 'error' in r ? { error: r.error } : r); return }
@@ -1784,7 +1801,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
       const { hablarLemonfox } = await import('./cliente/voz.js')
       const { llaveLemonfox } = await import('./cliente/cofre.js')
       const leido = text.slice(0, 5000)
-      const r = await hablarLemonfox(leido, tempo, llaveLemonfox(), fetch, { marcas: parsed['marcas'] === true, llaveGroq: llaveVoz() })
+      const r = await hablarLemonfox(leido, tempo, llaveLemonfox(), fetch, { marcas: parsed['marcas'] === true, llaveGroq: llaveVoz(), voz: typeof parsed['voz'] === 'string' && (await import('./cliente/mejoras.js')).mejoraActiva('voz-lemonfox') ? parsed['voz'] : undefined })
       if (!r) { sendJSON(res, 503, { error: tr('Sin voz de servidor: la app lee con la voz del sistema.'), code: 'sin_voz_servidor' }); return }
       if (!r.ok) { sendJSON(res, r.status, { error: r.error, code: 'voz_proveedor' }); return }
       const tabla = r.marcas ? JSON.stringify({ v: 1, n: leido.length, m: r.marcas }) : ''

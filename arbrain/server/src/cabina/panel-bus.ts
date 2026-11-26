@@ -37,10 +37,10 @@ export interface Pestana {
   /** La ventana aparte donde vive («Ventana 2», 5 oct 2026); sin este campo, en el panel principal. */
   ventana?: string
 }
-export interface VistaPanel { vista: string; alcance?: string; fecha?: string; paginaId?: string; titulo?: string; enfoque?: string; seccion?: string; agenteId?: number; zona?: string; ruta?: string; compararCon?: string; fijar?: boolean; pestana?: string }
+export interface VistaPanel { /** Editor de video (19 nov 2026, comando `editor`): el proyecto del motor (prj_…) y en qué pantalla. */ proyecto?: string; pantalla?: 'secundaria' | 'misma'; vista: string; alcance?: string; fecha?: string; paginaId?: string; titulo?: string; enfoque?: string; seccion?: string; agenteId?: number; zona?: string; ruta?: string; compararCon?: string; fijar?: boolean; pestana?: string }
 export interface Acuse { etiqueta: string; en: string; ok: boolean; detalle: string; cerradas: string[]; abiertas: string[]; pestanas: Pestana[]; /** En qué ventana quedó lo que abrió: «Ventana 1 (la de la izquierda)». */ donde?: string }
 export interface Comando {
-  id: string; accion: 'fijar' | 'soltar' | 'guardar' | 'conversacion'
+  id: string; accion: 'fijar' | 'soltar' | 'guardar' | 'conversacion' | 'editor'
   input: VistaPanel; conversacion?: string
   /** `conversacion` (31 oct 2026): la conversación nueva que Levy abrió (conversaciones.ts); la app la pinta en Fijadas y, si `abrir`, la abre. */
   sesion?: { id: string; titulo: string; abrir: boolean }
@@ -160,6 +160,20 @@ export function emitirConversacion(sesion: NonNullable<Comando['sesion']>, conve
   return { comando, objetivos: versionVieja ? [] : objetivosDe(destino), destino, versionVieja }
 }
 
+/**
+ * Abrir el editor de video (19 nov 2026, obra `editor-arbrain-2026-11-19`): pide a la app de esta conversación que abra la vista
+ * `editor` en el proyecto `proyecto` (sin él, la galería), a pantalla completa en el monitor secundario si existe. Solo lo recibe
+ * una web que declara `sabe: ['editor']` (la pinta `editor-interfaz`); una anterior no lo recibe y `versionVieja` lo dice.
+ * La app acusa como con `fijar` (ok, detalle, `donde`). Contrato: CONTRATO-MOTOR.md §Integración con Arbrain.
+ */
+export function emitirEditor(proyecto: string | undefined, titulo: string, conversacion?: string, ahora = Date.now(), dir = DIR_PANEL()): { comando: Comando; objetivos: Cliente[]; destino: ReturnType<typeof destinoDe>; versionVieja: boolean } {
+  const destino = destinoDe(conversacion, ahora, dir)
+  const versionVieja = !!destino.cliente && !sabeAtender(destino.cliente, 'editor')
+  const comando: Comando = { id: `c-${ahora.toString(36)}${randomBytes(3).toString('hex')}`, accion: 'editor', input: { vista: 'editor', titulo, pantalla: 'secundaria', ...(proyecto ? { proyecto } : {}) }, ...(conversacion ? { conversacion } : {}), para: destino.cliente && !versionVieja ? dispositivoDe(destino.cliente) : 'nadie', creado: new Date(ahora).toISOString(), expira: new Date(ahora + VIDA_COMANDO_MS).toISOString(), acuses: {} }
+  escribirJson(archivoCmd(comando.id, dir), comando)
+  return { comando, objetivos: versionVieja ? [] : objetivosDe(destino), destino, versionVieja }
+}
+
 /** Espera a que cada objetivo acuse (o se agote el tiempo). Devuelve los acuses recibidos. */
 export async function esperarAcuses(id: string, objetivos: Cliente[], { esperaMs = 8000, cadaMs = 150, dir = DIR_PANEL() }: { esperaMs?: number; cadaMs?: number; dir?: string } = {}): Promise<Record<string, Acuse>> {
   const limite = Date.now() + esperaMs
@@ -193,7 +207,7 @@ export interface Sincronizacion {
 }
 
 /** Comandos que solo recibe una web que los declara en `sabe` (una anterior haría con ellos lo de `fijar`). */
-const COMANDOS_NUEVOS = new Set<Comando['accion']>(['conversacion'])
+const COMANDOS_NUEVOS = new Set<Comando['accion']>(['conversacion', 'editor'])
 const sabeAtender = (c: Cliente | undefined, accion: Comando['accion']) => !COMANDOS_NUEVOS.has(accion) || !!c?.sabe?.includes(accion)
 
 const texto = (v: unknown, max: number) => typeof v === 'string' ? v.slice(0, max) : ''
@@ -293,7 +307,7 @@ export function describirPanel(ahora = Date.now(), dir = DIR_PANEL(), conversaci
 
 /** Respuesta honesta para Levy: lo que la app confirmó, o por qué no hay confirmación. */
 export function informe(comando: Comando, objetivos: Cliente[], acuses: Record<string, Acuse>, ahora = Date.now(), dir = DIR_PANEL(), destino?: ReturnType<typeof destinoDe>): { text: string; confirmado: boolean } {
-  const verbo = comando.accion === 'soltar' ? 'quitar' : comando.accion === 'guardar' ? 'sacar de la barra' : 'fijar'
+  const verbo = comando.accion === 'soltar' ? 'quitar' : comando.accion === 'guardar' ? 'sacar de la barra' : comando.accion === 'editor' ? 'abrir el editor' : 'fijar'
   if (!objetivos.length) {
     if (!destino?.cliente && destino) return { confirmado: false, text: `NO confirmado: ningún cliente de Arbrain tiene abierta ni escribió en esta conversación, así que el pedido de ${verbo} no tiene a dónde ir (no lo mando a otro cliente conectado). Pídele a ${DUENO} que abra o escriba aquí, o dile que lo abra él.` }
     const dormido = destino?.cliente ? ` El dispositivo de esta conversación (${nombreCliente(destino.cliente)}) no ha latido en los últimos ${SEG_CLIENTE} s: el pedido espera ${Math.round(VIDA_COMANDO_MS / 60_000)} min en SU cola y solo ese dispositivo lo aplicará.` : ''

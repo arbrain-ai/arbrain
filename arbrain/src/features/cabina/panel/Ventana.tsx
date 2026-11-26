@@ -25,6 +25,7 @@ import { useAtajosCtrl } from '@/shared/hooks/useAtajosCtrl'
 import { claveZoomVentana, ZoomController } from '@/shared/components/ZoomController'
 import s from './panel.module.css'
 import { tr } from '@/shared/i18n'
+import { esAltGr, modPrincipal } from '@/shared/navigation/teclas-plataforma'
 
 /**
  * Botones de la cabecera: en la columna, pantalla completa; en una ventana aparte dividida, esconder y mostrar su
@@ -63,7 +64,8 @@ function VentanaConTira({ id }: { id: string }) {
     cargar()
     const fin = [vidaDeVentana(id), atenderVentana(), seguirLlegadas()]
     // ⌘⌥B: todas sus pestañas de vuelta al panel principal (la ventana se cierra sola).
-    const k = (e: KeyboardEvent) => { if (e.code === 'KeyB' && e.metaKey && e.altKey && !e.ctrlKey) { e.preventDefault(); if (!e.repeat) devolverAlPanel(id) } }
+    // Fuera de Mac, Ctrl+Alt+B (17 nov 2026; AltGr no cuenta).
+    const k = (e: KeyboardEvent) => { if (e.code === 'KeyB' && modPrincipal(e) && e.altKey && !esAltGr(e)) { e.preventDefault(); if (!e.repeat) devolverAlPanel(id) } }
     window.addEventListener('keydown', k)
     return () => { fin.forEach(f => f()); window.removeEventListener('keydown', k) }
   }, [cargar, id])

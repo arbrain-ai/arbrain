@@ -1,0 +1,48 @@
+{
+ "_": "Levy de Live «como en YouTube» (18 nov 2026). Generado por labs/levy-live-como-youtube-2026-11-18/scripts/medio_assets.py.",
+ "cuerpo": {
+  "w": 1024,
+  "h": 1024,
+  "archivo": "cuerpo.webp"
+ },
+ "retrato_en_cuerpo": {
+  "x": 252.399,
+  "y": 7.751,
+  "lado": 517.887,
+  "escala": 0.505749,
+  "_": "el cuadrado del retrato (1024 px, = rejilla 1080 del rig) en coordenadas del cuerpo"
+ },
+ "panel_video": {
+  "w": 960,
+  "h": 1080,
+  "escala_cuerpo": 0.9375,
+  "aire_arriba": 120,
+  "centro_cabeza": [
+   480,
+   300
+  ],
+  "_": "el panel 960×1080 de los videos (compositor.py: ESC, OY; levy3d.js: HX2, HY2)"
+ },
+ "pivotes_cuerpo": {
+  "inclinarse": [
+   512,
+   260
+  ],
+  "asentir": [
+   512,
+   395
+  ],
+  "ladear": [
+   512,
+   405
+  ],
+  "cintura_y": 1024
+ },
+ "fondos": {
+  "1": "fondo-1.webp",
+  "3": "fondo-3.webp",
+  "4": "fondo-4.webp"
+ },
+ "mate": "mate.png",
+ "cabeza": "cabeza.webp"
+}

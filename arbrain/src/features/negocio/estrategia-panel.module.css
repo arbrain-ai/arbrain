@@ -169,3 +169,22 @@
 @media (prefers-reduced-motion: reduce) {
   .tarjeta, .barra i, .peldanos button, .cruce { animation: none !important; }
 }
+
+/* ── 15 nov 2026: el rumbo firmado en la cabeza y las pestañas Panorama / Competidores ── */
+.rumboFirmado { display: flex; flex-direction: column; gap: 7px; }
+.firma { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; font-size: 11.5px; color: var(--muted); }
+.firma i { width: 8px; height: 8px; border-radius: 50%; background: var(--oro); box-shadow: 0 0 8px color-mix(in srgb, var(--oro) 55%, transparent); align-self: center; }
+.firma q { font-style: italic; color: var(--foreground); opacity: 0.8; }
+.firma q::before { content: '«'; } .firma q::after { content: '»'; }
+.abierto { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 5px; }
+.abierto li { padding: 2px 9px; border-radius: 999px; font-size: 11.5px; line-height: 1.5; color: var(--muted); border: 1.5px dashed color-mix(in srgb, var(--brand) 40%, transparent); }
+.pestanas { display: flex; gap: 2px; padding: 3px; border-radius: 12px; align-self: flex-start; scroll-margin: 12px;
+  border: 1px solid var(--border-subtle, var(--border)); background: color-mix(in srgb, var(--card) 60%, transparent); }
+.pestanas button { display: inline-flex; align-items: center; gap: 7px; min-height: 32px; padding: 0 14px; border: 0; border-radius: 9px; font: inherit; font-size: 13px; font-weight: 650; color: var(--muted);
+  background: transparent; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: color 0.18s ease, background 0.18s ease; }
+.pestanas button small { font-size: 11px; font-weight: 700; padding: 0 6px; border-radius: 999px; font-variant-numeric: tabular-nums; background: rgba(var(--brand-rgb), 0.12); color: var(--tinta); }
+.pestanas button[aria-selected='true'] { color: var(--foreground); background: linear-gradient(180deg, var(--placa-arriba), var(--placa-abajo)); box-shadow: inset 0 1px 0 var(--bisel), 0 1px 2px rgba(var(--sombra-rgb), 0.14); }
+.pestanas button:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.peldanos button[data-frente] { border-color: color-mix(in srgb, var(--oro) 55%, var(--brand)); }
+.verTodos { display: inline-flex; align-items: center; gap: 4px; padding: 0; border: 0; background: none; font: inherit; font-size: 12px; font-weight: 650; color: var(--tinta); cursor: pointer; }
+.verTodos:hover { text-decoration: underline; }

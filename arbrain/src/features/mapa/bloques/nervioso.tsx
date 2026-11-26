@@ -43,7 +43,7 @@ import { corridaLaunchd, URL_EMBUDO, type RespuestaEmbudo, type Etapa } from '@/
 import { ORGANO, type Organo, type Pulso } from '@/features/negocio/pulso'
 import { Ceja, Hueco, LOGOS, Respira, Sello } from '../piezas'
 import { esObj, esTexto, lista, numero, texto, type ComponenteBloque, type PropsBloque } from '../tipos'
-import { useCohorte, useEmbudo, usePulso } from '../datos'
+import { useCohorte, useEmbudo, useMrr, usePulso } from '../datos'
 import { semana1De } from '@/features/canvas/islas/fuentes'
 import { campo } from '@/features/canvas/islas/receta'
 import { pedirALevy } from '@/features/cabina/documento/enviar'
@@ -211,7 +211,20 @@ function useRealidad(r: Record<string, unknown>): { valor: number; total: number
   return { valor: v, total: typeof tot === 'number' ? tot : null, nombre: texto(rv.nombre, 'su realidad'), etiqueta: texto(rv.etiqueta), fuente: 'la plataforma · casillas de la cohorte' }
 }
 
+/**
+ * Lo que la receta pide decir APARTE de la meta (15 nov 2026): `aparte: { fuente: 'polar:mrr', campo: 'cuotas.texto' }`, las
+ * cuotas del Acompañamiento, que no son MRR recurrente y nunca suman a la barra.
+ */
+function useAparte(r: Record<string, unknown>): string | null {
+  const ap = esObj(r.aparte) && r.aparte.fuente === 'polar:mrr' ? r.aparte : null
+  const mrr = useMrr(!!ap)
+  if (!ap || !mrr.data || !mrr.data.activo || !('cuotas' in mrr.data)) return null
+  const v = campo(mrr.data, texto(ap.campo))
+  return typeof v === 'string' && v ? v : null
+}
+
 function ErrorMeta({ b: r }: PropsBloque) {
+  const aparte = useAparte(r)
   const serie = esObj(r.serie) && esTexto(r.serie.consulta) ? { consulta: r.serie.consulta, ventana: ([7, 30, 90].includes(Number(r.serie.ventana)) ? Number(r.serie.ventana) : 30) as 7 | 30 | 90 } : null
   const meta = esMeta(r.meta) ? r.meta : null
   const otra = useRealidad(r)
@@ -280,6 +293,7 @@ function ErrorMeta({ b: r }: PropsBloque) {
       {ultimo != null ? <circle cx={X(puntos.length - 1)} cy={Y(ultimo)} r={5} className={v.punto} /> : null}
     </svg> : null}
     {lectura?.frase && estado !== 'sin-dato' ? <p className={v.frase}>{lectura.frase}</p> : null}
+    {aparte ? <p className={v.sub} data-aparte="">{aparte}</p> : null}
   </section>
 }
 

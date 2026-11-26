@@ -2,8 +2,9 @@
 import { useEffect } from 'react'
 import { X } from 'lucide-react'
 import Link from 'next/link'
-import { ATAJOS_SHELL } from '@/shared/navigation/atajos'
+import { ATAJOS_SHELL, conMejoras } from '@/shared/navigation/atajos'
 import { tr } from '@/shared/i18n'
+import { etiquetaTecla, useEsMac } from '@/shared/navigation/teclas-plataforma'
 
 interface KeyboardShortcutsHelpProps {
   isOpen: boolean
@@ -11,6 +12,7 @@ interface KeyboardShortcutsHelpProps {
 }
 
 export function KeyboardShortcutsHelp({ isOpen, onClose }: KeyboardShortcutsHelpProps) {
+  const mac = useEsMac()
   useEffect(() => {
     if (!isOpen) return
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -51,7 +53,7 @@ export function KeyboardShortcutsHelp({ isOpen, onClose }: KeyboardShortcutsHelp
 
           {/* Content */}
           <div className="p-5 space-y-5 max-h-[60vh] overflow-y-auto">
-            {ATAJOS_SHELL.map((group) => (
+            {conMejoras(ATAJOS_SHELL).map((group) => (
               <div key={group.id}>
                 <h3 className="text-[10px] uppercase tracking-widest text-muted/80 font-semibold mb-2">
                   {tr(group.titulo)}
@@ -69,7 +71,7 @@ export function KeyboardShortcutsHelp({ isOpen, onClose }: KeyboardShortcutsHelp
                             key={key}
                             className="min-w-[24px] px-1.5 py-0.5 text-[10px] font-mono text-center text-foreground/75 bg-card-active border border-border rounded"
                           >
-                            {tr(key)}
+                            {etiquetaTecla(tr(key), mac)}
                           </kbd>
                         ))}
                       </div>

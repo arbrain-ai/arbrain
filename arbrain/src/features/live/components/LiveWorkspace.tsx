@@ -5,7 +5,7 @@
 // (Levy fijado, Trinity, Sensei: el mismo cerebro con otro avatar, otra voz y otro enfoque).
 // El «espacio compartido» (piezas, gráficas) ya no se pinta aquí: los datos viven en el panel derecho.
 import {useCallback,useEffect,useMemo,useRef,useState} from 'react'
-import {ArrowLeft,ArrowUp,Maximize2,Minimize2,Box,Camera,CameraOff,Pin,Plus,Square,UserRound,X} from 'lucide-react'
+import {ArrowLeft,ArrowUp,AudioLines,Maximize2,Minimize2,Box,Camera,CameraOff,Pin,Plus,Square,UserRound,X} from 'lucide-react'
 import type {LiveChatController} from '../controller'
 import {QuestionCards} from '@/features/chat/components/QuestionCard'
 import {VoiceInput} from '@/features/chat/components/VoiceInput'
@@ -14,7 +14,7 @@ import {LevyFace} from '@/features/chat/components/LevyFace'
 import {Levy3D} from '@/features/chat/components/Levy3D'
 import dynamic from 'next/dynamic'
 import {levy4Activo,usarLevy4} from '@/features/chat/lib/levy4'
-import {CARA_LIVE_EVENTO,caraLive,fijarCaraLive,type CaraLive} from '@/features/chat/lib/levy-vivo'
+import {CARA_LIVE_EVENTO,caraConAtlas,caraLive,fijarCaraLive,ultimaCara2d,type CaraLive} from '@/features/chat/lib/levy-vivo'
 import {clipboardImages,localImagePath,readPastedImage} from '@/features/chat/lib/image-paste'
 import {esArchivoDeImagen,prepararImagen} from '@/features/chat/lib/image-prepare'
 import {ErrorImagen,mensajeFallosSubida,subirImagen,PERFIL_DATOS_MOVILES,PERFIL_NORMAL,type FalloSubida} from '@/features/chat/lib/image-upload'
@@ -25,6 +25,8 @@ import {useLiveCamera} from '../hooks/useLiveCamera'
 import {AGENTES,ORDEN_AGENTES,contextoDeAgente,type AgenteId} from '../agents'
 import {agenteActivo,fijarAgenteActivo} from '../agent-state'
 import styles from './live.module.css'
+import {LEVY_EN_VIVO_EVENTO,levyEnVivoActivo} from '../en-vivo/bandera'
+import {useEnVivo,type MarcasVoz} from '../en-vivo/useEnVivo'
 const labels={idle:'Aquí contigo',listening:'Te escucho',transcribing:'Transcribiendo',thinking:'Trabajando',speaking:'Conversando',error:'Necesita atención'}
 const OCUPADO=/trabajo en curso/i
 const REINTENTOS=3
@@ -44,8 +46,8 @@ export function LiveWorkspace({controller,onClose}:{controller:LiveChatControlle
  // Bandera Levy v4: se lee al montar (localStorage), nunca en el servidor; apagada, Live monta el Levy3D de siempre.
  const [levy4,setLevy4]=useState(false)
  useEffect(()=>{setLevy4(levy4Activo())},[])
- // El botón alterna 3D ↔ 2D; el 2D al que vuelve es el de los videos (el anterior solo se elige en Ajustes).
- const cambiarVista=()=>fijarCaraLive(vista==='3d'?'videos':'3d')
+ // El botón alterna 3D ↔ 2D; el 2D al que vuelve es el último elegido (de los videos o como en YouTube; el anterior también).
+ const cambiarVista=()=>fijarCaraLive(vista==='3d'?ultimaCara2d():'3d')
  const [dictando,setDictando]=useState(false)
  // Cámara opcional: encendida, cada envío adjunta UN cuadro actual (ver camera/frame.ts); nada se graba.
  const camara=useLiveCamera(),[menuCamara,setMenuCamara]=useState(false)
@@ -66,6 +68,15 @@ export function LiveWorkspace({controller,onClose}:{controller:LiveChatControlle
   c.send(text,{context:contextoDeAgente(agenteRef.current),imagenes:opts?.imagenes})
  }}:null,[controller])
  const voice=useLiveVoice(voiceController,agente),[respaldo,setRespaldo]=useState(false)
+ // Levy en vivo (bandera `levyEnVivo`, apagada): manos libres con voz y oído locales. Sin ella no se abre el micrófono ni cambia nada.
+ const [enVivoOn,setEnVivoOn]=useState(false)
+ useEffect(()=>{const leer=()=>setEnVivoOn(levyEnVivoActivo());leer();window.addEventListener(LEVY_EN_VIVO_EVENTO,leer);return()=>window.removeEventListener(LEVY_EN_VIVO_EVENTO,leer)},[])
+ const draftRef=useRef('');draftRef.current=draft
+ const submitRef=useRef<(o?:{texto:string;marcas?:MarcasVoz})=>Promise<void>>(async()=>{})
+ const pendienteVoz=useRef<{texto:string;marcas?:MarcasVoz}|null>(null)
+ const enVivo=useEnVivo({levyHabla:()=>!!voice.player.current?.speaking,borrador:()=>draftRef.current,onEsperar:t=>setDraft(t),onEnviar:(texto,marcas)=>void submitRef.current({texto,marcas}),onCallar:()=>voice.stop()})
+ // Apagar la bandera con Live abierto suelta el micrófono.
+ useEffect(()=>{if(!enVivoOn)enVivo.apagar()},[enVivoOn,enVivo.apagar])
  const ackRef=useRef<(turnId:string,text:string)=>void>(()=>{});ackRef.current=voice.speakAck
  const scope=JSON.stringify([controller?.owner,controller?.account,controller?.sessionId])
  useEffect(()=>{setToolStatus('');setEnFila([]);reintentos.current=0},[scope])
@@ -130,8 +141,12 @@ export function LiveWorkspace({controller,onClose}:{controller:LiveChatControlle
  const hayImagenes=(e:React.DragEvent)=>Array.from(e.dataTransfer.types??[]).includes('Files')
  const dictado=useCallback((texto:string)=>{if(!texto.trim())return;setError(null);setDraft(d=>d.trim()?`${d.trim()} ${texto}`:texto);requestAnimationFrame(()=>entrada.current?.focus())},[])
  const canSubmit=!!controller&&!subiendo&&preparando===0&&(!!draft.trim()||adjuntos.length>0)&&!(controller.loading&&!questions.length)
- const submit=async()=>{
-  const text=draft.trim();if(!canSubmit)return
+ /** `voz`: lo que dijiste en vivo (con tu palabra o en automático) y sus marcas de latencia; sin él, el cuadro de texto. */
+ const submit=async(voz?:{texto:string;marcas?:MarcasVoz})=>{
+  const text=(voz?voz.texto:draft).trim()
+  // En vivo con Levy trabajando: lo dicho espera y sale solo al terminar el turno (no se pierde ni corta su trabajo).
+  if(voz&&controller?.loading&&!questions.length){pendienteVoz.current=voz;setDraft('');return}
+  if(voz?!(controller&&text&&!subiendo&&preparando===0):!canSubmit)return
   const files=adjuntos
   let imagenes:string[]|undefined
   if(files.length){
@@ -149,8 +164,10 @@ export function LiveWorkspace({controller,onClose}:{controller:LiveChatControlle
    else setError('La cámara aún no tiene imagen; el mensaje salió sin tu cuadro.')
   }
   setDraft('');setAdjuntos([])
-  void voice.send(text,imagenes).catch(e=>setError(String(e)))
+  void voice.send(text,imagenes,voz?.marcas).catch(e=>setError(String(e)))
  }
+ submitRef.current=submit
+ useEffect(()=>{if(!controller?.loading&&pendienteVoz.current){const v=pendienteVoz.current;pendienteVoz.current=null;void submitRef.current({texto:v.texto})}},[controller?.loading])
  const toggleFull=async()=>{
   if(!document.fullscreenElement){try{await root.current?.requestFullscreen();setExpanded(true)}catch{setExpanded(v=>!v)}}
   else{await document.exitFullscreen();setExpanded(false)}
@@ -158,12 +175,13 @@ export function LiveWorkspace({controller,onClose}:{controller:LiveChatControlle
  useEffect(()=>{const change=()=>setExpanded(!!document.fullscreenElement);document.addEventListener('fullscreenchange',change);return()=>document.removeEventListener('fullscreenchange',change)},[])
  const status=voice.state==='idle'&&controller?.loading?'thinking':voice.state
  const subtitle=enFila.length||bloqueado?'En fila · sale cuando Levy termine':voice.position?.text||voice.questionText||voice.spokenCaption||voice.transcript||''
- const presence=(toolStatus||(status==='idle'?'Toca el micrófono para dictar · revisa y da Enter':labels[status]))+(respaldo?' · voz de respaldo':'')
+ const enVivoTexto=enVivo.estado==='oyendo'?'Te oigo…':enVivo.estado==='anotando'?'Anotando lo que dijiste…':enVivo.modo==='palabra'?'En vivo · te escucho · di «cambio» para enviar':'En vivo · te escucho · se envía al callar'
+ const presence=(toolStatus||(enVivo.activo&&(status==='idle'||enVivo.estado!=='escuchando')?enVivoTexto:status==='idle'?'Toca el micrófono para dictar · revisa y da Enter':labels[status]))+(respaldo?' · voz de respaldo':'')
  const mensajeError=voice.error||error
- return <div ref={root} className={`${styles.root} ${expanded?styles.expanded:''}`} onDragOver={e=>{if(hayImagenes(e)){e.preventDefault();setArrastrando(true)}}} onDragLeave={e=>{if(e.currentTarget===e.target)setArrastrando(false)}} onDrop={soltar} data-live-workspace data-live-state={status} data-live-agent={agente} data-live-ready={ready}>
+ return <div ref={root} className={`${styles.root} ${expanded?styles.expanded:''}`} onDragOver={e=>{if(hayImagenes(e)){e.preventDefault();setArrastrando(true)}}} onDragLeave={e=>{if(e.currentTarget===e.target)setArrastrando(false)}} onDrop={soltar} data-live-workspace data-live-state={status} data-live-agent={agente} data-live-ready={ready} data-live-en-vivo={enVivoOn?enVivo.estado:undefined}>
   <div className={styles.stage}>
    <img className={styles.poster} src={info.retrato} alt="" aria-hidden draggable={false}/>
-   {avatar3d&&vista==='3d'?usarLevy4(levy4,agente)?<Levy3DV4 key={`${agente}-v4`} fill voiceRef={voice.player} status={status} label={`${info.nombre} en 3D`} onReady={()=>setReady(true)} onFail={()=>setAvatar3d(false)} className={styles.avatar}/>:<Levy3D key={agente} fill voiceRef={voice.player} status={status} model={info.modelo} look={info.look} label={`${info.nombre} en 3D`} onReady={()=>setReady(true)} onFail={()=>setAvatar3d(false)} className={styles.avatar}/>:<LevyFace key={agente} agent={agente} vivo={cara==='videos'} framing="camera" voiceRef={voice.player} status={status==='transcribing'?'thinking':status==='idle'&&(dictando||draft.trim())?'listening':status} className={styles.fallback}/>}
+   {avatar3d&&vista==='3d'?usarLevy4(levy4,agente)?<Levy3DV4 key={`${agente}-v4`} fill voiceRef={voice.player} status={status} label={`${info.nombre} en 3D`} onReady={()=>setReady(true)} onFail={()=>setAvatar3d(false)} className={styles.avatar}/>:<Levy3D key={agente} fill voiceRef={voice.player} status={status} model={info.modelo} look={info.look} label={`${info.nombre} en 3D`} onReady={()=>setReady(true)} onFail={()=>setAvatar3d(false)} className={styles.avatar}/>:<LevyFace key={agente} agent={agente} vivo={caraConAtlas(cara)} framing={cara==='youtube'?'medio':'camera'} voiceRef={voice.player} status={status==='transcribing'?'thinking':status==='idle'&&(dictando||draft.trim()||enVivo.estado==='oyendo')?'listening':status} className={styles.fallback}/>}
   </div>
   <div className={styles.topLeft}><button onClick={()=>{voice.stop();onClose()}} aria-label="Volver al chat" title="Volver al chat"><ArrowLeft size={18}/></button></div>
   <video ref={camara.video} className={`${styles.preview} ${camara.encendida&&camara.lista?styles.previewOn:''}`} muted playsInline aria-hidden data-live-camera-preview/>
@@ -187,13 +205,15 @@ export function LiveWorkspace({controller,onClose}:{controller:LiveChatControlle
    {mensajeError&&<div className={styles.voiceError} role="status">{mensajeError}</div>}
    {camara.encendida&&<p className={styles.seen} role="status" data-live-camera-badge><span className={styles.rec}/>{info.nombre} te ve</p>}
    {camara.error&&<div className={styles.voiceError} role="status">{camara.error}</div>}
-   <p className={styles.presence}><span className={styles.dot}/>{presence}</p>
+   {enVivoOn&&enVivo.aviso&&<p className={styles.seen} role="status" data-live-en-vivo-aviso>{enVivo.aviso}</p>}
+   <p className={styles.presence}><span className={styles.dot}/>{presence}{enVivo.activo&&<button className={styles.modo} onClick={enVivo.cambiarModo} title="Cómo se manda lo que dices" data-live-en-vivo-modo={enVivo.modo}>{enVivo.modo==='palabra'?'envío con «cambio»':'envío automático'}</button>}</p>
    <p className={styles.subtitle} aria-live="polite" data-live-subtitle>{subtitle}</p>
    {(previas.length>0||preparando>0||subiendo)&&<div className={styles.tray}>
     {previas.map((p,i)=><span key={p.url} className={styles.thumb}><img src={p.url} alt={p.file.name||'Imagen adjunta'} draggable={false}/><button onClick={()=>setAdjuntos(a=>a.filter((_,j)=>j!==i))} aria-label="Quitar imagen"><X size={11}/></button></span>)}
     {(preparando>0||subiendo)&&<span role="status" className={styles.trayNote}>{subiendo?'Subiendo imágenes…':'Preparando imagen…'}</span>}
    </div>}
    <div className={`${styles.composer} ${arrastrando?styles.dropping:''}`} onDragOver={e=>{if(hayImagenes(e)){e.preventDefault();setArrastrando(true)}}} onDragLeave={()=>setArrastrando(false)} onDrop={soltar}>
+    {enVivoOn&&<button onClick={()=>{void voice.prepare();enVivo.alternar()}} className={`${styles.onda} ${enVivo.activo?styles.ondaOn:''}`} style={{'--nivel':enVivo.nivel} as React.CSSProperties} aria-pressed={enVivo.activo} aria-label={enVivo.activo?'Apagar Levy en vivo':`Hablar con ${info.nombre} en vivo`} title={enVivo.activo?'En vivo · toca para soltar el micrófono':'Hablar en vivo · manos libres, voz local'} data-live-en-vivo-boton><AudioLines size={18}/></button>}
     <VoiceInput soloTexto disabled={!controller} etiqueta={`Dictar a ${info.nombre}`} onVoiceNote={dictado} onEstado={e=>setDictando(e==='recording'||e==='processing')}/>
     <input ref={entrada} value={draft} onChange={e=>setDraft(e.target.value)} onPaste={pegar} onKeyDown={e=>{if(e.key==='Enter')void submit()}} placeholder={adjuntos.length?'Agrega un mensaje o envía…':`Escríbele a ${info.nombre}…`} aria-label={`Mensaje para ${info.nombre}`}/>
     {(controller?.loading||voice.state==='speaking')&&<button onClick={voice.interrupt} aria-label="Interrumpir"><Square size={16}/></button>}

@@ -14,6 +14,10 @@ describe('aviso del sistema', () => {
     expect(win.cmd).toBe('powershell')
     expect(win.args.at(-1)).toMatch(/CreateTextNode\('it''s'\)/)
     expect(win.args.at(-1)).toMatch(/CreateToastNotifier\('Arbrain'\)/)
+    // Comillas tipográficas: PowerShell también cierra con ellas; salen rectas y duplicadas, nunca sueltas.
+    const tipo = comandoAviso('Levy', 'don\u2019t \u2018x\u2019; calc \u201A\u201B', 'win32')!.args.at(-1)!
+    expect(tipo).toMatch(/CreateTextNode\('don''t ''x''; calc '''''\)/)
+    expect(tipo).not.toMatch(/[\u2018\u2019\u201A\u201B]/)
     expect(comandoAviso('a', 'b', 'linux')).toEqual({ cmd: 'notify-send', args: ['-a', 'Arbrain', 'a', 'b'] })
     expect(comandoAviso('a', 'b', 'freebsd')).toBeNull()
     // Controles fuera y recorte: una tarjeta larga no rompe el comando.

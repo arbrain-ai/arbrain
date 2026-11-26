@@ -7,6 +7,7 @@ import { requireChatPrincipal, chatAccessResponse } from '@/lib/chat-access'
 import { esEdicionCliente } from '@/lib/edicion'
 import { urlDaemonCliente } from '@/lib/claudeclaw'
 import { tokenDaemon } from '@/lib/daemon-local'
+import { COOKIE_VOZ_LEMONFOX, vozLemonfoxValida } from '@/features/primer-arranque/lib/voz-lemonfox'
 import { tr } from '@/shared/i18n'
 
 // TTS = Kokoro local (open source) a traves de claudeclaw, reusando el mismo
@@ -46,7 +47,9 @@ function cleanTextForTts(text: string) {
  */
 async function ttsCliente(req: NextRequest): Promise<Response> {
   try { await requireChatPrincipal() } catch (error) { return chatAccessResponse(error) }
-  const { text, lector, velocidad } = await req.json().catch(() => ({})) as { text?: string; lector?: boolean; velocidad?: number }
+  const { text, lector, velocidad, voz: vozPedida } = await req.json().catch(() => ({})) as { text?: string; lector?: boolean; velocidad?: number; voz?: string }
+  // La voz de LemonFox elegida en Ajustes › Voz (cookie local; «Probar» la manda en el cuerpo).
+  const voz = vozLemonfoxValida(vozPedida) ?? vozLemonfoxValida(req.cookies.get(COOKIE_VOZ_LEMONFOX)?.value)
   const clean = typeof text === 'string' ? (lector ? text.replace(/\s+/g, ' ').trim().slice(0, 5000) : cleanTextForTts(text)) : ''
   if (!clean) return NextResponse.json({ error: 'text is required' }, { status: 400 })
   try {
@@ -54,7 +57,7 @@ async function ttsCliente(req: NextRequest): Promise<Response> {
       method: 'POST',
       headers: { Authorization: `Bearer ${tokenDaemon()}`, 'Content-Type': 'application/json' },
       // `marcas`: el lector pide también cuándo suena cada palabra (con la llave de Groq del alumno; cliente/marcas-groq.ts).
-      body: JSON.stringify({ text: clean, tempo: lector ? tempoLector(velocidad) : 1, ...(lector ? { marcas: true } : {}) }),
+      body: JSON.stringify({ text: clean, tempo: lector ? tempoLector(velocidad) : 1, ...(lector ? { marcas: true } : {}), ...(voz ? { voz } : {}) }),
       signal: AbortSignal.any([req.signal, AbortSignal.timeout(50_000)]),
     })
     if (!r.ok) return NextResponse.json(await r.json().catch(() => ({ error: `TTS ${r.status}` })), { status: r.status })

@@ -14,7 +14,8 @@ import { CentroPermisos } from '@/features/permisos/components/CentroPermisos'
 import { TarjetaComputerUse } from '@/features/permisos/components/ComputerUse'
 import { esEdicionCliente } from '@/lib/edicion'
 import { SincronizacionAvanzada } from '@/shared/components/SincronizacionAvanzada'
-import { CARA_LIVE_EVENTO, CARAS_LIVE, caraLive, fijarCaraLive, type CaraLive } from '@/features/chat/lib/levy-vivo'
+import { CARA_LIVE_EVENTO, CARA_POR_OMISION, CARAS_LIVE, caraLive, fijarCaraLive, type CaraLive } from '@/features/chat/lib/levy-vivo'
+import { LEVY_EN_VIVO_EVENTO, fijarLevyEnVivo, levyEnVivoActivo } from '@/features/live/en-vivo/bandera'
 import { tr } from '@/shared/i18n'
 
 function Tarjeta({ titulo, detalle, children, accion }: { titulo: string; detalle?: string; children?: React.ReactNode; accion?: React.ReactNode }) {
@@ -53,9 +54,10 @@ export function SeccionEstilo() {
   )
 }
 
-/** Levy en Live (13 nov 2026): por defecto el 2D de los videos; aquí se vuelve al 3D o al 2D de antes. */
+/** Levy en Live (13 nov 2026): por defecto el 2D de los videos; aquí se elige «Como en YouTube» (plano medio en el estudio del
+ *  canal, 18 nov), el 3D o el 2D de antes. */
 export function SeccionLevyLive() {
-  const [cara, setCara] = useState<CaraLive>('videos')
+  const [cara, setCara] = useState<CaraLive>(CARA_POR_OMISION)
   useEffect(() => {
     const leer = () => setCara(caraLive())
     leer(); window.addEventListener(CARA_LIVE_EVENTO, leer)
@@ -64,7 +66,7 @@ export function SeccionLevyLive() {
   const actual = CARAS_LIVE.find((c) => c.id === cara) ?? CARAS_LIVE[0]
   return (
     <Tarjeta titulo="Levy en Live" detalle={`Al tocar la foto de Levy. ${actual.detalle}.`}>
-      <div role="radiogroup" aria-label="Levy en Live" className="grid grid-cols-3 gap-2">
+      <div role="radiogroup" aria-label="Levy en Live" className="grid grid-cols-2 gap-2">
         {CARAS_LIVE.map((c) => (
           <button key={c.id} type="button" role="radio" aria-checked={cara === c.id} onClick={() => fijarCaraLive(c.id)}
             className={`nav-item w-full justify-center ${cara === c.id ? 'nav-item-active' : ''}`} title={c.detalle}>
@@ -72,7 +74,30 @@ export function SeccionLevyLive() {
           </button>
         ))}
       </div>
+      <LevyEnVivoInterruptor />
     </Tarjeta>
+  )
+}
+
+/** Levy en vivo (18 nov 2026, prueba): manos libres con voz y oído locales del Studio. Apagado por defecto. */
+function LevyEnVivoInterruptor() {
+  const [on, setOn] = useState(false)
+  useEffect(() => {
+    const leer = () => setOn(levyEnVivoActivo())
+    leer(); window.addEventListener(LEVY_EN_VIVO_EVENTO, leer)
+    return () => window.removeEventListener(LEVY_EN_VIVO_EVENTO, leer)
+  }, [])
+  return (
+    <div className="mt-3 flex items-center justify-between gap-3">
+      <div className="min-w-0">
+        <p className="text-sm">En vivo (prueba)</p>
+        <p className="text-xs opacity-70">Le hablas manos libres y Levy te contesta con su voz local del Studio. Se manda cuando dices «cambio» o das Enter.</p>
+      </div>
+      <button type="button" role="switch" aria-checked={on} aria-label="Levy en vivo" onClick={() => fijarLevyEnVivo(!on)} data-levy-en-vivo-interruptor
+        className={`nav-item w-28 shrink-0 justify-center ${on ? 'nav-item-active' : ''}`}>
+        <span>{on ? 'Encendido' : 'Apagado'}</span>
+      </button>
+    </div>
   )
 }
 

@@ -21,17 +21,13 @@ import { ASENTAR_MS } from '../ui/CamaraViva'
 import type { Viewport } from '../render/viewport'
 import { resolverDoc } from '../ui/DocEmbed'
 import { fuenteFresca } from '@/features/cabina/datos'
-import { urlFinanzas } from '@/features/finances/lib/finanzas'
-import { urlTrabajos } from '@/features/cabina/trabajos-modelo'
-import { URL_COMPRADOR } from '@/features/negocio/pulso'
-import { URL_MARKETING } from '@/features/negocio/marketing'
-import { URL_MARCADOR } from '@/features/negocio/marcador-levy'
 import { useModoDirecto } from '@/shared/stores/modo-directo-store'
 import { CLAVE_DIRECTO } from '@/lib/modo-directo/cubrir'
 import { esEdicionCliente } from '@/lib/edicion'
 import { PuenteIslas } from './puente'
 import { decidirVida } from './vida'
-import { leerFuente, type UrlsApp } from './fuentes'
+import { leerFuente } from './fuentes'
+import { urlsApp } from './urls-app'
 import { cargarPoster, guardarPoster, posterDe, alCambiarPosters } from './posters'
 import { AlmacenFuentes } from './almacen'
 import {
@@ -46,22 +42,15 @@ import { anotarIsla, exponerEventos } from '../render/sonda'
 export interface InfoIsla { id: string; ruta: string; hash: string; url: string; ficha: FichaIsla }
 /** Lo que el motor necesita para pintar una isla: la foto de una HTML, o la receta lista de una nativa. */
 export type PinturaIsla =
-  | { tipo: 'poster'; poster: ImageBitmap | null; titulo: string }
+  | { tipo: 'poster'; poster: ImageBitmap | null; titulo: string; sinMarco?: boolean }
   | { tipo: 'receta'; isla: IslaLista; leer: AlmacenFuentes['get']; modo: Modo; version: number }
   | { tipo: 'rota'; titulo: string; errores: string[] }
+  /** Lienzo v17: una pieza libre viva y transparente (la pinta su host encima; el lienzo no pinta nada debajo). */
+  | { tipo: 'nada' }
 /** Una isla nativa: su receta lista o por qué no se pudo leer. `liga` si vive en un archivo. */
 export interface Nativa { lista: IslaLista | null; errores: string[]; liga?: string }
 export type EstadoIsla = 'fuera' | 'dormida' | 'despierta' | 'revelando'
 
-/** La misma ventana de rutinas que usa el panel (`cabina/vistas/Rutinas.tsx › urlRutinas`): 8 días redondeados a la hora. */
-function urlRutinas() {
-  const to = Math.ceil(Date.now() / 3_600_000) * 3_600_000
-  return `/api/planning/crons?${new URLSearchParams({ from: new Date(to - 8 * 86_400_000).toISOString(), to: new Date(to).toISOString() })}`
-}
-const urlsApp = (): UrlsApp => ({
-  cohorte: '/api/cohorte', finanzas: urlFinanzas('30d'), rutinas: urlRutinas(), trabajos: urlTrabajos(6), marketing: URL_MARKETING,
-  comprador: URL_COMPRADOR, embudo: '/api/negocio/embudo', marcador: URL_MARCADOR, bi: '/api/bi', bandeja: '/api/decisiones',
-})
 const EDAD_MS = 60_000
 const directoRecordado = () => { try { return typeof window !== 'undefined' && window.localStorage.getItem(CLAVE_DIRECTO) === '1' } catch { return false } }
 

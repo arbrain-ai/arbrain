@@ -458,3 +458,57 @@
 .miniMarcas li[data-encima] button.miniMarca { margin-right: 24px; background: color-mix(in srgb, var(--card) 84%, transparent); backdrop-filter: blur(6px);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--foreground) 9%, transparent), 0 2px 6px -3px rgba(var(--l-sombra-rgb, 0, 0, 0), 0.25); }
 @media (prefers-reduced-motion: reduce) { .miniSub button.miniSubItem i, .miniMarcas button.miniMarca i { transition: none; } }
+
+/* ══ El Día entero sin scroll (16 nov 2026, Daniel con el Día fijado junto al chat: «vertical estática sin scroll bar vertical para que
+   todo se vea completo»). La hoja mide el alto que le da el calendario (PlanningCalendar pone `data-dia-entero` en la raíz y la escena
+   y el carril pasan el 100 %): HOY en una línea, la línea del día con lo que sobra (AgendaMini `llenar` reparte ese alto entre las horas)
+   y los hábitos al pie. `position: relative`: la pestaña de HOY mide contra la hoja hasta dónde puede bajar (FranjaPlan `encima`). */
+.dia[data-entero] { position: relative; height: 100%; min-height: 0; box-sizing: border-box; gap: 6px; padding-bottom: 4px; border-bottom: 0; }
+.dia[data-entero] > section[data-objetivo-escala] { margin-bottom: 0; }
+.dia[data-entero] > .cuerpo { flex: 1 1 0; min-height: 0; grid-template-rows: minmax(0, 1fr); }
+.dia[data-entero] .areaAgenda { height: 100%; min-height: 0; }
+.dia[data-entero] .areaAgenda > .miniCaja { flex: 1 1 0; min-height: 0; margin: 0; }
+.dia[data-entero] .mini { margin: 6px 0 0; }
+/* Los hábitos al pie, apretados (28 px por línea) y con tope: muchos hábitos se desplazan dentro de su caja, la línea del día no cede más. */
+.dia[data-entero] > .pieHabitos { flex: none; max-height: 34%; overflow-y: auto; scrollbar-width: thin; padding-top: 4px; }
+.dia[data-entero] > .pieHabitos li, .dia[data-entero] > .pieHabitos li > button { min-height: 28px; }
+/* Panel más corto que el día a 16 px por hora: la agenda se desplaza dentro de su caja (sin barra) en vez de aplastarse. */
+.miniCaja[data-desborda] { overflow-y: auto; scrollbar-width: none; }
+.miniCaja[data-desborda]::-webkit-scrollbar { display: none; }
+
+/* ══ Tareas con hora en la línea del día (16 nov 2026, Daniel: «arraigar los eventos que tenemos, pero también las tareas… generar las
+   horas límite fijas igual para verlo en el calendario»). Un bloque propio, distinto del evento: sin riel ni relleno, borde punteado, la
+   casilla redonda de Todoist con el color de su prioridad (se palomea ahí) y su hora en cifras. Hecha: tachada y tenue. Con la hora ya
+   pasada y sin cerrar: la hora en rojo. Encima de las tarjetas de eventos y debajo de la línea de ahora. */
+.miniTareas { position: absolute; inset: 0 0 0 32px; z-index: 4; list-style: none; margin: 0; padding: 0; pointer-events: none; }
+.miniTareas li { --pt: color-mix(in srgb, var(--foreground) 46%, transparent); position: absolute; box-sizing: border-box; display: flex; align-items: center; gap: 1px; min-width: 0; margin-left: 2px; padding: 0 6px 0 2px;
+  pointer-events: auto; border-radius: 7px; border: 1px dashed color-mix(in srgb, var(--pt) 62%, transparent); background: color-mix(in srgb, var(--background) 86%, transparent);
+  transition: background 140ms, border-color 140ms, opacity 200ms; }
+:global(.dark) .miniTareas li { background: color-mix(in srgb, var(--background) 80%, transparent); }
+.miniTareas li[data-p='1'] { --pt: var(--prioridad-1); }
+.miniTareas li[data-p='2'] { --pt: var(--prioridad-2); }
+.miniTareas li[data-p='3'] { --pt: var(--prioridad-3); }
+.miniTareas li:hover, .miniTareas li[data-resaltado] { border-style: solid; background: color-mix(in srgb, var(--pt) 9%, var(--background)); }
+.miniTareas li[data-alto='dos'] { align-items: flex-start; padding-top: 3px; }
+.miniTareas li[data-hecho] { opacity: .6; border-color: color-mix(in srgb, var(--foreground) 14%, transparent); }
+.miniTareas button { border: 0; background: none; color: var(--foreground); font: inherit; cursor: pointer; }
+.miniTareas .tareaCasilla { flex: none; display: grid; place-items: center; width: 20px; height: 14px; padding: 0; }
+.miniTareas .tareaCasilla:disabled { cursor: default; }
+.miniTareas .tareaCasilla i { box-sizing: border-box; width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid var(--pt); background: color-mix(in srgb, var(--pt) 10%, transparent); transition: background 200ms, border-color 200ms, transform 200ms; }
+.miniTareas .tareaCasilla:hover:not(:disabled) i { transform: scale(1.14); border-color: var(--success, var(--primary)); background: color-mix(in srgb, var(--success, var(--primary)) 22%, transparent); }
+.miniTareas .tareaCasilla i { position: relative; }
+.miniTareas li[data-hecho] .tareaCasilla i { border-color: var(--success, var(--primary)); background: var(--success, var(--primary)); }
+/* La palomita, dibujada con dos bordes (sin imagen): toma el color del fondo de la app en claro y en oscuro. */
+.miniTareas li[data-hecho] .tareaCasilla i::after { content: ''; position: absolute; left: 3px; top: 1px; width: 2.5px; height: 5px; border: solid var(--background); border-width: 0 1.5px 1.5px 0; transform: rotate(42deg); }
+.miniTareas .tareaCuerpo { flex: 1 1 auto; min-width: 0; height: 100%; display: flex; align-items: center; gap: 6px; padding: 0; text-align: left; overflow: hidden; }
+.miniTareas li[data-alto='dos'] .tareaCuerpo { height: auto; }
+.miniTareas .tareaCuerpo time { flex: none; font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--muted); }
+.miniTareas .tareaCuerpo span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; font-weight: 550; line-height: 1.25; }
+.miniTareas li[data-hecho] .tareaCuerpo span { text-decoration: line-through; color: var(--muted); }
+.miniTareas li[data-vencio] .tareaCuerpo time { color: var(--error); }
+.miniTareas button:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; border-radius: 5px; }
+@media (prefers-reduced-motion: reduce) { .miniTareas li, .miniTareas .tareaCasilla i { transition: none; } }
+/* «Ver después» (17 nov 2026): el ▶ del bloque abre su video en la Sala, dentro de la app. */
+.areaAgenda .miniBloques button.miniVideo, .miniBloques button.miniVideo { position: absolute; top: 2px; right: 3px; z-index: 1; display: grid; place-items: center; width: 22px; height: 18px; padding: 0; border: 0; border-radius: 4px; color: var(--oro-texto, var(--foreground)); background: rgba(var(--gold-rgb), .18); box-shadow: inset 0 0 0 1px rgba(var(--gold-rgb), .55); cursor: pointer; }
+.areaAgenda .miniBloques button.miniVideo[data-con-brief], .miniBloques button.miniVideo[data-con-brief] { right: 28px; }
+.miniBloques .miniVideo:hover { filter: brightness(1.06); }

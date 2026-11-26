@@ -81,7 +81,11 @@
 .enlace:focus-visible { outline: 2px solid var(--morado); outline-offset: 2px; border-radius: 3px; }
 .paso { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; line-height: 1.35; color: var(--tinta-2); }
 .sinSenal { color: var(--tinta-1); }
-.tiempo { flex: none; min-width: 42px; text-align: right; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--tinta-3); }
+/* El tiempo y, debajo, el modelo que corre (17 nov 2026): una columna a la derecha, la misma en todos los renglones. */
+.meta { flex: none; min-width: 42px; display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+.tiempo { text-align: right; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--tinta-3); }
+.modeloCorto { max-width: 96px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; line-height: 1.25; color: var(--tinta-3); }
+.modeloCorto[data-sin-medir] { font-style: italic; }
 
 /* «Hecho»: veredicto con forma y lo que entregó. */
 .entrega { min-width: 0; display: flex; align-items: center; gap: 6px; overflow: hidden; white-space: nowrap; }
@@ -262,7 +266,9 @@
 .demo { margin: 0; padding: 7px 10px; border-radius: var(--l-radio-control, 8px); font-size: 12px; font-weight: 550; color: var(--tinta-1); border: 1px dashed var(--borde); }
 
 @container (max-width: 440px) {
-  .tiempo { min-width: 34px; font-size: 11.5px; }
+  .meta { min-width: 34px; }
+  .tiempo { font-size: 11.5px; }
+  .modeloCorto { max-width: 72px; font-size: 10.5px; }
   .pieza { max-width: 170px; }
   .detalle, .responder, .nota, .accionesDetalle { padding-left: 12px; }
   .confirma { margin-left: 12px; }

@@ -23,7 +23,7 @@ import { vozDelComando } from '@/features/modo-coche/voz-celular'
 import { marcarEnvioLocal } from '../lib/turnos-activos'
 import { marcarStreamLocal } from '@/lib/actividad-viva'
 import { useCommandStore } from '../stores/command-store'
-import { anclaDe, CIERRA_NOTAS, cerrarNotas, leerDesenlace, notaDelHost, trasTerminar, unirNotas, type DesenlaceEnvio, type InyeccionHost, type NotaInyectada } from '../lib/inyecciones'
+import { aLaFilaAlDetener, anclaDe, CIERRA_NOTAS, cerrarNotas, leerDesenlace, notaDelHost, trasTerminar, unirNotas, type DesenlaceEnvio, type InyeccionHost, type NotaInyectada } from '../lib/inyecciones'
 
 // Espejo local del standing mode ultracode (el daemon no expone GET del estado).
 
@@ -714,9 +714,11 @@ export function useChat({ sessionId, onSave, onRestoreInput, isSessionActive, ac
               // Lo que el motor no tomó lo dejó el host como turno normal: sale de este turno y se reengancha.
               // Detenido: el host lo dejó `unread` (no sale solo); si su aviso no llegó, va a la fila en pausa.
               // Efectos fuera del updater de React (StrictMode lo llama dos veces).
+              // Lo que ya es turno propio en el servidor (`en_fila`) nunca vuelve a la fila: saldría dos veces.
               const { aSuTurno } = trasTerminar(messagesRef.current.find(m => m.id === assistantId)?.inyectados)
-              if (aSuTurno.length && ctx.sessionId && event.status !== 'interrupted') reengancheTrasTurnoRef.current = { sessionId: ctx.sessionId, account: ctx.account ?? null }
-              if (aSuTurno.length && event.status === 'interrupted' && cursorOfFrame !== null) sinLeerRef.current?.(aSuTurno.map(n => ({ id: n.id, texto: n.texto })))
+              const { aLaFila, enElServidor } = aLaFilaAlDetener(aSuTurno)
+              if (aSuTurno.length && ctx.sessionId && (event.status !== 'interrupted' || enElServidor)) reengancheTrasTurnoRef.current = { sessionId: ctx.sessionId, account: ctx.account ?? null }
+              if (aLaFila.length && event.status === 'interrupted' && cursorOfFrame !== null) sinLeerRef.current?.(aLaFila.map(n => ({ id: n.id, texto: n.texto })))
             }
             setMessages(prev => prev.map(message => message.id === assistantId
               ? { ...message, questionPrompts, streaming: false, terminalStatus: event.status, error: event.status === 'failed', ...(message.inyectados ? { inyectados: trasTerminar(message.inyectados).quedan } : {}) }

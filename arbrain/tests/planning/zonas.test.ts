@@ -24,7 +24,7 @@ test('apagar, recolorear y mover una zona; lo igual a fábrica no se guarda', ()
   assert.equal(p.categoria, 'crear'); assert.deepEqual(p.franjas, [['06:00', '09:30'], ['13:00', '15:00']]); assert.ok(p.tocada)
   doc = aplicar(doc, { accion: 'zona', clave: 'gym', activa: true })
   assert.ok(!('gym' in doc.zonas), 'volver a encender = seguir a fábrica')
-  doc = aplicar(doc, { accion: 'zona', clave: 'profundo', categoria: 'construir', franjas: [['06:00', '09:00'], ['13:00', '15:00'], ['15:30', '18:30']] })
+  doc = aplicar(doc, { accion: 'zona', clave: 'profundo', categoria: 'construir', franjas: [['05:30', '09:00'], ['13:00', '15:00'], ['15:30', '18:30']] })
   assert.deepEqual(doc.zonas, {})
 })
 

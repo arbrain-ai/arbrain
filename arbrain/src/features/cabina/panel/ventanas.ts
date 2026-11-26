@@ -54,6 +54,9 @@ export type Mensaje =
   | { tipo: 'panel-ajustes'; ajustes: { rev: number; orden: string[]; ocultas: string[]; donde?: string } }
   /** Alguien pidió un segmento del Taller (p. ej. `mostrar servidores`): lo pone la ventana donde vive el Taller. */
   | { tipo: 'taller-segmento'; segmento: string }
+  /** El editor (otra ventana, 19 nov 2026) manda un comentario (C) al chat; la ventana del chat contesta que lo recibió (editor/al-chat.ts). */
+  | { tipo: 'al-chat'; id: string; texto: string }
+  | { tipo: 'al-chat-recibido'; id: string }
 
 type Sobre = Mensaje & { _id: string; _de: string }
 
@@ -423,13 +426,14 @@ export function vidaDeVentana(id: string) {
 // ── Coordinación (la monta la ventana principal) ──
 let coordinando = false
 
-/** Las ventanas de antes del 5 oct eran una por pestaña (`pestana-tareas`, `vista-<huella>`): sus pestañas vuelven al panel. */
+/** Las ventanas de antes del 5 oct eran una por pestaña (`pestana-tareas`, `vista-<huella>`): sus pestañas vuelven al panel.
+ *  El editor (`vista-editor`, 19 nov 2026) no es de esas: se queda abierto en su monitor. */
 function retirarVentanasViejas() {
   try {
     const viejo = JSON.parse(localStorage.getItem(CLAVE_PANEL) ?? '{}') as Record<string, unknown>
     if ('fuera' in viejo || 'desprendido' in viejo) { const { fuera: _f, desprendido: _d, ...resto } = viejo; localStorage.setItem(CLAVE_PANEL, JSON.stringify(resto)) }
   } catch { /* sin almacenamiento */ }
-  if (isDesktopRuntime()) void invocar<string[]>('ventanas_abiertas', {}).then(es => es.filter(e => !e.startsWith('vista-ventana-')).forEach(e => { void invocar('cerrar_ventana', { etiqueta: e }) })).catch(() => {})
+  if (isDesktopRuntime()) void invocar<string[]>('ventanas_abiertas', {}).then(es => es.filter(e => !e.startsWith('vista-ventana-') && e !== 'vista-editor').forEach(e => { void invocar('cerrar_ventana', { etiqueta: e }) })).catch(() => {})
 }
 
 /** La ventana principal escucha a las ventanas aparte: vida, cierre y pedidos de ver una pestaña. */

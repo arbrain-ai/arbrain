@@ -53,6 +53,8 @@ test('sin bandera levy4, el 3D de Live es el Levy3D de siempre; la voz pide alin
   assert.equal(pedirAlineacion(), false, 'con el 3D anterior elegido en Ajustes, la petición de voz es la de siempre')
   navegador('', { [CARA_LIVE_CLAVE]: '2d-anterior' })
   assert.equal(pedirAlineacion(), false, 'con el 2D anterior, también')
+  navegador('', { [CARA_LIVE_CLAVE]: 'youtube' })
+  assert.equal(pedirAlineacion(), true, '18 nov: como en YouTube es la misma cara de los videos y la misma boca')
   navegador('', { [CARA_LIVE_CLAVE]: '3d' })
   navegador('?levy4=1')
   assert.equal(usarLevy4(levy4Activo(), 'levy'), true)

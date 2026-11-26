@@ -123,6 +123,12 @@ const SENSOR_JOB_SET = new Set<string>(SENSOR_JOB_IDS)
 const CRON_TAXONOMY: Record<string, CronTaxonomyEntry> = {
   // ── ATRACCION (YouTube) ────────────────────────────────────────────────
   'intel-youtube-scan': { categoria: 'adquisicion', anatomia: 'sentidos', funcion: 'Escanea el nicho en YouTube y trae los videos nuevos de la competencia', sensor: false, superficie: '/youtube?tab=intel' },
+  'cuartel-sensor': { categoria: 'adquisicion', anatomia: 'sentidos', funcion: 'Mide tu universo de YouTube (referentes, competencia, mentores): números, outliers por edad y transcripts', sensor: false, superficie: '/youtube' },
+  'cuartel-pulso': { categoria: 'adquisicion', anatomia: 'sentidos', funcion: 'Cada 30 min detecta lo nuevo de tu universo de YouTube sin gastar búsquedas, lo califica hacia tu nicho y arma tu Inicio', sensor: false, superficie: '/youtube' },
+  'cuartel-cerebro': { categoria: 'adquisicion', anatomia: 'sintesis', funcion: 'Lee los videos nuevos de tu universo, los califica hacia tu meta y arma la dosis del día con su porqué y el minuto del oro', sensor: false, superficie: '/youtube' },
+  'laboratorios-vigilante': { categoria: 'adquisicion', anatomia: 'sentidos', funcion: 'Cada mañana lee los anuncios y notas de versión oficiales de Anthropic, OpenAI, Google y xAI y marca lo que da para video', sensor: false, superficie: '/youtube' },
+  'pagina-lunes': { categoria: 'adquisicion', anatomia: 'sentidos', funcion: 'Cada lunes 07:00 una página: lo que da para video, embudos que cambiaron, formatos que funcionaron, tus números y hasta 3 decisiones', sensor: false, superficie: '/youtube' },
+  'embudos-estudio': { categoria: 'adquisicion', anatomia: 'sentidos', funcion: 'Cada domingo revisa el embudo de tus 50 competidores (a dónde mandan, regalo, oferta, precio, promesa, patrocinadores) y deja solo lo que cambió', sensor: false, superficie: '/youtube' },
   'intel-enrich': { categoria: 'adquisicion', anatomia: 'sentidos', funcion: 'Enriquece el intel crudo con transcripts y análisis', sensor: false, superficie: '/youtube?tab=intel' },
   'youtube-comments-respond': { categoria: 'adquisicion', anatomia: 'reflejos', funcion: 'Redacta respuestas a los comentarios nuevos del canal', sensor: false, superficie: '/youtube?tab=comments' },
   'youtube-comments-post': { categoria: 'adquisicion', anatomia: 'reflejos', funcion: 'Publica en YouTube las respuestas aprobadas', sensor: false, superficie: '/youtube?tab=comments' },

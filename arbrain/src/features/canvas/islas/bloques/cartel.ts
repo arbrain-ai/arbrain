@@ -93,6 +93,8 @@ export interface DatosCartelOrgano {
   serie: number[]; serieNombre: string
   /** El contexto de su número (El pulso): «83 suscriptores nuevos», «De 24 rutinas activas»… */
   detalle: string[]
+  /** Lo que la receta pide decir APARTE de la meta (`meta-error.aparte`): las cuotas que no son MRR recurrente. */
+  aparte: string | null
 }
 export interface DatosCartelTimonel {
   forma: 'timonel'
@@ -142,7 +144,9 @@ export function fuentesDelCartel(isla: IslaMin): string[] {
   const forma = formaCartel(isla), organo = organoDe(isla)
   if (forma === 'timonel') return ['embudo']
   if (forma !== 'organo' || !organo) return []
-  return [`pulso:${organo}`, `bandeja:${organo}`, ...(isla.receta.lejos?.cifra ? [isla.receta.lejos.cifra.fuente] : [])]
+  const me = isla.bloques.find(b => b.ok && b.tipo === 'meta-error')
+  const ap = me && obj(me.p) && obj((me.p as Record<string, unknown>).aparte) ? (me.p as { aparte: Record<string, unknown> }).aparte : null
+  return [`pulso:${organo}`, `bandeja:${organo}`, ...(isla.receta.lejos?.cifra ? [isla.receta.lejos.cifra.fuente] : []), ...(ap && typeof ap.fuente === 'string' ? [ap.fuente] : [])]
 }
 
 const blq = (isla: Pick<IslaMin, 'bloques'>, tipo: string) => {
@@ -238,6 +242,11 @@ export function datosDelCartel(isla: IslaMin, leer: Leer): DatosCartel | null {
     estado = crece || dolor ? 'duele' : 'calma'
     porque = dolor ? t(sv?.frase) : crece ? 'el error crece' : ''
   }
+  // Lo que no es meta, dicho aparte (15 nov 2026): `aparte: { fuente, campo }` en el bloque meta-error.
+  const ap = me && obj(me.aparte) && typeof me.aparte.fuente === 'string' ? me.aparte : null
+  const la = ap ? leer(t(ap.fuente)) : undefined
+  const apV = ap && la?.estado === 'ok' ? campo(la.valor, t(ap.campo)) : null
+  const aparte = typeof apV === 'string' && apV ? apV : null
   const lb = leer(`bandeja:${organo}`)
   const decisiones = lb?.estado === 'ok' && obj(lb.valor) && typeof lb.valor.pendientes === 'number' ? lb.valor.pendientes : 0
   return {
@@ -247,6 +256,7 @@ export function datosDelCartel(isla: IslaMin, leer: Leer): DatosCartel | null {
     serie: sv && Array.isArray(sv.puntos) ? (sv.puntos as unknown[]).filter((n): n is number => typeof n === 'number').slice(-30) : [],
     serieNombre: sv ? t(sv.nombre) : '',
     detalle: pulso && Array.isArray(pulso.detalle) ? (pulso.detalle as unknown[]).filter((x): x is string => typeof x === 'string').slice(0, 3) : [],
+    aparte,
   }
 }
 
@@ -381,6 +391,8 @@ export function pintarCartel(ctx: CanvasRenderingContext2D, d: DatosCartel, W: n
     rr(ctx, pad, yB, ancho, hB, hB / 2); ctx.setLineDash([26, 18]); ctx.lineWidth = 5; ctx.strokeStyle = alfa(A, 0.85); ctx.stroke(); ctx.setLineDash([])
     linea(ctx, 'ponla tú  ＋', pad, yB + hB * 0.68, ancho, hB * 0.62, 'italic 650', SANS, A, 28, 'center')
   }
+  // Lo que no es meta, aparte y en tinta apagada, bajo la barra (las cuotas que no son MRR recurrente).
+  if (d.aparte) linea(ctx, d.aparte, pad, yB + hB + 52, ancho, alto ? 42 : 38, '600', SANS, P.muted, 24)
   // El borde: su acento; si duele, el rojo y más grueso.
   rr(ctx, 3, 3, W - 6, H - 6, 28); ctx.lineWidth = duele ? 14 : 6; ctx.strokeStyle = duele ? P.dolor : alfa(A, 0.7); ctx.stroke()
 }

@@ -22,3 +22,9 @@
 .barraPanel{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 10px}.barraPanel button{display:grid;place-items:center;width:28px;height:28px;border-radius:8px;color:var(--muted)}.barraPanel button:hover{background:var(--card);color:var(--foreground)}
 /* Contenido en la pestaña del panel (4 oct 2026): sin scroll propio ni márgenes de página; el panel ya los pone. */
 .root[data-donde=panel]{height:auto;background:transparent}.root[data-donde=panel] .body{overflow:visible;padding:14px 0 16px}.root[data-donde=panel] .bar{padding:0 0 6px;min-height:0}
+/* Contenido con su riel a la izquierda (17 nov 2026): riel fijo y el cuartel con su propio scroll al lado. En el panel (19 nov), el
+   mismo menú lateral: se queda pegado arriba mientras el panel baja. */
+.conRiel{flex:1;min-height:0;display:flex;min-width:0}.columnaContenido{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column}
+.conRiel[data-panel]{flex:none;align-items:flex-start}.conRiel[data-panel] .columnaContenido{min-height:auto}
+
+@container clarity (max-width:640px){.conRiel,.conRiel[data-panel]{flex-direction:column;align-items:stretch}.conRiel .columnaContenido{width:100%}}

@@ -179,7 +179,7 @@ test('islas · puente: cambiar el tema avisa a todas y cambia la huella', () => 
 
 // ── las fuentes ──
 
-const URLS: UrlsApp = { cohorte: '/c', finanzas: '/f', rutinas: '/r', trabajos: '/t', marketing: '/m', comprador: '/co', embudo: '/e', marcador: '/ml', bi: '/bi', bandeja: '/d' }
+const URLS: UrlsApp = { cohorte: '/c', finanzas: '/f', rutinas: '/r', trabajos: '/t', marketing: '/m', comprador: '/co', embudo: '/e', marcador: '/ml', bi: '/bi', bandeja: '/d', mrr: '/mrr' }
 
 test('islas · fuentes: un Pulso sin sensor llega como sin-dato, con su valor (qué falta), nunca 0', async () => {
   const r = await leerFuente('pulso:entrega', URLS, { directo: false, cliente: false }, async () => ({ data: { cupo: 10, numeros: { cuposPagados: 3, llamadas: null }, fundadores: [] } }))

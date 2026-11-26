@@ -1,9 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { accesosDe, alcanceDeModo, planDelMes, tituloAngosto } from '../../src/features/planning/accesos'
+import { accesosDe, alcanceDeModo, planDelMes, revisionEnPie, tituloAngosto } from '../../src/features/planning/accesos'
 
 test('cada escala ofrece el reporte de su periodo; el mes suma el plan', () => {
-  assert.deepEqual(accesosDe('day').map(a => [a.etiqueta, a.job]), [['Reporte diario', 'morning-briefing']])
+  assert.deepEqual(accesosDe('day'), [], 'el Día va sin «Reporte diario» (16 nov 2026)')
   assert.deepEqual(accesosDe('fourDays').map(a => a.etiqueta), ['Reporte diario'])
   assert.deepEqual(accesosDe('week').map(a => [a.etiqueta, a.job]), [['Reporte semanal', 'business-council']])
   assert.deepEqual(accesosDe('agenda').map(a => a.etiqueta), ['Reporte semanal'])
@@ -14,6 +14,14 @@ test('cada escala ofrece el reporte de su periodo; el mes suma el plan', () => {
   assert.equal(alcanceDeModo('fourDays'), 'dia')
   assert.equal(alcanceDeModo('agenda'), 'semana')
   assert.equal(alcanceDeModo('crons'), null)
+})
+
+test('la revisión del domingo: en el Día solo el domingo; en las demás vistas, siempre', () => {
+  assert.equal(revisionEnPie('day', new Date(2026, 10, 16)), false) // lunes
+  assert.equal(revisionEnPie('day', new Date(2026, 10, 21)), false) // sábado
+  assert.equal(revisionEnPie('day', new Date(2026, 10, 22)), true) // domingo
+  assert.equal(revisionEnPie('week', new Date(2026, 10, 16)), true)
+  assert.equal(revisionEnPie('month', new Date(2026, 10, 18)), true)
 })
 
 test('el plan del mes apunta a docs/guardados/plan-<mes>-<año>', () => {

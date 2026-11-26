@@ -35,6 +35,7 @@ const ROUTE_PERMISSIONS: Record<string, UserRole[]> = {
   '/comments': ['owner'],
   '/youtube': ['owner'],
   '/segundo-cerebro': ['owner'],
+  '/extensiones': ['owner'],
 }
 
 export function canAccessRoute(ruta: string, role: UserRole): boolean {

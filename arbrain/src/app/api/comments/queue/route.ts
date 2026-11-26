@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createSFClient } from '@/lib/supabase/sf-client'
+import { DECISIONES_BANDEJA, desdeCriticas, plegarCritica, separarCriticas } from '@/features/comments/escudo'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,11 +15,11 @@ export async function GET() {
   try {
     const sf = createSFClient()
 
-    // Get queue items: only ESCALATE comments waiting for Daniel
+    // Modo bandeja (19 nov 2026): todo borrador en cola espera a Daniel, también los que antes se autopublicaban.
     const queueRes = await sf
       .from('youtube_comments_queue')
       .select('*')
-      .eq('decision', 'ESCALATE')
+      .in('decision', [...DECISIONES_BANDEJA])
       .eq('response_status', 'queued')
       .order('comment_published_at', { ascending: false })
       .limit(50)
@@ -26,6 +27,17 @@ export async function GET() {
     if (queueRes.error) {
       return NextResponse.json({ error: queueRes.error.message }, { status: 500 })
     }
+
+    // Escudo: críticas y hate sin borrador, plegadas aparte («N críticas»), nunca en la lista principal.
+    const criticasRes = await sf
+      .from('youtube_comments_queue')
+      .select('comment_id, comment_text, author_display_name, video_title, comment_published_at, category', { count: 'exact' })
+      .eq('category', 'criticism')
+      .is('response_id', null)
+      .gte('comment_published_at', desdeCriticas())
+      .order('comment_published_at', { ascending: false })
+      .limit(50)
+    const { items } = separarCriticas(queueRes.data ?? [])
 
     // Counts
     const today = new Date()
@@ -55,7 +67,11 @@ export async function GET() {
     ])
 
     return NextResponse.json({
-      items: queueRes.data ?? [],
+      items,
+      criticas: {
+        total: criticasRes.count ?? 0,
+        items: (criticasRes.data ?? []).map(plegarCritica),
+      },
       counts: {
         escalate_pending: escalateQueuedRes.count ?? 0,
         auto_publish_stuck: autoQueuedRes.count ?? 0,

@@ -5,6 +5,7 @@ import {LivePcmPlayer,type VoicePosition} from '../voice/player'
 import {SpeechClauses,speechText} from '../voice/pcm'
 import {LatencyTrace} from '../voice/latency'
 import {normalizeAgent,type LiveAgent} from '../voice/voices'
+import {levyEnVivoActivo} from '../en-vivo/bandera'
 export type LiveVoiceState='idle'|'listening'|'transcribing'|'thinking'|'speaking'|'error'
 /** `agent` = agente activo de la UI: su voz es la que habla (Levy=Adam; Trinity y Sensei según voices.ts). */
 export function useLiveVoice(controller:LiveChatController|null,agent:LiveAgent|string='levy'){
@@ -72,9 +73,12 @@ export function useLiveVoice(controller:LiveChatController|null,agent:LiveAgent|
   if(pre){trace.current.mark('voiceEnd',pre.voiceEnd);trace.current.mark('endpoint',pre.endpoint);trace.current.mark('sttDone',pre.sttDone)}
   player.current?.begin();reading.current=true;seen.current={id:'',length:0};clause.current=new SpeechClauses();wasLoading.current=false
  },[])
- const send=useCallback(async(text:string,imagenes?:string[])=>{
+ /** `pre`: marcas de la voz de Daniel (Levy en vivo) para medir de punta a punta: fin de su voz → primer sonido de Levy. */
+ const enviadoEn=useRef(-1e9)
+ const send=useCallback(async(text:string,imagenes?:string[],pre?:{voiceEnd:number;endpoint:number;sttDone:number})=>{
   if((!text.trim()&&!imagenes?.length)||!current.current||(current.current.loading&&!hasQuestion()))return
-  await prepare();setError(null);setSpokenCaption('');beginResponse();setState('thinking');await dispatch(text,imagenes)
+  enviadoEn.current=performance.now()
+  await prepare();setError(null);setSpokenCaption('');beginResponse(pre);setState('thinking');await dispatch(text,imagenes)
  },[prepare,beginResponse])
  useEffect(()=>{
   const pending=controller?.messages.at(-1)?.questionPrompts?.find(q=>q.status==='pending')
@@ -85,6 +89,7 @@ export function useLiveVoice(controller:LiveChatController|null,agent:LiveAgent|
    if(player.current&&reading.current&&question)player.current.enqueue(question,speedRef.current)
   }
  },[controller?.messages])
+ const sinRespuestaDesde=useRef(0)
  // Read only the response initiated here, never replay old history on entering Live.
  useEffect(()=>{
   if(!controller||!reading.current)return
@@ -98,7 +103,16 @@ export function useLiveVoice(controller:LiveChatController|null,agent:LiveAgent|
    for(const text of clause.current.push(delta))speak(text)
    if(delta){if(clauseTimer.current)clearTimeout(clauseTimer.current);clauseTimer.current=setTimeout(()=>{if(reading.current)for(const text of clause.current.flushSentence())speak(text)},160)}
   }
-  if(wasLoading.current&&!controller.loading){for(const text of clause.current.flush())speak(text);player.current?.finish();reading.current=false}
+  // Levy en vivo (bandera): el turno se acepta (202) y la respuesta llega por otro canal; entre ambos `loading` baja un
+ // instante sin respuesta y la voz dejaba de esperar (prueba del 18 nov: Levy contestó en el chat y Live no lo leyó).
+ // Con la bandera, la lectura solo termina cuando ya hay respuesta de Levy (o tras 25 s sin ella).
+ if(wasLoading.current&&!controller.loading){
+  // El chat pone al instante una respuesta VACÍA de Levy: eso todavía no es respuesta.
+  const ult=controller.messages.at(-1)
+  const esperaRespuesta=levyEnVivoActivo()&&(ult?.role!=='assistant'||(!ult.content?.trim()&&!ult.error&&!ult.questionPrompts?.length))
+  if(esperaRespuesta){sinRespuestaDesde.current||=performance.now()}
+  else{sinRespuestaDesde.current=0;for(const text of clause.current.flush())speak(text);player.current?.finish();reading.current=false}
+ }
  },[controller?.messages,controller?.loading])
  // Conexión caliente desde que Live se abre: evita el ~1.3 s de TLS en frío de ElevenLabs en la primera frase.
  useEffect(()=>{player.current??=new LivePcmPlayer();player.current.setAgent(agentRef.current);player.current.warm()},[])
@@ -112,6 +126,9 @@ export function useLiveVoice(controller:LiveChatController|null,agent:LiveAgent|
     if(first.firstSoundAt)t.mark('firstSound',first.firstSoundAt)
     if(first.firstSoundAt||first.failed)t.log()
    }
+   // Red de seguridad de la espera (Levy en vivo): sin respuesta en 25 s, la voz suelta el turno.
+   if(sinRespuestaDesde.current&&performance.now()-sinRespuestaDesde.current>25_000&&!current.current?.loading){sinRespuestaDesde.current=0;player.current?.finish();reading.current=false}
+   if(sinRespuestaDesde.current&&current.current?.messages.at(-1)?.role==='assistant'&&current.current.messages.at(-1)?.content?.trim())sinRespuestaDesde.current=0
    const p=player.current?.position??null;setPosition(p)
    if(p){setState('speaking');setSpokenCaption(p.text)}
    else setState(previous=>previous==='error'?previous:(current.current?.loading&&!hasQuestion())||reading.current?'thinking':'idle')
@@ -120,10 +137,13 @@ export function useLiveVoice(controller:LiveChatController|null,agent:LiveAgent|
  },[stop])
  useEffect(()=>{
   const next={owner:controller?.owner,account:controller?.account,session:controller?.sessionId},old=scope.current
-  if(old.owner!==next.owner||old.account!==next.account||(old.session&&old.session!==next.session)){
+  // Levy en vivo: en una conversación nueva la sesión nace con el primer mensaje; ese cambio, segundos después de mandar,
+  // es la misma conversación y no debe callar la respuesta (prueba del 18 nov).
+  const nacio=levyEnVivoActivo()&&reading.current&&performance.now()-enviadoEn.current<20_000&&old.owner===next.owner&&old.account===next.account
+  if(!nacio&&(old.owner!==next.owner||old.account!==next.account||(old.session&&old.session!==next.session))){
    stop();setError(null);setTranscript('');setSpokenCaption('');answers.current=null;setQuestionText('')
   }
   scope.current=next
  },[controller?.owner,controller?.account,controller?.sessionId,stop])
- return {active:false,state,error,position,transcript,questionText,spokenCaption,speed,setSpeed,warm:()=>{player.current??=new LivePcmPlayer();player.current.setAgent(agentRef.current);player.current.warm()},stop,interrupt,send,speakAck,player}
+ return {active:false,state,error,position,transcript,questionText,spokenCaption,speed,setSpeed,prepare,warm:()=>{player.current??=new LivePcmPlayer();player.current.setAgent(agentRef.current);player.current.warm()},stop,interrupt,send,speakAck,player}
 }

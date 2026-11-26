@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import { strict as assert } from 'node:assert'
-import { filasInyectadas, leerDesenlace, notaDelHost, plegarInyectadas, puedeInyectar, trasTerminar, ubicarNotas, unirNotas, type NotaInyectada } from '../../src/features/chat/lib/inyecciones'
+import { aLaFilaAlDetener, filasInyectadas, leerDesenlace, notaDelHost, plegarInyectadas, puedeInyectar, trasTerminar, ubicarNotas, unirNotas, type NotaInyectada } from '../../src/features/chat/lib/inyecciones'
 import type { ChatMessage } from '../../src/features/chat/hooks/useChat'
 
 // Inyección a mitad de turno (7 oct 2026): Daniel escribe con Levy trabajando y el mensaje entra al turno
@@ -44,6 +44,17 @@ test('trasTerminar: lo leído se queda en el turno; lo que no entró se va a su 
   const { quedan, aSuTurno } = trasTerminar([nota('a', 'leido'), nota('b', 'entrando'), nota('c', 'en_fila')])
   assert.deepEqual(quedan.map(n => n.id), ['a'])
   assert.deepEqual(aSuTurno.map(n => n.id), ['b', 'c'])
+})
+
+test('aLaFilaAlDetener: un turno detenido devuelve a la fila solo lo registrado sin leer; lo que ya es turno no se duplica', () => {
+  // 18 nov 2026: escribiste mientras corría un aviso; el host lo dejó como turno propio (en_fila) y el aviso cedió.
+  // Ese mensaje sale solo en el servidor: si además volvía a la fila en pausa, se veía dos veces.
+  const { aSuTurno } = trasTerminar([nota('a', 'leido'), nota('b', 'entrando'), nota('c', 'en_fila'), nota('d', 'enviando')])
+  const { aLaFila, enElServidor } = aLaFilaAlDetener(aSuTurno)
+  assert.deepEqual(aLaFila.map(n => n.id), ['b'])
+  assert.equal(enElServidor, true)
+  assert.deepEqual(aLaFilaAlDetener([nota('c', 'en_fila')]).aLaFila, [])
+  assert.equal(aLaFilaAlDetener([nota('b', 'entrando')]).enElServidor, false)
 })
 
 test('ubicarNotas: tras su herramienta si está a la vista; si no (o sin herramienta), al final de la actividad', () => {

@@ -15,6 +15,9 @@ export interface CuentaReciente {
    *  normal, y un segundo puntito junto al semáforo se confundía con él (1 oct, revisión visual). */
   corta: string
   texto: string
+  /** Color del NOMBRE de la conversación en vez del rótulo corto (16 nov 2026, Daniel: «en lugar de ponerle "sin filtro"
+   *  ponle texto rojo en el nombre»). Con él, el rótulo no se pinta; la etiqueta sigue en el título emergente. */
+  colorNombre?: string
 }
 
 export const CUENTAS_RECIENTES: readonly CuentaReciente[] = [
@@ -25,12 +28,13 @@ export const CUENTAS_RECIENTES: readonly CuentaReciente[] = [
   { id: 'deepseek', etiqueta: 'DeepSeek', corta: 'DeepSeek', texto: 'text-sky-300' },
   // Sin filtro (3 nov 2026): rojo, para que nunca se confunda con Claude.
   // Getters: el rótulo sale en el idioma activo al pintarse (la edición del alumno también tiene «Sin filtro»).
-  { id: 'abliterated', get etiqueta() { return tr('DeepSeek abliterated · no es Claude') }, get corta() { return tr('Sin filtro') }, texto: 'text-rose-300' },
+  { id: 'abliterated', get etiqueta() { return tr('DeepSeek abliterated · no es Claude') }, get corta() { return tr('Sin filtro') }, texto: 'text-rose-300', colorNombre: 'var(--error)' },
   // Catálogo de modelos (2 oct 2026): un espacio por modelo de OpenRouter.
   { id: 'gpt-luna', etiqueta: 'GPT-6 Luna', corta: 'Luna', texto: 'text-emerald-300' },
   { id: 'gpt-astra', etiqueta: 'GPT-6 Astra', corta: 'Astra', texto: 'text-emerald-300' },
   { id: 'gpt-sol', etiqueta: 'GPT-6.1 Sol', corta: 'Sol', texto: 'text-emerald-300' },
   { id: 'gemini', etiqueta: 'Gemini 4 Argon', corta: 'Gemini', texto: 'text-sky-300' },
+  { id: 'gemini-hydrogen', etiqueta: 'Gemini 4 Hydrogen', corta: 'Hydrogen', texto: 'text-sky-300' },
   { id: 'muse', etiqueta: 'Muse Spark 1.3', corta: 'Muse', texto: 'text-sky-300' },
   { id: 'grok', etiqueta: 'Grok 4.7', corta: 'Grok', texto: 'text-sky-300' },
   { id: 'mimo', etiqueta: 'MiMo-V2.6-Pro', corta: 'MiMo', texto: 'text-sky-300' },

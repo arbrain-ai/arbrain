@@ -1,0 +1,159 @@
+/* Estrategia › Competidores (15 nov 2026). Mismos tokens que estrategia-panel.module.css (hereda sus variables: vive dentro
+   de su .raiz). Morado = estructura y lo que se toca; las nuevas promesas llevan una chispa cálida (no el oro: el oro es
+   solo «tú»); lo anglo va hueco, como en la escalera. Responde al ancho de SU columna: lista de una línea en 520 y 390,
+   tabla de siete columnas desde 760. Nada nace en opacidad 0: las filas se asientan y los puntos crecen. */
+.raiz { container-type: inline-size; display: flex; flex-direction: column; gap: 12px; min-width: 0;
+  --promesa: color-mix(in srgb, #ff5c8a 78%, var(--brand)); --promesa-suave: color-mix(in srgb, var(--promesa) 14%, transparent); }
+:global(.dark) .raiz { --promesa: color-mix(in srgb, #ff7aa2 80%, var(--l-tinta-morado-clara, #c4a1ff)); }
+
+.cabeza { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.conteo { margin: 0; display: flex; align-items: baseline; gap: 9px; }
+.conteo b { font-family: var(--serif-ui, serif); font-size: 30px; line-height: 1; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.conteo span { font-size: 12.5px; color: var(--muted); }
+.corte { margin: 0; font-size: 11px; color: var(--muted); }
+.vacio, .campoVacio { margin: 0; font-size: 12.5px; color: var(--muted); }
+.campoVacio { padding: 18px 12px; text-align: center; border: 1.5px dashed var(--border-subtle, var(--border)); border-radius: 12px; }
+
+/* ── El campo ── */
+.campo { margin: 0; display: flex; flex-direction: column; gap: 4px; padding: 10px 12px 8px; border-radius: 14px;
+  border: 1px solid var(--border-subtle, var(--border)); background: linear-gradient(180deg, var(--placa-arriba), var(--placa-abajo));
+  box-shadow: inset 0 1px 0 var(--bisel), 0 14px 30px -26px rgba(var(--brand-rgb), 0.6); }
+.campo svg { display: block; width: 100%; height: auto; overflow: visible; }
+.campo figcaption { font-size: 10.5px; color: var(--muted); }
+.reja { stroke: color-mix(in srgb, var(--foreground) 8%, transparent); stroke-width: 1; stroke-dasharray: 2 4; }
+.cero { stroke: color-mix(in srgb, var(--foreground) 30%, transparent); stroke-width: 1; }
+.marca { font-size: 10px; font-weight: 600; fill: var(--muted); font-variant-numeric: tabular-nums; }
+.carril { stroke: color-mix(in srgb, var(--foreground) 11%, transparent); stroke-width: 1; }
+.carrilNombre { font-size: 10.5px; font-weight: 700; fill: var(--muted); letter-spacing: 0.02em; }
+.punto { cursor: pointer; outline: none; animation: brota 620ms var(--curva) backwards; }
+.punto circle:last-child { fill: var(--s0); stroke: var(--placa-arriba); stroke-width: 1.4; transition: r 0.22s var(--curva); }
+.punto[data-grupo='promesa'] circle:last-child { fill: var(--promesa); }
+.punto[data-grupo='anglo'] circle:last-child { fill: var(--placa-arriba); stroke: var(--s0); stroke-width: 1.6; }
+.punto:hover circle:last-child, .punto:focus-visible circle:last-child { r: 6px; }
+.punto[data-sel] circle:last-child { filter: drop-shadow(0 0 6px rgba(var(--brand-rgb), 0.7)); stroke: var(--foreground); }
+.toque { fill: transparent; }
+.tu line { stroke: var(--oro); stroke-width: 1.6; stroke-dasharray: 3 3; }
+.tu text { font-size: 10.5px; font-weight: 800; fill: color-mix(in srgb, var(--oro) 85%, var(--foreground)); }
+.selNombre { font-size: 11px; font-weight: 750; fill: var(--foreground); paint-order: stroke; stroke: var(--placa-arriba); stroke-width: 3px; pointer-events: none; }
+
+/* ── Filtros y orden ── */
+.controles { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.filtros { display: flex; flex-wrap: wrap; gap: 5px; }
+.filtros button, .orden button { font: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+.filtros button { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 10px; border-radius: 999px; font-size: 12px; font-weight: 650; color: var(--foreground);
+  border: 1px solid var(--border-subtle, var(--border)); background: color-mix(in srgb, var(--card) 70%, transparent); transition: border-color 0.18s ease, background 0.18s ease; }
+.filtros button small { font-size: 11px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+.filtros button i { width: 8px; height: 8px; border-radius: 50%; background: var(--s0); }
+.filtros button[data-grupo='promesa'] i { background: var(--promesa); }
+.filtros button[data-grupo='anglo'] i { background: transparent; border: 1.5px solid var(--s0); box-sizing: border-box; }
+.filtros button:hover { border-color: color-mix(in srgb, var(--brand) 45%, transparent); }
+.filtros button[aria-selected='true'] { border-color: var(--brand); background: rgba(var(--brand-rgb), 0.1); color: var(--tinta); }
+.orden { display: inline-flex; padding: 2px; border-radius: 999px; border: 1px solid var(--border-subtle, var(--border)); background: color-mix(in srgb, var(--card) 60%, transparent); }
+.orden button { min-height: 26px; padding: 0 11px; border: 0; border-radius: 999px; background: transparent; font-size: 11.5px; font-weight: 650; color: var(--muted); }
+.orden button[aria-checked='true'] { background: var(--placa-arriba); color: var(--foreground); box-shadow: 0 1px 2px rgba(var(--sombra-rgb), 0.15), inset 0 1px 0 var(--bisel); }
+.filtros button:focus-visible, .orden button:focus-visible, .fila:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+/* ── La lista ── */
+.encabezados { display: none; }
+.lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border-radius: 14px; overflow: hidden;
+  border: 1px solid var(--border-subtle, var(--border)); background: linear-gradient(180deg, var(--placa-arriba), var(--placa-abajo)); box-shadow: inset 0 1px 0 var(--bisel); }
+.lista > li { position: relative; border-top: 1px solid color-mix(in srgb, var(--border-subtle, var(--border)) 80%, transparent); animation: asienta 480ms var(--curva) backwards; }
+.lista > li:first-child { border-top: 0; }
+.lista > li[data-abierta] { background: rgba(var(--brand-rgb), 0.045); }
+.lista > li[data-grupo='promesa']::before { content: ''; position: absolute; left: 0; top: 10px; bottom: 10px; width: 2px; border-radius: 2px; background: var(--promesa); opacity: 0.75; }
+.separador { margin: 0; padding: 7px 12px 5px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);
+  border-bottom: 1px dashed var(--border-subtle, var(--border)); background: color-mix(in srgb, var(--placa-abajo) 60%, transparent); }
+
+.fila { display: grid; grid-template-columns: 18px 32px minmax(0, 1fr) auto 14px; align-items: center; gap: 9px; width: 100%; min-height: 54px; padding: 7px 10px 7px 8px;
+  border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background 0.15s ease; }
+.fila:hover { background: rgba(var(--brand-rgb), 0.04); }
+.n { font-size: 10.5px; font-weight: 700; color: color-mix(in srgb, var(--muted) 75%, transparent); font-variant-numeric: tabular-nums; text-align: right; }
+.cara { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; overflow: hidden; flex: none; font-size: 10.5px; font-weight: 750; color: var(--tinta);
+  background: color-mix(in srgb, var(--brand) 13%, var(--placa-abajo)); box-shadow: 0 0 0 1.5px var(--placa-arriba), 0 0 0 2.5px color-mix(in srgb, var(--s0) 30%, transparent); }
+.cara[data-grupo='promesa'] { box-shadow: 0 0 0 1.5px var(--placa-arriba), 0 0 0 2.5px color-mix(in srgb, var(--promesa) 65%, transparent); }
+.cara img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.quien { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.nombre { display: flex; align-items: baseline; gap: 6px; min-width: 0; white-space: nowrap; }
+.nombre b { font-size: 13.5px; font-weight: 680; overflow: hidden; text-overflow: ellipsis; flex: 0 0 auto; max-width: 72%; }
+.nombre small { font-size: 11.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; flex: 1 1 0; min-width: 0; }
+.chispa { flex: none; font-style: normal; font-size: 9.5px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; padding: 1px 6px; border-radius: 999px; color: var(--promesa); background: var(--promesa-suave); }
+.desc { font-size: 12px; line-height: 1.35; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.col { display: none; }
+.metrica { display: grid; justify-items: end; gap: 1px; min-width: 62px; }
+.metrica b { font-size: 15px; font-weight: 720; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.metrica b[data-sube] { color: var(--tinta); }
+.metrica small { font-size: 10px; color: var(--muted); white-space: nowrap; }
+.medidor { display: block; width: 56px; height: 3px; margin-top: 3px; border-radius: 2px; background: color-mix(in srgb, var(--foreground) 8%, transparent); overflow: hidden; }
+.medidor i { display: block; height: 100%; border-radius: 2px; background: var(--s0); transform-origin: left center; transition: transform 0.5s var(--curva); animation: crece 760ms var(--curva) backwards; }
+.lista > li[data-grupo='promesa'] .medidor i { background: var(--promesa); }
+.flecha { color: var(--muted); transition: transform 0.25s var(--curva); }
+.fila[aria-expanded='true'] .flecha { transform: rotate(180deg); color: var(--tinta); }
+
+/* Desde 760 px: tabla con comunidad, entrada y cadencia. */
+@container (min-width: 760px) {
+  .encabezados, .fila { grid-template-columns: 22px 36px minmax(0, 1fr) 108px 112px 76px 92px 14px; }
+  .encabezados { display: grid; gap: 10px; padding: 0 12px 0 10px; font-size: 10px; font-weight: 750; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); }
+  .encabezados span:nth-child(2) { grid-column: 2 / 4; }
+  .encabezados span:nth-last-child(2) { text-align: right; }
+  .fila { gap: 10px; padding: 8px 12px 8px 10px; min-height: 58px; }
+  .cara { width: 36px; height: 36px; }
+  .col { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .col b { font-size: 13px; font-weight: 650; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .col small { font-size: 10.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .desc { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+}
+
+/* ── La ficha ── */
+.ficha { display: flex; flex-direction: column; gap: 12px; padding: 4px 14px 16px 37px; animation: abre 360ms var(--curva) backwards; }
+@container (min-width: 760px) { .ficha { padding: 4px 22px 18px 78px; } }
+.fichaDesc { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--foreground); text-wrap: pretty; }
+.grupo, .pais { display: inline-block; margin-right: 7px; padding: 1px 7px; border-radius: 999px; font-size: 10px; font-weight: 750; letter-spacing: 0.04em; text-transform: uppercase; vertical-align: 1px;
+  color: var(--tinta); background: rgba(var(--brand-rgb), 0.1); }
+.grupo[data-grupo='promesa'] { color: var(--promesa); background: var(--promesa-suave); }
+.pais { color: var(--muted); background: color-mix(in srgb, var(--foreground) 6%, transparent); }
+.mensaje { margin: 0; padding: 10px 14px; border-radius: 12px; border-left: 3px solid var(--s0); background: rgba(var(--brand-rgb), 0.05); }
+.mensaje p { margin: 0; font-family: var(--serif-ui, serif); font-size: 16.5px; line-height: 1.38; font-weight: 550; text-wrap: pretty; }
+.mensaje footer { margin-top: 5px; font-size: 11px; color: var(--muted); }
+.mensaje a, .fuentes a, .canales a, .oferta a { color: var(--tinta); text-decoration: none; display: inline-flex; align-items: center; gap: 2px; }
+.mensaje a:hover, .fuentes a:hover, .canales a:hover, .oferta a:hover { text-decoration: underline; }
+.mensajeFalta { margin: 0; font-size: 12px; color: var(--muted); padding: 8px 12px; border: 1.5px dashed var(--border-subtle, var(--border)); border-radius: 10px; }
+.datos { margin: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px 18px; }
+@container (min-width: 600px) { .datos { grid-template-columns: repeat(2, minmax(0, 1fr)); } .dato[data-ancho] { grid-column: 1 / -1; } }
+.dato { min-width: 0; }
+.dato dt { margin-bottom: 3px; font-size: 10px; font-weight: 750; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); }
+.dato dd { margin: 0; font-size: 12.8px; line-height: 1.5; color: var(--foreground); text-wrap: pretty; overflow-wrap: anywhere; }
+.dato dd small { display: block; margin-top: 2px; font-size: 10.5px; color: var(--muted); }
+.sinDato { display: inline-block; padding: 0 7px; border: 1px dashed color-mix(in srgb, var(--muted) 50%, transparent); border-radius: 999px; font-size: 11px; color: var(--muted); }
+.inferido { margin-left: 6px; font-style: normal; font-size: 9.5px; font-weight: 750; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted);
+  padding: 0 5px; border-radius: 4px; border: 1px dashed color-mix(in srgb, var(--muted) 55%, transparent); white-space: nowrap; }
+.principal { margin-left: 5px; font-style: normal; font-size: 9.5px; font-weight: 700; color: var(--tinta); }
+.canales { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.canales li span { margin-right: 6px; font-size: 11px; font-weight: 650; color: var(--muted); }
+.canales li small { margin-top: 0 !important; }
+.nivel { display: inline-flex; align-items: center; gap: 3px; margin-right: 8px; vertical-align: -1px; }
+.nivel i { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid color-mix(in srgb, var(--s0) 55%, transparent); box-sizing: border-box; }
+.nivel i[data-lleno] { background: var(--s0); border-color: var(--s0); }
+.nivel b { margin-left: 4px; font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.oferta h5 { margin: 0 0 6px; display: flex; align-items: baseline; gap: 8px; font-size: 10px; font-weight: 750; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); }
+.oferta h5 small { font-size: 10.5px; font-weight: 500; letter-spacing: 0; text-transform: none; }
+.oferta ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border-left: 2px solid color-mix(in srgb, var(--s0) 40%, transparent); }
+.oferta li { position: relative; display: grid; grid-template-columns: minmax(64px, 16ch) minmax(0, 1fr) auto; align-items: baseline; gap: 4px 10px; padding: 5px 0 5px 12px; font-size: 12.5px; line-height: 1.45; }
+.oferta li::before { content: ''; position: absolute; left: -5px; top: 11px; width: 8px; height: 8px; border-radius: 50%; background: var(--s0); box-shadow: 0 0 0 2px var(--placa-arriba); }
+.oferta li[data-gratis]::before { background: var(--placa-arriba); border: 1.5px solid var(--s0); box-sizing: border-box; }
+.oferta li span { min-width: 0; }
+.oferta li small { display: block; font-size: 11.5px; color: var(--muted); }
+.precio { font-weight: 720; font-variant-numeric: tabular-nums; max-width: 16ch; overflow-wrap: anywhere; }
+.fuentes { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11px; color: var(--muted); }
+
+.pie { display: flex; flex-direction: column; gap: 4px; font-size: 11px; line-height: 1.45; color: var(--muted); }
+.pie p { margin: 0; text-wrap: pretty; }
+.pie summary { cursor: pointer; font-weight: 650; }
+.pie ul { margin: 4px 0 0; padding-left: 16px; }
+
+@keyframes asienta { from { transform: translateY(4px); } }
+@keyframes brota { from { transform: scale(0.2); } }
+@keyframes crece { from { transform: scaleX(0.04); } }
+@keyframes abre { from { transform: translateY(-4px); } }
+@media (prefers-reduced-motion: reduce) {
+  .lista > li, .punto, .medidor i, .ficha { animation: none !important; }
+}

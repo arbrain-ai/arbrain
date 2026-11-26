@@ -168,6 +168,17 @@ export function trasTerminar(notas: NotaInyectada[] | undefined): { quedan: Nota
 }
 
 /**
+ * Turno detenido (lo paraste tú, o un aviso que cedió su lugar a tu mensaje): qué notas vuelven a la fila del
+ * dispositivo, en pausa. Solo las que el host registró contra ESTE turno (`entrando`) y el motor no leyó.
+ *  - `en_fila` ya es su propio turno en el servidor y sale solo. Devolverla lo duplicaba: el 18 nov 2026 un mensaje
+ *    escrito mientras corría un aviso hizo ceder al aviso, salió como turno y además quedó «1 mensaje en pausa».
+ *  - `enviando` lo resuelve la petición que sigue en vuelo (si no entra, `inyectar` la manda a la fila).
+ */
+export function aLaFilaAlDetener(aSuTurno: NotaInyectada[]): { aLaFila: NotaInyectada[]; enElServidor: boolean } {
+  return { aLaFila: aSuTurno.filter(n => n.estado === 'entrando'), enElServidor: aSuTurno.some(n => n.estado === 'en_fila') }
+}
+
+/**
  * Historial recargado (Supabase): las filas de Daniel con `metadata.injectedInto` se pintan como notas
  * dentro de la respuesta de ese turno, no como burbujas sueltas. Así la vista recargada coincide con la
  * vista en vivo y no hay duplicados (la nota en memoria y la fila guardada comparten el mismo id lógico:

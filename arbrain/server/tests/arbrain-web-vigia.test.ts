@@ -22,6 +22,12 @@ describe.skipIf(!HAY_VIGIA)('juicio del vigilante', () => {
     expect(diagnosticar(daemonCaido, true)).toMatch(/no alcanza al daemon/) // el daemon contesta directo: el web está atorado
   })
 
+  it('con la máquina ahogada no reinicia ni gasta cupo', () => {
+    const a = decidir({ racha: 1, reinicios: [] }, { enfermo: true, uptimeS: 600, ahora: 1_000_000, saturado: true }, cfg)
+    expect(a.accion).toBe('saturado')
+    expect(a.estado.reinicios).toEqual([])
+  })
+
   it('reinicia a la segunda sonda enferma, no a la primera', () => {
     const a = decidir({ racha: 0 }, { enfermo: true, uptimeS: 600, ahora: 1_000_000 }, cfg)
     expect(a.accion).toBe('contar')
@@ -102,6 +108,7 @@ describe.skipIf(!HAY_VIGIA)('simulacro del cuelgue', () => {
       VIGIA_DAEMON_URL: 'http://127.0.0.1:9/health',
       VIGIA_PID: String(hijo.pid),
       VIGIA_GRACIA_S: '0',
+      VIGIA_CARGA_SATURADA: '99999', // la carga real de la máquina no debe mover esta prueba
       VIGIA_PLAZO_MS: '700',
       VIGIA_ESPERA_VUELTA_MS: '10000',
       VIGIA_INSPECTOR_PUERTO: String(inspector),

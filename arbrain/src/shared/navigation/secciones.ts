@@ -1,5 +1,5 @@
 import {
-  LayoutGrid, Bot, Youtube, Brain, CalendarDays, Wallet, Repeat, Shapes, BrainCircuit, Network, Activity, GraduationCap, UsersRound, Dog, House,
+  LayoutGrid, Bot, Youtube, Brain, CalendarDays, Wallet, Repeat, Shapes, BrainCircuit, Network, Activity, GraduationCap, UsersRound, Dog, House, Puzzle,
   type LucideIcon,
 } from 'lucide-react'
 import { ArbrainMark } from '@/shared/components/icons/ArbrainMark'
@@ -46,6 +46,8 @@ const SECCIONES: readonly Seccion[] = [
   { href: '/perro', label: trMarca('Perro'), icon: Dog },
   // Casa (26 oct 2026): la casa en 3D desde el LiDAR del perro, con el perro y los dispositivos dentro. Sin atajo.
   { href: '/casa', label: trMarca('Casa'), icon: House },
+  // Extensiones (21 nov 2026): la tienda del catálogo curado y el panel de cada extensión instalada. Sin atajo.
+  { href: '/extensiones', label: trMarca('Extensiones'), icon: Puzzle },
 ]
 
 const BOARD: Seccion = { href: '/board', label: trMarca('Tablero'), icon: LayoutGrid }

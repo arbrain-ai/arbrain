@@ -1,0 +1,72 @@
+/* El nervio de Tu negocio (17 nov 2026): la línea del lienzo v18 hecha panel. Morado para la gente que fluye, oro para el
+   cuello y lo que vuelve, rojo punteado solo para el cuello (el dolor). Tintas de la app (cartel.ts › ACENTO violeta) en
+   claro y oscuro. Movimiento: el núcleo de cada estación respira desfasado (transform), la gente en canvas; todo quieto
+   con «reducir movimiento». */
+.nervio { --n-morado: #8C27F1; --n-oro: #ff9101; --n-mudo: #94a3b8; --n-hondo: var(--placa-arriba, #fff);
+  position: relative; width: 100%; min-width: 0; min-height: 54px; pointer-events: none; }
+.nervio[data-llena] { height: 100%; }
+/* La retícula de puntos del lienzo, apenas, bajo el río. */
+.nervio::before { content: ''; position: absolute; inset: 0; pointer-events: none;
+  background-image: radial-gradient(color-mix(in srgb, var(--foreground) 13%, transparent) 0.9px, transparent 1.3px); background-size: 20px 20px; background-position: 6px 6px;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent); mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent); }
+:global(.dark) .nervio { --n-morado: #b47dff; --n-oro: #ffac3d; --n-mudo: #a1a1aa; --n-hondo: #0d0d12; }
+.svg, .gente { position: absolute; inset: 0; overflow: visible; }
+.gente { z-index: 1; }
+.halo { fill: none; stroke: var(--n-morado); stroke-opacity: 0.2; stroke-width: 10; stroke-linecap: round; }
+.linea { fill: none; stroke: var(--n-morado); stroke-width: 3; stroke-linecap: round;
+  stroke-dasharray: 4000; stroke-dashoffset: 4000; animation: trazar 1400ms cubic-bezier(0.65, 0, 0.35, 1) 200ms forwards; }
+.lazo { fill: none; stroke: var(--n-oro); stroke-opacity: 0.8; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.lazo[data-por-construir] { stroke-dasharray: 2 8; }
+.lazoTexto { font: italic 600 12px var(--serif-ui, Georgia, serif); letter-spacing: 0; fill: color-mix(in srgb, var(--n-oro) 62%, var(--muted)); }
+:global(.dark) .lazoTexto { fill: color-mix(in srgb, var(--n-oro) 70%, var(--muted)); }
+.entra { font: 800 9.5px var(--font-sans, system-ui); letter-spacing: 0.18em; text-transform: uppercase; fill: var(--muted); }
+.aura { fill: var(--n-morado); fill-opacity: 0.12; }
+.anillo { fill: var(--n-hondo); stroke: var(--n-morado); stroke-width: 2.5; }
+.nucleo { fill: var(--n-morado); transform-box: fill-box; transform-origin: center; animation: respirar 3.2s ease-in-out infinite; animation-delay: calc(var(--k, 0) * -0.53s); }
+.estacion[data-apagada] .anillo { stroke-dasharray: 3 4; stroke: var(--n-mudo); }
+.estacion[data-apagada] .nucleo, .estacion[data-apagada] .aura { fill: var(--n-mudo); }
+.estacion[data-cuello] .aura { fill: var(--n-oro); }
+.estacion[data-cuello] .anillo { stroke: var(--n-oro); stroke-width: 3.5; }
+.estacion[data-cuello] .nucleo { fill: var(--n-oro); }
+.cuelloAnillo { fill: none; stroke: #e0484d; stroke-width: 2; stroke-dasharray: 3 4; transform-box: fill-box; transform-origin: center; animation: girar 18s linear infinite; }
+:global(.dark) .cuelloAnillo { stroke: #f0676b; }
+.cuelloTexto { font: 800 9.5px var(--font-sans, system-ui); letter-spacing: 0.18em; text-transform: uppercase; fill: color-mix(in srgb, var(--n-oro) 80%, #000); }
+:global(.dark) .cuelloTexto { fill: var(--n-oro); }
+.cuelloFrase { font: italic 600 12.5px var(--serif-ui, Georgia, serif); letter-spacing: 0; text-transform: none; fill: var(--muted); }
+
+@keyframes trazar { to { stroke-dashoffset: 0; } }
+@keyframes respirar { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.18); } }
+@keyframes girar { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .linea { animation: none; stroke-dashoffset: 0; }
+  .nucleo, .cuelloAnillo { animation: none; }
+}
+
+/* Las ramas de cada llave a sus estaciones (las dendritas de «El nervio»). */
+.rama { fill: none; stroke: var(--n-morado); stroke-opacity: 0.28; stroke-width: 1.4; }
+/* El terreno: la curva de 30 días de cada tramo, bajo la línea. Rojo si su órgano duele; el último día, en oro. */
+.banda { --b: var(--n-morado); }
+.banda[data-duele] { --b: #e0484d; }
+:global(.dark) .banda[data-duele] { --b: #f0676b; }
+.bandaArea { fill: var(--b); fill-opacity: 0.1; }
+.bandaTrazo { fill: none; stroke: var(--b); stroke-opacity: 0.75; stroke-width: 1.5; stroke-linejoin: round; }
+.bandaHoy { fill: var(--n-oro); stroke: var(--n-hondo); stroke-width: 2; }
+.bandaNombre { font: 650 10.5px var(--font-sans, system-ui); fill: var(--muted); }
+.banda path, .banda circle { animation: aparecer 900ms ease-out 700ms backwards; }
+/* Sin ninguna etapa con número: el río punteado y quieto (nada fluye sin dato). */
+.linea[data-quieto] { stroke: var(--n-mudo); stroke-dasharray: 3 7; animation: none; stroke-dashoffset: 0; }
+.halo[data-quieto] { stroke: var(--n-mudo); stroke-opacity: 0.12; }
+@keyframes aparecer { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .banda path, .banda circle { animation: none; } }
+/* La copia vacía: bajo el hilo quieto, qué lo va a llenar. */
+.nota { font: italic 500 15px var(--serif-ui, Georgia, serif); fill: var(--muted); }
+/* Fase 2: la estación abierta se enciende en el río y su aura late (quieta con «reducir movimiento»). */
+.estacion[data-abierta] .anillo { stroke-width: 4; }
+.estacion[data-abierta] .aura { fill-opacity: 0.3; transform-box: fill-box; transform-origin: center; animation: latir 1.6s ease-in-out infinite; }
+@keyframes latir { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.22); } }
+@media (prefers-reduced-motion: reduce) { .estacion[data-abierta] .aura { animation: none; } }
+/* Por fuera: rojo si una rutina de la estación falló; un anillo que late si alguna corre ahora. */
+.falla { fill: #e0484d; stroke: var(--n-hondo); stroke-width: 2; }
+:global(.dark) .falla { fill: #f0676b; }
+.corre { fill: none; stroke: var(--n-morado); stroke-width: 1.5; stroke-opacity: 0.7; transform-box: fill-box; transform-origin: center; animation: latir 1.8s ease-out infinite; }
+@media (prefers-reduced-motion: reduce) { .corre { animation: none; } }

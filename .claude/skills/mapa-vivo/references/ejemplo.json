@@ -1,0 +1,414 @@
+{
+  "esquema": "arbrain.mapa/v1",
+  "negocio": "Ferretería La Tuerca",
+  "giro": "ferretería de barrio que también surte a obras pequeñas",
+  "ejemplo": true,
+  "fecha": "2026-11-16",
+  "para": "cliente",
+  "moneda": "EUR",
+  "marca": {
+    "motivo": "tuerca"
+  },
+  "norte": {
+    "luz": "Tu porqué",
+    "porque": {
+      "texto": "«Que la tienda funcione sin que yo esté cuadrando el Excel a las diez de la noche.»",
+      "estado": "firmado",
+      "sello": "lo dijo la dueña · 14 nov"
+    },
+    "meta": {
+      "texto": "Pasar de 18,000 a 22,000 EUR de venta al mes en 3 meses, sin contratar a nadie.",
+      "de": "18,000",
+      "a": "22,000",
+      "unidad": "EUR al mes",
+      "plazo": "3 meses",
+      "estado": "firmado",
+      "sello": "firmada · 14 nov"
+    },
+    "juego": {
+      "texto": "Ser la ferretería a la que los contratistas del barrio le piden primero.",
+      "estado": "abierto",
+      "sello": "abierto · por conversar"
+    },
+    "ondas": [
+      {
+        "nombre": "La dueña",
+        "glosa": "sus noches, de vuelta"
+      },
+      {
+        "nombre": "La tienda",
+        "glosa": "cotiza el mismo día"
+      },
+      {
+        "nombre": "El equipo",
+        "glosa": "mostrador y reparto, sin libreta"
+      },
+      {
+        "nombre": "Los contratistas",
+        "glosa": "su pedido completo a la primera"
+      },
+      {
+        "nombre": "El barrio",
+        "glosa": "la primera a la que llaman"
+      }
+    ],
+    "tierra": "Sin contratar a nadie y sin cambiar las herramientas que ya usan: Excel, WhatsApp y la terminal de cobro.",
+    "principios": [
+      {
+        "texto": "Primero se mide, después se arregla.",
+        "estado": "firmado"
+      },
+      {
+        "texto": "Un solo cuello a la vez: el que más ventas deja ir.",
+        "estado": "firmado"
+      },
+      {
+        "texto": "Se trabaja sobre lo que ya funciona a medias, no se inventa otro sistema.",
+        "estado": "firmado"
+      },
+      {
+        "texto": "Lo que no se sabe se escribe «por medir», nunca se supone.",
+        "estado": "firmado"
+      }
+    ],
+    "enfoque": {
+      "texto": "Cotizar el mismo día",
+      "estado": "firmado",
+      "sello": "firmado · piloto de 30 días",
+      "abierto": "quién da seguimiento a cada cotización y la lista de precios por tipo de obra"
+    }
+  },
+  "sistema": {
+    "unidad": "cotizaciones",
+    "entrada": "contratistas y vecinos →",
+    "etapas": [
+      {
+        "etapa": "Adquisición",
+        "que_pasa": "Llegan por pasar por la calle y por recomendación de contratistas.",
+        "opera_hoy": true,
+        "quien": [
+          "la dueña"
+        ],
+        "numero": {
+          "nombre": "Clientes nuevos por semana",
+          "valor": null,
+          "como_medirlo": "Preguntar en mostrador «¿cómo nos conociste?» una semana."
+        }
+      },
+      {
+        "etapa": "Nutrición",
+        "que_pasa": "Los contratistas piden precios por WhatsApp; no hay catálogo ni lista que mandarles.",
+        "opera_hoy": true,
+        "quien": [
+          "la dueña"
+        ],
+        "numero": {
+          "nombre": "Cotizaciones pedidas por semana",
+          "valor": "35",
+          "medido_en": "13 nov"
+        }
+      },
+      {
+        "etapa": "Conversión",
+        "que_pasa": "La dueña arma cada cotización a mano en Excel; tarda de 1 a 2 días y nadie da seguimiento.",
+        "opera_hoy": true,
+        "quien": [
+          "la dueña"
+        ],
+        "numero": {
+          "nombre": "Cotizaciones que se vuelven venta",
+          "valor": "12 de 35",
+          "medido_en": "13 nov"
+        },
+        "a_mano": {
+          "horas_mes": 30
+        }
+      },
+      {
+        "etapa": "Bienvenida",
+        "que_pasa": "Un contratista nuevo no recibe condiciones de crédito, horario de reparto ni lista de precios.",
+        "opera_hoy": false,
+        "quien": [
+          "mostrador"
+        ],
+        "numero": {
+          "nombre": "Contratistas nuevos que repiten en 30 días",
+          "valor": null,
+          "como_medirlo": "Anotar la fecha del primer y del segundo pedido."
+        }
+      },
+      {
+        "etapa": "Entrega",
+        "que_pasa": "El repartidor sale con la lista escrita a mano; 1 de cada 10 pedidos sale incompleto.",
+        "opera_hoy": true,
+        "quien": [
+          "el repartidor",
+          "mostrador"
+        ],
+        "numero": {
+          "nombre": "Pedidos que salen incompletos",
+          "valor": "1 de cada 10",
+          "medido_en": "13 nov"
+        },
+        "a_mano": {
+          "horas_mes": 51
+        }
+      },
+      {
+        "etapa": "Expansión",
+        "que_pasa": "Los contratistas vuelven solos; no se les avisa de ofertas ni se les pide que recomienden.",
+        "opera_hoy": true,
+        "quien": [
+          "la dueña"
+        ],
+        "numero": {
+          "nombre": "Contratistas que compran cada semana",
+          "valor": "12",
+          "medido_en": "13 nov"
+        }
+      }
+    ],
+    "cuello": {
+      "etapa": "Conversión",
+      "frase": "Se piden 35 cotizaciones a la semana y solo 12 se vuelven venta.",
+      "se_van": "23 de 35 cotizaciones",
+      "fuga": 0.66,
+      "evidencia": "Conteo del WhatsApp contra la libreta de pedidos, semana del 9 al 13 nov.",
+      "fecha": "2026-11-14"
+    },
+    "timonel": {
+      "meta": "22,000 EUR al mes",
+      "hoy": "18,000 EUR al mes",
+      "empuje": "Cotizar el mismo día"
+    },
+    "lazo": {
+      "texto": "los contratistas bien servidos recomiendan a otros",
+      "estado": "pendiente",
+      "sello": "nadie lo pide hoy"
+    }
+  },
+  "oferta": {
+    "entrada": "Pasan por la calle o los manda otro contratista. Casi todos se quedan en el escalón ancho.",
+    "escalera": [
+      {
+        "nombre": "El mostrador",
+        "kicker": "La entrada · el barrio",
+        "voz": "lo que necesitas, hoy",
+        "precio": "ticket por medir",
+        "estado": "opera",
+        "peso": 1.15
+      },
+      {
+        "nombre": "Pedido a obra",
+        "kicker": "Al frente · lo que se empuja",
+        "voz": "«cotizado el mismo día, completo a la primera»",
+        "texto": "El contratista pide por WhatsApp y se le lleva a la obra.",
+        "precio": "150 EUR por pedido",
+        "estado": "opera",
+        "sello": "medido · oct",
+        "peso": 2.9,
+        "frente": true
+      },
+      {
+        "nombre": "Cuenta de contratista",
+        "kicker": "Sube · cada semana",
+        "voz": "tu lista de precios y tu día de reparto",
+        "precio": "por definir",
+        "estado": "abierto",
+        "peso": 1.45
+      },
+      {
+        "nombre": "Obra completa",
+        "kicker": "Más adelante",
+        "voz": "surtir una obra de principio a fin",
+        "estado": "idea",
+        "peso": 1
+      }
+    ],
+    "en_corto": "Tu pedido de obra cotizado hoy y completo a la primera.",
+    "hoja": [
+      {
+        "n": 1,
+        "texto": "Contratistas de obra pequeña del barrio que compran cada semana.",
+        "estado": "firmado"
+      },
+      {
+        "n": 2,
+        "texto": "Tu pedido cotizado el mismo día y completo en la primera entrega.",
+        "estado": "abierto"
+      },
+      {
+        "n": 3,
+        "texto": "Lista de precios por tipo de obra, pedido por WhatsApp y reparto con hoja.",
+        "estado": "abierto"
+      },
+      {
+        "n": 4,
+        "texto": "Cómo tener el precio hoy sin esperar a que la dueña tenga un rato.",
+        "estado": "abierto"
+      },
+      {
+        "n": 5,
+        "texto": "El contratista no espera dos días un precio: compra donde le contestan primero.",
+        "estado": "firmado",
+        "sello": "de la radiografía"
+      },
+      {
+        "n": 6,
+        "texto": "",
+        "estado": "pendiente"
+      },
+      {
+        "n": 7,
+        "texto": "La única del barrio que lleva el pedido completo a la obra.",
+        "estado": "abierto"
+      },
+      {
+        "n": 8,
+        "texto": "",
+        "estado": "idea"
+      },
+      {
+        "n": 9,
+        "texto": "Si tu pedido sale incompleto, el segundo viaje va por nuestra cuenta.",
+        "estado": "abierto"
+      },
+      {
+        "n": 10,
+        "texto": "150 EUR el pedido promedio; margen bruto 28 % (lo dijo la dueña).",
+        "estado": "firmado",
+        "sello": "medido · oct"
+      },
+      {
+        "n": 11,
+        "texto": "",
+        "estado": "pendiente"
+      }
+    ]
+  },
+  "vehiculo": {
+    "rotulos": {
+      "pasos": "Qué se arregla primero",
+      "pasos_glosa": "en este orden",
+      "costo": "Lo que cuesta no arreglarlo",
+      "llegada": "A dónde llega"
+    },
+    "pasos": [
+      {
+        "nombre": "Cotización el mismo día, con lista de precios por tipo de obra",
+        "detalle": "Es el cuello: cada día de espera es una venta que se va a otra ferretería.",
+        "estado": "abierto",
+        "sello": "piloto de 30 días",
+        "quita": "30 h al mes",
+        "recupera": "≈ 2,600 EUR al mes",
+        "hilos": [
+          "Conversión",
+          "Nutrición"
+        ],
+        "peso": 3
+      },
+      {
+        "nombre": "Pedidos de WhatsApp directo a una hoja que ve el repartidor",
+        "detalle": "Quita la libreta y los pedidos incompletos que obligan a un segundo viaje.",
+        "estado": "pendiente",
+        "quita": "23 h al mes",
+        "hilos": [
+          "Entrega"
+        ],
+        "peso": 1.6
+      },
+      {
+        "nombre": "Cierre de caja con el reporte de la terminal, sin recapturar",
+        "detalle": "La dueña recupera sus noches.",
+        "estado": "pendiente",
+        "quita": "20 h al mes",
+        "hilos": [
+          "Entrega"
+        ],
+        "peso": 1.6
+      },
+      {
+        "nombre": "Bienvenida al contratista nuevo: condiciones, horario y precios",
+        "detalle": "Hoy no existe; un contratista que arranca bien compra cada semana.",
+        "estado": "pendiente",
+        "sello": "ventas por medir",
+        "hilos": [
+          "Bienvenida",
+          "Expansión"
+        ],
+        "peso": 1
+      },
+      {
+        "nombre": "Una semana anotando «¿cómo nos conociste?» en mostrador",
+        "detalle": "Medir es el primer entregable: hoy nadie sabe de dónde llegan.",
+        "estado": "pendiente",
+        "sello": "por medir",
+        "hilos": [
+          "Adquisición"
+        ],
+        "peso": 1
+      }
+    ],
+    "destinos": {
+      "titulo": "Tu sistema, etapa por etapa · de cada 35 cotizaciones",
+      "lista": [
+        {
+          "nombre": "Adquisición",
+          "nota": "por medir"
+        },
+        {
+          "nombre": "Nutrición",
+          "nota": "35 de 35 piden precio",
+          "volumen": 1.0
+        },
+        {
+          "nombre": "Conversión",
+          "nota": "el cuello: 12 de 35 compran",
+          "volumen": 0.34
+        },
+        {
+          "nombre": "Bienvenida",
+          "nota": "no existe hoy",
+          "volumen": 0
+        },
+        {
+          "nombre": "Entrega",
+          "nota": "≈ 11 de 35 llegan completos",
+          "volumen": 0.31
+        },
+        {
+          "nombre": "Expansión",
+          "nota": "12 contratistas compran cada semana"
+        }
+      ]
+    },
+    "costo": {
+      "mes": "≈ 3,600 EUR",
+      "noventa": "≈ 10,900 EUR",
+      "nota": "Horas a mano a 14 EUR la hora más las ventas que hoy se van. La bienvenida, por medir.",
+      "escala": [
+        {
+          "rotulo": "se van al mes",
+          "valor": 3600,
+          "texto": "≈ 3,600 EUR"
+        },
+        {
+          "rotulo": "faltan para la meta",
+          "valor": 4000,
+          "texto": "4,000 EUR"
+        }
+      ]
+    },
+    "llegada": "22,000 EUR al mes y las noches de vuelta"
+  },
+  "ir_a": [
+    {
+      "texto": "La Radiografía",
+      "destino": "doc:.claude/memory/project/clientes/ferreteria-la-tuerca/radiografia.md"
+    },
+    {
+      "texto": "El mapa en datos",
+      "destino": "doc:.claude/memory/project/clientes/ferreteria-la-tuerca/embudo.json"
+    }
+  ]
+}

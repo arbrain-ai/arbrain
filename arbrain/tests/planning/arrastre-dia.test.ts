@@ -73,7 +73,8 @@ test('el calendario pasa la guarda antes de escribir y el Día arrastra por la m
   const mover = cal.slice(cal.indexOf('const moverEnRejilla'), cal.indexOf('const tramoSemana'))
   assert.ok(mover.indexOf('guardaInvitados(') > 0 && mover.indexOf('guardaInvitados(') < mover.indexOf('auto.editar('), 'la guarda va antes de escribir')
   assert.match(cal, /<DiaVivo[\s\S]*?onMover=\{snapshot && !pending \? \(ev, inicio, fin\) => void moverEnRejilla\(ev, inicio, fin\)/)
-  assert.match(cal, /onMover=\{\(\) => \{ const p = porConfirmar; setPorConfirmar\(null\); void moverEnRejilla\(p\.item, p\.inicio, p\.fin, true\) \}\}/)
+  // El Mes (17 nov 2026) pasa además los datos ya hechos y si es de todo el día: la misma guarda y la misma pluma.
+  assert.match(cal, /onMover=\{\(\) => \{ const p = porConfirmar; setPorConfirmar\(null\); void moverEnRejilla\(p\.item, p\.inicio, p\.fin, true, p\.data, p\.todoElDia\) \}\}/)
   const agenda = readFileSync(new URL('../../src/features/planning/AgendaMini.tsx', import.meta.url), 'utf8')
   assert.match(agenda, /soltarEnDia\(g\.bloque\.evento, diaClave, g\.minuto, tramoRef\.current\)/)
   assert.match(agenda, /h\.fantasma/, 'el fantasma es el de la Semana')

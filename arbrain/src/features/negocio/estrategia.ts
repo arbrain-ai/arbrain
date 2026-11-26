@@ -11,7 +11,13 @@
  */
 import { enIngles, localeIntl, tr, trMarca, trn } from '@/shared/i18n'
 
-export const ESQUEMA_MERCADO = 'arbrain.mercado/v1'
+/**
+ * v2 (15 nov 2026): suma `rumbo` (el encabezado sale de lo firmado, no del hueco) y `competidores` (la sección dedicada, con
+ * establecidos, nuevas promesas y anglo). Un archivo v1 se sigue leyendo: sin esos bloques, el encabezado vuelve a la
+ * escalera y la sección Competidores se arma con los hispanos y anglos de «Contra quién».
+ */
+export const ESQUEMA_MERCADO = 'arbrain.mercado/v2'
+export const ESQUEMAS_LEGIBLES = ['arbrain.mercado/v1', ESQUEMA_MERCADO]
 /** Ruta del archivo, relativa a la raíz del cerebro (la arma Levy con la investigación de mercado del dueño). */
 export const RUTA_MERCADO = '.claude/memory/project/mi-negocio/mercado.json'
 export const URL_ESTRATEGIA = '/api/negocio/estrategia'
@@ -53,7 +59,7 @@ export interface Referente {
   avatar: string | null; adelanto: string | null; no_copiar: string | null; imagen: Imagen | null
 }
 export interface Quien extends ConFuente { nombre: string; precio: string; mercado: 'hispano' | 'anglo' }
-export interface Peldano { id: string; nombre: string; rango: string; hueco: boolean; quienes: Quien[]; tu: (ConFuente & { texto: string }) | null; nota: string | null }
+export interface Peldano { id: string; nombre: string; rango: string; hueco: boolean; frente: boolean; quienes: Quien[]; tu: (ConFuente & { texto: string }) | null; nota: string | null }
 export interface ContraQuien extends ConFuente {
   convencion: string | null
   comparan: (ConFuente & { filas: { escalon: string; contra: string }[] }) | null
@@ -82,8 +88,39 @@ export interface LoQueDecides extends ConFuente {
 }
 
 export interface Linea extends ConFuente { pregunta: string; respuesta: string; propia: boolean }
+
+/**
+ * El rumbo firmado (15 nov 2026, Daniel: «siii full bajo ticket de 6-12 meses de acuerdo»). Encabeza el panel: el titular y
+ * la frase salen de aquí, con la cita y la fecha de la firma. `abierto`: lo que sigue sin decidir y el panel dice como tal.
+ */
+export interface Rumbo extends ConFuente { titular: string; frase: string; cita: string | null; firmado: string; abierto: string[] }
+
+/**
+ * Competidores (15 nov 2026, Daniel: «quiero algo dedicado a esto, tipo una lista… miembros en su comunidad, "oferta" que
+ * puedas inferir, mensaje… faltan "las nuevas promesas"»). Esquema de los censos: `.claude/drafts/2026-11-15-competidores/ESQUEMA.md`.
+ */
+export type GrupoCompetidor = 'establecido' | 'promesa' | 'anglo'
+export interface CanalC extends ConFuente { tipo: string; valor: string; seguidores: number | null; url: string | null }
+export interface ComunidadC extends ConFuente { plataforma: string; acceso: 'pago' | 'gratis' | 'mixta' | null; miembros: number | null; valor: string; url: string | null }
+export interface OfertaC { nombre: string; precio: string; usd_mes: number | null; forma: string | null; promesa: string | null; oculto: boolean; inferido: boolean; url: string | null; fuente: string | null; fecha: string | null }
+export interface FichaCompetidor {
+  id: string; nombre: string; marca: string | null; mercado: 'hispano' | 'anglo'; grupo: GrupoCompetidor; pais: string | null; descripcion: string | null
+  canales: CanalC[]; comunidad: ComunidadC | null; oferta: OfertaC[]
+  mensaje: { texto: string; donde: string | null; url: string | null; fecha: string | null } | null
+  mecanismo: { texto: string; inferido: boolean } | null
+  sofisticacion: { nivel: number; por_que: string | null; inferido: boolean } | null
+  cadencia: (ConFuente & { videos_semana: number | null; valor: string }) | null
+  velocidad: (ConFuente & { pct_30d: number | null; seguidores_30d: number | null; seguidores_7d: number | null; vistas_30d: number | null; valor: string; inferido: boolean }) | null
+  por_que_crece: string | null; mejor_que_tu: string | null; cambios: string | null
+  imagen: Imagen | null; fuentes: { url: string; que: string | null; fecha: string | null }[]
+}
+/** `tu`: el canal del dueño medido con la misma regla que los demás (marca oro en el campo). */
+export interface Competidores extends ConFuente { metodo: string | null; limites: string[]; lista: FichaCompetidor[]; tu: (ConFuente & { valor: string; seguidores: number | null; url: string | null }) | null }
+
 export interface Mercado {
   actualizado: string | null
+  rumbo: Rumbo | null
+  competidores: Competidores | null
   cabeza: (ConFuente & { lineas: Linea[] }) | null
   quien_compra: QuienCompra | null
   contra_quien: ContraQuien | null
@@ -251,7 +288,7 @@ function contraQuien(l: Lector, x: unknown): ContraQuien | null {
       })
       let tu: Peldano['tu'] = null
       if (obj(y.tu) && texto(y.tu.texto)) { const ct = l.conFuente(y.tu, `${nombre} › tú`); if (ct) tu = { texto: texto(y.tu.texto)!, ...ct } }
-      return { id: texto(y.id) ?? nombre, nombre, rango, hueco: y.hueco === true, quienes, tu, nota: texto(y.nota) }
+      return { id: texto(y.id) ?? nombre, nombre, rango, hueco: y.hueco === true, frente: y.frente === true, quienes, tu, nota: texto(y.nota) }
     })
     if (cf && peldanos.length) escalera = { ...cf, nota: texto(x.escalera.nota), peldanos }
   }
@@ -346,31 +383,109 @@ function loQueDecides(l: Lector, x: unknown): LoQueDecides | null {
   }
 }
 
+function rumbo(l: Lector, x: unknown): Rumbo | null {
+  if (!obj(x)) return null
+  const titular = texto(x.titular), frase = texto(x.frase), firmado = fecha(x.firmado)
+  if (!titular || !frase) { l.falla('rumbo', trMarca('falta «titular» o «frase»')); return null }
+  // Sin la fecha de la firma no hay rumbo firmado: el encabezado vuelve a la escalera.
+  if (!firmado) { l.falla('rumbo', trMarca('falta «firmado» (AAAA-MM-DD)')); return null }
+  const cf = l.conFuente(x, 'rumbo')
+  return cf && { ...cf, titular, frase, cita: texto(x.cita), firmado, abierto: textos(x.abierto) }
+}
+
+const num = (x: unknown): number | null => (typeof x === 'number' && Number.isFinite(x) ? x : null)
+const GRUPOS_C = ['establecido', 'promesa', 'anglo'] as const
+
+function competidores(l: Lector, x: unknown): Competidores | null {
+  if (!obj(x)) return null
+  const b = l.conFuente(x, 'competidores')
+  if (!b) return null
+  const vistos = new Set<string>()
+  const lista = l.lista(x.lista, 'competidor', (y, d): FichaCompetidor | null => {
+    const nombre = texto(y.nombre)
+    if (!nombre) { l.falla(d, trMarca('falta «nombre»')); return null }
+    const fuentes = Array.isArray(y.fuentes) ? y.fuentes.filter(obj).map(f => ({ url: texto(f.url), que: texto(f.que), fecha: fecha(f.fecha) }))
+      .filter((f): f is { url: string; que: string | null; fecha: string | null } => !!f.url && /^https?:\/\//.test(f.url)) : []
+    // Una ficha sin una sola fuente pública no se pinta: nada inventado.
+    if (!fuentes.length) { l.falla(nombre, trMarca('falta al menos una «fuentes» con url')); return null }
+    const id = texto(y.id) ?? nombre
+    if (vistos.has(id)) { l.falla(nombre, trMarca('«id» repetido')); return null }
+    vistos.add(id)
+    const mercado = y.mercado === 'anglo' ? 'anglo' as const : 'hispano' as const
+    const grupo = (GRUPOS_C as readonly unknown[]).includes(y.grupo) ? y.grupo as GrupoCompetidor : mercado === 'anglo' ? 'anglo' : 'establecido'
+    const canales = l.lista(y.canales, `${nombre} › canal`, (c, dc) => {
+      const tipo = texto(c.tipo), valor = texto(c.valor)
+      if (!tipo || !valor) { l.falla(dc, trMarca('falta «tipo» o «valor»')); return null }
+      const cf = l.conFuente(c, dc)
+      return cf && { tipo, valor, seguidores: num(c.seguidores), url: texto(c.url), ...cf }
+    })
+    let comunidad: ComunidadC | null = null
+    if (obj(y.comunidad)) {
+      const c = y.comunidad, plataforma = texto(c.plataforma), valor = texto(c.valor)
+      const cf = plataforma && valor ? l.conFuente(c, `${nombre} › comunidad`) : (l.falla(`${nombre} › comunidad`, trMarca('falta «plataforma» o «valor»')), null)
+      const acceso = c.acceso === 'pago' || c.acceso === 'gratis' || c.acceso === 'mixta' ? c.acceso : null
+      if (cf) comunidad = { plataforma: plataforma!, valor: valor!, acceso, miembros: num(c.miembros), url: texto(c.url), ...cf }
+    }
+    const oferta = l.lista(y.oferta, `${nombre} › oferta`, (o, dof) => {
+      const n = texto(o.nombre), precio = texto(o.precio)
+      if (!n || !precio) { l.falla(dof, trMarca('falta «nombre» o «precio»')); return null }
+      return { nombre: n, precio, usd_mes: num(o.usd_mes), forma: texto(o.forma), promesa: texto(o.promesa), oculto: o.oculto === true, inferido: o.inferido === true, url: texto(o.url), fuente: texto(o.fuente), fecha: fecha(o.fecha) }
+    })
+    const m = obj(y.mensaje) && texto(y.mensaje.texto) ? { texto: texto(y.mensaje.texto)!, donde: texto(y.mensaje.donde), url: texto(y.mensaje.url), fecha: fecha(y.mensaje.fecha) } : null
+    const mec = obj(y.mecanismo) && texto(y.mecanismo.texto) ? { texto: texto(y.mecanismo.texto)!, inferido: y.mecanismo.inferido !== false } : null
+    const nivel = obj(y.sofisticacion) ? num(y.sofisticacion.nivel) : null
+    const sof = obj(y.sofisticacion) && nivel !== null && nivel >= 1 && nivel <= 5
+      ? { nivel: Math.round(nivel), por_que: texto(y.sofisticacion.por_que), inferido: y.sofisticacion.inferido !== false } : null
+    let cadencia: FichaCompetidor['cadencia'] = null
+    if (obj(y.cadencia) && texto(y.cadencia.valor)) { const cf = l.conFuente(y.cadencia, `${nombre} › cadencia`); if (cf) cadencia = { videos_semana: num(y.cadencia.videos_semana), valor: texto(y.cadencia.valor)!, ...cf } }
+    let velocidad: FichaCompetidor['velocidad'] = null
+    if (obj(y.velocidad) && texto(y.velocidad.valor)) {
+      const v = y.velocidad, cf = l.conFuente(v, `${nombre} › velocidad`)
+      if (cf) velocidad = { pct_30d: num(v.pct_30d), seguidores_30d: num(v.seguidores_30d), seguidores_7d: num(v.seguidores_7d), vistas_30d: num(v.vistas_30d), valor: texto(v.valor)!, inferido: v.inferido === true, ...cf }
+    }
+    return {
+      id, nombre, marca: texto(y.marca), mercado, grupo, pais: texto(y.pais), descripcion: texto(y.descripcion),
+      canales, comunidad, oferta, mensaje: m, mecanismo: mec, sofisticacion: sof, cadencia, velocidad,
+      por_que_crece: texto(y.por_que_crece), mejor_que_tu: texto(y.mejor_que_tu), cambios: texto(y.cambios),
+      imagen: l.imagen(y.imagen, `${nombre} › imagen`), fuentes,
+    }
+  })
+  let tu: Competidores['tu'] = null
+  if (obj(x.tu) && texto(x.tu.valor)) {
+    const cf = l.conFuente(x.tu, 'competidores › tú')
+    if (cf) tu = { valor: texto(x.tu.valor)!, seguidores: num(x.tu.seguidores), url: texto(x.tu.url), ...cf }
+  }
+  return lista.length ? { ...b, metodo: texto(x.metodo), limites: textos(x.limites), lista, tu } : null
+}
+
 /** Lee `mercado.json` con tolerancia. Un esquema distinto se dice, pero se intenta leer igual (el panel muestra lo legible). */
 export function leerMercado(x: unknown): { mercado: Mercado | null; errores: string[] } {
   if (!obj(x)) return { mercado: null, errores: [tr('El archivo no es un objeto JSON.')] }
   const l = new Lector()
-  if (x.esquema !== ESQUEMA_MERCADO) l.falla('esquema', tr('se esperaba «{esquema}»', { esquema: ESQUEMA_MERCADO }))
+  if (!ESQUEMAS_LEGIBLES.includes(x.esquema as string)) l.falla('esquema', tr('se esperaba «{esquema}»', { esquema: ESQUEMA_MERCADO }))
   const mercado: Mercado = {
     actualizado: fecha(x.actualizado),
+    rumbo: rumbo(l, x.rumbo),
+    competidores: competidores(l, x.competidores),
     cabeza: cabeza(l, x.cabeza),
     quien_compra: quienCompra(l, x.quien_compra),
     contra_quien: contraQuien(l, x.contra_quien),
     hacia_donde: haciaDonde(l, x.hacia_donde),
     lo_que_decides: loQueDecides(l, x.lo_que_decides),
   }
-  const vacio = !mercado.cabeza && !mercado.quien_compra && !mercado.contra_quien && !mercado.hacia_donde && !mercado.lo_que_decides
+  const vacio = !mercado.rumbo && !mercado.competidores && !mercado.cabeza && !mercado.quien_compra && !mercado.contra_quien && !mercado.hacia_donde && !mercado.lo_que_decides
   return { mercado: vacio ? null : mercado, errores: vacio ? [...l.errores, tr('Ningún bloque se pudo leer.')] : l.errores }
 }
 
 /**
  * Modo directo: fuera lo que lleva números propios del negocio (quién compra, los borradores con su evidencia y las líneas
- * de la cabeza marcadas `propia`). Lo público (competencia, referentes, tendencias) se queda.
+ * de la cabeza marcadas `propia`) y el rumbo (una decisión interna no se transmite). Lo público (competencia, referentes,
+ * tendencias) se queda.
  */
 export function ocultarEnDirecto(m: Mercado): { mercado: Mercado; oculto: Vista[] } {
   const lineas = m.cabeza?.lineas.filter(x => !x.propia) ?? []
   return {
-    mercado: { ...m, quien_compra: null, lo_que_decides: null, cabeza: m.cabeza && lineas.length ? { ...m.cabeza, lineas } : null },
+    mercado: { ...m, quien_compra: null, lo_que_decides: null, rumbo: null, cabeza: m.cabeza && lineas.length ? { ...m.cabeza, lineas } : null },
     oculto: ['compra', 'decides'],
   }
 }
@@ -465,8 +580,12 @@ export function lineaDe(c: Mercado['cabeza'], tema: Tema): Linea | null {
   return c.lineas.filter(x => !usadas.has(x))[i] ?? null
 }
 
-/** El titular sale del dato, no de una redacción: si un peldaño marcado como hueco es también donde estás tú, «Estás en el hueco». */
+/**
+ * El titular sale del dato, no de una redacción. Con rumbo firmado, su titular (15 nov: «Full bajo ticket»); sin él, si un
+ * peldaño marcado como hueco es también donde estás tú, «Estás en el hueco».
+ */
 export function titularDe(m: Mercado): string {
+  if (m.rumbo) return m.rumbo.titular
   return m.contra_quien?.escalera?.peldanos.some(p => p.hueco && p.tu) ? tr('Estás en el hueco') : tr('Tu mercado')
 }
 
@@ -481,4 +600,28 @@ export function fraseRumbo(h: HaciaDonde): string {
   const n = h.tendencias.length, s = h.senales_hispanas?.lista.length ?? 0
   const base = trn(n, '{n} tendencia ya pasa en inglés, cada una con lo que anticipa en español en 6 a 12 meses', '{n} tendencias ya pasan en inglés, cada una con lo que anticipa en español en 6 a 12 meses')
   return s ? tr('{base}; {senales} aquí.', { base, senales: trn(s, '{n} señal ya se mueve', '{n} señales ya se mueven') }) : `${base}.`
+}
+
+/** Palabras que no cierran una frase («de», «la», «a»…): una línea corta nunca termina en ellas ni en un número suelto. */
+const NO_CIERRA = new Set(['de', 'del', 'la', 'las', 'el', 'los', 'a', 'al', 'y', 'o', 'e', 'u', 'en', 'con', 'por', 'para', 'que', 'un', 'una', 'su', 'sus', 'se', 'le', 'ya', 'desde', 'entre', 'sin', 'como'])
+
+/**
+ * La línea corta de una respuesta para la portada (dieta del 17 nov 2026, Daniel: «hay mucho texto»): sacada del mismo
+ * texto, nunca escrita de nuevo. Su primera cláusula (hasta «:» o «;»); si pasa de `max` palabras, sus primeras palabras
+ * hasta la última que cierra frase, con «…». Un paréntesis nunca queda abierto. La respuesta entera vive al abrir.
+ */
+export function lineaCorta(texto: string, max = 14): string {
+  const limpio = texto.trim().replace(/\s+/g, ' ')
+  const clausula = limpio.split(/[:;]\s/)[0].replace(/[.,]$/, '')
+  const palabras = clausula.split(' ')
+  // Una cláusula entera cierra sola (juez de la dieta: los «…» se leían como recorte); solo lo cortado lleva «…».
+  if (palabras.length <= max) return clausula
+  let n = max
+  const cierra = (k: number) => {
+    const w = palabras[k - 1].replace(/[),.]+$/, '').toLowerCase()
+    const abiertos = palabras.slice(0, k).join(' ').split('(').length - palabras.slice(0, k).join(' ').split(')').length
+    return !NO_CIERRA.has(w) && !/^\(?[\d.,$%]+$/.test(w) && abiertos === 0
+  }
+  while (n > 1 && !cierra(n)) n--
+  return `${palabras.slice(0, n).join(' ').replace(/[,;]$/, '')}…`
 }

@@ -78,7 +78,7 @@ export function SessionItem({ session, active, onSelect, onAbrir }: SessionItemP
                 : hasAttention
                   ? 'text-foreground/90 group-hover:text-foreground'
                   : 'text-muted group-hover:text-foreground/75'
-            }`}>
+            }`} style={cuenta.colorNombre ? { color: cuenta.colorNombre } : undefined}>
               {isProtected ? tr('Reportes') : tr(textMessageTitle(session.title))}
             </p>
           )}
@@ -100,7 +100,7 @@ export function SessionItem({ session, active, onSelect, onAbrir }: SessionItemP
               )}
               <span className="truncate">{timeAgo}</span>
               {/* La lista trae todas las cuentas (9 nov 2026): las que no son su Claude llevan su rótulo, como en la barra. */}
-              {cuenta.corta && <span className={`shrink-0 ${cuenta.texto}`} title={tr(cuenta.etiqueta)}>· {cuenta.corta}</span>}
+              {cuenta.corta && !cuenta.colorNombre && <span className={`shrink-0 ${cuenta.texto}`} title={tr(cuenta.etiqueta)}>· {cuenta.corta}</span>}
             </div>
           )}
         </div>

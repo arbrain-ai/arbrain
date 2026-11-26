@@ -22,11 +22,19 @@
  * pinta de una; solo las marcas de las figuras crecen, y sus números y nombres ya están a la vista.
  *
  * La tarjeta Estrategia de El pulso deja un pedido (LLAVE_VISTA_ESTRATEGIA): la sección baja a esa tarjeta.
+ *
+ * 15 nov 2026 (Daniel: «quiero algo dedicado a esto… ademas esta desactualizado pues dice todavia HT acompañamiento»):
+ *  · El encabezado habla del rumbo firmado (`rumbo` de mercado.json: «Full bajo ticket», SaaS Factory al frente, con su cita
+ *    y su fecha) y dice lo que sigue sin decidir. Sin rumbo en el archivo, vuelve al titular de la escalera.
+ *  · Dos pestañas bajo el encabezado: Panorama (las cuatro tarjetas) y Competidores (SeccionCompetidores.tsx: la lista
+ *    dedicada con establecidos, nuevas promesas y anglo). La escalera abre en el peldaño marcado `frente` (donde juegas).
  * En la edición del alumno, sin su investigación, dice «Conecta tu investigación» y no pinta nada más.
  */
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { ArrowUpRight, ChevronDown, Compass, EyeOff, X } from 'lucide-react'
 import { useFuente } from '@/features/cabina/datos'
+import { Competidores } from './SeccionCompetidores'
+import { listaDe } from './competidores'
 import { esEdicionCliente } from '@/lib/edicion'
 import { escucharPedido, tomarPedido } from '@/shared/navigation/ir-a'
 import { localeIntl, tr, trMarca, trn } from '@/shared/i18n'
@@ -35,7 +43,7 @@ import {
   alcanceDe, audiencia, directos, dominio, esVista, EVENTO_VISTA_ESTRATEGIA, fechaHumana, fraseRumbo, iniciales, leerPedidoEstrategia, lineaDe, LLAVE_VISTA_ESTRATEGIA, marcaDe,
   nombreCorto, ofertasDePago, pie, sinFirmar, titularDe, tramos, URL_ESTRATEGIA,
   type Borrador, type Competidor, type ContraQuien, type Escalon as EscalonT, type Evidencia, type HaciaDonde, type Imagen, type Linea, type LoQueDecides, type Mercado,
-  type Peldano, type QuienCompra, type Referente, type RespuestaEstrategia, type Segmento, type Vista,
+  type Peldano, type QuienCompra, type Referente, type RespuestaEstrategia, type Rumbo, type Segmento, type Vista,
 } from './estrategia'
 import l from '@/features/cabina/luz.module.css'
 import e from './estrategia.module.css'
@@ -94,8 +102,13 @@ export function Estrategia({ grande }: { grande?: boolean }) {
     return () => cancelAnimationFrame(raf)
   }, [pedido, estado])
 
+  const [pestana, setPestana] = useState<'panorama' | 'competidores'>('panorama')
+  // Un pedido de El pulso apunta a una tarjeta del panorama: vuelve a esa pestaña.
+  useEffect(() => { if (pedido) setPestana('panorama') }, [pedido])
   const pendientes = datos ? sinFirmar(datos.lo_que_decides) : 0
   const precio = datos ? lineaDe(datos.cabeza, 'precio') : null
+  const nCompetidores = datos ? listaDe(datos)?.lista.length ?? 0 : 0
+  const verCompetidores = () => { setPestana('competidores'); requestAnimationFrame(() => raiz.current?.querySelector('[data-pestanas]')?.scrollIntoView?.({ block: 'start', behavior: 'smooth' })) }
   return <div ref={raiz} className={`${v.raiz} ${grande ? v.grande : ''}`} data-testid="estrategia-seccion" data-estado={estado}>
     <div className={v.luna} aria-hidden />
     <header className={v.cabeza}>
@@ -106,7 +119,8 @@ export function Estrategia({ grande }: { grande?: boolean }) {
         </span>}
       </div>
       <h3 className={v.palabra}>{estado === 'lista' && datos ? titularDe(datos) : estado === 'leyendo' ? tr('Leyendo tu mercado') : tr('Tu mercado')}</h3>
-      {estado === 'lista' && precio && <p className={v.frase}>{precio.respuesta}<small>{pie(precio, datos?.actualizado)}</small></p>}
+      {estado === 'lista' && datos?.rumbo ? <RumboFirmado r={datos.rumbo} ref_={datos.actualizado} />
+        : estado === 'lista' && precio && <p className={v.frase}>{precio.respuesta}<small>{pie(precio, datos?.actualizado)}</small></p>}
       {estado === 'leyendo' && <p className={v.frase} aria-busy="true">{tr('Quién te compra, contra quién te comparan, hacia dónde va y lo que decides. Un momento.')}</p>}
     </header>
 
@@ -116,6 +130,11 @@ export function Estrategia({ grande }: { grande?: boolean }) {
 
     {estado === 'lista' && on && datos && <>
       {on.directo && <p className={x.directo}><EyeOff size={12} aria-hidden />{tr('En directo: tus números quedan fuera; lo público se ve.')}</p>}
+      {nCompetidores > 0 && <div className={v.pestanas} role="tablist" aria-label={tr('Panorama o competidores')} data-pestanas>
+        <button type="button" role="tab" aria-selected={pestana === 'panorama'} onClick={() => setPestana('panorama')}>{tr('Panorama')}</button>
+        <button type="button" role="tab" aria-selected={pestana === 'competidores'} onClick={() => setPestana('competidores')}>{tr('Competidores')}<small>{nCompetidores}</small></button>
+      </div>}
+      {pestana === 'competidores' && nCompetidores > 0 ? <Competidores m={datos} ref_={datos.actualizado} /> : <>
       <div className={v.rejilla}>
         <Tarjeta id="compra" n={1} oculto={on.oculto.includes('compra')} pedida={pedida === 'compra'}
           frase={lineaDe(datos.cabeza, 'compra')} ref_={datos.actualizado}
@@ -123,7 +142,7 @@ export function Estrategia({ grande }: { grande?: boolean }) {
           detalle={datos.quien_compra && { cuantos: datos.quien_compra.escalones.reduce((s, y) => s + y.segmentos.length, 0), que: tr('segmentos'), cuerpo: <Compra q={datos.quien_compra} ref_={datos.actualizado} /> }} />
         <Tarjeta id="contra" n={2} oculto={on.oculto.includes('contra')} pedida={pedida === 'contra'}
           frase={lineaDe(datos.cabeza, 'contra')} ref_={datos.actualizado}
-          figura={datos.contra_quien && <FiguraContra c={datos.contra_quien} ref_={datos.actualizado} />}
+          figura={datos.contra_quien && <FiguraContra c={datos.contra_quien} ref_={datos.actualizado} total={nCompetidores} ver={verCompetidores} />}
           detalle={datos.contra_quien && { cuantos: datos.contra_quien.hispanos.length + datos.contra_quien.anglos.length, que: tr('competidores y referentes'), cuerpo: <Contra c={datos.contra_quien} ref_={datos.actualizado} /> }} />
         <Tarjeta id="rumbo" n={3} oculto={on.oculto.includes('rumbo')} pedida={pedida === 'rumbo'}
           frase={datos.hacia_donde && { texto: fraseRumbo(datos.hacia_donde), pie: pie(datos.hacia_donde, datos.actualizado) }} ref_={datos.actualizado}
@@ -134,9 +153,19 @@ export function Estrategia({ grande }: { grande?: boolean }) {
           figura={datos.lo_que_decides && <FiguraDecides d={datos.lo_que_decides} ref_={datos.actualizado} />}
           detalle={datos.lo_que_decides && { cuantos: datos.lo_que_decides.avatares.length + (datos.lo_que_decides.posicionamiento ? 1 : 0), que: tr('borradores con su evidencia'), cuerpo: <Decides d={datos.lo_que_decides} ref_={datos.actualizado} /> }} />
       </div>
+      </>}
       {on.errores?.length ? <p className={x.avisoErrores}>{trn(on.errores.length, '{n} pieza no se pudo leer: {error}', '{n} piezas no se pudieron leer: {error}', { error: on.errores[0] })}</p> : null}
       <footer className={v.pie}>{tr('Fuente: tu investigación de mercado (mercado.json). Cada número trae la suya; lo que dice «sin firmar» es propuesta de Levy, no decisión.')}</footer>
     </>}
+  </div>
+}
+
+/** El rumbo firmado: la frase, la firma con sus palabras y lo que sigue abierto (punteado: no está decidido). */
+function RumboFirmado({ r, ref_ }: { r: Rumbo; ref_: string | null }) {
+  return <div className={v.rumboFirmado}>
+    <p className={v.frase}>{r.frase}</p>
+    <p className={v.firma}><i aria-hidden />{tr('Firmado {fecha}', { fecha: fechaHumana(r.firmado, ref_) })}{r.cita && <q>{r.cita}</q>}</p>
+    {r.abierto.length > 0 && <ul className={v.abierto} aria-label={tr('Sin decidir')}>{r.abierto.map(a => <li key={a}>{a}</li>)}</ul>}
   </div>
 }
 
@@ -205,9 +234,11 @@ function BarraEscalon({ esc }: { esc: EscalonT }) {
  * Contra quién: la escalera de precios. Cada peldaño sube; un punto por quien cobra ahí (lleno en español, hueco en inglés),
  * el oro donde estás tú y el punteado en el hueco. Abre en el hueco; tocar otro peldaño cambia la línea de abajo.
  */
-function FiguraContra({ c, ref_ }: { c: ContraQuien; ref_: string | null }) {
+function FiguraContra({ c, ref_, total, ver }: { c: ContraQuien; ref_: string | null; total: number; ver: () => void }) {
   const esc = c.escalera
-  const inicial = esc ? Math.max(0, esc.peldanos.findIndex(p => p.hueco)) : 0
+  // Abre donde juegas (15 nov: el peldaño `frente`, SaaS Factory); sin él, en el hueco.
+  const frente = esc ? esc.peldanos.findIndex(p => p.frente) : -1
+  const inicial = esc ? Math.max(0, frente >= 0 ? frente : esc.peldanos.findIndex(p => p.hueco)) : 0
   const [sel, setSel] = useState(inicial)
   const dir = directos(c.hispanos)
   return <div className={v.contra}>
@@ -217,8 +248,8 @@ function FiguraContra({ c, ref_ }: { c: ContraQuien; ref_: string | null }) {
           const hisp = y.quienes.filter(q => q.mercado === 'hispano').length, angl = y.quienes.length - hisp
           const alto = 46 + Math.round((i / Math.max(1, esc.peldanos.length - 1)) * 74)
           return <button key={y.id} type="button" role="tab" aria-selected={sel === i} onClick={() => setSel(i)} title={`${y.nombre} · ${y.rango}`}
-            data-hueco={y.hueco || undefined} data-tu={y.tu ? '' : undefined} style={{ height: alto }}>
-            {y.hueco && <span className={v.huecoEtiqueta}>{tr('El hueco')}</span>}
+            data-hueco={y.hueco || undefined} data-frente={y.frente || undefined} data-tu={y.tu ? '' : undefined} style={{ height: alto }}>
+            {y.frente ? <span className={v.huecoEtiqueta}>{tr('Aquí juegas')}</span> : y.hueco && <span className={v.huecoEtiqueta}>{tr('El hueco')}</span>}
             <span className={v.puntos} aria-hidden>
               {Array.from({ length: hisp }, (_, k) => <b key={`h${k}`} />)}
               {Array.from({ length: angl }, (_, k) => <b key={`a${k}`} data-anglo />)}
@@ -232,7 +263,8 @@ function FiguraContra({ c, ref_ }: { c: ContraQuien; ref_: string | null }) {
     </>}
     {dir.length > 0 && <div className={v.caras} aria-label={tr('{n} directos en español', { n: dir.length })}>
       <span className={v.carasFila}>{dir.slice(0, 12).map(y => <span key={y.nombre} className={v.cara} title={y.nombre}><Cara nombre={y.nombre} imagen={y.imagen} chica /></span>)}</span>
-      <small>{tr('{n} directos en español', { n: dir.length })} · {tr('{n} referentes en inglés', { n: c.anglos.length })}</small>
+      {total > 0 ? <button type="button" className={v.verTodos} onClick={ver}>{tr('Ver los {n} competidores', { n: total })}<ArrowUpRight size={12} aria-hidden /></button>
+        : <small>{tr('{n} directos en español', { n: dir.length })} · {tr('{n} referentes en inglés', { n: c.anglos.length })}</small>}
     </div>}
   </div>
 }

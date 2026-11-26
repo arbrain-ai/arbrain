@@ -40,7 +40,7 @@ import { escalon, mov } from '@/shared/movimiento'
 import { releer } from '../datos'
 import { useAbrirConversacion, useConversacionActiva, useTituloConversacion } from '../conversaciones'
 import {
-  COLUMNA, DEMO_TITULOS, PERFIL_EN_PALABRAS, SIN_REVISAR, VEREDICTO, VEREDICTO_POR_QUE, armarTablero, cambiosEnPalabras, cuentas, demoTablero, esfuerzoEnPalabras, esfuerzoReintento, estaRecibido, laten, latidoEnPalabras, senal, terminoSuEncargo, tiempoDe, totalTablero,
+  COLUMNA, DEMO_TITULOS, PERFIL_EN_PALABRAS, SIN_REVISAR, VEREDICTO, VEREDICTO_POR_QUE, armarTablero, cambiosEnPalabras, cuentas, demoTablero, esfuerzoEnPalabras, esfuerzoReintento, estaRecibido, laten, latidoEnPalabras, modeloCorto, senal, terminoSuEncargo, tiempoDe, totalTablero,
   type Entregable, type FilaTablero,
 } from '../tablero-modelo'
 import { agruparPorConversacion, claveFila, type GrupoConversacion } from '../tablero-por-conversacion'
@@ -296,6 +296,8 @@ function Renglon({ f, onAbrir, demo, ahora, quieto = false, entrada, resaltado, 
   // Un turno nuevo en la misma sesión, un nivel de esfuerzo arriba: para lo que falló o no cumplió lo pedido
   const subir = encargo && (f.columna === 'falló' || f.juicio?.veredicto === 'no-cumple') ? esfuerzoReintento(f) : null
   const desajuste = encargo ? f.coherencia?.desajuste ?? null : null
+  // El modelo a la vista, bajo el tiempo (17 nov 2026): discreto y en la misma columna en todos los renglones.
+  const corto = modeloCorto(f)
   const opciones: { etiqueta: string; icono: LucideIcon; hacer: () => void; peligro?: boolean }[] = [
     { etiqueta: encargo ? tr('Abrir su conversación') : tr('Ver lo que hizo'), icono: ArrowUpRight, hacer: () => { setMenu(false); onAbrir(f) } },
     ...(cierre ? [{ etiqueta: tr('Ver resultados'), icono: Images, hacer: verResultados }] : []),
@@ -324,7 +326,10 @@ function Renglon({ f, onAbrir, demo, ahora, quieto = false, entrada, resaltado, 
           {segunda}
         </span>
       </button>
-      <span className={t.tiempo} title={tiempo.titulo}>{tiempo.texto}</span>
+      <span className={t.meta}>
+        <span className={t.tiempo} title={tiempo.titulo}>{tiempo.texto}</span>
+        {corto && <span className={t.modeloCorto} data-sin-medir={!corto.medido || undefined} title={corto.medido ? modelo(f) : `${modelo(f)} · ${tr('pedido, sin medir')}`}>{corto.texto}</span>}
+      </span>
       {teEspera && <button type="button" className={t.responderAmbar} onClick={() => elegir('responder')} title={tr('Contestarle (por la misma vía que Levy)')}>{tr('Responder')}</button>}
       {sinTerminar && f.columna === 'falló' && <button type="button" className={t.accionSuave} onClick={() => elegir('detalle')} aria-expanded={modo === 'detalle'}>{tr('Ver qué pasó')}</button>}
       {sinTerminar && f.columna === 'murió' && <button type="button" className={t.accionSuave} onClick={() => elegir('retomar')} aria-expanded={modo === 'retomar'}>{tr('¿Lo retomo?')}</button>}

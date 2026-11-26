@@ -80,7 +80,7 @@ export const NOMBRE_LOCAL_CLIENTE = 'Tú'
  * Páginas que existen en cliente. Lo demás de la app redirige a `/chat`. `/pantalla` (1 nov 2026): la pantalla virtual
  * del servidor, solo para mirar (sin pantalla virtual, la página lo dice y no pide nada al daemon).
  */
-export const PAGINAS_CLIENTE = ['/chat', '/lienzo', '/calendar', '/panel', '/settings', '/bienvenida', '/sin-sesion', '/pantalla', '/negocio', '/estrategia', '/bi'] as const
+export const PAGINAS_CLIENTE = ['/chat', '/lienzo', '/calendar', '/panel', '/settings', '/bienvenida', '/sin-sesion', '/pantalla', '/negocio', '/estrategia', '/bi', '/extensiones'] as const
 
 /**
  * APIs que existen en cliente (prefijos exactos de segmento). Lo demás responde 404 desde el proxy: el negocio de
@@ -183,6 +183,9 @@ export const APIS_CLIENTE = [
   // panel de cada neurona, de solo lectura, sobre SU cerebro (`ARBRAIN_HOME`, features/cerebro/server/graph.ts). La
   // síntesis (`/api/cerebro/synthesize`) sigue fuera: llama al CLI de Claude del equipo; la pantalla no ofrece el botón.
   '/api/cerebro/graph', '/api/cerebro/node',
+  // Extensiones (21 nov 2026, SPEC docs/builds/extensiones-2026-11-20): la tienda la resuelve SU daemon (catálogo curado,
+  // instalar en su cerebro, sus tareas) y los paneles se sirven aislados por URL firmada (`/api/extensiones/crudo`).
+  '/api/extensiones',
 ] as const
 
 function coincidePrefijo(ruta: string, prefijo: string) {
@@ -208,14 +211,14 @@ export function paginaPermitidaEnCliente(ruta: string): boolean {
  * finanzas, salud, contenido, equipo, reporte y centro son de Daniel. Tu negocio, Estrategia y Business Intelligence (8 nov 2026)
  * viajan como motor vacío: el pulso y las gráficas leen el cerebro y las fuentes del dueño.
  */
-export const SECCIONES_PANEL_CLIENTE = ['calendario', 'lienzo', 'negocio', 'estrategia', 'bi', 'explorador', 'taller'] as const
+export const SECCIONES_PANEL_CLIENTE = ['calendario', 'lienzo', 'negocio', 'estrategia', 'bi', 'explorador', 'extensiones', 'taller'] as const
 
 export function seccionPanelPermitida(id: string, cliente = esEdicionCliente()): boolean {
   return !cliente || (SECCIONES_PANEL_CLIENTE as readonly string[]).includes(id)
 }
 
 /** Vistas del panel (las que Levy puede abrir con `mostrar`) que existen en cliente. */
-export const VISTAS_CLIENTE = ['calendario', 'objetivos', 'lienzo', 'explorador', 'documento', 'memoria', 'negocio', 'estrategia', 'bi'] as const
+export const VISTAS_CLIENTE = ['calendario', 'objetivos', 'lienzo', 'explorador', 'documento', 'memoria', 'negocio', 'estrategia', 'bi', 'extensiones'] as const
 
 export function vistaPermitidaEnCliente(vista: string, cliente = esEdicionCliente()): boolean {
   return !cliente || (VISTAS_CLIENTE as readonly string[]).includes(vista)

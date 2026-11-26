@@ -149,6 +149,21 @@ un flujo probado no pueden verse igual.
 7. **Los lienzos son datos VIVOS.** El formato crece de forma aditiva; nunca se
    borra una página ni se reescribe entera a mano.
 
+## Lienzos que se enseñan: capítulos, cámara y piezas vivas
+
+Un panel, una clase, el mapa de un negocio o cualquier lienzo que se vaya a **recorrer** se arma con el mismo
+estándar: pocos capítulos con nombre, cada uno del tamaño de una pantalla (16:9), el índice a la derecha, el recorrido
+con las flechas y, donde hay un mecanismo, una pieza viva que se mueve al acercarte.
+
+| Necesito… | Leer |
+|---|---|
+| El estándar: las tres distancias, qué es un capítulo, el recorrido, lo nativo y lo vivo, imágenes y logos reales, y la base `scripts/lienzo_vivo.py` | `references/capitulos.md` |
+| Hacer una pieza viva: el método en seis pasos, el kit (`assets/pieza/kit.js`), imágenes y logos dentro de la pieza, los estados y las reglas de oficio | `references/pieza-viva.md` |
+| El mapa de un negocio ya resuelto (norte, sistema nervioso, oferta, vehículo) | skill `mapa-vivo` |
+
+Las dos puertas de arriba siguen siendo el camino para un diagrama de cajas y flechas. Esto es para cuando hay que
+**mostrar**: `lienzo_vivo.py` escribe por la misma API, respeta lo que la mano tocó y nunca pisa un candado.
+
 ## Enseñar una página al dueño
 
 Para mostrarle un lienzo: la herramienta `mostrar` del MCP `cabina` con

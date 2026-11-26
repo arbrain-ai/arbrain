@@ -28,9 +28,15 @@ export function alcanceDeModo(mode: CalendarMode): AlcanceObjetivos | null {
 /** El pie de la vista unificada (4 oct 2026): el reporte de SU periodo y, en el mes, el plan del mes. */
 export function accesosDe(mode: CalendarMode): Acceso[] {
   const alcance = alcanceDeModo(mode)
-  if (!alcance) return []
+  // El Día sin «Reporte diario» (16 nov 2026, Daniel: «añade variedad… dejar lo importante»): ya le llega a las 5:30.
+  if (!alcance || mode === 'day') return []
   const r = REPORTE[alcance]
   return [{ id: 'reporte', etiqueta: r.etiqueta, job: r.job }, ...(alcance === 'mes' ? [{ id: 'plan' as const, etiqueta: trMarca('Plan del mes') }] : [])]
+}
+
+/** «Revisión del domingo» en el pie: en el Día solo cuando el día que se ve es domingo (16 nov 2026); en las demás vistas vivas, siempre. */
+export function revisionEnPie(mode: CalendarMode, fecha: Date): boolean {
+  return mode !== 'day' || fecha.getDay() === 0
 }
 
 /** La escala (Día · Semana · Mes) que corresponde a cada vista, para el selector de tres. */

@@ -113,7 +113,7 @@ Carga solo la skill que el pedido necesita y, dentro de ella, solo las referenci
 | Dictar por voz, «el resaltado no sigue la voz», «conectar Groq» | Llave gratis de https://console.groq.com/keys que pega **él** en Ajustes › Voz (nunca en este chat) |
 | Diagramas, mapas, flujos y lienzos | `canvas` |
 | Imágenes e ilustraciones | `image-generation` |
-| Decks; animación por código | `presentaciones`; `code-animation` |
+| Decks; animación por código | `presentaciones`; `god-animation` |
 | Leer e internalizar un libro, PDF o curso | `libro-os` |
 | Convertir una meta ambiciosa en un plan verificable | `goal-compiler` |
 | Volver un proceso tu skill («crea una skill») | `skill-creator` |

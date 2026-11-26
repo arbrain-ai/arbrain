@@ -1,0 +1,186 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   Tu canal · Stats Royale (19 nov 2026). La estructura del juego con la materia del cuartel: papel claro / noche,
+   oro SOLO para lo tuyo y lo ganado (trofeos, coronas llenas, tu lugar), sin brillos de videojuego. Hereda las
+   variables de `.cuartel` (--oro-tinta, --oro-velo, --linea, --serif). Ancho: lo manda el contenedor `cuartel`.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.juego { gap: 16px; }
+.nota { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--muted); }
+.nota b { color: var(--foreground); font-weight: 600; }
+.oro { color: var(--oro-tinta) !important; }
+.grande { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
+.grande b { font-family: var(--serif); font-size: 30px; font-weight: 600; color: var(--foreground); font-variant-numeric: tabular-nums; margin-right: 2px; }
+.grande small { margin-left: 8px; font-size: 12px; }
+
+/* ── Pestañas del juego ── */
+.vistas { display: flex; align-items: center; gap: 4px; padding: 2px; border-bottom: 1px solid var(--linea); overflow-x: auto; scrollbar-width: none; }
+.vistas::-webkit-scrollbar { display: none; }
+.vistas > button { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border: 0; border-bottom: 2px solid transparent; margin-bottom: -3px; background: none; color: var(--muted); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: color 160ms, border-color 160ms; }
+.vistas > button:hover { color: var(--foreground); }
+.vistas > button[aria-selected='true'] { color: var(--foreground); border-bottom-color: var(--gold); }
+.vistas > button[aria-selected='true'] svg { color: var(--oro-tinta); }
+.vistasFin { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; }
+.calculado { font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+.calculado[data-viejo] { color: var(--error); }
+
+/* ── Perfil ── */
+.perfil { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); grid-template-areas: 'trofeos ligas' 'ritmo ritmo'; gap: 12px; }
+.trofeos { grid-area: trofeos; display: flex; flex-direction: column; gap: 4px; padding: 14px 16px 12px; border-radius: 14px; border: 1px solid rgba(var(--gold-rgb), 0.35); background: linear-gradient(160deg, var(--oro-velo), transparent 70%); }
+.trofeos :global(small) { font-weight: 500; letter-spacing: 0; text-transform: none; }
+.trofeosNum { display: flex; align-items: center; gap: 10px; margin: 0; color: var(--oro-tinta); }
+.trofeosNum b { font-family: var(--serif); font-size: clamp(40px, 6cqi, 58px); line-height: 1; font-weight: 600; letter-spacing: -0.02em; color: var(--foreground); font-variant-numeric: tabular-nums; }
+.arenaTxt { margin: 2px 0 0; font-size: 13.5px; color: var(--muted); }
+.arenaTxt b { color: var(--foreground); font-weight: 650; }
+.ligas { grid-area: ligas; display: grid; grid-template-rows: 1fr 1fr; gap: 10px; }
+.liga { display: flex; flex-direction: column; gap: 3px; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--linea); background: color-mix(in srgb, var(--foreground) 3%, transparent); text-align: left; font: inherit; color: inherit; cursor: pointer; transition: border-color 160ms; }
+button.liga:hover { border-color: rgba(var(--gold-rgb), 0.5); }
+.lugar { margin: 0; font-size: 13px; color: var(--muted); }
+.lugar b { font-family: var(--serif); font-size: 28px; font-weight: 600; color: var(--oro-tinta); font-variant-numeric: tabular-nums; margin-right: 4px; }
+.ritmo { grid-area: ritmo; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 12px; }
+.racha, .temporada { display: flex; flex-direction: column; gap: 4px; padding: 10px 14px 12px; border-radius: 12px; border: 1px solid var(--linea); }
+.racha :global(small), .temporada > p:first-child small { font-weight: 500; letter-spacing: 0; text-transform: none; margin-left: 6px; }
+.casillas { display: flex; gap: 5px; margin-top: 4px; }
+.casillas i { flex: 1; max-width: 46px; height: 8px; border-radius: 4px; background: color-mix(in srgb, var(--foreground) 9%, transparent); }
+.casillas[data-largo] i { max-width: none; }
+.casillas i[data-hecho] { background: var(--gold); }
+
+/* La escalera de arenas */
+.escalera { margin-top: 10px; }
+.escaleraPista { position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 3px; height: 8px; }
+.escaleraPista span { border-radius: 4px; background: color-mix(in srgb, var(--foreground) 9%, transparent); }
+.escaleraPista span[data-pasada] { background: rgba(var(--gold-rgb), 0.45); }
+.escaleraTu { position: absolute; top: 50%; width: 14px; height: 14px; border-radius: 50%; transform: translate(-50%, -50%); background: var(--gold); border: 2px solid var(--background); box-shadow: 0 0 0 1px rgba(var(--gold-rgb), 0.6); }
+.escaleraNombres { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 3px; margin: 6px 0 0; padding: 0; list-style: none; }
+.escaleraNombres li { display: flex; flex-direction: column; min-width: 0; font-size: 10.5px; line-height: 1.25; color: var(--muted); }
+.escaleraNombres li b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.escaleraNombres li small { font-size: 10px; font-variant-numeric: tabular-nums; }
+.escaleraNombres li[data-actual] { color: var(--oro-tinta); }
+
+/* ── Rendimiento contra la mediana ── */
+.rendimiento { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-variant-numeric: tabular-nums; }
+.rendimiento b { font-weight: 650; color: var(--foreground); }
+.barras { display: inline-flex; align-items: flex-end; gap: 2px; height: 12px; }
+.barras i { display: block; width: 4px; border-radius: 1px; background: color-mix(in srgb, var(--foreground) 18%, transparent); }
+.barras i:nth-child(1) { height: 5px; } .barras i:nth-child(2) { height: 8px; } .barras i:nth-child(3) { height: 12px; }
+.barras i[data-llena] { background: var(--oro-tinta); }
+.enJuego { font-size: 11px; font-weight: 600; color: var(--muted); padding: 1px 6px; border-radius: 999px; border: 1px dashed var(--linea-2); }
+
+/* La tira de los últimos videos */
+.tira { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px 8px; margin: 0; padding: 0; list-style: none; }
+.tira li[data-confianza='baja'] { opacity: 0.72; }
+.tira button { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%; padding: 0; border: 0; background: none; font: inherit; color: inherit; cursor: pointer; }
+.tira button:disabled { cursor: default; }
+.tira small { font-size: 11px; color: var(--muted); }
+.tiraMini { display: block; width: 100%; aspect-ratio: 16 / 9; border-radius: 8px; overflow: hidden; }
+
+/* ── Repetición ── */
+.repeticion { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 14px; align-items: stretch; }
+.repMini { display: flex; flex-direction: column; gap: 8px; padding: 0; border: 0; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.repMini:disabled { cursor: default; }
+.repMini > img { aspect-ratio: 16 / 9; border-radius: 10px; }
+.repTitulo { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; font-size: 13.5px; line-height: 1.35; }
+.repTitulo b { font-weight: 600; }
+.veredicto { display: flex; flex-direction: column; justify-content: center; gap: 6px; padding: 14px 16px; border-radius: 12px; border-left: 3px solid var(--gold); background: var(--oro-velo); }
+.veredicto[data-veredicto='sin_datos'] { border-left-color: var(--linea-2); background: color-mix(in srgb, var(--foreground) 3%, transparent); }
+.veredictoTitulo { margin: 0; font-family: var(--serif); font-size: clamp(22px, 3cqi, 30px); line-height: 1.1; font-weight: 600; color: var(--foreground); }
+
+.cartas { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
+.carta { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--linea); background: color-mix(in srgb, var(--foreground) 2.5%, transparent); }
+.carta[data-veredicto] { border-color: rgba(var(--gold-rgb), 0.7); box-shadow: inset 0 0 0 1px rgba(var(--gold-rgb), 0.35); }
+.carta[data-estado='falta'] { border-style: dashed; }
+.carta[data-confianza='baja'] .cartaValor, .carta[data-confianza='baja'] .medidor { opacity: 0.7; }
+.cartaNombre { display: flex; flex-direction: column; margin: 0; font-size: 13px; line-height: 1.3; }
+.cartaNombre b { font-weight: 650; color: var(--foreground); }
+.cartaNombre small { font-size: 11.5px; color: var(--muted); }
+.cartaValor { margin: 0; font-size: 11.5px; color: var(--muted); }
+.cartaValor b { display: block; font-size: 19px; font-weight: 650; color: var(--foreground); font-variant-numeric: tabular-nums; }
+.cartaEstado { margin: 0; font-size: 11.5px; font-weight: 600; color: var(--muted); }
+.carta[data-estado='bajo'] .cartaEstado { color: var(--error); }
+.carta[data-estado='bien'] .cartaEstado { color: var(--oro-tinta); }
+.medidor { position: relative; display: block; height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--foreground) 8%, transparent); }
+.medidor i { position: absolute; inset: 0 auto 0 0; border-radius: 3px; background: color-mix(in srgb, var(--foreground) 35%, transparent); }
+.carta[data-estado='bien'] .medidor i { background: var(--gold); }
+.carta[data-estado='bajo'] .medidor i { background: color-mix(in srgb, var(--error) 70%, transparent); }
+.medidor em { position: absolute; top: -3px; bottom: -3px; width: 2px; transform: translateX(-1px); background: var(--foreground); opacity: 0.55; }
+.faltas { margin: 0; padding: 0; list-style: none; font-size: 12.5px; color: var(--muted); }
+
+/* La curva de 48 h */
+.curvas { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.curva { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--linea); }
+.curva svg { width: 100%; height: auto; }
+.curvaTu { fill: none; stroke: var(--gold); stroke-width: 2.2; stroke-linejoin: round; }
+.curvaMediana { fill: none; stroke: var(--muted); stroke-width: 1.4; stroke-dasharray: 4 3; }
+
+/* ── Partidas ── */
+.partidas { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+.partida { display: grid; grid-template-columns: 112px minmax(0, 1fr) auto auto; align-items: center; gap: 14px; padding: 8px 4px; border-bottom: 1px solid var(--linea); }
+.partida[data-confianza='baja'] .partidaNums, .partida[data-confianza='baja'] .partidaFin { opacity: 0.75; }
+.partidaMini { display: block; width: 112px; aspect-ratio: 16 / 9; padding: 0; border: 0; border-radius: 8px; overflow: hidden; background: none; cursor: pointer; }
+.partidaMini:disabled { cursor: default; }
+.partidaTexto { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.partidaTexto b { font-size: 13.5px; font-weight: 600; line-height: 1.3; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.partidaTexto small { font-size: 12px; color: var(--muted); }
+.partidaNums { display: grid; grid-template-columns: 120px 56px 56px; gap: 10px; }
+.partidaNums > span { display: flex; flex-direction: column; text-align: right; }
+.partidaNums b { font-size: 14px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.partidaNums small { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.partidaFin { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; min-width: 64px; }
+.partidaFin small { font-size: 11.5px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+.partida[data-coronas='3'] .partidaFin small, .partida[data-coronas='2'] .partidaFin small { color: var(--oro-tinta); }
+
+/* ── Mazos y meta ── */
+.mazos { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; }
+.mazo { display: flex; flex-direction: column; gap: 5px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--linea); }
+.mazo[data-poca] { border-style: dashed; }
+.mazoTasa { margin: 0; font-size: 12px; color: var(--muted); }
+.mazoTasa b { font-size: 22px; font-weight: 650; color: var(--oro-tinta); font-variant-numeric: tabular-nums; }
+.tasa { position: relative; display: block; height: 7px; border-radius: 4px; background: color-mix(in srgb, var(--foreground) 8%, transparent); }
+.tasa i { position: absolute; inset: 0 auto 0 0; border-radius: 4px; background: var(--gold); }
+.tasa em { position: absolute; top: -3px; bottom: -3px; width: 2px; transform: translateX(-1px); background: var(--foreground); opacity: 0.6; }
+
+.segmento { display: inline-flex; gap: 2px; padding: 2px; border-radius: 999px; border: 1px solid var(--linea-2); }
+.segmento button { height: 24px; padding: 0 10px; border: 0; border-radius: 999px; background: none; color: var(--muted); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+.segmento button[data-activo] { background: var(--oro-velo); color: var(--oro-tinta); }
+.metaLigas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.metaLiga { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.metaLiga ol { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.metaFila { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 10px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--linea); }
+.metaLugar { font-family: var(--serif); font-size: 24px; font-weight: 600; line-height: 1; color: var(--oro-tinta); }
+.metaTexto { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.ejemplo { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 10px; align-items: center; margin-top: 2px; padding: 0; border: 0; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.ejemplo:disabled { cursor: default; }
+.ejemplo > span:last-child { display: flex; flex-direction: column; min-width: 0; }
+.ejemplo b { font-size: 12.5px; font-weight: 600; line-height: 1.3; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.ejemplo small { font-size: 11.5px; color: var(--muted); }
+.ejemploMini { display: block; aspect-ratio: 16 / 9; border-radius: 7px; overflow: hidden; }
+
+/* ── Rankings ── */
+.tabla { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+.fila { display: grid; grid-template-columns: 36px minmax(0, 1fr) 90px 70px 120px; align-items: center; gap: 10px; min-height: 40px; padding: 4px 8px; border-bottom: 1px solid var(--linea); font-size: 13px; }
+.fila[data-tu] { border-radius: 10px; border: 1px solid rgba(var(--gold-rgb), 0.6); background: var(--oro-velo); }
+.filaLugar { font-weight: 650; font-variant-numeric: tabular-nums; color: var(--muted); text-align: right; }
+.fila[data-podio] .filaLugar, .fila[data-tu] .filaLugar { color: var(--oro-tinta); }
+.filaNombre { display: inline-flex; align-items: center; gap: 8px; min-width: 0; padding: 0; border: 0; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.filaNombre b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+button.filaNombre:hover b { text-decoration: underline; text-underline-offset: 3px; }
+.filaNombre img, .filaNombre i { width: 24px; height: 24px; flex: none; border-radius: 50%; object-fit: cover; display: grid; place-items: center; font-style: normal; font-size: 11px; font-weight: 650; background: color-mix(in srgb, var(--foreground) 9%, transparent); }
+.filaArena, .filaLargos { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.filaTrofeos { display: inline-flex; align-items: center; justify-content: flex-end; gap: 5px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.filaTrofeos svg { color: var(--oro-tinta); }
+.hueco { padding: 6px 52px; font-size: 12px; color: var(--muted); border-bottom: 1px solid var(--linea); }
+
+/* ── Angosto (panel chico, teléfono) ── */
+@container cuartel (max-width: 760px) {
+  .perfil { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'trofeos' 'ligas' 'ritmo'; }
+  .ligas { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: none; }
+  .ritmo, .repeticion, .metaLigas { grid-template-columns: minmax(0, 1fr); }
+  .cartas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tira { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .partida { grid-template-columns: 88px minmax(0, 1fr) auto; }
+  .partidaMini { width: 88px; }
+  .partidaNums { grid-column: 2 / -1; grid-row: 2; grid-template-columns: repeat(3, auto); justify-content: start; }
+  .partidaNums > span { text-align: left; }
+  .fila { grid-template-columns: 30px minmax(0, 1fr) 100px; }
+  .filaArena, .filaLargos { display: none; }
+}
+.racha > p:first-child, .temporada > p:first-child { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }

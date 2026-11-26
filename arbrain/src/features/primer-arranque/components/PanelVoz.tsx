@@ -10,12 +10,15 @@
  * pago; v0.2.10, grupal del 23 oct: «la voz por defecto en Windows es fea») lee con la voz de LemonFox.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Check, ExternalLink, Eye, EyeOff, KeyRound, Loader2, Mic, Volume2, Zap } from 'lucide-react'
+import { Check, ExternalLink, Eye, EyeOff, KeyRound, Loader2, Mic, Send, Volume2, Zap } from 'lucide-react'
+import { guardarEnviarAlDetener, leerEnviarAlDetener } from '@/features/chat/lib/nota-voz-borrador'
+import { useMejora } from '@/features/mejoras/lib/mejoras-store'
 import {
   abrirEnNavegador, CONSOLA_GROQ, CONSOLA_LEMONFOX, esperarDaemon, EVENTO_LLAVE_VOZ, hayApp, llaveGuardar, llavesEstado, limpiarLlave, MARCA_DESDE_MIC, probarVoz, validarLlaveLemonfox, validarLlaveVoz,
   type EstadoLlaves, type PruebaVoz,
 } from '../lib/llaves'
 import { Aviso, BotonQuitar, EstadoGuardada } from './PanelLlaves'
+import { ElegirVozLemonfox } from './ElegirVozLemonfox'
 import { mejorVozEspanol, mejorVozIngles } from '@/features/chat/lib/chat-speech'
 import { consejoSinVozEspanol, idiomaDeRespaldo, idiomaPreferido, idiomaPreferidoIngles, plataformaDe } from '@/features/chat/lib/voz-sistema'
 import { enIngles, tr, trMarca, trNodos } from '@/shared/i18n'
@@ -42,6 +45,8 @@ const ESPERAR_REINICIO = new Set(['falta_llave', 'sin_daemon', 'error'])
 const avisarCambio = (presente: boolean) => window.dispatchEvent(new CustomEvent(EVENTO_LLAVE_VOZ, { detail: { presente } }))
 
 export function PanelVoz() {
+  // «Enviar la nota de voz al detenerla» solo existe con Ajustes › Mejoras › «Nota de voz como borrador».
+  const notaBorrador = useMejora('nota-borrador')
   const app = typeof window !== 'undefined' && hayApp()
   const [estado, setEstado] = useState<EstadoLlaves | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -77,8 +82,9 @@ export function PanelVoz() {
     } finally { enCurso.current = false; setProbando(false) }
   }, [])
 
-  if (!app) return <Aviso tono="info">{tr('La llave de voz se guarda desde la app de Arbrain, en el llavero de tu sistema. Ábrela para continuar.')}</Aviso>
-  if (estado && !estado.disponible) return <Aviso tono="alerta">{estado.error ? tr('Tu sistema no tiene un llavero disponible ({error}). Por seguridad, Arbrain no guarda llaves en archivos.', { error: estado.error }) : tr('Tu sistema no tiene un llavero disponible. Por seguridad, Arbrain no guarda llaves en archivos.')}</Aviso>
+  // El ajuste de la nota de voz también se ve en el teléfono, donde no hay llavero.
+  if (!app) return <div className="space-y-4"><Aviso tono="info">{tr('La llave de voz se guarda desde la app de Arbrain, en el llavero de tu sistema. Ábrela para continuar.')}</Aviso>{notaBorrador && <EnviarNotaAlDetener />}</div>
+  if (estado && !estado.disponible) return <div className="space-y-4"><Aviso tono="alerta">{estado.error ? tr('Tu sistema no tiene un llavero disponible ({error}). Por seguridad, Arbrain no guarda llaves en archivos.', { error: estado.error }) : tr('Tu sistema no tiene un llavero disponible. Por seguridad, Arbrain no guarda llaves en archivos.')}</Aviso>{notaBorrador && <EnviarNotaAlDetener />}</div>
 
   return (
     <div className="space-y-4">
@@ -128,6 +134,8 @@ export function PanelVoz() {
         )}
       </section>
 
+      {notaBorrador && <EnviarNotaAlDetener />}
+
       <VozDeRespuestas estado={estado} onEstado={setEstado} onError={setError} />
 
       {error && <Aviso tono="alerta">{tr(error)}</Aviso>}
@@ -138,6 +146,8 @@ export function PanelVoz() {
 /** «Escuchar» una respuesta: la mejor voz del sistema, o LemonFox si la persona pega su llave (opcional, de pago). */
 function VozDeRespuestas({ estado, onEstado, onError }: { estado: EstadoLlaves | null; onEstado: (e: EstadoLlaves) => void; onError: (m: string | null) => void }) {
   const llave = estado?.llaves.find(l => l.nombre === 'LEMONFOX_API_KEY')
+  // Ajustes › Mejoras › «Elegir la voz de LemonFox»: apagada, sin selector y suena la voz de siempre.
+  const vozLemonfox = useMejora('voz-lemonfox')
   const [valor, setValor] = useState('')
   const [guardando, setGuardando] = useState(false)
   const veredicto = valor ? validarLlaveLemonfox(valor) : null
@@ -165,6 +175,8 @@ function VozDeRespuestas({ estado, onEstado, onError }: { estado: EstadoLlaves |
             <EstadoGuardada vista={llave.vista ?? null} />
             <BotonQuitar nombre="LEMONFOX_API_KEY" onError={onError} onHecho={onEstado} />
           </span>
+          {/* Elegir la voz: son de español; con la app en inglés suena la voz de inglés y no aplica. */}
+          {vozLemonfox && !enIngles() && <div className="basis-full"><ElegirVozLemonfox /></div>}
         </div>
       ) : (
         <form className="mt-3" onSubmit={(e) => { e.preventDefault(); void guardar() }}>
@@ -233,6 +245,34 @@ function VozDelSistema() {
       <span>{trNodos('Voz del sistema: {voz}', { voz: <span className="font-medium text-foreground/85">{voz.nombre ?? tr('la de tu sistema')}</span> })}</span>
       <button type="button" onClick={probar} className="btn-secondary min-h-8 shrink-0 !px-3 text-[12.5px]">{tr('Probar')}</button>
     </div>
+  )
+}
+
+/** La nota de voz se queda en el mensaje al detenerla; enviarla sola es opcional (apagado). Por dispositivo. */
+function EnviarNotaAlDetener() {
+  const [activo, setActivo] = useState(false)
+  useEffect(() => { setActivo(leerEnviarAlDetener()) }, [])
+  const cambiar = () => { const v = !activo; setActivo(v); guardarEnviarAlDetener(v) }
+  return (
+    <section className="rounded-2xl border border-border-subtle bg-surface/70 p-4" aria-label={tr('Nota de voz')}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+            <Send className="size-4 text-brand-ink" aria-hidden /> {tr('Enviar la nota de voz al detenerla')}
+          </h3>
+          <p className="mt-1 text-[13px] leading-relaxed text-muted">
+            {activo
+              ? tr('Encendido: al detener la grabación, la nota se envía sola.')
+              : tr('Apagado: al detener la grabación, lo que dijiste queda escrito en tu mensaje. Puedes corregirlo, agregar texto, fotos, archivos u otra nota, y lo mandas con Enviar.')}
+          </p>
+        </div>
+        <button type="button" role="switch" aria-checked={activo} onClick={cambiar}
+          aria-label={tr('Enviar la nota de voz al detenerla')}
+          className={`relative mt-0.5 h-6 w-11 shrink-0 rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-brand ${activo ? 'bg-brand' : 'bg-border-subtle'}`}>
+          <span className={`absolute top-0.5 size-5 rounded-full bg-white shadow transition-all ${activo ? 'left-[22px]' : 'left-0.5'}`} />
+        </button>
+      </div>
+    </section>
   )
 }
 

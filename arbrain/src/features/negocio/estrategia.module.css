@@ -92,3 +92,27 @@
 :global(.dark) .enlaces a { color: var(--l-tinta-morado-clara, #c4a1ff); }
 .canales a { color: var(--l-tinta-morado, var(--brand)); font-weight: 650; text-decoration: none; }
 :global(.dark) .canales a { color: var(--l-tinta-morado-clara, #c4a1ff); }
+
+/* La columna editorial de la portada (17 nov 2026): la estrategia como contexto, no como muro. Sin placa: una columna de
+   periódico con las tres respuestas en la serif de la marca, cada una con su fuente y su fecha, y los cuatro accesos como
+   índice de cifras (lo que espera tu decisión, en oro). Todo cabe: nada se corta. */
+.columna { container-type: inline-size; display: flex; flex-direction: column; gap: clamp(6px, 3cqi, 10px); min-width: 0; height: 100%; color: var(--foreground); }
+.columna[data-estado=vacia] { padding: 12px; border-radius: 14px; border: 1px dashed color-mix(in srgb, var(--muted) 55%, transparent); height: auto; }
+.columna .cabeza { grid-template-columns: minmax(0, 1fr); gap: clamp(7px, 3cqi, 14px); margin: 2px 0 0; }
+.columna .cabeza > div { padding-left: 0; border-left: 0; gap: 3px; }
+.columna .cabeza dd { font-family: var(--serif-ui, Georgia, serif); font-size: clamp(12.5px, 4.25cqi, 15.5px); line-height: 1.36; }
+/* La cabeza de la columna: nombre y flecha arriba, la fecha de la investigación debajo (no se encima en 300 px). */
+.columna .abrir { flex-wrap: wrap; row-gap: 2px; }
+.columna .abrir > :nth-child(2) { flex: 1; }
+.columna .abrir > svg:last-child { order: 2; }
+.columna .fecha { order: 3; flex-basis: 100%; padding-left: 34px; }
+.columna .accesos { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; margin-top: 4px; border-top: 1px solid color-mix(in srgb, var(--foreground) 9%, transparent); }
+.columna .accesos button { border: 0; border-radius: 0; background: transparent; padding: 7px 4px 6px 0; border-bottom: 1px solid color-mix(in srgb, var(--foreground) 6%, transparent); }
+.columna .accesos button:hover { transform: none; background: color-mix(in srgb, var(--brand) 5%, transparent); }
+.columna .accesos button[data-pendiente] { border-style: solid; }
+.columna .accesos button[data-pendiente] .accesoCifra b, .columna .accesos button[data-pendiente] .accesoNombre { color: color-mix(in srgb, #ff9101 82%, #000); }
+:global(.dark) .columna .accesos button[data-pendiente] .accesoCifra b, :global(.dark) .columna .accesos button[data-pendiente] .accesoNombre { color: #ffac3d; }
+.columna .accesoCifra b { font-family: var(--serif-ui, Georgia, serif); font-size: clamp(20px, 8cqi, 28px); font-weight: 600; }
+/* La pregunta general sobra en la columna: las tres preguntas ya van escritas encima de su respuesta. */
+.columna > .preguntaGeneral { display: none; }
+@container (max-width: 300px) { .columna .cabeza dd { font-size: 12px; line-height: 1.3; } .columna .cabeza { gap: 8px; } }

@@ -14,6 +14,8 @@ import { borradorConversacion, borradorDe, cambios, datosDe, datosDeCambio, DURA
   leerHora, proximaMediaHora, semanasDelMes, type Borrador, type Enlace } from './detalle'
 import type { MutationResult, PlanEvent, PlanItem, PlanMutation, PlanTask, PlanningSnapshot } from './types'
 import styles from './detalle.module.css'
+import { rutaInterna } from './enlace-interno'
+import { useAbrirInterno } from './useAbrirInterno'
 
 export interface EditorSelection { item?: PlanItem; start?: Date; end?: Date; allDay?: boolean; kind?: 'event' | 'task'; freshRange?: boolean; confirmDelete?: boolean
   titulo?: string; prioridad?: number; etiquetas?: string[] }
@@ -234,6 +236,7 @@ export function PlanEditor({ selection, snapshot, saving, unresolved, auto, onCl
     return () => document.removeEventListener('pointerdown', fuera, true)
   }, [cerrar])
 
+  const abrirInterno = useAbrirInterno()
   const fecha = etiquetaFecha(draft)
   const links = useMemo(() => enlaces([draft.title, draft.description, draft.location]).filter(l => l.url !== (item?.kind === 'event' ? item.meetUrl : null)), [draft.title, draft.description, draft.location, item])
   const hijas = useMemo(() => item?.kind === 'task' ? [...snapshot.tasks.filter(t => t.parentId === item.externalId), ...(snapshot.completedTasks ?? []).filter(t => t.parentId === item.externalId)] : [], [item, snapshot.tasks, snapshot.completedTasks])
@@ -334,7 +337,9 @@ export function PlanEditor({ selection, snapshot, saving, unresolved, auto, onCl
 
       {links.length > 0 && <section className={styles.seccion} aria-label={tr('Enlaces')}>
         <h3>{tr('Enlaces')}</h3>
-        <ul className={styles.enlaces}>{links.map(l => <li key={l.url}><a href={l.url} target="_blank" rel="noreferrer" title={l.url}><IconoEnlace tipo={l.tipo} /><span><b>{l.etiqueta}</b><small>{l.host}</small></span><ExternalLink size={13} aria-hidden /></a></li>)}</ul>
+        {/* Un enlace a la propia app (el «ver después» de Contenido) se abre aquí dentro, no en el navegador (17 nov 2026). */}
+        <ul className={styles.enlaces}>{links.map(l => { const interno = typeof window !== 'undefined' && !!rutaInterna(l.url, window.location.href)
+          return <li key={l.url}><a href={l.url} target={interno ? undefined : '_blank'} rel="noreferrer" title={l.url} data-interno={interno || undefined} onClick={e => { abrirInterno(e, l.url) }}><IconoEnlace tipo={l.tipo} /><span><b>{interno ? tr('Abrir en Arbrain') : l.etiqueta}</b><small>{interno ? l.etiqueta : l.host}</small></span>{!interno && <ExternalLink size={13} aria-hidden />}</a></li> })}</ul>
       </section>}
 
       {item?.kind === 'task' && <Subtareas hijas={hijas} padre={item} snapshot={snapshot} ocupado={ocupado || saving || unresolved} onSave={onSave} onAbrir={onAbrir} />}
@@ -456,7 +461,7 @@ function Notas({ valor, editando, setEditando, onCambio, bloqueado, placeholder 
     onClick={e => { if (!bloqueado && !(e.target as HTMLElement).closest('a,input')) setEditando(true) }}
     onKeyDown={e => { if (e.key === 'Enter' && e.target === e.currentTarget && !bloqueado) { e.preventDefault(); setEditando(true) } }}>
     {valor.trim() ? <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
-      a: ({ href, children }) => <a href={href} target="_blank" rel="noreferrer">{children}</a>,
+      a: ({ href, children }) => <EnlaceNota href={href}>{children}</EnlaceNota>,
       input: props => { if (props.type !== 'checkbox') return <input {...props} />; const idx = n++; return <input type="checkbox" checked={Boolean(props.checked)} disabled={bloqueado} onChange={() => marcar(idx)} /> },
     }}>{valor}</ReactMarkdown> : <span className={styles.placeholder}><FileText size={14} aria-hidden />{placeholder}</span>}
   </div>
@@ -510,4 +515,11 @@ function IconoEnlace({ tipo }: { tipo: Enlace['tipo'] }) {
   if (tipo === 'doc' || tipo === 'drive') return <FileText size={15} aria-hidden />
   if (tipo === 'codigo') return <Github size={15} aria-hidden />
   return <Link2 size={15} aria-hidden />
+}
+
+/** Enlace dentro de las notas: el de la propia app abre aquí; los demás, en el navegador como siempre. */
+function EnlaceNota({ href, children }: { href?: string; children?: ReactNode }) {
+  const abrirInterno = useAbrirInterno()
+  const interno = typeof window !== 'undefined' && !!href && !!rutaInterna(href, window.location.href)
+  return <a href={href} target={interno ? undefined : '_blank'} rel="noreferrer" onClick={e => { abrirInterno(e, href) }}>{children}</a>
 }

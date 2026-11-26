@@ -276,3 +276,26 @@ test('preparando: el que todavía crea su worktree se ve en Trabajando, en su co
   assert.equal(cuentas(armarTablero(d, 'chat-a', T)).trabajando, 1)
   assert.equal(cuentas(armarTablero(d, 'chat-b', T)).trabajando, 0)
 })
+
+// ── El modelo a la vista en cada renglón (17 nov 2026) ──
+import { modeloCorto } from '../../src/features/cabina/tablero-modelo'
+
+test('el renglón dice su modelo en corto; lo pedido sin medir no se pinta como medido y un comando no lleva modelo', () => {
+  const medida = (efectivo: string | null): Coherencia => ({ modelo: { pedido: 'claude-opus-5-5', efectivo, estado: efectivo ? 'coincide' : 'sin-medir' }, esfuerzo: { pedido: null, efectivo: null, estado: 'default' }, desajuste: null })
+  const fila = (tipo: 'encargo' | 'interna' | 'tuya' | 'proceso' | 'preparando', modelo: string | null, coherencia: Coherencia | null = null) => ({ tipo, modelo, coherencia })
+  // lo que su CLI reportó: medido, con el nombre que se lee («Opus 5.5»), también con el sufijo de contexto
+  assert.deepEqual(modeloCorto(fila('encargo', 'claude-opus-5-5', medida('claude-opus-5-5'))), { texto: 'Opus 5.5', medido: true })
+  assert.deepEqual(modeloCorto(fila('tuya', 'claude-fable-5-2[1m]')), { texto: 'Fable 5.2', medido: true })
+  assert.deepEqual(modeloCorto(fila('interna', 'claude-haiku-5-5')), { texto: 'Haiku 5.5', medido: true })
+  assert.deepEqual(modeloCorto(fila('encargo', 'gpt-5.6-terra', medida('gpt-5.6-terra'))), { texto: 'GPT-5.6 Terra', medido: true })
+  // un encargo que solo trae lo pedido (su CLI aún no reporta, o el servidor no manda coherencia): pedido, no medido
+  assert.deepEqual(modeloCorto(fila('encargo', 'claude-opus-5-5', medida(null))), { texto: 'Opus 5.5', medido: false })
+  assert.deepEqual(modeloCorto(fila('encargo', 'claude-opus-5-5')), { texto: 'Opus 5.5', medido: false })
+  // sin dato no se inventa; un comando en segundo plano no corre con modelo
+  assert.equal(modeloCorto(fila('encargo', null)), null)
+  assert.equal(modeloCorto(fila('proceso', 'claude-opus-5-5')), null)
+  // el renglón real: la fila armada desde la terminal lleva el modelo medido
+  const conv = { harness: 'claude', modelo: 'claude-opus-5-5', ctxPct: null, turno: 'trabajando' as const, pregunta: false, tokens: null, titulo: null, mensajes: [], coherencia: medida('claude-opus-5-5') }
+  assert.deepEqual(modeloCorto(filaDe(term(20, { conversacion: conv }))), { texto: 'Opus 5.5', medido: true })
+})
+

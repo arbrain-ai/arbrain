@@ -50,9 +50,9 @@ export const RUTINA_MANANA = 'arbrain-reporte-manana'
  * hagan igual.
  */
 export const HABILIDADES_DE_ARBRAIN = [
-  'actualizar-arbrain', 'artificial-brain', 'autoresearch', 'bajar-a-tierra', 'canvas', 'clientes', 'code-animation',
-  'goal-compiler', 'google-workspace', 'habit-system', 'image-generation', 'knowledge-search', 'libro-os', 'memory-manager',
-  'oferta', 'os-audit', 'presentaciones', 'sistema-viable', 'skill-creator', 'tour-bienvenida',
+  'actualizar-arbrain', 'artificial-brain', 'autoresearch', 'bajar-a-tierra', 'canvas', 'clientes',
+  'goal-compiler', 'god-animation', 'google-workspace', 'habit-system', 'image-generation', 'knowledge-search', 'libro-os', 'mapa-vivo', 'memory-manager',
+  'oferta', 'os-audit', 'presentaciones', 'radiografia', 'sistema-viable', 'skill-creator', 'tour-bienvenida',
 ] as const
 
 export type IdPaso = 'negocio' | 'oferta' | 'embudo' | 'rutinas' | 'habilidades'

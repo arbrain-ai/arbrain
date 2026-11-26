@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import webpush from 'web-push'
+import { sinNulos } from '@/lib/sin-nulos'
 import { createServiceClient } from '@/lib/supabase/service'
 import { perfilDelTurno, ownerIds as buzonDelDueno } from '@/features/avisos/server'
 import { filasInyectadas } from '@/features/chat/lib/inyecciones'
@@ -75,7 +76,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const payload = (await req.json()) as CompletePayload
+  // Sin NUL ni sustitutos sueltos: Postgres los rechaza y la entrega se reintentaba para siempre (lib/sin-nulos.ts).
+  const payload = sinNulos((await req.json()) as CompletePayload)
   const {
     chatSessionId, userMessage, assistantMessage, audioUrl, imageUrl,
     assistantAudioUrl, fileAttachments, turnId, clientAcked, usage, downgrade,
@@ -90,6 +92,13 @@ export async function POST(req: NextRequest) {
   const startedAt = typeof payload.startedAt === 'number' && Number.isFinite(payload.startedAt)
     && payload.startedAt > 1_600_000_000_000 && payload.startedAt <= Date.now() + 60_000
     ? Math.floor(payload.startedAt) : null
+
+  // Entrega tardía (16 nov 2026): si el resultado llega minutos después de terminar el turno (una entrega trabada que
+  // por fin pasa), la respuesta se fecha cuando el turno TERMINÓ; si no, quedaba al fondo de la conversación, después de
+  // todas las preguntas que vinieron luego. A tiempo, sigue con el created_at de la base (el semáforo no va hacia atrás).
+  const duracionMs = typeof usage?.durationMs === 'number' && Number.isFinite(usage.durationMs) && usage.durationMs > 0 ? usage.durationMs : null
+  const terminoEn = startedAt && duracionMs ? Math.min(Date.now(), startedAt + Math.floor(duracionMs)) : null
+  const respuestaTardia = terminoEn != null && Date.now() - terminoEn > 120_000
 
   const finalContent = assistantMessage || payload.error || (payload.terminalStatus === 'interrupted' ? 'Turno interrumpido.' : tr('El turno terminó sin respuesta.'))
   const supabase = createServiceClient()
@@ -161,7 +170,7 @@ export async function POST(req: NextRequest) {
           // último mensaje y no puede ir hacia atrás).
           // Respuesta espontánea: Daniel no escribió nada, no hay fila suya que inventar.
           ...(origen?.tipo === 'espontanea' ? [] : [{ session_id: sessionId, role: 'user', content: userMessage, audio_url: audioUrl ?? null, image_url: imageUrl ?? null, metadata: { turnId, ...(startedAt ? { startedAt } : {}), ...(origen ? { origen } : {}) } as Record<string, unknown>, ...(startedAt ? { created_at: new Date(startedAt).toISOString() } : {}) }]),
-          { session_id: sessionId, role: 'assistant', content: finalContent, audio_url: assistantAudioUrl ?? null, image_url: null, metadata: assistantMeta },
+          { session_id: sessionId, role: 'assistant', content: finalContent, audio_url: assistantAudioUrl ?? null, image_url: null, metadata: assistantMeta, ...(respuestaTardia ? { created_at: new Date(terminoEn!).toISOString() } : {}) },
         ]
         let insertedCount = 0
         for (const row of rows) {

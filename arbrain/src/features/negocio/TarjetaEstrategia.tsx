@@ -13,9 +13,10 @@ import { abrirSeccion } from '@/features/cabina/panel/Secciones'
 import { esEdicionCliente } from '@/lib/edicion'
 import { escalon, mov } from '@/shared/movimiento'
 import {
-  EVENTO_VISTA_ESTRATEGIA, fechaHumana, LLAVE_VISTA_ESTRATEGIA, pedidoEstrategia, pie, sinFirmar, URL_ESTRATEGIA, VISTAS,
+  EVENTO_VISTA_ESTRATEGIA, fechaHumana, LLAVE_VISTA_ESTRATEGIA, lineaCorta, pedidoEstrategia, pie, sinFirmar, URL_ESTRATEGIA, VISTAS,
   type Mercado, type RespuestaEstrategia, type Vista,
 } from './estrategia'
+import { listaDe } from './competidores'
 import p from './pulso.module.css'
 import { tr, trMarca, trn } from '@/shared/i18n'
 import { trNodos } from '@/shared/i18n'
@@ -33,13 +34,15 @@ export function abrirEstrategia(vista?: Vista) {
 /** El número de cada acceso: lo que esa pestaña trae. Sin bloque, null (el acceso dice «sin datos»). */
 function cuenta(v: Vista, m: Mercado): { n: number; que: string } | null {
   if (v === 'compra') { const q = m.quien_compra; return q ? { n: q.escalones.reduce((s, x) => s + x.segmentos.length, 0), que: tr('segmentos') } : null }
-  if (v === 'contra') { const c = m.contra_quien; return c ? { n: c.hispanos.length + c.anglos.length, que: tr('competidores') } : null }
+  // 15 nov 2026: con el censo, la cuenta es la de la sección Competidores (establecidos, nuevas promesas y anglo).
+  if (v === 'contra') { const l = listaDe(m); return l ? { n: l.lista.length, que: tr('competidores') } : null }
   if (v === 'rumbo') { const h = m.hacia_donde; return h ? { n: h.tendencias.length, que: tr('tendencias') } : null }
   const d = m.lo_que_decides
   return d ? { n: sinFirmar(d), que: tr('sin firmar') } : null
 }
 
-export function TarjetaEstrategia({ grande }: { grande?: boolean }) {
+/** `forma`: «tarjeta» (el panel angosto, como siempre) o «columna» (la portada de una sola pantalla: la columna editorial). */
+export function TarjetaEstrategia({ grande, forma = 'tarjeta' }: { grande?: boolean; forma?: 'tarjeta' | 'columna' }) {
   const { data, error } = useFuente<RespuestaEstrategia>(URL_ESTRATEGIA)
   if (data && !data.activo) return null
   const on = data?.activo ? data : null
@@ -59,7 +62,10 @@ export function TarjetaEstrategia({ grande }: { grande?: boolean }) {
     cuerpo = <>
       {datos.cabeza && <dl className={e.cabeza}>{datos.cabeza.lineas.map(l => <div key={l.pregunta}>
         <dt>{l.pregunta}</dt>
-        <dd>{l.respuesta}<small>{pie(l, datos.actualizado)}</small></dd>
+        {/* La portada (columna) dice una línea por pregunta (dieta del 17 nov 2026); la respuesta entera y su fuente, al pasar y al abrir. */}
+        {forma === 'columna'
+          ? <dd title={`${l.respuesta}\n${pie(l, datos.actualizado)}`}>{lineaCorta(l.respuesta)}</dd>
+          : <dd>{l.respuesta}<small>{pie(l, datos.actualizado)}</small></dd>}
       </div>)}</dl>}
       {on.directo && <p className={e.directo}><EyeOff size={12} aria-hidden />{tr('En directo: tus números quedan fuera; lo público se ve.')}</p>}
       <div className={e.accesos} aria-label={tr('Abrir Estrategia')}>
@@ -77,7 +83,7 @@ export function TarjetaEstrategia({ grande }: { grande?: boolean }) {
   }
 
   const abre = estado === 'lista'
-  return <section className={`${e.tarjeta} ${mov.entra}`} style={escalon(2)} data-testid="estrategia" data-estado={estado} aria-label={tr('Estrategia')}>
+  return <section className={`${forma === 'columna' ? e.columna : e.tarjeta} ${mov.entra}`} style={escalon(2)} data-testid="estrategia" data-estado={estado} data-forma={forma} aria-label={tr('Estrategia')}>
     {abre
       ? <button type="button" className={`${p.tarjetaCabeza} ${e.abrir}`} onClick={() => abrirEstrategia()} aria-label={tr('Estrategia: abrir la sección')}>
         <span className={p.icono} aria-hidden><Compass size={15} strokeWidth={2.1} /></span>
@@ -89,9 +95,9 @@ export function TarjetaEstrategia({ grande }: { grande?: boolean }) {
         <span className={p.icono} aria-hidden><Compass size={15} strokeWidth={2.1} /></span>
         <span className={p.nombre}>{tr('Estrategia')}</span>
       </span>}
-    <span className={p.pregunta}>{tr(PREGUNTA)}</span>
+    <span className={`${p.pregunta} ${e.preguntaGeneral}`}>{tr(PREGUNTA)}</span>
     {cuerpo}
-    <span className={p.fuente}>{tr('Fuente: {fuente}', { fuente: estado === 'lista' ? tr('tu investigación de mercado (mercado.json), cada cifra con la suya') : tr('mercado.json, cuando exista') })}</span>
+    {forma === 'columna' && estado === 'lista' ? null : <span className={p.fuente}>{tr('Fuente: {fuente}', { fuente: estado === 'lista' ? tr('tu investigación de mercado (mercado.json), cada cifra con la suya') : tr('mercado.json, cuando exista') })}</span>}
   </section>
 }
 
