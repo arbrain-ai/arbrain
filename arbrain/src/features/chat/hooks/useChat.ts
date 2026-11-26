@@ -19,6 +19,7 @@ import { cachedSelection, refreshSelection, invalidateSelection, selectionIsStal
 import { useAuth } from '@/hooks/useAuth'
 import { marcarAbrirVivo, verboDe } from '@/features/cabina/model'
 import { herramientaEscribe, refrescarCabina } from '@/features/cabina/datos'
+import { vozDelComando } from '@/features/modo-coche/voz-celular'
 import { marcarEnvioLocal } from '../lib/turnos-activos'
 import { marcarStreamLocal } from '@/lib/actividad-viva'
 import { useCommandStore } from '../stores/command-store'
@@ -805,6 +806,8 @@ export function useChat({ sessionId, onSave, onRestoreInput, isSessionActive, ac
             // La Cabina: si Levy escribió algo (pluma, archivo, comando), las
             // vistas montadas releen su fuente. Lecturas puras no disparan nada.
             if (herramientaEscribe(toolCalls.find(t => t.toolId === event.toolId)?.toolName)) refrescarCabina()
+            // Modo coche, voz al celular: las frases que SFlow dejó marcadas para el celular suenan aquí.
+            vozDelComando(event.content)
             toolOutputs[event.toolId] = {
               content: event.content,
               ...(event.isError && { isError: true }),

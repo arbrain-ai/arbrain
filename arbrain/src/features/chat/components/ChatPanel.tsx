@@ -55,6 +55,7 @@ import { LectorPosicion } from './LectorPosicion'
 import { TtsProbeOverlay } from './TtsProbeOverlay'
 import { VoiceInput } from './VoiceInput'
 import { EVENTO_ENVIAR_AL_DETENER, leerEnviarAlDetener, unirAlBorrador } from '../lib/nota-voz-borrador'
+import { BotonModoCoche } from '@/features/modo-coche/ModoCoche'
 import { useLlaveVoz } from '../lib/voz-cliente'
 import { MARCA_DESDE_MIC } from '@/features/primer-arranque/lib/llaves'
 import { BotonReintentar } from './BotonReintentar'
@@ -3763,6 +3764,13 @@ export function ChatPanel({ headerAction, onConsejo, liveMode = false, onLiveCon
                     <ArrowUp strokeWidth={2.5} aria-hidden />
                   </button>
                 ) : micConTurno ? null : microfono}
+                {/* Modo coche: hablar con el Orbe sin tocar el micrófono (features/modo-coche). Va fuera de detener/enviar,
+                    como el micrófono con la mejora: no se desmonta (ni se cierra el Orbe) cuando arranca un turno. Sin llave
+                    de voz no aparece: el Orbe transcribe por la misma ruta que el micrófono. */}
+                {!(EDICION_CLIENTE && llaveVoz !== true) && (
+                  <BotonModoCoche trabajando={turnoEnCurso} mensajes={messages}
+                    enviar={(t, nota) => { void handleSendRef.current(t, { context: nota }) }} />
+                )}
                 </div>
               </div>
             </div>

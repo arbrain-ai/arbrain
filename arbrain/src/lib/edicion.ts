@@ -100,6 +100,8 @@ export const APIS_CLIENTE = [
   // Dictado (21 oct 2026): con la llave de Groq del alumno, que vive solo en su daemon. «Escuchar» (v0.2.10): con su
   // llave de LemonFox, `/api/chat/tts` pide el audio a SU daemon; sin ella responde 503 y suena la mejor voz del sistema.
   '/api/chat/transcribe', '/api/chat/tts',
+  // Modo coche, voz al celular: el celular avisa que lo estás usando (solo una hora en la carpeta de configuración).
+  '/api/modo-coche/telefono-activo',
   // Adjuntos del chat (v0.2.6, un fundador: «el servidor la rechazó (código 404…)»): subir y leer, en la carpeta de datos de
   // la web y no en Supabase (lib/adjuntos-locales.ts). Ambas piden sesión.
   '/api/storage/upload', '/api/storage/adjunto',
