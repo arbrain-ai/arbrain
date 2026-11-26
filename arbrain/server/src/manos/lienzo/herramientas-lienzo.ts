@@ -24,6 +24,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { ClienteCasa } from '../adaptadores/casa.js'
+import { ruedaMedida } from '../scroll-medido.js'
 import { frenar } from '../freno.js'
 import type { ContextoAccion, PedidoActuar } from '../contrato.js'
 import type { SinkBitacora } from '../herramientas.js'
@@ -278,7 +279,8 @@ export async function ejecutarLienzo(nombre: string, args: any, cliente: () => C
       case 'rueda': {
         const { pedido: _p, confirmacion: _cf, ...resto } = a
         const { confirmacion: _c2, ...resto2 } = resto
-        const r = await c.llamar('rueda', resto2, 30_000)
+        // Fuera de navegadores se mide por accesibilidad (la comprobación por imagen fallaba en apps Catalyst).
+        const r = (await ruedaMedida(c, resto2).catch(() => null)) ?? await c.llamar('rueda', resto2, 30_000)
         const fallo = r.efecto === 'fallo'
         anotar({ accion: `rueda ${a.dx ?? 0},${a.dy ?? 0}`, resultado: fallo ? 'fallo' : 'ok', efecto: r.efecto, ...(r.via_scroll ? { detalle: `vía ${r.via_scroll}` } : {}) })
         const donde = r.punto ? `(${Math.round(r.punto.x)},${Math.round(r.punto.y)})` : `(${a.x},${a.y})`

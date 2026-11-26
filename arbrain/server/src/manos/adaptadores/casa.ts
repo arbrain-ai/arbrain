@@ -31,6 +31,7 @@ import { fileURLToPath } from 'node:url'
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { randomBytes } from 'node:crypto'
 import type { Adaptador, App, ContextoAccion, Elemento, Expectativa, Objetivo, Observacion, PedidoActuar, PedidoObservar, ResultadoAccion, ResultadoMedios, ResultadoVerificar, Ventana } from '../contrato.js'
+import { scrollEnActuar } from '../scroll-medido.js'
 
 /**
  * ArbrainManos.app empaquetada con la app del alumno: `<recursos>/manos/ArbrainManos.app`, al lado de
@@ -245,6 +246,10 @@ export class AdaptadorCasa implements Adaptador {
 
   async actuar(p: PedidoActuar): Promise<ResultadoAccion> {
     try {
+      // Scroll fuera de navegadores: medido por accesibilidad y, si la rueda por proceso no movió nada (apps Catalyst
+      // como WhatsApp, listas sin barra AX), rueda a la ventana por tramos. null = no aplica: el camino de siempre.
+      const scroll = await scrollEnActuar(this.cliente, this.objetivo(p), p, () => this.cliente.llamar('actuar', { ...this.objetivo(p), ...p, modo: this.modo }))
+      if (scroll) return scroll
       const r = await this.cliente.llamar('actuar', { ...this.objetivo(p), ...p, modo: this.modo })
       return { ok: !!r.ok, efecto: r.efecto ?? (r.ok ? 'sin_verificar' : 'fallo'), detalle: r.detalle }
     } catch (e) {
